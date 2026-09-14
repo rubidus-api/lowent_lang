@@ -109,15 +109,19 @@ struct 에 담을 수 없으므로, 라이브러리가 핸들 속에 권한을 �
   숨기지 않는다).
 - 파일시스템 **변경**(dir_make·path_remove·path_rename)은 상태 없는 경로→bool 리프라
   여기 감싸지 않는다(감싸면 순수 전달 = 동의어 금지 §2.5 위반). 프로그램이 직접 부른다.
-- 안 지은 것: `wait`(중단 가능 IO) · 소켓.
+- 안 지은 것: `wait`(중단 가능 IO). 소켓은 [`net`](net.md) 이 맡는다.
 
 ## 자료구조
 
 ```lowent
-export enum file_error
-  open_failed
-  close_failed
-end
+export enum file_error .
+  open_failed .
+  read_failed .
+  write_failed .
+  seek_failed .
+  close_failed .
+  buffer_too_small .
+end .
 
 rem 잊을 수 없는 파일 핸들. 스칼라만 담는다.
 export struct handle

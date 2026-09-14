@@ -10,8 +10,8 @@
 모든 op(함수·프로시저)은 자기가 하는 일을 **선언**해야 한다:
 
 ```lowent
-proc write_log input msg slice u8 . output unit . effects io .   do … end
-fn   add2     input a u64 .        output u64 . do … end
+proc write_log input out cap io . input msg slice u8 . output u64 . effects io . do … end
+fn   add2     input a u64 . output u64 . do … end        rem fn 은 effects 를 적지 않는다 — 언제나 none
 ```
 
 `effects none` 은 강한 약속이다: **아무 것도 건드리지 않는다.** 전역을 읽지도, 할당하지도,
@@ -24,10 +24,10 @@ fn   add2     input a u64 .        output u64 . do … end
 
 ### 멱집합 격자 — 2장의 격자가 여기서 다시
 
-효과는 **원자의 집합**이다. 지금 있는 원자(15개 어휘, 그중 여덟에 원시 연산이 있다):
+효과는 **원자의 집합**이다. 지금 있는 원자(`none` 과 원자 15개, 그중 아홉에 원시 연산이 있다):
 
 ```
-none  alloc  io  wait  lock  atomic  unsafe  device
+none  alloc  heap  io  wait  lock  atomic  unsafe  device
 page_fault  blocking  cancel  detach  panic  state  concurrent
 ```
 
@@ -62,12 +62,12 @@ page_fault  blocking  cancel  detach  panic  state  concurrent
 
 ## ③ 규칙과 그 뜻
 
-효과 쪽에는 Coq 기계 증명이 **없다**(정직하게 — ⑥ 참조). 대신 컴파일러가 실제로 **강제하는
-규칙**이 있고, 그 규칙들이 무엇을 보장하는지는 명확하다.
+효과 쪽에도 기계 증명이 **생겼다**(`LowentEffect.v` — 아래 ⑥). 먼저 컴파일러가 실제로 **강제하는
+규칙**을 보고, 그 규칙들이 무엇을 보장하는지 본다.
 
 ### 규칙 1 — 전파: 선언은 실제보다 작을 수 없다
 
-> `f` 가 `g` 를 부르면 `effects(f) ⊇ effects(g)` 여야 한다. 아니면 **`E-EFFECT-NO`**.
+> `f` 가 `g` 를 부르면 `effects(f) ⊇ effects(g)` 여야 한다. 아니면 **`E-EFFECT`**(`fn` 이면 `E-EFFECT-CALC`).
 
 **막는 버그**: `effects none` 이라 적힌 op 이 몰래 파일을 쓰는 것. 그 op 을 최적화기가 재정렬
 하거나 지워도 된다고 믿으면 **관측 가능한 동작이 사라진다**.
@@ -123,10 +123,12 @@ index 의 위험      →  requires lt i (len s) 로 **없앨 수 있다**  (05�
 효과가 *"무슨 종류의 일을 하나"* 라면, 능력은 *"그 일을 할 **권한**을 어디서 받았나"* 다.
 
 ```lowent
-proc main input c cap console . … do  print c "hi" .  end
+proc main input out cap io . output u8 . effects io . do
+  return narrow u8 (write_out out 1 "hi\n") .
+end
 ```
 
-`cap console` 을 **인자로 받아야** 화면에 쓸 수 있다. 아무 데서나 전역으로 꺼내 쓰지 못한다.
+`cap io` 를 **인자로 받아야** 화면에 쓸 수 있다. 아무 데서나 전역으로 꺼내 쓰지 못한다.
 이것이 객체-능력(object-capability) 모형이고, 두 가지를 준다:
 
 1. **감쇠(attenuation)** — 받은 능력을 좁혀서 넘길 수 있다(읽기 전용 파일 능력 등).
@@ -152,13 +154,14 @@ proc main input c cap console . … do  print c "hi" .  end
 
 ```lowent
 rem ① 순수하다고 선언하고 일을 한다
-fn f input a u64 . output u64 . do
-  return call write_log a .        rem ✘ E-EFFECT-NO: write_log 는 io 다
+fn f input out cap io . input a slice u8 . output u64 . do
+  return write_log out a .         rem ✘ E-EFFECT-CALC: write_log 는 io 다
 end
 
 rem ② 순수 함수가 남의 버퍼를 고친다
-fn g input b mut slice u8 . output unit . do
+fn g input b mut slice u8 . . output u64 . do
   set (index b 0) 1 .              rem ✘ E-EFFECT-PURITY
+  return 0 .
 end
 
 rem ③ 없는 원자를 선언한다

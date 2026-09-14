@@ -198,8 +198,8 @@ struct point
 end
 
 enum color
-  red
-  green
+  red .
+  green .
 end")
     #para("4")[
       struct 값은 `make` 로 만든다. 만들 때 **모든 칸을 채워야** 한다.

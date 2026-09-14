@@ -8,9 +8,9 @@
 > 하면 두 벌이 생기고, 두 벌은 갈린다.
 >
 > ☞ 왜 있나(REQ-0005): 주 사용자가 AI 인데 SPEC+RFC 가 한 번에 안 읽히면 **그 자체가
-> 의미 엔트로피**다(`PRINCIPLES.md` §0 — 소스 밖에서 가져와야 하는 정보의 양).
+> 의미 엔트로피**다(설계 원칙 §0 — 소스 밖에서 가져와야 하는 정보의 양).
 
-## 0. 한 문장  ·  *출처: `PRINCIPLES.md` §0*
+## 0. 한 문장  ·  *출처: 설계 원칙 §0*
 
 > Lowent는 계약을 가진 op들이 명시적 region·slice·stack 위에서 조합되고, 모든 비용이 가시적이며, effect가 profile을 게이팅하고, 의미가 내용주소화 정규형으로 식별되어 AI가 symbol 단위로 작업하는 — **날렵한 단일-패러다임 시스템 언어**다. 정체성 4축: **날렵함(zero-cost·군살 0)·이식성·정교함(계약·비용 가시)·하드웨어 현실성**(실제 CPU/MCU/임베디드 구조 적합). Rust보다 단순·Zig보다 안전, 고유각=*계약+비용 가시*. 멀티패러다임·상속 OO·C++식 중복은 거부. (방향: RFC-0037)
 
@@ -20,7 +20,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 계약은 기본 개념이되 release 비용은 선택 가능하다.
 ```
 
-## 1. 원칙  ·  *출처: `PRINCIPLES.md` §1*
+## 1. 원칙  ·  *출처: 설계 원칙 §1*
 
 | # | 원칙 | 뜻(첫 문장만) |
 |---|---|---|
@@ -33,7 +33,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 
 ☞ 새 기능의 시금석: *"이게 이 원칙들의 귀결인가, 새 축인가?"* 새 축이면 뺀다.
 
-## 2. 어휘 — 하드 키워드 **43**  ·  *출처: SPEC-002 · 게이트 `check-vocab.py`*
+## 2. 어휘 — 하드 키워드 **43**  ·  *출처: 정본 §6.1 · 부록 A*
 
 ```text
   actor         be            break         case          continue      contract      do            drop          else          end
@@ -43,7 +43,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   use           var           while
 ```
 
-## 3. 빌트인 op **188**  ·  *출처: `impl/src/low_arity.h` · 게이트 `check-builtins.py`*
+## 3. 빌트인 op **188**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
 
 ★ 외워야 하는 것은 키워드 수가 아니라 **키워드 + op** 이다. 그래서 둘 다 센다.
 
@@ -74,7 +74,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   wrap_sub        write_out       write_volatile  zip
 ```
 
-## 4. effect atom **15**  ·  *출처: SPEC-006 §1*
+## 4. effect atom **15**  ·  *출처: 정본 §7.1*
 
 전파 = 합집합 · 게이팅 = ⊆. 바닥은 `none`(=∅).
 
@@ -82,7 +82,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   alloc  heap  io  wait  concurrent  lock  atomic  state  panic  device  unsafe  page_fault  blocking  cancel  detach
 ```
 
-## 5. 권한(capability)·프로파일  ·  *출처: SPEC-010 · SPEC-012*
+## 5. 권한(capability)·프로파일  ·  *출처: 정본 §7.2 · §5.6*
 
 권한은 **건네받는 값**이지 어디선가 꺼내 오는 것이 아니다(RFC-0030 D2).
 

@@ -19,7 +19,7 @@
   절이 없으면 좁히지 않은 것이므로, `proc` 에는 적는 편이 낫다.
 
 앞에 수식어를 붙일 수 있다: `export`(C 에서 부를 수 있게 내보냄), `unsafe`, `extern`(구현이 C
-쪽에 있음), `local`.
+쪽에 있음).
 
 기본 꼴:
 
@@ -106,8 +106,8 @@ do
 end
 ```
 
-상수 인자면 계약은 **컴파일 때** 검사된다. 예컨대 `clamped 250` 은 실행 전에 거절된다
-(`E-VM-CONTRACT: requires violated at entry`). `requires static …`(정적으로 증명 가능해야
+상수 인자면 계약은 **컴파일 때** 검사된다. 예컨대 `clamped 250` 은 `--check` 에서 거절되고
+(`E-CONTRACT-IMPOSSIBLE`), 그래도 실행하면 진입에서 멈춘다(`E-VM-CONTRACT: requires violated at entry`). `requires static …`(정적으로 증명 가능해야
 함), `requires assume …`(증명 없이 가정) 변형도 있다.
 
 ## `cap` — 능력
@@ -120,8 +120,13 @@ Lowent 에는 **주변 권한이 없다.** 무언가를 할 힘(출력, 할당, 
 | `cap io` | 입출력 — `write_out`/표준입력 |
 | `cap args` | 프로그램 인자 — `arg a 0` |
 | `cap env` | 환경 변수 |
-| `cap allocator` | 힙 할당 |
+| `cap allocator` | **고정 창**에서 깎아 쓰는 할당(자라지 않는다 — 운영체제 없는 기계에서도 된다) |
+| `cap heap` | **자라는 뿌리**(힙)에서 받는 할당 — 운영체제가 있는 기계에서만 |
 | `cap file_system` | 파일 시스템 |
+| `cap net` | 소켓 |
+| `cap clock` | 시계(시각·마감) |
+| `cap random` | 운영체제 엔트로피 |
+| `cap tty` | 터미널(raw 모드·키 읽기) |
 | `cap atomic` | 원자적 연산 |
 | `cap mmio` | 메모리 사상 I/O 레지스터 |
 | `cap machine` | 인라인 어셈블리 |
@@ -136,7 +141,8 @@ proc main input out cap io . input a cap args . output u8 . effects io . do
 end
 ```
 
-능력이 없으면 그 힘을 쓸 수 없다 — 검사기가 `E-CAP-…` 로 막는다.
+능력이 없으면 그 힘을 쓸 수 없다 — 검사기가 `E-CAP-…` 로 막는다. 받아 두기만 하고 쓰는 자리에
+건네지 않아도 거절된다(`E-CAP-MISSING`) — `write_out out 1 …` 처럼 **첫 피연산자로 적는다.**
 
 ## `effect` — 효과
 
@@ -144,11 +150,11 @@ op 이 세상에 어떤 자국을 남기는지 `effects <효과들> .` 로 **선
 있다**(오타를 조용히 `none` 으로 처리하지 않고 거절한다):
 
 ```
-none  alloc  io  wait  lock  atomic  unsafe  device
+none  alloc  heap  io  wait  lock  atomic  unsafe  device
 page_fault  blocking  cancel  detach  panic  state  concurrent
 ```
 
-이 중 일부(`io concurrent alloc state panic unsafe atomic`)는 강제하는 실물 기본연산이 이미
+이 중 일부(`io concurrent alloc heap state panic unsafe atomic`)는 강제하는 실물 기본연산이 이미
 있고, 나머지는 선언으로 받아들이되 아직 기계적으로 강제하지는 않는다.
 
 효과는 **호출을 따라 전파된다.** 순수한 `fn`(효과 `none`)이 `io` 를 내는 `proc` 을

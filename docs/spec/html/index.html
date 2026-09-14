@@ -395,8 +395,8 @@ struct point
 end
 
 enum color
-  red
-  green
+  red .
+  green .
 end</code></pre></div><p class="para" id="p4"><span class="pno">4</span> struct 값은 <code>make</code> 로 만든다. 만들 때 <strong></strong>모든 칸을 채워야<strong></strong> 한다.</p><p class="para" id="p5"><span class="pno">5</span> 칸을 읽을 때는 값 뒤에 점과 칸 이름을 붙인다.</p><div class="ex"><b>예제 (example) — struct 를 만들고 읽는다</b><pre><code>module ex_make .
 
 struct point
@@ -1381,7 +1381,7 @@ use                 use &lt;이름> from "&lt;경로>" [as &lt;별칭>] .       
 type                type &lt;이름> be &lt;타입> .                            .
 newtype             newtype &lt;이름> be &lt;타입> .                         .
 struct              struct &lt;이름> &lt;칸>* end   (칸 = &lt;이름> &lt;타입> .)    end
-enum                enum &lt;이름> &lt;갈래>* end   (갈래 = 이름 하나, 점 없음) end
+enum                enum &lt;이름> &lt;갈래>* end   (갈래 = &lt;이름> [&lt;칸>*] .)   end
 fn / proc           [꾸밈]* fn &lt;이름> &lt;절>* do &lt;폼>* end                end
 test                test &lt;이름> do &lt;폼>* end                           end
 expect              expect &lt;조건> .           (시험 블록의 단언)         .

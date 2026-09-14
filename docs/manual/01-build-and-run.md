@@ -19,7 +19,6 @@ make             # 디버그 빌드 → build/lowentc
 | `make asan` | AddressSanitizer/UBSan 빌드 |
 | `make dist` | `-O2 -DNDEBUG` **정적** 빌드 → `dist/lowent-linux-x64/{bin/lowentc,std/,keys/official/}` (glibc 버전 무관·폴더째 이동 가능) |
 | `make test` | 단위 테스트 실행 |
-| `make golden` | 골든 회귀 스위트(`sh tests/golden.sh`) 실행 |
 
 `lowentc` 에는 **기본 모드가 없다** — 무엇을 할지 반드시 하나 고른다. 자주 쓰는 모드:
 

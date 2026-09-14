@@ -13,9 +13,9 @@
 ```lowent
 rem ✓ enum 변형을 가른다. `_` 는 나머지를 전부 덮는 catch-all.
 enum color
-  red
-  green
-  blue
+  red .                                  rem 갈래마다 점으로 닫는다 — 없으면 셋이 한 갈래로 이어진다
+  green .
+  blue .
 end
 fn name input c color . output u8 . do
   match c do

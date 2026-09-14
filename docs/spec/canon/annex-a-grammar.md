@@ -201,7 +201,7 @@ use                 use <이름> from "<경로>" [as <별칭>] .              .
 type                type <이름> be <타입> .                            .
 newtype             newtype <이름> be <타입> .                         .
 struct              struct <이름> <칸>* end   (칸 = <이름> <타입> .)    end
-enum                enum <이름> <갈래>* end   (갈래 = 이름 하나, 점 없음) end
+enum                enum <이름> <갈래>* end   (갈래 = <이름> [<칸>*] .)   end
 fn / proc           [꾸밈]* fn <이름> <절>* do <폼>* end                end
 test                test <이름> do <폼>* end                           end
 expect              expect <조건> .           (시험 블록의 단언)         .

@@ -233,7 +233,7 @@ end
 ### ③ 화면 크기에 맞춰 그리기
 
 ```lowent
-let sz option u64 . be tty_size .
+let sz option u64 . be tty_size t .          rem t = 이 op 이 받은 cap tty
 guard is_some sz . else return 1 .
 let rows u64 be div (some_value sz) 4294967296 .
 let cols u64 be mod (some_value sz) 4294967296 .
@@ -246,9 +246,9 @@ rem 이제 term.fit_width 로 각 행을 cols 칸에 맞춘다.
 
 ```lowent
 rem ✘ 중간에서 나가면 셸이 망가진 채 남는다
-guard tty_raw true . else return 1 .
+guard tty_raw t true . else return 1 .
 guard something . else return 2 .        rem ← 여기서 나가면 복귀가 없다
-let r bool be tty_raw false .
+let r bool be tty_raw t false .
 ```
 
 나가는 길마다 `tty_raw false` 를 넣거나, 실패할 수 있는 부분을 **raw 진입 전에** 끝낸다.

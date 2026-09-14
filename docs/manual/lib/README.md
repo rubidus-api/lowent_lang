@@ -1,6 +1,6 @@
 # 표준 라이브러리 매뉴얼
 
-`lib/` 의 스물여섯 모듈을 하나씩 다룬다. 각 문서는 같은 순서로 아홉 절이다:
+`lib/` 의 표준 모듈을 하나씩 다룬다. 각 문서는 같은 순서로 아홉 절이다:
 **왜 있는가 · 설계 의도와 경계 · 자료구조 · op 한눈에 · op 상세 · 사용법과 예제 · 반례 · 주의사항**.
 
 ## 모듈 이름은 파일 이름이 아니다
@@ -75,7 +75,7 @@ tlssrv                              ← 핸드셰이크 전부(전송만 아직)
 
 | 모듈 | 한 줄 |
 |---|---|
-| [allocs](allocs.md) | 빌린 바이트를 잘라 주는 범프 얼로케이터 |
+| [allocs](allocs.md) | 얼로케이터 trait 과 범프 얼로케이터 · 기본 얼로케이터 둘(고정 창 `fixed_bytes` · 힙 `heap_bytes`) |
 | [pool](pool.md) | 세대 핸들 블록 풀 |
 | [shard](shard.md) | 저장소를 쪼개는 접근 단위(서로소 토큰) |
 | [budget](budget.md) | 핸들 bit 예산과 wrap 정책 |
@@ -86,8 +86,11 @@ tlssrv                              ← 핸드셰이크 전부(전송만 아직)
 | [growvec](growvec.md) | 자가성장 바이트 벡터 — `vecgen.vec u8` 의 별칭(짧은 이름) |
 | [vecgen](vecgen.md) | **제네릭** 자가성장 벡터 `vec t` — 한 틀에서 `vec u32`·`vec u8`·`vec pt` 가 나온다 |
 | [mapgen](mapgen.md) | **제네릭** 해시맵 `table k v` — 타입 파라미터 둘, 스스로 다시 뿌린다 |
+| [nodelist](nodelist.md) | 고정 intrusive 목록 |
+| [segview](segview.md) | 조각 뷰의 커서·총길이·펴기 |
+| [lifemode](lifemode.md) | `lifemode` · `lifeatom` — 값이 언제 끝나는가 |
 
-**L2 — 호스트(능력이 필요하다 — `cap io` · `cap file_system`)**
+**L2 — 호스트(능력이 필요하다 — `cap io` · `cap file_system` · `cap tty` · `cap net` · `cap clock`)**
 
 | 모듈 | 한 줄 |
 |---|---|

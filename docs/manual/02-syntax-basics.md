@@ -4,7 +4,7 @@
 
 ## 주석
 
-세 가지가 있다:
+두 가지가 있다:
 
 ```lowent
 rem 여기부터 줄 끝까지가 줄 주석이다.
@@ -89,13 +89,13 @@ end
 - op: `fn proc export unsafe extern`
 - 지역·흐름: `let var set return if else for while guard match case try break continue expr`
 - 값: `make true false none be`
-- 동시성·기타: `spawn send drop await test expect satisfies do end`
+- 동시성·기타: `spawn send drop test expect satisfies do end`
 
 ☞ **낱말이 아닌데 낱말처럼 보이는 것 둘**: `neg`(단항 부호 반전)은 **내장 op** 이고
   ([3장](03-ops.md)), `range`(범위 타입)는 **타입 생성자**다([8장](08-types.md)).
   키워드 43 개에 안 들어가지만 도구는 둘 다 안다.
 
-옛 낱말 일부(`fn as in to loop …`)는 **삭제**되어 `E-VOCAB-REMOVED` 로 거절된다 — 사라진
+옛 낱말 일부(`calcop procop local as in to loop give …`)는 **삭제**되어 `E-VOCAB-REMOVED` 로 거절된다 — 사라진
 것을 조용히 받아주지 않는다.
 
 ---

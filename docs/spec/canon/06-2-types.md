@@ -183,8 +183,8 @@ struct point
 end
 
 enum color
-  red
-  green
+  red .
+  green .
 end
 ```
 

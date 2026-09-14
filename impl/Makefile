@@ -104,7 +104,7 @@ test: $(TESTBIN)
 	./$(TESTBIN)
 
 golden: all
-	@sh tests/golden.sh
+	@if [ -f tests/golden.sh ]; then sh tests/golden.sh; else echo "golden: 골든 스위트는 개발 저장소에 있다 — 공개본은 \`make test\` 로 단위 시험을 돈다"; fi
 
 clean:
 	rm -rf $(BUILD)

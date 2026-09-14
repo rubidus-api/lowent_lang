@@ -35,6 +35,8 @@
 /docs/example/cross-build.md
 /docs/example/reactor.md
 /docs/example/representations.md
+/docs/example/build-manifest.md
+/docs/example/build-scale.md
 
 # build output
 build/

@@ -18,25 +18,22 @@ lex → point-closure CST → arity normalisation (the TREE) → monomorphisatio
     → ① a VM that runs it        ② a C back end that emits native code
 ```
 
-★★★ **Two back ends are an ORACLE.** `scripts/diff-sweep.py` runs **706 ops** on both,
+★★★ **Two back ends are an ORACLE.** A differential sweep runs **every reachable op** on both,
 with randomised boundary arguments, and compares byte for byte. A disagreement is a
 **compiler bug**, not a test failure. (It has caught: a `try` that leaked the call-depth
 ledger, a fast path that dropped a contract check, a bitset lowered as an integer add.)
 
-| | measured |
+| | measured 2026-09-14 |
 |---|---|
-| golden checks | **STATUS.md 가 센다**(`golden_checks`) — `sh tests/golden.sh </dev/null` |
-| unit tests | **ALL PASS (0 failures)** · **450** passing checks (`make test | grep -c '[PASS]'`) |
-| keywords | **43** (closed vocabulary — `scripts/check-vocab.py`) |
-| builtin ops | **170** (closed — `scripts/check-builtins.py` compares the tool against SPEC appendix P) |
-| typed lowering | ☞ **not re-counted** — the old figure (306/353) cannot be reproduced: `--why-slow` gives 467/648 over `tests/*.low` and 583/859 with `prog/`, so the denominator never matched. A number nobody can re-derive is not a measurement; `--why-slow` still says, per op, why an op is not lowered |
-| differential sweep | **1,434 ops · 11,400 argument vectors**, 0 divergences (`python3 ../scripts/diff-sweep.py` — 재측정 2026-08-13; 픽스처 단위 병렬로 6분 20초 → 1분 45초) |
-| fixtures | **211** (`find tests -name '*.low' | wc -l`; repo-wide `.low` is **239**) |
-| source | **32,673** lines C23 (`find impl/src -name '*.[ch]' | xargs wc -l`) — 문서(SPEC+RFC)는 **34,153** 줄(`cat SPEC-*.md docs/rfc/*.md | wc -l`)로 **여전히 코드보다 많다** |
+| unit tests | **ALL PASS (0 failures)** · **454** passing checks (`make test \| grep -c '[PASS]'`) |
+| keywords | **43** (closed vocabulary — canon §6.1, annex A) |
+| builtin ops | **188** (closed — `src/low_arity.h`, canon annex D) |
+| differential sweep | **2,323 ops · 18,528 argument vectors**, 0 divergences (development tooling) |
+| fixtures | **334** (`find tests -name '*.low' \| wc -l`) |
+| source | **46,768** lines C23 (`find src -name '*.[ch]' \| xargs cat \| wc -l`) |
 
-> 이 표는 **2026-08-02 재측정**이다. 여러 줄이 오래 낡아 있었다(픽스처 194→211 · 소스
-> 27,895→32,673 · 차등 스윕 706 ops→1,014). `scripts/check-docs-fresh.py` 는 골든·키워드 수만
-> 실측과 대조하므로 **나머지는 아무도 안 지킨다** — 그래서 각 줄에 **다시 세는 명령**을 적어 둔다.
+> The golden regression suite and the sweep live in the development repository; this public tree carries the
+> compiler, its unit tests and the fixtures. Numbers here are a snapshot — re-count with the command beside each.
 
 **Typed lowering — RFC-0109 단계 1** (2026-09-03, WO-0178): 빠른 경로 안의 슬라이스는 **원소 단위**다 — 파라미터 슬롯이 처음부터 원소 폭이고 같은 폭의 `view.array` 는 항등(방출 0). 바이트→원소 검사는 태그 어댑터 경계에서만 난다. 대조 스위치 `--no-elemsl`. 수는 `docs/bench/emit-path.md` §②′(churn 103 → 88.5 ns, 명령 −15 %).
 

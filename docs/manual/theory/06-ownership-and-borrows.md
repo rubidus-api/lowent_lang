@@ -171,8 +171,8 @@ place = 밑바탕 :: 필드들
 
 정리 A 의 이벤트 언어에는 **호출이 없었다.** 그래서 이 패턴이 모델 밖에 있었다:
 
-```lowent
-let r  be borrow x .   rem 차용 t1
+```text
+let r  be borrow x .   rem 차용 t1  (모형의 사건을 적은 의사 코드)
 let r2 be call f r .   rem ★ op 이 인자 차용을 "세탁해" 참조를 돌려준다
 set x 1 .              rem 소유자 쓰기 — t1 이 죽는다
 … r2 를 쓴다 …          rem ⚡ r2 는 사실 t1 과 **같은 차용**이다

@@ -5,7 +5,7 @@ description: >
   language whose primary author is an AI agent. Load this when a task asks you to
   read or write `.low` code, run `lowentc`, interpret its diagnostics, or generate
   a module's machine-readable API index. Triggers on: ".low", "lowent", "lowentc",
-  "calcop", "procop", "--diag-json", "--emit-c".
+  "fn", "proc", "--diag-json", "--emit-c".
 ---
 
 # Lowent
@@ -16,8 +16,9 @@ requires, what it ensures, which effects it has, and which capabilities it needs
 the compiler checks all of it. The primary author is an agent, so the toolchain is
 built to be read by a program, not only a human.
 
-**This skill is the how-to. The normative truth is the SPEC.** When this file and
-`SPEC-0NN-*.md` disagree, the SPEC wins — tell the user, don't paper over it.
+**This skill is the how-to. The normative truth is the standard** — the clause canon
+`docs/spec/canon/*.md`. When this file and the canon disagree, the canon wins — tell the user,
+don't paper over it.
 
 ## The one rule that saves you time
 
@@ -32,12 +33,14 @@ diagnostic is one JSON line on **stderr**, and the verdict is one more line:
 
 ```
 $ lowentc --check --diag-json prog.low
-{"sev":"error","phase":"lex","code":"E-CHAR","line":3,"col":19,"msg":"unexpected character"}
+{"rule":"E-CHAR","sev":"error","phase":"lex","span":{"line":3,"col":12},"relation":"violates","msg":"unexpected character"}
 {"result":"violations","exit":1}
 ```
 
-- `code` is **stable** (`E-EFFECT-NO-CAP`, `E-VM-BOUNDS`, `E-CHAR`, …) — branch on it,
+- `rule` is the **stable** code (`E-EFFECT-NO-CAP`, `E-VM-BOUNDS`, `E-CHAR`, …) — branch on it,
   never on `msg`. `msg` is a human convenience and its wording is not a contract.
+- `repair`, when present, is a stable **repair id** (`R-ADD-CAP`, `R-DROP-EFFECT`, …) — the kind
+  of fix the code determines. No `repair` means the fix depends on intent.
 - `phase` is the pass that spoke (`lex`, `parse`, `check`, `ir`, …).
 - The `{"result":…,"exit":…}` line means: don't scrape the prose verdict.
 - Without `--diag-json` the same information is printed as `== phase (N) ==` headers
@@ -91,20 +94,20 @@ the `llms.txt` — that is the intended handoff.
 ```lowent
 module sorted_search .
 
-rem  line comment. block comment is:  note END … END
+rem  line comment. block comment is:  note END ... END
 
-calcop sorted                     rem  calcop = pure (no effects). procop = effectful.
-  input xs slice u32 . .
+fn sorted                         rem  fn = pure (never write `effects`). proc = effectful.
+  input xs slice u8 . .
   output bool .
   requires ge (len xs) 1 .        rem  contract flows into the caller
-  effects none .
 do
-  var i usize be 1 .
+  var i u64 be 1 .
   while lt i (len xs) . do
-    return false .
+    guard le (index xs (sub i 1)) (index xs i) . else return false .
+    set i (add i 1) .
   end
   return true .
-end
+end .
 ```
 
 Shape rules you will hit immediately:
@@ -112,14 +115,21 @@ Shape rules you will hit immediately:
   a readability/rendering layer, not required by the grammar.
 - **Single-word identifiers.** No multi-word names; snake_case by convention
   (`mut_ref`, `file_system`).
-- **`.` is the terminator** — it ends declarations, clauses, and statements. The only
-  other role of `.` is the decimal point inside a number.
+- **`.` is the terminator** — it ends declarations, clauses, statements, and each enum
+  variant. A newline is just whitespace: it never closes anything. Glued, `.` also qualifies
+  a name (`vecgen.open`, `err.too_short`); there is no `p.x` field access — write `field p x`.
+- **Clauses have one order**: capability/region inputs before data inputs, then `output`,
+  `effects`, `requires`, `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`; `--fmt` moves the
+  non-input clauses).
+- **Capabilities are named at the use site**: a host leaf takes its capability as the first
+  operand (`write_out out 1 s`, `alloc_bytes al capacity n`); holding it is not enough
+  (`E-CAP-MISSING`).
 - **Infix arithmetic only inside `expr`** (`+ - * /`); everywhere else it is prefix
   (`add sub mul div mod`). Comparisons/logic are always prefix words
   (`eq ne lt le gt ge and or not`).
-- `calcop` promises **no effects**; a `calcop` that does IO is `E-EFFECT-CALC`.
-  Effectful work is `procop` with a declared `effects …` set and the capabilities it
-  needs.
+- `fn` promises **no effects**; an `fn` that does IO is `E-EFFECT-CALC`, and writing
+  `effects none` on an `fn` is `E-EFFECT-REDUNDANT`. Effectful work is `proc` with a declared
+  `effects …` set and the capabilities it needs.
 
 ## When something won't build
 
@@ -133,5 +143,5 @@ Shape rules you will hit immediately:
 
 - Don't parse `msg`. Branch on `code`.
 - Don't expect a default mode.
-- Don't treat this skill as normative. If it drifts from the SPEC, the SPEC is right —
+- Don't treat this skill as normative. If it drifts from the canon, the canon is right —
   say so.

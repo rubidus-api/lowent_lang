@@ -1846,7 +1846,7 @@ int main(void) {
                             fprintf(stderr, "\nfuzz SOUNDNESS violation, seed %d:\n%s\n", seed, g.buf);
                             for (proven_size_t di = 0; di < ir.diags.len; di++) {
                                 const low_diag_t *d = PROVEN_ARRAY_GET(&ir.diags, low_diag_t, di);
-                                fprintf(stderr, "  %s: %s\n", d->code, d->msg);
+                                fprintf(stderr, "  %s: %s\n", d->code, low_diag_text(d));
                             }
                         }
                     }

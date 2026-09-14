@@ -152,12 +152,13 @@ static const char *sev_name(low_severity_t s) {
 //     아는 자리는 하강 이유와 방출 자격뿐이고, 나머지에 대해 산문을 쪼개 지어내면 그것은
 //     구조가 아니라 **꾸며낸 구조**다. 아는 자리에만 적고, 모르는 자리는 비운다.
 static void expl_json(const char *rule, const char *sev, const char *phase,
-                      unsigned line, unsigned col, const char *promise,
+                      const char *file, unsigned line, unsigned col, const char *promise,
                       const char *fact, const char *relation, const char *msg,
                       const char *repair) {
     fputs("{\"rule\":", stderr);        json_str(stderr, rule ? rule : "");
     fputs(",\"sev\":", stderr);         json_str(stderr, sev);
     fputs(",\"phase\":", stderr);       json_str(stderr, phase);
+    if (file) { fputs(",\"file\":", stderr); json_str(stderr, file); }   // ★ 2026-09-14 — 파일을 아는 진단은 파일도 싣는다
     fprintf(stderr, ",\"span\":{\"line\":%u,\"col\":%u}", line, col);
     if (promise) { fputs(",\"promise\":", stderr); json_str(stderr, promise); }
     if (fact)    { fputs(",\"fact\":", stderr);    json_str(stderr, fact); }
@@ -186,8 +187,8 @@ static void dump_diags(const char *what, const proven_array_t *diags) {
             // ★ 규칙을 어긴 것이 진단이다 — relation 은 언제나 `violates`.
             // ★ 수리는 **한 곳에서** 온다: 방출 자리가 채웠으면 그것, 아니면 레지스트리.
             //   (`low_repair.c` — 코드가 수리를 결정하는 자리만 표에 있다.)
-            expl_json(d->code, sev_name(d->sev), phase, d->line, d->col,
-                      NULL, NULL, "violates", d->msg,
+            expl_json(d->code, sev_name(d->sev), phase, d->file, d->line, d->col,
+                      NULL, NULL, "violates", low_diag_text(d),
                       d->repair ? d->repair : low_repair_for(d->code));
         }
         return;
@@ -198,8 +199,8 @@ static void dump_diags(const char *what, const proven_array_t *diags) {
         // ★ 파일을 아는 진단은 **파일부터** 말한다 — 한 단위가 여러 파일이고 줄은 파일마다
         //   1 부터 다시 시작하기 때문이다(단계 V). 모르면 여태처럼 줄만 말한다: **없는 것을
         //   지어내지 않는다.**
-        if (d->file) fprintf(stderr, "  %s:%u:%u %s: %s\n", d->file, d->line, d->col, d->code, d->msg);
-        else         fprintf(stderr, "  %u:%u %s: %s\n", d->line, d->col, d->code, d->msg);
+        if (d->file) fprintf(stderr, "  %s:%u:%u %s: %s\n", d->file, d->line, d->col, d->code, low_diag_text(d));
+        else         fprintf(stderr, "  %u:%u %s: %s\n", d->line, d->col, d->code, low_diag_text(d));
     }
 }
 
@@ -1818,7 +1819,7 @@ int main(int argc, char **argv) {
                         char nm[128]; proven_size_t z = ir.defs[q].name.size;
                         if (z >= sizeof nm) z = sizeof nm - 1;
                         memcpy(nm, ir.defs[q].name.ptr, z); nm[z] = '\0';
-                        expl_json("W-EXPORT-NOSYM", "warning", "emit-h", 0, 0,
+                        expl_json("W-EXPORT-NOSYM", "warning", "emit-h", NULL, 0, 0,
                                   "`export` means C can call this op: the object defines that symbol",
                                   pl->why, "absent", nm, NULL);
                     }
@@ -1842,7 +1843,7 @@ int main(int argc, char **argv) {
                         char nm[128]; proven_size_t n = ir.defs[q].name.size;
                         if (n >= sizeof nm) n = sizeof nm - 1;
                         memcpy(nm, ir.defs[q].name.ptr, n); nm[n] = '\0';
-                        expl_json("W-CBE-SLOW", "note", "lower", 0, 0,
+                        expl_json("W-CBE-SLOW", "note", "lower", NULL, 0, 0,
                                   "this op lowers to the fast path (natural C: no tag, no box, no 12KB frame)",
                                   w, "unmet", nm, NULL);
                     } else

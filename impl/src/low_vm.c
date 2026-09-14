@@ -4057,7 +4057,7 @@ low_ir_test_result_t low_ir_run_tests(const low_ir_t *ir, proven_allocator_t wor
                     (void)low_ir_run(ir, d->name, NULL, 0, work, &dg);
                     for (proven_size_t k = 0; k < dg.len; k++) {
                         const low_diag_t *g = (const low_diag_t *)proven_array_get(&dg, k);
-                        printf("\n         %s: %s", g->code, g->msg);
+                        printf("\n         %s: %s", g->code, low_diag_text(g));
                     }
                     proven_array_destroy(&dg);
                 }
@@ -4075,7 +4075,7 @@ low_ir_test_result_t low_ir_run_tests(const low_ir_t *ir, proven_allocator_t wor
             if (!ok) {
                 for (proven_size_t k = 0; k < diags.len; k++) {
                     const low_diag_t *dg = (const low_diag_t *)proven_array_get(&diags, k);
-                    printf("\n         %s: %s", dg->code, dg->msg);
+                    printf("\n         %s: %s", dg->code, low_diag_text(dg));
                 }
             }
             printf("\n");

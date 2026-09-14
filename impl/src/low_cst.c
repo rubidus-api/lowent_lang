@@ -1150,7 +1150,7 @@ void low_cst_dump(const low_parse_result_t *pr) {
         printf("== parse diagnostics (%zu) ==\n", (size_t)pr->diags.len);
         for (proven_size_t i = 0; i < pr->diags.len; i++) {
             const low_diag_t *d = PROVEN_ARRAY_GET(&pr->diags, low_diag_t, i);
-            printf("  %u:%u %s: %s\n", d->line, d->col, d->code, d->msg);
+            printf("  %u:%u %s: %s\n", d->line, d->col, d->code, low_diag_text(d));
         }
     }
 }

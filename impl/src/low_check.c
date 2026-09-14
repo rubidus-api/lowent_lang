@@ -720,8 +720,11 @@ static bool ck_handler_writes_state(const low_cst_t *nd, const low_cst_t *actor_
     return false;
 }
 
+// ★ 2026-09-14 — 지금 검사 중인 최상위 폼. 노드를 모르는 `emit()` 도 그 줄이 이 폼 안이면 **파일을 싣는다**.
+static const low_cst_t *ck_cur_form;
 static void emit(low_check_result_t *out, const char *code, const char *msg, proven_u32 line) {
-    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0 };
+    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0,
+                     .file = low_cst_file_for_line(ck_cur_form, line) };
     (void)proven_array_push(&out->diags, &d);
     out->ok = false;
 }
@@ -741,7 +744,7 @@ static void emit_at(low_check_result_t *out, const char *code, const char *msg,
 static void emit_r(low_check_result_t *out, const char *code, const char *msg,
                    const char *repair, proven_u32 line) {
     low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0,
-                     .repair = repair };
+                     .repair = repair, .file = low_cst_file_for_line(ck_cur_form, line) };
     (void)proven_array_push(&out->diags, &d);
     out->ok = false;
 }
@@ -1647,7 +1650,7 @@ static proven_size_t ck_trait_params(const low_cst_t *head, const low_cst_t *con
 // ★ 이 이름이 **선언된 타입**인가 (struct · enum · type). `Type.op` 의 앞마디가 그것이어야 한다.
 static bool ck_is_type_name(const low_parse_result_t *pr, proven_u8str_view_t name) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_STRUCT && kw != LOW_KW_ENUM && kw != LOW_KW_TYPE && kw != LOW_KW_NEWTYPE && kw != LOW_KW_ACTOR) continue;
@@ -1659,7 +1662,7 @@ static bool ck_is_type_name(const low_parse_result_t *pr, proven_u8str_view_t na
 // ★ 이름이 **집합(struct/enum)** 인가 — 스칼라가 아니다. map/filter/store 원소 검사에 쓴다.
 static bool ck_is_aggregate(const low_parse_result_t *pr, proven_u8str_view_t name) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if ((kw == LOW_KW_STRUCT || kw == LOW_KW_ENUM) &&
@@ -1866,7 +1869,7 @@ static void ck_trait_satisfy(low_check_result_t *out, const low_parse_result_t *
 static bool ck_type_satisfies(const low_parse_result_t *pr, proven_u8str_view_t ty,
                               proven_u8str_view_t tr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         // ★★★ **액터도 타입이다** — 경계 검사도 그것을 봐야 한다.
         //   충족 검사(ck_trait_satisfy)는 오늘 고쳤는데 **경계 검사는 안 고쳤다.**
@@ -1887,7 +1890,7 @@ static bool ck_type_satisfies(const low_parse_result_t *pr, proven_u8str_view_t 
 }
 static bool ck_is_trait_name(const low_parse_result_t *pr, proven_u8str_view_t nm) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         if (f->kids[0]->tok.kw == LOW_KW_TRAIT && ck_atom(f->kids[1]) &&
             proven_u8str_view_eq(f->kids[1]->tok.lex, nm)) return true;
@@ -1896,7 +1899,7 @@ static bool ck_is_trait_name(const low_parse_result_t *pr, proven_u8str_view_t n
 }
 static void ck_trait_bound(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -2115,7 +2118,7 @@ static void ck_narrow_walk(const low_cst_t *nd, const proven_u8str_view_t *mods,
 static void ck_narrow_qual(const low_parse_result_t *pr) {
     proven_u8str_view_t mods[256]; proven_size_t nmods = 0;
     for (proven_size_t i = 0; i < pr->nforms && nmods < 256; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]) &&
             f->kids[0]->tok.kw == LOW_KW_MODULE && ck_atom(f->kids[1]))
             mods[nmods++] = f->kids[1]->tok.lex;
@@ -2133,7 +2136,7 @@ static void ck_import_noshadow(low_check_result_t *out, const low_parse_result_t
     proven_u8str_view_t decl[CK_VIS_MAX]; proven_size_t ndc = 0;
     proven_u8str_view_t modname = { 0 };
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw == LOW_KW_MODULE && ck_atom(f->kids[1])) {
@@ -2180,7 +2183,7 @@ static void ck_visibility(low_check_result_t *out, const low_parse_result_t *pr)
 
     // ① 최상위 이름 → 소유 모듈 · export 여부
     for (proven_size_t i = 0; i < pr->nforms && nv < CK_VIS_MAX; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw == LOW_KW_MODULE && f->nkids >= 2 && ck_atom(f->kids[1])) {
@@ -2204,7 +2207,7 @@ static void ck_visibility(low_check_result_t *out, const low_parse_result_t *pr)
     // ② 각 op 의 본문에서 **다른 모듈의 비공개 이름**을 쓰는가
     cur = (proven_u8str_view_t){ 0 };
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw == LOW_KW_MODULE && f->nkids >= 2 && ck_atom(f->kids[1])) { cur = f->kids[1]->tok.lex; continue; }
@@ -2249,7 +2252,7 @@ static void ck_visibility(low_check_result_t *out, const low_parse_result_t *pr)
 //     **argv 매직 파라미터를 임시로 넣지 않는다** — 그것은 RFC 가 명시적으로 거부한 것이다.
 static void ck_entry(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -2351,7 +2354,7 @@ static void ck_entry(low_check_result_t *out, const low_parse_result_t *pr) {
 //       (쓰지 않는 `unsafe` 는 **거짓 경보**다 — 진짜 unsafe 를 못 보게 만든다.)
 static void ck_unsafe(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -2451,7 +2454,7 @@ static proven_u8 ck_uint_width_of(const low_cst_t *op, proven_u8str_view_t name)
 }
 static bool ck_is_module_const(const low_parse_result_t *pr, proven_u8str_view_t nm) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         if (f->kids[0]->tok.kw == LOW_KW_LET && ck_atom(f->kids[1]) &&
             proven_u8str_view_eq(f->kids[1]->tok.lex, nm)) return true;
@@ -2488,7 +2491,7 @@ static void ck_comptime_walk(low_check_result_t *out, const low_parse_result_t *
 static void ck_comptime(low_check_result_t *out, const low_parse_result_t *pr) {
     ck_cts_t tab[64]; proven_size_t nt = 0;
     for (proven_size_t i = 0; i < pr->nforms && nt < 64; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -2896,7 +2899,7 @@ static void ck_group_mismatch(low_check_result_t *out, const low_cst_t *nd, cons
 //     즉 필드가 form 도 아니거나 이름/타입 자체가 없는 경우다.
 static void ck_struct_fields(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         // ★ struct 와 state 블록만 본다 — 그 둘의 자식이 **필드**다. actor 블록의 자식은
@@ -2924,7 +2927,7 @@ static void ck_struct_fields(low_check_result_t *out, const low_parse_result_t *
 
 static void ck_toplevel(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw == LOW_KW_MODULE || kw == LOW_KW_USE || kw == LOW_KW_FN || kw == LOW_KW_PROC ||
@@ -2953,7 +2956,7 @@ static void ck_package(low_check_result_t *out, const low_parse_result_t *pr) {
     proven_u32 first_line = 0;
     bool dup[6] = { false, false, false, false, false, false };
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || !ck_atom(f->kids[0])) continue;
         if (!veq(f->kids[0]->tok.lex, "package")) continue;
         if (!any) { any = true; first_line = f->line; }
@@ -3006,7 +3009,7 @@ static void ck_package(low_check_result_t *out, const low_parse_result_t *pr) {
 static void ck_tier(low_check_result_t *out, const low_parse_result_t *pr) {
     const ck_tier_t *t = NULL;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0])) continue;
         if (!veq(f->kids[0]->tok.lex, "build") || !ck_atom(f->kids[1])) continue;
         if (!veq(f->kids[1]->tok.lex, "tier") || !ck_atom(f->kids[2])) continue;
@@ -3022,7 +3025,7 @@ static void ck_tier(low_check_result_t *out, const low_parse_result_t *pr) {
     if (!t) return;              // 선언 안 하면 아무것도 안 막는다 (기본 = 호스트)
 
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -3115,7 +3118,7 @@ static bool ck_op_has_asm(const low_cst_t *f) {
 }
 static void ck_asm(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -3220,7 +3223,7 @@ static bool ck_reads_config(const low_cst_t *nd, proven_u8str_view_t name) {
 
 static void ck_option(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 4 || !ck_atom(f->kids[0])) continue;
         if (!veq(f->kids[0]->tok.lex, "build") || !ck_atom(f->kids[1])) continue;
         if (!veq(f->kids[1]->tok.lex, "option") || !ck_atom(f->kids[2])) continue;
@@ -3250,7 +3253,7 @@ static void ck_option(low_check_result_t *out, const low_parse_result_t *pr) {
 //     unsafe(표시) · `cap c`(건네받는 권리) · effects(호출자가 안다).
 static void ck_ffi(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -3390,7 +3393,7 @@ static bool ck_spawns_actor(const low_cst_t *nd, proven_u8str_view_t name) {
 }
 static void ck_actor_caps(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw == LOW_KW_FN || kw == LOW_KW_PROC) { ck_forge_walk(out, f, f); continue; }
@@ -3473,7 +3476,7 @@ static void ck_held_actor_caps(const low_cst_t *nd, const low_cst_t *op, bool *f
 static const low_cst_t *ck_top_op_named(const low_parse_result_t *pr, proven_u8str_view_t name) {
     proven_u8str_view_t b = ck_bare_name(name);
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]) &&
             (f->kids[0]->tok.kw == LOW_KW_PROC || f->kids[0]->tok.kw == LOW_KW_FN) && ck_atom(f->kids[1]) &&
             proven_u8str_view_eq(f->kids[1]->tok.lex, b)) return f;
@@ -3531,7 +3534,7 @@ static void ck_task_walk(low_check_result_t *out, const low_parse_result_t *pr, 
 }
 static void ck_task_alloc(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         if (f->kids[0]->tok.kw == LOW_KW_PROC || f->kids[0]->tok.kw == LOW_KW_FN) { ck_task_walk(out, pr, f, f); continue; }
         if (f->kids[0]->tok.kw != LOW_KW_ACTOR || f->nkids < 3) continue;
@@ -3585,7 +3588,7 @@ static void ck_clause_order_one(low_check_result_t *out, const low_cst_t *f, pro
 }
 static void ck_clause_order(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         if ((f->kids[0]->tok.kw == LOW_KW_ACTOR || f->kids[0]->tok.kw == LOW_KW_TRAIT) && f->nkids >= 3 &&
             f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) {
@@ -3634,7 +3637,7 @@ static void ck_alloc_cap(low_check_result_t *out, const low_parse_result_t *pr) 
     ck_actor_caps(out, pr);
     ck_task_alloc(out, pr);
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -3751,7 +3754,7 @@ static void ck_alloc_cap(low_check_result_t *out, const low_parse_result_t *pr) 
 //   타입 매핑은 RFC-0011. 그래서 여기선 `cap` 토큰 보유만 본다; region 은 alloc 권한이라 제외.)
 static void ck_io_cap(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -3833,7 +3836,7 @@ static bool ck_has_float_tok(const low_cst_t *nd) {
 static void ck_float_target(low_check_result_t *out, const low_parse_result_t *pr) {
     if (!low_ir_target()->no_float) return;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC && kw != LOW_KW_STRUCT &&
@@ -3854,7 +3857,7 @@ static void ck_float_target(low_check_result_t *out, const low_parse_result_t *p
 //   주소 있는 **메모리**라 이 수식자들이 정상이지만(그건 안 건드린다), 벡터엔 무의미하므로 **거절**한다.
 static void ck_vec_value(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -3907,7 +3910,7 @@ static void ck_target_intrin(low_check_result_t *out, const low_parse_result_t *
     //   (있는 척하면 그것이 곧 검사되지 않는 거짓말이다).
     static const char *AVG_ISETS[] = { "x86_sse2", "x86_avx2", "x86_avx512", "arm_neon", "arm_sve" };
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (!f || f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t okw = f->kids[0]->tok.kw;
         if ((okw == LOW_KW_FN || okw == LOW_KW_PROC) &&
@@ -3996,7 +3999,7 @@ static void ck_profile(low_check_result_t *out, const low_parse_result_t *pr) {
     };
     int cap = -1; proven_u32 pline = 0;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0]) || !ck_atom(f->kids[1]) ||
             !veq(f->kids[0]->tok.lex, "build") || !veq(f->kids[1]->tok.lex, "profile")) continue;
         if (!ck_atom(f->kids[2])) continue;
@@ -4013,7 +4016,7 @@ static void ck_profile(low_check_result_t *out, const low_parse_result_t *pr) {
     if (cap < 0) return;   // profile 을 안 적었으면 게이팅하지 않는다
     int lv = 0;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         int c = 0;
         if (f->kind == LOW_CST_FORM && f->nkids && ck_atom(f->kids[0]) &&
             f->kids[0]->tok.kw == LOW_KW_ACTOR) c = 3;      // actor 선언 자체가 server 급이다
@@ -4068,7 +4071,7 @@ static void ck_map_sink_walk(low_check_result_t *out, const low_cst_t *nd, const
 }
 static void ck_map_sink(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -4085,7 +4088,7 @@ static void ck_map_sink(low_check_result_t *out, const low_parse_result_t *pr) {
 static bool ck_is_mmio_struct(const low_parse_result_t *pr, proven_u8str_view_t name) {
     if (!name.size) return false;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         if (f->kids[0]->tok.kw != LOW_KW_STRUCT || !ck_atom(f->kids[1])) continue;
         if (!proven_u8str_view_eq(f->kids[1]->tok.lex, name)) continue;
@@ -4191,7 +4194,7 @@ static bool ck_field_touches_mmio(const low_parse_result_t *pr, const low_cst_t 
 //     없다" 를 재야 하고 그건 하강이 하는 일이다. **넓게 요구하고 좁게 푸는** 편이 안전하다.
 static bool ck_is_reserve_struct(const low_parse_result_t *pr, proven_u8str_view_t name) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0])) continue;
         if (f->kids[0]->tok.kw != LOW_KW_STRUCT) continue;
         if (!ck_atom(f->kids[1]) || !proven_u8str_view_eq(f->kids[1]->tok.lex, name)) continue;
@@ -4220,7 +4223,7 @@ static bool ck_opens_reserve(const low_parse_result_t *pr, const low_cst_t *nd) 
 }
 static void ck_reserve(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -4339,7 +4342,7 @@ static bool ck_touches_reserved(const low_parse_result_t *pr, const low_cst_t *f
 }
 static void ck_mmio(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -4417,7 +4420,7 @@ static void ck_isr_walk(low_check_result_t *out, const low_cst_t *nd,
 static void ck_isr(low_check_result_t *out, const low_parse_result_t *pr) {
     proven_u8str_view_t isr[32]; proven_size_t nisr = 0;
     for (proven_size_t i = 0; i < pr->nforms && nisr < 32; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -4451,7 +4454,7 @@ static void ck_isr(low_check_result_t *out, const low_parse_result_t *pr) {
     if (!nisr) return;
     // ★ 아무도 ISR 을 **부르면 안 된다** — 하드웨어가 부른다.
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || !ck_atom(f->kids[0])) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -4465,7 +4468,7 @@ static void ck_isr(low_check_result_t *out, const low_parse_result_t *pr) {
 //   그러니 "구조적 충족은 아직" 이라는 고지를 붙이면 **거짓말**이다.
 static bool ck_is_contract(const low_parse_result_t *pr, proven_u8str_view_t name) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         if (f->kids[0]->tok.kw != LOW_KW_CONTRACT || f->kids[1]->kind != LOW_CST_ATOM) continue;
         if (proven_u8str_view_eq(f->kids[1]->tok.lex, name)) return true;
@@ -4987,7 +4990,7 @@ static bool ck_type_needs_completion(const low_parse_result_t *pr, proven_u8str_
 //   ★★ 깊이 상한을 둔다 — 서로를 품는 struct 에서 안 돌아야 한다(그 순환 자체는 별개의 진단감).
 static bool ck_type_needs_completion_d(const low_parse_result_t *pr, proven_u8str_view_t ty, int depth) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -5160,7 +5163,7 @@ static proven_size_t ck_struct_owned_fields(const low_parse_result_t *pr, proven
     proven_size_t n = 0;
     if (!ty.size) return 0;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         if (f->kids[0]->tok.kw != LOW_KW_STRUCT) continue;
         if (!ck_atom(f->kids[1]) || !proven_u8str_view_eq(f->kids[1]->tok.lex, ty)) continue;
@@ -5187,7 +5190,7 @@ static proven_size_t ck_struct_owned_field_types(const low_parse_result_t *pr, p
     proven_size_t n = 0;
     if (!ty.size) return 0;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         if (f->kids[0]->tok.kw != LOW_KW_STRUCT) continue;
         if (!ck_atom(f->kids[1]) || !proven_u8str_view_eq(f->kids[1]->tok.lex, ty)) continue;
@@ -6237,7 +6240,7 @@ static void ck_module_const_set(low_check_result_t *out, const low_parse_result_
 }
 static void ck_immutable(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids) continue;
         for (proven_size_t j = 0; j < f->nkids; j++)
             if (f->kids[j]->kind == LOW_CST_BLOCK) {
@@ -6302,7 +6305,7 @@ static void ck_guard_block(low_check_result_t *out, const low_cst_t *blk) {
 
 static void ck_guard_diverges(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM) continue;
         for (proven_size_t j = 0; j < f->nkids; j++)
             if (f->kids[j]->kind == LOW_CST_BLOCK) ck_guard_block(out, f->kids[j]);
@@ -6320,7 +6323,7 @@ static void ck_guard_diverges(low_check_result_t *out, const low_parse_result_t 
 //     표현 위반을 컴파일 오류로 만들면 의미와 표현을 섞는 것이다 — 서식기가 보장한다(gofmt).
 static void ck_col0(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         // 최상위 **선언** 머리만 본다(수식자는 이미 벗겨져 안쪽 머리에 붙는다).
@@ -6430,7 +6433,7 @@ static bool ck_name_is_ro(const ck_bind_t *b, proven_size_t nb, proven_u8str_vie
 static bool ck_field_provably_nonmut(const low_parse_result_t *pr, proven_u8str_view_t fname) {
     bool found = false;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
         if (f->kids[0]->tok.kw != LOW_KW_STRUCT) continue;
         const low_cst_t *blk = NULL;
@@ -6654,7 +6657,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     ck_struct_fields(&out, pr);
     // ★ region 탈출 검사 — op 본문마다.
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
         low_kw_t k0 = f->kids[0]->tok.kw;
         if (k0 != LOW_KW_FN && k0 != LOW_KW_PROC) continue;
@@ -6676,7 +6679,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     const low_cst_t *op_forms[512]; const low_cst_t *op_actor[512]; proven_size_t nop_forms = 0;
     proven_u8str_view_t op_mod[512]; proven_u8str_view_t curmod = { 0 };
     for (proven_size_t i = 0; i < pr->nforms && nop_forms < 512; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 1 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t k0 = f->kids[0]->tok.kw;
         // ★ 선언 모듈을 따라간다 — 한정된 호출이 **어느 표 항목**을 뜻했는지 가리려면 필요하다.
@@ -6762,7 +6765,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         proven_size_t nd = 0;
         proven_u8str_view_t dcur = { 0 };     // ★ 지금 훑고 있는 모듈 (슬라이스 ③)
         for (proven_size_t i = 0; i < pr->nforms && nd < 512; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
             low_kw_t kw = f->kids[0]->tok.kw;
             if (kw == LOW_KW_MODULE && f->kids[1]->kind == LOW_CST_ATOM) dcur = f->kids[1]->tok.lex;
@@ -6881,7 +6884,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                                      (int)decls[j].name.size, (const char *)decls[j].name.ptr,
                                      decls[j].what ? decls[j].what : "declaration",
                                      (int)decls[j].mod.size, (const char *)decls[j].mod.ptr);
-                            last->msg = last->detail;   // ★ 렌더러는 msg 만 찍는다
+                            last->msg = NULL;   // ★ 렌더러는 low_diag_text 로 detail 을 읽는다
                         }
                     }
                     j = nd;   // 이 이름은 한 번만 보고한다
@@ -6892,7 +6895,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     //   지금까지는 아무것과도 대조되지 않았고 W-NOT-YET 가 그렇게 말했다. 이제 말하지 않는다 —
     //   **검사하기 때문이다.** 선언된 모듈이 없으면 그 이름은 아무것도 가리키지 않는다.
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         if (f->kids[0]->tok.kw != LOW_KW_USE) continue;
         if (f->kids[1]->kind != LOW_CST_ATOM) continue;
@@ -6920,7 +6923,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     {
         const low_opinfo_t *tab0 = (const low_opinfo_t *)ops.data;
         for (proven_size_t i = 0; i < pr->nforms; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
             low_kw_t kw = f->kids[0]->tok.kw;
             if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -6969,7 +6972,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         //     와 같은 교정이다 — 같은 실수가 **이웃 자리에서 한 번 더** 있었다.
         proven_u8str_view_t tcur = { 0 };
         for (proven_size_t i = 0; i < pr->nforms; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
             low_kw_t kw = f->kids[0]->tok.kw;
             if (kw == LOW_KW_MODULE && ck_atom(f->kids[1])) { tcur = f->kids[1]->tok.lex; continue; }
@@ -7049,7 +7052,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         //   어느 쪽이냐가 **문장이 어떻게 괄호 쳐지는지**를 정한다(RFC-0046 P1).
         proven_u8str_view_t pcur = { 0 };
         for (proven_size_t i = 0; i < pr->nforms; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
             low_kw_t kw = f->kids[0]->tok.kw;
             // ★★★ **여기도 같은 자리였다** — 지역(`ck_no_shadow`)은 모듈로 좁혔는데
@@ -7089,7 +7092,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     //   구현이 없으면 **없다고 말한다.** 조용히 통과시키는 것이 죄다(PRINCIPLES.md §0 교훈 2:
     //   "미구현은 오류가 아니라 **고지**여야 한다 — 그러나 **조용히 무시하면 안 된다**").
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 1 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         proven_u8str_view_t h = f->kids[0]->tok.lex;
         // ★ `test` 는 이제 **실행된다**(`--test`). 그래서 W-NOT-YET 를 걷었다 —
@@ -7206,7 +7209,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     //     주장해야 한다). **말없이 주면 그것도 거짓말이다.**
     //   ⇒ 쓸 수는 있다. 그러나 **명세가 보증하지 않는다는 것을 말한다.**
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -7228,7 +7231,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     //   명세에 있는 타입인데. 이제 이름은 받는다. 그러나 **의미(level-3 규율·RC11 ordering)는
     //   아직 없다** — 그것을 말한다. 조용히 통과시키면 "공유했으니 안전하다" 는 거짓말이 된다.
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -7297,7 +7300,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     {
         proven_u8str_view_t traits[128]; proven_size_t ntr = 0;
         for (proven_size_t i = 0; i < pr->nforms && ntr < 128; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
             // ★ `satisfies` 는 **trait 또는 명명 계약**을 가리킨다(SPEC-002 §267).
             if ((f->kids[0]->tok.kw != LOW_KW_TRAIT && f->kids[0]->tok.kw != LOW_KW_CONTRACT) ||
@@ -7305,7 +7308,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             traits[ntr++] = f->kids[1]->tok.lex;
         }
         for (proven_size_t i = 0; i < pr->nforms; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
             low_kw_t kw = f->kids[0]->tok.kw;
             if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -7437,7 +7440,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     {
         const low_opinfo_t *tab0 = (const low_opinfo_t *)ops.data;
         for (proven_size_t i = 0; i < pr->nforms; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
             low_kw_t kw = f->kids[0]->tok.kw;
             if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
@@ -7462,7 +7465,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     {
         const low_opinfo_t *tab0 = (const low_opinfo_t *)ops.data;
         for (proven_size_t i = 0; i < pr->nforms; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 2 ||
                 f->kids[0]->kind != LOW_CST_ATOM) continue;
             low_kw_t kw = f->kids[0]->tok.kw;
@@ -7481,7 +7484,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     {
         bool mod_has_chsend = false, mod_has_use = false;
         for (proven_size_t i = 0; i < pr->nforms; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (ck_subtree_has_atom(f, "chsend")) mod_has_chsend = true;
             if (f && f->kind == LOW_CST_FORM && f->nkids > 0 &&
                 f->kids[0]->kind == LOW_CST_ATOM && f->kids[0]->tok.kw == LOW_KW_USE)
@@ -7536,10 +7539,26 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         unsigned leak = eff_close(used) & ~eff_close(tab[i].self_declared);
         if (leak) {
             // ★ 오류 쪽도 같은 자리다 — 파일을 아는 노드를 손에 쥐고 있으므로 함께 싣는다.
-            emit_at(&out, tab[i].is_calc ? "E-EFFECT-CALC" : "E-EFFECT",
-                    tab[i].is_calc ? "fn performs an effect (declared pure)"
-                                   : "op performs an effect exceeding its declaration",
-                    tab[i].body);
+            // ★★★ **어느 효과가 새는지 말한다** (2026-09-14). `leak` 은 여기 있었는데 문장은 «어떤 효과» 라고만 했다.
+            emit_at(&out, tab[i].is_calc ? "E-EFFECT-CALC" : "E-EFFECT", NULL, tab[i].body);
+            low_diag_t *last = (low_diag_t *)out.diags.data + (out.diags.len - 1);
+            char names[96]; size_t no = 0; names[0] = 0;
+            static const unsigned bits[] = { EFF_IO, EFF_ALLOC, EFF_HEAP, EFF_STATE, EFF_PANIC,
+                                             EFF_UNSAFE, EFF_ATOMIC, EFF_CONCURRENT, EFF_WAIT };
+            for (size_t b = 0; b < sizeof bits / sizeof bits[0]; b++) {
+                if (!(leak & bits[b])) continue;
+                int w = snprintf(names + no, sizeof names - no, "%s`%s`", no ? ", " : "", effect_name(bits[b]));
+                if (w < 0 || (size_t)w >= sizeof names - no) break;
+                no += (size_t)w;
+            }
+            if (!no) snprintf(names, sizeof names, "%s", effect_name(leak));
+            if (tab[i].is_calc)
+                snprintf(last->detail, sizeof last->detail,
+                         "this fn is declared pure but performs %s — make it a `proc` with `effects …`, or remove the effect", names);
+            else
+                snprintf(last->detail, sizeof last->detail,
+                         "this op performs %s, which its `effects` clause does not declare — add it to `effects …`, "
+                         "or stop calling what needs it", names);
         }
         // ★★★ **W-EFFECT-OVER** (RFC-0007) — 반대 방향: **선언했는데 안 하는** 효과. 명시적으로
         //   effects 절을 쓴 proc 에서만(기본 unrestricted proc 은 판정 안 함). 안 하는 걸 선언하면
@@ -7584,7 +7603,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                          "the caller must budget for (a pure caller cannot call an `io` op). Drop it, "
                          "or — if a future version will perform it — say so (RFC-0007)",
                          effect_name(over));
-                last->msg = last->detail;
+                last->msg = NULL;
             }
         }
     }

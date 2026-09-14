@@ -137,6 +137,7 @@ typedef struct {
     //     그 자체로 별개 결정이고, 하려면 저장소 영향을 재고 따로 해야 한다.
     int             quiet;
     proven_u8str_view_t curmod;   // ★ 지금 검사 중인 op 이 속한 모듈(RFC-0075 S2)
+    const low_cst_t    *curform;  // ★ 2026-09-14 — 지금 검사 중인 폼(진단에 그 파일을 싣는다)
 } tc_ctx_t;
 
 static bool veq(proven_u8str_view_t v, const char *s) { return proven_u8str_view_eq(v, proven_u8str_view_from_cstr(s)); }
@@ -456,17 +457,60 @@ static tc_reason_t compat(ty_t decl, ty_t actual) {
 }
 static void tc_emit(tc_ctx_t *c, const char *code, const char *msg, proven_u32 line) {
     if (c->quiet) return;   // ★ 묻기만 하는 추론 중 — 위 tc_ctx_t.quiet 주석 참조
-    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0 };
+    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0,
+                     .file = low_cst_file_for_line(c->curform, line) };
     (void)proven_array_push(c->diags, &d);
     *c->ok = false;
 }
+// ★★★ 2026-09-14 — **이름·타입을 대는 오류.** 문장은 그 진단의 `detail` 에 짓고 `msg` 는 NULL(렌더러는 low_diag_text).
+#include <stdarg.h>
+#include <stdio.h>
+static void tc_emitf(tc_ctx_t *c, const char *code, proven_u32 line, const char *fmt, ...) {
+    if (c->quiet) return;
+    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = NULL, .line = line, .col = 0,
+                     .file = low_cst_file_for_line(c->curform, line) };
+    va_list ap; va_start(ap, fmt); vsnprintf(d.detail, sizeof d.detail, fmt, ap); va_end(ap);
+    (void)proven_array_push(c->diags, &d);
+    *c->ok = false;
+}
+// 사람이 읽는 타입 이름. 모르면 NULL — **짐작한 이름을 대지 않는다.**
+static const char *tc_ty_str(ty_t t, char *buf, size_t n) {
+    const char *ref = t.rk == 1 ? "ref " : t.rk == 2 ? "mut_ref " : "";
+    switch (t.k) {
+        case TK_BOOL:  snprintf(buf, n, "%sbool", ref); return buf;
+        case TK_INT:
+            if (t.lit) { snprintf(buf, n, "an integer literal"); return buf; }
+            if (t.nominal) snprintf(buf, n, "%s%s", ref, t.sign ? "isize" : "usize");
+            else snprintf(buf, n, "%s%c%u", ref, t.sign ? 'i' : 'u', (unsigned)t.bits);
+            return buf;
+        case TK_FLOAT:
+            if (t.lit || !t.bits) { snprintf(buf, n, "a float literal"); return buf; }
+            snprintf(buf, n, "%sf%u", ref, (unsigned)t.bits); return buf;
+        case TK_SLICE:
+            if (!t.ebits) { snprintf(buf, n, "%sslice", ref); return buf; }
+            snprintf(buf, n, "%sslice %c%u", ref, t.eflt ? 'f' : t.esign ? 'i' : 'u', (unsigned)t.ebits); return buf;
+        case TK_NAMED:
+            if (!t.nname.size) return NULL;
+            snprintf(buf, n, "%s%.*s", ref, (int)t.nname.size, (const char *)t.nname.ptr); return buf;
+        case TK_UNIT:    snprintf(buf, n, "void"); return buf;
+        case TK_WRAPPED: snprintf(buf, n, "%s", t.wrap == 1 ? "option …" : t.wrap == 2 ? "result …" : "option/result"); return buf;
+        case TK_VEC:     snprintf(buf, n, "vec"); return buf;
+        case TK_MASK:    snprintf(buf, n, "mask"); return buf;
+        default: return NULL;
+    }
+}
+// 종류가 어긋난 자리(tc_flag 가 제 코드로 내는 갈래)에 **기대한 타입과 받은 타입**을 붙인다
+static void tc_flag_types(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg,
+                          ty_t want, ty_t got, proven_u32 line);
+
 // ★★ **경고는 검사를 실패시키지 않는다** (2026-08-21). 이 층에는 `tc_emit` 하나뿐이었고
 //   그것은 언제나 `LOW_SEV_ERROR` 다 — 그래서 `W-` 코드를 내면 **이름은 경고인데 행동은
 //   에러**가 됐다(실측: `shared_read` 를 받아들이는지 보는 유닛 시험이 그 자리에서 깨졌다).
 //   ⇒ 심각도를 이름과 맞춘다. *코드의 접두어가 곧 약속이다.*
 static void tc_warn(tc_ctx_t *c, const char *code, const char *msg, proven_u32 line) {
     if (c->quiet) return;
-    low_diag_t d = { .sev = LOW_SEV_WARNING, .code = code, .msg = msg, .line = line, .col = 0 };
+    low_diag_t d = { .sev = LOW_SEV_WARNING, .code = code, .msg = msg, .line = line, .col = 0,
+                     .file = low_cst_file_for_line(c->curform, line) };
     (void)proven_array_push(c->diags, &d);
 }
 // kind mismatches keep their site-specific code; width/sign get dedicated codes
@@ -481,6 +525,15 @@ static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *ms
     else if (r == TC_STRUCT) tc_emit(c, "E-TYPE-STRUCT", "these are two DIFFERENT named types — the same field layout does not make them the same type. `meters` and `seconds` may both hold one u64 and still mean different things, and a checker that only compares representation lets that confusion through silently. Transparent `type` aliases are expanded before this comparison, so an alias and its target remain interchangeable exactly as the spec says (SPEC-004 §89); what is rejected here is a genuinely different name. Use the declared type, or convert explicitly", line);
     else if (r == TC_LANES)   tc_emit(c, "E-TYPE-LANES", "vector lane counts differ — two vectors of different width are different types (there is no implicit widening between them)", line);
     else                      tc_emit(c, code, msg, line);
+}
+static void tc_flag_types(tc_ctx_t *c, tc_reason_t r, const char *code, const char *msg,
+                          ty_t want, ty_t got, proven_u32 line) {
+    if (r == TC_KIND) {
+        char wb[96], gb[96];
+        const char *ws = tc_ty_str(want, wb, sizeof wb), *gs = tc_ty_str(got, gb, sizeof gb);
+        if (ws && gs) { tc_emitf(c, code, line, "%s — expected `%s`, found `%s`", msg, ws, gs); return; }
+    }
+    tc_flag(c, r, code, msg, line);
 }
 static const tc_sig_t *sig_find(tc_ctx_t *c, proven_u8str_view_t name) {
     // ★ 제 모듈의 시그니처를 **먼저** 본다(위 tc_sig_t.mod 주석) — 없을 때만 첫 일치.
@@ -1107,9 +1160,9 @@ static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from,
         if (i > from && f->kids[i-1]->kind == LOW_CST_ATOM &&
             proven_u8str_view_eq(f->kids[i-1]->tok.lex, proven_u8str_view_from_cstr("cap")))
             continue;
-        tc_emit(c, "E-TYPE-UNDEF",
-                "this type name is not declared (no `type` / `struct` / `enum` names it)",
-                t->line ? t->line : f->line);
+        tc_emitf(c, "E-TYPE-UNDEF", t->line ? t->line : f->line,
+                 "`%.*s` is not a type — no `type` / `struct` / `enum` declares it, and it is not a built-in type",
+                 (int)t->lex.size, (const char *)t->lex.ptr);
     }
 }
 // range 선언의 오류를 진단으로 낸다. **선언 자체가 거짓말이면 프로그램이 서지 않는다.**
@@ -1230,6 +1283,29 @@ static void tc_check_make(tc_ctx_t *c, const low_cst_t *form,
 static void tc_walk_makes(tc_ctx_t *c, const low_cst_t *nd,
                           const tc_var_t *env, proven_size_t nenv) {
     if (!nd) return;
+    // ★★★ 2026-09-14 — **읽는 `field` 도 칸이 있어야 한다.** 쓰기(`set (field q x) v`)만 검사해서 `field q y` 가
+    //   `--check` 를 통과하고 실행 중에야 `E-VM-FIELD` 로 멈췄다. 받는 값의 struct 를 아는 자리에서만 문다(보수적).
+    for (proven_size_t j = 0; j + 2 < nd->nkids; j++) {
+        if (nd->kids[j]->kind != LOW_CST_ATOM || !veq(nd->kids[j]->tok.lex, "field")) continue;
+        const low_cst_t *rv = nd->kids[j + 1], *fnm = nd->kids[j + 2];
+        if (rv->kind != LOW_CST_ATOM || fnm->kind != LOW_CST_ATOM || fnm->tok.kind != LOW_TOK_IDENT) continue;
+        bool fnd; ty_t rt = env_find(env, nenv, rv->tok.lex, &fnd);
+        if (!fnd || rt.k != TK_NAMED) continue;
+        const tc_struct_t *st = struct_find(c, rt.nname);
+        if (!st) continue;
+        bool has = false;
+        for (proven_size_t q = 0; q < st->nf; q++) if (proven_u8str_view_eq(st->fname[q], fnm->tok.lex)) has = true;
+        if (has) continue;
+        char fl[160]; size_t fo = 0; fl[0] = 0;
+        for (proven_size_t q = 0; q < st->nf && fo + 1 < sizeof fl; q++) {
+            int w = snprintf(fl + fo, sizeof fl - fo, "%s%.*s", q ? ", " : "", (int)st->fname[q].size, (const char *)st->fname[q].ptr);
+            if (w < 0) break;
+            fo += (size_t)w;
+        }
+        tc_emitf(c, "E-TYPE-FIELD", fnm->tok.line ? fnm->tok.line : nd->line,
+                 "struct `%.*s` has no field `%.*s` — its fields are: %s",
+                 (int)st->name.size, (const char *)st->name.ptr, (int)fnm->tok.lex.size, (const char *)fnm->tok.lex.ptr, fl);
+    }
     for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {
         if (nd->kids[j]->kind == LOW_CST_ATOM && veq(nd->kids[j]->tok.lex, "make")) {
             const low_cst_t *arg = nd->kids[j + 1];
@@ -1270,14 +1346,14 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     actual = tc_infer_run(c, nx->kids, 1, nx->nkids - 1, env, *nenv);
             }
             if (declared.rk == 0)   // ref initializers are conservative (value = a borrow)
-                tc_flag(c, compat(declared, actual),
+                tc_flag_types(c, compat(declared, actual),
                         (kw == LOW_KW_LET) ? "E-TYPE-LET" : "E-TYPE-VAR",
-                        "the initializer's type does not match the declared type", f->line);
+                        "the initializer's type does not match the declared type", declared, actual, f->line);
             if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = declared; }
         } else if (kw == LOW_KW_RETURN) {
             ty_t actual = tc_infer_run(c, f->kids, 1, f->nkids - 1, env, *nenv);
-            tc_flag(c, compat(ret, actual),
-                    "E-TYPE-RETURN", "return type does not match op output", f->line);
+            tc_flag_types(c, compat(ret, actual),
+                    "E-TYPE-RETURN", "the returned value does not match the op's `output`", ret, actual, f->line);
         } else if (kw == LOW_KW_FOR && f->nkids >= 3 && f->kids[1]->kind == LOW_CST_ATOM) {
             // CST: [for, <var>, <seq…>, BLOCK] — 파서가 `in` 마커를 떨어뜨린다(RFC-0049).
             // ★ `for x in <seq> . do … end` — 대상은 **슬라이스**여야 하고,
@@ -1595,7 +1671,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
     //   이것이 없어서 존재하지 않는 타입을 써도 통과했다.
     g_nalias = 0; g_ntdecl = 0;   // ★ 정적 레지스트리는 **채우기 직전에** 비운다(low_doc 이 두 번 부른다)
     for (proven_size_t i = 0; i < pr->nforms && c.ntnames < TC_MAXSIG; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; c.curform = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         // ★★★ **액터도 타입이다.** 그런데 이 표에 없었다 ⇒ `input x coop .`(액터 인스턴스)이
@@ -1660,7 +1736,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
         proven_u8str_view_t an[TC_MAXSIG], ar[TC_MAXSIG];   // 별칭 → 대상
         proven_size_t na = 0;
         for (proven_size_t i = 0; i < pr->nforms && na < TC_MAXSIG; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; c.curform = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM) continue;
             if (f->kids[0]->tok.kw != LOW_KW_TYPE) continue;
             if (f->kids[1]->kind != LOW_CST_ATOM || f->kids[2]->kind != LOW_CST_ATOM) continue;
@@ -1688,7 +1764,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
     // ★ pass 0: 구조체 선언을 모은다. 타입체커가 이것을 **몰라서** make 리터럴이
     //   필드 타입도·누락도·없는 필드도 검사받지 않고 있었다.
     for (proven_size_t i = 0; i < pr->nforms && c.nstrs < TC_MAXSIG; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; c.curform = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         if (f->kids[0]->tok.kw != LOW_KW_STRUCT) continue;
         if (f->kids[1]->kind != LOW_CST_ATOM) continue;
@@ -1771,7 +1847,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
     //   ① 갈래 이름보다 **뒤 줄에서 같은(또는 얕은) 들여쓰기로** 시작하는 낱말 = 점이 빠진 다음 갈래(`E-ENUM-DOT`)
     //   ② 칸은 `<이름> <타입>` 짝이고, 그 타입은 **있는 타입**이어야 한다(`E-TYPE-UNDEF` · 짝이 안 맞으면 `E-ENUM-FIELD`)
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; c.curform = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         if (f->kids[0]->tok.kw != LOW_KW_ENUM) continue;
         const low_cst_t *blk = f->kids[f->nkids - 1];
@@ -1912,7 +1988,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
     // pass 1: collect signatures from input/output clauses
     proven_u8str_view_t tc_curmod = { 0 };   // ★ 자리가 곧 모듈 소속이다(RFC-0075 S2)
     for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *f = pr->forms[i]; c.curform = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         if (kw == LOW_KW_MODULE && f->kids[1]->kind == LOW_CST_ATOM) { tc_curmod = f->kids[1]->tok.lex; continue; }
@@ -1978,6 +2054,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
             }
         }
         c.curmod = c.sigs[i].mod;   // ★ 이 본문은 이 모듈의 코드다 — 맨이름은 제 이웃을 먼저 본다
+        c.curform = c.sigs[i].form;
         tc_check_body(&c, c.sigs[i].body, env, &nenv, c.sigs[i].ret);
     }
 
@@ -1990,7 +2067,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
     {
         proven_u8str_view_t amod = { 0 };
         for (proven_size_t i = 0; i < pr->nforms; i++) {
-            const low_cst_t *f = pr->forms[i];
+            const low_cst_t *f = pr->forms[i]; c.curform = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM) continue;
             if (f->kids[0]->tok.kw == LOW_KW_MODULE && f->kids[1]->kind == LOW_CST_ATOM) { amod = f->kids[1]->tok.lex; continue; }
             if (f->kids[0]->tok.kw != LOW_KW_ACTOR || f->kids[f->nkids - 1]->kind != LOW_CST_BLOCK) continue;

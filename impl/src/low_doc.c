@@ -25,7 +25,7 @@ typedef struct { const char *code; const char *msg; proven_u32 line; } sd_t;
 static void sd_collect(proven_array_t *da, sd_t *out, proven_size_t *n, proven_size_t cap) {
     for (proven_size_t i = 0; i < da->len && *n < cap; i++) {
         const low_diag_t *d = PROVEN_ARRAY_GET(da, low_diag_t, i);
-        out[*n].code = d->code; out[*n].msg = d->msg; out[(*n)++].line = d->line;
+        out[*n].code = d->code; out[*n].msg = low_diag_text(d); out[(*n)++].line = d->line;
     }
 }
 static proven_u32 form_first_line(const low_cst_t *f) {

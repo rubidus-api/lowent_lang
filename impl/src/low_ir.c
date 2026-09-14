@@ -118,7 +118,8 @@ static void ir_mono_note(ir_ctx_t *c) {
     }
 }
  void ir_diag(ir_ctx_t *c, const char *code, const char *msg, proven_u32 line) {
-    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0 };
+    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0,
+                     .file = low_cst_file_for_line(c->def_form, line) };
     (void)proven_array_push(&c->out->diags, &d);
     ir_mono_note(c);
 }
@@ -174,7 +175,7 @@ static void ir_fail_r(ir_ctx_t *c, const char *code, const char *msg,
                       const char *repair, proven_u32 line) {
     if (c->failed) return;
     low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0,
-                     .repair = repair };
+                     .repair = repair, .file = low_cst_file_for_line(c->def_form, line) };
     (void)proven_array_push(&c->out->diags, &d);
     c->failed = true;
 }
@@ -193,19 +194,15 @@ static bool ir_capacity_mark(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *po
 
 static void ir_fail_buf(ir_ctx_t *c, const char *code, const char *msg, proven_u32 line) {
     if (!c->failed) {
-        low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .line = line, .col = 0 };
+        low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .line = line, .col = 0,
+                         .file = low_cst_file_for_line(c->def_form, line) };
         proven_size_t n = 0;
         while (msg[n] && n + 1 < sizeof d.detail) { d.detail[n] = msg[n]; n++; }
         d.detail[n] = '\0';
         d.msg = NULL;
         (void)proven_array_push(&c->out->diags, &d);
-        // ★ 밀어 넣은 **그 원소**의 detail 을 가리켜야 한다 — 스택의 `d` 를 가리키면 대롱거린다.
-        //   (`detail` 이 진단 안에 사는 이유가 정확히 이것이다: 자기 문장을 자기가 든다.)
-        if (c->out->diags.len) {
-            // ★ 쓰려면 **가변 매크로**다 — `PROVEN_ARRAY_GET` 은 `const type *` 를 준다(경고 둘의 출처였다).
-            low_diag_t *st = PROVEN_ARRAY_GET_MUT(&c->out->diags, low_diag_t, c->out->diags.len - 1);
-            st->msg = st->detail;
-        }
+        // ★ `msg` 는 NULL 로 둔다 — 문장은 그 원소의 `detail` 에 있고 렌더러는 `low_diag_text` 로 읽는다
+        //   (2026-09-14: `msg = detail` 로 가리키면 배열이 재할당될 때 옛 자리를 가리켰다).
         ir_mono_note(c);
     }
     c->failed = true;
@@ -1153,6 +1150,47 @@ static bool ir_bare_is_ambiguous(ir_ctx_t *c, proven_u8str_view_t name,
         if (proven_u8str_view_eq(head, c->modnames[m]))
             return (proven_u8str_view_t){ .ptr = v.ptr + dot + 1, .size = v.size - dot - 1 };
     return v;
+}
+// ★★★ **없는 이름은 그 이름을 댄다** (2026-09-14 — 공개 전 점검). 전엔 `E-IR-UNDEF: undefined name in expression`
+//   한 줄이라, 처음 쓰는 사람은 **무엇이** 없는지 몰랐다(`strings.count_byte` 처럼 모듈에 없는 op 을 부른 흔한 실수).
+//   ⇒ 이름을 대고, 한정된 이름이면 앞마디가 무엇인지(모듈·enum)에 따라 갈라 말한다. enum 에 없는 갈래는
+//     제 코드(`E-ENUM-NOVARIANT`)로, 그 enum 의 갈래 목록과 함께.
+static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
+    proven_u8str_view_t lex = nd->tok.lex, head = nd->qual_mod, tail = lex;
+    if (!head.size)
+        for (proven_size_t i = lex.size; i-- > 0; )
+            if (lex.ptr[i] == (proven_u8)'.') { head = (proven_u8str_view_t){ .ptr = lex.ptr, .size = i };
+                                                tail = (proven_u8str_view_t){ .ptr = lex.ptr + i + 1, .size = lex.size - i - 1 }; break; }
+    char buf[256];
+    if (head.size) {
+        char vl[160]; size_t vn = 0; vl[0] = 0; int nv = 0;
+        for (proven_size_t i = 0; i < c->nenumv; i++)
+            if (c->enum_owner[i].size && proven_u8str_view_eq(c->enum_owner[i], head)) {
+                nv++;
+                int w = snprintf(vl + vn, sizeof vl - vn, "%s%.*s", vn ? ", " : "", (int)c->enumv[i].size, (const char *)c->enumv[i].ptr);
+                if (w < 0 || (size_t)w >= sizeof vl - vn) { vn = sizeof vl - 1; break; }
+                vn += (size_t)w;
+            }
+        if (nv) {
+            snprintf(buf, sizeof buf, "enum `%.*s` has no variant `%.*s` — its variants are: %s",
+                     (int)head.size, (const char *)head.ptr, (int)tail.size, (const char *)tail.ptr, vl);
+            ir_fail_buf(c, "E-ENUM-NOVARIANT", buf, nd->line);
+            return;
+        }
+        bool is_mod = false;
+        for (proven_size_t m = 0; m < c->nmodnames; m++) if (proven_u8str_view_eq(head, c->modnames[m])) is_mod = true;
+        if (is_mod)
+            snprintf(buf, sizeof buf, "module `%.*s` has no op or value named `%.*s` — check the spelling, and "
+                     "that the module exports it (`export fn`/`export proc`)",
+                     (int)head.size, (const char *)head.ptr, (int)tail.size, (const char *)tail.ptr);
+        else
+            snprintf(buf, sizeof buf, "undefined name `%.*s` — `%.*s` is not a module used by this unit (`use %.*s .`) "
+                     "nor an enum", (int)lex.size, (const char *)lex.ptr, (int)head.size, (const char *)head.ptr,
+                     (int)head.size, (const char *)head.ptr);
+    } else
+        snprintf(buf, sizeof buf, "undefined name `%.*s` — not a local, an input, an op, a constant or an enum "
+                 "variant in scope here", (int)lex.size, (const char *)lex.ptr);
+    ir_fail_buf(c, "E-IR-UNDEF", buf, nd->line);
 }
 static bool ir_is_enum_variant(const ir_ctx_t *c, proven_u8str_view_t name) {
     for (proven_size_t i = 0; i < c->nenumv; i++)
@@ -3762,10 +3800,13 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             if (isdef) {
                 proven_size_t np = c->out->defs[di].nparams;
                 if (*pos + np > end) {
-                    ir_fail(c, "E-IR-ARITY",
-                            "this op was called with TOO FEW arguments. (If you split a long line, "
-                            "the newline may have CLOSED the call — end the line with `,` to continue)",
-                            nd->line);
+                    // ★ 2026-09-14 — 이름과 수를 댄다. 옛 문장의 «줄 끝에 `,`» 권고는 RFC-0103 에서 죽은 규칙이었다.
+                    char abuf[256];
+                    snprintf(abuf, sizeof abuf, "`%.*s` takes %zu argument%s but %zu %s given here — an op call "
+                             "is `<name> <arg>…` with exactly as many arguments as its `input` clauses",
+                             (int)nd->tok.lex.size, (const char *)nd->tok.lex.ptr, (size_t)np, np == 1 ? "" : "s",
+                             (size_t)(end - *pos), (end - *pos) == 1 ? "is" : "are");
+                    ir_fail_buf(c, "E-IR-ARITY", abuf, nd->line);
                     return;
                 }
                 // ★★★ **가변인자 씨 호출** (RFC-0063 §5) — 고정 인자 + **나머지 전부**를 밀고,
@@ -3850,7 +3891,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             //   슬롯이 하나 있지만 값은 쓰이지 않는다(뿌리는 번역 시점에 정해진다) — 그래서 0 을 싣는다.
             //   전엔 여기서 `E-IR-UNDEF` 였다: 영역을 아래로 건네는 길이 문법만 있고 동작이 없었다(F7).
             if (ir_is_region_name(c, nd->tok.lex)) { ir_emit(c, IRW_CONST, 0); return; }
-            ir_fail(c, "E-IR-UNDEF", "undefined name in expression", nd->line);
+            ir_fail_undef(c, nd);
             return;
         }
     }
@@ -4082,7 +4123,7 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
                             "(the standard names this case: §4.7)", nd->line);
                     return;
                 }
-                ir_fail(c, "E-IR-UNDEF", "undefined name", nd->line);
+                ir_fail_undef(c, nd);
                 return;
             }
             // ★ 개행 닫힘이 없어진 뒤(RFC-0103) `expr` 섬이 줄로 나뉘어 고아가
@@ -5559,7 +5600,7 @@ static bool ct_entry_contract_trap(const proven_array_t *diags, proven_size_t fr
     for (proven_size_t i = from; i < diags->len; i++) {
         const low_diag_t *d = PROVEN_ARRAY_GET(diags, low_diag_t, i);
         if (strcmp(d->code, "E-VM-CONTRACT") != 0) continue;
-        if (strstr(d->msg, "at the program boundary") || strstr(d->msg, "violated at entry"))
+        if (strstr(low_diag_text(d), "at the program boundary") || strstr(low_diag_text(d), "violated at entry"))
             return true;
     }
     return false;

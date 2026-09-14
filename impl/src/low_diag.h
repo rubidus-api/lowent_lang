@@ -33,4 +33,11 @@ typedef struct {
     const char    *file;
 } low_diag_t;
 
+// ★★★ **진단의 문장** (2026-09-14). 이름을 대는 진단은 문장을 자기 `detail` 에 짓고 `msg` 를 NULL 로 둔다 —
+//   `msg` 가 `detail` 을 가리키게 하면 진단 배열이 커질 때(재할당) 그 포인터가 옛 자리를 가리킨다.
+//   렌더러는 언제나 이 함수로 읽는다.
+static inline const char *low_diag_text(const low_diag_t *d) {
+    return d->msg ? d->msg : d->detail;
+}
+
 #endif // LOW_DIAG_H

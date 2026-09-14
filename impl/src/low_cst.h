@@ -219,4 +219,20 @@ void low_mono(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allo
 void low_nest(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work,
               proven_size_t *nested, proven_size_t *gave_up);
 
+// ★ 2026-09-14 — 폼이 덮는 마지막 줄(진단에 파일을 실을 때, 그 줄이 이 폼 안인지 본다)
+static inline proven_u32 low_cst_last_line(const low_cst_t *n) {
+    proven_u32 m = n ? n->line : 0;
+    while (n) {
+        if (n->line > m) m = n->line;
+        if (n->kind == LOW_CST_ATOM || n->nkids == 0) { if (n->tok.line > m) m = n->tok.line; break; }
+        n = n->kids[n->nkids - 1];
+    }
+    return m;
+}
+// 줄이 이 폼 안이면 그 폼의 파일, 아니면 NULL — **짐작해서 붙이지 않는다**
+static inline const char *low_cst_file_for_line(const low_cst_t *f, proven_u32 line) {
+    if (!f || !f->file || !line) return NULL;
+    return (line >= f->line && line <= low_cst_last_line(f)) ? f->file : NULL;
+}
+
 #endif // LOW_CST_H

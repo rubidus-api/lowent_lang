@@ -1,0 +1,31 @@
+rem ★★★ **구조체 by-value FFI** (RFC-0063 §5) — 씨의 함수에 struct 를 **값으로** 넘긴다.
+rem
+rem   Lowent 의 비-packed 구조체 레이아웃은 **C-natural**(필드를 폭으로 정렬)이라 씨 struct 와
+rem   **바이트 레이아웃이 같다**. 그래서 도구는 viewable 구조체마다 **진짜 C struct**(struct lw_sty_N)
+rem   를 내고, 씨의 함수에 값으로 넘길 때 **C 컴파일러가 SysV AMD64 분류**를 한다(작은 건 레지스터로,
+rem   16바이트 초과는 숨은 포인터로) — 우리가 분류기를 쓰지 않는다.
+rem
+rem   ★ 씨 작성자는 **자기 struct 이름**(struct pt)으로 받는다. 생성된 C 는 struct lw_sty_<idx> 로
+rem     넘기지만 레이아웃이 같아 **ABI 로 링크된다**(C 는 이름 맹글링이 없다). 레이아웃 일치가 전제다.
+rem   ★ 이 op 은 하강하지 않는다(태그 경로) — 구조체는 바이트로 다뤄진다.
+module vm_ffi_bv .
+
+struct pt .
+  x i64 .
+  y i64 .
+end .
+
+rem area(struct pt) = x*y — 16바이트(2×i64) → SysV 로 레지스터 둘에 실린다.
+unsafe extern proc c_area input k cap c . input p pt . output i64 . link lw_c_area . effects unsafe . end .
+
+unsafe proc area_via_c input k cap c . input p pt . output i64 . effects unsafe . do
+  return c_area k p .
+end .
+
+rem ★★★ **`make` 로 지은 구조체도 값으로 넘어간다.** Lowent 의 구조체는 레코드(풀 저장, .p 없음)라,
+rem   `*(struct*).p` 가 널을 역참조해 **segfault** 했다(조합 테스트가 잡음). 이제 필드에서 struct 를
+rem   실체화한다(lw_sty_N_of — 레코드면 필드 모아 짓고, 바이트 뷰면 그대로 읽는다).
+unsafe proc area_made input k cap c . output i64 . effects unsafe . do
+  var p pt . be make pt do x 6 . y 7 . end .
+  return c_area k p .
+end .

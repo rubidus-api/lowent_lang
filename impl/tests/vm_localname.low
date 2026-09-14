@@ -1,0 +1,24 @@
+rem ★★★★★ **지역 이름은 남의 모듈 op 이 아니다** (spill 30 해소 2026-08-29).
+rem
+rem   파서의 arity 되짚기가 **지역 변수를 훔쳤다**. 이 모듈에 `total` 이라는 op 이 없고
+rem   다른 모듈이 `export fn total`(인자 1)을 내면, 여기 `let total` 은 **호출로 묶여**
+rem   뒤따르는 `else` 를 삼켰다. 그러면 검사층이 *"guard 의 else 가 안 떠난다"*
+rem   (`E-GUARD-FALLTHROUGH`) 라고 **엉뚱한 것을 탓했다** — 이름 충돌인데 제어흐름을 탓한 것이다.
+rem
+rem ☞ 되짚기 자체는 **제네릭 인스턴스가 쓴다**(없애면 코퍼스 14 개가 깨진다 — 실측).
+rem   그래서 없애지 않고 **제 모듈의 지역 이름일 때만** 안 되짚는다.
+rem   ★ 짝 파일 `vm_localname_peer.low` 가 같은 이름을 export 한다. 둘을 한 단위에 넣어야
+rem     이 검사가 뜻을 갖는다 — 혼자서는 재현되지 않는다.
+
+module vm_localname .
+
+export fn guarded input n u64 . output u64 . do
+  rem 여기 `total` 은 **지역**이다. 짝 모듈의 `total`(op) 이 이것을 집으면 안 된다.
+  let total u64 be add n 10 .
+  guard ge total 10 . else return 0 .
+  return total .
+end .
+
+proc main output u8 . effects none . do
+  return 0 .
+end .

@@ -1,0 +1,220 @@
+rem ★★★ **리터럴이 드디어 자기가 약속한 바이트를 낸다** — 두 결함을 함께 닫았다.
+rem
+rem ① **이스케이프가 반만 있었다.** 렉서는 `\X` 를 건너뛰지만(그래서 `\"` 가 문자열을 안 끝낸다)
+rem    **디코드를 안 했다** — `"a\"b"` 가 4 바이트(a·\·"·b)였다. 즉 **문자열 값에 따옴표를 넣을
+rem    방법이 아예 없었다.** 게다가 렉서 주석은 `with \" and \\ escapes` 라고 **약속하고 있었다** —
+rem    검사되지 않는 약속은 거짓말이다(§0). 이제 IR 하강에서 푼다.
+rem    ★ 어휘는 **닫혀 있다**(6): \\ \" \n \t \r \0. 모르는 것은 **거절**한다(E-STR-ESCAPE) —
+rem      조용히 백슬래시를 남기면 그것이 다시 '반만 있는' 상태다.
+rem    ★ `tok.lex` 는 **원문 그대로 둔다** — 서식기가 그것을 다시 찍어 왕복을 지키기 때문이다.
+rem      디코드 결과는 IR 이 소유하는 저장소에 산다.
+rem
+rem ② **heredoc 은 렉서가 이미 옳게 했는데 IR 이 몰랐다.** 한 줄이면 개행 없는 문자열, 개행을
+rem    남기려면 빈 줄 하나, CRLF 처리, 본문은 **원문 그대로**(이스케이프 불요) — 전부 있었다.
+rem    빠진 것은 값 하강 한 줄이었다. ⇒ heredoc 이 개행·제어 바이트의 **정공법**이다.
+rem    ★ heredoc 뒤에는 **명시적 `.`** 이 필요하다(개행이 안 닫는다 — 인자가 따라올 수 있으므로).
+
+module vm_lit .
+
+rem ── ① 이스케이프 ──────────────────────────────────────────────────────
+
+fn t_escape output u64 . do
+  rem 따옴표: 3 바이트이고 가운데가 34 여야 한다(전엔 4 바이트에 92 였다).
+  guard eq (len "a\"b") 3 . else return 90 .
+  guard eq (index "a\"b" 1) 34 . else return 91 .
+  rem 백슬래시 하나.
+  guard eq (len "a\\b") 3 . else return 92 .
+  guard eq (index "a\\b" 1) 92 . else return 93 .
+  rem 제어 바이트.
+  guard eq (index "a\nb" 1) 10 . else return 94 .
+  guard eq (index "a\tb" 1) 9 . else return 95 .
+  guard eq (index "a\rb" 1) 13 . else return 96 .
+  guard eq (index "a\0b" 1) 0 . else return 97 .
+  rem 이스케이프 없는 문자열은 그대로다.
+  guard eq (len "plain") 5 . else return 98 .
+  return 1 .
+end .
+
+rem ★★★ **`\xNN` — 임의 바이트, 자리 수 고정** (2026-08-05).
+rem   전엔 여기 없는 바이트(ESC 0x1b 등)를 **리터럴로 적을 방법이 아예 없었다** — 히어독의
+rem   본문은 원문 그대로라 비인쇄 바이트에는 답이 안 되고, 그래서 `lib/term.low` 는 ESC 를
+rem   `set (index buf pos) 27 .` 로 **산술로** 썼다. 바이트열이 코드로 흩어진다.
+rem ★ 자리 수는 **정확히 둘**이다. C·C++ 의 `\x` 는 16진수를 끝없이 먹어서 `"\x41"` 옆에
+rem   16진 글자 하나가 더 붙으면 **다른 바이트가 된다**. Rust·Zig 는 그 실수를 길이 고정으로
+rem   닫았고(가변인 것은 중괄호를 쓰는 `\u{…}` 뿐), 여기도 같은 규율이다 ⇒ 탐욕이 원리상 없다.
+rem ☞ Rust 의 `str` 은 UTF-8 이라 `\x` 를 0x7F 까지 막지만 여기 문자열은 `slice u8` 이라
+rem   그 제한이 필요 없다(Zig 와 같은 자리) — 0x00~0xFF 를 전부 적는다.
+fn t_hex output u64 . do
+  guard eq (index "A\x41B" 1) 65 . else return 90 .
+  guard eq (len "A\x41B") 3 . else return 91 .
+  rem ★ **이어 붙여도 안 먹는다** — "\x41e" 는 A 다음이 'e'(101)이지 한 바이트가 아니다.
+  guard eq (len "\x41e") 2 . else return 92 .
+  guard eq (index "\x41e" 1) 101 . else return 93 .
+  rem 대소문자 둘 다 · 0xff · NUL · ESC.
+  guard eq (index "\xff" 0) 255 . else return 94 .
+  guard eq (index "\xFF" 0) 255 . else return 95 .
+  guard eq (index "\x00" 0) 0 . else return 96 .
+  guard eq (index "\x1b[2J" 0) 27 . else return 97 .
+  guard eq (len "\x1b[2J") 4 . else return 98 .
+  rem 한 리터럴에 셋이 같이 있어도 된다.
+  guard eq (len "\xff\x00\x1bA") 4 . else return 99 .
+  return 1 .
+end .
+
+rem ── ② heredoc ─────────────────────────────────────────────────────────
+
+fn t_heredoc_one output u64 . do
+  rem ★ 한 줄이면 **개행이 없다** — TERM 직전 개행 하나를 렉서가 떨어낸다.
+  let s slice u8 be text END
+abc
+END .
+  return len s .
+end .
+
+fn t_heredoc_multi output u64 . do
+  rem "aa\nb" — 4 바이트, 인덱스 2 가 LF(10).
+  let s slice u8 be text END
+aa
+b
+END .
+  guard eq (len s) 4 . else return 90 .
+  guard eq (index s 2) 10 . else return 91 .
+  return 1 .
+end .
+
+fn t_heredoc_trail output u64 . do
+  rem ★ 개행을 **남기고 싶으면 빈 줄 하나** — "ab\n" 3 바이트.
+  let s slice u8 be text END
+ab
+
+END .
+  guard eq (len s) 3 . else return 90 .
+  guard eq (index s 2) 10 . else return 91 .
+  return 1 .
+end .
+
+rem ★★★ **접두 리터럴 — C23 의 "…"·u"…"·U"…"** (RFC-0035 D5, 2026-08-07 · 소유자 요청).
+rem   새 키워드 **0**: 낱말이 여는 따옴표에 **붙어** 있으면 그것은 이름이 아니라 접두사다.
+rem   이 저장소의 다른 인접 규칙과 같은 결이다(`s.x` 접근 · `.f` 머리 · `method s m` 메서드) —
+rem   **띄어쓰기가 문법이다**: `u "AB"` 는 여전히 이름 `u` 와 문자열 둘이다.
+rem
+rem   접두사 없음 · u8 → slice u8  (바이트)      ★ "…" 은 "…" 과 **완전히 같다**
+rem   u                → slice u16 (UTF-16 코드 유닛)
+rem   U                → slice u32 (코드포인트)
+rem
+rem   ★ `len` 은 **원소 수**다(바이트 수가 아니다) — 소유자 결정(C 의 char16_t 대응).
+rem   ★ 바이트 순서는 리터럴에 **굽지 않는다**: 타입 있는 슬라이스는 어느 호스트·타깃에서도
+rem     리틀엔디언으로 담기고 VM·네이티브가 **같은 방식으로** 읽는다(그래서 mips_be 도 같다).
+
+fn t_prefix_u8 output u64 . do
+  rem "…" 은 접두사 없는 것과 같은 것을 낸다 — 새 능력이 아니라 **C 에서 온 눈을 위한 이름**이다.
+  guard eq (len "AB") 2 . else return 90 .
+  guard eq (index "AB" 0) 65 . else return 91 .
+  rem 한글은 UTF-8 로 세 바이트 — 바이트 슬라이스이므로 6.
+  guard eq (len "한글") 6 . else return 92 .
+  return 1 .
+end .
+
+fn t_prefix_u16 output u64 . do
+  let a slice u16 be u"AB" .
+  guard eq (len a) 2 . else return 90 .
+  guard eq (index a 0) 65 . else return 91 .
+  guard eq (index a 1) 66 . else return 92 .
+  rem 한글 두 글자 = 코드 유닛 둘(BMP 안).
+  let k slice u16 be u"한글" .
+  guard eq (len k) 2 . else return 93 .
+  guard eq (index k 0) 54620 . else return 94 .
+  rem ★ 비-BMP 는 **서러게이트 쌍**이다 — UTF-16 이 원래 그렇게 생겼고, 조용히 자르지 않는다.
+  let e slice u16 be u"😀" .
+  guard eq (len e) 2 . else return 95 .
+  guard eq (index e 0) 55357 . else return 96 .
+  guard eq (index e 1) 56832 . else return 97 .
+  return 1 .
+end .
+
+fn t_prefix_u32 output u64 . do
+  let a slice u32 be U"AB" .
+  guard eq (len a) 2 . else return 90 .
+  guard eq (index a 1) 66 . else return 91 .
+  rem 코드포인트이므로 비-BMP 도 **하나**다 — u"…" 과 갈리는 자리가 여기다.
+  let e slice u32 be U"😀" .
+  guard eq (len e) 1 . else return 92 .
+  guard eq (index e 0) 128512 . else return 93 .
+  let k slice u32 be U"한글" .
+  guard eq (len k) 2 . else return 94 .
+  guard eq (index k 0) 54620 . else return 95 .
+  return 1 .
+end .
+
+fn t_prefix_heredoc output u64 . do
+  rem ★ **두 표면이 같은 어휘를 쓴다** — 인라인 접두사와 heredoc 태그가 같은 낱말이다.
+  let a slice u16 be text u END
+AB
+END .
+  guard eq (len a) 2 . else return 90 .
+  guard eq (index a 1) 66 . else return 91 .
+  return 1 .
+end .
+
+fn t_prefix_space output u64 . do
+  rem ★ **띄어쓰기가 문법이다**: 붙어야 접두사다. 아래는 접두사가 아니라 그냥 문자열이다.
+  guard eq (len "AB") 2 . else return 90 .
+  return 1 .
+end .
+
+rem ★★★★★ **문자 리터럴** `'a'` (2026-08-07 · 소유자 요청).
+rem
+rem   짓기 전에 **아픈지 쟀다**: `lib/regex.low` 이 자기 이스케이프 글자를 **십진수로** 적고
+rem   있었고(`if eq c 100` = 'd' · `119` = 'w' · `115` = 's'), `lib/fmt.low` 은 **주석으로
+rem   글자를 날랐다**(`put_byte buf pos 45 . rem '-'`). **주석은 검사되지 않는다.**
+rem   ☞ `lib/term.low` 이 ESC 를 `27` 로 적던 자리와 같고, 그때 답이 `\xNN` 이었다.
+rem
+rem   ★ 값의 뜻은 **문자열 접두사 가족과 같다**(단계 Y): 없음·u8 = 바이트 · u = UTF-16 코드
+rem     유닛 · U = 코드포인트. 새 키워드 **0** — `'` 는 여태 `E-CHAR` 였던 빈 자리다.
+rem   ★ 한 칸에 **안 들어가면 거절**한다. 잘라 놓고 "문자 하나" 라 부르면 그 리터럴이 거짓말이다.
+
+fn t_char_byte output u64 . do
+  guard eq 'a' 97 . else return 90 .
+  guard eq 'a' 97 . else return 91 .
+  rem 정규식이 십진수로 적던 글자들 — 이제 글자로 적는다.
+  guard eq 'd' 100 . else return 92 .
+  guard eq 'w' 119 . else return 93 .
+  guard eq '-' 45 . else return 94 .
+  rem 이스케이프는 문자열과 **같은 닫힌 집합**을 쓴다.
+  guard eq '\n' 10 . else return 95 .
+  guard eq '\t' 9 . else return 96 .
+  guard eq '\x1b' 27 . else return 97 .
+  guard eq '\\' 92 . else return 98 .
+  return 1 .
+end .
+
+fn t_char_wide output u64 . do
+  rem BMP 안이면 u16 유닛 하나 · 코드포인트 하나 — 같은 수다.
+  guard eq u'한' 54620 . else return 90 .
+  guard eq U'한' 54620 . else return 91 .
+  rem ★ 비-BMP 는 갈린다: 코드포인트로는 하나, UTF-16 으로는 **쌍**이라 u'…' 이 거절된다.
+  guard eq U'😀' 128512 . else return 92 .
+  return 1 .
+end .
+
+fn t_char_sep output u64 . do
+  rem ★★★ **자릿수 구분자가 부동소수에서 조용히 값을 잘랐다** (2026-08-07 실측):
+  rem     1_0.5 → 1.0 · 10.2_5 → 10.2 · 1e1_0 → 10.0
+  rem   렉서는 `_` 를 옳게 먹어 토큰에 담았는데 **값으로 접는 쪽이 strtod 를 그냥 불렀다.**
+  rem   그리고 그 자리가 **둘**이었다(low_ir · low_typecheck) — 정수는 한 벌로 묶여 있었고
+  rem   부동만 안 묶여 있었다. `low_num_to_double` 로 묶었다.
+  guard eq 1_000 1000 . else return 90 .
+  guard eq 0xFF_FF 65535 . else return 91 .
+  guard eq 0b1010_1010 170 . else return 92 .
+  rem ★ 선행 0 은 **8진이 아니다**(C 라면 493). 파일 권한을 적다 물리는 자리를 안 만든다.
+  guard eq 0755 755 . else return 93 .
+  return 1 .
+end .
+
+fn t_num_neg output i64 . do
+  rem ★ 부호는 **붙여야** 한다 — `- 5` 는 리터럴이 아니다(폼 자리에서 거절된다).
+  guard eq -5 (sub 0 5) . else return 90 .
+  guard eq -0xff (sub 0 255) . else return 91 .
+  guard eq -1_000 (sub 0 1000) . else return 92 .
+  return 1 .
+end .

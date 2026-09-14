@@ -1,0 +1,221 @@
+rem ★★★ **Poly1305** (RFC 8439 §2.5) — Lowent 로 쓴다.
+rem
+rem   130비트 산술을 **26비트 다섯 조각**으로 나눠 u64 위에서 한다(BearSSL·ref 구현이
+rem   쓰는 고전적 배치). 곱의 최대가 2^52 언저리라 u64 안에서 안전하다.
+rem
+rem ★ 오라클은 **RFC 8439 §2.5.2 테스트 벡터**다.
+rem ★ 뒷받침은 호출자가 든다: 상태는 u64 원소 열(h 5 · r 5)이다.
+rem
+rem ☞ 안 지은 것: **상수시간 보장**. 이 구현은 비밀에 따라 분기하지 않지만, 이 언어는
+rem   경계 검사와 트랩이 있어 타이밍을 약속할 수 없다. 그 사실을 여기 적는다 —
+rem   약속할 수 없는 것을 약속하지 않는 것이 이 저장소의 규율이다.
+
+module poly .
+
+rem r 을 clamp 하고 26비트 다섯 조각으로 쪼갠다. key 는 32 바이트, st 는 원소 10 이상.
+export proc setup input key slice u8 . input st mut slice u64 . output u64 . effects none . do
+  guard ge (len key) 32 . else return 0 .
+  guard ge (len st) 10 . else return 0 .
+  rem r = key[0..16] little-endian, clamp.
+  var t0 u64 be 0 .
+  var t1 u64 be 0 .
+  var i u64 be 0 .
+  while lt i 8 . do
+    set t0 (bit_or t0 (shl (cast u64 (index key i)) (mul i 8))) .
+    set i (add i 1) .
+  end .
+  var j u64 be 0 .
+  while lt j 8 . do
+    set t1 (bit_or t1 (shl (cast u64 (index key (add 8 j))) (mul j 8))) .
+    set j (add j 1) .
+  end .
+  rem clamp: r[3],r[7],r[11],r[15] 의 상위 4비트를 끄고, r[4],r[8],r[12] 의 하위 2비트를 끈다.
+  set t0 (bit_and t0 1152921487695413247) .
+  set t1 (bit_and t1 1152921487695413244) .
+  rem 26비트 다섯 조각.
+  set (index st 5) (bit_and t0 67108863) .
+  set (index st 6) (bit_and (shr t0 26) 67108863) .
+  set (index st 7) (bit_or (bit_and (shr t0 52) 4095) (bit_and (shl t1 12) 67104768)) .
+  set (index st 8) (bit_and (shr t1 14) 67108863) .
+  set (index st 9) (bit_and (shr t1 40) 67108863) .
+  rem h = 0
+  var k u64 be 0 .
+  while lt k 5 . do
+    set (index st k) 0 .
+    set k (add k 1) .
+  end .
+  return 1 .
+end .
+
+rem ★ 블록 하나를 누적한다. `blk` 는 최대 16 바이트.
+rem   `addhi = 1` → 완전한 블록(2^128 비트를 더한다)
+rem   `addhi = 0` → 호출자가 이미 0x01 을 버퍼에 넣었다(짧은 마지막 블록)
+export proc block input st mut slice u64 . input blk slice u8 . input addhi u64 . output u64 . effects none . do
+  guard ge (len st) 10 . else return 0 .
+  guard le (len blk) 16 . else return 0 .
+
+  rem 16 바이트를 128비트로 모은 뒤 26비트 다섯 조각으로 쪼갠다.
+  var lo u64 be 0 .
+  var hi u64 be 0 .
+  var i u64 be 0 .
+  while lt i 8 . do
+    if lt i (len blk) . do
+      set lo (bit_or lo (shl (cast u64 (index blk i)) (mul i 8))) .
+    end .
+    set i (add i 1) .
+  end .
+  var j u64 be 0 .
+  while lt j 8 . do
+    if lt (add 8 j) (len blk) . do
+      set hi (bit_or hi (shl (cast u64 (index blk (add 8 j))) (mul j 8))) .
+    end .
+    set j (add j 1) .
+  end .
+
+  rem n = lo | hi<<64 | (1 << (8*len))  — 완전한 블록이면 2^128 자리에 1.
+  var n0 u64 be bit_and lo 67108863 .
+  var n1 u64 be bit_and (shr lo 26) 67108863 .
+  var n2 u64 be bit_or (bit_and (shr lo 52) 4095) (bit_and (shl hi 12) 67104768) .
+  var n3 u64 be bit_and (shr hi 14) 67108863 .
+  var n4 u64 be bit_and (shr hi 40) 67108863 .
+  rem 패딩 비트: 완전한 블록(16)이면 2^128 → 조각 4 의 2^24 자리.
+  rem ★ 패딩 비트: **완전한 16 바이트 블록이면 2^128 자리에 1** 을 더한다(조각 4 의 2^24).
+  rem   짧은 마지막 블록은 호출자가 버퍼에 0x01 을 넣고 `addhi = 0` 으로 부른다 —
+  rem   그 편이 정직하다: 1 비트가 **어디에** 붙는지는 길이가 정하고, 그것은 호출자가 안다.
+  rem   ☞ `guard` 의 else 는 반드시 떠나야 하므로(E-GUARD-FALLTHROUGH) 여기는 `if` 다.
+  if eq addhi 1 . do
+    set n4 (add n4 16777216) .
+  end .
+
+  rem h += n
+  set (index st 0) (add (index st 0) n0) .
+  set (index st 1) (add (index st 1) n1) .
+  set (index st 2) (add (index st 2) n2) .
+  set (index st 3) (add (index st 3) n3) .
+  set (index st 4) (add (index st 4) n4) .
+
+  rem h *= r  (26비트 조각 곱셈 — 5 로 접는 mod 2^130-5)
+  let h0 u64 be index st 0 .
+  let h1 u64 be index st 1 .
+  let h2 u64 be index st 2 .
+  let h3 u64 be index st 3 .
+  let h4 u64 be index st 4 .
+  let r0 u64 be index st 5 .
+  let r1 u64 be index st 6 .
+  let r2 u64 be index st 7 .
+  let r3 u64 be index st 8 .
+  let r4 u64 be index st 9 .
+  let s1 u64 be mul r1 5 .
+  let s2 u64 be mul r2 5 .
+  let s3 u64 be mul r3 5 .
+  let s4 u64 be mul r4 5 .
+
+  var d0 u64 be add (add (mul h0 r0) (mul h1 s4)) (add (mul h2 s3) (add (mul h3 s2) (mul h4 s1))) .
+  var d1 u64 be add (add (mul h0 r1) (mul h1 r0)) (add (mul h2 s4) (add (mul h3 s3) (mul h4 s2))) .
+  var d2 u64 be add (add (mul h0 r2) (mul h1 r1)) (add (mul h2 r0) (add (mul h3 s4) (mul h4 s3))) .
+  var d3 u64 be add (add (mul h0 r3) (mul h1 r2)) (add (mul h2 r1) (add (mul h3 r0) (mul h4 s4))) .
+  var d4 u64 be add (add (mul h0 r4) (mul h1 r3)) (add (mul h2 r2) (add (mul h3 r1) (mul h4 r0))) .
+
+  rem 자리올림 정규화
+  var c u64 be shr d0 26 .
+  set (index st 0) (bit_and d0 67108863) .
+  set d1 (add d1 c) .
+  set c (shr d1 26) .
+  set (index st 1) (bit_and d1 67108863) .
+  set d2 (add d2 c) .
+  set c (shr d2 26) .
+  set (index st 2) (bit_and d2 67108863) .
+  set d3 (add d3 c) .
+  set c (shr d3 26) .
+  set (index st 3) (bit_and d3 67108863) .
+  set d4 (add d4 c) .
+  set c (shr d4 26) .
+  set (index st 4) (bit_and d4 67108863) .
+  set (index st 0) (add (index st 0) (mul c 5)) .
+  set c (shr (index st 0) 26) .
+  set (index st 0) (bit_and (index st 0) 67108863) .
+  set (index st 1) (add (index st 1) c) .
+  return 1 .
+end .
+
+rem ★ 마무리: h 를 정규화하고 s(=key[16..32]) 를 더해 16 바이트 태그를 낸다.
+export proc emit input st mut slice u64 . input key slice u8 . input tag mut slice u8 . output u64 . effects none . do
+  guard ge (len tag) 16 . else return 0 .
+  guard ge (len key) 32 . else return 0 .
+
+  rem 완전 자리올림
+  var c u64 be shr (index st 1) 26 .
+  set (index st 1) (bit_and (index st 1) 67108863) .
+  set (index st 2) (add (index st 2) c) .
+  set c (shr (index st 2) 26) .
+  set (index st 2) (bit_and (index st 2) 67108863) .
+  set (index st 3) (add (index st 3) c) .
+  set c (shr (index st 3) 26) .
+  set (index st 3) (bit_and (index st 3) 67108863) .
+  set (index st 4) (add (index st 4) c) .
+  set c (shr (index st 4) 26) .
+  set (index st 4) (bit_and (index st 4) 67108863) .
+  set (index st 0) (add (index st 0) (mul c 5)) .
+  set c (shr (index st 0) 26) .
+  set (index st 0) (bit_and (index st 0) 67108863) .
+  set (index st 1) (add (index st 1) c) .
+
+  rem h - p 를 계산해 어느 쪽이 옳은지 고른다(p = 2^130 - 5).
+  var g0 u64 be add (index st 0) 5 .
+  var g1 u64 be add (index st 1) (shr g0 26) .
+  set g0 (bit_and g0 67108863) .
+  var g2 u64 be add (index st 2) (shr g1 26) .
+  set g1 (bit_and g1 67108863) .
+  var g3 u64 be add (index st 3) (shr g2 26) .
+  set g2 (bit_and g2 67108863) .
+  rem ★★ 이 뺄셈은 **음수로 내려갈 수 있다** — 그것이 곧 "h < p" 라는 신호이고, 아래에서
+  rem   최상위 비트로 읽는다. 이 언어의 `sub` 는 트랩하므로 **랩을 이름으로 말한다**
+  rem   (`wrap_sub`). C 에서는 조용히 감기던 것이 여기서는 **적혀 있다.**
+  var g4 u64 be wrap_sub (add (index st 4) (shr g3 26)) 67108864 .
+  set g3 (bit_and g3 67108863) .
+
+  rem g4 의 최상위 비트가 0 이면 g 쪽이 옳다(즉 h >= p 였다).
+  let use_g u64 be bit_and (shr g4 63) 1 .
+  if eq use_g 0 . do
+    set (index st 0) g0 .
+    set (index st 1) g1 .
+    set (index st 2) g2 .
+    set (index st 3) g3 .
+    set (index st 4) (bit_and g4 67108863) .
+  end .
+
+  rem 26비트 다섯 조각 → 32비트 넷
+  var f0 u64 be bit_and (bit_or (index st 0) (shl (index st 1) 26)) 4294967295 .
+  var f1 u64 be bit_and (bit_or (shr (index st 1) 6) (shl (index st 2) 20)) 4294967295 .
+  var f2 u64 be bit_and (bit_or (shr (index st 2) 12) (shl (index st 3) 14)) 4294967295 .
+  var f3 u64 be bit_and (bit_or (shr (index st 3) 18) (shl (index st 4) 8)) 4294967295 .
+
+  rem + s (key[16..32], little-endian 32비트 넷) — 자리올림을 이어 간다.
+  var acc u64 be 0 .
+  var w u64 be 0 .
+  while lt w 4 . do
+    var sw u64 be 0 .
+    var b u64 be 0 .
+    while lt b 4 . do
+      set sw (bit_or sw (shl (cast u64 (index key (add 16 (add (mul w 4) b)))) (mul b 8))) .
+      set b (add b 1) .
+    end .
+    rem ☞ `select` 는 **SIMD 레인 선택**이지 스칼라 삼항이 아니다(E-TYPE-MASK).
+    rem   이 언어에 스칼라 삼항은 없다 — `if` 로 쓴다. 이름이 자리를 지킨다.
+    var base u64 be f3 .
+    if eq w 0 . do set base f0 . end .
+    if eq w 1 . do set base f1 . end .
+    if eq w 2 . do set base f2 . end .
+    set acc (add (add base sw) acc) .
+    var t u64 be 0 .
+    set t (bit_and acc 4294967295) .
+    var q u64 be 0 .
+    while lt q 4 . do
+      set (index tag (add (mul w 4) q)) (cast u8 (bit_and (shr t (mul q 8)) 255)) .
+      set q (add q 1) .
+    end .
+    set acc (shr acc 32) .
+    set w (add w 1) .
+  end .
+  return 16 .
+end .

@@ -1,0 +1,25 @@
+rem ★★★ **같은 프로그램은 원소 폭으로 갈리지 않는다** — RFC-0111 §8-14 (WO-0192).
+rem
+rem   `requires lt i (len a) .` 하나로 색인이 안전해진다. 그 증명이 **원소 폭에 따라 달라지면**
+rem   안 된다. 그런데 그랬다(2026-09-09 발견): `slice u8` 은 지워지고 `slice u64` 는 안 지워졌다.
+rem   까닭은 `slice u64` 의 진입 정규화(`load p · view.array · store p`)가 「이 지역을 가리키는
+rem   사실도 죽인다」 는 규칙에 걸려 **계약이 방금 준 관계를 지운 것**이었다.
+rem   ☞ *예외를 하나 만들 때는 같은 근거를 쓰는 줄을 전부 찾아야 한다 — 한 줄만 고치면
+rem     그 예외는 절반만 존재한다.*
+rem
+rem   오라클: 아래 넷은 **같은 프로그램**이다. 골든이 방출 C 에서 남은 경계 검사를 세어
+rem   **넷 다 0** 인지 본다 — 하나라도 남으면 폭이 뜻을 바꾼 것이다.
+
+module widthproof .
+
+export proc rd8  input a slice u8  . . input i u64 . . output u64 .
+  effects none . requires lt i (len a) . do return (index a i) . end .
+
+export proc rd16 input a slice u16 . . input i u64 . . output u64 .
+  effects none . requires lt i (len a) . do return (index a i) . end .
+
+export proc rd32 input a slice u32 . . input i u64 . . output u64 .
+  effects none . requires lt i (len a) . do return (index a i) . end .
+
+export proc rd64 input a slice u64 . . input i u64 . . output u64 .
+  effects none . requires lt i (len a) . do return (index a i) . end .

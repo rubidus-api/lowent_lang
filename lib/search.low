@@ -1,0 +1,41 @@
+rem ★★★ **열넷째 표준 라이브러리 — 이진 탐색** (정렬된 slice 에서 O(log n) 조회). 빌트인 증가 **0**.
+rem
+rem   정렬(lib/sort.low)의 짝이다: 정렬해 두면 이진 탐색이 O(log n) 에 찾는다. 둘이 함께 **정렬된 집합/
+rem   맵**을 만든다(해시맵과 달리 **순서**를 지키므로 범위 질의·다음 큰 값이 된다).
+rem
+rem ★★ **전제: `s` 는 오름차순 정렬돼 있어야 한다**(호출자의 몫 — `sortlib.sort` 로 만든다). 이 전제가
+rem   깨지면 답이 틀리지만 **트랩은 아니다**(범위 밖은 안 만진다) — 정직하게 전제를 적어 둔다.
+rem
+rem ★ 중점은 `lo + (hi-lo)/2` 로 잡는다 — `(lo+hi)/2` 는 큰 인덱스에서 넘칠 수 있다(고전적 버그).
+rem   반열린 구간 [lo, hi) 로 돈다.
+rem
+rem ★★ **오라클 안 = diff-sweep**: 순수 op(cap 없음)이라 차등 퍼저가 임의 slice·target 에서 VM≡native.
+
+module searchlib .
+
+rem ★ 정확한 조회 — target 의 **인덱스** 또는 none(중복이 있으면 그중 하나).
+export fn bsearch input s slice u64 . input target u64 . output option u64 . do
+  var lo u64 be 0 .
+  var hi u64 be len s .
+  while lt lo hi . do
+    let mid u64 be add lo (div (sub hi lo) 2) .
+    let v u64 be index s mid .
+    if eq v target . do return (some mid) . end .
+    if lt v target . do set lo (add mid 1) . end .
+    if gt v target . do set hi mid . end .
+  end .
+  return none .
+end .
+
+rem ★ 하한(lower bound) — **target 이상인 첫 인덱스**(모두 작으면 len). **삽입점**이자 범위의 시작.
+rem   이것이 있으면 contains(bsearch)·정렬 유지 삽입·범위 [lo,hi) 질의가 다 선다.
+export fn lower_bound input s slice u64 . input target u64 . output u64 . do
+  var lo u64 be 0 .
+  var hi u64 be len s .
+  while lt lo hi . do
+    let mid u64 be add lo (div (sub hi lo) 2) .
+    if lt (index s mid) target . do set lo (add mid 1) . end .
+    if ge (index s mid) target . do set hi mid . end .
+  end .
+  return lo .
+end .

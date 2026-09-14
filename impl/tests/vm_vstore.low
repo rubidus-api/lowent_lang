@@ -1,0 +1,31 @@
+rem ★★★ **vector store** (RFC-0040) — `load` 의 역. 계산한 벡터를 **메모리에 되쓴다**.
+rem
+rem   `store <dst> <idx> <vec>` — vec 의 레인을 dst[method idx idx+lanes] 에 쓴다. load 의 정확한 역.
+rem   ★ 레인/원소폭은 **vec 피연산자가 실어 온다**(select 처럼) — 바인딩 컨텍스트도 meta 도 불요.
+rem   ★ dst 는 **mut slice** 여야 하고(E-TYPE-MUT), 쓰기가 보이므로 **proc** 이다(fn 이면 E-EFFECT-PURITY).
+rem   ★ VM(레인 시뮬)과 C(벡터) 가 **같은 바이트**를 쓴다 ⇒ diff-sweep 로 VM≡native 검증(할당과 달리 오라클 안).
+
+module vm_vstore .
+
+type bytes slice u8 . .
+
+rem 각 u32 레인을 2배로 만들어 out 에 되쓴다.
+proc scale2 input b bytes . input out mut slice u8 . output u64 . effects none . do
+  var xs slice u32 . be view_array u32 b .
+  var v vec u32 4 . be load xs 0 .
+  var two vec u32 4 . be splat 2 .
+  var r vec u32 4 . be mul v two .
+  store out 0 r .
+  return 0 .
+end .
+
+rem 레인별 덧셈 후 되쓰기 — 두 입력을 더해 out 에.
+proc add_lanes input a bytes . input b bytes . input out mut slice u8 . output u64 . effects none . do
+  var xa slice u32 . be view_array u32 a .
+  var xb slice u32 . be view_array u32 b .
+  var va vec u32 4 . be load xa 0 .
+  var vb vec u32 4 . be load xb 0 .
+  var s vec u32 4 . be add va vb .
+  store out 0 s .
+  return 0 .
+end .

@@ -1,0 +1,70 @@
+rem ★★ 두 번째 **진짜 프로그램** — RLE 인코더/디코더.
+rem   `match` 함정은 진짜 프로그램만이 찾았다(유닛 테스트도 픽스처도 통과했다).
+rem   그래서 하나 더 쓴다. 이번엔 **쓰기·계약·range·경계 제거**를 함께 민다.
+rem
+rem RLE: 같은 바이트가 연속하면 (개수, 값) 쌍으로 접는다.
+rem   [7,7,7,9] → [3,7,1,9]
+
+rem ★★★ RFC-0057 (채택) — **호출자에게 보이는 쓰기는 `proc` 이다.**
+rem   이 op 들은 `fn` 이면서 `mut` 파라미터를 **고쳐 썼다.** 그러면서 `effects none` 이었다.
+rem   그런 op 은 **메모이즈할 수도, 재배치할 수도 없다** — 순수하지 않다.
+rem   (지역 변이는 여전히 순수하다: 저장소가 op 안에 갇혀 있으면 밖에서 관측할 수 없다.)
+
+module rle .
+
+type bytes slice u8 . .
+
+rem 한 실행(run)의 길이를 센다 — i 부터 같은 값이 몇 개인가.
+rem ★ 계약: 결과는 1 이상이고 255 이하다(u8 카운트에 담아야 하므로).
+fn run_len input i u64 . input src bytes . output u64 .
+  ensures ge ret 1 .
+do
+  var n u64 be 1 .
+  while lt (add i n) (len src) . do
+    if ne (index src (add i n)) (index src i) . do
+      return n .
+    end .
+    if ge n 255 . do
+      return n .
+    end .
+    set n expr n + 1 . .
+  end .
+  return n .
+end .
+
+rem ★ 인코딩. 출력 슬라이스에 (개수, 값) 쌍을 쓴다 — **슬라이스 원소 쓰기**.
+rem   ensures: 쓴 바이트 수는 짝수다… 는 구간으로 표현 못 하므로, 상한만 건다.
+proc rle_encode input src bytes . input dst mut bytes . . output u64 . effects none . do
+  var i u64 be 0 .
+  var o u64 be 0 .
+  while lt i (len src) . do
+    let n be run_len i src . .
+    if lt (add o 1) (len dst) . do
+      set (index dst o) n .
+      set (index dst (add o 1)) (index src i) .
+      set o expr o + 2 . .
+    end .
+    set i expr i + n . .
+  end .
+  return o .
+end .
+
+rem ★ 디코딩 — 왕복이 원본을 돌려주는가. 이것이 진짜 검증이다.
+proc rle_decode input src bytes . input dst mut bytes . . output u64 . effects none . do
+  var i u64 be 0 .
+  var o u64 be 0 .
+  while lt (add i 1) (len src) . do
+    let n be index src i . .
+    let v be index src (add i 1) . .
+    var k u64 be 0 .
+    while lt k n . do
+      if lt o (len dst) . do
+        set (index dst o) v .
+        set o expr o + 1 . .
+      end .
+      set k expr k + 1 . .
+    end .
+    set i expr i + 2 . .
+  end .
+  return o .
+end .

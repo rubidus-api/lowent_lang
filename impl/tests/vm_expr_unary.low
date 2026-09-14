@@ -1,0 +1,18 @@
+rem ★ 음성 — **`expr` 섬에는 단항이 없다** (SPEC-002 §2.5 · RFC-0091 · spill 22 해소 2026-08-29).
+rem
+rem   전엔 `E-IR-UNSUP: unsupported atom` 으로 죽었다. 그 진단은 *"이 도구가 아직 못 낮춘다"*
+rem   는 뜻이라 읽는 사람은 **곧 될 것**으로 읽는다. 실제로는 문서가 **정해 둔** 것이다.
+rem   ☞ 그리고 더 나빴던 것: `--check` 는 **초록**이었다. 정적 검사를 다 통과하고 **못 도는**
+rem     프로그램이 나왔다 — 조용한 함정이다.
+rem
+rem ✗ 이 파일은 `E-EXPR-UNARY` 로 거절돼야 한다.
+
+module vm_expr_unary .
+
+fn neg_in_island output u64 . do
+  return expr - 5 .
+end .
+
+proc main output u8 . effects none . do
+  return 0 .
+end .

@@ -1,0 +1,137 @@
+---
+name: lowent
+description: >
+  Write, check, run, and build Lowent — a contract-centric, cost-visible systems
+  language whose primary author is an AI agent. Load this when a task asks you to
+  read or write `.low` code, run `lowentc`, interpret its diagnostics, or generate
+  a module's machine-readable API index. Triggers on: ".low", "lowent", "lowentc",
+  "calcop", "procop", "--diag-json", "--emit-c".
+---
+
+# Lowent
+
+Lowent is a small, single-paradigm systems language. Its distinguishing bet is that
+**contracts are the interface and costs are visible** — an op declares what it
+requires, what it ensures, which effects it has, and which capabilities it needs, and
+the compiler checks all of it. The primary author is an agent, so the toolchain is
+built to be read by a program, not only a human.
+
+**This skill is the how-to. The normative truth is the SPEC.** When this file and
+`SPEC-0NN-*.md` disagree, the SPEC wins — tell the user, don't paper over it.
+
+## The one rule that saves you time
+
+`lowentc` **has no default mode.** You must pick exactly one of `--check`, `--run`,
+`--emit-c`, `--test`, `--fmt`, `--doc`, or a dump (`--ir`/`--cst`/`-t`/`--ops`).
+Running `lowentc file.low` with no mode prints usage and exits 2.
+
+## Read diagnostics as data, not prose
+
+Always pass **`--diag-json`** when a program (you) will consume the output. Each
+diagnostic is one JSON line on **stderr**, and the verdict is one more line:
+
+```
+$ lowentc --check --diag-json prog.low
+{"sev":"error","phase":"lex","code":"E-CHAR","line":3,"col":19,"msg":"unexpected character"}
+{"result":"violations","exit":1}
+```
+
+- `code` is **stable** (`E-EFFECT-NO-CAP`, `E-VM-BOUNDS`, `E-CHAR`, …) — branch on it,
+  never on `msg`. `msg` is a human convenience and its wording is not a contract.
+- `phase` is the pass that spoke (`lex`, `parse`, `check`, `ir`, …).
+- The `{"result":…,"exit":…}` line means: don't scrape the prose verdict.
+- Without `--diag-json` the same information is printed as `== phase (N) ==` headers
+  plus `line:col CODE: msg` — fine for a human, awkward for a parser.
+
+⚠ `line`/`col` locate within a file but the record carries **no file identifier**.
+With multiple input files you cannot tell which file from the JSON alone. Don't invent
+one.
+
+## The loop
+
+```sh
+# 1. static check — contracts, effects, ownership, visibility, capabilities
+lowentc --check --diag-json prog.low
+
+# 2. run one op on the VM (slice args are [a,b,c]; scalars are bare)
+lowentc --run main prog.low
+lowentc --run sum prog.low [1,2,3,4]
+
+# 3. run the `test` blocks
+lowentc --test prog.low
+
+# 4. build native — emits C on stdout, then hand it to a C compiler
+lowentc --emit-c prog.low > prog.c && cc -O2 prog.c -lm -o prog
+
+# 5. generate the machine-readable API index (see below)
+lowentc --doc-out out/ prog.low
+```
+
+Multiple `.low` files on one command line join into **one compilation unit**.
+A source states its own dependencies with `use <name> from "<path>" .` — the path is
+relative to the file that declares it, and it links itself.
+
+## Emitting docs for the next agent (REQ-0006 — this is why the skill exists)
+
+`--doc-out DIR` writes an agent-facing bundle, following the **llms.txt** convention:
+
+- `llms.txt` — curated index: `# module`, a one-line `>` summary, then a linked
+  `## Ops` list. The token-efficient entry point.
+- `<module>.md` — one Model-Card-style section per op (kind, signature, effects,
+  capabilities, `requires`/`ensures`, errors, def-hash, and tests collected as
+  examples).
+- `llms-full.txt` — the whole thing inlined, when a reader wants it in one file.
+- `<module>.lowctx` — the compact machine card (`--doc` also prints to stdout).
+
+So when a downstream agent needs to *use* a Lowent module, run `--doc-out` and give it
+the `llms.txt` — that is the intended handoff.
+
+## Anatomy of an op
+
+```lowent
+module sorted_search .
+
+rem  line comment. block comment is:  note END … END
+
+calcop sorted                     rem  calcop = pure (no effects). procop = effectful.
+  input xs slice u32 . .
+  output bool .
+  requires ge (len xs) 1 .        rem  contract flows into the caller
+  effects none .
+do
+  var i usize be 1 .
+  while lt i (len xs) . do
+    return false .
+  end
+  return true .
+end
+```
+
+Shape rules you will hit immediately:
+- **Prefix application, arity-aware.** `ge (len xs) 1` is `ge(len(xs), 1)`. Parens are
+  a readability/rendering layer, not required by the grammar.
+- **Single-word identifiers.** No multi-word names; snake_case by convention
+  (`mut_ref`, `file_system`).
+- **`.` is the terminator** — it ends declarations, clauses, and statements. The only
+  other role of `.` is the decimal point inside a number.
+- **Infix arithmetic only inside `expr`** (`+ - * /`); everywhere else it is prefix
+  (`add sub mul div mod`). Comparisons/logic are always prefix words
+  (`eq ne lt le gt ge and or not`).
+- `calcop` promises **no effects**; a `calcop` that does IO is `E-EFFECT-CALC`.
+  Effectful work is `procop` with a declared `effects …` set and the capabilities it
+  needs.
+
+## When something won't build
+
+- `--check` is green but `--emit-c` says an op **cannot be lowered**: it passed every
+  static check but is outside the runnable core (`--ir` names those ops). It will not
+  run; that is a real limit, not a warning to ignore.
+- An `E-IR-UNDEF` is not a missing feature — the program names something that isn't
+  defined. Fix the program.
+
+## Don't
+
+- Don't parse `msg`. Branch on `code`.
+- Don't expect a default mode.
+- Don't treat this skill as normative. If it drifts from the SPEC, the SPEC is right —
+  say so.

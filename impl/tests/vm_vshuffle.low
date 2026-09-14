@@ -1,0 +1,32 @@
+rem ★★★ **레인 재배열** (RFC-0040) — reverse · rotate · shuffle. 모두 **새 벡터를 낸다**(복사, 값 의미).
+rem
+rem   reverse <vec>            — 레인 역순.                     out[k] = v[n-1-k]
+rem   rotate  <vec> <n>        — n칸 회전(comptime).            out[k] = v[(k+n) mod n_lanes]
+rem   shuffle <vec> <i0> <i1>… — 임의 순열(comptime 인덱스).    out[k] = v[i_k]
+rem   ★ 레인수·원소폭은 vec 이 실어 온다. 인덱스/회전량은 comptime(meta). vec→vec 이라 mut·순수성 무관(값).
+rem   ★ VM(레인 시뮬)·C(lw_vperm)가 **같은 순열** ⇒ diff-sweep 로 VM≡native.
+
+module vm_vshuffle .
+
+type bytes slice u8 . .
+
+proc rev input b bytes . input out mut slice u8 . output u64 . effects none . do
+  var xs slice u32 . be view_array u32 b .
+  var v vec u32 4 . be load xs 0 .
+  store out 0 reverse v .
+  return 0 .
+end .
+
+proc rot input b bytes . input out mut slice u8 . output u64 . effects none . do
+  var xs slice u32 . be view_array u32 b .
+  var v vec u32 4 . be load xs 0 .
+  store out 0 rotate v 1 .
+  return 0 .
+end .
+
+proc shuf input b bytes . input out mut slice u8 . output u64 . effects none . do
+  var xs slice u32 . be view_array u32 b .
+  var v vec u32 4 . be load xs 0 .
+  store out 0 shuffle v 3 2 1 0 .
+  return 0 .
+end .

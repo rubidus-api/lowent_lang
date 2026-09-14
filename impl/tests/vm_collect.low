@@ -1,0 +1,25 @@
+rem ★★★ **"collect into" 는 없는 능력이 아니었다 — 기존 조합의 동의어였다** (RFC-0016).
+rem
+rem   RFC 는 `collect into` 를 "없음(sink 확장)" 으로 적어 두었고, 나는 그것을 **"할당형이라 오라클 밖"**
+rem   이라고 덧붙였다. **둘 다 실측과 어긋난다:**
+rem
+rem   ① **할당은 오라클 안이다.** 이 언어의 할당은 allocator-as-capability 다 — `take` 가 정적 버퍼 안의
+rem      **오프셋**(option u64, OOM 은 `none`)을 준다. 진짜 힙이 아니라 **완전히 결정적**이라 VM 과 native 가
+rem      같은 답을 낸다(vm_alloc: demo 21·oom 0, 양쪽 일치). "할당이라서 오라클 밖" 은 다른 언어의 사정이었다.
+rem   ② **collect 가 할 일은 이미 표현된다.** 할당이 오프셋을 주고 `subslice` 가 그것을 슬라이스로 만들며
+rem      `map`/`filter` 가 거기에 쓴다 — 아래가 그 전부다. 낱말을 하나 더 두면 그것은 **동의어**이고,
+rem      §2.5 가 금지하는 바로 그것이다(하나의 뜻에 두 표현이 있으면 둘은 반드시 갈린다).
+rem
+rem   ⇒ 그래서 `collect` 를 **짓지 않는다.** 없어서 못 지은 것이 아니라, **지으면 안 되기 때문**이다.
+rem     이것도 결과다 — 그리고 검사되는 결과다(아래 게이트가 그 조합을 실제로 돌린다).
+
+module vm_collect .
+
+fn dbl input a u8 . output u8 . do return (wrap_add a a) . end .
+
+rem 할당이 준 오프셋 off 자리에 map 의 결과를 모은다 — 이것이 "collect into" 다.
+proc collect_at input xs slice u8 . input buf mut slice u8 . input off u64 . input n u64 . output u64 . effects none . do
+  var dst mut slice u8 . be subslice buf off (add off n) .
+  map dst dbl xs .
+  return 0 .
+end .

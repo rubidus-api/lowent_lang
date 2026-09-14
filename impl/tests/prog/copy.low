@@ -1,0 +1,69 @@
+rem ★★★ **열두 번째 진짜 프로그램 — 스트리밍. 버퍼보다 큰 파일을 다룬다.**
+rem
+rem   `read_file`(A4)은 파일 **전체**를 버퍼에 담아, 버퍼보다 크면 `none` 이었다.
+rem   `wc.low` 과 `nl.low` 이 그 벽을 자기 주석에 적어 뒀다(64 KiB 까지).
+rem   ⇒ 이 프로그램은 **64 바이트 버퍼**로 그보다 훨씬 큰 파일을 읽고 **쓴다**.
+rem
+rem ★★★ **close 를 잊으면 컴파일이 안 된다** — `lib/file.low` 의 `owned handle`.
+rem   A6 의 라이터(`w_finish`)와 **같은 패턴**이고, 새 기계는 0 이다:
+rem   `f_close` 가 `owned` 를 받고 `result` 를 내면 그 타입은 *완결이 필요한* 타입이 된다.
+rem   ★ 그리고 닫기는 **진짜로 실패한다**(NFS·디스크 가득) — `result` 가 장식이 아니다.
+rem
+rem ★★ **읽기와 쓰기가 둘 다 스트림이다**: 조각을 읽어 곧바로 조각을 쓴다. 어느 쪽도
+rem   파일 전체를 메모리에 들지 않는다 — 그것이 스트리밍이 여는 것이다.
+rem ☞ 안 지은 것: `seek` · 디렉터리 · 소켓 · 중단 가능 IO(`wait`).
+
+module copy .
+
+use files from "../../../lib/file.low" .
+
+proc main .
+  input fs cap file_system .
+  input al cap allocator .
+  input a  cap args .
+  output u8 .
+  effects alloc io .
+do
+  rem 입력 경로는 인자로 받는다 — 하드코딩된 경로는 숨은 의존이다.
+  let src option slice u8 . be arg a 0 .
+  guard is_some src . else return 64 .
+  let dst option slice u8 . be arg a 1 .
+  guard is_some dst . else return 64 .
+
+  rem ★ 일부러 **작은** 버퍼다 — 조각으로 오간다는 것이 실제로 드러나야 한다.
+  let g option mut slice u8 . . be alloc_bytes al capacity 64 .
+  guard is_some g . else return 70 .
+  let buf mut slice u8 . be some_value g .
+
+  let ri result files.handle files.file_error . be files.open fs (some_value src) 0 .
+  guard is_ok ri . else return 71 .
+  var rh owned files.handle be ok_value ri .
+
+  let wi result files.handle files.file_error . be files.open fs (some_value dst) 1 .
+  guard is_ok wi . else return 72 .
+  var wh owned files.handle be ok_value wi .
+
+  var total u64 be 0 .
+  var going bool be true .
+  while going . do
+    rem ★ 세 자리다(2026-08-15): 실패는 `error`, **끝은 `ok none`** — 둘을 갈라 다룬다.
+    let n result (option u64) files.file_error . be files.read fs rh buf .
+    if eq (is_ok n) false . do set going false . end .
+    if is_ok n . do
+      let v option u64 . be ok_value n .
+      if eq (is_some v) false . do set going false . end .
+      if is_some v . do
+        let w result u64 files.file_error . be files.write fs wh (subslice buf 0 (some_value v)) .
+        if eq (is_ok w) false . do set going false . end .
+        set total (add total (some_value v)) .
+      end .
+    end .
+  end .
+
+  rem ★★★ 둘 다 닫는다. 하나라도 빼면 **컴파일이 안 된다**.
+  let c1 result void files.file_error . be files.close fs rh .
+  let c2 result void files.file_error . be files.close fs wh .
+  guard is_ok c1 . else return 73 .
+  guard is_ok c2 . else return 74 .
+  return (narrow u8 (mod total 251)) .
+end .

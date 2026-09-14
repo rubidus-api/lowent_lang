@@ -1,0 +1,33 @@
+rem ★★★★ **기본 얼로케이터가 사용자 얼로케이터와 같은 자리에 선다** (RFC-0112 D6·D7 · WO-0213).
+rem
+rem   소유자: *"객체를 선언할 때, 기본 얼로케이터와 사용자 얼로케이터를 원하는 대로 선택할 수 있는
+rem   문법과 구조가 있어야 하지 않을까."* — 그 **구조** 쪽이 이 파일이다(문법 `using` 은 WO-0214).
+rem
+rem   · `allocs.heap_bytes` · `allocs.fixed_bytes` 는 권한 칸(`root cap heap .` / `cap allocator`)을 든
+rem     **평범한 actor** 이고 `byte_allocator` 를 만족한다. 그래서 `vecgen` 이 범프와 똑같이 받는다.
+rem   · `vecgen.open`·`append` 는 `effects state via a .` — 힙 얼로케이터로 단형화한 인스턴스는 서명에
+rem     `heap` 이 서고, 부르는 `main` 도 `heap` 을 적어야 한다(빼면 E-EFFECT).
+rem   · 종료 코드: 힙 벡터에 10 만 원소 ⇒ count mod 251 = 102 · 고정 창 70000 은 안 들어간다(+0) ⇒ 102.
+
+module vm_capactor .
+
+use allocs from "../../lib/alloc.low" .
+use vecgen from "../../lib/vecgen.low" .
+
+export proc main input h cap heap . input al cap allocator . output u8 . effects heap alloc state .
+do
+  var hb allocs.heap_bytes be spawn actor allocs.heap_bytes . .
+  var fb allocs.fixed_bytes be spawn actor allocs.fixed_bytes . .
+  let vo option (vecgen.vec u32 allocs.heap_bytes) . using hb be vecgen.open u32 16 .
+  guard is_some vo . else return 1 .
+  var v vecgen.vec u32 allocs.heap_bytes . be some_value vo .
+  var i u64 be 0 .
+  while lt i 100000 . do
+    guard vecgen.append u32 allocs.heap_bytes v (narrow u32 i) . else return 2 .
+    set i (add i 1) .
+  end .
+  var r u64 be mod (vecgen.count_of u32 allocs.heap_bytes v) 251 .
+  let big option mut slice u8 . . be send fb reserve 70000 .
+  if is_some big . do set r (add r 100) . end .
+  return narrow u8 r .
+end .

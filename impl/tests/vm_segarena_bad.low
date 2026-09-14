@@ -1,0 +1,14 @@
+rem ★★★ **조각 크기가 뜻이 없으면 컴파일이 안 된다** — RFC-0104 §8-5 · §8-3 의 새 규칙이 여기서 다시 쓰인다.
+rem
+rem   이 파일은 **거절되어야 한다**(`E-CONTRACT-IMPOSSIBLE`). `kbits 0` 은 조각이 한 칸이라
+rem   세그먼트가 아니고, `kbits 30` 은 조각 하나가 10억 칸이다. `open` 의 계약이 둘 다 막는데,
+rem   인자가 **상수**이므로 그 판정은 **부르는 자리에서** 난다(§8-3 이 컴파일러에 더한 규칙).
+module vm_segarena_bad .
+use segarena from "../../lib/segarena.low" .
+
+newtype g u8 .
+
+export proc tiny output u64 . effects none . do
+  var a segarena.arena g . be segarena.open g 0 .
+  return segarena.seg_slots g a .
+end .

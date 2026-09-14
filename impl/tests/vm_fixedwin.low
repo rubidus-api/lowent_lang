@@ -1,0 +1,28 @@
+rem ★★★★ **고정 창의 크기는 보드가 정한다** (RFC-0112 D3(2) · 소유자 결정 2ⓑ · WO-0211).
+rem
+rem   소유자: *"프리스탠딩에서도 프로그램이 사용하는 메모리를 곧바로 실행파일에 그 크기만큼
+rem   박아넣는다고? … 실행하거나 기기가 부팅할 때 잡는 방식이어야 하는거 아냐?"*
+rem   ⇒ 프리스탠딩의 고정 창은 링커 스크립트가 주는 두 경계(`__lw_fixed_start`·`__lw_fixed_end`)
+rem     사이다. 같은 오브젝트 파일을 **다른 링커 스크립트로 이으면 다른 크기**를 쓴다(골든이 잰다).
+rem
+rem   `carve` — 1000 바이트를 열 번 잡는다. 창이 4096 이면 4, 8192 이면 8, 호스티드(64 KiB)면 10.
+rem   `heap` 을 한 번도 안 쓰므로 `--target cortex_m` 에서도 통과한다(`alloc` 은 베어메탈에서 합법이다).
+
+module vm_fixedwin .
+
+export proc carve input al cap allocator . output u64 . effects alloc .
+do
+  var n u64 be 0 .
+  var i u64 be 0 .
+  while lt i 10 . do
+    let g option mut slice u8 . . be alloc_bytes al capacity 1000 .
+    if is_some g . do set n (add n 1) . end .
+    set i (add i 1) .
+  end .
+  return n .
+end .
+
+export proc main input al cap allocator . output u8 . effects alloc .
+do
+  return narrow u8 (carve al) .
+end .

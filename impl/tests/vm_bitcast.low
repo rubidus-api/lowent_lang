@@ -1,0 +1,25 @@
+rem ★ SPEC-004 §188/§190 — 표현 재해석 사다리의 **T0**: `bit_cast t v`.
+rem
+rem   T0 `bit_cast`(무비용 값 재해석) → T1 `view`/`try_view`(무복사 참조 재해석)
+rem   → T2 선언적 직렬화 → T3 `layout packed/align` → T4 `raw`(unsafe)
+rem
+rem T1·T2 는 구현돼 있었는데 **가장 쉬운 칸이 비어 있었다.** 그리고 도구는 `bit_cast` 를
+rem   **E-IR-UNDEF: undefined name** 이라 했다 — *"네 프로그램이 틀렸다."*
+rem 실제로는 *"도구가 아직 못 한다"* 였다. **진단이 그 둘을 섞으면 아무것도 알 수 없다**(교훈 2).
+rem
+rem 게이트는 **`plain` 술어**다(§190): 모든 비트 패턴이 유효하고 패딩이 없는 타입.
+rem `bool`·`enum` 은 trap representation 이 있으므로 **plain 이 아니다** → 안전 퍼닝 대상 밖.
+
+module vm_bitcast .
+
+rem 같은 비트, 다른 해석. 폭은 **안 바꾼다**(그건 변환이지 재해석이 아니다).
+fn as_i8 input a u8 . output i8 . do return bit_cast i8 a . end .
+
+rem IEEE-754: u32 0x3F800000 = 1.0f
+fn as_f32 input a u32 . output f32 . do return bit_cast f32 a . end .
+
+rem 왕복 — 재해석은 정보를 잃지 않는다.
+fn round_trip input a u8 . output u8 . do
+  var s i8 be bit_cast i8 a .
+  return bit_cast u8 s .
+end .

@@ -1,0 +1,79 @@
+rem ★★★ **shard 접근 단위 — RFC-0104 §8-6**(소유자 서명 §5.12, 2026-08-28).
+rem   재는 것 셋(§7.3 의 종료 조건):
+rem     ① 쪼갠 뒤 root 를 쓰면 **컴파일이 안 된다**(음성 픽스처 `vm_shardroot.low` 가 잰다)
+rem     ② 오름차순 교차 획득과 rejoin 이 성립한다
+rem     ③ shard-local 쓰기 경로에 공통 atomic 이 없다(골든이 방출 C 를 읽는다)
+module vm_shard .
+
+use shard from "../../lib/shard.low" .
+
+rem ★ 브랜드는 **저장소마다 하나**다(§8-2). 프로시저 셋이 각자 저장소를 열므로 셋이다 —
+rem   하나로 쓰면 `E-BRAND-REUSED` 가 문다(이 픽스처를 쓰다 실제로 물렸다).
+newtype grid u8 .
+newtype grid2 u8 .
+newtype grid3 u8 .
+
+rem ★ 쪼개고, 각 조각이 **자기 범위만** 만지는지 잰다.
+proc disjoint input mem mut slice u64 . . output u64 . effects none . do
+  var r owned shard.token grid . be shard.open grid 8 .
+  var h shard.halves grid . be shard.split_at grid r 4 .
+  let lo shard.token grid . be (field h low) .
+  let hi shard.token grid . be (field h high) .
+
+  rem 낮은 조각은 0..4 만 쓴다
+  guard shard.write grid lo mem 0 100 . else return 91 .
+  guard shard.write grid lo mem 3 103 . else return 92 .
+  rem ★ 자기 범위 밖은 **거절된다** — 트랩이 아니라 false 다.
+  guard eq (shard.write grid lo mem 4 999) false . else return 93 .
+
+  rem 높은 조각은 4..8 만 쓴다
+  guard shard.write grid hi mem 4 104 . else return 94 .
+  guard eq (shard.write grid hi mem 3 999) false . else return 95 .
+
+  rem 서로 밟지 않았다
+  let a option u64 . be shard.read grid lo mem 3 .
+  let b option u64 . be shard.read grid hi mem 4 .
+  guard is_some a . else return 96 .
+  guard is_some b . else return 97 .
+  guard eq (some_value a) 103 . else return 98 .
+  guard eq (some_value b) 104 . else return 99 .
+  return 1 .
+end .
+
+rem ★★ **오름차순 교차 획득과 rejoin.** 낮은 id 를 먼저 넘긴다 — 계약이 그것을 요구한다.
+proc order_and_rejoin output u64 . effects none . do
+  var r owned shard.token grid2 . be shard.open grid2 10 .
+  var h shard.halves grid2 . be shard.split_at grid2 r 6 .
+  var lo owned shard.token grid2 . be (field h low) .
+  var hi owned shard.token grid2 . be (field h high) .
+  guard eq (shard.width grid2 lo) 6 . else return 91 .
+  guard eq (shard.width grid2 hi) 4 . else return 92 .
+
+  rem 합치면 다시 온전한 범위다 — 순서가 맞아야 답이 나온다(값으로 답한다)
+  let ok1 option (shard.token grid2) . be shard.rejoin grid2 lo hi .
+  guard is_some ok1 . else return 93 .
+  var back shard.token grid2 . be some_value ok1 .
+  guard eq (shard.width grid2 back) 10 . else return 94 .
+  return 2 .
+end .
+
+rem ★ 쪼갠 뒤 **다시 쪼개도** 범위는 계속 서로소다(계층 = root → shard → …).
+proc nested output u64 . effects none . do
+  var r owned shard.token grid3 . be shard.open grid3 8 .
+  var h shard.halves grid3 . be shard.split_at grid3 r 4 .
+  var hi owned shard.token grid3 . be (field h high) .
+  var h2 shard.halves grid3 . be shard.split_at grid3 hi 6 .
+  let q1 shard.token grid3 . be (field h2 low) .
+  let q2 shard.token grid3 . be (field h2 high) .
+  guard eq (shard.width grid3 q1) 2 . else return 91 .
+  guard eq (shard.width grid3 q2) 2 . else return 92 .
+  rem 조각 넷이 8 을 정확히 덮는다
+  guard covers_all q1 q2 . else return 93 .
+  return 3 .
+end .
+
+fn covers_all input a shard.token grid . input b shard.token grid . output bool . do
+  if eq (shard.covers grid a 4) false . do return false . end .
+  if eq (shard.covers grid a 6) true . do return false . end .
+  return shard.covers grid b 6 .
+end .

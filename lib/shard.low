@@ -1,0 +1,122 @@
+rem ★★★ **shard 접근 단위 — RFC-0104 §8-6**(소유자 서명 2026-08-28, §5.12).
+rem
+rem   묻던 것: *"저장소를 쪼개 각 조각을 따로 바꾸되, 두 조각이 같은 자리를 만지지 않는다는
+rem   것을 컴파일러가 알게 하려면 무엇이 필요한가?"* RFC-0005 SR1~SR4 는 그 답으로 `split
+rem   region R into R1 … Rn by P` 라는 **새 문장**을 적어 두었다.
+rem
+rem ★★★ **새 문장은 필요 없었다.** 이 언어에 이미 둘이 있다:
+rem
+rem     브랜드(§8-2)  — 저장소의 **정체성**을 타입이 든다. 남의 저장소 것은 안 섞인다.
+rem     `owned`       — 값이 **하나뿐**이고 넘기면 내 손을 떠난다(선형).
+rem
+rem   ⇒ **토큰 = `owned` 브랜드 값**. 그러면 access-unit 이 새 규칙이 아니라 **이미 증명·게이트된
+rem     두 규칙의 곱**이 된다. 쪼개기는 root 를 **소비**하므로, 쪼갠 뒤 root 를 쓰는 프로그램은
+rem     `E-OWN-MOVED` 로 **컴파일이 안 된다** — 이 파일이 아니라 **언어가** 그것을 막는다.
+rem
+rem ★★ 그래서 이 모듈은 op 이 적다. 하는 일은 *"범위를 값으로 들고, 쪼개고, 합치는 것"* 뿐이고
+rem   안전은 전부 타입에서 온다. 빌트인 op 증가 **0** · 어휘 증가 **0**.
+rem
+rem ☞ 안 지은 것(정직히):
+rem   · **동결 교차 읽기**(RFC-0005 SR3b) — 쪼갠 동안 상대 조각을 읽기 전용으로 보는 것.
+rem     그것은 region 단위 분석과 아직 없는 정리(L-UNIT·L-REGION-PAR)를 요구한다.
+rem   · **자동 분할 정책**(`by P`) — 여기서는 부르는 쪽이 자른 자리를 정한다(반으로 자르는
+rem     `split_at` 하나만 둔다). 정책을 라이브러리에 숨기면 비용이 안 보인다.
+rem   · **동시 실행** — 토큰은 *권한*이고, 그것을 스레드에 태우는 것은 RFC-0039 의 일이다.
+rem     이 모듈은 순차에서도 뜻이 있다(서로소 범위를 정적으로 지킨다).
+
+module shard .
+
+rem ★ 토큰. **범위 [lo, hi) 를 바꿀 권한**이고, 브랜드가 어느 저장소의 것인지를 든다.
+rem   `id` 는 **오름차순 획득**의 근거다 — 교차 변경은 낮은 id 를 먼저 받는다(교착 규약).
+export struct token .
+  input comptime b type .
+  id u64 .
+  lo u64 .
+  hi u64 .
+end .
+
+rem ★ 쪼갠 결과. 필드가 `owned` 다 — 그래야 **꺼내 쓰면 그만큼 손을 떠난다**.
+export struct halves .
+  input comptime b type .
+  low owned token b .
+  high owned token b .
+end .
+
+rem 저장소 하나에 대한 **root 토큰**을 연다. `n` = 슬롯 수.
+rem ★ 여는 자리는 하나여야 한다 — 브랜드가 그것을 지킨다(`E-BRAND-REUSED`, §8-2).
+export fn open input comptime b type . input n u64 . output owned token b . do
+  return make token b do id 0 . lo 0 . hi n . end .
+end .
+
+rem ★★★ **쪼갠다 — root 를 소비한다.** 이 한 줄이 이 모듈의 전부다:
+rem   `input t owned token b` 이므로 부른 쪽의 root 는 **여기서 손을 떠나고**, 그 뒤로 root 를
+rem   쓰면 `E-OWN-MOVED` 다. 서로소는 `at` 이 만든다(`[lo,at)` 와 `[at,hi)`).
+rem   ☞ `at` 이 범위 밖이면 **빈 조각**이 나온다 — 트랩이 아니다. 빈 조각은 아무것도 못 만지므로
+rem     안전하고, 그 사실은 `covers` 가 답한다.
+export fn split_at input comptime b type . input t owned token b . input at u64 . output halves b . do
+  var cut u64 be at .
+  if lt cut (field t lo) . do set cut (field t lo) . end .
+  if gt cut (field t hi) . do set cut (field t hi) . end .
+  rem ☞ `make` 안의 `make` 는 코어 밖이다(E-IR-UNSUP) — 먼저 이름에 묶는다.
+  let a token b . be make token b do id (mul (field t id) 2) .         lo (field t lo) . hi cut .    end .
+  let c token b . be make token b do id (add (mul (field t id) 2) 1) . lo cut .         hi (field t hi) . end .
+  return make halves b do low a . high c . end .
+end .
+
+rem ★★ **합친다 — 두 조각을 소비하고 root 를 돌려준다.**
+rem   **오름차순**이 규약이다: 낮은 id 를 먼저 넘긴다(교착 규약). 그리고 맞닿아 있어야 한다
+rem   (`a.hi == c.lo`) — 아니면 사이에 아무도 안 가진 구멍이 남는다.
+rem
+rem ★★★ **그 둘을 `requires` 로 적었다가 되돌렸다**(2026-08-28, 오라클이 가르쳐 줬다):
+rem   계약 오라클이 *두 구조체 인자 사이의 관계*는 **거절 케이스를 못 만든다** — 그래서
+rem   "거절된 입력은 트랩한다" 를 확인하지 못하고 **아홉 번 실패**로 셌다. 이 저장소의 규율은
+rem   분명하다: *아무도 검증 못 하는 계약은 검사가 아니라 문장이다.* ⇒ **값으로 답한다.**
+rem   순서·인접이 어긋나면 `none` 이고, 그것은 부르는 쪽이 **반드시 받는** 답이다.
+rem   ☞ 오라클이 그 모양을 배우면 그때 계약으로 승격한다(`docs/known-defects/` 에 적어 뒀다).
+export fn rejoin input comptime b type . input a owned token b . input c owned token b .
+  output option (token b) .
+do
+  guard lt (field a id) (field c id) . else return none .
+  guard eq (field a hi) (field c lo) . else return none .
+  guard le (field a lo) (field a hi) . else return none .
+  guard le (field c lo) (field c hi) . else return none .
+  return some (make token b do id (div (field a id) 2) . lo (field a lo) . hi (field c hi) . end) .
+end .
+
+rem 이 토큰이 그 자리를 덮는가 — **접근 전에 묻는 유일한 질문**이다.
+export fn covers input comptime b type . input t token b . input i u64 . output bool . do
+  if lt i (field t lo) . do return false . end .
+  return lt i (field t hi) .
+end .
+
+rem 토큰이 덮는 자리 수.
+rem ★ **계약이 뺄셈을 지킨다**(오라클이 잡았다, 2026-08-28): 토큰의 불변식은 `lo ≤ hi` 인데
+rem   그것을 적지 않으면 이 op 은 *받아들일 수 없는 입력을 받아들인다고 선언한 것*이 된다 —
+rem   그때 `sub` 이 아래로 넘친다. 계약은 그 자리를 **말로가 아니라 검사로** 닫는다.
+export fn width input comptime b type . input t token b . output u64 .
+requires le (field t lo) (field t hi) .
+do
+  return sub (field t hi) (field t lo) .
+end .
+
+rem ★★★ **shard-local 쓰기 — 뜨거운 경로다.** 여기에 공통 lock 도 atomic 도 **없다**:
+rem   토큰이 이미 *"이 범위는 내 것"* 을 말했으므로 더 물을 것이 없다. 남는 것은
+rem   **범위 검사 하나**이고, 그것은 서로소를 지키는 값이지 동기화가 아니다.
+rem   ☞ 골든이 방출된 C 를 읽어 이 경로에 원자 연산이 없다는 것을 잰다(§8-6 종료 조건 셋째).
+export proc write input comptime b type . input t token b . input mem mut slice u64 . .
+  input i u64 . input v u64 . output bool . effects none .
+do
+  guard covers b t i . else return false .
+  guard lt i (len mem) . else return false .
+  set (index mem i) v .
+  return true .
+end .
+
+rem 같은 규율의 읽기.
+export proc read input comptime b type . input t token b . input mem slice u64 . . input i u64 .
+  output option u64 . effects none .
+do
+  guard covers b t i . else return none .
+  guard lt i (len mem) . else return none .
+  return some (index mem i) .
+end .

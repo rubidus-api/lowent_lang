@@ -1,0 +1,61 @@
+rem ★★★ **코드젠 ABI 회귀 증인** — op 경계에서 슬롯 부가정보(ks.ve/vn/fl)가 낡으면 VM≠native.
+rem
+rem   native 이미터는 슬라이스 스택 슬롯의 원소폭 등을 side-table 로 추적한다. **push 하면서 그 부가
+rem   정보를 안 박으면** 슬롯에 남은 낡은 값을 물려받아, 뒤 op 경계에서 잘못 해석된다. VM 은 그런
+rem   side-table 이 없어 항상 맞고, native 만 조용히 발산한다(가장 나쁜 부류 — diff-sweep 밖 형태였다).
+rem   여기 셋은 그 부류의 실측 결함 셋을 **양 백엔드 대조**로 고정한다(전부 2026-07-22 수정).
+
+module vm_optrec .
+
+struct pt .
+  x u8 .
+  y u8 .
+end .
+
+enum e .
+  bad .
+end .
+
+rem ── ① result 가 **레코드를 감싼** 반환을, round-trip 없이 **바로** 소비 → field. → 7.
+rem   전엔 호출 반환 슬롯의 ve 를 안 지워(csl 만 박았다), ok_value 가 스칼라 추출로 새고 field 가
+rem   rs[-1] 을 읽었다(ASan OOB · native="ok 0"). 이미터를 시뮬레이터와 같게 정규화해 고침.
+fn mkres input v u64 . output result pt e . do
+  return ok make pt do x 7 . y 9 . end .
+end .
+fn res_field input v u64 . output u64 . do
+  return field (ok_value (mkres v)) x .
+end .
+
+rem ── ② option 이 레코드를 감싼 반환을 바로 소비(some_value) → field. → 42. 같은 근인.
+fn mkopt input v u64 . output option pt . do
+  return some make pt do x 42 . y 9 . end .
+end .
+fn opt_field input v u64 . output u64 . do
+  return field (some_value (mkopt v)) x .
+end .
+
+rem ── ③ encode(레코드→바이트)한 슬라이스를 다른 op 로 넘겨 len. → 2(b2 는 2 바이트). 전엔 encode
+rem   결과 슬롯의 ve 를 안 박아(앞 `slice u64` 의 8 을 물려받음), 호출 인자에서 n*=8 로 len 이 16 이
+rem   됐다. `f` 파라미터의 `len f` 가 슬롯에 ve=8 을 남긴다.
+struct b2 .
+  a u8 .
+  b u8 .
+end .
+fn mk2 output b2 . do return make b2 do a 3 . b 4 . end end .
+fn blen input s slice u8 . output u64 . do return len s . end .
+fn enc_len input f slice u64 . output u64 . do
+  var t u64 be len f .
+  return add (blen (encode b2 mk2)) (mul t 0) .
+end .
+
+rem ── ④ 레코드를 감싼 option 을 바로 소비(some_value)할 때, 앞 op 이 남긴 stale fl 이 라우팅을 오염.
+rem   `len view_array f32 …` 이 K_INT 슬롯에 fl=1 을 남기고, 그것이 `make` 의 field[0] → 레코드 슬롯 →
+rem   WRAP_SOME 로 전파돼, some_value 가 **뷰 분기(ss[])**로 새어 레코드 첫 필드를 포인터로 역참조
+rem   (native SEGV · VM≠native). 수정: WRAP_SOME/OK 레코드 분기에서 fl=0(레코드는 뷰가 아니다). → 2.
+struct pt2 .
+  px u64 .
+  py u8 .
+end .
+fn fl_stale input v u64 . output u64 . do
+  return field (some_value (some make pt2 do px len view_array f32 "12345678" . py 9 . end)) px .
+end .

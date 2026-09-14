@@ -1,0 +1,145 @@
+rem ★★★★★ **ECDSA P-256 서명 생성** — `lib/ecdsa.low` 의 골든 (RFC 6979 · RFC-0090 §N7b⑤).
+rem
+rem   2026-08-20 소유자 결정으로 열린 자리다. 그전까지 이 저장소는 서명을 **안 지었다**
+rem   (개인키를 안 다루면 흘릴 수도 없다). 목표가 공개 웹 HTTPS 서버가 되면서 바뀌었다.
+rem
+rem ★ 오라클은 **RFC 6979 §A.2.5 의 공식 벡터**다(P-256/SHA-256). k·r·s 셋 다 맞댄다.
+rem   ☞ 그리고 낸 서명을 `p256.ecdsa_verify` 가 받는지도 본다 — **왕복만 보면
+rem     "둘 다 같게 틀린" 경우를 못 거른다.**
+rem
+rem ★★ 곡선 상수는 **바이트 리터럴에서 만든다** — 호출자가 16 조각 배열을 넷씩 나르지
+rem   않아도 되고, 이 파일이 그 값을 정본 그대로 적어 둔다(FIPS 186-4 D.1.2.3).
+
+module vm_ecdsa .
+use ecdsa from "../../lib/ecdsa.low" .
+use bigint from "../../lib/bigint.low" .
+use p256 from "../../lib/p256.low" .
+use codec from "../../lib/codec.low" .
+
+rem 16진 문자열 → 32 바이트 → 16 조각. 실패는 0.
+proc limbs_of input hexs slice u8 . input out mut slice u64 . input w mut slice u8 . output u64 . effects none . do
+  guard ge (len w) 32 . else return 0 .
+  let d option u64 . be codec.hex_dec hexs (subslice w 0 32) .
+  guard is_some d . else return 0 .
+  return bigint.from_bytes (subslice w 0 32) out 16 .
+end .
+
+rem 상수 넷을 `cw` 조각 공간(64)에 깐다: p(0..16) n(16..32) gx(32..48) gy(48..64)
+proc curve input cw mut slice u64 . input w mut slice u8 . output u64 . effects none . do
+  guard ge (len cw) 64 . else return 0 .
+  guard eq (limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" (subslice cw 0 16) w) 16 . else return 0 .
+  guard eq (limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" (subslice cw 16 32) w) 16 . else return 0 .
+  guard eq (limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" (subslice cw 32 48) w) 16 . else return 0 .
+  guard eq (limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" (subslice cw 48 64) w) 16 . else return 0 .
+  return 1 .
+end .
+
+rem ✔ RFC 6979 §A.2.5 — 메시지 "sample" 의 nonce k. 첫 4 바이트를 한 수로.
+rem   k = A6E3C57D… ⇒ 0xA6E3C57D = 2799961981
+export proc k_head input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
+  guard ge (len wu) 1016 . else return 0 .
+  guard eq (curve (subslice wu 0 64) wb) 1 . else return 0 .
+  guard eq (limbs_of "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" (subslice wu 64 80) wb) 16 . else return 0 .
+  let dh option u64 . be codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" (subslice wb 0 32) .
+  guard is_some dh . else return 0 .
+  let hh option u64 . be codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" (subslice wb 32 64) .
+  guard is_some hh . else return 0 .
+  guard eq (ecdsa.nonce6979 (subslice wb 0 32) (subslice wb 32 64) (subslice wu 16 32) (subslice rs 0 32) (subslice wb 64 544) (subslice wu 80 96)) 32 . else return 0 .
+  var acc u64 be 0 .
+  var i u64 be 0 .
+  while lt i 4 . do
+    set acc (bit_or (shl acc 8) (cast u64 (index rs i))) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .
+
+proc main output u8 . effects none . do
+  return 0 .
+end .
+
+rem ✔ 서명 — RFC 6979 §A.2.5, 메시지 "sample". r·s 의 첫 4 바이트를 각각 낸다.
+rem   r = EFD48B2A… ⇒ 0xEFD48B2A = 4023618858
+rem   s = F7CB1C94… ⇒ 0xF7CB1C94 = 4157423252
+proc sign_sample input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
+  guard ge (len wu) 1016 . else return 0 .
+  guard eq (curve (subslice wu 0 64) wb) 1 . else return 0 .
+  let dh option u64 . be codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" (subslice wb 0 32) .
+  guard is_some dh . else return 0 .
+  let hh option u64 . be codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" (subslice wb 32 64) .
+  guard is_some hh . else return 0 .
+  return ecdsa.sign (subslice wb 0 32) (subslice wb 32 64) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) rs (subslice wb 64 640) (subslice wu 64 1016) .
+end .
+
+proc head4 input b slice u8 . input at u64 . output u64 . effects none . do
+  var acc u64 be 0 .
+  var i u64 be 0 .
+  while lt i 4 . do
+    set acc (bit_or (shl acc 8) (cast u64 (index b (add at i)))) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .
+
+export proc r_head input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
+  guard eq (sign_sample rs wb wu) 64 . else return 0 .
+  return head4 rs 0 .
+end .
+
+export proc s_head input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
+  guard eq (sign_sample rs wb wu) 64 . else return 0 .
+  return head4 rs 32 .
+end .
+
+rem ✔ ★★★ **낸 서명을 우리 검증기가 받는가.** 벡터 대조가 "규격대로인가" 를 묻는다면
+rem   이것은 "우리 두 쪽이 서로 맞는가" 를 묻는다 — 둘 다 필요하다.
+rem   공개키 U = (Ux, Uy) 는 RFC 6979 §A.2.5 가 적어 둔 값이다.
+rem ☞ 작업 공간을 **둘로 나눠 받는다**: `--run` 의 배열 인자 상한(u64 1024)에 하나로는 안 든다.
+export proc sign_then_verify input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . input vw mut slice u64 . output u64 . effects none . do
+  guard ge (len vw) 924 . else return 0 .
+  guard eq (sign_sample rs wb wu) 64 . else return 0 .
+  guard eq (bigint.from_bytes (subslice rs 0 32) (subslice wu 64 80) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes (subslice rs 32 64) (subslice wu 80 96) 16) 16 . else return 0 .
+  let hh option u64 . be codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" (subslice wb 0 32) .
+  guard is_some hh . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 96 112) 16) 16 . else return 0 .
+  guard eq (limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" (subslice wu 112 128) wb) 16 . else return 0 .
+  guard eq (limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" (subslice wu 128 144) wb) 16 . else return 0 .
+  return p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112) (subslice wu 112 144) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) (subslice vw 0 924) .
+end .
+
+rem ✘ **한 비트만 바꾸면 거절돼야 한다.** 왕복만 보이면 "복사했다" 와 구별이 안 된다.
+export proc tampered input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . input vw mut slice u64 . output u64 . effects none . do
+  guard ge (len vw) 924 . else return 0 .
+  guard eq (sign_sample rs wb wu) 64 . else return 0 .
+  set (index rs 63) (cast u8 (bit_xor (cast u64 (index rs 63)) 1)) .
+  guard eq (bigint.from_bytes (subslice rs 0 32) (subslice wu 64 80) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes (subslice rs 32 64) (subslice wu 80 96) 16) 16 . else return 0 .
+  let hh option u64 . be codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" (subslice wb 0 32) .
+  guard is_some hh . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 96 112) 16) 16 . else return 0 .
+  guard eq (limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" (subslice wu 112 128) wb) 16 . else return 0 .
+  guard eq (limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" (subslice wu 128 144) wb) 16 . else return 0 .
+  return p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112) (subslice wu 112 144) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) (subslice vw 0 924) .
+end .
+
+rem ✔ 둘째 공식 벡터 — 메시지 "test".
+rem   r = F1ABB023… ⇒ 0xF1ABB023 = 4054474787 · s = 019F4113… ⇒ 0x019F4113 = 27242771
+proc sign_test input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
+  guard ge (len wu) 972 . else return 0 .
+  guard eq (curve (subslice wu 0 64) wb) 1 . else return 0 .
+  let dh option u64 . be codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" (subslice wb 0 32) .
+  guard is_some dh . else return 0 .
+  let hh option u64 . be codec.hex_dec "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" (subslice wb 32 64) .
+  guard is_some hh . else return 0 .
+  return ecdsa.sign (subslice wb 0 32) (subslice wb 32 64) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) rs (subslice wb 64 640) (subslice wu 64 972) .
+end .
+
+export proc r_head_test input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
+  guard eq (sign_test rs wb wu) 64 . else return 0 .
+  return head4 rs 0 .
+end .
+export proc s_head_test input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
+  guard eq (sign_test rs wb wu) 64 . else return 0 .
+  return head4 rs 32 .
+end .

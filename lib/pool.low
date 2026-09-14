@@ -1,0 +1,256 @@
+rem ★★★ **여덟 번째 표준 라이브러리 — 세대 핸들 블록 풀** (사용자 설계, 2026-07-19).
+rem
+rem   *"필요할 때마다 4k 씩 뭉텅이로 받아 여러 용도로 쓰고, 부족하면 더 받고, 원하는 시점에
+rem     특정 블록을 새 블록에 복사하고 기존 것은 해제하고."*
+rem   ⇒ **해제 시점이 어휘적이 아니다.** region 블록은 그래서 못 쓴다(그쪽은 스코프가 곧 수명).
+rem
+rem ★★★ **그래서 정적 검사 대신 세대(generation)로 간다** — 그리고 그것은 **이 언어가 이미
+rem   고른 답**이다. SPEC-004 §108: *"순환은 region 일괄 free 가, **use-after-free 는 세대 핸들이**
+rem   처리"*. 참조가 이미 `{프레임, 슬롯, 세대}` 를 싣고 E-VM-DANGLING 으로 잡히는 것과 같은 기계다.
+rem
+rem ★★★ **배치는 SoA 다**(사용자 제안): 평범한 `slice` 는 **손대지 않는다** — 여전히 `{ptr, len}`
+rem   이고 비용 0 이다. 세대는 **따로 모은 배열**에 살고, 그것을 참조하는 **별도 타입**만 세대를
+rem   하나 든다. ⇒ 비용이 이 타입을 **쓰는 코드에만** 붙는다. 안 쓰면 안 낸다.
+rem
+rem     평범한 slice     {ptr, len}                손대지 않음
+rem     handle           {블록, 길이, 세대}         이 타입만 3칸
+rem     gen[블록]        권위 있는 현재 세대        해제가 여기를 올린다
+rem
+rem ★★ **고정 크기 블록이라 free 가 쉽다**(RFC-0043 D3 의 `pool`): 자유 목록에 넣는 것이 전부고
+rem   **단편화가 0** 이다. gpa 의 어려움(크기별 관리·합치기)이 통째로 사라진다.
+rem ★★ **빌트인 op 증가 0** — 자유 목록도 세대 배열도 검사도 전부 Lowent 다(리프 규칙).
+rem
+rem ★★★ **op 이 이중화되지 않는다 — 그것이 이 모양을 고른 이유다**(사용자 반론 2026-07-19:
+rem   *"별도 타입이면 모든 슬라이스 op 에 두 벌이 필요해지지 않나"*). 핸들은 **슬라이스처럼
+rem   흘러다니지 않는다**: `bytes` 라는 **문을 한 번** 지나면 나오는 것은 **평범한 mut slice u8**
+rem   이고, 그 뒤로는 `lib/fmt.low`·`lib/str.low` 이 **수정 0** 으로 그것을 먹는다(실측).
+rem   ⇒ 검사는 문에서 **한 번**, 새 op 은 **0**.
+rem
+rem ☞ **접두 호환({{ptr,len}, offset, gen} 로 기존 op 이 새 슬라이스도 받게)은 안 고른다**
+rem   (WinAPI 가 실제로 쓰는 방식이고 C 에선 흔하다): 기존 op 이 확장 슬라이스를 받는다는 것은
+rem   그 op 이 **세대를 안 보고 바이트를 읽는다**는 뜻이다. 세대의 값은 *"닿는 길이 하나뿐"* 에서
+rem   나오는데, 접두 호환은 **검사를 건너뛰는 합법 경로**를 만든다 — 그리고 레이아웃 우연에
+rem   기대는 포인터 편법인데, 이 언어는 `view`/`encode` 로 **명시적 재해석**을 요구하며 그것을
+rem   피해 왔다.
+rem
+rem ☞ **그리고 진짜 약점은 이중화가 아니라 이것이다**(정직히): **빌린 슬라이스가 검사보다
+rem   오래 살 수 있다.** `bytes` 로 받은 슬라이스를 든 채 `release` 하면, 그 슬라이스는 여전히
+rem   쓸 수 있고 **아무도 안 잡는다**. region 블록은 이것을 **어휘적으로** 막지만(E-REGION-ESCAPE)
+rem   풀은 해제 시점이 자유라 그럴 수 없다.
+rem   ★★★ **그리고 그것을 닫았다**(2026-07-20): `borrow <이름> be <식> do … end` 가 빌림을
+rem     **어휘적으로** 가둔다. 빌린 슬라이스는 블록 끝에서 끝나므로 해제는 빌림 **밖**에서만
+rem     일어난다. 빌림 안에서는 **평범한 mut slice** 라 기존 op 이 수정 0 으로 먹는다.
+rem     ⇒ 언어는 `pool` 을 모른다 — 규칙이 일반적이다: **빌려준 자에게 말을 걸지 마라.**
+rem     `impl/tests/vm_pool.low` 의 `borrow_then_release` 가 그것을 잰다.
+rem
+rem ★★★ **자유 목록 — 해제한 블록이 돌아온다** (2026-07-20, 후속으로 적어 뒀던 것을 지금 짓는다).
+rem   전에는 `take` 가 **순차 배당만** 해서 `release` 한 블록이 영영 안 돌아왔다. 그래서
+rem   "받고 쓰고 놓기" 를 반복하면 풀이 **쓰지도 않은 채 말라붙었다** — 사용자가 요청한 모양
+rem   (*"원하는 시점에 특정 블록을 새 블록에 복사하고 기존 것은 해제하고"*)이 바로 그 반복이다.
+rem
+rem ★★★ **링크는 블록 자기 안에 산다(intrusive) — 추가 메모리 0.**
+rem   해제된 블록의 바이트는 **세대가 올라가 아무도 못 닿는다.** 그 자리를 장부로 쓰는 것은
+rem   공짜이고, 안전한 이유가 **이미 증명돼 있다**: 닿는 유일한 문이 `bytes` 이고 그 문이
+rem   세대를 본다. ⇒ 자유 목록에 배열을 하나 더 요구하지 않는다(호출자 부담 증가 0).
+rem
+rem ☞ 그래서 `release` 가 이제 `mem` 도 받는다 — 링크를 **그 안에** 쓰기 때문이다.
+rem   그리고 블록이 **8 바이트 이상**이어야 한다(`init` 이 거절한다): 링크 한 칸이 u64 다.
+rem ☞ 시프트 op 이 없어서 `div`/`mod` 256 으로 바이트를 가른다 — 부호 없는 정수에서 같은 연산이다.
+rem
+rem ☞ 안 지은 것(정직히): 블록 경계를 넘는 할당(한 핸들 = 한 블록 안) · 자동 압축 ·
+rem   스레드 안전(순차 배달 전제) · 세대 넘침 뒤 재사용(u64 라 현실적으로 안 돈다) ·
+rem   **이중 해제 뒤 자유 목록의 순환**은 못 만든다(세대 검사가 두 번째 `release` 를 거절한다).
+
+rem ★★★ **RFC-0104 §8-2 — 봉인**(소유자 서명 2026-08-28, §5.11). 두 가지가 바뀌었다.
+rem
+rem   ① **브랜드**: `handle` 과 풀이 **어느 저장소의 것인지**를 타입이 든다.
+rem      브랜드는 **새 낱말이 아니다** — 이미 있는 `newtype` 과 `input comptime b type .` 이다.
+rem
+rem          newtype pa u8 .                      rem 브랜드 = 선언 하나
+rem          let p be pool.init pa mem gens 4096 .
+rem          let h be pool.take pa p .            rem h : handle pa
+rem
+rem      ⇒ 풀 A 의 핸들을 풀 B 에 넣으면 **타입검사가 거절한다**(§6.1 S1). 런타임 비용은 **0**이다:
+rem        브랜드는 값이 아니라 타입이라 핸들에 owner 비트가 안 실린다(§5.3 표).
+rem
+rem   ② **backing 봉인**: `mem` 과 `gens` 를 **`init` 이 봉해 든다.** 그 뒤로 op 은 그 둘을
+rem      **안 받는다** — 호출자가 엉뚱한 배열을 들고 오는 길이 **표면에서 사라진다**.
+rem      전에는 `bytes mem gens h` 였고, 그래서 **어느 배열이든 줄 수 있었다**(그것이 8-12 가
+rem      실측해 적어 둔 구멍이다: `docs/known-defects/pool-mix-not-sealed.low`).
+rem
+rem   ☞ 그리고 효과가 **`state` 에서 `none` 으로** 내려갔다: 상태가 actor 안에 살 때는 `state`
+rem     였지만, 이제 바뀌는 것은 **호출자가 준 `mut` 값**이고 그것은 타입이 이미 말한다.
+rem     (효과 검사기가 그렇게 말한다 — `effects state` 로 두면 W-EFFECT-OVER 다.)
+rem
+rem   ☞ 그래서 **actor 가 아니라 struct** 다: actor state 는 슬라이스를 못 든다(S5 코어 밖).
+rem     `lib/mapgen.low` 의 `table k v` 와 **같은 모양**이다 — 봉인이 그 모양을 요구했다.
+
+module pool .
+
+rem ★ 핸들. **세대와 브랜드를 든다** — 세대는 값으로, 브랜드는 **타입으로만**(칸이 안 는다).
+rem ★★ **핸들의 어느 칸도 믿지 않는다** (2026-09-04 보안 검토): 필드가 공개라 `make pool.handle …`
+rem   로 아무 값이든 지어 낼 수 있다. 그래서 `bytes` 는 뷰 길이를 핸들의 `len` 이 아니라 **풀의
+rem   `bsize`** 로 재고(부풀린 `len` 이 이웃 블록을 덮었다), `release`·`bytes`·`alive` 는 **한 번도
+rem   안 나간 블록**(`blk ≥ freetop`, 세대 1 그대로)을 거절한다 — 전에는 그런 핸들을 "놓아" 자유
+rem   목록에 넣고 같은 블록을 두 번 내줬다. `len` 은 정보로만 남는다(= bsize).
+export struct handle .
+  input comptime b type .
+  blk u64 .
+  len u64 .
+  gen u64 .
+end .
+
+rem ★ 풀 하나. 뒷받침 바이트와 세대 배열을 **자기가 든다**(봉인). 호출자가 준 것을 `init` 이 봉한다.
+rem   두 배열은 여전히 **호출자가 마련한다**(라이브러리는 할당하지 않는다 — lib/alloc.low 규율).
+rem   바뀐 것은 *누가 그것을 들고 다니느냐* 다: 이제 풀이 든다.
+export struct block_pool .
+  input comptime b type .
+  mem mut slice u8 . .
+  gens mut slice u64 . .
+  bsize u64 .
+  nblk u64 .
+  freetop u64 .
+  rem ★ 자유 목록 머리. **인덱스 + 1** 을 담는다 — 0 이 "비었음" 이다(0 번 블록과 안 헷갈린다).
+  freehead u64 .
+end .
+
+rem 뒷받침을 걸고 **봉한다**. `bs` = 블록 크기(예: 4096). 블록 수는 두 배열 중 작은 쪽이 정한다.
+rem ★ 전에는 블록 수를 돌려줬다. 이제는 **풀을 돌려준다** — 못 열면 `none` 이다(트랩 아님).
+rem   블록 수는 `blocks` 로 묻는다.
+export proc init input comptime b type . input mem mut slice u8 . . input g mut slice u64 . .
+  input bs u64 . output option (block_pool b) . effects none .
+do
+  rem ★ 링크 한 칸이 u64 다 — 블록이 그보다 작으면 자유 목록을 못 든다. 거절한다(§0).
+  guard ge bs 8 . else return none .
+  var n u64 be div (len mem) bs .
+  if gt n (len g) . do set n (len g) . end .
+  rem 세대는 1 부터 — 0 은 "한 번도 안 준 블록" 으로 남겨 둔다.
+  var i u64 be 0 .
+  while lt i n . do
+    set (index g i) 1 .
+    set i (add i 1) .
+  end .
+  return some (make block_pool b do
+    mem mem .
+    gens g .
+    bsize bs .
+    nblk n .
+    freetop 0 .
+    freehead 0 .
+  end) .
+end .
+
+rem 이 풀이 든 블록 수. 전에 `init` 이 돌려주던 그 수다.
+export fn blocks input comptime b type . input p block_pool b . output u64 . do
+  return (field p nblk) .
+end .
+
+rem ★ 블록 하나를 얻는다. 없으면 `none` — 트랩이 아니다(OOM 은 값이다, RFC-0043 D5).
+rem ★★★ **놓은 것을 먼저 준다**: 자유 목록이 비어 있을 때만 순차 배당으로 간다.
+rem   ⇒ 받고-놓기를 반복해도 풀이 마르지 않는다. 이것이 자유 목록의 전부다.
+export proc take input comptime b type . input p mut block_pool b . output option (handle b) .
+  effects none .
+do
+  var mem mut slice u8 . be (field p mem) .
+  var g mut slice u64 . be (field p gens) .
+  if gt (field p freehead) 0 . do
+    let bk u64 be sub (field p freehead) 1 .
+    rem 블록 안에 적어 둔 "다음" 을 꺼내 머리로 삼는다 (리틀엔디언 u64)
+    let off u64 be mul bk (field p bsize) .
+    var v u64 be 0 .
+    var k u64 be 8 .
+    while gt k 0 . do
+      set k (sub k 1) .
+      set v (add (mul v 256) (index mem (add off k))) .
+    end .
+    set (field p freehead) v .
+    return some (make handle b do blk bk . len (field p bsize) . gen (index g bk) . end) .
+  end .
+  guard lt (field p freetop) (field p nblk) . else return none .
+  let b2 u64 be (field p freetop) .
+  set (field p freetop) (add (field p freetop) 1) .
+  return some (make handle b do blk b2 . len (field p bsize) . gen (index g b2) . end) .
+end .
+
+rem ★★★ **해제 — 세대를 올린다.** 그 순간 그 블록의 **모든 옛 핸들이 낡는다.**
+rem   메모리는 그대로 있지만 **아무도 그것을 쓸 수 없다** — 그것이 세대 핸들의 전부다.
+rem ★★ 그리고 **블록을 자유 목록에 되돌린다** — 링크는 블록 자기 바이트에 쓴다(추가 비용 0).
+rem   ★ 순서가 중요하다: 세대를 **먼저** 올려 아무도 못 닿게 만든 뒤에야 그 바이트를 장부로 쓴다.
+export proc release input comptime b type . input p mut block_pool b . input h handle b .
+  output bool . effects none .
+do
+  var mem mut slice u8 . be (field p mem) .
+  var g mut slice u64 . be (field p gens) .
+  rem ★ 순차 커서 앞의 블록만 밖에 나가 있을 수 있다(`freetop ≤ nblk`). 그 뒤는 세대 1 이 그대로라
+  rem   지어 낸 핸들과 구별이 안 되므로 **자리로** 거절한다.
+  guard lt (field h blk) (field p freetop) . else return false .
+  guard eq (index g (field h blk)) (field h gen) . else return false .   rem 이미 낡았다 (이중 해제도 여기서 걸린다)
+  set (index g (field h blk)) (add (field h gen) 1) .
+  rem 옛 머리를 이 블록 안에 적고, 이 블록이 새 머리가 된다
+  let off u64 be mul (field h blk) (field p bsize) .
+  var v u64 be (field p freehead) .
+  var k u64 be 0 .
+  while lt k 8 . do
+    set (index mem (add off k)) (mod v 256) .
+    set v (div v 256) .
+    set k (add k 1) .
+  end .
+  set (field p freehead) (add (field h blk) 1) .
+  return true .
+end .
+
+rem ★★★ **바이트에 닿는 유일한 문.** 세대가 안 맞으면 `none` — use-after-free 가 **여기서** 걸린다.
+rem   ★ 검사 비용이 **이 문을 지나는 코드에만** 붙는다. 평범한 slice 는 아무것도 안 낸다.
+rem   ★★ 그리고 이제 **어느 backing 인지 묻지 않는다** — 풀이 자기 것을 안다(봉인).
+export proc bytes input comptime b type . input p block_pool b . input h handle b .
+  output option mut slice u8 . . effects none .
+do
+  var mem mut slice u8 . be (field p mem) .
+  var g mut slice u64 . be (field p gens) .
+  guard lt (field h blk) (field p freetop) . else return none .
+  guard eq (index g (field h blk)) (field h gen) . else return none .
+  let off u64 be mul (field h blk) (field p bsize) .
+  rem ★ 뷰의 길이는 **풀이** 안다 — 핸들의 `len` 은 호출자가 지어 낼 수 있는 값이다.
+  return some (subslice mem off (add off (field p bsize))) .
+end .
+
+rem 살아 있는 핸들인가 — 묻기만 한다(바이트를 안 꺼낸다).
+export proc alive input comptime b type . input p block_pool b . input h handle b .
+  output bool . effects none .
+do
+  var g mut slice u64 . be (field p gens) .
+  guard lt (field h blk) (field p freetop) . else return false .
+  return eq (index g (field h blk)) (field h gen) .
+end .
+
+rem ★ 순차로 **꺼내 본** 블록 수. 자유 목록에 돌아온 것은 여기서 안 준다 — `outstanding` 을 보라.
+export fn used input comptime b type . input p block_pool b . output u64 . do
+  return (field p freetop) .
+end .
+
+rem ★★ 지금 **밖에 나가 있는** 블록 수. 자유 목록 길이를 세어 뺀다.
+rem ☞ 이름이 `live` 가 아닌 이유: 평평한 형태의 정규화기는 op 이름과 지역 이름을 못 가른다.
+rem   `live` 로 지었더니 픽스처의 **지역 변수 `live`** 를 op 머리로 읽고 포기했다 —
+rem   `guard is_some live .` 가 "피연산자 부족" 이 됐다. **흔한 낱말을 op 이름으로 쓰지 않는다.**
+rem   ⇒ 받고-놓기를 반복해도 이 수가 안 는다는 것이 자유 목록이 산다는 증거다(픽스처가 잰다).
+export proc outstanding input comptime b type . input p block_pool b . output u64 . effects none . do
+  var mem mut slice u8 . be (field p mem) .
+  var n u64 be 0 .
+  var cur u64 be (field p freehead) .
+  while gt cur 0 . do
+    rem ★ 장부가 썩었으면(순환 · 범위 밖 링크 · 목록이 나간 수보다 길다) **0 으로 멎는다** —
+    rem   밑으로 감긴 수나 경계 밖 읽기가 아니라 값이다(2026-09-04). 있어선 안 되지만 안 돈다.
+    guard lt n (field p freetop) . else return 0 .
+    guard le cur (field p nblk) . else return 0 .
+    set n (add n 1) .
+    let off u64 be mul (sub cur 1) (field p bsize) .
+    var v u64 be 0 .
+    var k u64 be 8 .
+    while gt k 0 . do
+      set k (sub k 1) .
+      set v (add (mul v 256) (index mem (add off k))) .
+    end .
+    set cur v .
+  end .
+  return sub (field p freetop) n .
+end .

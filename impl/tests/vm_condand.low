@@ -1,0 +1,52 @@
+rem ★★★★★ **조건 자리의 `and` 는 값이 아니라 분기다** (2026-08-18).
+rem
+rem   `if and (ge c 65) (le c 90) . do …` 는 문자 부류를 판정하는 코드의 표준 관용구다
+rem   (HTTP·JSON 파서의 뼈대). 그런데 이 모양은 **검사를 하나도 안 지웠다** — 같은 뜻을
+rem   중첩 `if` 로 손수 쓰면 지워졌는데도. *같은 프로그램인데 쓰는 법이 답을 바꿨다.*
+rem
+rem   이유는 낳는 모양이었다: 단락 `and` 가 불리언을 **물질화**하면서 두 경로가 합류하고,
+rem   합류한 불리언에는 술어가 남지 않는다. ⇒ 조건 자리에서는 분기 여러 개로 낮춘다.
+rem
+rem ★ 이 픽스처가 지키는 것 셋:
+rem   ① 증명된다 — `both` 의 산술 검사가 **0** 이어야 한다(골든이 센다).
+rem   ② 단락이 살아 있다 — `safe_div` 는 n=0 에서 **트랩하지 않는다**(오른쪽을 안 본다).
+rem   ③ 값이 같다 — VM ≡ native (차등 스윕이 매 op 을 판다).
+
+module vm_condand .
+
+rem ✔ ① 가드가 양쪽 경계를 다 준다 ⟹ `add c 32` 는 u8 안에 있다.
+export fn both input c u8 . output u8 . do
+  if and (ge c 65) (le c 90) . do return add c 32 . end .
+  return c .
+end .
+
+rem ✔ 세 겹도 갈라진다(왼쪽부터 차례로, 거짓이면 곧장 나간다).
+export fn three input c u8 . output u8 . do
+  if and (and (ge c 10) (le c 20)) (ne c 15) . do return add c 100 . end .
+  return 0 .
+end .
+
+rem ★ ② **단락**: n = 0 이면 오른쪽(`mod x n`)을 **계산하지 않는다**. 계산하면 0 으로 나눠
+rem   트랩한다 — 즉 이 함수가 답을 내는 것 자체가 단락의 증인이다.
+export fn safe_div input x u64 . input n u64 . output u64 . do
+  if and (ne n 0) (eq (mod x n) 0) . do return 1 . end .
+  return 0 .
+end .
+
+rem ★ 대조군: `or` 은 **안 가른다**(참 목적지가 갈라져 꿰맬 곳이 둘이 되고, 재 보니 값이
+rem   없었다). 여기서 검사가 남는 것이 정상이며, 답은 물론 같아야 한다.
+export fn either input c u8 . output u8 . do
+  if or (lt c 10) (gt c 200) . do return add c 1 . end .
+  return c .
+end .
+
+rem ★ 루프 조건에서도 같은 갈라짐이 일어난다.
+export fn count_while input n u64 . output u64 . do
+  var i u64 be 0 .
+  var acc u64 be 0 .
+  while and (lt i n) (lt i 8) . do
+    set acc (add acc i) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .

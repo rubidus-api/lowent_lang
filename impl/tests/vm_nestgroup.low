@@ -1,0 +1,32 @@
+rem ★★★ **중첩 task_group 증인** — VM≠native 였던 심각한 결함(2026-07-23 수정).
+rem
+rem   그린스레드 안에서 **또 task_group 을 열면**(중첩), native 가 **조용히 죽었다**: 출력 없이
+rem   종료(rc 0). `--check` 초록, VM 은 옳게 9. 근인: 협조적 스케줄러 lw_schedule 이 **재진입 불가**
+rem   였다 — lw_sched_ctx(바깥의 재개점)가 스레드당 하나뿐이라 중첩 호출이 덮었고, 끝에서
+rem   lw_ngthr=0 으로 **바깥의 그린스레드 표까지 지웠다**. 바깥 worker 가 돌아올 uc_link 가
+rem   망가진 문맥을 가리켜 프로세스가 끝에서 떨어졌다.
+rem   ⇒ 재진입 가능하게: 진입에서 lw_sched_ctx·lw_cur_gthr·lw_ngthr(base) 저장, 중첩은 **base 위
+rem     슬롯만** 다루고(ready·재활용·deadlock 스캔이 base 부터), 종료에서 전부 복원.
+rem   ★ tests/ 에 task_group 을 중첩한 fixture 가 하나도 없어 diff-sweep 이 못 봤다.
+module m .
+
+proc leaf output u64 . effects none . do return 1 . end .
+
+rem 그린스레드로 도는 worker 가 **자기 안에서** task_group 을 연다(await 없음 — 이게 항상 깨졌다).
+proc worker output u64 . effects state . do
+  task_group do
+    spawn leaf .
+  end .
+  return 7 .
+end .
+
+proc idle output u64 . effects none . do return 0 . end .
+
+rem 바깥 그룹이 worker(중첩 그룹)와 idle 을 함께 돌린다. → 9.
+proc drive output u64 . effects state . do
+  task_group do
+    spawn worker .
+    spawn idle .
+  end .
+  return 9 .
+end .

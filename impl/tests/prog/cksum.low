@@ -1,0 +1,76 @@
+rem ★★★ **실물 프로그램: 표준 입력의 체크섬** (RFC-0090 N3a).
+rem
+rem   `cksum` 이 하는 일 그대로다 — 바이트를 받아 **CRC-32** 와 **길이**를 낸다.
+rem   이 프로그램이 증명하는 것은 해시가 "돈다" 가 아니라 **쓸 수 있다** 이다:
+rem   읽기(권한) · 접기(순수) · 내보내기(권한)가 한 프로그램에서 이어진다.
+rem
+rem ★ 오라클은 **표준이 정한 수**다. `"123456789"` 의 CRC-32 는 0xCBF43926 이고
+rem   그것은 규격이 정했지 우리가 고른 것이 아니다 — 그래서 종료 코드로 그것을 주장한다:
+rem     42 = 그 아홉 글자를 받았고 CRC 가 규격값과 같다
+rem     43 = 받긴 했는데 CRC 가 다르다   ← 구현이 틀리면 여기로 온다
+rem     44 = 빈 입력                     ← 경계도 값으로 말한다
+rem     45 = 길이가 9 가 아니다(다른 입력을 준 것이다)
+rem
+rem ★★ **길이를 함께 낸다**는 점이 중요하다: CRC 는 **우연한 손상**을 잡으라고 있는 것이지
+rem   위조를 막지 못한다(선형이다). 길이까지 대면 가장 흔한 절단 사고가 하나 더 걸린다.
+rem
+rem ☞ 이름 하나를 바꿔야 했다: `sum` 은 **빌트인**이라 지역 이름으로 못 쓴다(E-NAME-BUILTIN).
+rem   평평한 이름공간의 값이 여기서 나온다 — 가려졌다면 그 줄이 두 뜻을 가졌을 것이다.
+
+module cksum .
+
+use hash from "../../../lib/hash.low" .
+use fmt  from "../../../lib/fmt.low" .
+
+proc main .
+  input al  cap allocator .
+  input k   cap io .
+  output u8 .
+  effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some g . else return 70 .
+  let buf mut slice u8 . be some_value g .
+
+  rem ★ `read_in <cap> <fd> <buf>` — 0 번이 표준 입력이고, 답은 **option** 이다
+  rem   (읽기가 실패할 수 있다는 사실을 타입이 든다).
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 71 .
+  let got u64 be some_value rn .
+  guard ne got 0 . else return 44 .
+
+  rem ── 순수한 알맹이: 접기 ─────────────────────────────────────────────
+  let data slice u8 be subslice buf 0 got .
+  let crcv u64 be hash.crc data .
+
+  rem ── 내보내기 ────────────────────────────────────────────────────────
+  rem ★ `fmt` 는 **호출자 버퍼에 써 넣는다**(라이브러리가 몰래 할당하지 않는다 — RFC-0043 D1).
+  rem   그래서 줄 하나를 담을 자리를 여기서 든다.
+  let g2 option mut slice u8 . . be alloc_bytes al capacity 64 .
+  guard is_some g2 . else return 70 .
+  let line mut slice u8 . be some_value g2 .
+  rem ★ `fmt` 의 자리 옮김은 **option** 이다 — 버퍼가 모자라면 `none` 으로 답한다.
+  rem   가정하지 않고 **검사해서** 답하는 규율이라, 받는 쪽도 매번 풀어야 한다.
+  var at u64 be 0 .
+  let a1 option u64 be fmt.put_str line at "crc32=" .
+  guard is_some a1 . else return 71 .
+  set at (some_value a1) .
+  let a2 option u64 be fmt.put_u64 line at crcv .
+  guard is_some a2 . else return 71 .
+  set at (some_value a2) .
+  let a3 option u64 be fmt.put_str line at " len=" .
+  guard is_some a3 . else return 71 .
+  set at (some_value a3) .
+  let a4 option u64 be fmt.put_u64 line at got .
+  guard is_some a4 . else return 71 .
+  set at (some_value a4) .
+  let a5 option u64 be fmt.put_nl line at .
+  guard is_some a5 . else return 71 .
+  set at (some_value a5) .
+  let z1 u64 be write_out k 1 (subslice line 0 at) .
+
+  rem ── 값으로 말한다 ───────────────────────────────────────────────────
+  guard eq got 9 . else return 45 .
+  guard eq crcv 3421780262 . else return 43 .
+  return 42 .
+end .

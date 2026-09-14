@@ -1,0 +1,24 @@
+rem ★★★ **배열 내용 술어** (R5 잔여 — SPEC-016). 구간 도메인엔 원소별 사실이 없어
+rem   "모든 원소 < N" 을 어떤 requires 로도 못 닫았다(도구가 그렇게 말했다). 이제 닫는다:
+rem   `requires elem_lt s N` 이 **원소 구간**을 심고, `index s i` 가 ⊤ 대신 그 구간을 낸다.
+rem   진입에서 슬라이스를 훑어 계약을 강제한다(elem.check) — 심은 사실이 검증된다.
+module m .
+type bytes slice u8 . .
+
+rem 원소 < 50 이면 index 값 ≤ 49 → x+10 ≤ 59 → u8 오버플로 검사가 **없어진다**.
+fn clamp_elem input s bytes . output u8 .
+  requires static ge (len s) 1 .
+  requires elem_lt s 50 .
+do
+  let x u8 be index s 0 . .
+  return add x 10 .
+end .
+
+rem 두 경계 → 원소가 [10,99] → index 값도 그 구간. 두 원소의 합도 묶인다.
+fn bounded_sum input s bytes . output u8 .
+  requires static ge (len s) 2 .
+  requires elem_ge s 10 .
+  requires elem_lt s 100 .
+do
+  return add (index s 0) (index s 1) .
+end .

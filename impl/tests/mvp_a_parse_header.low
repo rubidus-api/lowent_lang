@@ -1,0 +1,67 @@
+rem SPEC-MVP §8 gate — example A: slice-based parser (fn + contracts).
+rem Source: SPEC-015 §17.1 (normative point-closure form). --check must be clean.
+module packet .
+
+type bytes slice u8 . .
+
+struct header .
+  version u8 .
+  flags u8 .
+  length u16 .
+end .
+
+enum parse_error .
+  too_short .
+  bad_version .
+  too_long .
+end .
+
+rem ★ 명세의 예제는 `read_u16_be` 를 부르는데 **그것을 정의하지 않는다.**
+rem    프렐류드에도 없다. 즉 예제가 **존재하지 않는 op 을 부른다** — 그런데 지금까지
+rem    --check 가 초록불이었다(IR 은 E-IR-UNDEF 를 냈지만 --check 가 그것을 보지 않았다).
+rem    예제를 자립시킨다. 이제 --check 가 없는 이름을 오류로 잡는다.
+fn read_u16_be .
+  input d bytes .
+  output u16 .
+do
+  return expr ((index d 0) * 256) + (index d 1) . .
+end .
+
+fn parse_header .
+  input data bytes .
+  output result header parse_error . .
+  access data sequential .
+  errors too_short lt (len data) 4 .
+  errors bad_version ne (index data 0) 1 .
+  errors too_long gt (read_u16_be (subslice data 2 4)) (len data) .
+  tests parse_header_short parse_header_bad_version parse_header_ok .
+do
+  guard ge len data . 4 . else return error too_short . . .
+  guard eq index data 0 . 1 . else return error bad_version . . .
+  let length u16 be read_u16_be subslice data 2 4 . . .
+  guard le length len data . . else return error too_long . . .
+  return ok make header do
+    version index data 0 . .
+    flags index data 1 . .
+    length length .
+  end .
+end .
+
+rem ── `tests` 절이 이름으로 건 세 op. 명세의 예제(SPEC-015 §17.1 · RFC-0001 §부록)는
+rem    이 이름들을 적어 놓고 **정의하지 않았다.** 검사기가 그것을 잡았다(E-CONTRACT-UNDEF).
+rem    선언된 이름이 아무것도 가리키지 않는 것 — 그것이 곧 엔트로피다(PRINCIPLES.md §0).
+rem    약속했으니 쓴다.
+fn parse_header_short input data bytes . output bool . do
+  let r be parse_header data . .
+  return is_error r .
+end .
+
+fn parse_header_bad_version input data bytes . output bool . do
+  let r be parse_header data . .
+  return is_error r .
+end .
+
+fn parse_header_ok input data bytes . output bool . do
+  let r be parse_header data . .
+  return is_ok r .
+end .

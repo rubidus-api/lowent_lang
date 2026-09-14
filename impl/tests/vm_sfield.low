@@ -1,0 +1,99 @@
+rem ★★★ **구조체 필드가 이제 슬라이스를 담는다** (2026-07-20).
+rem
+rem ☞ **전엔 못 담았다.** `xs slice u64 .` 를 쓰면 `slice` 가 타입이 되고 `u64` 가
+rem   **모르는 표지**가 되어 `E-FIELD-MARK` 로 죽었다. 구조체 필드 타입이 **낱말 하나**로
+rem   고정돼 있었기 때문이다.
+rem
+rem ★★★ **원인을 오래 틀리게 적어 뒀다.** RFC-0070 §5.2 와 `lib/strbuf.low`·`lib/soa.low` 가
+rem   전부 *"struct 필드에 **mut slice** 를 못 넣는다"* 고 썼는데 — **`mut` 과 무관했다.**
+rem   불변 `slice u64` 도, `option u64` 도, `array u64` 도 똑같이 죽었다. 막던 것은
+rem   **"타입은 낱말 하나"** 라는 문법 하나였다. ⇒ 증상을 원인으로 적어 두면 그것이 곧
+rem   잘못된 지도이고, 그 지도를 보고 **세 파일이 같은 말을 세 번 반복했다.**
+rem
+rem ★★★ **런타임은 처음부터 할 수 있었다** — VM 의 레코드는 필드를 `vmv_t` 로, C 백엔드는
+rem   `lowv` 로 든다. 둘 다 태그 값이라 슬라이스가 들어간다. **앞단 문법만 막고 있었다.**
+
+module vm_sfield .
+
+rem ── ① 슬라이스를 담고, 꺼내 읽는다 ──────────────────────────────────
+struct holder .
+  xs mut slice u64 .
+  n u64 .
+end .
+
+rem ★★ **짧은 슬라이스를 막는다 — 계약이 아니라 방어로.** 처음엔 `requires ge (len s) 2` 로
+rem   적었는데, 오라클이 **더 많은 경우를 뽑아** 실패가 3 → 6 으로 늘었다: 구조체 안의
+rem   슬라이스 길이는 계약 한 줄로 못 묶는다(`len (field p xs) >= n` 을 쓸 자리가 없다).
+rem   ⇒ `lib/soa.low` 의 `step_x` 와 같은 모양으로 간다 — **모든 입력을 실제로 다룬다.**
+proc holds_a_slice input s mut slice u64 . . output u64 . effects none .
+do
+  guard ge (len s) 2 . else return 0 .
+  set (index s 0) 11 .
+  set (index s 1) 22 .
+  var h holder be make holder do xs s . n 2 . end .
+  let v mut slice u64 . be field h xs .
+  return add (index v 0) (add (index v 1) (field h n)) .   rem 11 + 22 + 2 = 35
+end .
+
+rem ★★ 그리고 **필드를 통해 쓴다** — 꺼낸 것이 복사가 아니라 같은 바이트다.
+proc writes_through input s mut slice u64 . . output u64 . effects none .
+do
+  guard ge (len s) 1 . else return 0 .
+  var h holder be make holder do xs s . n 0 . end .
+  let v mut slice u64 . be field h xs .
+  set (index v 0) 99 .
+  return index s 0 .                                       rem 99 — 원본이 바뀌었다
+end .
+
+rem ── ② **이것이 이 작업의 값이다** — SoA 컨테이너가 값 하나가 된다 ────
+rem
+rem   `lib/soa.low` 이 자기 주석에 *"필드 개수만큼 인자가 늘어난다. 4 필드면 op 마다 인자
+rem   4 개다 … 이것이 가장 아픈 자리다"* 라고 적어 뒀다. 그 자리가 열렸다.
+struct pset .
+  xs mut slice u64 .
+  ys mut slice u64 .
+  vxs slice u64 .
+  vys slice u64 .
+end .
+
+rem ★ n 을 **가장 짧은 배열에 맞춰 줄인다** — 받아들인 입력은 전부 다룬다.
+proc step_bundled input p pset . input n u64 . output u64 . effects none .
+do
+  let xs mut slice u64 . be field p xs .
+  let vxs slice u64 be field p vxs .
+  var m u64 be n .
+  if gt m (len xs) . do set m (len xs) . end .
+  if gt m (len vxs) . do set m (len vxs) . end .
+  var i u64 be 0 .
+  while lt i m . do
+    set (index xs i) (add (index xs i) (index vxs i)) .
+    set i (add i 1) .
+  end .
+  return m .
+end .
+
+rem ★ 호출자는 **인자 넷이 아니라 값 하나**를 넘긴다.
+proc bundle_of_four input a mut slice u64 . . input b mut slice u64 . .
+  input c mut slice u64 . . input d mut slice u64 . . output u64 . effects none .
+do
+  guard ge (len a) 1 . else return 0 .
+  guard ge (len c) 1 . else return 0 .
+  set (index a 0) 1 .
+  set (index c 0) 10 .
+  var p pset be make pset do xs a . ys b . vxs c . vys d . end .
+  let m u64 be step_bundled p 1 .
+  guard eq m 1 . else return 90 .
+  return index a 0 .                                       rem 1 + 10 = 11
+end .
+
+rem ── ③ option 도 담는다 — 슬라이스만 특별한 게 아니다 ─────────────────
+struct maybe_n .
+  v option u64 .
+end .
+
+proc holds_option output u64 . effects none . do
+  var m maybe_n be make maybe_n do v (some 7) . end .
+  let o option u64 . be field m v .
+  guard is_some o . else return 90 .
+  return some_value o .                                    rem 7
+end .

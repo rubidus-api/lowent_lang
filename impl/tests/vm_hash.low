@@ -1,0 +1,46 @@
+rem ★★★ **해시 둘** (RFC-0090 N3 · 권한 없음, 2026-08-11).
+rem
+rem   이 파일은 **진입점이 아닌 op** 으로 두 리프를 쓴다. 시계에서 배운 것이다:
+rem   `cap` 진입 프로그램만 있으면 차등 훑기가 통째로 건너뛰고(dispatcher 가 안 나온다)
+rem   `oracle-coverage` 가 *"어느 픽스처에도 없다"* 로 빨간불을 낸다.
+rem
+rem ★ 오라클은 **알려진 답**이다 — 이 축에서 가장 강한 종류다. 해시는 "그럴듯한 수" 가
+rem   나오면 맞아 보이므로, 알고리즘을 고정하고 표준 검사값을 대지 않으면 **아무것도
+rem   검사하지 않는 것과 같다**. 그래서 값을 손으로 적지 않고 **표준이 정한 수**를 쓴다.
+
+module vm_hash .
+
+rem CRC-32 의 표준 검사값 — "123456789" → 0xCBF43926. 이 수는 규격이 정한 것이고
+rem 우리가 고른 것이 아니다: 구현이 틀리면 여기서 갈린다.
+fn t_crc_check input d slice u8 . output u64 . do
+  guard eq (crc32 d) 3421780262 . else return 90 .
+  return 1 .
+end .
+
+rem 빈 입력의 CRC-32 는 0 이다(초기값과 최종 XOR 가 상쇄된다).
+fn t_crc_empty input d slice u8 . output u64 . do
+  guard eq (len d) 0 . else return 89 .
+  guard eq (crc32 d) 0 . else return 90 .
+  return 1 .
+end .
+
+rem FNV-1a 64 의 offset basis — 빈 입력이면 그 값 그대로다.
+fn t_fnv_empty input d slice u8 . output u64 . do
+  guard eq (len d) 0 . else return 89 .
+  guard eq (hash_bytes d) 14695981039346656037 . else return 90 .
+  return 1 .
+end .
+
+rem "a" 한 글자 — basis 를 xor 하고 한 번 곱한 값이다(0xaf63dc4c8601ec8c).
+fn t_fnv_a input d slice u8 . output u64 . do
+  guard eq (hash_bytes d) 12638187200555641996 . else return 90 .
+  return 1 .
+end .
+
+rem ★ 성질도 하나 본다: 다른 입력은 다른 답을 낸다(충돌이 없다는 주장이 아니라,
+rem   **입력을 실제로 읽는다**는 주장이다 — 상수를 돌려주는 구현을 걸러낸다).
+fn t_reads_input input d slice u8 . output u64 . do
+  guard ge (len d) 2 . else return 89 .
+  guard ne (hash_bytes (subslice d 0 1)) (hash_bytes (subslice d 1 2)) . else return 90 .
+  return 1 .
+end .

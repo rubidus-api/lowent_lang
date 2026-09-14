@@ -1,0 +1,21 @@
+rem ★★★ **native_lanes** (RFC-0040 D5 §120) — target 의 원소별 **네이티브 벡터 폭**을 comptime 으로 질의.
+rem
+rem   `native_lanes <t>` → comptime int = (target simd_bytes) / sizeof(t). SIMD 없는 target(cortex_m·riscv64·
+rem   mips_be)은 **1**(scalar fallback). 성능-이식 코드가 target 최적 폭을 물어 그에 맞춰 stride/꼬리를 잡는다.
+rem   ★ comptime 이라 IRW_CONST 정수로 확장 — 백엔드 무변경, VM·C 가 같은 값을 굽는다 ⇒ diff-sweep VM≡native.
+rem   ★ 기본 target x86_64 (simd_bytes=16): f32→4, u8→16, u16→8, u64→2.
+rem   ★ vec 타입 폭 자리(`vec t n` 의 n)는 아직 **리터럴만** — native_lanes 를 거기 직접 쓰려면 comptime-식-in-타입
+rem     (RFC-0021)이 필요하다(후속). 지금은 **값 자리**의 comptime int(스트라이드·비교·산술 등)로 쓴다.
+
+module vm_natlanes .
+
+fn nl_f32 output u64 . do return native_lanes f32 . end .
+fn nl_u8  output u64 . do return native_lanes u8 . end .
+fn nl_u16 output u64 . do return native_lanes u16 . end .
+fn nl_u64 output u64 . do return native_lanes u64 . end .
+
+rem 값으로 쓴다 — 폭의 2배 stride 를 계산(comptime int 는 평범한 정수처럼 산술에 든다).
+fn stride2 output u64 . do
+  var w u64 . be native_lanes u32 .
+  return add w w .
+end .

@@ -1,0 +1,50 @@
+rem ★★★ **소켓 loopback 프로그램** — cap net 의 첫 실물(2026-07-23).
+rem
+rem   AF_UNIX socketpair 로 두 연결된 fd 를 얻어, 한쪽(fd0)에 보내고 다른쪽(fd1)에서 받는다.
+rem   주소·listen/accept 가 없어 **결정적**이라 VM·native 가 같은 바이트를 본다(오라클 안 —
+rem   file 리프와 같은 규율: 둘 다 진짜 syscall 을 부른다). 핸들 둘은 한 u64 에 팩(slot0 | slot1<<32).
+rem   ★ 리프는 얇게: connect/bind/listen/accept(cap net 의 네트워크 면)은 후속.
+rem
+rem ★★★ **이제 `lib/net.low` 을 쓴다** (2026-08-07). 전에는 `use` 줄이 하나도 없었고, 두 핸들을
+rem   푸는 `bit_and p 0xFFFFFFFF`·`shr p 32` 를 **이 파일이 직접** 알고 있었다 — 빌트인의 팩
+rem   방식을 프로그램이 알아야 할 이유가 없다. `net.pair_a`/`pair_b` 가 그 앎을 가져간다.
+module netecho .
+
+use net from "../../../lib/net.low" .
+
+proc main .
+  input k  cap net .
+  input al cap allocator .
+  input out cap io .
+  output u8 .
+  effects io alloc .
+do
+  rem 받을 버퍼를 뿌리 얼로케이터에서 얻는다(진입점은 데이터를 직접 못 받아 — 할당하거나 cap args).
+  let dstopt option mut slice u8 be alloc_bytes al capacity 16 .
+  guard is_some dstopt . else return 1 .
+  let dst mut slice u8 be some_value dstopt .
+
+  rem ★ 소켓 쌍은 **자원**이다(2026-08-15) — `owned` 로 받고 `shut_pair` 로만 닫는다.
+  rem   이 줄을 지우거나 아래 `shut_pair` 를 지우면 **컴파일이 안 된다**. 전에는 둘 다 지워도
+  rem   조용히 통과했고, 그것이 소켓 누수가 보이지 않던 이유였다.
+  let paired option net.pair . be net.pair_of k .
+  guard is_some paired . else return 2 .
+  var p owned net.pair be some_value paired .
+  let fd0 u64 be net.pair_a p .
+  let fd1 u64 be net.pair_b p .
+
+  rem fd0 으로 보내고 fd1 에서 받는다(loopback).
+  let sent option u64 be net.send_all k fd0 "hello, socket" .
+  guard is_some sent . else return 3 .
+  guard eq (some_value sent) 13 . else return 5 .
+  let got option u64 be net.recv_once k fd1 dst .
+  guard is_some got . else return 4 .
+  let n u64 be some_value got .
+
+  let closed result void net.net_error . be net.shut_pair k p .
+  guard is_ok closed . else return 6 .
+
+  rem 받은 바이트를 그대로 낸다 — 종료 코드는 받은 길이.
+  let m u64 be write_out out 1 (subslice dst 0 n) .
+  return narrow u8 n .
+end .

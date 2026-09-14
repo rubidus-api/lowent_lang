@@ -1,0 +1,69 @@
+rem ★★★ **한 낱말에 날짜를 넣고 도로 꺼낸다** — `lib/wire.low` 의 첫 **진짜 프로그램** 소비자.
+rem   (RFC-0107 §6.3 · 단계 3 — 소유자 결정 D1=다→나, 2026-09-07)
+rem
+rem 왜 이 프로그램인가. `clock.local_packed` 는 지역 날짜시각을 **한 word** 로 준다. 그것을 푸는
+rem 접근자 여섯은 오늘 **자리 수를 손으로 적는다**(`bit_and (shr p 32) 15`). 그 손 셈이 틀리면
+rem **조용히 틀린다** — 값이 그럴듯하게 나오기 때문이다. 그래서 이 프로그램은 같은 자리를
+rem **마스크로** 다루고, 두 길의 답이 **모든 자리에서 같은지** 스스로 판정한다.
+rem
+rem     비트 63..36 해 · 35..32 달 · 31..27 날 · 26..22 시 · 21..16 분 · 15..10 초
+rem
+rem ★ 하는 일: 날짜 하나를 `wire.put`/`merge` 로 **짓고**, `wire.pick` 으로 **꺼내고**,
+rem   같은 값을 `clock` 의 손 접근자로도 꺼내 **견준다**. 답 = 종료 코드(RFC-0030 D3).
+rem     0  = 여섯 자리가 두 길에서 모두 같았다
+rem     41 = 지은 낱말에서 되꺼낸 값이 넣은 값과 다르다   (wire 안에서 어긋남)
+rem     42 = wire 와 clock 의 손 접근자가 다르다          (두 길이 갈렸다)
+rem     43 = 칸에 안 들어가는 값을 `fits` 가 통과시켰다
+rem
+rem ★★ 권한도 할당도 안 쓴다 — 순수 계산이라 **VM 과 네이티브가 같은 종료 코드**를 낸다
+rem   (오라클 안이다). 새 낱말 0 · 새 빌트인 0.
+module packdate .
+
+use wire  from "../../../lib/wire.low" .
+use clock from "../../../lib/clock.low" .
+
+rem 자리표 — **여기 한 곳에만** 적힌다. 접근자마다 자리와 폭을 따로 적지 않는다.
+fn m_year   output u64 . do return 18446744004990074880 . end .
+fn m_month  output u64 . do return 64424509440 . end .
+fn m_day    output u64 . do return 4160749568 . end .
+fn m_hour   output u64 . do return 130023424 . end .
+fn m_minute output u64 . do return 4128768 . end .
+fn m_second output u64 . do return 64512 . end .
+
+rem 날짜 여섯 조각을 한 낱말로 짓는다.
+fn build input y u64 . input mo u64 . input d u64 . input h u64 . input mi u64 . input s u64 .
+  output u64 .
+do
+  let w0 u64 be wire.put (m_year) y .
+  let w1 u64 be wire.merge (m_month)  w0 mo .
+  let w2 u64 be wire.merge (m_day)    w1 d .
+  let w3 u64 be wire.merge (m_hour)   w2 h .
+  let w4 u64 be wire.merge (m_minute) w3 mi .
+  return wire.merge (m_second) w4 s .
+end .
+
+proc main output u8 . effects none . do
+  let w u64 be build 2026 9 7 13 45 30 .
+
+  rem ① 넣은 것이 그대로 나오는가.
+  guard eq (wire.pick (m_year)   w) 2026 . else return 41 .
+  guard eq (wire.pick (m_month)  w) 9 .    else return 41 .
+  guard eq (wire.pick (m_day)    w) 7 .    else return 41 .
+  guard eq (wire.pick (m_hour)   w) 13 .   else return 41 .
+  guard eq (wire.pick (m_minute) w) 45 .   else return 41 .
+  guard eq (wire.pick (m_second) w) 30 .   else return 41 .
+
+  rem ② 손으로 자리를 센 `clock` 의 접근자와 **같은 답**인가. 두 길이 갈리면 하나는 틀렸다.
+  guard eq (wire.pick (m_year)   w) (clock.year_of w) .   else return 42 .
+  guard eq (wire.pick (m_month)  w) (clock.month_of w) .  else return 42 .
+  guard eq (wire.pick (m_day)    w) (clock.day_of w) .    else return 42 .
+  guard eq (wire.pick (m_hour)   w) (clock.hour_of w) .   else return 42 .
+  guard eq (wire.pick (m_minute) w) (clock.minute_of w) . else return 42 .
+  guard eq (wire.pick (m_second) w) (clock.second_of w) . else return 42 .
+
+  rem ③ 칸보다 큰 값은 **넣기 전에** 알 수 있다 — 달은 네 비트라 15 까지다.
+  guard wire.fits (m_month) 15 .      else return 43 .
+  guard not (wire.fits (m_month) 16) . else return 43 .
+
+  return 0 .
+end .

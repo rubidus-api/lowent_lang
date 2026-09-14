@@ -1,0 +1,70 @@
+rem ★★★ **X.509 에서 공개키만 꺼낸다** (RFC-0090 N7c) — 그리고 **끝까지 써 본다**.
+rem
+rem ★★ 이 축의 오라클은 *"파싱 결과가 그럴듯한가"* 가 아니다. RFC 8448 §3 의 **실제
+rem   인증서**에서 키를 꺼내, 그 핸드셰이크의 **CertificateVerify 서명을 검증**한다.
+rem   파싱이 한 바이트라도 밀리면 서명이 안 맞는다 — 눈으로 보는 대신 **쓰이게** 한다.
+rem
+rem ☞ 안 지은 것: 체인·유효기간·이름·확장·폐기. N7c 가 안 짓기로 한 것들이고,
+rem   이 모듈은 *"이 인증서를 믿을 만한가"* 에 **아무 답도 하지 않는다**.
+
+module vm_x509 .
+
+use der from "../../lib/der.low" .
+use rsa from "../../lib/rsa.low" .
+use bigint from "../../lib/bigint.low" .
+
+rem 인증서에서 RSA 계수를 꺼내 out 에 쓰고, 지수를 답한다.
+proc t_spki input cert slice u8 . input out mut slice u8 . output u64 . effects none . do
+  let sp u64 be der.find_spki cert .
+  guard gt sp 0 . else return 0 .
+  let ko u64 be der.key_off cert sp .
+  guard gt ko 0 . else return 0 .
+  let no u64 be der.rsa_n_off cert ko .
+  guard gt no 0 . else return 0 .
+  let nl u64 be der.rsa_n_len cert ko .
+  guard gt nl 0 . else return 0 .
+  guard ge (len out) nl . else return 0 .
+  var i u64 be 0 .
+  while lt i nl . do  set (index out i) (index cert (add no i)) .  set i (add i 1) .  end .
+  return der.rsa_e cert ko .
+end .
+
+proc t_nlen input cert slice u8 . output u64 . effects none . do
+  let sp u64 be der.find_spki cert .
+  guard gt sp 0 . else return 0 .
+  let ko u64 be der.key_off cert sp .
+  guard gt ko 0 . else return 0 .
+  return der.rsa_n_len cert ko .
+end .
+
+rem ★★ 끝까지: 꺼낸 키로 CertificateVerify 를 검증한다.
+proc t_certverify input cert slice u8 . input sig slice u8 . input mhash slice u8 .
+     input nb mut slice u8 . input em mut slice u8 . input w mut slice u8 .
+     input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
+     input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
+     output u64 . effects none . do
+  let e u64 be t_spki cert nb .
+  guard gt e 0 . else return 90 .
+  let nl u64 be t_nlen cert .
+  guard eq nl (len sig) . else return 91 .
+  return rsa.verify_pss sig (subslice nb 0 nl) e mhash 32 em w sw nw ow r2 acc tw mw .
+end .
+
+rem ★★ **길이는 상대가 쓴 것이다.** 잘린 버퍼에서 파서는 **0 을 답해야** 한다 —
+rem   길이 필드를 믿고 넘어가면 상대가 우리 메모리를 읽는다.
+proc t_truncated input cert slice u8 . output u64 . effects none . do
+  guard eq (der.find_spki cert) 0 . else return 0 .
+  return 1 .
+end .
+
+rem ── 보안 검토(2026-09-04) 증인 — 길이 접근자와 길이 인코딩을 **바로** 잰다 ──────────
+rem   ☞ 이 op 들은 답을 그대로 낸다(0 = 거절). 골든이 입력마다 기대값을 든다.
+fn t_klen input cert slice u8 . output u64 . do
+  let sp u64 be der.find_spki cert .
+  guard gt sp 0 . else return 0 .
+  return der.key_len cert sp .
+end .
+
+fn t_rsa_n_len input b slice u8 . input ko u64 . output u64 . do  return der.rsa_n_len b ko . end .
+fn t_vlen input b slice u8 . input off u64 . output u64 . do  return der.value_len b off . end .
+fn t_voff input b slice u8 . input off u64 . output u64 . do  return der.value_off b off . end .

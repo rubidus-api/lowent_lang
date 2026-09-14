@@ -1,0 +1,39 @@
+rem ★★★★ **낱낱 반환과 제자리 성장은 조각의 정체로 묻는다** (RFC-0112 D10 · WO-0215).
+rem
+rem   F13: `grow oldn newn` 은 마지막 할당을 **길이로만** 알아봐서, 같은 길이의 남의 버퍼를 늘렸다.
+rem   이제 `grow`·`release` 는 조각 자체를 받고, 내장 `same_slice` 로 «내가 마지막에 준 그 바이트인가» 를 묻는다.
+rem   `same_slice` 는 주소를 밖에 내지 않는다 — 답은 참거짓 하나다.
+rem
+rem   `lifo` 의 답(자리수마다 한 사실): 1 남의 조각 release 는 false · 2 마지막 조각 release 는 true ·
+rem   3 되돌린 자리를 다음 reserve 가 **같은 바이트로** 다시 준다 · 4 같은 길이 남의 조각 grow 는 none ·
+rem   5 마지막 조각 grow 는 some · 6 same_slice 는 시작과 길이 둘 다 본다 ⇒ 111111.
+
+module vm_release .
+
+use allocs from "../../lib/alloc.low" .
+
+export proc lifo input buf mut slice u8 . . output u64 . effects state .
+do
+  guard ge (len buf) 32 . else return 9 .
+  var a allocs.bump_bytes be spawn actor allocs.bump_bytes . .
+  let c u64 be send a init buf .
+  let po option mut slice u8 . . be send a reserve 8 .
+  guard is_some po . else return 91 .
+  let p mut slice u8 . be some_value po .
+  let qo option mut slice u8 . . be send a reserve 8 .
+  guard is_some qo . else return 92 .
+  let q mut slice u8 . be some_value qo .
+  var r u64 be 0 .
+  if eq (send a release p) false . do set r (add r 100000) . end .
+  if send a release q . do set r (add r 10000) . end .
+  let so option mut slice u8 . . be send a reserve 8 .
+  guard is_some so . else return 93 .
+  let s mut slice u8 . be some_value so .
+  if same_slice s q . do set r (add r 1000) . end .
+  let g1 option mut slice u8 . . be send a grow p 16 .
+  if eq (is_some g1) false . do set r (add r 100) . end .
+  let g2 option mut slice u8 . . be send a grow s 16 .
+  if is_some g2 . do set r (add r 10) . end .
+  if and (same_slice p (subslice buf 0 8)) (eq (same_slice p (subslice buf 0 7)) false) . do set r (add r 1) . end .
+  return r .
+end .

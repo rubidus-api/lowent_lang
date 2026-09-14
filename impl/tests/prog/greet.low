@@ -1,0 +1,44 @@
+rem ★★★ **일곱 번째 진짜 프로그램 — 이 언어가 처음으로 바이트를 밖으로 낸다.**
+rem
+rem   `docs/example/format.md` 가 그린 분리의 **출력 쪽**이 여기서 선다:
+rem   **숨은 stdout 이 없다.** 출력할 권한(`cap io`)을 안 받으면 한 바이트도 못 낸다 —
+rem   `write_out` 을 cap 없이 부르면 E-EFFECT-NO-CAP 이고, `effects io` 를 안 적으면 E-EFFECT 다.
+rem
+rem ★ 셋을 엮는다: `cap io`(출력) · `cap args`(누구에게 인사할지) · `lib/str.low`(인자 다듬기).
+rem ★★ **출력도 오라클 안이다**: VM 과 네이티브가 **같은 fd 에 같은 바이트**를 쓴다
+rem   (할당처럼 표현이 갈리지 않는다) ⇒ 골든이 **양쪽 stdout 을 대조**한다.
+rem
+rem ☞ **왜 조각을 이어 쓰고 한 줄로 조립하지 않는가** — 여기 적혀 있던 갭은 ★**닫혔다**(A3, 2026-07-19).
+rem   당시엔 `cap io` 엔트리가 **스크래치 버퍼를 얻을 방법이 없었다**: 지역 고정 배열이 없고,
+rem   엔트리는 cap 만 받으며, `stack_new` 는 region 과 `alloc` 효과를 요구했다.
+rem   이제 `alloc_bytes <cap allocator> capacity n` 이 그 자리를 연다 ⇒ **`prog/report.low` 가
+rem   같은 일을 `write_out` 을 *한 번만* 불러서 한다**(lib/fmt.low 로 조립 후 일괄 출력).
+rem ★ **이 프로그램은 그대로 둔다.** 조각을 이어 쓰는 것도 유효한 모양이고(버퍼가 필요 없다),
+rem   무엇보다 **갭을 이름으로 지목해 둔 기록이 그것을 닫은 커밋과 짝을 이룬다** — 무엇이
+rem   막혀 있었고 무엇이 그것을 풀었는지가 두 파일에 남는다.
+
+module greet .
+
+use strings from "../../../lib/str.low" .
+
+fn ws output slice u8 . do
+  return " " .
+end .
+
+rem 인자에서 이름을 고른다 — **순수**하다(출력과 무관하므로 따로 시험할 수 있다).
+fn pick_name input given option slice u8 . output slice u8 . do
+  guard is_some given . else return "world" .
+  let trimmed slice u8 be strings.trim_end (strings.trim_start (some_value given) (ws)) (ws) .
+  guard gt (len trimmed) 0 . else return "world" .
+  return trimmed .
+end .
+
+proc main input out cap io . input a cap args . output u8 . effects io . do
+  let name slice u8 be pick_name (arg a 0) .
+  var total u64 be 0 .
+  set total (add total (write_out out 1 "hello, ")) .
+  set total (add total (write_out out 1 name)) .
+  set total (add total (write_out out 1 "!\n")) .
+  rem 답은 쓴 바이트 수 — 종료 코드로 관측된다(RFC-0030 D3).
+  return (narrow u8 total) .
+end .

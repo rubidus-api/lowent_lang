@@ -1,0 +1,69 @@
+rem ★★★ **집합 연산** (RFC-0010 §6.7.1) — dense bit-vector 위의 **분기 없는 워드 연산**.
+rem
+rem   표현은 한 워드다(bitset n ≤ 64). 그래서 모든 연산이 **직선 코드**이고 **할당이 0**이다(S2).
+rem     add s x · remove s x · contains s x · count s
+rem     union a b · intersect a b · difference a b · is_subset a b · is_empty s
+rem
+rem   ★ **add/remove 는 집합을 제자리에서 바꾼다** — 그래서 네이티브에서는 **출신 지역**의 마스크에
+rem     써야 한다. 값 복사본에서 비트를 지우면 그 변경이 사라진다. 실제로 remove 를 그렇게 냈다가
+rem     **VM 1 vs native 2** 로 갈렸고, 차등 검사가 그것을 잡았다(add 는 이미 그 선례를 남겨 뒀었다).
+rem   ★ **complement 는 이번에 넣지 않았다(정직히)**: 여집합은 **폭**이 있어야 옳다(bitset 8 의 여집합은
+rem     상위 56 비트를 켜면 안 된다). VM 은 폭을 들지만 네이티브 빠른 경로는 비트셋을 **폭 없는 워드**로
+rem     낮춘다 ⇒ 지금 넣으면 두 백엔드가 갈린다. 폭을 하강 시점에 박는 것이 후속이다.
+
+module vm_set .
+
+fn ops output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  add a 1 .
+  add a 2 .
+  add a 3 .
+  var b bitset 8 . be bitset_new 8 .
+  add b 2 .
+  add b 3 .
+  add b 4 .
+  var u bitset 8 . be union a b .
+  var i bitset 8 . be intersect a b .
+  var d bitset 8 . be difference a b .
+  rem union 은 원소 4 개, intersect 는 2 개, difference 는 1 개 — 합쳐 421 을 만든다.
+  return (add (mul (count u) 100) (add (mul (count i) 10) (count d))) .
+end .
+
+fn subs output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  add a 1 .
+  var b bitset 8 . be bitset_new 8 .
+  add b 1 .
+  add b 2 .
+  var e bitset 8 . be bitset_new 8 .
+  if is_subset a b . do
+    if is_empty e . do return 11 . end .
+  end .
+  return 0 .
+end .
+
+rem ★ remove 는 제자리 변이다 — 원소 둘에서 하나를 빼면 count 는 1 이다.
+fn rem1 output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  add a 1 .
+  add a 2 .
+  remove a 1 .
+  return count a .
+end .
+
+rem ★ **complement — 여집합은 폭이 있어야 옳다** (RFC-0010 §6.7.1).
+rem   `bitset 8` 의 여집합이 상위 56 비트를 켜면 count 가 거짓말을 한다. 그런데 VM 은 폭을 들지만
+rem   네이티브 빠른 경로는 비트셋을 **폭 없는 워드**로 낮춘다 ⇒ 런타임에는 폭을 알 수 없다.
+rem   ⇒ **폭을 하강 시점에 immediate 로 박는다**(바인딩 타입 `var c bitset 8 .` 이 준다). 그러면 두
+rem     백엔드가 **같은 마스크**를 쓴다. 폭을 알 수 없는 자리에서는 **거절한다**(E-IR-UNSUP) —
+rem     추측해서 64 로 두면 조용히 틀린 답이 나오고, 그것이 이 프로젝트가 가장 싫어하는 것이다.
+
+fn comp output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  add a 1 .
+  add a 2 .
+  add a 3 .
+  var c bitset 8 . be complement a .
+  rem 8 비트 중 셋을 뺀 나머지 = 5
+  return count c .
+end .

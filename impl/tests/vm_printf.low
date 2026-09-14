@@ -1,0 +1,55 @@
+rem ★★★ **Lowent 가 진짜 libc `printf` 를 직접 부른다** (RFC-0063 가변인자 + RFC-0068 cstr).
+rem
+rem   이것이 "C 는 문자열에선 섬" 아크의 완결이다. 두 조각이 맞물려 **새 컴파일러 코드 거의 0**으로 된다:
+rem     · **cstr**(RFC-0068 S4): str_buf 로 조립한 문자열을 `sb_as_cstr` 로 널종단 char* 로 낸다.
+rem       그 포인터는 **정수-클래스**라 가변인자 자리에 그대로 실린다(char* vararg = 정수 레지스터).
+rem     · **반환 폭 정직**(이 슬라이스): extern 출력이 `i32` 면 프로토타입이 **`extern int printf`** 로
+rem       나가 stdio.h 의 `int printf` 와 **맞는다** — long long 으로 뭉뚱그리면 충돌해 **직접 못 부른다**.
+rem       (f64→double 이 부동을 위해 한 것과 **같은 규율**을 정수 폭에 적용.)
+rem
+rem ★ 그래서 이 파일은 **`link printf` 만으로 libc 를 직접 링크**한다 — 래퍼 C 파일이 없다.
+rem   Lowent 가 만든 포맷 문자열과 이름 문자열이 **진짜 printf** 로 흘러 stdout 에 찍힌다.
+rem ★★ **오라클**: FFI 경계 전용(VM 은 E-VM-EXTERN) ⇒ diff-sweep 밖. 네이티브 컴파일·실행 게이트가
+rem   stdout 바이트를 대조한다(printf 반환값 = 찍은 글자 수도 int 반환이 정확한지 증명).
+rem ☞ **아직 못 하는 것(정직히)**: f64 **가변인자**(printf %f). 가변인자는 타입이 없어 컴파일 시점에
+rem   float/int 를 못 가르고, x86-64 는 부동을 SSE 레지스터로 넘겨야 한다(AL 규약) — 정수-클래스인
+rem   문자열·정수와 달리 별도 작업이 필요하다. 그래서 %s·%d 는 되고 %f 는 후속이다.
+
+module m .
+
+use strbuf from "../../lib/strbuf.low" .
+
+unsafe extern proc c_printf .
+  input k cap c .
+  input fmt cstr .
+  output i32 .            rem ★ int 반환 — stdio.h 의 int printf 와 맞는다(직접 링크)
+  variadic .
+  link printf .
+  effects unsafe .
+end .
+
+rem "name=%s val=%d\n" 에 ("lowent", 42) → stdout: name=lowent val=42 · 반환 = 찍은 글자 수 19.
+unsafe proc formatted input k cap c . input fbuf mut slice u8 . . input nbuf mut slice u8 . .
+  output i32 . effects unsafe .
+do
+  var f strbuf.str_buf be strbuf.new .
+  let r1 result void strbuf.sb_error . be strbuf.append f fbuf "name=%s val=%d\n" .
+  guard is_ok r1 . else return 0 .
+  var nm strbuf.str_buf be strbuf.new .
+  let r2 result void strbuf.sb_error . be strbuf.append nm nbuf "lowent" .
+  guard is_ok r2 . else return 0 .
+  return c_printf k (strbuf.as_cstr f fbuf) (strbuf.as_cstr nm nbuf) 42 .
+end .
+
+rem 문자열 인자 하나만 — "%s\n" 에 str_buf 로 조립한 "hi" → stdout: hi
+unsafe proc just_str input k cap c . input fbuf mut slice u8 . . input sbuf mut slice u8 . .
+  output i32 . effects unsafe .
+do
+  var f strbuf.str_buf be strbuf.new .
+  let r1 result void strbuf.sb_error . be strbuf.append f fbuf "%s\n" .
+  guard is_ok r1 . else return 0 .
+  var s strbuf.str_buf be strbuf.new .
+  let r2 result void strbuf.sb_error . be strbuf.append s sbuf "hi" .
+  guard is_ok r2 . else return 0 .
+  return c_printf k (strbuf.as_cstr f fbuf) (strbuf.as_cstr s sbuf) .
+end .

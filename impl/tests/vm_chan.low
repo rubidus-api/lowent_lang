@@ -1,0 +1,77 @@
+rem ★ **2026-07-20**: 채널 op 은 이제 `concurrent` 효과를 낸다(RFC-0022 D-A · RFC-0071 A5).
+rem   *"완결이 다른 태스크의 진행에 의존한다"* — 커널이 깨워 주는 `wait` 와 **다른 요구**다.
+rem   ⇒ 아래 op 들이 그것을 선언한다. 전엔 `effects state` 만 적고 통과했는데, 그것은
+rem   **동료가 필요하다는 사실을 시그니처가 감추고 있었다**는 뜻이다.
+rem
+rem ★★★ **channel — 블로킹 통신** (RFC-0009 D5, task_group→green_thread→channel 3/3, 사용자).
+rem
+rem   green thread 의 yield 위에 얹은 **bounded FIFO 채널**: `channel [<elemtype>]` 로 만들고,
+rem   `chsend <ch> <v>` 로 넣고(찬 채널이면 **블록**), `chrecv <ch>` 로 뺀다(빈 채널이면 **블록**).
+rem   블록은 코루틴 yield 로 — sender/recver 가 오면 재개한다. 이게 고전 rendezvous: consumer 가
+rem   먼저 돌면 빈 채널에서 멈췄다가, producer 가 보내면 그 값으로 재개한다.
+rem
+rem   ★ VM 은 ucontext 코루틴으로, **네이티브도 ucontext 코루틴**으로 진짜 중단한다(green_thread 는
+rem     native yield=no-op 로 됐지만, 블로킹 recv 는 sender 가 그 사이 돌아야 하므로 native 도 코루틴이
+rem     필요하다). 그래서 native lw_schedule 이 코루틴 스케줄러다. diff-sweep 이 VM≡native 를 지킨다.
+rem   ★ **데드락은 잡는다**: 모든 태스크가 채널에서 막혀 아무도 진행 못 하면 E-VM-DEADLOCK.
+rem   ★ 아직 없는 것(정직히): 채널 first-class 타이핑(`send`/`recv` 통일) · unbounded(alloc effect).
+module vm_chan .
+
+actor sink .
+  state v u64 . end .
+  proc put input n u64 . output u64 . effects state . do set v expr v + n . . return v . end .
+  fn get output u64 . do return v . end .
+end .
+
+proc producer input ch u64 . output u64 . effects concurrent . do
+  return chsend ch 41 .
+end .
+proc consumer input ch u64 . input s sink . output u64 . effects state concurrent . do
+  var x u64 be chrecv ch .
+  return send s put x .
+end .
+
+rem rendezvous: consumer 가 빈 채널에서 블록 → producer 가 41 을 보내면 재개 → sink=41. 어떤
+rem   인터리빙이든(consumer 먼저·producer 먼저) 41 — 오라클이 전 interleaving 확인.
+test ch_rendezvous schedule explore_interleavings do
+  var ch u64 be channel u64 . .
+  var s sink be spawn actor sink . .
+  task_group do
+    spawn consumer ch s .
+    spawn producer ch .
+  end .
+  expect eq (send s get) 41 .
+end .
+
+rem 두 생산자·두 소비자 — 채널로 네 값(10·20·30·40)이 오가고 합은 순서 무관하게 100.
+proc p10 input ch u64 . output u64 . effects concurrent . do return chsend ch 10 . end .
+proc p20 input ch u64 . output u64 . effects concurrent . do return chsend ch 20 . end .
+proc p30 input ch u64 . output u64 . effects concurrent . do return chsend ch 30 . end .
+proc p40 input ch u64 . output u64 . effects concurrent . do return chsend ch 40 . end .
+proc csum input ch u64 . input s sink . output u64 . effects state concurrent . do var x u64 be chrecv ch . return send s put x . end .
+test ch_many schedule explore_interleavings limit 200 do
+  var ch u64 be channel u64 . .
+  var s sink be spawn actor sink . .
+  task_group do
+    spawn p10 ch .
+    spawn p20 ch .
+    spawn p30 ch .
+    spawn p40 ch .
+    spawn csum ch s .
+    spawn csum ch s .
+    spawn csum ch s .
+    spawn csum ch s .
+  end .
+  expect eq (send s get) 100 .
+end .
+
+rem `chsend`/`chrecv` + 블로킹 — VM(코루틴 인터리빙)≡네이티브(코루틴, round-robin). 차등 스윕.
+proc drive output u64 . effects state . do
+  var ch u64 be channel u64 . .
+  var s sink be spawn actor sink . .
+  task_group do
+    spawn consumer ch s .
+    spawn producer ch .
+  end .
+  return send s get .
+end .

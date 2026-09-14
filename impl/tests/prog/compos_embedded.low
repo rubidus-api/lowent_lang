@@ -1,0 +1,32 @@
+rem ★★★ **대표 구성 ② — embedded** (RFC-0075 Stage 5 Task 3 · 2026-08-15).
+rem   이 층이 주는 것: **정적 task graph**(`task_group`). 안 주는 것: spawn·채널·actor.
+rem   그래서 여기 있는 그래프는 **컴파일 시각에 모양이 정해진** 단계들의 줄이다 —
+rem   무엇이 언제 도는지 기계가 아니라 **소스가** 안다.
+rem ☞ 정직히: 오늘 `spawn` 은 level 2 라 이 층에서 쓸 수 없다. 그래서 이 그룹은 단계를
+rem   **띄우지 않고 잇는다** — 그것이 오늘 embedded 가 표현할 수 있는 정적 그래프의 전부다.
+module compos_embedded .
+
+build profile embedded .
+
+fn stage_sum input buf slice u8 . output u64 . do
+  var acc u64 be 0 .
+  var i u64 be 0 .
+  while lt i (len buf) . do
+    set acc (add acc (index buf i)) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .
+
+fn stage_scale input v u64 . output u64 . do
+  return mul v 2 .
+end .
+
+proc main output u8 . effects none . do
+  var out u64 be 0 .
+  task_group do
+    let s u64 be stage_sum "\x01\x02\x03\x04" .
+    set out (stage_scale s) .
+  end .
+  return narrow u8 out .
+end .

@@ -1,0 +1,116 @@
+rem ★★★★★ **수명 모드 넷** (RFC-0104 §8-9, 소유자 서명 2026-08-29 · WO-0143).
+rem
+rem   이 파일이 지키는 것은 §7.3 열 11 의 종료 조건 셋이다:
+rem     ① 안 쓰는 mode 비용 0   ② atomic mode 만 atomic 방출
+rem     ③ completion 정확히 1 회 · 완료 뒤 접근 거절
+rem   ①·②는 **바이너리를 보고** 골든이 재고(여기서는 못 잰다), ③은 음성 픽스처가 문다.
+rem   여기서는 **답이 맞는지**를 두 뒤끝에서 본다.
+
+module vm_lifemode .
+
+use lifemode .
+use lifeatom .
+use allocs .
+
+rem ── ② 스레드-국한 refcount — 원자 낱말이 하나도 없다 ─────────────
+proc near input al cap allocator . output u64 . effects alloc . do
+  let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
+  guard is_some mb . else return 89 .
+  var c mut slice u64 . be view_array u64 (some_value mb) .
+  guard lifemode.near_open c 0 . else return 1 .
+  let a option u64 . be lifemode.near_share c 0 .
+  guard is_some a . else return 2 .
+  guard eq (some_value a) 2 . else return 3 .
+  let b option u64 . be lifemode.near_drop c 0 .
+  guard is_some b . else return 4 .
+  guard eq (some_value b) 1 . else return 5 .
+  rem 마지막 하나를 놓으면 0 — 그때 부른 쪽이 저장을 거둔다.
+  let z option u64 . be lifemode.near_drop c 0 .
+  guard is_some z . else return 6 .
+  guard eq (some_value z) 0 . else return 7 .
+  return 42 .
+end .
+
+rem ★ 국한 refcount 가 **포화**한다 — 상한에서는 안 는다(감기지 않는다).
+proc near_top input al cap allocator . output u64 . effects alloc . do
+  let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
+  guard is_some mb . else return 89 .
+  var c mut slice u64 . be view_array u64 (some_value mb) .
+  set (index c 0) (lifemode.ceiling) .
+  let a option u64 . be lifemode.near_share c 0 .
+  guard is_some a . else return 1 .
+  rem 감겼다면 여기가 0 이었을 것이다. 포화하므로 상한 그대로다.
+  guard eq (some_value a) (lifemode.ceiling) . else return 2 .
+  guard eq (index c 0) (lifemode.ceiling) . else return 3 .
+  return 42 .
+end .
+
+rem ── ③ 원자 공유 refcount ────────────────────────────────────────
+proc far input al cap allocator . input k cap atomic . output u64 . effects alloc atomic . do
+  let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
+  guard is_some mb . else return 89 .
+  var c mut slice u64 . be view_array u64 (some_value mb) .
+  guard eq (lifeatom.rc_open k c) 1 . else return 1 .
+  guard eq (lifeatom.rc_share k c) 2 . else return 2 .
+  guard eq (lifeatom.rc_share k c) 3 . else return 3 .
+  guard eq (lifeatom.rc_release k c) 2 . else return 4 .
+  guard eq (lifeatom.rc_release k c) 1 . else return 5 .
+  rem 마지막 하나 — 0 을 답하고, 그 자리에서 acquire 담을 친다.
+  guard eq (lifeatom.rc_release k c) 0 . else return 6 .
+  return 42 .
+end .
+
+rem ★★ **원자 refcount 도 포화한다** — 이것이 이 작업의 유일한 실제 구멍이었다.
+rem   그냥 `atomic_add` 를 쓰면 상한에서 **조용히 0 으로 감긴다**(네이티브로 확인했다).
+proc far_top input al cap allocator . input k cap atomic . output u64 . effects alloc atomic . do
+  let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
+  guard is_some mb . else return 89 .
+  var c mut slice u64 . be view_array u64 (some_value mb) .
+  atomic_store c 0 (lifemode.ceiling) .
+  guard eq (lifeatom.rc_share k c) (lifemode.ceiling) . else return 1 .
+  guard eq (atomic_load c 0) (lifemode.ceiling) . else return 2 .
+  rem 포화한 칸은 **줄지도 않는다** — 한 번 포화하면 그 객체는 영원히 산다.
+  guard eq (lifeatom.rc_release k c) (lifemode.ceiling) . else return 3 .
+  return 42 .
+end .
+
+rem ── ④ 외부 완료 — 완료권이 값이다 ────────────────────────────────
+rem   끝내는 것이 남이므로, 이쪽이 드는 것은 **완료권**뿐이다. 그것을 `owned` 로 만들면
+rem   두 번 완료는 컴파일이 거절하고(E-OWN-MOVED), 완료가 실패할 수 있으면 안 하는 것도
+rem   거절한다(E-OWN-INCOMPLETE). ⇒ **정확히 1 회**가 언어에서 나온다.
+export enum late . too_late . end .
+
+export struct ticket .
+  id u64 .
+end .
+
+export fn issue input i u64 . output owned vm_lifemode.ticket . do
+  return make ticket do id i . end .
+end .
+
+rem 완료는 표를 **먹는다**. 그리고 **실패할 수 있다** — 그래서 잊는 것도 오류가 된다.
+export fn finish input t owned vm_lifemode.ticket . output result u64 vm_lifemode.late . do
+  return ok (field t id) .
+end .
+
+proc once output u64 . effects none . do
+  var t owned vm_lifemode.ticket . be vm_lifemode.issue 7 .
+  let r result u64 vm_lifemode.late . be vm_lifemode.finish t .
+  guard is_ok r . else return 0 .
+  return ok_value r .
+end .
+
+proc main input al cap allocator . input k cap atomic . output u8 . effects alloc atomic .
+do
+  let a u64 be near al .
+  guard eq a 42 . else return narrow u8 a .
+  let b u64 be near_top al .
+  guard eq b 42 . else return narrow u8 b .
+  let c u64 be far al k .
+  guard eq c 42 . else return narrow u8 c .
+  let d u64 be far_top al k .
+  guard eq d 42 . else return narrow u8 d .
+  let e u64 be once .
+  guard eq e 7 . else return narrow u8 e .
+  return 42 .
+end .

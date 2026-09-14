@@ -1,0 +1,41 @@
+rem ★★★ **시계 리프 셋** (RFC-0090 N1 · cap clock, 2026-08-07).
+rem
+rem   `impl/tests/prog/timeit.low` 이 이미 이 셋을 쓰지만 그것은 **cap 진입 프로그램**이라
+rem   차등 훑기가 통째로 건너뛴다(dispatcher 가 안 나온다). 그래서 `oracle-coverage` 가
+rem   *"어느 픽스처에도 없다 3"* 으로 **빨간불을 냈다** — 어제 그 게이트를 ③(진짜 빈칸)만
+rem   세도록 조인 바로 다음 날, 내가 만든 빈칸을 그 게이트가 잡았다.
+rem   ⇒ 이 파일은 **진입점이 아닌 op** 으로 같은 리프를 쓴다. 그러면 스윕이 돈다.
+rem
+rem ★ 오라클은 **단조성과 순서**뿐이다. 절대 시각은 무엇과도 대볼 수 없으므로 주장하지 않는다.
+
+module vm_clock .
+
+rem 두 번 재면 뒤가 크거나 같다 — 단조 시계의 정의 그 자체다.
+proc t_mono input k cap clock . output u64 . effects none . do
+  let a u64 be time_now k .
+  let b u64 be time_now k .
+  guard ge b a . else return 90 .
+  return 1 .
+end .
+
+rem 잠들면 실제로 나아간다. 요청보다 덜 자지는 않는다(더 잘 수는 있다).
+proc t_sleep input k cap clock . output u64 . effects wait . do
+  let a u64 be time_now k .
+  let m u64 be time_sleep k 20 .
+  let b u64 be time_now k .
+  guard ge m 15 . else return 90 .
+  guard ge (sub b a) 15000000 . else return 91 .
+  return 1 .
+end .
+
+rem 날짜시각 팩 — 자리마다 값이 그럴듯한 범위인가. 절대값은 안 본다.
+proc t_local input k cap clock . output u64 . effects none . do
+  let p u64 be time_local k .
+  guard ge (shr p 36) 2020 . else return 90 .
+  guard le (shr p 36) 2100 . else return 91 .
+  guard ge (bit_and (shr p 32) 15) 1 . else return 92 .
+  guard le (bit_and (shr p 32) 15) 12 . else return 93 .
+  guard le (bit_and (shr p 22) 31) 23 . else return 94 .
+  guard le (bit_and (shr p 16) 63) 59 . else return 95 .
+  return 1 .
+end .

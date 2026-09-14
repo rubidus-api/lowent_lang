@@ -1,0 +1,87 @@
+rem ★★★ **여섯 번째 진짜 프로그램 — 그리고 이번 세션이 지은 넷을 처음으로 함께 쓴다.**
+rem
+rem   HANDOFF §5-5 가 적어 둔 이유로 쓴다: *"세 번 다 **조합에서** 결함을 냈다. 단위로는 안 보였다."*
+rem   `match` 함정은 진짜 프로그램만이 찾았다 — 유닛 테스트도 픽스처도 통과했다.
+rem   여기 엮이는 넷은 각각 자기 픽스처에선 초록이었고, **서로 만난 적이 없다**:
+rem     · `cap args`(RFC-0030 D2′)  — 구분자를 인자로 받는다
+rem     · `cap env` (RFC-0030 D2′)  — 동작 스위치를 환경에서 읽는다
+rem     · `lib/io.low`(RFC-0069)    — 입력을 **줄 단위**로 훑는다(mem 리더)
+rem     · `lib/str.low`(RFC-0068)   — 줄을 **필드로 자르고** 다듬는다
+rem
+rem 하는 일: 여러 줄 텍스트를 줄로 쪼개고, 각 줄을 구분자로 필드로 쪼개어 **빈 필드가 아닌 것을 센다**.
+rem   · 구분자: 첫 번째 프로그램 인자의 첫 바이트(없으면 ',')
+rem   · `FIELDS_TRIM` 이 설정돼 있으면 각 필드의 앞뒤 공백을 떨어낸 **뒤에** 빈 것을 판정한다
+rem     ⇒ 같은 입력이 스위치에 따라 다른 답을 낸다(환경이 진짜로 동작을 바꾸는지 보이게).
+rem   · 답 = 필드수*10 + 비어있지-않은-필드수  → **종료 코드**(RFC-0030 D3)
+rem
+rem ★ 전부 **오라클 안**이다: 할당도 커널도 안 쓴다. argv·env 는 결정적 입력이고 나머지는 순수
+rem   슬라이스 조작이라, 같은 인자·같은 환경이면 VM 과 네이티브가 **같은 종료 코드**를 낸다.
+rem ★ 빌트인 op 증가 **0** — 라이브러리 둘과 cap 둘만으로 지었다.
+
+module fields .
+
+use strings from "../../../lib/str.low" .
+use io from "../../../lib/io.low" .
+
+rem 잘라낼 공백 집합 — 라이브러리의 trim 은 "집합" 을 받는다(문자 하나가 아니라).
+fn ws output slice u8 . do
+  return " \t" .
+end .
+
+rem 한 줄을 구분자로 쪼개어 (필드수, 비어있지 않은 수) 를 10 진 두 자리로 접어 돌려준다.
+rem ★ 커서는 **값**이다(RFC-0069 §4) — 호출자가 pos 를 들고 스스로 전진한다.
+fn count_line input line slice u8 . input sep u8 . input trim bool .
+  output u64 .
+do
+  var pos u64 be 0 .
+  var total u64 be 0 .
+  var nonempty u64 be 0 .
+  var f option slice u8 . be strings.split_next line sep pos .
+  while is_some f . do
+    let cell slice u8 be some_value f .
+    var v slice u8 be cell .
+    if trim . do
+      set v (strings.trim_end (strings.trim_start cell (ws)) (ws)) .
+    end .
+    set total (add total 1) .
+    if gt (len v) 0 . do set nonempty (add nonempty 1) . end .
+    set pos (add pos (add (len cell) 1)) .
+    set f (strings.split_next line sep pos) .
+  end .
+  return add (mul total 10) nonempty .
+end .
+
+proc main input a cap args . input e cap env . output u8 . effects state . do
+  rem ── 인자: 구분자. 없으면 ',' (44). 있으면 그 첫 바이트.
+  var sep u8 be 44 .
+  let first option slice u8 . be arg a 0 .
+  if is_some first . do
+    let s slice u8 be some_value first .
+    if gt (len s) 0 . do set sep (index s 0) . end .
+  end .
+
+  rem ── 환경: 다듬기 스위치. 있으면 켠다(값은 안 본다 — 존재가 곧 스위치다).
+  let sw option slice u8 . be env_get e "FIELDS_TRIM" .
+  let trim bool be is_some sw .
+
+  rem ── 입력을 줄 단위로 (heredoc — 원문 그대로, 이스케이프 불요)
+  var r io.mem_reader . be spawn actor io.mem_reader .
+  let src slice u8 be text DATA
+a, b,,c
+ x , ,y
+
+DATA .
+  let d u64 be send r attach src .
+
+  var total u64 be 0 .
+  var nonempty u64 be 0 .
+  var l option slice u8 . be send r take_line 200 .
+  while is_some l . do
+    let packed u64 be count_line (some_value l) sep trim .
+    set total (add total (div packed 10)) .
+    set nonempty (add nonempty (mod packed 10)) .
+    set l (send r take_line 200) .
+  end .
+
+  return (narrow u8 (add (mul total 10) nonempty)) .
+end .

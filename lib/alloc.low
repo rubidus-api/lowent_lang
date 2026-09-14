@@ -1,0 +1,248 @@
+rem ★★★ **네 번째 표준 라이브러리 — 얼로케이터** (RFC-0043 A3 · RFC-0068 S5 준비).
+rem
+rem ★★★ **뿌리와 그 위를 가른다.** 이 파일이 하는 일 전부가 그 분할이다:
+rem
+rem     뿌리    `alloc_bytes <cap allocator> capacity n`  — 바이트가 프로그램에 **처음 들어오는**
+rem             한 자리. 런타임이 준다(**기본값** — 컴파일러가 알아서 하는 쪽).
+rem             ambient 가 아니려면 하나는 있어야 하고, 그래서 권한이다(RFC-0043 D1).
+rem
+rem     그 위    여기 있는 것들. **평범한 actor 다.** `slice u8` 을 받아 잘라 준다 —
+rem             그 바이트가 뿌리에서 왔든 호출자가 빌려준 것이든 **묻지 않는다.**
+rem
+rem ★★ **그래서 얼로케이터를 갈아끼울 수 있다.** 라이브러리 코드는 `input comptime a type .` +
+rem   `requires byte_allocator a .` 로 **어느 구현이든** 받는다(vm_alloc.low 가 먼저 보인 모양).
+rem   단형화되므로 vtable 도, 간접 호출도 없다 — 갈아끼우기의 비용이 **0** 이다.
+rem
+rem ★★★ **그리고 빌린 버퍼는 뿌리를 아예 안 건드린다** — 이것이 RFC-0068 F4(c) 가 말한
+rem   *"권한이 능력을 가른다"* 의 실물이다. `cap allocator` 를 안 받은 코드는 `alloc_bytes` 를
+rem   부를 수가 없고(E-IR-UNSUP·E-ALLOC-NOCAP), 그래도 **남이 준 바이트 위에서는 온전히 할당한다.**
+rem   런타임 `borrowed` 플래그(proven)도, 두 벌의 API(조사 §1.5 의 2^N 증식)도 필요 없다.
+rem
+rem ★ 안 짓는 것(정직히): **`free`·리셋·재사용.** 이 얼로케이터들은 범프고, 되돌리지 않는다.
+rem   그래서 `used` 는 있어도 `release` 는 없다 — 없는 것을 있는 척하지 않는다(§0).
+rem   ☞ 스코프 기반 일괄 해제는 `region` 어휘 블록(SPEC-004 §4.5 도입형태 ①)이 서면 그때다.
+rem ★ 빌트인 op 증가 **0**. 언어가 이미 가진 것(actor·trait·option·subslice·guard)만 썼다.
+
+module allocs .
+
+rem ── 인터페이스 ────────────────────────────────────────────────────────
+rem
+rem ★★★★ **만드는 법은 인터페이스가 아니다** (RFC-0112 D7(4) · 2026-09-13). 전엔 `init` 이 트레이트에 있어서
+rem   «받침 바이트를 받아 거는 것» 이 모든 얼로케이터의 모양이었다. 그런데 뿌리를 딛는 얼로케이터
+rem   (`fixed_bytes`·`heap_bytes`)에는 받침 바이트가 **없다** — 권한 칸이 곧 그 자리다. 그래서 `init` 은
+rem   각 구현의 제 op 으로 남기고, 트레이트는 **쓰는 법**(`reserve`·`grow`·`used`)만 적는다.
+rem ★★★★ **`via self`** (RFC-0112 D7) — 구현은 `reserve`·`grow` 에 **할당 계열 효과**(`alloc`·`heap`·`lock`·
+rem   `atomic`)를 더 적을 수 있다. 그 효과는 이 트레이트로 단형화된 제네릭 op 이 `effects … via a .` 로
+rem   **부르는 쪽까지 나른다** — 힙을 딛는 얼로케이터로 연 벡터는 서명에 `heap` 이 보인다.
+rem ★ `reserve` 는 **option 을 돌려준다** — OOM 은 값이다(RFC-0043 D5). panic 이 아니다.
+rem   임베디드는 이것을 **반드시 처리**한다: `guard is_some …` 없이는 바이트에 닿을 수 없다.
+rem ★ 그리고 돌려주는 것은 **오프셋이 아니라 뷰**다. vm_alloc.low 의 첫 얼로케이터는 오프셋을
+rem   줬는데, 그때는 **진짜 바이트를 가진 자가 아무도 없었기 때문**이다. 이제 있다.
+export trait byte_allocator .
+  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
+  rem ★★★★★ **제자리 성장** (2026-08-18) — 되돌리지 않는 범프의 유일한 되돌림.
+  rem   `grow oldn newn` 은 **마지막 할당이 정확히 oldn 바이트일 때만** 성공한다. 그러면
+  rem   그 자리를 늘리는 것이 안전하다 — 그 뒤로 아무도 자리를 안 받았기 때문이다.
+  rem ★★★★ **이제 크기가 아니라 정체로 묻는다** (RFC-0112 D10 · WO-0215, 2026-09-13). `grow` 는 늘릴 **조각 자체**를
+  rem   받고, 구현은 그것이 마지막에 준 조각과 **같은 바이트인지** `same_slice` 로 확인한다. 아래 두 문단(길이만으로
+  rem   알아보던 시절의 결함과 그 우회)은 그 결함이 어떻게 드러났는지의 기록으로 남긴다 — 우회(`tail`)는 이제 없어도
+  rem   안전하지만, 비용이 수 하나 비교라 그대로 둔다.
+  rem ★★★ **그러나 크기는 정체가 아니다** (2026-09-04 보안 검토, 미결 설계 결함): 얼로케이터는
+  rem   "마지막 할당" 을 `oldn` 하나로 알아본다. 마지막 할당과 **길이만 같은** 다른 버퍼를 든 호출자가
+  rem   부르면 남의 자리가 늘어나 건네진다 — 두 컨테이너가 조용히 겹친다. 이 낱말만으로는 못 가른다.
+  rem   ⇒ **부르는 쪽의 규율**: 자기 할당 직후의 `used` 를 적어 두고, 지금 `used` 가 그것과 같을 때만
+  rem     `grow` 를 부른다(`lib/vecgen.low` 의 `tail` 이 그것이다). 그 사이에 누가 받았으면 부르지 않는다.
+  rem ★ 왜 필요한가: 성장 벡터(`lib/vecgen.low`)가 자랄 때마다 새 버퍼를 받고 옛것을 버리는데,
+  rem   범프는 되돌릴 수 없으므로 **버려진 세대가 아레나에 그대로 쌓인다**. 실측으로 고수위가
+  rem   요청의 **약 4배**였다(2,048 B 담는 데 8,104 B). 제자리로 늘리면 세대가 하나뿐이다.
+  rem ★★ 실패는 **값**이다(none) — 못 늘리면 부르는 쪽이 예전처럼 새로 받아 복사한다.
+  rem   즉 이 낱말은 **최적화이지 계약이 아니다**. 없어도 답이 같아야 한다.
+  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
+  used    input s self . output u64 . effects state .
+end .
+
+rem ★★★★ **낱낱이 돌려주는 얼로케이터** (RFC-0112 D10 · WO-0215). `heap` 효과는 «뿌리가 자란다» 만 뜻하고
+rem   «낱낱이 돌려준다» 는 뜻하지 않는다(Q3 ⓐ) — 그것은 **정책**의 일이고 이 트레이트가 그 자리다. 그래서 링커 창
+rem   위의 자유 목록 얼로케이터도 베어메탈에서 `effects alloc` 으로 1급이다.
+rem ★ `release` 는 **돌려받았는지를 값으로** 답한다(false = 이 조각은 지금 돌려받을 수 없다). 모르는 조각을 조용히
+rem   받아 두면 두 번 돌려주기가 남의 자리를 지운다 — 그래서 구현은 `same_slice` 로 정체를 확인한다.
+export trait freeing_allocator .
+  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
+  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
+  used    input s self . output u64 . effects state .
+  release input s self . input v mut slice u8 . . output bool . effects state via self .
+end .
+
+rem ── 구현 1: 순차 범프 ─────────────────────────────────────────────────
+rem
+rem 가장 단순한 얼로케이터 — 커서를 앞으로만 민다. 되돌리지 않는다.
+export actor bump_bytes .
+  satisfies byte_allocator .
+  satisfies freeing_allocator .
+  state .
+    mem mut slice u8 . .
+    off u64 .
+    rem ★ **마지막 할당의 시작 오프셋.** `grow` 가 "이게 마지막인가" 를 묻는 유일한 근거다.
+    last u64 .
+  end .
+
+  rem 잘라 쓸 바닥을 건다. **누가 준 바이트인지 묻지 않는다** — 뿌리든 빌린 것이든 같다.
+  proc init input backing mut slice u8 . . output u64 . effects state . do
+    set mem backing .
+    set off 0 .
+    set last 0 .
+    return len mem .
+  end .
+
+  rem n 바이트의 **뷰**를 낸다. 모자라면 none 이고 커서는 안 움직인다(부분 할당 없음).
+  rem ★ 남은 자리와 **뺄셈으로** 비교한다 — `add off n` 은 n 이 크면 넘쳐 트랩이었고, OOM 은 값이어야
+  rem   한다(2026-09-04 보안 검토). `off ≤ len mem` 은 불변이라 뺄셈은 안 감긴다.
+  proc reserve input n u64 . output option mut slice u8 . . effects state . do
+    guard le n (sub (len mem) off) . else return none .
+    let v mut slice u8 . be subslice mem off (add off n) .
+    set last off .
+    set off (add off n) .
+    return (some v) .
+  end .
+
+  rem 마지막 할당을 **제자리에서** 늘린다. `last + oldn == off` 가 그 판정의 전부다 —
+  rem 그게 참이면 그 뒤로 아무도 자리를 안 받았다는 뜻이므로 늘려도 남의 바이트가 아니다.
+  rem (같은 길이의 남의 버퍼는 못 가른다 — 위 인터페이스 주석 참조.) 산술은 전부 뺄셈이다.
+  proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state . do
+    guard le (len old) newn . else return none .
+    guard eq (len old) (sub off last) . else return none .
+    rem ★ RFC-0112 D10 — 길이만 같은 남의 버퍼가 아니라 **바로 그 조각**이어야 한다
+    guard same_slice old (subslice mem last off) . else return none .
+    guard le newn (sub (len mem) last) . else return none .
+    set off (add last newn) .
+    return (some (subslice mem last (add last newn))) .
+  end .
+
+  rem ★ 낱낱 반환 — 범프는 **마지막 조각만** 돌려받는다(그 뒤로 아무도 자리를 안 받았으므로 커서를 되돌려도
+  rem   남의 바이트가 아니다). 다른 조각은 false — 받는 척하지 않는다.
+  proc release input v mut slice u8 . . output bool . effects state . do
+    guard eq (len v) (sub off last) . else return false .
+    guard same_slice v (subslice mem last off) . else return false .
+    set off last .
+    return true .
+  end .
+
+  proc used output u64 . effects none . do
+    return off .
+  end .
+end .
+
+rem ── 구현 2: 8바이트 정렬 범프 ─────────────────────────────────────────
+rem
+rem ★ **같은 인터페이스, 다른 정책.** 이것이 있어야 trait 이 장식이 아니라는 것이 보인다 —
+rem   구현이 하나뿐인 인터페이스는 인터페이스가 아니라 그 구현의 다른 이름이다(§0).
+export actor bump_aligned .
+  satisfies byte_allocator .
+  satisfies freeing_allocator .
+  state .
+    mem mut slice u8 . .
+    off u64 .
+    last u64 .
+  end .
+
+  proc init input backing mut slice u8 . . output u64 . effects state . do
+    set mem backing .
+    set off 0 .
+    set last 0 .
+    return len mem .
+  end .
+
+  rem 시작점을 8 의 배수로 올린 뒤 자른다. 패딩은 버려진다(범프니까 되돌릴 수 없다).
+  proc reserve input n u64 . output option mut slice u8 . . effects state . do
+    var pad u64 be mod (sub 8 (mod off 8)) 8 .
+    var at u64 be add off pad .
+    rem ★ 패딩이 끝을 넘을 수 있으므로 먼저 `at` 을 재고, 그다음 남은 자리와 뺄셈으로 잰다(2026-09-04).
+    guard le at (len mem) . else return none .
+    guard le n (sub (len mem) at) . else return none .
+    let v mut slice u8 . be subslice mem at (add at n) .
+    set last at .
+    set off (add at n) .
+    return (some v) .
+  end .
+
+  rem ★ 정렬판도 같은 규칙이다 — `last` 는 **패딩 뒤의** 시작이므로 늘려도 정렬이 안 깨진다.
+  proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state . do
+    guard le (len old) newn . else return none .
+    guard eq (len old) (sub off last) . else return none .
+    rem ★ RFC-0112 D10 — 길이만 같은 남의 버퍼가 아니라 **바로 그 조각**이어야 한다
+    guard same_slice old (subslice mem last off) . else return none .
+    guard le newn (sub (len mem) last) . else return none .
+    set off (add last newn) .
+    return (some (subslice mem last (add last newn))) .
+  end .
+
+  rem ★ 낱낱 반환 — 범프는 **마지막 조각만** 돌려받는다(그 뒤로 아무도 자리를 안 받았으므로 커서를 되돌려도
+  rem   남의 바이트가 아니다). 다른 조각은 false — 받는 척하지 않는다.
+  proc release input v mut slice u8 . . output bool . effects state . do
+    guard eq (len v) (sub off last) . else return false .
+    guard same_slice v (subslice mem last off) . else return false .
+    set off last .
+    return true .
+  end .
+
+  proc used output u64 . effects none . do
+    return off .
+  end .
+end .
+
+rem ── 구현 3·4: 뿌리를 딛는 기본 얼로케이터 ────────────────────────────────────
+rem
+rem ★★★★ **기본 얼로케이터도 평범한 actor 다** (RFC-0112 D6 · WO-0213). 사용자 얼로케이터와 **같은 자리**
+rem   (`input comptime a type . input al a . requires allocs.byte_allocator a .`)에 들어간다 — 그래서
+rem   컨테이너는 «기본이냐 사용자 것이냐» 를 묻지 않는다. 다른 점은 받침이 **권한 칸**이라는 것 하나다.
+rem ★ 권한 칸은 실행 중 값이 아니다 — 그 actor 를 `spawn` 하는 op 이 **같은 종류의 권한을 쥐고 있어야**
+rem   한다(`E-CAP-FORGE`). 권한 없는 곳에서 한 줄로 힙을 지어낼 수 없다.
+rem ★ 둘 다 `grow` 는 `none` 이다 — 뿌리는 마지막 할당이 누구 것인지 모른다(최적화이지 계약이 아니다).
+
+rem 고정 창에서 깎는다. 자라지 않는다 — 다 쓰면 none. 베어메탈에서도 쓸 수 있다.
+export actor fixed_bytes .
+  satisfies byte_allocator .
+  state .
+    root cap allocator .
+    got u64 .
+  end .
+
+  proc reserve input n u64 . output option mut slice u8 . . effects alloc state . do
+    let g option mut slice u8 . . be alloc_bytes root capacity n .
+    guard is_some g . else return none .
+    set got (add got n) .
+    return g .
+  end .
+
+  proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects none . do
+    return none .
+  end .
+
+  proc used output u64 . effects none . do
+    return got .
+  end .
+end .
+
+rem 자라는 뿌리에서 깎는다 — 호스티드에만 있다(베어메탈은 E-HEAP-NOHOST).
+export actor heap_bytes .
+  satisfies byte_allocator .
+  state .
+    root cap heap .
+    got u64 .
+  end .
+
+  proc reserve input n u64 . output option mut slice u8 . . effects heap state . do
+    let g option mut slice u8 . . be alloc_bytes root capacity n .
+    guard is_some g . else return none .
+    set got (add got n) .
+    return g .
+  end .
+
+  proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects none . do
+    return none .
+  end .
+
+  proc used output u64 . effects none . do
+    return got .
+  end .
+end .

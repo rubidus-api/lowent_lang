@@ -1,0 +1,164 @@
+rem ★★ level 2 — **actor** (SPEC-008 §9.4).
+rem
+rem LowentDRF.v 가 **무엇을 주는지 이미 증명해 뒀다**(Qed):
+rem   소유가 액터별로 **격리**되고 이전이 **메시지로만** 일어나면 — **경합이 없다.**
+rem   그리고 경합이 없으면 DRF-SC 가 발동해서 **메모리 모델이 아예 안 보인다**(RFC-0018 §6.5).
+rem 그런데 도구가 그것을 **안 주고 있었다**: `actor` 안의 op 들이 **IR 에서 통째로 사라졌다**(0 defs).
+rem 증명해 놓고 구현하지 않은 것 — 그것도 검사되지 않는 중복이다.
+rem
+rem ★ 발명하지 않는다. actor = **레코드 + 그 레코드를 소유한 op 들**이다:
+rem     state   → 구조체        spawn → make      send → call(인스턴스를 인자로)
+rem   그러면 VM 도 C 백엔드도 **공짜로 따라온다**(make/field/fstore 는 이미 있었다).
+rem
+rem ★ 그리고 지금은 **순차 실행**이다 — 한 번에 한 메시지.
+rem   그것이 **actor 모델의 보장 그 자체**이고, DRF 증명이 기대는 규율이다.
+rem   동시성은 **최적화이지 의미가 아니다.**
+
+module vm_actor .
+
+rem ★★★ **액터를 만들거나 메시지를 보내는 것은 순수하지 않다** — 그런데 아래 다섯 op 은
+rem   `fn … effects none .` 로 **통과하고 있었다.** 효과 검사기가 빌트인의 효과를
+rem   **그것이 문장의 머리일 때만** 셌기 때문이다:
+rem
+rem       var c counter be spawn actor counter . .     rem ← spawn 이 **식 안에 중첩**돼 있다
+rem       effects none .                              rem ← 그래서 **안 보였다**
+rem
+rem   arity 단일화가 나무를 세우자 `spawn` 이 자기 form 의 머리가 되면서 **드러났다.**
+rem   ⇒ `proc … effects state .` 로 고쳤다. **spawn/send 는 state 다.**
+
+actor counter .
+  state .
+    value u64 .
+  end .
+  proc inc output u64 . effects state .
+  do
+    set value expr value + 1 . .
+    return value .
+  end .
+  fn get output u64 .
+  do return value . end .
+end .
+
+rem ★ **actor 가 둘** — 서로 다른 actor 가 한 단위에 있다.
+rem   (모양 지표가 이 구멍을 지적했다: enum 이 둘일 때만 드러난 버그가 있었으므로,
+rem    actor 도 **둘일 때** 무엇이 어긋나는지 물어야 한다. 상태 레코드가 둘, 핸들러가 넷.)
+actor accum .
+  state .
+    total u64 .
+  end .
+  proc add output u64 . effects state .
+  do
+    set total expr total + 10 . .
+    return total .
+  end .
+end .
+
+proc two_actors output u64 . effects state . do
+  var c counter be spawn actor counter . .
+  var d accum be spawn actor accum . .
+  var a u64 be send c inc .
+  var b u64 be send d add .
+  set a expr a + b . .
+  return a .                     rem counter=1, accum=10 → 11
+end .
+
+proc drive output u64 . effects state . do
+  var c counter be spawn actor counter . .
+  var a u64 be send c inc .
+  var b u64 be send c inc .
+  return send c get .
+end .
+
+rem ★★ **격리** — 두 인스턴스는 상태를 공유하지 않는다. 그것이 level-2 의 전부다.
+proc isolated output u64 . effects state . do
+  var c counter be spawn actor counter . .
+  var d counter be spawn actor counter . .
+  var a u64 be send c inc .
+  var b u64 be send c inc .
+  var e u64 be send d inc .
+  var x u64 be send c get .
+  var y u64 be send d get .
+  set x expr x * 10 . .
+  set x expr x + y . .
+  return x .                    rem c = 2, d = 1  →  21
+end .
+
+test actor_counts do
+  expect eq (drive) 2 .
+end .
+
+test actor_state_is_isolated do
+  expect eq (isolated) 21 .
+end .
+
+test two_different_actors do
+  expect eq (two_actors) 11 .
+end .
+
+rem ★★★ DECISION-0011 — **메시지는 곧 op 호출이다.** 인자는 병치된다: `send addn 5 to c .`
+rem
+rem 그전엔 메시지가 **데이터를 실어 나를 수 없었다.** 그리고 그게 조용하지 않았다 —
+rem **세 가지가 한꺼번에 거짓말을 하고 있었다**(원인은 `continue;` 한 줄):
+rem   ① 핸들러의 `input` 절이 **통째로 버려졌다.** 그런데 `--check` 는 **초록불**이었고,
+rem      실행하면 "산술에는 정수가 필요하다"(E-VM-TYPE)며 **산술을 탓했다.**
+rem      진실은 "도구가 네 파라미터를 버려서 n 이 수가 아니다" 였다(교훈 5 — 오진).
+rem   ② `ir_iface_hash` 를 건너뛰어 액터 핸들러의 **인터페이스 해시가 0** 이었다.
+rem      내용 주소화가 액터에서 통째로 비어 있었다(SPEC-011).
+rem   ③ 그리고 슬롯 0 은 선언되자마자 지워지고 있었다 — 인자가 없어서 우연히 굴러갔다.
+rem
+rem ★ 문법은 **하나도 안 바꿨다.** 파서가 `to` 를 필드 접근 설탕으로 꽉 묶으므로 CST 는
+rem     send · M · a1 … a(N-1) · ACCESS(aN, C)
+rem   마지막 인자와 수신자가 한 노드로 붙어 온다. 그 모양을 그대로 읽으면 인자가 실린다.
+rem   그리고 이 모양은 **호출과 똑같다** — 이 언어는 호출을 괄호로 싸지 않으니까(`g h`).
+
+actor bank .
+  state .
+    balance u64 .
+  end .
+  proc deposit input n u64 . output u64 . effects state .
+  do
+    set balance expr balance + n . .
+    return balance .
+  end .
+  proc withdraw input n u64 . output u64 . effects state .
+  do
+    set balance sat_sub balance n .
+    return balance .
+  end .
+  fn peek output u64 .
+  do return balance . end .
+end .
+
+proc banking output u64 . effects state . do
+  var b bank be spawn actor bank . .
+  var x u64 be send b deposit 100 .
+  var y u64 be send b deposit 50 .
+  var z u64 be send b withdraw 30 .
+  return send b peek .          rem 100 + 50 − 30 = 120
+end .
+
+rem ★★ 그리고 **`send` 는 소유를 이전한다** — RFC-0005 §6.9 B1–B3 이 **의미론은 이미 정해
+rem   두었다**("send = 배타적 move, 송신측 무효화"). 그런데 그걸 **쓸 문법이 없었다.**
+rem   이제 있다. 그리고 보낸 뒤에 다시 쓰면 **E-OWN-MOVED** 다(RFC-0058 의 소비 규칙에 걸었다).
+rem   ★ 이것이 LowentDRF.v 가 증명한 격리(소유 이전이 **메시지로만** 일어난다)를 도구가
+rem     실제로 주는 유일한 길이다. **증명해 놓고 강제하지 않으면 그것도 거짓말이다.**
+actor vault .
+  state .
+    held u64 .
+  end .
+  proc stash input h owned u64 . output u64 . effects state .
+  do
+    set held h .
+    return held .
+  end .
+end .
+
+proc hand_over input a u64 . output u64 . effects state . do
+  var v vault be spawn actor vault . .
+  var h owned u64 be a .
+  return send v stash h .      rem h 는 여기서 **떠난다**. 뒤에 쓰면 E-OWN-MOVED.
+end .
+
+test actor_messages_carry_data do
+  expect eq (banking) 120 .
+end .

@@ -1,0 +1,47 @@
+rem ★★★ **타입 있는 슬라이스를 op 사이로 넘길 수가 없었다.**
+rem
+rem `slice T`(T ≠ u8) 파라미터는 진입에서 **VARRAY 로 감싼다**(원소 개수·원소 타입을 나르려고).
+rem 그런데 그 값을 **다른 op 에 넘기면** 그쪽 진입에서 **또 감쌌다** — VARRAY 위에 VARRAY.
+rem
+rem     E-VM-TYPE: view_array needs a byte slice
+rem
+rem `slice u32` 든 `slice <struct>` 든 전부. **op 두 개를 잇는 순간 깨진다.**
+rem
+rem ★ 그런데 픽스처가 전부 **CLI 에서 직접 받기만** 했다 — 슬라이스를 op 에서 op 으로
+rem   넘기는 모양이 **하나도 없었다.** 그래서 아무도 못 봤다.
+rem   **PRINCIPLES.md §0 교훈 6 그대로: 픽스처에 없는 모양은 아무도 검사하지 않는다.**
+rem   (세 번째 진짜 프로그램이 찾았다 — `match` 함정도 진짜 프로그램만이 찾았다.)
+rem
+rem ⇒ 진입 래핑은 **멱등**이어야 한다: 이미 감싸여 있으면 그대로 둔다.
+
+module vm_typedpass .
+
+struct pt .
+  x u8 .
+  y u8 .
+end .
+
+fn inner_len input s slice u32 . output u64 . do
+  return len s .
+end .
+
+rem ★ 넘긴다 — 여기가 깨지던 자리다.
+fn outer_len input s slice u32 . output u64 . do
+  return inner_len s .
+end .
+
+fn inner_first_x input s slice pt . output u8 . do
+  let p be index s 0 . .
+  return field p x .
+end .
+
+fn outer_first_x input s slice pt . output u8 . do
+  return inner_first_x s .
+end .
+
+test typed_slices_cross_op_boundaries do
+  rem "abcdefgh" = u32 둘
+  expect eq (outer_len "abcdefgh") 2 .
+  rem "abcd" = pt 둘: (97,98) (99,100)
+  expect eq (outer_first_x "abcd") 97 .
+end .

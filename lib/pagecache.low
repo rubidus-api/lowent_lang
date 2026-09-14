@@ -1,0 +1,131 @@
+rem ★★★ **페이지 id + 고정 커서 — RFC-0104 §8-10**(소유자 서명 2026-08-29, §5.16).
+rem
+rem   SQLite 모양이다: **긴 수명의 정체성**(페이지 id)과 **짧은 직접 접근**(pin)을 가른다.
+rem   밖에 저장하는 것은 언제나 id 이고, 바이트에 닿는 동안만 pin 을 든다.
+rem
+rem ★★★ **pin 은 캐시 토큰을 삼킨다.** 그래서 pin 이 사는 동안 `evict`·`reset` 은
+rem   **컴파일이 안 된다**(`E-OWN-MOVED`) — 이 라이브러리가 막는 것이 아니라 **언어가** 막는다.
+rem   §8-2 의 브랜드와 §8-6 의 owned 토큰이 여기서 세 번째로 같은 일을 한다:
+rem   *권한을 값으로 만들면, 그 권한을 두 곳이 동시에 쥘 수 없다.*
+rem
+rem ★★ **겹치면 LIFO 다.** `pin_more` 는 앞선 pin 을 삼키므로 바깥을 놓아야 안쪽에 닿는다.
+rem   커서가 트리를 타고 내려가며 장수를 쌓는 모양(SQLite 의 `apPage[]`)이 그대로 선다 —
+rem   그리고 그 **깊이가 타입에 보인다**.
+rem
+rem ★★ **상한은 한 캐시라인이다**: `machine.cache_line / size_of(pin)`.
+rem   PostgreSQL 이 정확히 그 이유로 8 을 골랐다(`bufmgr.c:144-145`: *"64 bytes, about the size
+rem   of a cache line"*). 8 을 **박지 않고** 그 **이유**를 적으므로 임베디드에서도 옳다:
+rem       x86_64·arm64(64B) → 8 · mips_be(32B) → 4 · cortex_m(4B) → 1
+rem
+rem ☞ 안 지은 것(정직히): IO 완결(§5.7 이 별도 계약이라 적었다) · 페이지 이동의 동시성 ·
+rem   순서 자유 release(자원 소유자 모형) · 실제 축출 정책(LRU 따위 — 그건 정책이고 여기는 규약).
+
+module pagecache .
+
+rem 캐시 한 자리. **토큰이다** — 값이 아니라 권한이다.
+export struct cache .
+  input comptime b type .
+  pages u64 .      rem 담을 수 있는 페이지 수
+  epoch u64 .      rem reset·eviction 이 올린다 — 옛 id 는 그때 낡는다
+end .
+
+rem 페이지 하나에 대한 고정. 앞선 권한을 **자기 안에** 든다.
+export struct pin .
+  input comptime b type .
+  id u64 .
+  depth u64 .
+  held owned cache b .
+end .
+
+rem 겹친 고정 — 앞선 pin 을 삼킨다. 이 중첩이 곧 LIFO 다.
+export struct pin2 .
+  input comptime b type .
+  id u64 .
+  depth u64 .
+  under owned pin b .
+end .
+
+rem ★ 캐시를 연다.
+export fn open input comptime b type . input pages u64 . output owned cache b . do
+  return make cache b do pages pages . epoch 0 . end .
+end .
+
+rem ★★ **이 기계에서 커서가 들 수 있는 pin 수** — 한 캐시라인에 들어가는 만큼.
+rem   `machine.cache_line` 은 comptime 상수라 이 수도 컴파일타임에 접힌다(비용 0).
+rem   ☞ pin 하나를 8 바이트(페이지 id 한 칸)로 센다: 상한이 세는 것은 **추적 비용**이지
+rem     구조체 전체 크기가 아니다 — PostgreSQL 의 그 배열도 id 만 들고 있다.
+export fn pin_limit output u64 . do
+  let line u64 be machine.cache_line .
+  if lt line 8 . do return 1 . end .
+  return div line 8 .
+end .
+
+rem 이 커서가 상한 안에 있나 — 시험이 이것을 읽는다.
+export fn within_limit input depth u64 . output bool . do
+  return le depth (pin_limit) .
+end .
+
+rem ★★★ **고정한다 — 캐시 토큰을 삼킨다.** 이 뒤로 `evict` 는 부를 수 없다(컴파일 거절).
+export fn acquire input comptime b type . input c owned cache b . input id u64 . output pin b . do
+  return make pin b do id id . depth 1 . held c . end .
+end .
+
+rem ★★ 겹쳐 고정한다 — 앞선 pin 을 삼킨다. 깊이가 하나 는다.
+export fn acquire_more input comptime b type . input p owned pin b . input id u64 . output pin2 b . do
+  return make pin2 b do id id . depth (add (field p depth) 1) . under p . end .
+end .
+
+rem 놓는다 — 캐시 토큰을 돌려준다.
+rem ☞ 부분 이동은 언어가 막으므로(`E-OWN-PARTIAL`) 토큰을 **다시 만든다**. 값은 그대로다.
+export fn release input comptime b type . input p owned pin b . output owned cache b . do
+  let h cache b . be (field p held) .
+  return make cache b do pages (field h pages) . epoch (field h epoch) . end .
+end .
+
+rem 겹친 것을 놓는다 — 바깥부터. 순서를 어길 길이 **없다**(안쪽은 바깥 안에 있다).
+export fn release_more input comptime b type . input p owned pin2 b . output owned pin b . do
+  let u pin b . be (field p under) .
+  let h cache b . be (field u held) .
+  let c cache b . be make cache b do pages (field h pages) . epoch (field h epoch) . end .
+  return make pin b do id (field u id) . depth (field u depth) . held c . end .
+end .
+
+rem ★★★ **축출 — 캐시 토큰을 요구한다.** pin 이 살아 있으면 이 op 을 부를 수가 없다.
+rem   epoch 를 올린다: 그 순간 옮겨진 페이지의 옛 자리를 가리키던 것이 전부 낡는다.
+export fn evict input comptime b type . input c owned cache b . output owned cache b . do
+  return make cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end .
+end .
+
+rem 캐시를 비운다 — 같은 규율(토큰을 요구한다).
+export fn reset input comptime b type . input c owned cache b . output owned cache b . do
+  return make cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end .
+end .
+
+rem ★ **id 는 이동을 견딘다** — 페이지가 옮겨져도 id 는 그대로이고 directory 만 고친다.
+rem   여기서는 그 사실을 값으로 보인다: 자리(slot)는 epoch 로 바뀌어도 id 는 안 바뀐다.
+rem ☞ 필드 경로 `requires` 는 안 쓴다 — 계약 오라클이 그 축을 거짓 실패로 센다
+rem   (`docs/known-defects/oracle-field-path-contract.md`). 빈 캐시는 **값으로** 답한다.
+rem ★ `id + epoch` 를 **먹기 전에 각각 나머지로 줄인다** — id 는 호출자 것이라 2^64 근처일 수 있고,
+rem   축출 한 번 뒤 그 덧셈이 넘쳐 트랩이었다(2026-09-04 보안 검토). (a+b) mod p = ((a mod p)+(b mod p)) mod p
+rem   이고, 두 나머지의 합도 p 가 2^63 을 넘으면 넘칠 수 있으므로 **빼서** 접는다: 덧셈이 하나도 없다.
+export fn slot_of input comptime b type . input c cache b . input id u64 . output option u64 . do
+  guard ge (field c pages) 1 . else return none .
+  let p u64 be (field c pages) .
+  let a u64 be mod id p .
+  let e u64 be mod (field c epoch) p .
+  rem a + e ≥ p ⇔ a ≥ p − e (둘 다 p 미만이므로 p − e 는 안 감긴다)
+  if ge a (sub p e) . do return some (sub a (sub p e)) . end .
+  return some (add a e) .
+end .
+
+export fn epoch_of input comptime b type . input c cache b . output u64 . do
+  return (field c epoch) .
+end .
+
+export fn depth_of input comptime b type . input p pin b . output u64 . do
+  return (field p depth) .
+end .
+
+export fn depth2_of input comptime b type . input p pin2 b . output u64 . do
+  return (field p depth) .
+end .

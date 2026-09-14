@@ -1,0 +1,56 @@
+rem ★★★ **실물 프로그램: PEM 봉투를 벗겨 알맹이 길이를 낸다** (RFC-0075 §8 Stage 2).
+rem
+rem   원장이 세는 「진짜 프로그램이 안 쓰는 모듈」에 `pem` 이 있었다. 자기
+rem   픽스처는 봉투를 벗길 줄 알았지만, **바깥에서 들어온 바이트**로 그 일을
+rem   해 본 적은 없었다 — 그 둘은 다른 물음이다.
+rem
+rem   여기서 묻는다: 표준 입력으로 들어온 PEM 한 덩이를 `pem` 만으로 벗겨
+rem   **쓸 만한 답**을 낼 수 있는가.
+rem
+rem ★ 종료 상태가 곧 오라클이다.
+rem     0..255 = 벗긴 알맹이의 **바이트 수**(작은 입력이라 한 바이트에 담긴다)
+rem     70 = 자리를 못 얻었다        ← 살림살이 실패는 답과 가른다
+rem     71 = 읽기 실패
+rem     46 = 빈 입력
+rem     45 = PEM 이 아니거나 라벨이 다르다   ← **거절도 값으로 말한다**
+rem
+rem ★★ `unwrap` 이 **호출자 버퍼 둘**(scratch · out)을 받는다는 점이 이 프로그램의
+rem   요점이다. 라이브러리가 몰래 할당하지 아니하므로(§9.5 · §9.2), 얼마나 쓰는지가
+rem   **부르는 자리에 보인다** — 아래 두 `alloc_bytes` 가 그 비용의 전부다.
+
+module pemcat .
+
+use pem from "../../../lib/pem.low" .
+
+proc main .
+  input al  cap allocator .
+  input k   cap io .
+  output u8 .
+  effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some g . else return 70 .
+  let buf mut slice u8 . be some_value g .
+
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 71 .
+  let got u64 be some_value rn .
+  guard ne got 0 . else return 46 .
+  let src slice u8 be subslice buf 0 got .
+
+  rem ── 호출자가 드는 자리 둘 — 이것이 이 라이브러리의 비용 전부다 ──
+  let gs option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some gs . else return 70 .
+  let scratch mut slice u8 . be some_value gs .
+
+  let go option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some go . else return 70 .
+  let out mut slice u8 . be some_value go .
+
+  rem ── 벗기기: 실패가 **값으로** 돌아온다 ──
+  let d option u64 . be pem.unwrap src "CERTIFICATE" scratch out .
+  guard is_some d . else return 45 .
+
+  let n u64 be some_value d .
+  return narrow_wrap u8 n .
+end

@@ -1,0 +1,54 @@
+rem ★★★ **인라인 asm** (RFC-0041) — 이 op 의 몸은 **기계 명령**이다.
+rem
+rem   최후수단이다: portable → intrinsic → **그래도 못 닿는 것**(특권 명령·syscall·정확 사이클).
+rem   그래서 세 겹으로 가둔다: **unsafe**(모든 불변식을 깰 수 있다) · **cap asm**(건네받는 권리) ·
+rem   **target ISA**(이식성이 없다 — 그리고 도구는 있는 척하지 않는다).
+rem
+rem ★★ 그리고 **컴파일러는 템플릿 안을 안 읽는다**(어셈블러의 몫이다). 그러면 무엇을 검사하나?
+rem   **피연산자 목록**과 **템플릿의 `{name}`** 은 *한 뜻의 두 표현*이다(교훈 7).
+rem   대조하지 않으면 반드시 갈린다 — 안 묶인 `{x}` 는 **아무 레지스터나 읽고**,
+rem   안 쓰인 피연산자는 레지스터를 **공연히 태운다**. 그래서 **양방향으로 대조한다.**
+rem
+rem ★ VM 은 이것을 **못 돌린다. 그리고 못 돌린다고 말한다**(E-VM-ASM) — 흉내내는 인터프리터는
+rem   없느니만 못하다. **네이티브(--emit-c)에서만** 돈다.
+
+module vm_asm .
+
+rem --- 값 둘을 레지스터에 실어 보내고, 하나를 받아 온다.
+unsafe proc asm_add .
+  input k cap machine .   rem ★ 능력 이름은 `machine` 이다 — `asm` 은 **절 낱말**이라 값 자리에 못 온다(충돌은 설계로 없앤다)
+  input a u64 .
+  input b u64 .
+  output u64 .
+  effects unsafe .
+  asm x86_64 .
+      reg a .
+      reg b .
+      out reg r .
+      clobber flags .
+      options pure nomem nostack .
+do
+  text ASM
+    mov {a}, {r}
+    add {b}, {r}
+  ASM
+end .
+
+rem --- ★ 특정 레지스터도 묶인다 — syscall 은 레지스터를 **고른다**(rdi/rsi/rax).
+unsafe proc asm_shift .
+  input k cap machine .   rem ★ 능력 이름은 `machine` 이다 — `asm` 은 **절 낱말**이라 값 자리에 못 온다(충돌은 설계로 없앤다)
+  input a u64 .
+  output u64 .
+  effects unsafe .
+  asm x86_64 .
+      rcx a .
+      reg a .
+      out reg r .
+      clobber flags .
+      options pure nomem nostack .
+do
+  text ASM
+    mov {a}, {r}
+    shl %cl, {r}
+  ASM
+end .

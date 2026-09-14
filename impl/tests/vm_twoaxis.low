@@ -1,0 +1,207 @@
+rem ★★★ **두 축 제네릭 컨테이너** — 원소 타입 `t` × 얼로케이터 타입 `a` (RFC-0075 S3, 2026-08-15).
+rem
+rem   S3 이 물은 것: *"다섯 컨테이너가 하나로 줄어드는가."* 안 줄던 이유는 제네릭이 모자라서가
+rem   아니라 **축이 달랐기** 때문이다 — `vecs` 는 얼로케이터 제네릭·원소 고정(u8), `vecgen` 은
+rem   원소 제네릭·얼로케이터 고정(`allocs.bump_bytes`). 그래서 물음이 하나로 좁혀졌다:
+rem   **한 컨테이너가 두 축을 동시에 탈 수 있는가.**
+rem
+rem   이 픽스처가 답이다 — **탄다.** 그리고 그 답은 *증인*이지 주장이 아니다: 여기 있는 컨테이너는
+rem   두 축 모두 제네릭인 채로 열리고·잇고·읽고, VM 과 native 가 같은 값을 낸다.
+rem
+rem ★ 얼로케이터 축은 **트레이트 바운드**로 탄다(`requires allocs.byte_allocator a`) — 컨테이너는
+rem   권한을 만들지 않고 받은 것을 들고 다닌다(RFC-0043 D1).
+rem ★ 원소 축은 `size_of t` + `view_array t` 로 탄다 — 저장은 바이트, 보는 것만 원소다(RFC-0084).
+rem
+rem ☞ 그런데 같은 실험이 **빨간 것**도 찾았다: 인스턴스 타입 인자가 바인딩에서 안 물린다
+rem   (`docs/known-defects/instance-type-args-unchecked.md`). 그래서 라이브러리 축소는 그 뒤다.
+module twoax .
+
+use allocs .
+
+export struct gv input comptime t type . input comptime a type .
+  al a .
+  store mut slice u8 . .     rem 얼로케이터가 준 **바이트** — 소유하는 저장소
+  n u64 .                    rem 담긴 **원소** 개수
+end .
+
+rem 빈 컨테이너를 연다. 자리를 못 받으면 none — OOM 은 값이다(RFC-0043 D5).
+export proc open .
+  input comptime t type .
+  input comptime a type .
+  using al a .
+  input cap0 u64 .
+  output option (gv t a) .
+  effects state .
+  requires allocs.byte_allocator a .
+do
+  let b option mut slice u8 . be send al reserve (mul cap0 (size_of t)) .
+  guard is_some b . else return none .
+  return some (make gv t a do al al . store (some_value b) . n 0 . end) .
+end .
+
+rem 한 원소를 잇는다. 방이 없으면 false — 여기서는 **안 자란다**(자람은 `vecgen` 의 몫이다).
+export proc add_one .
+  input comptime t type .
+  input comptime a type .
+  input g mut gv t a .
+  input x t .
+  output bool .
+  effects none .
+  requires allocs.byte_allocator a .
+do
+  let room u64 be div (len (field g store)) (size_of t) .
+  guard lt (field g n) room . else return false .
+  var cur mut slice u8 . be (field g store) .
+  var cells mut slice t . be view_array t cur .
+  set (index cells (field g n)) x .
+  set (field g n) (add (field g n) 1) .
+  return true .
+end .
+
+export fn get .
+  input comptime t type .
+  input comptime a type .
+  input g gv t a .
+  input i u64 .
+  output option t .
+  requires allocs.byte_allocator a .
+do
+  guard lt i (field g n) . else return none .
+  var cur mut slice u8 . be (field g store) .
+  var cells mut slice t . be view_array t cur .
+  return some (index cells i) .
+end .
+
+export fn count_of .
+  input comptime t type . input comptime a type . input g gv t a . output u64 .
+  requires allocs.byte_allocator a .
+do
+  return field g n .
+end .
+
+rem ── 원소 축: 같은 틀에서 u32 컨테이너 ────────────────────────────────────────
+proc part_axis_t input al cap allocator . output u8 . effects alloc state . do
+  let mo option mut slice u8 . be alloc_bytes al capacity 256 .
+  guard is_some mo . else return 1 .
+  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
+  var c u64 be send bump init (some_value mo) .
+
+  let go option (gv u32 allocs.bump_bytes) . using bump be open u32 4 .
+  guard is_some go . else return 2 .
+  var g gv u32 allocs.bump_bytes be some_value go .
+  guard add_one u32 allocs.bump_bytes g 258 . else return 3 .
+  guard add_one u32 allocs.bump_bytes g 3 . else return 4 .
+  guard eq (count_of u32 allocs.bump_bytes g) 2 . else return 5 .
+
+  let e0 option u32 . be get u32 allocs.bump_bytes g 0 .
+  guard is_some e0 . else return 6 .
+  guard eq (some_value e0) 258 . else return 7 .
+  let e1 option u32 . be get u32 allocs.bump_bytes g 1 .
+  guard is_some e1 . else return 8 .
+  guard eq (some_value e1) 3 . else return 9 .
+
+  rem 방을 다 썼으면 false — 계약이 값으로 답한다.
+  guard add_one u32 allocs.bump_bytes g 10 . else return 30 .
+  guard add_one u32 allocs.bump_bytes g 11 . else return 31 .
+  guard eq (add_one u32 allocs.bump_bytes g 12) false . else return 32 .
+
+  return 42 .
+end .
+
+rem ── 같은 틀·다른 원소폭. 원소 축이 실제로 도는지. ────────────────────────────
+proc part_u16 input al cap allocator . output u8 . effects alloc state . do
+  let mo option mut slice u8 . be alloc_bytes al capacity 256 .
+  guard is_some mo . else return 1 .
+  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
+  var c u64 be send bump init (some_value mo) .
+
+  let go option (gv u16 allocs.bump_bytes) . using bump be open u16 3 .
+  guard is_some go . else return 2 .
+  var g gv u16 allocs.bump_bytes be some_value go .
+  guard add_one u16 allocs.bump_bytes g 1000 . else return 3 .
+  guard add_one u16 allocs.bump_bytes g 2000 . else return 4 .
+  guard add_one u16 allocs.bump_bytes g 3000 . else return 5 .
+  guard eq (add_one u16 allocs.bump_bytes g 4000) false . else return 6 .
+  let e2 option u16 . be get u16 allocs.bump_bytes g 2 .
+  guard is_some e2 . else return 7 .
+  guard eq (some_value e2) 3000 . else return 8 .
+  return 43 .
+end .
+
+rem ── 얼로케이터 축. 같은 틀을 **다른 얼로케이터 타입**으로 인스턴스화한다. ────
+rem   ★ 이 자리가 두 축의 증거다: 위 둘은 `t` 를 바꿨고, 이것은 `a` 를 바꾼다.
+export actor pair_bytes .
+  satisfies allocs.byte_allocator .
+  state .
+    mem mut slice u8 . .
+    off u64 .
+    last u64 .
+  end .
+
+  proc init input backing mut slice u8 . . output u64 . effects state . do
+    set mem backing .
+    set off 0 .
+    set last 0 .
+    return len mem .
+  end .
+
+  rem ★ 한 번에 **두 배**를 떼어 준다 — bump 와 **다른 정책**이라 타입이 달라야 할 이유가 된다.
+  proc reserve input n u64 . output option mut slice u8 . . effects state . do
+    let want u64 be mul n 2 .
+    guard le (add off want) (len mem) . else return none .
+    let v mut slice u8 . be subslice mem off (add off want) .
+    set last off .
+    set off (add off want) .
+    return (some v) .
+  end .
+
+  rem ★★★ **제자리 성장 — 정책이 달라도 판정은 같다** (2026-08-18, 트레이트에 `grow` 가 생겼다).
+  rem   이 얼로케이터는 요청의 **두 배**를 떼어 주지만, "마지막 할당이 어디서 시작했나" 는
+  rem   똑같이 알 수 있다. 그래서 판정 한 줄(`last + oldn == off`)이 그대로 선다 —
+  rem   **그것이 이 트레이트가 정책에 안 매여 있다는 증거다.**
+  rem ★ 못 늘리는 얼로케이터라면 `return none .` 한 줄로 두어도 완전한 구현이다:
+  rem   `grow` 는 **최적화이지 계약이 아니고**, 부르는 쪽은 none 을 받으면 새로 받아 복사한다.
+  proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state . do
+    guard le (len old) newn . else return none .
+    guard eq (add last (len old)) off . else return none .
+    guard same_slice old (subslice mem last off) . else return none .
+    guard le (add last newn) (len mem) . else return none .
+    set off (add last newn) .
+    return (some (subslice mem last (add last newn))) .
+  end .
+
+  proc used output u64 . effects none . do
+    return off .
+  end .
+end .
+
+proc part_pair input al cap allocator . output u8 . effects alloc state . do
+  let mo option mut slice u8 . be alloc_bytes al capacity 256 .
+  guard is_some mo . else return 1 .
+  var pp pair_bytes be spawn actor pair_bytes . .
+  var c u64 be send pp init (some_value mo) .
+
+  rem 같은 `open`·`add_one`·`get` — 얼로케이터 타입만 다르다.
+  let go option (gv u32 pair_bytes) . using pp be open u32 2 .
+  guard is_some go . else return 2 .
+  var g gv u32 pair_bytes be some_value go .
+  rem ★ 두 배를 떼어 줬으므로 방은 2 가 아니라 **4** 다 — 정책이 컨테이너 밖에 있다는 증거.
+  guard add_one u32 pair_bytes g 5 . else return 3 .
+  guard add_one u32 pair_bytes g 6 . else return 4 .
+  guard add_one u32 pair_bytes g 7 . else return 5 .
+  guard add_one u32 pair_bytes g 8 . else return 6 .
+  guard eq (add_one u32 pair_bytes g 9) false . else return 7 .
+  guard eq (count_of u32 pair_bytes g) 4 . else return 8 .
+  let e3 option u32 . be get u32 pair_bytes g 3 .
+  guard is_some e3 . else return 9 .
+  guard eq (some_value e3) 8 . else return 10 .
+  return 44 .
+end .
+
+rem ── 진입점. 세 장면을 한 자리에서 — 골든은 `main` 하나만 부른다. ─────────────
+proc main input al cap allocator . output u8 . effects alloc state . do
+  guard eq (part_axis_t al) 42 . else return 1 .
+  guard eq (part_u16 al) 43 . else return 2 .
+  guard eq (part_pair al) 44 . else return 3 .
+  return 42 .
+end .

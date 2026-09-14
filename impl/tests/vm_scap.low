@@ -1,0 +1,41 @@
+rem ★★★ **스택 선언 capacity 를 두 백엔드가 똑같이 지킨다** (2026-07-24, 경계 스윕 F2/F3).
+rem
+rem   전에는 용량이 **양쪽 다 하드코딩 128** 이었다: `stack_new r capacity 2` 를 선언해도
+rem   129 번째까지 밀 수 있었고(선언이 거짓말), 게다가 VM 은 `capacity 129` 를 조용히 받아
+rem   물리 배열(128)을 넘겼다. 그래서 **VM 은 받고 native 는 panic** 하는 발산이 생길 수 있었다.
+rem   ⇒ SNEW 가 선언 용량을 슬롯에 싣고(VM=vmstk.cap · native=scap[집]), push 가 **그 한도**를 본다.
+rem     물리 상한(128)을 넘는 선언은 **양쪽 다** 거부한다(VM E-VM-BOUNDS · native panic).
+rem
+rem   ★ `stack_new` 은 **region 파라미터**를 받는다(할당 권한). --run 에선 그 자리에 `0` 을 준다.
+module vm_scap .
+
+type frame u64 . .
+
+rem 물리 상한 초과 선언 — 양쪽 다 거부해야(생성 시점).
+proc over_decl input temp region frame . . output u64 . effects alloc . do
+  let s stack u64 . be stack_new temp capacity 129 . .
+  return 0 .
+end .
+
+rem 선언 용량 2 인데 세 번 민다 — 세 번째에서 양쪽 다 트랩.
+proc over_push input temp region frame . . output u64 . effects alloc . do
+  let s stack u64 . be stack_new temp capacity 2 . .
+  push s 10 .
+  push s 20 .
+  push s 30 .
+  return 0 .
+end .
+
+rem 용량 4 안에서 셋 밀고 LIFO 로 합 → 60. 정상은 통과해야(선언이 거짓말이 아니듯 과잉규제도 아니다).
+proc within input temp region frame . . output u64 . effects alloc . do
+  var t u64 be 0 .
+  let s stack u64 . be stack_new temp capacity 4 . .
+  push s 10 .
+  push s 20 .
+  push s 30 .
+  var v u64 be 0 .
+  while pop s into v . do
+    set t (add t v) .
+  end .
+  return t .
+end .

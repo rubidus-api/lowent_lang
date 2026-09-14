@@ -1,0 +1,51 @@
+rem ★★★ **pull 소스 — 무한 리스트** (RFC-0010 §8-8).
+rem
+rem   파이프라인의 소스가 **`next` 핸들러를 가진 액터**면 원소를 **당겨서**(pull) 읽는다.
+rem   `next` 는 `option T` 를 준다 — 값이 있으면 `some`, 끝이면 `none`. 그래서 **끝이 없어도 된다**.
+rem
+rem   ★ **새 문법이 0 이다**: 소스의 **타입이 루프 모양을 결정한다**.
+rem       슬라이스   → `for i in method 0 len(src)`  (인덱스)
+rem       next 액터  → `while is_some (next it)` (pull)
+rem     둘 다 **단일 루프**라 융합 보장(D-A)이 그대로다.
+rem   ★ **새 언어 기계도 0 이다**: pull 반복자 = 상태 액터 + `next` → option. 그 조각(액터·option·
+rem     is_some/some_value·단형화)이 **이미 전부 있었다** — allocator(vm_alloc)가 같은 모양이다.
+rem   ★★ **무한 소스를 끝내는 것은 단락 스테이지다**: 아래 `counter` 는 결코 `none` 을 주지 않는다.
+rem      `take 4` 가 없으면 이 파이프라인은 **끝나지 않는다**. 그래서 take 가 먼저 필요했다(§8-2).
+rem      `any` 도 같은 이유로 무한 소스를 끝낸다(첫 참에서 멈춘다).
+rem   ★ 만들지 않은 것: 코루틴/제너레이터(`yield`)·lazy thunk·자동 memoization. pull 이면 충분하고,
+rem     그것들은 상태기계 변환·숨은 저장으로 P3(숨은 alloc)·P2(비용 가시)를 깬다.
+
+module vm_pull .
+
+fn over3 input a u64 . output bool . do return gt a 3 . end .
+
+rem 끝이 없는 소스 — next 가 언제나 some 을 준다.
+actor counter .
+  state .
+    n u64 .
+  end .
+  proc next output option u64 . effects state . do
+    set n (add n 1) .
+    return (some n) .
+  end .
+end .
+
+rem take 가 무한을 끝낸다 → [1,2,3,4]
+proc first4 input out mut slice u8 . output u64 . effects state . do
+  var it counter . be spawn actor counter .
+  pipe it do
+    take 4 .
+    collect into out .
+  end .
+  return 0 .
+end .
+
+rem any 도 단락이라 무한을 끝낸다 — 첫 참(>3, 즉 4)에서 멈춘다.
+proc found input dummy u64 . output u64 . effects state . do
+  var it counter . be spawn actor counter .
+  var t bool . be pipe it do
+    any over3 .
+  end .
+  if t do return 1 . end .
+  return 0 .
+end .

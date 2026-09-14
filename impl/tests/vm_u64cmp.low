@@ -1,0 +1,63 @@
+rem ★★★ **부호 없는 원소는 부호 없이 견준다** (REQ-0013 · 결함 `u64-index-comparison`).
+rem
+rem   `lt (index s 0) (index s 1)` 은 **슬라이스에서 바로 꺼내** 견주는 가장 흔한 모양이다.
+rem   그런데 꺼낸 값의 **타입이 그림자 스택에 안 실려서**, 순서 비교가 부호 정보를 못 받고
+rem   **부호 있는 비교**로 내려갔다 ⇒ 비트 63 이 선 u64 값이 **음수처럼** 다뤄졌다.
+rem   ★ VM 과 네이티브가 **사이좋게 틀렸다** — 그래서 차등 훑기(둘을 견주는 검사)도 못 잡았다.
+rem     실험 heapsort 가 «큰 값이 앞으로 온다» 로 먼저 드러냈다(다른 세션의 RFC-0110 조사).
+rem
+rem 증인 셋 — 셋 다 «바로 꺼내 견준 것» 과 «타입 붙여 담고 견준 것» 이 **같아야** 한다:
+rem   ① 1 < 2                     → 참
+rem   ② UINT64_MAX < 0            → **거짓** (부호 있는 비교면 참이 된다 — 그것이 옛 답이다)
+rem   ③ 0 < 2^63                  → **참**  (부호 있는 비교면 거짓이 된다)
+module vm_u64cmp .
+
+fn direct input s slice u64 . output bool . do
+  guard ge (len s) 2 . else return false .
+  return lt (index s 0) (index s 1) .
+end .
+
+fn named input s slice u64 . output bool . do
+  guard ge (len s) 2 . else return false .
+  let lhs u64 be index s 0 .
+  let rhs u64 be index s 1 .
+  return lt lhs rhs .
+end .
+
+rem ★ 값은 **프로그램 안에서** 짓는다 — 명령줄 인자는 i64 로 읽혀 `UINT64_MAX` 를 못 나른다
+rem   (그것을 모르고 인자로 넘겼다가 «재현이 안 된다» 고 착각했다. 잣대가 값을 잘랐던 것이다).
+fn u64_max output u64 . do return bit_not 0 . end .
+fn bit63   output u64 . do return shl 1 63 . end .
+
+rem 저장은 **부르는 쪽의 것**이다 — 골든이 16 바이트를 넘겨준다(u64 둘).
+rem   case 0 : 1 < 2                 → 1
+rem   case 1 : UINT64_MAX < 0        → 0   (부호 있는 비교면 1 이 된다 — 그것이 옛 답이다)
+rem   case 2 : 0 < 2^63              → 1   (부호 있는 비교면 0 이 된다)
+proc probe input buf mut slice u8 . input which u64 . output u64 . effects none . do
+  guard ge (len buf) 16 . else return 90 .
+  var v mut slice u64 . be view_array u64 buf .
+  if eq which 0 . do set (index v 0) 1 .           set (index v 1) 2 .        end .
+  if eq which 1 . do set (index v 0) (u64_max) .   set (index v 1) 0 .        end .
+  if eq which 2 . do set (index v 0) 0 .           set (index v 1) (bit63) .  end .
+  guard eq (direct v) (named v) . else return 91 .        rem 두 길이 갈리면 그것이 결함이다
+  if direct v . do return 1 . end .
+  return 0 .
+end .
+
+rem ★★ **지역 슬라이스도 같은 자리다** — 그리고 이것이 두 번째 판이었다: 파라미터만 고쳤을 때
+rem   이 모양은 **여전히 틀렸다**(같은 규칙이 두 곳에 있고 한 곳만 옳았다 — 교훈 7).
+rem   답: 0 = 둘 다 «거짓»(옳다) · 1 = 바로 꺼낸 쪽만 참(옛 결함) · 2 = 담은 쪽만 참 · 3 = 둘 다 참
+proc probe_local input buf mut slice u8 . output u64 . effects none . do
+  guard ge (len buf) 16 . else return 90 .
+  var v mut slice u64 . be view_array u64 buf .
+  set (index v 0) (u64_max) .
+  set (index v 1) 0 .
+  let lhs u64 be index v 0 .
+  let rhs u64 be index v 1 .
+  if lt (index v 0) (index v 1) . do
+    if lt lhs rhs . do return 3 . end .
+    return 1 .
+  end .
+  if lt lhs rhs . do return 2 . end .
+  return 0 .
+end .

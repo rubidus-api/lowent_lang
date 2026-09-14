@@ -1,0 +1,22 @@
+rem ★★★ **profile 이 동시성 상한을 게이팅한다** (RFC-0009 §105·§139).
+rem
+rem   `build profile <p>` 는 이 모듈이 **어떤 기계 위에서 살 것인가**를 말한다:
+rem     freestanding = 동시성 0 · embedded = 정적 task graph · native = job/green thread · server = actor
+rem   그 기계가 줄 수 없는 동시성을 쓰면 그것은 **컴파일 시에 알 수 있는 거짓말**이다 ⇒ E-PROFILE-LEVEL.
+rem
+rem   ★ **level 은 선언하지 않는다**(§131) — **쓴 구문에서 계산되고** profile 이 상한을 건다.
+rem     그래서 "동시성 안 쓴다" 고 적을 필요가 없다: 안 쓰면 level 0 이다.
+rem   ★ **profile 을 안 적으면 게이팅하지 않는다** — 적은 사람만 그 약속에 매인다(기존 코드 그대로 산다).
+rem   ★ **낱말이 두 뜻이면 그 낱말로 판정하지 않는다**: `send` 는 채널 송신에도 쓰이고(vm_tgroup),
+rem     `drain` 은 아예 사용자 op 이름이기도 하다(vm_stackfast). 그래서 level 3(actor)은 **`actor` 선언
+rem     자체**로만 판정한다 — 낱말만 보고 레벨을 올리면 엉뚱한 프로그램을 고발한다.
+rem
+rem   이 모듈은 **freestanding** 을 선언하고 동시성을 하나도 쓰지 않는다 ⇒ level 0 ≤ 0, 통과한다.
+
+module vm_profile .
+
+build profile freestanding .
+
+fn sum3 input a u64 . input b u64 . input c u64 . output u64 . do
+  return (add a (add b c)) .
+end .

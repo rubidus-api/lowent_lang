@@ -1,0 +1,31 @@
+rem ★★★ **길이끼리 견주는 계약** — `requires le (len a) (len b) .` (RFC-0111 §8-17 · WO-0194).
+rem
+rem   두 배열을 나란히 쓰는 코드는 이렇게 말한다: 「b 는 a 보다 짧지 않다」. 그런데 2026-09-10
+rem   전까지 진입 검사가 이 모양을 **못 세워** 절이 조용히 버려졌고(`W-CONTRACT-IGNORED` 갈래 B),
+rem   분석도 아무것도 못 배웠다. 그래서 같은 사실을 적으려면 **크기를 리터럴로 박아야** 했다
+rem   (RFC-0111 §8-15 의 찌르기가 1500/1501 을 박은 까닭).
+rem   ☞ *사람이 적는 모양을 도구가 못 받으면, 사람은 도구가 받는 모양으로 거짓말을 적게 된다 —
+rem     그리고 그 거짓말은 크기가 바뀌는 날 깨진다.*
+rem
+rem   오라클 둘: ① 그 절이 색인 검사를 **지운다**(전이: i < len a ≤ len b ⟹ i < len b)
+rem              ② 절을 **어기면 진입에서 죽는다**(강제되지 않는 사실은 사실이 아니다).
+
+module lenrel .
+
+export proc copy_at input a slice u8 . . input b mut slice u8 . . input i u64 . .
+  output u64 .
+  effects none .
+  requires le (len a) (len b) . requires lt i (len a) .
+do
+  set (index b i) (index a i) .
+  return (index b i) .
+end .
+
+rem 「긴 쪽은 비어 있을 수 없다」 — 엄격 관계가 주는 하한(상수 색인이 이 한 줄로 닫힌다).
+export proc head input a slice u8 . . input b mut slice u8 . .
+  output u64 .
+  effects none . requires lt (len a) (len b) .
+do
+  set (index b 0) 7 .
+  return (index b 0) .
+end .

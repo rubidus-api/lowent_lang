@@ -1,0 +1,31 @@
+rem ★ 음성 — **완료를 잊는 것**도 거절한다 (RFC-0104 §8-9 · WO-0143).
+rem   완료가 **실패할 수 있으면**(`result` 를 답하면) 자동 해제가 그 실패를 삼킨다.
+rem   ⇒ E-OWN-INCOMPLETE. 이것이 *"정확히 1 회"* 의 **적어도 한 번** 쪽이다.
+rem ☞ 그리고 이 규칙의 조건이 **실패 가능성**이라는 것을 알아 두는 값이 있다:
+rem   완료가 실패할 수 없으면 그냥 버려도 삼킬 것이 없으므로 오늘은 허용된다.
+
+module vm_lifemode_never .
+
+export enum late . too_late . end .
+
+export struct ticket .
+  id u64 .
+end .
+
+export fn issue input i u64 . output owned vm_lifemode_never.ticket . do
+  return make ticket do id i . end .
+end .
+
+export fn finish input t owned vm_lifemode_never.ticket . output result u64 vm_lifemode_never.late . do
+  return ok (field t id) .
+end .
+
+rem ✗ 여기가 거절돼야 한다 — 표를 받아 놓고 아무것도 안 한다.
+proc never output u64 . effects none . do
+  var t owned vm_lifemode_never.ticket . be vm_lifemode_never.issue 7 .
+  return 1 .
+end .
+
+proc main output u8 . effects none . do
+  return 0 .
+end .

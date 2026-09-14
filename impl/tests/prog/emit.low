@@ -1,0 +1,64 @@
+rem ★★★ **열한 번째 진짜 프로그램 — 버퍼링 출력, 그리고 flush 망각이 컴파일 오류다.**
+rem
+rem   `lib/out.low`(다섯째 표준 라이브러리)를 쓴다. 작은 버퍼(16 바이트)에 여러 줄을 쓰므로
+rem   **버퍼가 여러 번 찬다** — 그때마다 `w_write` 가 스스로 비우고, 남은 꼬리는 `w_finish` 가 낸다.
+rem   ⇒ 출력은 한 덩어리로 보이지만 syscall 은 **바이트 수가 아니라 버퍼 수**만큼 일어난다.
+rem
+rem ★★★ **이 프로그램의 진짜 주장은 안 보이는 쪽에 있다**: `w_finish` 를 지우면 **컴파일이 안 된다**
+rem   (E-OWN-INCOMPLETE). 골든이 그것을 관문으로 잡고 있다.
+rem     · Zig  : flush 를 잊으면 출력이 통째로 사라진다 — 타입이 못 잡는다(조사 §2.8).
+rem     · Rust : BufWriter 가 Drop 에서 flush 하되 **오류를 버린다**(Drop::drop 이 () 반환).
+rem     · 여기 : 안 부르면 **컴파일이 안 된다.** 어노테이션(`#[must_use]`·`#must`)이 아니라
+rem              **시그니처에서 추론**된다 — `owned` 를 받고 `result` 를 내는 op 이 있다는 사실만으로.
+rem
+rem ★★ **소유되는 것은 버퍼가 아니라 *아직 안 나간 바이트* 다**(lib/out.low 의 설계 정정).
+rem   버퍼는 잃어도 되지만 안 나간 바이트는 아니다 — 그래서 `pending` 이 owned 다.
+rem ★ 그리고 라이터는 `cap io` 를 **품지 않는다**: 비우는 지점마다 호출자가 권한을 댄다
+rem   ⇒ 라이터가 몰래 flush 할 수 없다. 숨은 출력이 없다는 규율이 라이브러리 층에서도 유지된다.
+
+module emit .
+
+use fmt    from "../../../lib/fmt.low" .
+use outbuf from "../../../lib/out.low" .
+use allocs from "../../../lib/alloc.low" .
+
+proc main .
+  input out cap io .
+  input al  cap allocator .
+  output u8 .
+  effects alloc io .
+do
+  rem ★ 일부러 **작은** 버퍼다 — 여러 번 차야 버퍼링이 실제로 일어난다.
+  let g option mut slice u8 . . be alloc_bytes al capacity 16 .
+  guard is_some g . else return 70 .
+  let buf mut slice u8 . be some_value g .
+
+  rem 숫자를 바이트로 바꿀 자리(포매팅은 순수하다 — lib/fmt.low, effects none).
+  let ng option mut slice u8 . . be alloc_bytes al capacity 32 .
+  guard is_some ng . else return 71 .
+  let nb mut slice u8 . be some_value ng .
+
+  var p owned outbuf.pending be outbuf.open 1 .
+
+  var i u64 be 1 .
+  while le i 5 . do
+    rem 순수한 포매팅 → 그 조각을 버퍼링 라이터에 넘긴다.
+    let a option u64 . be fmt.put_str nb 0 "line " .
+    guard is_some a . else return 72 .
+    let b option u64 . be fmt.put_u64 nb (some_value a) i .
+    guard is_some b . else return 73 .
+    let c option u64 . be fmt.put_nl nb (some_value b) .
+    guard is_some c . else return 74 .
+    rem ★ 소유를 **값으로 이어받는다** — 소비하고 새 상태를 돌려받아 그 자리에 다시 넣는다.
+    rem   `set` 은 사용이 아니라 **재초기화**이고, 그래서 루프 안에서도 소유가 유지된다.
+    let w result (owned outbuf.pending) outbuf.io_error . be outbuf.write out p buf (subslice nb 0 (some_value c)) .
+    guard is_ok w . else return 75 .
+    set p (ok_value w) .
+    set i (add i 1) .
+  end .
+
+  rem ★★★ **이것을 지우면 컴파일이 안 된다.** 남은 바이트가 있는데 조용히 버릴 수 없다.
+  let f result void outbuf.io_error . be outbuf.finish out p buf .
+  guard is_ok f . else return 76 .
+  return 0 .
+end .

@@ -1,0 +1,62 @@
+rem ★★★ **SMT 백엔드가 넘는 자리** (REQ-0004 · 후속 M, 2026-08-05).
+rem
+rem   여기 있는 것은 전부 *"사실은 다 있는데 엮는 사람이 없었다"* 는 자리다. 구간 분석은
+rem   변수마다 [lo,hi] 를 나르고, 관계는 **손으로 넣은 특수 경우 셋**(상수 · 용량 · 행우선)만
+rem   본다. 그 셋은 사실을 **한 홉**만 따라간다 — 두 홉이 필요하면 거기서 멈춘다.
+rem
+rem   ☞ 각 op 에 그 op 이 요구하는 **엮기**를 적어 둔다. 골든이 증명서(`--emit-proof`)에서
+rem     `R-SMT-FARKAS` 가 실제로 나오는지 보고, **증명되면 안 되는 것**이 안 나오는지도 본다.
+
+module vm_smt .
+
+rem ✔ ① **사슬**: i < j · j < cap · len(s) ≥ cap  ⟹  i < len(s).
+rem   `lerel` 은 한 칸만 본다(i→j). 용량 규칙은 i→cap 을 요구한다. 그래서 **두 홉**인 이 모양은
+rem   그전까지 아무도 못 넘었다.  Farkas: (i−j+1) + (j−cap+1) + (cap−L) + (L−i) = 2 > 0. ∎
+export proc chain_two_hops input s slice u8 . . input i u64 . input j u64 . input cap u64 .
+  output u8 . effects none .
+  requires lt i j .
+  requires lt j cap .
+  requires ge (len s) cap .
+do
+  return index s i .
+end .
+
+rem ✔ ② **구간과 계약을 섞는다**: i ≤ 7(계약이 준 구간) · len(s) ≥ n · n ≥ 8.
+rem   상계는 **구간**에서 오고 길이 사실은 **계약**에서 온다. 용량 규칙은 `i < cap` 이라는
+rem   **관계**를 요구하지 구간을 안 본다 — 그래서 이 모양도 그전에는 못 넘었다.
+export proc mixed_interval_contract input s slice u8 . . input i u64 . input n u64 .
+  output u8 . effects none .
+  requires le i 7 .
+  requires ge n 8 .
+  requires ge (len s) n .
+do
+  return index s i .
+end .
+
+rem ✔ ③ 같은 엮기를 **쓰기** 쪽에서도 (istore) — 읽기만 지우고 쓰기를 놓치면 절반짜리다.
+export proc write_two_hops input s mut slice u8 . . input i u64 . input j u64 . input cap u64 .
+  effects none .
+  requires lt i j .
+  requires lt j cap .
+  requires ge (len s) cap .
+do
+  set (index s i) 9 .
+end .
+
+rem ✘ ④ **증명되면 안 된다** — 반례가 있다. `le i n`(비엄격) + `len(s) ≥ n` 은
+rem   i = n = len(s) 를 허용하고, 그것은 범위 **밖**이다.
+rem   ★ 이 op 이 이 파일에서 가장 중요하다: 지우면 안 되는 것을 지우지 않는지가 곧 건전성이다.
+export proc must_not_prove input s slice u8 . . input i u64 . input n u64 .
+  output u8 . effects none .
+  requires le i n .
+  requires ge (len s) n .
+do
+  return index s i .
+end .
+
+rem ★ 진입점 — `export` 로 내면 방출된 C 의 `main` 과 **이름이 부딪힌다**(실측: conflicting
+rem   types for 'main'). 차등 스윕이 그것을 잡았다: `--check` 는 초록인데 **네이티브가 안 지어졌다**.
+proc main output u8 . effects none .
+do
+  return 0 .
+end .

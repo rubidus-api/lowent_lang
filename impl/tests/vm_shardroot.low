@@ -1,0 +1,17 @@
+rem ★★★ **쪼갠 뒤 root 를 쓰면 컴파일이 안 된다** — RFC-0104 §8-6 종료 조건 ①.
+rem
+rem   이 파일은 **거절되어야 한다**(`E-OWN-MOVED`). 그리고 그것을 막는 것은 `lib/shard.low` 이
+rem   아니라 **언어**다: 토큰이 `owned` 이므로 `split_at` 에 넘기는 순간 root 는 손을 떠난다.
+rem   ⇒ access-unit 이 새 규칙이 아니라 **이미 있던 규칙(선형 소유)의 결과**라는 것이 이 파일의 값이다.
+module vm_shardroot .
+use shard from "../../lib/shard.low" .
+
+newtype grid u8 .
+
+export proc after_split input mem mut slice u64 . . output u64 . effects none . do
+  var r owned shard.token grid . be shard.open grid 8 .
+  var h shard.halves grid . be shard.split_at grid r 4 .
+  rem ★ root 는 위에서 소비됐다 — 여기서 거절된다.
+  guard shard.write grid r mem 0 7 . else return 91 .
+  return 1 .
+end .

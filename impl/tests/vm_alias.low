@@ -1,0 +1,30 @@
+rem ★ 회귀 — **투명 별칭이 같은 타입이 아니었다.**
+rem
+rem SPEC-004 §89: "`type X is Y` 는 **투명(구조) 별칭** — X 와 Y 는 **같은 타입**이다."
+rem 그런데 IR 은 구조체 별칭을 아예 몰랐다:
+rem   type p2 is pt .  →  `view p2 s` = "선언된 구조체가 아니다"
+rem                       `input q p2` = 구조체 파라미터로 안 잡힌다
+rem 명세가 "같은 타입" 이라고 한 것을 도구가 **다른 타입으로 취급**했다.
+rem
+rem ★★ 그리고 그 반대편: `type N is struct . field … . .` 이 **조용히 통과했다.**
+rem   문법에 없는 철자다(SPEC-002: 구조체는 `struct N … end`). 그런데 도구가 그것을 받고
+rem   **레이아웃 없는 두 번째 종류의 구조체**를 발명했다 — make/field 는 되는데 view 도
+rem   안 되고 경계로 넘길 수도 없는 것. 이 언어에 그런 타입은 없다. 이제 E-TYPE-DECL.
+
+module vm_alias .
+
+struct pt .
+  x u8 .
+  y u8 .
+end .
+
+type p2 pt .        rem 투명 별칭 — pt 와 **같은 타입**이다.
+
+fn av input s slice u8 . output u8 . do
+  let q be view p2 s . .        rem 별칭으로 view 가 된다
+  return field q x .
+end .
+
+fn ap input q p2 . output u8 . do
+  return field q x .            rem 별칭이 구조체 파라미터로 잡힌다
+end .

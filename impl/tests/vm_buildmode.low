@@ -1,0 +1,37 @@
+rem ★★★ **빌드 모드 × 등급 처리표** (RFC-0008 §6.5 — RFC 자신이 *"이 RFC 의 심장"* 이라 부른 것).
+rem
+rem   `build <mode> .` 는 지금까지 **파싱만 됐고 아무 데서도 강제되지 않았다.**
+rem   도구가 그렇게 자백했다: *"a `build` declaration is parsed but enforced NOWHERE."*
+rem   ⇒ **무엇을 적든 아무 일도 안 일어나면서**, 무언가 달라진다고 **믿게 뒀다.**
+rem
+rem   등급(§6.1)은 이미 있었다: `static`(기본) · `debug` · `assume`.
+rem   이제 **모드가 어떤 등급의 검사를 런타임에 남기는지**를 실제로 고른다:
+rem
+rem        등급 \ 모드    debug   test   release_safe   release_fast
+rem        static         CHECK   CHECK  TRAP           **DROP**
+rem        debug          CHECK   CHECK  **DROP**       **DROP**
+rem        assume         —       —      —              —        (언제나 무검사)
+rem
+rem ★ 그리고 **무엇을 지웠는지 반드시 말한다**(`--ir`). 모드가 **조용히** 검사를 지우면
+rem   그것은 최적화가 아니라 **보증의 소멸**이고, 아무도 못 본다.
+
+module bm .
+
+build release_safe .          rem ★ debug 등급은 지운다. static 등급은 남긴다.
+
+fn cheap input a u8 . output u8 .
+  requires debug ge a 1 .     rem debug 등급 — release_safe 에서 **지워진다**
+do
+  return a .
+end .
+
+fn core input a u8 . output u8 .
+  requires ge a 1 .           rem static 등급(기본) — **남는다**
+do
+  return a .
+end .
+
+test modes do
+  expect eq (cheap 5) 5 .
+  expect eq (core 5) 5 .
+end .

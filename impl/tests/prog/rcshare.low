@@ -1,0 +1,76 @@
+rem ★★★ **실물 프로그램: 여러 흐름이 나눠 가진 수명을 정확히 한 번 닫는다**
+rem   (RFC-0075 §8 Stage 2 · RFC-0104 §8-9).
+rem
+rem   원장이 세는 「진짜 프로그램이 안 쓰는 모듈」에 `lifeatom` 이 있었다. 기존
+rem   픽스처는 **한 흐름 안에서** 열고·나누고·놓는 것을 차례로 확인했다. 그러나
+rem   이 모듈이 있는 까닭은 **스레드를 넘는 수명**이고, 그것은 나란히 돌려 봐야
+rem   묻는 물음이다 — 순차 확인은 「돈다」만 보인다.
+rem
+rem   여기서 묻는다: 흐름 넷이 저마다 나눠 갖고 저마다 놓았을 때, 셈은 정확히
+rem   0 으로 돌아오는가. 곧 **마지막 하나가 정확히 한 번** 담을 치는가.
+rem
+rem ★ 종료 상태가 곧 오라클이다. 여기 수는 우리가 고른 것이 아니라 **셈의 뜻**이
+rem   정한다 — 하나 열고 넷이 나누면 5, 넷이 놓으면 1, 마지막을 놓으면 0.
+rem     42 = 그 다섯 걸음이 모두 뜻대로였다
+rem     43 = 나눈 뒤의 셈이 5 가 아니다      ← 나누기가 새는 자리
+rem     44 = 놓은 뒤의 셈이 1 이 아니다      ← 놓기가 새는 자리
+rem     45 = 마지막을 놓았는데 0 이 아니다   ← 담이 안 쳐진다
+rem     89 = 자리를 못 얻었다
+rem
+rem ★★ `task_group` 이 없으면 `spawn` 은 거절된다(정본 §10.9 (1)) — 아무도
+rem   기다려 주지 않는 흐름은 만들지 아니한다. 그 규범이 이 프로그램의 모양을
+rem   정한다: 나누는 것도 놓는 것도 **묶인 자리 안**에서 일어난다.
+
+module rcshare .
+
+use lifeatom .
+
+proc share_one input k cap atomic . input c mut slice u64 . . output u64 . effects atomic .
+do
+  return lifeatom.rc_share k c .
+end
+
+proc release_one input k cap atomic . input c mut slice u64 . . output u64 . effects atomic .
+do
+  return lifeatom.rc_release k c .
+end
+
+proc main .
+  input al cap allocator .
+  input k  cap atomic .
+  output u8 .
+  effects alloc atomic state .
+do
+  let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
+  guard is_some mb . else return 89 .
+  var c mut slice u64 . be view_array u64 (some_value mb) .
+
+  guard eq (lifeatom.rc_open k c) 1 . else return 43 .
+
+  rem ── 흐름 넷이 저마다 나눠 갖는다 ──
+  var h0 u64 be 0 .
+  var h1 u64 be 0 .
+  var h2 u64 be 0 .
+  var h3 u64 be 0 .
+  task_group do
+    set h0 spawn share_one k c .
+    set h1 spawn share_one k c .
+    set h2 spawn share_one k c .
+    set h3 spawn share_one k c .
+  end
+  guard eq (atomic_load c 0 order relaxed) 5 . else return 43 .
+
+  rem ── 저마다 놓는다 ──
+  task_group do
+    set h0 spawn release_one k c .
+    set h1 spawn release_one k c .
+    set h2 spawn release_one k c .
+    set h3 spawn release_one k c .
+  end
+  guard eq (atomic_load c 0 order relaxed) 1 . else return 44 .
+
+  rem ── 마지막 하나 ──
+  guard eq (lifeatom.rc_release k c) 0 . else return 45 .
+
+  return 42 .
+end

@@ -1,0 +1,128 @@
+rem ★★★ **RSASSA-PSS 검증** (RFC 8017 §8.1.2) — TLS 1.3 의 `rsa_pss_rsae_sha256`.
+rem
+rem   **검증만** 짓는다. 서명은 개인키를 다루는 일이고, 이 저장소가 필요로 하는 것은
+rem   상대의 CertificateVerify 를 확인하는 것뿐이다.
+rem   ☞ 개인키를 안 다루면 개인키를 흘릴 수도 없다 — 안 지은 것이 곧 안 새는 것이다.
+rem
+rem ★ 오라클: **RFC 8017 / NIST FIPS 186-4 의 PSS 시험벡터**(양성)와, 한 비트를 바꾼
+rem   **음성**. 서명 검증에서 음성이 없으면 *"언제나 참"* 을 못 걸러낸다.
+rem
+rem ★★ PSS 는 세 조각이다:
+rem   ① `s^e mod n` → EM (인코딩된 메시지, emLen = keylen)
+rem   ② MGF1(SHA-256)로 마스크를 만들어 DB 를 벗긴다
+rem   ③ H' = SHA-256(0x00×8 ‖ mHash ‖ salt) 가 EM 안의 H 와 같은가
+rem
+rem ☞ 안 지은 것: 상수시간(검증은 공개 정보다) · 서명 · PKCS#1 v1.5(RFC 8446 §4.4.3 이
+rem   CertificateVerify 에서 **금지**한다) · SHA-1 계열(deprecated).
+
+module rsa .
+
+use bigint from "bigint.low" .
+
+rem ★ MGF1(SHA-256): seed 로부터 `n` 바이트 마스크를 만든다(RFC 8017 부록 B.2.1).
+rem   `w` 는 작업 공간(≥ len(seed) + 4 + 32).
+export proc mgf1 input seed slice u8 . input n u64 . input out mut slice u8 . input w mut slice u8 . output u64 . effects none . do
+  guard ge (len out) n . else return 0 .
+  let sl u64 be len seed .
+  guard ge (len w) (add (add sl 4) 32) . else return 0 .
+  var i u64 be 0 .
+  while lt i sl . do  set (index w i) (index seed i) .  set i (add i 1) .  end .
+  var counter u64 be 0 .
+  var off u64 be 0 .
+  while lt off n . do
+    rem 카운터는 **4 바이트 빅엔디언**이다.
+    set (index w sl) (cast u8 (bit_and (shr counter 24) 255)) .
+    set (index w (add sl 1)) (cast u8 (bit_and (shr counter 16) 255)) .
+    set (index w (add sl 2)) (cast u8 (bit_and (shr counter 8) 255)) .
+    set (index w (add sl 3)) (cast u8 (bit_and counter 255)) .
+    guard eq (sha256 (subslice w 0 (add sl 4)) (subslice w (add sl 4) (add (add sl 4) 32))) 32 . else return 0 .
+    var j u64 be 0 .
+    while lt j 32 . do
+      if lt (add off j) n . do
+        set (index out (add off j)) (index w (add (add sl 4) j)) .
+      end .
+      set j (add j 1) .
+    end .
+    set off (add off 32) .
+    set counter (add counter 1) .
+  end .
+  return n .
+end .
+
+rem ★★★ **EMSA-PSS-VERIFY** (RFC 8017 §9.1.2). `em` 은 emLen 바이트, mHash 는 32.
+rem   `slen` 은 salt 길이(TLS 1.3 은 해시 길이와 같게 32 를 쓴다).
+rem   `w` 는 작업 공간(≥ emLen + 128).
+export proc pss_verify input em slice u8 . input mhash slice u8 . input slen u64 . input w mut slice u8 . output u64 . effects none . do
+  let emlen u64 be len em .
+  guard eq (len mhash) 32 . else return 0 .
+  guard ge emlen (add (add slen 32) 2) . else return 0 .
+  guard ge (len w) (add emlen 128) . else return 0 .
+
+  rem ① 마지막 바이트는 0xbc 여야 한다.
+  guard eq (cast u64 (index em (sub emlen 1))) 188 . else return 0 .
+
+  let hlen u64 be 32 .
+  let dblen u64 be sub (sub emlen hlen) 1 .
+
+  rem ② maskedDB 의 **왼쪽 여분 비트는 0** 이어야 한다. emBits = 8·emLen − 1 이므로
+  rem   최상위 한 비트가 남는다. 이것을 안 보면 서명이 **여러 모양**을 가질 수 있다.
+  guard eq (bit_and (cast u64 (index em 0)) 128) 0 . else return 0 .
+
+  rem ③ dbMask = MGF1(H, dblen),  DB = maskedDB xor dbMask
+  guard eq (mgf1 (subslice em dblen (add dblen hlen)) dblen (subslice w 0 dblen) (subslice w emlen (add emlen 128))) dblen . else return 0 .
+  var i u64 be 0 .
+  while lt i dblen . do
+    set (index w i) (cast u8 (bit_xor (cast u64 (index w i)) (cast u64 (index em i)))) .
+    set i (add i 1) .
+  end .
+  set (index w 0) (cast u8 (bit_and (cast u64 (index w 0)) 127)) .
+
+  rem ④ DB 는 0x00 … 0x00 ‖ 0x01 ‖ salt 여야 한다.
+  var p u64 be 0 .
+  while lt p (sub (sub dblen slen) 1) . do
+    guard eq (cast u64 (index w p)) 0 . else return 0 .
+    set p (add p 1) .
+  end .
+  guard eq (cast u64 (index w (sub (sub dblen slen) 1))) 1 . else return 0 .
+
+  rem ⑤ M' = 0x00×8 ‖ mHash ‖ salt,  H' = SHA-256(M') 가 EM 안의 H 와 같은가
+  let mp u64 be add emlen 0 .
+  var q u64 be 0 .
+  while lt q 8 . do  set (index w (add mp q)) 0 .  set q (add q 1) .  end .
+  var r u64 be 0 .
+  while lt r 32 . do  set (index w (add (add mp 8) r)) (index mhash r) .  set r (add r 1) .  end .
+  var t u64 be 0 .
+  while lt t slen . do
+    set (index w (add (add mp 40) t)) (index w (add (sub dblen slen) t)) .
+    set t (add t 1) .
+  end .
+  guard eq (sha256 (subslice w mp (add (add mp 40) slen)) (subslice w (add (add mp 40) slen) (add (add (add mp 40) slen) 32))) 32 . else return 0 .
+  rem 비교는 XOR 누적 — 조기 반환이 없다.
+  var diff u64 be 0 .
+  var z u64 be 0 .
+  while lt z 32 . do
+    set diff (bit_or diff (bit_xor (cast u64 (index w (add (add (add mp 40) slen) z))) (cast u64 (index em (add dblen z))))) .
+    set z (add z 1) .
+  end .
+  guard eq diff 0 . else return 0 .
+  return 1 .
+end .
+
+rem ★★ 한 번에: 서명 · 공개키(n, e) · 메시지 해시 → 맞으면 1.
+rem   `sw`/`nw`/`ow`/`r2`/`acc`/`tw`/`mw` 는 조각 작업 공간(각 k+2 이상), `w` 는 바이트 공간.
+export proc verify_pss input sig slice u8 . input nb slice u8 . input e u64 . input mhash slice u8 . input slen u64 .
+     input em mut slice u8 . input w mut slice u8 .
+     input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
+     input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
+     output u64 . effects none . do
+  guard eq (len sig) (len nb) . else return 0 .
+  guard ge (len em) (len nb) . else return 0 .
+  let k u64 be shr (len nb) 1 .
+  guard eq (bigint.from_bytes nb nw k) k . else return 0 .
+  guard eq (bigint.from_bytes sig sw k) k . else return 0 .
+  rem ☞ s < n 이어야 한다 — 아니면 같은 값에 여러 서명이 생긴다.
+  guard eq (bigint.ge_mod sw nw k) 0 . else return 0 .
+  guard eq (bigint.mod_exp ow sw e nw k r2 acc mw tw) 1 . else return 0 .
+  guard eq (bigint.to_bytes ow k em) (len nb) . else return 0 .
+  return pss_verify (subslice em 0 (len nb)) mhash slen w .
+end .

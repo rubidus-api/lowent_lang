@@ -1,0 +1,31 @@
+rem ★★★ **대표 구성 ④ — server** (RFC-0075 Stage 5 Task 3 · 2026-08-15).
+rem   이 층이 주는 것: **actor** — 상태를 가진 것이 메시지로만 열린다. 그것이 server 층인
+rem   이유는 *"오래 살고, 여럿이 두드리고, 상태가 있다"* 가 서버의 모양이기 때문이다.
+rem ★ 여기서 `spawn actor` 는 태스크를 띄우는 것이 아니라 **인스턴스를 세우는 것**이고,
+rem   그 뒤 상태에 닿는 길은 `send` 하나뿐이다 — 그래서 경합을 사람이 보증하지 않아도 된다.
+module compos_server .
+
+build profile server .
+
+export actor tally .
+  state .
+    n u64 .
+    last u64 .
+  end .
+  proc add input v u64 . output u64 . effects state . do
+    set n (add n v) .
+    set last v .
+    return n .
+  end .
+  proc total output u64 . effects none . do
+    return n .
+  end .
+end .
+
+proc main output u8 . effects state . do
+  var t tally be spawn actor tally . .
+  var a u64 be send t add 5 .
+  var b u64 be send t add 7 .
+  rem 상태는 메시지 사이에서 살아 있다 — 그것이 actor 가 하는 일의 전부다.
+  return narrow u8 (send t total) .
+end .

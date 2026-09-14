@@ -1,0 +1,203 @@
+rem ★★★★★ **ECDSA P-256 서명 생성** — 결정적 nonce (RFC 6979) · RFC-0090 §N7b⑤.
+rem
+rem   2026-08-20 소유자 결정으로 열린 자리다. 그전까지 이 저장소는 *"서명은 안 짓고 검증만
+rem   짓는다 — 개인키를 안 다루면 흘릴 수도 없다"* 였다. 목표가 **공개 웹 HTTPS 서버**가
+rem   되면서 바뀌었다: 서버는 `CertificateVerify` 를 **자기 개인키로 서명한다.**
+rem
+rem ★ **왜 P-256 인가.** Ed25519 가 수학적으로 더 깔끔하고 상수시간도 싸지만, **공개 CA 가
+rem   Ed25519 서버 인증서를 사실상 발급하지 않고** 브라우저 지원도 제한적이다.
+rem   목표가 공개 웹인 이상 선택지가 아니다.
+rem
+rem ★★★ **왜 nonce 를 난수가 아니라 유도하는가** (RFC 6979).
+rem   ECDSA 에서 nonce 는 **한 번 새거나 한 번 되풀이되면 개인키가 통째로 드러난다**:
+rem     s = k^-1 (h + r·d)  ⇒  d = (s·k − h) / r
+rem   k 를 알면 그 한 줄로 끝이고, 같은 k 를 두 번 쓰면 두 서명에서 k 가 풀린다.
+rem   난수원이 실패하는 경로는 조용하다(빈 엔트로피 · 포크 후 같은 상태 · 가상머신 스냅숏).
+rem   ⇒ **난수원을 아예 안 쓴다.** k = HMAC-DRBG(개인키, 메시지 해시) 로 유도한다.
+rem     같은 (키, 메시지)면 같은 서명이 나오고, 그것이 **결함이 아니라 성질**이다.
+rem
+rem ★★★★ **상수시간 — 약속의 크기를 적는다.**
+rem   여기서 없애는 것: **비밀 스칼라(개인키 d · nonce k)에 의존하는 분기와 메모리 접근.**
+rem     · 스칼라 곱은 `p256.smul_ct` — 걸음마다 두 배와 덧셈을 **둘 다** 하고 마스크로 고른다.
+rem     · `k^-1` 은 페르마 거듭제곱이고 지수(n−2)는 **공개**라 연산 순서가 고정이다.
+rem   여기서 **약속하지 않는 것**: 몽고메리 곱의 마지막 조건부 뺄셈 · 캐시 계층 ·
+rem     전력/전자기 · 컴파일러가 만들어 낼 수 있는 것.
+rem   ☞ 약속의 크기를 적는 것이 약속의 절반이다. 안 적으면 다음 사람이 더 크게 읽는다.
+rem
+rem ★ 오라클: **RFC 6979 §A.2.5 의 공식 벡터**(P-256/SHA-256, 메시지 "sample"·"test").
+rem   k · r · s 를 바이트로 맞댄다. 그리고 낸 서명을 `p256.ecdsa_verify` 가 받는지도 본다
+rem   — 왕복만 보면 "둘 다 같게 틀린" 경우를 못 거른다.
+rem
+rem ☞ 안 지은 것: P-384/P-521 · RSA 서명 · 키 생성 · 배치 서명 · 비트슬라이싱.
+
+module ecdsa .
+
+use hmac from "hmac.low" .
+use bigint from "bigint.low" .
+use p256 from "p256.low" .
+
+rem ── RFC 6979 §3.2 — HMAC-DRBG 로 nonce 를 유도한다 ─────────────────────────
+rem
+rem   V = 0x01…01 (32) · K = 0x00…00 (32)
+rem   K = HMAC_K(V ‖ 00 ‖ x ‖ h1) · V = HMAC_K(V)
+rem   K = HMAC_K(V ‖ 01 ‖ x ‖ h1) · V = HMAC_K(V)
+rem   T = HMAC_K(V) → k. 범위 밖이면 K = HMAC_K(V ‖ 00), V = HMAC_K(V) 로 다시.
+rem
+rem   `w` 는 바이트 작업 공간(≥ 320): 0..32 V · 32..64 K · 64..96 T · 96..320 hmac scratch 겸 조립
+export proc nonce6979 input x slice u8 . input h1 slice u8 . input nl slice u64 .
+     input out mut slice u8 . input w mut slice u8 . input wu mut slice u64 . output u64 . effects none .
+do
+  guard ge (len out) 32 . else return 0 .
+  guard ge (len w) 480 . else return 0 .
+  guard eq (len x) 32 . else return 0 .
+  guard eq (len h1) 32 . else return 0 .
+
+  rem V ← 01…01, K ← 00…00
+  var i u64 be 0 .
+  while lt i 32 . do
+    set (index w i) 1 .
+    set (index w (add 32 i)) 0 .
+    set i (add i 1) .
+  end .
+
+  rem 두 바퀴: 접미 바이트가 00 · 01.
+  var phase u64 be 0 .
+  while lt phase 2 . do
+    rem msg = V ‖ phase ‖ x ‖ h1  (97 바이트) — w 96..193 에 조립한다.
+    var j u64 be 0 .
+    while lt j 32 . do
+      set (index w (add 96 j)) (index w j) .
+      set (index w (add 129 j)) (index x j) .
+      set (index w (add 161 j)) (index h1 j) .
+      set j (add j 1) .
+    end .
+    set (index w 128) (narrow u8 phase) .
+    guard eq (hmac.mac (subslice w 32 64) (subslice w 96 193) (subslice w 256 480) (subslice w 64 96)) 32 . else return 0 .
+    var c u64 be 0 .
+    while lt c 32 . do  set (index w (add 32 c)) (index w (add 64 c)) .  set c (add c 1) .  end .
+    rem V = HMAC_K(V)
+    guard eq (hmac.mac (subslice w 32 64) (subslice w 0 32) (subslice w 256 480) (subslice w 64 96)) 32 . else return 0 .
+    var c2 u64 be 0 .
+    while lt c2 32 . do  set (index w c2) (index w (add 64 c2)) .  set c2 (add c2 1) .  end .
+    set phase (add phase 1) .
+  end .
+
+  rem ── T = HMAC_K(V) → k. 범위 밖이면 다시 ──────────────────────────────────
+  rem ☞ **되풀이가 있다는 것 자체가 규격의 일부**다. 실제로는 거의 첫 바퀴에 끝나지만
+  rem   (k ≥ n 일 확률이 2^-32 쯤), 없으면 그 드문 입력에서 **범위 밖 k 로 서명**하게 된다.
+  guard ge (len wu) 16 . else return 0 .
+  var tries u64 be 0 .
+  while lt tries 8 . do
+    guard eq (hmac.mac (subslice w 32 64) (subslice w 0 32) (subslice w 256 480) (subslice w 64 96)) 32 . else return 0 .
+    var c3 u64 be 0 .
+    while lt c3 32 . do  set (index w c3) (index w (add 64 c3)) .  set c3 (add c3 1) .  end .
+    rem 후보를 조각으로 바꿔 [1, n−1] 인지 본다.
+    guard eq (bigint.from_bytes (subslice w 0 32) wu 16) 16 . else return 0 .
+    var nz u64 be 0 .
+    var q u64 be 0 .
+    while lt q 16 . do
+      if ne (index wu q) 0 . do  set nz 1 .  end .
+      set q (add q 1) .
+    end .
+    if eq nz 1 . do
+      if eq (bigint.ge_mod wu nl 16) 0 . do
+        var o u64 be 0 .
+        while lt o 32 . do  set (index out o) (index w o) .  set o (add o 1) .  end .
+        return 32 .
+      end .
+    end .
+    rem 다시: K = HMAC_K(V ‖ 00) · V = HMAC_K(V)
+    var r2 u64 be 0 .
+    while lt r2 32 . do  set (index w (add 96 r2)) (index w r2) .  set r2 (add r2 1) .  end .
+    set (index w 128) 0 .
+    guard eq (hmac.mac (subslice w 32 64) (subslice w 96 129) (subslice w 256 480) (subslice w 64 96)) 32 . else return 0 .
+    var c4 u64 be 0 .
+    while lt c4 32 . do  set (index w (add 32 c4)) (index w (add 64 c4)) .  set c4 (add c4 1) .  end .
+    guard eq (hmac.mac (subslice w 32 64) (subslice w 0 32) (subslice w 256 480) (subslice w 64 96)) 32 . else return 0 .
+    var c5 u64 be 0 .
+    while lt c5 32 . do  set (index w c5) (index w (add 64 c5)) .  set c5 (add c5 1) .  end .
+    set tries (add tries 1) .
+  end .
+  return 0 .
+end .
+
+rem ── 서명 ──────────────────────────────────────────────────────────────────
+rem ★★★★★ `sign` — (개인키 d, 메시지 해시 h) → (r, s).
+rem
+rem     k  = RFC 6979 (위)
+rem     R  = [k]G,  r = R.x mod n            ← 스칼라 곱은 **상수시간 갈래**를 쓴다
+rem     s  = k^-1 (h + r·d) mod n
+rem
+rem ★ `r = 0` 또는 `s = 0` 이면 **거절한다**(0 을 답한다). 확률이 2^-128 쯤이라 규격은
+rem   다시 하라고 하지만, 여기서는 **다시 하지 않고 실패로 답한다** — 그 갈래를 지으면
+rem   시험할 수 없는 코드가 생기고, 시험 안 된 암호 코드는 없느니만 못하다.
+rem   ☞ 그렇게 적어 두는 것이 이 문단의 일이다. *안 지은 것을 안 지었다고 말한다.*
+rem
+rem   `wb` = 바이트 작업 공간(≥ 512) · `wu` = 조각 작업 공간(≥ 908)
+rem ☞ **넉넉함은 공짜가 아니다.** 처음엔 1052 를 썼는데 그러면 `--run` 의 배열 인자 상한
+rem   (8192 바이트 = u64 1024)을 넘어 **VM 에서 시험할 수 없다** — 게다가 호출자가 곡선
+rem   상수도 같은 배열에 담으므로 더 좁다. 빈 자리로 두 번 당겨 **908** 로 줄였다
+rem   (`ecdsa_verify` 가 1400 → 924 로 줄인 것과 같은 이유다).
+rem   ☞ *시험할 수 없는 크기는 크기가 아니라 결함이다.*
+export proc sign input d slice u8 . input h slice u8 .
+     input p slice u64 . input n slice u64 . input gx slice u64 . input gy slice u64 .
+     input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
+do
+  guard eq (len d) 32 . else return 0 .
+  guard eq (len h) 32 . else return 0 .
+  guard ge (len rs) 64 . else return 0 .
+  guard ge (len wb) 512 . else return 0 .
+  guard ge (len wu) 908 . else return 0 .
+
+  rem ① nonce — 난수원을 안 쓴다.
+  guard eq (nonce6979 d h n (subslice wb 0 32) (subslice wb 32 512) (subslice wu 0 16)) 32 . else return 0 .
+
+  rem ② 조각으로: k(16..32) · d(32..48) · h(48..64)
+  guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 16 32) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes d (subslice wu 32 48) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes h (subslice wu 48 64) 16) 16 . else return 0 .
+  rem h 는 n 보다 클 수 있다 — 한 번 빼면 족하다(둘 다 256비트).
+  if eq (bigint.ge_mod (subslice wu 48 64) n 16) 1 . do
+    let z0 u64 be p256.msub (subslice wu 48 64) (subslice wu 48 64) n n .
+  end .
+
+  let n0p u64 be bigint.n0inv16 (index p 0) .
+  let n0n u64 be bigint.n0inv16 (index n 0) .
+  guard eq (p256.make_r2 (subslice wu 64 80) p) 1 . else return 0 .
+  guard eq (p256.make_r2 (subslice wu 80 96) n) 1 . else return 0 .
+
+  rem ③ R = [k]G — G 를 야코비로(Z=1) 올리고 **상수시간** 곱.
+  var i u64 be 0 .
+  while lt i 16 . do
+    set (index wu (add 96 i)) (index gx i) .
+    set (index wu (add 112 i)) (index gy i) .
+    set (index wu (add 128 i)) 0 .
+    set i (add i 1) .
+  end .
+  set (index wu 128) 1 .
+  guard eq (p256.smul_ct (subslice wu 144 192) (subslice wu 16 32) (subslice wu 96 144) p (subslice wu 64 80) n0p (subslice wu 512 908)) 1 . else return 0 .
+  guard eq (p256.is_zero (subslice wu 176 192)) 0 . else return 0 .
+
+  rem ④ 아핀 x = X/Z² · r = x mod n
+  guard eq (p256.minv (subslice wu 192 208) (subslice wu 176 192) p (subslice wu 356 464)) 1 . else return 0 .
+  guard eq (p256.pmul (subslice wu 208 224) (subslice wu 192 208) (subslice wu 192 208) p (subslice wu 64 80) n0p (subslice wu 320 338) (subslice wu 338 356)) 1 . else return 0 .
+  guard eq (p256.pmul (subslice wu 224 240) (subslice wu 144 160) (subslice wu 208 224) p (subslice wu 64 80) n0p (subslice wu 320 338) (subslice wu 338 356)) 1 . else return 0 .
+  var c u64 be 0 .
+  while lt c 16 . do  set (index wu (add 240 c)) (index wu (add 224 c)) .  set c (add c 1) .  end .
+  if eq (bigint.ge_mod (subslice wu 240 256) n 16) 1 . do
+    let z1 u64 be p256.msub (subslice wu 240 256) (subslice wu 240 256) n n .
+  end .
+  guard eq (p256.is_zero (subslice wu 240 256)) 0 . else return 0 .   rem r = 0 은 거절한다
+
+  rem ⑤ s = k^-1 (h + r·d) mod n
+  guard eq (p256.pmul (subslice wu 256 272) (subslice wu 240 256) (subslice wu 32 48) n (subslice wu 80 96) n0n (subslice wu 320 338) (subslice wu 338 356)) 1 . else return 0 .
+  guard eq (p256.madd (subslice wu 272 288) (subslice wu 256 272) (subslice wu 48 64) n) 1 . else return 0 .
+  guard eq (p256.minv (subslice wu 288 304) (subslice wu 16 32) n (subslice wu 356 464)) 1 . else return 0 .
+  guard eq (p256.pmul (subslice wu 304 320) (subslice wu 288 304) (subslice wu 272 288) n (subslice wu 80 96) n0n (subslice wu 320 338) (subslice wu 338 356)) 1 . else return 0 .
+  guard eq (p256.is_zero (subslice wu 304 320)) 0 . else return 0 .   rem s = 0 도 거절한다
+
+  rem ⑥ 빅엔디언 바이트로.
+  guard eq (bigint.to_bytes (subslice wu 240 256) 16 (subslice rs 0 32)) 32 . else return 0 .
+  guard eq (bigint.to_bytes (subslice wu 304 320) 16 (subslice rs 32 64)) 32 . else return 0 .
+  return 64 .
+end .

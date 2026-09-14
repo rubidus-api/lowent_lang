@@ -1,0 +1,22 @@
+rem ★ **안 쓰는 모드는 값이 0 이다** — 이 프로그램은 국한 refcount 만 쓴다 (RFC-0104 §8-9).
+rem   골든이 이 프로그램의 **바이너리**를 보고 `lock` 접두 명령이 **0 개**임을 센다.
+rem   `vm_lifemode_far.low` 가 그 짝이고, 거기서는 0 이 아니어야 한다.
+rem   ⇒ 그 둘을 나란히 놓는 것이 *"atomic mode 만 atomic 을 방출한다"* 의 증인이다.
+
+module vm_lifemode_near .
+
+use lifemode .
+use allocs .
+
+proc main input al cap allocator . output u8 . effects alloc . do
+  let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
+  guard is_some mb . else return 89 .
+  var c mut slice u64 . be view_array u64 (some_value mb) .
+  guard lifemode.near_open c 0 . else return 1 .
+  let a option u64 . be lifemode.near_share c 0 .
+  guard is_some a . else return 2 .
+  let b option u64 . be lifemode.near_drop c 0 .
+  guard is_some b . else return 3 .
+  guard eq (some_value b) 1 . else return 4 .
+  return 42 .
+end .

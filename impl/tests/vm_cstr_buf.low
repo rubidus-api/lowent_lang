@@ -1,0 +1,53 @@
+rem ★★★ **str_buf → cstr — 봉인한 문자열을 C 에 건넨다** (RFC-0068 S4 · C4).
+rem
+rem   C1~C3 은 **C → str**(char* 를 스캔해 str 로)였다. C4 는 **반대 방향, str_buf → cstr**:
+rem   Lowent 가 문자열을 **조립**해(str_buf) C 의 `char*` 파라미터에 건넨다.
+rem
+rem ★★★ **방향이 비대칭이다**(D4 — "기본은 str, cstr 은 유산"의 기계적 표현):
+rem   · str_buf → cstr 는 **O(1)·무할당**(sb_append 가 널을 봉인해 뒀다·D2 · F3=(a)).
+rem   · str(뷰) → cstr 는 **안전한 경로가 없다**: `cstr_of` 는 `effects unsafe` 라 순수 코드가 못
+rem     부른다(E-EFFECT-CALC). 뷰는 널을 약속 못 하기 때문이다. 봉인하는 유일한 경로가 str_buf 다.
+rem
+rem ★ 봉인의 비용은 **버퍼당 1 바이트**(널 자리). 내용 용량 = len(buf) − 1.
+rem ★★ **오라클**: cstr 는 FFI 경계 전용(VM 은 E-VM-EXTERN·E-VM-CSTR) ⇒ diff-sweep 밖.
+rem   네이티브 컴파일·실행 게이트가 진짜로 C(strlen)를 불러 답을 낸다.
+
+module m .
+
+use strbuf from "../../lib/strbuf.low" .
+
+rem C 쪽: 널종단 char* 를 받아 strlen / 첫 바이트를 낸다(진짜 libc strlen).
+unsafe extern proc c_slen  input k cap c . input p cstr . output i64 . link lw_c_slen . effects unsafe . end .
+unsafe extern proc c_first input k cap c . input p cstr . output i64 . link lw_c_first . effects unsafe . end .
+
+rem ── str_buf 로 "hello" 를 조립해 cstr 로 C 에 건넨다 → strlen = 5 ──────────────────
+unsafe proc measure input k cap c . input buf mut slice u8 . . output i64 . effects unsafe . do
+  var b strbuf.str_buf be strbuf.new .
+  let r result void strbuf.sb_error . be strbuf.append b buf "hello" .
+  guard is_ok r . else return 90 .
+  return c_slen k (strbuf.as_cstr b buf) .
+end .
+
+rem 포인터가 진짜 그 바이트를 가리키는가(오프셋 안 밀렸는지) → 첫 바이트 'h' = 104.
+unsafe proc first_byte input k cap c . input buf mut slice u8 . . output i64 . effects unsafe . do
+  var b strbuf.str_buf be strbuf.new .
+  let r result void strbuf.sb_error . be strbuf.append b buf "hello" .
+  guard is_ok r . else return 90 .
+  return c_first k (strbuf.as_cstr b buf) .
+end .
+
+rem ★ 두 번 이어붙여도 C 가 보는 길이가 맞는다(봉인이 매 append 마다 갱신된다) → strlen = 7.
+unsafe proc measure_twice input k cap c . input buf mut slice u8 . . output i64 . effects unsafe . do
+  var b strbuf.str_buf be strbuf.new .
+  let r1 result void strbuf.sb_error . be strbuf.append b buf "ab" .
+  guard is_ok r1 . else return 90 .
+  let r2 result void strbuf.sb_error . be strbuf.append b buf "cdefg" .
+  guard is_ok r2 . else return 91 .
+  return c_slen k (strbuf.as_cstr b buf) .
+end .
+
+rem ★★ 빈 str_buf 도 정직하게 — 봉인만 하고 넘기면 strlen = 0.
+unsafe proc measure_empty input k cap c . input buf mut slice u8 . . output i64 . effects unsafe . do
+  var b strbuf.str_buf be strbuf.new .
+  return c_slen k (strbuf.as_cstr b buf) .
+end .

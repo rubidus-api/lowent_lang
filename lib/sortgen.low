@@ -1,0 +1,148 @@
+rem ★★★ **스무 번째 표준 라이브러리 — 제네릭 정렬** (RFC-0021 · RFC-0075 D9 슬라이스).
+rem
+rem ★ `sortlib` 과 **왜 갈라졌나**: 제네릭 틀은 단형화되기 전까지 타입 파라미터 `t` 를 들고
+rem   있어서, 나무를 안 세우는 대조 모드(`--flat`)에서는 진단이 달라진다. 이것을 `sortlib` 에
+rem   두면 **sortlib 을 쓰는 모든 파일**이 그 대조에서 빠져야 한다 — 오라클 덮개가 잠식된다.
+rem   ⇒ 제네릭은 제 모듈에 산다. 스칼라를 정렬하는 흔한 경우는 `sortlib.sort` 가 그대로 맡는다.
+
+module sortgen .
+
+rem ── 제네릭 정렬 (2026-07-26) — 어떤 원소 타입이든 `ordered` 만 충족하면 정렬한다 ──
+rem
+rem ★★★ **비교는 타입이 들고 온다.** 비교 함수를 값으로 넘기는 길(일급 함수)은 이 언어에 없고,
+rem   있어도 간접 호출이 생겨 P2(비용 가시)를 깬다. 대신 **comptime 타입 파라미터 + trait 경계**
+rem   (RFC-0021)를 쓴다: 호출마다 구체 op 이 만들어지고(단형화) 비교는 **직접 호출**로 박힌다 —
+rem   간접 호출 0, 비교자 저장 공간 0. 경계를 안 지키면 컴파일이 거절한다(E-BOUND-UNSAT).
+rem
+rem ★ 원소를 맞바꿀 때 `swap` 을 쓰는 이유: `index` 는 구조체 원소를 **뷰**로 준다. 그래서
+rem   읽은 두 값은 같은 바이트를 가리키고, `set` 두 번으로 맞바꾸면 자기 자신을 덮어쓴다.
+rem   제네릭 코드는 남의 구조체를 복사할 수도 없다(필드 이름을 모른다) — 그래서 맞바꾸기가
+rem   프리미티브다.
+rem
+rem ☞ 스칼라(`u64` 등)는 trait 을 충족할 수 없다(메서드를 붙일 자리가 없다). 필드 하나짜리
+rem   구조체로 감싸면 된다 — 레이아웃은 같고(8바이트), 비교만 붙는다. `sort` 는 그 흔한 경우를
+rem   위한 **특수화**로 남는다: u64 는 감싸지 않고 그대로 정렬한다.
+
+export trait ordered .
+  less input a self . input b self . output bool . effects none .
+end .
+
+rem 제네릭 삽입정렬 — 제자리·안정. 작은 배열과 거의 정렬된 배열에 좋다.
+rem   ★ 큰 배열의 quicksort 제네릭판은 다음 슬라이스다(분할이 원소 복사를 요구한다).
+export proc sort_by input comptime t type . input s mut slice t . . output void . effects none . requires ordered t . do
+  var i u64 be 1 .
+  while lt i (len s) . do
+    var j u64 be i .
+    var going bool be true .
+    while going . do
+      if eq j 0 . do set going false . end .
+      if going . do
+        let a t be index s j .
+        let b t be index s (sub j 1) .
+        rem ★★★ **판정은 한 번만 한다.** `a`·`b` 는 그 자리를 가리키는 **뷰**라서, 맞바꾸고 나면
+        rem   같은 이름이 **다른 값**을 가리킨다. 비교를 두 번 하면 두 번째는 이미 바뀐 것을
+        rem   보고 "정렬됐다" 고 답해 **한 칸만 내려가고 멈춘다** — 부분 정렬된 배열이 나온다.
+        rem   (다중 키 예제가 이것을 잡았다: 한 번 스왑으로 끝나 순서가 어긋났다.)
+        var moved bool be false .
+        if (method a less b) . do
+          swap s j (sub j 1) .
+          set j (sub j 1) .
+          set moved true .
+        end .
+        if eq moved false . do set going false . end .
+      end .
+    end .
+    set i (add i 1) .
+  end .
+  return .
+end .
+
+rem ── 제네릭 quicksort (2026-07-26) — 삽입정렬의 O(n²) 상한을 없앤다 ──
+rem
+rem ★★★ **`swap` 이 이것을 가능하게 했다.** 전엔 "분할이 피벗의 **복사**를 요구하는데 제네릭
+rem   코드는 남의 구조체를 복사할 수 없다(필드 이름을 모른다)" 는 이유로 못 지었다. 그런데
+rem   복사는 필요 없다 — 피벗을 **자리로** 들고(인덱스), 비교할 때마다 그 자리를 다시 읽으면
+rem   된다. 분할 루프 동안 피벗은 `hi-1` 에 **가만히 있으므로**(j < hi-1, i ≤ j) 그 자리가
+rem   안 흔들린다. 옮기는 일은 전부 `swap` 이 한다.
+rem
+rem ★ 깊이 상한: **작은 쪽만 재귀하고 큰 쪽은 루프로** 돈다(sortlib 과 같은 규율). 그래야
+rem   역순·이미정렬 같은 적대적 입력에서도 깊이가 O(log n) 이다(RFC-0073 의 네이티브 깊이 천장).
+
+proc qsort_by input comptime t type . input s mut slice t . . input lo0 u64 . input hi0 u64 . output void . effects none . requires ordered t . do
+  rem 방어: 뒤집힌·범위 밖 구간이면 **경계 밖을 안 만진다**(VM·네이티브가 같은 무동작을 낸다).
+  if gt hi0 (len s) . do return . end .
+  if ge lo0 hi0 . do return . end .
+  var lo u64 be lo0 .
+  var hi u64 be hi0 .
+  while gt (sub hi lo) 1 . do
+    rem ── 분할: 피벗은 **자리**다(s[hi-1]). 복사하지 않는다 ──
+    let p u64 be sub hi 1 .
+    var i u64 be lo .
+    var j u64 be lo .
+    while lt j p . do
+      rem ★ 매 걸음 **다시 읽는다** — 뷰는 맞바꾼 뒤 다른 값을 가리키기 때문이다.
+      let a t be index s j .
+      let b t be index s p .
+      rem `less b a` 가 거짓 = a ≤ b — 피벗 이하를 왼쪽으로 모은다.
+      if eq (method b less a) false . do
+        swap s i j .
+        set i (add i 1) .
+      end .
+      set j (add j 1) .
+    end .
+    swap s i p .
+    rem ── 작은 쪽 재귀 · 큰 쪽 루프 ──
+    let lsz u64 be sub i lo .
+    let rsz u64 be sub hi (add i 1) .
+    if le lsz rsz . do
+      qsort_by t s lo i .
+      set lo (add i 1) .
+    end .
+    if gt lsz rsz . do
+      qsort_by t s (add i 1) hi .
+      set hi i .
+    end .
+  end .
+  return .
+end .
+
+rem ★ 공개 진입 — 큰 배열용. 작은 배열이나 거의 정렬된 입력엔 `sort_by`(삽입)가 낫다.
+export proc sort_fast input comptime t type . input s mut slice t . . output void . effects none . requires ordered t . do
+  qsort_by t s 0 (len s) .
+  return .
+end .
+
+rem ── 제네릭 이진 탐색 (2026-07-26) — 정렬의 짝 ──
+rem
+rem ★ 정렬이 제네릭인데 탐색이 u64 전용이면 반쪽이다. 같은 `ordered` 경계를 쓴다.
+rem   ☞ **전제: 슬라이스가 그 순서로 정렬돼 있어야 한다.** 안 그러면 답이 조용히 틀린다 —
+rem     검사하지 않는 이유는 검사가 O(n) 이라 탐색의 O(log n) 을 삼키기 때문이다(searchlib 과 같은 판단).
+
+rem ★ `key` 이상인 첫 자리. 전부 작으면 `len s`. 이것이 **삽입점**이자 **범위의 시작**이다.
+export proc lower_by input comptime t type . input s slice t . input key t . output u64 . effects none . requires ordered t . do
+  var lo u64 be 0 .
+  var hi u64 be len s .
+  while lt lo hi . do
+    let mid u64 be add lo (div (sub hi lo) 2) .
+    let m t be index s mid .
+    rem m < key 면 답은 오른쪽에 있다.
+    if (method m less key) . do
+      set lo (add mid 1) .
+    end .
+    if eq (method m less key) false . do
+      set hi mid .
+    end .
+  end .
+  return lo .
+end .
+
+rem ★ 있으면 그 자리를, 없으면 none. 중복이 있으면 **가장 왼쪽**을 준다(lower_by 위에 서므로).
+export proc find_by input comptime t type . input s slice t . input key t . output option u64 . effects none . requires ordered t . do
+  let at u64 be lower_by t s key .
+  guard lt at (len s) . else return none .
+  let m t be index s at .
+  rem 같음 = 어느 쪽도 상대보다 작지 않다(등호 op 을 따로 요구하지 않는 이유다).
+  guard eq (method m less key) false . else return none .
+  guard eq (method key less m) false . else return none .
+  return some at .
+end .

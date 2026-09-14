@@ -1,0 +1,77 @@
+rem ★★★ **실물 프로그램: 몬테카를로로 π 를 잰다** (RFC-0090 N2·N3b).
+rem
+rem   `random` 과 `math` 를 한 프로그램에서 쓴다. 그리고 이 프로그램이 증명하는 것은
+rem   *"난수가 나온다"* 가 아니라 **재현 가능한 난수가 쓸모 있다** 는 것이다:
+rem     · 시드를 고정하면 **같은 답**이 나온다 ⇒ 골든이 값을 붙들 수 있다
+rem     · 그 답이 π 에 가깝다 ⇒ 난수가 실제로 **고르게** 흩어진다는 약한 증거
+rem
+rem ★★ 왜 OS 엔트로피(`random_bytes`)를 안 쓰나 — 그러면 **매번 답이 달라져** 시험이
+rem   판정할 수 없다. 이 자리는 `rng_next`(권한 없음·재현 가능)가 맞고, 그 갈라 둔 이유가
+rem   여기서 값을 낸다: **시험은 재현되어야 한다.**
+rem
+rem ★ 종료 코드로 말한다: 42 = 추정값이 π 의 ±0.05 안 · 43 = 벗어남 · 44 = 재현 실패.
+rem
+rem ☞ 안 지은 것: 오차 한계를 표본 수로부터 **유도**하지 않는다(그건 통계이고, 이 프로그램의
+rem   주장이 아니다). 0.05 는 10만 표본에서 넉넉한 값으로 **손으로 고른 문턱**이다.
+
+module mcpi .
+
+use random from "../../../lib/random.low" .
+use math   from "../../../lib/math.low" .
+use fmt    from "../../../lib/fmt.low" .
+
+rem 한 시드에서 표본 n 개를 던져 원 안에 든 수를 센다.
+fn inside input seed u64 . input n u64 . output u64 . do
+  var s u64 be seed .
+  var hits u64 be 0 .
+  var i u64 be 0 .
+  while lt i n . do
+    set s (random.step s) .
+    let x f64 be div (cast f64 (bit_and s 65535)) 65535.0 .
+    set s (random.step s) .
+    let y f64 be div (cast f64 (bit_and s 65535)) 65535.0 .
+    guard le (add (mul x x) (mul y y)) 1.0 . else do
+      set i (add i 1) .
+      continue .
+    end .
+    set hits (add hits 1) .
+    set i (add i 1) .
+  end .
+  return hits .
+end .
+
+proc main .
+  input al cap allocator .
+  input k  cap io .
+  output u8 .
+  effects alloc io .
+do
+  let n u64 be 100000 .
+  let h1 u64 be inside 12345 n .
+  rem ★ **재현성부터 주장한다** — 같은 시드는 같은 답이다. 이것이 안 되면 아래는 뜻이 없다.
+  let h2 u64 be inside 12345 n .
+  guard eq h1 h2 . else return 44 .
+
+  rem 원 사분면의 넓이 비율 = π/4.
+  let est f64 be mul 4.0 (div (cast f64 h1) (cast f64 n)) .
+
+  let g option mut slice u8 . . be alloc_bytes al capacity 64 .
+  guard is_some g . else return 70 .
+  let line mut slice u8 . be some_value g .
+  var at u64 be 0 .
+  let a1 option u64 be fmt.put_str line at "pi~" .
+  guard is_some a1 . else return 71 .
+  set at (some_value a1) .
+  rem 소수점 셋째 자리까지 정수로 찍는다(fmt 에 부동 출력이 아직 없다 — 안 지은 것).
+  let a2 option u64 be fmt.put_u64 line at (cast u64 (round (mul est 1000.0))) .
+  guard is_some a2 . else return 71 .
+  set at (some_value a2) .
+  let a3 option u64 be fmt.put_str line at " /1000\n" .
+  guard is_some a3 . else return 71 .
+  set at (some_value a3) .
+  let z u64 be write_out k 1 (subslice line 0 at) .
+
+  rem ★ 오라클: 추정값이 π 에 가까운가. `math.close` 가 허용 오차를 **인자로** 받는다.
+  guard math.close est (math.pi) 0.05 . else return 43 .
+  return 42 .
+end .

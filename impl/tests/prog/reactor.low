@@ -1,0 +1,156 @@
+rem ═══════════════════════════════════════════════════════════════════════════
+rem  reactor.low — 축 ③의 대표 프로그램 (RFC-0039 §9, RFC-0088 §4.2)
+rem
+rem  T1 의 정의는 §7 표가 적는다: **reactor · 타이머 · ISR→잡**. 그 가장 작은 몸이 이것이다.
+rem  blink 은 ISR 이 **직접** LED 를 뒤집었다. 리액터는 다르다:
+rem
+rem      ISR 은 **게시만** 하고, **루프가 일한다.**
+rem
+rem  ★★★★ 그 한 줄을 쓰기 위해 무엇이 필요했나 — 그전까지 통로가 **셋 다 닫혀 있었다**:
+rem    · 인자로 받기      → ISR 은 인자가 없다 (E-ISR-PARAMS — D5-b 가 권한을 준 그 이유)
+rem    · 모듈 가변 상태    → 없다 (E-TOPLEVEL · let 상수뿐)
+rem    · 반환값           → ISR 은 output void, 돌아갈 곳이 없다
+rem  ⇒ **T1 의 정의가 표현 불가능했다.** 런타임이 없어서가 아니라 **표면이 없어서**였다.
+rem
+rem  ⇒ 답(RFC-0039 §9-2 갈래①): `storage reserved .` — `mmio <base>` 의 형제다.
+rem     저쪽은 주소를 **적고**, 이쪽은 주소를 **받는다**(링커가 준다). 둘 다 호출자가 줄 것이
+rem     없다는 점이 같고, **그래서 ISR 이 쓸 수 있다.**
+rem     ★ 전역 변수와 갈리는 자리: **여는 데 권한이 필요하다**(ISR 이거나 cap machine).
+rem       아무나 열 수 있으면 그 순간 그것은 아무도 건네주지 않은 권한이다.
+rem     ★ 새 낱말: 키워드 0 · 빌트인 op 0 (`storage`·`reserved` 는 `layout packed` 처럼 낱말 매칭)
+rem ═══════════════════════════════════════════════════════════════════════════
+module m .
+build tier t1 .
+
+rem ── 잡 큐 — 가장 작은 것: ISR 이 올리는 눈금 하나 ────────────────────────
+rem ★ 타입이 곧 인스턴스다. 도구가 `.bss` 에 정확히 한 칸을 잡는다(_Alignas 로 정렬 계약을
+rem   지킨다 — 안 그러면 도구가 낸 프로그램을 도구의 view 검사가 트랩시킨다).
+rem ★★★★ 칸이 `rw` 인 것은 **volatile 로 만지기 위해서**다(2026-08-03). 폴링 루프가
+rem   보통 읽기로 큐를 보면 컴파일러가 그 읽기를 **루프 밖으로 들어낼 수 있다** — ISR 이
+rem   바꾼다는 사실을 컴파일러는 모르기 때문이다. 그러면 리액터는 **영원히 안 깬다.**
+rem   ☞ 그전까지 `read_volatile` 은 대상이 장치든 아니든 `cap mmio` 를 요구했고, 그래서
+rem     **평범한 메모리를 volatile 로 읽을 길이 없었다**(RFC-0039 §9-6 에서 대상을 보게 고쳤다).
+struct tickq .
+  storage reserved .
+  posted u32 rw .            rem ISR 만 쓴다
+  taken  u32 rw .            rem 루프만 쓴다  → SPSC: 한쪽만 쓰는 칸이 각각 하나
+end .
+
+rem ── 큐 조작은 **라이브러리다** ──────────────────────────────────────────
+rem ★★★ 여기가 MMIO 와 갈리는 자리이고, 이 갈래를 고른 이유다. 예약 블록은 **평범한 메모리**라
+rem   쓰는 자리에 권한이 필요 없다 — 여는 자리에만 필요하다. 그래서 뷰를 넘겨받은 이 op 은
+rem   `cap` 도 `unsafe` 도 필요 없다. **리프 규칙이 산다**(Lowent 로 쓸 수 있으면 라이브러리).
+rem   ☞ MMIO 는 그렇지 않았다: ISR 이 연 `view gpio .` 를 넘겨도 피호출자는 E-MMIO-NOCAP 이다
+rem     (권한 검사가 **쓰는 자리**에 걸린다). blink 이 초기화를 인라인해야 했던 것과 같은 이유.
+rem
+rem ★★★★ 그리고 **코드젠도 따라왔다**(2026-08-02, RFC-0039 §9-3). 처음 재 봤을 때는 빠른 경로가
+rem   구조체 뷰 인자를 못 내려서 이 파일이 태그 경로로 떨어졌고, 태그 op 하나가 프로그램 전체에
+rem   인터프리터를 끌고 왔다: `.text 5442 · bss 1,081,360` — Cortex-M 에서 **못 쓴다.**
+rem   ⇒ 레코드가 이미 하던 것을 뷰에게도 하게 했다: **복사해 넣고, 부르고, 되쓴다.** 레코드의
+rem     집은 지역 슬롯이고 뷰의 집은 **바이트 그 자체**다(주소는 이미 손에 있다).
+rem   실측(cortex-m4 `-Os`):  라이브러리 `.text 632 · bss 8`  ·  인라인 `.text 260 · bss 8`.
+rem   ☞ 정직하게: 경계에서 바이트를 **양방향으로 복사**하므로 인라인보다 372 B 크고 memcpy/memset
+rem     이 딸려온다. 뷰를 **포인터로** 넘기면 그 값이 0 이 되지만, 그것은 빠른 경로의 ABI 를
+rem     바꾸는 일이라 별도 증분이다(§9-4). 지금 얻은 것은 **선택지가 생겼다는 것**이다.
+proc post .
+  input q mut tickq .
+  output void .
+  effects state .            rem ★ 예약 블록은 모듈 가변 전역이다(RFC-0029)
+do
+  write_volatile q posted (add (read_volatile q posted) 1) .
+  return 0 .
+end .
+
+rem ★★ `fn` 이 아니라 `proc` 이다 — ISR 이 바꾸는 값을 읽는 것은 **순수가 아니다.**
+proc pending .
+  input q tickq .
+  output u32 .
+  effects state .
+do
+  rem ★ 여기가 **volatile 이어야 하는 자리**다 — 루프가 이것을 반복해서 묻는다.
+  return sub (read_volatile q posted) (read_volatile q taken) .
+end .
+
+proc take .
+  input q mut tickq .
+  output void .
+  effects state .
+do
+  write_volatile q taken (add (read_volatile q taken) 1) .
+  return 0 .
+end .
+
+rem ── 장치 — blink 에서 검증된 것 그대로 ──────────────────────────────────
+struct rcc .
+  mmio 0x40023800 .
+  cr u32 rw . pllcfgr u32 rw . cfgr u32 rw . cir u32 rw .
+  ahb1rstr u32 rw . ahb2rstr u32 rw . ahb3rstr u32 rw . rsv0 u32 rw .
+  apb1rstr u32 rw . apb2rstr u32 rw . rsv1 u32 rw . rsv2 u32 rw .
+  ahb1enr u32 rw .
+end .
+
+struct gpioa .
+  mmio 0x40020000 .
+  moder u32 rw . otyper u32 rw . ospeedr u32 rw . pupdr u32 rw .
+  idr u32 ro . odr u32 rw .
+end .
+
+struct systick .
+  mmio 0xE000E010 .
+  ctrl u32 rw . load u32 rw . val u32 rw .
+end .
+
+fn led_bit output u32 . do return shl 1 5 . end .
+
+rem ── ISR: **게시만 한다** ────────────────────────────────────────────────
+rem ★★★★ 이것이 축 ③의 주장이다. blink 의 ISR 은 장치를 만졌다 — 그래서 `unsafe` 였다.
+rem   리액터의 ISR 은 **큐에 눈금 하나를 올릴 뿐**이다. 그래서:
+rem     · `unsafe` 가 **아니다** — 도구가 그렇게 말해 준다(E-UNSAFE-UNUSED 가 표지를 빼란다)
+rem     · `effects device` 는 남는다 — 이 op 이 도는 **이유**가 장치이기 때문이다
+rem     · `cap` 은 없다. 가질 수 없다. 권한은 `vector 15 .` 이다(D5-b)
+rem   ⇒ 인터럽트 핸들러가 **처음으로 프로그램의 나머지와 말을 한다.**
+proc on_systick .
+  vector 15 .
+  priority 3 .
+  output void .
+  effects device state .
+do
+  var q tickq . be view tickq .        rem ★ 줄 사람이 없어도 열린다 — 벡터가 권한이다
+  post q .                             rem ★ 그리고 **라이브러리에 넘어간다**
+  return 0 .
+end .
+
+rem ── 리셋 진입 — 초기화하고, 그다음이 리액터 루프다 (RFC-0042 D5-c) ──────
+rem ★ 권한은 넘겨줄 수 없으므로 장치 초기화는 여기서 직접 한다(blink 과 같은 이유·같은 대가).
+unsafe proc reset .
+  vector 1 .
+  output void .
+  effects device unsafe state .
+do
+  rem ① 클럭 → ② LED 핀 출력 → ③ SysTick 1kHz
+  var c rcc . be view rcc .
+  write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
+  var g gpioa . be view gpioa .
+  var m u32 . be read_volatile g moder .
+  set m (bit_and m (bit_not (shl 3 10))) .
+  set m (bit_or m (shl 1 10)) .
+  write_volatile g moder m .
+  var s systick . be view systick .
+  write_volatile s load 15999 .
+  write_volatile s val 0 .
+  write_volatile s ctrl 7 .
+
+  rem ④ ★★★ **리액터 루프** — 잡이 있으면 처리하고, 없으면 돈다.
+  rem   ISR 이 올린 눈금을 루프가 내려 받는다. 한쪽만 쓰는 칸이 각각 하나이므로(SPSC)
+  rem   단일 코어에서 원자 명령이 필요 없다 — 그것이 T1 프로파일이 atomic 을 금지하고도
+  rem   ISR→잡 이 설 수 있는 이유다(RFC-0039 §116 vs §8-4 의 긴장).
+  var q tickq . be view tickq .
+  while true . do
+    if (gt (pending q) 0) . do
+      var cur u32 . be read_volatile g odr .
+      write_volatile g odr (bit_xor cur led_bit) .
+      take q .
+    end .
+  end .
+  return 0 .
+end .

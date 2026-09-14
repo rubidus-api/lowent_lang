@@ -1,0 +1,72 @@
+rem ★★★★ **두 뿌리 — 고정 창과 힙** (RFC-0112 D2 · D3 · WO-0211).
+rem
+rem   소유자 결정(2026-09-13): *"프리스탠딩이면 고정크기 메모리 공간에서 돌아가야 하겠고 그것의
+rem   이름이 힙이면 안되겠지. 호스티드면 실행 중에 동적으로 메모리 할당이 가능해야 하겠고 그것이
+rem   힙이어야 하겠지."* 그리고 *"코드 내에서 상황과 필요에 따라 번갈아가며 혹은 동시에 다양한
+rem   방식으로 할당할 수 있도록"*.
+rem
+rem   · `grow_heap`  — `region h heap` 에서 32 KiB 를 여덟 번(256 KiB). 힙은 청크를 잇는다 ⇒ 8.
+rem   · `grow_fixed` — 같은 일을 `region r arena`(고정 창, 호스티드 64 KiB)에서 ⇒ 2 에서 멈춘다.
+rem   · `both`       — 한 op 안에서 **두 뿌리를 겹쳐** 쓴다. 안쪽 힙 영역을 되감아도 바깥 고정 창의
+rem                    값(77)이 산다 ⇒ 7701.
+rem   ★ 이 파일은 **호스티드 전용**이다: `heap` 을 쓰므로 `--target cortex_m` 에서는 `E-HEAP-NOHOST`.
+
+module vm_roots .
+
+export proc grow_heap output u64 . effects heap .
+do
+  var got u64 be 0 .
+  region h heap do
+    var i u64 be 0 .
+    while lt i 8 . do
+      let g option mut slice u8 . . be alloc_bytes h capacity 32768 .
+      if is_some g . do
+        let b mut slice u8 . be some_value g .
+        set (index b 32767) 9 .
+        if eq (index b 32767) 9 . do set got (add got 1) . end .
+      end .
+      set i (add i 1) .
+    end .
+  end .
+  return got .
+end .
+
+export proc grow_fixed output u64 . effects alloc .
+do
+  var got u64 be 0 .
+  region r arena do
+    var i u64 be 0 .
+    while lt i 8 . do
+      let g option mut slice u8 . . be alloc_bytes r capacity 32768 .
+      if is_some g . do set got (add got 1) . end .
+      set i (add i 1) .
+    end .
+  end .
+  return got .
+end .
+
+export proc both output u64 . effects alloc heap .
+do
+  var keep u64 be 0 .
+  region f arena do
+    let a option mut slice u8 . . be alloc_bytes f capacity 16 .
+    if is_some a . do
+      let av mut slice u8 . be some_value a .
+      set (index av 3) 77 .
+      region h heap do
+        let b option mut slice u8 . . be alloc_bytes h capacity 200000 .
+        if is_some b . do
+          let bv mut slice u8 . be some_value b .
+          set (index bv 3) 55 .
+        end .
+      end .
+      let c option mut slice u8 . . be alloc_bytes f capacity 16 .
+      if is_some c . do
+        let cv mut slice u8 . be some_value c .
+        set (index cv 3) 11 .
+      end .
+      set keep (add (mul (narrow u64 (index av 3)) 100) 1) .
+    end .
+  end .
+  return keep .
+end .

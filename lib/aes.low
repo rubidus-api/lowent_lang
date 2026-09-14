@@ -1,0 +1,180 @@
+rem ★★★ **AES-128** (FIPS 197) — Lowent 로 쓴다. TLS 1.3 의 MUST 스위트가 이것을 쓴다.
+rem
+rem   리프가 아니다: 표 조회와 XOR 과 GF(2^8) 곱뿐이고 **언어로 표현된다**.
+rem   ⇒ VM≡native 차분과 계약·게이트가 그대로 적용된다.
+rem
+rem ★ 오라클은 **FIPS 197 부록 B/C 의 시험벡터**와 **RFC 8448 §3 의 레코드 암호문**이다.
+rem
+rem ★★ **S-box 를 표로 적지 않고 계산으로 낸다.** 256 개 상수를 손으로 옮겨 적는 것은
+rem   이 저장소가 이미 두 번 데인 자리다(N7a 의 십진 변환). S-box 는 정의가 있다 —
+rem     S(x) = 아핀변환(x^(-1) in GF(2^8)),  x=0 이면 역원 자리에 0
+rem   역원은 x^254 = x^(2^8-2) 로 낸다(페르마). ⇒ **정본에 적힌 정의가 곧 구현**이고,
+rem   옮겨 적을 표가 없으므로 옮겨 적다 틀릴 일도 없다.
+rem   ★★★★ **그런데 그 거듭제곱을 254 번 곱하고 있었다**(2026-08-21 실측). 제곱-곱으로
+rem     바꾸니 곱셈이 254 → 15 이고 **AES-GCM 이 0.03 → 0.46 MB/s (×15)** 가 됐다.
+rem     오라클 96 자리는 한 자리도 안 움직였다 — 답이 아니라 **가는 길**만 바뀐 것이다.
+rem     ☞ *정의를 구현으로 쓰는 것*과 *정의를 문자 그대로 쓰는 것*은 다르다.
+rem
+rem ☞ 안 지은 것: **상수시간 보장**. 이 구현은 비밀 색인으로 표를 읽지 않지만(표가 없다),
+rem   경계 검사와 트랩이 있는 언어에서 타이밍을 약속할 수는 없다 — 이 저장소의 다른
+rem   암호 모듈과 같은 자리다. 비트슬라이싱은 안 지었다.
+
+module aes .
+
+rem ★ GF(2^8) 곱 — 기약다항식 x^8+x^4+x^3+x+1 (0x11b).
+rem   러시아 농부 곱셈: 분기가 값에 달려 있으나 **비밀 표를 읽지는 않는다**.
+export fn gmul input a u64 . input b u64 . output u64 . do
+  var x u64 be bit_and a 255 .
+  var y u64 be bit_and b 255 .
+  var r u64 be 0 .
+  var i u64 be 0 .
+  while lt i 8 . do
+    if eq (bit_and y 1) 1 . do  set r (bit_xor r x) .  end .
+    let hi u64 be bit_and x 128 .
+    set x (bit_and (shl x 1) 255) .
+    if eq hi 128 . do  set x (bit_xor x 27) .  end .
+    set y (shr y 1) .
+    set i (add i 1) .
+  end .
+  return bit_and r 255 .
+end .
+
+rem ★ GF(2^8) 역원 — x^254. x=0 이면 0(S-box 의 규약).
+export fn ginv input a u64 . output u64 . do
+  var r u64 be 1 .
+  var b u64 be a .
+  var e u64 be 254 .
+  while gt e 0 . do
+    if eq (bit_and e 1) 1 . do set r (gmul r b) . end .
+    set b (gmul b b) .
+    set e (shr e 1) .
+  end .
+  return r .
+end .
+
+rem ★★ S-box — **표가 아니라 정의**다(FIPS 197 §5.1.1).
+rem   b = x^(-1) 의 비트를 회전해 더하고 0x63 을 더한다.
+export fn sbox input a u64 . output u64 . do
+  let b u64 be ginv a .
+  var r u64 be bit_xor b 99 .
+  var i u64 be 1 .
+  while lt i 5 . do
+    let rot u64 be bit_and (bit_or (shl b i) (shr b (sub 8 i))) 255 .
+    set r (bit_xor r rot) .
+    set i (add i 1) .
+  end .
+  return bit_and r 255 .
+end .
+
+rem 역 S-box — 아핀의 역을 먼저 풀고 역원을 취한다.
+export fn inv_sbox input a u64 . output u64 . do
+  var t u64 be 0 .
+  var i u64 be 0 .
+  while lt i 8 . do
+    rem 역아핀: 비트 i 는 a 의 비트 (i+2)·(i+5)·(i+7) 의 XOR, 그리고 상수 0x05.
+    let b1 u64 be bit_and (shr a (bit_and (add i 2) 7)) 1 .
+    let b2 u64 be bit_and (shr a (bit_and (add i 5) 7)) 1 .
+    let b3 u64 be bit_and (shr a (bit_and (add i 7) 7)) 1 .
+    set t (bit_or t (shl (bit_xor (bit_xor b1 b2) b3) i)) .
+    set i (add i 1) .
+  end .
+  return ginv (bit_xor t 5) .
+end .
+
+rem ★★ 키 스케줄 — 128비트 키를 11 개의 라운드 키(각 16 바이트)로 편다.
+rem   `rk` 는 176 바이트 이상. `key` 는 **정확히 16 바이트**다.
+rem   ☞ 전엔 `ge 16` 이어서 32 바이트(AES-256 크기) 키를 주면 **앞 16 으로 AES-128 을 조용히**
+rem     돌렸다 — 태그가 16 바이트 키와 바이트까지 같다(2026-09-04 검토 A2). 이 모듈은 AES-128
+rem     뿐이므로 다른 길이는 *다른 알고리즘을 달라는 말*이고, 그것은 거절이 답이다.
+export proc expand_key input key slice u8 . input rk mut slice u8 . output u64 . effects none . do
+  guard eq (len key) 16 . else return 0 .
+  guard ge (len rk) 176 . else return 0 .
+  var i u64 be 0 .
+  while lt i 16 . do
+    set (index rk i) (index key i) .
+    set i (add i 1) .
+  end .
+  var rcon u64 be 1 .
+  var w u64 be 16 .
+  while lt w 176 . do
+    var t0 u64 be cast u64 (index rk (sub w 4)) .
+    var t1 u64 be cast u64 (index rk (sub w 3)) .
+    var t2 u64 be cast u64 (index rk (sub w 2)) .
+    var t3 u64 be cast u64 (index rk (sub w 1)) .
+    if eq (bit_and w 15) 0 . do
+      rem RotWord + SubWord + Rcon
+      let a0 u64 be t0 .
+      set t0 (bit_xor (sbox t1) rcon) .
+      set t1 (sbox t2) .
+      set t2 (sbox t3) .
+      set t3 (sbox a0) .
+      set rcon (gmul rcon 2) .
+    end .
+    set (index rk w) (cast u8 (bit_xor (cast u64 (index rk (sub w 16))) t0)) .
+    set (index rk (add w 1)) (cast u8 (bit_xor (cast u64 (index rk (sub (add w 1) 16))) t1)) .
+    set (index rk (add w 2)) (cast u8 (bit_xor (cast u64 (index rk (sub (add w 2) 16))) t2)) .
+    set (index rk (add w 3)) (cast u8 (bit_xor (cast u64 (index rk (sub (add w 3) 16))) t3)) .
+    set w (add w 4) .
+  end .
+  return 176 .
+end .
+
+rem 라운드 키를 더한다(XOR).
+proc add_round_key input st mut slice u8 . input rk slice u8 . input r u64 . output u64 . effects none . do
+  var i u64 be 0 .
+  while lt i 16 . do
+    set (index st i) (cast u8 (bit_xor (cast u64 (index st i)) (cast u64 (index rk (add (mul r 16) i))))) .
+    set i (add i 1) .
+  end .
+  return 1 .
+end .
+
+rem ★★ 블록 암호화 — 상태는 **열 우선**이다(st[r + 4c] 가 아니라 st[4c + r]).
+rem   ☞ FIPS 197 의 그림은 행 우선처럼 보이지만 바이트 순서는 열 우선이다. 이 자리를
+rem     뒤집으면 ShiftRows 가 조용히 다른 것을 섞는다.
+export proc encrypt_block input rk slice u8 . input st mut slice u8 . input tmp mut slice u8 . output u64 . effects none . do
+  guard ge (len rk) 176 . else return 0 .
+  guard ge (len st) 16 . else return 0 .
+  guard ge (len tmp) 16 . else return 0 .
+  let z0 u64 be add_round_key st rk 0 .
+  var r u64 be 1 .
+  while lt r 11 . do
+    rem SubBytes
+    var i u64 be 0 .
+    while lt i 16 . do
+      set (index st i) (cast u8 (sbox (cast u64 (index st i)))) .
+      set i (add i 1) .
+    end .
+    rem ShiftRows — 행 r 을 왼쪽으로 r 칸. 열 우선이므로 색인은 4c+r 이다.
+    var c u64 be 0 .
+    while lt c 4 . do
+      var row u64 be 0 .
+      while lt row 4 . do
+        set (index tmp (add (mul c 4) row)) (index st (add (mul (bit_and (add c row) 3) 4) row)) .
+        set row (add row 1) .
+      end .
+      set c (add c 1) .
+    end .
+    var k u64 be 0 .
+    while lt k 16 . do  set (index st k) (index tmp k) .  set k (add k 1) .  end .
+    rem MixColumns — 마지막 라운드에는 없다.
+    if lt r 10 . do
+      var c2 u64 be 0 .
+      while lt c2 4 . do
+        let b u64 be mul c2 4 .
+        let a0 u64 be cast u64 (index st b) .
+        let a1 u64 be cast u64 (index st (add b 1)) .
+        let a2 u64 be cast u64 (index st (add b 2)) .
+        let a3 u64 be cast u64 (index st (add b 3)) .
+        set (index st b)         (cast u8 (bit_xor (bit_xor (gmul a0 2) (gmul a1 3)) (bit_xor a2 a3))) .
+        set (index st (add b 1)) (cast u8 (bit_xor (bit_xor a0 (gmul a1 2)) (bit_xor (gmul a2 3) a3))) .
+        set (index st (add b 2)) (cast u8 (bit_xor (bit_xor a0 a1) (bit_xor (gmul a2 2) (gmul a3 3)))) .
+        set (index st (add b 3)) (cast u8 (bit_xor (bit_xor (gmul a0 3) a1) (bit_xor a2 (gmul a3 2)))) .
+        set c2 (add c2 1) .
+      end .
+    end .
+    let z1 u64 be add_round_key st rk r .
+    set r (add r 1) .
+  end .
+  return 16 .
+end .

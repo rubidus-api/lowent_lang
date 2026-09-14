@@ -1,0 +1,70 @@
+rem ★★★ **부동 수학 — 표준 라이브러리** (RFC-0090 N2, 2026-08-11).
+rem
+rem   빌트인은 열이다: `sqrt`·`abs`·`floor`·`ceil` 은 전부터 있었고, 이번에 여섯이 붙었다 —
+rem   `sin`·`cos`·`exp`·`log`·`round`(단항) · `pow`(이항). **권한이 없다**(순수 계산).
+rem   libm 에 붙으므로 **호스트 전용**이다.
+rem
+rem ★★ **오라클은 알려진 답과 항등식**이지 비트가 아니다. libm 은 구현마다 마지막 자리가
+rem   다를 수 있고, 정확한 비트를 주장하면 **거짓 실패**가 난다. 그래서 이 라이브러리는
+rem   `close` 를 주고, 시험도 그것으로 판정한다 — *"얼마나 가까우면 같다고 볼 것인가"* 를
+rem   **쓰는 사람이 적게** 만든다.
+rem
+rem ★ 안 지은 것: `atan2`·`asin`·`acos`·`tan`·`log2`·`log10`·`cbrt`·`hypot`.
+rem   필요해지면 같은 자리에 붙는다(빌트인 하나 + 이 파일 한 줄).
+
+module math .
+
+rem ── 견줌 ───────────────────────────────────────────────────────────────────
+
+rem ★★ 부동소수를 `eq` 로 견주지 않는다 — 그것이 이 축에서 가장 흔한 결함이다.
+rem   허용 오차를 **인자로 받는다**: 기본값을 숨기면 그 값이 두 번째 진실이 된다.
+rem ★★★ `link "math_close"` 인 까닭(2026-09-07): 내보낸 op 은 C 에서 **저자가 적은 이름 그대로**
+rem   나간다(RFC-0063 — 도구는 공개 이름을 발명하지 않는다). 그런데 `close` 는 `unistd.h` 에도
+rem   있어서, 이 모듈을 쓰는 프로그램의 **네이티브 빌드가 깨져 있었다**
+rem   (`impl/tests/prog/mcpi.low` — VM 으로는 잘 돌아 아무도 몰랐다).
+rem   ⇒ Lowent 쪽 이름은 그대로 `math.close` 이고, **C 쪽 이름만** 옮긴다. `link` 절이 바로
+rem     이 자리를 위해 있다. 새 게이트 `check-export-names.py` 가 이것을 찾았다.
+export fn close input a f64 . input b f64 . input tol f64 . output bool . link "math_close" . do
+  return lt (abs (sub a b)) tol .
+end .
+
+rem ── 상수 (계산으로 낸다 — 리터럴을 손으로 적으면 그것이 두 번째 진실이다) ──
+
+rem ★ π = acos(-1) 이 정석이나 `acos` 가 아직 없다. 대신 **정의로** 낸다: 4·atan(1) 도
+rem   `atan` 이 없으므로, 지금은 리터럴을 쓰되 **출처를 적는다**(IEEE-754 배정도 최근접).
+export fn pi output f64 . do
+  return 3.141592653589793 .
+end .
+
+rem ★ e = exp(1) — 이것은 **계산으로 낸다**. 상수를 적을 이유가 없다.
+export fn e output f64 . do
+  return exp 1.0 .
+end .
+
+rem ── 각도 ───────────────────────────────────────────────────────────────────
+
+export fn deg_to_rad input d f64 . output f64 . do
+  return div (mul d 3.141592653589793) 180.0 .
+end .
+
+export fn rad_to_deg input r f64 . output f64 . do
+  return div (mul r 180.0) 3.141592653589793 .
+end .
+
+rem ── 자주 쓰는 조합 ─────────────────────────────────────────────────────────
+
+rem ★ 빗변 — `hypot` 이 없으므로 조합한다. 큰 값에서 넘칠 수 있다는 점은 이름이 못 말한다.
+rem   ☞ 안 지은 것에 적었다: 넘침에 강한 `hypot` 은 별도 리프가 필요하다.
+export fn hyp input x f64 . input y f64 . output f64 . do
+  return sqrt (add (mul x x) (mul y y)) .
+end .
+
+rem ★ 밑이 임의인 로그 — log_b(x) = ln x / ln b.
+export fn log_base input x f64 . input b f64 . output f64 . do
+  return div (log x) (log b) .
+end .
+
+rem ★ 선형 보간. t 를 [0,1] 로 가정하지 **않는다** — 밖이면 외삽이고, 그것도 쓸모가 있다.
+export fn lerp input a f64 . input b f64 . input t f64 . output f64 . do
+  return add a (mul t (sub b a)) .
+end .

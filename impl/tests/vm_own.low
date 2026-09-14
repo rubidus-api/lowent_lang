@@ -1,0 +1,78 @@
+rem ★★ 소유는 **선형**이다 — SPEC-004 §4.8 이 내내 그렇게 말해 왔고,
+rem 도구는 내내 **아무것도 확인하지 않았다.** 네 가지를 다 통과시켰다:
+rem   owned 를 안 쓰고 버린다 · 두 번 넘긴다 · 이동 후 쓴다 · 그리고 `drop` 은 E-IR-UNDEF 였다
+rem   (**명세 자신의 낱말**을 오타라고 불렀다).
+rem
+rem 왜 안 걸렸나? **`owned` 를 쓰는 픽스처가 하나도 없었다.**
+rem   (교훈 6 — 픽스처의 모양이 감사의 시야다. 이 파일이 그 시야를 넓힌다.)
+rem
+rem ★★★ 그리고 여기서 **RFC-0058** 이 나왔다: **해제(release)와 완결(completion)은 다르다.**
+rem
+rem   해제 = `drop`. **전면적이고 중단하지 않는다** — 언제나 성공하고 기다리지 않는다.
+rem     그래서 스코프 끝에서 **조용히** 일어나도 된다(§4.8 ① 자동 drop). 삼킬 실패가 없으니까.
+rem   완결 = flush · commit · close. **실패할 수 있고 기다릴 수 있다.**
+rem     그래서 조용히 일어나면 **안 된다** — 암묵적 drop 은 그 실패를 건네줄 자리가 없다.
+rem     반드시 **명시적 호출**이어야 하고, 새 어휘는 필요 없다:
+rem     **owned 를 값으로 받고 result 를 돌려주는 보통의 op** 다(P1: 어휘는 작고 직교하게).
+rem
+rem   그러면 완결 타입을 무엇으로 아는가? **프로그램 자신의 선언으로.**
+rem     `owned conn` 을 받고 `result` 를 내는 op 가 있다 = "이걸 끝내는 건 실패할 수 있다" 는
+rem     선언이다. 그런 값이 조용히 drop 되면 **그 실패를 삼킨다** → E-OWN-INCOMPLETE.
+
+module vm_own .
+
+type buffer u8 . .        rem 해제만 필요한 값 — 끝내는 데 실패가 없다
+type conn u8 . .          rem 완결이 필요한 값 — 아래 `close` 가 그렇게 선언한다
+
+enum close_error .
+  device_lost .
+end .
+
+rem --- 자동 해제: 아무것도 안 해도 된다. 스코프 끝에서 조용히 풀린다.
+rem     이게 옳은 이유는 하나뿐이다: **해제는 실패하지 않는다.**
+fn automatic input a buffer . output u8 . do
+    var h owned buffer be a .
+    return 1 .
+end .
+
+rem --- 명시적 해제
+fn released input a buffer . output u8 . do
+    var h owned buffer be a .
+    drop h .
+    return 2 .
+end .
+
+rem --- 이전: 값으로 받는 op 로 넘기면 책임이 넘어간다. 받은 쪽이 끝낸다.
+fn sink input h owned buffer . output u8 . do
+    drop h .
+    return 9 .
+end .
+
+fn transferred input a buffer . output u8 . do
+    var h owned buffer be a .
+    return sink h .
+end .
+
+rem --- 완결: 실패할 수 있는 마무리는 **명시적 호출**이고 result 를 돌려준다.
+rem     닫기가 실패했다는 사실을 부르는 쪽이 **받는다**. 자동 drop 이었다면 삼켰을 것이다.
+fn close input h owned conn . output result u8 close_error .
+errors device_lost eq h 0 .
+do
+    if eq h 0 . do return error device_lost . end .
+    return ok h .
+end .
+
+fn completed input a conn . output option u8 . do
+    var h owned conn be a .
+    return try (close h) else_none .
+end .
+
+rem --- 빌림은 이동이 아니다: 빌려서 두 번 읽어도 소비는 여전히 정확히 한 번.
+fn peeked input a buffer . output u8 . do
+    var h owned buffer be a .
+    var r ref buffer . be ref h .
+    var x u8 be deref r .
+    var y u8 be deref r .
+    drop h .
+    return expr x + y . .
+end .

@@ -1,0 +1,16 @@
+rem ★★★ **예산을 넘긴 구성은 컴파일이 안 된다** — RFC-0104 §8-3 종료 조건 ①.
+rem
+rem   이 파일은 **거절되어야 한다**(`E-CONTRACT-IMPOSSIBLE`). slot 40 · shard 16 · gen 16 은
+rem   합이 **72** 라 한 word 에 안 들어간다. 그 사실은 **소스에 다 적혀 있다** — 상수뿐이다.
+rem
+rem ☞ 전에는 이 프로그램이 **초록으로 컴파일되고 실행 때** `E-VM-CONTRACT` 로 터졌다.
+rem   즉 *들어가지 않는 예산이 돌아가는 프로그램으로 배포될 수 있었다.*
+rem   **지금 판정할 수 있는 계약은 지금 판정한다** — 그것이 이 파일이 지키는 규칙이다.
+module vm_budget_over .
+use budget from "../../lib/budget.low" .
+
+export proc over output u64 . effects none . do
+  let h option u64 . be budget.pack 40 16 16 1 1 1 .
+  guard is_some h . else return 0 .
+  return some_value h .
+end .

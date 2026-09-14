@@ -1,0 +1,284 @@
+rem ★★★ **여섯 번째 표준 라이브러리 — 파일 스트림** (RFC-0069 §6).
+rem
+rem ★★★ **close 를 잊으면 컴파일이 안 된다.** A6(`lib/out.low`)가 flush 에 쓴 것과 **같은 패턴**이다:
+rem   `close` 가 `owned handle` 을 받고 `result` 를 내므로, 프로그램 자신의 선언이
+rem   *"이걸 끝내는 건 실패할 수 있다"* 고 말한 것이 된다 ⇒ 조용히 버리면 **E-OWN-INCOMPLETE**
+rem   (RFC-0058). 새 기계 0 — 있던 성질을 파일이 쓰는 것뿐이다.
+rem   ★ 그리고 **닫기는 진짜로 실패한다**(NFS·디스크 가득) — 그래서 `result` 가 장식이 아니다.
+rem
+rem ★★ **리프는 얇고 owned 는 여기 산다**(리프 규칙, SPEC-002 부록 P). 빌트인 넷
+rem   (`file_open`·`file_read`·`file_write`·`file_close`)은 커널에 닿을 뿐 정수 핸들만 안다.
+rem   그것을 **잊을 수 없는 값**으로 감싸는 것은 Lowent 로 쓸 수 있으므로 라이브러리다.
+rem
+rem ★★★ **그리고 이것이 `read_file` 의 부채를 갚는다.** 부록 P 는 `read_file`(파일 통째 읽기)을
+rem   *"편의는 리프 자격이 아니다"* 라는 규칙의 **위반**으로 기록해 뒀다 — 스트림 리프가 서면
+rem   Lowent 로 쓸 수 있으므로 라이브러리로 내려가거나 남을 이유를 대야 한다고.
+rem   ⇒ 아래 `slurp` 이 그것을 **Lowent 로** 쓴다. 빌트인 `read_file` 은 그래서 §2.5(동의어
+rem     금지)에 걸리고, 다음 조각에서 걷어낸다(지금 걷으면 쓰는 곳이 먼저 깨진다).
+rem
+rem ☞ 안 지은 것(정직히): `wait`(중단 가능 IO — reactor 가 먼저다) · 소켓.
+rem   ★ `seek`(RFC-0069 §4 read_at)·**디렉터리 순회**(§6)·**파일 타입**(stat)·**파일시스템 변경**은
+rem     **지었다**(2026-07-22). 아래 `seek` · `dir_handle`+`open_dir`/`read_dir`/`close_dir` · `type_of`/
+rem     `is_dir`/`is_file`. **변경**(dir_make·path_remove·path_rename)은 상태 없는 경로→bool 리프라
+rem     여기 감싸지 않는다 — 감싸면 순수 전달이라 §2.5(동의어)에 걸린다. 프로그램이 직접 부른다.
+
+module files .
+
+rem ★★★★ **세 자리로** (RFC-0069 §2.2 · RFC-0075 Stage 4 Task 2 · 소유자 결정, 2026-08-15).
+rem
+rem   여기까지 이 모듈의 답은 `option` **두 자리**였고, `none` 하나가 *"끝"* 과 *"실패"* 를
+rem   나눠 갖고 있었다. 그 부족은 이미 한 번 물었다: `slurp` 이 읽기 실패를 EOF 와 똑같이 다뤄
+rem   `wc` 가 **"0 lines" 를 성공으로** 냈다(결함 주입기가 찾았다, 2026-08-15).
+rem   이제 세 자리다 — `ok (some n)` = 읽었다 · `ok none` = **끝** · `error e` = **실패**.
+rem
+rem ★★★ **기계적으로 감싸지 않았다.** op 마다 정직한 모양이 다르다: 여는 일에는 *끝* 이라는
+rem   개념이 없으므로 `result handle` 이고(열리거나 실패다), 읽는 일에만 가운데 자리가 있다.
+rem   전부를 `result (option T)` 로 만들면 **없는 상태를 있는 척**하게 된다.
+rem
+rem ★★ **변형은 구별할 수 있는 것만** 적는다. 잎은 errno 를 안 준다 — 그래서 이 오류가 답할 수
+rem   있는 해상도는 *"어느 연산이 실패했나"* 까지다. 그 이상을 적으면 지어낸 정보다.
+rem
+rem ☞ 그래서 `type_of`·`is_dir`·`is_file` 은 **안 바꿨다**: `file_type` 잎이 *없음* 과 *stat 실패*
+rem   를 한 비트로 뭉쳐 주므로, 거기에 `result` 를 붙이는 것은 **호스트 층이 지킬 수 없는 약속**이다.
+rem   없는 구별을 타입으로 약속하지 않는다(§0).
+export enum file_error .
+  open_failed .
+  read_failed .
+  write_failed .
+  seek_failed .
+  close_failed .
+  rem ★ 이것은 잎이 아니라 **우리가** 아는 실패다(버퍼가 모자란 것을 우리가 셌다) —
+  rem   그래서 적을 수 있고, 적는 것이 정직하다. 읽기 실패와 뭉치면 부르는 쪽이
+  rem   *"더 큰 버퍼로 다시"* 와 *"포기"* 를 구별하지 못한다.
+  buffer_too_small .
+end .
+
+rem 열림 모드. ★ 정수인 이유: enum 값을 리프에 넘기는 길이 아직 없다(그때 바꾼다).
+rem   0 = 읽기 · 1 = 쓰기(자르고 만들기) · 2 = 덧붙이기. 그 밖은 리프가 거절한다(E-VM-FMODE).
+
+rem ★ 잊을 수 없는 핸들. **스칼라만** 담는다(A6 의 `pending` 과 같은 이유).
+export struct handle .
+  fd u64 .
+end .
+
+rem 연다. 못 열면 `error open_failed` — 트랩이 아니다(실패는 값이다).
+rem ★ 여는 일에는 *"끝"* 이라는 개념이 없다 — 그래서 가운데 자리가 없다.
+rem ★★ 이 값을 **닫지 않고 버리면 컴파일 오류**다(아래 close 가 그렇게 만든다).
+export proc open input fs cap file_system . input path slice u8 . input mode u64 .
+  output result handle file_error . effects io .
+errors open_failed .
+do
+  let h option u64 . be file_open fs path mode .
+  guard is_some h . else return error open_failed .
+  return ok (make handle do fd (some_value h) . end) .
+end .
+
+rem ★ 한 조각 읽는다 — 버퍼만큼만. **0 = EOF**(실패가 아니라 사실이다).
+rem   그래서 **버퍼보다 큰 파일도 읽는다**: 이것이 `read_file` 이 못 하던 바로 그것이다.
+rem ★ 길이 0 버퍼는 `ok (some 0)` 이다 — 끝이 아니다. 잎은 자리가 없어도 0 을 답하는데, 그것을 EOF 로
+rem   읽으면 조각 읽기가 남은 꼬리를 빈 슬라이스로 건넨 순간 **파일이 조용히 잘린다**(거짓 EOF).
+rem   "0 바이트 읽었다" 와 "끝났다" 는 다른 사실이고, 여기선 전자다(`io.take_rest` 와 같은 판단).
+export proc read input fs cap file_system . input h handle . input buf mut slice u8 . .
+  output result (option u64) file_error . effects io .
+errors read_failed .
+do
+  guard gt (len buf) 0 . else return ok (some 0) .
+  let n option u64 . be file_read fs (field h fd) buf .
+  guard is_some n . else return error read_failed .
+  rem ★ 여기가 세 자리가 실제로 갈리는 자리다: 잎의 `some 0` 은 **끝**이지 실패가 아니다.
+  guard gt (some_value n) 0 . else return ok none .
+  return ok (some (some_value n)) .
+end .
+
+export proc write input fs cap file_system . input h handle . input bytes slice u8 .
+  output result u64 file_error . effects io .
+errors write_failed .
+do
+  let n option u64 . be file_write fs (field h fd) bytes .
+  guard is_some n . else return error write_failed .
+  return ok (some_value n) .
+end .
+
+rem ★★★ **랜덤 접근** (RFC-0069 §4 read_at) — 스트림 커서를 옮긴다. 다음 read/write 가 그 자리에서.
+rem   whence: 0 = set(절대) · 1 = cur(현재 기준) · 2 = end(끝 기준). 새 절대 위치를 낸다(못 하면 none).
+rem   ★ end 로 옮기면 **파일 크기**를 알 수 있다(offset 0, whence 2 → 크기). seek 는 뷰가 아니라
+rem     커서를 바꾸므로 h 는 비소유로 충분하다(read 처럼 — 소유는 close 가 든다).
+export proc seek_to input fs cap file_system . input h handle . input off u64 . input whence u64 .
+  output result u64 file_error . effects io .
+errors seek_failed .
+do
+  let n option u64 . be file_seek fs (field h fd) off whence .
+  guard is_some n . else return error seek_failed .
+  return ok (some_value n) .
+end .
+
+rem ★★★ **완결.** owned 를 소비하고 result 를 낸다 — 이 선언 하나가 `handle` 을
+rem   *"완결이 필요한 타입"* 으로 만들고, 그래서 **안 부르면 컴파일이 안 된다**.
+export proc close input fs cap file_system . input h owned handle .
+  output result void file_error . effects io .
+errors close_failed .
+do
+  rem ★ 변수를 `ok` 라 부르면 **결과 생성자 `ok` 와 부딪친다** — 같은 낱말 두 뜻(§2.5).
+  let closed bool be file_close fs (field h fd) .
+  drop h .
+  guard eq closed true . else return error close_failed .
+  return ok .
+end .
+
+rem ★★★ **디렉터리 순회** (RFC-0069 §6 — opendir/readdir/closedir). 파일시스템을 **열거**한다.
+rem   ★ 파일 핸들과 **다른 타입**이다: 디렉터리는 읽기/쓰기가 아니라 **엔트리 이름을 낸다**.
+rem     둘 다 정수 인덱스지만 섞으면 안 되므로(dir 을 file_read 에 넣으면 뜻이 없다) 타입으로 가른다.
+rem   ★ close 를 잊으면 컴파일 오류다(close 와 같은 owned 패턴).
+export struct dir_handle .
+  fd u64 .
+end .
+
+export proc open_dir input fs cap file_system . input path slice u8 .
+  output result dir_handle file_error . effects io .
+errors open_failed .
+do
+  let h option u64 . be dir_open fs path .
+  guard is_some h . else return error open_failed .
+  return ok (make dir_handle do fd (some_value h) . end) .
+end .
+
+rem 다음 엔트리 **이름**을 호출자 버퍼로. **0 = 끝**(실패 아님, EOF 와 같은 규율). 안 맞으면 none.
+rem   ☞ readdir 그대로라 `.`·`..` 도 낸다 — 거르는 것은 프로그램의 몫(raw 를 숨기지 않는다).
+export proc read_dir input fs cap file_system . input h dir_handle . input buf mut slice u8 . .
+  output result (option u64) file_error . effects io .
+errors read_failed .
+do
+  let n option u64 . be dir_read fs (field h fd) buf .
+  guard is_some n . else return error read_failed .
+  rem ★ 잎의 `some 0` 은 **엔트리 끝**이지 실패가 아니다 — `read` 와 같은 규율이다.
+  guard gt (some_value n) 0 . else return ok none .
+  return ok (some (some_value n)) .
+end .
+
+export proc close_dir input fs cap file_system . input h owned dir_handle .
+  output result void file_error . effects io .
+errors close_failed .
+do
+  let closed bool be dir_close fs (field h fd) .
+  drop h .
+  guard eq closed true . else return error close_failed .
+  return ok .
+end .
+
+rem ★★★ **경로가 무엇인가** (stat) — 0=파일·1=디렉터리·2=그 밖 · 없으면 none. 핸들이 없다(질의다).
+rem   디렉터리 순회가 드러낸 구멍을 메운다: 엔트리를 나열한 뒤 **어느 것이 하위 디렉터리인지** 알아야
+rem   재귀(find·du·tree)가 된다.
+export proc type_of input fs cap file_system . input path slice u8 .
+  output option u64 . effects io .
+do
+  return file_type fs path .
+end .
+
+rem ★★★ **따라가지 않는 짝** (X-0030 ⓐ · WO-0210) — `lstat`. 0=파일·1=디렉터리·2=그 밖·**3=심링크**.
+rem   `type_of` 는 심링크를 **가리키는 대상**으로 본다(stat). 그래서 «한쪽은 링크, 한쪽은 진짜 파일»
+rem   을 구분할 수 없었다 — 백업 비교 도구가 그 둘을 «같다» 고 답했다(실측, lowdiff 1 차판).
+rem   ☞ 기존 낱말의 뜻은 안 바꾼다. **따라가는 질의와 안 따라가는 질의는 서로 다른 질문**이다.
+export proc link_type_of input fs cap file_system . input path slice u8 .
+  output option u64 . effects io .
+do
+  return link_type fs path .
+end .
+
+rem ★ 편의: 심링크인가. 없으면 false.
+export proc is_symlink input fs cap file_system . input path slice u8 . output bool . effects io . do
+  let t option u64 . be link_type fs path .
+  guard is_some t . else return false .
+  return eq (some_value t) 3 .
+end .
+
+rem ★ 편의: 디렉터리인가. 없으면 false(없는 것은 디렉터리가 아니다 — 정직하다).
+export proc is_dir input fs cap file_system . input path slice u8 . output bool . effects io . do
+  let t option u64 . be file_type fs path .
+  guard is_some t . else return false .
+  return eq (some_value t) 1 .
+end .
+
+rem ★ 편의: 보통 파일인가.
+export proc is_file input fs cap file_system . input path slice u8 . output bool . effects io . do
+  let t option u64 . be file_type fs path .
+  guard is_some t . else return false .
+  return eq (some_value t) 0 .
+end .
+
+rem ★★ **`read_file` 을 Lowent 로 다시 쓴다** — 부채 상환의 실물.
+rem   파일 전체를 호출자 버퍼로. 안 들어가면 `none`(빌트인과 같은 규율, 자르지 않는다).
+rem   ☞ 빌트인 `read_file` 은 이제 **이것과 같은 뜻**이다 ⇒ §2.5 동의어 금지에 걸린다.
+export proc slurp input fs cap file_system . input path slice u8 . input buf mut slice u8 . .
+  output result u64 file_error . effects io .
+rem ★ `errors` 는 **이름 하나**를 받는다(뒤는 조건 자리다) — 그래서 줄을 나눈다.
+errors open_failed .
+errors read_failed .
+errors buffer_too_small .
+errors close_failed .
+do
+  let ho result handle file_error . be open fs path 0 .
+  guard is_ok ho . else return error open_failed .
+  rem ★ `h` 를 여러 번 **읽고**(read 의 파라미터는 비소유라 복사다) 마지막에 **닫는다**
+  rem   (close 의 파라미터가 owned 라 거기서 이동한다). 파라미터의 타입이 이동을 정한다
+  rem   — SPEC-004 §4.8. 이 흔한 모양이 2026-07-19 까지 표현 불가능했다(과엄격 결함).
+  var h owned handle be ok_value ho .
+  var total u64 be 0 .
+  var going bool be true .
+  var overflow bool be false .
+  rem ★★★ **읽기 실패는 EOF 가 아니다** (RFC-0075 S5 · 2026-08-15). 여기 있던 코드는 `none` 을
+  rem   받으면 그냥 루프를 멈췄고, 그러면 **실패한 읽기가 "파일을 다 읽었다" 로 보고**됐다 —
+  rem   호출자는 완독과 중도 실패를 구별할 수 없었다. 결함 주입기(`LOW_HOST_FAULT="read:err@1"`)가
+  rem   그것을 실물로 보였다: `wc` 가 읽기 실패를 **"0 lines" 라는 성공**으로 냈다.
+  rem   ☞ 센티널 하나가 두 뜻을 나르면 안 된다(Stage 4 Task 2). `some 0` = EOF · `none` = 실패.
+  var failed bool be false .
+  while going . do
+    rem 남은 자리에만 읽는다. 자리가 다 찼으면 멈춘다 — 더 있는지는 **아래에서 묻는다**.
+    if ge total (len buf) . do
+      set going false .
+    end .
+    if going . do
+      let n result (option u64) file_error . be read fs h (subslice buf total (len buf)) .
+      if eq (is_ok n) false . do set going false . set failed true . end .
+      if is_ok n . do
+        rem ★ 세 자리가 여기서 값을 한다: `ok none` 은 **끝**이고, 실패는 위에서 이미 갈렸다.
+        let v option u64 . be ok_value n .
+        if eq (is_some v) false . do set going false . end .
+        if is_some v . do set total (add total (some_value v)) . end .
+      end .
+    end .
+  end .
+  rem ★★ **꼭 찼다 ≠ 안 들어갔다.** 크기가 `len buf` 와 같은 파일(크기를 재고 정확히 할당하는, 이 모듈
+  rem   자신이 위에 적어 둔 자연스러운 패턴)이 전엔 **늘** buffer_too_small 이었다 — "더 있으면" 의 절반을
+  rem   묻지 않았다. 그래서 EOF 를 한 번 더 묻는다: 마지막 한 바이트 자리를 **빌려** 읽어 본다.
+  rem   0 이면 끝이고 버퍼는 그대로다(0 바이트 읽기는 쓰지 않는다) · 1 이면 더 있다 = 안 들어간 것이 사실이다
+  rem   (buffer_too_small 이면 버퍼 내용은 미정 — 그 규약은 전과 같다).
+  rem   길이 0 버퍼는 빌릴 자리가 없으니 seek 로 크기를 묻는다 — 파이프처럼 못 묻는 것은 *모른다* 이고,
+  rem   모르는 것을 "들어갔다" 로 답하지 않는다(buffer_too_small).
+  if eq failed false . do
+    if eq total (len buf) . do
+      if gt (len buf) 0 . do
+        let last u64 be sub (len buf) 1 .
+        let pr result (option u64) file_error . be read fs h (subslice buf last (len buf)) .
+        if eq (is_ok pr) false . do set failed true . end .
+        if is_ok pr . do
+          if is_some (ok_value pr) . do set overflow true . end .
+        end .
+      end .
+      if eq (len buf) 0 . do
+        let sz result u64 file_error . be seek_to fs h 0 2 .
+        if eq (is_ok sz) false . do set overflow true . end .
+        if is_ok sz . do
+          if gt (ok_value sz) 0 . do set overflow true . end .
+        end .
+      end .
+    end .
+  end .
+  rem 실패했어도 **핸들은 닫는다** — 자원 반납은 답과 별개다.
+  let c result void file_error . be close fs h .
+  rem ★ 읽기 실패가 **먼저**다: 닫기 실패가 그것을 가리면 호출자는 "닫기만 실패했다" 고 믿고
+  rem   반쯤 읽힌 버퍼를 완독으로 안다. 나중 실패가 먼저 실패를 덮지 않는다.
+  guard eq failed false . else return error read_failed .
+  guard is_ok c . else return error close_failed .
+  guard eq overflow false . else return error buffer_too_small .
+  return ok total .
+end .

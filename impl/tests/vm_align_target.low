@@ -1,0 +1,35 @@
+rem ★★★ **정렬을 타깃에게 물어본다** — RFC-0104 §8-7(소유자 서명 2026-08-28, §5.13).
+rem   `align 64 .` 는 **한 기계의 수**다: 다른 타깃으로 옮기면 조용히 틀린다.
+rem   `align machine.cache_line .` 은 **같은 소스가 타깃을 따라간다** — 그리고 그 수는
+rem   comptime 상수라 런타임 비용이 0 이다(`machine.ptr_width` 와 같은 기제, RFC-0054).
+rem
+rem ☞ 이것은 **질의이지 정책이 아니다**: 자동 repack 은 없다(RFC-0070). 배치는 프로그램이
+rem   적고, 타깃 표는 그 수만 알려 준다.
+module vm_align_target .
+
+rem 스레드마다 바뀌는 카운터를 캐시라인으로 **격리**한다 — 거짓 공유를 피하는 그 관용구.
+struct counter .
+  align machine.cache_line .
+  hits u32 .
+  miss u16 .
+end .
+
+rem 한 칸의 크기 = 정렬로 올림된 크기. x86_64·arm64 는 64, cortex_m 은 4 다.
+fn cell_size output u64 . do
+  return len encode counter mk . .
+end .
+
+fn mk output counter . do
+  return make counter do hits 3 . miss 1 . end .
+end .
+
+rem 페이지 크기도 같은 표에서 온다 — 세그먼트·슬랩을 고르는 자리다.
+rem   ★ 프리스탠딩에는 페이지가 없다: `0` 이 **정직한 답**이고, 그것을 아는 프로그램은
+rem     페이지 대신 다른 단위를 고른다.
+fn page output u64 . do
+  return machine.page_size .
+end .
+
+fn line output u64 . do
+  return machine.cache_line .
+end .

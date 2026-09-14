@@ -1,0 +1,36 @@
+rem ★★★ **`is_none` 이 하강되는가 — 세 모양 전부** (WO-0176, 2026-09-03).
+rem   정본 부록 D · 타입검사 · 검사 표 세 곳에 있던 빌트인이 하강에서 `E-IR-UNDEF` 를 냈다
+rem   (WO-0175 의 찌르개가 발견). `check-builtins` 는 이름만 대므로 못 봤다.
+rem   이 파일은 그 세 모양(`if` · `let bool` · `guard`)이 VM 과 네이티브에서 같은 답을 내는 증인이다:
+rem   x = 0 이면 none → 1, x > 0 이면 some → 2.
+module vm_isnone .
+
+export fn in_if input x u64 . output u64 . do
+  var o option u64 . be none .
+  if gt x 0 . do set o (some x) . end .
+  if is_none o . do return 1 . end .
+  return 2 .
+end .
+
+export fn in_let input x u64 . output u64 . do
+  var o option u64 . be none .
+  if gt x 0 . do set o (some x) . end .
+  let q bool be is_none o .
+  if q . do return 1 . end .
+  return 2 .
+end .
+
+export fn in_guard input x u64 . output u64 . do
+  var o option u64 . be none .
+  if gt x 0 . do set o (some x) . end .
+  guard is_none o . else return 2 .
+  return 1 .
+end .
+
+rem ★ `not (is_some …)` 과 같은 답이다 — 그것이 하강의 모양이기도 하다.
+export fn agrees input x u64 . output u64 . do
+  var o option u64 . be none .
+  if gt x 0 . do set o (some x) . end .
+  if eq (is_none o) (not (is_some o)) . do return 1 . end .
+  return 0 .
+end .

@@ -1,0 +1,52 @@
+rem ★★★ **한정자가 판정한다 — 그래서 두 모듈이 같은 이름을 export 해도 된다**
+rem   (RFC-0060 재개 · 단계 U, 2026-08-06).
+rem
+rem   여태 이름공간은 평평했고, 같은 이름이 두 번 선언되면 **무조건** E-NAME-DUP 이었다.
+rem   그 규칙의 주석이 조건을 예고하고 있었다: *"(한정 경로(`a.f`)가 생기면 그때 이 규칙을
+rem   풀면 된다. 지금은 못 푼다.)"* — 그 조건이 왔다.
+rem     ① def 이 자기 모듈을 안다(`owner_mod`)
+rem     ② `Y.op` 를 **Y 가 가리키는 모듈 안에서** 찾는다(`ir_modqual_find`)
+rem     ③ 그러므로 **다른 모듈**끼리의 같은 이름은 더 이상 "구분할 방법이 없는" 것이 아니다.
+rem
+rem ★★ **그리고 맨이름은 이미 막혀 있었다.** ③ 을 안전하게 만드는 규칙을 새로 지으려다,
+rem   `E-VISIBILITY` 가 정확히 그 말을 이미 하고 있음을 실측으로 알았다:
+rem   *"a cross-module name must be QUALIFIED"*. ⇒ 새 검사를 **짓지 않고 지웠다.**
+rem   ☞ 규칙이 이미 있는데 또 짓는 것은 어휘를 늘리고 두 곳이 갈릴 자리를 만든다(교훈 7).
+rem
+rem ★ 실측 효과: 라이브러리 **공존 불가 쌍 27 → 22**. 풀린 것 중에 **`file` + `out`** 이 있다 —
+rem   *파일을 읽어 버퍼로 내보낸다* 는 가장 평범한 IO 조합이고, 어제까지 두 줄로 빨간불이었다.
+
+module qual_main .
+
+use qual_a from "vm_qual_a.low" .
+use qual_b from "vm_qual_b.low" .
+
+rem ★ 한정자가 **다른 답**을 낸다 — 11 과 22 는 서로 다른 모듈의 것이다.
+fn both output u64 . do
+  return add (mul (qual_a.pick) 100) (qual_b.pick) .
+end .
+
+rem ★ 한 쪽만 불러도 그 모듈의 것이 온다.
+fn first output u64 . do
+  return qual_a.pick .
+end .
+
+fn second output u64 . do
+  return qual_b.pick .
+end .
+
+rem ★★★★★ **지역 이름이 남의 export 와 같아도, 한정 호출은 그 op 을 부른다** (2026-09-05).
+rem
+rem   검사층이 `qual_a.pick` 을 bare `pick` 으로 **제자리에서 좁히고** 가리킨 모듈을
+rem   `qual_mod` 에 남기는데, 하강이 그 표시를 안 보고 좁혀진 낱말을 **지역 표**에 먼저
+rem   물었다. 그래서 같은 이름의 지역이 있으면 **지역이 이겼다**:
+rem       let pick u64 be 3 .          rem 내 지역
+rem       return (qual_a.pick) .       rem 남의 op 을 한정으로 부른다
+rem   → 머리가 지역(인자 0)으로 풀려 인자가 남고 `E-IR-ARITY: extra operands` 가 났다.
+rem   **한정으로 부른 것을 지역이라 읽고, 그 결과를 사용자의 문법 실수라 불렀다**(교훈 5).
+rem   ☞ 지역 이름과 남의 export 이름이 같은 것은 **합법이다** — 남의 이름은 언제나 한정으로만
+rem     닿으므로 맨이름 지역이 가릴 수가 없다(2026-08-11 의 범위 교정과 같은 규칙).
+fn local_shadows_export output u64 . do
+  let pick u64 be 3 .
+  return add pick (qual_a.pick) .
+end .

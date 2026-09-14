@@ -1,0 +1,24 @@
+rem ★★ 회귀 — **효과가 호출을 통해 전파되지 않았다.**
+rem
+rem SPEC-006 §36: "op 가 profile P 에서 사용 가능 ⟺ effects(op) ⊆ allowed(P).
+rem                이 한 검사가 **호출 지점 검사도 포함한다**."
+rem SPEC-003 §27: "`fn` = **강제된 순수 계약**(effects none).
+rem                **호출자가 의존하는 보증**이므로 선언이 정당한 유일한 경계."
+rem
+rem 그런데 효과 워커는 **form 의 머리만** 봤다. 이 문법에서 호출은 **괄호로 싸지 않는다** —
+rem `return writer 1 .` 의 form 은 (return writer 1) 이고 호출 이름은 머리가 아니다.
+rem 인자 없는 호출은 아예 그냥 **원자**다. ⇒ 효과가 호출을 통해 전파된 적이 **한 번도 없다.**
+rem     `effects none` 인 fn 이 `effects io` 인 proc 을 불러도 초록불이었다.
+rem     IR 은 `call writer` 를 진짜로 냈다. **순수성 보증이 통째로 새고 있었다.**
+rem
+rem 그리고 반대편: `fn c . effects io .` 도 조용히 통과했다.
+rem   SPEC-003 §33 은 "`fn + effects io` 는 **구조적으로 거부된다**" 고 적어 뒀다.
+rem   통과시키면 fn/proc 의 **1비트가 아무것도 뜻하지 않는다.**
+
+module vm_effcall .
+
+rem ★ io 는 cap-effect 다 (RFC-0007 §6.7) — io 를 선언하는 op 은 io 를 인가하는 capability 를 들어야 한다.
+proc writer input k cap io . input a u8 . output u8 . effects io . do return a . end .
+
+rem ★ 이것은 정당하다 — proc 이 io 를 선언하고 io op 을 부른다(능력도 함께 넘긴다).
+proc ok_caller input k cap io . input a u8 . output u8 . effects io . do return writer a k . end .

@@ -1,0 +1,49 @@
+rem ★★★ **실물 프로그램: 남이 보낸 ClientHello 를 믿지 않는다**
+rem   (RFC-0075 §8 Stage 2 · RFC 8446).
+rem
+rem   원장이 세던 「진짜 프로그램이 안 쓰는 모듈」의 마지막이 `tlssrv` 였다.
+rem   그 모듈의 머리말이 스스로 적어 둔 말이 이 프로그램의 까닭이다 —
+rem   *"ClientHello 는 아직 아무것도 검증되지 않은 바이트열이다. 이 저장소에서
+rem   가장 적대적인 입력이다."*
+rem
+rem   그렇다면 실물이 물을 것은 하나다: **표준 입력으로 들어온 아무 바이트나**
+rem   주었을 때, 이 층이 무너지지 않고 **아니라고 말하는가.**
+rem
+rem ★ 종료 상태가 곧 오라클이다.
+rem     42 = 온전한 ClientHello 다 — 그리고 START 에서 그 메시지를 받는 것이 옳다
+rem     43 = ClientHello 로 보기에 어긋난다        ← **거절도 값으로 말한다**
+rem     44 = 모양은 맞는데 상태 전이가 옳지 않다   ← 두 층을 따로 묻는다
+rem     46 = 빈 입력 · 89 = 자리를 못 얻었다
+rem
+rem ★★ 이 프로그램에 **비밀도 권한도 없다.** 읽는 자리 하나뿐이고 판단은 전부
+rem   순수한 `fn` 이다 — 적대적 입력을 다루는 층이 **셈과 권위를 가르면**(§9.5)
+rem   그 층을 시험하는 데 아무 위험이 없다는 것이 여기서 보인다.
+
+module chcheck .
+
+use tlssrv from "../../../lib/tlssrv.low" .
+
+proc main .
+  input al cap allocator .
+  input k  cap io .
+  output u8 .
+  effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  guard is_some g . else return 89 .
+  let buf mut slice u8 . be some_value g .
+
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 89 .
+  let got u64 be some_value rn .
+  guard ne got 0 . else return 46 .
+  let ch slice u8 be subslice buf 0 got .
+
+  rem ── ① 모양: 남이 쓴 길이를 **믿지 않고** 맞대 본다 ──
+  guard tlssrv.ch_ok ch . else return 43 .
+
+  rem ── ② 차례: 모양이 맞아도 **그 자리에서 옳은 메시지인가** ──
+  guard tlssrv.next_ok (tlssrv.st_start) (tlssrv.hs_client_hello) . else return 44 .
+
+  return 42 .
+end

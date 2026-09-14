@@ -1,0 +1,27 @@
+rem ★★★ **구성(Kconfig 의 자리)** — RFC-0036 D5. **새 키워드 0개**: `build` 도 `option` 도
+rem 키워드가 아니다(구조로 읽는 선언 낱말이다).
+rem
+rem   `build option …` 이 **손잡이**를 선언하고, `lowent.config`(생성물)가 **값을 고른다**.
+rem   그리고 `config smp` 는 **comptime 상수**다 ⇒ 꺼진 가지는 **생성물에서 사라진다**.
+rem
+rem ★★ `#ifdef` 와의 결정적 차이: **꺼진 가지도 파싱되고 타입 검사를 받는다.**
+rem   C 에서는 안 켜진 조합의 코드가 **썩는다** — 커널 급에서 "그 옵션 조합은 빌드조차 안 된다"
+rem   가 되는 이유다. 여기서는 그럴 수가 없다: 접히는 것은 **코드 생성**이지 **검사**가 아니다.
+
+module vm_config .
+
+build option smp bool default true .   rem ★ `on` 은 **이미 버린 낱말**이다(액터의 `on`) — 버린 철자를 되살리지 않는다
+build option hz choice 100 250 1000 default 250 depends smp .
+build option maxcpu int default 64 .
+
+rem --- 꺼진 옵션의 가지는 **코드에 없다**(비용 0). 그런데 **검사는 받았다.**
+fn tick_rate output u64 . do
+    if config smp . do
+        return config hz .
+    end .
+    return 100 .
+end .
+
+fn cpus output u64 . do
+    return config maxcpu .
+end .

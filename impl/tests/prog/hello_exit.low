@@ -1,0 +1,35 @@
+rem ★★★ **엔트리 포인트** (RFC-0030) — 이 언어로 **처음으로 실행 파일을 만든다.**
+rem
+rem   RFC-0030 은 2026-06-28 에 **채택**됐고 **구현이 0** 이었다. `entry` 도 `main` 도
+rem   종료 상태도 **문자열조차 없었다.** 즉 **이 언어로 프로그램을 만들 수 없었다** —
+rem   라이브러리만 만들 수 있었다. (C 백엔드가 내던 `main` 은 **테스트 디스패처**였다.)
+rem
+rem   D1: 엔트리 = **지정된 보통 op**(관례 이름 `main`). 보일러플레이트 **0** —
+rem       `public static void main(String[] args)` 류 의례가 없다.
+rem   D3: **출력이 곧 종료 상태**다. 수동 `exit()` 는 필요 없다.
+rem         output void .  → 언제나 0
+rem         output u8 .    → **그 값이 곧 OS 종료 코드**
+rem
+rem ★ v1 의 한계(정직하게): 엔트리는 **인자를 받지 않는다.** RFC-0030 D2 는 args/env 를
+rem   **capability 입력**으로 받으라고 못박았다(argv 매직 파라미터 **아님**) — 그런데
+rem   capability(RFC-0011)가 아직 안 지어졌다. ⇒ **argv 를 임시로 끼워 넣지 않는다.**
+rem   그것은 RFC 가 **명시적으로 거부한 것**이다. 인자를 선언하면 E-ENTRY-PARAMS.
+
+module hello_exit .
+
+let LIMIT u8 be 10 .
+
+fn clamp input a u8 . output u8 . do
+  guard le a LIMIT . else return LIMIT .
+  return a .
+end .
+
+rem ★ 엔트리 — 보통 op 이다. 특별한 폼이 아니다.
+proc main output u8 . effects none . do
+  return clamp 42 .          rem 42 > 10 → 10 → **종료 코드 10**
+end .
+
+test exit_code do
+  expect eq (clamp 42) 10 .
+  expect eq (clamp 3) 3 .
+end .

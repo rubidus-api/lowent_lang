@@ -1,0 +1,23 @@
+rem V1 dynamic-EXCL fixture — two_mut: static E-EXCL ∧ dynamic E-VM-EXCL twin.
+rem owner_read: with liveness-v2 statics BOTH ops are rejected statically AND
+rem trapped dynamically — full static≡dynamic twins (v2 closed the lexical gap).
+fn two_mut .
+  output u64 .
+do
+  var x u64 be 0 .
+  var a mut_ref u64 . be mut_ref x .
+  var b mut_ref u64 . be mut_ref x .
+  set a 1 .
+  set b 2 .
+  return x .
+end .
+
+fn owner_read .
+  output u64 .
+do
+  var x u64 be 7 .
+  var r mut_ref u64 . be mut_ref x .
+  var y u64 be x .
+  set r 5 .
+  return x .
+end .

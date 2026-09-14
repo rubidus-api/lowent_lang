@@ -1,0 +1,21 @@
+rem ★★★ **두 번째 capability — `cap env`.** `cap args` 가 낸 길을 그대로 따라온다.
+rem   같은 규율: 환경은 **건네받는 권리**이지 ambient 가 아니다 — cap 을 대야 `env_get` 이 통한다.
+rem   같은 모양: **없으면 none**(센티널도 트랩도 아니다) · 반환은 **뷰**(복사 0).
+rem   같은 오라클: 환경은 **결정적 입력**이라 같은 환경이면 VM 과 네이티브가 같은 답을 낸다.
+rem
+rem ★ 이제 엔트리가 받을 수 있는 cap 은 둘이다(args · env). io 는 RFC-0069 의 실체가 먼저다 —
+rem   못 주는 권리를 받는 척하면 그것이 장식이고, E-ENTRY-CAP 이 그것을 거절한다.
+
+module envprobe .
+
+use strings from "../../../lib/str.low" .
+
+proc main input e cap env . output u8 . effects none . do
+  let v option slice u8 . be env_get e "LOWENT_PROBE" .
+  guard is_some v . else return 0 .                    rem 없으면 0
+  let s slice u8 be some_value v .
+  rem 값의 길이 + 접두가 "on" 이면 100 을 더한다(라이브러리가 환경 값에 그대로 작동한다).
+  var code u64 be (len s) .
+  if strings.starts_with s "on" . do set code (add code 100) . end .
+  return (narrow u8 code) .
+end .

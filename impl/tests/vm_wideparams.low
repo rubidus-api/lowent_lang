@@ -1,0 +1,34 @@
+rem ★★★ **빠른 경로의 파라미터 한도** (X-0024 · WO-0203) — 증인 둘.
+rem
+rem   빠른 경로는 파라미터가 여덟을 넘으면 그 op 을 통째로 태그 경로(느린 길)로 내렸다. 그런데
+rem   언어 자체의 한도는 **열여섯**이다 — 두 수가 어긋나 있었고, 그래서 정규식·TLS 처럼 상태를
+rem   여럿 들고 다니는 코드가 값을 치르고 있었다. 이제 둘이 같다.
+rem
+rem   ★ `wide10` — 파라미터 열. **빠른 경로로 내려가야 한다**(옛 한도에서는 안 내려갔다).
+rem   ★ `par9`  — 파라미터 아홉짜리 **병렬** op. 인자를 나르는 배열이 여덟 칸이면 여기서 넘친다.
+rem     (코퍼스에 병렬 op 이 하나도 없어 그 넘침은 아무도 안 밟고 있었다 — 증인이 없으면 결함은
+rem      «없는 것» 이 아니라 «아직 안 밟은 것» 이다.)
+
+module vm_wideparams .
+
+export proc wide10 input a u64 . input b u64 . input c u64 . input d u64 . input e u64 .
+  input f u64 . input g u64 . input h u64 . input i u64 . input j u64 .
+  output u64 . effects none .
+do
+  let s1 u64 be add (add a b) (add c d) .
+  let s2 u64 be add (add e f) (add g h) .
+  return add (add s1 s2) (add i j) .
+end .
+
+export proc par9 input s mut slice u8 . . input p1 u64 . input p2 u64 . input p3 u64 .
+  input p4 u64 . input p5 u64 . input p6 u64 . input p7 u64 . input p8 u64 .
+  output u64 . effects none . parallel s split .
+do
+  let k u64 be add (add (add p1 p2) (add p3 p4)) (add (add p5 p6) (add p7 p8)) .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    set (index s i) (mod (add (index s i) k) 256) .
+    set i (add i 1) .
+  end .
+  return len s .
+end .

@@ -1,0 +1,56 @@
+rem ★★★★★ **`r_write` — reactor 에 쓰기 쪽** (2026-08-22, RFC-0090 N4 단계1)
+rem
+rem   reactor 는 **읽기만** 중단 가능했다(`r_read` 뿐). 그래서 `task_group`·`await` 의
+rem   약속이 **쓰기에서는 거짓말**이었다 — 이것이 소켓 전환(단계 2)의 전제다.
+rem   그리고 소켓과 무관하게도 값이 있다: **파일 쓰기가 중단 가능**해진다.
+rem
+rem ★ **부분 진행을 잃지 않는다.** 이 리프는 짧게 답하고 마는 것이 *아니라* 준비성을
+rem   기다리며 **다 쓸 때까지 돈다**(그 사이 다른 태스크가 돈다 — reactor 를 타는 이유가 그것).
+rem   그러나 도중에 **실패하면 간 만큼을 답한다**: `none` 은 *한 바이트도 못 간* 실패에만 쓴다.
+rem   ☞ 그 수를 버리면 호출자가 **어디서부터 다시 보낼지** 모른다.
+rem
+rem ★★★ **fd 를 어디서 얻는가 — 계획서가 못 잰 자리였다** (2026-08-22 실측).
+rem   파일로 재려다 실패했고, 소켓으로 재려다 또 실패했다. 이유가 같다:
+rem   `file_open` 도 `net_pair` 도 내는 것은 **슬롯 번호(0~31)이지 진짜 fd 가 아니다**
+rem   (방출 C 의 `lw_files[]` · `lw_socks[]`). *같은 이름(fd)이 두 뜻을 나른다.*
+rem   ⇒ 지금 reactor 리프가 다룰 수 있는 fd 는 **표준 번호(0/1/2)뿐**이고, `rcat` 도
+rem     `r_read k rh 0` 으로 stdin 만 읽는다. **소켓을 reactor 에 태우는 것이 곧 단계 2** 이고,
+rem     그때 슬롯↔fd 의 이 이중성을 함께 정리해야 한다.
+rem   ☞ 그래서 단계 1 의 증인은 **stdout 에 쓰기**다 — 되읽는 왕복은 단계 2 의 몫이다.
+rem     *못 재는 것을 재는 척하지 않는다.*
+
+module vm_rwrite .
+
+rem ✔ stdout 에 쓴다 — 낸 수가 **보낸 바이트 수**여야 한다.
+export proc write_out_bytes input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+  let r option u64 . be reactor_new k (subslice buf 0 32) 1 .
+  guard is_some r . else return 90 .
+  let n option u64 . be r_write k (some_value r) 1 "abcdefghij" .
+  guard is_some n . else return 91 .
+  return some_value n .
+end .
+
+rem ✔ 빈 버퍼를 쓰면 **0** 이다 — 실패가 아니다.
+rem   ☞ *"아무것도 안 갔다"* 와 *"못 썼다"* 는 다른 답이고, 그 둘을 섞으면 호출자가
+rem     빈 쓰기마다 재시도한다.
+export proc empty_write input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+  let r option u64 . be reactor_new k (subslice buf 0 32) 1 .
+  guard is_some r . else return 90 .
+  let n option u64 . be r_write k (some_value r) 2 (subslice buf 0 0) .
+  guard is_some n . else return 91 .
+  return some_value n .
+end .
+
+rem ★ `cap io` 를 받으므로 `--run` 으로는 못 부른다 — **entry 의 종료 코드**로 잰다.
+rem   ☞ 이 저장소가 cap 엔트리를 재는 방식이 그것이다(차등 스윕이 안 훑는 자리이고,
+rem     그래서 골든이 **양 뒤끝의 종료 코드를 맞대는** 검사를 따로 둔다).
+proc main input k cap io . input al cap allocator . output u8 . effects alloc io . do
+  let b0 option mut slice u8 . . be alloc_bytes al capacity 128 .
+  guard is_some b0 . else return 69 .
+  var buf mut slice u8 . be some_value b0 .
+  let a u64 be write_out_bytes k buf .
+  guard eq a 10 . else return narrow u8 a .
+  let b u64 be empty_write k buf .
+  guard eq b 0 . else return narrow u8 (add b 100) .
+  return 42 .
+end .

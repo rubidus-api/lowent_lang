@@ -1,0 +1,152 @@
+rem ★★★ **아홉 번째 표준 라이브러리 — `str_buf`** (RFC-0068 S5. 2026-07-20).
+rem
+rem ★★★ **오래 막혀 있던 조각이고, 막던 것이 풀렸다.** RFC-0068 D7 은 *"`str_buf` 는 capability
+rem   뒤에 온다"* 고 적었고, §8 은 *"RFC-0011 이 먼저다"* 라고 했다. 둘 다 이제 서 있다 —
+rem   `cap allocator`(RFC-0043 A3) · `region` 어휘 블록 · `lib/pool.low`. 그래서 지금 짓는다.
+rem
+rem ★★★ **세 범주가 이름에 있다** — RFC-0068 §5.3 이 proven 의 `CATEGORY:` 주석에서 가져온 것:
+rem
+rem     append        전량-아니면-무    안 들어가면 **한 바이트도 안 쓰고** 거절한다
+rem     append_trunc  되는 만큼          쓴 개수를 낸다 — 잘렸다는 것을 호출자가 안다
+rem     append_grow   키운다             더 큰 자리를 받아 옮긴다(호출자가 그 자리를 준다)
+rem
+rem   ★★ 이것은 **새 개념이 아니라 물려받은 규율**이다: RFC-0052 의 `wrap_add`/`sat_add`/`chk_add`
+rem     가 넘칠 때 무엇을 할지를 **이름으로** 고르게 한 것과 정확히 같은 패턴이다.
+rem     ⇒ 한 op 이 "상황 봐서 알아서" 하지 않는다. **호출자가 고르고, 고른 것이 이름에 남는다.**
+rem
+rem ★★ **버퍼는 호출자 것이고 구조체는 상태만 든다** — A6(`lib/out.low` 의 `pending`)에서
+rem   검증된 배치다. §5.3 의 스케치는 `data mut slice u8` 을 **구조체 필드로** 그렸는데
+rem   **그건 그때 못 썼다**(2026-07-19 실측). ★ 2026-07-20 **풀렸다** — 막던 것은 `mut` 이
+rem   아니라 "필드 타입은 낱말 하나" 라는 문법이었고, 그것을 넓혔다(RFC-0070 §6).
+rem   ☞ 그래도 **이 파일은 지금 모양을 지킨다**: 버퍼를 호출자가 드는 것은 `lib/out.low`·
+rem     `file.low`·`fmt.low` 과 **같은 규율**이고, 문법이 열렸다고 규율이 바뀌지는 않는다.
+rem     (바꿀 이유가 생기면 그때 바꾼다 — 할 수 있다는 것이 해야 한다는 것은 아니다.)
+rem   ⇒ `len`·`cap` 만 담고 바이트는 인자로 받는다. `lib/fmt.low`·`out.low`·`file.low` 과 같은 규율.
+rem
+rem ★★★ **널 봉인(F3) = 봉인한다** (2026-07-22, 사용자 결정 (a) — RFC-0068 §9 F3 · D2 그대로).
+rem   `cstr` 이 생겼으므로(S4 C1~C3) 이제 소비자가 있다. proven 을 따라 **버퍼가 널을 봉인한다**:
+rem     · `append`/`trunc`/`grow` 는 **1 바이트를 예약**한다 — 내용 용량 = len(buf) − 1.
+rem     · 쓴 뒤 `buf[len] = 0` 으로 **봉인**한다(cap 이 널을 포함 — D2 "cap 이 그것을 포함한다").
+rem   ⇒ **`as_cstr` 는 O(1)·무할당**: base 포인터를 그대로 낸다(널은 이미 거기 있다).
+rem   ★ 비용은 **버퍼당 1 바이트**(널 자리) — 사용자가 고른 대가(수출마다 복사하는 대신).
+rem ☞ **방향은 비대칭이다**(D4): str_buf → cstr 는 봉인해 뒀으니 공짜지만, str(뷰) → cstr 는
+rem   **안전한 경로가 없다** — `cstr_of` 는 `effects unsafe` 라 순수 코드가 못 부른다(E-EFFECT-CALC).
+rem   뷰는 널을 약속 못 하기 때문이다. 필요하면 str_buf 를 거쳐야 하고, 그 경유가 할당을 보이게 한다.
+rem ★ 빌트인 op 증가: **cstr_of 하나**(리프 — 슬라이스의 생 포인터는 언어에 없는 표현).
+
+module strbuf .
+
+rem ★★★ **cstr 의 정본 선언** (RFC-0068 D4) — `newtype cstr unsafe_ptr u8`. 널종단 char* 를
+rem   가리키는 생 포인터. FFI 경계 전용이다. str_buf 를 쓰는 프로그램은 이것을 가져다 쓴다.
+export newtype cstr unsafe_ptr u8 .
+
+export enum sb_error .
+  no_room .
+end .
+
+rem ★ 상태만. 바이트는 호출자가 든다.
+rem   `cap` 은 **호출자가 준 버퍼의 길이**를 그대로 적는다 — 두 곳에 적으면 어긋난다(§0).
+export struct str_buf .
+  len u64 .
+end .
+
+export fn new output str_buf . do
+  return make str_buf do len 0 . end .
+end .
+
+rem 지금까지 쓴 바이트의 **뷰**. 복사가 아니다. (널은 뷰에 안 든다 — 길이가 진실이다.)
+export fn as_str input b str_buf . input buf slice u8 . output slice u8 . do
+  return subslice buf 0 (field b len) .
+end .
+
+rem ★ 내용 용량 = len(buf) − 1 (마지막 1 바이트는 널 봉인 자리, D2).
+rem ★ 빈 버퍼거나 `len` 이 버퍼 길이에 닿았으면(낡은 str_buf 를 짧은 버퍼에 댄 경우) **0** 이다 —
+rem   전에는 뺄셈이 밑으로 감겨 2^64−1 을 냈다(2026-09-04 보안 검토). 자리가 없다는 사실은 0 으로 말한다.
+export fn room input b str_buf . input buf slice u8 . output u64 . do
+  guard lt (field b len) (len buf) . else return 0 .
+  return sub (sub (len buf) 1) (field b len) .
+end .
+
+rem ★★★ **str_buf → cstr** (RFC-0068 S4 · C4 · D2 봉인) — **O(1)·무할당**. `len` 자리에 널을 봉인하고
+rem   base 포인터를 cstr 로 낸다. `cstr_of` 가 `effects unsafe` 라 이 op 도 unsafe 다 — 그리고 그것이
+rem   D4 의 규율이다: cstr 를 만드는 것은 언제나 널종단 보증이고, 봉인하는 유일한 안전 경로가 str_buf 다.
+rem   ☞ 버퍼는 `len + 1 ≤ len(buf)` 여야 한다(append 가 예약해 뒀다). 아니면 널 쓰기가 경계 밖 → 트랩.
+export unsafe proc as_cstr input b str_buf . input buf mut slice u8 . . output cstr . effects unsafe . do
+  set (index buf (field b len)) 0 .
+  return cstr_of buf .
+end .
+
+rem ── ① 전량-아니면-무 ─────────────────────────────────────────────────
+rem
+rem ★★ 안 들어가면 **한 바이트도 안 쓴다.** 반쯤 쓰인 버퍼는 조용히 틀린 내용이고,
+rem   그것은 거절보다 나쁘다 — `lib/fmt.low` 이 같은 이유로 같은 선택을 했다.
+export proc append input b mut str_buf . input buf mut slice u8 . . input s slice u8 .
+  output result void sb_error . effects none .
+errors no_room .
+do
+  rem ★ 내용 + 널 1 바이트가 들어가야 한다(D2 봉인). len + |s| + 1 ≤ len(buf).
+  guard le (add (add (field b len) (len s)) 1) (len buf) . else return error no_room .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    set (index buf (add (field b len) i)) (index s i) .
+    set i (add i 1) .
+  end .
+  set (field b len) (add (field b len) (len s)) .
+  set (index buf (field b len)) 0 .              rem ★ 봉인 — len 자리에 널(cstr 수출이 O(1))
+  return ok .
+end .
+
+rem ── ② 되는 만큼 ──────────────────────────────────────────────────────
+rem
+rem ★ 자르되 **잘랐다는 것을 숨기지 않는다**: 쓴 개수를 돌려주므로 호출자가 `len s` 와 비교해
+rem   안다. 이것이 "조용한 절단" 과 다른 점이다 — 사실이 값으로 나온다.
+export proc append_trunc input b mut str_buf . input buf mut slice u8 . . input s slice u8 .
+  output u64 . effects none .
+do
+  rem ★ 자리가 아예 없으면(빈 버퍼 · `len ≥ len buf`) **한 바이트도 안 쓰고 0** 이다 — 봉인 자리조차
+  rem   없으므로 봉인도 안 한다. 전에는 밑으로 감긴 `avail` 로 경계 밖에 썼다(2026-09-04).
+  guard lt (field b len) (len buf) . else return 0 .
+  rem ★ 내용 용량 = len(buf) − 1 (널 봉인 자리 예약, D2).
+  var avail u64 be sub (sub (len buf) 1) (field b len) .
+  var n u64 be len s .
+  if gt n avail . do set n avail . end .
+  var i u64 be 0 .
+  while lt i n . do
+    set (index buf (add (field b len) i)) (index s i) .
+    set i (add i 1) .
+  end .
+  set (field b len) (add (field b len) n) .
+  set (index buf (field b len)) 0 .              rem ★ 봉인
+  return n .
+end .
+
+rem ── ③ 키운다 ─────────────────────────────────────────────────────────
+rem
+rem ★★★ **성장은 "더 큰 자리를 호출자가 준다" 로 표현된다.** 라이브러리가 몰래 할당하지 않는다 —
+rem   RFC-0043 D1(ambient 힙 없음)이 여기서도 그대로 산다.
+rem   ⇒ 그리고 이것이 F4(c)의 실물이다: **성장하려면 더 큰 바이트를 *가진 자* 여야 한다.**
+rem     빌린 버퍼만 든 코드는 새 자리를 못 만들므로 이 op 을 유용하게 부를 수 없다.
+rem ★ 실패하면 **원본이 그대로다**(원자적): 새 자리가 모자라면 아무것도 안 옮긴다.
+export proc append_grow input b mut str_buf . input old mut slice u8 . .
+  input new_buf mut slice u8 . . input s slice u8 .
+  output result void sb_error . effects none .
+errors no_room .
+do
+  rem ★ 새 자리에 내용 + 널 1 바이트가 들어가야 한다(D2 봉인).
+  guard le (add (add (field b len) (len s)) 1) (len new_buf) . else return error no_room .
+  rem 옛 내용을 새 자리로 옮긴다
+  var i u64 be 0 .
+  while lt i (field b len) . do
+    set (index new_buf i) (index old i) .
+    set i (add i 1) .
+  end .
+  rem 그 뒤에 새 바이트를 잇는다
+  var j u64 be 0 .
+  while lt j (len s) . do
+    set (index new_buf (add (field b len) j)) (index s j) .
+    set j (add j 1) .
+  end .
+  set (field b len) (add (field b len) (len s)) .
+  set (index new_buf (field b len)) 0 .          rem ★ 봉인
+  return ok .
+end .

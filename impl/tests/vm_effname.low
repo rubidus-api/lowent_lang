@@ -1,0 +1,24 @@
+rem ★★★ **효과 낱말과 겹치는 op 이름은 유령 효과를 안 물린다** (2026-07-24, 경계 스윕 C).
+rem
+rem   `builtin_effect` 는 정의 없는 **프리미티브**(print/run/env … 네이티브 내장)를 위한 이름
+rem   휴리스틱이다. 그런데 사용자가 `fn run … effects none` 을 정의해도 그 op 을 **호출하면**
+rem   호출자에게 IO 가 물렸다 — op 이름 `run` 이 효과 낱말과 겹친다는 이유만으로(E-EFFECT-CALC).
+rem   `run`·`send` 는 흔한 메서드 이름이라 이 오진은 **정당한 프로그램을 막았다**.
+rem   ⇒ 이름이 op 표에 있으면(사용자가 정의했으면) 이름 휴리스틱을 생략하고, 그 op 의 **선언 효과**를
+rem     신뢰한다 — 진짜 효과는 그 op 의 **자기 본문**이 이미 검사받는다.
+module vm_effname .
+
+rem op 이름이 효과 낱말 'run' 인데 순수하다 — 정말 순수하다(add 뿐).
+fn run input a u64 . output u64 . do
+  return add a 1 .
+end .
+
+rem 그 op 을 호출하는 순수 op — 전엔 유령 IO 로 E-EFFECT-CALC 였다. 이제 순수하게 통과.
+fn use_run input a u64 . output u64 . do
+  return run a .
+end .
+
+rem 결과 확인용 진입점: run(41) = 42, use_run(41) = 42.
+fn drive output u64 . do
+  return use_run 41 .
+end .

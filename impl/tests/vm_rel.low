@@ -1,0 +1,54 @@
+rem ★★★ R5 — **구간 밖의 술어.** 유일하게 남아 있던 진짜 연구 갭이었다.
+rem
+rem 먼저 **쟀다.** HANDOFF 는 갭을 "비선형 · 배열 내용" 이라고 적어 두었다. 실측은 달랐다:
+rem
+rem   경계 곱 (a,b ∈ [0,3] ⇒ a*b ≤ 9)   → **이미 증명된다.** iv_mul 이 있다. "비선형" 은 오진이었다.
+rem   관계형 (a ≤ b ⇒ b − a ≥ 0)         → **못 했다.** 구간은 변수를 **독립으로** 본다.
+rem   배열 내용 (모든 원소 < 10)          → 못 한다. 원소별 사실이 이 도메인에 **없다.**
+rem
+rem ★★ 그리고 관계형을 파 보니 그 밑에 더 나쁜 게 있었다:
+rem
+rem   `requires le a b .` 는 **완전히 죽은 절이었다.**
+rem     ir_contract_entry 는 우변이 상수가 아니면 통째로 버렸다 → **강제되지 않았다.**
+rem     iv_apply_requires 도 같은 이유로 버렸다              → **사실로도 안 쓰였다.**
+rem   파싱되고, 통과하고, **아무 뜻도 없었다.** PRINCIPLES.md §0 이 금지하는 바로 그 침묵이다.
+rem
+rem   ★ 그리고 도구는 검사가 남을 때마다 이렇게 **조언**했다: "add a `requires` to prove the range".
+rem     그 조언을 따라 관계형 requires 를 쓰면 — **아무 일도 일어나지 않았다.**
+rem     도구가 자기 한계를 프로그램 탓으로 돌리고 있었다(교훈 5: 오진이 가장 나쁘다).
+rem
+rem 고친 방법: `lenlt` 가 이미 관계형 사실의 **특수 사례**였다(`i < len(s)`). 같은 모양으로
+rem   **차분 제약**(lerel[k] = j ⇒ loc[k] ≤ loc[j])을 두었다. 진입에서 requires 로 심고,
+rem   분기 조건에서 배우고, 대입에서 죽이고, 합류에서 두 경로가 같을 때만 살린다.
+rem
+rem ★ 그리고 이걸 처음 켰을 때 **VM 이 스스로를 고발했다**: E-VM-ANALYSIS —
+rem   "분석이 넘칠 수 없다고 했는데 넘쳤다". 사실로는 쓰면서 **강제는 안 하고 있었다.**
+rem   교훈 1 이 **내 코드에** 그대로 나타났다. 강제를 먼저 세우고 나서야 검사를 지웠다.
+
+module vm_rel .
+
+rem ① 관계형 계약: a ≤ b 를 알면 b − a 는 절대 언더플로하지 않는다.
+rem    구간만 보면 a,b ∈ [0,255] 라 b − a ∈ [−255,255] 다 → u8 검사가 **절대** 안 지워졌다.
+fn gap input a u8 . input b u8 . output u8 . requires le a b . ensures ge ret 0 . do
+    return sub b a .
+end .
+
+rem ② 그리고 계약을 어기면 **호출자가 고발당한다** — 검사를 지웠으니 강제가 반드시 있어야 한다.
+rem    (gap 10 3 → E-VM-CONTRACT: requires violated at entry)
+
+rem ③ 대조군: requires 가 없으면 검사는 **남는다.** 지우는 근거가 없으니까.
+fn gap_unchecked input a u8 . input b u8 . output u8 . do
+    return sat_sub b a .
+end .
+
+rem ④ 경계 곱은 이미 증명된다 — 여기 적어 두는 이유는 "비선형" 이라는 진단이 **틀렸음**을
+rem    회귀로 못 박기 위해서다. 진짜 갭은 비선형이 아니라 **관계형**이었다.
+fn bounded_mul input a range 0 3 . input b range 0 3 . output u8 . ensures le ret 9 . do
+    return mul a b .
+end .
+
+rem ⑤ 분기에서 배운 관계도 사실이다 — requires 없이 `if` 하나로.
+fn gap_guarded input a u8 . input b u8 . output u8 . do
+    if gt a b . do return 0 . end .
+    return sub b a .
+end .

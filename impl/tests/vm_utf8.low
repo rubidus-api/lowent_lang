@@ -1,0 +1,102 @@
+rem ★★★ **UTF-8 코드포인트 순회** (RFC-0068 §8 [open] 해소 · `lib/utf8.low`).
+rem
+rem ★★ **인코딩이 라이브러리인 것이 D3 의 요점이다**: `str` 은 바이트이고(인코딩 불가지),
+rem   UTF-8 은 타입 불변식이 **아니다**(F2). ⇒ 검증을 **원할 때만** 치른다.
+rem   그 대가로 이 파일이 필요하고, 이득으로 **자르기가 실패할 수 없다**(바이트니까).
+rem
+rem ★★★ **거절이 이 라이브러리의 값이다.** 유효한 것을 읽는 것보다 **무효한 것을 거절하는 것**이
+rem   어렵고, 그것이 조용히 통과하면 그 위의 모든 층이 거짓 전제 위에 선다:
+rem     · 과길이(overlong) — 같은 문자를 두 가지로 쓸 수 있으면 **비교가 거짓말**이 된다
+rem       (보안 필터를 우회하는 고전적 통로)
+rem     · 서로게이트(U+D800–DFFF) — UTF-16 의 사정이지 UTF-8 에는 **없다**
+rem     · 잘린 시퀀스 · 선두 자리의 이어지기 바이트
+rem   ★ 전부 `none` 이다 — 트랩도 U+FFFD 치환도 아니다. **치환은 되돌릴 수 없는 손실**이라
+rem     호출자가 고를 수 없게 만든다(lib/io.low 이 CRLF 를 안 지운 것과 같은 판단).
+rem
+rem ★ 전량-아니면-무: `count_chars` 는 무효 바이트를 만나면 **부분 답을 안 준다**(fmt 와 같은 규율).
+
+module vm_utf8 .
+
+use utf8 from "../../lib/utf8.low" .
+
+rem ── 유효한 것 ────────────────────────────────────────────────────────
+
+rem ASCII 는 1 바이트. "hi" → 2 글자.
+fn t_ascii output u64 . do
+  let n option u64 . be utf8.count_chars "hi" .
+  guard is_some n . else return 90 .
+  guard eq (some_value n) 2 . else return 91 .
+  let c option u64 . be utf8.decode "hi" 0 .
+  guard is_some c . else return 92 .
+  guard eq (some_value c) 104 . else return 93 .          rem 'h'
+  return 1 .
+end .
+
+rem 한글은 3 바이트. "한" = EA 9C … 아니라 ED 95 9C (U+D55C).
+fn t_hangul output u64 . do
+  let s slice u8 be "한" .
+  guard eq (len s) 3 . else return 90 .                   rem ★ 바이트로는 3
+  let n option u64 . be utf8.count_chars s .
+  guard is_some n . else return 91 .
+  guard eq (some_value n) 1 . else return 92 .            rem ★ 글자로는 1
+  let c option u64 . be utf8.decode s 0 .
+  guard is_some c . else return 93 .
+  guard eq (some_value c) 54620 . else return 94 .        rem U+D55C = 54620
+  return 1 .
+end .
+
+rem 2 바이트(U+00E9 'é' = C3 A9)와 4 바이트(U+1F600 = F0 9F 98 80) 섞기.
+fn t_mixed output u64 . do
+  let s slice u8 be "aé😀" .
+  let n option u64 . be utf8.count_chars s .
+  guard is_some n . else return 90 .
+  guard eq (some_value n) 3 . else return 91 .            rem 글자 3, 바이트 7
+  guard eq (len s) 7 . else return 92 .
+  let c2 option u64 . be utf8.decode s 1 .
+  guard is_some c2 . else return 93 .
+  guard eq (some_value c2) 233 . else return 94 .         rem U+00E9
+  let c3 option u64 . be utf8.decode s 3 .
+  guard is_some c3 . else return 95 .
+  guard eq (some_value c3) 128512 . else return 96 .      rem U+1F600
+  return 1 .
+end .
+
+rem ── 거절하는 것 — 여기가 이 라이브러리의 값이다 ────────────────────────
+
+rem ★ 잘린 시퀀스: 3 바이트 선두인데 뒤가 하나뿐.
+proc t_truncated input buf mut slice u8 . . output u64 . effects none . do
+  set (index buf 0) 237 .                                 rem ED — 3 바이트 선두
+  set (index buf 1) 149 .
+  let d option u64 . be utf8.decode (subslice buf 0 2) 0 .
+  guard eq (is_some d) false . else return 90 .
+  return 1 .
+end .
+
+rem ★★ 과길이: U+0041('A')을 2 바이트로 쓴 C1 81. 유효한 것과 **같은 값**이 되므로 거절해야 한다.
+proc t_overlong input buf mut slice u8 . . output u64 . effects none . do
+  set (index buf 0) 193 .                                 rem C1
+  set (index buf 1) 129 .                                 rem 81
+  let d option u64 . be utf8.decode (subslice buf 0 2) 0 .
+  guard eq (is_some d) false . else return 90 .
+  return 1 .
+end .
+
+rem ★★ 서로게이트 U+D800 을 UTF-8 로 쓴 ED A0 80 — UTF-8 에는 없는 자리.
+proc t_surrogate input buf mut slice u8 . . output u64 . effects none . do
+  set (index buf 0) 237 .                                 rem ED
+  set (index buf 1) 160 .                                 rem A0
+  set (index buf 2) 128 .                                 rem 80
+  let d option u64 . be utf8.decode (subslice buf 0 3) 0 .
+  guard eq (is_some d) false . else return 90 .
+  return 1 .
+end .
+
+rem ★ 이어지기 바이트가 선두에 왔다.
+proc t_stray_cont input buf mut slice u8 . . output u64 . effects none . do
+  set (index buf 0) 128 .                                 rem 80
+  let d option u64 . be utf8.decode (subslice buf 0 1) 0 .
+  guard eq (is_some d) false . else return 90 .
+  let v bool be utf8.is_valid (subslice buf 0 1) .
+  guard eq v false . else return 91 .
+  return 1 .
+end .

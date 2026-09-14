@@ -1,0 +1,100 @@
+rem ★★★ **참조가 op 경계를 넘는다** (2026-07-19 — 하강 꼬리의 마지막 마퀴 항목).
+rem
+rem   HANDOFF §5-2 가 이것을 *"진짜 남은 하나의 부류"* 로 지목해 뒀다: ret-of-ref · pass-ref ·
+rem   deref · write-through. 그리고 **왜 어려운지**도 적어 뒀다 —
+rem     *"참조를 생 포인터로 하강하면 **양성**은 되지만 **음성 트랩이 사라진다**
+rem       (배타성이 런타임 추적이므로)."*
+rem
+rem ★★★ **그래서 생 포인터로 안 낮췄다.** 참조는 이미 필요한 것을 다 싣고 다녔다 —
+rem   프레임 깊이 · 슬롯 · **세대** · 빌림 태그. 빠져 있던 것은 참조가 아니라,
+rem   `field`(읽기·쓰기) 같은 **컨테이너 연산이 그것을 따라가지 않는다**는 것뿐이었다.
+rem   ⇒ 통과 지점을 하나로 모으고(`vm_through`), 거기서 **매번** 두 가지를 검사한다:
+rem       ① 세대  — 참조가 자기 프레임보다 오래 살았나 (E-VM-DANGLING)
+rem       ② 빌림  — readers-XOR-writer 를 깼나 (E-VM-EXCL) · 공유 참조로 쓰나 (E-VM-READONLY)
+rem
+rem ★★ **대가는 속도이고, 그 자리에 이름이 있다**: 참조를 받는 op 은 **빠른 경로에 안 내린다**
+rem   (`takes_ref_arg`). 빠른 경로는 레코드를 정수 슬롯으로 펴서 빌림 추적이 없기 때문이다.
+rem   `--why-slow` 가 그 op 이 왜 느린 경로에 남았는지 말한다. **조용히 안전을 버리지 않는다.**
+rem
+rem ☞ **정직하게 — 동적 트랩은 VM 에만 있다**(RFC-0017 의 동적 검증기 V1 이 그 역할이다).
+rem   네이티브는 참조를 슬롯 포인터로 두고 정적 분석을 믿는다(`lw_deref` 도 전부터 그랬다).
+rem   그래서 아래 음성 op 들(`write_via_shared`·`dangling`)은 **VM 에서만** 트랩을 주장한다 —
+rem   양 백엔드에 주장하면 그것이 거짓말이 된다.
+
+module vm_refarg .
+
+struct pt .
+  x u64 .
+end .
+
+rem 받은 참조를 통해 **읽고 쓴다**. 이 op 은 자기가 참조를 받았는지 모른다 — 값이면 값을,
+rem 참조면 그 너머를 본다. 통과 지점이 하나라서 부르는 쪽 모양이 여기 안 샌다.
+proc bump input p mut pt . output u64 . effects none . do
+  set (field p x) (add (field p x) 1) .
+  return field p x .
+end .
+
+proc peek input p ref pt . output u64 . effects none . do
+  return field p x .
+end .
+
+rem ★ 가변 참조로 두 번 올린다 — 5 → 7. **루프 안에서** 넘긴다(전엔 이 자리가 조용히 통과했다).
+proc mutate output u64 . effects none . do
+  var q pt be make pt do x 5 . end .
+  var i u64 be 0 .
+  var t u64 be 0 .
+  while lt i 2 . do
+    set t (bump (mut_ref q)) .
+    set i (add i 1) .
+  end .
+  return t .
+end .
+
+rem ★ 공유 참조로 **읽기만** — 원본은 안 바뀐다.
+rem ★★ 이 한 줄이 **원래는 거짓 거절이었다**(2026-07-19, 같은 날 고침): 탈출 검사가 `return`
+rem   하위의 `ref <지역>` 을 **전부** 잡아서, 호출 인자로 **소비될 뿐인** 참조까지 잡았다.
+rem   ⇒ 이제 **피호출자의 반환 타입을 본다**: `peek` 이 u64 를 돌려주면 그 참조는 peek 안에서
+rem     끝나므로 안 잡고, 참조를 돌려주는 op(`output ref …`)이면 **진짜 탈출**이라 잡는다.
+rem   ☞ `ok`/`some` 같은 감싸개는 사용자 op 이 아니라 이 완화가 안 닿는다 —
+rem     `return ok (mut_ref tmp)`(region.low)는 **여전히 잡힌다.** 완화는 구멍만큼만 넓다.
+proc read_only output u64 . effects none . do
+  var q pt be make pt do x 5 . end .
+  return peek (ref q) .
+end .
+
+rem ── 슬라이스도 같은 통과 지점을 쓴다 ──────────────────────────────────
+rem
+rem ★ 참조가 가리키는 것이 레코드든 슬라이스든 **통과 지점은 하나**다(vm_through) — 그래서
+rem   `len`·`index`·`subslice`·인덱스 쓰기가 전부 같은 규칙으로 참조를 따라가고,
+rem   같은 자리에서 세대·빌림을 검사한다. 연산마다 따로 뚫었다면 그중 하나를 빠뜨렸을 것이다.
+
+proc slen input s mut slice u8 . . output u64 . effects none . do
+  return len s .
+end .
+
+proc spoke input s mut slice u8 . . output u64 . effects none . do
+  set (index s 0) 65 .
+  return index s 0 .
+end .
+
+rem 참조로 길이를 읽는다 — 원본 3 바이트.
+proc slice_len input buf mut slice u8 . . output u64 . effects none . do
+  var t u64 be 0 .
+  var i u64 be 0 .
+  while lt i 1 . do
+    set t (slen (mut_ref buf)) .
+    set i (add i 1) .
+  end .
+  return t .
+end .
+
+rem ★ 참조로 **원소를 쓴다** — 호출자의 버퍼가 실제로 바뀐다(뷰지 복사가 아니다).
+proc slice_write input buf mut slice u8 . . output u64 . effects none . do
+  var t u64 be 0 .
+  var i u64 be 0 .
+  while lt i 1 . do
+    set t (spoke (mut_ref buf)) .
+    set i (add i 1) .
+  end .
+  return add t (index buf 0) .
+end .

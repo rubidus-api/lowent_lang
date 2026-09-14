@@ -1,0 +1,30 @@
+rem ★★★★★ **embedded 프로파일의 정적 태스크 그래프** (2026-08-19, 소유자 결정 — 표를 다시 봄).
+rem
+rem   RFC-0009 §6.1 은 level 1(data-parallel) 의 opt-in 트리거로 **`spawn`/`task_group`** 을 적고,
+rem   그 줄의 profile 칸이 *"embedded = 정적 graph만"* 이다. 즉 **표는 처음부터 허용**하고 있었다.
+rem   그런데 검사기가 **낱말만 보고** `spawn` 을 통째로 level 2 로 올려서, `task_group` 안의
+rem   구조적 job spawn 이 모듈을 2 로 밀어 올렸고 `embedded` 는 자기 것을 못 썼다.
+rem   ⇒ 백로그의 *"spawn 이 level 2 라 embedded 는 한계"* 는 **표가 아니라 구현**의 상태였다.
+rem     낱말이 두 뜻이면 **모양으로** 가른다: `spawn actor` · `spawn send` 만 actor 급이고
+rem     `spawn <op> [args]` 는 구조적 job = level 1 이다.
+rem
+rem ★ 이 픽스처가 지키는 것: `build profile embedded` 아래에서 **정적 태스크 그래프가 선다**.
+rem   대조군은 같은 파일의 `E-PROFILE-LEVEL` 음성 검사(골든) — `spawn actor` 는 여전히 거절된다.
+
+module vm_embgraph .
+build profile embedded .
+
+rem 태스크 하나: 준 값을 그대로 돌려준다. 태스크는 인스턴스가 없다(스케줄러가 인자만으로 부른다).
+proc tick input n u64 . output u64 . effects none . do
+  return n .
+end .
+
+rem 정적 그래프: 태스크 셋을 큐잉하고 그룹 end 가 전부 join 한다(SC2).
+export proc graph3 output u64 . effects state . do
+  task_group do
+    spawn tick 1 .
+    spawn tick 2 .
+    spawn tick 3 .
+  end .
+  return 42 .
+end .

@@ -1,0 +1,47 @@
+rem ★★★ **같은 이름에 번호가 둘이었다** — 그리고 그것이 **조용히 틀린 답**을 냈다.
+rem
+rem   오류 값      = **오류-이름 표**의 인덱스 (IRW_WRAP_ERR / error_value)
+rem   enum 변형 값 = **변형 표**의 인덱스     (RFC: enum 값 = 변형 인덱스, 런타임 태그 없음)
+rem
+rem 두 표는 **순서가 다르다.** 그래서 프로그램이 자기 오류를 자기 이름과 비교하면:
+rem
+rem     if eq (error_value r) delta . do … end      ← r 은 진짜로 err delta 인데 **거짓**
+rem
+rem 진단도 없이 **틀린 답**을 받는다. 컴파일되고, 실행되고, 틀린다 — 가장 나쁜 종류다.
+rem (그리고 이것은 두 enum 이 있을 때만 드러난다. 하나뿐이면 두 표의 순서가 우연히 같다.
+rem  ★ 픽스처가 하나짜리만 있었기 때문에 아무도 못 봤다 — **진짜 프로그램의 모양**이 중요하다.)
+rem
+rem ⇒ 두 표를 **하나의 번호로** 묶는다: 변형 이름들을 변형 표와 **같은 순서로** 오류 표에 심는다.
+
+module vm_errid .
+
+enum e1 .
+  alpha .
+  beta .
+end .
+
+enum e2 .
+  gamma .
+  delta .
+end .
+
+fn g input a u8 . output result u8 e2 . errors delta gt a 10 .
+do
+  if gt a 10 . do return error delta . end .
+  return ok a .
+end .
+
+rem 오류를 **자기 이름과 비교한다.** 1 이어야 한다.
+fn names_match input a u8 . output u8 . do
+  let r be g a . .
+  if is_error r . do
+    if eq (error_value r) delta . do return 1 . end .
+    return 0 .
+  end .
+  return 9 .
+end .
+
+test error_names_are_the_same_number do
+  expect eq (names_match 20) 1 .
+  expect eq (names_match 5) 9 .
+end .

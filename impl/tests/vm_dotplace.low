@@ -1,0 +1,47 @@
+rem ★★★ **붙임점을 `set` 의 place 로 쓴다** (2026-07-20, 사용자 요청).
+rem
+rem ☞ **읽기는 되는데 쓰기가 안 됐다**: `p.x` 를 읽는 것은 되고(`ir_glued_local`),
+rem   `set p.x 5 .` 는 `E-IR-UNDEF: set of an undeclared name` 이었다 — set 이 그 원자를
+rem   **통째로 이름 하나**로 찾았기 때문이다. `set (field p x) 5 .` 로는 됐다.
+rem
+rem ★★★ **같은 표기가 읽기와 쓰기에서 다르게 취급됐다.** RFC-0049 가 중위 `to`/`in` 을 지우며
+rem   *"접근은 붙임점으로 일원화한다"* 고 했는데 그 일원화가 **절반만** 서 있었다 —
+rem   `some`/`none` 이 소비만 있고 생산이 없던 것, 뷰의 필드가 읽기만 되던 것과
+rem   **같은 모양의 구멍**이다(이 저장소에서 세 번째다).
+rem
+rem ★ 이 파일이 재는 것: 필드 · 인덱스 · **중첩**(`o.i.a`), 그리고 **붙임점과 전위 form 이
+rem   같은 답을 내는가** — 한 뜻에 두 표기이므로 갈리면 그것이 §2.5 위반이다.
+
+module vm_dotplace .
+struct inner .
+  a u64 .
+  b u64 .
+end .
+struct outer .
+  i inner .
+  n u64 .
+end .
+proc field_place output u64 . effects none . do
+  var p inner be make inner do a 1 . b 2 . end .
+  set (field p a) 7 .
+  return add (field p a) (field p b) .                    rem 7 + 2 = 9
+end .
+proc index_place input s mut slice u64 . . output u64 . effects none . do
+  set (field s 0) 11 .
+  set (field s 1) 22 .
+  return add (field s 0) (add (field s 1) (index s 0)) .  rem 11 + 22 + 11 = 44
+end .
+proc nested_place output u64 . effects none . do
+  var o outer be make outer do i (make inner do a 1 . b 2 . end) . n 5 . end .
+  set (field o i a) 30 .
+  return add (field o i a) (add (field o i b) (field o n)) .      rem 30 + 2 + 5 = 37
+end .
+proc matches_prefix output u64 . effects none . do
+  rem ★ 붙임점과 전위 form 이 **같은 답**을 내야 한다 — 한 뜻에 두 표기이므로
+  var p inner be make inner do a 0 . b 0 . end .
+  var q inner be make inner do a 0 . b 0 . end .
+  set (field p a) 9 .
+  set (field q a) 9 .
+  guard eq (field p a) (field q a) . else return 90 .
+  return field p a .                       rem 9
+end .

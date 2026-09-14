@@ -1,0 +1,42 @@
+rem ★★★★ **제3자 얼로케이터** (RFC-0112 D8 · WO-0214) — 컴파일러도 표준 라이브러리도 모르는 모듈이
+rem   `allocs.byte_allocator` 를 갖추기만 하면, `using` 으로 **표준 얼로케이터와 똑같이** 꽂힌다.
+rem   정책: 받침 바이트를 **돌아가며** 쓴다(끝에 닿으면 처음으로) — 범프와 다른 정책이라 답이 다르다.
+
+module ringalloc .
+
+use allocs from "../../../lib/alloc.low" .
+
+export actor ring_bytes .
+  satisfies allocs.byte_allocator .
+  state .
+    mem mut slice u8 . .
+    off u64 .
+    laps u64 .
+  end .
+
+  proc init input backing mut slice u8 . . output u64 . effects state . do
+    set mem backing .
+    set off 0 .
+    set laps 0 .
+    return len mem .
+  end .
+
+  proc reserve input n u64 . output option mut slice u8 . . effects state . do
+    guard le n (len mem) . else return none .
+    if gt n (sub (len mem) off) . do
+      set off 0 .
+      set laps (add laps 1) .
+    end .
+    let v mut slice u8 . be subslice mem off (add off n) .
+    set off (add off n) .
+    return (some v) .
+  end .
+
+  proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects none . do
+    return none .
+  end .
+
+  proc used output u64 . effects none . do
+    return add (mul laps 1000) off .
+  end .
+end .

@@ -1,0 +1,31 @@
+rem ★★★ **이진 탐색 시험** (lib/search.low) — 정렬(lib/sort.low)과 함께 돈다.
+rem
+rem   순수 계산이라 **오라클 안**: diff-sweep 이 임의 slice·target 에서 VM≡native 를 지킨다.
+rem   골든은 정확성 — 정렬한 뒤 찾으면 맞는 인덱스인가 · 없으면 none · 하한(삽입점)이 맞는가.
+rem
+rem ★ 픽스처가 **먼저 정렬한다**(bsearch 의 전제) — 그래서 sort + search 가 **함께** 검증된다.
+
+module vm_search .
+
+use sortlib from "../../lib/sort.low" .
+use searchlib from "../../lib/search.low" .
+
+rem 정렬 후 target 을 찾는다 → 인덱스+1(0 = 못 찾음). 골든이 알려진 배열의 정확한 자리를 대조한다.
+proc bs_find input s mut slice u64 . . input target u64 . output u64 . effects none . do
+  sortlib.sort s .
+  let r option u64 . be searchlib.bsearch s target .
+  guard is_some r . else return 0 .
+  return add (some_value r) 1 .
+end .
+
+rem 정렬 후 하한(target 이상인 첫 인덱스). 삽입점·범위 시작.
+proc lb_find input s mut slice u64 . . input target u64 . output u64 . effects none . do
+  sortlib.sort s .
+  return searchlib.lower_bound s target .
+end .
+
+rem ☞ **임의 배열의 정확성은 diff-sweep 이 지킨다**: `bsearch`·`lower_bound` 는 순수 op 이라 차등
+rem   퍼저가 **직접** 부른다(임의 slice·target). 두 백엔드가 같은 답을 내야 한다(VM≡native). 그래서
+rem   "모든 원소가 찾아지는가" 를 재는 자기검증 op 은 안 둔다 — 그것을 루프에서 부르면 정규화기가
+rem   임포트한 option-반환 fn 을 못 괄호 쳐 태그 경로로 남고(정확성 아니라 커버리지 문제), 게이트가
+rem   그 give-up 을 센다. bs_find/lb_find(정확한 값) + 직접 diff-sweep 이면 충분하다.

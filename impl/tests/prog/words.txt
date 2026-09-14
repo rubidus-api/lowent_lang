@@ -1,0 +1,3 @@
+the cat sat
+the dog ran
+the bird flew

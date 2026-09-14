@@ -1,0 +1,65 @@
+rem ★★★ **비트셋 원소 범위는 선언 폭까지다 — 물리 64 가 아니라** (2026-07-24, 경계 스윕 F4/F5).
+rem
+rem   전에는 `add`/`contains`/`remove` 의 원소 범위검사가 **양쪽 백엔드 다 하드코딩 64** 였다.
+rem   그래서 `bitset 8` 에 멤버 8~63 을 **조용히 받았다**: `add a 8 . count a .` = 1(있어선 안 될
+rem   비트). 그런데 `complement` 는 폭 8 로 마스킹하므로 그 비트를 떨어뜨린다 — **비일관**.
+rem   양쪽이 같은 규칙을 쓰던 both-agree-wrong 이라 diff-sweep 이 못 잡았다.
+rem   ⇒ 로워링이 **피연산자의 선언 폭**을 IR 에 굽는다(네이티브 빠른경로는 폭 없는 워드라 런타임에
+rem     모른다). 폭을 못 알면(파라미터·집합연산 결과) 0 → 두 백엔드 똑같이 64 로 후퇴(발산 없음).
+rem     태그 경로는 박스별 폭(bnew 인자)을 기억한다.
+module vm_bwidth .
+
+rem 폭 8 밖(8) 을 밀면 트랩 — 전엔 조용히 받아 count=1 이었다.
+fn w8_add_oob output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  add a 8 .
+  return count a .
+end .
+
+rem 폭 8 안(7) 은 정상 — 과잉규제도 거짓말과 같은 부류다.
+fn w8_add_ok output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  add a 7 .
+  return count a .
+end .
+
+rem contains 도 폭까지 — 폭 밖(20) 질의는 트랩.
+fn w8_contains_oob output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  return narrow u64 (contains a 20) .
+end .
+
+rem remove 도 대칭 — 폭 밖(20) 제거는 트랩.
+fn w8_remove_oob output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  remove a 20 .
+  return count a .
+end .
+
+rem 정상 경로: 폭 8 안에서 3 을 넣고 질의 → 1.
+fn w8_within output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  add a 3 .
+  return narrow u64 (contains a 3) .
+end .
+
+rem ★ **비트셋 파라미터도 선언 폭을 실어야** — 지역만 실으면 파라미터에 add/contains 가 64 로
+rem   후퇴해 태그 경로(박스별 폭)와 어긋난다. 파라미터 s(bitset 8) 에 폭 밖(20) → 트랩.
+fn p_add_oob input s bitset 8 . input k u64 . output u64 . do
+  add s k .
+  return count s .
+end .
+rem 파라미터 s 에 폭 안(5) 은 정상 — count=1.
+fn p_add_ok input s bitset 8 . input k u64 . output u64 . do
+  add s k .
+  return count s .
+end .
+rem 위 둘을 호출해 실행 가능한 진입점(폭 밖 20 은 트랩, 폭 안 5 는 1).
+fn p_drive_oob output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  return p_add_oob a 20 .
+end .
+fn p_drive_ok output u64 . do
+  var a bitset 8 . be bitset_new 8 .
+  return p_add_ok a 5 .
+end .

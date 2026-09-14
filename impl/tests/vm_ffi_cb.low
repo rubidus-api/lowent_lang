@@ -1,0 +1,59 @@
+rem ★★★ **콜백 · `unsafe_fn` 타입** (RFC-0066) — 씨가 Lowent 함수를 **함수 포인터로 부른다**.
+rem
+rem   핵심 통찰: 콜백 = **`export extern` op 의 주소**다. export extern 은 이미 C 가 부를 수 있는
+rem   Lowent op 이고(태그 어댑터 없이 하강된 몸으로, 진입에 경계 계약 검사 — RFC-0055 D6), 콜백은
+rem   **그 op 의 주소(`unsafe_fn <op>`)를 값으로 넘기는 것**이다. 새 실행 규약을 발명하지 않는다.
+rem
+rem   ★ 안전 경계가 **뒤집힌다**: 보통 FFI 는 우리가 씨를 부르지만, 콜백은 **씨가 우리를 부른다**.
+rem     - 등록(콜백을 씨에 건넴): Lowent→C, **아무것도 보장 안 함**(씨가 언제·몇 번·어느 스레드에서
+rem       부를지 우리 밖). `unsafe`.
+rem     - 콜백 진입(씨가 우리를 부름): C→Lowent, **여기가 우리 문** — export extern 이 인자에 계약을
+rem       검사한다. 통과하면 몸 안은 우리 불변식이 성립한다.
+rem   ⇒ **문 안은 우리가, 문 밖은 씨가.** 이름의 `unsafe` 가 그 선을 말한다.
+rem
+rem   ★ `unsafe_fn <op>` 는 op 이 **export extern** 일 때만(아니면 E-FN-NOTEXPORT) — 평범한 op 은
+rem     씨가 부를 주소가 없다. 콜백은 씨에 void* 로 넘어간다(어떤 함수 포인터와도 ABI 호환).
+module vm_ffi_cb .
+
+rem 콜백이 될 Lowent op — export extern 이라 씨가 부를 수 있다(경계 계약 검사 포함).
+export extern fn dbl input a i64 . output i64 . . do return mul a 2 . end .
+
+rem lw_c_apply(long long (*f)(long long), long long x) = f(x) + 1 — 씨가 콜백 f 를 부른다.
+unsafe extern proc c_apply .
+  input k cap c .
+  input f unsafe_fn .
+  input x i64 .
+  output i64 .
+  link lw_c_apply .
+  effects unsafe .
+end .
+
+unsafe proc apply_dbl input k cap c . input x i64 . output i64 . effects unsafe . do
+  return c_apply k (unsafe_fn dbl) x .
+end .
+
+rem ★★★ **조합** — 콜백 + 가변인자를 한 extern 에. 두 기능은 방출 경로가 다르다(콜백은 합성 본문의
+rem   a[], 가변인자는 호출 지점의 스택). 그 둘이 만나자 **가변인자 경로가 콜백 인자를 int 로 오취급**
+rem   했다 — 유닛으로는 안 보이고 **조합에서** 드러났다(교훈 6). 여기 게이트가 그 자리를 지킨다.
+unsafe extern proc c_apply_sum .
+  input k cap c .
+  input f unsafe_fn .
+  input n i64 .
+  output i64 .
+  variadic .
+  link lw_c_apply_sum .
+  effects unsafe .
+end .
+
+unsafe proc sum_dbl input k cap c . input a i64 . input b i64 . output i64 . effects unsafe . do
+  return c_apply_sum k (unsafe_fn dbl) 2 a b .
+end .
+
+rem ★★★ **콜백 진입이 우리 문** — 계약을 가진 콜백. 씨가 위반 값으로 부르면 **진입에서 트랩**한다.
+rem   pos2 는 `requires ge a 0`. 씨의 apply(f, x) 가 f(-3) 을 부르면, 우리 문(export 래퍼)에서
+rem   계약이 검사돼 트랩한다 — 씨는 unsafe 지만, 우리 콜백에 들어오는 순간 우리 불변식이 성립한다.
+export extern fn pos2 input a i64 . output i64 . . requires ge a 0 . do return mul a 2 . end .
+
+unsafe proc apply_checked input k cap c . input x i64 . output i64 . effects unsafe . do
+  return c_apply k (unsafe_fn pos2) x .
+end .

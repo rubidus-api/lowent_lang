@@ -1,0 +1,197 @@
+rem ★★★ **lockbox — 일곱째 진짜 프로그램.** 두 쪽이 만난 적 없이 비밀을 나눈다.
+rem
+rem   하는 일은 TLS 1.3 이 하는 일의 **축소판**이고, 순서도 같다:
+rem     ① X25519 로 **공유 비밀**을 만든다 (아무도 그것을 보내지 않는다)
+rem     ② **TLS 1.3 키 스케줄**(RFC 8446 §7.1)로 레코드 키·IV·nonce 를 유도한다
+rem     ③ ChaCha20-Poly1305 로 **봉인**한다 (기밀성과 무결성을 한 번에)
+rem     ④ 받는 쪽이 자기 비밀키로 ①②를 되풀이해 **개봉**한다
+rem
+rem ★★ ②가 진짜 사다리다 — 비밀을 그대로 키로 쓰지 않는다:
+rem       0 ─Extract→ Early ─"derived"→ ┐
+rem       ECDHE ─Extract────────────────→ Handshake ─라벨→ 비밀 ─"key"/"iv"→ 키·IV
+rem   TLS 와 다른 것은 **라벨 하나뿐**이고, 구조는 같다.
+rem
+rem ★★ **이 프로그램이 원장에서 하는 일**: 라이브러리는 혼자 초록인 것으로 부족하고
+rem   *"진짜 프로그램이 쓰는가"* 를 원장이 센다(RFC-0075 §8 Stage 2). 여섯 모듈
+rem   (x25519 · hmac · tls13 · aead · chacha · poly)이 **한 문장 안에서** 만나는 자리가 여기다.
+rem
+rem ★★★ **그리고 이 프로그램이 라이브러리를 고쳤다.** 처음 판은 체 원소 아홉과 바이트 버퍼
+rem   열둘을 그대로 늘어놓았고, 도구가 **E-IR-ARITY**(파라미터 상한 16)로 거절했다.
+rem   그래서 `x25519.agree` 가 생겼다 — 작업 공간을 **하나로** 받는 얼굴이다.
+rem   ☞ 라이브러리가 쓸 만한지는 **써 봐야** 안다. 혼자 초록인 것으로는 그 사실이 안 나온다.
+rem
+rem ★ 오라클은 **왕복**이다: 봉인한 것을 반대편이 개봉해 원문이 돌아오면 1.
+rem   그리고 **한 비트를 뒤집으면 0** 이어야 한다 — 그 둘이 함께여야 주장이 산다.
+rem
+rem ☞ 안 지은 것: 이 프로그램은 상대의 공개키를 **믿고 받는다**. 그것을 누가 보증하느냐는
+rem   PKI 의 물음이고, RFC-0090 N7c 는 그 답을 **안 짓기로** 정했다(호출자가 고정한다).
+rem   여기 적어 두는 이유는, 안 지은 것을 지은 척하지 않기 위해서다.
+
+module lockbox .
+
+use x25519 from "../../../lib/x25519.low" .
+use hmac from "../../../lib/hmac.low" .
+use tls13 from "../../../lib/tls13.low" .
+use aead from "../../../lib/aead.low" .
+use chacha from "../../../lib/chacha.low" .
+use poly from "../../../lib/poly.low" .
+use gcm from "../../../lib/gcm.low" .
+use aes from "../../../lib/aes.low" .
+use rsa from "../../../lib/rsa.low" .
+use bigint from "../../../lib/bigint.low" .
+use p256 from "../../../lib/p256.low" .
+use ed25519 from "../../../lib/ed25519.low" .
+use der from "../../../lib/der.low" .
+
+rem ── 바이트 작업 공간 `b` 의 자리 배치 (전부 여기 한 곳에만 적는다) ──────────
+rem      0..32   puba       32..64   pubb      64..96   base(기저점 9)
+rem     96..128  shared_a  128..160  shared_b 160..192  Early Secret
+rem    192..224  Handshake 224..256  이 프로그램의 비밀
+rem    256..288  derived(사다리 중간)          288..320  빈 전사해시 SHA-256("")
+rem    320..352  레코드 키  352..384  IV 버퍼(앞 12 만 쓴다)   384..396  nonce
+rem    396..428  x25519 스칼라 사본            428..556  HkdfLabel info(128)
+rem    444..476 는 otk 와 겹치지 않게 뒤로 뺐다 → 아래 참조
+rem    556..572  pad       572..604  0 32 바이트  604..1116 scratch(512)
+rem   1116..1148 otk      1148..1164 want      1164..1228 ks    1228..1548 gcm 작업
+rem ★ 이 표가 곧 "이 계산이 무엇을 얼마나 쓰는가" 다 — 숨은 할당이 없으므로 이것이 답의 전부다.
+rem   ☞ `tls13` 은 scratch 를 **512** 요구한다(라벨을 400.. 자리에 둔다).
+
+rem ★★★ **상대가 정말 그 사람인가** — 서명 하나를 확인한다.
+rem   TLS 라면 CertificateVerify 가 이 자리다. lockbox 는 PKI 를 안 지으므로(N7c)
+rem   호출자가 **공개키를 고정해서** 넘긴다: 그 키로 서명이 맞으면 그 상대다.
+rem   ☞ 여기서 중요한 것은 양성이 아니라 **음성**이다: 서명이 틀리면 **아무것도 열지 않는다**.
+rem     `verify_pss` 가 0 을 답하면 이 프로시저는 거기서 끝난다.
+proc check_peer input sig slice u8 . input nb slice u8 . input mhash slice u8 .
+     input em mut slice u8 . input w mut slice u8 . input bw mut slice u64 . output u64 . effects none . do
+  let k u64 be shr (len nb) 1 .
+  let need u64 be add k 4 .
+  guard ge (len bw) (mul need 7) . else return 0 .
+  return rsa.verify_pss sig nb 65537 mhash 32 em w (subslice bw 0 need) (subslice bw need (mul need 2)) (subslice bw (mul need 2) (mul need 3)) (subslice bw (mul need 3) (mul need 4)) (subslice bw (mul need 4) (mul need 5)) (subslice bw (mul need 5) (mul need 6)) (subslice bw (mul need 6) (mul need 7)) .
+end .
+
+rem ★★ 상대 확인의 **둘째 얼굴** — ECDSA P-256.
+rem   TLS 1.3 은 서명 방식을 협상한다: RSA 인증서면 `rsa_pss_rsae_sha256`,
+rem   ECDSA 인증서면 `ecdsa_secp256r1_sha256`. **둘 다 서야** 협상이 뜻을 갖는다.
+rem   ☞ 여기서도 중요한 것은 음성이다: 맞지 않으면 **아무것도 열지 않는다**.
+proc check_peer_ec input r slice u64 . input s slice u64 . input e slice u64 . input pub slice u64 .
+     input p slice u64 . input n slice u64 . input gx slice u64 . input gy slice u64 .
+     input w mut slice u64 . output u64 . effects none . do
+  return p256.ecdsa_verify r s e pub p n gx gy w .
+end .
+
+rem ★★ 상대 확인의 **셋째 얼굴** — Ed25519.
+rem   TLS 1.3 이 협상하는 서명 방식 셋이 이로써 다 선다:
+rem     `rsa_pss_rsae_sha256` · `ecdsa_secp256r1_sha256` · `ed25519`.
+rem   ☞ 셋이 다 서야 협상 코드에 **죽은 분기가 없다**.
+proc check_peer_ed input sig slice u8 . input pub slice u8 . input msg slice u8 .
+     input sc mut slice u8 . input bb mut slice u8 . input w mut slice u64 . output u64 . effects none . do
+  return ed25519.verify sig pub msg sc bb w .
+end .
+
+rem ★★ 상대의 **인증서에서 공개키를 꺼낸다**(N7c: 체인은 안 본다).
+rem   ☞ 이 프로시저가 답하는 것은 *"이 인증서 안의 키가 무엇인가"* 뿐이다.
+rem     *"이 인증서를 믿을 만한가"* 는 **호출자의 물음**이고, 여기서 답하지 않는다.
+rem     안 지은 것을 지은 척하지 않는 자리다.
+proc peer_key_from_cert input cert slice u8 . input nb mut slice u8 . output u64 . effects none . do
+  let sp u64 be der.find_spki cert .
+  guard gt sp 0 . else return 0 .
+  let ko u64 be der.key_off cert sp .
+  guard gt ko 0 . else return 0 .
+  let no u64 be der.rsa_n_off cert ko .
+  guard gt no 0 . else return 0 .
+  let nl u64 be der.rsa_n_len cert ko .
+  guard gt nl 0 . else return 0 .
+  guard ge (len nb) nl . else return 0 .
+  var i u64 be 0 .
+  while lt i nl . do  set (index nb i) (index cert (add no i)) .  set i (add i 1) .  end .
+  return nl .
+end .
+
+rem ★ 공유 비밀 → 레코드 키·IV·nonce. **TLS 1.3 사다리를 그대로 탄다.**
+proc derive input shared slice u8 . input label slice u8 . input b mut slice u8 . output u64 . effects none . do
+  guard ge (len b) 1228 . else return 0 .
+
+  rem 사다리가 요구하는 두 상수를 **여기서 만들어 넘긴다** — 라이브러리가 몰래 만들지 않는다.
+  var i u64 be 0 .
+  while lt i 32 . do  set (index b (add 572 i)) 0 .  set i (add i 1) .  end .
+  guard eq (sha256 (subslice b 0 0) (subslice b 288 320)) 32 . else return 0 .
+
+  rem Early Secret = HKDF-Extract(0, 0)
+  guard eq (hmac.extract (subslice b 572 604) (subslice b 572 604) (subslice b 604 1116) (subslice b 160 192)) 32 . else return 0 .
+  rem Handshake Secret = Extract(Derive-Secret(Early,"derived",""), ECDHE)
+  guard eq (tls13.advance (subslice b 160 192) shared (subslice b 288 320) (subslice b 256 288) (subslice b 428 556) (subslice b 604 1116) (subslice b 192 224)) 32 . else return 0 .
+  rem 이 프로그램의 비밀 — TLS 라면 "c ap traffic" 이 올 자리다.
+  guard eq (tls13.derive_secret (subslice b 192 224) label (subslice b 288 320) (subslice b 428 556) (subslice b 604 1116) (subslice b 224 256)) 32 . else return 0 .
+  rem 레코드 키와 IV
+  guard eq (tls13.traffic_key (subslice b 224 256) 32 (subslice b 428 556) (subslice b 604 1116) (subslice b 320 352)) 32 . else return 0 .
+  guard eq (tls13.traffic_iv (subslice b 224 256) (subslice b 428 556) (subslice b 604 1116) (subslice b 352 384)) 12 . else return 0 .
+  rem nonce — 이 프로그램은 레코드 하나뿐이므로 시퀀스 0 이다.
+  rem   ☞ 여럿을 보내려면 번호를 **세어야** 하고, 그 책임은 호출자에게 있다(tls13 이 그렇게 짜였다).
+  return tls13.record_nonce (subslice b 352 364) 0 (subslice b 384 396) .
+end .
+
+rem ★★ 왕복 — 이 프로그램의 주장 전부가 여기 있다.
+rem   `flip` 이 1 이면 암호문 한 비트를 뒤집는다 — 그때는 **0 이 나와야 옳다**.
+rem   `suite` 1 = AES-128-GCM · 2 = ChaCha20-Poly1305. **둘 다 같은 약속을 지켜야 한다** —
+rem   그것이 스위트가 둘인 이유이고, 협상이 죽은 분기가 아닌 이유다.
+proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . input msg slice u8 . input flip u64 .
+     input salt slice u8 . input label slice u8 .
+     input b mut slice u8 . input ct mut slice u8 . input tag mut slice u8 . input out mut slice u8 .
+     input pst mut slice u64 . input cst mut slice u64 . input cwk mut slice u64 .
+     input w mut slice u64 . output u64 . effects none . do
+  guard ge (len b) 1548 . else return 90 .
+  guard ge (len tag) 16 . else return 90 .
+
+  rem ① 기저점 9 를 세우고 공개키 둘을 낸다.
+  var i u64 be 0 .
+  while lt i 32 . do  set (index b (add 64 i)) 0 .  set i (add i 1) .  end .
+  set (index b 64) 9 .
+  guard eq (x25519.agree (subslice b 0 32) ska (subslice b 64 96) (subslice b 396 428) w) 32 . else return 91 .
+  guard eq (x25519.agree (subslice b 32 64) skb (subslice b 64 96) (subslice b 396 428) w) 32 . else return 92 .
+
+  rem ② 각자 **상대의** 공개키로 공유 비밀에 이른다 — 같은 값이어야 한다.
+  guard eq (x25519.agree (subslice b 96 128) ska (subslice b 32 64) (subslice b 396 428) w) 32 . else return 93 .
+  guard eq (x25519.agree (subslice b 128 160) skb (subslice b 0 32) (subslice b 396 428) w) 32 . else return 94 .
+  var j u64 be 0 .
+  while lt j 32 . do
+    guard eq (index b (add 96 j)) (index b (add 128 j)) . else return 95 .
+    set j (add j 1) .
+  end .
+
+  rem ③ TLS 1.3 사다리로 레코드 키·IV·nonce 를 얻는다.
+  guard eq (derive (subslice b 96 128) label b) 12 . else return 96 .
+
+  rem ④ 봉인 — 스위트가 여기서 갈린다. AES-128 은 키의 **앞 16 바이트**만 쓴다.
+  if eq suite 1 . do
+    guard eq (gcm.encrypt (subslice b 320 336) (subslice b 384 396) salt msg ct tag (subslice b 1228 1548)) 16 . else return 97 .
+  end .
+  if eq suite 2 . do
+    guard eq (aead.seal (subslice b 320 352) (subslice b 384 396) salt msg ct tag (subslice b 1116 1148) pst cst cwk (subslice b 1164 1228) (subslice b 556 572)) 16 . else return 97 .
+  end .
+
+  if eq flip 1 . do
+    set (index ct 0) (cast u8 (bit_xor (cast u64 (index ct 0)) 1)) .
+  end .
+
+  rem ⑤ 받는 쪽이 **자기** 비밀에서 같은 사다리를 타고 개봉한다.
+  guard eq (derive (subslice b 128 160) label b) 12 . else return 98 .
+  var verdict u64 be 0 .
+  if eq suite 1 . do
+    set verdict (gcm.decrypt (subslice b 320 336) (subslice b 384 396) salt ct tag out (subslice b 1148 1164) (subslice b 1228 1548)) .
+  end .
+  if eq suite 2 . do
+    set verdict (aead.unseal (subslice b 320 352) (subslice b 384 396) salt ct tag out (subslice b 1116 1148) pst cst cwk (subslice b 1164 1228) (subslice b 556 572) (subslice b 1148 1164)) .
+  end .
+  if eq flip 1 . do
+    rem 변조된 것은 **거절돼야** 한다 — 그것이 이 줄의 전부다.
+    guard eq verdict 0 . else return 99 .
+    return 0 .
+  end .
+  guard eq verdict 1 . else return 100 .
+  var q u64 be 0 .
+  while lt q (len msg) . do
+    guard eq (index out q) (index msg q) . else return 101 .
+    set q (add q 1) .
+  end .
+  return 1 .
+end .

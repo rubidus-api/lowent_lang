@@ -1,0 +1,15 @@
+rem ★ `access` 의 두 모드는 **스케줄링 힌트가 아니라 읽기/쓰기 규율**이다.
+rem
+rem   shared_read — 이 op 은 그 자리에 **쓰면 안 된다.** 여러 태스크가 동시에 들 수 있게
+rem                 해 주는 것이 바로 그 약속이다(LowentDRF.v: 쓰기가 없으면 경합이 없다).
+rem   write_only  — 이 op 은 그 자리를 **읽으면 안 된다.** 초기화되지 않았을 수 있다.
+rem
+rem 이 둘까지 "아직 미구현" 한 덩어리로 묶여 있었다. 그러면 **잡을 수 있는 거짓말을 놓친다.**
+rem ⇒ **지금 강제할 수 있는 것은 지금 강제한다.** 못 하는 것(커널 스케줄 힌트)만 W-NOT-YET.
+
+module vm_access .
+
+fn only_reads input s slice u8 . output u8 . access s shared_read .
+do
+  return index s 0 .
+end .

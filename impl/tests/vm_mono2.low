@@ -1,0 +1,43 @@
+rem ★★★ **여러 타입 파라미터 + 인스턴스 dedup** (RFC-0021 — "없음" 목록의 마지막 둘).
+rem
+rem   ★ **여러 타입 파라미터는 이미 서 있었다.** RFC 가 "v1 은 하나" 라고 적어 두었지만 실측하니
+rem     둘·셋 다 돌았다(MONO_MAXT=4). 문서가 도구보다 낡았던 것이다 — 게이트로 못 박아 둔다.
+rem     (없는 것을 있다고 적는 것만 거짓말이 아니다. **있는 것을 없다고 적는 것도** 거짓말이다.)
+rem
+rem   ★★ **인스턴스 dedup 은 진짜로 비어 있었다.** 내용주소화는 `ga#pt` 와 `gb#pt` 에 **같은 iface 해시와
+rem      같은 def 해시**를 준다 — 즉 "같은 정의" 라고 이미 말한다. 그런데 뒤끝은 **이름으로 심볼을 지어**
+rem      본문을 **두 번** 찍었다. 해시가 같다고 판정해 놓고 그 판정을 **쓰지 않았다**.
+rem      ⇒ iface·def 해시가 둘 다 같으면 정본 하나로 접는다(canon_of). export/extern 은 **심볼 자체가
+rem        계약**이라 접지 않는다.
+
+module vm_mono2 .
+
+struct pt .
+  x u32 .
+  y u32 .
+end .
+
+struct rc .
+  w u32 .
+  h u32 .
+end .
+
+rem 타입 파라미터 **둘** — 서로 다른 구조체를 한 op 이 받는다.
+fn pair input comptime a type . input comptime b type . input p a . input q b . output u32 . do
+  return (add (field p x) (field q w)) .
+end .
+
+fn two output u32 . do
+  var u pt . be make pt do x 3 . y 4 . end .
+  var v rc . be make rc do w 5 . h 6 . end .
+  return (pair pt rc u v) .
+end .
+
+rem ★ 본문이 **똑같은** 두 제네릭 — 같은 타입으로 세우면 iface·def 해시가 같아 한 몸으로 접힌다.
+fn ga input comptime t type . input p t . output u32 . do return (field p x) . end .
+fn gb input comptime t type . input p t . output u32 . do return (field p x) . end .
+
+fn dedup output u32 . do
+  var u pt . be make pt do x 3 . y 0 . end .
+  return (add (ga pt u) (gb pt u)) .
+end .

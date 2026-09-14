@@ -1,0 +1,33 @@
+rem ★★★ **음수 정수 리터럴 하강 증인** — VM≠native 였던 선재 결함(2026-07-23 수정).
+rem
+rem   렉서는 `-5` 를 한 NUMBER 토큰으로 낸다. IR 하강의 `ir_int_lit` 이 그 **부호를 안 봐서**
+rem   `-5` 가 정수로 안 읽히고 **float(push.f64)로 하강**됐다. 그래서 음수 정수 상수를 부호형
+rem   슬라이스 원소에 저장하면 VM(0 을 씀)≠native(panic: value)로 발산했다 — 둘 다 오답(−5 여야).
+rem   런타임 계산값(`sub a b`)·양수 상수·float 리터럴(`-1.5`)은 정상이었다(그래서 diff-sweep 이
+rem   못 스침 — 상수-음수 저장이 드묾). 수정: ir_int_lit 이 선행 `-`/`+` 부호를 파싱 → IRW_CONST.
+module m .
+
+rem 음수 정수 상수를 부호형 슬라이스 원소에 저장 → 읽기. -5 여야(버퍼 [251,255]).
+proc wneg input s mut slice i16 . output i64 . effects none . do
+  set (index s 0) -5 .
+  return widen i64 (index s 0) .
+end .
+
+rem 여러 폭 — i8/i32 도 같은 경로.
+proc wneg8 input s mut slice i8 . output i64 . effects none . do
+  set (index s 0) -3 .
+  return widen i64 (index s 0) .
+end .
+proc wneg32 input s mut slice i32 . output i64 . effects none . do
+  set (index s 0) -100000 .
+  return widen i64 (index s 0) .
+end .
+
+rem 음수 리터럴 산술(정수 문맥) — add a -5.
+fn addneg input a i32 . output i32 . do return add a -5 . end .
+
+rem 대조: 런타임 계산 음수는 늘 정상이었다.
+proc wsub input s mut slice i16 . input a i16 . input b i16 . output i64 . effects none . do
+  set (index s 0) (sub a b) .
+  return widen i64 (index s 0) .
+end .

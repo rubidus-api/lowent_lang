@@ -1,0 +1,20 @@
+rem ★★★ **고정이 살아 있는 동안에는 축출하지 못한다** — RFC-0104 §8-10 종료 조건 ①.
+rem
+rem   이 파일은 **거절되어야 한다**(`E-OWN-MOVED`). `acquire` 가 캐시 토큰을 **삼켰으므로**
+rem   그 뒤로 `evict` 에 건넬 것이 없다 — 손에 없는 권한은 쓸 수 없다.
+rem
+rem ☞ 그리고 그것을 막는 것은 이 라이브러리가 **아니라 언어**다: `owned` 가 *"토큰은 하나이고
+rem   넘기면 내 손을 떠난다"* 를 이미 강제한다. §8-2(브랜드)·§8-6(shard)에 이어 **세 번째로**
+rem   같은 규칙이 새 규약을 공짜로 만든다.
+module vm_pagecache_pinned .
+use pagecache from "../../lib/pagecache.low" .
+
+newtype db u8 .
+
+export proc evict_while_pinned output u64 . effects none . do
+  var c owned pagecache.cache db . be pagecache.open db 16 .
+  var p pagecache.pin db . be pagecache.acquire db c 42 .
+  rem ★ 캐시 토큰은 위에서 pin 이 삼켰다 — 여기서 거절된다.
+  var c2 owned pagecache.cache db . be pagecache.evict db c .
+  return (pagecache.epoch_of db c2) .
+end .

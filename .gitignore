@@ -1,0 +1,50 @@
+# Public surface is a WHITELIST: everything is ignored unless listed below.
+# (Development material lives in a separate private repository; its files may
+#  appear here as untracked symlinks and must never be committed.)
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+!/pkg.low
+!/impl/
+!/lib/
+!/skills/
+!/docs/
+/docs/*
+!/docs/spec/
+!/docs/manual/
+!/docs/example/
+
+# never public, even inside whitelisted folders
+/impl/tests/golden.sh
+/impl/tests/run-golden.sh
+/impl/tests/.lw_*.low
+/impl/tests/.z.low
+/docs/spec/INTERNAL-*.md
+/docs/spec/PRINCIPLES.md
+/docs/spec/LEDGER.tsv
+/docs/spec/COVERAGE.tsv
+/docs/example/algo-global.md
+/docs/example/context.md
+/docs/example/generational-handle.md
+/docs/example/coop-scheduler.md
+/docs/example/priority-ceiling.md
+/docs/example/labeled-block.md
+/docs/example/llms-txt.md
+/docs/example/cross-build.md
+/docs/example/reactor.md
+/docs/example/representations.md
+
+# build output
+build/
+build-archdev-*/
+dist/
+__pycache__/
+*.pyc
+*.o
+*.tmp
+*.log
+.DS_Store
+*.swp
+*~

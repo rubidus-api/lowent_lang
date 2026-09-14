@@ -1,0 +1,49 @@
+rem ★★ **구조체 배열** — `slice <struct>`. 시스템 프로그래밍의 기본 모양인데 없었다.
+rem
+rem 원소 크기를 못 구해서 **바이트 슬라이스로 남아 있었다.** 그래서:
+rem
+rem     len s   →  **4**   (2바이트 구조체 2개짜리 슬라이스인데)
+rem     index s i  →  **바이트 하나** (구조체가 아니라)
+rem
+rem 컴파일되고, 실행되고, **틀린다.** 진단은 없다.
+rem ★ 이것은 `slice u32` 에서 이미 고쳤던 병이다 — 그때 **스칼라 원소만** 고쳤다.
+rem   구조체 원소는 손대지 않았고, **픽스처에 그 모양이 없어서** 아무도 못 봤다.
+rem   ⇒ **픽스처의 모양이 곧 감사의 시야다.**
+rem
+rem 이제 원소는 **구조체 뷰**다 — 무복사. `field` 가 바로 먹는다.
+
+module vm_structslice .
+
+struct pt .
+  x u8 .
+  y u8 .
+end .
+
+fn n_pts input s slice pt . output u64 . do
+  return len s .                    rem **원소 개수**다. 바이트가 아니다.
+end .
+
+fn nth_x input s slice pt . input i u64 . output u8 . do
+  let p be index s i . .
+  return field p x .                rem 원소는 **구조체 뷰**다
+end .
+
+fn sum_y input s slice pt . output u64 . do
+  var t u64 be 0 .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    let p be index s i . .
+    set t expr t + (field p y) . .
+    set i expr i + 1 . .
+  end .
+  return t .
+end .
+
+rem 문자열 리터럴은 **바이트 슬라이스**다 — 언어 안에서 구조체 배열을 만드는 길.
+rem   "abcd" = 4바이트 = pt 2개.  a=97 b=98 c=99 d=100
+test struct_slice do
+  expect eq (n_pts "abcd") 2 .
+  expect eq (nth_x "abcd" 0) 97 .
+  expect eq (nth_x "abcd" 1) 99 .
+  expect eq (sum_y "abcd") 198 .        rem 98 + 100
+end .

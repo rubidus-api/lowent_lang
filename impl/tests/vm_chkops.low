@@ -1,0 +1,21 @@
+rem ★ **넘침을 값으로 답하는 산술 셋의 증인** — `chk_mul` · `chk_sub` · `sat_mul` (WO-0176, 2026-09-03).
+rem   `check-builtin-witness` 가 부록 D 의 이름 가운데 **아무 초록 단위도 안 쓰는 셋**으로 이 셋을 짚었다.
+rem   내려가기는 했다 — 다만 증인이 없으면 `is_none` 처럼 어느 날 조용히 죽어도 아무도 모른다.
+rem   u8 에서: 10×20 = 200 · 20×20 = 넘침(none) · 5−9 = 넘침(none) · 9−5 = 4 · sat 20×20 = 255.
+module vm_chkops .
+
+export fn mul_ok input a u8 . input b u8 . output u64 . do
+  let r option u8 . be chk_mul a b .
+  if is_none r . do return 999 . end .
+  return widen u64 (some_value r) .
+end .
+
+export fn sub_ok input a u8 . input b u8 . output u64 . do
+  let r option u8 . be chk_sub a b .
+  if is_none r . do return 999 . end .
+  return widen u64 (some_value r) .
+end .
+
+export fn mul_sat input a u8 . input b u8 . output u64 . do
+  return widen u64 (sat_mul a b) .
+end .

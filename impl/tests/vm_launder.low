@@ -1,0 +1,31 @@
+rem D3 twin — a borrow laundered THROUGH an op. E-ESCAPE guarantees a returned
+rem reference derives from an argument, so the result ALIASES the argument borrow:
+rem   launder: owner write while the laundered borrow is live → E-EXCL ∧ E-VM-EXCL
+rem   ok1:     same laundering, no owner access while live    → green, runs
+fn pass .
+  input a mut_ref u32 . .
+  output mut_ref u32 . .
+do
+  return a .
+end .
+
+fn launder .
+  output u32 .
+do
+  var x u32 be 1 .
+  var r mut_ref u32 . be mut_ref x .
+  var t mut_ref u32 . be pass r .
+  set x 9 .
+  set t 5 .
+  return x .
+end .
+
+fn ok1 .
+  output u32 .
+do
+  var x u32 be 1 .
+  var r mut_ref u32 . be mut_ref x .
+  var t mut_ref u32 . be pass r .
+  set t 5 .
+  return x .
+end .

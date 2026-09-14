@@ -1,0 +1,38 @@
+rem ★★★ **`concurrent` — 동료가 필요하다는 것을 시그니처가 말한다** (RFC-0022 D-A · RFC-0071 A5).
+rem
+rem ★★★ **`wait` 하나로는 부족했다.** 성질이 정반대인 둘이 같은 낱말을 쓰고 있었다:
+rem     await read conn buf .   커널이 깨운다. 아무도 안 도와도 언젠가 온다.       → wait
+rem     chrecv ch .             송신 태스크가 돌아야 온다. 아무도 안 도우면 영원히. → concurrent
+rem   ⇒ `wait` 는 **어떤 executor 로도** 만족되지만 `concurrent` 는 **동료를 돌릴 수 있는**
+rem     executor 를 요구한다. 다른 요구이므로 다른 낱말이다.
+rem
+rem ★★★ **`task_group` 이 그 요구를 흡수한다 — 멤버가 둘 이상일 때만.**
+rem   동료가 그룹 안에 있으면 요구가 그 자리에서 만족되므로 밖으로 안 샌다.
+rem   ⇒ 그리고 그것이 곧 **멤버가 하나면 데드락**인 이유다: 동료가 존재할 수 없다.
+rem     `E-CONC-ALONE` 이 그것을 **컴파일 시점에** 거절한다 — 전엔 런타임에만 죽었다
+rem     (실측 2026-07-20: `check: ok` 인데 양 백엔드가 데드락으로 죽었다).
+rem
+rem ★★ RFC-0022 D-A 는 *"어휘 등재는 **그것을 무는 검사와 함께**"* 를 조건으로 걸었다.
+rem   그 검사가 이것이고, 그래서 지금 등재됐다(효과 평면 atom 13 → 14).
+
+module vm_concurrent .
+
+proc consumer input ch u64 . output u64 . effects concurrent . do
+  var x u64 be chrecv ch .
+  return x .
+end .
+
+proc producer input ch u64 . output u64 . effects concurrent . do
+  return chsend ch 41 .
+end .
+
+rem ★ 멤버가 **둘** — 동료가 그룹 안에 있다. `concurrent` 가 흡수되어 밖으로 안 샌다.
+rem   그래서 이 op 은 `concurrent` 를 **선언하지 않아도** 된다.
+proc pair output u64 . effects state . do
+  var ch u64 be channel u64 . .
+  task_group do
+    spawn consumer ch .
+    spawn producer ch .
+  end .
+  return 1 .
+end .

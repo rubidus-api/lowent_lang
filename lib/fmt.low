@@ -1,0 +1,136 @@
+rem ★★★ **세 번째 표준 라이브러리 — 포매팅** (RFC-0069 A1 · docs/example/format.md 의 설계).
+rem
+rem ★★ **포매팅은 출력이 아니다.** 여기 있는 op 은 전부 **호출자 버퍼에 조립**하고
+rem   `effects none` 이다 — 숨은 할당 0, 숨은 stdout 0. 실제 출력은 `cap io` 를 든 자만 한다
+rem   (RFC-0069 A2). 그 분리가 format.md 가 처음부터 그린 그림이고, 이 파일이 그 절반이다:
+rem     *"포매팅(effects none) vs 출력(effects io) — 누가 무엇을 쓰는지 시그니처에."*
+rem
+rem ★ 그래서 **이 파일 전체가 오라클 안**이다. 커널도 할당도 안 쓰므로 VM 과 네이티브가 같은
+rem   바이트를 낸다 — stdout 이 생기기 **전에** 숫자→바이트 변환을 전부 검증해 둘 수 있다.
+rem   (그리고 stdout 이 생겨도 이것이 없으면 **숫자 하나 못 찍는다.**)
+rem
+rem ★ 규약: 모든 라이터는 `(buf, pos) → 새 pos` 다. 넘치면 **값으로 거절**한다
+rem   (`option u64` 의 none) — 트랩이 아니다. 부분 기록도 없다: **못 쓰면 아무것도 안 쓴다.**
+rem   ⇒ 호출자가 `guard is_some …` 로 한 줄에 전파한다.
+rem ★ 빌트인 op 증가 **0**.
+
+module fmt .
+
+rem ── 바이트·문자열 ─────────────────────────────────────────────────────
+
+rem 한 바이트. 자리가 없으면 none 이고 **버퍼를 안 건드린다**.
+export proc put_byte input buf mut slice u8 . . input pos u64 . input b u8 .
+  output option u64 . effects none .
+do
+  guard lt pos (len buf) . else return none .
+  set (index buf pos) b .
+  return (some (add pos 1)) .
+end .
+
+rem 바이트열. ★ **전량 아니면 무**(all-or-nothing): 들어갈 자리가 모자라면 **한 바이트도
+rem   안 쓴다.** 절반 쓴 버퍼는 조용히 틀린 출력이 되기 때문이다.
+export proc put_str input buf mut slice u8 . . input pos u64 . input s slice u8 .
+  output option u64 . effects none .
+do
+  guard le (add pos (len s)) (len buf) . else return none .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    set (index buf (add pos i)) (index s i) .
+    set i (add i 1) .
+  end .
+  return (some (add pos (len s))) .
+end .
+
+rem ── 수 ────────────────────────────────────────────────────────────────
+
+rem 10 진수 자릿수 — 미리 세어야 **전량 아니면 무**를 지킬 수 있다(뒤집기 없이 앞에서 쓴다).
+export fn dec_width input n u64 . output u64 . do
+  var w u64 be 1 .
+  var v u64 be n .
+  while ge v 10 . do
+    set v (div v 10) .
+    set w (add w 1) .
+  end .
+  return w .
+end .
+
+rem u64 를 10 진수로. ★ format.md 는 LSB 먼저 쓰고 **뒤집었지만**, 폭을 먼저 세면 뒤집기가
+rem   필요 없다 — 그리고 그래야 **자리가 모자랄 때 버퍼를 안 건드린다**(전량 아니면 무).
+export proc put_u64 input buf mut slice u8 . . input pos u64 . input n u64 .
+  output option u64 . effects none .
+do
+  let w u64 be dec_width n .
+  guard le (add pos w) (len buf) . else return none .
+  var v u64 be n .
+  var i u64 be w .
+  while gt i 0 . do
+    set i (sub i 1) .
+    set (index buf (add pos i)) (narrow u8 (add 48 (mod v 10))) .
+    set v (div v 10) .
+  end .
+  return (some (add pos w)) .
+end .
+
+rem 부호 있는 10 진수. ★ **최솟값이 함정이다**: i64 의 -9223372036854775808 은 부호를 뒤집을 수
+rem   없다(양수 쪽에 그 값이 없다). 그래서 **크기를 u64 로 다룬다** — `0 - n` 을 u64 에서
+rem   감기게(`wrap_sub`) 하면 2 의 보수라 정확히 그 크기가 나온다. ★ `sub` 가 아니라 `wrap_sub` 인
+rem   이유: §6.3.4 는 u64 `sub` 의 아래넘침을 **트랩**으로 정의한다 — 감기는 것이 뜻이면 그렇게 적는다.
+rem ★ **전량 아니면 무**는 여기도 지킨다: 부호까지 포함한 폭(`dec_width mag + 1`)을 **먼저** 재고
+rem   모자라면 한 바이트도 안 쓴다. 전엔 '-' 를 먼저 쓰고 크기에서 none 을 냈다 — 호출자가
+rem   "none ⇒ 버퍼 그대로" 를 믿고 이어 쓰면 잘못된 '-' 하나가 남았다(term 의 이스케이프 조립이 그 믿음 위에 선다).
+export proc put_i64 input buf mut slice u8 . . input pos u64 . input n i64 .
+  output option u64 . effects none .
+do
+  guard lt n 0 . else return (put_u64 buf pos (cast u64 n)) .
+  let mag u64 be wrap_sub 0 (cast u64 n) .
+  guard le (add pos (add (dec_width mag) 1)) (len buf) . else return none .
+  let m option u64 . be put_byte buf pos 45 .          rem '-'
+  guard is_some m . else return none .
+  return (put_u64 buf (some_value m) mag) .
+end .
+
+rem 16 진수(소문자, 접두 없음). 폭을 먼저 세는 것은 10 진과 같은 이유다.
+export fn hex_width input n u64 . output u64 . do
+  var w u64 be 1 .
+  var v u64 be n .
+  while ge v 16 . do
+    set v (div v 16) .
+    set w (add w 1) .
+  end .
+  return w .
+end .
+
+export proc put_hex input buf mut slice u8 . . input pos u64 . input n u64 .
+  output option u64 . effects none .
+do
+  let w u64 be hex_width n .
+  guard le (add pos w) (len buf) . else return none .
+  var v u64 be n .
+  var i u64 be w .
+  while gt i 0 . do
+    set i (sub i 1) .
+    let d u64 be mod v 16 .
+    var c u64 be add 48 d .
+    if ge d 10 . do set c (add 87 d) . end            rem 'a' = 97 = 87 + 10 . .
+    set (index buf (add pos i)) (narrow u8 c) .
+    set v (div v 16) .
+  end .
+  return (some (add pos w)) .
+end .
+
+rem ── 편의 ──────────────────────────────────────────────────────────────
+
+rem 참/거짓 — 이름을 쓴다("1"/"0" 이 아니라).
+export proc put_bool input buf mut slice u8 . . input pos u64 . input b bool .
+  output option u64 . effects none .
+do
+  guard b . else return (put_str buf pos "false") .
+  return (put_str buf pos "true") .
+end .
+
+rem 줄바꿈 하나 — LF. (lib/io.low 의 take_line 과 같은 규약: LF 만이 줄 구분자다.)
+export proc put_nl input buf mut slice u8 . . input pos u64 .
+  output option u64 . effects none .
+do
+  return (put_byte buf pos 10) .
+end .

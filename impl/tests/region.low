@@ -1,0 +1,20 @@
+fn safe .
+  input p ref u32 .
+  output ref u32 .
+do
+  return ref p .
+end .
+
+fn dangling .
+  output ref u32 .
+do
+  var local u32 be 5 .
+  return ref local .
+end .
+
+fn nested_escape .
+  output ref u32 .
+do
+  var tmp u32 be 1 .
+  return ok (mut_ref tmp) .
+end .

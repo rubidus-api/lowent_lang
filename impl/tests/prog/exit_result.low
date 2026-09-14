@@ -1,0 +1,20 @@
+rem ★★★ **엔트리가 result 를 낸다** (RFC-0030 D3) — Rust 식 `fn main() -> Result<(), E>`.
+rem
+rem   RFC-0030 은 `output void .` → 0 · `output u8 .` → 그 값을 이미 냈다. 남은 반쪽이 이것:
+rem   **`output result <T> <E> .`** 다. 깊은 곳의 error 를 main 까지 **구조적으로 전파**하고,
+rem   런타임(crt0)이 종료 상태로 낮춘다:
+rem         ok    → 종료 0
+rem         error → **변형 코드**(nonzero, 1..255) + stderr 에 변형 번호
+rem   수동 `exit()` 는 필요 없다 — 출력이 곧 종료 상태다.
+
+module exit_result .
+
+enum run_error .
+  bad_config .
+  no_input .
+end .
+
+rem ★ 엔트리 — 보통 op 이다. no_input 은 2번째 변형(ord 1) ⇒ 종료 코드 2.
+proc main output result u8 run_error . effects none . errors no_input . do
+  return error no_input .
+end .

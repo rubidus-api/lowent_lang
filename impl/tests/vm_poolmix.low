@@ -1,0 +1,33 @@
+rem ★★★ **봉인 — RFC-0104 §8-2**(소유자 서명 2026-08-28, §5.11).
+rem
+rem   이 파일은 **거절되어야 한다.** 8-12 가 같은 프로그램을 두고 *"지금은 통과한다"* 는
+rem   사실을 `docs/known-defects/pool-mix-not-sealed.low` 로 남겨 뒀다. 그 자리에 봉인이
+rem   들어왔으므로 이 파일은 **음성 픽스처**가 된다 — 문서가 아니라 도구가 그것을 지킨다.
+rem
+rem   막는 것은 두 겹이다.
+rem     ① **브랜드**(타입): 풀 A 의 핸들은 `handle pa`, 풀 B 는 `handle pb` — 섞으면 타입검사.
+rem     ② **backing 봉인**: `alive`/`bytes`/`release` 는 `mem`·`gens` 를 **안 받는다**.
+rem        엉뚱한 배열을 들고 오는 길이 **표면에서 사라졌다** — 거절할 것도 없다.
+module pool_mix .
+use pool from "../../lib/pool.low" .
+
+newtype pa u8 .
+newtype pb u8 .
+
+export proc mix input ma mut slice u8 . . input ga mut slice u64 . .
+                 input mb mut slice u8 . . input gb mut slice u64 . .
+                 output u64 . effects none . do .
+  let ao option (pool.block_pool pa) . be pool.init pa ma ga 8 .
+  guard is_some ao . else return 91 .
+  var a pool.block_pool pa . be some_value ao .
+  let bo option (pool.block_pool pb) . be pool.init pb mb gb 8 .
+  guard is_some bo . else return 92 .
+  var b pool.block_pool pb . be some_value bo .
+
+  let ha option (pool.handle pa) . be pool.take pa a .
+  guard is_some ha . else return 93 .
+  rem ★ A 에서 받은 핸들을 **풀 B** 에 묻는다 — 여기서 거절되어야 한다.
+  let liveq bool be pool.alive pb b (some_value ha) .
+  if liveq . do return 1 . end .
+  return 0 .
+end .

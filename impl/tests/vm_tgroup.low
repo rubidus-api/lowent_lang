@@ -1,0 +1,55 @@
+rem ★★★ **구조적 동시성 — task_group** (RFC-0009 D3-b, 사용자: task_group → green_thread → channel 순).
+rem
+rem   `task_group do … end` 안의 **`spawn <op> [args]`** 는 **태스크**를 큐잉한다(actor 인스턴스가
+rem   아니라 — 그건 `spawn actor <T>`). 그룹 **end** 는 큐잉된 태스크와 그들이 낸 메시지를 전부
+rem   quiescence 까지 **join** 한다(SC2 — 어떤 태스크도 그룹보다 오래 살지 못한다). 태스크는 인스턴스가
+rem   없고(box=-1), 스케줄러가 op 를 인자만으로 부른다. VM≡네이티브(lw_schedule, 차등 스윕).
+rem
+rem   ★ **SC1**: `spawn <op>` 은 task_group 안에서만(밖이면 E-SPAWN-SCOPE). ★ 태스크 실행 순서는 결정적
+rem     스케줄러가 정하고, **interleaving 오라클**(`schedule explore_interleavings`)이 그 순서 불변을
+rem     전수 검사한다 — task_group 이 방금 만든 스케줄러·오라클 위에 그대로 얹힌다.
+rem   ★ 아직 없는 것(정직히): `await`(결과 수확) · `cancel_on_error`(취소 전파) · `detach` · child_of region.
+module vm_tgroup .
+
+actor counter .
+  state v u64 . end .
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
+  fn get output u64 . do return v . end .
+end .
+
+rem 태스크: 주어진 카운터에 inc 한 번 보낸다(그리고 그룹 join 이 그 메시지도 배달한다).
+proc worker input c counter . output u64 . effects state . do
+  spawn send c inc .
+  return 0 .
+end .
+
+rem 순서 무관: 두 태스크가 각자 inc → 어떤 실행 순서든 get=2. 오라클이 전 interleaving 확인.
+test tg_independent schedule explore_interleavings do
+  var c counter be spawn actor counter . .
+  task_group do
+    spawn worker c .
+    spawn worker c .
+  end .
+  expect eq (send c get) 2 .
+end .
+
+rem 셋도 마찬가지 — 그룹이 셋을 join, 순서 무관하게 get=3.
+test tg_three schedule explore_interleavings do
+  var c counter be spawn actor counter . .
+  task_group do
+    spawn worker c .
+    spawn worker c .
+    spawn worker c .
+  end .
+  expect eq (send c get) 3 .
+end .
+
+rem `task_group` 문 + join, 스칼라 반환 — VM≡네이티브(차등 스윕).
+proc drive output u64 . effects state . do
+  var c counter be spawn actor counter . .
+  task_group do
+    spawn worker c .
+    spawn worker c .
+  end .
+  return send c get .
+end .

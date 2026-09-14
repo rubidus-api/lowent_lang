@@ -1,0 +1,129 @@
+rem ★★★ **v1 대표 프로그램 — 임베디드 floor** (RFC-0038 이 지명 · RFC-0088 §5 의 외부 증거)
+rem
+rem   이 언어는 자기 정체성 4축에 **하드웨어 현실**을 넣었고(RFC-0037), RFC-0038 은
+rem   임베디드 하한선을 **HARD floor** 로 선언했다. 그 선언이 참인지는 문서가 아니라
+rem   **프로그램**이 말한다. 이것이 그 프로그램이다.
+rem
+rem ★ floor 프로파일이 실제로 무엇을 막는가 — 이 파일은 `--target cortex_m` 에서 선다:
+rem     · **힙이 없다**(machine.no_heap)  → 상태는 전부 **호출자가 준 정적 슬라이스**에 산다.
+rem       자라는 뿌리(`heap`)를 쓰면 `E-HEAP-NOHOST` 로 거절된다. 여기엔 할당이 한 번도 없다.
+rem     · **부동소수가 없다**(machine.no_float) → 제어 계산은 전부 **고정소수점 정수**다.
+rem       `f32` 를 한 글자만 적어도 `E-FLOAT-NOFLOAT` 다.
+rem     · **효과가 none 이다** — io 도 없다. 호출자(ISR·주 루프)가 값을 넣고 값을 받는다.
+rem
+rem ★★ 무엇을 하는 프로그램인가: **저역통과 필터 + 히스테리시스 제어**.
+rem   센서 값이 튀어도(노이즈) 출력이 떨리지 않게 하는, 임베디드에서 가장 흔한 한 쌍이다.
+rem     y  ← y + (x - y) >> 3        (Q0 고정소수점 1차 IIR — 나눗셈 없이 시프트로)
+rem     out ← y ≥ hi 면 1 · y ≤ lo 면 0 · 그 사이면 **직전 값 유지**(그것이 히스테리시스다)
+rem
+rem ☞ 정직하게 — 이 프로그램이 **증명하지 않는 것**:
+rem   · 실제 8비트 AVR(ATtiny)에서 도는 것. 이 도구의 freestanding 타깃은 `cortex_m` 이고
+rem     **AVR 백엔드는 없다**. RFC-0038 의 floor 는 *제약 모델*로는 지켜지지만(no_heap·no_float·
+rem     ptr≥16) *칩* 으로는 아직 시연되지 않았다. SPEC-015 §16.4 의 "v1이 약속하지 않는 것" 에 적었다.
+rem   · 인터럽트·타이머·MMIO 를 통한 실제 주변장치 접근(RFC-0042 는 부분 구현이다).
+
+module floor_ctl .
+
+rem ── 상태 배치 (호출자가 주는 슬라이스) ──────────────────────────────────
+rem   st[0] = 필터 값 y   ·   st[1] = 출력(0/1)   ·   st[2] = 처리한 표본 수
+rem ★ 이름이 아니라 **자리**로 적는 것이 floor 의 방식이다 — 구조체 할당이 없다.
+
+rem 내려가는 갈래: y 가 x 보다 크면 차이의 1/8 만큼 내려간다.
+fn fall input y u32 . input x u32 . output u32 .
+  requires ge y x .
+do
+  return sub y (shr (sub y x) 3) .
+end .
+
+rem 올라가는 갈래.
+fn rise input y u32 . input x u32 . output u32 .
+  requires ge x y .
+do
+  return add y (shr (sub x y) 3) .
+end .
+
+rem ★ 1차 IIR 한 걸음. 나눗셈도, 부동소수도 없다 — 시프트 하나뿐이다.
+export proc filter_step .
+  input st mut slice u32 . .
+  input x u32 .
+  output u32 .
+  effects none .
+  requires ge (len st) 3 .
+do
+  let y u32 be index st 0 .
+  guard gt x y . else return step_down st y x .
+  set (index st 0) (rise y x) .
+  return index st 0 .
+end .
+
+proc step_down .
+  input st mut slice u32 . .
+  input y u32 .
+  input x u32 .
+  output u32 .
+  effects none .
+  requires ge (len st) 3 .
+  requires ge y x .
+do
+  set (index st 0) (fall y x) .
+  return index st 0 .
+end .
+
+rem 출력 자리에 값을 박고 그 값을 돌려준다.
+proc put_out input st mut slice u32 . . input v u32 . output u32 . effects none .
+  requires ge (len st) 3 .
+do
+  set (index st 1) v .
+  return v .
+end .
+
+rem ★★ 히스테리시스: 두 문턱 **사이**에서는 아무것도 바꾸지 않는다.
+rem   문턱이 하나면 값이 그 근처에서 떨 때 출력이 초당 수천 번 뒤집힌다(릴레이가 죽는다).
+export proc control_step .
+  input st mut slice u32 . .
+  input x u32 .
+  input lo u32 .
+  input hi u32 .
+  output u32 .
+  effects none .
+  requires ge (len st) 3 .
+  requires ge hi lo .
+do
+  let y u32 be filter_step st x .
+  guard lt y hi . else return put_out st 1 .
+  guard gt y lo . else return put_out st 0 .
+  rem 사이 — 직전 출력을 **그대로** 둔다.
+  return index st 1 .
+end .
+
+rem ★ 주 루프 한 바퀴: 표본 하나를 먹고, 처리 수를 센다.
+export proc tick .
+  input st mut slice u32 . .
+  input x u32 .
+  output u32 .
+  effects none .
+  requires ge (len st) 3 .
+do
+  let out u32 be control_step st x 40 60 .
+  set (index st 2) (wrap_add (index st 2) 1) .
+  return out .
+end .
+
+rem ★★ 시연용 진입점 — 표본 열을 통째로 먹여 **마지막 출력**을 낸다.
+rem   호스트에서 돌려 볼 수 있고(VM·네이티브), floor 타깃에서는 이 op 을 안 쓰면 그만이다.
+export proc run .
+  input st mut slice u32 . .
+  input xs slice u32 .
+  output u32 .
+  effects none .
+  requires ge (len st) 3 .
+do
+  var i u64 be 0 .
+  var out u32 be 0 .
+  while true . do
+    guard lt i (len xs) . else break .
+    set out (tick st (index xs i)) .
+    set i (add i 1) .
+  end .
+  return out .
+end .

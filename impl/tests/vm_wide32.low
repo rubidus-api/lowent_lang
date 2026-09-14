@@ -1,0 +1,25 @@
+rem ★★★ **파라미터 한도는 이제 수 하나다** (X-0024 후속 · WO-0204).
+rem
+rem   언어 한도 `LOW_MAX_PARAMS` 를 16 → 32 로 올리고, 빠른 경로의 입장 조건도 **같은 상수**를
+rem   쓴다(전에는 리터럴 16 이 따로 박혀 있었다). 방출되는 C 도 인자를 나르는 배열을 전부
+rem   방출된 상수 `LW_MAXP` 로 잡는다 — 같은 수가 여러 곳에 살면 한 곳만 낡고, 그 어긋남은
+rem   **배열 밖 쓰기**로 나타난다(WO-0203 에서 실제로 그랬다).
+rem
+rem   ★ `wide32` — 파라미터 **서른둘**(표현의 천장: 파라미터 종류표가 32 비트 마스크다).
+rem     빠른 경로로 내려가야 한다. 한 칸이라도 더 넘는 op 은 `E-IR-ARITY` 로 **거절**된다
+rem     (그 자리는 골든이 따로 밟는다 — 픽스처로는 못 적는다, 파일이 안 열리니까).
+
+module vm_wide32 .
+
+export proc wide32   input a u64 . input b u64 . input c u64 . input d u64 .
+  input e u64 . input f u64 . input g u64 . input h u64 .
+  input i u64 . input j u64 . input k u64 . input l u64 .
+  input m u64 . input n u64 . input o u64 . input p u64 .
+  input q u64 . input r u64 . input s u64 . input t u64 .
+  input u u64 . input v u64 . input w u64 . input x u64 .
+  input y u64 . input z u64 . input aa u64 . input ab u64 .
+  input ac u64 . input ad u64 . input ae u64 . input af u64 .
+  output u64 . effects none .
+do
+  return add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add a b c d e f g h i j k l m n o p q r s t u v w x y z aa ab ac ad ae af .
+end .

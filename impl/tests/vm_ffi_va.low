@@ -1,0 +1,31 @@
+rem ★★★ **가변인자 C 함수 호출** (RFC-0063 §5, 사용자 결정) — 씨의 `printf` 류를 부른다.
+rem
+rem   `variadic` 마커가 붙은 extern 은 **고정 인자 뒤에 임의 개수의 추가 인자**를 받는다.
+rem   파서가 arity 로 초과 인자를 잡고(RFC-0061 헤드 마커에 'R'), 도구가 호출 지점에서 C 함수를
+rem   직접 부른다(IRW_EXTERN 을 호출 지점에서). **cap 은 C 로 안 간다**(권리이지 값이 아니다).
+rem
+rem   ★ 방향은 한쪽뿐: **씨의** 가변인자 함수는 부르되, **씨가 우리 가변인자를 부를 순 없다**
+rem     (가변인자 콜백 금지 — RFC-0066 §9.4). va_list 파싱은 인자 수·타입을 런타임에 몰라 위험하다.
+rem
+rem   ★ 첫 구현은 **정수 가변인자**다(`int sum(int n, ...)`). float(SSE 레지스터 클래스)·문자열·
+rem     포맷 인지 검사는 후속 — 정수 아닌 가변 인자는 lw_want_int 가 런타임에 정직히 트랩한다.
+rem   ★ 이 op 은 하강하지 않는다(태그 경로) — 인자가 스택에 있고, printf 는 성능 자리가 아니다.
+module vm_ffi_va .
+
+rem lw_c_vsum(long long n, ...) — n 개의 정수를 더한다. n = 개수, k = cap(안 넘어감), 나머지 = 가변.
+unsafe extern proc c_vsum .
+  input k cap c .
+  input n i64 .
+  output i64 .
+  variadic .
+  link lw_c_vsum .
+  effects unsafe .
+end .
+
+unsafe proc vsum3 input k cap c . input a i64 . input b i64 . input d i64 . output i64 . effects unsafe . do
+  return c_vsum k 3 a b d .
+end .
+
+unsafe proc vsum0 input k cap c . output i64 . effects unsafe . do
+  return c_vsum k 0 .
+end .

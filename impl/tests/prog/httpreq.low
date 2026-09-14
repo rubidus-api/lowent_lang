@@ -1,0 +1,57 @@
+rem ★★★ **실물 프로그램: HTTP 요청 줄을 읽고 가른다** (RFC-0075 §8 Stage 2).
+rem
+rem   왜 이 프로그램인가. 원장(`docs/generated/library-ledger.md`)이 *"진짜
+rem   프로그램이 안 쓰는 모듈"* 을 가장 중요한 수라 부르고, 그 수가 **5** 였다 —
+rem   `http` 도 그중 하나였다. 자기 픽스처만 있는 모듈은 **동작한다**는 것만
+rem   보였고 **쓸 만한가**는 아무도 안 물은 것이다.
+rem
+rem   여기서 묻는다: 표준 입력으로 들어온 요청 줄을 `http` 만으로 갈라
+rem   **쓸 만한 답**을 낼 수 있는가.
+rem
+rem ★ 종료 상태가 곧 오라클이다 — 사람이 눈으로 보지 않아도 골든이 읽는다.
+rem     42 = GET 이고 판이 맞고 대상이 `/` 다      ← 온전한 요청
+rem     43 = GET 이나 대상이 `/` 가 아니다
+rem     44 = GET 이 아니다(다른 메서드)
+rem     45 = 판(HTTP/1.1)이 아니다                 ← 판을 먼저 본다
+rem     46 = 빈 입력
+rem
+rem ★★ **읽기(권한) · 가르기(순수) · 답(값)** 이 한 자리에서 이어진다.
+rem   `http` 의 op 들은 전부 `fn` — 곧 권한도 효과도 없는 **순수한 셈**이고,
+rem   권한이 필요한 것은 읽는 자리 하나뿐이다. 그것이 이 라이브러리가
+rem   §9.5 의 「셈과 권위를 가른다」를 지킨다는 증거다.
+
+module httpreq .
+
+use http from "../../../lib/http.low" .
+
+proc main .
+  input al  cap allocator .
+  input k   cap io .
+  output u8 .
+  effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some g . else return 70 .
+  let buf mut slice u8 . be some_value g .
+
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 71 .
+  let got u64 be some_value rn .
+  guard ne got 0 . else return 46 .
+
+  let req slice u8 be subslice buf 0 got .
+
+  rem ── 판을 먼저 본다: 판이 다르면 나머지를 읽을 까닭이 없다 ──
+  guard http.version_ok req . else return 45 .
+
+  rem ── 메서드 ──
+  guard eq (http.method_code req) (http.method_get) . else return 44 .
+
+  rem ── 대상이 `/` 하나인가 ──
+  let tl u64 be http.target_len req .
+  guard eq tl 1 . else return 43 .
+  let at u64 be http.target_off req .   rem ★ `to` 는 버린 낱말이라 이름으로 못 쓴다(E-VOCAB-REMOVED).
+  guard eq (index req at) 47 . else return 43 .
+
+  return 42 .
+end

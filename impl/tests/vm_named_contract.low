@@ -1,0 +1,27 @@
+rem ★★ **명명 계약** (SPEC-002 §267: "contract = 명명 계약 · satisfies = 충족 확인").
+rem
+rem 지금까지: 계약을 **선언하고**, op 이 **충족한다고 적고**, **아무 일도 일어나지 않았다.**
+rem   (`contract` 는 어휘에 없어서 선언이 **평평하게 파싱돼 조각나기까지** 했다 — 수식자와 같은 병.)
+rem   그리고 `satisfies` 는 trait 만 볼 줄 알아서 **명명 계약을 "없는 trait" 라고 거절**했다.
+rem
+rem ⇒ 선언된 중복인데 아무도 교차 검사하지 않는다. **그것이 곧 엔트로피다**(PRINCIPLES.md §0).
+rem   그리고 진입 requires 는 구간 분석이 **사실로 심는다** — 강제하지 않으면 그 사실은
+rem   아무것도 뒷받침하지 않는다(교훈 1).
+rem
+rem 이제 `satisfies N` 은 그 계약의 `requires` 를 **이 op 의 진입 검사로 만든다.**
+rem 아무도 안 건 계약은 **W-UNBOUND** 로 말한다 — 그것은 정말 아무것도 제약하지 않으니까.
+
+module vm_named_contract .
+
+contract nonneg .
+  requires ge a 1 .
+end .
+
+fn f satisfies nonneg . input a u8 . output u8 .
+do
+  return a .
+end .
+
+test named_contract_holds do
+  expect eq (f 5) 5 .
+end .

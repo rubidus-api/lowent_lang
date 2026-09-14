@@ -1,0 +1,78 @@
+rem ★★★★★ **수명 모드 넷 — 언어는 이미 셋을 알고 있었다** (RFC-0104 §8-9, 소유자 서명 2026-08-29).
+rem
+rem   물음은 *"값이 언제 끝나는가"* 였고, RFC 는 네 갈래를 적어 두었다:
+rem
+rem     ① unique              — 주인이 하나. 끝은 그 주인이 놓을 때.
+rem     ② 스레드-국한 refcount — 세는 자가 여럿이나 **한 스레드 안**이다.
+rem     ③ 원자 공유 refcount   — 세는 자가 스레드를 넘는다.
+rem     ④ 외부 완료           — 끝내는 것이 **남**이다(장치·다른 쪽).
+rem
+rem ★★ **새 낱말 0 · 새 빌트인 0.** 재 보니 셋은 이미 서 있었다:
+rem   ① 은 `owned` 다(§8-2·§8-6·§8-10 이 세 번 쓴 그 규칙).
+rem   ② 는 그냥 더하기다 — 실측 `lock` 접두 명령 **0**.
+rem   ③ 은 `atomic_*` + `cap atomic` + `effects atomic` 이고 표준 ordering
+rem     (relaxed 증가 · release 감소 + acquire 담) 이 **오늘 그대로 써진다**.
+rem   ④ 는 완료권을 `owned` 표로 만들면 된다 — 두 번 완료는 `E-OWN-MOVED`,
+rem     실패할 수 있는 완료를 안 하면 `E-OWN-INCOMPLETE`.
+rem
+rem ★★★ **그리고 안 쓰는 모드는 값이 0 이다** — 원자를 한 번도 안 쓰는 프로그램의
+rem   바이너리에 `lock` 접두 명령 **0 개**, `lw_atomic` 심볼 **0 개**(방출 C 에는 텍스트로
+rem   있으나 `static` 이라 링커가 버린다). 국한 대 원자를 나란히 재면 **0 대 4** 다.
+rem   ⇒ *"안 쓰는 mode 비용 0 · atomic mode 만 atomic 방출"* 은 **이미 참**이고,
+rem     이 모듈은 그것을 **쓰기 좋게 묶을** 뿐이다.
+rem
+rem ★★★★ 하나만 진짜 구멍이었다: **원자 refcount 는 넘칠 때 조용히 0 으로 감긴다**
+rem   (네이티브로 확인했다). 감긴 수는 이르게 0 에 닿아 **살아 있는 객체를 해제**한다.
+rem   ⇒ 소유자 결정: **포화 + 영구 누수**(Linux `refcount_t` 가 고른 그 답). 상한에 닿으면
+rem     더 늘리지 않는다. 그 객체는 안 죽지만 **메모리 안전은 안 깨진다** — 값 대신
+rem     안전을 산다. 실측 비용 명령 **27 → 32**(+19%), `lock` 수는 시도당 같다(1).
+rem
+rem ★★★★★ **그리고 원자 모드는 이 모듈에 없다** — 있으면 안 됐다.
+rem   처음엔 넷을 한 모듈에 넣었더니, 국한 refcount 만 쓰는 프로그램의 바이너리에
+rem   `lock` 접두 명령이 **2 개** 남았다. 까닭: `export` 인 op 은 C ABI 래퍼로 **전역 심볼**을
+rem   얻어 링커가 못 버린다 ⇒ **`use` 는 부르는 것이 아니라 모듈이 내보내는 것만큼 치른다.**
+rem   가르자 **lock 2 → 0**, 크기 16,520 → 16,416 바이트(−104)였다.
+rem   ⇒ 원자 공유 refcount 는 `lifeatom` 에 산다. 원자를 들이는 자리가 **`use` 이름에 보인다**.
+rem
+rem ☞ 안 지은 것(정직히): 진짜 비동기 완료(reactor 는 아직 A1 동기 폴백이다 — 뒷받침 없는
+rem   표면을 만들지 않는다) · 완료 콜백(호출 시점과 효과를 감춘다) · 약한 참조 ·
+rem   순환 수집(§8-11 소관).
+
+module lifemode .
+
+rem ── ② 스레드-국한 refcount ──────────────────────────────────────
+rem   **원자가 아니다.** 그래서 스레드를 넘기면 틀린다 — 넘기지 않는 것이 이 모드의 계약이다.
+rem   저장은 호출자 것이다(이 저장소의 규율): 세는 칸을 밖에서 받는다.
+
+rem 상한. 포화의 기준점이고 두 모드가 같은 수를 쓴다.
+export fn ceiling output u64 . do
+  return 18446744073709551615 .
+end .
+
+rem 국한 refcount 를 연다 — 주인이 하나인 상태(1)로 시작한다.
+export proc near_open input c mut slice u64 . . input at u64 . output bool . effects none . do
+  guard lt at (len c) . else return false .
+  set (index c at) 1 .
+  return true .
+end .
+
+rem 하나 더 센다. **포화한다** — 상한에서는 늘리지 않고 그대로 둔다.
+export proc near_share input c mut slice u64 . . input at u64 . output option u64 . effects none . do
+  guard lt at (len c) . else return none .
+  let cur u64 be index c at .
+  guard lt cur (lifemode.ceiling) . else return some cur .
+  set (index c at) (add cur 1) .
+  return some (add cur 1) .
+end .
+
+rem 하나 놓는다. **0 을 답하면 마지막이었다** — 그때 부른 쪽이 저장을 거둔다.
+rem   ★ 포화한 칸은 안 줄인다: 한 번 포화하면 그 객체는 영원히 산다(그것이 정한 값이다).
+export proc near_drop input c mut slice u64 . . input at u64 . output option u64 . effects none . do
+  guard lt at (len c) . else return none .
+  let cur u64 be index c at .
+  guard gt cur 0 . else return none .
+  guard lt cur (lifemode.ceiling) . else return some cur .
+  set (index c at) (sub cur 1) .
+  return some (sub cur 1) .
+end .
+

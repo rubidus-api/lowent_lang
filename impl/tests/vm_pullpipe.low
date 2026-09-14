@@ -1,0 +1,34 @@
+rem ★★★ **pull 소스 단락 증인** — take/collect 가 원소 하나를 과다 소비하던 both-agree-wrong (2026-07-23).
+rem
+rem   `send it next` 는 소스를 **한 칸 전진시키는 부수효과**다. 그런데 루프 머리가 단락 검사
+rem   (take 소진·collect sink-full) **전에** 무조건 pull 해, 단락된 뒤에도 원소를 뽑아 버렸다 —
+rem   다음 pipe 가 그 다음 원소부터 봐서 **조용히 유실**(RFC-0010 §8-2 "take 는 상류를 멈춘다"·
+rem   §6.5 "collect 는 유계 싱크" 위반). 슬라이스 소스는 인덱스라 무해했고 pull 만 샜다 ⇒ 수정은
+rem   pull 브랜치에서 take 소진·collect sink-full 을 **pull 전에** 검사한다.
+module m .
+fn nar input a u64 . output u8 . do return narrow_wrap u8 a . end .
+actor counter .
+  state .
+    n u64 .
+  end .
+  proc next output option u64 . effects state . do
+    set n (add n 1) .
+    return (some n) .
+  end .
+end .
+
+rem take 1 두 번 — 첫 a=[1], 둘째 b=[2](원소2 안 유실).
+proc take_twice input a mut slice u8 . input b mut slice u8 . output u64 . effects state . do
+  var it counter . be spawn actor counter .
+  pipe it do take 1 . map nar . collect into a . end .
+  pipe it do take 1 . map nar . collect into b . end .
+  return 0 .
+end .
+
+rem len-0 싱크로 collect(단락) 후 take 2 — 첫 pipe 는 소스를 안 건드려 둘째 b=[1,2].
+proc empty_then input a mut slice u8 . input b mut slice u8 . output u64 . effects state . do
+  var it counter . be spawn actor counter .
+  pipe it do map nar . collect into a . end .
+  pipe it do take 2 . map nar . collect into b . end .
+  return 0 .
+end .

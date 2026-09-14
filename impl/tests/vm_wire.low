@@ -1,0 +1,75 @@
+rem ★★★ **칸 나누기** — 마스크 하나가 자리와 폭을 다 말한다 (RFC-0107 §6.3 · 단계 3).
+rem
+rem   이 픽스처는 두 가지를 증인으로 세운다:
+rem   ① `wire.pick`/`put`/`merge` 가 **손으로 쓴 마스크 코드와 같은 답**을 낸다.
+rem   ② 그리고 **같은 명령**으로 내려간다 — 아래 `hand_*` 짝이 그 대조군이다.
+rem     (명령 수는 골든이 아니라 계측이 잰다: RFC-0107 §7.7 ①.)
+rem
+rem ★ 예시는 날짜를 한 낱말에 넣은 `clock.local_packed` 의 모양이다:
+rem     비트 36~ : 해   ·  32~35 : 달  ·  27~31 : 날
+module vm_wire .
+
+use wire from "../../lib/wire.low" .
+
+let m_month u64 be 15 .          rem 0x0f — 폭 4, 자리 0(아래 shl 로 옮겨 쓴다)
+
+rem ── ① 답이 같은가 ────────────────────────────────────────────────────────
+
+rem 달을 꺼낸다 — 라이브러리 판.
+fn month_lib input p u64 . output u64 . do
+  return wire.pick 64424509440 p .          rem 0x0f_0000_0000 = 32~35 비트
+end .
+
+rem 같은 일 — 손으로 쓴 판(오늘 `clock.low` 가 하는 그대로).
+fn month_hand input p u64 . output u64 . do
+  return bit_and (shr p 32) 15 .
+end .
+
+rem 달을 갈아 끼운다 — 라이브러리 판.
+fn set_month_lib input p u64 . input v u64 . output u64 . do
+  return wire.merge 64424509440 p v .
+end .
+
+rem 같은 일 — 손으로.
+rem ★★★★ **이 줄을 처음 쓸 때 상수를 틀렸다** — `18446744004990074879` 로 적었는데 그것은
+rem   `~0x0f_0000_0000` 이 아니라 **36 번 비트 하나만** 지운다(2^32 만큼 어긋났다). 그런데
+rem   `set_month_* 0 7` 만 견주던 시험은 **통과했다**: p 가 0 이면 지우는 마스크가 무엇이든
+rem   답이 같기 때문이다. 아래 `p = 모두 1` 을 넣고서야 갈렸다.
+rem   ☞ *손으로 센 자리는 틀리고, 그 틀림은 «인자가 0 인 시험» 아래 숨는다.*
+rem     `wire` 가 사는 이유가 이 두 줄이다 — 자리를 손으로 세지 않는다.
+fn set_month_hand input p u64 . input v u64 . output u64 . do
+  return bit_or (bit_and p 18446744009285042175) (bit_and (shl v 32) 64424509440) .
+end .
+
+rem ── ② 마스크가 스스로 말하는 것 ──────────────────────────────────────────
+
+fn shift_says output u64 . do return wire.shift_of 64424509440 . end .   rem 32
+fn max_says   output u64 . do return wire.max_of   64424509440 . end .   rem 15
+
+rem 구멍 난 마스크는 **한 덩어리가 아니다** — 그것을 라이브러리가 말한다.
+fn solid_says output u64 . do
+  guard wire.solid 64424509440 . else return 0 .
+  guard not (wire.solid 5) . else return 0 .        rem 0b101 — 가운데가 비었다
+  return 1 .
+end .
+
+rem 칸보다 큰 값은 안 들어간다 — 넣기 전에 물을 수 있다.
+fn fits_says output u64 . do
+  guard wire.fits 64424509440 15 . else return 0 .
+  guard not (wire.fits 64424509440 16) . else return 0 .
+  return 1 .
+end .
+
+test wire_same do
+  expect eq (month_lib 1099511627776) (month_hand 1099511627776) .
+  expect eq (month_lib 68719476736) (month_hand 68719476736) .
+  expect eq (set_month_lib 0 7) (set_month_hand 0 7) .
+  rem ★ p 가 0 이 아닐 때 — 처음 쓴 손 상수는 **여기서** 갈렸다.
+  expect eq (set_month_lib 18446744073709551615 7) (set_month_hand 18446744073709551615 7) .
+  expect eq (set_month_lib 18446744073709551615 7) 18446744039349813247 .
+  expect eq (month_lib (set_month_lib 18446744073709551615 7)) 7 .
+  expect eq (shift_says) 32 .
+  expect eq (max_says) 15 .
+  expect eq (solid_says) 1 .
+  expect eq (fits_says) 1 .
+end .

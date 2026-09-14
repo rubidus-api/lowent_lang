@@ -1,0 +1,94 @@
+rem ★★★ **계층적 동시성** (RFC-0039) — **채택인데 구현 0** 이었다.
+rem
+rem   RFC 의 D1 이 못박은 것: **동시성 *안전*은 코어이고, *런타임*은 라이브러리다.**
+rem   그러면 **언어가 줄 것은 런타임이 아니라 게이트와 인터페이스**다.
+rem
+rem ── D4: **계층 × 효과 게이팅** — *"ATtiny 에 thread pool" = 컴파일 거부*
+rem
+rem   `build tier <t0|t1|t2|t3> .` 이 **하드웨어가 감당할 수 있는 효과**를 선언한다.
+rem     t0  협력 floor (ATtiny·bare)   none unsafe panic state wait cancel
+rem     t1  small     (Cortex-M)       + io device
+rem     t2  rtos                       + alloc lock atomic blocking
+rem     t3  hosted    (OS·멀티코어)     전부
+rem
+rem   ★ 그리고 **효과는 호출 사슬을 타고 전파되므로**, 감당 못 할 것을 **부르는 자리에서**
+rem     거부된다 — 링크 시간이 아니라 **컴파일 시간**에. **규모-기능 불일치를 정적으로 차단한다.**
+rem
+rem ── D3: **공통 인터페이스** — 런타임을 갈아끼워도 **호출 코드는 같다**
+rem
+rem   `trait executor` 하나. `coop`(협력 floor)과 `queue`(잡 큐)가 **각자 충족**한다.
+rem   그리고 **제네릭 + 경계**가 그 위에서 돈다 — **호출 코드가 런타임을 모른다.**
+rem   ★ 이것이 오늘 아침 trait 의 **구조적 충족**을 지었기에 가능해졌다.
+rem     그 전까지 `satisfies` 는 **이름만** 확인했고, 인터페이스는 **아무것도 보장하지 못했다.**
+
+module tier .
+
+build tier t0 .              rem ★ 협력 floor — lock·atomic·blocking·alloc·io 는 **거부**된다
+
+trait executor .
+  post  input s self . input job u64 . output u64 . effects state .
+  drain input s self . output u64 . effects state .
+end .
+
+rem ── T0 구현: 협력 스케줄러 (정적 잡 큐, 선점 없음 ⇒ 구성상 무경합)
+actor coop .
+  satisfies executor .        rem ★ **검사된다**
+  state .
+    pending u64 .
+    done u64 .
+  end .
+  proc post input job u64 . output u64 . effects state .
+  do
+    set pending add pending job .
+    return pending .
+  end .
+  proc drain output u64 . effects state .
+  do
+    set done add done pending .
+    set pending 0 .
+    return done .
+  end .
+end .
+
+rem ── 또 하나의 구현: 잡을 두 배로 세는 큐 (같은 인터페이스, 다른 기관)
+actor queue .
+  satisfies executor .
+  state .
+    pending u64 .
+    done u64 .
+  end .
+  proc post input job u64 . output u64 . effects state .
+  do
+    set pending add pending (mul job 2) .
+    return pending .
+  end .
+  proc drain output u64 . effects state .
+  do
+    set done add done pending .
+    set pending 0 .
+    return done .
+  end .
+end .
+
+rem ★★★ **호출 코드는 런타임을 모른다** — 경계가 그것을 보장한다.
+proc run .
+  input comptime e type .
+  input x e .
+  output u64 .
+  effects state .
+  requires executor e .        rem ★ 경계 — e 는 executor 를 충족해야 한다
+do
+  var a u64 be send x post 3 .
+  var b u64 be send x post 4 .
+  return send x drain .
+end .
+
+proc both output u64 . effects state . do
+  var c coop be spawn actor coop . .
+  var q queue be spawn actor queue . .
+  return add (run coop c) (run queue q) .    rem 7 + 14 = 21
+end .
+
+test tiers do
+  expect eq (both) 21 .
+end .

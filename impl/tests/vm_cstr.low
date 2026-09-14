@@ -1,0 +1,52 @@
+rem ★★★ **cstr — FFI 문자열 다리** (RFC-0068 S4) — **C 는 아직 문자열에선 섬**이다.
+rem
+rem   `str` 은 길이가 진실이다(뷰·무할당). `cstr` 은 **레거시 호환용** — 널종단 char*,
+rem   길이를 **모른다**. 그 둘 사이의 다리가 여기 있다:
+rem
+rem     · `cstr` = `newtype cstr unsafe_ptr u8` — 생 포인터. **VM 밖 FFI 경계 전용**이다.
+rem     · extern 이 `output cstr` 로 C 의 char* 를 돌려준다(C1) — 프로토타입은 `const char *`.
+rem     · `str_from_cstr` 가 그것을 **스캔**해 str 로 만든다(C2) — 길이를 몰라 **O(n)**(strlen).
+rem       **이름이 비용을 말한다**(D4): str_from_**cstr** 은 널종단에서 들어오는 세금이다.
+rem
+rem ★ **방향이 비대칭이다**(D4 — "기본은 str, cstr 은 유산"의 기계적 표현): cstr → str 은
+rem   스캔(O(n))이 필요하고, str(뷰) → cstr 은 **거절한다**(뷰는 널을 약속 못 한다). 그 경유가
+rem   할당을 보이게 한다(str_buf → cstr 는 C4).
+rem
+rem ★★ **오라클**: cstr 는 diff-sweep(VM≡native)에 안 든다 — VM 은 C 를 못 부른다(E-VM-EXTERN)
+rem   ⇒ str_from_cstr 도 VM 은 **못 하고 그렇게 말한다**(E-VM-CSTR). 검사는 **네이티브 컴파일·실행
+rem   게이트**가 한다(tests/lib_ffi.c 를 링크해 진짜로 돌려 답을 낸다).
+
+module m .
+
+newtype cstr unsafe_ptr u8 .
+
+rem ── C1: extern 이 cstr 를 돌려준다 ────────────────────────────────────────────
+unsafe extern proc c_greeting .
+  input k cap c .
+  output cstr .
+  link lw_c_greeting .
+  effects unsafe .
+end .
+
+unsafe extern proc c_empty .
+  input k cap c .
+  output cstr .
+  link lw_c_empty .
+  effects unsafe .
+end .
+
+rem ── C2·C3: 스캔해 str 로 — 그리고 str 연산이 그 위에서 그대로 돈다 ──────────────
+rem 길이를 몰라 스캔한다(strlen). "hello, lowent" = 13 바이트.
+unsafe proc greeting_len input k cap c . output u64 . effects unsafe . do
+  return len (str_from_cstr (c_greeting k)) .
+end .
+
+rem str 은 slice u8 의 투명 별칭(D1′) ⇒ index 가 그대로 작동한다. 첫 바이트 'h' = 104.
+unsafe proc greeting_byte0 input k cap c . output u8 . effects unsafe . do
+  return index (str_from_cstr (c_greeting k)) 0 .
+end .
+
+rem 빈 문자열도 정직하게 — strlen 0 → len 0 (자르지 않는다, none 도 아니다).
+unsafe proc empty_len input k cap c . output u64 . effects unsafe . do
+  return len (str_from_cstr (c_empty k)) .
+end .

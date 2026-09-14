@@ -1,0 +1,40 @@
+rem ★★ 회귀 — **수식자를 붙이면 op 이 통째로 사라졌다.** (SPEC-003 §21)
+rem
+rem   export fn f output u8 . effects none . do return 7 . end
+rem     →  `--check: ok`  ·  **IR 0 defs**  ·  `--run f` = "no such op"
+rem
+rem   선언한 op 이 **존재하지 않는데**, 아무도 안 부르면 초록불이었다. 문법에 있는 철자다.
+rem
+rem 두 가지가 겹쳐 있었다:
+rem   1. `unsafe`·`local`·`extern` 이 **어휘에 없었다.** 기본 닫개(`.`)로 떨어져
+rem      선언을 **조각냈다** — `unsafe fn u output u8 .` 하나가 form 이 되고
+rem      나머지(`effects` · `do…end`)가 최상위로 흩어졌다.
+rem   2. `export` 는 어휘에 있어서 op 을 **아래 중첩**시켰다: (export (fn f …)).
+rem      그런데 모든 소비자는 `kids[0]->kw == CALCOP` 로 op 을 찾는다 — 최상위는 op 이 아니다.
+rem
+rem 이제 파싱 직후 **한 번에** 껍질을 벗긴다(소비자가 9개 파일에 21곳 흩어져 있다).
+rem 그리고 수식자의 **의미** 중 **가시성과 unsafe 규율은 이제 강제된다**(2026-07-14). extern 링크는 아직 —
+rem **그것을 말한다**(W-NOT-YET). 조용히 무시하는 것이 죄다(PRINCIPLES.md §0 교훈 2).
+
+module vm_modifier .
+
+export fn e output u8 . do return 7 . end .
+rem ★★★ **`unsafe` 규율이 이제 강제된다**(2026-07-14). 전엔 이 op 이 `unsafe` 라고 적어 놓고
+rem   `effects none` 이었다 — **아무것도 사지 않는 unsafe** 다. 그것은 **거짓 경보**이고,
+rem   거짓 경보는 **진짜 경보를 안 읽게 만든다.**
+rem   ⇒ 수식자와 효과는 **짝이어야 한다**: 효과가 있으면 수식자가 있어야 하고(E-UNSAFE-UNDECLARED),
+rem     수식자가 있으면 효과가 있어야 한다(E-UNSAFE-UNUSED).
+rem   ★ 효과는 **무엇을 하는지**를 말하고, 수식자는 **누가 책임지는지**를 말한다.
+unsafe proc u output u8 . effects unsafe . do return 8 . end .
+fn l output u8 . do return 9 . end .
+
+rem ★ 그리고 **효과는 호출 사슬을 타고 전파된다**: `u` 가 unsafe 이므로 이것도 unsafe 다.
+rem   순수(`fn`)로는 부를 수 없다 — 그것이 효과 체계의 전부다.
+unsafe proc total output u8 . effects unsafe . do
+  var a u8 be e .
+  var b u8 be u .
+  var c u8 be l .
+  set a expr a + b . .
+  set a expr a + c . .
+  return a .
+end .

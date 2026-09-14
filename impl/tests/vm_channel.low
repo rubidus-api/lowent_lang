@@ -1,0 +1,46 @@
+rem ★ SPEC-007 §28 — **채널 전환**. `try E else_none`(result→option) ·
+rem   `try E else_error <variant>`(option→result).
+rem
+rem 명세에 있는 형태인데 **E-IR-ARITY**("여분의 피연산자") 로 거절됐다.
+rem *"네 프로그램에 인자가 남는다."* 아니다 — **도구가 그 낱말을 몰랐다.**
+rem PRINCIPLES.md §0 교훈 5(오진)의 다섯 번째 사례다.
+rem
+rem ★ 채널 전환의 뜻: **값은 그대로, 채널만 바뀐다.**
+rem   else_none  — 오류를 **버린다**(그것이 선택이다: 왜 실패했는지 더는 말하지 않는다).
+rem   else_error — 없음을 **이름 있는 오류**로 만든다(왜 없는지 이름을 붙인다).
+rem (`try E map_error <op>` 은 아직 — **못 한다고 말한다**(E-IR-UNSUP), 오진하지 않는다.)
+
+module vm_channel .
+
+enum e .
+  bad .
+end .
+
+fn g input a u8 . output result u8 e . errors bad gt a 10 .
+do
+  if gt a 10 . do return error bad . end .
+  return ok a .
+end .
+
+fn to_opt input a u8 . output option u8 . do
+  return try (g a) else_none .
+end .
+
+fn back input a u8 . output result u8 e . do
+  return try (to_opt a) else_error bad .
+end .
+
+rem 단언은 스칼라로 — 채널 자체가 아니라 **채널이 나른 값**을 본다.
+fn opt_is_some input a u8 . output bool . do
+  return is_some (to_opt a) .
+end .
+fn back_is_ok input a u8 . output bool . do
+  return is_ok (back a) .
+end .
+
+test channels_round_trip do
+  expect opt_is_some 5 .
+  expect not (opt_is_some 20) .
+  expect back_is_ok 5 .
+  expect not (back_is_ok 20) .
+end .

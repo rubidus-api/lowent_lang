@@ -1,0 +1,88 @@
+rem ★★★ **실물 프로그램: 헥스 덤프** — 이 언어를 **처음 쓰는 사람**이 짠 첫 프로그램이다
+rem   (2026-09-10, 「이제 프로그램을 개발할 정도가 되었나」 를 재려고 베끼지 않고 짰다).
+rem
+rem   하는 일은 `xxd` 의 알맹이 그대로다: 표준 입력을 받아 한 줄에 16 바이트씩
+rem   **오프셋 · 16진 · ASCII** 로 찍는다. 인쇄 불가 바이트는 `.` 이다.
+rem
+rem ★ 짜다가 결함 하나가 나왔다: `let e option u64 . be write_out k 1 ln .` 이
+rem   `--check` 를 초록으로 통과하고 **실행 중에 죽었다**(`write_out` 은 option 을 안 낸다).
+rem   선언한 타입이 그 자리에서 검사되지 않았다 —
+rem   `docs/known-defects/declared-type-unchecked.md` · 게이트 `check-decl-types.py`.
+rem   ☞ *골든은 「내가 쓴 대로 도는가」 를 묻고, 처음 쓰는 사람은 「내가 틀리게 쓰면 어떻게
+rem     되는가」 를 묻는다.*
+rem
+rem ☞ 오라클: 정해진 입력의 첫 줄을 골든이 **바이트로** 대본다(`xxd` 와 같은 자리 배치).
+
+module xd .
+
+rem 4비트 하나를 16진 글자로. 10 미만은 `0`+n, 그 위는 `a`+(n-10) 이다.
+proc hexit input v u64 . output u8 . effects none . requires lt v 16 . do
+  if lt v 10 . do return (cast u8 (add v 48)) . end .
+  return (cast u8 (add v 87)) .
+end .
+
+rem 인쇄 가능한 ASCII 인가 — 그 밖은 점으로 찍는다.
+proc printable input b u64 . output u8 . effects none . do
+  if lt b 32 . do return 46 . end .
+  if gt b 126 . do return 46 . end .
+  return (cast u8 b) .
+end .
+
+proc main .
+  input al cap allocator .
+  input k  cap io .
+  output u8 .
+  effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some g . else return 70 .
+  let buf mut slice u8 . be some_value g .
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 71 .
+  let got u64 be some_value rn .
+
+  rem 한 줄 = 오프셋 8 + 공백 2 + 16진 48 + 공백 1 + ASCII 16 + 줄바꿈 1 = 76
+  let lg option mut slice u8 . . be alloc_bytes al capacity 128 .
+  guard is_some lg . else return 70 .
+  let line mut slice u8 . be some_value lg .
+
+  var off u64 be 0 .
+  while lt off got . do
+    rem 오프셋 여덟 자리 — 위쪽 니블부터
+    var d u64 be 0 .
+    while lt d 8 . do
+      let sh u64 be mul (sub 7 d) 4 .
+      set (index line d) (hexit (bit_and (shr off sh) 15)) .
+      set d (add d 1) .
+    end .
+    set (index line 8) 32 .
+    set (index line 9) 32 .
+
+    var col u64 be 0 .
+    while lt col 16 . do
+      let hx u64 be add 10 (mul col 3) .
+      let ax u64 be add 59 col .
+      let at u64 be add off col .
+      if lt at got . do
+        let b u64 be cast u64 (index buf at) .
+        set (index line hx) (hexit (div b 16)) .
+        set (index line (add hx 1)) (hexit (mod b 16)) .
+        set (index line ax) (printable b) .
+      end . else do
+        set (index line hx) 32 .
+        set (index line (add hx 1)) 32 .
+        set (index line ax) 32 .
+      end .
+      set (index line (add hx 2)) 32 .
+      set col (add col 1) .
+    end .
+    set (index line 58) 32 .
+    set (index line 75) 10 .
+
+    let ln slice u8 be subslice line 0 76 .
+    let wrote u64 be write_out k 1 ln .
+    guard eq wrote 76 . else return 72 .
+    set off (add off 16) .
+  end .
+  return 0 .
+end .

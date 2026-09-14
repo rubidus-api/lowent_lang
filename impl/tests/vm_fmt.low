@@ -1,0 +1,112 @@
+rem ★★★ **포매팅이 출력과 갈라져 있다** — lib/fmt.low (RFC-0069 A1 · format.md 설계).
+rem   여기 모든 op 은 **호출자 버퍼에 조립**하고 `effects none` 이다: 숨은 할당 0, 숨은 stdout 0.
+rem   실제 출력은 `cap io` 를 든 자만 한다(A2). ⇒ **이 파일 전체가 오라클 안**이고,
+rem   stdout 이 생기기 **전에** 숫자→바이트 변환을 두 백엔드로 검증해 둔다.
+
+module vm_fmt .
+
+use fmt from "../../lib/fmt.low" .
+
+rem ── 수 → 바이트 ───────────────────────────────────────────────────────
+
+proc t_u64 input buf mut slice u8 . . output u64 . effects none . do
+  rem 0 은 한 자리다("" 가 아니라 "0").
+  let a option u64 . be fmt.put_u64 buf 0 0 .
+  guard is_some a . else return 90 .
+  guard eq (some_value a) 1 . else return 91 .
+  guard eq (index buf 0) 48 . else return 92 .
+  rem 12345 → "12345", pos 6 (앞의 '0' 하나 뒤부터)
+  let b option u64 . be fmt.put_u64 buf 1 12345 .
+  guard is_some b . else return 93 .
+  guard eq (some_value b) 6 . else return 94 .
+  guard eq (index buf 1) 49 . else return 95 .
+  guard eq (index buf 5) 53 . else return 96 .
+  return 1 .
+end .
+
+proc t_i64 input buf mut slice u8 . . output u64 . effects none . do
+  rem 음수는 부호를 먼저 쓴다.
+  let a option u64 . be fmt.put_i64 buf 0 (sub 0 42) .
+  guard is_some a . else return 90 .
+  guard eq (some_value a) 3 . else return 91 .            rem "-42"
+  guard eq (index buf 0) 45 . else return 92 .            rem '-'
+  guard eq (index buf 1) 52 . else return 93 .            rem '4'
+  rem 양수는 부호 없이.
+  let b option u64 . be fmt.put_i64 buf 3 7 .
+  guard is_some b . else return 94 .
+  guard eq (some_value b) 4 . else return 95 .
+  guard eq (index buf 3) 55 . else return 96 .            rem '7'
+  return 1 .
+end .
+
+proc t_hex input buf mut slice u8 . . output u64 . effects none . do
+  rem 255 → "ff"
+  let a option u64 . be fmt.put_hex buf 0 255 .
+  guard is_some a . else return 90 .
+  guard eq (some_value a) 2 . else return 91 .
+  guard eq (index buf 0) 102 . else return 92 .           rem 'f'
+  guard eq (index buf 1) 102 . else return 93 .
+  rem 16 → "10"
+  let b option u64 . be fmt.put_hex buf 2 16 .
+  guard is_some b . else return 94 .
+  guard eq (some_value b) 4 . else return 95 .
+  guard eq (index buf 2) 49 . else return 96 .            rem '1'
+  guard eq (index buf 3) 48 . else return 97 .            rem '0'
+  return 1 .
+end .
+
+rem ── 문자열·불리언·줄바꿈 ──────────────────────────────────────────────
+
+proc t_str input buf mut slice u8 . . output u64 . effects none . do
+  let a option u64 . be fmt.put_str buf 0 "hi" .
+  guard is_some a . else return 90 .
+  guard eq (some_value a) 2 . else return 91 .
+  guard eq (index buf 0) 104 . else return 92 .
+  let b option u64 . be fmt.put_bool buf 2 true .
+  guard is_some b . else return 93 .
+  guard eq (some_value b) 6 . else return 94 .            rem "true"
+  let c option u64 . be fmt.put_nl buf 6 .
+  guard is_some c . else return 95 .
+  guard eq (index buf 6) 10 . else return 96 .            rem LF
+  return 1 .
+end .
+
+rem ── ★★ 넘침은 **값으로 거절**하고 버퍼를 안 건드린다 ─────────────────
+
+proc t_overflow input buf mut slice u8 . . output u64 . effects none . do
+  rem 버퍼 끝 직전에서 여러 자리 수를 쓰려 하면 none 이고 **아무것도 안 쓴다**.
+  let last u64 be sub (len buf) 1 .
+  guard eq (is_some (fmt.put_u64 buf last 12345)) false . else return 90 .
+  guard eq (index buf last) 0 . else return 91 .          rem ★ 부분 기록이 없다
+  rem 문자열도 전량 아니면 무.
+  guard eq (is_some (fmt.put_str buf last "abc")) false . else return 92 .
+  guard eq (index buf last) 0 . else return 93 .
+  rem 딱 맞으면 성공한다(경계는 정확하다).
+  let fit option u64 . be fmt.put_byte buf last 65 .
+  guard is_some fit . else return 94 .
+  guard eq (some_value fit) (len buf) . else return 95 .
+  return 1 .
+end .
+
+rem ── 합성: 여러 조각을 이어 붙인다(format.md 의 format_point 자리) ──────
+
+proc t_compose input buf mut slice u8 . . output u64 . effects none . do
+  rem "(12, 7)\n" 을 조립하고 총 길이를 낸다.
+  var at u64 be 0 .
+  let a option u64 . be fmt.put_byte buf at 40 .              rem '('
+  guard is_some a . else return 90 .
+  set at (some_value a) .
+  let b option u64 . be fmt.put_u64 buf at 12 .
+  guard is_some b . else return 91 .
+  set at (some_value b) .
+  let c option u64 . be fmt.put_str buf at ", " .
+  guard is_some c . else return 92 .
+  set at (some_value c) .
+  let d option u64 . be fmt.put_u64 buf at 7 .
+  guard is_some d . else return 93 .
+  set at (some_value d) .
+  let e option u64 . be fmt.put_byte buf at 41 .              rem ')'
+  guard is_some e . else return 94 .
+  set at (some_value e) .
+  return at .
+end .

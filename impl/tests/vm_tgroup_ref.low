@@ -1,0 +1,49 @@
+rem ★★★ **task_group 후 메인 지역의 참조** (RFC-0072 E-Alloc P1 회귀. 2026-07-21).
+rem
+rem ★★★ **왜 이 파일이 있나 — diff-sweep 이 못 잡던 발산을 막는다.**
+rem   VM 의 그린스레드는 base `gi*GT_DEPTH`(0부터) 에서 돌았다. 그런데 **메인(spawn 한 쪽)의
+rem   프레임도 거기 있다.** 그래서 `task_group` 이 끝난 **뒤에** 메인 지역의 참조를 쓰면, 그
+rem   프레임이 그린스레드에 덮여 VM 이 `E-VM-DANGLING` 으로 **오판**했다 — 네이티브는 정답을 냈다.
+rem   **커밋된 코드의 VM≡native 발산**이었고, 어떤 per-op 픽스처도 이 조합을 안 밟아 차등 스윕이
+rem   못 봤다. E-Alloc P1 이 그린스레드 창을 **메인 프레임 위**(sched_base = 메인깊이+1)로 올려 고쳤다.
+rem
+rem ★★ 이 파일이 재는 것: task_group 을 사이에 끼워도 메인의 지역·참조가 **살아남는가**.
+
+module vm_tgroup_ref .
+
+actor counter .
+  state v u64 . end .
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
+  fn get output u64 . do return v . end .
+end .
+
+rem 태스크: 카운터에 inc 한 번. (그린스레드 프레임을 실제로 쓰게 만든다.)
+proc worker input c counter . output u64 . effects state . do
+  spawn send c inc .
+  return 0 .
+end .
+
+rem ── ① task_group 후 메인 지역의 참조가 살아있다 ──────────────────────
+rem ★ x 를 잡고 → task_group → x 의 참조를 통해 읽는다. 12345 여야 한다(안 덮였다).
+proc ref_survives output u64 . effects state . do
+  var x u64 be 12345 .
+  var c counter be spawn actor counter . .
+  task_group do
+    spawn worker c .
+    spawn worker c .
+  end .
+  var r ref u64 . be ref x .
+  return deref r .
+end .
+
+rem ── ② 메인 지역과 태스크 결과가 둘 다 맞다 ────────────────────────────
+rem ★ 메인 지역(x=7)이 task_group 뒤에도 7 이고, 태스크 둘의 효과(get=2)도 보인다: 7*10+2 = 72.
+proc both output u64 . effects state . do
+  var x u64 be 7 .
+  var c counter be spawn actor counter . .
+  task_group do
+    spawn worker c .
+    spawn worker c .
+  end .
+  return expr x * 10 + (send c get) .
+end .

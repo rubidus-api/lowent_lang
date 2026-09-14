@@ -1,0 +1,51 @@
+rem ★★★★★ **계약으로 쓴 관계가 길이 사실과 이어진다** (2026-08-21, RFC-0095 S-B)
+rem
+rem   같은 사실인데 **어디서 왔느냐에 따라 도구가 다르게 답했다**(실측):
+rem       guard le j hi . else … .  + requires lt hi (len a) .  ⇒ 색인 검사 **지워짐**
+rem       requires le j hi .        + requires lt hi (len a) .  ⇒ **안 지워짐**
+rem   ☞ **계약으로 쓴 쪽이 졌다.** 본문 경로(`iv_narrow`)에는 추이 한 걸음이 있었고
+rem     진입 경로에는 없었다 — 관계를 수치 상계로만 바꿨는데 `len a` 에는 수치 상계가 없다.
+rem   ⇒ 폐포에 **관계 ∘ 길이관계** 합성을 넣어 두 경로를 같게 만들었다.
+
+module vm_relchain .
+
+rem ✔ ① 계약만으로 — 이 자리가 **0 / 1 이었다**.
+export proc by_contract input a slice u8 . . input hi u64 . input j u64 .
+  output u8 . effects none .
+  requires lt hi (len a) .
+  requires le j hi .
+do
+  return index a j .
+end .
+
+rem ✔ ② 같은 사실을 본문에서 — 이쪽은 처음부터 됐다(대조군: 두 경로가 같은 답을 내야 한다).
+export proc by_guard input a slice u8 . . input hi u64 . input j u64 .
+  output u8 . effects none .
+  requires lt hi (len a) .
+do
+  guard le j hi . else return 0 .
+  return index a j .
+end .
+
+rem ✘ ③ **증명되면 안 된다** — 사슬의 끝이 열려 있다(길이 사실이 없다).
+export proc open_end input a slice u8 . . input hi u64 . input j u64 .
+  output u8 . effects none .
+  requires le j hi .
+do
+  return index a j .
+end .
+
+rem ✘ ④ **증명되면 안 된다** — `≤` 는 색인에 못 쓴다: `hi = len a` 이면 `j = len a` 가 된다.
+rem    (엄격 비트가 여백 안에 제대로 들어가는지를 이 자리가 지킨다)
+export proc loose_end input a slice u8 . . input hi u64 . input j u64 .
+  output u8 . effects none .
+  requires le hi (len a) .
+  requires le j hi .
+do
+  return index a j .
+end .
+
+proc main output u8 . effects none .
+do
+  return 0 .
+end .

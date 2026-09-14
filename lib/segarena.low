@@ -1,0 +1,145 @@
+rem ★★★ **고정 크기 세그먼트 아레나 — RFC-0104 §8-5**(소유자 서명 2026-08-28, §5.15).
+rem
+rem   묻던 것: *"저장소를 한 덩어리로 잡지 않고 **조각**으로 늘리면서, 조각 안에서는 연속으로
+rem   쓰고 싶다."* 그러면 색인 하나를 조각과 자리로 나눠야 한다:
+rem
+rem       segment = i >> k            slot = i & ((1 << k) - 1)
+rem       address = directory[segment] + slot
+rem
+rem ★★★ **컴파일러는 이것을 몰라도 된다**(실측이 그렇게 말했다, §5.15). 종료 조건인
+rem   *"세그먼트 순회에서 directory load 는 세그먼트당 한 번 이하"* 는 **부르는 op 이 정한다**:
+rem
+rem       walk 처럼 **세그먼트를 한 번 빌리면**  directory load = 세그먼트당 1  (21 ms)
+rem       at 처럼 **전역 색인으로 매번 물으면**  directory load = 원소마다 1    (81 ms)
+rem
+rem   같은 답에 **3.9 배**다. 그리고 그 차이가 **op 이름으로 보인다** — RFC §5.5 가
+rem   *"전역 random access 의 비용을 `slice` 처럼 숨기지 않는다"* 고 적은 그대로다.
+rem   ⇒ 새 낱말 0 · 새 빌트인 0.
+rem
+rem ★★ **저장은 호출자 것이다**(이 저장소의 규율): `dir`(조각마다 시작 자리)과 `mem`(바이트가
+rem   실제로 사는 곳)을 밖에서 받는다. 아레나는 **커서와 모양**만 든다.
+rem
+rem ☞ 안 지은 것(정직히): 가변 크기 조각(prefix directory·tree lookup 이 필요하다) ·
+rem   자동 재배치 · 조각 회수(지금은 **일괄**뿐이다 — 그것이 아레나의 뜻이다) ·
+rem   `segments T` 뷰와 커서(§8-8 이 맡는다).
+
+module segarena .
+
+rem 아레나 하나. `kbits` 가 조각 크기를 정한다(조각당 `2^kbits` 칸).
+export struct arena .
+  input comptime b type .
+  kbits u64 .
+  nseg u64 .      rem 지금까지 연 조각 수
+  used u64 .      rem 마지막 조각에서 쓴 칸 수
+end .
+
+rem ★ 연다. 조각 크기는 `2^kbits` 이고, `kbits` 는 **1 이상 20 이하**로 둔다 —
+rem   0 이면 조각이 한 칸이라 뜻이 없고, 너무 크면 조각 하나가 이미 큰 배열이다.
+export fn open input comptime b type . input kbits u64 . output arena b .
+requires ge kbits 1 .
+requires le kbits 20 .
+do
+  return make arena b do kbits kbits . nseg 0 . used 0 . end .
+end .
+
+rem 조각 하나에 몇 칸이 들어가나.
+rem ☞ 필드 경로 `requires` 는 **안 쓴다**: 계약 오라클이 그 축을 거짓 실패로 센다
+rem   (`docs/known-defects/oracle-field-path-contract.md`, 최소 재현 포함). `open` 의 **스칼라**
+rem   계약이 이미 `kbits ≤ 20` 을 지키므로 여기서는 값이 그 사실을 다시 확인할 뿐이다.
+export fn seg_slots input comptime b type . input a arena b . output u64 . do
+  if gt (field a kbits) 20 . do return 0 . end .
+  return shl 1 (field a kbits) .
+end .
+
+rem 전역 색인을 **조각**과 **자리**로 가른다. 이 둘이 이 모듈의 전부다.
+export fn seg_of  input comptime b type . input a arena b . input i u64 . output u64 . do
+  if gt (field a kbits) 20 . do return 0 . end .
+  return shr i (field a kbits) .
+end .
+
+export fn slot_of input comptime b type . input a arena b . input i u64 . output u64 . do
+  if gt (field a kbits) 20 . do return 0 . end .
+  return bit_and i (sub (shl 1 (field a kbits)) 1) .
+end .
+
+rem ★★ **조각을 하나 더 연다.** `dir` 에 그 조각의 시작 자리를 적는다.
+rem   더 열 자리가 없으면 `none` — 실패는 값이다(RFC-0043 D5).
+export proc grow input comptime b type . input a mut arena b . input dir mut slice u64 . .
+  input cap0 u64 . output option u64 . effects none .
+do
+  guard le (field a kbits) 20 . else return none .
+  guard lt (field a nseg) (len dir) . else return none .
+  let width u64 be shl 1 (field a kbits) .
+  let base u64 be mul (field a nseg) width .
+  guard le (add base width) cap0 . else return none .
+  set (index dir (field a nseg)) base .
+  set (field a nseg) (add (field a nseg) 1) .
+  set (field a used) 0 .
+  return some base .
+end .
+
+rem ★ **전역 색인 하나로 읽는다** — 편하지만 directory 를 **매번** 본다.
+rem   뜨거운 순회에는 아래 `walk_base` 를 써라. 이름이 비용을 말한다.
+export proc at input comptime b type . input a arena b . input dir slice u64 . .
+  input mem slice u64 . . input i u64 . output option u64 . effects none .
+do
+  guard le (field a kbits) 20 . else return none .
+  let s u64 be shr i (field a kbits) .
+  guard lt s (field a nseg) . else return none .
+  guard lt s (len dir) . else return none .
+  let at0 u64 be add (index dir s) (bit_and i (sub (shl 1 (field a kbits)) 1)) .
+  guard lt at0 (len mem) . else return none .
+  return some (index mem at0) .
+end .
+
+rem ★★★ **조각을 한 번 빌린다** — 그 뒤 순회는 directory 를 **안 본다**.
+rem   이 op 이 있는 이유가 종료 조건 그 자체다(세그먼트당 directory load 1회).
+export proc walk_base input comptime b type . input a arena b . input dir slice u64 . .
+  input s u64 . output option u64 . effects none .
+do
+  guard lt s (field a nseg) . else return none .
+  guard lt s (len dir) . else return none .
+  return some (index dir s) .
+end .
+
+rem 조각 하나를 더한다 — 빌린 base 로 도는 합. **루프 안에 directory 가 없다.**
+export proc sum_seg input comptime b type . input a arena b . input dir slice u64 . .
+  input mem slice u64 . . input s u64 . output u64 . effects none .
+do
+  guard le (field a kbits) 20 . else return 0 .
+  let bo option u64 . be walk_base b a dir s .
+  guard is_some bo . else return 0 .
+  let base u64 be some_value bo .
+  let width u64 be shl 1 (field a kbits) .
+  var acc u64 be 0 .
+  var k u64 be 0 .
+  while lt k width . do
+    let at0 u64 be add base k .
+    if lt at0 (len mem) . do
+      set acc (wrap_add acc (index mem at0)) .
+    end .
+    set k (add k 1) .
+  end .
+  return acc .
+end .
+
+rem 같은 합을 **전역 색인으로** 낸다 — 답은 같고 비용은 다르다(골든이 그 차이를 잰다).
+export proc sum_global input comptime b type . input a arena b . input dir slice u64 . .
+  input mem slice u64 . . input s u64 . output u64 . effects none .
+do
+  guard le (field a kbits) 20 . else return 0 .
+  rem ★ 안 연 조각은 `sum_seg` 와 같은 답(0)이다 — `at` 이 어차피 전부 none 을 냈을 것이지만, 큰 `s` 는
+  rem   그 전에 `mul s width` 에서 넘쳐 트랩이었다(2026-09-04 보안 검토). `nseg ≤ len dir` 이고 조각의
+  rem   시작 자리는 `grow` 가 `cap0` 안에 두었으므로, 이 검사를 지난 곱셈은 넘치지 않는다.
+  guard lt s (field a nseg) . else return 0 .
+  let width u64 be shl 1 (field a kbits) .
+  var acc u64 be 0 .
+  var k u64 be 0 .
+  while lt k width . do
+    let i u64 be add (mul s width) k .
+    let v option u64 . be at b a dir mem i .
+    if is_some v . do set acc (wrap_add acc (some_value v)) . end .
+    set k (add k 1) .
+  end .
+  return acc .
+end .

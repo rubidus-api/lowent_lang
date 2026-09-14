@@ -1,0 +1,26 @@
+rem ★★★ **호출-반환 타입 슬라이스 index 증인** — VM≠native 였던 선재 결함(2026-07-23 수정).
+rem
+rem   fn 이 `view_array u32 b`(원소폭 4)를 **직접 반환**하면, native 의 빠른 경로가 호출-결과
+rem   슬롯의 원소폭을 **바이트(ve=1)로 물려** `index (mk4 c) i` 가 stride 1 로 읽었다 — VM(원소 i)
+rem   ≠native(바이트 i). 근인: 빠른 경로가 "반환 슬라이스는 바이트만" 을 **파라미터 폭**(cbe_def_esz)
+rem   으로 판정했는데, mk4 의 param 은 바이트(slice u8)라 통과했다. 실제 **반환** 슬라이스의 추적된
+rem   원소폭(st.ve, view_array 가 설정)으로 판정하게 고쳐, 타입 슬라이스 반환은 태그 경로로 내린다
+rem   (부호형 i32 가 이미 그렇게 옳게 돌던 자리와 같다). index 0·len 은 원래 일치했다(stride 무관).
+module m .
+type bytes slice u8 .
+
+rem 타입 슬라이스를 반환하는 op.
+fn mk4  input b bytes . output slice u32 . do return view_array u32 b . end .
+
+rem 그 반환을 바로 index — 원소 1. [1,0,0,0,2,0,0,0] → 2.
+fn idx1 input c bytes . output u32 . do return index (mk4 c) 1 . end .
+
+rem stride 증명: [10,11,12,13,20,21,22,23] 원소1 = 0x17161514 = 387323156 (바이트라면 11).
+fn stride input c bytes . output u32 . do return index (mk4 c) 1 . end .
+
+rem len 은 원소 수 — 원래 일치(불변 대조). 2 원소.
+fn mlen input c bytes . output u64 . do return len (mk4 c) . end .
+
+rem 부호형 i32 반환 — 원래 일치했다(태그 경로). 원소1 = -5.
+fn mk4i input b bytes . output slice i32 . do return view_array i32 b . end .
+fn idxi input c bytes . output i64 . do return widen i64 (index (mk4i c) 1) . end .

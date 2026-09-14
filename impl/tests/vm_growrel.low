@@ -1,0 +1,63 @@
+rem ★★★★★ **증가는 하한 관계를 죽이지 않는다** (2026-08-22, RFC-0053 §8)
+rem
+rem   `x + m ≤ v` 가 참인데 `v = v + c`(c ≥ 0)를 하면 그 부등식은 **여전히 참**이다 —
+rem   v 는 커지기만 했다. 그런데 대입의 무효화가 그 사실까지 통째로 지우고 있었다.
+rem
+rem   ☞ 실측이 자리를 짚었다: `qsort` 의 남은 검사 중 `sub i lo` 가 요구하는 것이 `lo ≤ i` 이고,
+rem     그 사실을 **심는 코드는 이미 있었다**(*복사는 같음이다*, 2026-08-17). 지우는 쪽만
+rem     한 걸음 크게 지우고 있었다. **새 사실이 아니라 안 지우는 것이다.**
+rem
+rem   ★ 정직한 경계: 관계 칸은 **슬롯당 하나**다. 시작 변수에 이미 다른 관계가 실려 있으면
+rem     (`qsort` 의 `lo < hi`) 이 사실은 **실릴 자리가 없다** — 그래서 `qsort` 는 이걸로 안 닫힌다.
+rem     그 두 번째 칸은 2026-08-18 에 재서 안 싣기로 한 것이다(밀려남 3.4%).
+
+module vm_growrel .
+
+rem ✔ ① 조건부로만 증가해도 시작점 아래로는 안 내려간다 — `sub i lo` 가 사라진다.
+export proc cond_grow input lo u64 . input k u64 . output u64 . effects none .
+  requires le lo 1000 .
+do
+  var i u64 be lo .
+  var j u64 be lo .
+  while lt j 100 . do
+    if lt k 5 . do
+      set i (add i 1) .
+    end .
+    set j (add j 1) .
+  end .
+  return sub i lo .
+end .
+
+rem ✔ ② 걸음이 0 이어도(늘 같은 값) 하한 관계는 산다.
+export proc zero_step input lo u64 . output u64 . effects none .
+  requires le lo 1000 .
+do
+  var i u64 be lo .
+  set i (add i 0) .
+  return sub i lo .
+end .
+
+rem ✘ ③ **증명되면 안 된다** — 줄어드는 대입은 하한 관계를 죽인다.
+rem    (`i = i − 1` 뒤에는 `lo ≤ i` 가 거짓일 수 있다)
+export proc shrink input lo u64 . output u64 . effects none .
+  requires le lo 1000 .
+  requires ge lo 1 .
+do
+  var i u64 be lo .
+  set i (sub i 1) .
+  return sub i lo .
+end .
+
+rem ✘ ④ **증명되면 안 된다** — 다른 값으로 덮어쓰면 관계는 죽는다.
+export proc clobber input lo u64 . input other u64 . output u64 . effects none .
+  requires le lo 1000 .
+do
+  var i u64 be lo .
+  set i other .
+  return sub i lo .
+end .
+
+proc main output u8 . effects none .
+do
+  return 0 .
+end .

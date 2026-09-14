@@ -1,0 +1,124 @@
+rem ★★★ **allocator-as-capability** (RFC-0043) — **채택인데 구현 0** 이었다.
+rem
+rem   대부분의 언어는 `new`/`malloc` 이 **암묵 전역 힙**에서 할당한다: 요청하지 않았고,
+rem   제어할 수 없고, **숨은 의존**이고, **ambient 권한**이다.
+rem
+rem ── D1: **할당하려면 allocator 를 인자로 받아야 한다.** ambient 힙은 없다.
+rem   `effects alloc` 인데 아무 권한도 안 받으면 **E-ALLOC-NOCAP**.
+rem   ★ 켜자마자 **우리 픽스처 셋이 위반**이었다 — `reach` 와 `load_file` 은
+rem     **아무것도 건네받지 않고 할당하고 있었다.**
+rem
+rem ── D2: **인터페이스는 트레이트다.** 어느 구현이든 그것을 충족하면 allocator 다.
+rem ── D5: **OOM 은 값이다**(option/result). panic 이 아니다 — 임베디드는 **반드시 처리**한다.
+rem ── D6: **no_heap 게이팅** — 계층 t0/t1 은 `alloc` 효과를 **감당하지 못한다**(RFC-0039 D4).
+rem        ⇒ *"ATtiny 에 malloc"* 은 **이미 정적으로 차단**돼 있다.
+rem
+rem ★★ 그리고 **호출 코드는 allocator 를 모른다** — 경계(trait bound)가 그것을 보장한다.
+rem    이것은 오늘 아침 trait 의 **구조적 충족**을 지었기에 가능해졌다.
+
+module alloc .
+
+build tier t2 .              rem ★ rtos 계층 — `alloc` 을 감당한다 (t0/t1 이면 거부된다)
+
+rem ── D2: 인터페이스. `reserve` 는 **option 을 돌려준다** — OOM 은 값이다(D5).
+rem   ★ 이름 정정(2026-07-18): 원래 `take` 였다. RFC-0010 파이프라인이 `take n`(앞 n 원소만 통과시키고
+rem     거기서 멈춤 — 단락)을 **닫힌 스테이지 어휘**로 들이면서, 한 낱말이 두 뜻을 갖게 됐다:
+rem       allocator take n : n **바이트**의 저장소를 달라 → **오프셋**(실패 시 none) · effects state
+rem       pipeline  take n : 앞 n **원소**만 통과 → 흐름을 **끊는다** · 효과 없음
+rem     하나는 **자원을 얻고** 하나는 **흐름을 끊는다** — §2.5 가 금지하는 "한 낱말에 두 뜻" 이다.
+rem     자리로 구분은 되지만(파서는 send 의 3번째 낱말과 스테이지 머리를 안다) **읽는 사람에게는
+rem     여전히 두 뜻**이라, 비용이 0 인 쪽(픽스처 이름)을 바꿨다. `take` 는 파이프라인 관용이고
+rem     `reserve` 가 실제 동작(자리를 예약해 오프셋을 준다)에 더 정확하다.
+trait allocator .
+  init input s self . input c u64 . output u64 . effects state .
+  reserve input s self . input n u64 . output option u64 . effects state .
+  used input s self . output u64 . effects state .
+end .
+
+rem ── D3: **fixed_buffer bump** — 정적 버퍼 위의 순차 할당. **힙 0.** ATtiny 가능.
+rem   할당의 결과는 **버퍼 안의 오프셋**이다(포인터가 아니다) — 그래서 VM 에서 진짜로 돈다.
+actor bump .
+  satisfies allocator .
+  state .
+    off u64 .
+    cap u64 .
+  end .
+  proc init input c u64 . output u64 . effects state .
+  do
+    set cap c .
+    return cap .
+  end .
+  proc reserve input n u64 . output option u64 . effects state .
+  do
+    guard le (add off n) cap . else return none .    rem ★ OOM 은 **값**이다
+    var at u64 be off .
+    set off add off n .
+    return some at .
+  end .
+  proc used output u64 . effects none .
+  do
+    return off .
+  end .
+end .
+
+rem ── 또 하나의 구현: **정렬을 8바이트로 맞추는** bump (같은 인터페이스, 다른 정책)
+actor aligned .
+  satisfies allocator .
+  state .
+    off u64 .
+    cap u64 .
+  end .
+  proc init input c u64 . output u64 . effects state .
+  do
+    set cap c .
+    return cap .
+  end .
+  proc reserve input n u64 . output option u64 . effects state .
+  do
+    var pad u64 be mod (sub 8 (mod off 8)) 8 .
+    var at u64 be add off pad .
+    guard le (add at n) cap . else return none .
+    set off add at n .
+    return some at .
+  end .
+  proc used output u64 . effects none .
+  do
+    return off .
+  end .
+end .
+
+rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계가 인터페이스를 보장한다.
+rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계(trait bound)가 인터페이스를 보장한다.
+proc two_takes .
+  input comptime a type .
+  using al a .
+  output u64 .
+  effects state .
+  requires allocator a .        rem ★ 경계는 **타입 파라미터**를 가리킨다
+do
+  var c u64 be send al init 64 .
+  var x option u64 be send al reserve 3 .
+  var y option u64 be send al reserve 5 .
+  return send al used .
+end .
+
+proc demo output u64 . effects state . do
+  var b bump be spawn actor bump . .
+  var g aligned be spawn actor aligned . .
+  let p u64 using b be two_takes .
+  let q u64 using g be two_takes .
+  return add p q .   rem 8 + 13 = 21
+end .
+
+rem ★★★ **OOM 은 값이다**(D5) — panic 이 아니다. 임베디드는 **반드시 처리**한다.
+proc oom output bool . effects state . do
+  var b bump be spawn actor bump . .
+  var c u64 be send b init 4 .
+  var x option u64 be send b reserve 99 .      rem 4 바이트 버퍼에 99 를 달라고 한다
+  return is_some x .                        rem → **false**. 트랩이 아니라 **none**.
+end .
+
+test alloc_holds do
+  expect eq (demo) 21 .
+  expect eq (oom) false .
+end .

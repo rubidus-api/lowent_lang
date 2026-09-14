@@ -1,0 +1,86 @@
+rem ★★★ **ABI 표면** — 이 저장소가 **얼릴 수 있는 것**의 전부 (RFC-0089 §8-1 ① · 후속 G).
+rem
+rem   ☞ *"우리의 ABI"* 가 무엇인지부터 정직해야 한다. **남이 컴파일한 프로그램의 심볼 목록은
+rem     그 사람의 것이지 우리 것이 아니다.** 우리가 약속할 수 있는 것은 하나뿐이다 —
+rem     **Lowent 의 경계 타입이 C 의 무엇으로 나가는가**(그리고 이름·래퍼 규칙).
+rem     그 사상이 바뀌면 **남이 어제 링크한 코드가 오늘 깨진다.** 그것이 얼릴 대상이다.
+rem
+rem   ⇒ 이 파일은 그 사상의 **정의역을 한 번씩 다 밟는다**. `--emit-h` 를 여기에 돌린 결과가
+rem     곧 표면 목록이고(`docs/abi-surface.h`), 게이트가 그것을 기준선과 댄다
+rem     (`scripts/check-abi.py`). **손으로 적은 표가 아니라 방출기가 낸 것**이다 —
+rem     손으로 적으면 그것이 두 번째 표현이고, 갈린다(교훈 7).
+rem
+rem   ★ 여기에 **모양을 더하면** 기준선이 바뀌는 것이 정상이다(새 약속이 생긴 것).
+rem     여기를 **안 건드렸는데** 기준선이 바뀌면 그것이 곧 **말없는 ABI 변경**이고, 게이트가 운다.
+
+module abi_surface .
+
+rem ══ ① 나가는 방향 (`export`) — C 가 우리를 부른다 ════════════════════════════════
+rem   래퍼 없이 하강된 몸으로 바로 간다. 헤더는 정수를 `long long`, 부동을 `double` 로 낸다.
+rem   ☞ 슬라이스 인자는 **포인터 + 길이 둘**로 펴지고, 원소 폭은 이 방향에선 **안 실린다**
+rem     (`const unsigned char *, size_t`) — 그 사실 자체가 얼릴 약속의 일부다.
+
+export fn abi_ret_int input a u64 . output u64 . do
+  return add a 1 .
+end .
+
+export fn abi_ret_flt input a f64 . output f64 . do
+  return mul a 2.0 .
+end .
+
+export fn abi_no_params output u64 . do
+  return 7 .
+end .
+
+export fn abi_slice_param input s slice u8 . output u64 . do
+  return widen u64 (len s) .
+end .
+
+export fn abi_many input a u64 . input b f64 . input s slice u8 . output f64 . do
+  return add b (cast f64 (add a (widen u64 (len s)))) .
+end .
+
+rem ── `export extern` — 같은 이름이 C 헤더로 그대로 나간다(비용 0 경로).
+export extern fn abi_clamp255 input a u64 . output u64 . . do
+  if gt a 255 . do return 255 . end .
+  return a .
+end .
+
+rem ══ ② 들어오는 방향 (`extern`) — 우리가 C 를 부른다 ═════════════════════════════
+rem   ☞ 이쪽은 **원소 폭과 부호가 전부 실린다**(`const int32_t *` 등). 나가는 방향과
+rem     비대칭인데, 그 비대칭 자체가 얼릴 사실이다 — 조용히 바뀌면 남의 C 정의가 어긋난다.
+
+unsafe extern proc abi_c_i8   input k cap c . input s slice i8  . output i64 . link abi_c_i8 . effects unsafe . end .
+unsafe extern proc abi_c_i16  input k cap c . input s slice i16 . output i64 . link abi_c_i16 . effects unsafe . end .
+unsafe extern proc abi_c_i32  input k cap c . input s slice i32 . output i64 . link abi_c_i32 . effects unsafe . end .
+unsafe extern proc abi_c_i64  input k cap c . input s slice i64 . output i64 . link abi_c_i64 . effects unsafe . end .
+unsafe extern proc abi_c_u8   input k cap c . input s slice u8  . output i64 . link abi_c_u8 . effects unsafe . end .
+unsafe extern proc abi_c_u16  input k cap c . input s slice u16 . output i64 . link abi_c_u16 . effects unsafe . end .
+unsafe extern proc abi_c_u32  input k cap c . input s slice u32 . output i64 . link abi_c_u32 . effects unsafe . end .
+unsafe extern proc abi_c_u64  input k cap c . input s slice u64 . output i64 . link abi_c_u64 . effects unsafe . end .
+
+rem ── 스칼라 인자·부동 인자·부동 반환
+unsafe extern proc abi_c_scalars input k cap c . input a i64 . input b f64 . output f64 . link abi_c_scalars . effects unsafe . end .
+
+rem ── 인자 없음(cap 만) — C 에서는 `(void)`
+unsafe extern proc abi_c_void input k cap c . output i64 . link abi_c_void . effects unsafe . end .
+
+rem ── cstr — 널종단 `const char *` 단일 포인터(길이 없음, RFC-0068 S4)
+rem   ☞ `cstr` 은 빌트인이 아니라 **모듈이 선언하는 newtype** 이다. 그 사실도 표면의 일부다:
+rem     이 줄이 없으면 반환은 조용히 `long long` 으로 나간다(그리고 `--check` 가 E-TYPE-UNDEF 로 운다).
+newtype cstr unsafe_ptr u8 .
+unsafe extern proc abi_c_cstr input k cap c . output cstr . link abi_c_cstr . effects unsafe . end .
+
+rem ── struct by-value — viewable 구조체는 **진짜 C struct** 로 나간다(struct lw_sty_N)
+struct abi_pt .
+  x i64 .
+  y i64 .
+end .
+unsafe extern proc abi_c_pt input k cap c . input p abi_pt . output i64 . link abi_c_pt . effects unsafe . end .
+
+rem ══ ③ **약속하지 않는 것도 표면이다** ═══════════════════════════════════════════
+rem   심볼이 안 나오는 export 는 헤더가 `/* not exported: … */` 로 **이유와 함께** 적는다.
+rem   그 문장이 기준선에 들어 있어야, 나중에 조용히 심볼이 생기거나 사라지는 것도 잡힌다.
+export fn abi_ret_slice input b slice u8 . output slice u32 . do
+  return view_array u32 b .
+end .

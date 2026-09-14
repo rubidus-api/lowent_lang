@@ -1,0 +1,46 @@
+rem ★★★ **바퀴 수로 원소를 묶는다** — 그리고 **못 묶는 자리는 안 묶는다** (RFC-0111 §8-18 · WO-0197).
+rem
+rem   표에 되쓰는 코드(편집 거리)는 위드닝이 원소 구간을 ⊤ 로 보내 「값 + 1」 의 넘침 검사가
+rem   영원히 남았다. 이제 **추측하고 검증한다**: 후보 상계 = 진입 원소 상계 + 바퀴 수,
+rem   그리고 **한 걸음이 c 를 안 넘는지** 확인한다(넘으면 후보를 버린다).
+rem
+rem ★ 이 픽스처의 값은 **두 쪽 다** 보이는 데 있다: 묶이는 자리와 **안 묶이는 자리**.
+rem   상계는 「없어서 못 지운 검사」 보다 「있는데 틀린 검사」 가 훨씬 나쁘다.
+
+module tripcap .
+
+rem ── ① 묶인다: 바퀴 수가 서고, 한 걸음이 +1 이며, 쓰기가 전부 루프 안이다.
+export proc grow input a mut slice u32 . . input n u64 . .
+  output u64 .
+  effects none .
+  requires elem_le a 1000 .
+  requires le (len a) 4096 . requires le n 4096 .
+do
+  var i u64 be 0 .
+  while lt i n . do
+    if lt i (len a) . do
+      let v u32 be index a i .
+      set (index a i) (add v 1) .
+    end .
+    set i (add i 1) .
+  end .
+  return 0 .
+end .
+
+rem ── ② 안 묶인다: 한 걸음이 **곱**이다(+1 이 아니다). 검증이 후보를 버려야 한다.
+export proc blow input a mut slice u32 . . input n u64 . .
+  output u64 .
+  effects none .
+  requires elem_le a 1000 .
+  requires le (len a) 4096 . requires le n 4096 .
+do
+  var i u64 be 0 .
+  while lt i n . do
+    if lt i (len a) . do
+      let v u32 be index a i .
+      set (index a i) (mul v 3) .
+    end .
+    set i (add i 1) .
+  end .
+  return 0 .
+end .

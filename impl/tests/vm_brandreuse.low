@@ -1,0 +1,25 @@
+rem ★★★ **브랜드 재사용 — RFC-0104 §8-2 · `E-BRAND-REUSED`**(소유자 결정 2026-08-28).
+rem
+rem   이 파일은 **거절되어야 한다.** 브랜드는 **저장소 하나의 이름**이다. 같은 브랜드로
+rem   두 번 열면 그 이름이 저장소 **둘**을 덮고, 그 순간 한쪽의 핸들이 다른 쪽에서
+rem   타입검사를 통과한다 — 브랜드가 막으려던 바로 그 혼동이다.
+rem
+rem ★ 언어는 `pool` 을 **모른다**. 규칙은 둘 다 일반적이다:
+rem     · 브랜드 = **값으로 한 번도 안 쓰이는 `newtype`**(자료를 안 나르니 브랜드다)
+rem     · 생성 자리 = comptime 타입 인자가 **출력에만** 나타나는 호출
+rem       (`init pa … → option (block_pool pa)` 는 그렇고, `take pa p` 는 입력에도 있어 아니다)
+module brandreuse .
+use pool from "../../lib/pool.low" .
+
+newtype pa u8 .
+
+export proc two input m1 mut slice u8 . . input g1 mut slice u64 . .
+                input m2 mut slice u8 . . input g2 mut slice u64 . .
+                output u64 . effects none . do .
+  let a option (pool.block_pool pa) . be pool.init pa m1 g1 16 .
+  rem ★ 같은 브랜드로 두 번째 저장소를 연다 — 여기서 거절된다.
+  let b option (pool.block_pool pa) . be pool.init pa m2 g2 16 .
+  guard is_some a . else return 1 .
+  guard is_some b . else return 2 .
+  return 0 .
+end .

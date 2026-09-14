@@ -1,0 +1,69 @@
+rem ★★★★★ **prefetch — 다섯 후보 중 유일하게 승격된 특례** (RFC-0104 §8-14 · WO-0146).
+rem
+rem   §8-14 는 다섯을 재라고 했다: prefetch · pause · bit scan/count · wide CAS · vector gather.
+rem   문턱은 `max(5%, 잡음×2)` 이고, 이 기계의 잡음은 **0.5%** 였으므로 **5%** 다.
+rem
+rem     | 후보           | 이식 가능 | 특례   | 이득    | 판정 |
+rem     | bit scan/count | 27.8 ms  | 40.3 ms| −45%   | 추가 안 함 — **타깃 플래그** 문제였다 |
+rem     | prefetch       | 157.1 ms | 117.5 ms| +25.2% | **승격** |
+rem     | pause          | 237.1 ms | 167.0 ms| +29.6% | 추가 안 함 — 쓸 자리가 없다 |
+rem     | wide CAS       | 21.7 ms  | 32.6 ms | −50.2% | 추가 안 함 — 라이브러리 호출이 된다 |
+rem     | vector gather  | 35.1 ms  | 30.5 ms | +13.1% | 추가 안 함 — RFC-0040 소관 |
+rem
+rem ★★ **prefetch 만 결과를 안 바꾼다.** 순수 힌트이므로 *"결과 동일"* 조건이 **잴 필요 없이**
+rem   성립하고, VM 은 이 op 을 **그냥 무시한다** — 그래도 답이 같다. 이 파일이 그것을 문다.
+rem ☞ 그리고 이것이 §8 전체에서 **유일하게 는 특례**다(빌트인 185 → 186).
+
+module vm_prefetch .
+
+use allocs .
+
+rem 힌트를 **주고** 훑는다.
+export proc walk_hinted input xs slice u64 . output u64 . effects none . do
+  var i u64 be 0 .
+  var s u64 be 0 .
+  while lt i (len xs) . do
+    prefetch xs (add i 8) .
+    set s (add s (index xs i)) .
+    set i (add i 1) .
+  end .
+  return s .
+end .
+
+rem 힌트 **없이** 훑는다 — 답이 같아야 한다.
+export proc walk_plain input xs slice u64 . output u64 . effects none . do
+  var i u64 be 0 .
+  var s u64 be 0 .
+  while lt i (len xs) . do
+    set s (add s (index xs i)) .
+    set i (add i 1) .
+  end .
+  return s .
+end .
+
+rem ★ 범위 **밖**을 미리 당겨도 안전하다 — 힌트는 접근이 아니다.
+rem   (방출 C 가 길이를 보고 거른다. 그래서 `i + 8` 이 끝을 넘어도 아무 일이 없다.)
+proc same input al cap allocator . output u64 . effects alloc . do
+  let mb option mut slice u8 . . be alloc_bytes al capacity 64 .
+  guard is_some mb . else return 89 .
+  var xs mut slice u64 . be view_array u64 (some_value mb) .
+  var i u64 be 0 .
+  while lt i (len xs) . do
+    set (index xs i) (add i 1) .
+    set i (add i 1) .
+  end .
+  rem 1..8 의 합 = 36. 힌트를 줘도 안 줘도 같아야 한다.
+  let a u64 be vm_prefetch.walk_hinted xs .
+  let b u64 be vm_prefetch.walk_plain xs .
+  guard eq a 36 . else return 1 .
+  guard eq b 36 . else return 2 .
+  guard eq a b . else return 3 .
+  return 42 .
+end .
+
+proc main input al cap allocator . output u8 . effects alloc .
+do
+  let a u64 be same al .
+  guard eq a 42 . else return narrow u8 a .
+  return 42 .
+end .

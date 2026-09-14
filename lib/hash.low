@@ -1,0 +1,93 @@
+rem ★★★ **해시 — 표준 라이브러리** (RFC-0090 N3, 2026-08-11).
+rem
+rem   빌트인은 둘뿐이다: `hash_bytes`(FNV-1a 64) · `crc32`(반사 CRC-32, 0xEDB88320).
+rem   **권한이 없다** — 바이트를 읽어 수를 내는 순수 계산이고 세상에 안 닿는다.
+rem   리프인 이유는 표현이 아니라 **비용**이다: Lowent 로도 쓸 수 있지만 바이트마다
+rem   op 호출이 붙는다(리프 규칙 — RFC-0075).
+rem
+rem ★★ **알고리즘을 고정한다.** 해시는 "그럴듯한 수" 가 나오면 맞아 보이므로, 고정하지
+rem   않으면 검사할 것이 남지 않는다. 고정했기에 **표준이 정한 검사값**이 오라클이 되고
+rem   (CRC-32 의 "123456789" → 0xCBF43926), 두 뒤끝이 갈리면 그 자리에서 드러난다.
+rem
+rem ★ 두 해시의 쓸모가 다르다 — 골라 쓰라고 이름에 적어 둔다:
+rem     hash_bytes : 해시맵 자리. 빠르고 잘 흩어진다. **암호용이 아니다.**
+rem     crc32      : 저장·전송의 **우연한 손상** 검출. **위조를 막지 못한다**(선형이다).
+rem   둘 다 비밀이나 서명에 쓰면 안 된다. 그 자리는 **아래 `digest`(SHA-256)** 다.
+rem   ★ 이 줄은 2026-08-16 까지 *"SHA-256 은 아직 없다"* 라고 적혀 있었다 — RFC-0090 N3c 로
+rem     들어온 뒤에도 그대로였고, 매뉴얼을 쓰다 발견했다. **머리가 몸보다 낡으면 읽는 사람은
+rem     없는 기능을 찾아 나선다**; 없다고 적힌 것을 굳이 뒤져 보는 사람은 드물다.
+
+module hash .
+
+rem ── 해시맵 자리 ────────────────────────────────────────────────────────────
+
+rem ★ 바이트열의 64비트 해시(FNV-1a).
+export fn of input data slice u8 . output u64 . do
+  return hash_bytes data .
+end .
+
+rem ★ 슬롯 번호로 바로 접는다(이름은 `bucket_of` — `slot` 은 `regex` 가 쓰고 있어 비켰다) — `mod` 는 나눗셈이라 2의 거듭제곱이면 마스크가 싸다.
+rem   ★ 매개변수 이름이 `slots` 였다: `regex`·`strmap` 이 같은 이름을 쓰는데 **계약의 이름
+rem     해소가 모듈 경계를 안 지켜** 한 단위에 넣으면 E-REQ-UNDEF 가 났다(조합 게이트가 잡았다).
+rem     별개 결함으로 기록하고, 여기서는 이름을 비켜 준다.
+rem   호출자가 슬롯 수를 안다면 이 자리를 쓰는 편이 손으로 `mod` 하는 것보다 덜 틀린다.
+rem ★ 계약을 **되돌렸다**(2026-08-11): 한때 다른 모듈과 함께 놓으면 E-REQ-UNDEF 가 났는데,
+rem   원인은 이 계약이 아니라 계약 검사기의 **고정 이름표가 조용히 잘린 것**이었다.
+rem   자기 매개변수를 먼저 넣도록 고쳤다 — 이제 단위가 아무리 커도 자기 이름은 표에 있다.
+export fn bucket_of input data slice u8 . input nslots u64 . output u64 .
+  requires ge nslots 1 . do
+  return mod (hash_bytes data) nslots .
+end .
+
+rem ★ 2의 거듭제곱 전용 — 마스크 한 번이다(`slots` 는 2^k 여야 한다).
+export fn bucket_mask input data slice u8 . input mask u64 . output u64 . do
+  return bit_and (hash_bytes data) mask .
+end .
+
+rem ── 손상 검출 ──────────────────────────────────────────────────────────────
+
+rem ★ CRC-32. 값의 범위는 [0, 2^32-1] 이고 u64 로 돌려준다(폭을 잃지 않으려고).
+export fn crc input data slice u8 . output u64 . do
+  return crc32 data .
+end .
+
+rem ★★ **왕복이 오라클이다** — 받은 바이트와 함께 온 검사값이 맞는가.
+rem   이 자리를 라이브러리가 들고 있으면 호출자가 비교를 빠뜨릴 수 없다.
+export fn crc_ok input data slice u8 . input want u64 . output bool . do
+  return eq (crc32 data) want .
+end .
+
+rem ── 성질 ───────────────────────────────────────────────────────────────────
+
+rem ★ 두 바이트열이 같은지 **빠르게 아닌 것부터** 거른다. 해시가 다르면 확실히 다르다.
+rem   해시가 같아도 같다는 뜻은 아니다 — 그래서 이름이 `maybe_same` 이다.
+rem   ☞ 이름이 약속을 지켜야 한다: `same` 이라 부르면 그것은 거짓말이 된다.
+export fn maybe_same input a slice u8 . input b slice u8 . output bool . do
+  guard eq (len a) (len b) . else return false .
+  return eq (hash_bytes a) (hash_bytes b) .
+end .
+
+rem ── 암호 해시 (SHA-256) ────────────────────────────────────────────────────
+
+rem ★★★ **32 바이트 다이제스트를 호출자 버퍼에 쓴다** — 라이브러리가 몰래 할당하지 않는다
+rem   (RFC-0043 D1). 버퍼가 32 보다 짧으면 **0 을 답하고 아무것도 안 쓴다**: 조용히 덜 쓰는
+rem   것이 이 축에서 가장 위험한 실패다(짧은 다이제스트는 맞아 보인다).
+export fn digest input data slice u8 . input out mut slice u8 . output u64 . do
+  return sha256 data out .
+end .
+
+rem ★★ **왕복이 아니라 대조가 오라클이다** — 받은 다이제스트와 다시 센 것이 같은가.
+rem   여기서 **이른 반환을 하지 않는다**(첫 다른 바이트에서 멈추지 않는다): 타이밍이 새면
+rem   비교 자체가 정보를 준다. 32 바이트를 늘 끝까지 본다.
+export fn digest_ok input data slice u8 . input out mut slice u8 . input want slice u8 . output bool . do
+  guard eq (len want) 32 . else return false .
+  let n u64 be sha256 data out .
+  guard eq n 32 . else return false .
+  var diff u64 be 0 .
+  var i u64 be 0 .
+  while lt i 32 . do
+    set diff (bit_or diff (bit_xor (cast u64 (index out i)) (cast u64 (index want i)))) .
+    set i (add i 1) .
+  end .
+  return eq diff 0 .
+end .

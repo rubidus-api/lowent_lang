@@ -1,0 +1,106 @@
+rem ★★★ **HMAC-SHA256** (RFC-0090 N7a) — Lowent 로 쓴다.
+rem
+rem   리프가 아니다: 순수 계산이고 **언어로 표현된다**(리프 규칙 RFC-0075).
+rem   그래서 VM≡native 가 공짜로 따라오고, 계약·게이트가 그대로 적용된다.
+rem
+rem ★ 오라클은 **RFC 4231 테스트 벡터**다.
+rem ★ 뒷받침은 호출자가 든다(RFC-0043 D1): scratch 는 **max(64 + len(msg), 96)** 이상이어야 한다.
+rem   ☞ 안쪽 해시가 64 + len(msg) 를, 바깥 해시가 96 을 쓴다 — 짧은 메시지에선 바깥이 더 크다.
+
+module hmac .
+
+rem K' 를 만든다: 64 바이트로 맞춘 키. 64 보다 길면 해시로 줄인다.
+rem   pad 는 64 바이트 이상이어야 한다.
+export proc key_block input key slice u8 . input pad mut slice u8 . output u64 . effects none . do
+  guard ge (len pad) 64 . else return 0 .
+  var i u64 be 0 .
+  while lt i 64 . do
+    set (index pad i) 0 .
+    set i (add i 1) .
+  end .
+  guard gt (len key) 64 . else do
+    var j u64 be 0 .
+    while lt j (len key) . do
+      set (index pad j) (index key j) .
+      set j (add j 1) .
+    end .
+    return 64 .
+  end .
+  rem 긴 키는 해시로 줄인다 — 그 결과 32 바이트가 앞에 놓이고 나머지는 0 이다.
+  let n u64 be sha256 key pad .
+  guard eq n 32 . else return 0 .
+  return 64 .
+end .
+
+rem ★ HMAC-SHA256. scratch 는 **max(64 + len(msg), 96)** 이상, out 은 32 이상.
+rem ★★ 요구는 **한 수**이고 **맨 위에서 한 번** 잰다. 전엔 위에서 `64 + len(msg)` 를 재고
+rem   ③ 앞에서 다시 `96` 을 재서, 32 바이트 미만 메시지에 문서대로 준 scratch 가 **안쪽 해시를
+rem   `out` 에 쓴 뒤** 0 으로 실패했다 — 반환값을 안 보는 호출자는 HMAC 아닌 값을 MAC 으로
+rem   썼다(2026-09-04 검토 A2). 이제 실패는 `out` 에 손대기 전에만 난다.
+export proc mac input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
+  guard ge (len out) 32 . else return 0 .
+  var need u64 be add 64 (len msg) .
+  if lt need 96 . do  set need 96 .  end .
+  guard ge (len scratch) need . else return 0 .
+
+  rem ① K' 를 scratch 앞 64 바이트에 만든다.
+  guard eq (key_block key scratch) 64 . else return 0 .
+
+  rem ② (K' xor ipad) || msg  →  scratch
+  var i u64 be 0 .
+  while lt i 64 . do
+    set (index scratch i) (cast u8 (bit_xor (cast u64 (index scratch i)) 54)) .
+    set i (add i 1) .
+  end .
+  var j u64 be 0 .
+  while lt j (len msg) . do
+    set (index scratch (add 64 j)) (index msg j) .
+    set j (add j 1) .
+  end .
+  let n1 u64 be sha256 (subslice scratch 0 (add 64 (len msg))) out .
+  guard eq n1 32 . else return 0 .
+
+  rem ③ (K' xor opad) || inner  →  scratch (앞 96 바이트만 쓴다 — 위의 `need` 가 보장한다)
+  guard eq (key_block key scratch) 64 . else return 0 .
+  var m u64 be 0 .
+  while lt m 64 . do
+    set (index scratch m) (cast u8 (bit_xor (cast u64 (index scratch m)) 92)) .
+    set m (add m 1) .
+  end .
+  var q u64 be 0 .
+  while lt q 32 . do
+    set (index scratch (add 64 q)) (index out q) .
+    set q (add q 1) .
+  end .
+  return sha256 (subslice scratch 0 96) out .
+end .
+
+rem ── HKDF (RFC 5869) — TLS 1.3 키 스케줄의 뼈대 ─────────────────────────────
+
+rem ★ extract: PRK = HMAC(salt, ikm). scratch 규칙은 `mac` 과 같다: **max(64 + len(ikm), 96)**.
+rem   ☞ salt 가 비면 RFC 5869 는 **0 32 바이트**를 쓰라고 한다 — 그것은 **호출자가 준다**.
+rem     여기서 몰래 만들면 버퍼를 몰래 잡는 셈이고, 이 저장소의 규율에 어긋난다.
+export proc extract input salt slice u8 . input ikm slice u8 . input scratch mut slice u8 . input prk mut slice u8 . output u64 . effects none . do
+  return hmac.mac salt ikm scratch prk .
+end .
+
+rem ★ expand 한 블록: T(1) = HMAC(prk, info || 0x01).
+rem   ☞ 여러 블록(L > 32)은 **안 지었다** — TLS 1.3 의 HKDF-Expand-Label 은 32 바이트
+rem     이하만 쓴다(키·IV·finished 전부). 필요해지면 T(2) 를 잇는 루프를 여기 붙인다.
+export proc expand1 input prk slice u8 . input info slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
+  guard ge (len scratch) (add 130 (len info)) . else return 0 .
+  rem ★★ **겹침을 가드로 막는다**: 아래에서 msg 는 scratch 안(128 부터)에 살고, `mac` 은
+  rem   scratch[0 .. 64+len(msg)] 를 덮어쓴다. len(info) 가 크면 그 둘이 **겹친다** —
+  rem   그러면 해시가 자기 입력을 밟는다. TLS 1.3 의 라벨은 전부 짧으므로 60 으로 자른다.
+  rem   (조용히 틀리느니 **거절한다**.)
+  guard le (len info) 60 . else return 0 .
+  rem info || 0x01 을 scratch 뒤쪽(128 부터)에 만든다 — 앞 128 은 mac 이 쓴다.
+  var i u64 be 0 .
+  while lt i (len info) . do
+    set (index scratch (add 128 i)) (index info i) .
+    set i (add i 1) .
+  end .
+  set (index scratch (add 128 (len info))) 1 .
+  let msg slice u8 be subslice scratch 128 (add 129 (len info)) .
+  return hmac.mac prk msg scratch out .
+end .

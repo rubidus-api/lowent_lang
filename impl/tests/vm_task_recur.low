@@ -1,0 +1,33 @@
+rem ★★★ **재귀하는 spawn 태스크가 메인만큼 깊이 간다 — VM≡native** (RFC-0073 D3 회귀. 2026-07-21).
+rem
+rem ★★★ **왜 이 파일이 있나 — 닫힌 발산을 지킨다.**
+rem   전엔 VM 그린스레드가 프레임 **깊이-창**(GT_DEPTH=8)에 묶여, 재귀하는 spawn 태스크가 8 에서
+rem   `E-VM-DEPTH` 로 막혔다 — 네이티브는 ~125 까지 갔다. **커밋된 코드의 VM≡native 발산**이었고
+rem   어떤 픽스처도 "재귀하는 태스크" 를 안 밟아 diff-sweep 이 못 봤다.
+rem   RFC-0073 D3 가 참조를 **깊이가 아니라 슬롯**으로 인코딩해 창을 없앴고, 그린스레드가 메인
+rem   사슬 깊이(sched_base)부터 세 네이티브 lw_depth 와 **정확히 같은 경계**에서 트랩한다.
+rem
+rem ★★ 이 파일이 재는 것: spawn 된 태스크 안의 **깊은 재귀(100)** 가 양 백엔드에서 같은 답을 낸다.
+rem   (100 은 옛 상한 8 을 훌쩍 넘는다 — 창이 살아있으면 VM 이 E-VM-DEPTH 로 막혔을 값이다.)
+
+module vm_task_recur .
+
+rem 순수 재귀: ds(n) = n + (n-1) + … + 0.  깊이 n 까지 판다.
+fn ds input n u64 . output u64 . do
+  if eq n 0 . do return 0 . end .
+  return add n (ds (sub n 1)) .
+end .
+
+rem 태스크: 깊이 100 재귀(옛 창 상한 8 을 한참 넘는다).
+proc task output u64 . effects none . do
+  return ds 100 .
+end .
+
+rem spawn → await.  재귀가 힙 프레임 체인에서 자라므로 태스크도 100 을 판다(창 없음).
+proc drive output u64 . effects state . do
+  var h u64 be 0 .
+  task_group do
+    set h spawn task .
+  end .
+  return await h .
+end .

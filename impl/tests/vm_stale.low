@@ -1,0 +1,17 @@
+rem view-EXCL twin — rebinding the source slice while a view is live is
+rem rejected statically (E-EXCL): a view is a shared borrow (RFC-0025 §6.6).
+struct pairr .
+  a u32 .
+  b u32 .
+end .
+
+fn mkp output pairr . do return make pairr do a 5 . b 6 . end end .
+
+fn stale_view .
+  output u64 .
+do
+  var s bytes . be encode pairr mkp . .
+  var h pairr . be view pairr s .
+  set s encode pairr mkp . .
+  return field h a .
+end .

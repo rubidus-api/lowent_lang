@@ -1,0 +1,39 @@
+rem ★★ **중첩 구조체** — 와이어 포맷의 기본 모양인데 없었다.
+rem
+rem   struct outer  i inner .  c u8 .  end
+rem     →  E-IR-UNDEF: "view 타입이 **선언된 구조체가 아니다**"
+rem
+rem **선언은 돼 있다.** 필드의 크기를 못 구했을 뿐이다 — 또 하나의 오진(교훈 5).
+rem
+rem ★ 그리고 정렬에 함정이 하나 있었다: 중첩 구조체 필드의 정렬은 **안쪽 구조체의 정렬**이지
+rem   그 **크기**가 아니다. 3바이트 구조체를 3으로 정렬하려 들면 아무것도 맞지 않는다.
+rem
+rem 이제 중첩 필드는 **안쪽 뷰**를 준다(무복사) — `field (field v i) b` 가 이어진다.
+
+module vm_nested .
+
+struct inner .
+  a u8 .
+  b u8 .
+end .
+
+struct outer .
+  i inner .
+  c u8 .
+end .
+
+fn get_c input s slice u8 . output u8 . do
+  let v be view outer s . .
+  return field v c .
+end .
+
+fn get_inner_b input s slice u8 . output u8 . do
+  let v be view outer s . .
+  let n be field v i . .          rem 중첩 필드 = **안쪽 뷰**
+  return field n b .
+end .
+
+test nested_struct do
+  expect eq (get_c "abc") 99 .          rem 'c' = 99
+  expect eq (get_inner_b "abc") 98 .    rem 'b' = 98
+end .

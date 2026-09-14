@@ -1,0 +1,236 @@
+rem ★★★ **문자열 키 해시 맵 시험** (lib/strmap.low — 바이트열 → u64).
+rem
+rem   순수 계산이라 **오라클 안**: diff-sweep 이 임의 버퍼·키에서 VM≡native. 골든은 정확성 —
+rem   문자열을 넣고 그대로 꺼내는가 · 갱신 · 없는 키는 none · 서로 다른 문자열이 안 섞이는가.
+rem
+rem ★★★ **정규화기 실측(정정)**: 지역 변수 이름이 **빌트인 op 이름과 겹치면**(예: `sum`·`ok`·`gt`·
+rem   `max`·`min`) 못 괄호 친다 — `return sum .` 을 정규화기가 빌트인 `sum`(피연산자 1 필요)으로 읽어
+rem   "피연산자 부족" 으로 그 구간을 flat 하게 남긴다(태그 경로 · nest 게이트가 센다). E-NAME-BUILTIN
+rem   이 항상 잡지는 않는다. ⇒ **빌트인과 안 겹치는 이름**을 쓴다(total·okc 등). ☞ 앞서 lib/search
+rem   에서 이걸 "루프 안 option" 탓으로 오진했었다 — 실측하니 옵션-루프는 멀쩡하고 `ok` 변수 이름이었다.
+
+module vm_strmap .
+
+use strmap from "../../lib/strmap.low" .
+
+rem 문자열 리터럴을 키로 넣고 꺼낸다. 스스로 검사 → 1/0. diff-sweep 이 임의 버퍼에서 이것을 돌린다.
+proc sm_check input slots mut slice u64 . . input keys mut slice u8 . . output u64 . effects none . do
+  var i u64 be 0 .
+  while lt i (len slots) . do
+    set (index slots i) 0 .
+    set i (add i 1) .
+  end .
+  guard eq (strmap.put slots keys "apple" 1) true . else return 0 .
+  guard eq (strmap.put slots keys "banana" 2) true . else return 0 .
+  guard eq (strmap.put slots keys "cherry" 3) true . else return 0 .
+  rem ★ 같은 문자열 다시 넣으면 **갱신**(새 슬롯·arena 안 씀)
+  guard eq (strmap.put slots keys "banana" 22) true . else return 0 .
+  let a option u64 . be strmap.lookup slots keys "apple" .
+  guard is_some a . else return 0 .
+  guard eq (some_value a) 1 . else return 0 .
+  let b option u64 . be strmap.lookup slots keys "banana" .
+  guard is_some b . else return 0 .
+  guard eq (some_value b) 22 . else return 0 .
+  let c option u64 . be strmap.lookup slots keys "cherry" .
+  guard is_some c . else return 0 .
+  guard eq (some_value c) 3 . else return 0 .
+  rem ★ 없는 키는 none
+  let d option u64 . be strmap.lookup slots keys "grape" .
+  guard eq (is_some d) false . else return 0 .
+  return 1 .
+end .
+
+rem ★ 접두사가 겹치는 키를 구별하는가 — "ab" 와 "abc" 는 **다른 키**다(길이 비교가 먼저).
+proc sm_prefix input slots mut slice u64 . . input keys mut slice u8 . . output u64 . effects none . do
+  var i u64 be 0 .
+  while lt i (len slots) . do
+    set (index slots i) 0 .
+    set i (add i 1) .
+  end .
+  guard eq (strmap.put slots keys "ab" 10) true . else return 0 .
+  guard eq (strmap.put slots keys "abc" 20) true . else return 0 .
+  let a option u64 . be strmap.lookup slots keys "ab" .
+  guard is_some a . else return 0 .
+  guard eq (some_value a) 10 . else return 0 .
+  let b option u64 . be strmap.lookup slots keys "abc" .
+  guard is_some b . else return 0 .
+  guard eq (some_value b) 20 . else return 0 .
+  return 1 .
+end .
+
+rem ── ★★★ **순회** — 맵을 열거해 집계한다. apple→1·banana→2·cherry→3 을 넣고 순회한다.
+rem   occupancy 는 keylen>0 으로 판별한다(none 없이). 누산 변수는 `total`(빌트인 `sum` 과 겹치지 않게).
+
+rem 모든 값의 합 → 1+2+3 = 6. "맵의 모든 항목을 볼 수 있다" 는 증명.
+proc sm_sum_vals input slots mut slice u64 . . input keys mut slice u8 . . output u64 . effects none . do
+  var i u64 be 0 .
+  while lt i (len slots) . do
+    set (index slots i) 0 .
+    set i (add i 1) .
+  end .
+  guard eq (strmap.put slots keys "apple" 1) true . else return 999 .
+  guard eq (strmap.put slots keys "banana" 2) true . else return 999 .
+  guard eq (strmap.put slots keys "cherry" 3) true . else return 999 .
+  var slot u64 be 0 .
+  var total u64 be 0 .
+  while lt slot (strmap.size slots) . do
+    if gt (strmap.keylen_at slots slot) 0 . do
+      set total (add total (strmap.val_at slots slot)) .
+    end .
+    set slot (add slot 1) .
+  end .
+  return total .
+end .
+
+rem 최대 값 → 3 ("가장 흔한 것"). 순회로 집계하는 실제 쓰임.
+proc sm_maxval input slots mut slice u64 . . input keys mut slice u8 . . output u64 . effects none . do
+  var i u64 be 0 .
+  while lt i (len slots) . do
+    set (index slots i) 0 .
+    set i (add i 1) .
+  end .
+  guard eq (strmap.put slots keys "apple" 1) true . else return 999 .
+  guard eq (strmap.put slots keys "banana" 2) true . else return 999 .
+  guard eq (strmap.put slots keys "cherry" 3) true . else return 999 .
+  var slot u64 be 0 .
+  var mx u64 be 0 .
+  while lt slot (strmap.size slots) . do
+    if gt (strmap.keylen_at slots slot) 0 . do
+      let v u64 be strmap.val_at slots slot .
+      if gt v mx . do set mx v . end .
+    end .
+    set slot (add slot 1) .
+  end .
+  return mx .
+end .
+
+rem 각 키의 **첫 바이트** 합 → 'a'+'b'+'c' = 97+98+99 = 294. keyoff/keylen 로 **키를 읽는다** 는 증명.
+proc sm_keysum input slots mut slice u64 . . input keys mut slice u8 . . output u64 . effects none . do
+  var i u64 be 0 .
+  while lt i (len slots) . do
+    set (index slots i) 0 .
+    set i (add i 1) .
+  end .
+  guard eq (strmap.put slots keys "apple" 1) true . else return 999 .
+  guard eq (strmap.put slots keys "banana" 2) true . else return 999 .
+  guard eq (strmap.put slots keys "cherry" 3) true . else return 999 .
+  var slot u64 be 0 .
+  var total u64 be 0 .
+  while lt slot (strmap.size slots) . do
+    let kl u64 be strmap.keylen_at slots slot .
+    if gt kl 0 . do
+      let ko u64 be strmap.keyoff_at slots slot .
+      set total (add total (index keys ko)) .
+    end .
+    set slot (add slot 1) .
+  end .
+  return total .
+end .
+
+rem ── ★★★ **삭제(tombstone) 자기검증** → 1/0. 세 문자열을 넣고 · 하나 지우고 · 지운 건 none 인데
+rem   나머지는 여전히 찾히는가(프로브 체인 보존) · 없는 키 삭제는 false · 재삽입은 묘비 재사용 ·
+rem   순회(sm_occupied_at)가 묘비를 안 세는가. diff-sweep 이 임의 버퍼에서 sm_del 을 돌린다.
+proc sm_del_check input slots mut slice u64 . . input keys mut slice u8 . . output u64 . effects none . do
+  var i u64 be 0 .
+  while lt i (len slots) . do
+    set (index slots i) 0 .
+    set i (add i 1) .
+  end .
+  guard eq (strmap.put slots keys "apple" 1) true . else return 0 .
+  guard eq (strmap.put slots keys "banana" 2) true . else return 0 .
+  guard eq (strmap.put slots keys "cherry" 3) true . else return 0 .
+  rem banana 를 지운다
+  guard eq (strmap.del slots keys "banana") true . else return 0 .
+  rem 지운 건 이제 none
+  let gb option u64 . be strmap.lookup slots keys "banana" .
+  guard eq (is_some gb) false . else return 0 .
+  rem ★ 나머지는 여전히 찾힌다 — 묘비가 프로브 체인을 끊지 않았다
+  let ga option u64 . be strmap.lookup slots keys "apple" .
+  guard is_some ga . else return 0 .
+  guard eq (some_value ga) 1 . else return 0 .
+  let gc option u64 . be strmap.lookup slots keys "cherry" .
+  guard is_some gc . else return 0 .
+  guard eq (some_value gc) 3 . else return 0 .
+  rem 없는 키(이미 지움·처음부터 없음) 삭제는 false
+  guard eq (strmap.del slots keys "banana") false . else return 0 .
+  guard eq (strmap.del slots keys "grape") false . else return 0 .
+  rem ★ 재삽입은 묘비를 재사용한다(성공하고 도로 찾힌다)
+  guard eq (strmap.put slots keys "date" 4) true . else return 0 .
+  let gd option u64 . be strmap.lookup slots keys "date" .
+  guard is_some gd . else return 0 .
+  guard eq (some_value gd) 4 . else return 0 .
+  rem ★ 순회는 묘비를 안 센다 — 지금 살아 있는 건 apple·cherry·date = 셋
+  var slot u64 be 0 .
+  var cnt u64 be 0 .
+  while lt slot (strmap.size slots) . do
+    if strmap.occupied_at slots slot . do
+      set cnt (add cnt 1) .
+    end .
+    set slot (add slot 1) .
+  end .
+  guard eq cnt 3 . else return 0 .
+  return 1 .
+end .
+
+rem ── ★★★ **성장(rehash) 자기검증** → 1/0. 2 슬롯짜리 os 를 꽉 채우고(셋째 키 false) · 큰 ns/na 로
+rem   rehash 하고(키 바이트가 na 로 새로 복사) · 이제 셋째 키가 들어가고 · 옛 키가 다 살아 있는가.
+rem   os = 2 슬롯(7 u64) · oa = 작은 아레나 · ns = 4+ 슬롯 · na = 큰 아레나. diff-sweep 이 임의 버퍼에서.
+proc sm_rehash_check input os mut slice u64 . . input oa mut slice u8 . . input ns mut slice u64 . . input na mut slice u8 . . output u64 . effects none . do
+  var i u64 be 0 .
+  while lt i (len os) . do
+    set (index os i) 0 .
+    set i (add i 1) .
+  end .
+  var j u64 be 0 .
+  while lt j (len ns) . do
+    set (index ns j) 0 .
+    set j (add j 1) .
+  end .
+  guard eq (strmap.size os) 2 . else return 0 .           rem os = 정확히 2 슬롯
+  guard ge (strmap.size ns) 4 . else return 0 .
+  guard eq (strmap.put os oa "apple" 1) true . else return 0 .
+  guard eq (strmap.put os oa "banana" 2) true . else return 0 .
+  rem os 가 꽉 찼다 — 셋째 키는 못 들어간다
+  guard eq (strmap.put os oa "cherry" 3) false . else return 0 .
+  rem ★ 성장: os 의 살아있는 항목을 ns/na 로 옮긴다(키를 na 로 새로 복사)
+  guard eq (strmap.rehash ns na os oa) true . else return 0 .
+  rem 이제 셋째 키가 ns 에 들어간다
+  guard eq (strmap.put ns na "cherry" 3) true . else return 0 .
+  rem 옛 키 둘 + 새 키가 전부 ns 에 있다
+  let a option u64 . be strmap.lookup ns na "apple" .
+  guard is_some a . else return 0 .
+  guard eq (some_value a) 1 . else return 0 .
+  let b option u64 . be strmap.lookup ns na "banana" .
+  guard is_some b . else return 0 .
+  guard eq (some_value b) 2 . else return 0 .
+  let c option u64 . be strmap.lookup ns na "cherry" .
+  guard is_some c . else return 0 .
+  guard eq (some_value c) 3 . else return 0 .
+  rem 순회 카운트 3
+  var slot u64 be 0 .
+  var cnt u64 be 0 .
+  while lt slot (strmap.size ns) . do
+    if strmap.occupied_at ns slot . do
+      set cnt (add cnt 1) .
+    end .
+    set slot (add slot 1) .
+  end .
+  guard eq cnt 3 . else return 0 .
+  return 1 .
+end .
+
+rem 임의 키(퍼저가 준다)를 넣고 꺼낸다 → 값. diff-sweep 이 임의 버퍼·키에서 VM≡native 를 지킨다.
+proc sm_roundtrip input slots mut slice u64 . . input keys mut slice u8 . . input k slice u8 . input v u64 .
+  output u64 . effects none .
+do
+  var i u64 be 0 .
+  while lt i (len slots) . do
+    set (index slots i) 0 .
+    set i (add i 1) .
+  end .
+  let ok_put bool be strmap.put slots keys k v .
+  guard eq ok_put true . else return 4000000001 .
+  let g option u64 . be strmap.lookup slots keys k .
+  guard is_some g . else return 4000000002 .
+  return some_value g .
+end .

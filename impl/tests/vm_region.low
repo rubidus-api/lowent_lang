@@ -1,0 +1,76 @@
+rem ★★★ **어휘 `region` 블록 — 수명이 스코프다** (SPEC-004 §4.5 도입형태 ① · RFC-0004 §157).
+rem
+rem   `region <이름> <종류> do … end`
+rem     · **이름** — 고르는 이름. 그것이 곧 *"여기서 할당해라"* 라는 손잡이다(`alloc_bytes r …`).
+rem     · **종류** — 명세가 정한 폐집합: `stack` `frame` `arena` `static`(MVP) /
+rem       `heap` `mmap` `disk` `device`(후속). **arena** 가 범프 할당이고 지금 도는 것이 그것이다.
+rem
+rem ★★★ **이 언어에는 `free` 가 없다 — 블록이 끝나면 통째로 사라진다.**
+rem   명세가 그렇게 정했다: *"MVP region 은 범위 기반 일괄 free(객체별 free 없음), arena 는 bump"*.
+rem   ⇒ 하강은 두 줄이다: 진입에서 범프 커서의 **표식**을 잡고, 끝에서 **되돌린다**.
+rem   그래서 해제를 **잊을 수가 없다** — 잊을 낱말이 애초에 없다.
+rem
+rem ★★ **블록 자체가 할당 권한이다**: `cap allocator` 없이도 region 안에서는 할당할 수 있다
+rem   (E-ALLOC-NOCAP 를 충족한다). 수명이 스코프라 **가장 안전한 도입 형태**다.
+rem
+rem ★★★ **그리고 안전은 정적으로 지킨다** — 이 검사가 없으면 이 기능은 *안전한 것(절대 free
+rem   안 함)을 위험한 것으로* 바꾼다. region 에서 할당한 **자리**가 블록 밖으로 나가면 거절한다
+rem   (E-REGION-ESCAPE). 되돌린 뒤 그 바이트는 다음 할당이 남에게 준다.
+rem   ★ 다만 **바이트를 읽어 나가는 것은 안전하다**(스칼라 복사) — provenance 는 `subslice`·`ref`
+rem     로 **전파**되지 그런 추출로는 안 이어진다(SPEC-004 의 규칙 그대로). 아래가 그 구별이다.
+
+module vm_region .
+
+rem ★ 블록 안에서 할당하고, **값을 읽어** 나온다 — 안전하고 통과해야 한다.
+proc use_it output u64 . effects alloc . do
+  var t u64 be 0 .
+  region r arena do
+    let g option mut slice u8 . . be alloc_bytes r capacity 32 .
+    if is_some g . do
+      let b mut slice u8 . be some_value g .
+      set (index b 0) 7 .
+      rem ★ `index` 는 **바이트**를 낸다 — 자리를 안 들고 나간다.
+      set t (narrow u64 (index b 0)) .
+    end .
+  end .
+  return t .
+end .
+
+rem ★★★ **되돌리기가 실제로 일어난다는 증거.** 두 블록이 각각 32 바이트를 쓰는데, 첫 블록이
+rem   반납하므로 두 번째가 **같은 바이트**를 받는다 — 그리고 0 으로 다시 채워져 나온다.
+rem   (재초기화 덕에 양 백엔드가 같은 것을 본다 ⇒ 되돌리기가 오라클을 안 깬다.)
+proc reuse output u64 . effects alloc . do
+  var first u64 be 0 .
+  var second u64 be 0 .
+  region a arena do
+    let g option mut slice u8 . . be alloc_bytes a capacity 32 .
+    if is_some g . do
+      let b mut slice u8 . be some_value g .
+      set (index b 0) 99 .
+      set first (narrow u64 (index b 0)) .
+    end .
+  end .
+  region c arena do
+    let g2 option mut slice u8 . . be alloc_bytes c capacity 32 .
+    if is_some g2 . do
+      let b2 mut slice u8 . be some_value g2 .
+      rem ★ 같은 자리를 받았다면 여기서 99 가 아니라 **0** 이 보인다.
+      set second (narrow u64 (index b2 0)) .
+    end .
+  end .
+  return add (mul first 1000) second .           rem 99000
+end .
+
+rem ★ 블록이 여러 번 돌아도 자리가 **안 자란다** — 매 바퀴 반납하므로.
+proc many output u64 . effects alloc . do
+  var n u64 be 0 .
+  var i u64 be 0 .
+  while lt i 100 . do
+    region r arena do
+      let g option mut slice u8 . . be alloc_bytes r capacity 512 .
+      if is_some g . do set n (add n 1) . end .
+    end .
+    set i (add i 1) .
+  end .
+  return n .                                     rem 100 — 반납이 없었다면 51200 바이트라 고갈된다
+end .

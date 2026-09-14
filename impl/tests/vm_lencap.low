@@ -1,0 +1,26 @@
+rem ★★★★ **길이의 상계도 진입에서 검사한다** (2026-09-06 — 교훈 1).
+rem
+rem   구간 분석은 `requires le (len s) N` 을 **사실로 심는다**(hi 를 좁히고 «진짜 상계» 표시까지
+rem   켠다). 그런데 2026-09-05 까지 **아무도 그 계약을 강제하지 않았다** — 하계(`ge`·`gt`)만
+rem   진입 검사를 냈다. 그래서 계약을 어긴 호출이 들어오면:
+rem       VM      E-VM-ANALYSIS (자기 분석이 틀렸다고 신고했다)
+rem       네이티브 `u8` 자리에 **300** 을 조용히 냈다 — 검사가 지워졌으므로
+rem   ⇒ 이제 상계도 진입에서 문다. 지키는 입력은 그대로 돈다.
+rem   (docs/known-defects/len-upper-bound-unenforced.md)
+module lencap .
+
+rem 길이 ≤ 4 를 믿고 u8 넘침 검사가 지워지는 자리 — 그 믿음을 진입에서 강제한다.
+fn scale input s slice u8 . output u8 .
+  requires le (len s) 4 .
+do
+  let n u8 be cast u8 (len s) . .
+  return mul n 60 .
+end .
+
+rem 같은 뜻을 반대로 적은 것도 같이 문다.
+fn scale_mirror input s slice u8 . output u8 .
+  requires ge 4 (len s) .
+do
+  let n u8 be cast u8 (len s) . .
+  return mul n 60 .
+end .

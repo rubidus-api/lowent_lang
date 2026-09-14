@@ -1,0 +1,36 @@
+rem ★★★ **E2 — 워커 1개여도 IO 로 막힌 태스크가 형제로 양보한다** (RFC-0072 E2, 2026-07-21).
+rem
+rem ☞ E1 의 워커는 태스크를 **끝까지 bare 실행**했다 — IO 로 막히면 워커가 놀았고, 워커 1개면
+rem   형제가 굶었다. E2: 워커가 **자기 그린스레드 스케줄러**를 돌린다(사용자 선택: 2번 워커당
+rem   그린스레드 — "제대로 가고 싶다"). 그린스레드 상태는 전부 _Thread_local 이라 워커끼리 안 섞인다.
+rem
+rem ★★★ **재는 법 — 인과다**(A2 와 같은 규율): 데이터 안 오는 fifo 를 reader 가 읽는 동안
+rem   marker 가 진행하는가. 블로킹이면 MARK 가 영영 안 나온다. ★ 워커 **1개**로 재는 것이 핵심 —
+rem   막힌 워커가 유일한데도 그린스레드가 형제로 갈아타야 한다.
+rem
+rem ★★ 채널·await 태스크는 peer=1 이라 워커로 안 온다(불변식) — 그래서 워커 경계 너머 채널
+rem   wake 는 구조적으로 불가능하다. 워커가 도는 것은 IO 로만 막히는 태스크뿐이다.
+
+module io_yield .
+proc reader input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+  let r option u64 . be reactor_new k (subslice buf 0 32) 1 .
+  guard is_some r . else return 90 .
+  let n option u64 . be r_read k (some_value r) 0 (subslice buf 32 64) .
+  if is_some n . do return some_value n . end .
+  return 0 .
+end .
+proc marker input k cap io . output u64 . effects io . do
+  return write_out k 1 "MARK\n" .
+end .
+proc main input k cap io . input al cap allocator . output u8 . effects alloc io state . do
+  let b0 option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some b0 . else return 69 .
+  var buf mut slice u8 . be some_value b0 .
+  var m1 u64 be 0 .
+  var m2 u64 be 0 .
+  task_group do
+    set m1 spawn reader k buf .
+    set m2 spawn marker k .
+  end .
+  return 0 .
+end .

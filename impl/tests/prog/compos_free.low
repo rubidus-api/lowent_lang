@@ -1,0 +1,32 @@
+rem ★★★ **대표 구성 ① — freestanding** (RFC-0075 Stage 5 Task 3 · 2026-08-15).
+rem
+rem   Task 3 은 네 프로파일의 대표 구성을 **컴파일해 보라**고 했다. 오늘까지 있던 것은
+rem   **거절**을 재는 검사뿐이었다(프로파일이 금지한 기능을 쓰면 빨간불). *"허용된 것이 실제로
+rem   서는가"* 는 아무도 안 쟀고, 그 방향에서 2026-08-15 에 **두 번 물렸다**: 프리스탠딩 방출이
+rem   컴파일조차 안 됐고, 안 쓰는 도우미가 링크 의존을 끌고 왔다.
+rem   ☞ **거절만 재고 성립을 안 재면, 반쪽이 조용히 무너진다.**
+rem
+rem ★ 이 층에 있는 것: 순수 계산·슬라이스·레코드. **없는 것**: 힙·부동소수·동시성·세상에 닿는 잎.
+rem   그래서 이 파일은 `cap` 을 하나도 안 받는다 — 받을 세상이 없다.
+module compos_free .
+
+build profile freestanding .
+
+rem 고정 크기 링 버퍼의 합 — 임베디드가 실제로 하는 모양(호출자 버퍼·할당 0).
+export fn ring_sum input buf slice u8 . input from u64 . input n u64 . output u64 . do
+  var acc u64 be 0 .
+  var i u64 be 0 .
+  while lt i n . do
+    let at u64 be mod (add from i) (len buf) .
+    set acc (add acc (index buf at)) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .
+
+rem 진입점도 순수하다 — 이 층에는 종료 상태를 받아 줄 OS 도 없지만, 값은 계산된다.
+proc main output u8 . effects none . do
+  let g slice u8 be "\x01\x02\x03\x04\x05\x06\x07\x08" .
+  rem 끝을 넘어 감아 돈다: 6 번째부터 넷 = 7+8+1+2 = 18
+  return narrow u8 (ring_sum g 6 4) .
+end .

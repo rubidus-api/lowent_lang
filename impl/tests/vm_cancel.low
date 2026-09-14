@@ -1,0 +1,99 @@
+rem ★★★ **cancel_on_error** (RFC-0009 SC4) — 구조적 동시성의 취소 전파. 동시성 남은 것 ②/④.
+rem
+rem   `task_group cancel_on_error do … end`: 한 자식 태스크가 **오류 result** 로 끝나면, 스케줄러가
+rem   **아직 안 시작한/블록된 형제**를 취소한다(그 오류로 done 처리 — RFC-0006: unwinding 없는 취소).
+rem   오류 자체는 `await` 로 표면화한다(await 가 오류 result 를 돌려준다). 취소 스코프는 IRW_CANCELSCOPE
+rem   전역으로, 본문 await 가 그룹 end 전에 스케줄러를 돌려도 그 안에 있다.
+rem
+rem   ★ 오류 전파는 **결정적**(오류 자식은 어떤 순서든 오류) → 오라클이 전수 통과. 그러나 **어느 형제가
+rem     취소되는가**는 순서 의존이라(먼저 돈 형제는 이미 효과를 냈다) 관측은 결정적 --run 으로 본다
+rem     (아래 drive_cancel=0 vs drive_plain=1). VM≡네이티브(차등 스윕).
+rem   ★ 취소 스코프 **중첩**은 이제 된다(경계 스윕 D): 전역 하나지만 로워링이 **저장/복원**한다 —
+rem     모든 그룹이 진입에 자기 값으로 세우고 나감에 바깥 값으로 되돌린다(값이 바뀔 때만). 그래서
+rem     cancel 안의 **평범** 그룹은 취소를 상속 안 하고(drive_nested=1), 평범 그룹 뒤 바깥 cancel 은
+rem     여전히 판다(drive_restore=0). VM≡네이티브.
+rem   ★ 아직 없는 것(정직히): `detach`·child_of region.
+module vm_cancel .
+
+enum e .
+  bad .
+end .
+
+actor cnt .
+  state v u64 . end .
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
+  fn get output u64 . do return v . end .
+end .
+
+rem n>0 이면 오류, 아니면 ok. spawn 해서 오류/정상 태스크를 만든다.
+fn mk input n u64 . output result u64 e . errors bad gt n 0 .
+do
+  if gt n 0 . do return error bad . end .
+  return ok n .
+end .
+proc okb input x cnt . output result u64 e . effects state . do
+  spawn send x inc .
+  return ok 0 .
+end .
+
+rem 오류 전파(결정적): 오류 자식을 await 하면 오류가 온다 → got=1. 어떤 interleaving 이든 성립.
+test coe_error_propagates schedule explore_interleavings do
+  var got u64 be 0 .
+  task_group cancel_on_error do
+    var h1 u64 be spawn mk 1 .
+    var h2 u64 be spawn mk 0 .
+    if is_error (await h1) do set got 1 . . end .
+  end .
+  expect eq got 1 .
+end .
+
+rem 취소 메커니즘(결정적 --run): erra(h1) 먼저 오류 → okb(h2) 취소 → inc 안 됨 → get=0.
+proc drive_cancel output u64 . effects state . do
+  var x cnt be spawn actor cnt . .
+  task_group cancel_on_error do
+    var h1 u64 be spawn mk 1 .
+    var h2 u64 be spawn okb x .
+    var r u64 be await h1 .
+  end .
+  return send x get .
+end .
+rem 취소 없이(대조): erra 오류(효과 없음) + okb 실행(inc) → get=1.
+proc drive_plain output u64 . effects state . do
+  var x cnt be spawn actor cnt . .
+  task_group do
+    var h1 u64 be spawn mk 1 .
+    var h2 u64 be spawn okb x .
+    var r u64 be await h1 .
+  end .
+  return send x get .
+end .
+
+rem ★★★ **중첩 ①**: 바깥 cancel, 안쪽 **평범** — 안쪽 h2 는 평범이라 취소 상속 안 하고 실행(get=1).
+rem   전엔 전역 하나라 안쪽이 바깥의 취소 스코프를 물려받아 잘못 취소됐다(get=0).
+proc drive_nested output u64 . effects state . do
+  var x cnt be spawn actor cnt . .
+  task_group cancel_on_error do
+    task_group do
+      var h1 u64 be spawn mk 1 .
+      var h2 u64 be spawn okb x .
+      var r u64 be await h1 .
+    end .
+  end .
+  return send x get .
+end .
+
+rem ★★★ **중첩 ②**(복원): 바깥 cancel, 안쪽 평범이 **먼저** 돌고, 그 뒤 바깥 형제 h1 오류 →
+rem   바깥 스코프가 복원됐으니 h2(okb) 는 취소된다(get=0). 복원 실패면 스코프가 0 에 눌러붙어 1.
+proc drive_restore output u64 . effects state . do
+  var x cnt be spawn actor cnt . .
+  task_group cancel_on_error do
+    task_group do
+      var hp u64 be spawn mk 0 .
+      var rp u64 be await hp .
+    end .
+    var h1 u64 be spawn mk 1 .
+    var h2 u64 be spawn okb x .
+    var r u64 be await h1 .
+  end .
+  return send x get .
+end .

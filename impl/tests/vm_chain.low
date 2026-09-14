@@ -1,0 +1,45 @@
+rem ★★★ **계약이 사슬을 타고 흐른다** — 그리고 그 끝에서 **검사가 사라진다.**
+rem
+rem RFC-0053 §6.6 dual: `requires` 는 **들어오는** 사실이고, `ensures` 는 **나가는** 사실이다.
+rem 그러면 피호출자의 `ensures` 는 **호출자의 사실**이어야 한다.
+rem
+rem   bounded  : ensures le ret 10       ← 결과가 ≤ 10 임을 **약속한다**
+rem   needs_small : input a range 0 10   ← [0,10] 만 받는다
+rem
+rem   chain   : needs_small (bounded a)  → **약속이 사실이니 호출 지점 검사가 사라진다**
+rem   nochain : needs_small a            → 증명 못 한다 → **검사가 남는다**(그리고 발동한다)
+rem
+rem ★ 이것이 계약의 값어치다: **정직하면 공짜다.** 약속을 적으면 검사가 사라지고,
+rem   안 적으면 런타임이 대신 낸다. 그리고 **거짓 약속은 출구에서 잡힌다**(ensures 검사).
+rem
+rem ★★ 그리고 VM 은 지운 검사를 **유지하고 스스로를 고발한다**(E-VM-ANALYSIS) —
+rem   네이티브는 진짜로 지우니까. 그 고발이 한 번이라도 나오면 **분석이 불건전**하다.
+
+module vm_chain .
+
+fn needs_small input a range 0 10 . output u8 . do
+  return a .
+end .
+
+fn bounded input a u8 . output u8 . ensures le ret 10 .
+do
+  if gt a 10 . do return 10 . end .
+  return a .
+end .
+
+rem ★ 약속을 쓴다 → 검사가 사라진다.
+fn chain input a u8 . output u8 . do
+  let v be bounded a . .
+  return needs_small v .
+end .
+
+rem 대조: 약속이 없다 → 검사가 남는다.
+fn nochain input a u8 . output u8 . do
+  return needs_small a .
+end .
+
+test contracts_flow_through_calls do
+  expect eq (chain 200) 10 .       rem bounded 가 클램프한다 — 그리고 검사는 없다
+  expect eq (chain 5) 5 .
+  expect eq (nochain 5) 5 .        rem 계약 안 — 통과
+end .

@@ -1,0 +1,146 @@
+rem ★★★ **진짜 프로그램 — 정규식으로 파일을 훑는다** (RFC-0075 §9.3 슬라이스 **S1**, 2026-08-05).
+rem
+rem   왜 이 프로그램이 존재하는가. 라이브러리 원장(`docs/library-ledger.md`)이 이렇게 말했다:
+rem
+rem       진짜 프로그램이 한 번도 안 쓰는 모듈   17 / 26
+rem
+rem   `lib/regex.low` 는 **1,284 줄**인데 자기 픽스처(`vm_regex.low`)만 그것을 썼다. 픽스처는
+rem   *이 op 이 도는가*를 묻고, 실물 프로그램은 **이 API 로 일을 할 수 있는가**를 묻는다 —
+rem   그리고 이 저장소에서 API 결함을 가장 싸게 드러낸 것은 언제나 후자였다.
+rem
+rem ★★ **그리고 그 물음이 곧바로 답을 냈다.** 픽스처는 스크래치 버퍼(prog·st·clist·nlist·
+rem   marks·cstart·nstart)를 **전부 파라미터로** 받는다 — 차등 퍼저가 넣어 주니까. 실물
+rem   프로그램에는 넣어 줄 사람이 없다: **일곱 개를 직접 할당해야 한다.** 그것이 이 API 의
+rem   실제 사용감이고, 픽스처만 봐서는 보이지 않던 것이다.
+rem   ☞ 여기서는 바이트 버퍼 하나를 `view_array u64` 로 재해석해 나눠 쓴다(무복사).
+rem
+rem ★★ 쓰는 것: `regex`(패턴) · `utf8`(입력이 정말 UTF-8 인가) · `files`(읽기) · `io`(줄 나누기)
+rem   · `fmt`(조립) · `allocs`(버퍼). 앞의 둘이 이 프로그램이 새로 데려온 모듈이다.
+rem
+rem 사용:  grep <패턴> <파일>
+rem 종료:  0 = 하나 이상 맞음 · 1 = 하나도 안 맞음 · 64~ = 쓰기/자원/입력 오류(구별된다)
+
+module grepprog .
+
+use regex  from "../../../lib/regex.low" .
+use utf8   from "../../../lib/utf8.low" .
+use io     from "../../../lib/io.low" .
+use files  from "../../../lib/file.low" .
+use fmt    from "../../../lib/fmt.low" .
+use allocs from "../../../lib/alloc.low" .
+
+rem ★ 한 줄이 패턴에 맞는가 — **순수하다**(파일도 출력도 모른다). 그래서 따로 시험할 수 있고,
+rem   차등 스윕이 VM 과 네이티브를 같은 입력으로 비교할 수 있다.
+proc line_hits input prog slice u64 . input line slice u8 .
+  input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . .
+  input cs mut slice u64 . . input ns mut slice u64 . .
+  output bool . effects none .
+do
+  let h option u64 . be regex.search prog line cl nl mk cs ns .
+  return is_some h .
+end .
+
+proc main .
+  input fs cap file_system .
+  input al cap allocator .
+  input a  cap args .
+  input out cap io .
+  output u8 .
+  effects alloc io state .
+do
+  let pa option slice u8 . be arg a 0 .
+  guard is_some pa . else return 64 .
+  let pb option slice u8 . be arg a 1 .
+  guard is_some pb . else return 64 .
+  let pat slice u8 be some_value pa .
+  let path slice u8 be some_value pb .
+
+  rem ★ 패턴 자체가 UTF-8 이어야 한다 — 아니면 `\p{...}` 같은 것이 뜻을 잃는다.
+  rem   **거절하는 것이 조용히 이상하게 도는 것보다 낫다.**
+  guard utf8.is_valid pat . else return 65 .
+
+  rem ── 스크래치 일곱 개. 바이트 버퍼 하나를 잡아 u64 로 재해석해 나눈다(무복사).
+  let gp option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some gp . else return 70 .
+  let progb mut slice u8 . be some_value gp .
+  let prog mut slice u64 . be view_array u64 progb .
+
+  let gs option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some gs . else return 70 .
+  let stb mut slice u8 . be some_value gs .
+  let st mut slice u64 . be view_array u64 stb .
+
+  let g1 option mut slice u8 . . be alloc_bytes al capacity 2048 .
+  guard is_some g1 . else return 70 .
+  let b1 mut slice u8 . be some_value g1 .
+  let cl mut slice u64 . be view_array u64 b1 .
+
+  let g2 option mut slice u8 . . be alloc_bytes al capacity 2048 .
+  guard is_some g2 . else return 70 .
+  let b2 mut slice u8 . be some_value g2 .
+  let nl mut slice u64 . be view_array u64 b2 .
+
+  let g3 option mut slice u8 . . be alloc_bytes al capacity 2048 .
+  guard is_some g3 . else return 70 .
+  let b3 mut slice u8 . be some_value g3 .
+  let mk mut slice u64 . be view_array u64 b3 .
+
+  let g4 option mut slice u8 . . be alloc_bytes al capacity 2048 .
+  guard is_some g4 . else return 70 .
+  let b4 mut slice u8 . be some_value g4 .
+  let cs mut slice u64 . be view_array u64 b4 .
+
+  let g5 option mut slice u8 . . be alloc_bytes al capacity 2048 .
+  guard is_some g5 . else return 70 .
+  let b5 mut slice u8 . be some_value g5 .
+  let ns mut slice u64 . be view_array u64 b5 .
+
+  rem ★ 컴파일 실패는 **사용자의 오류**다(자원 부족과 구별한다 — 종료 코드가 그 말을 한다).
+  let cn option u64 . be regex.compile pat prog st .
+  guard is_some cn . else return 66 .
+
+  rem ── 파일을 통째로 읽고 줄로 나눈다(`io.mem_reader` 는 이미 검증된 프레이밍이다).
+  let gtx option mut slice u8 . . be alloc_bytes al capacity 8192 .
+  guard is_some gtx . else return 70 .
+  let txt mut slice u8 . be some_value gtx .
+
+  let sn result u64 files.file_error . be files.slurp fs path txt .
+  guard is_ok sn . else return 67 .
+  let n u64 be ok_value sn .
+
+  let go option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  guard is_some go . else return 70 .
+  let ob mut slice u8 . be some_value go .
+
+  var r io.mem_reader be spawn actor io.mem_reader . .
+  let z u64 be send r attach (subslice txt 0 n) .
+
+  var lineno u64 be 0 .
+  var hits u64 be 0 .
+  var going bool be true .
+  while going . do
+    let l option slice u8 . be send r take_line 4096 .
+    if is_some l . do
+      set lineno (add lineno 1) .
+      let line slice u8 be some_value l .
+      if line_hits prog line cl nl mk cs ns . do
+        set hits (add hits 1) .
+        rem 맞은 줄은 `번호:내용` 으로 낸다. 조립은 순수하고, 출력은 줄마다 한 번이다.
+        let q1 option u64 . be fmt.put_u64 ob 0 lineno .
+        guard is_some q1 . else return 72 .
+        let q2 option u64 . be fmt.put_str ob (some_value q1) ":" .
+        guard is_some q2 . else return 72 .
+        let q3 option u64 . be fmt.put_str ob (some_value q2) line .
+        guard is_some q3 . else return 72 .
+        let q4 option u64 . be fmt.put_nl ob (some_value q3) .
+        guard is_some q4 . else return 72 .
+        let w u64 be write_out out 1 (subslice ob 0 (some_value q4)) .
+      end .
+    end .
+    if eq (is_some l) false . do set going false . end .
+  end .
+
+  rem ★ 하나도 못 찾은 것은 **오류가 아니다** — grep 의 관례대로 1 이다.
+  if eq hits 0 . do return 1 . end .
+  return 0 .
+end .

@@ -1,0 +1,93 @@
+rem ★★★ **C ABI / FFI** (RFC-0063) — **이 언어를 섬으로 두지 않는다.**
+rem
+rem   `extern` = **몸이 C 에 있다.** 본문이 있으면 오류다(E-FFI-BODY) — 몸이 둘일 수는 없다.
+rem
+rem ★★ C 를 부르는 순간 **모든 불변식이 깨질 수 있다.** 보통의 언어는 여기서 포기한다
+rem   ("unsafe 니까"). **우리는 포기하지 않는다:**
+rem
+rem     **계약이 경계를 지킨다** — `requires` 는 **C 를 부르기 전에**,
+rem     `ensures` 는 **C 가 돌려준 뒤에** 검사된다.
+rem     **C 안은 못 보지만, C 가 넘나드는 문은 우리 것이다.**
+rem
+rem ★ 그리고 못 보는 것은 **가둔다**(인라인 asm 과 같은 규율):
+rem     unsafe(표시) · **cap c**(건네받는 권리) · effects(호출자가 안다).
+rem
+rem ★ 슬라이스는 C 에 **없다** ⇒ **포인터 + 길이** 둘로 편다. 없는 것을 있는 척하지 않는다.
+rem ★ 능력(`cap`)은 **C 로 안 넘어간다** — 그것은 **권리**이지 값이 아니다.
+
+module vm_ffi .
+
+unsafe extern proc c_add .
+  input k cap c .
+  input a i64 .
+  input b i64 .
+  output i64 .
+  link lw_c_add .
+  effects unsafe .
+  requires ge a 0 .          rem ★ **C 를 부르기 전에** 검사된다
+end .
+
+unsafe extern proc c_sum .
+  input k cap c .
+  input s slice u8 .         rem → C 에서는 **포인터 + 길이**
+  output i64 .
+  link lw_c_sum .
+  effects unsafe .
+end .
+
+unsafe proc add_via_c input k cap c . input a i64 . input b i64 . output i64 . effects unsafe . do
+  return c_add k a b .
+end .
+
+unsafe proc sum_via_c input k cap c . input s slice u8 . output i64 . effects unsafe . do
+  return c_sum k s .
+end .
+
+rem ★★★ **f64 를 주고받는다** — extern 의 반환이 예전엔 언제나 long long 으로 선언·수신돼
+rem   경계에서 타입이 어긋났다(잠복 UB). 이제 f64 는 double 로 오간다.
+unsafe extern proc c_scale2 .
+  input k cap c .
+  input x f64 .
+  output f64 .
+  link lw_c_scale2 .
+  effects unsafe .
+end .
+
+unsafe proc scale_via_c input k cap c . input x f64 . output f64 . effects unsafe . do
+  return c_scale2 k x .
+end .
+
+rem ★★★ **넓은 슬라이스** — `slice u32` 는 예전엔 `const unsigned char *` 로 넘어갔다(폭 무시,
+rem   f64 반환과 같은 부류의 오타). 이제 `const uint32_t *` 로 넘어가고 길이는 **원소 수**다.
+unsafe extern proc c_sum32 .
+  input k cap c .
+  input s slice u32 .        rem → C 에서는 const uint32_t * + size_t(원소 수)
+  output i64 .
+  link lw_c_sum32 .
+  effects unsafe .
+end .
+
+unsafe proc sum32_via_c input k cap c . input s slice u32 . output i64 . effects unsafe . do
+  return c_sum32 k s .
+end .
+
+rem ★★★ **구조체 by-pointer** — `unsafe_ptr pt` 는 pt 의 바이트에 대한 **단일 생 포인터**를 C 에
+rem   `void *` 로 넘긴다(길이 없음). C 가 자기 struct 로 캐스팅해 읽고 쓴다. 레이아웃 일치는
+rem   unsafe — 이름이 그렇게 말한다(RFC-0066 가족). viewable 구조체만.
+struct pt .
+  x i64 .
+  y i64 .
+end .
+
+unsafe extern proc c_ptsum  input k cap c . input p unsafe_ptr pt . output i64 . link lw_c_ptsum . effects unsafe . end .
+unsafe extern proc c_ptbump input k cap c . input p unsafe_ptr pt . output i64 . link lw_c_ptbump . effects unsafe . end .
+
+unsafe proc ptsum_via_c  input k cap c . input p unsafe_ptr pt . output i64 . effects unsafe . do return c_ptsum k p . end .
+unsafe proc ptbump_via_c input k cap c . input p unsafe_ptr pt . output i64 . effects unsafe . do return c_ptbump k p . end .
+
+rem ★★★ **반대 방향 — C 가 우리를 부른다** (`export extern`).
+rem   C 헤더에 이 이름 그대로 나가고, **하강된 몸을 직접** 부른다 — **비용 0**.
+export extern fn lowent_clamp255 input a u64 . output u64 . . do
+  if gt a 255 . do return 255 . end .
+  return a .
+end .

@@ -1,0 +1,15 @@
+rem S-impl-4 V1 fixture — dangling twin: --check rejects (E-ESCAPE) and a forced
+rem --run traps the same defect dynamically (E-VM-DANGLING) — static≡dynamic.
+fn bad .
+  output ref u64 . .
+do
+  var l u64 be 5 .
+  return ref l .
+end .
+
+fn use_bad .
+  output u64 .
+do
+  var r ref u64 . be bad .
+  return deref r .
+end .

@@ -1,0 +1,48 @@
+rem ★★ **참조 탈출은 두 겹으로 막힌다** — 정적(E-ESCAPE)과 동적(E-VM-DANGLING).
+rem   이 파일은 **일부러 정적 검사를 위반한다**(그래서 `--check` 가 초록이 아니다 — 의도한 것이고,
+rem   `region.low` 과 같은 부류의 음성 픽스처다). 그런데도 따로 두는 이유는:
+rem   정적 검사를 통과했다 쳐도 **동적 검사가 여전히 잡는지** 보이기 위해서다.
+rem
+rem ★★★ 이것이 *"참조를 생 포인터로 낮추지 않은"* 이유다: 포인터였다면 아래 `dangling` 은
+rem   해제된 프레임을 조용히 읽고 **그럴듯한 쓰레기**를 돌려줬을 것이다. 세대 검사가 그것을
+rem   **참조를 통과할 때마다** 잡는다(RFC-0017 동적 검증기 V1).
+rem ☞ 정직하게: 이 트랩은 **VM 에만** 있다. 네이티브는 참조를 슬롯 포인터로 두고 정적 분석을
+rem   믿는다 — 그래서 골든은 이 주장을 VM 에만 건다.
+
+module vm_refarg_esc .
+
+struct pt .
+  x u64 .
+end .
+
+proc peek input p ref pt . output u64 . effects none . do
+  return field p x .
+end .
+
+proc bump input p mut pt . output u64 . effects none . do
+  set (field p x) (add (field p x) 1) .
+  return field p x .
+end .
+
+rem ★★ 참조가 자기 프레임보다 오래 살면 거절된다 — 세대 검사가 **참조를 통과할 때마다** 돈다.
+rem   `make_ref` 가 돌려준 참조는 그 op 의 프레임을 가리키는데, 그 프레임은 이미 사라졌다.
+rem ★ 이 op 은 **일부러 탈출한다** — 정적 검사가 E-ESCAPE 로 잡는 것이 옳고, 아래는
+rem   그것을 통과했다 치고 **동적 검사도 잡는지** 보는 자리다(두 겹으로 지킨다).
+fn make_ref output ref pt . do
+  var inner pt be make pt do x 1 . end .
+  return ref inner .
+end .
+
+proc dangling output u64 . effects none . do
+  let r ref pt . be make_ref .
+  return peek r .
+end .
+
+rem ── 음성: 안전 성질이 살아 있다는 증거 (VM 에서만 트랩) ──────────────────
+
+rem ★★★ 공유 참조(`ref`)로 **쓰려 하면** 거절된다. 생 포인터였다면 조용히 성공했을 자리다.
+proc write_via_shared output u64 . effects none . do
+  var q pt be make pt do x 5 . end .
+  let v u64 be bump (ref q) .
+  return v .
+end .

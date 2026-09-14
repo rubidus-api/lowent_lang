@@ -1,0 +1,66 @@
+rem ★★★ **디렉터리를 나열한다 — 파일시스템을 열거한다** (RFC-0069 §6).
+rem
+rem   지금까지 파일 IO 는 **이름을 이미 알 때**만 됐다(경로를 인자로 받아 연다). `ls` 는
+rem   그 반대다: **무엇이 있는지 묻는다.** 빌드 도구·파일 파인더·백업이 이것을 필요로 한다.
+rem
+rem ★ 이 프로그램은 디렉터리를 열어 엔트리를 하나씩 읽고, `.`·`..` 를 걸러(readdir 은 그 둘도
+rem   낸다 — 리프는 raw 다) **나머지 이름들의 길이 합**을 낸다. 순서와 무관한 오라클이다:
+rem   dirfix/ = {alpha(5), beta(4), gamma(5)} ⇒ 합 14. 이름이 빠지거나 틀리면 합이 달라진다.
+rem
+rem ★★ **끝은 `some 0`** 이다(EOF 와 같은 규율 — 이름은 절대 0 길이가 아니므로 모호하지 않다).
+rem ★★★ **close 를 잊으면 컴파일이 안 된다** — `lib/file.low` 의 `owned dir_handle`(f_close 와 같은 기계).
+
+module ls .
+
+use files from "../../../lib/file.low" .
+
+proc main .
+  input fs cap file_system .
+  input al cap allocator .
+  input a  cap args .
+  output u8 .
+  effects alloc io .
+do
+  let dpath option slice u8 . be arg a 0 .
+  guard is_some dpath . else return 64 .
+
+  let g option mut slice u8 . . be alloc_bytes al capacity 256 .
+  guard is_some g . else return 70 .
+  let buf mut slice u8 . be some_value g .
+
+  let di result files.dir_handle files.file_error . be files.open_dir fs (some_value dpath) .
+  guard is_ok di . else return 71 .
+  var dh owned files.dir_handle be ok_value di .
+
+  var total u64 be 0 .
+  var going bool be true .
+  while going . do
+    rem ★ 세 자리다(2026-08-15): 실패는 `error`, **끝은 `ok none`**.
+    let n result (option u64) files.file_error . be files.read_dir fs dh buf .
+    if eq (is_ok n) false . do set going false . end .
+    if is_ok n . do
+      let nvo option u64 . be ok_value n .
+      if eq (is_some nvo) false . do set going false . end .
+      var nl u64 be 0 .
+      if is_some nvo . do set nl (some_value nvo) . end .
+      if eq nl 0 . do set going false . end          rem 끝 . .
+      if gt nl 0 . do
+        rem `.`(길이 1) 와 `..`(길이 2) 를 거른다 — readdir 이 낸 것이니 프로그램이 판단한다
+        var is_dot bool be false .
+        if eq nl 1 . do
+          if eq (index buf 0) 46 . do set is_dot true . end .
+        end .
+        if eq nl 2 . do
+          if eq (index buf 0) 46 . do
+            if eq (index buf 1) 46 . do set is_dot true . end .
+          end .
+        end .
+        if eq is_dot false . do set total (add total nl) . end .
+      end .
+    end .
+  end .
+
+  let c result void files.file_error . be files.close_dir fs dh .
+  guard is_ok c . else return 72 .
+  return (narrow u8 total) .                          rem dirfix = 14
+end .

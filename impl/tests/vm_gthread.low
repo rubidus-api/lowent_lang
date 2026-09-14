@@ -1,0 +1,51 @@
+rem ★★★ **green thread — `yield`** (RFC-0009, task_group→green_thread→channel 2/3, 사용자).
+rem
+rem   task_group 의 태스크는 이제 **중단**할 수 있다: `yield` 는 도는 태스크를 멈추고 스케줄러에
+rem   양보한다(다른 ready 태스크가 돌고 나중에 재개). VM 은 **ucontext 코루틴**으로 진짜 중단한다 —
+rem   태스크마다 자기 C 스택에서 돌고, yield 는 스케줄러로 swap, 재개는 다시 swap. 협조적(한 번에
+rem   하나, OS 스레드 하나)이라 경합이 없다. 이게 블로킹의 최소 원시어 — channel(3/3)의 블로킹
+rem   recv 가 이 위에 얹힌다.
+rem
+rem   ★ **네이티브는 yield=no-op**: 오라클이 순서 무관을 증명한 프로그램만 통과하므로, 네이티브가
+rem     태스크를 결정적으로 완주해도 결과는 같다(R2 패턴: 네이티브 한 길, VM 오라클이 인터리빙 탐색).
+rem     그래서 native 에 코루틴이 필요 없고 diff-sweep 이 VM≡native 를 지킨다.
+rem   ★ **오라클이 yield 인터리빙을 전수 탐색**한다(`schedule explore_interleavings`) — yield 로 순서가
+rem     결과를 바꾸면 E-SCHED-NONDET. 순서 무관이면 초록. 동시성의 결정론이 이 오라클로 검증된다.
+module vm_gthread .
+
+actor counter .
+  state v u64 . end .
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
+  fn get output u64 . do return v . end .
+end .
+
+rem 각 태스크가 inc, **yield**, inc — yield 에서 스케줄러가 다른 태스크로 넘어간다. 교환법칙이라
+rem   어떤 인터리빙이든 get=4. yield 가 진짜 중단·재개를 하는데도 결과가 안정적임을 오라클이 확인한다.
+proc ta input c counter . output u64 . effects state . do
+  var x u64 be send c inc .
+  yield .
+  return send c inc .
+end .
+proc tb input c counter . output u64 . effects state . do
+  var x u64 be send c inc .
+  yield .
+  return send c inc .
+end .
+test gthread_yield schedule explore_interleavings do
+  var c counter be spawn actor counter . .
+  task_group do
+    spawn ta c .
+    spawn tb c .
+  end .
+  expect eq (send c get) 4 .
+end .
+
+rem `yield` 를 쓴 task_group + 스칼라 반환 — VM(코루틴 인터리빙)≡네이티브(yield no-op, 완주). 차등 스윕.
+proc drive output u64 . effects state . do
+  var c counter be spawn actor counter . .
+  task_group do
+    spawn ta c .
+    spawn tb c .
+  end .
+  return send c get .
+end .

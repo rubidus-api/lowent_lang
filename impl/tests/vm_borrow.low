@@ -1,0 +1,38 @@
+rem ★★★ **`borrow <이름> be <식> do … end` — 빌린 것의 수명을 스코프로 못 박는다**
+rem   (사용자 결정 2026-07-19: *"with_block 까지 한 번에 갑시다"*).
+rem
+rem ★★★ **왜 필요했나.** `lib/pool.low` 의 세대 검사는 **문에서 한 번** 돈다(`bytes`). 그 문을
+rem   지나면 나오는 것은 **평범한 슬라이스**라서 `lib/fmt.low`·`lib/str.low` 이 **수정 0** 으로
+rem   그것을 먹는다 — op 이중화가 없다는 것이 이 설계의 값이다.
+rem   ★★ 그런데 그 슬라이스를 **든 채** 블록을 해제하면 아무도 안 잡았다. 해제된 자리는 곧
+rem     남에게 다시 나가므로 **조용한 데이터 오염**이고, 이 프로젝트가 반복해서
+rem     *"조용히 틀린 답이 거절보다 나쁘다"* 고 적어 온 그 범주다.
+rem   ⇒ *"감수할 9%"* 가 아니라 **닫아야 할 자리**였다. 이 파일이 그것이 닫혔음을 보인다.
+rem
+rem ★★ **규칙 둘 다 언어가 라이브러리를 모르는 채로 성립한다**:
+rem     ① 빌린 이름은 블록 밖으로 못 나간다 — E-BORROW-ESCAPE
+rem     ② 빌려준 actor 에게 블록 안에서 다시 보낼 수 없다 — E-BORROW-EXCL
+rem        (**readers-XOR-writer 를 actor 로 옮긴 것**이다.)
+rem   ☞ ②는 **과엄격**이다(읽기만 묻는 것도 막는다). 과엄격은 안전하고 구멍은 안전하지 않다.
+
+module vm_borrow .
+
+rem ★ 빌려서 쓰고, **값을 뽑아** 나온다 — 안전하고 통과해야 한다.
+proc read_through input s mut slice u8 . . output u64 . effects none . do
+  var t u64 be 0 .
+  borrow b be (subslice s 0 2) do
+    set (index b 0) 9 .
+    rem ★ `index` 는 **바이트**를 낸다 — 빌림을 들고 나가는 게 아니다.
+    set t (narrow u64 (index b 0)) .
+  end .
+  return t .
+end .
+
+rem ★ 블록 안에서 기존 라이브러리가 그대로 돈다 — 빌림이라고 특별한 op 이 필요하지 않다.
+proc plain_ops_work input s mut slice u8 . . output u64 . effects none . do
+  var t u64 be 0 .
+  borrow b be (subslice s 0 4) do
+    set t (len b) .
+  end .
+  return t .
+end .

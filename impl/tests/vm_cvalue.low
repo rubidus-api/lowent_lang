@@ -1,0 +1,37 @@
+rem ★★★ **값 comptime 파라미터의 접기** (RFC-0021 — 미구현분이었다).
+rem
+rem   `input comptime n u64 .` 이 이제 **단형화로 접힌다**: 호출마다 그 값이 박힌 구체 op(`wide#4`·`wide#8`)이
+rem   서고, 본문의 `n` 은 **리터럴**이 된다. 그래서 n 이 **타입 자리**(`vec u8 n` 의 레인 수)에도 설 수 있다 —
+rem   comptime 값은 곧 상수이므로.
+rem
+rem   ★ 치환 기계는 원래 **일반적**이었다(앞자리 comptime 인자를 이름에 박고 본문에서 바꾼다). `type` 낱말만
+rem     보던 것이 유일한 제약이었다. 그것을 풀자 값도 같은 기계로 접혔다.
+rem   ★★ **드러난 버그**: 치환이 원자의 **lex 만** 바꾸고 **토큰 종류**는 IDENT 로 두고 있었다. 타입 파라미터일
+rem      땐 결과가 다시 식별자(`rect`)라 안 보였지만, 값이 되자 `5` 가 **이름으로 조회**되어 E-IR-UNDEF 가 났다.
+rem      ⇒ 치환은 lex 뿐 아니라 **종류까지** 옮겨야 한다.
+rem   ★★ **틀은 낮추지 않는다**: 호출이 전부 인스턴스로 재작성되므로 틀은 부를 수 없고, 틀의 몸은 지워진
+rem      comptime 파라미터를 참조한다 — 낮추면 미정의가 된다. 타입 파라미터만 있을 땐 몸이 `t` 를 값으로
+rem      안 써서 이 병이 숨어 있었다.
+rem
+rem   ★ 폭이 comptime 이라 **VM·C 가 같은 값을 굽는다** ⇒ diff-sweep 로 VM≡native (오라클 안전).
+
+module vm_cvalue .
+
+type bytes slice u8 . .
+
+rem 레인 수를 comptime 값으로 받는다 — 같은 소스가 호출마다 다른 폭으로 선다.
+proc wide input comptime n u64 . input a bytes . input out mut slice u8 . output u64 . effects none . do
+  var xa slice u8 . be view_array u8 a .
+  var v vec u8 n . be load xa 0 .
+  var two vec u8 n . be splat 2 .
+  var r vec u8 n . be mul v two .
+  store out 0 r .
+  return 0 .
+end .
+
+proc call4 input a bytes . input out mut slice u8 . output u64 . effects none . do return (wide 4 a out) . end .
+proc call8 input a bytes . input out mut slice u8 . output u64 . effects none . do return (wide 8 a out) . end .
+
+rem 값 comptime 은 평범한 계산에도 접힌다(타입 자리 전용이 아니다).
+fn scaled input comptime k u64 . input x u64 . output u64 . do return mul x k . end .
+fn triple input x u64 . output u64 . do return (scaled 3 x) . end .

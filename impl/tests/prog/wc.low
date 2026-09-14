@@ -1,0 +1,92 @@
+rem ★★★ **아홉 번째 진짜 프로그램 — 파일이 들어오고, 이미 검증된 로직이 그것을 먹는다.**
+rem
+rem   RFC-0069 §1 이 처음부터 그렇게 계획했다:
+rem     *"IO 로직 전부(버퍼 관리·프레이밍·take_line)를 커널을 건드리기 전에 두 백엔드로
+rem       검증한다. os_fd 는 나중에 이 검증된 로직에 바이트를 공급하는 얇은 리프가 된다."*
+rem   그 "나중에" 가 여기다. `lib/io.low` 의 `mem_reader` 는 **한 글자도 안 바뀌었다** —
+rem   여태 CLI 가 준 바이트를 먹었고, 이제 파일이 준 바이트를 먹는다. 스트림 종류가 늘었을 뿐
+rem   프레이밍 로직은 같은 것이고, 그것이 이미 오라클 안에서 검증돼 있다.
+rem
+rem ★★★ **다섯 권한이 한자리에 선다** — 이 언어에 있는 것 전부다:
+rem     cap file_system  파일을 연다        cap allocator  버퍼를 얻는다
+rem     cap args         경로를 받는다      cap io         답을 낸다
+rem   (cap env 는 여기서 필요 없어서 안 받는다 — 안 쓰는 권한은 **안 받는 것**이 규율이다.)
+rem
+rem ★★ **읽기는 오라클 안이다.** RFC-0069 §7 은 os_fd 를 통째로 밖에 뒀지만, **같은 파일을
+rem   읽으면 양 백엔드가 같은 바이트를 얻는다** — argv·env 와 같은 범주(결정적 입력)이고
+rem   갈릴 표현이 없다. 밖인 것은 읽기가 아니라 *상태를 바꾸는* 쪽이다.
+rem   (A3 에서 "할당은 오라클 밖" 이 틀린 전제였던 것과 **같은 종류의 정정**이다.)
+rem
+rem ★★ **`read_file`(빌트인)이 여기서 `f_slurp`(라이브러리)로 바뀌었다** — 그리고 그것이
+rem   리프 규칙의 **부채 상환**이다(SPEC-002 부록 P): 파일 통째 읽기는 *편의* 라 리프 자격이
+rem   없었고, 스트림 리프가 서자 **Lowent 로 쓸 수 있게 됐다**(`lib/file.low`). 빌트인은 걷었다.
+rem ☞ 여전히 통째로 읽는다(버퍼보다 크면 `none` — 자르지 않는다). **조각으로** 다루는 것은
+rem   `prog/copy.low` 이 보인다 — 64 바이트 버퍼로 그보다 큰 파일을 복사한다.
+
+module wc .
+
+use io      from "../../../lib/io.low" .
+use files   from "../../../lib/file.low" .
+use fmt     from "../../../lib/fmt.low" .
+use allocs  from "../../../lib/alloc.low" .
+
+rem ★ 줄을 센다 — **순수하다.** 파일도 출력도 모른다. 그래서 따로 시험할 수 있고,
+rem   실제로 `lib/io.low` 의 mem_reader 위에서 이미 검증된 프레이밍을 그대로 쓴다.
+proc count_lines input src slice u8 . output u64 . effects state . do
+  var r io.mem_reader be spawn actor io.mem_reader . .
+  let z u64 be send r attach src .
+  var lines u64 be 0 .
+  var going bool be true .
+  while going . do
+    let l option slice u8 . be send r take_line 4096 .
+    rem ★ `guard` 는 **반드시 나가야** 한다(E-GUARD-FALLTHROUGH) — 루프를 한 번 더 돌지
+    rem   말지 고르는 자리는 `guard` 가 아니라 `if` 다. 언어가 이 구별을 강제한다.
+    if is_some l . do set lines (add lines 1) . end .
+    if eq (is_some l) false . do set going false . end .
+  end .
+  rem 마지막 개행 뒤에 남은 바이트가 있으면 그것도 한 줄이다(개행 없이 끝난 파일).
+  let rest u64 be send r remaining .
+  if gt rest 0 . do set lines (add lines 1) . end .
+  return lines .
+end .
+
+proc main .
+  input fs cap file_system .
+  input al cap allocator .
+  input a  cap args .
+  input out cap io .
+  output u8 .
+  effects alloc io state .
+do
+  rem 경로는 인자로 받는다 — 하드코딩된 경로는 숨은 의존이다.
+  let given option slice u8 . be arg a 0 .
+  guard is_some given . else return 64 .
+
+  let g option mut slice u8 . . be alloc_bytes al capacity 8192 .
+  guard is_some g . else return 70 .
+  let buf mut slice u8 . be some_value g .
+
+  rem ★ 못 열어도, 버퍼보다 커도 **none** — 죽지 않는다. 답을 종료 코드로 구별한다.
+  let n result u64 files.file_error . be files.slurp fs (some_value given) buf .
+  guard is_ok n . else return 66 .
+
+  let lines u64 be count_lines (subslice buf 0 (ok_value n)) .
+
+  rem 조립은 순수하고(lib/fmt.low), 출력은 한 번이다.
+  let line option mut slice u8 . . be alloc_bytes al capacity 64 .
+  guard is_some line . else return 71 .
+  let ob mut slice u8 . be some_value line .
+  let p1 option u64 . be fmt.put_u64 ob 0 lines .
+  guard is_some p1 . else return 72 .
+  let p2 option u64 . be fmt.put_str ob (some_value p1) " lines, " .
+  guard is_some p2 . else return 73 .
+  let p3 option u64 . be fmt.put_u64 ob (some_value p2) (ok_value n) .
+  guard is_some p3 . else return 74 .
+  let p4 option u64 . be fmt.put_str ob (some_value p3) " bytes" .
+  guard is_some p4 . else return 75 .
+  let p5 option u64 . be fmt.put_nl ob (some_value p4) .
+  guard is_some p5 . else return 76 .
+
+  let w u64 be write_out out 1 (subslice ob 0 (some_value p5)) .
+  return (narrow u8 lines) .
+end .

@@ -1,0 +1,19 @@
+rem ★★★ **float 슬라이스 index 발산 증인** — VM≠native 였던 선재 결함(2026-07-23 수정).
+rem
+rem   `index (view_array f32/f64 b) i` 는 float 원소를 **부동 스칼라**로 돌려줘야 한다. native
+rem   fast-path IRW_INDEX 는 다바이트 원소를 **정수 스택에 raw 비트**로 밀 뿐 float 를 처리 안 해,
+rem   f32 1.5 가 VM=1.5 인데 native=1069547520(0x3FC00000, 비트값)이었다. 태그 경로 lw_index 는
+rem   이미 옳았다(lw_b2f). diff-sweep 이 이 형태를 안 스쳐(SIMD 는 load 경로) 조용히 샜다.
+rem   수정: 이미터·시뮬레이터 IRW_INDEX 에 float 분기(ks.fl/st.fl → fs 스택·K_FLT). 무부호·부호·
+rem   구조체 원소는 불변.
+module m .
+type bytes slice u8 .
+
+rem f32 원소: 1.5 = 0x3FC00000, LE 바이트 [0,0,192,63].
+fn f32idx input b bytes . output f64 . do return index (view_array f32 b) 0 . end .
+
+rem f64 원소: 2.5 = 0x4004000000000000, LE 바이트 [0,0,0,0,0,0,4,64].
+fn f64idx input b bytes . output f64 . do return index (view_array f64 b) 0 . end .
+
+rem 무부호 정수 원소 대조 — 불변이어야: u32 300 = LE [44,1,0,0].
+fn u32idx input b bytes . output i64 . do return widen i64 (index (view_array u32 b) 0) . end .

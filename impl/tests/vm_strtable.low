@@ -1,0 +1,40 @@
+rem ★★★★★ **상수 표는 문자열 리터럴이다** (2026-08-20, `bench_http` 가 값을 매긴 자리).
+rem
+rem   색인 → 상수 를 돌려주는 함수를 `if eq k 0 … if eq k 1 …` 사슬로 쓰기 쉽다.
+rem   `bench_http` 가 정확히 그랬고(11 갈래), C 쪽은 `static const char prefix[]="…"` 였다
+rem   — **두 언어가 다른 프로그램을 재고 있었다.**
+rem   cachegrind 가 방출 C 에서 **7줄 간격 연속 분기**로 그 자리를 찍었고, 표 조회로 바꾸자
+rem   **예측 실패가 손으로 쓴 C 와 같아졌다**(126 → 57 = C 의 57) · 시간 ×2.67 → ×2.01 ·
+rem   체크섬 불변.
+rem
+rem ☞ 그러니 이 파일이 지키는 것은 성능이 아니라 **매뉴얼의 주장**이다
+rem   (`docs/manual/05-arrays-and-slices.md` — *상수 표는 문자열 리터럴이다*).
+rem   매뉴얼 예제는 `check-spec-code` 의 대상이 아니므로, 값이 매겨진 주장은 여기서 문다.
+
+module vm_strtable .
+
+rem ✔ ① 문자열 리터럴은 `slice u8` 이고 **그대로 색인된다**.
+export fn prefix_char input k u64 . output u8 . do
+  return index "/api/users/" k .
+end .
+
+rem ✔ ② 길이도 읽힌다 — 사슬에는 길이가 없다(그것도 사슬의 손해다).
+export fn prefix_len output u64 . do
+  return len "/api/users/" .
+end .
+
+rem ✔ ③ 루프에서 표를 훑는다 — `bench_http` 의 실제 모양이다.
+export fn prefix_sum output u64 . do
+  var k u64 be 0 .
+  var acc u64 be 0 .
+  while lt k 11 . do
+    set acc (add acc (widen u64 (index "/api/users/" k))) .
+    set k (add k 1) .
+  end .
+  return acc .
+end .
+
+proc main output u8 . effects none .
+do
+  return 0 .
+end .

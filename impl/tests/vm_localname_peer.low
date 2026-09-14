@@ -1,0 +1,8 @@
+rem ★ 짝 — 같은 이름을 **op 으로** 내보낸다(spill 30). 이것이 있어야 그 병이 재현된다.
+
+module vm_localname_peer .
+
+export fn total input n u64 . output option u64 . do
+  guard gt n 0 . else return none .
+  return some n .
+end .

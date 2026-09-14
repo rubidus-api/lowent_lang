@@ -1,0 +1,248 @@
+rem ★★★ **세대 핸들 블록 풀** — 사용자가 설계한 것(2026-07-19):
+rem   *"4k 씩 뭉텅이로 받아 여러 용도로 쓰고, 부족하면 더 받고, 원하는 시점에 특정 블록을
+rem     새 블록에 복사하고 기존 것은 해제하고."*
+rem
+rem ★★★ **왜 region 블록으로 안 되나**: region 은 **수명이 스코프**라 해제 지점이 어휘적이다.
+rem   위 요구는 *"내가 정한 아무 지점"* 이므로 정적으로 못 쫓는다 ⇒ **런타임 세대**로 간다.
+rem   그리고 그것은 이 언어가 **이미 고른 답**이다(SPEC-004 §108: *"use-after-free 는 세대 핸들이
+rem   처리"*) — 참조가 `{프레임, 슬롯, 세대}` 로 E-VM-DANGLING 을 내는 것과 같은 기계다.
+rem
+rem ★★★ **배치는 SoA**(사용자 제안): 평범한 `slice` 는 **손대지 않는다**(여전히 `{ptr,len}`, 비용 0).
+rem   세대는 **나란한 배열**에 모으고, **별도 타입**인 `handle` 만 세대를 하나 든다.
+rem   ⇒ **안 쓰면 안 낸다** — 검사 비용이 이 문을 지나는 코드에만 붙는다.
+
+module vm_pool .
+
+use pool from "../../lib/pool.low" .
+
+rem ★★★ **브랜드 — RFC-0104 §8-2**(소유자 서명 2026-08-28, §5.11). 새 낱말이 아니라
+rem   이미 있는 `newtype` 이다. 풀마다 **다른 브랜드**를 준다: 그래야 한 풀의 핸들을
+rem   다른 풀에 넣는 것을 **타입검사가** 거절한다(§6.1 S1). 런타임 칸은 안 는다.
+newtype p_many u8 .
+newtype p_stale u8 .
+newtype p_copy u8 .
+newtype p_reuse u8 .
+newtype p_lifo u8 .
+newtype p_borrow u8 .
+
+rem ★ 뭉텡이를 여럿 받아 쓴다 — 부족하면 더 받는 그 모양.
+proc take_many input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
+  effects none .
+do
+    let po option (pool.block_pool p_many) . be pool.init p_many mem gens 16 .
+  guard is_some po . else return 89 .
+  var p pool.block_pool p_many . be some_value po .
+  let n u64 be pool.blocks p_many p .           rem 블록 크기 16 바이트(시험용 — 링크 8 + 자료 8)
+  var got u64 be 0 .
+  var i u64 be 0 .
+  while lt i n . do
+    let h option (pool.handle p_many) . be pool.take p_many p .
+    if is_some h . do set got (add got 1) . end .
+    set i (add i 1) .
+  end .
+  rem 다 썼으면 그다음은 none — 트랩이 아니다.
+  let over option (pool.handle p_many) . be pool.take p_many p .
+  if is_some over . do set got (add got 100) . end .
+  return got .
+end .
+
+rem ★★★ **이 파일의 핵심 주장**: 해제하면 **옛 핸들이 죽는다.**
+rem   메모리는 그대로 있는데 **아무도 그것을 못 쓴다** — 그것이 세대 핸들의 전부다.
+proc stale_after_release input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
+  effects none .
+do
+    let po option (pool.block_pool p_stale) . be pool.init p_stale mem gens 16 .
+  guard is_some po . else return 89 .
+  var p pool.block_pool p_stale . be some_value po .
+  let n u64 be pool.blocks p_stale p .
+  let h option (pool.handle p_stale) . be pool.take p_stale p .
+  guard is_some h . else return 90 .
+  let hh pool.handle p_stale . be some_value h .
+
+  rem ① 해제 전 — 바이트에 닿는다
+  let b1 option mut slice u8 . . be pool.bytes p_stale p hh .
+  guard is_some b1 . else return 91 .
+  let bb mut slice u8 . be some_value b1 .
+  set (index bb 8) 77 .    rem ★ 앞 8 바이트는 해제 뒤 **자유 목록 링크**가 된다 — 그래서 뒤쪽에 쓴다
+
+  rem ② 해제한다 — 이 순간 hh 가 낡는다
+  rem ★ 변수를 `ok` 라 부르면 **결과 생성자 `ok` 와 부딪친다** — 같은 낱말 두 뜻(§2.5).
+  let freed bool be pool.release p_stale p hh .
+  guard eq freed true . else return 92 .
+
+  rem ③ 같은 핸들로 다시 닿으려 하면 **none**
+  let b2 option mut slice u8 . . be pool.bytes p_stale p hh .
+  guard eq (is_some b2) false . else return 93 .
+  let al bool be pool.alive p_stale p hh .
+  guard eq al false . else return 94 .
+
+  rem ④ 바이트는 **그대로 있다** — 죽은 것은 핸들이지 메모리가 아니다.
+  rem ★★★ 단, **앞 8 바이트는 예외**다(2026-07-20 자유 목록): 해제된 블록의 그 자리가
+  rem   **자유 목록 링크**가 된다. 안전한 이유는 하나뿐이고 그것으로 충분하다 —
+  rem   세대가 이미 올라가 **아무도 그 블록에 못 닿는다**(바로 위 ③ 이 그것을 쟀다).
+  rem   ⇒ 장부가 공짜다: 배열을 하나 더 요구하지 않는다.
+  guard eq (index mem 8) 77 . else return 95 .
+
+  rem ⑤ 두 번 해제는 거부된다(이미 낡은 핸들이므로)
+  let twice bool be pool.release p_stale p hh .
+  guard eq twice false . else return 96 .
+  return 1 .
+end .
+
+rem ★★ **복사해서 옮기고 옛 것을 버린다** — 사용자가 말한 그 모양.
+proc copy_and_release input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
+  effects none .
+do
+    let po option (pool.block_pool p_copy) . be pool.init p_copy mem gens 16 .
+  guard is_some po . else return 89 .
+  var p pool.block_pool p_copy . be some_value po .
+  let n u64 be pool.blocks p_copy p .
+  guard ge n 2 . else return 90 .
+
+  let ha option (pool.handle p_copy) . be pool.take p_copy p .
+  let hb option (pool.handle p_copy) . be pool.take p_copy p .
+  guard is_some ha . else return 91 .
+  guard is_some hb . else return 92 .
+  let a pool.handle p_copy . be some_value ha .
+  let b pool.handle p_copy . be some_value hb .
+
+  rem 옛 블록에 값을 쓴다
+  rem ★ `set (index (some_value ba) 0) …` 는 **중첩 place** 라 코어 밖이다 — 먼저 이름에 묶는다.
+  let ba option mut slice u8 . . be pool.bytes p_copy p a .
+  guard is_some ba . else return 93 .
+  let av mut slice u8 . be some_value ba .
+  set (index av 8) 55 .
+
+  rem 새 블록으로 **복사**한다
+  let bb option mut slice u8 . . be pool.bytes p_copy p b .
+  guard is_some bb . else return 94 .
+  let bv mut slice u8 . be some_value bb .
+  let src option mut slice u8 . . be pool.bytes p_copy p a .
+  guard is_some src . else return 95 .
+  let sv mut slice u8 . be some_value src .
+  set (index bv 8) (index sv 8) .
+
+  rem 옛 것을 **해제**한다 — 옛 핸들은 죽고, 새 핸들은 산다
+  let rel bool be pool.release p_copy p a .
+  guard eq rel true . else return 96 .
+  let dead option mut slice u8 . . be pool.bytes p_copy p a .
+  guard eq (is_some dead) false . else return 97 .
+  let live option mut slice u8 . . be pool.bytes p_copy p b .
+  guard is_some live . else return 98 .
+  let lv mut slice u8 . be some_value live .
+  return narrow u64 (index lv 8) .    rem 55 — 복사가 살아남았다
+end .
+
+rem ★★★ **자유 목록 — 놓은 것이 돌아온다** (2026-07-20).
+rem   전에는 `take` 가 순차 배당만 해서, 받고-놓기를 반복하면 풀이 **쓰지도 않고 말라붙었다**.
+rem   사용자가 요청한 모양(*"원하는 시점에 복사하고 기존 것은 해제하고"*)이 정확히 그 반복이다.
+rem ★ 여기서 재는 것: **블록 수보다 훨씬 많이 받아도 안 마른다.**
+proc reuse_after_release input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
+  effects none .
+do
+    let po option (pool.block_pool p_reuse) . be pool.init p_reuse mem gens 16 .
+  guard is_some po . else return 89 .
+  var p pool.block_pool p_reuse . be some_value po .
+  let n u64 be pool.blocks p_reuse p .
+  guard ge n 2 . else return 90 .
+
+  rem 블록이 n 개뿐인데 **n 의 열 배**를 받고 놓는다 — 자유 목록이 없으면 여기서 마른다.
+  var i u64 be 0 .
+  let rounds u64 be mul n 10 .
+  while lt i rounds . do
+    let h option (pool.handle p_reuse) . be pool.take p_reuse p .
+    guard is_some h . else return 91 .              rem ★ 없었다면 여기서 죽었다
+    let hh pool.handle p_reuse . be some_value h .
+    let b option mut slice u8 . . be pool.bytes p_reuse p hh .
+    guard is_some b . else return 92 .
+    let bv mut slice u8 . be some_value b .
+    set (index bv 8) 42 .
+    let rel bool be pool.release p_reuse p hh .
+    guard eq rel true . else return 93 .
+    set i (add i 1) .
+  end .
+
+  rem ★★ 그리고 **밖에 나가 있는 블록이 0** 이다 — 전부 돌아왔다.
+  let out_n u64 be pool.outstanding p_reuse p .
+  guard eq out_n 0 . else return 94 .
+  return 1 .
+end .
+
+rem ★★ 자유 목록은 **LIFO** 다: 마지막에 놓은 것이 먼저 나온다(캐시에 아직 따뜻하다).
+proc free_list_is_lifo input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
+  effects none .
+do
+    let po option (pool.block_pool p_lifo) . be pool.init p_lifo mem gens 16 .
+  guard is_some po . else return 89 .
+  var p pool.block_pool p_lifo . be some_value po .
+  let n u64 be pool.blocks p_lifo p .
+  guard ge n 3 . else return 90 .
+
+  let h0 option (pool.handle p_lifo) . be pool.take p_lifo p .
+  let h1 option (pool.handle p_lifo) . be pool.take p_lifo p .
+  guard is_some h0 . else return 91 .
+  guard is_some h1 . else return 92 .
+  let a pool.handle p_lifo . be some_value h0 .
+  let b pool.handle p_lifo . be some_value h1 .
+  guard eq (field a blk) 0 . else return 93 .
+  guard eq (field b blk) 1 . else return 94 .
+
+  rem 0 을 먼저, 1 을 나중에 놓는다
+  let r0 bool be pool.release p_lifo p a .
+  let r1 bool be pool.release p_lifo p b .
+  guard eq r0 true . else return 95 .
+  guard eq r1 true . else return 96 .
+
+  rem ★ 나중에 놓은 1 이 **먼저** 나온다
+  let n1 option (pool.handle p_lifo) . be pool.take p_lifo p .
+  guard is_some n1 . else return 97 .
+  guard eq (field (some_value n1) blk) 1 . else return 98 .
+  let n0 option (pool.handle p_lifo) . be pool.take p_lifo p .
+  guard is_some n0 . else return 99 .
+  guard eq (field (some_value n0) blk) 0 . else return 80 .
+
+  rem ★★★ 그리고 **세대가 올라 있다** — 같은 블록이지만 **다른 핸들**이다.
+  rem   재사용은 옛 핸들을 되살리지 않는다. 그것이 세대의 전부다.
+  let al bool be pool.alive p_lifo p a .
+  guard eq al false . else return 81 .
+  return 1 .
+end .
+
+rem ★★★ **④ `borrow` 와 풀을 붙인다** — 이것이 정직히 적어 두었던 약점의 답이다.
+rem   `bytes` 로 받은 슬라이스를 **든 채** `release` 하면 그 슬라이스는 여전히 쓸 수 있고
+rem   아무도 안 잡는다고 `lib/pool.low` 이 자백했다. `borrow` 블록이 그 창을 닫는다:
+rem   **빌림이 블록 끝에서 끝나므로**, 해제는 빌림 밖에서만 일어난다 — 어휘적으로.
+rem ★ 여기서 재는 것: 빌린 동안은 **평범한 slice** 라 기존 op 이 그대로 먹고,
+rem   블록을 나온 뒤 해제하면 옛 핸들이 죽는다. 두 규율이 겹쳐 산다.
+proc borrow_then_release input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
+  effects none .
+do
+    let po option (pool.block_pool p_borrow) . be pool.init p_borrow mem gens 16 .
+  guard is_some po . else return 89 .
+  var p pool.block_pool p_borrow . be some_value po .
+  let n u64 be pool.blocks p_borrow p .
+  guard ge n 1 . else return 90 .
+  let h option (pool.handle p_borrow) . be pool.take p_borrow p .
+  guard is_some h . else return 91 .
+  let hh pool.handle p_borrow . be some_value h .
+
+  let b option mut slice u8 . . be pool.bytes p_borrow p hh .
+  guard is_some b . else return 92 .
+  let bv mut slice u8 . be some_value b .
+
+  var total u64 be 0 .
+  rem ★★ 빌림 안에서는 **평범한 슬라이스**다 — `len`·`index` 가 수정 0 으로 먹는다.
+  borrow v be bv do
+    set (index v 8) 3 .
+    set (index v 9) 4 .
+    set total (add (narrow u64 (index v 8)) (narrow u64 (index v 9))) .
+  end .
+  guard eq total 7 . else return 93 .
+
+  rem ★★★ 해제는 **빌림 밖**에서 일어난다 — 그것이 이 배치가 주는 것이다.
+  let rel bool be pool.release p_borrow p hh .
+  guard eq rel true . else return 94 .
+  let dead option mut slice u8 . . be pool.bytes p_borrow p hh .
+  guard eq (is_some dead) false . else return 95 .
+  return total .
+end .

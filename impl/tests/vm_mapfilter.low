@@ -1,0 +1,24 @@
+rem ★★★ **map / filter** (RFC-0016) — fold 에 이은 원소별 고차 스테이지.
+rem
+rem   `map <out> <op> <in>`      — out[i] = op(in[i]).  op : T->U (인자 하나).
+rem   `filter <out> <pred> <in>` — pred(x) 가 참인 x 만 out 에 **압축**해 쓴다.  pred : T->bool.
+rem   ★ 결과는 **호출자가 준 mut slice `out` 에 쓴다**(할당 0 — 유계 싱크, RFC-0016 collect-into 모델).
+rem     쓴/거른 **개수를 반환**한다. out 이 짧으면 넘치지 않고 잘린다(경계 안전).
+rem   ★ op 이름 참조 + 호출지 단형화(fold 과 같은 기계) ⇒ 백엔드는 map/filter 를 모른다(VM≡native).
+rem   ★ out 에 쓰므로 **mut slice 파라미터**여야 하고(E-MAP-SINK), 쓰기가 보이므로 **proc** 이다
+rem     (fn 이면 E-EFFECT-PURITY — 관측적 순수성).
+
+module vm_mapfilter .
+
+fn dbl    input a u8 . output u8 . do return wrap_mul a 2 . end .
+fn is_big input a u8 . output bool . do return ge a 3 . end .
+
+rem 각 원소를 2배로 — out 에 쓴다.
+proc domap input xs slice u8 . input out mut slice u8 . output u8 . effects none . do
+  return map out dbl xs .
+end .
+
+rem 3 이상만 남긴다 — out 에 압축해 쓰고 개수를 낸다.
+proc dofilter input xs slice u8 . input out mut slice u8 . output u8 . effects none . do
+  return filter out is_big xs .
+end .

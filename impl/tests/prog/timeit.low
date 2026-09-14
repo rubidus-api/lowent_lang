@@ -1,0 +1,54 @@
+rem ★★★ **실물 프로그램: 경과 시간을 재고 마감을 지킨다** (RFC-0090 N1).
+rem
+rem   시계가 없어서 못 하던 일 셋을 한 프로그램에서 한다:
+rem     ① **경과 시간** — 일이 얼마나 걸렸나
+rem     ② **마감(deadline)** — 언제까지인가로 다룬다. *"몇 ms 남았나"* 로 들고 다니면 루프마다
+rem        다시 빼야 하고, 그 뺄셈을 한 번 빠뜨리면 타임아웃이 **영원히 안 온다**
+rem     ③ **날짜시각** — 로그에 찍을 것
+rem
+rem ★ 오라클은 **단조성과 순서**뿐이다(RFC-0090 D3). 이 프로그램은 *"지금이 몇 시인가"* 를
+rem   주장하지 않는다 — 그건 무엇과도 대볼 수 없다. 주장하는 것은 **잰 시간이 뒤로 안 간다**·
+rem   **잔 만큼 늘어난다**·**마감이 실제로 온다** 셋이고, 그 셋은 두 뒤끝에서 같아야 한다.
+
+module timeit .
+
+use clock from "../../../lib/clock.low" .
+
+proc main input k cap clock . output u8 . effects wait . do
+  rem ── ① 경과 — 뒤로 가지 않는다 ────────────────────────────────────
+  let t0 u64 be clock.now_ns k .
+  let e0 u64 be clock.since_ms k t0 .
+  guard ge (clock.now_ns k) t0 . else return 1 .
+  rem ★ 단위를 맞춰서 비교한다 — 처음 이 파일을 쓸 때 ns 와 ms 를 맞대어 틀렸다.
+  rem   두 뒤끝이 **똑같이** 틀렸다는 점이 오히려 신호였다: 발산이 아니라 내 계산이었다.
+
+  rem ── ② 잠들면 실제로 늘어난다 ─────────────────────────────────────
+  let slept u64 be clock.sleep_ms k 20 .
+  guard ge slept 15 . else return 2 .
+  let e1 u64 be clock.since_ms k t0 .
+  guard ge e1 15 . else return 3 .
+  guard ge e1 e0 . else return 4 .
+
+  rem ── ③ 마감 — 먼 마감은 안 지났고, 지난 마감은 남은 시간이 0 이다 ──
+  let far u64 be clock.deadline_in k 60000 .
+  guard not (clock.past k far) . else return 5 .
+  guard gt (clock.left_ms k far) 0 . else return 6 .
+
+  rem 이미 지난 마감(지금보다 앞) — 곧바로 만료다.
+  let gone u64 be sub t0 1 .
+  guard clock.past k gone . else return 7 .
+  guard eq (clock.left_ms k gone) 0 . else return 8 .
+
+  rem ── ④ 날짜시각 — 푸는 것은 순수 계산이라 권한이 없다 ──────────────
+  let p u64 be clock.local_packed k .
+  guard ge (clock.year_of p) 2020 . else return 9 .
+  guard le (clock.year_of p) 2100 . else return 10 .
+  guard ge (clock.month_of p) 1 . else return 11 .
+  guard le (clock.month_of p) 12 . else return 12 .
+  guard ge (clock.day_of p) 1 . else return 13 .
+  guard le (clock.day_of p) 31 . else return 14 .
+  guard le (clock.hour_of p) 23 . else return 15 .
+  guard le (clock.minute_of p) 59 . else return 16 .
+  guard le (clock.second_of p) 60 . else return 17 .
+  return 42 .
+end .

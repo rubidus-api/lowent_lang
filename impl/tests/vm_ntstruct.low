@@ -1,0 +1,33 @@
+rem ★★★ **newtype 의 struct core** (RFC-0002 §6.3.1) — 이름 코어에도 **자기 정체성**을 준다.
+rem
+rem   int/float 코어의 newtype 은 이미 명목 구별이 됐다(`newtype nid u64 .` 에 u64 를 넣으면
+rem   E-TYPE-NOMINAL). 그런데 **코어가 struct 이면 아무 구별도 없었다**:
+rem
+rem       newtype spot pt .          rem "spot 은 pt 가 아니다" 라고 적어 놓고
+rem       read_x q .                   rem   pt 를 spot 자리에 그냥 넣을 수 있었다
+rem
+rem   낱말이 **약속만 하고 아무것도 안 바꾸는 장식**이었다 — PRINCIPLES.md §0 이 금지하는 그것이다.
+rem   이제 이름 코어 newtype 도 명목 id 를 받아 E-TYPE-NOMINAL 로 갈린다.
+rem
+rem   ★ **범위를 좁게 뒀다**: 명목 id 를 **가진 쪽이 있을 때만** 본다.
+rem     · 투명 별칭 `type alias2 pt . .` 는 명세가 *같은 타입*이라 했으므로(SPEC-004 §89) 그대로 호환이다.
+rem     · **일반 struct 끼리의 검사는 아직 없다**(`rc` 를 `pt` 자리에 넣어도 통과한다) — 이름 타입 전반이
+rem       TK_NAMED 로 뭉뚱그려져 있어서다. 그것은 이 항목과 **별개의 더 넓은 틈**이라 손대지 않았고,
+rem       고친 척하지 않는다. (여기서 닫은 것은 `newtype` 이 한 약속뿐이다.)
+
+module vm_ntstruct .
+
+struct pt .
+  x u32 .
+  y u32 .
+end .
+
+newtype spot pt .
+
+fn read_x input p spot . output u32 . do return (field p x) . end .
+
+rem 올바른 사용 — spot 을 spot 자리에. 런타임 표현은 pt 와 같다(명목 구별은 컴파일 시에만).
+fn ok1 output u32 . do
+  var q spot . be make pt do x 7 . y 4 . end .
+  return (read_x q) .
+end .

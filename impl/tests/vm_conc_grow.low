@@ -1,0 +1,50 @@
+rem ★★★ **동시 상한이 없다 — 그린스레드 풀이 성장한다** (RFC-0072 E-Alloc P3·P4. 2026-07-21).
+rem
+rem ★★★ **왜 이 파일이 있나.** 전엔 VM·네이티브 둘 다 그린스레드를 **16개 고정 배열**로 잡아,
+rem   동시에 16개 넘게 **막히면** 거절했다(VM: E-VM-CONC-CAP · 네이티브: lw_panic). 그런데 M:N
+rem   모델에서 M(그린스레드)은 메모리까지 자유로워야 한다 — 막힌 코루틴은 OS 스레드가 아니라
+rem   **얼어붙은 스택**일 뿐이다. ⇒ 풀을 **성장**시킨다(realloc/malloc). 상한은 사라졌다.
+rem
+rem ★★ 이 파일이 재는 것: **40개 소비자를 먼저 전부 spawn**(전부 chrecv 로 막힌다 — 동시에 40개가
+rem   살아야 한다, 16 을 훌쩍 넘는다) 한 뒤 생산자 40개를 푼다. 재활용으로는 못 넘긴다(소비자가
+rem   전부 동시에 막혀 끝난 자리가 없다) — **오직 성장만이** 이걸 통과시킨다. 그리고 VM≡네이티브.
+
+module vm_conc_grow .
+
+actor counter .
+  state v u64 . end .
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
+  fn get output u64 . do return v . end .
+end .
+
+rem 소비자: 하나 받고 **카운터를 올린다**(완료를 셀 수 있게). 받기 전까지 chrecv 로 막힌다.
+proc cons input c u64 . input k counter . output u64 . effects state concurrent . do
+  var x u64 be chrecv c .
+  spawn send k inc .
+  return x .
+end .
+
+rem 생산자: 하나 보낸다.
+proc prod input c u64 . output u64 . effects concurrent . do
+  return chsend c 1 .
+end .
+
+rem ★ 소비자 40 을 **먼저 전부** spawn → 전부 동시에 막힌다(>16, 재활용 불가) → 생산자 40.
+rem   상한이 있으면 여기서 거절/데드락한다. 성장하면 40 이 다 돌고 카운터 = 40.
+proc grew output u64 . effects state . do
+  var c u64 be channel u64 . .
+  var k counter be spawn actor counter . .
+  task_group do
+    var i u64 be 0 .
+    while lt i 40 . do
+      var h u64 be spawn cons c k .
+      set i (add i 1) .
+    end .
+    var j u64 be 0 .
+    while lt j 40 . do
+      var p u64 be spawn prod c .
+      set j (add j 1) .
+    end .
+  end .
+  return send k get .
+end .

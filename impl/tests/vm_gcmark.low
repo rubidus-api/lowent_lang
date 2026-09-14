@@ -1,0 +1,104 @@
+rem ★★★★★ **명시 tracing 은 오늘 언어로 써진다** (RFC-0105 §2 · RFC-0104 §8-11 · WO-0145).
+rem
+rem   RFC-0105 는 수집기를 **안 만든다**. 대신 그 RFC 가 서 있는 측정 하나를 여기서 고정한다:
+rem     *"tracing 의 표시(mark) 단계는 새 낱말 0 으로 써지고, weak/ephemeron 의 고정점은
+rem       같은 반복이다."*
+rem   그 말이 참이면, 수집기를 **언어에 넣을 이유**가 그만큼 줄어든다 — 그리고 그것이
+rem   §8-11 의 답이 *"좁게 열고, 구현은 미룬다"* 인 까닭이다.
+rem
+rem ☞ 객체 그래프는 **인덱스**다(생 포인터 없음). 자식 둘씩, 없으면 자기 자신.
+rem   표시는 비트 하나. root 는 **인자로 온다** — 이 언어엔 스택 훑기가 없다(RFC-0105 §3.1).
+
+module vm_gcmark .
+
+use allocs .
+
+rem 고정점까지 도는 표시 — 더 이상 새로 표시할 것이 없을 때 멈춘다.
+rem   ★ 이 반복이 곧 ephemeron 의 고정점이다(RFC-0105 §3.3). 라운드 상한은 객체 수다.
+export proc mark input edges slice u64 . input marks mut slice u64 . . input root u64 .
+  output u64 . effects none .
+do
+  guard lt root (len marks) . else return 0 .
+  set (index marks root) 1 .
+  var changed u64 be 1 .
+  var rounds u64 be 0 .
+  while gt changed 0 . do
+    set changed 0 .
+    var i u64 be 0 .
+    while lt i (len marks) . do
+      if eq (index marks i) 1 . do
+        let a u64 be index edges (mul i 2) .
+        let b u64 be add (mul i 2) 1 .
+        let c u64 be index edges b .
+        if lt a (len marks) . do
+          if eq (index marks a) 0 . do
+            set (index marks a) 1 .
+            set changed (add changed 1) .
+          end .
+        end .
+        if lt c (len marks) . do
+          if eq (index marks c) 0 . do
+            set (index marks c) 1 .
+            set changed (add changed 1) .
+          end .
+        end .
+      end .
+      set i (add i 1) .
+    end .
+    set rounds (add rounds 1) .
+    guard le rounds (len marks) . else return 0 .
+  end .
+  var live u64 be 0 .
+  var k u64 be 0 .
+  while lt k (len marks) . do
+    set live (add live (index marks k)) .
+    set k (add k 1) .
+  end .
+  return live .
+end .
+
+rem ★ 그래프: 0→{1,2} · 1→{3} · 2→자기 · 3→자기 · 4=고아.
+rem   root 0 에서 살아 있는 것은 넷이고, 4 는 **순환도 아닌 그냥 쓰레기**다.
+proc reaches input al cap allocator . output u64 . effects alloc . do
+  let me option mut slice u8 . . be alloc_bytes al capacity 80 .
+  guard is_some me . else return 89 .
+  let mm option mut slice u8 . . be alloc_bytes al capacity 40 .
+  guard is_some mm . else return 88 .
+  var e mut slice u64 . be view_array u64 (some_value me) .
+  var m mut slice u64 . be view_array u64 (some_value mm) .
+  set (index e 0) 1 .  set (index e 1) 2 .
+  set (index e 2) 3 .  set (index e 3) 3 .
+  set (index e 4) 2 .  set (index e 5) 2 .
+  set (index e 6) 3 .  set (index e 7) 3 .
+  set (index e 8) 4 .  set (index e 9) 4 .
+  guard eq (vm_gcmark.mark e m 0) 4 . else return 1 .
+  rem 고아는 표시되지 않았다 — 그것이 수집 대상이다.
+  guard eq (index m 4) 0 . else return 2 .
+  return 42 .
+end .
+
+rem ★★ **순환도 끝난다** — 0→1→0 은 서로를 가리키지만 고정점이 그것을 멈춘다.
+rem   ☞ 그리고 이것이 RFC-0105 §5 의 요점이다: 순환이 문제인 것은 **수명이 다를 때**뿐이다.
+proc cycles input al cap allocator . output u64 . effects alloc . do
+  let me option mut slice u8 . . be alloc_bytes al capacity 48 .
+  guard is_some me . else return 89 .
+  let mm option mut slice u8 . . be alloc_bytes al capacity 24 .
+  guard is_some mm . else return 88 .
+  var e mut slice u64 . be view_array u64 (some_value me) .
+  var m mut slice u64 . be view_array u64 (some_value mm) .
+  set (index e 0) 1 .  set (index e 1) 1 .
+  set (index e 2) 0 .  set (index e 3) 0 .
+  set (index e 4) 2 .  set (index e 5) 2 .
+  guard eq (vm_gcmark.mark e m 0) 2 . else return 1 .
+  guard eq (index m 2) 0 . else return 2 .
+  return 42 .
+end .
+
+proc main input al cap allocator . output u8 . effects alloc .
+do
+  let a u64 be reaches al .
+  guard eq a 42 . else return narrow u8 a .
+  let b u64 be cycles al .
+  guard eq b 42 . else return narrow u8 b .
+  return 42 .
+end .

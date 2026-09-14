@@ -1,0 +1,43 @@
+rem ★★★ **restart 슈퍼비전** (RFC-0009 D4 · RFC-0019 §6.5) — "let it crash".
+rem
+rem   액터 핸들러가 **`panic`** 하면(계약 위반·트랩은 아니다), 슈퍼바이저가 그 인스턴스의 **상태를
+rem   초기화**하고 핸들러를 **다시 실행**한다. `failure restart max N` 이면 N 번까지; 계속 터지면
+rem   **escalate**(패닉 전파 → 프로세스 중단). 사용자 결정(2026-07-16): **B3 재시도→escalate ·
+rem   자기 상태만 초기화.**
+rem
+rem   ★ VM(mbox_depth·recs 초기화)과 네이티브(setjmp/longjmp fault 경계 + 레코드 필드 0)가 **같은
+rem     규율**로 restart 한다 — 차등 스윕이 그것을 지킨다. `panic` 만 잡는다(lw_upanic); 계약 위반
+rem     (lw_panic)은 restart 대상이 아니다.
+rem   ★ `within <D>` 창은 결정적 클럭이 없어 아직 강제 못 한다(`max N` 카운트는 강제된다).
+module vm_restart .
+
+rem 자기 상태를 오염시켜 다음 호출에 panic 한다. restart 가 상태를 초기화하면 **복구된다**.
+actor recov .
+  state bad u64 . end .
+  failure restart max 3 .
+  proc step output u64 . effects state .
+  do
+    if ne bad 0 . do panic "corrupted state" . end .
+    set bad 1 .
+    return 42 .
+  end .
+end .
+
+rem 첫 step 은 OK(bad→1). 둘째 step 은 panic(bad=1) → 슈퍼바이저가 bad→0 초기화 → 재시도 → 42.
+proc recover output u64 . effects state . do
+  var c recov be spawn actor recov . .
+  var x u64 be send c step .
+  return send c step .
+end .
+
+rem 언제나 panic 한다 — 초기화해도 또 터진다. max 2 소진 → escalate.
+actor doomed .
+  state v u64 . end .
+  failure restart max 2 .
+  proc boom output u64 . effects state . do panic "always fails" . return 0 . end .
+end .
+
+proc escalate output u64 . effects state . do
+  var c doomed be spawn actor doomed . .
+  return send c boom .
+end .

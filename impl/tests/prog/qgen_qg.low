@@ -1,0 +1,4 @@
+module qgen_qg .
+export fn pick input comptime a type . input x u64 . input y u64 . output u64 . do
+  return add x y .
+end .

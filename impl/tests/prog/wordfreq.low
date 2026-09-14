@@ -1,0 +1,93 @@
+rem ★★★ **단어 빈도 카운터 — 자기-호스팅 stdlib 의 정점적 시연.**
+rem
+rem   파일을 읽고, 공백으로 단어를 쪼개고, 해시 맵으로 빈도를 세고, 순회로 **가장 흔한 단어의
+rem   빈도**를 낸다. 다섯 표준 라이브러리 + 언어 기능이 **한 프로그램**에 엮인다:
+rem     · `lib/file.low`  — 파일을 읽는다(f_slurp).
+rem     · (언어) whitespace 정규화 + 인덱스 쓰기 — 개행·탭을 공백으로.
+rem     · `lib/str.low`   — 공백으로 단어를 쪼갠다(str_split_next, 커서-값).
+rem     · `lib/strmap.low`— 단어→빈도 딕셔너리(sm_get/sm_put) + **순회**(가장 흔한 것 찾기).
+rem     · `view_array u64`— 할당한 바이트 버퍼를 맵의 u64 슬롯으로 본다(무복사 재해석).
+rem
+rem ★★ **라이브러리를 지으면 언어의 구멍이 나온다**(교훈 6): 이 프로그램이 그 넷을 처음으로 한
+rem   프로그램에 세운다 — 그리고 **선다**. words.txt 는 the 3회·나머지 1회 ⇒ 최대 빈도 3.
+rem ★ **오라클**: cap 엔트리라 diff-sweep 밖 — 골든이 VM·네이티브를 같은 파일에 돌려 3 을 대조한다.
+
+module wordfreq .
+
+use files  from "../../../lib/file.low" .
+use strmap from "../../../lib/strmap.low" .
+use strings from "../../../lib/str.low" .
+
+proc main .
+  input fs cap file_system .
+  input al cap allocator .
+  input a  cap args .
+  output u8 .
+  effects alloc io .
+do
+  let sp option slice u8 . be arg a 0 .
+  guard is_some sp . else return 64 .
+  let path slice u8 be some_value sp .
+
+  rem 버퍼 셋을 할당한다(전부 0 으로 온다 — 빈 맵). ★ 변수명은 빌트인과 안 겹치게.
+  let gtxt option mut slice u8 . . be alloc_bytes al capacity 512 .
+  guard is_some gtxt . else return 70 .
+  let tbuf mut slice u8 . be some_value gtxt .
+
+  let gsl option mut slice u8 . . be alloc_bytes al capacity 512 .
+  guard is_some gsl . else return 70 .
+  rem 할당한 바이트 버퍼를 맵의 u64 슬롯으로 본다(무복사 재해석).
+  let slbytes mut slice u8 . be some_value gsl .
+  let slots mut slice u64 . be view_array u64 slbytes .
+
+  let gky option mut slice u8 . . be alloc_bytes al capacity 256 .
+  guard is_some gky . else return 70 .
+  let keys mut slice u8 . be some_value gky .
+
+  rem 파일을 통째로 읽는다.
+  let sn result u64 files.file_error . be files.slurp fs path tbuf .
+  guard is_ok sn . else return 71 .
+  let n u64 be ok_value sn .
+
+  rem whitespace 정규화: 개행(10)·탭(9)·CR(13) → 공백(32). 그래야 한 구분자로 쪼갤 수 있다.
+  var q u64 be 0 .
+  while lt q n . do
+    let ch u8 be index tbuf q .
+    if eq ch 10 . do set (index tbuf q) 32 . end .
+    if eq ch 9 . do set (index tbuf q) 32 . end .
+    if eq ch 13 . do set (index tbuf q) 32 . end .
+    set q (add q 1) .
+  end .
+
+  rem 공백으로 쪼개며 각 단어를 센다: 현재 빈도를 꺼내(없으면 0) +1 해 넣는다.
+  let content slice u8 be subslice tbuf 0 n .
+  var pos u64 be 0 .
+  var going bool be true .
+  while going . do
+    let piece option slice u8 . be strings.split_next content 32 pos .
+    if eq (is_some piece) false . do set going false . end .
+    if is_some piece . do
+      let word slice u8 be some_value piece .
+      if gt (len word) 0 . do
+        let cur option u64 . be strmap.lookup slots keys word .
+        var cnt u64 be 0 .
+        if is_some cur . do set cnt (some_value cur) . end .
+        let putok bool be strmap.put slots keys word (add cnt 1) .
+        guard eq putok true . else return 72 .
+      end .
+      set pos (add pos (add (len word) 1)) .
+    end .
+  end .
+
+  rem 맵을 순회해 **가장 흔한 단어의 빈도**를 찾는다.
+  var slot u64 be 0 .
+  var mx u64 be 0 .
+  while lt slot (strmap.size slots) . do
+    if gt (strmap.keylen_at slots slot) 0 . do
+      let val u64 be strmap.val_at slots slot .
+      if gt val mx . do set mx val . end .
+    end .
+    set slot (add slot 1) .
+  end .
+  return (narrow u8 mx) .
+end .

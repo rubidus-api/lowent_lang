@@ -1,0 +1,44 @@
+rem ★★★ **스택 컨테이너도 값이다 — 배열 하나와 길이 하나다.**
+rem
+rem   태그 경로는 그것을 **8칸짜리 풀**에 넣는다(용량 128). 레코드(64)·비트셋(8)과 **같은 병**이다:
+rem   **루프에서 아홉 번째 스택을 만들면 죽는다**(`panic: stack pool`).
+rem   즉 **스택을 루프에서 쓰는 프로그램은 이 언어로 쓸 수가 없었다.**
+rem
+rem ★ 그리고 `push s x` / `pop s into v` 는 **s 를 바꾼다** — 참조 의미다.
+rem   그래서 **집(홈 지역)** 을 알아야 한다. 모르면 안 내린다(레코드·비트셋과 같은 규율).
+
+module vm_stackfast .
+
+type frame u64 . .
+
+rem 밀어 넣고 다시 꺼내며 합을 낸다 — LIFO 라 역순으로 나온다.
+proc drain input temp region frame . . input n u64 . output u64 . effects alloc .
+do
+    let s stack u64 . be stack_new temp capacity 128 . .
+    var i u64 be 0 .
+    while lt i n . do
+        push s i .
+        set i (add i 1) .
+    end .
+    var t u64 be 0 .
+    var v u64 be 0 .
+    while pop s into v . do
+        set t (add t v) .
+    end .
+    return t .
+end .
+
+rem 루프마다 **새 스택**을 만든다 — 태그 경로는 9번째에 죽는다.
+proc many input temp region frame . . input k u64 . output u64 . effects alloc .
+do
+    var t u64 be 0 .
+    var j u64 be 0 .
+    while lt j k . do
+        let s stack u64 . be stack_new temp capacity 128 . .
+        push s 7 .
+        push s 9 .
+        set t (add t (count s)) .
+        set j (add j 1) .
+    end .
+    return t .
+end .

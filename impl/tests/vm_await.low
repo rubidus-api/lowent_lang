@@ -1,0 +1,38 @@
+rem ★★★ **await** (RFC-0009 §8.3) — task_group 태스크의 **결과 수확**.
+rem
+rem   `spawn <op> [args]` 는 이제 **job 핸들**을 돌려준다(문장으로 쓰면 버려진다 — task_group 1/3 그대로).
+rem   **`await <h>`** 는 그 태스크가 **끝날 때까지 블록**했다가 결과를 준다. 그룹 본문의 await 는
+rem   스케줄러를 돌려 대기 태스크를 진행시키고, 태스크 안의 await 는 green thread yield 로 블록한다
+rem   (완료가 awaiter 를 깨운다 — 채널·job 같은 규율). await 못 끝나면 E-VM-DEADLOCK/E-VM-AWAIT.
+rem
+rem   ★ VM≡네이티브(job 테이블 공유, 차등 스윕). 아직 없는 것(정직히): `cancel_on_error`(취소 전파)·
+rem     `detach`·child_of region — 다 이 위에 얹는 후속.
+module vm_await .
+
+fn square input n u64 . output u64 . do return expr n * n . end .
+
+rem 두 태스크를 spawn 하고 await 로 결과를 모아 합한다. 각 결과가 결정적이라 순서 무관 → 25+36=61.
+test await_join schedule explore_interleavings do
+  var r u64 be 0 .
+  task_group do
+    var h1 u64 be spawn square 5 .
+    var h2 u64 be spawn square 6 .
+    var a u64 be await h1 .
+    var b u64 be await h2 .
+    set r expr a + b .
+  end .
+  expect eq r 61 .
+end .
+
+rem `spawn`+`await` 스칼라 반환 — VM≡네이티브(차등 스윕).
+proc drive output u64 . effects state . do
+  var r u64 be 0 .
+  task_group do
+    var h1 u64 be spawn square 5 .
+    var h2 u64 be spawn square 6 .
+    var a u64 be await h1 .
+    var b u64 be await h2 .
+    set r expr a + b .
+  end .
+  return r .
+end .

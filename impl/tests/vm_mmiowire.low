@@ -1,0 +1,72 @@
+rem ★★★ **레지스터에 실제로 내보낸다** — `wire`/`flags` 가 RFC-0042 의 MMIO 와 만나는 자리
+rem   (RFC-0107 §7.6 단계 9). 여기가 이 두 라이브러리가 태어난 이유다.
+rem
+rem   지금까지는 낱말 하나를 **메모리에서** 다뤘다. 그 낱말이 **디바이스 레지스터**가 되면
+rem   두 가지가 더해진다:
+rem     ⓐ 접근은 정확히 한 번, 쓴 순서대로다(`write_volatile`) — 그래서 읽고-고쳐-쓰기가
+rem       **경쟁**이 된다.
+rem     ⓑ 그래서 하드웨어가 «세울 마스크 · 지울 마스크» 레지스터(STM32 의 `BSRR`)를 준다.
+rem       `wire.to_set`/`to_clear` 가 바로 그것을 위한 것이다(§7.3) — 편의가 아니라 **정확성**.
+rem
+rem 증인 셋:
+rem   ① 제어 레지스터의 **칸**(baud 12 비트)과 **자리**(enable·parity)를 한 낱말에 함께 넣는다
+rem      — `wire.merge` 와 `flags.with` 가 같은 줄에서 논다(임베디드 코드가 실제로 그렇다).
+rem   ② 바꿀 것만 바꾼다: `wire.merge` 는 **다른 칸을 안 건드린다**.
+rem   ③ set/clear 짝으로 쓰면 **읽지 않는다** — 그래서 그 사이에 인터럽트가 들어와도
+rem      다른 자리가 사라지지 않는다.
+rem
+rem ★★★★ 그리고 이 픽스처를 쓰다 **내가 그 함정에 빠졌다**: 처음엔 baud 로 9600 을 넣었는데
+rem   그 칸은 12 비트(≤4095)라 **조용히 1408 로 잘렸다** — C 가 늘 하는 바로 그 일이다.
+rem   `wire.fits` 를 먼저 묻자 그 자리에서 드러났다. ☞ *잘림은 에러가 아니라 «그럴듯한 값» 으로
+rem   나타난다. 그래서 물어보는 op 이 있어야 한다.*
+module mmio_wire .
+
+build tier t1 .              rem Cortex-M — `device` 효과를 감당한다
+
+use wire  from "../../lib/wire.low" .
+use flags from "../../lib/flags.low" .
+
+struct uart .
+  mmio 0x40011000 .
+  cr   u32 rw .              rem 제어  — 칸과 자리가 섞여 산다
+  bsrr u32 wo .              rem 세울/지울 짝 (아래 16 비트=세움 · 위 16 비트=지움)
+end .
+
+rem 자리표 — 칸은 마스크로(`wire`), 자리는 번호로(`flags`). 한 곳에만 적는다.
+fn m_baud   output u64 . do return 65520 . end .    rem 비트 4~15 (GENMASK(15,4))
+fn f_enable output u64 . do return 0 . end .        rem 0 번 자리
+fn f_parity output u64 . do return 1 . end .        rem 1 번 자리
+
+rem 제어 낱말을 **짓는다** — 순수 계산이다. 권한이 필요 없다(그래서 시험하기 쉽다).
+fn control input baud u64 . input parity bool . output u64 . do
+  var w u64 be flags.with (flags.empty) (f_enable) .
+  if parity . do set w (flags.with w (f_parity)) . end .
+  return wire.merge (m_baud) w baud .
+end .
+
+unsafe proc drive .
+  input dev cap mmio .
+  input regs mut slice u8 .
+  input baud u64 .
+  output u32 .
+  effects device unsafe .
+do
+  var u uart . be view uart regs .
+
+  rem ★ 칸에 안 들어가는 값이면 **아무것도 안 쓰고** 1 을 답한다. 조용히 자르는 대신
+  rem   물어볼 수 있다는 것이 이 라이브러리가 C 보다 나은 자리다.
+  guard wire.fits (m_baud) baud . else return 1 .
+
+  rem ① 칸과 자리를 함께 — 한 번의 쓰기다(읽고-고쳐-쓰기가 아니다)
+  write_volatile u cr (narrow u32 (control baud true)) .
+
+  rem ③ 그리고 자리 둘을 바꿀 때는 **값이 아니라 짝**을 보낸다:
+  rem   지금 걸려 있다고 아는 값이 `now`, 가고 싶은 값이 `want` 다.
+  let now u64 be control baud true .
+  let want u64 be flags.without now (f_parity) .
+  let s u64 be wire.to_set now want .
+  let c u64 be wire.to_clear now want .
+  write_volatile u bsrr (narrow u32 (bit_or s (shl c 16))) .
+
+  return (narrow u32 (control baud true)) .
+end .

@@ -1,0 +1,15 @@
+rem ★ 모듈 링크 — S5 코어의 **마지막 벽**.
+rem   지금까지 파일 **하나**만 받았다. 그래서 `use` 가 아무것과도 대조되지 않았고,
+rem   `tests` 절이 다른 파일의 op 을 걸 수도 없었다.
+rem   이제 여러 .low 가 **하나의 컴파일 단위**로 이어진다.
+module arith .
+rem ☞ 이 모듈은 한때 `math` 였다. `lib/math.low`(RFC-0090 N2)이 생기면서 **표준 모듈 이름**이
+rem   됐고, 지역 파일이 그것을 가리면 E-NAME-RESERVED 다 — 도구가 옳다. 픽스처의 이름은
+rem   우연적이므로 이쪽이 비킨다.
+
+rem ★ **`export` 가 이제 뜻을 갖는다**(2026-07-14). 이걸 안 붙이면 `app` 이 부를 때
+rem   E-VISIBILITY 다 — 지금까지는 수식자가 **파싱만** 됐고, 그것도 파서가 껍질을 **버려서**
+rem   소비자가 볼 수조차 없었다. (`comptime` 과 똑같은 병.)
+export fn dbl input a u8 . output u8 . tests dbl_is_double . do
+  return mul a 2 .
+end .

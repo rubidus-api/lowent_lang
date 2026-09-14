@@ -1,0 +1,26 @@
+rem ★★★ **액터 핸들러의 인자도 파라미터다** (WO-0207 — WO-0204 의 빚).
+rem
+rem   런타임이 액터 핸들러를 부를 때 인자를 스택 배열 하나에 모아 넘긴다. 그 배열이
+rem   **`cargs[17]`** 로 박혀 있었다 — 파라미터 한도가 16 이던 시절의 수(16+1)다. 한도가 32 가
+rem   된 지금 핸들러가 스물만 받아도 **스택을 넘긴다.** 어제 고친 `lw_ptask.a[8]` 과 같은 자리다.
+rem   ☞ *같은 수가 여러 곳에 살면 한 곳만 낡는다 — 그리고 낡은 쪽은 배열 밖에 쓴다.*
+rem
+rem   ★ `wide_msg` — 인자 스물짜리 핸들러에 `spawn send` 하고 `drain` 한다(1+2+…+20 = 210).
+
+module vm_wideactor .
+
+actor adder .
+  state v u64 . end .
+  proc take input a u64 . input b u64 . input c u64 . input d u64 . input e u64 . input f u64 . input g u64 . input h u64 . input i u64 . input j u64 . input k u64 . input l u64 . input m u64 . input n u64 . input o u64 . input p u64 . input q u64 . input r u64 . input s u64 . input t u64 . output u64 . effects state . do
+    set v expr v + (add add add add add add add add add add add add add add add add add add add a b c d e f g h i j k l m n o p q r s t) . .
+    return v .
+  end .
+  fn get output u64 . do return v . end .
+end .
+
+export proc wide_msg output u64 . effects state . do
+  var c adder be spawn actor adder . .
+  spawn send c take 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 .
+  drain c .
+  return send c get .
+end .

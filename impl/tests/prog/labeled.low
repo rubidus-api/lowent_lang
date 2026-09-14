@@ -1,0 +1,37 @@
+rem ★★★ **설정에 이름을 붙여 찍는다** — 이름표가 «옵트인» 임을 재는 짝의 한쪽
+rem   (RFC-0107 §6.5 · 단계 6).
+rem
+rem   이 프로그램은 `prog/settings.low` 와 **같은 설정 낱말**을 다루되, 바뀐 자리의 **이름**을
+rem   찍는다. 두 방출물을 견주면 §6.5 의 주장이 수로 나온다:
+rem     · 이름을 안 쓰는 `settings` 의 바이너리에는 «shadow» 라는 글자가 **없다**
+rem     · 이름을 쓰는 이쪽에는 있다 — 그리고 그 차이가 곧 이름표의 값이다
+rem   ☞ *안 쓰면 안 낸다는 말은, 안 쓰는 쪽을 재야 증명된다.*
+module labeled .
+
+use flags from "../../../lib/flags.low" .
+
+rem 이름표 — **여기 있다**(라이브러리가 아니라). 안 쓰는 프로그램은 이 바이트를 안 진다.
+fn names output slice u8 . do return "sound\x00music\x00shadow\x00vsync\x00" . end .
+
+fn defaults output u64 . do return flags.join (flags.of 0) (flags.of 1) . end .
+
+proc main input k cap io . output u8 . effects io . do
+  rem 소리는 그대로 · 음악은 끄고 · 그림자를 켠 설정
+  let now u64 be flags.with (flags.without (defaults) 1) 2 .
+  let diff u64 be flags.changes now (defaults) .
+
+  guard eq (flags.label_count (names)) 4 . else return 71 .
+
+  rem 바뀐 자리를 **이름으로** 찍는다 — 훑기는 `lowest` 와 `without` 으로 돈다.
+  var rest u64 be diff .
+  var n u64 be 0 .
+  while flags.has_any rest . do
+    let b u64 be flags.lowest rest .
+    let nm slice u8 be flags.label_in (names) b .
+    let w1 u64 be write_out k 1 nm .
+    let w2 u64 be write_out k 1 "\x0a" .
+    set rest (flags.without rest b) .
+    set n (add n 1) .
+  end .
+  return (narrow u8 n) .
+end .

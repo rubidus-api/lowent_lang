@@ -1,0 +1,81 @@
+rem ★★★ **SoA 시범 — RFC-0070 재검토 조건 ③의 측정** (2026-07-20).
+rem
+rem   RFC-0070 은 사전 조사(키워드 15~20 · op 20+)를 보류하며 적었다:
+rem     *"`lib/` 에 SoA 컨테이너를 **빌트인 증가 0** 으로 먼저 써 본다. 거기서 막히는 곳이
+rem       **언어 작업의 목록**이 된다."*
+rem   ⇒ 이 파일은 **주장이 아니라 측정**이다.
+rem
+rem ★★★ **잰 결과 ①: 배치 자체에는 새 언어 기계가 필요 없다.** SoA(필드마다 배열)와
+rem   AoS(한 배열에 보폭으로 섞기)를 둘 다 지금 언어로 썼고, **같은 답을 낸다**(아래가 그것을 잰다).
+rem   ⇒ 사전 조사가 요구한 것 중 **표현력**은 이미 있다. 없는 것은 **편의와 타입 수준의 묶음**이다.
+rem
+rem ★★★ **잰 결과 ②: 가장 아픈 자리는 "struct 필드에 `mut slice` 를 못 넣는 것" 이다.**
+rem   그래서 필드 수만큼 인자가 늘고(4 필드 = 인자 4), SoA 컨테이너를 **값 하나로 묶을 수가 없다.**
+rem   ⇒ **가장 싼 언어 작업이 그것**이고, 그 하나가 풀리면 사전 조사가 요구한 것의 상당 부분이
+rem     라이브러리로 내려온다. 이것이 이 시범의 진짜 산물이다.
+rem
+rem ☞ 그리고 시범 중에 한 번 밟았다: `set` 을 두 줄로 나눴더니 **개행이 form 을 닫았다**.
+rem   진단이 그 규칙을 이미 말해 줬고(줄 끝 `,`), 한 줄로 고쳤다.
+
+module vm_soa .
+
+use soa from "../../lib/soa.low" .
+
+rem ★★ **같은 계산, 두 배치, 같은 답** — 이것이 사전 조사 §1.2 가 요구하는 최소한이다:
+rem   배치를 **고를 수 있어야** 하고, 고른 것이 답을 바꾸면 안 된다.
+rem   x = [1,2,3], vx = [10,20,30] → x' = [11,22,33], 합 = 66
+proc soa_matches_aos input xs mut slice u64 . . input vxs mut slice u64 . .
+  input rows mut slice u64 . . output u64 . effects none .
+do
+  rem ── SoA 판: 필드마다 배열 ──
+  set (index xs 0) 1 .
+  set (index xs 1) 2 .
+  set (index xs 2) 3 .
+  set (index vxs 0) 10 .
+  set (index vxs 1) 20 .
+  set (index vxs 2) 30 .
+  let n1 u64 be soa.step_x xs vxs 3 .
+  guard eq n1 3 . else return 90 .
+  let s1 u64 be soa.sum_field (subslice xs 0 3) .
+
+  rem ── AoS 판: 한 배열에 {x, vx} 를 보폭 2 로 섞는다 ──
+  set (index rows 0) 1 .
+  set (index rows 1) 10 .
+  set (index rows 2) 2 .
+  set (index rows 3) 20 .
+  set (index rows 4) 3 .
+  set (index rows 5) 30 .
+  let n2 u64 be soa.step_x_aos rows 2 0 1 3 .
+  guard eq n2 3 . else return 91 .
+  var s2 u64 be 0 .
+  set s2 (add s2 (index rows 0)) .
+  set s2 (add s2 (index rows 2)) .
+  set s2 (add s2 (index rows 4)) .
+
+  rem ★★★ **두 배치가 같은 답을 낸다** — 배치는 성능 축이지 의미 축이 아니다.
+  guard eq s1 s2 . else return 92 .
+  return s1 .                                    rem 11 + 22 + 33 = 66
+end .
+
+rem ★ **필드 하나만 훑는다** — SoA 가 이기는 자리(다른 필드는 캐시에 안 올라온다).
+rem   여기서는 정확성만 잰다: 속도 주장은 **측정 없이 안 한다**(RFC-0070 §4).
+proc field_only input xs mut slice u64 . . output u64 . effects none . do
+  set (index xs 0) 5 .
+  set (index xs 1) 7 .
+  set (index xs 2) 9 .
+  return soa.sum_field (subslice xs 0 3) .            rem 21
+end .
+
+rem ☞ **막히는 자리 ②를 그대로 보인다**: 두 필드를 함께 전진시키려니 **인자가 넷**이다.
+rem   구조체로 묶으려면 필드가 `mut slice` 여야 하는데 그게 안 된다.
+proc two_fields input xs mut slice u64 . . input ys mut slice u64 . .
+  input vxs mut slice u64 . . input vys mut slice u64 . . output u64 . effects none .
+do
+  set (index xs 0) 1 .
+  set (index ys 0) 2 .
+  set (index vxs 0) 10 .
+  set (index vys 0) 20 .
+  let m u64 be soa.step_all xs ys vxs vys 1 .
+  guard eq m 1 . else return 90 .
+  return add (index xs 0) (index ys 0) .          rem 11 + 22 = 33
+end .

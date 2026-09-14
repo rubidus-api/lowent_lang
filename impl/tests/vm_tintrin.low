@@ -1,0 +1,24 @@
+rem ★★★ **`unsafe target <iset>` — target-intrinsic 격리 게이트** (RFC-0040 D5)
+rem
+rem   portable 연산(D2)으로 부족한 특수 명령(AES·CRC·DSP saturating·특정 FMA)을 쓰려면 target 전용 코드가
+rem   필요하다. 그건 **이식성을 깨므로** opt-in·unsafe·가시여야 한다(RFC-0037 acceptance bar).
+rem
+rem   ★ 표기: `unsafe target <iset> proc … effects unsafe . do … end`
+rem     · `target` 은 **문맥 낱말**이다(task_group 처럼 — 하드 키워드 0 증가).
+rem     · `unsafe` 수식자 ⟺ `effects unsafe` 쌍은 기존 규율 그대로다(E-UNSAFE-UNUSED/UNDECLARED).
+rem       target intrinsic 은 D8 이 정의상 unsafe 라 부르므로 이 쌍이 곧 올바른 사용법이다.
+rem   ★ 게이트: 그 명령셋을 **주는 target 에서만** 컴파일된다 — 아니면 E-TARGET-INTRIN.
+rem     iset 은 **폐집합**이다(x86_sse2·x86_avx2·x86_avx512·arm_neon·arm_sve·riscv_v) — 모르는 건 E-TARGET-ISET.
+rem
+rem   ★★ **지금은 격리 스캐폴드다** — intrinsic 몸통은 아직 없다. 이유: target intrinsic 은 VM 이 실행할 수
+rem      없어 **diff-sweep(오라클) 밖**이다(할당과 같은 범주). 그래서 검증 불가한 것은 **하나도 싣지 않고**,
+rem      오라클이 볼 수 있는 것(폐집합·target 게이트·unsafe 쌍)만 강제한다. 진짜 intrinsic 은 이 문 안으로 들어온다.
+rem      아래 몸통이 portable 인 것은 그 때문이다 — 게이트가 진짜임을 보이되(맞는 target 에서 컴파일·실행된다)
+rem      검증 못 할 명령은 안 쓴다.
+
+module vm_tintrin .
+
+rem 기본 target 은 x86_64 이므로 x86_avx2 게이트는 여기서 **열린다**(컴파일되고 실행된다).
+unsafe target x86_avx2 proc bump input a u64 . output u64 . effects unsafe . do
+  return add a 1 .
+end .

@@ -1,0 +1,7 @@
+module qgen_main .
+use qgen_qg from "qgen_qg.low" .
+use qgen_al from "qgen_al.low" .
+proc main output u8 . effects none . do
+  let r u64 be qgen_qg.pick qgen_al.box 20 22 .
+  return narrow u8 r .
+end .

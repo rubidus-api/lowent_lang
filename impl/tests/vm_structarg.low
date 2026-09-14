@@ -1,0 +1,19 @@
+rem ★ 회귀 — **구조체 파라미터는 바깥에서 한 번도 실행된 적이 없었다.**
+rem
+rem 내부 호출로는 넘어갔다(VM·네이티브 둘 다 옳게). `--check` 도 초록불이었다.
+rem 그런데 CLI 는 그 모양을 표현하지 못했다 — 그래서 구조체를 받는 op 은
+rem **경계 범위 검사도, 계약 테스트도, 네이티브 차등도** 그 자리를 못 봤다. (PRINCIPLES.md §0 교훈 4)
+rem
+rem 경계에서는 **바이트를 받아 `view` 한다**(T1 무복사 doctrine 그대로).
+rem 그리고 `view` 와 **똑같은 검사**를 건다 — 짧으면 E-VM-VIEW, 정렬을 어기면 E-VM-ALIGN.
+rem   경계라고 봐주지 않는다. 봐주면 그 다음에 오는 모든 필드 읽기가 범위 밖이다.
+
+module vm_structarg .
+
+struct pt .
+  x u8 .
+  y u8 .
+end .
+
+fn getx input p pt . output u8 . do return field p x . end .
+fn gety input p pt . output u8 . do return field p y . end .

@@ -1,0 +1,27 @@
+rem RFC-0051 §5.1 — `align n` is an alignment CONTRACT, checked at the view boundary.
+type bytes slice u8 . .
+
+rem natural size 6 (u32 + u16), but the contract raises it to 16.
+struct reg .
+  align 16 .
+  ctrl u32 .
+  stat u16 .
+end .
+
+fn reg_size output u64 . do return len encode reg mk . . end .
+
+fn mk output reg . do
+  return make reg do ctrl 7 . stat 2 . end .
+end .
+
+rem a view of a slice that starts mid-buffer breaks the contract → none / panic.
+fn tv_at .
+  input off u64 .
+  input b bytes .
+  output u64 .
+do
+  var o reg . be try_view reg (subslice b off (len b)) . .
+  guard is_some o . else return 0 . .
+  var h reg . be some_value o .
+  return expr (field h ctrl) + 1000 . .
+end .

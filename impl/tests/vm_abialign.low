@@ -1,0 +1,19 @@
+rem ★★★ **타깃 정렬은 공개 ABI 로 못 나간다** — RFC-0104 §8-7(소유자 결정 2026-08-28).
+rem
+rem   이 파일은 **거절되어야 한다**(`E-ABI-TARGET-ALIGN`).
+rem   `align machine.cache_line .` 로 정렬한 타입은 **타깃마다 레이아웃이 다르다**. 그것이
+rem   `export` 로 나가면 헤더를 받아 가는 C 쪽은 **한 레이아웃을 가정한 채** 링크한다 —
+rem   그리고 어긋나도 아무 소리가 안 난다. 조용한 오답은 이 언어가 가장 싫어하는 것이다.
+rem
+rem ☞ 그럼 어떻게 쓰나: 경계 타입은 **리터럴 `align N .`**, 캐시 격리가 필요한 뜨거운 배치는
+rem   **내부 타입**으로 두고 경계에서 변환한다.
+module vm_abialign .
+
+export struct pub .
+  align machine.cache_line .
+  a u64 .
+end .
+
+fn f output u64 . do
+  return 1 .
+end .

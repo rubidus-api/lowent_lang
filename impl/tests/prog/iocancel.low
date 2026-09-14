@@ -1,0 +1,56 @@
+rem ★★★ **A4 — 취소가 io 대기에도 닿는다** (RFC-0071 A4).
+rem
+rem ☞ **A2 가 구멍을 만들었다**: `cancel_on_error` 는 형제를 취소할 때 상태 1·5·6 만 훑었는데,
+rem   A2 가 **상태 7(io 대기)** 을 새로 만들면서 그 목록을 안 고쳤다.
+rem   ⇒ 형제가 실패해도 **io 로 막힌 태스크는 안 죽었고**, 프로그램이 **영영 안 끝났다**
+rem     (실측: `FAIL` 만 찍고 5초 타임아웃).
+rem ★★ **새 상태를 만들면 그 상태를 훑는 모든 자리를 다시 봐야 한다.** 오늘 오라클에서 겪은
+rem   것과 같은 부류다 — 새 능력이 늘 때 *"이 인자를 만들 수 있는가"* 를 다시 묻는 것.
+rem
+rem ★★★ **재는 법 — 인과다**(A2 와 같은 규율):
+rem   ① 데이터가 안 오는 fifo 를 stdin 으로 준다(쓰기 쪽은 열려 있어 EOF 가 아니다).
+rem   ② 태스크 A 가 그것을 읽는다 → io 로 막힌다.
+rem   ③ 태스크 B 가 **오류로 끝난다** → `cancel_on_error` 가 형제를 취소해야 한다.
+rem   ④ 취소가 닿으면 `DONE` 이 찍히고 **0 으로 끝난다.** 안 닿으면 **영영 안 끝난다.**
+rem   ☞ 시간이 아니라 **끝나는가**로 가른다.
+rem
+rem ★★★ **그리고 readiness 백엔드에서는 취소가 완결된다** — RFC-0022 §8-9 가 남긴
+rem   *"커널이 아직 쓰고 있는 메모리"* 문제는 **completion 모델에서만** 생긴다.
+rem   poll/epoll 은 커널이 우리 버퍼를 들고 있지 않으므로 **그냥 안 기다리면 끝**이다.
+rem   ⇒ 그 절반은 completion 백엔드가 생길 때 답한다(RFC-0071 §10).
+
+module iocancel .
+enum oops .
+  bad .
+end .
+rem 태스크 A: 데이터가 안 오는 fd 를 읽는다 — io 로 막힌다.
+proc reader input k cap io . input buf mut slice u8 . . output result u64 oops . .
+  effects io . errors bad .
+do
+  rem ★ reactor 뒷받침과 읽기 자리를 **가른다**(RFC-0022 D-B — completion 은 그 자리에 읽는다).
+  let r option u64 . be reactor_new k (subslice buf 0 32) 1 .
+  guard is_some r . else return error bad .
+  let n option u64 . be r_read k (some_value r) 0 (subslice buf 32 64) .
+  if is_some n . do return ok (some_value n) . end .
+  return ok 0 .
+end .
+rem 태스크 B: 즉시 실패한다 → cancel_on_error 가 형제를 취소해야 한다.
+proc failer input k cap io . output result u64 oops . . effects io . errors bad . do
+  let w u64 be write_out k 1 "FAIL\n" .
+  guard eq w 0 . else return error bad .
+  return ok w .
+end .
+proc main input k cap io . input al cap allocator . output u8 .
+  effects alloc io state .
+do
+  let b0 option mut slice u8 . . be alloc_bytes al capacity 64 .
+  guard is_some b0 . else return 69 .
+  var buf mut slice u8 . be some_value b0 .
+  task_group cancel_on_error do
+    spawn reader k buf .
+    spawn failer k .
+  end .
+  let w2 u64 be write_out k 1 "DONE\n" .
+  guard eq w2 5 . else return 71 .
+  return 0 .
+end .

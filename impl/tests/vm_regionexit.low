@@ -1,0 +1,98 @@
+rem ★★★★ **영역을 나가는 모든 길이 되감는다 · 영역을 아래로 건넨다** (RFC-0112 D5(3)(5) · WO-0212).
+rem
+rem   · `guarded`  — 영역 안의 `guard … else return` 이 로워링된다(전엔 «S5 코어 밖», F9) ⇒ 2.
+rem   · `leave_early` — 영역 안에서 `return` 하는 op 을 100 번 부른다. 매번 60 KB 를 깎는다 —
+rem                    `return` 이 되감지 않으면 두 번째 부름부터 64 KiB 창에 안 들어간다 ⇒ 100.
+rem   · `skip`     — 루프 안 영역에서 `continue` 로 나간다. 같은 논리 ⇒ 100.
+rem   · `stop`     — 루프 안 영역에서 `break` 로 나간 뒤 다시 60 KB 를 받는다 ⇒ 1 + 1 = 2.
+rem   · `down`     — 영역 블록의 이름을 인자로 건네고, 받은 쪽이 **영역 매개변수**로 깎는다(F7) ⇒ 8.
+
+module vm_regionexit .
+
+type scratch u64 . .
+
+export proc guarded output u64 . effects alloc .
+do
+  region r arena do
+    let g option mut slice u8 . . be alloc_bytes r capacity 8 .
+    guard is_some g . else return 1 .
+    return 2 .
+  end .
+  return 3 .
+end .
+
+proc once output u64 . effects alloc .
+do
+  region r arena do
+    let g option mut slice u8 . . be alloc_bytes r capacity 60000 .
+    if is_some g . do return 1 . end .
+    return 0 .
+  end .
+  return 0 .
+end .
+
+export proc leave_early output u64 . effects alloc .
+do
+  var n u64 be 0 .
+  rem ★ 바깥 영역이 이 op 의 할당 권한이다(`alloc` 을 내는 op 을 부르는 자리도 권한을 보여야 한다)
+  region outer arena do
+    var i u64 be 0 .
+    while lt i 100 . do
+      set n (add n (once)) .
+      set i (add i 1) .
+    end .
+  end .
+  return n .
+end .
+
+export proc skip output u64 . effects alloc .
+do
+  var n u64 be 0 .
+  var i u64 be 0 .
+  while lt i 100 . do
+    set i (add i 1) .
+    region r arena do
+      let g option mut slice u8 . . be alloc_bytes r capacity 60000 .
+      if is_some g . do
+        set n (add n 1) .
+        continue .
+      end .
+    end .
+  end .
+  return n .
+end .
+
+export proc stop output u64 . effects alloc .
+do
+  var n u64 be 0 .
+  while lt n 5 . do
+    region r arena do
+      let g option mut slice u8 . . be alloc_bytes r capacity 60000 .
+      if is_some g . do
+        set n (add n 1) .
+        break .
+      end .
+    end .
+  end .
+  region s arena do
+    let h option mut slice u8 . . be alloc_bytes s capacity 60000 .
+    if is_some h . do set n (add n 1) . end .
+  end .
+  return n .
+end .
+
+proc carve input t region scratch . . output u64 . effects alloc .
+do
+  let g option mut slice u8 . . be alloc_bytes t capacity 8 .
+  if is_some g . do return len (some_value g) . end .
+  return 0 .
+end .
+
+export proc down output u64 . effects alloc .
+do
+  var n u64 be 0 .
+  region r arena do
+    set n (carve r) .
+  end .
+  return n .
+end .

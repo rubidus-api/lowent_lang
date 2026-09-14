@@ -1,0 +1,28 @@
+rem ★★★ **대표 구성 ③ — native** (RFC-0075 Stage 5 Task 3 · 2026-08-15).
+rem   이 층이 주는 것: **띄우기**(`spawn`) — job/green thread. 안 주는 것: actor(그건 server).
+rem   그래서 여기 그래프는 **정적이되 병렬**이다: 몇 개를 띄울지는 소스가 알고, 언제 도는지는
+rem   스케줄러가 정하며, 그룹의 `end` 가 **전부 끝날 때까지** 기다린다.
+rem ★ 결과를 어디에 모으나: 이 층엔 채널도 actor 도 안 쓰므로 **호출자 슬라이스**에 쓴다 —
+rem   각 태스크가 **자기 칸**만 만진다(겹치지 않으므로 경합이 없다, 그것을 사람이 보증한다).
+module compos_native .
+
+build profile native .
+
+proc fill input dst mut slice u8 . . input at u64 . input v u64 . output u64 . effects none . do
+  guard lt at (len dst) . else return 0 .
+  set (index dst at) (narrow u8 v) .
+  return 1 .
+end .
+
+proc main input al cap allocator . output u8 . effects alloc state . do
+  let g option mut slice u8 . . be alloc_bytes al capacity 4 .
+  guard is_some g . else return 70 .
+  var dst mut slice u8 . be some_value g .
+  task_group do
+    spawn fill dst 0 10 .
+    spawn fill dst 1 20 .
+    spawn fill dst 2 30 .
+  end .
+  rem 그룹이 끝났으므로 셋 다 썼다 — 합이 답이다.
+  return narrow u8 (add (index dst 0) (add (index dst 1) (index dst 2))) .
+end .

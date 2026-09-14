@@ -1,0 +1,151 @@
+rem ★★★ **앞 바퀴 값 들고 가기** (RFC-0111 §8-22 ⓑ, WO-0200) — 증인과 반례.
+rem
+rem   `s[k]` 를 쓰고 다음 바퀴에 `s[k-1]` 을 읽는 루프에서, 방출기가 그 값을 지역(`lw_cc`)으로 들고
+rem   간다. **의미는 그대로**여야 한다: 모든 op 이 VM 과 네이티브에서 같은 답을 내고, 경계를 넘는
+rem   op 은 두 쪽 다 같은 자리에서 멈춘다.
+rem
+rem   ★ `c_pos*` 는 모양이 맞아 **걸려야** 한다(방출 C 에 `lw_cv`). `n_*` 는 모양이 하나씩 어긋나
+rem     **안 걸려야** 한다 — 각각이 «그 조건이 빠지면 조용히 틀린 답» 이 되는 자리의 증인이다.
+
+module vm_carry .
+
+rem 양성 — dp 의 `cur` 모양(u64).
+export proc c_pos input a mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  if gt (add m 1) (len a) . do return 0 . end .
+  set (index a 0) 7 .
+  var k u64 be 1 .
+  while le k m . do
+    let x u64 be add (index a (sub k 1)) k .
+    set (index a k) x .
+    set k (add k 1) .
+  end .
+  return (index a m) .
+end .
+
+rem 양성 — 경계를 넘는 루프: 저장이 `len a` 에서 멈춘다. 두 쪽이 같은 자리에서 멈춰야 한다.
+export proc c_oob input a mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  var k u64 be 1 .
+  while le k m . do
+    let x u64 be add (index a (sub k 1)) 1 .
+    set (index a k) x .
+    set k (add k 1) .
+  end .
+  return k .
+end .
+
+rem 반례 1 — 루프 안 저장이 둘(두 번째가 `s[k-1]` 을 덮을 수 있다).
+export proc n_two input a mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  if gt (add m 1) (len a) . do return 0 . end .
+  var k u64 be 1 .
+  while le k m . do
+    let x u64 be add (index a (sub k 1)) k .
+    set (index a k) x .
+    set (index a 0) k .
+    set k (add k 1) .
+  end .
+  return (index a m) .
+end .
+
+rem 반례 2 — 저장이 조건 안(어떤 바퀴는 안 쓴다 → 들고 온 값이 옛 값).
+export proc n_cond input a mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  if gt (add m 1) (len a) . do return 0 . end .
+  var k u64 be 1 .
+  while le k m . do
+    let x u64 be add (index a (sub k 1)) k .
+    if ne (mod k 3) 0 . do set (index a k) x . end .
+    set k (add k 1) .
+  end .
+  return (index a m) .
+end .
+
+rem 반례 3 — `continue`(머리로 오는 둘째 길).
+export proc n_cont input a mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  if gt (add m 1) (len a) . do return 0 . end .
+  var k u64 be 1 .
+  while le k m . do
+    if eq k 4 . do
+      set k (add k 1) .
+      continue .
+    end .
+    let x u64 be add (index a (sub k 1)) k .
+    set (index a k) x .
+    set k (add k 1) .
+  end .
+  return (index a m) .
+end .
+
+rem 반례 4 — 걸음이 2(다음 바퀴의 `s[k-1]` 은 방금 쓴 칸이 아니다).
+export proc n_step2 input a mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  if gt (add m 1) (len a) . do return 0 . end .
+  var k u64 be 1 .
+  while le k m . do
+    let x u64 be add (index a (sub k 1)) k .
+    set (index a k) x .
+    set k (add k 2) .
+  end .
+  return (index a m) .
+end .
+
+rem 반례 5 — `s[k-2]` 를 읽는다.
+export proc n_km2 input a mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  if gt (add m 1) (len a) . do return 0 . end .
+  var k u64 be 2 .
+  while le k m . do
+    let x u64 be add (index a (sub k 2)) k .
+    set (index a k) x .
+    set k (add k 1) .
+  end .
+  return (index a m) .
+end .
+
+rem 반례 6 — 루프 안 호출(무엇을 쓰는지 모른다).
+proc bump input v u64 . output u64 . effects none . do return (add v 1) . end .
+export proc n_call input a mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  if gt (add m 1) (len a) . do return 0 . end .
+  var k u64 be 1 .
+  while le k m . do
+    let x u64 be bump (index a (sub k 1)) .
+    set (index a k) x .
+    set k (add k 1) .
+  end .
+  return (index a m) .
+end .
+
+rem 반례 7 — 읽기가 저장 **뒤**(같은 바퀴의 `s[k-1]` — 들고 온 값은 `s[k]` 가 된다).
+export proc n_after input a mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  if gt (add m 1) (len a) . do return 0 . end .
+  var acc u64 be 0 .
+  var k u64 be 1 .
+  while le k m . do
+    let x u64 be add k 1 .
+    set (index a k) x .
+    set acc (add acc (index a (sub k 1))) .
+    set k (add k 1) .
+  end .
+  return acc .
+end .
+
+rem 반례 8 — 루프 안에서 슬라이스를 바꿔 든다(같은 이름, 다른 메모리).
+export proc n_resl input a mut slice u64 . . input b mut slice u64 . . input m u64 . output u64 . effects none .
+do
+  if gt (add m 1) (len a) . do return 0 . end .
+  if gt (add m 1) (len b) . do return 0 . end .
+  var s mut slice u64 . be a .
+  var k u64 be 1 .
+  while le k m . do
+    let x u64 be add (index s (sub k 1)) k .
+    set (index s k) x .
+    if eq k 3 . do set s b . end .
+    set k (add k 1) .
+  end .
+  return (add (index a m) (index b m)) .
+end .

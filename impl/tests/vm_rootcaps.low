@@ -1,0 +1,17 @@
+rem ★★★★ **권한으로 받는 두 뿌리** (RFC-0112 D2 · D5(4) · WO-0211) — 시작 자리가 둘 다 받는다.
+rem   이 파일은 `vm_roots.low` 의 짝이다(그쪽은 영역 블록으로, 여기는 권한으로 연다).
+rem   · `cap allocator` 는 고정 창 — 70000 은 호스티드 64 KiB 에 안 들어간다 ⇒ none(값이다)
+rem   · `cap heap` 은 자란다 — 1 MiB 를 한 번에 ⇒ some. 종료 코드 = 1.
+rem   ★ 둘 다 **이름으로** 가린다: 같은 종류 권한의 «첫째» 만 알아보던 하강은 이제 없다(F8).
+
+module vm_rootcaps .
+
+export proc main input al cap allocator . input h cap heap . output u8 . effects alloc heap .
+do
+  var r u64 be 0 .
+  let g option mut slice u8 . . be alloc_bytes al capacity 70000 .
+  if is_some g . do set r (add r 100) . end .
+  let k option mut slice u8 . . be alloc_bytes h capacity 1048576 .
+  if is_some k . do set r (add r 1) . end .
+  return narrow u8 r .
+end .

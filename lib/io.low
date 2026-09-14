@@ -1,0 +1,141 @@
+rem ★★★ **두 번째 표준 라이브러리 모듈 — IO 의 mem 절반** (RFC-0069 §1·§2).
+rem
+rem   조사(`docs/io-library-survey.md`)가 고른 읽기 모양을 **커널 없이 먼저 짓는다**:
+rem     · `read(buf) → n` 이 아니라 **peek/take/toss → 뷰**(Zig 0.15 가 read 를 버린 그 자리).
+rem       버퍼를 리더가 소유하니 호출자 메모리를 채우는 대신 **빌린 뷰**를 건넨다 — 복사 0.
+rem     · **EOF 는 오류가 아니라 `none`** 이다(Hare 의 `(size | EOF | error)` 를 우리 어휘로).
+rem       Go 의 센티널도 Rust 의 `Ok(0)` 애매함도 없다. "스트림이 끝났다" 는 실패가 아니다.
+rem     · **상한이 필수 인자다**(`take_line`·`take_until`) — 적대적 입력이 무한 읽기를
+rem       유발할 수 없다. Rust 의 `read_to_end` 는 상한이 아예 없다.
+rem
+rem ★★★ **왜 mem 부터인가 — 오라클 경계다** (RFC-0069 §1). `stream_kind` 는 `os_fd | mem` 인데
+rem   그 분할이 검증 가능성과 정확히 일치한다: mem 은 **순수 슬라이스 조작**이라 VM ≡ native
+rem   (diff-sweep 안)이고, os_fd 는 커널 의존이라 오라클 **밖**이다(할당과 같은 범주).
+rem   ⇒ IO 로직 전부(버퍼 관리·프레이밍·take_line)를 **커널을 건드리기 전에** 두 백엔드로
+rem     검증한다. os_fd 는 나중에 이 검증된 로직에 바이트를 공급하는 **얇은 리프**가 된다.
+rem
+rem ★★ **시그니처가 os_fd 와 다르다 — 그리고 그것이 옳다.** RFC-0069 §2.2 는 일반 스트림을
+rem   `output result (option str) io_error . effects io wait .` 로 적었다. 그런데 **mem 스트림은
+rem   실패할 수도 중단될 수도 없다** — 슬라이스 인덱싱뿐이다. 없는 실패를 `result` 로 감싸고
+rem   없는 중단을 `effects wait` 로 선언하면 그것이 **장식**이고, 장식은 거짓말이다(§0).
+rem   ⇒ mem 은 `option`(EOF 만) + `effects state`. os_fd 가 오면 그때 `result`·`io wait` 를
+rem     **실제로 그럴 수 있으므로** 두른다. **API 포크가 아니라 능력의 차이다** —
+rem     못 하는 일을 할 수 있는 척하지 않는 것이 이 언어의 규율이다.
+rem
+rem ★ 빌트인 op 증가 **0**. 언어가 이미 가진 것(actor·option·slice·subslice·guard·while)만.
+
+module io .
+
+rem ── mem 리더 — 슬라이스 위의 스트림 ────────────────────────────────────
+rem
+rem ★ **버퍼를 리더가 소유한다**(RFC-0069 §2). mem 에서 "버퍼" 는 원본 슬라이스 자체이고,
+rem   `pos` 가 그 안의 커서다. 그래서 반환하는 뷰는 **원본을 가리킨다 — 복사가 없다.**
+rem ★ 커서를 상태에 둔 판이다(actor). 커서를 **값으로** 들고 싶으면 lib/str.low 의
+rem   `str_split_next` 처럼 호출자가 pos 를 드는 형태를 쓴다(RFC-0069 §4 — 위치 지정이
+rem   원시연산이고 커서는 그 위의 값이다. Rust 의 Seek &mut 참사의 역).
+
+rem ── 프레이밍 원시연산 — **순수하고 커서는 값이다** (RFC-0069 §4) ─────────
+rem
+rem ★ 위치 지정이 원시연산이고 상태 있는 커서는 **그 위에서 파생된다** — 반대 방향은
+rem   락이 필요하고 이식성도 잃는다(Rust 의 Seek 이 &mut 를 요구해 읽기 전용 작업까지
+rem   직렬화시킨 그 참사의 역). 그래서 아래 actor 는 이 순수 op 의 얇은 껍질이다.
+rem ★ 덤: 같은 소스를 **여러 커서가 동시에** 훑어도 자유롭다(상태를 안 나눠 가지므로).
+
+rem from 부터 delim 을 찾는다 — limit 바이트까지만 본다(상한은 필수다).
+rem 찾으면 그 인덱스, limit 안에 없거나 끝에 닿으면 none.
+export fn scan_until input src slice u8 . input from u64 . input delim u8 . input limit u64 .
+  output option u64 .
+do
+  guard le from (len src) . else return none .
+  var j u64 be from .
+  var seen u64 be 0 .
+  while lt j (len src) . do
+    guard lt seen limit . else return none .
+    if eq (index src j) delim . do return (some j) . end .
+    set j (add j 1) .
+    set seen (add seen 1) .
+  end .
+  return none .
+end .
+
+export actor mem_reader .
+  state .
+    src slice u8 .
+    pos u64 .
+  end .
+
+  rem 소스를 건다. 같은 리더를 다시 걸면 처음부터 다시 읽는다.
+  proc attach input s slice u8 . output u64 . effects state . do
+    set src s .
+    set pos 0 .
+    return 0 .
+  end .
+
+  rem 남은 바이트 수 — `count` 가 컬렉션에 하는 일과 같은 뜻이다.
+  proc remaining output u64 . effects none . do
+    return sub (len src) pos .
+  end .
+
+  rem ★ n 바이트를 **소비하지 않고** 본다. 모자라면 none — 부분으로 속이지 않는다.
+  rem ★ 비교는 `n ≤ 남은 수` 다 — `pos + n` 을 먼저 셈하면 호출자(프레이밍 길이 필드 = 적대적
+  rem   입력)가 준 큰 n 이 u64 `add` 에서 **트랩**한다. 모자람은 값(none)이어야 한다(§9.2).
+  proc peek input n u64 . output option slice u8 . effects none . do
+    guard le n (sub (len src) pos) . else return none .
+    return (some (subslice src pos (add pos n))) .
+  end .
+
+  rem ★ n 바이트를 소비하고 그 **뷰**를 낸다(복사 0). 모자라면 none 이고 커서는 안 움직인다.
+  proc take input n u64 . output option slice u8 . effects state . do
+    guard le n (sub (len src) pos) . else return none .
+    let v slice u8 be subslice src pos (add pos n) .
+    set pos (add pos n) .
+    return (some v) .
+  end .
+
+  rem 남은 전부를 소비하고 뷰를 낸다. 이미 끝이면 **빈 뷰**(none 이 아니다 —
+  rem "끝났다" 와 "0 바이트 읽었다" 는 다르고, 여기선 후자다).
+  proc take_rest output slice u8 . effects state . do
+    let v slice u8 be subslice src pos (len src) .
+    set pos (len src) .
+    return v .
+  end .
+
+  rem ★ 채워진 것 중 n 바이트를 버린다 — IO 없음. 남은 것보다 많이 버리라면 끝까지만.
+  proc toss input n u64 . output u64 . effects state . do
+    guard le n (sub (len src) pos) . else do
+      let dropped u64 be sub (len src) pos .
+      set pos (len src) .
+      return dropped .
+    end .
+    set pos (add pos n) .
+    return n .
+  end .
+
+  rem ★★ **구분자까지 읽는다 — 구분자는 소비하되 뷰에는 넣지 않는다.** 순수 `scan_until` 의 껍질.
+  rem   `limit` 은 **기본값 없는 필수 상한**(Zig 의 규율): 적대적 입력이 무한 읽기를 못 만든다.
+  rem   · 찾으면 그 앞까지의 뷰 · 못 찾으면 **none 이고 커서는 안 움직인다**(부분 소비 없음)
+  rem   · 이미 끝이면 none
+  proc take_until input delim u8 . input limit u64 . output option slice u8 . effects state . do
+    guard lt pos (len src) . else return none .
+    let at option u64 . be scan_until src pos delim limit .
+    guard is_some at . else return none .
+    let j u64 be some_value at .
+    let v slice u8 be subslice src pos j .
+    set pos (add j 1) .
+    return (some v) .
+  end .
+
+  rem 한 줄 — LF(10) 까지. ★ 개행 규약은 **LF 만**이다(CR 은 내용에 남는다).
+  rem   CRLF 를 벗기려면 호출자가 `str_remove_suffix line "\r"` 를 쓴다 —
+  rem   라이브러리가 **조용히 바이트를 지우지 않는다**(RFC-0069 §8-8 의 열린 항목을
+  rem   "안 지운다" 로 닫는다: 지우는 쪽은 되돌릴 수 없고, 안 지우는 쪽은 호출자가 고를 수 있다).
+  proc take_line input limit u64 . output option slice u8 . effects state . do
+    guard lt pos (len src) . else return none .
+    let at option u64 . be scan_until src pos 10 limit .
+    guard is_some at . else return none .
+    let j u64 be some_value at .
+    let v slice u8 be subslice src pos j .
+    set pos (add j 1) .
+    return (some v) .
+  end .
+end .

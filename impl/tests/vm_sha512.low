@@ -1,0 +1,38 @@
+rem ★★★ **SHA-512** (FIPS 180-4) — 서명 쪽 전용 리프.
+rem
+rem ★ 오라클은 **표준 벡터**다. 그리고 경계가 여기서 특히 중요하다: SHA-512 의 패딩은
+rem   블록이 **128 바이트**이고 길이 필드가 **16 바이트**라, 입력이 112 를 넘으면
+rem   블록이 하나 더 붙는다. 111·112·127·128·129 를 따로 센다 —
+rem   *"한 블록 경로만 맞고 두 블록 경로는 틀린"* 구현이 흔한 자리다.
+rem
+rem ☞ 리프는 **한 벌만** 산다(impl/src/low_sha512.h 매크로) — VM 이 컴파일하는 C 와
+rem   방출되는 C 가 같은 원본이다. 라운드 상수 80 개를 눈으로 대조할 수는 없다.
+
+module vm_sha512 .
+
+fn head8 input d slice u8 . output u64 . do
+  var acc u64 be 0 .
+  var i u64 be 0 .
+  while lt i 8 . do
+    set acc (add (shl acc 8) (cast u64 (index d i))) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .
+
+proc t_hash input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (sha512 src dst) 64 . else return 0 .
+  return head8 dst .
+end .
+
+rem ★ 버퍼가 짧으면 0 을 답하고 **아무것도 안 쓴다** — 조용히 덜 쓰는 것이 이 축에서
+rem   가장 위험한 실패다(짧은 다이제스트는 맞아 보인다). sha256 과 같은 규율이다.
+proc t_short input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (sha512 src dst) 0 . else return 0 .
+  var i u64 be 0 .
+  while lt i (len dst) . do
+    guard eq (index dst i) 0 . else return 0 .
+    set i (add i 1) .
+  end .
+  return 1 .
+end .

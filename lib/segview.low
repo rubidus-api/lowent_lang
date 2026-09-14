@@ -1,0 +1,72 @@
+rem ★★★★★ **조각 뷰의 나머지 절반 — 라이브러리** (RFC-0104 §8-8, 소유자 서명 2026-08-29).
+rem
+rem   언어가 든 것은 셋뿐이다: `view_segments`(짓기) · `segs`(조각 수) · `seg`(i 번째 조각).
+rem   *커서 · 총길이 · `coalesce`* 는 **여기에 남는다** — 셋 다 앞의 셋으로 쓰이므로
+rem   빌트인이 될 이유가 없다. 표면 추가 0.
+rem
+rem ★ 그리고 그것이 §7.3 열 10 의 셋째 출구다: **`coalesce` 만 명시적으로 O(n)** 이다.
+rem   순회는 조각을 빌리기만 하고(복사 0), 한 덩어리로 펴는 값은 **부를 때만** 치른다.
+rem   비용이 op 이름으로 보인다 — 이 저장소가 `slice` 에 대해 지켜 온 규율 그대로.
+
+module segview .
+
+rem 총길이 — 서술자만 읽는다. 바이트는 안 만진다(그래서 O(조각 수)).
+export fn total_len input ss segments u8 . . output u64 . do
+  var i u64 be 0 .
+  var acc u64 be 0 .
+  while lt i (segs ss) . do
+    set acc (add acc (len (seg ss i))) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .
+
+rem 커서 — 평평한 위치를 (조각, 자리) 로 나눈다.
+rem   ★ 이 값 하나가 조각 경계를 넘는 순회를 **상태 없이** 쓰게 한다.
+export struct cursor .
+  piece u64 .
+  at u64 .
+end .
+
+export fn seek input ss segments u8 . . input pos u64 . output option segview.cursor . do
+  var i u64 be 0 .
+  var left u64 be pos .
+  while lt i (segs ss) . do
+    let n u64 be len (seg ss i) .
+    if lt left n . do
+      return some (make cursor do piece i . at left . end) .
+    end .
+    set left (sub left n) .
+    set i (add i 1) .
+  end .
+  rem 끝을 넘어서면 커서가 없다 — 없는 자리를 가리키는 커서를 만들지 않는다.
+  return none .
+end .
+
+rem 평평한 색인으로 한 바이트 읽기. **비용이 이름에 있다**: 조각을 훑는다.
+export fn byte_at input ss segments u8 . . input pos u64 . output option u8 . do
+  let co option segview.cursor . be segview.seek ss pos .
+  guard is_some co . else return none .
+  let c segview.cursor . be some_value co .
+  return some (index (seg ss (field c piece)) (field c at)) .
+end .
+
+rem ★ `coalesce` — 한 덩어리로 편다. **여기서만 복사가 일어난다**, 그리고 부른 자리에 보인다.
+rem   저장은 호출자 것이다(이 저장소의 규율): 받은 버퍼에 쓰고 쓴 길이를 답한다.
+export proc coalesce input ss segments u8 . . input out mut slice u8 . . output option u64 . effects none . do
+  let need u64 be segview.total_len ss .
+  guard le need (len out) . else return none .
+  var w u64 be 0 .
+  var i u64 be 0 .
+  while lt i (segs ss) . do
+    let p slice u8 be seg ss i .
+    var j u64 be 0 .
+    while lt j (len p) . do
+      set (index out w) (index p j) .
+      set w (add w 1) .
+      set j (add j 1) .
+    end .
+    set i (add i 1) .
+  end .
+  return some w .
+end .

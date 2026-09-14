@@ -1,0 +1,35 @@
+rem ★★ **테스트 러너** — `test N do … end` 은 **죽은 문법이었다.**
+rem
+rem 파싱되고, **절대 실행되지 않았다.** 테스트를 썼는데 안 돌아간다.
+rem 초록불이 "검사됐다" 는 뜻이 아니라 **"아무도 안 돌렸다"** 는 뜻이었다 —
+rem 이 언어가 금지하는 바로 그 거짓말이다(PRINCIPLES.md §0: 검사되지 않는 중복은 거짓말로 썩는다).
+rem
+rem 살리려면 **무엇으로 단언하는가**가 있어야 했다. → `expect <cond> .`
+rem   · `expect` 의 ASSERT 는 진입 requires(a=0)·ensures(1)·when(2) 과 **구별된다**(a=4).
+rem     구별해야 진단이 **누구의 잘못인지** 말할 수 있다 — 계약 위반이 아니라 **테스트 실패**다.
+rem   · 그리고 `a & 3 == 0` 이라 **절대 제거되지 않는다** —
+rem     최적화로 사라진 테스트는 **안 돌아간 테스트**다.
+
+module vm_test .
+
+fn inc input a u8 . output u8 . do return expr a + 1 . . end .
+
+fn clamp input a u8 . output u8 . do
+  if gt a 100 . do return 100 . end .
+  return a .
+end .
+
+test inc_adds_one do
+  expect eq (inc 3) 4 .
+  expect eq (inc 0) 1 .
+end .
+
+test clamp_caps do
+  expect eq (clamp 200) 100 .
+  expect eq (clamp 50) 50 .
+end .
+
+test boundary do
+  expect eq (clamp 100) 100 .
+  expect eq (clamp 101) 100 .
+end .

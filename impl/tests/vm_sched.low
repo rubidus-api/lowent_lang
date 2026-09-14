@@ -1,0 +1,53 @@
+rem ★★★ **결정적 스케줄러 + interleaving 오라클** (RFC-0009 D6, 첫 슬라이스 — A: B-호환 표면).
+rem
+rem   `drain <actor>` 이 인스턴스 하나의 메일박스를 비운다면, **`schedule .`** 는 **모든 actor 의
+rem   대기 메시지 전부**를 quiescence 까지 배달한다(핸들러가 또 보내면 그것도). 기본 순서는 FIFO
+rem   (결정적) — 평소 실행·네이티브가 그것을 쓴다.
+rem
+rem   ★ 그리고 **`schedule explore_interleavings [limit N]`** 절이 붙은 `test` 는 러너가 배달 순서를
+rem     **DFS 로 체계적으로 열거**하며 돌린다. 결정적 actor 프로그램은 **모든 순서에서 같은 결과**여야
+rem     한다 — 경합의 actor 판이다. `expect` 가 그 명세다:
+rem       · 모든 순서에서 통과 → 순서 무관(초록)
+rem       · 일부만 통과       → 결과가 순서에 의존 ⇒ E-SCHED-NONDET (오라클이 잡는다)
+rem   ★ 열거는 **동적 트리**다 — 핸들러가 메시지를 더 넣어 ready set 이 변하므로 각 단계의 ready 크기로
+rem     backtrack 한다. `limit N`(기본 4096) 전에 트리를 다 돌면 **전수(exhaustive)**, N 에서 멈추면
+rem     **bounded**(정직히 보고 — 조용한 캡 금지). 두 메시지면 2, 넷이면 4!=24 순서를 전부 확인한다.
+rem   ★ `schedule` 문 자체는 VM≡네이티브(FIFO) — 차등 스윕이 그것을 지킨다. 열거는 VM 오라클의 몫.
+module vm_sched .
+
+actor counter .
+  state v u64 . end .
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
+  fn get output u64 . do return v . end .
+end .
+
+rem 순서 무관: inc 는 교환법칙 → 어떤 배달 순서든 get=2. 오라클이 4 interleaving 전부에서 확인한다.
+test counter_order_independent schedule explore_interleavings do
+  var c counter be spawn actor counter . .
+  spawn send c inc .
+  spawn send c inc .
+  schedule .
+  expect eq (send c get) 2 .
+end .
+
+rem 두 actor 로 교차 배달 — 각자 독립이므로 어떤 interleaving 이든 a=1, b=1. 교차 순서가 진짜로 바뀌어도 불변.
+test two_actors_independent schedule explore_interleavings do
+  var a counter be spawn actor counter . .
+  var b counter be spawn actor counter . .
+  spawn send a inc .
+  spawn send b inc .
+  spawn send a inc .
+  schedule .
+  expect eq (send a get) 2 .
+  expect eq (send b get) 1 .
+end .
+
+rem `schedule` 문 자체 — 전역 quiescence 배달(FIFO). 셋을 넣고 비우면 get=3. VM≡네이티브(차등 스윕).
+proc run_sched output u64 . effects state . do
+  var c counter be spawn actor counter . .
+  spawn send c inc .
+  spawn send c inc .
+  spawn send c inc .
+  schedule .
+  return send c get .
+end .

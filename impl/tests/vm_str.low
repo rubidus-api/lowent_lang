@@ -1,0 +1,99 @@
+rem ★★★ **첫 표준 라이브러리 모듈의 사용처** — lib/str.low (RFC-0068 S2·S3) 를 `use` 로 끌어와
+rem   실제로 쓴다. 이 파일이 증명하는 것 둘:
+rem   ① 문자열 뷰 연산 전부가 **언어가 이미 가진 것만으로** 돌아간다(빌트인 op 증가 0).
+rem   ② `use … from` 모듈 링크가 **라이브러리 디렉터리**(저장소 lib/)에 닿는다 — 표준 라이브러리의
+rem      첫 자리가 여기서 정해졌다(RFC-0068 F5).
+rem   diff-sweep 이 이 파일의 op 을 자동으로 두 백엔드로 돌린다 — 문자열 로직 전체가 오라클 안이다.
+
+module vm_str .
+
+use strings from "../../lib/str.low" .
+
+rem ── 비교·탐색이 리터럴 위에서 ──────────────────────────────────────────
+
+fn t_eq output u64 . do
+  guard strings.eq_str "abc" "abc" . else return 0 .
+  guard eq (strings.eq_str "abc" "abd") false . else return 0 .
+  guard eq (strings.eq_str "ab" "abc") false . else return 0 .
+  guard strings.eq_str "" "" . else return 0 .
+  return 1 .
+end .
+
+fn t_find output u64 . do
+  let r option u64 . be strings.find "hello world" "world" 0 .
+  guard is_some r . else return 99 .
+  return some_value r .                       rem 6
+end .
+
+fn t_find_from output u64 . do
+  rem from 이 커서다 — 두 번째 "ab" 는 4 에서 찾아야 나온다.
+  let r option u64 . be strings.find "ab--ab" "ab" 1 .
+  guard is_some r . else return 99 .
+  return some_value r .                       rem 4
+end .
+
+fn t_find_none output u64 . do
+  guard eq (is_some (strings.find "abc" "zz" 0)) false . else return 0 .
+  guard eq (strings.has "abc" "zz") false . else return 0 .
+  guard strings.has "abcdef" "cde" . else return 0 .
+  return 1 .
+end .
+
+rem ── 접두·접미·다듬기 — 전부 뷰(복사 0) ────────────────────────────────
+
+fn t_affix output u64 . do
+  guard strings.starts_with "foobar" "foo" . else return 0 .
+  guard eq (strings.starts_with "foobar" "bar") false . else return 0 .
+  guard strings.ends_with "foobar" "bar" . else return 0 .
+  guard eq (strings.ends_with "fo" "foo") false . else return 0 .
+  return 1 .
+end .
+
+fn t_remove output u64 . do
+  guard strings.eq_str (strings.remove_prefix "foobar" "foo") "bar" . else return 0 .
+  guard strings.eq_str (strings.remove_prefix "foobar" "xxx") "foobar" . else return 0 .
+  guard strings.eq_str (strings.remove_suffix "foobar" "bar") "foo" . else return 0 .
+  return 1 .
+end .
+
+fn t_trim output u64 . do
+  guard strings.eq_str (strings.trim_start "  hi" " ") "hi" . else return 0 .
+  guard strings.eq_str (strings.trim_end "hi  " " ") "hi" . else return 0 .
+  guard strings.eq_str (strings.trim_start "   " " ") "" . else return 0 .    rem 전부 잘림 → 빈 뷰
+  return 1 .
+end .
+
+rem ── 분할 ① 커서-값 판 — 호출자가 pos 를 든다(RFC-0069 §4 위치 지정 원칙) ──
+
+fn t_split output u64 . do
+  rem "aa,b,,cc" 를 ',' 로: "aa"·"b"·""·"cc" — 4 조각, 총 5 바이트.
+  var pos u64 be 0 .
+  var pieces u64 be 0 .
+  var bytes u64 be 0 .
+  var r option slice u8 . be strings.split_next "aa,b,,cc" 44 pos .
+  while is_some r . do
+    set pieces (add pieces 1) .
+    set bytes (add bytes (len (some_value r))) .
+    set pos (add pos (add (len (some_value r)) 1)) .
+    set r (strings.split_next "aa,b,,cc" 44 pos) .
+  end .
+  rem 조각수*10 + 총바이트 = 45
+  return add (mul pieces 10) bytes .
+end .
+
+rem ── 분할 ② pull 소스 판 — actor 가 상태를 든다(RFC-0068 §5.2) ──────────
+
+proc t_splitter output u64 . effects state . do
+  var sp strings.str_splitter . be spawn actor strings.str_splitter .
+  let d u64 be send sp init "one,two,three" 44 .
+  var pieces u64 be 0 .
+  var bytes u64 be 0 .
+  var r option slice u8 . be send sp next .
+  while is_some r . do
+    set pieces (add pieces 1) .
+    set bytes (add bytes (len (some_value r))) .
+    set r (send sp next) .
+  end .
+  rem "one"·"two"·"three" = 3 조각, 11 바이트 → 41
+  return add (mul pieces 10) bytes .
+end .

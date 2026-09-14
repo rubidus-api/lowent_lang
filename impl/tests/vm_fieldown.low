@@ -1,0 +1,57 @@
+rem ★★★ **필드 단위 소유 · 부분 이동 증인** (RFC-0044 §9 · 2026-07-23).
+rem
+rem   §9 는 의미론을 **이미 다 규정**해 뒀다(OS1~4 상태·PM1/PM2·DO1-2 drop 순서·JOIN1-3·EXCL-F).
+rem   그런데 **문법이 막고 있었다**: struct 필드가 `owned` 를 못 받아(E-FIELD-MARK — 필드 표식은
+rem   big/little 뿐) **아핀 필드 자체가 표현 불가**였고, 그래서 부분 이동은 도달불가한 죽은 코드였다.
+rem   ⇒ `owned` 를 필드 타입 머리로 넣고(ir_field_tyhead), 소유 흐름이 **필드 장소 `(field p a)`**
+rem     를 하나의 place 로 추적하게 했다(ck_own_flow 에 필드 경로 스레딩).
+rem
+rem ★ **PM2 는 지금 무의미**하다 — 전체-객체 drop op 이 아직 없다(destructor 선언은 거절된다).
+rem   ⇒ 모든 집합이 plain aggregate 라 **PM1(부분 이동 허용)이 보편 적용**된다.
+rem ★ **JOIN 은 공짜로 따라왔다** — 흐름 분석이 이름/필드 공용이라 JOIN1(합류점 상태 일치)이
+rem   필드 단위에서도 그대로 운다.
+module m .
+
+struct h .
+  fd u64 .
+end .
+
+struct pair .
+  a owned h .
+  b owned h .
+end .
+
+rem ★ 서로 다른 필드를 하나씩 옮긴다 — **부분 이동**이라 통과해야 한다(OS3·PM1).
+proc each input p owned pair . output u64 . effects none . do
+  let x h be field p a .
+  let y h be field p b .
+  return 0 .
+end .
+
+rem ★ 양 가지에서 같은 필드를 옮긴다 — 합류점 상태가 일치하므로 통과(JOIN1).
+proc both_arms input p owned pair . input c u64 . output u64 . effects none . do
+  if gt c 0 . do
+    let x h be field p a .
+  end else do
+    let z h be field p a .
+  end .
+  return 0 .
+end .
+
+rem ★★★ **OS1 — 집합의 파생 상태**(§9.1). 필드를 하나라도 옮기면 그 집합은 **partial** 이고,
+rem   partial 을 **통째로** 옮기면 이미 떠난 필드까지 넘기는 **이중 소유**가 된다 ⇒ 거절(E-OWN-PARTIAL).
+rem   ★ 필드를 안 건드리고 집합만 옮기는 것은 그대로 통과한다(아래 whole).
+proc whole input p owned pair . output u64 . effects none . do
+  let z pair be p .
+  return 0 .
+end .
+
+rem ★★★ **빌림은 이동을 넘어 살지 못한다**(RFC-0005 EXCL · RFC-0044 EXCL-F).
+rem   이동 **전에만** 쓰는 빌림은 정당하다 — 아래가 그 모양이고 통과해야 한다.
+rem   (이동 뒤에 쓰면 E-EXCL-MOVED · 집합을 빌린 채 **필드**를 빼가도 마찬가지 — 골든 인라인 게이트)
+proc borrow_then_move input p owned pair . output u64 . effects none . do
+  let r ref pair be ref p .
+  let v u64 be field (field r a) fd .
+  let z pair be p .
+  return v .
+end .

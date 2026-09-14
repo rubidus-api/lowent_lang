@@ -1,0 +1,225 @@
+rem ★★★ **축 ① 대표 프로그램 — blink** (RFC-0042 §8-3 이 지명 · RFC-0088 §4.2)
+rem
+rem   RFC-0088 §4.2 의 규칙: **각 축의 RFC 가 자기 대표 프로그램을 지명하고, 그것을 실제로
+rem   쓰다가 막히는 곳이 일감이다.** 이 파일이 축 ①(volatile·MMIO·ISR)의 그 프로그램이다.
+rem
+rem ★ 이 프로그램을 쓰려다 두 번 막혔고, 두 번 다 그 자리가 일감이 됐다:
+rem     ① ISR 은 인자를 못 받으므로 `cap mmio` 를 **영원히 들 수 없었다** — 디바이스 때문에
+rem       존재하는 함수가 디바이스에 닿을 수 없었다. ⇒ **D5-b**: `vector N .` 이 곧 권한이다.
+rem     ② 블록을 얻는 길이 `view T <슬라이스>` 뿐이었고 **그 슬라이스는 호출자가 준다** —
+rem       ISR 에는 줄 사람이 없다. ⇒ **§8-2**: `view T .`(피연산자 없음) = 타입 자신의 기저 주소.
+rem
+rem ☞ 정직하게 — 이 프로그램이 **증명하지 않는 것**:
+rem   · VM 은 이것을 **못 돌린다**. 0x40020000 은 이 호스트에 없다 — 인터프리터가 그것을
+rem     흉내내면 그건 장치가 아니라 거짓말이다(asm·extern·cstr 와 같은 자리, `E-VM-MMIO`).
+rem     그래서 이 축의 오라클은 **VM≡native 가 아니라 방출된 C** 다.
+rem   · 실제 STM32 보드에서 LED 가 깜빡이는 것. 이 저장소엔 그 보드가 없다. 도구가 대는 것은
+rem     **주소·벡터 번호·`.isr_vector` 표**이고, 메모리 배치(플래시 시작·RAM 크기)는 보드의 것이다.
+rem   · 클럭 설정(RCC)·NVIC 활성화. 그것들도 그냥 MMIO 지만, 이 파일의 주장은 *"레지스터에
+rem     닿을 수 있다"* 하나다. 닿을 수 있으면 나머지는 같은 모양의 반복이다.
+
+module blink .
+
+build tier t1 .              rem Cortex-M — `device` 효과를 감당한다
+
+rem ── GPIOA 레지스터 블록 (STM32F4 기준) ──────────────────────────────────
+rem ★ 기저 주소가 **타입 안에** 있다. 그래서 이 지도를 가진 사람은 누구나 — 인자를 받을 수
+rem   없는 ISR 을 포함해서 — 장치를 열 수 있다.
+struct gpioa .
+  mmio 0x40020000 .
+  moder u32 rw .             rem 모드     (읽기·쓰기)
+  otyper u32 rw .            rem 출력 종류
+  ospeedr u32 rw .           rem 속도
+  pupdr u32 rw .             rem 풀업/풀다운
+  idr   u32 ro .             rem 입력     (쓰면 컴파일 에러)
+  odr   u32 rw .             rem 출력 데이터
+  bsrr  u32 wo .             rem set/reset(읽으면 컴파일 에러)
+end .
+
+rem ── RCC — 클럭이 없으면 장치는 **없는 것과 같다** ───────────────────────
+rem ★★★ 실기에서 가장 조용한 함정이다: RCC 가 GPIOA 에 클럭을 주기 전에는 그 레지스터가
+rem   **응답하지 않는다**. 쓰기는 아무 일도 안 하고, 읽기는 0 을 준다. 컴파일도 되고,
+rem   방출도 되고, 어셈블도 되고, 보드에서 **아무 일도 안 일어난다** — 진단 하나 없이.
+rem   ⇒ 도구가 잡아 줄 수 없는 부류다(어느 주변장치가 어느 클럭에 물렸는지는 보드의 사실이다).
+rem     그래서 여기 **적어 둔다**: 이것이 대표 프로그램이 지는 몫이다.
+rem
+rem ★ 예약 자리도 **이름을 준다**. 그래야 `ahb1enr` 이 0x30 에 선다 — 오프셋은 배치가 정하지
+rem   주석이 정하지 않는다(실측: 방출된 C 가 `+ 48`, 즉 0x30 이다).
+struct rcc .
+  mmio 0x40023800 .
+  cr        u32 rw .         rem 0x00
+  pllcfgr   u32 rw .         rem 0x04
+  cfgr      u32 rw .         rem 0x08
+  cir       u32 rw .         rem 0x0C
+  ahb1rstr  u32 rw .         rem 0x10
+  ahb2rstr  u32 rw .         rem 0x14
+  ahb3rstr  u32 rw .         rem 0x18
+  rsv0      u32 rw .         rem 0x1C — 예약
+  apb1rstr  u32 rw .         rem 0x20
+  apb2rstr  u32 rw .         rem 0x24
+  rsv1      u32 rw .         rem 0x28 — 예약
+  rsv2      u32 rw .         rem 0x2C — 예약
+  ahb1enr   u32 rw .         rem 0x30 — 비트0 = GPIOAEN
+end .
+
+unsafe proc clock_on .
+  input dev cap mmio .
+  output void .
+  effects device unsafe .
+do
+  var c rcc . be view rcc .
+  rem ★ 읽고-고치고-쓴다. 통째로 쓰면 **남의 주변장치 클럭을 꺼 버린다**.
+  write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
+  return 0 .
+end .
+
+rem ── 핀 5 = 보드 LED (Nucleo-F401 의 LD2) ────────────────────────────────
+rem ★ 상수도 낱말을 안 늘린다 — 그냥 정수를 내는 fn 이다.
+fn led_bit output u32 .
+do
+  return shl 1 5 .
+end .
+
+rem ── 초기화: LED 핀을 출력 모드로 ────────────────────────────────────────
+rem ★ **보통 op 은 여전히 권한을 받아야 한다.** ISR 의 면제는 정확히 문 하나 폭이다(D5-b) —
+rem   여기서 `cap mmio` 를 빼면 `E-MMIO-NOCAP` 이다. 골든이 그 대칭을 검사한다.
+unsafe proc led_init .
+  input dev cap mmio .
+  output void .
+  effects device unsafe .
+do
+  var g gpioa . be view gpioa .          rem ★ §8-2 — 바이트를 안 준다. 타입이 주소를 안다
+  rem moder 의 핀5 자리(비트 10~11)를 01(범용 출력)로.
+  var m u32 . be read_volatile g moder .
+  set m (bit_and m (bit_not (shl 3 10))) .
+  set m (bit_or m (shl 1 10)) .
+  write_volatile g moder m .
+  return 0 .
+end .
+
+rem ── ISR: 시스틱이 부를 때마다 LED 를 뒤집는다 ───────────────────────────
+rem ★★★ 이것이 이 축의 **주장**이다: 인자 없는 함수가 장치에 닿는다.
+rem   · `cap mmio` 파라미터가 **없다** — 가질 수 없다(E-ISR-PARAMS).
+rem   · 그런데 몸이 `return 0` 이 아니다. **레지스터를 진짜로 만진다.**
+rem   · 권한은 `vector 15 .` 이다 — 하드웨어가 불렀다는 사실이 그 권한이다(D5-b).
+unsafe proc on_systick .
+  vector 15 .                rem SysTick — Cortex-M 의 고정 예외 번호
+  priority 3 .
+  output void .
+  effects device unsafe .
+do
+  var g gpioa . be view gpioa .          rem ★ 줄 사람이 없어도 열린다
+  var cur u32 . be read_volatile g odr .
+  write_volatile g odr (bit_xor cur led_bit) .
+  return 0 .
+end .
+
+rem ── SysTick — 무엇이 ISR 을 부르는가 ────────────────────────────────────
+rem ★ Cortex-M 코어 안의 타이머다. **NVIC 를 거치지 않는다** — 자기 `ctrl` 로 켜진다.
+rem   그래서 이 프로그램은 아직 NVIC 없이 완결된다(주변장치 인터럽트가 §8-4 의 다음 일감).
+struct systick .
+  mmio 0xE000E010 .
+  ctrl u32 rw .              rem 비트0 켜기 · 비트1 인터럽트 · 비트2 코어클럭
+  load u32 rw .              rem 재적재 값(24비트)
+  val  u32 rw .              rem 현재 값 — 쓰면 0 으로 지워진다
+end .
+
+unsafe proc tick_init .
+  input dev cap mmio .
+  output void .
+  effects device unsafe .
+do
+  var s systick . be view systick .
+  write_volatile s load 15999 .    rem 16MHz / 16000 = 1kHz
+  write_volatile s val 0 .
+  write_volatile s ctrl 7 .        rem enable | tickint | clksource
+  return 0 .
+end .
+
+rem ── `wfi` — 인터럽트를 기다린다 ─────────────────────────────────────────
+rem ★★★ 이식 가능한 방법이 **없는** 자리다(RFC-0041 의 최후수단 규율): portable → intrinsic →
+rem   그래도 못 닿는 것. `wfi` 는 특권 명령이고, C 로는 표현할 낱말이 없다.
+rem   세 겹으로 갇힌다: `unsafe` · `cap machine`(건네받는 권리) · `asm <타깃>`.
+rem
+rem ☞ 이 절이 쓸 수 있게 된 것이 이번 증분이다. 그전까지 뒤끝의 판정이 빌드 타깃이 아니라
+rem   문자열 "x86_64" 를 **하드코딩**하고 있어서, 프리스탠딩 타깃에서 인라인 asm 이
+rem   **거절되고**(진단은 "this build targets x86_64" 라고 거짓을 말했다) 반대로 x86 명령은
+rem   ARM 빌드에 **실렸다**. 대표 프로그램이 그 벽을 찾아냈다.
+unsafe proc wait_irq .
+  input k cap machine .
+  output void .
+  effects unsafe .
+  asm cortex_m .
+      options nomem nostack .
+do
+  text ASM
+    wfi
+  ASM
+end .
+
+rem ── 리셋 진입 — `vector 1 .` (RFC-0042 D5-c) ───────────────────────────
+rem ★★★ Cortex-M 의 **슬롯 1 이 곧 리셋 벡터**다. 그것을 주장하는 op 이 리셋 진입이고,
+rem   D5-b 의 논증이 그대로 선다: **하드웨어가 불렀다는 사실이 그 권한이다.**
+rem
+rem ☞ 왜 이게 필요했나(실측 2026-08-02, arch-dev 실기 툴체인): 아래 `start` 는 `cap` 을 받는데
+rem   **능력은 C 경계를 못 넘는다**. 그래서 방출 오브젝트에 ISR·벡터표·NVIC enable 만 남고
+rem   **초기화 경로를 아무도 못 불렀다** — ISR 은 자기 존재 이유에 닿았는데 리셋은 못 닿았다.
+rem
+rem ★ 그리고 **권한은 넘겨줄 수 없다** — 그것이 새지 않는 이유다. 그래서 초기화를 여기서
+rem   **직접** 한다(`led_init dev .` 처럼 부를 수 없다: 건넬 cap 이 없다). 규율의 값이자 대가다.
+unsafe proc reset .
+  vector 1 .
+  output void .
+  effects device unsafe .
+do
+  rem ① 클럭이 먼저다 — 없으면 아래 쓰기가 전부 허공에 떨어진다.
+  var c rcc . be view rcc .
+  write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
+  rem ② LED 핀을 범용 출력으로.
+  var g gpioa . be view gpioa .
+  var m u32 . be read_volatile g moder .
+  set m (bit_and m (bit_not (shl 3 10))) .
+  set m (bit_or m (shl 1 10)) .
+  write_volatile g moder m .
+  rem ③ SysTick 을 켠다 — 이제 on_systick 이 1kHz 로 불린다.
+  var s systick . be view systick .
+  write_volatile s load 15999 .
+  write_volatile s val 0 .
+  write_volatile s ctrl 7 .
+  rem ④ 인터럽트를 기다린다 — **잔다**(RFC-0042 D11, 2026-08-03).
+  rem   ☞ 여기서 `wait_irq k .`(wfi)를 **부를 수 없다**: 그것은 `cap machine` 을 요구하는데
+  rem     리셋의 권한은 **건네줄 수 없다**(그게 이 문이 새지 않는 이유다). *"D5-b 의 권한이
+  rem     피호출자에게도 미치는가"* 는 **아니오**여야 한다 ⇒ 남는 길은 `wfi` 를 **진입 자신의
+  rem     몸**에 두는 것이고, 그래서 `asm` 이 **문장 자리**로 왔다. 새 낱말 0.
+  rem   ★ 그전까지 이 자리는 `while true . do end` — **바쁜 대기**였다. 컴파일도 되고 방출도
+  rem     되고 보드도 돌지만, 배터리가 있는 기계에서는 그 차이가 전부다.
+  while true . do
+    rem ★ 템플릿도 **문장**이라 `.` 로 닫는다 — 안 닫으면 점-닫힘 파서가 뒤 문장을 그 폼 안으로
+    rem   빨아들인다(그리고 그것들은 조용히 사라진다). 도구가 그 모양을 알아보고 이름을 부른다.
+    asm cortex_m options nomem nostack .
+    text ASM
+      wfi
+    ASM .
+  end .
+  return 0 .
+end .
+
+rem ── 주 루프 ─────────────────────────────────────────────────────────────
+rem ★ 베어메탈의 main 은 **돌아오지 않는다**. 초기화한 뒤 인터럽트를 기다리며 잔다 —
+rem   바쁜 대기(busy loop)가 아니라 `wfi` 다: 배터리가 있는 기계에서 그 차이가 전부다.
+export unsafe proc start .
+  input dev cap mmio .
+  input k cap machine .
+  output void .
+  effects device unsafe .
+do
+  rem ★★ 순서가 전부다: **클럭이 먼저다.** 이 줄이 뒤로 가면 `led_init` 의 쓰기가 전부
+  rem   허공에 떨어지고, 프로그램은 여전히 초록이며 보드는 여전히 어둡다.
+  clock_on dev .
+  led_init dev .
+  tick_init dev .
+  while true . do
+    wait_irq k .
+  end .
+  return 0 .
+end .

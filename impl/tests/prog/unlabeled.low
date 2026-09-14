@@ -1,0 +1,30 @@
+rem ★★★ **이름 없이 같은 일을 한다** — 이름표가 «옵트인» 임을 재는 짝의 **대조군**
+rem   (RFC-0107 §6.5 · 단계 6).
+rem
+rem   `prog/labeled.low` 와 **한 글자만 다르다**: 바뀐 자리마다 이름 대신 `*` 를 찍는다.
+rem   그래서 두 방출물의 차이는 **이름표와 그것을 읽는 코드뿐**이고, 그 차이가 곧 §6.5 가
+rem   주장하는 «안 쓰면 안 낸다» 의 값이다.
+rem   ☞ *안 쓰면 안 낸다는 말은, 안 쓰는 쪽을 나란히 재야 증명된다.*
+module unlabeled .
+
+use flags from "../../../lib/flags.low" .
+
+fn defaults output u64 . do return flags.join (flags.of 0) (flags.of 1) . end .
+
+proc main input k cap io . output u8 . effects io . do
+  rem 소리는 그대로 · 음악은 끄고 · 그림자를 켠 설정
+  let now u64 be flags.with (flags.without (defaults) 1) 2 .
+  let diff u64 be flags.changes now (defaults) .
+
+  rem 바뀐 자리마다 `*` 하나 — 훑기는 `lowest` 와 `without` 으로 돈다(이름만 뺀 같은 코드다).
+  var rest u64 be diff .
+  var n u64 be 0 .
+  while flags.has_any rest . do
+    let b u64 be flags.lowest rest .
+    let w1 u64 be write_out k 1 "*" .
+    let w2 u64 be write_out k 1 "\x0a" .
+    set rest (flags.without rest b) .
+    set n (add n 1) .
+  end .
+  return (narrow u8 n) .
+end .

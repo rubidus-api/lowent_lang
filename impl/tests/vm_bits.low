@@ -1,0 +1,29 @@
+rem ★★★ **`bits n` — 임의 비트폭 정수** (RFC-0002 §116).
+rem
+rem   `type tenbit bits 10 . .` — 폭이 **2의 거듭제곱일 필요가 없다**. 값은 0 .. 2^n-1 이고 산술은
+rem   **n 비트로 감긴다**. 이것은 새 규칙이 아니라 **기존 폭 마스킹이 그대로 적용된 것**이다:
+rem   u8 이 200+100 을 44 로 감듯, 10비트는 mod 1024 로 감는다. 그래서 백엔드 변경이 0 이다 —
+rem   타입이 자기 폭을 실어 오면 나머지는 이미 있던 기계가 한다.
+rem
+rem   ★ **정직한 한계(SPEC §130)**: `bits n` 은 **정확함만** 보장하고 **빠름은 미보장**이다.
+rem     비정렬·비2^n 배치는 다층 스토리지 이동이 개입할 수 있다. 저장은 그 폭을 담는 가장 작은
+rem     기계 정수를 쓴다(10비트 → 16비트 칸). 약속하지 않은 것을 약속처럼 적지 않는다.
+rem   ★ 폭이 컴파일 시 고정이라 VM 과 C 가 **같은 마스크**를 쓴다 ⇒ diff-sweep 로 VM≡native.
+
+module vm_bits .
+
+type t3     bits 3 . .
+type tenbit bits 10 . .
+type t12    bits 12 . .
+
+rem 10비트: 1023 + 1 은 **0** 으로 감긴다 (mod 1024).
+fn inc10 input a tenbit . output tenbit . do return (wrap_add a 1) . end .
+
+rem 10비트: 1000 + 100 = 1100 → 76 (mod 1024).
+fn add10 input a tenbit . input b tenbit . output tenbit . do return (wrap_add a b) . end .
+
+rem 3비트: 5 + 5 = 10 → 2 (mod 8). 아주 좁은 폭도 같은 규칙이다.
+fn add3 input a t3 . input b t3 . output t3 . do return (wrap_add a b) . end .
+
+rem 12비트: 4095 + 1 → 0 (mod 4096).
+fn inc12 input a t12 . output t12 . do return (wrap_add a 1) . end .

@@ -1,0 +1,108 @@
+rem ★★★ **SoA 시범 — 빌트인 증가 0 으로 어디까지 되는가** (RFC-0070 재검토 조건 ③, 2026-07-20).
+rem
+rem   RFC-0070 은 사전 조사(`store[T, soa]` 타입 생성자 + 키워드 15~20 + op 20+)를 **보류**하며
+rem   재검토 조건 셋을 못박았다. 그중 ③이 이것이다:
+rem     *"`lib/` 에 SoA 컨테이너를 **빌트인 증가 0** 으로 먼저 써 본다. 거기서 막히는 곳이
+rem       **언어 작업의 목록**이 된다."*
+rem   ⇒ 이 파일은 **답이 아니라 측정**이다. 되는 것과 안 되는 것을 실물로 가른다.
+rem
+rem ★★ **재는 대상**: 입자 하나가 `{x, y, vx, vy}` 인 흔한 모양. AoS 면 `slice` 하나에 섞여 있고,
+rem   SoA 면 **필드마다 배열 하나**다. 여기서는 후자를 **호출자가 준 네 배열**로 표현한다.
+rem
+rem ★★★ **핵심 발견(아래 각 op 에 적었다): SoA 의 *배치* 는 라이브러리로 완전히 표현된다.**
+rem   필드별 배열·보폭 없는 순차 접근·필드만 훑는 커널 — 전부 지금 언어로 써진다.
+rem   ⇒ 사전 조사가 요구한 것 중 **배치 자체에는 새 언어 기계가 필요 없다.**
+rem
+rem ☞ **그리고 막히는 곳도 분명하다 — 이것이 이 파일의 진짜 산물이다**:
+rem   ① **원소 하나를 "한 덩어리" 로 다루는 문법이 없다.** `load i` 가 레코드를 만들어 주지
+rem      않으므로 호출자가 필드를 **손으로** 모은다(아래 `p_get_*`). 사전 조사의 `row_ref` 가
+rem      풀려던 문제가 이것인데, 지금은 **불편할 뿐 불가능하지는 않다.**
+rem   ② ~~필드 개수만큼 인자가 늘어난다~~ ★★★ **풀렸다**(2026-07-20). 그때는 구조체 필드에
+rem      슬라이스를 못 넣었고, 그 원인을 `mut` 이라 적었는데 — **틀렸다.** 불변 `slice u64` 도
+rem      똑같이 죽었다. 막던 것은 **"필드 타입은 낱말 하나"** 라는 문법 하나였다.
+rem      ⇒ 이제 SoA 컨테이너가 **값 하나**다(`impl/tests/vm_sfield.low` 의 `pset`).
+rem      ☞ **증상을 원인으로 적으면 그것이 잘못된 지도**이고, 이 파일·strbuf·RFC-0070 이
+rem        같은 말을 세 번 옮겨 적었다.
+rem   ③ **타입이 배치를 모른다.** AoS 판과 SoA 판이 **서로 다른 op 이름**이 된다. 사전 조사의
+rem      `store[T, L]` 은 이것을 타입 하나로 묶으려는 것이고, 그 값은 실재한다.
+rem   ⇒ ★ ②는 **풀렸다**(2026-07-20). 예상대로 ①③의 압력이 줄었다: 컨테이너를 값으로 묶을 수
+rem     있으니 인자가 안 늘고, 배치별 이름도 구조체 타입이 갈라 준다. **가장 싼 언어 작업이
+rem     맞았다** — 런타임은 손도 안 댔고 앞단 문법만 넓혔다.
+
+module soa .
+
+rem ── 필드마다 배열 하나. 보폭이 없다 — 한 필드를 훑으면 **연속**이다 ──────
+
+rem ★ 위치를 속도만큼 전진시킨다. **x 와 vx 두 배열만** 만진다 — y·vy 는 캐시에 안 올라온다.
+rem   이것이 SoA 가 이기는 자리다(사전 조사 §5.1 의 useful_ratio ≈ U/R).
+export proc step_x input xs mut slice u64 . . input vxs slice u64 . input n u64 .
+  output u64 . effects none .
+do
+  var i u64 be 0 .
+  var m u64 be n .
+  if gt m (len xs) . do set m (len xs) . end .
+  if gt m (len vxs) . do set m (len vxs) . end .
+  while lt i m . do
+    set (index xs i) (add (index xs i) (index vxs i)) .
+    set i (add i 1) .
+  end .
+  return m .
+end .
+
+rem ★ 한 필드만 합친다 — 다른 필드는 **읽지도 않는다**.
+export fn sum_field input f slice u64 . output u64 . do
+  var t u64 be 0 .
+  var i u64 be 0 .
+  while lt i (len f) . do
+    set t (add t (index f i)) .
+    set i (add i 1) .
+  end .
+  return t .
+end .
+
+rem ☞ **막히는 자리 ①**: 원소 하나를 "한 덩어리" 로 못 준다. 필드마다 따로 꺼낸다.
+rem   사전 조사의 `load i` / `row i` 가 풀려던 문제이고, 지금은 **불편할 뿐** 불가능하지는 않다.
+export fn get_x input xs slice u64 . input i u64 . output u64 . do
+  guard lt i (len xs) . else return 0 .
+  return index xs i .
+end .
+
+rem ☞ **막히는 자리 ②**: 필드 수만큼 인자가 는다. 넷이면 넷, 여덟이면 여덟.
+rem   구조체로 묶으려면 필드가 `mut slice` 여야 하는데 **그게 안 된다** — 이것이 이 시범이
+rem   찾아낸 **가장 싼 언어 작업**이다(그 하나가 풀리면 SoA 컨테이너를 값으로 묶을 수 있다).
+export proc step_all input xs mut slice u64 . . input ys mut slice u64 . .
+  input vxs slice u64 . input vys slice u64 . input n u64 .
+  output u64 . effects none .
+do
+  let a u64 be step_x xs vxs n .
+  let b u64 be step_x ys vys n .
+  if lt b a . do return b . end .
+  return a .
+end .
+
+rem ── AoS 판 — 같은 계산, 다른 배치 ────────────────────────────────────
+rem
+rem ☞ **막히는 자리 ③**: 배치가 타입에 안 실리므로 **이름이 갈린다**(`step_x` vs `step_x_aos`).
+rem   사전 조사의 `store[T, L]` 은 이것을 타입 하나로 묶으려는 것이고 **그 값은 실재한다** —
+rem   다만 그 대가가 키워드 15~20·op 20+ 이라 RFC-0070 이 보류했다.
+rem   ★ 지금 여기서 잰 것: **두 판을 나란히 쓰는 것 자체는 된다.** 고를 수 있다는 뜻이고,
+rem     그것이 사전 조사 §1.2(*"SoA 가 항상 빠르지 않다"*)가 요구하는 최소한이다.
+export proc step_x_aos input rows mut slice u64 . . input stride u64 . input xoff u64 .
+  input voff u64 . input n u64 .
+  output u64 . effects none .
+do
+  var i u64 be 0 .
+  while lt i n . do
+    let base u64 be mul i stride .
+    rem ★ 두 필드 자리를 **둘 다** 지킨다 — `xoff > voff` 이면 voff 만 보던 옛 검사가 통과하고
+    rem   다음 줄이 경계 밖을 밟았다(2026-09-04 보안 검토). 약속대로 멈춘 자리 i 를 답한다.
+    guard lt (add base voff) (len rows) . else return i .
+    guard lt (add base xoff) (len rows) . else return i .
+    rem ★ 한 줄로 쓴다: 줄을 나누면 **개행이 form 을 닫는다**(이어 쓰려면 줄 끝에 `,`).
+    rem   이 시범이 그것도 한 번 밟았다 — 진단이 그 규칙을 말해 줬다.
+    let nx u64 be add (index rows (add base xoff)) (index rows (add base voff)) .
+    set (index rows (add base xoff)) nx .
+    set i (add i 1) .
+  end .
+  return n .
+end .

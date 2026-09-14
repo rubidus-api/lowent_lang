@@ -1,0 +1,29 @@
+rem ★★ enum 값 + `match` — S5 코어에 **없던 것**. 언어 완결성의 벽 하나.
+rem
+rem enum 값의 표현: **변형의 인덱스**(정수). 런타임 태그가 없다 — 비용 가시.
+rem match 는 `eq` + 분기 사슬로 낮아진다. if 사슬과 코드가 같다.
+rem
+rem ★ 그런데 match 가 if 사슬보다 나은 이유가 하나 있다: **완전성**.
+rem   나중에 enum 에 변형을 추가하면 **컴파일러가 빠진 곳을 전부 찾아 준다.**
+rem   그 검사가 없으면 match 는 그냥 if 사슬이다.
+
+enum color .
+  red .
+  green .
+  blue .
+end .
+
+
+fn code input c color . output u8 . do
+  match c do
+    case red . do return 10 . end .
+    case green . do return 20 . end .
+    case blue . do return 30 . end .
+  end .
+end .
+
+rem enum 값을 값 자리에 쓴다(변형 인덱스로 낮아진다).
+fn pick input n u8 . output color . do
+  if lt n 5 . do return red . end .
+  return blue .
+end .

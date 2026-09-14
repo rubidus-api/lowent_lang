@@ -1,0 +1,44 @@
+rem ★★★ **정렬 라이브러리 시험** (lib/sort.low — quicksort).
+rem
+rem   정렬은 순수 계산이라 **오라클 안**이다: VM 과 네이티브가 같은 답을 낸다 ⇒ **diff-sweep** 이
+rem   임의 입력에서 VM≡native 를 지킨다(cap 없는 순수 op 이라 차등 퍼저가 도달한다).
+rem
+rem ★ `sort_verify` 는 **스스로 검사한다**: 정렬 전 합을 기억하고, 정렬 후 (오름차순인가 AND
+rem   합이 보존됐는가)를 본다 — 임의 입력에서 1 이어야 한다. 순서 버그(오름차순 깨짐)도, 순열
+rem   버그(원소가 없어지거나 복제됨 → 합 변화)도 잡는다. diff-sweep 이 이것을 임의 배열에서 돌린다.
+rem ★ `sorted_at` 은 **정확한 순서**를 골든이 검사한다(알려진 배열 → 알려진 자리의 값).
+
+module vm_sort .
+
+use sortlib from "../../lib/sort.low" .
+
+rem 정렬 후 k 번째 원소. 알려진 배열의 정확한 정렬 결과를 골든이 대조한다.
+proc sorted_at input s mut slice u64 . . input k u64 . output u64 . effects none . do
+  sortlib.sort s .
+  guard lt k (len s) . else return 0 .
+  return index s k .
+end .
+
+rem 정렬 후 (오름차순 AND 합 보존) → 1/0. 임의 입력에서 자기검증 · diff-sweep 이 임의 배열에서 돌린다.
+proc sort_verify input s mut slice u64 . . output u64 . effects none . do
+  var pre u64 be 0 .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    set pre (wrap_add pre (index s i)) .
+    set i (add i 1) .
+  end .
+  sortlib.sort s .
+  var post u64 be 0 .
+  var sorted u64 be 1 .
+  var j u64 be 0 .
+  while lt j (len s) . do
+    set post (wrap_add post (index s j)) .
+    if gt j 0 . do
+      if gt (index s (sub j 1)) (index s j) . do set sorted 0 . end .
+    end .
+    set j (add j 1) .
+  end .
+  if ne pre post . do set sorted 0 . end .
+  return sorted .
+end .
+

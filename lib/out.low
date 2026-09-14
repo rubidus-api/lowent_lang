@@ -1,0 +1,117 @@
+rem ★★★ **다섯 번째 표준 라이브러리 — 버퍼링 출력** (RFC-0069 §3 · A6).
+rem
+rem ★★★ **빌트인 op 증가 0.** 방금 명문화한 리프 규칙(SPEC-002 부록 P)의 첫 시험이었다:
+rem   *"Lowent 로 쓸 수 있으면 라이브러리다."* 버퍼링·언제 비울지 판단·완결 규율은 전부
+rem   Lowent 로 쓸 수 있고, 세상에 닿는 것은 **이미 있는 `write_out` 하나**다. ⇒ 라이브러리.
+rem   RFC-0069 §7 은 `writer_new`/`write`/`finish` 를 **리프 3 개**로 예산 잡았는데, 규칙을
+rem   적용하니 **0 개**였다. 예산이 줄어드는 방향의 정정이다.
+rem
+rem ★★★ **소유되는 것은 버퍼가 아니라 *아직 안 나간 바이트* 다.**
+rem   RFC-0069 §3 은 `owned writer` 가 버퍼를 품는 모양을 그렸다. 실측이 그것을 못 쓰게 했고
+rem   (struct 필드에 `mut slice` 불가 · actor state 슬라이스에 쓰기 불가 — 둘 다 S5 코어 밖),
+rem   **더 나은 모양이 나왔다**: 버퍼는 호출자 것으로 두고(`lib/fmt.low` 과 같은 규율),
+rem   `owned` 로 지키는 것은 **flush 되지 않은 상태**(`pending`)로 잡는다.
+rem   ⇒ 잃으면 안 되는 바로 그것이 소유된다. 버퍼는 잃어도 되지만 **안 나간 바이트는 아니다.**
+rem
+rem ★★★ **그래서 flush 망각이 컴파일 오류다.** `finish` 가 `owned pending` 을 받고 `result` 를
+rem   내므로, 프로그램 자신의 선언이 *"이걸 끝내는 건 실패할 수 있다"* 고 말한 것이 된다 ⇒
+rem   그런 값을 조용히 버리면 **E-OWN-INCOMPLETE**(RFC-0058). 어노테이션이 아니라 **추론**이다.
+rem   · Zig  : flush 를 잊으면 출력이 통째로 사라진다. 타입이 못 잡는다(조사 §2.8).
+rem   · Rust : BufWriter 가 Drop 에서 flush 하되 **오류를 버린다**(Drop::drop 이 () 반환).
+rem   · 여기 : **컴파일이 안 된다.** 새 기계 0 — 있던 성질을 IO 가 쓰는 것뿐이다.
+rem
+rem ★★ **왜 라이터가 `cap io` 를 품지 않는가**: cap 은 값이 아니라 **정적 토큰**이라 담을 수
+rem   없다. 그런데 그것이 오히려 옳다 — **호출자가 비우는 지점마다 권한을 댄다** ⇒ 라이터가
+rem   몰래 flush 할 수 없다. 숨은 출력이 없다는 규율이 여기서도 유지된다.
+rem
+rem ☞ 안 지은 것(정직히): 벡터 쓰기(writev)·`write_splat`(§3.3) · 실패한 flush 뒤의 재시도 ·
+rem   `wait` (중단 가능 출력 — reactor 가 먼저다).
+
+module outbuf .
+
+export enum io_error .
+  write_failed .
+end .
+
+rem ★ 아직 안 나간 바이트의 상태. **스칼라만** 담는다(버퍼는 호출자 것).
+rem   `pos` = 버퍼에 쌓인 바이트 수 · `fd` = 어디로 비울지(1=stdout · 2=stderr).
+export struct pending .
+  pos u64 .
+  fd  u64 .
+end .
+
+rem 라이터를 연다. ★ 이 값을 **끝내지 않고 버리면 컴파일 오류**다(아래 finish 가 그렇게 만든다).
+export fn open input d u64 . output pending . do
+  return make pending do pos 0 . fd d . end .
+end .
+
+rem ★ 버퍼를 비운다 — **여기서만 세상에 닿는다**(write_out). 비운 뒤의 상태를 돌려준다.
+rem   부분 쓰기는 실패로 친다(Go 의 "short write 는 에러" 규율 — 조사 §1.2).
+export proc flush input out cap io . input p owned pending . input buf mut slice u8 . .
+  output result (owned pending) io_error . effects io .
+errors write_failed .
+do
+  let d u64 be field p fd .
+  rem ★ 쌓인 수가 버퍼보다 클 수 없다 — 다른(더 작은) 버퍼를 들고 오면 subslice 가 트랩한다. 실패는 값이다.
+  guard le (field p pos) (len buf) . else do
+    drop p .
+    return error write_failed .
+  end .
+  if gt (field p pos) 0 . do
+    let n u64 be write_out out d (subslice buf 0 (field p pos)) .
+    guard eq n (field p pos) . else do
+      drop p .
+      return error write_failed .
+    end .
+  end .
+  drop p .
+  return ok (make pending do pos 0 . fd d . end) .
+end .
+
+rem ★★ 바이트를 **버퍼에 쌓는다.** 가득 차면 그때 비운다 — 그것이 버퍼링의 전부다.
+rem   `write_out` 은 호출마다 fflush 하므로, 이것이 syscall 수를 바이트 수에서 **버퍼 수**로 줄인다.
+export proc write input out cap io . input p owned pending . input buf mut slice u8 . .
+  input s slice u8 .
+  output result (owned pending) io_error . effects io .
+errors write_failed .
+do
+  var cur owned pending be p .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    if ge (field cur pos) (len buf) . do
+      let r result (owned pending) io_error . be flush out cur buf .
+      guard is_ok r . else return error write_failed .
+      set cur (ok_value r) .
+    end .
+    rem ★ 비운 뒤에도 자리가 없으면(길이 0 버퍼) 값으로 거절한다 — 전엔 여기서 인덱스 트랩이었다.
+    guard lt (field cur pos) (len buf) . else do
+      drop cur .
+      return error write_failed .
+    end .
+    set (index buf (field cur pos)) (index s i) .
+    set (field cur pos) (add (field cur pos) 1) .
+    set i (add i 1) .
+  end .
+  return ok cur .
+end .
+
+rem ★★★ **완결.** owned 를 소비하고 result 를 낸다 — 이 선언 하나가 `pending` 을
+rem   *"완결이 필요한 타입"* 으로 만들고, 그래서 이것을 **안 부르면 컴파일이 안 된다**.
+export proc finish input out cap io . input p owned pending . input buf mut slice u8 . .
+  output result void io_error . effects io .
+errors write_failed .
+do
+  guard le (field p pos) (len buf) . else do
+    drop p .
+    return error write_failed .
+  end .
+  if gt (field p pos) 0 . do
+    let n u64 be write_out out (field p fd) (subslice buf 0 (field p pos)) .
+    guard eq n (field p pos) . else do
+      drop p .
+      return error write_failed .
+    end .
+  end .
+  drop p .
+  return ok .
+end .

@@ -1,0 +1,96 @@
+rem ★★★ **제네릭 = comptime 타입 파라미터 + 단형화** (RFC-0021 — P1 채택, **구현 0** 이었다).
+rem
+rem   RFC-0021 은 2026-06-28 에 채택됐다. 그리고 **한 줄도 지어지지 않았다.**
+rem   ★ 파서가 `comptime` 표식을 **CST 에서 지우고 있었다** — 그래서 `is_comptime` 은 **영원히
+rem     false** 였고, RFC 의 대표 문법이 **작동할 수 없었다.** 표식을 지운 채 "아직 못 한다"
+rem     고 말하는 것은 **자백이 아니라 자물쇠**였다.
+rem
+rem   ★★ 그리고 **경계(bound)가 이제 진짜다**: `requires <trait> t .` 는 런타임 술어가 아니라
+rem      *"이 타입은 그 trait 을 충족해야 한다"* 는 **컴파일타임 요구**다. 오늘 아침까지
+rem      trait 충족이 검사되지 않았으므로(W-NOT-YET) **경계는 아무것도 보장할 수 없었다** —
+rem      그래서 그것이 이것의 **선행 조건**이었다.
+rem
+rem   단형화는 CST → CST 다: 호출마다 `twice#rect` 라는 **구체 op** 을 만들고 본문의 `t` 를
+rem   치환한다. 뒷단(검사·타입·IR)은 **제네릭을 아예 모른다** — 간접 호출 0, 계약 그대로 전파.
+
+module gen .
+
+struct rect .
+  satisfies area_of .
+  w u8 .
+  h u8 .
+end .
+
+struct square .
+  satisfies area_of .
+  side u8 .
+end .
+
+rem ★ 제네릭 — 타입을 **comptime 인자**로 받는다
+trait area_of .
+  area input s self . output u64 . effects none .
+end .
+
+fn twice .
+  input comptime t type .
+  input a t .
+  output u64 .
+  requires area_of t .          rem ★ 경계 — t 는 area_of 를 충족해야 한다
+do
+  return mul 2 (method a area) .
+end .
+
+fn rect.area   input s rect .   output u64 . do return mul (widen u64 (field s w)) (widen u64 (field s h)) . end .
+fn square.area input s square . output u64 . do var d u64 be widen u64 (field s side) . return mul d d . end .
+
+fn demo output u64 . do
+  var r rect . be make rect do w 3 . h 4 . end .
+  var q square . be make square do side 5 . end .
+  return add (twice rect r) (twice square q) .
+end .
+
+rem ★★★ **제네릭이 제네릭을 부른다** — 타입 파라미터를 그대로 넘긴다.
+rem   이것이 **깨져 있었다**(E-IR-UNDEF): 인스턴스를 만든 뒤 **그 인스턴스의 본문을 다시
+rem   안 훑었다.** `h` 안의 `g t a` 는 **인스턴스 안**에 있으므로 한 번도 안 훑겼고,
+rem   `g` 가 제네릭 이름인 채로 남아 **틀이 제거된 IR 이 그것을 못 찾았다.**
+rem   ⇒ 단형화의 고전적 **작업목록(worklist)** 을 넣었다: 새 인스턴스가 안 나올 때까지 되풀이.
+fn thrice .
+  input comptime t type .
+  input a t .
+  output u64 .
+  requires area_of t .
+do
+  return add (twice t a) (method a area) .    rem ★ 제네릭이 제네릭을 부른다 (t 를 넘긴다)
+end .
+
+fn nested output u64 . do
+  var r rect . be make rect do w 3 . h 4 . end .
+  return thrice rect r .                 rem 2*12 + 12 = 36
+end .
+
+rem ★★★ **타입 파라미터는 여럿일 수 있다.** v1 은 **하나만** 치환했고, 나머지는 남아서
+rem   `E-TYPE-UNDEF: 타입 u 가 선언되지 않았다` 라는 **오진**을 냈다 — 진짜 이유는
+rem   *"단형화가 아직 하나만 지원한다"* 였다. **못 하는 것을 프로그램의 죄로 돌렸다**(교훈 5).
+fn pair .
+  input comptime t type .
+  input comptime u type .
+  input p t .
+  input q u .
+  output u64 .
+  requires area_of t .
+  requires area_of u .
+do
+  return add (method p area) (method q area) .
+end .
+
+fn two_types output u64 . do
+  var a rect . be make rect do w 3 . h 4 . end .
+  var b square . be make square do side 5 . end .
+  return pair rect square a b .      rem ★ 인스턴스 이름은 `pair#rect#square`
+end .
+
+test generic_holds do
+  expect eq (demo) 74 .                rem 2*(3*4) + 2*(5*5)
+  expect eq (nested) 36 .              rem ★ 제네릭 안의 제네릭
+  expect eq (two_types) 37 .          rem ★ 타입 파라미터 둘: 12 + 25
+end .

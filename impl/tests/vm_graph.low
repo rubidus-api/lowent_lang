@@ -1,0 +1,70 @@
+rem S5c gate fixture — §8 example B (SPEC-015 §17.2) made runnable: the spec body
+rem of graph_reachable verbatim + in-language helpers over a byte-encoded graph.
+rem Graph bytes = [n][deg_0 children_0…][deg_1 children_1…]… (adjacency lists).
+rem ★ 모듈 이름이 op 이름과 같았다(`module reach` + `fn reach`) — 그리고 아무도 안 막았다.
+rem   자격 있는 경로가 생기면 `reach.x` 가 **두 뜻**이 된다. 이름공간이 하나면 유일해야 한다.
+module reachability .
+
+type bytes slice u8 . .
+type graph slice u8 . .
+rem ★ 이 셋도 선언 없이 쓰이고 있었다 — 이름이 아무것도 가리키지 않았다(E-TYPE-UNDEF 가 잡았다).
+type node_id u64 . .
+type node_count u64 . .
+type frame u64 . .
+
+fn node_count_of .
+  input g graph .
+  output u64 .
+do
+  return index g 0 .
+end .
+
+fn children_of .
+  input g graph .
+  input node u64 .
+  output bytes .
+do
+  var at u64 be 1 .
+  var i u64 be 0 .
+  while lt i node . do
+    set at expr at + (index g at) + 1 . .
+    set i expr i + 1 . .
+  end .
+  return subslice g (add at 1) (add (add at 1) (index g at)) .
+end .
+
+proc graph_reachable .
+  input temp region frame . .
+  input g graph .
+  input root node_id .
+  input out mut bitset node_count . .
+  output void .
+  effects alloc .   rem ★ `stack_new` 은 alloc 이다 — 중첩돼 있어서 안 보였다
+do
+  let work stack node_id . be stack_new temp capacity node_count_of g . . .
+  push work root .
+  while pop work into node . do
+    if contains out node . do
+      continue .
+    end .
+    add out node .
+    for child children_of g node . do
+      push work child .
+    end .
+  end .
+end .
+
+rem ★★★ **할당 = 명시 권한** (RFC-0043 D1). 이 op 은 할당한다(`bitset_new`) — 그러면
+rem   **어디서 할당하는지**를 건네받아야 한다. 전엔 아무것도 안 받고 할당했다: **ambient 힙**.
+rem   그것이 정확히 이 모델이 없애는 **숨은 의존**이다.
+proc reach .
+  input temp region frame . .      rem ★ 할당 권한 — region 은 arena allocator 다(D7)
+  input root u64 .
+  input g graph .
+  output u64 .
+  effects alloc .   rem ★ alloc 이 **호출 사슬을 타고 전파된다** — graph_reachable 이 alloc 이다
+do
+  var out bitset be bitset_new 64 . .
+  graph_reachable temp g root out .
+  return count out .
+end .

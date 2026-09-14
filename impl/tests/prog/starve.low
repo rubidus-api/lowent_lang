@@ -1,0 +1,42 @@
+rem ★★★ **A2 — 형제가 굶지 않는다** (RFC-0071 A2).
+rem
+rem ★★★ **A1 까지 그린스레드 하나가 IO 로 막히면 프로세스 전체가 커널에 갇혔다.**
+rem   `read_in`·`r_read` 가 블로킹 syscall 이었고 스케줄러에 양보하지 않았다.
+rem   ⇒ A2: fd 를 **논블로킹**으로 두고, 읽을 것이 없으면 **상태 7(io 대기)** 로 양보한다.
+rem   ★★ **바쁜대기가 아니다**: 돌 것이 하나도 없을 때만 스케줄러가 `epoll_wait` 로 **진짜로 잔다.**
+rem     그래서 이 자리가 스케줄러 안이어야 했고, reactor 와 코루틴 런타임이 **한 기계**인 이유다.
+rem
+rem ★★★ **재는 법 — 타이밍이 아니라 인과다**(RFC-0071 A2 가 그렇게 못박았다):
+rem   ① 데이터가 **안 오는** fifo 를 stdin 으로 준다(쓰기 쪽은 열려 있다 — EOF 가 아니다).
+rem   ② 태스크 A 가 그것을 읽는다 → 막힌다.
+rem   ③ 태스크 B 가 `MARK` 를 찍는다.
+rem   ④ **블로킹이면 `MARK` 가 영영 안 나온다. 양보하면 나온다.**
+rem   ⑤ 그 뒤 fifo 를 닫으면 A 가 EOF 로 끝나고 프로그램이 **0 으로 종료**한다 —
+rem      그것이 *"A 가 정말로 그 fd 를 기다리고 있었다"* 는 증거다.
+rem   ☞ `sleep` 으로 재지 않는다. 흔들리는 시험은 검사가 아니다.
+
+module starve .
+proc reader input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+  rem ★ reactor 뒷받침은 **읽기 목적지와 달라야 한다**(RFC-0022 D-B) — completion 백엔드는
+  rem   그 자리에 읽고 나서 목적지로 옮기므로 겹치면 덮어쓴다. 도구가 모든 백엔드에서 거절한다.
+  rem ★ 앞 절반은 reactor 것, 뒤 절반이 읽기 자리 — **겹치지 않는 두 구간**이다.
+  let r option u64 . be reactor_new k (subslice buf 0 32) 1 .
+  guard is_some r . else return 90 .
+  let n option u64 . be r_read k (some_value r) 0 (subslice buf 32 64) .
+  if is_some n . do return some_value n . end .
+  return 0 .
+end .
+proc marker input k cap io . output u64 . effects io . do
+  let w u64 be write_out k 1 "MARK\n" .
+  return w .
+end .
+proc main input k cap io . input al cap allocator . output u8 . effects alloc io state . do
+  let b0 option mut slice u8 . . be alloc_bytes al capacity 64 .
+  guard is_some b0 . else return 69 .
+  var buf mut slice u8 . be some_value b0 .
+  task_group do
+    spawn reader k buf .
+    spawn marker k .
+  end .
+  return 0 .
+end .

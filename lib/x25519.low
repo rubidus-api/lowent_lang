@@ -1,0 +1,325 @@
+rem ★★★ **X25519** (RFC 7748) — Lowent 로 쓴다. 먼저 **체(field) 산술**이다.
+rem
+rem   소수는 p = 2^255 - 19. 원소를 **16 조각 × 16 비트**로 담는다(TweetNaCl 배치).
+rem   곱은 16×16=32 비트, 16 항 합에 38 배까지 해도 2^46 아래 — u64 안에서 안전하다.
+rem
+rem ★★ **왜 ref10 의 26/25 비트 배치가 아닌가(정직히).**
+rem   그 배치는 조각이 **음수가 될 수 있고**, 자리올림을 `(h + (1<<25)) >> 26` 같은
+rem   **산술 오른쪽 시프트**로 한다. 그런데 이 언어의 `shr` 은 **논리 시프트**다
+rem   (-64 shr 6 이 -1 이 아니다 — 측정으로 확인했다). 그래서 그 배치는 여기서 못 쓴다.
+rem   ⇒ **음수가 아예 없는 표현**을 고른다. 뺄셈은 `a - b` 대신 `a + 4p - b` 로 한다:
+rem     4p ≡ 0 (mod p) 이므로 값은 같고, 모든 중간값이 **음이 아니다**.
+rem   ☞ 도구의 한계가 표현을 골랐는데, 고른 쪽이 **추론하기 더 쉬운 쪽**이었다.
+rem
+rem ★ 오라클은 **RFC 7748 §5.2 · §6.1** 이다.
+rem
+rem ☞ 안 지은 것: **상수시간 보장**.
+rem ☞ 지은 것 하나 더(2026-09-04): 공유 비밀이 **전부 0 이면 실패**다 — 작은 위수 점을 보낸
+rem   상대에게 "성공" 을 돌려주지 않는다(RFC 7748 §6.1 · RFC 8446 §7.4.2 MUST). 사다리는 비밀 비트로 분기하지 않고 마스크로 고르지만,
+rem   경계 검사와 트랩이 있는 언어에서 타이밍을 약속할 수는 없다 — poly.low 와 같은 자리다.
+
+module x25519 .
+
+rem 자리올림 — 조각을 16 비트로 되돌린다. 2^256 ≡ 38 (mod p) 이므로 넘친 것은 38 배로 접는다.
+rem   ☞ 세 번 도는 이유: 첫 번째 뒤 o[0] 이 최대 2^36 까지 커진다(38·c). 두 번째가 그것을
+rem     흘려보내고, 세 번째는 **아무것도 안 바뀌는 것을 확인하는 자리**다 — 여유가 증명이 아니라면
+rem     한 번 더 도는 값이 싸다.
+export proc fcar input o mut slice u64 . output u64 . effects none . do
+  guard ge (len o) 16 . else return 0 .
+  var pass u64 be 0 .
+  while lt pass 3 . do
+    var c u64 be 0 .
+    var i u64 be 0 .
+    while lt i 16 . do
+      let v u64 be add (index o i) c .
+      set (index o i) (bit_and v 65535) .
+      set c (shr v 16) .
+      set i (add i 1) .
+    end .
+    set (index o 0) (add (index o 0) (mul c 38)) .
+    set pass (add pass 1) .
+  end .
+  return 1 .
+end .
+
+export proc fzero input o mut slice u64 . output u64 . effects none . do
+  guard ge (len o) 16 . else return 0 .
+  var i u64 be 0 .
+  while lt i 16 . do  set (index o i) 0 .  set i (add i 1) .  end .
+  return 1 .
+end .
+
+export proc fone input o mut slice u64 . output u64 . effects none . do
+  guard eq (fzero o) 1 . else return 0 .
+  set (index o 0) 1 .
+  return 1 .
+end .
+
+export proc fcopy input o mut slice u64 . input a slice u64 . output u64 . effects none . do
+  guard ge (len o) 16 . else return 0 .
+  guard ge (len a) 16 . else return 0 .
+  var i u64 be 0 .
+  while lt i 16 . do  set (index o i) (index a i) .  set i (add i 1) .  end .
+  return 1 .
+end .
+
+rem o = a + b
+export proc fadd input o mut slice u64 . input a slice u64 . input b slice u64 . output u64 . effects none . do
+  guard ge (len o) 16 . else return 0 .
+  guard ge (len a) 16 . else return 0 .
+  guard ge (len b) 16 . else return 0 .
+  var i u64 be 0 .
+  while lt i 16 . do
+    set (index o i) (add (index a i) (index b i)) .
+    set i (add i 1) .
+  end .
+  return fcar o .
+end .
+
+rem ★ o = a − b, 음수 없이. 4p = 2^257 − 76 의 조각을 더하고 뺀다:
+rem     4p 의 조각 = [0x1FFB4, 0x1FFFE × 15]   (0xFFDA·2 와 0xFFFF·2)
+rem   b 의 조각이 16 비트로 정리돼 있으면(호출 전 fcar) 언제나 음이 아니다.
+export proc fsub input o mut slice u64 . input a slice u64 . input b slice u64 . output u64 . effects none . do
+  guard ge (len o) 16 . else return 0 .
+  guard ge (len a) 16 . else return 0 .
+  guard ge (len b) 16 . else return 0 .
+  guard le (index b 0) 130996 . else return 0 .
+  set (index o 0) (sub (add (index a 0) 130996) (index b 0)) .
+  var i u64 be 1 .
+  while lt i 16 . do
+    guard le (index b i) 131070 . else return 0 .
+    set (index o i) (sub (add (index a i) 131070) (index b i)) .
+    set i (add i 1) .
+  end .
+  return fcar o .
+end .
+
+rem o = a · b.  `t` 는 31 원소 작업 공간. o 는 a·b 와 같은 자리여도 된다(t 를 다 채운 뒤 옮긴다).
+export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 . input t mut slice u64 . output u64 . effects none . do
+  guard ge (len o) 16 . else return 0 .
+  guard ge (len a) 16 . else return 0 .
+  guard ge (len b) 16 . else return 0 .
+  guard ge (len t) 31 . else return 0 .
+  var k u64 be 0 .
+  while lt k 31 . do  set (index t k) 0 .  set k (add k 1) .  end .
+  var i u64 be 0 .
+  while lt i 16 . do
+    var j u64 be 0 .
+    while lt j 16 . do
+      set (index t (add i j)) (add (index t (add i j)) (mul (index a i) (index b j))) .
+      set j (add j 1) .
+    end .
+    set i (add i 1) .
+  end .
+  rem 2^256 ≡ 38 — 위쪽 15 조각을 38 배로 접어 내린다.
+  var m u64 be 0 .
+  while lt m 15 . do
+    set (index t m) (add (index t m) (mul 38 (index t (add m 16)))) .
+    set m (add m 1) .
+  end .
+  var q u64 be 0 .
+  while lt q 16 . do  set (index o q) (index t q) .  set q (add q 1) .  end .
+  return fcar o .
+end .
+
+export proc fsq input o mut slice u64 . input a slice u64 . input t mut slice u64 . output u64 . effects none . do
+  return fmul o a a t .
+end .
+
+rem o = a · 121665  (몽고메리 곡선 상수 (A−2)/4)
+export proc fmul121665 input o mut slice u64 . input a slice u64 . output u64 . effects none . do
+  guard ge (len o) 16 . else return 0 .
+  guard ge (len a) 16 . else return 0 .
+  var i u64 be 0 .
+  while lt i 16 . do
+    set (index o i) (mul (index a i) 121665) .
+    set i (add i 1) .
+  end .
+  return fcar o .
+end .
+
+rem ★ 조건부 교환 — `bit` 가 1 이면 p 와 q 를 바꾼다. **분기가 아니라 마스크**다.
+rem   mask = 0 − bit  ⇒ bit=1 이면 전부 1, bit=0 이면 전부 0. (0−1 은 감기므로 `wrap_sub`.)
+export proc fsel input p mut slice u64 . input q mut slice u64 . input bit u64 . output u64 . effects none . do
+  guard ge (len p) 16 . else return 0 .
+  guard ge (len q) 16 . else return 0 .
+  guard le bit 1 . else return 0 .
+  let mask u64 be wrap_sub 0 bit .
+  var i u64 be 0 .
+  while lt i 16 . do
+    let d u64 be bit_and mask (bit_xor (index p i) (index q i)) .
+    set (index p i) (bit_xor (index p i) d) .
+    set (index q i) (bit_xor (index q i) d) .
+    set i (add i 1) .
+  end .
+  return 1 .
+end .
+
+rem 32 바이트(리틀엔디언) → 조각 16 개. 최상위 비트는 버린다(RFC 7748 §5).
+export proc funpack input o mut slice u64 . input s slice u8 . output u64 . effects none . do
+  guard ge (len o) 16 . else return 0 .
+  guard ge (len s) 32 . else return 0 .
+  var i u64 be 0 .
+  while lt i 16 . do
+    set (index o i) (bit_or (cast u64 (index s (mul i 2)))
+                            (shl (cast u64 (index s (add (mul i 2) 1))) 8)) .
+    set i (add i 1) .
+  end .
+  set (index o 15) (bit_and (index o 15) 32767) .
+  return 1 .
+end .
+
+rem ★★ 정규화해서 32 바이트로 낸다. **여기가 유일하게 "진짜 값"을 정하는 자리**다 —
+rem   그 전까지 조각 표현은 같은 값을 여러 모양으로 담을 수 있다(p 를 더해도 값은 같다).
+rem   p 를 두 번 빼 보고, 빌림이 안 났을 때만 그 결과를 고른다. 빌림은 **비트로 읽는다**:
+rem   `wrap_sub` 이 감기면 상위 비트가 서고, `shr … 16` 의 1 비트가 그것을 말한다.
+export proc fpack input out mut slice u8 . input a mut slice u64 . input m mut slice u64 . output u64 . effects none . do
+  guard ge (len out) 32 . else return 0 .
+  guard ge (len a) 16 . else return 0 .
+  guard ge (len m) 16 . else return 0 .
+  guard eq (fcar a) 1 . else return 0 .
+  var trim u64 be 0 .
+  while lt trim 2 . do
+    set (index m 0) (wrap_sub (index a 0) 65517) .
+    var i u64 be 1 .
+    while lt i 15 . do
+      set (index m i) (wrap_sub (wrap_sub (index a i) 65535)
+                                (bit_and (shr (index m (sub i 1)) 16) 1)) .
+      set (index m (sub i 1)) (bit_and (index m (sub i 1)) 65535) .
+      set i (add i 1) .
+    end .
+    set (index m 15) (wrap_sub (wrap_sub (index a 15) 32767)
+                               (bit_and (shr (index m 14) 16) 1)) .
+    let borrow u64 be bit_and (shr (index m 15) 16) 1 .
+    set (index m 14) (bit_and (index m 14) 65535) .
+    set (index m 15) (bit_and (index m 15) 65535) .
+    let pick u64 be sub 1 borrow .
+    let z u64 be fsel a m pick .
+    set trim (add trim 1) .
+  end .
+  var k u64 be 0 .
+  while lt k 16 . do
+    set (index out (mul k 2)) (cast u8 (bit_and (index a k) 255)) .
+    set (index out (add (mul k 2) 1)) (cast u8 (bit_and (shr (index a k) 8) 255)) .
+    set k (add k 1) .
+  end .
+  return 32 .
+end .
+
+rem ★★ 역원 — a^(p−2) 를 제곱·곱셈 사슬로 낸다(페르마). p−2 의 비트는 2 와 4 자리만 0 이다.
+rem   ☞ 왜 확장 유클리드가 아닌가: 그것은 **입력에 따라 도는 횟수가 달라진다**. 여기 사슬은
+rem     언제나 254 번 제곱하고 252 번 곱한다 — 비밀에 따라 모양이 안 바뀐다.
+rem   `c`·`t` 는 작업 공간(c 는 16, t 는 31).
+export proc finv input o mut slice u64 . input a slice u64 . input c mut slice u64 . input t mut slice u64 . output u64 . effects none . do
+  guard eq (fcopy c a) 1 . else return 0 .
+  var j u64 be 0 .
+  while lt j 254 . do
+    let i u64 be sub 253 j .
+    let z1 u64 be fsq c c t .
+    if ne i 2 . do
+      if ne i 4 . do
+        let z2 u64 be fmul c c a t .
+      end .
+    end .
+    set j (add j 1) .
+  end .
+  return fcopy o c .
+end .
+
+rem ★★★ **몽고메리 사다리** (RFC 7748 §5) — 스칼라 곱 q = n · P.
+rem   작업 공간은 전부 호출자가 든다: fe 아홉(a b c d e f g x s, 각 16) · t(31) · z(32 바이트).
+rem   ☞ 비밀 비트 `r` 로 **분기하지 않는다** — `fsel` 이 마스크로 고른다.
+export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice u8 .
+     input z mut slice u8 .
+     input fa mut slice u64 . input fb mut slice u64 . input fc mut slice u64 .
+     input fd mut slice u64 . input fe mut slice u64 . input ff mut slice u64 .
+     input fg mut slice u64 . input fx mut slice u64 . input fs mut slice u64 .
+     input t mut slice u64 . output u64 . effects none . do
+  guard ge (len q) 32 . else return 0 .
+  guard ge (len n) 32 . else return 0 .
+  guard ge (len pt) 32 . else return 0 .
+  guard ge (len z) 32 . else return 0 .
+
+  rem ★ 스칼라 다듬기(clamp, RFC 7748 §5): 하위 3 비트를 끄고, 최상위 비트를 끄고 그 아래를 켠다.
+  var i u64 be 0 .
+  while lt i 32 . do  set (index z i) (index n i) .  set i (add i 1) .  end .
+  set (index z 0) (cast u8 (bit_and (cast u64 (index z 0)) 248)) .
+  set (index z 31) (cast u8 (bit_or (bit_and (cast u64 (index z 31)) 127) 64)) .
+
+  guard eq (funpack fx pt) 1 . else return 0 .
+  guard eq (fone fa) 1 . else return 0 .
+  guard eq (fcopy fb fx) 1 . else return 0 .
+  guard eq (fzero fc) 1 . else return 0 .
+  guard eq (fone fd) 1 . else return 0 .
+
+  var j u64 be 0 .
+  while lt j 255 . do
+    let bi u64 be sub 254 j .
+    let r u64 be bit_and (shr (cast u64 (index z (shr bi 3))) (bit_and bi 7)) 1 .
+    let s1 u64 be fsel fa fb r .
+    let s2 u64 be fsel fc fd r .
+    let o1 u64 be fadd fe fa fc .
+    let o2 u64 be fsub fs fa fc .
+    let o3 u64 be fcopy fa fs .
+    let o4 u64 be fadd fc fb fd .
+    let o5 u64 be fsub fs fb fd .
+    let o6 u64 be fcopy fb fs .
+    let o7 u64 be fsq fd fe t .
+    let o8 u64 be fsq ff fa t .
+    let o9 u64 be fmul fs fc fa t .
+    let o10 u64 be fcopy fa fs .
+    let o11 u64 be fmul fs fb fe t .
+    let o12 u64 be fcopy fc fs .
+    let o13 u64 be fadd fe fa fc .
+    let o14 u64 be fsub fs fa fc .
+    let o15 u64 be fcopy fa fs .
+    let o16 u64 be fsq fb fa t .
+    let o17 u64 be fsub fs fd ff .
+    let o18 u64 be fcopy fc fs .
+    let o19 u64 be fmul121665 fa fc .
+    let o20 u64 be fadd fs fa fd .
+    let o21 u64 be fcopy fa fs .
+    let o22 u64 be fmul fs fc fa t .
+    let o23 u64 be fcopy fc fs .
+    let o24 u64 be fmul fs fd ff t .
+    let o25 u64 be fcopy fa fs .
+    let o26 u64 be fmul fs fb fx t .
+    let o27 u64 be fcopy fd fs .
+    let o28 u64 be fsq fb fe t .
+    let s3 u64 be fsel fa fb r .
+    let s4 u64 be fsel fc fd r .
+    set j (add j 1) .
+  end .
+
+  rem q = a / c  — 사영 좌표를 되돌린다.
+  guard eq (finv fg fc fs t) 1 . else return 0 .
+  guard eq (fmul fs fa fg t) 1 . else return 0 .
+  let np u64 be fpack q fs fg .
+  guard eq np 32 . else return 0 .
+
+  rem ★★★ **전부 0 인 공유 비밀은 실패다** (RFC 7748 §6.1 · RFC 8446 §7.4.2 는 MUST, 2026-09-04).
+  rem   상대가 **작은 위수 점**(u = 0 · 1 · 위수 8 점들)을 보내면 사다리의 답이 우리 비밀과
+  rem   무관하게 0 이 된다 — 즉 **상대가 공유 비밀을 미리 안다**. 그것으로 키를 뽑으면 핸드셰이크는
+  rem   "성공" 하지만 아무것도 지키지 못한다. 조용히 이기는 것보다 **거절**이 낫다.
+  rem   ☞ 여기서 막는 까닭: 이 답을 쓰는 모든 길(agree · 그리고 그 위의 TLS)이 한 자리를 지나기 때문이다.
+  var zsum u64 be 0 .
+  var zi u64 be 0 .
+  while lt zi 32 . do
+    set zsum (bit_or zsum (cast u64 (index q zi))) .
+    set zi (add zi 1) .
+  end .
+  guard gt zsum 0 . else return 0 .
+  return 32 .
+end .
+
+rem ★★ 부르기 좋은 얼굴 — 작업 공간을 **하나로** 받는다.
+rem   `scalarmult` 는 체 원소 아홉과 곱셈 자리를 따로 받는다(그 편이 안에서 읽기 쉽다).
+rem   그러나 부르는 쪽에서 열넷을 늘어놓으면 **파라미터 상한 16 을 금방 먹는다** — 실제로
+rem   이 라이브러리를 쓴 첫 프로그램이 거기서 E-IR-ARITY 로 거절당했다.
+rem   ⇒ `w` 하나(u64 175 원소 이상)를 잘라 쓴다. 자리 배치는 여기 **한 곳**에만 있다.
+rem     fe 아홉 = w[0..144] · 곱셈 자리 = w[144..175]
+export proc agree input q mut slice u8 . input n slice u8 . input pt slice u8 .
+     input zb mut slice u8 . input w mut slice u64 . output u64 . effects none . do
+  guard ge (len w) 175 . else return 0 .
+  return scalarmult q n pt zb (subslice w 0 16) (subslice w 16 32) (subslice w 32 48) (subslice w 48 64) (subslice w 64 80) (subslice w 80 96) (subslice w 96 112) (subslice w 112 128) (subslice w 128 144) (subslice w 144 175) .
+end .

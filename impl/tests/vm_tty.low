@@ -1,0 +1,106 @@
+rem ★★★ **터미널 입력의 순수 절반 검증** (cap tty 슬라이스 · lib/tty.low).
+rem   터미널이 보내는 것은 바이트열이고 그것을 키로 읽는 것은 **계산**이다 — 그래서 화면 없이
+rem   오라클이 그대로 돌린다. 권한이 필요한 셋(raw·읽기·크기)은 여기서 안 부른다.
+
+module vm_tty .
+
+use tty .
+
+rem 평범한 글자는 그 바이트가 곧 키다. 'a'(97) 한 바이트.
+proc plain input buf mut slice u8 . . output u64 . effects none . do
+  guard ge (len buf) 8 . else return 90 .
+  set (index buf 0) 97 .
+  let p option u64 . be tty.parse_key (subslice buf 0 1) 0 .
+  guard is_some p . else return 1 .
+  guard eq (tty.key_of (some_value p)) 97 . else return 2 .
+  guard eq (tty.len_of (some_value p)) 1 . else return 3 .
+  guard tty.is_char (tty.key_of (some_value p)) . else return 4 .
+  return 42 .
+end .
+
+rem 방향키 ESC [ A = 위쪽(1001), 세 바이트를 먹는다.
+proc arrow input buf mut slice u8 . . output u64 . effects none . do
+  guard ge (len buf) 8 . else return 90 .
+  set (index buf 0) 27 .
+  set (index buf 1) 91 .
+  set (index buf 2) 65 .
+  let p option u64 . be tty.parse_key (subslice buf 0 3) 0 .
+  guard is_some p . else return 1 .
+  guard eq (tty.key_of (some_value p)) 1001 . else return 2 .
+  guard eq (tty.len_of (some_value p)) 3 . else return 3 .
+  rem 특수키는 글자가 아니다 — 그 구별이 한 값에 들어 있다.
+  guard eq (tty.is_char (tty.key_of (some_value p))) false . else return 4 .
+  return 42 .
+end .
+
+rem 숫자꼴 ESC [ 3 ~ = Delete(1007), 네 바이트.
+proc del_key input buf mut slice u8 . . output u64 . effects none . do
+  guard ge (len buf) 8 . else return 90 .
+  set (index buf 0) 27 .
+  set (index buf 1) 91 .
+  set (index buf 2) 51 .
+  set (index buf 3) 126 .
+  let p option u64 . be tty.parse_key (subslice buf 0 4) 0 .
+  guard is_some p . else return 1 .
+  guard eq (tty.key_of (some_value p)) 1007 . else return 2 .
+  guard eq (tty.len_of (some_value p)) 4 . else return 3 .
+  return 42 .
+end .
+
+rem ★ **불완전한 시퀀스는 지어내지 않는다** — ESC [ 만 왔으면 none(더 기다리라는 답이다).
+rem   그런데 ESC 하나만 왔으면 그것은 ESC 키다(뒤가 없으면 기다릴 수 없다).
+proc partial input buf mut slice u8 . . output u64 . effects none . do
+  guard ge (len buf) 8 . else return 90 .
+  set (index buf 0) 27 .
+  set (index buf 1) 91 .
+  let p option u64 . be tty.parse_key (subslice buf 0 2) 0 .
+  guard is_some p . else do
+    let q option u64 . be tty.parse_key (subslice buf 0 1) 0 .
+    guard is_some q . else return 1 .
+    guard eq (tty.key_of (some_value q)) 1010 . else return 2 .
+    return 42 .
+  end .
+  return 3 .
+end .
+
+rem ★★★★★ **리프 셋을 실제로 돌린다** (2026-08-07 · 소유자 지시 ③).
+rem   위의 넷은 **파싱**이다(순수·오라클 안). 아래 셋은 **리프**다 — `tty_raw`·`tty_read`·
+rem   `tty_size`. 그 셋은 이 저장소 어디에서도 **불린 적이 없었다**: 골든은 컴파일 검사와
+rem   권한 강제(`cap tty` 없이 거절 · `cap io` 로도 거절)만 봤고 **실행은 안 했다.**
+rem   `lib/tty.low` 마저 키코드 파싱만 하고 이 리프를 안 건드린다.
+rem   ⇒ *"VM 과 네이티브가 같은 답을 낸다"* 는 주장이 이 셋에는 **근거가 없었다.**
+rem
+rem ★ **비-터미널이면 답이 결정적이다.** 하네스에서 표준입력은 `/dev/null` 이다 ⇒
+rem   `tty_size` 는 none · `tty_raw` 는 못 들어간다. 터미널에서 무엇을 하는지는 이 축이
+rem   답할 물음이 아니고, 답할 수 있는 물음은 **두 뒤끝이 같은 말을 하는가** 하나다.
+rem
+rem ☞ 실제로 돌려 보니 **갈려 있었다**: VM 은 셋 다 0 인데 네이티브는 `tty_raw` 가 **1**
+rem   (파이프인데 raw 진입 성공이라 답)이고 나머지 둘은 `is_some needs an option` 으로 죽었다.
+rem   원인은 **C 뒤끝에 이 옵코드의 case 가 하나도 없다**는 것이었다 — 태그 경로 switch 에
+rem   `default:` 도 없어 그 명령을 조용히 건너뛰고 스택이 어긋났다.
+rem   ★ 그리고 **gcc 가 매 빌드 그것을 말하고 있었다**(`IRW_TTYSIZE not handled in switch`).
+rem     읽히지 않는 경고는 없는 경고다.
+rem   ⇒ **구현했다**(단계 AD · `lw_tty_raw`·`lw_tty_read`·`lw_tty_size`). 이제 두 뒤끝이
+rem     같은 답을 내고, 이 셋은 그 일치를 지키는 증인이다.
+
+proc size_is_none input t cap tty . output u64 . effects io . do
+  let s option u64 . be tty_size t .
+  if is_some s . do return 1 . end .
+  return 0 .
+end .
+
+rem raw 모드를 요청한다. 터미널이 아니면 들어갈 수 없다. 복귀도 부른다 — 못 들어갔어도
+rem 짝을 맞추는 것이 이 API 의 규율이다.
+proc raw_refused input t cap tty . output u64 . effects io . do
+  let entered bool be tty_raw t true .
+  let left bool be tty_raw t false .
+  if entered . do return 1 . end .
+  if left . do return 2 . end .
+  return 0 .
+end .
+
+proc read_nothing input t cap tty . input dst mut slice u8 . output u64 . effects io . do
+  let n option u64 . be tty_read t dst .
+  if is_some n . do return some_value n . end .
+  return 0 .
+end .

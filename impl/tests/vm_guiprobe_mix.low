@@ -1,0 +1,25 @@
+rem ★ 음성 픽스처 — RFC-0108 수용 시험 1: **다른 브랜드의 손잡이를 넘긴 프로그램은 번역 거부.**
+rem   저장소 A 의 `handle ga` 를 저장소 B 에 묻는다. 브랜드는 `newtype` 이고 손잡이의 실행 값은
+rem   같은 u64 word 이므로, 이것을 막는 것은 **타입검사뿐**이다(`E-TYPE-INSTANCE`, vm_poolmix 와 같은 기제).
+module vm_guiprobe_mix .
+
+newtype ga u8 .
+newtype gb u8 .
+
+struct handle .
+  input comptime b type .
+  w u64 .
+end .
+
+fn resolve input comptime b type . input gen slice u64 . input h handle b . output option u64 . do
+  guard lt (field h w) (len gen) . else return none .
+  return some (field h w) .
+end .
+
+export fn mix input gen slice u64 . output u64 . do
+  let ha handle ga . be make handle ga do w 0 . end .
+  rem ★ A 의 손잡이를 **B** 에 묻는다 — 여기서 거절되어야 한다.
+  let r option u64 . be resolve gb gen ha .
+  if is_some r . do return 1 . end .
+  return 0 .
+end .

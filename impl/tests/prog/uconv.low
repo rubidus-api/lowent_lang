@@ -1,0 +1,75 @@
+rem ★★★★★ **utf8 과 utf16 이 드디어 한 단위에 산다** (2026-08-07).
+rem
+rem   두 모듈은 `decode`·`next`·`count_chars`·`is_valid` **넷을 겹친다.** 그래서 여태
+rem   **함께 쓸 수가 없었다** — 그런데 두 모듈의 **대표 용도가 바로 상호 변환**이다.
+rem   즉 라이브러리가 자기 존재 이유를 쓸 수 없었다(공존 불가 쌍 22 → 19).
+rem
+rem   막고 있던 것은 평평한 이름이 아니라 **해소 순서**였다: 맨이름이 이름만 보고 첫 정의를
+rem   집어서, `utf16.count_chars` 가 자기 `next` 대신 **먼저 선언된 모듈의** `next` 에 묶였다.
+rem   **선언 순서가 답을 바꿨다** — 이 파일이 utf8 먼저·utf16 먼저 **둘 다** 42 를 내는지 본다.
+rem
+rem   ★ 오라클은 **리터럴**이다: `"한"` 과 `u"한"` 은 같은 원문의 두 표현이므로,
+rem     두 디코더가 같은 코드포인트를 내야 한다(단계 Y 가 이 오라클을 만들었다).
+
+use utf8  from "../../../lib/utf8.low" .
+use utf16 from "../../../lib/utf16.low" .
+
+module conv .
+
+rem 두 모듈이 한 단위에 살고, **대표 용도인 상호 대조**를 실제로 한다.
+rem 같은 글자를 UTF-8 과 UTF-16 으로 각각 적고 두 디코더가 **같은 코드포인트**를 내는지 본다.
+rem 리터럴이 오라클이다 — "…" 과 u"…" 은 같은 원문에서 나온 두 표현이다.
+
+fn f output u64 . do
+  rem ASCII
+  let a8 slice u8 be "A" .
+  let a16 slice u16 be u"A" .
+  let c8 option u64 . be utf8.decode a8 0 .
+  let c16 option u64 . be utf16.decode a16 0 .
+  guard is_some c8 . else return 90 .
+  guard is_some c16 . else return 91 .
+  guard eq (some_value c8) (some_value c16) . else return 92 .
+  guard eq (some_value c8) 65 . else return 93 .
+
+  rem 한글 — UTF-8 3 바이트 · UTF-16 1 유닛
+  let k8 slice u8 be "한" .
+  let k16 slice u16 be u"한" .
+  guard eq (len k8) 3 . else return 94 .
+  guard eq (len k16) 1 . else return 95 .
+  let d8 option u64 . be utf8.decode k8 0 .
+  let d16 option u64 . be utf16.decode k16 0 .
+  guard is_some d8 . else return 96 .
+  guard is_some d16 . else return 97 .
+  guard eq (some_value d8) (some_value d16) . else return 98 .
+  guard eq (some_value d8) 54620 . else return 99 .
+
+  rem 비-BMP — UTF-8 4 바이트 · UTF-16 **서러게이트 쌍** 2 유닛
+  let e8 slice u8 be "😀" .
+  let e16 slice u16 be u"😀" .
+  guard eq (len e8) 4 . else return 100 .
+  guard eq (len e16) 2 . else return 101 .
+  let g8 option u64 . be utf8.decode e8 0 .
+  let g16 option u64 . be utf16.decode e16 0 .
+  guard is_some g8 . else return 102 .
+  guard is_some g16 . else return 103 .
+  guard eq (some_value g8) (some_value g16) . else return 104 .
+  guard eq (some_value g8) 128512 . else return 105 .
+
+  rem 글자 수는 표현이 달라도 같아야 한다 — 이것이 두 모듈을 함께 쓰는 이유다.
+  let m8 slice u8 be "A한😀" .
+  let m16 slice u16 be u"A한😀" .
+  let n8 option u64 . be utf8.count_chars m8 .
+  let n16 option u64 . be utf16.count_chars m16 .
+  guard is_some n8 . else return 106 .
+  guard is_some n16 . else return 107 .
+  guard eq (some_value n8) (some_value n16) . else return 108 .
+  guard eq (some_value n8) 3 . else return 109 .
+
+  rem 바이트 수와 유닛 수는 **다르다** — 같으면 위 대조가 우연일 수 있다.
+  guard eq (len m8) 8 . else return 110 .
+  guard eq (len m16) 4 . else return 111 .
+
+  guard utf8.is_valid m8 . else return 112 .
+  guard utf16.is_valid m16 . else return 113 .
+  return 42 .
+end .

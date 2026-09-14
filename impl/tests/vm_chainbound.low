@@ -1,0 +1,53 @@
+rem ★★★ **관계 사실의 전이 폐포** (2026-08-19) — `bench_http` 가 낸 자리다.
+rem
+rem   도우미 함수에 **정확히 맞는** 계약을 다 써 줘도 검사가 안 지워졌다:
+rem       requires le start finish .  requires le finish (len src) .  requires le (len src) N .
+rem   그런데 `requires le start N .` 을 손으로 **한 줄 더** 쓰면 지워졌다 — 즉 사람이
+rem   사슬(`start ≤ finish ≤ len ≤ N`)을 대신 이어 주고 있었다.
+rem   ☞ 옳게 쓴 계약이 안 먹고 *중복해서* 쓰면 먹는 도구는, 자기가 아는 것을 안 쓰는 것이다.
+rem
+rem ★ 그리고 이 파일이 처음 낸 회귀도 여기 적어 둔다: `IV_LEN` 의 hi(`INT64_MAX`)는
+rem   *"길이는 음수가 아니다"* 라는 **하한의 자리 표시자**이지 상계가 아니다. 그것을 사실로
+rem   읽으면 `wide` 가 꺼지고 vm_smt 의 두 홉 사슬이 증명을 잃는다(래칫이 잡았다).
+
+module vm_chainbound .
+
+rem ✔ ① 두 홉 사슬 — `k` 는 이름조차 상계가 없다. 사슬만이 `add start k` 를 지운다.
+rem   (남는 하나는 누산기 `acc` 다 — 상계가 **없는 값**이라 계약이 없으면 아무 규칙도 못 넘는다.)
+export proc chain_add input src slice u8 . . input start u64 . input finish u64 .
+  output u64 . effects none .
+  requires le start finish .
+  requires le finish (len src) .
+  requires le (len src) 16777216 .
+do
+  var k u64 be 0 .
+  var acc u64 be 0 .
+  while lt k 8 . do
+    set acc (add acc (add start k)) .
+    set k (add k 1) .
+  end .
+  return acc .
+end .
+
+rem ✔ ② 세 홉 — 한 칸 더 늘려도 닫힌다(폐포는 반복한다).
+export proc chain_three input a u64 . input b u64 . input c u64 . input d u64 .
+  output u64 . effects none .
+  requires le a b .
+  requires le b c .
+  requires le c d .
+  requires le d 1000 .
+do
+  return add a 1 .
+end .
+
+rem ✘ ③ **증명되면 안 된다** — 사슬의 끝이 열려 있으면(상계 없음) 아무것도 안 따라온다.
+export proc open_chain input a u64 . input b u64 . output u64 . effects none .
+  requires le a b .
+do
+  return add a 1 .
+end .
+
+proc main output u8 . effects none .
+do
+  return 0 .
+end .

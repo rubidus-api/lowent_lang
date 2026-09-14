@@ -1,0 +1,180 @@
+rem ★★★★★ **고정 intrusive 목록 — 링크가 노드의 이동권을 삼킨다** (RFC-0104 §8-4).
+rem
+rem   intrusive 목록에서 위험한 것은 둘이다:
+rem     ① 링크된 노드를 **옮기면** 이웃이 가리키던 자리가 썩는다.
+rem     ② 링크된 채 **회수하면** 목록이 썩는다.
+rem   재 보니 오늘 언어는 ①을 **못 본다** — 링크가 인덱스라 그냥 자료 이동으로 보인다.
+rem
+rem ★★ **그래서 이동권을 값으로 만든다.** 노드를 목록에 넣으면 목록이 그 값을 **먹고**,
+rem   빼면 돌려준다. 그러면 링크된 채 옮기려는 프로그램은 건넬 것이 없어서 **컴파일이
+rem   거절한다**(`E-OWN-MOVED`). 막는 것은 이 라이브러리가 아니라 **언어**다.
+rem   ☞ 이것은 §8-2(브랜드) · §8-6(shard) · §8-10(pin) 과 **같은 규칙의 다섯 번째 사용**이다:
+rem     *권한을 값으로 만들면 두 곳이 동시에 쥘 수 없다.* 그래서 **새 낱말이 0** 이다.
+rem
+rem ★★★ **여러 목록에 동시에 드는 노드**(LRU 목록 + 해시 버킷)는 어떻게 하나.
+rem   이동권이 하나뿐이면 두 번째 링크가 못 든다. ⇒ **`shard` 토큰으로 쪼갠다**(§8-6):
+rem   role 마다 조각 하나를 주고, **전부 `rejoin` 해야** 이동권이 다시 선다.
+rem   그것이 곧 RFC 가 요구한 *"모든 role 의 unlink-before-reclaim"* 이다 — 규칙을 새로
+rem   만든 것이 아니라, 이미 있는 규칙이 그 문장을 **말하게** 했다.
+rem
+rem ☞ 저장은 호출자 것이다(이 저장소의 규율): `nx`(다음) · `pv`(이전) 두 슬라이스를 밖에서
+rem   받는다. 목록은 **고리**다 — 널이 없으므로 끝을 표시할 값이 없고, 대신 **머리로 돌아오면**
+rem   한 바퀴다. 혼자인 노드는 자기 자신을 가리키는 고리 하나다.
+rem   ★ 처음엔 *"자기 자신을 가리키면 끝"* 으로 셌다가 틀렸다: 고리에서는 그 조건이 **영영
+rem     안 온다**(둘 이상이면 아무도 자기를 안 가리킨다). 규약을 반만 정하면 그런 일이 난다.
+rem
+rem ☞ 안 지은 것(정직히): 자동 회수(첫 회수 정책은 **bulk** 다) · 순환 검출 ·
+rem   동시 순회(§8-9 의 원자 모드가 필요하다) · 노드 재배치(고정이 그 반대다).
+
+module nodelist .
+
+rem ── 이동권과 링크됨 ─────────────────────────────────────────────
+rem   둘 다 브랜드를 받는다 — 남의 목록의 자리를 이 목록에 넣지 못하게(§8-2).
+
+export struct site .
+  input comptime b type .
+  slot u64 .
+end .
+
+export struct held .
+  input comptime b type .
+  slot u64 .
+end .
+
+rem 자리를 연다 — 아직 어느 목록에도 안 들었다. 이때가 **옮길 수 있는 유일한 때**다.
+export fn nl_open input comptime b type . input slot u64 . output owned nodelist.site b . do
+  return make site b do slot slot . end .
+end .
+
+rem ★ 링크는 이동권을 **먹는다**. 이 뒤로 그 노드는 못 옮긴다 — 건넬 값이 없기 때문이다.
+export fn nl_link input comptime b type . input s owned nodelist.site b . output owned nodelist.held b . do
+  return make held b do slot (field s slot) . end .
+end .
+
+rem 빼면 이동권을 **돌려준다**.
+export fn nl_unlink input comptime b type . input h owned nodelist.held b . output owned nodelist.site b . do
+  return make site b do slot (field h slot) . end .
+end .
+
+rem 옮기는 일은 이동권을 **요구한다** — 그것이 이 모듈의 전부다.
+export fn nl_relocate input comptime b type . input s owned nodelist.site b . input dst u64 .
+  output owned nodelist.site b .
+do
+  return make site b do slot dst . end .
+end .
+
+rem 자리 번호를 묻는다(빌려 읽기 — 소비하지 않는다).
+export fn nl_slot_of input comptime b type . input s nodelist.site b . output u64 . do
+  return field s slot .
+end .
+
+export fn nl_held_slot input comptime b type . input h nodelist.held b . output u64 . do
+  return field h slot .
+end .
+
+rem ── 인덱스 링크 조작 ────────────────────────────────────────────
+rem   순수 자료다. 위의 토큰이 **누가 이 일을 할 자격이 있는지**를 정하고,
+rem   아래 op 들이 **그 일을 한다**. 둘을 갈라 놓는 것이 요점이다.
+
+rem 혼자인 노드로 만든다 — 고리 하나다.
+export proc nl_solo input nx mut slice u64 . . input pv mut slice u64 . . input i u64 .
+  output bool . effects none .
+do
+  guard lt i (len nx) . else return false .
+  guard lt i (len pv) . else return false .
+  set (index nx i) i .
+  set (index pv i) i .
+  return true .
+end .
+
+rem `i` 를 `at` 뒤에 끼운다.
+export proc nl_after input nx mut slice u64 . . input pv mut slice u64 . . input at u64 . input i u64 .
+  output bool . effects none .
+do
+  guard lt at (len nx) . else return false .
+  guard lt i (len nx) . else return false .
+  let n u64 be index nx at .
+  set (index nx at) i .
+  set (index pv i) at .
+  set (index nx i) n .
+  set (index pv n) i .
+  return true .
+end .
+
+rem `i` 를 뺀다 — 이웃을 서로 잇고, 자신은 혼자가 된다.
+export proc nl_cut input nx mut slice u64 . . input pv mut slice u64 . . input i u64 .
+  output bool . effects none .
+do
+  guard lt i (len nx) . else return false .
+  let p u64 be index pv i .
+  let n u64 be index nx i .
+  set (index nx p) n .
+  set (index pv n) p .
+  set (index nx i) i .
+  set (index pv i) i .
+  return true .
+end .
+
+rem ★★ **mutable iterator** — 순회하면서 뺄 수 있다.
+rem   요령 하나: **다음을 먼저 읽는다.** 지금 노드를 빼면 그 `next` 가 자기 자신이 되므로,
+rem   빼기 전에 읽어 두지 않으면 순회가 그 자리에서 멈춘다.
+rem   ☞ 셈은 훑은 노드 수다. `cut_at` 이 목록 안에 있으면 그것도 빼고 계속 간다.
+rem ★ **머리를 자르는 경우** (2026-09-04 보안 검토): 머리를 고리에서 빼면 *"머리로 돌아오면 한 바퀴"*
+rem   가 **자기 변이로 깨진다** — 머리는 영영 안 돌아오고, 걸음 상한까지 돌아 `len nx + 1` 을 답했다.
+rem   그래서 머리는 고리에 들기 전에 따로 자르고, 바퀴는 머리의 **옛 다음 노드**에서 닫는다.
+export proc nl_walk_cut input nx mut slice u64 . . input pv mut slice u64 . . input head u64 .
+  input cut_at u64 . output u64 . effects none .
+do
+  guard lt head (len nx) . else return 0 .
+  var start u64 be head .
+  var seen u64 be 0 .
+  if eq cut_at head . do
+    let n0 u64 be index nx head .
+    let p0 u64 be index pv head .
+    set (index nx p0) n0 .
+    set (index pv n0) p0 .
+    set (index nx head) head .
+    set (index pv head) head .
+    set seen 1 .
+    if eq n0 head . do return 1 . end .        rem 혼자였다 — 바퀴가 곧 끝이다
+    set start n0 .
+  end .
+  var i u64 be start .
+  var steps u64 be 0 .
+  while le steps (len nx) . do
+    rem ★ **다음을 먼저 읽는다** — 지금 노드를 빼면 그 `next` 가 자기 자신이 되기 때문이다.
+    let nxt u64 be index nx i .
+    if eq i cut_at . do
+      let p u64 be index pv i .
+      let n u64 be index nx i .
+      set (index nx p) n .
+      set (index pv n) p .
+      set (index nx i) i .
+      set (index pv i) i .
+    end .
+    set seen (add seen 1) .
+    set i nxt .
+    if eq i start . do
+      return seen .
+    end .
+    set steps (add steps 1) .
+  end .
+  return seen .
+end .
+
+rem 고리 한 바퀴의 길이를 센다 — 훑기만 한다. 머리로 돌아오면 끝이다.
+export fn nl_count input nx slice u64 . input head u64 . output u64 . do
+  guard lt head (len nx) . else return 0 .
+  var i u64 be head .
+  var seen u64 be 0 .
+  var steps u64 be 0 .
+  while le steps (len nx) . do
+    set seen (add seen 1) .
+    set i (index nx i) .
+    if eq i head . do
+      return seen .
+    end .
+    set steps (add steps 1) .
+  end .
+  return seen .
+end .

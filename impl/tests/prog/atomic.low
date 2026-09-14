@@ -1,0 +1,99 @@
+rem ★★★ **원자적 파일 설치 — 파일시스템을 *바꾼다*** (RFC-0069 §6).
+rem
+rem   지금까지의 파일 IO 는 **읽거나**(열기·읽기·순회·stat) 기존 파일에 **썼다**. 이 프로그램은
+rem   파일시스템 자체를 **바꾼다**: 디렉터리를 만들고, 임시 파일에 쓰고, **원자적으로 rename** 해
+rem   제자리에 놓는다 — 설치기·빌드·에디터가 데이터 손실 없이 파일을 교체하는 바로 그 패턴이다.
+rem
+rem   ★★ **왜 rename 인가**: 최종 경로에 직접 쓰다 중간에 죽으면 **반쯤 쓰인 파일**이 남는다.
+rem     임시에 다 쓰고 rename 하면 — rename 은 원자적이라 — 보는 쪽은 **옛것 아니면 새것**, 결코 반쪽을
+rem     안 본다. 이것이 `path_rename` 이 있는 이유다.
+rem
+rem ★ base/d 를 만들고 · base/d/f.tmp 에 "hello" 를 쓰고 · base/d/f 로 rename · 읽어서 확인 · 치운다.
+rem   전부 맞으면 5(내용 길이)를 낸다. **세 변경 op(dir_make·path_rename·path_remove)** + 파일 쓰기/읽기
+rem   + str_buf 경로 조립을 한 프로그램에 엮는다. **상태를 바꾸지만 스스로 되돌린다**(재실행 가능).
+
+module atomic .
+
+use files from "../../../lib/file.low" .
+use strbuf from "../../../lib/strbuf.low" .
+
+proc main .
+  input fs cap file_system .
+  input al cap allocator .
+  input a  cap args .
+  output u8 .
+  effects alloc io .
+do
+  let bp option slice u8 . be arg a 0 .
+  guard is_some bp . else return 64 .
+  let base slice u8 be some_value bp .
+
+  rem 세 경로를 각자 버퍼에 조립한다: base/d · base/d/f.tmp · base/d/f
+  let gd option mut slice u8 . . be alloc_bytes al capacity 512 .
+  guard is_some gd . else return 70 .
+  let pdir mut slice u8 . be some_value gd .
+  var bd strbuf.str_buf be strbuf.new .
+  let e1 result void strbuf.sb_error . be strbuf.append bd pdir base .
+  guard is_ok e1 . else return 80 .
+  let e2 result void strbuf.sb_error . be strbuf.append bd pdir "/d" .
+  guard is_ok e2 . else return 80 .
+
+  let gtmp option mut slice u8 . . be alloc_bytes al capacity 512 .
+  guard is_some gtmp . else return 70 .
+  let ptmp mut slice u8 . be some_value gtmp .
+  var bt strbuf.str_buf be strbuf.new .
+  let e3 result void strbuf.sb_error . be strbuf.append bt ptmp base .
+  guard is_ok e3 . else return 80 .
+  let e4 result void strbuf.sb_error . be strbuf.append bt ptmp "/d/f.tmp" .
+  guard is_ok e4 . else return 80 .
+
+  let gf option mut slice u8 . . be alloc_bytes al capacity 512 .
+  guard is_some gf . else return 70 .
+  let pfin mut slice u8 . be some_value gf .
+  var bf strbuf.str_buf be strbuf.new .
+  let e5 result void strbuf.sb_error . be strbuf.append bf pfin base .
+  guard is_ok e5 . else return 80 .
+  let e6 result void strbuf.sb_error . be strbuf.append bf pfin "/d/f" .
+  guard is_ok e6 . else return 80 .
+
+  rem 1. 디렉터리를 만든다
+  guard eq (dir_make fs (strbuf.as_str bd pdir)) true . else return 10 .
+  guard eq (files.is_dir fs (strbuf.as_str bd pdir)) true . else return 11 .
+
+  rem 2. 임시 파일에 내용을 쓴다(모드 1 = 쓰기)
+  let wi result files.handle files.file_error . be files.open fs (strbuf.as_str bt ptmp) 1 .
+  guard is_ok wi . else return 12 .
+  var wh owned files.handle be ok_value wi .
+  let w result u64 files.file_error . be files.write fs wh "hello" .
+  guard is_ok w . else return 13 .
+  let c1 result void files.file_error . be files.close fs wh .
+  guard is_ok c1 . else return 14 .
+
+  rem 3. ★ 원자적으로 제자리에 옮긴다 — 임시 → 최종
+  guard eq (path_rename fs (strbuf.as_str bt ptmp) (strbuf.as_str bf pfin)) true . else return 15 .
+  guard eq (files.is_file fs (strbuf.as_str bf pfin)) true . else return 16 .
+  let tt option u64 . be files.type_of fs (strbuf.as_str bt ptmp) .
+  guard eq (is_some tt) false . else return 17 .          rem 임시는 사라졌다
+
+  rem 4. 읽어서 내용을 확인한다
+  let gr option mut slice u8 . . be alloc_bytes al capacity 16 .
+  guard is_some gr . else return 70 .
+  let rbuf mut slice u8 . be some_value gr .
+  let ri result files.handle files.file_error . be files.open fs (strbuf.as_str bf pfin) 0 .
+  guard is_ok ri . else return 18 .
+  var rh owned files.handle be ok_value ri .
+  let n result (option u64) files.file_error . be files.read fs rh rbuf .
+  guard is_ok n . else return 19 .
+  let nv option u64 . be ok_value n .
+  guard is_some nv . else return 19 .
+  let c2 result void files.file_error . be files.close fs rh .
+  guard is_ok c2 . else return 20 .
+  guard eq (some_value nv) 5 . else return 21 .
+  guard eq (index rbuf 0) 104 . else return 22 .          rem 'h'
+  guard eq (index rbuf 4) 111 . else return 23 .          rem 'o'
+
+  rem 5. 정리한다 — 스스로 되돌린다(재실행 가능)
+  guard eq (path_remove fs (strbuf.as_str bf pfin)) true . else return 24 .
+  guard eq (path_remove fs (strbuf.as_str bd pdir)) true . else return 25 .
+  return (narrow u8 (some_value nv)) .                       rem 5
+end .

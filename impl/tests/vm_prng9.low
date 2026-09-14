@@ -1,0 +1,22 @@
+rem ★★ 회귀 — **9번째 파라미터의 range 는 강제되지 않았다.**
+rem
+rem prng[] 배열이 8칸이었다. 9번째부터는 선언 범위가 **조용히 버려졌다** — 경계에서도,
+rem 호출 지점에서도 아무도 강제하지 않았다. 그런데 구간 분석은 지역 타입에서 그 범위를
+rem **그대로 믿고** 0 나눗셈 검사를 지웠다(8-절단이 거기엔 없었으니까).
+rem
+rem   ⇒ PRINCIPLES.md §0 교훈 1 의 조합 그대로다: **믿는 코드 + 강제하지 않는 코드.**
+rem     VM 이 스스로를 고발해서(E-VM-ANALYSIS) 확인해 줬다. 네이티브는 진짜로 0 으로 나눴다.
+rem
+rem 이제 한계는 16 이고, 넘으면 **거절한다**(E-IR-ARITY). 강제 못 할 계약을 받는 것보다 낫다.
+
+module vm_prng9 .
+
+fn nine_div .
+  input a u8 . input b u8 . input c u8 . input d u8 .
+  input e u8 . input g u8 . input h u8 . input i u8 .
+  input z range u8 1 10 .
+  output u8 .
+do
+  rem z ≥ 1 이므로 0 나눗셈 검사는 **정당하게** 사라진다 — 경계가 그것을 강제할 때만.
+  return expr 100 / z . .
+end .

@@ -1,0 +1,57 @@
+rem ★★★ **성장하는 바이트 벡터** (RFC-0043 §성장 · 2026-07-23).
+rem
+rem   RFC-0043 은 성장(`append_grow`)을 *"범프라 재할당이 없다"* 며 **없음**으로 적어 뒀다.
+rem   그런데 없는 것은 **재할당**이지 **성장**이 아니다: 더 큰 자리를 받아 **옮기면** 된다.
+rem   그리고 그것은 Lowent 로 쓸 수 있다 — `reserve` 로 더 큰 자리를 받고, 옛 내용을 옮긴다.
+rem   ⇒ **빌트인 op 증가 0.** 리프 규칙("Lowent 로 쓸 수 있으면 라이브러리")의 세 번째 사례다.
+rem
+rem ★★ **몰래 할당하지 않는다**(RFC-0043 D1) — 얼로케이터를 **인자로 받는다**. lib/strbuf.low 의
+rem   `sb_append_grow` 는 *새 자리를 호출자가 준다* 로 같은 규율을 지켰는데, 여기서는 그 자리를
+rem   **얼로케이터에게 물어본다**. 얼로케이터를 안 가진 코드는 이 op 을 못 부른다(경계가 지킨다).
+rem
+rem ★★ **버퍼는 값처럼 돌려준다.** 성장하면 자리가 **바뀌므로** 호출자가 재바인딩해야 한다 —
+rem   그래서 `option (mut slice u8)` 을 돌려준다(OOM 은 값이다, D5). 옛 자리는 범프라 안 돌아가고
+rem   `region` 블록이 끝날 때 통째로 걷힌다(SPEC-004 §4.5) — 그게 이 언어의 해제다.
+module vecs .
+
+use allocs from "alloc.low" .
+
+export struct vec_u8 .
+  len u64 .
+end .
+
+rem 다음 용량 — 비어 있으면 8, 아니면 두 배. (성장 정책은 **라이브러리의 몫**이다.)
+export fn next_cap input cur u64 . output u64 . do
+  guard gt cur 0 . else return 8 .
+  return mul cur 2 .
+end .
+
+rem 한 바이트를 잇는다. 자리가 있으면 그대로 쓰고, 꽉 찼으면 **두 배를 받아 옮긴다**.
+rem   돌려주는 슬라이스가 **앞으로 쓸 자리**다 — 성장했으면 새 자리, 아니면 그대로.
+export proc push_byte .
+  input comptime a type .
+  using al a .
+  input v mut vec_u8 .
+  input buf mut slice u8 . .
+  input x u8 .
+  output option mut slice u8 . .
+  effects state via a .
+  requires allocs.byte_allocator a .
+do
+  guard ge (field v len) (len buf) . else do
+    set (index buf (field v len)) x .
+    set (field v len) (add (field v len) 1) .
+    return some buf .
+  end .
+  let nb option mut slice u8 . be send al reserve (next_cap (len buf)) .
+  guard is_some nb . else return none .
+  let nbuf mut slice u8 . be some_value nb .
+  var i u64 be 0 .
+  while lt i (field v len) . do
+    set (index nbuf i) (index buf i) .
+    set i (add i 1) .
+  end .
+  set (index nbuf (field v len)) x .
+  set (field v len) (add (field v len) 1) .
+  return some nbuf .
+end .

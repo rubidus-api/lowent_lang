@@ -1,0 +1,26 @@
+rem ★ S3 시절 픽스처 — 공유 프런트엔드가 MVP 로 자란다(재작성 없이). golden 은 이것이
+rem   **CST 진단 없이 파싱**되는지 본다(파서 청결). 2026-07-20: 톱레벨 `make`(값 표현이
+rem   선언 자리에)·`struct pt do`(필드는 무두 블록)·`len xs`(괄호 없음)를 지금 문법으로
+rem   고쳤다 — E-TOPLEVEL 게이트가 톱레벨 잡동사니를 거절하게 되면서 드러났다.
+
+module sorted_search .
+
+struct pt .
+  x i32 .
+  y i32 .
+end .
+
+fn sorted .
+  input xs slice u32 . .
+  output bool .
+do
+  var i usize be 1 .
+  while lt i (len xs) . do
+    return false .
+  end .
+  return true .
+end .
+
+fn origin output pt . do
+  return make pt do x 10 . y 20 . end .
+end .

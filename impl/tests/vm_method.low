@@ -1,0 +1,88 @@
+rem ★★★ **타입 연관 op** (RFC-0062) — 사용자 제안: *"이름공간이 너무 낭비되는데"*.
+rem
+rem   op 을 **타입의 이름공간**에 넣는다:  `fn rect.area input s rect . …`
+rem   그리고 **수신자 우선**으로 부른다:    `method r area`  ≡  `rect.area r`
+rem
+rem   ★ 한 점과 두 점이 **데이터와 적용**을 가른다:
+rem       s.w        **필드 접근** — 값이다
+rem       method s area    **메서드 호출** — 적용이다
+rem
+rem   ★ `..` 는 지금까지 **오류**였다(E-DOT-DOUBLE) — **비어 있는 자리**였다.
+rem     새 특수문자를 안 늘리고(P6) 그 자리를 쓴다.
+rem
+rem   ★★ 그리고 이것이 **이름공간을 아낀다**: `rect.area` 와 `circle.area` 가 공존하고,
+rem      전역 이름 `area` 는 **아무도 안 태운다.** 전엔 타입마다 `rect_area`·`circle_area` 처럼
+rem      이름에 타입을 **손으로 접두**해야 했다 — 그게 낭비였다.
+rem
+rem   ★ 헷갈릴 수 없는 이유: 지역이 타입 이름을 **가릴 수 없으므로**(E-NAME-SHADOW),
+rem     `rect.area` 의 첫 마디는 **언제나 타입**이다. Γ 가 흔들리지 않는다.
+
+module shapes .
+
+struct rect .
+  w u8 .
+  h u8 .
+end .
+
+struct circle .
+  r u8 .
+end .
+
+rem ★ op 이 **타입의 이름공간**에 산다 — `area` 라는 전역 이름은 아무도 안 태운다.
+rem ★ 계약 오라클이 이 픽스처의 **오버플로**를 즉시 찾았다: `mul s.w s.h` 는 **u8 폭**에서
+rem   곱한다(200×200 은 u8 에 안 들어간다). output 이 u64 라도 **곱셈이 u8 에서 일어난다.**
+rem   ⇒ 정직하게 **넓혀서** 곱한다. 폭은 이름에 보인다(RFC-0052).
+fn rect.area input s rect . output u64 . do
+  return mul (widen u64 (field s w)) (widen u64 (field s h)) .
+end .
+
+fn circle.area input s circle . output u64 . do
+  var rr u64 be widen u64 (field s r) .
+  return mul 3 (mul rr rr) .
+end .
+
+fn rect.scaled_area input s rect . input k u8 . output u64 . do
+  return mul (widen u64 k) (method s area) .
+end .
+
+fn demo output u64 . do
+  var r rect . be make rect do w 3 . h 4 . end .
+  var c circle . be make circle do r 2 . end .
+  rem ★ 수신자 우선 호출 — 같은 이름 `area` 가 타입마다 다른 op 이다
+  return add (method r area) (method c area) .
+end .
+
+fn demo2 input k u8 . output u64 . do
+  var r rect . be make rect do w 3 . h 4 . end .
+  return method r scaled_area k .
+end .
+
+
+rem ★★★ 수신자의 타입을 **세 가지 모양**에서 찾는다. 전엔 **맨 이름만** 봤고,
+rem   나머지 둘은 *"타입을 모른다"* 고 했다 — **사실이 아니었다. 도구는 알고 있었다.**
+struct box .
+  r rect .
+end .
+
+fn rect.grow input s rect . input k u8 . output rect . do
+  return make rect do w (add (field s w) k) . h (field s h) . end .
+end .
+
+fn shapes_field output u64 . do
+  var b box . be make box do r (make rect do w 3 . h 4 . end) . end .
+  return method b r area .              rem ★ ② **필드**에 메서드 — 필드의 타입은 알 수 있다
+end .
+
+fn shapes_chain output u64 . do
+  var x rect . be make rect do w 3 . h 4 . end .
+  return method (method x grow 2) area .       rem ★ ③ **사슬** — 앞 op 의 **출력 타입**이 수신자 타입이다
+end .
+
+test method_dispatch do
+  expect eq (demo) 24 .          rem rect 3x4=12  +  circle r2=12
+  expect eq (demo2 5) 60 .       rem (3*4) * 5
+  rem ★ 자격 있는 전위 호출도 그대로 된다 — 같은 op 이다
+  expect eq (rect.area (make rect do w 3 . h 4 . end)) 12 .
+  expect eq (shapes_field) 12 .    rem 3*4
+  expect eq (shapes_chain) 20 .    rem (3+2)*4
+end .

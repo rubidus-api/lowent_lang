@@ -1,0 +1,24 @@
+rem ★★★ **내용 계약이 실제로 검사를 지우는가** — RFC-0111 §8-13 (WO-0191).
+rem
+rem   두 결함이 이 한 줄을 막고 있었다(2026-09-09):
+rem   ① 계약이 좁힌 상계에 **「타입에서 잘라 온 값」 표시(wide)** 가 남아 아무도 못 믿었다.
+rem      스칼라 `requires` 는 스무 줄 위에서 이미 그 표시를 내리고 있었다 — 원소 술어만 빠졌다.
+rem   ② `slice u64` 파라미터의 **진입 정규화**(`load · view.array · store`)가 방금 받은
+rem      원소 사실을 지웠다. 중간값에 슬롯이 없어서 「모름」 이 되돌아 실렸다.
+rem      ⇒ 같은 프로그램이 **원소 폭만으로** 갈렸다: u8 은 증명되고 u64 는 안 됐다.
+rem   ☞ *정규화는 뜻을 안 바꾸어야 한다. 사실을 지우는 정규화는 뜻을 바꾼다.*
+rem
+rem   오라클: 이 op 의 검사는 **전부** 지워져야 한다(100%). 한 자리라도 남으면 위 둘 중
+rem   하나가 되살아난 것이다.
+
+module elemfact .
+
+rem 원소가 [0, 200] 이면 「원소 + 1」 은 u64 에서 넘칠 수 없다 — 계약이 그 사실을 준다.
+export proc bump input a slice u64 . . input i u64 . .
+  output u64 .
+  effects none .
+  requires elem_ge a 0 .
+  requires elem_le a 200 . requires lt i (len a) .
+do
+  return (add (index a i) 1) .
+end .

@@ -1,0 +1,19 @@
+rem ★★★ **방출 C 가 자기 자리를 말한다** — `#line` (REQ-0015 · WO-0196, 2026-09-10).
+rem
+rem   이 픽스처는 **일부러 죽는다**. 죽은 자리를 `gdb` 가 **이 파일의 줄**로 말해야 한다.
+rem   전에는 못 했다: 방출 C 에 `#line` 이 하나도 없어서 역추적이 **생성된 C** 를 가리켰고,
+rem   그래서 준비도 평가가 「남에게 맡기는 코드에는 아직 이르다」 고 판정했다.
+rem
+rem ★ 관문이 읽는 표식이다 — **줄이 바뀌면 아래 수도 바꿔야 한다**(그것이 이 검사의 값이다):
+rem   LINEMAP-EXPECT: 17
+rem   17 번 줄이 곧 아래 `set (index b 99) 1 .` 이고, 거기서 죽어야 한다.
+
+module linemap .
+
+proc main input al cap allocator . output u8 . effects alloc . do
+  let g option mut slice u8 . . be alloc_bytes al capacity 8 .
+  guard is_some g . else return 70 .
+  let b mut slice u8 . be some_value g .
+  set (index b 99) 1 .
+  return 0 .
+end .

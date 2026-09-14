@@ -1,0 +1,33 @@
+rem ★ 음성 — **두 번 완료**는 컴파일이 거절한다 (RFC-0104 §8-9 · WO-0143).
+rem   완료권을 `owned` 로 만들었으므로 `finish` 가 표를 먹는다. 먹힌 것을 또 건넬 수 없다.
+rem   ⇒ *"completion 정확히 1 회"* 의 **한 번 넘게 못 한다** 쪽은 **언어가** 지킨다.
+
+module vm_lifemode_twice .
+
+export enum late . too_late . end .
+
+export struct ticket .
+  id u64 .
+end .
+
+export fn issue input i u64 . output owned vm_lifemode_twice.ticket . do
+  return make ticket do id i . end .
+end .
+
+export fn finish input t owned vm_lifemode_twice.ticket . output result u64 vm_lifemode_twice.late . do
+  return ok (field t id) .
+end .
+
+rem ✗ 여기가 거절돼야 한다 — E-OWN-MOVED.
+proc twice output u64 . effects none . do
+  var t owned vm_lifemode_twice.ticket . be vm_lifemode_twice.issue 7 .
+  let a result u64 vm_lifemode_twice.late . be vm_lifemode_twice.finish t .
+  let b result u64 vm_lifemode_twice.late . be vm_lifemode_twice.finish t .
+  guard is_ok a . else return 0 .
+  guard is_ok b . else return 0 .
+  return add (ok_value a) (ok_value b) .
+end .
+
+proc main output u8 . effects none . do
+  return 0 .
+end .

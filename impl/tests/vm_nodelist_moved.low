@@ -1,0 +1,21 @@
+rem ★ 음성 — **링크된 노드는 못 옮긴다** (RFC-0104 §8-4 · WO-0144).
+rem   `nl_link` 가 이동권을 먹었으므로 `nl_relocate` 에 건넬 값이 없다 ⇒ E-OWN-MOVED.
+rem   ☞ 막는 것은 라이브러리가 아니라 **언어**다. §8-2·§8-6·§8-10 과 같은 규칙의 다섯 번째다.
+
+module vm_nodelist_moved .
+
+use nodelist .
+
+newtype lru u32 .
+
+rem ✗ 여기가 거절돼야 한다.
+proc move_while_linked output u64 . effects none . do
+  var s owned nodelist.site lru . be nodelist.nl_open lru 3 .
+  var h owned nodelist.held lru . be nodelist.nl_link lru s .
+  var s2 owned nodelist.site lru . be nodelist.nl_relocate lru s 9 .
+  return nodelist.nl_slot_of lru s2 .
+end .
+
+proc main output u8 . effects none . do
+  return 0 .
+end .

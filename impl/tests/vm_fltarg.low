@@ -1,0 +1,19 @@
+rem ★ 회귀 — **f64 파라미터를 CLI 로 줄 수가 없었다.**
+rem
+rem 인자를 정수로만 읽었다. 그래서 `1.5` 는 **파일 이름**으로 읽혔다.
+rem float op 을 돌리려면 IEEE 바이트를 슬라이스로 밀어 넣는 수밖에 없었다(vm_sum.low 가 그런다).
+rem 그것은 실행이 아니라 **회피**다 — PRINCIPLES.md §0 교훈 4.
+rem
+rem 그리고 표시도 거짓말을 했다: `3.0` 이 `3` 으로 나오면 **정수와 구분이 안 된다.**
+rem 도구는 검사한 것만 주장해야 한다 — 표시도 마찬가지다.
+
+module vm_fltarg .
+
+fn bump input x f64 . output f64 . do
+  return expr x + 1.5 . .
+end .
+
+rem 정수 리터럴로 줘도 f64 로 받는다(사람이 쓰는 대로).
+fn half input x f64 . output f64 . do
+  return expr x / 2.0 . .
+end .

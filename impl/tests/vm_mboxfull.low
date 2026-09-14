@@ -1,0 +1,28 @@
+rem ★★★ **넣기 전에 센다** (WO-0207 — WO-0204·0206 의 빚).
+rem
+rem   `spawn send` 가 내는 코드는 `int qi_ = lw_nambox++; lw_ambox[qi_]…` 였다 — **검사가 없었다.**
+rem   VM 은 같은 자리에서 `E-VM-MBOX` 로 거절하는데 네이티브는 **배열 밖에 썼다.** 호스트(4096 칸)
+rem   에서는 잠복 결함이었고, 프리스탠딩 협력 floor(우편함 32 칸)에서는 **현실적인** 결함이다.
+rem   실측: 검사를 뺀 방출 C 를 주소 검사기로 돌리면 `global-buffer-overflow` 가 그 자리에서 난다.
+rem
+rem   ★ `many` — 40 번 넣는다. 호스트에서는 답 40, T0 floor 에서는 **덮어쓰지 않고 말하며 멈춘다.**
+rem     ☞ *조용히 틀린 답보다 시끄러운 거절이 낫다 — 둘 중 하나만 고를 수 있다면.*
+
+module vm_mboxfull .
+
+actor counter .
+  state v u64 . end .
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
+  fn get output u64 . do return v . end .
+end .
+
+export proc many output u64 . effects state . do
+  var c counter be spawn actor counter . .
+  var i u64 be 0 .
+  while lt i 40 . do
+    spawn send c inc .
+    set i (add i 1) .
+  end .
+  drain c .
+  return send c get .
+end .

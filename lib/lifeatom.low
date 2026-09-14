@@ -1,0 +1,68 @@
+rem ★★★★★ **원자 공유 refcount — 스레드를 넘는 수명** (RFC-0104 §8-9, 서명 2026-08-29).
+rem
+rem   `lifemode` 에서 **일부러 갈라 놓은** 모듈이다. 까닭은 값이다: `export` 인 op 은 C ABI
+rem   래퍼로 전역 심볼을 얻어 링커가 못 버리므로, 원자 op 이 같은 모듈에 있으면 **원자를 한
+rem   번도 안 쓰는 프로그램**의 바이너리에도 `lock` 명령이 남는다(실측 2 개, +104 바이트).
+rem   가른 뒤엔 **0** 이다. ⇒ *"안 쓰는 mode 비용 0"* 이 말이 아니라 **수**로 참이 된다.
+rem   ☞ 그리고 그 값이 `use lifeatom` 이라는 **한 줄에 보인다** — 이 저장소의 규율 그대로다.
+rem
+rem ★ ordering 은 표준 그대로다: **증가는 relaxed**(새 참조를 만드는 쪽이 이미 하나를 들고
+rem   있으므로 동기화가 필요 없다) · **감소는 release** + 마지막 하나에서 **acquire 담** —
+rem   그래야 해제가 앞선 모든 쓰기를 본다. 이 절이 오늘 그대로 써진다는 것을 실측했다.
+rem
+rem ★★ **포화한다.** 그냥 `atomic_add` 를 쓰면 상한에서 **조용히 0 으로 감기고**(네이티브로
+rem   확인했다), 감긴 수는 이르게 0 에 닿아 **살아 있는 객체를 해제**한다. 소유자 결정은
+rem   Linux `refcount_t` 와 같다 — 포화 + 영구 누수. 값 대신 안전을 산다
+rem   (실측 명령 27 → 32, +19% · `lock` 수는 시도당 같다).
+
+module lifeatom .
+
+use lifemode .
+
+rem   ★ ordering 은 표준 그대로다: **증가는 relaxed**(새 참조를 만드는 쪽이 이미 하나를 들고
+rem     있으므로 동기화가 필요 없다) · **감소는 release** + 마지막 하나에서 **acquire 담** —
+rem     그래야 해제가 앞선 모든 쓰기를 본다. 이 절이 오늘 그대로 써진다는 것을 실측했다.
+
+export proc rc_open input k cap atomic . input c mut slice u64 . . output u64 . effects atomic . do
+  atomic_store c 0 1 .
+  return 1 .
+end .
+
+rem ★★ **포화하는 증가** — CAS 고리다. 상한에서는 CAS 를 시도하지 않고 그대로 답한다.
+rem   그냥 `atomic_add` 를 쓰면 넘칠 때 **조용히 0 으로 감긴다**(실측). 그 값을 여기서 막는다.
+export proc rc_share input k cap atomic . input c mut slice u64 . . output u64 . effects atomic . do
+  var cur u64 be atomic_load c 0 order relaxed .
+  while lt cur (lifemode.ceiling) . do
+    let won u64 be atomic_cas c 0 cur (add cur 1) .
+    if eq won 1 . do
+      return add cur 1 .
+    end .
+    set cur (atomic_load c 0 order relaxed) .
+  end .
+  rem 포화 — 영구 누수. 메모리 안전은 안 깨진다.
+  return cur .
+end .
+
+rem 하나 놓는다 — **0 을 답하면 마지막이었다**. 포화한 칸은 안 줄인다.
+rem ★★ **이미 0 인 칸을 놓으면 `ceiling` 을 답한다** (2026-09-04 보안 검토). 전에는 0 을 답했다 —
+rem   *"마지막이었다, 지금 거둬라"* 와 같은 값이라, 호출자의 여분 release 하나가 **두 번째 해제**가 됐다
+rem   (`lifemode.near_drop` 은 같은 경우에 none 이다). 시그니처를 두고 고칠 수 있는 답은 하나다:
+rem   해제 신호(0)와 절대 겹치지 않는 값, 그리고 뜻이 맞는 값 — 포화값은 이미 *"이 객체는 거두지 않는다"*
+rem   다. 칸 자체는 건드리지 않는다(0 인 객체는 이미 거둬졌을 수 있다 — 그 저장소에 쓰지 않는다).
+export proc rc_release input k cap atomic . input c mut slice u64 . . output u64 . effects atomic . do
+  var cur u64 be atomic_load c 0 order relaxed .
+  while gt cur 0 . do
+    guard lt cur (lifemode.ceiling) . else return cur .
+    let won u64 be atomic_cas c 0 cur (sub cur 1) .
+    if eq won 1 . do
+      rem 마지막 하나였다면 **여기서 담을 친다** — 해제가 앞선 쓰기를 보게.
+      if eq cur 1 . do
+        atomic_fence order acquire .
+      end .
+      return sub cur 1 .
+    end .
+    set cur (atomic_load c 0 order relaxed) .
+  end .
+  rem 여기 왔으면 칸이 이미 0 이었다 — 놓을 참조가 없다. 거두라는 신호가 **아니다**.
+  return (lifemode.ceiling) .
+end .

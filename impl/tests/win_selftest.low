@@ -1,0 +1,57 @@
+rem ★★★★★ **win64 자기시험 — 방출된 PE 가 같은 답을 내는가** (2026-08-20).
+rem
+rem   §6.7 은 ①타깃 ②크로스 빌드까지 열려 있다. 이 파일은 **③④ 가 아니다** —
+rem   ③ 은 경로 왕복(UTF-16 ↔ WTF-8)이고 ④ 는 host-fault 인데, 경로·파일 잎은 win64 에서
+rem   `E-TARGET-LEAF` 로 **거절되므로** 지금 구조로는 잴 방법이 아예 없다. §6.7 은 Proposed 다.
+rem   ☞ 대신 그 사이의 **작고 진짜인 칸**을 연다: *지어진다* 의 다음 한 칸 =
+rem     **VM · 리눅스 네이티브 · PE 세 갈래가 같은 답을 낸다.**
+rem
+rem ★ 채널이 왜 종료 코드인가 — `io` 는 POSIX 잎이라 win64 에서 `E-TARGET-LEAF` 로 거절된다.
+rem   즉 **찍을 수가 없다.** 그러니 계산 결과를 `main` 의 반환값(u8)으로 낸다.
+rem   세 갈래가 같아야 한다: VM · 리눅스 네이티브 · **wine 아래의 PE**.
+rem
+rem ★★ 이 파일은 POSIX 잎을 **하나도** 쓰지 않는다. 그것이 win64 로 갈 수 있는 조건이다.
+
+module win_selftest .
+
+rem ① 산술·루프·경계 검사 — 방출 C 의 기본 뼈대.
+export fn mix input n u64 . output u64 .
+  requires le n 4096 .
+do
+  var i u64 be 0 .
+  var acc u64 be 7 .
+  while lt i n . do
+    set acc (bit_xor (wrap_add (wrap_mul acc 31) i) (shr acc 3)) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .
+
+rem ② 문자열 리터럴 표 — 정적 데이터가 PE 의 rodata 로 제대로 건너가는가.
+export fn tbl_sum output u64 . do
+  var k u64 be 0 .
+  var acc u64 be 0 .
+  while lt k (len "lowent-win64") . do
+    set acc (add acc (widen u64 (index "lowent-win64" k))) .
+    set k (add k 1) .
+  end .
+  return acc .
+end .
+
+rem ③ 좁히기·부호 — 폭이 다른 플랫폼에서 조용히 갈리기 쉬운 자리.
+export fn narrowing input x u64 . output u64 .
+  requires le x 65535 .
+do
+  let a u16 be narrow u16 x .
+  let b u8 be narrow u8 (bit_and x 255) .
+  return add (widen u64 a) (mul (widen u64 b) 3) .
+end .
+
+rem ★ `main` 은 셋을 접어 **한 바이트**로 낸다 — 종료 코드가 채널이므로.
+proc main output u8 . effects none .
+do
+  let m u64 be mix 1000 .
+  let t u64 be tbl_sum .
+  let n u64 be narrowing 40000 .
+  return narrow u8 (mod (add (add m t) n) 251) .
+end .

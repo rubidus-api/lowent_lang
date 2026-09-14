@@ -1,0 +1,32 @@
+rem ★★★ **체커 완전성 증인** — view_array 의 원소 타입을 index 뿐 아니라 for-in·subslice 도 짚는다.
+rem
+rem   (2026-07-23) `for x (view_array f32 b)` · `index (subslice (view_array f32 b) …) …` 가 원소를
+rem   **u8 로 추론**해 float/부호가 사라지고 E-TYPE-MIX / E-TYPE-RETURN 이 났다 — 그런데 **런타임은
+rem   이미 옳았다**(VM≡native). 순전한 **체커 완전성 갭**으로, fast-path index 부호/float 수정의 쌍둥이.
+rem   ★ 이제 **view_array 자체가 타입 있는 슬라이스를 낸다**(원소 ebits/eflt/esign) — index·subslice·
+rem     for-in·map 등 모든 소비 자리가 float/부호를 되살린다. SIMD 핸들은 `var xs slice <T> be
+rem     view_array …`(옛 `u64` 핸들 관용구는 이주됨 — load 는 타입 슬라이스를 받는다).
+rem   ★ 이 fixture 는 index 전용 vm_fslice.low 와 분리한다 — for-in/subslice 는 태그 경로라 그쪽의
+rem     `why-slow: 0` 단언을 깨기 때문(정확성은 cbe_diff 가 VM≡native 로 지킨다).
+module m .
+type bytes slice u8 .
+
+rem len of float 타입배열 = 원소 수. 두 f32 → 2.
+fn flen input b bytes . output u64 . do return len (view_array f32 b) . end .
+
+rem for-in 합 over float 슬라이스: f32 1.5 + 2.5 = 4.0. (원소가 u8 이면 E-TYPE-MIX 였다.)
+fn fsum input b bytes . output f64 . do
+  var acc f64 be 0.0 .
+  for x (view_array f32 b) do set acc (add acc x) . end .
+  return acc .
+end .
+
+rem subslice 가 원소 타입을 물려줘 index 가 float 를 되살린다: sub[1..2] 원소0 = 2.5.
+fn fsub input b bytes . output f64 . do return index (subslice (view_array f32 b) 1 2) 0 . end .
+
+rem for-in 합 over **부호형** 슬라이스: i16 [-1,-2] → -3 (부호확장).
+fn ssum input b bytes . output i64 . do
+  var acc i64 be 0 .
+  for x (view_array i16 b) do set acc (add acc x) . end .
+  return acc .
+end .

@@ -1,4 +1,4 @@
-# 8. 나만의 타입 — `struct` 와 `enum`
+# 8. 나만의 타입 — `struct` · `enum` · `trait`
 
 [← 목차](README.md) · [← 7. guard 와 option](07-guard-and-option.md)
 
@@ -65,6 +65,72 @@ end
 
 ☞ 별칭에도 실려 넘어간다: `type pct range 0 100 .` 을 만들면 `pct` 를 받는 모든 자리가
 그 범위를 물려받는다.
+
+## `trait` — 타입이 갖출 op 의 목록
+
+트레이트는 *"이 타입은 이런 op 들을 갖고 있다"* 를 **검사받는 약속**으로 적는다. op 을 여럿 적을 수 있다.
+
+```lowent
+module shapes .
+
+trait shape
+  area output u64 . input s self .
+  grow output self . input s self . input k u64 .
+  checked_area output u64 . input s self . effects panic .
+end
+
+struct rect
+  satisfies shape .
+  w u64 .
+  h u64 .
+end
+
+fn rect.area output u64 . input s rect .
+do
+  return mul (field s w) (field s h) .
+end
+
+fn rect.grow output rect . input s rect . input k u64 .
+do
+  return make rect do w (add (field s w) k) . h (add (field s h) k) . end .
+end
+
+proc rect.checked_area output u64 . input s rect . effects panic .
+do
+  if eq (field s w) 0 . do panic "empty rect" . end .
+  return mul (field s w) (field s h) .
+end
+```
+
+적는 법:
+
+- **서명마다 한 줄**이다. 줄은 op 의 **이름**으로 시작하고, 그 뒤에 op 머리와 같은 차례로 절을 적는다 —
+  `output` 이 맨 앞, 그다음 `input`, 그다음 `effects`. 다음 이름이 나오면 다음 서명이다. 몇 개든 적는다.
+- `self` 는 이 트레이트를 갖출 타입 자신이다. 갖추는 쪽에서는 그 자리에 실제 타입(`rect`)을 적는다.
+- 갖추는 op 의 이름은 `<타입>.<이름>` 이다(`rect.area`). 타입 쪽에는 `satisfies shape .` 를 적는다.
+
+**서명에는 `fn`/`proc` 을 적지 않는다.** 대신 `effects` 줄이 그 op 이 할 수 있는 일을 정한다.
+
+| 서명의 `effects` | 갖추는 쪽 |
+|---|---|
+| 없음 | `fn` (또는 `effects` 를 적은 `proc`) |
+| `effects panic` 처럼 효과가 있음 | 그 효과나 그보다 적은 효과를 적은 `proc` — 효과를 안 쓰면 `fn` 도 된다 |
+
+★ `effects` 줄이 **없는** `proc` 은 입출력·할당·상태를 할 수 있다고 읽힌다. 그래서 효과 없는 서명을 그런
+`proc` 으로 갖추면 `E-TRAIT-EFFECT` 로 거절된다 — 순수하면 `fn` 으로 적는다.
+
+어긋나면 이렇게 말한다:
+
+| 진단 | 뜻 |
+|---|---|
+| `E-TRAIT-UNDEF` | `satisfies` 가 없는 트레이트를 부른다 |
+| `E-TRAIT-MISSING` | 목록의 op 하나가 없다 |
+| `E-TRAIT-SIG` | op 은 있는데 매개변수 수·타입·출력이 다르다 |
+| `E-TRAIT-EFFECT` | 갖춘 op 이 서명보다 많은 효과를 가진다 |
+| `E-TRAIT-RECV` | 타입이 아니라 op 에 `satisfies` 를 적었다 |
+
+☞ 트레이트는 상속이 아니다. 갖췄다는 것은 *"그 op 들이 있다"* 는 사실일 뿐, 다른 타입에서 물려받는 것은 없다.
+자세한 규칙은 정본 §6.11.2 에 있다.
 
 ---
 

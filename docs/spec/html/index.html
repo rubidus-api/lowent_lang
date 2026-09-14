@@ -930,7 +930,7 @@ use &lt;가져올 모듈 이름> from "&lt;그 모듈의 자리>" .</code></pre>
 use &lt;가져올 모듈 이름> .</code></pre></div><p class="para" id="p5"><span class="pno">5</span> 자리를 적지 아니한 이름이 그 단위 안에 없으면, 처리기는 <strong></strong>그 사실을 말하여야 한다.<strong></strong> 이 판의 처리기는 경고(<code>W-USE-EXTERNAL</code>)로 말한다 — 모듈을 찾아다니는 검색 경로가 없으므로, 그 이름이 있는지 없는지를 이 단위만 보고는 알 수 없기 때문이다. 그 이름을 실제로 쓰면 그때는 거부된다.</p><div class="note"><b>참고 (informative)</b> <strong></strong>검색 경로가 없다는 것<strong></strong>이 이 설계의 요점이다. 이름만 적어 두고 도구가 어딘가에서 찾아오게 하면, 그 프로그램이 무엇에 기대는지가 소스 밖의 지식이 된다 — 같은 소스가 기계에 따라 다른 것을 가져올 수 있다. 자리를 적거나, 같은 단위로 함께 넘기거나, 둘 중 하나다.</div><div class="note"><b>참고 (informative)</b> 이 자리는 실제로 도는 예제 대신 <strong></strong>틀<strong></strong>로 적었다. 가져오기는 그 파일이 실제로 있어야 번역되므로, 어느 자리에서나 도는 예제를 만들 수 없다. 검사기가 컴파일해 보는 것은 <code>#ex</code> 뿐이며, 틀은 그 대상이 아니다.</div><div class="note"><b>참고 (informative)</b> 어디서 가져오는지를 소스에 적는 것은 이 언어의 규율과 이어진다 — 이름만 적고 어디서 오는지는 도구가 알아서 찾는 방식이면, 그 프로그램이 무엇에 기대는지가 소스 밖의 지식이 된다.</div></section><section class="subclause" id="c6.10.3"><h3>6.10.3 이름이 부딪히면</h3><p class="para" id="p1"><span class="pno">1</span> 한 모듈 안에서 같은 이름을 두 번 선언할 수 없다. 그렇게 하면 번역이 거부된다.</p><p class="para" id="p2"><span class="pno">2</span> 가져온 이름들이 서로 부딪히면, 부르는 자리에서 어느 것인지 밝혀 적어야 한다.</p><div class="rejected"><b>거부되는 예제 (rejected) — 같은 이름을 두 번 선언</b><pre><code>module ex_dup .
 
 fn f output u32 . do return 1 . end
-fn f output u32 . do return 2 . end</code></pre><p class="diag">진단: <code>E-NAME-DUP</code></p></div></section><section class="subclause" id="c6.10.4"><h3>6.10.4 선언의 차례</h3><p class="para" id="p1"><span class="pno">1</span> 모듈 안의 최상위 선언은 <strong></strong>차례와 무관하다.<strong></strong> 뒤에 선언한 op 을 앞에서 부를 수 있고, 서로 부르는 op 도 쓸 수 있다.</p><p class="para" id="p2"><span class="pno">2</span> op 본문 안에서는 그렇지 않다 — 지역 이름은 <strong></strong>쓰기 전에 선언해야<strong></strong> 한다.</p><div class="plain"><b>쉬운 말로</b> 두 규칙이 다른 이유는 읽는 방식이 다르기 때문이다. 파일 전체는 훑어보며 읽지만, 함수 본문은 위에서 아래로 읽는다. 본문에서 아직 안 나온 이름이 쓰이면 읽는 사람이 되돌아가야 한다.</div></section></section><section class="subclause" id="c6.11"><h3>6.11 타입에 붙은 op 과 트레이트 (Type-associated ops and traits)</h3><section class="subclause" id="c6.11.1"><h3>6.11.1 타입에 op 을 붙이기</h3><p class="para" id="p1"><span class="pno">1</span> op 의 이름 앞에 타입 이름과 점을 붙이면, 그 op 은 <strong></strong>그 타입에 붙은 것<strong></strong>이 된다.</p><p class="para" id="p2"><span class="pno">2</span> 붙은 op 의 첫 입력은 그 타입의 값이다.</p></section><section class="subclause" id="c6.11.2"><h3>6.11.2 트레이트</h3><p class="para" id="p1"><span class="pno">1</span> <span class="t">트레이트 (trait)</span> 는 어떤 타입이 갖춰야 할 op 의 <strong></strong>목록<strong></strong>이다. 각 op 의 이름과 시그니처를 적는다.</p><p class="para" id="p2"><span class="pno">2</span> 트레이트 안에서 <code>self</code> 는 그것을 갖출 타입 자신을 가리킨다.</p><p class="para" id="p3"><span class="pno">3</span> 타입이 <code>satisfies</code> 로 트레이트를 적으면, 처리기는 그 목록의 op 이 <strong></strong>정확히 그 시그니처로<strong></strong> 있는지 검사한다. 하나라도 없거나 어긋나면 번역이 거부된다.</p><p class="para" id="p4"><span class="pno">4</span> 어긋나는 갈래는 다섯이다.</p><div class="tbl"><p><b>표 32 — 트레이트를 갖추지 못한 자리</b></p><table><tr><td><strong>진단</strong></td><td><strong>무엇이 어긋났는가</strong></td></tr><tr><td><code>E-TRAIT-UNDEF</code></td><td><code>satisfies</code> 가 <strong></strong>선언되지 않은<strong></strong> 트레이트를 부른다 — 아무것도 가리키지 않는 주장은 아무것도 검사하지 아니한다</td></tr><tr><td><code>E-TRAIT-MISSING</code></td><td>목록의 op 이 없다</td></tr><tr><td><code>E-TRAIT-SIG</code></td><td>op 은 있으나 <strong></strong>매개변수의 수<strong></strong>가 다르다 — 정확히 맞지 않는 트레이트는 계약을 실어 나르지 못한다</td></tr><tr><td><code>E-TRAIT-EFFECT</code></td><td>갖춘 쪽이 트레이트가 적지 <strong></strong>않은 효과<strong></strong>를 가진다. 부르는 쪽은 트레이트의 계약을 보고 판단하므로, 그 계약에 없는 일을 하면 판단이 틀린다</td></tr><tr><td><code>E-TRAIT-RECV</code></td><td><strong></strong>op<strong></strong> 이 트레이트를 갖추겠다고 적었다 — 갖추는 것은 <strong></strong>타입<strong></strong>이다</td></tr></table></div><p class="para" id="p5"><span class="pno">5</span> 트레이트의 op 이 효과 줄에 <code>via self</code> 를 적으면, 갖추는 쪽은 그 op 에 <strong></strong>할당 계열 효과<strong></strong> — <code>alloc</code> · <code>heap</code> · <code>lock</code> · <code>atomic</code> — 를 트레이트보다 더 적을 수 있다. 그 밖의 효과를 더 적는 것은 여전히 <code>E-TRAIT-EFFECT</code> 다. 더 적은 효과는 제네릭 op 이 <code>via &lt;타입 매개변수></code> 로 부르는 쪽까지 나른다(<a href="#c7.1.1" class="cref">§7.1.1</a> (6)).</p><div class="plain"><b>쉬운 말로</b> 트레이트가 하는 일은 「이 타입은 이런 것들을 할 줄 안다」를 <strong></strong>부르는 쪽이 믿을 수 있게<strong></strong> 만드는 것이다. 그래서 이름만 맞고 효과가 다르면 그 믿음이 깨진다 — 효과까지 맞아야 트레이트가 계약을 실어 나른다.</div><div class="ex"><b>예제 (example) — 트레이트를 갖춘다</b><pre><code>module ex_trait .
+fn f output u32 . do return 2 . end</code></pre><p class="diag">진단: <code>E-NAME-DUP</code></p></div></section><section class="subclause" id="c6.10.4"><h3>6.10.4 선언의 차례</h3><p class="para" id="p1"><span class="pno">1</span> 모듈 안의 최상위 선언은 <strong></strong>차례와 무관하다.<strong></strong> 뒤에 선언한 op 을 앞에서 부를 수 있고, 서로 부르는 op 도 쓸 수 있다.</p><p class="para" id="p2"><span class="pno">2</span> op 본문 안에서는 그렇지 않다 — 지역 이름은 <strong></strong>쓰기 전에 선언해야<strong></strong> 한다.</p><div class="plain"><b>쉬운 말로</b> 두 규칙이 다른 이유는 읽는 방식이 다르기 때문이다. 파일 전체는 훑어보며 읽지만, 함수 본문은 위에서 아래로 읽는다. 본문에서 아직 안 나온 이름이 쓰이면 읽는 사람이 되돌아가야 한다.</div></section></section><section class="subclause" id="c6.11"><h3>6.11 타입에 붙은 op 과 트레이트 (Type-associated ops and traits)</h3><section class="subclause" id="c6.11.1"><h3>6.11.1 타입에 op 을 붙이기</h3><p class="para" id="p1"><span class="pno">1</span> op 의 이름 앞에 타입 이름과 점을 붙이면, 그 op 은 <strong></strong>그 타입에 붙은 것<strong></strong>이 된다.</p><p class="para" id="p2"><span class="pno">2</span> 붙은 op 의 첫 입력은 그 타입의 값이다.</p></section><section class="subclause" id="c6.11.2"><h3>6.11.2 트레이트</h3><p class="para" id="p1"><span class="pno">1</span> <span class="t">트레이트 (trait)</span> 는 어떤 타입이 갖춰야 할 op 의 <strong></strong>목록<strong></strong>이다. 각 op 의 이름과 시그니처를 적는다.</p><p class="para" id="p1a"><span class="pno">1a</span> 트레이트는 op 을 <strong></strong>여럿<strong></strong> 적을 수 있다. 서명 하나는 op 의 <strong></strong>이름으로 시작<strong></strong>하고 그 op 의 절이 뒤따르며, 다음 이름이 다음 서명을 연다. 서명마다 한 줄에 적는 것이 관례다. 서명의 절은 op 머리와 <strong></strong>같은 차례<strong></strong>를 따른다(<a href="#c6.4.1" class="cref">§6.4.1</a> (3a)) — <code>output</code> 이 맨 앞이다. 적는 op 의 수에는 한도가 없다.</p><p class="para" id="p1b"><p><span class="pno">1b</span> 서명에는 <code>fn</code>·<code>proc</code> 을 적지 <strong></strong>아니한다.<strong></strong> 그 op 이 무엇을 할 수 있는지는 서명의 <code>effects</code> 줄이 정한다.</p><ul><li><code>effects</code> 줄이 없으면 효과가 <strong></strong>없는<strong></strong> op 이다. 이것은 <code>fn</code> 으로도, 효과를 적은 <code>proc</code> 으로도 갖출 수 있다.</li></ul><p>다만 <code>proc</code> 은 <code>effects</code> 줄을 반드시 적어야 한다 — 효과 줄이 없는 <code>proc</code> 은 자기 효과를 <strong></strong>좁히지 않은<strong></strong> 것이므로 효과 없는 서명을 갖추지 못한다(<code>E-TRAIT-EFFECT</code>).</p><ul><li><code>effects</code> 줄이 있으면 갖추는 쪽은 그 효과 <strong></strong>또는 그보다 적은<strong></strong> 효과를 적은 <code>proc</code> 이거나, 효과가 없으면 <code>fn</code> 이다.</li></ul></p><p class="para" id="p2"><span class="pno">2</span> 트레이트 안에서 <code>self</code> 는 그것을 갖출 타입 자신을 가리킨다.</p><p class="para" id="p3"><span class="pno">3</span> 타입이 <code>satisfies</code> 로 트레이트를 적으면, 처리기는 그 목록의 op 이 <strong></strong>정확히 그 시그니처로<strong></strong> 있는지 검사한다. 하나라도 없거나 어긋나면 번역이 거부된다.</p><p class="para" id="p4"><span class="pno">4</span> 어긋나는 갈래는 다섯이다.</p><div class="tbl"><p><b>표 32 — 트레이트를 갖추지 못한 자리</b></p><table><tr><td><strong>진단</strong></td><td><strong>무엇이 어긋났는가</strong></td></tr><tr><td><code>E-TRAIT-UNDEF</code></td><td><code>satisfies</code> 가 <strong></strong>선언되지 않은<strong></strong> 트레이트를 부른다 — 아무것도 가리키지 않는 주장은 아무것도 검사하지 아니한다</td></tr><tr><td><code>E-TRAIT-MISSING</code></td><td>목록의 op 이 없다</td></tr><tr><td><code>E-TRAIT-SIG</code></td><td>op 은 있으나 <strong></strong>매개변수의 수<strong></strong>가 다르다 — 정확히 맞지 않는 트레이트는 계약을 실어 나르지 못한다</td></tr><tr><td><code>E-TRAIT-EFFECT</code></td><td>갖춘 쪽이 트레이트가 적지 <strong></strong>않은 효과<strong></strong>를 가진다. 부르는 쪽은 트레이트의 계약을 보고 판단하므로, 그 계약에 없는 일을 하면 판단이 틀린다</td></tr><tr><td><code>E-TRAIT-RECV</code></td><td><strong></strong>op<strong></strong> 이 트레이트를 갖추겠다고 적었다 — 갖추는 것은 <strong></strong>타입<strong></strong>이다</td></tr></table></div><p class="para" id="p5"><span class="pno">5</span> 트레이트의 op 이 효과 줄에 <code>via self</code> 를 적으면, 갖추는 쪽은 그 op 에 <strong></strong>할당 계열 효과<strong></strong> — <code>alloc</code> · <code>heap</code> · <code>lock</code> · <code>atomic</code> — 를 트레이트보다 더 적을 수 있다. 그 밖의 효과를 더 적는 것은 여전히 <code>E-TRAIT-EFFECT</code> 다. 더 적은 효과는 제네릭 op 이 <code>via &lt;타입 매개변수></code> 로 부르는 쪽까지 나른다(<a href="#c7.1.1" class="cref">§7.1.1</a> (6)).</p><div class="plain"><b>쉬운 말로</b> 트레이트가 하는 일은 「이 타입은 이런 것들을 할 줄 안다」를 <strong></strong>부르는 쪽이 믿을 수 있게<strong></strong> 만드는 것이다. 그래서 이름만 맞고 효과가 다르면 그 믿음이 깨진다 — 효과까지 맞아야 트레이트가 계약을 실어 나른다.</div><div class="ex"><b>예제 (example) — 트레이트를 갖춘다</b><pre><code>module ex_trait .
 
 rem 트레이트는 타입이 갖춰야 할 op 의 목록이다.
 trait shape
@@ -959,7 +959,59 @@ struct rect
   h u8 .
 end
 
-rem `rect.area` 를 만들지 않았다</code></pre><p class="diag">진단: <code>E-TRAIT-MISSING</code></p></div><div class="plain"><b>쉬운 말로</b> 트레이트는 <strong>“이 타입은 이런 일을 할 수 있다”</strong> 를 <strong></strong>검사받는 형태로<strong></strong> 적는 방법이다. 주석으로 적으면 코드가 바뀌어도 그대로 남지만, <code>satisfies</code> 는 갖추지 못하는 순간 번역이 거부된다.</div><div class="caution"><b>주의 — 상속이 아니다</b> 트레이트는 타입 사이에 <strong></strong>위아래를 만들지 아니한다.<strong></strong> 어떤 타입이 트레이트를 갖췄다는 것은 <strong>“그 op 들을 갖고 있다”</strong> 는 사실일 뿐이며, 다른 타입의 무엇을 물려받지 않는다. 이 언어에는 상속이 없다.</div></section><section class="subclause" id="c6.11.3"><h3>6.11.3 붙은 op 을 부른다 — method</h3><p class="para" id="p1"><span class="pno">1</span> <code>method</code> 는 값에 붙은 op 을 부르는 폼이다. 모양은 <code>method &lt;값> &lt;마디> … &lt;이름> &lt;인자> … .</code> 이다.</p><p class="para" id="p2"><span class="pno">2</span> 마디와 이름은 <strong></strong>타입을 따라가서<strong></strong> 갈린다. 수신자의 타입에서 마디를 하나씩 내려가다가, 그 타입에 그 이름의 붙은 op 이 있으면 <strong></strong>거기가 이름<strong></strong>이고 그 뒤는 전부 인자다. 그러므로 <code>method o inner area</code> 는 <code>o</code> 의 <code>inner</code> 에 붙은 <code>area</code> 를 부르고, <code>method s plus 5</code> 는 <code>s</code> 에 붙은 <code>plus</code> 를 <code>5</code> 로 부른다.</p><p class="para" id="p3"><span class="pno">3</span> 수신자는 이름일 필요가 없다. 다른 폼의 결과여도 되며, 그때 수신자의 타입은 그 폼의 출력 타입이다 — 그래서 <code>method (method x grow 2) area</code> 가 성립한다.</p><p class="para" id="p4"><span class="pno">4</span> 수신자의 타입을 정할 수 없으면 처리기는 프로그램을 거절한다. 붙은 op 은 <strong></strong>타입으로<strong></strong> 찾는 것이므로, 타입을 모르면 부를 op 도 정해지지 않는다.</p><div class="ex"><b>예제 (example) — 붙은 op 을 부른다</b><pre><code>module ex_method .
+rem `rect.area` 를 만들지 않았다</code></pre><p class="diag">진단: <code>E-TRAIT-MISSING</code></p></div><div class="ex"><b>예제 (example) — op 을 여럿 가진 트레이트</b><pre><code>module ex_trait_many .
+
+rem 서명마다 한 줄 — 이름으로 시작하고 `output` 이 맨 앞이다.
+trait shape
+  area output u64 . input s self .
+  perimeter output u64 . input s self .
+  grow output self . input s self . input k u64 .
+  checked_area output u64 . input s self . effects panic .
+end
+
+struct rect
+  satisfies shape .
+  w u64 .
+  h u64 .
+end
+
+rem 효과 줄이 없는 서명은 `fn` 으로 갖춘다.
+fn rect.area output u64 . input s rect .
+do
+  return mul (field s w) (field s h) .
+end
+
+fn rect.perimeter output u64 . input s rect .
+do
+  return mul 2 (add (field s w) (field s h)) .
+end
+
+fn rect.grow output rect . input s rect . input k u64 .
+do
+  return make rect do w (add (field s w) k) . h (add (field s h) k) . end .
+end
+
+rem 효과를 적은 서명은 그 효과를 적은 `proc` 으로 갖춘다.
+proc rect.checked_area output u64 . input s rect . effects panic .
+do
+  if eq (field s w) 0 . do panic "empty rect" . end .
+  return mul (field s w) (field s h) .
+end</code></pre></div><div class="rejected"><b>거부되는 예제 (rejected) — 효과 줄이 없는 proc 으로 효과 없는 서명을 갖추려 한다</b><pre><code>module ex_trait_proc_noeff .
+
+trait shape
+  area output u64 . input s self .
+end
+
+struct rect
+  satisfies shape .
+  w u64 .
+  h u64 .
+end
+
+proc rect.area output u64 . input s rect .
+do
+  return mul (field s w) (field s h) .
+end</code></pre><p class="diag">진단: <code>E-TRAIT-EFFECT</code></p></div><div class="plain"><b>쉬운 말로</b> 트레이트는 <strong>“이 타입은 이런 일을 할 수 있다”</strong> 를 <strong></strong>검사받는 형태로<strong></strong> 적는 방법이다. 주석으로 적으면 코드가 바뀌어도 그대로 남지만, <code>satisfies</code> 는 갖추지 못하는 순간 번역이 거부된다.</div><div class="caution"><b>주의 — 상속이 아니다</b> 트레이트는 타입 사이에 <strong></strong>위아래를 만들지 아니한다.<strong></strong> 어떤 타입이 트레이트를 갖췄다는 것은 <strong>“그 op 들을 갖고 있다”</strong> 는 사실일 뿐이며, 다른 타입의 무엇을 물려받지 않는다. 이 언어에는 상속이 없다.</div></section><section class="subclause" id="c6.11.3"><h3>6.11.3 붙은 op 을 부른다 — method</h3><p class="para" id="p1"><span class="pno">1</span> <code>method</code> 는 값에 붙은 op 을 부르는 폼이다. 모양은 <code>method &lt;값> &lt;마디> … &lt;이름> &lt;인자> … .</code> 이다.</p><p class="para" id="p2"><span class="pno">2</span> 마디와 이름은 <strong></strong>타입을 따라가서<strong></strong> 갈린다. 수신자의 타입에서 마디를 하나씩 내려가다가, 그 타입에 그 이름의 붙은 op 이 있으면 <strong></strong>거기가 이름<strong></strong>이고 그 뒤는 전부 인자다. 그러므로 <code>method o inner area</code> 는 <code>o</code> 의 <code>inner</code> 에 붙은 <code>area</code> 를 부르고, <code>method s plus 5</code> 는 <code>s</code> 에 붙은 <code>plus</code> 를 <code>5</code> 로 부른다.</p><p class="para" id="p3"><span class="pno">3</span> 수신자는 이름일 필요가 없다. 다른 폼의 결과여도 되며, 그때 수신자의 타입은 그 폼의 출력 타입이다 — 그래서 <code>method (method x grow 2) area</code> 가 성립한다.</p><p class="para" id="p4"><span class="pno">4</span> 수신자의 타입을 정할 수 없으면 처리기는 프로그램을 거절한다. 붙은 op 은 <strong></strong>타입으로<strong></strong> 찾는 것이므로, 타입을 모르면 부를 op 도 정해지지 않는다.</p><div class="ex"><b>예제 (example) — 붙은 op 을 부른다</b><pre><code>module ex_method .
 
 struct rect
   w u64 .

@@ -15,7 +15,7 @@
 5. [배열과 슬라이스](05-arrays-and-slices.md) — `array`·`slice`·`index`·`for`·`mut`
 6. [참조](06-references.md) — `ref`·`mut_ref`·빌림 규칙
 7. [`guard` 와 없을 수 있는 값](07-guard-and-option.md) — `guard`·`option`·`some_value`
-8. [나만의 타입](08-types.md) — `struct`·페이로드 `enum`
+8. [나만의 타입](08-types.md) — `struct`·페이로드 `enum`·`range`·`trait`(op 여럿)
 9. [`match` — 경우 나누기](09-match.md) — 패턴·와일드카드·범위·or·바인딩·`option`/`result`·가드
 10. [실수 치트시트](10-mistakes-cheatsheet.md) — 흔한 실수 ↔ 에러 ↔ 고치는 법
 11. [표준 라이브러리](lib/README.md) — `lib/` 의 표준 모듈, 모듈마다 한 편

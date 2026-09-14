@@ -11,6 +11,16 @@
 (1) ⟦트레이트|trait⟧ 는 어떤 타입이 갖춰야 할 op 의 **목록**이다. 각 op 의 이름과
       시그니처를 적는다.
 
+(1a) 트레이트는 op 을 **여럿** 적을 수 있다. 서명 하나는 op 의 **이름으로 시작**하고 그 op 의 절이 뒤따르며,
+      다음 이름이 다음 서명을 연다. 서명마다 한 줄에 적는 것이 관례다. 서명의 절은 op 머리와 **같은 차례**를
+      따른다(⟦§6.4.1⟧ (3a)) — `output` 이 맨 앞이다. 적는 op 의 수에는 한도가 없다.
+
+(1b) 서명에는 `fn`·`proc` 을 적지 **아니한다.** 그 op 이 무엇을 할 수 있는지는 서명의 `effects` 줄이 정한다.
+      - `effects` 줄이 없으면 효과가 **없는** op 이다. 이것은 `fn` 으로도, 효과를 적은 `proc` 으로도 갖출 수 있다.
+        다만 `proc` 은 `effects` 줄을 반드시 적어야 한다 — 효과 줄이 없는 `proc` 은 자기 효과를 **좁히지 않은** 것이므로
+        효과 없는 서명을 갖추지 못한다(`E-TRAIT-EFFECT`).
+      - `effects` 줄이 있으면 갖추는 쪽은 그 효과 **또는 그보다 적은** 효과를 적은 `proc` 이거나, 효과가 없으면 `fn` 이다.
+
 (2) 트레이트 안에서 `self` 는 그것을 갖출 타입 자신을 가리킨다.
 
 (3) 타입이 `satisfies` 로 트레이트를 적으면, 처리기는 그 목록의 op 이 **정확히 그
@@ -73,6 +83,66 @@ struct rect
 end
 
 rem `rect.area` 를 만들지 않았다
+```
+
+```lowent 예제: op 을 여럿 가진 트레이트
+module ex_trait_many .
+
+rem 서명마다 한 줄 — 이름으로 시작하고 `output` 이 맨 앞이다.
+trait shape
+  area output u64 . input s self .
+  perimeter output u64 . input s self .
+  grow output self . input s self . input k u64 .
+  checked_area output u64 . input s self . effects panic .
+end
+
+struct rect
+  satisfies shape .
+  w u64 .
+  h u64 .
+end
+
+rem 효과 줄이 없는 서명은 `fn` 으로 갖춘다.
+fn rect.area output u64 . input s rect .
+do
+  return mul (field s w) (field s h) .
+end
+
+fn rect.perimeter output u64 . input s rect .
+do
+  return mul 2 (add (field s w) (field s h)) .
+end
+
+fn rect.grow output rect . input s rect . input k u64 .
+do
+  return make rect do w (add (field s w) k) . h (add (field s h) k) . end .
+end
+
+rem 효과를 적은 서명은 그 효과를 적은 `proc` 으로 갖춘다.
+proc rect.checked_area output u64 . input s rect . effects panic .
+do
+  if eq (field s w) 0 . do panic "empty rect" . end .
+  return mul (field s w) (field s h) .
+end
+```
+
+```lowent-거부: 효과 줄이 없는 proc 으로 효과 없는 서명을 갖추려 한다 · E-TRAIT-EFFECT
+module ex_trait_proc_noeff .
+
+trait shape
+  area output u64 . input s self .
+end
+
+struct rect
+  satisfies shape .
+  w u64 .
+  h u64 .
+end
+
+proc rect.area output u64 . input s rect .
+do
+  return mul (field s w) (field s h) .
+end
 ```
 
 > [!산문]

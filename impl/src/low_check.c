@@ -1529,11 +1529,13 @@ static void ck_par_body(low_check_result_t *out, const low_cst_t *blk,
 //     · 파라미터 수와 **타입 낱말**이 같은가 · 출력이 같은가 → E-TRAIT-SIG
 //     · 구현의 효과가 트레이트가 선언한 효과의 **부분집합**인가 → E-TRAIT-EFFECT
 //       (구현이 트레이트보다 **더 많은 일**을 하면 호출자의 추론이 무너진다.)
-#define CK_TRAIT_MAXR 16
+// ★★★ 2026-09-15 — **요구 수와 절 수에 한도가 없다.** 전엔 요구 16 개·서명마다 뒤따르는 절 form 8 개를 배열에 담았고,
+//   넘치면 **소리 없이** 앞 요구에 붙이거나 버렸다: 요구가 17 개인 trait, 입력이 8 개를 넘는 서명은 올바른 구현에도
+//   `E-TRAIT-SIG`(파라미터 수가 다르다)를 받았다(실측). 이제 절은 trait 블록의 자리를 **가리키기만** 하고, 요구는 하나씩 푼다.
 typedef struct {
     proven_u8str_view_t name;
-    const low_cst_t    *head;                 // 요구의 첫 form (이름 + input 절들)
-    const low_cst_t    *clauses[8];           // 뒤따르는 절 form 들 (output/effects/input …)
+    const low_cst_t    *head;                 // 요구의 첫 form (이름 + 첫 절)
+    const low_cst_t *const *clauses;          // 뒤따르는 절 form 들 — trait 블록 kids 의 한 조각
     proven_size_t       nclauses;
 } ck_treq_t;
 
@@ -1711,22 +1713,17 @@ static void ck_trait_satisfy(low_check_result_t *out, const low_parse_result_t *
                 continue;
             }
 
-            // trait 의 요구를 모은다 (절 낱말 form 은 앞의 요구에 붙는다 — op 헤더와 같은 규칙)
-            ck_treq_t req[CK_TRAIT_MAXR]; proven_size_t nreq = 0;
-            for (proven_size_t r = 0; r < tblk->nkids; r++) {
-                const low_cst_t *rf = tblk->kids[r];
-                if (rf->kind != LOW_CST_FORM || !rf->nkids || !ck_atom(rf->kids[0])) continue;
-                if (ck_form_is_clause(rf)) {
-                    if (nreq && req[nreq-1].nclauses < 8) req[nreq-1].clauses[req[nreq-1].nclauses++] = rf;
-                } else if (nreq < CK_TRAIT_MAXR) {
-                    req[nreq].name = rf->kids[0]->tok.lex;
-                    req[nreq].head = rf; req[nreq].nclauses = 0;
-                    nreq++;
-                }
-            }
-
-            // 각 요구에 대해 `<Type>.<name>` op 을 찾아 **시그니처를 대조**한다
-            for (proven_size_t r = 0; r < nreq; r++) {
+            // trait 의 요구를 하나씩 푼다 (절 낱말 form 은 앞의 요구에 붙는다 — op 헤더와 같은 규칙).
+            //   각 요구에 대해 `<Type>.<name>` op 을 찾아 **시그니처를 대조**한다.
+            for (proven_size_t k0 = 0; k0 < tblk->nkids; k0++) {
+                const low_cst_t *rf = tblk->kids[k0];
+                if (rf->kind != LOW_CST_FORM || !rf->nkids || !ck_atom(rf->kids[0]) || ck_form_is_clause(rf)) continue;
+                proven_size_t k1 = k0 + 1;
+                while (k1 < tblk->nkids && tblk->kids[k1]->kind == LOW_CST_FORM && tblk->kids[k1]->nkids &&
+                       ck_atom(tblk->kids[k1]->kids[0]) && ck_form_is_clause(tblk->kids[k1])) k1++;
+                ck_treq_t req[1] = { { .name = rf->kids[0]->tok.lex, .head = rf,
+                                       .clauses = (const low_cst_t *const *)&tblk->kids[k0 + 1], .nclauses = k1 - (k0 + 1) } };
+                const proven_size_t r = 0;
                 proven_u8 qbuf[128];
                 if (tyname.size + 1 + req[r].name.size > sizeof qbuf) continue;
                 memcpy(qbuf, tyname.ptr, tyname.size); qbuf[tyname.size] = '.';
@@ -1838,6 +1835,15 @@ static void ck_trait_satisfy(low_check_result_t *out, const low_parse_result_t *
                 bool via_self = false;
                 for (proven_size_t j = 0; j + 1 < nre; j++)
                     if (veq(re[j], "via") && veq(re[j + 1], "self")) via_self = true;
+                // ★★★ 2026-09-15 — **효과 절이 없는 `proc` 은 «무엇이든 한다» 이다**(본문 검사가 그렇게 읽는다). 그런데 이 대조는
+                //   구현이 **적은 낱말**만 봐서, 절이 없으면 빈 목록이라 `effects none` 요구를 그대로 통과했다(실측: 그 구현을 부른
+                //   `fn` 만 E-EFFECT-CALC 로 걸렸다). 트레이트가 무언가를 적었다면, 적지 않은 구현은 그보다 많은 일을 할 수 있다.
+                if (!ih.is_calc && ih.eff_s == ih.eff_e && !recv_implicit) {
+                    emit(out, "E-TRAIT-EFFECT",
+                         "the implementation is a `proc` with NO `effects` clause, so it may do anything — more than the trait "
+                         "declares. Write the same `effects` line the trait has (or fewer), or make it a `fn` if it is pure", line);
+                    continue;
+                }
                 for (proven_size_t i = 0; i < nie; i++) {
                     if (veq(ie[i], "none")) continue;
                     bool found = false;

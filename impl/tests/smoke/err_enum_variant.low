@@ -1,0 +1,8 @@
+module m .
+rem expect: E-ENUM-NOVARIANT
+enum e .
+  a .
+end .
+fn f output e . do
+  return e.b .
+end .

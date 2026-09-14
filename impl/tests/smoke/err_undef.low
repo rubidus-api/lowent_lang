@@ -1,0 +1,5 @@
+module m .
+rem expect: E-IR-UNDEF
+fn f output u64 . do
+  return nope .
+end .

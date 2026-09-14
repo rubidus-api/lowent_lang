@@ -55,7 +55,7 @@ PROVEN_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(PROVEN_SRC))
 BIN  := $(BUILD)/lowentc
 TESTBIN := $(BUILD)/lowtest
 
-.PHONY: all clean asan run test
+.PHONY: check all clean asan run test
 all: $(BIN)
 
 $(BIN): $(PROVEN_OBJ) $(LOW_OBJ) $(BUILD)/src/main.o
@@ -102,6 +102,11 @@ run: all
 
 test: $(TESTBIN)
 	./$(TESTBIN)
+
+# 공개 저장소만으로 도는 짧은 회귀 시험: 단위 시험 + 표준 라이브러리 검사 + VM≡네이티브 + 거절 진단
+check: all $(TESTBIN)
+	@./$(TESTBIN) > $(BUILD)/unit.log 2>&1 && echo "unit: $$(tail -n 1 $(BUILD)/unit.log)" || { grep -v "\[PASS\]" $(BUILD)/unit.log; exit 1; }
+	sh tests/smoke.sh
 
 golden: all
 	@if [ -f tests/golden.sh ]; then sh tests/golden.sh; else echo "golden: 골든 스위트는 개발 저장소에 있다 — 공개본은 \`make test\` 로 단위 시험을 돈다"; fi

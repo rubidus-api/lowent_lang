@@ -1,0 +1,6 @@
+module m .
+rem expect: E-EFFECT
+proc w input out cap io . output u64 . effects io . do return write_out out 1 "x" . end .
+proc f input out cap io . output u64 . effects none . do
+  return w out .
+end .

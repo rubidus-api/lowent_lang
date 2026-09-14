@@ -1,0 +1,8 @@
+module m .
+rem expect: E-TYPE-FIELD
+struct p .
+  x u64 .
+end .
+fn f input q p . output u64 . do
+  return field q y .
+end .

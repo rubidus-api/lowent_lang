@@ -1,0 +1,44 @@
+# 공개 저장소만으로 도는 짧은 회귀 시험 — 파일	op	인자	기대값
+# VM(`--run`)과 네이티브(`--emit-c` → cc) 가 둘 다 기대값을 내야 통과한다.
+tests/vm_wideactor.low	wide_msg		210
+tests/vm.low	fact	10	3628800
+tests/vm_refs.low	bump42	41	42
+tests/vm_struct.low	nest		10
+tests/vm_view.low	hdr_magic	222 173 190 239 1 2 7	3735928559
+tests/vm_varray.low	va_sum	1 0 2 0 3 0	6
+tests/vm_vec.low	dot4	1 0 0 0 2 0 0 0 3 0 0 0 4 0 0 0 5 0 0 0 6 0 0 0 7 0 0 0 8 0 0 0	70
+tests/vm_compose.low	pass_vec	1 0 0 0 2 0 0 0 3 0 0 0 4 0 0 0	10
+tests/vm_typedpass.low	outer_len	1 0 0 0 2 0 0 0	2
+tests/vm_depth.low	deep	100	100
+tests/vm_manyfields.low	ninth	1 2 3 4 5 6 7 8 9 10 11 12	9
+tests/vm_nested.low	get_c	7 8 9	9
+tests/vm_structslice.low	n_pts	1 2 3 4 5 6	3
+tests/vm_errid.low	names_match	20	1
+tests/vm_named_contract.low	f	5	5
+tests/vm_own.low	automatic	5	1
+tests/vm_actor.low	banking		120
+tests/vm_mailbox.low	drive	1	0
+tests/vm_restart.low	recover		42
+tests/vm_async.low	drive		3
+tests/vm_sched.low	run_sched		3
+tests/vm_tgroup.low	drive		2
+tests/vm_actorarg.low	drive		7
+tests/vm_tgroup_ref.low	ref_survives		12345
+tests/vm_conc_grow.low	grew		40
+tests/vm_task_recur.low	drive		5050
+tests/vm_gthread.low	drive		4
+tests/vm_chan.low	drive		41
+tests/vm_await.low	drive		61
+tests/vm_cancel.low	drive_cancel		0
+tests/vm_rel.low	gap	3 10	7
+tests/vm_control.low	checked	5	5
+tests/vm_bitcast.low	round_trip	200	200
+tests/vm_modifier.low	total		24
+tests/vm_alias.low	av	3 4	3
+tests/vm_prng9.low	nine_div	0 0 0 0 0 0 0 0 4	25
+tests/vm_buildmode.low	cheap	0	0
+tests/vm_generic.low	nested		36
+tests/vm_method.low	shapes_field		12
+tests/vm_trait.low	actor_trait		4
+tests/vm_alloc.low	oom		0
+tests/vm_rel2.low	sq_no	4 10	11

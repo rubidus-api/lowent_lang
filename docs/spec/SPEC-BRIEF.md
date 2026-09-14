@@ -97,8 +97,8 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 가장 자주 거절하는 자리다.
 
 ```text
-  E-VM(50)  E-TYPE(33)  E-ASM(11)  E-NAME(11)  E-ALLOC(10)
-  E-EFFECT(8)  E-PKG(8)  E-MMIO(8)  E-ENUM(7)  E-PAR(6)
+  E-VM(50)  E-TYPE(34)  E-ASM(11)  E-NAME(11)  E-ALLOC(10)
+  E-ENUM(9)  E-EFFECT(8)  E-PKG(8)  E-MMIO(8)  E-PAR(6)
   E-FFI(6)  E-IR(6)  E-TRAIT(5)  E-OWN(5)
   … 그 밖 80 계열
 ```

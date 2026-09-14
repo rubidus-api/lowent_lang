@@ -73,6 +73,69 @@ static low_cst_t *us_atom_like(us_ctx_t *c, const low_cst_t *model, proven_u8str
     t.kind = LOW_TOK_IDENT; t.kw = LOW_KW_NONE; t.lex = lex; t.aux = (proven_u8str_view_t){ 0 };
     return low_node(&c->p, LOW_CST_ATOM, t);
 }
+// ★★★ **고정 길이 입력 `array <개수> <타입>`** (정본 §6.2.6 (1) · 2026-09-14).
+//   처리기는 `array` 를 `slice` 의 다른 이름으로 다뤘다 — 바로 뒤 낱말을 원소 타입으로 읽고 **길이는 버렸다.**
+//   그래서 정본 모양 `array 4 u64` 는 원소를 모르는 **바이트 슬라이스**가 됐고(`4` 가 원소 자리), 틀린 차례
+//   `array u64 4` 는 길이 검사 없는 `slice u64` 였다. 둘 다 조용히 통과했다.
+//   ⇒ 입력 자리의 `array N T` 를 **`slice T` + 진입 계약 `requires eq (len <이름>) N .`** 으로 바꿔 적는다.
+//     «길이는 타입의 일부» 가 진입 검사로 선다(계약이므로 부르는 쪽이 상수를 주면 번역 시점에도 걸린다).
+//   그 밖의 자리(출력·지역·칸·틀린 차례)는 바꾸지 않고 두어 검사기가 `E-TYPE-ARRAY` 로 거절한다.
+static bool us_is_int_lit(const low_cst_t *n) {
+    if (!n || n->kind != LOW_CST_ATOM || n->tok.kind != LOW_TOK_NUMBER || !n->tok.lex.size) return false;
+    for (proven_size_t i = 0; i < n->tok.lex.size; i++)
+        if (n->tok.lex.ptr[i] < '0' || n->tok.lex.ptr[i] > '9') return false;
+    return true;
+}
+static void us_arrays_one(us_ctx_t *c, low_cst_t *f) {
+    if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !us_atom(f->kids[0]) ||
+        (f->kids[0]->tok.kw != LOW_KW_FN && f->kids[0]->tok.kw != LOW_KW_PROC)) return;
+    low_op_header_t h = low_op_header(f);
+    enum { UA_MAX = 16 };
+    proven_size_t at[UA_MAX]; proven_u8str_view_t nm[UA_MAX]; proven_size_t na = 0;
+    for (proven_size_t q = 0; q < h.np && na < UA_MAX; q++)
+        for (proven_size_t z = h.p[q].ts; z + 2 < h.p[q].te && z + 2 < f->nkids; z++)
+            if (us_atom(f->kids[z]) && us_eq(f->kids[z]->tok.lex, "array") &&
+                us_is_int_lit(f->kids[z + 1]) && us_atom(f->kids[z + 2]) && !us_is_int_lit(f->kids[z + 2])) {
+                at[na] = z; nm[na] = h.p[q].name; na++;
+                break;
+            }
+    if (!na) return;
+    // 넣을 자리 — 계약의 차례(정본 §6.4.1): `ensures`·`errors`·`tests`·`schedule` 앞, 없으면 몸 앞
+    proven_size_t end = (f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) ? f->nkids - 1 : f->nkids;
+    proven_size_t ins = end;
+    for (proven_size_t i = 2; i < end; i++)
+        if (us_atom(f->kids[i]) && (us_eq(f->kids[i]->tok.lex, "ensures") || us_eq(f->kids[i]->tok.lex, "errors") ||
+                                    us_eq(f->kids[i]->tok.lex, "tests") || us_eq(f->kids[i]->tok.lex, "schedule"))) { ins = i; break; }
+    proven_size_t n = f->nkids - na + 4 * na;
+    low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * n, alignof(low_cst_t *)).value.ptr;
+    if (!nk) return;
+    proven_size_t m = 0;
+    for (proven_size_t i = 0; i <= f->nkids; i++) {
+        if (i == ins)
+            for (proven_size_t a = 0; a < na; a++) {
+                const low_cst_t *model = f->kids[at[a]];
+                low_cst_t *lenf = low_node(&c->p, LOW_CST_FORM, model->tok);
+                low_cst_t *lk[2] = { us_atom_like(c, model, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"len", .size = 3 }),
+                                     us_atom_like(c, model, nm[a]) };
+                lenf->closer = LOW_TOK_EOF;
+                (void)low_refit(&c->p, lenf, lk, 2);
+                low_cst_t *grp = low_node(&c->p, LOW_CST_GROUP, model->tok);
+                (void)low_refit(&c->p, grp, &lenf, 1);
+                nk[m++] = us_atom_like(c, model, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"requires", .size = 8 });
+                nk[m++] = us_atom_like(c, model, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"eq", .size = 2 });
+                nk[m++] = grp;
+                nk[m++] = f->kids[at[a] + 1];          // 개수 리터럴을 계약으로 옮긴다
+            }
+        if (i == f->nkids) break;
+        bool drop = false, swap = false;
+        for (proven_size_t a = 0; a < na; a++) { if (i == at[a] + 1) drop = true; if (i == at[a]) swap = true; }
+        if (drop) continue;
+        nk[m++] = swap ? us_atom_like(c, f->kids[i], (proven_u8str_view_t){ .ptr = (const proven_u8 *)"slice", .size = 5 })
+                       : f->kids[i];
+    }
+    (void)low_refit(&c->p, f, nk, m);
+}
+
 static bool us_is_op(const low_cst_t *f) {
     return f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) &&
            (f->kids[0]->tok.kw == LOW_KW_FN || f->kids[0]->tok.kw == LOW_KW_PROC);
@@ -454,6 +517,16 @@ void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_all
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
     c->cal = (us_callee_t *)work.alloc_fn(work.ctx, sizeof(us_callee_t) * US_MAXOPS, alignof(us_callee_t)).value.ptr;
     if (!c->cal) return;
+    // ⓪ 고정 길이 입력(`array N T`)을 슬라이스 + 진입 계약으로 바꿔 적는다 — 아래 모든 소비자가 바뀐 머리를 본다
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        low_cst_t *f = pr->forms[i];
+        us_arrays_one(c, f);
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 3 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_ACTOR &&
+            f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) {
+            low_cst_t *blk = f->kids[f->nkids - 1];
+            for (proven_size_t j = 0; j < blk->nkids; j++) us_arrays_one(c, blk->kids[j]);
+        }
+    }
     // ① 모은다
     proven_u8str_view_t mod = { 0 };
     bool any_using = false;

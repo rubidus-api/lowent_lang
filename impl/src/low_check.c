@@ -5965,6 +5965,33 @@ static void ck_mref_slice(low_check_result_t *out, const low_cst_t *f) {
     }
 }
 
+// ★★★ **남은 `array` 는 거절이다** (정본 §6.2.6 (1) · 2026-09-14). 입력 자리의 `array N T` 는 `using` 패스가
+//   `slice T` + `requires eq (len x) N .` 으로 바꿔 적었다(`low_using.c`). 여기까지 남은 `array` 는 둘 중 하나다:
+//   ① 차례가 틀렸다(`array u64 4` — 정본은 `array <개수> <타입>`) · ② 입력이 아닌 자리(출력·지역·칸·별칭)라
+//   **길이를 지킬 곳이 없다**. 전엔 둘 다 `slice` 로 조용히 읽혔다 — 길이를 버린 채로.
+static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
+    if (!nd) return false;
+    for (proven_size_t j = 0; j < nd->nkids; j++) {
+        const low_cst_t *k = nd->kids[j];
+        if (k->kind == LOW_CST_ATOM && k->tok.kind == LOW_TOK_IDENT && veq(k->tok.lex, "array")) {
+            const low_cst_t *nx = (j + 1 < nd->nkids) ? nd->kids[j + 1] : NULL;
+            bool lit_next = nx && nx->kind == LOW_CST_ATOM && nx->tok.kind == LOW_TOK_NUMBER;
+            emit(out, "E-TYPE-ARRAY",
+                 lit_next
+                   ? "a fixed-length `array <count> <type>` is only accepted as an op INPUT today — there its "
+                     "length is checked at entry. In an output, a local, a struct field or an alias the length "
+                     "would have nowhere to be kept (it used to be dropped silently). Take `slice <type>` and "
+                     "state the length in a contract (`requires eq (len x) N .`)"
+                   : "`array` is written `array <count> <type>` — the length first, as a literal (`array 4 u64`). "
+                     "The other order used to be read as a plain slice and the length was dropped silently",
+                 k->tok.line ? k->tok.line : nd->line);
+            return true;
+        }
+        if (k->kind != LOW_CST_ATOM && ck_array_walk(out, k)) return true;
+    }
+    return false;
+}
+
 static void ck_regions(low_check_result_t *out, const low_cst_t *f, const low_cst_t *nd) {
     if (!nd) return;
     for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {
@@ -6908,6 +6935,8 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             }
         }
     }
+
+    for (proven_size_t i = 0; i < pr->nforms; i++) (void)ck_array_walk(&out, pr->forms[i]);
 
     // ★★ **지역이 최상위 이름을 가릴 수 없다** — 이름공간이 **평면**이기 때문이다.
     //

@@ -380,14 +380,19 @@ do
   return 0 .
 end</code></pre><p class="diag">진단: <code>E-TYPE-COND</code></p></div><div class="caution"><b>주의 — 0 은 거짓이 아니다</b> C 계열 언어는 0 을 거짓으로, 그 밖을 참으로 다룬다. 로우엔트는 그러지 아니한다. <code>if n .</code> 처럼 정수를 조건에 쓰면 번역이 거부된다 — <code>if gt n 0 .</code> 처럼 <strong></strong>무엇을 묻는지<strong></strong> 적어야 한다. 묻는 바가 소스에 적히지 않으면, 읽는 사람이 그것을 짐작해야 한다.</div></section><section class="subclause" id="c6.2.4"><h3>6.2.4 부동소수점 타입</h3><p class="para" id="p1"><span class="pno">1</span> <code>f32</code> 와 <code>f64</code> 는 각각 IEEE 754 의 이진 32 비트·64 비트 형식이다.</p><p class="para" id="p2"><span class="pno">2</span> 부동소수점 연산은 <strong></strong>피연산자의 폭에서<strong></strong> 일어난다. <code>f32</code> 끼리의 연산은 <code>f32</code> 로 계산하며, 처리기가 몰래 더 넓은 정밀도로 계산하지 아니한다.</p><p class="para" id="p3"><span class="pno">3</span> 정수와 부동소수점은 서로 자동으로 바뀌지 아니한다. 바꾸려면 명시적으로 적어야 한다.</p></section><section class="subclause" id="c6.2.5"><h3>6.2.5 타입 사이의 변환</h3><p class="para" id="p1"><span class="pno">1</span> 로우엔트에는 <strong></strong>값을 잃는 암묵적 변환이 없다.<strong></strong> 좁아지는 자리는 언제나 소스에 적혀 있다.</p><p class="para" id="p2"><span class="pno">2</span> 값을 잃지 않는 변환을 <span class="t">넓히기 (widening)</span> 라 한다. 넓히기는 값을 바꾸지 않으므로 처리기가 자동으로 할 수 있다 — <code>u8</code> 값을 <code>u32</code> 를 받는 자리에 그대로 넘길 수 있다.</p><p class="para" id="p2a"><span class="pno">2a</span> 다만 <strong></strong>넓히기를 소스에 적을 수도 있다.<strong></strong> <code>widen u64 x</code> 는 <code>x</code> 를 <code>u64</code> 로 넓힌다. 결과가 같더라도, 폭이 바뀌는 자리를 눈에 보이게 하고 싶을 때 쓴다.</p><div class="plain"><b>쉬운 말로</b> 정리하면 이렇다 — <strong></strong>넓히는 쪽은 자동, 좁히는 쪽은 손으로.<strong></strong> 넓히기는 값이 그대로라 실수할 여지가 없지만, 좁히기는 값이 사라질 수 있어서 저자가 그것을 알고 있음을 소스에 남겨야 한다.</div><p class="para" id="p3"><span class="pno">3</span> 값을 잃을 수 있는 변환을 <span class="t">좁히기 (narrowing)</span> 라 하며 <code>narrow</code> 로 적는다. 좁히기는 값이 목표 타입에 들어가지 않으면 <strong></strong>트랩한다<strong></strong>. 조용히 잘리지 아니한다.</p><p class="para" id="p4"><span class="pno">4</span> 넓히기가 허용되는 관계는 다음과 같다. 여기 없는 조합은 넓히기가 아니며, 적으면 번역이 거부된다(<code>E-WIDEN-KIND</code> · <code>E-WIDEN-SIGN</code> · <code>E-WIDEN-NARROW</code>).</p><div class="tbl"><p><b>표 12 — 넓히기가 허용되는 관계</b></p><table><tr><td><strong>관계</strong></td><td><strong>설명</strong></td></tr><tr><td><code>uN</code> → <code>uM</code> (N ≤ M)</td><td>부호 없는 정수를 더 넓은 부호 없는 정수로</td></tr><tr><td><code>iN</code> → <code>iM</code> (N ≤ M)</td><td>부호 있는 정수를 더 넓은 부호 있는 정수로</td></tr><tr><td><code>uN</code> → <code>iM</code> (N &lt; M)</td><td>부호 없는 정수를 <strong></strong>더 넓은<strong></strong> 부호 있는 정수로</td></tr><tr><td><code>iN</code> → <code>uM</code></td><td><strong></strong>허용되지 아니한다<strong></strong> — 음수가 표현되지 않는다</td></tr><tr><td><code>f32</code> → <code>f64</code></td><td>부동소수점을 더 넓은 부동소수점으로</td></tr><tr><td>정수 ↔ 부동소수점</td><td><strong></strong>넓히기가 아니다<strong></strong> — 갈래가 다르면 명시적으로 바꿔야 한다</td></tr></table></div><div class="ex"><b>예제 (example) — 넓히기와 좁히기</b><pre><code>let small u8 be 200 .
 let wide u64 be widen u64 small .
-let back u8 be narrow u8 wide .</code></pre></div><div class="caution"><b>주의 — 음수를 부호 없는 타입으로 넓힐 수 없다</b> <code>i8</code> 의 −1 을 <code>u64</code> 로 넓히면 값이 아주 큰 수로 뒤바뀐다. 그것은 넓히기가 아니라 <strong></strong>다른 값이 되는 일<strong></strong>이므로 이 언어는 넓히기로 인정하지 아니한다.</div></section><section class="subclause" id="c6.2.6"><h3>6.2.6 줄 — 배열과 슬라이스</h3><p class="para" id="p1"><span class="pno">1</span> <code>array n t</code> 는 타입 <code>t</code> 의 값이 정확히 <code>n</code> 개 놓인 줄이다. 길이는 타입의 일부이며 번역 시점에 정해진다.</p><p class="para" id="p2"><span class="pno">2</span> <code>slice t</code> 는 타입 <code>t</code> 의 값이 연속으로 놓인 구간을 가리키는 것이며, <strong></strong>시작과 길이를 함께 갖는다.<strong></strong></p><p class="para" id="p3"><span class="pno">3</span> 슬라이스의 길이는 <code>len</code> 으로 읽는다. <code>len s</code> 는 <code>s</code> 의 원소 개수다.</p><p class="para" id="p4"><span class="pno">4</span> <code>index s i</code> 는 <code>s</code> 의 <code>i</code> 번째 원소다. 첫 원소의 번호는 0 이다.</p><p class="para" id="p5"><span class="pno">5</span> <code>i</code> 가 <code>len s</code> 보다 작지 않으면 <strong></strong>트랩한다<strong></strong>. 처리기가 그 조건이 언제나 참임을 증명하면 그 검사는 사라진다(<a href="#c6.4.6" class="cref">§6.4.6</a>).</p><div class="ex"><b>예제 (example) — 슬라이스</b><pre><code>module ex_slice .
+let back u8 be narrow u8 wide .</code></pre></div><div class="caution"><b>주의 — 음수를 부호 없는 타입으로 넓힐 수 없다</b> <code>i8</code> 의 −1 을 <code>u64</code> 로 넓히면 값이 아주 큰 수로 뒤바뀐다. 그것은 넓히기가 아니라 <strong></strong>다른 값이 되는 일<strong></strong>이므로 이 언어는 넓히기로 인정하지 아니한다.</div></section><section class="subclause" id="c6.2.6"><h3>6.2.6 줄 — 배열과 슬라이스</h3><p class="para" id="p1"><span class="pno">1</span> <code>array n t</code> 는 타입 <code>t</code> 의 값이 정확히 <code>n</code> 개 놓인 줄이다. 길이는 타입의 일부이며 번역 시점에 정해진다.</p><p class="para" id="p1a"><span class="pno">1a</span> 길이 <code>n</code> 은 <strong></strong>정수 리터럴로, 타입보다 먼저<strong></strong> 적는다. 반대로 적거나(<code>array t n</code>) 리터럴이 아니면 거부된다(<code>E-TYPE-ARRAY</code>).</p><p class="para" id="p1b"><span class="pno">1b</span> op 의 입력 <code>input x array n t .</code> 는 길이가 정확히 <code>n</code> 인 <code>slice t</code> 를 받는다는 뜻이며, 그 길이는 <code>requires eq (len x) n .</code> 과 같이 <strong></strong>진입에서 검사된다<strong></strong>.</p><p class="para" id="p2"><span class="pno">2</span> <code>slice t</code> 는 타입 <code>t</code> 의 값이 연속으로 놓인 구간을 가리키는 것이며, <strong></strong>시작과 길이를 함께 갖는다.<strong></strong></p><p class="para" id="p3"><span class="pno">3</span> 슬라이스의 길이는 <code>len</code> 으로 읽는다. <code>len s</code> 는 <code>s</code> 의 원소 개수다.</p><p class="para" id="p4"><span class="pno">4</span> <code>index s i</code> 는 <code>s</code> 의 <code>i</code> 번째 원소다. 첫 원소의 번호는 0 이다.</p><p class="para" id="p5"><span class="pno">5</span> <code>i</code> 가 <code>len s</code> 보다 작지 않으면 <strong></strong>트랩한다<strong></strong>. 처리기가 그 조건이 언제나 참임을 증명하면 그 검사는 사라진다(<a href="#c6.4.6" class="cref">§6.4.6</a>).</p><div class="ex"><b>예제 (example) — 슬라이스</b><pre><code>module ex_slice .
 
 rem 슬라이스는 시작과 길이를 함께 갖는다.
 export fn head input data slice u8 . . output u8 .
   requires ge (len data) 1 .
 do
   return index data 0 .
-end</code></pre></div><div class="plain"><b>쉬운 말로</b> 포인터만 있는 언어에서는 <strong>“이 포인터가 가리키는 곳에 몇 개가 있는가”</strong> 를 사람이 따로 알고 있어야 한다. 그 지식은 소스에 안 적혀 있어서 틀리기 쉽고, 틀리면 남의 메모리를 읽는다. 슬라이스는 그 지식을 <strong></strong>값 안에 넣어<strong></strong> 그 문제를 없앤다.</div></section><section class="subclause" id="c6.2.7"><h3>6.2.7 묶음 — struct 와 enum</h3><p class="para" id="p1"><span class="pno">1</span> <code>struct</code> 는 이름 붙은 칸의 모음이다. 각 칸은 자기 타입을 갖는다.</p><p class="para" id="p2"><span class="pno">2</span> <code>enum</code> 은 여럿 중 하나다. 각 갈래는 이름을 가지며, 값을 함께 지닐 수 있다.</p><p class="para" id="p3"><span class="pno">3</span> struct 는 <strong></strong>자기 자신을 칸으로 가질 수 없다.<strong></strong> 직접이든 다른 타입을 거쳐서든 순환하면 번역이 거부된다. (<code>E-STRUCT-CYCLE</code>). 크기가 정해지지 아니하기 때문이다.</p><p class="para" id="p3a"><span class="pno">3a</span> 참조를 거쳐 자기를 가리키면 크기는 정해진다. 다만 그 참조가 <strong></strong>누가 관리하는지 알 수 없는 것<strong></strong>이면 거부된다(<code>E-STRUCT-REF-UNMANAGED</code>) — 크기가 있다고 수명이 선 것은 아니다.</p><div class="ex"><b>예제 (example) — struct 와 enum</b><pre><code>module ex_shape .
+end</code></pre></div><div class="rejected"><b>거부되는 예제 (rejected) — 길이를 타입 뒤에 적었다</b><pre><code>module ex_array_order .
+
+export fn last input xs array u64 4 . output u64 .
+do
+  return index xs 3 .
+end</code></pre><p class="diag">진단: <code>E-TYPE-ARRAY</code></p></div><div class="plain"><b>쉬운 말로</b> 포인터만 있는 언어에서는 <strong>“이 포인터가 가리키는 곳에 몇 개가 있는가”</strong> 를 사람이 따로 알고 있어야 한다. 그 지식은 소스에 안 적혀 있어서 틀리기 쉽고, 틀리면 남의 메모리를 읽는다. 슬라이스는 그 지식을 <strong></strong>값 안에 넣어<strong></strong> 그 문제를 없앤다.</div></section><section class="subclause" id="c6.2.7"><h3>6.2.7 묶음 — struct 와 enum</h3><p class="para" id="p1"><span class="pno">1</span> <code>struct</code> 는 이름 붙은 칸의 모음이다. 각 칸은 자기 타입을 갖는다.</p><p class="para" id="p2"><span class="pno">2</span> <code>enum</code> 은 여럿 중 하나다. 각 갈래는 이름을 가지며, 값을 함께 지닐 수 있다.</p><p class="para" id="p2a"><span class="pno">2a</span> 갈래는 <strong></strong>하나마다 <code>.</code> 으로 닫는다.<strong></strong> 개행은 닫개가 아니므로, 점 없이 줄마다 적은 갈래는 한 갈래로 이어지며 거부된다(<code>E-ENUM-DOT</code>). 갈래가 지니는 값은 <code>&lt;칸 이름> &lt;타입></code> 짝으로 적는다 — 짝이 맞지 않으면 거부된다(<code>E-ENUM-FIELD</code>).</p><p class="para" id="p3"><span class="pno">3</span> struct 는 <strong></strong>자기 자신을 칸으로 가질 수 없다.<strong></strong> 직접이든 다른 타입을 거쳐서든 순환하면 번역이 거부된다. (<code>E-STRUCT-CYCLE</code>). 크기가 정해지지 아니하기 때문이다.</p><p class="para" id="p3a"><span class="pno">3a</span> 참조를 거쳐 자기를 가리키면 크기는 정해진다. 다만 그 참조가 <strong></strong>누가 관리하는지 알 수 없는 것<strong></strong>이면 거부된다(<code>E-STRUCT-REF-UNMANAGED</code>) — 크기가 있다고 수명이 선 것은 아니다.</p><div class="ex"><b>예제 (example) — struct 와 enum</b><pre><code>module ex_shape .
 
 struct point
   x u32 .
@@ -397,7 +402,7 @@ end
 enum color
   red .
   green .
-end</code></pre></div><p class="para" id="p4"><span class="pno">4</span> struct 값은 <code>make</code> 로 만든다. 만들 때 <strong></strong>모든 칸을 채워야<strong></strong> 한다.</p><p class="para" id="p5"><span class="pno">5</span> 칸을 읽을 때는 값 뒤에 점과 칸 이름을 붙인다.</p><div class="ex"><b>예제 (example) — struct 를 만들고 읽는다</b><pre><code>module ex_make .
+end</code></pre></div><p class="para" id="p4"><span class="pno">4</span> struct 값은 <code>make</code> 로 만든다. 만들 때 <strong></strong>모든 칸을 채워야<strong></strong> 한다.</p><p class="para" id="p5"><span class="pno">5</span> 칸을 읽을 때는 <code>field &lt;값> &lt;칸 이름></code> 을 쓴다. 값 뒤에 점과 칸 이름을 붙이는 모양은 없다 (<code>E-FIELD-GLUED</code>) — 점은 모듈 한정·갈래 이름에 이미 쓰인다.</p><div class="ex"><b>예제 (example) — struct 를 만들고 읽는다</b><pre><code>module ex_make .
 
 struct point
   x u32 .
@@ -412,7 +417,12 @@ end
 export fn get_x input p point . output u32 .
 do
   return (field p x) .
-end</code></pre></div><div class="note"><b>참고 (informative)</b> 순환을 금지하는 이유는 크기 때문이다. 자기를 품는 struct 는 크기가 무한해진다. 나무 같은 자료 구조가 필요하면 <strong></strong>번호(색인)<strong></strong> 로 잇는다 — 그러면 크기가 정해지고, 경계 검사가 그대로 성립한다.</div></section><section class="subclause" id="c6.2.8"><h3>6.2.8 답을 담는 타입 — result 와 option</h3><p class="para" id="p1"><span class="pno">1</span> <code>result t e</code> 는 성공한 값(<code>t</code>) 또는 오류(<code>e</code>) 중 하나를 담는다.</p><p class="para" id="p2"><span class="pno">2</span> <code>option t</code> 는 값이 있거나 없음을 담는다.</p><p class="para" id="p3"><span class="pno">3</span> 이 두 타입의 값은 <strong></strong>꺼내기 전에 어느 쪽인지 확인해야 한다.<strong></strong></p><p class="para" id="p3a"><span class="pno">3a</span> 꺼내는 연산은 <strong></strong>부분 연산<strong></strong>이다 — 확인하지 않고 꺼내는 것 자체는 번역이 거부하지 아니하며, 실행 중에 없는 쪽을 꺼내면 <strong></strong>트랩한다<strong></strong>. 곧 확인은 번역이 대신해 주는 것이 아니라 저자가 하는 것이다.</p><div class="ex"><b>예제 (example) — result 로 실패를 돌려준다</b><pre><code>module ex_result .
+end</code></pre></div><div class="rejected"><b>거부되는 예제 (rejected) — 갈래를 점으로 닫지 않았다</b><pre><code>module ex_enum_dot .
+
+enum color
+  red
+  green
+end</code></pre><p class="diag">진단: <code>E-ENUM-DOT</code></p></div><div class="note"><b>참고 (informative)</b> 순환을 금지하는 이유는 크기 때문이다. 자기를 품는 struct 는 크기가 무한해진다. 나무 같은 자료 구조가 필요하면 <strong></strong>번호(색인)<strong></strong> 로 잇는다 — 그러면 크기가 정해지고, 경계 검사가 그대로 성립한다.</div></section><section class="subclause" id="c6.2.8"><h3>6.2.8 답을 담는 타입 — result 와 option</h3><p class="para" id="p1"><span class="pno">1</span> <code>result t e</code> 는 성공한 값(<code>t</code>) 또는 오류(<code>e</code>) 중 하나를 담는다.</p><p class="para" id="p2"><span class="pno">2</span> <code>option t</code> 는 값이 있거나 없음을 담는다.</p><p class="para" id="p3"><span class="pno">3</span> 이 두 타입의 값은 <strong></strong>꺼내기 전에 어느 쪽인지 확인해야 한다.<strong></strong></p><p class="para" id="p3a"><span class="pno">3a</span> 꺼내는 연산은 <strong></strong>부분 연산<strong></strong>이다 — 확인하지 않고 꺼내는 것 자체는 번역이 거부하지 아니하며, 실행 중에 없는 쪽을 꺼내면 <strong></strong>트랩한다<strong></strong>. 곧 확인은 번역이 대신해 주는 것이 아니라 저자가 하는 것이다.</p><div class="ex"><b>예제 (example) — result 로 실패를 돌려준다</b><pre><code>module ex_result .
 
 enum err
   too_small
@@ -1445,7 +1455,7 @@ E-VM-STKPOOL  E-VM-TYPE  E-VM-UNDEF
 E-VM-UNSUP  E-VM-VIEW</code></pre></div></section><section class="subclause" id="cB.2"><h3>B.2 경고 (W-…)</h3><p class="para" id="p1"><span class="pno">1</span>번역은 되지만 저자가 봐야 하는 것. 모두 11 가지다.</p><div class="shape"><b>문법 틀 (grammar shape) — 경고 식별자</b><pre><code>W-CBE-SLOW  W-COL0  W-CONTRACT-IGNORED
 W-EFFECT-OVER  W-EXPORT-NOSYM  W-NOT-YET
 W-PAR-OK  W-RFC-PENDING  W-TEST-NOT-RUN
-W-UNBOUND  W-USE-EXTERNAL</code></pre></div></section><section class="subclause" id="cB.3"><h3>B.3 번역 잘못 (E-…)</h3><p class="para" id="p1"><span class="pno">1</span>적합하지 않은 프로그램이라 번역이 성공하지 않는 것. 모두 261 가지다.</p><div class="shape"><b>문법 틀 (grammar shape) — 번역 잘못 식별자</b><pre><code>E-ABI-TARGET-ALIGN  E-ACCESS-MODE  E-ACTOR-FAILURE
+W-UNBOUND  W-USE-EXTERNAL</code></pre></div></section><section class="subclause" id="cB.3"><h3>B.3 번역 잘못 (E-…)</h3><p class="para" id="p1"><span class="pno">1</span>적합하지 않은 프로그램이라 번역이 성공하지 않는 것. 모두 264 가지다.</p><div class="shape"><b>문법 틀 (grammar shape) — 번역 잘못 식별자</b><pre><code>E-ABI-TARGET-ALIGN  E-ACCESS-MODE  E-ACTOR-FAILURE
 E-ACTOR-MAILBOX  E-ALLOC-AMBIGUOUS  E-ALLOC-CAPACITY-MARK
 E-ALLOC-NESTED  E-ALLOC-NOCAP  E-ALLOC-NOROOT
 E-ALLOC-NOSOURCE  E-ALLOC-OUTLIVES  E-ALLOC-SHARED
@@ -1469,55 +1479,56 @@ E-EFFECT-CALC  E-EFFECT-DUP  E-EFFECT-NO-CAP
 E-EFFECT-NONE-MIX  E-EFFECT-PURITY  E-EFFECT-REDUNDANT
 E-EFFECT-UNDEF  E-ENS-UNDEF  E-ENS-UNSUP
 E-ENTRY-CAP  E-ENTRY-OUTPUT  E-ENTRY-PARAMS
-E-ENUM-ARITY  E-ENUM-INFINITE  E-ENUM-NOFIELD
-E-ENUM-NOVARIANT  E-ENUM-PAYLOAD  E-ENUM-UNCHECKED
-E-ENUM-VARIANT  E-ERR-UNDECLARED  E-ERR-UNDEF
-E-ESCAPE  E-EXCL  E-EXCL-MOVED
-E-EXPR-APP  E-EXPR-CHAIN  E-EXPR-UNARY
-E-FFI-BODY  E-FFI-CAPKIND  E-FFI-NOCAP
-E-FFI-NOEFFECT  E-FFI-NOUNSAFE  E-FFI-TYPE
-E-FIELD-FORM  E-FIELD-GLUED  E-FIELD-MARK
-E-FLOAT-NOFLOAT  E-FN-CAP  E-FN-NOTEXPORT
-E-FN-UNDEF  E-FN-VALUE  E-FOLD-OP
-E-FORM-UNEXPECTED  E-GROUP-UNCLOSED  E-GUARD-FALLTHROUGH
-E-HEAD-NOT-AN-OP  E-HEAP-NOCAP  E-HEAP-NOHOST
-E-HEREDOC-TERM  E-HEREDOC-UNTERM  E-IF-VALUE
-E-IMMUTABLE  E-INTRIN-ISET  E-INTRIN-OUTSIDE
-E-IR-ARITY  E-IR-EXTRA  E-IR-LIMIT
-E-IR-LOCALS  E-IR-UNDEF  E-IR-UNSUP
-E-ISR-CALLED  E-ISR-EFFECT  E-ISR-OUTPUT
-E-ISR-PARAMS  E-LET-NOVALUE  E-LEX-UTF8
-E-LIT-RANGE  E-LOCK-NOTYET  E-MAP-ELEM
-E-MAP-SINK  E-MATCH-ARITY  E-MATCH-INEXHAUSTIVE
-E-MATCH-ORBIND  E-MATCH-REDUNDANT  E-MATCH-UNDEF
-E-METHOD-RECV  E-METHOD-UNDEF  E-MMIO-BASE
-E-MMIO-BYVALUE  E-MMIO-FIELD  E-MMIO-NOBASE
-E-MMIO-NOCAP  E-MMIO-NOEFFECT  E-MMIO-NOHOST
-E-MMIO-PERM  E-MONO-FIXPOINT  E-MREF-SLICE
-E-NAME-ASCII  E-NAME-BUILTIN  E-NAME-COLLISION
-E-NAME-DOTTED  E-NAME-DUP  E-NAME-KEYWORD
-E-NAME-QUALIFIER  E-NAME-SHADOW  E-NAME-VENDOR-RESERVED
-E-NAME-WILDCARD  E-NEST-DEPTH  E-NOTE-UNTERM
-E-NUM-SEP  E-OPT-DEPENDS  E-OPT-TYPE
-E-OPT-UNUSED  E-OWN-BARE  E-OWN-INCOMPLETE
-E-OWN-JOIN  E-OWN-MOVED  E-OWN-PARTIAL
-E-PAR-ASSOC  E-PAR-CARRY  E-PAR-FLOAT
-E-PAR-NOLOOP  E-PAR-READ  E-PAR-WRITE
-E-PAREN-ESCAPE  E-PAREN-STRAY  E-PAREN-UNCLOSED
-E-PIPE-NO-TERMINAL  E-PIPE-STAGE  E-PKG-DUP
-E-PKG-FORM  E-PKG-KEY  E-PKG-NONAME
-E-PKG-NOVERSION  E-PKG-VERSION  E-PROFILE-LEVEL
-E-PROFILE-UNKNOWN  E-REGION-ESCAPE  E-REGION-KIND
-E-REGION-UNDEF  E-REQ-UNDEF  E-REQ-UNSUP
-E-RESERVE-NOCAP  E-RESERVE-NOEFFECT  E-RESERVE-NOHOST
-E-RETURN-PARTIAL  E-SHIFT-RANGE  E-SPAWN-SCOPE
-E-STMT-NODO  E-STR-ESCAPE  E-STR-NEWLINE
-E-STR-PREFIX  E-STR-UNTERM  E-STRUCT-CYCLE
-E-STRUCT-REF-UNMANAGED  E-TARGET-INTRIN  E-TARGET-ISET
-E-TARGET-LEAF  E-TEST-FAIL  E-TIER-EFFECT
-E-TOPLEVEL  E-TRAIT-EFFECT  E-TRAIT-MISSING
-E-TRAIT-RECV  E-TRAIT-SIG  E-TRAIT-UNDEF
-E-TYPE-ALIGN  E-TYPE-ARG  E-TYPE-ARGMUT
+E-ENUM-ARITY  E-ENUM-DOT  E-ENUM-FIELD
+E-ENUM-INFINITE  E-ENUM-NOFIELD  E-ENUM-NOVARIANT
+E-ENUM-PAYLOAD  E-ENUM-UNCHECKED  E-ENUM-VARIANT
+E-ERR-UNDECLARED  E-ERR-UNDEF  E-ESCAPE
+E-EXCL  E-EXCL-MOVED  E-EXPR-APP
+E-EXPR-CHAIN  E-EXPR-UNARY  E-FFI-BODY
+E-FFI-CAPKIND  E-FFI-NOCAP  E-FFI-NOEFFECT
+E-FFI-NOUNSAFE  E-FFI-TYPE  E-FIELD-FORM
+E-FIELD-GLUED  E-FIELD-MARK  E-FLOAT-NOFLOAT
+E-FN-CAP  E-FN-NOTEXPORT  E-FN-UNDEF
+E-FN-VALUE  E-FOLD-OP  E-FORM-UNEXPECTED
+E-GROUP-UNCLOSED  E-GUARD-FALLTHROUGH  E-HEAD-NOT-AN-OP
+E-HEAP-NOCAP  E-HEAP-NOHOST  E-HEREDOC-TERM
+E-HEREDOC-UNTERM  E-IF-VALUE  E-IMMUTABLE
+E-INTRIN-ISET  E-INTRIN-OUTSIDE  E-IR-ARITY
+E-IR-EXTRA  E-IR-LIMIT  E-IR-LOCALS
+E-IR-UNDEF  E-IR-UNSUP  E-ISR-CALLED
+E-ISR-EFFECT  E-ISR-OUTPUT  E-ISR-PARAMS
+E-LET-NOVALUE  E-LEX-UTF8  E-LIT-RANGE
+E-LOCK-NOTYET  E-MAP-ELEM  E-MAP-SINK
+E-MATCH-ARITY  E-MATCH-INEXHAUSTIVE  E-MATCH-ORBIND
+E-MATCH-REDUNDANT  E-MATCH-UNDEF  E-METHOD-RECV
+E-METHOD-UNDEF  E-MMIO-BASE  E-MMIO-BYVALUE
+E-MMIO-FIELD  E-MMIO-NOBASE  E-MMIO-NOCAP
+E-MMIO-NOEFFECT  E-MMIO-NOHOST  E-MMIO-PERM
+E-MONO-FIXPOINT  E-MREF-SLICE  E-NAME-ASCII
+E-NAME-BUILTIN  E-NAME-COLLISION  E-NAME-DOTTED
+E-NAME-DUP  E-NAME-KEYWORD  E-NAME-QUALIFIER
+E-NAME-SHADOW  E-NAME-VENDOR-RESERVED  E-NAME-WILDCARD
+E-NEST-DEPTH  E-NOTE-UNTERM  E-NUM-SEP
+E-OPT-DEPENDS  E-OPT-TYPE  E-OPT-UNUSED
+E-OWN-BARE  E-OWN-INCOMPLETE  E-OWN-JOIN
+E-OWN-MOVED  E-OWN-PARTIAL  E-PAR-ASSOC
+E-PAR-CARRY  E-PAR-FLOAT  E-PAR-NOLOOP
+E-PAR-READ  E-PAR-WRITE  E-PAREN-ESCAPE
+E-PAREN-STRAY  E-PAREN-UNCLOSED  E-PIPE-NO-TERMINAL
+E-PIPE-STAGE  E-PKG-DUP  E-PKG-FORM
+E-PKG-KEY  E-PKG-NONAME  E-PKG-NOVERSION
+E-PKG-VERSION  E-PROFILE-LEVEL  E-PROFILE-UNKNOWN
+E-REGION-ESCAPE  E-REGION-KIND  E-REGION-UNDEF
+E-REQ-UNDEF  E-REQ-UNSUP  E-RESERVE-NOCAP
+E-RESERVE-NOEFFECT  E-RESERVE-NOHOST  E-RETURN-PARTIAL
+E-SHIFT-RANGE  E-SPAWN-SCOPE  E-STMT-NODO
+E-STR-ESCAPE  E-STR-NEWLINE  E-STR-PREFIX
+E-STR-UNTERM  E-STRUCT-CYCLE  E-STRUCT-REF-UNMANAGED
+E-TARGET-INTRIN  E-TARGET-ISET  E-TARGET-LEAF
+E-TEST-FAIL  E-TIER-EFFECT  E-TOPLEVEL
+E-TRAIT-EFFECT  E-TRAIT-MISSING  E-TRAIT-RECV
+E-TRAIT-SIG  E-TRAIT-UNDEF  E-TYPE-ALIGN
+E-TYPE-ARG  E-TYPE-ARGMUT  E-TYPE-ARRAY
 E-TYPE-BITCAST  E-TYPE-COND  E-TYPE-CYCLE
 E-TYPE-CYCLE-LIMIT  E-TYPE-DECL  E-TYPE-FIELD
 E-TYPE-INSTANCE  E-TYPE-ITER  E-TYPE-KIND

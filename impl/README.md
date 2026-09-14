@@ -30,7 +30,7 @@ ledger, a fast path that dropped a contract check, a bitset lowered as an intege
 | builtin ops | **188** (closed — `src/low_arity.h`, canon annex D) |
 | differential sweep | **2,323 ops · 18,528 argument vectors**, 0 divergences (development tooling) |
 | fixtures | **334** (`find tests -name '*.low' \| wc -l`) |
-| source | **46,768** lines C23 (`find src -name '*.[ch]' \| xargs cat \| wc -l`) |
+| source | **46,957** lines C23 (`find src -name '*.[ch]' \| xargs cat \| wc -l`) |
 
 > The golden regression suite and the sweep live in the development repository; this public tree carries the
 > compiler, its unit tests and the fixtures. Numbers here are a snapshot — re-count with the command beside each.

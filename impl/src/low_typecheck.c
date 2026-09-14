@@ -1073,6 +1073,13 @@ static bool ty_is_name_only(proven_u8str_view_t v) {
 }
 // ★ 선언 자리의 타입 낱말이 **무언가를 가리키는지** 확인한다.
 //   `input a no_such_type .` 이 조용히 통과했다 — 이름이 아무것도 안 가리키는데 아무도 안 봤다.
+// 여러 낱말 타입의 머리인가(enum 갈래 검사가 IR 에 넘기는 모양)
+static bool ty_is_head_word(proven_u8str_view_t w) {
+    static const char *H[] = { "owned","ref","mut_ref","mut","slice","vec","mask","option","result","map","array","range","cap" };
+    for (proven_size_t i = 0; i < sizeof H / sizeof H[0]; i++)
+        if (proven_u8str_view_eq(w, proven_u8str_view_from_cstr(H[i]))) return true;
+    return false;
+}
 static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from, proven_size_t to) {
     for (proven_size_t i = from; i < to && i < f->nkids; i++) {
         if (f->kids[i]->kind != LOW_CST_ATOM) continue;
@@ -1753,6 +1760,56 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
             st->fty[st->nf] = ty_of_decl_r(fd, 1, fd->nkids, &rr);
             tc_check_rng(&c, rr, fd->line);
             st->nf++;
+        }
+    }
+
+    // ── pass 0a″: **enum 갈래의 모양** (2026-09-14) ──
+    // ★★★ 갈래를 점으로 닫지 않고 줄마다 적으면(`red` · `green` · `blue`) **한 갈래로 이어졌다.** 개행은 닫개가
+    //   아니므로(RFC-0103) 파서는 그것을 «칸 `green`, 타입 `blue` 를 가진 갈래 `red`» 로 읽었고, 칸 타입이 실제
+    //   타입인지 **아무도 보지 않아** 조용히 통과했다(`color.green` 까지). 매뉴얼 9장과 정본 §6.2.7 의 예제가
+    //   바로 그 모양이었다. ⇒ 두 가지를 본다:
+    //   ① 갈래 이름보다 **뒤 줄에서 같은(또는 얕은) 들여쓰기로** 시작하는 낱말 = 점이 빠진 다음 갈래(`E-ENUM-DOT`)
+    //   ② 칸은 `<이름> <타입>` 짝이고, 그 타입은 **있는 타입**이어야 한다(`E-TYPE-UNDEF` · 짝이 안 맞으면 `E-ENUM-FIELD`)
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM) continue;
+        if (f->kids[0]->tok.kw != LOW_KW_ENUM) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        if (blk->kind != LOW_CST_BLOCK) continue;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *vf = blk->kids[j];
+            if (vf->kind != LOW_CST_FORM || vf->nkids < 1 || vf->kids[0]->kind != LOW_CST_ATOM) continue;
+            if (vf->kids[0]->tok.kw == LOW_KW_SATISFIES) continue;
+            const low_token_t *nt = &vf->kids[0]->tok;
+            bool told = false;
+            for (proven_size_t t = 1; t < vf->nkids; t++) {
+                const low_cst_t *k = vf->kids[t];
+                if (k->kind != LOW_CST_ATOM) continue;
+                if (k->tok.line > nt->line && k->tok.col <= nt->col) {
+                    tc_emit(&c, "E-ENUM-DOT",
+                            "this enum variant is not closed with `.`, so the NEXT line was read as part of it — "
+                            "a newline does not close a form (RFC-0103). Close every variant: `red .` · "
+                            "`green .`. Without the dot `red green blue` is ONE variant `red` whose payload "
+                            "field `green` has a type `blue`",
+                            k->tok.line);
+                    told = true;
+                    break;
+                }
+            }
+            if (told) continue;
+            // 여러 낱말 타입(`slice u8` 따위)은 IR 이 더 정확한 말(`E-ENUM-PAYLOAD`)을 한다 — 여기선 한 낱말 짝만 본다
+            bool multi = false;
+            for (proven_size_t t = 1; t < vf->nkids; t++)
+                if (vf->kids[t]->kind != LOW_CST_ATOM || ty_is_head_word(vf->kids[t]->tok.lex)) multi = true;
+            if (multi) continue;
+            if ((vf->nkids - 1) % 2) {
+                tc_emit(&c, "E-ENUM-FIELD",
+                        "an enum variant's payload is `<field> <type>` pairs, and this one has a word left "
+                        "over — a field without a type, or a missing `.` after the variant",
+                        vf->kids[vf->nkids - 1]->tok.line ? vf->kids[vf->nkids - 1]->tok.line : vf->line);
+                continue;
+            }
+            for (proven_size_t t = 2; t < vf->nkids; t += 2) tc_check_tnames(&c, vf, t, t + 1);
         }
     }
 

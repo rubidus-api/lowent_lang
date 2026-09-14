@@ -32,7 +32,8 @@ static const low_repair_row_t REPAIR[] = {
     { "E-ALLOC-CAPACITY-MARK", "R-ADD-CAPACITY-MARK" },  // 크기 앞에 `capacity` 를 적는다
     { "E-ALLOC-AMBIGUOUS",     "R-ADD-USING" },          // 바인딩에 `using <출처>` 를 적어 고른다(후보는 진단이 말한다)
     { "E-ALLOC-USING-UNUSED",  "R-DROP-USING" },         // 얼로케이터를 안 받는 호출이다 — 바인딩의 `using` 을 지운다
-    { "E-USING-DUP",           "R-DROP-DUP-CLAUSE" },   // ★ WO-0221 — 잎에 권한을 안 댔다: 받은 권한을 첫 피연산자로 적는다
+    { "E-USING-DUP",           "R-DROP-DUP-CLAUSE" },
+    { "E-ENUM-DOT",            "R-CLOSE-VARIANT" },      // 갈래마다 `.` 을 붙인다   // ★ WO-0221 — 잎에 권한을 안 댔다: 받은 권한을 첫 피연산자로 적는다
     { "E-EFFECT-NO-CAP",       "R-ADD-CAP" },
     { "E-ENTRY-CAP",           "R-USE-SUPPORTED-CAP" },
     { "E-FN-CAP",              "R-DROP-CAP-PARAM" },
@@ -394,6 +395,8 @@ static const low_repair_row_t NOREPAIR[] = {
     { "E-CLAUSE-ORDER",     "입력이 아닌 절은 `--fmt` 가 옮기지만 **입력끼리** 어긋나면 호출 자리의 인자 차례까지 바뀐다 — 코드만으로 한 가지 수리가 정해지지 않는다(진단 문구가 어느 쪽인지 말한다)" },
     { "E-IF-VALUE",         "갈래마다 값을 정하는 모양이 여럿이다 — 이름에 `set` 하거나, 갈래마다 `return` 하거나, 식을 op 로 뺀다" },
     { "E-USING-FORM",       "무엇이 모자랐는지가 자리마다 다르다(이름·타입·자리) — 진단 문구가 그것을 말한다" },
+    { "E-ENUM-FIELD",       "남은 낱말이 타입이 빠진 칸인지, 갈래 뒤에 빠진 점인지는 저자의 뜻이다" },
+    { "E-TYPE-ARRAY",       "길이가 둘 중 어디 있는지(차례가 틀렸나, 자리가 틀렸나)는 진단이 말하고, 고칠 모양(`slice` + 계약으로 적을지)은 저자가 고른다" },
     { "E-USING-UNRESOLVED", "**프로그램의 잘못이 아니다** — 나무를 세우지 않는 대조 방식(`--flat`)으로 검사해서 `using` 이 안 풀렸다. 나무 방식으로 검사하면 된다" },
     { "E-TYPE-CYCLE-LIMIT", "**프로그램의 잘못이 아니다** — 순환 탐지기가 걸을 수 있는 것보다 struct 그래프가 크다. 저자가 고칠 것은 없고(단위를 나누는 것은 수리가 아니라 회피다), 고칠 자리는 컴파일러다." },
     { "E-VM-CHAIN-LIMIT",  "**프로그램의 잘못이 아니다** — VM 활성 사슬이 되감기 등록 한도를 넘었다. 자르면 살아 있는 값이 회수될 수 있어 거절한다. 저자가 적을 수리가 없다." },

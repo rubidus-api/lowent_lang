@@ -5357,6 +5357,33 @@ static bool ir_names_trait(const low_parse_result_t *pr, proven_u8str_view_t w) 
                     }
                 }
             }
+            // ★★★ **`requires eq (len s) N .` 도 진입에서 세운다** (2026-09-14). 전엔 `ge` 만 받아서
+            //   `eq`·`le`·`lt`·`gt`·`ne` 를 적은 절이 **`W-CONTRACT-IGNORED` 로 버려졌다** — 고정 길이 입력
+            //   (`array n t`, 정본 §6.2.6)의 «길이는 타입의 일부» 가 바로 이 절로 선다. 거울(`eq N (len s)`)도 받는다.
+            {
+                low_irw_t cw3 = ir_cmp_word(opw);
+                bool len_form_r3 = R && R->kind == LOW_CST_FORM && R->nkids == 2 && is_atom(R->kids[0]) &&
+                                   veq(R->kids[0]->tok.lex, "len") && is_atom(R->kids[1]);
+                const low_cst_t *LF = NULL, *AT = NULL;
+                if (!veq(opw, "ge") && len_form_l && R && is_atom(R)) { LF = L; AT = R; }
+                else if ((veq(opw, "eq") || veq(opw, "ne")) && len_form_r3 && L && is_atom(L)) { LF = R; AT = L; }
+                if (LF && cw3 != IRW_NOT) {
+                    if (!ir_grade_kept(is_debug)) { g_bdropped++; if (c->dropped_out) (*c->dropped_out)++; continue; }
+                    bool fs; proven_size_t s = ir_local_find(c, LF->kids[1]->tok.lex, &fs);
+                    if (fs) {
+                        ir_emit(c, IRW_LOAD, (proven_i64)s);
+                        ir_emit(c, IRW_LEN, 0);                            // 좌: len s
+                        if (!ir_contract_operand(c, AT->tok.lex, AT->tok.line)) {
+                            ir_fail(c, "E-REQ-UNSUP", "this `requires <cmp> (len s) X` names something the "
+                                    "tool cannot load here", f->kids[k]->tok.line);
+                            continue;
+                        }
+                        ir_emit(c, cw3, 0);
+                        ir_emit(c, IRW_ASSERT, 0);      // 진입 계약 — 절대 제거하지 않는다
+                        continue;
+                    }
+                }
+            }
             // ★ **용량 형태**: `requires ge (len s) cap` — 곱이 아니라 지역 하나다.
             //   lru·sched 같은 코드가 정확히 이 모양이다(`j < cap` 로 도는 루프).
             if (len_lhs && R && is_atom(R)) {

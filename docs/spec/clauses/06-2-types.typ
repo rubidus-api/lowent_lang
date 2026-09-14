@@ -145,6 +145,14 @@ let back u8 be narrow u8 wide .")
       `array n t` 는 타입 `t` 의 값이 정확히 `n` 개 놓인 줄이다. 길이는 타입의 일부이며
       번역 시점에 정해진다.
     ]
+    #para("1a")[
+      길이 `n` 은 **정수 리터럴로, 타입보다 먼저** 적는다. 반대로 적거나(`array t n`) 리터럴이 아니면
+      거부된다(`E-TYPE-ARRAY`).
+    ]
+    #para("1b")[
+      op 의 입력 `input x array n t .` 는 길이가 정확히 `n` 인 `slice t` 를 받는다는 뜻이며, 그 길이는
+      `requires eq (len x) n .` 과 같이 **진입에서 검사된다**.
+    ]
     #para("2")[
       `slice t` 는 타입 `t` 의 값이 연속으로 놓인 구간을 가리키는 것이며, **시작과 길이를
       함께 갖는다.**
@@ -167,6 +175,12 @@ export fn head input data slice u8 . . output u8 .
 do
   return index data 0 .
 end")
+    #rejected("길이를 타입 뒤에 적었다", "module ex_array_order .
+
+export fn last input xs array u64 4 . output u64 .
+do
+  return index xs 3 .
+end", "E-TYPE-ARRAY")
     #plain[
       포인터만 있는 언어에서는 *"이 포인터가 가리키는 곳에 몇 개가 있는가"* 를 사람이 따로
       알고 있어야 한다. 그 지식은 소스에 안 적혀 있어서 틀리기 쉽고, 틀리면 남의 메모리를
@@ -179,6 +193,11 @@ end")
     ]
     #para("2")[
       `enum` 은 여럿 중 하나다. 각 갈래는 이름을 가지며, 값을 함께 지닐 수 있다.
+    ]
+    #para("2a")[
+      갈래는 **하나마다 `.` 으로 닫는다.** 개행은 닫개가 아니므로, 점 없이 줄마다 적은 갈래는 한 갈래로
+      이어지며 거부된다(`E-ENUM-DOT`). 갈래가 지니는 값은 `<칸 이름> <타입>` 짝으로 적는다 — 짝이 맞지
+      않으면 거부된다(`E-ENUM-FIELD`).
     ]
     #para("3")[
       struct 는 **자기 자신을 칸으로 가질 수 없다.** 직접이든 다른 타입을 거쳐서든 순환하면
@@ -205,7 +224,8 @@ end")
       struct 값은 `make` 로 만든다. 만들 때 **모든 칸을 채워야** 한다.
     ]
     #para("5")[
-      칸을 읽을 때는 값 뒤에 점과 칸 이름을 붙인다.
+      칸을 읽을 때는 `field <값> <칸 이름>` 을 쓴다. 값 뒤에 점과 칸 이름을 붙이는 모양은 없다
+      (`E-FIELD-GLUED`) — 점은 모듈 한정·갈래 이름에 이미 쓰인다.
     ]
     #ex("struct 를 만들고 읽는다", "module ex_make .
 
@@ -223,6 +243,12 @@ export fn get_x input p point . output u32 .
 do
   return (field p x) .
 end")
+    #rejected("갈래를 점으로 닫지 않았다", "module ex_enum_dot .
+
+enum color
+  red
+  green
+end", "E-ENUM-DOT")
     #note[
       순환을 금지하는 이유는 크기 때문이다. 자기를 품는 struct 는 크기가 무한해진다.
       나무 같은 자료 구조가 필요하면 **번호(색인)** 로 잇는다 — 그러면 크기가 정해지고,

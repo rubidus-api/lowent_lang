@@ -14,8 +14,8 @@ module vm_chainbound .
 
 rem ✔ ① 두 홉 사슬 — `k` 는 이름조차 상계가 없다. 사슬만이 `add start k` 를 지운다.
 rem   (남는 하나는 누산기 `acc` 다 — 상계가 **없는 값**이라 계약이 없으면 아무 규칙도 못 넘는다.)
-export proc chain_add input src slice u8 . . input start u64 . input finish u64 .
-  output u64 . effects none .
+export proc chain_add output u64 . input src slice u8 . . input start u64 .
+  input finish u64 . effects none .
   requires le start finish .
   requires le finish (len src) .
   requires le (len src) 16777216 .
@@ -30,8 +30,8 @@ do
 end .
 
 rem ✔ ② 세 홉 — 한 칸 더 늘려도 닫힌다(폐포는 반복한다).
-export proc chain_three input a u64 . input b u64 . input c u64 . input d u64 .
-  output u64 . effects none .
+export proc chain_three output u64 . input a u64 . input b u64 . input c u64 .
+  input d u64 . effects none .
   requires le a b .
   requires le b c .
   requires le c d .
@@ -41,7 +41,7 @@ do
 end .
 
 rem ✘ ③ **증명되면 안 된다** — 사슬의 끝이 열려 있으면(상계 없음) 아무것도 안 따라온다.
-export proc open_chain input a u64 . input b u64 . output u64 . effects none .
+export proc open_chain output u64 . input a u64 . input b u64 . effects none .
   requires le a b .
 do
   return add a 1 .

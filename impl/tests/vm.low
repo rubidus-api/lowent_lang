@@ -1,8 +1,8 @@
 rem S5 gate fixture — MVP core on the stack-IR VM (--ir / --run).
 rem fact = while/set/expr island; fib = recursion + nested calls.
 fn fact .
-  input n u64 .
   output u64 .
+  input n u64 .
 do
   var acc u64 be 1 .
   var i u64 be 1 .
@@ -14,8 +14,8 @@ do
 end .
 
 fn fib .
-  input n u64 .
   output u64 .
+  input n u64 .
 do
   if lt n 2 . do
     return n .

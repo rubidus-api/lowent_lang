@@ -10,10 +10,10 @@ fn udiv output u64 . do
   return div big 2 .                     rem 무부호: 2^62 (부호 있으면 음수 몫)
 end .
 
-fn ineg input a i32 . output bool . do
+fn ineg output bool . input a i32 . do
   return lt a 0 .                        rem 부호 있음: 여전히 부호 있게
 end .
 
-fn idiv input a i32 . output i32 . do
+fn idiv output i32 . input a i32 . do
   return div a 2 .                       rem 부호 있는 나눗셈: 0 방향 절단
 end .

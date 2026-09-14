@@ -96,8 +96,8 @@ struct·actor 선언이 없다. `{x, y, vx, vy}` 라면 `slice u64` 넷이다. �
 위치 배열을 속도 배열만큼 전진시킨다 — SoA 가 이기는 자리를 보여 주는 대표 커널이다.
 
 ```lowent
-export proc step_x input xs mut slice u64 . . input vxs slice u64 . input n u64 .
-  output u64 . effects none .
+export proc step_x output u64 . input xs mut slice u64 . . input vxs slice u64 .
+  input n u64 . effects none .
 ```
 
 - `xs` — 위치 필드 배열(제자리에서 바뀌므로 `mut`). `vxs` — 속도 필드 배열(읽기만).
@@ -111,7 +111,7 @@ export proc step_x input xs mut slice u64 . . input vxs slice u64 . input n u64 
 한 필드 배열 전체를 합친다.
 
 ```lowent
-export fn sum_field input f slice u64 . output u64 .
+export fn sum_field output u64 . input f slice u64 .
 ```
 
 - `f` — 합칠 필드 배열. 어느 필드든 배열이면 되므로 매개변수는 이것 하나다.
@@ -122,7 +122,7 @@ export fn sum_field input f slice u64 . output u64 .
 원소 하나의 한 필드를 꺼낸다.
 
 ```lowent
-export fn get_x input xs slice u64 . input i u64 . output u64 .
+export fn get_x output u64 . input xs slice u64 . input i u64 .
 ```
 
 - `xs` — 필드 배열. `i` — 몇 번째 원소인지 — SoA 에는 "원소" 라는 덩어리가 없으므로
@@ -136,9 +136,9 @@ export fn get_x input xs slice u64 . input i u64 . output u64 .
 두 필드 쌍(x·y)을 함께 전진시킨다.
 
 ```lowent
-export proc step_all input xs mut slice u64 . . input ys mut slice u64 . .
-  input vxs slice u64 . input vys slice u64 . input n u64 .
-  output u64 .
+export proc step_all output u64 . input xs mut slice u64 . .
+  input ys mut slice u64 . . input vxs slice u64 . input vys slice u64 .
+  input n u64 .
 ```
 
 - 인자가 넷인 이유가 곧 기록이다: 필드 수만큼 인자가 늘어나는 모양("막히는 자리 ②" —
@@ -150,9 +150,9 @@ export proc step_all input xs mut slice u64 . . input ys mut slice u64 . .
 같은 계산의 AoS 판 — 한 배열에 원소가 보폭으로 섞여 있다.
 
 ```lowent
-export proc step_x_aos input rows mut slice u64 . . input stride u64 . input xoff u64 .
-  input voff u64 . input n u64 .
-  output u64 .
+export proc step_x_aos output u64 . input rows mut slice u64 . . input stride u64 .
+  input xoff u64 . input voff u64 .
+  input n u64 .
 ```
 
 - `rows` — 원소들이 통째로 늘어선 한 배열. `stride` — 원소 하나가 차지하는 칸수
@@ -175,8 +175,8 @@ use soa as s .          rem 별칭 관례
 같은 계산, 두 배치, 같은 답(`impl/tests/vm_soa.low` 를 줄인 것):
 
 ```lowent
-proc demo input xs mut slice u64 . . input vxs mut slice u64 . .
-  input rows mut slice u64 . . output u64 .
+proc demo output u64 . input xs mut slice u64 . .
+  input vxs mut slice u64 . . input rows mut slice u64 . .
 do
   rem ── SoA 판: 필드마다 배열 — xs 는 위치만, vxs 는 속도만 든다 ──
   set (index xs 0) 1 .          rem 원소 0 의 x
@@ -233,7 +233,7 @@ set (index xs 999) 1 .
 
 ```lowent
 rem ✗ 불변 슬라이스를 mut 자리에 넘긴다
-fn f input xs slice u64 . output u64 . do
+fn f output u64 . input xs slice u64 . do
   return soa.step_x xs xs 3 .
 ```
 

@@ -3,6 +3,6 @@ rem expect: E-TYPE-FIELD
 struct p .
   x u64 .
 end .
-fn f input q p . output u64 . do
+fn f output u64 . input q p . do
   return field q y .
 end .

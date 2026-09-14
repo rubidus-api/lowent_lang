@@ -21,21 +21,21 @@ struct pt .
   y u8 .
 end .
 
-fn inner_len input s slice u32 . output u64 . do
+fn inner_len output u64 . input s slice u32 . do
   return len s .
 end .
 
 rem ★ 넘긴다 — 여기가 깨지던 자리다.
-fn outer_len input s slice u32 . output u64 . do
+fn outer_len output u64 . input s slice u32 . do
   return inner_len s .
 end .
 
-fn inner_first_x input s slice pt . output u8 . do
+fn inner_first_x output u8 . input s slice pt . do
   let p be index s 0 . .
   return field p x .
 end .
 
-fn outer_first_x input s slice pt . output u8 . do
+fn outer_first_x output u8 . input s slice pt . do
   return inner_first_x s .
 end .
 

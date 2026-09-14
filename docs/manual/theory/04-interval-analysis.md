@@ -12,7 +12,7 @@
 실측 예:
 
 ```lowent
-export proc small_sum input a u8 . input b u8 . output u16 . effects none .
+export proc small_sum output u16 . input a u8 . input b u8 . effects none .
   requires le a 100 .
   requires le b 100 .
 do
@@ -126,7 +126,7 @@ $ lowentc --ir bench_sieve.low
 이 장의 예제를 만들다가 다음을 발견했다:
 
 ```lowent
-export proc loop1 input n u64 . output u64 . effects none . do
+export proc loop1 output u64 . input n u64 . effects none . do
   var i u64 be 0 .   var s u64 be 0 .
   while lt i n . do  set s (wrap_add s i) .  set i (add i 1) .  end
   return s .

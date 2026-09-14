@@ -3,7 +3,7 @@ rem 구간 영역만으로는 **절대** 안 된다: index g i 의 안전성은 
 rem len(g) 는 런타임 값이라 구간으로는 ⊤ 다. 그래서 관계 사실을 하나 든다.
 
 rem ① 가드된 인덱스 — 조건이 사실을 만든다.
-fn at_guarded input i u64 . input g slice u8 . output u64 . do
+fn at_guarded output u64 . input i u64 . input g slice u8 . do
   if lt i (len g) . do
     return index g i .        rem ★ i < len(g) ∧ i ≥ 0 → 경계 검사 제거
   end .
@@ -11,7 +11,7 @@ fn at_guarded input i u64 . input g slice u8 . output u64 . do
 end .
 
 rem ② 루프 — 사실이 매 반복 조건에서 다시 세워진다.
-fn sum_all input g slice u8 . output u64 . do
+fn sum_all output u64 . input g slice u8 . do
   var acc u64 be 0 .
   var i u64 be 0 .
   while lt i (len g) . do
@@ -22,17 +22,17 @@ fn sum_all input g slice u8 . output u64 . do
 end .
 
 rem ③ mod 이디엄 — mod_is_a_safe_index (Coq, Qed) 가 그대로 근거가 된다.
-fn wrapped input i u64 . input g slice u8 . output u64 . do
+fn wrapped output u64 . input i u64 . input g slice u8 . do
   return index g (mod i (len g)) .      rem ★ 0 ≤ mod i (len g) < len(g) → 검사 제거
 end .
 
 rem ④ 가드 없음 — 검사가 **남아야** 한다(건전성: 거짓 제거가 없다).
-fn unguarded input i u64 . input g slice u8 . output u64 . do
+fn unguarded output u64 . input i u64 . input g slice u8 . do
   return index g i .                    rem i 에 대해 아는 게 없다 → E-VM-BOUNDS 유지
 end .
 
 rem ⑤ 다른 슬라이스 — g 의 길이로 h 를 인덱싱할 수는 없다(별칭 아님).
-fn crossed input i u64 . input h slice u8 . input g slice u8 . output u64 . do
+fn crossed output u64 . input i u64 . input h slice u8 . input g slice u8 . do
   if lt i (len g) . do
     return index h i .                  rem 사실은 len(g) 에 대한 것 → h 의 검사는 유지
   end .

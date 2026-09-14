@@ -18,56 +18,56 @@ rem ★ 능력(`cap`)은 **C 로 안 넘어간다** — 그것은 **권리**이�
 module vm_ffi .
 
 unsafe extern proc c_add .
+  output i64 .
   input k cap c .
   input a i64 .
   input b i64 .
-  output i64 .
   link lw_c_add .
   effects unsafe .
   requires ge a 0 .          rem ★ **C 를 부르기 전에** 검사된다
 end .
 
 unsafe extern proc c_sum .
+  output i64 .
   input k cap c .
   input s slice u8 .         rem → C 에서는 **포인터 + 길이**
-  output i64 .
   link lw_c_sum .
   effects unsafe .
 end .
 
-unsafe proc add_via_c input k cap c . input a i64 . input b i64 . output i64 . effects unsafe . do
+unsafe proc add_via_c output i64 . input k cap c . input a i64 . input b i64 . effects unsafe . do
   return c_add k a b .
 end .
 
-unsafe proc sum_via_c input k cap c . input s slice u8 . output i64 . effects unsafe . do
+unsafe proc sum_via_c output i64 . input k cap c . input s slice u8 . effects unsafe . do
   return c_sum k s .
 end .
 
 rem ★★★ **f64 를 주고받는다** — extern 의 반환이 예전엔 언제나 long long 으로 선언·수신돼
 rem   경계에서 타입이 어긋났다(잠복 UB). 이제 f64 는 double 로 오간다.
 unsafe extern proc c_scale2 .
+  output f64 .
   input k cap c .
   input x f64 .
-  output f64 .
   link lw_c_scale2 .
   effects unsafe .
 end .
 
-unsafe proc scale_via_c input k cap c . input x f64 . output f64 . effects unsafe . do
+unsafe proc scale_via_c output f64 . input k cap c . input x f64 . effects unsafe . do
   return c_scale2 k x .
 end .
 
 rem ★★★ **넓은 슬라이스** — `slice u32` 는 예전엔 `const unsigned char *` 로 넘어갔다(폭 무시,
 rem   f64 반환과 같은 부류의 오타). 이제 `const uint32_t *` 로 넘어가고 길이는 **원소 수**다.
 unsafe extern proc c_sum32 .
+  output i64 .
   input k cap c .
   input s slice u32 .        rem → C 에서는 const uint32_t * + size_t(원소 수)
-  output i64 .
   link lw_c_sum32 .
   effects unsafe .
 end .
 
-unsafe proc sum32_via_c input k cap c . input s slice u32 . output i64 . effects unsafe . do
+unsafe proc sum32_via_c output i64 . input k cap c . input s slice u32 . effects unsafe . do
   return c_sum32 k s .
 end .
 
@@ -79,15 +79,15 @@ struct pt .
   y i64 .
 end .
 
-unsafe extern proc c_ptsum  input k cap c . input p unsafe_ptr pt . output i64 . link lw_c_ptsum . effects unsafe . end .
-unsafe extern proc c_ptbump input k cap c . input p unsafe_ptr pt . output i64 . link lw_c_ptbump . effects unsafe . end .
+unsafe extern proc c_ptsum  output i64 . input k cap c . input p unsafe_ptr pt . link lw_c_ptsum . effects unsafe . end .
+unsafe extern proc c_ptbump output i64 . input k cap c . input p unsafe_ptr pt . link lw_c_ptbump . effects unsafe . end .
 
-unsafe proc ptsum_via_c  input k cap c . input p unsafe_ptr pt . output i64 . effects unsafe . do return c_ptsum k p . end .
-unsafe proc ptbump_via_c input k cap c . input p unsafe_ptr pt . output i64 . effects unsafe . do return c_ptbump k p . end .
+unsafe proc ptsum_via_c  output i64 . input k cap c . input p unsafe_ptr pt . effects unsafe . do return c_ptsum k p . end .
+unsafe proc ptbump_via_c output i64 . input k cap c . input p unsafe_ptr pt . effects unsafe . do return c_ptbump k p . end .
 
 rem ★★★ **반대 방향 — C 가 우리를 부른다** (`export extern`).
 rem   C 헤더에 이 이름 그대로 나가고, **하강된 몸을 직접** 부른다 — **비용 0**.
-export extern fn lowent_clamp255 input a u64 . output u64 . . do
+export extern fn lowent_clamp255 output u64 . . input a u64 . do
   if gt a 255 . do return 255 . end .
   return a .
 end .

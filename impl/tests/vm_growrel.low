@@ -14,7 +14,7 @@ rem     그 두 번째 칸은 2026-08-18 에 재서 안 싣기로 한 것이다(
 module vm_growrel .
 
 rem ✔ ① 조건부로만 증가해도 시작점 아래로는 안 내려간다 — `sub i lo` 가 사라진다.
-export proc cond_grow input lo u64 . input k u64 . output u64 . effects none .
+export proc cond_grow output u64 . input lo u64 . input k u64 . effects none .
   requires le lo 1000 .
 do
   var i u64 be lo .
@@ -29,7 +29,7 @@ do
 end .
 
 rem ✔ ② 걸음이 0 이어도(늘 같은 값) 하한 관계는 산다.
-export proc zero_step input lo u64 . output u64 . effects none .
+export proc zero_step output u64 . input lo u64 . effects none .
   requires le lo 1000 .
 do
   var i u64 be lo .
@@ -39,7 +39,7 @@ end .
 
 rem ✘ ③ **증명되면 안 된다** — 줄어드는 대입은 하한 관계를 죽인다.
 rem    (`i = i − 1` 뒤에는 `lo ≤ i` 가 거짓일 수 있다)
-export proc shrink input lo u64 . output u64 . effects none .
+export proc shrink output u64 . input lo u64 . effects none .
   requires le lo 1000 .
   requires ge lo 1 .
 do
@@ -49,7 +49,7 @@ do
 end .
 
 rem ✘ ④ **증명되면 안 된다** — 다른 값으로 덮어쓰면 관계는 죽는다.
-export proc clobber input lo u64 . input other u64 . output u64 . effects none .
+export proc clobber output u64 . input lo u64 . input other u64 . effects none .
   requires le lo 1000 .
 do
   var i u64 be lo .

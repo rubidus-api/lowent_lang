@@ -8,7 +8,7 @@ use vecgen .
 use allocs .
 
 rem u32 벡터: 용량 2 로 열고 8개를 민다 — 자라야 통과한다.
-proc grows_u32 input al cap allocator . output u64 . effects state alloc . do
+proc grows_u32 output u64 . input al cap allocator . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 1024 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -39,7 +39,7 @@ end .
 
 rem ★★ 같은 틀의 **다른 인스턴스**: u8 은 원소가 1바이트라 같은 바이트로 4배를 담는다.
 rem   이것이 `size_of t` 가 없으면 못 하는 일이다(최대 폭으로 잡으면 u8 이 8배를 쓴다).
-proc bytes_fit input al cap allocator . output u64 . effects state alloc . do
+proc bytes_fit output u64 . input al cap allocator . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 64 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -59,7 +59,7 @@ proc bytes_fit input al cap allocator . output u64 . effects state alloc . do
 end .
 
 rem 미리 자리를 잡으면 뒤따르는 append 가 도중에 실패하지 않는다.
-proc reserved input al cap allocator . output u64 . effects state alloc . do
+proc reserved output u64 . input al cap allocator . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 512 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -95,7 +95,7 @@ struct pt .
   y u32 .
 end .
 
-proc structs input al cap allocator . output u64 . effects state alloc . do
+proc structs output u64 . input al cap allocator . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 1024 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -134,7 +134,7 @@ struct nest .
   v t .
 end .
 
-proc wrap input comptime t type . input x t . output nest t . effects none . do
+proc wrap output nest t . input comptime t type . input x t . effects none . do
   return make nest t do v x . end .
 end .
 
@@ -158,7 +158,7 @@ rem   `allocs.bump_bytes` 에 **못박혀** 있어서, 다른 정책의 얼로�
 rem   했다(그리고 `vecs` 는 그 축을 갖는 대신 원소를 u8 에 못박았다 — 어느 쪽이든 축 하나를 잃었다).
 rem   ★ `bump_aligned` 는 8 바이트 경계로 올림하는 **다른 정책**이다. 같은 소스가 두 인스턴스를 낸다:
 rem     `vec#u32#allocs.bump_bytes` 와 `vec#u32#allocs.bump_aligned`(`--ir` 에 보인다).
-proc aligned_axis input al cap allocator . output u64 . effects state alloc . do
+proc aligned_axis output u64 . input al cap allocator . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 1024 .
   guard is_some memo . else return 89 .
   var ba allocs.bump_aligned be spawn actor allocs.bump_aligned . .
@@ -184,7 +184,7 @@ proc aligned_axis input al cap allocator . output u64 . effects state alloc . do
 end .
 
 rem ★ cap 은 CLI 인자로 못 넘긴다 — 엔트리가 받아서 넘긴다(vm_growvec 와 같은 꼴).
-proc main input al cap allocator . output u8 . effects state alloc . do
+proc main output u8 . input al cap allocator . effects state alloc . do
   let a u64 be grows_u32 al .
   guard eq a 42 . else return narrow u8 a .
   let b u64 be bytes_fit al .

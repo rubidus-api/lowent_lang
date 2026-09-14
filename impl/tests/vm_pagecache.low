@@ -53,7 +53,7 @@ proc limit_shows output u64 . effects none . do
   return lim .
 end .
 
-fn within_ok input lim u64 . output bool . do
+fn within_ok output bool . input lim u64 . do
   return le lim 64 .
 end .
 

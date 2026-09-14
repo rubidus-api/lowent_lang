@@ -25,20 +25,20 @@ module rcshare .
 
 use lifeatom .
 
-proc share_one input k cap atomic . input c mut slice u64 . . output u64 . effects atomic .
+proc share_one output u64 . input k cap atomic . input c mut slice u64 . . effects atomic .
 do
   return lifeatom.rc_share k c .
 end
 
-proc release_one input k cap atomic . input c mut slice u64 . . output u64 . effects atomic .
+proc release_one output u64 . input k cap atomic . input c mut slice u64 . . effects atomic .
 do
   return lifeatom.rc_release k c .
 end
 
 proc main .
+  output u8 .
   input al cap allocator .
   input k  cap atomic .
-  output u8 .
   effects alloc atomic state .
 do
   let mb option mut slice u8 . . be alloc_bytes al capacity 32 .

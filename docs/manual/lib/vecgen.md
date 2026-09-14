@@ -137,8 +137,8 @@ end
 ### `open` — 연다
 
 ```lowent
-proc open input comptime t type . input comptime a type . using al a . input cap0 u64 .
-     output option (vec t a) . effects state via a . requires allocs.byte_allocator a .
+proc open output option (vec t a) . input comptime t type . input comptime a type . using al a .
+     input cap0 u64 . effects state via a . requires allocs.byte_allocator a .
 ```
 
 - `t` — 원소 타입. **크기 있는 스칼라**(`u8`·`u16`·`u32`·`u64`·`i*`·`f32`·`f64`) 또는
@@ -151,7 +151,7 @@ proc open input comptime t type . input comptime a type . using al a . input cap
 ### `append` — 하나 민다
 
 ```lowent
-proc append input comptime t type . input comptime a type . input g mut vec t a . input x t . output bool . effects state .
+proc append output bool . input comptime t type . input comptime a type . input g mut vec t a . input x t . effects state .
 ```
 
 자리가 있으면 `O(1)`. 없으면 **두 배 + 8 원소**의 새 자리를 받아 전부 옮긴다(`O(n)`).
@@ -163,8 +163,8 @@ proc append input comptime t type . input comptime a type . input g mut vec t a 
 ### `at` · `set_at`
 
 ```lowent
-proc at     input comptime t type . input g vec t . input i u64 . output option t . effects none .
-proc set_at input comptime t type . input g mut vec t . input i u64 . input x t . output bool . effects state .
+proc at     output option t . input comptime t type . input g vec t . input i u64 . effects none .
+proc set_at output bool . input comptime t type . input g mut vec t . input i u64 . input x t . effects state .
 ```
 
 둘 다 **범위 밖이면 값으로 답한다**(`none` / `false`). `set_at` 은 벡터를 조용히 늘리지
@@ -173,7 +173,7 @@ proc set_at input comptime t type . input g mut vec t . input i u64 . input x t 
 ### `reserve_more` — 미리 확보
 
 ```lowent
-proc reserve_more input comptime t type . input g mut vec t . input more u64 . output bool . effects state .
+proc reserve_more output bool . input comptime t type . input g mut vec t . input more u64 . effects state .
 ```
 
 `n + more` 개가 들어갈 자리를 확보한다. 이걸 먼저 부르면 뒤따르는 `append` 가 **도중에
@@ -182,7 +182,7 @@ proc reserve_more input comptime t type . input g mut vec t . input more u64 . o
 ### `view_of` — 담긴 만큼
 
 ```lowent
-proc view_of input comptime t type . input g vec t . output slice t . effects none .
+proc view_of output slice t . input comptime t type . input g vec t . effects none .
 ```
 
 용량 전체가 아니라 **쓴 만큼**이다. 반환은 `slice t` — 그대로 [sortgen](sortgen.md) 이나
@@ -199,7 +199,7 @@ use vecgen .
 use allocs .
 
 rem 짝수만 모아서 벡터로 돌려준다. 몇 개가 될지는 미리 모른다.
-export proc evens input al allocs.bump_bytes . input src slice u32 . output option (vecgen.vec u32 allocs.bump_bytes) . effects state . do
+export proc evens output option (vecgen.vec u32 allocs.bump_bytes) . input al allocs.bump_bytes . input src slice u32 . effects state . do
   let g option (vecgen.vec u32 allocs.bump_bytes) . using al be vecgen.open u32 8 .
   guard is_some g . else return none .
   var v vecgen.vec u32 allocs.bump_bytes . be some_value g .

@@ -34,14 +34,14 @@ module wire .
 rem ── 마스크를 읽는 두 물음 ────────────────────────────────────────────────
 
 rem 칸이 어디서 시작하나 — 마스크의 맨 뒤 0 의 수.
-export fn shift_of input mask u64 . output u64 .
+export fn shift_of output u64 . input mask u64 .
   requires gt mask 0 .
 do
   return trailing_zeros mask .
 end .
 
 rem 그 칸에 들어갈 수 있는 가장 큰 값. (마스크가 이어진 한 덩어리라는 가정은 `solid` 가 잰다.)
-export fn max_of input mask u64 . output u64 .
+export fn max_of output u64 . input mask u64 .
   requires gt mask 0 .
 do
   return shr mask (trailing_zeros mask) .
@@ -49,7 +49,7 @@ end .
 
 rem ★ 마스크가 **한 덩어리**인가(구멍이 없는가). 구멍 난 마스크는 이 기제가 다루지 않는다 —
 rem   그런 것을 조용히 받으면 `put` 이 값을 **잘라 먹는다**.
-export fn solid input mask u64 . output bool .
+export fn solid output bool . input mask u64 .
   requires gt mask 0 .
 do
   let m u64 be shr mask (trailing_zeros mask) .
@@ -67,28 +67,28 @@ rem   그래서 `read` 로 바꿨더니 이번엔 **네이티브 빌드가 깨�
 rem   으로도 정의돼 `unistd.h` 의 `read` 와 충돌한다(`conflicting types for 'read'`). VM 은 멀쩡하고
 rem   C 컴파일러가 잡아 준다 — 조용하지는 않으나, 라이브러리 이름이 **libc 이름을 피해야** 한다는
 rem   뜻이다(이것도 spill).  ☞ *이름은 세 곳에서 부딪친다: 하강 · 정본 표 · C 이름칸.*
-export fn pick input mask u64 . input w u64 . output u64 .
+export fn pick output u64 . input mask u64 . input w u64 .
   requires gt mask 0 .
 do
   return shr (bit_and w mask) (trailing_zeros mask) .
 end .
 
 rem 값을 그 칸 자리로 옮긴다. **칸보다 큰 값은 잘린다** — 그것이 싫으면 `fits` 를 먼저 묻는다.
-export fn put input mask u64 . input v u64 . output u64 .
+export fn put output u64 . input mask u64 . input v u64 .
   requires gt mask 0 .
 do
   return bit_and (shl v (trailing_zeros mask)) mask .
 end .
 
 rem 값이 그 칸에 들어가는가.
-export fn fits input mask u64 . input v u64 . output bool .
+export fn fits output bool . input mask u64 . input v u64 .
   requires gt mask 0 .
 do
   return le v (shr mask (trailing_zeros mask)) .
 end .
 
 rem 낱말의 그 칸만 갈아 끼운다(나머지 비트는 그대로). C 의 `MODIFY_REG` 와 같은 일.
-export fn merge input mask u64 . input w u64 . input v u64 . output u64 .
+export fn merge output u64 . input mask u64 . input w u64 . input v u64 .
   requires gt mask 0 .
 do
   return bit_or (bit_and w (bit_not mask)) (bit_and (shl v (trailing_zeros mask)) mask) .
@@ -113,10 +113,10 @@ rem   `onwire 0 0 v 8` 의 명령 수 = 그냥 `v` 를 돌려주는 op 의 명�
 rem 극성 — 마스크가 가리키는 자리만 뒤집는다(active-low 는 그 자리들이 반대다).
 rem ★ 이름이 `invert` 가 아닌 까닭: `lib/regex.low` 이 `var invert` 를 쓴다. 내보낸 이름은
 rem   **남의 지역 이름과도 부딪친다**(RFC-0107 §8-10 의 넷째 자리) — 흔한 낱말을 피한다.
-export fn polarity input v u64 . input m u64 . output u64 . do return bit_xor v m . end .
+export fn polarity output u64 . input v u64 . input m u64 . do return bit_xor v m . end .
 
 rem 비트 순서 — 폭 `w` 안에서 자리를 뒤집는다(0↔w-1). 폭이 곧 프레임이다.
-export fn reverse_bits input v u64 . input w u64 . output u64 .
+export fn reverse_bits output u64 . input v u64 . input w u64 .
   requires gt w 0 .
   requires le w 64 .
 do
@@ -137,8 +137,8 @@ rem     inv   : 뒤집을 자리의 마스크(0 = 극성 그대로)
 rem ★★ 이름이 `emit` 이 아닌 까닭: `lib/poly.low` 에 `emit` 이 있고, **자격을 붙여 부른**
 rem   `poly.emit` 조차 이 op 의 comptime 시그니처로 읽혀 `lib/aead.low`·`tls13`·`tlssrv` 가
 rem   컴파일되지 않았다(아픈 쌍 3). 자격을 붙여도 부딪친다 — X-0008 이 아직 살아 있는 자리다.
-export fn onwire input comptime order u64 . input comptime inv u64 .
-  input v u64 . input w u64 . output u64 .
+export fn onwire output u64 . input comptime order u64 .
+  input comptime inv u64 . input v u64 . input w u64 .
   requires gt w 0 .
   requires le w 64 .
 do
@@ -155,7 +155,7 @@ rem   항등 표(`tab[i] == i`)는 `is_identity` 가 답하므로, 부르는 쪽
 rem   그것이 런타임 표에서 «항등은 공짜» 를 얻는 유일하게 정직한 방법이다(comptime 이 아니면
 rem   루프를 접을 수 없다).
 
-export fn is_identity input tab slice u8 . output bool . do
+export fn is_identity output bool . input tab slice u8 . do
   var i u64 be 0 .
   while lt i (len tab) . do
     if ne (widen u64 (index tab i)) i . do return false . end .
@@ -164,7 +164,7 @@ export fn is_identity input tab slice u8 . output bool . do
   return true .
 end .
 
-export fn permute input v u64 . input tab slice u8 . output u64 . do
+export fn permute output u64 . input v u64 . input tab slice u8 . do
   var r u64 be 0 .
   var i u64 be 0 .
   while lt i (len tab) . do
@@ -184,11 +184,11 @@ rem   사라진다. 그래서 하드웨어가 `BSRR` 같은 «세울 마스크 �
 rem   ⇒ 이것은 편의가 아니라 **정확성**이다. 값만 주면 사용자는 읽고-고쳐-쓰게 된다.
 
 rem 지금 `now` 인데 `want` 로 가려면 — **세울** 자리들.
-export fn to_set input now u64 . input want u64 . output u64 . do
+export fn to_set output u64 . input now u64 . input want u64 . do
   return bit_and want (bit_not now) .
 end .
 
 rem 그리고 **지울** 자리들. 둘은 겹치지 않는다(`bit_and (to_set …) (to_clear …) = 0`).
-export fn to_clear input now u64 . input want u64 . output u64 . do
+export fn to_clear output u64 . input now u64 . input want u64 . do
   return bit_and now (bit_not want) .
 end .

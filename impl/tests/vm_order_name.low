@@ -25,27 +25,27 @@ rem ★ 순서 낱말 다섯 개를 **전부** op 이름으로 선언한다 — 
 rem   그리고 이들은 `alloc` 을 **실제로 한다**(선언만 하고 안 하면 그 절이 거짓말이다, RFC-0007).
 rem   `alloc` 은 아래 `ring` 이 선언한 `atomic` 에 **들지 않으므로**, 순서 낱말이 호출로
 rem   세어지는 순간 곧바로 E-EFFECT 로 드러난다 — 그것이 이 픽스처가 고정하려는 자리다.
-proc release input al cap allocator . output u64 . effects alloc . do
+proc release output u64 . input al cap allocator . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
 end .
-proc acquire input al cap allocator . output u64 . effects alloc . do
+proc acquire output u64 . input al cap allocator . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
 end .
-proc relaxed input al cap allocator . output u64 . effects alloc . do
+proc relaxed output u64 . input al cap allocator . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
 end .
-proc acq_rel input al cap allocator . output u64 . effects alloc . do
+proc acq_rel output u64 . input al cap allocator . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
 end .
-proc seq_cst input al cap allocator . output u64 . effects alloc . do
+proc seq_cst output u64 . input al cap allocator . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
@@ -53,8 +53,8 @@ end .
 
 rem ★ 그 다섯 이름을 순서 자리에 쓴다. 이 op 은 `atomic` 만 선언한다 —
 rem   순서 낱말이 호출로 세어지면 state 가 새어 E-EFFECT 가 난다.
-proc ring input k cap atomic . input ctl mut slice u64 . .
-  output u64 . effects atomic .
+proc ring output u64 . input k cap atomic .
+  input ctl mut slice u64 . . effects atomic .
   requires ge (len ctl) 4 .
 do
   atomic_store ctl 0 1 order release .
@@ -68,6 +68,6 @@ end .
 rem ★ 그리고 같은 이름의 op 들은 **여전히 부를 수 있다** — 순서 자리가 아닌 곳에서는 이름이다.
 rem   (건너뛰기가 너무 넓으면 이 줄이 조용히 안 세어진다: 여기 `alloc` 이 안 잡히면 W-EFFECT-OVER
 rem    가 운다. 즉 이 op 은 **고침이 지나치지 않았음**을 지키는 반대편 증인이다.)
-proc still_callable input al cap allocator . output u64 . effects alloc . do
+proc still_callable output u64 . input al cap allocator . effects alloc . do
   return release al .
 end .

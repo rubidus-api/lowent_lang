@@ -19,18 +19,18 @@ end .
 rem ── ① result 가 **레코드를 감싼** 반환을, round-trip 없이 **바로** 소비 → field. → 7.
 rem   전엔 호출 반환 슬롯의 ve 를 안 지워(csl 만 박았다), ok_value 가 스칼라 추출로 새고 field 가
 rem   rs[-1] 을 읽었다(ASan OOB · native="ok 0"). 이미터를 시뮬레이터와 같게 정규화해 고침.
-fn mkres input v u64 . output result pt e . do
+fn mkres output result pt e . input v u64 . do
   return ok make pt do x 7 . y 9 . end .
 end .
-fn res_field input v u64 . output u64 . do
+fn res_field output u64 . input v u64 . do
   return field (ok_value (mkres v)) x .
 end .
 
 rem ── ② option 이 레코드를 감싼 반환을 바로 소비(some_value) → field. → 42. 같은 근인.
-fn mkopt input v u64 . output option pt . do
+fn mkopt output option pt . input v u64 . do
   return some make pt do x 42 . y 9 . end .
 end .
-fn opt_field input v u64 . output u64 . do
+fn opt_field output u64 . input v u64 . do
   return field (some_value (mkopt v)) x .
 end .
 
@@ -42,8 +42,8 @@ struct b2 .
   b u8 .
 end .
 fn mk2 output b2 . do return make b2 do a 3 . b 4 . end end .
-fn blen input s slice u8 . output u64 . do return len s . end .
-fn enc_len input f slice u64 . output u64 . do
+fn blen output u64 . input s slice u8 . do return len s . end .
+fn enc_len output u64 . input f slice u64 . do
   var t u64 be len f .
   return add (blen (encode b2 mk2)) (mul t 0) .
 end .
@@ -56,6 +56,6 @@ struct pt2 .
   px u64 .
   py u8 .
 end .
-fn fl_stale input v u64 . output u64 . do
+fn fl_stale output u64 . input v u64 . do
   return field (some_value (some make pt2 do px len view_array f32 "12345678" . py 9 . end)) px .
 end .

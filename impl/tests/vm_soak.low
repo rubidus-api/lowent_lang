@@ -17,10 +17,10 @@ type bytes slice u8 .
 
 rem 타입 슬라이스를 **반환**하는 op — 이것을 부르면 부르는 쪽이 **태그 경로**로 내려간다.
 rem (빠른 경로는 반환 슬라이스의 원소폭을 못 물려받으므로 — vm_callslice.low 의 그 자리다.)
-fn mk4 input b bytes . output slice u32 . do return view_array u32 b . end .
+fn mk4 output slice u32 . input b bytes . do return view_array u32 b . end .
 
 rem ── ① 벡터 풀 · **빠른 경로** — 풀이 아예 없다(값이 프레임에 산다). 300만 번도 돈다.
-fn vec_fast input a bytes . input n u64 . output u64 . do
+fn vec_fast output u64 . input a bytes . input n u64 . do
   var xa slice u32 . be view_array u32 a .
   var acc u64 . be 0 .
   var i u64 . be 0 .
@@ -35,7 +35,7 @@ end .
 rem ── ② 벡터 풀 · **태그 경로** — 32칸 풀. **여기가 33번째 반복에서 죽던 자리**다.
 rem   VM 과 방출된 C 가 **둘 다** 이 풀을 쓰므로, 되감기는 양쪽에 같이 들어가야 한다:
 rem   한쪽만 고치면 결함이 사라지는 것이 아니라 **반대편으로 옮겨간다**(실측 2026-08-03).
-fn vec_tag input a bytes . input n u64 . output u64 . do
+fn vec_tag output u64 . input a bytes . input n u64 . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
@@ -48,11 +48,11 @@ end .
 
 rem ── ③ 벡터를 **돌려주는** op 을 루프에서 부른다 — 반환 하나만 콜리의 바닥으로 내려온다.
 rem   되감기가 반환을 안 챙기면 여기서 죽거나(풀 고갈) 레인이 어긋난다(잘못된 답).
-fn vmake input a bytes . output vec u32 4 . do
+fn vmake output vec u32 4 . input a bytes . do
   var v vec u32 4 . be load (mk4 a) 0 .
   return v .
 end .
-fn vec_ret input a bytes . input n u64 . output u64 . do
+fn vec_ret output u64 . input a bytes . input n u64 . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
@@ -65,7 +65,7 @@ end .
 
 rem ── ④ 박스 풀 · option — 4096칸이고 **되감기지 않는다**(표의 ⛔ 그대로).
 rem   여기서 재는 것은 생존이 아니라 **두 뒤끝이 같이 살고 같이 죽는가** 다.
-fn box_pool input n u64 . output u64 . do
+fn box_pool output u64 . input n u64 . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
@@ -84,20 +84,20 @@ enum e .
   bad .
 end .
 
-fn fails input k u64 . output result u64 e .
+fn fails output result u64 e . input k u64 .
 errors bad ge k 1 .
 do
   if ge k 1 . do return error bad . end .
   return ok k .
 end .
 
-fn vtry input a bytes . input k u64 . output result u64 e . do
+fn vtry output result u64 e . input a bytes . input k u64 . do
   var v vec u32 4 . be load (mk4 a) 0 .
   var x u64 . be try (fails k) .
   return ok (add x (widen u64 (reduce_add v))) .
 end .
 
-fn vec_try input a bytes . input n u64 . output u64 . do
+fn vec_try output u64 . input a bytes . input n u64 . do
   var c u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
@@ -116,7 +116,7 @@ struct pt .
   y u64 .
 end .
 
-fn rec_pool input n u64 . output u64 . do
+fn rec_pool output u64 . input n u64 . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
@@ -128,7 +128,7 @@ fn rec_pool input n u64 . output u64 . do
 end .
 
 type slot u64 . .
-proc stk_pool input temp region slot . . input n u64 . output u64 . effects alloc . do
+proc stk_pool output u64 . input temp region slot . . input n u64 . effects alloc . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
@@ -140,7 +140,7 @@ proc stk_pool input temp region slot . . input n u64 . output u64 . effects allo
   return acc .
 end .
 
-fn bset_pool input n u64 . output u64 . do
+fn bset_pool output u64 . input n u64 . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
@@ -154,7 +154,7 @@ end .
 
 rem ── ⑦ **태그 경로**에서도 같은 질문 — 박스를 루프에서 만들되 하강을 막는다(mk4 를 부른다).
 rem   단계 B 의 교훈: 한쪽만 되감으면 결함은 사라지지 않고 **반대편으로 옮겨간다**.
-fn box_tag input a bytes . input n u64 . output u64 . do
+fn box_tag output u64 . input a bytes . input n u64 . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do

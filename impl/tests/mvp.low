@@ -11,8 +11,8 @@ struct pt .
 end .
 
 fn sorted .
-  input xs slice u32 . .
   output bool .
+  input xs slice u32 . .
 do
   var i usize be 1 .
   while lt i (len xs) . do

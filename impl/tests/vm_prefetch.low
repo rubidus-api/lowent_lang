@@ -19,7 +19,7 @@ module vm_prefetch .
 use allocs .
 
 rem 힌트를 **주고** 훑는다.
-export proc walk_hinted input xs slice u64 . output u64 . effects none . do
+export proc walk_hinted output u64 . input xs slice u64 . effects none . do
   var i u64 be 0 .
   var s u64 be 0 .
   while lt i (len xs) . do
@@ -31,7 +31,7 @@ export proc walk_hinted input xs slice u64 . output u64 . effects none . do
 end .
 
 rem 힌트 **없이** 훑는다 — 답이 같아야 한다.
-export proc walk_plain input xs slice u64 . output u64 . effects none . do
+export proc walk_plain output u64 . input xs slice u64 . effects none . do
   var i u64 be 0 .
   var s u64 be 0 .
   while lt i (len xs) . do
@@ -43,7 +43,7 @@ end .
 
 rem ★ 범위 **밖**을 미리 당겨도 안전하다 — 힌트는 접근이 아니다.
 rem   (방출 C 가 길이를 보고 거른다. 그래서 `i + 8` 이 끝을 넘어도 아무 일이 없다.)
-proc same input al cap allocator . output u64 . effects alloc . do
+proc same output u64 . input al cap allocator . effects alloc . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 64 .
   guard is_some mb . else return 89 .
   var xs mut slice u64 . be view_array u64 (some_value mb) .
@@ -61,7 +61,7 @@ proc same input al cap allocator . output u64 . effects alloc . do
   return 42 .
 end .
 
-proc main input al cap allocator . output u8 . effects alloc .
+proc main output u8 . input al cap allocator . effects alloc .
 do
   let a u64 be same al .
   guard eq a 42 . else return narrow u8 a .

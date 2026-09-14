@@ -861,7 +861,7 @@ static void low_fmt_trait_blk(const low_cst_t *blk) {
         enum { NS = 64 };
         const low_cst_t *sf[NS]; proven_size_t sat[NS]; int key[NS]; proven_size_t ns = 0;
         if (j - i > NS) { for (; i < j; i++) { low_fmt_stmt(blk->kids[i]); putchar(' '); } continue; }
-        int inmax = 2;
+        int inmax = 3;
         for (proven_size_t q = i; q < j; q++) {
             const low_cst_t *c = blk->kids[q];
             proven_size_t at = (q == i) ? 1 : 0;
@@ -1057,7 +1057,7 @@ static proven_size_t low_fmt_hdr_order(const low_cst_t *f, proven_size_t from, p
     proven_size_t st[LOW_FMT_MAXSPAN], en[LOW_FMT_MAXSPAN]; int key[LOW_FMT_MAXSPAN];
     proven_size_t ns = 0, i = from, n = 0;
     while (i < to && !(f->kids[i]->kind == LOW_CST_ATOM && low_is_clause_word(f->kids[i]->tok.lex))) idx[n++] = i++;
-    int inmax = 2;
+    int inmax = 3;
     while (i < to) {
         proven_size_t e = i + 1;
         while (e < to && !(f->kids[e]->kind == LOW_CST_ATOM && low_is_clause_word(f->kids[e]->tok.lex))) e++;
@@ -1158,40 +1158,44 @@ void low_cst_dump(const low_parse_result_t *pr) {
 
 // ══ 정규화된 op 헤더 — **op 의 머리는 여기서 한 번만 읽는다** (DECISION-0015) ═══
 //
+// ★★★★★ **2026-09-15 소유자 지시 — `output` 이 제일 앞.** *"op선언에서 output 이 input보다 앞 그러니까 제일 앞이어야 해 다 바꿔줘"*
+//   `output` 을 차례 0 으로 옮기고 그 앞에 있던 것들을 하나씩 뒤로 밀었다(입력: comptime 3 · 권한·영역 4 · 데이터 6, `using` 5).
+//   코퍼스는 `lowent_lang_private/scripts/migrate-output-first.c` 로 옮겨 썼다(토큰 자리로 — 주석이 산다).
 // ★★★★ **머리 절의 차례** (WO-0217 · 소유자 결정 ⓑ, 2026-09-13) — **유일한 표.** 검사기(`E-CLAUSE-ORDER`)·서식기·
-//   `using` 해석이 모두 이것을 읽는다. 입력은 종류로 가른다: comptime(2) · 권한·영역(3) · 데이터(5). `using` 은 4.
+//   `using` 해석이 모두 이것을 읽는다. 입력은 종류로 가른다: comptime(3) · 권한·영역(4) · 데이터(6). `using` 은 5(2026-09-15 전: 2·3·5·4).
 //   *"op 서명의 절 순서에 대해 b로 하여 진행 바랍니다."* — 절 종류의 차례를 고정하고, 권한을 데이터보다 먼저 받는다.
 //   ☞ 이 수들은 실측으로 정했다(코퍼스 op 머리 2,089): 적힌 차례가 이미 그랬다 — 어긴 곳은 19 자리였다.
 int low_clause_rank(proven_u8str_view_t w) {
     static const struct { const char *w; int r; } T[] = {
-        { "lowdoc", 0 }, { "vector", 1 }, { "priority", 1 },
-        { "using", 4 }, { "output", 6 }, { "link", 7 }, { "variadic", 7 }, { "effects", 8 }, { "asm", 9 },
+        { "output", 0 },     // ★★★★★ 2026-09-15 소유자 지시 — `output` 이 **제일 앞**이다(입력보다 앞)
+        { "lowdoc", 1 }, { "vector", 2 }, { "priority", 2 },
+        { "using", 5 }, { "link", 7 }, { "variadic", 7 }, { "effects", 8 }, { "asm", 9 },
         { "access", 10 }, { "parallel", 10 }, { "reduce", 10 },
         { "requires", 11 }, { "ensures", 12 }, { "errors", 13 }, { "tests", 14 }, { "schedule", 15 },
-        { "satisfies", 0 },     // `fn f satisfies c .` — 이름 붙은 계약은 이름 바로 뒤(정본 §6.4)
+        { "satisfies", 1 },     // `fn f output u8 . satisfies c .` — 이름 붙은 계약은 출력 바로 뒤(정본 §6.4)
     };
     for (proven_size_t i = 0; i < sizeof T / sizeof T[0]; i++)
         if (low_view_eq_cstr(w, T[i].w)) return T[i].r;
     return -1;     // `input` 은 종류가 정한다(low_input_rank)
 }
 int low_input_rank(const low_cst_t *f, proven_size_t at, proven_size_t end) {
-    // `input [comptime] <이름> [comptime] <타입…>` — 권한(`cap …`)·영역(`region …`)은 3, comptime 은 2, 나머지 5
+    // `input [comptime] <이름> [comptime] <타입…>` — 권한(`cap …`)·영역(`region …`)은 4, comptime 은 3, 나머지 6
     proven_size_t j = at + 1;
     bool ct = false;
     while (j < end && f->kids[j]->kind == LOW_CST_ATOM && low_view_eq_cstr(f->kids[j]->tok.lex, "comptime")) { ct = true; j++; }
     j++;                                                         // 이름
     while (j < end && f->kids[j]->kind == LOW_CST_ATOM && low_view_eq_cstr(f->kids[j]->tok.lex, "comptime")) { ct = true; j++; }
-    if (ct) return 2;
+    if (ct) return 3;
     while (j < end && f->kids[j]->kind == LOW_CST_ATOM &&
            (low_view_eq_cstr(f->kids[j]->tok.lex, "mut") || low_view_eq_cstr(f->kids[j]->tok.lex, "owned"))) j++;
     if (j < end && f->kids[j]->kind == LOW_CST_ATOM &&
-        (low_view_eq_cstr(f->kids[j]->tok.lex, "cap") || low_view_eq_cstr(f->kids[j]->tok.lex, "region"))) return 3;
-    return 5;
+        (low_view_eq_cstr(f->kids[j]->tok.lex, "cap") || low_view_eq_cstr(f->kids[j]->tok.lex, "region"))) return 4;
+    return 6;
 }
 
 // op 의 머리는 **평평한 원자 열**이다(점-닫힘). 절은 `low_is_clause_word()` 로 잘린다.
-//   fn f  input [comptime] n u8 .  input s mut slice u8 .  output u8 .  effects none .  do … end
-//             └── 파라미터 ─────────┘  └── 파라미터 ────────┘  └ 출력 ─┘  └ 효과 ──┘
+//   fn f  output u8 .  input [comptime] n u8 .  input s mut slice u8 .  effects none .  do … end
+//         └ 출력 ─┘  └── 파라미터 ─────────┘  └── 파라미터 ────────┘  └ 효과 ──┘
 //
 // 한정자(`comptime` · `mut` · `owned`)는 **이름과 타입 사이**에 온다 — 그리고 각 소비자가
 // 각자 건너뛰고 있었다. 여기서 **한 번만** 벗긴다.

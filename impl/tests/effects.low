@@ -1,6 +1,6 @@
 fn clean_add .
-  input a i32 . input b i32 .
-  output i32 .
+  output i32 . input a i32 .
+  input b i32 .
 do
   return add a b .
 end .

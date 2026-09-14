@@ -55,14 +55,14 @@ export fn new output str_buf . do
 end .
 
 rem 지금까지 쓴 바이트의 **뷰**. 복사가 아니다. (널은 뷰에 안 든다 — 길이가 진실이다.)
-export fn as_str input b str_buf . input buf slice u8 . output slice u8 . do
+export fn as_str output slice u8 . input b str_buf . input buf slice u8 . do
   return subslice buf 0 (field b len) .
 end .
 
 rem ★ 내용 용량 = len(buf) − 1 (마지막 1 바이트는 널 봉인 자리, D2).
 rem ★ 빈 버퍼거나 `len` 이 버퍼 길이에 닿았으면(낡은 str_buf 를 짧은 버퍼에 댄 경우) **0** 이다 —
 rem   전에는 뺄셈이 밑으로 감겨 2^64−1 을 냈다(2026-09-04 보안 검토). 자리가 없다는 사실은 0 으로 말한다.
-export fn room input b str_buf . input buf slice u8 . output u64 . do
+export fn room output u64 . input b str_buf . input buf slice u8 . do
   guard lt (field b len) (len buf) . else return 0 .
   return sub (sub (len buf) 1) (field b len) .
 end .
@@ -71,7 +71,7 @@ rem ★★★ **str_buf → cstr** (RFC-0068 S4 · C4 · D2 봉인) — **O(1)·
 rem   base 포인터를 cstr 로 낸다. `cstr_of` 가 `effects unsafe` 라 이 op 도 unsafe 다 — 그리고 그것이
 rem   D4 의 규율이다: cstr 를 만드는 것은 언제나 널종단 보증이고, 봉인하는 유일한 안전 경로가 str_buf 다.
 rem   ☞ 버퍼는 `len + 1 ≤ len(buf)` 여야 한다(append 가 예약해 뒀다). 아니면 널 쓰기가 경계 밖 → 트랩.
-export unsafe proc as_cstr input b str_buf . input buf mut slice u8 . . output cstr . effects unsafe . do
+export unsafe proc as_cstr output cstr . input b str_buf . input buf mut slice u8 . . effects unsafe . do
   set (index buf (field b len)) 0 .
   return cstr_of buf .
 end .
@@ -80,8 +80,8 @@ rem ── ① 전량-아니면-무 ──────────────�
 rem
 rem ★★ 안 들어가면 **한 바이트도 안 쓴다.** 반쯤 쓰인 버퍼는 조용히 틀린 내용이고,
 rem   그것은 거절보다 나쁘다 — `lib/fmt.low` 이 같은 이유로 같은 선택을 했다.
-export proc append input b mut str_buf . input buf mut slice u8 . . input s slice u8 .
-  output result void sb_error . effects none .
+export proc append output result void sb_error . input b mut str_buf . input buf mut slice u8 . .
+  input s slice u8 . effects none .
 errors no_room .
 do
   rem ★ 내용 + 널 1 바이트가 들어가야 한다(D2 봉인). len + |s| + 1 ≤ len(buf).
@@ -100,8 +100,8 @@ rem ── ② 되는 만큼 ─────────────────
 rem
 rem ★ 자르되 **잘랐다는 것을 숨기지 않는다**: 쓴 개수를 돌려주므로 호출자가 `len s` 와 비교해
 rem   안다. 이것이 "조용한 절단" 과 다른 점이다 — 사실이 값으로 나온다.
-export proc append_trunc input b mut str_buf . input buf mut slice u8 . . input s slice u8 .
-  output u64 . effects none .
+export proc append_trunc output u64 . input b mut str_buf . input buf mut slice u8 . .
+  input s slice u8 . effects none .
 do
   rem ★ 자리가 아예 없으면(빈 버퍼 · `len ≥ len buf`) **한 바이트도 안 쓰고 0** 이다 — 봉인 자리조차
   rem   없으므로 봉인도 안 한다. 전에는 밑으로 감긴 `avail` 로 경계 밖에 썼다(2026-09-04).
@@ -127,9 +127,9 @@ rem   RFC-0043 D1(ambient 힙 없음)이 여기서도 그대로 산다.
 rem   ⇒ 그리고 이것이 F4(c)의 실물이다: **성장하려면 더 큰 바이트를 *가진 자* 여야 한다.**
 rem     빌린 버퍼만 든 코드는 새 자리를 못 만들므로 이 op 을 유용하게 부를 수 없다.
 rem ★ 실패하면 **원본이 그대로다**(원자적): 새 자리가 모자라면 아무것도 안 옮긴다.
-export proc append_grow input b mut str_buf . input old mut slice u8 . .
-  input new_buf mut slice u8 . . input s slice u8 .
-  output result void sb_error . effects none .
+export proc append_grow output result void sb_error . input b mut str_buf .
+  input old mut slice u8 . . input new_buf mut slice u8 . .
+  input s slice u8 . effects none .
 errors no_room .
 do
   rem ★ 새 자리에 내용 + 널 1 바이트가 들어가야 한다(D2 봉인).

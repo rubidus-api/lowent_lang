@@ -118,8 +118,8 @@ struct 도 enum 도 없다. 상태는 전부 호출자의 것 — 버퍼(`mut sl
 ### put_byte
 
 ```lowent
-export proc put_byte input buf mut slice u8 . . input pos u64 . input b u8 .
-  output option u64 . effects none .
+export proc put_byte output option u64 . input buf mut slice u8 . . input pos u64 .
+  input b u8 . effects none .
 ```
 
 - `b u8` — **왜 받나:** 쓸 바이트 값 자체다. 문자 하나를 넣는 가장 낮은 층이라 값을 그대로
@@ -131,8 +131,8 @@ export proc put_byte input buf mut slice u8 . . input pos u64 . input b u8 .
 ### put_str
 
 ```lowent
-export proc put_str input buf mut slice u8 . . input pos u64 . input s slice u8 .
-  output option u64 . effects none .
+export proc put_str output option u64 . input buf mut slice u8 . . input pos u64 .
+  input s slice u8 . effects none .
 ```
 
 - `s slice u8` — **왜 받나:** 옮겨 적을 원본이다. 복사해 가지 않고 읽기만 하므로 `mut` 이
@@ -143,8 +143,8 @@ export proc put_str input buf mut slice u8 . . input pos u64 . input s slice u8 
 ### dec_width / hex_width
 
 ```lowent
-export fn dec_width input n u64 . output u64 .
-export fn hex_width input n u64 . output u64 .
+export fn dec_width output u64 .
+export input n u64 . fn hex_width output u64 . input n u64 .
 ```
 
 - `n u64` — **왜 받나:** 폭은 값에 따라 달라진다(9 는 한 자리, 10 은 두 자리). 잴 대상이
@@ -157,10 +157,10 @@ export fn hex_width input n u64 . output u64 .
 ### put_u64 / put_hex
 
 ```lowent
-export proc put_u64 input buf mut slice u8 . . input pos u64 . input n u64 .
-  output option u64 .
-export proc put_hex input buf mut slice u8 . . input pos u64 . input n u64 .
-  output option u64 .
+export proc put_u64 output option u64 .
+export input buf mut slice u8 . . input pos u64 .
+  input n u64 . proc put_hex output option u64 . input buf mut slice u8 . . input pos u64 .
+  input n u64 .
 ```
 
 - `n u64` — **왜 받나:** 바이트로 바꿀 수 자체다. 부호 없는 정수만 받는 것이 두 op 의
@@ -172,8 +172,8 @@ export proc put_hex input buf mut slice u8 . . input pos u64 . input n u64 .
 ### put_i64
 
 ```lowent
-export proc put_i64 input buf mut slice u8 . . input pos u64 . input n i64 .
-  output option u64 .
+export proc put_i64 output option u64 . input buf mut slice u8 . . input pos u64 .
+  input n i64 .
 ```
 
 - `n i64` — **왜 받나:** 부호 있는 값이라 타입이 다르다. u64 로 형이 다르면 `put_u64` 쪽이
@@ -186,8 +186,8 @@ export proc put_i64 input buf mut slice u8 . . input pos u64 . input n i64 .
 ### put_bool
 
 ```lowent
-export proc put_bool input buf mut slice u8 . . input pos u64 . input b bool .
-  output option u64 .
+export proc put_bool output option u64 . input buf mut slice u8 . . input pos u64 .
+  input b bool .
 ```
 
 - `b bool` — **왜 받나:** 찍을 참/거짓 값이다. 안에서 `put_str` 로 갈라 쓴다.
@@ -197,8 +197,8 @@ export proc put_bool input buf mut slice u8 . . input pos u64 . input b bool .
 ### put_nl
 
 ```lowent
-export proc put_nl input buf mut slice u8 . . input pos u64 .
-  output option u64 .
+export proc put_nl output option u64 . input buf mut slice u8 . .
+  input pos u64 .
 ```
 
 값 매개변수가 없다 — 쓸 것이 LF 하나로 정해져 있기 때문이다. LF(10) 한 바이트.
@@ -221,9 +221,9 @@ rem entry 패턴: main 의 input 은 전부 cap — 프로그램이 시작할 �
 rem 권한이다. 여기서는 출력(cap io)과 메모리 할당(cap allocator)만 받는다.
 rem 안 쓰는 권한은 안 받는 것이 규율이다.
 proc main
+  output u8 .                 rem 종료 코드 — 0 이 성공
   input out cap io .          rem 표준 입출력에 닿을 권한
   input al  cap allocator .   rem 버퍼를 얻을 권한
-  output u8 .                 rem 종료 코드 — 0 이 성공
   effects alloc io .          rem 이 op 이 하는 일의 선언(안 맞으면 컴파일 오류)
 do
   rem ① 조립할 자리(버퍼)를 얻는다. 실패는 none 이므로 guard 로 걸러 나간다.
@@ -258,7 +258,7 @@ end
 
 ```lowent
 rem "answer=" + n + LF 한 줄이 몇 바이트인가 — 버퍼를 잡기 전에 미리 센다.
-fn need_for input n u64 . output u64 . do
+fn need_for output u64 . input n u64 . do
   let w u64 be fmt.dec_width n .        rem 숫자가 차지할 자릿수(0 도 1)
   return add (add 7 w) 1 .              rem "answer=" 7 바이트 + 숫자 + LF 1 바이트
 end
@@ -276,7 +276,7 @@ io 가 없다), `fn` 이면 **E-EFFECT-CALC** 다. 프로그램이 아예 안 �
 
 ```lowent
 rem 틀림: effects none 을 선언하고 io 를 한다 — E-EFFECT
-proc bad input out cap io . output u64 . effects none . do
+proc bad output u64 . input out cap io . effects none . do
   return write_out out 1 "x" .
 end
 ```

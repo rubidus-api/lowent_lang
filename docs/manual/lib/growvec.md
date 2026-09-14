@@ -112,7 +112,7 @@ export type gvec vecgen.vec u8 . .   rem ← 별칭이다. 실체는 vecgen 의 
 ### `open` — 연다
 
 ```lowent
-proc open using al allocs.bump_bytes . input cap0 u64 . output option gvec . effects state .
+proc open output option gvec . using al allocs.bump_bytes . input cap0 u64 . effects state .
 ```
 
 - `al` — **이미 초기화된** 범프 얼로케이터(`using` 절 — 위치 인자가 아니다). 부르는 쪽은
@@ -123,8 +123,8 @@ proc open using al allocs.bump_bytes . input cap0 u64 . output option gvec . eff
 ### `count_of` · `cap_of`
 
 ```lowent
-fn count_of input g gvec . output u64 .   rem = g.n
-fn cap_of   input g gvec . output u64 .   rem = len g.buf
+fn count_of output u64 .   rem = g.n input g gvec .
+fn cap_of   output u64 .   rem = len g.buf input g gvec .
 ```
 
 `count_of` 가 "담긴 것", `cap_of` 가 "들어갈 수 있는 것" 이다. 둘을 헷갈리면 쓰레기를 읽는다.
@@ -132,7 +132,7 @@ fn cap_of   input g gvec . output u64 .   rem = len g.buf
 ### `add_byte` — 하나 민다
 
 ```lowent
-proc add_byte input g mut gvec . input b u8 . output bool . effects state .
+proc add_byte output bool . input g mut gvec . input b u8 . effects state .
 ```
 
 - `g` 는 **`mut`** 다 — 이 op 이 `g` 를 고친다(`n` 이 늘고, 필요하면 `buf` 가 바뀐다).
@@ -146,7 +146,7 @@ proc add_byte input g mut gvec . input b u8 . output bool . effects state .
 ### `add_all` — 통째로 민다
 
 ```lowent
-proc add_all input g mut gvec . input s slice u8 . output bool . effects state .
+proc add_all output bool . input g mut gvec . input s slice u8 . effects state .
 ```
 
 `add_byte` 를 반복한다. **중간에 실패하면 앞부분은 들어가 있다** — 전량-아니면-무가 필요하면
@@ -155,7 +155,7 @@ proc add_all input g mut gvec . input s slice u8 . output bool . effects state .
 ### `reserve_more` — 미리 확보
 
 ```lowent
-proc reserve_more input g mut gvec . input more u64 . output bool . effects state .
+proc reserve_more output bool . input g mut gvec . input more u64 . effects state .
 ```
 
 `n + more` 가 들어갈 자리를 확보한다. 이미 충분하면 아무 것도 안 하고 `true`.
@@ -189,7 +189,7 @@ let ok bool be growvec.add_all v s .        rem 이제 실패하지 않는다
 ### `view_of` — 담긴 만큼
 
 ```lowent
-proc view_of input g gvec . output slice u8 .   rem 담긴 만큼만
+proc view_of output slice u8 .   rem 담긴 만큼만 input g gvec .
 ```
 
 **버퍼 전체가 아니라 쓴 만큼**이다. `cap_of` 만큼 읽으면 뒤는 쓰레기다.
@@ -205,7 +205,7 @@ use growvec .
 use allocs .
 
 rem 조각들을 하나로 잇는다. 총 길이를 미리 모르는 자리다.
-export proc join_parts input al allocs.bump_bytes . input a slice u8 . input b slice u8 . input c slice u8 . output option slice u8 . effects state . do
+export proc join_parts output option slice u8 . input al allocs.bump_bytes . input a slice u8 . input b slice u8 . input c slice u8 . effects state . do
   let g option growvec.gvec . using al be growvec.open 16 .
   guard is_some g . else return none .
   var v growvec.gvec be some_value g .
@@ -220,7 +220,7 @@ end
 
 ```lowent
 rem 레코드는 통째로 들어가거나 아예 안 들어가야 한다.
-proc put_record input v mut growvec.gvec . input rec slice u8 . output bool . effects state . do
+proc put_record output bool . input v mut growvec.gvec . input rec slice u8 . effects state . do
   guard growvec.reserve_more v (add (len rec) 1) . else return false .
   guard growvec.add_all v rec . else return false .
   return growvec.add_byte v 10 .

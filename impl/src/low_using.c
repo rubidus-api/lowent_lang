@@ -170,17 +170,17 @@ static void us_collect_one(us_ctx_t *c, const low_cst_t *f, proven_u8str_view_t 
         while (e < f->nkids && us_atom(f->kids[e]) && !low_is_clause_word(f->kids[e]->tok.lex)) e++;
         int r = us_eq(f->kids[i]->tok.lex, "input") ? low_input_rank(f, i, e) : low_clause_rank(f->kids[i]->tok.lex);
         if (r < 0) continue;
-        if (i < at && r > 4) {
+        if (i < at && r > 5) {
             low_pdiag(&c->p, "E-CLAUSE-ORDER",
                       "`using` comes after a clause that belongs behind it. `using` stands after the `comptime` and "
-                      "capability/region inputs and before the data inputs, `output` and everything else (WO-0217)",
+                      "capability/region inputs and before the data inputs and everything after them (WO-0217)",
                       f->kids[at]->tok.line, f->kids[at]->tok.col);
             break;
         }
-        if (i > at && r < 4) {
+        if (i > at && r < 5) {
             low_pdiag(&c->p, "E-CLAUSE-ORDER",
                       "`using` comes before a clause that belongs in front of it — a `comptime` input, a capability/region "
-                      "input, `lowdoc` or `vector`/`priority`. `using` stands after those and before the data inputs (WO-0217)",
+                      "input, `output`, `lowdoc` or `vector`/`priority`. `using` stands after those and before the data inputs (WO-0217)",
                       f->kids[at]->tok.line, f->kids[at]->tok.col);
             break;
         }
@@ -215,12 +215,14 @@ static void us_rewrite_header(us_ctx_t *c, const us_callee_t *u) {
     if (at == f->nkids) return;
     // ★ WO-0217 — 넣는 자리: 마지막 comptime·권한·영역 입력 절의 끝(없으면 이름 바로 뒤). 곧 데이터 입력의 앞이다 —
     //   `using` 이 선 자리(차례 4)와 같다. comptime 뒤에만 넣으면 권한 입력보다 앞에 서서 차례를 어긴다.
+    //   ★ 2026-09-15 — `output`·`satisfies`·`lowdoc`·`vector` 도 그 앞에 서므로(차례 0~2) 그 끝까지 본다.
     proven_size_t ins = 2;
     for (proven_size_t i = 2; i < f->nkids; i++) {
-        if (!us_atom(f->kids[i]) || !us_eq(f->kids[i]->tok.lex, "input")) continue;
+        if (i == at || !us_atom(f->kids[i]) || !low_is_clause_word(f->kids[i]->tok.lex)) continue;
         proven_size_t e = i + 1;
         while (e < f->nkids && us_atom(f->kids[e]) && !low_is_clause_word(f->kids[e]->tok.lex)) e++;
-        if (low_input_rank(f, i, e) <= 3 && e > ins) ins = e;
+        int r = us_eq(f->kids[i]->tok.lex, "input") ? low_input_rank(f, i, e) : low_clause_rank(f->kids[i]->tok.lex);
+        if (r >= 0 && r <= 4 && e > ins) ins = e;
     }
     proven_size_t n = f->nkids;
     low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (n + 1), alignof(low_cst_t *)).value.ptr;

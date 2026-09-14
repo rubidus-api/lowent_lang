@@ -19,7 +19,7 @@
 
 ```lowent
 rem ✓ mut 슬라이스에 값을 넣고, for 로 합을 구한다.
-proc fill input xs mut slice u64 . . output u64 . effects none . do
+proc fill output u64 . input xs mut slice u64 . . effects none . do
   set (index xs 0) 10 .
   set (index xs 1) 20 .
   var s u64 be 0 .
@@ -37,7 +37,7 @@ end
 
 ```lowent
 rem ✗ 잘못 — xs 가 mut 이 아니다
-proc f input xs slice u64 . . output u64 . effects none . do
+proc f output u64 . input xs slice u64 . . effects none . do
   set (index xs 0) 1 .
   return 0 .
 end
@@ -101,7 +101,7 @@ end
 색인 경계 검사는 **전부 사라진다**. `<` 로 적든 `≤` 로 적든 같다:
 
 ```lowent
-fn total input a slice u8 . input n u64 . output u64 .
+fn total output u64 . input a slice u8 . input n u64 .
   requires le n (len a) . do        rem ← 이 한 줄이 본문의 경계 검사를 없앤다
   …
 ```
@@ -115,14 +115,14 @@ fn total input a slice u8 . input n u64 . output u64 .
 
 ```lowent
 rem ✘ 이렇게 쓰면 문자마다 비교와 분기가 하나씩 생긴다
-fn prefix_char input k u64 . output u8 . do
+fn prefix_char output u8 . input k u64 . do
   if eq k 0 . do return 47 . end
   if eq k 1 . do return 97 . end
   …
 end
 
 rem ✔ 문자열 리터럴은 `slice u8` 이고 **그대로 색인된다**
-fn prefix_char input k u64 . output u8 . do
+fn prefix_char output u8 . input k u64 . do
   return index "/api/users/" k .
 end
 ```

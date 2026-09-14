@@ -1,6 +1,6 @@
 fn good .
-  input x u32 . input y u32 .
-  output u32 .
+  output u32 . input x u32 .
+  input y u32 .
 do
   var z u32 be add x y .
   return z .
@@ -14,15 +14,15 @@ do
 end .
 
 fn bad_return .
-  input x u32 .
   output bool .
+  input x u32 .
 do
   return x .
 end .
 
 fn bad_arg .
-  input p bool .
   output bool .
+  input p bool .
 do
   return good 1 2 .
 end .

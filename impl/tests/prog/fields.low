@@ -30,8 +30,8 @@ end .
 
 rem 한 줄을 구분자로 쪼개어 (필드수, 비어있지 않은 수) 를 10 진 두 자리로 접어 돌려준다.
 rem ★ 커서는 **값**이다(RFC-0069 §4) — 호출자가 pos 를 들고 스스로 전진한다.
-fn count_line input line slice u8 . input sep u8 . input trim bool .
-  output u64 .
+fn count_line output u64 . input line slice u8 . input sep u8 .
+  input trim bool .
 do
   var pos u64 be 0 .
   var total u64 be 0 .
@@ -51,7 +51,7 @@ do
   return add (mul total 10) nonempty .
 end .
 
-proc main input a cap args . input e cap env . output u8 . effects state . do
+proc main output u8 . input a cap args . input e cap env . effects state . do
   rem ── 인자: 구분자. 없으면 ',' (44). 있으면 그 첫 바이트.
   var sep u8 be 44 .
   let first option slice u8 . be arg a 0 .

@@ -12,7 +12,7 @@ rem     이 검사가 뜻을 갖는다 — 혼자서는 재현되지 않는다.
 
 module vm_localname .
 
-export fn guarded input n u64 . output u64 . do
+export fn guarded output u64 . input n u64 . do
   rem 여기 `total` 은 **지역**이다. 짝 모듈의 `total`(op) 이 이것을 집으면 안 된다.
   let total u64 be add n 10 .
   guard ge total 10 . else return 0 .

@@ -107,7 +107,7 @@ raw 모드로 들어간 채 프로그램이 죽으면 사용자의 셸은 에코
 ### `parse_key` — 키 하나 (핵심)
 
 ```lowent
-proc parse_key input buf slice u8 . input at u64 . output option u64 . effects none .
+proc parse_key output option u64 . input buf slice u8 . input at u64 . effects none .
 ```
 
 - `buf` — 터미널에서 읽어 둔 바이트열.
@@ -138,9 +138,9 @@ proc parse_key input buf slice u8 . input at u64 . output option u64 . effects n
 ### `key_of` · `len_of` · `is_char`
 
 ```lowent
-fn key_of  input packed u64 . output u64  .
-fn len_of  input packed u64 . output u64  .
-fn is_char input keycode u64 . output bool .
+fn key_of  output u64  . input packed u64 .
+fn len_of  output u64  . input packed u64 .
+fn is_char output bool . input keycode u64 .
 ```
 
 `is_char` 에는 **키코드**를 넣는다(포장 값이 아니다). `is_char (key_of p)` 순서다.
@@ -168,7 +168,7 @@ module keydemo .
 
 use tty .
 
-proc main input t cap tty . input al cap allocator . output u8 . effects alloc . do
+proc main output u8 . input t cap tty . input al cap allocator . effects alloc . do
   rem ★ 할당도 실패할 수 있다 — `alloc_bytes` 의 답은 **option** 이다. raw 로 들어가기 **전에** 받는다
   rem   (들어간 뒤에 실패해 돌아가면 단말이 raw 로 남는다).
   let g option mut slice u8 . . be alloc_bytes al capacity 32 .

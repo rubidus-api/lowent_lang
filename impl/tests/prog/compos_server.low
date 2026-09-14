@@ -12,7 +12,7 @@ export actor tally .
     n u64 .
     last u64 .
   end .
-  proc add input v u64 . output u64 . effects state . do
+  proc add output u64 . input v u64 . effects state . do
     set n (add n v) .
     set last v .
     return n .

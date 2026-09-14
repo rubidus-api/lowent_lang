@@ -14,7 +14,7 @@ newtype grid2 u8 .
 newtype grid3 u8 .
 
 rem ★ 쪼개고, 각 조각이 **자기 범위만** 만지는지 잰다.
-proc disjoint input mem mut slice u64 . . output u64 . effects none . do
+proc disjoint output u64 . input mem mut slice u64 . . effects none . do
   var r owned shard.token grid . be shard.open grid 8 .
   var h shard.halves grid . be shard.split_at grid r 4 .
   let lo shard.token grid . be (field h low) .
@@ -72,7 +72,7 @@ proc nested output u64 . effects none . do
   return 3 .
 end .
 
-fn covers_all input a shard.token grid . input b shard.token grid . output bool . do
+fn covers_all output bool . input a shard.token grid . input b shard.token grid . do
   if eq (shard.covers grid a 4) false . do return false . end .
   if eq (shard.covers grid a 6) true . do return false . end .
   return shard.covers grid b 6 .

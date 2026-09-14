@@ -9,7 +9,7 @@ use fmt from "../../lib/fmt.low" .
 
 rem ── 수 → 바이트 ───────────────────────────────────────────────────────
 
-proc t_u64 input buf mut slice u8 . . output u64 . effects none . do
+proc t_u64 output u64 . input buf mut slice u8 . . effects none . do
   rem 0 은 한 자리다("" 가 아니라 "0").
   let a option u64 . be fmt.put_u64 buf 0 0 .
   guard is_some a . else return 90 .
@@ -24,7 +24,7 @@ proc t_u64 input buf mut slice u8 . . output u64 . effects none . do
   return 1 .
 end .
 
-proc t_i64 input buf mut slice u8 . . output u64 . effects none . do
+proc t_i64 output u64 . input buf mut slice u8 . . effects none . do
   rem 음수는 부호를 먼저 쓴다.
   let a option u64 . be fmt.put_i64 buf 0 (sub 0 42) .
   guard is_some a . else return 90 .
@@ -39,7 +39,7 @@ proc t_i64 input buf mut slice u8 . . output u64 . effects none . do
   return 1 .
 end .
 
-proc t_hex input buf mut slice u8 . . output u64 . effects none . do
+proc t_hex output u64 . input buf mut slice u8 . . effects none . do
   rem 255 → "ff"
   let a option u64 . be fmt.put_hex buf 0 255 .
   guard is_some a . else return 90 .
@@ -57,7 +57,7 @@ end .
 
 rem ── 문자열·불리언·줄바꿈 ──────────────────────────────────────────────
 
-proc t_str input buf mut slice u8 . . output u64 . effects none . do
+proc t_str output u64 . input buf mut slice u8 . . effects none . do
   let a option u64 . be fmt.put_str buf 0 "hi" .
   guard is_some a . else return 90 .
   guard eq (some_value a) 2 . else return 91 .
@@ -73,7 +73,7 @@ end .
 
 rem ── ★★ 넘침은 **값으로 거절**하고 버퍼를 안 건드린다 ─────────────────
 
-proc t_overflow input buf mut slice u8 . . output u64 . effects none . do
+proc t_overflow output u64 . input buf mut slice u8 . . effects none . do
   rem 버퍼 끝 직전에서 여러 자리 수를 쓰려 하면 none 이고 **아무것도 안 쓴다**.
   let last u64 be sub (len buf) 1 .
   guard eq (is_some (fmt.put_u64 buf last 12345)) false . else return 90 .
@@ -90,7 +90,7 @@ end .
 
 rem ── 합성: 여러 조각을 이어 붙인다(format.md 의 format_point 자리) ──────
 
-proc t_compose input buf mut slice u8 . . output u64 . effects none . do
+proc t_compose output u64 . input buf mut slice u8 . . effects none . do
   rem "(12, 7)\n" 을 조립하고 총 길이를 낸다.
   var at u64 be 0 .
   let a option u64 . be fmt.put_byte buf at 40 .              rem '('

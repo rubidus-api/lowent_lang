@@ -14,7 +14,7 @@ module vm_capactor .
 use allocs from "../../lib/alloc.low" .
 use vecgen from "../../lib/vecgen.low" .
 
-export proc main input h cap heap . input al cap allocator . output u8 . effects heap alloc state .
+export proc main output u8 . input h cap heap . input al cap allocator . effects heap alloc state .
 do
   var hb allocs.heap_bytes be spawn actor allocs.heap_bytes . .
   var fb allocs.fixed_bytes be spawn actor allocs.fixed_bytes . .

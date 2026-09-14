@@ -16,17 +16,17 @@ let m_month u64 be 15 .          rem 0x0f — 폭 4, 자리 0(아래 shl 로 옮
 rem ── ① 답이 같은가 ────────────────────────────────────────────────────────
 
 rem 달을 꺼낸다 — 라이브러리 판.
-fn month_lib input p u64 . output u64 . do
+fn month_lib output u64 . input p u64 . do
   return wire.pick 64424509440 p .          rem 0x0f_0000_0000 = 32~35 비트
 end .
 
 rem 같은 일 — 손으로 쓴 판(오늘 `clock.low` 가 하는 그대로).
-fn month_hand input p u64 . output u64 . do
+fn month_hand output u64 . input p u64 . do
   return bit_and (shr p 32) 15 .
 end .
 
 rem 달을 갈아 끼운다 — 라이브러리 판.
-fn set_month_lib input p u64 . input v u64 . output u64 . do
+fn set_month_lib output u64 . input p u64 . input v u64 . do
   return wire.merge 64424509440 p v .
 end .
 
@@ -37,7 +37,7 @@ rem   `set_month_* 0 7` 만 견주던 시험은 **통과했다**: p 가 0 이면
 rem   답이 같기 때문이다. 아래 `p = 모두 1` 을 넣고서야 갈렸다.
 rem   ☞ *손으로 센 자리는 틀리고, 그 틀림은 «인자가 0 인 시험» 아래 숨는다.*
 rem     `wire` 가 사는 이유가 이 두 줄이다 — 자리를 손으로 세지 않는다.
-fn set_month_hand input p u64 . input v u64 . output u64 . do
+fn set_month_hand output u64 . input p u64 . input v u64 . do
   return bit_or (bit_and p 18446744009285042175) (bit_and (shl v 32) 64424509440) .
 end .
 

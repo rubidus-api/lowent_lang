@@ -22,7 +22,7 @@ rem     *못 재는 것을 재는 척하지 않는다.*
 module vm_rwrite .
 
 rem ✔ stdout 에 쓴다 — 낸 수가 **보낸 바이트 수**여야 한다.
-export proc write_out_bytes input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+export proc write_out_bytes output u64 . input k cap io . input buf mut slice u8 . . effects io . do
   let r option u64 . be reactor_new k (subslice buf 0 32) 1 .
   guard is_some r . else return 90 .
   let n option u64 . be r_write k (some_value r) 1 "abcdefghij" .
@@ -33,7 +33,7 @@ end .
 rem ✔ 빈 버퍼를 쓰면 **0** 이다 — 실패가 아니다.
 rem   ☞ *"아무것도 안 갔다"* 와 *"못 썼다"* 는 다른 답이고, 그 둘을 섞으면 호출자가
 rem     빈 쓰기마다 재시도한다.
-export proc empty_write input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+export proc empty_write output u64 . input k cap io . input buf mut slice u8 . . effects io . do
   let r option u64 . be reactor_new k (subslice buf 0 32) 1 .
   guard is_some r . else return 90 .
   let n option u64 . be r_write k (some_value r) 2 (subslice buf 0 0) .
@@ -44,7 +44,7 @@ end .
 rem ★ `cap io` 를 받으므로 `--run` 으로는 못 부른다 — **entry 의 종료 코드**로 잰다.
 rem   ☞ 이 저장소가 cap 엔트리를 재는 방식이 그것이다(차등 스윕이 안 훑는 자리이고,
 rem     그래서 골든이 **양 뒤끝의 종료 코드를 맞대는** 검사를 따로 둔다).
-proc main input k cap io . input al cap allocator . output u8 . effects alloc io . do
+proc main output u8 . input k cap io . input al cap allocator . effects alloc io . do
   let b0 option mut slice u8 . . be alloc_bytes al capacity 128 .
   guard is_some b0 . else return 69 .
   var buf mut slice u8 . be some_value b0 .

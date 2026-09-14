@@ -17,64 +17,64 @@ rem   `wrap_shl`(RFC-0052 와 같은 규율 — 처분은 이름에 있다).
 module vm_bitop .
 
 rem C 라면 -1 을 준다. 우리는 **폭 안에서** 뒤집는다.
-fn not_u8 input a u8 . output u8 . do
+fn not_u8 output u8 . input a u8 . do
     return bit_not a .
 end .
 
-fn mask input a u32 . input m u32 . output u32 . do
+fn mask output u32 . input a u32 . input m u32 . do
     return bit_and a m .
 end .
 
-fn set_bit input a u32 . input n u32 . output u32 .
+fn set_bit output u32 . input a u32 . input n u32 .
 requires lt n 32 .
 do
     return bit_or a (shl 1 n) .
 end .
 
-fn clear_bit input a u32 . input n u32 . output u32 .
+fn clear_bit output u32 . input a u32 . input n u32 .
 requires lt n 32 .
 do
     return bit_and a (bit_not (shl 1 n)) .
 end .
 
-fn flip input a u32 . input m u32 . output u32 . do
+fn flip output u32 . input a u32 . input m u32 . do
     return bit_xor a m .
 end .
 
 rem 시프트 양이 폭 이상이면 **트랩**한다 — C 의 UB 가 아니다.
-fn shift input a u32 . input n u32 . output u32 . do
+fn shift output u32 . input a u32 . input n u32 . do
     return shl a n .
 end .
 
 rem 마스킹을 원하면 **이름으로 말한다**.
-fn shift_wrap input a u32 . input n u32 . output u32 . do
+fn shift_wrap output u32 . input a u32 . input n u32 . do
     return wrap_shl a n .
 end .
 
-fn rot input a u8 . input n u8 . output u8 . do
+fn rot output u8 . input a u8 . input n u8 . do
     return rotl a n .
 end .
 
-fn popcnt input a u64 . output u64 . do
+fn popcnt output u64 . input a u64 . do
     return count_ones a .
 end .
 
-fn lz input a u32 . output u64 . do
+fn lz output u64 . input a u32 . do
     return leading_zeros a .
 end .
 
-fn tz input a u32 . output u64 . do
+fn tz output u64 . input a u32 . do
     return trailing_zeros a .
 end .
 
-fn bswap input a u32 . output u32 . do
+fn bswap output u32 . input a u32 . do
     return byte_swap a .
 end .
 
 rem ★★★ **논리 `and`/`or` 은 단락 평가한다** (D5).
 rem   전엔 **양쪽을 다 계산했다** ⇒ 이 가드가 성립하지 않았다: n=0 이면 오른쪽이 **0으로 나눈다**.
 rem   부수효과가 없는 언어라 **값**은 같지만 **트랩이 다르다** — 그리고 트랩도 의미다.
-fn guard input x u64 . input n u64 . output u64 . do
+fn guard output u64 . input x u64 . input n u64 . do
     if and (ne n 0) (eq (mod x n) 0) . do return 1 . end .
     return 0 .
 end .

@@ -34,17 +34,17 @@ end .
 rem hot 레코드의 칸 번호 — 8 칸 × u32.
 rem   0 parent · 1 first_child · 2 last_child · 3 prev_sibling · 4 next_sibling · 5 kind · 6 flags · 7 state
 rem   링크는 **슬롯 + 1** 이고 0 은 「없음」이다. flags: bit0 = alive · bit1 = destroy_pending.
-fn rd input hot slice u32 . input i u64 . input f u64 . output u64 . do
+fn rd output u64 . input hot slice u32 . input i u64 . input f u64 . do
   return widen u64 (index hot (add (mul i 8) f)) .
 end .
 
-proc wr input hot mut slice u32 . . input i u64 . input f u64 . input v u64 . output void . effects none . do
+proc wr output void . input hot mut slice u32 . . input i u64 . input f u64 . input v u64 . effects none . do
   set (index hot (add (mul i 8) f)) (narrow u32 v) .
 end .
 
 rem ★ 저장소를 연다: 세대는 1 부터(0 = 한 번도 안 준 슬롯), 자유 목록은 `next` 칸에 **intrusive** 로.
-proc open input hot mut slice u32 . . input gen mut slice u64 . . input meta mut slice u64 . .
-  output u64 . effects none .
+proc open output u64 . input hot mut slice u32 . . input gen mut slice u64 . .
+  input meta mut slice u64 . . effects none .
 do
   var n u64 be div (len hot) 8 .
   if gt n (len gen) . do set n (len gen) . end .
@@ -65,14 +65,14 @@ do
 end .
 
 rem 부모 없음 — 뿌리를 만들 때 넘기는 값. 세대 0 은 어떤 슬롯과도 안 맞으므로 안전하다.
-fn no_parent input comptime b type . output handle b . do
+fn no_parent output handle b . input comptime b type . do
   return make handle b do w 0 . end .
 end .
 
 rem ★★★ **I1 — 손잡이 검사 다섯**: 브랜드(타입) · shard · slot 범위 · alive ∧ ¬pending · 세대.
 rem   살아 있는 노드에 닿는 **유일한 문**이다. 통과하면 phase-local 슬롯 번호를 준다(§5.3).
-fn resolve input comptime b type . input hot slice u32 . input gen slice u64 . input meta slice u64 .
-  input h handle b . output option u64 .
+fn resolve output option u64 . input comptime b type . input hot slice u32 . input gen slice u64 .
+  input meta slice u64 . input h handle b .
 do
   let w u64 be field h w .
   let s u64 be budget.slot_of 32 w .
@@ -86,9 +86,9 @@ end .
 
 rem ★ 노드 하나를 만든다. 부모가 있으면 **마지막 자식으로 O(1) 덧붙인다**(§2.2 (2)).
 rem   자유 슬롯이 없으면 `none` — 트랩이 아니다(§3.6 "실패와 상한이 보여야 한다").
-proc create input comptime b type . input hot mut slice u32 . . input gen mut slice u64 . .
-  input meta mut slice u64 . . input parent handle b . input kind u64 .
-  output option (handle b) . effects none .
+proc create output option (handle b) . input comptime b type . input hot mut slice u32 . .
+  input gen mut slice u64 . . input meta mut slice u64 . . input parent handle b .
+  input kind u64 . effects none .
 do
   var p u64 be 0 .
   if gt (field parent w) 0 . do
@@ -123,7 +123,7 @@ do
 end .
 
 rem 부모에서 뗀다 — O(1). 형제 링크와 부모의 first/last 를 고친다.
-proc unlink input hot mut slice u32 . . input s u64 . output void . effects none . do
+proc unlink output void . input hot mut slice u32 . . input s u64 . effects none . do
   let p u64 be rd hot s 0 .
   guard gt p 0 . else return 0 .
   let ps u64 be sub p 1 .
@@ -142,9 +142,9 @@ rem ★★★ **삭제의 첫 걸음(§5.7 2·3)** — 부분 나무 전체를 `
 rem   반복 순회, 재귀 없음) 각 슬롯을 `pend` 목록에 적은 뒤, 뿌리만 부모에서 뗀다.
 rem   **세대는 아직 안 올린다** — 그것은 안전 지점(`reclaim`)의 일이다.
 rem   표시된 순간부터 `resolve` 가 `none` 을 낸다(I5 pending invisibility).
-proc mark_destroy input comptime b type . input hot mut slice u32 . . input gen mut slice u64 . .
-  input meta mut slice u64 . . input stk mut slice u32 . . input pend mut slice u32 . .
-  input h handle b . output u64 . effects none .
+proc mark_destroy output u64 . input comptime b type . input hot mut slice u32 . .
+  input gen mut slice u64 . . input meta mut slice u64 . . input stk mut slice u32 . .
+  input pend mut slice u32 . . input h handle b . effects none .
 do
   let so option u64 . be resolve b hot gen meta h .
   guard is_some so . else return 0 .
@@ -175,8 +175,8 @@ end .
 rem ★★★ **안전 지점(§5.7 5)** — pending 슬롯의 세대를 올리고 자유 목록에 되돌린다.
 rem   세대가 한 바퀴 돌면 그 슬롯은 **은퇴**한다(`budget.next_gen` = none): 자유 목록에 안 넣는다.
 rem   O(pending) 이다 — 저장소 전체를 훑지 않는다.
-proc reclaim input hot mut slice u32 . . input gen mut slice u64 . . input meta mut slice u64 . .
-  input pend mut slice u32 . . output u64 . effects none .
+proc reclaim output u64 . input hot mut slice u32 . . input gen mut slice u64 . .
+  input meta mut slice u64 . . input pend mut slice u32 . . effects none .
 do
   var freed u64 be 0 .
   while gt (index meta 2) 0 . do
@@ -204,7 +204,7 @@ do
 end .
 
 rem 자식 수 — first → next 를 따라 센다(순회는 슬롯 번호로, 손잡이 검사는 문에서 한 번뿐).
-fn child_count input hot slice u32 . input s u64 . output u64 . do
+fn child_count output u64 . input hot slice u32 . input s u64 . do
   var n u64 be 0 .
   var c u64 be rd hot s 1 .
   while gt c 0 . do
@@ -217,8 +217,8 @@ end .
 rem ─── 시험 ─────────────────────────────────────────────────────────────────
 
 rem ① 나무: root 아래 a·b·c, a 아래 d. 링크 다섯이 §2.2 (2) 대로 서는가.
-export proc t_tree input hot mut slice u32 . . input gen mut slice u64 . . input meta mut slice u64 . .
-  output u64 . effects none .
+export proc t_tree output u64 . input hot mut slice u32 . . input gen mut slice u64 . .
+  input meta mut slice u64 . . effects none .
 do
   guard ge (open hot gen meta) 8 . else return 90 .
   let r option (handle g_tree) . be create g_tree hot gen meta (no_parent g_tree) 1 .
@@ -256,8 +256,8 @@ do
 end .
 
 rem ② 낡은 손잡이: 지우고 되돌린 슬롯이 **재사용돼도** 옛 손잡이는 `none`(수용 시험 2).
-export proc t_stale input hot mut slice u32 . . input gen mut slice u64 . . input meta mut slice u64 . .
-  input stk mut slice u32 . . input pend mut slice u32 . . output u64 . effects none .
+export proc t_stale output u64 . input hot mut slice u32 . . input gen mut slice u64 . .
+  input meta mut slice u64 . . input stk mut slice u32 . . input pend mut slice u32 . . effects none .
 do
   guard ge (open hot gen meta) 8 . else return 90 .
   let r option (handle g_stale) . be create g_stale hot gen meta (no_parent g_stale) 1 .
@@ -290,8 +290,8 @@ end .
 rem ③ dispatch 중 조상 삭제(수용 시험 3): 경로 [b, a, root] 를 걷는 동안 a 의 처리기가
 rem   「a 를 지워라」를 **요청**만 하고(명령 큐), 걷기는 root 까지 **링크 변화 없이** 간다(I4).
 rem   dispatch 뒤 적용 → a·b 가 pending(I5) → 안전 지점에서 둘 다 돌아오고 산 노드 = 1.
-export proc t_self_destroy input hot mut slice u32 . . input gen mut slice u64 . . input meta mut slice u64 . .
-  input stk mut slice u32 . . input pend mut slice u32 . . output u64 . effects none .
+export proc t_self_destroy output u64 . input hot mut slice u32 . . input gen mut slice u64 . .
+  input meta mut slice u64 . . input stk mut slice u32 . . input pend mut slice u32 . . effects none .
 do
   guard ge (open hot gen meta) 8 . else return 90 .
   let r option (handle g_self) . be create g_self hot gen meta (no_parent g_self) 1 .
@@ -342,8 +342,8 @@ end .
 
 rem ④ 휘저음(benchmark 행 「node」): root 아래 자식 하나를 만들고 지우기를 n 번.
 rem   끝에 산 노드 = 1 · 은퇴 0 · 슬롯 하나의 세대 = n+1 이어야 한다. `--emit-c` 로 시간을 잰다.
-export proc t_churn input hot mut slice u32 . . input gen mut slice u64 . . input meta mut slice u64 . .
-  input stk mut slice u32 . . input pend mut slice u32 . . input n u64 . output u64 . effects none .
+export proc t_churn output u64 . input hot mut slice u32 . . input gen mut slice u64 . .
+  input meta mut slice u64 . . input stk mut slice u32 . . input pend mut slice u32 . . input n u64 . effects none .
 do
   guard ge (open hot gen meta) 8 . else return 90 .
   let r option (handle g_churn) . be create g_churn hot gen meta (no_parent g_churn) 1 .

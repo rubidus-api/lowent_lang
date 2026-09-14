@@ -21,7 +21,7 @@ export struct vec_u8 .
 end .
 
 rem 다음 용량 — 비어 있으면 8, 아니면 두 배. (성장 정책은 **라이브러리의 몫**이다.)
-export fn next_cap input cur u64 . output u64 . do
+export fn next_cap output u64 . input cur u64 . do
   guard gt cur 0 . else return 8 .
   return mul cur 2 .
 end .
@@ -29,12 +29,12 @@ end .
 rem 한 바이트를 잇는다. 자리가 있으면 그대로 쓰고, 꽉 찼으면 **두 배를 받아 옮긴다**.
 rem   돌려주는 슬라이스가 **앞으로 쓸 자리**다 — 성장했으면 새 자리, 아니면 그대로.
 export proc push_byte .
+  output option mut slice u8 . .
   input comptime a type .
   using al a .
   input v mut vec_u8 .
   input buf mut slice u8 . .
   input x u8 .
-  output option mut slice u8 . .
   effects state via a .
   requires allocs.byte_allocator a .
 do

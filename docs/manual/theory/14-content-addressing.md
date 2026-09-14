@@ -85,7 +85,7 @@ hash(def) = BLAKE3-256( 정규 인코딩(def) )
 ### 성질 H1 — 표면 무관: 주석은 아무것도 바꾸지 않는다
 
 ```lowent
-export fn twice input a u64 . output u64 . do
+export fn twice output u64 . input a u64 . do
   return add a a .
 end
                               → iface:6630705cb68be394  def:73e3a88345444202
@@ -93,7 +93,7 @@ end
 
 ```lowent
 rem 주석을 넣어도 아무것도 안 바뀌어야 한다
-export fn twice input a u64 . output u64 . do
+export fn twice output u64 . input a u64 . do
   rem 여기도 주석
   return add a a .
 end

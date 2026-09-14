@@ -51,10 +51,10 @@ enum <이름>
   <갈래이름>
 end
 
-export fn <이름> input <이름> <타입> . output <타입> .
+export fn <이름> output <타입> . input <이름> <타입> .
+  effects none .
   requires <조건> .
   ensures <조건> .
-  effects none .
 do
   <문장들>
 end
@@ -231,8 +231,8 @@ extern              [export] extern <abi> fn/proc … end                end
 match               match <폼> do <가지>* [else do <폼>* end] end       end
 ```
 
-(2a) `fn`/`proc` 머리의 `<절>*` 은 ⟦§6.4.1⟧ (3a) 의 한 차례를 따른다: `satisfies`·`lowdoc` · `vector`·`priority` ·
-      comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 · `output` · `link`·`variadic` · `effects` · `asm` ·
+(2a) `fn`/`proc` 머리의 `<절>*` 은 ⟦§6.4.1⟧ (3a) 의 한 차례를 따른다: `output` · `satisfies`·`lowdoc` · `vector`·`priority` ·
+      comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 · `link`·`variadic` · `effects` · `asm` ·
       `access`·`parallel`·`reduce` · `requires` · `ensures` · `errors` · `tests` · `schedule` (`E-CLAUSE-ORDER`).
 
 (3) 이 표는 **머리와 닫개**를 규범한다. 모양 칸은 자주 쓰는 꼴을 적은 것이며, 정확한

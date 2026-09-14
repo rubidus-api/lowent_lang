@@ -10,7 +10,7 @@ module envprobe .
 
 use strings from "../../../lib/str.low" .
 
-proc main input e cap env . output u8 . effects none . do
+proc main output u8 . input e cap env . effects none . do
   let v option slice u8 . be env_get e "LOWENT_PROBE" .
   guard is_some v . else return 0 .                    rem 없으면 0
   let s slice u8 be some_value v .

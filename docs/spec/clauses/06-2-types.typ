@@ -73,7 +73,7 @@
     ]
     #rejected("정수를 조건 자리에 쓸 수 없다", "module ex_cond .
 
-proc p input n u32 . output u8 . effects none .
+proc p output u8 . input n u32 . effects none .
 do
   if n . do return 1 . end     rem `n` 은 bool 이 아니다
   return 0 .
@@ -170,14 +170,14 @@ let back u8 be narrow u8 wide .")
     #ex("슬라이스", "module ex_slice .
 
 rem 슬라이스는 시작과 길이를 함께 갖는다.
-export fn head input data slice u8 . . output u8 .
+export fn head output u8 . input data slice u8 . .
   requires ge (len data) 1 .
 do
   return index data 0 .
 end")
     #rejected("길이를 타입 뒤에 적었다", "module ex_array_order .
 
-export fn last input xs array u64 4 . output u64 .
+export fn last output u64 . input xs array u64 4 .
 do
   return index xs 3 .
 end", "E-TYPE-ARRAY")
@@ -239,7 +239,7 @@ do
   return make point do x 0 . y 0 . end
 end
 
-export fn get_x input p point . output u32 .
+export fn get_x output u32 . input p point .
 do
   return (field p x) .
 end")
@@ -277,7 +277,7 @@ enum err
 end
 
 rem 2 보다 작으면 반으로 나눌 수 없다고 알린다.
-export fn half input n u32 . output result u32 err . .
+export fn half output result u32 err . . input n u32 .
   errors too_small lt n 2 .
 do
   guard ge n 2 . else return error too_small .
@@ -306,14 +306,14 @@ end")
     ]
     #ex("확인하지 않고 꺼내면 실행 중에 멈춘다", "module ex_partial .
 
-fn mk input k u8 . output option u8 . .
+fn mk output option u8 . . input k u8 .
 do
   guard lt k 3 . else return none .
   return some (mul k 10) .
 end
 
 rem 확인 없이 바로 꺼낸다 — 번역은 통과한다.
-fn raw input k u8 . output u8 .
+fn raw output u8 . input k u8 .
 do
   return some_value (mk k) .
 end",
@@ -326,14 +326,14 @@ end",
     #ex("option — 만드는 쪽과 받는 쪽", "module ex_option .
 
 rem 만드는 쪽 — 값이 있으면 some, 없으면 none.
-fn lookup input k u8 . output option u8 . .
+fn lookup output option u8 . . input k u8 .
 do
   guard lt k 3 . else return none .
   return some (mul k 10) .
 end
 
 rem 받는 쪽 ① — 묻고 꺼낸다.
-fn use_ask input k u8 . output u8 .
+fn use_ask output u8 . input k u8 .
 do
   let r option u8 . be lookup k .
   guard is_some r . else return 255 .
@@ -341,7 +341,7 @@ do
 end
 
 rem 받는 쪽 ② — 없으면 대신 쓸 값을 준다.
-fn use_or input k u8 . output u8 .
+fn use_or output u8 . input k u8 .
 do
   return value_or (lookup k) 99 .
 end",
@@ -358,7 +358,7 @@ enum io_error
 end
 
 rem 만드는 쪽 — 언제 실패하는지 계약으로 적는다.
-fn halve input a u8 . output result u8 io_error .
+fn halve output result u8 io_error . input a u8 .
   errors too_big gt a 200 .
 do
   guard le a 200 . else return error too_big .
@@ -366,7 +366,7 @@ do
 end
 
 rem 받는 쪽 ① — 묻고 꺼낸다.
-fn use_ask input a u8 . output u8 .
+fn use_ask output u8 . input a u8 .
 do
   let r result u8 io_error . . be halve a .
   guard not (is_error r) . else return 0 .
@@ -374,7 +374,7 @@ do
 end
 
 rem 받는 쪽 ② — try 는 실패를 그대로 위로 넘긴다.
-fn use_try input a u8 . output result u8 io_error .
+fn use_try output result u8 io_error . input a u8 .
   errors too_big gt a 200 .
 do
   let v u8 be try halve a .
@@ -435,7 +435,7 @@ struct outer
   i inner .
 end
 
-export fn read_deep input o outer . output u64 .
+export fn read_deep output u64 . input o outer .
 do
   return (field o i a) .
 end
@@ -580,7 +580,7 @@ struct wire_header .
   kind u8 .
 end
 
-fn hdr_kind input b bytes . output u64 . do
+fn hdr_kind output u64 . input b bytes . do
   var v view wire_header . be view wire_header b .
   return widen u64 (field v kind) .
 end
@@ -661,7 +661,7 @@ end
 rem `str` 은 내장이 아니다 — 뜻을 주지 않으면 W-NOT-YET 을 받는다.
 type str slice u8 .
 
-fn f input s str . output u8 . do return 1 . end",
+fn f output u8 . input s str . do return 1 . end",
       out: "f() = 1")
   ]
   #sub("6.2.19", "값을 지닌 갈래 — 짓기와 해체")[

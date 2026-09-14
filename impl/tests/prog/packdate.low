@@ -31,8 +31,8 @@ fn m_minute output u64 . do return 4128768 . end .
 fn m_second output u64 . do return 64512 . end .
 
 rem 날짜 여섯 조각을 한 낱말로 짓는다.
-fn build input y u64 . input mo u64 . input d u64 . input h u64 . input mi u64 . input s u64 .
-  output u64 .
+fn build output u64 . input y u64 . input mo u64 . input d u64 . input h u64 . input mi u64 .
+  input s u64 .
 do
   let w0 u64 be wire.put (m_year) y .
   let w1 u64 be wire.merge (m_month)  w0 mo .

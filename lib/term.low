@@ -23,12 +23,12 @@ use unicode from "unicode.low" .
 rem ESC '[' 두 바이트 — 모든 CSI 의 머리.
 rem ★ 전엔 `set (index buf pos) 27 .` 이었다 — ESC 를 **리터럴로 적을 방법이 없어서** 산술로
 rem   썼기 때문이다(이스케이프 어휘에 `\xNN` 이 없었다). 이제 바이트열이 바이트열로 보인다.
-proc t_csi input buf mut slice u8 . . input pos u64 . output option u64 . effects none . do
+proc t_csi output option u64 . input buf mut slice u8 . . input pos u64 . effects none . do
   return fmt.put_str buf pos "\x1b[" .
 end .
 
 rem 화면 지우기 ESC[2J.
-export proc clear input buf mut slice u8 . . input pos u64 . output option u64 . effects none . do
+export proc clear output option u64 . input buf mut slice u8 . . input pos u64 . effects none . do
   guard le (add pos 4) (len buf) . else return none .
   let p option u64 . be t_csi buf pos .
   guard is_some p . else return none .
@@ -38,7 +38,7 @@ export proc clear input buf mut slice u8 . . input pos u64 . output option u64 .
 end .
 
 rem 커서를 (row, col) 로 — **0-기준** 입력, ANSI 1-기준 출력: ESC[<r+1>;<c+1>H.
-export proc goto input buf mut slice u8 . . input pos u64 . input row u64 . input col u64 . output option u64 . effects none . do
+export proc goto output option u64 . input buf mut slice u8 . . input pos u64 . input row u64 . input col u64 . effects none . do
   rem 전량 아니면 무: 최대 폭을 먼저 잰다.
   let need u64 be add 4 (add (fmt.dec_width (add row 1)) (fmt.dec_width (add col 1))) .
   guard le (add pos need) (len buf) . else return none .
@@ -54,7 +54,7 @@ export proc goto input buf mut slice u8 . . input pos u64 . input row u64 . inpu
 end .
 
 rem SGR 하나짜리 ESC[<n>m — t_reset 은 n=0, 굵게 1, 밑줄 4, 반전 7.
-export proc sgr input buf mut slice u8 . . input pos u64 . input n u64 . output option u64 . effects none . do
+export proc sgr output option u64 . input buf mut slice u8 . . input pos u64 . input n u64 . effects none . do
   let need u64 be add 3 (fmt.dec_width n) .
   guard le (add pos need) (len buf) . else return none .
   let p0 option u64 . be t_csi buf pos .
@@ -65,7 +65,7 @@ export proc sgr input buf mut slice u8 . . input pos u64 . input n u64 . output 
 end .
 
 rem 256색 전경 ESC[38;5;<n>m / 배경 ESC[48;5;<n>m.
-export proc color256 input buf mut slice u8 . . input pos u64 . input n u64 . input bg bool . output option u64 . effects none . do
+export proc color256 output option u64 . input buf mut slice u8 . . input pos u64 . input n u64 . input bg bool . effects none . do
   let need u64 be add 8 (fmt.dec_width n) .
   guard le (add pos need) (len buf) . else return none .
   let p0 option u64 . be t_csi buf pos .
@@ -82,7 +82,7 @@ export proc color256 input buf mut slice u8 . . input pos u64 . input n u64 . in
 end .
 
 rem 커서 보이기/숨기기 ESC[?25h / ESC[?25l.
-export proc cursor input buf mut slice u8 . . input pos u64 . input show bool . output option u64 . effects none . do
+export proc cursor output option u64 . input buf mut slice u8 . . input pos u64 . input show bool . effects none . do
   guard le (add pos 6) (len buf) . else return none .
   let p0 option u64 . be t_csi buf pos .
   guard is_some p0 . else return none .
@@ -96,7 +96,7 @@ end .
 rem ★★ **화면 diff** — 이 라이브러리의 존재 이유. prev 와 nxt(같은 길이, 폭 w 의 행들)를 비교해
 rem   **바뀐 연속 구간만** `goto + 바이트들` 로 out 에 쓴다. 반환 = 새 pos.
 rem   바뀐 것이 없으면 pos 그대로 — **0 바이트가 곧 "화면 건드리지 마라"** 는 답이다.
-export proc diff input prev slice u8 . input nxt slice u8 . input w u64 . input out mut slice u8 . . input pos u64 . output option u64 . effects none . do
+export proc diff output option u64 . input prev slice u8 . input nxt slice u8 . input w u64 . input out mut slice u8 . . input pos u64 . effects none . do
   guard eq (len prev) (len nxt) . else return none .
   guard gt w 0 . else return none .
   guard eq (mod (len prev) w) 0 . else return none .
@@ -153,13 +153,13 @@ rem ★ `at` 의 코드포인트 **바이트 길이 — 검증하고** 낸다: `
 rem   과길이·서로게이트·상한). 전엔 이 파일의 셀 셈이 선두 바이트와 잘림만 봐서, `row_cells` 가 "유효하지
 rem   않으면 none" 을 약속하고도 `E2 41 42` 를 셀 하나로 셌다 — 같은 바이트에 `row_width` 와 다른 답이었고,
 rem   그 틈에서 `col_off` 는 터미널이 동의하지 않는 열을 냈다. 잣대는 하나여야 한다.
-proc t_cp_len input s slice u8 . input at u64 . output option u64 . effects none . do
+proc t_cp_len output option u64 . input s slice u8 . input at u64 . effects none . do
   guard is_some (utf8.decode s at) . else return none .
   return some (utf8.seq_len (index s at)) .
 end .
 
 rem 한 행(개행 없는 UTF-8 바이트열)에서 **코드포인트 c 번째의 바이트 오프셋**. 모자라면 none.
-export proc col_off input row_bytes slice u8 . input c u64 . output option u64 . effects none . do
+export proc col_off output option u64 . input row_bytes slice u8 . input c u64 . effects none . do
   var off u64 be 0 .
   var seen u64 be 0 .
   while lt seen c . do
@@ -173,7 +173,7 @@ export proc col_off input row_bytes slice u8 . input c u64 . output option u64 .
 end .
 
 rem 행의 **코드포인트 개수**. 유효하지 않은 UTF-8 이면 none(값으로 답한다).
-export proc row_cells input row_bytes slice u8 . output option u64 . effects none . do
+export proc row_cells output option u64 . input row_bytes slice u8 . effects none . do
   var off u64 be 0 .
   var cells u64 be 0 .
   while lt off (len row_bytes) . do
@@ -192,7 +192,7 @@ rem ★ nxt 가 prev 보다 **짧으면** 마지막 구간 뒤에 EL(ESC[K)을 �
 rem   화면의 글자가 그 자리에 남는다(바이트 셀 `diff` 는 길이가 같아야 해서 이 일이 없었다).
 rem ★ 잘린 다중바이트가 어느 행의 끝에 있어도 none 이다 — 전엔 그 자리에서 나아가지 못한 채 **영원히
 rem   돌았다**(나아감이 조건부였고 else 가 없었다). 신뢰할 수 없는 텍스트를 그리는 렌더러가 멈추는 길이었다.
-export proc diff_row_utf8 input prev slice u8 . input nxt slice u8 . input row u64 . input out mut slice u8 . . input pos u64 . output option u64 . effects none . do
+export proc diff_row_utf8 output option u64 . input prev slice u8 . input nxt slice u8 . input row u64 . input out mut slice u8 . . input pos u64 . effects none . do
   var p u64 be pos .
   var po u64 be 0 .
   var no u64 be 0 .
@@ -286,7 +286,7 @@ export proc diff_row_utf8 input prev slice u8 . input nxt slice u8 . input row u
 end .
 
 rem 바뀐 구간 하나를 낸다: goto(row, 시작 코드포인트 열) + nxt[method from to) 바이트.
-proc t_flush_run input nxt slice u8 . input lo u64 . input hi u64 . input col u64 . input row u64 . input out mut slice u8 . . input pos u64 . output option u64 . effects none . do
+proc t_flush_run output option u64 . input nxt slice u8 . input lo u64 . input hi u64 . input col u64 . input row u64 . input out mut slice u8 . . input pos u64 . effects none . do
   let g option u64 . be goto out pos row col .
   guard is_some g . else return none .
   var p u64 be some_value g .
@@ -312,7 +312,7 @@ rem   ☞ 안 하는 것(정직히): Ambiguous(A) 폭은 **1 로 센다**(로케
 rem     모르는 층에서 정하면 그것이 거짓말이다) · 결합 문자(폭 0)·이모지 ZWJ 시퀀스.
 
 rem 코드포인트 하나의 표시 폭(0 은 안 낸다 — 결합 문자는 아직 1 로 센다).
-export proc cp_width input cp u64 . output u64 . effects none . do
+export proc cp_width output u64 . input cp u64 . effects none . do
   rem ★ 폭 0 이 먼저다(2026-07-26): 결합 문자·서식 문자는 **앞 글자에 얹혀** 자기 칸이 없다.
   rem   이걸 1 로 세면 악센트 하나마다 화면이 한 칸씩 밀린다.
   if unicode.is_zerowidth cp . do return 0 . end .
@@ -339,7 +339,7 @@ export proc cp_width input cp u64 . output u64 . effects none . do
 end .
 
 rem ★ 한 행(개행 없는 UTF-8)의 **표시 폭**. 유효하지 않은 UTF-8 이면 none.
-export proc row_width input row_bytes slice u8 . output option u64 . effects none . do
+export proc row_width output option u64 . input row_bytes slice u8 . effects none . do
   var off u64 be 0 .
   var w u64 be 0 .
   while lt off (len row_bytes) . do
@@ -356,7 +356,7 @@ end .
 
 rem ★ 표시 폭이 `cols` 를 넘지 않는 **가장 긴 앞부분**의 바이트 길이. 글자 한가운데서 자르지
 rem   않는다 — 자르면 그 뒤 바이트가 쓰레기가 되고 화면이 깨진다.
-export proc fit_width input row_bytes slice u8 . input cols u64 . output option u64 . effects none . do
+export proc fit_width output option u64 . input row_bytes slice u8 . input cols u64 . effects none . do
   var off u64 be 0 .
   var w u64 be 0 .
   while lt off (len row_bytes) . do
@@ -384,7 +384,7 @@ rem   ☞ 안 세는 것(정직히): 지역 표시 기호 쌍(국기)·이모지
 rem     전부 UAX #29 의 나머지 규칙이 필요하고, 그건 또 다른 표다.
 
 rem ★ `at` 에서 시작하는 덩어리의 **바이트 길이**. 유효하지 않은 UTF-8 이면 none.
-export proc cluster_len input s slice u8 . input at u64 . output option u64 . effects none . do
+export proc cluster_len output option u64 . input s slice u8 . input at u64 . effects none . do
   guard lt at (len s) . else return none .
   let n0 option u64 . be t_cp_len s at .
   guard is_some n0 . else return none .
@@ -408,7 +408,7 @@ export proc cluster_len input s slice u8 . input at u64 . output option u64 . ef
 end .
 
 rem ★ 행의 **덩어리 개수** — 사람이 세는 글자 수다(코드포인트 수와 다르다).
-export proc row_clusters input row_bytes slice u8 . output option u64 . effects none . do
+export proc row_clusters output option u64 . input row_bytes slice u8 . effects none . do
   var off u64 be 0 .
   var cnt u64 be 0 .
   while lt off (len row_bytes) . do

@@ -97,7 +97,7 @@ let i option u64 . be searchlib.bsearch s 42 .   rem ② 그 다음 찾는다
 
 #### bsearch
 ```lowent
-export fn bsearch input s slice u64 . input target u64 . output option u64 .
+export fn bsearch output option u64 . input s slice u64 . input target u64 .
 ```
 - `s` — 오름차순 정렬된 슬라이스(전제, 검사 안 함). **왜 받나:** 뒤질 대상이다. 모듈이
   자료를 들고 있지 않으므로 매번 어디를 볼지 건네받아야 한다. `mut` 이 아닌 것은 읽기만
@@ -110,7 +110,7 @@ export fn bsearch input s slice u64 . input target u64 . output option u64 .
 
 #### lower_bound
 ```lowent
-export fn lower_bound input s slice u64 . input target u64 . output u64 .
+export fn lower_bound output u64 . input s slice u64 . input target u64 .
 ```
 - `s` — `bsearch` 와 같다. 오름차순 전제도 같다. **왜 받나:** 경계를 잴 대상이다.
 - `target u64` — 경계의 기준값. **왜 받나:** "이 값 이상" 의 "이 값" 이다.
@@ -141,7 +141,7 @@ use sortlib from "../../lib/sort.low" .
 use searchlib from "../../lib/search.low" .
 
 rem 정렬 후 target 을 찾는다 → 인덱스+1 (0 = 못 찾음).
-proc bs_find input s mut slice u64 . . input target u64 . output u64 . do
+proc bs_find output u64 . input s mut slice u64 . . input target u64 . do
   sortlib.sort s .                          rem ① 전제 만들기 — 제자리 정렬(s 가 여기서 바뀐다)
   let r option u64 . be searchlib.bsearch s target .   rem ② 찾기 — 답은 option(있다/없다)
   guard is_some r . else return 0 .         rem ③ 없으면 여기서 0 을 내고 끝낸다
@@ -149,7 +149,7 @@ proc bs_find input s mut slice u64 . . input target u64 . output u64 . do
 end
 
 rem 정렬 후 하한 — 삽입점이자 범위 시작.
-proc lb_find input s mut slice u64 . . input target u64 . output u64 . effects none . do
+proc lb_find output u64 . input s mut slice u64 . . input target u64 . effects none . do
   sortlib.sort s .                              rem ① 여기서도 정렬이 먼저다
   return searchlib.lower_bound s target .       rem ② option 이 아니라 u64 그대로 — 갈라낼 것이 없다
 end
@@ -167,7 +167,7 @@ $ build/lowentc --run lb_find demo.low [30,10,20] 15
 
 ```lowent
 rem [a, b) 안에 든 원소의 개수. 두 하한의 차가 곧 개수다.
-fn count_in input s slice u64 . input a u64 . input b u64 . output u64 . do
+fn count_in output u64 . input s slice u64 . input a u64 . input b u64 . do
   let i u64 be searchlib.lower_bound s a .   rem 구간의 시작 인덱스
   let j u64 be searchlib.lower_bound s b .   rem 구간의 끝 인덱스(제외)
   guard lt i j . else return 0 .             rem 비었거나 뒤집힌 구간이면 0 (sub 이 넘치지 않게)

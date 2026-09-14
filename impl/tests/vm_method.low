@@ -32,16 +32,16 @@ rem ★ op 이 **타입의 이름공간**에 산다 — `area` 라는 전역 이
 rem ★ 계약 오라클이 이 픽스처의 **오버플로**를 즉시 찾았다: `mul s.w s.h` 는 **u8 폭**에서
 rem   곱한다(200×200 은 u8 에 안 들어간다). output 이 u64 라도 **곱셈이 u8 에서 일어난다.**
 rem   ⇒ 정직하게 **넓혀서** 곱한다. 폭은 이름에 보인다(RFC-0052).
-fn rect.area input s rect . output u64 . do
+fn rect.area output u64 . input s rect . do
   return mul (widen u64 (field s w)) (widen u64 (field s h)) .
 end .
 
-fn circle.area input s circle . output u64 . do
+fn circle.area output u64 . input s circle . do
   var rr u64 be widen u64 (field s r) .
   return mul 3 (mul rr rr) .
 end .
 
-fn rect.scaled_area input s rect . input k u8 . output u64 . do
+fn rect.scaled_area output u64 . input s rect . input k u8 . do
   return mul (widen u64 k) (method s area) .
 end .
 
@@ -52,7 +52,7 @@ fn demo output u64 . do
   return add (method r area) (method c area) .
 end .
 
-fn demo2 input k u8 . output u64 . do
+fn demo2 output u64 . input k u8 . do
   var r rect . be make rect do w 3 . h 4 . end .
   return method r scaled_area k .
 end .
@@ -64,7 +64,7 @@ struct box .
   r rect .
 end .
 
-fn rect.grow input s rect . input k u8 . output rect . do
+fn rect.grow output rect . input s rect . input k u8 . do
   return make rect do w (add (field s w) k) . h (field s h) . end .
 end .
 

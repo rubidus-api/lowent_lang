@@ -13,13 +13,13 @@ rem `bool`·`enum` 은 trap representation 이 있으므로 **plain 이 아니�
 module vm_bitcast .
 
 rem 같은 비트, 다른 해석. 폭은 **안 바꾼다**(그건 변환이지 재해석이 아니다).
-fn as_i8 input a u8 . output i8 . do return bit_cast i8 a . end .
+fn as_i8 output i8 . input a u8 . do return bit_cast i8 a . end .
 
 rem IEEE-754: u32 0x3F800000 = 1.0f
-fn as_f32 input a u32 . output f32 . do return bit_cast f32 a . end .
+fn as_f32 output f32 . input a u32 . do return bit_cast f32 a . end .
 
 rem 왕복 — 재해석은 정보를 잃지 않는다.
-fn round_trip input a u8 . output u8 . do
+fn round_trip output u8 . input a u8 . do
   var s i8 be bit_cast i8 a .
   return bit_cast u8 s .
 end .

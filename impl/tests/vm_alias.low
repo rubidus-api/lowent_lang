@@ -20,11 +20,11 @@ end .
 
 type p2 pt .        rem 투명 별칭 — pt 와 **같은 타입**이다.
 
-fn av input s slice u8 . output u8 . do
+fn av output u8 . input s slice u8 . do
   let q be view p2 s . .        rem 별칭으로 view 가 된다
   return field q x .
 end .
 
-fn ap input q p2 . output u8 . do
+fn ap output u8 . input q p2 . do
   return field q x .            rem 별칭이 구조체 파라미터로 잡힌다
 end .

@@ -22,7 +22,7 @@ module hash .
 rem ── 해시맵 자리 ────────────────────────────────────────────────────────────
 
 rem ★ 바이트열의 64비트 해시(FNV-1a).
-export fn of input data slice u8 . output u64 . do
+export fn of output u64 . input data slice u8 . do
   return hash_bytes data .
 end .
 
@@ -34,26 +34,26 @@ rem   호출자가 슬롯 수를 안다면 이 자리를 쓰는 편이 손으로
 rem ★ 계약을 **되돌렸다**(2026-08-11): 한때 다른 모듈과 함께 놓으면 E-REQ-UNDEF 가 났는데,
 rem   원인은 이 계약이 아니라 계약 검사기의 **고정 이름표가 조용히 잘린 것**이었다.
 rem   자기 매개변수를 먼저 넣도록 고쳤다 — 이제 단위가 아무리 커도 자기 이름은 표에 있다.
-export fn bucket_of input data slice u8 . input nslots u64 . output u64 .
+export fn bucket_of output u64 . input data slice u8 . input nslots u64 .
   requires ge nslots 1 . do
   return mod (hash_bytes data) nslots .
 end .
 
 rem ★ 2의 거듭제곱 전용 — 마스크 한 번이다(`slots` 는 2^k 여야 한다).
-export fn bucket_mask input data slice u8 . input mask u64 . output u64 . do
+export fn bucket_mask output u64 . input data slice u8 . input mask u64 . do
   return bit_and (hash_bytes data) mask .
 end .
 
 rem ── 손상 검출 ──────────────────────────────────────────────────────────────
 
 rem ★ CRC-32. 값의 범위는 [0, 2^32-1] 이고 u64 로 돌려준다(폭을 잃지 않으려고).
-export fn crc input data slice u8 . output u64 . do
+export fn crc output u64 . input data slice u8 . do
   return crc32 data .
 end .
 
 rem ★★ **왕복이 오라클이다** — 받은 바이트와 함께 온 검사값이 맞는가.
 rem   이 자리를 라이브러리가 들고 있으면 호출자가 비교를 빠뜨릴 수 없다.
-export fn crc_ok input data slice u8 . input want u64 . output bool . do
+export fn crc_ok output bool . input data slice u8 . input want u64 . do
   return eq (crc32 data) want .
 end .
 
@@ -62,7 +62,7 @@ rem ── 성질 ────────────────────�
 rem ★ 두 바이트열이 같은지 **빠르게 아닌 것부터** 거른다. 해시가 다르면 확실히 다르다.
 rem   해시가 같아도 같다는 뜻은 아니다 — 그래서 이름이 `maybe_same` 이다.
 rem   ☞ 이름이 약속을 지켜야 한다: `same` 이라 부르면 그것은 거짓말이 된다.
-export fn maybe_same input a slice u8 . input b slice u8 . output bool . do
+export fn maybe_same output bool . input a slice u8 . input b slice u8 . do
   guard eq (len a) (len b) . else return false .
   return eq (hash_bytes a) (hash_bytes b) .
 end .
@@ -72,14 +72,14 @@ rem ── 암호 해시 (SHA-256) ───────────────
 rem ★★★ **32 바이트 다이제스트를 호출자 버퍼에 쓴다** — 라이브러리가 몰래 할당하지 않는다
 rem   (RFC-0043 D1). 버퍼가 32 보다 짧으면 **0 을 답하고 아무것도 안 쓴다**: 조용히 덜 쓰는
 rem   것이 이 축에서 가장 위험한 실패다(짧은 다이제스트는 맞아 보인다).
-export fn digest input data slice u8 . input out mut slice u8 . output u64 . do
+export fn digest output u64 . input data slice u8 . input out mut slice u8 . do
   return sha256 data out .
 end .
 
 rem ★★ **왕복이 아니라 대조가 오라클이다** — 받은 다이제스트와 다시 센 것이 같은가.
 rem   여기서 **이른 반환을 하지 않는다**(첫 다른 바이트에서 멈추지 않는다): 타이밍이 새면
 rem   비교 자체가 정보를 준다. 32 바이트를 늘 끝까지 본다.
-export fn digest_ok input data slice u8 . input out mut slice u8 . input want slice u8 . output bool . do
+export fn digest_ok output bool . input data slice u8 . input out mut slice u8 . input want slice u8 . do
   guard eq (len want) 32 . else return false .
   let n u64 be sha256 data out .
   guard eq n 32 . else return false .

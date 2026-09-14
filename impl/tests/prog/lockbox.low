@@ -61,8 +61,8 @@ rem   TLS 라면 CertificateVerify 가 이 자리다. lockbox 는 PKI 를 안 �
 rem   호출자가 **공개키를 고정해서** 넘긴다: 그 키로 서명이 맞으면 그 상대다.
 rem   ☞ 여기서 중요한 것은 양성이 아니라 **음성**이다: 서명이 틀리면 **아무것도 열지 않는다**.
 rem     `verify_pss` 가 0 을 답하면 이 프로시저는 거기서 끝난다.
-proc check_peer input sig slice u8 . input nb slice u8 . input mhash slice u8 .
-     input em mut slice u8 . input w mut slice u8 . input bw mut slice u64 . output u64 . effects none . do
+proc check_peer output u64 . input sig slice u8 . input nb slice u8 .
+     input mhash slice u8 . input em mut slice u8 . input w mut slice u8 . input bw mut slice u64 . effects none . do
   let k u64 be shr (len nb) 1 .
   let need u64 be add k 4 .
   guard ge (len bw) (mul need 7) . else return 0 .
@@ -73,9 +73,9 @@ rem ★★ 상대 확인의 **둘째 얼굴** — ECDSA P-256.
 rem   TLS 1.3 은 서명 방식을 협상한다: RSA 인증서면 `rsa_pss_rsae_sha256`,
 rem   ECDSA 인증서면 `ecdsa_secp256r1_sha256`. **둘 다 서야** 협상이 뜻을 갖는다.
 rem   ☞ 여기서도 중요한 것은 음성이다: 맞지 않으면 **아무것도 열지 않는다**.
-proc check_peer_ec input r slice u64 . input s slice u64 . input e slice u64 . input pub slice u64 .
-     input p slice u64 . input n slice u64 . input gx slice u64 . input gy slice u64 .
-     input w mut slice u64 . output u64 . effects none . do
+proc check_peer_ec output u64 . input r slice u64 . input s slice u64 . input e slice u64 .
+     input pub slice u64 . input p slice u64 . input n slice u64 . input gx slice u64 .
+     input gy slice u64 . input w mut slice u64 . effects none . do
   return p256.ecdsa_verify r s e pub p n gx gy w .
 end .
 
@@ -83,8 +83,8 @@ rem ★★ 상대 확인의 **셋째 얼굴** — Ed25519.
 rem   TLS 1.3 이 협상하는 서명 방식 셋이 이로써 다 선다:
 rem     `rsa_pss_rsae_sha256` · `ecdsa_secp256r1_sha256` · `ed25519`.
 rem   ☞ 셋이 다 서야 협상 코드에 **죽은 분기가 없다**.
-proc check_peer_ed input sig slice u8 . input pub slice u8 . input msg slice u8 .
-     input sc mut slice u8 . input bb mut slice u8 . input w mut slice u64 . output u64 . effects none . do
+proc check_peer_ed output u64 . input sig slice u8 . input pub slice u8 .
+     input msg slice u8 . input sc mut slice u8 . input bb mut slice u8 . input w mut slice u64 . effects none . do
   return ed25519.verify sig pub msg sc bb w .
 end .
 
@@ -92,7 +92,7 @@ rem ★★ 상대의 **인증서에서 공개키를 꺼낸다**(N7c: 체인은 �
 rem   ☞ 이 프로시저가 답하는 것은 *"이 인증서 안의 키가 무엇인가"* 뿐이다.
 rem     *"이 인증서를 믿을 만한가"* 는 **호출자의 물음**이고, 여기서 답하지 않는다.
 rem     안 지은 것을 지은 척하지 않는 자리다.
-proc peer_key_from_cert input cert slice u8 . input nb mut slice u8 . output u64 . effects none . do
+proc peer_key_from_cert output u64 . input cert slice u8 . input nb mut slice u8 . effects none . do
   let sp u64 be der.find_spki cert .
   guard gt sp 0 . else return 0 .
   let ko u64 be der.key_off cert sp .
@@ -108,7 +108,7 @@ proc peer_key_from_cert input cert slice u8 . input nb mut slice u8 . output u64
 end .
 
 rem ★ 공유 비밀 → 레코드 키·IV·nonce. **TLS 1.3 사다리를 그대로 탄다.**
-proc derive input shared slice u8 . input label slice u8 . input b mut slice u8 . output u64 . effects none . do
+proc derive output u64 . input shared slice u8 . input label slice u8 . input b mut slice u8 . effects none . do
   guard ge (len b) 1228 . else return 0 .
 
   rem 사다리가 요구하는 두 상수를 **여기서 만들어 넘긴다** — 라이브러리가 몰래 만들지 않는다.
@@ -134,11 +134,11 @@ rem ★★ 왕복 — 이 프로그램의 주장 전부가 여기 있다.
 rem   `flip` 이 1 이면 암호문 한 비트를 뒤집는다 — 그때는 **0 이 나와야 옳다**.
 rem   `suite` 1 = AES-128-GCM · 2 = ChaCha20-Poly1305. **둘 다 같은 약속을 지켜야 한다** —
 rem   그것이 스위트가 둘인 이유이고, 협상이 죽은 분기가 아닌 이유다.
-proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . input msg slice u8 . input flip u64 .
-     input salt slice u8 . input label slice u8 .
-     input b mut slice u8 . input ct mut slice u8 . input tag mut slice u8 . input out mut slice u8 .
-     input pst mut slice u64 . input cst mut slice u64 . input cwk mut slice u64 .
-     input w mut slice u64 . output u64 . effects none . do
+proc round_trip output u64 . input suite u64 . input ska slice u8 . input skb slice u8 . input msg slice u8 .
+     input flip u64 . input salt slice u8 .
+     input label slice u8 . input b mut slice u8 . input ct mut slice u8 . input tag mut slice u8 .
+     input out mut slice u8 . input pst mut slice u64 . input cst mut slice u64 .
+     input cwk mut slice u64 . input w mut slice u64 . effects none . do
   guard ge (len b) 1548 . else return 90 .
   guard ge (len tag) 16 . else return 90 .
 

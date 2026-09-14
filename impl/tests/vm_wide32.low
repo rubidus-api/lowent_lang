@@ -11,15 +11,15 @@ rem     (그 자리는 골든이 따로 밟는다 — 픽스처로는 못 적는
 
 module vm_wide32 .
 
-export proc wide32   input a u64 . input b u64 . input c u64 . input d u64 .
-  input e u64 . input f u64 . input g u64 . input h u64 .
-  input i u64 . input j u64 . input k u64 . input l u64 .
-  input m u64 . input n u64 . input o u64 . input p u64 .
-  input q u64 . input r u64 . input s u64 . input t u64 .
-  input u u64 . input v u64 . input w u64 . input x u64 .
-  input y u64 . input z u64 . input aa u64 . input ab u64 .
-  input ac u64 . input ad u64 . input ae u64 . input af u64 .
-  output u64 . effects none .
+export proc wide32   output u64 . input a u64 . input b u64 . input c u64 .
+  input d u64 . input e u64 . input f u64 . input g u64 .
+  input h u64 . input i u64 . input j u64 . input k u64 .
+  input l u64 . input m u64 . input n u64 . input o u64 .
+  input p u64 . input q u64 . input r u64 . input s u64 .
+  input t u64 . input u u64 . input v u64 . input w u64 .
+  input x u64 . input y u64 . input z u64 . input aa u64 .
+  input ab u64 . input ac u64 . input ad u64 . input ae u64 .
+  input af u64 . effects none .
 do
   return add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add a b c d e f g h i j k l m n o p q r s t u v w x y z aa ab ac ad ae af .
 end .

@@ -415,7 +415,7 @@ let mixed u32 be add 1 (mul 2 3) .")
     #ex("긴 폼은 줄을 나눠도 한 폼이다", "module ex_newline .
 
 rem 개행은 공백이다. 폼은 자기 닫개 `.` 에서 끝난다.
-fn poly input a u64 . input b u64 . output u64 . do .
+fn poly output u64 . input a u64 . input b u64 . do .
   return add (mul a 2)
              (mul b 3) .
 end .",
@@ -431,7 +431,7 @@ end .",
     ]
     #rejected("세미콜론은 닫개가 아니다", "module ex_semi .
 
-fn twice input a u64 . output u64 . do return mul a 2 ; end", "E-VOCAB-REMOVED")
+fn twice output u64 . input a u64 . do return mul a 2 ; end", "E-VOCAB-REMOVED")
     #plain[
       세미콜론은 한때 닫개의 **세 번째 철자**였다 — 처리기가 그것을 만나면 글자 그대로
       점을 냈다. 같은 것을 가리키는 이름이 셋이면 읽는 사람이 셋을 다 알아야 하므로,

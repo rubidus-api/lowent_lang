@@ -20,7 +20,7 @@ module vm_cvalue .
 type bytes slice u8 . .
 
 rem 레인 수를 comptime 값으로 받는다 — 같은 소스가 호출마다 다른 폭으로 선다.
-proc wide input comptime n u64 . input a bytes . input out mut slice u8 . output u64 . effects none . do
+proc wide output u64 . input comptime n u64 . input a bytes . input out mut slice u8 . effects none . do
   var xa slice u8 . be view_array u8 a .
   var v vec u8 n . be load xa 0 .
   var two vec u8 n . be splat 2 .
@@ -29,9 +29,9 @@ proc wide input comptime n u64 . input a bytes . input out mut slice u8 . output
   return 0 .
 end .
 
-proc call4 input a bytes . input out mut slice u8 . output u64 . effects none . do return (wide 4 a out) . end .
-proc call8 input a bytes . input out mut slice u8 . output u64 . effects none . do return (wide 8 a out) . end .
+proc call4 output u64 . input a bytes . input out mut slice u8 . effects none . do return (wide 4 a out) . end .
+proc call8 output u64 . input a bytes . input out mut slice u8 . effects none . do return (wide 8 a out) . end .
 
 rem 값 comptime 은 평범한 계산에도 접힌다(타입 자리 전용이 아니다).
-fn scaled input comptime k u64 . input x u64 . output u64 . do return mul x k . end .
-fn triple input x u64 . output u64 . do return (scaled 3 x) . end .
+fn scaled output u64 . input comptime k u64 . input x u64 . do return mul x k . end .
+fn triple output u64 . input x u64 . do return (scaled 3 x) . end .

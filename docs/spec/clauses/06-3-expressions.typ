@@ -80,7 +80,7 @@ let c bool be lt a b .")
     ]
     #ex("중위 표기", "module ex_infix .
 
-export fn score input a u32 . input b u32 . output u32 .
+export fn score output u32 . input a u32 . input b u32 .
   requires le a 1000 .
   requires le b 1000 .
 do
@@ -88,7 +88,7 @@ do
 end")
     #rejected("비교를 이어 쓸 수 없다", "module ex_chain .
 
-proc p input a u32 . input b u32 . input c u32 . output bool . effects none .
+proc p output bool . input a u32 . input b u32 . input c u32 . effects none .
 do
   return expr a lt b lt c .     rem 두 비교를 이어 쓸 수 없다
 end", "E-EXPR-CHAIN")
@@ -169,14 +169,14 @@ end", "E-EXPR-CHAIN")
     #ex("부호가 섞여도 값을 지키는 넓히기가 있으면 된다", "module ex_mixsign .
 
 rem `u8` 은 `i16` 안에 값을 잃지 않고 들어간다.
-fn ok_widen input a u8 . input b i16 . output i16 . do return add a b . end
+fn ok_widen output i16 . input a u8 . input b i16 . do return add a b . end
 
 rem 더 넓은 자리를 결과로 골라도 된다.
-fn ok_wider input a u8 . input b i16 . output i32 . do return add a b . end",
+fn ok_wider output i32 . input a u8 . input b i16 . do return add a b . end",
       out: "ok_widen(200, -100) = 100 · ok_wider(200, -100) = 100")
     #rejected("값을 지키는 넓히기가 없으면 거부된다", "module ex_sign .
 
-proc p input a i32 . input b u32 . output i32 . effects none .
+proc p output i32 . input a i32 . input b u32 . effects none .
 do
   return add a b .     rem `u32` 는 `i32` 안에 안 들어간다 — 폭이 같다
 end", "E-TYPE-SIGN")
@@ -230,10 +230,10 @@ end", "E-TYPE-SIGN")
     #ex("비트별 논리와 뒤집기", "module ex_bitlogic .
 
 rem 12 = 0000_1100 · 10 = 0000_1010
-fn mask input a u8 . input b u8 . output u8 . do return bit_and a b . end
-fn both input a u8 . input b u8 . output u8 . do return bit_or  a b . end
-fn diff input a u8 . input b u8 . output u8 . do return bit_xor a b . end
-fn flip input a u8 . output u8 . do return bit_not a . end",
+fn mask output u8 . input a u8 . input b u8 . do return bit_and a b . end
+fn both output u8 . input a u8 . input b u8 . do return bit_or  a b . end
+fn diff output u8 . input a u8 . input b u8 . do return bit_xor a b . end
+fn flip output u8 . input a u8 . do return bit_not a . end",
       out: "mask(12,10) = 8 · both(12,10) = 14 · diff(12,10) = 6 · flip(12) = 243")
     #plain[
       `flip(12)` 이 243 인 것은 `u8` 이라서다 — `0000_1100` 을 뒤집으면 `1111_0011` 이고
@@ -242,10 +242,10 @@ fn flip input a u8 . output u8 . do return bit_not a . end",
     ]
     #ex("옮기기와 돌리기", "module ex_bitshift .
 
-fn up   input a u8 . input n u8 . output u8 . do return shl  a n . end
-fn down input a u8 . input n u8 . output u8 . do return shr  a n . end
-fn spin input a u8 . input n u8 . output u8 . do return rotl a n . end
-fn back input a u8 . input n u8 . output u8 . do return rotr a n . end",
+fn up   output u8 . input a u8 . input n u8 . do return shl  a n . end
+fn down output u8 . input a u8 . input n u8 . do return shr  a n . end
+fn spin output u8 . input a u8 . input n u8 . do return rotl a n . end
+fn back output u8 . input a u8 . input n u8 . do return rotr a n . end",
       out: "up(3,2) = 12 · down(12,2) = 3 · spin(129,1) = 3 · back(3,1) = 129")
     #plain[
       `spin(129, 1)` 이 3 인 것이 돌리기와 옮기기의 차이를 보여 준다. 129 는 `1000_0001`
@@ -262,14 +262,14 @@ fn back input a u8 . input n u8 . output u8 . do return rotr a n . end",
     #ex("부호가 옮기기의 뜻을 바꾼다", "module ex_signed_shift .
 
 rem 부호 있는 정수 — 빈자리에 부호 비트가 들어온다(산술 이동).
-fn s_shr input a i32 . input n i32 . output i32 . do return shr a n . end
+fn s_shr output i32 . input a i32 . input n i32 . do return shr a n . end
 
 rem 부호 없는 정수 — 빈자리에 0 이 들어온다(논리 이동).
-fn u_shr input a u32 . input n u32 . output u32 . do return shr a n . end
+fn u_shr output u32 . input a u32 . input n u32 . do return shr a n . end
 
 rem 비트별 논리 연산도 부호 있는 정수를 다룬다.
-fn s_and input a i32 . input b i32 . output i32 . do return bit_and a b . end
-fn s_not input a i32 . output i32 . do return bit_not a . end",
+fn s_and output i32 . input a i32 . input b i32 . do return bit_and a b . end
+fn s_not output i32 . input a i32 . do return bit_not a . end",
       out: "s_shr(-8, 1) = -4 · u_shr(4294967288, 1) = 2147483644 · s_and(-8, 12) = 8 · s_not(0) = -1")
     #plain[
       `-8` 과 `4294967288` 은 32 비트에서 **같은 비트열**이다. 그런데 오른쪽으로 한 칸 옮기면
@@ -278,10 +278,10 @@ fn s_not input a i32 . output i32 . do return bit_not a . end",
     ]
     #ex("세기와 바이트 뒤집기", "module ex_bitcount .
 
-fn ones input a u8 . output u8 . do return count_ones a . end
-fn lead input a u8 . output u8 . do return leading_zeros a . end
-fn tail input a u8 . output u8 . do return trailing_zeros a . end
-fn endian input a u32 . output u32 . do return byte_swap a . end",
+fn ones output u8 . input a u8 . do return count_ones a . end
+fn lead output u8 . input a u8 . do return leading_zeros a . end
+fn tail output u8 . input a u8 . do return trailing_zeros a . end
+fn endian output u32 . input a u32 . do return byte_swap a . end",
       out: "ones(7) = 3 · lead(1) = 7 · tail(8) = 3 · endian(1) = 16777216")
     #plain[
       `lead(1)` 이 7 인 것도 폭 때문이다 — `u8` 에서 1 은 `0000_0001` 이므로 앞선 0 이
@@ -426,7 +426,7 @@ fn endian input a u32 . output u32 . do return byte_swap a . end",
     ]
     #rejected("정수는 조건이 아니다", "module ex_cond .
 
-fn f input a u8 . output u8 .
+fn f output u8 . input a u8 .
 do
   if a . do return 1 . end     rem 무엇을 묻는지 적는다 — `gt a 0`
   return 0 .
@@ -450,7 +450,7 @@ end", "E-TYPE-COND")
     ]
     #rejected("레인 수가 다른 둘은 다른 타입이다", "module ex_lanes .
 
-fn f input a vec u8 4 . input b vec u8 8 . output vec u8 4 .
+fn f output vec u8 4 . input a vec u8 4 . input b vec u8 8 .
 do
   return add a b .
 end", "E-TYPE-LANES")
@@ -472,7 +472,7 @@ end", "E-TYPE-LANES")
     ]
     #rejected("섬 안의 부름은 괄호로 묶는다", "module ex_island .
 
-fn g input a u8 . output u8 . do return a . end
+fn g output u8 . input a u8 . do return a . end
 
 fn f output u8 .
 do

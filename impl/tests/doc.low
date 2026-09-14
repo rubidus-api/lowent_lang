@@ -15,12 +15,12 @@ end .
 module sorted_search .
 
 fn parse_header .
+  output result .
   lowdoc text DOC
 Parse the 4-byte header, returning version and length.
 Fails if the input is shorter than the header.
 DOC .
   input data bytes .
-  output result .
   requires static ge (len data) 4 .
   errors too_short .
   errors bad_version .
@@ -30,6 +30,7 @@ do
 end .
 
 proc load_file .
+  output result .
   lowdoc "Read a file into a byte slice." .
   input a cap allocator .      rem ★ **할당 = 명시 권한**(RFC-0043 D1) — ambient 힙은 없다
   input fs cap file_system .   rem ★ **읽기도 권한이다** — 2026-07-20 까지 이 줄이 없었고,
@@ -37,7 +38,6 @@ proc load_file .
                                rem   있었다.** 검사가 `cap` 토큰 유무만 봐서 `cap allocator` 로
                                rem   통과했다 — **할당 권한이 파일 읽기를 인가했다.**
   input p path .
-  output result .
   effects io alloc .
   errors open_failed .
   errors read_failed .
@@ -49,9 +49,9 @@ end .
 rem Compare two keys for ordering.
 rem Returns negative, zero, or positive.
 fn compare .
+  output i32 .
   input a i32 .
   input b i32 .
-  output i32 .
 do
   return 0 .
 end .

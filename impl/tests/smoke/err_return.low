@@ -1,5 +1,5 @@
 module m .
 rem expect: E-TYPE-RETURN
-fn f input a u64 . output bool . do
+fn f output bool . input a u64 . do
   return a .
 end .

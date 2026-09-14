@@ -15,7 +15,7 @@ enum e .
   bad .
 end .
 
-fn fails input n u64 . output result u64 e .
+fn fails output result u64 e . input n u64 .
 errors bad ge n 1 .
 do
   if ge n 1 . do return error bad . end .
@@ -23,13 +23,13 @@ do
 end .
 
 rem `try` 가 오류를 **전파한다** — 조기 반환이다.
-fn propagate input n u64 . output result u64 e . do
+fn propagate output result u64 e . input n u64 . do
   var v u64 be try (fails n) .
   return ok v .
 end .
 
 rem 그것을 200번 한다. 원장이 새면 **129번째에 죽는다.**
-fn loop200 input n u64 . output u64 . do
+fn loop200 output u64 . input n u64 . do
   var i u64 be 0 .
   var c u64 be 0 .
   while lt i 200 . do

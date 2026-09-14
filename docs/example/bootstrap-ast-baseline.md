@@ -26,11 +26,11 @@ RFC-0080 §4.2 가 페이로드 enum 의 재귀에 "간접 강제" 라 부른 �
 module ast_baseline .
 
 fn eval
+  output u8 .
   input tag slice u8 .
   input a slice u8 .
   input b slice u8 .
   input i u8 .
-  output u8 .
   effects none .
 do
   guard eq (index tag i) 1 . else do return index a i . end

@@ -14,13 +14,13 @@
 module ex_export .
 
 rem `export` 를 붙인 것만 다른 모듈이 쓴다.
-export fn visible input n u32 . output u32 .
+export fn visible output u32 . input n u32 .
 do
   return mul n 2 .
 end
 
 rem 이것은 이 모듈 안에서만 쓴다.
-fn hidden input n u32 . output u32 .
+fn hidden output u32 . input n u32 .
 do
   return add n 1 .
 end

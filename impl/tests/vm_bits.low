@@ -17,13 +17,13 @@ type tenbit bits 10 . .
 type t12    bits 12 . .
 
 rem 10비트: 1023 + 1 은 **0** 으로 감긴다 (mod 1024).
-fn inc10 input a tenbit . output tenbit . do return (wrap_add a 1) . end .
+fn inc10 output tenbit . input a tenbit . do return (wrap_add a 1) . end .
 
 rem 10비트: 1000 + 100 = 1100 → 76 (mod 1024).
-fn add10 input a tenbit . input b tenbit . output tenbit . do return (wrap_add a b) . end .
+fn add10 output tenbit . input a tenbit . input b tenbit . do return (wrap_add a b) . end .
 
 rem 3비트: 5 + 5 = 10 → 2 (mod 8). 아주 좁은 폭도 같은 규칙이다.
-fn add3 input a t3 . input b t3 . output t3 . do return (wrap_add a b) . end .
+fn add3 output t3 . input a t3 . input b t3 . do return (wrap_add a b) . end .
 
 rem 12비트: 4095 + 1 → 0 (mod 4096).
-fn inc12 input a t12 . output t12 . do return (wrap_add a 1) . end .
+fn inc12 output t12 . input a t12 . do return (wrap_add a 1) . end .

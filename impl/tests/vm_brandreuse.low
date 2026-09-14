@@ -13,9 +13,9 @@ use pool from "../../lib/pool.low" .
 
 newtype pa u8 .
 
-export proc two input m1 mut slice u8 . . input g1 mut slice u64 . .
-                input m2 mut slice u8 . . input g2 mut slice u64 . .
-                output u64 . effects none . do .
+export proc two output u64 . input m1 mut slice u8 . .
+                input g1 mut slice u64 . . input m2 mut slice u8 . .
+                input g2 mut slice u64 . . effects none . do .
   let a option (pool.block_pool pa) . be pool.init pa m1 g1 16 .
   rem ★ 같은 브랜드로 두 번째 저장소를 연다 — 여기서 거절된다.
   let b option (pool.block_pool pa) . be pool.init pa m2 g2 16 .

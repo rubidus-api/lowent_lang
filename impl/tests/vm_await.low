@@ -9,7 +9,7 @@ rem   ★ VM≡네이티브(job 테이블 공유, 차등 스윕). 아직 없는 
 rem     `detach`·child_of region — 다 이 위에 얹는 후속.
 module vm_await .
 
-fn square input n u64 . output u64 . do return expr n * n . end .
+fn square output u64 . input n u64 . do return expr n * n . end .
 
 rem 두 태스크를 spawn 하고 await 로 결과를 모아 합한다. 각 결과가 결정적이라 순서 무관 → 25+36=61.
 test await_join schedule explore_interleavings do

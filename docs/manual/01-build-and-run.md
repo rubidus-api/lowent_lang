@@ -66,7 +66,7 @@ make             # 디버그 빌드 → build/lowentc
 ```lowent
 module hello .
 
-proc main input out cap io . output u8 . effects io . do
+proc main output u8 . input out cap io . effects io . do
   return narrow u8 (write_out out 1 "hello, entropy!\n") .
 end
 ```

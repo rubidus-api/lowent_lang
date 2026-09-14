@@ -13,9 +13,9 @@ use chacha from "../../lib/chacha.low" .
 use hmac from "../../lib/hmac.low" .
 
 rem ★ gcm: 태그는 **정확히 16** — 8 은 거절(전엔 경계 트랩), 17 은 앞 16 이 맞아도 거절, 16 은 개봉.
-proc t_gcm_taglen input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
-     input ct mut slice u8 . input tag mut slice u8 . input t17 mut slice u8 . input out mut slice u8 .
-     input want mut slice u8 . input w mut slice u8 . output u64 . effects none . do
+proc t_gcm_taglen output u64 . input key slice u8 . input nonce slice u8 . input aad slice u8 .
+     input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input t17 mut slice u8 .
+     input out mut slice u8 . input want mut slice u8 . input w mut slice u8 . effects none . do
   guard ge (len t17) 17 . else return 90 .
   guard eq (gcm.encrypt key nonce aad msg ct tag w) 16 . else return 91 .
   guard eq (gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 8) out want w) 0 . else return 92 .
@@ -28,9 +28,9 @@ proc t_gcm_taglen input key slice u8 . input nonce slice u8 . input aad slice u8
 end .
 
 rem ★ gcm: 태그가 틀리면 `msg` 에 **한 바이트도 쓰지 않는다** — 전엔 평문이 먼저 쓰이고 0 이 돌아왔다.
-proc t_gcm_rup input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
-     input ct mut slice u8 . input tag mut slice u8 . input out mut slice u8 .
-     input want mut slice u8 . input w mut slice u8 . output u64 . effects none . do
+proc t_gcm_rup output u64 . input key slice u8 . input nonce slice u8 . input aad slice u8 .
+     input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 .
+     input out mut slice u8 . input want mut slice u8 . input w mut slice u8 . effects none . do
   guard gt (len msg) 0 . else return 90 .
   guard eq (gcm.encrypt key nonce aad msg ct tag w) 16 . else return 91 .
   set (index tag 0) (cast u8 (bit_xor (cast u64 (index tag 0)) 1)) .
@@ -46,10 +46,10 @@ proc t_gcm_rup input key slice u8 . input nonce slice u8 . input aad slice u8 . 
 end .
 
 rem ★ aead: 17 바이트 태그(앞 16 이 맞아도)는 거절 · 16 은 개봉 — gcm 과 **같은 규칙**.
-proc t_aead_taglen input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
-     input ct mut slice u8 . input tag mut slice u8 . input t17 mut slice u8 . input outp mut slice u8 . input otk mut slice u8 .
-     input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 .
-     input pad mut slice u8 . input want mut slice u8 . output u64 . effects none . do
+proc t_aead_taglen output u64 . input key slice u8 . input nonce slice u8 . input aad slice u8 .
+     input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input t17 mut slice u8 . input outp mut slice u8 .
+     input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 .
+     input ks mut slice u8 . input pad mut slice u8 . input want mut slice u8 . effects none . do
   guard ge (len t17) 17 . else return 90 .
   guard eq (aead.seal key nonce aad msg ct tag otk pst st work ks pad) 16 . else return 91 .
   var i u64 be 0 .
@@ -60,7 +60,7 @@ proc t_aead_taglen input key slice u8 . input nonce slice u8 . input aad slice u
 end .
 
 rem ★ aes: 키는 **정확히 16** — 32 는 거절(전엔 앞 16 으로 조용히 AES-128), 15 도 거절, 16 은 176.
-proc t_aes_keylen input key32 slice u8 . input rk mut slice u8 . output u64 . effects none . do
+proc t_aes_keylen output u64 . input key32 slice u8 . input rk mut slice u8 . effects none . do
   guard eq (len key32) 32 . else return 90 .
   guard eq (aes.expand_key key32 rk) 0 . else return 91 .
   guard eq (aes.expand_key (subslice key32 0 15) rk) 0 . else return 92 .
@@ -69,7 +69,7 @@ proc t_aes_keylen input key32 slice u8 . input rk mut slice u8 . output u64 . ef
 end .
 
 rem ★ chacha: 키 32 · nonce 12 **정확히** — 33/16 은 거절(전엔 앞부분만 쓰고 16 을 답했다).
-proc t_chacha_len input key33 slice u8 . input nonce16 slice u8 . input st mut slice u64 . output u64 . effects none . do
+proc t_chacha_len output u64 . input key33 slice u8 . input nonce16 slice u8 . input st mut slice u64 . effects none . do
   guard eq (len key33) 33 . else return 90 .
   guard eq (len nonce16) 16 . else return 90 .
   guard eq (chacha.prep key33 (subslice nonce16 0 12) 1 st) 0 . else return 91 .
@@ -80,7 +80,7 @@ end .
 
 rem ★ hmac: scratch 요구는 **한 수** max(64+len msg, 96) — 66 은 `out` 에 손대기 전에 거절,
 rem   96 은 32 를 답하고 그 값은 큰 scratch 로 낸 것과 같다. `extract` 도 같은 규칙.
-proc t_hmac_scratch input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . input out2 mut slice u8 . output u64 . effects none . do
+proc t_hmac_scratch output u64 . input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . input out2 mut slice u8 . effects none . do
   guard eq (len msg) 2 . else return 90 .
   guard ge (len scratch) 256 . else return 90 .
   var i u64 be 0 .

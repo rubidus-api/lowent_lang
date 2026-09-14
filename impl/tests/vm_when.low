@@ -9,7 +9,7 @@ end .
 
 rem ① 정직하다 — guard 의 조건과 when 이 같은 식이다.
 rem    ★ 그래서 **술어 기억**이 그것을 증명하고 검사가 사라진다. 정직은 공짜다.
-fn honest input data bytes . output result u8 e . .
+fn honest output result u8 e . . input data bytes .
   errors small lt len data . 4 . .
 do
   guard ge len data . 4 . else return error small . . .
@@ -18,7 +18,7 @@ end .
 
 rem ② 거짓말이다 — "len < 2 일 때만 small" 이라 선언하고, 본문은 len < 9 일 때 낸다.
 rem    증명 실패 → 검사 유지 → 실제로 어기면 **errors 절이 거짓말했다**고 고발한다.
-fn liar input data bytes . output result u8 e . .
+fn liar output result u8 e . . input data bytes .
   errors small lt len data . 2 . .
 do
   guard ge len data . 9 . else return error small . . .
@@ -37,7 +37,7 @@ rem
 rem    지문이 **같으므로** 술어 기억이 그 식을 알아본다. 극성(pneg)을 안 보면
 rem    "이 식은 이 경로에서 알려져 있다" 는 이유로 **잘못 증명하고 검사를 지운다.**
 rem    그러면 이 거짓말이 조용히 통과한다. 극성이 건전성의 축이다.
-fn inverted input data bytes . output result u8 e . .
+fn inverted output result u8 e . . input data bytes .
   errors small ge len data . 4 . .
 do
   guard ge len data . 4 . else return error small . . .

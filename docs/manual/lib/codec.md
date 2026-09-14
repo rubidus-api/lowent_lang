@@ -181,7 +181,7 @@ module ex_codec .
 use codec as c .
 
 rem "abc" → "616263" → "abc" 왕복. 성공 = 42.
-proc hex_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output u64 . effects none . do
+proc hex_roundtrip output u64 . input enc mut slice u8 . . input dec mut slice u8 . . effects none . do
   rem 출력 자리를 먼저 확인한다 — 여기서 걸러야 아래 none 이 "버퍼 탓" 인지 헷갈리지 않는다.
   guard ge (len enc) 6 . else return 90 .    rem hex 는 정확히 2배: 3바이트 → 6글자
   guard ge (len dec) 3 . else return 91 .    rem 되돌리면 6글자 → 3바이트
@@ -203,7 +203,7 @@ proc hex_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output 
 end
 
 rem base64: "hi"(꼬리 2) → "aGk=" → "hi".
-proc b64_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output u64 . effects none . do
+proc b64_roundtrip output u64 . input enc mut slice u8 . . input dec mut slice u8 . . effects none . do
   rem 2바이트는 3바이트 묶음을 못 채운다 → 한 묶음(4글자)이 나오고 끝에 = 하나가 붙는다.
   guard ge (len enc) 4 . else return 90 .
   guard ge (len dec) 2 . else return 91 .

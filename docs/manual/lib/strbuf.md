@@ -134,7 +134,7 @@ export fn new output str_buf .
 
 #### as_str
 ```lowent
-export fn as_str input b str_buf . input buf slice u8 . output slice u8 .
+export fn as_str output slice u8 . input b str_buf . input buf slice u8 .
 ```
 지금까지 쓴 바이트의 **뷰**를 낸다 — `subslice buf 0 len` 이다(복사가 아니다).
 
@@ -144,7 +144,7 @@ export fn as_str input b str_buf . input buf slice u8 . output slice u8 .
 
 #### room
 ```lowent
-export fn room input b str_buf . input buf slice u8 . output u64 .
+export fn room output u64 . input b str_buf . input buf slice u8 .
 ```
 남은 내용 용량 = `len(buf) − 1 − len` 을 낸다. 널 봉인 자리 1 바이트가 빠져 있다.
 
@@ -153,7 +153,7 @@ export fn room input b str_buf . input buf slice u8 . output u64 .
 
 #### as_cstr
 ```lowent
-export unsafe proc as_cstr input b str_buf . input buf mut slice u8 . . output cstr . effects unsafe .
+export unsafe proc as_cstr output cstr . input b str_buf . input buf mut slice u8 . . effects unsafe .
 ```
 `len` 자리에 널을 봉인하고 base 포인터를 `cstr` 로 낸다 — **O(1)·무할당**.
 
@@ -166,8 +166,8 @@ export unsafe proc as_cstr input b str_buf . input buf mut slice u8 . . output c
 
 #### append — 전량-아니면-무
 ```lowent
-export proc append input b mut str_buf . input buf mut slice u8 . . input s slice u8 .
-  output result void sb_error .
+export proc append output result void sb_error . input b mut str_buf . input buf mut slice u8 . .
+  input s slice u8 .
 errors no_room .
 ```
 들어가면 전부 쓰고, 안 들어가면 한 바이트도 안 쓴다.
@@ -181,8 +181,8 @@ errors no_room .
 
 #### append_trunc — 되는 만큼
 ```lowent
-export proc append_trunc input b mut str_buf . input buf mut slice u8 . . input s slice u8 .
-  output u64 .
+export proc append_trunc output u64 . input b mut str_buf . input buf mut slice u8 . .
+  input s slice u8 .
 ```
 남은 자리만큼만 쓰고 **쓴 개수를 돌려준다.**
 
@@ -192,9 +192,9 @@ export proc append_trunc input b mut str_buf . input buf mut slice u8 . . input 
 
 #### append_grow — 키운다
 ```lowent
-export proc append_grow input b mut str_buf . input old mut slice u8 . .
-  input new_buf mut slice u8 . . input s slice u8 .
-  output result void sb_error .
+export proc append_grow output result void sb_error . input b mut str_buf .
+  input old mut slice u8 . . input new_buf mut slice u8 . .
+  input s slice u8 .
 errors no_room .
 ```
 옛 내용을 새 자리로 옮기고 거기에 이어 붙인다.
@@ -230,7 +230,7 @@ module demo .
 
 use strbuf from "../../lib/strbuf.low" .
 
-proc build input buf mut slice u8 . . output u64 . do
+proc build output u64 . input buf mut slice u8 . . do
   var b strbuf.str_buf be strbuf.new .                  rem 상태(len 0)만 만든다
   let r1 result void strbuf.sb_error . be strbuf.append b buf "ab" .   rem 2 바이트 이어 붙인다
   guard is_ok r1 . else return 90 .                     rem 실패면 error no_room 이다
@@ -251,7 +251,7 @@ end
 성장은 새 자리를 호출자가 주는 것으로 표현된다(`vm_strbuf.low` 의 `grow_moves` 기반):
 
 ```lowent
-proc grow input small mut slice u8 . . input big mut slice u8 . . output u64 . effects none . do
+proc grow output u64 . input small mut slice u8 . . input big mut slice u8 . . effects none . do
   var b strbuf.str_buf be strbuf.new .
   let r1 result void strbuf.sb_error . be strbuf.append b small "ab" .   rem 작은 자리에 2 바이트
   guard is_ok r1 . else return 90 .
@@ -278,7 +278,7 @@ end
 **✗ 순수 코드에서 `as_cstr`:**
 
 ```lowent
-fn f input b strbuf.str_buf . input buf mut slice u8 . . output u64 . do
+fn f output u64 . input b strbuf.str_buf . input buf mut slice u8 . . do
   let p strbuf.cstr be strbuf.as_cstr b buf .   rem ✗ unsafe proc 을 fn 에서 부른다
   return 0 .
 end
@@ -296,7 +296,7 @@ cstr 를 만드는 것은 언제나 널종단 보증이고, 그 보증은 unsafe
 **✗ 널 봉인 자리를 잊은 버퍼 크기:**
 
 ```lowent
-proc f input buf mut slice u8 . . output u64 . effects none . do
+proc f output u64 . input buf mut slice u8 . . effects none . do
   var b strbuf.str_buf be strbuf.new .
   rem buf 가 정확히 2 바이트라면 "ab" 조차 안 들어간다 (2 + 0 + 널 1 > 2)
   let r result void strbuf.sb_error . be strbuf.append b buf "ab" .

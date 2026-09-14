@@ -38,7 +38,7 @@ use fmt     from "../../../lib/fmt.low" .
 use allocs  from "../../../lib/alloc.low" .
 
 rem ★ 두 바이트열이 같은가 — 왕복 검산이 쓴다.
-fn same_bytes input a slice u8 . input b slice u8 . output bool . do
+fn same_bytes output bool . input a slice u8 . input b slice u8 . do
   if ne (len a) (len b) . do return false . end .
   var i u64 be 0 .
   while lt i (len a) . do
@@ -49,8 +49,8 @@ fn same_bytes input a slice u8 . input b slice u8 . output bool . do
 end .
 
 rem ★ 글자 종류를 센다 — `unicode` 의 표가 실제로 쓰이는 자리.
-proc scan_kinds input src slice u8 . input dst mut slice u8 . . input pos0 u64 .
-  output option u64 . effects none .
+proc scan_kinds output option u64 . input src slice u8 . input dst mut slice u8 . .
+  input pos0 u64 . effects none .
 do
   var at u64 be 0 .
   var n_letters u64 be 0 .
@@ -92,11 +92,11 @@ do
 end .
 
 proc main .
+  output u8 .
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .
   input out cap io .
-  output u8 .
   effects alloc io .
 do
   let m0 option slice u8 . be arg a 0 .

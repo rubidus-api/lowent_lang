@@ -23,7 +23,7 @@ struct rc .
 end .
 
 rem 타입 파라미터 **둘** — 서로 다른 구조체를 한 op 이 받는다.
-fn pair input comptime a type . input comptime b type . input p a . input q b . output u32 . do
+fn pair output u32 . input comptime a type . input comptime b type . input p a . input q b . do
   return (add (field p x) (field q w)) .
 end .
 
@@ -34,8 +34,8 @@ fn two output u32 . do
 end .
 
 rem ★ 본문이 **똑같은** 두 제네릭 — 같은 타입으로 세우면 iface·def 해시가 같아 한 몸으로 접힌다.
-fn ga input comptime t type . input p t . output u32 . do return (field p x) . end .
-fn gb input comptime t type . input p t . output u32 . do return (field p x) . end .
+fn ga output u32 . input comptime t type . input p t . do return (field p x) . end .
+fn gb output u32 . input comptime t type . input p t . do return (field p x) . end .
 
 fn dedup output u32 . do
   var u pt . be make pt do x 3 . y 0 . end .

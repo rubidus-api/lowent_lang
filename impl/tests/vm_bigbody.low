@@ -12,7 +12,7 @@ rem     ☞ *못 내는 것과 안 내는 것은 다르다. 안 내면서 아무
 
 module vm_bigbody .
 
-export proc wide_body input a u64 . output u64 . effects none .
+export proc wide_body output u64 . input a u64 . effects none .
 do
   var s u64 be a .
   set s (add s 0) .

@@ -17,12 +17,12 @@ rem   그 검사가 이것이고, 그래서 지금 등재됐다(효과 평면 at
 
 module vm_concurrent .
 
-proc consumer input ch u64 . output u64 . effects concurrent . do
+proc consumer output u64 . input ch u64 . effects concurrent . do
   var x u64 be chrecv ch .
   return x .
 end .
 
-proc producer input ch u64 . output u64 . effects concurrent . do
+proc producer output u64 . input ch u64 . effects concurrent . do
   return chsend ch 41 .
 end .
 

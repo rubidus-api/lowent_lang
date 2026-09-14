@@ -8,7 +8,7 @@ use growvec .
 use allocs .
 
 rem 용량 2 로 열고 8개를 민다 — 자라야 통과한다. 내용도 살아남아야 한다.
-proc grows input al cap allocator . output u64 . effects state alloc . do
+proc grows output u64 . input al cap allocator . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 512 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -35,7 +35,7 @@ proc grows input al cap allocator . output u64 . effects state alloc . do
 end .
 
 rem 바이트열 통째로 밀기 · 미리 확보하기.
-proc bulk input al cap allocator . output u64 . effects state alloc . do
+proc bulk output u64 . input al cap allocator . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 512 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -58,7 +58,7 @@ proc bulk input al cap allocator . output u64 . effects state alloc . do
 end .
 
 rem ★ cap 은 CLI 인자로 못 넘긴다 — 엔트리가 받아서 넘긴다(vecgrow 와 같은 꼴).
-proc main input al cap allocator . output u8 . effects state alloc . do
+proc main output u8 . input al cap allocator . effects state alloc . do
   let a u64 be grows al .
   guard eq a 42 . else return narrow u8 a .
   let b u64 be bulk al .

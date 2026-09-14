@@ -3,8 +3,8 @@ rem reference derives from an argument, so the result ALIASES the argument borro
 rem   launder: owner write while the laundered borrow is live → E-EXCL ∧ E-VM-EXCL
 rem   ok1:     same laundering, no owner access while live    → green, runs
 fn pass .
-  input a mut_ref u32 . .
   output mut_ref u32 . .
+  input a mut_ref u32 . .
 do
   return a .
 end .

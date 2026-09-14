@@ -224,14 +224,14 @@ capability 클래스가 필요해서, D7 이 이 슬라이스에서는 막는다
   - 도중에 `out` 이 모자라면 `none` — 이때까지 쓴 바이트가 남아 있으므로 **`out` 내용은
     미정**이다. `none` 이면 그 버퍼를 화면에 흘려보내면 안 된다.
 - `row_cells row_bytes` — 행(개행 없는 UTF-8 바이트열)의 **코드포인트 개수**.
-  - 시그니처: `input row_bytes slice u8 . output option u64 . effects none`
+  - 시그니처: `output option u64 . input row_bytes slice u8 . effects none`
   - `row_bytes` 가 필요한 이유: 셀 수를 셀 대상이다. 바이트 수와 셀 수가 다르기 때문에
     (한글 한 글자 = 3바이트 = 1셀) 이 계산이 따로 필요하다.
   - 유효하지 않은 UTF-8(첫 바이트가 시퀀스 머리가 아니거나 행이 시퀀스 중간에서 끝남)이면
     `none` — 값으로 답한다.
 - `col_off row_bytes c` — 행에서 **코드포인트 c 번째의 바이트 오프셋**. 셀 번호(터미널
   좌표)와 바이트 자리(버퍼 수술 자리)를 잇는 다리다.
-  - 시그니처: `input row_bytes slice u8 . input c u64 . output option u64 . effects none`
+  - 시그니처: `output option u64 . input row_bytes slice u8 . input c u64 . effects none`
   - `c` 가 필요한 이유: 알고 싶은 열(셀 번째)이다. 터미널은 열로 세고 버퍼는 바이트로
     세므로, 그 사이를 옮기려면 열 번호를 받아야 한다.
   - 행이 c 셀에 못 미치거나 유효하지 않은 UTF-8 이면 `none` — 화면 밖을 가리키는 커서는
@@ -244,8 +244,8 @@ capability 클래스가 필요해서, D7 이 이 슬라이스에서는 막는다
     모른다 — `goto` 에 넣을 행 번호는 호출자가 안다.
   - `out`/`pos` 가 매개변수인 이유: 결과 바이트를 쓸 호출자 버퍼와 시작 자리다. 행마다 이
     op 을 이어 부를 때 **앞 행이 돌려준 pos 를 그대로 다음 행에 넘긴다.**
-  - 시그니처: `input prev slice u8 . input nxt slice u8 . input row u64 . input out mut
-    slice u8 . . input pos u64 . output option u64 . effects none`
+  - 시그니처: `output option u64 . input prev slice u8 . input nxt slice u8 . input row u64 .
+    input out mut slice u8 . . input pos u64 . effects none`
   - 바뀐 **코드포인트 구간**만 `goto(row, 코드포인트 열)` + 그 구간의 `nxt` 바이트로
     낸다. 한쪽이 먼저 끝나면 남은 쪽은 전부 바뀐 것으로 친다. 같으면 0 바이트(`some pos`).
   - 유효하지 않은 UTF-8 · `out` 부족 = `none` — `diff` 와 같은 이유로 **`out` 내용은
@@ -297,7 +297,7 @@ use term as t .
 
 rem 프레임 하나를 짓는다: 지우고 → (2,4)로 가서 → 굵게. 성공 = 42.
 rem 이 proc 은 effects none 이다 — 화면에는 아직 아무 일도 일어나지 않는다.
-proc build_frame input buf mut slice u8 . . output u64 . effects none . do
+proc build_frame output u64 . input buf mut slice u8 . . effects none . do
   rem 버퍼가 너무 작으면 아래 op 들이 전부 none 이 된다 — 미리 걸러 원인을 분명히 한다.
   guard ge (len buf) 32 . else return 90 .
   rem 각 op 이 낸 새 pos 를 다음 op 의 pos 로 넘긴다 — 시퀀스가 이어 붙는다.
@@ -324,10 +324,10 @@ use outbuf .
 
 rem 조립한 바이트를 실제로 터미널에 내보낸다. 성공 = 42.
 proc draw
+  output u64 .
   input out  cap io .         rem ① 세상에 닿을 권한 — 이것이 있어야 화면에 쓴다(권한이 먼저 온다)
   input buf  mut slice u8 .   rem ② term 이 이스케이프를 조립할 자리(호출자 버퍼)
   input obuf mut slice u8 .   rem ③ outbuf 가 나가기 전 바이트를 쌓아 둘 자리
-  output u64 .
   effects io .
 do
   guard ge (len buf) 32 . else return 90 .
@@ -358,7 +358,7 @@ end
 
 ```lowent
 rem diff: 폭 5·두 행에서 둘째 행의 연속 두 셀만 바뀜 → goto(1,1) + 두 바이트 = 8 바이트.
-proc diff_frame input out mut slice u8 . . output u64 . effects none . do
+proc diff_frame output u64 . input out mut slice u8 . . effects none . do
   guard ge (len out) 32 . else return 90 .
   rem 화면은 1차원이다. 폭 5 이므로 "aaaaa" / "aaaaa" 두 행으로 읽힌다.
   let prev slice u8 be "aaaaaaaaaa" .    rem 직전 화면 — 이미 터미널에 나가 있는 내용
@@ -382,7 +382,7 @@ UTF-8 셀 — `impl/tests/vm_term.low` 의 `utf8_cells`·`utf8_diff` op 이 실�
 
 ```lowent
 rem UTF-8 셀: 열은 바이트가 아니라 코드포인트 번째다. 성공 = 42.
-proc utf8_frame input out mut slice u8 . . output u64 . effects none . do
+proc utf8_frame output u64 . input out mut slice u8 . . effects none . do
   guard ge (len out) 32 . else return 90 .
 
   rem ① "한글" 은 6바이트지만 2셀이다 — 코드포인트('한'·'글')가 둘이라서.

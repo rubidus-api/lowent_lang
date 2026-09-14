@@ -18,7 +18,7 @@ actor counter .
 end .
 
 rem 태스크: 카운터에 inc 한 번. (그린스레드 프레임을 실제로 쓰게 만든다.)
-proc worker input c counter . output u64 . effects state . do
+proc worker output u64 . input c counter . effects state . do
   spawn send c inc .
   return 0 .
 end .

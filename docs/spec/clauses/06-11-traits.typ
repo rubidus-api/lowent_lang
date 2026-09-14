@@ -49,7 +49,7 @@
 
 rem 트레이트는 타입이 갖춰야 할 op 의 목록이다.
 trait shape
-  area input s self . output u64 . effects none .
+  area output u64 . input s self . effects none .
 end
 
 rem `satisfies` 를 적으면 그 목록을 갖췄는지 검사받는다.
@@ -59,14 +59,14 @@ struct rect
   h u8 .
 end
 
-fn rect.area input s rect . output u64 .
+fn rect.area output u64 . input s rect .
 do
   return mul (widen u64 (field s w)) (widen u64 (field s h)) .
 end")
     #rejected("갖추겠다고 적고 안 갖추면", "module ex_trait_bad .
 
 trait shape
-  area input s self . output u64 . effects none .
+  area output u64 . input s self . effects none .
 end
 
 struct rect
@@ -113,12 +113,12 @@ struct rect
   h u64 .
 end
 
-fn rect.area input s rect . output u64 .
+fn rect.area output u64 . input s rect .
 do
   return mul (field s w) (field s h) .
 end
 
-export fn twice_area input s rect . output u64 .
+export fn twice_area output u64 . input s rect .
 do
   return mul 2 (method s area) .
 end")
@@ -146,7 +146,7 @@ struct p .
   x u8 .
 end .
 
-fn f input s p . output u8 .
+fn f output u8 . input s p .
 do
   return method s nosuch .
 end", "E-METHOD-UNDEF")

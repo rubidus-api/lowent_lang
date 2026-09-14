@@ -8,13 +8,13 @@ module compos_native .
 
 build profile native .
 
-proc fill input dst mut slice u8 . . input at u64 . input v u64 . output u64 . effects none . do
+proc fill output u64 . input dst mut slice u8 . . input at u64 . input v u64 . effects none . do
   guard lt at (len dst) . else return 0 .
   set (index dst at) (narrow u8 v) .
   return 1 .
 end .
 
-proc main input al cap allocator . output u8 . effects alloc state . do
+proc main output u8 . input al cap allocator . effects alloc state . do
   let g option mut slice u8 . . be alloc_bytes al capacity 4 .
   guard is_some g . else return 70 .
   var dst mut slice u8 . be some_value g .

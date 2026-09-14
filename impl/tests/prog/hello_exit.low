@@ -19,7 +19,7 @@ module hello_exit .
 
 let LIMIT u8 be 10 .
 
-fn clamp input a u8 . output u8 . do
+fn clamp output u8 . input a u8 . do
   guard le a LIMIT . else return LIMIT .
   return a .
 end .

@@ -26,8 +26,8 @@ module tier .
 build tier t0 .              rem ★ 협력 floor — lock·atomic·blocking·alloc·io 는 **거부**된다
 
 trait executor .
-  post  input s self . input job u64 . output u64 . effects state .
-  drain input s self . output u64 . effects state .
+  post  output u64 . input s self . input job u64 . effects state .
+  drain output u64 . input s self . effects state .
 end .
 
 rem ── T0 구현: 협력 스케줄러 (정적 잡 큐, 선점 없음 ⇒ 구성상 무경합)
@@ -37,7 +37,7 @@ actor coop .
     pending u64 .
     done u64 .
   end .
-  proc post input job u64 . output u64 . effects state .
+  proc post output u64 . input job u64 . effects state .
   do
     set pending add pending job .
     return pending .
@@ -57,7 +57,7 @@ actor queue .
     pending u64 .
     done u64 .
   end .
-  proc post input job u64 . output u64 . effects state .
+  proc post output u64 . input job u64 . effects state .
   do
     set pending add pending (mul job 2) .
     return pending .
@@ -72,9 +72,9 @@ end .
 
 rem ★★★ **호출 코드는 런타임을 모른다** — 경계가 그것을 보장한다.
 proc run .
+  output u64 .
   input comptime e type .
   input x e .
-  output u64 .
   effects state .
   requires executor e .        rem ★ 경계 — e 는 executor 를 충족해야 한다
 do

@@ -13,7 +13,7 @@ rem   압축 함수가 낸 것이므로, 앞이 맞으면서 뒤가 틀릴 여�
 module vm_sha256 .
 
 rem 앞 8 바이트를 u64 로 접는다.
-fn head8 input src slice u8 . input dst mut slice u8 . output u64 . do
+fn head8 output u64 . input src slice u8 . input dst mut slice u8 . do
   let n u64 be sha256 src dst .
   guard eq n 32 . else return 0 .
   var acc u64 be 0 .
@@ -26,13 +26,13 @@ fn head8 input src slice u8 . input dst mut slice u8 . output u64 . do
 end .
 
 rem "abc" 의 표준 값.
-fn t_abc input src slice u8 . input dst mut slice u8 . output u64 . do
+fn t_abc output u64 . input src slice u8 . input dst mut slice u8 . do
   guard eq (head8 src dst) 13436514500253700074 . else return 90 .
   return 1 .
 end .
 
 rem 빈 입력의 표준 값 — 경계는 따로 센다(패딩만 도는 경로다).
-fn t_empty input src slice u8 . input dst mut slice u8 . output u64 . do
+fn t_empty output u64 . input src slice u8 . input dst mut slice u8 . do
   guard eq (len src) 0 . else return 89 .
   guard eq (head8 src dst) 16406829232824261652 . else return 90 .
   return 1 .
@@ -40,7 +40,7 @@ end .
 
 rem ★ 버퍼가 짧으면 **0 을 답하고 아무것도 안 쓴다** — 조용히 덜 쓰는 것이 이 축에서
 rem   가장 위험한 실패다(짧은 다이제스트는 맞아 보인다).
-fn t_short input src slice u8 . input dst mut slice u8 . output u64 . do
+fn t_short output u64 . input src slice u8 . input dst mut slice u8 . do
   guard lt (len dst) 32 . else return 89 .
   guard eq (sha256 src dst) 0 . else return 90 .
   return 1 .

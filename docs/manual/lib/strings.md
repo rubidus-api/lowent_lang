@@ -115,7 +115,7 @@ op 하나하나를 시그니처와 함께 본다. 매개변수마다 "왜 이것
 
 #### eq_str
 ```lowent
-export fn eq_str input a str . input b str . output bool .
+export fn eq_str output bool . input a str . input b str .
 ```
 바이트 단위 동등 비교다.
 
@@ -126,7 +126,7 @@ export fn eq_str input a str . input b str . output bool .
 
 #### has_byte
 ```lowent
-export fn has_byte input s str . input b u8 . output bool .
+export fn has_byte output bool . input s str . input b u8 .
 ```
 바이트 멤버십 — 바이트 `b` 하나가 `s` 안에 있는가.
 
@@ -137,7 +137,7 @@ export fn has_byte input s str . input b u8 . output bool .
 
 #### find
 ```lowent
-export fn find input hay str . input needle str . input from u64 . output option u64 .
+export fn find output option u64 . input hay str . input needle str . input from u64 .
 ```
 `hay`(찾을 대상) 에서 `needle`(찾는 부분열)을 `from` 부터 찾아 시작 인덱스를 `some` 으로
 낸다.
@@ -152,7 +152,7 @@ export fn find input hay str . input needle str . input from u64 . output option
 
 #### has
 ```lowent
-export fn has input hay str . input needle str . output bool .
+export fn has output bool . input hay str . input needle str .
 ```
 "들어 있는가" 만 물을 때 쓴다.
 
@@ -161,8 +161,8 @@ export fn has input hay str . input needle str . output bool .
 
 #### starts_with · ends_with
 ```lowent
-export fn starts_with input s str . input prefix str . output bool .
-export fn ends_with input s str . input suffix str . output bool .
+export fn starts_with output bool .
+export input s str . input prefix str . fn ends_with output bool . input s str . input suffix str .
 ```
 접두/접미 검사다.
 
@@ -171,8 +171,8 @@ export fn ends_with input s str . input suffix str . output bool .
 
 #### remove_prefix · remove_suffix
 ```lowent
-export fn remove_prefix input s str . input prefix str . output str .
-export fn remove_suffix input s str . input suffix str . output str .
+export fn remove_prefix output str .
+export input s str . input prefix str . fn remove_suffix output str . input s str . input suffix str .
 ```
 접두/접미를 제거한 뷰를 낸다.
 
@@ -183,8 +183,8 @@ export fn remove_suffix input s str . input suffix str . output str .
 
 #### trim_start · trim_end
 ```lowent
-export fn trim_start input s str . input cut str . output str .
-export fn trim_end input s str . input cut str . output str .
+export fn trim_start output str .
+export input s str . input cut str . fn trim_end output str . input s str . input cut str .
 ```
 앞/뒤에서 특정 바이트들을 걷어낸 뷰를 낸다.
 
@@ -195,7 +195,7 @@ export fn trim_end input s str . input cut str . output str .
 
 #### split_next
 ```lowent
-export fn split_next input src str . input sep u8 . input pos u64 . output option str .
+export fn split_next output option str . input src str . input sep u8 . input pos u64 .
 ```
 `src` 를 구분 바이트 `sep` 로 쪼갤 때, `pos` 부터 다음 `sep` 전까지의 조각을 `some` 으로
 낸다.
@@ -217,7 +217,7 @@ export actor str_splitter
     pos u64 .
     fin bool .
   end
-  proc init input s2 slice u8 . input b u8 . output u64 . effects state .
+  proc init output u64 . input s2 slice u8 . input b u8 . effects state .
   proc next output option slice u8 . effects state .
 end
 ```

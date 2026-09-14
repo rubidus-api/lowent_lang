@@ -9,7 +9,7 @@
 
 ```lowent
 rem ✓ mut_ref 로 빌려 1 을 더한다 — 호출자의 값이 바뀐다.
-proc bump input p mut_ref u64 . output u64 . effects none . do
+proc bump output u64 . input p mut_ref u64 . effects none . do
   set p (add p 1) .
   return p .
 end
@@ -19,7 +19,7 @@ end
 
 ```lowent
 rem ✗ 잘못 — ref 는 못 쓴다
-proc f input p ref u64 . output u64 . effects none . do
+proc f output u64 . input p ref u64 . effects none . do
   set p 1 .
   return p .
 end
@@ -42,7 +42,7 @@ E-TYPE-ARGMUT: `ref` 로 감싼 값을 `mut` 매개변수에 넘길 수 없다
 
 ```lowent
 rem ✗ 잘못 — 슬라이스에는 mut ref 를 쓰지 않는다
-proc shrink input p mut ref slice u8 . output u64 . effects none . do
+proc shrink output u64 . input p mut ref slice u8 . effects none . do
   set p (subslice p 0 0) .
   return 0 .
 end
@@ -59,7 +59,7 @@ E-MREF-SLICE: `mut ref slice` 는 `mut slice` 가 못 하는 일을 하나만 �
 
 ```lowent
 rem ✓ 이렇게 — 길이가 달라졌음을 반환값으로 말한다
-fn head input p slice u8 . input n u64 . output slice u8 .
+fn head output slice u8 . input p slice u8 . input n u64 .
   requires le n (len p) . do
   return subslice p 0 n .
 end

@@ -14,7 +14,7 @@ rem   매뉴얼 예제는 `check-spec-code` 의 대상이 아니므로, 값이 �
 module vm_strtable .
 
 rem ✔ ① 문자열 리터럴은 `slice u8` 이고 **그대로 색인된다**.
-export fn prefix_char input k u64 . output u8 . do
+export fn prefix_char output u8 . input k u64 . do
   return index "/api/users/" k .
 end .
 

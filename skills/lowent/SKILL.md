@@ -97,8 +97,8 @@ module sorted_search .
 rem  line comment. block comment is:  note END ... END
 
 fn sorted                         rem  fn = pure (never write `effects`). proc = effectful.
-  input xs slice u8 . .
   output bool .
+  input xs slice u8 . .
   requires ge (len xs) 1 .        rem  contract flows into the caller
 do
   var i u64 be 1 .
@@ -118,9 +118,9 @@ Shape rules you will hit immediately:
 - **`.` is the terminator** — it ends declarations, clauses, statements, and each enum
   variant. A newline is just whitespace: it never closes anything. Glued, `.` also qualifies
   a name (`vecgen.open`, `err.too_short`); there is no `p.x` field access — write `field p x`.
-- **Clauses have one order**: capability/region inputs before data inputs, then `output`,
-  `effects`, `requires`, `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`; `--fmt` moves the
-  non-input clauses).
+- **Clauses have one order**: `output` comes FIRST, then capability/region inputs before data
+  inputs, then `effects`, `requires`, `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`; `--fmt`
+  moves the non-input clauses). `fn f output u8 . input a u8 . do … end`.
 - **Capabilities are named at the use site**: a host leaf takes its capability as the first
   operand (`write_out out 1 s`, `alloc_bytes al capacity n`); holding it is not enough
   (`E-CAP-MISSING`).

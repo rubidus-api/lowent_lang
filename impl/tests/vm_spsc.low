@@ -15,9 +15,9 @@ use spsc .
 module vm_spsc .
 
 rem 넣고 꺼낸다 — 한 번.
-export proc roundtrip input k cap atomic . input ctl mut slice u64 . input buf mut slice u64 .
-  input out mut slice u64 .
-  output u64 . effects atomic .
+export proc roundtrip output u64 . input k cap atomic . input ctl mut slice u64 .
+  input buf mut slice u64 .
+  input out mut slice u64 . effects atomic .
   requires ge (len ctl) 2 .
   requires ge (len buf) 2 .
   requires ge (len out) 1 .
@@ -31,9 +31,9 @@ do
 end .
 
 rem 빈 것에서 꺼내면 0.
-export proc pop_empty input k cap atomic . input ctl mut slice u64 . input buf slice u64 .
-  input out mut slice u64 .
-  output u64 . effects atomic .
+export proc pop_empty output u64 . input k cap atomic . input ctl mut slice u64 .
+  input buf slice u64 .
+  input out mut slice u64 . effects atomic .
   requires ge (len ctl) 2 .
   requires ge (len buf) 2 .
   requires ge (len out) 1 .
@@ -42,16 +42,16 @@ do
 end .
 
 rem 용량 = len buf − 1 (한 칸은 늘 비워 둔다).
-export fn cap_is_len_minus_one input buf slice u64 . output u64 .
+export fn cap_is_len_minus_one output u64 . input buf slice u64 .
   requires ge (len buf) 2 .
 do
   return spsc.spsc_capacity buf .
 end .
 
 rem ★★ 가득 채우고 한 번 더 넣어 본다 — 마지막 넣기는 **실패해야** 한다(0).
-export proc fill_then_overflow input k cap atomic . input ctl mut slice u64 .
-  input buf mut slice u64 .
-  output u64 . effects atomic .
+export proc fill_then_overflow output u64 . input k cap atomic .
+  input ctl mut slice u64 .
+  input buf mut slice u64 . effects atomic .
   requires ge (len ctl) 2 .
   requires ge (len buf) 2 .
 do
@@ -71,9 +71,9 @@ end .
 
 rem ★★★ 링을 **한 바퀴 넘겨** 돌린다: 넣고 꺼내기를 용량보다 여러 번.
 rem   색인이 `mod` 로 감기는 것이 맞는지 — 그리고 FIFO 가 유지되는지.
-export proc wrap_around input k cap atomic . input ctl mut slice u64 . input buf mut slice u64 .
-  input out mut slice u64 .
-  output u64 . effects atomic .
+export proc wrap_around output u64 . input k cap atomic . input ctl mut slice u64 .
+  input buf mut slice u64 .
+  input out mut slice u64 . effects atomic .
   requires ge (len ctl) 2 .
   requires ge (len buf) 2 .
   requires ge (len out) 1 .

@@ -19,10 +19,10 @@ use strmap from "../../../lib/strmap.low" .
 use strings from "../../../lib/str.low" .
 
 proc main .
+  output u8 .
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .
-  output u8 .
   effects alloc io .
 do
   let sp option slice u8 . be arg a 0 .

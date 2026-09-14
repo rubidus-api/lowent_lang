@@ -21,14 +21,14 @@ end .
 
 rem panic — **복구 불가**. 계약 위반도(코드가 약속을 어긴 것) 테스트 실패도 아니다.
 rem   코드가 **스스로 멈추기로 한 것**이다. 진단이 그것을 구별해서 말한다.
-proc checked input a u8 . output u8 . effects panic .
+proc checked output u8 . input a u8 . effects panic .
 do
   if gt a 10 . do panic "a is out of range" . end .
   return a .
 end .
 
 rem guard — 조건이 거짓이면 **갈라져 나간다.**
-fn g input a u8 . output result u8 e . errors too_big gt a 10 .
+fn g output result u8 e . input a u8 . errors too_big gt a 10 .
 do
   guard le a 10 . else do return error too_big . end .
   return ok a .

@@ -16,22 +16,22 @@ rem ☞ 오라클: 정해진 입력의 첫 줄을 골든이 **바이트로** 대
 module xd .
 
 rem 4비트 하나를 16진 글자로. 10 미만은 `0`+n, 그 위는 `a`+(n-10) 이다.
-proc hexit input v u64 . output u8 . effects none . requires lt v 16 . do
+proc hexit output u8 . input v u64 . effects none . requires lt v 16 . do
   if lt v 10 . do return (cast u8 (add v 48)) . end .
   return (cast u8 (add v 87)) .
 end .
 
 rem 인쇄 가능한 ASCII 인가 — 그 밖은 점으로 찍는다.
-proc printable input b u64 . output u8 . effects none . do
+proc printable output u8 . input b u64 . effects none . do
   if lt b 32 . do return 46 . end .
   if gt b 126 . do return 46 . end .
   return (cast u8 b) .
 end .
 
 proc main .
+  output u8 .
   input al cap allocator .
   input k  cap io .
-  output u8 .
   effects alloc io .
 do
   let g option mut slice u8 . . be alloc_bytes al capacity 4096 .

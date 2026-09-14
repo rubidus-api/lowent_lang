@@ -12,10 +12,10 @@ rem 이제 한계는 16 이고, 넘으면 **거절한다**(E-IR-ARITY). 강제 �
 module vm_prng9 .
 
 fn nine_div .
-  input a u8 . input b u8 . input c u8 . input d u8 .
-  input e u8 . input g u8 . input h u8 . input i u8 .
+  output u8 . input a u8 . input b u8 . input c u8 .
+  input d u8 . input e u8 . input g u8 . input h u8 .
+  input i u8 .
   input z range u8 1 10 .
-  output u8 .
 do
   rem z ≥ 1 이므로 0 나눗셈 검사는 **정당하게** 사라진다 — 경계가 그것을 강제할 때만.
   return expr 100 / z . .

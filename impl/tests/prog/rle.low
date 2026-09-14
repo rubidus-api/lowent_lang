@@ -16,7 +16,7 @@ type bytes slice u8 . .
 
 rem 한 실행(run)의 길이를 센다 — i 부터 같은 값이 몇 개인가.
 rem ★ 계약: 결과는 1 이상이고 255 이하다(u8 카운트에 담아야 하므로).
-fn run_len input i u64 . input src bytes . output u64 .
+fn run_len output u64 . input i u64 . input src bytes .
   ensures ge ret 1 .
 do
   var n u64 be 1 .
@@ -34,7 +34,7 @@ end .
 
 rem ★ 인코딩. 출력 슬라이스에 (개수, 값) 쌍을 쓴다 — **슬라이스 원소 쓰기**.
 rem   ensures: 쓴 바이트 수는 짝수다… 는 구간으로 표현 못 하므로, 상한만 건다.
-proc rle_encode input src bytes . input dst mut bytes . . output u64 . effects none . do
+proc rle_encode output u64 . input src bytes . input dst mut bytes . . effects none . do
   var i u64 be 0 .
   var o u64 be 0 .
   while lt i (len src) . do
@@ -50,7 +50,7 @@ proc rle_encode input src bytes . input dst mut bytes . . output u64 . effects n
 end .
 
 rem ★ 디코딩 — 왕복이 원본을 돌려주는가. 이것이 진짜 검증이다.
-proc rle_decode input src bytes . input dst mut bytes . . output u64 . effects none . do
+proc rle_decode output u64 . input src bytes . input dst mut bytes . . effects none . do
   var i u64 be 0 .
   var o u64 be 0 .
   while lt (add i 1) (len src) . do

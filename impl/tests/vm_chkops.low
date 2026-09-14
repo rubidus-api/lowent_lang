@@ -4,18 +4,18 @@ rem   내려가기는 했다 — 다만 증인이 없으면 `is_none` 처럼 어
 rem   u8 에서: 10×20 = 200 · 20×20 = 넘침(none) · 5−9 = 넘침(none) · 9−5 = 4 · sat 20×20 = 255.
 module vm_chkops .
 
-export fn mul_ok input a u8 . input b u8 . output u64 . do
+export fn mul_ok output u64 . input a u8 . input b u8 . do
   let r option u8 . be chk_mul a b .
   if is_none r . do return 999 . end .
   return widen u64 (some_value r) .
 end .
 
-export fn sub_ok input a u8 . input b u8 . output u64 . do
+export fn sub_ok output u64 . input a u8 . input b u8 . do
   let r option u8 . be chk_sub a b .
   if is_none r . do return 999 . end .
   return widen u64 (some_value r) .
 end .
 
-export fn mul_sat input a u8 . input b u8 . output u64 . do
+export fn mul_sat output u64 . input a u8 . input b u8 . do
   return widen u64 (sat_mul a b) .
 end .

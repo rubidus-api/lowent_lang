@@ -91,7 +91,7 @@ struct·actor 선언이 없다. 입력은 호출자의 `mut slice u64` 하나다
 공개 진입이다. 슬라이스 전체를 제자리에서 오름차순으로 정렬한다.
 
 ```lowent
-export proc sort input s mut slice u64 . . output void . effects none .
+export proc sort output void . input s mut slice u64 . . effects none .
 ```
 
 - `s` — 정렬할 슬라이스. 제자리 정렬이라 원소를 맞바꿔야 하므로 `mut` 이어야 한다.
@@ -104,7 +104,7 @@ export proc sort input s mut slice u64 . . output void . effects none .
 재귀 본체다. 직접 부를 일은 없지만 동작을 알아 두면 성질이 보인다.
 
 ```lowent
-proc qsort input s mut slice u64 . input lo0 u64 . input hi0 u64 . output void . effects none .
+proc qsort output void . input s mut slice u64 . input lo0 u64 . input hi0 u64 . effects none .
 ```
 
 - `lo0`·`hi0` — 정렬할 `[lo0, hi0)` 반열린 구간(시작은 포함, 끝은 제외). 재귀가 "이
@@ -127,7 +127,7 @@ use sortlib as srt .    rem 별칭 관례
 정렬하고 k 번째 원소를 읽는다(`impl/tests/vm_sort.low` 의 `sorted_at`):
 
 ```lowent
-proc sorted_at input s mut slice u64 . . input k u64 . output u64 . effects none . do
+proc sorted_at output u64 . input s mut slice u64 . . input k u64 . effects none . do
   sortlib.sort s .                     rem 제자리 정렬 — s 가 이 줄에서 바뀐다
   guard lt k (len s) . else return 0 . rem k 가 범위 안인지 먼저 확인
   return index s k .                   rem 정렬된 s 의 k 번째 = k+1 번째로 작은 값
@@ -138,7 +138,7 @@ end
 원소 소실·복제 버그를 함께 잡는다). `vm_sort.low` 의 `sort_verify` 그대로다:
 
 ```lowent
-proc sort_verify input s mut slice u64 . . output u64 . effects none . do
+proc sort_verify output u64 . input s mut slice u64 . . effects none . do
   var pre u64 be 0 .
   var i u64 be 0 .
   while lt i (len s) . do              rem ① 정렬 전 합을 기억해 둔다
@@ -191,7 +191,7 @@ sortlib.sort (subslice s 2 7) .    rem [2, 7) 만 정렬
 
 ```lowent
 rem ✗ 불변 슬라이스를 넘긴다
-fn g input s slice u64 . output u64 . do
+fn g output u64 . input s slice u64 . do
   sortlib.sort s .
 ```
 

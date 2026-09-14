@@ -24,15 +24,15 @@ enum parse_error .
 end .
 
 fn read_u16_be .
-  input d bytes .
   output u16 .
+  input d bytes .
 do
   return expr ((index d 0) * 256) + (index d 1) . .
 end .
 
 fn parse_header .
-  input data bytes .
   output result header parse_error . .
+  input data bytes .
   access data sequential .
   errors too_short lt (len data) HEADER_LEN .
   errors bad_version ne (index data 0) VERSION .
@@ -54,17 +54,17 @@ rem ── `tests` 절이 이름으로 건 세 op. 지금까지 **존재하지 �
 rem    이름만 적혀 있고 아무도 확인하지 않았다(E-CONTRACT-UNDEF 가 잡아냈다).
 rem    골든은 이미 이 세 시나리오를 돌리고 있었다. 이제 언어 안에도 있다.
 
-fn parse_header_short input data bytes . output bool . do
+fn parse_header_short output bool . input data bytes . do
   let r be parse_header data . .
   return is_error r .                          rem len < 4  → 반드시 오류
 end .
 
-fn parse_header_bad_version input data bytes . output bool . do
+fn parse_header_bad_version output bool . input data bytes . do
   let r be parse_header data . .
   return is_error r .                          rem version ≠ 1 → 반드시 오류
 end .
 
-fn parse_header_ok input data bytes . output bool . do
+fn parse_header_ok output bool . input data bytes . do
   let r be parse_header data . .
   return is_ok r .                             rem 올바른 입력 → 반드시 성공
 end .

@@ -58,7 +58,7 @@ end", "E-LET-NOVALUE")
     ]
     #rejected("`if` 는 값을 내지 아니한다", "module ex_if_value .
 
-fn pick input a u64 . output u64 .
+fn pick output u64 . input a u64 .
 do
   let x u64 be if gt a 1 . 5 else 6 .   rem 갈래마다 set 하거나 return 한다
   return x .
@@ -76,7 +76,7 @@ end", "E-IF-VALUE")
     ]
     #ex("조건과 되풀이", "module ex_ctl .
 
-export fn count_big input n u32 . output u32 .
+export fn count_big output u32 . input n u32 .
   requires le n 100 .
 do
   var total u32 be 0 .
@@ -102,7 +102,7 @@ end")
     ]
     #ex("슬라이스를 훑기", "module ex_for .
 
-export fn total_of input xs slice u8 . output u64 .
+export fn total_of output u64 . input xs slice u8 .
 do
   var acc u64 be 0 .
   for x xs do
@@ -134,7 +134,7 @@ end .",
     ]
     #rejected("`else` 가 빠져나가지 않는다", "module ex_guard_bad .
 
-proc p input n u32 . output u32 . effects none .
+proc p output u32 . input n u32 . effects none .
 do
   guard le n 5 . else set n 0 .   rem 빠져나가지 않고 아래로 이어진다
   return n .
@@ -146,7 +146,7 @@ end", "E-GUARD-FALLTHROUGH")
     ]
     #ex("guard", "module ex_guard .
 
-export fn safe_head input data slice u8 . . output u8 .
+export fn safe_head output u8 . input data slice u8 . .
 do
   guard ge (len data) 1 . else return 0 .
   return index data 0 .
@@ -161,7 +161,7 @@ do
 end
 
 rem `else` 가 블록이어도 된다. 규칙은 \"모든 길이 빠져나가는가\" 다.
-fn guarded input n u8 . output u8 .
+fn guarded output u8 . input n u8 .
 do
   guard gt n 5 . else do
     let x u8 be 1 .
@@ -172,7 +172,7 @@ end",
       out: "inferred() = 7 · guarded(3) = 1 · guarded(9) = 9")
     #rejected("`else` 의 길이 빠져나가지 않으면 거부된다", "module ex_guard_fall .
 
-fn f input n u8 . output u8 .
+fn f output u8 . input n u8 .
 do
   guard gt n 5 . else do
     let x u8 be 1 .
@@ -216,7 +216,7 @@ end", "E-GUARD-FALLTHROUGH")
     ]
     #ex("값을 안 내는 op 은 `return` 없이 끝나도 된다", "module ex_void .
 
-proc keep input n u8 . output void . effects none .
+proc keep output void . input n u8 . effects none .
 do
   let x u8 be n .
 end")
@@ -262,7 +262,7 @@ enum io_error
 end
 
 rem ① 고칠 수 있는 실패 — result.
-fn halve input a u8 . output result u8 io_error .
+fn halve output result u8 io_error . input a u8 .
   errors too_big gt a 200 .
 do
   guard le a 200 . else return error too_big .
@@ -270,14 +270,14 @@ do
 end
 
 rem ② 값이 없음 — option.
-fn lookup input k u8 . output option u8 . .
+fn lookup output option u8 . . input k u8 .
 do
   guard lt k 3 . else return none .
   return some (mul k 10) .
 end
 
 rem ③ 계약이 깨짐 — 부르는 쪽이 약속을 어기면 멈춘다.
-fn strict input a u8 . output u8 .
+fn strict output u8 . input a u8 .
   requires le a 200 .
 do
   return add a 1 .
@@ -413,7 +413,7 @@ end",
     ]
     #rejected("어떤 길에서 값이 없다", "module ex_partial .
 
-fn f input a u8 . output u8 .
+fn f output u8 . input a u8 .
 do
   if gt a 5 . do return 1 . end
 end                      rem `a` 가 5 이하인 길에는 값이 없다", "E-RETURN-PARTIAL")

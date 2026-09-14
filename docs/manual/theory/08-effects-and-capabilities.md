@@ -10,8 +10,8 @@
 모든 op(함수·프로시저)은 자기가 하는 일을 **선언**해야 한다:
 
 ```lowent
-proc write_log input out cap io . input msg slice u8 . output u64 . effects io . do … end
-fn   add2     input a u64 . output u64 . do … end        rem fn 은 effects 를 적지 않는다 — 언제나 none
+proc write_log output u64 . input out cap io . input msg slice u8 . effects io . do … end
+fn   add2     output u64 . input a u64 . do … end        rem fn 은 effects 를 적지 않는다 — 언제나 none
 ```
 
 `effects none` 은 강한 약속이다: **아무 것도 건드리지 않는다.** 전역을 읽지도, 할당하지도,
@@ -123,7 +123,7 @@ index 의 위험      →  requires lt i (len s) 로 **없앨 수 있다**  (05�
 효과가 *"무슨 종류의 일을 하나"* 라면, 능력은 *"그 일을 할 **권한**을 어디서 받았나"* 다.
 
 ```lowent
-proc main input out cap io . output u8 . effects io . do
+proc main output u8 . input out cap io . effects io . do
   return narrow u8 (write_out out 1 "hi\n") .
 end
 ```
@@ -154,12 +154,12 @@ end
 
 ```lowent
 rem ① 순수하다고 선언하고 일을 한다
-fn f input out cap io . input a slice u8 . output u64 . do
+fn f output u64 . input out cap io . input a slice u8 . do
   return write_log out a .         rem ✘ E-EFFECT-CALC: write_log 는 io 다
 end
 
 rem ② 순수 함수가 남의 버퍼를 고친다
-fn g input b mut slice u8 . . output u64 . do
+fn g output u64 . input b mut slice u8 . . do
   set (index b 0) 1 .              rem ✘ E-EFFECT-PURITY
   return 0 .
 end
@@ -178,7 +178,7 @@ fn j … do … end        rem ✘ E-EFFECT-CALC
 이 진단이 떴다 — `raw` 가 원시 포인터 낱말이라 효과 추론이 **조용히 오염**됐기 때문이다.
 
 ```lowent
-fn f input raw u64 . output u64 . do return add raw 1 . end
+fn f output u64 . input raw u64 . do return add raw 1 . end
 rem → E-EFFECT-CALC: "순수하다고 선언했는데 효과를 수행한다"   ★ 오진이다
 ```
 

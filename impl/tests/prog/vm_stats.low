@@ -35,17 +35,17 @@ contract in_scale .
   requires le v 100 .
 end .
 
-fn clamp_scale satisfies in_scale . input v u8 . output u8 .
+fn clamp_scale output u8 . satisfies in_scale . input v u8 .
 do
   return v .
 end .
 
 rem ★ 구조체 배열 — 원소는 **구조체 뷰**다(무복사).
-fn n_samples input s slice sample . output u64 . do
+fn n_samples output u64 . input s slice sample . do
   return len s .
 end .
 
-fn sum_values input s slice sample . output u64 . do
+fn sum_values output u64 . input s slice sample . do
   var t u64 be 0 .
   var i u64 be 0 .
   while lt i (len s) . do
@@ -57,19 +57,19 @@ fn sum_values input s slice sample . output u64 . do
 end .
 
 rem ★ 채널 전환 — 빈 스트림은 **오류**이고, 그것을 **없음**으로 옮길 수 있다.
-fn mean input s slice sample . output result u64 stat_err .
+fn mean output result u64 stat_err . input s slice sample .
   errors empty_stream eq len s . 0 . .
 do
   guard gt len s . 0 . else do return error empty_stream . end .
   return ok (div (sum_values s) (len s)) .
 end .
 
-fn mean_or_none input s slice sample . output option u64 . do
+fn mean_or_none output option u64 . input s slice sample . do
   return try (mean s) else_none .
 end .
 
 rem ★ 헤더 읽기 — 중첩 필드.
-fn header_major input b slice u8 . output u8 . do
+fn header_major output u8 . input b slice u8 . do
   let h be view header b . .
   let v be field h ver . .
   return field v major .
@@ -91,7 +91,7 @@ end .
 
 rem ★ 액터를 만들고 메시지를 보낸다 — **순수하지 않다.** 전엔 `fn … effects none` 이었고
 rem   효과 검사기가 빌트인 효과를 **머리 자리에서만** 세어서 통과했다(spawn/send 가 식 안에 중첩).
-proc count_stream input s slice sample . output u64 . effects state . do
+proc count_stream output u64 . input s slice sample . effects state . do
   var t tally be spawn actor tally . .
   var i u64 be 0 .
   while lt i (len s) . do

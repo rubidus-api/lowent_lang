@@ -14,7 +14,7 @@ use rsa from "../../lib/rsa.low" .
 use bigint from "../../lib/bigint.low" .
 
 rem 인증서에서 RSA 계수를 꺼내 out 에 쓰고, 지수를 답한다.
-proc t_spki input cert slice u8 . input out mut slice u8 . output u64 . effects none . do
+proc t_spki output u64 . input cert slice u8 . input out mut slice u8 . effects none . do
   let sp u64 be der.find_spki cert .
   guard gt sp 0 . else return 0 .
   let ko u64 be der.key_off cert sp .
@@ -29,7 +29,7 @@ proc t_spki input cert slice u8 . input out mut slice u8 . output u64 . effects 
   return der.rsa_e cert ko .
 end .
 
-proc t_nlen input cert slice u8 . output u64 . effects none . do
+proc t_nlen output u64 . input cert slice u8 . effects none . do
   let sp u64 be der.find_spki cert .
   guard gt sp 0 . else return 0 .
   let ko u64 be der.key_off cert sp .
@@ -38,11 +38,11 @@ proc t_nlen input cert slice u8 . output u64 . effects none . do
 end .
 
 rem ★★ 끝까지: 꺼낸 키로 CertificateVerify 를 검증한다.
-proc t_certverify input cert slice u8 . input sig slice u8 . input mhash slice u8 .
-     input nb mut slice u8 . input em mut slice u8 . input w mut slice u8 .
-     input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
-     input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
-     output u64 . effects none . do
+proc t_certverify output u64 . input cert slice u8 . input sig slice u8 .
+     input mhash slice u8 . input nb mut slice u8 . input em mut slice u8 .
+     input w mut slice u8 . input sw mut slice u64 . input nw mut slice u64 .
+     input ow mut slice u64 . input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 .
+     input mw mut slice u64 . effects none . do
   let e u64 be t_spki cert nb .
   guard gt e 0 . else return 90 .
   let nl u64 be t_nlen cert .
@@ -52,19 +52,19 @@ end .
 
 rem ★★ **길이는 상대가 쓴 것이다.** 잘린 버퍼에서 파서는 **0 을 답해야** 한다 —
 rem   길이 필드를 믿고 넘어가면 상대가 우리 메모리를 읽는다.
-proc t_truncated input cert slice u8 . output u64 . effects none . do
+proc t_truncated output u64 . input cert slice u8 . effects none . do
   guard eq (der.find_spki cert) 0 . else return 0 .
   return 1 .
 end .
 
 rem ── 보안 검토(2026-09-04) 증인 — 길이 접근자와 길이 인코딩을 **바로** 잰다 ──────────
 rem   ☞ 이 op 들은 답을 그대로 낸다(0 = 거절). 골든이 입력마다 기대값을 든다.
-fn t_klen input cert slice u8 . output u64 . do
+fn t_klen output u64 . input cert slice u8 . do
   let sp u64 be der.find_spki cert .
   guard gt sp 0 . else return 0 .
   return der.key_len cert sp .
 end .
 
-fn t_rsa_n_len input b slice u8 . input ko u64 . output u64 . do  return der.rsa_n_len b ko . end .
-fn t_vlen input b slice u8 . input off u64 . output u64 . do  return der.value_len b off . end .
-fn t_voff input b slice u8 . input off u64 . output u64 . do  return der.value_off b off . end .
+fn t_rsa_n_len output u64 . input b slice u8 . input ko u64 . do  return der.rsa_n_len b ko . end .
+fn t_vlen output u64 . input b slice u8 . input off u64 . do  return der.value_len b off . end .
+fn t_voff output u64 . input b slice u8 . input off u64 . do  return der.value_off b off . end .

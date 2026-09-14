@@ -81,14 +81,14 @@
     #ex("효과 선언", "module ex_effect .
 
 rem 순수한 op — 바깥세상을 건드리지 않는다. `fn` 이 곧 그 선언이다.
-export fn double input n u32 . output u32 .
+export fn double output u32 . input n u32 .
   requires le n 1000 .
 do
   return mul n 2 .
 end
 
 rem 효과를 내는 op — 무슨 효과인지 계약에 적는다.
-export proc note_and_add input n u32 . output u32 .
+export proc note_and_add output u32 . input n u32 .
   effects panic .
   requires le n 1000 .
 do
@@ -216,7 +216,7 @@ end", "E-EFFECT-CALC")
     #ex("권한을 받아야 낼 수 있다", "module ex_io .
 
 rem 출력하려면 `cap io` 를 인자로 받아야 한다.
-proc main input out cap io . output u8 . effects io .
+proc main output u8 . input out cap io . effects io .
 do
   let n u64 be write_out out 1 \"hello\\n\" .
   return narrow u8 n .
@@ -241,13 +241,13 @@ end", "E-EFFECT-NO-CAP")
     #ex("권한은 사슬을 타고 내려간다", "module ex_cap_chain .
 
 rem 권한을 인자로 받는다 — 이름은 `k`, 타입은 `cap io` 다.
-proc say input k cap io . input msg slice u8 . output u64 . effects io .
+proc say output u64 . input k cap io . input msg slice u8 . effects io .
 do
   return write_out k 1 msg .
 end
 
 rem 부르는 쪽은 자기가 받은 `k` 를 **그냥 이름으로 넘긴다**.
-proc say_twice input k cap io . input msg slice u8 . output u64 . effects io .
+proc say_twice output u64 . input k cap io . input msg slice u8 . effects io .
 do
   let a u64 be say k msg .
   let b u64 be say k msg .
@@ -255,7 +255,7 @@ do
 end
 
 rem 시작점은 권한을 **바깥에서** 받는다 — 아무도 스스로 만들지 못한다.
-proc main input k cap io . output u8 . effects io .
+proc main output u8 . input k cap io . effects io .
 do
   let n u64 be say_twice k \"hi\\n\" .
   guard eq n 6 . else return 1 .

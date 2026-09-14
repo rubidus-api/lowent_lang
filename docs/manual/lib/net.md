@@ -18,7 +18,7 @@
 ```lowent
 use net .
 
-proc main input k cap net . output u8 . effects io . do
+proc main output u8 . input k cap net . effects io . do
   let po option net.pair . be net.pair_of k .
   guard is_some po . else return 1 .
   var p owned net.pair be some_value po .          rem ★ owned — 안 적으면 E-OWN-BARE

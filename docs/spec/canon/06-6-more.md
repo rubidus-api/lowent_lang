@@ -45,7 +45,7 @@
 ```lowent 예제: 범위로 가른다 · 결과: band(5) = 1 · band(200) = 2
 module ex_range_match .
 
-fn band input a u8 . output u8 .
+fn band output u8 . input a u8 .
 do .
   match a do
     case 0 to 9 . do return 1 . end
@@ -57,7 +57,7 @@ end .
 ```lowent-거부: 덮이지 않은 값이 있으면 거부된다 · E-MATCH-INEXHAUSTIVE
 module ex_range_gap .
 
-fn band input a u8 . output u8 .
+fn band output u8 . input a u8 .
 do .
   match a do
     case 0 to 9 . do return 1 . end
@@ -78,7 +78,7 @@ enum color .
   green .
 end .
 
-export fn code input c color . output u32 .
+export fn code output u32 . input c color .
 do .
   match c do
     case red . do return 1 . end
@@ -95,7 +95,7 @@ enum color .
   green .
 end .
 
-export fn code input c color . output u32 .
+export fn code output u32 . input c color .
 do .
   match c do
     case red . do return 1 . end
@@ -127,7 +127,7 @@ end .
 ```lowent 예제: 시험
 module ex_test .
 
-export fn twice input n u32 . output u32 .
+export fn twice output u32 . input n u32 .
   requires le n 100 .
 do .
   return mul n 2 .
@@ -160,7 +160,7 @@ end .
 ```lowent 예제: 번역 시점 값을 받는다 · 결과: use() = 7
 module ex_comptime .
 
-fn twice input comptime n u8 . input a u8 . output u8 .
+fn twice output u8 . input comptime n u8 . input a u8 .
 do .
   return add a n .
 end .
@@ -174,12 +174,12 @@ end .
 ```lowent-거부: 번역 시점에 알 수 없는 값은 줄 수 없다 · E-COMPTIME-ARG
 module ex_comptime_rt .
 
-fn twice input comptime n u8 . input a u8 . output u8 .
+fn twice output u8 . input comptime n u8 . input a u8 .
 do .
   return add a n .
 end .
 
-fn use input k u8 . output u8 .
+fn use output u8 . input k u8 .
 do .
   return twice k 4 .
 end .
@@ -205,7 +205,7 @@ end .
 ```lowent-거부: 번역할 때 값이 나오지 않는다 · E-COMPTIME-NONCONST
 module ex_comptime .
 
-fn f input a u8 . output u8 .
+fn f output u8 . input a u8 .
 do
   let b u8 be comptime a .    rem `a` 는 실행할 때에야 정해진다
   return b .

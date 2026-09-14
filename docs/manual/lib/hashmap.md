@@ -107,7 +107,7 @@ op 하나하나를 시그니처와 함께 본다. 매개변수마다 "왜 이것
 
 #### put
 ```lowent
-export proc put input b mut slice u64 . . input k u64 . input v u64 . output bool . effects none .
+export proc put output bool . input b mut slice u64 . . input k u64 . input v u64 . effects none .
 ```
 넣거나 갱신한다.
 
@@ -122,7 +122,7 @@ export proc put input b mut slice u64 . . input k u64 . input v u64 . output boo
 
 #### lookup
 ```lowent
-export proc lookup input b slice u64 . input k u64 . output option u64 . effects none .
+export proc lookup output option u64 . input b slice u64 . input k u64 . effects none .
 ```
 키 `k` 의 값 또는 `none` 을 낸다.
 
@@ -133,7 +133,7 @@ export proc lookup input b slice u64 . input k u64 . output option u64 . effects
 
 #### del
 ```lowent
-export proc del input b mut slice u64 . . input k u64 . output bool . effects none .
+export proc del output bool . input b mut slice u64 . . input k u64 . effects none .
 ```
 키를 지운다.
 
@@ -144,10 +144,10 @@ export proc del input b mut slice u64 . . input k u64 . output bool . effects no
 
 #### size · occupied_at · key_at · val_at — 순회
 ```lowent
-export fn size input b slice u64 . output u64 .
-export fn occupied_at input b slice u64 . input slot u64 . output bool .
-export fn key_at input b slice u64 . input slot u64 . output u64 .
-export fn val_at input b slice u64 . input slot u64 . output u64 .
+export fn size output u64 .
+export input b slice u64 . fn occupied_at output bool .
+export input b slice u64 . input slot u64 . fn key_at output u64 .
+export input b slice u64 . input slot u64 . fn val_at output u64 . input b slice u64 . input slot u64 .
 ```
 맵 전체를 훑을 때 쓰는 넷이다. 순회 = `0 .. size` 를 훑으며 `occupied_at` 인 슬롯만
 처리한다.
@@ -162,7 +162,7 @@ export fn val_at input b slice u64 . input slot u64 . output u64 .
 
 #### rehash — 성장
 ```lowent
-export proc rehash input nb mut slice u64 . . input ob slice u64 . output bool .
+export proc rehash output bool . input nb mut slice u64 . . input ob slice u64 .
 ```
 꽉 찼거나 묘비가 쌓인 맵을 더 큰 백킹으로 옮긴다.
 
@@ -193,7 +193,7 @@ module demo .
 
 use hashmap from "../../lib/hashmap.low" .
 
-proc hm_demo input b mut slice u64 . . output u64 . do
+proc hm_demo output u64 . input b mut slice u64 . . do
   var i u64 be 0 .
   while lt i (len b) . do                       rem 빈 맵으로 시작 — 백킹을 전부 0 으로
     set (index b i) 0 .                         rem 0 = 빈칸 표식이다
@@ -223,7 +223,7 @@ end
 맵이 꽉 찼을 때 키우는 흐름(`vm_hashmap.low` 의 `hm_rehash_check` 기반):
 
 ```lowent
-proc grow input ob mut slice u64 . . input nb mut slice u64 . . output u64 . effects none . do
+proc grow output u64 . input ob mut slice u64 . . input nb mut slice u64 . . effects none . do
   rem ob·nb 를 0 으로 비우는 루프는 위와 같다(생략)
   guard eq (hashmap.put ob 10 100) true . else return 0 .
   guard eq (hashmap.put ob 20 200) true . else return 0 .
@@ -250,7 +250,7 @@ $ build/lowentc --run hm_demo demo.low [0,0,0,0,0,0,0,0]
 **✗ 백킹을 안 비우고 시작:**
 
 ```lowent
-proc f input b mut slice u64 . . output u64 . effects none . do
+proc f output u64 . input b mut slice u64 . . effects none . do
   guard eq (hashmap.put b 10 100) true . else return 0 .   rem ✗ b 를 0 으로 안 비웠다
 ```
 

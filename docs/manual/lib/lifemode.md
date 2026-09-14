@@ -40,7 +40,7 @@ rem rc_release 가 0 을 답하면 마지막이었다 — 그 자리에서 acqui
 
 ```lowent
 rem 완료권이 값이다. 완료는 그것을 **먹는다**.
-export fn finish input t owned mymod.ticket . output result u64 mymod.late . do … end .
+export fn finish output result u64 mymod.late . input t owned mymod.ticket . do … end .
 ```
 
 두 번 완료하면 `E-OWN-MOVED`, 완료를 잊으면 `E-OWN-INCOMPLETE` — **정확히 한 번**이

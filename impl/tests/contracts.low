@@ -1,6 +1,6 @@
 fn parse_header .
-  input data slice u8 .
   output result header parse.error .
+  input data slice u8 .
   requires ge len data 4 .
   errors too.short .
   errors bad.version .

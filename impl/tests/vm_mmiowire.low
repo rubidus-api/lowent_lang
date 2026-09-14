@@ -38,17 +38,17 @@ fn f_enable output u64 . do return 0 . end .        rem 0 번 자리
 fn f_parity output u64 . do return 1 . end .        rem 1 번 자리
 
 rem 제어 낱말을 **짓는다** — 순수 계산이다. 권한이 필요 없다(그래서 시험하기 쉽다).
-fn control input baud u64 . input parity bool . output u64 . do
+fn control output u64 . input baud u64 . input parity bool . do
   var w u64 be flags.with (flags.empty) (f_enable) .
   if parity . do set w (flags.with w (f_parity)) . end .
   return wire.merge (m_baud) w baud .
 end .
 
 unsafe proc drive .
+  output u32 .
   input dev cap mmio .
   input regs mut slice u8 .
   input baud u64 .
-  output u32 .
   effects device unsafe .
 do
   var u uart . be view uart regs .

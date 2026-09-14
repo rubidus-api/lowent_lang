@@ -46,7 +46,7 @@ export struct pin2 .
 end .
 
 rem ★ 캐시를 연다.
-export fn open input comptime b type . input pages u64 . output owned cache b . do
+export fn open output owned cache b . input comptime b type . input pages u64 . do
   return make cache b do pages pages . epoch 0 . end .
 end .
 
@@ -61,29 +61,29 @@ export fn pin_limit output u64 . do
 end .
 
 rem 이 커서가 상한 안에 있나 — 시험이 이것을 읽는다.
-export fn within_limit input depth u64 . output bool . do
+export fn within_limit output bool . input depth u64 . do
   return le depth (pin_limit) .
 end .
 
 rem ★★★ **고정한다 — 캐시 토큰을 삼킨다.** 이 뒤로 `evict` 는 부를 수 없다(컴파일 거절).
-export fn acquire input comptime b type . input c owned cache b . input id u64 . output pin b . do
+export fn acquire output pin b . input comptime b type . input c owned cache b . input id u64 . do
   return make pin b do id id . depth 1 . held c . end .
 end .
 
 rem ★★ 겹쳐 고정한다 — 앞선 pin 을 삼킨다. 깊이가 하나 는다.
-export fn acquire_more input comptime b type . input p owned pin b . input id u64 . output pin2 b . do
+export fn acquire_more output pin2 b . input comptime b type . input p owned pin b . input id u64 . do
   return make pin2 b do id id . depth (add (field p depth) 1) . under p . end .
 end .
 
 rem 놓는다 — 캐시 토큰을 돌려준다.
 rem ☞ 부분 이동은 언어가 막으므로(`E-OWN-PARTIAL`) 토큰을 **다시 만든다**. 값은 그대로다.
-export fn release input comptime b type . input p owned pin b . output owned cache b . do
+export fn release output owned cache b . input comptime b type . input p owned pin b . do
   let h cache b . be (field p held) .
   return make cache b do pages (field h pages) . epoch (field h epoch) . end .
 end .
 
 rem 겹친 것을 놓는다 — 바깥부터. 순서를 어길 길이 **없다**(안쪽은 바깥 안에 있다).
-export fn release_more input comptime b type . input p owned pin2 b . output owned pin b . do
+export fn release_more output owned pin b . input comptime b type . input p owned pin2 b . do
   let u pin b . be (field p under) .
   let h cache b . be (field u held) .
   let c cache b . be make cache b do pages (field h pages) . epoch (field h epoch) . end .
@@ -92,12 +92,12 @@ end .
 
 rem ★★★ **축출 — 캐시 토큰을 요구한다.** pin 이 살아 있으면 이 op 을 부를 수가 없다.
 rem   epoch 를 올린다: 그 순간 옮겨진 페이지의 옛 자리를 가리키던 것이 전부 낡는다.
-export fn evict input comptime b type . input c owned cache b . output owned cache b . do
+export fn evict output owned cache b . input comptime b type . input c owned cache b . do
   return make cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end .
 end .
 
 rem 캐시를 비운다 — 같은 규율(토큰을 요구한다).
-export fn reset input comptime b type . input c owned cache b . output owned cache b . do
+export fn reset output owned cache b . input comptime b type . input c owned cache b . do
   return make cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end .
 end .
 
@@ -108,7 +108,7 @@ rem   (`docs/known-defects/oracle-field-path-contract.md`). 빈 캐시는 **값�
 rem ★ `id + epoch` 를 **먹기 전에 각각 나머지로 줄인다** — id 는 호출자 것이라 2^64 근처일 수 있고,
 rem   축출 한 번 뒤 그 덧셈이 넘쳐 트랩이었다(2026-09-04 보안 검토). (a+b) mod p = ((a mod p)+(b mod p)) mod p
 rem   이고, 두 나머지의 합도 p 가 2^63 을 넘으면 넘칠 수 있으므로 **빼서** 접는다: 덧셈이 하나도 없다.
-export fn slot_of input comptime b type . input c cache b . input id u64 . output option u64 . do
+export fn slot_of output option u64 . input comptime b type . input c cache b . input id u64 . do
   guard ge (field c pages) 1 . else return none .
   let p u64 be (field c pages) .
   let a u64 be mod id p .
@@ -118,14 +118,14 @@ export fn slot_of input comptime b type . input c cache b . input id u64 . outpu
   return some (add a e) .
 end .
 
-export fn epoch_of input comptime b type . input c cache b . output u64 . do
+export fn epoch_of output u64 . input comptime b type . input c cache b . do
   return (field c epoch) .
 end .
 
-export fn depth_of input comptime b type . input p pin b . output u64 . do
+export fn depth_of output u64 . input comptime b type . input p pin b . do
   return (field p depth) .
 end .
 
-export fn depth2_of input comptime b type . input p pin2 b . output u64 . do
+export fn depth2_of output u64 . input comptime b type . input p pin2 b . do
   return (field p depth) .
 end .

@@ -18,7 +18,7 @@ rem ★★ **오라클 안 = diff-sweep**: 순수 op 이라 차등 퍼저가 임
 module strmap .
 
 rem 내부 — FNV-1a 해시(64비트) mod n. 오프셋 basis·prime 은 표준 상수.
-fn sm_hash input k slice u8 . input n u64 . output u64 . do
+fn sm_hash output u64 . input k slice u8 . input n u64 . do
   guard gt n 0 . else return 0 .
   var h u64 be 14695981039346656037 .
   var i u64 be 0 .
@@ -30,7 +30,7 @@ fn sm_hash input k slice u8 . input n u64 . output u64 . do
 end .
 
 rem 내부 — 저장된 키(keys[off .. off+klen])가 k 와 같은가. 길이부터, 그다음 바이트별.
-fn sm_keq input keys slice u8 . input off u64 . input klen u64 . input k slice u8 . output bool . do
+fn sm_keq output bool . input keys slice u8 . input off u64 . input klen u64 . input k slice u8 . do
   guard eq klen (len k) . else return false .
   var i u64 be 0 .
   var same bool be true .
@@ -44,7 +44,7 @@ end .
 rem 내부 — base 슬롯에 새 키를 arena 에 복사하고 [keyoff,keylen,value] 를 쓴다. arena 부족이면 false.
 rem   빈칸이든 묘비든 재사용 슬롯이든 **쓰기는 같다**(묘비의 옛 keyoff 는 덮어쓴다 — 옛 키 바이트는
 rem   arena 에 남지만 bump 아레나는 회수 안 한다, 문서화된 한계).
-proc sm_write input slots mut slice u64 . . input keys mut slice u8 . . input base u64 . input k slice u8 . input v u64 . output bool . effects none . do
+proc sm_write output bool . input slots mut slice u64 . . input keys mut slice u8 . . input base u64 . input k slice u8 . input v u64 . effects none . do
   let cursor u64 be index slots 0 .
   guard le (add cursor (len k)) (len keys) . else return false .
   var j u64 be 0 .
@@ -62,8 +62,8 @@ end .
 rem ★ 넣거나 갱신한다. true=성공 · false=꽉 참·arena 부족·빈 키.
 rem   ★ **묘비 재사용**: 프로브 중 처음 만난 묘비(keylen=MAX)를 기억해 두고, 키가 이 뒤에 없음이
 rem     확인되면(빈칸에 닿거나 한 바퀴) 거기에 넣는다 — 삭제로 생긴 구멍을 도로 메운다.
-export proc put input slots mut slice u64 . . input keys mut slice u8 . . input k slice u8 . input v u64 .
-  output bool . effects none .
+export proc put output bool . input slots mut slice u64 . . input keys mut slice u8 . . input k slice u8 .
+  input v u64 . effects none .
 do
   guard gt (len k) 0 . else return false .
   guard ge (len slots) 4 . else return false .
@@ -111,7 +111,7 @@ rem ★★★ **삭제** — 키를 지운다. true=지웠다 · false=없던 �
 rem   덮어 프로브 체인을 보존한다(빈칸으로 되돌리면 그 뒤 키를 못 찾는다). value 는 0 으로 지운다.
 rem   ★ keylen 은 키 **길이**라 아레나 크기 이하 — MAX 일 수가 없으니 예약 없이 그대로 묘비값이 된다
 rem     (u64 키맵과 달리 값 전 범위가 안 찼다). ★ arena 는 회수 안 한다(옛 키 바이트는 남는다).
-export proc del input slots mut slice u64 . . input keys slice u8 . input k slice u8 . output bool . effects none . do
+export proc del output bool . input slots mut slice u64 . . input keys slice u8 . input k slice u8 . effects none . do
   guard gt (len k) 0 . else return false .
   guard ge (len slots) 4 . else return false .
   let n u64 be div (sub (len slots) 1) 3 .
@@ -142,13 +142,13 @@ rem   ★ occupancy 는 **keylen > 0** 으로 판별한다 — option 을 안 �
 rem     give-up 이 없다(lib/search.low 에서 배운 것). 순서는 슬롯(해시) 순서지 삽입 순서가 아니다.
 rem   ★ 접근자는 slot 이 범위 밖이면 0 을 낸다(트랩 아님). 키는 keys[keyoff .. keyoff+keylen] 이다.
 
-export fn size input slots slice u64 . output u64 . do
+export fn size output u64 . input slots slice u64 . do
   guard ge (len slots) 4 . else return 0 .
   return div (sub (len slots) 1) 3 .
 end .
 
 rem 슬롯의 keylen. **0 = 빈칸** · **MAX = 묘비**. 원시 접근자다.
-export fn keylen_at input slots slice u64 . input slot u64 . output u64 . do
+export fn keylen_at output u64 . input slots slice u64 . input slot u64 . do
   guard lt slot (size slots) . else return 0 .
   let base u64 be add 1 (mul slot 3) .
   return index slots (add base 1) .
@@ -156,7 +156,7 @@ end .
 
 rem 슬롯이 살아 있나(빈칸도 묘비도 아니다). 삭제 도입 후 순회의 occupancy 판별(hm_occupied_at 대칭).
 rem   ★ 삭제 없는 코드는 여전히 keylen>0 으로 충분하지만(묘비가 안 생긴다), 삭제 후 순회는 이것을 쓴다.
-export fn occupied_at input slots slice u64 . input slot u64 . output bool . do
+export fn occupied_at output bool . input slots slice u64 . input slot u64 . do
   guard lt slot (size slots) . else return false .
   let klen u64 be keylen_at slots slot .
   if eq klen 0 . do return false . end                      rem 빈칸 . .
@@ -165,13 +165,13 @@ export fn occupied_at input slots slice u64 . input slot u64 . output bool . do
 end .
 
 rem 슬롯의 keyoff(arena 내 키 시작). keylen 과 함께 키 바이트를 가리킨다.
-export fn keyoff_at input slots slice u64 . input slot u64 . output u64 . do
+export fn keyoff_at output u64 . input slots slice u64 . input slot u64 . do
   guard lt slot (size slots) . else return 0 .
   return index slots (add 1 (mul slot 3)) .
 end .
 
 rem 슬롯의 value. occupied(keylen>0)일 때만 뜻이 있다.
-export fn val_at input slots slice u64 . input slot u64 . output u64 . do
+export fn val_at output u64 . input slots slice u64 . input slot u64 . do
   guard lt slot (size slots) . else return 0 .
   let base u64 be add 1 (mul slot 3) .
   return index slots (add base 2) .
@@ -182,7 +182,7 @@ rem   이걸 부른다: old 의 **살아있는 항목만** new 에 넣는다(키
 rem   처음에 0(빈 맵)이어야 한다. true=전부 옮겼다 · false=new 슬롯/아레나가 작아 도중 실패.
 rem   ★ occupied_at 이 묘비를 거르므로 **압축도 한다**(묘비·옛 아레나 빈틈이 사라진다). ★ 옛 키는
 rem   `subslice oa off (add off klen)` 로 아레나에서 되읽는다. old 는 안 바꾸므로 비소유.
-export proc rehash input ns mut slice u64 . . input na mut slice u8 . . input os slice u64 . input oa slice u8 . output bool . effects none . do
+export proc rehash output bool . input ns mut slice u64 . . input na mut slice u8 . . input os slice u64 . input oa slice u8 . effects none . do
   var slot u64 be 0 .
   while lt slot (size os) . do
     if occupied_at os slot . do
@@ -198,7 +198,7 @@ export proc rehash input ns mut slice u64 . . input na mut slice u8 . . input os
 end .
 
 rem ★ 키를 찾는다 → 값 또는 none. 슬롯·arena 를 안 바꾸므로 비소유로 충분하다.
-export proc lookup input slots slice u64 . input keys slice u8 . input k slice u8 . output option u64 . effects none . do
+export proc lookup output option u64 . input slots slice u64 . input keys slice u8 . input k slice u8 . effects none . do
   guard gt (len k) 0 . else return none .
   guard ge (len slots) 4 . else return none .
   let n u64 be div (sub (len slots) 1) 3 .

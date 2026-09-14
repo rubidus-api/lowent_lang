@@ -20,7 +20,7 @@
     #ex("적합한 프로그램", "module ex_conform .
 
 rem 이 프로그램은 이 문서가 정한 것을 전부 지킨다.
-export fn clamp input n u32 . output u8 .
+export fn clamp output u8 . input n u32 .
   requires le n 255 .
   ensures le ret 255 .
 do

@@ -28,7 +28,7 @@ newtype pc u8 .
 newtype sg u8 .
 
 rem ── strbuf: 빈 버퍼 · 꽉 찬 str_buf 에서 `append_trunc`/`room` 은 0 이다 (전에는 밑으로 감겨 경계 밖 쓰기) ──
-proc t_sb input buf mut slice u8 . . output u64 . effects none . do
+proc t_sb output u64 . input buf mut slice u8 . . effects none . do
   guard ge (len buf) 4 . else return 90 .
   var b strbuf.str_buf be strbuf.new .
   let n0 u64 be strbuf.append_trunc b (subslice buf 0 0) "abc" .
@@ -64,7 +64,7 @@ proc t_budget output u64 . effects none . do
 end .
 
 rem ── nodelist: 머리를 자르며 돌아도 셈은 고리의 크기다 (전에는 len nx + 1) ──
-proc t_nl input nx mut slice u64 . . input pv mut slice u64 . . output u64 . effects none . do
+proc t_nl output u64 . input nx mut slice u64 . . input pv mut slice u64 . . effects none . do
   guard ge (len nx) 8 . else return 90 .
   guard nodelist.nl_solo nx pv 0 . else return 91 .
   guard nodelist.nl_after nx pv 0 1 . else return 92 .
@@ -85,7 +85,7 @@ proc t_nl input nx mut slice u64 . . input pv mut slice u64 . . output u64 . eff
 end .
 
 rem ── soa: `xoff > voff` 인 기하에서 경계 밖 대신 멈춘 자리 i 를 답한다 ──
-proc t_soa input rows mut slice u64 . . output u64 . effects none . do
+proc t_soa output u64 . input rows mut slice u64 . . effects none . do
   guard eq (len rows) 3 . else return 90 .
   set (index rows 0) 1 .
   set (index rows 1) 10 .
@@ -97,7 +97,7 @@ proc t_soa input rows mut slice u64 . . output u64 . effects none . do
 end .
 
 rem ── pool: 지어 낸 핸들 — 부풀린 len 은 풀의 블록 크기로 잘리고, 안 나간 블록은 거절된다 ──
-proc t_pool input mem mut slice u8 . . input gens mut slice u64 . . output u64 . effects none . do
+proc t_pool output u64 . input mem mut slice u8 . . input gens mut slice u64 . . effects none . do
   let po option (pool.block_pool pf) . be pool.init pf mem gens 16 .
   guard is_some po . else return 89 .
   var p pool.block_pool pf . be some_value po .
@@ -131,7 +131,7 @@ proc t_pool input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
 end .
 
 rem ── hashmap: 빈칸의 `key_at` 은 0 이다 (전에는 `sub 0 1`) ──
-proc t_hm input b mut slice u64 . . output u64 . effects none . do
+proc t_hm output u64 . input b mut slice u64 . . effects none . do
   guard ge (len b) 8 . else return 90 .
   var i u64 be 0 .
   while lt i (len b) . do
@@ -154,7 +154,7 @@ proc t_hm input b mut slice u64 . . output u64 . effects none . do
 end .
 
 rem ── alloc: 큰 n 의 `reserve`/`grow` 는 none 이다 (전에는 `add off n` 이 넘쳐 트랩) ──
-proc t_alloc input buf mut slice u8 . . output u64 . effects state . do
+proc t_alloc output u64 . input buf mut slice u8 . . effects state . do
   guard ge (len buf) 16 . else return 90 .
   var a allocs.bump_bytes be spawn actor allocs.bump_bytes . .
   let c u64 be send a init buf .
@@ -202,7 +202,7 @@ proc t_page output u64 . effects none . do
 end .
 
 rem ── segarena: 큰 s 의 `sum_global` 은 0 이다 (전에는 `mul s width` 가 넘쳐 트랩) ──
-proc t_seg input dir mut slice u64 . . input mem slice u64 . . output u64 . effects none . do
+proc t_seg output u64 . input dir mut slice u64 . . input mem slice u64 . . effects none . do
   var a segarena.arena sg . be segarena.open sg 2 .
   let b0 option u64 . be segarena.grow sg a dir 32 .
   guard is_some b0 . else return 91 .

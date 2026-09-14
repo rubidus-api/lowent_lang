@@ -13,7 +13,7 @@ newtype grid2 u8 .
 newtype grid3 u8 .
 
 rem 조각 4 칸(kbits 2) 짜리로 세 조각을 연다 — dir 은 조각마다 시작 자리.
-proc build input dir mut slice u64 . . input cap0 u64 . output u64 . effects none . do
+proc build output u64 . input dir mut slice u64 . . input cap0 u64 . effects none . do
   var a segarena.arena grid . be segarena.open grid 2 .
   guard eq (segarena.seg_slots grid a) 4 . else return 91 .
 
@@ -34,8 +34,8 @@ proc build input dir mut slice u64 . . input cap0 u64 . output u64 . effects non
 end .
 
 rem ★★ 두 순회가 **같은 답**을 낸다 — 비용만 다르다.
-proc same_answer input dir mut slice u64 . . input mem slice u64 . . input cap0 u64 .
-  output u64 . effects none .
+proc same_answer output u64 . input dir mut slice u64 . . input mem slice u64 . .
+  input cap0 u64 . effects none .
 do
   var a segarena.arena grid2 . be segarena.open grid2 2 .
   let b0 option u64 . be segarena.grow grid2 a dir cap0 .
@@ -53,8 +53,8 @@ do
 end .
 
 rem 열지 않은 조각은 **없다고 답한다** — 트랩이 아니다.
-proc beyond input dir mut slice u64 . . input mem slice u64 . . input cap0 u64 .
-  output u64 . effects none .
+proc beyond output u64 . input dir mut slice u64 . . input mem slice u64 . .
+  input cap0 u64 . effects none .
 do
   var a segarena.arena grid3 . be segarena.open grid3 2 .
   let b0 option u64 . be segarena.grow grid3 a dir cap0 .

@@ -1,23 +1,23 @@
 rem RFC-0052 S3 — 산술은 **선언 폭**에서 일어난다. 기본은 트랩, 정책은 이름으로.
-fn u8ovf  input a u8 . output u8 . do return add a 1 . end .
-fn u8wrap input a u8 . output u8 . do return wrap_add a 1 . end .
-fn u8sat  input a u8 . output u8 . do return sat_add a 1 . end .
+fn u8ovf  output u8 . input a u8 . do return add a 1 . end .
+fn u8wrap output u8 . input a u8 . do return wrap_add a 1 . end .
+fn u8sat  output u8 . input a u8 . do return sat_add a 1 . end .
 
 rem 폭 절단도 마찬가지 — 조용한 마스킹은 없다.
-fn nar   input x u32 . output u8 . do return narrow u8 x . end .
-fn narw  input x u32 . output u8 . do return narrow_wrap u8 x . end .
-fn nars  input x u32 . output u8 . do return narrow_sat u8 x . end .
+fn nar   output u8 . input x u32 . do return narrow u8 x . end .
+fn narw  output u8 . input x u32 . do return narrow_wrap u8 x . end .
+fn nars  output u8 . input x u32 . do return narrow_sat u8 x . end .
 
 rem 확대는 전역 — 절대 실패하지 않는다(Coq: widen_never_fails).
-fn wide  input x u8 . output u32 . do return widen u32 x . end .
+fn wide  output u32 . input x u8 . do return widen u32 x . end .
 
 rem ★★★ **부호형 대상 확대도 전역** — 음수도 트랩하지 않는다(2026-07-22 수정). 전엔 로워링이 대상
 rem   부호를 안 실어 `widen i32 (-1)` 을 무부호 범위 [0,2^32) 로 판정해 트랩했다(effects none 거짓말·
 rem   SPEC-004 §66 widen_never_fails 위반). 이제 IR_SGN_BIT 를 실어 부호 범위로 판정한다.
-fn wides input x i8 . output i32 . do return widen i32 x . end .
+fn wides output i32 . input x i8 . do return widen i32 x . end .
 
 rem ★★★ **narrow 도 부호형 대상은 부호 범위로 판정**(2026-07-22, 같은 근인 수정). `narrow i8 200` 은
 rem   i8 범위 [-128,127] 밖이라 **손실 트랩**(전엔 무부호 [0,255] 로 통과) · `narrow i8 (-1)` 은 범위
 rem   안이라 통과(전엔 무부호 판정으로 −1 을 잘못 트랩) · 감아돌리려면 이름으로 `narrow_wrap`.
-fn nsigned input a i32 . output i8 . do return narrow i8 a . end .
-fn nwraps  input a i32 . output i8 . do return narrow_wrap i8 a . end .
+fn nsigned output i8 . input a i32 . do return narrow i8 a . end .
+fn nwraps  output i8 . input a i32 . do return narrow_wrap i8 a . end .

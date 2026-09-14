@@ -9,7 +9,7 @@ rem ⇒ **지금 강제할 수 있는 것은 지금 강제한다.** 못 하는 �
 
 module vm_access .
 
-fn only_reads input s slice u8 . output u8 . access s shared_read .
+fn only_reads output u8 . input s slice u8 . access s shared_read .
 do
   return index s 0 .
 end .

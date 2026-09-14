@@ -30,7 +30,7 @@ use allocs  from "../../../lib/alloc.low" .
 rem ── 순수한 부분 — 출력과 무관하므로 따로 시험할 수 있다 ────────────────
 
 rem 이름을 다듬는다. 비면 "world".
-fn pick input given option slice u8 . output slice u8 . do
+fn pick output slice u8 . input given option slice u8 . do
   guard is_some given . else return "world" .
   let t slice u8 be strings.trim_end (strings.trim_start (some_value given) " ") " " .
   guard gt (len t) 0 . else return "world" .
@@ -40,8 +40,8 @@ end .
 rem ★ **줄 하나를 버퍼에 조립한다** — `effects none` 이다. 이 op 은 출력도 할당도 하지 않고,
 rem   **호출자가 준 버퍼**에만 쓴다. 안 들어가면 `none` — 잘린 줄을 내보내지 않는다(전량-아니면-무).
 rem     "hello, <name>! (<n> args, <len> bytes)\n"
-proc compose input buf mut slice u8 . . input name slice u8 . input nargs u64 .
-  output option u64 . effects none .
+proc compose output option u64 . input buf mut slice u8 . . input name slice u8 .
+  input nargs u64 . effects none .
 do
   let a option u64 . be fmt.put_str buf 0 "hello, " .
   guard is_some a . else return none .
@@ -63,10 +63,10 @@ end .
 rem ── 엔트리 — 여기서만 권한이 들어온다 ─────────────────────────────────
 
 proc main .
+  output u8 .
   input al  cap allocator .
   input out cap io .
   input a   cap args .
-  output u8 .
   effects alloc io state .
 do
   rem ① **뿌리에서 바닥을 얻는다.** 못 얻으면 아무것도 안 한다 — OOM 은 값이지 트랩이 아니다.

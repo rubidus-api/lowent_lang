@@ -15,8 +15,8 @@ use allocs .
 
 rem 고정점까지 도는 표시 — 더 이상 새로 표시할 것이 없을 때 멈춘다.
 rem   ★ 이 반복이 곧 ephemeron 의 고정점이다(RFC-0105 §3.3). 라운드 상한은 객체 수다.
-export proc mark input edges slice u64 . input marks mut slice u64 . . input root u64 .
-  output u64 . effects none .
+export proc mark output u64 . input edges slice u64 . input marks mut slice u64 . .
+  input root u64 . effects none .
 do
   guard lt root (len marks) . else return 0 .
   set (index marks root) 1 .
@@ -59,7 +59,7 @@ end .
 
 rem ★ 그래프: 0→{1,2} · 1→{3} · 2→자기 · 3→자기 · 4=고아.
 rem   root 0 에서 살아 있는 것은 넷이고, 4 는 **순환도 아닌 그냥 쓰레기**다.
-proc reaches input al cap allocator . output u64 . effects alloc . do
+proc reaches output u64 . input al cap allocator . effects alloc . do
   let me option mut slice u8 . . be alloc_bytes al capacity 80 .
   guard is_some me . else return 89 .
   let mm option mut slice u8 . . be alloc_bytes al capacity 40 .
@@ -79,7 +79,7 @@ end .
 
 rem ★★ **순환도 끝난다** — 0→1→0 은 서로를 가리키지만 고정점이 그것을 멈춘다.
 rem   ☞ 그리고 이것이 RFC-0105 §5 의 요점이다: 순환이 문제인 것은 **수명이 다를 때**뿐이다.
-proc cycles input al cap allocator . output u64 . effects alloc . do
+proc cycles output u64 . input al cap allocator . effects alloc . do
   let me option mut slice u8 . . be alloc_bytes al capacity 48 .
   guard is_some me . else return 89 .
   let mm option mut slice u8 . . be alloc_bytes al capacity 24 .
@@ -94,7 +94,7 @@ proc cycles input al cap allocator . output u64 . effects alloc . do
   return 42 .
 end .
 
-proc main input al cap allocator . output u8 . effects alloc .
+proc main output u8 . input al cap allocator . effects alloc .
 do
   let a u64 be reaches al .
   guard eq a 42 . else return narrow u8 a .

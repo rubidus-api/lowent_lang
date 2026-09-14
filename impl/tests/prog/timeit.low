@@ -14,7 +14,7 @@ module timeit .
 
 use clock from "../../../lib/clock.low" .
 
-proc main input k cap clock . output u8 . effects wait . do
+proc main output u8 . input k cap clock . effects wait . do
   rem ── ① 경과 — 뒤로 가지 않는다 ────────────────────────────────────
   let t0 u64 be clock.now_ns k .
   let e0 u64 be clock.since_ms k t0 .

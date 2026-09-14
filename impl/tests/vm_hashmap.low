@@ -12,7 +12,7 @@ use hashmap from "../../lib/hashmap.low" .
 
 rem 넣고 그 키를 꺼낸다 → 값. 알려진 (k,v) 에 대해 골든이 v 를 대조하고, 퍼저가 임의 k·v 를 돌린다.
 rem   못 넣거나(꽉 참·MAX 키) 못 찾으면 큰 센티널(값과 안 겹치게 골든이 v 를 고른다).
-proc hm_roundtrip input b mut slice u64 . . input k u64 . input v u64 . output u64 . effects none . do
+proc hm_roundtrip output u64 . input b mut slice u64 . . input k u64 . input v u64 . effects none . do
   var i u64 be 0 .
   while lt i (len b) . do
     set (index b i) 0 .
@@ -27,7 +27,7 @@ end .
 
 rem 스스로 검사한다: 몇 개 넣고 · 하나 갱신하고 · 다 꺼내 맞는지 · 없는 키가 none 인지. → 1/0.
 rem   백킹이 4 슬롯 미만이면 0(검사 불가). diff-sweep 이 임의 백킹에서 이것을 돌린다.
-proc hm_check input b mut slice u64 . . output u64 . effects none . do
+proc hm_check output u64 . input b mut slice u64 . . effects none . do
   var i u64 be 0 .
   while lt i (len b) . do
     set (index b i) 0 .
@@ -57,7 +57,7 @@ end .
 
 rem ★ 키 MAX_U64 는 거절된다(k+1 이 빈칸 표식 0 과 겹치므로). CLI 는 MAX 를 못 넘기니(i64 상한)
 rem   `bit_not 0` 으로 진짜 MAX 를 op 안에서 만든다. → put 이 false 여야 1 을 낸다.
-proc hm_maxkey input b mut slice u64 . . output u64 . effects none . do
+proc hm_maxkey output u64 . input b mut slice u64 . . effects none . do
   var i u64 be 0 .
   while lt i (len b) . do
     set (index b i) 0 .
@@ -78,7 +78,7 @@ proc hm_maxkey input b mut slice u64 . . output u64 . effects none . do
 end .
 
 rem 꽉 찬 맵에 새 키를 넣으면 false. 2 슬롯짜리 백킹에 서로 다른 3 키를 넣어 본다.
-proc hm_full input b mut slice u64 . . output u64 . effects none . do
+proc hm_full output u64 . input b mut slice u64 . . effects none . do
   var i u64 be 0 .
   while lt i (len b) . do
     set (index b i) 0 .
@@ -97,7 +97,7 @@ end .
 rem ── ★★★ **순회** — 맵을 열거해 집계한다. 10→100·20→200·30→300 을 넣고 순회한다.
 rem   occupancy 를 hm_occupied_at 로 판별하므로 option 이 없다 → 순회 루프에서 정규화기 give-up 없음.
 rem   누산 변수는 `total`·`mx`(빌트인 `sum`·`max` 와 안 겹치게).
-proc hm_sum_vals input b mut slice u64 . . output u64 . effects none . do
+proc hm_sum_vals output u64 . input b mut slice u64 . . effects none . do
   var i u64 be 0 .
   while lt i (len b) . do
     set (index b i) 0 .
@@ -118,7 +118,7 @@ proc hm_sum_vals input b mut slice u64 . . output u64 . effects none . do
 end .
 
 rem 디코드된 키의 합 → 10+20+30 = 60 (hm_key_at 이 key+1 을 −1 로 되돌리는지 증명).
-proc hm_sum_keys input b mut slice u64 . . output u64 . effects none . do
+proc hm_sum_keys output u64 . input b mut slice u64 . . effects none . do
   var i u64 be 0 .
   while lt i (len b) . do
     set (index b i) 0 .
@@ -141,7 +141,7 @@ end .
 rem ── ★★★ **삭제(tombstone) 자기검증** → 1/0. 세 키를 넣고 · 하나 지우고 · 지운 건 none 인데
 rem   나머지는 여전히 찾히는가(프로브 체인 보존) · 없는 키 삭제는 false · 재삽입은 묘비 재사용 ·
 rem   순회 카운트가 묘비를 안 세는가. 백킹이 4 슬롯 미만이면 0. diff-sweep 이 임의 백킹에서 돌린다.
-proc hm_del_check input b mut slice u64 . . output u64 . effects none . do
+proc hm_del_check output u64 . input b mut slice u64 . . effects none . do
   var i u64 be 0 .
   while lt i (len b) . do
     set (index b i) 0 .
@@ -187,7 +187,7 @@ end .
 rem ── ★★★ **성장(rehash) 자기검증** → 1/0. 2 슬롯짜리 ob 를 꽉 채우고(셋째 키는 false) · 큰 nb 로
 rem   rehash 하고 · 이제 셋째 키가 들어가고 · 옛 키가 다 살아 있는가. "못 자라던 맵이 자란다" 는 증명.
 rem   ob 는 정확히 2 슬롯(4 u64) · nb 는 4+ 슬롯. diff-sweep 이 임의 두 백킹에서 이것을 돌린다.
-proc hm_rehash_check input ob mut slice u64 . . input nb mut slice u64 . . output u64 . effects none . do
+proc hm_rehash_check output u64 . input ob mut slice u64 . . input nb mut slice u64 . . effects none . do
   var i u64 be 0 .
   while lt i (len ob) . do
     set (index ob i) 0 .
@@ -232,7 +232,7 @@ proc hm_rehash_check input ob mut slice u64 . . input nb mut slice u64 . . outpu
 end .
 
 rem 최대 값 → 300.
-proc hm_maxval input b mut slice u64 . . output u64 . effects none . do
+proc hm_maxval output u64 . input b mut slice u64 . . effects none . do
   var i u64 be 0 .
   while lt i (len b) . do
     set (index b i) 0 .

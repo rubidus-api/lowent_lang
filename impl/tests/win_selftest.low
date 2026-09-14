@@ -15,7 +15,7 @@ rem ★★ 이 파일은 POSIX 잎을 **하나도** 쓰지 않는다. 그것이 
 module win_selftest .
 
 rem ① 산술·루프·경계 검사 — 방출 C 의 기본 뼈대.
-export fn mix input n u64 . output u64 .
+export fn mix output u64 . input n u64 .
   requires le n 4096 .
 do
   var i u64 be 0 .
@@ -39,7 +39,7 @@ export fn tbl_sum output u64 . do
 end .
 
 rem ③ 좁히기·부호 — 폭이 다른 플랫폼에서 조용히 갈리기 쉬운 자리.
-export fn narrowing input x u64 . output u64 .
+export fn narrowing output u64 . input x u64 .
   requires le x 65535 .
 do
   let a u16 be narrow u16 x .

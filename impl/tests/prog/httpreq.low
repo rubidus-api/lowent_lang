@@ -25,9 +25,9 @@ module httpreq .
 use http from "../../../lib/http.low" .
 
 proc main .
+  output u8 .
   input al  cap allocator .
   input k   cap io .
-  output u8 .
   effects alloc io .
 do
   let g option mut slice u8 . . be alloc_bytes al capacity 4096 .

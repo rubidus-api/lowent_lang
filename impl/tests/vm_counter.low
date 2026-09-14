@@ -17,7 +17,7 @@ rem   `let n be len s` 를 타고 흐른다 ③ 카운터가 반복 수로 묶�
 module vm_counter .
 
 rem ✔ 셋 다 필요하다: 길이 상계 → n → 반복 수 → cnt. 하나라도 없으면 `add cnt 1` 이 남는다.
-export proc ones_count input s slice u8 . . output u64 . effects none .
+export proc ones_count output u64 . input s slice u8 . . effects none .
   requires le (len s) 65536 .
 do
   let n u64 be len s .
@@ -39,7 +39,7 @@ rem   닫혔다**(20/20). 대조군이 틀린 것이 아니라 **분석이 세�
 rem   ⇒ 이제 상한을 **유계가 아닌 스칼라 매개변수** `n` 에서 받는다. `n` 은 아무 계약이
 rem   없으므로 반복 수가 여전히 미지다 — 대조군이 다시 뜻을 갖는다.
 rem   *대조군이 통과하기 시작하면 먼저 "무엇이 세졌나" 를 묻고, 근거를 옮긴다.*
-export proc ones_count_nobound input s slice u8 . . input n u64 . output u64 . effects none . do
+export proc ones_count_nobound output u64 . input s slice u8 . . input n u64 . effects none . do
   var cnt u64 be 0 .
   var k u64 be 0 .
   while lt k n . do
@@ -50,7 +50,7 @@ export proc ones_count_nobound input s slice u8 . . input n u64 . output u64 . e
 end .
 
 rem ✔ **중첩**도 곱해진다: 바깥 ≤ 257 · 안쪽 ≤ 65 ⇒ hits ≤ 16705, u64 안이다.
-export proc count_pairs input a slice u8 . . input b slice u8 . . output u64 . effects none .
+export proc count_pairs output u64 . input a slice u8 . . input b slice u8 . . effects none .
   requires le (len a) 256 .
   requires le (len b) 64 .
 do
@@ -74,7 +74,7 @@ end .
 rem ★★ **상수 나눗셈은 구간을 좁힌다** (2026-08-19) — `bench_lru` 의 `q = prod / 6` 사슬이
 rem   못 지워지던 자리. `x / c` ⇒ [lo/c, hi/c] · `x % c` ⇒ [0, c−1] (무부호만 — 부호형은
 rem   잘림 방향이 부호에 달려 있고 그 차이가 이 저장소가 한 번 당한 자리다).
-export fn split6 input x u64 . output u64 .
+export fn split6 output u64 . input x u64 .
   requires le x 6000 .
 do
   let q u64 be div x 6 .
@@ -88,7 +88,7 @@ rem   lo(x)=0 이고 hi((x/c)·c)=hi(x) 라 음수로 보인다 — 근거는 �
 rem   ★ 그리고 출처는 **지역을 타고 흘러야** 한다: 실제 코드는 `let q be div x 6 .` 로 담아
 rem     놓고 나중에 쓴다(`bench_lru` 가 정확히 그 모양이라, 값에만 실었을 때는 0 이 움직였다).
 rem   ☞ 이 사슬이 `bench_lru` 의 마지막 두 검사였다: `key = x − q·6` 과 `key·100`.
-export fn modident input x u64 . output u64 .
+export fn modident output u64 . input x u64 .
   requires le x 6000 .
 do
   let q u64 be div x 6 .

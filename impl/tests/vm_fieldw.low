@@ -7,7 +7,7 @@ struct p .
   y u8 .
 end .
 
-fn f input v u8 . output u8 . do
+fn f output u8 . input v u8 . do
   var q p be make p do x 1 . y 2 . end .
   set (field q x) v .
   return expr (field q x) + (field q y) . .

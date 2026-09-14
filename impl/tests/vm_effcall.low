@@ -18,7 +18,7 @@ rem   통과시키면 fn/proc 의 **1비트가 아무것도 뜻하지 않는다.
 module vm_effcall .
 
 rem ★ io 는 cap-effect 다 (RFC-0007 §6.7) — io 를 선언하는 op 은 io 를 인가하는 capability 를 들어야 한다.
-proc writer input k cap io . input a u8 . output u8 . effects io . do return a . end .
+proc writer output u8 . input k cap io . input a u8 . effects io . do return a . end .
 
 rem ★ 이것은 정당하다 — proc 이 io 를 선언하고 io op 을 부른다(능력도 함께 넘긴다).
-proc ok_caller input k cap io . input a u8 . output u8 . effects io . do return writer a k . end .
+proc ok_caller output u8 . input k cap io . input a u8 . effects io . do return writer a k . end .

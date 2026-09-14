@@ -17,7 +17,7 @@ rem     그것들은 상태기계 변환·숨은 저장으로 P3(숨은 alloc)·
 
 module vm_pull .
 
-fn over3 input a u64 . output bool . do return gt a 3 . end .
+fn over3 output bool . input a u64 . do return gt a 3 . end .
 
 rem 끝이 없는 소스 — next 가 언제나 some 을 준다.
 actor counter .
@@ -31,7 +31,7 @@ actor counter .
 end .
 
 rem take 가 무한을 끝낸다 → [1,2,3,4]
-proc first4 input out mut slice u8 . output u64 . effects state . do
+proc first4 output u64 . input out mut slice u8 . effects state . do
   var it counter . be spawn actor counter .
   pipe it do
     take 4 .
@@ -41,7 +41,7 @@ proc first4 input out mut slice u8 . output u64 . effects state . do
 end .
 
 rem any 도 단락이라 무한을 끝낸다 — 첫 참(>3, 즉 4)에서 멈춘다.
-proc found input dummy u64 . output u64 . effects state . do
+proc found output u64 . input dummy u64 . effects state . do
   var it counter . be spawn actor counter .
   var t bool . be pipe it do
     any over3 .

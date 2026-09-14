@@ -30,9 +30,9 @@ rem     자리로 구분은 되지만(파서는 send 의 3번째 낱말과 스�
 rem     여전히 두 뜻**이라, 비용이 0 인 쪽(픽스처 이름)을 바꿨다. `take` 는 파이프라인 관용이고
 rem     `reserve` 가 실제 동작(자리를 예약해 오프셋을 준다)에 더 정확하다.
 trait allocator .
-  init input s self . input c u64 . output u64 . effects state .
-  reserve input s self . input n u64 . output option u64 . effects state .
-  used input s self . output u64 . effects state .
+  init output u64 . input s self . input c u64 . effects state .
+  reserve output option u64 . input s self . input n u64 . effects state .
+  used output u64 . input s self . effects state .
 end .
 
 rem ── D3: **fixed_buffer bump** — 정적 버퍼 위의 순차 할당. **힙 0.** ATtiny 가능.
@@ -43,12 +43,12 @@ actor bump .
     off u64 .
     cap u64 .
   end .
-  proc init input c u64 . output u64 . effects state .
+  proc init output u64 . input c u64 . effects state .
   do
     set cap c .
     return cap .
   end .
-  proc reserve input n u64 . output option u64 . effects state .
+  proc reserve output option u64 . input n u64 . effects state .
   do
     guard le (add off n) cap . else return none .    rem ★ OOM 은 **값**이다
     var at u64 be off .
@@ -68,12 +68,12 @@ actor aligned .
     off u64 .
     cap u64 .
   end .
-  proc init input c u64 . output u64 . effects state .
+  proc init output u64 . input c u64 . effects state .
   do
     set cap c .
     return cap .
   end .
-  proc reserve input n u64 . output option u64 . effects state .
+  proc reserve output option u64 . input n u64 . effects state .
   do
     var pad u64 be mod (sub 8 (mod off 8)) 8 .
     var at u64 be add off pad .
@@ -90,9 +90,9 @@ end .
 rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계가 인터페이스를 보장한다.
 rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계(trait bound)가 인터페이스를 보장한다.
 proc two_takes .
+  output u64 .
   input comptime a type .
   using al a .
-  output u64 .
   effects state .
   requires allocator a .        rem ★ 경계는 **타입 파라미터**를 가리킨다
 do

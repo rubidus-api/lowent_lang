@@ -31,10 +31,10 @@ end
 
 rem 두 피연산자에 연산 적용 — 순수(effects none). divide 만 0 검사.
 fn apply
+  output result i64 eval_error . .
   input k u8 .
   input a i64 .
   input b i64 .
-  output result i64 eval_error . .
   errors div_by_zero .           rem 실행-유도 오류도 **이름은** 절에 적는다(조건은 안 적어도 된다)
 do
   if eq k plus . do return ok add a b . . . end
@@ -49,9 +49,9 @@ rem 비용 가시: effects alloc(스택 backing) + access sequential. 숨은 할
 rem errors 절은 조건 없이 이름만 — underflow/bad_expr/div_by_zero 는 *실행-유도* 오류(본문 return error 가 진실).
 rem   입력-결정 오류였다면 조건까지 적어 오라클화했을 것(cf. parse_header). RFC-0006 F2.
 proc eval
+  output result i64 eval_error . .
   input temp region scratch . .
   input tokens slice token . .
-  output result i64 eval_error . .
   effects alloc .
   access tokens sequential .
   requires gt (len tokens) 0 .

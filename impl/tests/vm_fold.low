@@ -8,15 +8,15 @@ rem   ★ op 의 효과는 **호출자에게 전파된다**(효과 워커가 op 
 
 module vm_fold .
 
-fn add2 input a u8 . input b u8 . output u8 . do return add a b . end .
+fn add2 output u8 . input a u8 . input b u8 . do return add a b . end .
 
-fn max2 input a u8 . input b u8 . output u8 . do
+fn max2 output u8 . input a u8 . input b u8 . do
   guard ge a b . else return b .
   return a .
 end .
 
 rem 합 — init 0, add2 로 접는다.
-fn foldsum input xs slice u8 . output u8 . do return fold 0 add2 xs . end .
+fn foldsum output u8 . input xs slice u8 . do return fold 0 add2 xs . end .
 
 rem 최댓값 — 같은 fold 에 **다른 op**. 고차의 핵심: op 이 인자다.
-fn foldmax input xs slice u8 . output u8 . do return fold 0 max2 xs . end .
+fn foldmax output u8 . input xs slice u8 . do return fold 0 max2 xs . end .

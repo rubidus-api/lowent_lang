@@ -24,7 +24,7 @@ struct counts .
 end .
 
 rem 바이트 → 토큰 종류. enum 값을 **값 자리**에서 돌려준다.
-fn classify input b u8 . output kind . do
+fn classify output kind . input b u8 . do
   if eq b 123 . do return lbrace . end .
   if eq b 125 . do return rbrace . end .
   if eq b 34 .  do return quote . end .
@@ -35,7 +35,7 @@ fn classify input b u8 . output kind . do
 end .
 
 rem ★ match — 모든 변형을 다뤄야 한다(완전성). 변형을 하나 추가하면 컴파일러가 여기를 찾아 준다.
-fn weight input k kind . output u8 . do
+fn weight output u8 . input k kind . do
   match k do
     case lbrace . do return 1 . end .
     case rbrace . do return 1 . end .
@@ -46,7 +46,7 @@ fn weight input k kind . output u8 . do
 end .
 
 rem 훑어서 센다. struct 필드 **쓰기**를 쓴다.
-fn scan input src bytes . output u16 . do
+fn scan output u16 . input src bytes . do
   var c counts be make counts do braces 0 . quotes 0 . digits 0 . end .
   var i u64 be 0 .
   while lt i (len src) . do

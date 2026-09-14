@@ -29,7 +29,7 @@ rem a^(p−2) mod p — 체 역원(x25519.finv 를 그대로 쓴다).
 rem   `c`·`t` 는 x25519 가 요구하는 작업 공간.
 
 rem ★ d 를 만든다: fe 하나에 −121665/121666.
-export proc make_d input d mut slice u64 . input w mut slice u64 . output u64 . effects none . do
+export proc make_d output u64 . input d mut slice u64 . input w mut slice u64 . effects none . do
   guard ge (len w) 128 . else return 0 .
   rem num ← −121665,  den ← 121666
   guard eq (x25519.fzero (subslice w 0 16)) 1 . else return 0 .
@@ -45,8 +45,8 @@ end .
 
 rem ★ 확장 좌표 점 하나 = fe 넷 = 조각 64. (X, Y, Z, T)
 rem   완비 덧셈 공식(RFC 8032 §5.1.4). `w` 는 조각 작업 공간(≥ 200).
-export proc eadd input o mut slice u64 . input pa slice u64 . input pb slice u64 . input d slice u64 .
-     input w mut slice u64 . output u64 . effects none . do
+export proc eadd output u64 . input o mut slice u64 . input pa slice u64 . input pb slice u64 .
+     input d slice u64 . input w mut slice u64 . effects none . do
   guard ge (len w) 200 . else return 0 .
   let T slice u64 be subslice w 160 191 .
   rem A = (Y1−X1)(Y2−X2) · B = (Y1+X1)(Y2+X2)
@@ -78,8 +78,8 @@ export proc eadd input o mut slice u64 . input pa slice u64 . input pb slice u64
 end .
 
 rem ★ 스칼라 곱 acc ← k·P. k 는 32 바이트(리틀엔디언). `w` 는 조각 작업 공간(≥ 400).
-export proc esmul input acc mut slice u64 . input k slice u8 . input pt slice u64 . input d slice u64 .
-     input w mut slice u64 . output u64 . effects none . do
+export proc esmul output u64 . input acc mut slice u64 . input k slice u8 . input pt slice u64 .
+     input d slice u64 . input w mut slice u64 . effects none . do
   guard ge (len w) 400 . else return 0 .
   rem 항등원 (0, 1, 1, 0)
   guard eq (x25519.fzero (subslice acc 0 16)) 1 . else return 0 .
@@ -112,8 +112,8 @@ rem   ☞ **두 지수 모두 구성으로 만든다**(`pow2_minus`) — 적을 
 rem   ☞ 여전히 안 맞으면 **곡선 위의 점이 아니다**: 거절한다. 곡선 밖 점을 받아들이면
 rem     서명이 뜻을 잃는다.
 rem   `w` 는 조각 ≥ 420, `bb` 는 바이트 ≥ 128.
-export proc decompress input o mut slice u64 . input enc slice u8 . input d slice u64 .
-     input w mut slice u64 . input bb mut slice u8 . output u64 . effects none . do
+export proc decompress output u64 . input o mut slice u64 . input enc slice u8 .
+     input d slice u64 . input w mut slice u64 . input bb mut slice u8 . effects none . do
   guard ge (len w) 420 . else return 0 .
   guard ge (len bb) 128 . else return 0 .
   guard ge (len enc) 32 . else return 0 .
@@ -182,7 +182,7 @@ rem   (십진 변환 두 번 · NIST 케이스 잘림 한 번). ⇒ 지수를 **
 rem   일반 거듭제곱이 그 비트를 읽는다. 적을 상수가 없으면 잘못 적을 수도 없다.
 
 rem exp ← 2^n − k, 32 바이트 리틀엔디언.
-export proc pow2_minus input out mut slice u8 . input n u64 . input k u64 . output u64 . effects none . do
+export proc pow2_minus output u64 . input out mut slice u8 . input n u64 . input k u64 . effects none . do
   guard ge (len out) 32 . else return 0 .
   guard lt n 256 . else return 0 .
   guard le k 255 . else return 0 .
@@ -209,7 +209,7 @@ export proc pow2_minus input out mut slice u8 . input n u64 . input k u64 . outp
 end .
 
 rem ★ 일반 체 거듭제곱: o ← a^e (e 는 32 바이트 리틀엔디언). `w` 는 조각 ≥ 80.
-export proc fpow input o mut slice u64 . input a slice u64 . input e slice u8 . input w mut slice u64 . output u64 . effects none . do
+export proc fpow output u64 . input o mut slice u64 . input a slice u64 . input e slice u8 . input w mut slice u64 . effects none . do
   guard ge (len w) 80 . else return 0 .
   guard ge (len e) 32 . else return 0 .
   guard eq (x25519.fone (subslice w 0 16)) 1 . else return 0 .
@@ -231,7 +231,7 @@ end .
 rem ★ 두 체 원소가 같은가 — **정규화해서** 본다. 같은 값이 여러 모양을 가질 수 있으므로
 rem   `fpack` 으로 32 바이트를 낸 뒤 XOR 누적으로 비교한다(조기 반환 없음).
 rem   `w` 는 조각 ≥ 64, `b` 는 바이트 ≥ 64.
-export proc feq input a slice u64 . input b slice u64 . input w mut slice u64 . input bb mut slice u8 . output u64 . effects none . do
+export proc feq output u64 . input a slice u64 . input b slice u64 . input w mut slice u64 . input bb mut slice u8 . effects none . do
   guard ge (len w) 64 . else return 0 .
   guard ge (len bb) 64 . else return 0 .
   guard eq (x25519.fcopy (subslice w 0 16) a) 1 . else return 0 .
@@ -249,7 +249,7 @@ export proc feq input a slice u64 . input b slice u64 . input w mut slice u64 . 
 end .
 
 rem ★ 정규화한 x 의 최하위 비트(부호).
-export proc fbit0 input a slice u64 . input w mut slice u64 . input bb mut slice u8 . output u64 . effects none . do
+export proc fbit0 output u64 . input a slice u64 . input w mut slice u64 . input bb mut slice u8 . effects none . do
   guard ge (len w) 32 . else return 0 .
   guard ge (len bb) 32 . else return 0 .
   guard eq (x25519.fcopy (subslice w 0 16) a) 1 . else return 0 .
@@ -263,7 +263,7 @@ rem ★★★ **L 은 옮겨 적을 수밖에 없다 — 그래서 성질로 검
 rem   L = 2^252 + 27742317777372353535851937790883648493 (RFC 8032 §5.1).
 rem   d 나 √(−1) 과 달리 이 수는 계산으로 유도되지 않는다. ⇒ 적되, **[L]B 가 항등원인지**
 rem   게이트가 본다. 틀리게 적으면 그 검사가 깨진다: 옮겨 적은 것을 **믿지 않고 재는** 방법이다.
-export proc make_l input out mut slice u8 . output u64 . effects none . do
+export proc make_l output u64 . input out mut slice u8 . effects none . do
   guard ge (len out) 32 . else return 0 .
   var i u64 be 0 .
   while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end .
@@ -277,7 +277,7 @@ end .
 
 rem ★ 기저점 B: y = 4/5 mod p, x 의 부호 비트 0. **계산으로 낸다**(인코딩을 안 적는다).
 rem   `w` 는 조각 ≥ 560, `bb` 는 바이트 ≥ 160.
-export proc make_base input o mut slice u64 . input d slice u64 . input w mut slice u64 . input bb mut slice u8 . output u64 . effects none . do
+export proc make_base output u64 . input o mut slice u64 . input d slice u64 . input w mut slice u64 . input bb mut slice u8 . effects none . do
   guard ge (len w) 560 . else return 0 .
   guard ge (len bb) 160 . else return 0 .
   guard eq (x25519.fzero (subslice w 0 16)) 1 . else return 0 .
@@ -293,7 +293,7 @@ end .
 
 rem ★ 점을 32 바이트로 압축한다: y 를 싣고 x 의 최하위 비트를 최상위 비트에 얹는다.
 rem   `w` 는 조각 ≥ 128, `bb` 는 바이트 ≥ 64.
-export proc compress input out mut slice u8 . input pt slice u64 . input w mut slice u64 . input bb mut slice u8 . output u64 . effects none . do
+export proc compress output u64 . input out mut slice u8 . input pt slice u64 . input w mut slice u64 . input bb mut slice u8 . effects none . do
   guard ge (len out) 32 . else return 0 .
   guard ge (len w) 128 . else return 0 .
   guard ge (len bb) 64 . else return 0 .
@@ -309,7 +309,7 @@ end .
 rem ★★ 64 바이트를 L 로 줄인다. **바이트를 위에서부터 흘려 넣는다**:
 rem   acc ← acc·256 + byte (mod L). 곱하기 256 은 배로 늘리기 여덟 번이다 —
 rem   나눗셈도 바렛도 필요 없다. `lw` 는 L 의 조각(16), `w` 는 조각 ≥ 40.
-export proc reduce_l input out mut slice u8 . input h slice u8 . input lw slice u64 . input w mut slice u64 . output u64 . effects none . do
+export proc reduce_l output u64 . input out mut slice u8 . input h slice u8 . input lw slice u64 . input w mut slice u64 . effects none . do
   guard ge (len w) 40 . else return 0 .
   guard ge (len h) 64 . else return 0 .
   guard eq (bigint.zero (subslice w 0 16) 16) 1 . else return 0 .
@@ -332,7 +332,7 @@ export proc reduce_l input out mut slice u8 . input h slice u8 . input lw slice 
 end .
 
 rem a ← (a + b) mod L.
-proc addmod_l input a mut slice u64 . input b slice u64 . input lw slice u64 . output u64 . effects none . do
+proc addmod_l output u64 . input a mut slice u64 . input b slice u64 . input lw slice u64 . effects none . do
   var carry u64 be 0 .
   var i u64 be 0 .
   while lt i 16 . do
@@ -365,8 +365,8 @@ rem   ☞ "받아 주고 넘어가기" 는 여기서 관대함이 아니라 **�
 rem
 rem   `msg` 는 전사/메시지. `sc` 는 바이트 작업 공간(≥ 96 + len(msg)),
 rem   `bb` 는 바이트 ≥ 320, `w` 는 조각 ≥ 1400.
-export proc verify input sig slice u8 . input pub slice u8 . input msg slice u8 .
-     input sc mut slice u8 . input bb mut slice u8 . input w mut slice u64 . output u64 . effects none . do
+export proc verify output u64 . input sig slice u8 . input pub slice u8 .
+     input msg slice u8 . input sc mut slice u8 . input bb mut slice u8 . input w mut slice u64 . effects none . do
   guard eq (len sig) 64 . else return 0 .
   guard eq (len pub) 32 . else return 0 .
   guard ge (len sc) (add 96 (len msg)) . else return 0 .

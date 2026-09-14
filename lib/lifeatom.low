@@ -23,14 +23,14 @@ rem   ★ ordering 은 표준 그대로다: **증가는 relaxed**(새 참조를 
 rem     있으므로 동기화가 필요 없다) · **감소는 release** + 마지막 하나에서 **acquire 담** —
 rem     그래야 해제가 앞선 모든 쓰기를 본다. 이 절이 오늘 그대로 써진다는 것을 실측했다.
 
-export proc rc_open input k cap atomic . input c mut slice u64 . . output u64 . effects atomic . do
+export proc rc_open output u64 . input k cap atomic . input c mut slice u64 . . effects atomic . do
   atomic_store c 0 1 .
   return 1 .
 end .
 
 rem ★★ **포화하는 증가** — CAS 고리다. 상한에서는 CAS 를 시도하지 않고 그대로 답한다.
 rem   그냥 `atomic_add` 를 쓰면 넘칠 때 **조용히 0 으로 감긴다**(실측). 그 값을 여기서 막는다.
-export proc rc_share input k cap atomic . input c mut slice u64 . . output u64 . effects atomic . do
+export proc rc_share output u64 . input k cap atomic . input c mut slice u64 . . effects atomic . do
   var cur u64 be atomic_load c 0 order relaxed .
   while lt cur (lifemode.ceiling) . do
     let won u64 be atomic_cas c 0 cur (add cur 1) .
@@ -49,7 +49,7 @@ rem   *"마지막이었다, 지금 거둬라"* 와 같은 값이라, 호출자�
 rem   (`lifemode.near_drop` 은 같은 경우에 none 이다). 시그니처를 두고 고칠 수 있는 답은 하나다:
 rem   해제 신호(0)와 절대 겹치지 않는 값, 그리고 뜻이 맞는 값 — 포화값은 이미 *"이 객체는 거두지 않는다"*
 rem   다. 칸 자체는 건드리지 않는다(0 인 객체는 이미 거둬졌을 수 있다 — 그 저장소에 쓰지 않는다).
-export proc rc_release input k cap atomic . input c mut slice u64 . . output u64 . effects atomic . do
+export proc rc_release output u64 . input k cap atomic . input c mut slice u64 . . effects atomic . do
   var cur u64 be atomic_load c 0 order relaxed .
   while gt cur 0 . do
     guard lt cur (lifemode.ceiling) . else return cur .

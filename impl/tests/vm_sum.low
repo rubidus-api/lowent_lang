@@ -2,11 +2,11 @@ rem RFC-0053 E5 — 오차가 이름에 적혀 있다.
 rem [1e16, 1.0, -1e16] : 1e16 + 1 은 double 에서 반올림돼 1 을 잃는다(2^53 ≈ 9e15).
 rem   sum_fast(축차) → 0   |   sum(보정, Neumaier) → 1
 type bytes slice u8 . .
-fn s_good input b bytes . output f64 . do
+fn s_good output f64 . input b bytes . do
   var xs slice f64 . be view_array f64 b .
   return sum xs .
 end .
-fn s_fast input b bytes . output f64 . do
+fn s_fast output f64 . input b bytes . do
   var xs slice f64 . be view_array f64 b .
   return sum_fast xs .
 end .

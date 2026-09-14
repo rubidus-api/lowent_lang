@@ -51,7 +51,7 @@ rem ★★★ **63 이 상한이다**(오라클이 잡았다, 2026-08-28): `shl 
 rem   넘쳐 **-9223372036854775808** 이 된다. 조용히 음수를 돌려주는 것이 이 언어가 가장 싫어하는
 rem   답이므로, 계약이 그 자리를 **아예 막는다**. 63 비트 칸이 필요하면 그 수를 세지 말고
 rem   그냥 쓰라 — `pow2` 는 *"셀 수 있는 크기"* 를 위한 op 이다.
-export fn pow2 input n u64 . output u64 .
+export fn pow2 output u64 . input n u64 .
 requires lt n 63 .
 do
   return shl 1 n .
@@ -66,17 +66,17 @@ rem   문장*이라는 규율이 이긴다: 값으로 내리고, 오라클이 �
 rem ☞ 그리고 **`cap` 을 부르지 않고 자리이동을 여기 적는다**: 계약을 든 op 을 부르면 오라클이
 rem   그 계약의 거절을 **부른 쪽의 실패로** 센다(같은 문서의 두 번째 증상). 한 줄이면 될 일에
 rem   호출을 끼우지 않는 편이 어차피 낫다.
-export fn slots  input p plan . output option u64 . do
+export fn slots  output option u64 . input p plan . do
   guard lt (field p slot_bits) 63 . else return none .
   return some (shl 1 (field p slot_bits)) .
 end .
 
-export fn shards input p plan . output option u64 . do
+export fn shards output option u64 . input p plan . do
   guard lt (field p shard_bits) 63 . else return none .
   return some (shl 1 (field p shard_bits)) .
 end .
 
-export fn lives  input p plan . output option u64 . do
+export fn lives  output option u64 . input p plan . do
   guard lt (field p gen_bits) 63 . else return none .
   return some (shl 1 (field p gen_bits)) .
 end .
@@ -90,8 +90,8 @@ rem ☞ 그리고 **값이 자기 칸에 안 들어가면 `none`** 이다: 조�
 rem ★ `gen_bits` 만은 **64 가 될 수 있다**(slot 0 · shard 0 · gen 64 — 계약 셋이 다 통과한다). 그때
 rem   `shl 1 64` 는 폭과 같은 자리 이동이라 트랩이었다(2026-09-04 보안 검토, ②의 구멍). 64 폭은
 rem   어떤 u64 도 담으므로 이동 없이 참으로 답한다 — 계약을 좁히지 않는다: 그 구성은 넘치지 않았다.
-export fn pack input slot_bits u64 . input shard_bits u64 . input gen_bits u64 .
-  input slot u64 . input shard u64 . input gen u64 . output option u64 .
+export fn pack output option u64 . input slot_bits u64 . input shard_bits u64 .
+  input gen_bits u64 . input slot u64 . input shard u64 . input gen u64 .
 requires le (add (add slot_bits shard_bits) gen_bits) 64 .
 requires lt slot_bits 64 .
 requires lt (add slot_bits shard_bits) 64 .
@@ -106,13 +106,13 @@ do
 end .
 
 rem 되꺼낸다 — 셋 다 같은 예산으로 물어야 한다.
-export fn slot_of input slot_bits u64 . input h u64 . output u64 .
+export fn slot_of output u64 . input slot_bits u64 . input h u64 .
 requires lt slot_bits 64 .
 do
   return bit_and h (sub (shl 1 slot_bits) 1) .
 end .
 
-export fn shard_of input slot_bits u64 . input shard_bits u64 . input h u64 . output u64 .
+export fn shard_of output u64 . input slot_bits u64 . input shard_bits u64 . input h u64 .
 requires lt (add slot_bits shard_bits) 64 .
 requires le shard_bits 63 .
 requires lt slot_bits 64 .
@@ -120,7 +120,7 @@ do
   return bit_and (shr h slot_bits) (sub (shl 1 shard_bits) 1) .
 end .
 
-export fn gen_of input slot_bits u64 . input shard_bits u64 . input h u64 . output u64 .
+export fn gen_of output u64 . input slot_bits u64 . input shard_bits u64 . input h u64 .
 requires lt (add slot_bits shard_bits) 64 .
 do
   return shr h (add slot_bits shard_bits) .
@@ -128,14 +128,14 @@ end .
 
 rem ★★★ **은퇴 판정 — wrap 은 조용히 돌지 않는다.**
 rem   세대가 마지막 값에 닿으면 그 칸은 **다시 안 나간다**. 되살리면 옛 핸들이 함께 살아난다.
-export fn retired input gen_bits u64 . input gen u64 . output bool .
+export fn retired output bool . input gen_bits u64 . input gen u64 .
 requires lt gen_bits 64 .
 do
   return ge gen (sub (shl 1 gen_bits) 1) .
 end .
 
 rem 다음 세대. 은퇴한 칸에는 **더 없다** — 그래서 `option` 이다(실패는 값이다).
-export fn next_gen input gen_bits u64 . input gen u64 . output option u64 .
+export fn next_gen output option u64 . input gen_bits u64 . input gen u64 .
 requires lt gen_bits 64 .
 do
   guard eq (retired gen_bits gen) false . else return none .

@@ -12,7 +12,7 @@ module lib .
 build release_safe .
 
 trait sized .
-  area input s self . output u64 . effects none .
+  area output u64 . input s self . effects none .
 end .
 
 export struct rect .
@@ -21,21 +21,21 @@ export struct rect .
   h u8 .
 end .
 
-export fn rect.area input s rect . output u64 . do
+export fn rect.area output u64 . input s rect . do
   return mul (widen u64 (field s w)) (widen u64 (field s h)) .
 end .
 
 rem ★ 제네릭 + trait 경계 + export
 export fn twice .
+  output u64 .
   input comptime t type .
   input a t .
-  output u64 .
   requires sized t .
 do
   return mul 2 (method a area) .
 end .
 
-fn hidden input a u8 . output u8 . do return a . end .
+fn hidden output u8 . input a u8 . do return a . end .
 module app .
 use lib .
 

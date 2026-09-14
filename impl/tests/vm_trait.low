@@ -14,8 +14,8 @@ rem   (옛 문법 `fn f satisfies shape .` 은 이제 **E-TRAIT-RECV** 다.)
 module vm_trait .
 
 trait shape .
-  area   input s self . output u64 . effects none .
-  scaled input s self . input k u8 . output u64 . effects none .
+  area   output u64 . input s self . effects none .
+  scaled output u64 . input s self . input k u8 . effects none .
 end .
 
 struct rect .
@@ -29,20 +29,20 @@ struct square .
   side u8 .
 end .
 
-fn rect.area input s rect . output u64 . do
+fn rect.area output u64 . input s rect . do
   return mul (widen u64 (field s w)) (widen u64 (field s h)) .
 end .
 
-fn rect.scaled input s rect . input k u8 . output u64 . do
+fn rect.scaled output u64 . input s rect . input k u8 . do
   return mul (widen u64 k) (method s area) .
 end .
 
-fn square.area input s square . output u64 . do
+fn square.area output u64 . input s square . do
   var d u64 be widen u64 (field s side) .
   return mul d d .
 end .
 
-fn square.scaled input s square . input k u8 . output u64 . do
+fn square.scaled output u64 . input s square . input k u8 . do
   return mul (widen u64 k) (method s area) .
 end .
 
@@ -60,7 +60,7 @@ rem   그 결함(검사되지 않는 주장)이다.
 rem   ★ 액터의 op 은 **핸들러**이고 수신자(인스턴스)는 **암묵적**이다(슬롯 0) ⇒ trait 의
 rem     `self` 파라미터를 빼고 대조한다.
 trait counter .
-  bump input s self . input n u64 . output u64 . effects state .
+  bump output u64 . input s self . input n u64 . effects state .
 end .
 
 actor ctr .
@@ -68,7 +68,7 @@ actor ctr .
   state .
     v u64 .
   end .
-  proc bump input n u64 . output u64 . effects state .
+  proc bump output u64 . input n u64 . effects state .
   do
     set v expr v + n . .
     return v .

@@ -15,7 +15,7 @@ end
 fn origin output point . do
   return make point do x 3 . y 4 . end
 end
-fn getx input p point . output u64 . do
+fn getx output u64 . input p point . do
   return field p x .          rem 다단도 된다: `field o inner deep`
 end
 ```
@@ -35,7 +35,7 @@ enum node
   add l u32 r u32 .
 end
 fn leaf output node . do return node.lit 42 . end
-fn is_leaf input n node . output u8 . do
+fn is_leaf output u8 . input n node . do
   guard isa n lit . else return 0 .     rem lit 변형인지 확인
   return 1 .
 end
@@ -50,7 +50,7 @@ end
 정수 파라미터가 실제로는 좁은 범위만 받는다면, **타입 자리에서** 그렇게 적을 수 있다.
 
 ```lowent
-fn scale input a range 0 100 . output u8 . do
+fn scale output u8 . input a range 0 100 . do
   return narrow u8 (mul a 2) .          rem 200 을 못 넘는다 — 검사가 필요 없다
 end
 ```

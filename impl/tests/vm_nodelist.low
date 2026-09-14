@@ -14,7 +14,7 @@ rem   같은 브랜드를 쓰면 `E-BRAND-REUSED` 가 문다. 컴파일러가 �
 newtype roleset u32 .
 
 rem ── ③ mutable iterator — 순회하면서 뺀다 ──────────────────────────
-proc walks input al cap allocator . output u64 . effects alloc . do
+proc walks output u64 . input al cap allocator . effects alloc . do
   let mn option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some mn . else return 89 .
   let mp option mut slice u8 . . be alloc_bytes al capacity 32 .
@@ -68,7 +68,7 @@ proc roles output u64 . effects none . do
   return 42 .
 end .
 
-proc main input al cap allocator . output u8 . effects alloc .
+proc main output u8 . input al cap allocator . effects alloc .
 do
   let a u64 be walks al .
   guard eq a 42 . else return narrow u8 a .

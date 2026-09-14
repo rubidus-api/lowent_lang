@@ -43,15 +43,15 @@ module spsc .
 
 rem ★ 담을 수 있는 최대 개수 = len buf − 1. 한 칸을 비워 두는 대가이고, 그 대가로
 rem   head == tail 이 **언제나** "비었다" 를 뜻한다(가득 참과 헷갈리지 않는다).
-export fn spsc_capacity input buf slice u64 . output u64 .
+export fn spsc_capacity output u64 . input buf slice u64 .
   requires ge (len buf) 2 .
 do
   return sub (len buf) 1 .
 end .
 
 rem 지금 들어 있는 개수. ★ 관찰값이다 — 읽는 순간 이미 달라졌을 수 있다(그래서 `about`).
-export proc spsc_count_about input k cap atomic . input ctl slice u64 . input buf slice u64 .
-  output u64 . effects atomic .
+export proc spsc_count_about output u64 . input k cap atomic . input ctl slice u64 .
+  input buf slice u64 . effects atomic .
   requires ge (len ctl) 2 .
   requires ge (len buf) 2 .
 do
@@ -70,9 +70,9 @@ do
 end .
 
 rem ★★★ **밀어 넣기 (생산자 전용).** 성공하면 1, 가득 차 있으면 0.
-export proc spsc_push input k cap atomic . input ctl mut slice u64 . input buf mut slice u64 .
-  input v u64 .
-  output u64 . effects atomic .
+export proc spsc_push output u64 . input k cap atomic . input ctl mut slice u64 .
+  input buf mut slice u64 .
+  input v u64 . effects atomic .
   requires ge (len ctl) 2 .
   requires ge (len buf) 2 .
 do
@@ -93,9 +93,9 @@ do
 end .
 
 rem ★★★ **꺼내기 (소비자 전용).** 성공하면 1 을 돌려주고 `out[0]` 에 값을 놓는다. 비었으면 0.
-export proc spsc_pop input k cap atomic . input ctl mut slice u64 . input buf slice u64 .
-  input out mut slice u64 .
-  output u64 . effects atomic .
+export proc spsc_pop output u64 . input k cap atomic . input ctl mut slice u64 .
+  input buf slice u64 .
+  input out mut slice u64 . effects atomic .
   requires ge (len ctl) 2 .
   requires ge (len buf) 2 .
   requires ge (len out) 1 .

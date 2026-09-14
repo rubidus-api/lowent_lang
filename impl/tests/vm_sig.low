@@ -13,17 +13,17 @@ use ed25519 from "../../lib/ed25519.low" .
 use x25519 from "../../lib/x25519.low" .
 
 rem s ≥ n 인 서명은 **거절돼야** 한다(안 그러면 같은 값에 서명이 여럿 생긴다).
-proc t_rsa_big input sig slice u8 . input nb slice u8 . input mhash slice u8 .
-     input em mut slice u8 . input w mut slice u8 .
-     input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
-     input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
-     output u64 . effects none . do
+proc t_rsa_big output u64 . input sig slice u8 . input nb slice u8 .
+     input mhash slice u8 . input em mut slice u8 .
+     input w mut slice u8 . input sw mut slice u64 . input nw mut slice u64 .
+     input ow mut slice u64 . input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 .
+     input mw mut slice u64 . effects none . do
   guard eq (rsa.verify_pss sig nb 65537 mhash 32 em w sw nw ow r2 acc tw mw) 0 . else return 0 .
   return 1 .
 end .
 
 rem r 또는 s 가 0 인 ECDSA 서명은 **거절돼야** 한다.
-proc t_ec_zero input v mut slice u64 . input w mut slice u64 . output u64 . effects none . do
+proc t_ec_zero output u64 . input v mut slice u64 . input w mut slice u64 . effects none . do
   guard ge (len v) 144 . else return 0 .
   var i u64 be 0 .
   while lt i 144 . do  set (index v i) 0 .  set i (add i 1) .  end .
@@ -33,7 +33,7 @@ proc t_ec_zero input v mut slice u64 . input w mut slice u64 . output u64 . effe
 end .
 
 rem MGF1 은 카운터를 **돌려야** 한다: 32 바이트를 넘게 달라고 하면 뒷부분이 앞과 달라야 한다.
-proc t_mgf_extends input seed slice u8 . input out mut slice u8 . input w mut slice u8 . output u64 . effects none . do
+proc t_mgf_extends output u64 . input seed slice u8 . input out mut slice u8 . input w mut slice u8 . effects none . do
   guard eq (rsa.mgf1 seed 64 out w) 64 . else return 0 .
   var diff u64 be 0 .
   var i u64 be 0 .
@@ -48,7 +48,7 @@ end .
 rem ★★★ **[L]B 가 항등원인가** — 옮겨 적을 수밖에 없던 위수 L 을 **성질로** 검사한다.
 rem   틀리게 적으면 이 검사가 깨진다: 옮겨 적은 것을 *믿지 않고 재는* 방법이다.
 rem   항등원의 압축은 0x01 다음 0 이 31 개다.
-proc t_order input out mut slice u8 . input bb mut slice u8 . input w mut slice u64 . output u64 . effects none . do
+proc t_order output u64 . input out mut slice u8 . input bb mut slice u8 . input w mut slice u64 . effects none . do
   guard eq (ed25519.make_l (subslice bb 0 32)) 32 . else return 0 .
   guard eq (ed25519.make_d (subslice w 0 16) (subslice w 16 144)) 1 . else return 0 .
   guard eq (ed25519.make_base (subslice w 144 208) (subslice w 0 16) (subslice w 208 768) (subslice bb 32 192)) 1 . else return 0 .

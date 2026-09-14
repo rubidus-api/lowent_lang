@@ -4,17 +4,17 @@ rem here: `index` read the raw bytes UNSIGNED, so slice i32 of -1 → 4294967295
 rem The element's TYPE is signed, so index must sign-extend. Unsigned stays unsigned.
 module m .
 
-fn s8  input s slice i8  . output i64 . do return widen i64 (index s 0) . end .
-fn s16 input s slice i16 . output i64 . do return widen i64 (index s 0) . end .
-fn s32 input s slice i32 . output i64 . do return widen i64 (index s 0) . end .
-fn s64 input s slice i64 . output i64 . do return widen i64 (index s 0) . end .
+fn s8  output i64 . input s slice i8  . do return widen i64 (index s 0) . end .
+fn s16 output i64 . input s slice i16 . do return widen i64 (index s 0) . end .
+fn s32 output i64 . input s slice i32 . do return widen i64 (index s 0) . end .
+fn s64 output i64 . input s slice i64 . do return widen i64 (index s 0) . end .
 
 rem positive control — a small positive signed element stays positive.
-fn s32p input s slice i32 . output i64 . do return widen i64 (index s 0) . end .
+fn s32p output i64 . input s slice i32 . do return widen i64 (index s 0) . end .
 
 rem unsigned control — index of 0xFFFFFFFF stays 4294967295, NOT -1.
-fn u32 input s slice u32 . output i64 . do return widen i64 (index s 0) . end .
+fn u32 output i64 . input s slice u32 . do return widen i64 (index s 0) . end .
 
 rem view_array route — a signed typed view must sign-extend too.
 type bytes slice u8 .
-fn v32 input b bytes . output i64 . do return widen i64 (index (view_array i32 b) 0) . end .
+fn v32 output i64 . input b bytes . do return widen i64 (index (view_array i32 b) 0) . end .

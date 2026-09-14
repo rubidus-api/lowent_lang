@@ -11,7 +11,7 @@ rem ★ 오라클은 **단조성과 순서**뿐이다. 절대 시각은 무엇�
 module vm_clock .
 
 rem 두 번 재면 뒤가 크거나 같다 — 단조 시계의 정의 그 자체다.
-proc t_mono input k cap clock . output u64 . effects none . do
+proc t_mono output u64 . input k cap clock . effects none . do
   let a u64 be time_now k .
   let b u64 be time_now k .
   guard ge b a . else return 90 .
@@ -19,7 +19,7 @@ proc t_mono input k cap clock . output u64 . effects none . do
 end .
 
 rem 잠들면 실제로 나아간다. 요청보다 덜 자지는 않는다(더 잘 수는 있다).
-proc t_sleep input k cap clock . output u64 . effects wait . do
+proc t_sleep output u64 . input k cap clock . effects wait . do
   let a u64 be time_now k .
   let m u64 be time_sleep k 20 .
   let b u64 be time_now k .
@@ -29,7 +29,7 @@ proc t_sleep input k cap clock . output u64 . effects wait . do
 end .
 
 rem 날짜시각 팩 — 자리마다 값이 그럴듯한 범위인가. 절대값은 안 본다.
-proc t_local input k cap clock . output u64 . effects none . do
+proc t_local output u64 . input k cap clock . effects none . do
   let p u64 be time_local k .
   guard ge (shr p 36) 2020 . else return 90 .
   guard le (shr p 36) 2100 . else return 91 .

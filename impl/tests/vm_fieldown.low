@@ -22,14 +22,14 @@ struct pair do
 end .
 
 rem ★ 서로 다른 필드를 하나씩 옮긴다 — **부분 이동**이라 통과해야 한다(OS3·PM1).
-proc each output u64 . input p owned pair . effects none . do
+proc each input p owned pair . output u64 . effects none . do
   let x h be field p a .
   let y h be field p b .
   return 0 .
 end .
 
 rem ★ 양 가지에서 같은 필드를 옮긴다 — 합류점 상태가 일치하므로 통과(JOIN1).
-proc both_arms output u64 . input p owned pair . input c u64 . effects none . do
+proc both_arms input p owned pair . input c u64 . output u64 . effects none . do
   if gt c 0 . do
     let x h be field p a .
   end else do
@@ -41,7 +41,7 @@ end .
 rem ★★★ **OS1 — 집합의 파생 상태**(§9.1). 필드를 하나라도 옮기면 그 집합은 **partial** 이고,
 rem   partial 을 **통째로** 옮기면 이미 떠난 필드까지 넘기는 **이중 소유**가 된다 ⇒ 거절(E-OWN-PARTIAL).
 rem   ★ 필드를 안 건드리고 집합만 옮기는 것은 그대로 통과한다(아래 whole).
-proc whole output u64 . input p owned pair . effects none . do
+proc whole input p owned pair . output u64 . effects none . do
   let z pair be p .
   return 0 .
 end .
@@ -49,7 +49,7 @@ end .
 rem ★★★ **빌림은 이동을 넘어 살지 못한다**(RFC-0005 EXCL · RFC-0044 EXCL-F).
 rem   이동 **전에만** 쓰는 빌림은 정당하다 — 아래가 그 모양이고 통과해야 한다.
 rem   (이동 뒤에 쓰면 E-EXCL-MOVED · 집합을 빌린 채 **필드**를 빼가도 마찬가지 — 골든 인라인 게이트)
-proc borrow_then_move output u64 . input p owned pair . effects none . do
+proc borrow_then_move input p owned pair . output u64 . effects none . do
   let r ref pair be ref p .
   let v u64 be field (field r a) fd .
   let z pair be p .

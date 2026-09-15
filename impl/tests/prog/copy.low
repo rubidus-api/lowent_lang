@@ -18,10 +18,10 @@ module copy .
 use files from "../../../lib/file.low" .
 
 proc main .
-  output u8 .
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .
+  output u8 .
   effects alloc io .
 do
   rem 입력 경로는 인자로 받는다 — 하드코딩된 경로는 숨은 의존이다.

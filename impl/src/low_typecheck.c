@@ -1727,6 +1727,14 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                    "layout-less thing that cannot be `view`ed and cannot cross the program "
                    "boundary: this language has no such type.",
                    f->kids[0]->tok.line);
+        // ★★★ 2026-09-15 소유자 결정 — **`type N be T` 는 거절한다.** 코퍼스는 91 곳 모두 `type N T .` 로 쓰는데
+        //   처리기는 `be` 를 끼운 꼴도 받고 있었다(같은 뜻의 철자가 둘). `be` 는 `let`/`var` 가 값을 묶는 낱말이다.
+        if ((kw == LOW_KW_TYPE || kw == LOW_KW_NEWTYPE) && f->nkids >= 3 && f->kids[2]->kind == LOW_CST_ATOM &&
+            f->kids[2]->tok.kw == LOW_KW_BE)
+            tc_emit(&c, "E-TYPE-DECL",
+                   "a type alias is `type N T .` and a newtype is `newtype N T .` — without `be`. `be` binds a VALUE "
+                   "(`let x u8 be 1 .`); a type declaration names a TYPE. One meaning, one spelling",
+                   f->kids[0]->tok.line);
     }
 
     // ★ pass 0b: `type N is …` 별칭의 **순환**을 잡는다.

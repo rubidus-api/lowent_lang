@@ -13,7 +13,7 @@ use lifeatom .
 use allocs .
 
 rem ── ② 스레드-국한 refcount — 원자 낱말이 하나도 없다 ─────────────
-proc near output u64 . input al cap allocator . effects alloc . do
+proc near input al cap allocator . output u64 . effects alloc . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some mb . else return 89 .
   var c mut slice u64 . be view_array u64 (some_value mb) .
@@ -32,7 +32,7 @@ proc near output u64 . input al cap allocator . effects alloc . do
 end .
 
 rem ★ 국한 refcount 가 **포화**한다 — 상한에서는 안 는다(감기지 않는다).
-proc near_top output u64 . input al cap allocator . effects alloc . do
+proc near_top input al cap allocator . output u64 . effects alloc . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some mb . else return 89 .
   var c mut slice u64 . be view_array u64 (some_value mb) .
@@ -46,7 +46,7 @@ proc near_top output u64 . input al cap allocator . effects alloc . do
 end .
 
 rem ── ③ 원자 공유 refcount ────────────────────────────────────────
-proc far output u64 . input al cap allocator . input k cap atomic . effects alloc atomic . do
+proc far input al cap allocator . input k cap atomic . output u64 . effects alloc atomic . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some mb . else return 89 .
   var c mut slice u64 . be view_array u64 (some_value mb) .
@@ -62,7 +62,7 @@ end .
 
 rem ★★ **원자 refcount 도 포화한다** — 이것이 이 작업의 유일한 실제 구멍이었다.
 rem   그냥 `atomic_add` 를 쓰면 상한에서 **조용히 0 으로 감긴다**(네이티브로 확인했다).
-proc far_top output u64 . input al cap allocator . input k cap atomic . effects alloc atomic . do
+proc far_top input al cap allocator . input k cap atomic . output u64 . effects alloc atomic . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some mb . else return 89 .
   var c mut slice u64 . be view_array u64 (some_value mb) .
@@ -84,12 +84,12 @@ export struct ticket do
   id u64 .
 end .
 
-export fn issue output owned vm_lifemode.ticket . input i u64 . do
+export fn issue input i u64 . output owned vm_lifemode.ticket . do
   return make ticket do id i . end .
 end .
 
 rem 완료는 표를 **먹는다**. 그리고 **실패할 수 있다** — 그래서 잊는 것도 오류가 된다.
-export fn finish output result u64 vm_lifemode.late . input t owned vm_lifemode.ticket . do
+export fn finish input t owned vm_lifemode.ticket . output result u64 vm_lifemode.late . do
   return ok (field t id) .
 end .
 
@@ -100,7 +100,7 @@ proc once output u64 . effects none . do
   return ok_value r .
 end .
 
-proc main output u8 . input al cap allocator . input k cap atomic . effects alloc atomic .
+proc main input al cap allocator . input k cap atomic . output u8 . effects alloc atomic .
 do
   let a u64 be near al .
   guard eq a 42 . else return narrow u8 a .

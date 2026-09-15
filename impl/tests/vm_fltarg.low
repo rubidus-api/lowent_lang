@@ -9,11 +9,11 @@ rem 도구는 검사한 것만 주장해야 한다 — 표시도 마찬가지다
 
 module vm_fltarg .
 
-fn bump output f64 . input x f64 . do
+fn bump input x f64 . output f64 . do
   return expr x + 1.5 . .
 end .
 
 rem 정수 리터럴로 줘도 f64 로 받는다(사람이 쓰는 대로).
-fn half output f64 . input x f64 . do
+fn half input x f64 . output f64 . do
   return expr x / 2.0 . .
 end .

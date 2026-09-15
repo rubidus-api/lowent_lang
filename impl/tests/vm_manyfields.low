@@ -17,12 +17,12 @@ struct wide do
   f9 u8 .  f10 u8 . f11 u8 . f12 u8 .
 end .
 
-fn ninth output u8 . input s slice u8 . do
+fn ninth input s slice u8 . output u8 . do
   let v be view wide s . .
   return field v f9 .              rem 9번째 — **조용히 없어졌던 자리**
 end .
 
-fn twelfth output u8 . input s slice u8 . do
+fn twelfth input s slice u8 . output u8 . do
   let v be view wide s . .
   return field v f12 .
 end .

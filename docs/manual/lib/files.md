@@ -220,10 +220,10 @@ use files from "../lib/file.low" .
 
 rem entry 패턴: main 의 input 은 전부 cap — 시작할 때 건네받는 권한이다.
 proc main
-  output u8 .
   input fs cap file_system .   rem 파일시스템에 닿을 권한
   input al cap allocator .     rem 버퍼를 얻을 권한
   input a  cap args .          rem 명령행 인자를 읽을 권한
+  output u8 .
   effects alloc io .
 do
   rem 경로는 인자로 받는다 — 하드코딩된 경로는 숨은 의존이다.

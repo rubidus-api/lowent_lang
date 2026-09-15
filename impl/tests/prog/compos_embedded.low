@@ -8,7 +8,7 @@ module compos_embedded .
 
 build profile embedded .
 
-fn stage_sum output u64 . input buf slice u8 . do
+fn stage_sum input buf slice u8 . output u64 . do
   var acc u64 be 0 .
   var i u64 be 0 .
   while lt i (len buf) . do
@@ -18,7 +18,7 @@ fn stage_sum output u64 . input buf slice u8 . do
   return acc .
 end .
 
-fn stage_scale output u64 . input v u64 . do
+fn stage_scale input v u64 . output u64 . do
   return mul v 2 .
 end .
 

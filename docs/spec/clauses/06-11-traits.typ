@@ -25,7 +25,7 @@
 
 rem 모양마다 넓이를 구하는 법은 다르다. 그러나 «넓이를 알려 준다» 는 약속은 같다.
 trait shape do
-  area output u64 . input s self .
+  area input s self . output u64 .
 end .
 
 struct rect do
@@ -39,18 +39,18 @@ struct square do
   side u64 .
 end .
 
-fn rect.area output u64 . input s rect .
+fn rect.area input s rect . output u64 .
 do
   return mul (field s w) (field s h) .
 end .
 
-fn square.area output u64 . input s square .
+fn square.area input s square . output u64 .
 do
   return mul (field s side) (field s side) .
 end .
 
 rem 이 op 은 **어떤 모양이든** 받는다 — `requires shape t` 가 «넓이를 알려 주는 타입만» 이라고 못박는다.
-fn double_area output u64 . input comptime t type . input s t .
+fn double_area input comptime t type . input s t . output u64 .
   requires shape t .
 do
   return mul 2 (method s area) .
@@ -66,7 +66,7 @@ end .",
     #para("1a")[
       트레이트는 op 을 **여럿** 적을 수 있다. 서명 하나는 op 의 **이름으로 시작**하고 그 op 의 절이 뒤따르며,
       다음 이름이 다음 서명을 연다. 서명마다 한 줄에 적는 것이 관례다. 서명의 절은 op 머리와 **같은 차례**를
-      따른다(#cref("6.4.1") (3a)) — `output` 이 맨 앞이다. 적는 op 의 수에는 한도가 없다.
+      따른다(#cref("6.4.1") (3a)) — 입력 · 출력 · 효과 차례다. 적는 op 의 수에는 한도가 없다.
     ]
     #para("1b")[
       서명에는 `fn`·`proc` 을 적지 **아니한다.** 그 op 이 무엇을 할 수 있는지는 서명의 `effects` 줄이 정한다.
@@ -110,7 +110,7 @@ end .",
 
 rem 트레이트는 타입이 갖춰야 할 op 의 목록이다.
 trait shape do
-  area output u64 . input s self . effects none .
+  area input s self . output u64 . effects none .
 end
 
 rem `satisfies` 를 적으면 그 목록을 갖췄는지 검사받는다.
@@ -120,14 +120,14 @@ struct rect do
   h u8 .
 end
 
-fn rect.area output u64 . input s rect .
+fn rect.area input s rect . output u64 .
 do
   return mul (widen u64 (field s w)) (widen u64 (field s h)) .
 end")
     #rejected("갖추겠다고 적고 안 갖추면", "module ex_trait_bad .
 
 trait shape do
-  area output u64 . input s self . effects none .
+  area input s self . output u64 . effects none .
 end
 
 struct rect do
@@ -139,12 +139,12 @@ end
 rem `rect.area` 를 만들지 않았다", "E-TRAIT-MISSING")
     #ex("op 을 여럿 가진 트레이트", "module ex_trait_many .
 
-rem 서명마다 한 줄 — 이름으로 시작하고 `output` 이 맨 앞이다.
+rem 서명마다 한 줄 — 이름으로 시작하고 입력 · 출력 · 효과 차례다.
 trait shape do
-  area output u64 . input s self .
-  perimeter output u64 . input s self .
-  grow output self . input s self . input k u64 .
-  checked_area output u64 . input s self . effects panic .
+  area input s self . output u64 .
+  perimeter input s self . output u64 .
+  grow input s self . input k u64 . output self .
+  checked_area input s self . output u64 . effects panic .
 end
 
 struct rect do
@@ -154,23 +154,23 @@ struct rect do
 end
 
 rem 효과 줄이 없는 서명은 `fn` 으로 갖춘다.
-fn rect.area output u64 . input s rect .
+fn rect.area input s rect . output u64 .
 do
   return mul (field s w) (field s h) .
 end
 
-fn rect.perimeter output u64 . input s rect .
+fn rect.perimeter input s rect . output u64 .
 do
   return mul 2 (add (field s w) (field s h)) .
 end
 
-fn rect.grow output rect . input s rect . input k u64 .
+fn rect.grow input s rect . input k u64 . output rect .
 do
   return make rect do w (add (field s w) k) . h (add (field s h) k) . end .
 end
 
 rem 효과를 적은 서명은 그 효과를 적은 `proc` 으로 갖춘다.
-proc rect.checked_area output u64 . input s rect . effects panic .
+proc rect.checked_area input s rect . output u64 . effects panic .
 do
   if eq (field s w) 0 . do panic \"empty rect\" . end .
   return mul (field s w) (field s h) .
@@ -178,7 +178,7 @@ end")
     #rejected("효과 줄이 없는 proc 으로 효과 없는 서명을 갖추려 한다", "module ex_trait_proc_noeff .
 
 trait shape do
-  area output u64 . input s self .
+  area input s self . output u64 .
 end
 
 struct rect do
@@ -187,7 +187,7 @@ struct rect do
   h u64 .
 end
 
-proc rect.area output u64 . input s rect .
+proc rect.area input s rect . output u64 .
 do
   return mul (field s w) (field s h) .
 end", "E-TRAIT-EFFECT")
@@ -228,12 +228,12 @@ struct rect do
   h u64 .
 end
 
-fn rect.area output u64 . input s rect .
+fn rect.area input s rect . output u64 .
 do
   return mul (field s w) (field s h) .
 end
 
-export fn twice_area output u64 . input s rect .
+export fn twice_area input s rect . output u64 .
 do
   return mul 2 (method s area) .
 end")
@@ -261,7 +261,7 @@ struct p do
   x u8 .
 end .
 
-fn f output u8 . input s p .
+fn f input s p . output u8 .
 do
   return method s nosuch .
 end", "E-METHOD-UNDEF")

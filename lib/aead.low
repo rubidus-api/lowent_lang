@@ -23,7 +23,7 @@ use poly from "poly.low" .
 
 rem ★ 한 조각을 16 바이트 블록들로 잘라 Poly1305 에 먹인다. 남는 꼬리는 0 으로 채워
 rem   **꽉 찬 블록**으로 만든다(pad16). `pad` 는 16 바이트 작업 공간.
-proc feed output u64 . input pst mut slice u64 . input data slice u8 . input pad mut slice u8 . effects none . do
+proc feed input pst mut slice u64 . input data slice u8 . input pad mut slice u8 . output u64 . effects none . do
   var off u64 be 0 .
   while le (add off 16) (len data) . do
     let z u64 be poly.block pst (subslice data off (add off 16)) 1 .
@@ -46,7 +46,7 @@ proc feed output u64 . input pst mut slice u64 . input data slice u8 . input pad
 end .
 
 rem ★ 길이 블록: le64(|AAD|) ‖ le64(|CT|) — 꽉 찬 16 바이트 한 블록.
-proc feed_lens output u64 . input pst mut slice u64 . input alen u64 . input clen u64 . input pad mut slice u8 . effects none . do
+proc feed_lens input pst mut slice u64 . input alen u64 . input clen u64 . input pad mut slice u8 . output u64 . effects none . do
   var b u64 be 0 .
   while lt b 8 . do
     set (index pad b) (cast u8 (bit_and (shr alen (mul b 8)) 255)) .
@@ -57,7 +57,7 @@ proc feed_lens output u64 . input pst mut slice u64 . input alen u64 . input cle
 end .
 
 rem ★ 일회용 Poly1305 키: ChaCha20 블록 0 의 앞 32 바이트(RFC 8439 §2.6).
-export proc key_gen output u64 . input key slice u8 . input nonce slice u8 . input otk mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . effects none . do
+export proc key_gen input key slice u8 . input nonce slice u8 . input otk mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none . do
   guard ge (len otk) 32 . else return 0 .
   guard eq (chacha.prep key nonce 0 st) 16 . else return 0 .
   guard eq (chacha.keystream st work ks) 64 . else return 0 .
@@ -71,7 +71,7 @@ end .
 
 rem ★★ 봉인: 평문 → 암호문 + 16 바이트 태그.
 rem   작업 공간은 전부 호출자가 든다 — otk 32 · pst 10 · st 16 · work 16 · ks 64 · pad 16.
-export proc seal output u64 . input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . effects none . do
+export proc seal input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . output u64 . effects none . do
   guard ge (len ct) (len msg) . else return 0 .
   guard ge (len tag) 16 . else return 0 .
   guard ge (len pad) 16 . else return 0 .
@@ -91,7 +91,7 @@ rem   ☞ 비교는 XOR 누적이다 — 조기 반환이 없다는 뜻이고, �
 rem   ☞ `tag` 는 **정확히 16** 이어야 한다. 전엔 `ge 16` 이어서 17 바이트 태그의 앞 16 만 보고
 rem     나머지를 말없이 지나쳤다 — `hash.digest_ok`(정확 길이)와 갈라져 있던 자리다
 rem     (2026-09-04 검토 RU). `gcm.decrypt` 도 같은 규칙으로 맞췼다.
-export proc unseal output u64 . input key slice u8 . input nonce slice u8 . input aad slice u8 . input ct slice u8 . input tag slice u8 . input msg mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . input want mut slice u8 . effects none . do
+export proc unseal input key slice u8 . input nonce slice u8 . input aad slice u8 . input ct slice u8 . input tag slice u8 . input msg mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . input want mut slice u8 . output u64 . effects none . do
   guard ge (len msg) (len ct) . else return 0 .
   guard eq (len tag) 16 . else return 0 .
   guard ge (len want) 16 . else return 0 .

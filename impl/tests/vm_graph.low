@@ -13,16 +13,16 @@ type node_count u64 . .
 type frame u64 . .
 
 fn node_count_of .
-  output u64 .
   input g graph .
+  output u64 .
 do
   return index g 0 .
 end .
 
 fn children_of .
-  output bytes .
   input g graph .
   input node u64 .
+  output bytes .
 do
   var at u64 be 1 .
   var i u64 be 0 .
@@ -34,11 +34,11 @@ do
 end .
 
 proc graph_reachable .
-  output void .
   input temp region frame . .
   input g graph .
   input root node_id .
   input out mut bitset node_count . .
+  output void .
   effects alloc .   rem ★ `stack_new` 은 alloc 이다 — 중첩돼 있어서 안 보였다
 do
   let work stack node_id . be stack_new temp capacity node_count_of g . . .
@@ -58,10 +58,10 @@ rem ★★★ **할당 = 명시 권한** (RFC-0043 D1). 이 op 은 할당한다(
 rem   **어디서 할당하는지**를 건네받아야 한다. 전엔 아무것도 안 받고 할당했다: **ambient 힙**.
 rem   그것이 정확히 이 모델이 없애는 **숨은 의존**이다.
 proc reach .
-  output u64 .
   input temp region frame . .      rem ★ 할당 권한 — region 은 arena allocator 다(D7)
   input root u64 .
   input g graph .
+  output u64 .
   effects alloc .   rem ★ alloc 이 **호출 사슬을 타고 전파된다** — graph_reachable 이 alloc 이다
 do
   var out bitset be bitset_new 64 . .

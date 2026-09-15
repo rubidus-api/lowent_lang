@@ -34,7 +34,7 @@ use fmt       from "../../../lib/fmt.low" .
 use allocs    from "../../../lib/alloc.low" .
 
 rem ★ 십진수 한 줄을 읽는다 — **순수하다**. 빈 줄·숫자 아닌 글자는 `none`(조용히 0 이 아니다).
-fn parse_u64 output option u64 . input s slice u8 . do
+fn parse_u64 input s slice u8 . output option u64 . do
   if eq (len s) 0 . do return none . end .
   var acc u64 be 0 .
   var i u64 be 0 .
@@ -52,7 +52,7 @@ end .
 
 rem ★ 다음 개행의 자리 — 없으면 none. (`io` 를 안 부른다: 줄 나누기 하나 때문에 액터를
 rem   데려오면 그 모듈의 effects 까지 딸려 온다.)
-fn find_nl output option u64 . input s slice u8 . input from u64 . do
+fn find_nl input s slice u8 . input from u64 . output option u64 . do
   var i u64 be from .
   while lt i (len s) . do
     if eq (index s i) 10 . do return some i . end .
@@ -67,10 +67,10 @@ struct keyed do
   satisfies sortgen.ordered .
   k u64 .
 end .
-fn keyed.less output bool . input a keyed . input b keyed . do return lt (field a k) (field b k) . end .
+fn keyed.less input a keyed . input b keyed . output bool . do return lt (field a k) (field b k) . end .
 
 rem ★ 두 슬라이스가 원소별로 같은가 — 두 정렬기의 답을 대는 데 쓴다.
-fn same_keyed output bool . input a slice u64 . input b slice keyed . do
+fn same_keyed input a slice u64 . input b slice keyed . output bool . do
   if ne (len a) (len b) . do return false . end .
   var i u64 be 0 .
   while lt i (len a) . do
@@ -82,11 +82,11 @@ fn same_keyed output bool . input a slice u64 . input b slice keyed . do
 end .
 
 proc main .
-  output u8 .
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .
   input out cap io .
+  output u8 .
   effects alloc io .
 do
   let pa option slice u8 . be arg a 0 .

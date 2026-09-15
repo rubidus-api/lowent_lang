@@ -13,7 +13,7 @@ rem     VM 과 C 가 **같은 값을 굽는다**(오라클 안전).
 module vm_veclanes .
 
 rem ① 성립 — 폭을 **한 번만** 적는다. 두 뒤끝이 같은 답을 낸다.
-export fn dot output u32 . input a slice u32 . input b slice u32 . do
+export fn dot input a slice u32 . input b slice u32 . output u32 . do
   let L u64 be native_lanes u32 .
   var acc vec u32 L . be splat 0 .
   var i u64 be 0 .
@@ -28,7 +28,7 @@ export fn dot output u32 . input a slice u32 . input b slice u32 . do
 end .
 
 rem ② 성립 — 같은 커널을 **리터럴 폭**으로 적으면 같은 답이다(이름이 뜻을 안 바꾼다).
-export fn dot4 output u32 . input a slice u32 . input b slice u32 . do
+export fn dot4 input a slice u32 . input b slice u32 . output u32 . do
   var acc vec u32 4 . be splat 0 .
   var i u64 be 0 .
   let n u64 be len a .
@@ -47,7 +47,7 @@ rem   `vector.store` 부터 이미 안 받는다(원소 폭이 안 맞는다). �
 rem   여기서는 **폭이 맞는** 모양을 증인으로 둔다: 양쪽 다 `view_array u32` 를 지난다.
 rem ★ 마스크 적재의 존재 이유는 **꺼진 레인은 안 읽는다**는 것이다 — 그래서 경계 검사도
 rem   **켜진 레인마다** 한다. 꺼진 레인이 경계 밖이어도 트랩하지 않아야 맞다.
-export fn masked output u32 . input b slice u8 . input o mut slice u8 . do
+export fn masked input b slice u8 . input o mut slice u8 . output u32 . do
   var xs slice u32 . be view_array u32 b .
   var ys mut slice u32 . be view_array u32 o .
   var v vec u32 4 . be load xs 0 .

@@ -13,12 +13,12 @@ module vm_wireaxes .
 use wire from "../../lib/wire.low" .
 
 rem ② 항등 기술자와 «그냥 돌려주기» — 골든이 이 짝의 명령 수를 견준다.
-fn ident_emit output u64 . input v u64 . do return wire.onwire 0 0 v 8 . end .
-fn plain_copy output u64 . input v u64 . do return v . end .
+fn ident_emit input v u64 . output u64 . do return wire.onwire 0 0 v 8 . end .
+fn plain_copy input v u64 . output u64 . do return v . end .
 
 rem 축을 하나씩 켠 판들
-fn rev_emit output u64 . input v u64 . do return wire.onwire 1 0 v 8 . end .
-fn inv_emit output u64 . input v u64 . do return wire.onwire 0 255 v 8 . end .
+fn rev_emit input v u64 . output u64 . do return wire.onwire 1 0 v 8 . end .
+fn inv_emit input v u64 . output u64 . do return wire.onwire 0 255 v 8 . end .
 
 rem ③ 순열 표 — 논리 자리 0..3 이 선에서는 3..0 에 앉는 보드
 fn tab_rev output slice u8 . do return "\x03\x02\x01\x00" . end .

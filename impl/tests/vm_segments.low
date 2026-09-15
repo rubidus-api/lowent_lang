@@ -18,7 +18,7 @@ use segview .
 
 rem 조각 둘을 실은 뷰를 짓는다 — back[0..4] 와 back[8..4].
 rem   서술자는 `slice u64` 에 (at, n) 쌍이다. **새 구조체 타입은 없다.**
-proc counts output u64 . input al cap allocator . effects alloc . do
+proc counts input al cap allocator . output u64 . effects alloc . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 64 .
   guard is_some mb . else return 89 .
   let md option mut slice u8 . . be alloc_bytes al capacity 32 .
@@ -33,7 +33,7 @@ proc counts output u64 . input al cap allocator . effects alloc . do
 end .
 
 rem ✔ ② 조각을 꺼내도 **복사가 없다** — back 에 쓴 값이 조각으로 그대로 보인다.
-proc reads output u64 . input al cap allocator . effects alloc . do
+proc reads input al cap allocator . output u64 . effects alloc . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 64 .
   guard is_some mb . else return 89 .
   let md option mut slice u8 . . be alloc_bytes al capacity 32 .
@@ -51,7 +51,7 @@ proc reads output u64 . input al cap allocator . effects alloc . do
 end .
 
 rem ✔ ① 조각 길이의 합 = 평평한 의미. 서술자만 읽고 바이트는 안 만진다.
-proc totals output u64 . input al cap allocator . effects alloc . do
+proc totals input al cap allocator . output u64 . effects alloc . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 64 .
   guard is_some mb . else return 89 .
   let md option mut slice u8 . . be alloc_bytes al capacity 32 .
@@ -74,7 +74,7 @@ end .
 
 rem ✔ ③ **`coalesce` 만 명시적으로 O(n)** 이다 — 라이브러리에 있고, 부른 자리에 비용이 보인다.
 rem   커서·총길이도 라이브러리다(표면 추가 0). 여기서 그 셋이 실제로 선다는 것을 문다.
-proc library output u64 . input al cap allocator . effects alloc . do
+proc library input al cap allocator . output u64 . effects alloc . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 16 .
   guard is_some mb . else return 89 .
   let md option mut slice u8 . . be alloc_bytes al capacity 32 .
@@ -108,15 +108,15 @@ end .
 rem ✔ 범위 밖 조각은 **기존 안전망이 잡는다** — 새 진단을 만들지 않았다.
 rem   서술자 슬라이스의 색인이 그대로 범위 검사를 받으므로 `seg ss 9` 는 실행 중 죽는다.
 rem   ★ 이 op 만 CLI 로 부를 수 있게 저장을 밖에서 받는다(cap 은 인자로 못 넘긴다).
-proc beyond output u64 . input back slice u8 . . input d slice u64 . .
-  input i u64 . effects none .
+proc beyond input back slice u8 . . input d slice u64 . . input i u64 .
+  output u64 . effects none .
 do
   let ss be view_segments back d .
   return len (seg ss i) .
 end .
 
 rem ★ cap 은 CLI 인자로 못 넘긴다 — 엔트리가 받아서 넘긴다.
-proc main output u8 . input al cap allocator . effects alloc . do
+proc main input al cap allocator . output u8 . effects alloc . do
   let a u64 be counts al .
   guard eq a 42 . else return narrow u8 a .
   let b u64 be reads al .

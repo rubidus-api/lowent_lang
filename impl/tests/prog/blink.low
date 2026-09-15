@@ -63,8 +63,8 @@ struct rcc do
 end .
 
 unsafe proc clock_on .
-  output void .
   input dev cap mmio .
+  output void .
   effects device unsafe .
 do
   var c rcc . be view rcc .
@@ -84,8 +84,8 @@ rem ── 초기화: LED 핀을 출력 모드로 ──────────
 rem ★ **보통 op 은 여전히 권한을 받아야 한다.** ISR 의 면제는 정확히 문 하나 폭이다(D5-b) —
 rem   여기서 `cap mmio` 를 빼면 `E-MMIO-NOCAP` 이다. 골든이 그 대칭을 검사한다.
 unsafe proc led_init .
-  output void .
   input dev cap mmio .
+  output void .
   effects device unsafe .
 do
   var g gpioa . be view gpioa .          rem ★ §8-2 — 바이트를 안 준다. 타입이 주소를 안다
@@ -103,9 +103,9 @@ rem   · `cap mmio` 파라미터가 **없다** — 가질 수 없다(E-ISR-PARAM
 rem   · 그런데 몸이 `return 0` 이 아니다. **레지스터를 진짜로 만진다.**
 rem   · 권한은 `vector 15 .` 이다 — 하드웨어가 불렀다는 사실이 그 권한이다(D5-b).
 unsafe proc on_systick .
-  output void .
   vector 15 .                rem SysTick — Cortex-M 의 고정 예외 번호
   priority 3 .
+  output void .
   effects device unsafe .
 do
   var g gpioa . be view gpioa .          rem ★ 줄 사람이 없어도 열린다
@@ -125,8 +125,8 @@ struct systick do
 end .
 
 unsafe proc tick_init .
-  output void .
   input dev cap mmio .
+  output void .
   effects device unsafe .
 do
   var s systick . be view systick .
@@ -146,8 +146,8 @@ rem   문자열 "x86_64" 를 **하드코딩**하고 있어서, 프리스탠딩 �
 rem   **거절되고**(진단은 "this build targets x86_64" 라고 거짓을 말했다) 반대로 x86 명령은
 rem   ARM 빌드에 **실렸다**. 대표 프로그램이 그 벽을 찾아냈다.
 unsafe proc wait_irq .
-  output void .
   input k cap machine .
+  output void .
   effects unsafe .
   asm cortex_m .
       options nomem nostack .
@@ -168,8 +168,8 @@ rem
 rem ★ 그리고 **권한은 넘겨줄 수 없다** — 그것이 새지 않는 이유다. 그래서 초기화를 여기서
 rem   **직접** 한다(`led_init dev .` 처럼 부를 수 없다: 건넬 cap 이 없다). 규율의 값이자 대가다.
 unsafe proc reset .
-  output void .
   vector 1 .
+  output void .
   effects device unsafe .
 do
   rem ① 클럭이 먼저다 — 없으면 아래 쓰기가 전부 허공에 떨어진다.
@@ -208,9 +208,9 @@ rem ── 주 루프 ───────────────────�
 rem ★ 베어메탈의 main 은 **돌아오지 않는다**. 초기화한 뒤 인터럽트를 기다리며 잔다 —
 rem   바쁜 대기(busy loop)가 아니라 `wfi` 다: 배터리가 있는 기계에서 그 차이가 전부다.
 export unsafe proc start .
-  output void .
   input dev cap mmio .
   input k cap machine .
+  output void .
   effects device unsafe .
 do
   rem ★★ 순서가 전부다: **클럭이 먼저다.** 이 줄이 뒤로 가면 `led_init` 의 쓰기가 전부

@@ -107,7 +107,7 @@ op 은 둘뿐이다: 성장 정책(`next_cap`)과 밀어 넣기(`push_byte`)다.
 다음 용량을 정하는 순수 계산이다. 성장 정책이 이 한 곳에 있다.
 
 ```lowent
-export fn next_cap output u64 . input cur u64 . do
+export fn next_cap input cur u64 . output u64 . do
 ```
 
 - `cur` — 현재 용량. 다음 용량이 지금 크기에 비례해야("두 배") 상환 O(1) 이 나오므로
@@ -120,12 +120,12 @@ export fn next_cap output u64 . input cur u64 . do
 
 ```lowent
 export proc push_byte .
-  output option mut slice u8 . .
   input comptime a type .
   using al a .
   input v mut vec_u8 .
   input buf mut slice u8 . .
   input x u8 .
+  output option mut slice u8 . .
   effects state via a .
   requires allocs.byte_allocator a .
 ```
@@ -163,7 +163,7 @@ module vecgrow .
 use vecs .
 use allocs .
 
-proc main output u8 . input al cap allocator . input out cap io . effects io alloc state . do
+proc main input al cap allocator . input out cap io . output u8 . effects io alloc state . do
   let memopt option mut slice u8 . be alloc_bytes al capacity 256 .   rem 뿌리에서 바이트를 받는다
   guard is_some memopt . else return 1 .
   let mem mut slice u8 . be some_value memopt .

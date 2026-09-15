@@ -3557,9 +3557,9 @@ static void ck_task_alloc(low_check_result_t *out, const low_parse_result_t *pr)
 // ★★★★ **머리 절의 차례** (WO-0217 · 소유자 결정 ⓑ). 차례를 어긴 절 하나를 이름으로 말한다.
 static const char *ck_rank_name(int r) {
     switch (r) {
-        case 0: return "`output`"; case 1: return "`satisfies`/`lowdoc`"; case 2: return "`vector`/`priority`";
-        case 3: return "a `comptime` input"; case 4: return "a capability/region input"; case 5: return "`using`";
-        case 6: return "a data input"; case 7: return "`link`/`variadic`"; case 8: return "`effects`"; case 9: return "`asm`";
+        case 0: return "`satisfies`/`lowdoc`"; case 1: return "`vector`/`priority`"; case 2: return "a `comptime` input";
+        case 3: return "a capability/region input"; case 4: return "`using`"; case 5: return "a data input";
+        case 6: return "`output`"; case 7: return "`effects`"; case 8: return "`link`/`variadic`"; case 9: return "`asm`";
         case 10: return "`access`/`parallel`/`reduce`"; case 11: return "`requires`"; case 12: return "`ensures`";
         case 13: return "`errors`"; case 14: return "`tests`"; case 15: return "`schedule`"; default: return "a clause";
     }
@@ -3580,8 +3580,8 @@ static void ck_clause_order_one(low_check_result_t *out, const low_cst_t *f, pro
             static char msgs[17][17][520];
             char *buf = msgs[r][maxr];
             snprintf(buf, sizeof msgs[0][0],
-                     "%s comes after %s. An op header has ONE order: `output` first · `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · "
-                     "capability/region inputs · `using` · data inputs · `link`/`variadic` · `effects` · `asm` · "
+                     "%s comes after %s. An op header has ONE order: `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · "
+                     "capability/region inputs · `using` · data inputs · `output` · `effects` · `link`/`variadic` · `effects` · `asm` · "
                      "`access`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input "
                      "clauses for you; inputs are call positions, so reorder those and their call sites yourself)",
                      ck_rank_name(r), ck_rank_name(maxr));

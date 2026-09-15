@@ -74,7 +74,7 @@ let c bool be lt a b .
 ```lowent 예제: 중위 표기
 module ex_infix .
 
-export fn score output u32 . input a u32 . input b u32 .
+export fn score input a u32 . input b u32 . output u32 .
   requires le a 1000 .
   requires le b 1000 .
 do
@@ -85,7 +85,7 @@ end
 ```lowent-거부: 비교를 이어 쓸 수 없다 · E-EXPR-CHAIN
 module ex_chain .
 
-proc p output bool . input a u32 . input b u32 . input c u32 . effects none .
+proc p input a u32 . input b u32 . input c u32 . output bool . effects none .
 do
   return expr a lt b lt c .     rem 두 비교를 이어 쓸 수 없다
 end
@@ -153,16 +153,16 @@ end
 module ex_mixsign .
 
 rem `u8` 은 `i16` 안에 값을 잃지 않고 들어간다.
-fn ok_widen output i16 . input a u8 . input b i16 . do return add a b . end
+fn ok_widen input a u8 . input b i16 . output i16 . do return add a b . end
 
 rem 더 넓은 자리를 결과로 골라도 된다.
-fn ok_wider output i32 . input a u8 . input b i16 . do return add a b . end
+fn ok_wider input a u8 . input b i16 . output i32 . do return add a b . end
 ```
 
 ```lowent-거부: 값을 지키는 넓히기가 없으면 거부된다 · E-TYPE-SIGN
 module ex_sign .
 
-proc p output i32 . input a i32 . input b u32 . effects none .
+proc p input a i32 . input b u32 . output i32 . effects none .
 do
   return add a b .     rem `u32` 는 `i32` 안에 안 들어간다 — 폭이 같다
 end
@@ -211,10 +211,10 @@ end
 module ex_bitlogic .
 
 rem 12 = 0000_1100 · 10 = 0000_1010
-fn mask output u8 . input a u8 . input b u8 . do return bit_and a b . end
-fn both output u8 . input a u8 . input b u8 . do return bit_or  a b . end
-fn diff output u8 . input a u8 . input b u8 . do return bit_xor a b . end
-fn flip output u8 . input a u8 . do return bit_not a . end
+fn mask input a u8 . input b u8 . output u8 . do return bit_and a b . end
+fn both input a u8 . input b u8 . output u8 . do return bit_or  a b . end
+fn diff input a u8 . input b u8 . output u8 . do return bit_xor a b . end
+fn flip input a u8 . output u8 . do return bit_not a . end
 ```
 
 > [!산문]
@@ -225,10 +225,10 @@ fn flip output u8 . input a u8 . do return bit_not a . end
 ```lowent 예제: 옮기기와 돌리기 · 결과: up(3,2) = 12 · down(12,2) = 3 · spin(129,1) = 3 · back(3,1) = 129
 module ex_bitshift .
 
-fn up   output u8 . input a u8 . input n u8 . do return shl  a n . end
-fn down output u8 . input a u8 . input n u8 . do return shr  a n . end
-fn spin output u8 . input a u8 . input n u8 . do return rotl a n . end
-fn back output u8 . input a u8 . input n u8 . do return rotr a n . end
+fn up   input a u8 . input n u8 . output u8 . do return shl  a n . end
+fn down input a u8 . input n u8 . output u8 . do return shr  a n . end
+fn spin input a u8 . input n u8 . output u8 . do return rotl a n . end
+fn back input a u8 . input n u8 . output u8 . do return rotr a n . end
 ```
 
 > [!산문]
@@ -247,14 +247,14 @@ fn back output u8 . input a u8 . input n u8 . do return rotr a n . end
 module ex_signed_shift .
 
 rem 부호 있는 정수 — 빈자리에 부호 비트가 들어온다(산술 이동).
-fn s_shr output i32 . input a i32 . input n i32 . do return shr a n . end
+fn s_shr input a i32 . input n i32 . output i32 . do return shr a n . end
 
 rem 부호 없는 정수 — 빈자리에 0 이 들어온다(논리 이동).
-fn u_shr output u32 . input a u32 . input n u32 . do return shr a n . end
+fn u_shr input a u32 . input n u32 . output u32 . do return shr a n . end
 
 rem 비트별 논리 연산도 부호 있는 정수를 다룬다.
-fn s_and output i32 . input a i32 . input b i32 . do return bit_and a b . end
-fn s_not output i32 . input a i32 . do return bit_not a . end
+fn s_and input a i32 . input b i32 . output i32 . do return bit_and a b . end
+fn s_not input a i32 . output i32 . do return bit_not a . end
 ```
 
 > [!산문]
@@ -265,10 +265,10 @@ fn s_not output i32 . input a i32 . do return bit_not a . end
 ```lowent 예제: 세기와 바이트 뒤집기 · 결과: ones(7) = 3 · lead(1) = 7 · tail(8) = 3 · endian(1) = 16777216
 module ex_bitcount .
 
-fn ones output u8 . input a u8 . do return count_ones a . end
-fn lead output u8 . input a u8 . do return leading_zeros a . end
-fn tail output u8 . input a u8 . do return trailing_zeros a . end
-fn endian output u32 . input a u32 . do return byte_swap a . end
+fn ones input a u8 . output u8 . do return count_ones a . end
+fn lead input a u8 . output u8 . do return leading_zeros a . end
+fn tail input a u8 . output u8 . do return trailing_zeros a . end
+fn endian input a u32 . output u32 . do return byte_swap a . end
 ```
 
 > [!산문]
@@ -400,7 +400,7 @@ fn endian output u32 . input a u32 . do return byte_swap a . end
 ```lowent-거부: 정수는 조건이 아니다 · E-TYPE-COND
 module ex_cond .
 
-fn f output u8 . input a u8 .
+fn f input a u8 . output u8 .
 do
   if a . do return 1 . end     rem 무엇을 묻는지 적는다 — `gt a 0`
   return 0 .
@@ -423,7 +423,7 @@ end
 ```lowent-거부: 레인 수가 다른 둘은 다른 타입이다 · E-TYPE-LANES
 module ex_lanes .
 
-fn f output vec u8 4 . input a vec u8 4 . input b vec u8 8 .
+fn f input a vec u8 4 . input b vec u8 8 . output vec u8 4 .
 do
   return add a b .
 end
@@ -446,7 +446,7 @@ end
 ```lowent-거부: 섬 안의 부름은 괄호로 묶는다 · E-EXPR-APP
 module ex_island .
 
-fn g output u8 . input a u8 . do return a . end
+fn g input a u8 . output u8 . do return a . end
 
 fn f output u8 .
 do

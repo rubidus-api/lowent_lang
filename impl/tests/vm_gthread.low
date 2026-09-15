@@ -21,12 +21,12 @@ end .
 
 rem 각 태스크가 inc, **yield**, inc — yield 에서 스케줄러가 다른 태스크로 넘어간다. 교환법칙이라
 rem   어떤 인터리빙이든 get=4. yield 가 진짜 중단·재개를 하는데도 결과가 안정적임을 오라클이 확인한다.
-proc ta output u64 . input c counter . effects state . do
+proc ta input c counter . output u64 . effects state . do
   var x u64 be send c inc .
   yield .
   return send c inc .
 end .
-proc tb output u64 . input c counter . effects state . do
+proc tb input c counter . output u64 . effects state . do
   var x u64 be send c inc .
   yield .
   return send c inc .

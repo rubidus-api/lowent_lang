@@ -17,7 +17,7 @@ use vecgen from "../../lib/vecgen.low" .
 use ringalloc from "mod/ringalloc.low" .
 
 rem 받는 쪽 — 얼로케이터의 **타입**도 부르는 쪽이 안 적는다(얼로케이터 값에서 온다)
-proc filled output u64 . input comptime a type . using al a . input n u64 . effects state via a . requires allocs.byte_allocator a .
+proc filled input comptime a type . using al a . input n u64 . output u64 . effects state via a . requires allocs.byte_allocator a .
 do
   rem ★ 기본값: 이 op 의 `using` 이름(al)이 안쪽 `vecgen.open` 의 출처가 된다
   let vo option (vecgen.vec u32 a) . be vecgen.open u32 4 .
@@ -31,7 +31,7 @@ do
   return vecgen.count_of u32 a v .
 end .
 
-proc take output u64 . input comptime a type . using al a . input n u64 . effects state via a . requires allocs.byte_allocator a .
+proc take input comptime a type . using al a . input n u64 . output u64 . effects state via a . requires allocs.byte_allocator a .
 do
   let g option mut slice u8 . . be send al reserve n .
   if is_some g . do return n . end .
@@ -39,7 +39,7 @@ do
 end .
 
 rem 한 op 에서 셋을 번갈아 — 종료 코드: 힙 벡터 1000(→10) + 고정 창 70000 은 안 들어간다(0) + 7 + 돌림 used 1040(→10) = 27
-export proc main output u8 . input h cap heap . input al cap allocator . effects heap alloc state .
+export proc main input h cap heap . input al cap allocator . output u8 . effects heap alloc state .
 do
   var hb allocs.heap_bytes be spawn actor allocs.heap_bytes . .
   var fb allocs.fixed_bytes be spawn actor allocs.fixed_bytes . .

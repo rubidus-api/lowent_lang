@@ -149,8 +149,8 @@ end .
 풀을 차리고 **봉한다**. 블록들이 살 바이트와 세대 배열을 걸고 블록 크기를 정한다.
 
 ```lowent
-proc init output option (block_pool b) . input comptime b type . input mem mut slice u8 . .
-  input g mut slice u64 . . input bs u64 . effects none .
+proc init input comptime b type . input mem mut slice u8 . . input g mut slice u64 . .
+  input bs u64 . output option (block_pool b) . effects none .
 ```
 
 - `b` — 이 저장소의 **브랜드**. `newtype pa u8 .` 처럼 선언한 이름을 넘긴다.
@@ -165,7 +165,7 @@ proc init output option (block_pool b) . input comptime b type . input mem mut s
 이 풀이 든 블록 수. 전에 `init` 이 돌려주던 그 수다.
 
 ```lowent
-fn blocks output u64 . input comptime b type . input p block_pool b .
+fn blocks input comptime b type . input p block_pool b . output u64 .
 ```
 
 ### take
@@ -173,7 +173,7 @@ fn blocks output u64 . input comptime b type . input p block_pool b .
 블록 하나를 받는다. 핸들이 그 블록의 "열쇠" 다.
 
 ```lowent
-proc take output option (handle b) . input comptime b type . input p mut block_pool b .
+proc take input comptime b type . input p mut block_pool b . output option (handle b) .
   effects none .
 ```
 
@@ -188,8 +188,8 @@ proc take output option (handle b) . input comptime b type . input p mut block_p
 블록을 되돌려 놓는다. 이 순간부터 옛 핸들은 전부 무효다.
 
 ```lowent
-proc release output bool . input comptime b type . input p mut block_pool b .
-  input h handle b . effects none .
+proc release input comptime b type . input p mut block_pool b . input h handle b .
+  output bool . effects none .
 ```
 
 - 세대를 올린다 — 그 순간 그 블록의 **모든 옛 핸들이 낡는다.** 그 뒤 블록을 자유 목록에
@@ -202,8 +202,8 @@ proc release output bool . input comptime b type . input p mut block_pool b .
 핸들을 실제 바이트로 바꾼다 — **바이트에 닿는 유일한 문**이다.
 
 ```lowent
-proc bytes output option mut slice u8 . . input comptime b type . input p block_pool b .
-  input h handle b . effects none .
+proc bytes input comptime b type . input p block_pool b . input h handle b .
+  output option mut slice u8 . . effects none .
 ```
 
 - 세대가 맞으면 그 블록의 `mut slice u8` 서브슬라이스를, 안 맞으면 `none` —
@@ -215,8 +215,8 @@ proc bytes output option mut slice u8 . . input comptime b type . input p block_
 핸들이 아직 유효한지 묻기만 한다.
 
 ```lowent
-proc alive output bool . input comptime b type . input p block_pool b .
-  input h handle b . effects none .
+proc alive input comptime b type . input p block_pool b . input h handle b .
+  output bool . effects none .
 ```
 
 - 바이트는 안 꺼낸다. 디버깅·단언(assert)에 쓴다.
@@ -226,8 +226,8 @@ proc alive output bool . input comptime b type . input p block_pool b .
 풀의 소비 상태를 관측한다. 둘의 뜻이 다르니 주의한다.
 
 ```lowent
-fn used output u64 . input comptime b type . input p block_pool b .
-proc outstanding output u64 . input comptime b type . input p block_pool b . effects none .
+fn used input comptime b type . input p block_pool b . output u64 .
+proc outstanding input comptime b type . input p block_pool b . output u64 . effects none .
 ```
 
 - `used` — 순차로 **꺼내 본** 블록 수(`freetop`). 자유 목록에 돌아온 것은 반영 안 된다.
@@ -249,7 +249,7 @@ use pool as p .         rem 별칭 관례
 ```lowent
 newtype demo_brand u8 .          rem 이 풀의 브랜드 — 선언 하나가 곧 저장소 하나다
 
-proc demo output u64 . input mem mut slice u8 . . input gens mut slice u64 . .
+proc demo input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
   effects none .
 do
   let po option (pool.block_pool demo_brand) . be pool.init demo_brand mem gens 16 .

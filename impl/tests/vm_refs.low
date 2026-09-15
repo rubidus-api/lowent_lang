@@ -1,16 +1,16 @@
 rem S-impl-4 V1 fixture — runtime references: cross-frame mut_ref write-through
 rem (green path) + shared-ref write (E-VM-READONLY, statics currently miss it).
 fn bump .
-  output u64 .
   input p mut_ref u64 . .
+  output u64 .
 do
   set p expr (deref p) + 1 . .
   return deref p .
 end .
 
 fn bump42 .
-  output u64 .
   input n u64 .
+  output u64 .
 do
   var x u64 be n .
   var r mut_ref u64 . be mut_ref x .
@@ -19,8 +19,8 @@ do
 end .
 
 fn ro_write .
-  output u64 .
   input n u64 .
+  output u64 .
 do
   var x u64 be n .
   var r ref u64 . be ref x .

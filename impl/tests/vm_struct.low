@@ -35,6 +35,6 @@ fn nest output u64 . do var o outerr be mko . return expr (field o q b) + (field
 rem ★ **붙임 점 인덱스** — `s.1` 은 `index s 1` 이다(식별자 뒤의 빈칸 없는 `.` 은 접근이고,
 rem   뒤 마디가 **숫자면 인덱스**다). 전엔 `s.1` 이 `s` · **닫는 점** · `1` 로 렉싱돼서
 rem   `return s.1 .` 이 **슬라이스를 그대로 냈다** — 접근의 네 철자 중 하나만 다르게 굴렀다.
-fn glued_index output u8 . input s slice u8 . do
+fn glued_index input s slice u8 . output u8 . do
   return expr (field s 0) + (field s 1) . .
 end .

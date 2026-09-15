@@ -28,7 +28,7 @@ newtype pc u8 .
 newtype sg u8 .
 
 rem ── vecgen: 같은 길이의 두 벡터가 한 범프 위에서 자라도 **겹치지 않는다** (A1/B1 후보 1) ──
-proc t_vec output u64 . input al cap allocator . effects state alloc . do
+proc t_vec input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 256 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -82,7 +82,7 @@ proc t_vec output u64 . input al cap allocator . effects state alloc . do
 end .
 
 rem ── mapgen: 더러운 바닥(전부 1) 위에서도 빈 맵은 비어 있고, 다시 뿌리기도 끝난다 ──
-proc t_mapgen output u64 . input al cap allocator . effects state alloc . do
+proc t_mapgen input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 4096 .
   guard is_some memo . else return 89 .
   var dirty mut slice u8 . be some_value memo .
@@ -114,7 +114,7 @@ proc t_mapgen output u64 . input al cap allocator . effects state alloc . do
 end .
 
 rem ── vecgen · mapgen: 호출자가 준 개수가 커도 산술이 트랩하지 않는다 — none/false 다 ──
-proc t_vecsize output u64 . input al cap allocator . effects state alloc . do
+proc t_vecsize input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 64 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -144,7 +144,7 @@ proc t_vecsize output u64 . input al cap allocator . effects state alloc . do
 end .
 
 rem ── lifeatom: 이미 0 인 칸을 놓으면 "거둬라"(0)가 아니다 ──
-proc t_rc output u64 . input al cap allocator . input k cap atomic . effects alloc atomic . do
+proc t_rc input al cap allocator . input k cap atomic . output u64 . effects alloc atomic . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some mb . else return 89 .
   var c mut slice u64 . be view_array u64 (some_value mb) .
@@ -158,7 +158,7 @@ proc t_rc output u64 . input al cap allocator . input k cap atomic . effects all
 end .
 
 rem cap 은 CLI 로 못 넘긴다 — 엔트리가 받아서 넘긴다. 42 면 셋 다 맞았다.
-proc main output u8 . input al cap allocator . input k cap atomic . effects state alloc atomic . do
+proc main input al cap allocator . input k cap atomic . output u8 . effects state alloc atomic . do
   let a u64 be t_vec al .
   guard eq a 9 . else return narrow u8 a .
   let b u64 be t_mapgen al .

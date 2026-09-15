@@ -3,8 +3,8 @@ rem types); arith/compare lift lanewise (compare → mask); dot product & clamp.
 type bytes slice u8 . .
 
 fn dot4 .
-  output u64 .
   input b bytes .
+  output u64 .
 do
   var xs slice u32 . be view_array u32 b .
   var va vec u32 4 . be load xs 0 .
@@ -13,8 +13,8 @@ do
 end .
 
 fn clamp_sum .
-  output u64 .
   input b bytes .
+  output u64 .
 do
   var xs slice u32 . be view_array u32 b .
   var v vec u32 4 . be load xs 0 .
@@ -25,8 +25,8 @@ do
 end .
 
 fn over .
-  output bool .
   input b bytes .
+  output bool .
 do
   var xs slice u32 . be view_array u32 b .
   var v vec u32 4 . be load xs 0 .
@@ -35,8 +35,8 @@ do
 end .
 
 fn vmax .
-  output u64 .
   input b bytes .
+  output u64 .
 do
   var xs slice u32 . be view_array u32 b .
   var v vec u32 4 . be load xs 0 .

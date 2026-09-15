@@ -18,7 +18,7 @@ rem   그때 언어에 비교자 전달(고차 op 인자)이 얼마나 매끄러
 module sortlib .
 
 rem 내부 재귀 — [lo, hi) 반열린 구간을 오름차순 정렬. Lomuto 분할, 마지막 원소가 피벗.
-proc qsort output void . input s mut slice u64 . input lo0 u64 . input hi0 u64 . effects none . do
+proc qsort input s mut slice u64 . input lo0 u64 . input hi0 u64 . output void . effects none . do
   rem ★ 방어: 잘못된 구간이면 아무것도 안 한다. u64 는 늘 [0, len) 을 주지만, 이 op 을
   rem   직접 부르는 쪽(차등 퍼저 포함)이 뒤집힌·범위 밖 lo/hi 를 줘도 **경계 밖을 안 만진다**.
   rem   (그래야 VM 과 네이티브가 같은 답 — 무동작 — 을 내고 diff-sweep 이 지켜진다.)
@@ -64,7 +64,7 @@ proc qsort output void . input s mut slice u64 . input lo0 u64 . input hi0 u64 .
 end .
 
 rem ★ 공개 진입 — `mut slice u64` 를 **제자리** 오름차순 정렬한다.
-export proc sort output void . input s mut slice u64 . . effects none . do
+export proc sort input s mut slice u64 . . output void . effects none . do
   qsort s 0 (len s) .
   return .
 end .

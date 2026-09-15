@@ -10,8 +10,8 @@ struct wire_header do
 end .
 
 fn hdr_kind .
-  output u64 .
   input b bytes .
+  output u64 .
 do
   var o wire_header . be try_view wire_header b . .
   guard is_some o . else return 999 . .
@@ -20,16 +20,16 @@ do
 end .
 
 fn hdr_summary .
-  output u64 .
   input b bytes .
+  output u64 .
 do
   var h wire_header . be view wire_header b . .
   return expr (field h length) * 1000 + ((field h kind)) . .
 end .
 
 fn hdr_magic .
-  output u64 .
   input b bytes .
+  output u64 .
 do
   var h wire_header . be view wire_header b . .
   return field h magic .

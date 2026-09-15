@@ -21,7 +21,7 @@ rem   ★ 그리고 이번엔 검사기가 아니라 **arity 정규화**가 물�
 use aes from "aes.low" .
 
 rem 16 바이트를 XOR 로 겹친다.
-proc xor16 output u64 . input z mut slice u8 . input x slice u8 . effects none . do
+proc xor16 input z mut slice u8 . input x slice u8 . output u64 . effects none . do
   var i u64 be 0 .
   while lt i 16 . do
     set (index z i) (cast u8 (bit_xor (cast u64 (index z i)) (cast u64 (index x i)))) .
@@ -31,7 +31,7 @@ proc xor16 output u64 . input z mut slice u8 . input x slice u8 . effects none .
 end .
 
 rem ★★ z = z · h  in GF(2^128).  `v` 는 16 바이트 작업 공간.
-export proc gmul128 output u64 . input z mut slice u8 . input h slice u8 . input v mut slice u8 . effects none . do
+export proc gmul128 input z mut slice u8 . input h slice u8 . input v mut slice u8 . output u64 . effects none . do
   guard ge (len z) 16 . else return 0 .
   guard ge (len h) 16 . else return 0 .
   guard ge (len v) 16 . else return 0 .
@@ -72,7 +72,7 @@ export proc gmul128 output u64 . input z mut slice u8 . input h slice u8 . input
 end .
 
 rem ★ 한 조각을 16 바이트 블록으로 잘라 GHASH 에 먹인다. 꼬리는 0 으로 채운다.
-proc ghash_feed output u64 . input z mut slice u8 . input h slice u8 . input data slice u8 . input v mut slice u8 . input blk mut slice u8 . effects none . do
+proc ghash_feed input z mut slice u8 . input h slice u8 . input data slice u8 . input v mut slice u8 . input blk mut slice u8 . output u64 . effects none . do
   var off u64 be 0 .
   while lt off (len data) . do
     var i u64 be 0 .
@@ -93,7 +93,7 @@ end .
 
 rem ★ 길이 블록: [len(A)]64 ‖ [len(C)]64, **비트 수**로, 빅엔디언.
 rem   ☞ 바이트가 아니라 **비트**다. 여기서 8 을 빠뜨리는 것이 이 알고리즘의 고전적 오답이다.
-proc ghash_lens output u64 . input z mut slice u8 . input h slice u8 . input alen u64 . input clen u64 . input v mut slice u8 . input blk mut slice u8 . effects none . do
+proc ghash_lens input z mut slice u8 . input h slice u8 . input alen u64 . input clen u64 . input v mut slice u8 . input blk mut slice u8 . output u64 . effects none . do
   let abits u64 be mul alen 8 .
   let cbits u64 be mul clen 8 .
   var i u64 be 0 .
@@ -107,7 +107,7 @@ proc ghash_lens output u64 . input z mut slice u8 . input h slice u8 . input ale
 end .
 
 rem ★ GCTR 한 블록: 카운터 블록을 암호화해 평문과 XOR 한다.
-proc gctr_block output u64 . input rk slice u8 . input ctr mut slice u8 . input ks mut slice u8 . input tmp mut slice u8 . effects none . do
+proc gctr_block input rk slice u8 . input ctr mut slice u8 . input ks mut slice u8 . input tmp mut slice u8 . output u64 . effects none . do
   var i u64 be 0 .
   while lt i 16 . do  set (index ks i) (index ctr i) .  set i (add i 1) .  end .
   guard eq (aes.encrypt_block rk ks tmp) 16 . else return 0 .
@@ -140,7 +140,7 @@ rem   ☞ 부수 효과: `ct` 와 `msg` 가 같은 버퍼여도(제자리 복호
 rem     손대지 않은 암호문을 본다.
 
 rem ★ 한 판의 준비: rk(0..176) · H(176..192) · J0(256..272) · ctr(240..256) = J0+1.
-proc gcm_prep output u64 . input key slice u8 . input nonce slice u8 . input w mut slice u8 . effects none . do
+proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard eq (len nonce) 12 . else return 0 .
   guard ge (len w) 320 . else return 0 .
   rem w 의 자리: 0..176 rk · 176..192 h · 192..208 z · 208..224 v · 224..240 blk
@@ -167,7 +167,7 @@ proc gcm_prep output u64 . input key slice u8 . input nonce slice u8 . input w m
 end .
 
 rem ★ 흐름: dst = src XOR 키스트림(카운터 J0+1 부터). 암호화도 복호도 이것이다.
-proc gcm_stream output u64 . input src slice u8 . input dst mut slice u8 . input w mut slice u8 . effects none . do
+proc gcm_stream input src slice u8 . input dst mut slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard ge (len dst) (len src) . else return 0 .
   var off u64 be 0 .
   while lt off (len src) . do
@@ -186,7 +186,7 @@ end .
 
 rem ★ 태그: T = GHASH(H, A ‖ pad ‖ C ‖ pad ‖ [len(A)]64 ‖ [len(C)]64) XOR AES_K(J0).
 rem   `ct` 는 **암호문**이다 — 암호화면 방금 쓴 것, 복호면 받은 것. 평문을 넣으면 틀린다.
-proc gcm_tag output u64 . input aad slice u8 . input ct slice u8 . input tag mut slice u8 . input w mut slice u8 . effects none . do
+proc gcm_tag input aad slice u8 . input ct slice u8 . input tag mut slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard ge (len tag) 16 . else return 0 .
   var q u64 be 0 .
   while lt q 16 . do  set (index w (add 192 q)) 0 .  set q (add q 1) .  end .
@@ -207,8 +207,8 @@ proc gcm_tag output u64 . input aad slice u8 . input ct slice u8 . input tag mut
 end .
 
 rem ★ 암호화 — 흐름을 먼저 돌리고, **만든 암호문**에 태그를 매긴다.
-export proc encrypt output u64 . input key slice u8 . input nonce slice u8 . input aad slice u8 .
-     input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input w mut slice u8 . effects none . do
+export proc encrypt input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
+     input ct mut slice u8 . input tag mut slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard ge (len ct) (len msg) . else return 0 .
   guard ge (len tag) 16 . else return 0 .
   guard eq (gcm_prep key nonce w) 16 . else return 0 .
@@ -222,8 +222,8 @@ rem   ☞ `tag` 는 **정확히 16** 이어야 한다 — 짧으면 비교가 �
 rem     보고 나머지를 말없이 지나친다. 둘 다 *"조용히 다르게"* 다. `hash.digest_ok` 와 같은
 rem     정확 길이 규칙이다(2026-09-04 검토 RU: 복사본들이 갈라져 있었다).
 rem   ☞ 비교는 XOR 누적이다 — 조기 반환이 없다.
-export proc decrypt output u64 . input key slice u8 . input nonce slice u8 . input aad slice u8 .
-     input ct slice u8 . input tag slice u8 . input msg mut slice u8 . input want mut slice u8 . input w mut slice u8 . effects none . do
+export proc decrypt input key slice u8 . input nonce slice u8 . input aad slice u8 . input ct slice u8 .
+     input tag slice u8 . input msg mut slice u8 . input want mut slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard eq (len tag) 16 . else return 0 .
   guard ge (len want) 16 . else return 0 .
   guard ge (len msg) (len ct) . else return 0 .

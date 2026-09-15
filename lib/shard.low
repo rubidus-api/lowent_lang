@@ -44,7 +44,7 @@ end .
 
 rem 저장소 하나에 대한 **root 토큰**을 연다. `n` = 슬롯 수.
 rem ★ 여는 자리는 하나여야 한다 — 브랜드가 그것을 지킨다(`E-BRAND-REUSED`, §8-2).
-export fn open output owned token b . input comptime b type . input n u64 . do
+export fn open input comptime b type . input n u64 . output owned token b . do
   return make token b do id 0 . lo 0 . hi n . end .
 end .
 
@@ -53,7 +53,7 @@ rem   `input t owned token b` 이므로 부른 쪽의 root 는 **여기서 손�
 rem   쓰면 `E-OWN-MOVED` 다. 서로소는 `at` 이 만든다(`[lo,at)` 와 `[at,hi)`).
 rem   ☞ `at` 이 범위 밖이면 **빈 조각**이 나온다 — 트랩이 아니다. 빈 조각은 아무것도 못 만지므로
 rem     안전하고, 그 사실은 `covers` 가 답한다.
-export fn split_at output halves b . input comptime b type . input t owned token b . input at u64 . do
+export fn split_at input comptime b type . input t owned token b . input at u64 . output halves b . do
   var cut u64 be at .
   if lt cut (field t lo) . do set cut (field t lo) . end .
   if gt cut (field t hi) . do set cut (field t hi) . end .
@@ -73,8 +73,8 @@ rem   "거절된 입력은 트랩한다" 를 확인하지 못하고 **아홉 번
 rem   분명하다: *아무도 검증 못 하는 계약은 검사가 아니라 문장이다.* ⇒ **값으로 답한다.**
 rem   순서·인접이 어긋나면 `none` 이고, 그것은 부르는 쪽이 **반드시 받는** 답이다.
 rem   ☞ 오라클이 그 모양을 배우면 그때 계약으로 승격한다(`docs/known-defects/` 에 적어 뒀다).
-export fn rejoin output option (token b) . input comptime b type . input a owned token b .
-  input c owned token b .
+export fn rejoin input comptime b type . input a owned token b . input c owned token b .
+  output option (token b) .
 do
   guard lt (field a id) (field c id) . else return none .
   guard eq (field a hi) (field c lo) . else return none .
@@ -84,7 +84,7 @@ do
 end .
 
 rem 이 토큰이 그 자리를 덮는가 — **접근 전에 묻는 유일한 질문**이다.
-export fn covers output bool . input comptime b type . input t token b . input i u64 . do
+export fn covers input comptime b type . input t token b . input i u64 . output bool . do
   if lt i (field t lo) . do return false . end .
   return lt i (field t hi) .
 end .
@@ -93,7 +93,7 @@ rem 토큰이 덮는 자리 수.
 rem ★ **계약이 뺄셈을 지킨다**(오라클이 잡았다, 2026-08-28): 토큰의 불변식은 `lo ≤ hi` 인데
 rem   그것을 적지 않으면 이 op 은 *받아들일 수 없는 입력을 받아들인다고 선언한 것*이 된다 —
 rem   그때 `sub` 이 아래로 넘친다. 계약은 그 자리를 **말로가 아니라 검사로** 닫는다.
-export fn width output u64 . input comptime b type . input t token b .
+export fn width input comptime b type . input t token b . output u64 .
 requires le (field t lo) (field t hi) .
 do
   return sub (field t hi) (field t lo) .
@@ -103,8 +103,8 @@ rem ★★★ **shard-local 쓰기 — 뜨거운 경로다.** 여기에 공통 l
 rem   토큰이 이미 *"이 범위는 내 것"* 을 말했으므로 더 물을 것이 없다. 남는 것은
 rem   **범위 검사 하나**이고, 그것은 서로소를 지키는 값이지 동기화가 아니다.
 rem   ☞ 골든이 방출된 C 를 읽어 이 경로에 원자 연산이 없다는 것을 잰다(§8-6 종료 조건 셋째).
-export proc write output bool . input comptime b type . input t token b .
-  input mem mut slice u64 . . input i u64 . input v u64 . effects none .
+export proc write input comptime b type . input t token b . input mem mut slice u64 . .
+  input i u64 . input v u64 . output bool . effects none .
 do
   guard covers b t i . else return false .
   guard lt i (len mem) . else return false .
@@ -113,8 +113,8 @@ do
 end .
 
 rem 같은 규율의 읽기.
-export proc read output option u64 . input comptime b type . input t token b . input mem slice u64 . .
-  input i u64 . effects none .
+export proc read input comptime b type . input t token b . input mem slice u64 . . input i u64 .
+  output option u64 . effects none .
 do
   guard covers b t i . else return none .
   guard lt i (len mem) . else return none .

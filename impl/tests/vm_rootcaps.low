@@ -6,7 +6,7 @@ rem   ★ 둘 다 **이름으로** 가린다: 같은 종류 권한의 «첫째»
 
 module vm_rootcaps .
 
-export proc main output u8 . input al cap allocator . input h cap heap . effects alloc heap .
+export proc main input al cap allocator . input h cap heap . output u8 . effects alloc heap .
 do
   var r u64 be 0 .
   let g option mut slice u8 . . be alloc_bytes al capacity 70000 .

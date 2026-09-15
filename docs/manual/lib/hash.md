@@ -24,11 +24,11 @@
 ```lowent
 use hash .
 
-fn slot output u64 . input key slice u8 . input nslots u64 . do
+fn slot input key slice u8 . input nslots u64 . output u64 . do
   return hash.bucket_of key nslots .      rem 해시맵의 칸 고르기
 end
 
-fn intact output bool . input data slice u8 . input want u64 . do
+fn intact input data slice u8 . input want u64 . output bool . do
   return hash.crc_ok data want .          rem 저장/전송 중 손상됐나
 end
 ```

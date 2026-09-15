@@ -81,7 +81,7 @@ do
   return n .
 end .
 
-proc carve output u64 . input t region scratch . . effects alloc .
+proc carve input t region scratch . . output u64 . effects alloc .
 do
   let g option mut slice u8 . . be alloc_bytes t capacity 8 .
   if is_some g . do return len (some_value g) . end .

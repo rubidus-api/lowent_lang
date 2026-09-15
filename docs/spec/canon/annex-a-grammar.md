@@ -51,14 +51,14 @@ enum <이름> do
   <갈래이름> .
 end .
 
-export fn <이름> output <타입> . input <이름> <타입> .
+export fn <이름> input <이름> <타입> . output <타입> .
   requires <조건> .
   ensures <조건> .
 do
   <문장들>
 end .
 
-proc <이름> output <타입> . input <이름> <타입> . effects <효과들> .
+proc <이름> input <이름> <타입> . output <타입> . effects <효과들> .
 do
   <문장들>
 end .
@@ -234,8 +234,8 @@ extern              [export] extern <abi> fn/proc … end                end
 match               match <폼> do <가지>* [else do <폼>* end] end       end
 ```
 
-(2a) `fn`/`proc` 머리의 `<절>*` 은 ⟦§6.4.1⟧ (3a) 의 한 차례를 따른다: `output` · `satisfies`·`lowdoc` · `vector`·`priority` ·
-      comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 · `link`·`variadic` · `effects` · `asm` ·
+(2a) `fn`/`proc` 머리의 `<절>*` 은 ⟦§6.4.1⟧ (3a) 의 한 차례를 따른다: `satisfies`·`lowdoc` · `vector`·`priority` ·
+      comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm` ·
       `access`·`parallel`·`reduce` · `requires` · `ensures` · `errors` · `tests` · `schedule` (`E-CLAUSE-ORDER`).
 
 (2b) **블록 선언**(`struct`·`enum`·`trait`·`actor`·`state`·`contract`)의 몸은 `do` 로 열고 `end` 로 닫는다 — `fn` 의 몸과 제어

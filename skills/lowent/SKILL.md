@@ -97,8 +97,8 @@ module sorted_search .
 rem  line comment. block comment is:  note END ... END
 
 fn sorted                         rem  fn = pure (never write `effects`). proc = effectful.
-  output bool .
   input xs slice u8 . .
+  output bool .
   requires ge (len xs) 1 .        rem  contract flows into the caller
 do
   var i u64 be 1 .
@@ -118,11 +118,12 @@ Shape rules you will hit immediately:
 - **`.` is the terminator** — it ends declarations, clauses, statements, and each enum
   variant. A newline is just whitespace: it never closes anything. Glued, `.` also qualifies
   a name (`vecgen.open`, `err.too_short`); there is no `p.x` field access — write `field p x`.
-- **Clauses have one order**: `output` comes FIRST, then capability/region inputs before data
-  inputs, then `effects`, `requires`, `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`; `--fmt`
-  moves the non-input clauses). `fn f output u8 . input a u8 . do … end`.
+- **Clauses have one order**: `satisfies` right after the name, then `comptime` inputs,
+  capability/region inputs, data inputs, then `output`, `effects`, `link`, then `requires`,
+  `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`; `--fmt` moves the non-input clauses).
+  `proc save input fs cap file_system . input name slice u8 . output u64 . effects io . do … end`.
 - **Every body is `do … end`**: op bodies, control blocks AND block declarations —
-  `struct p do x u8 . end .`, `enum e do a . end .`, `trait t do area output u64 . input s self . end .`,
+  `struct p do x u8 . end .`, `enum e do a . end .`, `trait t do area input s self . output u64 . end .`,
   `actor c do state do v u64 . end . … end .` (`struct p .` / a bare line break → `E-STMT-NODO`).
   A trait signature has no `fn`/`proc`; its `effects` line says what the op may do.
 - **Capabilities are named at the use site**: a host leaf takes its capability as the first

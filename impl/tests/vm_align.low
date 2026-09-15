@@ -16,9 +16,9 @@ end .
 
 rem a view of a slice that starts mid-buffer breaks the contract → none / panic.
 fn tv_at .
-  output u64 .
   input off u64 .
   input b bytes .
+  output u64 .
 do
   var o reg . be try_view reg (subslice b off (len b)) . .
   guard is_some o . else return 0 . .

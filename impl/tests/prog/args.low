@@ -19,11 +19,11 @@ module args .
 use strings from "../../../lib/str.low" .
 
 rem 플래그인가 — `--` 로 시작하면 플래그. lib/str.low 의 접두 검사를 그대로 쓴다.
-fn is_flag output bool . input s slice u8 . do
+fn is_flag input s slice u8 . output bool . do
   return strings.starts_with s "--" .
 end .
 
-proc main output u8 . input a cap args . effects none . do
+proc main input a cap args . output u8 . effects none . do
   let n u64 be count a .
   var flags u64 be 0 .
   var plain u64 be 0 .

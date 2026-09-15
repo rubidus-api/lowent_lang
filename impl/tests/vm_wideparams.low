@@ -11,18 +11,18 @@ rem      «없는 것» 이 아니라 «아직 안 밟은 것» 이다.)
 
 module vm_wideparams .
 
-export proc wide10 output u64 . input a u64 . input b u64 . input c u64 . input d u64 .
-  input e u64 . input f u64 . input g u64 . input h u64 . input i u64 .
-  input j u64 . effects none .
+export proc wide10 input a u64 . input b u64 . input c u64 . input d u64 . input e u64 .
+  input f u64 . input g u64 . input h u64 . input i u64 . input j u64 .
+  output u64 . effects none .
 do
   let s1 u64 be add (add a b) (add c d) .
   let s2 u64 be add (add e f) (add g h) .
   return add (add s1 s2) (add i j) .
 end .
 
-export proc par9 output u64 . input s mut slice u8 . . input p1 u64 . input p2 u64 .
-  input p3 u64 . input p4 u64 . input p5 u64 . input p6 u64 . input p7 u64 .
-  input p8 u64 . effects none . parallel s split .
+export proc par9 input s mut slice u8 . . input p1 u64 . input p2 u64 . input p3 u64 .
+  input p4 u64 . input p5 u64 . input p6 u64 . input p7 u64 . input p8 u64 .
+  output u64 . effects none . parallel s split .
 do
   let k u64 be add (add (add p1 p2) (add p3 p4)) (add (add p5 p6) (add p7 p8)) .
   var i u64 be 0 .

@@ -29,7 +29,7 @@ module hashmap .
 
 rem 내부 — 키의 시작 슬롯. 곱셈 해시(0x9E3779B97F4A7C15, 황금비)로 섞고 N 으로 나눈 나머지.
 rem   wrap_mul 은 넘침을 감는다(해시라 정보 손실이 목적이 아니라 섞기다).
-fn hm_slot output u64 . input k u64 . input n u64 . do
+fn hm_slot input k u64 . input n u64 . output u64 . do
   guard gt n 0 . else return 0 .
   return mod (wrap_mul k 11400714819323198485) n .
 end .
@@ -37,7 +37,7 @@ end .
 rem ★ 넣거나 갱신한다. true=성공 · false=꽉 참(또는 키가 예약 상단 둘 중 하나).
 rem   ★ **묘비 재사용**: 프로브 중 처음 만난 묘비를 기억해 두고, 키가 이 뒤에 없음이 확인되면
 rem     (빈칸에 닿거나 한 바퀴) 거기에 넣는다 — 삭제로 생긴 구멍이 도로 메워져 클러스터가 안 자란다.
-export proc put output bool . input b mut slice u64 . . input k u64 . input v u64 . effects none . do
+export proc put input b mut slice u64 . . input k u64 . input v u64 . output bool . effects none . do
   rem k+1 이 묘비값(MAX_U64)과 겹치면 안 된다 ⇒ k < MAX−1. MAX 도 자동 배제(k+1=0=빈칸).
   guard lt k 18446744073709551614 . else return false .
   let n u64 be div (len b) 2 .
@@ -85,7 +85,7 @@ end .
 
 rem ★★★ **삭제** — 키를 지운다. true=지웠다 · false=없던 키(또는 예약 상단). 슬롯을 **묘비**로 덮어
 rem   프로브 체인을 보존한다(빈칸으로 되돌리면 그 뒤 키를 못 찾는다). 값 슬롯은 0 으로 지운다.
-export proc del output bool . input b mut slice u64 . . input k u64 . effects none . do
+export proc del input b mut slice u64 . . input k u64 . output bool . effects none . do
   guard lt k 18446744073709551614 . else return false .
   let n u64 be div (len b) 2 .
   guard gt n 0 . else return false .
@@ -110,12 +110,12 @@ rem ── ★★★ **순회**(iteration) — 맵을 열거한다(strmap 과 �
 rem   occupancy 는 **b[2j] 가 0(빈칸)도 MAX(묘비)도 아닐 때**. 순회 = method 0 capacity 를 훑으며 occupied 처리.
 rem   ★ 접근자는 slot 이 범위 밖이면 0/false(트랩 아님). key 는 key_at(디코드된 값).
 
-export fn size output u64 . input b slice u64 . do
+export fn size input b slice u64 . output u64 . do
   return div (len b) 2 .
 end .
 
 rem 슬롯이 살아 있나(빈칸도 묘비도 아니다). 순회의 occupancy 판별.
-export fn occupied_at output bool . input b slice u64 . input slot u64 . do
+export fn occupied_at input b slice u64 . input slot u64 . output bool . do
   guard lt slot (size b) . else return false .
   let stored u64 be index b (mul slot 2) .
   if eq stored 0 . do return false . end                     rem 빈칸 . .
@@ -126,7 +126,7 @@ end .
 rem 슬롯의 **디코드된 키**(저장값 − 1). occupied 일 때만 뜻이 있다.
 rem ★ 빈칸(저장값 0)은 **0** 이다 — `sub 0 1` 을 하지 않는다(2026-09-04 보안 검토): 위의 약속대로
 rem   접근자는 트랩하지 않고, 범위 밖과 같은 값(0)으로 답한다. 뜻은 `occupied_at` 이 정한다.
-export fn key_at output u64 . input b slice u64 . input slot u64 . do
+export fn key_at input b slice u64 . input slot u64 . output u64 . do
   guard lt slot (size b) . else return 0 .
   let stored u64 be index b (mul slot 2) .
   guard gt stored 0 . else return 0 .
@@ -134,7 +134,7 @@ export fn key_at output u64 . input b slice u64 . input slot u64 . do
 end .
 
 rem 슬롯의 value. occupied 일 때만 뜻이 있다.
-export fn val_at output u64 . input b slice u64 . input slot u64 . do
+export fn val_at input b slice u64 . input slot u64 . output u64 . do
   guard lt slot (size b) . else return 0 .
   return index b (add (mul slot 2) 1) .
 end .
@@ -144,7 +144,7 @@ rem   하므로(백킹은 호출자 소유, RFC-0043 D1) 호출자가 **큰 백�
 rem   **살아있는 항목만** new 에 넣는다. new 는 처음에 0(빈 맵)이어야 한다. true=전부 옮겼다 ·
 rem   false=new 가 작아 도중에 안 들어감. ★ occupied_at 이 묘비를 거르므로 **rehash 는 압축도 한다**
 rem   (묘비가 사라진다). old 는 안 바꾸므로 비소유 slice.
-export proc rehash output bool . input nb mut slice u64 . . input ob slice u64 . effects none . do
+export proc rehash input nb mut slice u64 . . input ob slice u64 . output bool . effects none . do
   var slot u64 be 0 .
   while lt slot (size ob) . do
     if occupied_at ob slot . do
@@ -159,7 +159,7 @@ end .
 
 rem ★ 키를 찾는다 → 값 또는 none. 백킹을 안 바꾸므로 비소유 slice 로 충분하다. 묘비는 건너뛴다
 rem   (묘비값 ≠ k+1 이고 ≠ 0 이라 자연히 통과 — 빈칸에 닿아야 "없음" 이다).
-export proc lookup output option u64 . input b slice u64 . input k u64 . effects none . do
+export proc lookup input b slice u64 . input k u64 . output option u64 . effects none . do
   guard lt k 18446744073709551614 . else return none .
   let n u64 be div (len b) 2 .
   guard gt n 0 . else return none .

@@ -26,7 +26,7 @@ rem 조각 수는 16(=256비트).
 export fn limbs output u64 . do  return 16 . end .
 
 rem ★ 모듈러 뺄셈: o ← (a − b) mod m. 빌림이 나면 m 을 더해 되돌린다.
-export proc msub output u64 . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . effects none . do
+export proc msub input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . do
   var borrow u64 be 0 .
   var i u64 be 0 .
   while lt i 16 . do
@@ -49,7 +49,7 @@ export proc msub output u64 . input o mut slice u64 . input a slice u64 . input 
 end .
 
 rem ★ 모듈러 덧셈: o ← (a + b) mod m.
-export proc madd output u64 . input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . effects none . do
+export proc madd input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . do
   var carry u64 be 0 .
   var i u64 be 0 .
   while lt i 16 . do
@@ -86,7 +86,7 @@ end .
 rem ★★ 모듈러 역원 — 페르마(a^(m−2)). m 이 소수일 때만 옳다: p 도 n 도 소수다.
 rem   ☞ 확장 유클리드가 더 빠르지만 **입력에 따라 도는 횟수가 달라진다**. 여기는 고정이다.
 rem   `w` 는 조각 작업 공간(≥ 6·18).
-export proc minv output u64 . input o mut slice u64 . input a slice u64 . input m slice u64 . input w mut slice u64 . effects none . do
+export proc minv input o mut slice u64 . input a slice u64 . input m slice u64 . input w mut slice u64 . output u64 . effects none . do
   guard ge (len w) 108 . else return 0 .
   rem exp = m − 2 를 만든다.
   let z0 u64 be bigint.zero (subslice w 0 18) 16 .
@@ -135,14 +135,14 @@ rem   mont(mont(a,b), R²) 두 번이면 된다. 곱 두 번이 곱 하나보다
 rem   짓지 않는다** — 이 축에서는 그 편이 값싸다(검증은 한 번에 한 번뿐이다).
 
 rem o ← a·b mod p (일반 형태). `t`·`u` 는 18 조각 작업 공간, r2 는 R² mod p.
-export proc pmul output u64 . input o mut slice u64 . input a slice u64 . input b slice u64 .
-     input p slice u64 . input r2 slice u64 . input n0i u64 . input t mut slice u64 . input u mut slice u64 . effects none . do
+export proc pmul input o mut slice u64 . input a slice u64 . input b slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input t mut slice u64 . input u mut slice u64 . output u64 . effects none . do
   guard eq (bigint.mont_mul u a b p 16 n0i t) 1 . else return 0 .
   return bigint.mont_mul o u r2 p 16 n0i t .
 end .
 
 rem ★ R² mod p 를 한 번 만들어 둔다(1 을 512 번 배로 늘린다).
-export proc make_r2 output u64 . input r2 mut slice u64 . input p slice u64 . effects none . do
+export proc make_r2 input r2 mut slice u64 . input p slice u64 . output u64 . effects none . do
   let z u64 be bigint.zero r2 16 .
   set (index r2 0) 1 .
   var d u64 be 0 .
@@ -155,8 +155,8 @@ end .
 
 rem ★★ 점 두 배 `pdbl` (야코비, a = −3 인 곡선의 표준 식).
 rem   `w` 는 조각 작업 공간(≥ 8·18 = 144).
-export proc pdbl output u64 . input o mut slice u64 . input pt slice u64 .
-     input p slice u64 . input r2 slice u64 . input n0i u64 . input w mut slice u64 . effects none . do
+export proc pdbl input o mut slice u64 . input pt slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
   guard ge (len w) 180 . else return 0 .
   let X slice u64 be subslice pt 0 16 .
   let Y slice u64 be subslice pt 16 32 .
@@ -196,7 +196,7 @@ export proc pdbl output u64 . input o mut slice u64 . input pt slice u64 .
 end .
 
 rem 16 조각이 전부 0 인가 — 무한원점 판정과 H=0 판정에 쓴다.
-export fn is_zero output u64 . input a slice u64 . do
+export fn is_zero input a slice u64 . output u64 . do
   var i u64 be 0 .
   var acc u64 be 0 .
   while lt i 16 . do  set acc (bit_or acc (index a i)) .  set i (add i 1) .  end .
@@ -204,7 +204,7 @@ export fn is_zero output u64 . input a slice u64 . do
   return 0 .
 end .
 
-proc copy48 output u64 . input o mut slice u64 . input a slice u64 . effects none . do
+proc copy48 input o mut slice u64 . input a slice u64 . output u64 . effects none . do
   var i u64 be 0 .
   while lt i 48 . do  set (index o i) (index a i) .  set i (add i 1) .  end .
   return 1 .
@@ -213,8 +213,8 @@ end .
 rem ★★ 점 덧셈 `padd` (야코비 + 야코비, EFD add-2007-bl).
 rem   `w` 는 조각 작업 공간(≥ 300). 무한원점과 **같은 점**(H=0)을 따로 다룬다 —
 rem   ☞ 그 갈래를 빠뜨리면 *"거의 언제나 맞는"* 구현이 된다. 거의는 여기서 실패다.
-export proc padd output u64 . input o mut slice u64 . input pa slice u64 . input pb slice u64 .
-     input p slice u64 . input r2 slice u64 . input n0i u64 . input w mut slice u64 . effects none . do
+export proc padd input o mut slice u64 . input pa slice u64 . input pb slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
   guard ge (len w) 300 . else return 0 .
   if eq (is_zero (subslice pa 32 48)) 1 . do  return copy48 o pb .  end .
   if eq (is_zero (subslice pb 32 48)) 1 . do  return copy48 o pa .  end .
@@ -279,8 +279,8 @@ end .
 
 rem ★★ 스칼라 곱 acc ← k·P (이진 두 배-더하기, 위에서부터).
 rem   `w` 는 조각 작업 공간(≥ 396): 0..48 tmp · 48..96 tmp2 · 96..396 add/dbl 공용.
-export proc smul output u64 . input acc mut slice u64 . input k slice u64 . input pt slice u64 .
-     input p slice u64 . input r2 slice u64 . input n0i u64 . input w mut slice u64 . effects none . do
+export proc smul input acc mut slice u64 . input k slice u64 . input pt slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
   guard ge (len w) 396 . else return 0 .
   var zi u64 be 0 .
   while lt zi 48 . do  set (index acc zi) 0 .  set zi (add zi 1) .  end .
@@ -313,7 +313,7 @@ rem   의존하는 분기와 메모리 접근*이다. 몽고메리 곱의 마지
 rem   전력/전자기는 **여전히 약속하지 않는다.** 약속의 크기를 적는 것이 약속의 절반이다.
 
 rem 마스크로 고른다: `bit` 가 1 이면 b, 0 이면 a. **분기가 없다.**
-proc csel48 output u64 . input o mut slice u64 . input a slice u64 . input b slice u64 . input bit u64 . effects none . do
+proc csel48 input o mut slice u64 . input a slice u64 . input b slice u64 . input bit u64 . output u64 . effects none . do
   rem bit ∈ {0,1} → m ∈ {0, 0xFFFF}. 조각이 16 비트이므로 그 폭의 마스크면 족하다.
   rem ★ `sub 0 bit` 로 쓰면 **무부호 언더플로**다(E-VM-OVERFLOW 가 잡았다). 곱이 맞다 —
   rem   그리고 곱은 분기가 아니므로 상수시간 약속을 안 깬다.
@@ -327,8 +327,8 @@ proc csel48 output u64 . input o mut slice u64 . input a slice u64 . input b sli
 end .
 
 rem ★★★ 상수시간 스칼라 곱 — 걸음마다 **두 배와 덧셈을 둘 다** 하고 마스크로 고른다.
-export proc smul_ct output u64 . input acc mut slice u64 . input k slice u64 . input pt slice u64 .
-     input p slice u64 . input r2 slice u64 . input n0i u64 . input w mut slice u64 . effects none . do
+export proc smul_ct input acc mut slice u64 . input k slice u64 . input pt slice u64 . input p slice u64 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
   guard ge (len w) 396 . else return 0 .
   var zi u64 be 0 .
   while lt zi 48 . do  set (index acc zi) 0 .  set zi (add zi 1) .  end .
@@ -353,9 +353,9 @@ rem ★★ **검사가 먼저다.** r 과 s 가 [1, n−1] 안에 있는지, Q �
 rem   ☞ 이것을 안 보면 s=0 같은 값이 통과할 수 있다 — 서명 검증에서 가장 흔한 구멍이다.
 rem
 rem   pub 은 아핀 (x‖y) 조각 32 개. `w` 는 조각 작업 공간(≥ 1400).
-export proc ecdsa_verify output u64 . input r slice u64 . input s slice u64 . input e slice u64 .
-     input pub slice u64 . input p slice u64 . input n slice u64 . input gx slice u64 .
-     input gy slice u64 . input w mut slice u64 . effects none . do
+export proc ecdsa_verify input r slice u64 . input s slice u64 . input e slice u64 . input pub slice u64 .
+     input p slice u64 . input n slice u64 . input gx slice u64 . input gy slice u64 .
+     input w mut slice u64 . output u64 . effects none . do
   rem ☞ **작업 공간은 924 조각이면 족하다.** 처음엔 1400 을 요구했는데, 그러면
   rem   `--run` 의 배열 인자 상한(8192 바이트 = u64 1024)을 넘어 시험이 못 돈다.
   rem   자리를 겹치지 않게 다시 짜서 924 로 줄였다 — 넉넉함은 공짜가 아니다.

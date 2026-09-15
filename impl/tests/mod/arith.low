@@ -10,6 +10,6 @@ rem   우연적이므로 이쪽이 비킨다.
 rem ★ **`export` 가 이제 뜻을 갖는다**(2026-07-14). 이걸 안 붙이면 `app` 이 부를 때
 rem   E-VISIBILITY 다 — 지금까지는 수식자가 **파싱만** 됐고, 그것도 파서가 껍질을 **버려서**
 rem   소비자가 볼 수조차 없었다. (`comptime` 과 똑같은 병.)
-export fn dbl output u8 . input a u8 . tests dbl_is_double . do
+export fn dbl input a u8 . output u8 . tests dbl_is_double . do
   return mul a 2 .
 end .

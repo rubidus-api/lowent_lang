@@ -12,7 +12,7 @@ op 본문 안에서 값을 담아 두는 이름이 **지역 변수**다. 종류�
 
 ```lowent
 rem ✓ 1 부터 n 까지 더하기 — var 로 누적하고 set 으로 갱신한다.
-fn sumto output u64 . input n u64 . do
+fn sumto input n u64 . output u64 . do
   var total u64 be 0 .       rem 가변: 계속 바뀐다
   var i u64 be 1 .
   while le i n . do

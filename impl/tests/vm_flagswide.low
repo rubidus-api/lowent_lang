@@ -14,7 +14,7 @@ use flags from "../../lib/flags.low" .
 
 rem ★ 저장은 **부르는 쪽의 것**이다(RFC-0075 의 caller-backed). 라이브러리는 얼로케이터를
 rem   모르고, 이 픽스처도 모른다 — 32 바이트(=256 자리)를 골든이 넘겨준다.
-proc wide_roundtrip output u64 . input buf mut slice u8 . effects none . do
+proc wide_roundtrip input buf mut slice u8 . output u64 . effects none . do
   guard eq (flags.wide_bits buf) 256 . else return 90 .
 
   rem ① 켜고 묻기 — 64·65·255 는 서로 다른 바이트다
@@ -52,8 +52,8 @@ proc wide_roundtrip output u64 . input buf mut slice u8 . effects none . do
 end .
 
 rem ④ 경계의 두 판 — 골든이 이 짝의 **명령 수**를 세어 문서의 수와 견준다.
-fn narrow_has output bool . input s u64 . do return flags.has s 63 . end .
-fn wide_has1  output bool . input s slice u8 . do return flags.wide_has s 64 . end .
+fn narrow_has input s u64 . output bool . do return flags.has s 63 . end .
+fn wide_has1  input s slice u8 . output bool . do return flags.wide_has s 64 . end .
 
 rem ★ `test` 블록은 인자를 못 준다 — 이 증인은 골든이 32 바이트를 넘겨 부른다(§증인 ①~③).
 rem   여기 남기는 시험은 **인자 없는 것**뿐이다.

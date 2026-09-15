@@ -206,7 +206,7 @@ module ex_utf16 .
 use utf16 as u .
 
 rem 왕복 — 써 넣고 다시 읽으면 같은 코드포인트. 성공 = 42.
-proc round_trip output u64 . input buf mut slice u16 . . effects none . do
+proc round_trip input buf mut slice u16 . . output u64 . effects none . do
   guard ge (len buf) 4 . else return 90 .          rem 버퍼는 호출자 것 — 자리부터 확인한다
   rem '가'(U+AC00) — BMP 라서 한 칸. put 이 쓴 칸 수를 돌려준다.
   let a option u64 . be u.put buf 0 44032 .        rem 0 번 칸에 쓴다

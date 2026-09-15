@@ -13,7 +13,7 @@ rem   (100 은 옛 상한 8 을 훌쩍 넘는다 — 창이 살아있으면 VM �
 module vm_task_recur .
 
 rem 순수 재귀: ds(n) = n + (n-1) + … + 0.  깊이 n 까지 판다.
-fn ds output u64 . input n u64 . do
+fn ds input n u64 . output u64 . do
   if eq n 0 . do return 0 . end .
   return add n (ds (sub n 1)) .
 end .

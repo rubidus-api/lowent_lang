@@ -1,6 +1,6 @@
 rem 검사되는 계약 → 사실로 쓴다 → 검사 제거
-fn checked output u8 . input a u8 . requires le a 200 .
+fn checked input a u8 . output u8 . requires le a 200 .
 do return add a 1 . end .
 rem assume 계약 → 검사 안 함 → **사실로 쓰지 않는다** → 검사 유지
-fn assumed output u8 . input a u8 . requires assume le a 200 .
+fn assumed input a u8 . output u8 . requires assume le a 200 .
 do return add a 1 . end .

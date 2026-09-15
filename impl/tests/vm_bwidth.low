@@ -45,12 +45,12 @@ end .
 
 rem ★ **비트셋 파라미터도 선언 폭을 실어야** — 지역만 실으면 파라미터에 add/contains 가 64 로
 rem   후퇴해 태그 경로(박스별 폭)와 어긋난다. 파라미터 s(bitset 8) 에 폭 밖(20) → 트랩.
-fn p_add_oob output u64 . input s bitset 8 . input k u64 . do
+fn p_add_oob input s bitset 8 . input k u64 . output u64 . do
   add s k .
   return count s .
 end .
 rem 파라미터 s 에 폭 안(5) 은 정상 — count=1.
-fn p_add_ok output u64 . input s bitset 8 . input k u64 . do
+fn p_add_ok input s bitset 8 . input k u64 . output u64 . do
   add s k .
   return count s .
 end .

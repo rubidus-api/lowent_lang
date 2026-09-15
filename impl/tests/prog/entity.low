@@ -21,7 +21,7 @@ use allocs  from "../../../lib/alloc.low" .
 rem 개체 넷: id 는 10·20·30·40, 자리는 0·1·2·3.
 rem 위치는 x = 100·200·300·400, 속도는 1·2·3·4 — 한 스텝 뒤 101·202·303·404 여야 한다.
 
-proc main output u8 . input al cap allocator . effects state alloc . do
+proc main input al cap allocator . output u8 . effects state alloc . do
   rem ── ① soa — 필드별 배열을 세우고 한 스텝 전진 ──────────────────────
   let xso option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some xso . else return 90 .

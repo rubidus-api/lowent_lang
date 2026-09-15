@@ -20,17 +20,17 @@ module m .
 use strbuf from "../../lib/strbuf.low" .
 
 unsafe extern proc c_printf .
-  output i32 .            rem ★ int 반환 — stdio.h 의 int printf 와 맞는다(직접 링크)
   input k cap c .
   input fmt cstr .
+  output i32 .            rem ★ int 반환 — stdio.h 의 int printf 와 맞는다(직접 링크)
+  effects unsafe .
   variadic .
   link printf .
-  effects unsafe .
 end .
 
 rem "name=%s val=%d\n" 에 ("lowent", 42) → stdout: name=lowent val=42 · 반환 = 찍은 글자 수 19.
-unsafe proc formatted output i32 . input k cap c . input fbuf mut slice u8 . .
-  input nbuf mut slice u8 . . effects unsafe .
+unsafe proc formatted input k cap c . input fbuf mut slice u8 . . input nbuf mut slice u8 . .
+  output i32 . effects unsafe .
 do
   var f strbuf.str_buf be strbuf.new .
   let r1 result void strbuf.sb_error . be strbuf.append f fbuf "name=%s val=%d\n" .
@@ -42,8 +42,8 @@ do
 end .
 
 rem 문자열 인자 하나만 — "%s\n" 에 str_buf 로 조립한 "hi" → stdout: hi
-unsafe proc just_str output i32 . input k cap c . input fbuf mut slice u8 . .
-  input sbuf mut slice u8 . . effects unsafe .
+unsafe proc just_str input k cap c . input fbuf mut slice u8 . . input sbuf mut slice u8 . .
+  output i32 . effects unsafe .
 do
   var f strbuf.str_buf be strbuf.new .
   let r1 result void strbuf.sb_error . be strbuf.append f fbuf "%s\n" .

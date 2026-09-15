@@ -14,10 +14,10 @@ rem   그래야 차이의 원인이 계약임이 증인 자체로 드러난다.
 rem ── 계약이 있다: len(a) ≥ n · len(b) ≥ n · 루프가 `le (add i 4) n` ────────────
 rem    ⇒ i + 4 ≤ n ≤ len(a)  ⇒ 네 레인을 읽어도 안전하다 (R-VLOAD-MARGIN)
 export proc dot_c .
-  output u64 .
   input a slice u32 . .
   input b slice u32 . .
   input n u64 .
+  output u64 .
   effects none .
   requires ge (len a) n .
   requires ge (len b) n .
@@ -38,10 +38,10 @@ end .
 rem ── 계약이 없다: 같은 본문, `requires` 만 뺐다 ──────────────────────────────
 rem    ⇒ len(a) 와 n 사이에 아무 사실도 없다 ⇒ 검사는 **남아야 한다**.
 export proc dot_u .
-  output u64 .
   input a slice u32 . .
   input b slice u32 . .
   input n u64 .
+  output u64 .
   effects none .
 do
   var acc vec u32 4 . be splat 0 .
@@ -60,12 +60,12 @@ end .
 rem ── 부르는 자리 — 바이트 하나를 두 슬라이스로 나눠 실제로 돌린다 ─────────────
 rem    VM 과 방출 네이티브가 **같은 답**을 내야 한다(diff-sweep). 계약이 있는 판과 없는 판이
 rem    같은 수를 내는 것도 요점이다: **검사를 지워도 답은 그대로다.**
-fn run_c output u64 . input b bytes . do
+fn run_c input b bytes . output u64 . do
   var xs slice u32 . be view_array u32 b .
   return dot_c xs xs (len xs) .
 end .
 
-fn run_u output u64 . input b bytes . do
+fn run_u input b bytes . output u64 . do
   var xs slice u32 . be view_array u32 b .
   return dot_u xs xs (len xs) .
 end .
@@ -77,9 +77,9 @@ rem    즉 그 커널은 느린 것이 아니라 **C 에서 부를 수 없었다
 rem  ☞ 여기도 계약 있는 판/없는 판 두 짝을 둔다 — 쓰기에서 경계를 잘못 지우면 남의 바이트를
 rem    밟으므로, *지워지는 쪽만* 재면 불건전과 구별이 안 된다.
 export proc dbl_c .
-  output u64 .
   input a mut slice u32 . .
   input n u64 .
+  output u64 .
   effects none .
   requires ge (len a) n .
 do
@@ -94,9 +94,9 @@ do
 end .
 
 export proc dbl_u .
-  output u64 .
   input a mut slice u32 . .
   input n u64 .
+  output u64 .
   effects none .
 do
   var i u64 be 0 .
@@ -110,7 +110,7 @@ do
 end .
 
 rem 부르는 자리 — 바이트를 두 배로 만들고 합을 낸다(VM≡native 가 이 변경의 오라클이다).
-fn run_w output u64 . input b bytes . do
+fn run_w input b bytes . output u64 . do
   var xs slice u32 . be view_array u32 b .
   let z u64 be dbl_c xs (len xs) .
   var s u64 be 0 .

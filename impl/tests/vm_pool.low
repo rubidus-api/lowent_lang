@@ -26,7 +26,7 @@ newtype p_lifo u8 .
 newtype p_borrow u8 .
 
 rem ★ 뭉텡이를 여럿 받아 쓴다 — 부족하면 더 받는 그 모양.
-proc take_many output u64 . input mem mut slice u8 . . input gens mut slice u64 . .
+proc take_many input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
   effects none .
 do
     let po option (pool.block_pool p_many) . be pool.init p_many mem gens 16 .
@@ -48,7 +48,7 @@ end .
 
 rem ★★★ **이 파일의 핵심 주장**: 해제하면 **옛 핸들이 죽는다.**
 rem   메모리는 그대로 있는데 **아무도 그것을 못 쓴다** — 그것이 세대 핸들의 전부다.
-proc stale_after_release output u64 . input mem mut slice u8 . . input gens mut slice u64 . .
+proc stale_after_release input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
   effects none .
 do
     let po option (pool.block_pool p_stale) . be pool.init p_stale mem gens 16 .
@@ -90,7 +90,7 @@ do
 end .
 
 rem ★★ **복사해서 옮기고 옛 것을 버린다** — 사용자가 말한 그 모양.
-proc copy_and_release output u64 . input mem mut slice u8 . . input gens mut slice u64 . .
+proc copy_and_release input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
   effects none .
 do
     let po option (pool.block_pool p_copy) . be pool.init p_copy mem gens 16 .
@@ -137,7 +137,7 @@ rem ★★★ **자유 목록 — 놓은 것이 돌아온다** (2026-07-20).
 rem   전에는 `take` 가 순차 배당만 해서, 받고-놓기를 반복하면 풀이 **쓰지도 않고 말라붙었다**.
 rem   사용자가 요청한 모양(*"원하는 시점에 복사하고 기존 것은 해제하고"*)이 정확히 그 반복이다.
 rem ★ 여기서 재는 것: **블록 수보다 훨씬 많이 받아도 안 마른다.**
-proc reuse_after_release output u64 . input mem mut slice u8 . . input gens mut slice u64 . .
+proc reuse_after_release input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
   effects none .
 do
     let po option (pool.block_pool p_reuse) . be pool.init p_reuse mem gens 16 .
@@ -169,7 +169,7 @@ do
 end .
 
 rem ★★ 자유 목록은 **LIFO** 다: 마지막에 놓은 것이 먼저 나온다(캐시에 아직 따뜻하다).
-proc free_list_is_lifo output u64 . input mem mut slice u8 . . input gens mut slice u64 . .
+proc free_list_is_lifo input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
   effects none .
 do
     let po option (pool.block_pool p_lifo) . be pool.init p_lifo mem gens 16 .
@@ -214,7 +214,7 @@ rem   아무도 안 잡는다고 `lib/pool.low` 이 자백했다. `borrow` 블�
 rem   **빌림이 블록 끝에서 끝나므로**, 해제는 빌림 밖에서만 일어난다 — 어휘적으로.
 rem ★ 여기서 재는 것: 빌린 동안은 **평범한 slice** 라 기존 op 이 그대로 먹고,
 rem   블록을 나온 뒤 해제하면 옛 핸들이 죽는다. 두 규율이 겹쳐 산다.
-proc borrow_then_release output u64 . input mem mut slice u8 . . input gens mut slice u64 . .
+proc borrow_then_release input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
   effects none .
 do
     let po option (pool.block_pool p_borrow) . be pool.init p_borrow mem gens 16 .

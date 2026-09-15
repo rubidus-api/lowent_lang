@@ -12,12 +12,12 @@ rem   ② UINT64_MAX < 0            → **거짓** (부호 있는 비교면 참�
 rem   ③ 0 < 2^63                  → **참**  (부호 있는 비교면 거짓이 된다)
 module vm_u64cmp .
 
-fn direct output bool . input s slice u64 . do
+fn direct input s slice u64 . output bool . do
   guard ge (len s) 2 . else return false .
   return lt (index s 0) (index s 1) .
 end .
 
-fn named output bool . input s slice u64 . do
+fn named input s slice u64 . output bool . do
   guard ge (len s) 2 . else return false .
   let lhs u64 be index s 0 .
   let rhs u64 be index s 1 .
@@ -33,7 +33,7 @@ rem 저장은 **부르는 쪽의 것**이다 — 골든이 16 바이트를 넘�
 rem   case 0 : 1 < 2                 → 1
 rem   case 1 : UINT64_MAX < 0        → 0   (부호 있는 비교면 1 이 된다 — 그것이 옛 답이다)
 rem   case 2 : 0 < 2^63              → 1   (부호 있는 비교면 0 이 된다)
-proc probe output u64 . input buf mut slice u8 . input which u64 . effects none . do
+proc probe input buf mut slice u8 . input which u64 . output u64 . effects none . do
   guard ge (len buf) 16 . else return 90 .
   var v mut slice u64 . be view_array u64 buf .
   if eq which 0 . do set (index v 0) 1 .           set (index v 1) 2 .        end .
@@ -47,7 +47,7 @@ end .
 rem ★★ **지역 슬라이스도 같은 자리다** — 그리고 이것이 두 번째 판이었다: 파라미터만 고쳤을 때
 rem   이 모양은 **여전히 틀렸다**(같은 규칙이 두 곳에 있고 한 곳만 옳았다 — 교훈 7).
 rem   답: 0 = 둘 다 «거짓»(옳다) · 1 = 바로 꺼낸 쪽만 참(옛 결함) · 2 = 담은 쪽만 참 · 3 = 둘 다 참
-proc probe_local output u64 . input buf mut slice u8 . effects none . do
+proc probe_local input buf mut slice u8 . output u64 . effects none . do
   guard ge (len buf) 16 . else return 90 .
   var v mut slice u64 . be view_array u64 buf .
   set (index v 0) (u64_max) .

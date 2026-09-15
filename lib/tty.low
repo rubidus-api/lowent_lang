@@ -42,7 +42,7 @@ rem   반환은 한 값에 둘을 담는다: `키코드 * 16 + 길이`(길이는
 rem   못 읽으면(바이트가 모자라면) none — **불완전한 시퀀스를 지어내지 않는다.**
 rem   완전하지만 모르는 시퀀스는 `key_unknown` + 먹은 길이다(none 이 아니다 — 위 참조).
 rem   ☞ 이것이 순수한 이유: 터미널이 보낸 것은 그냥 바이트열이고, 그것을 키로 읽는 것은 계산이다.
-export proc parse_key output option u64 . input buf slice u8 . input at u64 . effects none . do
+export proc parse_key input buf slice u8 . input at u64 . output option u64 . effects none . do
   guard lt at (len buf) . else return none .
   let b0 u8 be index buf at .
   rem ESC 가 아니면 그 바이트가 곧 키다(제어문자 포함 — Ctrl-C 는 3 이다).
@@ -136,8 +136,8 @@ export proc parse_key output option u64 . input buf slice u8 . input at u64 . ef
 end .
 
 rem 파싱 결과에서 키코드만 / 먹은 길이만 꺼낸다.
-export fn key_of output u64 . input packed u64 . do return div packed 16 . end .
-export fn len_of output u64 . input packed u64 . do return mod packed 16 . end .
+export fn key_of input packed u64 . output u64 . do return div packed 16 . end .
+export fn len_of input packed u64 . output u64 . do return mod packed 16 . end .
 
 rem ★ 이 값이 **평범한 글자**인가(특수키가 아닌가).
-export fn is_char output bool . input keycode u64 . do return lt keycode 1000 . end .
+export fn is_char input keycode u64 . output bool . do return lt keycode 1000 . end .

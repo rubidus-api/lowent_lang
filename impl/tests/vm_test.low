@@ -12,9 +12,9 @@ rem     최적화로 사라진 테스트는 **안 돌아간 테스트**다.
 
 module vm_test .
 
-fn inc output u8 . input a u8 . do return expr a + 1 . . end .
+fn inc input a u8 . output u8 . do return expr a + 1 . . end .
 
-fn clamp output u8 . input a u8 . do
+fn clamp input a u8 . output u8 . do
   if gt a 100 . do return 100 . end .
   return a .
 end .

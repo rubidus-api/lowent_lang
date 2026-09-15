@@ -70,7 +70,7 @@ rem ★ 듣는 소켓을 열고 **실제 포트까지** 함께 답한다.
 rem   `port 0` 을 주면 임시포트를 받는데, 그때 *"몇 번을 받았나"* 를 되묻는 것은
 rem   **언제나 필요한 두 번째 걸음**이다. 둘을 한 op 으로 묶어 그 걸음을 잊지 못하게 한다.
 rem   답은 `fd << 16 | port` — 포트는 16 비트라 겹치지 않는다.
-export proc serve output option listener . input k cap net . input port u64 . effects io . do
+export proc serve input k cap net . input port u64 . output option listener . effects io . do
   let lopt option u64 be net_listen k port .
   guard is_some lopt . else return none .
   let lfd u64 be some_value lopt .
@@ -89,14 +89,14 @@ export proc serve output option listener . input k cap net . input port u64 . ef
 end .
 
 rem 연결한다. 실패는 값이다.
-export proc dial output option conn . input k cap net . input port u64 . effects io . do
+export proc dial input k cap net . input port u64 . output option conn . effects io . do
   let c option u64 . be net_connect k port .
   guard is_some c . else return none .
   return (some (make conn do fd (some_value c) . end)) .
 end .
 
 rem 하나를 받아들인다.
-export proc take output option conn . input k cap net . input l listener . effects io . do
+export proc take input k cap net . input l listener . output option conn . effects io . do
   let c option u64 . be net_accept k (field l fd) .
   guard is_some c . else return none .
   return (some (make conn do fd (some_value c) . end)) .
@@ -106,7 +106,7 @@ rem 주소 없는 한 쌍(같은 프로세스 안의 두 끝).
 rem ★ 빌트인이 두 핸들을 한 u64 에 **`slot0 | slot1 << 32`** 로 담아 준다. 그 팩 방식을
 rem   프로그램이 알아야 할 이유가 없으므로 **푸는 짝을 여기 둔다** — 전엔 `netecho.low` 가
 rem   `bit_and p 0xFFFFFFFF` 와 `shr p 32` 를 직접 적었다(라이브러리가 없을 때 치르는 값이다).
-export proc pair_of output option pair . input k cap net . effects io . do
+export proc pair_of input k cap net . output option pair . effects io . do
   let p option u64 . be net_pair k .
   guard is_some p . else return none .
   let packed u64 be some_value p .
@@ -114,10 +114,10 @@ export proc pair_of output option pair . input k cap net . effects io . do
                             b (make conn do fd (shr packed 32) . end) . end)) .
 end .
 rem 쌍의 두 끝을 **비소유로 읽는다** — 주고받기는 소유를 옮기지 않으므로 fd 만 본다.
-export fn pair_a output u64 . input p pair . do return field (field p a) fd . end .
-export fn pair_b output u64 . input p pair . do return field (field p b) fd . end .
+export fn pair_a input p pair . output u64 . do return field (field p a) fd . end .
+export fn pair_b input p pair . output u64 . do return field (field p b) fd . end .
 rem 연결 하나의 fd — 같은 이유로 비소유 읽기다.
-export fn conn_fd output u64 . input c conn . do return field c fd . end .
+export fn conn_fd input c conn . output u64 . do return field c fd . end .
 
 rem ── 주고받기 ─────────────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ rem ★★★★ **끝까지 보낸다.** `net_send` 가 한 번에 전부를 �
 rem   그것이 소켓의 성질이고, 그 사실을 프로그램마다 다시 배우게 두는 것이 라이브러리가
 rem   없을 때 치르는 값이다. 보낸 총 바이트를 답하고, 도중에 막히면 **거기까지**를 답한다
 rem   (거짓말하지 않는다: 전량 성공만 성공이라고 부르지 않는다).
-export proc send_all output option u64 . input k cap net . input fd u64 . input buf slice u8 .
+export proc send_all input k cap net . input fd u64 . input buf slice u8 . output option u64 .
   effects io .
 do
   var off u64 be 0 .
@@ -140,8 +140,8 @@ do
 end .
 
 rem 한 번 받는다 — 받은 바이트 수. 0 은 상대가 닫았다는 뜻이다.
-export proc recv_once output option u64 . input k cap net . input fd u64 .
-  input dst mut slice u8 . effects io .
+export proc recv_once input k cap net . input fd u64 . input dst mut slice u8 .
+  output option u64 . effects io .
 do
   return net_recv k fd dst .
 end .
@@ -149,7 +149,7 @@ end .
 rem ── 닫기 ─────────────────────────────────────────────────────────────
 
 rem ★★★ **완결은 실패할 수 있다** — 그 선언 하나가 이 타입을 자원으로 만든다(위 머리말).
-export proc shut output result void net_error . input k cap net . input c owned conn .
+export proc shut input k cap net . input c owned conn . output result void net_error .
   effects io .
 errors close_failed .
 do
@@ -159,7 +159,7 @@ do
   return ok .
 end .
 
-export proc shut_listener output result void net_error . input k cap net . input l owned listener .
+export proc shut_listener input k cap net . input l owned listener . output result void net_error .
   effects io .
 errors close_failed .
 do
@@ -171,7 +171,7 @@ end .
 
 rem 쌍은 통째로 닫는다. 하나라도 못 닫으면 실패지만 **나머지도 닫는다**
 rem   (중간에 그만두면 새는 쪽이 늘어난다).
-export proc shut_pair output result void net_error . input k cap net . input p owned pair .
+export proc shut_pair input k cap net . input p owned pair . output result void net_error .
   effects io .
 errors close_failed .
 do

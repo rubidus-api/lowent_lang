@@ -44,8 +44,8 @@ rem   K = HMAC_K(V ‖ 01 ‖ x ‖ h1) · V = HMAC_K(V)
 rem   T = HMAC_K(V) → k. 범위 밖이면 K = HMAC_K(V ‖ 00), V = HMAC_K(V) 로 다시.
 rem
 rem   `w` 는 바이트 작업 공간(≥ 320): 0..32 V · 32..64 K · 64..96 T · 96..320 hmac scratch 겸 조립
-export proc nonce6979 output u64 . input x slice u8 . input h1 slice u8 .
-     input nl slice u64 . input out mut slice u8 . input w mut slice u8 . input wu mut slice u64 . effects none .
+export proc nonce6979 input x slice u8 . input h1 slice u8 . input nl slice u64 .
+     input out mut slice u8 . input w mut slice u8 . input wu mut slice u64 . output u64 . effects none .
 do
   guard ge (len out) 32 . else return 0 .
   guard ge (len w) 480 . else return 0 .
@@ -139,9 +139,9 @@ rem   (8192 바이트 = u64 1024)을 넘어 **VM 에서 시험할 수 없다** �
 rem   상수도 같은 배열에 담으므로 더 좁다. 빈 자리로 두 번 당겨 **908** 로 줄였다
 rem   (`ecdsa_verify` 가 1400 → 924 로 줄인 것과 같은 이유다).
 rem   ☞ *시험할 수 없는 크기는 크기가 아니라 결함이다.*
-export proc sign output u64 . input d slice u8 .
-     input h slice u8 . input p slice u64 . input n slice u64 . input gx slice u64 .
-     input gy slice u64 . input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . effects none .
+export proc sign input d slice u8 . input h slice u8 .
+     input p slice u64 . input n slice u64 . input gx slice u64 . input gy slice u64 .
+     input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
 do
   guard eq (len d) 32 . else return 0 .
   guard eq (len h) 32 . else return 0 .

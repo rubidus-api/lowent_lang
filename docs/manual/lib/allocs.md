@@ -90,16 +90,16 @@ Lowent 에는 암묵 전역 힙이 없다. 바이트가 프로그램에 **처음
 
 ```lowent
 export trait byte_allocator do
-  reserve output option mut slice u8 . . input s self . input n u64 . effects state via self .
-  grow    output option mut slice u8 . . input s self . input old mut slice u8 . . input newn u64 . effects state via self .
-  used    output u64 . input s self . effects state .
+  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
+  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
+  used    input s self . output u64 . effects state .
 end .
 
 export trait freeing_allocator do
-  reserve output option mut slice u8 . . input s self . input n u64 . effects state via self .
-  grow    output option mut slice u8 . . input s self . input old mut slice u8 . . input newn u64 . effects state via self .
-  used    output u64 . input s self . effects state .
-  release output bool . input s self . input v mut slice u8 . . effects state via self .
+  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
+  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
+  used    input s self . output u64 . effects state .
+  release input s self . input v mut slice u8 . . output bool . effects state via self .
 end .
 ```
 
@@ -157,7 +157,7 @@ op 하나하나를 시그니처와 함께 본다. 매개변수마다 "왜 이것
 준비된 얼로케이터를 받는다.
 
 ```lowent
-proc init output u64 . input backing mut slice u8 . . effects state .
+proc init input backing mut slice u8 . . output u64 . effects state .
 ```
 
 - `backing` — 잘라 쓸 뒷받침 버퍼. 이 얼로케이터는 스스로 메모리를 만들지 못하므로
@@ -171,7 +171,7 @@ proc init output u64 . input backing mut slice u8 . . effects state .
 n 바이트를 잘라 받는다. 이 모듈의 중심 op 이다.
 
 ```lowent
-proc reserve output option mut slice u8 . . input n u64 . effects state .
+proc reserve input n u64 . output option mut slice u8 . . effects state .
 ```
 
 - `n` — 원하는 바이트 수. 커서를 얼마나 밀지, 뷰가 얼마나 길지를 이 값이 정한다.
@@ -186,7 +186,7 @@ proc reserve output option mut slice u8 . . input n u64 . effects state .
 마지막 조각을 제자리에서 늘린다. 실패는 값이다 — 못 늘리면 부르는 쪽이 새로 받아 복사한다.
 
 ```lowent
-proc grow output option mut slice u8 . . input old mut slice u8 . . input newn u64 . effects state .
+proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state .
 ```
 
 - `old` — 늘릴 조각. **마지막으로 준 바로 그 바이트**여야 한다(`same_slice`). 길이만 같은 남의
@@ -200,7 +200,7 @@ proc grow output option mut slice u8 . . input old mut slice u8 . . input newn u
 마지막 조각을 돌려받는다(`freeing_allocator`).
 
 ```lowent
-proc release output bool . input v mut slice u8 . . effects state .
+proc release input v mut slice u8 . . output bool . effects state .
 ```
 
 - `v` — 돌려줄 조각. 마지막으로 준 바로 그 바이트면 커서를 그 시작으로 되돌리고 `true`.
@@ -232,7 +232,7 @@ use allocs as al .      rem 별칭 관례
 기본 사용(`impl/tests/vm_allocbytes.low` 의 `borrowed` 를 줄인 것):
 
 ```lowent
-proc borrowed output u64 . input buf mut slice u8 . . effects state . do
+proc borrowed input buf mut slice u8 . . output u64 . effects state . do
   var a allocs.bump_bytes be spawn actor allocs.bump_bytes . .   rem 얼로케이터 actor 를 만든다
   let cap0 u64 be send a init buf .                 rem 뒷받침 버퍼를 건다 — cap0 = len buf
   let p option mut slice u8 . . be send a reserve 3 .   rem 3 바이트를 잘라 달라고 한다
@@ -247,9 +247,9 @@ end
 
 ```lowent
 proc two_from .
-  output u64 .
   input comptime a type .                rem 얼로케이터 "타입" — 컴파일 시점에 확정된다
   using al a .                           rem 그 타입의 actor 인스턴스 — 부르는 쪽이 using 으로 건넨다
+  output u64 .
   effects state via a .                  rem 비용은 그 얼로케이터의 reserve 가 내는 효과다
   requires allocs.byte_allocator a .     rem a 는 이 trait 을 충족해야 한다
 do
@@ -261,7 +261,7 @@ do
   return send al used .
 end .
 
-proc borrowed2 output u64 . input buf mut slice u8 . . effects state . do
+proc borrowed2 input buf mut slice u8 . . output u64 . effects state . do
   var b allocs.bump_bytes be spawn actor allocs.bump_bytes . .
   let c u64 be send b init buf .         rem init 은 범프에게 직접 — trait 에는 없다
   let n u64 using b be two_from .        rem 얼로케이터는 인자 자리가 아니라 using 으로
@@ -300,7 +300,7 @@ proc f output u64 . effects state . do
 
 ```lowent
 rem ✗ fn 에서 send 를 부른다
-fn g output u64 . input a allocs.bump_bytes . do
+fn g input a allocs.bump_bytes . output u64 . do
   return send a used .        rem 핸들러는 effects state 다
 ```
 
@@ -345,7 +345,7 @@ let x u64 using c be two_from .
 - 쓰는 꼴(`impl/tests/vm_capactor.low` 를 줄인 것):
 
 ```lowent
-export proc main output u8 . input h cap heap . input al cap allocator . effects heap alloc state .
+export proc main input h cap heap . input al cap allocator . output u8 . effects heap alloc state .
 do
   var hb allocs.heap_bytes be spawn actor allocs.heap_bytes . .     rem cap heap 을 쥐었으니 띄울 수 있다
   let vo option (vecgen.vec u32 allocs.heap_bytes) . using hb be vecgen.open u32 16 .

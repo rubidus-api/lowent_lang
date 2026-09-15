@@ -17,13 +17,19 @@
       갈래는 **언제나 적는다.** 기본값이 없다 — `fn` 인지 `proc` 인지는 이름 앞에 적혀 있다.
     ]
     #para("3")[
-      op 의 선언은 이름, 출력, 입력, 계약, 본문의 차례로 이루어진다. 출력은 `output`,
-      입력은 `input` 으로 적는다. 출력이 **맨 앞**에 온다 — 무엇을 돌려주는지가 서명에서 가장 먼저 읽힌다.
+      op 의 선언은 이름, 입력, 출력, 효과, 계약, 본문의 차례로 이루어진다. 입력은 `input`,
+      출력은 `output` 으로 적는다. 차례는 **앞의 것이 뒤의 것에 쓰이도록** 놓였다:
+      - 이름 붙은 약속(`satisfies`)은 이름 바로 뒤에 온다 — 이 op 이 **무엇인지**를 먼저 말한다.
+      - 번역 시점 입력(`comptime`)이 다음이다 — 뒤따르는 입력·출력의 타입이 그 이름을 쓴다.
+      - 권한 입력이 데이터 입력보다 먼저다 — 누가 허락했는지가 무엇을 받는지보다 먼저 보인다.
+      - 출력은 입력 뒤다 — 출력 타입은 입력의 타입 매개변수를 쓸 수 있다.
+      - 효과는 출력 뒤, 계약 앞이다 — 앞에 받은 권한으로 **무엇을 하는지**를 적는다.
+      - 계약은 입력 조건(`requires`) · 출력 약속(`ensures`) · 실패(`errors`) · 시험(`tests`) 차례다.
     ]
     #para("3a")[
       머리의 절은 **한 가지 차례로만** 적는다. 앞에서 뒤로:
-      `output` · `satisfies`·`lowdoc` · `vector`·`priority` · `comptime` 입력 · 권한·영역 입력(타입이 `cap …`·`region …`) ·
-      `using` · 데이터 입력 · `link`·`variadic` · `effects` · `asm` · `access`·`parallel`·`reduce` ·
+      `satisfies`·`lowdoc` · `vector`·`priority` · `comptime` 입력 · 권한·영역 입력(타입이 `cap …`·`region …`) ·
+      `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm` · `access`·`parallel`·`reduce` ·
       `requires` · `ensures` · `errors` · `tests` · `schedule`. 같은 자리의 절끼리는 적힌 차례를 지킨다.
       trait 의 메서드 서명(#cref("6.11.2"))과 actor 안의 `proc` 도 같은 차례를 따른다.
       이 차례를 어기면 번역이 거부된다(`E-CLAUSE-ORDER`). 입력의 차례는 부르는 쪽 인자의 차례이기도 하다 —
@@ -35,15 +41,15 @@
     ]
     #ex("op 의 선언", "module ex_op .
 
-export fn twice output u32 . input n u32 .
+export fn twice input n u32 . output u32 .
   requires le n 2147483647 .
 do
   return mul n 2 .
 end")
-    #rejected("출력을 입력보다 뒤에 적는다(2026-09-15 전의 차례)", "module ex_clause_order .
+    #rejected("출력을 입력보다 앞에 적는다", "module ex_clause_order .
 
-fn twice input n u32 .
-  output u32 .
+fn twice output u32 .
+  input n u32 .
   requires le n 2147483647 .
 do
   return mul n 2 .
@@ -162,7 +168,7 @@ end .", "E-CLAUSE-ORDER")
     #ex("계약", "module ex_contract .
 
 rem 이 op 은 슬라이스에서 두 바이트를 읽어 큰 수 하나를 만든다.
-export fn read_pair output u32 . input data slice u8 . .
+export fn read_pair input data slice u8 . . output u32 .
   requires ge (len data) 2 .
   ensures le ret 65535 .
 do
@@ -190,7 +196,7 @@ contract nonneg do
   requires ge a 1 .
 end
 
-fn half output u8 . satisfies nonneg . input a u8 .
+fn half satisfies nonneg . input a u8 . output u8 .
 do
   return div a 2 .
 end")
@@ -218,13 +224,13 @@ end")
     #ex("계약이 검사를 없앤다", "module ex_elim .
 
 rem 계약이 없으면 넘침 검사가 남는다.
-export fn bare output u8 . input a u8 .
+export fn bare input a u8 . output u8 .
 do
   return add a 1 .
 end
 
 rem 계약이 있으면 처리기가 증명하고 검사를 없앤다.
-export fn proven output u8 . input a u8 .
+export fn proven input a u8 . output u8 .
   requires le a 200 .
 do
   return add a 1 .
@@ -299,7 +305,7 @@ do
 end", "E-NAME-SHADOW")
     #rejected("매개변수를 가릴 수 없다", "module ex_shadow_param .
 
-proc p output u32 . input n u32 . effects none .
+proc p input n u32 . output u32 . effects none .
 do
   let n u32 be 1 .     rem 매개변수 `n` 을 가린다
   return n .
@@ -314,7 +320,7 @@ do
 end", "E-NAME-SHADOW")
     #rejected("안쪽 블록이 바깥 이름을 가릴 수 없다", "module ex_shadow_inner .
 
-proc p output u32 . input n u32 . effects none .
+proc p input n u32 . output u32 . effects none .
 do
   let a u32 be 1 .
   guard gt n 0 . else do
@@ -377,7 +383,7 @@ end", "E-NAME-SHADOW")
 
 build debug .
 
-fn bump output u8 . input a u8 .
+fn bump input a u8 . output u8 .
   requires le a 200 .
 do
   return add a 1 .
@@ -387,7 +393,7 @@ end",
 
 build release_fast .
 
-fn bump output u8 . input a u8 .
+fn bump input a u8 . output u8 .
   requires le a 200 .
 do
   return add a 1 .
@@ -420,7 +426,7 @@ end",
     ]
     #rejected("양쪽이 상수이므로 지금 판정된다", "module ex_impossible .
 
-fn g output u8 . input a u8 . requires lt a 10 .
+fn g input a u8 . output u8 . requires lt a 10 .
 do
   return a .
 end

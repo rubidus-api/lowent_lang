@@ -189,9 +189,9 @@ prog[len−4·(k+1) .. len−4·k)  = 클래스 k 의 비트맵 (256비트 = 4�
   `match_at` 을 한 번 더 부른다. 스크래치 셋은 `match_at` 에 그대로 넘기는 것들이다.
 - `search prog s clist nlist marks cstart nstart` — `find` 와 같은 물음(매치가
   시작되는 가장 왼쪽 위치)을 **단일 패스**로 답한다.
-  - 시그니처: `output option u64 . input prog slice u64 . input s slice u8 . input clist mut slice u64 . .
+  - 시그니처: `input prog slice u64 . input s slice u8 . input clist mut slice u64 . .
     input nlist mut slice u64 . . input marks mut slice u64 . . input cstart mut slice u64 . .
-    input nstart mut slice u64 . . effects none`
+    input nstart mut slice u64 . . output option u64 . effects none`
   - 스크래치가 **다섯**인 이유: `clist`/`nlist`/`marks` 는 `match_at` 과 같은 세 가지
     구실이고, `cstart`/`nstart` 는 스레드 목록과 **나란한**(같은 인덱스가 같은 스레드)
     시작 위치 배열이다 — 재시작 루프를 없앤 대신 "이 스레드가 어디서 출발했는가"를
@@ -226,9 +226,9 @@ module ex_regex .
 use regex as rx .
 
 rem 컴파일 한 번, 매칭 여러 번. 성공 = 42.
-proc demo output u64 . input prog mut slice u64 . .
-  input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . .
-  input mk mut slice u64 . . effects none .
+proc demo input prog mut slice u64 . . input st mut slice u64 . .
+  input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . .
+  output u64 . effects none .
 do
   guard ge (len prog) 32 . else return 90 .
 
@@ -266,10 +266,10 @@ end
 
 ```lowent
 rem search: find 와 같은 답 — 시작 위치를 들고 다닐 스크래치 둘(cs·ns)이 더 든다. 성공 = 42.
-proc demo_search output u64 . input prog mut slice u64 . .
-  input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . .
-  input mk mut slice u64 . . input cs mut slice u64 . .
-  input ns mut slice u64 . . effects none .
+proc demo_search input prog mut slice u64 . . input st mut slice u64 . .
+  input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . .
+  input cs mut slice u64 . . input ns mut slice u64 . .
+  output u64 . effects none .
 do
   guard ge (len prog) 32 . else return 90 .
 

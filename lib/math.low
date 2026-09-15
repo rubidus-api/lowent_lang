@@ -24,7 +24,7 @@ rem   있어서, 이 모듈을 쓰는 프로그램의 **네이티브 빌드가 �
 rem   (`impl/tests/prog/mcpi.low` — VM 으로는 잘 돌아 아무도 몰랐다).
 rem   ⇒ Lowent 쪽 이름은 그대로 `math.close` 이고, **C 쪽 이름만** 옮긴다. `link` 절이 바로
 rem     이 자리를 위해 있다. 새 게이트 `check-export-names.py` 가 이것을 찾았다.
-export fn close output bool . input a f64 . input b f64 . input tol f64 . link "math_close" . do
+export fn close input a f64 . input b f64 . input tol f64 . output bool . link "math_close" . do
   return lt (abs (sub a b)) tol .
 end .
 
@@ -43,11 +43,11 @@ end .
 
 rem ── 각도 ───────────────────────────────────────────────────────────────────
 
-export fn deg_to_rad output f64 . input d f64 . do
+export fn deg_to_rad input d f64 . output f64 . do
   return div (mul d 3.141592653589793) 180.0 .
 end .
 
-export fn rad_to_deg output f64 . input r f64 . do
+export fn rad_to_deg input r f64 . output f64 . do
   return div (mul r 180.0) 3.141592653589793 .
 end .
 
@@ -55,16 +55,16 @@ rem ── 자주 쓰는 조합 ────────────────
 
 rem ★ 빗변 — `hypot` 이 없으므로 조합한다. 큰 값에서 넘칠 수 있다는 점은 이름이 못 말한다.
 rem   ☞ 안 지은 것에 적었다: 넘침에 강한 `hypot` 은 별도 리프가 필요하다.
-export fn hyp output f64 . input x f64 . input y f64 . do
+export fn hyp input x f64 . input y f64 . output f64 . do
   return sqrt (add (mul x x) (mul y y)) .
 end .
 
 rem ★ 밑이 임의인 로그 — log_b(x) = ln x / ln b.
-export fn log_base output f64 . input x f64 . input b f64 . do
+export fn log_base input x f64 . input b f64 . output f64 . do
   return div (log x) (log b) .
 end .
 
 rem ★ 선형 보간. t 를 [0,1] 로 가정하지 **않는다** — 밖이면 외삽이고, 그것도 쓸모가 있다.
-export fn lerp output f64 . input a f64 . input b f64 . input t f64 . do
+export fn lerp input a f64 . input b f64 . input t f64 . output f64 . do
   return add a (mul t (sub b a)) .
 end .

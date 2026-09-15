@@ -18,28 +18,28 @@ rem    **def 해시가 같다**(RFC-0012 가 오라클이다). `--fmt` 은 셋 �
 module vm_head .
 
 rem ① 평평하게 — arity 가 괄호를 친다 (Γ 가 필요하다)
-fn flat output u8 . input a u8 . input b u8 . do
+fn flat input a u8 . input b u8 . output u8 . do
   return add a mul b 2 .
 end .
 
 rem ② 괄호로 — 구조가 문자열에 있다
-fn parens output u8 . input a u8 . input b u8 . do
+fn parens input a u8 . input b u8 . output u8 . do
   return add a (mul b 2) .
 end .
 
 rem ③ 머리 표시로 — 구조가 문자열에 있고, **점이 하나도 없다**(개행이 다 닫는다)
-fn marked output u8 . input a u8 . input b u8 . do
+fn marked input a u8 . input b u8 . output u8 . do
   return .add a .mul b 2 .
 end .
 
 rem ④ **점 하나가 안쪽 머리를 닫는다** — 그다음 것은 바깥 머리의 인자다.
 rem    `.add (mul b 2) a`  와 같다.
-fn early_close output u8 . input a u8 . input b u8 . do
+fn early_close input a u8 . input b u8 . output u8 . do
   return .add .mul b 2 . a .
 end .
 
 rem ⑤ 중첩 — 세 겹
-fn deep output u8 . input a u8 . do
+fn deep input a u8 . output u8 . do
   return .add 1 .add 2 .add 3 a .
 end .
 

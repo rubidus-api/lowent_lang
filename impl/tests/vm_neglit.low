@@ -8,26 +8,26 @@ rem   못 스침 — 상수-음수 저장이 드묾). 수정: ir_int_lit 이 선
 module m .
 
 rem 음수 정수 상수를 부호형 슬라이스 원소에 저장 → 읽기. -5 여야(버퍼 [251,255]).
-proc wneg output i64 . input s mut slice i16 . effects none . do
+proc wneg input s mut slice i16 . output i64 . effects none . do
   set (index s 0) -5 .
   return widen i64 (index s 0) .
 end .
 
 rem 여러 폭 — i8/i32 도 같은 경로.
-proc wneg8 output i64 . input s mut slice i8 . effects none . do
+proc wneg8 input s mut slice i8 . output i64 . effects none . do
   set (index s 0) -3 .
   return widen i64 (index s 0) .
 end .
-proc wneg32 output i64 . input s mut slice i32 . effects none . do
+proc wneg32 input s mut slice i32 . output i64 . effects none . do
   set (index s 0) -100000 .
   return widen i64 (index s 0) .
 end .
 
 rem 음수 리터럴 산술(정수 문맥) — add a -5.
-fn addneg output i32 . input a i32 . do return add a -5 . end .
+fn addneg input a i32 . output i32 . do return add a -5 . end .
 
 rem 대조: 런타임 계산 음수는 늘 정상이었다.
-proc wsub output i64 . input s mut slice i16 . input a i16 . input b i16 . effects none . do
+proc wsub input s mut slice i16 . input a i16 . input b i16 . output i64 . effects none . do
   set (index s 0) (sub a b) .
   return widen i64 (index s 0) .
 end .

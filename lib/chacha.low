@@ -14,20 +14,20 @@ module chacha .
 let mask32 u64 be 4294967295 .
 
 rem 32비트 왼쪽 회전.
-fn rotl32 output u64 . input x u64 . input n u64 . do
+fn rotl32 input x u64 . input n u64 . output u64 . do
   let a u64 be bit_and (shl x n) 4294967295 .
   let b u64 be shr (bit_and x 4294967295) (sub 32 n) .
   return bit_or a b .
 end .
 
 rem 32비트 덧셈(랩).
-fn add32 output u64 . input a u64 . input b u64 . do
+fn add32 input a u64 . input b u64 . output u64 . do
   return bit_and (add (bit_and a 4294967295) (bit_and b 4294967295)) 4294967295 .
 end .
 
 rem ★ 쿼터라운드 하나를 상태 슬라이스 위에서 제자리로 돈다.
 rem   `st` 는 원소 16 개(각 32비트 값을 u64 로 담는다).
-proc qround output u64 . input st mut slice u64 . input a u64 . input b u64 . input c u64 . input d u64 . effects none . do
+proc qround input st mut slice u64 . input a u64 . input b u64 . input c u64 . input d u64 . output u64 . effects none . do
   set (index st a) (add32 (index st a) (index st b)) .
   set (index st d) (rotl32 (bit_xor (index st d) (index st a)) 16) .
   set (index st c) (add32 (index st c) (index st d)) .
@@ -41,7 +41,7 @@ end .
 
 rem ★ 블록 함수: 상태 16 워드를 20 라운드 돌리고 원래 상태를 더한다.
 rem   `st` 에는 호출자가 초기 상태를 채워 둔다. `work` 는 16 원소 작업 공간.
-export proc rounds output u64 . input st slice u64 . input work mut slice u64 . effects none . do
+export proc rounds input st slice u64 . input work mut slice u64 . output u64 . effects none . do
   guard ge (len st) 16 . else return 0 .
   guard ge (len work) 16 . else return 0 .
   var i u64 be 0 .
@@ -76,7 +76,7 @@ rem   상수는 "expand 32-byte k" 를 리틀엔디언 32비트 넷으로 읽은
 rem   ☞ 키는 **정확히 32**, nonce 는 **정확히 12** 바이트다. 전엔 `ge` 여서 24 바이트 nonce
 rem     (XChaCha 모양)를 주면 앞 12 만 쓰고 16 을 답했다 — *성공한 척한 다른 암호*다
 rem     (2026-09-04 검토 A2). 이 모듈은 RFC 8439 의 ChaCha20 뿐이므로 다른 길이는 거절한다.
-export proc prep output u64 . input key slice u8 . input nonce slice u8 . input counter u64 . input st mut slice u64 . effects none . do
+export proc prep input key slice u8 . input nonce slice u8 . input counter u64 . input st mut slice u64 . output u64 . effects none . do
   guard eq (len key) 32 . else return 0 .
   guard eq (len nonce) 12 . else return 0 .
   guard ge (len st) 16 . else return 0 .
@@ -111,7 +111,7 @@ export proc prep output u64 . input key slice u8 . input nonce slice u8 . input 
 end .
 
 rem ★ 키스트림 한 블록(64 바이트)을 `ks` 에 리틀엔디언으로 편다.
-export proc keystream output u64 . input st slice u64 . input work mut slice u64 . input ks mut slice u8 . effects none . do
+export proc keystream input st slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none . do
   guard ge (len ks) 64 . else return 0 .
   guard eq (rounds st work) 16 . else return 0 .
   var i u64 be 0 .
@@ -129,7 +129,7 @@ end .
 rem ★★ 스트림 암·복호(같은 연산이다). `counter` 는 시작 블록 번호.
 rem   `st`·`work` 16 원소, `ks` 64 바이트를 호출자가 준다 — 이 언어에서 할당은
 rem   **호출자의 몫**이다. 그래서 이 프로시저는 effects none 이다.
-export proc stream output u64 . input key slice u8 . input nonce slice u8 . input counter u64 . input inp slice u8 . input out mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . effects none . do
+export proc stream input key slice u8 . input nonce slice u8 . input counter u64 . input inp slice u8 . input out mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none . do
   guard ge (len out) (len inp) . else return 0 .
   var off u64 be 0 .
   var blk u64 be counter .

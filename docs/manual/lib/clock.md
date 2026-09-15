@@ -22,7 +22,7 @@ op 은 시그니처에 그 사실을 달고 다닌다(`cap random` 이 같은 �
 ```lowent
 use clock .
 
-proc work output u64 . input k cap clock . effects none . do
+proc work input k cap clock . output u64 . effects none . do
   let due u64 be clock.deadline_in k 50 .          rem 지금부터 50 ms
   var n u64 be 0 .
   while clock.past k due . do ... end             rem 지났으면 그만

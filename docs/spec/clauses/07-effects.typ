@@ -81,14 +81,14 @@
     #ex("효과 선언", "module ex_effect .
 
 rem 순수한 op — 바깥세상을 건드리지 않는다. `fn` 이 곧 그 선언이다.
-export fn double output u32 . input n u32 .
+export fn double input n u32 . output u32 .
   requires le n 1000 .
 do
   return mul n 2 .
 end
 
 rem 효과를 내는 op — 무슨 효과인지 계약에 적는다.
-export proc note_and_add output u32 . input n u32 .
+export proc note_and_add input n u32 . output u32 .
   effects panic .
   requires le n 1000 .
 do
@@ -213,10 +213,32 @@ end", "E-EFFECT-CALC")
       경계를 지키는 값이 실행 중 비용으로 돌아오지 않는다는 것이 이 설계의 요점이다.
       *"안전하게 하려면 느려진다"* 는 여기서 참이 아니다.
     ]
+    #para("6")[
+      **효과와 권한은 짝이다.** 효과 줄은 op 이 *무엇을 하는지*를 적고, 권한 입력은 *누가 그것을 허락했는지*를 적는다.
+      같은 일을 두 쪽에서 적는 것이며, 서로를 검사한다:
+      - 효과 줄에 적은 일은 그것을 허락하는 권한을 입력으로 받아야 한다(없으면 거부된다).
+      - 권한으로 여는 일을 본문이 하면 그 효과를 효과 줄에 적어야 한다(없으면 `E-EFFECT`).
+      - 권한을 받아 두는 것만으로 효과가 생기지는 아니한다 — 받고 안 쓰는 권한은 일을 하지 않는다.
+    ]
+    #tbl("효과와 그것을 허락하는 권한")[
+      #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*효과*], [*허락하는 권한*], [*없을 때*],
+      [`io`], [`cap io` · `cap file_system` · `cap net` · `cap tty` · `cap clock` · `cap random`], [`E-EFFECT-NO-CAP`],
+      [`alloc`], [`cap allocator` (또는 어휘 `region` 블록)], [`E-ALLOC-NOCAP`],
+      [`heap`], [`cap heap`], [`E-HEAP-NOCAP`],
+      [`device`], [`cap mmio` — 레지스터를 실제로 만지는 자리에서], [`E-MMIO-NOCAP`],
+      [`state` · `panic` · `wait` · `concurrent` · `atomic`], [— 권한 없이 적는다], [—],
+      )
+    ]
+    #plain[
+      짝으로 두는 까닭은 서명 한 줄로 두 물음에 답하기 위해서다. `effects io` 만 보면 *"바깥과 대화한다"* 는 것은
+      알지만 **무엇과** 대화하는지는 모른다. `input fs cap file_system .` 이 그것을 좁혀 준다 — 파일은 열 수 있으나
+      연결은 열 수 없다. 거꾸로 권한만 있고 효과 줄이 없으면, 부르는 쪽은 그 op 이 순수한지 알 수 없다.
+    ]
     #ex("권한을 받아야 낼 수 있다", "module ex_io .
 
 rem 출력하려면 `cap io` 를 인자로 받아야 한다.
-proc main output u8 . input out cap io . effects io .
+proc main input out cap io . output u8 . effects io .
 do
   let n u64 be write_out out 1 \"hello\\n\" .
   return narrow u8 n .
@@ -241,13 +263,13 @@ end", "E-EFFECT-NO-CAP")
     #ex("권한은 사슬을 타고 내려간다", "module ex_cap_chain .
 
 rem 권한을 인자로 받는다 — 이름은 `k`, 타입은 `cap io` 다.
-proc say output u64 . input k cap io . input msg slice u8 . effects io .
+proc say input k cap io . input msg slice u8 . output u64 . effects io .
 do
   return write_out k 1 msg .
 end
 
 rem 부르는 쪽은 자기가 받은 `k` 를 **그냥 이름으로 넘긴다**.
-proc say_twice output u64 . input k cap io . input msg slice u8 . effects io .
+proc say_twice input k cap io . input msg slice u8 . output u64 . effects io .
 do
   let a u64 be say k msg .
   let b u64 be say k msg .
@@ -255,7 +277,7 @@ do
 end
 
 rem 시작점은 권한을 **바깥에서** 받는다 — 아무도 스스로 만들지 못한다.
-proc main output u8 . input k cap io . effects io .
+proc main input k cap io . output u8 . effects io .
 do
   let n u64 be say_twice k \"hi\\n\" .
   guard eq n 6 . else return 1 .

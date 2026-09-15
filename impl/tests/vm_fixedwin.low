@@ -10,7 +10,7 @@ rem   `heap` 을 한 번도 안 쓰므로 `--target cortex_m` 에서도 통과�
 
 module vm_fixedwin .
 
-export proc carve output u64 . input al cap allocator . effects alloc .
+export proc carve input al cap allocator . output u64 . effects alloc .
 do
   var n u64 be 0 .
   var i u64 be 0 .
@@ -22,7 +22,7 @@ do
   return n .
 end .
 
-export proc main output u8 . input al cap allocator . effects alloc .
+export proc main input al cap allocator . output u8 . effects alloc .
 do
   return narrow u8 (carve al) .
 end .

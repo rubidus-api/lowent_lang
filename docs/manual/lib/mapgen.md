@@ -108,9 +108,9 @@ end
 ### `open`
 
 ```lowent
-proc open output option (table k v) . input comptime k type .
-     input comptime v type . using al allocs.bump_bytes .
-     input want u64 . effects state .
+proc open input comptime k type . input comptime v type .
+     using al allocs.bump_bytes . input want u64 .
+     output option (table k v) . effects state .
 ```
 
 - `al` — 자리를 받아 올 범프 얼로케이터. `using` 절이라 부르는 쪽은 `let mo … using bump be mapgen.open u32 u64 4 .`
@@ -123,8 +123,8 @@ proc open output option (table k v) . input comptime k type .
 ### `insert` — 넣는다
 
 ```lowent
-proc insert output bool . input comptime k type . input comptime v type .
-     input m mut table k v . input key k . input val v . effects state .
+proc insert input comptime k type . input comptime v type . input m mut table k v .
+     input key k . input val v . output bool . effects state .
 ```
 
 - 이미 있는 키면 **값을 덮어쓰고** 개수는 안 늘어난다.
@@ -134,8 +134,8 @@ proc insert output bool . input comptime k type . input comptime v type .
 ### `lookup` · `has`
 
 ```lowent
-proc lookup output option v . input comptime k type . input comptime v type . input m table k v .
-     input key k . effects none .
+proc lookup input comptime k type . input comptime v type . input m table k v . input key k .
+     output option v . effects none .
 proc has    … output bool . effects none .
 ```
 
@@ -144,8 +144,8 @@ proc has    … output bool . effects none .
 ### `erase` — 지운다
 
 ```lowent
-proc erase output bool . input comptime k type . input comptime v type . input m mut table k v .
-     input key k . effects state .
+proc erase input comptime k type . input comptime v type . input m mut table k v . input key k .
+     output bool . effects state .
 ```
 
 **무덤을 남긴다.** 같은 키를 다시 넣으면 그 자리를 다시 쓴다. 무덤은 `regrow` 때 사라진다.
@@ -157,10 +157,10 @@ proc erase output bool . input comptime k type . input comptime v type . input m
 ### `next_used` · `key_at` · `val_at` — 순회
 
 ```lowent
-proc next_used output option u64 . input comptime k type . input comptime v type . input m table k v .
-     input from u64 . effects none .
-proc key_at output option k . … input at u64 . effects none .
-proc val_at output option v . … input at u64 . effects none .
+proc next_used input comptime k type . input comptime v type . input m table k v . input from u64 .
+     output option u64 . effects none .
+proc key_at … input at u64 . output option k . effects none .
+proc val_at … input at u64 . output option v . effects none .
 ```
 
 - `next_used` 는 **자리 번호**를 준다. 시작은 `0`, 다음은 **앞 자리 + 1** 이다. `none` 이 끝이다.
@@ -181,7 +181,7 @@ use mapgen .
 use allocs .
 
 rem 값마다 몇 번 나왔는지 센다.
-export proc count_all output option (mapgen.table u32 u64) . input al allocs.bump_bytes . input src slice u32 . effects state . do
+export proc count_all input al allocs.bump_bytes . input src slice u32 . output option (mapgen.table u32 u64) . effects state . do
   let mo option (mapgen.table u32 u64) . using al be mapgen.open u32 u64 16 .
   guard is_some mo . else return none .
   var m mapgen.table u32 u64 . be some_value mo .

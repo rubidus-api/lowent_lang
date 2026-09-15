@@ -78,7 +78,7 @@ RFC-0005 는 이 문제의 답으로 `split region R into R1 … Rn by P` 라는
 ```lowent
 newtype grid u8 .
 
-proc demo output u64 . input mem mut slice u64 . . effects none . do
+proc demo input mem mut slice u64 . . output u64 . effects none . do
   var r owned shard.token grid . be shard.open grid 8 .
   var h shard.halves grid . be shard.split_at grid r 4 .
   var lo shard.token grid . be (field h low) .

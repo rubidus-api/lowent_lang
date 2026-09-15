@@ -24,7 +24,7 @@ end .
 
 rem ── ② 왕복 — 써 넣고 다시 읽으면 같은 코드포인트 ─────────────────────
 rem ★ 이것이 이 라이브러리의 핵심 주장이다. 짝을 만들고, 그 짝을 다시 하나로 읽는다.
-proc round_trip output u64 . input buf mut slice u16 . . effects none . do
+proc round_trip input buf mut slice u16 . . output u64 . effects none . do
   rem BMP 문자 — 한 칸
   let a option u64 . be utf16.put buf 0 44032 .
   guard is_some a . else return 90 .
@@ -50,7 +50,7 @@ rem ── ③ ★★★ 짝이 안 맞으면 거절한다 — 이 파일의 진
 rem
 rem   세 가지 망가짐을 **전부** 만들어 보고, 셋 다 `none` 인지 잰다.
 rem   조용히 통과하면 그 뒤의 모든 것이 틀린다 — 거절이 곧 이 라이브러리의 값이다.
-proc rejects_broken output u64 . input buf mut slice u16 . . effects none . do
+proc rejects_broken input buf mut slice u16 . . output u64 . effects none . do
   rem ⓐ 상위 서로게이트 뒤에 **하위가 안 온다**(평범한 문자가 온다)
   set (index buf 0) 55357 .                       rem 0xD83D — 상위
   set (index buf 1) 65 .                          rem 'A' — 하위가 아니다
@@ -89,7 +89,7 @@ fn surrogates_are_not_codepoints output u64 . do
 end .
 
 rem ── ⑤ 전체 훑기 — 망가진 자리를 만나면 **수를 안 낸다** ────────────────
-proc counts_and_validates output u64 . input buf mut slice u16 . . effects none . do
+proc counts_and_validates input buf mut slice u16 . . output u64 . effects none . do
   rem 'A' + 이모지(짝) + '가' = 문자 셋, 칸 넷
   set (index buf 0) 65 .
   set (index buf 1) 55357 .
@@ -110,7 +110,7 @@ end .
 
 rem ── ⑥ 자리가 모자라면 **한 칸도 안 쓴다** (전량-아니면-무) ─────────────
 rem ★ `lib/strbuf.low` 의 `sb_append` 와 같은 규율이다 — 반쯤 쓰인 버퍼는 조용히 틀린 내용이다.
-proc put_is_atomic output u64 . input buf mut slice u16 . . effects none . do
+proc put_is_atomic input buf mut slice u16 . . output u64 . effects none . do
   rem 두 칸짜리를 **마지막 한 칸**에 넣으려 한다 → 거절, 그리고 그 칸은 안 더럽혀진다
   let last u64 be sub (len buf) 1 .
   set (index buf last) 7 .

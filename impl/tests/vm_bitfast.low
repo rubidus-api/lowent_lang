@@ -10,7 +10,7 @@ rem   (레코드에서 배운 것과 **같은 규율**).
 
 module vm_bitfast .
 
-fn popcnt output u64 . input n u64 . do
+fn popcnt input n u64 . output u64 . do
     var b bitset 64 . be bitset_new 64 .
     var i u64 be 0 .
     while lt i n . do
@@ -21,7 +21,7 @@ fn popcnt output u64 . input n u64 . do
 end .
 
 rem 루프마다 **새 비트셋**을 만든다 — 태그 경로는 9번째에 죽는다.
-fn many output u64 . input k u64 . do
+fn many input k u64 . output u64 . do
     var t u64 be 0 .
     var j u64 be 0 .
     while lt j k . do

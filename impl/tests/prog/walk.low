@@ -14,10 +14,10 @@ use files from "../../../lib/file.low" .
 use strbuf from "../../../lib/strbuf.low" .
 
 proc main .
-  output u8 .
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .
+  output u8 .
   effects alloc io .
 do
   let dp option slice u8 . be arg a 0 .

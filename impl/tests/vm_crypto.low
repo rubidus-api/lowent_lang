@@ -21,7 +21,7 @@ use aead from "../../lib/aead.low" .
 use x25519 from "../../lib/x25519.low" .
 
 rem 결과 앞 8 바이트를 하나의 수로 — 골든이 한 줄로 대조할 수 있게.
-fn head8 output u64 . input d slice u8 . do
+fn head8 input d slice u8 . output u64 . do
   var acc u64 be 0 .
   var i u64 be 0 .
   while lt i 8 . do
@@ -32,26 +32,26 @@ fn head8 output u64 . input d slice u8 . do
 end .
 
 rem RFC 4231 case 1 — key 20×0x0b, msg "Hi There".
-proc t_hmac output u64 . input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . effects none . do
+proc t_hmac input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
   guard eq (hmac.mac key msg scratch out) 32 . else return 0 .
   return head8 out .
 end .
 
 rem RFC 5869 case 1 — PRK = HKDF-Extract(salt, IKM).
-proc t_hkdf output u64 . input salt slice u8 . input ikm slice u8 . input scratch mut slice u8 . input prk mut slice u8 . effects none . do
+proc t_hkdf input salt slice u8 . input ikm slice u8 . input scratch mut slice u8 . input prk mut slice u8 . output u64 . effects none . do
   guard eq (hmac.extract salt ikm scratch prk) 32 . else return 0 .
   return head8 prk .
 end .
 
 rem RFC 8439 §2.3.2 — ChaCha20 블록 함수. 첫 워드를 낸다.
-proc t_chacha output u64 . input key slice u8 . input nonce slice u8 . input st mut slice u64 . input work mut slice u64 . effects none . do
+proc t_chacha input key slice u8 . input nonce slice u8 . input st mut slice u64 . input work mut slice u64 . output u64 . effects none . do
   guard eq (chacha.prep key nonce 1 st) 16 . else return 0 .
   guard eq (chacha.rounds st work) 16 . else return 0 .
   return index work 0 .
 end .
 
 rem RFC 8439 §2.5.2 — Poly1305 태그.
-proc t_poly output u64 . input key slice u8 . input msg slice u8 . input st mut slice u64 . input pad mut slice u8 . input tag mut slice u8 . effects none . do
+proc t_poly input key slice u8 . input msg slice u8 . input st mut slice u64 . input pad mut slice u8 . input tag mut slice u8 . output u64 . effects none . do
   guard eq (poly.setup key st) 1 . else return 0 .
   var off u64 be 0 .
   while le (add off 16) (len msg) . do
@@ -74,19 +74,19 @@ proc t_poly output u64 . input key slice u8 . input msg slice u8 . input st mut 
 end .
 
 rem RFC 8439 §2.8.2 — AEAD 봉인. 암호문 앞 8 바이트를 낸다(태그는 out 으로 나간다).
-proc t_seal output u64 . input key slice u8 . input nonce slice u8 . input aad slice u8 .
-     input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input otk mut slice u8 .
-     input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 .
-     input pad mut slice u8 . effects none . do
+proc t_seal input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
+     input ct mut slice u8 . input tag mut slice u8 . input otk mut slice u8 . input pst mut slice u64 .
+     input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 .
+     output u64 . effects none . do
   guard eq (aead.seal key nonce aad msg ct tag otk pst st work ks pad) 16 . else return 0 .
   return head8 ct .
 end .
 
 rem ★★ 변조는 거절돼야 한다 — AEAD 가 하는 약속의 전부다. 1 이면 거절했다.
-proc t_tamper output u64 . input key slice u8 . input nonce slice u8 . input aad slice u8 .
-     input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input outp mut slice u8 .
-     input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 .
-     input ks mut slice u8 . input pad mut slice u8 . input want mut slice u8 . effects none . do
+proc t_tamper input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
+     input ct mut slice u8 . input tag mut slice u8 . input outp mut slice u8 . input otk mut slice u8 .
+     input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 .
+     input pad mut slice u8 . input want mut slice u8 . output u64 . effects none . do
   guard eq (aead.seal key nonce aad msg ct tag otk pst st work ks pad) 16 . else return 90 .
   guard eq (aead.unseal key nonce aad ct tag outp otk pst st work ks pad want) 1 . else return 91 .
   set (index ct 0) (cast u8 (bit_xor (cast u64 (index ct 0)) 1)) .
@@ -95,10 +95,10 @@ proc t_tamper output u64 . input key slice u8 . input nonce slice u8 . input aad
 end .
 
 rem RFC 7748 §5.2 / §6.1 — X25519 스칼라 곱.
-proc t_x25519 output u64 . input n slice u8 . input pt slice u8 . input q mut slice u8 .
-     input z mut slice u8 . input fa mut slice u64 . input fb mut slice u64 . input fc mut slice u64 .
-     input fd mut slice u64 . input fe mut slice u64 . input ff mut slice u64 . input fg mut slice u64 .
-     input fx mut slice u64 . input fs mut slice u64 . input t mut slice u64 . effects none . do
+proc t_x25519 input n slice u8 . input pt slice u8 . input q mut slice u8 . input z mut slice u8 .
+     input fa mut slice u64 . input fb mut slice u64 . input fc mut slice u64 . input fd mut slice u64 .
+     input fe mut slice u64 . input ff mut slice u64 . input fg mut slice u64 . input fx mut slice u64 .
+     input fs mut slice u64 . input t mut slice u64 . output u64 . effects none . do
   guard eq (x25519.scalarmult q n pt z fa fb fc fd fe ff fg fx fs t) 32 . else return 0 .
   return head8 q .
 end .

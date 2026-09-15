@@ -14,12 +14,12 @@ rem   첫 슬라이스(D-C)는 넷: stage {filter, map} × terminal {collect int
 
 module vm_pipe .
 
-fn over2 output bool . input a u8 . do return gt a 2 . end .
-fn dbl   output u8 . input a u8 . do return (wrap_add a a) . end .
-fn addu  output u64 . input acc u64 . input e u8 . do return (add acc (widen u64 e)) . end .
+fn over2 input a u8 . output bool . do return gt a 2 . end .
+fn dbl   input a u8 . output u8 . do return (wrap_add a a) . end .
+fn addu  input acc u64 . input e u8 . output u64 . do return (add acc (widen u64 e)) . end .
 
 rem filter → map → collect into : 한 루프. [1,2,3,4,5] → >2 → ×2 → [6,8,10]
-proc fm output u64 . input xs slice u8 . input out mut slice u8 . effects none . do
+proc fm input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     filter over2 .
     map dbl .
@@ -29,7 +29,7 @@ proc fm output u64 . input xs slice u8 . input out mut slice u8 . effects none .
 end .
 
 rem 스테이지 없이 collect — 복사. 파이프라인의 최소형.
-proc copy_all output u64 . input xs slice u8 . input out mut slice u8 . effects none . do
+proc copy_all input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     collect into out .
   end .
@@ -37,7 +37,7 @@ proc copy_all output u64 . input xs slice u8 . input out mut slice u8 . effects 
 end .
 
 rem filter → fold : 누산기 종결자. 스테이지가 걸러낸 것만 더한다.
-proc sum_over2 output u64 . input xs slice u8 . input out mut slice u8 . effects none . do
+proc sum_over2 input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     filter over2 .
     fold 0 addu .
@@ -48,20 +48,20 @@ end .
 rem ── 값 내는 terminal 셋 — 파이프라인은 **식**이다(§6.1). count·any·all.
 rem   ★ any/all 은 **단락 종료**한다: 첫 참(any)·첫 거짓(all)에서 루프를 곧장 빠져나온다.
 rem     그래서 필요한 만큼만 읽는다 — 이것이 §8-8 pull 소스(무한 리스트)의 전제이기도 하다.
-fn cnt_over2 output u64 . input xs slice u8 . do
+fn cnt_over2 input xs slice u8 . output u64 . do
   return pipe xs do
     filter over2 .
     count .
   end .
 end .
 
-fn any_over2 output bool . input xs slice u8 . do
+fn any_over2 input xs slice u8 . output bool . do
   return pipe xs do
     any over2 .
   end .
 end .
 
-fn all_over2 output bool . input xs slice u8 . do
+fn all_over2 input xs slice u8 . output bool . do
   return pipe xs do
     all over2 .
   end .
@@ -75,7 +75,7 @@ rem     `reserve` 로 바꿨다. 하나는 **자원을 얻고** 하나는 **흐�
 rem     자리로 구분은 되지만(파서는 `send` 의 3번째 낱말과 스테이지 머리를 안다) 읽는 사람에게는 두 뜻이라,
 rem     **비용이 0 인 쪽**(픽스처 이름)을 바꿨다. `take` 는 파이프라인 관용이고 `reserve` 가 더 정확하다.
 
-proc first3 output u64 . input xs slice u8 . input out mut slice u8 . effects none . do
+proc first3 input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     take 3 .
     collect into out .
@@ -83,7 +83,7 @@ proc first3 output u64 . input xs slice u8 . input out mut slice u8 . effects no
   return 0 .
 end .
 
-proc drop2 output u64 . input xs slice u8 . input out mut slice u8 . effects none . do
+proc drop2 input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     skip 2 .
     collect into out .
@@ -92,7 +92,7 @@ proc drop2 output u64 . input xs slice u8 . input out mut slice u8 . effects non
 end .
 
 rem 조합 — skip → take → map 이 한 루프에서 순서대로 흐른다.
-proc mid2x output u64 . input xs slice u8 . input out mut slice u8 . effects none . do
+proc mid2x input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     skip 1 .
     take 2 .
@@ -103,7 +103,7 @@ proc mid2x output u64 . input xs slice u8 . input out mut slice u8 . effects non
 end .
 
 rem take 0 — 아무것도 통과하지 않고 루프가 곧장 끝난다(단락의 극단).
-fn none_taken output u64 . input xs slice u8 . do
+fn none_taken input xs slice u8 . output u64 . do
   return pipe xs do
     take 0 .
     count .
@@ -120,10 +120,10 @@ rem   쌍을 만들었다 즉시 분해하지 않으므로 P3(숨은 할당 0)·
 rem   ★ zip 은 **짧은 쪽이 끝나면 전체 종료**한다(단락) — 그래야 짝이 항상 맞는다.
 rem   ★ enumerate 의 인덱스는 **그 스테이지에 도달한 순번**이다(앞선 filter 를 반영한다).
 
-fn idxadd output u8 . input i u64 . input e u8 . do return (wrap_add e (narrow_wrap u8 i)) . end .
-fn addb   output u8 .  input a u8 . input b u8 . do return (wrap_add a b) . end .
+fn idxadd input i u64 . input e u8 . output u8 . do return (wrap_add e (narrow_wrap u8 i)) . end .
+fn addb   input a u8 .  input b u8 . output u8 . do return (wrap_add a b) . end .
 
-proc with_idx output u64 . input xs slice u8 . input out mut slice u8 . effects none . do
+proc with_idx input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     enumerate idxadd .
     collect into out .
@@ -131,7 +131,7 @@ proc with_idx output u64 . input xs slice u8 . input out mut slice u8 . effects 
   return 0 .
 end .
 
-proc zipped output u64 . input xs slice u8 . input ys slice u8 . input out mut slice u8 . effects none . do
+proc zipped input xs slice u8 . input ys slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     zip ys addb .
     collect into out .
@@ -146,7 +146,7 @@ rem     풀린다**: collect 는 이미 **유계 싱크**이고(§6.5 — out �
 rem     수를 **늘리지 않는다**(1:1). 늘리는 스테이지였다면 경계를 다시 봐야 했겠지만, scan 은 아니다.
 rem   ★ 누산기 하나라 단일 패스를 안 깨고 융합 보장(D-A)이 유지된다.
 
-proc running_sum output u64 . input xs slice u8 . input out mut slice u8 . effects none . do
+proc running_sum input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     scan 0 addb .
     collect into out .
@@ -160,7 +160,7 @@ rem   **쓰기 인덱스 j 가 읽기 인덱스 i 를 결코 앞지르지 않는
 rem   올리고 i 는 매 회 오른다 ⇒ j ≤ i). 아직 안 읽은 원소를 덮어쓸 수가 **구조적으로** 없다.
 rem   ★ filter 는 **제자리 압축**이 된다: 앞쪽에 통과분이 모이고 뒤는 잔여로 남는다(쓴 개수가 경계다).
 
-proc inplace_map output u64 . input xs mut slice u8 . effects none . do
+proc inplace_map input xs mut slice u8 . output u64 . effects none . do
   pipe xs do
     map dbl .
     collect into xs .
@@ -168,7 +168,7 @@ proc inplace_map output u64 . input xs mut slice u8 . effects none . do
   return 0 .
 end .
 
-proc inplace_filter output u64 . input xs mut slice u8 . effects none . do
+proc inplace_filter input xs mut slice u8 . output u64 . effects none . do
   pipe xs do
     filter over2 .
     collect into xs .

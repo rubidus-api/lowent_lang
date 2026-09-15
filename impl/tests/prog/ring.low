@@ -14,7 +14,7 @@ module ring .
 
 use spsc from "../../../lib/spsc.low" .
 
-proc main output u8 . input al cap allocator . input k cap atomic . effects alloc atomic . do
+proc main input al cap allocator . input k cap atomic . output u8 . effects alloc atomic . do
   rem ctl 두 칸(head·tail) · buf 여덟 칸 ⇒ 용량 7(한 칸은 비워 둔다).
   let ctlo option mut slice u8 . . be alloc_bytes al capacity 16 .
   guard is_some ctlo . else return 90 .

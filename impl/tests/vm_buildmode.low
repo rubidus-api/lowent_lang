@@ -19,13 +19,13 @@ module bm .
 
 build release_safe .          rem ★ debug 등급은 지운다. static 등급은 남긴다.
 
-fn cheap output u8 . input a u8 .
+fn cheap input a u8 . output u8 .
   requires debug ge a 1 .     rem debug 등급 — release_safe 에서 **지워진다**
 do
   return a .
 end .
 
-fn core output u8 . input a u8 .
+fn core input a u8 . output u8 .
   requires ge a 1 .           rem static 등급(기본) — **남는다**
 do
   return a .

@@ -8,7 +8,7 @@ fn counter output u8 . do
   return i .
 end .
 rem ② 계약이 **루프 안까지** 전달된다: n ≤ 100 이고 i < n 이면 i ≤ 99
-fn guarded output u8 . input n u8 . requires le n 100 . do
+fn guarded input n u8 . output u8 . requires le n 100 . do
   var i u8 be 0 .
   while lt i n . do
     set i expr i + 1 .
@@ -16,7 +16,7 @@ fn guarded output u8 . input n u8 . requires le n 100 . do
   return i .
 end .
 rem ③ 경계가 없으면 증명 못 한다(보수적이되 건전)
-fn unbounded output u8 . input n u8 . do
+fn unbounded input n u8 . output u8 . do
   var i u8 be 0 .
   while lt i n . do
     set i expr i + 100 .

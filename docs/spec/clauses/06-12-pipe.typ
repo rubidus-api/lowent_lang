@@ -18,10 +18,10 @@ end .")
   ]
   #ex("같은 일을 손으로 쓴 반복과 pipe 로 — 둘 다 한 번 훑는다", "module ex_pipe_why .
 
-fn is_digit output bool . input c u8 . do return and (ge c 48) (le c 57) . end .
+fn is_digit input c u8 . output bool . do return and (ge c 48) (le c 57) . end .
 
 rem 손으로 쓴 반복 — 카운터·인덱스·조건·증가를 사람이 하나하나 맞춘다.
-fn digits_loop output u64 . input s slice u8 .
+fn digits_loop input s slice u8 . output u64 .
 do
   var n u64 be 0 .
   var i u64 be 0 .
@@ -33,7 +33,7 @@ do
 end .
 
 rem 같은 일을 pipe 로 — «숫자인 것만 남기고, 센다». 하는 일이 줄마다 한 낱말로 보인다.
-fn digits_pipe output u64 . input s slice u8 .
+fn digits_pipe input s slice u8 . output u64 .
 do
   return pipe s do
     filter is_digit .
@@ -92,12 +92,12 @@ end .")
     ]
     #ex("스테이지 둘과 종결자 하나 — 한 번의 훑기", "module ex_pipe .
 
-fn over2 output bool . input a u8 . do return gt a 2 . end
+fn over2 input a u8 . output bool . do return gt a 2 . end
 
-fn dbl output u8 . input a u8 . do return (wrap_add a a) . end
+fn dbl input a u8 . output u8 . do return (wrap_add a a) . end
 
 rem [1,2,3,4,5] → 2 보다 큰 것만 → 두 배 → out 에 담는다. 중간 배열은 생기지 아니한다.
-proc fm output u64 . input xs slice u8 . input out mut slice u8 . effects none . do
+proc fm input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     filter over2 .
     map dbl .

@@ -15,7 +15,7 @@ end
 fn origin output point . do
   return make point do x 3 . y 4 . end
 end
-fn getx output u64 . input p point . do
+fn getx input p point . output u64 . do
   return field p x .          rem 다단도 된다: `field o inner deep`
 end
 ```
@@ -35,7 +35,7 @@ enum node do
   add l u32 r u32 .
 end
 fn leaf output node . do return node.lit 42 . end
-fn is_leaf output u8 . input n node . do
+fn is_leaf input n node . output u8 . do
   guard isa n lit . else return 0 .     rem lit 변형인지 확인
   return 1 .
 end
@@ -50,7 +50,7 @@ end
 정수 파라미터가 실제로는 좁은 범위만 받는다면, **타입 자리에서** 그렇게 적을 수 있다.
 
 ```lowent
-fn scale output u8 . input a range 0 100 . do
+fn scale input a range 0 100 . output u8 . do
   return narrow u8 (mul a 2) .          rem 200 을 못 넘는다 — 검사가 필요 없다
 end
 ```
@@ -78,7 +78,7 @@ module ex_trait_why .
 
 rem 모양마다 넓이를 구하는 법은 다르다. 그러나 «넓이를 알려 준다» 는 약속은 같다.
 trait shape do
-  area output u64 . input s self .
+  area input s self . output u64 .
 end .
 
 struct rect do
@@ -92,18 +92,18 @@ struct square do
   side u64 .
 end .
 
-fn rect.area output u64 . input s rect .
+fn rect.area input s rect . output u64 .
 do
   return mul (field s w) (field s h) .
 end .
 
-fn square.area output u64 . input s square .
+fn square.area input s square . output u64 .
 do
   return mul (field s side) (field s side) .
 end .
 
 rem 이 op 은 **어떤 모양이든** 받는다 — `requires shape t` 가 «넓이를 알려 주는 타입만» 이라고 못박는다.
-fn double_area output u64 . input comptime t type . input s t .
+fn double_area input comptime t type . input s t . output u64 .
   requires shape t .
 do
   return mul 2 (method s area) .
@@ -128,9 +128,9 @@ end .
 module shapes .
 
 trait shape do
-  area output u64 . input s self .
-  grow output self . input s self . input k u64 .
-  checked_area output u64 . input s self . effects panic .
+  area input s self . output u64 .
+  grow input s self . input k u64 . output self .
+  checked_area input s self . output u64 . effects panic .
 end
 
 struct rect do
@@ -139,17 +139,17 @@ struct rect do
   h u64 .
 end
 
-fn rect.area output u64 . input s rect .
+fn rect.area input s rect . output u64 .
 do
   return mul (field s w) (field s h) .
 end
 
-fn rect.grow output rect . input s rect . input k u64 .
+fn rect.grow input s rect . input k u64 . output rect .
 do
   return make rect do w (add (field s w) k) . h (add (field s h) k) . end .
 end
 
-proc rect.checked_area output u64 . input s rect . effects panic .
+proc rect.checked_area input s rect . output u64 . effects panic .
 do
   if eq (field s w) 0 . do panic "empty rect" . end .
   return mul (field s w) (field s h) .
@@ -159,7 +159,7 @@ end
 적는 법:
 
 - **서명마다 한 줄**이다. 줄은 op 의 **이름**으로 시작하고, 그 뒤에 op 머리와 같은 차례로 절을 적는다 —
-  `output` 이 맨 앞, 그다음 `input`, 그다음 `effects`. 다음 이름이 나오면 다음 서명이다. 몇 개든 적는다.
+  `input` 들, 그다음 `output`, 그다음 `effects`. 다음 이름이 나오면 다음 서명이다. 몇 개든 적는다.
 - `self` 는 이 트레이트를 갖출 타입 자신이다. 갖추는 쪽에서는 그 자리에 실제 타입(`rect`)을 적는다.
 - 갖추는 op 의 이름은 `<타입>.<이름>` 이다(`rect.area`). 타입 쪽에는 `satisfies shape .` 를 적는다.
 

@@ -22,11 +22,11 @@ struct row do
 end
 
 rem ② 무엇이 더 작은가 — 이 한 줄이 정렬 기준의 전부다
-fn row.less output bool . input a row . input b row . do
+fn row.less input a row . input b row . output bool . do
   return lt (field a key) (field b key) .
 end
 
-proc go output void . input s mut slice row . . effects none . do
+proc go input s mut slice row . . output void . effects none . do
   sortgen.sort_by row s .          rem ③ 타입을 comptime 인자로 준다
 end
 ```
@@ -67,7 +67,7 @@ op 이 만들어지고(단형화), 비교는 **직접 호출**로 박힌다. 간
 
 ```lowent
 export trait ordered do
-  less output bool . input a self . input b self . effects none .
+  less input a self . input b self . output bool . effects none .
 end
 ```
 
@@ -94,7 +94,7 @@ end
 
 #### sort_by
 ```lowent
-export proc sort_by output void . input comptime t type . input s mut slice t . . effects none . requires ordered t .
+export proc sort_by input comptime t type . input s mut slice t . . output void . effects none . requires ordered t .
 ```
 - `comptime t type` — 정렬할 **원소 타입**. **왜 받나:** 비교를 어디서 가져올지 정하는 것이
   이 인자다. 컴파일 때 확정되므로 실행 중 비용은 0 이다.
@@ -117,11 +117,11 @@ struct keyed do
   satisfies sortgen.ordered .        rem 이 선언이 없으면 경계에서 걸린다
   k u64 .
 end
-fn keyed.less output bool . input a keyed . input b keyed . do
+fn keyed.less input a keyed . input b keyed . output bool . do
   return lt (field a k) (field b k) .   rem 기준은 k 필드 하나
 end
 
-proc sorted3 output u64 . input s mut slice keyed . . effects none . do
+proc sorted3 input s mut slice keyed . . output u64 . effects none . do
   guard ge (len s) 3 . else return 90 .
   sortgen.sort_by keyed s .          rem 여기서 keyed 전용 정렬 op 이 만들어진다
   let f0 keyed be index s 0 .        rem 읽으면 뷰다 — 복사가 아니다
@@ -141,7 +141,7 @@ end
 struct row do
   key u64 .                          rem satisfies 가 없다
 end
-fn row.less output bool . input a row . input b row . do return lt (field a key) (field b key) . end
+fn row.less input a row . input b row . output bool . do return lt (field a key) (field b key) . end
 rem sortgen.sort_by row s .          → E-BOUND-UNSAT
 ```
 **증상:** 컴파일이 거절한다. 실행해 보고 아는 것이 아니라 **부르는 순간** 안다.
@@ -154,7 +154,7 @@ rem sortgen.sort_by u64 s .          → E-BOUND-UNSAT (u64 는 less 를 가질 
 
 **③ `less` 가 같은 값에 참을 낸다.**
 ```lowent
-fn row.less output bool . input a row . input b row . do
+fn row.less input a row . input b row . output bool . do
   return le (field a key) (field b key) .            rem ★ le 는 같을 때도 참이다
 end
 ```

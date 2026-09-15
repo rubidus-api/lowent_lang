@@ -1,8 +1,8 @@
 rem float core fixture — literals, IEEE arith (div0 → inf), compare, cast (G2).
 fn favg .
-  output f64 .
   input a u64 .
   input b u64 .
+  output f64 .
 do
   return expr ((cast f64 a) + (cast f64 b)) / 2.0 .
 end .

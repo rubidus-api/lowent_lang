@@ -32,9 +32,9 @@ end .
 
 rem ★ VM 에서 **진짜로 돈다**: "디바이스" 는 호출자가 건네는 바이트 버퍼다.
 unsafe proc drive .
-  output u32 .
   input dev cap mmio .       rem ★ 하드웨어 접근은 **건네받는 권한**이다
   input regs mut slice u8 .
+  output u32 .
   effects device unsafe .    rem ★ volatile 접근은 **부작용**이다 — 시그니처에 보인다
 do
   var g gpio . be view gpio regs .
@@ -53,9 +53,9 @@ rem       (틀린 스택·틀린 우선순위·인터럽트가 틀린 상태에�
 rem     · **인자 없음**(하드웨어는 인자를 안 넘긴다) · **반환 없음**(돌아갈 데가 없다)
 rem     · **`device` 효과** — 디바이스가 불러서 존재하는 것이다
 unsafe proc on_exti .
-  output void .
   vector 6 .                 rem 어느 인터럽트인가
   priority 2 .               rem 우선순위 (RFC-0039 ceiling)
+  output void .
   effects device unsafe .
 do
   return 0 .

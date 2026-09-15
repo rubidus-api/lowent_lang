@@ -38,15 +38,15 @@ rem 환경 변수가 있으면 그 자리를 켜고, 없으면 그대로 둔다(
 rem ★ `effects none` 이다 — 환경을 **읽기만** 하는 것은 바깥을 고치지 않는다. 처음엔 옆 프로그램
 rem   (`prog/fields.low`)을 보고 `state` 를 적었는데, 도구가 *"선언만 하고 안 한다"* 고 말했다
 rem   (W-EFFECT-OVER). 선언한 효과는 **부르는 쪽이 치러야 하는 비용**이라, 안 하는 선언은 거짓말이다.
-proc switch output u64 . input e cap env . input s u64 . input name slice u8 .
-  input n u64 . effects none .
+proc switch input e cap env . input s u64 . input name slice u8 . input n u64 .
+  output u64 . effects none .
 do
   let v option slice u8 . be env_get e name .
   guard is_some v . else return s .
   return flags.with s n .
 end .
 
-proc main output u8 . input e cap env . effects none . do
+proc main input e cap env . output u8 . effects none . do
   var s u64 be flags.empty .
 
   rem ⓑ 환경이 켜는 자리들 — 기본값과 무관하게 «사용자가 켠 것» 을 모은다.

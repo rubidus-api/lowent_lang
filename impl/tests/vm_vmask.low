@@ -14,7 +14,7 @@ module vm_vmask .
 type bytes slice u8 . .
 
 rem masked store — v>5 인 lane 만 out 에 쓴다. 나머지 out 자리는 **그대로**(호출자가 준 값 보존).
-proc mstore output u64 . input b bytes . input out mut slice u8 . effects none . do
+proc mstore input b bytes . input out mut slice u8 . output u64 . effects none . do
   var xs slice u32 . be view_array u32 b .
   var v vec u32 4 . be load xs 0 .
   var lim vec u32 4 . be splat 5 .
@@ -24,7 +24,7 @@ proc mstore output u64 . input b bytes . input out mut slice u8 . effects none .
 end .
 
 rem masked load (merge) — v>5 인 lane 은 메모리를 읽고, 나머지는 passthrough(=100). 결과를 out 에 되쓴다.
-proc mload output u64 . input b bytes . input out mut slice u8 . effects none . do
+proc mload input b bytes . input out mut slice u8 . output u64 . effects none . do
   var xs slice u32 . be view_array u32 b .
   var v vec u32 4 . be load xs 0 .
   var lim vec u32 4 . be splat 5 .
@@ -39,7 +39,7 @@ rem ★ **꼬리(tail) 안전** — short 는 u32 3개뿐(레인 4보다 짧다)
 rem   레인 0..2 는 메모리를 읽고 **레인 3 은 short[3](경계 밖)을 안 읽고** passthrough(=9) 를 쓴다.
 rem   평범한 `load short 0` 이라면 레인 3 이 OOB 라 panic 이다 — masked load 만이 이 꼬리를 안전하게 만든다.
 rem   mask 는 full(u32 4개, 경계 안)에서 만든다: full=[10,10,10,0], gt 5 → [켜,켜,켜,꺼].
-proc tail output u64 . input full bytes . input short bytes . input out mut slice u8 . effects none . do
+proc tail input full bytes . input short bytes . input out mut slice u8 . output u64 . effects none . do
   var xf slice u32 . be view_array u32 full .
   var xs slice u32 . be view_array u32 short .
   var vf vec u32 4 . be load xf 0 .

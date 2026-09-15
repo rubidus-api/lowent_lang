@@ -15,7 +15,7 @@
 
 내용 주소화는 이름을 버리고 **내용의 해시**로 부른다.
 
-> 이 장의 해시 값은 2026-09-15 에 다시 쟀다. 그날 op 머리의 절 차례가 바뀌어(`output` 이 맨 앞) 모든 op 의
+> 이 장의 해시 값은 2026-09-15 에 다시 쟀다. 그날 op 머리의 절 차례를 다듬어 고정하면서 모든 op 의
 > 해시가 한 번 바뀌었다 — 해시는 머리의 절을 적힌 차례대로 담는다. 차례가 하나로 고정됐으므로(거절 + `--fmt`) 같은 프로그램이 두 해시를 갖는 일은 없다.
 
 ```
@@ -88,7 +88,7 @@ hash(def) = BLAKE3-256( 정규 인코딩(def) )
 ### 성질 H1 — 표면 무관: 주석은 아무것도 바꾸지 않는다
 
 ```text
-export fn twice output u64 . input a u64 . do
+export fn twice input a u64 . output u64 . do
   return add a a .
 end
                               → iface:c5982bd8503c2541  def:69f4530596f8eb3c
@@ -96,7 +96,7 @@ end
 
 ```text
 rem 주석을 넣어도 아무것도 안 바뀌어야 한다
-export fn twice output u64 . input a u64 . do
+export fn twice input a u64 . output u64 . do
   rem 여기도 주석
   return add a a .
 end

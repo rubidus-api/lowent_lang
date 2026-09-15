@@ -53,8 +53,8 @@ rem   ☞ 정직하게: 경계에서 바이트를 **양방향으로 복사**하�
 rem     이 딸려온다. 뷰를 **포인터로** 넘기면 그 값이 0 이 되지만, 그것은 빠른 경로의 ABI 를
 rem     바꾸는 일이라 별도 증분이다(§9-4). 지금 얻은 것은 **선택지가 생겼다는 것**이다.
 proc post .
-  output void .
   input q mut tickq .
+  output void .
   effects state .            rem ★ 예약 블록은 모듈 가변 전역이다(RFC-0029)
 do
   write_volatile q posted (add (read_volatile q posted) 1) .
@@ -63,8 +63,8 @@ end .
 
 rem ★★ `fn` 이 아니라 `proc` 이다 — ISR 이 바꾸는 값을 읽는 것은 **순수가 아니다.**
 proc pending .
-  output u32 .
   input q tickq .
+  output u32 .
   effects state .
 do
   rem ★ 여기가 **volatile 이어야 하는 자리**다 — 루프가 이것을 반복해서 묻는다.
@@ -72,8 +72,8 @@ do
 end .
 
 proc take .
-  output void .
   input q mut tickq .
+  output void .
   effects state .
 do
   write_volatile q taken (add (read_volatile q taken) 1) .
@@ -110,9 +110,9 @@ rem     · `effects device` 는 남는다 — 이 op 이 도는 **이유**가 �
 rem     · `cap` 은 없다. 가질 수 없다. 권한은 `vector 15 .` 이다(D5-b)
 rem   ⇒ 인터럽트 핸들러가 **처음으로 프로그램의 나머지와 말을 한다.**
 proc on_systick .
-  output void .
   vector 15 .
   priority 3 .
+  output void .
   effects device state .
 do
   var q tickq . be view tickq .        rem ★ 줄 사람이 없어도 열린다 — 벡터가 권한이다
@@ -123,8 +123,8 @@ end .
 rem ── 리셋 진입 — 초기화하고, 그다음이 리액터 루프다 (RFC-0042 D5-c) ──────
 rem ★ 권한은 넘겨줄 수 없으므로 장치 초기화는 여기서 직접 한다(blink 과 같은 이유·같은 대가).
 unsafe proc reset .
-  output void .
   vector 1 .
+  output void .
   effects device unsafe state .
 do
   rem ① 클럭 → ② LED 핀 출력 → ③ SysTick 1kHz

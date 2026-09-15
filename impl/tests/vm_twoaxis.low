@@ -26,11 +26,11 @@ end .
 
 rem 빈 컨테이너를 연다. 자리를 못 받으면 none — OOM 은 값이다(RFC-0043 D5).
 export proc open .
-  output option (gv t a) .
   input comptime t type .
   input comptime a type .
   using al a .
   input cap0 u64 .
+  output option (gv t a) .
   effects state .
   requires allocs.byte_allocator a .
 do
@@ -41,11 +41,11 @@ end .
 
 rem 한 원소를 잇는다. 방이 없으면 false — 여기서는 **안 자란다**(자람은 `vecgen` 의 몫이다).
 export proc add_one .
-  output bool .
   input comptime t type .
   input comptime a type .
   input g mut gv t a .
   input x t .
+  output bool .
   effects none .
   requires allocs.byte_allocator a .
 do
@@ -59,11 +59,11 @@ do
 end .
 
 export fn get .
-  output option t .
   input comptime t type .
   input comptime a type .
   input g gv t a .
   input i u64 .
+  output option t .
   requires allocs.byte_allocator a .
 do
   guard lt i (field g n) . else return none .
@@ -73,14 +73,14 @@ do
 end .
 
 export fn count_of .
-  output u64 . input comptime t type . input comptime a type . input g gv t a .
+  input comptime t type . input comptime a type . input g gv t a . output u64 .
   requires allocs.byte_allocator a .
 do
   return field g n .
 end .
 
 rem ── 원소 축: 같은 틀에서 u32 컨테이너 ────────────────────────────────────────
-proc part_axis_t output u8 . input al cap allocator . effects alloc state . do
+proc part_axis_t input al cap allocator . output u8 . effects alloc state . do
   let mo option mut slice u8 . be alloc_bytes al capacity 256 .
   guard is_some mo . else return 1 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -109,7 +109,7 @@ proc part_axis_t output u8 . input al cap allocator . effects alloc state . do
 end .
 
 rem ── 같은 틀·다른 원소폭. 원소 축이 실제로 도는지. ────────────────────────────
-proc part_u16 output u8 . input al cap allocator . effects alloc state . do
+proc part_u16 input al cap allocator . output u8 . effects alloc state . do
   let mo option mut slice u8 . be alloc_bytes al capacity 256 .
   guard is_some mo . else return 1 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -138,7 +138,7 @@ export actor pair_bytes do
     last u64 .
   end .
 
-  proc init output u64 . input backing mut slice u8 . . effects state . do
+  proc init input backing mut slice u8 . . output u64 . effects state . do
     set mem backing .
     set off 0 .
     set last 0 .
@@ -146,7 +146,7 @@ export actor pair_bytes do
   end .
 
   rem ★ 한 번에 **두 배**를 떼어 준다 — bump 와 **다른 정책**이라 타입이 달라야 할 이유가 된다.
-  proc reserve output option mut slice u8 . . input n u64 . effects state . do
+  proc reserve input n u64 . output option mut slice u8 . . effects state . do
     let want u64 be mul n 2 .
     guard le (add off want) (len mem) . else return none .
     let v mut slice u8 . be subslice mem off (add off want) .
@@ -161,7 +161,7 @@ export actor pair_bytes do
   rem   **그것이 이 트레이트가 정책에 안 매여 있다는 증거다.**
   rem ★ 못 늘리는 얼로케이터라면 `return none .` 한 줄로 두어도 완전한 구현이다:
   rem   `grow` 는 **최적화이지 계약이 아니고**, 부르는 쪽은 none 을 받으면 새로 받아 복사한다.
-  proc grow output option mut slice u8 . . input old mut slice u8 . . input newn u64 . effects state . do
+  proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state . do
     guard le (len old) newn . else return none .
     guard eq (add last (len old)) off . else return none .
     guard same_slice old (subslice mem last off) . else return none .
@@ -175,7 +175,7 @@ export actor pair_bytes do
   end .
 end .
 
-proc part_pair output u8 . input al cap allocator . effects alloc state . do
+proc part_pair input al cap allocator . output u8 . effects alloc state . do
   let mo option mut slice u8 . be alloc_bytes al capacity 256 .
   guard is_some mo . else return 1 .
   var pp pair_bytes be spawn actor pair_bytes . .
@@ -199,7 +199,7 @@ proc part_pair output u8 . input al cap allocator . effects alloc state . do
 end .
 
 rem ── 진입점. 세 장면을 한 자리에서 — 골든은 `main` 하나만 부른다. ─────────────
-proc main output u8 . input al cap allocator . effects alloc state . do
+proc main input al cap allocator . output u8 . effects alloc state . do
   guard eq (part_axis_t al) 42 . else return 1 .
   guard eq (part_u16 al) 43 . else return 2 .
   guard eq (part_pair al) 44 . else return 3 .

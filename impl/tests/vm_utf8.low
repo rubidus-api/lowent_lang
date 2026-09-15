@@ -64,7 +64,7 @@ end .
 rem ── 거절하는 것 — 여기가 이 라이브러리의 값이다 ────────────────────────
 
 rem ★ 잘린 시퀀스: 3 바이트 선두인데 뒤가 하나뿐.
-proc t_truncated output u64 . input buf mut slice u8 . . effects none . do
+proc t_truncated input buf mut slice u8 . . output u64 . effects none . do
   set (index buf 0) 237 .                                 rem ED — 3 바이트 선두
   set (index buf 1) 149 .
   let d option u64 . be utf8.decode (subslice buf 0 2) 0 .
@@ -73,7 +73,7 @@ proc t_truncated output u64 . input buf mut slice u8 . . effects none . do
 end .
 
 rem ★★ 과길이: U+0041('A')을 2 바이트로 쓴 C1 81. 유효한 것과 **같은 값**이 되므로 거절해야 한다.
-proc t_overlong output u64 . input buf mut slice u8 . . effects none . do
+proc t_overlong input buf mut slice u8 . . output u64 . effects none . do
   set (index buf 0) 193 .                                 rem C1
   set (index buf 1) 129 .                                 rem 81
   let d option u64 . be utf8.decode (subslice buf 0 2) 0 .
@@ -82,7 +82,7 @@ proc t_overlong output u64 . input buf mut slice u8 . . effects none . do
 end .
 
 rem ★★ 서로게이트 U+D800 을 UTF-8 로 쓴 ED A0 80 — UTF-8 에는 없는 자리.
-proc t_surrogate output u64 . input buf mut slice u8 . . effects none . do
+proc t_surrogate input buf mut slice u8 . . output u64 . effects none . do
   set (index buf 0) 237 .                                 rem ED
   set (index buf 1) 160 .                                 rem A0
   set (index buf 2) 128 .                                 rem 80
@@ -92,7 +92,7 @@ proc t_surrogate output u64 . input buf mut slice u8 . . effects none . do
 end .
 
 rem ★ 이어지기 바이트가 선두에 왔다.
-proc t_stray_cont output u64 . input buf mut slice u8 . . effects none . do
+proc t_stray_cont input buf mut slice u8 . . output u64 . effects none . do
   set (index buf 0) 128 .                                 rem 80
   let d option u64 . be utf8.decode (subslice buf 0 1) 0 .
   guard eq (is_some d) false . else return 90 .

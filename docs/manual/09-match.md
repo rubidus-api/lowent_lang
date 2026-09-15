@@ -17,7 +17,7 @@ enum color do
   green .
   blue .
 end
-fn name output u8 . input c color . do
+fn name input c color . output u8 . do
   match c do
     case red . do return 1 . end
     case _   . do return 0 .   end        rem green·blue 를 한꺼번에
@@ -29,7 +29,7 @@ end
 
 ```lowent
 rem ✓ 정수는 무한하므로 `_` 가 반드시 필요하다.
-fn grade output u8 . input n u8 . do
+fn grade input n u8 . output u8 . do
   match n do
     case 0 . do return 70 . end
     case 1 . do return 80 . end
@@ -40,7 +40,7 @@ end
 
 ```lowent
 rem ✓ bool 은 유한(true/false)이라 `_` 없이 둘만 다뤄도 망라다.
-fn flip output u8 . input b u8 . do
+fn flip input b u8 . output u8 . do
   match b do
     case true  . do return 0 . end
     case false . do return 1 . end
@@ -52,7 +52,7 @@ end
 
 ```lowent
 rem ✓ 폐구간 lo ≤ x ≤ hi. 경계 9·10 이 각각 옳은 팔에 든다.
-fn band output u8 . input x u8 . do
+fn band input x u8 . output u8 . do
   match x do
     case 0 to 9   . do return 1 . end
     case 10 to 19 . do return 2 . end
@@ -66,7 +66,7 @@ end
 ```lowent
 rem ✓ 두 범위가 u8 전 도메인을 타일 → `_` 불요. 빈틈이 있으면 E-MATCH-INEXHAUSTIVE,
 rem   범위가 겹치면 E-MATCH-REDUNDANT.
-fn half output u8 . input b u8 . do
+fn half input b u8 . output u8 . do
   match b do
     case 0 to 127   . do return 0 . end
     case 128 to 255 . do return 1 . end
@@ -78,7 +78,7 @@ end
 
 ```lowent
 rem ✓ 어느 하나라도 맞으면 그 팔. 변형 or 은 각 가지가 망라에 기여한다.
-fn kind output u8 . input c color . do
+fn kind input c color . output u8 . do
   match c do
     case red or green . do return 1 . end
     case blue         . do return 2 . end        rem red·green·blue 전부 덮임 — `_` 불요
@@ -95,7 +95,7 @@ enum node do
   add l u32 r u32 .
   mul l u32 r u32 .
 end .
-fn combine output u32 . input e node . do
+fn combine input e node . output u32 . do
   match e do
     case add l r or mul l r . do return add l r . end   rem add|mul + lit = 전 변형 → `_` 불요
     case lit v              . do return v .       end
@@ -113,7 +113,7 @@ enum node do
   lit v u32 .
   add l u32 r u32 .
 end
-fn eval output u32 . input nodes slice node . input i u32 . do
+fn eval input nodes slice node . input i u32 . output u32 . do
   let n node be index nodes i .
   match n do
     case lit v   . do return v . end
@@ -126,7 +126,7 @@ end
 
 ```lowent
 rem ✓ some 는 값을 묶고, none 은 빈 경우. 둘이 유한 도메인이라 `_` 불요.
-fn or0 output u32 . input o option u32 . do
+fn or0 input o option u32 . output u32 . do
   match o do
     case some x . do return x . end
     case none  . do return 0 . end
@@ -145,7 +145,7 @@ rem ✓ ok(some x) → x, ok(none) → 0, error → 99.
 enum er do
   bad
 end
-fn pick output u32 . input r result option u32 er . do
+fn pick input r result option u32 er . output u32 . do
   match r do
     case ok (some x) . do return x .   end
     case ok none     . do return 0 .   end
@@ -180,7 +180,7 @@ end
 
 ```lowent
 rem ✓ y 에 값을 묶고(전체 바인딩), 가드로 더 좁힌다.
-fn big output u8 . input x u8 . do
+fn big input x u8 . output u8 . do
   match x do
     case y when gt y 100 . do return 1 . end
     case _               . do return 0 . end       rem 가드가 거짓일 때를 `_` 가 받는다

@@ -21,10 +21,10 @@ end .
 rem ── 저수준 라이터: 모두 (buf, pos) → 새 pos 를 돌려주는 순수 빌더(숨은 alloc 0) ──
 
 proc write_byte
-  output result u64 write_error . .
   input buf mut slice u8 . .
   input pos u64 .
   input b u8 .
+  output result u64 write_error . .
   effects none .
   errors overflow .
 do
@@ -34,10 +34,10 @@ do
 end
 
 proc write_str
-  output result u64 write_error . .
   input buf mut slice u8 . .
   input pos u64 .
   input s slice u8 . .
+  output result u64 write_error . .
   effects none .
   access s sequential .
   errors overflow .
@@ -51,10 +51,10 @@ end
 
 rem [lo, hi) 바이트 역순 — write_u32 보조
 proc reverse_bytes
-  output void .
   input buf mut slice u8 . .
   input lo u64 .
   input hi u64 .
+  output void .
   effects none .
 do
   guard lt lo hi . else return .
@@ -72,10 +72,10 @@ end
 
 rem u32 10진수 — LSB 먼저 쓰고 뒤집기(do-while = while true + guard)
 proc write_u32
-  output result u64 write_error . .
   input buf mut slice u8 . .
   input pos u64 .
   input n u32 .
+  output result u64 write_error . .
   effects none .
   errors overflow .
 do
@@ -101,9 +101,9 @@ end
 
 rem "(x, y)" 를 buf 에 조립, 총 길이 반환. 문자열 리터럴 = slice u8(정적).
 proc format_point
-  output result u64 write_error . .
   input buf mut slice u8 . .
   input p point .
+  output result u64 write_error . .
   effects none .
   errors overflow .
 do
@@ -119,10 +119,10 @@ end
 rem ── 실제 출력: io effect + capability ──
 rem cap io 없으면 호출 불가(ambient authority 없음). 권한이 먼저 온다(WO-0217). scratch 에 임시 버퍼(가시).
 proc print_point
-  output result void write_error . .
   input sink cap io .
   input temp region scratch . .
   input p point .
+  output result void write_error . .
   effects io alloc .
   errors overflow .
 do

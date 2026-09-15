@@ -76,7 +76,7 @@ rem   나른다. 범프(빌린 바이트)로 열면 `state` 뿐이고, `allocs.h
 rem   전엔 `effects state` 만 적어서, 뿌리를 딛는 얼로케이터가 들어오는 순간 **숨은 할당**이 됐을 것이다.
 rem ★ 빈 벡터를 연다. `cap0` 는 **원소 개수**다(바이트가 아니다 — 세는 단위를 섞지 않는다).
 rem   들 수 없이 큰 개수는 **none** 이다 — 얼로케이터에 묻기도 전에 곱셈에서 죽지 않는다.
-export proc open output option (vec t a) . input comptime t type . input comptime a type . using al a . input cap0 u64 . effects state via a . requires allocs.byte_allocator a . do
+export proc open input comptime t type . input comptime a type . using al a . input cap0 u64 . output option (vec t a) . effects state via a . requires allocs.byte_allocator a . do
   let want0 option u64 . be chk_mul cap0 (size_of t) .
   guard is_some want0 . else return none .
   let b option mut slice u8 . be send al reserve (some_value want0) .
@@ -87,20 +87,20 @@ end .
 
 rem ★ 제자리 성장을 **자격이 있을 때만** 청한다: 우리 할당 뒤 커서가 그대로일 때. 그 사이 누가 받았으면
 rem   `grow` 가 성공하더라도 그 자리는 **남의 것**이므로 부르지 않는다 — none 으로 옛 길(새로 받아 복사)로 간다.
-proc try_grow output option mut slice u8 . . input comptime t type . input comptime a type . input g mut vec t a . input newn u64 . effects state via a . requires allocs.byte_allocator a . do
+proc try_grow input comptime t type . input comptime a type . input g mut vec t a . input newn u64 . output option mut slice u8 . . effects state via a . requires allocs.byte_allocator a . do
   guard eq (send (field g al) used) (field g tail) . else return none .
   return send (field g al) grow (field g store) newn .
 end .
 
 rem 담긴 개수 · 지금 자리(원소 단위).
-export fn count_of output u64 . input comptime t type . input comptime a type . input g vec t a . requires allocs.byte_allocator a . do return (field g n) . end .
-export proc cap_of  output u64 . input comptime t type . input comptime a type . input g vec t a . effects none . requires allocs.byte_allocator a . do
+export fn count_of input comptime t type . input comptime a type . input g vec t a . output u64 . requires allocs.byte_allocator a . do return (field g n) . end .
+export proc cap_of  input comptime t type . input comptime a type . input g vec t a . output u64 . effects none . requires allocs.byte_allocator a . do
   return div (len (field g store)) (size_of t) .
 end .
 
 rem ★ 원소를 하나 민다. 자리가 모자라면 **스스로** 더 받아 옮긴다(두 배 + 8 원소).
 rem   못 받으면 false — 트랩이 아니라 값이다(OOM 은 값이다, RFC-0043 D5).
-export proc append output bool . input comptime t type . input comptime a type . input g mut vec t a . input x t . effects state via a . requires allocs.byte_allocator a . do
+export proc append input comptime t type . input comptime a type . input g mut vec t a . input x t . output bool . effects state via a . requires allocs.byte_allocator a . do
   let room u64 be div (len (field g store)) (size_of t) .
   if lt (field g n) room . do
     var cur mut slice u8 . be (field g store) .
@@ -143,7 +143,7 @@ export proc append output bool . input comptime t type . input comptime a type .
 end .
 
 rem ★ i 번째 원소. 범위 밖이면 none — **값으로 답한다**(트랩이 아니다).
-export proc at output option t . input comptime t type . input comptime a type . input g vec t a . input i u64 . effects none . requires allocs.byte_allocator a . do
+export proc at input comptime t type . input comptime a type . input g vec t a . input i u64 . output option t . effects none . requires allocs.byte_allocator a . do
   guard lt i (field g n) . else return none .
   var cur mut slice u8 . be (field g store) .
   var cells mut slice t . be view_array t cur .
@@ -151,7 +151,7 @@ export proc at output option t . input comptime t type . input comptime a type .
 end .
 
 rem ★ i 번째 원소를 고친다. 범위 밖이면 false — 조용히 늘리지 않는다.
-export proc set_at output bool . input comptime t type . input comptime a type . input g mut vec t a . input i u64 . input x t . effects none . requires allocs.byte_allocator a . do
+export proc set_at input comptime t type . input comptime a type . input g mut vec t a . input i u64 . input x t . output bool . effects none . requires allocs.byte_allocator a . do
   guard lt i (field g n) . else return false .
   var cur mut slice u8 . be (field g store) .
   var cells mut slice t . be view_array t cur .
@@ -161,7 +161,7 @@ end .
 
 rem ★ 앞으로 more 개가 더 들어갈 자리를 **미리** 확보한다. 이걸 먼저 부르면 뒤따르는 add 가
 rem   도중에 실패하지 않는다 — "전량 아니면 무" 를 원하면 이 순서로 쓴다.
-export proc reserve_more output bool . input comptime t type . input comptime a type . input g mut vec t a . input more u64 . effects state via a . requires allocs.byte_allocator a . do
+export proc reserve_more input comptime t type . input comptime a type . input g mut vec t a . input more u64 . output bool . effects state via a . requires allocs.byte_allocator a . do
   rem ★ `n + more` 도, 그 바이트 수도 넘칠 수 있다 — 둘 다 **묻고** 못 하면 false 다(2026-09-04).
   rem   호출자가 준 수에 트랩하지 않는다: 자리를 못 잡는 것은 실패지 사고가 아니다.
   let need0 option u64 . be chk_add (field g n) more .
@@ -197,7 +197,7 @@ export proc reserve_more output bool . input comptime t type . input comptime a 
 end .
 
 rem ★ 담긴 원소만 보는 뷰. 저장소 전체가 아니라 **쓴 만큼**이다(뒤는 쓰레기다).
-export proc view_of output slice t . input comptime t type . input comptime a type . input g vec t a . effects none . requires allocs.byte_allocator a . do
+export proc view_of input comptime t type . input comptime a type . input g vec t a . output slice t . effects none . requires allocs.byte_allocator a . do
   var cur mut slice u8 . be (field g store) .
   var cells mut slice t . be view_array t cur .
   return subslice cells 0 (field g n) .

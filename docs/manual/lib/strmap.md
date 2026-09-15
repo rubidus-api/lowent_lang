@@ -83,8 +83,8 @@ let v option u64 . be strmap.lookup slots keys "apple" .
 
 #### put
 ```lowent
-export proc put output bool . input slots mut slice u64 . . input keys mut slice u8 . . input k slice u8 .
-  input v u64 . effects none .
+export proc put input slots mut slice u64 . . input keys mut slice u8 . . input k slice u8 . input v u64 .
+  output bool . effects none .
 ```
 넣거나 갱신한다. `slots`·`keys` 를 매번 받는 이유: 맵이 버퍼를 소유하지 않으므로
 상태가 전부 인자로 온다. true=성공 · false=꽉 참·arena 부족·빈 키. 같은 키(길이+바이트
@@ -94,14 +94,14 @@ export proc put output bool . input slots mut slice u64 . . input keys mut slice
 
 #### lookup
 ```lowent
-export proc lookup output option u64 . input slots slice u64 . input keys slice u8 . input k slice u8 . effects none .
+export proc lookup input slots slice u64 . input keys slice u8 . input k slice u8 . output option u64 . effects none .
 ```
 키 `k` 의 값 또는 `none`. 저장된 키와의 비교는 길이부터, 그다음 바이트별. 버퍼를 안
 바꾸므로 둘 다 비소유로 받는다. 이름이 `get` 이 아닌 이유는 [주의사항](#주의사항) 참조.
 
 #### del
 ```lowent
-export proc del output bool . input slots mut slice u64 . . input keys slice u8 . input k slice u8 . effects none .
+export proc del input slots mut slice u64 . . input keys slice u8 . input k slice u8 . output bool . effects none .
 ```
 키를 지운다. true=지웠다 · false=없던 키·빈 키. 슬롯의 keylen 을 **묘비(MAX)** 로 덮어
 프로브 체인을 보존하고(빈칸으로 되돌리면 그 뒤로 밀려 들어간 키를 못 찾는다) value 는
@@ -109,11 +109,11 @@ export proc del output bool . input slots mut slice u64 . . input keys slice u8 
 
 #### size · keylen_at · occupied_at · keyoff_at · val_at — 순회
 ```lowent
-export fn size output u64 .
-export input slots slice u64 . fn keylen_at output u64 .
-export input slots slice u64 . input slot u64 . fn occupied_at output bool .
-export input slots slice u64 . input slot u64 . fn keyoff_at output u64 .
-export input slots slice u64 . input slot u64 . fn val_at output u64 . input slots slice u64 . input slot u64 .
+export fn size input slots slice u64 . output u64 .
+export fn keylen_at input slots slice u64 . input slot u64 . output u64 .
+export fn occupied_at input slots slice u64 . input slot u64 . output bool .
+export fn keyoff_at input slots slice u64 . input slot u64 . output u64 .
+export fn val_at input slots slice u64 . input slot u64 . output u64 .
 ```
 순회 = `0 .. size` 를 훑으며 occupied 슬롯을 처리한다. `slot` 인자는 "몇 번째 슬롯을
 보는가" — 순회 루프의 인덱스를 그대로 넣는다. `occupied_at` 은 빈칸(0)도 묘비(MAX)도
@@ -124,7 +124,7 @@ export input slots slice u64 . input slot u64 . fn val_at output u64 . input slo
 
 #### rehash — 성장
 ```lowent
-export proc rehash output bool . input ns mut slice u64 . . input na mut slice u8 . . input os slice u64 . input oa slice u8 .
+export proc rehash input ns mut slice u64 . . input na mut slice u8 . . input os slice u64 . input oa slice u8 . output bool .
 ```
 맵은 스스로 할당 못 하므로, 호출자가 더 큰 두 버퍼(`ns` 슬롯·`na` 아레나)를 마련해
 옛 버퍼(`os`·`oa`)와 함께 넘긴다 — 네 인자가 그래서 필요하다. old 의 **살아있는
@@ -149,7 +149,7 @@ module demo .
 
 use strmap from "../../lib/strmap.low" .
 
-proc tally output u64 . input slots mut slice u64 . . input keys mut slice u8 . . do
+proc tally input slots mut slice u64 . . input keys mut slice u8 . . output u64 . do
   var i u64 be 0 .
   while lt i (len slots) . do                  rem 빈 맵으로 시작 — 슬롯 표를 전부 0 으로
     set (index slots i) 0 .

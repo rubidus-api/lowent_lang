@@ -16,7 +16,7 @@ ASCII 만 다룰 때는 이런 물음에 손으로 답할 수 있었다. `ge c 9
 ```lowent
 use unicode .
 
-proc ident_start output bool . input cp u64 . effects none . do
+proc ident_start input cp u64 . output bool . effects none . do
   if unicode.is_letter cp . do return true . end
   return eq cp 95 .
 end
@@ -131,7 +131,7 @@ fn tab_letter output slice u8 .
 ### `range_count` — 구간 개수
 
 ```lowent
-fn range_count output u64 . input tab slice u8 .
+fn range_count input tab slice u8 . output u64 .
 ```
 
 `len tab / 12` 다. 표가 아닌 슬라이스를 넘기면 **뜻 없는 수**가 나온다(검사하지 않는다 —
@@ -140,7 +140,7 @@ fn range_count output u64 . input tab slice u8 .
 ### `has_cp` — 표 조회 (핵심)
 
 ```lowent
-proc has_cp output bool . input tab slice u8 . input cp u64 .
+proc has_cp input tab slice u8 . input cp u64 . output bool .
 ```
 
 - `tab` — 위 모양을 지키는 표.
@@ -156,7 +156,7 @@ proc has_cp output bool . input tab slice u8 . input cp u64 .
 ### `is_letter` · `is_number` · `is_punct` · `is_space` · `is_mark` · `is_alnum`
 
 ```lowent
-proc is_letter output bool . input cp u64 .
+proc is_letter input cp u64 . output bool .
 ```
 
 `has_cp <해당 표> cp` 의 얇은 껍질이다. 매개변수는 코드포인트 하나뿐이고 제한도 없다 —
@@ -167,9 +167,9 @@ proc is_letter output bool . input cp u64 .
 ### `is_upper` · `is_lower` · `is_digit` — 좁은 물음
 
 ```lowent
-proc is_upper output bool . input cp u64 .
-proc is_lower output bool . input cp u64 .
-proc is_digit output bool . input cp u64 .
+proc is_upper input cp u64 . output bool .
+proc is_lower input cp u64 . output bool .
+proc is_digit input cp u64 . output bool .
 ```
 
 **`is_digit` 는 `is_number` 보다 좁다.** 로마 숫자 `Ⅶ`(U+2166)나 분수 `½` 는 N 이지만 Nd 가
@@ -182,7 +182,7 @@ proc is_digit output bool . input cp u64 .
 ### `is_zerowidth` — 폭 0인가
 
 ```lowent
-proc is_zerowidth output bool . input cp u64 .
+proc is_zerowidth input cp u64 . output bool .
 ```
 
 Mn(결합 표시) · Me(둘러싸는 표시) · Cf(서식 문자)에 `true` 다. 이 코드포인트들은 **자기 칸을
@@ -198,9 +198,9 @@ Mn(결합 표시) · Me(둘러싸는 표시) · Cf(서식 문자)에 `true` 다.
 ### `to_upper` · `to_lower` · `is_special_case` — 대소문자 변환
 
 ```lowent
-proc to_upper output u64 . input cp u64 .
-proc to_lower output u64 . input cp u64 .
-proc is_special_case output bool . input cp u64 .
+proc to_upper input cp u64 . output u64 .
+proc to_lower input cp u64 . output u64 .
+proc is_special_case input cp u64 . output bool .
 ```
 
 - **바뀌지 않으면 그대로 돌려준다** — `none` 이 아니다. 세상 코드포인트의 대부분은 대소문자가
@@ -223,7 +223,7 @@ use unicode .
 use utf8 .
 
 rem 문자·숫자가 이어지는 덩어리의 개수. 유효하지 않은 UTF-8 이면 none.
-export proc count_words output option u64 . input s slice u8 . do
+export proc count_words input s slice u8 . output option u64 . do
   var off u64 be 0 .
   var words u64 be 0 .
   var inword bool be false .
@@ -250,7 +250,7 @@ end
 ### ② 식별자 검증
 
 ```lowent
-proc valid_ident output bool . input s slice u8 . effects none . do
+proc valid_ident input s slice u8 . output bool . effects none . do
   guard gt (len s) 0 . else return false .
   var off u64 be 0 .
   var first bool be true .

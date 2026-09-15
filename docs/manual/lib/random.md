@@ -31,7 +31,7 @@ let c bool be random.coin s .
 **못 채우면 0** 이다 — 0 을 받고 그대로 쓰면 **초기화 안 된 버퍼를 열쇠로 쓰는 것**이다.
 
 ```lowent
-proc make_key output bool . input k cap random . input key mut slice u8 . effects io . do
+proc make_key input k cap random . input key mut slice u8 . output bool . effects io . do
   return eq (random.bytes k key) (len key) .   rem ★ 채운 수를 반드시 확인한다
 end
 ```

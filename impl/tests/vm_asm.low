@@ -16,10 +16,10 @@ module vm_asm .
 
 rem --- 값 둘을 레지스터에 실어 보내고, 하나를 받아 온다.
 unsafe proc asm_add .
-  output u64 .
   input k cap machine .   rem ★ 능력 이름은 `machine` 이다 — `asm` 은 **절 낱말**이라 값 자리에 못 온다(충돌은 설계로 없앤다)
   input a u64 .
   input b u64 .
+  output u64 .
   effects unsafe .
   asm x86_64 .
       reg a .
@@ -36,9 +36,9 @@ end .
 
 rem --- ★ 특정 레지스터도 묶인다 — syscall 은 레지스터를 **고른다**(rdi/rsi/rax).
 unsafe proc asm_shift .
-  output u64 .
   input k cap machine .   rem ★ 능력 이름은 `machine` 이다 — `asm` 은 **절 낱말**이라 값 자리에 못 온다(충돌은 설계로 없앤다)
   input a u64 .
+  output u64 .
   effects unsafe .
   asm x86_64 .
       rcx a .

@@ -1,12 +1,12 @@
 rem ★ **의존이 되는 쪽** — `export` 한 것만 밖에서 보인다(RFC-0011). 나머지는 이 파일의 것이다.
 module lib_math .
 
-export fn clamp255 output u64 . input a u64 . do
+export fn clamp255 input a u64 . output u64 . do
     if gt a 255 . do return 255 . end .
     return a .
 end .
 
 rem 이 op 은 export 가 아니다 — **밖에서 부르면 E-VISIBILITY** 다.
-fn secret_scale output u64 . input a u64 . do
+fn secret_scale input a u64 . output u64 . do
     return mul a 2 .
 end .

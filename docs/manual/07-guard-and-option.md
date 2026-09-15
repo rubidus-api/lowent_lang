@@ -11,7 +11,7 @@
 
 ```lowent
 rem ✓ 빈 슬라이스면 0, 아니면 첫 원소. guard 가 "비어 있지 않음"을 아래에 보장한다.
-fn firstpos output u64 . input xs slice u64 . do
+fn firstpos input xs slice u64 . output u64 . do
   guard gt (len xs) 0 . else return 0 .
   return index xs 0 .        rem 여기선 xs 가 비지 않았음이 보장된다
 end
@@ -19,7 +19,7 @@ end
 
 ```lowent
 rem ✓ option 을 guard 로 갈라 꺼낸다.
-fn unwrap_or0 output u64 . input o option u64 . do
+fn unwrap_or0 input o option u64 . output u64 . do
   guard is_some o . else return 0 .
   return some_value o .      rem is_some 를 통과했으니 안전하게 꺼낸다
 end
@@ -29,7 +29,7 @@ end
 
 ```lowent
 rem ✗ 잘못 — else 가 값을 고칠 뿐 op 을 떠나지 않는다
-fn f output u64 . input a u64 . do
+fn f input a u64 . output u64 . do
   guard gt a 0 . else do set a 0 . end
   return a .
 end

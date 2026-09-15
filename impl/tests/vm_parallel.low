@@ -17,7 +17,7 @@ rem   (그리고 실제로 둘은 서로를 확인한다: `index s 0` 을 읽는
 rem    런타임 쪼개기에서도 **발산한다.**)
 
 rem ★ 쪼갤 수 있다 — 각 반복이 **제 원소만** 읽고 쓴다.
-proc dbl output u64 . input s mut slice u8 . . effects none . parallel s split . do
+proc dbl input s mut slice u8 . . output u64 . effects none . parallel s split . do
   var i u64 be 0 .
   while lt i (len s) . do
     set (index s i) expr (index s i) * 2 . .
@@ -32,7 +32,7 @@ rem ★ assoc_shape_free (Qed)        결합적이면 트리 모양이 결과를
 rem ★ nonassoc_shape_matters (Qed)  결합적이지 않으면 모양이 결과를 **바꾼다** → 쪼갤 수 없다.
 
 rem ① 정수 합 — add 는 결합적이다. 쪼갤 수 있다.
-fn isum output u64 . input s mut slice u8 . .
+fn isum input s mut slice u8 . . output u64 .
   parallel s split . reduce acc add .
 do
   var acc u64 be 0 .

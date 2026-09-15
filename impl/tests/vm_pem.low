@@ -18,28 +18,28 @@ use der from "../../lib/der.low" .
 rem 정답(openssl 대조):
 rem   CERTIFICATE → DER 375 바이트 · PKCS#8 스칼라 자리 36 · 길이 32 · 값 01 02 03 04 …
 
-export proc der_len_cert output u64 . input sc mut slice u8 . . input out mut slice u8 . . effects none . do
+export proc der_len_cert input sc mut slice u8 . . input out mut slice u8 . . output u64 . effects none . do
   let d option u64 . be pem.unwrap "-----BEGIN CERTIFICATE-----\nMIIBczCCARmgAwIBAgIUX6WueNvc/EadMquZRpJ1A2RVHskwCgYIKoZIzj0EAwIw\nDzENMAsGA1UEAwwEdGVzdDAeFw0yNjA4MjEwODEwMTRaFw0yNjA4MjIwODEwMTRa\nMA8xDTALBgNVBAMMBHRlc3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATnCveE\nEuf+Ru42Zbqdd07/2LXyz4D8O/Uc8oTYlWuLMMXtOqD+Nmv2Al3KxC8t7sFqFC5J\nzB99M2gcV1hSh4Q9o1MwUTAdBgNVHQ4EFgQUCcDDbPSKfzGMLzxuhZIqMpQ6S78w\nHwYDVR0jBBgwFoAUCcDDbPSKfzGMLzxuhZIqMpQ6S78wDwYDVR0TAQH/BAUwAwEB\n/zAKBggqhkjOPQQDAgNIADBFAiEA1fF1CX7llQYCzs/3BojBzHRHUC7/B6HVxYlW\nV5VKuQ0CIAl3oXevj8n54P0rrWT3aUiRIXWMw8PLf9drZaSwJUdK\n-----END CERTIFICATE-----" "CERTIFICATE" sc out .
   guard is_some d . else return 0 .
   return some_value d .
 end .
 
 rem ✔ PKCS#8 안의 스칼라 — **자리**를 낸다(openssl asn1parse 가 36 이라 했다).
-export fn priv_at output u64 . input b slice u8 . . do
+export fn priv_at input b slice u8 . . output u64 . do
   let inner u64 be der.p8_inner_off b .
   if eq inner 0 . do return 0 . end .
   return der.ec_priv_off b inner .
 end .
 
 rem ✔ 그 길이 — P-256 이면 32 다.
-export fn priv_size output u64 . input b slice u8 . . do
+export fn priv_size input b slice u8 . . output u64 . do
   let inner u64 be der.p8_inner_off b .
   if eq inner 0 . do return 0 . end .
   return der.ec_priv_len b inner .
 end .
 
 rem ✔ 스칼라의 첫 4 바이트를 한 수로 — 합성값이므로 0x01020304 = 16909060 이어야 한다.
-export fn priv_head output u64 . input b slice u8 . . do
+export fn priv_head input b slice u8 . . output u64 . do
   let inner u64 be der.p8_inner_off b .
   if eq inner 0 . do return 0 . end .
   let s u64 be der.ec_priv_off b inner .
@@ -55,14 +55,14 @@ export fn priv_head output u64 . input b slice u8 . . do
 end .
 
 rem ✘ 라벨이 다르면 못 연다 — 한 파일에 여러 개가 있는 것이 정상이므로 중요하다.
-export proc wrong_label output u64 . input sc mut slice u8 . . input out mut slice u8 . . effects none . do
+export proc wrong_label input sc mut slice u8 . . input out mut slice u8 . . output u64 . effects none . do
   let d option u64 . be pem.unwrap "-----BEGIN CERTIFICATE-----\nMIIBczCCARmgAwIBAgIUX6WueNvc/EadMquZRpJ1A2RVHskwCgYIKoZIzj0EAwIw\nDzENMAsGA1UEAwwEdGVzdDAeFw0yNjA4MjEwODEwMTRaFw0yNjA4MjIwODEwMTRa\nMA8xDTALBgNVBAMMBHRlc3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATnCveE\nEuf+Ru42Zbqdd07/2LXyz4D8O/Uc8oTYlWuLMMXtOqD+Nmv2Al3KxC8t7sFqFC5J\nzB99M2gcV1hSh4Q9o1MwUTAdBgNVHQ4EFgQUCcDDbPSKfzGMLzxuhZIqMpQ6S78w\nHwYDVR0jBBgwFoAUCcDDbPSKfzGMLzxuhZIqMpQ6S78wDwYDVR0TAQH/BAUwAwEB\n/zAKBggqhkjOPQQDAgNIADBFAiEA1fF1CX7llQYCzs/3BojBzHRHUC7/B6HVxYlW\nV5VKuQ0CIAl3oXevj8n54P0rrWT3aUiRIXWMw8PLf9drZaSwJUdK\n-----END CERTIFICATE-----" "EC PARAMETERS" sc out .
   if is_some d . do return 1 . end .
   return 0 .
 end .
 
 rem ✘ 봉투가 없으면 못 연다.
-export proc no_envelope output u64 . input sc mut slice u8 . . input out mut slice u8 . . effects none . do
+export proc no_envelope input sc mut slice u8 . . input out mut slice u8 . . output u64 . effects none . do
   let d option u64 . be pem.unwrap "hello world" "CERTIFICATE" sc out .
   if is_some d . do return 1 . end .
   return 0 .

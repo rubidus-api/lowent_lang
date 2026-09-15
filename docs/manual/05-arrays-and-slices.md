@@ -19,7 +19,7 @@
 
 ```lowent
 rem ✓ mut 슬라이스에 값을 넣고, for 로 합을 구한다.
-proc fill output u64 . input xs mut slice u64 . . effects none . do
+proc fill input xs mut slice u64 . . output u64 . effects none . do
   set (index xs 0) 10 .
   set (index xs 1) 20 .
   var s u64 be 0 .
@@ -37,7 +37,7 @@ end
 
 ```lowent
 rem ✗ 잘못 — xs 가 mut 이 아니다
-proc f output u64 . input xs slice u64 . . effects none . do
+proc f input xs slice u64 . . output u64 . effects none . do
   set (index xs 0) 1 .
   return 0 .
 end
@@ -101,7 +101,7 @@ end
 색인 경계 검사는 **전부 사라진다**. `<` 로 적든 `≤` 로 적든 같다:
 
 ```lowent
-fn total output u64 . input a slice u8 . input n u64 .
+fn total input a slice u8 . input n u64 . output u64 .
   requires le n (len a) . do        rem ← 이 한 줄이 본문의 경계 검사를 없앤다
   …
 ```
@@ -115,14 +115,14 @@ fn total output u64 . input a slice u8 . input n u64 .
 
 ```lowent
 rem ✘ 이렇게 쓰면 문자마다 비교와 분기가 하나씩 생긴다
-fn prefix_char output u8 . input k u64 . do
+fn prefix_char input k u64 . output u8 . do
   if eq k 0 . do return 47 . end
   if eq k 1 . do return 97 . end
   …
 end
 
 rem ✔ 문자열 리터럴은 `slice u8` 이고 **그대로 색인된다**
-fn prefix_char output u8 . input k u64 . do
+fn prefix_char input k u64 . output u8 . do
   return index "/api/users/" k .
 end
 ```
@@ -145,10 +145,10 @@ end
 ```lowent
 module ex_pipe_why .
 
-fn is_digit output bool . input c u8 . do return and (ge c 48) (le c 57) . end .
+fn is_digit input c u8 . output bool . do return and (ge c 48) (le c 57) . end .
 
 rem 손으로 쓴 반복 — 카운터·인덱스·조건·증가를 사람이 하나하나 맞춘다.
-fn digits_loop output u64 . input s slice u8 .
+fn digits_loop input s slice u8 . output u64 .
 do
   var n u64 be 0 .
   var i u64 be 0 .
@@ -160,7 +160,7 @@ do
 end .
 
 rem 같은 일을 pipe 로 — «숫자인 것만 남기고, 센다». 하는 일이 줄마다 한 낱말로 보인다.
-fn digits_pipe output u64 . input s slice u8 .
+fn digits_pipe input s slice u8 . output u64 .
 do
   return pipe s do
     filter is_digit .

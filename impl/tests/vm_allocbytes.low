@@ -20,7 +20,7 @@ rem ── 뿌리 없이 도는 쪽 — **cap 이 없다. effects alloc 도 없�
 rem
 rem ★ 호출자가 준 버퍼(CLI 가 채운다) 위에서 사용자 얼로케이터를 돌린다.
 rem   빌린 버퍼로 만든 얼로케이터는 뿌리를 **부를 수가 없다** — 그럴 권한이 없으므로.
-proc borrowed output u64 . input buf mut slice u8 . . effects state . do
+proc borrowed input buf mut slice u8 . . output u64 . effects state . do
   var a allocs.bump_bytes be spawn actor allocs.bump_bytes . .
   let cap0 u64 be send a init buf .
   guard ge cap0 8 . else return 90 .
@@ -40,7 +40,7 @@ proc borrowed output u64 . input buf mut slice u8 . . effects state . do
 end .
 
 rem ★ 같은 인터페이스, 다른 정책 — 8 로 정렬한다. 3 을 자르면 다음은 8 부터다.
-proc borrowed_aligned output u64 . input buf mut slice u8 . . effects state . do
+proc borrowed_aligned input buf mut slice u8 . . output u64 . effects state . do
   var a allocs.bump_aligned be spawn actor allocs.bump_aligned . .
   let cap0 u64 be send a init buf .
   guard ge cap0 16 . else return 90 .
@@ -55,7 +55,7 @@ proc borrowed_aligned output u64 . input buf mut slice u8 . . effects state . do
 end .
 
 rem ★ OOM 은 **값**이다(RFC-0043 D5). 4 바이트 버퍼에 99 를 달라면 none — 트랩이 아니다.
-proc borrowed_oom output bool . input buf mut slice u8 . . effects state . do
+proc borrowed_oom input buf mut slice u8 . . output bool . effects state . do
   var a allocs.bump_bytes be spawn actor allocs.bump_bytes . .
   let cap0 u64 be send a init (subslice buf 0 4) .
   let p option mut slice u8 . . be send a reserve 99 .
@@ -66,10 +66,10 @@ rem ★ 두 얼로케이터를 **같은 코드**가 돌린다 — 갈아끼우�
 rem   `input comptime a type .` + `requires byte_allocator a .` 로 구현을 매개변수로 받는다.
 rem   ★★ 단형화된다: vtable 도 간접 호출도 없다 ⇒ **갈아끼우기의 비용이 0** 이다.
 proc two_from .
-  output u64 .
   input comptime a type .
   using al a .
   input buf mut slice u8 . .
+  output u64 .
   effects state .
   requires allocs.byte_allocator a .
 do
@@ -84,7 +84,7 @@ end .
 
 rem ★★★ **한 코드가 두 정책을 돌리고 답이 다르다** — 인터페이스가 장식이 아니라는 증거.
 rem   bump_bytes: 3 + 1 = 4 · bump_aligned: 8 + 1 = 9 (3 다음이 8 로 올라간다)
-proc swap_impl output u64 . input buf mut slice u8 . . effects state . do
+proc swap_impl input buf mut slice u8 . . output u64 . effects state . do
   var b allocs.bump_bytes be spawn actor allocs.bump_bytes . .
   var g allocs.bump_aligned be spawn actor allocs.bump_aligned . .
   let x u64 using b be two_from buf .

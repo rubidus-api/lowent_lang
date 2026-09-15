@@ -55,7 +55,7 @@
   ]
   #ex("범위로 가른다", "module ex_range_match .
 
-fn band output u8 . input a u8 .
+fn band input a u8 . output u8 .
 do .
   match a do
     case 0 to 9 . do return 1 . end
@@ -65,7 +65,7 @@ end .",
     out: "band(5) = 1 · band(200) = 2")
   #rejected("덮이지 않은 값이 있으면 거부된다", "module ex_range_gap .
 
-fn band output u8 . input a u8 .
+fn band input a u8 . output u8 .
 do .
   match a do
     case 0 to 9 . do return 1 . end
@@ -83,7 +83,7 @@ enum color do
   green .
 end .
 
-export fn code output u32 . input c color .
+export fn code input c color . output u32 .
 do .
   match c do
     case red . do return 1 . end
@@ -97,7 +97,7 @@ enum color do
   green .
 end .
 
-export fn code output u32 . input c color .
+export fn code input c color . output u32 .
 do .
   match c do
     case red . do return 1 . end
@@ -129,7 +129,7 @@ end .", "E-MATCH-INEXHAUSTIVE")
     ]
     #ex("시험", "module ex_test .
 
-export fn twice output u32 . input n u32 .
+export fn twice input n u32 . output u32 .
   requires le n 100 .
 do .
   return mul n 2 .
@@ -164,7 +164,7 @@ end .")
     ]
     #ex("번역 시점 값을 받는다", "module ex_comptime .
 
-fn twice output u8 . input comptime n u8 . input a u8 .
+fn twice input comptime n u8 . input a u8 . output u8 .
 do .
   return add a n .
 end .
@@ -176,12 +176,12 @@ end .",
       out: "use() = 7")
     #rejected("번역 시점에 알 수 없는 값은 줄 수 없다", "module ex_comptime_rt .
 
-fn twice output u8 . input comptime n u8 . input a u8 .
+fn twice input comptime n u8 . input a u8 . output u8 .
 do .
   return add a n .
 end .
 
-fn use output u8 . input k u8 .
+fn use input k u8 . output u8 .
 do .
   return twice k 4 .
 end .", "E-COMPTIME-ARG")
@@ -206,7 +206,7 @@ end .", "E-COMPTIME-ARG")
     ]
     #rejected("번역할 때 값이 나오지 않는다", "module ex_comptime .
 
-fn f output u8 . input a u8 .
+fn f input a u8 . output u8 .
 do
   let b u8 be comptime a .    rem `a` 는 실행할 때에야 정해진다
   return b .

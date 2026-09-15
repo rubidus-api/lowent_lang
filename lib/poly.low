@@ -13,7 +13,7 @@ rem   약속할 수 없는 것을 약속하지 않는 것이 이 저장소의 �
 module poly .
 
 rem r 을 clamp 하고 26비트 다섯 조각으로 쪼갠다. key 는 32 바이트, st 는 원소 10 이상.
-export proc setup output u64 . input key slice u8 . input st mut slice u64 . effects none . do
+export proc setup input key slice u8 . input st mut slice u64 . output u64 . effects none . do
   guard ge (len key) 32 . else return 0 .
   guard ge (len st) 10 . else return 0 .
   rem r = key[0..16] little-endian, clamp.
@@ -50,7 +50,7 @@ end .
 rem ★ 블록 하나를 누적한다. `blk` 는 최대 16 바이트.
 rem   `addhi = 1` → 완전한 블록(2^128 비트를 더한다)
 rem   `addhi = 0` → 호출자가 이미 0x01 을 버퍼에 넣었다(짧은 마지막 블록)
-export proc block output u64 . input st mut slice u64 . input blk slice u8 . input addhi u64 . effects none . do
+export proc block input st mut slice u64 . input blk slice u8 . input addhi u64 . output u64 . effects none . do
   guard ge (len st) 10 . else return 0 .
   guard le (len blk) 16 . else return 0 .
 
@@ -139,7 +139,7 @@ export proc block output u64 . input st mut slice u64 . input blk slice u8 . inp
 end .
 
 rem ★ 마무리: h 를 정규화하고 s(=key[16..32]) 를 더해 16 바이트 태그를 낸다.
-export proc emit output u64 . input st mut slice u64 . input key slice u8 . input tag mut slice u8 . effects none . do
+export proc emit input st mut slice u64 . input key slice u8 . input tag mut slice u8 . output u64 . effects none . do
   guard ge (len tag) 16 . else return 0 .
   guard ge (len key) 32 . else return 0 .
 

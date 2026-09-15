@@ -1,6 +1,6 @@
 module m .
 rem expect: E-EFFECT
-proc w output u64 . input out cap io . effects io . do return write_out out 1 "x" . end .
-proc f output u64 . input out cap io . effects none . do
+proc w input out cap io . output u64 . effects io . do return write_out out 1 "x" . end .
+proc f input out cap io . output u64 . effects none . do
   return w out .
 end .

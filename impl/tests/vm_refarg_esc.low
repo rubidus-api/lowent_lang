@@ -15,11 +15,11 @@ struct pt do
   x u64 .
 end .
 
-proc peek output u64 . input p ref pt . effects none . do
+proc peek input p ref pt . output u64 . effects none . do
   return field p x .
 end .
 
-proc bump output u64 . input p mut pt . effects none . do
+proc bump input p mut pt . output u64 . effects none . do
   set (field p x) (add (field p x) 1) .
   return field p x .
 end .

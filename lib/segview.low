@@ -11,7 +11,7 @@ rem   비용이 op 이름으로 보인다 — 이 저장소가 `slice` 에 대�
 module segview .
 
 rem 총길이 — 서술자만 읽는다. 바이트는 안 만진다(그래서 O(조각 수)).
-export fn total_len output u64 . input ss segments u8 . . do
+export fn total_len input ss segments u8 . . output u64 . do
   var i u64 be 0 .
   var acc u64 be 0 .
   while lt i (segs ss) . do
@@ -28,7 +28,7 @@ export struct cursor do
   at u64 .
 end .
 
-export fn seek output option segview.cursor . input ss segments u8 . . input pos u64 . do
+export fn seek input ss segments u8 . . input pos u64 . output option segview.cursor . do
   var i u64 be 0 .
   var left u64 be pos .
   while lt i (segs ss) . do
@@ -44,7 +44,7 @@ export fn seek output option segview.cursor . input ss segments u8 . . input pos
 end .
 
 rem 평평한 색인으로 한 바이트 읽기. **비용이 이름에 있다**: 조각을 훑는다.
-export fn byte_at output option u8 . input ss segments u8 . . input pos u64 . do
+export fn byte_at input ss segments u8 . . input pos u64 . output option u8 . do
   let co option segview.cursor . be segview.seek ss pos .
   guard is_some co . else return none .
   let c segview.cursor . be some_value co .
@@ -53,7 +53,7 @@ end .
 
 rem ★ `coalesce` — 한 덩어리로 편다. **여기서만 복사가 일어난다**, 그리고 부른 자리에 보인다.
 rem   저장은 호출자 것이다(이 저장소의 규율): 받은 버퍼에 쓰고 쓴 길이를 답한다.
-export proc coalesce output option u64 . input ss segments u8 . . input out mut slice u8 . . effects none . do
+export proc coalesce input ss segments u8 . . input out mut slice u8 . . output option u64 . effects none . do
   let need u64 be segview.total_len ss .
   guard le need (len out) . else return none .
   var w u64 be 0 .

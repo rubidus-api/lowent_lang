@@ -115,12 +115,12 @@ actor bank do
   state do
     balance u64 .
   end .
-  proc deposit output u64 . input n u64 . effects state .
+  proc deposit input n u64 . output u64 . effects state .
   do
     set balance expr balance + n . .
     return balance .
   end .
-  proc withdraw output u64 . input n u64 . effects state .
+  proc withdraw input n u64 . output u64 . effects state .
   do
     set balance sat_sub balance n .
     return balance .
@@ -146,14 +146,14 @@ actor vault do
   state do
     held u64 .
   end .
-  proc stash output u64 . input h owned u64 . effects state .
+  proc stash input h owned u64 . output u64 . effects state .
   do
     set held h .
     return held .
   end .
 end .
 
-proc hand_over output u64 . input a u64 . effects state . do
+proc hand_over input a u64 . output u64 . effects state . do
   var v vault be spawn actor vault . .
   var h owned u64 be a .
   return send v stash h .      rem h 는 여기서 **떠난다**. 뒤에 쓰면 E-OWN-MOVED.

@@ -410,7 +410,7 @@ let mixed u32 be add 1 (mul 2 3) .
 module ex_newline .
 
 rem 개행은 공백이다. 폼은 자기 닫개 `.` 에서 끝난다.
-fn poly output u64 . input a u64 . input b u64 . do .
+fn poly input a u64 . input b u64 . output u64 . do .
   return add (mul a 2)
              (mul b 3) .
 end .
@@ -428,7 +428,7 @@ end .
 ```lowent-거부: 세미콜론은 닫개가 아니다 · E-VOCAB-REMOVED
 module ex_semi .
 
-fn twice output u64 . input a u64 . do return mul a 2 ; end
+fn twice input a u64 . output u64 . do return mul a 2 ; end
 ```
 
 > [!산문]

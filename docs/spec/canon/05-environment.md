@@ -133,7 +133,7 @@
 module ex_env .
 
 rem 안 받은 권한은 이 프로그램 어디에도 없다.
-proc main output u8 . input out cap io . effects io .
+proc main input out cap io . output u8 . effects io .
 do
   let n u64 be write_out out 1 "hello\n" .
   return narrow u8 n .

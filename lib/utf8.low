@@ -24,12 +24,12 @@ rem   C 심볼은 다른 언어에 하는 약속이고, 약속은 저자의 것�
 rem   `utf8.decode`·`utf16.decode` 이고, 겹치지 않는 이름들은 그대로 맨이름으로 나간다.
 
 rem 이어지는 바이트인가 — 10xxxxxx.
-export fn is_cont output bool . input b u8 . do
+export fn is_cont input b u8 . output bool . do
   return eq (bit_and b 192) 128 .
 end .
 
 rem ★ 한 코드포인트의 **바이트 길이**를 선두 바이트로 안다. 0 = 선두 바이트가 아니다.
-export fn seq_len output u64 . input b u8 . do
+export fn seq_len input b u8 . output u64 . do
   if lt b 128 . do return 1 . end .
   if eq (bit_and b 224) 192 . do return 2 . end .
   if eq (bit_and b 240) 224 . do return 3 . end .
@@ -39,7 +39,7 @@ end .
 
 rem ★★★ `at` 에서 코드포인트 하나를 **디코드**한다. 유효하지 않으면 `none`.
 rem   반환은 코드포인트 값 — 길이는 `seq_len` 으로 다시 얻거나 `next` 를 쓴다.
-export fn decode output option u64 . input s slice u8 . input at u64 . link "utf8_decode" . do
+export fn decode input s slice u8 . input at u64 . output option u64 . link "utf8_decode" . do
   guard lt at (len s) . else return none .
   let b0 u8 be index s at .
   let n u64 be seq_len b0 .
@@ -82,14 +82,14 @@ rem ★ 다음 코드포인트의 **시작 위치**. 유효하지 않으면 none
 rem ★ "유효하지 않으면" 은 `decode` 와 **같은 잣대**다(이어지는 바이트·과길이·서로게이트·상한).
 rem   전엔 선두 바이트와 잘림만 봤다 — `C3 41` 을 `next` 는 받고 `decode` 는 거절해, 같은 바이트열에
 rem   두 답이 있었다. 두 op 이 다른 잣대를 들면 위층(term 의 셀 셈)이 그 틈에서 어긋난다.
-export fn next output option u64 . input s slice u8 . input at u64 . link "utf8_next" . do
+export fn next input s slice u8 . input at u64 . output option u64 . link "utf8_next" . do
   guard is_some (decode s at) . else return none .
   return (some (add at (seq_len (index s at)))) .
 end .
 
 rem ★★ 코드포인트 개수. 유효하지 않은 바이트를 만나면 `none` — **부분 답을 주지 않는다**
 rem   (`lib/fmt.low` 의 전량-아니면-무와 같은 규율: 반쯤 맞는 답이 가장 나쁘다).
-export fn count_chars output option u64 . input s slice u8 . link "utf8_count_chars" . do
+export fn count_chars input s slice u8 . output option u64 . link "utf8_count_chars" . do
   var i u64 be 0 .
   var n u64 be 0 .
   while lt i (len s) . do
@@ -104,6 +104,6 @@ export fn count_chars output option u64 . input s slice u8 . link "utf8_count_ch
 end .
 
 rem ★ 전체가 유효한 UTF-8 인가 — D3 이 말한 *"검증은 별도 op 이지 타입 불변식이 아니다"*.
-export fn is_valid output bool . input s slice u8 . link "utf8_is_valid" . do
+export fn is_valid input s slice u8 . output bool . link "utf8_is_valid" . do
   return is_some (count_chars s) .
 end .

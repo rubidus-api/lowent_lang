@@ -34,7 +34,7 @@ fn max_pendbuf output u64 . do return 262144 . end .
 fn chunk_size  output u64 . do return 65536 . end .
 
 rem 바이트 사전순: a < b 인가.
-fn less output bool . input a slice u8 . input b slice u8 .
+fn less input a slice u8 . input b slice u8 . output bool .
 do
   var i u64 be 0 .
   var ans u64 be 2 .
@@ -55,7 +55,7 @@ do
 end .
 
 rem 같은 바이트열인가.
-fn same_bytes output bool . input a slice u8 . input b slice u8 .
+fn same_bytes input a slice u8 . input b slice u8 . output bool .
 do
   guard eq (len a) (len b) . else return false .
   var i u64 be 0 .
@@ -70,7 +70,6 @@ end .
 rem ── 한 디렉터리의 엔트리 이름을 모은다(`.`/`..` 은 뺀다). 색인만 정렬한다.
 rem    돌려주는 수: 엔트리 개수. 실패·한도 초과는 `err` 에 적는다(0=ok · 71=열기 · 72=닫기 · 3=한도).
 proc list_dir .
-  output u64 .
   input fs cap file_system .
   input path slice u8 .
   input namebuf mut slice u8 . .
@@ -78,6 +77,7 @@ proc list_dir .
   input offs mut slice u64 . .
   input lens mut slice u64 . .
   input st mut slice u64 . .
+  output u64 .
   effects io .
 do
   set (index st 0) 0 .
@@ -162,12 +162,12 @@ end .
 
 rem ── 두 파일을 **청크로** 견준다. 0 = 같다 · 1 = 다르다 · 2 = 읽지 못했다.
 proc same_file .
-  output u64 .
   input fs cap file_system .
   input pa slice u8 .
   input pb slice u8 .
   input ba mut slice u8 . .
   input bb mut slice u8 . .
+  output u64 .
   effects io .
 do
   let ha result files.handle files.file_error . be files.open fs pa 0 .
@@ -220,10 +220,10 @@ rem    2 = 한쪽만 링크다. `link_type` 은 링크를 **따라가지 않는�
 rem    ☞ 이것을 따로 뺀 이유는 `main` 의 지역이 언어 한도(64)에 닿았기 때문이다 — 그리고
 rem      빼고 나니 규칙이 한자리에 모여 읽기도 낫다.
 proc link_pair .
-  output u64 .
   input fs cap file_system .
   input pa slice u8 .
   input pb slice u8 .
+  output u64 .
   effects io .
 do
   var sa bool be false .
@@ -239,11 +239,11 @@ end .
 
 rem ── 경로 조립: base + "/" + name (base 가 비었으면 name 만). 실패하면 false.
 proc join_path .
-  output bool .
   input base slice u8 .
   input name slice u8 .
   input buf mut slice u8 . .
   input outlen mut slice u64 . .
+  output bool .
   effects none .
 do
   var b strbuf.str_buf be strbuf.new .
@@ -260,11 +260,11 @@ do
 end .
 
 proc main .
-  output u8 .
   input fs cap file_system .
   input out cap io .
   input hp cap heap .
   input a  cap args .
+  output u8 .
   effects heap io .
 do
   var w u64 be 0 .

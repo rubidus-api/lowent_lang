@@ -148,12 +148,12 @@ k ≤ q−1  이므로   i·q + k ≤ p·q − q + q − 1 = p·q − 1
 
 ```lowent
 rem ① 계약 없이 계산된 인덱스 — 검사가 남는다(느리지만 안전하다)
-proc f output u64 . input a slice u64 . input n u64 . effects none . do
+proc f input a slice u64 . input n u64 . output u64 . effects none . do
   return index a (add (mul 2 n) 1) .   rem 검사 있음 — n 을 아무도 묶지 않았다
 end
 
 rem ② 계약을 어긴 호출 — **진입에서** 막힌다
-proc g output u64 . input a slice u64 . input n u64 . effects none .
+proc g input a slice u64 . input n u64 . output u64 . effects none .
   requires ge (len a) (mul n n) .
 do … end
 rem 호출자가 작은 배열을 주면 그 자리에서 트랩한다:

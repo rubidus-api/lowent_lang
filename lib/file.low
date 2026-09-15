@@ -64,8 +64,8 @@ end .
 rem 연다. 못 열면 `error open_failed` — 트랩이 아니다(실패는 값이다).
 rem ★ 여는 일에는 *"끝"* 이라는 개념이 없다 — 그래서 가운데 자리가 없다.
 rem ★★ 이 값을 **닫지 않고 버리면 컴파일 오류**다(아래 close 가 그렇게 만든다).
-export proc open output result handle file_error . input fs cap file_system . input path slice u8 .
-  input mode u64 . effects io .
+export proc open input fs cap file_system . input path slice u8 . input mode u64 .
+  output result handle file_error . effects io .
 errors open_failed .
 do
   let h option u64 . be file_open fs path mode .
@@ -78,8 +78,8 @@ rem   그래서 **버퍼보다 큰 파일도 읽는다**: 이것이 `read_file` 
 rem ★ 길이 0 버퍼는 `ok (some 0)` 이다 — 끝이 아니다. 잎은 자리가 없어도 0 을 답하는데, 그것을 EOF 로
 rem   읽으면 조각 읽기가 남은 꼬리를 빈 슬라이스로 건넨 순간 **파일이 조용히 잘린다**(거짓 EOF).
 rem   "0 바이트 읽었다" 와 "끝났다" 는 다른 사실이고, 여기선 전자다(`io.take_rest` 와 같은 판단).
-export proc read output result (option u64) file_error . input fs cap file_system . input h handle .
-  input buf mut slice u8 . . effects io .
+export proc read input fs cap file_system . input h handle . input buf mut slice u8 . .
+  output result (option u64) file_error . effects io .
 errors read_failed .
 do
   guard gt (len buf) 0 . else return ok (some 0) .
@@ -90,8 +90,8 @@ do
   return ok (some (some_value n)) .
 end .
 
-export proc write output result u64 file_error . input fs cap file_system . input h handle .
-  input bytes slice u8 . effects io .
+export proc write input fs cap file_system . input h handle . input bytes slice u8 .
+  output result u64 file_error . effects io .
 errors write_failed .
 do
   let n option u64 . be file_write fs (field h fd) bytes .
@@ -103,8 +103,8 @@ rem ★★★ **랜덤 접근** (RFC-0069 §4 read_at) — 스트림 커서를 �
 rem   whence: 0 = set(절대) · 1 = cur(현재 기준) · 2 = end(끝 기준). 새 절대 위치를 낸다(못 하면 none).
 rem   ★ end 로 옮기면 **파일 크기**를 알 수 있다(offset 0, whence 2 → 크기). seek 는 뷰가 아니라
 rem     커서를 바꾸므로 h 는 비소유로 충분하다(read 처럼 — 소유는 close 가 든다).
-export proc seek_to output result u64 file_error . input fs cap file_system . input h handle . input off u64 .
-  input whence u64 . effects io .
+export proc seek_to input fs cap file_system . input h handle . input off u64 . input whence u64 .
+  output result u64 file_error . effects io .
 errors seek_failed .
 do
   let n option u64 . be file_seek fs (field h fd) off whence .
@@ -114,8 +114,8 @@ end .
 
 rem ★★★ **완결.** owned 를 소비하고 result 를 낸다 — 이 선언 하나가 `handle` 을
 rem   *"완결이 필요한 타입"* 으로 만들고, 그래서 **안 부르면 컴파일이 안 된다**.
-export proc close output result void file_error . input fs cap file_system .
-  input h owned handle . effects io .
+export proc close input fs cap file_system . input h owned handle .
+  output result void file_error . effects io .
 errors close_failed .
 do
   rem ★ 변수를 `ok` 라 부르면 **결과 생성자 `ok` 와 부딪친다** — 같은 낱말 두 뜻(§2.5).
@@ -133,8 +133,8 @@ export struct dir_handle do
   fd u64 .
 end .
 
-export proc open_dir output result dir_handle file_error . input fs cap file_system .
-  input path slice u8 . effects io .
+export proc open_dir input fs cap file_system . input path slice u8 .
+  output result dir_handle file_error . effects io .
 errors open_failed .
 do
   let h option u64 . be dir_open fs path .
@@ -144,8 +144,8 @@ end .
 
 rem 다음 엔트리 **이름**을 호출자 버퍼로. **0 = 끝**(실패 아님, EOF 와 같은 규율). 안 맞으면 none.
 rem   ☞ readdir 그대로라 `.`·`..` 도 낸다 — 거르는 것은 프로그램의 몫(raw 를 숨기지 않는다).
-export proc read_dir output result (option u64) file_error . input fs cap file_system . input h dir_handle .
-  input buf mut slice u8 . . effects io .
+export proc read_dir input fs cap file_system . input h dir_handle . input buf mut slice u8 . .
+  output result (option u64) file_error . effects io .
 errors read_failed .
 do
   let n option u64 . be dir_read fs (field h fd) buf .
@@ -155,8 +155,8 @@ do
   return ok (some (some_value n)) .
 end .
 
-export proc close_dir output result void file_error . input fs cap file_system .
-  input h owned dir_handle . effects io .
+export proc close_dir input fs cap file_system . input h owned dir_handle .
+  output result void file_error . effects io .
 errors close_failed .
 do
   let closed bool be dir_close fs (field h fd) .
@@ -168,8 +168,8 @@ end .
 rem ★★★ **경로가 무엇인가** (stat) — 0=파일·1=디렉터리·2=그 밖 · 없으면 none. 핸들이 없다(질의다).
 rem   디렉터리 순회가 드러낸 구멍을 메운다: 엔트리를 나열한 뒤 **어느 것이 하위 디렉터리인지** 알아야
 rem   재귀(find·du·tree)가 된다.
-export proc type_of output option u64 . input fs cap file_system .
-  input path slice u8 . effects io .
+export proc type_of input fs cap file_system . input path slice u8 .
+  output option u64 . effects io .
 do
   return file_type fs path .
 end .
@@ -178,28 +178,28 @@ rem ★★★ **따라가지 않는 짝** (X-0030 ⓐ · WO-0210) — `lstat`. 0
 rem   `type_of` 는 심링크를 **가리키는 대상**으로 본다(stat). 그래서 «한쪽은 링크, 한쪽은 진짜 파일»
 rem   을 구분할 수 없었다 — 백업 비교 도구가 그 둘을 «같다» 고 답했다(실측, lowdiff 1 차판).
 rem   ☞ 기존 낱말의 뜻은 안 바꾼다. **따라가는 질의와 안 따라가는 질의는 서로 다른 질문**이다.
-export proc link_type_of output option u64 . input fs cap file_system .
-  input path slice u8 . effects io .
+export proc link_type_of input fs cap file_system . input path slice u8 .
+  output option u64 . effects io .
 do
   return link_type fs path .
 end .
 
 rem ★ 편의: 심링크인가. 없으면 false.
-export proc is_symlink output bool . input fs cap file_system . input path slice u8 . effects io . do
+export proc is_symlink input fs cap file_system . input path slice u8 . output bool . effects io . do
   let t option u64 . be link_type fs path .
   guard is_some t . else return false .
   return eq (some_value t) 3 .
 end .
 
 rem ★ 편의: 디렉터리인가. 없으면 false(없는 것은 디렉터리가 아니다 — 정직하다).
-export proc is_dir output bool . input fs cap file_system . input path slice u8 . effects io . do
+export proc is_dir input fs cap file_system . input path slice u8 . output bool . effects io . do
   let t option u64 . be file_type fs path .
   guard is_some t . else return false .
   return eq (some_value t) 1 .
 end .
 
 rem ★ 편의: 보통 파일인가.
-export proc is_file output bool . input fs cap file_system . input path slice u8 . effects io . do
+export proc is_file input fs cap file_system . input path slice u8 . output bool . effects io . do
   let t option u64 . be file_type fs path .
   guard is_some t . else return false .
   return eq (some_value t) 0 .
@@ -208,8 +208,8 @@ end .
 rem ★★ **`read_file` 을 Lowent 로 다시 쓴다** — 부채 상환의 실물.
 rem   파일 전체를 호출자 버퍼로. 안 들어가면 `none`(빌트인과 같은 규율, 자르지 않는다).
 rem   ☞ 빌트인 `read_file` 은 이제 **이것과 같은 뜻**이다 ⇒ §2.5 동의어 금지에 걸린다.
-export proc slurp output result u64 file_error . input fs cap file_system . input path slice u8 .
-  input buf mut slice u8 . . effects io .
+export proc slurp input fs cap file_system . input path slice u8 . input buf mut slice u8 . .
+  output result u64 file_error . effects io .
 rem ★ `errors` 는 **이름 하나**를 받는다(뒤는 조건 자리다) — 그래서 줄을 나눈다.
 errors open_failed .
 errors read_failed .

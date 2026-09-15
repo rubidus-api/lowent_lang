@@ -41,14 +41,14 @@ export struct pending do
 end .
 
 rem 라이터를 연다. ★ 이 값을 **끝내지 않고 버리면 컴파일 오류**다(아래 finish 가 그렇게 만든다).
-export fn open output pending . input d u64 . do
+export fn open input d u64 . output pending . do
   return make pending do pos 0 . fd d . end .
 end .
 
 rem ★ 버퍼를 비운다 — **여기서만 세상에 닿는다**(write_out). 비운 뒤의 상태를 돌려준다.
 rem   부분 쓰기는 실패로 친다(Go 의 "short write 는 에러" 규율 — 조사 §1.2).
-export proc flush output result (owned pending) io_error . input out cap io . input p owned pending .
-  input buf mut slice u8 . . effects io .
+export proc flush input out cap io . input p owned pending . input buf mut slice u8 . .
+  output result (owned pending) io_error . effects io .
 errors write_failed .
 do
   let d u64 be field p fd .
@@ -70,9 +70,9 @@ end .
 
 rem ★★ 바이트를 **버퍼에 쌓는다.** 가득 차면 그때 비운다 — 그것이 버퍼링의 전부다.
 rem   `write_out` 은 호출마다 fflush 하므로, 이것이 syscall 수를 바이트 수에서 **버퍼 수**로 줄인다.
-export proc write output result (owned pending) io_error . input out cap io . input p owned pending .
-  input buf mut slice u8 . .
-  input s slice u8 . effects io .
+export proc write input out cap io . input p owned pending . input buf mut slice u8 . .
+  input s slice u8 .
+  output result (owned pending) io_error . effects io .
 errors write_failed .
 do
   var cur owned pending be p .
@@ -97,8 +97,8 @@ end .
 
 rem ★★★ **완결.** owned 를 소비하고 result 를 낸다 — 이 선언 하나가 `pending` 을
 rem   *"완결이 필요한 타입"* 으로 만들고, 그래서 이것을 **안 부르면 컴파일이 안 된다**.
-export proc finish output result void io_error . input out cap io . input p owned pending .
-  input buf mut slice u8 . . effects io .
+export proc finish input out cap io . input p owned pending . input buf mut slice u8 . .
+  output result void io_error . effects io .
 errors write_failed .
 do
   guard le (field p pos) (len buf) . else do

@@ -9,12 +9,12 @@ rem     신뢰한다 — 진짜 효과는 그 op 의 **자기 본문**이 이미
 module vm_effname .
 
 rem op 이름이 효과 낱말 'run' 인데 순수하다 — 정말 순수하다(add 뿐).
-fn run output u64 . input a u64 . do
+fn run input a u64 . output u64 . do
   return add a 1 .
 end .
 
 rem 그 op 을 호출하는 순수 op — 전엔 유령 IO 로 E-EFFECT-CALC 였다. 이제 순수하게 통과.
-fn use_run output u64 . input a u64 . do
+fn use_run input a u64 . output u64 . do
   return run a .
 end .
 

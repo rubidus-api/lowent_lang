@@ -75,7 +75,7 @@
 
 type scratch u64 . .
 
-proc build output u64 . input temp region scratch . . effects alloc .
+proc build input temp region scratch . . output u64 . effects alloc .
 do
   let s stack u64 . be stack_new temp capacity 4 . .
   push s 10 .
@@ -234,7 +234,7 @@ end .", "E-ALLOC-NESTED")
     ]
     #ex("읽기 참조는 여럿이 함께 가질 수 있다", "module ex_ref .
 
-export fn sum_two output u32 . input a ref u32 . input b ref u32 .
+export fn sum_two input a ref u32 . input b ref u32 . output u32 .
   requires le (deref a) 1000 .
   requires le (deref b) 1000 .
 do
@@ -318,7 +318,7 @@ end", "E-ESCAPE: reference to a local escapes the op (dangling)")
 
 type buffer u8 . .
 
-fn sink output u8 . input h owned buffer .
+fn sink input h owned buffer . output u8 .
 do
   drop h .
   return 0 .
@@ -327,7 +327,7 @@ end")
 
 type buffer u8 . .
 
-fn twice output u8 . input h owned buffer .
+fn twice input h owned buffer . output u8 .
 do
   drop h .
   drop h .     rem 이미 없어진 것을 또 없앤다
@@ -405,7 +405,7 @@ end", "E-OWN-MOVED")
     ]
     #rejected("`bool` 은 덫 표현이 있어 `plain` 이 아니다", "module ex_bitcast .
 
-fn f output bool . input a u8 .
+fn f input a u8 . output bool .
 do
   return bit_cast bool a .     rem 모든 비트열이 참·거짓인 것은 아니다
 end", "E-TYPE-BITCAST")
@@ -480,7 +480,7 @@ end", "E-TYPE-BITCAST")
     ]
     #rejected("정수와 부동은 저절로 섞이지 아니한다", "module ex_mix .
 
-fn f output f64 . input a u32 . input b f64 .
+fn f input a u32 . input b f64 . output f64 .
 do
   return add a b .     rem 건너려면 그렇게 적힌 op 을 쓴다
 end", "E-TYPE-MIX")
@@ -613,7 +613,7 @@ actor grower do
   state do
     root cap heap .
   end .
-  proc take output u64 . input n u64 . effects heap . do
+  proc take input n u64 . output u64 . effects heap . do
     let g option mut slice u8 . . be alloc_bytes root capacity n .
     if is_some g . do return n . end .
     return 0 .
@@ -685,7 +685,7 @@ end .", "E-CAP-FORGE")
     #ex("한 op 에서 두 얼로케이터를 번갈아 쓴다", "module ex_using .
 
 trait carver do
-  reserve output u64 . input s self . input n u64 . effects state .
+  reserve input s self . input n u64 . output u64 . effects state .
 end .
 
 rem 정책 둘 — 하나는 요청만큼, 하나는 두 배씩 센다
@@ -694,7 +694,7 @@ actor exact do
   state do
     used u64 .
   end .
-  proc reserve output u64 . input n u64 . effects state . do
+  proc reserve input n u64 . output u64 . effects state . do
     set used (add used n) .
     return used .
   end .
@@ -705,14 +705,14 @@ actor doubled do
   state do
     used u64 .
   end .
-  proc reserve output u64 . input n u64 . effects state . do
+  proc reserve input n u64 . output u64 . effects state . do
     set used (add used (mul n 2)) .
     return used .
   end .
 end .
 
 rem 받는 쪽 — 부르는 쪽은 얼로케이터도, 그 타입도 적지 않는다
-proc take output u64 . input comptime a type . using al a . input n u64 . effects state . requires carver a . do
+proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a . do
   return send al reserve n .
 end .
 
@@ -726,7 +726,7 @@ end .")
     #rejected("보이는 얼로케이터가 둘인데 고르지 않았다", "module ex_using_ambiguous .
 
 trait carver do
-  reserve output u64 . input s self . input n u64 . effects state .
+  reserve input s self . input n u64 . output u64 . effects state .
 end .
 
 actor exact do
@@ -734,13 +734,13 @@ actor exact do
   state do
     used u64 .
   end .
-  proc reserve output u64 . input n u64 . effects state . do
+  proc reserve input n u64 . output u64 . effects state . do
     set used (add used n) .
     return used .
   end .
 end .
 
-proc take output u64 . input comptime a type . using al a . input n u64 . effects state . requires carver a . do
+proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a . do
   return send al reserve n .
 end .
 

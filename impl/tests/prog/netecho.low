@@ -13,10 +13,10 @@ module netecho .
 use net from "../../../lib/net.low" .
 
 proc main .
-  output u8 .
   input k  cap net .
   input al cap allocator .
   input out cap io .
+  output u8 .
   effects io alloc .
 do
   rem 받을 버퍼를 뿌리 얼로케이터에서 얻는다(진입점은 데이터를 직접 못 받아 — 할당하거나 cap args).

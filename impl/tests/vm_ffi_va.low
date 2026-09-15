@@ -14,18 +14,18 @@ module vm_ffi_va .
 
 rem lw_c_vsum(long long n, ...) — n 개의 정수를 더한다. n = 개수, k = cap(안 넘어감), 나머지 = 가변.
 unsafe extern proc c_vsum .
-  output i64 .
   input k cap c .
   input n i64 .
+  output i64 .
+  effects unsafe .
   variadic .
   link lw_c_vsum .
-  effects unsafe .
 end .
 
-unsafe proc vsum3 output i64 . input k cap c . input a i64 . input b i64 . input d i64 . effects unsafe . do
+unsafe proc vsum3 input k cap c . input a i64 . input b i64 . input d i64 . output i64 . effects unsafe . do
   return c_vsum k 3 a b d .
 end .
 
-unsafe proc vsum0 output i64 . input k cap c . effects unsafe . do
+unsafe proc vsum0 input k cap c . output i64 . effects unsafe . do
   return c_vsum k 0 .
 end .

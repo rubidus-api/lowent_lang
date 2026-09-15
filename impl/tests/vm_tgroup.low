@@ -18,7 +18,7 @@ actor counter do
 end .
 
 rem 태스크: 주어진 카운터에 inc 한 번 보낸다(그리고 그룹 join 이 그 메시지도 배달한다).
-proc worker output u64 . input c counter . effects state . do
+proc worker input c counter . output u64 . effects state . do
   spawn send c inc .
   return 0 .
 end .

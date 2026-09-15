@@ -120,7 +120,7 @@ op 하나하나를 시그니처와 함께 본다. 매개변수마다 "왜 이것
 ### is_cont
 
 ```lowent
-export fn is_cont output bool . input b u8 .
+export fn is_cont input b u8 . output bool .
 ```
 
 이어지는 바이트인가 — `10xxxxxx` 패턴 검사(`eq (bit_and b 192) 128`).
@@ -132,7 +132,7 @@ export fn is_cont output bool . input b u8 .
 ### seq_len
 
 ```lowent
-export fn seq_len output u64 . input b u8 .
+export fn seq_len input b u8 . output u64 .
 ```
 
 선두 바이트 `b` 로 그 코드포인트의 바이트 길이(1~4)를 안다. **0 = 선두 바이트가
@@ -145,7 +145,7 @@ export fn seq_len output u64 . input b u8 .
 ### decode
 
 ```lowent
-export fn decode output option u64 . input s slice u8 . input at u64 .
+export fn decode input s slice u8 . input at u64 . output option u64 .
 ```
 
 바이트 오프셋 `at` 에서 코드포인트 하나를 디코드해 그 **값**을 낸다. `none` 이 되는
@@ -163,7 +163,7 @@ U+10FFFF 초과. 길이는 주지 않는다 — `seq_len` 으로 다시 얻거�
 ### next
 
 ```lowent
-export fn next output option u64 . input s slice u8 . input at u64 .
+export fn next input s slice u8 . input at u64 . output option u64 .
 ```
 
 다음 코드포인트의 **시작 위치**. 유효하지 않으면 `none` — 건너뛰며 뭉개지 않는다.
@@ -177,7 +177,7 @@ export fn next output option u64 . input s slice u8 . input at u64 .
 ### count_chars
 
 ```lowent
-export fn count_chars output option u64 . input s slice u8 .
+export fn count_chars input s slice u8 . output option u64 .
 ```
 
 전체를 훑어 코드포인트 개수를 낸다. 무효 바이트를 만나면 `none` — 부분 답이 없다.
@@ -189,7 +189,7 @@ export fn count_chars output option u64 . input s slice u8 .
 ### is_valid
 
 ```lowent
-export fn is_valid output bool . input s slice u8 .
+export fn is_valid input s slice u8 . output bool .
 ```
 
 전체가 유효한 UTF-8 인가. D3 이 말한 *"검증은 별도 op 이지 타입 불변식이 아니다"* 의
@@ -215,9 +215,9 @@ use utf8 from "../lib/utf8.low" .
 use fmt  from "../lib/fmt.low" .
 
 proc main
-  output u8 .
   input out cap io .
   input al  cap allocator .
+  output u8 .
   effects alloc io .
 do
   let s slice u8 be "a한😀" .          rem 바이트 8 · 글자 3

@@ -12,11 +12,11 @@ export struct ticket do
   id u64 .
 end .
 
-export fn issue output owned vm_lifemode_never.ticket . input i u64 . do
+export fn issue input i u64 . output owned vm_lifemode_never.ticket . do
   return make ticket do id i . end .
 end .
 
-export fn finish output result u64 vm_lifemode_never.late . input t owned vm_lifemode_never.ticket . do
+export fn finish input t owned vm_lifemode_never.ticket . output result u64 vm_lifemode_never.late . do
   return ok (field t id) .
 end .
 

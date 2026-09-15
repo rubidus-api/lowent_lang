@@ -4,8 +4,8 @@ rem ★ 명세의 예제 B 는 `node_count_of` 를 부르는데 **그것을 정�
 rem    예제 A 와 같은 결함이다(--check 가 초록불이었다 — IR 만 E-IR-UNDEF 를 냈다).
 rem    자립시킨다.
 fn node_count_of .
-  output u64 .
   input g graph .
+  output u64 .
 do
   return index g 0 .
 end .
@@ -19,9 +19,9 @@ type node_count u64 . .
 type frame u64 . .
 
 fn children_of .
-  output bytes .
   input g graph .
   input node u64 .
+  output bytes .
 do
   var at u64 be 1 .
   var i u64 be 0 .
@@ -33,11 +33,11 @@ do
 end .
 
 proc graph_reachable .
-  output void .
   input temp region frame . .
   input g graph .
   input root node_id .
   input out mut bitset node_count . .
+  output void .
   effects alloc .
 do
   let work stack node_id . be stack_new temp capacity node_count_of g . . .

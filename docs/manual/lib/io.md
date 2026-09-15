@@ -137,8 +137,8 @@ effect(그 op 이 무슨 비용을 내는지 — `none` 은 아무 흔적도 안
 ### scan_until
 
 ```lowent
-export fn scan_until output option u64 . input src slice u8 . input from u64 . input delim u8 .
-  input limit u64 .
+export fn scan_until input src slice u8 . input from u64 . input delim u8 . input limit u64 .
+  output option u64 .
 ```
 
 `from` 부터 `delim` 을 찾되 **limit 바이트까지만** 본다. 매개변수 넷이 왜 필요한가:
@@ -207,7 +207,7 @@ use io from "../lib/io.low" .
 
 rem 순수한 로직 — 파일도 stdin 도 모른다. 그래서 어느 입력이든 같은 코드가 먹는다.
 rem effects state 는 리더 커서 때문이고, io 도 alloc 도 없다.
-proc count_lines output u64 . input src slice u8 . effects state . do
+proc count_lines input src slice u8 . output u64 . effects state . do
   rem 리더를 하나 만든다 — 아직 빈손이라 무엇을 읽을지 모른다.
   var r io.mem_reader be spawn actor io.mem_reader . .
   rem 읽을 바이트열을 건다. 커서가 0 이 된다. 반환 0 은 뜻이 없어 z 에 버린다.
@@ -229,9 +229,9 @@ end
 rem entry 패턴: 프로그램의 시작점은 이름이 main 이고, 그 input 은 전부 cap 이다 —
 rem 바깥세상에 닿을 권한은 여기서 딱 한 번 건네받아 아래로 넘겨 준다.
 rem 필요한 권한만 적으면 된다: 파일을 다루면 input fs cap file_system . 을 적는 식이다.
-proc main output u8 .                         rem 프로세스 종료 코드
-  input out cap io .          rem stdin/stdout 에 닿을 권한
+proc main input out cap io .          rem stdin/stdout 에 닿을 권한
   input al cap allocator .            rem 메모리를 얻을 권한
+  output u8 .                         rem 프로세스 종료 코드
   effects alloc io state .            rem 이 proc 이 내는 비용을 정직하게 신고한다
 do
   rem 읽을 자리를 마련한다 — 할당도 권한(al)이 있어야 한다.

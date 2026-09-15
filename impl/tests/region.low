@@ -1,6 +1,6 @@
 fn safe .
-  output ref u32 .
   input p ref u32 .
+  output ref u32 .
 do
   return ref p .
 end .

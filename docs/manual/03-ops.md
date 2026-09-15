@@ -25,8 +25,8 @@
 
 ```
 [수식어] fn|proc <이름>
-  output <타입> .           rem 출력이 맨 앞
   input <p> <타입> .        rem 매개변수마다 한 절 — 권한·영역 입력(`cap …`·`region …`)이 데이터보다 먼저
+  output <타입> .           rem 출력은 입력 뒤
   effects <효과들> .           rem 효과 — `proc` 만. `fn` 에는 안 적는다
   [requires/ensures/errors …]  rem 계약
 do
@@ -35,10 +35,10 @@ end
 ```
 
 **절은 한 차례로만 적는다**(2026-09-15, 정본 §6.4.1 (3a)). 앞에서 뒤로:
-`output` · `satisfies`·`lowdoc` · `vector`·`priority` · comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 ·
-`link`·`variadic` · `effects` · `asm` · `access`·`parallel`·`reduce` · `requires` · `ensures` ·
+`satisfies`·`lowdoc` · `vector`·`priority` · comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 ·
+`output` · `effects` · `link`·`variadic` · `asm` · `access`·`parallel`·`reduce` · `requires` · `ensures` ·
 `errors` · `tests`. 어기면 `E-CLAUSE-ORDER` 로 거절되고, 무엇이 무엇 뒤에 왔는지 말해 준다.
-`output` 을 입력 뒤에 적던 옛 차례도 이 오류로 거절된다 — `--fmt` 가 입력 아닌 절은 옮겨 준다 — 입력끼리는 옮기지 않는다. 입력의 차례는 부르는 쪽 **인자의
+앞의 것이 뒤의 것에 쓰이도록 놓인 차례다(타입 매개변수 → 입력·출력 타입, 권한 → 효과). `--fmt` 가 입력 아닌 절은 옮겨 준다 — 입력끼리는 옮기지 않는다. 입력의 차례는 부르는 쪽 **인자의
 차례**이기도 해서, 옮기면 부르는 자리도 함께 고쳐야 하기 때문이다(그래서 권한은 언제나 먼저 건넨다).
 
 지역과 반환:
@@ -51,14 +51,14 @@ end
 
 ```lowent
 rem 순수 계산 — 인자 셋을 더한다. 수식은 중위(expr)로도, 접두로도 쓸 수 있다.
-fn add3 output i32 . input a i32 . input b i32 . input c i32 . do
+fn add3 input a i32 . input b i32 . input c i32 . output i32 . do
   return add (add a b) c .
 end
 ```
 
 ```lowent
 rem 지역 가변 상태를 쓰는 proc
-proc running_total output u64 . input xs slice u64 . effects none . do
+proc running_total input xs slice u64 . output u64 . effects none . do
   var total u64 be 0 .
   for x xs do                 rem for <이름> <열> do … end — `in` 같은 표지는 없다
     set total (add total x) .
@@ -69,8 +69,8 @@ end
 
 ```lowent
 rem 구현이 C 에 있는 extern op — 경계는 검사받는다(--emit-h)
-unsafe extern proc c_area output i64 . input k cap c . input p pt .
-  link lw_c_area . effects unsafe . end
+unsafe extern proc c_area input k cap c . input p pt . output i64 .
+  effects unsafe . link lw_c_area . end
 ```
 
 ## 매개변수
@@ -79,7 +79,7 @@ unsafe extern proc c_area output i64 . input k cap c . input p pt .
 `mut`·`ref`·`owned`·`option` 등이 붙어 소유·가변·유무를 표현한다.
 
 ```lowent
-fn compare output i32 . input a i32 . input b i32 . do
+fn compare input a i32 . input b i32 . output i32 . do
   return sub a b .
 end
 ```
@@ -98,7 +98,7 @@ op 의 시그니처에 **약속**을 적는다. 어기면 잡힌다.
 - `errors <이름> .` — 이 op 이 낼 수 있는 오류 사례(`result` 반환과 함께).
 
 ```lowent
-fn clamped output u8 . input a u8 .
+fn clamped input a u8 . output u8 .
   requires le a 200 .        rem 호출자는 a ≤ 200 을 지켜야 한다
   ensures  le ret 200 .      rem 우리는 결과 ≤ 200 을 보장한다
 do
@@ -133,7 +133,7 @@ Lowent 에는 **주변 권한이 없다.** 무언가를 할 힘(출력, 할당, 
 | `cap c` | C FFI 경계 |
 
 ```lowent
-proc main output u8 . input out cap io . input a cap args . effects io . do
+proc main input out cap io . input a cap args . output u8 . effects io . do
   rem arg 는 있을 수도 없을 수도 있으니 option 이다 — guard 로 갈라 받는다.
   let who option slice u8 be arg a 0 .       rem args 능력이 있어야 인자를 본다
   guard is_some who . else return narrow u8 (write_out out 1 "no name\n") .
@@ -143,6 +143,22 @@ end
 
 능력이 없으면 그 힘을 쓸 수 없다 — 검사기가 `E-CAP-…` 로 막는다. 받아 두기만 하고 쓰는 자리에
 건네지 않아도 거절된다(`E-CAP-MISSING`) — `write_out out 1 …` 처럼 **첫 피연산자로 적는다.**
+
+### `cap` 과 `effects` 는 짝이다
+
+- `effects` 는 op 이 **무엇을 하는지**, `cap` 입력은 **누가 허락했는지**를 적는다. 둘은 서로를 검사한다.
+- `effects io` 를 적으면 `cap io`·`cap file_system`·`cap net`·`cap tty`·`cap clock`·`cap random` 중 하나를 받아야 한다.
+  `effects alloc` 은 `cap allocator`, `effects heap` 은 `cap heap` 이다. 없으면 거절된다.
+- 반대로 권한으로 여는 일(출력·할당 …)을 본문이 하는데 `effects` 에 안 적으면 `E-EFFECT` 다.
+- `state`·`panic`·`wait` 처럼 권한이 필요 없는 효과도 있다.
+
+```lowent
+proc greet input out cap io . input al cap allocator . output u64 . effects io alloc . do
+  let g option mut slice u8 . . be alloc_bytes al capacity 16 .   rem cap allocator ↔ effects alloc
+  guard is_some g . else return 0 .
+  return write_out out 1 "hi\n" .                                 rem cap io ↔ effects io
+end
+```
 
 ## `effect` — 효과
 

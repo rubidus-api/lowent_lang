@@ -28,7 +28,7 @@ use allocs from "../../../lib/alloc.low" .
 rem ── 상태는 수 하나다: 어느 줄에 커서가 있나(0..3).
 rem ★ 키 하나가 상태를 어떻게 옮기는가 — **순수하고, 이것이 이 프로그램의 알맹이다.**
 rem   범위 밖으로 나가지 않는다(맨 위에서 위로 = 그대로). 모르는 키는 상태를 안 바꾼다.
-fn step output u64 . input cur u64 . input keycode u64 . do
+fn step input cur u64 . input keycode u64 . output u64 . do
   if eq keycode 1002 . do
     if lt cur 3 . do return add cur 1 . end .
     return cur .
@@ -43,7 +43,7 @@ fn step output u64 . input cur u64 . input keycode u64 . do
 end .
 
 rem ★ 확정 키인가 — Enter(13) 또는 Space(32).
-fn is_commit output bool . input keycode u64 . do
+fn is_commit input keycode u64 . output bool . do
   if eq keycode 13 . do return true . end .
   if eq keycode 32 . do return true . end .
   return false .
@@ -51,8 +51,8 @@ end .
 
 rem ── 화면 한 장을 **바이트로** 만든다. 순수하다: 아무 데도 안 쓴다.
 rem   `pos` 에서 시작해 새 pos 를 돌려준다(모자라면 none — 자르지 않는다).
-proc render output option u64 . input buf mut slice u8 . . input pos0 u64 .
-  input cur u64 . effects none .
+proc render input buf mut slice u8 . . input pos0 u64 . input cur u64 .
+  output option u64 . effects none .
 do
   let c0 option u64 . be term.clear buf pos0 .
   guard is_some c0 . else return none .
@@ -88,9 +88,9 @@ do
 end .
 
 proc main .
-  output u8 .
   input in_c cap io .
   input al   cap allocator .
+  output u8 .
   effects alloc io .
 do
   rem ① 키 바이트를 통째로 받는다. 터미널이면 이것이 raw 모드의 산물이고,

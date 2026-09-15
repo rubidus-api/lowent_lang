@@ -10,8 +10,8 @@ rem   상계는 「없어서 못 지운 검사」 보다 「있는데 틀린 검
 module tripcap .
 
 rem ── ① 묶인다: 바퀴 수가 서고, 한 걸음이 +1 이며, 쓰기가 전부 루프 안이다.
-export proc grow output u64 . input a mut slice u32 . .
-  input n u64 . .
+export proc grow input a mut slice u32 . . input n u64 . .
+  output u64 .
   effects none .
   requires elem_le a 1000 .
   requires le (len a) 4096 . requires le n 4096 .
@@ -28,8 +28,8 @@ do
 end .
 
 rem ── ② 안 묶인다: 한 걸음이 **곱**이다(+1 이 아니다). 검증이 후보를 버려야 한다.
-export proc blow output u64 . input a mut slice u32 . .
-  input n u64 . .
+export proc blow input a mut slice u32 . . input n u64 . .
+  output u64 .
   effects none .
   requires elem_le a 1000 .
   requires le (len a) 4096 . requires le n 4096 .

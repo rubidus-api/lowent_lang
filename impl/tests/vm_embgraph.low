@@ -15,7 +15,7 @@ module vm_embgraph .
 build profile embedded .
 
 rem 태스크 하나: 준 값을 그대로 돌려준다. 태스크는 인스턴스가 없다(스케줄러가 인자만으로 부른다).
-proc tick output u64 . input n u64 . effects none . do
+proc tick input n u64 . output u64 . effects none . do
   return n .
 end .
 

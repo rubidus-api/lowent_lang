@@ -25,7 +25,7 @@ use mapgen from "../../../lib/mapgen.low" .
 use vecgen from "../../../lib/vecgen.low" .
 use allocs from "../../../lib/alloc.low" .
 
-proc main output u8 . input al cap allocator . effects state alloc . do
+proc main input al cap allocator . output u8 . effects state alloc . do
   rem ── ① 작업 대기열(평범한 배열 — 링 버퍼는 ring.low 이 따로 시험한다) ─────
   let bufo option mut slice u8 . . be alloc_bytes al capacity 64 .
   guard is_some bufo . else return 91 .

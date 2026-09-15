@@ -8,7 +8,7 @@ module vm_lifemode_near .
 use lifemode .
 use allocs .
 
-proc main output u8 . input al cap allocator . effects alloc . do
+proc main input al cap allocator . output u8 . effects alloc . do
   let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some mb . else return 89 .
   var c mut slice u64 . be view_array u64 (some_value mb) .

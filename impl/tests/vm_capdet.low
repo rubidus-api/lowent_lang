@@ -15,7 +15,7 @@ rem   단조성(뒤가 앞보다 작지 않다)과 **채운 바이트 수**만 �
 module capdet .
 
 rem 시계는 뒤로 가지 않는다 — 그것이 단조 시계에 대해 말할 수 있는 전부다.
-export proc mono output u64 . input k cap clock . effects none . do
+export proc mono input k cap clock . output u64 . effects none . do
   let a u64 be time_now k .
   let b u64 be time_now k .
   guard ge b a . else return 0 .
@@ -24,7 +24,7 @@ end .
 
 rem OS 엔트로피는 **버퍼를 채우고 채운 수를 답한다** — 못 채우면 0 이다(조용히 덜 채우지 않는다).
 rem ★ 재현 가능한 `rng_next` 는 권한이 없다. 권한이 필요한 것은 **OS 에게 묻는 자리** 하나뿐이다.
-export proc entropy output u64 . input al cap allocator . input k cap random . effects alloc . do
+export proc entropy input al cap allocator . input k cap random . output u64 . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   var buf mut slice u8 . be some_value g .
@@ -35,7 +35,7 @@ rem ★ 진입점 — **권한은 여기서 들어온다**(RFC-0030 D2′). `--r
 rem   그래서 이 픽스처의 두 주장이 실제로 도는 것도 여기서다: 시계가 뒤로 안 가고(1),
 rem   엔트로피가 여덟 바이트를 채운다(8). 0 이면 둘 다 옳다.
 rem ★ 진입점의 출력은 **종료 상태**다(RFC-0030 D3) — `u8` 로 받는다.
-export proc main output u8 . input al cap allocator . input k cap clock . input r cap random .
+export proc main input al cap allocator . input k cap clock . input r cap random . output u8 .
   effects alloc .
 do
   let m u64 be mono k .

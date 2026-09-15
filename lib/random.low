@@ -24,19 +24,19 @@ rem     평평한 이름의 대가이고, 여기서는 비켜 주는 편이 싸�
 rem   ☞ 매개변수를 `state` 라 부를 수 없다 — 그것은 **효과 낱말**이다(`effects state`).
 rem     도구는 `E-IR-UNSUP: unsupported atom` 이라고만 했는데, 그 말은 원인을 안 가리킨다.
 rem     (평평한 어휘의 대가다. 여기서는 `seed` 로 비켰다.)
-export fn step output u64 . input seed u64 . do
+export fn step input seed u64 . output u64 . do
   return rng_next seed .
 end .
 
 rem ★ 0 이상 bound 미만으로 접는다. **치우침이 있다**(모듈로 편향) — 이름이 그것을 숨기지 않도록
 rem   `_biased` 를 붙였다. 통계가 걸린 자리에는 쓰지 말고, 셔플·샘플링 정도에 쓴다.
-export fn below_biased output u64 . input seed u64 . input bound u64 .
+export fn below_biased input seed u64 . input bound u64 . output u64 .
   requires ge bound 1 . do
   return mod (rng_next seed) bound .
 end .
 
 rem ★ 동전 — 최상위 비트를 본다(하위 비트가 약한 생성기가 있으므로 상위를 쓴다).
-export fn coin output bool . input seed u64 . do
+export fn coin input seed u64 . output bool . do
   return ge (shr (rng_next seed) 63) 1 .
 end .
 
@@ -44,7 +44,7 @@ rem ── OS 엔트로피 (cap random) ─────────────�
 
 rem ★ 버퍼를 채우고 **채운 바이트 수**를 답한다. 못 채우면 0 이다 — 조용히 덜 채우지 않는다.
 rem   뒷받침은 호출자가 든다(RFC-0043 D1).
-export proc bytes output u64 . input k cap random . input dst mut slice u8 . effects none . do
+export proc bytes input k cap random . input dst mut slice u8 . output u64 . effects none . do
   return random_bytes k dst .
 end .
 
@@ -56,7 +56,7 @@ rem   없었다 — 실패를 모른 채 고정된 열(시드 0)을 쓰는 것�
 rem   그래서 성공 쪽에서 해시 0 은 1 로 옮긴다(2^64 분의 1 의 값 하나를 포기하고 뜻 하나를 산다).
 rem   ⇒ 호출자는 `guard ne seed 0` 하나로 실패를 잡는다. (`option u64` 가 정직한 모양이지만 시그니처
 rem     변경이라 여기서는 안 골랐다 — 포크로 남긴다.)
-export proc seed_from_os output u64 . input k cap random . input scratch mut slice u8 . effects none .
+export proc seed_from_os input k cap random . input scratch mut slice u8 . output u64 . effects none .
   requires ge (len scratch) 8 . do
   let got u64 be random_bytes k scratch .
   guard ge got 8 . else return 0 .

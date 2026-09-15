@@ -3,8 +3,8 @@ rem and strings as byte slices (len/index/for-in).
 type bytes slice u8 . .
 
 fn va_sum .
-  output u64 .
   input b bytes .
+  output u64 .
 do
   var t u64 be 0 .
   for x view_array u16 b . do
@@ -14,8 +14,8 @@ do
 end .
 
 fn va_at .
-  output u64 .
   input b bytes .
+  output u64 .
 do
   return index (view_array u32 b) 1 .
 end .

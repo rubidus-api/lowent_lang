@@ -22,12 +22,12 @@ struct outer do
   c u8 .
 end .
 
-fn get_c output u8 . input s slice u8 . do
+fn get_c input s slice u8 . output u8 . do
   let v be view outer s . .
   return field v c .
 end .
 
-fn get_inner_b output u8 . input s slice u8 . do
+fn get_inner_b input s slice u8 . output u8 . do
   let v be view outer s . .
   let n be field v i . .          rem 중첩 필드 = **안쪽 뷰**
   return field n b .

@@ -14,7 +14,7 @@ rem ★★ **오라클 안 = diff-sweep**: 순수 op(cap 없음)이라 차등 �
 module searchlib .
 
 rem ★ 정확한 조회 — target 의 **인덱스** 또는 none(중복이 있으면 그중 하나).
-export fn bsearch output option u64 . input s slice u64 . input target u64 . do
+export fn bsearch input s slice u64 . input target u64 . output option u64 . do
   var lo u64 be 0 .
   var hi u64 be len s .
   while lt lo hi . do
@@ -29,7 +29,7 @@ end .
 
 rem ★ 하한(lower bound) — **target 이상인 첫 인덱스**(모두 작으면 len). **삽입점**이자 범위의 시작.
 rem   이것이 있으면 contains(bsearch)·정렬 유지 삽입·범위 [lo,hi) 질의가 다 선다.
-export fn lower_bound output u64 . input s slice u64 . input target u64 . do
+export fn lower_bound input s slice u64 . input target u64 . output u64 . do
   var lo u64 be 0 .
   var hi u64 be len s .
   while lt lo hi . do

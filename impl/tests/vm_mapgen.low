@@ -8,7 +8,7 @@ use mapgen .
 use allocs .
 
 rem 넣고·찾고·덮어쓰고·지운다. 그리고 **키 0** 이 담긴다(빈칸을 키 값으로 예약하지 않는다).
-proc basic output u64 . input al cap allocator . effects state alloc . do
+proc basic input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 2048 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -46,7 +46,7 @@ proc basic output u64 . input al cap allocator . effects state alloc . do
 end .
 
 rem ★★ 스스로 다시 뿌린다: 4개 자리로 열고 40개를 넣는다 — 전부 살아남아야 한다.
-proc regrows output u64 . input al cap allocator . effects state alloc . do
+proc regrows input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 32768 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -72,7 +72,7 @@ proc regrows output u64 . input al cap allocator . effects state alloc . do
 end .
 
 rem ★ 인스턴스가 **다르면 산술도 다르다**: u8→u16 맵은 같은 개수에 훨씬 적은 바이트를 쓴다.
-proc other_pair output u64 . input al cap allocator . effects state alloc . do
+proc other_pair input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 2048 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -92,7 +92,7 @@ end .
 
 rem ★★ **순회** — 반복자 객체가 없다. `next_used` 가 다음으로 **찬 자리**를 주고, 그 자리로
 rem   키·값을 꺼낸다. 순서는 약속하지 않으므로 **합계**로 검사한다(순서에 안 기대는 검사).
-proc walking output u64 . input al cap allocator . effects state alloc . do
+proc walking input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 2048 .
   guard is_some memo . else return 89 .
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
@@ -150,7 +150,7 @@ proc walking output u64 . input al cap allocator . effects state alloc . do
   return 42 .
 end .
 
-proc main output u8 . input al cap allocator . effects state alloc . do
+proc main input al cap allocator . output u8 . effects state alloc . do
   let a u64 be basic al .
   guard eq a 42 . else return narrow u8 a .
   let b u64 be regrows al .

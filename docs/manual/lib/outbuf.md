@@ -127,7 +127,7 @@ end
 ### open
 
 ```lowent
-export fn open output pending . input d u64 .
+export fn open input d u64 . output pending .
 ```
 
 fd `d`(1=stdout, 2=stderr) 로 비우는 라이터를 연다. `d` 가 필요한 이유: 같은 라이터
@@ -138,8 +138,8 @@ fd `d`(1=stdout, 2=stderr) 로 비우는 라이터를 연다. `d` 가 필요한 
 ### flush
 
 ```lowent
-export proc flush output result (owned pending) io_error . input out cap io . input p owned pending .
-  input buf mut slice u8 . . effects io .
+export proc flush input out cap io . input p owned pending . input buf mut slice u8 . .
+  output result (owned pending) io_error . effects io .
 errors write_failed .
 ```
 
@@ -154,9 +154,9 @@ flush(플러시)는 **모아 둔 바이트를 실제로 내보내고 버퍼를 �
 ### write
 
 ```lowent
-export proc write output result (owned pending) io_error . input out cap io . input p owned pending .
-  input buf mut slice u8 . .
-  input s slice u8 . effects io .
+export proc write input out cap io . input p owned pending . input buf mut slice u8 . .
+  input s slice u8 .
+  output result (owned pending) io_error . effects io .
 errors write_failed .
 ```
 
@@ -168,8 +168,8 @@ errors write_failed .
 ### finish
 
 ```lowent
-export proc finish output result void io_error . input out cap io . input p owned pending .
-  input buf mut slice u8 . . effects io .
+export proc finish input out cap io . input p owned pending . input buf mut slice u8 . .
+  output result void io_error . effects io .
 errors write_failed .
 ```
 
@@ -196,9 +196,9 @@ rem entry 패턴: 프로그램의 시작점은 이름이 main 이고, 그 input 
 rem 바깥세상에 닿을 권한은 여기서 딱 한 번 건네받아 필요한 op 에 넘겨 준다.
 rem 필요한 권한만 적으면 된다: 파일을 다루면 input fs cap file_system . 을 한 줄 더 적는다.
 proc main
-  output u8 .                 rem 프로세스 종료 코드(0 = 정상)
   input out cap io .          rem 표준 출력에 닿을 권한 — 이게 없으면 한 글자도 못 찍는다
   input al  cap allocator .   rem 버퍼를 얻을 권한 — 메모리도 그냥 생기지 않는다
+  output u8 .                 rem 프로세스 종료 코드(0 = 정상)
   effects alloc io .          rem 이 proc 이 내는 비용 신고 — 빠뜨리면 E-EFFECT
 do
   rem 출력 버퍼(작아도 된다 — 차면 스스로 비운다).

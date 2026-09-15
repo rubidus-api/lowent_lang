@@ -23,9 +23,9 @@ use outbuf from "../../../lib/out.low" .
 use allocs from "../../../lib/alloc.low" .
 
 proc main .
-  output u8 .
   input out cap io .
   input al  cap allocator .
+  output u8 .
   effects alloc io .
 do
   rem ★ 일부러 **작은** 버퍼다 — 여러 번 차야 버퍼링이 실제로 일어난다.

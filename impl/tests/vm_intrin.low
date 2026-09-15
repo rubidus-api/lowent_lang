@@ -17,7 +17,7 @@ module vm_intrin .
 type bytes slice u8 . .
 
 rem 기본 target 은 x86_64 라 x86_sse2 게이트가 열린다(PAVGB).
-unsafe target x86_sse2 proc av output u64 . input a bytes . input b bytes . input out mut slice u8 . effects unsafe . do
+unsafe target x86_sse2 proc av input a bytes . input b bytes . input out mut slice u8 . output u64 . effects unsafe . do
   var xa slice u8 . be view_array u8 a .
   var xb slice u8 . be view_array u8 b .
   var va vec u8 4 . be load xa 0 .

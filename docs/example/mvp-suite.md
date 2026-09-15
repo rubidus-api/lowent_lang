@@ -28,10 +28,10 @@ end
 module mathx .
 
 fn poly
-  output i32 .
   input x i32 .
   input a i32 .
   input b i32 .
+  output i32 .
 do
   let t i32 be expr a * x + b . .      rem 중위 섬: (a*x)+b
   return t .
@@ -43,8 +43,8 @@ end
 module signx .
 
 fn classify
-  output i32 .
   input n i32 .
+  output i32 .
 do
   var s i32 be 1 .
   if lt n 0 . do set s 0 . end
@@ -57,10 +57,10 @@ end
 module rangechk .
 
 fn in_range
-  output bool .
   input x i32 .
   input lo i32 .
   input hi i32 .
+  output bool .
 do
   return and (ge x lo) (le x hi) .
 end
@@ -71,8 +71,8 @@ end
 module accum .
 
 fn sum_to
-  output u32 .
   input n u32 .
+  output u32 .
 do
   var total u32 be 0 .
   var i u32 be 0 .
@@ -89,8 +89,8 @@ end
 module sliceop .
 
 fn sum_slice
-  output u32 .
   input xs slice u32 . .
+  output u32 .
   access xs sequential .
 do
   var total u32 be 0 .
@@ -106,9 +106,9 @@ end
 module findx .
 
 fn find_first
-  output option u64 . .
   input xs slice u32 . .
   input target u32 .
+  output option u64 . .
 do
   var i u64 be 0 .
   while lt i (len xs) . do
@@ -124,10 +124,10 @@ end
 module grid .
 
 fn has_pair
-  output bool .
   input rows slice u32 . .
   input cols slice u32 . .
   input target u32 .
+  output bool .
 do
   for r rows do
     for c cols do
@@ -145,9 +145,9 @@ end
 module ratio .
 
 fn safe_div
-  output i32 .
   input a i32 .
   input b i32 .
+  output i32 .
   requires
     ne b 0 . .
 do
@@ -164,8 +164,8 @@ enum parse_error do
 end
 
 fn to_digit
-  output result u8 parse_error . .
   input c u8 .
+  output result u8 parse_error . .
   errors bad_char or (lt c 48) (gt c 57) .
 do
   guard and (ge c 48) (le c 57) . else return error bad_char . . .
@@ -173,9 +173,9 @@ do
 end
 
 fn two_digits
-  output result u8 parse_error . .
   input a u8 .
   input b u8 .
+  output result u8 parse_error . .
 do
   let hi u8 be try to_digit a . .
   let lo u8 be try to_digit b . .
@@ -188,16 +188,16 @@ end
 module optx .
 
 fn head
-  output option u32 . .
   input xs slice u32 . .
+  output option u32 . .
 do
   guard gt len xs . 0 . else return none . .
   return some index xs 0 . . .
 end
 
 fn head_or_zero
-  output u32 .
   input xs slice u32 . .
+  output u32 .
 do
   return value_or head xs . 0 . .
 end
@@ -213,9 +213,9 @@ struct point do
 end
 
 fn make_point
-  output point .
   input a i32 .
   input b i32 .
+  output point .
 do
   return make point do
     x a .
@@ -224,8 +224,8 @@ do
 end
 
 fn sum_coords
-  output i32 .
   input p point .
+  output i32 .
 do
   return add field p x . field p y . . .      rem G1 확정: 필드 접근 = `field <struct> <name>`
 end
@@ -242,8 +242,8 @@ enum signal do
 end .
 
 fn can_go
-  output bool .
   input s signal .
+  output bool .
 do
   match s do
     case green . do return true . end
@@ -259,9 +259,9 @@ module ids .
 type user_id u32 .
 
 fn same_user
-  output bool .
   input a user_id .
   input b user_id .
+  output bool .
 do
   return eq a b . .
 end
@@ -272,8 +272,8 @@ end
 module mutslice .
 
 proc double_all
-  output void .
   input xs mut slice u32 . .
+  output void .
   effects none .
 do
   var i u64 be 0 .
@@ -291,9 +291,9 @@ module stackx .
 type scratch u64 . .
 
 proc stack_sum
-  output u32 .
   input scratch region scratch . .
   input xs slice u32 . .
+  output u32 .
   effects alloc .
 do
   let s stack u32 . be stack_new scratch capacity len xs . . .
@@ -313,8 +313,8 @@ end
 module lexregion .
 
 proc scratch_sum
-  output u32 .
   input xs slice u32 . .
+  output u32 .
   effects alloc .
 do
   var total u32 be 0 .
@@ -342,10 +342,10 @@ module childregion .
 type scratch u64 . .
 
 proc copy_doubled
-  output u64 .
   input out region scratch . .
   input xs slice u32 . .
   input result mut slice u32 . .
+  output u64 .
   effects alloc .
 do
   let g option mut slice u8 . . be alloc_bytes out capacity (mul (len xs) 4) .
@@ -377,9 +377,9 @@ struct header do
 end
 
 fn read_u16_be
-  output u16 .
   input data slice u8 . .
   input at u64 .
+  output u16 .
   requires lt (add at 1) (len data) .
 do
   let hi u16 be widen u16 (index data at) .
@@ -388,8 +388,8 @@ do
 end
 
 fn parse_header
-  output result header parse_error . .
   input data slice u8 . .
+  output result header parse_error . .
   access data sequential .
   errors too_short lt (len data) 4 .
   errors bad_version ne (index data 0) 1 .
@@ -414,11 +414,11 @@ type scratch u64 . .
 
 rem CSR 인접: 노드 i 의 이웃 = adj[ off[i] .. off[i+1] ],  node_count = len(off)-1
 proc reachable_count
-  output u64 .
   input scratch region scratch . .
   input off slice u64 . .
   input adj slice u64 . .
   input start u64 .
+  output u64 .
   effects alloc .
   access adj sequential .
   requires gt (len off) 0 .

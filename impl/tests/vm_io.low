@@ -56,7 +56,7 @@ rem ── 프레이밍: 줄 단위 읽기 (개행 3 개 + 꼬리) ────�
 rem ★ 버퍼를 **인자로 받는다** — diff-sweep 이 이 op 을 자기 인자 모양으로 자동 훑는다.
 rem   (한때는 **어쩔 수 없어서** 그랬다: 소스에 개행을 담을 방법이 없었다. 그 결함 둘을
 rem    2026-07-19 에 닫았으므로 — vm_lit 참조 — 이제는 **고른 것**이다. 리터럴 판은 아래 t_lines_lit.)
-proc t_lines output u64 . input buf slice u8 . effects state . do
+proc t_lines input buf slice u8 . output u64 . effects state . do
   var r io.mem_reader . be spawn actor io.mem_reader .
   let d u64 be send r attach buf .
   var lines u64 be 0 .

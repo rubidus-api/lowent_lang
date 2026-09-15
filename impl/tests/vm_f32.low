@@ -9,4 +9,4 @@ fn f64_keeps output bool . do
   return eq (add a 1.0) a .
 end .
 rem D14 — sqrt 는 부동 전용. 정수는 명시 변환이 필요하다.
-fn fsqrt output f64 . input x u64 . do return sqrt (cast f64 x) . end .
+fn fsqrt input x u64 . output f64 . do return sqrt (cast f64 x) . end .

@@ -48,7 +48,7 @@ end .
 rem ── 조회 ──
 
 rem 표에서 6자리 16진수 하나를 읽는다(구간 i 의 시작 = 12i, 끝 = 12i+6).
-proc hex6_at output option u64 . input tab slice u8 . input off u64 . effects none . do
+proc hex6_at input tab slice u8 . input off u64 . output option u64 . effects none . do
   guard le (add off 6) (len tab) . else return none .
   var v u64 be 0 .
   var k u64 be 0 .
@@ -62,13 +62,13 @@ proc hex6_at output option u64 . input tab slice u8 . input off u64 . effects no
 end .
 
 rem 표의 구간 개수.
-export fn range_count output u64 . input tab slice u8 . do
+export fn range_count input tab slice u8 . output u64 . do
   return div (len tab) 12 .
 end .
 
 rem ★ 이 코드포인트가 표의 어느 구간에 드는가 — **이진 탐색**(구간이 정렬돼 있고 겹치지 않는다).
 rem   표가 망가졌으면(16진수가 아니면) `false` — 지어내지 않는다.
-export proc has_cp output bool . input tab slice u8 . input cp u64 . effects none . do
+export proc has_cp input tab slice u8 . input cp u64 . output bool . effects none . do
   var lo u64 be 0 .
   var hi u64 be range_count tab .
   while lt lo hi . do
@@ -89,14 +89,14 @@ export proc has_cp output bool . input tab slice u8 . input cp u64 . effects non
 end .
 
 rem ── 편의 술어 (표를 골라 주는 얇은 껍질) ──
-export proc is_letter output bool . input cp u64 . effects none . do return has_cp tab_letter cp . end .
-export proc is_number output bool . input cp u64 . effects none . do return has_cp tab_number cp . end .
-export proc is_punct  output bool . input cp u64 . effects none . do return has_cp tab_punct cp . end .
-export proc is_space  output bool . input cp u64 . effects none . do return has_cp tab_space cp . end .
-export proc is_mark   output bool . input cp u64 . effects none . do return has_cp tab_mark cp . end .
+export proc is_letter input cp u64 . output bool . effects none . do return has_cp tab_letter cp . end .
+export proc is_number input cp u64 . output bool . effects none . do return has_cp tab_number cp . end .
+export proc is_punct  input cp u64 . output bool . effects none . do return has_cp tab_punct cp . end .
+export proc is_space  input cp u64 . output bool . effects none . do return has_cp tab_space cp . end .
+export proc is_mark   input cp u64 . output bool . effects none . do return has_cp tab_mark cp . end .
 
 rem ★ 글자 또는 숫자 — 식별자 검사 같은 데 가장 자주 쓰는 조합이다.
-export proc is_alnum output bool . input cp u64 . effects none . do
+export proc is_alnum input cp u64 . output bool . effects none . do
   if is_letter cp . do return true . end .
   return is_number cp .
 end .
@@ -111,7 +111,7 @@ export fn tab_zerowidth output slice u8 . do
 end .
 
 rem ★ 이 코드포인트가 **폭 0** 인가(결합 문자·서식 문자).
-export proc is_zerowidth output bool . input cp u64 . effects none . do
+export proc is_zerowidth input cp u64 . output bool . effects none . do
   return has_cp tab_zerowidth cp .
 end .
 
@@ -136,9 +136,9 @@ end .
 rem ★ 대문자(Lu) · 소문자(Ll) · 십진 숫자(Nd).
 rem   `is_digit` 는 `is_number` 보다 **좁다**: 로마 숫자(Ⅶ)나 분수(½)는 N 이지만 Nd 가 아니다.
 rem   자릿수 계산을 하려면 Nd 여야 한다 — N 이면 값이 10 진 자릿수가 아닌 것이 섞인다.
-export proc is_upper output bool . input cp u64 . effects none . do return has_cp tab_upper cp . end .
-export proc is_lower output bool . input cp u64 . effects none . do return has_cp tab_lower cp . end .
-export proc is_digit output bool . input cp u64 . effects none . do return has_cp tab_digit cp . end .
+export proc is_upper input cp u64 . output bool . effects none . do return has_cp tab_upper cp . end .
+export proc is_lower input cp u64 . output bool . effects none . do return has_cp tab_lower cp . end .
+export proc is_digit input cp u64 . output bool . effects none . do return has_cp tab_digit cp . end .
 
 rem ── 나머지 세부 범주 (2026-07-26) ──
 rem ★ 앞서와 같은 규칙으로 나눴다: **물을 곳이 생겨서**다(regex `\p{Lt}`·`\p{Lo}` …).
@@ -164,11 +164,11 @@ export fn tab_numother output slice u8 . do
   return "0000b20000b30000b90000b90000bc0000be0009f40009f9000b72000b77000bf0000bf2000c78000c7e000d58000d5e000d70000d78000f2a000f3300136900137c0017f00017f90019da0019da00207000207000207400207900208000208900215000215f00218900218900246000249b0024ea0024ff002776002793002cfd002cfd00319200319500322000322900324800324f00325100325f0032800032890032b10032bf00a83000a83501010701013301017501017801018a01018b0102e10102fb01032001032301085801085f01087901087f0108a70108af0108fb0108ff01091601091b0109bc0109bd0109c00109cf0109d20109ff010a40010a48010a7d010a7e010a9d010a9f010aeb010aef010b58010b5f010b78010b7f010ba9010baf010cfa010cff010e60010e7e010f1d010f26010f51010f54010fc5010fcb0110520110650111e10111f401173a01173b0118ea0118f2011c5a011c6c011fc0011fd4016b5b016b61016e80016e9601d2c001d2d301d2e001d2f301d36001d37801e8c701e8cf01ec7101ecab01ecad01ecaf01ecb101ecb401ed0101ed2d01ed2f01ed3d01f10001f10c" .
 end .
 
-export proc is_title    output bool . input cp u64 . effects none . do return has_cp tab_title cp . end .
-export proc is_modifier output bool . input cp u64 . effects none . do return has_cp tab_modifier cp . end .
-export proc is_other_letter output bool . input cp u64 . effects none . do return has_cp tab_other_letter cp . end .
-export proc is_numletter output bool . input cp u64 . effects none . do return has_cp tab_numletter cp . end .
-export proc is_numother  output bool . input cp u64 . effects none . do return has_cp tab_numother cp . end .
+export proc is_title    input cp u64 . output bool . effects none . do return has_cp tab_title cp . end .
+export proc is_modifier input cp u64 . output bool . effects none . do return has_cp tab_modifier cp . end .
+export proc is_other_letter input cp u64 . output bool . effects none . do return has_cp tab_other_letter cp . end .
+export proc is_numletter input cp u64 . output bool . effects none . do return has_cp tab_numletter cp . end .
+export proc is_numother  input cp u64 . output bool . effects none . do return has_cp tab_numother cp . end .
 
 rem ── 대소문자 변환 (2026-07-26) ──
 rem
@@ -193,7 +193,7 @@ export fn tab_casespecial output slice u8 . do
 end .
 
 rem 짝 표에서 앞자리(from)로 찾아 뒷자리(to)를 준다. 없으면 none.
-proc map_cp output option u64 . input tab slice u8 . input cp u64 . effects none . do
+proc map_cp input tab slice u8 . input cp u64 . output option u64 . effects none . do
   var lo u64 be 0 .
   var hi u64 be range_count tab .
   while lt lo hi . do
@@ -213,13 +213,13 @@ end .
 
 rem ★ 대문자로 / 소문자로. **바뀌지 않으면 그대로 돌려준다**(none 이 아니다 — 대부분의
 rem   코드포인트는 대소문자가 없고, 그때 "없다" 를 답하면 호출자가 매번 풀어야 한다).
-export proc to_upper output u64 . input cp u64 . effects none . do
+export proc to_upper input cp u64 . output u64 . effects none . do
   let m option u64 . be map_cp tab_toupper cp .
   guard is_some m . else return cp .
   return some_value m .
 end .
 
-export proc to_lower output u64 . input cp u64 . effects none . do
+export proc to_lower input cp u64 . output u64 . effects none . do
   let m option u64 . be map_cp tab_tolower cp .
   guard is_some m . else return cp .
   return some_value m .
@@ -227,7 +227,7 @@ end .
 
 rem ★ 이 코드포인트는 **1:1 로 못 바꾸는가**(변환 결과가 두 글자 이상). ß·ﬁ 같은 것들이다.
 rem   `to_upper` 는 이런 코드포인트를 **그대로** 돌려준다 — 그것이 틀린 답일 수 있으니 물어본다.
-export proc is_special_case output bool . input cp u64 . effects none . do
+export proc is_special_case input cp u64 . output bool . effects none . do
   let m option u64 . be map_cp tab_casespecial cp .
   return is_some m .
 end .

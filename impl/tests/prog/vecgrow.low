@@ -2,7 +2,7 @@ module vecgrow .
 use vecs from "../../../lib/vec.low" .
 use allocs from "../../../lib/alloc.low" .
 
-proc main output u8 . input al cap allocator . input out cap io . effects io alloc state . do
+proc main input al cap allocator . input out cap io . output u8 . effects io alloc state . do
   let memopt option mut slice u8 . be alloc_bytes al capacity 256 .
   guard is_some memopt . else return 1 .
   let mem mut slice u8 . be some_value memopt .

@@ -26,7 +26,7 @@ proc field_place output u64 . effects none . do
   set (field p a) 7 .
   return add (field p a) (field p b) .                    rem 7 + 2 = 9
 end .
-proc index_place output u64 . input s mut slice u64 . . effects none . do
+proc index_place input s mut slice u64 . . output u64 . effects none . do
   set (field s 0) 11 .
   set (field s 1) 22 .
   return add (field s 0) (add (field s 1) (index s 0)) .  rem 11 + 22 + 11 = 44

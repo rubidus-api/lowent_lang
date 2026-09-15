@@ -17,11 +17,11 @@ module m .
 use strbuf from "../../lib/strbuf.low" .
 
 rem C 쪽: 널종단 char* 를 받아 strlen / 첫 바이트를 낸다(진짜 libc strlen).
-unsafe extern proc c_slen  output i64 . input k cap c . input p cstr . link lw_c_slen . effects unsafe . end .
-unsafe extern proc c_first output i64 . input k cap c . input p cstr . link lw_c_first . effects unsafe . end .
+unsafe extern proc c_slen  input k cap c . input p cstr . output i64 . effects unsafe . link lw_c_slen . end .
+unsafe extern proc c_first input k cap c . input p cstr . output i64 . effects unsafe . link lw_c_first . end .
 
 rem ── str_buf 로 "hello" 를 조립해 cstr 로 C 에 건넨다 → strlen = 5 ──────────────────
-unsafe proc measure output i64 . input k cap c . input buf mut slice u8 . . effects unsafe . do
+unsafe proc measure input k cap c . input buf mut slice u8 . . output i64 . effects unsafe . do
   var b strbuf.str_buf be strbuf.new .
   let r result void strbuf.sb_error . be strbuf.append b buf "hello" .
   guard is_ok r . else return 90 .
@@ -29,7 +29,7 @@ unsafe proc measure output i64 . input k cap c . input buf mut slice u8 . . effe
 end .
 
 rem 포인터가 진짜 그 바이트를 가리키는가(오프셋 안 밀렸는지) → 첫 바이트 'h' = 104.
-unsafe proc first_byte output i64 . input k cap c . input buf mut slice u8 . . effects unsafe . do
+unsafe proc first_byte input k cap c . input buf mut slice u8 . . output i64 . effects unsafe . do
   var b strbuf.str_buf be strbuf.new .
   let r result void strbuf.sb_error . be strbuf.append b buf "hello" .
   guard is_ok r . else return 90 .
@@ -37,7 +37,7 @@ unsafe proc first_byte output i64 . input k cap c . input buf mut slice u8 . . e
 end .
 
 rem ★ 두 번 이어붙여도 C 가 보는 길이가 맞는다(봉인이 매 append 마다 갱신된다) → strlen = 7.
-unsafe proc measure_twice output i64 . input k cap c . input buf mut slice u8 . . effects unsafe . do
+unsafe proc measure_twice input k cap c . input buf mut slice u8 . . output i64 . effects unsafe . do
   var b strbuf.str_buf be strbuf.new .
   let r1 result void strbuf.sb_error . be strbuf.append b buf "ab" .
   guard is_ok r1 . else return 90 .
@@ -47,7 +47,7 @@ unsafe proc measure_twice output i64 . input k cap c . input buf mut slice u8 . 
 end .
 
 rem ★★ 빈 str_buf 도 정직하게 — 봉인만 하고 넘기면 strlen = 0.
-unsafe proc measure_empty output i64 . input k cap c . input buf mut slice u8 . . effects unsafe . do
+unsafe proc measure_empty input k cap c . input buf mut slice u8 . . output i64 . effects unsafe . do
   var b strbuf.str_buf be strbuf.new .
   return c_slen k (strbuf.as_cstr b buf) .
 end .

@@ -7,7 +7,7 @@ module vm_regex .
 use regex as rx .
 
 rem 리터럴·`.`·탐욕 `*` : "ab.d*" 를 "abcdddx" 에 anchored — 끝 = 7? 아니, d* 탐욕이 ddd 까지 = 6.
-proc basic output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc basic input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "ab.d*" prog st .
   guard is_some n . else return 1 .
@@ -21,7 +21,7 @@ proc basic output u64 . input prog mut slice u64 . . input st mut slice u64 . . 
 end .
 
 rem 갈래·그룹·`+` : "(ab|cd)+x" — "cdabx" 매치(끝 5), "abcx" 는 실패.
-proc alt_group output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc alt_group input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "(ab|cd)+x" prog st .
   guard is_some n . else return 1 .
@@ -34,7 +34,7 @@ proc alt_group output u64 . input prog mut slice u64 . . input st mut slice u64 
 end .
 
 rem 클래스·부정·이스케이프: "[a-c]+z\\d" 가 "abz7" 에 끝 4 · "[^0-9]" 는 숫자만 거부.
-proc classes output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc classes input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "[a-c]+z\\d" prog st .
   guard is_some n . else return 1 .
@@ -54,7 +54,7 @@ proc classes output u64 . input prog mut slice u64 . . input st mut slice u64 . 
 end .
 
 rem 닻·탐색: "^a" 는 1에서 실패 · "b$" 는 끝에서만 · rx_find 는 가장 왼쪽 시작.
-proc anchors output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc anchors input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "^a" prog st .
   guard is_some n . else return 1 .
@@ -75,7 +75,7 @@ proc anchors output u64 . input prog mut slice u64 . . input st mut slice u64 . 
 end .
 
 rem 잘못된 패턴은 값으로 거절된다: 닫히지 않은 그룹·앞이 없는 `*`·모자란 버퍼 → 전부 none.
-proc rejects output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc rejects input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let a option u64 . be rx.compile "(ab" prog st .
   guard is_some a . else do
@@ -92,7 +92,7 @@ proc rejects output u64 . input prog mut slice u64 . . input st mut slice u64 . 
 end .
 
 rem ★ `{m,n}` 반복 — **컴파일 시 펼친다**(새 옵코드 0): "a{3}"·"a{2,4}b"·"ab{2,}c".
-proc counted output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc counted input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n1 option u64 . be rx.compile "a{3}" prog st .
   guard is_some n1 . else return 1 .
@@ -129,7 +129,7 @@ proc counted output u64 . input prog mut slice u64 . . input st mut slice u64 . 
 end .
 
 rem ★★ 단일 패스 탐색 `rx_search` — 재시작 없이 한 번만 훑고도 **rx_find 와 같은 답**을 낸다.
-proc search_pass output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . input cs mut slice u64 . . input ns mut slice u64 . . effects none . do
+proc search_pass input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . input cs mut slice u64 . . input ns mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "b+c" prog st .
   guard is_some n . else return 1 .
@@ -154,7 +154,7 @@ proc search_pass output u64 . input prog mut slice u64 . . input st mut slice u6
 end .
 
 rem ★ ReDoS 형 패턴이 **선형으로** 끝난다: "(a*)*b" 를 a×64 에 — 역추적 엔진은 지수, Pike VM 은 즉답.
-proc no_redos output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc no_redos input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "(a*)*b" prog st .
   guard is_some n . else return 1 .
@@ -164,7 +164,7 @@ proc no_redos output u64 . input prog mut slice u64 . . input st mut slice u64 .
 end .
 
 rem ★★ 캡처 그룹(슬라이스 6): `(…)` 마다 시작·끝 위치를 out 에 적는다. 안 잡힌 그룹은 MAX.
-proc captures output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . input cs mut slice u64 . . input ns mut slice u64 . . input tmp mut slice u64 . . input out mut slice u64 . . effects none . do
+proc captures input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . input cs mut slice u64 . . input ns mut slice u64 . . input tmp mut slice u64 . . input out mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "(a+)(b+)" prog st .
   guard is_some n . else return 1 .
@@ -191,7 +191,7 @@ end .
 
 rem ★★ 유니코드 코드포인트 `\X`(슬라이스 8) — 엔진은 바이트로 걷되, UTF-8 을 **바이트
 rem   오토마톤으로 컴파일**해 글자 하나를 센다(RE2·Rust regex 와 같은 길, 새 옵코드 0).
-proc codepoint output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc codepoint input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "\\X" prog st .
   guard is_some n . else return 1 .
@@ -229,7 +229,7 @@ end .
 rem ★★ 유니코드 **속성** 클래스 `\p{L}`·`\P{L}` (슬라이스 10) — 코드포인트를 먹은 **뒤에**
 rem   그 값이 표에 드는지 묻는다(CPPROP). 속성 집합은 구간이 수백~수천이라 바이트 오토마톤으로
 rem   펼치면 명령이 수천 개가 된다 — 뒤를 돌아보면 바이트를 안 먹으므로 스레드 보조가 그대로다.
-proc props output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc props input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "\\p{L}" prog st .
   guard is_some n . else return 1 .
@@ -264,7 +264,7 @@ proc props output u64 . input prog mut slice u64 . . input st mut slice u64 . . 
 end .
 
 rem ★ 이어붙임·반복도 그대로 된다: "\p{L}+" 는 글자 여럿(한글 두 자 = 6바이트).
-proc props_rep output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc props_rep input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   let n option u64 . be rx.compile "\\p{L}+" prog st .
   guard is_some n . else return 1 .
@@ -279,7 +279,7 @@ proc props_rep output u64 . input prog mut slice u64 . . input st mut slice u64 
 end .
 
 rem ★★ 세부 범주 — `\p{Lu}`·`\p{Ll}`·`\p{Nd}`. 두 글자 이름은 **좁히는** 것이지 넓히는 게 아니다.
-proc props_sub output u64 . input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . effects none . do
+proc props_sub input prog mut slice u64 . . input st mut slice u64 . . input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . . output u64 . effects none . do
   guard ge (len prog) 32 . else return 90 .
   rem 대문자만 — 'A' 는 받고 'a' 는 거절한다(L 이면 둘 다 받았을 것이다).
   let n option u64 . be rx.compile "\\p{Lu}" prog st .

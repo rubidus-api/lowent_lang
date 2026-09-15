@@ -8,8 +8,8 @@ module sorted_search .
 
 rem 오름차순 정렬 여부 — 계약용 술어 op(순수).
 fn sorted
-  output bool .
   input xs slice u32 . .
+  output bool .
   access xs sequential .
 do
   var i u64 be 1 .
@@ -25,9 +25,9 @@ end
 rem 정렬된 slice 에서 target 의 인덱스(없으면 none). O(log n)·무할당.
 rem 비용 가시: effects none(순수) · access random(이진 탐색은 비순차 접근).
 fn bsearch
-  output option u64 . .
   input xs slice u32 . .
   input target u32 .
+  output option u64 . .
   access xs random .
   requires sorted xs . .         rem ★ 술어 op 를 계약으로 — debug 검사 / release assume(RFC-0008 등급)
 do

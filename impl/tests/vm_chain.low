@@ -17,24 +17,24 @@ rem   네이티브는 진짜로 지우니까. 그 고발이 한 번이라도 나
 
 module vm_chain .
 
-fn needs_small output u8 . input a range 0 10 . do
+fn needs_small input a range 0 10 . output u8 . do
   return a .
 end .
 
-fn bounded output u8 . input a u8 . ensures le ret 10 .
+fn bounded input a u8 . output u8 . ensures le ret 10 .
 do
   if gt a 10 . do return 10 . end .
   return a .
 end .
 
 rem ★ 약속을 쓴다 → 검사가 사라진다.
-fn chain output u8 . input a u8 . do
+fn chain input a u8 . output u8 . do
   let v be bounded a . .
   return needs_small v .
 end .
 
 rem 대조: 약속이 없다 → 검사가 남는다.
-fn nochain output u8 . input a u8 . do
+fn nochain input a u8 . output u8 . do
   return needs_small a .
 end .
 

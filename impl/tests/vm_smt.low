@@ -12,8 +12,8 @@ module vm_smt .
 rem ✔ ① **사슬**: i < j · j < cap · len(s) ≥ cap  ⟹  i < len(s).
 rem   `lerel` 은 한 칸만 본다(i→j). 용량 규칙은 i→cap 을 요구한다. 그래서 **두 홉**인 이 모양은
 rem   그전까지 아무도 못 넘었다.  Farkas: (i−j+1) + (j−cap+1) + (cap−L) + (L−i) = 2 > 0. ∎
-export proc chain_two_hops output u8 . input s slice u8 . . input i u64 . input j u64 .
-  input cap u64 . effects none .
+export proc chain_two_hops input s slice u8 . . input i u64 . input j u64 . input cap u64 .
+  output u8 . effects none .
   requires lt i j .
   requires lt j cap .
   requires ge (len s) cap .
@@ -24,8 +24,8 @@ end .
 rem ✔ ② **구간과 계약을 섞는다**: i ≤ 7(계약이 준 구간) · len(s) ≥ n · n ≥ 8.
 rem   상계는 **구간**에서 오고 길이 사실은 **계약**에서 온다. 용량 규칙은 `i < cap` 이라는
 rem   **관계**를 요구하지 구간을 안 본다 — 그래서 이 모양도 그전에는 못 넘었다.
-export proc mixed_interval_contract output u8 . input s slice u8 . . input i u64 .
-  input n u64 . effects none .
+export proc mixed_interval_contract input s slice u8 . . input i u64 . input n u64 .
+  output u8 . effects none .
   requires le i 7 .
   requires ge n 8 .
   requires ge (len s) n .
@@ -46,8 +46,8 @@ end .
 rem ✘ ④ **증명되면 안 된다** — 반례가 있다. `le i n`(비엄격) + `len(s) ≥ n` 은
 rem   i = n = len(s) 를 허용하고, 그것은 범위 **밖**이다.
 rem   ★ 이 op 이 이 파일에서 가장 중요하다: 지우면 안 되는 것을 지우지 않는지가 곧 건전성이다.
-export proc must_not_prove output u8 . input s slice u8 . . input i u64 .
-  input n u64 . effects none .
+export proc must_not_prove input s slice u8 . . input i u64 . input n u64 .
+  output u8 . effects none .
   requires le i n .
   requires ge (len s) n .
 do

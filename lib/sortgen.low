@@ -24,12 +24,12 @@ rem   구조체로 감싸면 된다 — 레이아웃은 같고(8바이트), 비�
 rem   위한 **특수화**로 남는다: u64 는 감싸지 않고 그대로 정렬한다.
 
 export trait ordered do
-  less output bool . input a self . input b self . effects none .
+  less input a self . input b self . output bool . effects none .
 end .
 
 rem 제네릭 삽입정렬 — 제자리·안정. 작은 배열과 거의 정렬된 배열에 좋다.
 rem   ★ 큰 배열의 quicksort 제네릭판은 다음 슬라이스다(분할이 원소 복사를 요구한다).
-export proc sort_by output void . input comptime t type . input s mut slice t . . effects none . requires ordered t . do
+export proc sort_by input comptime t type . input s mut slice t . . output void . effects none . requires ordered t . do
   var i u64 be 1 .
   while lt i (len s) . do
     var j u64 be i .
@@ -68,7 +68,7 @@ rem
 rem ★ 깊이 상한: **작은 쪽만 재귀하고 큰 쪽은 루프로** 돈다(sortlib 과 같은 규율). 그래야
 rem   역순·이미정렬 같은 적대적 입력에서도 깊이가 O(log n) 이다(RFC-0073 의 네이티브 깊이 천장).
 
-proc qsort_by output void . input comptime t type . input s mut slice t . . input lo0 u64 . input hi0 u64 . effects none . requires ordered t . do
+proc qsort_by input comptime t type . input s mut slice t . . input lo0 u64 . input hi0 u64 . output void . effects none . requires ordered t . do
   rem 방어: 뒤집힌·범위 밖 구간이면 **경계 밖을 안 만진다**(VM·네이티브가 같은 무동작을 낸다).
   if gt hi0 (len s) . do return . end .
   if ge lo0 hi0 . do return . end .
@@ -107,7 +107,7 @@ proc qsort_by output void . input comptime t type . input s mut slice t . . inpu
 end .
 
 rem ★ 공개 진입 — 큰 배열용. 작은 배열이나 거의 정렬된 입력엔 `sort_by`(삽입)가 낫다.
-export proc sort_fast output void . input comptime t type . input s mut slice t . . effects none . requires ordered t . do
+export proc sort_fast input comptime t type . input s mut slice t . . output void . effects none . requires ordered t . do
   qsort_by t s 0 (len s) .
   return .
 end .
@@ -119,7 +119,7 @@ rem   ☞ **전제: 슬라이스가 그 순서로 정렬돼 있어야 한다.** 
 rem     검사하지 않는 이유는 검사가 O(n) 이라 탐색의 O(log n) 을 삼키기 때문이다(searchlib 과 같은 판단).
 
 rem ★ `key` 이상인 첫 자리. 전부 작으면 `len s`. 이것이 **삽입점**이자 **범위의 시작**이다.
-export proc lower_by output u64 . input comptime t type . input s slice t . input key t . effects none . requires ordered t . do
+export proc lower_by input comptime t type . input s slice t . input key t . output u64 . effects none . requires ordered t . do
   var lo u64 be 0 .
   var hi u64 be len s .
   while lt lo hi . do
@@ -137,7 +137,7 @@ export proc lower_by output u64 . input comptime t type . input s slice t . inpu
 end .
 
 rem ★ 있으면 그 자리를, 없으면 none. 중복이 있으면 **가장 왼쪽**을 준다(lower_by 위에 서므로).
-export proc find_by output option u64 . input comptime t type . input s slice t . input key t . effects none . requires ordered t . do
+export proc find_by input comptime t type . input s slice t . input key t . output option u64 . effects none . requires ordered t . do
   let at u64 be lower_by t s key .
   guard lt at (len s) . else return none .
   let m t be index s at .

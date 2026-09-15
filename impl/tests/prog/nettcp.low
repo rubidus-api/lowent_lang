@@ -15,10 +15,10 @@ module nettcp .
 use net from "../../../lib/net.low" .
 
 proc main .
-  output u8 .
   input k  cap net .
   input al cap allocator .
   input out cap io .
+  output u8 .
   effects io alloc .
 do
   let dstopt option mut slice u8 be alloc_bytes al capacity 32 .

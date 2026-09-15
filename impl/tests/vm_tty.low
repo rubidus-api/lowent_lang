@@ -7,7 +7,7 @@ module vm_tty .
 use tty .
 
 rem 평범한 글자는 그 바이트가 곧 키다. 'a'(97) 한 바이트.
-proc plain output u64 . input buf mut slice u8 . . effects none . do
+proc plain input buf mut slice u8 . . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
   set (index buf 0) 97 .
   let p option u64 . be tty.parse_key (subslice buf 0 1) 0 .
@@ -19,7 +19,7 @@ proc plain output u64 . input buf mut slice u8 . . effects none . do
 end .
 
 rem 방향키 ESC [ A = 위쪽(1001), 세 바이트를 먹는다.
-proc arrow output u64 . input buf mut slice u8 . . effects none . do
+proc arrow input buf mut slice u8 . . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
   set (index buf 0) 27 .
   set (index buf 1) 91 .
@@ -34,7 +34,7 @@ proc arrow output u64 . input buf mut slice u8 . . effects none . do
 end .
 
 rem 숫자꼴 ESC [ 3 ~ = Delete(1007), 네 바이트.
-proc del_key output u64 . input buf mut slice u8 . . effects none . do
+proc del_key input buf mut slice u8 . . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
   set (index buf 0) 27 .
   set (index buf 1) 91 .
@@ -49,7 +49,7 @@ end .
 
 rem ★ **불완전한 시퀀스는 지어내지 않는다** — ESC [ 만 왔으면 none(더 기다리라는 답이다).
 rem   그런데 ESC 하나만 왔으면 그것은 ESC 키다(뒤가 없으면 기다릴 수 없다).
-proc partial output u64 . input buf mut slice u8 . . effects none . do
+proc partial input buf mut slice u8 . . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
   set (index buf 0) 27 .
   set (index buf 1) 91 .
@@ -83,7 +83,7 @@ rem     읽히지 않는 경고는 없는 경고다.
 rem   ⇒ **구현했다**(단계 AD · `lw_tty_raw`·`lw_tty_read`·`lw_tty_size`). 이제 두 뒤끝이
 rem     같은 답을 내고, 이 셋은 그 일치를 지키는 증인이다.
 
-proc size_is_none output u64 . input t cap tty . effects io . do
+proc size_is_none input t cap tty . output u64 . effects io . do
   let s option u64 . be tty_size t .
   if is_some s . do return 1 . end .
   return 0 .
@@ -91,7 +91,7 @@ end .
 
 rem raw 모드를 요청한다. 터미널이 아니면 들어갈 수 없다. 복귀도 부른다 — 못 들어갔어도
 rem 짝을 맞추는 것이 이 API 의 규율이다.
-proc raw_refused output u64 . input t cap tty . effects io . do
+proc raw_refused input t cap tty . output u64 . effects io . do
   let entered bool be tty_raw t true .
   let left bool be tty_raw t false .
   if entered . do return 1 . end .
@@ -99,7 +99,7 @@ proc raw_refused output u64 . input t cap tty . effects io . do
   return 0 .
 end .
 
-proc read_nothing output u64 . input t cap tty . input dst mut slice u8 . effects io . do
+proc read_nothing input t cap tty . input dst mut slice u8 . output u64 . effects io . do
   let n option u64 . be tty_read t dst .
   if is_some n . do return some_value n . end .
   return 0 .

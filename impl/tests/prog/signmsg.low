@@ -28,8 +28,8 @@ use p256   from "../../../lib/p256.low" .
 use codec  from "../../../lib/codec.low" .
 
 rem ── 곡선 상수: 규격이 정한 수다(우리가 고른 것이 아니다) ──
-proc limbs_of output u64 . input hexs slice u8 . input out mut slice u64 .
-  input w mut slice u8 . effects none .
+proc limbs_of input hexs slice u8 . input out mut slice u64 . input w mut slice u8 .
+  output u64 . effects none .
 do
   guard ge (len w) 32 . else return 0 .
   let d option u64 . be codec.hex_dec hexs (subslice w 0 32) .
@@ -37,7 +37,7 @@ do
   return bigint.from_bytes (subslice w 0 32) out 16 .
 end
 
-proc curve output u64 . input cw mut slice u64 . input w mut slice u8 . effects none .
+proc curve input cw mut slice u64 . input w mut slice u8 . output u64 . effects none .
 do
   guard ge (len cw) 64 . else return 0 .
   guard eq (limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" (subslice cw 0 16) w) 16 . else return 0 .
@@ -52,9 +52,9 @@ rem   `W-CBE-SKIP` — 몸이 네이티브 핵심 밖이라 네이티브 빌드�
 rem   처리기가 **말했다**(조용히 빠지지 않는다). 가르면 양쪽에서 다 돈다.
 rem   ☞ *경고가 설계를 고쳤다. 그것이 경고가 있는 까닭이다.*
 export proc sign_and_check .
-  output u64 .
-  input msg slice u8 . input rs mut slice u8 . input wb mut slice u8 .
-  input wu mut slice u64 . effects none .
+  input msg slice u8 .
+  input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 .
+  output u64 . effects none .
 do
   guard ge (len wu) 2020 . else return 89 .
   guard eq (curve (subslice wu 0 64) wb) 1 . else return 89 .
@@ -94,9 +94,9 @@ do
 end
 
 proc main .
-  output u8 .
   input al cap allocator .
   input k  cap io .
+  output u8 .
   effects alloc io .
 do
   let gi option mut slice u8 . . be alloc_bytes al capacity 4096 .

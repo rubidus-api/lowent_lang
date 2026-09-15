@@ -24,7 +24,7 @@ enum oops do
   bad .
 end .
 rem 태스크 A: 데이터가 안 오는 fd 를 읽는다 — io 로 막힌다.
-proc reader output result u64 oops . . input k cap io . input buf mut slice u8 . .
+proc reader input k cap io . input buf mut slice u8 . . output result u64 oops . .
   effects io . errors bad .
 do
   rem ★ reactor 뒷받침과 읽기 자리를 **가른다**(RFC-0022 D-B — completion 은 그 자리에 읽는다).
@@ -35,12 +35,12 @@ do
   return ok 0 .
 end .
 rem 태스크 B: 즉시 실패한다 → cancel_on_error 가 형제를 취소해야 한다.
-proc failer output result u64 oops . . input k cap io . effects io . errors bad . do
+proc failer input k cap io . output result u64 oops . . effects io . errors bad . do
   let w u64 be write_out k 1 "FAIL\n" .
   guard eq w 0 . else return error bad .
   return ok w .
 end .
-proc main output u8 . input k cap io . input al cap allocator .
+proc main input k cap io . input al cap allocator . output u8 .
   effects alloc io state .
 do
   let b0 option mut slice u8 . . be alloc_bytes al capacity 64 .

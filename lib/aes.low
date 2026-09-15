@@ -23,7 +23,7 @@ module aes .
 
 rem ★ GF(2^8) 곱 — 기약다항식 x^8+x^4+x^3+x+1 (0x11b).
 rem   러시아 농부 곱셈: 분기가 값에 달려 있으나 **비밀 표를 읽지는 않는다**.
-export fn gmul output u64 . input a u64 . input b u64 . do
+export fn gmul input a u64 . input b u64 . output u64 . do
   var x u64 be bit_and a 255 .
   var y u64 be bit_and b 255 .
   var r u64 be 0 .
@@ -40,7 +40,7 @@ export fn gmul output u64 . input a u64 . input b u64 . do
 end .
 
 rem ★ GF(2^8) 역원 — x^254. x=0 이면 0(S-box 의 규약).
-export fn ginv output u64 . input a u64 . do
+export fn ginv input a u64 . output u64 . do
   var r u64 be 1 .
   var b u64 be a .
   var e u64 be 254 .
@@ -54,7 +54,7 @@ end .
 
 rem ★★ S-box — **표가 아니라 정의**다(FIPS 197 §5.1.1).
 rem   b = x^(-1) 의 비트를 회전해 더하고 0x63 을 더한다.
-export fn sbox output u64 . input a u64 . do
+export fn sbox input a u64 . output u64 . do
   let b u64 be ginv a .
   var r u64 be bit_xor b 99 .
   var i u64 be 1 .
@@ -67,7 +67,7 @@ export fn sbox output u64 . input a u64 . do
 end .
 
 rem 역 S-box — 아핀의 역을 먼저 풀고 역원을 취한다.
-export fn inv_sbox output u64 . input a u64 . do
+export fn inv_sbox input a u64 . output u64 . do
   var t u64 be 0 .
   var i u64 be 0 .
   while lt i 8 . do
@@ -86,7 +86,7 @@ rem   `rk` 는 176 바이트 이상. `key` 는 **정확히 16 바이트**다.
 rem   ☞ 전엔 `ge 16` 이어서 32 바이트(AES-256 크기) 키를 주면 **앞 16 으로 AES-128 을 조용히**
 rem     돌렸다 — 태그가 16 바이트 키와 바이트까지 같다(2026-09-04 검토 A2). 이 모듈은 AES-128
 rem     뿐이므로 다른 길이는 *다른 알고리즘을 달라는 말*이고, 그것은 거절이 답이다.
-export proc expand_key output u64 . input key slice u8 . input rk mut slice u8 . effects none . do
+export proc expand_key input key slice u8 . input rk mut slice u8 . output u64 . effects none . do
   guard eq (len key) 16 . else return 0 .
   guard ge (len rk) 176 . else return 0 .
   var i u64 be 0 .
@@ -120,7 +120,7 @@ export proc expand_key output u64 . input key slice u8 . input rk mut slice u8 .
 end .
 
 rem 라운드 키를 더한다(XOR).
-proc add_round_key output u64 . input st mut slice u8 . input rk slice u8 . input r u64 . effects none . do
+proc add_round_key input st mut slice u8 . input rk slice u8 . input r u64 . output u64 . effects none . do
   var i u64 be 0 .
   while lt i 16 . do
     set (index st i) (cast u8 (bit_xor (cast u64 (index st i)) (cast u64 (index rk (add (mul r 16) i))))) .
@@ -132,7 +132,7 @@ end .
 rem ★★ 블록 암호화 — 상태는 **열 우선**이다(st[r + 4c] 가 아니라 st[4c + r]).
 rem   ☞ FIPS 197 의 그림은 행 우선처럼 보이지만 바이트 순서는 열 우선이다. 이 자리를
 rem     뒤집으면 ShiftRows 가 조용히 다른 것을 섞는다.
-export proc encrypt_block output u64 . input rk slice u8 . input st mut slice u8 . input tmp mut slice u8 . effects none . do
+export proc encrypt_block input rk slice u8 . input st mut slice u8 . input tmp mut slice u8 . output u64 . effects none . do
   guard ge (len rk) 176 . else return 0 .
   guard ge (len st) 16 . else return 0 .
   guard ge (len tmp) 16 . else return 0 .

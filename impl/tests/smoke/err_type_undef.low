@@ -1,5 +1,5 @@
 module m .
 rem expect: E-TYPE-UNDEF
-fn f output u64 . input a thing . do
+fn f input a thing . output u64 . do
   return 1 .
 end .

@@ -15,5 +15,5 @@ struct pt do
   y u8 .
 end .
 
-fn getx output u8 . input p pt . do return field p x . end .
-fn gety output u8 . input p pt . do return field p y . end .
+fn getx input p pt . output u8 . do return field p x . end .
+fn gety input p pt . output u8 . do return field p y . end .

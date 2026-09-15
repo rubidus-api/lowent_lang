@@ -131,6 +131,42 @@ wire, a register a device reads --- write the layout.
 A field can also carry an access mark such as `rw`, `ro` or `wo`. In a struct that maps device registers, reading a write-only field is refused
 at translation (#chref("hardware")). Pinning the layout takes choices away from the processor, so pin it only where needed.
 
+== Both directions of a layout, and a view that can fail
+
+`view` *reads* bytes as a value of that layout. The opposite direction --- *making* bytes of that layout from a value --- is `encode`.
+
+#demo("examples/ch13/encoded.low")
+
+`encode wire_header h` produces seven bytes in the byte order written on each field (`big`). The result 7009 puts the length 7 and the 9 of
+the last byte, `kind`, side by side. The side that builds a header going onto the wire uses `encode`; the side that reads a received header
+uses `view`.
+
+`view` *stops* when the length or alignment is off, because it treats that as a broken contract. Bytes from a network, however, are often
+short. In such places use `try_view`, which does the same work but reports failure as a value (#chref("errors-design")).
+
+#demo("examples/ch13/tryview.low")
+
+With seven bytes it reads `kind` 9; with three it gets `none` and returns 0. Use the stopping `view` inside, where things are already checked,
+and the value-reporting `try_view` at the boundary.
+
+== `bitset` --- a set of small numbers
+
+#idx("bitset")
+`bitset <bits>` is a set recording *whether each number* from 0 up to (not including) that count is present. Its name resembles `bits` (the
+width of one integer), but the meaning differs: `bitset` is not a tool for the bits of a word but a set, and the bits of a word are handled by
+bit operations such as `bit_and` and `shl`.
+
+#demo("examples/ch13/sets.low")
+
+- `bitset_new 64` makes an empty set. The width is a number fixed at translation time.
+- `add a 1 .` inserts and `remove a 1 .` removes. Both are statements that change the set *in place*. `count a` is the number of members.
+- `intersect a b` gives the intersection, `difference a b` what is only in `a`, and `complement a` the complement, each *as a new set*.
+- `is_subset x y` asks whether all of `x` is in `y`; `is_empty x` asks whether it is empty.
+
+In `overlap 5` the intersection is {3, 5} and what is only in `a` is {1}, giving 211. `complement` only means something within the width: put
+0 into an eight-slot set and its complement is the other seven. Inserting or asking about a number outside the width stops the program ---
+the range of the set is part of its type too.
+
 == Common mistakes
 
 #antipattern[Passing a value of a wider type straight to a `range` parameter][
@@ -193,6 +229,8 @@ at translation (#chref("hardware")). Pinning the layout takes choices away from 
   [`type ten_bits bits 10 .`], [an integer of 1 … 64 bits], [the width is the contract],
   [`layout packed .` · `magic u32 big .`], [layout without padding · byte order], [make bytes mean the same outside],
   [`view wire_header b`], [read bytes in that layout without copying], [stops if length or alignment is off],
+  [`try_view wire_header b` · `encode wire_header h`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],
+  [`var a bitset 64 be bitset_new 64 .` · `add a 1 .` · `intersect a b`], [a set of small numbers and its operations], [a set, not the bits of a word],
 )
 
 #recap[

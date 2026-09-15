@@ -141,6 +141,53 @@ Combinations that mean nothing for an operation are rejected.
 What would a read release? C leaves such combinations undefined. A write cannot be `acquire`, and a fence (`atomic_fence`), which only sets order, cannot be
 `relaxed`.
 
+== Lanes --- computing several values at once
+
+#idx("lanes")
+Where `parallel` splits a loop across *flows*, `vec` holds *several values* as one value within a single flow and computes them at once
+(SIMD). `vec u32 4` is a value with four lanes holding four `u32`s, and the lane count is part of the type. Whether the machine computes the
+lanes at once or one by one, the answer is the same (canon 6.2.11).
+
+#demo("examples/ch27/lanes.low")
+
+- `load xs 0` reads four lanes starting at position 0 of the slice. `store ys 0 t` writes the other way.
+- `splat 5` fills every lane with 5. The lane count comes from the type of the name it is stored in (`vec u32 4`).
+- Comparing `vec`s, as in `gt v lim`, gives a *mask* `mask 4` holding true or false per lane. `select over lim v` picks `lim` in lanes where
+  the mask is on and `v` where it is off. Choosing per lane without a branch (`if`) lets the machine do it in one instruction.
+- `reduce_add`, `reduce_max`, `reduce_min` and `reduce_mul` gather the lanes into one. Pressing `[1,9,3,7]` down to 5 gives `[1,5,3,5]`, whose
+  sum is 14.
+- `reverse` reverses the order of the lanes, and `rotate r 1` rotates them by one. `[7,3,9,1]` rotated, `[3,9,1,7]`, was written to memory.
+- `native_lanes u32` gives, *at translation time*, how many `u32` lanes this machine handles at once. Choosing that lane count only computes
+  more at once; the answer is the same.
+
+A mask can also read or write just some of the lanes.
+
+#demo("examples/ch27/masked.low")
+
+`store_masked out 0 v m` writes only at the places of the lanes that are on (9 and 7) and leaves the others untouched. `load_masked xs 0 m
+fallback` reads only the lanes that are on and puts the default 100 in the others. This is the shape for handling the tail when fewer than
+four slots remain at the end of a slice.
+
+#dtable(
+  columns: 3,
+  id: "par-lane-ops",
+  caption: [Builtin ops for lanes and arrays],
+  [*Op*], [*What it does*], [*Note*],
+  [`load` · `store` · `load_masked` · `store_masked`], [read and write between memory and lanes], [masked forms touch only lanes that are on],
+  [`splat` · `select`], [one value into every lane · choose per lane by mask], [`splat` needs a type context (below)],
+  [`reduce_add` · `reduce_max` · `reduce_min` · `reduce_mul`], [gather the lanes into one], [the result has the element type],
+  [`reverse` · `rotate`], [reverse · rotate the lanes], [the count is a translation-time constant],
+  [`native_lanes`], [this machine's lane count (translation time)], [does not change answers],
+  [`sum` · `sum_fast`], [add up a number array seen through `view_array`], [in this edition they produce float sums --- `sum` compensated (fixed order), `sum_fast` order chosen by the processor],
+  [`avg`], [rounding average per lane], [a target intrinsic, allowed only inside `unsafe target … proc` (`E-INTRIN-OUTSIDE`)],
+  [`prefetch xs i`], [pull a place about to be used into cache], [a performance hint that does not change meaning],
+)
+
+Watch two things. First, using `splat` directly inside an expression (`gt v (splat 5)`) leaves no type to give the lane count, so this
+edition's tool reads it as a scalar comparison and reports `E-TYPE-VAR`. Store it first, as the example does: `var lim vec u32 4 be splat 5 .`.
+Second, the canon's table lists `sum`, `sum_fast` and `avg` as ordinary lane ops, but this edition's tool treats them as in the right column
+above. The two disagree, and it is recorded as a defect in the development repository. To add lanes, use `reduce_add`.
+
 == Common mistakes
 
 #antipattern[Pieces of a split loop incrementing a shared counter with ordinary arithmetic][
@@ -203,6 +250,7 @@ What would a read release? C leaves such combinations undefined. A write cannot 
   [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [memory ordering --- `seq_cst` if unwritten], [the easiest to reason about is the default],
   [`order release` on a read, and so on], [rejected (`E-ATOMIC-ORDER`)], [meaningless combinations are not left undefined],
   [`view_array u64 bytes`], [see bytes as a `u64` slice without copying], [atomic cells live on an allocated window],
+  [`var v vec u32 4 be load xs 0 .` · `reduce_add v`], [read four lanes as one value · gather lanes], [SIMD within one flow --- the lane count is part of the type],
 )
 
 #recap[

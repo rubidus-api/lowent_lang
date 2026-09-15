@@ -148,7 +148,7 @@ end
 
 - `effects` 는 op 이 **무엇을 하는지**, `cap` 입력은 **누가 허락했는지**를 적는다. 둘은 서로를 검사한다.
 - `effects io` 를 적으면 `cap io`·`cap file_system`·`cap net`·`cap tty`·`cap clock`·`cap random` 중 하나를 받아야 한다.
-  `effects alloc` 은 `cap allocator`, `effects heap` 은 `cap heap` 이다. 없으면 거절된다.
+  `effects alloc` 은 `cap allocator`, `effects heap` 은 `cap heap`, `effects atomic` 은 `cap atomic` 이다. 없으면 거절된다.
 - 반대로 권한으로 여는 일(출력·할당 …)을 본문이 하는데 `effects` 에 안 적으면 `E-EFFECT` 다.
 - `state`·`panic`·`wait` 처럼 권한이 필요 없는 효과도 있다.
 

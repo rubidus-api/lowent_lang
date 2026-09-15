@@ -2308,6 +2308,9 @@ int main(void) {
           TYCK("newtype pid be u32 . fn f output u8 . do return 0 . end") == false &&
           TYCK("type pct u8 . newtype pid u32 . fn f output u8 . do return 0 . end") == true,
           "type: ★ `type N be T` / `newtype N be T` is REFUSED (E-TYPE-DECL) — `be` binds a value; one meaning, one spelling");
+    check(CHECK("proc f output u64 . effects atomic . do return 0 . end") == false &&
+          CHECK("proc f input k cap atomic . output u64 . effects atomic . do return 0 . end") == true,
+          "effects: ★ `effects atomic` needs `cap atomic` (E-ATOMIC-NOCAP) — the same pair as io/alloc/heap");
     check(TYCK("struct pt do x u8 . y u8 . end type p2 pt . "
                "fn f input q p2 . output u8 .  do return field q x . end") == true,
           "type: a TRANSPARENT alias to a struct is still that struct (SPEC-004 §89)");

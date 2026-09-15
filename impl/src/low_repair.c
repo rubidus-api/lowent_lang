@@ -265,6 +265,7 @@ static const low_repair_row_t REPAIR[] = {
     // 타깃이 못 하는 것 — 프로그램을 바꾸거나 타깃을 바꾼다
     { "E-HEAP-NOHOST",         "R-USE-FIXED-WINDOW" },
     { "E-HEAP-NOCAP",          "R-ADD-HEAP-CAP" },
+    { "E-ATOMIC-NOCAP",        "R-ADD-ATOMIC-CAP" },
     { "E-FLOAT-NOFLOAT",       "R-USE-FIXED-POINT" },
     { "E-CAP-NOHOST",          "R-DROP-OS-CAP" },
     { "E-MMIO-NOHOST",         "R-CHANGE-TARGET" },

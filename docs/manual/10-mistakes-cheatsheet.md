@@ -6,6 +6,7 @@
 |---|---|---|
 | `let` 에 `set` | `E-IMMUTABLE` | `var` 로 선언 |
 | `type pct be u8 .` | `E-TYPE-DECL` | `type pct u8 .` (`be` 는 값을 묶을 때만) |
+| `effects atomic` 인데 `cap atomic` 을 안 받는다 | `E-ATOMIC-NOCAP` | `input k cap atomic .` 을 받는다 |
 | `struct p .` · `trait t` 줄바꿈으로 블록을 연다 | `E-STMT-NODO` | `struct p do … end .` (`--fmt` 가 고친다) |
 | `output` 을 `input` 앞에 적는다 | `E-CLAUSE-ORDER` | `fn f input a u8 . output u8 .` (`--fmt` 가 고친다) |
 | trait 서명에 `fn`/`proc` 을 적는다 | `E-TRAIT-SIG` | `area input s self . output u64 .` — 효과 줄이 정한다 |

@@ -3758,6 +3758,35 @@ static void ck_alloc_cap(low_check_result_t *out, const low_parse_result_t *pr) 
 //   **io 를 인가하는 capability 값**을 시그니처에 하나라도 들고 있어야 한다(`input … cap … .`).
 //   없으면 E-EFFECT-NO-CAP. (LINK 는 §6.7 대로 **소유 불변식**만 — 어느 cap 이 io 를 인가하는지의
 //   타입 매핑은 RFC-0011. 그래서 여기선 `cap` 토큰 보유만 본다; region 은 alloc 권한이라 제외.)
+// ★★★★ **`atomic` 도 권한 효과다** (2026-09-15, 소유자 결정 — *"cap atomic 요구하게 하고"*). 권한 표에는 `cap atomic` 이
+//   있었는데 `effects atomic` 은 그것 없이 통과했다 — 짝의 한쪽이 비어 있었다. io·alloc·heap 과 같은 규칙:
+//   효과 줄에 `atomic` 을 적으면 `input … cap atomic .` 을 받아야 한다. `via` 로 효과를 타입 인자에게서 받는 제네릭 op 은
+//   권한도 그쪽에서 온다(alloc 과 같은 처방).
+static void ck_atomic_cap(low_check_result_t *out, const low_parse_result_t *pr) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
+        if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
+        low_kw_t kw = f->kids[0]->tok.kw;
+        if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
+        low_op_header_t h = low_op_header(f);
+        bool atomic = false, via = false;
+        for (proven_size_t j = h.eff_s; j < h.eff_e; j++) {
+            if (ck_atom(f->kids[j]) && veq(f->kids[j]->tok.lex, "atomic")) atomic = true;
+            if (ck_atom(f->kids[j]) && veq(f->kids[j]->tok.lex, "via")) via = true;
+        }
+        if (!atomic || via) continue;
+        bool has_cap = false;
+        for (proven_size_t q = 0; q < h.np && !has_cap; q++)
+            for (proven_size_t z = h.p[q].ts; z + 1 < h.p[q].te; z++)
+                if (ck_atom(f->kids[z]) && veq(f->kids[z]->tok.lex, "cap") &&
+                    ck_atom(f->kids[z + 1]) && veq(f->kids[z + 1]->tok.lex, "atomic")) has_cap = true;
+        if (!has_cap)
+            emit(out, "E-ATOMIC-NOCAP",
+                 "this op declares the `atomic` effect but receives NO `cap atomic`. Like `io`, `alloc` and `heap`, "
+                 "`atomic` is an effect you are HANDED the right to: `input k cap atomic .` (§7.2 (6))",
+                 f->kids[1]->tok.line);
+    }
+}
 static void ck_io_cap(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
@@ -7039,6 +7068,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_comptime(&out, pr);        // ★★★ **comptime 값 인자는 컴파일타임 상수여야 한다**
         ck_tier(&out, pr);            // ★★★ **계층 × 효과 게이팅** (RFC-0039 D4)
         ck_alloc_cap(&out, pr);       // ★★★ **할당 = 명시 권한** (RFC-0043 D1)
+        ck_atomic_cap(&out, pr);      // ★ 2026-09-15 — atomic 도 권한 효과다
         ck_io_cap(&out, pr);          // ★★★ **io 도 권한이다** (RFC-0007 §6.7 LINK — cap-effect)
         ck_float_target(&out, pr);    // ★★★ **no_float 타깃엔 float 이 없다** (RFC-0038 D5)
         ck_vec_value(&out, pr);       // ★★★ **벡터/마스크엔 소유·빌림 수식자가 못 붙는다** (RFC-0040)

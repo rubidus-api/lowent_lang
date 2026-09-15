@@ -208,8 +208,9 @@ end
 > [`io`], [`cap io` · `cap file_system` · `cap net` · `cap tty` · `cap clock` · `cap random`], [`E-EFFECT-NO-CAP`],
 > [`alloc`], [`cap allocator` (또는 어휘 `region` 블록)], [`E-ALLOC-NOCAP`],
 > [`heap`], [`cap heap`], [`E-HEAP-NOCAP`],
+> [`atomic`], [`cap atomic`], [`E-ATOMIC-NOCAP`],
 > [`device`], [`cap mmio` — 레지스터를 실제로 만지는 자리에서], [`E-MMIO-NOCAP`],
-> [`state` · `panic` · `wait` · `concurrent` · `atomic`], [— 권한 없이 적는다], [—],
+> [`state` · `panic` · `wait` · `concurrent`], [— 권한 없이 적는다], [—],
 > )
 
 > [!산문]

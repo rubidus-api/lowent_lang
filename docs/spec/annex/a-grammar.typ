@@ -44,26 +44,25 @@ use <모듈이름> .
 type <이름> <타입> .
 newtype <이름> <타입> .
 
-struct <이름>
+struct <이름> do
   <칸이름> <타입> .
-end
+end .
 
-enum <이름>
-  <갈래이름>
-end
+enum <이름> do
+  <갈래이름> .
+end .
 
 export fn <이름> output <타입> . input <이름> <타입> .
-  effects none .
   requires <조건> .
   ensures <조건> .
 do
   <문장들>
-end
+end .
 
-proc <이름> output <타입> . effects <효과들> .
+proc <이름> output <타입> . input <이름> <타입> . effects <효과들> .
 do
   <문장들>
-end")
+end .")
   ]
   #sub("A.3", "문장")[
     #shape("문장", "let <이름> <타입> be <식> .
@@ -191,10 +190,14 @@ escape  = ? ⟦§6.1.4⟧ 의 «이스케이프 — 닫힌 집합 열넷» 표�
 ──────────────────  ────────────────────────────────────────────────  ──────
 module              module <이름> .                                    .
 use                 use <이름> from \"<경로>\" [as <별칭>] .              .
-type                type <이름> be <타입> .                            .
-newtype             newtype <이름> be <타입> .                         .
-struct              struct <이름> <칸>* end   (칸 = <이름> <타입> .)    end
-enum                enum <이름> <갈래>* end   (갈래 = <이름> [<칸>*] .)   end
+type                type <이름> <타입> .                               .
+newtype             newtype <이름> <타입> .                            .
+struct              struct <이름> do <칸>* end  (칸 = <이름> <타입> .)   end
+enum                enum <이름> do <갈래>* end  (갈래 = <이름> [<칸>*] .) end
+trait               trait <이름> do <서명>* end (서명 = <이름> <절>*)     end
+actor               actor <이름> do <state·절·op>* end                  end
+state               state do <칸>* end        (actor 안)                 end
+contract            contract <이름> do <절>* end                        end
 fn / proc           [꾸밈]* fn <이름> <절>* do <폼>* end                end
 test                test <이름> do <폼>* end                           end
 expect              expect <조건> .           (시험 블록의 단언)         .
@@ -226,6 +229,11 @@ match               match <폼> do <가지>* [else do <폼>* end] end       end"
       `fn`/`proc` 머리의 `<절>*` 은 #cref("6.4.1") (3a) 의 한 차례를 따른다: `output` · `satisfies`·`lowdoc` · `vector`·`priority` ·
       comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 · `link`·`variadic` · `effects` · `asm` ·
       `access`·`parallel`·`reduce` · `requires` · `ensures` · `errors` · `tests` · `schedule` (`E-CLAUSE-ORDER`).
+    ]
+    #para("2b")[
+      **블록 선언**(`struct`·`enum`·`trait`·`actor`·`state`·`contract`)의 몸은 `do` 로 열고 `end` 로 닫는다 — `fn` 의 몸과 제어
+      블록과 같은 한 규칙이다. `struct <이름> .` 처럼 점으로 열거나 이름 뒤에서 줄만 바꾸는 꼴은 거부된다(`E-STMT-NODO`).
+      개행은 닫개가 아니므로(#cref("6.1.6")) 줄바꿈으로는 머리가 닫히지 않는다. 서식기는 `do` 꼴로 옮겨 적는다.
     ]
     #para("3")[
       이 표는 **머리와 닫개**를 규범한다. 모양 칸은 자주 쓰는 꼴을 적은 것이며, 정확한

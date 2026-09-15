@@ -13,7 +13,7 @@ rem 아무도 안 건 계약은 **W-UNBOUND** 로 말한다 — 그것은 정말
 
 module vm_named_contract .
 
-contract nonneg .
+contract nonneg do
   requires ge a 1 .
 end .
 

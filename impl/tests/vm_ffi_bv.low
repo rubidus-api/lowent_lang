@@ -10,7 +10,7 @@ rem     넘기지만 레이아웃이 같아 **ABI 로 링크된다**(C 는 이�
 rem   ★ 이 op 은 하강하지 않는다(태그 경로) — 구조체는 바이트로 다뤄진다.
 module vm_ffi_bv .
 
-struct pt .
+struct pt do
   x i64 .
   y i64 .
 end .

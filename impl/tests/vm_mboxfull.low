@@ -10,8 +10,8 @@ rem     ☞ *조용히 틀린 답보다 시끄러운 거절이 낫다 — 둘 �
 
 module vm_mboxfull .
 
-actor counter .
-  state v u64 . end .
+actor counter do
+  state do v u64 . end .
   proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
   fn get output u64 . do return v . end .
 end .

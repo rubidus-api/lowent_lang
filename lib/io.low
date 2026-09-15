@@ -58,8 +58,8 @@ do
   return none .
 end .
 
-export actor mem_reader .
-  state .
+export actor mem_reader do
+  state do
     src slice u8 .
     pos u64 .
   end .

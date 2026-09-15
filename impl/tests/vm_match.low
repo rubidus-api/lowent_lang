@@ -7,7 +7,7 @@ rem ★ 그런데 match 가 if 사슬보다 나은 이유가 하나 있다: **�
 rem   나중에 enum 에 변형을 추가하면 **컴파일러가 빠진 곳을 전부 찾아 준다.**
 rem   그 검사가 없으면 match 는 그냥 if 사슬이다.
 
-enum color .
+enum color do
   red .
   green .
   blue .

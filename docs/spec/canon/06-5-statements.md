@@ -252,7 +252,7 @@ end
 ```lowent 예제: 세 채널이 각기 다른 모양으로 답한다 · 결과: halve(100) = ok 50 · halve(250) = err too_big · lookup(2) = some 20 · lookup(7) = none · strict(10) = 11 · strict(250) → 트랩
 module ex_channels .
 
-enum io_error
+enum io_error do
   too_big
 end
 
@@ -414,7 +414,7 @@ end                      rem `a` 가 5 이하인 길에는 값이 없다
 ```lowent-거부: 적지 않은 오류를 낸다 · E-ERR-UNDECLARED
 module ex_err_undeclared .
 
-enum e .
+enum e do
   bad .
 end .
 

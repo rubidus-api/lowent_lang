@@ -13,11 +13,11 @@ rem ★ 이 파일이 재는 것: 필드 · 인덱스 · **중첩**(`o.i.a`), �
 rem   같은 답을 내는가** — 한 뜻에 두 표기이므로 갈리면 그것이 §2.5 위반이다.
 
 module vm_dotplace .
-struct inner .
+struct inner do
   a u64 .
   b u64 .
 end .
-struct outer .
+struct outer do
   i inner .
   n u64 .
 end .

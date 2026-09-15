@@ -13,7 +13,7 @@ rem   안 되고 경계로 넘길 수도 없는 것. 이 언어에 그런 타입
 
 module vm_alias .
 
-struct pt .
+struct pt do
   x u8 .
   y u8 .
 end .

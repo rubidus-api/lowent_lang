@@ -98,7 +98,7 @@ struct** 가 된다. vtable 없음 · 원소 크기 필드 없음 · 간접 호�
 ## 자료구조
 
 ```lowent
-export struct vec
+export struct vec do
   input comptime t type .   rem ← 타입 파라미터 둘(원소 · 얼로케이터). 인스턴스에서는 이 줄들이 사라진다
   input comptime a type .
   al a .                    rem 어디서 자리를 받아 오는가
@@ -268,7 +268,7 @@ return index s 0 .                            rem s 는 **옛 버퍼**를 본다
 
 ```lowent
 rem ✘ 슬라이스 필드가 있는 구조체는 **바이트 레이아웃이 없다** — 배열도 없다
-struct holder
+struct holder do
   buf mut slice u8 . .
 end
 let g option (vecgen.vec holder allocs.bump_bytes) . using al be vecgen.open holder 4 .   rem E-IR-UNDEF

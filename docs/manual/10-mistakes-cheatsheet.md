@@ -5,6 +5,9 @@
 | 실수 | 에러 | 고치는 법 |
 |---|---|---|
 | `let` 에 `set` | `E-IMMUTABLE` | `var` 로 선언 |
+| `struct p .` · `trait t` 줄바꿈으로 블록을 연다 | `E-STMT-NODO` | `struct p do … end .` (`--fmt` 가 고친다) |
+| `output` 을 `input` 뒤에 적는다 | `E-CLAUSE-ORDER` | `fn f output u8 . input a u8 .` (`--fmt` 가 고친다) |
+| trait 서명에 `fn`/`proc` 을 적는다 | `E-TRAIT-SIG` | `area output u64 . input s self .` — 효과 줄이 정한다 |
 | `mut` 아닌 슬라이스에 쓰기 | `E-TYPE-MUT` | `mut slice` 로 받기 |
 | `ref` 로 쓰기 | `E-TYPE-REF` | `mut_ref` 로 |
 | `ref` 를 `mut` 자리에 | `E-TYPE-ARGMUT` | 진짜 `mut` 를 넘기기 |

@@ -2,7 +2,7 @@ rem ★ 구조체 **필드 쓰기** — S5 코어의 마지막 벽.
 rem   장소는 괄호로 감싼 form 이다: `set (field q x) v .`
 rem   (슬라이스 원소 쓰기 `set (index s i) v .` 와 같은 자리다.)
 
-struct p .
+struct p do
   x u8 .
   y u8 .
 end .

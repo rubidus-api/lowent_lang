@@ -13,18 +13,18 @@ rem   (옛 문법 `fn f satisfies shape .` 은 이제 **E-TRAIT-RECV** 다.)
 
 module vm_trait .
 
-trait shape .
+trait shape do
   area   output u64 . input s self . effects none .
   scaled output u64 . input s self . input k u8 . effects none .
 end .
 
-struct rect .
+struct rect do
   satisfies shape .          rem ★ 검사된다: 아래 두 op 이 **정확히** 그 시그니처여야 한다
   w u8 .
   h u8 .
 end .
 
-struct square .
+struct square do
   satisfies shape .
   side u8 .
 end .
@@ -59,13 +59,13 @@ rem   *"없는 op 을 충족한다"* 고 적어도 **조용히 통과**했다 �
 rem   그 결함(검사되지 않는 주장)이다.
 rem   ★ 액터의 op 은 **핸들러**이고 수신자(인스턴스)는 **암묵적**이다(슬롯 0) ⇒ trait 의
 rem     `self` 파라미터를 빼고 대조한다.
-trait counter .
+trait counter do
   bump output u64 . input s self . input n u64 . effects state .
 end .
 
-actor ctr .
+actor ctr do
   satisfies counter .          rem ★ 이제 **검사된다**
-  state .
+  state do
     v u64 .
   end .
   proc bump output u64 . input n u64 . effects state .

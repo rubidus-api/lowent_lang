@@ -9,7 +9,7 @@ module json .
 
 type bytes slice u8 . .
 
-enum kind .
+enum kind do
   lbrace .
   rbrace .
   quote .
@@ -17,7 +17,7 @@ enum kind .
   other .
 end .
 
-struct counts .
+struct counts do
   braces u16 .
   quotes u16 .
   digits u16 .

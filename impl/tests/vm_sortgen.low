@@ -15,7 +15,7 @@ use sortgen from "../../lib/sortgen.low" .
 rem ── 제네릭 정렬(2026-07-26): 비교는 **타입이 들고 온다**(comptime 타입 + trait 경계) ──
 rem   레코드 하나로 감싼 u64 를 정렬한다 — 정렬 대상이 스칼라가 아니어도 같은 op 이 돈다.
 
-struct keyed .
+struct keyed do
   satisfies sortgen.ordered .
   k u64 .
 end .
@@ -43,7 +43,7 @@ rem   버그가 숨는다(실제로 숨었다). 여기서는 ① 원소를 여�
 rem   다중 키가 중요한 이유: 같은 1차 키가 여럿이면 2차 키로 **여러 칸을 내려가야** 하는데,
 rem   비교를 두 번 하는 구현은 한 칸만 내려가고 멈춘다.
 
-struct score .
+struct score do
   satisfies sortgen.ordered .
   grade u64 .
   point u64 .

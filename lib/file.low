@@ -41,7 +41,7 @@ rem
 rem ☞ 그래서 `type_of`·`is_dir`·`is_file` 은 **안 바꿨다**: `file_type` 잎이 *없음* 과 *stat 실패*
 rem   를 한 비트로 뭉쳐 주므로, 거기에 `result` 를 붙이는 것은 **호스트 층이 지킬 수 없는 약속**이다.
 rem   없는 구별을 타입으로 약속하지 않는다(§0).
-export enum file_error .
+export enum file_error do
   open_failed .
   read_failed .
   write_failed .
@@ -57,7 +57,7 @@ rem 열림 모드. ★ 정수인 이유: enum 값을 리프에 넘기는 길이 
 rem   0 = 읽기 · 1 = 쓰기(자르고 만들기) · 2 = 덧붙이기. 그 밖은 리프가 거절한다(E-VM-FMODE).
 
 rem ★ 잊을 수 없는 핸들. **스칼라만** 담는다(A6 의 `pending` 과 같은 이유).
-export struct handle .
+export struct handle do
   fd u64 .
 end .
 
@@ -129,7 +129,7 @@ rem ★★★ **디렉터리 순회** (RFC-0069 §6 — opendir/readdir/closedir
 rem   ★ 파일 핸들과 **다른 타입**이다: 디렉터리는 읽기/쓰기가 아니라 **엔트리 이름을 낸다**.
 rem     둘 다 정수 인덱스지만 섞으면 안 되므로(dir 을 file_read 에 넣으면 뜻이 없다) 타입으로 가른다.
 rem   ★ close 를 잊으면 컴파일 오류다(close 와 같은 owned 패턴).
-export struct dir_handle .
+export struct dir_handle do
   fd u64 .
 end .
 

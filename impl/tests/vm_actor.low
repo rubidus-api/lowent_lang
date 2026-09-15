@@ -26,8 +26,8 @@ rem
 rem   arity 단일화가 나무를 세우자 `spawn` 이 자기 form 의 머리가 되면서 **드러났다.**
 rem   ⇒ `proc … effects state .` 로 고쳤다. **spawn/send 는 state 다.**
 
-actor counter .
-  state .
+actor counter do
+  state do
     value u64 .
   end .
   proc inc output u64 . effects state .
@@ -42,8 +42,8 @@ end .
 rem ★ **actor 가 둘** — 서로 다른 actor 가 한 단위에 있다.
 rem   (모양 지표가 이 구멍을 지적했다: enum 이 둘일 때만 드러난 버그가 있었으므로,
 rem    actor 도 **둘일 때** 무엇이 어긋나는지 물어야 한다. 상태 레코드가 둘, 핸들러가 넷.)
-actor accum .
-  state .
+actor accum do
+  state do
     total u64 .
   end .
   proc add output u64 . effects state .
@@ -111,8 +111,8 @@ rem     send · M · a1 … a(N-1) · ACCESS(aN, C)
 rem   마지막 인자와 수신자가 한 노드로 붙어 온다. 그 모양을 그대로 읽으면 인자가 실린다.
 rem   그리고 이 모양은 **호출과 똑같다** — 이 언어는 호출을 괄호로 싸지 않으니까(`g h`).
 
-actor bank .
-  state .
+actor bank do
+  state do
     balance u64 .
   end .
   proc deposit output u64 . input n u64 . effects state .
@@ -142,8 +142,8 @@ rem   두었다**("send = 배타적 move, 송신측 무효화"). 그런데 그�
 rem   이제 있다. 그리고 보낸 뒤에 다시 쓰면 **E-OWN-MOVED** 다(RFC-0058 의 소비 규칙에 걸었다).
 rem   ★ 이것이 LowentDRF.v 가 증명한 격리(소유 이전이 **메시지로만** 일어난다)를 도구가
 rem     실제로 주는 유일한 길이다. **증명해 놓고 강제하지 않으면 그것도 거짓말이다.**
-actor vault .
-  state .
+actor vault do
+  state do
     held u64 .
   end .
   proc stash output u64 . input h owned u64 . effects state .

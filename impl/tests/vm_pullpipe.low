@@ -7,8 +7,8 @@ rem   §6.5 "collect 는 유계 싱크" 위반). 슬라이스 소스는 인덱�
 rem   pull 브랜치에서 take 소진·collect sink-full 을 **pull 전에** 검사한다.
 module m .
 fn nar output u8 . input a u64 . do return narrow_wrap u8 a . end .
-actor counter .
-  state .
+actor counter do
+  state do
     n u64 .
   end .
   proc next output option u64 . effects state . do

@@ -3,11 +3,11 @@ type bytes slice u8 . .
 type path slice u8 . .
 
 rem ★ errors 절이 거는 변형들이 **선언돼 있지 않았다**(E-ERR-UNDEF 가 잡았다).
-enum parse_error .
+enum parse_error do
   too_short .
   bad_version .
 end .
-enum io_error .
+enum io_error do
   open_failed .
   read_failed .
 end .

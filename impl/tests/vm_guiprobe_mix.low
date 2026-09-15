@@ -6,7 +6,7 @@ module vm_guiprobe_mix .
 newtype ga u8 .
 newtype gb u8 .
 
-struct handle .
+struct handle do
   input comptime b type .
   w u64 .
 end .

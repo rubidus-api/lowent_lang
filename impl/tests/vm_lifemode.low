@@ -78,9 +78,9 @@ rem ── ④ 외부 완료 — 완료권이 값이다 ────────
 rem   끝내는 것이 남이므로, 이쪽이 드는 것은 **완료권**뿐이다. 그것을 `owned` 로 만들면
 rem   두 번 완료는 컴파일이 거절하고(E-OWN-MOVED), 완료가 실패할 수 있으면 안 하는 것도
 rem   거절한다(E-OWN-INCOMPLETE). ⇒ **정확히 1 회**가 언어에서 나온다.
-export enum late . too_late . end .
+export enum late do too_late . end .
 
-export struct ticket .
+export struct ticket do
   id u64 .
 end .
 

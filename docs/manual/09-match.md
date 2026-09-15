@@ -12,7 +12,7 @@
 
 ```lowent
 rem ✓ enum 변형을 가른다. `_` 는 나머지를 전부 덮는 catch-all.
-enum color
+enum color do
   red .                                  rem 갈래마다 점으로 닫는다 — 없으면 셋이 한 갈래로 이어진다
   green .
   blue .
@@ -90,12 +90,12 @@ end
 
 ```lowent
 rem ✓ add·mul 둘 다 l·r 을 바인딩. 태그가 무엇이든 l·r 을 꺼내 쓴다(이름이 어긋나면 E-MATCH-ORBIND).
-enum expr
+enum node do
   lit v u32 .
   add l u32 r u32 .
   mul l u32 r u32 .
-end
-fn combine output u32 . input e expr . do
+end .
+fn combine output u32 . input e node . do
   match e do
     case add l r or mul l r . do return add l r . end   rem add|mul + lit = 전 변형 → `_` 불요
     case lit v              . do return v .       end
@@ -109,7 +109,7 @@ end
 
 ```lowent
 rem ✓ AST 평가 — lit 은 값을, add 는 두 자식(아레나 인덱스)을 묶는다.
-enum node
+enum node do
   lit v u32 .
   add l u32 r u32 .
 end
@@ -142,7 +142,7 @@ end
 
 ```lowent
 rem ✓ ok(some x) → x, ok(none) → 0, error → 99.
-enum er
+enum er do
   bad
 end
 fn pick output u32 . input r result option u32 er . do

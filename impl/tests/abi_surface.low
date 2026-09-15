@@ -72,7 +72,7 @@ newtype cstr unsafe_ptr u8 .
 unsafe extern proc abi_c_cstr output cstr . input k cap c . link abi_c_cstr . effects unsafe . end .
 
 rem ── struct by-value — viewable 구조체는 **진짜 C struct** 로 나간다(struct lw_sty_N)
-struct abi_pt .
+struct abi_pt do
   x i64 .
   y i64 .
 end .

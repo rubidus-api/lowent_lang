@@ -114,7 +114,7 @@ struct 에 담을 수 없으므로, 라이브러리가 핸들 속에 권한을 �
 ## 자료구조
 
 ```lowent
-export enum file_error .
+export enum file_error do
   open_failed .
   read_failed .
   write_failed .
@@ -124,12 +124,12 @@ export enum file_error .
 end .
 
 rem 잊을 수 없는 파일 핸들. 스칼라만 담는다.
-export struct handle
+export struct handle do
   fd u64 .
 end
 
 rem 디렉터리 핸들 — 파일 핸들과 다른 타입이다.
-export struct dir_handle
+export struct dir_handle do
   fd u64 .
 end
 ```

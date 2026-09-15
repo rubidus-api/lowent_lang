@@ -23,7 +23,7 @@ module mmio_dev .
 
 build tier t1 .              rem Cortex-M — `device` 효과를 감당한다
 
-struct gpio .
+struct gpio do
   mmio 0x40020000 .          rem ★ 기저 주소 — 이 struct 는 **디바이스의 지도**다
   moder u32 rw .             rem 모드     (읽기·쓰기)
   idr   u32 ro .             rem 입력     (읽기 전용 — 쓰면 컴파일 에러)

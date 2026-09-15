@@ -23,7 +23,7 @@ rem   양 백엔드에 주장하면 그것이 거짓말이 된다.
 
 module vm_refarg .
 
-struct pt .
+struct pt do
   x u64 .
 end .
 

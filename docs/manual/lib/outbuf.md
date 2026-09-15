@@ -81,12 +81,12 @@ Lowent 에는 그런 **전역 권한이 없다**: "표준 출력에 쓸 권한"(
 뿐이다. 바이트가 실제로 쌓이는 자리(버퍼)는 호출자 것이라 여기 안 들어 있다.
 
 ```lowent
-export enum io_error
+export enum io_error do
   write_failed
 end
 
 rem 아직 안 나간 바이트의 상태. 스칼라만 담는다(버퍼는 호출자 것).
-export struct pending
+export struct pending do
   pos u64 .    rem 버퍼에 쌓인 바이트 수
   fd  u64 .    rem 어디로 비울지 — 1=stdout · 2=stderr
 end

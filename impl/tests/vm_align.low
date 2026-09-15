@@ -2,7 +2,7 @@ rem RFC-0051 §5.1 — `align n` is an alignment CONTRACT, checked at the view b
 type bytes slice u8 . .
 
 rem natural size 6 (u32 + u16), but the contract raises it to 16.
-struct reg .
+struct reg do
   align 16 .
   ctrl u32 .
   stat u16 .

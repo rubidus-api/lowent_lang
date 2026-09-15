@@ -2,7 +2,7 @@ rem RFC-0025 §6.6/6.7 view/try_view fixture — packed wire header with be fiel
 rem zero-copy struct views over a byte slice, endian decoded at field access.
 type bytes slice u8 . .
 
-struct wire_header .
+struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .

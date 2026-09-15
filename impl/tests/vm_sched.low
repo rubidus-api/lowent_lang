@@ -15,8 +15,8 @@ rem     **bounded**(정직히 보고 — 조용한 캡 금지). 두 메시지면
 rem   ★ `schedule` 문 자체는 VM≡네이티브(FIFO) — 차등 스윕이 그것을 지킨다. 열거는 VM 오라클의 몫.
 module vm_sched .
 
-actor counter .
-  state v u64 . end .
+actor counter do
+  state do v u64 . end .
   proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
   fn get output u64 . do return v . end .
 end .

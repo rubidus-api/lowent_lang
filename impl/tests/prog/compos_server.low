@@ -7,8 +7,8 @@ module compos_server .
 
 build profile server .
 
-export actor tally .
-  state .
+export actor tally do
+  state do
     n u64 .
     last u64 .
   end .

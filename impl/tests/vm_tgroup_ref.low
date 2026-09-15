@@ -11,8 +11,8 @@ rem ★★ 이 파일이 재는 것: task_group 을 사이에 끼워도 메인�
 
 module vm_tgroup_ref .
 
-actor counter .
-  state v u64 . end .
+actor counter do
+  state do v u64 . end .
   proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
   fn get output u64 . do return v . end .
 end .

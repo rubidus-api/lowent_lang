@@ -26,7 +26,7 @@ rem   `segments T` 뷰와 커서(§8-8 이 맡는다).
 module segarena .
 
 rem 아레나 하나. `kbits` 가 조각 크기를 정한다(조각당 `2^kbits` 칸).
-export struct arena .
+export struct arena do
   input comptime b type .
   kbits u64 .
   nseg u64 .      rem 지금까지 연 조각 수

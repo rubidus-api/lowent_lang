@@ -51,7 +51,7 @@ footer { max-width:52rem; margin:0 auto; padding:2rem 1.2rem 4rem; color:var(--d
 }
 </style>
 </head><body>
-<header class="cover"><h1>로우엔트 — Lowent 프로그래밍 언어 표준 명세</h1><p>문서 판 v0.0.32 · 언어 판 v1.0.0 · 낸 날 2026-09-14</p></header>
+<header class="cover"><h1>로우엔트 — Lowent 프로그래밍 언어 표준 명세</h1><p>문서 판 v0.0.32 · 언어 판 v1.0.0 · 낸 날 2026-09-15</p></header>
 <nav class="toc"><b>차례</b>
 <a class="lv2" href="#c1">1 범위 (Scope)</a>
 <a class="lv3" href="#c1.1">1.1 이 문서가 정하는 것</a>
@@ -394,17 +394,17 @@ do
   return index xs 3 .
 end</code></pre><p class="diag">진단: <code>E-TYPE-ARRAY</code></p></div><div class="plain"><b>쉬운 말로</b> 포인터만 있는 언어에서는 <strong>“이 포인터가 가리키는 곳에 몇 개가 있는가”</strong> 를 사람이 따로 알고 있어야 한다. 그 지식은 소스에 안 적혀 있어서 틀리기 쉽고, 틀리면 남의 메모리를 읽는다. 슬라이스는 그 지식을 <strong></strong>값 안에 넣어<strong></strong> 그 문제를 없앤다.</div></section><section class="subclause" id="c6.2.7"><h3>6.2.7 묶음 — struct 와 enum</h3><p class="para" id="p1"><span class="pno">1</span> <code>struct</code> 는 이름 붙은 칸의 모음이다. 각 칸은 자기 타입을 갖는다.</p><p class="para" id="p2"><span class="pno">2</span> <code>enum</code> 은 여럿 중 하나다. 각 갈래는 이름을 가지며, 값을 함께 지닐 수 있다.</p><p class="para" id="p2a"><span class="pno">2a</span> 갈래는 <strong></strong>하나마다 <code>.</code> 으로 닫는다.<strong></strong> 개행은 닫개가 아니므로, 점 없이 줄마다 적은 갈래는 한 갈래로 이어지며 거부된다(<code>E-ENUM-DOT</code>). 갈래가 지니는 값은 <code>&lt;칸 이름> &lt;타입></code> 짝으로 적는다 — 짝이 맞지 않으면 거부된다(<code>E-ENUM-FIELD</code>).</p><p class="para" id="p3"><span class="pno">3</span> struct 는 <strong></strong>자기 자신을 칸으로 가질 수 없다.<strong></strong> 직접이든 다른 타입을 거쳐서든 순환하면 번역이 거부된다. (<code>E-STRUCT-CYCLE</code>). 크기가 정해지지 아니하기 때문이다.</p><p class="para" id="p3a"><span class="pno">3a</span> 참조를 거쳐 자기를 가리키면 크기는 정해진다. 다만 그 참조가 <strong></strong>누가 관리하는지 알 수 없는 것<strong></strong>이면 거부된다(<code>E-STRUCT-REF-UNMANAGED</code>) — 크기가 있다고 수명이 선 것은 아니다.</p><div class="ex"><b>예제 (example) — struct 와 enum</b><pre><code>module ex_shape .
 
-struct point
+struct point do
   x u32 .
   y u32 .
 end
 
-enum color
+enum color do
   red .
   green .
 end</code></pre></div><p class="para" id="p4"><span class="pno">4</span> struct 값은 <code>make</code> 로 만든다. 만들 때 <strong></strong>모든 칸을 채워야<strong></strong> 한다.</p><p class="para" id="p5"><span class="pno">5</span> 칸을 읽을 때는 <code>field &lt;값> &lt;칸 이름></code> 을 쓴다. 값 뒤에 점과 칸 이름을 붙이는 모양은 없다 (<code>E-FIELD-GLUED</code>) — 점은 모듈 한정·갈래 이름에 이미 쓰인다.</p><div class="ex"><b>예제 (example) — struct 를 만들고 읽는다</b><pre><code>module ex_make .
 
-struct point
+struct point do
   x u32 .
   y u32 .
 end
@@ -419,12 +419,12 @@ do
   return (field p x) .
 end</code></pre></div><div class="rejected"><b>거부되는 예제 (rejected) — 갈래를 점으로 닫지 않았다</b><pre><code>module ex_enum_dot .
 
-enum color
+enum color do
   red
   green
 end</code></pre><p class="diag">진단: <code>E-ENUM-DOT</code></p></div><div class="note"><b>참고 (informative)</b> 순환을 금지하는 이유는 크기 때문이다. 자기를 품는 struct 는 크기가 무한해진다. 나무 같은 자료 구조가 필요하면 <strong></strong>번호(색인)<strong></strong> 로 잇는다 — 그러면 크기가 정해지고, 경계 검사가 그대로 성립한다.</div></section><section class="subclause" id="c6.2.8"><h3>6.2.8 답을 담는 타입 — result 와 option</h3><p class="para" id="p1"><span class="pno">1</span> <code>result t e</code> 는 성공한 값(<code>t</code>) 또는 오류(<code>e</code>) 중 하나를 담는다.</p><p class="para" id="p2"><span class="pno">2</span> <code>option t</code> 는 값이 있거나 없음을 담는다.</p><p class="para" id="p3"><span class="pno">3</span> 이 두 타입의 값은 <strong></strong>꺼내기 전에 어느 쪽인지 확인해야 한다.<strong></strong></p><p class="para" id="p3a"><span class="pno">3a</span> 꺼내는 연산은 <strong></strong>부분 연산<strong></strong>이다 — 확인하지 않고 꺼내는 것 자체는 번역이 거부하지 아니하며, 실행 중에 없는 쪽을 꺼내면 <strong></strong>트랩한다<strong></strong>. 곧 확인은 번역이 대신해 주는 것이 아니라 저자가 하는 것이다.</p><div class="ex"><b>예제 (example) — result 로 실패를 돌려준다</b><pre><code>module ex_result .
 
-enum err
+enum err do
   too_small
 end
 
@@ -469,7 +469,7 @@ do
   return value_or (lookup k) 99 .
 end</code></pre><pre class="out">use_ask(2) = 20 · use_ask(7) = 255 · use_or(2) = 20 · use_or(7) = 99</pre></div><div class="plain"><b>쉬운 말로</b> <code>option u8 .</code> 뒤의 점에 주의한다 — <code>option</code> 은 타입을 하나 받는 폼이므로 그 폼도 닫아야 한다. 그래서 <code>output option u8 . .</code> 처럼 점이 둘 나온다: 앞의 것은 <code>option</code> 을, 뒤의 것은 <code>output</code> 절을 닫는다.</div><div class="ex"><b>예제 (example) — result — 묻고 꺼내기, 그리고 `try` 로 넘기기</b><pre><code>module ex_result_use .
 
-enum io_error
+enum io_error do
   too_big
 end
 
@@ -497,11 +497,11 @@ do
   return ok (add v 1) .
 end</code></pre><pre class="out">use_ask(100) = 50 · use_ask(250) = 0 · use_try(100) = ok 51</pre></div><div class="plain"><b>쉬운 말로</b> <code>use_try</code> 가 <code>errors</code> 를 자기도 적은 것에 주의한다. <code>try</code> 로 실패를 넘기려면 <strong></strong>자기도 그 오류를 돌려줄 수 있어야<strong></strong> 하고, 그것을 계약에 적어야 한다. 실패가 조용히 사라지는 길이 없다.</div></section><section class="subclause" id="c6.2.9"><h3>6.2.9 이름 붙인 타입</h3><p class="para" id="p1"><span class="pno">1</span> <code>type</code> 은 기존 타입에 다른 이름을 준다. 두 이름은 <strong></strong>같은 타입<strong></strong>이며 서로 바꿔 쓸 수 있다.</p><p class="para" id="p2"><span class="pno">2</span> <code>newtype</code> 은 기존 타입과 같은 표현을 갖되 <strong></strong>다른 타입<strong></strong>을 만든다. 서로 바꿔 쓸 수 없다.</p><div class="note"><b>참고 (informative)</b> 둘을 가르는 이유는 실수를 막기 위해서다. 사용자 번호와 주문 번호가 둘 다 <code>u64</code> 라면 바꿔 넣어도 처리기가 모른다. <code>newtype</code> 으로 갈라 두면 처리기가 그 실수를 잡는다.</div><p class="para" id="p3"><span class="pno">3</span> <code>newtype</code> 이 <strong></strong>저장소를 가르는 이름<strong></strong>(<span class="t">상표 (brand)</span>)으로 쓰일 때, 한 상표는 저장소 <strong></strong>하나<strong></strong>를 가리킨다. 같은 상표로 저장소를 두 번 여는 것은 거부된다 (<code>E-BRAND-REUSED</code>) — 그러면 한 이름이 둘을 가리키게 되고, 서로 다른 저장소에서 온 손잡이가 <strong></strong>같은 타입으로 보인다.<strong></strong> 그것은 상표가 막으려던 바로 그 혼동이다. 갈라야 한다면 <code>newtype</code> 을 하나 더 선언한다.</p></section><section class="subclause" id="c6.2.10"><h3>6.2.10 값의 안을 읽는다 — field</h3><p class="para" id="p1"><span class="pno">1</span> <code>field</code> 는 값의 안에 있는 것을 읽는 폼이다. 모양은 <code>field &lt;값> &lt;마디> …</code> 이며, 마디는 <strong></strong>하나 이상<strong></strong>이다. 마디가 여럿이면 왼쪽에서 오른쪽으로 한 칸씩 내려간다 — <code>field o inner deep</code> 은 <code>o</code> 의 <code>inner</code>, 그 안의 <code>deep</code> 을 뜻한다.</p><p class="para" id="p2"><span class="pno">2</span> 마디는 두 가지 중 하나다. <strong></strong>이름<strong></strong>이면 struct 의 필드이고, <strong></strong>정수<strong></strong>이면 줄(배열·슬라이스)의 자리다. 둘은 섞일 수 있다.</p><p class="para" id="p3"><span class="pno">3</span> <code>field</code> 는 <span class="t">자리 (place)</span> 이기도 하다 — <code>set</code> 의 왼쪽에 올 수 있다. 읽는 자리와 쓰는 자리가 <strong></strong>같은 철자<strong></strong>를 갖는다.</p><p class="para" id="p4"><span class="pno">4</span> 선언에 없는 필드를 적으면 처리기는 프로그램을 거절한다. 줄의 자리는 <a href="#c6.2.6" class="cref">§6.2.6</a> 의 경계 규칙을 따른다.</p><div class="ex"><b>예제 (example) — 다단 필드 읽기와 쓰기</b><pre><code>module ex_field .
 
-struct inner
+struct inner do
   a u64 .
 end
 
-struct outer
+struct outer do
   i inner .
 end
 
@@ -518,7 +518,7 @@ end</code></pre></div><div class="note"><b>참고 (informative)</b> 점을 붙�
 
 type bytes slice u8 .
 
-struct wire_header .
+struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .
@@ -534,9 +534,9 @@ end
 rem `str` 은 내장이 아니다 — 뜻을 주지 않으면 W-NOT-YET 을 받는다.
 type str slice u8 .
 
-fn f output u8 . input s str . do return 1 . end</code></pre><pre class="out">f() = 1</pre></div></section><section class="subclause" id="c6.2.19"><h3>6.2.19 값을 지닌 갈래 — 짓기와 해체</h3><p class="para" id="p1"><span class="pno">1</span> <code>enum</code> 의 갈래는 값을 지닐 수 있다. 갈래를 적을 때 지닐 것의 이름과 타입을 함께 적는다.</p><p class="para" id="p2"><span class="pno">2</span> 그런 값을 짓는 모양은 <code>&lt;열거>.&lt;갈래></code> 이며, 갈래가 지니기로 한 것을 <strong></strong>모두<strong></strong> 준다. 모자라면 거부된다(<code>E-ENUM-ARITY</code>) — 조용히 반만 지은 값을 만들지 아니한다.</p><p class="para" id="p3"><span class="pno">3</span> 값을 지닌 열거를 다루는 길은 둘이다.</p><div class="tbl"><p><b>표 14 — 값을 지닌 갈래를 다루는 두 op</b></p><table><tr><td><strong>op</strong></td><td><strong>모양</strong></td><td><strong>무엇을 하나</strong></td></tr><tr><td><code>isa</code></td><td><code>isa &lt;값> &lt;갈래></code></td><td>지금 그 갈래인가를 묻는다</td></tr><tr><td><code>get</code></td><td><code>get &lt;값> &lt;갈래> &lt;이름></code></td><td>그 갈래가 지닌 것을 읽는다</td></tr></table></div><p class="para" id="p4"><span class="pno">4</span> 없는 갈래를 부르면 거부되고(<code>E-ENUM-NOVARIANT</code>), 그 갈래가 지니지 않는 이름을 읽으려 하면 거부된다(<code>E-ENUM-NOFIELD</code>). 둘 다 <strong></strong>번역할 때<strong></strong> 판정된다 — 갈래와 이름은 소스에 적혀 있으므로 실행을 기다릴 까닭이 없다.</p><p class="para" id="p5"><span class="pno">5</span> 갈래가 여럿인 열거에서 <code>get</code> 은 <strong></strong>먼저 그 갈래임이 좁혀진 뒤에만<strong></strong> 쓸 수 있다 (<code>E-ENUM-UNCHECKED</code>). 좁히는 것은 <code>isa</code> 이며, 보통 <code>guard isa &lt;값> &lt;갈래> . else …</code> 로 적는다.</p><p class="para" id="p5a"><span class="pno">5a</span> 이미 <strong></strong>다른 갈래<strong></strong>로 좁혀진 자리에서 <code>get</code> 을 쓰는 것도 거부된다 (<code>E-ENUM-VARIANT</code>) — 그 자리에서는 다른 갈래임이 이미 증명되었으므로, 그 <code>get</code> 은 <strong></strong>틀린 것을 읽는다.<strong></strong></p><p class="para" id="p5b"><span class="pno">5b</span> 갈래가 지니는 것의 타입은 오늘 <strong></strong>한 낱말<strong></strong>이어야 한다(<code>E-ENUM-PAYLOAD</code>).</p><div class="plain"><b>쉬운 말로</b> (5) 가 하는 일은 「없는 것을 읽는 일」을 막는 것이다. 좁히지 않고 읽으면 그 값이 그 갈래일 때만 맞고 아닐 때는 <strong></strong>엉뚱한 바이트<strong></strong>를 읽는다 — 그것은 답이 틀리는 것이 아니라 답이 <strong></strong>어쩌다 맞는<strong></strong> 것이며, 이 언어가 가장 싫어하는 모양이다.</div><p class="para" id="p6"><span class="pno">6</span> 열거가 자기 자신을 값으로 지니면 크기가 정해지지 아니하므로 거부된다 (<code>E-ENUM-INFINITE</code>). 되풀이되는 구조는 <strong></strong>사이에 무언가를 두어<strong></strong> 짓는다.</p><div class="plain"><b>쉬운 말로</b> 값을 지닌 갈래는 새 짜임이 아니다. 갈래를 가리키는 칸 하나와 갈래가 지닌 것을 담은 묶음이 있을 뿐이며, 짓는 것은 묶음 짓기이고 읽는 것은 칸 읽기다. 그래서 이 기능은 <strong></strong>새 기계 명령을 하나도 늘리지 아니했다<strong></strong> — 이미 있던 것으로 낮아지므로 두 뒤끝 모두에서 저절로 돌았다.</div></section><section class="subclause" id="c6.2.20"><h3>6.2.20 흩어진 조각을 하나로 보기 — `segments`</h3><p class="para" id="p1"><span class="pno">1</span> 이어져 있지 않은 여러 조각을 <strong></strong>하나의 눈<strong></strong>으로 볼 수 있다. 뒤에 놓인 바이트와, 그 안에서 어디부터 얼마인지를 적은 서술자 둘로 이루어진다.</p><div class="tbl"><p><b>표 15 — 흩어진 조각을 다루는 세 op</b></p><table><tr><td><strong>op</strong></td><td><strong>모양</strong></td><td><strong>무엇을 하나</strong></td></tr><tr><td><code>view_segments</code></td><td><code>view_segments &lt;바이트> &lt;서술자></code></td><td>둘을 묶어 하나의 눈을 만든다</td></tr><tr><td><code>segs</code></td><td><code>segs &lt;눈></code></td><td>조각이 몇인지 센다</td></tr><tr><td><code>seg</code></td><td><code>seg &lt;눈> &lt;번호></code></td><td>그 번호의 조각을 조각(slice)으로 준다</td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> 서술자는 「어디부터」와 「얼마」의 짝을 담은 조각이다. 그러므로 이 셋은 <strong></strong>새 타입도 새 기계 명령도 늘리지 아니한다<strong></strong> — 묶음 짓기와 칸 읽기와 잘라내기로 낮아진다.</p><div class="plain"><b>쉬운 말로</b> 흩어진 조각을 다루는 길이 없으면, 쓰는 사람은 그것을 <strong></strong>한 자리에 모으는<strong></strong> 수밖에 없다. 모으는 일은 베끼는 일이고, 베끼지 않아도 되는 곳에서 베끼는 것이 이 언어가 없애려는 비용이다. 눈을 주면 베낌이 사라진다.</div></section><section class="subclause" id="c6.2.21"><h3>6.2.21 미리 끌어오기 — `prefetch`</h3><p class="para" id="p1"><span class="pno">1</span> <code>prefetch &lt;조각> &lt;번호></code> 는 그 자리의 바이트를 <strong></strong>곧 쓸 것<strong></strong>이라고 기계에 알린다.</p><p class="para" id="p2"><span class="pno">2</span> 이것은 <strong></strong>힌트일 뿐<strong></strong>이다. 값을 남기지 아니하고, 프로그램의 뜻을 바꾸지 아니하며, 기계가 무시해도 답은 같다.</p><div class="caution"><b>주의 —<span style="white-space: pre-wrap">&#x20;</span></b> 힌트는 <strong></strong>틀려도 프로그램이 틀리지 않는<strong></strong> 것만 힌트다. 뜻을 바꾸는 것은 힌트가 아니라 명령이며, 그런 것은 이 자리에 오지 아니한다.</div></section><section class="subclause" id="c6.2.22"><h3>6.2.22 타입이 맞는다는 것</h3><p class="para" id="p1"><span class="pno">1</span> 값을 두는 모든 자리에서 값의 타입은 그 자리가 적은 타입과 <strong></strong>같아야<strong></strong> 한다.</p><div class="tbl"><p><b>표 16 — 타입이 어긋나는 자리</b></p><table><tr><td><strong>진단</strong></td><td><strong>어디에서</strong></td></tr><tr><td><code>E-TYPE-LET</code></td><td><code>let</code> 으로 묶을 때 — 주는 값이 적은 타입과 다르다</td></tr><tr><td><code>E-TYPE-VAR</code></td><td><code>var</code> 로 묶을 때 — 같은 어긋남이되 자리가 다르다</td></tr><tr><td><code>E-TYPE-SET</code></td><td>고쳐 쓸 때 — 새 값이 그 이름의 타입과 다르다</td></tr><tr><td><code>E-TYPE-RETURN</code></td><td>돌려줄 때 — 돌려주는 것이 op 이 적은 것과 다르다</td></tr><tr><td><code>E-TYPE-ARG</code></td><td>건넬 때 — 인자가 매개변수와 다르다</td></tr><tr><td><code>E-TYPE-FIELD</code></td><td><strong></strong>만들 때<strong></strong> — 없는 칸을 주거나, 칸의 값이 적은 타입과 다르거나, 칸을 빠뜨렸다</td></tr><tr><td><code>E-TYPE-TRY</code></td><td><code>try</code> 할 때 — 벗겨 낼 것이 없는 값이다</td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> 묶음과 열거는 <code>struct &lt;이름> … end</code> · <code>enum &lt;이름> … end</code> 로 선언한다. 다른 모양으로 선언하려 하면 거부된다(<code>E-TYPE-DECL</code>).</p><p class="para" id="p3"><span class="pno">3</span> 칸의 배치가 같아도 <strong></strong>이름이 다르면 다른 묶음<strong></strong>이다(<code>E-TYPE-STRUCT</code>, <a href="#c8.9" class="cref">§8.9</a>).</p><div class="plain"><b>쉬운 말로</b> 이 표의 일곱은 모두 같은 문장의 다른 자리다 — <strong>“여기 오는 것의 타입은 이것이다”</strong> 를 소스가 적었고, 처리기는 그 적힌 것과 실제를 견준다. 자리마다 진단을 따로 두는 까닭은 <strong></strong>어디에서 어긋났는지<strong></strong>가 고치는 사람에게 가장 필요한 사실이기 때문이다.</div></section><section class="subclause" id="c6.2.23"><h3>6.2.23 칸을 적는 꼴</h3><p class="para" id="p1"><span class="pno">1</span> 묶음의 칸은 <strong></strong>이름 다음에 타입<strong></strong>이다(<code>x u64 .</code>). 그 꼴이 아니면 거부된다 (<code>E-FIELD-FORM</code>).</p><p class="para" id="p2"><span class="pno">2</span> 칸을 읽을 때는 <code>field &lt;값> &lt;이름> …</code> 으로 적는다. 점을 붙여 읽는 옛 철자는 이 언어에 없다(<code>E-FIELD-GLUED</code>).</p><p class="para" id="p3"><span class="pno">3</span> <code>vec</code> 과 가림막은 <strong></strong>값 그 자체<strong></strong>이며, 가리키거나 빌리는 표지를 붙일 수 없다 (<code>E-VEC-QUAL</code>). 그 레인들은 낱말 안의 자리이지 메모리의 자리가 아니다.</p><div class="rejected"><b>거부되는 예제 (rejected) — 칸은 이름 다음에 타입이다</b><pre><code>module ex_field_form .
+fn f output u8 . input s str . do return 1 . end</code></pre><pre class="out">f() = 1</pre></div></section><section class="subclause" id="c6.2.19"><h3>6.2.19 값을 지닌 갈래 — 짓기와 해체</h3><p class="para" id="p1"><span class="pno">1</span> <code>enum</code> 의 갈래는 값을 지닐 수 있다. 갈래를 적을 때 지닐 것의 이름과 타입을 함께 적는다.</p><p class="para" id="p2"><span class="pno">2</span> 그런 값을 짓는 모양은 <code>&lt;열거>.&lt;갈래></code> 이며, 갈래가 지니기로 한 것을 <strong></strong>모두<strong></strong> 준다. 모자라면 거부된다(<code>E-ENUM-ARITY</code>) — 조용히 반만 지은 값을 만들지 아니한다.</p><p class="para" id="p3"><span class="pno">3</span> 값을 지닌 열거를 다루는 길은 둘이다.</p><div class="tbl"><p><b>표 14 — 값을 지닌 갈래를 다루는 두 op</b></p><table><tr><td><strong>op</strong></td><td><strong>모양</strong></td><td><strong>무엇을 하나</strong></td></tr><tr><td><code>isa</code></td><td><code>isa &lt;값> &lt;갈래></code></td><td>지금 그 갈래인가를 묻는다</td></tr><tr><td><code>get</code></td><td><code>get &lt;값> &lt;갈래> &lt;이름></code></td><td>그 갈래가 지닌 것을 읽는다</td></tr></table></div><p class="para" id="p4"><span class="pno">4</span> 없는 갈래를 부르면 거부되고(<code>E-ENUM-NOVARIANT</code>), 그 갈래가 지니지 않는 이름을 읽으려 하면 거부된다(<code>E-ENUM-NOFIELD</code>). 둘 다 <strong></strong>번역할 때<strong></strong> 판정된다 — 갈래와 이름은 소스에 적혀 있으므로 실행을 기다릴 까닭이 없다.</p><p class="para" id="p5"><span class="pno">5</span> 갈래가 여럿인 열거에서 <code>get</code> 은 <strong></strong>먼저 그 갈래임이 좁혀진 뒤에만<strong></strong> 쓸 수 있다 (<code>E-ENUM-UNCHECKED</code>). 좁히는 것은 <code>isa</code> 이며, 보통 <code>guard isa &lt;값> &lt;갈래> . else …</code> 로 적는다.</p><p class="para" id="p5a"><span class="pno">5a</span> 이미 <strong></strong>다른 갈래<strong></strong>로 좁혀진 자리에서 <code>get</code> 을 쓰는 것도 거부된다 (<code>E-ENUM-VARIANT</code>) — 그 자리에서는 다른 갈래임이 이미 증명되었으므로, 그 <code>get</code> 은 <strong></strong>틀린 것을 읽는다.<strong></strong></p><p class="para" id="p5b"><span class="pno">5b</span> 갈래가 지니는 것의 타입은 오늘 <strong></strong>한 낱말<strong></strong>이어야 한다(<code>E-ENUM-PAYLOAD</code>).</p><div class="plain"><b>쉬운 말로</b> (5) 가 하는 일은 「없는 것을 읽는 일」을 막는 것이다. 좁히지 않고 읽으면 그 값이 그 갈래일 때만 맞고 아닐 때는 <strong></strong>엉뚱한 바이트<strong></strong>를 읽는다 — 그것은 답이 틀리는 것이 아니라 답이 <strong></strong>어쩌다 맞는<strong></strong> 것이며, 이 언어가 가장 싫어하는 모양이다.</div><p class="para" id="p6"><span class="pno">6</span> 열거가 자기 자신을 값으로 지니면 크기가 정해지지 아니하므로 거부된다 (<code>E-ENUM-INFINITE</code>). 되풀이되는 구조는 <strong></strong>사이에 무언가를 두어<strong></strong> 짓는다.</p><div class="plain"><b>쉬운 말로</b> 값을 지닌 갈래는 새 짜임이 아니다. 갈래를 가리키는 칸 하나와 갈래가 지닌 것을 담은 묶음이 있을 뿐이며, 짓는 것은 묶음 짓기이고 읽는 것은 칸 읽기다. 그래서 이 기능은 <strong></strong>새 기계 명령을 하나도 늘리지 아니했다<strong></strong> — 이미 있던 것으로 낮아지므로 두 뒤끝 모두에서 저절로 돌았다.</div></section><section class="subclause" id="c6.2.20"><h3>6.2.20 흩어진 조각을 하나로 보기 — `segments`</h3><p class="para" id="p1"><span class="pno">1</span> 이어져 있지 않은 여러 조각을 <strong></strong>하나의 눈<strong></strong>으로 볼 수 있다. 뒤에 놓인 바이트와, 그 안에서 어디부터 얼마인지를 적은 서술자 둘로 이루어진다.</p><div class="tbl"><p><b>표 15 — 흩어진 조각을 다루는 세 op</b></p><table><tr><td><strong>op</strong></td><td><strong>모양</strong></td><td><strong>무엇을 하나</strong></td></tr><tr><td><code>view_segments</code></td><td><code>view_segments &lt;바이트> &lt;서술자></code></td><td>둘을 묶어 하나의 눈을 만든다</td></tr><tr><td><code>segs</code></td><td><code>segs &lt;눈></code></td><td>조각이 몇인지 센다</td></tr><tr><td><code>seg</code></td><td><code>seg &lt;눈> &lt;번호></code></td><td>그 번호의 조각을 조각(slice)으로 준다</td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> 서술자는 「어디부터」와 「얼마」의 짝을 담은 조각이다. 그러므로 이 셋은 <strong></strong>새 타입도 새 기계 명령도 늘리지 아니한다<strong></strong> — 묶음 짓기와 칸 읽기와 잘라내기로 낮아진다.</p><div class="plain"><b>쉬운 말로</b> 흩어진 조각을 다루는 길이 없으면, 쓰는 사람은 그것을 <strong></strong>한 자리에 모으는<strong></strong> 수밖에 없다. 모으는 일은 베끼는 일이고, 베끼지 않아도 되는 곳에서 베끼는 것이 이 언어가 없애려는 비용이다. 눈을 주면 베낌이 사라진다.</div></section><section class="subclause" id="c6.2.21"><h3>6.2.21 미리 끌어오기 — `prefetch`</h3><p class="para" id="p1"><span class="pno">1</span> <code>prefetch &lt;조각> &lt;번호></code> 는 그 자리의 바이트를 <strong></strong>곧 쓸 것<strong></strong>이라고 기계에 알린다.</p><p class="para" id="p2"><span class="pno">2</span> 이것은 <strong></strong>힌트일 뿐<strong></strong>이다. 값을 남기지 아니하고, 프로그램의 뜻을 바꾸지 아니하며, 기계가 무시해도 답은 같다.</p><div class="caution"><b>주의 —<span style="white-space: pre-wrap">&#x20;</span></b> 힌트는 <strong></strong>틀려도 프로그램이 틀리지 않는<strong></strong> 것만 힌트다. 뜻을 바꾸는 것은 힌트가 아니라 명령이며, 그런 것은 이 자리에 오지 아니한다.</div></section><section class="subclause" id="c6.2.22"><h3>6.2.22 타입이 맞는다는 것</h3><p class="para" id="p1"><span class="pno">1</span> 값을 두는 모든 자리에서 값의 타입은 그 자리가 적은 타입과 <strong></strong>같아야<strong></strong> 한다.</p><div class="tbl"><p><b>표 16 — 타입이 어긋나는 자리</b></p><table><tr><td><strong>진단</strong></td><td><strong>어디에서</strong></td></tr><tr><td><code>E-TYPE-LET</code></td><td><code>let</code> 으로 묶을 때 — 주는 값이 적은 타입과 다르다</td></tr><tr><td><code>E-TYPE-VAR</code></td><td><code>var</code> 로 묶을 때 — 같은 어긋남이되 자리가 다르다</td></tr><tr><td><code>E-TYPE-SET</code></td><td>고쳐 쓸 때 — 새 값이 그 이름의 타입과 다르다</td></tr><tr><td><code>E-TYPE-RETURN</code></td><td>돌려줄 때 — 돌려주는 것이 op 이 적은 것과 다르다</td></tr><tr><td><code>E-TYPE-ARG</code></td><td>건넬 때 — 인자가 매개변수와 다르다</td></tr><tr><td><code>E-TYPE-FIELD</code></td><td><strong></strong>만들 때<strong></strong> — 없는 칸을 주거나, 칸의 값이 적은 타입과 다르거나, 칸을 빠뜨렸다</td></tr><tr><td><code>E-TYPE-TRY</code></td><td><code>try</code> 할 때 — 벗겨 낼 것이 없는 값이다</td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> 묶음과 열거는 <code>struct &lt;이름> do … end</code> · <code>enum &lt;이름> do … end</code> 로 선언한다. 다른 모양으로 선언하려 하면 거부된다(<code>E-TYPE-DECL</code>).</p><p class="para" id="p3"><span class="pno">3</span> 칸의 배치가 같아도 <strong></strong>이름이 다르면 다른 묶음<strong></strong>이다(<code>E-TYPE-STRUCT</code>, <a href="#c8.9" class="cref">§8.9</a>).</p><div class="plain"><b>쉬운 말로</b> 이 표의 일곱은 모두 같은 문장의 다른 자리다 — <strong>“여기 오는 것의 타입은 이것이다”</strong> 를 소스가 적었고, 처리기는 그 적힌 것과 실제를 견준다. 자리마다 진단을 따로 두는 까닭은 <strong></strong>어디에서 어긋났는지<strong></strong>가 고치는 사람에게 가장 필요한 사실이기 때문이다.</div></section><section class="subclause" id="c6.2.23"><h3>6.2.23 칸을 적는 꼴</h3><p class="para" id="p1"><span class="pno">1</span> 묶음의 칸은 <strong></strong>이름 다음에 타입<strong></strong>이다(<code>x u64 .</code>). 그 꼴이 아니면 거부된다 (<code>E-FIELD-FORM</code>).</p><p class="para" id="p2"><span class="pno">2</span> 칸을 읽을 때는 <code>field &lt;값> &lt;이름> …</code> 으로 적는다. 점을 붙여 읽는 옛 철자는 이 언어에 없다(<code>E-FIELD-GLUED</code>).</p><p class="para" id="p3"><span class="pno">3</span> <code>vec</code> 과 가림막은 <strong></strong>값 그 자체<strong></strong>이며, 가리키거나 빌리는 표지를 붙일 수 없다 (<code>E-VEC-QUAL</code>). 그 레인들은 낱말 안의 자리이지 메모리의 자리가 아니다.</p><div class="rejected"><b>거부되는 예제 (rejected) — 칸은 이름 다음에 타입이다</b><pre><code>module ex_field_form .
 
-struct p .
+struct p do
   x .              rem 타입이 없다
 end .
 
@@ -635,7 +635,7 @@ do
 end</code></pre></div><div class="plain"><b>쉬운 말로</b> 위 예제를 읽는 법: <strong>“이 함수는 길이가 2 이상인 바이트 줄을 받아야 하고(requires), 돌려주는 값은 65535 이하임을 약속하며(ensures), 바깥세상은 아무것도 건드리지 않는다(effects none).”</strong> — 본문을 열지 않고도 이만큼을 알 수 있다.</div></section><section class="subclause" id="c6.4.5"><h3>6.4.5 계약에 이름 주기</h3><p class="para" id="p1"><span class="pno">1</span> 여러 op 이 같은 조건을 요구하면, 그 조건에 이름을 줄 수 있다. <code>contract</code> 로 적는다.</p><p class="para" id="p2"><span class="pno">2</span> op 은 <code>satisfies</code> 로 그 이름을 적어 그 계약을 갖춘다.</p><div class="ex"><b>예제 (example) — 이름 붙인 계약</b><pre><code>module ex_named .
 
 rem 여러 op 이 같은 조건을 요구하면 그 조건에 이름을 줄 수 있다.
-contract nonneg
+contract nonneg do
   requires ge a 1 .
 end
 
@@ -795,7 +795,7 @@ do
   let x u8 be n .
 end</code></pre></div><div class="plain"><b>쉬운 말로</b> 돌려줄 값이 없으므로 <strong></strong>끝나는 자리가 곧 돌아가는 자리<strong></strong>다. 값을 돌려주는 op 이었다면 같은 모양이 거부된다(<a href="#c6.5.5" class="cref">§6.5.5</a> 문단 3).</div></section><section class="subclause" id="c6.5.6"><h3>6.5.6 블록과 들여쓰기</h3><p class="para" id="p1"><span class="pno">1</span> 블록은 <code>do</code> 로 열고 <code>end</code> 로 닫는다. 들여쓰기는 <strong></strong>뜻이 없다<strong></strong> — 읽는 사람을 위한 것이다.</p><div class="plain"><b>쉬운 말로</b> 들여쓰기로 블록을 나누는 언어도 있다. 이 언어가 그러지 않는 이유는, 눈에 안 보이는 글자(공백과 탭)가 프로그램의 뜻을 바꾸면 <strong></strong>보이는 것과 뜻이 갈릴<strong></strong> 수 있기 때문이다. <code>do</code> 와 <code>end</code> 는 눈에 보인다.</div></section><section class="subclause" id="c6.5.7"><h3>6.5.7 실패를 말하는 세 가지 길</h3><p class="para" id="p1"><span class="pno">1</span> 실패를 말하는 길은 셋뿐이며, 쓰임이 서로 다르다.</p><div class="tbl"><p><b>표 26 — 세 실패 채널</b></p><table><tr><td><strong>무엇</strong></td><td><strong>무엇을 말하나</strong></td><td><strong>부르는 쪽이 하는 일</strong></td></tr><tr><td><code>result t e</code></td><td>고칠 수 있는 실패</td><td>어느 쪽인지 묻고 다룬다. 안 다루면 위로 넘긴다</td></tr><tr><td><code>option t</code></td><td>값이 없음</td><td>있는지 묻고 꺼내거나, 대신 쓸 값을 준다</td></tr><tr><td><code>panic</code> 효과</td><td>계약이 깨졌다</td><td>다룰 수 없다. 프로그램이 멈춘다</td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> <code>result</code> 의 오류 타입에 들어가는 변형은 그 op 의 <code>errors</code> 절이 적은 것과 <strong></strong>같아야<strong></strong> 한다. 적지 않은 오류를 돌려주거나, 적어 놓고 안 돌려주는 것은 적합하지 아니하다.</p><p class="para" id="p3"><span class="pno">3</span> <code>panic</code> 은 되돌아 풀리지 아니한다. 멈추는 자리에서 프로그램이 끝난다 — 중간에 잡아 이어 가는 길은 없다.</p><div class="ex"><b>예제 (example) — 세 채널이 각기 다른 모양으로 답한다</b><pre><code>module ex_channels .
 
-enum io_error
+enum io_error do
   too_big
 end
 
@@ -826,7 +826,7 @@ do
   if gt a 5 . do return 1 . end
 end                      rem `a` 가 5 이하인 길에는 값이 없다</code></pre><p class="diag">진단: <code>E-RETURN-PARTIAL</code></p></div></section><section class="subclause" id="c6.5.12"><h3>6.5.12 오류는 적은 것만 난다</h3><p class="para" id="p1"><span class="pno">1</span> op 이 내는 오류는 <code>errors</code> 절이 적은 것 안에 있어야 한다(<code>E-ERR-UNDECLARED</code>).</p><p class="para" id="p2"><span class="pno">2</span> <code>errors</code> 절이 그 op 의 오류 타입에 <strong></strong>없는 이름<strong></strong>을 적는 것도 거부된다 (<code>E-ERR-UNDEF</code>).</p><div class="caution"><b>주의 —<span style="white-space: pre-wrap">&#x20;</span></b> 두 규칙은 같은 문장의 양쪽이다 — <strong></strong>적은 것과 내는 것이 같아야 한다.<strong></strong> 한쪽이 넘치면 부르는 쪽이 못 본 실패가 오고, 다른 쪽이 넘치면 오지 않을 실패를 다루게 된다 (<a href="#c6.4.12" class="cref">§6.4.12</a> (4) 와 같은 까닭이다).</div><div class="rejected"><b>거부되는 예제 (rejected) — 적지 않은 오류를 낸다</b><pre><code>module ex_err_undeclared .
 
-enum e .
+enum e do
   bad .
 end .
 
@@ -850,7 +850,7 @@ do .
   end .
 end .</code></pre><p class="diag">진단: <code>E-MATCH-INEXHAUSTIVE</code></p></div><div class="plain"><b>쉬운 말로</b> 빈틈을 남기면 번역이 거부되므로, <strong>“나머지는 무엇인가”</strong> 를 저자가 반드시 말하게 된다. 다른 언어에서 이 자리는 조용히 아무 일도 안 하거나 예외가 되는데, 둘 다 소스를 읽고는 알 수 없다.</div><div class="ex"><b>예제 (example) — match 는 모든 갈래를 덮는다</b><pre><code>module ex_match .
 
-enum color .
+enum color do
   red .
   green .
 end .
@@ -863,7 +863,7 @@ do .
   end .
 end .</code></pre></div><div class="rejected"><b>거부되는 예제 (rejected) — 갈래가 빠진 match</b><pre><code>module ex_match_bad .
 
-enum color .
+enum color do
   red .
   green .
 end .
@@ -930,15 +930,55 @@ use &lt;가져올 모듈 이름> from "&lt;그 모듈의 자리>" .</code></pre>
 use &lt;가져올 모듈 이름> .</code></pre></div><p class="para" id="p5"><span class="pno">5</span> 자리를 적지 아니한 이름이 그 단위 안에 없으면, 처리기는 <strong></strong>그 사실을 말하여야 한다.<strong></strong> 이 판의 처리기는 경고(<code>W-USE-EXTERNAL</code>)로 말한다 — 모듈을 찾아다니는 검색 경로가 없으므로, 그 이름이 있는지 없는지를 이 단위만 보고는 알 수 없기 때문이다. 그 이름을 실제로 쓰면 그때는 거부된다.</p><div class="note"><b>참고 (informative)</b> <strong></strong>검색 경로가 없다는 것<strong></strong>이 이 설계의 요점이다. 이름만 적어 두고 도구가 어딘가에서 찾아오게 하면, 그 프로그램이 무엇에 기대는지가 소스 밖의 지식이 된다 — 같은 소스가 기계에 따라 다른 것을 가져올 수 있다. 자리를 적거나, 같은 단위로 함께 넘기거나, 둘 중 하나다.</div><div class="note"><b>참고 (informative)</b> 이 자리는 실제로 도는 예제 대신 <strong></strong>틀<strong></strong>로 적었다. 가져오기는 그 파일이 실제로 있어야 번역되므로, 어느 자리에서나 도는 예제를 만들 수 없다. 검사기가 컴파일해 보는 것은 <code>#ex</code> 뿐이며, 틀은 그 대상이 아니다.</div><div class="note"><b>참고 (informative)</b> 어디서 가져오는지를 소스에 적는 것은 이 언어의 규율과 이어진다 — 이름만 적고 어디서 오는지는 도구가 알아서 찾는 방식이면, 그 프로그램이 무엇에 기대는지가 소스 밖의 지식이 된다.</div></section><section class="subclause" id="c6.10.3"><h3>6.10.3 이름이 부딪히면</h3><p class="para" id="p1"><span class="pno">1</span> 한 모듈 안에서 같은 이름을 두 번 선언할 수 없다. 그렇게 하면 번역이 거부된다.</p><p class="para" id="p2"><span class="pno">2</span> 가져온 이름들이 서로 부딪히면, 부르는 자리에서 어느 것인지 밝혀 적어야 한다.</p><div class="rejected"><b>거부되는 예제 (rejected) — 같은 이름을 두 번 선언</b><pre><code>module ex_dup .
 
 fn f output u32 . do return 1 . end
-fn f output u32 . do return 2 . end</code></pre><p class="diag">진단: <code>E-NAME-DUP</code></p></div></section><section class="subclause" id="c6.10.4"><h3>6.10.4 선언의 차례</h3><p class="para" id="p1"><span class="pno">1</span> 모듈 안의 최상위 선언은 <strong></strong>차례와 무관하다.<strong></strong> 뒤에 선언한 op 을 앞에서 부를 수 있고, 서로 부르는 op 도 쓸 수 있다.</p><p class="para" id="p2"><span class="pno">2</span> op 본문 안에서는 그렇지 않다 — 지역 이름은 <strong></strong>쓰기 전에 선언해야<strong></strong> 한다.</p><div class="plain"><b>쉬운 말로</b> 두 규칙이 다른 이유는 읽는 방식이 다르기 때문이다. 파일 전체는 훑어보며 읽지만, 함수 본문은 위에서 아래로 읽는다. 본문에서 아직 안 나온 이름이 쓰이면 읽는 사람이 되돌아가야 한다.</div></section></section><section class="subclause" id="c6.11"><h3>6.11 타입에 붙은 op 과 트레이트 (Type-associated ops and traits)</h3><section class="subclause" id="c6.11.1"><h3>6.11.1 타입에 op 을 붙이기</h3><p class="para" id="p1"><span class="pno">1</span> op 의 이름 앞에 타입 이름과 점을 붙이면, 그 op 은 <strong></strong>그 타입에 붙은 것<strong></strong>이 된다.</p><p class="para" id="p2"><span class="pno">2</span> 붙은 op 의 첫 입력은 그 타입의 값이다.</p></section><section class="subclause" id="c6.11.2"><h3>6.11.2 트레이트</h3><p class="para" id="p1"><span class="pno">1</span> <span class="t">트레이트 (trait)</span> 는 어떤 타입이 갖춰야 할 op 의 <strong></strong>목록<strong></strong>이다. 각 op 의 이름과 시그니처를 적는다.</p><p class="para" id="p1a"><span class="pno">1a</span> 트레이트는 op 을 <strong></strong>여럿<strong></strong> 적을 수 있다. 서명 하나는 op 의 <strong></strong>이름으로 시작<strong></strong>하고 그 op 의 절이 뒤따르며, 다음 이름이 다음 서명을 연다. 서명마다 한 줄에 적는 것이 관례다. 서명의 절은 op 머리와 <strong></strong>같은 차례<strong></strong>를 따른다(<a href="#c6.4.1" class="cref">§6.4.1</a> (3a)) — <code>output</code> 이 맨 앞이다. 적는 op 의 수에는 한도가 없다.</p><p class="para" id="p1b"><p><span class="pno">1b</span> 서명에는 <code>fn</code>·<code>proc</code> 을 적지 <strong></strong>아니한다.<strong></strong> 그 op 이 무엇을 할 수 있는지는 서명의 <code>effects</code> 줄이 정한다.</p><ul><li><code>effects</code> 줄이 없으면 효과가 <strong></strong>없는<strong></strong> op 이다. 이것은 <code>fn</code> 으로도, 효과를 적은 <code>proc</code> 으로도 갖출 수 있다.</li></ul><p>다만 <code>proc</code> 은 <code>effects</code> 줄을 반드시 적어야 한다 — 효과 줄이 없는 <code>proc</code> 은 자기 효과를 <strong></strong>좁히지 않은<strong></strong> 것이므로 효과 없는 서명을 갖추지 못한다(<code>E-TRAIT-EFFECT</code>).</p><ul><li><code>effects</code> 줄이 있으면 갖추는 쪽은 그 효과 <strong></strong>또는 그보다 적은<strong></strong> 효과를 적은 <code>proc</code> 이거나, 효과가 없으면 <code>fn</code> 이다.</li></ul></p><p class="para" id="p2"><span class="pno">2</span> 트레이트 안에서 <code>self</code> 는 그것을 갖출 타입 자신을 가리킨다.</p><p class="para" id="p3"><span class="pno">3</span> 타입이 <code>satisfies</code> 로 트레이트를 적으면, 처리기는 그 목록의 op 이 <strong></strong>정확히 그 시그니처로<strong></strong> 있는지 검사한다. 하나라도 없거나 어긋나면 번역이 거부된다.</p><p class="para" id="p4"><span class="pno">4</span> 어긋나는 갈래는 다섯이다.</p><div class="tbl"><p><b>표 32 — 트레이트를 갖추지 못한 자리</b></p><table><tr><td><strong>진단</strong></td><td><strong>무엇이 어긋났는가</strong></td></tr><tr><td><code>E-TRAIT-UNDEF</code></td><td><code>satisfies</code> 가 <strong></strong>선언되지 않은<strong></strong> 트레이트를 부른다 — 아무것도 가리키지 않는 주장은 아무것도 검사하지 아니한다</td></tr><tr><td><code>E-TRAIT-MISSING</code></td><td>목록의 op 이 없다</td></tr><tr><td><code>E-TRAIT-SIG</code></td><td>op 은 있으나 <strong></strong>매개변수의 수<strong></strong>가 다르다 — 정확히 맞지 않는 트레이트는 계약을 실어 나르지 못한다</td></tr><tr><td><code>E-TRAIT-EFFECT</code></td><td>갖춘 쪽이 트레이트가 적지 <strong></strong>않은 효과<strong></strong>를 가진다. 부르는 쪽은 트레이트의 계약을 보고 판단하므로, 그 계약에 없는 일을 하면 판단이 틀린다</td></tr><tr><td><code>E-TRAIT-RECV</code></td><td><strong></strong>op<strong></strong> 이 트레이트를 갖추겠다고 적었다 — 갖추는 것은 <strong></strong>타입<strong></strong>이다</td></tr></table></div><p class="para" id="p5"><span class="pno">5</span> 트레이트의 op 이 효과 줄에 <code>via self</code> 를 적으면, 갖추는 쪽은 그 op 에 <strong></strong>할당 계열 효과<strong></strong> — <code>alloc</code> · <code>heap</code> · <code>lock</code> · <code>atomic</code> — 를 트레이트보다 더 적을 수 있다. 그 밖의 효과를 더 적는 것은 여전히 <code>E-TRAIT-EFFECT</code> 다. 더 적은 효과는 제네릭 op 이 <code>via &lt;타입 매개변수></code> 로 부르는 쪽까지 나른다(<a href="#c7.1.1" class="cref">§7.1.1</a> (6)).</p><div class="plain"><b>쉬운 말로</b> 트레이트가 하는 일은 「이 타입은 이런 것들을 할 줄 안다」를 <strong></strong>부르는 쪽이 믿을 수 있게<strong></strong> 만드는 것이다. 그래서 이름만 맞고 효과가 다르면 그 믿음이 깨진다 — 효과까지 맞아야 트레이트가 계약을 실어 나른다.</div><div class="ex"><b>예제 (example) — 트레이트를 갖춘다</b><pre><code>module ex_trait .
+fn f output u32 . do return 2 . end</code></pre><p class="diag">진단: <code>E-NAME-DUP</code></p></div></section><section class="subclause" id="c6.10.4"><h3>6.10.4 선언의 차례</h3><p class="para" id="p1"><span class="pno">1</span> 모듈 안의 최상위 선언은 <strong></strong>차례와 무관하다.<strong></strong> 뒤에 선언한 op 을 앞에서 부를 수 있고, 서로 부르는 op 도 쓸 수 있다.</p><p class="para" id="p2"><span class="pno">2</span> op 본문 안에서는 그렇지 않다 — 지역 이름은 <strong></strong>쓰기 전에 선언해야<strong></strong> 한다.</p><div class="plain"><b>쉬운 말로</b> 두 규칙이 다른 이유는 읽는 방식이 다르기 때문이다. 파일 전체는 훑어보며 읽지만, 함수 본문은 위에서 아래로 읽는다. 본문에서 아직 안 나온 이름이 쓰이면 읽는 사람이 되돌아가야 한다.</div></section></section><section class="subclause" id="c6.11"><h3>6.11 타입에 붙은 op 과 트레이트 (Type-associated ops and traits)</h3><section class="subclause" id="c6.11.1"><h3>6.11.1 타입에 op 을 붙이기</h3><p class="para" id="p1"><span class="pno">1</span> op 의 이름 앞에 타입 이름과 점을 붙이면, 그 op 은 <strong></strong>그 타입에 붙은 것<strong></strong>이 된다.</p><p class="para" id="p2"><span class="pno">2</span> 붙은 op 의 첫 입력은 그 타입의 값이다.</p></section><section class="subclause" id="c6.11.2"><h3>6.11.2 트레이트</h3><p class="para" id="p1"><span class="pno">1</span> <span class="t">트레이트 (trait)</span> 는 어떤 타입이 갖춰야 할 op 의 <strong></strong>목록<strong></strong>이다. 각 op 의 이름과 시그니처를 적는다.</p><div class="plain"><b>쉬운 말로</b> 모양이 여럿이면(사각형 · 정사각형 …) 넓이를 구하는 <strong></strong>방법<strong></strong>은 타입마다 다르지만, <strong>“넓이를 알려 준다”</strong> 는 <strong></strong>약속<strong></strong>은 같다. 트레이트는 그 약속에 이름을 붙인다. 그러면 <strong>“넓이를 알려 주는 것이면 무엇이든”</strong> 받는 op 을 <strong></strong>한 번만<strong></strong> 쓸 수 있다 — 타입마다 같은 op 을 베껴 쓰지 않아도 되고, 약속을 안 지킨 타입은 번역 때 걸린다. 부르는 자리는 그 타입이 무엇인지 몰라도 된다. 이 언어에는 상속이 없으므로, 여러 타입을 한 이름으로 다루는 길은 이것이다.</div><div class="ex"><b>예제 (example) — 트레이트는 무엇에 쓰나 — 한 op 이 여러 타입을 받는다</b><pre><code>module ex_trait_why .
+
+rem 모양마다 넓이를 구하는 법은 다르다. 그러나 «넓이를 알려 준다» 는 약속은 같다.
+trait shape do
+  area output u64 . input s self .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+
+struct square do
+  satisfies shape .
+  side u64 .
+end .
+
+fn rect.area output u64 . input s rect .
+do
+  return mul (field s w) (field s h) .
+end .
+
+fn square.area output u64 . input s square .
+do
+  return mul (field s side) (field s side) .
+end .
+
+rem 이 op 은 **어떤 모양이든** 받는다 — `requires shape t` 가 «넓이를 알려 주는 타입만» 이라고 못박는다.
+fn double_area output u64 . input comptime t type . input s t .
+  requires shape t .
+do
+  return mul 2 (method s area) .
+end .
+
+fn demo output u64 .
+do
+  let r rect be make rect do w 2 . h 3 . end .
+  let q square be make square do side 4 . end .
+  return add (double_area rect r) (double_area square q) .
+end .</code></pre><pre class="out">demo() = 44</pre></div><p class="para" id="p1a"><span class="pno">1a</span> 트레이트는 op 을 <strong></strong>여럿<strong></strong> 적을 수 있다. 서명 하나는 op 의 <strong></strong>이름으로 시작<strong></strong>하고 그 op 의 절이 뒤따르며, 다음 이름이 다음 서명을 연다. 서명마다 한 줄에 적는 것이 관례다. 서명의 절은 op 머리와 <strong></strong>같은 차례<strong></strong>를 따른다(<a href="#c6.4.1" class="cref">§6.4.1</a> (3a)) — <code>output</code> 이 맨 앞이다. 적는 op 의 수에는 한도가 없다.</p><p class="para" id="p1b"><p><span class="pno">1b</span> 서명에는 <code>fn</code>·<code>proc</code> 을 적지 <strong></strong>아니한다.<strong></strong> 그 op 이 무엇을 할 수 있는지는 서명의 <code>effects</code> 줄이 정한다.</p><ul><li><code>effects</code> 줄이 없으면 효과가 <strong></strong>없는<strong></strong> op 이다. 이것은 <code>fn</code> 으로도, 효과를 적은 <code>proc</code> 으로도 갖출 수 있다.</li></ul><p>다만 <code>proc</code> 은 <code>effects</code> 줄을 반드시 적어야 한다 — 효과 줄이 없는 <code>proc</code> 은 자기 효과를 <strong></strong>좁히지 않은<strong></strong> 것이므로 효과 없는 서명을 갖추지 못한다(<code>E-TRAIT-EFFECT</code>).</p><ul><li><code>effects</code> 줄이 있으면 갖추는 쪽은 그 효과 <strong></strong>또는 그보다 적은<strong></strong> 효과를 적은 <code>proc</code> 이거나, 효과가 없으면 <code>fn</code> 이다.</li></ul></p><p class="para" id="p2"><span class="pno">2</span> 트레이트 안에서 <code>self</code> 는 그것을 갖출 타입 자신을 가리킨다.</p><p class="para" id="p3"><span class="pno">3</span> 타입이 <code>satisfies</code> 로 트레이트를 적으면, 처리기는 그 목록의 op 이 <strong></strong>정확히 그 시그니처로<strong></strong> 있는지 검사한다. 하나라도 없거나 어긋나면 번역이 거부된다.</p><p class="para" id="p4"><span class="pno">4</span> 어긋나는 갈래는 다섯이다.</p><div class="tbl"><p><b>표 32 — 트레이트를 갖추지 못한 자리</b></p><table><tr><td><strong>진단</strong></td><td><strong>무엇이 어긋났는가</strong></td></tr><tr><td><code>E-TRAIT-UNDEF</code></td><td><code>satisfies</code> 가 <strong></strong>선언되지 않은<strong></strong> 트레이트를 부른다 — 아무것도 가리키지 않는 주장은 아무것도 검사하지 아니한다</td></tr><tr><td><code>E-TRAIT-MISSING</code></td><td>목록의 op 이 없다</td></tr><tr><td><code>E-TRAIT-SIG</code></td><td>op 은 있으나 <strong></strong>매개변수의 수<strong></strong>가 다르다 — 정확히 맞지 않는 트레이트는 계약을 실어 나르지 못한다</td></tr><tr><td><code>E-TRAIT-EFFECT</code></td><td>갖춘 쪽이 트레이트가 적지 <strong></strong>않은 효과<strong></strong>를 가진다. 부르는 쪽은 트레이트의 계약을 보고 판단하므로, 그 계약에 없는 일을 하면 판단이 틀린다</td></tr><tr><td><code>E-TRAIT-RECV</code></td><td><strong></strong>op<strong></strong> 이 트레이트를 갖추겠다고 적었다 — 갖추는 것은 <strong></strong>타입<strong></strong>이다</td></tr></table></div><p class="para" id="p5"><span class="pno">5</span> 트레이트의 op 이 효과 줄에 <code>via self</code> 를 적으면, 갖추는 쪽은 그 op 에 <strong></strong>할당 계열 효과<strong></strong> — <code>alloc</code> · <code>heap</code> · <code>lock</code> · <code>atomic</code> — 를 트레이트보다 더 적을 수 있다. 그 밖의 효과를 더 적는 것은 여전히 <code>E-TRAIT-EFFECT</code> 다. 더 적은 효과는 제네릭 op 이 <code>via &lt;타입 매개변수></code> 로 부르는 쪽까지 나른다(<a href="#c7.1.1" class="cref">§7.1.1</a> (6)).</p><div class="plain"><b>쉬운 말로</b> 트레이트가 하는 일은 「이 타입은 이런 것들을 할 줄 안다」를 <strong></strong>부르는 쪽이 믿을 수 있게<strong></strong> 만드는 것이다. 그래서 이름만 맞고 효과가 다르면 그 믿음이 깨진다 — 효과까지 맞아야 트레이트가 계약을 실어 나른다.</div><div class="ex"><b>예제 (example) — 트레이트를 갖춘다</b><pre><code>module ex_trait .
 
 rem 트레이트는 타입이 갖춰야 할 op 의 목록이다.
-trait shape
+trait shape do
   area output u64 . input s self . effects none .
 end
 
 rem `satisfies` 를 적으면 그 목록을 갖췄는지 검사받는다.
-struct rect
+struct rect do
   satisfies shape .
   w u8 .
   h u8 .
@@ -949,11 +989,11 @@ do
   return mul (widen u64 (field s w)) (widen u64 (field s h)) .
 end</code></pre></div><div class="rejected"><b>거부되는 예제 (rejected) — 갖추겠다고 적고 안 갖추면</b><pre><code>module ex_trait_bad .
 
-trait shape
+trait shape do
   area output u64 . input s self . effects none .
 end
 
-struct rect
+struct rect do
   satisfies shape .     rem 갖추겠다고 적었는데
   w u8 .
   h u8 .
@@ -962,14 +1002,14 @@ end
 rem `rect.area` 를 만들지 않았다</code></pre><p class="diag">진단: <code>E-TRAIT-MISSING</code></p></div><div class="ex"><b>예제 (example) — op 을 여럿 가진 트레이트</b><pre><code>module ex_trait_many .
 
 rem 서명마다 한 줄 — 이름으로 시작하고 `output` 이 맨 앞이다.
-trait shape
+trait shape do
   area output u64 . input s self .
   perimeter output u64 . input s self .
   grow output self . input s self . input k u64 .
   checked_area output u64 . input s self . effects panic .
 end
 
-struct rect
+struct rect do
   satisfies shape .
   w u64 .
   h u64 .
@@ -998,11 +1038,11 @@ do
   return mul (field s w) (field s h) .
 end</code></pre></div><div class="rejected"><b>거부되는 예제 (rejected) — 효과 줄이 없는 proc 으로 효과 없는 서명을 갖추려 한다</b><pre><code>module ex_trait_proc_noeff .
 
-trait shape
+trait shape do
   area output u64 . input s self .
 end
 
-struct rect
+struct rect do
   satisfies shape .
   w u64 .
   h u64 .
@@ -1013,7 +1053,7 @@ do
   return mul (field s w) (field s h) .
 end</code></pre><p class="diag">진단: <code>E-TRAIT-EFFECT</code></p></div><div class="plain"><b>쉬운 말로</b> 트레이트는 <strong>“이 타입은 이런 일을 할 수 있다”</strong> 를 <strong></strong>검사받는 형태로<strong></strong> 적는 방법이다. 주석으로 적으면 코드가 바뀌어도 그대로 남지만, <code>satisfies</code> 는 갖추지 못하는 순간 번역이 거부된다.</div><div class="caution"><b>주의 — 상속이 아니다</b> 트레이트는 타입 사이에 <strong></strong>위아래를 만들지 아니한다.<strong></strong> 어떤 타입이 트레이트를 갖췄다는 것은 <strong>“그 op 들을 갖고 있다”</strong> 는 사실일 뿐이며, 다른 타입의 무엇을 물려받지 않는다. 이 언어에는 상속이 없다.</div></section><section class="subclause" id="c6.11.3"><h3>6.11.3 붙은 op 을 부른다 — method</h3><p class="para" id="p1"><span class="pno">1</span> <code>method</code> 는 값에 붙은 op 을 부르는 폼이다. 모양은 <code>method &lt;값> &lt;마디> … &lt;이름> &lt;인자> … .</code> 이다.</p><p class="para" id="p2"><span class="pno">2</span> 마디와 이름은 <strong></strong>타입을 따라가서<strong></strong> 갈린다. 수신자의 타입에서 마디를 하나씩 내려가다가, 그 타입에 그 이름의 붙은 op 이 있으면 <strong></strong>거기가 이름<strong></strong>이고 그 뒤는 전부 인자다. 그러므로 <code>method o inner area</code> 는 <code>o</code> 의 <code>inner</code> 에 붙은 <code>area</code> 를 부르고, <code>method s plus 5</code> 는 <code>s</code> 에 붙은 <code>plus</code> 를 <code>5</code> 로 부른다.</p><p class="para" id="p3"><span class="pno">3</span> 수신자는 이름일 필요가 없다. 다른 폼의 결과여도 되며, 그때 수신자의 타입은 그 폼의 출력 타입이다 — 그래서 <code>method (method x grow 2) area</code> 가 성립한다.</p><p class="para" id="p4"><span class="pno">4</span> 수신자의 타입을 정할 수 없으면 처리기는 프로그램을 거절한다. 붙은 op 은 <strong></strong>타입으로<strong></strong> 찾는 것이므로, 타입을 모르면 부를 op 도 정해지지 않는다.</p><div class="ex"><b>예제 (example) — 붙은 op 을 부른다</b><pre><code>module ex_method .
 
-struct rect
+struct rect do
   w u64 .
   h u64 .
 end
@@ -1028,7 +1068,7 @@ do
   return mul 2 (method s area) .
 end</code></pre></div><div class="note"><b>참고 (informative)</b> 중위로 적는 표기(<code>s..area</code>) 는 <strong></strong>없다<strong></strong>. 그것은 언어에서 유일하게 오른쪽에서 왼쪽으로 읽히는 자리였고, 다단 수신자를 적을 방법이 없었다. 폼으로 통일하면 호출은 <strong></strong>언제나 이름이 먼저<strong></strong>다.</div></section><section class="subclause" id="c6.11.4"><h3>6.11.4 붙은 op 이 어긋나는 자리</h3><p class="para" id="p1"><span class="pno">1</span> <code>method</code> 는 <strong></strong>수신자와 이름<strong></strong>을 모두 요구한다(<code>E-METHOD-RECV</code>).</p><p class="para" id="p2"><span class="pno">2</span> 수신자의 타입에 그 이름의 붙은 op 이 없으면 거부된다(<code>E-METHOD-UNDEF</code>) — <code>fn &lt;타입>.&lt;이름></code> 으로 선언되어 있어야 한다.</p><div class="caution"><b>주의 —<span style="white-space: pre-wrap">&#x20;</span></b> 붙은 op 은 <strong></strong>이름칸을 나누는 장치<strong></strong>이지 상속이 아니다(<a href="#c6.11.2" class="cref">§6.11.2</a>). 그러므로 없는 이름을 부르면 위로 찾아 올라가는 일이 없고, 그 자리에서 바로 거부된다.</div><div class="rejected"><b>거부되는 예제 (rejected) — 그 타입에 그 이름의 붙은 op 이 없다</b><pre><code>module ex_method_undef .
 
-struct p .
+struct p do
   x u8 .
 end .
 
@@ -1038,6 +1078,29 @@ do
 end</code></pre><p class="diag">진단: <code>E-METHOD-UNDEF</code></p></div></section></section><section class="subclause" id="c6.12"><h3>6.12 한 줄기로 흘리기 — `pipe`</h3><p class="para" id="p1"><span class="pno">1</span> <code>pipe</code> 는 원천(source)의 원소를 하나씩 꺼내 <span class="t">스테이지 (stage)</span> 를 차례로 지나게 하고, <span class="t">종결자 (terminal)</span> 하나로 끝내는 문(statement)이다. 모양은 다음과 같다.</p><div class="shape"><b>문법 틀 (grammar shape) — pipe 문</b><pre><code>pipe &lt;원천> do
   &lt;스테이지> .        rem 없어도 된다. 여럿일 수 있다.
   &lt;종결자> .          rem 정확히 하나.
+end .</code></pre></div><div class="plain"><b>쉬운 말로</b> 슬라이스를 훑는 반복은 거의 언제나 같은 뼈대다 — <strong>인덱스를 두고, 끝인지 보고, 원소를 꺼내 조건을 보고, 무언가를 쌓고, 인덱스를 늘린다.</strong> 그 뼈대를 손으로 쓰면 <strong></strong>하려는 일<strong></strong>(«숫자만 남기고 센다»)이 인덱스와 카운터 사이에 묻히고, 경계를 한 칸 틀리는 실수가 거기서 난다. <code>pipe</code> 는 뼈대를 언어가 맡고, 사람은 <strong></strong>하려는 일만<strong></strong> 줄마다 한 낱말로 적게 한다. 그러면서도 손으로 쓴 반복과 똑같이 한 번만 훑고 중간 배열을 만들지 않는다(<a href="#c6.12.1" class="cref">§6.12.1</a>). 아래 두 op 은 같은 답을 낸다.</div><div class="ex"><b>예제 (example) — 같은 일을 손으로 쓴 반복과 pipe 로 — 둘 다 한 번 훑는다</b><pre><code>module ex_pipe_why .
+
+fn is_digit output bool . input c u8 . do return and (ge c 48) (le c 57) . end .
+
+rem 손으로 쓴 반복 — 카운터·인덱스·조건·증가를 사람이 하나하나 맞춘다.
+fn digits_loop output u64 . input s slice u8 .
+do
+  var n u64 be 0 .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    if is_digit (index s i) . do set n (add n 1) . end .
+    set i (add i 1) .
+  end .
+  return n .
+end .
+
+rem 같은 일을 pipe 로 — «숫자인 것만 남기고, 센다». 하는 일이 줄마다 한 낱말로 보인다.
+fn digits_pipe output u64 . input s slice u8 .
+do
+  return pipe s do
+    filter is_digit .
+    count .
+  end .
 end .</code></pre></div><p class="para" id="p2"><span class="pno">2</span> 스테이지는 일곱이다: <code>filter</code> · <code>map</code> · <code>take</code> · <code>skip</code> · <code>scan</code> · <code>zip</code> · <code>enumerate</code>. 종결자는 다섯이다: <code>collect into</code> · <code>fold</code> · <code>count</code> · <code>any</code> · <code>all</code>. 이 목록 밖의 낱말을 스테이지 자리에 쓰는 것은 적합하지 아니하다(<code>E-PIPE-STAGE</code>).</p><p class="para" id="p3"><span class="pno">3</span> 한 <code>pipe</code> 문은 종결자를 <strong></strong>정확히 하나<strong></strong> 갖는다. 종결자 없이 끝나거나 둘을 두는 것은 적합하지 아니하다.</p><p class="para" id="p4"><span class="pno">4</span> 스테이지의 인자는 <strong></strong>이름 붙은 op 을 가리키는 이름<strong></strong>이다. 이름 없는 함수(람다)는 이 언어에 없으므로, 스테이지 인자로 그 자리에서 만든 함수를 줄 수 없다.</p><p class="para" id="p5"><span class="pno">5</span> 스테이지 op 은 원소 하나만 받는다 — 매개변수가 정확히 하나이고 능력(capability)을 받지 아니한다. 그렇지 않은 op 을 스테이지로 쓰는 것은 적합하지 아니하다(<code>E-FOLD-OP</code>).</p><p class="para" id="p6"><span class="pno">6</span> <code>take</code> 와 <code>skip</code> 의 개수는 번역 시점에 정해진 음이 아닌 값이어야 한다(<a href="#c6.8" class="cref">§6.8</a>). 실행 시점에야 알 수 있는 값을 주는 것은 적합하지 아니하다.</p><section class="subclause" id="c6.12.1"><h3>6.12.1 융합은 최적화가 아니라 의미다</h3><p class="para" id="p1"><span class="pno">1</span> 한 <code>pipe</code> 문은 <strong></strong>한 번의 훑기(one pass)<strong></strong> 로 실행된다. 스테이지 사이에 중간 모음 (intermediate collection)이 만들어지지 아니한다. 이것은 처리기가 시도해 볼 수 있는 <span class="t">최적화 (optimisation)</span> 가 아니라 이 문의 <strong></strong>정의<strong></strong>다.</p><p class="para" id="p2"><span class="pno">2</span> 그러므로 처리기는 중간 모음을 만들지 아니하여야 한다. 만드는 처리기는 적합하지 아니하다.</p><div class="note"><b>참고 (informative)</b> 왜 정의로 두는가. 융합을 최적화로 두면 <strong>“어디까지 융합되는가”</strong> 가 처리기마다 다르고, 쓰는 사람은 <strong></strong>절벽<strong></strong>을 만난다 — 한 줄을 고쳤더니 갑자기 중간 배열이 생기고 느려지는 자리다. 그 절벽은 소스만 봐서는 안 보인다. 여기서는 융합 못 할 연산이 <strong></strong>스테이지 어휘에 아예 없어서<strong></strong>, 사고로 절벽에 떨어질 길이 없다.</div></section><section class="subclause" id="c6.12.2"><h3>6.12.2 필요한 만큼만 읽는다</h3><p class="para" id="p1"><span class="pno">1</span> <code>any</code> 는 참을 내는 첫 원소에서, <code>all</code> 은 거짓을 내는 첫 원소에서 훑기를 멈춘다. 멈춘 뒤의 원소는 읽히지 아니하며, 그 원소에 대한 스테이지도 실행되지 아니한다.</p><p class="para" id="p2"><span class="pno">2</span> <code>take n</code> 은 n 개를 지나보낸 뒤 훑기를 멈춘다.</p><div class="note"><b>참고 (informative)</b> 이 성질이 있어야 끝이 없는 원천을 <code>pipe</code> 로 다룰 수 있다. 멈춤이 의미에 적혀 있지 않으면, 끝없는 원천은 프로그램을 멈추지 않게 만든다.</div><div class="ex"><b>예제 (example) — 스테이지 둘과 종결자 하나 — 한 번의 훑기</b><pre><code>module ex_pipe .
 
 fn over2 output bool . input a u8 . do return gt a 2 . end
@@ -1126,7 +1189,7 @@ do
   return 2 .
 end</code></pre></div><div class="plain"><b>쉬운 말로</b> <code>effects alloc</code> 이 적혀 있는 것에 주의한다. 자리를 얻는 것은 <strong></strong>효과<strong></strong>이므로, 순수한 op(<code>fn</code> 에 <code>effects none</code>)은 영역을 쓸 수 없다. 어디서 메모리가 나오는지가 서명에 적혀 있다는 뜻이다.</div><p class="para" id="p4"><span class="pno">4</span> 영역을 여는 문은 이름과 <strong></strong>종류<strong></strong>를 함께 적는다: <code>region &lt;이름> &lt;종류> do … end</code>. 종류는 닫힌 여덟이다 — <code>stack</code> · <code>frame</code> · <code>arena</code> · <code>static</code> · <code>heap</code> · <code>mmap</code> · <code>disk</code> · <code>device</code>. 그 밖의 낱말은 적합하지 아니하다(<code>E-REGION-KIND</code>).</p><p class="para" id="p4a"><span class="pno">4a</span> 영역 안에서 얻은 값을 그 영역 <strong></strong>밖으로 들고 나가는<strong></strong> 것은 적합하지 아니하다 (<code>E-REGION-ESCAPE</code>). 영역이 닫히면 그 값은 없으므로, 밖에 남은 이름은 없는 것을 가리킨다. 들고 나가는 자리는 <code>return</code>, 영역 밖 이름에 대입하기, 그리고 영역 밖 이름의 <strong></strong>칸이나 원소에<strong></strong> 대입하기(<code>set (field h store) b .</code>)다. 영역의 바이트를 들지 않는 값 — 정수·참거짓처럼 스칼라 타입으로 묶인 것, <code>len</code>·<code>index</code> 처럼 스칼라를 내는 식 — 은 들고 나가지 아니한다.</p><div class="rejected"><b>거부되는 예제 (rejected) — 영역의 슬라이스를 바깥 묶음의 칸에 넣는다</b><pre><code>module ex_region_field .
 
-struct holder . store mut slice u8 . . end .
+struct holder do store mut slice u8 . . end .
 
 proc f output u64 . effects alloc . do
   var h holder be make holder do store (subslice "abcd" 0 0) . end .
@@ -1201,8 +1264,8 @@ do
   return a .
 end</code></pre><p class="diag">진단: <code>E-IMMUTABLE</code></p></div></section><section class="subclause" id="c8.13"><h3>8.13 얼로케이터 — 권한 · 정책 · 상태</h3><dl class="term"><dt>얼로케이터 (allocator)</dt><dd>뿌리에서 받은 바이트나 빌린 바이트를 <strong></strong>작은 자리로 나눠 주는<strong></strong> 값. 이 언어에서는 트레이트 <code>byte_allocator</code> 를 갖춘 actor 다.</dd></dl><p class="para" id="p1"><span class="pno">1</span> 뿌리(<a href="#c8.1" class="cref">§8.1</a> (2a)) 위에서 자리를 나눠 주는 것을 <span class="t">얼로케이터 (allocator)</span> 라 한다. 얼로케이터는 언어의 특별한 장치가 아니라 <strong></strong>트레이트 <code>byte_allocator</code> 를 갖춘 actor<strong></strong> 다. 그 말에는 세 가지가 있다.</p><div class="tbl"><p><b>표 49 — 얼로케이터를 이루는 셋</b></p><table><tr><td><strong>층</strong></td><td><strong>언제 있나</strong></td><td><strong>무엇인가</strong></td></tr><tr><td>권한</td><td>번역할 때만</td><td>뿌리에 닿아도 되는가 — <code>cap allocator</code> · <code>cap heap</code>(⟦§7.2⟧)</td></tr><tr><td>정책</td><td>번역할 때(타입)</td><td>어떤 규칙으로 깎는가 — <code>byte_allocator</code> 를 갖춘 <strong></strong>타입<strong></strong></td></tr><tr><td>상태</td><td>실행 중</td><td>커서·받침 바이트 — 그 타입의 <strong></strong>값<strong></strong></td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> actor 의 상태에 권한 칸(<code>root cap heap .</code> · <code>root cap allocator .</code>)을 둘 수 있다. 그 칸으로 <code>alloc_bytes</code> 를 부르면 그 권한의 뿌리에서 깎는다. 권한은 실행 중 값이 아니므로 그 칸은 크기가 없다.</p><p class="para" id="p3"><span class="pno">3</span> 권한 칸을 가진 actor 는 <strong></strong>같은 종류의 권한이 보이는 op<strong></strong> — 그 권한을 입력으로 받았거나, 스스로 같은 종류의 칸을 가진 actor 의 op — 에서만 띄울 수 있다(<code>E-CAP-FORGE</code>). 권한 없는 곳에서 한 줄로 뿌리에 닿는 길을 지어낼 수 없게 하기 위해서다.</p><p class="para" id="p4"><span class="pno">4</span> 운영체제가 없는 기계에서는 <code>cap heap</code> 칸을 가진 actor 와 <code>heap</code> 효과를 적은 actor 의 op 이 거부된다 (<code>E-HEAP-NOHOST</code>) — 단, 그 단위 어디서도 띄우지 않는 actor 는 묻지 아니한다.</p><p class="para" id="p5"><span class="pno">5</span> 표준 라이브러리는 기본 얼로케이터 둘을 이 모양으로 낸다: <code>allocs.fixed_bytes</code>(고정 창) · <code>allocs.heap_bytes</code>(힙). 그래서 기본 얼로케이터와 사용자가 지은 얼로케이터가 <strong></strong>같은 자리<strong></strong>에 들어간다 — 받는 쪽(<code>input comptime a type . input al a . requires allocs.byte_allocator a .</code>)은 그 둘을 가리지 아니한다.</p><p class="para" id="p6"><span class="pno">6</span> <code>heap</code> 효과는 «뿌리가 자란다» 만 뜻한다. 자리를 <strong></strong>낱낱이 돌려주는<strong></strong> 것은 정책의 일이며, 그런 얼로케이터는 트레이트 <code>freeing_allocator</code> 를 갖춘다 — <code>byte_allocator</code> 의 op 에 더해 <code>release</code> 가 조각을 받아 돌려받았는지를 참거짓으로 답한다. 그래서 운영체제가 없는 기계에서도 고정 창 위의 낱낱 반환 얼로케이터를 쓸 수 있다.</p><p class="para" id="p7"><span class="pno">7</span> 얼로케이터가 «내가 마지막에 준 그 조각인가» 를 물을 때는 <strong></strong>길이가 아니라 정체<strong></strong>로 묻는다: <code>grow</code> 와 <code>release</code> 는 조각 자체를 받고, 내장 <code>same_slice a b</code> 로 두 슬라이스가 같은 자리에서 시작하고 길이가 같은지 본다. 길이만으로 알아보면 같은 길이의 남의 조각을 늘리거나 돌려받는다. <code>same_slice</code> 는 주소를 밖에 내지 않는다 — 답은 참거짓이다.</p><div class="rejected"><b>거부되는 예제 (rejected) — 권한 없이 권한 칸을 가진 actor 를 띄운다</b><pre><code>module ex_cap_forge .
 
-actor grower .
-  state .
+actor grower do
+  state do
     root cap heap .
   end .
   proc take output u64 . input n u64 . effects heap . do
@@ -1217,14 +1280,14 @@ proc f output u64 . effects heap state . do
   return send g take 8 .
 end .</code></pre><p class="diag">진단: <code>E-CAP-FORGE</code></p></div></section><section class="subclause" id="c8.14"><h3>8.14 객체마다 얼로케이터를 고르기 — `using`</h3><p class="para" id="p1"><span class="pno">1</span> op 은 머리에 <code>using &lt;이름> &lt;타입> .</code> 절을 적어 <strong></strong>자기가 깎아 쓰는 얼로케이터<strong></strong>를 밝힐 수 있다. <code>&lt;타입></code> 은 <code>byte_allocator</code> 를 갖춘 타입이거나, 그런 경계(<code>requires allocs.byte_allocator a .</code>)를 가진 comptime 타입 매개변수다. 본문에서 <code>&lt;이름></code> 은 평범한 이름이다.</p><p class="para" id="p1a"><span class="pno">1a</span> 한 op 은 <code>using</code> 절을 <strong></strong>하나만<strong></strong> 적는다(<code>E-USING-DUP</code>). 절은 이름과 타입 두 낱말이며, 바인딩의 <code>using</code> 은 <code>be</code> 바로 앞에 출처 이름 하나를 적는다 — 모양이 어긋나면 <code>E-USING-FORM</code> 이다.</p><p class="para" id="p2"><span class="pno">2</span> <code>using</code> 절은 <strong></strong>입력이 아니다.<strong></strong> 부르는 쪽은 그 얼로케이터를 위치로 적지 않으며, <code>&lt;타입></code> 이 타입 매개변수이면 그 타입 인자도 적지 않는다 — 얼로케이터의 타입에서 온다.</p><p class="para" id="p3"><span class="pno">3</span> 부르는 쪽은 바인딩에서 얼로케이터를 고른다: <code>let &lt;이름> &lt;타입> using &lt;출처> be &lt;식> .</code> 고른 출처는 그 초기식의 <strong></strong>머리 호출<strong></strong>에 들어간다. 머리 호출이 <code>using</code> 절을 갖지 않은 op 이면 적합하지 아니하다 (<code>E-ALLOC-USING-UNUSED</code>) — 자기 얼로케이터를 이미 든 객체는 부르는 쪽의 선택을 받지 아니한다.</p><p class="para" id="p4"><span class="pno">4</span> 고르지 않으면 다음 차례로 기본값이 정해진다. 처음 맞는 것을 쓴다.</p><div class="tbl"><p><b>표 50 — 기본값을 정하는 차례</b></p><table><tr><td><strong>차례</strong></td><td><strong>출처</strong></td></tr><tr><td>1</td><td>바인딩의 <code>using &lt;출처></code></td></tr><tr><td>2</td><td>이 op 자신의 <code>using</code> 절 이름(타입이 맞으면)</td></tr><tr><td>3</td><td>이 op 의 입력·바인딩 가운데 타입이 맞는 <strong></strong>하나뿐인<strong></strong> 것</td></tr><tr><td>없음</td><td><code>E-ALLOC-NOSOURCE</code> — 보이는 얼로케이터가 없다</td></tr><tr><td>둘 이상</td><td><code>E-ALLOC-AMBIGUOUS</code> — 짐작하지 않는다. 바인딩에 적어라</td></tr></table></div><p class="para" id="p5"><span class="pno">5</span> 기본값은 <strong></strong>op 의 경계를 넘지 아니한다.<strong></strong> 출처는 그 op 의 서명과 본문에서만 오고, 부른 쪽의 얼로케이터가 저절로 흘러들지 않는다. 필드도 출처로 세지 아니한다. 곧 <strong></strong>전역 얼로케이터는 없다.<strong></strong></p><p class="para" id="p5a"><span class="pno">5a</span> <code>using</code> 은 <strong></strong>나무 위에서<strong></strong> 풀린다 — 처리기가 arity 로 폼을 세운 뒤, 단형화 앞이다. 나무를 세우지 않는 대조 방식으로 검사하면 풀리지 않은 절이 남으며, 처리기는 그것을 조용히 입력 하나 모자란 op 으로 검사하지 않고 <code>E-USING-UNRESOLVED</code> 로 말한다.</p><p class="para" id="p6"><span class="pno">6</span> <code>alloc_bytes capacity &lt;n></code> 처럼 뿌리 피연산자를 생략할 수 있는 것은 <strong></strong>영역 블록 안<strong></strong>뿐이며, 그때 가장 안쪽 영역이 그 자리에 든다. 권한(<code>cap allocator</code>·<code>cap heap</code>)은 생략하지 못하고 이름으로 적는다 — 이름 없이 뿌리에 닿는 길을 만들지 않기 위해서다. 뿌리를 가리키지 않는 <code>alloc_bytes</code> — 영역 밖에서 생략했거나, 권한 입력 · 영역 매개변수 · 열린 영역 블록 · 권한 칸 가운데 어느 것도 아닌 이름을 댄 것 — 은 적합하지 아니하다(<code>E-ALLOC-NOROOT</code>). <code>stack_new</code> 의 뿌리는 영역 매개변수이며 생략하지 못한다(같은 코드).</p><p class="para" id="p6a"><span class="pno">6a</span> 크기는 <code>capacity</code> 표식 뒤에 적는다: <code>alloc_bytes &lt;뿌리> capacity &lt;n></code> · <code>stack_new &lt;영역> capacity &lt;n></code>. 표식이 없으면 적합하지 아니하다(<code>E-ALLOC-CAPACITY-MARK</code>) — 생략형과 이름을 댄 형을 가르는 것이 그 표식이다.</p><div class="plain"><b>쉬운 말로</b> 얼로케이터는 값이다 — 커서와 받침 바이트는 실행 중에 어딘가 살아야 한다. <code>using</code> 은 그 값을 <strong></strong>숨기지 않고<strong></strong> 적는 자리를 옮긴 것이다: 받는 쪽은 서명에 «나는 이 얼로케이터에서 깎는다» 를 적고, 부르는 쪽은 객체를 만드는 줄에 «이것으로» 를 적는다. 둘 사이의 기계어는 인자 하나를 넘기는 것과 같다.</div><div class="ex"><b>예제 (example) — 한 op 에서 두 얼로케이터를 번갈아 쓴다</b><pre><code>module ex_using .
 
-trait carver .
+trait carver do
   reserve output u64 . input s self . input n u64 . effects state .
 end .
 
 rem 정책 둘 — 하나는 요청만큼, 하나는 두 배씩 센다
-actor exact .
+actor exact do
   satisfies carver .
-  state .
+  state do
     used u64 .
   end .
   proc reserve output u64 . input n u64 . effects state . do
@@ -1233,9 +1296,9 @@ actor exact .
   end .
 end .
 
-actor doubled .
+actor doubled do
   satisfies carver .
-  state .
+  state do
     used u64 .
   end .
   proc reserve output u64 . input n u64 . effects state . do
@@ -1257,13 +1320,13 @@ proc main output u8 . effects state . do
   return narrow u8 (add x y) .
 end .</code></pre></div><div class="rejected"><b>거부되는 예제 (rejected) — 보이는 얼로케이터가 둘인데 고르지 않았다</b><pre><code>module ex_using_ambiguous .
 
-trait carver .
+trait carver do
   reserve output u64 . input s self . input n u64 . effects state .
 end .
 
-actor exact .
+actor exact do
   satisfies carver .
-  state .
+  state do
     used u64 .
   end .
   proc reserve output u64 . input n u64 . effects state . do
@@ -1283,7 +1346,7 @@ proc main output u8 . effects state . do
   return narrow u8 x .
 end .</code></pre><p class="diag">진단: <code>E-ALLOC-AMBIGUOUS</code></p></div></section></section><section class="clause" id="c9"><h2>9 라이브러리 (Library)</h2><p class="para" id="p1"><span class="pno">1</span> 이 조항은 개별 라이브러리 함수의 목록을 정하지 아니한다. 정하는 것은 <strong></strong>라이브러리가 지켜야 할 규칙<strong></strong>이다. 그 규칙을 지키는 한, 어떤 라이브러리든 이 언어의 보장 안에 있다.</p><div class="plain"><b>쉬운 말로</b> C 표준은 언어와 라이브러리를 한 문서에 담고 함수 하나하나를 정한다. 로우엔트가 그러지 않는 이유는, 라이브러리가 언어보다 훨씬 빨리 바뀌기 때문이다. 함수 목록을 여기 적으면 이 문서가 곧 낡는다. 대신 <strong></strong>규칙<strong></strong>을 적으면 낡지 않는다.</div><section class="subclause" id="c9.1"><h3>9.1 라이브러리도 같은 언어로 쓰인다</h3><p class="para" id="p1"><span class="pno">1</span> 표준 라이브러리의 <strong></strong>이식 계층<strong></strong>은 이 문서가 정한 언어로 쓰이며, 특권을 갖지 아니한다. 그 부분은 저자가 직접 쓴 코드와 같은 규칙을 받는다.</p><p class="para" id="p1a"><span class="pno">1a</span> 다만 라이브러리 전체가 한 층인 것은 아니다. 바깥 세상에 닿는 자리에는 좁은 잎(leaf)이 있고, 그것은 <code>unsafe</code> 나 <code>extern</code> 을 써서 <strong></strong>신뢰 경계<strong></strong>(<a href="#c4.4" class="cref">§4.4</a>)를 넘는다. 그 경계는 좁게 유지되며 어디인지 소스에 적혀 있다.</p><p class="para" id="p2"><span class="pno">2</span> 곧 라이브러리의 op 도 계약을 적고(<a href="#c6.4" class="cref">§6.4</a>), 효과를 선언하며(<a href="#c7.1" class="cref">§7.1</a>), 권한을 인자로 받는다(<a href="#c7.2" class="cref">§7.2</a>).</p><div class="note"><b>참고 (informative)</b> 라이브러리에 특권이 없다는 것은 검사 가능성의 문제다. 라이브러리만 쓸 수 있는 숨은 통로가 있으면, 그 통로를 지나는 순간 프로그램의 보장이 끊긴다.</div></section><section class="subclause" id="c9.2"><h3>9.2 라이브러리가 지켜야 할 것</h3><p class="para" id="p1"><span class="pno">1</span> 가) <strong></strong>실패를 값으로 돌려준다.<strong></strong> 특별한 값(−1 따위)으로 실패를 나타내지 아니한다 (<a href="#c6.2.8" class="cref">§6.2.8</a>).</p><p class="para" id="p2"><span class="pno">2</span> 나) <strong></strong>없애는 일이 실패할 수 있으면 그것을 숨기지 아니한다<strong></strong>(<a href="#c8.5" class="cref">§8.5</a>).</p><p class="para" id="p3"><span class="pno">3</span> 다) <strong></strong>권한을 스스로 지어내지 아니한다.<strong></strong> 필요한 권한은 인자로 받는다.</p><p class="para" id="p4"><span class="pno">4</span> 라) <strong></strong>효과를 정직하게 선언한다.<strong></strong> 안쪽에서 부르는 것의 효과까지 포함한다.</p><div class="ex"><b>예제 (example) — 라이브러리도 같은 규칙을 지킨다</b><pre><code>module ex_lib .
 
-enum parse_error
+enum parse_error do
   too_short
 end
 
@@ -1295,8 +1358,8 @@ do
   return ok (index data 0) .
 end</code></pre></div><div class="plain"><b>쉬운 말로</b> 이 넷은 새 규칙이 아니라 <strong></strong>이미 정한 규칙을 라이브러리도 지킨다<strong></strong>는 말이다. 라이브러리라고 예외를 두면, 그 라이브러리를 쓰는 순간 프로그램의 보장이 끊긴다.</div></section><section class="subclause" id="c9.3"><h3>9.3 무엇이 언어이고 무엇이 라이브러리인가</h3><p class="para" id="p1"><span class="pno">1</span> <a href="#c6.3.3" class="cref">§6.3.3</a> 의 내장 연산은 <strong></strong>언어<strong></strong>다. 이름이 고정되어 있고 저자가 가릴 수 없다.</p><p class="para" id="p2"><span class="pno">2</span> 그 밖의 모든 것은 라이브러리이며, 모듈을 가져와 쓴다.</p><p class="para" id="p3"><span class="pno">3</span> 어떤 기능이 언어에 들어가려면 다음을 만족해야 한다 — 라이브러리로는 표현할 수 없거나, 표현하면 비용이 숨는 경우.</p><p class="para" id="p4"><span class="pno">4</span> 언어와 라이브러리 사이에는 한 층이 더 있다 — <span class="t">리프 (leaf)</span> 다.</p><dl class="term"><dt>리프 (leaf)</dt><dd>운영체제나 하드웨어에 닿는 가장 얇은 조각. 로우엔트로는 쓸 수 없으므로 처리기가 제공한다. 리프는 <strong></strong>얇아야<strong></strong> 한다 — 로우엔트로 쓸 수 있는 것은 리프가 아니라 라이브러리다.</dd></dl><p class="para" id="p5"><span class="pno">5</span> 어떤 조각이 리프 자격을 갖는지는 다음 물음이 가른다 — <strong>“이것을 로우엔트로 쓸 수 있는가.”</strong> 쓸 수 있으면 라이브러리다. <strong></strong>편의는 리프 자격이 되지 아니한다.<strong></strong></p><div class="tbl"><p><b>표 51 — 세 층</b></p><table><tr><td><strong>층</strong></td><td><strong>누가 만드나</strong></td><td><strong>자격</strong></td></tr><tr><td>언어</td><td>이 문서</td><td>라이브러리로 표현할 수 없거나, 표현하면 비용이 숨는다</td></tr><tr><td>리프</td><td>처리기</td><td>운영체제·하드웨어에 닿는다. 로우엔트로 쓸 수 없다</td></tr><tr><td>라이브러리</td><td>누구나</td><td>나머지 전부. 로우엔트로 쓴다</td></tr></table></div><div class="plain"><b>쉬운 말로</b> 예를 들어 「파일을 열어 정수 핸들을 받는 것」은 커널에 닿으므로 리프다. 그 핸들을 <strong></strong>잊을 수 없는 값<strong></strong>으로 감싸는 것은 로우엔트로 쓸 수 있으므로 라이브러리다. 「파일을 통째로 읽어 주는 편의 함수」도 라이브러리다 — 편해서 리프가 되지는 않는다.</div><div class="caution"><b>주의 — 편의는 언어에 들어가는 이유가 되지 아니한다</b> <strong>“이렇게 쓰면 편하다”</strong> 는 라이브러리의 일이다. 언어에 낱말을 더하면 그 낱말은 모든 프로그램이 외워야 하는 것이 된다(<a href="#c6.1.2" class="cref">§6.1.2</a>). 그래서 언어는 <strong></strong>표현할 수 없는 것<strong></strong>만 받아들인다.</div></section><section class="subclause" id="c9.4"><h3>9.4 얼마나 익었는가 — 성숙도의 사다리</h3><p class="para" id="p1"><span class="pno">1</span> 라이브러리 모듈은 저마다 <strong></strong>성숙도<strong></strong>를 적는다. 칸은 넷이며, 위 칸은 아래 칸의 의무를 <strong></strong>모두 포함한다<strong></strong>.</p><div class="tbl"><p><b>표 52 — 성숙도의 칸과 그 의무</b></p><table><tr><td><strong>칸</strong></td><td><strong>그 칸이 지는 의무</strong></td></tr><tr><td><code>experimental</code></td><td>성숙도가 <strong></strong>적혀 있다<strong></strong>. 그 이상은 없다 — 그래서 실험이다</td></tr><tr><td><code>incubating</code></td><td>＋ 주인이 되는 결정 문서가 <strong></strong>실제로 있다<strong></strong></td></tr><tr><td><code>standard</code></td><td>＋ 사람이 읽는 설명이 있고, 회귀 증인이 그 모듈을 <strong></strong>이름으로<strong></strong> 부른다</td></tr><tr><td><code>deprecated</code></td><td>＋ 무엇으로 갈아타야 하는지 적혀 있다</td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> 적은 칸의 의무를 지키지 못하는 모듈은 적합하지 아니하다. 칸을 <strong></strong>올리는 것<strong></strong>은 의무를 갖춘 뒤의 일이며, 갖추지 못했으면 낮은 칸에 그대로 두어야 한다.</p><div class="note"><b>참고 (informative)</b> <strong></strong>사다리의 값어치는 위 칸이 아니라 아래 칸에 있다.<strong></strong> <code>experimental</code> 이라 적는 것은 <strong>“아직 믿지 말라”</strong> 를 <strong></strong>소스에<strong></strong> 적는 일이고, 그 한 줄이 쓰는 사람에게 <strong>“이것에 기대어 설계해도 되는가”</strong> 를 답해 준다. 칸이 없으면 모든 모듈이 똑같아 보이고, 그러면 <strong></strong>가장 익지 않은 것이 가장 익은 것처럼<strong></strong> 읽힌다.</div><div class="note"><b>참고 (informative)</b> 칸은 <strong></strong>약속의 크기<strong></strong>이지 품질의 등수가 아니다. 잘 만든 실험 모듈이 허술한 표준 모듈보다 나을 수 있다 — 다른 것은 <strong>“바뀌지 않는다고 얼마나 말했는가”</strong> 다.</div></section><section class="subclause" id="c9.5"><h3>9.5 무엇이 표준 라이브러리에 들어오는가</h3><p class="para" id="p1"><span class="pno">1</span> 라이브러리에 들어오는 것은 <strong></strong>있어서<strong></strong>가 아니라 <strong></strong>증거로<strong></strong> 들어온다. 다음 여섯이 들어옴을 가르는 잣대다.</p><div class="tbl"><p><b>표 53 — 라이브러리 헌장</b></p><table><tr><td><strong>잣대</strong></td><td><strong>무엇을 뜻하나</strong></td></tr><tr><td>이 언어로 쓸 수 있으면 이 언어로 쓴다</td><td>처리기 안의 잎(leaf)이 되는 것은 <strong></strong>바깥 권위를 쓰거나<strong></strong> 이 언어가 표현하지 못하는 일일 때뿐이다. <strong></strong>편함은 근거가 아니다<strong></strong></td></tr><tr><td>시그니처가 비용과 권한의 장부다</td><td>효과·권한·부르는 쪽의 저장·할당·소유·완료·기계 제약이 <strong></strong>경계에서 보여야<strong></strong> 한다</td></tr><tr><td>셈과 권위를 가른다</td><td>꼴 짓기와 내보내기, 해석과 파일 열기, 난수의 다음 걸음과 엔트로피 얻기, 규약 부호화와 실어 나르기는 <strong></strong>각각 다른 것<strong></strong>이다</td></tr><tr><td>자리는 여러 축으로 가른다</td><td>권위·저장·실행 등급(⟦§10.8⟧)·프로파일(⟦§10.7⟧)은 <strong></strong>하나의 사다리로 눌러 담지 아니한다<strong></strong></td></tr><tr><td>안에 있는 것은 작게 둔다</td><td>이식되는 바탕과 얇게 감사된 host 어댑터까지. 큰 바깥 의존·정책이 무거운 설비·아직 연구인 표면은 들이지 아니한다</td></tr><tr><td>모듈마다 증거가 있다</td><td>지지 경계를 선언하고, 단위·음성·오라클·실패·프로파일 관문을 갖춘다</td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> 이 문서는 라이브러리의 <strong></strong>목록을 적지 아니한다.<strong></strong> 무엇이 있는지는 소스에서 매번 다시 세어 내는 원장이 권위이며, 이 문서가 그것을 베끼면 <strong></strong>베낀 순간부터 갈라진다.<strong></strong></p><div class="plain"><b>쉬운 말로</b> 헌장이 목록을 겸하면, 아직 제안인 것이 표에 실렸다는 이유만으로 <strong></strong>이미 있는 것처럼<strong></strong> 보이게 된다. 실제로 그런 일이 있었다 — 있지도 않은 API 셋이 표에 있다는 이유로 사실로 읽혔다. 그래서 이 절은 <strong></strong>무엇이 들어오는가<strong></strong>만 정하고, <strong></strong>무엇이 들어와 있는가<strong></strong>는 세는 쪽에 맡긴다.</div></section></section><section class="clause" id="c10"><h2>10 동시성 (Concurrency)</h2><p class="para" id="p1"><span class="pno">1</span> 이 조항은 여러 일이 <strong></strong>함께 진행되는<strong></strong> 자리를 정한다. 동시성은 이 언어에서 특별한 기능이 아니라, <a href="#c7" class="cref">§7</a> 이 정한 효과 규칙이 그대로 적용되는 또 하나의 자리다.</p><section class="subclause" id="c10.1"><h3>10.1 동시성도 효과다</h3><p class="para" id="p1"><span class="pno">1</span> 다른 실행 흐름을 만들거나 그것의 진행을 기다리는 일은 효과다. <code>wait</code> 와 <code>concurrent</code> 가 그것이며(<a href="#c7.1" class="cref">§7.1</a>), 계약에 적어야 한다.</p><p class="para" id="p2"><span class="pno">2</span> <code>wait</code> 와 <code>concurrent</code> 를 가르는 기준은 <strong></strong>누가 깨워 주는가<strong></strong>이다.</p><div class="tbl"><p><b>표 54 — 기다림의 두 갈래</b></p><table><tr><td><strong>효과</strong></td><td><strong>뜻</strong></td></tr><tr><td><code>wait</code></td><td>중단될 수 있다. 깨우는 것이 <strong></strong>같은 프로그램의 다른 태스크가 아니다<strong></strong>(커널·장치가 깨운다)</td></tr><tr><td><code>concurrent</code></td><td><strong></strong>동료가 돌아야<strong></strong> 끝난다. 그것을 돌려 줄 실행기가 있어야 한다</td></tr></table></div><div class="plain"><b>쉬운 말로</b> 예를 들어 파일에서 자료가 오기를 기다리는 것은 <code>wait</code> 다 — 깨우는 것이 같은 프로그램의 다른 태스크가 아니라 바깥이기 때문이다.</div><div class="note"><b>참고 (informative)</b> 이 구별이 왜 중요한가: 운영체제가 없는 작은 장치에는 「동료를 돌려 주는 실행기」가 없을 수 있다. 그때 <code>wait</code> 만 쓰는 프로그램은 그대로 돌지만 <code>concurrent</code> 를 쓰는 프로그램은 못 돈다. 효과에 적혀 있으므로 <strong></strong>번역 시점에<strong></strong> 알 수 있다.</div></section><section class="subclause" id="c10.2"><h3>10.2 액터</h3><p class="para" id="p1"><span class="pno">1</span> <span class="t">액터 (actor)</span> 는 자기 상태를 가진 실행 단위다. 상태는 액터 안에만 있으며, 바깥에서 직접 건드릴 수 없다.</p><p class="para" id="p2"><span class="pno">2</span> 액터 안의 op 도 <a href="#c6.4.1" class="cref">§6.4.1</a> 의 갈래를 따른다 — 상태를 고치면 <code>proc</code> 이고 <code>effects state</code> 를 적어야 하며, 읽기만 하면 <code>fn</code> 이다.</p><p class="para" id="p3"><span class="pno">3</span> 상태를 고치면서 순수하다고 선언하면 번역이 거부된다.</p><p class="para" id="p4"><span class="pno">4</span> 액터의 op 이 <code>panic</code>(<a href="#c6.5.9" class="cref">§6.5.9</a>) 하면 그 액터는 <strong></strong>다시 세워질 수 있다.<strong></strong> 그때 그 액터의 상태는 처음으로 돌아가고 그 메시지가 다시 처리된다. 되살아나는 것은 <strong></strong>자기 상태뿐<strong></strong>이며, 다른 액터는 건드리지 아니한다.</p><p class="para" id="p5"><span class="pno">5</span> 언제까지 다시 세울지는 <code>failure &lt;정책> .</code> 절이 정한다. 정책은 다음 셋이 전부다.</p><div class="tbl"><p><b>표 55 — 액터의 실패 정책 — 닫힌 집합 셋</b></p><table><tr><td><strong>정책</strong></td><td><strong>뜻</strong></td></tr><tr><td><code>restart max &lt;수> [within &lt;수> &lt;단위>]</code></td><td>그 수만큼 다시 세운다. 다 쓰면 위로 넘긴다</td></tr><tr><td><code>never</code></td><td>다시 세우지 아니한다 — 처음 터질 때 바로 위로 넘긴다</td></tr><tr><td><code>always</code></td><td>셈하지 아니하고 계속 다시 세운다</td></tr></table></div><p class="para" id="p5b"><span class="pno">5b</span> <code>within</code> 의 단위는 닫힌 셋이며, 하나와 여럿을 둘 다 받는다 — <code>second</code>/<code>seconds</code> · <code>minute</code>/<code>minutes</code> · <code>hour</code>/<code>hours</code>. 그 밖의 낱말은 적합하지 아니하다.</p><div class="note"><b>참고 (informative)</b> 하나와 여럿을 둘 다 받는 까닭은 읽기 위해서다 — <code>within 1 second</code> 와 <code>within 5 seconds</code> 는 사람이 쓰는 대로 적힌다. 이것은 <strong></strong>같은 것을 말하는 두 번째 방법<strong></strong>(<a href="#c7.1.1" class="cref">§7.1.1</a>)이 아니다: 뜻이 하나이고 철자가 수에 따라 갈릴 뿐이며, 처리기는 둘을 같은 수로 읽는다.</div><p class="para" id="p5a"><span class="pno">5a</span> 실패 정책은 한 액터에 <strong></strong>하나<strong></strong>다(<code>E-ACTOR-FAILURE</code>). 편지함 정책도 그렇다 (<code>E-ACTOR-MAILBOX</code>, <a href="#c10.5" class="cref">§10.5</a>). 정책이 둘이면 어느 것이 서는지를 <strong></strong>아무도 말할 수 없고<strong></strong>, 그 답은 처리기의 속사정이 된다.</p><p class="para" id="p6"><span class="pno">6</span> 다 쓰고도 터지면 그 실패는 <strong></strong>위로 넘어간다.<strong></strong> 조용히 멈추어 있는 액터를 남기지 아니한다.</p><p class="para" id="p7"><span class="pno">7</span> 다시 세우는 것은 <code>panic</code> 에만 해당한다. 계약이 깨진 것(<a href="#c6.4" class="cref">§6.4</a>)은 다시 세우지 아니한다 — 그것은 프로그램이 스스로 적은 약속을 어긴 것이므로 다시 해도 같다.</p><div class="plain"><b>쉬운 말로</b> 왜 「터지게 두는가」. 다시 세우는 쪽이 나은 실패가 있다 — 상태가 어쩌다 이상해진 경우다. 그런 실패를 하나하나 손으로 되돌리는 코드는 길고, 길면 그 코드 자체가 틀린다. 상태를 처음으로 돌리는 것은 <strong></strong>짧고 언제나 맞는 복구<strong></strong>다.</div><div class="ex"><b>예제 (example) — 액터</b><pre><code>module ex_actor .
 
-actor counter
-  state
+actor counter do
+  state do
     value u64 .
   end
 
@@ -1314,8 +1377,8 @@ actor counter
   end
 end</code></pre></div><div class="rejected"><b>거부되는 예제 (rejected) — 상태를 고치면서 순수하다고 선언</b><pre><code>module ex_actor_bad .
 
-actor counter
-  state
+actor counter do
+  state do
     value u64 .
   end
 
@@ -1326,8 +1389,8 @@ actor counter
   end
 end</code></pre><p class="diag">진단: <code>E-EFFECT-PURITY</code></p></div></section><section class="subclause" id="c10.3"><h3>10.3 실행 흐름 만들기</h3><p class="para" id="p1"><span class="pno">1</span> <code>spawn</code> 은 새 실행 흐름을 만든다. 만드는 일은 효과이며 계약에 적어야 한다.</p><p class="para" id="p2"><span class="pno">2</span> 만든 흐름이 <strong></strong>끝나기를 기다리는지<strong></strong>, 아니면 떼어 놓는지가 효과로 갈린다 — 떼어 놓으면 <code>detach</code> 다.</p><p class="para" id="p2a"><span class="pno">2a</span> <code>spawn &lt;op> [인자…]</code> 는 그 흐름을 가리키는 <strong></strong>핸들<strong></strong>을 낸다. 핸들을 받지 아니하고 문장으로만 쓰면 그 흐름은 떼어 놓은 것이다.</p><p class="para" id="p2b"><span class="pno">2b</span> <code>await &lt;핸들></code> 은 그 흐름이 끝날 때까지 기다렸다가 결과를 낸다. 기다리는 동안 다른 흐름이 나아간다 — 기다림이 기계를 멈추지 아니한다.</p><p class="para" id="p2c"><span class="pno">2c</span> 끝날 수 없는 것을 기다리면 프로그램이 멈춘다. 처리기는 그 자리를 말하여야 한다.</p><div class="note"><b>참고 (informative)</b> 기다림이 효과인 까닭. <code>await</code> 는 값을 셈하지 아니하고 <strong></strong>시간을 쓴다<strong></strong> — 부르는 쪽은 그 값을 예산에 넣어야 한다. 그래서 순수한 op 은 기다릴 수 없다(<a href="#c7.3" class="cref">§7.3</a>).</div><p class="para" id="p3"><span class="pno">3</span> <code>spawn actor</code> 는 액터를 만들고, <code>send</code> 는 그 액터에 메시지를 보낸다. 액터는 메시지를 <strong></strong>한 번에 하나씩<strong></strong> 처리한다.</p><p class="para" id="p3a"><span class="pno">3a</span> 메시지에 값을 실어 보낼 수 있다 — <code>send &lt;액터> &lt;메시지> &lt;값>…</code> 처럼 메시지 이름 뒤에 <strong></strong>나란히<strong></strong> 적는다. 받는 쪽에서 액터 인스턴스는 <strong></strong>첫 매개변수처럼<strong></strong> 다루어지며, 적은 값들이 그 뒤를 잇는다.</p><p class="para" id="p3b"><span class="pno">3b</span> 소유를 가진 값을 보내면 그 소유가 <strong></strong>넘어간다.<strong></strong> 보낸 쪽은 그 값을 더 쓸 수 없으며, 쓰면 번역이 거부된다(<a href="#c8.5" class="cref">§8.5</a>).</p><div class="plain"><b>쉬운 말로</b> 왜 넘기는가. 두 흐름이 같은 값을 함께 들고 있으면 경합이 생긴다. 소유가 메시지로만 옮겨 다니면 어느 순간에도 그 값을 만질 수 있는 흐름은 하나뿐이고, 그러면 경합은 <strong></strong>일어날 수 없다<strong></strong> — 막는 것이 아니라 있을 자리가 없다.</div><div class="ex"><b>예제 (example) — 액터를 만들고 메시지를 보낸다</b><pre><code>module ex_spawn .
 
-actor counter
-  state
+actor counter do
+  state do
     value u64 .
   end
 
@@ -1356,26 +1419,25 @@ use &lt;모듈이름> .
 type &lt;이름> &lt;타입> .
 newtype &lt;이름> &lt;타입> .
 
-struct &lt;이름>
+struct &lt;이름> do
   &lt;칸이름> &lt;타입> .
-end
+end .
 
-enum &lt;이름>
-  &lt;갈래이름>
-end
+enum &lt;이름> do
+  &lt;갈래이름> .
+end .
 
 export fn &lt;이름> output &lt;타입> . input &lt;이름> &lt;타입> .
-  effects none .
   requires &lt;조건> .
   ensures &lt;조건> .
 do
   &lt;문장들>
-end
+end .
 
-proc &lt;이름> output &lt;타입> . effects &lt;효과들> .
+proc &lt;이름> output &lt;타입> . input &lt;이름> &lt;타입> . effects &lt;효과들> .
 do
   &lt;문장들>
-end</code></pre></div></section><section class="subclause" id="cA.3"><h3>A.3 문장</h3><div class="shape"><b>문법 틀 (grammar shape) — 문장</b><pre><code>let &lt;이름> &lt;타입> be &lt;식> .
+end .</code></pre></div></section><section class="subclause" id="cA.3"><h3>A.3 문장</h3><div class="shape"><b>문법 틀 (grammar shape) — 문장</b><pre><code>let &lt;이름> &lt;타입> be &lt;식> .
 var &lt;이름> &lt;타입> be &lt;식> .
 set &lt;이름> &lt;식> .
 
@@ -1440,10 +1502,14 @@ escape  = ? ⟦§6.1.4⟧ 의 «이스케이프 — 닫힌 집합 열넷» 표�
 ──────────────────  ────────────────────────────────────────────────  ──────
 module              module &lt;이름> .                                    .
 use                 use &lt;이름> from "&lt;경로>" [as &lt;별칭>] .              .
-type                type &lt;이름> be &lt;타입> .                            .
-newtype             newtype &lt;이름> be &lt;타입> .                         .
-struct              struct &lt;이름> &lt;칸>* end   (칸 = &lt;이름> &lt;타입> .)    end
-enum                enum &lt;이름> &lt;갈래>* end   (갈래 = &lt;이름> [&lt;칸>*] .)   end
+type                type &lt;이름> &lt;타입> .                               .
+newtype             newtype &lt;이름> &lt;타입> .                            .
+struct              struct &lt;이름> do &lt;칸>* end  (칸 = &lt;이름> &lt;타입> .)   end
+enum                enum &lt;이름> do &lt;갈래>* end  (갈래 = &lt;이름> [&lt;칸>*] .) end
+trait               trait &lt;이름> do &lt;서명>* end (서명 = &lt;이름> &lt;절>*)     end
+actor               actor &lt;이름> do &lt;state·절·op>* end                  end
+state               state do &lt;칸>* end        (actor 안)                 end
+contract            contract &lt;이름> do &lt;절>* end                        end
 fn / proc           [꾸밈]* fn &lt;이름> &lt;절>* do &lt;폼>* end                end
 test                test &lt;이름> do &lt;폼>* end                           end
 expect              expect &lt;조건> .           (시험 블록의 단언)         .
@@ -1470,7 +1536,7 @@ break               break .                   (라벨은 없다)             .
 continue            continue .                                         .
 make                make &lt;타입> do &lt;칸초기>* end  (칸초기 = &lt;이름> &lt;폼> .) end
 extern              [export] extern &lt;abi> fn/proc … end                end
-match               match &lt;폼> do &lt;가지>* [else do &lt;폼>* end] end       end</code></pre></div><p class="para" id="p2a"><span class="pno">2a</span> <code>fn</code>/<code>proc</code> 머리의 <code>&lt;절>*</code> 은 <a href="#c6.4.1" class="cref">§6.4.1</a> (3a) 의 한 차례를 따른다: <code>output</code> · <code>satisfies</code>·<code>lowdoc</code> · <code>vector</code>·<code>priority</code> · comptime 입력 · 권한·영역 입력 · <code>using</code> · 데이터 입력 · <code>link</code>·<code>variadic</code> · <code>effects</code> · <code>asm</code> · <code>access</code>·<code>parallel</code>·<code>reduce</code> · <code>requires</code> · <code>ensures</code> · <code>errors</code> · <code>tests</code> · <code>schedule</code> (<code>E-CLAUSE-ORDER</code>).</p><p class="para" id="p3"><span class="pno">3</span> 이 표는 <strong></strong>머리와 닫개<strong></strong>를 규범한다. 모양 칸은 자주 쓰는 꼴을 적은 것이며, 정확한 규범은 각 조항의 본문이다 — 둘이 갈리면 본문이 이긴다.</p><p class="para" id="p4"><span class="pno">4</span> 이 목록에 없는 머리는 없다. 낱말 아닌 머리(<code>region</code>·<code>borrow</code>·<code>into</code>)는 프렐류드 연산이며, 그것도 <a href="#c9" class="cref">§9</a> 가 정한 이름이지 새로 지을 수 있는 것이 아니다.</p></section><section class="subclause" id="cA.8"><h3>A.8 없앤 낱말</h3><p class="para" id="p1"><span class="pno">1</span> 다음은 한때 이 언어에 있었으나 <strong></strong>없앤<strong></strong> 낱말이다. 적으면 거부되며 (<code>E-VOCAB-REMOVED</code>), 처리기는 그 자리에서 무엇을 대신 쓰는지 말한다.</p><div class="tbl"><p><b>표 58 — 없앤 낱말 — 그리고 대신 쓰는 것</b></p><table><tr><td><strong>없앤 것</strong></td><td><strong>대신</strong></td><td><strong>왜</strong></td></tr><tr><td><code>loop</code></td><td><code>while true .</code></td><td>똑같은 뜻의 두 철자였다</td></tr><tr><td><code>give</code></td><td><code>return</code></td><td>똑같은 뜻의 두 철자였다</td></tr><tr><td><code>unit</code></td><td><code>void</code></td><td>한 뜻에 두 철자 — 명세와 도구가 다르게 불렀다</td></tr><tr><td><code>calcop</code></td><td><code>fn</code></td><td>순수한 셈은 함수다. 그리고 «op» 은 이제 프렐류드 연산만 가리킨다</td></tr><tr><td><code>procop</code></td><td><code>proc</code></td><td>효과를 내는 것은 수학의 함수가 아니다</td></tr><tr><td><code>is</code></td><td>(적지 않는다)</td><td>장식이었다 — 아무도 읽지 않아 <code>type h zzz u8 .</code> 이 통과했다</td></tr><tr><td><code>as</code></td><td>(적지 않는다)</td><td>어디서도 무게가 없었다 — 블록 이름은 읽히고 <strong></strong>버려졌다<strong></strong></td></tr><tr><td><code>local</code></td><td>(적지 않는다)</td><td>기본값이 이미 그것이다 — <code>export</code> 아닌 것은 밖에서 안 보인다</td></tr><tr><td><code>to</code></td><td><code>field a b</code></td><td>중위 접근을 없앴다 — 한 뜻에 철자가 넷이었다</td></tr><tr><td><code>in</code></td><td><code>field a b</code> · <code>index a i</code></td><td><code>to</code> 의 거꾸로 철자 — 셋째 철자였다</td></tr><tr><td><code>when</code></td><td>(적지 않는다)</td><td><code>errors</code> 절이 오류 하나만 받으므로 표식이 필요 없다</td></tr><tr><td><code>on</code></td><td><code>proc</code></td><td>액터 블록 안이면 이미 메시지 처리기다. 게다가 <strong></strong>순수/절차 비트를 우회했다<strong></strong></td></tr><tr><td><code>fail</code></td><td><code>return error &lt;갈래></code></td><td>명세의 어휘에 아예 없었다 — 옛 해석기에만 살아 있었다</td></tr><tr><td><code>;</code></td><td><code>.</code></td><td>닫개의 <strong></strong>세 번째 철자<strong></strong>였다(⟦§6.1.6⟧)</td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> 없앤 까닭은 대개 <strong></strong>같은 뜻의 두 철자<strong></strong>이거나 <strong></strong>아무것도 사지 못하는 낱말<strong></strong>이었기 때문이다. 낱말은 목록에 오르는 값을 해야 하며, 하지 못하면 내려온다.</p><p class="para" id="p3"><span class="pno">3</span> <code>as</code> 와 <code>to</code> 는 <strong></strong>자리 표식<strong></strong>으로만 남아 있다 — <code>use … as &lt;별칭></code> 과 <code>case &lt;아래> to &lt;위></code> 에서다. 그 자리 밖에서는 낱말이 아니다.</p><div class="plain"><b>쉬운 말로</b> 없앤 낱말을 이 문서가 적어 두는 까닭. 옛 코드나 옛 글을 읽던 사람이 그 낱말을 만나면 <strong>“내가 뭘 잘못 쓴 건가”</strong> 를 묻게 된다. 여기에 적혀 있으면 그 물음이 한 줄로 끝난다 — <strong></strong>없앴고, 대신 이것을 쓴다.<strong></strong></div></section><section class="subclause" id="cA.9"><h3>A.9 타입 낱말</h3><p class="para" id="p1"><span class="pno">1</span> 타입을 적는 자리에 올 수 있는 낱말은 다음이 전부다. 여기 없는 이름은 저자가 지은 이름(<a href="#c6.2.9" class="cref">§6.2.9</a>)이거나 아무것도 아니다.</p><div class="shape"><b>문법 틀 (grammar shape) — 쓸 수 있는 타입 낱말</b><pre><code>rem 수
+match               match &lt;폼> do &lt;가지>* [else do &lt;폼>* end] end       end</code></pre></div><p class="para" id="p2a"><span class="pno">2a</span> <code>fn</code>/<code>proc</code> 머리의 <code>&lt;절>*</code> 은 <a href="#c6.4.1" class="cref">§6.4.1</a> (3a) 의 한 차례를 따른다: <code>output</code> · <code>satisfies</code>·<code>lowdoc</code> · <code>vector</code>·<code>priority</code> · comptime 입력 · 권한·영역 입력 · <code>using</code> · 데이터 입력 · <code>link</code>·<code>variadic</code> · <code>effects</code> · <code>asm</code> · <code>access</code>·<code>parallel</code>·<code>reduce</code> · <code>requires</code> · <code>ensures</code> · <code>errors</code> · <code>tests</code> · <code>schedule</code> (<code>E-CLAUSE-ORDER</code>).</p><p class="para" id="p2b"><span class="pno">2b</span> <strong></strong>블록 선언<strong></strong>(<code>struct</code>·<code>enum</code>·<code>trait</code>·<code>actor</code>·<code>state</code>·<code>contract</code>)의 몸은 <code>do</code> 로 열고 <code>end</code> 로 닫는다 — <code>fn</code> 의 몸과 제어 블록과 같은 한 규칙이다. <code>struct &lt;이름> .</code> 처럼 점으로 열거나 이름 뒤에서 줄만 바꾸는 꼴은 거부된다(<code>E-STMT-NODO</code>). 개행은 닫개가 아니므로(<a href="#c6.1.6" class="cref">§6.1.6</a>) 줄바꿈으로는 머리가 닫히지 않는다. 서식기는 <code>do</code> 꼴로 옮겨 적는다.</p><p class="para" id="p3"><span class="pno">3</span> 이 표는 <strong></strong>머리와 닫개<strong></strong>를 규범한다. 모양 칸은 자주 쓰는 꼴을 적은 것이며, 정확한 규범은 각 조항의 본문이다 — 둘이 갈리면 본문이 이긴다.</p><p class="para" id="p4"><span class="pno">4</span> 이 목록에 없는 머리는 없다. 낱말 아닌 머리(<code>region</code>·<code>borrow</code>·<code>into</code>)는 프렐류드 연산이며, 그것도 <a href="#c9" class="cref">§9</a> 가 정한 이름이지 새로 지을 수 있는 것이 아니다.</p></section><section class="subclause" id="cA.8"><h3>A.8 없앤 낱말</h3><p class="para" id="p1"><span class="pno">1</span> 다음은 한때 이 언어에 있었으나 <strong></strong>없앤<strong></strong> 낱말이다. 적으면 거부되며 (<code>E-VOCAB-REMOVED</code>), 처리기는 그 자리에서 무엇을 대신 쓰는지 말한다.</p><div class="tbl"><p><b>표 58 — 없앤 낱말 — 그리고 대신 쓰는 것</b></p><table><tr><td><strong>없앤 것</strong></td><td><strong>대신</strong></td><td><strong>왜</strong></td></tr><tr><td><code>loop</code></td><td><code>while true .</code></td><td>똑같은 뜻의 두 철자였다</td></tr><tr><td><code>give</code></td><td><code>return</code></td><td>똑같은 뜻의 두 철자였다</td></tr><tr><td><code>unit</code></td><td><code>void</code></td><td>한 뜻에 두 철자 — 명세와 도구가 다르게 불렀다</td></tr><tr><td><code>calcop</code></td><td><code>fn</code></td><td>순수한 셈은 함수다. 그리고 «op» 은 이제 프렐류드 연산만 가리킨다</td></tr><tr><td><code>procop</code></td><td><code>proc</code></td><td>효과를 내는 것은 수학의 함수가 아니다</td></tr><tr><td><code>is</code></td><td>(적지 않는다)</td><td>장식이었다 — 아무도 읽지 않아 <code>type h zzz u8 .</code> 이 통과했다</td></tr><tr><td><code>as</code></td><td>(적지 않는다)</td><td>어디서도 무게가 없었다 — 블록 이름은 읽히고 <strong></strong>버려졌다<strong></strong></td></tr><tr><td><code>local</code></td><td>(적지 않는다)</td><td>기본값이 이미 그것이다 — <code>export</code> 아닌 것은 밖에서 안 보인다</td></tr><tr><td><code>to</code></td><td><code>field a b</code></td><td>중위 접근을 없앴다 — 한 뜻에 철자가 넷이었다</td></tr><tr><td><code>in</code></td><td><code>field a b</code> · <code>index a i</code></td><td><code>to</code> 의 거꾸로 철자 — 셋째 철자였다</td></tr><tr><td><code>when</code></td><td>(적지 않는다)</td><td><code>errors</code> 절이 오류 하나만 받으므로 표식이 필요 없다</td></tr><tr><td><code>on</code></td><td><code>proc</code></td><td>액터 블록 안이면 이미 메시지 처리기다. 게다가 <strong></strong>순수/절차 비트를 우회했다<strong></strong></td></tr><tr><td><code>fail</code></td><td><code>return error &lt;갈래></code></td><td>명세의 어휘에 아예 없었다 — 옛 해석기에만 살아 있었다</td></tr><tr><td><code>;</code></td><td><code>.</code></td><td>닫개의 <strong></strong>세 번째 철자<strong></strong>였다(⟦§6.1.6⟧)</td></tr></table></div><p class="para" id="p2"><span class="pno">2</span> 없앤 까닭은 대개 <strong></strong>같은 뜻의 두 철자<strong></strong>이거나 <strong></strong>아무것도 사지 못하는 낱말<strong></strong>이었기 때문이다. 낱말은 목록에 오르는 값을 해야 하며, 하지 못하면 내려온다.</p><p class="para" id="p3"><span class="pno">3</span> <code>as</code> 와 <code>to</code> 는 <strong></strong>자리 표식<strong></strong>으로만 남아 있다 — <code>use … as &lt;별칭></code> 과 <code>case &lt;아래> to &lt;위></code> 에서다. 그 자리 밖에서는 낱말이 아니다.</p><div class="plain"><b>쉬운 말로</b> 없앤 낱말을 이 문서가 적어 두는 까닭. 옛 코드나 옛 글을 읽던 사람이 그 낱말을 만나면 <strong>“내가 뭘 잘못 쓴 건가”</strong> 를 묻게 된다. 여기에 적혀 있으면 그 물음이 한 줄로 끝난다 — <strong></strong>없앴고, 대신 이것을 쓴다.<strong></strong></div></section><section class="subclause" id="cA.9"><h3>A.9 타입 낱말</h3><p class="para" id="p1"><span class="pno">1</span> 타입을 적는 자리에 올 수 있는 낱말은 다음이 전부다. 여기 없는 이름은 저자가 지은 이름(<a href="#c6.2.9" class="cref">§6.2.9</a>)이거나 아무것도 아니다.</p><div class="shape"><b>문법 틀 (grammar shape) — 쓸 수 있는 타입 낱말</b><pre><code>rem 수
 u8    i8    u16   i16   u32   i32   u64   i64   usize  isize   f32   f64
 bool  void
 
@@ -1643,7 +1709,7 @@ wrap_add              wrap_mul              wrap_shl              wrap_shr
 wrap_sub              write_out             write_volatile        zip</code></pre></div></section><section class="clause" id="cC"><h2>C 부록 C — 용어 색인 (Annex C: Index of terms)</h2><p class="para" id="p1"><span class="pno">1</span> 이 문서에 나오는 용어를 가나다 차례로 모은다. 각 용어의 뜻은 적힌 조항에 있다.</p><div class="note"><b>참고 (informative)</b> 이 색인은 <strong></strong>생성된 것<strong></strong>이다. 사람이 손으로 고치지 아니한다.</div><div class="tbl"><p><b>표 60 — 용어 색인</b></p><table><tr><td><strong>용어</strong></td><td><strong>영어</strong></td><td><strong>조항</strong></td></tr><tr><td>BOM</td><td>byte order mark</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>access</td><td>access declaration</td><td><a href="#c6.4.3" class="cref">§6.4.3</a></td></tr><tr><td>effects</td><td>effect declaration</td><td><a href="#c6.4.3" class="cref">§6.4.3</a></td></tr><tr><td>ensures</td><td>postcondition</td><td><a href="#c6.4.3" class="cref">§6.4.3</a></td></tr><tr><td>errors</td><td>error condition</td><td><a href="#c6.4.3" class="cref">§6.4.3</a></td></tr><tr><td>fn</td><td>pure op</td><td><a href="#c6.4.1" class="cref">§6.4.1</a></td></tr><tr><td>heredoc</td><td>heredoc</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>mut_ref</td><td>exclusive reference</td><td><a href="#c8.4" class="cref">§8.4</a></td></tr><tr><td>op</td><td>op</td><td><a href="#c3.1" class="cref">§3.1</a></td></tr><tr><td>proc</td><td>effectful op</td><td><a href="#c6.4.1" class="cref">§6.4.1</a></td></tr><tr><td>ref</td><td>shared reference</td><td><a href="#c8.4" class="cref">§8.4</a></td></tr><tr><td>requires</td><td>precondition</td><td><a href="#c6.4.3" class="cref">§6.4.3</a></td></tr><tr><td>tests</td><td>examples</td><td><a href="#c6.4.3" class="cref">§6.4.3</a></td></tr><tr><td>가비지 컬렉터</td><td>garbage collector</td><td><a href="#c2.2" class="cref">§2.2</a></td></tr><tr><td>값</td><td>value</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>개행</td><td>newline</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>검사</td><td>check</td><td><a href="#c3.3" class="cref">§3.3</a></td></tr><tr><td>계약</td><td>contract</td><td><a href="#c1.3" class="cref">§1.3</a></td></tr><tr><td>구문</td><td>syntax</td><td><a href="#c1.1" class="cref">§1.1</a></td></tr><tr><td>구현 정의</td><td>implementation-defined</td><td><a href="#c4.3" class="cref">§4.3</a></td></tr><tr><td>권한</td><td>capability</td><td><a href="#c3.4" class="cref">§3.4</a></td></tr><tr><td>규범</td><td>normative</td><td><a href="#c1.4" class="cref">§1.4</a></td></tr><tr><td>기계</td><td>target</td><td><a href="#c5.6" class="cref">§5.6</a></td></tr><tr><td>낱말</td><td>keyword</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>내장 연산</td><td>builtin op</td><td><a href="#c3.8" class="cref">§3.8</a></td></tr><tr><td>넓히기</td><td>widening</td><td><a href="#c3.8" class="cref">§3.8</a></td></tr><tr><td>단락 평가</td><td>short-circuit</td><td><a href="#c3.8" class="cref">§3.8</a></td></tr><tr><td>닫개</td><td>closer</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>덫 표현</td><td>trap representation</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>덫 표현</td><td>trap representation</td><td><a href="#c8.7.1" class="cref">§8.7.1</a></td></tr><tr><td>등급</td><td>grade</td><td><a href="#c6.4.9" class="cref">§6.4.9</a></td></tr><tr><td>라이브러리 모듈</td><td>library module</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>로우엔트</td><td>Lowent</td><td><a href="#c1.1" class="cref">§1.1</a></td></tr><tr><td>리터럴</td><td>literal</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>리프</td><td>leaf</td><td><a href="#c9.3" class="cref">§9.3</a></td></tr><tr><td>모듈</td><td>module</td><td><a href="#c3.1" class="cref">§3.1</a></td></tr><tr><td>목적지</td><td>destination</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>문자 리터럴</td><td>character literal</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>문자열 리터럴</td><td>string literal</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>문장</td><td>statement</td><td><a href="#c3.8" class="cref">§3.8</a></td></tr><tr><td>미정의 동작</td><td>undefined behaviour</td><td><a href="#c3.3" class="cref">§3.3</a></td></tr><tr><td>번역</td><td>translation</td><td><a href="#c3.6" class="cref">§3.6</a></td></tr><tr><td>번역 단위</td><td>translation unit</td><td><a href="#c5.1" class="cref">§5.1</a></td></tr><tr><td>번역 환경</td><td>translation environment</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>부동소수 리터럴</td><td>floating-point literal</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>빌드 모드</td><td>build mode</td><td><a href="#c3.3" class="cref">§3.3</a></td></tr><tr><td>사전 조건</td><td>precondition</td><td><a href="#c3.3" class="cref">§3.3</a></td></tr><tr><td>사후 조건</td><td>postcondition</td><td><a href="#c3.3" class="cref">§3.3</a></td></tr><tr><td>상표</td><td>brand</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>선언</td><td>declaration</td><td><a href="#c3.1" class="cref">§3.1</a></td></tr><tr><td>섬</td><td>island</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>소유</td><td>ownership</td><td><a href="#c3.5" class="cref">§3.5</a></td></tr><tr><td>순수</td><td>pure</td><td><a href="#c3.4" class="cref">§3.4</a></td></tr><tr><td>스테이지</td><td>stage</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>슬라이스</td><td>slice</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>시작점</td><td>entry point</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>식</td><td>expression</td><td><a href="#c3.8" class="cref">§3.8</a></td></tr><tr><td>신뢰 경계</td><td>trust boundary</td><td><a href="#c3.3" class="cref">§3.3</a></td></tr><tr><td>실행 환경</td><td>execution environment</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>안전한 부분집합</td><td>safe subset</td><td><a href="#c3.3" class="cref">§3.3</a></td></tr><tr><td>액터</td><td>actor</td><td><a href="#c3.8" class="cref">§3.8</a></td></tr><tr><td>얼로케이터</td><td>allocator</td><td><a href="#c8.13" class="cref">§8.13</a></td></tr><tr><td>열거</td><td>enum</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>영역</td><td>region</td><td><a href="#c3.5" class="cref">§3.5</a></td></tr><tr><td>옥텟</td><td>octet</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>완결</td><td>completion</td><td><a href="#c8.5" class="cref">§8.5</a></td></tr><tr><td>의미 규칙</td><td>semantic rules</td><td><a href="#c1.1" class="cref">§1.1</a></td></tr><tr><td>의미 엔트로피</td><td>semantic entropy</td><td><a href="#c1.3" class="cref">§1.3</a></td></tr><tr><td>이름</td><td>identifier</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>이스케이프</td><td>escape</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>임시값</td><td>temporary</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>자리</td><td>place</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>적합성</td><td>conformance</td><td><a href="#c1.1" class="cref">§1.1</a></td></tr><tr><td>적합한 처리기</td><td>conforming processor</td><td><a href="#c3.6" class="cref">§3.6</a></td></tr><tr><td>적합한 프로그램</td><td>conforming program</td><td><a href="#c3.6" class="cref">§3.6</a></td></tr><tr><td>전위 표기</td><td>prefix notation</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>접두사</td><td>prefix</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>정의</td><td>definition</td><td><a href="#c3.1" class="cref">§3.1</a></td></tr><tr><td>제약</td><td>constraints</td><td><a href="#c1.1" class="cref">§1.1</a></td></tr><tr><td>좁히기</td><td>narrowing</td><td><a href="#c3.8" class="cref">§3.8</a></td></tr><tr><td>종결자</td><td>terminal</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>종료 상태</td><td>exit status</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>주석</td><td>comment</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>중위 표기</td><td>infix notation</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>진단</td><td>diagnostic</td><td><a href="#c3.6" class="cref">§3.6</a></td></tr><tr><td>참고</td><td>informative</td><td><a href="#c1.4" class="cref">§1.4</a></td></tr><tr><td>참조</td><td>reference</td><td><a href="#c3.5" class="cref">§3.5</a></td></tr><tr><td>채널</td><td>channel</td><td><a href="#c10.6" class="cref">§10.6</a></td></tr><tr><td>처리기</td><td>processor</td><td><a href="#c1.1" class="cref">§1.1</a></td></tr><tr><td>최적화</td><td>optimisation</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>타입</td><td>type</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>탈출</td><td>escape</td><td><a href="#c3.5" class="cref">§3.5</a></td></tr><tr><td>토큰</td><td>token</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>투스 컴플리먼트</td><td>two’s complement</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>트랩</td><td>trap</td><td><a href="#c3.3" class="cref">§3.3</a></td></tr><tr><td>트레이트</td><td>trait</td><td><a href="#c3.8" class="cref">§3.8</a></td></tr><tr><td>폭</td><td>width</td><td><a href="#c3.2" class="cref">§3.2</a></td></tr><tr><td>폼</td><td>form</td><td><a href="#c3.7" class="cref">§3.7</a></td></tr><tr><td>표지</td><td>marker</td><td><a href="#c6.2.15" class="cref">§6.2.15</a></td></tr><tr><td>표현</td><td>representation</td><td><a href="#c1.1" class="cref">§1.1</a></td></tr><tr><td>프로그램</td><td>program</td><td><a href="#c3.1" class="cref">§3.1</a></td></tr><tr><td>프리스탠딩</td><td>freestanding</td><td><a href="#c2.2" class="cref">§2.2</a></td></tr><tr><td>한정</td><td>qualification</td><td><a href="#c3.9" class="cref">§3.9</a></td></tr><tr><td>해제</td><td>release</td><td><a href="#c8.5" class="cref">§8.5</a></td></tr><tr><td>호스티드</td><td>hosted</td><td><a href="#c5.1" class="cref">§5.1</a></td></tr><tr><td>효과</td><td>effect</td><td><a href="#c3.4" class="cref">§3.4</a></td></tr></table></div></section>
 </main>
 <footer>
-로우엔트 표준 명세 · 문서 판 v0.0.32 · 언어 판 v1.0.0 · 낸 날 2026-09-14<br>
+로우엔트 표준 명세 · 문서 판 v0.0.32 · 언어 판 v1.0.0 · 낸 날 2026-09-15<br>
 이 문서는 로우엔트 언어 자체를 정의한다. 이 문서만으로 언어를 배우고 구현할 수 있어야 한다.
 </footer>
 </body></html>

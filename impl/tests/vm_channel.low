@@ -12,7 +12,7 @@ rem (`try E map_error <op>` 은 아직 — **못 한다고 말한다**(E-IR-UNSU
 
 module vm_channel .
 
-enum e .
+enum e do
   bad .
 end .
 

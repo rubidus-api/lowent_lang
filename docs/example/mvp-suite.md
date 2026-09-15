@@ -159,7 +159,7 @@ end
 ```
 module digits .
 
-enum parse_error .
+enum parse_error do
   bad_char .
 end
 
@@ -207,7 +207,7 @@ end
 ```
 module geom .
 
-struct point
+struct point do
   x i32 .
   y i32 .
 end
@@ -235,7 +235,7 @@ end
 ```
 module light .
 
-enum signal .
+enum signal do
   red .
   yellow .
   green .
@@ -365,13 +365,13 @@ end
 ```
 module packet .
 
-enum parse_error .
+enum parse_error do
   too_short .
   bad_version .
   too_long .
 end
 
-struct header
+struct header do
   version u8 .
   length u16 .
 end

@@ -209,9 +209,9 @@ export fn split_next output option str . input src str . input sep u8 . input po
 - 규약: `"a,b"` → `"a"`·`"b"` / `"a,"` → `"a"`·`""`(꼬리 빈 조각) / `""` → `""`(빈 조각 하나).
 
 #### str_splitter (actor)
-```lowent
-export actor str_splitter
-  state
+```text
+export actor str_splitter do
+  state do
     src slice u8 .
     sep u8 .
     pos u64 .

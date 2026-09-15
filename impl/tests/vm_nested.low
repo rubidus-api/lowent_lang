@@ -12,12 +12,12 @@ rem 이제 중첩 필드는 **안쪽 뷰**를 준다(무복사) — `field (fiel
 
 module vm_nested .
 
-struct inner .
+struct inner do
   a u8 .
   b u8 .
 end .
 
-struct outer .
+struct outer do
   i inner .
   c u8 .
 end .

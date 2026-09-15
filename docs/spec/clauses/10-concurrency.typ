@@ -89,8 +89,8 @@
     ]
     #ex("액터", "module ex_actor .
 
-actor counter
-  state
+actor counter do
+  state do
     value u64 .
   end
 
@@ -109,8 +109,8 @@ actor counter
 end")
     #rejected("상태를 고치면서 순수하다고 선언", "module ex_actor_bad .
 
-actor counter
-  state
+actor counter do
+  state do
     value u64 .
   end
 
@@ -164,8 +164,8 @@ end", "E-EFFECT-PURITY")
     ]
     #ex("액터를 만들고 메시지를 보낸다", "module ex_spawn .
 
-actor counter
-  state
+actor counter do
+  state do
     value u64 .
   end
 

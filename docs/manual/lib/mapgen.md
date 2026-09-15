@@ -65,7 +65,7 @@ op 을 부를 때마다 **키 타입과 값 타입을 이 순서로 적는다**(
 ## 자료구조
 
 ```lowent
-export struct table
+export struct table do
   input comptime k type .   rem ← 타입 파라미터 둘. 블록 맨 앞에 연달아 온다
   input comptime v type .
   al allocs.bump_bytes .

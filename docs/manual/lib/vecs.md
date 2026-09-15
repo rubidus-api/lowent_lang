@@ -69,7 +69,7 @@ RFC-0043 은 성장(`append_grow`)을 *"범프라 재할당이 없다"* 며 없�
 벡터가 값 하나가 아니라 **두 값의 쌍**이라는 것이 이 모듈의 첫 관문이다.
 
 ```lowent
-export struct vec_u8
+export struct vec_u8 do
   len u64 .
 end
 ```

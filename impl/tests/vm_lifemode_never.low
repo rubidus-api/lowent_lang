@@ -6,9 +6,9 @@ rem   완료가 실패할 수 없으면 그냥 버려도 삼킬 것이 없으므
 
 module vm_lifemode_never .
 
-export enum late . too_late . end .
+export enum late do too_late . end .
 
-export struct ticket .
+export struct ticket do
   id u64 .
 end .
 

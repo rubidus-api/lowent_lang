@@ -293,8 +293,21 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
         hkw == LOW_KW_ACTOR || hkw == LOW_KW_STATE || hkw == LOW_KW_CONTRACT) {
         if (hkw != LOW_KW_STATE && low_curk(p) == LOW_TOK_IDENT)
             (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_node(p, LOW_CST_ATOM, low_adv(p)));
+        // ★★★★★ **블록 선언도 `do … end` 다** (2026-09-15, 소유자 결정 — «do … end · 거절 + --fmt 수리»).
+        //   전엔 `struct N .` · `struct N` · `struct N do` 셋이 다 통과했다. 개행은 닫개가 아니므로(§6.1.6) 줄바꿈 꼴은
+        //   머리를 닫지도 못했다. 이제 fn 몸·if·while·make 와 같은 **한 규칙**이다: 블록은 `do` 로 열고 `end` 로 닫는다.
+        //   다른 꼴은 거절하되 파스는 전처럼 이어 간다(뒤따르는 진단이 한 번에 보이게). `--fmt` 는 이미 `do` 꼴을 낸다.
+        bool save_tr = p->in_trait;
+        p->in_trait = (hkw == LOW_KW_TRAIT);
         if (low_curkw(p) == LOW_KW_DO) (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block(p));
-        else (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block_body(p, *low_cur(p)));
+        else {
+            low_pdiag(p, "E-STMT-NODO",
+                      "a block declaration (struct/enum/trait/actor/contract/state) opens its body with `do` and closes "
+                      "it with `end`: `struct rect do w u64 . end .` — not `struct rect .` and not a bare line break "
+                      "(a newline closes nothing). `--fmt` writes it for you", head.line, head.col);
+            (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block_body(p, *low_cur(p)));
+        }
+        p->in_trait = save_tr;
         low_cst_t *sf = low_node(p, LOW_CST_FORM, head);
         if (sf) { sf->closer = LOW_TOK_EOF; low_take_kids(p, sf, &ops); }
         else proven_array_destroy(&ops);
@@ -476,6 +489,17 @@ static low_cst_t *low_parse_export(low_parser_t *p) {
     if (kw == LOW_KW_NONE && low_curk(p) == LOW_TOK_IDENT &&
         proven_u8str_view_eq(low_cur(p)->lex, proven_u8str_view_from_cstr("pipe")))
         return low_parse_block_stmt(p);
+    // ★★★ 2026-09-15 (소유자 결정: 추천안) — **trait 의 서명에는 `fn`/`proc` 을 적지 않는다.** 순수한지는 서명의 `effects` 줄이
+    //   정하고, `fn` 인지 `proc` 인지는 갖추는 쪽이 고른다(정본 §6.11.2 (1b)). 전엔 적으면 `fn` 이 서명의 **이름**으로 읽혀
+    //   엉뚱한 `E-TRAIT-MISSING` 이 났다. ⇒ 분명히 말하고, 낱말을 건너 서명으로 읽어 뒤 검사가 제대로 이어지게 한다.
+    if (p->in_trait && (kw == LOW_KW_FN || kw == LOW_KW_PROC)) {
+        low_token_t w = low_adv(p);
+        low_pdiag(p, "E-TRAIT-SIG",
+                  "a trait signature does not say `fn` or `proc` — write `area output u64 . input s self .`. Its `effects` "
+                  "line says what the op may do (none = pure), and the implementation chooses `fn` or `proc` (§6.11.2)",
+                  w.line, w.col);
+        return low_parse_generic(p);
+    }
     switch (kw) {
         // ★ SPEC-003 §21 의 수식자 넷. `export` 만 이 자리에 있었다 — 나머지 셋은
         //   기본 닫개(`.`)로 떨어져 선언을 **조각냈다**(op 이 통째로 사라진다).

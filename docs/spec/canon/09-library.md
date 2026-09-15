@@ -38,7 +38,7 @@
 ```lowent 예제: 라이브러리도 같은 규칙을 지킨다
 module ex_lib .
 
-enum parse_error
+enum parse_error do
   too_short
 end
 

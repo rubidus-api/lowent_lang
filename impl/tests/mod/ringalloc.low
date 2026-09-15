@@ -6,9 +6,9 @@ module ringalloc .
 
 use allocs from "../../../lib/alloc.low" .
 
-export actor ring_bytes .
+export actor ring_bytes do
   satisfies allocs.byte_allocator .
-  state .
+  state do
     mem mut slice u8 . .
     off u64 .
     laps u64 .

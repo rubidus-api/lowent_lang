@@ -9,29 +9,29 @@ rem   · 채널 전환 (try … else_none)        · test/expect (Lowent 로 쓴
 
 module vm_stats .
 
-enum stat_err .
+enum stat_err do
   empty_stream .
 end .
 
 rem 표본 하나: 센서 id + 값.
-struct sample .
+struct sample do
   id u8 .
   value u8 .
 end .
 
 rem 헤더 안의 헤더 — 와이어 포맷의 기본 모양.
-struct version .
+struct version do
   major u8 .
   minor u8 .
 end .
 
-struct header .
+struct header do
   ver version .
   count u8 .
 end .
 
 rem ★ 명명 계약 — 표본 값은 눈금 밖으로 나가면 안 된다.
-contract in_scale .
+contract in_scale do
   requires le v 100 .
 end .
 
@@ -76,8 +76,8 @@ fn header_major output u8 . input b slice u8 . do
 end .
 
 rem ★★ level-2 actor — 표본을 하나씩 받아 누적한다. 상태는 **격리**돼 있다.
-actor tally .
-  state .
+actor tally do
+  state do
     seen u64 .
   end .
   proc bump output u64 . effects state .

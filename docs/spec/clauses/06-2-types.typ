@@ -211,12 +211,12 @@ end", "E-TYPE-ARRAY")
     ]
     #ex("struct 와 enum", "module ex_shape .
 
-struct point
+struct point do
   x u32 .
   y u32 .
 end
 
-enum color
+enum color do
   red .
   green .
 end")
@@ -229,7 +229,7 @@ end")
     ]
     #ex("struct 를 만들고 읽는다", "module ex_make .
 
-struct point
+struct point do
   x u32 .
   y u32 .
 end
@@ -245,7 +245,7 @@ do
 end")
     #rejected("갈래를 점으로 닫지 않았다", "module ex_enum_dot .
 
-enum color
+enum color do
   red
   green
 end", "E-ENUM-DOT")
@@ -272,7 +272,7 @@ end", "E-ENUM-DOT")
     ]
     #ex("result 로 실패를 돌려준다", "module ex_result .
 
-enum err
+enum err do
   too_small
 end
 
@@ -353,7 +353,7 @@ end",
     ]
     #ex("result — 묻고 꺼내기, 그리고 `try` 로 넘기기", "module ex_result_use .
 
-enum io_error
+enum io_error do
   too_big
 end
 
@@ -427,11 +427,11 @@ end",
     ]
     #ex("다단 필드 읽기와 쓰기", "module ex_field .
 
-struct inner
+struct inner do
   a u64 .
 end
 
-struct outer
+struct outer do
   i inner .
 end
 
@@ -573,7 +573,7 @@ end")
 
 type bytes slice u8 .
 
-struct wire_header .
+struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .
@@ -770,7 +770,7 @@ fn f output u8 . input s str . do return 1 . end",
       )
     ]
     #para("2")[
-      묶음과 열거는 `struct <이름> … end` · `enum <이름> … end` 로 선언한다. 다른 모양으로
+      묶음과 열거는 `struct <이름> do … end` · `enum <이름> do … end` 로 선언한다. 다른 모양으로
       선언하려 하면 거부된다(`E-TYPE-DECL`).
     ]
     #para("3")[
@@ -797,7 +797,7 @@ fn f output u8 . input s str . do return 1 . end",
     ]
     #rejected("칸은 이름 다음에 타입이다", "module ex_field_form .
 
-struct p .
+struct p do
   x .              rem 타입이 없다
 end .
 

@@ -121,6 +121,10 @@ Shape rules you will hit immediately:
 - **Clauses have one order**: `output` comes FIRST, then capability/region inputs before data
   inputs, then `effects`, `requires`, `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`; `--fmt`
   moves the non-input clauses). `fn f output u8 . input a u8 . do … end`.
+- **Every body is `do … end`**: op bodies, control blocks AND block declarations —
+  `struct p do x u8 . end .`, `enum e do a . end .`, `trait t do area output u64 . input s self . end .`,
+  `actor c do state do v u64 . end . … end .` (`struct p .` / a bare line break → `E-STMT-NODO`).
+  A trait signature has no `fn`/`proc`; its `effects` line says what the op may do.
 - **Capabilities are named at the use site**: a host leaf takes its capability as the first
   operand (`write_out out 1 s`, `alloc_bytes al capacity n`); holding it is not enough
   (`E-CAP-MISSING`).

@@ -24,7 +24,7 @@ module vm_own .
 type buffer u8 . .        rem 해제만 필요한 값 — 끝내는 데 실패가 없다
 type conn u8 . .          rem 완결이 필요한 값 — 아래 `close` 가 그렇게 선언한다
 
-enum close_error .
+enum close_error do
   device_lost .
 end .
 

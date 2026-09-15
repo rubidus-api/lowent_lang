@@ -29,7 +29,7 @@ rem     하나는 **자원을 얻고** 하나는 **흐름을 끊는다** — §2
 rem     자리로 구분은 되지만(파서는 send 의 3번째 낱말과 스테이지 머리를 안다) **읽는 사람에게는
 rem     여전히 두 뜻**이라, 비용이 0 인 쪽(픽스처 이름)을 바꿨다. `take` 는 파이프라인 관용이고
 rem     `reserve` 가 실제 동작(자리를 예약해 오프셋을 준다)에 더 정확하다.
-trait allocator .
+trait allocator do
   init output u64 . input s self . input c u64 . effects state .
   reserve output option u64 . input s self . input n u64 . effects state .
   used output u64 . input s self . effects state .
@@ -37,9 +37,9 @@ end .
 
 rem ── D3: **fixed_buffer bump** — 정적 버퍼 위의 순차 할당. **힙 0.** ATtiny 가능.
 rem   할당의 결과는 **버퍼 안의 오프셋**이다(포인터가 아니다) — 그래서 VM 에서 진짜로 돈다.
-actor bump .
+actor bump do
   satisfies allocator .
-  state .
+  state do
     off u64 .
     cap u64 .
   end .
@@ -62,9 +62,9 @@ actor bump .
 end .
 
 rem ── 또 하나의 구현: **정렬을 8바이트로 맞추는** bump (같은 인터페이스, 다른 정책)
-actor aligned .
+actor aligned do
   satisfies allocator .
-  state .
+  state do
     off u64 .
     cap u64 .
   end .

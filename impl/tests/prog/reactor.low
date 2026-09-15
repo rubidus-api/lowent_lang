@@ -30,7 +30,7 @@ rem   보통 읽기로 큐를 보면 컴파일러가 그 읽기를 **루프 밖�
 rem   바꾼다는 사실을 컴파일러는 모르기 때문이다. 그러면 리액터는 **영원히 안 깬다.**
 rem   ☞ 그전까지 `read_volatile` 은 대상이 장치든 아니든 `cap mmio` 를 요구했고, 그래서
 rem     **평범한 메모리를 volatile 로 읽을 길이 없었다**(RFC-0039 §9-6 에서 대상을 보게 고쳤다).
-struct tickq .
+struct tickq do
   storage reserved .
   posted u32 rw .            rem ISR 만 쓴다
   taken  u32 rw .            rem 루프만 쓴다  → SPSC: 한쪽만 쓰는 칸이 각각 하나
@@ -81,7 +81,7 @@ do
 end .
 
 rem ── 장치 — blink 에서 검증된 것 그대로 ──────────────────────────────────
-struct rcc .
+struct rcc do
   mmio 0x40023800 .
   cr u32 rw . pllcfgr u32 rw . cfgr u32 rw . cir u32 rw .
   ahb1rstr u32 rw . ahb2rstr u32 rw . ahb3rstr u32 rw . rsv0 u32 rw .
@@ -89,13 +89,13 @@ struct rcc .
   ahb1enr u32 rw .
 end .
 
-struct gpioa .
+struct gpioa do
   mmio 0x40020000 .
   moder u32 rw . otyper u32 rw . ospeedr u32 rw . pupdr u32 rw .
   idr u32 ro . odr u32 rw .
 end .
 
-struct systick .
+struct systick do
   mmio 0xE000E010 .
   ctrl u32 rw . load u32 rw . val u32 rw .
 end .

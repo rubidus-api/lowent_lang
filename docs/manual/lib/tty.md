@@ -214,8 +214,8 @@ end
 ### ② 파싱만 테스트하기 (터미널 없이)
 
 ```lowent
-proc arrow_up output u64 . effects none . do
-  var buf mut slice u8 . be alloc_bytes stack capacity 8 .
+proc arrow_up output u64 . input buf mut slice u8 . . effects none . do
+  guard ge (len buf) 8 . else return 90 .      rem 버퍼는 부르는 쪽이 준다(`impl/tests/vm_tty.low` 의 `arrow`)
   set (index buf 0) 27 .
   set (index buf 1) 91 .
   set (index buf 2) 65 .

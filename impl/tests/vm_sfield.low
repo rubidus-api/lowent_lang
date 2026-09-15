@@ -16,7 +16,7 @@ rem   `lowv` 로 든다. 둘 다 태그 값이라 슬라이스가 들어간다. 
 module vm_sfield .
 
 rem ── ① 슬라이스를 담고, 꺼내 읽는다 ──────────────────────────────────
-struct holder .
+struct holder do
   xs mut slice u64 .
   n u64 .
 end .
@@ -49,7 +49,7 @@ rem ── ② **이것이 이 작업의 값이다** — SoA 컨테이너가 값
 rem
 rem   `lib/soa.low` 이 자기 주석에 *"필드 개수만큼 인자가 늘어난다. 4 필드면 op 마다 인자
 rem   4 개다 … 이것이 가장 아픈 자리다"* 라고 적어 뒀다. 그 자리가 열렸다.
-struct pset .
+struct pset do
   xs mut slice u64 .
   ys mut slice u64 .
   vxs slice u64 .
@@ -87,7 +87,7 @@ do
 end .
 
 rem ── ③ option 도 담는다 — 슬라이스만 특별한 게 아니다 ─────────────────
-struct maybe_n .
+struct maybe_n do
   v option u64 .
 end .
 

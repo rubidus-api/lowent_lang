@@ -8,11 +8,11 @@ rem (교훈 6: 픽스처에 없는 모양은 아무도 검사하지 않는다. �
 
 module vm_compose .
 
-enum e .
+enum e do
   bad .
 end .
 
-struct pt .
+struct pt do
   x u8 .
   y u8 .
 end .

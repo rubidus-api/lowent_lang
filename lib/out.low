@@ -29,13 +29,13 @@ rem   `wait` (중단 가능 출력 — reactor 가 먼저다).
 
 module outbuf .
 
-export enum io_error .
+export enum io_error do
   write_failed .
 end .
 
 rem ★ 아직 안 나간 바이트의 상태. **스칼라만** 담는다(버퍼는 호출자 것).
 rem   `pos` = 버퍼에 쌓인 바이트 수 · `fd` = 어디로 비울지(1=stdout · 2=stderr).
-export struct pending .
+export struct pending do
   pos u64 .
   fd  u64 .
 end .

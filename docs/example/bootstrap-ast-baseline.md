@@ -31,7 +31,6 @@ fn eval
   input a slice u8 .
   input b slice u8 .
   input i u8 .
-  effects none .
 do
   guard eq (index tag i) 1 . else do return index a i . end
   return add (eval tag a b (index a i)) (eval tag a b (index b i)) .

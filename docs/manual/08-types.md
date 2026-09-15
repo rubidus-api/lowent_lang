@@ -8,7 +8,7 @@
 
 ```lowent
 rem ✓ 점(point) 하나 — 필드는 무두 블록(do 없이 end 로 닫음)에 적는다.
-struct point
+struct point do
   x u64 .
   y u64 .
 end
@@ -30,7 +30,7 @@ end
 
 ```lowent
 rem ✓ 페이로드 enum — lit 은 수 하나, add 는 자식 둘(아레나 인덱스).
-enum node
+enum node do
   lit v u32 .
   add l u32 r u32 .
 end
@@ -70,16 +70,70 @@ end
 
 트레이트는 *"이 타입은 이런 op 들을 갖고 있다"* 를 **검사받는 약속**으로 적는다. op 을 여럿 적을 수 있다.
 
+**왜 쓰나.** 사각형과 정사각형은 넓이를 구하는 방법이 다르지만, *"넓이를 알려 준다"* 는 약속은 같다. 그 약속에
+이름(`shape`)을 붙이면, *"넓이를 알려 주는 것이면 무엇이든"* 받는 op 을 **한 번만** 쓸 수 있다.
+
+```lowent
+module ex_trait_why .
+
+rem 모양마다 넓이를 구하는 법은 다르다. 그러나 «넓이를 알려 준다» 는 약속은 같다.
+trait shape do
+  area output u64 . input s self .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+
+struct square do
+  satisfies shape .
+  side u64 .
+end .
+
+fn rect.area output u64 . input s rect .
+do
+  return mul (field s w) (field s h) .
+end .
+
+fn square.area output u64 . input s square .
+do
+  return mul (field s side) (field s side) .
+end .
+
+rem 이 op 은 **어떤 모양이든** 받는다 — `requires shape t` 가 «넓이를 알려 주는 타입만» 이라고 못박는다.
+fn double_area output u64 . input comptime t type . input s t .
+  requires shape t .
+do
+  return mul 2 (method s area) .
+end .
+
+fn demo output u64 .
+do
+  let r rect be make rect do w 2 . h 3 . end .
+  let q square be make square do side 4 . end .
+  return add (double_area rect r) (double_area square q) .
+end .
+```
+
+- `double_area` 는 `rect` 도 `square` 도 받는다. `requires shape t` 가 *"`shape` 를 갖춘 타입만"* 이라고 못박는다.
+- `method s area` 는 `s` 의 타입에 붙은 `area` 를 부른다 — `rect` 면 `rect.area`, `square` 면 `square.area`.
+- 약속을 안 지킨 타입(예: `area` 를 안 만든 타입)은 번역 때 거절된다. 이 언어에는 상속이 없으니, 여러 타입을
+  한 이름으로 다루는 길은 이것이다.
+
+아래는 op 을 여럿 가진 트레이트다.
+
 ```lowent
 module shapes .
 
-trait shape
+trait shape do
   area output u64 . input s self .
   grow output self . input s self . input k u64 .
   checked_area output u64 . input s self . effects panic .
 end
 
-struct rect
+struct rect do
   satisfies shape .
   w u64 .
   h u64 .

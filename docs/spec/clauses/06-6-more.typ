@@ -78,7 +78,7 @@ end .", "E-MATCH-INEXHAUSTIVE")
   ]
   #ex("match 는 모든 갈래를 덮는다", "module ex_match .
 
-enum color .
+enum color do
   red .
   green .
 end .
@@ -92,7 +92,7 @@ do .
 end .")
   #rejected("갈래가 빠진 match", "module ex_match_bad .
 
-enum color .
+enum color do
   red .
   green .
 end .

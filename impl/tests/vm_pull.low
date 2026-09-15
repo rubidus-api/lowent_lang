@@ -20,8 +20,8 @@ module vm_pull .
 fn over3 output bool . input a u64 . do return gt a 3 . end .
 
 rem 끝이 없는 소스 — next 가 언제나 some 을 준다.
-actor counter .
-  state .
+actor counter do
+  state do
     n u64 .
   end .
   proc next output option u64 . effects state . do

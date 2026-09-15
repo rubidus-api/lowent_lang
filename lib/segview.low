@@ -23,7 +23,7 @@ end .
 
 rem 커서 — 평평한 위치를 (조각, 자리) 로 나눈다.
 rem   ★ 이 값 하나가 조각 경계를 넘는 순회를 **상태 없이** 쓰게 한다.
-export struct cursor .
+export struct cursor do
   piece u64 .
   at u64 .
 end .

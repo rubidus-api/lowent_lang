@@ -9,6 +9,37 @@
   <스테이지> .        rem 없어도 된다. 여럿일 수 있다.
   <종결자> .          rem 정확히 하나.
 end .")
+  #plain[
+    슬라이스를 훑는 반복은 거의 언제나 같은 뼈대다 — *인덱스를 두고, 끝인지 보고, 원소를 꺼내 조건을 보고,
+    무언가를 쌓고, 인덱스를 늘린다.* 그 뼈대를 손으로 쓰면 **하려는 일**(«숫자만 남기고 센다»)이 인덱스와 카운터
+    사이에 묻히고, 경계를 한 칸 틀리는 실수가 거기서 난다. `pipe` 는 뼈대를 언어가 맡고, 사람은 **하려는 일만**
+    줄마다 한 낱말로 적게 한다. 그러면서도 손으로 쓴 반복과 똑같이 한 번만 훑고 중간 배열을 만들지 않는다(#cref("6.12.1")).
+    아래 두 op 은 같은 답을 낸다.
+  ]
+  #ex("같은 일을 손으로 쓴 반복과 pipe 로 — 둘 다 한 번 훑는다", "module ex_pipe_why .
+
+fn is_digit output bool . input c u8 . do return and (ge c 48) (le c 57) . end .
+
+rem 손으로 쓴 반복 — 카운터·인덱스·조건·증가를 사람이 하나하나 맞춘다.
+fn digits_loop output u64 . input s slice u8 .
+do
+  var n u64 be 0 .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    if is_digit (index s i) . do set n (add n 1) . end .
+    set i (add i 1) .
+  end .
+  return n .
+end .
+
+rem 같은 일을 pipe 로 — «숫자인 것만 남기고, 센다». 하는 일이 줄마다 한 낱말로 보인다.
+fn digits_pipe output u64 . input s slice u8 .
+do
+  return pipe s do
+    filter is_digit .
+    count .
+  end .
+end .")
   #para("2")[
     스테이지는 일곱이다: `filter` · `map` · `take` · `skip` · `scan` · `zip` · `enumerate`.
       종결자는 다섯이다: `collect into` · `fold` · `count` · `any` · `all`.

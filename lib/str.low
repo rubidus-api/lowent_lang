@@ -129,8 +129,8 @@ end .
 
 rem ★ pull 소스 판 — RFC-0010 파이프라인의 `next` 규약(RFC-0068 §5.2). 상태를 원할 때는 이것.
 rem   spawn 뒤 `send sp init <src> <sep>` 로 채우고, `send sp next` 가 조각을 option 으로 낸다.
-export actor str_splitter .
-  state .
+export actor str_splitter do
+  state do
     src slice u8 .
     sep u8 .
     pos u64 .

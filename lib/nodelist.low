@@ -31,12 +31,12 @@ module nodelist .
 rem ── 이동권과 링크됨 ─────────────────────────────────────────────
 rem   둘 다 브랜드를 받는다 — 남의 목록의 자리를 이 목록에 넣지 못하게(§8-2).
 
-export struct site .
+export struct site do
   input comptime b type .
   slot u64 .
 end .
 
-export struct held .
+export struct held do
   input comptime b type .
   slot u64 .
 end .

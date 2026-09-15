@@ -28,7 +28,7 @@ module shard .
 
 rem ★ 토큰. **범위 [lo, hi) 를 바꿀 권한**이고, 브랜드가 어느 저장소의 것인지를 든다.
 rem   `id` 는 **오름차순 획득**의 근거다 — 교차 변경은 낮은 id 를 먼저 받는다(교착 규약).
-export struct token .
+export struct token do
   input comptime b type .
   id u64 .
   lo u64 .
@@ -36,7 +36,7 @@ export struct token .
 end .
 
 rem ★ 쪼갠 결과. 필드가 `owned` 다 — 그래야 **꺼내 쓰면 그만큼 손을 떠난다**.
-export struct halves .
+export struct halves do
   input comptime b type .
   low owned token b .
   high owned token b .

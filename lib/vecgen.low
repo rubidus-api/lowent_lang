@@ -52,7 +52,7 @@ rem
 rem ☞ 그리고 `vecs`(lib/vec.low)는 **접지 않았다**. 그쪽은 버퍼를 **호출자가 들고** 성장하면 새
 rem   자리를 **값으로 돌려주는** 모델이다 — 소유 모델이 다르다(Stage 3 Task 4 가 둘을 API·테스트
 rem   에서 가르라고 못박은 그 경계). 축이 겹친다고 **계약까지** 접으면 축소가 아니라 뭉갬이다.
-export struct vec input comptime t type . input comptime a type .
+export struct vec do input comptime t type . input comptime a type .
   al a .
   store mut slice u8 . .     rem 얼로케이터가 준 **바이트** — 소유하는 저장소
   n u64 .                  rem 담긴 **원소** 개수(바이트가 아니다)

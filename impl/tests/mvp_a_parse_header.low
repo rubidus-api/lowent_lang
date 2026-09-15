@@ -4,13 +4,13 @@ module packet .
 
 type bytes slice u8 . .
 
-struct header .
+struct header do
   version u8 .
   flags u8 .
   length u16 .
 end .
 
-enum parse_error .
+enum parse_error do
   too_short .
   bad_version .
   too_long .

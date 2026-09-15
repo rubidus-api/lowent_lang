@@ -15,12 +15,12 @@ rem     여전히 판다(drive_restore=0). VM≡네이티브.
 rem   ★ 아직 없는 것(정직히): `detach`·child_of region.
 module vm_cancel .
 
-enum e .
+enum e do
   bad .
 end .
 
-actor cnt .
-  state v u64 . end .
+actor cnt do
+  state do v u64 . end .
   proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
   fn get output u64 . do return v . end .
 end .

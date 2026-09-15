@@ -15,9 +15,12 @@
 
 내용 주소화는 이름을 버리고 **내용의 해시**로 부른다.
 
+> 이 장의 해시 값은 2026-09-15 에 다시 쟀다. 그날 op 머리의 절 차례가 바뀌어(`output` 이 맨 앞) 모든 op 의
+> 해시가 한 번 바뀌었다 — 해시는 머리의 절을 적힌 차례대로 담는다. 차례가 하나로 고정됐으므로(거절 + `--fmt`) 같은 프로그램이 두 해시를 갖는 일은 없다.
+
 ```
 $ lowentc --emit-db twice.low
-fn twice/1 iface:6630705cb68be394 def:73e3a88345444202
+fn twice/1 iface:c5982bd8503c2541 def:69f4530596f8eb3c
 ```
 
 두 개의 해시가 있는 것이 요점이다. **def**(정의 전체)와 **iface**(관찰 가능한 표면).
@@ -84,20 +87,20 @@ hash(def) = BLAKE3-256( 정규 인코딩(def) )
 
 ### 성질 H1 — 표면 무관: 주석은 아무것도 바꾸지 않는다
 
-```lowent
+```text
 export fn twice output u64 . input a u64 . do
   return add a a .
 end
-                              → iface:6630705cb68be394  def:73e3a88345444202
+                              → iface:c5982bd8503c2541  def:69f4530596f8eb3c
 ```
 
-```lowent
+```text
 rem 주석을 넣어도 아무것도 안 바뀌어야 한다
 export fn twice output u64 . input a u64 . do
   rem 여기도 주석
   return add a a .
 end
-                              → iface:6630705cb68be394  def:73e3a88345444202   ★ 같다
+                              → iface:c5982bd8503c2541  def:69f4530596f8eb3c   ★ 같다
 ```
 
 **막는 버그**: 주석을 고쳤는데 프로젝트 전체가 다시 빌드되는 것. 그리고 그보다 중요한 것 —
@@ -107,7 +110,7 @@ end
 
 ```lowent
   return mul a 2 .            rem add a a → mul a 2 (같은 값, 다른 코드)
-                              → iface:6630705cb68be394  def:64a7865b02486293
+                              → iface:c5982bd8503c2541  def:5c672a77f2c726be
 ```
 
 `iface` 는 **그대로**고 `def` 만 바뀌었다. 이것이 증분 빌드의 심장이다:
@@ -139,13 +142,13 @@ effects alloc io   →   같은 해시   (지금은)
 
 ```lowent
 export fn twice … . do return add a a . end
-                              → iface:6630705cb68be394
+                              → iface:c5982bd8503c2541
 
 export fn twice … requires le a 100 . do return add a a . end
-                              → iface:6630705cb68be394      ★ **같다**
+                              → iface:c5982bd8503c2541      ★ **같다**
 
 export fn twice … ensures ge ret a . do … end
-                              → iface:6630705cb68be394      ★ **같다**
+                              → iface:c5982bd8503c2541      ★ **같다**
 ```
 
 **계약을 붙여도 iface 해시가 안 바뀌었다.** 그런데 RFC-0012 §477 의 정의는:
@@ -175,10 +178,10 @@ RFC-0012 §484-492 의 증분 전파는 이 문장에 기댄다:
 ### 고친 뒤 (실측)
 
 ```
-requires le a 100 을 붙임    → iface:31247d9015a6c804      ✔ 바뀐다
-ensures ge ret a  을 붙임    → iface:db2b617041ab6479      ✔ 바뀐다
-주석만 고침                   → iface:6630705cb68be394      ✔ 안 바뀐다 (H1 유지)
-본문만 고침                   → iface:6630705cb68be394      ✔ 안 바뀐다 (H2 유지)
+requires le a 100 을 붙임    → iface:a9c11485dbe24f6d      ✔ 바뀐다
+ensures ge ret a  을 붙임    → iface:997b9968c180e3a2      ✔ 바뀐다
+주석만 고침                   → iface:c5982bd8503c2541      ✔ 안 바뀐다 (H1 유지)
+본문만 고침                   → iface:c5982bd8503c2541      ✔ 안 바뀐다 (H2 유지)
 ```
 
 ★ 그리고 **부정확의 방향**을 골랐다. 계약 절은 **소스 순서로** 해싱한다(효과처럼 정규화하지

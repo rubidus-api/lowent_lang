@@ -11,8 +11,8 @@ rem     전수 검사한다 — task_group 이 방금 만든 스케줄러·오�
 rem   ★ 아직 없는 것(정직히): `await`(결과 수확) · `cancel_on_error`(취소 전파) · `detach` · child_of region.
 module vm_tgroup .
 
-actor counter .
-  state v u64 . end .
+actor counter do
+  state do v u64 . end .
   proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
   fn get output u64 . do return v . end .
 end .

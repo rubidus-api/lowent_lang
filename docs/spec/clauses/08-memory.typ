@@ -102,7 +102,7 @@ end")
     ]
     #rejected("영역의 슬라이스를 바깥 묶음의 칸에 넣는다", "module ex_region_field .
 
-struct holder . store mut slice u8 . . end .
+struct holder do store mut slice u8 . . end .
 
 proc f output u64 . effects alloc . do
   var h holder be make holder do store (subslice \"abcd\" 0 0) . end .
@@ -609,8 +609,8 @@ end", "E-IMMUTABLE")
     ]
     #rejected("권한 없이 권한 칸을 가진 actor 를 띄운다", "module ex_cap_forge .
 
-actor grower .
-  state .
+actor grower do
+  state do
     root cap heap .
   end .
   proc take output u64 . input n u64 . effects heap . do
@@ -684,14 +684,14 @@ end .", "E-CAP-FORGE")
     ]
     #ex("한 op 에서 두 얼로케이터를 번갈아 쓴다", "module ex_using .
 
-trait carver .
+trait carver do
   reserve output u64 . input s self . input n u64 . effects state .
 end .
 
 rem 정책 둘 — 하나는 요청만큼, 하나는 두 배씩 센다
-actor exact .
+actor exact do
   satisfies carver .
-  state .
+  state do
     used u64 .
   end .
   proc reserve output u64 . input n u64 . effects state . do
@@ -700,9 +700,9 @@ actor exact .
   end .
 end .
 
-actor doubled .
+actor doubled do
   satisfies carver .
-  state .
+  state do
     used u64 .
   end .
   proc reserve output u64 . input n u64 . effects state . do
@@ -725,13 +725,13 @@ proc main output u8 . effects state . do
 end .")
     #rejected("보이는 얼로케이터가 둘인데 고르지 않았다", "module ex_using_ambiguous .
 
-trait carver .
+trait carver do
   reserve output u64 . input s self . input n u64 . effects state .
 end .
 
-actor exact .
+actor exact do
   satisfies carver .
-  state .
+  state do
     used u64 .
   end .
   proc reserve output u64 . input n u64 . effects state . do

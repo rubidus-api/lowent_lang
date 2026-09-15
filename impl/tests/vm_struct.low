@@ -1,11 +1,11 @@
 rem struct first-class fixture — make + all access surfaces (field / to / in /
 rem glued s.f), nested records; surfaces normalize to one IR (hash-invariant).
-struct pairr .
+struct pairr do
   a u64 .
   b u64 .
 end .
 
-struct outerr .
+struct outerr do
   q pairr .
   tag u64 .
 end .

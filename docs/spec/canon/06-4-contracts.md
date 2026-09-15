@@ -175,7 +175,7 @@ end
 module ex_named .
 
 rem 여러 op 이 같은 조건을 요구하면 그 조건에 이름을 줄 수 있다.
-contract nonneg
+contract nonneg do
   requires ge a 1 .
 end
 

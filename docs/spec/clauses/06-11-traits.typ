@@ -14,6 +14,55 @@
       #t("트레이트", "trait") 는 어떤 타입이 갖춰야 할 op 의 **목록**이다. 각 op 의 이름과
       시그니처를 적는다.
     ]
+    #plain[
+      모양이 여럿이면(사각형 · 정사각형 …) 넓이를 구하는 **방법**은 타입마다 다르지만, *"넓이를 알려 준다"* 는
+      **약속**은 같다. 트레이트는 그 약속에 이름을 붙인다. 그러면 *"넓이를 알려 주는 것이면 무엇이든"* 받는 op 을
+      **한 번만** 쓸 수 있다 — 타입마다 같은 op 을 베껴 쓰지 않아도 되고, 약속을 안 지킨 타입은 번역 때 걸린다.
+      부르는 자리는 그 타입이 무엇인지 몰라도 된다. 이 언어에는 상속이 없으므로, 여러 타입을 한 이름으로 다루는
+      길은 이것이다.
+    ]
+    #ex("트레이트는 무엇에 쓰나 — 한 op 이 여러 타입을 받는다", "module ex_trait_why .
+
+rem 모양마다 넓이를 구하는 법은 다르다. 그러나 «넓이를 알려 준다» 는 약속은 같다.
+trait shape do
+  area output u64 . input s self .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+
+struct square do
+  satisfies shape .
+  side u64 .
+end .
+
+fn rect.area output u64 . input s rect .
+do
+  return mul (field s w) (field s h) .
+end .
+
+fn square.area output u64 . input s square .
+do
+  return mul (field s side) (field s side) .
+end .
+
+rem 이 op 은 **어떤 모양이든** 받는다 — `requires shape t` 가 «넓이를 알려 주는 타입만» 이라고 못박는다.
+fn double_area output u64 . input comptime t type . input s t .
+  requires shape t .
+do
+  return mul 2 (method s area) .
+end .
+
+fn demo output u64 .
+do
+  let r rect be make rect do w 2 . h 3 . end .
+  let q square be make square do side 4 . end .
+  return add (double_area rect r) (double_area square q) .
+end .",
+      out: "demo() = 44")
     #para("1a")[
       트레이트는 op 을 **여럿** 적을 수 있다. 서명 하나는 op 의 **이름으로 시작**하고 그 op 의 절이 뒤따르며,
       다음 이름이 다음 서명을 연다. 서명마다 한 줄에 적는 것이 관례다. 서명의 절은 op 머리와 **같은 차례**를
@@ -60,12 +109,12 @@
     #ex("트레이트를 갖춘다", "module ex_trait .
 
 rem 트레이트는 타입이 갖춰야 할 op 의 목록이다.
-trait shape
+trait shape do
   area output u64 . input s self . effects none .
 end
 
 rem `satisfies` 를 적으면 그 목록을 갖췄는지 검사받는다.
-struct rect
+struct rect do
   satisfies shape .
   w u8 .
   h u8 .
@@ -77,11 +126,11 @@ do
 end")
     #rejected("갖추겠다고 적고 안 갖추면", "module ex_trait_bad .
 
-trait shape
+trait shape do
   area output u64 . input s self . effects none .
 end
 
-struct rect
+struct rect do
   satisfies shape .     rem 갖추겠다고 적었는데
   w u8 .
   h u8 .
@@ -91,14 +140,14 @@ rem `rect.area` 를 만들지 않았다", "E-TRAIT-MISSING")
     #ex("op 을 여럿 가진 트레이트", "module ex_trait_many .
 
 rem 서명마다 한 줄 — 이름으로 시작하고 `output` 이 맨 앞이다.
-trait shape
+trait shape do
   area output u64 . input s self .
   perimeter output u64 . input s self .
   grow output self . input s self . input k u64 .
   checked_area output u64 . input s self . effects panic .
 end
 
-struct rect
+struct rect do
   satisfies shape .
   w u64 .
   h u64 .
@@ -128,11 +177,11 @@ do
 end")
     #rejected("효과 줄이 없는 proc 으로 효과 없는 서명을 갖추려 한다", "module ex_trait_proc_noeff .
 
-trait shape
+trait shape do
   area output u64 . input s self .
 end
 
-struct rect
+struct rect do
   satisfies shape .
   w u64 .
   h u64 .
@@ -174,7 +223,7 @@ end", "E-TRAIT-EFFECT")
     ]
     #ex("붙은 op 을 부른다", "module ex_method .
 
-struct rect
+struct rect do
   w u64 .
   h u64 .
 end
@@ -208,7 +257,7 @@ end")
     ]
     #rejected("그 타입에 그 이름의 붙은 op 이 없다", "module ex_method_undef .
 
-struct p .
+struct p do
   x u8 .
 end .
 

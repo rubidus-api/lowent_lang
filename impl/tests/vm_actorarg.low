@@ -5,8 +5,8 @@ rem   `bump` 을 비변형으로 오판해 변형을 **호출자 사본에 버�
 rem   잡는 최악 부류). 이제 `cbe_pmut` 이 전이 폐포로 잡아 되쓰기 사슬을 잇는다.
 module vm_actorarg .
 
-actor rec .
-  state v u64 . end .
+actor rec do
+  state do v u64 . end .
   proc put output u64 . input n u64 . effects state . do set v expr v + n . . return v . end .
   fn get output u64 . do return v . end .
 end .

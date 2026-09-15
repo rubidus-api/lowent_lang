@@ -14,7 +14,7 @@ rem 이제 원소는 **구조체 뷰**다 — 무복사. `field` 가 바로 먹�
 
 module vm_structslice .
 
-struct pt .
+struct pt do
   x u8 .
   y u8 .
 end .

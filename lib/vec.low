@@ -16,7 +16,7 @@ module vecs .
 
 use allocs from "alloc.low" .
 
-export struct vec_u8 .
+export struct vec_u8 do
   len u64 .
 end .
 

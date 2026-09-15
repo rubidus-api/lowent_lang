@@ -12,12 +12,12 @@ rem        계약**이라 접지 않는다.
 
 module vm_mono2 .
 
-struct pt .
+struct pt do
   x u32 .
   y u32 .
 end .
 
-struct rc .
+struct rc do
   w u32 .
   h u32 .
 end .

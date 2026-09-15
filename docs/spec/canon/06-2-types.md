@@ -196,12 +196,12 @@ end
 ```lowent 예제: struct 와 enum
 module ex_shape .
 
-struct point
+struct point do
   x u32 .
   y u32 .
 end
 
-enum color
+enum color do
   red .
   green .
 end
@@ -215,7 +215,7 @@ end
 ```lowent 예제: struct 를 만들고 읽는다
 module ex_make .
 
-struct point
+struct point do
   x u32 .
   y u32 .
 end
@@ -234,7 +234,7 @@ end
 ```lowent-거부: 갈래를 점으로 닫지 않았다 · E-ENUM-DOT
 module ex_enum_dot .
 
-enum color
+enum color do
   red
   green
 end
@@ -260,7 +260,7 @@ end
 ```lowent 예제: result 로 실패를 돌려준다
 module ex_result .
 
-enum err
+enum err do
   too_small
 end
 
@@ -344,7 +344,7 @@ end
 ```lowent 예제: result — 묻고 꺼내기, 그리고 `try` 로 넘기기 · 결과: use_ask(100) = 50 · use_ask(250) = 0 · use_try(100) = ok 51
 module ex_result_use .
 
-enum io_error
+enum io_error do
   too_big
 end
 
@@ -413,11 +413,11 @@ end
 ```lowent 예제: 다단 필드 읽기와 쓰기
 module ex_field .
 
-struct inner
+struct inner do
   a u64 .
 end
 
-struct outer
+struct outer do
   i inner .
 end
 
@@ -542,7 +542,7 @@ module ex_layout .
 
 type bytes slice u8 .
 
-struct wire_header .
+struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .
@@ -718,7 +718,7 @@ fn f output u8 . input s str . do return 1 . end
 > [`E-TYPE-TRY`], [`try` 할 때 — 벗겨 낼 것이 없는 값이다],
 > )
 
-(2) 묶음과 열거는 `struct <이름> … end` · `enum <이름> … end` 로 선언한다. 다른 모양으로
+(2) 묶음과 열거는 `struct <이름> do … end` · `enum <이름> do … end` 로 선언한다. 다른 모양으로
       선언하려 하면 거부된다(`E-TYPE-DECL`).
 
 (3) 칸의 배치가 같아도 **이름이 다르면 다른 묶음**이다(`E-TYPE-STRUCT`, ⟦§8.9⟧).
@@ -742,7 +742,7 @@ fn f output u8 . input s str . do return 1 . end
 ```lowent-거부: 칸은 이름 다음에 타입이다 · E-FIELD-FORM
 module ex_field_form .
 
-struct p .
+struct p do
   x .              rem 타입이 없다
 end .
 

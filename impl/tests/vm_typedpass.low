@@ -16,7 +16,7 @@ rem ⇒ 진입 래핑은 **멱등**이어야 한다: 이미 감싸여 있으면 
 
 module vm_typedpass .
 
-struct pt .
+struct pt do
   x u8 .
   y u8 .
 end .

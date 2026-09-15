@@ -17,8 +17,8 @@ rem   ★ **데드락은 잡는다**: 모든 태스크가 채널에서 막혀 �
 rem   ★ 아직 없는 것(정직히): 채널 first-class 타이핑(`send`/`recv` 통일) · unbounded(alloc effect).
 module vm_chan .
 
-actor sink .
-  state v u64 . end .
+actor sink do
+  state do v u64 . end .
   proc put output u64 . input n u64 . effects state . do set v expr v + n . . return v . end .
   fn get output u64 . do return v . end .
 end .

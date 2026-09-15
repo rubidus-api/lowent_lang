@@ -257,7 +257,7 @@ end")
     ]
     #ex("세 채널이 각기 다른 모양으로 답한다", "module ex_channels .
 
-enum io_error
+enum io_error do
   too_big
 end
 
@@ -433,7 +433,7 @@ end                      rem `a` 가 5 이하인 길에는 값이 없다", "E-RE
     ]
     #rejected("적지 않은 오류를 낸다", "module ex_err_undeclared .
 
-enum e .
+enum e do
   bad .
 end .
 

@@ -25,7 +25,7 @@ build tier t1 .              rem Cortex-M — `device` 효과를 감당한다
 rem ── GPIOA 레지스터 블록 (STM32F4 기준) ──────────────────────────────────
 rem ★ 기저 주소가 **타입 안에** 있다. 그래서 이 지도를 가진 사람은 누구나 — 인자를 받을 수
 rem   없는 ISR 을 포함해서 — 장치를 열 수 있다.
-struct gpioa .
+struct gpioa do
   mmio 0x40020000 .
   moder u32 rw .             rem 모드     (읽기·쓰기)
   otyper u32 rw .            rem 출력 종류
@@ -45,7 +45,7 @@ rem     그래서 여기 **적어 둔다**: 이것이 대표 프로그램이 지
 rem
 rem ★ 예약 자리도 **이름을 준다**. 그래야 `ahb1enr` 이 0x30 에 선다 — 오프셋은 배치가 정하지
 rem   주석이 정하지 않는다(실측: 방출된 C 가 `+ 48`, 즉 0x30 이다).
-struct rcc .
+struct rcc do
   mmio 0x40023800 .
   cr        u32 rw .         rem 0x00
   pllcfgr   u32 rw .         rem 0x04
@@ -117,7 +117,7 @@ end .
 rem ── SysTick — 무엇이 ISR 을 부르는가 ────────────────────────────────────
 rem ★ Cortex-M 코어 안의 타이머다. **NVIC 를 거치지 않는다** — 자기 `ctrl` 로 켜진다.
 rem   그래서 이 프로그램은 아직 NVIC 없이 완결된다(주변장치 인터럽트가 §8-4 의 다음 일감).
-struct systick .
+struct systick do
   mmio 0xE000E010 .
   ctrl u32 rw .              rem 비트0 켜기 · 비트1 인터럽트 · 비트2 코어클럭
   load u32 rw .              rem 재적재 값(24비트)

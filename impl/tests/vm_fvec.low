@@ -1,7 +1,7 @@
 rem float struct fields (f32/f64 layout, be) + float SIMD lanes (RFC-0040 f32).
 type bytes slice u8 . .
 
-struct sample .
+struct sample do
   layout packed .
   temp f32 big .
   scale f64 .

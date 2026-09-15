@@ -40,13 +40,13 @@ rem ★★★ **cstr 의 정본 선언** (RFC-0068 D4) — `newtype cstr unsafe_
 rem   가리키는 생 포인터. FFI 경계 전용이다. str_buf 를 쓰는 프로그램은 이것을 가져다 쓴다.
 export newtype cstr unsafe_ptr u8 .
 
-export enum sb_error .
+export enum sb_error do
   no_room .
 end .
 
 rem ★ 상태만. 바이트는 호출자가 든다.
 rem   `cap` 은 **호출자가 준 버퍼의 길이**를 그대로 적는다 — 두 곳에 적으면 어긋난다(§0).
-export struct str_buf .
+export struct str_buf do
   len u64 .
 end .
 

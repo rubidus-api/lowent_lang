@@ -9,8 +9,8 @@ rem   ★ `wide_msg` — 인자 스물짜리 핸들러에 `spawn send` 하고 `d
 
 module vm_wideactor .
 
-actor adder .
-  state v u64 . end .
+actor adder do
+  state do v u64 . end .
   proc take output u64 . input a u64 . input b u64 . input c u64 . input d u64 . input e u64 . input f u64 . input g u64 . input h u64 . input i u64 . input j u64 . input k u64 . input l u64 . input m u64 . input n u64 . input o u64 . input p u64 . input q u64 . input r u64 . input s u64 . input t u64 . effects state . do
     set v expr v + (add add add add add add add add add add add add add add add add add add add a b c d e f g h i j k l m n o p q r s t) . .
     return v .

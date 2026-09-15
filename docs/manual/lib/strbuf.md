@@ -73,11 +73,11 @@ capability(RFC-0011 — 권한을 값으로 들고 다니는 장치) 뒤에 오�
 ```lowent
 export newtype cstr unsafe_ptr u8 .
 
-export enum sb_error
+export enum sb_error do
   no_room
 end
 
-export struct str_buf
+export struct str_buf do
   len u64 .
 end
 ```

@@ -90,7 +90,7 @@ rem 돌려준 뒤 옛 핸들로 접근하면 세대가 달라 거절된다 — �
 `lib/mapgen.low` 의 `table k v` 와 같은 모양이다.
 
 ```lowent
-export struct handle .
+export struct handle do
   input comptime b type .
   blk u64 .
   len u64 .

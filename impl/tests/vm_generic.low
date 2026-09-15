@@ -15,19 +15,19 @@ rem   치환한다. 뒷단(검사·타입·IR)은 **제네릭을 아예 모른�
 
 module gen .
 
-struct rect .
+struct rect do
   satisfies area_of .
   w u8 .
   h u8 .
 end .
 
-struct square .
+struct square do
   satisfies area_of .
   side u8 .
 end .
 
 rem ★ 제네릭 — 타입을 **comptime 인자**로 받는다
-trait area_of .
+trait area_of do
   area output u64 . input s self . effects none .
 end .
 

@@ -11,8 +11,8 @@ rem   전부 동시에 막혀 끝난 자리가 없다) — **오직 성장만이
 
 module vm_conc_grow .
 
-actor counter .
-  state v u64 . end .
+actor counter do
+  state do v u64 . end .
   proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
   fn get output u64 . do return v . end .
 end .

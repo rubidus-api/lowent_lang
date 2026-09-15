@@ -13,8 +13,8 @@ rem   ★ **오라클이 yield 인터리빙을 전수 탐색**한다(`schedule e
 rem     결과를 바꾸면 E-SCHED-NONDET. 순서 무관이면 초록. 동시성의 결정론이 이 오라클로 검증된다.
 module vm_gthread .
 
-actor counter .
-  state v u64 . end .
+actor counter do
+  state do v u64 . end .
   proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
   fn get output u64 . do return v . end .
 end .

@@ -23,7 +23,7 @@ rem ☞ 스칼라(`u64` 등)는 trait 을 충족할 수 없다(메서드를 붙�
 rem   구조체로 감싸면 된다 — 레이아웃은 같고(8바이트), 비교만 붙는다. `sort` 는 그 흔한 경우를
 rem   위한 **특수화**로 남는다: u64 는 감싸지 않고 그대로 정렬한다.
 
-export trait ordered .
+export trait ordered do
   less output bool . input a self . input b self . effects none .
 end .
 

@@ -16,8 +16,8 @@ module vm_mailbox .
 rem 자기 자신을 state 에 담아(setme) 재진입 send 를 만든다. `mailbox bounded 2` 면
 rem in-flight 가 2 까지는 되고 3 에서 트랩한다. go n 은 n+1 겹의 in-flight 를 만든다:
 rem   go 1 → 최대 in-flight 2 (OK) · go 2 → 3 (E-VM-MAILBOX-FULL).
-actor pinger .
-  state .
+actor pinger do
+  state do
     me pinger .
   end .
   mailbox bounded 2 .

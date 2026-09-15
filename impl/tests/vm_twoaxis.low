@@ -18,7 +18,7 @@ module twoax .
 
 use allocs .
 
-export struct gv input comptime t type . input comptime a type .
+export struct gv do input comptime t type . input comptime a type .
   al a .
   store mut slice u8 . .     rem 얼로케이터가 준 **바이트** — 소유하는 저장소
   n u64 .                    rem 담긴 **원소** 개수
@@ -130,9 +130,9 @@ end .
 
 rem ── 얼로케이터 축. 같은 틀을 **다른 얼로케이터 타입**으로 인스턴스화한다. ────
 rem   ★ 이 자리가 두 축의 증거다: 위 둘은 `t` 를 바꿨고, 이것은 `a` 를 바꾼다.
-export actor pair_bytes .
+export actor pair_bytes do
   satisfies allocs.byte_allocator .
-  state .
+  state do
     mem mut slice u8 . .
     off u64 .
     last u64 .

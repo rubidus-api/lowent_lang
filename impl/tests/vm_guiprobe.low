@@ -26,7 +26,7 @@ newtype g_self u8 .
 newtype g_churn u8 .
 
 rem ★ 공개 손잡이 — **word 하나**. 브랜드는 타입 인자로만 든다(§5.4 "brand 0 byte").
-export struct handle .
+export struct handle do
   input comptime b type .
   w u64 .
 end .

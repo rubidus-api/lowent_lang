@@ -11,11 +11,11 @@ module lib .
 
 build release_safe .
 
-trait sized .
+trait sized do
   area output u64 . input s self . effects none .
 end .
 
-export struct rect .
+export struct rect do
   satisfies sized .
   w u8 .
   h u8 .

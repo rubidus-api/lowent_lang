@@ -73,7 +73,7 @@ end .
 ```lowent 예제: match 는 모든 갈래를 덮는다
 module ex_match .
 
-enum color .
+enum color do
   red .
   green .
 end .
@@ -90,7 +90,7 @@ end .
 ```lowent-거부: 갈래가 빠진 match · E-MATCH-INEXHAUSTIVE
 module ex_match_bad .
 
-enum color .
+enum color do
   red .
   green .
 end .

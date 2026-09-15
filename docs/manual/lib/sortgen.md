@@ -16,7 +16,7 @@
 ```lowent
 use sortgen .
 
-struct row
+struct row do
   satisfies sortgen.ordered .     rem ① 이 타입은 순서를 안다고 선언한다
   key u64 .
 end
@@ -66,7 +66,7 @@ op 이 만들어지고(단형화), 비교는 **직접 호출**로 박힌다. 간
 새 자료구조는 없다. 대신 **약속**이 하나 있다.
 
 ```lowent
-export trait ordered
+export trait ordered do
   less output bool . input a self . input b self . effects none .
 end
 ```
@@ -113,7 +113,7 @@ export proc sort_by output void . input comptime t type . input s mut slice t . 
 module app .
 use sortgen .
 
-struct keyed
+struct keyed do
   satisfies sortgen.ordered .        rem 이 선언이 없으면 경계에서 걸린다
   k u64 .
 end
@@ -138,7 +138,7 @@ end
 
 **① `satisfies` 를 빠뜨린다.**
 ```lowent
-struct row
+struct row do
   key u64 .                          rem satisfies 가 없다
 end
 fn row.less output bool . input a row . input b row . do return lt (field a key) (field b key) . end

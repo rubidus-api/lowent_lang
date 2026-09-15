@@ -28,7 +28,7 @@ module mapgen .
 use allocs .
 
 rem ★ 틀. 타입 파라미터 **둘** — 블록 맨 앞에 연달아 온다.
-export struct table .
+export struct table do
   input comptime k type .
   input comptime v type .
   al allocs.bump_bytes .

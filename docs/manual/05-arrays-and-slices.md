@@ -137,6 +137,56 @@ end
 ☞ 교훈은 두 겹이다: 사슬이 느리다는 것, 그리고 **언어가 이미 할 수 있는 것을 몰라서
   느리게 썼다**는 것. 그래서 이 절이 여기 있다.
 
+## `pipe` — 슬라이스를 한 줄기로 흘린다
+
+슬라이스를 훑는 반복은 거의 언제나 같은 뼈대다: 인덱스를 두고, 끝인지 보고, 원소를 꺼내 조건을 보고, 무언가를
+쌓고, 인덱스를 늘린다. `pipe` 는 그 뼈대를 언어가 맡고, 사람은 **하려는 일만** 적게 한다.
+
+```lowent
+module ex_pipe_why .
+
+fn is_digit output bool . input c u8 . do return and (ge c 48) (le c 57) . end .
+
+rem 손으로 쓴 반복 — 카운터·인덱스·조건·증가를 사람이 하나하나 맞춘다.
+fn digits_loop output u64 . input s slice u8 .
+do
+  var n u64 be 0 .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    if is_digit (index s i) . do set n (add n 1) . end .
+    set i (add i 1) .
+  end .
+  return n .
+end .
+
+rem 같은 일을 pipe 로 — «숫자인 것만 남기고, 센다». 하는 일이 줄마다 한 낱말로 보인다.
+fn digits_pipe output u64 . input s slice u8 .
+do
+  return pipe s do
+    filter is_digit .
+    count .
+  end .
+end .
+```
+
+두 op 은 같은 답을 낸다(`[97,49,50,98,51]` → 3). `pipe` 쪽은 줄마다 한 낱말이다:
+
+- `filter is_digit .` — `is_digit` 이 참인 원소만 남긴다.
+- `count .` — 남은 원소를 센다. 끝을 맺는 낱말(종결자)은 **꼭 하나**다.
+
+쓸 수 있는 낱말:
+
+| 자리 | 낱말 |
+|---|---|
+| 중간(스테이지) | `filter` · `map` · `take` · `skip` · `scan` · `zip` · `enumerate` |
+| 끝(종결자) | `collect into` · `fold` · `count` · `any` · `all` |
+
+- 스테이지에는 **이름 붙은 op** 을 준다(람다가 없다). 그 op 은 원소 하나만 받는다.
+- 중간 배열을 만들지 않고 **한 번만** 훑는다 — 손으로 쓴 반복과 같은 비용이다.
+- `any`·`all`·`take` 는 답이 정해지면 그 자리에서 멈춘다.
+
+자세한 규칙은 정본 §6.12 에 있다.
+
 ---
 
 [← 목차](README.md) · [다음: 6. 참조 →](06-references.md)

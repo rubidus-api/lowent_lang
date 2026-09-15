@@ -101,9 +101,9 @@ struct/enum 은 없다. 상태는 actor `mem_reader` 하나가 든다. actor 는
 `send r <핸들러> <인자…>` 로 부린다. 여기서 커서(cursor)는 "다음에 읽을 자리" 를 가리키는
 정수이고, 뷰(view)는 **원본을 복사하지 않고 그 일부 구간만 가리키는 슬라이스**다.
 
-```lowent
-export actor mem_reader
-  state
+```text
+export actor mem_reader do
+  state do
     src slice u8 .    rem 원본 슬라이스 — 반환되는 뷰는 전부 이것을 가리킨다
     pos u64 .         rem 커서 — 다음에 읽을 자리
   end

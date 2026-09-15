@@ -25,15 +25,15 @@ module tier .
 
 build tier t0 .              rem ★ 협력 floor — lock·atomic·blocking·alloc·io 는 **거부**된다
 
-trait executor .
+trait executor do
   post  output u64 . input s self . input job u64 . effects state .
   drain output u64 . input s self . effects state .
 end .
 
 rem ── T0 구현: 협력 스케줄러 (정적 잡 큐, 선점 없음 ⇒ 구성상 무경합)
-actor coop .
+actor coop do
   satisfies executor .        rem ★ **검사된다**
-  state .
+  state do
     pending u64 .
     done u64 .
   end .
@@ -51,9 +51,9 @@ actor coop .
 end .
 
 rem ── 또 하나의 구현: 잡을 두 배로 세는 큐 (같은 인터페이스, 다른 기관)
-actor queue .
+actor queue do
   satisfies executor .
-  state .
+  state do
     pending u64 .
     done u64 .
   end .

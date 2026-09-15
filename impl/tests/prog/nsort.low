@@ -63,7 +63,7 @@ end .
 
 rem ★ 제네릭 정렬은 **타입이 비교를 들고 온다** — 스칼라 u64 는 trait 을 못 만족하므로
 rem   레코드로 감싼다. 이것이 그 API 의 실제 사용감이다(픽스처가 이미 같은 모양을 쓴다).
-struct keyed .
+struct keyed do
   satisfies sortgen.ordered .
   k u64 .
 end .

@@ -5,7 +5,7 @@ rem   고쳤다 — E-TOPLEVEL 게이트가 톱레벨 잡동사니를 거절하�
 
 module sorted_search .
 
-struct pt .
+struct pt do
   x i32 .
   y i32 .
 end .

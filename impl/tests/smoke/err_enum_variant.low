@@ -1,6 +1,6 @@
 module m .
 rem expect: E-ENUM-NOVARIANT
-enum e .
+enum e do
   a .
 end .
 fn f output e . do

@@ -12,8 +12,8 @@ rem   ★ `within <D>` 창은 결정적 클럭이 없어 아직 강제 못 한�
 module vm_restart .
 
 rem 자기 상태를 오염시켜 다음 호출에 panic 한다. restart 가 상태를 초기화하면 **복구된다**.
-actor recov .
-  state bad u64 . end .
+actor recov do
+  state do bad u64 . end .
   failure restart max 3 .
   proc step output u64 . effects state .
   do
@@ -31,8 +31,8 @@ proc recover output u64 . effects state . do
 end .
 
 rem 언제나 panic 한다 — 초기화해도 또 터진다. max 2 소진 → escalate.
-actor doomed .
-  state v u64 . end .
+actor doomed do
+  state do v u64 . end .
   failure restart max 2 .
   proc boom output u64 . effects state . do panic "always fails" . return 0 . end .
 end .

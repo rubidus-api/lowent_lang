@@ -14,7 +14,7 @@ rem   (VM 은 4, 네이티브는 3). 이제 출신 지역을 추적해서 **거�
 
 module vm_structfast .
 
-struct pt .
+struct pt do
   x u64 .
   y u64 .
 end .

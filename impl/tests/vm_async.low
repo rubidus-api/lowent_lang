@@ -10,8 +10,8 @@ rem   ★ VM(mbox 큐)과 네이티브(lw_ambox 전역 큐 + lw_drain)가 **같�
 rem     스윕이 그것을 지킨다. `mailbox bounded N` 이면 **대기 중** 메시지가 N 을 넘을 수 없다.
 module vm_async .
 
-actor counter .
-  state v u64 . end .
+actor counter do
+  state do v u64 . end .
   proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
   fn get output u64 . do return v . end .
 end .
@@ -46,8 +46,8 @@ proc drain_twice output u64 . effects state . do
 end .
 
 rem `mailbox bounded 2` — 대기 중 메시지가 2 를 넘으면 셋째 `spawn send` 가 패닉한다.
-actor bnd .
-  state v u64 . end .
+actor bnd do
+  state do v u64 . end .
   mailbox bounded 2 .
   proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
   fn get output u64 . do return v . end .

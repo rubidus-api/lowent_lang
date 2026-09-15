@@ -89,13 +89,13 @@ Lowent 에는 암묵 전역 힙이 없다. 바이트가 프로그램에 **처음
 불변식이 안에서 지켜진다.
 
 ```lowent
-export trait byte_allocator .
+export trait byte_allocator do
   reserve output option mut slice u8 . . input s self . input n u64 . effects state via self .
   grow    output option mut slice u8 . . input s self . input old mut slice u8 . . input newn u64 . effects state via self .
   used    output u64 . input s self . effects state .
 end .
 
-export trait freeing_allocator .
+export trait freeing_allocator do
   reserve output option mut slice u8 . . input s self . input n u64 . effects state via self .
   grow    output option mut slice u8 . . input s self . input old mut slice u8 . . input newn u64 . effects state via self .
   used    output u64 . input s self . effects state .

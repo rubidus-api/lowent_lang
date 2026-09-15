@@ -1,0 +1,36 @@
+module mistake_errorsstate .
+
+enum bank_error do
+  insufficient .
+end .
+
+actor account do
+  state do
+    balance u64 .
+  end .
+
+  proc deposit input amount u64 . output u64 . effects state .
+    requires le amount 1000000 .
+  do
+    set balance (wrap_add balance amount) .
+    return balance .
+  end .
+
+  rem ko: ✘ 오류 조건이 상태 칸 `balance` 를 읽는다 --- 나갈 때는 이미 줄어든 잔액으로 다시 읽힌다 /// en: ✘ the error condition reads the state field `balance` --- on exit it is read again, after the balance has shrunk
+  proc withdraw input amount u64 . output result u64 bank_error . effects state .
+    errors insufficient gt amount balance .
+  do
+    guard le amount balance . else return error insufficient .
+    set balance (sub balance amount) .
+    return ok balance .
+  end .
+end .
+
+proc take30 output u64 . effects state .
+do
+  var a account be spawn actor account .
+  let seed u64 be send a deposit 50 .
+  let r result u64 bank_error be send a withdraw 30 .
+  guard not (is_error r) . else return 1 .
+  return ok_value r .
+end .

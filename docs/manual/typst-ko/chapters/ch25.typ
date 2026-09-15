@@ -137,6 +137,90 @@
 
 `actor` 를 *선언*하는 것만으로 3 등급이다. 프로파일을 적지 않으면 막지 않는다. 적은 사람만 그 약속을 진다.
 
+== 액터로 설계하기 --- 계좌 둘 사이의 이체
+
+지금까지의 조각을 한 설계에 모은다. 계좌마다 액터 하나를 두고, 이체는 두 액터에게 차례로 말을 거는 op 이 맡는다.
+
+#demo("examples/ch25/transfer.low")
+
+- 잔액은 `account` 의 상태에만 있다. 바깥은 `deposit`·`withdraw`·`peek_balance` 세 메시지로만 계좌에 닿는다.
+- `withdraw` 는 잔액이 모자라면 *상태를 건드리지 않고* `error insufficient` 를 돌려준다. 멈추지 않는다 --- 잔액 부족은 계좌를 쓰는 쪽이
+  다룰 수 있는 실패다(#chref("errors-design")).
+- `move` 는 빼기가 성공했을 때만 넣는다. `move 30` 은 보내는 쪽 20, 받는 쪽 30 이라 20030 을 낸다. `move 80` 은 빼기가 실패해 두 계좌가
+  50 과 0 그대로다(50000).
+- 메시지는 한 번에 하나씩 처리되므로 `withdraw` 가 잔액을 확인하고 줄이는 사이에 다른 메시지가 끼어들 수 없다. "확인하고 쓰기" 사이의
+  경합이 이 모양에는 없다.
+
+`withdraw` 의 `errors insufficient .` 에 조건을 붙이지 않은 것은 일부러다. 아래 "흔한 실수" 의 넷째 항목이 그 까닭이다.
+
+== 흔한 실수
+
+#antipattern[크기를 정한 우편함에 비우지 않고 계속 넣는다][
+  #demo("examples/ch25/mistake_bounded.low")
+
+  `mailbox bounded 2 .` 는 "대기 중인 메시지는 둘까지" 라는 약속이다. 셋째 `spawn send` 는 넘치므로 `E-VM-MAILBOX-FULL` 로 멈춘다. 멈추는
+  대신 다루려면 `try spawn send` 로 넣는다. 그러면 넘침이 `result` 로 돌아오고, 비운 뒤 다시 넣을 수 있다.
+
+  #demo("examples/ch25/bounded_fixed.low")
+]
+
+#antipattern[액터가 다루지 않는 메시지를 보낸다][
+  #demo("examples/ch25/mistake_unknownmsg.low")
+
+  메시지 이름은 *받는 액터의 타입 안에서* 찾는다. `counter` 에는 `dec` 가 없으므로 `E-IR-UNDEF` 다. 진단이 덧붙인 사연대로, 한때는 이름만으로
+  찾아서 같은 이름의 처리기를 가진 두 액터가 조용히 하나를 나눠 썼다.
+]
+
+#antipattern[바깥에서 액터의 상태 칸을 읽는다 --- 이 판의 구멍][
+  #demo("examples/ch25/mistake_peekstate.low")
+
+  이 장의 첫 약속은 "상태는 액터 안에만 있고 바깥에서 직접 건드릴 수 없다" 였다. 그런데 이 판의 도구는 `field c value` 를 거절하지 않고 1 을
+  돌려준다. 액터의 격리는 동시성 증명의 전제이므로 중대한 결함으로 개발 저장소에 적어 두었다. 고쳐지기 전까지는 스스로 규칙을 지킨다 ---
+  상태가 필요하면 `get` 같은 읽기 메시지를 두고 `send c get` 으로 묻는다.
+]
+
+#antipattern[메시지 op 의 오류 조건에 상태 칸을 쓴다][
+  #demo("examples/ch25/mistake_errorsstate.low")
+
+  `errors insufficient gt amount balance .` 는 "잔액보다 많이 빼려 하면 이 오류" 라는 뜻으로 적었다. 그런데 `errors` 의 조건은 *나갈 때*
+  확인된다. 성공 경로에서 잔액이 50 에서 20 으로 줄었으므로, 나갈 때 `gt 30 20` 이 참이 되어 "조건이 참인데 오류를 내지 않았다" 가 된다.
+  이 판에서 VM 은 이 자리를 `E-VM-ANALYSIS`("구간 분석이 건전하지 않다 --- 컴파일러 결함") 로 멈추고, 네이티브는 검사 없이 20 을 낸다.
+  진단의 이름도 두 뒤끝의 동작도 틀린 결함이고 개발 저장소에 적어 두었다. 상태를 바꾸는 op 에서는 오류 조건에 상태 칸을 쓰지 않는다.
+  위의 `transfer.low` 처럼 조건 없이 `errors insufficient .` 만 적고, 조건은 본문의 `guard` 가 맡는다.
+]
+
+#misconception[다시 세운 액터는 터지기 직전 상태에서 이어 간다][
+  #demo("examples/ch25/restart_resets.low")
+
+  `inc` 두 번으로 값이 2 가 된 뒤 셋째 메시지에서 터진다. 다시 세우면 상태는 *처음*(0)으로 돌아가고 그 메시지가 다시 처리되므로 답은 3 이
+  아니라 1 이다. 터지기 직전의 상태는 바로 그 상태 때문에 터졌을 수 있으므로 믿지 않는다. 잃으면 안 되는 값은 액터 바깥 --- 다른 액터나
+  파일 --- 에 두고, 다시 선 액터가 그것을 읽게 한다.
+]
+
+#misconception[같은 액터 타입의 값들은 상태를 나눠 쓴다][
+  #demo("examples/ch25/separate_state.low")
+
+  `spawn actor counter` 를 두 번 하면 상태가 둘 생긴다. `left` 를 두 번 올려도 `right` 는 1 부터 센다. 액터 타입은 설계도이고 상태는
+  `spawn` 할 때마다 새로 생긴다. 여럿이 같은 값을 봐야 한다면 그 값을 가진 액터 *하나*를 두고 모두가 그 액터에게 말을 건다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "actors-glance",
+  caption: [액터의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`actor counter do state do value u64 . end . … end .`], [상태를 가둔 실행 단위를 선언], [상태를 동시에 만질 길이 처음부터 없다],
+  [`proc inc … effects state .` · `fn get …`], [상태를 고치는 메시지 · 읽기만 하는 메시지], [`fn`·`proc` 규칙이 그대로 --- 고치면서 `fn` 이면 `E-EFFECT-PURITY`],
+  [`var c counter be spawn actor counter .`], [액터 하나를 만든다(상태는 0 에서 시작)], [`spawn` 마다 상태가 따로],
+  [`send c inc` · `send acct deposit a`], [보내고 처리가 끝날 때까지 기다린다 · 값을 싣는다], [액터가 먼저 --- 메시지는 액터를 첫 매개변수로 받는 op],
+  [`spawn send c inc .` · `drain c .` · `schedule .`], [우편함에 넣기 · 그 액터의 우편함 비우기 · 모두 비우기], [배달 시점을 사람이 고른다 --- 결정성],
+  [`mailbox bounded 2 .` · `try spawn send`], [우편함 크기 · 넘침을 값으로 받기], [넘치면 멈추거나 `result`],
+  [`failure restart max 3 .` · `never` · `always`], [`panic` 한 액터를 처음 상태로 다시 세운다], [다 쓰면 실패를 위로 넘긴다],
+  [`build profile server .`], [액터(3 등급)를 쓸 수 있는 자리], [적은 사람만 그 약속을 진다],
+)
+
 #recap[
   액터는 상태를 안에 가두고 메시지를 한 번에 하나씩 처리한다. `spawn actor` 로 만들고 `send` 로 기다려 부르며, 메시지
   op 은 `fn`·`proc` 규칙을 따른다. 메시지에는 값을 싣고, 소유 값을 보내면 소유가 넘어간다. `spawn send` 는 우편함에

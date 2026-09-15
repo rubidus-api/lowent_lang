@@ -1,0 +1,20 @@
+module mistake_unknownmsg .
+rem expect: E-IR-UNDEF
+
+actor counter do
+  state do
+    value u64 .
+  end .
+  proc inc output u64 . effects state .
+  do
+    set value (add value 1) .
+    return value .
+  end .
+end .
+
+proc use_counter output u64 . effects state .
+do
+  var c counter be spawn actor counter .
+  rem ko: ✘ `counter` 는 `dec` 메시지를 다루지 않는다 /// en: ✘ `counter` does not handle a `dec` message
+  return send c dec .
+end .

@@ -133,6 +133,96 @@ A program can state where it runs with `build profile <name> .`. When it does, c
 
 *Declaring* an `actor` alone is level 3. Without a profile, nothing is restricted --- only whoever writes it takes on the promise.
 
+== Designing with actors --- a transfer between two accounts
+
+This section gathers the pieces so far into one design. Each account is an actor, and a transfer is an op that talks to the two actors in
+turn.
+
+#demo("examples/ch25/transfer.low")
+
+- The balance lives only in the state of `account`. The outside reaches an account only through three messages: `deposit`, `withdraw` and
+  `peek_balance`.
+- When the balance is short, `withdraw` returns `error insufficient` *without touching the state*. It does not stop --- a short balance
+  is a failure the account's user can handle (#chref("errors-design")).
+- `move` deposits only when the withdrawal succeeded. `move 30` leaves 20 with the sender and 30 with the receiver, giving 20030. With
+  `move 80` the withdrawal fails and both accounts stay at 50 and 0 (50000).
+- Messages are processed one at a time, so no other message can slip in between `withdraw` checking the balance and reducing it. The race
+  between "check, then write" does not exist in this shape.
+
+The `errors insufficient .` of `withdraw` has no condition on purpose. The fourth item of "Common mistakes" below explains why.
+
+== Common mistakes
+
+#antipattern[Putting messages into a bounded mailbox without draining it][
+  #demo("examples/ch25/mistake_bounded.low")
+
+  `mailbox bounded 2 .` promises "at most two pending messages". The third `spawn send` overflows and stops with `E-VM-MAILBOX-FULL`. To
+  handle it instead of stopping, send with `try spawn send`. The overflow then comes back as a `result`, and you can drain and send again.
+
+  #demo("examples/ch25/bounded_fixed.low")
+]
+
+#antipattern[Sending a message the actor does not handle][
+  #demo("examples/ch25/mistake_unknownmsg.low")
+
+  A message name is looked up *in the receiving actor's type*. `counter` has no `dec`, so this is `E-IR-UNDEF`. As the diagnostic's note
+  tells, lookup was once by bare name, and two actors with a handler of the same name silently shared one.
+]
+
+#antipattern[Reading an actor's state field from outside --- a hole in this edition][
+  #demo("examples/ch25/mistake_peekstate.low")
+
+  The first promise of this chapter was "the state lives only inside the actor and cannot be touched directly from outside". Yet this
+  edition's tool does not reject `field c value` and returns 1. Actor isolation is a premise of the concurrency proofs, so this is recorded
+  as a serious defect in the development repository. Until it is fixed, keep the rule yourself: if you need the state, give the actor a read
+  message such as `get` and ask with `send c get`.
+]
+
+#antipattern[Using a state field in the error condition of a message op][
+  #demo("examples/ch25/mistake_errorsstate.low")
+
+  `errors insufficient gt amount balance .` was written to mean "this error when withdrawing more than the balance". But an `errors`
+  condition is checked *on exit*. On the success path the balance dropped from 50 to 20, so on exit `gt 30 20` is true, which amounts to
+  "the condition holds, yet the error was not returned". In this edition the VM stops here with `E-VM-ANALYSIS` ("the interval analysis is
+  unsound --- a compiler bug"), and the native build returns 20 without checking. Both the diagnostic's name and the two back ends'
+  behaviour are wrong; the defect is recorded in the development repository. In an op that changes state, do not use state fields in error
+  conditions. Write `errors insufficient .` without a condition, as `transfer.low` above does, and let the `guard` in the body carry the
+  condition.
+]
+
+#misconception[A restarted actor continues from the state just before it blew up][
+  #demo("examples/ch25/restart_resets.low")
+
+  After two `inc`s the value is 2, and the third message blows up. A restart puts the state back to *the beginning* (0) and processes that
+  message again, so the answer is 1, not 3. The state just before the failure may be the very reason for the failure, so it is not trusted.
+  Keep values that must not be lost outside the actor --- in another actor or a file --- and let the restarted actor read them.
+]
+
+#misconception[Values of the same actor type share their state][
+  #demo("examples/ch25/separate_state.low")
+
+  `spawn actor counter` twice makes two states. Incrementing `left` twice leaves `right` counting from 1. An actor type is a blueprint; a new
+  state is made on every `spawn`. If many parties must see the same value, keep *one* actor that holds it and have everyone talk to that
+  actor.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "actors-glance",
+  caption: [Actor syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`actor counter do state do value u64 . end . … end .`], [declare a unit of execution that encloses state], [there is no way to touch the state concurrently],
+  [`proc inc … effects state .` · `fn get …`], [a message that changes state · one that only reads], [`fn`/`proc` rules unchanged --- a `fn` that writes is `E-EFFECT-PURITY`],
+  [`var c counter be spawn actor counter .`], [create one actor (state starts at 0)], [each `spawn` has its own state],
+  [`send c inc` · `send acct deposit a`], [send and wait until processed · carry a value], [actor first --- a message is an op taking the actor as first parameter],
+  [`spawn send c inc .` · `drain c .` · `schedule .`], [put in the mailbox · drain that actor's mailbox · drain all], [a person picks the delivery point --- determinism],
+  [`mailbox bounded 2 .` · `try spawn send`], [mailbox size · receive overflow as a value], [overflow stops, or becomes a `result`],
+  [`failure restart max 3 .` · `never` · `always`], [restart a panicked actor from its initial state], [when used up, the failure goes upward],
+  [`build profile server .`], [where actors (level 3) may be used], [only those who write it take on the promise],
+)
+
 #recap[
   An actor locks its state inside and handles messages one at a time. It is made with `spawn actor` and called with `send`, which waits, and message ops follow
   the `fn`/`proc` rules. Messages carry values, and sending an owned value hands over ownership. `spawn send` only puts messages into the mailbox, and `drain`

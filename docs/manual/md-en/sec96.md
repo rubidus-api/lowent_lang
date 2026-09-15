@@ -1,0 +1,100 @@
+# <a id="mod-allocs"></a>`allocs` — allocator traits, bumps and default allocators
+
+Source
+
+`lib/alloc.low`
+
+Layer
+
+L1 — storage
+
+Capabilities
+
+none for bumps · `fixed_bytes` spawns only where `cap allocator` is held · `heap_bytes` only where `cap heap` is held
+
+The allocator **interface** (two traits) and four actors satisfying it. The most common use is a bump that **cuts pieces from the front** of a large borrowed byte block — suited to data “made in many pieces, discarded all at once” (a parser’s temporary nodes, strings living for one pass) (chapter 35).
+
+```lowent
+var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
+var c u64 be send bump init mem .
+let b option mut slice u8 . be send bump reserve 64 .
+```
+
+**The root and what sits on it.** Lowent has no implicit global heap. The only place bytes first enter a program is the root op `alloc_bytes <capability> capacity n`, and there are two roots — a **fixed window** (`cap allocator`, effect `alloc`; on bare metal the linker sets the window’s bounds) and a **heap** (`cap heap`, effect `heap`; only on hosted systems with an operating system) (chapter 20). `allocs` handles what sits **on** the root. It does not ask whether the bytes came from a root or were lent by a caller. So code without `cap allocator` still allocates fully on bytes someone else gave — capabilities divide abilities. It is written with actors, traits, options and subslices only, so it is a library, not a builtin.
+
+```lowent
+export trait byte_allocator do
+  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
+  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
+  used    input s self . output u64 . effects state .
+end .
+```
+
+`freeing_allocator` adds `release input s self . input v mut slice u8 . . output bool .` to the same three. `via self` means “this op’s effect is the effect the implementation declares” — a bump’s `reserve` is just `state`, while `heap_bytes`’s `reserve` is `heap state`. So `heap` appears in the signature of container ops monomorphised with that allocator.
+
+| **actor** | **Backing · policy** | **`reserve` effect · where usable** |
+|---|---|---|
+| `bump_bytes` | buffer attached with `init` · advances the cursor by the request · both traits | `state` · anywhere |
+| `bump_aligned` | same backing · rounds the start up to a multiple of 8 before cutting (padding is lost) | `state` · anywhere |
+| `fixed_bytes` | capability slot `root cap allocator` · carves straight from the root | `alloc state` · anywhere (the linker window on bare metal) |
+| `heap_bytes` | capability slot `root cap heap` | `heap state` · hosted only (`E-HEAP-NOHOST` on bare metal) |
+
+*Table 50.1 — Actors of `allocs`*
+
+| **op** | **Shape** | **Failure** |
+|---|---|---|
+| `init` (outside the trait) | `backing mut slice u8 → u64` (capacity), `effects state` | none. Calling again switches to the new buffer with the cursor at 0 |
+| `reserve` | `n u64 → option mut slice u8` | `none` — the cursor does not move (no partial allocation) |
+| `grow` | `old mut slice u8, newn u64 → option mut slice u8` | `none` — not the last piece, or no room |
+| `release` | `v mut slice u8 → bool` | `false` — changes nothing unless it is the last piece |
+| `used` | `→ u64` (cursor position, including padding), `effects none` | none |
+
+*Table 50.2 — Ops of the bumps*
+
+- **OOM is a value.** `reserve` returns `none` instead of stopping. Bytes cannot be reached without `guard is_some …`.
+- **What is returned is a view, not an offset.** Writing into `reserve`’s result changes the backing buffer.
+- **`grow` extends the last piece in place.** The test is “is the piece passed **exactly the bytes** last handed out” (`same_slice`). It used to check only length, and another buffer of the same length passed, making two containers silently overlap (found in a security review). **Failure is a value, and this is an optimisation, not a contract** — a new allocator is complete with `grow` as the one line `return none .`. This brought a growing vector’s arena high-water mark from about 4× the request down to 2× ([`growvec`](sec104.md#mod-growvec)).
+- **`release` only accepts the last piece** — silently accepting an unknown piece would let a double release wipe someone else’s place.
+- `fixed_bytes` and `heap_bytes` have no `init`, and `grow` is always `none` (the root does not know whose the last allocation was). A capability slot is not a runtime value — the op spawning that actor must hold the same kind of capability (`E-CAP-FORGE`). A heap cannot be conjured in one line where no capability exists.
+
+Code taking an allocator accepts any implementation with `input comptime a type .` + `using al a .` + `requires allocs.byte_allocator a .`. Callers pass it not as a positional argument but with `let x … using <source> be …`, and if the op has only one source it is the default without being written. Monomorphisation means no vtables and no indirect calls.
+
+```lowent
+proc two_from .
+  input comptime a type .
+  using al a .
+  output u64 .
+  effects state via a .
+  requires allocs.byte_allocator a .
+do
+  let p option mut slice u8 . . be send al reserve 3 .
+  guard is_some p . else return 91 .
+  let q option mut slice u8 . . be send al reserve 5 .
+  guard is_some q . else return 92 .
+  let g option mut slice u8 . . be send al grow (some_value q) 9 .
+  return send al used .
+end .
+
+proc borrowed2 input buf mut slice u8 . . output u64 . effects state . do
+  var b allocs.bump_bytes be spawn actor allocs.bump_bytes . .
+  let c u64 be send b init buf .
+  let n u64 using b be two_from .
+  return n .
+end .
+```
+
+With a bump, 3 + 5 grown to 9 gives 12; with `bump_aligned` the second piece starts at 8, giving 17; with `heap_bytes`, `grow` is `none` and `heap` appears in the instance’s signature.
+
+> **Counter-example. Unwrapping without checking `none`**
+>
+> > `some_value (send a reserve 99)` stops with `E-VM-NONE` when the buffer is small. It compiles, so it is easy to be careless.
+
+> **Counter-example. Reaching the root without capability · sending from a fn**
+>
+> > An op without a root capability cannot call `alloc_bytes` (`E-ALLOC-NOCAP`, `E-HEAP-NOCAP` for the heap) — `allocs` is not a substitute. Calling handlers from an `effects none` `fn` is `E-EFFECT-CALC`. Passing a source that does not satisfy the trait is `E-BOUND-UNSAT`.
+
+**Cautions.** Nothing but the last piece can be freed — for take-and-release patterns, [`pool`](sec97.md#mod-pool) fits. Scope-based bulk release belongs to `region` blocks (chapter 18). Views from `reserve` alias the backing buffer and do not vanish when `init` is called again. Actors assume sequential delivery — passing a bump to a task is rejected (`E-ALLOC-SHARED`: an allocator handed to a task must have an `atomic` `reserve`). The floor starts at 0 and no addresses are exposed, so VM and native see the same bytes.
+
+---
+
+[← Prev](sec95.md) · [Contents](README.md) · [Next →](sec97.md)

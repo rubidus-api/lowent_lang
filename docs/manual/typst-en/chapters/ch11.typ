@@ -1,0 +1,170 @@
+#import "../../typst-ko/lib.typ": *
+
+= Types that hold answers --- `option` and `result`
+
+#chapter-toc()
+
+#prereq(
+  ([#chref("control"), Flow], [`guard` and `panic`]),
+  ([#chref("structs-enums"), Aggregates], [enums carrying values, and `match`]),
+)
+
+#deepqa[
+  What does `case rect w h .` in #chref("structs-enums") do? And what happens when a `match` leaves out a variant?
+][
+  When the variant is `rect`, it binds the two values the variant carries to `w` and `h`. Leaving out a variant is rejected with
+  `E-MATCH-INEXHAUSTIVE`. The `option` and `result` of this chapter behave like two-variant enums the language made in advance --- a value is
+  there or not, it succeeded or failed.
+]
+
+#why[
+  The habit of signalling failure with a special value such as −1 or a null pointer makes it impossible to tell from the source whether
+  "this −1 is an error or just −1". And forgetting the check goes unnoticed. `option` and `result` move that question into the type. This
+  chapter sits in the middle of Part III because nearly every op that takes data out --- a lookup, a conversion, a parser --- returns "may be
+  missing" or "may fail".
+]
+
+#organizer[
+  You will learn to make an `option` with `some` and `none`, and to use it by asking and taking out, by giving a fallback with `value_or`, or
+  by splitting with `match`. You will see that taking out without checking stops. You will also see that `result` pairs with an `errors`
+  clause, that `try` passes a failure upwards, and that the `else_none` and `else_error` tails cross between the two. Finally you will settle
+  the criterion that separates the three ways of reporting failure --- `result`, `option` and `panic` --- and see or-patterns, nested patterns
+  and `match` folded at translation time.
+]
+
+#chapter-questions()
+
+== `option` --- a value, or none
+
+#idx("option")
+`option t` is either a value of `t` (`some v`) or nothing (`none`).
+
+#demo("examples/ch11/lookup.low")
+
+`find`, the producer, wraps values with `return none .` and `return some (mul k 10) .`, and the VM shows the results as `some 20` and `none`.
+The receiver can use it three ways.
+
+- `find_or` --- `value_or (find k) 99` gives the value if there is one, and 99 otherwise.
+- `find_asked` --- asks first with `guard is_some r . else …` and takes the value out with `some_value r`.
+- `find_match` --- splits with `match` into `case some v .` and `case none .`. The two arms cover every case.
+
+`find_raw` takes the value out without asking. Translation passes, but execution stops at 7, which has no value (`E-VM-NONE`). Taking a value
+out is a *partial operation*. On which paths a value exists is something the author knows and the processor cannot always know, so
+translation does not block it. Instead it is not silent when wrong --- it does not hand out 0 and carry on.
+
+#qa[
+  If I put an expensive computation in `value_or`'s default, is it computed every time?
+][
+  No. The default is computed *only when there is no value*. `value_or (some 7) (div 1 0)` is 7, and no division by zero happens. So you may
+  put a computation that can fail in the default. This behaviour was once the other way round and was fixed to match the specification.
+]
+
+== `result` and the `errors` clause
+
+#idx("result")
+`result t e` is either a successful value (`ok v`) or an error (`error <variant>`). The error type `e` is usually an `enum`. And an op that
+#idx("errors clause")
+returns a `result` writes *when it produces which error* in its `errors` clause.
+
+#demo("examples/ch11/halve.low")
+
+`halve`'s head lists two errors. `errors too_big gt a 200 .` is the promise "if `a` is greater than 200, produce `too_big`". This clause is a
+*contract on the way out*. Returning normally while the condition holds, or returning an error not written, is a contract violation. Code that
+returns an error not written is rejected at translation.
+
+#demo("examples/ch11/undeclared.low")
+
+`too_long` is a variant of `parse_error`, but it is not in `first_byte`'s `errors` clause. A caller reading the head would believe handling
+`empty` is enough. When what is written and what is produced differ, one side meets failures it never saw and the other handles failures that
+never come.
+
+== `try` --- passing failure upwards
+
+#idx("try")
+Writing the failure check by hand every time makes code long, and long code skips checks. `try` takes a `result` and, on success, takes out
+the value; on failure it *returns that error as is and leaves the op*. `halve_plus_one` in `halve.low` has that shape.
+
+```lowent
+let v u8 be try halve a .
+return ok (add v 1) .
+```
+
+Notice that `halve_plus_one` writes `errors` in its own head too. To pass an error up with `try`, it must itself be able to return that error,
+and it must say so in its contract. There is no path by which a failure silently disappears. To handle the failure here instead of passing it
+up, ask with `is_error` and take out with `ok_value`, as `halve_or_zero` does.
+
+#misconception[`try` is the `try` of exception handling][
+  Java's or C++'s `try` is a place that catches exceptions thrown anywhere in a block. Lowent's `try` is attached to *one expression* and marks
+  that expression's failure as *passed upwards*; it is closer to Rust's `?`. There is no throw-and-catch control flow. Failures always come
+  back as values, and where they can be passed on is written in the source.
+]
+
+== Crossing between the two channels
+
+Sometimes the calling op and the called op use different channels. A tail on `try` changes the container.
+
+#demo("examples/ch11/tails.low")
+
+#dtable(
+  columns: 3,
+  id: "optres-tails",
+  caption: [Changing channel with a `try` tail],
+  [*Shape*], [*Direction*], [*What is lost or gained*],
+  [`try <expr> else_none`], [`result` → `option`], [The error is *discarded*; why it failed is no longer said],
+  [`try <expr> else_error <variant>`], [`option` → `result`], [Absence *gets a name*],
+)
+
+A `try` with a tail also changes the type. The type of `try (halve a) else_none` is `option u8`, not `u8`. That is why `maybe_half` returns it
+as is, and why putting it into a value type, as in `let v u8 be try … else_error …`, is rejected.
+
+`else_none` is a choice that throws information away. It is convenient, so it easily becomes a habit, but from that moment the caller can no
+longer ask "why". Throw it away only where it is worth throwing away.
+
+== Three ways to report failure
+
+#dtable(
+  columns: 3,
+  id: "optres-channels",
+  caption: [Three ways to report failure],
+  [*What*], [*What it says*], [*What the caller does*],
+  [`result t e`], [A failure that can be fixed], [Asks which it is and handles it, or passes it up],
+  [`option t`], [There is no value], [Asks whether it exists and takes it, or gives a fallback],
+  [`panic` · contract violation], [A promise was broken], [Cannot handle it; the program stops],
+)
+
+The question that separates the three is "what can the caller do?". If a file is missing, another file can be tried, so it is a `result`. If
+what you look for is not in the list, it simply is not there, so it is an `option`. If the caller broke a contract, the promise is already
+broken and cannot be fixed, so execution stops. `panic` does not unwind; there is no way to catch it midway and carry on. How to design an op's
+failures on this criterion is revisited in #chref("errors-design").
+
+== Combining and nesting patterns
+
+Now that `option`, `result` and `enum` have all appeared, `match` patterns can be used more widely.
+
+#demo("examples/ch11/patterns.low")
+
+#idx("pattern")
+- *Or-patterns.* `case red or green .` is taken if either matches. Each alternative counts towards exhaustiveness, so once `blue` is handled no
+  `_` is needed. When or-ing variants that carry values, *every alternative must bind the same names* --- `combine` takes out `l` and `r` whether
+  the variant is `plus` or `times`. Mismatched names are `E-MATCH-ORBIND`.
+- *Nested patterns.* `case ok (some x) .` splits the `option` inside a `result` in one go. Nested patterns short-circuit, so if it is not `ok`
+  the inner part is never looked at. That is why `error` never tries to take out a value and stop.
+- *Folded at translation time.* If the value being split is a translation-time constant --- a literal, `comptime <expr>`, `config <name>` --- the
+  `match` folds to the one matching arm, with no comparison at run time. Dead arms are still type-checked. That is the difference from C's
+  `#ifdef` (#chref("build-test")).
+- *Ranges cover a type.* The two ranges in `half` cover 0 … 255 of `u8` without a gap, so it is exhaustive without `_`. A gap is
+  `E-MATCH-INEXHAUSTIVE`; overlapping ranges are `E-MATCH-REDUNDANT`.
+
+An arm after `_` is rejected.
+
+#demo("examples/ch11/arm_after_wild.low")
+
+`_` has already taken everything, so the arm after it can never run. A dead arm is an error, not a warning --- a `match` where each case does not
+appear exactly once when read hides defects.
+
+#recap[
+  `option` is made with `some` and `none`, `result` with `ok` and `error`. The receiver asks and takes out (`is_some`, `some_value`,
+  `is_error`, `ok_value`), gives a fallback with `value_or`, or splits with `match`. Taking out is partial, so taking from the missing side
+  stops. An op returning a `result` promises its errors in an `errors` clause, `try` passes failures up, and the `else_none` and `else_error`
+  tails change channel and type. Patterns can be or-ed (binding the same names) and nested, and a `match` on a constant folds at translation.
+]

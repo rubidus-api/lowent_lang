@@ -8,7 +8,7 @@ rem   **예측 실패가 손으로 쓴 C 와 같아졌다**(126 → 57 = C 의 5
 rem   체크섬 불변.
 rem
 rem ☞ 그러니 이 파일이 지키는 것은 성능이 아니라 **매뉴얼의 주장**이다
-rem   (`docs/manual/05-arrays-and-slices.md` — *상수 표는 문자열 리터럴이다*).
+rem   (`docs/manual` 제9장 «줄 — 배열과 슬라이스» 의 `examples/ch09/table.low` — *문자열 리터럴은 그대로 색인되는 표다*).
 rem   매뉴얼 예제는 `check-spec-code` 의 대상이 아니므로, 값이 매겨진 주장은 여기서 문다.
 
 module vm_strtable .

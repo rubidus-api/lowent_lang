@@ -16,7 +16,6 @@
 !/docs/manual/
 !/docs/example/
 !/docs/proofs/
-!/docs/book/
 !/docs/index.html
 !/docs/.nojekyll
 
@@ -42,8 +41,8 @@
 /docs/example/build-manifest.md
 /docs/example/build-scale.md
 
-# book build products (PDFs go to releases; the web edition under web/ is committed for GitHub Pages)
-/docs/book/build/
+# manual build products (pdf-*/ html-*/ md-*/ are committed; build/ is scratch)
+/docs/manual/build/
 
 # Coq build products (the .v sources, Makefile and notes are public)
 /docs/proofs/**/*.vo

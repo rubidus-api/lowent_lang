@@ -1,0 +1,104 @@
+#import "../lib.typ": *
+
+= `allocs` --- 얼로케이터 trait 과 범프 · 기본 얼로케이터 <mod-allocs>
+
+#modhead(file: "lib/alloc.low", layer: [L1 --- 저장], caps: [범프는 없음 · `fixed_bytes` 는 `cap allocator` · `heap_bytes` 는 `cap heap` 을 쥔 곳에서만 띄운다])
+
+얼로케이터의 *인터페이스*(trait 둘)와 그것을 충족하는 actor 넷이다. 가장 흔한 쓰임은 빌린 큰 바이트 덩어리를 *앞에서부터 잘라 주는* 범프다 --- "만들 때는 여럿, 버릴
+때는 한꺼번에" 인 자료(파서의 임시 노드, 한 처리 동안만 사는 문자열)에 맞는다(#chref("lib-alloc")).
+
+```lowent
+var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
+var c u64 be send bump init mem .
+let b option mut slice u8 . be send bump reserve 64 .
+```
+
+*뿌리와 그 위.* Lowent 에는 암묵 전역 힙이 없다. 바이트가 프로그램에 처음 들어오는 자리는 뿌리 op `alloc_bytes <권한> capacity n` 하나뿐이고, 뿌리는 둘이다 --- *고정
+창*(`cap allocator` · 효과 `alloc`, 베어메탈에서는 링커가 창의 경계를 정한다)과 *힙*(`cap heap` · 효과 `heap`, 운영체제가 있는 호스티드에만 있다)(#chref("fixed-memory")).
+`allocs` 는 그 뿌리 *위*를 맡는다. 받은 바이트가 뿌리에서 왔든 호출자가 빌려준 것이든 묻지 않는다. 그래서 `cap allocator` 를 받지 않은 코드도 남이 준 바이트 위에서는
+온전히 할당한다 --- 권한이 능력을 가른다. actor · trait · option · subslice 만으로 쓰이므로 빌트인이 아니라 라이브러리다.
+
+```lowent
+export trait byte_allocator do
+  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
+  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
+  used    input s self . output u64 . effects state .
+end .
+```
+
+`freeing_allocator` 는 같은 셋에 `release input s self . input v mut slice u8 . . output bool .` 을 더한다. `via self` 는 "이 op 의 효과는 구현이 적은 효과다" 라는 뜻이다
+--- 범프의 `reserve` 는 `state` 뿐이고 `heap_bytes` 의 `reserve` 는 `heap state` 다. 그래서 그 얼로케이터로 단형화한 컨테이너 op 의 서명에 `heap` 이 선다.
+
+#dtable(
+  columns: 3,
+  id: "mod-allocs-actors",
+  caption: [`allocs` 의 actor],
+  [*actor*], [*받침 · 정책*], [*`reserve` 의 효과 · 쓸 수 있는 곳*],
+  [`bump_bytes`], [`init` 으로 건 버퍼 · 커서를 요청 크기만큼 민다 · 두 trait 모두], [`state` · 어디서나],
+  [`bump_aligned`], [같은 받침 · 시작점을 8 의 배수로 올린 뒤 자른다(패딩은 버려진다)], [`state` · 어디서나],
+  [`fixed_bytes`], [권한 칸 `root cap allocator` · 뿌리에서 곧장 깎는다], [`alloc state` · 어디서나(베어메탈은 링커 창)],
+  [`heap_bytes`], [권한 칸 `root cap heap`], [`heap state` · 호스티드만(베어메탈은 `E-HEAP-NOHOST`)],
+)
+
+#dtable(
+  columns: 3,
+  id: "mod-allocs-ops",
+  caption: [범프의 op],
+  [*op*], [*모양*], [*실패*],
+  [`init`(trait 밖)], [`backing mut slice u8 → u64`(용량), `effects state`], [없음. 다시 부르면 새 버퍼로 갈아타고 커서가 0],
+  [`reserve`], [`n u64 → option mut slice u8`], [`none` --- 커서는 움직이지 않는다(부분 할당 없음)],
+  [`grow`], [`old mut slice u8, newn u64 → option mut slice u8`], [`none` --- 마지막 조각이 아니거나 자리 부족],
+  [`release`], [`v mut slice u8 → bool`], [`false` --- 마지막 조각이 아니면 아무것도 바꾸지 않는다],
+  [`used`], [`→ u64`(커서 위치, 패딩 포함), `effects none`], [없음],
+)
+
+- *OOM 은 값이다.* `reserve` 는 멈추는 대신 `none` 을 돌려준다. `guard is_some …` 없이는 바이트에 닿을 수 없다.
+- *돌려주는 것은 오프셋이 아니라 뷰다.* `reserve` 의 결과에 쓰면 뒷받침 버퍼가 바뀐다.
+- *`grow` 는 마지막 조각을 제자리에서 늘린다.* 판정은 "건넨 조각이 마지막으로 준 *바로 그 바이트*인가"(`same_slice`)다. 전에는 길이만 보았고, 길이만 같은 남의 버퍼가
+  통과해 두 컨테이너가 조용히 겹쳤다(보안 검토에서 드러났다). *실패는 값이고, 이것은 최적화이지 계약(op 이 스스로 적는 약속)이 아니다* --- 새 얼로케이터는 `grow` 를 `return none .` 한 줄로
+  둬도 완전하다. 이것으로 성장 벡터의 아레나 고수위가 요청의 약 4 배에서 2 배가 됐다(#modref("growvec")[`growvec`]).
+- *`release` 는 마지막 조각만 받는다* --- 모르는 조각을 조용히 받아 두면 두 번 돌려주기가 남의 자리를 지우기 때문이다.
+- `fixed_bytes` · `heap_bytes` 는 `init` 이 없고 `grow` 는 언제나 `none` 이다(뿌리는 마지막 할당이 누구 것인지 모른다). 권한 칸은 실행 중 값이 아니다 --- 그 actor 를
+  `spawn` 하는 op 이 같은 종류의 권한을 쥐고 있어야 한다(`E-CAP-FORGE`). 권한 없는 곳에서 한 줄로 힙을 지어낼 수 없다.
+
+얼로케이터를 받는 코드는 `input comptime a type .` + `using al a .` + `requires allocs.byte_allocator a .` 로 어느 구현이든 받는다. 부르는 쪽은 위치 인자가 아니라
+`let x … using <출처> be …` 로 건네고, 그 op 안에 출처가 하나뿐이면 적지 않아도 기본값이 된다. 단형화되므로 vtable 도 간접 호출도 없다.
+
+```lowent
+proc two_from .
+  input comptime a type .
+  using al a .
+  output u64 .
+  effects state via a .
+  requires allocs.byte_allocator a .
+do
+  let p option mut slice u8 . . be send al reserve 3 .
+  guard is_some p . else return 91 .
+  let q option mut slice u8 . . be send al reserve 5 .
+  guard is_some q . else return 92 .
+  let g option mut slice u8 . . be send al grow (some_value q) 9 .
+  return send al used .
+end .
+
+proc borrowed2 input buf mut slice u8 . . output u64 . effects state . do
+  var b allocs.bump_bytes be spawn actor allocs.bump_bytes . .
+  let c u64 be send b init buf .
+  let n u64 using b be two_from .
+  return n .
+end .
+```
+
+범프를 주면 3 + 5 를 9 로 늘려 12, `bump_aligned` 를 주면 둘째 조각이 8 에서 시작해 17, `heap_bytes` 를 주면 `grow` 가 `none` 이고 인스턴스 서명에 `heap` 이 선다.
+
+#antipattern[`none` 검사 없이 값을 꺼낸다][
+  `some_value (send a reserve 99)` 는 버퍼가 작으면 `E-VM-NONE` 으로 멈춘다. 컴파일은 통과하므로 방심하기 쉽다.
+]
+
+#antipattern[권한 없이 뿌리에 닿는다 · fn 에서 send 한다][
+  뿌리 권한을 받지 않은 op 은 `alloc_bytes` 를 부를 수 없다(`E-ALLOC-NOCAP`, 힙이면 `E-HEAP-NOCAP`) --- `allocs` 는 그 대체가 아니다. `effects none` 인 `fn` 에서
+  핸들러를 부르면 `E-EFFECT-CALC` 다. trait 을 충족하지 않는 값을 출처로 건네면 `E-BOUND-UNSAT` 이다.
+]
+
+*주의.* 마지막 조각 말고는 해제가 없다 --- 받고 놓기를 되풀이하는 모양이면 #modref("pool")[`pool`] 이 맞다. 스코프 기반 일괄 해제는 `region` 블록의 몫이다
+(#chref("regions")). `reserve` 가 낸 뷰는 뒷받침 버퍼의 별칭이라 `init` 을 다시 불러도 사라지지 않는다. actor 는 순차 배달 전제다 --- 범프를 태스크에 건네면 거절된다
+(`E-ALLOC-SHARED`: 태스크에 건네는 얼로케이터는 `reserve` 가 `atomic` 이어야 한다). 바닥이 0 에서 시작하고 주소를 노출하지 않으므로 VM 과 네이티브가 같은 바이트를 본다.

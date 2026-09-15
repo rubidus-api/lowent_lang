@@ -1,0 +1,15 @@
+module arm_after_wild .
+rem expect: E-MATCH-REDUNDANT
+
+enum light do
+  lit .
+  dark .
+end .
+
+fn name input k u8 . output u8 . do
+  let s light be lit .
+  match s do
+    case _ . do return 0 . end .
+    case lit . do return 1 . end .
+  end .
+end .

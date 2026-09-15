@@ -1,31 +1,55 @@
-# Lowent 매뉴얼 (초본)
+# Lowent 매뉴얼 · Lowent Manual
 
-> 이것은 **입문 초본**이다. 언어가 본격적으로 완성됨에 맞춰 이어 써 나간다.
-> 규범은 **조항 정본** [`docs/spec/canon/`](../spec/canon/) 이며,
-> 이 문서와 어긋나면 규범이 이긴다.
-> 아래 모든 예제는 현재 `lowentc` 로 확인한 것이다 — 정답 예제는 `--check` 초록,
-> 반례(✗)는 적힌 `E-…` 에러를 실제로 낸다.
+Lowent 를 처음부터 끝까지 설명하는 책 형식의 매뉴얼이다. 언어 편, 표준 라이브러리 편(제9부와 부록 E 의 모듈 쪽), 근거 편(제10부 --- 무엇이
+증명되었고 무엇이 아닌가)이 한 권에 들어 있다. 한국어판(원본)과 영어판이 같은 장 차례와 같은 예제를 나누어 쓴다.
 
-## 목차
+A book-form manual that explains Lowent from start to finish: the language, the standard library (Part IX and the per-module pages of Appendix E) and the
+grounds (Part X --- what has been proven and what has not), in one volume. The Korean edition (original) and the English edition share one chapter order and
+one set of examples.
 
-1. [빌드와 실행](01-build-and-run.md) — `lowentc`, 모드, `hello, entropy`
-2. [문법의 기본](02-syntax-basics.md) — 토큰·주석·상수·스칼라 타입·키워드
-3. [`fn`/`proc` — 프로그램의 기본 단위](03-ops.md) — `fn`/`proc`·매개변수·계약·`cap`·`effect`
-4. [지역 변수](04-variables.md) — `let`·`var`·`set`
-5. [배열과 슬라이스](05-arrays-and-slices.md) — `array`·`slice`·`index`·`for`·`mut`
-6. [참조](06-references.md) — `ref`·`mut_ref`·빌림 규칙
-7. [`guard` 와 없을 수 있는 값](07-guard-and-option.md) — `guard`·`option`·`some_value`
-8. [나만의 타입](08-types.md) — `struct`·페이로드 `enum`·`range`·`trait`(op 여럿)
-9. [`match` — 경우 나누기](09-match.md) — 패턴·와일드카드·범위·or·바인딩·`option`/`result`·가드
-10. [실수 치트시트](10-mistakes-cheatsheet.md) — 흔한 실수 ↔ 에러 ↔ 고치는 법
-11. [표준 라이브러리](lib/README.md) — `lib/` 의 표준 모듈, 모듈마다 한 편
-12. [**이론 배경과 증명**](theory/README.md) — 이 언어가 **무엇을 증명했나** · 16장
-    · 필요한 수학은 [02장](theory/02-math-toolkit.md)에서 처음부터 가르친다(고등학교 수학이면 된다)
-    · **소스 코드를 몰라도 읽힌다** — 언어 사용법이 아니라 그 근거를 다룬다
-    · 마지막 장은 [**증명하지 않은 것**](theory/16-what-is-not-proven.md)이다. 그 장을 빼고
-      인용하면 이 문서가 말하지 않은 것을 말한 것으로 만든다
+## 폴더 · Layout
 
----
+| 폴더 · folder | 무엇 · what |
+|---|---|
+| [`typst-ko/`](typst-ko/) · [`typst-en/`](typst-en/) | 원고(Typst) --- 이것이 원본이다 · the manuscript, the single source |
+| [`pdf-ko/`](pdf-ko/) · [`pdf-en/`](pdf-en/) | PDF 판 · PDF editions |
+| [`html-ko/`](html-ko/) · [`html-en/`](html-en/) | 웹 판 · web editions |
+| [`md-ko/`](md-ko/) · [`md-en/`](md-en/) | Markdown 판(GitHub 에서 바로 읽는다) · Markdown editions for reading on GitHub |
+| [`examples/`](examples/) | 책에 실린 `.low` 예제 · the examples printed in the book |
+| [`scripts/`](scripts/) · [`styles/`](styles/) | 짓기 도구와 조판 모양 · build tools and styles |
 
-<sub>초본이다. 언어가 자라는 대로 이어 쓴다. 예제는 모두 지금의 `lowentc` 로 확인한 것이다.
-이론 장이 인용하는 Coq 증명은 [`docs/proofs/`](../proofs/) 에 있다.</sub>
+`pdf-*` · `html-*` · `md-*` 는 원고에서 만든 **생성물**이다. 고칠 때는 `typst-*` 를 고치고 다시 짓는다.
+`pdf-*`, `html-*` and `md-*` are generated from the manuscript. Edit `typst-*` and rebuild.
+
+## 예제는 실제로 돌린 것이다 · Every example is run
+
+[`examples/`](examples/) 의 `.low` 파일마다 첫머리에 무엇을 해야 하는지 적혀 있다(`rem run:` · `rem trap:` · `rem expect:` · `rem test` …).
+[`scripts/verify-examples.sh`](scripts/verify-examples.sh) 가 파일마다 그 약속을 확인하고 --- 실행되는 예제는 VM 과 네이티브 빌드가 같은 답을 내는지까지 ---
+출력을 `build/examples-out/` 에 남긴다. 책은 그 출력을 그대로 싣는다.
+
+Each `.low` file under `examples/` states at its top what must happen. `scripts/verify-examples.sh` checks it --- for running examples, that the VM and a
+native build agree --- and the book prints the captured output as is.
+
+## 짓기 · Building
+
+```sh
+sh scripts/build-all.sh     # 예제 검증 → PDF 두 판 → 웹 두 판 → Markdown 두 판
+sh scripts/quick.sh ko      # 원고만 빠르게 조판해 오류를 본다 · quick compile check
+```
+
+- `lowentc`(저장소의 `impl/` 에서 `make`), C 컴파일러, [Typst](https://typst.app) 0.15 이상, Noto Sans · Noto Serif · Noto Sans Mono ·
+  Noto Sans/Serif CJK KR · D2Coding 글꼴이 필요하다. 웹 글꼴 줄이기에는 `fonttools` 가 든 파이썬 환경(`WEBFONT_VENV`)을 쓴다.
+  Requires `lowentc` (`make` in `impl/`), a C compiler, Typst 0.15+, the fonts above, and a Python environment with `fonttools` for web font subsetting.
+- `TYPST` 와 `FONT_PATH` 환경 변수로 typst 실행 파일과 글꼴 폴더를 지정한다. · Set `TYPST` and `FONT_PATH`.
+- 글꼴을 찾지 못하면 빌드 스크립트가 그 PDF 를 버린다. · If fonts are missing, the build script discards the PDF.
+
+## 발행 · Publishing
+
+- **웹 · GitHub Pages**: 저장소 main 가지의 `docs/` 폴더를 내보낸다(`docs/index.html` · `docs/.nojekyll`). 매뉴얼은 `docs/manual/html-ko/` ·
+  `html-en/` 이다. 원고를 고치면 `build-all.sh` 로 생성물을 다시 만들어 함께 커밋하고, 푸시한 뒤 `scripts/pages-build.sh` 로 발행을 확인한다.
+  Pages serves `docs/` on `main`; the manual is under `docs/manual/html-*`. Rebuild, commit, push, then check with `pages-build.sh`.
+
+## 라이선스 · License
+
+본문은 CC BY-NC-SA 4.0, 예제와 스크립트는 MIT 다. [`LICENSE-NOTICE.md`](LICENSE-NOTICE.md) 를 본다.
+Text under CC BY-NC-SA 4.0; examples and scripts under MIT. See [`LICENSE-NOTICE.md`](LICENSE-NOTICE.md).

@@ -114,5 +114,5 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 | 무엇 | 어디 |
 |---|---|
 | 규범 전체 | `docs/spec/canon/*.md` (조항 정본) · 엮은 것은 `docs/spec/html/` |
-| 쓰는 법 | 매뉴얼 `docs/manual/` · 라이브러리 `docs/manual/lib/` · 예제 `docs/example/` |
+| 쓰는 법 | 매뉴얼 `docs/manual/`(책 형식 — 표준 라이브러리는 부록 E) · 예제 `docs/example/` |
 | 처리기 | `impl/README.md` |

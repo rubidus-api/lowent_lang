@@ -7,7 +7,7 @@ errors 절 없이 본문 `return error`. (라이브러리=MVP, print=post-MVP)
 
 > **2026-09-13 다시 씀 (WO-0218).** 아래 코드는 지금의 언어로 고쳐 `--check` 를 통과한다(`usize`→`u64`, `loop`→`while true .`,
 > 실행-유도 오류도 errors 절에 이름을 적는다, 권한 입력이 데이터보다 먼저, 뿌리 할당은 `alloc_bytes`). 이 설계를 실제로 쌓은
-> 표준 라이브러리는 [`lib/fmt.low`](../manual/lib/fmt.md) 다.
+> 표준 라이브러리는 [`lib/fmt.low`](../manual/md-ko/) (매뉴얼 부록 E 의 `fmt` 쪽) 다.
 
 ```
 module fmt .

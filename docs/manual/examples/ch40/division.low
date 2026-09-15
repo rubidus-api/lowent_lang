@@ -1,0 +1,14 @@
+module division .
+rem run: quot -7 2
+rem trap: quot -128 -1
+rem run: rest -7 3
+rem run: rest 7 -3
+
+fn quot input a i8 . input b i8 . output i8 . do
+  return div a b .
+end .
+
+rem mod 의 부호는 나누는 수를 따른다
+fn rest input a i8 . input b i8 . output i8 . do
+  return mod a b .
+end .

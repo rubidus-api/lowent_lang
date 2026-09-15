@@ -1,0 +1,20 @@
+module table .
+rem run: prefix_char 4
+rem run: prefix_chain 4
+
+rem 문자열 리터럴은 slice u8 이고 그대로 색인된다
+fn prefix_char input k u64 . output u8 .
+  requires lt k 11 .
+do
+  return index "/api/users/" k .
+end .
+
+rem 같은 일을 if 사슬로 쓰면 글자마다 비교와 분기가 하나씩 생긴다
+fn prefix_chain input k u64 . output u8 . do
+  if eq k 0 . do return 47 . end .
+  if eq k 1 . do return 97 . end .
+  if eq k 2 . do return 112 . end .
+  if eq k 3 . do return 105 . end .
+  if eq k 4 . do return 47 . end .
+  return 0 .
+end .

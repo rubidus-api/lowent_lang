@@ -102,6 +102,73 @@ Top-level declarations in a module are independent of order. An op declared late
 `is_even` calls `is_odd`, declared after it, and `is_odd` calls `is_even` back. Local names *inside an op body*, on the other hand, must be declared before use.
 A file as a whole is skimmed, but a body is read top to bottom.
 
+== Common mistakes
+
+#antipattern[Using an imported name without its module name][
+  #demo("examples/ch21/mistake_bare.low")
+
+  Some languages let you use imported names bare, or spill them all with `import *`. Then you cannot tell by reading whether `point`
+  belongs to this file or to some module, and names collide quietly as imports grow. Lowent has no spilling: a name from another module is
+  always qualified, as in `geom.point`. The diagnostic appears twice on the same line because the type position of `let` and the `make`
+  position are counted separately.
+]
+
+#antipattern[Leaving the extension out of the `from` place][
+  #demo("examples/ch21/mistake_noext.low")
+
+  The place is never guessed. Write `"geom"` and the tool looks for a file named exactly `geom`; if there is none, it is `E-DEP-MISSING`.
+  The reason is the same as for having no search path: once the tool starts trying `.low` or searching other directories, what the program
+  depends on moves outside the source again. Write the file name exactly, as in `use geom from "geom.low" .`.
+]
+
+#antipattern[Importing a standard module by its file name][
+  #demo("examples/ch21/mistake_filename.low")
+
+  The module in the file `lib/str.low` is named `strings`. `use str .` finds no such module, so it warns with `W-USE-EXTERNAL` ("cannot
+  confirm it exists"), and the place that actually uses the name is rejected with `E-IR-UNDEF`. Read the warning first and check the module
+  name.
+
+  #demo("examples/ch21/filename_fixed.low")
+]
+
+#antipattern[Using a hidden type in an exported op's signature][
+  #demo("examples/ch21/secretbox.low")
+
+  `secretbox` translates without complaint. The problem shows up in the module that imports it.
+
+  #demo("examples/ch21/mistake_privtype.low")
+
+  `make_secret` is exported, but the type of its result, `secret`, is hidden. The importer cannot write a name to hold the result and is
+  rejected with `E-VISIBILITY`. The export is unusable. This should be reported on the exporting side, but this edition's tool does not
+  (recorded as a defect in the development repository). Export the input and output types of an exported op as well.
+]
+
+#misconception[Two modules must not import each other][
+  #demo("examples/ch21/cycle_a.low")
+
+  `cycle_a` imports `cycle_b` and `cycle_b` imports `cycle_a`, yet it translates and runs. Unlike C headers, where only what was read first
+  is known, names are resolved after the whole translation unit is gathered --- the same principle that makes the order of top-level
+  declarations irrelevant. Still, modules that import each other are easier to read merged into one, or with the shared part moved into a
+  third module. The recursion depth is bounded by the contract (`requires le n 10 .`).
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "modules-glance",
+  caption: [Module syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`module geom .`], [this file is module `geom` (first line)], [the module name is separate from the file name --- `use` looks for it],
+  [`export fn manhattan …` · `export struct point …`], [make it visible outside], [hidden by default --- what is visible is a promise],
+  [`use geom from "geom.low" .`], [import from a place relative to the declaring file], [no search path --- dependencies are in the source],
+  [`use allocs .`], [import from the same unit or the standard library], [otherwise `W-USE-EXTERNAL`],
+  [`geom.point` · `geom.manhattan a b`], [qualify imported names with the module name], [no spilling],
+  [`geom.helper` (a hidden name)], [rejected (`E-VISIBILITY`)], [qualifying does not open the door],
+  [one name declared twice · two imports with one name], [rejected (`E-NAME-DUP` · `E-NAME-COLLISION`)], [never decide quietly which one is reached],
+  [order of top-level declarations], [irrelevant --- they may call each other], [a file is scanned; a body is read top to bottom],
+)
+
 #recap[
   One file is one module, and only what is `export`ed is visible outside. `use <module> from "<place>" .` imports from a place relative to the declaring file;
   without a place it looks in the same compilation unit or the standard library. There is no search path. Qualification does not reach hidden names, and

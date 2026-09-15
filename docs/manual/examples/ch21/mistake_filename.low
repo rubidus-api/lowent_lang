@@ -1,0 +1,10 @@
+module mistake_filename .
+rem expect: E-IR-UNDEF
+
+rem ko: ✘ 파일은 `lib/str.low` 이지만 그 안의 모듈 이름은 `strings` 다 /// en: ✘ the file is `lib/str.low`, but the module inside it is named `strings`
+use str .
+
+fn same input a slice u8 . input b slice u8 . output bool .
+do
+  return str.eq_str a b .
+end .

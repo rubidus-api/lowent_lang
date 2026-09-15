@@ -1,0 +1,13 @@
+module cycle_a .
+rem run: fa 3
+rem run: fa 4
+
+rem ko: `cycle_b` 를 들여오고, `cycle_b` 도 이 모듈을 들여온다 /// en: imports `cycle_b`, and `cycle_b` imports this module too
+use cycle_b from "cycle_b.low" .
+
+export fn fa input n u32 . output u32 .
+  requires le n 10 .
+do
+  if eq n 0 . do return 0 . end .
+  return cycle_b.fb (sub n 1) .
+end .

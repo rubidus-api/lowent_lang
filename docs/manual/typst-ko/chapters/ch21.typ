@@ -104,6 +104,70 @@
 `is_even` 은 뒤에 선언된 `is_odd` 를 부르고, `is_odd` 는 다시 `is_even` 을 부른다. 반면 op *본문 안*의 지역 이름은
 쓰기 전에 선언해야 한다. 파일 전체는 훑어보며 읽지만 본문은 위에서 아래로 읽기 때문이다.
 
+== 흔한 실수
+
+#antipattern[들여온 이름을 모듈 이름 없이 부른다][
+  #demo("examples/ch21/mistake_bare.low")
+
+  어떤 언어는 들여온 이름을 그냥 쓰게 하거나 `import *` 로 한꺼번에 풀어놓는다. 그러면 `point` 가 이 파일의 것인지 어느 모듈의 것인지
+  읽어서 알 수 없고, 들여오는 모듈이 늘면 이름이 조용히 부딪힌다. Lowent 에는 풀어놓기가 없다. 다른 모듈의 이름은 언제나
+  `geom.point` 처럼 한정해 적는다. 진단이 같은 줄에 두 번 나오는 것은 `let` 의 타입 자리와 `make` 자리를 따로 세기 때문이다.
+]
+
+#antipattern[`from` 의 자리에 확장자를 빠뜨린다][
+  #demo("examples/ch21/mistake_noext.low")
+
+  자리는 짐작되지 않는다. `"geom"` 이라고 적으면 도구는 정확히 `geom` 이라는 파일을 찾고, 없으면 `E-DEP-MISSING` 이다. 검색 경로가
+  없는 것과 같은 까닭이다 --- 도구가 `.low` 를 붙여 보거나 다른 디렉터리를 뒤지기 시작하면 무엇에 기대는지가 다시 소스 밖으로 나간다.
+  `use geom from "geom.low" .` 처럼 파일 이름을 그대로 적는다.
+]
+
+#antipattern[파일 이름으로 표준 모듈을 들여온다][
+  #demo("examples/ch21/mistake_filename.low")
+
+  `lib/str.low` 파일의 모듈 이름은 `strings` 다. `use str .` 은 그런 모듈을 찾지 못해 `W-USE-EXTERNAL` 로 "확인할 수 없다" 고 알리고,
+  이름을 실제로 쓰는 자리에서 `E-IR-UNDEF` 로 거절된다. 경고를 먼저 보고 모듈 이름을 확인한다.
+
+  #demo("examples/ch21/filename_fixed.low")
+]
+
+#antipattern[내보낸 op 의 서명에 감춘 타입을 쓴다][
+  #demo("examples/ch21/secretbox.low")
+
+  `secretbox` 는 번역을 통과한다. 문제는 들여오는 쪽에서 드러난다.
+
+  #demo("examples/ch21/mistake_privtype.low")
+
+  `make_secret` 은 내보냈지만 그 결과의 타입 `secret` 은 감췄다. 들여온 쪽은 결과를 담을 이름을 적을 수 없어 `E-VISIBILITY` 로
+  거절된다. 쓸 수 없는 export 인 셈이다. 내보내는 쪽에서 알려야 할 자리인데 이 판의 도구는 알리지 않는다(개발 저장소에 결함으로 적어
+  두었다). 내보낸 op 의 입력·출력 타입도 함께 `export` 한다.
+]
+
+#misconception[두 모듈이 서로를 들여오면 안 된다][
+  #demo("examples/ch21/cycle_a.low")
+
+  `cycle_a` 는 `cycle_b` 를 들여오고 `cycle_b` 도 `cycle_a` 를 들여오지만 번역되고 돈다. C 의 헤더처럼 "먼저 읽은 것만 안다" 가 아니라,
+  번역 단위 전체를 모은 뒤 이름을 해소하기 때문이다. 최상위 선언의 차례가 무관한 것과 같은 원리다. 그래도 서로 들여오는 모듈은
+  하나로 합치거나 공통 부분을 셋째 모듈로 빼는 편이 읽기 쉽다. 되부름의 깊이는 계약(`requires le n 10 .`)이 막는다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "modules-glance",
+  caption: [모듈의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`module geom .`], [이 파일이 모듈 `geom` 이다(첫 줄)], [모듈 이름은 파일 이름과 따로 --- `use` 는 이 이름을 찾는다],
+  [`export fn manhattan …` · `export struct point …`], [밖에서 보이게 한다], [감춘 것이 기본 --- 보이는 것은 약속],
+  [`use geom from "geom.low" .`], [선언한 파일 기준의 자리에서 들여온다], [검색 경로가 없다 --- 무엇에 기대는지 소스에 보인다],
+  [`use allocs .`], [같은 번역 단위나 표준 라이브러리에서 들여온다], [없으면 `W-USE-EXTERNAL`],
+  [`geom.point` · `geom.manhattan a b`], [들여온 이름은 모듈 이름으로 한정한다], [풀어놓기가 없다],
+  [`geom.helper`(감춘 이름)], [거절(`E-VISIBILITY`)], [한정해도 문이 열리지 않는다],
+  [같은 이름을 두 번 선언 · 두 들여오기가 같은 이름], [거절(`E-NAME-DUP` · `E-NAME-COLLISION`)], [어느 쪽에 닿는지 조용히 정하지 않는다],
+  [최상위 선언의 차례], [무관 --- 서로 불러도 된다], [파일은 훑어 읽고 본문은 위에서 아래로 읽는다],
+)
+
 #recap[
   파일 하나가 모듈 하나이고, `export` 한 것만 밖에서 보인다. `use <모듈> from "<자리>" .` 는 선언한 파일 기준의 자리에서
   들여오고, 자리를 적지 않으면 같은 번역 단위나 표준 라이브러리에서 찾는다. 검색 경로는 없다. 한정해도 감춘 이름에는

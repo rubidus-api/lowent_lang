@@ -1,0 +1,10 @@
+module cycle_b .
+
+use cycle_a from "cycle_a.low" .
+
+export fn fb input n u32 . output u32 .
+  requires le n 10 .
+do
+  if eq n 0 . do return 1 . end .
+  return cycle_a.fa (sub n 1) .
+end .

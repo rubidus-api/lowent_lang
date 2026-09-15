@@ -1,0 +1,15 @@
+module mistake_runmax .
+rem run: echo 18446744073709551615
+rem run: top
+
+rem ko: 받은 값을 그대로 돌려준다 /// en: returns the value it received
+fn echo input n u64 . output u64 .
+do
+  return n .
+end .
+
+rem ko: 소스 안의 리터럴은 온전하다 /// en: a literal inside the source is intact
+fn top output u64 .
+do
+  return 18446744073709551615 .
+end .

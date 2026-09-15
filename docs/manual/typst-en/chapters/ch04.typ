@@ -224,6 +224,15 @@ Lowent stops --- and the place it stops is the place to fix.
   time, and the development repository records it as a defect. When you see this stop, look for the mixed literal.
 ]
 
+#antipattern[Testing with the largest `u64` passed as a `--run` argument][
+  #demo("examples/ch04/mistake_runmax.low")
+
+  `echo 18446744073709551615` should return what it received, yet 9223372036854775807 (the largest `i64`) comes out. In this edition `--run`
+  reads command-line arguments as signed 64-bit numbers and cuts them down. The VM and the native build do the same, so comparing the two back
+  ends does not reveal it either (recorded as a defect in the development repository). A literal inside the source is intact, as `top` shows.
+  Write boundary-value tests with literals in a `test` block.
+]
+
 #misconception[`div 7 2` is 3.5][
   Integer division keeps only the quotient and drops the fraction.
 

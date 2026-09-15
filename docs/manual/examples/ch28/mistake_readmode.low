@@ -1,0 +1,18 @@
+module mistake_readmode .
+rem run: main
+
+use files .
+
+proc main input out cap io . input fs cap file_system . output u8 . effects io .
+do
+  rem ko: ✘ 모드 0 은 읽기다 --- 그런데 쓴다 /// en: ✘ mode 0 is read --- yet it writes
+  let o result files.handle files.file_error be files.open fs "notes.txt" 0 .
+  guard is_ok o . else return 1 .
+  var h owned files.handle be ok_value o .
+  let w result u64 files.file_error be files.write fs h "extra line\n" .
+  let c result void files.file_error be files.close fs h .
+  guard is_ok w . else return 2 .
+  rem ko: 오류가 아니라 "0 바이트 썼다" 가 돌아온다 --- 쓴 수를 확인해야 드러난다 /// en: what comes back is not an error but "0 bytes written" --- only checking the count reveals it
+  guard eq (ok_value w) 11 . else return 3 .
+  return 0 .
+end .

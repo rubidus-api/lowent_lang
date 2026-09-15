@@ -124,6 +124,62 @@ VM 과 네이티브가 같은 주입기를 쓰므로 두 백엔드의 답이 같
   을 번역에서 막는다면, 주입기는 "실패를 잘못 다룸" 을 실행에서 드러낸다.
 ]
 
+== 흔한 실수
+
+#antipattern[읽기 모드로 열고 쓴다 --- 쓴 바이트 수를 보지 않는다][
+  #demo("examples/ch28/mistake_readmode.low")
+
+  `files.open fs "notes.txt" 0` 은 읽기 모드다. 거기에 쓰면 실패해야 하는데, 이 판에서는 `files.write` 가 오류 대신 `ok 0`("0 바이트
+  썼다")을 돌려준다(개발 저장소에 결함으로 적어 두었다). `is_ok w` 만 물었다면 성공으로 지나갔을 것이다. 이 예제는 쓴 수가 11 인지 확인해서
+  종료 코드 3 으로 드러낸다. 모드를 확인하고(0 읽기 · 1 쓰기 · 2 덧붙이기), 쓰기의 답은 성공 여부와 함께 *쓴 수*까지 본다. 짧게 쓰인 것은
+  남은 바이트를 다시 써야 한다는 뜻이다.
+]
+
+#antipattern[닫은 핸들로 또 쓴다][
+  #demo("examples/ch28/mistake_afterclose.low")
+
+  `files.close` 는 `owned handle` 을 받으므로 부르는 순간 소유가 넘어간다. 그 뒤의 `h` 는 이미 없는 핸들이라 `E-OWN-MOVED` 다. C 에서
+  `fclose` 뒤의 `fwrite` 는 정의되지 않은 동작이고, 같은 번호가 새로 연 다른 파일에 재사용되었다면 엉뚱한 파일에 쓴다. 소유가 그 자리를
+  번역에서 막는다.
+]
+
+#antipattern[읽기의 답에서 실패만 묻는다][
+  #demo("examples/ch28/mistake_eof.low")
+
+  `files.read` 의 답은 세 자리다. `is_ok r` 는 "실패가 아니다" 만 말한다. 파일 끝의 `ok none` 도 실패가 아니므로 통과하고, 그 안에서
+  `some_value` 를 꺼내다 멈춘다. 세 자리를 모두 가른다.
+
+  #demo("examples/ch28/eof_fixed.low")
+
+  16 바이트 버퍼로 34 바이트 파일을 세 번에 나누어 읽고, 넷째 읽기의 `ok none` 에서 멈춘다. 실패하면 닫고 3 을, 닫기가 실패하면 4 를
+  돌려준다. `rounds` 의 상한은 끝을 영영 알리지 않는 원천에서도 반복이 끝나게 한다.
+]
+
+#misconception[버퍼보다 큰 파일을 `slurp` 하면 앞부분만 읽힌다][
+  #demo("examples/ch28/slurp_small.low")
+
+  8 바이트 버퍼에 34 바이트 파일을 `slurp` 하면 앞 8 바이트가 오는 것이 아니라 오류가 온다. 잘린 내용을 온전한 파일로 믿는 결함 --- 설정
+  파일의 뒷부분이 조용히 사라지는 일 --- 을 막으려는 것이다. 파일이 버퍼보다 클 수 있으면 `files.open` 과 `files.read` 로 조각씩 읽는다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "io-files-glance",
+  caption: [입출력과 파일의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`write_out out 1 "…"`], [표준출력(1) · 표준오류(2)에 쓴다 --- 쓴 수를 준다], [권한이 첫 피연산자 --- 몰래 찍는 출력이 없다],
+  [`use files .` + `input fs cap file_system .`], [파일 모듈과 그 권한], [머리만 보고 파일에 닿는지 안다],
+  [`files.open fs "notes.txt" 0`], [연다 --- 0 읽기 · 1 쓰기 · 2 덧붙이기 · `result handle file_error`], [여는 일에는 "끝" 이 없다 --- 두 자리],
+  [`var h owned files.handle be ok_value o .`], [핸들을 소유로 담는다], [잊으면 `E-OWN-INCOMPLETE` · 닫은 뒤 쓰면 `E-OWN-MOVED`],
+  [`files.read fs h buf`], [`ok (some n)` 읽었다 · `ok none` 끝 · `error e` 실패], [값 하나가 두 뜻을 나르지 않는다],
+  [`files.write fs h bytes`], [쓴 수를 `result` 로 준다], [짧게 쓰일 수 있다 --- 수를 확인한다],
+  [`files.close fs h`], [`owned` 로 받아 `result` --- 완결], [닫기도 실패할 수 있다],
+  [`files.slurp fs path buf`], [통째로 읽는다 --- 버퍼보다 크면 오류], [자르지 않는다],
+  [`LOW_HOST_FAULT="read:err@2"`], [실패를 일부러 일으킨다(환경 변수)], [실패 경로를 시험한다],
+)
+
 #recap[
   표준출력은 `write_out <cap io> <fd> <바이트>` 이고 권한이 첫 피연산자다. `files` 모듈은 `cap file_system` 을 받아 파일을 여닫고
   읽고 쓴다. 파일 핸들은 `close` 가 `owned` 로 받아 `result` 를 돌려주므로 완결이 필요한 값이고, 닫기를 잊으면 번역이 거절한다.

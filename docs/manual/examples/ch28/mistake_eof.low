@@ -1,0 +1,27 @@
+module mistake_eof .
+rem trap: main
+
+use files .
+
+proc main input out cap io . input fs cap file_system . input al cap allocator .
+  output u8 .
+  effects io alloc .
+do
+  let g option mut slice u8 be alloc_bytes al capacity 64 .
+  guard is_some g . else return 1 .
+  let buf mut slice u8 be some_value g .
+  let o result files.handle files.file_error be files.open fs "notes.txt" 0 .
+  guard is_ok o . else return 2 .
+  var h owned files.handle be ok_value o .
+  var total u64 be 0 .
+  var i u64 be 0 .
+  while lt i 3 . do
+    let r result (option u64) files.file_error be files.read fs h buf .
+    guard is_ok r . else return 3 .
+    rem ko: ✘ 실패만 물었다 --- 파일 끝의 `ok none` 에서 `some_value` 가 멈춘다 /// en: ✘ only failure is checked --- `some_value` stops at the end-of-file `ok none`
+    set total (add total (some_value (ok_value r))) .
+    set i (add i 1) .
+  end .
+  let c result void files.file_error be files.close fs h .
+  return narrow u8 total .
+end .

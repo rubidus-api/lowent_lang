@@ -122,6 +122,63 @@ down its error branch, writes the message and returns 2. It is off by default.
   injector reveals "handling failure wrongly" at run time.
 ]
 
+== Common mistakes
+
+#antipattern[Opening in read mode and writing --- without checking the byte count][
+  #demo("examples/ch28/mistake_readmode.low")
+
+  `files.open fs "notes.txt" 0` is read mode. Writing there should fail, but in this edition `files.write` returns `ok 0` ("0 bytes
+  written") instead of an error (recorded as a defect in the development repository). Had the code asked only `is_ok w`, it would have
+  passed as a success. This example checks that the count is 11 and exposes the problem with exit code 3. Check the mode (0 read · 1 write
+  · 2 append), and look at *the number of bytes written* as well as success. A short write means the remaining bytes must be written again.
+]
+
+#antipattern[Writing with a handle that was already closed][
+  #demo("examples/ch28/mistake_afterclose.low")
+
+  `files.close` takes an `owned handle`, so ownership passes the moment it is called. Afterwards `h` is a handle that no longer exists, so
+  this is `E-OWN-MOVED`. In C, `fwrite` after `fclose` is undefined behaviour, and if the same number was reused by a newly opened file, the
+  bytes land in the wrong file. Ownership stops that at translation time.
+]
+
+#antipattern[Asking only about failure in the answer of a read][
+  #demo("examples/ch28/mistake_eof.low")
+
+  The answer of `files.read` has three places. `is_ok r` only says "not a failure". The end-of-file `ok none` is not a failure either, so it
+  passes, and taking `some_value` out of it stops the program. Split all three places.
+
+  #demo("examples/ch28/eof_fixed.low")
+
+  It reads the 34-byte file in three pieces with a 16-byte buffer and stops at the `ok none` of the fourth read. On failure it closes and
+  returns 3; if closing fails, it returns 4. The bound on `rounds` makes the loop end even for a source that never reports its end.
+]
+
+#misconception[`slurp` of a file larger than the buffer reads just the beginning][
+  #demo("examples/ch28/slurp_small.low")
+
+  `slurp` of a 34-byte file into an 8-byte buffer returns an error, not the first 8 bytes. This prevents the bug of trusting truncated content
+  as the whole file --- the tail of a configuration file silently disappearing. If a file may be larger than the buffer, read it in pieces
+  with `files.open` and `files.read`.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "io-files-glance",
+  caption: [I/O and file syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`write_out out 1 "…"`], [write to standard output (1) · standard error (2) --- returns the count], [the capability comes first --- no hidden printing],
+  [`use files .` + `input fs cap file_system .`], [the file module and its capability], [the head shows whether files are reached],
+  [`files.open fs "notes.txt" 0`], [open --- 0 read · 1 write · 2 append · `result handle file_error`], [opening has no "end" --- two places],
+  [`var h owned files.handle be ok_value o .`], [hold the handle as owned], [forgetting it: `E-OWN-INCOMPLETE` · writing after close: `E-OWN-MOVED`],
+  [`files.read fs h buf`], [`ok (some n)` read · `ok none` end · `error e` failure], [one value never carries two meanings],
+  [`files.write fs h bytes`], [returns the count as a `result`], [writes can be short --- check the count],
+  [`files.close fs h`], [takes `owned`, returns `result` --- completion], [closing can fail too],
+  [`files.slurp fs path buf`], [read it whole --- an error if larger than the buffer], [never truncates],
+  [`LOW_HOST_FAULT="read:err@2"`], [inject failures on purpose (environment variable)], [exercise the failure paths],
+)
+
 #recap[
   Standard output is `write_out <cap io> <fd> <bytes>`, with the capability as first operand. The `files` module takes `cap file_system` to open, close, read and write
   files. A file handle needs completion because `close` takes it `owned` and returns a `result`, so forgetting to close is refused at translation. `read` answers in

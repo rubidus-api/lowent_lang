@@ -162,6 +162,76 @@ An arm after `_` is rejected.
 `_` has already taken everything, so the arm after it can never run. A dead arm is an error, not a warning --- a `match` where each case does not
 appear exactly once when read hides defects.
 
+== Common mistakes
+
+#antipattern[Using an `option` in arithmetic as if it were a number][
+  #demo("examples/ch11/mistake_optarith.low")
+
+  `find k` does not give back a `u64`; it gives back "a box that may or may not hold a `u64`". You cannot add 1 to a box. In
+  other languages a null flows into the calculation and blows up much later; Lowent stops you right here with `E-TYPE-RETURN`.
+  There are three fixes: supply a stand-in with `value_or (find k) 0`, ask with `is_some` and take it out with `some_value`, or
+  split with `match`. Which one to pick depends on "what should happen when it is absent".
+]
+
+#antipattern[Forgetting `some` in an op that returns an `option`][
+  #demo("examples/ch11/mistake_nosome.low")
+
+  Once the head says `output option u64`, the value you return must be a box too. `none` is a box, but `mul k 10` is a bare
+  number, so this is `E-TYPE-RETURN`. Some languages wrap the value for you; Lowent does not. Writing `return some (mul k 10) .`
+  spells out "it is there", so the reader sees both branches.
+]
+
+#antipattern[Using `try` in an op that does not return a `result`][
+  #demo("examples/ch11/mistake_trynoresult.low")
+
+  `try` *passes failure upwards*, so this op must be able to return a failure itself. But `plus` returns only a `u8` and has no
+  `errors` clause. The program is wrong in meaning, yet this edition's tool does not reject it in `--check`. Running `plus 250`
+  on the VM prints `err too_big` where a `u8` belongs, and the native build fails at the C compile step. This should be reported
+  at translation time, and it is recorded as a defect in the development repository. Do not trust the passing check: give an op
+  that uses `try` a `result` output and an `errors` clause.
+
+  #demo("examples/ch11/trynoresult_fixed.low")
+]
+
+#antipattern[Being asked for `_` after covering every case with nested patterns][
+  #demo("examples/ch11/mistake_nestedwild.low")
+
+  `ok (some x)`, `ok none` and `error broken` are every case of `result (option u64) read_error`. Even so, this edition's tool
+  cannot count coverage all the way through nested patterns and rejects the match with `E-MATCH-INEXHAUSTIVE`. It is a tool
+  limitation, recorded as a defect. For now, take the last case with `_`. A comment saying what `_` receives keeps the reader
+  from guessing.
+
+  #demo("examples/ch11/nestedwild_fixed.low")
+]
+
+#misconception[With `value_or` you can still tell when a value was absent][
+  #demo("examples/ch11/valueor_blind.low")
+
+  `value_or` *covers* absence with a stand-in. When the stand-in collides with a real value, the two cannot be told apart. Above,
+  the real 0 in slot 0 and the absence in slot 7 both come out as 0. Use `value_or` only where "treat absent as 0" is truly
+  fine; when presence matters, ask with `is_some` or `match` before covering it.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "option-result-glance",
+  caption: [Syntax of answer-carrying types --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`output option u8 .`], [a value, or none], [absence (null) shows in the type],
+  [`some v` · `none`], [present · absent], ["present" is written too, so both branches are visible],
+  [`output result u8 e .`], [a value or an error (a variant of `e`)], [failure is returned as a value --- there are no exceptions],
+  [`ok v` · `error too_big`], [success · failure], [which branch is written in the source],
+  [`errors too_big <condition> .`], [promise which error happens when], [written in the contract so the caller can prepare],
+  [`is_some r` · `some_value r`], [ask whether present · take it out], [taking out is partial --- ask first],
+  [`is_error r` · `ok_value r`], [ask whether failed · take out the success value], [same reason],
+  [`value_or r 99`], [a stand-in when absent], [one line, but it covers absence],
+  [`try <expr>`], [on failure, leave returning that error], [so checks are never forgotten --- like Rust's `?`],
+  [`try <expr> else_none` · `else_error e`], [`result` → `option` · `option` → `result`], [changing channel shows what is lost],
+  [`case ok (some x) .` · `case a or b .`], [nested pattern · several variants at once], [split in one go, still covering every case],
+)
+
 #recap[
   `option` is made with `some` and `none`, `result` with `ok` and `error`. The receiver asks and takes out (`is_some`, `some_value`,
   `is_error`, `ok_value`), gives a fallback with `value_or`, or splits with `match`. Taking out is partial, so taking from the missing side

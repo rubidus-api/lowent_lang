@@ -135,6 +135,70 @@ what keeps it safe.
   passed along.
 ]
 
+== Common mistakes
+
+Almost every slice mistake comes down to *being off by one*. Where C would read someone else's memory and carry on, Lowent stops.
+
+#antipattern[Looping one step too far with `le`][
+  #demo("examples/ch09/mistake_offbyone.low")
+
+  A slice of length 3 has indexes 0, 1 and 2. `le i (len xs)` is still true when `i` is 3, so reading the fourth cell stops with
+  `E-VM-BOUNDS`. Because indexes start at 0, the right condition is "less than the count" --- `while lt i (len xs) .`. If you are walking
+  every element, `for x xs do` uses no index at all and removes the mistake completely.
+]
+
+#antipattern[Reading with brackets, as in `xs[0]`][
+  #demo("examples/ch09/mistake_cindex.low")
+
+  There is no bracket indexing. Reading an element is `index xs 0`, writing it is `set (index xs 0) v .`. Using names instead of symbols
+  makes reading, writing and the out-of-range stop all the same shape of form, with fewer symbols to remember.
+]
+
+#antipattern[Reading the first element of what may be an empty slice][
+  #demo("examples/ch09/mistake_empty.low")
+
+  It is easy to forget that an input may be empty. Index 0 exists only when there is at least one element. Filter first, then read.
+
+  #demo("examples/ch09/empty_fixed.low")
+
+  Below the `guard`, "not empty" is a fact, so `index xs 0` is safe --- and the compiler uses the same fact to remove the bounds check
+  (#chref("control")).
+]
+
+#antipattern[Swapping the start and end of `subslice`][
+  #demo("examples/ch09/mistake_subrev.low")
+
+  `subslice s from to` needs `from ≤ to ≤ len s`. Swapping them does not give an empty window; it stops --- because a miscalculated boundary
+  that quietly became an empty result would only surface much later.
+]
+
+#misconception[`subslice s 1 3` is the three cells from 1 to 3][
+  #demo("examples/ch09/subslice_end.low")
+
+  The end index is *not included*: indexes `1` and `2`, two cells. With this rule the length is simply `to − from`, and `subslice s 0 k` and
+  `subslice s k (len s)` split the slice with no cell overlapping or missing. That is why most languages use the same rule (a half-open
+  range).
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "slices-glance",
+  caption: [Slice syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`slice u8`], [a run of `u8` values (start + length)], [no separate count to carry around],
+  [`mut slice u8`], [a run whose elements may be written], [writability is visible in the type],
+  [`input xs array 4 u8 .`], [take a run of exactly 4 (input position only)], [length first --- checked at entry],
+  [`len xs`], [number of elements], [just reads the length field; no cost],
+  [`index xs i`], [element `i` (from 0)], [stops when out of range --- never reads someone else's memory],
+  [`set (index xs i) v .`], [write element `i`], [needs a `mut slice` and a `proc`],
+  [`for x xs do … end .`], [each element in turn], [no room for index mistakes],
+  [`subslice xs from to`], [a window from `from` up to, not including, `to` (no copy)], [half-open --- the length is `to − from`],
+  [`"hello"`], [a literal of type `slice u8` --- indexable as is], [there is no separate string type],
+  [`requires le n (len xs) .`], [a length condition as a contract], [bounds checks in the body are removed],
+)
+
 #recap[
   A slice carries its start and length together. `len` takes the length field, `index` stops when out of range, and `for` walks the
   elements. `array n t` writes the length first and is used in input positions. Writing elements needs a `mut slice` and a `proc`.

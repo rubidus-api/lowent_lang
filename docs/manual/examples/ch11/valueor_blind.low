@@ -1,0 +1,23 @@
+module valueor_blind .
+rem run: find_or_zero 0
+rem run: find_or_zero 7
+rem run: found 0
+rem run: found 7
+
+fn find input k u8 . output option u8 .
+do
+  guard lt k 3 . else return none .
+  return some (mul k 10) .
+end .
+
+rem ko: 0 번 칸에는 진짜 0 이 있고, 7 번 칸은 없다 --- 그런데 둘 다 0 으로 보인다 /// en: slot 0 really holds 0 and slot 7 is absent --- yet both come out as 0
+fn find_or_zero input k u8 . output u8 .
+do
+  return value_or (find k) 0 .
+end .
+
+rem ko: 있는지를 알고 싶으면 대신할 값으로 덮기 전에 묻는다 /// en: if you need to know whether it is there, ask before covering it with a stand-in
+fn found input k u8 . output bool .
+do
+  return is_some (find k) .
+end .

@@ -164,6 +164,74 @@ return ok (add v 1) .
 `_` 가 이미 모두 받았으므로 뒤의 갈래는 영영 돌지 않는다. 죽은 갈래는 경고가 아니라 오류다 --- 읽을 때 각 경우가 한 번씩이 아닌 `match` 는 결함을
 숨긴다.
 
+== 흔한 실수
+
+#antipattern[`option` 을 수처럼 계산에 넣는다][
+  #demo("examples/ch11/mistake_optarith.low")
+
+  `find k` 가 돌려주는 것은 `u64` 가 아니라 "`u64` 가 있을 수도 없을 수도 있는 상자" 다. 상자에 1 을 더할 수는 없다. 다른 언어라면
+  없음(null)이 계산 속으로 흘러 들어가 한참 뒤에 터지지만, Lowent 는 여기서 `E-TYPE-RETURN` 으로 멈춰 세운다. 고치는 길은 셋이다.
+  `value_or (find k) 0` 으로 대신할 값을 주거나, `is_some` 으로 묻고 `some_value` 로 꺼내거나, `match` 로 가른다. 어느 것을 고를지는
+  "없을 때 무엇을 해야 하는가" 가 정한다.
+]
+
+#antipattern[`option` 을 돌려주는 op 에서 `some` 을 빠뜨린다][
+  #demo("examples/ch11/mistake_nosome.low")
+
+  머리에 `output option u64` 라고 적었으면 돌려주는 값도 상자여야 한다. `none` 은 상자이지만 `mul k 10` 은 맨 수라서 `E-TYPE-RETURN`
+  이다. 몇몇 언어는 값을 알아서 감싸 주지만 Lowent 는 감싸지 않는다. `return some (mul k 10) .` 처럼 "있다" 를 적어야 읽는 사람이
+  두 갈래를 모두 본다.
+]
+
+#antipattern[`result` 를 돌려주지 않는 op 에서 `try` 를 쓴다][
+  #demo("examples/ch11/mistake_trynoresult.low")
+
+  `try` 는 실패를 *위로 넘긴다*. 그러려면 이 op 도 실패를 돌려줄 수 있어야 한다. 그런데 `plus` 는 `u8` 만 돌려주고 `errors` 절도 없다.
+  뜻으로는 틀린 프로그램인데 이 판의 도구는 `--check` 에서 거절하지 않는다. VM 으로 `plus 250` 을 돌리면 `u8` 자리에 `err too_big`
+  이 나오고, 네이티브로는 C 컴파일 단계에서 지어지지 않는다. 번역 때 알려야 할 자리이고 개발 저장소에 결함으로 적어 두었다.
+  검사가 통과했다고 믿지 말고, `try` 를 쓴 op 의 머리를 `result` 와 `errors` 로 맞춘다.
+
+  #demo("examples/ch11/trynoresult_fixed.low")
+]
+
+#antipattern[겹친 패턴으로 다 덮었는데 `_` 를 요구받는다][
+  #demo("examples/ch11/mistake_nestedwild.low")
+
+  `ok (some x)` · `ok none` · `error broken` 셋이면 `result (option u64) read_error` 의 모든 경우다. 그래도 이 판의 도구는 겹친
+  패턴의 망라를 끝까지 세지 못해 `E-MATCH-INEXHAUSTIVE` 로 거절한다. 도구의 한계이고 결함으로 적어 두었다. 지금은 마지막 갈래를
+  `_` 로 받는다. `_` 가 받는 것이 무엇인지 주석으로 적어 두면 읽는 사람이 헷갈리지 않는다.
+
+  #demo("examples/ch11/nestedwild_fixed.low")
+]
+
+#misconception[`value_or` 를 쓰면 없는 경우도 알 수 있다][
+  #demo("examples/ch11/valueor_blind.low")
+
+  `value_or` 는 없음을 *대신할 값으로 덮는다*. 덮는 값이 진짜 값과 겹치면 둘을 가를 수 없다. 위에서 0 번 칸의 진짜 0 과 7 번 칸의
+  없음이 똑같이 0 이다. "없으면 0 으로 쳐도 된다" 가 맞는 자리에서만 `value_or` 를 쓰고, 있는지가 중요하면 덮기 전에 `is_some`
+  이나 `match` 로 묻는다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "option-result-glance",
+  caption: [답을 담는 타입의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`output option u8 .`], [값이 있거나 없다], [없음(null)을 타입에 드러낸다],
+  [`some v` · `none`], [있다 · 없다], ["있다" 도 적어야 두 갈래가 모두 보인다],
+  [`output result u8 e .`], [값이거나 오류(`e` 의 갈래)], [실패도 값으로 돌려준다 --- 예외가 없다],
+  [`ok v` · `error too_big`], [성공 · 실패], [어느 갈래인지 소스에 적힌다],
+  [`errors too_big <조건> .`], [어떤 오류가 언제 나는지 약속], [계약에 적어 부르는 쪽이 대비한다],
+  [`is_some r` · `some_value r`], [있는지 묻기 · 꺼내기], [꺼내기는 부분 연산 --- 묻고 꺼낸다],
+  [`is_error r` · `ok_value r`], [실패인지 묻기 · 성공 값 꺼내기], [같은 이유],
+  [`value_or r 99`], [없으면 대신할 값], [한 줄로 끝나지만 없음을 덮는다],
+  [`try <식>`], [실패면 그 오류를 돌려주며 떠난다], [확인 코드를 빼먹지 않게 --- Rust 의 `?`],
+  [`try <식> else_none` · `else_error e`], [`result` → `option` · `option` → `result`], [채널을 바꿀 때 무엇을 잃는지 드러낸다],
+  [`case ok (some x) .` · `case a or b .`], [겹친 패턴 · 여러 갈래 묶기], [한 번에 가르되 모든 경우를 덮는다],
+)
+
 #recap[
   `option` 은 `some`·`none`, `result` 는 `ok`·`error` 로 만든다. 받는 쪽은 묻고 꺼내거나(`is_some`·`some_value`
   · `is_error`·`ok_value`), `value_or` 로 대신할 값을 주거나, `match` 로 가른다. 꺼내기는 부분 연산이라

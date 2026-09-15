@@ -1,0 +1,14 @@
+module mistake_missfield .
+rem expect: E-TYPE-FIELD
+
+struct point do
+  x u64 .
+  y u64 .
+end .
+
+fn origin_x output u64 .
+do
+  rem ko: ✘ `y` 를 채우지 않았다 --- `make` 는 모든 칸을 채워야 한다 /// en: ✘ `y` is not filled in --- `make` must fill every field
+  let p point be make point do x 1 . end .
+  return field p x .
+end .

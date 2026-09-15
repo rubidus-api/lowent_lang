@@ -1,0 +1,21 @@
+module nestedwild_fixed .
+rem run: via_match
+
+enum read_error do
+  broken .
+end .
+
+fn pick input r result (option u64) read_error . output u64 .
+do
+  match r do
+    case ok (some x) . return x .
+    case ok none . return 0 .
+    rem ko: 마지막 경우를 `_` 로 받는다 --- 남은 것은 error 뿐이다 /// en: take the last case with `_` --- only error is left
+    case _ . return 1 .
+  end .
+end .
+
+fn via_match output u64 .
+do
+  return pick (ok (some 42)) .
+end .

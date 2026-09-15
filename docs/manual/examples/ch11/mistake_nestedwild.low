@@ -1,0 +1,16 @@
+module mistake_nestedwild .
+rem expect: E-MATCH-INEXHAUSTIVE
+
+enum read_error do
+  broken .
+end .
+
+fn pick input r result (option u64) read_error . output u64 .
+do
+  rem ko: ✘ 세 경우를 모두 적었는데도 이 판에서는 `_` 가 없다고 거절된다 /// en: ✘ all three cases are written, yet this edition rejects it for lacking `_`
+  match r do
+    case ok (some x) . return x .
+    case ok none . return 0 .
+    case error broken . return 1 .
+  end .
+end .

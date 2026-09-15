@@ -119,6 +119,67 @@ fixed, and the `index` that follows a position still gets its bounds check. The 
   cache.
 ]
 
+== Common mistakes
+
+#antipattern[Leaving a field out of `make`][
+  #demo("examples/ch10/mistake_missfield.low")
+
+  C fills missing struct fields with 0, and some languages insert a default. Lowent rejects it with `E-TYPE-FIELD`, because the source
+  cannot tell whether the missing field was intended or forgotten. If you want 0, write `y 0 .` --- a written 0 is obviously intended. A
+  misspelt field name produces the same code, saying "no such field".
+]
+
+#antipattern[Passing a value-less variant as `Type.variant`][
+  #demo("examples/ch10/mistake_unitvariant.low")
+
+  A variant that carries values is built with the type name in front, as in `shape.circle 2`, but a variant carrying nothing is written by
+  *its name alone* (`green`). This edition's tool does not reject `light.green` at compile time; it stops with `E-VM-TYPE` when run ---
+  something that should be reported at compile time, recorded in the development repository as a defect. When you see this stop, remove
+  the type name in front of the variant.
+]
+
+#antipattern[Comparing two structs with `eq`][
+  #demo("examples/ch10/mistake_eqstruct.low")
+
+  `eq` compares numbers and booleans. What it means for two structs to be "equal" differs by type --- must every field match, or only an
+  identifying one? This edition's tool does not reject the comparison at compile time but stops while running (recorded as a defect).
+  Write down what equality means as an op.
+
+  #demo("examples/ch10/eqstruct_fixed.low")
+]
+
+#antipattern[Believing that putting a value under another name makes a copy][
+  #demo("examples/ch10/mistake_alias.low")
+
+  After `var q point be p .`, a field of `q` was changed and `p`'s field became 99. In this edition, putting a struct under another name
+  makes *an alias to the same place*. `p` is a `let` and must not change, so this breaks a promise; the specification does not yet define
+  copying of struct values either --- the development repository records it as its heaviest defect. Until it is fixed, *build a new value
+  with `make`* whenever you need one.
+
+  #demo("examples/ch10/alias_fixed.low")
+
+  This is also why `moved` in this chapter's first example returns a new value instead of changing a field. Making a new value
+  rather than modifying one sidesteps aliasing altogether.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "structs-glance",
+  caption: [Struct and enum syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`struct point do x u64 . y u64 . end .`], [a bundle of named fields], [one line per field, name and type],
+  [`make point do x 1 . y 2 . end`], [build a value --- fill every field], [no field silently becomes 0],
+  [`field p x` · `field s stop x`], [read a field · walk down several levels], [no glued dot --- the meaning is fixed as you read],
+  [`set (field p x) 3 .`], [write a field (of a value received `mut`)], [reading and writing are spelt the same],
+  [`enum shape do dot . circle r u32 . end .`], [one of several --- variants may carry values], [each variant is closed with a stop],
+  [`shape.circle 2` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
+  [`match s do case circle r . … end .`], [split on variants and bind their values], [every variant must be covered],
+  [`isa s circle`], [is it that variant (`bool`)], [for asking without taking values out],
+  [trees linked by index (`l u32` · `r u32`)], [slice indexes instead of containing itself], [the size is fixed and indexes are bounds-checked],
+)
+
 #recap[
   A `struct` is made with `make`, filling every field, and read and written with `field`. There is no glued dot. The variants of an `enum`
   can carry values, are made as `<type>.<variant>`, and are split with a `match` covering every variant. Variants are closed with full stops.

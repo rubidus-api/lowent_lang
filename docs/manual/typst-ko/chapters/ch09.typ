@@ -134,6 +134,69 @@ VM 이 보여 주는 `fill_two([10,20,5])` 는 op 이 끝난 뒤 인자의 모�
   안에서 만들어 넘기는 것이 보통이다.
 ]
 
+== 흔한 실수
+
+줄을 다룰 때의 실수는 거의 모두 *번호 하나 차이*에서 온다. C 라면 남의 메모리를 읽고 조용히 지나갔을 자리에서 Lowent 는 멈춘다.
+
+#antipattern[반복 조건에 `le` 를 써서 한 칸을 더 돈다][
+  #demo("examples/ch09/mistake_offbyone.low")
+
+  길이가 3 인 줄의 번호는 0, 1, 2 다. `le i (len xs)` 는 `i` 가 3 일 때도 참이라 네 번째 칸을 읽으려다 `E-VM-BOUNDS` 로 멈춘다.
+  번호가 0 부터 시작하므로 "개수보다 작다" 가 맞는 조건이다 --- `while lt i (len xs) .`. 원소를 모두 훑는 일이면 번호를 쓰지 않는
+  `for x xs do` 가 이 실수를 아예 없앤다.
+]
+
+#antipattern[`xs[0]` 처럼 대괄호로 읽는다][
+  #demo("examples/ch09/mistake_cindex.low")
+
+  대괄호 색인은 없다. 원소를 읽는 것은 `index xs 0`, 쓰는 것은 `set (index xs 0) v .` 다. 기호 대신 이름을 쓰면 읽기·쓰기·범위
+  밖 멈춤이 모두 같은 모양의 폼이 되고, 기호를 외울 것이 줄어든다.
+]
+
+#antipattern[빈 줄일 수 있는데 첫 원소를 읽는다][
+  #demo("examples/ch09/mistake_empty.low")
+
+  입력이 비었을 가능성을 잊기 쉽다. 번호 0 은 원소가 하나 이상일 때만 있다. 먼저 걸러 내고 읽는다.
+
+  #demo("examples/ch09/empty_fixed.low")
+
+  `guard` 를 지난 아래에서는 "비지 않았다" 가 사실이므로 `index xs 0` 이 안전하고, 컴파일러도 그 사실로 경계 검사를 지운다
+  (#chref("control")).
+]
+
+#antipattern[`subslice` 의 시작과 끝을 뒤집는다][
+  #demo("examples/ch09/mistake_subrev.low")
+
+  `subslice s from to` 는 `from ≤ to ≤ len s` 여야 한다. 뒤집으면 빈 창이 되는 것이 아니라 멈춘다 --- 잘못 계산한 경계가 조용히 빈
+  결과로 바뀌면 그 결함은 한참 뒤에야 드러나기 때문이다.
+]
+
+#misconception[`subslice s 1 3` 은 1 번부터 3 번까지 세 칸이다][
+  #demo("examples/ch09/subslice_end.low")
+
+  끝 번호는 *포함하지 않는다*. `1` 번과 `2` 번, 두 칸이다. 이렇게 정하면 길이가 `to − from` 으로 바로 나오고, `subslice s 0 k` 와
+  `subslice s k (len s)` 가 겹치거나 빠지는 칸 없이 줄을 나눈다. 대부분의 언어가 같은 규칙(반열린 구간)을 쓰는 까닭이다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "slices-glance",
+  caption: [줄의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`slice u8`], [`u8` 이 연속으로 놓인 구간(시작 + 길이)], [개수를 따로 들고 다니지 않게],
+  [`mut slice u8`], [원소에 쓸 수 있는 구간], [쓸 수 있는지가 타입에 보인다],
+  [`input xs array 4 u8 .`], [길이가 정확히 4 인 줄을 받는다(입력 자리만)], [길이를 먼저 적는다 --- 진입에서 검사],
+  [`len xs`], [원소 개수], [길이 칸을 꺼낼 뿐, 비용이 없다],
+  [`index xs i`], [`i` 번 원소(0 부터)], [범위 밖이면 멈춘다 --- 남의 메모리를 읽지 않는다],
+  [`set (index xs i) v .`], [`i` 번에 쓰기], [`mut slice` 와 `proc` 이어야 한다],
+  [`for x xs do … end .`], [원소를 차례로], [번호 실수가 생길 자리가 없다],
+  [`subslice xs from to`], [`from` 부터 `to` 앞까지의 창(베끼지 않음)], [반열린 구간 --- 길이는 `to − from`],
+  [`"hello"`], [`slice u8` 인 리터럴 --- 그대로 색인된다], [문자열 타입이 따로 없다],
+  [`requires le n (len xs) .`], [길이 조건을 계약으로], [본문의 경계 검사가 지워진다],
+)
+
 #recap[
   슬라이스는 시작과 길이를 함께 갖는다. `len` 은 길이 칸을 꺼내고, `index` 는 범위 밖이면 멈추며, `for` 는
   원소를 훑는다. `array n t` 는 길이를 먼저 적고 입력 자리에서 쓴다. 원소에 쓰려면 `mut slice` 와 `proc`

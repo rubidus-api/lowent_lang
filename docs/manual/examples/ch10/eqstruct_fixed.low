@@ -1,0 +1,20 @@
+module eqstruct_fixed .
+rem run: same
+
+struct point do
+  x u64 .
+  y u64 .
+end .
+
+rem ko: 무엇이 "같은" 것인지 칸마다 적는다 --- 그 뜻은 타입마다 다르다 /// en: spell out field by field what "equal" means --- it differs from type to type
+fn point_eq input a point . input b point . output bool .
+do
+  return expr ((field a x) eq (field b x)) and ((field a y) eq (field b y)) .
+end .
+
+fn same output bool .
+do
+  let p point be make point do x 1 . y 2 . end .
+  let q point be make point do x 1 . y 2 . end .
+  return point_eq p q .
+end .

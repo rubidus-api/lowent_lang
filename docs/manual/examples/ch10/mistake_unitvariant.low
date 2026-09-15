@@ -1,0 +1,28 @@
+module mistake_unitvariant .
+rem run: pick_bare
+rem trap: pick_qualified
+
+enum light do
+  red .
+  green .
+end .
+
+fn code input c light . output u64 .
+do
+  match c do
+    case red . return 1 .
+    case green . return 2 .
+  end .
+end .
+
+fn pick_bare output u64 .
+do
+  rem ko: 값을 지니지 않은 갈래는 이름만 적는다 /// en: a variant that carries no value is written by its bare name
+  return code green .
+end .
+
+fn pick_qualified output u64 .
+do
+  rem ko: ✘ 이 판에서는 `light.green` 으로 넘기면 실행 중에 멈춘다 /// en: ✘ in this edition, passing `light.green` stops while running
+  return code light.green .
+end .

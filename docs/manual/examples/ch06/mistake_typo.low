@@ -1,0 +1,10 @@
+module mistake_typo .
+rem expect: E-IR-UNDEF
+
+fn bump output u64 .
+do
+  var total u64 be 0 .
+  rem ko: ✘ 이름을 잘못 적었다 --- `totl` 은 지은 적이 없는 이름이다 /// en: ✘ a misspelt name --- `totl` was never declared
+  set totl (add total 1) .
+  return total .
+end .

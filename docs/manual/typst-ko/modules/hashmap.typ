@@ -8,7 +8,7 @@
 타입과 얼로케이터를 고르는 컨테이너는 #modref("mapgen")[`mapgen`] 이다(#chref("lib-containers")).
 
 ```lowent
-let ok bool be hashmap.put b 7 42 .
+let stored bool be hashmap.put b 7 42 .
 let v option u64 . be hashmap.lookup b 7 .
 ```
 

@@ -1,0 +1,8 @@
+module mistake_opname .
+rem trap: mian
+
+proc main input out cap io . output u8 . effects io .
+do
+  let n u64 be write_out out 1 "hi\n" .
+  return narrow u8 n .
+end .

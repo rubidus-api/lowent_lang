@@ -1,5 +1,5 @@
 module greet .
-rem (인자는 네이티브와 VM 의 번호가 달라 여기서는 검사만 한다)
+rem ko: (인자는 네이티브와 VM 의 번호가 달라 여기서는 검사만 한다) /// en: (argument numbering differs between native and VM, so this is only checked)
 
 proc main input out cap io . input a cap args . output u8 . effects io .
 do

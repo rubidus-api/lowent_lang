@@ -5,7 +5,7 @@ rem run: capacity [1,2,3,4] 3
 rem run: grid [1,2,3,4] 2
 rem proof
 
-rem 1 --- 반복 조건이 len 을 직접 본다
+rem ko: 1 --- 반복 조건이 len 을 직접 본다 /// en: 1 --- the loop condition looks at len directly
 fn direct input s slice u8 . output u64 . do
   var t u64 be 0 .
   var i u64 be 0 .
@@ -16,7 +16,7 @@ fn direct input s slice u8 . output u64 . do
   return t .
 end .
 
-rem 2 --- 길이를 지역에 담았다
+rem ko: 2 --- 길이를 지역에 담았다 /// en: 2 --- the length is stored in a local
 fn stored input s slice u8 . output u64 . do
   let n u64 be len s .
   var t u64 be 0 .
@@ -28,7 +28,7 @@ fn stored input s slice u8 . output u64 . do
   return t .
 end .
 
-rem 3 --- 계약이 용량을 말한다
+rem ko: 3 --- 계약이 용량을 말한다 /// en: 3 --- a contract states the capacity
 fn capacity input s slice u8 . input cap u64 . output u64 .
   requires ge (len s) cap .
 do
@@ -41,7 +41,7 @@ do
   return t .
 end .
 
-rem 4 --- 행우선 주소 i·n + k
+rem ko: 4 --- 행우선 주소 i·n + k /// en: 4 --- row-major address i·n + k
 fn grid input a slice u8 . input n u64 . output u64 .
   requires le n 1000 .
   requires ge (len a) (mul n n) .

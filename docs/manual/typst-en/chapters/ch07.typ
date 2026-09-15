@@ -134,6 +134,87 @@ something the op did but the processor making promises hold.
 Use `panic` only for situations that cannot be recovered from. Failures a caller can handle are returned as values
 (#chref("option-result")). How to tell the two apart is covered in #chref("errors-design").
 
+== Common mistakes
+
+#antipattern[Writing `for x in xs`][
+  #demo("examples/ch07/mistake_forin.low")
+
+  `for` is `for <name> <slice> do`. The thing to walk comes right after the name, and `do` already marks where the body starts, so `in`
+  would carry nothing. It was removed so that one meaning has one spelling. The long diagnostic suggests the glued dot (`a.b`) as an
+  alternative, but that spelling is also rejected nowadays --- the message is out of date in this edition. The fix: `for x xs do`.
+]
+
+#antipattern[Chaining branches with `elif`][
+  #demo("examples/ch07/mistake_elif.low")
+
+  `elif`, `elsif` and `else if:` vary between languages. Lowent joins words it already has: close the previous block with `end` and add
+  `else if`. `elif` is not a word, so it is read as an unknown name (`E-IR-UNDEF`).
+
+  #demo("examples/ch07/elseif.low")
+
+  The last branch is `end else do … end .`. When there are three or more branches that all split one value, `match` is a better fit.
+]
+
+#antipattern[Using a symbol such as `<` in a condition][
+  #demo("examples/ch07/mistake_less.low")
+
+  Comparisons are words --- `lt` (less than), `le` (less or equal), `gt`, `ge`, `eq`, `ne`. `<` is a character the language does not
+  know, hence `E-CHAR`. The choice spares you from memorising symbol precedence, and long arithmetic has the `expr` island
+  (#chref("expr")). The fix: `while lt i n . do`.
+]
+
+#antipattern[`continue` skipping the increment][
+  If you count with `while` and `continue` in the middle of the body, you also skip the `set i (add i 1) .` placed below it.
+
+  ```lowent
+  fn odd_count input xs slice u8 . output u64 .
+  do
+    var n u64 be 0 .
+    var i u64 be 0 .
+    while lt i (len xs) . do
+      if eq (mod (index xs i) 2) 0 . do
+        continue .
+      end .
+      set n (add n 1) .
+      set i (add i 1) .
+    end .
+    return n .
+  end .
+  ```
+
+  At the first even number, `i` stops increasing and the loop never ends. Neither compilation nor run-time checks catch this --- running
+  forever is not an overflow. Move the increment to the *top* of the body (keeping the pre-increment value for indexing), or, if you are
+  walking elements, use `for x xs do` in the first place. With `for`, moving to the next element is the language's job, so this bug has
+  nowhere to live.
+]
+
+#misconception[`match` arms fall through like C's `switch`][
+  #demo("examples/ch07/nofall.low")
+
+  Only *the one* matching arm runs, and it never falls into the next. There is no `break` to remember and no bug from forgetting it. To
+  do the same thing for two cases, join the arms with `or` (#chref("option-result")).
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "control-glance",
+  caption: [Control-flow syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`if c . do … end .`], [run the block when the condition is true], [the condition is a form closed by a stop; the body opens with `do`],
+  [`if c . do … end else do … end .`], [one of two], [openers and closers always pair up],
+  [`… end else if c2 . do … end .`], [chaining branches], [joins existing words instead of adding `elif`],
+  [`while c . do … end .`], [repeat while the condition is true], [the one shape for counting loops],
+  [`for x xs do … end .`], [each element of a slice in turn], [moving to the next element is the language's job],
+  [`break .` · `continue .`], [leave the loop · go to the next round], [statements that change the flow],
+  [`guard c . else return … .`], [leave unless the condition holds --- afterwards it is a fact], [`else` must always leave],
+  [`return e .`], [return a value and finish], [on every path of an op that produces a value],
+  [`match v do case … . statement … end .`], [split by cases], [complete and non-overlapping --- no fall-through],
+  [`case 1 to 9 .` · `case _ .` · `case y when c .`], [a range · everything else · a guarded arm], [integers have many cases, so `_` is often needed],
+  [`panic "…" .`], [an irreversible stop (an effect)], [only in a `proc` that declares `effects panic`],
+)
+
 #recap[
   Conditions must be `bool`s. `while` repeats on a condition and `for` over a slice, and `break` and `continue` change the flow. The `else`
   of a `guard` must leave, and after the `guard` the condition is a fact. An op that returns a value must return on every path. `match`

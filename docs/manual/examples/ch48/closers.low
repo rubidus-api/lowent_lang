@@ -8,7 +8,7 @@ do
   return add (mul x x) (add x 1) .
 end .
 
-rem 인자를 여러 줄에 늘어놓아도 표시가 필요 없다 --- 개행은 공백이다
+rem ko: 인자를 여러 줄에 늘어놓아도 표시가 필요 없다 --- 개행은 공백이다 /// en: spreading arguments over several lines needs no marker --- a newline is whitespace
 fn spread input x u64 . output u64 .
   requires le x 1000 .
 do

@@ -8,7 +8,7 @@ A hash map storing and finding `u64` values by byte string (string) keys --- wor
 variable-length byte string keys. Key bytes are *copied* into an arena on insertion, so they are not tied to the original string's lifetime.
 
 ```lowent
-let ok bool be strmap.put slots keys "apple" 1 .
+let stored bool be strmap.put slots keys "apple" 1 .
 let v option u64 . be strmap.lookup slots keys "apple" .
 ```
 

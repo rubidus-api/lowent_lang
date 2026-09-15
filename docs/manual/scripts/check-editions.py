@@ -111,6 +111,27 @@ def main() -> int:
                 f"{web}/index.html: 차례에 장 링크가 {links}개뿐이다 "
                 f"(장은 {n_ch}개) --- 차례에서 본문으로 가는 길이 끊겼다")
 
+    # ★ 두 판의 **구조**가 같은가 (2026-09-15, RFC-0114 §5.1).
+    #   위 검사들은 장이 *있는지*와 표가 *HTML 에 나오는지*만 본다. 한국어판에만 예제·흔한 실수·
+    #   문답을 더하고 영어판을 잊어도 초록이었다. 그래서 파일마다 장치의 수를 두 판에서 맞대 본다.
+    #   (문단 수는 두 언어의 문장 나눔이 달라 세지 않는다 — 장치는 언어와 상관없이 같아야 한다.)
+    STRUCT = (("절", r"(?m)^== "), ("예제", r"#demo\("), ("코드", r"```lowent"),
+              ("흔한 실수", r"#antipattern\["), ("오개념", r"#misconception\["),
+              ("문답", r"#qa\["), ("표", r"#dtable\("))
+    for sub in ("chapters", "parts", "appendix", "modules"):
+        for kf in sorted((ROOT / "typst-ko" / sub).glob("*.typ")):
+            if kf.name == "order.typ":      # 모듈 차례 --- 두 판이 한국어판의 것을 함께 읽는다
+                continue
+            ef = ROOT / "typst-en" / sub / kf.name
+            if not ef.exists():
+                problems.append(f"영어판에 {sub}/{kf.name} 이 없다")
+                continue
+            kt, et = kf.read_text(encoding="utf-8"), ef.read_text(encoding="utf-8")
+            diff = [f"{name} {len(re.findall(p, kt))}≠{len(re.findall(p, et))}"
+                    for name, p in STRUCT if len(re.findall(p, kt)) != len(re.findall(p, et))]
+            if diff:
+                problems.append(f"{sub}/{kf.name}: 두 판의 구조가 다르다 — " + " · ".join(diff))
+
     if problems:
         for p in problems:
             print("⚠️ ", p)

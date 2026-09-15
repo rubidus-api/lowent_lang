@@ -117,6 +117,62 @@ from each branch. When the value is one of several cases over and over, `match` 
   flow.
 ]
 
+== Common mistakes
+
+#antipattern[Misspelling the name in a `set`][
+  #demo("examples/ch06/mistake_typo.low")
+
+  `set` only puts a new value into a `var` that *already exists*. Some languages quietly create a new variable when you assign to an
+  unknown name; here it is rejected with `E-IR-UNDEF`. If a typo became a new variable, the real one would never change and the program
+  would silently compute the wrong answer. That is why declaring (`var`) and changing (`set`) are different words.
+]
+
+#antipattern[Assigning with `=`][
+  #demo("examples/ch06/mistake_equals.low")
+
+  In most languages `=` means assignment, while in mathematics it means equality. One symbol switching between two meanings has produced
+  bugs like `if (x = 0)`. Lowent uses no symbol for either: declaring is `let`/`var … be`, changing is `set`, and asking whether two
+  values are equal is `eq`. `=` is not a character the language knows at all, hence `E-CHAR`.
+]
+
+#antipattern[Naming a local after a common English word][
+  #demo("examples/ch06/mistake_localname.low")
+
+  Names such as `count`, `sum`, `len`, `min`, `max`, `ok` and `avg` are already builtin ops. The name space is flat, so if a local took one
+  of them, `f count data` would group differently depending on whether `count` is the builtin call or the local. The same letters would
+  build a different tree, so `E-NAME-BUILTIN` rules it out. Use names like `n`, `total` or `size`.
+]
+
+#antipattern[Reading a local outside the block that declared it][
+  #demo("examples/ch06/mistake_outside.low")
+
+  `big` was declared inside the `if` block, so it disappears when the block ends. This edition's tool, however, does not reject the read,
+  and when the block was never entered (`a` is 1) it *quietly gives 0* --- a value that appears nowhere in the source. It should be
+  rejected at compile time, and the development repository records it as a defect. Until the tool is fixed, protect yourself: declare a
+  value you need after the block *before* the block.
+
+  #demo("examples/ch06/outside_fixed.low")
+
+  Now the 0 is a default written in the source. The answer is the same, but *where the 0 comes from* is visible.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "locals-glance",
+  caption: [Local syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`let x T be e .`], [a name that never changes], [immutable by default --- only changing values stand out],
+  [`var x T be e .`], [a name that may change], [say that it will change at the moment you declare it],
+  [`set x e .`], [put a new value into a `var`], [declaring and changing are different words --- a typo never becomes a new variable],
+  [`let x be e .`], [let the value decide the type], [only for short intermediate values --- the width is the overflow boundary],
+  [the value after `be`], [always required], [there is no such thing as an uninitialised variable],
+  [the end of a block], [locals declared inside it disappear], [names live close to where they are used],
+  [re-declaring an outer name inside], [rejected (`E-NAME-SHADOW`)], [the same letters point to one value only],
+  [`eq a b`], [ask whether two values are equal], [there is no `=` --- assignment and equality never mix],
+)
+
 #recap[
   There are two kinds of local, `let` (immutable) and `var` (mutable), and `set` works only on a `var`. The type may be written or left to
   the value, but a value after `be` is required. A local lives until the end of its block, and a live name cannot be made again even in an

@@ -17,7 +17,7 @@ enum node do
   times l u32 r u32 .
 end .
 
-rem 어느 하나라도 맞으면 그 갈래 --- red·green·blue 를 모두 덮으므로 _ 가 필요 없다
+rem ko: 어느 하나라도 맞으면 그 갈래 --- red·green·blue 를 모두 덮으므로 _ 가 필요 없다 /// en: any one match takes the arm --- red, green and blue are all covered, so no _ is needed
 fn warm input k u8 . output u8 . do
   let c color be green .
   match c do
@@ -26,7 +26,7 @@ fn warm input k u8 . output u8 . do
   end .
 end .
 
-rem or 로 묶은 갈래는 같은 이름을 묶어야 한다
+rem ko: or 로 묶은 갈래는 같은 이름을 묶어야 한다 /// en: arms joined with or must bind the same names
 fn combine input k u8 . output u32 . do
   let e node be node.times 6 7 .
   match e do
@@ -35,7 +35,7 @@ fn combine input k u8 . output u32 . do
   end .
 end .
 
-rem result 안의 option 을 한 번에 가른다
+rem ko: result 안의 option 을 한 번에 가른다 /// en: splits an option inside a result in one go
 fn pick input k u8 . output u32 . do
   let r result option u32 color be ok (some 42) .
   match r do
@@ -46,7 +46,7 @@ fn pick input k u8 . output u32 . do
   end .
 end .
 
-rem 가르는 값이 번역 시점 상수면 맞는 갈래 하나로 접힌다
+rem ko: 가르는 값이 번역 시점 상수면 맞는 갈래 하나로 접힌다 /// en: if the value being split is a compile-time constant, it folds to the one matching arm
 fn choose output u32 . do
   match comptime (add 2 3) do
     case 0 . do return 100 . end .
@@ -55,7 +55,7 @@ fn choose output u32 . do
   end .
 end .
 
-rem 두 범위가 u8 전체를 빈틈 없이 덮으므로 _ 가 필요 없다
+rem ko: 두 범위가 u8 전체를 빈틈 없이 덮으므로 _ 가 필요 없다 /// en: the two ranges cover all of u8 without gaps, so no _ is needed
 fn half input b u8 . output u8 . do
   match b do
     case 0 to 127 . do return 0 . end .

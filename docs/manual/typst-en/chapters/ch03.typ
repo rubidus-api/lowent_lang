@@ -268,6 +268,82 @@ line and heads with contracts one clause per line.
   one another, and then fixed. The compiler enforces it with a rank table.
 ]
 
+== Common mistakes
+
+Surface mistakes mostly come from *habits carried over from other languages*. Some diagnostics point somewhere unexpected, so it helps
+to remember the shapes too.
+
+#antipattern[Writing comments with `//`][
+  #demo("examples/ch03/mistake_slash.low")
+
+  Comments in this language are `rem` (line comment) and `note WHY … WHY` (multi-line), nothing else. `//` is not a comment, so the
+  compiler reads it as the start of a form, and a form runs *until a stop appears*. `// double it` and the next line's `return mul a 2`
+  therefore become one form that ends at a single stop, and the `return` is swallowed inside it. The diagnostic says "some path does not
+  return", but the cause is the comment. Comments open with a word to keep symbols down --- `//`, `#` and `--` differ from language to
+  language, so one word was chosen. The fix: `rem double it`.
+]
+
+#antipattern[Reading a field with a glued dot][
+  #demo("examples/ch03/mistake_glued.low")
+
+  `p.x` is everyday C or Python, but here it is `E-FIELD-GLUED`. The dot already serves as a *path to a name* (module
+  `allocs.bump_bytes`, variant `color.red`); if it also looked inside values, every `a.b` would need working out. Read a field with
+  `field p x` (#chref("structs-enums")).
+]
+
+#antipattern[Writing the head's clauses in any order][
+  #demo("examples/ch03/mistake_order.low")
+
+  Clauses have exactly one order (#tblref("surface-clause-order")). If the order were free, the same head could be written many ways and
+  readers would have to hunt for each clause. The diagnostic says what came after what, and `lowentc --fmt` puts the order right.
+]
+
+#antipattern[Opening an `if` body without `do`][
+  #demo("examples/ch03/mistake_ifdo.low")
+
+  Bodies are not opened by indentation as in Python. Without `do`, the `if` form ends at the stop after the condition, and the `end .`
+  below closes *the op's body* rather than the `if`. The remaining `return 0 .` then falls outside any declaration, which gives
+  `E-TOPLEVEL` (something other than a declaration at the top level), and because the body closed early, the return paths go wrong too
+  (`E-RETURN-PARTIAL`). When you see those two together, suspect a missing `do`. The fix: `if gt a 3 . do`.
+]
+
+#antipattern[Writing a string in single quotes][
+  #demo("examples/ch03/mistake_quote.low")
+
+  Single quotes are the literal for *one character* (`'a'` is the byte 97). Two characters do not fit in one unit, so you get
+  `E-CHAR-WIDTH`. Strings always use double quotes: `len "hi"` is 2. The two kinds of quote mean different things because "one character"
+  and "several bytes" are different types (#tblref("surface-literals")).
+]
+
+#misconception[A number with a leading zero is octal][
+  In C, `0755` is octal 493, but Lowent has no octal notation.
+
+  #demo("examples/ch03/octal.low")
+
+  It was removed because the same characters mean different numbers in different languages. For values where octal is handy, such as
+  permission bits, write `0x1ED` (hexadecimal) or use bit operations.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "surface-glance",
+  caption: [Surface rules --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`add a (mul b c)`], [prefix notation --- name first, inner calls in parentheses], [no precedence rules to memorise],
+  [`… .`], [a detached stop closes a form (statement or clause)], [newlines never change meaning --- break lines anywhere],
+  [`do … end .`], [every block], [only one way to open a block],
+  [`rem …` · `note WHY … WHY`], [line comment · multi-line comment], [no symbol comments (`//`, `#`) --- they open with a word],
+  [`42` · `0x2A` · `0b101010` · `1_000`], [integer literals (the position decides the type)], [no octal --- `0755` is 755],
+  [`"hi\n"` · `'a'`], [a string (several bytes) · one character], [the quote itself is the type difference],
+  [`true` · `false` · `none`], [booleans · no value], [values are words too],
+  [`field p x` · `method s area`], [read a field · call a method], [the dot is kept for name paths only],
+  [`allocs.bump_bytes` · `color.red`], [a name inside a module · a variant name], [one dot means "that name inside this name"],
+  [`expr a + b * c`], [an infix island --- arithmetic, comparisons, `and`/`or` only], [long arithmetic reads easily; same meaning as prefix],
+  [Clause order in an op head], [#tblref("surface-clause-order")], [each clause comes before the ones that use it],
+)
+
 #recap[
   A free-standing full stop closes a form, and a newline is whitespace. Expressions are prefix with the name first, and infix is
   written only inside `expr` islands. A block is always `do … end`. Names contain no dots, and shadowing is forbidden. A literal that

@@ -1,0 +1,15 @@
+module intdiv .
+rem run: avg2 3 4
+rem run: avg_f 3.0 4.0
+
+fn avg2 input a u64 . input b u64 . output u64 .
+do
+  rem ko: 정수 나눗셈은 소수점 아래를 버린다 --- 7 / 2 는 3 /// en: integer division drops the fraction --- 7 / 2 is 3
+  return div (add a b) 2 .
+end .
+
+fn avg_f input a f64 . input b f64 . output f64 .
+do
+  rem ko: 소수점 아래가 필요하면 처음부터 부동소수로 계산한다 /// en: if you need the fraction, compute in floating point from the start
+  return div (add a b) 2.0 .
+end .

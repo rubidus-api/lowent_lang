@@ -1,0 +1,10 @@
+module mistake_partial .
+rem expect: E-RETURN-PARTIAL
+
+fn sign input a i32 . output i32 .
+do
+  if gt a 0 . do
+    return 1 .
+  end .
+  rem ko: ✘ a 가 0 이하일 때 돌려줄 값이 없다 --- 끝까지 내려오는 길이 있다 /// en: ✘ nothing is returned when a is 0 or less --- one path falls off the end
+end .

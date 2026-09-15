@@ -182,6 +182,79 @@ with an operating system. The exact last bit of their results is up to the machi
   this language do not cover (#chref("proofs-limits")).
 ]
 
+== Common mistakes
+
+Many number mistakes pass compilation and only show up *while running*. Where other languages would quietly produce a wrong value,
+Lowent stops --- and the place it stops is the place to fix.
+
+#antipattern[Finding the middle by adding first, then halving][
+  #demo("examples/ch04/mistake_midpoint.low")
+
+  `200 + 100` is 300, and `u8` only goes up to 255, so it overflows before the division. This is the very bug that lurked for decades in
+  `(lo + hi) / 2` inside binary searches. C would quietly give 22, half of the wrapped value 44. The fix is to compute *at a wider width*.
+
+  #demo("examples/ch04/midpoint_fixed.low")
+
+  Widen to `u16`, add, divide, then `narrow u8` back down. The middle always fits in `u8`, so the narrowing never stops --- and if the
+  computation is ever changed by mistake, it stops right there and tells you. (When `lo <= hi` is guaranteed,
+  `add lo (div (sub hi lo) 2)` does not overflow either.)
+]
+
+#antipattern[Subtracting a larger number from an unsigned one][
+  #demo("examples/ch04/mistake_usub.low")
+
+  `u64` has nothing below 0. `3 − 5` is not −2 but an *overflow*, so it stops (C would give 18446744073709551614). If you want the size of
+  the difference, subtract the smaller from the larger --- `if ge a b . do return sub a b . end . return sub b a .` --- and if a negative
+  result is meaningful, compute in `i64` from the start.
+]
+
+#antipattern[Giving a loop counter too narrow a type][
+  #demo("examples/ch04/mistake_narrowloop.low")
+
+  A `u8` can never reach 256, so `lt i 256` is always true. In C, `i` would wrap from 255 back to 0 and the loop would *never end*. In
+  Lowent the 256th `add i 1` overflows and stops, so at least it does not hang silently. Give a loop counter a type wider than the largest
+  value it counts to (`u64`).
+]
+
+#antipattern[Doing float arithmetic with an integer literal][
+  #demo("examples/ch04/mistake_floatint.low")
+
+  Integers and floats never convert into each other automatically. To divide an `f64`, write the literal as a float too: `2.0`. This
+  edition's tool does not catch the mix at compile time and stops *while running* with `E-VM-TYPE` --- it ought to be rejected at compile
+  time, and the development repository records it as a defect. When you see this stop, look for the mixed literal.
+]
+
+#misconception[`div 7 2` is 3.5][
+  Integer division keeps only the quotient and drops the fraction.
+
+  #demo("examples/ch04/intdiv.low")
+
+  `avg2 3 4` is 3. If you need the fraction, take the inputs as floats and divide by `2.0`. If you need rounding, *write* it --- add
+  `div d 2` before dividing, for example --- because the language never rounds for you.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "numbers-glance",
+  caption: [Number syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`u8` … `u64` · `i8` … `i64` · `usize` · `isize`], [integers with the width in the name], [sizes never change from machine to machine],
+  [`f32` · `f64`], [IEEE 754 floating point], [never mixed with integers --- the literal is `2.0` too],
+  [`widen u64 x`], [widening (loses nothing)], [happens automatically, but can be written to make it visible],
+  [`narrow u8 x`], [narrowing --- stops if it does not fit], [so values never change silently],
+  [`narrow_sat` · `narrow_wrap` · `narrow_try`], [clamp to the end value · wrap · as an `option`], [pick the outcome by name],
+  [`add` · `sub` · `mul`], [arithmetic that stops on overflow], [overflow is a bug by default],
+  [`wrap_add` · `sat_add` · `chk_add`], [wrap · saturate · `option`], [the intended outcome stays in the source],
+  [`div` · `mod`], [quotient (towards zero) · remainder (sign of the divisor)], [division by zero and `MIN / −1` stop],
+  [`nonzero_of b` · `div_nz`], [check "not zero" once and carry it in the type], [moves the check to one place],
+  [`bit_and` · `bit_or` · `bit_xor` · `bit_not`], [bitwise logic], [no symbol-precedence traps],
+  [`shl` · `shr` · `rotl` · `rotr`], [shift · rotate], [shifting by the width or more stops],
+  [`count_ones` · `leading_zeros` · `trailing_zeros` · `byte_swap`], [count bits · reverse bytes], [common jobs get one name],
+  [`true` · `false` · `and` · `or` · `not`], [booleans and their logic], [numbers are never used as conditions],
+)
+
 #recap[
   Integer types carry sign and width in their names and have the same size everywhere. Widening is automatic and narrowing is written
   with `narrow`. Overflow, division by zero, out-of-range narrowing and shifting by the width or more all stop, and other treatments

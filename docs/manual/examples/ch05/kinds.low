@@ -8,7 +8,7 @@ do
   return add (add a b) c .
 end .
 
-rem 지역 가변 상태는 op 안에 갇혀 있으므로 fn 도 쓸 수 있다
+rem ko: 지역 가변 상태는 op 안에 갇혀 있으므로 fn 도 쓸 수 있다 /// en: local mutable state stays inside the op, so a fn may use it
 fn running_total input xs slice u8 . output u64 .
 do
   var total u64 be 0 .

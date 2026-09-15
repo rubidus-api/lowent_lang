@@ -1,0 +1,14 @@
+module mistake_exitcode .
+rem trap: main
+
+proc main input out cap io . output u8 . effects io .
+do
+  var n u64 be 0 .
+  var i u64 be 0 .
+  while lt i 8 . do
+    set n (add n (write_out out 1 "32 bytes of text on every line.\n")) .
+    set i (add i 1) .
+  end .
+  rem ko: ✘ 256 바이트를 썼다 --- 종료 코드는 한 바이트(0 … 255)라 들어가지 않는다 /// en: ✘ 256 bytes were written --- an exit code is one byte (0 … 255), so it does not fit
+  return narrow u8 n .
+end .

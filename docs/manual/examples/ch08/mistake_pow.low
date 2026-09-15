@@ -1,0 +1,15 @@
+module mistake_pow .
+rem run: square 5
+rem run: square_f 1.5
+
+fn square input a u64 . output u64 .
+do
+  rem ko: ✘ 정수에 `pow` 를 썼다 --- 이 판의 도구는 거절하지 않고 틀린 값을 준다 /// en: ✘ `pow` on an integer --- this edition's tool does not reject it and gives a wrong value
+  return pow a 2 .
+end .
+
+fn square_f input a f64 . output f64 .
+do
+  rem ko: `pow` 는 부동소수에서 맞게 돈다 /// en: `pow` works correctly on floats
+  return pow a 2.0 .
+end .

@@ -17,7 +17,7 @@ do
   return and (ge c 48) (le c 57) .
 end .
 
-rem 바깥에서 온 바이트 — 무엇이든 올 수 있으므로 실패는 값이다
+rem ko: 바깥에서 온 바이트 — 무엇이든 올 수 있으므로 실패는 값이다 /// en: bytes from outside — anything can arrive, so failure is a value
 fn parse_u16 input s slice u8 . output result u16 parse_error .
   errors empty eq (len s) 0 .
   errors not_digit .
@@ -33,7 +33,7 @@ do
   return ok (narrow u16 acc) .
 end .
 
-rem 이 층은 «왜» 가 필요 없다 — 없으면 기본값을 쓴다
+rem ko: 이 층은 «왜» 가 필요 없다 — 없으면 기본값을 쓴다 /// en: this layer needs no «why» — if absent, use the default
 fn port_or_default input s slice u8 . output u16 .
 do
   let r result u16 parse_error be parse_u16 s .

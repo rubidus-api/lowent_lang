@@ -501,6 +501,23 @@ if _html {
   }
 }
 
+// ★ 예제 파일 하나를 두 판이 함께 싣는다. 설명 주석은 판마다 제 말로 적는다(2026-09-15, RFC-0114):
+//     rem ko: 한국어 설명 /// en: English note
+//   한 줄에 두 말을 적고, 판마다 제 말만 `rem …` 으로 보인다. **한 줄**이어야 진단의 줄 번호가
+//   지면의 줄 번호와 맞는다(두 줄로 적고 한 줄을 지우면 번호가 밀린다). 줄 끝 주석(`… . rem ko: …`)도 같다.
+//   컴파일러에게는 그냥 주석이라 검증은 한 번이다.
+#let _lang-comments(src) = {
+  let out = ()
+  for line in src.split("\n") {
+    let m = line.match(regex("^(.*?)rem ko: (.*?) /// en: (.*)$"))
+    if m == none { out.push(line) } else {
+      let (code, ko, en) = m.captures
+      out.push(code + "rem " + if _lang == "ko" { ko } else { en })
+    }
+  }
+  out.join("\n")
+}
+
 #let demo(path, show-output: true, stdin: false, highlight: none, src: none) = {
   // 시연 상자는 1×2 다 — 표제 줄(파일 경로 또는 "실행 결과")과 내용을
   // 가로선으로 가른다 (저자 지시 2026-08-06). HTML 도 같은 모양으로 낸다.
@@ -510,7 +527,7 @@ if _html {
   //   파일이 여럿이라 스크립트 자체가 논지인 자리(여러 번역 단위를 잇는 예제)에서는
   //   `src:` 를 주지 않으면 되고, 그러면 예전처럼 스크립트가 실린다.
   let src-path = if src == none { path } else { src }
-  let src = read("/" + src-path)
+  let src = _lang-comments(read("/" + src-path))
   let inp = if stdin { read("/" + path.replace(".low", ".in")) } else { none }
   let out = if show-output { read(_out-dir(path) + _rel(path) + ".out") } else { none }
 

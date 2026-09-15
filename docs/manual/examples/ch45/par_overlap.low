@@ -1,7 +1,7 @@
 module par_overlap .
 rem expect: E-PAR-WRITE
 
-rem 모든 조각이 첫 칸에 쓴다 --- 남는 값이 누가 마지막이었는지에 달린다
+rem ko: 모든 조각이 첫 칸에 쓴다 --- 남는 값이 누가 마지막이었는지에 달린다 /// en: every piece writes the first cell --- what remains depends on who went last
 proc stamp input s mut slice u64 . output u64 . effects none .
   parallel s split .
 do

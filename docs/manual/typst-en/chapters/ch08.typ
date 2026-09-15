@@ -128,6 +128,68 @@ constant, the `match` folds to the one matching arm and the run-time comparisons
 unlike code removed with C's `#ifdef`, which is not even checked. `config <option>`, which reads the build configuration, is also used as a
 translation-time constant (#chref("build-test")).
 
+== Common mistakes
+
+#antipattern[Mixing comparisons with `and`/`or` without parentheses][
+  #demo("examples/ch08/mistake_mixcmp.low")
+
+  By the table, comparison (level 2) binds tighter than `and` (level 1b), so `lo le x and x le hi` ought to have exactly one meaning. This
+  edition's compiler nevertheless rejects it with `E-TYPE-LOGICAL`, claiming `and` received a number --- the precedence table and the tool
+  disagree here, and the development repository records it as a defect. "Received a number" is not the real cause. Wrap each comparison in
+  parentheses, and neither the tool nor the reader needs to recall the table.
+
+  #demo("examples/ch08/mixcmp_fixed.low")
+]
+
+#antipattern[Writing the remainder as `%`][
+  #demo("examples/ch08/mistake_percent.low")
+
+  The island has exactly the operators in the table. `%` is the remainder in C, but languages disagree on its sign for negative numbers,
+  so the same symbol gives different answers. Lowent's remainder is the one name `mod`, and its sign follows the divisor
+  (#chref("numbers")). Inside the island, call it in parentheses.
+
+  #demo("examples/ch08/percent_fixed.low")
+]
+
+#antipattern[Writing powers as `^`, or using `pow` on integers][
+  `^` is not an island operator (`E-CHAR`) --- it means power in some languages and exclusive or in others, so it was left out. Square an
+  integer with `mul a a`. And `pow` is the power of *floating-point* numbers. This edition's tool does not reject `pow` on integers; it
+  gives a wrong value.
+
+  #demo("examples/ch08/mistake_pow.low")
+
+  `square 5` is 5, not 25. Neither compilation nor run-time checks say anything: a *silently wrong answer*, the most dangerous kind, and the
+  development repository records it as a defect. Until it is fixed, do not use `pow` on integers.
+]
+
+#misconception[Nested calls must always be parenthesised][
+  #demo("examples/ch08/noparen.low")
+
+  Even without parentheses, the compiler groups a sentence by *the number of arguments each op takes*. `mul` takes two, so
+  `add 1 mul a b` is the same as `add 1 (mul a b)`. This book still writes the parentheses. They show the grouping to readers who have not
+  memorised argument counts, and they prevent the accident where a local name spelt like a builtin op changes the grouping (`count` in
+  #chref("locals")).
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "expr-glance",
+  caption: [Expression syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`add a (mul b c)`], [prefix notation --- no precedence], [parentheses say the whole order of evaluation],
+  [`expr a + b * c`], [infix island --- `*` `/` bind tighter than `+` `-`], [only what school arithmetic taught goes infix],
+  [`expr (a + b) * c`], [grouping inside the island], [parentheses group; they are not values],
+  [`expr (lo le x) and (x le hi)`], [comparisons mixed with logic], [parentheses per comparison --- no table to recall],
+  [`expr (twice a) + 1`], [calling an op inside the island], [without parentheses the call has no clear end (`E-EXPR-APP`)],
+  [`expr (mod a 10) + k`], [an operation not in the table (`mod`, bitwise, `min`)], [the island never grows --- call it prefix],
+  [`expr 0 - a` · `(neg a)`], [flip the sign], [the island has no unary operators (`E-EXPR-UNARY`)],
+  [`and` · `or`], [short-circuit --- the right side is skipped once the left decides], [put the condition that makes the right side safe first],
+  [`size_of u32`], [bytes in one value of a type (at compile time)], [generic code counts its cost honestly],
+  [`comptime (add 2 3)`], [evaluate at compile time], [folded branches are still type-checked],
+)
+
 #recap[
   The default for expressions is prefix notation, which has no precedence. The `expr` island allows only arithmetic, comparisons, `and` and
   `or` in infix; op calls inside it are parenthesised, and there are no unary operators. When mixing comparisons with `and` or `or`,

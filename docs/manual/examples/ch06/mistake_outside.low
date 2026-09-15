@@ -1,0 +1,12 @@
+module mistake_outside .
+rem run: big_or_zero 5
+rem run: big_or_zero 1
+
+fn big_or_zero input a u64 . output u64 .
+do
+  if gt a 3 . do
+    let big u64 be mul a 10 .
+  end .
+  rem ko: ✘ `big` 은 위 블록 안에서만 산다 --- 블록 밖에서 읽었다 /// en: ✘ `big` only lives inside the block above --- it is read outside
+  return big .
+end .

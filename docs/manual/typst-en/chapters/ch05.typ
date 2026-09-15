@@ -105,6 +105,23 @@ op it calls. There is no way to pass an effect along hidden. Which effect pairs 
 
 == Parameters and return
 
+Here is one op taken apart. What trips up newcomers most is that *every clause ends with a full stop*. The stop works like the end of a
+sentence: "this clause is finished".
+
+```text
+fn   add3   input a i32 .   input b i32 .   input c i32 .   output i32 .
+│    │      └─ parameter a has type i32 ─┘                   └ type of the returned value
+│    └─ name (used when calling)
+└─ kind: fn (pure) or proc (may have effects)
+do                          ← the body starts here
+  return add (add a b) c .  ← compute and return; a statement also ends with a stop
+end .                       ← the body ends, and so does the whole declaration
+```
+
+To call an op, write its name followed by the arguments *separated by spaces*. `add3 1 2 3` is one call, and parentheses are used only to
+put one call inside another as an argument --- `add3 (add3 1 2 3) 4 5`. Parentheses simply mean "this is one value". There is no C-style
+`add3(1, 2, 3)`: the comma has no meaning in this language, so it is rejected (see «Common mistakes» below).
+
 A parameter is one `input <name> <type> .` clause. For several, repeat the clause. The caller supplies arguments in clause order. The
 returned value is a single `output <type> .`, and the body returns it with `return <expr> .`.
 
@@ -153,11 +170,79 @@ Modifiers can go in front of an op head.
 - `extern` --- the implementation is outside (in C). Instead of a body, a `link` clause names it (#chref("ffi")).
 - `unsafe` --- does work the language cannot check. It pairs with `effects unsafe`.
 
+// snippet: skip — needs the C implementation (`lw_c_area`) to translate — shows the head only
 ```lowent
 unsafe extern proc c_area input k cap c . input w i64 . input h i64 . output i64 .
   effects unsafe . link lw_c_area .
 end .
 ```
+
+== Common mistakes
+
+Almost everyone hits these when writing their first ops. All of them are caught at compile time, so when you see one of these codes you
+can come back to this section.
+
+#antipattern[Calling C-style, with parentheses and commas][
+  If you know other languages, your fingers type `add3(1, 2, 3)` before you think.
+
+  #demo("examples/ch05/mistake_ccall.low")
+
+  A Lowent call is prefix notation: *the name, then the arguments separated by spaces*. The comma was once part of the language and has
+  been removed, hence `E-VOCAB-REMOVED`. Calls avoid parentheses and commas so that everyone writes the same shape with as few symbols as
+  possible --- even on a phone keyboard. The fix: `return add3 1 2 3 .`
+]
+
+#antipattern[The number of arguments differs from the `input` clauses][
+  #demo("examples/ch05/mistake_arity.low")
+
+  One `input` clause is one argument. There are no default arguments and no ops that take a varying number of arguments --- the head
+  should fix a single calling shape so that readers are never left guessing. The diagnostic tells you how many were expected and how
+  many were given.
+]
+
+#antipattern[Forgetting `return` on one branch][
+  #demo("examples/ch05/mistake_partial.low")
+
+  An op that declares an `output` must return a value on *every path*. The old tool silently returned 0 on the missing path, and that 0
+  appeared nowhere in the source, so it hid bugs. It is now rejected with `E-RETURN-PARTIAL`. The fix is to return something for the
+  remaining case after the `if` --- for example, put `return 0 .` before `end .`.
+]
+
+#antipattern[Naming an op after a builtin][
+  #demo("examples/ch05/mistake_builtin.low")
+
+  Names live in one flat space, so the same name cannot mean two things. A declaration named after a builtin op (`add`, `sum`, `len`,
+  `ok` …) could never be called, and `E-NAME-BUILTIN` says so. Local names follow the same rule. Appendix A lists the builtin names.
+]
+
+#misconception[Calling a `fn` does something even if you ignore the result][
+  A `fn` is pure, so throwing its result away is *the same as not calling it at all*. The compiler is free to delete such a call.
+
+  #demo("examples/ch05/discard.low")
+
+  The first `twice 5 .` computes a value and leaves no trace. The answer is `10` only because the second line binds the result to `t`.
+  If a call is meant to *do* something (print, write), it has to be a `proc`, and then its effects are written in its head.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "ops-glance",
+  caption: [Op syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`fn f input a T . output R . do … end .`], [a pure op], [the head alone tells whether results may be cached, reordered or dropped],
+  [`proc f … effects E . do … end .`], [an op that may have effects], [what it does (`E`) is visible in the head],
+  [`input x T .`], [one parameter], [one per clause, so each name and type sits on its own line],
+  [`output T .` · `output void .`], [type of the returned value · no returned value], [one return value --- bundle several in a `struct`],
+  [`return e .`], [return a value and finish], [required on every path (`E-RETURN-PARTIAL`)],
+  [`f a b c`], [a call --- name, then space-separated arguments], [prefix notation without parentheses or commas],
+  [`f (g a) b`], [a call used as an argument], [parentheses mean "this is one value"],
+  [`requires c .`], [a condition the caller must meet], [blame lands on the caller, at entry (#chref("contracts"))],
+  [`effects state .`], [writes to the caller's storage], [the head of an op that writes through `mut` parameters],
+  [`neg a`], [flip the sign (the only unary arithmetic)], [a name, so it never gets confused with subtraction],
+  [`export` · `extern` · `unsafe`], [exported · body in C · does unchecked things], [what an op may do is visible before its name],
+)
 
 #recap[
   An op is a `fn` or a `proc`, and the kind is always written. Purity is observational: mutation confined in the op counts as pure, but a

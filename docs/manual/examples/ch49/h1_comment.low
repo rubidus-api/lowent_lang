@@ -1,9 +1,9 @@
 module hashed .
 rem db
 
-rem 주석을 넣어도 해시는 그대로다
+rem ko: 주석을 넣어도 해시는 그대로다 /// en: adding a comment leaves the hash unchanged
 export fn twice input a u64 . output u64 .
 do
-  rem 여기도 주석
+  rem ko: 여기도 주석 /// en: a comment here too
   return add a a .
 end .

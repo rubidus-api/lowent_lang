@@ -140,6 +140,85 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
 `panic` 은 복구할 수 없는 상황에만 쓴다. 호출자가 다룰 수 있는 실패는 값으로 돌려준다
 (#chref("option-result")). 둘을 가르는 기준은 #chref("errors-design")이 다룬다.
 
+== 흔한 실수
+
+#antipattern[`for x in xs` 로 적는다][
+  #demo("examples/ch07/mistake_forin.low")
+
+  `for` 는 `for <이름> <슬라이스> do` 다. 훑을 대상이 이름 바로 뒤에 오고, 몸의 시작은 `do` 가 알리므로 `in` 이 전할 것이 없다.
+  같은 뜻에 표시를 하나 더 두지 않으려고 없앴다. 진단의 긴 설명은 붙임 점(`a.b`)을 대안으로 들지만 그것 또한 지금은 거절되는
+  표기다 --- 이 판의 진단문이 낡은 자리다. 고치는 법: `for x xs do`.
+]
+
+#antipattern[`elif` 로 갈래를 잇는다][
+  #demo("examples/ch07/mistake_elif.low")
+
+  `elif`·`elsif`·`else if:` 는 언어마다 다르다. Lowent 는 이미 있는 낱말을 이어 붙인다 --- 앞 블록을 `end` 로 닫고 `else if` 를
+  붙인다. `elif` 는 낱말이 아니므로 모르는 이름(`E-IR-UNDEF`)으로 읽힌다.
+
+  #demo("examples/ch07/elseif.low")
+
+  마지막 갈래는 `end else do … end .` 이다. 갈래가 셋 이상이고 모두 한 값을 가르는 것이면 `match` 가 더 알맞다.
+]
+
+#antipattern[조건에 `<` 같은 기호를 쓴다][
+  #demo("examples/ch07/mistake_less.low")
+
+  비교는 낱말이다 --- `lt`(작다)·`le`(작거나 같다)·`gt`·`ge`·`eq`·`ne`. `<` 는 이 언어가 모르는 글자라 `E-CHAR` 가 난다.
+  기호의 우선순위를 외우지 않아도 되게 하려는 선택이고, 긴 산술에는 `expr` 섬이 있다(#chref("expr")). 고치는 법: `while lt i n . do`.
+]
+
+#antipattern[`continue` 가 증가를 건너뛴다][
+  `while` 로 세면서 몸 가운데서 `continue` 하면, 그 아래에 둔 `set i (add i 1) .` 도 함께 건너뛴다.
+
+  ```lowent
+  fn odd_count input xs slice u8 . output u64 .
+  do
+    var n u64 be 0 .
+    var i u64 be 0 .
+    while lt i (len xs) . do
+      if eq (mod (index xs i) 2) 0 . do
+        continue .
+      end .
+      set n (add n 1) .
+      set i (add i 1) .
+    end .
+    return n .
+  end .
+  ```
+
+  첫 짝수에서 `i` 가 더 이상 오르지 않아 반복이 끝나지 않는다. 번역도 실행 검사도 이것을 잡지 못한다 --- 멈추지 않는 것은
+  넘침이 아니기 때문이다. 증가를 몸의 *맨 앞*으로 옮기거나(그러면 색인에는 증가 전의 값을 따로 담는다), 원소를 훑는 일이면
+  처음부터 `for x xs do` 를 쓴다. `for` 는 다음 원소로 넘어가는 일을 언어가 맡으므로 이 결함이 생길 자리가 없다.
+]
+
+#misconception[`match` 의 갈래도 C 의 `switch` 처럼 아래로 흘러간다][
+  #demo("examples/ch07/nofall.low")
+
+  맞은 갈래 *하나만* 실행되고 다음 갈래로 흘러가지 않는다. `break` 를 적는 버릇도, 빠뜨려서 생기는 결함도 없다. 두 경우에 같은
+  일을 하려면 갈래를 `or` 로 묶는다(#chref("option-result")).
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "control-glance",
+  caption: [흐름의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`if c . do … end .`], [조건이 참이면 블록], [조건도 폼이라 마침표로 닫고, 몸은 `do` 로 연다],
+  [`if c . do … end else do … end .`], [둘 중 하나], [여는 말과 닫는 말이 늘 짝을 이룬다],
+  [`… end else if c2 . do … end .`], [갈래 잇기], [새 낱말(`elif`) 없이 있는 낱말을 잇는다],
+  [`while c . do … end .`], [조건이 참인 동안], [수를 세는 반복은 이 모양 하나],
+  [`for x xs do … end .`], [슬라이스의 원소를 차례로], [다음 원소로 넘어가는 일을 언어가 맡는다],
+  [`break .` · `continue .`], [반복에서 나가기 · 다음 회차로], [흐름을 바꾸는 문장],
+  [`guard c . else return … .`], [조건이 아니면 떠난다 --- 지난 뒤엔 조건이 사실], [`else` 가 반드시 떠나야 한다],
+  [`return e .`], [값을 돌려주고 끝낸다], [값을 내는 op 은 모든 길에서],
+  [`match v do case … . 문장 … end .`], [경우별로 가르기], [빠짐없이, 겹침 없이 --- 흘러내림이 없다],
+  [`case 1 to 9 .` · `case _ .` · `case y when c .`], [범위 · 나머지 전부 · 가드가 붙은 갈래], [정수는 경우가 많아 `_` 가 흔히 필요하다],
+  [`panic "…" .`], [되돌릴 수 없는 멈춤(효과)], [`effects panic` 을 적는 `proc` 에서만],
+)
+
 #recap[
   조건은 `bool` 이어야 한다. `while` 은 조건으로, `for` 는 슬라이스로 되풀이하고 `break`·`continue` 로
   흐름을 바꾼다. `guard` 의 `else` 는 반드시 떠나고, 지난 뒤에는 조건이 사실이 된다. 값을 돌려주는 op

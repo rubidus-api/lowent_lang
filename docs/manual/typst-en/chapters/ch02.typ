@@ -191,6 +191,64 @@ positions in the order written.
 Note that the single line `effects io .` covers both capabilities. `args` is a capability that can be read without an effect. How
 capabilities pair with effects is tabulated in #chref("capabilities").
 
+== Common mistakes
+
+These are the rejections and stops you meet most often in a first program. When you see one of these codes, come back here.
+
+#antipattern[Opening `do` and never closing it with `end .`][
+  #demo("examples/ch02/mistake_noend.low")
+
+  A body opens with `do` and closes with `end .`. If the file ends before the closer, the compiler cannot tell where the body stops and
+  reports `E-BLOCK-UNCLOSED`. The `5:1` in the diagnostic is the position of the `do` left without a partner --- when bodies are nested,
+  match the pairs starting from that line. Consistent indentation makes the pairs easy to see.
+]
+
+#antipattern[Printing without receiving the capability][
+  #demo("examples/ch02/mistake_nocap.low")
+
+  `effects io .` *declares* that the op does I/O; what actually *allows* it is the capability received as an input
+  (`input out cap io .`). Declaring the effect without the capability is `E-EFFECT-NO-CAP`. I/O is not a power you can grab anywhere: it is
+  a right handed to `main` when the program starts and passed on to the ops that need it (#chref("capabilities")). The fix: add
+  `input out cap io .` to the head and pass `out` as the first argument of `write_out`.
+]
+
+#antipattern[Returning an exit code larger than 255][
+  #demo("examples/ch02/mistake_exitcode.low")
+
+  This compiles, but stops while running. The value `main` returns is the *exit code* handed to the operating system, which is one byte
+  (`u8`), and 256 does not fit in `narrow u8`. Lowent does not quietly truncate it to 0; it stops right there, because a truncated exit code
+  reads as "success" and hides the bug. If what you want to know is the number of bytes written, print it, and use the exit code only for
+  success (0) or failure (non-zero).
+]
+
+#antipattern[Misspelling the op to run][
+  #demo("examples/ch02/mistake_opname.low")
+
+  The name after `--run` must match an op in the file exactly. There is no `mian`, so the VM stops with `E-VM-UNDEF: no such op`. A native
+  executable also exits non-zero when the op named by its first argument does not exist. This is the price of keeping what runs visible on
+  the command line --- in return, you can run any op in the file on its own.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "first-glance",
+  caption: [The shape of a first program and the tool --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`module hello .`], [the module name of this file], [the name other files use in `use hello .`],
+  [`rem …`], [line comment (to the end of the line)], [a word rather than a symbol --- this book also uses it for check directives],
+  [`proc main input out cap io . output u8 . effects io .`], [where the program starts], [rights received, exit code returned and what it does are all in the head],
+  [`do … end .`], [a body], [an opener and a closer that pair up],
+  [`write_out out 1 "…"`], [write to standard output (1) and return the byte count], [the capability `out` comes first --- no right, no writing],
+  [`narrow u8 n`], [narrow to `u8` (stops if it does not fit)], [so values never change silently],
+  [`requires c .` · `test t do … end .` · `expect c .`], [contract · test block · assertion inside a test], [promises are checked; tests run separately],
+  [`lowentc --check f.low`], [check only], [the command line shows what was done --- there is no default mode],
+  [`lowentc --run op f.low args…`], [run one op on the VM], [try any op in the file on its own],
+  [`lowentc --emit-c f.low > f.c`], [emit C for a native build], [so the result can be compared with the VM],
+  [`lowentc --test` · `--fmt`], [run tests · reprint in canonical form], [checking, testing and layout are different jobs],
+)
+
 #recap[
   `lowentc` always takes an explicit mode. `--run` runs the program on the VM, `--emit-c` plus a C compiler runs it natively, and the
   two must agree. `main`'s return value is the exit code. Contracts stop execution before running or on entry, and `test` blocks run

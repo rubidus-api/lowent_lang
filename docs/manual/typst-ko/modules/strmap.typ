@@ -8,7 +8,7 @@
 키 바이트는 넣을 때 아레나로 *복사*되므로 원본 문자열의 수명에 매이지 않는다.
 
 ```lowent
-let ok bool be strmap.put slots keys "apple" 1 .
+let stored bool be strmap.put slots keys "apple" 1 .
 let v option u64 . be strmap.lookup slots keys "apple" .
 ```
 

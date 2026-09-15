@@ -1,0 +1,8 @@
+module mixcmp_fixed .
+rem run: in_range 5 1 9
+rem run: in_range 12 1 9
+
+fn in_range input x u64 . input lo u64 . input hi u64 . output bool .
+do
+  return expr (lo le x) and (x le hi) .
+end .

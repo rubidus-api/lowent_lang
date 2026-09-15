@@ -1,0 +1,11 @@
+module mistake_ifdo .
+rem expect: E-TOPLEVEL
+
+fn pick input a u64 . output u64 .
+do
+  rem ko: ✘ `if` 의 몸을 `do` 로 열지 않았다 /// en: ✘ the body of `if` was not opened with `do`
+  if gt a 3 .
+    return 1 .
+  end .
+  return 0 .
+end .

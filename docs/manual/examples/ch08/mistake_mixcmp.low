@@ -1,0 +1,8 @@
+module mistake_mixcmp .
+rem expect: E-TYPE-LOGICAL
+
+fn in_range input x u64 . input lo u64 . input hi u64 . output bool .
+do
+  rem ko: ✘ 비교를 괄호 없이 `and` 와 섞었다 --- 비교마다 괄호로 묶는다 /// en: ✘ comparisons mixed with `and` without parentheses --- wrap each comparison
+  return expr lo le x and x le hi .
+end .

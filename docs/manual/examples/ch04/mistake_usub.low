@@ -1,0 +1,8 @@
+module mistake_usub .
+rem trap: gap 3 5
+
+fn gap input a u64 . input b u64 . output u64 .
+do
+  rem ko: ✘ 부호 없는 수는 0 아래로 내려가지 않는다 --- 3 − 5 는 음수가 아니라 멈춤이다 /// en: ✘ unsigned numbers cannot go below 0 --- 3 − 5 is not negative, it stops
+  return sub a b .
+end .

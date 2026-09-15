@@ -6,14 +6,14 @@ enum config_error do
   port_zero .
 end .
 
-rem 안쪽 불변식 — 부르는 쪽이 이미 걸렀어야 하는 것은 계약이다
+rem ko: 안쪽 불변식 — 부르는 쪽이 이미 걸렀어야 하는 것은 계약이다 /// en: inner invariant — what the caller should already have filtered is a contract
 fn slot_of input port u16 . input slots u64 . output u64 .
   requires gt slots 0 .
 do
   return mod (widen u64 port) slots .
 end .
 
-rem 바깥 입력 — 틀릴 수 있는 것은 result 다
+rem ko: 바깥 입력 — 틀릴 수 있는 것은 result 다 /// en: outside input — what can be wrong is a result
 fn check_port input port u16 . output result u16 config_error .
   errors port_zero eq port 0 .
 do

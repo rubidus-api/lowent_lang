@@ -1,0 +1,13 @@
+module mistake_ccall .
+rem expect: E-VOCAB-REMOVED
+
+fn add3 input a i32 . input b i32 . input c i32 . output i32 .
+do
+  return add (add a b) c .
+end .
+
+fn use3 output i32 .
+do
+  rem ko: ✘ C 처럼 괄호와 쉼표로 불렀다 --- Lowent 의 호출은 `이름 인자 인자 …` 다 /// en: ✘ called C-style with parentheses and commas --- a Lowent call is `name arg arg …`
+  return add3(1, 2, 3) .
+end .

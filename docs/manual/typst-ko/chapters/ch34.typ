@@ -123,6 +123,55 @@
   [`soa`], [구조체 배열을 칸별 배열로 두는 배치의 실험],
 )
 
+== 흔한 실수
+
+#antipattern[정렬하지 않은 슬라이스를 이진 탐색한다][
+  #demo("examples/ch34/mistake_unsorted.low")
+
+  42 는 0 번 칸에 있지만 `bsearch` 는 99(못 찾음)를 낸다. 이진 탐색은 가운데 값과 견주어 절반을 버리는데, 정렬되지 않았으면 버린 절반에 답이 있을
+  수 있다. 멈추지도 경고하지도 않으므로 가장 찾기 어려운 종류의 결함이다. 운이 좋으면 찾기도 한다(같은 슬라이스에서 19 는 찾는다). 이진 탐색
+  앞에는 언제나 `sortlib.sort` 가 있어야 하고, 정렬된 상태를 지키는 코드가 흩어져 있다면 `lower_bound` 로 넣을 자리를 찾아 정렬을 유지한다.
+]
+
+#antipattern[`less` 를 `ge` 처럼 엄격하지 않게 적는다][
+  #demo("examples/ch34/mistake_lessge.low")
+
+  세 점수가 모두 70 이다. `gt` 로 적은 `strict_score` 는 넣은 차례 1·2·3 을 지켜 123 을 내고, `ge` 로 적은 `loose_score` 는 같은 점수끼리도 "앞" 이라
+  서로 자리를 바꿔 321 을 낸다. 안정 정렬이 약속한 "같은 것의 차례가 바뀌지 않는다" 가 깨진 것이다. 다른 정렬 알고리즘에서는 멈추지 않거나 틀린
+  차례를 낼 수도 있다. 트레이트는 `less` 가 *있는지*만 검사하므로, "자기 자신보다 앞일 수 없다" 는 성질은 적는 사람이 지킨다.
+]
+
+#antipattern[이미 할당기를 든 그릇에 `using` 을 또 적는다][
+  #demo("examples/ch34/mistake_usingappend.low")
+
+  `vecgen.open` 은 할당기를 받아 벡터 안에 넣어 둔다. 그 뒤의 `append` 는 벡터가 든 할당기를 쓰므로 바인딩의 `using hb` 는 아무 뜻이 없다. 뜻 없는
+  표시는 "이 호출이 `hb` 에서 깎는다" 는 거짓 정보가 되므로 `E-ALLOC-USING-UNUSED` 로 거절된다. `using` 은 할당기를 *처음 받는* 자리(`open`)에만
+  적는다.
+]
+
+#misconception[`hashmap` 에는 어떤 `u64` 든 키로 넣을 수 있다][
+  #demo("examples/ch34/hashmap_topkeys.low")
+
+  결과 4 는 셋째 `put` 만 성공했다는 뜻이다. 가장 큰 키 둘(`18446744073709551615`·`18446744073709551614`)은 빈칸과 묘비를 표시하는 데 쓰이므로 넣을
+  수 없고 `put` 이 `false` 를 준다. 이 대가는 모듈 문서 첫머리에 적혀 있다. 키가 전 범위를 쓸 수 있으면 키를 구조체에 담아 `mapgen` 을 쓴다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "lib-containers-glance",
+  caption: [그릇과 정렬의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`sortlib.sort xs` · `searchlib.bsearch xs k`], [`u64` 제자리 정렬 · 정렬된 입력에서 탐색(`option`)], [할당하지 않는다 --- 탐색은 정렬을 믿는다],
+  [`struct score do satisfies sortgen.ordered . … end .` + `fn score.less`], [타입이 정렬 기준을 들고 온다], [모드 인자 대신 타입 --- `less` 는 엄격하게],
+  [`sortgen.sort_by score rs` · `sort_fast`], [안정 삽입정렬 · 큰 배열용 quicksort], [고르는 기준이 이름에 있다],
+  [`hashmap.put slots k v` · `lookup` · `del`], [호출자 슬라이스 위의 `u64 → u64` 맵], [가득 차면 `false` --- 삭제는 묘비],
+  [`let vo … using hb be vecgen.open u32 4 .`], [할당기를 받아 자라는 벡터를 연다], [`using` 은 처음 받는 자리에만],
+  [`vecgen.append u32 allocs.heap_bytes v x`], [자라며 넣는다 --- 실패하면 `false`], [효과가 할당기 타입을 따라간다(`state via a`)],
+  [`spsc`], [락 없는 단일 생산자·단일 소비자 링 버퍼], [원자 연산 --- 증명을 빌렸다],
+)
+
 #recap[
   `sortlib`·`searchlib` 는 `u64` 슬라이스를 제자리에서 정렬·탐색하고, `sortgen` 은 `ordered` 를 갖춘 타입이 기준을 들고 온다.
   `hashmap`·`strmap` 은 호출자의 슬라이스 위에서 묘비로 삭제하는 고정 그릇이다. `vecgen`·`mapgen` 은 할당기를 `using` 으로 받아

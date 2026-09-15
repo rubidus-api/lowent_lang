@@ -118,6 +118,58 @@ in a weak-memory model. Multi-producer multi-consumer queues and seqlocks have n
   [`soa`], [An experiment laying out an array of structs as per-field arrays],
 )
 
+== Common mistakes
+
+#antipattern[Binary-searching a slice that was never sorted][
+  #demo("examples/ch34/mistake_unsorted.low")
+
+  42 sits in slot 0, yet `bsearch` returns 99 (not found). Binary search compares with the middle value and discards half, and if the slice
+  is not sorted the answer may be in the discarded half. It neither stops nor warns, which makes it the hardest kind of bug to find. With
+  luck it even succeeds (in the same slice it finds 19). A binary search must always be preceded by `sortlib.sort`, and where code that
+  keeps the order is scattered, use `lower_bound` to find the insertion point and keep the slice sorted.
+]
+
+#antipattern[Writing `less` non-strictly, like `ge`][
+  #demo("examples/ch34/mistake_lessge.low")
+
+  All three scores are 70. `strict_score`, written with `gt`, keeps the insertion order 1, 2, 3 and returns 123. `loose_score`, written with
+  `ge`, treats equal scores as "coming first" too, swaps them, and returns 321. The stable sort's promise that "equal items keep their
+  order" is broken. With another sorting algorithm it might even never finish or produce a wrong order. The trait checks only that `less`
+  *exists*, so the property "nothing comes before itself" is for the writer to keep.
+]
+
+#antipattern[Writing `using` again for a container that already carries its allocator][
+  #demo("examples/ch34/mistake_usingappend.low")
+
+  `vecgen.open` takes the allocator and stores it inside the vector. The later `append` uses the allocator the vector carries, so the
+  binding's `using hb` means nothing. A meaningless mark becomes false information --- "this call carves from `hb`" --- so it is rejected
+  with `E-ALLOC-USING-UNUSED`. Write `using` only where the allocator is *first received* (`open`).
+]
+
+#misconception[Any `u64` can be a key in `hashmap`][
+  #demo("examples/ch34/hashmap_topkeys.low")
+
+  The result 4 means only the third `put` succeeded. The two largest keys (`18446744073709551615`·`18446744073709551614`) are used to mark
+  empty slots and tombstones, so they cannot be stored and `put` returns `false`. This cost is stated at the top of the module's
+  documentation. If keys may use the full range, put them in a struct and use `mapgen`.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "lib-containers-glance",
+  caption: [Shapes of containers and sorting --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`sortlib.sort xs` · `searchlib.bsearch xs k`], [sort `u64` in place · search sorted input (`option`)], [no allocation --- search trusts the order],
+  [`struct score do satisfies sortgen.ordered . … end .` + `fn score.less`], [the type brings the sort order], [a type instead of a mode argument --- `less` must be strict],
+  [`sortgen.sort_by score rs` · `sort_fast`], [stable insertion sort · quicksort for large arrays], [the choice is in the name],
+  [`hashmap.put slots k v` · `lookup` · `del`], [a `u64 → u64` map on the caller's slice], [`false` when full --- deletion leaves a tombstone],
+  [`let vo … using hb be vecgen.open u32 4 .`], [open a growing vector with an allocator], [`using` only where it is first received],
+  [`vecgen.append u32 allocs.heap_bytes v x`], [push while growing --- `false` on failure], [effects follow the allocator type (`state via a`)],
+  [`spsc`], [lock-free single-producer single-consumer ring buffer], [atomic operations --- a borrowed proof],
+)
+
 #recap[
   `sortlib` and `searchlib` sort and search `u64` slices in place, and with `sortgen` a type satisfying `ordered` brings the criterion. `hashmap` and `strmap` are fixed
   containers over the caller's slice that delete with tombstones. `vecgen` and `mapgen` receive an allocator with `using` and grow, their effects following the allocator

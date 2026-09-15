@@ -1,0 +1,52 @@
+module mistake_lessge .
+rem run: order_strict 0
+rem run: order_loose 0
+
+use sortgen .
+
+struct strict_score do
+  satisfies sortgen.ordered .
+  points u64 .
+  id u64 .
+end .
+
+struct loose_score do
+  satisfies sortgen.ordered .
+  points u64 .
+  id u64 .
+end .
+
+fn strict_score.less input a strict_score . input b strict_score . output bool .
+do
+  return gt (field a points) (field b points) .
+end .
+
+rem ko: ✘ "앞" 을 `ge` 로 적었다 --- 같은 점수끼리도 서로 앞이 된다 /// en: ✘ "comes first" written with `ge` --- equal scores each come before the other
+fn loose_score.less input a loose_score . input b loose_score . output bool .
+do
+  return ge (field a points) (field b points) .
+end .
+
+proc order_strict input al cap allocator . output u64 . effects alloc .
+do
+  let g option mut slice u8 be alloc_bytes al capacity 48 .
+  guard is_some g . else return 255 .
+  var rs mut slice strict_score be view_array strict_score (some_value g) .
+  set (index rs 0) (make strict_score do points 70 . id 1 . end) .
+  set (index rs 1) (make strict_score do points 70 . id 2 . end) .
+  set (index rs 2) (make strict_score do points 70 . id 3 . end) .
+  sortgen.sort_by strict_score rs .
+  return add (mul (field (index rs 0) id) 100) (add (mul (field (index rs 1) id) 10) (field (index rs 2) id)) .
+end .
+
+proc order_loose input al cap allocator . output u64 . effects alloc .
+do
+  let g option mut slice u8 be alloc_bytes al capacity 48 .
+  guard is_some g . else return 255 .
+  var rs mut slice loose_score be view_array loose_score (some_value g) .
+  set (index rs 0) (make loose_score do points 70 . id 1 . end) .
+  set (index rs 1) (make loose_score do points 70 . id 2 . end) .
+  set (index rs 2) (make loose_score do points 70 . id 3 . end) .
+  sortgen.sort_by loose_score rs .
+  return add (mul (field (index rs 0) id) 100) (add (mul (field (index rs 1) id) 10) (field (index rs 2) id)) .
+end .

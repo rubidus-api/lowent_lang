@@ -197,7 +197,7 @@ return ok (add v 1) .
 #antipattern[겹친 패턴으로 다 덮었는데 `_` 를 요구받는다][
   #demo("examples/ch11/mistake_nestedwild.low")
 
-  `ok (some x)` · `ok none` · `error broken` 셋이면 `result (option u64) read_error` 의 모든 경우다. 그래도 이 판의 도구는 겹친
+  `ok (some x)` · `ok none` · `error e` 셋이면 `result (option u64) read_error` 의 모든 경우다. 그래도 이 판의 도구는 겹친
   패턴의 망라를 끝까지 세지 못해 `E-MATCH-INEXHAUSTIVE` 로 거절한다. 도구의 한계이고 결함으로 적어 두었다. 지금은 마지막 갈래를
   `_` 로 받는다. `_` 가 받는 것이 무엇인지 주석으로 적어 두면 읽는 사람이 헷갈리지 않는다.
 

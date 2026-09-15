@@ -123,6 +123,60 @@
   무엇을 거절하는지 분명하게 말하면, 안쪽은 받아들인 요청의 모양을 믿을 수 있다(#chref("lib-io-net")).
 ]
 
+== 흔한 실수
+
+#antipattern[경계에서 틀린 입력에 `panic` 한다][
+  #demo("examples/ch17/mistake_panicinput.low")
+
+  사용자가 `4x` 를 쳤을 뿐인데 프로그램 전체가 멈춘다. 틀린 입력은 *흔히 일어나는 일*이고 어느 층인가 다룰 수 있다 --- 다시 묻거나,
+  기본값을 쓰거나, 안내를 보여 줄 수 있다. `panic` 은 그 선택지를 모두 없앤다. 게다가 `effects panic` 이 부르는 쪽 모두로 번진다.
+  이 장 첫머리의 `parse_u16` 처럼 실패를 `result` 로 돌려주고, 무엇을 할지는 부르는 층이 정하게 한다.
+]
+
+#antipattern[아래 층에서 이유를 미리 버린다][
+  #demo("examples/ch17/mistake_dropwhy.low")
+
+  `digit_or_none` 이 `else_none` 으로 오류를 `option` 으로 바꾸는 순간 "왜" 가 사라진다. 위 층의 `explain` 은 빈 입력과 숫자 아닌 입력에
+  다른 안내를 하고 싶지만 둘 다 0 만 본다. 되찾을 길이 없다. 이유는 끝까지 들고 올라와, 버려도 되는지 아는 층에서 버린다.
+
+  #demo("examples/ch17/dropwhy_fixed.low")
+]
+
+#antipattern[`case error <갈래이름>` 으로 오류 갈래를 가른다고 믿는다][
+  #demo("examples/ch17/mistake_errvariant.low")
+
+  `case error not_digit .` 의 `not_digit` 은 열거형의 갈래가 아니라 *오류 값에 새로 붙인 이름*이다. 그래서 어떤 오류든 이 갈래로 온다.
+  빈 입력(`empty`)을 줘도 2 가 나온다. 갈래가 둘뿐인 것처럼 보이는 이 `match` 는 망라 검사도 통과한다. 갈래마다 적으면 둘째 줄이
+  `E-MATCH-REDUNDANT` 로 거절되는데, 첫 줄이 이미 모든 오류를 받았기 때문이다. 이 판의 도구는 갈래 이름이 묶음 이름으로 가려지는 것을
+  알리지 않는다(개발 저장소에 결함으로 적어 두었다). 위의 `dropwhy_fixed.low` 처럼 `case error e` 로 이름을 묶고 `e` 를 한 번 더
+  `match` 한다.
+]
+
+#antipattern[`result` 를 문장으로 불러 버린다][
+  #demo("examples/ch17/mistake_dropresult.low")
+
+  `check_port 0 .` 은 오류를 돌려주었지만 아무도 받지 않았다. 포트가 0 인데 "started" 가 나오고 종료 코드도 0 이다. 실패를 값으로
+  돌려준다는 설계는 부르는 쪽이 그 값을 *볼 때만* 지켜진다. 이 판의 도구는 버려진 `result` 를 알리지 않는다. `result` 를 돌려주는 op 은
+  언제나 `let` 으로 받아 묻거나 `try` 로 넘기거나 `match` 로 가른다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "errors-design-glance",
+  caption: [실패를 설계하는 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [경계의 op `output result t e .` + `errors`], [바깥 값의 실패를 값으로 돌려준다], [부르는 층이 무엇을 할지 고른다],
+  [안쪽의 op `requires` · `range` · `newtype`], [이미 걸러진 값의 불변식], [검사가 경계에 한 번 남고 안쪽에서는 지워진다],
+  [`enum parse_error do empty . not_digit . end .`], [부르는 쪽이 다르게 행동할 경우마다 갈래 하나], [갈래가 많을수록 다루는 짐이 는다],
+  [`let v u16 be try check_port port .`], [다룰 수 없으면 위로 넘긴다], [넘긴 사실이 `errors` 절에 남는다],
+  [`case error e . do match e do … end . end .`], [오류 값을 묶고 갈래를 한 번 더 가른다], [`case error <이름>` 의 이름은 새 묶음이다],
+  [`try … else_none` · `value_or`], [이유를 버린다], [버리는 것은 가능한 한 위 층에서],
+  [`proc … effects panic .` + `panic "…"`], [어느 층도 다룰 수 없는 상태에서 멈춘다], [틀린 입력·없는 파일에는 쓰지 않는다],
+  [시작점 `output u8 .`], [가장 바깥 층 --- 실패를 다루고 종료 코드로 알린다], [더 넘길 곳이 없다],
+)
+
 #recap[
   바깥에서 값이 들어오는 경계에서는 실패를 `result` 와 `errors` 로 말하고, 검사를 통과한 안쪽에서는 계약과 타입으로
   불변식을 적는다. 오류 갈래는 부르는 쪽이 다르게 행동할 경우마다 둔다. 실패를 받은 층은 다룰 수 있으면 다루고

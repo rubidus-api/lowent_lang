@@ -1,0 +1,27 @@
+module mistake_errvariant .
+rem run: explain []
+rem run: explain [120]
+
+enum parse_error do
+  empty .
+  not_digit .
+end .
+
+fn parse_digit input s slice u8 . output result u8 parse_error .
+  errors empty eq (len s) 0 .
+  errors not_digit .
+do
+  guard gt (len s) 0 . else return error empty .
+  let c u8 be index s 0 .
+  guard and (ge c 48) (le c 57) . else return error not_digit .
+  return ok (sub c 48) .
+end .
+
+fn explain input s slice u8 . output u8 .
+do
+  match parse_digit s do
+    case ok v . return 9 .
+    rem ko: ✘ 여기의 `not_digit` 은 갈래가 아니라 새 이름이다 --- 어떤 오류든 받는다 /// en: ✘ `not_digit` here is not the variant but a new name --- it takes any error
+    case error not_digit . return 2 .
+  end .
+end .

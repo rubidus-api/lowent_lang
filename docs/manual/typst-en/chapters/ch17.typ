@@ -118,6 +118,61 @@ sparingly.
   (#chref("lib-io-net")).
 ]
 
+== Common mistakes
+
+#antipattern[Calling `panic` on bad input at the boundary][
+  #demo("examples/ch17/mistake_panicinput.low")
+
+  The user only typed `4x`, and the whole program stops. Bad input is *something that happens all the time*, and some layer can deal with
+  it --- ask again, use a default, show a message. `panic` removes every one of those choices, and `effects panic` spreads to every caller
+  on top of that. Return failure as a `result`, like `parse_u16` at the start of this chapter, and let the calling layer decide what to do.
+]
+
+#antipattern[Throwing the reason away in a lower layer][
+  #demo("examples/ch17/mistake_dropwhy.low")
+
+  The moment `digit_or_none` turns the error into an `option` with `else_none`, the "why" is gone. The upper layer `explain` wants
+  different messages for empty input and non-digit input, but sees 0 for both, and there is no way to get the reason back. Carry the
+  reason all the way up and discard it only in the layer that knows it may be discarded.
+
+  #demo("examples/ch17/dropwhy_fixed.low")
+]
+
+#antipattern[Believing `case error <variant name>` splits on an error variant][
+  #demo("examples/ch17/mistake_errvariant.low")
+
+  In `case error not_digit .`, `not_digit` is not the enum variant but *a new name given to the error value*, so every error comes to this
+  arm. Even empty input (`empty`) gives 2. This `match`, which looks as if it had only two arms, also passes the exhaustiveness check. If you
+  write one arm per variant, the second is rejected with `E-MATCH-REDUNDANT`, because the first arm already took every error. This edition's
+  tool does not warn that a variant name is hidden by a binding (recorded as a defect in the development repository). Bind a name with
+  `case error e` and `match` on `e` once more, as `dropwhy_fixed.low` above does.
+]
+
+#antipattern[Calling an op that returns a `result` as a statement][
+  #demo("examples/ch17/mistake_dropresult.low")
+
+  `check_port 0 .` returned an error, but nobody received it. The port is 0, yet "started" is printed and the exit code is 0. The design of
+  returning failure as a value only holds when the caller *looks at* that value. This edition's tool does not report a dropped `result`.
+  Always receive the `result` of such an op with `let` and ask, pass it on with `try`, or split it with `match`.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "errors-design-glance",
+  caption: [Shapes for designing failure --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [boundary op `output result t e .` + `errors`], [return the failure of outside values as a value], [the calling layer chooses what to do],
+  [inner op `requires` · `range` · `newtype`], [invariants of already-filtered values], [one check stays at the boundary; inside it is removed],
+  [`enum parse_error do empty . not_digit . end .`], [one variant per different caller action], [more variants, more handling work],
+  [`let v u16 be try check_port port .`], [pass it upward when you cannot handle it], [the passing stays visible in `errors`],
+  [`case error e . do match e do … end . end .`], [bind the error value, then split its variants], [the name in `case error <name>` is a new binding],
+  [`try … else_none` · `value_or`], [discard the reason], [discard as high up as possible],
+  [`proc … effects panic .` + `panic "…"`], [stop in a state no layer can handle], [not for bad input or missing files],
+  [entry point `output u8 .`], [the outermost layer --- handle failure and report by exit code], [there is nowhere further to pass it],
+)
+
 #recap[
   At boundaries where values come from outside, report failure with `result` and `errors`; inside, where checks have passed, write invariants with contracts
   and types. Give error variants to each case where the caller acts differently. A layer receiving a failure handles it if it can and passes it on with `try`

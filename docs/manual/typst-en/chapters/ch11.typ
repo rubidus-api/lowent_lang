@@ -196,7 +196,7 @@ appear exactly once when read hides defects.
 #antipattern[Being asked for `_` after covering every case with nested patterns][
   #demo("examples/ch11/mistake_nestedwild.low")
 
-  `ok (some x)`, `ok none` and `error broken` are every case of `result (option u64) read_error`. Even so, this edition's tool
+  `ok (some x)`, `ok none` and `error e` are every case of `result (option u64) read_error`. Even so, this edition's tool
   cannot count coverage all the way through nested patterns and rejects the match with `E-MATCH-INEXHAUSTIVE`. It is a tool
   limitation, recorded as a defect. For now, take the last case with `_`. A comment saying what `_` receives keeps the reader
   from guessing.

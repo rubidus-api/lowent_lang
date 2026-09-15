@@ -1,0 +1,34 @@
+module dropwhy_fixed .
+rem run: explain []
+rem run: explain [120]
+rem run: explain [55]
+
+enum parse_error do
+  empty .
+  not_digit .
+end .
+
+fn parse_digit input s slice u8 . output result u8 parse_error .
+  errors empty eq (len s) 0 .
+  errors not_digit .
+do
+  guard gt (len s) 0 . else return error empty .
+  let c u8 be index s 0 .
+  guard and (ge c 48) (le c 57) . else return error not_digit .
+  return ok (sub c 48) .
+end .
+
+rem ko: 이유를 끝까지 들고 올라와, 필요한 층에서 가른다 /// en: carry the reason all the way up and split on it in the layer that needs it
+fn explain input s slice u8 . output u8 .
+do
+  match parse_digit s do
+    case ok v . return 9 .
+    case error e . do
+      rem ko: 오류 값에 이름을 묶고, 그 열거형을 한 번 더 가른다 /// en: bind the error value to a name, then split that enum once more
+      match e do
+        case empty . return 1 .
+        case not_digit . return 2 .
+      end .
+    end .
+  end .
+end .

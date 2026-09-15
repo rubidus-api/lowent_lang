@@ -151,6 +151,68 @@ capabilities must be created where someone is entitled to grant them and flow in
   the one to audit. A common supply-chain attack --- imported code quietly connecting outward --- becomes visible in the grammar.
 ]
 
+== Common mistakes
+
+#antipattern[Thinking a `fn` may print because it received a capability][
+  #demo("examples/ch16/mistake_fncap.low")
+
+  A capability says "who allowed it"; an effect says "what it does". Neither stands in for the other. Even with `cap io`, printing is
+  the `io` effect, and a pure `fn` cannot perform effects, so this is `E-EFFECT-CALC`. Change it to `proc say … effects io .`. Both the
+  permission (capability) and the action (effect) must be in the head, so that each checks the other.
+]
+
+#antipattern[Moving a received capability into a local name][
+  #demo("examples/ch16/mistake_caplocal.low")
+
+  A capability is passed down the chain *under the name it was received with*. Moving it into a local name makes the chain look
+  broken, so this edition's tool rejects it with `E-CAP-MISSING`. The message only says "the value the entry received as its first
+  operand" and does not name the move as the cause (recorded in the development repository). Write the parameter name directly, as
+  in `write_out out 1 …`.
+]
+
+#antipattern[Writing to standard output with a capability of another kind][
+  #demo("examples/ch16/mistake_fscapout.low")
+
+  `cap file_system` opens files and directories; it is not the capability for standard output. Capabilities are authorised *by kind,
+  not by possession*, so this is rejected. Here this edition's tool reports `E-CAP-MISSING` rather than `E-CAP-KIND`. Either way the
+  fix is the same: the entry receives `input out cap io .` and passes that name.
+]
+
+#antipattern[Passing a number where a capability belongs --- a hole in this edition][
+  #demo("examples/ch16/mistake_capforge.low")
+
+  `start` receives no capability at all, so it should not be able to print. Yet when the number 0 is passed in the `cap io` position of
+  `say`, this edition's tool does not reject it, and both the VM and the native build print `hi`. The promise of this chapter --- "the
+  entry point tells you everything the program can reach" --- breaks here. It is recorded as a serious defect in the development
+  repository. Until it is fixed, when auditing someone else's code, check with your own eyes that *a capability name is passed* at every
+  call to an op with a `cap` parameter. In your own code, write only received capability names in capability positions.
+]
+
+#misconception[It is convenient to take capabilities and effects in advance, in case they are needed later][
+  #demo("examples/ch16/capjustincase.low")
+
+  `area` only multiplies, yet it declares `cap io` and `effects io`. Now every caller must find a `cap io` to pass, and pure code cannot
+  call it at all. The tool warns with `W-EFFECT-OVER`. Take as few capabilities as possible --- the list of received capabilities *is*
+  "what this op can reach", so a generous list tells a lie.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "capabilities-glance",
+  caption: [Capability syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`input out cap io .`], [receive the standard I/O capability], [no ambient authority --- power is handed in as an argument],
+  [`input fs cap file_system .` · `cap net` · `cap clock` …], [each kind opens different things], [least authority --- the head says what it can reach],
+  [`say k msg`], [pass a received capability name as is], [the chain is visible up to the entry point],
+  [`write_out out 1 "…"`], [builtins that use a capability take it as the first operand], [no way to reach a capability without a name],
+  [`effects io` + `cap io`], [an effect and the capability that allows it], [missing: `E-EFFECT-NO-CAP`],
+  [`effects alloc` + `cap allocator`], [the pair for fixed-window allocation], [missing: `E-ALLOC-NOCAP`],
+  [`proc main input … cap … . output u8 .`], [the entry point receives only capabilities], [nobody can hand it data],
+  [`input logger cap audit .`], [a capability named by the author], [only ops that received it can call the guarded op],
+)
+
 #recap[
   Capabilities are handed over as `input <name> cap <kind> .`, and the received name is passed on as is. Looking at the entry point shows what outside a
   program can reach. Effects and capabilities are a pair: declaring an effect requires receiving an authorising capability, and builtin ops that use a

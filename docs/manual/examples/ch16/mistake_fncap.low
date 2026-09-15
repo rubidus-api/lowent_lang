@@ -1,0 +1,8 @@
+module mistake_fncap .
+rem expect: E-EFFECT-CALC
+
+rem ko: ✘ 권한을 받았다고 `fn` 이 출력할 수 있게 되지는 않는다 /// en: ✘ receiving a capability does not let a `fn` produce output
+fn say input out cap io . output u64 .
+do
+  return write_out out 1 "hi\n" .
+end .

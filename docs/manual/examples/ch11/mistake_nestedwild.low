@@ -11,6 +11,6 @@ do
   match r do
     case ok (some x) . return x .
     case ok none . return 0 .
-    case error broken . return 1 .
+    case error e . return 1 .
   end .
 end .

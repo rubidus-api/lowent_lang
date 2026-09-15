@@ -204,6 +204,61 @@ boundary, where *a person promises* the contracts are true. It is one reason the
   reported. That is a place where the processor ought to speak, so it is a defect of this edition.
 ]
 
+== Common mistakes
+
+#antipattern[Calling the returned value `result` in `ensures`][
+  #demo("examples/ch14/mistake_result.low")
+
+  The returned value is named `ret`. `result` is already a type name (`result u8 e`), so it is not reused as a value name. An
+  `ensures` that names something undefined checks nothing, yet the analysis might derive a result range from it, so this is an
+  error (`E-ENS-UNDEF`), not a warning. This edition's tool omits the file name in front of this diagnostic; find it by the line
+  number.
+]
+
+#antipattern[Writing an index precondition with `le`][
+  #demo("examples/ch14/mistake_leindex.low")
+
+  The slots of a slice of length 3 are 0, 1 and 2. `requires le i (len xs)` also allows `i = 3`, so the contract passes and the
+  following `index` stops with `E-VM-BOUNDS` trying to read one slot past the end. When a contract is wrong, the stop moves from the
+  contract into the body, and the diagnostic says "out of bounds" instead of "the caller's fault". Use `lt` for indexes; `le` is
+  right for counts ("read `n` items").
+]
+
+#antipattern[Writing preconditions that cannot hold together][
+  #demo("examples/ch14/mistake_contradict.low")
+
+  No `u8` is both at most 100 and at least 200, so this op stops at entry however it is called. Usually one `le` or `ge` was written
+  backwards, or an old line was not removed during an edit. This edition's tool catches an error declaration that can never happen
+  (`E-CONTRACT-DEAD`) but not a precondition that can never hold (recorded as a defect in the development repository). When there
+  are two or more preconditions, check for yourself that at least one value makes them all true.
+]
+
+#misconception[`requires` is a tool for validating user input][
+  #demo("examples/ch14/contract_input.low")
+
+  When a contract breaks, *the program stops*. A contract promises "the caller has already checked", so a broken one means there is
+  a bug in the code. A user typing an age of 200 is not a bug; it happens all the time. Check values from outside as `age_checked`
+  does and report the problem as a `result`; pass only checked values to an op with a contract such as `age_strict`. Because the call
+  comes after the check, the analysis removes the contract check inside `check_age`.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "contracts-glance",
+  caption: [Contract syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`requires le a 200 .`], [condition on entry --- the caller's responsibility], [gathers checks into one at entry and removes checks in the body],
+  [`ensures le ret 100 .`], [promise on exit --- this op's responsibility], [`ret` is the returned value --- callers use it as a fact],
+  [`errors too_big gt a 200 .`], [promise to return this error under this condition], [a contract on the way out --- errors are promised too],
+  [`requires elem_le ds 9 .`], [a condition on every element], [contracts are expressions, so no loops],
+  [`contract positive do … end .`], [give a contract a name], [one place to change a shared condition],
+  [`fn half satisfies positive . …`], [adopt a named contract (first in the head)], [say what the op is first],
+  [`requires static …` · `debug` · `assume`], [contract grades], [decide per clause when and how it is checked --- `assume` is not a fact],
+  [`build release_fast .`], [remove unproven contract checks], [the choice of speed stays in the source],
+)
+
 #recap[
   `requires` is the caller's responsibility, `ensures` and `errors` the op's, and the diagnostic says whose fault it was. Enforced contracts become
   facts and remove overflow, bounds and division-by-zero checks. `elem_*` expresses conditions over every element, and `contract` with `satisfies`

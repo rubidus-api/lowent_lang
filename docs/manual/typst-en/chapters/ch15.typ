@@ -159,6 +159,71 @@ proof.
   *less* (harmless to the theorem, but pushing false costs onto callers). That is why the two directions carry different weight.
 ]
 
+== Common mistakes
+
+#antipattern[Using `panic` in a pure `fn`][
+  #demo("examples/ch15/mistake_fnpanic.low")
+
+  Stopping the program leaves a mark on the outside too. If a caller memoises this op or reorders it, the moment of the stop
+  changes, so a `fn` cannot use `panic` and is rejected with `E-EFFECT-CALC`. Attaching `effects panic .` to a `fn` is rejected with
+  the same code --- the words `fn` and `proc` already say whether an op is pure. There are two fixes: make it a `proc` that declares
+  stopping as an effect, or move the condition into a contract, which makes it the caller's responsibility.
+
+  #demo("examples/ch15/fnpanic_fixed.low")
+
+  The second fix is usually better. `nonzero_strict` stays pure, and the diagnostic says the fault of passing 0 lies with the caller.
+]
+
+#antipattern[A `fn` writing into a slice received as `mut`][
+  #demo("examples/ch15/mistake_fnmutwrite.low")
+
+  The zeros written by `clear` stay in the caller's slice. To the caller the outside has changed, and such an op cannot be memoised,
+  removed or reordered. Hence `E-EFFECT-PURITY`. Change the head to `proc clear … effects state .`. As the diagnostic adds, changing
+  locals inside an op does not break purity (see the misconception below).
+]
+
+#antipattern[Putting commas between effects][
+  #demo("examples/ch15/mistake_effcomma.low")
+
+  The habit of separating a list with commas becomes `E-VOCAB-REMOVED` here. The comma was once in the grammar but was only ever
+  used to continue a line; newlines no longer close a form, so it was removed. Separate the words with spaces, as in
+  `effects io panic .`. The form ends at the stop.
+]
+
+#misconception[Using `var` and `set` makes an op impure][
+  #demo("examples/ch15/pure_local.low")
+
+  `sum_to` keeps changing two locals, yet it is a `fn`. The storage that changes lives only inside this op; the caller sees only the
+  result 55. It always gives the same answer for the same input, and not calling it leaves nothing behind. Purity does not mean
+  "changes nothing inside"; it means "leaves no mark visible from outside".
+]
+
+#misconception[A `fn` never stops][
+  #demo("examples/ch15/fn_can_stop.low")
+
+  What a `fn` cannot use is the `panic` *effect*. A stop raised by the processor because a contract or a bound broke --- such as
+  reading the first slot of an empty slice --- is treated as the result of a wrong call, not as something the op did (canon 6.5.9).
+  So the pure `first` also stops when given `[]`. To avoid the stop, expose the responsibility to the caller with
+  `requires ge (len xs) 1 .`, or return an `option`.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "effects-glance",
+  caption: [Effect syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`fn …`], [no effects --- write no `effects` clause], [purity is visible in one word],
+  [`proc … effects io panic .`], [the set of effects this op may perform], [reading the head tells you what it does],
+  [`proc …` (no clause)], [not narrowed --- may perform anything], [narrowing is the author's choice],
+  [atoms `io`·`alloc`·`heap`·`state`·`panic`·…], [a closed list fixed by the language], [so a typo never silently means "pure"],
+  [`effects panic panic .` · `none panic`], [rejected (`E-EFFECT-DUP` · `E-EFFECT-NONE-MIX`)], [a set has no repeats or contradictions],
+  [doing more than declared · declaring and not doing], [error (`E-EFFECT`) · warning (`W-EFFECT-OVER`)], [premise of the proofs · a false cost for callers],
+  [`concurrent`], [brings `wait` along], [waiting on another flow can block],
+  [`effects state via a .`], [inherit the allocation effects of type argument `a`], [each allocator gets exact effects],
+)
+
 #recap[
   Effects are a closed set of atoms, and words outside the list are rejected. Effects spread along calls; doing more than declared is rejected and
   declaring what is not done is warned about. The effects line is a set, so duplicates and mixing with `none` are rejected, and `concurrent` brings

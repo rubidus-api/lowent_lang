@@ -164,6 +164,69 @@ export proc append
   이유가 여기에 있다.
 ]
 
+== 흔한 실수
+
+#antipattern[순수한 `fn` 에서 `panic` 을 쓴다][
+  #demo("examples/ch15/mistake_fnpanic.low")
+
+  프로그램을 멈추게 하는 것도 바깥에 남는 자국이다. 부르는 쪽이 이 op 을 기억해 두거나 차례를 바꾸면 멈춤이 일어나는 때가
+  달라지므로, `fn` 은 `panic` 을 쓸 수 없고 `E-EFFECT-CALC` 로 거절된다. `fn` 에 `effects panic .` 을 붙이는 것도 같은 코드로
+  거절된다 --- 순수한가 아닌가는 `fn`·`proc` 이라는 낱말이 이미 말하기 때문이다. 고치는 길은 둘이다. 멈춤을 효과로 적은
+  `proc` 으로 바꾸거나, 그 조건을 부르는 쪽의 책임인 계약으로 옮긴다.
+
+  #demo("examples/ch15/fnpanic_fixed.low")
+
+  두 번째 길이 대개 낫다. `nonzero_strict` 는 순수함을 지키고, 0 을 넘긴 잘못이 부르는 쪽에 있다고 진단이 말한다.
+]
+
+#antipattern[`fn` 이 `mut` 로 받은 줄에 쓴다][
+  #demo("examples/ch15/mistake_fnmutwrite.low")
+
+  `clear` 가 쓴 0 은 호출자의 줄에 남는다. 호출자가 보기에 이것은 바깥이 바뀐 것이고, 그런 op 은 기억해 두거나 지우거나 차례를
+  바꿀 수 없다. 그래서 `E-EFFECT-PURITY` 다. 머리를 `proc clear … effects state .` 로 바꾼다. 진단이 덧붙인 말대로 op 안의
+  지역을 고치는 것은 순수함을 깨지 않는다(아래 오개념).
+]
+
+#antipattern[효과 사이에 쉼표를 넣는다][
+  #demo("examples/ch15/mistake_effcomma.low")
+
+  목록을 쉼표로 가르는 습관이 여기서는 `E-VOCAB-REMOVED` 가 된다. 쉼표는 한때 문법에 있었으나 한 줄을 이어 적는 데에만 쓰였고,
+  지금은 줄바꿈이 형식을 닫지 않으므로 필요 없어 빠졌다. `effects io panic .` 처럼 띄어 적는다. 형식은 마침표에서 끝난다.
+]
+
+#misconception[`var` 와 `set` 을 쓰면 순수하지 않다][
+  #demo("examples/ch15/pure_local.low")
+
+  `sum_to` 는 지역 변수 둘을 계속 고치지만 `fn` 이다. 바뀌는 저장소가 이 op 안에만 있고 호출자는 결과 55 만 본다. 같은 입력에
+  언제나 같은 답을 내고, 부르지 않아도 바깥에 남는 것이 없다. 순수함은 "안에서 아무것도 바꾸지 않는다" 가 아니라 "바깥에서
+  보이는 자국이 없다" 이다.
+]
+
+#misconception[`fn` 은 절대 멈추지 않는다][
+  #demo("examples/ch15/fn_can_stop.low")
+
+  `fn` 이 쓸 수 없는 것은 `panic` *효과*다. 빈 줄의 첫 칸을 읽는 것처럼 계약이나 경계가 깨져 처리기가 멈추는 것은 op 이 한 일이
+  아니라 잘못 불린 결과로 본다(정본 6.5.9). 그래서 순수한 `first` 도 `[]` 를 받으면 멈춘다. 멈추지 않게 하려면 `requires ge (len xs) 1 .`
+  로 책임을 부르는 쪽에 드러내거나, `option` 을 돌려준다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "effects-glance",
+  caption: [효과의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`fn …`], [효과 없음 --- `effects` 절을 적지 않는다], [순수함이 낱말 하나로 보인다],
+  [`proc … effects io panic .`], [이 op 이 낼 수 있는 효과의 집합], [머리만 읽고 무엇을 하는지 안다],
+  [`proc …` (절 없음)], [좁히지 않았다 --- 무엇이든 낼 수 있다], [좁히는 것은 저자의 선택],
+  [효과 원자 `io`·`alloc`·`heap`·`state`·`panic`·…], [언어가 정한 닫힌 목록], [오타가 조용히 "순수" 가 되지 않게],
+  [`effects panic panic .` · `none panic`], [거절(`E-EFFECT-DUP` · `E-EFFECT-NONE-MIX`)], [집합이라 겹침과 모순이 없다],
+  [적은 것보다 많이 함 · 적고 안 함], [오류(`E-EFFECT`) · 경고(`W-EFFECT-OVER`)], [증명의 전제 · 부르는 쪽의 거짓 비용],
+  [`concurrent`], [`wait` 을 딸고 온다], [다른 흐름을 기다리면 멈출 수 있다],
+  [`effects state via a .`], [타입 인자 `a` 의 할당 계열 효과를 물려받는다], [할당기마다 효과가 정확해진다],
+)
+
 #recap[
   효과는 닫힌 원자의 집합이고, 목록 밖의 낱말은 거절된다. 효과는 호출을 따라 번지며, 적은 것보다 많이 하면
   거절되고 적어 놓고 안 하면 경고된다. 효과 줄은 집합이라 중복과 `none` 섞기가 거절되고, `concurrent` 는 `wait`

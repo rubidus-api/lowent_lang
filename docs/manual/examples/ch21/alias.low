@@ -1,0 +1,16 @@
+module alias .
+rem run: distance 3 4
+
+rem ko: 들여온 모듈을 짧은 이름 g 로 부른다 /// en: call the imported module by the short name g
+use geom from "geom.low" as g .
+
+fn distance input dx i64 . input dy i64 . output i64 .
+  requires ge dx -1000 .
+  requires le dx 1000 .
+  requires ge dy -1000 .
+  requires le dy 1000 .
+do
+  let a g.point be make g.point do x 0 . y 0 . end .
+  let b g.point be make g.point do x dx . y dy . end .
+  return g.manhattan a b .
+end .

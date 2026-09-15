@@ -107,6 +107,23 @@ catch that drift. What they stop are not users' defects but the compiler's.
   proved, and this second property is exactly why it was not adopted.
 ]
 
+== Common mistakes
+
+#antipattern[Leaving out the period at the end of a line][
+  #demo("examples/ch48/mistake_noperiod.low")
+
+  The diagnostic points not at the line missing its period but at *the next line*. A newline closes nothing, so `set s (mul s 2)` was joined
+  onto `add a b`, `add` ended up with four operands, and the tool says "extra operands". Look one line above the reported number first. Even
+  if this diagnostic is confusing, the rule stays. If a line ended a statement, merely splitting a long expression would change its meaning.
+]
+
+#antipattern[Closing with `;` as in C][
+  #demo("examples/ch48/mistake_semicolon.low")
+
+  `;` used to be a third spelling of the period. Three spellings for one meaning make readers hunt for a difference, so it was removed and is now
+  refused with `E-VOCAB-REMOVED`. It is not silently accepted, because a word that parses but means nothing is the hardest trap to find.
+]
+
 == What is not proven
 
 - *There is no guarantee that the real parser is this model.* The model is a few small functions building trees, and the real parser is much larger. The

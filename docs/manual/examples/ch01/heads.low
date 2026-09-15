@@ -1,0 +1,18 @@
+module heads .
+rem run: main
+
+rem ko: fn — 같은 입력이면 같은 답. 화면에도 파일에도 닿지 않는다 /// en: fn: the same input always gives the same answer, and it touches neither the screen nor files
+fn area input w u64 . input h u64 . output u64 .
+  requires le w 1000 .
+  requires le h 1000 .
+do
+  return mul w h .
+end .
+
+rem ko: proc — 바깥에 흔적을 남길 수 있다. 무엇을 하는지(effects io)와 누가 허락했는지(cap io)가 머리에 보인다 /// en: proc: may leave traces outside; what it does (effects io) and who allowed it (cap io) are visible in the head
+proc main input out cap io . output u8 . effects io .
+do
+  let a u64 be area 3 4 .
+  let n u64 be write_out out 1 "area is twelve\n" .
+  return narrow u8 a .
+end .

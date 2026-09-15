@@ -66,6 +66,29 @@ In the words of the diagnostic, "a module that cannot keep anything private is n
   (`use allocs .`) resolve from where the standard modules are installed.
 ]
 
+== What can be exported, and how to shorten a name
+
+`export` goes on most named declarations. Some do not take it.
+
+#dtable(
+  columns: 3,
+  id: "modules-export-kinds",
+  caption: [Declarations that take `export`],
+  [*Declaration*], [*`export`*], [*Why*],
+  [`fn` · `proc`], [yes], [ops other modules call],
+  [`struct` · `enum` · `type` · `newtype`], [yes], [the input and output types of an exported op must be exported too, or it cannot be used],
+  [`trait` · `actor`], [yes], [a promise types in other modules satisfy · an actor other modules spawn],
+  [top-level `let` (constant)], [no --- `E-TOPLEVEL`], [constants stay inside the module; to share one, export a `fn` that returns the value],
+  [`test`], [no --- `E-TOPLEVEL`], [tests belong to whoever builds that module],
+)
+
+When a module name is long, or two modules share a name, shorten it with `as`.
+
+#demo("examples/ch21/alias.low")
+
+After `use geom from "geom.low" as g .` you call `g.point` and `g.manhattan`. The alias is a name used only inside this file; the module's
+real name (`geom`) does not change. Importing the same name twice gives `E-NAME-COLLISION`, and the remedy that diagnostic suggests is this alias.
+
 == There is no search path
 
 Many languages fetch a module from somewhere on a search path when you write just its name. Then what the program depends on becomes knowledge outside the
@@ -143,6 +166,22 @@ A file as a whole is skimmed, but a body is read top to bottom.
   (recorded as a defect in the development repository). Export the input and output types of an exported op as well.
 ]
 
+#antipattern[Writing another module's enum variant with the module name in a `case` --- a hole in this edition][
+  #demo("examples/ch21/sizes.low")
+
+  The `sizes` module exports the enum `kind` and `classify`, which returns one. If the importing side qualifies the variants with the module name,
+  this happens.
+
+  #demo("examples/ch21/mistake_enumcase.low")
+
+  `describe 500` is `big`, yet it returns 1. This edition's tool reads `case sizes.small` not as a variant but as *a slot that matches any value*
+  (the same kind of hole as `case error e` in #chref("option-result")). The first arm takes every value, the `match` still passes as exhaustive, and
+  the VM and native code give the same wrong answer. It is recorded as a defect in the development repository. Write only the variant name in a
+  `case`; the type of `k` decides which enum the variant belongs to.
+
+  #demo("examples/ch21/enumcase_fixed.low")
+]
+
 #misconception[Two modules must not import each other][
   #demo("examples/ch21/cycle_a.low")
 
@@ -167,6 +206,9 @@ A file as a whole is skimmed, but a body is read top to bottom.
   [`geom.helper` (a hidden name)], [rejected (`E-VISIBILITY`)], [qualifying does not open the door],
   [one name declared twice · two imports with one name], [rejected (`E-NAME-DUP` · `E-NAME-COLLISION`)], [never decide quietly which one is reached],
   [order of top-level declarations], [irrelevant --- they may call each other], [a file is scanned; a body is read top to bottom],
+  [`use geom from "geom.low" as g .`], [call the imported module `g` in this file], [untangles long or clashing names --- the module's real name stays],
+  [`export let …` · `export test …`], [refused (`E-TOPLEVEL`)], [export a constant through a `fn` that returns it],
+  [`case small` on another module's enum], [write only the variant name], [`case sizes.small` matches any value in this edition],
 )
 
 #recap[

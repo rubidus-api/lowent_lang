@@ -194,6 +194,16 @@
   달라질 수 있고(`none`), 같은 창을 쓰는 다른 코드와 겹친다. 그래서 `E-EFFECT-CALC` 다. `proc … effects alloc .` 으로 적는다.
 ]
 
+#antipattern[영역 밖에서 태어난 액터에게 영역의 바이트를 건넨다][
+  #demo("examples/ch18/mistake_outlives.low")
+
+  액터 `a` 는 영역보다 먼저 태어났으니 영역이 닫힌 뒤에도 산다. 그 액터가 받은 슬라이스를 상태에 넣어 두는지는 번역할 때 알 수
+  없다. 넣어 둔다면 영역의 `end` 가 그 바이트를 다른 쪽에 준 뒤에도 옛 자리를 읽는다. 그래서 보수적으로 `E-ALLOC-OUTLIVES` 로
+  막는다. 액터도 영역 안에서 만들면 둘이 함께 사라진다.
+
+  #demo("examples/ch18/outlives_fixed.low")
+]
+
 #misconception[반복 안에서 얻은 자리는 바퀴마다 돌려준다][
   #demo("examples/ch18/loop_region.low")
 
@@ -218,6 +228,7 @@
   [영역 밖 이름에 담기 · 돌려주기], [거절(`E-REGION-ESCAPE`)], [걷힌 바이트를 가리키지 않게],
   [안쪽 영역이 열린 동안 바깥 이름으로 깎기], [거절(`E-ALLOC-NESTED`)], [뿌리마다 커서는 하나],
   [`--target cortex_m` + `heap`], [거절(`E-HEAP-NOHOST`)], [운영체제 없는 기계에는 힙이 없다],
+  [영역 밖 액터에게 영역 바이트를 `send`], [`E-ALLOC-OUTLIVES`], [액터가 바이트를 쥐고 영역보다 오래 살 수 있다 --- 액터도 영역 안에서 만든다],
 )
 
 #recap[

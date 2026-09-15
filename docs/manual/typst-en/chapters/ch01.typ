@@ -37,6 +37,29 @@ under the name `out`. It returns a `u8`. It performs an effect called `io`. What
 allocate (there is no `alloc`), has no file-system capability, and starts no threads (there is no `concurrent`). *What is not
 written cannot be done.* The compiler checks it.
 
+Let us look at a small program that actually runs.
+
+#demo("examples/ch01/heads.low")
+
+- `module heads .` is this file's name tag. Every file starts with this one line.
+- Lines starting with `rem` are words for people (comments). The compiler does not read them.
+- `fn area … do … end .` is an op that computes an area. `input w u64 .` means "take an unsigned 64-bit integer under the name `w`",
+  and `output u64 .` is the type of the value returned. `requires le w 1000 .` is a promise: "`w` must be at most 1000". It is there
+  so the product cannot overflow.
+- `return mul w h .` returns `w` times `h`. The operation name comes first and the arguments follow. A statement ends with a detached
+  period.
+- `main` is the op where the program starts. `let a u64 be area 3 4 .` gets 12 into `a`, and `write_out out 1 "…"` writes a line to
+  standard output (number 1). That line is possible because the head receives `cap io` and declares `effects io`. The 12 it returns
+  becomes the exit value handed to the operating system.
+
+Now let the head lie. An op declared as a pure `fn` tries to write to the screen on the quiet.
+
+#demo("examples/ch01/mistake_hiddenio.low")
+
+The compiler refuses without running anything. The single word `fn` is a promise that "this op does not reach outside", and when the
+body breaks that promise, translation stops. So whoever calls a `fn` need not open its body. To fix it, say what is true:
+`proc area_loud … effects io .`.
+
 #qa[
   If the head has to say that much, doesn't the code get longer?
 ][
@@ -95,7 +118,7 @@ several ways. A few choices follow.
 - A field is read only as `field p x`. There is no glued dot like `p.x`.
 - Statements and clauses are closed with a free-standing full stop `.`, and a block is always `do … end`.
 - The clauses of a head are written in one fixed order. A wrong order is rejected, and `--fmt` fixes it.
-- Removed words (`in`, `loop`, `as` and so on) are not quietly accepted; they are rejected with `E-VOCAB-REMOVED`.
+- Removed words (`loop`, `give`, `on` and so on) are not quietly accepted; they are rejected with `E-VOCAB-REMOVED`.
 
 With one spelling per meaning, people and tools read the same code in the same shape. The examples in this book all look alike not
 because of the author's taste but because the language only allows that shape.
@@ -128,9 +151,32 @@ system are among its targets (#chref("hardware")).
 
 == How to read this book
 
-This book assumes you have programmed in at least one language. It does not explain what variables, loops and functions are; it
-explains *how they differ in Lowent*. If you know C, Parts V and VIII will come easily; if you know Rust, the borrowing rules of
-Part V will look familiar. You can read it knowing neither.
+This book was written with two kinds of reader in mind.
+
+*Readers new to programming* read from Part I in order. Every piece of syntax comes with both "what it does" and "why it looks this
+way", and each example is followed by an explanation of what its lines do. The "Common mistakes" at the end of Chapters 2 to 37
+show the errors beginners really run into, with their diagnostics as they are. There is no need to fear error messages. In this language a diagnostic
+does not say "you are wrong"; it says "this is where the code differs from its promise". Learn the first words from the table below.
+
+*Readers who have used other languages* can follow just the example code and each chapter's "syntax at a glance" table. The examples
+and that table show the chapter's syntax together. If you know C, Parts V and VIII will come easily; if you know Rust, the borrowing rules
+of Part V will look familiar. Places where an idea carried over from a familiar language goes wrong here are collected in the
+"A common misconception" boxes.
+
+#dtable(
+  columns: 2,
+  id: "intro-first-words",
+  caption: [First words],
+  [*Word*], [*Meaning*],
+  [source · module], [one `.low` file a person writes · the named unit that file forms (#chref("modules"))],
+  [compiler · translation], [the program that reads the source, checks it and turns it into something runnable (`lowentc`) · that work],
+  [diagnostic], [an error (`E-`), warning (`W-`) or note (`N-`) from the compiler. Its name is the key to look it up (Appendix B)],
+  [value · type], [one piece of data such as a number or text · what kind it is and how many bits (`u64` is an unsigned 64-bit integer)],
+  [local name], [a name given to a value: `let` if it never changes, `var` if it does (#chref("locals"))],
+  [op], [a named piece of work; a function in other languages. `fn` if pure, `proc` otherwise (#chref("ops"))],
+  [effect · capability], [the trace an op leaves outside (`effects io`) · the permission to do that (`cap io`) (#chrefs("effects", "capabilities"))],
+  [contract], [conditions an op requires before it takes a call and ensures when it returns (`requires` · `ensures`) (#chref("contracts"))],
+)
 
 Every chapter opens the same way. It lists the earlier chapters it leans on (*What to know first*), asks one question that makes you
 recall them, says why the chapter sits where it does and what you will have by the end, and then shows the questions the chapter

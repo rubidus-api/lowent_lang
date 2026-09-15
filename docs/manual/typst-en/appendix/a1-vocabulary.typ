@@ -66,10 +66,22 @@ are not words but cannot be used as names.
   [I/O leaves], [`write_out` `read_in` `arg` · file, connection, clock, random and terminal leaves are wrapped by the standard library],
   [Atomic], [`atomic_load` `atomic_store` `atomic_add` `atomic_sub` `atomic_swap` `atomic_cas` `atomic_fence`],
   [Devices], [`read_volatile` `write_volatile`],
-  [Concurrency], [`await` `drain` `channel` `chsend` `chrecv` `yield`],
+  [Concurrency], [`await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send`],
+  [Atomic (bits)], [`atomic_and` `atomic_or` `atomic_xor`],
+  [Floating-point maths --- #chref("numbers")], [`sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod`],
+  [Pipe stages --- #chref("pipe")], [`pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `reverse` `collect` `count` `all` `any` `into`],
+  [Lanes (SIMD) --- #chref("parallel-atomic")], [`splat` `load` `store` `load_masked` `store_masked` `select` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `sum` `sum_fast` `avg` `native_lanes` `rotate` `prefetch`],
+  [Small-number sets --- #chref("named-types")], [`bitset_new` `union` `intersect` `difference` `complement` `contains` `is_subset` `is_empty` `remove`],
+  [Layouts and views --- #chref("named-types")], [`encode` `try_view` `view_segments` `seg` `segs` `capacity`],
+  [Borrows and regions --- #chref("references") · #chref("regions")], [`ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap`],
+  [Contracts and errors --- #chref("contracts")], [`range` `ret` `expect` `panic`],
+  [Hashes --- #chref("lib-text")], [`crc32` `hash_bytes` `sha256` `sha512`],
+  [C strings --- #chref("ffi")], [`cstr_of` `str_from_cstr`],
+  [Host leaves --- #chref("lib-map")], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `rng_next` `reactor_new` `r_read` `r_write`],
 )
 
-The authoritative full list and meanings are the repository's `docs/spec/BUILTIN-MEANINGS.tsv`.
+This table sorts every builtin of the canon into a group. The chapter next to each group name explains that group with examples. The
+one-line meanings are authoritative in the repository's `docs/spec/BUILTIN-MEANINGS.tsv`.
 
 == Effects and capabilities
 

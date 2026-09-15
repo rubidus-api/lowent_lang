@@ -150,6 +150,20 @@ end .
 A bump allocator's `reserve` is just `state`, while `heap_bytes`, carving from the heap, has `heap state`. That difference rises through a generic op's `via a`
 all the way to its callers (#chref("fixed-memory")).
 
+The same device serves promises that are not allocators. Two actors satisfy a ticket-issuing trait: one only counts, the other carves bytes from the
+fixed window for every ticket.
+
+#demo("examples/ch23/viaself.low")
+
+- The signature is `issue input s self . output u64 . effects state via self .`. `counter` satisfies it with `effects state .` and `carver` with
+  `effects alloc state .`. `alloc` belongs to the allocation family, so `via self` allows it.
+- `issue_two` says `effects state via t .`. The instance specialised to `counter` has the effect `state`; the one specialised to `carver` has
+  `alloc state`. The effects are exact *per instance*.
+- That is why `main` must receive `cap allocator` and declare `alloc`. Without the line that calls with `carver`, `main` would need no `alloc`.
+- The answer 33 is `counter`'s 1 + 2 plus `carver`'s 10 + 20.
+
+`carver`'s state has a *capability field*, `root cap allocator .`. The rule for that field is covered in #chref("actors").
+
 #misconception[Satisfying a trait inherits something from it][
   Nothing is inherited. Satisfying a trait is only the *fact* that "these ops exist", and no hierarchy arises between types. `rect` and `square` have no relation
   to each other even after satisfying `shape`. This language has no inheritance.
@@ -213,6 +227,7 @@ all the way to its callers (#chref("fixed-memory")).
   [`requires shape t .`], [type condition of a generic op], [a type that does not adopt it: `E-BOUND-UNSAT`],
   [`effects state via self .` (signature)], [only allocation effects may be added], [allocators differ in effects],
   [`E-TRAIT-MISSING` · `-SIG` · `-EFFECT` · `-RECV` · `-UNDEF`], [one diagnostic per way of falling short], [`satisfies` is not a comment],
+  [`effects state via t .` (generic op)], [inherits the extra effects the specialised type declared with `via self`], [`state` for `counter`, `alloc state` for `carver`],
 )
 
 #recap[

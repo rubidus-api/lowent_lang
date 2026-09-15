@@ -101,6 +101,32 @@ If every bound flow only receives and none sends, it is rejected too.
   `explore_interleavings` tests running every ordering. That some deadlocks are not caught makes clear what this rule promises.
 ]
 
+== Flows and memory
+
+Tasks run side by side. So two rules apply when a task uses a root from #chref("regions") or an allocator from #chref("fixed-memory").
+
+First, an op that carves from a root cannot be spawned as a task.
+
+#demo("examples/ch26/mistake_taskregion.low")
+
+Each root has one cursor, and regions are rewound *in order*. If two tasks open regions in turn, one side's `end` rewinds bytes the other side
+still uses. A lock cannot fix it, because rewinding relies on order, not on locking. So spawning as a task an op whose effects include `alloc`
+or `heap` is refused with `E-ALLOC-TASK`.
+
+Second, an allocator whose cursor does not move atomically cannot be handed to a task.
+
+#demo("examples/ch26/mistake_taskshared.low")
+
+Two tasks reserving from the same `b` race over one cursor. If the allocator's `reserve` does not declare `atomic`, it is `E-ALLOC-SHARED`.
+The diagnostic suggests giving each task its own allocator, but this edition's tool refuses separately spawned allocators with the same
+diagnostic, because it blocks passing an allocator value at all (recorded as a defect in the development repository). The way that works today
+is to hand over *bytes* and create the allocator inside the task.
+
+#demo("examples/ch26/taskshared_fixed.low")
+
+`share` splits the buffer into two pieces that do not overlap and gives one to each task. Each task spawns an allocator on its own piece and
+uses 4 bytes; adding the two answers gives 8. Because the pieces do not overlap, there is no cursor to race over and no bytes to be rewound.
+
 == What does not exist yet
 
 Channels without an end (`channel … unbounded`) and lock state shared by several flows (`lock`, `rwlock`) are not accepted yet (`E-CHAN-UNBOUNDED`,
@@ -152,6 +178,8 @@ is more honest to say it does not exist. Handling the same memory atomically fro
   [`chsend ch n` · `chrecv ch`], [put · take --- blocks when full or empty], [`concurrent` effect --- completion depends on others],
   [a lone wait · receives with no sender], [rejected at translation (`E-CONC-ALONE` · `E-CONC-DEADLOCK`)], [deadlocks visible from the source],
   [`test … schedule explore_interleavings do … end .`], [run every possible order and compare answers], [tests find bugs of rare orders],
+  [`alloc` or `heap` in a task op's effects], [`E-ALLOC-TASK`], [a root's rewind relies on order --- a lock cannot protect it],
+  [a non-atomic allocator as a `spawn` argument], [`E-ALLOC-SHARED`], [hand over byte pieces and create the allocator inside the task],
 )
 
 #recap[

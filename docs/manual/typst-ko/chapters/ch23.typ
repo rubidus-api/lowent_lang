@@ -150,6 +150,20 @@ end .
 범프의 `reserve` 는 `state` 뿐이고, 힙에서 깎는 `heap_bytes` 의 `reserve` 는 `heap state` 다. 그 차이가 제네릭 op 의
 `via a` 를 따라 부르는 쪽까지 올라간다(#chref("fixed-memory")).
 
+할당기가 아닌 약속에도 같은 장치를 쓴다. 번호표를 내주는 트레이트를 두 액터가 갖추는데, 하나는 수만 세고 하나는 번호표마다
+고정 창에서 바이트를 깎는다.
+
+#demo("examples/ch23/viaself.low")
+
+- `issue input s self . output u64 . effects state via self .` 이 서명이다. `counter` 는 `effects state .` 로, `carver` 는
+  `effects alloc state .` 로 갖춘다. `alloc` 은 할당 계열이라 `via self` 가 허락한다.
+- `issue_two` 는 `effects state via t .` 라고 적었다. `counter` 로 단형화한 인스턴스의 효과는 `state` 이고, `carver` 로 단형화한
+  인스턴스의 효과는 `alloc state` 다. 효과가 *인스턴스마다* 정확하다.
+- 그래서 `main` 은 `cap allocator` 를 받고 `alloc` 을 적어야 한다. `carver` 로 부르는 줄이 없다면 `main` 에 `alloc` 이 필요 없다.
+- 답 33 은 `counter` 의 1 + 2 와 `carver` 의 10 + 20 이다.
+
+`carver` 의 상태에는 `root cap allocator .` 라는 *권한 칸*이 있다. 그 칸의 규칙은 #chref("actors")에서 다룬다.
+
 #misconception[트레이트를 갖추면 그 트레이트의 무언가를 물려받는다][
   물려받는 것은 없다. 트레이트를 갖췄다는 것은 "그 op 들을 갖고 있다" 는 *사실*일 뿐이고, 타입 사이에 위아래가 생기지
   않는다. `rect` 와 `square` 는 `shape` 를 갖춘 뒤에도 서로 아무 관계가 없다. 이 언어에는 상속이 없다.
@@ -212,6 +226,7 @@ end .
   [`requires shape t .`], [제네릭 op 의 타입 조건], [갖추지 못한 타입은 `E-BOUND-UNSAT`],
   [`effects state via self .`(서명)], [할당 계열 효과만 더 적어도 된다], [할당기마다 효과가 다르다],
   [`E-TRAIT-MISSING` · `-SIG` · `-EFFECT` · `-RECV` · `-UNDEF`], [갖추지 못한 자리마다의 진단], [`satisfies` 는 주석이 아니다],
+  [`effects state via t .`(제네릭 op)], [단형화한 타입이 `via self` 로 더 적은 효과를 물려받는다], [`counter` 로는 `state`, `carver` 로는 `alloc state`],
 )
 
 #recap[

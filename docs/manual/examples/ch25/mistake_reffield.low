@@ -1,0 +1,18 @@
+module mistake_reffield .
+rem trap: peek_it
+
+actor holder do
+  state do
+    rem ko: ✘ 빌림을 상태에 둔다 — 무엇을 빌렸는지 적을 자리가 없다 /// en: ✘ keeping a borrow in state; there is no place that says what it borrows
+    r ref u64 .
+  end .
+  fn peek output u64 . do
+    return deref r .
+  end .
+end .
+
+proc peek_it output u64 . effects state .
+do
+  var h holder be spawn actor holder .
+  return send h peek .
+end .

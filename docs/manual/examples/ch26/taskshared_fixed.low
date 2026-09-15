@@ -1,0 +1,30 @@
+module taskshared_fixed .
+rem run: share [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+use allocs .
+
+rem ko: 태스크가 받는 것은 할당기가 아니라 바이트다. 할당기는 태스크 안에서 만든다 /// en: the task receives bytes, not an allocator; the allocator is created inside the task
+proc user input piece mut slice u8 . . output u64 . effects state .
+do
+  var a allocs.bump_bytes be spawn actor allocs.bump_bytes .
+  let room u64 be send a init piece .
+  let g option mut slice u8 . . be send a reserve 4 .
+  if is_some g . do
+    return send a used .
+  end .
+  return 0 .
+end .
+
+proc share input buf mut slice u8 . output u64 . effects state .
+do
+  rem ko: 버퍼를 겹치지 않는 두 조각으로 나눠 태스크마다 하나씩 준다 /// en: split the buffer into two pieces that do not overlap and give one to each task
+  var r u64 be 0 .
+  task_group do
+    var h1 u64 be spawn user (subslice buf 0 8) .
+    var h2 u64 be spawn user (subslice buf 8 16) .
+    let a u64 be await h1 .
+    let b u64 be await h2 .
+    set r (add a b) .
+  end .
+  return r .
+end .

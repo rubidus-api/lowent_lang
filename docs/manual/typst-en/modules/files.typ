@@ -93,5 +93,5 @@ end
 
 *Cautions.* Paths are `slice u8` byte strings with no encoding interpretation (UTF-8 by convention). Reading the fd with `field h fd` and calling leaves directly loses what the owned
 discipline protects. If the buffer size is unknown, measure first with `seek_to fs h 0 2` or switch to a `read` loop. File system changes (making, removing, renaming) are stateless
-path → bool leaves and are not wrapped --- pure forwarding would just be a synonym. Sockets belong to #modref("net")[`net`]. Why `seek_to`, not `seek` --- `seek` collided with
+path → bool leaves and are not wrapped --- pure forwarding would just be a synonym. Sockets belong to #modref("net")[`net`]. Input and output that can be interrupted while waiting (`wait`) does not exist yet --- it can only be built once a reactor stands. Why `seek_to`, not `seek` --- `seek` collided with
 another name.

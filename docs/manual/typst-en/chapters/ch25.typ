@@ -133,6 +133,40 @@ A program can state where it runs with `build profile <name> .`. When it does, c
 
 *Declaring* an `actor` alone is level 3. Without a profile, nothing is restricted --- only whoever writes it takes on the promise.
 
+== Actors that hold a capability, and what state may contain
+
+An actor's state may have a capability field. A capability is a mark that exists only at translation, so the field has no size at run time.
+In return, a rule fixes what fills it.
+
+#demo("examples/ch25/capfield.low")
+
+- `root cap allocator .` is the capability field. `write` calls `alloc_bytes root capacity 16` through it, so the capability need not be passed
+  as an argument in every message.
+- `spawn actor logbook` is allowed because `main` received `cap allocator`. The field is filled with *the capability at the spawn site*.
+- After two entries, `count` answers 2.
+
+An op that did not receive the capability is refused when it spawns the same actor.
+
+#demo("examples/ch25/mistake_capfield.low")
+
+If this were allowed, one `spawn` line would conjure a capability out of nothing. A capability field only records the fact that "the place
+that created this actor already held the capability". The standard allocators `allocs.fixed_bytes` and `heap_bytes` are ordinary actors that
+follow this rule (#chref("fixed-memory")).
+
+This is what a state field may and may not hold.
+
+#dtable(
+  columns: 3,
+  id: "actors-state-fields",
+  caption: [Types of actor state fields],
+  [*Type*], [*Accepted?*], [*Why*],
+  [numbers · `bool` · `option` · structs], [yes], [they are values, so they stay inside the actor],
+  [`slice` · `mut slice`], [yes], [this is how an allocator holds its backing bytes (`allocs.bump_bytes`)],
+  [`cap allocator` · `cap heap`], [yes --- the spawning op must hold the same capability], [`E-CAP-FORGE` stops forging],
+  [`array <count> <type>`], [refused --- `E-TYPE-ARRAY`], [fixed-length arrays are accepted only as op inputs; there is nowhere to keep the length],
+  [`ref` · `mut_ref`], [accepted in this edition --- but using it stops the program], [there is nowhere to say what it borrows; see "Common mistakes" below],
+)
+
 == Designing with actors --- a transfer between two accounts
 
 This section gathers the pieces so far into one design. Each account is an actor, and a transfer is an op that talks to the two actors in
@@ -190,6 +224,15 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   condition.
 ]
 
+#antipattern[Keeping a borrow in a state field --- a hole in this edition][
+  #demo("examples/ch25/mistake_reffield.low")
+
+  A borrow (`ref`) cannot outlive what it borrows (#chref("references")). An actor's state stays for as long as the actor lives, so the field
+  has nowhere to say what it borrows. By the meaning of the language this should be refused at translation, but this edition's tool accepts
+  the declaration and spawns the actor with the field empty. Only at `deref r` does the VM stop with `E-VM-TYPE` and native code with a `panic`.
+  It is recorded as a defect in the development repository. Keep values in state instead of borrows, and if a value is large, keep a slice.
+]
+
 #misconception[A restarted actor continues from the state just before it blew up][
   #demo("examples/ch25/restart_resets.low")
 
@@ -221,6 +264,7 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   [`mailbox bounded 2 .` · `try spawn send`], [mailbox size · receive overflow as a value], [overflow stops, or becomes a `result`],
   [`failure restart max 3 .` · `never` · `always`], [restart a panicked actor from its initial state], [when used up, the failure goes upward],
   [`build profile server .`], [where actors (level 3) may be used], [only those who write it take on the promise],
+  [`state do root cap allocator . … end .`], [a capability field --- size 0 at run time], [`E-CAP-FORGE` if the spawning op lacks that capability],
 )
 
 #recap[

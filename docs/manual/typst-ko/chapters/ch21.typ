@@ -68,6 +68,29 @@
   쓰면 거절한다. 표준 라이브러리 이름(`use allocs .`)은 설치된 표준 모듈 자리에서 해소된다.
 ]
 
+== 무엇을 내보낼 수 있고, 어떻게 줄여 부르나
+
+`export` 는 이름을 가진 선언 대부분에 붙는다. 붙지 않는 것도 있다.
+
+#dtable(
+  columns: 3,
+  id: "modules-export-kinds",
+  caption: [`export` 를 붙일 수 있는 선언],
+  [*선언*], [*`export`*], [*까닭*],
+  [`fn` · `proc`], [된다], [다른 모듈이 부를 op],
+  [`struct` · `enum` · `type` · `newtype`], [된다], [내보낸 op 의 입력·출력 타입도 함께 내보내야 쓸 수 있다],
+  [`trait` · `actor`], [된다], [다른 모듈의 타입이 갖출 약속 · 다른 모듈이 띄울 액터],
+  [최상위 `let`(상수)], [안 된다 --- `E-TOPLEVEL`], [상수는 모듈 안에 둔다. 밖에 알려야 하면 그 값을 돌려주는 `fn` 을 내보낸다],
+  [`test`], [안 된다 --- `E-TOPLEVEL`], [시험은 그 모듈을 짓는 사람의 것이다],
+)
+
+모듈 이름이 길거나 두 모듈의 이름이 같으면 `as` 로 줄여 부른다.
+
+#demo("examples/ch21/alias.low")
+
+`use geom from "geom.low" as g .` 뒤로는 `g.point`·`g.manhattan` 으로 부른다. 별칭은 이 파일 안에서만 쓰는 이름이고, 모듈의 실제
+이름(`geom`)은 바뀌지 않는다. 같은 이름을 두 번 들여오면 `E-NAME-COLLISION` 이 나는데, 그 진단이 권하는 해법이 이 별칭이다.
+
 == 검색 경로가 없다
 
 많은 언어는 이름만 적으면 도구가 어딘가의 검색 경로에서 모듈을 찾아온다. 그러면 이 프로그램이 무엇에 기대는지가 소스
@@ -143,6 +166,20 @@
   두었다). 내보낸 op 의 입력·출력 타입도 함께 `export` 한다.
 ]
 
+#antipattern[다른 모듈의 열거형 갈래를 `case` 에 모듈 이름과 함께 적는다 --- 이 판의 구멍][
+  #demo("examples/ch21/sizes.low")
+
+  `sizes` 모듈은 열거형 `kind` 와 그것을 돌려주는 `classify` 를 내보낸다. 들여온 쪽에서 갈래를 모듈 이름으로 한정해 적으면 이렇게 된다.
+
+  #demo("examples/ch21/mistake_enumcase.low")
+
+  `describe 500` 은 `big` 인데 1 을 돌려준다. 이 판의 도구는 `case sizes.small` 을 갈래가 아니라 *아무 값에나 맞는 자리*로 읽는다(#chref("option-result")의
+  `case error e` 와 같은 갈래의 구멍이다). 첫 갈래가 모든 값을 가져가는데도 `match` 가 망라되었다고 통과하고, VM 과 네이티브가 같은 틀린 답을 낸다.
+  개발 저장소에 결함으로 적어 두었다. `case` 에는 갈래 이름만 적는다. 어느 열거형의 갈래인지는 `k` 의 타입이 정한다.
+
+  #demo("examples/ch21/enumcase_fixed.low")
+]
+
 #misconception[두 모듈이 서로를 들여오면 안 된다][
   #demo("examples/ch21/cycle_a.low")
 
@@ -166,6 +203,9 @@
   [`geom.helper`(감춘 이름)], [거절(`E-VISIBILITY`)], [한정해도 문이 열리지 않는다],
   [같은 이름을 두 번 선언 · 두 들여오기가 같은 이름], [거절(`E-NAME-DUP` · `E-NAME-COLLISION`)], [어느 쪽에 닿는지 조용히 정하지 않는다],
   [최상위 선언의 차례], [무관 --- 서로 불러도 된다], [파일은 훑어 읽고 본문은 위에서 아래로 읽는다],
+  [`use geom from "geom.low" as g .`], [들여온 모듈을 이 파일에서 `g` 로 부른다], [긴 이름 · 같은 이름을 풀어 준다 --- 모듈의 실제 이름은 그대로],
+  [`export let …` · `export test …`], [거절(`E-TOPLEVEL`)], [상수는 값을 돌려주는 `fn` 으로 내보낸다],
+  [다른 모듈 열거형의 `case small`], [갈래 이름만 적는다], [`case sizes.small` 은 이 판에서 아무 값에나 맞는다],
 )
 
 #recap[

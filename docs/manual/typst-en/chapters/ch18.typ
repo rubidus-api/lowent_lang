@@ -194,6 +194,16 @@ code to give it back.
   `E-EFFECT-CALC`. Write it as `proc … effects alloc .`.
 ]
 
+#antipattern[Handing region bytes to an actor born outside the region][
+  #demo("examples/ch18/mistake_outlives.low")
+
+  The actor `a` was born before the region, so it lives on after the region closes. Whether it keeps the slice it receives in its state cannot be
+  known at translation. If it does, it reads the old place even after the region's `end` has given those bytes to someone else. So the check is
+  conservative and refuses with `E-ALLOC-OUTLIVES`. Create the actor inside the region too, and both go away together.
+
+  #demo("examples/ch18/outlives_fixed.low")
+]
+
 #misconception[Space taken inside a loop is given back every round][
   #demo("examples/ch18/loop_region.low")
 
@@ -219,6 +229,7 @@ code to give it back.
   [storing into an outside name · returning], [rejected (`E-REGION-ESCAPE`)], [never point at reclaimed bytes],
   [carving with an outer name while an inner region is open], [rejected (`E-ALLOC-NESTED`)], [one cursor per root],
   [`--target cortex_m` + `heap`], [rejected (`E-HEAP-NOHOST`)], [a machine without an OS has no heap],
+  [`send` region bytes to an actor from outside], [`E-ALLOC-OUTLIVES`], [the actor may keep the bytes and outlive the region --- create the actor inside],
 )
 
 #recap[

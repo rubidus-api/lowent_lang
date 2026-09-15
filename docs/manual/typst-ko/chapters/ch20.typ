@@ -98,6 +98,35 @@
 *하나뿐*이면 그것을 쓴다. 둘 이상이면 짐작하지 않고 `E-ALLOC-AMBIGUOUS` 로 적으라고 한다. 기본값은 op 경계를 넘지
 않는다. 부른 쪽의 할당기가 저절로 흘러드는 일이 없으니, *전역 할당기는 없다.*
 
+#dtable(
+  columns: 3,
+  id: "fixed-using-lattice",
+  caption: [할당기 출처를 정하는 차례 --- 위에서 처음 맞는 것],
+  [*차례*], [*출처*], [*왜 이 자리인가*],
+  [1], [바인딩에 적은 `using <이름>`], [적은 것이 언제나 이긴다],
+  [2], [이 op 의 `using` 절 이름 가운데 타입이 맞는 *유일한* 것], [op 이 스스로 받겠다고 한 할당기],
+  [3], [이 op 의 입력·바인딩 가운데 타입이 맞는 *유일한* 것], [눈에 보이는 값이 하나뿐이면 헷갈릴 일이 없다],
+  [없음], [`E-ALLOC-NOSOURCE`], [전역 할당기로 메우지 않는다],
+  [둘 이상], [`E-ALLOC-AMBIGUOUS`], [짐작하지 않고 후보 이름을 모두 말한다],
+)
+
+필드는 세지 않는다. 구조체 안에 숨은 할당기가 조용히 쓰이면, 어느 버퍼가 줄어드는지 코드를 읽어서 알 수 없기 때문이다.
+
+출처가 하나도 없으면 이렇게 거절된다.
+
+#demo("examples/ch20/nosource.low")
+
+`caller` 에는 입력도, 띄운 액터도, `using` 절도 없다. 다른 언어라면 여기서 전역 힙이 조용히 쓰였을 것이다. Lowent 는 할당기를
+입력으로 받거나, 이 자리에서 만들거나, `using` 절을 적으라고 한다. 호출이 거절되었으니 `caller` 의 `state` 도 실제로 쓰이지 않아
+`W-EFFECT-OVER` 가 함께 붙는다. 첫 오류를 고치면 사라진다.
+
+거꾸로, 할당기를 쓰지 않는 호출에 `using` 을 적어도 거절된다.
+
+#demo("examples/ch20/usingunused.low")
+
+`twice` 는 수를 두 배로 할 뿐 할당기를 받지 않는다. 쓰이지 않을 선택을 적어 두면 읽는 사람은 `twice` 가 메모리를 쓴다고
+오해한다. 그래서 적은 것은 반드시 쓰여야 한다.
+
 == 뿌리에서 곧장 깎는 기본 할당기
 
 `allocs` 는 뿌리에서 곧장 깎는 할당기 둘도 같은 트레이트로 낸다.
@@ -120,6 +149,48 @@
 
 `sneaky` 는 `cap heap` 을 받지 않았는데 `heap_bytes` 를 띄우려 했다. 이것이 허락되면 권한 없는 곳에서 한 줄로 힙을
 지어낼 수 있다. 권한은 건네받는 것이지 주워 쓰는 것이 아니다.
+
+권한을 받으면 같은 일이 된다.
+
+#demo("examples/ch20/heapbytes.low")
+
+`main` 이 `cap heap` 을 받았고 효과 줄에 `heap` 을 적었다. 그래서 `heap_bytes` 를 띄울 수 있고, 고정 창보다 큰 100000
+바이트도 받는다. 힙은 모자라면 청크를 더 잇는다. 운영체제가 없는 기계를 대상으로 지으면 이 파일은 `E-HEAP-NOHOST` 로
+거절된다(#chref("regions")).
+
+== 조각을 늘리고 돌려준다 --- `grow` 와 `release`
+
+범프 할당기는 앞으로만 민다. 그래도 *마지막에 준 조각*만은 되돌려도 안전하다. 그 뒤로 아무도 자리를 받지 않았기 때문이다.
+`grow` 는 그 조각을 제자리에서 늘리고, `release`(트레이트 `freeing_allocator`)는 그 조각을 돌려받는다.
+
+#demo("examples/ch20/growrelease.low")
+
+#idx("same_slice")
+- `send b grow pv 6` 은 4 바이트였던 `pv` 를 6 바이트로 늘린다. 늘리는 대상은 크기가 아니라 *조각 자체*다. 구현은 내장
+  `same_slice a b`(시작 주소와 길이가 같은가)로 `pv` 가 방금 준 바로 그 바이트인지 확인한다. 길이만 같은 남의 버퍼를 넘기면
+  `none` 이다. 크기만으로 알아보면 두 그릇이 조용히 겹치기 때문이다.
+- `qv` 를 받은 뒤에는 `gv` 가 더 이상 마지막이 아니다. 그래서 `release gv` 는 `false` 이고 아무것도 바꾸지 않는다.
+- `release qv` 는 `true` 다. 커서가 6 으로 돌아가므로 `used` 가 6 이다. 답 601 은 "쓴 양 6 · 첫 답 거짓 · 둘째 답 참" 이다.
+
+두 op 모두 *최적화이지 약속이 아니다*. 못 늘리면 부르는 쪽이 새로 받아 복사하면 되고, 답은 같아야 한다. 뿌리에서 곧장 깎는
+`fixed_bytes`·`heap_bytes` 의 `grow` 는 언제나 `none` 이다. 뿌리는 마지막 조각이 누구 것인지 모른다.
+
+== 표준 라이브러리에서 셋은 어디에 있나
+
+#dtable(
+  columns: 4,
+  id: "fixed-axes",
+  caption: [할당에 쓰는 모듈 --- 권한 · 정책 · 상태 가운데 무엇을 맡나],
+  [*모듈 · 이름*], [*권한*], [*정책(타입)*], [*상태(값)*],
+  [`allocs.bump_bytes` · `bump_aligned`], [없다 --- 빌린 바이트], [`byte_allocator` · `freeing_allocator` 를 갖춘 액터], [받침 바이트 · 커서],
+  [`allocs.fixed_bytes` · `heap_bytes`], [권한 칸 `cap allocator` · `cap heap`], [`byte_allocator`], [쓴 양],
+  [`vecgen.vec t a`], [없다], [할당기 타입 `a` 를 매개변수로 받는다], [원소 수 · 버퍼 --- 할당기는 `open` 이 `using` 으로 받는다],
+  [`growvec.gvec`], [없다], [`vecgen.vec u8 allocs.bump_bytes` 로 고정한 이름], [`vecgen` 과 같다],
+  [`pool.block_pool b`], [없다 --- 빌린 바이트], [할당기가 아니다 --- 세대 핸들로 블록을 낱낱이 돌려받는 구조체], [블록 · 세대 배열],
+)
+
+권한은 뿌리에 닿는 두 액터에만 있다. 나머지는 모두 누군가 건네준 바이트 위에서 일한다. 그래서 권한을 받지 않은 라이브러리
+코드도 그릇을 만들고 키울 수 있고, 어느 코드가 새 메모리를 프로그램에 들여오는지는 권한을 받은 op 만 보면 안다.
 
 == 고정 창의 크기는 누가 정하나
 
@@ -226,6 +297,8 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   [`let n u64 using g be two_from .`], [이 호출이 깎을 할당기를 적는다], [둘 이상이면 짐작하지 않는다],
   [`effects state via a .` · `requires allocs.byte_allocator a .`], [타입의 효과를 물려받는다 · 트레이트 조건], [인스턴스마다 효과가 정확하다],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [뿌리에서 곧장 깎는 기본 할당기], [같은 종류의 권한을 쥔 op 만 띄운다 --- `E-CAP-FORGE`],
+  [`send b grow pv 6` · `send b release qv`], [마지막 조각을 늘린다 · 돌려받는다], [크기가 아니라 `same_slice` 로 정체를 확인한다],
+  [출처 없음 · 쓰이지 않는 `using`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [전역 할당기도, 헛된 선택도 없다],
   [`bit_cast u32 x`], [비트는 그대로 두고 읽는 법만 바꾼다], [`bool`·`enum` 으로는 읽지 않는다],
 )
 

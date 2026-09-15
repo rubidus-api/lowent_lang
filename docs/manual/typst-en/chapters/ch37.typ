@@ -39,6 +39,17 @@ Every op of `term` is `effects none`. It only assembles control bytes that move 
 Not knowing this leads to the dead end "the code runs but nothing appears on screen". But thanks to this split, all screen code can be tested without a screen. Just compare
 the assembled bytes.
 
+#demo("examples/ch37/assemble.low")
+
+- `term.goto buf 0 2 5` writes the cursor-move bytes into `buf` from position 0 and returns the next position to write, 6, as an `option`. If the
+  buffer is too short it writes nothing and gives `none`, because half-written control bytes would garble the screen.
+- Rows and columns count *from 0*. The terminal convention (ANSI) counts from 1, so `goto` adds 1 and writes `ESC [ 3 ; 6 H` (27 91 51 59 54 72).
+  The choice keeps the same base as array indexes.
+- `term.sgr buf 6 1` writes `ESC [ 1 m`, which turns on bold, and the last `term.sgr … 0` writes `ESC [ 0 m`, which resets attributes. The 104 and
+  105 in between are the letters `hi`.
+- Every op returns "the next position", so the answer of one op becomes the `pos` of the next. Sixteen bytes are written in all, and the `buf` the
+  VM shows is exactly those bytes.
+
 == Redrawing only changed cells
 
 #demo("examples/ch37/diffing.low")
@@ -145,6 +156,7 @@ it.
   [`term.fit_width row cols`], [byte length of the longest prefix fitting the columns], [never cut inside a character],
   [`tty.parse_key buf at` · `tty.key_of` · `tty.len_of`], [interpret key bytes (pure) --- `none` when incomplete], [reading keys is computation],
   [`tty_raw t true` · `tty_read t buf` · `tty_size t`], [raw mode · read key bytes · screen size], [`cap tty` --- always restore raw mode],
+  [`term.goto buf 0 2 5`], [row and column counted from 0 --- the bytes are `ESC [ 3 ; 6 H`], [same base as array indexes; the op adapts to the terminal's 1-based count],
 )
 
 #recap[

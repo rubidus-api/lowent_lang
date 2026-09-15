@@ -94,6 +94,35 @@ If no source is written, a default is chosen: the binding's `using`, the op's ow
 *only one*. With two or more it does not guess and asks you to write it with `E-ALLOC-AMBIGUOUS`. Defaults do not cross op boundaries --- an allocator from the
 caller never flows in on its own, so *there is no global allocator*.
 
+#dtable(
+  columns: 3,
+  id: "fixed-using-lattice",
+  caption: [The order that picks an allocator source --- the first match from the top],
+  [*Order*], [*Source*], [*Why here*],
+  [1], [`using <name>` written on the binding], [what you write always wins],
+  [2], [the *only* name of fitting type among this op's `using` clauses], [the allocator the op said it takes],
+  [3], [the *only* input or binding of fitting type in this op], [one visible value leaves nothing to confuse],
+  [none], [`E-ALLOC-NOSOURCE`], [no global allocator fills the gap],
+  [two or more], [`E-ALLOC-AMBIGUOUS`], [no guessing; every candidate is named],
+)
+
+Fields are not counted. If an allocator hidden inside a struct were used silently, reading the code would not tell you which buffer shrinks.
+
+With no source at all, the call is refused.
+
+#demo("examples/ch20/nosource.low")
+
+`caller` has no input, no spawned actor and no `using` clause. In another language a global heap would quietly step in here. Lowent asks you to take an
+allocator as an input, create one here, or write a `using` clause. Because the call is refused, `caller` never really uses `state` either, so `W-EFFECT-OVER`
+comes along. It goes away once the first error is fixed.
+
+The other way round, writing `using` on a call that draws from no allocator is refused too.
+
+#demo("examples/ch20/usingunused.low")
+
+`twice` only doubles a number and takes no allocator. A choice that will never be used misleads the reader into thinking `twice` uses memory. So whatever
+you write must be used.
+
 == Default allocators that carve straight from a root
 
 `allocs` also provides two allocators that carve straight from a root, under the same trait.
@@ -116,6 +145,49 @@ capability field can be spawned only *from an op that holds a capability of the 
 
 `sneaky` tried to spawn `heap_bytes` without receiving `cap heap`. If that were allowed, a heap could be conjured in one line where there is no capability.
 Capabilities are handed over, not picked up.
+
+Receive the capability and the same thing works.
+
+#demo("examples/ch20/heapbytes.low")
+
+`main` receives `cap heap` and writes `heap` in its effects line. So it may spawn `heap_bytes`, and it gets 100000 bytes, more than the fixed window
+holds. When the heap runs short it chains another chunk. Built for a machine without an operating system, this file is refused with `E-HEAP-NOHOST`
+(#chref("regions")).
+
+== Growing and returning a piece --- `grow` and `release`
+
+A bump allocator only moves forward. Even so, *the piece it handed out last* is safe to take back, because nobody has received a place after it.
+`grow` enlarges that piece in place, and `release` (trait `freeing_allocator`) takes it back.
+
+#demo("examples/ch20/growrelease.low")
+
+#idx("same_slice")
+- `send b grow pv 6` grows `pv` from 4 bytes to 6. What it grows is *the piece itself*, not a size. The implementation checks with the builtin
+  `same_slice a b` (same start address and same length?) that `pv` is exactly the bytes it just handed out. Pass someone else's buffer of the same length
+  and the answer is `none`. Recognising a piece by size alone would let two containers overlap without a sound.
+- After `qv` is handed out, `gv` is no longer the last piece. So `release gv` is `false` and changes nothing.
+- `release qv` is `true`. The cursor goes back to 6, so `used` is 6. The answer 601 reads "used 6 · first answer false · second answer true".
+
+Both ops are *an optimisation, not a promise*. If a piece cannot grow, the caller receives a new one and copies, and the answer must be the same. For
+`fixed_bytes` and `heap_bytes`, which carve straight from a root, `grow` is always `none`. A root does not know whose piece came last.
+
+== Where the three layers sit in the standard library
+
+#dtable(
+  columns: 4,
+  id: "fixed-axes",
+  caption: [Allocation-related modules --- which of capability, policy and state each one carries],
+  [*Module · name*], [*Capability*], [*Policy (type)*], [*State (value)*],
+  [`allocs.bump_bytes` · `bump_aligned`], [none --- borrowed bytes], [an actor with `byte_allocator` · `freeing_allocator`], [backing bytes · cursor],
+  [`allocs.fixed_bytes` · `heap_bytes`], [capability field `cap allocator` · `cap heap`], [`byte_allocator`], [amount used],
+  [`vecgen.vec t a`], [none], [takes the allocator type `a` as a parameter], [element count · buffer --- `open` takes the allocator with `using`],
+  [`growvec.gvec`], [none], [a name fixed to `vecgen.vec u8 allocs.bump_bytes`], [same as `vecgen`],
+  [`pool.block_pool b`], [none --- borrowed bytes], [not an allocator --- a struct that takes blocks back one by one through generation handles], [blocks · generation array],
+)
+
+Only the two actors that reach a root hold a capability. Everything else works on bytes someone handed over. So library code that received no
+capability can still build and grow containers, and to find the code that brings new memory into the program you only look at the ops that
+received a capability.
 
 == Who sets the size of the fixed window?
 
@@ -225,6 +297,8 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   [`let n u64 using g be two_from .`], [say which allocator this call carves from], [with two or more, nothing is guessed],
   [`effects state via a .` · `requires allocs.byte_allocator a .`], [inherit the type's effects · trait condition], [exact effects per instance],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [default allocators carving straight from a root], [only an op holding that kind of capability may spawn one --- `E-CAP-FORGE`],
+  [`send b grow pv 6` · `send b release qv`], [grows the last piece · takes it back], [checks identity with `same_slice`, not size],
+  [no source · an unused `using`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [no global allocator, and no empty choice],
   [`bit_cast u32 x`], [keep the bits, change only how they are read], [never read as `bool` or `enum`],
 )
 

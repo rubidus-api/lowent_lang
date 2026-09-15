@@ -137,6 +137,39 @@
 
 `actor` 를 *선언*하는 것만으로 3 등급이다. 프로파일을 적지 않으면 막지 않는다. 적은 사람만 그 약속을 진다.
 
+== 권한을 든 액터와 상태에 둘 수 있는 것
+
+액터의 상태에는 권한 칸을 둘 수 있다. 권한은 번역할 때만 있는 표시라서 그 칸은 실행 중 크기가 0 이다. 대신 그 칸이 무엇으로
+채워지는지가 규칙으로 정해진다.
+
+#demo("examples/ch25/capfield.low")
+
+- `root cap allocator .` 가 권한 칸이다. `write` 는 그 칸으로 `alloc_bytes root capacity 16` 을 부른다. 권한을 메시지마다 인자로
+  건네지 않아도 된다.
+- `main` 이 `cap allocator` 를 받았기 때문에 `spawn actor logbook` 이 허락된다. 칸은 *띄우는 자리의 권한*으로 채워진다.
+- 기록 둘을 남기고 `count` 가 2 를 답한다.
+
+권한을 받지 않은 op 이 같은 액터를 띄우면 거절된다.
+
+#demo("examples/ch25/mistake_capfield.low")
+
+이것이 허락되면 `spawn` 한 줄이 없던 권한을 지어낸다. 권한 칸은 "이 액터를 만든 자리가 이미 그 권한을 쥐었다" 는 사실을 옮겨
+적는 것일 뿐이다. 표준 할당기 `allocs.fixed_bytes`·`heap_bytes` 도 이 규칙을 따르는 평범한 액터다(#chref("fixed-memory")).
+
+상태 칸에 둘 수 있는 것과 없는 것은 이렇다.
+
+#dtable(
+  columns: 3,
+  id: "actors-state-fields",
+  caption: [액터 상태 칸의 타입],
+  [*타입*], [*받아들이나*], [*까닭*],
+  [수 · `bool` · `option` · 구조체], [받는다], [값이라서 액터 안에 갇힌다],
+  [`slice` · `mut slice`], [받는다], [할당기가 받침 바이트를 이렇게 쥔다(`allocs.bump_bytes`)],
+  [`cap allocator` · `cap heap`], [받는다 --- 띄우는 op 에 같은 권한이 있어야 한다], [`E-CAP-FORGE` 가 지어내기를 막는다],
+  [`array <수> <타입>`], [거절 --- `E-TYPE-ARRAY`], [고정 길이 배열은 op 입력에서만 받는다. 길이를 둘 자리가 없다],
+  [`ref` · `mut_ref`], [이 판은 받는다 --- 그러나 쓰면 멈춘다], [무엇을 빌렸는지 적을 자리가 없다. 아래 "흔한 실수" 를 본다],
+)
+
 == 액터로 설계하기 --- 계좌 둘 사이의 이체
 
 지금까지의 조각을 한 설계에 모은다. 계좌마다 액터 하나를 두고, 이체는 두 액터에게 차례로 말을 거는 op 이 맡는다.
@@ -189,6 +222,15 @@
   위의 `transfer.low` 처럼 조건 없이 `errors insufficient .` 만 적고, 조건은 본문의 `guard` 가 맡는다.
 ]
 
+#antipattern[상태 칸에 빌림을 둔다 --- 이 판의 구멍][
+  #demo("examples/ch25/mistake_reffield.low")
+
+  빌림(`ref`)은 빌려준 쪽보다 오래 살 수 없다(#chref("references")). 액터의 상태는 액터가 사는 동안 남으므로, 그 칸이 무엇을
+  빌렸는지 적을 자리가 없다. 뜻으로는 번역에서 거절되어야 하는데, 이 판의 도구는 선언을 받아들이고 칸을 비운 채 액터를 띄운다.
+  `deref r` 에 이르러서야 VM 은 `E-VM-TYPE` 으로, 네이티브는 `panic` 으로 멈춘다. 개발 저장소에 결함으로 적어 두었다. 상태에는 빌림
+  대신 값을 두고, 값이 크면 슬라이스로 받아 둔다.
+]
+
 #misconception[다시 세운 액터는 터지기 직전 상태에서 이어 간다][
   #demo("examples/ch25/restart_resets.low")
 
@@ -219,6 +261,7 @@
   [`mailbox bounded 2 .` · `try spawn send`], [우편함 크기 · 넘침을 값으로 받기], [넘치면 멈추거나 `result`],
   [`failure restart max 3 .` · `never` · `always`], [`panic` 한 액터를 처음 상태로 다시 세운다], [다 쓰면 실패를 위로 넘긴다],
   [`build profile server .`], [액터(3 등급)를 쓸 수 있는 자리], [적은 사람만 그 약속을 진다],
+  [`state do root cap allocator . … end .`], [권한 칸 --- 실행 중 크기 0], [띄우는 op 에 같은 권한이 없으면 `E-CAP-FORGE`],
 )
 
 #recap[

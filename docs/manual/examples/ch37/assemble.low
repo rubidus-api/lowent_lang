@@ -1,0 +1,22 @@
+module assemble .
+rem run: paint [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+use term .
+
+rem ko: 화면에 쓰지 않는다 — buf 에 제어 바이트를 이어 붙이고, 쓴 바이트 수를 돌려준다 /// en: writes nothing to the screen; it appends control bytes to buf and returns how many bytes were written
+proc paint input buf mut slice u8 . . output u64 . effects state .
+do
+  rem ko: 0 부터 센 2 행 5 열로 커서를 옮긴다 — 터미널은 1 부터 세므로 ESC [ 3 ; 6 H /// en: move the cursor to row 2, column 5 counted from 0; the terminal counts from 1, so ESC [ 3 ; 6 H
+  let p1 option u64 be term.goto buf 0 2 5 .
+  guard is_some p1 . else return 0 .
+  rem ko: 굵게(1) — ESC [ 1 m. 앞 op 이 돌려준 자리에서 이어 쓴다 /// en: bold (1): ESC [ 1 m, continuing from the position the previous op returned
+  let p2 option u64 be term.sgr buf (some_value p1) 1 .
+  guard is_some p2 . else return 0 .
+  let at u64 be some_value p2 .
+  set (index buf at) 104 .
+  set (index buf (add at 1)) 105 .
+  rem ko: 속성을 되돌린다(0) — ESC [ 0 m /// en: reset attributes (0): ESC [ 0 m
+  let p3 option u64 be term.sgr buf (add at 2) 0 .
+  guard is_some p3 . else return 0 .
+  return some_value p3 .
+end .

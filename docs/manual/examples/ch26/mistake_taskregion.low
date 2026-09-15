@@ -1,0 +1,24 @@
+module mistake_taskregion .
+rem expect: E-ALLOC-TASK
+
+proc worker input k u64 . output u64 . effects alloc .
+do
+  var n u64 be 0 .
+  region r arena do
+    let g option mut slice u8 . . be alloc_bytes r capacity 1000 .
+    if is_some g . do
+      set n k .
+    end .
+  end .
+  return n .
+end .
+
+proc two_workers input al cap allocator . output u64 . effects alloc state .
+do
+  task_group do
+    rem ko: ✘ 뿌리에서 깎는 op 을 태스크로 띄운다 /// en: ✘ spawning, as a task, an op that carves from a root
+    spawn worker 1 .
+    spawn worker 2 .
+  end .
+  return 0 .
+end .

@@ -1,0 +1,15 @@
+module rangewide_fixed .
+rem run: call_scale 40
+rem run: call_scale 400
+
+fn scale input a range 0 100 . output u8 .
+do
+  return narrow u8 (mul a 2) .
+end .
+
+fn call_scale input x u64 . output u8 .
+do
+  rem ko: 범위 밖이면 여기서 따로 답하고, 안이면 좁혀서 넘긴다 /// en: answer separately when out of range; otherwise narrow and pass it on
+  guard le x 100 . else return 255 .
+  return scale (narrow u8 x) .
+end .

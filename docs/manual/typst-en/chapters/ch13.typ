@@ -131,6 +131,70 @@ wire, a register a device reads --- write the layout.
 A field can also carry an access mark such as `rw`, `ro` or `wo`. In a struct that maps device registers, reading a write-only field is refused
 at translation (#chref("hardware")). Pinning the layout takes choices away from the processor, so pin it only where needed.
 
+== Common mistakes
+
+#antipattern[Passing a value of a wider type straight to a `range` parameter][
+  #demo("examples/ch13/mistake_rangewide.low")
+
+  `scale` says in its signature that it takes only 0 … 100. A `u64` value is wider than that, so unless the caller shows it is in
+  range, translation rejects the call with `E-TYPE-WIDTH`. The point of rejecting is to settle who is responsible: only the caller
+  knows what to do with an out-of-range value. Check the range with `guard`, answer separately when it is outside, and pass the
+  value on with `narrow` when it is inside.
+
+  #demo("examples/ch13/rangewide_fixed.low")
+]
+
+#antipattern[Using `widen` to put a signed number into an unsigned type][
+  #demo("examples/ch13/mistake_widensign.low")
+
+  Going from `i32` to `u64` makes the width larger, but a negative number such as −1 has no place in `u64`. `widen` is only for
+  places where *no value changes*, so this is `E-WIDEN-SIGN`. If you know no negative value can arrive, write `cast u64 x` to leave
+  that judgement in the source; `cast` stops if a negative value does arrive. If negatives need their own handling, put
+  `guard ge x 0 .` first.
+]
+
+#antipattern[Turning a `bool` into a number with `cast`][
+  #demo("examples/ch13/mistake_boolcast.low")
+
+  C treats true as 1, but whether true is 1, 0 or −1 is a promise of the program, not something the language should decide. So
+  `bool` can be neither the source nor the target of `cast`, and it is rejected with `E-TYPE-KIND`. As the tool suggests, write
+  "1 if true, 0 if false" with `if`. That one line puts the promise in the source.
+]
+
+#misconception[Giving a type another name with `type` keeps units from mixing][
+  #demo("examples/ch13/type_units.low")
+
+  `meters` and `feet` are both just *other names* for `u64`, so nothing stops you adding them: 100 meters plus 100 feet comes out as
+  200 meters. Meanings that must not mix are separated with `newtype`; then, as in `ids.low`, translation stops the mix with
+  `E-TYPE-NOMINAL`, and every crossing shows up as a `cast`. Use `type` to shorten long names or to hand down a range.
+]
+
+#misconception[`cast` of a negative number into an unsigned type gives a big number, as in C][
+  #demo("examples/ch13/negcast.low")
+
+  In C, `(uint32_t)-1` is 4294967295. That wrap-around is defined by the standard, but it usually hides a bug. Lowent's `cast` moves
+  the value and stops with `E-VM-CAST` when it does not fit. If you really want wrapping, use a word that carries that meaning in its
+  name, such as `narrow_wrap` (#chref("numbers")).
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "named-types-glance",
+  caption: [Named type syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`type meters u64 .`], [another name for the same type], [shortens a type and records meaning --- does not stop mixing],
+  [`newtype user_id u64 .`], [a new type with the same representation], [translation stops ids from mixing --- no run-time cost],
+  [`cast user_id n` · `cast u64 u`], [cross between the new type and the original], [crossings gather in one place in the code],
+  [`input a range 0 100 .`], [accept only values in the range, both ends included], [the contract becomes the shape of the signature],
+  [`type pct range 0 100 .`], [put a range on an alias], [many ops inherit the same range],
+  [`cast i32 x`], [a conversion that may change the value --- stops if it does not fit], [a mark that says "I know the value may change here"],
+  [`type ten_bits bits 10 .`], [an integer of 1 … 64 bits], [the width is the contract],
+  [`layout packed .` · `magic u32 big .`], [layout without padding · byte order], [make bytes mean the same outside],
+  [`view wire_header b`], [read bytes in that layout without copying], [stops if length or alignment is off],
+)
+
 #recap[
   `type` is an alias and `newtype` a new type with the same representation; `cast` crosses between them. `range lo hi` is a contract that has
   become the shape of a parameter: the caller keeps it and the body uses it as a fact. `cast` is the word for conversions that may change the

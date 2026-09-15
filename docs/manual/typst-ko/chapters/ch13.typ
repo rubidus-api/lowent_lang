@@ -138,6 +138,67 @@
 읽으면 번역이 거절된다(#chref("hardware")). 배치를 못 박으면 그만큼 처리기가 고를 여지가 줄어드므로, 필요한
 자리에만 박는다.
 
+== 흔한 실수
+
+#antipattern[넓은 타입의 값을 `range` 매개변수에 그대로 넘긴다][
+  #demo("examples/ch13/mistake_rangewide.low")
+
+  `scale` 은 0 … 100 만 받는다고 서명에 적었다. `u64` 값은 그보다 넓으므로, 범위 안이라는 것을 부르는 쪽이 보이지 않으면 번역이
+  `E-TYPE-WIDTH` 로 거절한다. 거절하는 까닭은 책임의 자리를 정하기 위해서다. 범위를 벗어난 값이 오면 무엇을 할지는 부르는 쪽만
+  안다. `guard` 로 범위를 확인해 밖이면 따로 답하고, 안이면 `narrow` 로 좁혀 넘긴다.
+
+  #demo("examples/ch13/rangewide_fixed.low")
+]
+
+#antipattern[부호 있는 수를 `widen` 으로 부호 없는 타입에 넣는다][
+  #demo("examples/ch13/mistake_widensign.low")
+
+  `i32` 에서 `u64` 로 가면 폭은 넓어지지만, −1 같은 음수는 `u64` 에 자리가 없다. `widen` 은 *어떤 값도 변하지 않는* 자리에만
+  쓰므로 `E-WIDEN-SIGN` 이다. 음수가 올 수 없다고 알고 있다면 `cast u64 x` 라고 적어 그 판단을 소스에 남긴다. 음수가 오면 `cast`
+  가 멈춘다. 음수를 따로 다뤄야 한다면 `guard ge x 0 .` 을 먼저 둔다.
+]
+
+#antipattern[`bool` 을 `cast` 로 수로 바꾼다][
+  #demo("examples/ch13/mistake_boolcast.low")
+
+  C 는 참을 1 로 보지만, 참이 1 인지 0 인지 −1 인지는 프로그램의 약속이지 언어가 정할 일이 아니다. 그래서 `bool` 은 `cast` 의
+  원천도 대상도 될 수 없고 `E-TYPE-KIND` 로 거절된다. 도구가 알려 주는 대로 `if` 로 "참이면 1, 거짓이면 0" 을 적는다. 그 한 줄이
+  약속을 소스에 남긴다.
+]
+
+#misconception[`type` 으로 이름을 달리하면 단위가 섞이지 않는다][
+  #demo("examples/ch13/type_units.low")
+
+  `meters` 와 `feet` 는 둘 다 `u64` 의 *다른 이름*일 뿐이라서 더해도 아무도 막지 않는다. 100 미터와 100 피트의 합이 200 미터로
+  나온다. 섞이면 안 되는 뜻은 `newtype` 으로 가른다. 그러면 `ids.low` 처럼 번역이 `E-TYPE-NOMINAL` 로 막고, 건너는 자리는 `cast`
+  로 드러난다. `type` 은 긴 이름을 줄이거나 범위를 물려줄 때 쓴다.
+]
+
+#misconception[`cast` 로 음수를 부호 없는 타입에 넣으면 C 처럼 큰 수가 된다][
+  #demo("examples/ch13/negcast.low")
+
+  C 에서 `(uint32_t)-1` 은 4294967295 다. 이 감김은 표준이 정한 동작이지만 대개 결함을 숨긴다. Lowent 의 `cast` 는 값을 옮기고,
+  들어가지 않으면 `E-VM-CAST` 로 멈춘다. 정말로 감기를 원한다면 `narrow_wrap` 처럼 그 뜻을 이름에 지닌 낱말을 쓴다(#chref("numbers")).
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "named-types-glance",
+  caption: [이름 붙인 타입의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`type meters u64 .`], [같은 타입의 다른 이름], [긴 타입을 줄이고 뜻을 남긴다 --- 섞임은 막지 않는다],
+  [`newtype user_id u64 .`], [표현이 같은 새 타입], [번호끼리 섞이는 결함을 번역이 막는다 --- 실행 비용 없음],
+  [`cast user_id n` · `cast u64 u`], [새 타입과 원래 타입 사이를 건넌다], [건너는 자리가 코드에서 한곳에 모인다],
+  [`input a range 0 100 .`], [두 끝을 포함한 범위만 받는다], [계약이 서명의 생김새가 된다],
+  [`type pct range 0 100 .`], [범위를 별칭에 싣는다], [여러 op 이 같은 범위를 물려받는다],
+  [`cast i32 x`], [값이 변할 수 있는 변환 --- 들어가지 않으면 멈춤], ["여기서 값이 변할 수 있음을 안다" 는 표시],
+  [`type ten_bits bits 10 .`], [1 … 64 비트 정수], [폭이 곧 계약],
+  [`layout packed .` · `magic u32 big .`], [채움 없는 배치 · 바이트 차례], [바깥과 바이트의 뜻을 맞춘다],
+  [`view wire_header b`], [바이트를 베끼지 않고 그 배치로 읽는다], [길이·정렬이 어긋나면 멈춘다],
+)
+
 #recap[
   `type` 은 별칭이고 `newtype` 은 표현이 같은 새 타입이며, 둘 사이는 `cast` 로 건넌다. `range lo hi` 는
   매개변수의 생김새가 된 계약으로, 부르는 쪽이 지키고 본문은 사실로 쓴다. `cast` 는 값이 변할 수 있는

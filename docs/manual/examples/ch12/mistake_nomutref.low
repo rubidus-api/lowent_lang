@@ -1,0 +1,17 @@
+module mistake_nomutref .
+rem trap: use_bump 7
+
+proc bump input p mut_ref u64 . output u64 .
+do
+  set p (add (deref p) 1) .
+  return deref p .
+end .
+
+proc use_bump input start u64 . output u64 .
+  requires lt start 1000 .
+do
+  var n u64 be start .
+  rem ko: ✘ 부르는 자리에 `mut_ref` 를 빠뜨렸다 --- 참조가 아니라 수 7 이 넘어간다 /// en: ✘ `mut_ref` is missing at the call --- the number 7 is passed, not a reference
+  let r u64 be bump n .
+  return add n r .
+end .

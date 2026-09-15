@@ -156,6 +156,65 @@ op 에 `vector <번호> .` 절을 붙이면 그 op 은 인터럽트 처리기가
 그것을 믿고 호출을 지우거나 합칠 수 있는데, 효과 줄이 입출력이나 장치를 만진다고 말하면 둘 다 참일 수 없으므로 거절된다
 (`E-ASM-OPTLIE`). VM 은 기계 명령을 돌리지 못하고 못 돌린다고 말한다(`E-VM-ASM`). 네이티브에서만 돈다.
 
+== 흔한 실수
+
+#antipattern[쓰기 전용 레지스터를 읽어 방금 쓴 값을 확인한다][
+  #demo("examples/ch30/mistake_woread.low")
+
+  보통 변수라면 쓰고 읽어 확인하는 것이 좋은 습관이지만, 쓰기 전용 레지스터를 읽으면 쓰레기가 나오거나 읽는 행위가 장치를 움직인다.
+  그래서 `E-MMIO-PERM` 이다. 방금 쓴 값이 필요하면 쓰기 전에 지역 변수에 남겨 두고, 장치의 실제 상태는 데이터시트가 정한 읽기 레지스터
+  (여기서는 `idr`)로 확인한다.
+]
+
+#antipattern[인터럽트 처리기에 매개변수를 둔다][
+  #demo("examples/ch30/mistake_isrparams.low")
+
+  기계는 처리기를 부를 때 인자를 건네지 않는다. 어느 핀이 울렸는지는 처리기 안에서 장치의 상태 레지스터를 읽어 안다. 보통 코드와 나눌
+  값은 우선순위와 큐의 규율로 오간다(`spsc` 링 버퍼). 그래서 `E-ISR-PARAMS` 다.
+]
+
+#antipattern[인터럽트 처리기의 효과 줄을 비운다][
+  #demo("examples/ch30/mistake_isreffect.low")
+
+  할 일이 아직 없어도 인터럽트 처리기는 장치 때문에 있는 자리다. `effects device .` 를 적어야 이 op 이 장치 쪽 코드라는 것이 머리에 남고,
+  등급(`build tier`)과 권한 검사가 그 사실을 따라간다. 적지 않으면 `E-ISR-EFFECT` 다.
+]
+
+#antipattern[`asm` 의 기계 이름을 다른 도구의 철자로 적는다][
+  #demo("examples/ch30/mistake_asmtarget.low")
+
+  GCC 나 LLVM 은 `aarch64` 라고 부르지만 이 처리기의 대상 이름은 `arm64` 다. 이름은 닫힌 목록(`x86_64`·`arm64`·`cortex_m`·`riscv64`·`mips_be`)
+  이고, 목록 밖의 이름은 어떤 빌드와도 맞지 않으므로 그 op 은 영영 지어지지 않는다. 그래서 조용히 건너뛰지 않고 `E-ASM-TARGET-UNKNOWN` 으로
+  멈춘다.
+]
+
+#antipattern[레지스터를 보통 칸처럼 읽고 쓴다][
+  #demo("examples/ch30/mistake_plainfield.low")
+
+  `set (field g moder) 2` 와 `field g idr` 도 이 판에서는 통과하고, VM 에서는 `read_volatile` 과 같은 답을 낸다. 닿는 법(`ro`·`wo`)도 여기서
+  강제된다. 그러나 보통 칸 접근은 처리기가 합치거나 지워도 되는 연산이다. 같은 레지스터를 두 번 읽는 코드가 한 번으로 줄면 실제 장치에서는
+  동작이 달라진다. 정본이 이 철자를 허용하는지는 개발 저장소에서 확인 중이다. 장치 레지스터에는 언제나 `read_volatile`·`write_volatile` 을
+  쓴다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "hardware-glance",
+  caption: [하드웨어의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`struct gpio do mmio 0x40020000 . moder u32 rw . … end .`], [장치의 레지스터 지도], [새 낱말 없이 구조체에 절 하나],
+  [`rw` · `ro` · `wo`], [닿는 법 --- 번역에서 강제], [어기면 `E-MMIO-PERM`],
+  [`read_volatile g idr` · `write_volatile g moder 2`], [합치거나 지우지 않는 접근], [읽는 행위 자체가 일이다],
+  [`input dev cap mmio .` + `effects device`], [장치 권한과 효과], [권한 없는 하드웨어 접근이 없다],
+  [`var g gpio be view gpio regs .`], [바이트 위에 지도를 얹는다], [장치를 값으로 받으면 `E-MMIO-BYVALUE`],
+  [`proc on_exti vector 6 . priority 2 . output void . effects device .`], [인터럽트 처리기], [부르면 `E-ISR-CALLED` · 인자는 `E-ISR-PARAMS`],
+  [`build tier t1 .`], [이 기계가 감당하는 효과의 등급], [실을 수 없는 것을 번역에서 막는다],
+  [`asm x86_64 . reg a . out reg r . clobber flags . options pure .`], [기계 명령으로 쓴 몸의 머리], [`unsafe`·`cap machine`·효과 줄·기계 이름으로 가둔다],
+  [`text ASM … {a} … ASM`], [템플릿 --- 피연산자와 맞대어 검사], [`E-ASM-UNBOUND` · `E-ASM-UNUSED` · `E-ASM-OPTLIE`],
+)
+
 #recap[
   `mmio <주소>` 를 붙인 구조체가 장치의 지도이고, `read_volatile`·`write_volatile` 이 합치거나 지우지 않는 접근이다. `cap mmio`
   와 `device` 효과가 필요하며, `ro`·`wo` 표지는 번역에서 강제되고 장치는 값으로 받을 수 없다. `vector` 절의 op 은 인터럽트

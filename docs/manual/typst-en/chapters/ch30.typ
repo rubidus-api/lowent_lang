@@ -153,6 +153,66 @@ does not use is rejected too (`E-ASM-UNUSED`). `options pure` promises "no side 
 says it touches input/output or devices, both cannot be true, so it is rejected (`E-ASM-OPTLIE`). The VM cannot run machine instructions and says so (`E-VM-ASM`). It
 runs only natively.
 
+== Common mistakes
+
+#antipattern[Reading a write-only register to check what was just written][
+  #demo("examples/ch30/mistake_woread.low")
+
+  For an ordinary variable, writing and reading back is a good habit, but reading a write-only register yields garbage or makes the device
+  do something. Hence `E-MMIO-PERM`. If you need the value you just wrote, keep it in a local before writing, and check the device's real
+  state through the read register the datasheet defines (here, `idr`).
+]
+
+#antipattern[Giving an interrupt handler parameters][
+  #demo("examples/ch30/mistake_isrparams.low")
+
+  The hardware passes no arguments when it calls a handler. Which pin fired is learned inside the handler by reading the device's status
+  register. Values shared with ordinary code travel through the priority and queue discipline (the `spsc` ring buffer). Hence
+  `E-ISR-PARAMS`.
+]
+
+#antipattern[Leaving an interrupt handler's effects line empty][
+  #demo("examples/ch30/mistake_isreffect.low")
+
+  Even with nothing to do yet, an interrupt handler exists because of a device. Writing `effects device .` keeps in the head the fact that
+  this op is device-side code, and the tier (`build tier`) and capability checks follow that fact. Without it, `E-ISR-EFFECT`.
+]
+
+#antipattern[Spelling the `asm` machine name the way another toolchain does][
+  #demo("examples/ch30/mistake_asmtarget.low")
+
+  GCC and LLVM say `aarch64`, but this processor's target name is `arm64`. The names are a closed list (`x86_64`·`arm64`·`cortex_m`·
+  `riscv64`·`mips_be`), and a name outside it matches no build, so the op would never be built. Instead of skipping it silently, the tool
+  stops with `E-ASM-TARGET-UNKNOWN`.
+]
+
+#antipattern[Reading and writing registers as ordinary fields][
+  #demo("examples/ch30/mistake_plainfield.low")
+
+  `set (field g moder) 2` and `field g idr` also pass in this edition, and on the VM they give the same answers as `read_volatile`. The access
+  modes (`ro`·`wo`) are enforced here too. But ordinary field access is an operation the processor may merge or remove. If code that reads the
+  same register twice is reduced to one read, a real device behaves differently. Whether the canon allows this spelling is being checked in
+  the development repository. For device registers, always use `read_volatile` and `write_volatile`.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "hardware-glance",
+  caption: [Hardware syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`struct gpio do mmio 0x40020000 . moder u32 rw . … end .`], [a device's register map], [one clause on a struct, no new words],
+  [`rw` · `ro` · `wo`], [access modes --- enforced at translation], [violations: `E-MMIO-PERM`],
+  [`read_volatile g idr` · `write_volatile g moder 2`], [access that is never merged or removed], [reading is itself an action],
+  [`input dev cap mmio .` + `effects device`], [device capability and effect], [no hardware access without authority],
+  [`var g gpio be view gpio regs .`], [lay the map over bytes], [taking a device by value: `E-MMIO-BYVALUE`],
+  [`proc on_exti vector 6 . priority 2 . output void . effects device .`], [an interrupt handler], [calling it: `E-ISR-CALLED` · arguments: `E-ISR-PARAMS`],
+  [`build tier t1 .`], [the tier of effects this machine can bear], [what cannot be carried is stopped at translation],
+  [`asm x86_64 . reg a . out reg r . clobber flags . options pure .`], [head of a body written in machine code], [confined by `unsafe`, `cap machine`, effects line, machine name],
+  [`text ASM … {a} … ASM`], [the template --- checked against the operands], [`E-ASM-UNBOUND` · `E-ASM-UNUSED` · `E-ASM-OPTLIE`],
+)
+
 #recap[
   A struct with `mmio <address>` is a device's map, and `read_volatile` and `write_volatile` are accesses never merged or deleted. They need `cap mmio` and the `device`
   effect, the `ro` and `wo` markers are enforced at translation, and devices cannot be received by value. An op with a `vector` clause is an interrupt handler that

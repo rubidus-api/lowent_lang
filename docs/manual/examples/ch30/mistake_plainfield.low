@@ -1,0 +1,17 @@
+module mistake_plainfield .
+rem run: drive 0 [0,0,0,0,7,0,0,0,0,0,0,0]
+
+struct gpio do
+  mmio 0x40020000 .
+  moder u32 rw .
+  idr u32 ro .
+  bsrr u32 wo .
+end .
+
+unsafe proc drive input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
+do
+  var g gpio be view gpio regs .
+  rem ko: ✘ 레지스터를 보통 칸처럼 쓰고 읽는다 --- 합치거나 지워도 되는 접근으로 읽힌다 /// en: ✘ writes and reads registers as ordinary fields --- these read as accesses that may be merged or removed
+  set (field g moder) 2 .
+  return field g idr .
+end .

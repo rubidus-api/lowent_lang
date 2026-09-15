@@ -1,0 +1,19 @@
+module mistake_asmtarget .
+rem expect: E-ASM-TARGET-UNKNOWN
+
+unsafe proc add_native
+  input k cap machine .
+  input a u64 .
+  input b u64 .
+  output u64 .
+  effects unsafe .
+  rem ko: ✘ 기계 이름을 다른 도구의 철자(`aarch64`)로 적었다 --- 이 처리기의 이름은 `arm64` 다 /// en: ✘ the machine is spelt as another toolchain spells it (`aarch64`) --- this processor's name is `arm64`
+  asm aarch64 .
+    reg a .
+    reg b .
+    out reg r .
+do
+  text ASM
+    add {r}, {a}, {b}
+  ASM
+end .

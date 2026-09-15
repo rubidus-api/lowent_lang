@@ -151,6 +151,15 @@ capabilities must be created where someone is entitled to grant them and flow in
   the one to audit. A common supply-chain attack --- imported code quietly connecting outward --- becomes visible in the grammar.
 ]
 
+Environment variables and operating-system randomness are also received as capabilities.
+
+#demo("examples/ch16/envrandom.low")
+
+`env_get e "…"` needs `cap env`, and `random.bytes r buf` needs `cap random`. An environment variable is a channel that quietly changes behaviour
+from outside the program, and randomness is a channel that changes the answer for the same input. Both must be visible in the head so that the
+head alone tells whether "this program's answer is decided by its inputs". With no variable, `env_get` gives `none` and the example returns 8,
+the number of bytes filled. When tests need repeatable random numbers, use `rng_next` (the next number from a seed), which needs no capability.
+
 == Common mistakes
 
 #antipattern[Thinking a `fn` may print because it received a capability][
@@ -211,6 +220,7 @@ capabilities must be created where someone is entitled to grant them and flow in
   [`effects alloc` + `cap allocator`], [the pair for fixed-window allocation], [missing: `E-ALLOC-NOCAP`],
   [`proc main input … cap … . output u8 .`], [the entry point receives only capabilities], [nobody can hand it data],
   [`input logger cap audit .`], [a capability named by the author], [only ops that received it can call the guarded op],
+  [`env_get e "…"` · `random.bytes r buf`], [environment variable · OS randomness --- `cap env` · `cap random`], [outside channels that change the answer show in the head],
 )
 
 #recap[

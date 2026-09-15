@@ -158,6 +158,21 @@ a byte slice (`slice u8`).
 UTF-16 code units (a surrogate pair) and `U"…"` is 1 code point. Surrogate values (D800 … DFFF) and values above 10FFFF are rejected. There
 are no octal escapes --- the language has no octal notation at all, so reviving it only in literals would make that the one exception.
 
+Using every shape in the table in one file looks like this.
+
+#demo("examples/ch03/literals.low")
+
+- `ints` is 10 (`0b1010`) + 1000000 (`1_000_000`) + 65535 (`0xFF_FF`) + 755 (`0755`). An underscore goes only *between* digits and does not
+  change the value; it makes long numbers easier to read. `0755` is 755, not 493, a choice that removes a C trap.
+- `floats` is 1500 (`1.5e3`) + 3 (`0x1.8p1` --- 1.5 × 2¹). Hexadecimal floats are for when the bits must be written exactly. Decimal `0.1`
+  cannot be written exactly in binary, but `0x1.8p1` is exactly 3.
+- `chars` is 65 (`'A'`) + 44032 (`u'가'`) + 128512 (`U'😀'`). The prefix decides the width of the element. Writing a character that does not
+  fit in one byte, such as `'가'`, without a prefix is refused with `E-CHAR-WIDTH`.
+- In `texts`, `"\x41e"` is 2 bytes, `u"가나"` is 2 code units and `text DOC … DOC` is 13 bytes. A multi-line string (heredoc) holds, *exactly as
+  written*, everything from the tag after `text` to the line where the same tag stands alone. The `\n` in the body is two characters, not a
+  newline, and no newline is added after the last line. It is there to paste long descriptions or test input without escapes.
+- The `note END … END` at the top is a multi-line comment. It turns a whole block into a comment without `rem` on every line.
+
 == Names
 
 A name starts with an ASCII letter or underscore and continues with letters, digits and underscores. Two things differ from other
@@ -342,6 +357,8 @@ to remember the shapes too.
   [`allocs.bump_bytes` · `color.red`], [a name inside a module · a variant name], [one dot means "that name inside this name"],
   [`expr a + b * c`], [an infix island --- arithmetic, comparisons, `and`/`or` only], [long arithmetic reads easily; same meaning as prefix],
   [Clause order in an op head], [#tblref("surface-clause-order")], [each clause comes before the ones that use it],
+  [`0b1010` · `1_000_000` · `0x1.8p1` · `u'가'` · `U"…"`], [binary · digit separator · hex float · prefixed char and string], [no octal --- `0755` is 755],
+  [`text DOC … DOC` · `note END … END`], [multi-line string (escapes not unescaped) · multi-line comment], [long text goes in as written],
 )
 
 #recap[

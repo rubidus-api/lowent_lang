@@ -170,6 +170,41 @@
 `overlap 5` 에서 교집합은 {3, 5}, `a` 에만 있는 것은 {1} 이라 211 이 나온다. `complement` 는 폭 안에서만 뜻이 있다. 여덟 칸 집합에 0 하나를 넣었으면
 여집합은 나머지 일곱이다. 폭 밖의 수를 넣거나 물으면 멈춘다 --- 집합의 범위도 타입의 일부이기 때문이다.
 
+== 흩어진 조각을 한 눈으로 --- `segments`
+
+바이트가 한 줄로 이어져 있지 않고 여러 조각에 흩어져 있을 때가 있다. 네트워크에서 받은 조각들이나 링 버퍼의 앞뒤가 그렇다. 그것을 한
+자리로 모으려면 베껴야 한다. `segments` 는 베끼지 않고 조각들을 하나의 눈으로 본다.
+
+#demo("examples/ch13/pieces.low")
+
+- `view_segments back d` 는 뒤에 놓인 바이트 `back` 과 서술자 `d` 를 묶어 `segments u8` 타입의 눈을 만든다. 서술자는 (어디부터, 얼마) 짝의
+  줄이다. 여기서는 0 부터 4 바이트, 8 부터 4 바이트다.
+- `segs ss` 는 조각 수 2 를, `seg ss 1` 은 둘째 조각을 평범한 `slice u8` 로 준다. 둘째 조각의 1 번 바이트는 원래 9 번 자리의 30 이다.
+- 새 기계 명령은 없다. 묶음 짓기와 칸 읽기와 잘라내기로 낮아지므로 비용이 보인다.
+
+== 타입 낱말의 세 갈래
+
+타입 자리에 올 수 있는 낱말은 정본이 닫힌 목록으로 정한다. 그 가운데 일부는 이름만 알고 뜻이 아직 없다.
+
+#demo("examples/ch13/notyet.low")
+
+`byte` 는 받아들이되 `W-NOT-YET` 으로 "뜻이 없다" 고 말한다. 조용히 받아 주면 쓰는 사람은 된 줄 안다. 바이트는 `u8` 로 적는다.
+
+#dtable(
+  columns: 3,
+  id: "named-types-words",
+  caption: [타입 낱말 --- 쓸 수 있는 것 · 이름만 아는 것 · 거절되는 것],
+  [*갈래*], [*낱말*], [*도구가 하는 일*],
+  [쓸 수 있다], [수 · `bool` · `void` · `slice` · `array` · `segments` · `set` · `stack` · `range` · `vec` · `bitset` · `mask` · `result` · `option` · `ref` · `mut_ref` · `mut` · `owned` · `region` · `cap` · `self`], [뜻대로 검사하고 낮춘다],
+  [이름만 안다], [`byte` · `char` · `str` · `string` · `bytes_view` · `dyn` · `atomic`], [`W-NOT-YET` --- 뜻이 없다고 말한다],
+  [아직 거절], [`shared_read` · `lock` · `rwlock`], [`E-LOCK-NOTYET` --- 흐름끼리 나누는 상태(#chref("tasks-channels"))],
+  [한정자], [`unsafe_ptr`], [타입 앞에 붙는 C 포인터 표시(#chref("ffi"))],
+  [정본에 뜻이 없다], [`list` · `raw` · `addr` · `rng`], [이 판의 도구는 경고 없이 받는다 --- 쓰지 않는다],
+)
+
+마지막 줄은 이 판의 구멍이다. 네 낱말은 정본의 목록에 있지만 뜻을 정한 조항이 없고, 도구는 아무 말 없이 받아들인다. 개발 저장소에 결함으로
+적어 두었다.
+
 == 흔한 실수
 
 #antipattern[넓은 타입의 값을 `range` 매개변수에 그대로 넘긴다][
@@ -231,6 +266,8 @@
   [`view wire_header b`], [바이트를 베끼지 않고 그 배치로 읽는다], [길이·정렬이 어긋나면 멈춘다],
   [`try_view wire_header b` · `encode wire_header h`], [실패를 `none` 으로 주는 뷰 · 값을 그 배치의 바이트로], [경계에서는 멈추지 않는 쪽],
   [`var a bitset 64 be bitset_new 64 .` · `add a 1 .` · `intersect a b`], [작은 수의 집합과 그 연산], [집합이지 워드의 비트가 아니다],
+  [`view_segments back d` · `segs ss` · `seg ss i`], [흩어진 조각을 베끼지 않고 한 눈으로 · 조각 수 · i 번 조각], [모으는 복사를 없앤다],
+  [`byte` · `lock` 같은 타입 낱말], [`W-NOT-YET` · `E-LOCK-NOTYET`], [뜻이 없으면 없다고 말한다],
 )
 
 #recap[

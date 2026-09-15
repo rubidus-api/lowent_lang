@@ -137,6 +137,11 @@
 줄 알았다가 안 되는 것을 겪는다. 없으면 없다고 말하는 편이 정직하다. 여러 흐름이 같은 메모리를 원자적으로 다루는 길은
 #chref("parallel-atomic")이 다룬다.
 
+#demo("examples/ch26/lock.low")
+
+`lock u64` 은 정본에 이름이 있는 타입이라 "없는 타입" 이라고 말하지 않는다. 대신 `E-LOCK-NOTYET` 으로 "아직 짓지 않았다" 고 말한다. 그 사이에
+나누어 쓸 수가 필요하면 원자 연산(#chref("parallel-atomic"))이나 액터(#chref("actors"))를 쓴다.
+
 == 흔한 실수
 
 #antipattern[두 흐름이 서로에게서 받기부터 한다][
@@ -183,6 +188,7 @@
   [`test … schedule explore_interleavings do … end .`], [가능한 모든 차례를 돌려 답을 맞댄다], [드문 차례의 결함을 시험이 찾는다],
   [태스크 op 의 효과에 `alloc`·`heap`], [`E-ALLOC-TASK`], [뿌리의 되감기는 차례에 기댄다 --- 잠금으로 못 지킨다],
   [원자적이지 않은 할당기를 `spawn` 인자로], [`E-ALLOC-SHARED`], [바이트 조각을 넘기고 할당기는 태스크 안에서 만든다],
+  [`lock t` · `rwlock t` · `shared_read t`], [`E-LOCK-NOTYET`], [이름은 정본에 있다 --- 짓지 않은 것을 받아 주지 않는다],
 )
 
 #recap[

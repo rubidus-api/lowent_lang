@@ -167,6 +167,42 @@ In `overlap 5` the intersection is {3, 5} and what is only in `a` is {1}, giving
 0 into an eight-slot set and its complement is the other seven. Inserting or asking about a number outside the width stops the program ---
 the range of the set is part of its type too.
 
+== Scattered pieces as one view --- `segments`
+
+Sometimes bytes do not lie in one row but are scattered over several pieces, like pieces received from the network or the two ends of a ring
+buffer. Gathering them into one place means copying. `segments` views the pieces as one without copying.
+
+#demo("examples/ch13/pieces.low")
+
+- `view_segments back d` binds the backing bytes `back` and the descriptor `d` into a view of type `segments u8`. The descriptor is a row of
+  (start, length) pairs; here 4 bytes from 0 and 4 bytes from 8.
+- `segs ss` gives the piece count 2, and `seg ss 1` gives the second piece as an ordinary `slice u8`. Byte 1 of the second piece is the 30 at
+  original position 9.
+- There is no new machine instruction. It lowers to building a grouping, reading fields and slicing, so the cost is visible.
+
+== Three kinds of type words
+
+The words that may stand in a type position form a closed list set by the canon. Some of them are known by name only and have no meaning yet.
+
+#demo("examples/ch13/notyet.low")
+
+`byte` is accepted, but `W-NOT-YET` says "no meaning". Accepting it silently would make the writer think it works. Write a byte as `u8`.
+
+#dtable(
+  columns: 3,
+  id: "named-types-words",
+  caption: [Type words --- usable · known by name · refused],
+  [*Kind*], [*Words*], [*What the tool does*],
+  [usable], [numbers · `bool` · `void` · `slice` · `array` · `segments` · `set` · `stack` · `range` · `vec` · `bitset` · `mask` · `result` · `option` · `ref` · `mut_ref` · `mut` · `owned` · `region` · `cap` · `self`], [checks and lowers them by meaning],
+  [known by name], [`byte` · `char` · `str` · `string` · `bytes_view` · `dyn` · `atomic`], [`W-NOT-YET` --- says there is no meaning],
+  [refused for now], [`shared_read` · `lock` · `rwlock`], [`E-LOCK-NOTYET` --- state shared between flows (#chref("tasks-channels"))],
+  [qualifier], [`unsafe_ptr`], [a C pointer mark placed before a type (#chref("ffi"))],
+  [no meaning in the canon], [`list` · `raw` · `addr` · `rng`], [this edition's tool accepts them without a warning --- do not use them],
+)
+
+The last row is a hole in this edition. The four words are in the canon's list, but no clause gives them a meaning, and the tool accepts them
+without a word. It is recorded as a defect in the development repository.
+
 == Common mistakes
 
 #antipattern[Passing a value of a wider type straight to a `range` parameter][
@@ -231,6 +267,8 @@ the range of the set is part of its type too.
   [`view wire_header b`], [read bytes in that layout without copying], [stops if length or alignment is off],
   [`try_view wire_header b` · `encode wire_header h`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],
   [`var a bitset 64 be bitset_new 64 .` · `add a 1 .` · `intersect a b`], [a set of small numbers and its operations], [a set, not the bits of a word],
+  [`view_segments back d` · `segs ss` · `seg ss i`], [scattered pieces as one view without copying · piece count · piece i], [removes the gathering copy],
+  [type words such as `byte` · `lock`], [`W-NOT-YET` · `E-LOCK-NOTYET`], [if there is no meaning, the tool says so],
 )
 
 #recap[

@@ -180,6 +180,15 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   range).
 ]
 
+#antipattern[Taking a string literal as `mut slice` and changing it --- a hole in this edition][
+  #demo("examples/ch09/mistake_litwrite.low")
+
+  A string literal is bytes baked into the program, not a place to change. By meaning it should only be taken as `slice u8`, and a `fn` writing
+  those bytes is not pure either. This edition's tool lets both through. When run, the VM returns 65 and native code returns 97 (the native literal
+  sits where the write does not take). When a standard-library op writes those bytes in the same code, native code dies with a segmentation
+  fault. It is recorded as a defect in the development repository. Take bytes you will change from `alloc_bytes` or from the caller's buffer.
+]
+
 == This chapter's syntax at a glance
 
 #dtable(

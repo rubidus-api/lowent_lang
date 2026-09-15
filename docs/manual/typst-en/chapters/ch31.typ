@@ -123,6 +123,17 @@ wrong*. What to fix differs. Here `narrow_wrap` must become `narrow_sat`. And th
 Concurrent code uses `test <name> schedule explore_interleavings do … end` to run every possible ordering of flows and see whether the answers agree
 (#chref("tasks-channels")). When there are many cases, `limit <number>` sets a ceiling.
 
+An op head also has clauses for documentation and tests.
+
+#demo("examples/ch31/clauses.low")
+
+- `lowdoc "…" .` is a description for people. Unlike a comment (`rem`), it stays attached to the op as documentation that tools extract. For a
+  long one, write several lines with `lowdoc text DOC … DOC .` (#chref("surface")).
+- `tests first_two_ok first_two_short .` lists *the names of the ops* that test this op, not the names of `test` blocks. The tool checks that
+  those names exist and refuses with `E-CONTRACT-UNDEF` if they do not. If a test is renamed or removed, the head tells you.
+- `errors too_short lt (len data) 2 .` is a failure with a condition. The two testing ops check the success arm and the failure arm, and the
+  `test` block ties them together with `expect`.
+
 #qa[
   If there are tests, must contracts be written too?
 ][
@@ -223,6 +234,7 @@ the slow path, used to see whether both paths give the same answer.
   [`test … schedule explore_interleavings limit <n> do … end .`], [a test that runs every order], [bugs of rare orders],
   [`lowentc --run <op> <file> <args…>`], [run one op on the VM], [a placeholder `0` in capability positions],
   [`--why-slow` · `--no-fast`], [ops left on the slow path and why · everything on the slow path], [the tool speaks about performance],
+  [`lowdoc "…" .` · `tests op1 op2 .`], [documentation attached to the op · names of ops testing it], [docs move with the op, and a missing test is reported by the head],
 )
 
 #recap[

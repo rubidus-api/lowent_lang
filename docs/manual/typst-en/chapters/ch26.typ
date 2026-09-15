@@ -133,6 +133,11 @@ Channels without an end (`channel … unbounded`) and lock state shared by sever
 `E-LOCK-NOTYET`). One could accept what does not exist and build it later, but then programs written meanwhile would find that what seemed to work does not. It
 is more honest to say it does not exist. Handling the same memory atomically from several flows is covered in #chref("parallel-atomic").
 
+#demo("examples/ch26/lock.low")
+
+`lock u64` is a type named in the canon, so the tool does not call it "a type that does not exist". Instead `E-LOCK-NOTYET` says "not built
+yet". Until then, when a count must be shared, use atomic operations (#chref("parallel-atomic")) or an actor (#chref("actors")).
+
 == Common mistakes
 
 #antipattern[Two flows that both start by receiving from each other][
@@ -180,6 +185,7 @@ is more honest to say it does not exist. Handling the same memory atomically fro
   [`test … schedule explore_interleavings do … end .`], [run every possible order and compare answers], [tests find bugs of rare orders],
   [`alloc` or `heap` in a task op's effects], [`E-ALLOC-TASK`], [a root's rewind relies on order --- a lock cannot protect it],
   [a non-atomic allocator as a `spawn` argument], [`E-ALLOC-SHARED`], [hand over byte pieces and create the allocator inside the task],
+  [`lock t` · `rwlock t` · `shared_read t`], [`E-LOCK-NOTYET`], [the name is in the canon --- what is not built is not accepted],
 )
 
 #recap[

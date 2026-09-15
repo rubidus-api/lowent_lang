@@ -156,6 +156,15 @@ C 의 `argv` 같은 마법의 인자는 없다. 프로그램 인자도 `cap args
   모양 --- 들여온 코드가 몰래 바깥에 연결한다 --- 이 문법으로 드러난다.
 ]
 
+환경 변수와 운영체제의 난수도 권한으로 받는다.
+
+#demo("examples/ch16/envrandom.low")
+
+`env_get e "…"` 은 `cap env` 가, `random.bytes r buf` 는 `cap random` 이 있어야 부를 수 있다. 환경 변수는 프로그램 밖에서 조용히 동작을 바꾸는
+통로이고, 난수는 같은 입력에도 답을 바꾸는 통로다. 둘 다 머리에 보여야 "이 프로그램의 답은 입력만으로 정해지는가" 를 머리만 보고 판단할 수 있다.
+변수가 없으면 `env_get` 은 `none` 이고, 예제는 채운 바이트 수 8 을 돌려준다. 시험에서 되풀이할 수 있는 난수가 필요하면 권한이 필요 없는 `rng_next`
+(씨앗에서 다음 수)를 쓴다.
+
 == 흔한 실수
 
 #antipattern[권한을 받았으니 `fn` 도 출력할 수 있다고 생각한다][
@@ -214,6 +223,7 @@ C 의 `argv` 같은 마법의 인자는 없다. 프로그램 인자도 `cap args
   [`effects alloc` + `cap allocator`], [고정 창 할당의 짝], [없으면 `E-ALLOC-NOCAP`],
   [`proc main input … cap … . output u8 .`], [시작점은 권한만 받는다], [건네줄 사람이 없으니 자료는 받지 않는다],
   [`input logger cap audit .`], [저자가 이름 지은 권한], [그 권한을 받은 op 만 부를 수 있게 한다],
+  [`env_get e "…"` · `random.bytes r buf`], [환경 변수 · 운영체제 난수 --- `cap env` · `cap random`], [답을 바꾸는 바깥 통로가 머리에 보인다],
 )
 
 #recap[

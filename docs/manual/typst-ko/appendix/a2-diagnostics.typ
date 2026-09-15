@@ -11,6 +11,7 @@
   id: "a2-static",
   caption: [예제가 보이는 진단],
   [*코드*], [*뜻*], [*보이는 곳*],
+  [`E-ACCESS-MODE`], [`access` 로 적은 읽기·쓰기 약속을 몸이 어긴다], [#chref("parallel-atomic")],
   [`E-ALLOC-AMBIGUOUS`], [맞는 할당기가 둘 이상인데 `using` 으로 고르지 않았다], [#chref("fixed-memory")],
   [`E-ALLOC-NESTED`], [같은 뿌리의 안쪽 영역이 열린 채 바깥 출처로 깎았다], [#chref("regions")],
   [`E-ALLOC-NOCAP`], [`alloc` 을 적었는데 할당 권한을 받지 않았다], [#chref("capabilities")],
@@ -77,6 +78,7 @@
   [`E-ISR-EFFECT`], [인터럽트 처리기가 `effects device` 를 적지 않았다], [#chref("hardware")],
   [`E-ISR-PARAMS`], [인터럽트 처리기가 매개변수를 받는다], [#chref("hardware")],
   [`E-LET-NOVALUE`], [`be` 뒤에 값이 없다], [#chref("locals")],
+  [`E-LOCK-NOTYET`], [흐름끼리 나누는 자물쇠 타입은 아직 짓지 않았다], [#chref("tasks-channels")],
   [`E-MATCH-INEXHAUSTIVE`], [`match` 가 모든 경우를 덮지 않는다], [#chref("control"), #chref("structs-enums"), #chref("option-result")],
   [`E-MATCH-REDUNDANT`], [`match` 의 갈래가 영영 돌지 않는다(`_` 뒤의 갈래·겹친 범위)], [#chref("option-result")],
   [`E-METHOD-UNDEF`], [수신자의 타입에 그 이름의 붙은 op 이 없다], [#chref("generics"), #chref("traits")],
@@ -100,7 +102,6 @@
   [`E-PIPE-STAGE`], [`pipe` 스테이지 목록에 없는 낱말이다], [#chref("pipe")],
   [`E-PROFILE-LEVEL`], [빌드 프로파일이 주지 않는 동시성을 쓴다], [#chref("actors")],
   [`E-REGION-ESCAPE`], [영역에서 얻은 바이트를 밖으로 들고 나간다], [#chref("regions")],
-  [`E-REGION-KIND`], [영역의 종류가 닫힌 여덟에 없다], [#chref("regions")],
   [`E-RETURN-PARTIAL`], [어떤 길에서 값을 돌려주지 않는다], [#chref("surface"), #chref("ops"), #chref("control")],
   [`E-SPAWN-SCOPE`], [`task_group` 밖에서 흐름을 만든다], [#chref("tasks-channels")],
   [`E-TIER-EFFECT`], [선언한 기계 등급이 감당하지 못하는 효과다], [#chref("hardware")],
@@ -127,6 +128,7 @@
   [`E-VOCAB-REMOVED`], [없앤 낱말이나 철자다], [#chref("surface"), #chref("ops"), #chref("control"), #chref("effects"), #chref("proofs-syntax")],
   [`E-WIDEN-SIGN`], [부호 있는 수를 부호 없는 타입으로 `widen` 했다], [#chref("named-types")],
   [`W-EFFECT-OVER`], [선언만 하고 내지 않는 효과다(경고)], [#chref("effects"), #chref("capabilities")],
+  [`W-NOT-YET`], [이름은 받지만 아직 뜻이 없는 낱말을 썼다], [#chref("named-types")],
   [`W-USE-EXTERNAL`], [번역 단위에 없는 모듈을 들여온다(경고)], [#chref("lib-map")],
 )
 

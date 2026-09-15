@@ -136,6 +136,13 @@ a choice made in writing by someone who knows its value.
 
 Combinations that mean nothing for an operation are rejected.
 
+Using four of the orders with the operations they pair with looks like this.
+
+#demo("examples/ch27/orders.low")
+
+`atomic_store … order seq_cst` writes 5, `atomic_swap … order acq_rel`, which reads and writes, swaps in 7 and returns the old 5, `order release`
+writes 15, and `order acquire` reads it back, so 15 is returned. A pairing that does not match is refused.
+
 #demo("examples/ch27/order_bad.low")
 
 What would a read release? C leaves such combinations undefined. A write cannot be `acquire`, and a fence (`atomic_fence`), which only sets order, cannot be
@@ -188,6 +195,17 @@ edition's tool reads it as a scalar comparison and reports `E-TYPE-VAR`. Store i
 Second, the canon's table lists `sum`, `sum_fast` and `avg` as ordinary lane ops, but this edition's tool treats them as in the right column
 above. The two disagree, and it is recorded as a defect in the development repository. To add lanes, use `reduce_add`.
 
+== Saying how a place is used --- `access`
+
+The `access <name> <mode> .` clause writes in the head whether the op only *reads* an input place or only *writes* it. Callers and the scheduler
+rely on that promise.
+
+#demo("examples/ch27/access.low")
+
+`shared_read` means "only reads". With no write there is no race, so several tasks may hold the same place together. `write_only` means "only
+writes", so a buffer not yet filled may be passed. The tool *checks* both modes against the body. The remaining modes such as `sequential` are
+kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT-YET` say so.
+
 == Common mistakes
 
 #antipattern[Pieces of a split loop incrementing a shared counter with ordinary arithmetic][
@@ -227,6 +245,14 @@ above. The two disagree, and it is recorded as a defect in the development repos
   writes its results into another slice.
 ]
 
+#antipattern[Declaring `write_only` and then reading][
+  #demo("examples/ch27/mistake_access.low")
+
+  A `write_only` place may not be filled yet, so reading it reads garbage. Callers trust the declaration and pass an empty buffer. So it is
+  refused with `E-ACCESS-MODE`. The `W-EFFECT-OVER` that comes along is due to a defect where writes to a caller's buffer are counted as effects
+  inconsistently (#chref("pipe")). If the op must read, drop the mode or take the place as an ordinary input.
+]
+
 #misconception[Only addition can be gathered with `reduce`][
   #demo("examples/ch27/max_gather.low")
 
@@ -251,6 +277,7 @@ above. The two disagree, and it is recorded as a defect in the development repos
   [`order release` on a read, and so on], [rejected (`E-ATOMIC-ORDER`)], [meaningless combinations are not left undefined],
   [`view_array u64 bytes`], [see bytes as a `u64` slice without copying], [atomic cells live on an allocated window],
   [`var v vec u32 4 be load xs 0 .` · `reduce_add v`], [read four lanes as one value · gather lanes], [SIMD within one flow --- the lane count is part of the type],
+  [`access data shared_read .` · `access out write_only .`], [a promise to only read · only write --- checked against the body], [read-only lets several tasks hold it · breaking it is `E-ACCESS-MODE`],
 )
 
 #recap[

@@ -197,6 +197,14 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   nowhere to live.
 ]
 
+#antipattern[Catching the rest of a `match` with `else` --- a hole in this edition][
+  #demo("examples/ch07/mistake_matchelse.low")
+
+  The canon's grammar annex writes `match … do <arm>* [else do … end] end`, and the diagnostic also says "a `case _ .` or `else` is required".
+  Yet this edition's tool does not read an `else` inside a `match` as the remaining arm and gives the same diagnostic again. It is recorded as a
+  defect in the development repository. For now, catch the rest with `case _ do … end .`; `_` is a slot meaning "any value".
+]
+
 #misconception[`match` arms fall through like C's `switch`][
   #demo("examples/ch07/nofall.low")
 

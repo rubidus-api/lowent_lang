@@ -210,6 +210,17 @@ export proc append
   로 책임을 부르는 쪽에 드러내거나, `option` 을 돌려준다.
 ]
 
+#antipattern[드문 효과를 적은 op 을 순수한 `fn` 에서 부른다 --- 이 판의 구멍][
+  #demo("examples/ch15/mistake_blocking.low")
+
+  `blocking` 은 "흐름을 붙잡아 둘 수 있다" 이므로, 그런 op 을 부르는 `fn` 은 순수하지 않다. 뜻으로는 거절되어야 하는데 이 판의 도구는 통과시킨다.
+  `blocking`·`page_fault`·`cancel`·`detach`·`device` 다섯이 부르는 쪽으로 번지지 않는다. 같은 모양에 `wait` 를 적으면 제대로 거절된다.
+
+  #demo("examples/ch15/blocking_wait.low")
+
+  개발 저장소에 결함으로 적어 두었다. 그때까지는 드문 효과를 적은 op 을 부르는 쪽도 `proc` 으로 적고 같은 효과를 손으로 옮겨 적는다.
+]
+
 == 이 장의 문법 한눈에
 
 #dtable(

@@ -139,6 +139,13 @@
 
 연산에 따라 뜻이 없는 조합은 거절된다.
 
+차례 넷을 짝이 맞는 연산에 쓰면 이렇다.
+
+#demo("examples/ch27/orders.low")
+
+`atomic_store … order seq_cst` 로 5 를 쓰고, 읽고 쓰는 `atomic_swap … order acq_rel` 로 7 과 바꾸며 옛값 5 를 얻는다. `order release` 로 15 를 쓰고
+`order acquire` 로 읽어 15 를 돌려준다. 짝이 맞지 않는 조합은 거절된다.
+
 #demo("examples/ch27/order_bad.low")
 
 읽기가 무엇을 내보낸다는 말인가. C 는 이런 조합을 정의되지 않은 동작으로 둔다. 쓰기는 `acquire` 일 수 없고, 차례만 정하는
@@ -186,6 +193,16 @@
 낸다. 예제처럼 `var lim vec u32 4 be splat 5 .` 로 먼저 담는다. 둘째, 정본 표는 `sum`·`sum_fast`·`avg` 를 보통 레인 op 으로 적지만 이 판의 도구는 위 표의
 오른쪽 열처럼 다룬다. 둘이 어긋나는 자리이고 개발 저장소에 결함으로 적어 두었다. 레인을 더할 때는 `reduce_add` 를 쓴다.
 
+== 자리를 어떻게 쓰는지 적는다 --- `access`
+
+`access <이름> <모드> .` 절은 op 이 입력 자리를 *읽기만* 하는지, *쓰기만* 하는지 머리에 적는다. 부르는 쪽과 스케줄러가 그 약속을 믿고 판단한다.
+
+#demo("examples/ch27/access.low")
+
+`shared_read` 는 "읽기만 한다" 이다. 쓰기가 없으면 경합도 없으므로 여러 태스크가 같은 자리를 함께 쥘 수 있다. `write_only` 는 "쓰기만 한다" 이고,
+아직 채워지지 않은 버퍼를 넘겨도 된다는 뜻이다. 두 모드는 도구가 몸을 보고 *검사한다*. `sequential` 같은 나머지 모드는 커널 스케줄링 힌트라
+아직 아무것도 강제하지 않으며, 적으면 `W-NOT-YET` 이 그렇다고 말한다.
+
 == 흔한 실수
 
 #antipattern[나누어 도는 조각들이 공유 카운터를 보통 연산으로 올린다][
@@ -221,6 +238,14 @@
   결과를 다른 슬라이스에 쓰는 순차 되풀이로 적는다.
 ]
 
+#antipattern[`write_only` 라고 적고 읽는다][
+  #demo("examples/ch27/mistake_access.low")
+
+  `write_only` 자리는 채워지지 않았을 수 있으므로, 읽으면 쓰레기를 읽는 것이다. 부르는 쪽은 그 선언을 믿고 빈 버퍼를 넘긴다. 그래서 `E-ACCESS-MODE`
+  로 거절한다. 함께 붙은 `W-EFFECT-OVER` 는 호출자 버퍼 쓰기를 효과로 세는 판정이 갈라진 결함 탓이다(#chref("pipe")). 읽어야 한다면 모드를 지우고
+  보통 입력으로 받는다.
+]
+
 #misconception[`reduce` 로 모을 수 있는 것은 덧셈뿐이다][
   #demo("examples/ch27/max_gather.low")
 
@@ -244,6 +269,7 @@
   [읽기에 `order release` 따위], [거절(`E-ATOMIC-ORDER`)], [뜻 없는 조합을 정의되지 않은 동작으로 두지 않는다],
   [`view_array u64 bytes`], [바이트를 베끼지 않고 `u64` 슬라이스로 본다], [원자 칸을 할당받은 창 위에 둔다],
   [`var v vec u32 4 be load xs 0 .` · `reduce_add v`], [레인 넷을 한 값으로 읽기 · 레인 모으기], [한 흐름 안의 SIMD --- 레인 수는 타입의 일부],
+  [`access data shared_read .` · `access out write_only .`], [읽기만 · 쓰기만 한다는 약속 --- 몸을 검사한다], [읽기만이면 여러 태스크가 함께 쥔다 · 어기면 `E-ACCESS-MODE`],
 )
 
 #recap[

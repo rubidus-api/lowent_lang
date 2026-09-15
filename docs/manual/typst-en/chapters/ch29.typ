@@ -119,6 +119,16 @@ Passing `owned τ` to an `extern` moves the responsibility to dispose of it to C
 C functions taking an unfixed number of arguments after the fixed ones can be called with a `variadic .` clause, but contracts do not reach those arguments, and the
 opposite direction (C calling our variadics) does not exist.
 
+#demo("examples/ch29/variadic.low")
+
+- `newtype cstr unsafe_ptr u8 .` turns C's `char*` into a named type. `unsafe_ptr` is not a type used on its own but a qualifier placed before a
+  type.
+- The `variadic .` clause says "takes more after the fixed arguments", and `link printf .` writes the C name. The `42` at the call site follows the
+  fixed arguments, so neither type checks nor contracts reach it. The classic C defect of a format not matching its arguments is not stopped here,
+  and that is why `unsafe` is attached.
+- `cstr_of "…\0"` views a string literal ending in a zero byte as a C string. The VM cannot call C, so this example is only checked; built
+  natively, it prints `sum=42`.
+
 #realcase[The load carried by a program that adds two numbers][
   The default emission is a *program*. `main` and the command-line dispatcher come along, and the dispatcher holds the tagged path and its pools. In the development
   repository's measurement, emitting one op that adds two numbers by default gave about 197 KB of read-only data and about 1.7 MB of uninitialised data, while
@@ -177,6 +187,7 @@ opposite direction (C calling our variadics) does not exist.
   [`unsafe_fn cmp`], [address of an `export extern` op (callback)], [ordinary op: `E-FN-NOTEXPORT` · with a capability: `E-FN-CAP`],
   [`input h owned τ .` (to an extern)], [responsibility for destroying passes to C], [what C does with it afterwards is not verified],
   [`variadic .`], [call a C variadic function], [contracts do not reach variadic arguments],
+  [`newtype cstr unsafe_ptr u8 .` · `cstr_of "…\0"`], [C pointer qualifier · view as a zero-terminated C string], [pointers are handled only through named types],
 )
 
 #recap[

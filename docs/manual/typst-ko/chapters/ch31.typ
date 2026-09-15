@@ -128,6 +128,16 @@ C 의 `#ifdef` 와 결정적으로 다른 점이 있다. *꺼진 가지도 파�
 동시성 코드는 `test <이름> schedule explore_interleavings do … end` 로 가능한 모든 흐름의 차례를 돌려 답이 같은지 본다
 (#chref("tasks-channels")). 경우가 많으면 `limit <수>` 로 상한을 둔다.
 
+op 머리에도 문서와 시험을 적는 절이 있다.
+
+#demo("examples/ch31/clauses.low")
+
+- `lowdoc "…" .` 은 사람이 읽는 설명이다. 주석(`rem`)과 달리 op 에 딸린 문서로 남아 도구가 뽑아 쓴다. 길면 `lowdoc text DOC … DOC .` 로 여러 줄을
+  적는다(#chref("surface")).
+- `tests first_two_ok first_two_short .` 는 이 op 을 시험하는 *op 의 이름*이다. `test` 블록 이름이 아니다. 도구는 그 이름이 실제로 있는지 검사하고,
+  없으면 `E-CONTRACT-UNDEF` 로 거절한다. 시험이 이름을 바꾸거나 사라지면 머리가 그 사실을 알려 준다.
+- `errors too_short lt (len data) 2 .` 는 조건이 붙은 실패다. 시험 op 둘이 성공과 실패 갈래를 하나씩 확인하고, `test` 블록이 둘을 `expect` 로 묶는다.
+
 #qa[
   시험이 있는데 계약까지 적어야 하는가?
 ][
@@ -226,6 +236,7 @@ why-slow: 0 / 1 op(s) still on the tagged path
   [`test … schedule explore_interleavings limit <수> do … end .`], [모든 차례를 돌리는 시험], [드문 차례의 결함],
   [`lowentc --run <op> <파일> <인자…>`], [op 하나를 VM 으로 돌린다], [권한 자리에는 자리표 `0`],
   [`--why-slow` · `--no-fast`], [느린 길에 남은 op 과 이유 · 모두 느린 길로], [성능을 도구가 말한다],
+  [`lowdoc "…" .` · `tests op1 op2 .`], [op 에 딸린 문서 · 이 op 을 시험하는 op 이름], [문서는 op 과 함께 움직이고, 없어진 시험은 머리가 알린다],
 )
 
 #recap[

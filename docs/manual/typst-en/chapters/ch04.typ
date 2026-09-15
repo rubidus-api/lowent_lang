@@ -182,6 +182,18 @@ with an operating system. The exact last bit of their results is up to the machi
   this language do not cover (#chref("proofs-limits")).
 ]
 
+`f32` and the size types follow the same rules.
+
+#demo("examples/ch04/sizes.low")
+
+- `usize` and `isize` are unsigned and signed integers with the machine's address width. Use them to exchange lengths and indexes with C's
+  `size_t` and `ptrdiff_t` (#chref("ffi")). Their width may differ between machines, so use `u64` and `i64` for fixed-width arithmetic. Moving to a
+  type of the other signedness goes through a named operation such as `cast isize n`.
+- `f32` takes half the memory and has about seven significant digits. Use it where quantity matters more than precision, as in large arrays or
+  graphics.
+- `same_third` computes the same 1/3 as `f32` and as `f64`, widens, and compares. The answer is false (0). Even though the VM shows both briefly
+  as `0.333333`, they are different numbers.
+
 == Common mistakes
 
 Many number mistakes pass compilation and only show up *while running*. Where other languages would quietly produce a wrong value,
@@ -234,6 +246,16 @@ Lowent stops --- and the place it stops is the place to fix.
   the `i64` maximum, trust the comparisons of `expect` rather than the printed number.
 ]
 
+#misconception[It is written `f32`, so the value is already 32 bits --- a hole in this edition][
+  #demo("examples/ch04/mistake_f32literal.low")
+
+  `stored` widens an `f32` holding the literal 0.1 and compares it with the `f64` 0.1, and the answer is true. Had it been rounded to 32 bits it
+  would be false. This edition's tool does not round a literal (or an argument passed with `--run`) when storing it in an `f32` place; the value
+  becomes 32 bits only after one operation (`computed` is false). The VM and native code agree on this. It is recorded as a defect in the
+  development repository. Code that relies on the exact bits of an `f32` (hashing, serialisation, comparison tests) should not trust literal
+  values as they are in this edition.
+]
+
 #misconception[`div 7 2` is 3.5][
   Integer division keeps only the quotient and drops the fraction.
 
@@ -270,6 +292,7 @@ name.
   [`shl` · `shr` · `rotl` · `rotr`], [shift · rotate], [shifting by the width or more stops],
   [`count_ones` · `leading_zeros` · `trailing_zeros` · `byte_swap`], [count bits · reverse bytes], [common jobs get one name],
   [`true` · `false` · `and` · `or` · `not`], [booleans and their logic], [numbers are never used as conditions],
+  [`usize` · `isize` · `f32`], [address-width integers · 32-bit float], [lengths exchanged with C · when quantity matters more than precision],
 )
 
 #recap[

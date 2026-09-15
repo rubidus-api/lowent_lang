@@ -11,6 +11,7 @@ Only the diagnostics that this book's examples actually trigger are listed. A co
   id: "a2-static",
   caption: [Diagnostics shown by the examples],
   [*Code*], [*Meaning*], [*Shown in*],
+  [`E-ACCESS-MODE`], [the body breaks the read or write promise made with `access`], [#chref("parallel-atomic")],
   [`E-ALLOC-AMBIGUOUS`], [more than one fitting allocator and none chosen with `using`], [#chref("fixed-memory")],
   [`E-ALLOC-NESTED`], [allocated from an outer source while an inner region of the same root is open], [#chref("regions")],
   [`E-ALLOC-NOCAP`], [declares `alloc` but receives no allocation capability], [#chref("capabilities")],
@@ -77,6 +78,7 @@ Only the diagnostics that this book's examples actually trigger are listed. A co
   [`E-ISR-EFFECT`], [an interrupt handler does not declare `effects device`], [#chref("hardware")],
   [`E-ISR-PARAMS`], [an interrupt handler takes parameters], [#chref("hardware")],
   [`E-LET-NOVALUE`], [nothing after `be`], [#chref("locals")],
+  [`E-LOCK-NOTYET`], [shared lock types are not built yet], [#chref("tasks-channels")],
   [`E-MATCH-INEXHAUSTIVE`], [a `match` does not cover every case], [#chref("control"), #chref("structs-enums"), #chref("option-result")],
   [`E-MATCH-REDUNDANT`], [a `match` arm can never run (an arm after `_`, overlapping ranges)], [#chref("option-result")],
   [`E-METHOD-UNDEF`], [no op of that name is attached to the receiver's type], [#chref("generics"), #chref("traits")],
@@ -100,7 +102,6 @@ Only the diagnostics that this book's examples actually trigger are listed. A co
   [`E-PIPE-STAGE`], [a word that is not a `pipe` stage], [#chref("pipe")],
   [`E-PROFILE-LEVEL`], [uses concurrency the build profile does not provide], [#chref("actors")],
   [`E-REGION-ESCAPE`], [carries region bytes out of the region], [#chref("regions")],
-  [`E-REGION-KIND`], [a region kind outside the closed eight], [#chref("regions")],
   [`E-RETURN-PARTIAL`], [some path does not return a value], [#chref("surface"), #chref("ops"), #chref("control")],
   [`E-SPAWN-SCOPE`], [spawns a task outside a `task_group`], [#chref("tasks-channels")],
   [`E-TIER-EFFECT`], [an effect the declared machine tier cannot carry], [#chref("hardware")],
@@ -127,6 +128,7 @@ Only the diagnostics that this book's examples actually trigger are listed. A co
   [`E-VOCAB-REMOVED`], [a removed word or spelling], [#chref("surface"), #chref("ops"), #chref("control"), #chref("effects"), #chref("proofs-syntax")],
   [`E-WIDEN-SIGN`], [`widen` from a signed to an unsigned type], [#chref("named-types")],
   [`W-EFFECT-OVER`], [an effect declared but never performed (warning)], [#chref("effects"), #chref("capabilities")],
+  [`W-NOT-YET`], [a word accepted by name that has no meaning yet], [#chref("named-types")],
   [`W-USE-EXTERNAL`], [imports a module not in the compilation unit (warning)], [#chref("lib-map")],
 )
 

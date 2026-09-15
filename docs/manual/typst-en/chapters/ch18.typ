@@ -92,6 +92,12 @@ A region's kind is one of a closed eight --- `stack`, `frame`, `arena`, `static`
 
 #demo("examples/ch18/kinds.low")
 
+A kind word leaves in the code *what the region is for*. In this edition only `heap` actually behaves differently --- it carves from the growing
+root. The other seven all carve and rewind in the fixed window, so `carve_stack` and `carve_static` get 32 and 64 the same way. The kind is still
+written so that the code need not change when the realisation is later tailored to a machine.
+
+#demo("examples/ch18/kinds.low")
+
 The processor in this edition distinguishes behaviour only between *the two roots* (heap and the rest). The other seven are not yet told apart. They are still
 closed because a word that could be anything would say nothing. Someone reading `region t arena` knows "carve from the front, give back all at once".
 

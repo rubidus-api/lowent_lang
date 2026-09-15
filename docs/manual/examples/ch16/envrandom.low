@@ -1,0 +1,18 @@
+module envrandom .
+rem run: main
+
+use random .
+
+rem ko: 환경 변수는 cap env, 운영체제의 엔트로피는 cap random — 둘 다 받아야 닿는다 /// en: environment variables need cap env and the operating system's entropy needs cap random; both must be handed over
+proc main input e cap env . input r cap random . input al cap allocator . output u8 . effects alloc .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 8 .
+  guard is_some g . else return 250 .
+  var buf mut slice u8 . be some_value g .
+  rem ko: 여덟 바이트를 운영체제의 난수로 채운다 — 값은 매번 다르므로 돌려주지 않는다 /// en: fill eight bytes with operating-system randomness; the value differs every run, so it is not returned
+  let n u64 be random.bytes r buf .
+  rem ko: 환경 변수가 없으면 none — 값이 아니라 없음을 돌려준다 /// en: a missing variable gives none, an absence rather than a value
+  let v option slice u8 be env_get e "LOWENT_MANUAL_DEMO" .
+  guard is_some v . else return narrow u8 n .
+  return 99 .
+end .

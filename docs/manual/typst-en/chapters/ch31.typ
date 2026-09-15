@@ -217,7 +217,7 @@ the slow path, used to see whether both paths give the same answer.
   [`package name "greeter" .` · `package version "0.1.0" .`], [the `pkg.low` manifest], [here, what is written is checked --- a closed set of keys],
   [`lowentc run` · `lowentc build`], [run the project on the VM · build into `out/`], [the manifest is found by walking upward],
   [`lowentc add <name> <place>` · `--lock-write` · `--lock`], [pin dependencies with hashes], [same version, different bytes: a different dependency],
-  [`build option smp bool default true .`], [a build knob --- `bool`·`int`·`choice`], [a knob nobody reads is `E-CONFIG-UNUSED`],
+  [`build option smp bool default true .`], [a build knob --- `bool`·`int`·`choice`], [a knob nobody reads is `E-OPT-UNUSED`],
   [`config smp` · `--config small.config`], [read a knob as a translation-time constant · a config file], [switched-off branches are checked too],
   [`test <name> do expect <condition> . end .` · `--test`], [test blocks and assertions], [failure is `E-TEST-FAIL` --- not a contract violation],
   [`test … schedule explore_interleavings limit <n> do … end .`], [a test that runs every order], [bugs of rare orders],

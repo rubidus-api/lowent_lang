@@ -220,7 +220,7 @@ why-slow: 0 / 1 op(s) still on the tagged path
   [`package name "greeter" .` · `package version "0.1.0" .`], [`pkg.low` 매니페스트], [여기만은 적은 것을 검사한다 --- 열쇠말은 닫힌 집합],
   [`lowentc run` · `lowentc build`], [프로젝트를 VM 으로 돌린다 · `out/` 에 짓는다], [매니페스트를 걸어 올라가며 찾는다],
   [`lowentc add <이름> <자리>` · `--lock-write` · `--lock`], [의존을 해시와 함께 고정한다], [판 번호가 같아도 바이트가 다르면 다른 의존],
-  [`build option smp bool default true .`], [빌드 손잡이 --- `bool`·`int`·`choice`], [읽히지 않는 손잡이는 `E-CONFIG-UNUSED`],
+  [`build option smp bool default true .`], [빌드 손잡이 --- `bool`·`int`·`choice`], [읽히지 않는 손잡이는 `E-OPT-UNUSED`],
   [`config smp` · `--config small.config`], [손잡이 값을 번역 시점 상수로 읽는다 · 구성 파일], [꺼진 가지도 검사받는다],
   [`test <이름> do expect <조건> . end .` · `--test`], [시험 블록과 단언], [실패는 `E-TEST-FAIL` --- 계약 위반과 다른 진단],
   [`test … schedule explore_interleavings limit <수> do … end .`], [모든 차례를 돌리는 시험], [드문 차례의 결함],

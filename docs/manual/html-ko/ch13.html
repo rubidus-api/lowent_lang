@@ -662,7 +662,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <script>(function(){try{var s=JSON.parse(localStorage.getItem('pcb-read')||'{}');var r=document.documentElement;if(s.theme&&s.theme!=='auto')r.setAttribute('data-theme',s.theme);if(s.fg)r.style.setProperty('--fg',s.fg);if(s.bg)r.style.setProperty('--bg',s.bg);if(s.link)r.style.setProperty('--link',s.link);if(s.width)r.setAttribute('data-measure','on');}catch(e){}})();</script></head>
 <body>
 <a class="skip" href="#content">본문으로 건너뛰기</a>
-<div class="bar"><strong><a href="index.html">Lowent 매뉴얼</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">13장 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch12.html" title="이전" aria-label="이전">←</a><a href="index.html" title="목차로" aria-label="목차로">↑</a><a href="ch14.html" title="다음" aria-label="다음">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ 설정</button><a class="tool" href="toc.html">▤ 상세 차례</a><a class="tool" href="../html-en/ch13.html">En</a><a class="tool" href="../pdf-ko/lowent-manual-ko.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="이 책의 GitHub 저장소">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- 공개된 모든 프로젝트">⌂ 전체 사이트</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- 모든 저장소">≡ 저장소 목록</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>가로폭 제한</span></label><div class="setrow"><span class="setlbl">테마</span><span class="seg"><button type="button" class="segb" data-theme="auto">시스템</button><button type="button" class="segb" data-theme="light">밝게</button><button type="button" class="segb" data-theme="dark">어둡게</button></span></div><div class="setrow"><span class="setlbl">색</span><label class="col"><span>글자</span><input type="color" id="s-fg"></label><label class="col"><span>배경</span><input type="color" id="s-bg"></label><label class="col"><span>링크</span><input type="color" id="s-link"></label></div><p class="setnote">설정은 이 브라우저에만 저장된다.</p></div><div class="here-head"><strong>이 장의 차례</strong></div><div class="here-body"><a class="lv3" href="#s13-1"><span class="tf-no">13.1</span>type 은 별칭, newtype 은 새 타입</a><a class="lv3" href="#s13-2"><span class="tf-no">13.2</span>range — 매개변수의 생김새가 된 계약</a><a class="lv3" href="#s13-3"><span class="tf-no">13.3</span>cast — 값이 변할 수 있는 자리</a><a class="lv3" href="#s13-4"><span class="tf-no">13.4</span>bits — 1 부터 64 비트까지</a><a class="lv3" href="#s13-5"><span class="tf-no">13.5</span>바이트 배치를 못 박는다</a></div></div>
+<div class="bar"><strong><a href="index.html">Lowent 매뉴얼</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">13장 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch12.html" title="이전" aria-label="이전">←</a><a href="index.html" title="목차로" aria-label="목차로">↑</a><a href="ch14.html" title="다음" aria-label="다음">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ 설정</button><a class="tool" href="toc.html">▤ 상세 차례</a><a class="tool" href="../html-en/ch13.html">En</a><a class="tool" href="../pdf-ko/lowent-manual-ko.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="이 책의 GitHub 저장소">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- 공개된 모든 프로젝트">⌂ 전체 사이트</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- 모든 저장소">≡ 저장소 목록</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>가로폭 제한</span></label><div class="setrow"><span class="setlbl">테마</span><span class="seg"><button type="button" class="segb" data-theme="auto">시스템</button><button type="button" class="segb" data-theme="light">밝게</button><button type="button" class="segb" data-theme="dark">어둡게</button></span></div><div class="setrow"><span class="setlbl">색</span><label class="col"><span>글자</span><input type="color" id="s-fg"></label><label class="col"><span>배경</span><input type="color" id="s-bg"></label><label class="col"><span>링크</span><input type="color" id="s-link"></label></div><p class="setnote">설정은 이 브라우저에만 저장된다.</p></div><div class="here-head"><strong>이 장의 차례</strong></div><div class="here-body"><a class="lv3" href="#s13-1"><span class="tf-no">13.1</span>type 은 별칭, newtype 은 새 타입</a><a class="lv3" href="#s13-2"><span class="tf-no">13.2</span>range — 매개변수의 생김새가 된 계약</a><a class="lv3" href="#s13-3"><span class="tf-no">13.3</span>cast — 값이 변할 수 있는 자리</a><a class="lv3" href="#s13-4"><span class="tf-no">13.4</span>bits — 1 부터 64 비트까지</a><a class="lv3" href="#s13-5"><span class="tf-no">13.5</span>바이트 배치를 못 박는다</a><a class="lv3" href="#s13-6"><span class="tf-no">13.6</span>배치의 두 방향과 실패하는 뷰</a><a class="lv3" href="#s13-7"><span class="tf-no">13.7</span>bitset — 작은 수의 집합</a><a class="lv3" href="#s13-8"><span class="tf-no">13.8</span>흔한 실수</a><a class="lv3" href="#s13-9"><span class="tf-no">13.9</span>이 장의 문법 한눈에</a></div></div>
 <main id="content"><div class="wrap">
 <h2>13 이름 붙인 타입 — <code>type</code>·<code>newtype</code>·<code>range</code>·<code>cast</code></h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>4장 수 · 넓히기는 자동, 좁히기는 적는다</div><div>10장 묶음 · <code>struct</code> 와 <code>field</code></div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>4장에서 <code>usize</code> 와 <code>u64</code> 는 폭이 같은 기계에서도 서로 자동으로 바뀌지 않는다고 했다. 왜 그렇게 정했는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> 주소를 세는 수와 그냥 수를 섞는 자리를 소스에 드러내기 위해서다. 표현이 같아도 뜻이 다르면 다른 타입으로 두고, 건너는 자리를 적게 한다. 이 장은 같은 원칙을 사용자가 직접 쓰는 방법 — <code>newtype</code> — 과, 타입에 범위와 폭과 배치를 적는 방법을 다룬다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">사용자 번호와 주문 번호가 둘 다 <code>u64</code> 이면 바꿔 넣어도 컴파일러는 모른다. 퍼센트를 받는 매개변수에 300 을 넘겨도 모른다. 이런 결함은 타입이 <strong>표현</strong>만 말하고 <strong>뜻</strong>을 말하지 않아서 생긴다. 제3부의 마지막 장으로, 앞에서 배운 타입들에 이름과 범위와 배치를 붙여 뜻을 싣는 법을 모은다. 계약(제4부)으로 넘어가기 직전에 두는 것은 <code>range</code> 가 계약과 같은 자격으로 쓰이기 때문이다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body"><code>type</code> 은 같은 타입의 다른 이름이고 <code>newtype</code> 은 같은 표현의 다른 타입이라는 것, 둘 사이를 <code>cast</code> 로 건넌다는 것을 알게 된다. 매개변수 자리의 <code>range lo hi</code> 가 부르는 쪽과 본문에 무엇을 주는지, <code>cast</code> 가 <code>widen</code>·<code>narrow</code> 와 어떻게 다른지를 익힌다. 1 부터 64 비트까지의 <code>bits</code> 정수와, 바이트 배치를 못 박는 <code>layout packed</code> 와 <code>view</code> 도 보게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li><code>newtype</code> 을 쓰면 실행 비용이 드는가?</li></ol></div></div><div></div><h3 id="s13-1">13.1 <code>type</code> 은 별칭, <code>newtype</code> 은 새 타입<a class="plink" href="#s13-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>type &lt;이름> &lt;타입> .</code> 은 기존 타입에 다른 이름을 준다. 두 이름은 같은 타입이고 서로 바꿔 쓸 수 있다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/aliases.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> aliases .
 <em><span class="tok-c">rem run: area 3 4</span></em>
@@ -800,7 +800,173 @@ $ lowentc --run grow tiny.low 1023
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check packed.low
 == check: ok ==
-</code></pre></div></div><ul><li><code>layout packed .</code> 은 칸 사이에 채움(padding)을 두지 않는다. 칸이 선언 차례로 맞붙는다.</li><li>칸 뒤의 <code>big</code>·<code>little</code> 은 바이트 차례를 정한다. 적지 않으면 그 기계의 차례를 따른다.</li><li><code>view wire_header b</code> 는 바이트 슬라이스를 <strong>베끼지 않고</strong> 그 배치의 값으로 읽는다. 길이와 정렬이 맞지 않으면 멈춘다.</li></ul><p>칸 뒤에는 <code>rw</code>·<code>ro</code>·<code>wo</code> 같은 닿는 법도 적을 수 있다. 장치 레지스터를 비추는 구조체에서 쓰기 전용 칸을 읽으면 번역이 거절된다(30장). 배치를 못 박으면 그만큼 처리기가 고를 여지가 줄어드므로, 필요한 자리에만 박는다.</p><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>type</code> 은 별칭이고 <code>newtype</code> 은 표현이 같은 새 타입이며, 둘 사이는 <code>cast</code> 로 건넌다. <code>range lo hi</code> 는 매개변수의 생김새가 된 계약으로, 부르는 쪽이 지키고 본문은 사실로 쓴다. <code>cast</code> 는 값이 변할 수 있는 변환을 적는 낱말이고 들어가지 않으면 멈춘다. <code>bits N</code> 은 임의 폭 정수다. <code>layout packed</code> 와 바이트 차례 표지, <code>view</code> 는 바이트 배치를 바깥과 맞춘다.</div></div>
+</code></pre></div></div><ul><li><code>layout packed .</code> 은 칸 사이에 채움(padding)을 두지 않는다. 칸이 선언 차례로 맞붙는다.</li><li>칸 뒤의 <code>big</code>·<code>little</code> 은 바이트 차례를 정한다. 적지 않으면 그 기계의 차례를 따른다.</li><li><code>view wire_header b</code> 는 바이트 슬라이스를 <strong>베끼지 않고</strong> 그 배치의 값으로 읽는다. 길이와 정렬이 맞지 않으면 멈춘다.</li></ul><p>칸 뒤에는 <code>rw</code>·<code>ro</code>·<code>wo</code> 같은 닿는 법도 적을 수 있다. 장치 레지스터를 비추는 구조체에서 쓰기 전용 칸을 읽으면 번역이 거절된다(30장). 배치를 못 박으면 그만큼 처리기가 고를 여지가 줄어드므로, 필요한 자리에만 박는다.</p><h3 id="s13-6">13.6 배치의 두 방향과 실패하는 뷰<a class="plink" href="#s13-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>view</code> 는 바이트를 그 배치의 값으로 <strong>읽는다</strong>. 반대 방향 — 값을 그 배치의 바이트로 <strong>만드는</strong> 일 — 은 <code>encode</code> 가 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/encoded.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> encoded .
+<em><span class="tok-c">rem run: header_bytes 9</span></em>
+
+<strong><span class="tok-k">struct</span></strong> wire_header <strong><span class="tok-k">do</span></strong>
+  layout packed .
+  magic <strong><span class="tok-t">u32</span></strong> big .
+  length <strong><span class="tok-t">u16</span></strong> big .
+  kind <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem `view` 의 반대 방향 --- 값을 그 배치의 바이트로 만든다</span></em>
+<strong><span class="tok-k">fn</span></strong> header_bytes <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> h wire_header <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> wire_header <strong><span class="tok-k">do</span></strong> magic <span class="tok-n">1</span> . length <span class="tok-n">2</span> . kind k . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> bytes <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> encode wire_header h .
+  <strong><span class="tok-k">return</span></strong> add (mul (len bytes) <span class="tok-n">1000</span>) (widen <strong><span class="tok-t">u64</span></strong> (index bytes <span class="tok-n">6</span>)) .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run header_bytes encoded.low 9
+header_bytes(9) = 7009
+</code></pre></div></div><p><code>encode wire_header h</code> 는 칸마다 적힌 바이트 차례(<code>big</code>)대로 일곱 바이트를 만든다. 결과 7009 는 길이 7 과 마지막 바이트 <code>kind</code> 의 9 를 한데 적은 것이다. 선으로 나갈 머리를 짓는 쪽이 <code>encode</code>, 받은 머리를 읽는 쪽이 <code>view</code> 다.</p><p><code>view</code> 는 길이나 정렬이 맞지 않으면 <strong>멈춘다</strong>. 계약이 깨졌다고 보기 때문이다. 그런데 네트워크에서 온 바이트는 짧은 것이 흔한 일이다. 그런 자리에서는 같은 일을 하되 실패를 값으로 주는 <code>try_view</code> 를 쓴다(17장).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/tryview.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> tryview .
+<em><span class="tok-c">rem run: kind_or_zero [1,2,3,4,0,5,9]</span></em>
+<em><span class="tok-c">rem run: kind_or_zero [1,2,3]</span></em>
+
+<strong><span class="tok-k">struct</span></strong> wire_header <strong><span class="tok-k">do</span></strong>
+  layout packed .
+  magic <strong><span class="tok-t">u32</span></strong> big .
+  length <strong><span class="tok-t">u16</span></strong> big .
+  kind <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem 바깥에서 온 바이트는 짧을 수 있다 --- 멈추는 `view` 대신 `none` 을 주는 `try_view`</span></em>
+<strong><span class="tok-k">fn</span></strong> kind_or_zero <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> o <strong><span class="tok-k">option</span></strong> view wire_header <strong><span class="tok-k">be</span></strong> try_view wire_header b .
+  <strong><span class="tok-k">guard</span></strong> is_some o . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> v view wire_header <strong><span class="tok-k">be</span></strong> some_value o .
+  <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> (field v kind) .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run kind_or_zero tryview.low [1,2,3,4,0,5,9]
+kind_or_zero([1,2,3,4,0,5,9]) = 9
+  arg0 (written) = [1,2,3,4,0,5,9]
+$ lowentc --run kind_or_zero tryview.low [1,2,3]
+kind_or_zero([1,2,3]) = 0
+  arg0 (written) = [1,2,3]
+</code></pre></div></div><p>일곱 바이트면 <code>kind</code> 9 를 읽고, 세 바이트면 <code>none</code> 을 받아 0 을 돌려준다. 멈추는 <code>view</code> 는 이미 확인한 안쪽에서, 값으로 알리는 <code>try_view</code> 는 경계에서 쓴다.</p><h3 id="s13-7">13.7 <code>bitset</code> — 작은 수의 집합<a class="plink" href="#s13-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-32"></span><p><code>bitset &lt;비트 수></code> 는 0 부터 그 수 미만까지의 수가 <strong>들어 있는지 없는지</strong>를 담는 집합이다. <code>bits</code>(한 정수의 폭)와 이름이 비슷하지만 뜻이 다르다. <code>bitset</code> 은 워드의 비트를 다루는 도구가 아니라 집합이고, 워드의 비트는 <code>bit_and</code>·<code>shl</code> 같은 비트 연산으로 다룬다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/sets.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sets .
+<em><span class="tok-c">rem run: overlap 5</span></em>
+<em><span class="tok-c">rem run: overlap 3</span></em>
+<em><span class="tok-c">rem run: flipped</span></em>
+
+<em><span class="tok-c">rem 0 … 63 가운데 들어 있는 수의 모음 --- 워드의 비트가 아니라 집합이다</span></em>
+<strong><span class="tok-k">fn</span></strong> overlap <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">60</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> a bitset <span class="tok-n">64</span> <strong><span class="tok-k">be</span></strong> bitset_new <span class="tok-n">64</span> .
+  <strong><span class="tok-k">var</span></strong> b bitset <span class="tok-n">64</span> <strong><span class="tok-k">be</span></strong> bitset_new <span class="tok-n">64</span> .
+  add a <span class="tok-n">1</span> .
+  add a <span class="tok-n">3</span> .
+  add a <span class="tok-n">5</span> .
+  add b <span class="tok-n">3</span> .
+  add b n .
+  <strong><span class="tok-k">let</span></strong> both bitset <span class="tok-n">64</span> <strong><span class="tok-k">be</span></strong> intersect a b .
+  <strong><span class="tok-k">let</span></strong> only_a bitset <span class="tok-n">64</span> <strong><span class="tok-k">be</span></strong> difference a b .
+  <em><span class="tok-c">rem 집합에서 1 을 지운다 --- 제자리에서 바뀐다</span></em>
+  remove a <span class="tok-n">1</span> .
+  <strong><span class="tok-k">var</span></strong> code <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> add (mul (count both) <span class="tok-n">100</span>) (mul (count only_a) <span class="tok-n">10</span>) .
+  <strong><span class="tok-k">if</span></strong> is_subset both a . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> code (add code <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> is_empty only_a . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> code (add code <span class="tok-n">1000</span>) . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> code .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem 여집합은 폭 안에서만 뜻이 있다 --- 여덟 칸 가운데 하나를 넣었으면 나머지 일곱</span></em>
+<strong><span class="tok-k">fn</span></strong> flipped <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> a bitset <span class="tok-n">8</span> <strong><span class="tok-k">be</span></strong> bitset_new <span class="tok-n">8</span> .
+  add a <span class="tok-n">0</span> .
+  <strong><span class="tok-k">return</span></strong> count (complement a) .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run overlap sets.low 5
+overlap(5) = 211
+$ lowentc --run overlap sets.low 3
+overlap(3) = 121
+$ lowentc --run flipped sets.low
+flipped() = 7
+</code></pre></div></div><ul><li><code>bitset_new 64</code> 가 빈 집합을 만든다. 폭은 번역 시점에 정해진 수다.</li><li><code>add a 1 .</code> 은 넣고 <code>remove a 1 .</code> 은 지운다. 둘 다 <strong>제자리에서</strong> 집합을 바꾸는 문장이다. <code>count a</code> 는 원소 수다.</li><li><code>intersect a b</code> 는 교집합, <code>difference a b</code> 는 <code>a</code> 에만 있는 것, <code>complement a</code> 는 여집합을 <strong>새 집합으로</strong> 준다.</li><li><code>is_subset x y</code> 는 <code>x</code> 가 <code>y</code> 에 다 들어 있는지, <code>is_empty x</code> 는 비었는지 묻는다.</li></ul><p><code>overlap 5</code> 에서 교집합은 {3, 5}, <code>a</code> 에만 있는 것은 {1} 이라 211 이 나온다. <code>complement</code> 는 폭 안에서만 뜻이 있다. 여덟 칸 집합에 0 하나를 넣었으면 여집합은 나머지 일곱이다. 폭 밖의 수를 넣거나 물으면 멈춘다 — 집합의 범위도 타입의 일부이기 때문이다.</p><h3 id="s13-8">13.8 흔한 실수<a class="plink" href="#s13-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 넓은 타입의 값을 <code>range</code> 매개변수에 그대로 넘긴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/mistake_rangewide.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_rangewide .
+<em><span class="tok-c">rem expect: E-TYPE-WIDTH</span></em>
+
+<strong><span class="tok-k">fn</span></strong> scale <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">range</span></strong> <span class="tok-n">0</span> <span class="tok-n">100</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (mul a <span class="tok-n">2</span>) .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> call_scale <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ `u64` 는 0 … 100 보다 넓다 --- 범위 안이라는 것을 부르는 쪽이 보이지 않았다</span></em>
+  <strong><span class="tok-k">return</span></strong> scale x .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_rangewide.low
+mistake_rangewide.low:12:0 E-TYPE-WIDTH: value does not fit the declared type (a literal out of range, or a narrowing — use narrow / narrow_wrap / narrow_sat / round_to)
+</code></pre></div></div><p><code>scale</code> 은 0 … 100 만 받는다고 서명에 적었다. <code>u64</code> 값은 그보다 넓으므로, 범위 안이라는 것을 부르는 쪽이 보이지 않으면 번역이 <code>E-TYPE-WIDTH</code> 로 거절한다. 거절하는 까닭은 책임의 자리를 정하기 위해서다. 범위를 벗어난 값이 오면 무엇을 할지는 부르는 쪽만 안다. <code>guard</code> 로 범위를 확인해 밖이면 따로 답하고, 안이면 <code>narrow</code> 로 좁혀 넘긴다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/rangewide_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> rangewide_fixed .
+<em><span class="tok-c">rem run: call_scale 40</span></em>
+<em><span class="tok-c">rem run: call_scale 400</span></em>
+
+<strong><span class="tok-k">fn</span></strong> scale <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">range</span></strong> <span class="tok-n">0</span> <span class="tok-n">100</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (mul a <span class="tok-n">2</span>) .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> call_scale <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem 범위 밖이면 여기서 따로 답하고, 안이면 좁혀서 넘긴다</span></em>
+  <strong><span class="tok-k">guard</span></strong> le x <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> .
+  <strong><span class="tok-k">return</span></strong> scale (narrow <strong><span class="tok-t">u8</span></strong> x) .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run call_scale rangewide_fixed.low 40
+call_scale(40) = 80
+$ lowentc --run call_scale rangewide_fixed.low 400
+call_scale(400) = 255
+</code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">반례. 부호 있는 수를 <code>widen</code> 으로 부호 없는 타입에 넣는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/mistake_widensign.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_widensign .
+<em><span class="tok-c">rem expect: E-WIDEN-SIGN</span></em>
+
+<strong><span class="tok-k">fn</span></strong> to_count <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ 음수는 `u64` 에 자리가 없다 --- 폭이 넓어도 `widen` 은 안 된다</span></em>
+  <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> x .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_widensign.low
+mistake_widensign.low:7:0 E-WIDEN-SIGN: a signed integer cannot widen into an unsigned one — a negative value has no place there. Use `cast` if that is what you mean
+</code></pre></div></div><p><code>i32</code> 에서 <code>u64</code> 로 가면 폭은 넓어지지만, −1 같은 음수는 <code>u64</code> 에 자리가 없다. <code>widen</code> 은 <strong>어떤 값도 변하지 않는</strong> 자리에만 쓰므로 <code>E-WIDEN-SIGN</code> 이다. 음수가 올 수 없다고 알고 있다면 <code>cast u64 x</code> 라고 적어 그 판단을 소스에 남긴다. 음수가 오면 <code>cast</code> 가 멈춘다. 음수를 따로 다뤄야 한다면 <code>guard ge x 0 .</code> 을 먼저 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>bool</code> 을 <code>cast</code> 로 수로 바꾼다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/mistake_boolcast.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_boolcast .
+<em><span class="tok-c">rem expect: E-TYPE-KIND</span></em>
+
+<strong><span class="tok-k">fn</span></strong> flag <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ 참이 1 인지는 언어가 아니라 프로그램이 정할 일이다</span></em>
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> b .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_boolcast.low
+mistake_boolcast.low:7:0 E-TYPE-KIND: bool is not numeric: it cannot be a cast SOURCE either. Which side is `1` is for the PROGRAM to say, not the language — write `if b . do 1 . else 0 .`
+</code></pre></div></div><p>C 는 참을 1 로 보지만, 참이 1 인지 0 인지 −1 인지는 프로그램의 약속이지 언어가 정할 일이 아니다. 그래서 <code>bool</code> 은 <code>cast</code> 의 원천도 대상도 될 수 없고 <code>E-TYPE-KIND</code> 로 거절된다. 도구가 알려 주는 대로 <code>if</code> 로 “참이면 1, 거짓이면 0” 을 적는다. 그 한 줄이 약속을 소스에 남긴다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>type</code> 으로 이름을 달리하면 단위가 섞이지 않는다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/type_units.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> type_units .
+<em><span class="tok-c">rem run: total 100 100</span></em>
+
+<strong><span class="tok-k">type</span></strong> meters <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">type</span></strong> feet <strong><span class="tok-t">u64</span></strong> .
+
+<em><span class="tok-c">rem 미터와 피트를 더했는데 아무도 막지 않는다 --- `type` 은 다른 이름일 뿐이다</span></em>
+<strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> m meters . <strong><span class="tok-k">input</span></strong> f feet . <strong><span class="tok-k">output</span></strong> meters .
+  <strong><span class="tok-k">requires</span></strong> le m <span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> le f <span class="tok-n">1000000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> add m f .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run total type_units.low 100 100
+total(100, 100) = 200
+</code></pre></div></div><p><code>meters</code> 와 <code>feet</code> 는 둘 다 <code>u64</code> 의 <strong>다른 이름</strong>일 뿐이라서 더해도 아무도 막지 않는다. 100 미터와 100 피트의 합이 200 미터로 나온다. 섞이면 안 되는 뜻은 <code>newtype</code> 으로 가른다. 그러면 <code>ids.low</code> 처럼 번역이 <code>E-TYPE-NOMINAL</code> 로 막고, 건너는 자리는 <code>cast</code> 로 드러난다. <code>type</code> 은 긴 이름을 줄이거나 범위를 물려줄 때 쓴다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>cast</code> 로 음수를 부호 없는 타입에 넣으면 C 처럼 큰 수가 된다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/negcast.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> negcast .
+<em><span class="tok-c">rem run: to_unsigned 5</span></em>
+<em><span class="tok-c">rem trap: to_unsigned -1</span></em>
+
+<strong><span class="tok-k">fn</span></strong> to_unsigned <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem C 라면 -1 이 4294967295 가 된다 --- Lowent 는 들어가지 않으면 멈춘다</span></em>
+  <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u32</span></strong> x .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run to_unsigned negcast.low 5
+to_unsigned(5) = 5
+$ lowentc --run to_unsigned negcast.low -1
+== ir diagnostics (1) ==
+0:0 E-VM-CAST: value does not fit the target width (use narrow_wrap / narrow_sat / narrow_try)
+</code></pre></div></div><p>C 에서 <code>(uint32_t)-1</code> 은 4294967295 다. 이 감김은 표준이 정한 동작이지만 대개 결함을 숨긴다. Lowent 의 <code>cast</code> 는 값을 옮기고, 들어가지 않으면 <code>E-VM-CAST</code> 로 멈춘다. 정말로 감기를 원한다면 <code>narrow_wrap</code> 처럼 그 뜻을 이름에 지닌 낱말을 쓴다(4장).</p></div></div><h3 id="s13-9">13.9 이 장의 문법 한눈에<a class="plink" href="#s13-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>type meters u64 .</code></td><td>같은 타입의 다른 이름</td><td>긴 타입을 줄이고 뜻을 남긴다 — 섞임은 막지 않는다</td></tr><tr><td><code>newtype user_id u64 .</code></td><td>표현이 같은 새 타입</td><td>번호끼리 섞이는 결함을 번역이 막는다 — 실행 비용 없음</td></tr><tr><td><code>cast user_id n</code> · <code>cast u64 u</code></td><td>새 타입과 원래 타입 사이를 건넌다</td><td>건너는 자리가 코드에서 한곳에 모인다</td></tr><tr><td><code>input a range 0 100 .</code></td><td>두 끝을 포함한 범위만 받는다</td><td>계약이 서명의 생김새가 된다</td></tr><tr><td><code>type pct range 0 100 .</code></td><td>범위를 별칭에 싣는다</td><td>여러 op 이 같은 범위를 물려받는다</td></tr><tr><td><code>cast i32 x</code></td><td>값이 변할 수 있는 변환 — 들어가지 않으면 멈춤</td><td>“여기서 값이 변할 수 있음을 안다” 는 표시</td></tr><tr><td><code>type ten_bits bits 10 .</code></td><td>1 … 64 비트 정수</td><td>폭이 곧 계약</td></tr><tr><td><code>layout packed .</code> · <code>magic u32 big .</code></td><td>채움 없는 배치 · 바이트 차례</td><td>바깥과 바이트의 뜻을 맞춘다</td></tr><tr><td><code>view wire_header b</code></td><td>바이트를 베끼지 않고 그 배치로 읽는다</td><td>길이·정렬이 어긋나면 멈춘다</td></tr><tr><td><code>try_view wire_header b</code> · <code>encode wire_header h</code></td><td>실패를 <code>none</code> 으로 주는 뷰 · 값을 그 배치의 바이트로</td><td>경계에서는 멈추지 않는 쪽</td></tr><tr><td><code>var a bitset 64 be bitset_new 64 .</code> · <code>add a 1 .</code> · <code>intersect a b</code></td><td>작은 수의 집합과 그 연산</td><td>집합이지 워드의 비트가 아니다</td></tr></table></div><p class="float-caption">표 13.1 — 이름 붙인 타입의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>type</code> 은 별칭이고 <code>newtype</code> 은 표현이 같은 새 타입이며, 둘 사이는 <code>cast</code> 로 건넌다. <code>range lo hi</code> 는 매개변수의 생김새가 된 계약으로, 부르는 쪽이 지키고 본문은 사실로 쓴다. <code>cast</code> 는 값이 변할 수 있는 변환을 적는 낱말이고 들어가지 않으면 멈춘다. <code>bits N</code> 은 임의 폭 정수다. <code>layout packed</code> 와 바이트 차례 표지, <code>view</code> 는 바이트 배치를 바깥과 맞춘다.</div></div>
 <div class="nav"><a href="ch12.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch14.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

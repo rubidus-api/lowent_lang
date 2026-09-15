@@ -15,7 +15,7 @@ L0 — 순수 계산(호출자의 뒷받침)
 바이트열(문자열) 열쇠로 `u64` 값을 넣고 찾는 해시 맵이다 — 단어 세기 · 심볼 테이블 · 설정 맵. [`hashmap`](sec70.md#mod-hashmap) 을 가변 길이 바이트열 키로 넓힌 것이다. 키 바이트는 넣을 때 아레나로 **복사**되므로 원본 문자열의 수명에 매이지 않는다.
 
 ```lowent
-let ok bool be strmap.put slots keys "apple" 1 .
+let stored bool be strmap.put slots keys "apple" 1 .
 let v option u64 . be strmap.lookup slots keys "apple" .
 ```
 

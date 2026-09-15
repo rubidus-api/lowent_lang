@@ -662,7 +662,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <script>(function(){try{var s=JSON.parse(localStorage.getItem('pcb-read')||'{}');var r=document.documentElement;if(s.theme&&s.theme!=='auto')r.setAttribute('data-theme',s.theme);if(s.fg)r.style.setProperty('--fg',s.fg);if(s.bg)r.style.setProperty('--bg',s.bg);if(s.link)r.style.setProperty('--link',s.link);if(s.width)r.setAttribute('data-measure','on');}catch(e){}})();</script></head>
 <body>
 <a class="skip" href="#content">본문으로 건너뛰기</a>
-<div class="bar"><strong><a href="index.html">Lowent 매뉴얼</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">10장 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch09.html" title="이전" aria-label="이전">←</a><a href="index.html" title="목차로" aria-label="목차로">↑</a><a href="ch11.html" title="다음" aria-label="다음">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ 설정</button><a class="tool" href="toc.html">▤ 상세 차례</a><a class="tool" href="../html-en/ch10.html">En</a><a class="tool" href="../pdf-ko/lowent-manual-ko.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="이 책의 GitHub 저장소">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- 공개된 모든 프로젝트">⌂ 전체 사이트</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- 모든 저장소">≡ 저장소 목록</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>가로폭 제한</span></label><div class="setrow"><span class="setlbl">테마</span><span class="seg"><button type="button" class="segb" data-theme="auto">시스템</button><button type="button" class="segb" data-theme="light">밝게</button><button type="button" class="segb" data-theme="dark">어둡게</button></span></div><div class="setrow"><span class="setlbl">색</span><label class="col"><span>글자</span><input type="color" id="s-fg"></label><label class="col"><span>배경</span><input type="color" id="s-bg"></label><label class="col"><span>링크</span><input type="color" id="s-link"></label></div><p class="setnote">설정은 이 브라우저에만 저장된다.</p></div><div class="here-head"><strong>이 장의 차례</strong></div><div class="here-body"><a class="lv3" href="#s10-1"><span class="tf-no">10.1</span>struct — 이름 붙은 칸의 모음</a><a class="lv3" href="#s10-2"><span class="tf-no">10.2</span>enum — 여럿 중 하나</a><a class="lv3" href="#s10-3"><span class="tf-no">10.3</span>갈래는 마침표로 닫는다</a><a class="lv3" href="#s10-4"><span class="tf-no">10.4</span>자기 자신을 품을 수 없다</a></div></div>
+<div class="bar"><strong><a href="index.html">Lowent 매뉴얼</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">10장 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch09.html" title="이전" aria-label="이전">←</a><a href="index.html" title="목차로" aria-label="목차로">↑</a><a href="ch11.html" title="다음" aria-label="다음">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ 설정</button><a class="tool" href="toc.html">▤ 상세 차례</a><a class="tool" href="../html-en/ch10.html">En</a><a class="tool" href="../pdf-ko/lowent-manual-ko.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="이 책의 GitHub 저장소">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- 공개된 모든 프로젝트">⌂ 전체 사이트</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- 모든 저장소">≡ 저장소 목록</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>가로폭 제한</span></label><div class="setrow"><span class="setlbl">테마</span><span class="seg"><button type="button" class="segb" data-theme="auto">시스템</button><button type="button" class="segb" data-theme="light">밝게</button><button type="button" class="segb" data-theme="dark">어둡게</button></span></div><div class="setrow"><span class="setlbl">색</span><label class="col"><span>글자</span><input type="color" id="s-fg"></label><label class="col"><span>배경</span><input type="color" id="s-bg"></label><label class="col"><span>링크</span><input type="color" id="s-link"></label></div><p class="setnote">설정은 이 브라우저에만 저장된다.</p></div><div class="here-head"><strong>이 장의 차례</strong></div><div class="here-body"><a class="lv3" href="#s10-1"><span class="tf-no">10.1</span>struct — 이름 붙은 칸의 모음</a><a class="lv3" href="#s10-2"><span class="tf-no">10.2</span>enum — 여럿 중 하나</a><a class="lv3" href="#s10-3"><span class="tf-no">10.3</span>갈래는 마침표로 닫는다</a><a class="lv3" href="#s10-4"><span class="tf-no">10.4</span>자기 자신을 품을 수 없다</a><a class="lv3" href="#s10-5"><span class="tf-no">10.5</span>흔한 실수</a><a class="lv3" href="#s10-6"><span class="tf-no">10.6</span>이 장의 문법 한눈에</a></div></div>
 <main id="content"><div class="wrap">
 <h2>10 묶음 — <code>struct</code> 와 <code>enum</code></h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>7장 흐름 · <code>match</code> 는 모든 경우를 덮어야 한다</div><div>9장 줄 · 슬라이스는 길이를 함께 갖는다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>7장에서 <code>match</code> 가 <code>if</code> 사슬보다 나은 점으로, 망라 검사 말고 무엇을 들었는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> 나중에 경우가 늘어날 때를 들었다. 열거형에 변형을 하나 더하면 그 열거형을 가르는 모든 <code>match</code> 가 번역에서 멈춰 고칠 자리를 알려 주지만, <code>if</code> 사슬은 새 경우를 조용히 마지막 <code>else</code> 로 흘려보낸다. 이 장에서 그 열거형을 직접 만든다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">수와 슬라이스만으로는 “점 하나”, “선분 하나”, “원이거나 사각형이거나 점” 같은 모양을 적을 수 없다. 이름 붙은 칸의 모음(<code>struct</code>)과 여럿 중 하나(<code>enum</code>)가 있어야 데이터가 문제의 모양을 닮는다. 특히 값을 지닌 <code>enum</code> 과 <code>match</code> 의 짝은 Lowent 에서 상속을 대신하는 주된 도구이고, 뒤에 나오는 <code>option</code> 과 <code>result</code>(11장), 트레이트(23장)가 모두 이 위에 선다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body"><code>struct</code> 를 선언하고 <code>make</code> 로 만들고 <code>field</code> 로 읽는 법을 익힌다. 붙임 점이 없는 이유를 알게 된다. <code>enum</code> 의 갈래가 값을 지닐 수 있다는 것, <code>match</code> 로 갈래를 가르며 값을 이름에 묶는 법, 갈래를 마침표로 닫아야 하는 이유를 보게 된다. 자기 자신을 품는 타입이 거절되는 까닭과, 나무 구조를 번호로 잇는 법도 알게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li>칸 이름으로 <code>to</code> 나 <code>in</code> 을 쓸 수 있는가?</li><li>번호로 잇는 것은 포인터로 잇는 것보다 불편하지 않은가?</li></ol></div></div><div></div><h3 id="s10-1">10.1 <code>struct</code> — 이름 붙은 칸의 모음<a class="plink" href="#s10-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-20"></span><p><code>struct</code> 는 이름 붙은 칸들의 모음이고, 칸마다 자기 타입이 있다. 선언의 몸은 <code>do … end</code> 이고 칸마다 마침표로 닫는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/points.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> points .
 <em><span class="tok-c">rem run: demo_dist 3 4</span></em>
@@ -801,7 +801,133 @@ enum_dot.low:6:0 E-ENUM-DOT: this enum variant is not closed with `.`, so the NE
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check tree.low
 == check: ok ==
-</code></pre></div></div><p><code>add l u32 r u32 .</code> 의 <code>l</code>·<code>r</code> 은 노드 자체가 아니라 <code>nodes</code> 안의 번호다. <code>eval</code> 은 번호로 자식을 찾아 재귀한다. 크기가 정해지고, 번호를 따라가는 <code>index</code> 는 경계 검사를 그대로 받는다. 이런 노드 슬라이스를 만드는 저장소 — 영역 — 는 18장에서 다룬다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 번호로 잇는 것은 포인터로 잇는 것보다 불편하지 않은가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 한 가지는 불편하다. 노드를 지우고 그 번호를 다시 쓰면, 옛 번호를 들고 있던 쪽이 엉뚱한 노드를 본다. 표준 라이브러리의 <code>pool</code> 은 번호에 세대 수를 함께 담는 <strong>세대 핸들</strong>로 이 문제를 실행 중에 잡는다 (34장). 대신 얻는 것이 크다. 번호는 복사해도 안전하고, 파일에 그대로 쓸 수 있으며, 노드들이 한 슬라이스에 붙어 있어 캐시에 잘 맞는다.</p></div></div><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>struct</code> 는 <code>make</code> 로 모든 칸을 채워 만들고 <code>field</code> 로 읽고 쓴다. 붙임 점은 없다. <code>enum</code> 의 갈래는 값을 지닐 수 있고, <code>&lt;타입>.&lt;갈래></code> 로 만들며 <code>match</code> 로 모든 갈래를 덮어 가른다. 갈래는 마침표로 닫는다. 자기 자신을 값으로 품는 타입은 크기가 무한하므로 거절되고, 나무 구조는 번호로 잇는다.</div></div>
+</code></pre></div></div><p><code>add l u32 r u32 .</code> 의 <code>l</code>·<code>r</code> 은 노드 자체가 아니라 <code>nodes</code> 안의 번호다. <code>eval</code> 은 번호로 자식을 찾아 재귀한다. 크기가 정해지고, 번호를 따라가는 <code>index</code> 는 경계 검사를 그대로 받는다. 이런 노드 슬라이스를 만드는 저장소 — 영역 — 는 18장에서 다룬다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 번호로 잇는 것은 포인터로 잇는 것보다 불편하지 않은가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 한 가지는 불편하다. 노드를 지우고 그 번호를 다시 쓰면, 옛 번호를 들고 있던 쪽이 엉뚱한 노드를 본다. 표준 라이브러리의 <code>pool</code> 은 번호에 세대 수를 함께 담는 <strong>세대 핸들</strong>로 이 문제를 실행 중에 잡는다 (34장). 대신 얻는 것이 크다. 번호는 복사해도 안전하고, 파일에 그대로 쓸 수 있으며, 노드들이 한 슬라이스에 붙어 있어 캐시에 잘 맞는다.</p></div></div><h3 id="s10-5">10.5 흔한 실수<a class="plink" href="#s10-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. <code>make</code> 에서 칸 하나를 빠뜨린다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_missfield.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_missfield .
+<em><span class="tok-c">rem expect: E-TYPE-FIELD</span></em>
+
+<strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u64</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ `y` 를 채우지 않았다 --- `make` 는 모든 칸을 채워야 한다</span></em>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> field p x .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_missfield.low
+mistake_missfield.low:12:0 E-TYPE-FIELD: a declared field is missing from this `make` (every field must be given)
+</code></pre></div></div><p>C 의 구조체 초기화는 빠진 칸을 0 으로 채우고, 어떤 언어는 기본값을 넣는다. Lowent 는 <code>E-TYPE-FIELD</code> 로 거절한다. 빠진 칸이 의도였는지 실수였는지 소스에서 알 수 없기 때문이다. 0 이 필요하면 <code>y 0 .</code> 이라고 적는다 — 적힌 0 은 누가 봐도 의도다. 칸 이름을 잘못 적어도 같은 코드가 “그런 칸이 없다” 로 나온다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 값을 지니지 않은 갈래를 <code>타입.갈래</code> 로 넘긴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_unitvariant.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_unitvariant .
+<em><span class="tok-c">rem run: pick_bare</span></em>
+<em><span class="tok-c">rem trap: pick_qualified</span></em>
+
+<strong><span class="tok-k">enum</span></strong> light <strong><span class="tok-k">do</span></strong>
+  red .
+  green .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> code <strong><span class="tok-k">input</span></strong> c light . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> c <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> red . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+    <strong><span class="tok-k">case</span></strong> green . <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> pick_bare <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem 값을 지니지 않은 갈래는 이름만 적는다</span></em>
+  <strong><span class="tok-k">return</span></strong> code green .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> pick_qualified <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ 이 판에서는 `light.green` 으로 넘기면 실행 중에 멈춘다</span></em>
+  <strong><span class="tok-k">return</span></strong> code light.green .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run pick_bare mistake_unitvariant.low
+pick_bare() = 2
+$ lowentc --run pick_qualified mistake_unitvariant.low
+== ir diagnostics (1) ==
+0:0 E-VM-TYPE: arithmetic/compare needs ints
+</code></pre></div></div><p>값을 지니는 갈래는 <code>shape.circle 2</code> 처럼 타입 이름을 붙여 만들지만, 아무것도 지니지 않는 갈래는 <strong>이름만</strong> 적는다(<code>green</code>). 이 판의 도구는 <code>light.green</code> 을 번역에서 거절하지 않고, 실행하면 <code>E-VM-TYPE</code> 으로 멈춘다 — 번역 때 알려야 할 자리이고 개발 저장소에 결함으로 적어 두었다. 멈춤을 보면 갈래 이름 앞의 타입 이름을 지운다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 구조체 둘을 <code>eq</code> 로 비교한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_eqstruct.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_eqstruct .
+<em><span class="tok-c">rem trap: same</span></em>
+
+<strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u64</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <em><span class="tok-c">rem ✘ 구조체 둘을 `eq` 로 비교했다 --- `eq` 는 수와 참거짓을 비교한다</span></em>
+  <strong><span class="tok-k">return</span></strong> eq p q .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run same mistake_eqstruct.low
+== ir diagnostics (1) ==
+0:0 E-VM-TYPE: arithmetic/compare needs ints
+</code></pre></div></div><p><code>eq</code> 는 수와 참거짓을 비교한다. 구조체 둘이 “같다” 는 것은 타입마다 뜻이 다르다 — 모든 칸이 같아야 하는지, 이름표 칸만 같으면 되는지. 이 판의 도구는 이 비교를 번역에서 거절하지 않고 실행 중에 멈춘다(결함으로 적어 두었다). 같음의 뜻을 op 으로 적는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/eqstruct_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> eqstruct_fixed .
+<em><span class="tok-c">rem run: same</span></em>
+
+<strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u64</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem 무엇이 "같은" 것인지 칸마다 적는다 --- 그 뜻은 타입마다 다르다</span></em>
+<strong><span class="tok-k">fn</span></strong> point_eq <strong><span class="tok-k">input</span></strong> a point . <strong><span class="tok-k">input</span></strong> b point . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> ((field a x) eq (field b x)) and ((field a y) eq (field b y)) .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> point_eq p q .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run same eqstruct_fixed.low
+same() = 1
+</code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">반례. 다른 이름에 담으면 복사본이 된다고 믿는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_alias.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_alias .
+<em><span class="tok-c">rem run: copy_then_change</span></em>
+
+<strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u64</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> copy_then_change <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <em><span class="tok-c">rem ✘ 복사본을 만든다고 믿었다 --- 이 판에서 q 는 p 와 같은 자리를 가리킨다</span></em>
+  <strong><span class="tok-k">var</span></strong> q point <strong><span class="tok-k">be</span></strong> p .
+  <strong><span class="tok-k">set</span></strong> (field q x) <span class="tok-n">99</span> .
+  <em><span class="tok-c">rem p 는 let 인데도 99 가 나온다</span></em>
+  <strong><span class="tok-k">return</span></strong> field p x .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run copy_then_change mistake_alias.low
+copy_then_change() = 99
+</code></pre></div></div><p><code>var q point be p .</code> 뒤에 <code>q</code> 의 칸을 바꾸었는데 <code>p</code> 의 칸이 99 가 되었다. 이 판에서는 구조체를 다른 이름에 담으면 <strong>같은 자리를 가리키는 별칭</strong>이 되기 때문이다. <code>p</code> 는 <code>let</code> 이라 바뀌지 않아야 하므로 이것은 약속을 깨는 결함이고, 명세도 구조체 값의 복사를 아직 적지 않았다 — 개발 저장소에 가장 무거운 결함으로 적어 두었다. 고쳐지기 전까지는 새 값이 필요할 때 <strong><code>make</code> 로 새로 만든다</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/alias_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> alias_fixed .
+<em><span class="tok-c">rem run: copy_then_change</span></em>
+
+<strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u64</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> copy_then_change <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <em><span class="tok-c">rem 새 값이 필요하면 make 로 새로 만든다 --- 칸을 하나씩 옮겨 적는다</span></em>
+  <strong><span class="tok-k">var</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (field p x) . y (field p y) . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">set</span></strong> (field q x) <span class="tok-n">99</span> .
+  <strong><span class="tok-k">return</span></strong> field p x .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run copy_then_change alias_fixed.low
+copy_then_change() = 1
+</code></pre></div></div><p>이 장 첫 예제의 <code>moved</code> 가 칸을 바꾸지 않고 새 값을 만들어 돌려주는 모양인 까닭도 같다. 값을 고치기보다 새 값을 만드는 편이 별칭 문제를 아예 피한다.</p></div></div><h3 id="s10-6">10.6 이 장의 문법 한눈에<a class="plink" href="#s10-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>struct point do x u64 . y u64 . end .</code></td><td>이름 붙은 칸의 모음</td><td>칸마다 이름과 타입이 한 줄씩</td></tr><tr><td><code>make point do x 1 . y 2 . end</code></td><td>값 만들기 — 모든 칸을 채운다</td><td>빠진 칸이 조용히 0 이 되지 않게</td></tr><tr><td><code>field p x</code> · <code>field s stop x</code></td><td>칸 읽기 · 여러 마디 내려가기</td><td>붙임 점 없이 — 읽는 순간 뜻이 정해진다</td></tr><tr><td><code>set (field p x) 3 .</code></td><td>칸 쓰기(<code>mut</code> 로 받은 값)</td><td>읽기와 쓰기가 같은 철자</td></tr><tr><td><code>enum shape do dot . circle r u32 . end .</code></td><td>여럿 중 하나 — 갈래는 값을 지닐 수 있다</td><td>갈래마다 마침표로 닫는다</td></tr><tr><td><code>shape.circle 2</code> · <code>dot</code></td><td>값을 지닌 갈래 만들기 · 값이 없는 갈래</td><td>갈래 이름이 곧 만드는 op</td></tr><tr><td><code>match s do case circle r . … end .</code></td><td>갈래를 가르고 지닌 값을 묶기</td><td>모든 갈래를 덮어야 한다</td></tr><tr><td><code>isa s circle</code></td><td>그 갈래인가(<code>bool</code>)</td><td>값을 꺼내지 않고 묻기만 할 때</td></tr><tr><td>번호로 잇는 나무(<code>l u32</code> · <code>r u32</code>)</td><td>자기 자신을 품는 대신 슬라이스의 번호</td><td>크기가 정해지고 경계 검사를 받는다</td></tr></table></div><p class="float-caption">표 10.1 — 묶음의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>struct</code> 는 <code>make</code> 로 모든 칸을 채워 만들고 <code>field</code> 로 읽고 쓴다. 붙임 점은 없다. <code>enum</code> 의 갈래는 값을 지닐 수 있고, <code>&lt;타입>.&lt;갈래></code> 로 만들며 <code>match</code> 로 모든 갈래를 덮어 가른다. 갈래는 마침표로 닫는다. 자기 자신을 값으로 품는 타입은 크기가 무한하므로 거절되고, 나무 구조는 번호로 잇는다.</div></div>
 <div class="nav"><a href="ch09.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch11.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

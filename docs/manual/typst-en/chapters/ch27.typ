@@ -164,8 +164,8 @@ A mask can also read or write just some of the lanes.
 
 #demo("examples/ch27/masked.low")
 
-`store_masked out 0 v m` writes only at the places of the lanes that are on (9 and 7) and leaves the others untouched. `load_masked xs 0 m
-fallback` reads only the lanes that are on and puts the default 100 in the others. This is the shape for handling the tail when fewer than
+`store_masked out 0 v m` writes only at the places of the lanes that are on (9 and 7) and leaves the others untouched. `load_masked xs 0 m fallback`
+reads only the lanes that are on and puts the default 100 in the others. This is the shape for handling the tail when fewer than
 four slots remain at the end of a slice.
 
 #dtable(

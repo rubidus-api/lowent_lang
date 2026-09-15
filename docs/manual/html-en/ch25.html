@@ -662,7 +662,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <script>(function(){try{var s=JSON.parse(localStorage.getItem('pcb-read')||'{}');var r=document.documentElement;if(s.theme&&s.theme!=='auto')r.setAttribute('data-theme',s.theme);if(s.fg)r.style.setProperty('--fg',s.fg);if(s.bg)r.style.setProperty('--bg',s.bg);if(s.link)r.style.setProperty('--link',s.link);if(s.width)r.setAttribute('data-measure','on');}catch(e){}})();</script></head>
 <body>
 <a class="skip" href="#content">Skip to content</a>
-<div class="bar"><strong><a href="index.html">Lowent Manual</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">ch. 25 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch24.html" title="Prev" aria-label="Prev">←</a><a href="index.html" title="Contents" aria-label="Contents">↑</a><a href="ch26.html" title="Next" aria-label="Next">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ Settings</button><a class="tool" href="toc.html">▤ Detailed contents</a><a class="tool" href="../html-ko/ch25.html">Ko</a><a class="tool" href="../pdf-en/lowent-manual-en.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="This book on GitHub">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- every published project">⌂ All projects</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- every repository">≡ All repos</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>Limit line width</span></label><div class="setrow"><span class="setlbl">Theme</span><span class="seg"><button type="button" class="segb" data-theme="auto">System</button><button type="button" class="segb" data-theme="light">Light</button><button type="button" class="segb" data-theme="dark">Dark</button></span></div><div class="setrow"><span class="setlbl">Colours</span><label class="col"><span>Text</span><input type="color" id="s-fg"></label><label class="col"><span>Background</span><input type="color" id="s-bg"></label><label class="col"><span>Link</span><input type="color" id="s-link"></label></div><p class="setnote">Settings are kept in this browser only.</p></div><div class="here-head"><strong>Contents of this chapter</strong></div><div class="here-body"><a class="lv3" href="#s25-1"><span class="tf-no">25.1</span>Declare, make, talk</a><a class="lv3" href="#s25-2"><span class="tf-no">25.2</span>Carrying values in messages</a><a class="lv3" href="#s25-3"><span class="tf-no">25.3</span>Mailboxes — putting in and emptying</a><a class="lv3" href="#s25-4"><span class="tf-no">25.4</span>Let it crash, then restart</a><a class="lv3" href="#s25-5"><span class="tf-no">25.5</span>Where actors may be used</a></div></div>
+<div class="bar"><strong><a href="index.html">Lowent Manual</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">ch. 25 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch24.html" title="Prev" aria-label="Prev">←</a><a href="index.html" title="Contents" aria-label="Contents">↑</a><a href="ch26.html" title="Next" aria-label="Next">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ Settings</button><a class="tool" href="toc.html">▤ Detailed contents</a><a class="tool" href="../html-ko/ch25.html">Ko</a><a class="tool" href="../pdf-en/lowent-manual-en.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="This book on GitHub">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- every published project">⌂ All projects</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- every repository">≡ All repos</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>Limit line width</span></label><div class="setrow"><span class="setlbl">Theme</span><span class="seg"><button type="button" class="segb" data-theme="auto">System</button><button type="button" class="segb" data-theme="light">Light</button><button type="button" class="segb" data-theme="dark">Dark</button></span></div><div class="setrow"><span class="setlbl">Colours</span><label class="col"><span>Text</span><input type="color" id="s-fg"></label><label class="col"><span>Background</span><input type="color" id="s-bg"></label><label class="col"><span>Link</span><input type="color" id="s-link"></label></div><p class="setnote">Settings are kept in this browser only.</p></div><div class="here-head"><strong>Contents of this chapter</strong></div><div class="here-body"><a class="lv3" href="#s25-1"><span class="tf-no">25.1</span>Declare, make, talk</a><a class="lv3" href="#s25-2"><span class="tf-no">25.2</span>Carrying values in messages</a><a class="lv3" href="#s25-3"><span class="tf-no">25.3</span>Mailboxes — putting in and emptying</a><a class="lv3" href="#s25-4"><span class="tf-no">25.4</span>Let it crash, then restart</a><a class="lv3" href="#s25-5"><span class="tf-no">25.5</span>Where actors may be used</a><a class="lv3" href="#s25-6"><span class="tf-no">25.6</span>Designing with actors — a transfer between two accounts</a><a class="lv3" href="#s25-7"><span class="tf-no">25.7</span>Common mistakes</a><a class="lv3" href="#s25-8"><span class="tf-no">25.8</span>This chapter’s syntax at a glance</a></div></div>
 <main id="content"><div class="wrap">
 <h2>25 Actors — living with state, by messages</h2><div></div><div class="dev open prereq"><p class="dev-label">What to know first</p><div class="open-body"><div>chapter 15, Effects · <code>state</code> and <code>panic</code> are effects written without capabilities</div><div>chapter 19, Ownership · once ownership is handed over, the sender cannot use the value</div><div>chapter 20, Allocators and fixed memory · an allocator is an actor satisfying a trait</div></div></div><div class="dev open deepqa"><p class="dev-label">Looking back</p><div class="open-body"><p>How was chapter 20′s bump allocator made, and how was it called? Where did its cursor live?</p><div class="qa-a"><p><span class="dev-label">A.</span> It was made with <code>spawn actor allocs.bump_bytes</code> and called with <code>send a reserve 3</code>. The cursor lived in the actor’s state, and the outside reached that state only through messages. This chapter covers actors properly.</p></div></div></div><div class="dev open why"><p class="dev-label">The need for this chapter, and its context</p><div class="open-body">Part VII covers places where several things progress together. Most concurrency defects come from <strong>several flows touching the same state together</strong>. Locks can prevent that, but a forgotten lock or a wrong order is silently wrong. Actors approach from the other side. State is kept only inside the actor, and messages are handled one at a time. Then there is simply no way to touch that state concurrently. Part VII opens with actors because this shape is already used throughout the language, as in the standard library’s allocators.</div></div><div class="dev open organizer"><p class="dev-label">By the end of this chapter</p><div class="open-body">You will learn to declare an actor with <code>actor … do state do … end … end</code>, make one with <code>spawn actor</code>, and send messages with <code>send</code>. You will see that ops inside actors follow the <code>fn</code>/<code>proc</code> rules too, and how to carry values in messages and hand over ownership. You will also see mailboxes filled with <code>spawn send</code> and emptied later with <code>drain</code>, restarting crashed actors with <code>failure restart</code>, and <code>build profile</code>, which decides where actors may be used.</div></div><div class="dev open questions"><p class="dev-label">The questions this chapter answers</p><div class="open-body"><ol class="qlist"><li>Isn’t calling an actor just a function call in the end?</li></ol></div></div><div></div><h3 id="s25-1">25.1 Declare, make, talk<a class="plink" href="#s25-1" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/counter.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> counter_demo .
 <em><span class="tok-c">rem run: use_counter</span></em>
@@ -693,7 +693,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run use_counter counter.low
 use_counter() = 2
-</code></pre></div></div><span id="idx-entry-54"></span><ul><li><code>actor counter do … end</code> declares an actor. <code>state do value u64 . end</code> is its state, which exists only inside the actor and cannot be touched directly from outside.</li><li><code>inc</code>, which changes the state, is a <code>proc</code> with <code>effects state</code>. <code>get</code>, which only reads, is a <code>fn</code>. Ops inside actors follow the kind rules of chapter 5 as is.</li><li><code>var c counter be spawn actor counter .</code> makes one actor. Its state starts at 0.</li><li><code>send c inc</code> sends the <code>inc</code> message to <code>c</code>, waits until it is handled, and receives the result.</li></ul><p>An actor handles messages <strong>one at a time</strong>. So its state is never touched concurrently. That is why there is no need to take locks by hand.</p><p>Writing <code>fn</code> for something that changes state is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/pure_bad.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> pure_bad .
+</code></pre></div></div><span id="idx-entry-55"></span><ul><li><code>actor counter do … end</code> declares an actor. <code>state do value u64 . end</code> is its state, which exists only inside the actor and cannot be touched directly from outside.</li><li><code>inc</code>, which changes the state, is a <code>proc</code> with <code>effects state</code>. <code>get</code>, which only reads, is a <code>fn</code>. Ops inside actors follow the kind rules of chapter 5 as is.</li><li><code>var c counter be spawn actor counter .</code> makes one actor. Its state starts at 0.</li><li><code>send c inc</code> sends the <code>inc</code> message to <code>c</code>, waits until it is handled, and receives the result.</li></ul><p>An actor handles messages <strong>one at a time</strong>. So its state is never touched concurrently. That is why there is no need to take locks by hand.</p><p>Writing <code>fn</code> for something that changes state is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/pure_bad.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> pure_bad .
 <em><span class="tok-c">rem expect: E-EFFECT-PURITY</span></em>
 
 <strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>
@@ -762,7 +762,7 @@ tally(5, 7) = 12
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check handoff.low
 handoff.low:23:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
-</code></pre></div></div><p>Once <code>j</code> has gone out with the first message, <code>give_twice</code> can no longer use <code>j</code>. When two flows hold the same value together, races arise. When ownership travels only by message, only one party can touch the value at any moment, and a race is not so much prevented as <strong>left no place to happen</strong>.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> Isn’t calling an actor just a function call in the end?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> <code>send</code> resembles a call in syntax, but two things differ. State is locked inside the actor, so the caller has no way to read or write its fields, and handling one message at a time is guaranteed. Also, holding something borrowed from an actor while talking to that actor again is rejected (<code>E-BORROW-EXCL</code>), because we would be looking at the state while the actor changes it.</p></div></div><h3 id="s25-3">25.3 Mailboxes — putting in and emptying<a class="plink" href="#s25-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-55"></span><p><code>send</code> waits until handling finishes. Deliveries whose results are not needed are only <strong>put</strong> into the mailbox with <code>spawn send</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mailbox.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mailbox .
+</code></pre></div></div><p>Once <code>j</code> has gone out with the first message, <code>give_twice</code> can no longer use <code>j</code>. When two flows hold the same value together, races arise. When ownership travels only by message, only one party can touch the value at any moment, and a race is not so much prevented as <strong>left no place to happen</strong>.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> Isn’t calling an actor just a function call in the end?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> <code>send</code> resembles a call in syntax, but two things differ. State is locked inside the actor, so the caller has no way to read or write its fields, and handling one message at a time is guaranteed. Also, holding something borrowed from an actor while talking to that actor again is rejected (<code>E-BORROW-EXCL</code>), because we would be looking at the state while the actor changes it.</p></div></div><h3 id="s25-3">25.3 Mailboxes — putting in and emptying<a class="plink" href="#s25-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-56"></span><p><code>send</code> waits until handling finishes. Deliveries whose results are not needed are only <strong>put</strong> into the mailbox with <code>spawn send</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mailbox.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mailbox .
 <em><span class="tok-c">rem run: drive</span></em>
 <em><span class="tok-c">rem run: nodrain</span></em>
 
@@ -867,7 +867,261 @@ build profile embedded .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check profile.low
 4:0 E-PROFILE-LEVEL: this module uses a CONCURRENCY FEATURE its build profile does not provide (RFC-0009 §105/§139): freestanding has no concurrency at all, embedded has a static task graph, native adds jobs/green threads, server adds actors. The level is not declared — it is COMPUTED from the constructs you used — and the profile caps it. Either raise the profile or stop using the feature
-</code></pre></div></div><p><strong>Declaring</strong> an <code>actor</code> alone is level 3. Without a profile, nothing is restricted — only whoever writes it takes on the promise.</p><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">An actor locks its state inside and handles messages one at a time. It is made with <code>spawn actor</code> and called with <code>send</code>, which waits, and message ops follow the <code>fn</code>/<code>proc</code> rules. Messages carry values, and sending an owned value hands over ownership. <code>spawn send</code> only puts messages into the mailbox, and <code>drain</code> and <code>schedule</code> empty it. <code>failure restart</code> resets only the state of an actor that <code>panic</code>ked, and once exhausted passes the failure upwards. <code>build profile</code> decides where actors may be used.</div></div>
+</code></pre></div></div><p><strong>Declaring</strong> an <code>actor</code> alone is level 3. Without a profile, nothing is restricted — only whoever writes it takes on the promise.</p><h3 id="s25-6">25.6 Designing with actors — a transfer between two accounts<a class="plink" href="#s25-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>This section gathers the pieces so far into one design. Each account is an actor, and a transfer is an op that talks to the two actors in turn.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/transfer.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> transfer .
+<em><span class="tok-c">rem run: move 30</span></em>
+<em><span class="tok-c">rem run: move 80</span></em>
+
+<strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
+  insufficient .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">actor</span></strong> account <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
+    balance <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+
+  <em><span class="tok-c">rem add to the balance --- it changes state, so it is a proc</span></em>
+  <strong><span class="tok-k">proc</span></strong> deposit <strong><span class="tok-k">input</span></strong> amount <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+    <strong><span class="tok-k">requires</span></strong> le amount <span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> balance (wrap_add balance amount) .
+    <strong><span class="tok-k">return</span></strong> balance .
+  <strong><span class="tok-k">end</span></strong> .
+
+  <em><span class="tok-c">rem if short, leave the state untouched and return the error as a value</span></em>
+  <strong><span class="tok-k">proc</span></strong> withdraw <strong><span class="tok-k">input</span></strong> amount <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+    <strong><span class="tok-k">errors</span></strong> insufficient .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">guard</span></strong> le amount balance . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error insufficient .
+    <strong><span class="tok-k">set</span></strong> balance (sub balance amount) .
+    <strong><span class="tok-k">return</span></strong> ok balance .
+  <strong><span class="tok-k">end</span></strong> .
+
+  <strong><span class="tok-k">fn</span></strong> peek_balance <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> balance .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<em><span class="tok-c">rem a transfer between two actors --- deposit only when the withdrawal succeeded</span></em>
+<strong><span class="tok-k">proc</span></strong> move <strong><span class="tok-k">input</span></strong> amount <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> le amount <span class="tok-n">1000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> src account <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
+  <strong><span class="tok-k">var</span></strong> dst account <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
+  <strong><span class="tok-k">let</span></strong> seed <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> src deposit <span class="tok-n">50</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> src withdraw amount .
+  <strong><span class="tok-k">guard</span></strong> not (is_error r) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> add (mul (<strong><span class="tok-k">send</span></strong> src peek_balance) <span class="tok-n">1000</span>) (<strong><span class="tok-k">send</span></strong> dst peek_balance) .
+  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> dst deposit amount .
+  <strong><span class="tok-k">return</span></strong> add (mul (<strong><span class="tok-k">send</span></strong> src peek_balance) <span class="tok-n">1000</span>) (<strong><span class="tok-k">send</span></strong> dst peek_balance) .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run move transfer.low 30
+move(30) = 20030
+$ lowentc --run move transfer.low 80
+move(80) = 50000
+</code></pre></div></div><ul><li>The balance lives only in the state of <code>account</code>. The outside reaches an account only through three messages: <code>deposit</code>, <code>withdraw</code> and <code>peek_balance</code>.</li><li>When the balance is short, <code>withdraw</code> returns <code>error insufficient</code> <strong>without touching the state</strong>. It does not stop — a short balance is a failure the account’s user can handle (chapter 17).</li><li><code>move</code> deposits only when the withdrawal succeeded. <code>move 30</code> leaves 20 with the sender and 30 with the receiver, giving 20030. With <code>move 80</code> the withdrawal fails and both accounts stay at 50 and 0 (50000).</li><li>Messages are processed one at a time, so no other message can slip in between <code>withdraw</code> checking the balance and reducing it. The race between “check, then write” does not exist in this shape.</li></ul><p>The <code>errors insufficient .</code> of <code>withdraw</code> has no condition on purpose. The fourth item of “Common mistakes” below explains why.</p><h3 id="s25-7">25.7 Common mistakes<a class="plink" href="#s25-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Putting messages into a bounded mailbox without draining it</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_bounded.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_bounded .
+<em><span class="tok-c">rem trap: burst</span></em>
+
+<strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
+    value <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  mailbox bounded <span class="tok-n">2</span> .
+  <strong><span class="tok-k">proc</span></strong> inc <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> value (add value <span class="tok-n">1</span>) .
+    <strong><span class="tok-k">return</span></strong> value .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">fn</span></strong> get <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> value .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">proc</span></strong> burst <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <em><span class="tok-c">rem ✘ the mailbox holds two, yet a third is put in before draining</span></em>
+  <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  drain c .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c get .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run burst mistake_bounded.low
+== ir diagnostics (1) ==
+0:0 E-VM-MAILBOX-FULL: the actor's bounded mailbox is full — `spawn send` would exceed `mailbox bounded N` pending messages (drain it first, or raise N)
+</code></pre></div></div><p><code>mailbox bounded 2 .</code> promises “at most two pending messages”. The third <code>spawn send</code> overflows and stops with <code>E-VM-MAILBOX-FULL</code>. To handle it instead of stopping, send with <code>try spawn send</code>. The overflow then comes back as a <code>result</code>, and you can drain and send again.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/bounded_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bounded_fixed .
+<em><span class="tok-c">rem run: burst</span></em>
+
+<strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
+    value <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  mailbox bounded <span class="tok-n">2</span> .
+  <strong><span class="tok-k">proc</span></strong> inc <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> value (add value <span class="tok-n">1</span>) .
+    <strong><span class="tok-k">return</span></strong> value .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">fn</span></strong> get <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> value .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">proc</span></strong> burst <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <em><span class="tok-c">rem if it cannot be put in, receive the error as a value instead of stopping --- drain, then put it in again</span></em>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> mailbox_full <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">if</span></strong> is_error r . <strong><span class="tok-k">do</span></strong>
+    drain c .
+    <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">end</span></strong> .
+  drain c .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c get .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run burst bounded_fixed.low
+burst() = 3
+</code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Sending a message the actor does not handle</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_unknownmsg.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_unknownmsg .
+<em><span class="tok-c">rem expect: E-IR-UNDEF</span></em>
+
+<strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
+    value <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">proc</span></strong> inc <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> value (add value <span class="tok-n">1</span>) .
+    <strong><span class="tok-k">return</span></strong> value .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">proc</span></strong> use_counter <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <em><span class="tok-c">rem ✘ `counter` does not handle a `dec` message</span></em>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c dec .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_unknownmsg.low
+mistake_unknownmsg.low:19:0 E-IR-UNDEF: send names a message this actor does not handle (the handler is looked up IN THE RECEIVER'S TYPE — it used to be found by BARE NAME, so two actors with a handler of the same name silently shared one)
+</code></pre></div></div><p>A message name is looked up <strong>in the receiving actor’s type</strong>. <code>counter</code> has no <code>dec</code>, so this is <code>E-IR-UNDEF</code>. As the diagnostic’s note tells, lookup was once by bare name, and two actors with a handler of the same name silently shared one.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Reading an actor’s state field from outside — a hole in this edition</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_peekstate.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_peekstate .
+<em><span class="tok-c">rem run: peek</span></em>
+
+<strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
+    value <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">proc</span></strong> inc <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> value (add value <span class="tok-n">1</span>) .
+    <strong><span class="tok-k">return</span></strong> value .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">proc</span></strong> peek <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <em><span class="tok-c">rem ✘ reads the actor's state field from outside --- this should be blocked, but passes in this edition</span></em>
+  <strong><span class="tok-k">return</span></strong> field c value .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run peek mistake_peekstate.low
+peek() = 1
+</code></pre></div></div><p>The first promise of this chapter was “the state lives only inside the actor and cannot be touched directly from outside”. Yet this edition’s tool does not reject <code>field c value</code> and returns 1. Actor isolation is a premise of the concurrency proofs, so this is recorded as a serious defect in the development repository. Until it is fixed, keep the rule yourself: if you need the state, give the actor a read message such as <code>get</code> and ask with <code>send c get</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a state field in the error condition of a message op</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_errorsstate.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_errorsstate .
+
+<strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
+  insufficient .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">actor</span></strong> account <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
+    balance <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+
+  <strong><span class="tok-k">proc</span></strong> deposit <strong><span class="tok-k">input</span></strong> amount <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+    <strong><span class="tok-k">requires</span></strong> le amount <span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> balance (wrap_add balance amount) .
+    <strong><span class="tok-k">return</span></strong> balance .
+  <strong><span class="tok-k">end</span></strong> .
+
+  <em><span class="tok-c">rem ✘ the error condition reads the state field `balance` --- on exit it is read again, after the balance has shrunk</span></em>
+  <strong><span class="tok-k">proc</span></strong> withdraw <strong><span class="tok-k">input</span></strong> amount <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+    <strong><span class="tok-k">errors</span></strong> insufficient gt amount balance .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">guard</span></strong> le amount balance . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error insufficient .
+    <strong><span class="tok-k">set</span></strong> balance (sub balance amount) .
+    <strong><span class="tok-k">return</span></strong> ok balance .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">proc</span></strong> take30 <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> a account <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> account .
+  <strong><span class="tok-k">let</span></strong> seed <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a deposit <span class="tok-n">50</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> bank_error <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a withdraw <span class="tok-n">30</span> .
+  <strong><span class="tok-k">guard</span></strong> not (is_error r) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+  <strong><span class="tok-k">return</span></strong> ok_value r .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_errorsstate.low
+== check: ok ==
+</code></pre></div></div><p><code>errors insufficient gt amount balance .</code> was written to mean “this error when withdrawing more than the balance”. But an <code>errors</code> condition is checked <strong>on exit</strong>. On the success path the balance dropped from 50 to 20, so on exit <code>gt 30 20</code> is true, which amounts to “the condition holds, yet the error was not returned”. In this edition the VM stops here with <code>E-VM-ANALYSIS</code> (“the interval analysis is unsound — a compiler bug”), and the native build returns 20 without checking. Both the diagnostic’s name and the two back ends’ behaviour are wrong; the defect is recorded in the development repository. In an op that changes state, do not use state fields in error conditions. Write <code>errors insufficient .</code> without a condition, as <code>transfer.low</code> above does, and let the <code>guard</code> in the body carry the condition.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>A restarted actor continues from the state just before it blew up</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/restart_resets.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> restart_resets .
+<em><span class="tok-c">rem run: three_incs</span></em>
+
+<strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
+    value <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  failure restart max <span class="tok-n">3</span> .
+  <strong><span class="tok-k">proc</span></strong> inc <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> panic .
+  <strong><span class="tok-k">do</span></strong>
+    <em><span class="tok-c">rem blows up once, when the value is 2</span></em>
+    <strong><span class="tok-k">if</span></strong> eq value <span class="tok-n">2</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">at two</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">set</span></strong> value (add value <span class="tok-n">1</span>) .
+    <strong><span class="tok-k">return</span></strong> value .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">proc</span></strong> three_incs <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> panic .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> c counter <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+  <em><span class="tok-c">rem the third message blows up, the state goes back to 0, and this message is processed again</span></em>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> c inc .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run three_incs restart_resets.low
+three_incs() = 1
+</code></pre></div></div><p>After two <code>inc</code>s the value is 2, and the third message blows up. A restart puts the state back to <strong>the beginning</strong> (0) and processes that message again, so the answer is 1, not 3. The state just before the failure may be the very reason for the failure, so it is not trusted. Keep values that must not be lost outside the actor — in another actor or a file — and let the restarted actor read them.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Values of the same actor type share their state</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/separate_state.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> separate_state .
+<em><span class="tok-c">rem run: two_counters</span></em>
+
+<strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
+    value <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">proc</span></strong> inc <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+  <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> value (add value <span class="tok-n">1</span>) .
+    <strong><span class="tok-k">return</span></strong> value .
+  <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">proc</span></strong> two_counters <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> left counter <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">var</span></strong> right counter <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> counter .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> left inc .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> left inc .
+  <em><span class="tok-c">rem `right` has its own state --- the result is 1</span></em>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> right inc .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run two_counters separate_state.low
+two_counters() = 1
+</code></pre></div></div><p><code>spawn actor counter</code> twice makes two states. Incrementing <code>left</code> twice leaves <code>right</code> counting from 1. An actor type is a blueprint; a new state is made on every <code>spawn</code>. If many parties must see the same value, keep <strong>one</strong> actor that holds it and have everyone talk to that actor.</p></div></div><h3 id="s25-8">25.8 This chapter’s syntax at a glance<a class="plink" href="#s25-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>actor counter do state do value u64 . end . … end .</code></td><td>declare a unit of execution that encloses state</td><td>there is no way to touch the state concurrently</td></tr><tr><td><code>proc inc … effects state .</code> · <code>fn get …</code></td><td>a message that changes state · one that only reads</td><td><code>fn</code>/<code>proc</code> rules unchanged — a <code>fn</code> that writes is <code>E-EFFECT-PURITY</code></td></tr><tr><td><code>var c counter be spawn actor counter .</code></td><td>create one actor (state starts at 0)</td><td>each <code>spawn</code> has its own state</td></tr><tr><td><code>send c inc</code> · <code>send acct deposit a</code></td><td>send and wait until processed · carry a value</td><td>actor first — a message is an op taking the actor as first parameter</td></tr><tr><td><code>spawn send c inc .</code> · <code>drain c .</code> · <code>schedule .</code></td><td>put in the mailbox · drain that actor’s mailbox · drain all</td><td>a person picks the delivery point — determinism</td></tr><tr><td><code>mailbox bounded 2 .</code> · <code>try spawn send</code></td><td>mailbox size · receive overflow as a value</td><td>overflow stops, or becomes a <code>result</code></td></tr><tr><td><code>failure restart max 3 .</code> · <code>never</code> · <code>always</code></td><td>restart a panicked actor from its initial state</td><td>when used up, the failure goes upward</td></tr><tr><td><code>build profile server .</code></td><td>where actors (level 3) may be used</td><td>only those who write it take on the promise</td></tr></table></div><p class="float-caption">Table 25.2 — Actor syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">An actor locks its state inside and handles messages one at a time. It is made with <code>spawn actor</code> and called with <code>send</code>, which waits, and message ops follow the <code>fn</code>/<code>proc</code> rules. Messages carry values, and sending an owned value hands over ownership. <code>spawn send</code> only puts messages into the mailbox, and <code>drain</code> and <code>schedule</code> empty it. <code>failure restart</code> resets only the state of an actor that <code>panic</code>ked, and once exhausted passes the failure upwards. <code>build profile</code> decides where actors may be used.</div></div>
 <div class="nav"><a href="ch24.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch26.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

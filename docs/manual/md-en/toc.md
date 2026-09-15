@@ -23,6 +23,8 @@ Searches headings and index terms --- not the full text
 - [2.5 Getting rejected](ch02.md#s2-5)
 - [2.6 --fmt fixes the shape](ch02.md#s2-6)
 - [2.7 Arguments and capabilities](ch02.md#s2-7)
+- [2.8 Common mistakes](ch02.md#s2-8)
+- [2.9 This chapter’s syntax at a glance](ch02.md#s2-9)
 
 [3 The surface — full stops, blocks and clause order](ch03.md)
 
@@ -34,6 +36,8 @@ Searches headings and index terms --- not the full text
 - [3.6 Words are a budget](ch03.md#s3-6)
 - [3.7 The boundaries of the expr island](ch03.md#s3-7)
 - [3.8 Clause order in an op head](ch03.md#s3-8)
+- [3.9 Common mistakes](ch03.md#s3-9)
+- [3.10 This chapter’s syntax at a glance](ch03.md#s3-10)
 
 ### Part II — Values and flow
 
@@ -46,6 +50,8 @@ Searches headings and index terms --- not the full text
 - [4.5 Booleans are not numbers](ch04.md#s4-5)
 - [4.6 Bitwise operations](ch04.md#s4-6)
 - [4.7 Floating point](ch04.md#s4-7)
+- [4.8 Common mistakes](ch04.md#s4-8)
+- [4.9 This chapter’s syntax at a glance](ch04.md#s4-9)
 
 [5 Ops — fn and proc](ch05.md)
 
@@ -56,6 +62,8 @@ Searches headings and index terms --- not the full text
 - [5.5 Parameters and return](ch05.md#s5-5)
 - [5.6 Only neg is unary](ch05.md#s5-6)
 - [5.7 Modifiers](ch05.md#s5-7)
+- [5.8 Common mistakes](ch05.md#s5-8)
+- [5.9 This chapter’s syntax at a glance](ch05.md#s5-9)
 
 [6 Locals — let and var](ch06.md)
 
@@ -64,6 +72,8 @@ Searches headings and index terms --- not the full text
 - [6.3 No name without a value](ch06.md#s6-3)
 - [6.4 How long a local lives](ch06.md#s6-4)
 - [6.5 if yields no value](ch06.md#s6-5)
+- [6.6 Common mistakes](ch06.md#s6-6)
+- [6.7 This chapter’s syntax at a glance](ch06.md#s6-7)
 
 [7 Flow — branches, loops and leaving early](ch07.md)
 
@@ -72,6 +82,8 @@ Searches headings and index terms --- not the full text
 - [7.3 Every path returns a value](ch07.md#s7-3)
 - [7.4 match — every case, none missing](ch07.md#s7-4)
 - [7.5 panic is an effect](ch07.md#s7-5)
+- [7.6 Common mistakes](ch07.md#s7-6)
+- [7.7 This chapter’s syntax at a glance](ch07.md#s7-7)
 
 [8 Expressions — prefix notation and the expr island](ch08.md)
 
@@ -80,6 +92,8 @@ Searches headings and index terms --- not the full text
 - [8.3 What the island cannot do](ch08.md#s8-3)
 - [8.4 Short-circuiting guards conditions](ch08.md#s8-4)
 - [8.5 Expressions computed at translation time](ch08.md#s8-5)
+- [8.6 Common mistakes](ch08.md#s8-6)
+- [8.7 This chapter’s syntax at a glance](ch08.md#s8-7)
 
 ### Part III — Data
 
@@ -89,6 +103,8 @@ Searches headings and index terms --- not the full text
 - [9.2 Writing needs mut slice](ch09.md#s9-2)
 - [9.3 Narrowing the window](ch09.md#s9-3)
 - [9.4 Contracts remove bounds checks](ch09.md#s9-4)
+- [9.5 Common mistakes](ch09.md#s9-5)
+- [9.6 This chapter’s syntax at a glance](ch09.md#s9-6)
 
 [10 Aggregates — struct and enum](ch10.md)
 
@@ -96,6 +112,8 @@ Searches headings and index terms --- not the full text
 - [10.2 enum — one of several](ch10.md#s10-2)
 - [10.3 Variants are closed with full stops](ch10.md#s10-3)
 - [10.4 Nothing may contain itself](ch10.md#s10-4)
+- [10.5 Common mistakes](ch10.md#s10-5)
+- [10.6 This chapter’s syntax at a glance](ch10.md#s10-6)
 
 [11 Types that hold answers — option and result](ch11.md)
 
@@ -105,6 +123,8 @@ Searches headings and index terms --- not the full text
 - [11.4 Crossing between the two channels](ch11.md#s11-4)
 - [11.5 Three ways to report failure](ch11.md#s11-5)
 - [11.6 Combining and nesting patterns](ch11.md#s11-6)
+- [11.7 Common mistakes](ch11.md#s11-7)
+- [11.8 This chapter’s syntax at a glance](ch11.md#s11-8)
 
 [12 Borrowing — ref and mut_ref](ch12.md)
 
@@ -113,6 +133,8 @@ Searches headings and index terms --- not the full text
 - [12.3 Many readers or one writer](ch12.md#s12-3)
 - [12.4 A borrow cannot outlive what it borrows](ch12.md#s12-4)
 - [12.5 There is no mut ref slice](ch12.md#s12-5)
+- [12.6 Common mistakes](ch12.md#s12-6)
+- [12.7 This chapter’s syntax at a glance](ch12.md#s12-7)
 
 [13 Named types — type, newtype, range, cast](ch13.md)
 
@@ -121,6 +143,10 @@ Searches headings and index terms --- not the full text
 - [13.3 cast — where a value may change](ch13.md#s13-3)
 - [13.4 bits — from 1 to 64 bits](ch13.md#s13-4)
 - [13.5 Pinning down byte layout](ch13.md#s13-5)
+- [13.6 Both directions of a layout, and a view that can fail](ch13.md#s13-6)
+- [13.7 bitset — a set of small numbers](ch13.md#s13-7)
+- [13.8 Common mistakes](ch13.md#s13-8)
+- [13.9 This chapter’s syntax at a glance](ch13.md#s13-9)
 
 ### Part IV — Contracts and effects
 
@@ -134,6 +160,8 @@ Searches headings and index terms --- not the full text
 - [14.6 Decide now what can be decided now](ch14.md#s14-6)
 - [14.7 Contract grades](ch14.md#s14-7)
 - [14.8 Build modes decide the remaining checks](ch14.md#s14-8)
+- [14.9 Common mistakes](ch14.md#s14-9)
+- [14.10 This chapter’s syntax at a glance](ch14.md#s14-10)
 
 [15 Effects — the marks an op leaves on the world](ch15.md)
 
@@ -143,6 +171,8 @@ Searches headings and index terms --- not the full text
 - [15.4 The effects line is a set](ch15.md#s15-4)
 - [15.5 via — a type argument decides the effects](ch15.md#s15-5)
 - [15.6 What purity allows](ch15.md#s15-6)
+- [15.7 Common mistakes](ch15.md#s15-7)
+- [15.8 This chapter’s syntax at a glance](ch15.md#s15-8)
 
 [16 Capabilities — power that is handed over](ch16.md)
 
@@ -151,6 +181,8 @@ Searches headings and index terms --- not the full text
 - [16.3 Effects and capabilities are a pair](ch16.md#s16-3)
 - [16.4 Kind, not presence](ch16.md#s16-4)
 - [16.5 What the entry point receives](ch16.md#s16-5)
+- [16.6 Common mistakes](ch16.md#s16-6)
+- [16.7 This chapter’s syntax at a glance](ch16.md#s16-7)
 
 [17 Designing failure](ch17.md)
 
@@ -159,6 +191,8 @@ Searches headings and index terms --- not the full text
 - [17.3 Moving up the layers](ch17.md#s17-3)
 - [17.4 Where information may be thrown away](ch17.md#s17-4)
 - [17.5 Where panic is acceptable](ch17.md#s17-5)
+- [17.6 Common mistakes](ch17.md#s17-6)
+- [17.7 This chapter’s syntax at a glance](ch17.md#s17-7)
 
 ### Part V — Memory
 
@@ -170,6 +204,9 @@ Searches headings and index terms --- not the full text
 - [18.4 Nothing is carried out of a region](ch18.md#s18-4)
 - [18.5 One cursor per root](ch18.md#s18-5)
 - [18.6 The growing root](ch18.md#s18-6)
+- [18.7 A stack on a region](ch18.md#s18-7)
+- [18.8 Common mistakes](ch18.md#s18-8)
+- [18.9 This chapter’s syntax at a glance](ch18.md#s18-9)
 
 [19 Ownership — one party responsible for disposal](ch19.md)
 
@@ -178,6 +215,8 @@ Searches headings and index terms --- not the full text
 - [19.3 Release and completion](ch19.md#s19-3)
 - [19.4 Not counting on the operating system to clean up](ch19.md#s19-4)
 - [19.5 At what strength is memory safety guaranteed?](ch19.md#s19-5)
+- [19.6 Common mistakes](ch19.md#s19-6)
+- [19.7 This chapter’s syntax at a glance](ch19.md#s19-7)
 
 [20 Allocators and fixed memory](ch20.md)
 
@@ -187,6 +226,8 @@ Searches headings and index terms --- not the full text
 - [20.4 Default allocators that carve straight from a root](ch20.md#s20-4)
 - [20.5 Who sets the size of the fixed window?](ch20.md#s20-5)
 - [20.6 Same bits, different reading](ch20.md#s20-6)
+- [20.7 Common mistakes](ch20.md#s20-7)
+- [20.8 This chapter’s syntax at a glance](ch20.md#s20-8)
 
 ### Part VI — Abstraction
 
@@ -197,6 +238,8 @@ Searches headings and index terms --- not the full text
 - [21.3 There is no search path](ch21.md#s21-3)
 - [21.4 When names collide](ch21.md#s21-4)
 - [21.5 Top-level order does not matter](ch21.md#s21-5)
+- [21.6 Common mistakes](ch21.md#s21-6)
+- [21.7 This chapter’s syntax at a glance](ch21.md#s21-7)
 
 [22 Generics — parameters fixed at translation time](ch22.md)
 
@@ -204,6 +247,8 @@ Searches headings and index terms --- not the full text
 - [22.2 An instance per combination](ch22.md#s22-2)
 - [22.3 Putting conditions on types](ch22.md#s22-3)
 - [22.4 The type carries it, not a value](ch22.md#s22-4)
+- [22.5 Common mistakes](ch22.md#s22-5)
+- [22.6 This chapter’s syntax at a glance](ch22.md#s22-6)
 
 [23 Traits — one promise kept by many types](ch23.md)
 
@@ -213,6 +258,8 @@ Searches headings and index terms --- not the full text
 - [23.4 Signatures do not say fn or proc](ch23.md#s23-4)
 - [23.5 When a trait is not satisfied](ch23.md#s23-5)
 - [23.6 via self — more allocation effects only](ch23.md#s23-6)
+- [23.7 Common mistakes](ch23.md#s23-7)
+- [23.8 This chapter’s syntax at a glance](ch23.md#s23-8)
 
 [24 pipe — one line for each thing you mean to do](ch24.md)
 
@@ -220,6 +267,8 @@ Searches headings and index terms --- not the full text
 - [24.2 Stages and terminals](ch24.md#s24-2)
 - [24.3 Walking once is the definition](ch24.md#s24-3)
 - [24.4 Reading only as much as needed](ch24.md#s24-4)
+- [24.5 Common mistakes](ch24.md#s24-5)
+- [24.6 This chapter’s syntax at a glance](ch24.md#s24-6)
 
 ### Part VII — Concurrency
 
@@ -230,6 +279,9 @@ Searches headings and index terms --- not the full text
 - [25.3 Mailboxes — putting in and emptying](ch25.md#s25-3)
 - [25.4 Let it crash, then restart](ch25.md#s25-4)
 - [25.5 Where actors may be used](ch25.md#s25-5)
+- [25.6 Designing with actors — a transfer between two accounts](ch25.md#s25-6)
+- [25.7 Common mistakes](ch25.md#s25-7)
+- [25.8 This chapter’s syntax at a glance](ch25.md#s25-8)
 
 [26 Tasks and channels — exchange between bound flows](ch26.md)
 
@@ -237,6 +289,8 @@ Searches headings and index terms --- not the full text
 - [26.2 Channels — containers with an order](ch26.md#s26-2)
 - [26.3 Deadlocks you can see from what is written](ch26.md#s26-3)
 - [26.4 What does not exist yet](ch26.md#s26-4)
+- [26.5 Common mistakes](ch26.md#s26-5)
+- [26.6 This chapter’s syntax at a glance](ch26.md#s26-6)
 
 [27 Parallel loops and atomic operations](ch27.md)
 
@@ -245,6 +299,9 @@ Searches headings and index terms --- not the full text
 - [27.3 The combining operation must be associative](ch27.md#s27-3)
 - [27.4 Atomic operations](ch27.md#s27-4)
 - [27.5 Memory orderings](ch27.md#s27-5)
+- [27.6 Lanes — computing several values at once](ch27.md#s27-6)
+- [27.7 Common mistakes](ch27.md#s27-7)
+- [27.8 This chapter’s syntax at a glance](ch27.md#s27-8)
 
 ### Part VIII — The outside world
 
@@ -255,6 +312,8 @@ Searches headings and index terms --- not the full text
 - [28.3 What is opened is closed](ch28.md#s28-3)
 - [28.4 End and failure are different answers](ch28.md#s28-4)
 - [28.5 Triggering failure on purpose](ch28.md#s28-5)
+- [28.6 Common mistakes](ch28.md#s28-6)
+- [28.7 This chapter’s syntax at a glance](ch28.md#s28-7)
 
 [29 Meeting C](ch29.md)
 
@@ -262,6 +321,8 @@ Searches headings and index terms --- not the full text
 - [29.2 Types that cross the boundary](ch29.md#s29-2)
 - [29.3 C calls Lowent](ch29.md#s29-3)
 - [29.4 Callbacks and ownership](ch29.md#s29-4)
+- [29.5 Common mistakes](ch29.md#s29-5)
+- [29.6 This chapter’s syntax at a glance](ch29.md#s29-6)
 
 [30 Hardware — registers, interrupts, machine instructions](ch30.md)
 
@@ -270,6 +331,8 @@ Searches headings and index terms --- not the full text
 - [30.3 Interrupt handlers](ch30.md#s30-3)
 - [30.4 What a machine supports — build tier](ch30.md#s30-4)
 - [30.5 Machine instructions — asm](ch30.md#s30-5)
+- [30.6 Common mistakes](ch30.md#s30-6)
+- [30.7 This chapter’s syntax at a glance](ch30.md#s30-7)
 
 [31 Building and testing — packages, configuration, tests, cross-checks](ch31.md)
 
@@ -279,6 +342,8 @@ Searches headings and index terms --- not the full text
 - [31.4 Tests](ch31.md#s31-4)
 - [31.5 How the compiler is verified](ch31.md#s31-5)
 - [31.6 Asking where it is slow](ch31.md#s31-6)
+- [31.7 Common mistakes](ch31.md#s31-7)
+- [31.8 This chapter’s syntax at a glance](ch31.md#s31-8)
 
 ### Part IX — The standard library
 
@@ -289,6 +354,9 @@ Searches headings and index terms --- not the full text
 - [32.3 The map by layer](ch32.md#s32-3)
 - [32.4 File names and module names](ch32.md#s32-4)
 - [32.5 Conventions every module follows](ch32.md#s32-5)
+- [32.6 The list of leaf ops — what lies beneath the modules](ch32.md#s32-6)
+- [32.7 Common mistakes](ch32.md#s32-7)
+- [32.8 This chapter’s syntax at a glance](ch32.md#s32-8)
 
 [33 Text and encodings — strings, fmt, utf8, codec, hash](ch33.md)
 
@@ -297,6 +365,8 @@ Searches headings and index terms --- not the full text
 - [33.3 Hex and base64](ch33.md#s33-3)
 - [33.4 Hashes — three questions, three answers](ch33.md#s33-4)
 - [33.5 Regular expressions — no backtracking](ch33.md#s33-5)
+- [33.6 Common mistakes](ch33.md#s33-6)
+- [33.7 This chapter’s syntax at a glance](ch33.md#s33-7)
 
 [34 Containers and sorting — sortlib, sortgen, hashmap, vecgen, spsc](ch34.md)
 
@@ -306,6 +376,8 @@ Searches headings and index terms --- not the full text
 - [34.4 A growing generic vector](ch34.md#s34-4)
 - [34.5 A ring buffer passing values between flows](ch34.md#s34-5)
 - [34.6 Other containers](ch34.md#s34-6)
+- [34.7 Common mistakes](ch34.md#s34-7)
+- [34.8 This chapter’s syntax at a glance](ch34.md#s34-8)
 
 [35 Storage and handles — pool, shard, budget, wire](ch35.md)
 
@@ -315,6 +387,8 @@ Searches headings and index terms --- not the full text
 - [35.4 Bit budgets — budget](ch35.md#s35-4)
 - [35.5 Bit fields — wire](ch35.md#s35-5)
 - [35.6 Other storage modules](ch35.md#s35-6)
+- [35.7 Common mistakes](ch35.md#s35-7)
+- [35.8 This chapter’s syntax at a glance](ch35.md#s35-8)
 
 [36 Input/output, networking, time, randomness, cryptography](ch36.md)
 
@@ -324,6 +398,8 @@ Searches headings and index terms --- not the full text
 - [36.4 Time — monotonic clocks and wall clocks](ch36.md#s36-4)
 - [36.5 The HTTP request parser — its heart is rejection](ch36.md#s36-5)
 - [36.6 Cryptography — the order of the stack and the missing top](ch36.md#s36-6)
+- [36.7 Common mistakes](ch36.md#s36-7)
+- [36.8 This chapter’s syntax at a glance](ch36.md#s36-8)
 
 [37 The terminal — term and tty](ch37.md)
 
@@ -333,6 +409,8 @@ Searches headings and index terms --- not the full text
 - [37.4 Reading keys is computation](ch37.md#s37-4)
 - [37.5 Raw mode is a capability](ch37.md#s37-5)
 - [37.6 What is not built yet](ch37.md#s37-6)
+- [37.7 Common mistakes](ch37.md#s37-7)
+- [37.8 This chapter’s syntax at a glance](ch37.md#s37-8)
 
 ### Part X — Grounds: what has been proven
 

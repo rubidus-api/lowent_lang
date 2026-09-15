@@ -119,6 +119,50 @@ one word is the job of `flags`.
   [`lifemode` · `lifeatom`], [Four ways to end a value --- single ownership, thread-confined reference counting, atomic reference counting, external completion],
 )
 
+== Common mistakes
+
+#antipattern[Taking out the bytes of a returned block without asking][
+  #demo("examples/ch35/mistake_staleuse.low")
+
+  `pool.bytes` is *the only door* to a block's bytes, and it returns `none` when the generation does not match. In C, writing 7 into a
+  freed block would silently corrupt another object; here the spot shows up as the value `none`. Taking it out with `some_value` without
+  asking stops the program, as in this example. Stopping beats corruption, but code in which handles may live long should ask with
+  `is_some` and handle stale handles separately.
+]
+
+#antipattern[Opening two stores under the same brand][
+  #demo("examples/ch35/mistake_brandreuse.low")
+
+  The brand `objects` names *one* store. If the second `pool.init objects …` were accepted, two pools would share one type, and the types
+  could no longer stop a handle from the first pool being returned to the second. Hence `E-BRAND-REUSED`. Declare one `newtype` per store;
+  that one-line declaration is a cost-free distinction.
+]
+
+#misconception[A value put into a `wire` field stops the program when it overflows][
+  #demo("examples/ch35/wire_truncates.low")
+
+  `wire.put` *truncates* values larger than the field. Putting 20 (`0b10100`) into a four-bit field keeps only the low four bits, 4, giving
+  1024 (`0x400`). The module documentation promises this and advises asking with `wire.fits` first if truncation is unwanted (20 gives 0,
+  i.e. false). Bit fields going onto a wire often truncate by standard, which is why it was designed so. Where a stop is wanted, write
+  `requires wire.fits …` as a contract.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "lib-alloc-glance",
+  caption: [Shapes of stores and handles --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`newtype objects u8 .`], [the brand of one store], [cost-free distinction --- mixing: `E-TYPE-INSTANCE`, opening twice: `E-BRAND-REUSED`],
+  [`pool.init objects mem gens 16`], [a pool carving the caller's bytes into blocks (sealed in)], [later ops do not take `mem`/`gens` again],
+  [`pool.take` · `pool.release` · `pool.alive`], [borrow (generation handle) · return (bump generation) · ask], [use-after-free and double free surface as values],
+  [`pool.bytes objects p h` → `option mut slice u8`], [the only door to a block's bytes], [`none` when the generation differs],
+  [`var r owned shard.token grid be shard.open grid 8 .`], [an owned token for a non-overlapping piece], [after splitting, the old token is `E-OWN-MOVED`],
+  [`budget.pack …`], [check a bit budget by contract], [a misfit is `E-CONTRACT-IMPOSSIBLE` at translation],
+  [`wire.pick mask w` · `wire.merge mask w v` · `wire.fits`], [read · replace · check a bit field with one mask], [position and width come from one number --- `put` truncates],
+)
+
 #recap[
   `pool` lends blocks through generational handles and reports old handles after release and double frees as values at run time. `newtype` brands stop mixing pools at
   translation at no cost. `shard` and `pagecache` use `owned` tokens to stop overlap and eviction while pinned at translation. `budget` checks a handle's bit budget at

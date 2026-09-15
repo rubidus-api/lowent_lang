@@ -121,6 +121,47 @@
   [`lifemode` · `lifeatom`], [값의 끝을 정하는 네 방법 --- 단일 소유·스레드 국한 참조 계수·원자 참조 계수·외부 완결],
 )
 
+== 흔한 실수
+
+#antipattern[돌려준 블록의 바이트를 묻지 않고 꺼낸다][
+  #demo("examples/ch35/mistake_staleuse.low")
+
+  `pool.bytes` 는 블록 바이트에 닿는 *유일한 문*이고, 세대가 맞지 않으면 `none` 을 준다. C 라면 해제한 블록에 7 을 쓰는 순간 다른 객체가 조용히
+  망가지지만, 여기서는 그 자리가 `none` 이라는 값으로 드러난다. 그 값을 `some_value` 로 묻지 않고 꺼내면 이 예제처럼 멈춘다. 멈추는 편이 망가지는
+  것보다 낫지만, 핸들이 오래 살 수 있는 코드는 `is_some` 으로 묻고 낡은 핸들을 따로 다룬다.
+]
+
+#antipattern[같은 브랜드로 저장소를 둘 연다][
+  #demo("examples/ch35/mistake_brandreuse.low")
+
+  브랜드 `objects` 는 저장소 *하나*의 이름이다. 둘째 `pool.init objects …` 가 통과하면 두 풀이 같은 타입을 나누게 되어, 첫 풀의 핸들을 둘째 풀에
+  돌려주는 실수를 타입이 막지 못한다. 그래서 `E-BRAND-REUSED` 다. 저장소마다 `newtype` 을 하나씩 선언한다. 선언 한 줄이 비용 없는 구별이다.
+]
+
+#misconception[`wire` 의 칸에 넣은 값은 넘치면 멈춘다][
+  #demo("examples/ch35/wire_truncates.low")
+
+  `wire.put` 은 칸보다 큰 값을 *자른다*. 네 비트 칸에 20(`0b10100`)을 넣으면 아래 네 비트 4 만 들어가 1024(`0x400`)가 된다. 모듈 문서가 그렇게 약속하고,
+  잘리는 것이 싫으면 `wire.fits` 로 먼저 물으라고 적는다(20 은 0, 곧 거짓). 선으로 나가는 비트 칸은 잘리는 것이 표준 동작인 경우가 많아 이렇게
+  정했다. 멈추기를 원하는 자리는 `requires wire.fits …` 를 계약으로 적는다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "lib-alloc-glance",
+  caption: [저장소와 핸들의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`newtype objects u8 .`], [저장소 하나의 브랜드], [비용 없는 구별 --- 섞으면 `E-TYPE-INSTANCE`, 두 번 열면 `E-BRAND-REUSED`],
+  [`pool.init objects mem gens 16`], [호출자 바이트를 블록으로 나눈 풀(봉해 든다)], [뒤의 op 은 `mem`·`gens` 를 따로 받지 않는다],
+  [`pool.take` · `pool.release` · `pool.alive`], [빌리기(세대 핸들) · 돌려주기(세대 올림) · 묻기], [지운 뒤 사용·두 번 해제가 값으로 드러난다],
+  [`pool.bytes objects p h` → `option mut slice u8`], [블록 바이트에 닿는 유일한 문], [세대가 다르면 `none`],
+  [`var r owned shard.token grid be shard.open grid 8 .`], [겹치지 않는 조각의 소유 토큰], [나누면 옛 토큰은 `E-OWN-MOVED`],
+  [`budget.pack …`], [비트 예산을 계약으로 확인], [맞지 않으면 번역에서 `E-CONTRACT-IMPOSSIBLE`],
+  [`wire.pick mask w` · `wire.merge mask w v` · `wire.fits`], [마스크 하나로 비트 칸 읽기 · 갈아 끼우기 · 들어가는지], [자리와 폭이 한 수에서 나온다 --- `put` 은 자른다],
+)
+
 #recap[
   `pool` 은 세대 핸들로 블록을 빌려주고, 돌려준 뒤의 옛 핸들과 두 번 해제를 실행 중에 값으로 알린다. `newtype` 브랜드는 풀을 섞는
   실수를 번역에서 막고 비용이 없다. `shard`·`pagecache` 는 `owned` 토큰으로 겹침과 고정 중 축출을 번역에서 막는다. `budget` 은 핸들의

@@ -1,0 +1,15 @@
+module doubling .
+rem run: twice 21
+rem test
+
+export fn twice input n u32 . output u32 .
+  requires le n 100 .
+do
+  return mul n 2 .
+end .
+
+test twice_works
+do
+  expect eq (twice 5) 10 .
+  expect eq (twice 0) 0 .
+end .

@@ -1,0 +1,8 @@
+module enum_dot .
+rem expect: E-ENUM-DOT
+
+enum color do
+  red
+  green
+  blue
+end .

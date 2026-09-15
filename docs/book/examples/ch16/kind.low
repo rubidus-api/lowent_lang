@@ -1,0 +1,7 @@
+module kind .
+rem expect: E-CAP-KIND
+
+proc stamp input out cap io . output u64 . effects none .
+do
+  return time_now out .
+end .

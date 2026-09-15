@@ -1,0 +1,41 @@
+module pairs .
+rem run: with_index [10,10,10] [0,0,0]
+rem run: added [1,2,3] [10,20,30] [0,0,0]
+rem run: running [1,2,3,4] [0,0,0,0]
+
+fn idxadd input i u64 . input e u8 . output u8 .
+do
+  return wrap_add e (narrow_wrap u8 i) .
+end .
+
+fn addb input a u8 . input b u8 . output u8 .
+do
+  return wrap_add a b .
+end .
+
+proc with_index input xs slice u8 . input out mut slice u8 . output u64 . effects none .
+do
+  pipe xs do
+    enumerate idxadd .
+    collect into out .
+  end .
+  return 0 .
+end .
+
+proc added input xs slice u8 . input ys slice u8 . input out mut slice u8 . output u64 . effects none .
+do
+  pipe xs do
+    zip ys addb .
+    collect into out .
+  end .
+  return 0 .
+end .
+
+proc running input xs slice u8 . input out mut slice u8 . output u64 . effects none .
+do
+  pipe xs do
+    scan 0 addb .
+    collect into out .
+  end .
+  return 0 .
+end .

@@ -1,0 +1,24 @@
+module geom .
+
+export struct point do
+  x i64 .
+  y i64 .
+end .
+
+export fn manhattan input a point . input b point . output i64 .
+  requires ge (field a x) -1000000 .
+  requires le (field a x) 1000000 .
+  requires ge (field b x) -1000000 .
+  requires le (field b x) 1000000 .
+  requires ge (field a y) -1000000 .
+  requires le (field a y) 1000000 .
+  requires ge (field b y) -1000000 .
+  requires le (field b y) 1000000 .
+do
+  return add (abs (sub (field b x) (field a x))) (abs (sub (field b y) (field a y))) .
+end .
+
+fn helper input v i64 . output i64 .
+do
+  return v .
+end .

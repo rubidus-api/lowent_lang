@@ -1,0 +1,15 @@
+module timing .
+
+use clock .
+
+proc elapsed_work input k cap clock . output u64 . effects none .
+do
+  let start u64 be clock.now_ns k .
+  var i u64 be 0 .
+  var acc u64 be 0 .
+  while lt i 1000 . do
+    set acc (wrap_add acc i) .
+    set i (add i 1) .
+  end .
+  return clock.since_ns k start .
+end .

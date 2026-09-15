@@ -16,6 +16,7 @@
 !/docs/manual/
 !/docs/example/
 !/docs/proofs/
+!/docs/book/
 
 # never public, even inside whitelisted folders
 /impl/tests/golden.sh
@@ -38,6 +39,10 @@
 /docs/example/representations.md
 /docs/example/build-manifest.md
 /docs/example/build-scale.md
+
+# book build products (PDFs go to releases, not the tree)
+/docs/book/build/
+/docs/book/web/
 
 # Coq build products (the .v sources, Makefile and notes are public)
 /docs/proofs/**/*.vo

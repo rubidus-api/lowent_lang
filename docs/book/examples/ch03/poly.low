@@ -1,0 +1,19 @@
+module newline .
+rem run: poly 5 4
+rem run: poly_expr 5 4
+
+note WHY
+  개행은 공백이다. 폼은 자기 닫개인 떨어진 마침표에서 끝난다.
+  그래서 줄을 어디서 나누어도 뜻이 같다.
+WHY
+
+fn poly input a u64 . input b u64 . output u64 .
+do
+  return add (mul a 2)
+             (mul b 3) .
+end .
+
+fn poly_expr input a u64 . input b u64 . output u64 .
+do
+  return expr a * 2 + b * 3 .
+end .

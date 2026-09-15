@@ -1,0 +1,35 @@
+module awaiting .
+rem run: drive
+rem test
+
+fn square input n u64 . output u64 .
+  requires le n 1000 .
+do
+  return mul n n .
+end .
+
+proc drive output u64 . effects state .
+do
+  var r u64 be 0 .
+  task_group do
+    var h1 u64 be spawn square 5 .
+    var h2 u64 be spawn square 6 .
+    let a u64 be await h1 .
+    let b u64 be await h2 .
+    set r (add a b) .
+  end .
+  return r .
+end .
+
+test join_any_order schedule explore_interleavings
+do
+  var r u64 be 0 .
+  task_group do
+    var h1 u64 be spawn square 5 .
+    var h2 u64 be spawn square 6 .
+    let a u64 be await h1 .
+    let b u64 be await h2 .
+    set r (add a b) .
+  end .
+  expect eq r 61 .
+end .

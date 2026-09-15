@@ -1,0 +1,40 @@
+module why .
+rem run: demo
+
+trait shape do
+  area input s self . output u64 .
+end .
+
+struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end .
+
+struct square do
+  satisfies shape .
+  side u64 .
+end .
+
+fn rect.area input s rect . output u64 .
+do
+  return mul (field s w) (field s h) .
+end .
+
+fn square.area input s square . output u64 .
+do
+  return mul (field s side) (field s side) .
+end .
+
+fn double_area input comptime t type . input s t . output u64 .
+  requires shape t .
+do
+  return mul 2 (method s area) .
+end .
+
+fn demo output u64 .
+do
+  let r rect be make rect do w 2 . h 3 . end .
+  let q square be make square do side 4 . end .
+  return add (double_area rect r) (double_area square q) .
+end .

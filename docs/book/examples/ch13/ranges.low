@@ -1,0 +1,8 @@
+module ranges .
+rem run: scale 100
+rem trap: scale 101
+
+fn scale input a range 0 100 . output u8 .
+do
+  return narrow u8 (mul a 2) .
+end .

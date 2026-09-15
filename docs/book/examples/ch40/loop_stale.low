@@ -1,0 +1,17 @@
+module loop_stale .
+rem expect: E-EXCL
+
+proc drift input n u64 . output u64 .
+  requires le n 100 .
+do
+  var x u64 be 1 .
+  let r ref u64 be ref x .
+  var i u64 be 0 .
+  var seen u64 be 0 .
+  while lt i n . do
+    set x (add x 1) .
+    set seen (deref r) .
+    set i (add i 1) .
+  end .
+  return seen .
+end .

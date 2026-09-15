@@ -1,0 +1,10 @@
+module kinds .
+rem expect: E-REGION-KIND
+
+proc f output u64 . effects alloc .
+do
+  region r pool do
+    let g option mut slice u8 be alloc_bytes r capacity 8 .
+  end .
+  return 0 .
+end .

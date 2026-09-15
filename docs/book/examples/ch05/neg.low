@@ -1,0 +1,13 @@
+module negs .
+rem run: flip 5
+rem run: dist -3 4
+
+fn flip input a i64 . output i64 .
+do
+  return neg a .
+end .
+
+fn dist input a i64 . input b i64 . output i64 .
+do
+  return abs (sub a b) .
+end .

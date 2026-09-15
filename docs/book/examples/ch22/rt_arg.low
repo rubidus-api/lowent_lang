@@ -1,0 +1,13 @@
+module rt_arg .
+rem expect: E-COMPTIME-ARG
+
+fn add_const input comptime n u8 . input a u8 . output u8 .
+  requires le a 200 .
+do
+  return add a n .
+end .
+
+fn caller input k u8 . output u8 .
+do
+  return add_const k 4 .
+end .

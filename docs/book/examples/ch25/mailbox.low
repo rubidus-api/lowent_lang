@@ -1,0 +1,36 @@
+module mailbox .
+rem run: drive
+rem run: nodrain
+
+actor counter do
+  state do
+    v u64 .
+  end .
+  proc inc output u64 . effects state .
+  do
+    set v (add v 1) .
+    return v .
+  end .
+  fn get output u64 .
+  do
+    return v .
+  end .
+end .
+
+proc drive output u64 . effects state .
+do
+  var c counter be spawn actor counter .
+  spawn send c inc .
+  spawn send c inc .
+  spawn send c inc .
+  drain c .
+  return send c get .
+end .
+
+proc nodrain output u64 . effects state .
+do
+  var c counter be spawn actor counter .
+  spawn send c inc .
+  spawn send c inc .
+  return send c get .
+end .

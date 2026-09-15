@@ -1,0 +1,43 @@
+module loops .
+rem run: count_big 10
+rem run: first_zero [5,3,0,9]
+rem run: first_zero [5,3]
+rem run: odd_sum [1,2,3,4,5]
+
+fn count_big input n u32 . output u32 .
+  requires le n 100 .
+do
+  var total u32 be 0 .
+  var i u32 be 0 .
+  while lt i n . do
+    if gt i 5 . do
+      set total (add total 1) .
+    end .
+    set i (add i 1) .
+  end .
+  return total .
+end .
+
+fn first_zero input xs slice u8 . output u64 .
+do
+  var i u64 be 0 .
+  while lt i (len xs) . do
+    if eq (index xs i) 0 . do
+      break .
+    end .
+    set i (add i 1) .
+  end .
+  return i .
+end .
+
+fn odd_sum input xs slice u8 . output u64 .
+do
+  var acc u64 be 0 .
+  for x xs do
+    if eq (mod x 2) 0 . do
+      continue .
+    end .
+    set acc (add acc (widen u64 x)) .
+  end .
+  return acc .
+end .

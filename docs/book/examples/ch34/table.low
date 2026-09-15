@@ -1,0 +1,20 @@
+module table .
+rem run: main
+
+use hashmap .
+
+proc main input al cap allocator . output u8 . effects alloc .
+do
+  let g option mut slice u8 be alloc_bytes al capacity 128 .
+  guard is_some g . else return 255 .
+  var slots mut slice u64 be view_array u64 (some_value g) .
+  let a bool be hashmap.put slots 7 700 .
+  let b bool be hashmap.put slots 9 900 .
+  let c bool be hashmap.put slots 7 777 .
+  let v option u64 be hashmap.lookup slots 7 .
+  guard is_some v . else return 254 .
+  let gone bool be hashmap.del slots 9 .
+  let w option u64 be hashmap.lookup slots 9 .
+  guard not (is_some w) . else return 253 .
+  return narrow u8 (add (mul (div (some_value v) 100) 10) (hashmap.size slots)) .
+end .

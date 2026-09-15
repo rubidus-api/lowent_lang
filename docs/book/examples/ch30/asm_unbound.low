@@ -1,0 +1,20 @@
+module asm_unbound .
+rem expect: E-ASM-UNBOUND
+
+unsafe proc add_native
+  input k cap machine .
+  input a u64 .
+  input b u64 .
+  output u64 .
+  effects unsafe .
+  asm x86_64 .
+    reg a .
+    reg b .
+    out reg r .
+    clobber flags .
+do
+  text ASM
+    mov {a}, {r}
+    add {c}, {r}
+  ASM
+end .

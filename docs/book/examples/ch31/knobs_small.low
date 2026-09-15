@@ -1,0 +1,21 @@
+module knobs_small .
+rem flags: --config small.config
+rem run: tick_rate
+rem run: cpus
+
+build option smp bool default true .
+build option hz choice 100 250 1000 default 250 .
+build option maxcpu int default 64 .
+
+fn tick_rate output u64 .
+do
+  if config smp . do
+    return config hz .
+  end .
+  return 100 .
+end .
+
+fn cpus output u64 .
+do
+  return config maxcpu .
+end .

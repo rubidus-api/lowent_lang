@@ -1,0 +1,23 @@
+module divide .
+rem run: quot -7 2
+rem run: modulo -7 2
+rem trap: quot 1 0
+rem run: safe_div 7 0
+rem run: safe_div 7 2
+
+fn quot input a i32 . input b i32 . output i32 .
+do
+  return div a b .
+end .
+
+fn modulo input a i32 . input b i32 . output i32 .
+do
+  return mod a b .
+end .
+
+fn safe_div input a u32 . input b u32 . output u32 .
+do
+  let nz option nonzero u32 be nonzero_of b .
+  guard is_some nz . else return 0 .
+  return div_nz a (some_value nz) .
+end .

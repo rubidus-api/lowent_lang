@@ -1,0 +1,15 @@
+module head .
+rem run: first_two [9,8,7,6]
+
+fn take_front input p slice u8 . input n u64 . output slice u8 .
+  requires le n (len p) .
+do
+  return subslice p 0 n .
+end .
+
+fn first_two input xs slice u8 . output u64 .
+  requires ge (len xs) 2 .
+do
+  let front slice u8 be take_front xs 2 .
+  return len front .
+end .

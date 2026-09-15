@@ -1,0 +1,27 @@
+module scratch .
+rem run: main
+
+proc fill_count input n u64 . output u64 . effects alloc .
+do
+  region work arena do
+    let g option mut slice u8 be alloc_bytes work capacity n .
+    guard is_some g . else return 0 .
+    let buf mut slice u8 be some_value g .
+    var i u64 be 0 .
+    while lt i (len buf) . do
+      set (index buf i) 7 .
+      set i (add i 1) .
+    end .
+    var s u64 be 0 .
+    for b buf do
+      set s (add s (widen u64 b)) .
+    end .
+    return s .
+  end .
+  return 0 .
+end .
+
+proc main input al cap allocator . output u8 . effects alloc .
+do
+  return narrow u8 (fill_count 10) .
+end .

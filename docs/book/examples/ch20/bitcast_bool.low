@@ -1,0 +1,7 @@
+module bitcast_bool .
+rem expect: E-TYPE-BITCAST
+
+fn truthy input a u8 . output bool .
+do
+  return bit_cast bool a .
+end .

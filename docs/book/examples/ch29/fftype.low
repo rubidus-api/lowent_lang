@@ -1,0 +1,7 @@
+module fftype .
+rem expect: E-FFI-TYPE
+
+unsafe extern proc c_find input k cap c . input key u64 . output option u64 .
+  effects unsafe .
+  link "lw_c_find" .
+end .

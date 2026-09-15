@@ -1,0 +1,26 @@
+module widths .
+rem run: mix 200 -100
+rem run: shrink 200
+rem trap: shrink 300
+rem run: shrink_sat 300
+rem run: shrink_wrap 300
+
+fn mix input a u8 . input b i16 . output i16 .
+do
+  return add a b .
+end .
+
+fn shrink input x u64 . output u8 .
+do
+  return narrow u8 x .
+end .
+
+fn shrink_sat input x u64 . output u8 .
+do
+  return narrow_sat u8 x .
+end .
+
+fn shrink_wrap input x u64 . output u8 .
+do
+  return narrow_wrap u8 x .
+end .

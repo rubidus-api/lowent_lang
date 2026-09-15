@@ -1,0 +1,7 @@
+module order_strict .
+rem expect: E-TYPE-SIGN
+
+fn same_width input a u8 . output i8 .
+do
+  return a .
+end .

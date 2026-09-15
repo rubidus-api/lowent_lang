@@ -1,0 +1,8 @@
+module readonly .
+rem expect: E-TYPE-MUT
+
+fn poke input xs slice u8 . output u64 .
+do
+  set (index xs 0) 1 .
+  return 0 .
+end .

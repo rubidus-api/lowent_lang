@@ -1,0 +1,30 @@
+module lines .
+rem run: main
+
+use files .
+
+fn is_newline input c u8 . output bool .
+do
+  return eq c 10 .
+end .
+
+proc main input out cap io . input fs cap file_system . input al cap allocator .
+  output u8 .
+  effects io alloc .
+do
+  let g option mut slice u8 be alloc_bytes al capacity 4096 .
+  guard is_some g . else return 1 .
+  let buf mut slice u8 be some_value g .
+  let r result u64 files.file_error be files.slurp fs "notes.txt" buf .
+  guard not (is_error r) . else do
+    let e u64 be write_out out 1 "cannot read notes.txt\n" .
+    return 2 .
+  end .
+  let body slice u8 be subslice buf 0 (ok_value r) .
+  let n u64 be pipe body do
+    filter is_newline .
+    count .
+  end .
+  let w u64 be write_out out 1 body .
+  return narrow u8 n .
+end .

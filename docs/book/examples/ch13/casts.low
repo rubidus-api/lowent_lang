@@ -1,0 +1,15 @@
+module casts .
+rem run: truncate 7.9
+rem run: truncate -2.9
+rem run: to_signed 200
+rem trap: to_signed 3000000000
+
+fn truncate input x f64 . output i32 .
+do
+  return cast i32 x .
+end .
+
+fn to_signed input x u32 . output i32 .
+do
+  return cast i32 x .
+end .

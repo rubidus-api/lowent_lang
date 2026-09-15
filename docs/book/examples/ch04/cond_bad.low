@@ -1,0 +1,8 @@
+module cond_bad .
+rem expect: E-TYPE-COND
+
+fn nonzero_flag input n u32 . output u8 .
+do
+  if n . do return 1 . end .
+  return 0 .
+end .

@@ -1,0 +1,13 @@
+module bitcast .
+rem run: reinterpret -1
+rem run: float_bits 1.0
+
+fn reinterpret input x i32 . output u32 .
+do
+  return bit_cast u32 x .
+end .
+
+fn float_bits input f f64 . output u64 .
+do
+  return bit_cast u64 f .
+end .

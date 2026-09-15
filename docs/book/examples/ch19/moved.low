@@ -1,0 +1,17 @@
+module moved .
+rem expect: E-OWN-MOVED
+
+type buffer u8 .
+
+fn consume input h owned buffer . output u8 .
+do
+  drop h .
+  return 0 .
+end .
+
+fn reuse input h owned buffer . output u8 .
+do
+  let a u8 be consume h .
+  let b u8 be consume h .
+  return add a b .
+end .

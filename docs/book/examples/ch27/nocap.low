@@ -1,0 +1,8 @@
+module nocap .
+rem expect: E-ATOMIC-NOCAP
+
+proc bump input s mut slice u64 . output u64 . effects atomic .
+do
+  atomic_add s 0 1 .
+  return atomic_load s 0 .
+end .

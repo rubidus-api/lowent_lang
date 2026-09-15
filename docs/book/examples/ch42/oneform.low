@@ -1,0 +1,22 @@
+module oneform .
+rem run: bare 3
+rem run: blocked 3
+rem fmt
+
+fn bare input a u64 . output u64 .
+  requires le a 1000 .
+do
+  var x u64 be a .
+  if gt a 1 . set x (add x 10) .
+  return x .
+end .
+
+fn blocked input a u64 . output u64 .
+  requires le a 1000 .
+do
+  var x u64 be a .
+  if gt a 1 . do
+    set x (add x 10) .
+  end .
+  return x .
+end .

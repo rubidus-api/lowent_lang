@@ -1,0 +1,13 @@
+module byvalue .
+rem expect: E-MMIO-BYVALUE
+
+struct gpio do
+  mmio 0x40020000 .
+  moder u32 rw .
+end .
+
+unsafe proc setup input dev cap mmio . input g gpio . output u32 . effects device unsafe .
+do
+  write_volatile g moder 2 .
+  return 0 .
+end .

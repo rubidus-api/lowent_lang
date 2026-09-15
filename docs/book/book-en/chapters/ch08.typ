@@ -1,0 +1,136 @@
+#import "../../book/lib.typ": *
+
+= Expressions --- prefix notation and the `expr` island
+
+#chapter-toc()
+
+#prereq(
+  ([#chref("surface"), The surface], [the name first, then the arguments]),
+  ([#chref("numbers"), Numbers], [bitwise operations are written as words]),
+  ([#chref("control"), Flow], [`match` must cover every case]),
+)
+
+#deepqa[
+  Why did #chref("surface") reject `expr a lt b lt c`? What did the diagnostic say to write instead?
+][
+  Chained comparisons read as "a < b and b < c" in mathematics but as `(a < b) < c` in many languages. Since the same spelling means
+  different things to people and to the machine, it was rejected with `E-EXPR-CHAIN`. The diagnostic said to write
+  `expr (a lt b) and (b lt c)`. This chapter covers every rule inside that island.
+]
+
+#why[
+  Expressions are the most used part of the grammar. In Lowent, prefix notation is the default and infix is allowed only inside an `expr`
+  island. You need to understand this two-layer structure to read prefix expressions full of parentheses, and to know what the island
+  does not allow so you do not get lost. As the last chapter of Part II, it gathers the rules of expressions seen piecemeal so far.
+]
+
+#organizer[
+  You will learn why prefix notation has no precedence, and the island's short precedence table. You will pick up that calling an op
+  inside the island needs parentheses, that there are no unary operators, and that comparisons mixed with `and` and `or` are
+  parenthesised. You will also see how short-circuiting `and` and `or` keep conditions safe, and `size_of` and `comptime`, which are
+  computed at translation time.
+]
+
+#chapter-questions()
+
+== Nothing to memorise in prefix notation
+
+In prefix notation the operation's name comes first and its arguments follow. An argument that is itself a form is wrapped in
+parentheses. This shape has no precedence; the parentheses say everything about what is computed first.
+
+#demo("examples/ch08/island.low")
+
+`add a (mul b 2)` in `score_prefix` and `expr a + b * 2` in `score` are the same expression. The two ops give the same answer, and since
+the island is translated to prefix, the run-time cost is the same too. The island is *a projection of notation*, not a different
+operation.
+
+The reason for words instead of symbols is the same. `^` is exponentiation in some languages and exclusive or in others. `bit_xor` means
+one thing wherever it is read. And words can be read aloud.
+
+== The island's precedence table
+
+#idx("expr island")
+Precedence exists only inside the island, and this table is all of it.
+
+#dtable(
+  columns: 4,
+  id: "expr-precedence",
+  caption: [Precedence inside an `expr` island (tightest at the top)],
+  [*Level*], [*Operations*], [*Associativity*], [*Prefix equivalent*],
+  [5], [`( )` grouping], [---], [Only marks grouping; not a value],
+  [4], [`*` `/`], [left], [`mul` · `div`],
+  [3], [`+` `-`], [left], [`add` · `sub`],
+  [2], [`eq` `ne` `lt` `le` `gt` `ge`], [cannot chain], [the prefix op of the same name],
+  [1b], [`and`], [left], [`and` (short-circuit)],
+  [1a], [`or`], [left], [`or` (short-circuit)],
+)
+
+Parentheses change the order, as in `grouped`'s `expr (a + b) * 2`. Operations not in the table --- the remainder `mod`, bitwise
+operations, `min` and `max` --- are written prefix and called in parentheses even inside the island. `spread`'s
+`expr (max a b) - (min a b)` has that shape.
+
+`in_range` joins two comparisons with `and`. By the table, comparisons bind tighter than `and`, so parentheses seem unnecessary, but the
+compiler in this edition rejects `expr lo le x and x le hi` with `E-TYPE-LOGICAL`. When mixing comparisons with `and` or `or`, parenthesise
+each comparison. The reader no longer needs to recall the table either.
+
+#qa[
+  The VM shows `in_range(5, 1, 9) = 1`. Has the `bool` become a number?
+][
+  No. The VM's result line merely *displays* a `bool` as 0 or 1. Inside a program a `bool` does not mix with numbers (#chref("numbers")).
+  In the C that native code is emitted as, a `bool` is also one byte holding 0 or 1.
+]
+
+== What the island cannot do
+
+The island is a world of infix operators, so two things are missing.
+
+First, calling an op without parentheses. `twice a + 1` could be `twice (a + 1)` or `(twice a) + 1`.
+
+#demo("examples/ch08/app_bad.low")
+
+As the diagnostic's example shows, a call inside the island is parenthesised, as in `(twice a) + 1`.
+
+Second, unary operators. The island has no operator without a left operand.
+
+#demo("examples/ch08/unary_bad.low")
+
+To flip a sign, write `neg a` in prefix, or inside the island call `(neg a)` or write `expr 0 - a`. `not b` and `bit_not x` are the same.
+
+#misconception[The island is small because it is unfinished][
+  Its size is intentional. Infix notation is only worth having *when nobody needs to look up precedence*. The operations in the table
+  work like school arithmetic, so everyone reads them the same way. Adding bitwise or unary operators would add things to look up rather
+  than making code easier to read. The specification states that the island will not grow.
+]
+
+== Short-circuiting guards conditions
+
+#idx("short-circuit evaluation")
+`and` and `or` do not compute the right-hand side when the left-hand side already decides the answer. Using that, you can put the
+condition that makes the right-hand side safe on the left.
+
+#demo("examples/ch08/shortcircuit.low")
+
+`safe_first_is_zero` does not compute `index xs 0` on an empty slice, because if `gt (len xs) 0` on the left is false, the answer is
+already false. `ratio_ok` likewise skips the division when the denominator is 0. This shape suits conditions too small for a `guard`. If
+the condition is a fact about the whole op, `guard` is better (#chref("control")).
+
+== Expressions computed at translation time
+
+Some expressions have values before the program runs.
+
+#demo("examples/ch08/compt.low")
+
+`size_of u32` gives the number of bytes of one value of that type at translation time. It lets code that takes a type as a parameter
+compute its costs honestly instead of assuming the widest type (#chref("generics")).
+
+`comptime (add 2 3)` marks an expression to be computed at translation time. When the value a `match` splits on is a translation-time
+constant, the `match` folds to the one matching arm and the run-time comparisons disappear. The folded-away arms are still type-checked,
+unlike code removed with C's `#ifdef`, which is not even checked. `config <option>`, which reads the build configuration, is also used as a
+translation-time constant (#chref("build-test")).
+
+#recap[
+  The default for expressions is prefix notation, which has no precedence. The `expr` island allows only arithmetic, comparisons, `and` and
+  `or` in infix; op calls inside it are parenthesised, and there are no unary operators. When mixing comparisons with `and` or `or`,
+  parenthesise each comparison. Short-circuiting `and` and `or` can guard the right-hand side, and `size_of` and `comptime` are computed at
+  translation time.
+]

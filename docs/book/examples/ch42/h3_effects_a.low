@@ -1,0 +1,8 @@
+module hashed .
+rem db
+
+proc greet input out cap io . input al cap allocator . output u64 . effects io alloc .
+do
+  let g option mut slice u8 be alloc_bytes al capacity 4 .
+  return write_out out 1 "hi" .
+end .

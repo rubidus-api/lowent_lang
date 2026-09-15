@@ -1,0 +1,15 @@
+module bits .
+rem run: mask 12 10
+rem run: flip 12
+rem run: spin 129 1
+rem run: s_shr -8 1
+rem run: u_shr 4294967288 1
+rem run: ones 7
+
+rem 12 = 0000_1100 · 10 = 0000_1010
+fn mask input a u8 . input b u8 . output u8 . do return bit_and a b . end .
+fn flip input a u8 . output u8 . do return bit_not a . end .
+fn spin input a u8 . input n u8 . output u8 . do return rotl a n . end .
+fn s_shr input a i32 . input n i32 . output i32 . do return shr a n . end .
+fn u_shr input a u32 . input n u32 . output u32 . do return shr a n . end .
+fn ones input a u8 . output u8 . do return count_ones a . end .

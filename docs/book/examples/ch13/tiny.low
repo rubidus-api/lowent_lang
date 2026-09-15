@@ -1,0 +1,10 @@
+module tiny .
+rem run: grow 1000
+rem trap: grow 1023
+
+type ten_bits bits 10 .
+
+fn grow input x ten_bits . output ten_bits .
+do
+  return add x 1 .
+end .

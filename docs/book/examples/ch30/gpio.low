@@ -1,0 +1,23 @@
+module gpio_demo .
+rem run: drive 0 [0,0,0,0,7,0,0,0,0,0,0,0]
+
+build tier t1 .
+
+struct gpio do
+  mmio 0x40020000 .
+  moder u32 rw .
+  idr u32 ro .
+  bsrr u32 wo .
+end .
+
+unsafe proc drive
+  input dev cap mmio .
+  input regs mut slice u8 .
+  output u32 .
+  effects device unsafe .
+do
+  var g gpio be view gpio regs .
+  write_volatile g moder 2 .
+  write_volatile g bsrr 1 .
+  return read_volatile g idr .
+end .

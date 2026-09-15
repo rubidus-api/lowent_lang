@@ -1,0 +1,22 @@
+module sizes .
+rem run: report
+
+fn bytes_for input comptime t type . input items u64 . output u64 .
+  requires le items 1000000 .
+do
+  return mul (size_of t) items .
+end .
+
+fn add_const input comptime n u8 . input a u8 . output u8 .
+  requires le a 200 .
+do
+  return add a n .
+end .
+
+fn report output u64 .
+do
+  let a u64 be bytes_for u8 100 .
+  let b u64 be bytes_for u64 100 .
+  let c u8 be add_const 7 10 .
+  return add (add a b) (widen u64 c) .
+end .

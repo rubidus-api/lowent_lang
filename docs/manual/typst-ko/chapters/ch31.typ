@@ -178,6 +178,56 @@ why-slow: 0 / 1 op(s) still on the tagged path
 성능이 서명에 보이지 않는 모델은 그 자체로 소스 밖의 지식이 된다. 그래서 도구가 말한다. `--no-fast` 는 모든 op 을 느린 길로
 내리는 대조 스위치다. 두 길이 같은 답을 내는지 볼 때 쓴다.
 
+== 흔한 실수
+
+#antipattern[구성 파일에 손잡이 이름을 잘못 적는다][
+  #demo("examples/ch31/mistake_configtypo.low")
+
+  `maxcpus 8` 은 아무도 읽지 않는 설정이다. 조용히 넘기면 `maxcpu` 는 기본값 64 로 남고, 쓰는 사람은 8 로 지었다고 믿는다. 그래서
+  `E-CONFIG-UNDEF` 로 멈춘다. 진단의 줄 번호가 `0:0` 인 것은 잘못이 소스가 아니라 구성 파일에 있기 때문이다.
+]
+
+#antipattern[`choice` 손잡이에 선택지에 없는 값을 준다][
+  #demo("examples/ch31/mistake_configvalue.low")
+
+  `hz` 는 100 · 250 · 1000 가운데 하나다. 300 을 주면 가장 가까운 값으로 맞추거나 기본값으로 돌아가지 않고 `E-CONFIG-TYPE` 으로 멈춘다.
+  선택지는 그 값들로 시험되었다는 뜻이기도 하다. 새 값이 필요하면 소스의 선언에 선택지를 더한다.
+]
+
+#antipattern[권한을 받는 op 을 `--run` 으로 부르며 권한 자리를 비운다][
+  #demo("examples/ch31/mistake_runcap.low")
+
+  시작점(`main`)은 도구가 권한을 채워 주지만, 그 밖의 op 을 `--run` 으로 곧장 부르면 권한 자리도 인자 수에 든다. `say 5` 는 인자가 하나 모자라
+  `E-VM-ARITY` 이고, 권한 자리에 자리표 `0` 을 채운 `say 0 5` 는 돈다(장치 권한 `cap mmio` 도 같다 --- #chref("hardware")). 이 자리표는 시험을
+  위한 도구의 편의일 뿐이다. 프로그램 안에서 권한 자리에 수를 넘기는 것은 이 판의 구멍이고(#chref("capabilities")), 그렇게 쓰지 않는다.
+]
+
+#misconception[구성에서 꺼진 가지는 검사하지 않는다][
+  #demo("examples/ch31/dead_branch.low")
+
+  `smp` 를 끈 구성에서는 `return true .` 가 결코 돌지 않는다. 그래도 `u64` 자리에 `bool` 을 돌려주는 이 줄은 `E-TYPE-RETURN` 으로 거절된다. C 의
+  `#ifdef` 안 코드는 켜지지 않은 조합에서 아무에게도 읽히지 않지만, `config` 의 꺼진 가지는 파싱되고 타입 검사를 받는다. 값이 정해진 뒤 생성물에서
+  빠질 뿐이다. 그래서 어떤 구성으로 지어도 나머지 조합이 썩지 않는다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "build-test-glance",
+  caption: [빌드와 시험의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`package name "greeter" .` · `package version "0.1.0" .`], [`pkg.low` 매니페스트], [여기만은 적은 것을 검사한다 --- 열쇠말은 닫힌 집합],
+  [`lowentc run` · `lowentc build`], [프로젝트를 VM 으로 돌린다 · `out/` 에 짓는다], [매니페스트를 걸어 올라가며 찾는다],
+  [`lowentc add <이름> <자리>` · `--lock-write` · `--lock`], [의존을 해시와 함께 고정한다], [판 번호가 같아도 바이트가 다르면 다른 의존],
+  [`build option smp bool default true .`], [빌드 손잡이 --- `bool`·`int`·`choice`], [읽히지 않는 손잡이는 `E-CONFIG-UNUSED`],
+  [`config smp` · `--config small.config`], [손잡이 값을 번역 시점 상수로 읽는다 · 구성 파일], [꺼진 가지도 검사받는다],
+  [`test <이름> do expect <조건> . end .` · `--test`], [시험 블록과 단언], [실패는 `E-TEST-FAIL` --- 계약 위반과 다른 진단],
+  [`test … schedule explore_interleavings limit <수> do … end .`], [모든 차례를 돌리는 시험], [드문 차례의 결함],
+  [`lowentc --run <op> <파일> <인자…>`], [op 하나를 VM 으로 돌린다], [권한 자리에는 자리표 `0`],
+  [`--why-slow` · `--no-fast`], [느린 길에 남은 op 과 이유 · 모두 느린 길로], [성능을 도구가 말한다],
+)
+
 #recap[
   `pkg.low` 는 검사되는 매니페스트이고 `lowentc run`·`build` 가 프로젝트를 돌리고 짓는다. 의존은 내용 해시로 고정하고 진본은
   서명으로 따로 확인한다. `build option` 과 `config` 는 빌드마다 다른 프로그램을 짓되 꺼진 가지도 검사받으며, 읽히지 않는

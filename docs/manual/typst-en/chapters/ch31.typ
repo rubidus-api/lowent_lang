@@ -173,6 +173,58 @@ why-slow: 0 / 1 op(s) still on the tagged path
 A model whose performance is not visible in signatures becomes knowledge outside the source. So the tool says it. `--no-fast` is a contrast switch lowering every op by
 the slow path, used to see whether both paths give the same answer.
 
+== Common mistakes
+
+#antipattern[Misspelling a knob name in the config file][
+  #demo("examples/ch31/mistake_configtypo.low")
+
+  `maxcpus 8` is a setting nobody reads. Passing over it quietly would leave `maxcpu` at its default of 64 while the user believes the build
+  used 8. So it stops with `E-CONFIG-UNDEF`. The line number `0:0` is because the mistake is in the config file, not in the source.
+]
+
+#antipattern[Giving a `choice` knob a value that is not one of its choices][
+  #demo("examples/ch31/mistake_configvalue.low")
+
+  `hz` is one of 100, 250 and 1000. Given 300, the tool neither rounds to the nearest nor falls back to the default; it stops with
+  `E-CONFIG-TYPE`. The choices also mean "tested with these values". If you need a new value, add it to the declaration in the source.
+]
+
+#antipattern[Leaving the capability position empty when calling an op with `--run`][
+  #demo("examples/ch31/mistake_runcap.low")
+
+  For the entry point (`main`), the tool fills in capabilities, but when you call another op directly with `--run`, capability positions
+  count among the arguments. `say 5` is one argument short, hence `E-VM-ARITY`; `say 0 5`, with a placeholder `0` in the capability position,
+  runs (the device capability `cap mmio` works the same way --- #chref("hardware")). This placeholder is only a convenience of the tool for
+  testing. Passing a number where a capability belongs inside a program is a hole in this edition (#chref("capabilities")); do not write that.
+]
+
+#misconception[Branches switched off by the configuration are not checked][
+  #demo("examples/ch31/dead_branch.low")
+
+  With `smp` switched off, `return true .` never runs. Even so, this line, which returns a `bool` where a `u64` belongs, is rejected with
+  `E-TYPE-RETURN`. Code inside C's `#ifdef` goes unread in combinations that are not enabled, but a switched-off `config` branch is parsed
+  and type-checked; it is only left out of the output once the value is known. So whichever configuration you build, the other combinations
+  do not rot.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "build-test-glance",
+  caption: [Build and test syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`package name "greeter" .` · `package version "0.1.0" .`], [the `pkg.low` manifest], [here, what is written is checked --- a closed set of keys],
+  [`lowentc run` · `lowentc build`], [run the project on the VM · build into `out/`], [the manifest is found by walking upward],
+  [`lowentc add <name> <place>` · `--lock-write` · `--lock`], [pin dependencies with hashes], [same version, different bytes: a different dependency],
+  [`build option smp bool default true .`], [a build knob --- `bool`·`int`·`choice`], [a knob nobody reads is `E-CONFIG-UNUSED`],
+  [`config smp` · `--config small.config`], [read a knob as a translation-time constant · a config file], [switched-off branches are checked too],
+  [`test <name> do expect <condition> . end .` · `--test`], [test blocks and assertions], [failure is `E-TEST-FAIL` --- not a contract violation],
+  [`test … schedule explore_interleavings limit <n> do … end .`], [a test that runs every order], [bugs of rare orders],
+  [`lowentc --run <op> <file> <args…>`], [run one op on the VM], [a placeholder `0` in capability positions],
+  [`--why-slow` · `--no-fast`], [ops left on the slow path and why · everything on the slow path], [the tool speaks about performance],
+)
+
 #recap[
   `pkg.low` is a checked manifest, and `lowentc run` and `build` run and build the project. Dependencies are pinned by content hash, and authenticity is checked
   separately by signatures. `build option` and `config` build different programs per build while switched-off branches are still checked, and unread knobs are

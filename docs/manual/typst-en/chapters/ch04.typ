@@ -229,8 +229,9 @@ Lowent stops --- and the place it stops is the place to fix.
 
   `echo 18446744073709551615` should return what it received, yet 9223372036854775807 (the largest `i64`) comes out. In this edition `--run`
   reads command-line arguments as signed 64-bit numbers and cuts them down. The VM and the native build do the same, so comparing the two back
-  ends does not reveal it either (recorded as a defect in the development repository). A literal inside the source is intact, as `top` shows.
-  Write boundary-value tests with literals in a `test` block.
+  ends does not reveal it either (recorded as a defect in the development repository). A literal stored with `let` inside a `test` block is intact,
+  so write boundary-value tests there, as `largest_u64` does. Printed results are also shown as `i64` in this edition, so for `u64` values above
+  the `i64` maximum, trust the comparisons of `expect` rather than the printed number.
 ]
 
 #misconception[`div 7 2` is 3.5][

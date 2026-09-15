@@ -1,6 +1,6 @@
 module mistake_runmax .
 rem run: echo 18446744073709551615
-rem run: top
+rem test
 
 rem ko: 받은 값을 그대로 돌려준다 /// en: returns the value it received
 fn echo input n u64 . output u64 .
@@ -8,8 +8,10 @@ do
   return n .
 end .
 
-rem ko: 소스 안의 리터럴은 온전하다 /// en: a literal inside the source is intact
-fn top output u64 .
+rem ko: 경계값은 시험 안에서 리터럴로 적는다 /// en: write boundary values as literals inside a test
+test largest_u64
 do
-  return 18446744073709551615 .
+  let m u64 be 18446744073709551615 .
+  expect gt m 9223372036854775807 .
+  expect eq (div m 2) 9223372036854775807 .
 end .

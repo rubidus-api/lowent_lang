@@ -6,6 +6,7 @@
 
 | **코드** | **뜻** | **보이는 곳** |
 |---|---|---|
+| `E-ACCESS-MODE` | `access` 로 적은 읽기·쓰기 약속을 몸이 어긴다 | 27장 |
 | `E-ALLOC-AMBIGUOUS` | 맞는 할당기가 둘 이상인데 `using` 으로 고르지 않았다 | 20장 |
 | `E-ALLOC-NESTED` | 같은 뿌리의 안쪽 영역이 열린 채 바깥 출처로 깎았다 | 18장 |
 | `E-ALLOC-NOCAP` | `alloc` 을 적었는데 할당 권한을 받지 않았다 | 16장 |
@@ -72,6 +73,7 @@
 | `E-ISR-EFFECT` | 인터럽트 처리기가 `effects device` 를 적지 않았다 | 30장 |
 | `E-ISR-PARAMS` | 인터럽트 처리기가 매개변수를 받는다 | 30장 |
 | `E-LET-NOVALUE` | `be` 뒤에 값이 없다 | 6장 |
+| `E-LOCK-NOTYET` | 흐름끼리 나누는 자물쇠 타입은 아직 짓지 않았다 | 26장 |
 | `E-MATCH-INEXHAUSTIVE` | `match` 가 모든 경우를 덮지 않는다 | 7장, 10장, 11장 |
 | `E-MATCH-REDUNDANT` | `match` 의 갈래가 영영 돌지 않는다(`_` 뒤의 갈래·겹친 범위) | 11장 |
 | `E-METHOD-UNDEF` | 수신자의 타입에 그 이름의 붙은 op 이 없다 | 22장, 23장 |
@@ -95,7 +97,6 @@
 | `E-PIPE-STAGE` | `pipe` 스테이지 목록에 없는 낱말이다 | 24장 |
 | `E-PROFILE-LEVEL` | 빌드 프로파일이 주지 않는 동시성을 쓴다 | 25장 |
 | `E-REGION-ESCAPE` | 영역에서 얻은 바이트를 밖으로 들고 나간다 | 18장 |
-| `E-REGION-KIND` | 영역의 종류가 닫힌 여덟에 없다 | 18장 |
 | `E-RETURN-PARTIAL` | 어떤 길에서 값을 돌려주지 않는다 | 3장, 5장, 7장 |
 | `E-SPAWN-SCOPE` | `task_group` 밖에서 흐름을 만든다 | 26장 |
 | `E-TIER-EFFECT` | 선언한 기계 등급이 감당하지 못하는 효과다 | 30장 |
@@ -122,6 +123,7 @@
 | `E-VOCAB-REMOVED` | 없앤 낱말이나 철자다 | 3장, 5장, 7장, 15장, 48장 |
 | `E-WIDEN-SIGN` | 부호 있는 수를 부호 없는 타입으로 `widen` 했다 | 13장 |
 | `W-EFFECT-OVER` | 선언만 하고 내지 않는 효과다(경고) | 15장, 16장 |
+| `W-NOT-YET` | 이름은 받지만 아직 뜻이 없는 낱말을 썼다 | 13장 |
 | `W-USE-EXTERNAL` | 번역 단위에 없는 모듈을 들여온다(경고) | 32장 |
 
 *표 50.1 — 예제가 보이는 진단*

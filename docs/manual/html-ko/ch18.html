@@ -694,17 +694,69 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main scratch.low
 main() = 70
 </code></pre></div></div><ul><li><code>region work arena do … end</code> 가 영역을 연다. <code>arena</code> 는 “앞에서부터 깎고 한꺼번에 되돌린다” 는 종류다.</li><li><code>alloc_bytes work capacity n</code> 은 <code>option mut slice u8</code> 을 준다. 자리가 모자라면 <code>none</code> 이다. 메모리가 모자란 것도 <strong>값</strong>이다.</li><li><code>fill_count</code> 의 머리에 <code>effects alloc</code> 이 있다. 자리를 얻는 것은 효과다. 순수한 <code>fn</code> 은 영역을 쓸 수 없다.</li><li>블록을 나가는 <strong>모든 길</strong> — 끝에 닿기, <code>return</code>, 감싼 반복의 <code>break</code>·<code>continue</code> — 에서 영역은 되감긴다. <code>return s .</code> 로 떠나도 버퍼는 걷힌다. 개별로 돌려주는 코드가 없다.</li></ul><p><code>main</code> 은 <code>cap allocator</code> 를 받는다. <code>fill_count</code> 의 <code>alloc</code> 효과가 번져 오므로, 그 효과를 허락할 권한이 필요하다 (16장). 영역 블록은 그 블록을 연 op 안에서 자리를 얻을 자격이 되지만, 효과는 부르는 쪽으로 번진다.</p><p>영역의 종류는 닫힌 여덟이다 — <code>stack</code>·<code>frame</code>·<code>arena</code>·<code>static</code>·<code>heap</code>·<code>mmap</code>·<code>disk</code>·<code>device</code>. 그 밖의 낱말은 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/kinds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> kinds .
-<em><span class="tok-c">rem expect: E-REGION-KIND</span></em>
+<em><span class="tok-c">rem run: carve_stack</span></em>
+<em><span class="tok-c">rem run: carve_static</span></em>
 
-<strong><span class="tok-k">proc</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<em><span class="tok-c">rem 종류 낱말은 이 영역이 무엇을 위한 자리인지 말한다. 이 판에서는 heap 만 자라는 뿌리에서, 나머지는 고정 창에서 깎는다</span></em>
+<strong><span class="tok-k">proc</span></strong> carve_stack <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">region</span></strong> r pool <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">8</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">region</span></strong> r stack <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
+    <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
+    <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">return</span></strong> n .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check kinds.low
-kinds.low:6:0 E-REGION-KIND: a region's KIND is a closed vocabulary of eight: stack · frame · arena · static · heap · mmap · disk · device (SPEC-004 §4.5). The name you chose is not one of them. A kind says WHERE the storage comes from, and a reader must be able to tell that from the word alone — if any word were allowed, the word would carry no information
+
+<strong><span class="tok-k">proc</span></strong> carve_static <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">region</span></strong> r static <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
+    <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
+    <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run carve_stack kinds.low
+carve_stack() = 32
+$ lowentc --run carve_static kinds.low
+carve_static() = 64
+</code></pre></div></div><p>종류 낱말은 <strong>이 영역이 무엇을 위한 자리인지</strong>를 코드에 남긴다. 이 판에서 실제로 다르게 동작하는 것은 <code>heap</code> 하나다 — 자라는 뿌리에서 깎는다. 나머지 일곱은 모두 고정 창에서 깎고 되감으므로 <code>carve_stack</code> 과 <code>carve_static</code> 은 같은 방식으로 32 와 64 를 얻는다. 그래도 종류를 적는 것은, 기계에 맞춰 실체를 달리할 때 코드를 고치지 않으려는 것이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/kinds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> kinds .
+<em><span class="tok-c">rem run: carve_stack</span></em>
+<em><span class="tok-c">rem run: carve_static</span></em>
+
+<em><span class="tok-c">rem 종류 낱말은 이 영역이 무엇을 위한 자리인지 말한다. 이 판에서는 heap 만 자라는 뿌리에서, 나머지는 고정 창에서 깎는다</span></em>
+<strong><span class="tok-k">proc</span></strong> carve_stack <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">region</span></strong> r stack <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
+    <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
+    <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">proc</span></strong> carve_static <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">region</span></strong> r static <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
+    <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
+    <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run carve_stack kinds.low
+carve_stack() = 32
+$ lowentc --run carve_static kinds.low
+carve_static() = 64
 </code></pre></div></div><p>이 판의 처리기가 동작을 가르는 것은 <strong>뿌리 둘</strong>(힙과 나머지)까지다. 나머지 일곱 사이의 구별은 아직 없다. 그래도 닫아 둔 까닭은, 아무 낱말이나 쓸 수 있으면 그 낱말이 아무것도 말해 주지 못하기 때문이다. <code>region t arena</code> 를 읽은 사람은 “앞에서 깎고 한꺼번에 돌려준다” 를 안다.</p><h3 id="s18-3">18.3 영역을 건네받는다<a class="plink" href="#s18-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>영역은 인자로도 건넨다. <code>input &lt;이름> region &lt;타입> .</code> 으로 받고, 타입은 그 영역을 부르는 이름이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/param.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> param .
 <em><span class="tok-c">rem run: main</span></em>
 

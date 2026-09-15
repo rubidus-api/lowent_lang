@@ -694,17 +694,69 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main scratch.low
 main() = 70
 </code></pre></div></div><ul><li><code>region work arena do … end</code> opens a region. <code>arena</code> is the kind meaning “carve from the front and give back all at once”.</li><li><code>alloc_bytes work capacity n</code> gives an <code>option mut slice u8</code>. If there is not enough space, it is <code>none</code>. Running out of memory is a <strong>value</strong> too.</li><li><code>fill_count</code>’s head has <code>effects alloc</code>. Obtaining space is an effect; a pure <code>fn</code> cannot use a region.</li><li>On <strong>every path</strong> out of the block — reaching the end, <code>return</code>, <code>break</code> or <code>continue</code> of an enclosing loop — the region is rewound. Even leaving with <code>return s .</code> reclaims the buffer. There is no code that gives it back piece by piece.</li></ul><p><code>main</code> receives <code>cap allocator</code>. The <code>alloc</code> effect of <code>fill_count</code> spreads up to it, so a capability authorising that effect is needed (chapter 16). A region block is entitlement to obtain space inside the op that opened it, but the effect still spreads to the caller.</p><p>A region’s kind is one of a closed eight — <code>stack</code>, <code>frame</code>, <code>arena</code>, <code>static</code>, <code>heap</code>, <code>mmap</code>, <code>disk</code>, <code>device</code>. Any other word is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/kinds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> kinds .
-<em><span class="tok-c">rem expect: E-REGION-KIND</span></em>
+<em><span class="tok-c">rem run: carve_stack</span></em>
+<em><span class="tok-c">rem run: carve_static</span></em>
 
-<strong><span class="tok-k">proc</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<em><span class="tok-c">rem the kind word says what the region is for; in this edition only heap carves from the growing root, the rest from the fixed window</span></em>
+<strong><span class="tok-k">proc</span></strong> carve_stack <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">region</span></strong> r pool <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">8</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">region</span></strong> r stack <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
+    <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
+    <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">return</span></strong> n .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check kinds.low
-kinds.low:6:0 E-REGION-KIND: a region's KIND is a closed vocabulary of eight: stack · frame · arena · static · heap · mmap · disk · device (SPEC-004 §4.5). The name you chose is not one of them. A kind says WHERE the storage comes from, and a reader must be able to tell that from the word alone — if any word were allowed, the word would carry no information
+
+<strong><span class="tok-k">proc</span></strong> carve_static <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">region</span></strong> r static <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
+    <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
+    <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run carve_stack kinds.low
+carve_stack() = 32
+$ lowentc --run carve_static kinds.low
+carve_static() = 64
+</code></pre></div></div><p>A kind word leaves in the code <strong>what the region is for</strong>. In this edition only <code>heap</code> actually behaves differently — it carves from the growing root. The other seven all carve and rewind in the fixed window, so <code>carve_stack</code> and <code>carve_static</code> get 32 and 64 the same way. The kind is still written so that the code need not change when the realisation is later tailored to a machine.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/kinds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> kinds .
+<em><span class="tok-c">rem run: carve_stack</span></em>
+<em><span class="tok-c">rem run: carve_static</span></em>
+
+<em><span class="tok-c">rem the kind word says what the region is for; in this edition only heap carves from the growing root, the rest from the fixed window</span></em>
+<strong><span class="tok-k">proc</span></strong> carve_stack <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">region</span></strong> r stack <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
+    <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
+    <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong> .
+
+<strong><span class="tok-k">proc</span></strong> carve_static <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">region</span></strong> r static <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
+    <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
+    <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run carve_stack kinds.low
+carve_stack() = 32
+$ lowentc --run carve_static kinds.low
+carve_static() = 64
 </code></pre></div></div><p>The processor in this edition distinguishes behaviour only between <strong>the two roots</strong> (heap and the rest). The other seven are not yet told apart. They are still closed because a word that could be anything would say nothing. Someone reading <code>region t arena</code> knows “carve from the front, give back all at once”.</p><h3 id="s18-3">18.3 Receiving a region<a class="plink" href="#s18-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A region can also be passed as an argument. It is received as <code>input &lt;name> region &lt;type> .</code>, and the type is the name by which that region is called.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/param.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> param .
 <em><span class="tok-c">rem run: main</span></em>
 

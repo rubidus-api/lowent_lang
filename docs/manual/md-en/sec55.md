@@ -6,6 +6,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 
 | **Code** | **Meaning** | **Shown in** |
 |---|---|---|
+| `E-ACCESS-MODE` | the body breaks the read or write promise made with `access` | chapter 27 |
 | `E-ALLOC-AMBIGUOUS` | more than one fitting allocator and none chosen with `using` | chapter 20 |
 | `E-ALLOC-NESTED` | allocated from an outer source while an inner region of the same root is open | chapter 18 |
 | `E-ALLOC-NOCAP` | declares `alloc` but receives no allocation capability | chapter 16 |
@@ -72,6 +73,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-ISR-EFFECT` | an interrupt handler does not declare `effects device` | chapter 30 |
 | `E-ISR-PARAMS` | an interrupt handler takes parameters | chapter 30 |
 | `E-LET-NOVALUE` | nothing after `be` | chapter 6 |
+| `E-LOCK-NOTYET` | shared lock types are not built yet | chapter 26 |
 | `E-MATCH-INEXHAUSTIVE` | a `match` does not cover every case | chapter 7, chapter 10, chapter 11 |
 | `E-MATCH-REDUNDANT` | a `match` arm can never run (an arm after `_`, overlapping ranges) | chapter 11 |
 | `E-METHOD-UNDEF` | no op of that name is attached to the receiver’s type | chapter 22, chapter 23 |
@@ -95,7 +97,6 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-PIPE-STAGE` | a word that is not a `pipe` stage | chapter 24 |
 | `E-PROFILE-LEVEL` | uses concurrency the build profile does not provide | chapter 25 |
 | `E-REGION-ESCAPE` | carries region bytes out of the region | chapter 18 |
-| `E-REGION-KIND` | a region kind outside the closed eight | chapter 18 |
 | `E-RETURN-PARTIAL` | some path does not return a value | chapter 3, chapter 5, chapter 7 |
 | `E-SPAWN-SCOPE` | spawns a task outside a `task_group` | chapter 26 |
 | `E-TIER-EFFECT` | an effect the declared machine tier cannot carry | chapter 30 |
@@ -122,6 +123,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-VOCAB-REMOVED` | a removed word or spelling | chapter 3, chapter 5, chapter 7, chapter 15, chapter 48 |
 | `E-WIDEN-SIGN` | `widen` from a signed to an unsigned type | chapter 13 |
 | `W-EFFECT-OVER` | an effect declared but never performed (warning) | chapter 15, chapter 16 |
+| `W-NOT-YET` | a word accepted by name that has no meaning yet | chapter 13 |
 | `W-USE-EXTERNAL` | imports a module not in the compilation unit (warning) | chapter 32 |
 
 *Table 50.1 — Diagnostics shown by the examples*

@@ -145,8 +145,10 @@ Searches headings and index terms --- not the full text
 - [13.5 Pinning down byte layout](ch13.md#s13-5)
 - [13.6 Both directions of a layout, and a view that can fail](ch13.md#s13-6)
 - [13.7 bitset — a set of small numbers](ch13.md#s13-7)
-- [13.8 Common mistakes](ch13.md#s13-8)
-- [13.9 This chapter’s syntax at a glance](ch13.md#s13-9)
+- [13.8 Scattered pieces as one view — segments](ch13.md#s13-8)
+- [13.9 Three kinds of type words](ch13.md#s13-9)
+- [13.10 Common mistakes](ch13.md#s13-10)
+- [13.11 This chapter’s syntax at a glance](ch13.md#s13-11)
 
 ### Part IV — Contracts and effects
 
@@ -305,8 +307,9 @@ Searches headings and index terms --- not the full text
 - [27.4 Atomic operations](ch27.md#s27-4)
 - [27.5 Memory orderings](ch27.md#s27-5)
 - [27.6 Lanes — computing several values at once](ch27.md#s27-6)
-- [27.7 Common mistakes](ch27.md#s27-7)
-- [27.8 This chapter’s syntax at a glance](ch27.md#s27-8)
+- [27.7 Saying how a place is used — access](ch27.md#s27-7)
+- [27.8 Common mistakes](ch27.md#s27-8)
+- [27.9 This chapter’s syntax at a glance](ch27.md#s27-9)
 
 ### Part VIII — The outside world
 

@@ -17,6 +17,8 @@
 !/docs/example/
 !/docs/proofs/
 !/docs/book/
+!/docs/index.html
+!/docs/.nojekyll
 
 # never public, even inside whitelisted folders
 /impl/tests/golden.sh
@@ -40,9 +42,8 @@
 /docs/example/build-manifest.md
 /docs/example/build-scale.md
 
-# book build products (PDFs go to releases, not the tree)
+# book build products (PDFs go to releases; the web edition under web/ is committed for GitHub Pages)
 /docs/book/build/
-/docs/book/web/
 
 # Coq build products (the .v sources, Makefile and notes are public)
 /docs/proofs/**/*.vo

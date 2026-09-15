@@ -12,6 +12,14 @@ A book that explains Lowent from start to finish. The Korean edition (original) 
 10부 43장과 부록 넷(낱말·진단·흔한 실수·문법)으로 되어 있다. 제9부는 표준 라이브러리를, 제10부는 증명과 그 한계를 다룬다.
 Ten parts, 43 chapters and four appendices (vocabulary, diagnostics, common mistakes, grammar). Part IX tours the standard library; Part X covers the proofs and their limits.
 
+## 발행 · Publishing
+
+- **PDF**: GitHub 릴리스 `book-<판>` 에 `lowent_book-<판>-ko.pdf` · `lowent_book-<판>-en.pdf` 로 올린다(웹판의 PDF 링크가 이 이름을 가리킨다).
+  PDFs go to the GitHub release `book-<version>` under those names; the web edition links to them.
+- **웹 · GitHub Pages**: 저장소 main 가지의 `docs/` 폴더를 내보낸다(`docs/index.html` · `docs/.nojekyll`). 책은 `docs/book/web/` 에 커밋해 둔다.
+  원고를 고치면 `scripts/build-html.sh`(글꼴까지)로 `web/` 을 다시 만들어 함께 커밋하고, 푸시한 뒤 `scripts/pages-build.sh` 로 발행을 확인한다.
+  Pages serves `docs/` on `main`; the web edition is committed under `web/`. Rebuild it with `build-html.sh`, commit, push, then check with `pages-build.sh`.
+
 ## 예제는 실제로 돌린 것이다 · Every example is run
 
 [`examples/`](examples/) 의 `.low` 파일마다 첫머리에 무엇을 해야 하는지 적혀 있다(`rem run:` · `rem trap:` · `rem expect:` · `rem test` …).

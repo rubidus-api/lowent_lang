@@ -1,0 +1,17 @@
+module mistake_widecollect .
+rem run: scale [1,2] [0,0]
+
+fn times1000 input a u8 . output u64 .
+do
+  return mul (widen u64 a) 1000 .
+end .
+
+proc scale input xs slice u8 . input out mut slice u8 . output u64 . effects none .
+do
+  pipe xs do
+    rem ko: ✘ `u64` 를 내는 `map` 을 `u8` 버퍼에 담는다 --- 1000 이 232 가 된다 /// en: ✘ a `map` producing `u64` is collected into a `u8` buffer --- 1000 becomes 232
+    map times1000 .
+    collect into out .
+  end .
+  return 0 .
+end .

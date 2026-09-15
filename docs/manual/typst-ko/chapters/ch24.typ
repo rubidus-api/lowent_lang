@@ -122,6 +122,67 @@
   자리에서 생긴다. 편한 쪽과 빠른 쪽이 갈리지 않도록 낱말을 고른 결과다.
 ]
 
+== 흔한 실수
+
+#antipattern[스테이지에 식을 적어 람다를 흉내 낸다][
+  #demo("examples/ch24/mistake_lambda.low")
+
+  다른 언어의 `filter(x => x > 2)` 를 옮기면 `filter gt 2` 가 되기 쉽다. 스테이지는 *이름 붙은 op 하나*를 받으므로 `E-FOLD-OP` 다(진단은
+  "그런 op 이 없다" 고만 말한다). 조건에 이름을 붙이는 것은 번거로워 보이지만, `over2` 라는 이름이 곧 그 줄의 설명이 되고 같은 조건을 다른
+  `pipe` 에서도 쓴다.
+
+  #demo("examples/ch24/lambda_fixed.low")
+]
+
+#antipattern[넓은 값을 내는 `map` 을 좁은 버퍼에 담는다][
+  #demo("examples/ch24/mistake_widecollect.low")
+
+  `times1000` 은 `u64` 를 내는데 `out` 은 `u8` 버퍼다. 1000 과 2000 이 232 와 208 로 담긴다. Lowent 의 원칙대로라면 값을 잃는 좁히기는
+  `narrow` 를 적어야만 일어나야 하지만, 이 판의 도구는 `collect into` 의 타입을 대조하지 않고 조용히 감는다(개발 저장소에 결함으로 적어
+  두었다). `map` 의 출력 타입과 버퍼의 원소 타입을 눈으로 맞춘다. 좁혀야 한다면 `map` 의 op 안에서 `narrow` 로 적어 멈출 자리를 드러낸다.
+]
+
+#antipattern[`fold` 의 op 에서 누산값과 원소의 차례를 바꾼다][
+  #demo("examples/ch24/mistake_foldorder.low")
+
+  `fold` 는 op 에 *누산값을 먼저, 원소를 다음* 에 준다. `add_small_swapped` 는 차례를 거꾸로 받았으므로 `x` 에 누산값이, `acc` 에 원소가
+  들어온다. 100 이상인 원소를 건너뛰어야 할 조건이 누산값에 걸려 200 이 더해지고 답이 206 이 된다. 타입이 `u8` 과 `u64` 로 달라도 이 판의
+  도구는 대조하지 않는다(결함으로 적어 두었다). `fold`·`scan` 의 op 은 언제나 `input acc … . input x … .` 차례로 적는다.
+]
+
+#antipattern[멈출 수 있는 스테이지 op 을 쓰고 `fn` 으로 적는다][
+  #demo("examples/ch24/mistake_stageeffect.low")
+
+  `pipe` 는 스테이지 op 을 부르는 반복이므로, 스테이지 op 의 효과가 `pipe` 를 쓴 op 으로 번진다. `nonzero` 가 `panic` 할 수 있으니
+  `count_checked` 도 `panic` 을 낸다. 그래서 `fn` 이면 `E-EFFECT-CALC` 다. `proc … effects panic .` 으로 적거나, 멈추는 대신 조건을 만족하지
+  않는 원소를 걸러 내는 순수한 op 을 쓴다.
+]
+
+#misconception[`collect into` 는 버퍼가 모자라면 멈춘다][
+  #demo("examples/ch24/short_buffer.low")
+
+  남는 원소는 넷(3·4·5·6)인데 `out` 은 두 칸이다. 담기는 버퍼가 찰 때 끝나고 멈추지 않는다. `pipe` 는 할당하지 않으므로 버퍼를 늘릴 수도 없다.
+  모두 담겼는지 알아야 하면 같은 스테이지에 `count` 로 끝나는 `pipe` 를 하나 더 두어 개수를 먼저 재고, 버퍼의 길이와 견준다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "pipe-glance",
+  caption: [`pipe` 의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`pipe xs do … end .`], [원천 `xs` 를 한 번 훑는다], [뼈대(색인·끝 조건)를 언어가 맡는다],
+  [`filter over2 .` · `map dbl .`], [남기기 · 바꾸기 --- 이름 붙은 op 을 건넨다], [람다가 없다 --- 이름이 설명이 된다],
+  [`take 2 .` · `skip 1 .`], [앞 몇 개만 · 앞 몇 개 버리기], [필요한 만큼만 읽는다],
+  [`enumerate idxadd .` · `zip ys addb .`], [순번·짝을 op 의 인자로 건넨다], [튜플을 만들지 않는다],
+  [`scan 0 addb .` · `fold 0 addu .`], [누적해 흘리기 · 누적해 값 하나], [op 은 누산값이 먼저, 원소가 다음],
+  [`count .` · `any is_zero .` · `all under10 .`], [값을 내는 종결자], [`return pipe … end .` 로 쓸 수 있다],
+  [`collect into out .`], [부르는 쪽 버퍼에 담는다], [`pipe` 는 할당하지 않는다 --- 차면 끝난다],
+  [종결자는 정확히 하나, 맨 끝], [뒤에 스테이지가 오면 `E-PIPE-NO-TERMINAL`], [흐름의 끝이 한곳에 보인다],
+  [`sort` 같은 낱말], [없다 --- `E-PIPE-STAGE`], [융합할 수 없는 연산은 넣지 않았다],
+)
+
 #recap[
   `pipe <원천> do … end` 는 스테이지(`filter`·`map`·`take`·`skip`·`enumerate`·`zip`·`scan`)를 거쳐 종결자
   (`collect into`·`fold`·`count`·`any`·`all`) 하나로 끝난다. 스테이지에는 이름 붙은 op 을 건네고, 담을 버퍼는 부르는

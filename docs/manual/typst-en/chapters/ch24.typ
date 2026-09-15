@@ -124,6 +124,70 @@ A terminal ends the flow. A stage after the terminal is rejected.
   The words were chosen so that the convenient way and the fast way do not diverge.
 ]
 
+== Common mistakes
+
+#antipattern[Writing an expression in a stage to imitate a lambda][
+  #demo("examples/ch24/mistake_lambda.low")
+
+  Carrying over `filter(x => x > 2)` from another language easily gives `filter gt 2`. A stage takes *one named op*, so this is `E-FOLD-OP`
+  (the diagnostic only says "no such op"). Naming a condition may feel like extra work, but the name `over2` becomes the explanation of that
+  line, and the same condition can be reused in other `pipe`s.
+
+  #demo("examples/ch24/lambda_fixed.low")
+]
+
+#antipattern[Collecting a `map` that produces wide values into a narrow buffer][
+  #demo("examples/ch24/mistake_widecollect.low")
+
+  `times1000` produces `u64`, but `out` is a `u8` buffer. 1000 and 2000 are stored as 232 and 208. By Lowent's principles a lossy narrowing
+  should happen only where `narrow` is written, but this edition's tool does not check the type of `collect into` and wraps silently
+  (recorded as a defect in the development repository). Match the output type of `map` and the element type of the buffer by eye. If
+  narrowing is needed, write `narrow` inside the op given to `map`, so the place where it may stop is visible.
+]
+
+#antipattern[Swapping the accumulator and the element in a `fold` op][
+  #demo("examples/ch24/mistake_foldorder.low")
+
+  `fold` gives its op *the accumulator first and the element second*. `add_small_swapped` takes them the other way round, so `x` receives
+  the accumulator and `acc` receives the element. The condition meant to skip elements of 100 or more is applied to the accumulator, 200
+  gets added, and the answer becomes 206. Even though the types differ (`u8` and `u64`), this edition's tool does not compare them
+  (recorded as a defect). Always write the op of `fold` or `scan` in the order `input acc … . input x … .`.
+]
+
+#antipattern[Using a stage op that can stop, in a `fn`][
+  #demo("examples/ch24/mistake_stageeffect.low")
+
+  A `pipe` is a loop that calls its stage ops, so the effects of a stage op spread to the op containing the `pipe`. `nonzero` may `panic`,
+  so `count_checked` performs `panic` too, and as a `fn` it is `E-EFFECT-CALC`. Write it as `proc … effects panic .`, or instead of stopping,
+  use a pure op that filters out the elements that do not meet the condition.
+]
+
+#misconception[`collect into` stops when the buffer is too small][
+  #demo("examples/ch24/short_buffer.low")
+
+  Four elements remain (3, 4, 5, 6), but `out` has two slots. Collecting ends when the buffer is full; it does not stop the program. A `pipe`
+  does not allocate, so it cannot grow the buffer either. If you need to know that everything fit, add another `pipe` with the same stages
+  ending in `count` to measure first, and compare with the buffer's length.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "pipe-glance",
+  caption: [`pipe` syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`pipe xs do … end .`], [scan the source `xs` once], [the language owns the skeleton (index, end test)],
+  [`filter over2 .` · `map dbl .`], [keep · transform --- pass a named op], [no lambdas --- the name is the explanation],
+  [`take 2 .` · `skip 1 .`], [only the first few · drop the first few], [read only as much as needed],
+  [`enumerate idxadd .` · `zip ys addb .`], [pass the index or partner as op arguments], [no tuples are built],
+  [`scan 0 addb .` · `fold 0 addu .`], [emit running values · accumulate into one value], [the op takes the accumulator first, then the element],
+  [`count .` · `any is_zero .` · `all under10 .`], [terminators that produce a value], [usable as `return pipe … end .`],
+  [`collect into out .`], [store into the caller's buffer], [a `pipe` never allocates --- it ends when full],
+  [exactly one terminator, at the end], [a stage after it is `E-PIPE-NO-TERMINAL`], [the end of the flow is in one place],
+  [a word like `sort`], [does not exist --- `E-PIPE-STAGE`], [operations that cannot fuse were left out],
+)
+
 #recap[
   `pipe <source> do … end` passes through stages (`filter`, `map`, `take`, `skip`, `enumerate`, `zip`, `scan`) and ends with one terminal (`collect into`,
   `fold`, `count`, `any`, `all`). Stages take named ops, and the buffer to collect into is given by the caller. Walking once with no intermediate arrays is the

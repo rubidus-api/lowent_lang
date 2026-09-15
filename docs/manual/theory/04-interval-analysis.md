@@ -1,6 +1,6 @@
 # 04. 구간 분석 — 돌리지 않고 값의 범위를 알기
 
-> **근거**: RFC-0053(구간 분석) · `NumericLattice.v` 의 `radd_no_check`·`idx_no_check`.
+> **근거**: `NumericLattice.v` 의 `radd_no_check`·`idx_no_check`.
 > 구현: `impl/src/low_ir.c` 의 추상해석 패스. 이 장의 모든 숫자는 **실제로 재서** 넣었다.
 
 ## ① 5분 요약
@@ -42,7 +42,7 @@ $ lowentc --ir small_sum.low
 ```
 a ∈ [0, 100],  b ∈ [0, 100]
 a + b ∈ [0, 200]        ← lo+lo, hi+hi
-a − b ∈ [−100, 100]     ← lo−hi, hi−lo   (★ 뺄셈은 뒤집힌다 — 흔한 실수 자리)
+a − b ∈ [−100, 100]     ← lo−hi, hi−lo   (뺄셈은 뒤집힌다 — 흔한 실수 자리)
 a * b ∈ [0, 10000]      ← 부호가 섞이면 네 곱 중 최소·최대를 봐야 한다
 ```
 
@@ -71,7 +71,7 @@ a * b ∈ [0, 10000]      ← 부호가 섞이면 네 곱 중 최소·최대를 
 
 ```
 분석이 넓게 잡음  →  검사가 남는다        →  느리다 (안전)
-분석이 좁게 잡음  →  검사가 사라진다      →  ★ 틀린 메모리 접근 (위험)
+분석이 좁게 잡음  →  검사가 사라진다      →  틀린 메모리 접근 (위험)
 ```
 
 그래서 규칙 하나를 추가할 때마다 물어야 하는 것은 늘 같다: *"이 규칙이 실제보다 좁게 잡을 수
@@ -94,7 +94,7 @@ E-VM-ANALYSIS: index bounds check was eliminated but the index is OUT OF BOUNDS
 - VM: 검사가 있고, **표시가 거짓이면 알려 준다**.
 - 차분 오라클이 둘을 같은 입력으로 돌린다(15장).
 
-★ 이 장치가 실제로 일했다. 2026-07-30 에 필자가 행우선 인덱스 규칙(05장)을 넣으면서 계약을
+이 장치가 실제로 일했다. 필자가 행우선 인덱스 규칙(05장)을 넣으면서 계약을
 "검사되는 것" 으로 착각했는데 — 그 계약에는 런타임 검사가 없었다 — 바로 이 진단이 떴다.
 **증명을 신뢰하되, 신뢰를 검사로 받친다.**
 
@@ -140,7 +140,7 @@ end
 ⇒ 오라클 실행에 **걸음 예산**(2천만 걸음)을 넣고, 예산에 걸린 케이스는 **건너뛰며 센다**:
 
 ```
-     ★ 2 case(s) SKIPPED by the step budget — the op's trip count is an INPUT,
+     2 case(s) SKIPPED by the step budget — the op's trip count is an INPUT,
        so a boundary value (2^64-1) would never finish. Skipped, not silently passed:
        the oracle says what it did not check
 ```

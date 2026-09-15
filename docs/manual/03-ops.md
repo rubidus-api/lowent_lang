@@ -11,8 +11,8 @@
   *관측적*이다: op 안에 갇힌 지역 변이는 순수로 치지만, `mut` 매개변수를 통해 호출자에게
   보이는 쓰기는 `proc` 이어야 한다. `fn` 에 `effects io` 를 붙이는 것은 구조적으로
   거절된다.
-  ★ 그래서 **`fn` 에는 `effects` 절을 적지 않는다.** `effects none .` 을 적으면
-  처리기가 `E-EFFECT-REDUNDANT` 로 **거절한다**(2026-08-26). 뜻이 틀려서가 아니라
+  그래서 **`fn` 에는 `effects` 절을 적지 않는다.** `effects none .` 을 적으면
+  처리기가 `E-EFFECT-REDUNDANT` 로 **거절한다**. 뜻이 틀려서가 아니라
   **한 뜻에 한 표기**이기 때문이다 — `fn` 이 이미 말한 것을 되풀이하는 자리다.
   고치는 법은 하나다: 그 절을 지운다(`R-DROP-EFFECT`).
 - **`proc`** — 효과·지역 상태·반복·스택을 쓴다. 여기서는 `effects` 절이 **좁힌다** —
@@ -34,7 +34,7 @@ do
 end
 ```
 
-**절은 한 차례로만 적는다**(2026-09-15, 정본 §6.4.1 (3a)). 앞에서 뒤로:
+**절은 한 차례로만 적는다**(정본 §6.4.1 (3a)). 앞에서 뒤로:
 `satisfies`·`lowdoc` · `vector`·`priority` · comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 ·
 `output` · `effects` · `link`·`variadic` · `asm` · `access`·`parallel`·`reduce` · `requires` · `ensures` ·
 `errors` · `tests`. 어기면 `E-CLAUSE-ORDER` 로 거절되고, 무엇이 무엇 뒤에 왔는지 말해 준다.

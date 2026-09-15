@@ -15,6 +15,7 @@
 !/docs/spec/
 !/docs/manual/
 !/docs/example/
+!/docs/proofs/
 
 # never public, even inside whitelisted folders
 /impl/tests/golden.sh
@@ -37,6 +38,17 @@
 /docs/example/representations.md
 /docs/example/build-manifest.md
 /docs/example/build-scale.md
+
+# Coq build products (the .v sources, Makefile and notes are public)
+/docs/proofs/**/*.vo
+/docs/proofs/**/*.vok
+/docs/proofs/**/*.vos
+/docs/proofs/**/*.glob
+/docs/proofs/**/.*.aux
+/docs/proofs/**/.*.cache
+/docs/proofs/**/*.cm*
+/docs/proofs/coq/lowent_cert.ml*
+/docs/proofs/coq/cert_check
 
 # build output
 build/

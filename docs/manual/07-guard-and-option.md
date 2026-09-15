@@ -64,7 +64,7 @@ return try (h a) else_error not_found .
 | `else_error <이름>` | `option` → `result` | 없음을 **이름 있는 오류**로 만든다 |
 | `map_error <op>` | `result` → `result` | 오류를 다른 오류로 옮긴다 |
 
-★ **`else_none` 은 정보를 버리는 선택이다.** 편해 보여서 습관이 되기 쉬운데, 그 순간부터
+**`else_none` 은 정보를 버리는 선택이다.** 편해 보여서 습관이 되기 쉬운데, 그 순간부터
 호출자는 *"왜"* 를 물을 수 없다. 버릴 만한 자리에서만 버려라.
 
 ⚠ **`map_error` 는 아직 못 한다** — 어휘에는 있고 `E-IR-UNSUP` 으로 **못 한다고 말한다.**

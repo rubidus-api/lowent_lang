@@ -110,6 +110,52 @@
 줄 알았다가 안 되는 것을 겪는다. 없으면 없다고 말하는 편이 정직하다. 여러 흐름이 같은 메모리를 원자적으로 다루는 길은
 #chref("parallel-atomic")이 다룬다.
 
+== 흔한 실수
+
+#antipattern[두 흐름이 서로에게서 받기부터 한다][
+  #demo("examples/ch26/mistake_crossed.low")
+
+  `relay a b` 는 `a` 에서 받아 `b` 로 넘기고, `relay b a` 는 그 반대다. 둘 다 받기부터 하므로 누구도 첫 값을 넣지 못한다. 흐름이 둘이고
+  채널이 엇갈려서, 적힌 것만 봐서는 교착인지 알 수 없으므로 번역은 통과한다. 실행하면 모든 흐름이 멈춘 것을 처리기가 보고 `E-VM-DEADLOCK`
+  으로 알린다. 엇갈린 기다림을 만들지 않으려면 흐름마다 "누가 먼저 보내는가" 를 정해 두고, 가능하면 값이 한 방향으로만 흐르게 짠다.
+]
+
+#antipattern[두 흐름에 같은 변수를 쓰기로 빌려준다][
+  #demo("examples/ch26/mistake_sharedvar.low")
+
+  두 흐름이 같은 `n` 을 동시에 올리면 데이터 경합이다. 쓰기 빌림은 하나여야 한다는 규칙(#chref("references"))이 흐름 사이에서도 그대로라서
+  `E-EXCL` 로 거절된다. 첫 줄의 `W-EFFECT-OVER` 는 이 장의 주제와 상관없는 이 판의 결함이다(`mut_ref` 로 쓰는 것을 `state` 로 세지 않는다).
+  흐름은 자기 몫을 *돌려주고*, 합치는 일은 묶는 쪽이 `await` 뒤에 한다.
+
+  #demo("examples/ch26/sharedvar_fixed.low")
+]
+
+#misconception[한 번 돌려서 맞으면 동시성 코드도 맞다][
+  #demo("examples/ch26/order_dependent.low")
+
+  `first_seen` 은 처음 받은 값만 남긴다. `drive` 를 돌리면 32 가 나오고, 다른 차례라면 10 이 나온다. 한 번 돌려 본 결과는 그 한 차례의
+  답일 뿐이다. `schedule explore_interleavings` 시험은 여덟 가지 차례를 모두 돌려 보고, 답이 차례에 따라 갈린다는 것을 `E-SCHED-NONDET` 으로
+  알린다. 결정적인 프로그램은 모든 차례에서 같은 답을 내야 한다. 받은 값을 모두 더하는 `chan.low` 의 `sink` 처럼, 차례가 달라도 결과가
+  같도록 처리기를 짠다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "tasks-channels-glance",
+  caption: [태스크와 채널의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`task_group do … end .`], [흐름들을 블록에 묶는다 --- 끝에서 모두 끝난다], [만들어 놓고 잊은 흐름이 문법으로 사라진다],
+  [`var h1 u64 be spawn square 5 .`], [흐름을 만들고 핸들을 받는다], [묶는 자리 밖이면 `E-SPAWN-SCOPE`],
+  [`await h1`], [그 흐름의 결과를 기다려 받는다], [기다리는 동안 다른 흐름이 나아간다],
+  [`task_group cancel_on_error do … end .`], [오류 하나에 형제를 취소한다], [취소는 되감지 않는다],
+  [`var ch u64 be channel u64 .`], [크기가 정해진 차례 있는 그릇], [끝없는 채널은 아직 없다 --- `E-CHAN-UNBOUNDED`],
+  [`chsend ch n` · `chrecv ch`], [넣기 · 빼기 --- 차거나 비면 멈춘다], [`concurrent` 효과 --- 완결이 남에게 달렸다],
+  [짝 없는 기다림 · 보내는 쪽 없는 받기], [번역에서 거절(`E-CONC-ALONE` · `E-CONC-DEADLOCK`)], [적힌 것만 봐도 아는 교착],
+  [`test … schedule explore_interleavings do … end .`], [가능한 모든 차례를 돌려 답을 맞댄다], [드문 차례의 결함을 시험이 찾는다],
+)
+
 #recap[
   `task_group` 안에서 `spawn <op>` 은 흐름을 만들고 핸들을 주며, `await` 가 결과를 받는다. 흐름은 자기를 만든 블록보다
   오래 살지 못하므로 묶는 자리 밖의 `spawn` 은 거절된다. `channel`·`chsend`·`chrecv` 는 크기가 정해진 차례 있는 그릇이고

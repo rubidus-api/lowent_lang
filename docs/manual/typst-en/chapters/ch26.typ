@@ -107,6 +107,53 @@ Channels without an end (`channel … unbounded`) and lock state shared by sever
 `E-LOCK-NOTYET`). One could accept what does not exist and build it later, but then programs written meanwhile would find that what seemed to work does not. It
 is more honest to say it does not exist. Handling the same memory atomically from several flows is covered in #chref("parallel-atomic").
 
+== Common mistakes
+
+#antipattern[Two flows that both start by receiving from each other][
+  #demo("examples/ch26/mistake_crossed.low")
+
+  `relay a b` receives from `a` and passes to `b`; `relay b a` does the opposite. Both start by receiving, so neither can put in the first
+  value. With two flows and crossed channels, the source alone does not show a deadlock, so translation accepts it. At run time the
+  processor sees every flow blocked and reports `E-VM-DEADLOCK`. To avoid crossed waits, decide for each flow "who sends first", and where
+  possible let values flow in one direction only.
+]
+
+#antipattern[Lending the same variable for writing to two flows][
+  #demo("examples/ch26/mistake_sharedvar.low")
+
+  Two flows incrementing the same `n` at once is a data race. The rule that there is only one write borrow (#chref("references")) holds
+  between flows too, so it is rejected with `E-EXCL`. The `W-EFFECT-OVER` on the first line is an unrelated defect of this edition (a write
+  through `mut_ref` is not counted as `state`). Let each flow *return* its share, and have the grouping side combine them after `await`.
+
+  #demo("examples/ch26/sharedvar_fixed.low")
+]
+
+#misconception[Concurrent code that gave the right answer once is correct][
+  #demo("examples/ch26/order_dependent.low")
+
+  `first_seen` keeps only the first value it receives. Running `drive` gives 32; another order would give 10. One run gives the answer for
+  one order only. The `schedule explore_interleavings` test runs all eight orders and reports with `E-SCHED-NONDET` that the answer depends
+  on the order. A deterministic program must give the same answer in every order. Write handlers whose result does not depend on order, like
+  the `sink` of `chan.low`, which adds up every value it receives.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "tasks-channels-glance",
+  caption: [Task and channel syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`task_group do … end .`], [bind flows to a block --- all finish at its end], [forgotten flows vanish by grammar],
+  [`var h1 u64 be spawn square 5 .`], [start a flow and receive its handle], [outside a group: `E-SPAWN-SCOPE`],
+  [`await h1`], [wait for that flow's result], [other flows progress meanwhile],
+  [`task_group cancel_on_error do … end .`], [cancel siblings on the first error], [cancellation does not roll back],
+  [`var ch u64 be channel u64 .`], [a bounded, ordered container], [no unbounded channels yet --- `E-CHAN-UNBOUNDED`],
+  [`chsend ch n` · `chrecv ch`], [put · take --- blocks when full or empty], [`concurrent` effect --- completion depends on others],
+  [a lone wait · receives with no sender], [rejected at translation (`E-CONC-ALONE` · `E-CONC-DEADLOCK`)], [deadlocks visible from the source],
+  [`test … schedule explore_interleavings do … end .`], [run every possible order and compare answers], [tests find bugs of rare orders],
+)
+
 #recap[
   Inside a `task_group`, `spawn <op>` makes a flow and gives a handle, and `await` receives the result. A flow cannot outlive the block that made it, so `spawn`
   outside a binding place is rejected. `channel`, `chsend` and `chrecv` form an ordered container of fixed size, and channel operations are the `concurrent`

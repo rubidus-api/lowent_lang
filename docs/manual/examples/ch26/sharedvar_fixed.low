@@ -1,0 +1,21 @@
+module sharedvar_fixed .
+rem run: count2
+
+rem ko: 흐름은 자기 몫을 돌려주고, 합치는 일은 묶는 쪽이 `await` 뒤에 한다 /// en: each flow returns its share, and the grouping side combines them after `await`
+fn one output u64 .
+do
+  return 1 .
+end .
+
+proc count2 output u64 . effects state .
+do
+  var n u64 be 0 .
+  task_group do
+    var h1 u64 be spawn one .
+    var h2 u64 be spawn one .
+    let a u64 be await h1 .
+    let b u64 be await h2 .
+    set n (add a b) .
+  end .
+  return n .
+end .

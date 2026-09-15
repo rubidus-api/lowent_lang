@@ -55,11 +55,22 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | I/O leaves | `write_out` `read_in` `arg` · file, connection, clock, random and terminal leaves are wrapped by the standard library |
 | Atomic | `atomic_load` `atomic_store` `atomic_add` `atomic_sub` `atomic_swap` `atomic_cas` `atomic_fence` |
 | Devices | `read_volatile` `write_volatile` |
-| Concurrency | `await` `drain` `channel` `chsend` `chrecv` `yield` |
+| Concurrency | `await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send` |
+| Atomic (bits) | `atomic_and` `atomic_or` `atomic_xor` |
+| Floating-point maths — chapter 4 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` |
+| Pipe stages — chapter 24 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `reverse` `collect` `count` `all` `any` `into` |
+| Lanes (SIMD) — chapter 27 | `splat` `load` `store` `load_masked` `store_masked` `select` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `sum` `sum_fast` `avg` `native_lanes` `rotate` `prefetch` |
+| Small-number sets — chapter 13 | `bitset_new` `union` `intersect` `difference` `complement` `contains` `is_subset` `is_empty` `remove` |
+| Layouts and views — chapter 13 | `encode` `try_view` `view_segments` `seg` `segs` `capacity` |
+| Borrows and regions — chapter 12 · chapter 18 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap` |
+| Contracts and errors — chapter 14 | `range` `ret` `expect` `panic` |
+| Hashes — chapter 33 | `crc32` `hash_bytes` `sha256` `sha512` |
+| C strings — chapter 29 | `cstr_of` `str_from_cstr` |
+| Host leaves — chapter 32 | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `rng_next` `reactor_new` `r_read` `r_write` |
 
 *Table 50.3 — Kinds of builtins*
 
-The authoritative full list and meanings are the repository’s `docs/spec/BUILTIN-MEANINGS.tsv`.
+This table sorts every builtin of the canon into a group. The chapter next to each group name explains that group with examples. The one-line meanings are authoritative in the repository’s `docs/spec/BUILTIN-MEANINGS.tsv`.
 
 ## <a id="sx4"></a>Effects and capabilities
 

@@ -224,10 +224,12 @@ Searches headings and index terms --- not the full text
 - [20.2 Cutting borrowed bytes](ch20.md#s20-2)
 - [20.3 Swapping allocators](ch20.md#s20-3)
 - [20.4 Default allocators that carve straight from a root](ch20.md#s20-4)
-- [20.5 Who sets the size of the fixed window?](ch20.md#s20-5)
-- [20.6 Same bits, different reading](ch20.md#s20-6)
-- [20.7 Common mistakes](ch20.md#s20-7)
-- [20.8 This chapter’s syntax at a glance](ch20.md#s20-8)
+- [20.5 Growing and returning a piece — grow and release](ch20.md#s20-5)
+- [20.6 Where the three layers sit in the standard library](ch20.md#s20-6)
+- [20.7 Who sets the size of the fixed window?](ch20.md#s20-7)
+- [20.8 Same bits, different reading](ch20.md#s20-8)
+- [20.9 Common mistakes](ch20.md#s20-9)
+- [20.10 This chapter’s syntax at a glance](ch20.md#s20-10)
 
 ### Part VI — Abstraction
 
@@ -235,11 +237,12 @@ Searches headings and index terms --- not the full text
 
 - [21.1 One file, one module](ch21.md#s21-1)
 - [21.2 Importing](ch21.md#s21-2)
-- [21.3 There is no search path](ch21.md#s21-3)
-- [21.4 When names collide](ch21.md#s21-4)
-- [21.5 Top-level order does not matter](ch21.md#s21-5)
-- [21.6 Common mistakes](ch21.md#s21-6)
-- [21.7 This chapter’s syntax at a glance](ch21.md#s21-7)
+- [21.3 What can be exported, and how to shorten a name](ch21.md#s21-3)
+- [21.4 There is no search path](ch21.md#s21-4)
+- [21.5 When names collide](ch21.md#s21-5)
+- [21.6 Top-level order does not matter](ch21.md#s21-6)
+- [21.7 Common mistakes](ch21.md#s21-7)
+- [21.8 This chapter’s syntax at a glance](ch21.md#s21-8)
 
 [22 Generics — parameters fixed at translation time](ch22.md)
 
@@ -279,18 +282,20 @@ Searches headings and index terms --- not the full text
 - [25.3 Mailboxes — putting in and emptying](ch25.md#s25-3)
 - [25.4 Let it crash, then restart](ch25.md#s25-4)
 - [25.5 Where actors may be used](ch25.md#s25-5)
-- [25.6 Designing with actors — a transfer between two accounts](ch25.md#s25-6)
-- [25.7 Common mistakes](ch25.md#s25-7)
-- [25.8 This chapter’s syntax at a glance](ch25.md#s25-8)
+- [25.6 Actors that hold a capability, and what state may contain](ch25.md#s25-6)
+- [25.7 Designing with actors — a transfer between two accounts](ch25.md#s25-7)
+- [25.8 Common mistakes](ch25.md#s25-8)
+- [25.9 This chapter’s syntax at a glance](ch25.md#s25-9)
 
 [26 Tasks and channels — exchange between bound flows](ch26.md)
 
 - [26.1 Flows are bound to blocks](ch26.md#s26-1)
 - [26.2 Channels — containers with an order](ch26.md#s26-2)
 - [26.3 Deadlocks you can see from what is written](ch26.md#s26-3)
-- [26.4 What does not exist yet](ch26.md#s26-4)
-- [26.5 Common mistakes](ch26.md#s26-5)
-- [26.6 This chapter’s syntax at a glance](ch26.md#s26-6)
+- [26.4 Flows and memory](ch26.md#s26-4)
+- [26.5 What does not exist yet](ch26.md#s26-5)
+- [26.6 Common mistakes](ch26.md#s26-6)
+- [26.7 This chapter’s syntax at a glance](ch26.md#s26-7)
 
 [27 Parallel loops and atomic operations](ch27.md)
 
@@ -514,7 +519,8 @@ Searches headings and index terms --- not the full text
 - [48.1 Algebra and denotation](ch48.md#s48-1)
 - [48.2 One statement is a one-statement block](ch48.md#s48-2)
 - [48.3 Closers do the same job](ch48.md#s48-3)
-- [48.4 What is not proven](ch48.md#s48-4)
+- [48.4 Common mistakes](ch48.md#s48-4)
+- [48.5 What is not proven](ch48.md#s48-5)
 
 [49 Proofs about hashes — calling things by content, not name](ch49.md)
 

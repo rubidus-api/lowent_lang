@@ -55,11 +55,22 @@
 | 입출력 잎 | `write_out` `read_in` `arg` · 파일·연결·시계·난수·터미널 잎은 표준 라이브러리가 감싼다 |
 | 원자 | `atomic_load` `atomic_store` `atomic_add` `atomic_sub` `atomic_swap` `atomic_cas` `atomic_fence` |
 | 장치 | `read_volatile` `write_volatile` |
-| 동시성 | `await` `drain` `channel` `chsend` `chrecv` `yield` |
+| 동시성 | `await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send` |
+| 원자(비트) | `atomic_and` `atomic_or` `atomic_xor` |
+| 부동소수 수학 — 4장 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` |
+| 파이프 단계 — 24장 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `reverse` `collect` `count` `all` `any` `into` |
+| 레인(SIMD) — 27장 | `splat` `load` `store` `load_masked` `store_masked` `select` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `sum` `sum_fast` `avg` `native_lanes` `rotate` `prefetch` |
+| 작은 수의 집합 — 13장 | `bitset_new` `union` `intersect` `difference` `complement` `contains` `is_subset` `is_empty` `remove` |
+| 배치와 뷰 — 13장 | `encode` `try_view` `view_segments` `seg` `segs` `capacity` |
+| 빌림과 영역 — 12장 · 18장 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap` |
+| 계약과 오류 — 14장 | `range` `ret` `expect` `panic` |
+| 해시 — 33장 | `crc32` `hash_bytes` `sha256` `sha512` |
+| C 문자열 — 29장 | `cstr_of` `str_from_cstr` |
+| 호스트 잎 — 32장 | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `rng_next` `reactor_new` `r_read` `r_write` |
 
 *표 50.3 — 내장 연산의 갈래*
 
-전체 목록과 뜻은 저장소의 `docs/spec/BUILTIN-MEANINGS.tsv` 가 정본이다.
+이 표는 정본의 내장 연산을 빠짐없이 무리로 나눈 것이다. 무리 이름 옆의 장이 그 무리를 예제와 함께 설명한다. 한 줄씩의 뜻은 저장소의 `docs/spec/BUILTIN-MEANINGS.tsv` 가 정본이다.
 
 ## <a id="sx4"></a>효과와 권한
 

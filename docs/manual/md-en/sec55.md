@@ -9,7 +9,11 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-ALLOC-AMBIGUOUS` | more than one fitting allocator and none chosen with `using` | chapter 20 |
 | `E-ALLOC-NESTED` | allocated from an outer source while an inner region of the same root is open | chapter 18 |
 | `E-ALLOC-NOCAP` | declares `alloc` but receives no allocation capability | chapter 16 |
-| `E-ALLOC-USING-UNUSED` | `using` on a call that does not draw from an allocator | chapter 34 |
+| `E-ALLOC-NOSOURCE` | a call draws from an allocator but no fitting one is visible in this op | chapter 20 |
+| `E-ALLOC-OUTLIVES` | region bytes handed to an actor born outside the region | chapter 18 |
+| `E-ALLOC-SHARED` | an allocator whose cursor is not atomic is handed to a task | chapter 26 |
+| `E-ALLOC-TASK` | an op that carves from a root is spawned as a task | chapter 26 |
+| `E-ALLOC-USING-UNUSED` | `using` on a call that does not draw from an allocator | chapter 20, chapter 34 |
 | `E-ASM-TARGET-UNKNOWN` | the machine name in an `asm` clause is not a known target | chapter 30 |
 | `E-ASM-UNBOUND` | the assembly template names an undeclared operand | chapter 30 |
 | `E-ATOMIC-NOCAP` | declares `atomic` but receives no `cap atomic` | chapter 27 |
@@ -17,7 +21,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-BLOCK-UNCLOSED` | a block opened with `do` is never closed with `end` | chapter 2 |
 | `E-BOUND-UNSAT` | the type argument does not satisfy the required trait | chapter 22, chapter 23 |
 | `E-BRAND-REUSED` | a brand opens a second storage | chapter 35 |
-| `E-CAP-FORGE` | spawns an actor holding a capability without holding that capability | chapter 20 |
+| `E-CAP-FORGE` | spawns an actor holding a capability without holding that capability | chapter 20, chapter 25 |
 | `E-CAP-KIND` | a capability of the wrong kind was handed over | chapter 16 |
 | `E-CAP-MISSING` | a capability-requiring builtin was not given its capability as the first operand | chapter 16 |
 | `E-CHAR` | a character (symbol) this language does not have | chapter 6, chapter 7, chapter 8, chapter 9 |
@@ -62,7 +66,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-HEAP-NOHOST` | asks for the growing root on a freestanding target | chapter 18 |
 | `E-IF-VALUE` | `if` used as a value | chapter 6 |
 | `E-IMMUTABLE` | `set` on a name bound with `let` | chapter 6 |
-| `E-IR-ARITY` | an op is called with the wrong number of arguments | chapter 5 |
+| `E-IR-ARITY` | an op is called with the wrong number of arguments | chapter 5, chapter 48 |
 | `E-IR-UNDEF` | a name unknown at that place | chapter 6, chapter 7, chapter 21, chapter 22, chapter 25 |
 | `E-ISR-CALLED` | an interrupt handler called from code | chapter 30 |
 | `E-ISR-EFFECT` | an interrupt handler does not declare `effects device` | chapter 30 |
@@ -115,7 +119,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-TYPE-WIDTH` | the value does not fit the declared type | chapter 3, chapter 13 |
 | `E-UNSAFE-UNDECLARED` | declares the `unsafe` effect but the op is not marked `unsafe` | chapter 29 |
 | `E-VISIBILITY` | reaches a non-exported name of another module | chapter 21 |
-| `E-VOCAB-REMOVED` | a removed word or spelling | chapter 3, chapter 5, chapter 7, chapter 15 |
+| `E-VOCAB-REMOVED` | a removed word or spelling | chapter 3, chapter 5, chapter 7, chapter 15, chapter 48 |
 | `E-WIDEN-SIGN` | `widen` from a signed to an unsigned type | chapter 13 |
 | `W-EFFECT-OVER` | an effect declared but never performed (warning) | chapter 15, chapter 16 |
 | `W-USE-EXTERNAL` | imports a module not in the compilation unit (warning) | chapter 32 |

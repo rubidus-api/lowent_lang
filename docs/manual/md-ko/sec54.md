@@ -9,7 +9,11 @@
 | `E-ALLOC-AMBIGUOUS` | 맞는 할당기가 둘 이상인데 `using` 으로 고르지 않았다 | 20장 |
 | `E-ALLOC-NESTED` | 같은 뿌리의 안쪽 영역이 열린 채 바깥 출처로 깎았다 | 18장 |
 | `E-ALLOC-NOCAP` | `alloc` 을 적었는데 할당 권한을 받지 않았다 | 16장 |
-| `E-ALLOC-USING-UNUSED` | 할당기를 쓰지 않는 호출에 `using` 을 적었다 | 34장 |
+| `E-ALLOC-NOSOURCE` | 할당기를 쓰는 호출인데 이 op 안에 맞는 할당기가 하나도 없다 | 20장 |
+| `E-ALLOC-OUTLIVES` | 영역의 바이트를 영역 밖에서 태어난 액터에게 건넨다 | 18장 |
+| `E-ALLOC-SHARED` | 원자적이지 않은 할당기를 태스크에 건넨다 | 26장 |
+| `E-ALLOC-TASK` | 뿌리에서 깎는 op 을 태스크로 띄운다 | 26장 |
+| `E-ALLOC-USING-UNUSED` | 할당기를 쓰지 않는 호출에 `using` 을 적었다 | 20장, 34장 |
 | `E-ASM-TARGET-UNKNOWN` | `asm` 절의 기계 이름이 대상 목록에 없다 | 30장 |
 | `E-ASM-UNBOUND` | 어셈블리 템플릿이 선언하지 않은 피연산자를 부른다 | 30장 |
 | `E-ATOMIC-NOCAP` | `atomic` 을 적었는데 `cap atomic` 을 받지 않았다 | 27장 |
@@ -17,7 +21,7 @@
 | `E-BLOCK-UNCLOSED` | `do` 로 연 블록을 `end` 로 닫지 않았다 | 2장 |
 | `E-BOUND-UNSAT` | 타입 인자가 요구한 트레이트를 갖추지 못했다 | 22장, 23장 |
 | `E-BRAND-REUSED` | 같은 브랜드로 저장소를 두 번 열었다 | 35장 |
-| `E-CAP-FORGE` | 권한 칸을 가진 액터를 그 권한 없이 띄운다 | 20장 |
+| `E-CAP-FORGE` | 권한 칸을 가진 액터를 그 권한 없이 띄운다 | 20장, 25장 |
 | `E-CAP-KIND` | 다른 종류의 권한을 건넸다 | 16장 |
 | `E-CAP-MISSING` | 권한이 필요한 내장 연산에 권한을 첫 피연산자로 적지 않았다 | 16장 |
 | `E-CHAR` | 이 언어에 없는 글자(기호)다 | 6장, 7장, 8장, 9장 |
@@ -62,7 +66,7 @@
 | `E-HEAP-NOHOST` | 운영체제 없는 대상에서 자라는 뿌리를 청한다 | 18장 |
 | `E-IF-VALUE` | `if` 를 값으로 썼다 | 6장 |
 | `E-IMMUTABLE` | `let` 으로 지은 이름에 `set` 했다 | 6장 |
-| `E-IR-ARITY` | op 을 인자 수가 맞지 않게 불렀다 | 5장 |
+| `E-IR-ARITY` | op 을 인자 수가 맞지 않게 불렀다 | 5장, 48장 |
 | `E-IR-UNDEF` | 그 자리에서 알 수 없는 이름이다 | 6장, 7장, 21장, 22장, 25장 |
 | `E-ISR-CALLED` | 인터럽트 처리기를 코드에서 불렀다 | 30장 |
 | `E-ISR-EFFECT` | 인터럽트 처리기가 `effects device` 를 적지 않았다 | 30장 |
@@ -115,7 +119,7 @@
 | `E-TYPE-WIDTH` | 값이 선언된 타입에 들어가지 않는다 | 3장, 13장 |
 | `E-UNSAFE-UNDECLARED` | `unsafe` 효과를 적었는데 op 에 `unsafe` 표시가 없다 | 29장 |
 | `E-VISIBILITY` | 다른 모듈의 감춘 이름에 닿는다 | 21장 |
-| `E-VOCAB-REMOVED` | 없앤 낱말이나 철자다 | 3장, 5장, 7장, 15장 |
+| `E-VOCAB-REMOVED` | 없앤 낱말이나 철자다 | 3장, 5장, 7장, 15장, 48장 |
 | `E-WIDEN-SIGN` | 부호 있는 수를 부호 없는 타입으로 `widen` 했다 | 13장 |
 | `W-EFFECT-OVER` | 선언만 하고 내지 않는 효과다(경고) | 15장, 16장 |
 | `W-USE-EXTERNAL` | 번역 단위에 없는 모듈을 들여온다(경고) | 32장 |

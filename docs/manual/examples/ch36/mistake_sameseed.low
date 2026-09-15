@@ -1,0 +1,12 @@
+module mistake_sameseed .
+rem run: two_rolls 2
+
+use random .
+
+rem ko: ✘ 두 번 모두 같은 시드에서 굴린다 --- 두 주사위가 늘 같다 /// en: ✘ both rolls start from the same seed --- the two dice always match
+fn two_rolls input seed u64 . output u64 .
+do
+  let a u64 be add (random.below_biased (random.step seed) 6) 1 .
+  let b u64 be add (random.below_biased (random.step seed) 6) 1 .
+  return add (mul a 10) b .
+end .

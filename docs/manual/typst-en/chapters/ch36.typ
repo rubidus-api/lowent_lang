@@ -131,6 +131,54 @@ must be fresh per message, and `gcm`'s nonce must never repeat. Filtering small-
 And the top *does not exist yet*. `tlssrv` performs the whole handshake but transport over real sockets is not there yet, and `der` is not a certificate infrastructure (PKI);
 certificates are received from outside. The principle of not pretending to have what does not exist matters most in cryptography.
 
+== Common mistakes
+
+#antipattern[Writing again with the old pending value passed to `outbuf.write`][
+  #demo("examples/ch36/mistake_pendingmoved.low")
+
+  `outbuf.write` takes an `owned pending` and returns a *new* pending value inside its `result`. The `p` you passed has already moved, so
+  using it again is `E-OWN-MOVED`. Pending values move around so that exactly one value always knows what is left in the buffer; only then
+  can translation count whether the final `finish` was forgotten. Receive them in turn, `p` → `p2` → `p3`, as `buffered.low` in this chapter
+  does.
+]
+
+#antipattern[Rolling twice from the same seed][
+  #demo("examples/ch36/mistake_sameseed.low")
+
+  `random.step` is a pure `fn`, so the same input always gives the same answer. Give both rolls the same `seed` and the two dice always
+  match (55 with seed 2). There is no global random state, so passing on *the next state* is the caller's job.
+
+  #demo("examples/ch36/sameseed_fixed.low")
+
+  The fixed version starts the second step from the `s1` produced by the first and returns 56. That the same seed always yields the same two
+  numbers is not a defect; it is this module's promise.
+]
+
+#misconception[`recv_once` receives everything the other side sent in one go][
+  #demo("examples/ch36/recv_partial.low")
+
+  Nine bytes, "ping pong", were sent, but one receive into a four-slot buffer gives 4. A receive returns at most the buffer's size, and only
+  what has arrived by then. A stream has no message boundaries: what the sender sent in two parts may arrive at once, and what it sent at once
+  may arrive in parts. If you need messages, prefix a length or define a delimiter, and receive repeatedly until the whole message is there.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "lib-io-net-glance",
+  caption: [Shapes of the I/O, network and crypto modules --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`var p owned outbuf.pending be outbuf.open 1 .`], [pending output for standard output], [forgetting it: `E-OWN-INCOMPLETE`],
+  [`outbuf.write out p buf s` → `result (owned pending) …`], [gather, flush when full, return a new pending value], [one value knows --- the old one is `E-OWN-MOVED`],
+  [`outbuf.finish out p buf`], [flush the rest and finish], [completion --- it can fail],
+  [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [connected pair · send all · receive once · close], [`cap net` first --- a receive takes at most the buffer],
+  [`random.step seed` · `random.bytes k dst`], [reproducible next state · OS entropy (`cap random`)], [computation separated from authority],
+  [`clock.now_ns k` · `clock.since_ns k start`], [monotonic clock --- elapsed time], [a different promise from wall time --- `cap clock`, effect `none`],
+  [`http.method_code req` · `http.version_ok req`], [parse the request line (pure)], [ambiguous input is rejected],
+  [`aead` · `gcm` · `x25519` · `ed25519` · `tls13` · `tlssrv`], [sealing · key agreement · signatures · TLS computation], [pieces unsafe on their own are flagged in their docs],
+)
+
 #recap[
   `outbuf` gathers output before emitting it, and translation rejects pending values never flushed. `net` connections are resources opened with `cap net`, and closing can
   fail. `random.step` is reproducible pure computation, and `random.bytes` is entropy obtained with `cap random`. Monotonic clocks and wall clocks promise different things.

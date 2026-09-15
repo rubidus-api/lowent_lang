@@ -133,6 +133,52 @@
 그리고 꼭대기는 *아직 없다*. `tlssrv` 는 핸드셰이크를 모두 하지만 실제 소켓 위의 전송은 아직이고, `der` 은 인증서 체계(PKI)가 아니며
 인증서는 밖에서 받는다. 없는 것을 있는 척하지 않는다는 원칙이 암호에서 가장 중요하다.
 
+== 흔한 실수
+
+#antipattern[`outbuf.write` 에 넘긴 옛 대기 값으로 또 쓴다][
+  #demo("examples/ch36/mistake_pendingmoved.low")
+
+  `outbuf.write` 는 `owned pending` 을 받아 *새* 대기 값을 `result` 안에 돌려준다. 넘긴 `p` 는 이미 옮겨 갔으므로 다시 쓰면 `E-OWN-MOVED` 다. 대기 값이
+  옮겨 다니는 까닭은, 버퍼에 무엇이 남았는지를 아는 값이 언제나 하나뿐이어야 마지막 `finish` 를 잊었는지 번역이 셀 수 있기 때문이다. 이 장의
+  `buffered.low` 처럼 `p` → `p2` → `p3` 으로 이어 받는다.
+]
+
+#antipattern[같은 시드에서 두 번 굴린다][
+  #demo("examples/ch36/mistake_sameseed.low")
+
+  `random.step` 은 순수한 `fn` 이라 같은 입력에 늘 같은 답을 낸다. 두 굴림에 같은 `seed` 를 주면 두 주사위가 늘 같다(시드 2 에서 55). 전역 난수 상태가
+  없으므로 *다음 상태*를 이어 넘기는 일은 부르는 쪽의 몫이다.
+
+  #demo("examples/ch36/sameseed_fixed.low")
+
+  고친 판은 첫 걸음이 낸 `s1` 에서 둘째 걸음을 시작해 56 을 낸다. 같은 시드로 부르면 언제나 같은 두 수가 나오는 것은 결함이 아니라 이 모듈의 약속이다.
+]
+
+#misconception[`recv_once` 는 상대가 보낸 것을 한 번에 다 받는다][
+  #demo("examples/ch36/recv_partial.low")
+
+  "ping pong" 아홉 바이트를 보냈지만 네 칸 버퍼로 한 번 받으면 4 다. 받기는 버퍼만큼, 그리고 그때 도착한 만큼만 준다. 스트림에는 메시지의 경계가
+  없다. 보낸 쪽이 두 번에 나눠 보냈어도 한 번에 올 수 있고, 한 번에 보냈어도 나눠 올 수 있다. 메시지 단위가 필요하면 길이를 앞에 붙이거나 구분자를
+  정하고, 다 모일 때까지 되풀이해 받는다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "lib-io-net-glance",
+  caption: [입출력·네트워크·암호 모듈의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`var p owned outbuf.pending be outbuf.open 1 .`], [표준출력으로 내보낼 대기 출력], [잊으면 `E-OWN-INCOMPLETE`],
+  [`outbuf.write out p buf s` → `result (owned pending) …`], [모으고, 차면 내보내고, 새 대기 값을 준다], [아는 값이 늘 하나 --- 옛 값은 `E-OWN-MOVED`],
+  [`outbuf.finish out p buf`], [남은 바이트를 내보내고 끝낸다], [완결 --- 실패할 수 있다],
+  [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [연결 쌍 · 다 보내기 · 한 번 받기 · 닫기], [`cap net` 이 첫 인자 --- 받기는 버퍼만큼],
+  [`random.step seed` · `random.bytes k dst`], [재현되는 다음 상태 · 운영체제 엔트로피(`cap random`)], [셈과 권위를 가른다],
+  [`clock.now_ns k` · `clock.since_ns k start`], [단조 시계 --- 경과 시간], [벽시계와 약속이 다르다 --- `cap clock`, 효과 `none`],
+  [`http.method_code req` · `http.version_ok req`], [요청 줄 해석(순수)], [애매한 입력을 거절한다],
+  [`aead` · `gcm` · `x25519` · `ed25519` · `tls13` · `tlssrv`], [봉인 · 키 합의 · 서명 · TLS 계산], [혼자 쓰면 틀리는 조각은 문서가 경고한다],
+)
+
 #recap[
   `outbuf` 는 출력을 모았다가 내보내고, 비우지 않은 대기 값은 번역이 거절한다. `net` 의 연결은 `cap net` 으로 여는 자원이며 닫기가 실패할 수
   있다. `random.step` 은 재현되는 순수 계산이고 `random.bytes` 는 `cap random` 으로 얻는 엔트로피다. 단조 시계와 벽시계는 약속이 다르다.

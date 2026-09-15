@@ -1,5 +1,4 @@
 module mistake_innerelse .
-rem trap: pick 9
 
 fn pick input a u8 . output u8 .
 do

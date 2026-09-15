@@ -155,6 +155,15 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   The last branch is `end else do … end .`. When there are three or more branches that all split one value, `match` is a better fit.
 ]
 
+#antipattern[Putting `else` inside the block, C style][
+  #demo("examples/ch07/mistake_innerelse.low")
+
+  In C and several other languages `else` follows the previous block, as in `if … { … } else { … }`. In Lowent `else` comes *after* the
+  previous block is closed with `end` (`end else do`). With `else` on its own line inside the block, this edition's tool does not reject
+  the translation; it prints `check: ok` with only a note that "one op cannot be lowered". At run time it stops with `E-VM-UNSUP`, and the
+  native build leaves the op out entirely (recorded as a defect in the development repository). Read the note above `check: ok` as well.
+]
+
 #antipattern[Using a symbol such as `<` in a condition][
   #demo("examples/ch07/mistake_less.low")
 

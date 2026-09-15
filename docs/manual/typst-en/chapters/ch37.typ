@@ -105,6 +105,48 @@ The `tty` module document lists these itself --- mouse reporting, bracketed past
 is a separate piece to build. Because the list is in the source and document, anyone building an editor with this module knows what they must do themselves before importing
 it.
 
+== Common mistakes
+
+#antipattern[Creating a path that leaves raw mode without restoring it][
+  #demo("examples/ch37/mistake_rawleak.low")
+
+  This code passes translation (restoring `tty_raw` is not enforced by ownership). But if allocation fails, it leaves through `return 2` with
+  the terminal still in raw mode. The user's shell stops echoing input and line breaks go wrong. As `rawmode.low` in this chapter does, finish
+  every preparation that can fail (getting the buffer) *before* entering raw mode, and make every path after entering it pass through
+  `tty_raw t false`.
+]
+
+#antipattern[Cutting a row by byte count to fit the screen width][
+  #demo("examples/ch37/mistake_bytecut.low")
+
+  Cutting "안녕" at five bytes splits the second character, which is no longer valid text, so `row_width` returns `none` (999). Sent to the
+  screen as is, it would have printed broken characters. `term.fit_width row 3` gives, *as a byte length*, the longest prefix that fits in
+  three columns --- one "안", 3 bytes. Always cut by that answer.
+]
+
+#misconception[The bytes from one read always hold one whole key][
+  #demo("examples/ch37/partial_key.low")
+
+  The up arrow is the three bytes `ESC [ A`, but a read may deliver only the first two. `tty.parse_key` then returns `none` (0 here), and
+  once the third byte has arrived, it reads up (1). Do not throw the bytes away; prepend the leftover piece to the next read. Discarding
+  `none` as "unknown key" becomes the bug where arrow keys occasionally vanish.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "lib-terminal-glance",
+  caption: [Shapes of the terminal modules --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`term.goto` · `term.sgr` · `term.clear` (`buf pos …`)], [assemble control bytes into the caller's buffer], [nothing is written to the screen --- test by bytes],
+  [`term.diff prev next w out pos`], [bytes that redraw only the changed runs --- 0 if equal], [less flicker and less traffic],
+  [`term.row_width row` · `term.row_clusters row` · `term.cp_width cp`], [columns · grapheme clusters · code point width], [columns are not bytes],
+  [`term.fit_width row cols`], [byte length of the longest prefix fitting the columns], [never cut inside a character],
+  [`tty.parse_key buf at` · `tty.key_of` · `tty.len_of`], [interpret key bytes (pure) --- `none` when incomplete], [reading keys is computation],
+  [`tty_raw t true` · `tty_read t buf` · `tty_size t`], [raw mode · read key bytes · screen size], [`cap tty` --- always restore raw mode],
+)
+
 #recap[
   `term` is a pure module assembling ANSI control bytes into the caller's buffer, and emitting to the screen is `outbuf`'s job. `diff` redraws only changed cells and is 0
   bytes when nothing changed. Cell counts differ from byte counts, so count with `row_width` and `row_clusters`. `tty.parse_key` interprets key bytes purely. `tty_raw`,

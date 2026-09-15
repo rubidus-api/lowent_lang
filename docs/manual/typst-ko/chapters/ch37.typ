@@ -105,6 +105,46 @@ raw 모드는 *사용자의 터미널 설정을 바꾼다*. 프로그램이 죽�
 신호(SIGWINCH) 연동. 각각 따로 지을 조각이다. 이 목록이 소스와 문서에 있으므로, 이 모듈로 편집기를 지으려는 사람은 무엇을 스스로 해야
 하는지 들여오기 전에 안다.
 
+== 흔한 실수
+
+#antipattern[raw 모드에 들어간 뒤 되돌리지 않고 떠나는 길을 만든다][
+  #demo("examples/ch37/mistake_rawleak.low")
+
+  이 코드는 번역을 통과한다(`tty_raw` 의 되돌리기는 소유로 강제되지 않는다). 그런데 할당이 실패하면 `return 2` 로 떠나면서 터미널을 raw 모드로 남긴다.
+  사용자의 셸에서 입력이 보이지 않고 줄바꿈이 어긋난다. 이 장의 `rawmode.low` 처럼 실패할 수 있는 준비(버퍼 받기)를 raw 모드에 들어가기 *전에* 모두
+  끝내고, 들어간 뒤의 모든 길이 `tty_raw t false` 를 지나게 짠다.
+]
+
+#antipattern[줄을 바이트 수로 잘라 화면 폭에 맞춘다][
+  #demo("examples/ch37/mistake_bytecut.low")
+
+  "안녕" 을 앞 다섯 바이트로 자르면 둘째 글자 한가운데서 잘려 올바른 글자열이 아니므로 `row_width` 가 `none`(999)을 준다. 화면에 그대로 내보냈다면
+  깨진 글자가 찍혔을 것이다. `term.fit_width row 3` 은 세 칸에 들어가는 가장 긴 앞부분을 *바이트 길이로* 알려 준다 --- "안" 하나, 3 바이트. 자르기는 언제나
+  그 답으로 한다.
+]
+
+#misconception[한 번 읽은 바이트에는 키 하나가 온전히 들어 있다][
+  #demo("examples/ch37/partial_key.low")
+
+  방향키 위는 `ESC [ A` 세 바이트인데, 읽기가 앞 두 바이트만 가져올 수 있다. 그때 `tty.parse_key` 는 `none`(여기서 0)을 주고, 셋째 바이트까지 모이면
+  위(1)로 읽는다. 읽은 바이트를 버리지 말고 남은 조각을 다음 읽기 앞에 이어 붙인다. `none` 을 "모르는 키" 로 버리면 방향키가 가끔 사라지는 결함이 된다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "lib-terminal-glance",
+  caption: [터미널 모듈의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`term.goto` · `term.sgr` · `term.clear` (`buf pos …`)], [제어 바이트를 호출자의 버퍼에 조립], [화면에 쓰지 않는다 --- 바이트로 시험한다],
+  [`term.diff prev next w out pos`], [바뀐 구간만 다시 그리는 바이트 --- 같으면 0], [깜빡임과 전송량을 줄인다],
+  [`term.row_width row` · `term.row_clusters row` · `term.cp_width cp`], [칸 수 · 글자 묶음 수 · 코드포인트 폭], [칸은 바이트가 아니다],
+  [`term.fit_width row cols`], [칸에 들어가는 가장 긴 앞부분의 바이트 길이], [글자 한가운데서 자르지 않는다],
+  [`tty.parse_key buf at` · `tty.key_of` · `tty.len_of`], [키 바이트 해석(순수) --- 모자라면 `none`], [키 읽기는 계산이다],
+  [`tty_raw t true` · `tty_read t buf` · `tty_size t`], [raw 모드 · 키 바이트 읽기 · 화면 크기], [`cap tty` --- raw 모드는 반드시 되돌린다],
+)
+
 #recap[
   `term` 은 ANSI 제어 바이트를 호출자의 버퍼에 조립하는 순수 모듈이고, 화면에 내보내는 일은 `outbuf` 가 한다. `diff` 는 바뀐 칸만 다시
   그리며 같으면 0 바이트다. 칸의 수는 바이트 수와 다르므로 `row_width`·`row_clusters` 로 센다. `tty.parse_key` 는 키 바이트를 순수하게

@@ -155,6 +155,66 @@ all the way to its callers (#chref("fixed-memory")).
   to each other even after satisfying `shape`. This language has no inheritance.
 ]
 
+== Common mistakes
+
+#antipattern[Writing the name before the value after `method`][
+  #demo("examples/ch23/mistake_methodorder.low")
+
+  Translating `r.area()` from an object-oriented language backwards easily gives `method area r`. `method` takes *the value first*, because
+  the value's type decides which attached op to look for. With the name first, the tool reads `area` as the value, looks for an op `r` on
+  its type, and reports `E-METHOD-UNDEF`. Write `method r area`.
+]
+
+#antipattern[Leaving the type prefix off the name of the implementing op][
+  #demo("examples/ch23/mistake_noprefix.low")
+
+  `fn area input s rect .` is an *ordinary op* that takes a `rect`, not an op attached to `rect`. The trait looks for `rect.area`, so this
+  is `E-TRAIT-MISSING`. The tool does not attach ops by looking at their input types because, when several ordinary ops take the same
+  type, the name alone should tell you which one fulfils the promise. This diagnostic lacks the file name; its line number points at the type
+  declaration that says `satisfies`.
+]
+
+#antipattern[Treating a type as adopting a trait just because the op exists][
+  #demo("examples/ch23/mistake_nosatisfies.low")
+
+  With `rect.area` in place, `rect` is indeed "a type that reports an area". Without `satisfies shape .`, though, `double_area rect r` is
+  `E-BOUND-UNSAT`. Under duck typing, where matching shape is enough, an op that happens to share a name is wrongly read as fulfilling the
+  promise. `satisfies` declares "I will keep this contract", and only that declaration makes the processor check the whole list.
+]
+
+#antipattern[Putting the receiver somewhere other than the first input][
+  #demo("examples/ch23/mistake_recvlast.low")
+
+  The first input of an attached op is the receiver. `method r scaled 5` puts `r` in the first position and 5 in the second. `scaled` takes
+  the first as `k` and the second as `s`, so it tries to multiply a struct and stops. By meaning, translation should reject this head, but
+  this edition's tool accepts it (recorded as a defect in the development repository). Always put `input s rect .` first in an attached op.
+]
+
+#misconception[An op attached to a type can only be called through `method`][
+  #demo("examples/ch23/direct_call.low")
+
+  `rect.area r` calls it directly by name, and `method r area` finds the same op from the value's type. They are the same op, and the results
+  are 6 and 6. `method` earns its place where the type is a generic parameter and its name cannot be written (`method s area` in
+  `double_area`). Where the type is known, a direct call also propagates effects correctly (see the defect case above).
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "traits-glance",
+  caption: [Trait syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`fn rect.area input s rect . …`], [attach an op to a type --- the first input is the receiver], [a way to divide the name space, not inheritance],
+  [`method r area` · `rect.area r`], [call by the value's type · call directly by name], [fixed at translation time --- no virtual table],
+  [`trait shape do area input s self . output u64 . end .`], [the list of ops a type must have], [`self` is the adopting type itself],
+  [signature line: name · inputs · output · effects], [same order as an op head; no `fn`/`proc`], [the effects line caps the implementer],
+  [`struct rect do satisfies shape . … end .`], [declare that this type keeps the promise], [the declaration triggers the full check],
+  [`requires shape t .`], [type condition of a generic op], [a type that does not adopt it: `E-BOUND-UNSAT`],
+  [`effects state via self .` (signature)], [only allocation effects may be added], [allocators differ in effects],
+  [`E-TRAIT-MISSING` · `-SIG` · `-EFFECT` · `-RECV` · `-UNDEF`], [one diagnostic per way of falling short], [`satisfies` is not a comment],
+)
+
 #recap[
   `fn <type>.<name>` attaches an op to a type and `method` calls it. A trait is a list of ops a type must have, and a type declares it satisfies one with
   `satisfies` in its body. Signatures start with a name and write inputs, output and effects in order, without `fn` or `proc`. A signature's `effects` is the

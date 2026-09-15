@@ -155,6 +155,65 @@ end .
   않는다. `rect` 와 `square` 는 `shape` 를 갖춘 뒤에도 서로 아무 관계가 없다. 이 언어에는 상속이 없다.
 ]
 
+== 흔한 실수
+
+#antipattern[`method` 뒤에 이름을 먼저 적는다][
+  #demo("examples/ch23/mistake_methodorder.low")
+
+  객체 지향 언어의 `r.area()` 를 거꾸로 옮기면 `method area r` 이 되기 쉽다. `method` 는 *값을 먼저* 받는다 --- 어느 타입에 붙은 op 을 찾을지
+  값의 타입이 정하기 때문이다. 이름을 먼저 적으면 도구는 `area` 를 값으로 읽고 그 타입에 붙은 `r` 을 찾다가 `E-METHOD-UNDEF` 를 낸다.
+  `method r area` 로 적는다.
+]
+
+#antipattern[갖추는 op 의 이름에 타입 접두사를 빠뜨린다][
+  #demo("examples/ch23/mistake_noprefix.low")
+
+  `fn area input s rect .` 는 `rect` 를 받는 *보통 op* 이지 `rect` 에 붙은 op 이 아니다. 트레이트는 `rect.area` 를 찾으므로
+  `E-TRAIT-MISSING` 이다. 받는 타입만 보고 붙여 주지 않는 까닭은, 같은 타입을 받는 보통 op 이 여럿일 때 어느 것이 약속을 갖춘 것인지
+  이름만 보고 알게 하려는 것이다. 이 진단에는 파일 이름이 빠져 있다. 줄 번호는 `satisfies` 를 적은 타입 선언을 가리킨다.
+]
+
+#antipattern[op 만 있으면 트레이트를 갖춘 것으로 여긴다][
+  #demo("examples/ch23/mistake_nosatisfies.low")
+
+  `rect.area` 가 있으니 "넓이를 알려 주는 타입" 인 것은 맞다. 그래도 `satisfies shape .` 를 적지 않으면 `double_area rect r` 은
+  `E-BOUND-UNSAT` 이다. 모양만 맞으면 통과시키는 방식(덕 타이핑)에서는 우연히 이름이 같은 op 이 약속을 갖춘 것으로 잘못 읽힌다. `satisfies`
+  는 "나는 이 계약을 지키겠다" 는 선언이고, 그 선언이 있어야 처리기가 목록 전체를 검사한다.
+]
+
+#antipattern[수신자를 첫 입력이 아닌 자리에 둔다][
+  #demo("examples/ch23/mistake_recvlast.low")
+
+  붙은 op 의 첫 입력은 수신자다. `method r scaled 5` 는 `r` 을 첫 자리에, 5 를 둘째 자리에 넣는다. `scaled` 는 첫 자리를 `k`, 둘째를 `s`
+  로 받았으므로 구조체에 곱셈을 하려다 멈춘다. 뜻으로는 번역이 거절해야 할 머리인데 이 판의 도구는 통과시킨다(개발 저장소에 결함으로 적어
+  두었다). 붙은 op 은 `input s rect .` 를 언제나 맨 앞에 둔다.
+]
+
+#misconception[타입에 붙은 op 은 `method` 로만 부를 수 있다][
+  #demo("examples/ch23/direct_call.low")
+
+  `rect.area r` 은 이름으로 곧장 부르고, `method r area` 는 값의 타입을 보고 같은 op 을 찾아 부른다. 둘은 같은 op 이고 결과도 6 과 6 이다.
+  `method` 가 쓸모 있는 곳은 타입이 제네릭 매개변수여서 이름을 적을 수 없는 자리(`double_area` 의 `method s area`)다. 타입을 아는 자리에서는
+  직접 부르는 편이 효과도 올바르게 번진다(위의 결함 사례).
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "traits-glance",
+  caption: [트레이트의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`fn rect.area input s rect . …`], [타입에 op 을 붙인다 --- 첫 입력이 수신자], [이름 칸을 나누는 장치이지 상속이 아니다],
+  [`method r area` · `rect.area r`], [값의 타입으로 찾아 부른다 · 이름으로 곧장 부른다], [번역 때 정해진다 --- 가상 함수 표가 없다],
+  [`trait shape do area input s self . output u64 . end .`], [타입이 갖출 op 의 목록], [`self` 는 갖출 타입 자신],
+  [서명 줄: 이름 · 입력 · 출력 · 효과], [op 머리와 같은 차례, `fn`·`proc` 은 적지 않는다], [효과 줄이 갖추는 쪽의 상한],
+  [`struct rect do satisfies shape . … end .`], [이 타입이 약속을 갖춘다고 선언], [선언이 있어야 목록 전체를 검사한다],
+  [`requires shape t .`], [제네릭 op 의 타입 조건], [갖추지 못한 타입은 `E-BOUND-UNSAT`],
+  [`effects state via self .`(서명)], [할당 계열 효과만 더 적어도 된다], [할당기마다 효과가 다르다],
+  [`E-TRAIT-MISSING` · `-SIG` · `-EFFECT` · `-RECV` · `-UNDEF`], [갖추지 못한 자리마다의 진단], [`satisfies` 는 주석이 아니다],
+)
+
 #recap[
   `fn <타입>.<이름>` 은 타입에 op 을 붙이고 `method` 가 부른다. 트레이트는 타입이 갖출 op 의 목록이고, 타입은 몸 안의
   `satisfies` 로 갖추겠다고 선언한다. 서명은 이름으로 시작해 입력·출력·효과 차례로 적고, `fn`·`proc` 은 적지 않는다.

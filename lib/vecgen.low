@@ -4,8 +4,9 @@ rem ★★★ **`growvec` 과 무엇이 다른가: 원소 타입이다.** `growv
 rem   `u32` 벡터가 필요하면 그 파일을 통째로 복사해 `u8`→`u32` 로 고친 파일을 하나 더 만들어야
 rem   했다. **원소 종류마다 컨테이너 하나씩**이었다. 여기서는 하나의 틀에서 나온다:
 rem
-rem       let a option (vec u32) . be open al 16 u32 .     rem u32 벡터
-rem       let b option (vec u8)  . be open al 16 u8 .      rem 바이트 벡터 — 같은 틀
+rem       let a option (vec u32 allocs.bump_bytes) . using al be open u32 16 .   rem u32 벡터
+rem       let b option (vec u8 allocs.bump_bytes) .  using al be open u8 16 .    rem 바이트 벡터 — 같은 틀
+rem     (2026-09-13 RFC-0112 D8 부터 얼로케이터는 인자가 아니라 `using` 으로 건넨다.)
 rem
 rem ★★ **단형화다 — 런타임 다형이 아니다.** `vec u32` 는 컴파일 시각에 `vec#u32` 라는 **구체
 rem   struct** 가 된다. vtable 도, 원소 크기 필드도, 간접 호출도 **없다**. 크기·오프셋이 전부

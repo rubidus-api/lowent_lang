@@ -18,8 +18,9 @@ rem   *"권한이 능력을 가른다"* 의 실물이다. `cap allocator` 를 �
 rem   부를 수가 없고(E-IR-UNSUP·E-ALLOC-NOCAP), 그래도 **남이 준 바이트 위에서는 온전히 할당한다.**
 rem   런타임 `borrowed` 플래그(proven)도, 두 벌의 API(조사 §1.5 의 2^N 증식)도 필요 없다.
 rem
-rem ★ 안 짓는 것(정직히): **`free`·리셋·재사용.** 이 얼로케이터들은 범프고, 되돌리지 않는다.
-rem   그래서 `used` 는 있어도 `release` 는 없다 — 없는 것을 있는 척하지 않는다(§0).
+rem ★ 안 짓는 것(정직히): **아무 조각이나 `free`·리셋·재사용.** 이 얼로케이터들은 범프다.
+rem   2026-09-13(RFC-0112 D10)부터 **마지막 조각 하나만** `release` 로 돌려받는다(`freeing_allocator`) —
+rem   그 밖의 조각은 `false` 다. 없는 것을 있는 척하지 않는다(§0).
 rem   ☞ 스코프 기반 일괄 해제는 `region` 어휘 블록(SPEC-004 §4.5 도입형태 ①)이 서면 그때다.
 rem ★ 빌트인 op 증가 **0**. 언어가 이미 가진 것(actor·trait·option·subslice·guard)만 썼다.
 

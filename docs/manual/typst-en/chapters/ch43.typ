@@ -127,6 +127,13 @@ Loops whose first round changes the state fit too. Peeling once as `b ; loop b` 
   and checks that model and implementation agree. This is "exhaustively checked", not "proven".
 ]
 
+#misconception[If following the loop body once shows no problem, any number of rounds is fine][
+  `loop_stale.low` is the counterexample: round 1 is fine, and round 2 uses a dead borrow. "Following it once" is enough only when the static
+  state after one pass *equals the state before*, that is, at a fixed point. So the checker applies the body repeatedly until the state stops
+  changing, not just once, and this chapter's theorem guarantees that stopping there is correct. The same holds when a person reads code:
+  ask "what is alive when the second round begins?"
+]
+
 == What is not proven
 
 - *Merging `if` branches is not in Theorem B.* The model is two straight sequences `(pre, body)`. The correctness of merges is backed by the exhaustive checking

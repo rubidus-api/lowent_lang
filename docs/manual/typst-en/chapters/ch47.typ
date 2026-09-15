@@ -129,6 +129,13 @@ acquired". Acquire a lock twice and release once, and the second acquire never a
 The limits are clear. Cooperative scheduling *assumes yielding.* Before a task looping forever without `yield`, the scheduler can do nothing. Priorities and blocking
 are outside this model too.
 
+#misconception[Using locks also protects you from deadlock][
+  A lock's specification is "if you acquire it, you receive the resource", not "it will always be acquired". Deadlock freedom
+  (`no_deadlock`) holds only under the discipline that every flow takes locks *in ascending order only*, and this edition's tool does not
+  enforce that discipline. Take a lock twice and release it once, and the second acquisition never comes. What the proof gives is a design
+  rule, "used this way it is safe"; keeping that rule is still a person's job.
+]
+
 == A borrowed proof in weak memory --- `spsc`
 
 Iris's language (`heap_lang`) is a sequentially consistent model. Proving code that writes weak memory orderings needs iRC11 and gpfsl, the Iris logics over RC11.

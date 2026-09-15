@@ -139,11 +139,19 @@ and certificates (#chref("proofs-bounds")).
   pins narrowing's success condition to "exactly within range", so `narrow_try u8 300` does not quietly give 44 but `none`. Failure is a value.
 ]
 
+#misconception[Since `values_fit` is proved, an overflowing value can never reach a `u8` position in this edition's compiler][
+  The theorem is about the *type rules*. Whether the compiler follows those rules in every place is a separate matter. One example found while
+  writing this manual: when a `pipe`'s `map` produces `u64` and `collect into` stores it in a `u8` buffer, this edition's tool silently wraps
+  the value (#chref("pipe")). The gap between a proof that the rules are right and the fact that the implementation applies them everywhere
+  shows up in places like this, and tests and the comparison of the two back ends fill it. Proofs decide what must be stopped; whether it was
+  stopped is measured.
+]
+
 == What is not proven
 
 - *Floating point is not in this lattice.* Only integers were handled. `f32 → f64` preserves values, but the reverse and mixed operations are separate rules not proven
   here. Rounding, NaN and −0 are not covered either.
-- *Widths are fixed at 8, 16, 32 and 64.* Arbitrary-width integers (like `u7`) and `u128` exist in neither the model nor the implementation.
+- *Widths are fixed at 8, 16, 32 and 64.* Arbitrary-width integers (such as `bits 7`) exist in the implementation (#chref("named-types")) but lie outside this model, and `u128` exists in neither.
 - *The theorems are about type rules.* Whether the compiler implements those rules exactly is confirmed by tests and back-end cross-checks (#chref("build-test")).
 
 #recap[

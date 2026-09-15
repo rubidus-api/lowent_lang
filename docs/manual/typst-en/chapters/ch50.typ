@@ -172,6 +172,15 @@ opening one more trust boundary (#chref("contracts")). "No undefined behaviour" 
 
 You may trust documents that have these last lines. Documents without them need a second look.
 
+#misconception[A ✔ line means this edition's compiler always behaves that way][
+  A ✔ is a theorem about the *model*; whether the compiler follows the model belongs to the △ line --- empirical. While writing this manual
+  several of those gaps were measured. When a `reduce` accumulator does not start at the identity, the split native answer differs from the
+  sequential one (#chref("parallel-atomic")); lending a `let` name with `mut_ref` breaks its immutability (#chref("references")); and passing a
+  number where a capability belongs lets an op without the capability print (#chref("capabilities")). Each is written as a warning in its
+  chapter and filed as a defect in the development repository. A ✔ is the reason something must be stopped; to know whether it is, read it
+  together with that chapter's warnings and the defect list.
+]
+
 #recap[
   The proofs rely on a trusted base such as the Coq kernel, the C compiler, BLAKE3, borrowed proofs and the operating system. The largest gap is between model and implementation,
   bridged empirically by exhaustive checking, cross-checks and self-accusation, and statically by certificate rechecks. The weakest seam is the front end. Loop termination, floating

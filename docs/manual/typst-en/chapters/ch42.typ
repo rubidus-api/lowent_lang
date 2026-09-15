@@ -144,6 +144,14 @@ down is this section's job.
 
 Branch merging in loops is outside the theorems, and the loop checker exhaustively confirms 90,376 shapes × 1 … 3 iterations (#chref("proofs-loops")). These are "exhaustively checked", not "proven".
 
+#misconception[Zero violations in exhaustive checking means it is proved][
+  Exhaustive checking speaks only *inside its envelope*. Even with 1.3 billion sequences up to length 9 and zero violations, length 10 is
+  unknown. That is why this chapter labels theorems A and B "proved" and the correspondence between model and implementation "exhaustively
+  checked", separately. Calling both by one name lets defects outside the envelope hide in "proved territory". The defect found while writing
+  this manual, where lending a `let` name with `mut_ref` changes its value (#chref("references")), lies where neither the theorem nor the
+  exhaustive check reaches, because the event model has no notion of an immutable name at all.
+]
+
 == What is not proven
 
 - *The model is a straight sequence of events.* There are no branches or loops. The real compiler computes the life of borrows along control flow, and Theorem A does not

@@ -181,6 +181,13 @@ CoRR and CoWR, and the latter is always there regardless of memory ordering.
   translation (#chref("parallel-atomic")).
 ]
 
+#misconception[When performance matters, just write every atomic operation as `relaxed`][
+  As E2 shows, `relaxed` *really permits* the outcome where both read 0. Removing constraints can make it faster, but what is removed is
+  exactly the guarantee that you may reason sequentially. In this edition the only code with explicit weak ordering that has a proof is
+  `spsc` (#chref("proofs-locks")); everything else is subject to audit. Write with the default `seq_cst`, measure, then pick the one place
+  that must be weakened and write down the argument for that place.
+]
+
 == What is not proven
 
 - *A program logic verifying a particular lock-free algorithm under `relaxed`* is not in this chapter. The metatheorems within the model (sequential consistency ·

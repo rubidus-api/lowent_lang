@@ -100,6 +100,13 @@ catch that drift. What they stop are not users' defects but the compiler's.
   the propositions down is itself what prevents drift.
 ]
 
+#misconception[A line break ends a statement][
+  A line break is whitespace. `spread` in `closers.low` lays one form over four lines and, without any mark, becomes the same tree as
+  `one_line`. Only closers (`.`·`end`·`)`) end a form. So a missing stop makes the next line join the previous form and produces an odd
+  diagnostic, while splitting a long expression over several lines never changes its meaning. A rule making line breaks closers can also be
+  proved, and this second property is exactly why it was not adopted.
+]
+
 == What is not proven
 
 - *There is no guarantee that the real parser is this model.* The model is a few small functions building trees, and the real parser is much larger. The

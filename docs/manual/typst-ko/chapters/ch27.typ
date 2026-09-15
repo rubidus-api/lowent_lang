@@ -144,6 +144,65 @@
 읽기가 무엇을 내보낸다는 말인가. C 는 이런 조합을 정의되지 않은 동작으로 둔다. 쓰기는 `acquire` 일 수 없고, 차례만 정하는
 울타리(`atomic_fence`)는 `relaxed` 일 수 없다.
 
+== 흔한 실수
+
+#antipattern[나누어 도는 조각들이 공유 카운터를 보통 연산으로 올린다][
+  #demo("examples/ch27/mistake_sharedwrite.low")
+
+  조각마다 `index counter 0` 을 읽고 1 을 더해 쓴다. 두 스레드가 같은 값을 읽고 각자 더해 쓰면 하나가 사라진다. 이것은 자기 몫이 아닌
+  자리에 쓰는 것이라 `E-PAR-WRITE` 로 거절된다. 공유 자리를 함께 갱신해야 하면 `cap atomic` 을 받고 `atomic_add counter 0 1` 을 쓴다(이 장의
+  `counter.low`). 대개는 그보다 조각마다 센 값을 `reduce` 로 모으는 편이 빠르다.
+]
+
+#antipattern[부동소수의 합을 나누어 모은다][
+  #demo("examples/ch27/mistake_floatreduce.low")
+
+  부동소수의 덧셈은 결합적이지 않다. 조각을 어떻게 나누느냐에 따라 반올림이 달라져 답이 코어 수에 달린다. 그래서 `E-PAR-FLOAT` 다. 진단이
+  권하는 대로 순차의 `sum`(오차를 보정하는 합)을 쓴다. 결정성은 성능 옵션이 아니라 뜻의 일부다.
+]
+
+#antipattern[`reduce` 의 누산을 항등원이 아닌 값에서 시작한다][
+  #demo("examples/ch27/mistake_reduceinit.low")
+
+  순차로 돌면 `total [1,2,3,4,5,6]` 은 100 + 21 = 121 이다. 나누어 돌면 *조각마다* `acc` 가 100 에서 시작한다. 이 판의 네이티브 코드에서
+  나누어 도는 입구를 여섯 조각으로 돌리면 621 이 나온다. 나눈 답이 순차와 같아야 한다는 약속이 깨지는데 도구는 `W-PAR-OK` 로 통과시킨다
+  (개발 저장소에 중대한 결함으로 적어 두었다). `reduce` 의 시작값은 모으는 연산의 *항등원*이어야 한다 --- `add` 는 0, `mul` 은 1, `max` 는
+  그 타입의 최솟값. 더할 값이 있으면 되풀이 밖에서 결과에 더한다.
+]
+
+#antipattern[나눌 되풀이를 다른 모양으로 적는다][
+  #demo("examples/ch27/mistake_noloop.low")
+
+  처리기는 `while lt i (len s) . do … end` 모양의 되풀이만 나눌 대상으로 알아본다. `while lt (add i 1) (len s)` 는 그 모양이 아니라서
+  `E-PAR-NOLOOP` 다. 진단의 말대로 `parallel` 절은 *주장*이고, 나눌 되풀이를 찾지 못하면 아무것도 확인하지 못한 채 주장만 남는다. 게다가
+  이 되풀이는 이웃 원소 `index s (add i 1)` 을 읽는다. 모양을 고쳐도 `E-PAR-READ` 로 거절될 것이다 --- 이웃을 읽는 계산(평활화 따위)은
+  결과를 다른 슬라이스에 쓰는 순차 되풀이로 적는다.
+]
+
+#misconception[`reduce` 로 모을 수 있는 것은 덧셈뿐이다][
+  #demo("examples/ch27/max_gather.low")
+
+  결합적인 연산이면 모을 수 있다. `max` 는 결합적이고 `u64` 에서 0 이 항등원이라 조각마다 가장 큰 값을 구해 다시 `max` 로 합쳐도 답이 같다.
+  `min`·`mul`·비트 연산도 같은 원리다. 거절되는 것은 `sub` 처럼 묶는 차례가 답을 바꾸는 연산(`E-PAR-ASSOC`)과 부동소수 연산(`E-PAR-FLOAT`)이다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "parallel-atomic-glance",
+  caption: [병렬과 원자 연산의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`parallel s split .`(op 머리)], [`s` 를 조각으로 나누어 여럿이 돌아도 된다는 선언], [주장을 믿지 않고 확인한다 --- 확인되면 `W-PAR-OK`],
+  [`while lt i (len s) . do … end .`], [나눌 수 있는 되풀이의 모양], [다른 모양이면 `E-PAR-NOLOOP`],
+  [`index s i` 만 읽고 쓰기], [자기 몫만], [남의 자리는 `E-PAR-READ` · `E-PAR-WRITE`],
+  [`reduce acc add .`], [조각마다 누적한 뒤 연산으로 합친다], [시작값은 항등원 --- 연산은 결합적(`E-PAR-ASSOC`)],
+  [`atomic_add counter 0 1` · `atomic_load cells 0`], [슬라이스와 색인으로 가리킨 자리를 원자적으로], [`effects atomic` + `cap atomic`],
+  [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [기억 차례 --- 적지 않으면 `seq_cst`], [가장 추론하기 쉬운 것이 기본],
+  [읽기에 `order release` 따위], [거절(`E-ATOMIC-ORDER`)], [뜻 없는 조합을 정의되지 않은 동작으로 두지 않는다],
+  [`view_array u64 bytes`], [바이트를 베끼지 않고 `u64` 슬라이스로 본다], [원자 칸을 할당받은 창 위에 둔다],
+)
+
 #recap[
   `parallel <슬라이스> split .` 은 되풀이를 나눌 수 있다는 선언이고, 처리기는 자기 몫만 읽고 쓰며 걸음을 넘어 사는 자리에
   쓰지 않는지 확인한다. 누적은 `reduce <자리> <연산> .` 으로 밝히고 연산은 결합적이어야 한다. 나누어 돈 답은 순차와 비트까지

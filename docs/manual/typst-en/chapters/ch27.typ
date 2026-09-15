@@ -141,6 +141,70 @@ Combinations that mean nothing for an operation are rejected.
 What would a read release? C leaves such combinations undefined. A write cannot be `acquire`, and a fence (`atomic_fence`), which only sets order, cannot be
 `relaxed`.
 
+== Common mistakes
+
+#antipattern[Pieces of a split loop incrementing a shared counter with ordinary arithmetic][
+  #demo("examples/ch27/mistake_sharedwrite.low")
+
+  Every piece reads `index counter 0`, adds 1 and writes it back. When two threads read the same value and each writes its sum, one
+  increment is lost. That is a write to a place outside the piece's own share, so it is rejected with `E-PAR-WRITE`. If a shared place
+  really must be updated together, take `cap atomic` and use `atomic_add counter 0 1` (this chapter's `counter.low`). Usually, though,
+  gathering per-piece counts with `reduce` is faster.
+]
+
+#antipattern[Splitting a sum of floats][
+  #demo("examples/ch27/mistake_floatreduce.low")
+
+  Floating-point addition is not associative. How the pieces are split changes the rounding, so the answer would depend on the number of
+  cores. Hence `E-PAR-FLOAT`. As the diagnostic suggests, use the sequential `sum` (a compensated sum). Determinism is part of the meaning,
+  not a performance option.
+]
+
+#antipattern[Starting a `reduce` accumulator at a value that is not the identity][
+  #demo("examples/ch27/mistake_reduceinit.low")
+
+  Run sequentially, `total [1,2,3,4,5,6]` is 100 + 21 = 121. Split, *each piece* starts `acc` at 100. Running the split entry of this
+  edition's native code in six pieces gives 621. The promise that a split answer equals the sequential one breaks, yet the tool passes it
+  with `W-PAR-OK` (recorded as a serious defect in the development repository). The starting value of a `reduce` must be the *identity* of
+  the gathering operation --- 0 for `add`, 1 for `mul`, the type's minimum for `max`. If there is a value to add, add it to the result
+  outside the loop.
+]
+
+#antipattern[Writing the loop to split in a different shape][
+  #demo("examples/ch27/mistake_noloop.low")
+
+  The processor recognises only loops of the shape `while lt i (len s) . do … end` as candidates for splitting. `while lt (add i 1) (len s)`
+  is not that shape, so this is `E-PAR-NOLOOP`. As the diagnostic says, the `parallel` clause is a *claim*, and with no loop to split,
+  nothing is verified and only the claim remains. This loop also reads the neighbouring element `index s (add i 1)`; even with the shape
+  fixed it would be rejected with `E-PAR-READ`. Write neighbour-reading computations (smoothing and the like) as a sequential loop that
+  writes its results into another slice.
+]
+
+#misconception[Only addition can be gathered with `reduce`][
+  #demo("examples/ch27/max_gather.low")
+
+  Any associative operation can be gathered. `max` is associative, and 0 is its identity for `u64`, so taking the largest value in each piece
+  and combining them again with `max` gives the same answer. `min`, `mul` and the bit operations work on the same principle. What is rejected
+  is an operation such as `sub`, where grouping changes the answer (`E-PAR-ASSOC`), and floating-point operations (`E-PAR-FLOAT`).
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "parallel-atomic-glance",
+  caption: [Parallel and atomic syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`parallel s split .` (op head)], [declares that `s` may be split and processed by many], [a claim that is checked, not trusted --- `W-PAR-OK` when it holds],
+  [`while lt i (len s) . do … end .`], [the shape of a splittable loop], [any other shape is `E-PAR-NOLOOP`],
+  [reading and writing only `index s i`], [only its own share], [others' places: `E-PAR-READ` · `E-PAR-WRITE`],
+  [`reduce acc add .`], [accumulate per piece, then combine with the operation], [start at the identity --- the operation must be associative (`E-PAR-ASSOC`)],
+  [`atomic_add counter 0 1` · `atomic_load cells 0`], [atomically on a place named by slice and index], [`effects atomic` + `cap atomic`],
+  [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [memory ordering --- `seq_cst` if unwritten], [the easiest to reason about is the default],
+  [`order release` on a read, and so on], [rejected (`E-ATOMIC-ORDER`)], [meaningless combinations are not left undefined],
+  [`view_array u64 bytes`], [see bytes as a `u64` slice without copying], [atomic cells live on an allocated window],
+)
+
 #recap[
   `parallel <slice> split .` declares that a loop may be split, and the processor checks that it reads and writes only its own share and does not write places
   that live across steps. Accumulation is stated with `reduce <place> <op> .`, and the operation must be associative. The split answer is bit-for-bit identical to

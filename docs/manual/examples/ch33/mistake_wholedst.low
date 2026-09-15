@@ -1,0 +1,15 @@
+module mistake_wholedst .
+rem run: sizes 0
+
+use codec .
+
+proc sizes input al cap allocator . output u64 . effects alloc .
+do
+  let g option mut slice u8 be alloc_bytes al capacity 16 .
+  guard is_some g . else return 1 .
+  let dst mut slice u8 be some_value g .
+  let n option u64 be codec.hex_enc "Lowent" dst .
+  guard is_some n . else return 2 .
+  rem ko: ✘ 결과를 `dst` 통째로 여기면 뒤에 쓰지 않은 네 바이트가 붙는다 --- 쓴 수는 12, 버퍼는 16 /// en: ✘ treating all of `dst` as the result adds four unwritten bytes --- 12 were written, the buffer is 16
+  return add (mul (len dst) 100) (some_value n) .
+end .

@@ -108,6 +108,50 @@ Common regex engines *backtrack* --- at a fork they go down one path to the end 
 input length (ReDoS). `regex` uses the Pike VM approach, advancing all forks together one step at a time, so time is proportional to input length. In exchange,
 features that require backtracking, such as backreferences, are absent. What it does not do is written at the top of the module document.
 
+== Common mistakes
+
+#antipattern[Trusting the result of removing a prefix without asking whether it was there][
+  #demo("examples/ch33/mistake_removeprefix.low")
+
+  `strings.remove_prefix` returns *the original unchanged* when the prefix is absent. The design gives up reporting failure so that the
+  result is always a usable view. So given `POST /a`, seven bytes come back as if "GET " had been removed. Where the prefix must be present
+  for the meaning to hold, ask with `starts_with` first.
+
+  #demo("examples/ch33/removeprefix_fixed.low")
+]
+
+#antipattern[Treating the whole output buffer as the result of encoding][
+  #demo("examples/ch33/mistake_wholedst.low")
+
+  `codec.hex_enc` writes 12 bytes into the 16-byte buffer and returns 12 (the result 1612 puts the buffer size 16 and the count 12 side by
+  side). Using all of `dst` as the result tacks four unwritten bytes onto the end. It is the same mistake as discarding the return value of
+  C's `sprintf` and sending the whole buffer. The result is always `subslice dst 0 n`.
+]
+
+#misconception[`len` is the number of characters, and a byte position is a character position][
+  #demo("examples/ch33/bytes_not_chars.low")
+
+  `len` counts bytes. "안녕" is 6 bytes and 2 characters, so `lengths` returns 62. Byte 1 lies in the middle of the first character, so
+  `utf8.decode` returns `none` (0 here), and the second character "녕" (U+B155, 45397) starts at byte 3. To count or step through
+  characters, use the ops of `utf8`; the number of columns a character takes on screen is yet another matter (#chref("lib-terminal")).
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "lib-text-glance",
+  caption: [Shapes of the text modules --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`strings.starts_with s p` · `strings.find hay needle from`], [ask · search (`option u64`)], [on views --- no copying],
+  [`strings.remove_prefix s p`], [a view without the prefix --- the original if absent], [always a usable view, no failure],
+  [`fmt.put_str buf pos s` · `fmt.put_u64 buf pos n`], [assemble into the caller's buffer --- next position as `option`], [all or nothing],
+  [`utf8.count_chars s` · `utf8.decode s at`], [character count · code point at that position], [invalid input gives `none`, not a replacement character],
+  [`codec.hex_enc src dst` · `b64_enc`], [transcribe and return the count], [the result is `subslice dst 0 n` --- not encryption],
+  [`hash.bucket_of key n` · `hash.crc data` · `hash.digest`], [choosing a slot · detecting damage · detecting tampering], [a different hash per question],
+  [`regex`], [compile once, match many inputs], [no backtracking --- time proportional to input length],
+)
+
 #recap[
   `strings` gives copy-free views, `fmt` assembles into the caller's buffer and returns the next position as an `option`, and `strbuf` appends to an owned buffer.
   `utf8` and `utf16` report invalid input as `none` without replacement characters, and `unicode`'s tables were extracted mechanically. `codec` transcribes hex and

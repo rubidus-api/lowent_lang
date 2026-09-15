@@ -110,6 +110,48 @@ UTF-16 을 쓰는 세계(Windows API·Java·JavaScript)와 값을 주고받을 �
 길이에 대해 지수로 늘어난다(ReDoS). `regex` 는 모든 갈림길을 동시에 한 걸음씩 진행하는 Pike VM 방식이라 시간이 입력 길이에
 비례한다. 대신 역참조처럼 역추적을 요구하는 기능은 없다. 무엇을 하지 않는지가 모듈 문서의 첫머리에 적혀 있다.
 
+== 흔한 실수
+
+#antipattern[접두사가 있었는지 묻지 않고 뗀 결과를 믿는다][
+  #demo("examples/ch33/mistake_removeprefix.low")
+
+  `strings.remove_prefix` 는 접두사가 없으면 *원본 그대로* 돌려준다. 실패를 알리지 않는 대신 결과가 언제나 쓸 수 있는 뷰가 되게 한 설계다. 그래서
+  `POST /a` 를 받으면 "GET " 을 뗀 것처럼 보이는 일곱 바이트가 돌아온다. 접두사가 있어야 뜻이 서는 자리라면 `starts_with` 로 먼저 묻는다.
+
+  #demo("examples/ch33/removeprefix_fixed.low")
+]
+
+#antipattern[부호화의 결과를 출력 버퍼 통째로 여긴다][
+  #demo("examples/ch33/mistake_wholedst.low")
+
+  `codec.hex_enc` 는 16 바이트 버퍼에 12 바이트를 쓰고 12 를 돌려준다(결과 1612 는 버퍼 16 과 쓴 수 12 를 한데 적은 것이다). `dst` 통째를 결과로 쓰면
+  쓰지 않은 네 바이트가 뒤에 붙는다. C 에서 `sprintf` 의 반환값을 버리고 버퍼 전체를 보내는 실수와 같다. 결과는 언제나 `subslice dst 0 n` 이다.
+]
+
+#misconception[`len` 은 글자 수이고, 바이트 자리가 곧 글자 자리다][
+  #demo("examples/ch33/bytes_not_chars.low")
+
+  `len` 은 바이트 수다. "안녕" 은 6 바이트, 2 글자라서 `lengths` 가 62 를 낸다. 바이트 1 은 첫 글자의 가운데라 `utf8.decode` 가 `none`(여기서 0)을
+  주고, 둘째 글자 "녕"(U+B155, 45397)은 바이트 3 에서 시작한다. 글자를 세거나 옮겨 다닐 때는 `utf8` 의 op 을 쓰고, 화면에서 차지하는 칸 수는 또
+  다르다(#chref("lib-terminal")).
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "lib-text-glance",
+  caption: [글자 모듈의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`strings.starts_with s p` · `strings.find hay needle from`], [묻기 · 찾기(`option u64`)], [뷰 위에서 --- 복사가 없다],
+  [`strings.remove_prefix s p`], [접두사를 뗀 뷰 --- 없으면 원본 그대로], [실패 없이 늘 쓸 수 있는 뷰],
+  [`fmt.put_str buf pos s` · `fmt.put_u64 buf pos n`], [호출자의 버퍼에 조립 --- 다음 자리를 `option` 으로], [전량 아니면 무],
+  [`utf8.count_chars s` · `utf8.decode s at`], [글자 수 · 그 자리의 코드포인트], [올바르지 않으면 치환 문자 대신 `none`],
+  [`codec.hex_enc src dst` · `b64_enc`], [옮겨 적고 쓴 수를 준다], [결과는 `subslice dst 0 n` --- 암호화가 아니다],
+  [`hash.bucket_of key n` · `hash.crc data` · `hash.digest`], [칸 고르기 · 손상 검출 · 변조 검출], [물음마다 다른 해시],
+  [`regex`], [한 번 컴파일해 여러 입력에 맞춘다], [역추적하지 않는다 --- 시간이 입력 길이에 비례],
+)
+
 #recap[
   `strings` 는 복사 없는 뷰를, `fmt` 는 호출자의 버퍼에 조립하고 다음 자리를 `option` 으로 돌려주며, `strbuf` 는 소유 버퍼에
   이어 붙인다. `utf8`·`utf16` 은 올바르지 않은 입력을 치환 문자 없이 `none` 으로 알리고, `unicode` 의 표는 기계적으로 뽑았다.

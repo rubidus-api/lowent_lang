@@ -150,6 +150,62 @@ When building for a machine without an operating system, the heap cannot be requ
 same machine, `alloc` carving from the fixed window is still available. Which root code stands on is written in its head, so whether a library runs on a
 machine without an operating system is answered by translation.
 
+== Common mistakes
+
+#antipattern[Taking the buffer out with `some_value` without asking whether space was granted][
+  #demo("examples/ch18/mistake_nocheck.low")
+
+  16 bytes are granted, but a million bytes do not fit in the fixed window. `alloc_bytes` then gives `none`, and `some_value`, used
+  without asking, stops with `E-VM-NONE`. It is the same mistake as not comparing C's `malloc` result with `NULL`, except that Lowent
+  stops at the point of taking the value out instead of using space that does not exist. Ask first, as the examples in this chapter do
+  with `guard is_some g . else return 0 .`. Running out of memory is a *value* to handle as well.
+]
+
+#antipattern[Returning a buffer obtained from a region][
+  #demo("examples/ch18/mistake_returnbuf.low")
+
+  The bytes `make_buf` returns are rewound at `end`, so the moment the caller receives them the next allocation may hand that space to
+  someone else. It has the same shape as returning the address of a local array in C, and it is rejected with `E-REGION-ESCAPE`. As the
+  diagnostic says, move the block outward: the caller opens the region and passes it, and the receiving op carves from it.
+
+  #demo("examples/ch18/returnbuf_fixed.low")
+]
+
+#antipattern[Writing an op that uses a region as a `fn`][
+  #demo("examples/ch18/mistake_fnregion.low")
+
+  Everything is rewound when the block ends, so it looks as if nothing is left outside. Taking space is still the `alloc` effect: the
+  result can depend on whether the window has room (`none`), and it overlaps with other code using the same window. Hence
+  `E-EFFECT-CALC`. Write it as `proc … effects alloc .`.
+]
+
+#misconception[Space taken inside a loop is given back every round][
+  #demo("examples/ch18/loop_region.low")
+
+  A region is rewound when its *block* ends, not when a round of the loop ends. In `count_outer` the region is outside the loop, so 4096
+  bytes pile up each round, and with this edition's default fixed window (65536 bytes) every request after the sixteenth gets `none`.
+  `count_inner` opens the region inside the round and rewinds it every time, so all hundred requests succeed. For a buffer used only
+  within one round, open the region inside the loop.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "regions-glance",
+  caption: [Region syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`region work arena do … end .`], [open a region --- rewound all at once on every way out of the block], [no `free` --- the lifetime is the block],
+  [`alloc_bytes work capacity n`], [request `n` bytes from the region --- `option mut slice u8`], [running short is a value too],
+  [`effects alloc` · `effects heap`], [take from the fixed window · take from the growing heap], [the root in use is visible in the head],
+  [`input al cap allocator .` · `cap heap`], [allocation capabilities received by the entry point], [the pair that allows the effect],
+  [`input temp region scratch .`], [receive a region the caller opened], [the caller decides how long the buffer lives],
+  [`stack`·`frame`·`arena`·`static`·`heap`·`mmap`·`disk`·`device`], [the eight closed region kinds], [words that mean something --- others are `E-REGION-KIND`],
+  [storing into an outside name · returning], [rejected (`E-REGION-ESCAPE`)], [never point at reclaimed bytes],
+  [carving with an outer name while an inner region is open], [rejected (`E-ALLOC-NESTED`)], [one cursor per root],
+  [`--target cortex_m` + `heap`], [rejected (`E-HEAP-NOHOST`)], [a machine without an OS has no heap],
+)
+
 #recap[
   Values live in one of local, static and obtained, and the roots they are obtained from are the fixed window that does not grow (`alloc`) and the heap that
   does (`heap`). `region <name> <kind> do … end` opens a region, rewound all at once on every path out of the block. Regions can be passed as parameters. Bytes

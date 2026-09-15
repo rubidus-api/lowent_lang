@@ -1,0 +1,27 @@
+module returnbuf_fixed .
+rem run: main
+
+type scratch u64 .
+
+rem ko: 영역을 연 쪽이 아니라 받은 쪽이 깎는다 --- 버퍼의 수명은 부르는 쪽의 블록이 정한다 /// en: the op that receives the region carves from it --- the caller's block decides how long the buffer lives
+proc filled_sum input temp region scratch . input n u64 . output u64 . effects alloc .
+  requires le n 100 .
+do
+  let g option mut slice u8 be alloc_bytes temp capacity n .
+  guard is_some g . else return 0 .
+  let buf mut slice u8 be some_value g .
+  var s u64 be 0 .
+  for b buf do
+    set s (add s (widen u64 b)) .
+  end .
+  return add s (len buf) .
+end .
+
+proc main input al cap allocator . output u8 . effects alloc .
+do
+  region r arena do
+    let v u64 be filled_sum r 5 .
+    return narrow u8 v .
+  end .
+  return 1 .
+end .

@@ -134,6 +134,60 @@ The words "memory safe" mean something only when they say what is safe and how. 
 So calling this language "fully statically safe" would be wrong. It is a design that mixes what is stopped statically, what is stopped at run time, and what
 is proven. What is proven, and what gap lies between the proofs and the compiler, is covered in #chrefs("proofs-ownership", "proofs-limits").
 
+== Common mistakes
+
+#antipattern[Passing an owned value inside a loop][
+  #demo("examples/ch19/mistake_loopmove.low")
+
+  Once `consume h` takes ownership in the first round, `h` in the second round already belongs to someone else. Translation does not
+  need to follow the rounds one by one; it sees that "the loop body ends in a different shape than it began" and rejects it with
+  `E-OWN-MOVED`. There are two fixes: move the consuming call out of the loop, or refill the moved place with a new value using `set`,
+  so each round ends in the same shape.
+
+  #demo("examples/ch19/loopmove_fixed.low")
+]
+
+#antipattern[Moving a value while thinking you only read it][
+  #demo("examples/ch19/mistake_readmove.low")
+
+  `let v u8 be h .` does not look at `h`; it *moves* it into `v`. A value with ownership moves the moment it is stored under a name, so
+  the later `drop h` tries to destroy a moved value. To only look, borrow it with `ref h` inside the same op. As the diagnostic notes,
+  borrows across an op boundary are not lowered yet in this edition.
+]
+
+#antipattern[Believing a second name makes a copy][
+  #demo("examples/ch19/mistake_twonames.low")
+
+  A value like `u64` is copied when stored under another name. A value with ownership is not copied; it moves. With two copies nobody
+  could say who destroys it, and destroying both would destroy it twice. After `var h2 owned buffer be h .`, `h2` is the only owner.
+]
+
+#misconception[Leaving out `drop` leaks the value][
+  #demo("examples/ch19/implicit_release.low")
+
+  The path where `c` is 0 leaves without `drop`, yet it is neither rejected nor leaked. *Release*, which gives memory back, cannot fail,
+  so it happens quietly where the lifetime ends. Only *completion*, which can fail, must be written by the author (`incomplete.low`).
+  Where branches *meet again*, though, the ownership state must match (`join.low`). A path that leaves never meets the other, so that
+  rule does not apply.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "ownership-glance",
+  caption: [Ownership syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`input h owned buffer .` · `var h owned buffer be v .`], [a value with ownership], [one name is responsible for destroying it],
+  [`consume h`], [passing moves ownership], [no use after the move --- `E-OWN-MOVED`],
+  [`drop h .`], [say it is destroyed now], [destroying twice is rejected],
+  [`set h v .` (after a move)], [refill the moved place], [a loop body ends in the same shape],
+  [different ownership states per branch after `if`], [rejected (`E-OWN-JOIN`)], [no hidden "was it dropped" flag],
+  [`fn finish input j owned journal . output result …`], [declares that finishing this type can fail], [completion declared without a new word],
+  [leaving scope without calling completion], [rejected (`E-OWN-INCOMPLETE`)], [a failing finish is never swallowed],
+  [leaving without a word, when no completion is needed], [released quietly], [release cannot fail],
+)
+
 #recap[
   `owned t` must be disposed of exactly once and moves when passed. Reusing a moved value, disposing twice, and differing ownership state across branches are
   rejected. Disposal splits into release, which cannot fail, and completion, which can; a type needing completion is declared by an op that takes it `owned`

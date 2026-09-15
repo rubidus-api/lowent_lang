@@ -153,6 +153,59 @@
 거절된다. 같은 기계에서 고정 창을 깎는 `alloc` 은 쓸 수 있다. 코드가 어느 뿌리를 딛는지가 머리에 적혀 있으므로, 어떤
 라이브러리가 운영체제 없는 기계에서 도는지는 번역이 답한다.
 
+== 흔한 실수
+
+#antipattern[자리를 얻었는지 묻지 않고 `some_value` 로 꺼낸다][
+  #demo("examples/ch18/mistake_nocheck.low")
+
+  16 바이트는 얻지만 백만 바이트는 고정 창에 들어가지 않는다. `alloc_bytes` 는 그때 `none` 을 주고, 묻지 않고 꺼낸 `some_value` 가
+  `E-VM-NONE` 으로 멈춘다. C 의 `malloc` 결과를 `NULL` 과 비교하지 않는 것과 같은 실수인데, Lowent 는 없는 자리를 쓰는 대신 꺼내는
+  자리에서 멈춘다. 이 장의 예제처럼 `guard is_some g . else return 0 .` 으로 먼저 묻는다. 메모리가 모자란 것도 다뤄야 할 *값*이다.
+]
+
+#antipattern[영역에서 얻은 버퍼를 돌려준다][
+  #demo("examples/ch18/mistake_returnbuf.low")
+
+  `make_buf` 가 돌려준 바이트는 `end` 에서 되감기므로, 부르는 쪽이 받는 순간 다음 할당이 그 자리를 남에게 줄 수 있다. C 에서 지역
+  배열의 주소를 돌려주는 결함과 같은 모양이고 `E-REGION-ESCAPE` 로 거절된다. 진단의 말대로 블록을 바깥으로 옮긴다. 부르는 쪽이
+  영역을 열어 건네고, 받은 쪽이 그 안에서 깎는다.
+
+  #demo("examples/ch18/returnbuf_fixed.low")
+]
+
+#antipattern[영역을 쓰는 op 을 `fn` 으로 적는다][
+  #demo("examples/ch18/mistake_fnregion.low")
+
+  블록이 끝나면 모두 되감기니 바깥에 남는 것이 없어 보인다. 그래도 자리를 얻는 것은 `alloc` 효과다. 창에 자리가 있는지에 따라 결과가
+  달라질 수 있고(`none`), 같은 창을 쓰는 다른 코드와 겹친다. 그래서 `E-EFFECT-CALC` 다. `proc … effects alloc .` 으로 적는다.
+]
+
+#misconception[반복 안에서 얻은 자리는 바퀴마다 돌려준다][
+  #demo("examples/ch18/loop_region.low")
+
+  영역은 *블록*이 끝날 때 되감긴다. 바퀴가 끝날 때가 아니다. `count_outer` 는 영역이 반복 바깥에 있어서 4096 바이트씩 쌓이고, 이 판의
+  기본 고정 창(65536 바이트)에서 열여섯 번째 뒤로는 `none` 을 받는다. `count_inner` 는 영역을 바퀴 안에서 열어 매번 되감기므로 백 번
+  모두 얻는다. 한 바퀴에서만 쓰는 버퍼는 영역을 반복 안에서 연다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "regions-glance",
+  caption: [영역의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`region work arena do … end .`], [영역을 연다 --- 블록을 나가는 모든 길에서 한꺼번에 되감긴다], [`free` 가 없다 --- 수명이 곧 블록],
+  [`alloc_bytes work capacity n`], [영역에서 `n` 바이트를 청한다 --- `option mut slice u8`], [모자람도 값이다],
+  [`effects alloc` · `effects heap`], [고정 창에서 얻는다 · 자라는 힙에서 얻는다], [어느 뿌리를 딛는지 머리에 보인다],
+  [`input al cap allocator .` · `cap heap`], [시작점이 받는 할당 권한], [효과를 허락하는 짝],
+  [`input temp region scratch .`], [부르는 쪽이 연 영역을 받는다], [버퍼의 수명을 부르는 쪽이 정한다],
+  [`stack`·`frame`·`arena`·`static`·`heap`·`mmap`·`disk`·`device`], [닫힌 영역 종류 여덟], [낱말이 뜻을 말하게 --- 밖의 낱말은 `E-REGION-KIND`],
+  [영역 밖 이름에 담기 · 돌려주기], [거절(`E-REGION-ESCAPE`)], [걷힌 바이트를 가리키지 않게],
+  [안쪽 영역이 열린 동안 바깥 이름으로 깎기], [거절(`E-ALLOC-NESTED`)], [뿌리마다 커서는 하나],
+  [`--target cortex_m` + `heap`], [거절(`E-HEAP-NOHOST`)], [운영체제 없는 기계에는 힙이 없다],
+)
+
 #recap[
   값은 지역·정적·얻은 것 가운데 한 곳에 살고, 얻는 뿌리는 자라지 않는 고정 창(`alloc`)과 자라는 힙(`heap`)이다.
   `region <이름> <종류> do … end` 가 영역을 열고, 블록을 나가는 모든 길에서 한꺼번에 되감긴다. 영역은 매개변수로

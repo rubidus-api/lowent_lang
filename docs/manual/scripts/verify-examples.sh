@@ -44,7 +44,7 @@ for src in $(find "$root/examples" -name '*.low' | sort); do
       echo "  [FAIL] $rel — $expect 로 거절되지 않았다"; printf '%s\n' "$res" | head -5; fail=$((fail + 1)); continue
     fi
     { echo "\$ lowentc --check ${flags:+$flags }$name"
-      printf '%s\n' "$res" | grep -E '^ *(([^ ]*:)?[0-9]+:[0-9]+ )?[EW]-[A-Z]' | head -n 3 | sed 's/^ *//'; } > "$out"
+      printf '%s\n' "$res" | grep -E '^ *(([^ ]*:)?[0-9]+:[0-9]+ )?[EWN]-[A-Z]' | head -n 3 | sed 's/^ *//'; } > "$out"
     continue
   fi
 

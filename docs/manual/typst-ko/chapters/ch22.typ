@@ -124,6 +124,68 @@ export proc sort_by input comptime t type . input s mut slice t .
   서명에 선다. 타입 인자가 알고리즘뿐 아니라 *효과*까지 정한다. 한 소스로 운영체제 없는 기계와 서버를 함께 다루는 방법이다.
 ]
 
+== 흔한 실수
+
+#antipattern[타입 인자를 빠뜨리고 추론되기를 기대한다][
+  #demo("examples/ch22/mistake_notypearg.low")
+
+  `max_of` 의 첫 입력은 타입이다. 인자의 타입에서 `score` 를 알아낼 수 있어 보여도 Lowent 는 추론하지 않는다 --- 무엇이 만들어지는지가
+  부르는 자리에 보여야 하기 때문이다. 이 판의 도구는 이 자리를 `E-IR-UNDEF` 로, 그것도 "`max_of` 라는 이름이 없다" 고 알린다. op 은
+  분명히 있으므로 틀린 안내다(개발 저장소에 결함으로 적어 두었다). 제네릭 op 을 부르는 줄에서 이 진단이 나오면 앞자리의 타입 인자부터
+  확인한다.
+]
+
+#antipattern[본문이 쓰는 행동을 타입 조건으로 적지 않는다][
+  #demo("examples/ch22/mistake_nobound.low")
+
+  `max_of` 의 본문은 `less` 를 부르지만 머리에 `requires ordered t .` 가 없다. 그러면 `plain` 으로 부른 잘못이 *템플릿 안*의 줄에서
+  `E-METHOD-UNDEF` 로 나고, 도구는 `N-MONO-SITE` 로 "그 인스턴스를 청한 줄은 여기" 라고 덧붙인다. 조건을 적은 `unsat.low` 는 같은
+  잘못을 부르는 자리에서 `E-BOUND-UNSAT` 으로 곧바로 말한다. 타입 조건은 부르는 쪽에게 주는 약속이면서 진단을 제자리로 데려오는 표시다.
+]
+
+#antipattern[타입 자리에 크기를 넘긴다][
+  #demo("examples/ch22/mistake_valuetype.low")
+
+  `u64` 가 8 바이트이니 8 을 넘기면 될 것 같지만, `input comptime t type .` 이 받는 것은 *타입*이다. 이 판의 도구는 수 8 을 타입으로
+  읽으려다 템플릿 안의 `size_of t` 에서 `E-IR-UNDEF` 를 낸다. `bytes_for u64 100` 처럼 타입 이름을 적는다. 크기가 필요한 것은 템플릿의
+  일이고, 부르는 쪽은 무엇의 크기인지를 말한다.
+]
+
+#antipattern[`comptime` 입력을 자료 입력 뒤에 둔다][
+  #demo("examples/ch22/mistake_comptimeorder.low")
+
+  머리의 차례는 하나로 정해져 있다. `comptime` 입력은 권한 입력보다도 앞, 가장 앞이다. 뒤따르는 입력과 출력의 타입이 그 이름을 쓸 수
+  있어야 하고, 부르는 자리에서도 "무엇을 만들지" 가 먼저 읽혀야 하기 때문이다. `E-CLAUSE-ORDER` 의 진단은 머리 차례 전체를 한 줄로
+  보여 준다.
+]
+
+#misconception[값이 늘 같은 지역 `let` 은 번역 시점 상수다][
+  #demo("examples/ch22/mistake_localconst.low")
+
+  `k` 는 언제나 7 이지만, op 안의 `let` 은 op 이 불릴 때 생기는 이름이다. `comptime` 자리가 받는 것은 정수 리터럴과 *모듈 수준의* `let`
+  뿐이다. 식을 따라가 "결국 상수" 인지 판정하기 시작하면, 어느 식이 번역 시점에 풀리는지가 도구의 영리함에 달린다. 상수로 쓸 값은 모듈
+  수준에 이름을 붙인다.
+
+  #demo("examples/ch22/module_const.low")
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "generics-glance",
+  caption: [제네릭의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`input comptime t type .`], [타입을 번역 시점에 받는다(머리 맨 앞)], [뒤따르는 타입이 그 이름을 쓴다],
+  [`input comptime n u8 .`], [값을 번역 시점에 받는다], [상수로 접히고 검사가 지워진다],
+  [`bytes_for u64 100` · `add_const 7 10`], [타입과 상수를 앞자리 인자로 적는다], [꺾쇠도 추론도 없다 --- 무엇이 만들어지는지 보인다],
+  [`let step u8 be 7 .`(모듈 수준)], [`comptime` 자리에 올 수 있는 이름 붙은 상수], [op 안의 `let` 은 실행 중의 이름],
+  [`size_of t`], [번역 시점에 타입의 크기], [크기가 상수로 박힌다],
+  [`requires ordered t .`], [타입 조건 --- 트레이트를 갖추어야 한다], [못 갖추면 부르는 자리에서 `E-BOUND-UNSAT`],
+  [`method a less b`], [조건이 약속한 op 을 부른다], [직접 호출로 단형화된다],
+  [쓰인 조합마다 실물 한 벌], [단형화], [비용은 속도가 아니라 코드의 양 --- 소스에서 센다],
+)
+
 #recap[
   `comptime` 매개변수는 번역 시점에 값이 정해지고, 타입도 `input comptime t type .` 으로 받는다. 부르는 자리는 타입과
   상수를 앞자리 인자로 적으며 추론은 없다. 실행 값을 comptime 자리에 주면 거절된다. 쓰인 조합마다 실물이 만들어져

@@ -1,0 +1,15 @@
+module mistake_localconst .
+rem expect: E-COMPTIME-ARG
+
+fn add_const input comptime n u8 . input a u8 . output u8 .
+  requires le a 200 .
+do
+  return add a n .
+end .
+
+fn seventeen output u8 .
+do
+  rem ko: ✘ 값은 늘 7 이지만 op 안의 `let` 은 실행 중에 생기는 이름이다 /// en: ✘ the value is always 7, but a `let` inside an op is a name that exists at run time
+  let k u8 be 7 .
+  return add_const k 10 .
+end .

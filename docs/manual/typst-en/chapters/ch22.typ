@@ -122,6 +122,70 @@ multiple keys are also a matter of writing `less` that way. Instead of mode argu
   argument decides not only the algorithm but the *effects*. That is how one source serves both machines without an operating system and servers.
 ]
 
+== Common mistakes
+
+#antipattern[Leaving out the type argument and expecting it to be inferred][
+  #demo("examples/ch22/mistake_notypearg.low")
+
+  The first input of `max_of` is a type. It may look as if `score` could be worked out from the arguments, but Lowent does not infer ---
+  what gets built must be visible at the call. This edition's tool reports the spot as `E-IR-UNDEF`, and even says "there is no name
+  `max_of`". The op clearly exists, so the message misleads (recorded as a defect in the development repository). When this diagnostic
+  appears on a line that calls a generic op, check the leading type argument first.
+]
+
+#antipattern[Not stating, as a type condition, the behaviour the body uses][
+  #demo("examples/ch22/mistake_nobound.low")
+
+  The body of `max_of` calls `less`, but the head has no `requires ordered t .`. The mistake of calling it with `plain` then appears as
+  `E-METHOD-UNDEF` on a line *inside the template*, and the tool adds `N-MONO-SITE` to say "this is the line that asked for the instance".
+  `unsat.low`, which states the condition, reports the same mistake directly at the call with `E-BOUND-UNSAT`. A type condition is both a
+  promise to callers and the mark that brings the diagnostic back to the right place.
+]
+
+#antipattern[Passing a size where a type belongs][
+  #demo("examples/ch22/mistake_valuetype.low")
+
+  `u64` is 8 bytes, so passing 8 may seem fine, but `input comptime t type .` takes a *type*. This edition's tool tries to read the number 8
+  as a type and reports `E-IR-UNDEF` at `size_of t` inside the template. Write the type name, as in `bytes_for u64 100`. Needing the size is
+  the template's business; the caller says what it is the size of.
+]
+
+#antipattern[Placing a `comptime` input after a data input][
+  #demo("examples/ch22/mistake_comptimeorder.low")
+
+  A head has exactly one order. `comptime` inputs come first, ahead even of capability inputs, because the types of the following inputs
+  and output must be able to use their names, and at the call "what to build" should be read first. The `E-CLAUSE-ORDER` diagnostic shows
+  the whole head order on one line.
+]
+
+#misconception[A local `let` whose value never changes is a compile-time constant][
+  #demo("examples/ch22/mistake_localconst.low")
+
+  `k` is always 7, but a `let` inside an op is a name that comes into being when the op is called. A `comptime` position accepts only
+  integer literals and *module-level* `let`s. If the tool started following expressions to decide whether something is "a constant after
+  all", which expressions resolve at translation time would depend on how clever the tool is. Give a value you want as a constant a name at
+  module level.
+
+  #demo("examples/ch22/module_const.low")
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "generics-glance",
+  caption: [Generic syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`input comptime t type .`], [receive a type at translation time (first in the head)], [later types use its name],
+  [`input comptime n u8 .`], [receive a value at translation time], [folded as a constant; checks disappear],
+  [`bytes_for u64 100` · `add_const 7 10`], [write types and constants as leading arguments], [no angle brackets, no inference --- what is built is visible],
+  [`let step u8 be 7 .` (module level)], [a named constant allowed in a `comptime` position], [a `let` inside an op is a run-time name],
+  [`size_of t`], [the size of a type at translation time], [the size is fixed as a constant],
+  [`requires ordered t .`], [type condition --- the type must adopt the trait], [otherwise `E-BOUND-UNSAT` at the call],
+  [`method a less b`], [call the op the condition promises], [monomorphised into a direct call],
+  [one concrete copy per combination used], [monomorphisation], [the cost is code size, not speed --- counted in the source],
+)
+
 #recap[
   `comptime` parameters have their values fixed at translation time, and types are taken as `input comptime t type .`. Call sites write types and constants as
   leading arguments, with no inference. A run-time value in a comptime position is rejected. An instance is made for each combination used, calls are direct,

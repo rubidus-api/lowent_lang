@@ -158,6 +158,34 @@ somewhere (#chref("modules")). The moment the name is actually used, it is rejec
   importing it is how this library is meant to be used.
 ]
 
+== The list of leaf ops --- what lies beneath the modules
+
+Library modules ultimately call *leaf* builtin ops provided by the processor. Normally you use the module and do not call the leaves directly
+--- the module dresses them in conventions such as ownership, three-place answers and all-or-nothing. Still, knowing which module stands on
+what keeps you oriented when reading module documentation or building a new module.
+
+#dtable(
+  columns: 3,
+  id: "libmap-leaves",
+  caption: [Leaf builtin ops and the modules that wrap them],
+  [*Leaf op*], [*What it does*], [*Wrapping module · capability*],
+  [`file_open` · `file_read` · `file_write` · `file_seek` · `file_close`], [open, read, write, move the position of, and close a file], [`files` · `cap file_system`],
+  [`dir_make` · `dir_read` · `dir_close`], [make a directory, read its entries, close it], [`files` · `cap file_system`],
+  [`path_remove` · `path_rename` · `link_type`], [remove or rename a path, and ask what the path itself is without following symlinks], [`files` · `cap file_system`],
+  [`net_listen` · `net_accept` · `net_connect` · `net_port`], [listening socket · accept · connect · ask the port], [`net` · `cap net`],
+  [`net_send` · `net_recv` · `net_close` · `net_pair`], [send · receive · close · a connected pair], [`net` · `cap net`],
+  [`reactor_new` · `r_read` · `r_write`], [make a reactor · read through a reactor · write through a reactor], [no module --- `cap io`],
+  [`env_get`], [read an environment variable], [no module --- `cap env`],
+  [`rng_next`], [next random number from a state (splitmix64)], [`random` --- no capability (pure)],
+  [`hash_bytes` · `crc32`], [FNV-1a 64 hash · CRC-32 checksum], [`hash` --- no capability],
+  [`sha256` · `sha512`], [SHA-256 · SHA-512], [`hash`·`hmac`·`tls13` · `ed25519` --- no capability],
+  [`str_from_cstr`], [scan a NUL-terminated C string into a `str`], [C boundary --- the VM says it cannot, with `E-VM-CSTR`],
+)
+
+The qualification for a leaf is one question: "can it be written in Lowent?" `rng_next` and the three hashes are pure computation yet leaves,
+because the processor fixes their algorithms so that the VM and the native build give bit-identical answers. Every leaf that needs a
+capability takes it as the *first operand* (#chref("capabilities")).
+
 == Common mistakes
 
 #antipattern[Chaining writes that return `option` without asking][

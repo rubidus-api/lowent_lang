@@ -156,6 +156,32 @@ end .
   경계를 읽는 것이 이 라이브러리를 쓰는 법이다.
 ]
 
+== 잎 op 의 목록 --- 모듈 아래에 무엇이 있나
+
+라이브러리 모듈은 결국 처리기가 주는 *잎* 내장 op 을 부른다. 보통은 모듈을 쓰고 잎을 직접 부르지 않는다 --- 모듈이 소유·세 자리 답·전량 아니면 무 같은 규약을
+입혀 주기 때문이다. 그래도 어느 모듈이 무엇을 딛는지 알면 모듈 문서를 읽거나 새 모듈을 지을 때 길을 잃지 않는다.
+
+#dtable(
+  columns: 3,
+  id: "libmap-leaves",
+  caption: [잎 내장 op 과 그것을 감싸는 모듈],
+  [*잎 op*], [*하는 일*], [*감싸는 모듈 · 권한*],
+  [`file_open` · `file_read` · `file_write` · `file_seek` · `file_close`], [파일을 열고 읽고 쓰고 자리를 옮기고 닫는다], [`files` · `cap file_system`],
+  [`dir_make` · `dir_read` · `dir_close`], [디렉터리를 만들고 항목을 읽고 닫는다], [`files` · `cap file_system`],
+  [`path_remove` · `path_rename` · `link_type`], [경로를 지우고 이름을 바꾸고, 심링크를 따라가지 않고 그 자신이 무엇인지 묻는다], [`files` · `cap file_system`],
+  [`net_listen` · `net_accept` · `net_connect` · `net_port`], [듣는 소켓 · 연결 받기 · 연결 걸기 · 포트 묻기], [`net` · `cap net`],
+  [`net_send` · `net_recv` · `net_close` · `net_pair`], [보내기 · 받기 · 닫기 · 맞물린 한 쌍], [`net` · `cap net`],
+  [`reactor_new` · `r_read` · `r_write`], [reactor 를 만든다 · reactor 로 읽는다 · reactor 로 쓴다], [모듈 없음 --- `cap io`],
+  [`env_get`], [환경 변수를 읽는다], [모듈 없음 --- `cap env`],
+  [`rng_next`], [상태에서 다음 난수(splitmix64)], [`random` --- 권한 없음(순수)],
+  [`hash_bytes` · `crc32`], [FNV-1a 64 해시 · CRC-32 검사값], [`hash` --- 권한 없음],
+  [`sha256` · `sha512`], [SHA-256 · SHA-512], [`hash`·`hmac`·`tls13` · `ed25519` --- 권한 없음],
+  [`str_from_cstr`], [C 문자열(NUL 로 끝남)을 훑어 `str` 로 만든다], [C 경계 --- VM 은 `E-VM-CSTR` 로 못 한다고 말한다],
+)
+
+잎의 자격은 "Lowent 로 쓸 수 있는가" 하나다. `rng_next` 와 해시 셋이 순수 계산인데도 잎인 것은, 알고리즘을 처리기가 고정해 VM 과 네이티브가 비트까지 같은 답을
+내게 하려는 것이다. 권한이 필요한 잎은 모두 그 권한을 *첫 피연산자*로 받는다(#chref("capabilities")).
+
 == 흔한 실수
 
 #antipattern[`option` 으로 돌아오는 쓰기를 묻지 않고 이어 쓴다][

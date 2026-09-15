@@ -150,6 +150,21 @@ When building for a machine without an operating system, the heap cannot be requ
 same machine, `alloc` carving from the fixed window is still available. Which root code stands on is written in its head, so whether a library runs on a
 machine without an operating system is answered by translation.
 
+== A stack on a region
+
+A region hands out more than bytes. `stack_new <region> capacity <n>` makes a stack of `n` elements in that region. Use it for "take out
+what went in last first", as when walking a tree or graph with a loop.
+
+#demo("examples/ch18/stack.low")
+
+- `let work stack u64 be stack_new temp capacity 8 .` makes the stack. It takes space from the region, so it is `effects alloc`.
+- `push work x .` puts a value in.
+- `while pop work into d . do … end .` takes values out one at a time, binding each to `d`, as long as there is one. When the stack is empty the
+  loop ends --- the grammar has no way to stop by popping an empty stack.
+
+Putting in the digits 7 and 4 of 47 brings them out as 4 and 7, giving 74. The stack is reclaimed together with the region, so there is no
+code to give it back.
+
 == Common mistakes
 
 #antipattern[Taking the buffer out with `some_value` without asking whether space was granted][

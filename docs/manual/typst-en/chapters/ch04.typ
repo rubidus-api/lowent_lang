@@ -243,6 +243,13 @@ Lowent stops --- and the place it stops is the place to fix.
   `div d 2` before dividing, for example --- because the language never rounds for you.
 ]
 
+The floating-point remainder gets its own name, `fmod`, separate from the integer `mod`.
+
+#demo("examples/ch04/floatmod.low")
+
+`fmod 7.5 2.0` is 1.5 and `mod 7 2` is 1. Not loading two kinds onto one name is the same reason as for `div` --- what is computed shows in the
+name.
+
 == This chapter's syntax at a glance
 
 #dtable(

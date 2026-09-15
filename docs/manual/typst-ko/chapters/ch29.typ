@@ -128,6 +128,57 @@ C 에게 Lowent 함수를 넘겨 되부르게 하려면 `export extern` op 의 �
   대상(`--target cortex_m`)은 처음부터 디스패처를 내지 않는다.
 ]
 
+== 흔한 실수
+
+#antipattern[`extern` op 에 효과 줄을 적지 않는다][
+  #demo("examples/ch29/mistake_noeffect.low")
+
+  진단이 둘 나온다. `E-FFI-NOEFFECT` 는 "C 를 부르는데 효과 줄이 없다" 이고, `E-UNSAFE-UNUSED` 는 "`unsafe` 표시를 했는데 `unsafe` 효과가
+  없으니 거짓 경보다" 이다. 둘은 같은 뿌리에서 나온다. 표시(`unsafe`)는 *누가 책임지는가*, 효과 줄(`effects unsafe`)은 *무엇을 하는가* 를
+  말하고, 한쪽만 있으면 짝이 맞지 않는다. `effects unsafe .` 한 줄로 둘 다 사라진다.
+]
+
+#antipattern[C 를 부르는 op 을 부르면서 `unsafe` 표시를 빠뜨린다][
+  #demo("examples/ch29/mistake_callerunsafe.low")
+
+  `area_twice` 는 `effects unsafe` 를 적었지만 머리에 `unsafe` 가 없다. 효과는 호출을 따라 올라가므로 부르는 op 도 `unsafe` 효과를 내고,
+  그 효과를 낸다면 누군가 서명해야 한다. `E-UNSAFE-UNDECLARED` 의 말대로 "아무도 서명하지 않은 unsafe op 이 바로 이 언어가 막으려는 구멍"
+  이다. `unsafe proc area_twice …` 로 적는다.
+]
+
+#antipattern[보통 op 의 주소를 되부름으로 넘긴다][
+  #demo("examples/ch29/mistake_cbplain.low")
+
+  C 가 부를 수 있는 것은 `export extern` op 이 만든 심볼뿐이다. 그 입구에서 계약이 인자에 강제된다. 보통 op 에는 그런 문이 없으므로
+  `E-FN-NOTEXPORT` 다. 머리를 `export extern fn by_value …` 로 바꾼다. 첫 줄의 `W-EFFECT-OVER` 는 주소를 얻는 것만으로는 `unsafe` 일을 한 것이
+  아니라는 알림이다. 그 주소로 C 를 부르는 op 에서 `unsafe` 가 선다.
+]
+
+#antipattern[되부름으로 쓸 op 이 권한을 받는다][
+  #demo("examples/ch29/mistake_cbcap.low")
+
+  되부름에 들어서는 것은 C 이고 C 에게는 건넬 권한이 없다. 그러니 권한을 받는 op 은 되부름이 될 수 없다(`E-FN-CAP`). 출력이나 파일처럼 권한이
+  필요한 일은 되부름 *밖*에서, C 가 돌아온 뒤에 한다. 되부름 안은 셈만 한다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "ffi-glance",
+  caption: [C 경계의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`unsafe extern proc c_area input k cap c . … effects unsafe . link "lw_c_area" . end .`], [C 에 몸이 있는 op], [표시·권리·효과 줄 셋이 모두 있어야 한다],
+  [`unsafe proc area_twice input k cap c . … effects unsafe .`], [C 를 부르는 op 을 부르는 op], [표시와 권리가 호출 사슬을 따라 올라간다],
+  [`input xs slice u8 .`(경계)], [C 에서는 포인터와 길이 두 인자], [저절로 사상되는 것은 슬라이스뿐],
+  [`option`·`result`·벡터를 경계에], [거절(`E-FFI-TYPE`)], [C ABI 에 없는 것을 있는 척하지 않는다],
+  [`export fn clamp_add …`], [C 에서 부를 수 있는 심볼], [들어오는 인자에 계약이 강제된다],
+  [`lowentc --emit-h` · `--no-main`], [헤더를 낸다 · `main` 없이 라이브러리로 낸다], [서명이 한 곳에만 산다],
+  [`unsafe_fn cmp`], [`export extern` op 의 주소(되부름)], [보통 op 은 `E-FN-NOTEXPORT` · 권한을 받으면 `E-FN-CAP`],
+  [`input h owned τ .`(extern 에)], [없앨 책임이 C 로 넘어간다], [그 뒤의 반납은 검증되지 않는다],
+  [`variadic .`], [C 의 가변 인자 함수를 부른다], [가변 인자에는 계약이 닿지 않는다],
+)
+
 #recap[
   C 를 부르는 `extern` op 은 `unsafe`·`cap c`·효과 줄을 모두 갖추고 `link` 로 C 이름을 댄다. 경계를 건너는 타입은 C ABI 가
   표현할 수 있는 것뿐이고 슬라이스는 포인터와 길이가 된다. `export` 한 op 은 `--emit-h`·`--no-main` 으로 C 에 넣으며, C 가

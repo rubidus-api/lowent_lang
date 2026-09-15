@@ -1,0 +1,14 @@
+module mistake_callerunsafe .
+rem expect: E-UNSAFE-UNDECLARED
+
+unsafe extern proc c_area input k cap c . input w i64 . input h i64 . output i64 .
+  effects unsafe .
+  link "lw_c_area" .
+end .
+
+rem ko: ✘ C 를 부르는 op 을 부르면서 `unsafe` 표시를 빠뜨렸다 /// en: ✘ calls an op that calls C, but leaves out the `unsafe` marker
+proc area_twice input k cap c . input w i64 . input h i64 . output i64 .
+  effects unsafe .
+do
+  return add (c_area k w h) (c_area k w h) .
+end .

@@ -126,6 +126,59 @@ opposite direction (C calling our variadics) does not exist.
   not emit the dispatcher in the first place.
 ]
 
+== Common mistakes
+
+#antipattern[Leaving the effects line off an `extern` op][
+  #demo("examples/ch29/mistake_noeffect.low")
+
+  Two diagnostics appear. `E-FFI-NOEFFECT` says "this calls C and declares no effect", and `E-UNSAFE-UNUSED` says "this is marked `unsafe` but
+  has no `unsafe` effect, so it is a false alarm". Both have the same root. The marker (`unsafe`) says *who takes responsibility*, the
+  effects line (`effects unsafe`) says *what it does*, and one without the other does not pair up. A single `effects unsafe .` line removes
+  both.
+]
+
+#antipattern[Calling an op that calls C without the `unsafe` marker][
+  #demo("examples/ch29/mistake_callerunsafe.low")
+
+  `area_twice` declares `effects unsafe` but has no `unsafe` in its head. Effects travel up the calls, so the calling op performs the
+  `unsafe` effect too, and whatever performs it must be signed for. As `E-UNSAFE-UNDECLARED` puts it, "an unsafe op that nobody signed for
+  is exactly the hole" this language exists to close. Write `unsafe proc area_twice …`.
+]
+
+#antipattern[Passing the address of an ordinary op as a callback][
+  #demo("examples/ch29/mistake_cbplain.low")
+
+  C can call only the symbols made by `export extern` ops, and at that entry the contract is enforced on the arguments. An ordinary op has no
+  such door, hence `E-FN-NOTEXPORT`. Change the head to `export extern fn by_value …`. The `W-EFFECT-OVER` on the first line says that merely
+  taking an address does no `unsafe` work; `unsafe` arises in the op that calls C with that address.
+]
+
+#antipattern[Giving a callback op a capability input][
+  #demo("examples/ch29/mistake_cbcap.low")
+
+  It is C that enters a callback, and C has no capability to hand over. So an op that takes a capability cannot be a callback
+  (`E-FN-CAP`). Do capability-needing work, such as output or files, *outside* the callback, after C returns. Inside the callback, only
+  compute.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "ffi-glance",
+  caption: [C boundary syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`unsafe extern proc c_area input k cap c . … effects unsafe . link "lw_c_area" . end .`], [an op whose body is in C], [marker, right and effects line must all be present],
+  [`unsafe proc area_twice input k cap c . … effects unsafe .`], [an op that calls an op that calls C], [marker and right travel up the call chain],
+  [`input xs slice u8 .` (at the boundary)], [two arguments in C: pointer and length], [only slices are mapped automatically],
+  [`option`·`result`·vectors at the boundary], [rejected (`E-FFI-TYPE`)], [nothing absent from the C ABI is faked],
+  [`export fn clamp_add …`], [a symbol C can call], [the contract is enforced on incoming arguments],
+  [`lowentc --emit-h` · `--no-main`], [emit a header · emit as a library without `main`], [the signature lives in one place],
+  [`unsafe_fn cmp`], [address of an `export extern` op (callback)], [ordinary op: `E-FN-NOTEXPORT` · with a capability: `E-FN-CAP`],
+  [`input h owned τ .` (to an extern)], [responsibility for destroying passes to C], [what C does with it afterwards is not verified],
+  [`variadic .`], [call a C variadic function], [contracts do not reach variadic arguments],
+)
+
 #recap[
   An `extern` op calling C has all of `unsafe`, `cap c` and an effects line, and names the C symbol with `link`. Only what the C ABI can express crosses the boundary,
   and a slice becomes a pointer and a length. `export`ed ops go into C with `--emit-h` and `--no-main`, and a C caller breaking a contract stops at the door. Callbacks

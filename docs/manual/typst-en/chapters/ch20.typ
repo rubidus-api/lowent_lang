@@ -159,6 +159,75 @@ The target type must be one where *every bit pattern is a valid value*. `bool` a
 
 Reading the `u8` value 2 as a `bool` would give a value that is neither true nor false. The path that creates such values is closed.
 
+== Common mistakes
+
+#antipattern[Forgetting `init` on a bump allocator][
+  #demo("examples/ch20/mistake_noinit.low")
+
+  `bump_bytes` does not create memory by itself. Until bytes are attached with `send a init buf`, it has nothing to hand out. By meaning,
+  the first `reserve` should give `none`; in this edition, translation accepts the program, the VM stops with `E-VM-TYPE`, and the native
+  build receives `none` and returns 91. The two back ends run it differently, which is a defect recorded in the development repository. Put
+  the `init` on the line right after spawning the allocator.
+]
+
+#antipattern[Attaching the same bytes to two allocators][
+  #demo("examples/ch20/mistake_sharedbuf.low")
+
+  The two allocators know nothing of each other. Both cut from the front of `buf`, so `pv` and `qv` are the same place. Write 65 into `pv`
+  and 66 into `qv`, and reading `pv` gives 66. The rule that there is only one write borrow (#chref("references")) should hold here, but
+  this edition's tool cannot follow the borrow of bytes passed through `init` and accepts the program (recorded as a defect). Attach separate
+  bytes to each allocator. If one buffer must be shared out, cut two non-overlapping pieces with `subslice` and attach those.
+]
+
+#antipattern[Leaving out `using` when two allocators fit][
+  #demo("examples/ch20/mistake_ambiguous.low")
+
+  `s` and `g` are both `bump_bytes`, so the tool cannot guess. A guess might carve from the big buffer what should come from the small one,
+  or the other way round, and such a bug stays hidden on a development machine with plenty of memory. So it stops with
+  `E-ALLOC-AMBIGUOUS` and asks you to say which.
+
+  #demo("examples/ch20/ambiguous_fixed.low")
+
+  The two calls to `two_from` each carved 3 bytes from the same `g`, so `used` is 6. With the source written on every call, you can read
+  which buffer shrinks.
+]
+
+#antipattern[Leaving out `via a` in a generic op][
+  #demo("examples/ch20/mistake_novia.low")
+
+  `one_from` declares only `effects state .`, but when instantiated with `fixed_bytes`, `reserve` performs `alloc`. `via a` is what makes
+  "the allocation effects of type `a` are part of my declaration" true, so each instance gets exact effects. Without it you get `E-EFFECT`,
+  and since the effect does not reach the caller, `with_fixed` oddly gets a `W-EFFECT-OVER` as well. Fixing the first error removes the
+  second.
+]
+
+#misconception[Spawning another allocator gives you another window][
+  #demo("examples/ch20/shared_window.low")
+
+  `fixed_bytes` carves from the *root*. There is one root and one cursor (#chref("regions")). Once `f1` takes 40000 bytes, `f2` gets `none`
+  even though it has used nothing yet, because the default window (65536 bytes) has too little room left. An allocator's `used` is the
+  amount *that allocator* has used, not what is left in the whole window. If you need separate budgets, take one large piece from the window
+  and attach non-overlapping parts of it to several `bump_bytes`.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "fixed-memory-glance",
+  caption: [Allocator syntax --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`var a allocs.bump_bytes be spawn actor allocs.bump_bytes .`], [spawn an allocator (its state)], [state is an actor value --- there is no global allocator],
+  [`send a init buf`], [attach the bytes to hand out], [an allocator never creates memory behind your back],
+  [`send a reserve 3` · `send a used`], [request a piece (`option`) · amount used], [shortage is a value, not a trap],
+  [`input comptime a type .`], [receive the allocator's type (policy) at translation time], [swapping costs nothing at run time],
+  [`using al a .`], [receive an allocator value of that type --- not an input], [it does not sit among the call's arguments],
+  [`let n u64 using g be two_from .`], [say which allocator this call carves from], [with two or more, nothing is guessed],
+  [`effects state via a .` · `requires allocs.byte_allocator a .`], [inherit the type's effects · trait condition], [exact effects per instance],
+  [`allocs.fixed_bytes` · `allocs.heap_bytes`], [default allocators carving straight from a root], [only an op holding that kind of capability may spawn one --- `E-CAP-FORGE`],
+  [`bit_cast u32 x`], [keep the bits, change only how they are read], [never read as `bool` or `enum`],
+)
+
 #recap[
   An allocator is a capability, a policy (a type satisfying a trait) and state (an actor value). A bump allocator cuts borrowed bytes and reports shortage as
   `none`. Allocators are received with `input comptime a type .` and `using al a .`, swapped at no run-time cost, and there is no global allocator.

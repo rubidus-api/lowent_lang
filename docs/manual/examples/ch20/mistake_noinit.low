@@ -1,0 +1,12 @@
+module mistake_noinit .
+
+use allocs .
+
+proc carve input buf mut slice u8 . output u64 . effects state .
+do
+  var a allocs.bump_bytes be spawn actor allocs.bump_bytes .
+  rem ko: ✘ `send a init buf` 를 빠뜨렸다 --- 잘라 줄 바이트가 없는 할당기에 청한다 /// en: ✘ `send a init buf` is missing --- asks an allocator that has no bytes to hand out
+  let p option mut slice u8 be send a reserve 3 .
+  guard is_some p . else return 91 .
+  return send a used .
+end .

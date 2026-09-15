@@ -164,6 +164,71 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
 
 `u8` 의 2 를 `bool` 로 읽으면 참도 거짓도 아닌 값이 된다. 그런 값이 만들어지는 길을 막는다.
 
+== 흔한 실수
+
+#antipattern[범프 할당기에 `init` 을 잊는다][
+  #demo("examples/ch20/mistake_noinit.low")
+
+  `bump_bytes` 는 스스로 메모리를 만들지 않는다. 잘라 줄 바이트를 `send a init buf` 로 걸기 전에는 나눠 줄 것이 없다. 뜻으로는 첫
+  `reserve` 가 `none` 이어야 할 자리인데, 이 판에서는 번역이 통과시키고 VM 은 `E-VM-TYPE` 으로 멈추며 네이티브는 `none` 을 받아 91 을
+  돌려준다. 두 뒤끝이 다르게 도는 결함이고 개발 저장소에 적어 두었다. 할당기를 띄우는 줄 바로 다음에 `init` 을 둔다.
+]
+
+#antipattern[같은 바이트를 두 할당기에 건다][
+  #demo("examples/ch20/mistake_sharedbuf.low")
+
+  두 할당기는 서로를 모른다. 둘 다 `buf` 의 앞에서부터 잘라 주므로 `pv` 와 `qv` 는 같은 자리다. `pv` 에 65 를 쓰고 `qv` 에 66 을 쓰면
+  `pv` 를 읽어도 66 이다. 쓰기 빌림은 하나여야 한다는 규칙(#chref("references"))이 여기서 지켜져야 하는데, 이 판의 도구는 `init` 으로
+  넘긴 바이트의 빌림을 따라가지 못해 통과시킨다(결함으로 적어 두었다). 할당기마다 따로 된 바이트를 건다. 한 버퍼를 나눠야 하면
+  `subslice` 로 겹치지 않는 두 조각을 만들어 건다.
+]
+
+#antipattern[맞는 할당기가 둘인데 `using` 을 적지 않는다][
+  #demo("examples/ch20/mistake_ambiguous.low")
+
+  `s` 와 `g` 가 모두 `bump_bytes` 라서 도구가 짐작할 수 없다. 짐작하면 작은 버퍼에서 깎아야 할 것을 큰 버퍼에서 깎거나 그 반대가 되고,
+  그런 결함은 메모리가 넉넉한 개발 기계에서는 드러나지 않는다. 그래서 `E-ALLOC-AMBIGUOUS` 로 멈추고 적으라고 한다.
+
+  #demo("examples/ch20/ambiguous_fixed.low")
+
+  두 번 부른 `two_from` 이 같은 `g` 에서 3 바이트씩 깎았으므로 `used` 가 6 이다. 출처가 호출마다 적혀 있으니 어느 버퍼가 줄어드는지
+  읽어서 안다.
+]
+
+#antipattern[제네릭 op 에서 `via a` 를 빠뜨린다][
+  #demo("examples/ch20/mistake_novia.low")
+
+  `one_from` 은 `effects state .` 만 적었지만, `fixed_bytes` 로 단형화하면 `reserve` 가 `alloc` 을 낸다. `via a` 가 있어야 "타입 `a` 가
+  내는 할당 계열 효과도 내 선언이다" 가 되어 인스턴스마다 효과가 정확해진다. 없으면 `E-EFFECT` 가 나고, 효과가 부르는 쪽에 번지지 않아
+  `with_fixed` 에는 엉뚱하게 `W-EFFECT-OVER` 까지 붙는다. 첫 오류를 고치면 둘째도 사라진다.
+]
+
+#misconception[할당기를 하나 더 띄우면 창도 하나 더 생긴다][
+  #demo("examples/ch20/shared_window.low")
+
+  `fixed_bytes` 는 *뿌리*에서 깎는다. 뿌리는 하나이고 커서도 하나다(#chref("regions")). `f1` 이 40000 바이트를 가져가면 `f2` 는 아직 아무것도
+  쓰지 않았어도 기본 창(65536 바이트)에 남은 자리가 모자라 `none` 을 받는다. 할당기 값의 `used` 는 *그 할당기가* 쓴 양이지 창 전체의 남은
+  양이 아니다. 따로 된 예산이 필요하면 창에서 한 번 크게 받아 `bump_bytes` 여럿에 겹치지 않게 나눠 건다.
+]
+
+== 이 장의 문법 한눈에
+
+#dtable(
+  columns: 3,
+  id: "fixed-memory-glance",
+  caption: [할당기의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
+  [*모양*], [*뜻*], [*왜 이렇게*],
+  [`var a allocs.bump_bytes be spawn actor allocs.bump_bytes .`], [할당기(상태)를 띄운다], [상태는 액터 값 --- 전역 할당기가 없다],
+  [`send a init buf`], [잘라 줄 바이트를 건다], [할당기는 몰래 메모리를 만들지 않는다],
+  [`send a reserve 3` · `send a used`], [조각을 청한다(`option`) · 쓴 양], [부족은 트랩이 아니라 값],
+  [`input comptime a type .`], [할당기의 타입(정책)을 번역 때 받는다], [갈아 끼우기의 실행 비용이 0],
+  [`using al a .`], [그 타입의 할당기 값을 받는다 --- 입력이 아니다], [부르는 자리의 인자에 끼지 않는다],
+  [`let n u64 using g be two_from .`], [이 호출이 깎을 할당기를 적는다], [둘 이상이면 짐작하지 않는다],
+  [`effects state via a .` · `requires allocs.byte_allocator a .`], [타입의 효과를 물려받는다 · 트레이트 조건], [인스턴스마다 효과가 정확하다],
+  [`allocs.fixed_bytes` · `allocs.heap_bytes`], [뿌리에서 곧장 깎는 기본 할당기], [같은 종류의 권한을 쥔 op 만 띄운다 --- `E-CAP-FORGE`],
+  [`bit_cast u32 x`], [비트는 그대로 두고 읽는 법만 바꾼다], [`bool`·`enum` 으로는 읽지 않는다],
+)
+
 #recap[
   할당기는 권한·정책(트레이트를 갖춘 타입)·상태(액터 값) 셋이다. 범프 할당기는 빌린 바이트를 잘라 주고 부족을 `none`
   으로 알린다. 할당기는 `input comptime a type .` 과 `using al a .` 로 받아 갈아 끼우며 실행 비용이 없고, 전역 할당기는

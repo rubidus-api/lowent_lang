@@ -158,6 +158,46 @@ somewhere (#chref("modules")). The moment the name is actually used, it is rejec
   importing it is how this library is meant to be used.
 ]
 
+== Common mistakes
+
+#antipattern[Chaining writes that return `option` without asking][
+  #demo("examples/ch32/mistake_chainnone.low")
+
+  The write ops of `fmt` return the next position as an `option u64`. With a twelve-slot buffer all three succeed and return 8, but with six
+  slots `put_u64` runs out of room, returns `none`, and `some_value` stops. Failure in L0 modules is a *value*, not a trap, so the receiver
+  asks at every step.
+
+  #demo("examples/ch32/chainnone_fixed.low")
+
+  The fixed version returns 0 with the six-slot buffer. Notice that `hello ` remains in the buffer. "All or nothing" is the promise of *a
+  single op call*, not of a whole sequence of calls. If the whole sequence must be undone, treat only the positions that succeeded (`p`,
+  `q`) as the valid length.
+]
+
+#misconception[When the buffer is short, as much as fits is written][
+  #demo("examples/ch32/all_or_nothing.low")
+
+  C's `snprintf` writes what fits and truncates. The L0 modules of the standard library are *all or nothing*. Asked to write six bytes into
+  four slots, it writes no byte at all and returns `none`, leaving the buffer as `[0,0,0,0]`. A half-written buffer becomes silently wrong
+  output, and the caller can rely on "none means the buffer is untouched" to continue down another path.
+]
+
+== This chapter's syntax at a glance
+
+#dtable(
+  columns: 3,
+  id: "lib-map-glance",
+  caption: [Shapes for using the standard library --- shape · meaning · why it looks this way],
+  [*Shape*], [*Meaning*], [*Why*],
+  [`use strings .`], [import a standard module --- the name is the file's `module` declaration], [the module in `lib/str.low` is `strings`],
+  [`strings.starts_with line "GET "`], [imported names are qualified by module], [no glob imports],
+  [`fmt.put_str buf pos s` → `option u64`], [write into the caller's buffer and return the next position], [L0 never allocates --- reentrancy is free],
+  [`none` (not enough room)], [not a single byte was written], [all or nothing --- the promise of one call],
+  [`result t e`], [a failure that says what failed], [no traps, no silent truncation],
+  [`owned` handles · pending bytes], [ownership that must be repaid], [forgetting it is rejected at translation],
+  [`experimental` · `incubating` · `standard` · `deprecated`], [maturity each module declares], [a rung is the size of a promise, not a ranking],
+)
+
 #recap[
   The language takes only what cannot be expressed, leaves only thin pieces touching the outside, and the rest is library under the same rules. Libraries enter on the
   charter's evidence and write their maturity in the source. Modules divide into pure computation (L0), storage (L1) and host (L2) layers. Module names may differ from

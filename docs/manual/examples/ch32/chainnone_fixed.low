@@ -1,0 +1,17 @@
+module chainnone_fixed .
+rem run: greet [0,0,0,0,0,0,0,0,0,0,0,0]
+rem run: greet [0,0,0,0,0,0]
+
+use fmt .
+
+proc greet input buf mut slice u8 . output u64 . effects none .
+do
+  rem ko: 걸음마다 묻는다 --- 모자라면 0 을 돌려 "쓰지 못했다" 를 알린다 /// en: ask at every step --- when short, return 0 to report "could not write"
+  let p option u64 be fmt.put_str buf 0 "hello" .
+  guard is_some p . else return 0 .
+  let q option u64 be fmt.put_byte buf (some_value p) 32 .
+  guard is_some q . else return 0 .
+  let r option u64 be fmt.put_u64 buf (some_value q) 42 .
+  guard is_some r . else return 0 .
+  return some_value r .
+end .

@@ -233,6 +233,7 @@ typedef struct {
     proven_size_t nch;
     char        dep[48];       // depends <opt> — 그것이 꺼져 있으면 이것도 못 켠다
     bool        has_dep;
+    bool        from_cfg;      // ★ 해결본(lowent.config)이 이 값을 **직접 골랐는가**
     proven_u32  line;
 } ir_opt_t;
 
@@ -370,6 +371,8 @@ extern proven_size_t g_sched_step;
 bool veq(proven_u8str_view_t v, const char *s);
 bool is_atom(const low_cst_t *n);                                              /* 127회 */
 void ir_fail(ir_ctx_t *c, const char *code, const char *msg, proven_u32 line); /* 25회 */
+/* ★ 저자에게만 보이는 알림 — (파일·줄)이 같은 것은 한 번만 낸다. 문 하강의 `ensures` 도 쓴다. */
+void ir_warn_at(ir_ctx_t *c, const char *code, const char *msg, proven_u32 line, const char *file);
 bool ir_int_lit(proven_u8str_view_t v, proven_i64 *out);                       /* 20회 */
 proven_size_t ir_local_find(ir_ctx_t *c, proven_u8str_view_t name, bool *found); /* 16회 */
 proven_size_t ir_emit(ir_ctx_t *c, low_irw_t w, proven_i64 a);                 /* 11회 */

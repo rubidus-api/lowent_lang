@@ -27,7 +27,11 @@ while IFS="$TAB" read -r file op args want; do
   case "$file" in ''|'#'*) continue ;; esac
   # 인자는 공백으로 가른다(목록에 따옴표가 필요한 인자는 없다)
   # shellcheck disable=SC2086
-  got=$("$BIN" --run "$op" "$file" $args </dev/null 2>&1 | tail -n 1 | sed -n 's/.*= \(-\{0,1\}[0-9][0-9]*\)$/\1/p')
+  # ★ 이 표는 **VM 과 네이티브가 같은 답을 내는가**를 잰다. 네이티브는 검사를 거치지 않으므로
+  #   VM 쪽도 같은 조건에서 돌린다(`--unchecked`). 2026-09-16 부터 `--run` 은 기본으로
+  #   `--check` 와 같은 검사를 돌려 거절하므로(결함 노트 #86), 일부러 거절당하는 픽스처가
+  #   이 표에 있으면 그 문을 열어야 한다.
+  got=$("$BIN" --run "$op" --unchecked "$file" $args </dev/null 2>&1 | tail -n 1 | sed -n 's/.*= \(-\{0,1\}[0-9][0-9]*\)$/\1/p')
   [ "$got" = "$want" ] || { bad "vm: $file $op $args → '$got' (기대 $want)"; continue; }
   exe="$W/$(echo "$file" | tr '/.' '__')"
   if [ ! -x "$exe" ]; then

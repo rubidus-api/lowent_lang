@@ -3897,35 +3897,173 @@ static void ck_task_walk(low_check_result_t *out, const low_parse_result_t *pr, 
                      "threads). Give the task an allocator over borrowed bytes instead (RFC-0112 D11)",
                      nd->kids[j]->tok.line);
         }
-        for (proven_size_t q = j + 2; q < nd->nkids; q++) {
-            if (!ck_atom(nd->kids[q])) continue;
-            proven_u8str_view_t tw = ck_name_type_word(op, nd->kids[q]->tok.lex);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_task_walk(out, pr, nd->kids[i], op);
+}
+// ★ 한 이름이 이 나무 어딘가에 몇 번 나오나 — 「그 얼로케이터를 다른 데서도 쓰는가」를 잰다.
+static proven_size_t ck_name_uses(const low_cst_t *nd, proven_u8str_view_t nm) {
+    if (!nd) return 0;
+    if (ck_atom(nd)) return (nd->tok.kind == LOW_TOK_IDENT &&
+                             proven_u8str_view_eq(nd->tok.lex, nm)) ? 1 : 0;
+    proven_size_t n = 0;
+    for (proven_size_t i = 0; i < nd->nkids; i++) n += ck_name_uses(nd->kids[i], nm);
+    return n;
+}
+// ★★★★ **나눠 쓰는 것이 문제다 — 건네는 것 자체가 아니다** (결함 노트 #75, 2026-09-16).
+//
+//   `E-ALLOC-SHARED` 는 「태스크마다 제 얼로케이터를 줘라」고 권하면서, **따로 띄운** 얼로케이터
+//   둘을 태스크 둘에 하나씩 건네도 같은 진단으로 거절했다 — 얼로케이터를 태스크에 넘기는 것
+//   자체를 막았기 때문이다. 진단이 권하는 해법이 통하지 않으면 그 진단은 길을 막을 뿐이다.
+//   ⇒ 재는 것을 **경합**으로 바꾼다: 한 블록 안에서 같은 얼로케이터 이름이
+//     ⓐ 태스크 **둘 이상**에 건네지거나 ⓑ 태스크에 건네진 채 그 블록에서 **또 쓰이면** 문다.
+//     이름이 하나씩 짝지어 나뉘면 커서가 하나씩이므로 경합이 없다.
+static void ck_alloc_shared_blk(low_check_result_t *out, const low_parse_result_t *pr,
+                                const low_cst_t *blk, const low_cst_t *op) {
+    if (!blk || ck_atom(blk)) return;
+    proven_u8str_view_t nm[16]; proven_size_t cnt[16], nn = 0; proven_i64 ln[16];
+    for (proven_size_t j = 0; j < blk->nkids; j++) {
+        const low_cst_t *sf = blk->kids[j];
+        if (!sf || sf->kind != LOW_CST_FORM || sf->nkids < 3 || !ck_atom(sf->kids[0])) continue;
+        if (sf->kids[0]->tok.kw != LOW_KW_SPAWN) continue;
+        if (!ck_atom(sf->kids[1]) || sf->kids[1]->tok.kw == LOW_KW_ACTOR) continue;
+        for (proven_size_t q = 2; q < sf->nkids; q++) {
+            if (!ck_atom(sf->kids[q]) || sf->kids[q]->tok.kind != LOW_TOK_IDENT) continue;
+            proven_u8str_view_t a = sf->kids[q]->tok.lex;
+            proven_u8str_view_t tw = ck_name_type_word(op, a);
             const low_cst_t *act = tw.size ? ck_actor_named(tw) : NULL;
             if (!ck_actor_is_allocator(act)) continue;
             const low_cst_t *rs = ck_actor_proc(act, proven_u8str_view_from_cstr("reserve"));
             bool fd = false;
-            if (!rs || !(decl_effect(rs, &fd) & EFF_ATOMIC))
-                emit(out, "E-ALLOC-SHARED",
-                     "this hands an ALLOCATOR to a task, but its `reserve` does not move its cursor atomically (no `atomic` "
-                     "effect). A task runs beside others; two of them reserving from the same allocator race on one cursor. "
-                     "Give each task its own allocator, or use one whose `reserve` is atomic (RFC-0112 D11)",
-                     nd->kids[j]->tok.line);
+            if (rs && (decl_effect(rs, &fd) & EFF_ATOMIC)) continue;   // 원자적이면 나눠 써도 된다
+            proven_size_t s = 0;
+            while (s < nn && !proven_u8str_view_eq(nm[s], a)) s++;
+            if (s == nn) { if (nn >= 16) continue; nm[nn] = a; cnt[nn] = 0; ln[nn] = sf->kids[0]->tok.line; nn++; }
+            cnt[s]++;
         }
     }
-    for (proven_size_t i = 0; i < nd->nkids; i++) ck_task_walk(out, pr, nd->kids[i], op);
+    for (proven_size_t s = 0; s < nn; s++) {
+        proven_size_t uses = ck_name_uses(blk, nm[s]);
+        if (cnt[s] < 2 && uses <= cnt[s]) continue;     // 태스크 하나에만, 다른 데서 안 쓴다 — 경합 없음
+        emit(out, "E-ALLOC-SHARED",
+             "the same ALLOCATOR is in play in two places at once here, and its `reserve` does not move "
+             "its cursor atomically (no `atomic` effect): it is handed to more than one task, or handed "
+             "to a task and still used beside it. Two of them reserving race on one cursor. Give each "
+             "task its OWN allocator over its own bytes — two `spawn actor` instances, each `init`ed on "
+             "a disjoint slice — or use one whose `reserve` is atomic (RFC-0112 D11)",
+             ln[s]);
+    }
+    for (proven_size_t i = 0; i < blk->nkids; i++) ck_alloc_shared_blk(out, pr, blk->kids[i], op);
+}
+// ★★★★ **갓 띄운 액터의 상태 칸은 아직 아무것도 아니다** (결함 노트 #53, 2026-09-16).
+//
+//   `spawn actor allocs.bump_bytes` 는 상태 칸을 **0 으로** 채운다. 그런데 `mem mut slice u8 .`
+//   같은 칸에 0 은 슬라이스가 아니다 — `init` 없이 `reserve` 를 보내면 **VM 은 멈추고
+//   (`E-VM-TYPE: len needs a slice`) 네이티브는 `none` 을 냈다.** 두 뒤끝이 갈렸고, `--check` 는
+//   둘 다 통과시켰다. 어느 쪽이 옳은지를 정하기 전에, **그 자리에 닿지 못하게** 한다.
+//   ⇒ 한 블록 안에서 `spawn actor` 로 묶은 이름에 **처음 보내는 말**은, 그 액터의 슬라이스 칸을
+//     **읽기만 하는** 핸들러여서는 안 된다. 곧은 문장 차례만 본다(그래서 놓칠지언정 헛맞지 않는다).
+static bool ck_body_writes_field(const low_cst_t *nd, proven_u8str_view_t fld) {
+    if (!nd || ck_atom(nd)) return false;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        nd->kids[0]->tok.kw == LOW_KW_SET) {
+        const low_cst_t *t = nd->kids[1];
+        while (t && (t->kind == LOW_CST_GROUP || t->kind == LOW_CST_FORM) && t->nkids == 1) t = t->kids[0];
+        if (t && ck_atom(t) && proven_u8str_view_eq(t->tok.lex, fld)) return true;
+        if (t && t->kind == LOW_CST_FORM && t->nkids >= 2 && ck_atom(t->kids[1]) &&
+            proven_u8str_view_eq(t->kids[1]->tok.lex, fld)) return true;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        if (ck_body_writes_field(nd->kids[i], fld)) return true;
+    return false;
+}
+static void ck_actor_uninit_blk(low_check_result_t *out, const low_cst_t *blk) {
+    if (!blk || ck_atom(blk)) return;
+    proven_u8str_view_t lname[8], lact[8]; proven_size_t nl = 0; bool spoke[8] = { 0 };
+    for (proven_size_t j = 0; j < blk->nkids; j++) {
+        const low_cst_t *st = blk->kids[j];
+        if (!st || ck_atom(st)) continue;
+        // ① `var|let <이름> <타입>… be (spawn actor <A>)` — 묶은 이름과 액터를 적어 둔다.
+        if (st->kind == LOW_CST_FORM && st->nkids >= 4 && ck_atom(st->kids[0]) &&
+            (st->kids[0]->tok.kw == LOW_KW_VAR || st->kids[0]->tok.kw == LOW_KW_LET) &&
+            ck_atom(st->kids[1])) {
+            const low_cst_t *rhs = st->kids[st->nkids - 1];
+            while (rhs && rhs->kind == LOW_CST_GROUP && rhs->nkids == 1) rhs = rhs->kids[0];
+            if (rhs && rhs->kind == LOW_CST_FORM && rhs->nkids >= 3 && ck_atom(rhs->kids[0]) &&
+                rhs->kids[0]->tok.kw == LOW_KW_SPAWN && ck_atom(rhs->kids[1]) &&
+                rhs->kids[1]->tok.kw == LOW_KW_ACTOR && ck_atom(rhs->kids[2]) && nl < 8) {
+                lname[nl] = st->kids[1]->tok.lex; lact[nl] = rhs->kids[2]->tok.lex; nl++;
+                continue;
+            }
+        }
+        // ② 이 문장 안의 첫 `send <이름> <op>` — 그 이름이 위에서 띄운 것이면 본다.
+        const low_cst_t *sd = st;
+        for (proven_size_t d = 0; d < 4 && sd; d++) {
+            if (sd->kind == LOW_CST_FORM && sd->nkids >= 3 && ck_atom(sd->kids[0]) &&
+                sd->kids[0]->tok.kw == LOW_KW_SEND) break;
+            sd = (sd->nkids) ? sd->kids[sd->nkids - 1] : NULL;
+        }
+        if (!sd || sd->kind != LOW_CST_FORM || sd->nkids < 3 || !ck_atom(sd->kids[0]) ||
+            sd->kids[0]->tok.kw != LOW_KW_SEND || !ck_atom(sd->kids[1]) || !ck_atom(sd->kids[2])) continue;
+        proven_size_t s = 0;
+        while (s < nl && !proven_u8str_view_eq(lname[s], sd->kids[1]->tok.lex)) s++;
+        if (s == nl || spoke[s]) continue;
+        spoke[s] = true;                                   // 이 이름에 **처음** 보내는 말이다
+        const low_cst_t *act = ck_actor_named(lact[s]);
+        if (!act) continue;
+        const low_cst_t *h = ck_actor_proc(act, sd->kids[2]->tok.lex);
+        if (!h) continue;
+        const low_cst_t *hb = h->kids[h->nkids - 1];
+        if (!hb || hb->kind != LOW_CST_BLOCK) continue;
+        // 슬라이스 칸을 찾아, 이 핸들러가 그것을 **쓰지 않으면서 읽으면** 문다.
+        const low_cst_t *ab = act->kids[act->nkids - 1];
+        if (!ab || ab->kind != LOW_CST_BLOCK) continue;
+        for (proven_size_t i = 0; i < ab->nkids; i++) {
+            const low_cst_t *sf = ab->kids[i];
+            if (sf->kind != LOW_CST_FORM || !sf->nkids || !ck_atom(sf->kids[0]) ||
+                sf->kids[0]->tok.kw != LOW_KW_STATE) continue;
+            const low_cst_t *sb = sf->kids[sf->nkids - 1];
+            if (!sb || sb->kind != LOW_CST_BLOCK) continue;
+            for (proven_size_t q = 0; q < sb->nkids; q++) {
+                const low_cst_t *fl = sb->kids[q];
+                if (fl->kind != LOW_CST_FORM || fl->nkids < 2 || !ck_atom(fl->kids[0])) continue;
+                bool is_slice = false;
+                for (proven_size_t w = 1; w < fl->nkids; w++)
+                    if (ck_atom(fl->kids[w]) && (veq(fl->kids[w]->tok.lex, "slice") ||
+                                                 veq(fl->kids[w]->tok.lex, "ref"))) is_slice = true;
+                if (!is_slice) continue;
+                proven_u8str_view_t fname = fl->kids[0]->tok.lex;
+                if (ck_body_writes_field(hb, fname)) continue;          // 이 말이 그 칸을 세운다
+                if (!ck_name_uses(hb, fname)) continue;                 // 읽지도 않는다
+                emit(out, "E-ACTOR-UNINIT",
+                     "this is the FIRST message sent to an actor that was just spawned, and the handler "
+                     "READS a state field that holds a slice without setting it. A fresh actor's state "
+                     "is all zeroes, and zero is not a slice: the VM stops (`len needs a slice`) while "
+                     "native quietly answers `none` — the two back ends disagree, which means one of "
+                     "them is lying. Send the message that sets it up first (the one whose handler "
+                     "`set`s that field, typically `init`)",
+                     sd->kids[0]->tok.line);
+                break;
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < blk->nkids; i++) ck_actor_uninit_blk(out, blk->kids[i]);
 }
 static void ck_task_alloc(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
-        if (f->kids[0]->tok.kw == LOW_KW_PROC || f->kids[0]->tok.kw == LOW_KW_FN) { ck_task_walk(out, pr, f, f); continue; }
+        if (f->kids[0]->tok.kw == LOW_KW_PROC || f->kids[0]->tok.kw == LOW_KW_FN) {
+            ck_task_walk(out, pr, f, f); ck_alloc_shared_blk(out, pr, f, f);
+            ck_actor_uninit_blk(out, f); continue; }
         if (f->kids[0]->tok.kw != LOW_KW_ACTOR || f->nkids < 3) continue;
         const low_cst_t *blk = f->kids[f->nkids - 1];
         if (blk->kind != LOW_CST_BLOCK) continue;
         for (proven_size_t j = 0; j < blk->nkids; j++) {
             const low_cst_t *o = blk->kids[j];
             if (o->kind == LOW_CST_FORM && o->nkids >= 2 && ck_atom(o->kids[0]) &&
-                (o->kids[0]->tok.kw == LOW_KW_PROC || o->kids[0]->tok.kw == LOW_KW_FN)) ck_task_walk(out, pr, o, o);
+                (o->kids[0]->tok.kw == LOW_KW_PROC || o->kids[0]->tok.kw == LOW_KW_FN)) {
+                ck_task_walk(out, pr, o, o); ck_alloc_shared_blk(out, pr, o, o);
+                ck_actor_uninit_blk(out, o); }
         }
     }
 }
@@ -6009,13 +6147,35 @@ static void ck_match(low_check_result_t *out, const low_parse_result_t *pr,
         bool lit_int = false, lit_bool = false, bt = false, bf = false;
         // ★ MM3b: option/result 패턴 도메인(유한 2-변형). some/none · ok/error.
         bool opt_dom = false, has_some = false, has_none = false, has_ok = false, has_err = false;
+        // ★ MM7b — 바깥 꼬리표(ok · error · some · none)마다 **안쪽 패턴**을 모은다.
+        struct { bool some, none, wild; proven_u8str_view_t var[16]; proven_size_t nvar; } nst[4];
+        memset(nst, 0, sizeof nst);
         bool saw_case = false;   // ★ MM6 — 이 match 에 case arm 이 하나라도 있었나(가드-only 미망라 판정용)
         struct { proven_i64 lo, hi; } iv[64]; proven_size_t niv = 0;   // ★ MM4 — 정수 리터럴·범위 구간
         const low_cst_t *arms = m->kids[m->nkids - 1];
         if (arms->kind != LOW_CST_BLOCK) continue;
         for (proven_size_t q = 0; q < arms->nkids && nseen < 32; q++) {
             const low_cst_t *a2 = arms->kids[q];
-            if (a2->kind != LOW_CST_FORM || a2->nkids < 2 || a2->kids[0]->kind != LOW_CST_ATOM) continue;
+            if (a2->kind != LOW_CST_FORM || a2->nkids < 1) continue;
+            // ★ `else` 가지는 **한 겹 더 싸여 온다**(`FORM[end] > FORM[end] > ATOM else`) —
+            //   앞선 `case` 가 닫히는 자리에 붙기 때문이다. 벗겨 내고 본다.
+            if (a2->kids[0]->kind == LOW_CST_FORM && a2->kids[0]->nkids >= 1 &&
+                a2->kids[0]->kids[0]->kind == LOW_CST_ATOM &&
+                a2->kids[0]->kids[0]->tok.kw == LOW_KW_ELSE)
+                a2 = a2->kids[0];
+            if (a2->nkids < 2 || a2->kids[0]->kind != LOW_CST_ATOM) continue;
+            // ★★ **`match` 안의 `else` 는 나머지를 받는 자리다**(정본 A.7 문법 · §6.5.4(6) · 결함 #81).
+            //   부록 A.7 의 문법과 미망라 진단문이 둘 다 `else` 를 권하는데 이 층이 그것을 세지
+            //   않아, 권하는 대로 쓴 글이 같은 진단을 다시 받았다. 문법이 받는 것을 검사가
+            //   모르면 그 문법은 없는 것이다.
+            if (a2->kids[0]->tok.kw == LOW_KW_ELSE) {
+                if (has_wild)
+                    emit(out, "E-MATCH-REDUNDANT",
+                         "this `else` comes after an arm that already matches everything — it is DEAD "
+                         "CODE (RFC-0020 §6.4). A `match` has one catch-all", a2->kids[0]->tok.line);
+                else { has_wild = true; wild_line = a2->kids[0]->tok.line; }
+                continue;
+            }
             if (a2->kids[0]->tok.kw != LOW_KW_CASE) continue;
             saw_case = true;
             // ★★ **MM6: 가드 `when`** — 가드가 있는 arm 은 망라에 **기여하지 않는다**(가드가 거짓일 수
@@ -6134,9 +6294,41 @@ static void ck_match(low_check_result_t *out, const low_parse_result_t *pr,
                         else if (sub->kind == LOW_CST_ATOM) {
                             proven_u8str_view_t s2 = sub->tok.lex;
                             if (veq(s2, "some") || veq(s2, "none") || veq(s2, "ok") || veq(s2, "error")) nested = true;
+                            // ★ `case error <갈래>` 의 이름이 **선언된 갈래**면 그것은 묶음이
+                            //   아니라 안쪽 패턴이다(결함 노트 #52) — 망라도 그렇게 센다.
+                            else if (ck_name_is_variant(pr, s2)) nested = true;
                         }
                     }
-                    if (nested) continue;   // 중첩은 커버리지에 안 셈(보수적)
+                    // ★★ **MM7b — 중첩도 센다**(결함 노트 #42, 2026-09-16). 전에는 중첩 arm 을
+                    //   통째로 건너뛰어, `case ok (some x)` · `case ok none` · `case error bad` 처럼
+                    //   **빠짐없이 가른 match** 가 `_` 를 요구받았다. 쓸모없는 `_` 는 나중에 갈래가
+                    //   늘어도 아무 말을 안 하므로, 그것을 강요하는 것은 망라 검사를 **끄게 만든다.**
+                    //   ⇒ 바깥 꼬리표마다 안쪽 패턴을 모아, 그 안쪽이 스스로 망라면 바깥을 덮은 것으로 센다.
+                    if (nested) {
+                        proven_size_t oi = veq(v2, "ok") ? 0 : veq(v2, "error") ? 1
+                                         : veq(v2, "some") ? 2 : 3;
+                        const low_cst_t *sub = a2->kids[2];
+                        // ★ 묶음은 한 겹 더 싸여 온다 — `GROUP > FORM > ATOM <머리>`.
+                        const low_cst_t *ih = NULL;
+                        if (sub->kind == LOW_CST_ATOM) ih = sub;
+                        else if (sub->kind == LOW_CST_GROUP && sub->nkids) {
+                            const low_cst_t *g = sub->kids[0];
+                            if (g->kind == LOW_CST_ATOM) ih = g;
+                            else if (g->kind == LOW_CST_FORM && g->nkids &&
+                                     g->kids[0]->kind == LOW_CST_ATOM) ih = g->kids[0];
+                        }
+                        if (ih) {
+                            proven_u8str_view_t iv2 = ih->tok.lex;
+                            opt_dom = true;
+                            if (veq(iv2, "_")) nst[oi].wild = true;
+                            else if (veq(iv2, "some")) nst[oi].some = true;
+                            else if (veq(iv2, "none")) nst[oi].none = true;
+                            else if (ck_name_is_variant(pr, iv2)) {
+                                if (nst[oi].nvar < 16) nst[oi].var[nst[oi].nvar++] = iv2;
+                            } else nst[oi].wild = true;   // 맨 이름 = 묶음 ⇒ 나머지를 다 받는다
+                        }
+                        continue;
+                    }
                     opt_dom = true;
                     bool *slot = veq(v2, "some") ? &has_some : veq(v2, "none") ? &has_none
                               : veq(v2, "ok") ? &has_ok : &has_err;
@@ -6210,6 +6402,46 @@ static void ck_match(low_check_result_t *out, const low_parse_result_t *pr,
                 else
                     seen[nseen++] = v2;
             }
+        }
+        // ★ MM7b — 안쪽이 스스로 망라면 바깥 꼬리표를 덮은 것으로 센다.
+        for (proven_size_t oi = 0; oi < 4; oi++) {
+            bool full = nst[oi].wild || (nst[oi].some && nst[oi].none);
+            if (!full && nst[oi].nvar) {
+                // 첫 갈래가 속한 열거를 찾아 **그 갈래를 다 적었는가** 를 본다.
+                const low_cst_t *eb2 = NULL;
+                for (proven_size_t z = 0; z < pr->nforms && !eb2; z++) {
+                    const low_cst_t *e2 = pr->forms[z];
+                    if (e2->kind != LOW_CST_FORM || e2->nkids < 3 ||
+                        e2->kids[0]->kind != LOW_CST_ATOM || e2->kids[0]->tok.kw != LOW_KW_ENUM) continue;
+                    const low_cst_t *bb = e2->kids[e2->nkids - 1];
+                    if (bb->kind != LOW_CST_BLOCK) continue;
+                    for (proven_size_t v = 0; v < bb->nkids; v++) {
+                        const low_cst_t *vn = bb->kids[v];
+                        proven_u8str_view_t nm = (vn->kind == LOW_CST_ATOM) ? vn->tok.lex
+                            : (vn->kind == LOW_CST_FORM && vn->nkids && vn->kids[0]->kind == LOW_CST_ATOM)
+                                ? vn->kids[0]->tok.lex : (proven_u8str_view_t){ 0 };
+                        if (nm.size && proven_u8str_view_eq(nm, nst[oi].var[0])) { eb2 = bb; break; }
+                    }
+                }
+                if (eb2) {
+                    bool all = true;
+                    for (proven_size_t v = 0; v < eb2->nkids && all; v++) {
+                        const low_cst_t *vn = eb2->kids[v];
+                        proven_u8str_view_t nm = (vn->kind == LOW_CST_ATOM) ? vn->tok.lex
+                            : (vn->kind == LOW_CST_FORM && vn->nkids && vn->kids[0]->kind == LOW_CST_ATOM)
+                                ? vn->kids[0]->tok.lex : (proven_u8str_view_t){ 0 };
+                        if (!nm.size) continue;
+                        bool got = false;
+                        for (proven_size_t z = 0; z < nst[oi].nvar; z++)
+                            if (proven_u8str_view_eq(nst[oi].var[z], nm)) { got = true; break; }
+                        if (!got) all = false;
+                    }
+                    full = all;
+                }
+            }
+            if (!full) continue;
+            if (oi == 0) has_ok = true; else if (oi == 1) has_err = true;
+            else if (oi == 2) has_some = true; else has_none = true;
         }
         // ★★ **MM3b: option/result 도메인 망라** (유한 2-변형: some&none · ok&error, 아니면 `_`).
         if (opt_dom) {
@@ -7015,30 +7247,40 @@ static void ck_excl_args_walk(low_check_result_t *out, const low_cst_t *nd,
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) &&
         nd->kids[0]->tok.kw == LOW_KW_NONE) {
         proven_u8str_view_t callee = nd->kids[0]->tok.lex;
-        // ① 첫 인자가 **쓰는 자리**인 내장 op 들. 이름이 곧 그 약속이다.
-        static const char *DSTFIRST[] = { "copy_into" };
-        bool dst_first = false;
-        for (size_t i = 0; i < sizeof DSTFIRST / sizeof DSTFIRST[0]; i++)
-            if (veq(callee, DSTFIRST[i])) dst_first = true;
-        if (dst_first && ck_atom(nd->kids[1]) && nd->kids[1]->tok.kind == LOW_TOK_IDENT) {
-            for (proven_size_t q = 2; q < nd->nkids; q++)
-                if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kind == LOW_TOK_IDENT &&
-                    proven_u8str_view_eq(nd->kids[q]->tok.lex, nd->kids[1]->tok.lex)) {
+        // ★★ **쓰는 자리 둘에 같은 이름** — 이것은 재는 데 아무 추론도 필요 없다. §8.12 는
+        //   «쓰는 쪽 하나, 아니면 읽는 쪽 여럿» 이다. 한 부름이 같은 저장소를 `mut` 자리 둘에
+        //   넘기면 **쓰는 쪽이 둘**이고, 어느 쓰기가 남는지는 피호출자의 문장 차례가 정한다.
+        //   (`mont_mul acc a b n k n0i acc` — 결과 칸과 scratch 칸이 같은 바이트다.)
+        //
+        //   ☞ **쓰는 자리 하나 + 읽는 자리**(`mont_mul acc acc r2 …`)는 여기서 안 문다.
+        //     몽고메리 곱은 scratch 에 다 셈한 뒤 마지막에 `out` 으로 옮기므로 제자리가 안전하고,
+        //     그것이 `lib/bigint`·`ecdsa`·`ed25519`·`p256`·`rsa`·`x25519` 의 정상적인 모양이다.
+        //     그 안전함은 **피호출자의 문장 차례**에 달렸고 이 층은 그것을 못 본다 —
+        //     정본 §8.12(3) 에 «읽기를 다 마친 뒤에만 쓰는 op 만 제자리로 부를 수 있다» 고
+        //     적고, 재는 일은 RFC-0115 §8-15 ⓑ(선언으로 받기)가 정해지면 그때 한다.
+        for (proven_size_t t = 0; t < nt; t++) {
+            if (!proven_u8str_view_eq(tab[t].name, callee) || !tab[t].form) continue;
+            low_op_header_t h = low_op_header(tab[t].form);
+            for (proven_size_t q = 1; q < nd->nkids; q++) {
+                proven_size_t ai = q - 1;
+                if (ai >= h.np || !h.p[ai].is_mut) continue;
+                if (!(ck_atom(nd->kids[q]) && nd->kids[q]->tok.kind == LOW_TOK_IDENT)) continue;
+                for (proven_size_t r = q + 1; r < nd->nkids; r++) {
+                    proven_size_t bi = r - 1;
+                    if (bi >= h.np || !h.p[bi].is_mut) continue;
+                    if (!(ck_atom(nd->kids[r]) && nd->kids[r]->tok.kind == LOW_TOK_IDENT)) continue;
+                    if (!proven_u8str_view_eq(nd->kids[r]->tok.lex, nd->kids[q]->tok.lex)) continue;
                     emit(out, "E-EXCL",
-                         "the same storage is handed to this op as the place it WRITES and, at the "
-                         "same time, as a place it reads. The rule is one writer OR many readers "
-                         "(§8.12), never both at once: while the write is in progress the other side "
-                         "sees bytes that are half old and half new, and which half depends on the "
-                         "direction the copy happens to run. Use two separate slices, or an op that "
-                         "says it works in place",
+                         "the same storage is handed to this op in TWO places it writes. The rule is "
+                         "one writer or many readers (§8.12), never two writers at once: which write "
+                         "survives depends on the order of statements inside the op you called, not "
+                         "on anything written here. Give each `mut` position its own storage",
                          nd->kids[0]->tok.line);
-                    break;
+                    r = nd->nkids; q = nd->nkids;
                 }
+            }
+            break;
         }
-        // ☞ **사용자 op 은 여기서 안 문다.** 제자리 연산(`mont_mul acc acc r2 …` — 몽고메리
-        //   곱은 누산기를 읽고 그 자리에 쓴다)이 표준 라이브러리의 정상적인 모양이고, 그것을
-        //   금지할지는 언어 설계의 결정이지 이 검사가 혼자 정할 일이 아니다(RFC-0115 로 남긴다).
-        (void)tab; (void)nt;
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_excl_args_walk(out, nd->kids[i], tab, nt);
 }

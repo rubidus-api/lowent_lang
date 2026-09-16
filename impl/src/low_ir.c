@@ -156,8 +156,8 @@ void low_ir_set_author_warnings(bool on) { g_warn_author = on; }
 //   ⓑ 같은 절이 인스턴스 수만큼 되풀이됐다(코퍼스 130 중 101 이 그 되풀이였다).
 //   ⇒ 파일을 함께 싣고, **(파일·줄)이 같은 것은 한 번만** 낸다.
 //   ☞ *같은 사실을 여러 번 세면 그 수는 «얼마나 나쁜가» 가 아니라 «얼마나 복제됐나» 를 잰다.*
-static void ir_warn_at(ir_ctx_t *c, const char *code, const char *msg, proven_u32 line,
-                       const char *file) {
+void ir_warn_at(ir_ctx_t *c, const char *code, const char *msg, proven_u32 line,
+                const char *file) {
     if (!g_warn_author) return;
     for (proven_size_t i = 0; i < c->out->diags.len; i++) {
         const low_diag_t *o = PROVEN_ARRAY_GET(&c->out->diags, low_diag_t, i);
@@ -1222,6 +1222,12 @@ static bool ir_bare_is_ambiguous(ir_ctx_t *c, proven_u8str_view_t name,
     proven_u8str_view_t head = { .ptr = v.ptr, .size = dot };
     for (proven_size_t m = 0; m < c->nmodnames; m++)
         if (proven_u8str_view_eq(head, c->modnames[m]))
+            return (proven_u8str_view_t){ .ptr = v.ptr + dot + 1, .size = v.size - dot - 1 };
+    // ★★ **`use M as N` 의 별칭도 머리다**(결함 #14). 별칭은 모듈 이름 표에 없으므로 위 고리가
+    //   놓쳤고, 그래서 매뉴얼이 권하는 `use allocs as al .` 뒤의 `spawn actor al.bump_bytes` 가
+    //   «액터가 아니다» 로 떨어졌다 — 별칭을 쓰라고 적어 놓고 별칭을 모르는 것이다.
+    for (proven_size_t m = 0; m < c->nusebind; m++)
+        if (proven_u8str_view_eq(head, c->usebind[m]))
             return (proven_u8str_view_t){ .ptr = v.ptr + dot + 1, .size = v.size - dot - 1 };
     return v;
 }
@@ -5326,6 +5332,41 @@ static bool ir_names_trait(const low_parse_result_t *pr, proven_u8str_view_t w) 
 }
 
  void ir_contract_entry(ir_ctx_t *c, const low_cst_t *f) {
+    // ★★★★★ **`range` 매개변수도 진입에서 선다** (결함 노트 #10, 2026-09-16).
+    //
+    //   `input p (range u8 0 100) .` 을 `pct 200` 으로 불러도, `pct x`(증명 없는 u8)로 불러도
+    //   `--check` 는 통과했고 **실행도 200 을 그대로 돌려줬다.** 그런데 구간 분석은 그 범위를
+    //   **사실로 심는다** — 아무도 지키지 않는 것을 사실로 쓰는 것이 정본 교훈 1 이 말하는
+    //   바로 그 자리다(경계 검사가 그 «사실» 위에서 지워진다). 폭이 다른 경우는 `E-TYPE-WIDTH`
+    //   가 정적으로 잡지만, **폭이 같은 값**(u8 → range u8 0 100)은 아무 층도 보지 않았다.
+    //   ⇒ `requires ge p <lo> . requires le p <hi> .` 를 적은 것과 **같은 검사**를 진입에서 낸다.
+    {
+        low_op_header_t oh = low_op_header(f);
+        for (proven_size_t pi = 0; pi < oh.np; pi++) {
+            const low_cst_t *tn = (oh.p[pi].core < f->nkids) ? f->kids[oh.p[pi].core] : NULL;
+            low_cst_t *const *tk = NULL; proven_size_t tn_n = 0;
+            if (tn && tn->kind == LOW_CST_GROUP && tn->nkids == 1 &&
+                tn->kids[0]->kind == LOW_CST_FORM) { tk = tn->kids[0]->kids; tn_n = tn->kids[0]->nkids; }
+            else { tk = &f->kids[oh.p[pi].core];
+                   tn_n = (oh.p[pi].te > oh.p[pi].core) ? oh.p[pi].te - oh.p[pi].core : 0; }
+            proven_i64 lo = 0, hi = 0; bool got = false;
+            for (proven_size_t w = 0; w + 2 < tn_n; w++) {
+                if (!is_atom(tk[w]) || !veq(tk[w]->tok.lex, "range")) continue;
+                // `range <lo> <hi>` 또는 `range <바탕타입> <lo> <hi>` — 뒤의 정수 둘이 경계다.
+                proven_i64 a, b;
+                if (is_atom(tk[w + 1]) && is_atom(tk[w + 2]) &&
+                    ir_int_lit(tk[w + 1]->tok.lex, &a) && ir_int_lit(tk[w + 2]->tok.lex, &b)) { lo = a; hi = b; got = true; }
+                else if (w + 3 < tn_n && is_atom(tk[w + 2]) && is_atom(tk[w + 3]) &&
+                         ir_int_lit(tk[w + 2]->tok.lex, &a) && ir_int_lit(tk[w + 3]->tok.lex, &b)) { lo = a; hi = b; got = true; }
+                break;
+            }
+            if (!got || hi < lo) continue;
+            if (!ir_contract_operand(c, oh.p[pi].name, f->line)) continue;
+            ir_emit(c, IRW_CONST, lo); ir_emit(c, IRW_GE, 0); ir_emit(c, IRW_ASSERT, 0);
+            if (!ir_contract_operand(c, oh.p[pi].name, f->line)) continue;
+            ir_emit(c, IRW_CONST, hi); ir_emit(c, IRW_LE, 0); ir_emit(c, IRW_ASSERT, 0);
+        }
+    }
     for (proven_size_t i = 0; i + 3 < f->nkids; i++) {
         proven_size_t k; bool is_assume, is_debug;
         if (!ir_requires_at(f, i, &k, &is_assume, &is_debug)) continue;

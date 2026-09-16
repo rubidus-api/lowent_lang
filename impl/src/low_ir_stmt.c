@@ -1299,6 +1299,22 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
     proven_size_t ends[IR_MAXPATCH]; proven_size_t nend = 0;
     for (proven_size_t q = 0; q < arms->nkids && !c->failed; q++) {
         const low_cst_t *f = arms->kids[q];
+        // ★★ **`match` 안의 `else` = 나머지 가지**(정본 A.7 · §6.5.4(6) · 결함 #81). 앞선 `case` 가
+        //   닫히는 자리에 붙어 **한 겹 더 싸여** 온다(`FORM > FORM > ATOM else`) — 벗겨 내고 본다.
+        //   여기서 받지 않으면 문법과 진단문이 함께 권하는 모양이 `E-IR-UNSUP` 으로 떨어진다.
+        if (f->kind == LOW_CST_FORM && f->nkids >= 1 && f->kids[0]->kind == LOW_CST_FORM &&
+            f->kids[0]->nkids >= 1 && is_atom(f->kids[0]->kids[0]) &&
+            f->kids[0]->kids[0]->tok.kw == LOW_KW_ELSE)
+            f = f->kids[0];
+        if (f->kind == LOW_CST_FORM && f->nkids >= 2 && is_atom(f->kids[0]) &&
+            f->kids[0]->tok.kw == LOW_KW_ELSE) {
+            const low_cst_t *eb = f->kids[f->nkids - 1];
+            if (eb->kind != LOW_CST_BLOCK) {
+                ir_fail(c, "E-IR-UNSUP", "`else` needs a do-block", m->line); return;
+            }
+            ir_block(c, eb);                       // 조건 없이 — 나머지를 전부 받는다
+            break;                                 // 그 뒤 가지는 없다(검사가 죽은 코드로 문다)
+        }
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || !is_atom(f->kids[0]) ||
             f->kids[0]->tok.kw != LOW_KW_CASE || !is_atom(f->kids[1])) {
             ir_fail(c, "E-IR-UNSUP", "malformed case", m->line); return;
@@ -1434,8 +1450,17 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
                     proven_u8str_view_t iv = { 0 };
                     if (inner && inner->kind == LOW_CST_FORM && inner->nkids >= 1 && is_atom(inner->kids[0])) iv = inner->kids[0]->tok.lex;
                     else if (is_atom(sub)) iv = sub->tok.lex;
+                    // ★★★★ **`case error <갈래>` 의 이름은 갈래다** (결함 노트 #52, 2026-09-16).
+                    //   그전에는 여기서 **무조건 묶음 이름**으로 읽었다 — `case error not_digit .` 이
+                    //   «어떤 오류든» 을 받았고, `ok` 와 그것 둘만 적은 `match` 가 망라로 통과했으며,
+                    //   실제 오류가 `empty` 여도 `not_digit` 가지가 돌았다. 갈래 이름을 적었는데
+                    //   **다른 갈래가 그 가지로 들어오는 것**은 §6.6(7)(맨 이름은 언제나 갈래다)이
+                    //   `match` 전체에 대해 이미 정한 규율의 정반대다. ⇒ 선언된 갈래면 **갈래**로,
+                    //   아니면 그대로 묶음 이름으로 읽는다(오류 값을 통째로 받는 자리는 남는다).
                     bool inner_optres = iv.size && (veq(iv, "some") || veq(iv, "none") || veq(iv, "ok") || veq(iv, "error"));
-                    if (inner_optres) {
+                    bool inner_variant = !inner_optres && iv.size && is_atom(sub) &&
+                                         ir_variant_index(c, iv) >= 0;
+                    if (inner_optres || inner_variant) {
                         nest_ex = opt_extract;   // outer 페이로드를 꺼내 내부를 매칭
                         nest_inner = (inner && inner->kind == LOW_CST_FORM) ? inner : sub;
                         opt_extract = (low_irw_t)0;   // outer 자체는 이름 바인딩 안 함(내부가 매칭)
@@ -1522,8 +1547,16 @@ static void ir_match(ir_ctx_t *c, const low_cst_t *m) {
                 if (nest_inner->nkids >= 2 && is_atom(nest_inner->kids[1])) ibind = nest_inner->kids[1]->tok.lex;
             } else iv = nest_inner->tok.lex;
             low_irw_t iextract = (low_irw_t)0;
+            proven_i64 ivi = (veq(iv, "some") || veq(iv, "none") || veq(iv, "ok") || veq(iv, "error"))
+                             ? -1 : ir_variant_index(c, iv);
             ir_emit(c, IRW_LOAD, (proven_i64)t2);
-            if (veq(iv, "some")) { ir_emit(c, IRW_ISSOME, 0); iextract = IRW_SOMEVAL; }
+            if (ivi >= 0) {                                  // ★ 안쪽이 **열거 갈래** — 꼬리표를 견준다
+                if (ir_enum_is_payload(c, ivi))
+                    ir_emit(c, IRW_FIELD, (proven_i64)ir_field_intern(c, (proven_u8str_view_t){ IR_ENUM_TAGF, 2 }));
+                ir_emit(c, IRW_CONST, ivi);
+                ir_emit(c, IRW_EQ, 0);
+            }
+            else if (veq(iv, "some")) { ir_emit(c, IRW_ISSOME, 0); iextract = IRW_SOMEVAL; }
             else if (veq(iv, "none")) { ir_emit(c, IRW_ISSOME, 0); ir_emit(c, IRW_NOT, 0); }
             else if (veq(iv, "ok")) { ir_emit(c, IRW_ISOK, 0); iextract = IRW_OKVAL; }
             else { ir_emit(c, IRW_ISERR, 0); iextract = IRW_ERRVAL; }
@@ -1952,21 +1985,43 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                         continue; }
         }
         o->val = v;
+        o->from_cfg = true;
     }
     // ★★★ **의존은 강제된다.** `hz depends smp` 인데 smp 가 꺼진 채 hz 를 켜면, 그 빌드는
     //   **존재하지 않는 구성**이다. Kconfig 가 하는 일이 정확히 이것이고, 하지 않으면
     //   그 의존 선언은 **장식**이다(검사되지 않는 중복은 거짓말로 썩는다).
+    // ★★ **`choice` 손잡이에는 「꺼짐」이 없다** (결함 노트 #18, 2026-09-16). 전에는 `val == 0`
+    //   하나로 「켜져 있는가」를 재서, `hz choice 100 250 . depends smp .` 처럼 0 을 고를 수 없는
+    //   손잡이가 **늘 켜진 것**이 됐다 — 그래서 `smp` 를 끄는 구성이 하나도 존재할 수 없었다
+    //   (`hz` 를 적든 안 적든 `E-CONFIG-DEPENDS`). 아무 구성으로도 끌 수 없는 손잡이는 손잡이가
+    //   아니다. ⇒ bool 은 그대로 강제하고(켠 채로 바탕이 꺼지면 거절), `choice`·`int` 는
+    //   「의존이 안 맞으면 이 손잡이는 **쓰이지 않는다**」로 읽는다. 해결본이 굳이 값을 고르면
+    //   그 값이 **버려진다는 것**을 알린다 — 거절이 아니라 알림이다(RFC-0115 §8-21 은 이것을
+    //   기록으로 남긴다: 정본이 `choice` 의 의존을 적지 않았다).
     for (proven_size_t i = 0; i < g_nopt; i++) {
-        if (!g_opt[i].has_dep || g_opt[i].val == 0) continue;
+        if (!g_opt[i].has_dep) continue;
         ir_opt_t *d = ir_opt_find(proven_u8str_view_from_cstr(g_opt[i].dep));
         if (!d) {
             ir_fail(&mod, "E-OPT-DEPENDS", "this option depends on an option that does not exist",
                     g_opt[i].line);
-        } else if (d->val == 0) {
-            ir_fail(&mod, "E-CONFIG-DEPENDS", "this option is ON while the option it depends on is "
-                    "OFF. That build does not exist — and without this check the `depends` clause "
-                    "is decoration", g_opt[i].line);
+            continue;
         }
+        if (d->val != 0) continue;                       // 바탕이 켜져 있다 — 볼 것이 없다
+        if (g_opt[i].kind == 0) {                        // bool: 켠 채로 바탕이 꺼졌으면 없는 빌드다
+            if (g_opt[i].val != 0)
+                ir_fail(&mod, "E-CONFIG-DEPENDS", "this option is ON while the option it depends on is "
+                        "OFF. That build does not exist — and without this check the `depends` clause "
+                        "is decoration", g_opt[i].line);
+            continue;
+        }
+        if (g_opt[i].from_cfg)                           // choice/int: 고른 값이 버려진다
+            ir_warn_at(&mod, "W-CONFIG-DEPENDS",
+                       "the config picks a value for this option while the option it DEPENDS ON is off. "
+                       "A `choice` knob has no `off` position, so this is not an impossible build — but "
+                       "the knob is out of play, and any code that still reads it is reading a setting "
+                       "for a feature that is turned off. Guard that code with the option this one "
+                       "depends on, drop this line from the config, or drop the `depends`",
+                       g_opt[i].line, NULL);
     }
 
     proven_result_mem_mut_t sm = work.alloc_fn(work.ctx, 32 * sizeof(low_ir_struct_t), alignof(low_ir_struct_t));
@@ -3153,10 +3208,34 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
             bool any = false;
             for (proven_size_t j = 0; j + 3 < f->nkids; j++) {
                 proven_size_t k2;
-                if (!ir_ensures_at(f, j, &k2)) continue;
+                if (!ir_ensures_at(f, j, &k2)) {
+                    // ★★ **못 세운 `ensures` 는 말한다**(결함 노트 #11). `requires` 쪽은 이미
+                    //   `W-CONTRACT-IGNORED` 로 「이 절은 절반만 지킨다」고 말하는데, `ensures` 는
+                    //   같은 모양을 **조용히 버렸다** — `ensures le (mul ret 2) n .` 은 아무 데서도
+                    //   검사되지 않으면서 문서에는 약속으로 남는다. 검사되지 않는 약속을 조용히
+                    //   두는 것이 이 언어가 거절하는 바로 그것이다(정본 §6.4.12).
+                    if (is_atom(f->kids[j]) && veq(f->kids[j]->tok.lex, "ensures"))
+                        ir_warn_at(&c, "W-CONTRACT-IGNORED",
+                                   "this `ensures` is not enforced at the exit. The exit check knows "
+                                   "one shape — `ensures <cmp> ret <literal|name|field path>` — and "
+                                   "this clause is not it (an expression on either side, or a left "
+                                   "side that is not `ret`). Nothing stops a return value that breaks "
+                                   "it, and the caller's interval analysis does not learn it either: "
+                                   "the promise stands in the documentation and nowhere else. Return "
+                                   "through a name you can compare directly, or say it with `guard`",
+                                   f->kids[j]->tok.line, f->file);
+                    continue;
+                }
                 low_irw_t w = ir_cmp_word(f->kids[k2]->tok.lex);
                 proven_i64 nv;
-                if (w == IRW_NOT) continue;
+                if (w == IRW_NOT) {
+                    ir_warn_at(&c, "W-CONTRACT-IGNORED",
+                               "this `ensures` uses a predicate the EXIT check does not know (it knows "
+                               "lt · le · gt · ge · eq · ne). Nothing stops a return value that breaks "
+                               "it, and the analysis does not learn it either",
+                               f->kids[k2]->tok.line, f->file);
+                    continue;
+                }
                 bool lit = ir_int_lit(f->kids[k2 + 2]->tok.lex, &nv);
                 if (c.nens < 4) {
                     c.ens[c.nens].w = w; c.ens[c.nens].n = lit ? nv : 0;

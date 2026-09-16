@@ -132,10 +132,11 @@ fixed, and the `index` that follows a position still gets its bounds check. The 
 #antipattern[Passing a value-less variant as `Type.variant`][
   #demo("examples/ch10/mistake_unitvariant.low")
 
-  A variant that carries values is built with the type name in front, as in `shape.circle 2`, but a variant carrying nothing is written by
-  *its name alone* (`green`). This edition's tool does not reject `light.green` at compile time; it stops with `E-VM-TYPE` when run ---
-  something that should be reported at compile time, recorded in the development repository as a defect. When you see this stop, remove
-  the type name in front of the variant.
+  A variant that carries values is built with the type name in front, as in `shape.circle 2`, and this book writes a variant carrying
+  nothing by *its name alone* (`green`). Both are the same value --- `pick_bare` and `pick_qualified` both answer 2. Until 2026-09-16 the
+  tool lowered a value-less variant written as `light.green` to a *different representation* (a record with a tag), so it stopped at run
+  time with `E-VM-TYPE`. Now both lower to the same index. Prefer the shorter spelling, and qualify where the enum would otherwise be
+  hard to tell.
 ]
 
 #antipattern[Comparing two structs with `eq`][
@@ -151,10 +152,9 @@ fixed, and the `index` that follows a position still gets its bounds check. The 
 #antipattern[Believing that putting a value under another name makes a copy][
   #demo("examples/ch10/mistake_alias.low")
 
-  After `var q point be p .`, a field of `q` was changed and `p`'s field became 99. In this edition, putting a struct under another name
-  makes *an alias to the same place*. `p` is a `let` and must not change, so this breaks a promise; the specification does not yet define
-  copying of struct values either --- the development repository records it as its heaviest defect. Until it is fixed, *build a new value
-  with `make`* whenever you need one.
+  `var q point be p .` builds *a new value with `p`'s fields copied*. So changing `q`'s field to 99 leaves `p` at 1. A value without
+  ownership is copied; a value with ownership is moved (#chref("ownership")). Until 2026-09-16 the tool made an alias to the same place, and
+  `p` changed too --- the `let` promise broke there. Lowering now copies the fields.
 
   #demo("examples/ch10/alias_fixed.low")
 

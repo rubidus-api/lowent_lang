@@ -1,5 +1,5 @@
 module mistake_peekstate .
-rem run: peek
+rem expect: E-ACTOR-FIELD
 
 actor counter do
   state do

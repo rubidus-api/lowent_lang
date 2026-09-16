@@ -187,14 +187,14 @@ the number of bytes filled. When tests need repeatable random numbers, use `rng_
   fix is the same: the entry receives `input out cap io .` and passes that name.
 ]
 
-#antipattern[Passing a number where a capability belongs --- a hole in this edition][
+#antipattern[Passing a number where a capability belongs][
   #demo("examples/ch16/mistake_capforge.low")
 
-  `start` receives no capability at all, so it should not be able to print. Yet when the number 0 is passed in the `cap io` position of
-  `say`, this edition's tool does not reject it, and both the VM and the native build print `hi`. The promise of this chapter --- "the
-  entry point tells you everything the program can reach" --- breaks here. It is recorded as a serious defect in the development
-  repository. Until it is fixed, when auditing someone else's code, check with your own eyes that *a capability name is passed* at every
-  call to an op with a `cap` parameter. In your own code, write only received capability names in capability positions.
+  `start` receives no capability at all, so it should not be able to print. Passing the number 0 in the `cap io` position of `say` looks
+  like a way around that rule, and it is refused with `E-CAP-FORGE`. Only a *name you were handed* (`input … cap …`) or an actor's
+  capability field may stand in a capability position. Without that, the promise of this chapter --- "the entry point tells you everything
+  the program can reach" --- would fall to a single line. The placeholder `0` that `--run` uses means something only at the tool's door
+  (#chref("build-test")).
 ]
 
 #misconception[It is convenient to take capabilities and effects in advance, in case they are needed later][

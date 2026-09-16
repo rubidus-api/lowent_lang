@@ -206,7 +206,7 @@ the slow path, used to see whether both paths give the same answer.
   For the entry point (`main`), the tool fills in capabilities, but when you call another op directly with `--run`, capability positions
   count among the arguments. `say 5` is one argument short, hence `E-VM-ARITY`; `say 0 5`, with a placeholder `0` in the capability position,
   runs (the device capability `cap mmio` works the same way --- #chref("hardware")). This placeholder is only a convenience of the tool for
-  testing. Passing a number where a capability belongs inside a program is a hole in this edition (#chref("capabilities")); do not write that.
+  testing. Inside a program, passing a number where a capability belongs is refused with `E-CAP-FORGE` (#chref("capabilities")).
 ]
 
 #misconception[Branches switched off by the configuration are not checked][

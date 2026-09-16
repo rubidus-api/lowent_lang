@@ -1,5 +1,5 @@
 module mistake_capforge .
-rem run: start
+rem expect: E-CAP-FORGE
 
 proc say input k cap io . output u64 . effects io .
 do

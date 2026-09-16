@@ -142,10 +142,10 @@ loop has its length change even though its own code contains no assignment. Retu
 #antipattern[Lending a `let` name for writing][
   #demo("examples/ch12/mistake_letmutref.low")
 
-  `let` promises "the value of this name does not change". Lending such a name with `mut_ref` breaks that promise, so it should be
-  rejected. This edition's tool accepts it, and the run shows `n` changed to 8. The canon and the tool disagree; the defect is recorded
-  in the development repository. Make a value that must change a `var` from the start, so the reader learns from the declaration that
-  it changes somewhere.
+  `let` promises "the value of this name does not change". Lending such a name with `mut_ref` breaks that promise, so it is refused with
+  `E-TYPE-ARGMUT`. A borrow changes the value invisibly at the call site, which is exactly what would cost `let` its worth: that checking
+  the name once is enough. Make a value that must change a `var` from the start, so the reader learns from the declaration that it
+  changes somewhere.
 ]
 
 #misconception[A variable passed as `input` can be changed by the op it is passed to][

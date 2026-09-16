@@ -1,6 +1,6 @@
 module mistake_unitvariant .
 rem run: pick_bare
-rem trap: pick_qualified
+rem run: pick_qualified
 
 enum light do
   red .

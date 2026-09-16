@@ -1,5 +1,5 @@
 module mistake_reffield .
-rem trap: peek_it
+rem expect: E-ACTOR-STATE-REF
 
 actor holder do
   state do

@@ -209,7 +209,7 @@ why-slow: 0 / 1 op(s) still on the tagged path
 
   시작점(`main`)은 도구가 권한을 채워 주지만, 그 밖의 op 을 `--run` 으로 곧장 부르면 권한 자리도 인자 수에 든다. `say 5` 는 인자가 하나 모자라
   `E-VM-ARITY` 이고, 권한 자리에 자리표 `0` 을 채운 `say 0 5` 는 돈다(장치 권한 `cap mmio` 도 같다 --- #chref("hardware")). 이 자리표는 시험을
-  위한 도구의 편의일 뿐이다. 프로그램 안에서 권한 자리에 수를 넘기는 것은 이 판의 구멍이고(#chref("capabilities")), 그렇게 쓰지 않는다.
+  위한 도구의 편의일 뿐이다. 프로그램 안에서 권한 자리에 수를 넘기면 `E-CAP-FORGE` 로 거절된다(#chref("capabilities")).
 ]
 
 #misconception[구성에서 꺼진 가지는 검사하지 않는다][

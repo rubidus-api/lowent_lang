@@ -1,4 +1,5 @@
 module mistake_reduceinit .
+rem expect: E-PAR-IDENTITY
 
 fn total input s slice u8 . output u64 .
   parallel s split .

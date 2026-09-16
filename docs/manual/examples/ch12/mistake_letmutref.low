@@ -1,5 +1,5 @@
 module mistake_letmutref .
-rem run: use_bump 7
+rem expect: E-TYPE-ARGMUT
 
 proc bump input p mut_ref u64 . output void .
 do

@@ -228,11 +228,10 @@ kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT
 #antipattern[Starting a `reduce` accumulator at a value that is not the identity][
   #demo("examples/ch27/mistake_reduceinit.low")
 
-  Run sequentially, `total [1,2,3,4,5,6]` is 100 + 21 = 121. Split, *each piece* starts `acc` at 100. Running the split entry of this
-  edition's native code in six pieces gives 621. The promise that a split answer equals the sequential one breaks, yet the tool passes it
-  with `W-PAR-OK` (recorded as a serious defect in the development repository). The starting value of a `reduce` must be the *identity* of
-  the gathering operation --- 0 for `add`, 1 for `mul`, the type's minimum for `max`. If there is a value to add, add it to the result
-  outside the loop.
+  Run sequentially, `total [1,2,3,4,5,6]` is 100 + 21 = 121. Split, *each piece* starts `acc` at 100, and six pieces of native code gave 621
+  --- the promise that a split answer equals the sequential one breaks there. So it is refused with `E-PAR-IDENTITY` (until 2026-09-16 it
+  passed with `W-PAR-OK`). The starting value of a `reduce` must be the *identity* of the gathering operation --- 0 for `add`, `bit_or` and
+  `bit_xor`, 1 for `mul`, 0 for `max` on an unsigned width. If there is a value to add, add it to the result outside the loop.
 ]
 
 #antipattern[Writing the loop to split in a different shape][

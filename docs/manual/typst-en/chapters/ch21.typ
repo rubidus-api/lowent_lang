@@ -166,7 +166,7 @@ A file as a whole is skimmed, but a body is read top to bottom.
   (recorded as a defect in the development repository). Export the input and output types of an exported op as well.
 ]
 
-#antipattern[Writing another module's enum variant with the module name in a `case` --- a hole in this edition][
+#antipattern[Writing another module's enum variant with the module name in a `case`][
   #demo("examples/ch21/sizes.low")
 
   The `sizes` module exports the enum `kind` and `classify`, which returns one. If the importing side qualifies the variants with the module name,
@@ -174,10 +174,10 @@ A file as a whole is skimmed, but a body is read top to bottom.
 
   #demo("examples/ch21/mistake_enumcase.low")
 
-  `describe 500` is `big`, yet it returns 1. This edition's tool reads `case sizes.small` not as a variant but as *a slot that matches any value*
-  (the same kind of hole as `case error e` in #chref("option-result")). The first arm takes every value, the `match` still passes as exhaustive, and
-  the VM and native code give the same wrong answer. It is recorded as a defect in the development repository. Write only the variant name in a
-  `case`; the type of `k` decides which enum the variant belongs to.
+  `describe 500` is `big` and answers 2, and `describe 5` answers 1: a qualified name is read as a variant. Until 2026-09-16 it was not ---
+  lowering read `case sizes.small` not as a variant but as *a slot that matches any value*, so the first arm took every value and 500 also
+  answered 1. The checker narrowed qualified names to variants and lowering did not; the two layers now read the same tree. Writing only the
+  variant name is still shorter, and the type of `k` decides which enum it belongs to.
 
   #demo("examples/ch21/enumcase_fixed.low")
 ]

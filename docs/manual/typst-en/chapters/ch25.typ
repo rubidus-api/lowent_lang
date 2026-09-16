@@ -203,13 +203,13 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   tells, lookup was once by bare name, and two actors with a handler of the same name silently shared one.
 ]
 
-#antipattern[Reading an actor's state field from outside --- a hole in this edition][
+#antipattern[Reading an actor's state field from outside][
   #demo("examples/ch25/mistake_peekstate.low")
 
-  The first promise of this chapter was "the state lives only inside the actor and cannot be touched directly from outside". Yet this
-  edition's tool does not reject `field c value` and returns 1. Actor isolation is a premise of the concurrency proofs, so this is recorded
-  as a serious defect in the development repository. Until it is fixed, keep the rule yourself: if you need the state, give the actor a read
-  message such as `get` and ask with `send c get`.
+  The first promise of this chapter was "the state lives only inside the actor and cannot be touched directly from outside". `field c value`
+  tries to go around that door and is refused with `E-ACTOR-FIELD`. If state were readable from outside, handling one message at a time would
+  buy nothing --- the reader would see a value between two messages. If you need the state, give the actor a read message such as `get` and
+  ask with `send c get`.
 ]
 
 #antipattern[Using a state field in the error condition of a message op][
@@ -217,20 +217,20 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
 
   `errors insufficient gt amount balance .` was written to mean "this error when withdrawing more than the balance". But an `errors`
   condition is checked *on exit*. On the success path the balance dropped from 50 to 20, so on exit `gt 30 20` is true, which amounts to
-  "the condition holds, yet the error was not returned". In this edition the VM stops here with `E-VM-ANALYSIS` ("the interval analysis is
-  unsound --- a compiler bug"), and the native build returns 20 without checking. Both the diagnostic's name and the two back ends'
-  behaviour are wrong; the defect is recorded in the development repository. In an op that changes state, do not use state fields in error
-  conditions. Write `errors insufficient .` without a condition, as `transfer.low` above does, and let the `guard` in the body carry the
-  condition.
+  "the condition holds, yet the error was not returned". So translation refuses it with `E-ERRORS-STATE`. Until 2026-09-16 it passed: the VM
+  stopped with `E-VM-ANALYSIS` ("the interval analysis is unsound"), and the native build returned 20 without checking --- the two back
+  ends disagreed. Whether such a condition is read on entry or on exit is not settled in the canon yet, and until it is, a declaration that
+  cannot be checked is not accepted. Write the error condition over the *inputs*, and let the `guard` in the body judge the state --- as
+  `transfer.low` above does with a bare `errors insufficient .`.
 ]
 
-#antipattern[Keeping a borrow in a state field --- a hole in this edition][
+#antipattern[Keeping a borrow in a state field][
   #demo("examples/ch25/mistake_reffield.low")
 
   A borrow (`ref`) cannot outlive what it borrows (#chref("references")). An actor's state stays for as long as the actor lives, so the field
-  has nowhere to say what it borrows. By the meaning of the language this should be refused at translation, but this edition's tool accepts
-  the declaration and spawns the actor with the field empty. Only at `deref r` does the VM stop with `E-VM-TYPE` and native code with a `panic`.
-  It is recorded as a defect in the development repository. Keep values in state instead of borrows, and if a value is large, keep a slice.
+  has nowhere to say what it borrows. So the declaration is refused with `E-ACTOR-STATE-REF`. Until 2026-09-16 the declaration was accepted
+  and the actor spawned with the field empty; only at `deref r` did the VM stop with `E-VM-TYPE` and native code with a `panic`. Keep values
+  in state instead of borrows, and if a value is large, keep a slice the actor owns for its lifetime.
 ]
 
 #misconception[A restarted actor continues from the state just before it blew up][

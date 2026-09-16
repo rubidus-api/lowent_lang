@@ -4163,6 +4163,13 @@ low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
             //   (범위 검사는 하지 않는다: `range` 는 정수 축의 계약이다.)
             if (args[i].is_flt) vargs[i] = (vmv_t){ .tag = VMV_FLT, .i = args[i].v };
             else                vargs[i] = vmv_flt((double)args[i].v);
+            // ★ `f32` 파라미터는 **경계에서 32 비트로 반올림한다** (#83) — 안 그러면 프로그램 안의
+            //   `f32` 값과 밖에서 들어온 `f32` 값이 서로 다른 정밀도를 갖는다.
+            if ((d->param_f32 >> i) & 1u) {
+                double dv3; memcpy(&dv3, &vargs[i].i, 8);
+                float fv3 = (float)dv3; double rv3 = (double)fv3;
+                memcpy(&vargs[i].i, &rv3, 8);
+            }
         } else {
             // ★★ **프로그램 경계의 진입 검사** (RFC-0055 D6 · RFC-0053 §6.6).
             //   파라미터의 선언 범위는 지금까지 **내부 호출 지점에서만** 강제됐다. 그런데 구간
@@ -4177,6 +4184,21 @@ low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
             //     (자동 차등 퍼저가 값을 −1 까지 흔들어서 찾았다. 교훈 1 그대로:
             //      **믿는 코드 + 강제하지 않는 코드.**)
             //     ⇒ 타입의 범위도 **계약이다.** 경계에서 강제한다.
+            // ★★★ **u64 의 위쪽 절반은 아직 들어올 수 없다** (결함 노트 #19·#69, 2026-09-16).
+            //   `--run` 은 이제 그 글자를 **자르지 않고** 읽지만(전엔 조용히 i64 최댓값이 됐다),
+            //   구간 분석이 `u64` 의 상한을 **i64 최댓값**으로 믿고 검사를 지운다. 그 믿음 위로
+            //   더 큰 값을 들이면 분석이 스스로를 고발한다(E-VM-ANALYSIS) — 그래서 경계에서
+            //   **정직하게 거절한다.** 부호 없는 64 비트 구간을 표현하는 일은 별도 작업이다.
+            // ★★★ **부호 없는 64 비트의 상계는 «자른 값»이다** (결함 노트 #19·#69, 2026-09-16).
+            //   구간 도메인이 i64 라 `u64` 의 상한을 `INT64_MAX` 로 적어 두고 **그 사실을 표시**해
+            //   두었다(`iv_ty` 의 `wide`) — 분석은 그 상계를 믿지 않는다. 그런데 **경계 검사만**
+            //   그 잘린 수를 진짜 상한처럼 강제해서, `u64` 의 정당한 값(2^64−1)을 거절했다.
+            //   잘린 상계로는 아무것도 거절하지 않는다.
+            // ★★★ 그리고 **그 잘린 상계 위로는 아직 못 들어온다**: 구간 도메인이 i64 라
+            //   `u64` 의 위쪽 절반을 표현하지 못하고, 그 위 값을 들이면 분석이 스스로를
+            //   고발한다(실측: `shard_of -1` → E-VM-ANALYSIS). 그래서 **조용히 자르지 않고
+            //   거절한다** — 자르는 것은 다른 수를 준 것이고, 그것이 결함 노트 #19 였다.
+            //   위쪽 절반을 받으려면 도메인이 부호 없는 64 비트를 표현해야 한다(#69 의 남은 몫).
             if (i < LOW_MAX_PARAMS && d->ptype[i].has_rng &&
                 (args[i].v < d->ptype[i].rlo || args[i].v > d->ptype[i].rhi)) {
                 vm_diag(diags, "E-VM-CONTRACT",
@@ -4214,6 +4236,12 @@ low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
     if (out.ok) {
         if (rv.tag == VMV_INT) out.value = rv.i;
         vmv_render(&vm, rv, out.text, sizeof out.text);
+        // ★★★★ **부호 없는 결과는 부호 없이 찍는다** (결함 노트 #69, 2026-09-16). `output u64` 인 op 이
+        //   18446744073709551615 를 돌려주면 표시가 `-1` 이었다 — 값은 맞는데 **보이는 것이 틀렸다**.
+        //   같은 수를 두 가지로 말하면 읽는 사람은 도구를 의심하고, 그 의심은 옳다.
+        if (rv.tag == VMV_INT && rv.i < 0 && d->out_tyname.size &&
+            d->out_tyname.ptr[0] == (proven_byte_t)'u')
+            snprintf(out.text, sizeof out.text, "%llu", (unsigned long long)rv.i);
     }
     return out;
 }

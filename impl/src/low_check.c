@@ -32,7 +32,17 @@ enum { EFF_NONE = 0, EFF_IO = 1u, EFF_ALLOC = 2u, EFF_STATE = 4u,
        // ★★★★ **`heap`** (RFC-0112 D2 · WO-0211) — 뿌리가 **실행 중에 자랄 수 있다**. 호스티드 전용.
        //   `alloc` 과 갈라 둔 까닭: 프리스탠딩도 **고정 창에서 깎는 일**(alloc)은 한다. 못 하는 것은
        //   *자라는 것* 하나다 — 그래서 막는 것도 그 하나여야 한다(전엔 alloc 전체를 막았다, F3).
-       EFF_HEAP = 256u };
+       EFF_HEAP = 256u,
+       // ★★★★ **원시어가 없는 원자도 격자의 자리를 갖는다** (결함 노트 #85, 2026-09-16).
+       //   전엔 이 여섯이 `EFF_NONE` 으로 접혔다 — 그러면 `proc … effects blocking .` 을 **순수한
+       //   `fn` 이 불러도 통과한다**: 선언은 받아 놓고 전파는 하지 않았다. 특히 `device`(장치를
+       //   직접 건드린다)가 순수 함수 뒤에 숨었다. 비트를 주면 «부른 것의 효과는 부르는 것의
+       //   효과에 든다»(§7.1)가 이 여섯에도 선다.
+       //   ★ 추론할 원시어가 없으므로 "선언했는데 안 한다"(W-EFFECT-OVER)에서는 뺀다 —
+       //     그 경고는 «몸이 그것을 하는가» 를 묻는데, 물을 몸이 없다.
+       EFF_LOCK = 512u, EFF_DEVICE = 1024u, EFF_PAGEFAULT = 2048u,
+       EFF_BLOCKING = 4096u, EFF_CANCEL = 8192u, EFF_DETACH = 16384u };
+#define EFF_NOPRIM (EFF_LOCK | EFF_DEVICE | EFF_PAGEFAULT | EFF_BLOCKING | EFF_CANCEL | EFF_DETACH)
 // ★★★ **폐포 연산자** close(S) = S ∪ {wait | concurrent ∈ S} (RFC-0083 §5·§1.4).
 //   확대(S⊆close(S))·멱등·단조를 만족하는 closure operator. concurrent 를 가지면 wait 을 파생한다 —
 //   포함관계를 **한 곳에서만** 강제(평평한 원자 표는 그대로). join 뒤·비교 전에 적용한다.
@@ -93,6 +103,13 @@ static unsigned effect_of_word(proven_u8str_view_t v) {
     if (veq(v, "wait")) return EFF_WAIT;        // ★ RFC-0083 L1 — wait 도 이제 격자 일급 원자(폐포 대상)
     // 나머지 어휘(lock·device·page_fault·blocking·cancel·detach)는
     // **아직 원시어가 없다** — 위반할 방법이 없으므로 선언만 받는다(과대근사는 안전하다).
+    // ★ 원시어가 없는 여섯도 **자리를 갖는다**(EFF_NOPRIM) — 추론은 못 해도 전파는 한다.
+    if (veq(v, "lock")) return EFF_LOCK;
+    if (veq(v, "device")) return EFF_DEVICE;
+    if (veq(v, "page_fault")) return EFF_PAGEFAULT;
+    if (veq(v, "blocking")) return EFF_BLOCKING;
+    if (veq(v, "cancel")) return EFF_CANCEL;
+    if (veq(v, "detach")) return EFF_DETACH;
     return EFF_NONE;  // "none" or an effect with no primitive yet
 }
 // ★ effect 어휘는 **닫혀 있다**(SPEC-002 §부록 K — 13 평면 atom + 바닥 `none`).
@@ -6097,6 +6114,15 @@ const char *low_effect_bit_name(unsigned bit) {
         case EFF_STATE:  return "state";
         case EFF_PANIC:  return "panic";
         case EFF_UNSAFE: return "unsafe";
+        case EFF_ATOMIC: return "atomic";
+        case EFF_CONCURRENT: return "concurrent";
+        case EFF_WAIT:   return "wait";
+        case EFF_LOCK:   return "lock";
+        case EFF_DEVICE: return "device";
+        case EFF_PAGEFAULT: return "page_fault";
+        case EFF_BLOCKING:  return "blocking";
+        case EFF_CANCEL: return "cancel";
+        case EFF_DETACH: return "detach";
         default:         return "none";
     }
 }
@@ -6540,7 +6566,11 @@ static bool ck_arg_is_ro(const low_cst_t *arg, const ck_bind_t *binds, proven_si
     if (arg->kind == LOW_CST_ATOM) {
         if (arg->tok.kind == LOW_TOK_IDENT && arg->tok.kw == LOW_KW_NONE)
             return ck_name_is_ro(binds, nb, arg->tok.lex);       // 맨 이름
-        return false;                                            // 리터럴 등 — 보수적으로 통과
+        // ★★★★ **리터럴은 고칠 수 있는 자리가 아니다** (정본 §6.1.4(12) · §8.8 · 결함 노트 #84, 2026-09-16).
+        //   문자열 리터럴을 `mut slice u8` 자리에 넘기는 것이 통과했다 — VM 은 그 바이트를 고치고
+        //   네이티브는 안 고쳐(두 뒤끝이 갈렸다) 표준 라이브러리가 거기 쓰면 네이티브가 죽었다.
+        if (arg->tok.kind == LOW_TOK_STRING || arg->tok.kind == LOW_TOK_HEREDOC) return true;
+        return false;                                            // 그 밖의 리터럴 — 보수적으로 통과
     }
     if (arg->kind == LOW_CST_FORM && arg->nkids >= 1 &&
         arg->kids[0]->kind == LOW_CST_ATOM && arg->kids[0]->tok.kw == LOW_KW_NONE) {
@@ -6803,6 +6833,76 @@ static void ck_errors_on_state(low_check_result_t *out, const low_cst_t *f,
             }
         }
     }
+}
+// ★★★★★ **쓰기 빌림은 하나다 — 액터 경계를 넘어서도** (정본 §8.4 · 결함 노트 #54, 2026-09-16).
+//   같은 `mut slice` 를 두 할당기에 `init` 으로 건네면 둘이 **같은 자리를 나눠 줬다**(`pv[0]` 에 65 를
+//   쓰고 `qv[0]` 에 66 을 쓰면 `pv` 를 읽어도 66). 배타 규칙이 `send` 경계에서 서지 않았다.
+//   ★ 좁게 문다: **쓰기 가능한 자리**를 **서로 다른 두 액터**에게 건넨 자리만.
+typedef struct { proven_u8str_view_t name, actor; proven_u32 line; } ck_lent_t;
+static void ck_actor_lend_walk(low_check_result_t *out, const low_cst_t *nd,
+                               const ck_bind_t *binds, proven_size_t nb,
+                               ck_lent_t *seen, proven_size_t *ns, proven_size_t cap) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        nd->kids[0]->tok.kw == LOW_KW_SEND && ck_atom(nd->kids[1])) {
+        proven_u8str_view_t act = nd->kids[1]->tok.lex;
+        for (proven_size_t q = 3; q < nd->nkids; q++) {
+            const low_cst_t *arg = nd->kids[q];
+            if (!ck_atom(arg) || arg->tok.kind != LOW_TOK_IDENT || arg->tok.kw != LOW_KW_NONE) continue;
+            bool mutable_place = false;
+            for (proven_size_t z = 0; z < nb; z++)
+                if (proven_u8str_view_eq(binds[z].name, arg->tok.lex) && binds[z].is_mut_place)
+                    mutable_place = true;
+            if (!mutable_place) continue;
+            bool found = false;
+            for (proven_size_t z = 0; z < *ns; z++)
+                if (proven_u8str_view_eq(seen[z].name, arg->tok.lex)) {
+                    found = true;
+                    if (!proven_u8str_view_eq(seen[z].actor, act))
+                        emit(out, "E-EXCL",
+                             "the same WRITABLE place was handed to a SECOND actor. A write borrow is "
+                             "exclusive (§8.4): two actors holding the same bytes both hand them out, so "
+                             "two containers silently overlap and a write through one is read through the "
+                             "other (measured: 65 written, 66 read back). Give each actor its own bytes — "
+                             "`subslice` the buffer into pieces that do not overlap",
+                             arg->tok.line);
+                    break;
+                }
+            if (!found && *ns < cap) {
+                seen[*ns].name = arg->tok.lex; seen[*ns].actor = act;
+                seen[*ns].line = arg->tok.line; (*ns)++;
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        ck_actor_lend_walk(out, nd->kids[i], binds, nb, seen, ns, cap);
+}
+// ★★★★ **리터럴은 고칠 수 없다 — 묶는 자리에서도** (정본 §6.1.4(12) · 결함 노트 #84, 2026-09-16).
+//   `let buf mut slice u8 . be "abc" .` 뒤의 `set (index buf 0) 65` 가 통과했다. 리터럴은 프로그램에
+//   박힌 바이트이고 고칠 자리가 아니다 — VM 은 고치고 네이티브는 안 고쳤다(두 답).
+static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *nd) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR)) {
+        bool has_mut = false; proven_size_t be = nd->nkids;
+        for (proven_size_t z = 2; z < nd->nkids; z++) {
+            if (!ck_atom(nd->kids[z])) continue;
+            if (nd->kids[z]->tok.kw == LOW_KW_BE) { be = z; break; }
+            if (veq(nd->kids[z]->tok.lex, "mut") || veq(nd->kids[z]->tok.lex, "mut_ref")) has_mut = true;
+        }
+        if (has_mut && be + 1 < nd->nkids) {
+            const low_cst_t *init = nd->kids[be + 1];
+            if (ck_atom(init) && (init->tok.kind == LOW_TOK_STRING || init->tok.kind == LOW_TOK_HEREDOC))
+                emit(out, "E-TYPE-ARGMUT",
+                     "a string LITERAL was bound to a name declared `mut`. A literal is bytes baked "
+                     "into the program, not a place that can be written: the VM used to change them "
+                     "while the native build did not, so the same program gave two answers, and a "
+                     "library op writing there killed the native build. Take bytes you will change "
+                     "from `alloc_bytes` or from the caller's buffer, and copy the literal into them",
+                     init->tok.line);
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_mut_literal_bind_walk(out, nd->kids[i]);
 }
 // ★★★★★ **`let` 의 불변은 참조로 뚫리지 않는다** (정본 §6.5.1(1) · §8.8 · 결함 노트 #46).
 static void ck_mutref_of_ro_walk(low_check_result_t *out, const low_cst_t *nd,
@@ -7749,6 +7849,11 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             ck_capkind_walk(&out, h.body, f);   // ★ 권위는 종류로 (RFC-0077 §P1-2)
             ck_capforge_walk(&out, h.body, tab0, ops.len);  // ★ 권한은 지어낼 수 없다 (RFC-0030 D2)
             ck_mutref_of_ro_walk(&out, h.body, binds, nb);   // ★ `let` 은 참조로도 안 바뀐다 (#46)
+            ck_mut_literal_bind_walk(&out, h.body);          // ★ 리터럴은 고칠 자리가 아니다 (#84)
+            {   // ★ 같은 쓰기 자리를 두 액터에게 (#54)
+                ck_lent_t lent[64]; proven_size_t nl = 0;
+                ck_actor_lend_walk(&out, h.body, binds, nb, lent, &nl, 64);
+            }
             if (!ck_form_is_handler_of(pr, f)) {             // ★ 액터 밖에서 상태 칸을 읽는가 (§10.2)
                 proven_u8str_view_t anames[64]; proven_size_t na = 0;
                 ck_collect_actor_locals(h.body, pr, anames, &na, 64);
@@ -7867,7 +7972,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             //   panic 만 하는 핸들러가 "state 선언했는데 안 함" 으로 거짓 경고된다(vm_restart boom).
             unsigned used_over = used;
             if (tab[i].is_handler && (used & EFF_PANIC)) used_over |= EFF_STATE;
-            unsigned over = tab[i].declared & ~used_over;
+            unsigned over = tab[i].declared & ~used_over & ~EFF_NOPRIM;   // ★ 추론할 원시어가 없는 여섯은 묻지 않는다
             // ★★★★ RFC-0112 D7 — `via <타입>` 으로 들어온 효과는 **그 타입이 할 수 있는 것**의 합이다. 이 op 이
             //   그 가운데 일부만 부르는 것(예: `grow` 만)은 과장이 아니다 — 그 몫은 경고에서 뺀다.
             if (tab[i].form) {

@@ -907,6 +907,31 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                          veq(h, "div") || veq(h, "mod") || veq(h, "rem");
             bool cmp   = veq(h, "eq") || veq(h, "ne") || veq(h, "lt") ||
                          veq(h, "le") || veq(h, "gt") || veq(h, "ge");
+            // ★★★★★ **초월 함수는 부동소수 전용이다** (정본 §6.3.9(1) · 결함 노트 #37, 2026-09-16).
+            //   `pow a 2`(a 가 u64)가 `--check` 를 지나 **틀린 값**을 냈다 — `pow 5 2` 가 5 였고
+            //   VM·네이티브가 같이 그랬다. 형제들(`sqrt`·`sin`·`exp`·`log`)은 실행 중에 "float-only"
+            //   라고 멈추는데 `pow` 만 조용히 답을 냈다. 조용히 틀린 답이 가장 나쁜 갈래다.
+            //   ⇒ 정수 피연산자를 **번역에서** 거절한다. 실행까지 갈 이유가 없다.
+            {
+                bool transc = veq(h, "pow") || veq(h, "sqrt") || veq(h, "sin") || veq(h, "cos") ||
+                              veq(h, "exp") || veq(h, "log") || veq(h, "fmod");
+                if (transc && n >= 2 && !sig_find(c, h)) {
+                    for (proven_size_t q = 1; q < n; q++) {
+                        c->quiet++;
+                        ty_t o = tc_infer(c, k[start + q], env, nenv);
+                        c->quiet--;
+                        if (o.k == TK_INT) {
+                            tc_emit(c, "E-TYPE-KIND",
+                                    "this is a floating-point-only operation (canon §6.3.9) and it was "
+                                    "given an INTEGER. `pow` used to answer anyway — and the answer was "
+                                    "wrong (`pow 5 2` gave 5 on both backends), which is the worst kind "
+                                    "of wrong: quiet. Convert first (`cast f64 n`), or use repeated "
+                                    "multiplication for an integer power", k[start]->line);
+                            break;
+                        }
+                    }
+                }
+            }
             if ((arith || cmp) && n == 3 && !sig_find(c, h)) {   // 사용자 op 가 가리지 않을 때만
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
                 ty_t b = tc_infer(c, k[start + 2], env, nenv);

@@ -211,6 +211,7 @@ static void ir_fail_buf(ir_ctx_t *c, const char *code, const char *msg, proven_u
 
 // ⊑ 격자의 join (NumericLattice.v 의 join — 두 피연산자 중 하나, 발명하지 않는다).
 // 미상(known=false)은 항등원처럼 작동한다: join(unk, T) = T.
+static ityp_t ity_of_word(proven_u8str_view_t v);   // ★ 아래 정의를 앞당겨 쓴다(IRW_CALL 의 결과 타입)
 static ityp_t ity_join(ityp_t a, ityp_t b) {
     if (!a.known) return b;
     if (!b.known) return a;
@@ -504,6 +505,17 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
             //   ☞ *«모르면 부호 있는 것으로 친다» 는 기본값이 조용한 오답을 만든다.*
             case IRW_INDEX:
                 res = ops[0];
+                break;
+            // ★★★★★ **부른 op 의 결과도 타입이 있다** (결함 노트 #69, 2026-09-16).
+            //   `fn top output u64 .` 을 부른 자리의 그림자가 «미상» 이라, 그 값을 쓰는
+            //   `div`·`gt` 가 **부호 있는** 연산으로 낮아졌다: `div (top) 2 = 0` ·
+            //   `gt (top) 9223372036854775807 = false`(VM·네이티브 같이 틀렸다).
+            //   선언된 출력 타입이 곧 답이다 — 표에 이미 있다(`out_tyname`).
+            case IRW_CALL:
+                if (c->out) {
+                    proven_size_t ci_ = (proven_size_t)IR_CALL_IDX(a);
+                    if (ci_ < c->out->ndefs) res = ity_of_word(c->out->defs[ci_].out_tyname);
+                }
                 break;
             default:
                 res = ITY_UNK;

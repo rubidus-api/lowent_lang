@@ -20,6 +20,13 @@ fn month_lib input p u64 . output u64 . do
   return wire.pick 64424509440 p .          rem 0x0f_0000_0000 = 32~35 비트
 end .
 
+rem ★ «모두 1» 인 낱말에서 꺼내기 — 값을 **프로그램 안의 리터럴**로 적는다.
+rem   (`--run` 인자로는 u64 의 위쪽 절반이 아직 들어오지 못한다: 구간 도메인이 i64 라
+rem    그 상계를 표현하지 못하고, 경계가 조용히 자르는 대신 거절한다 — 결함 노트 #19·#69.)
+fn month_all output u64 . do
+  return wire.pick 64424509440 18446744073709551615 .
+end .
+
 rem 같은 일 — 손으로 쓴 판(오늘 `clock.low` 가 하는 그대로).
 fn month_hand input p u64 . output u64 . do
   return bit_and (shr p 32) 15 .

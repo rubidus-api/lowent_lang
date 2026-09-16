@@ -301,6 +301,30 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
         }
         if (term < 0) { ir_fail(c, "E-PIPE-NO-TERMINAL", "a `pipe` must end with exactly ONE terminal: `collect into <mut slice> .` or `fold <init> <op> .` (RFC-0010 G1)", tline); return; }
 
+        // ★★★★★ **값을 잃는 변환은 암묵적으로 일어나지 않는다** (정본 §6.2.5(1) · 결함 노트 #59, 2026-09-16).
+        //   `map` 이 `u64` 를 내는데 `collect into` 가 `mut slice u8` 이면 통과했고, 값이 **조용히
+        //   감겼다**(1000 → 232 · 2000 → 208, VM·네이티브 같음). 좁히는 일은 이름 붙은 연산으로
+        //   **적어서** 한다(`narrow`·`narrow_wrap`·`narrow_sat`). 여기서는 그 이름이 없다.
+        if (term == 0 && term_arg && is_atom(term_arg)) {
+            proven_u8str_view_t prod = { 0 };                  // 마지막 map 이 내는 타입 이름
+            for (proven_size_t z = nst; z-- > 0; )
+                if (st[z].kind == ST_MAP) { prod = c->out->defs[st[z].op].out_tyname; break; }
+            if (prod.size) {
+                proven_u8 pw = ir_field_size(prod);            // 바이트
+                bool df; proven_size_t dslot = ir_local_find(c, term_arg->tok.lex, &df);
+                proven_u8 dw = 0;
+                if (df && c->locals[dslot].elem.known) dw = (proven_u8)(c->locals[dslot].elem.bits / 8);
+                if (pw && dw && pw > dw)
+                    ir_fail(c, "E-TYPE-COLLECT",
+                            "this `collect into` would put a WIDER value into a narrower buffer, and "
+                            "that loses bits silently (measured: 1000 became 232). A conversion that "
+                            "loses value never happens implicitly here (§6.2.5) — put a `map` in front "
+                            "that says which narrowing you mean (`narrow`, `narrow_wrap`, `narrow_sat`, "
+                            "`narrow_try`), or collect into a buffer of the produced width", tline);
+                if (c->failed) return;
+            }
+        }
+
         // ── preamble
         if (term == 0 || term == 2) { ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)j); }
         else if (term == 3) { ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)acc); }   // any: 기본 false
@@ -734,7 +758,26 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                     }
                 }
             }
+            proven_size_t code_before = c->code.len;
             if (!copied_struct) ir_run(c, f->kids, vstart, f->nkids - vstart);
+            // ★★★★★ **`f32` 자리의 리터럴은 32 비트로 반올림한다** (IEEE 754 · 결함 노트 #83, 2026-09-16).
+            //   `let a f32 be 0.1 .` 의 값이 **f64 의 0.1 그대로** 남아 있었다 — 넓혀서 비교하면
+            //   `f64` 의 0.1 과 같다고 나왔다(VM·네이티브 같음). 셈을 한 번 거친 값만 32 비트가
+            //   됐으니, **같은 타입의 값 둘이 어디서 왔느냐에 따라 다른 수**였다.
+            {
+                bool decl_f32 = false;
+                proven_size_t de2 = (be < f->nkids) ? be : f->nkids;
+                for (proven_size_t z = 2; z < de2; z++)
+                    if (is_atom(f->kids[z]) && veq(f->kids[z]->tok.lex, "f32")) { decl_f32 = true; break; }
+                if (decl_f32)
+                    for (proven_size_t q = code_before; q < c->code.len; q++) {
+                        low_ir_ins_t *in2 = ir_at(c, q);
+                        if (!in2 || in2->w != IRW_FCONST) continue;
+                        double dv2; memcpy(&dv2, &in2->a, 8);
+                        float fv2 = (float)dv2; double rv2 = (double)fv2;
+                        memcpy(&in2->a, &rv2, 8);
+                    }
+            }
             proven_u8 decl_bset_w = c->bset_w;   // ★ 리셋 전에 선언 폭을 잡아 둔다
             c->vec_lanes = 0; c->vec_esz = 0; c->vec_sign = false; c->bset_w = 0;
             // ★★★★★ **`let` 이 comptime 정수면 이름을 표에 담는다** (2026-08-18).
@@ -2768,6 +2811,10 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                         d->param_bset |= 1u << d->nparams;  // ★ 비트셋 파라미터 (64비트 마스크)
                     if (ir_is_float_ty(t0) && d->nparams < LOW_MAX_PARAMS)
                         d->param_flt |= 1u << d->nparams;   // ★ f64 파라미터를 CLI 가 알아보게
+                    if (veq(t0, "f32") && d->nparams < LOW_MAX_PARAMS)
+                        d->param_f32 |= 1u << d->nparams;   // ★ 32 비트 — 경계에서 반올림한다 (#83)
+                    if ((veq(t0, "u64") || veq(t0, "usize")) && d->nparams < LOW_MAX_PARAMS)
+                        d->param_u64 |= 1u << d->nparams;   // ★ 위쪽 절반이 정당한 값이다 (#19·#69)
                     if (d->nparams < LOW_MAX_PARAMS)                    // ★ cstr 파라미터 → C 로 `const char *` (RFC-0068 S4)
                         for (proven_size_t pa = 0; pa < mod.nptr_alias; pa++)
                             if (proven_u8str_view_eq(mod.ptr_alias[pa], t0)) {

@@ -1262,10 +1262,16 @@ int main(int argc, char **argv) {
         }
         else if (run_op && npaths && nrun_args < 64 &&
                  strspn(argv[i], "-0123456789") == strlen(argv[i]) && argv[i][0]) {
-            run_args[nrun_args++] = strtoll(argv[i], NULL, 10);
+            // ★★★★ **u64 의 위쪽 절반도 인자다** (결함 노트 #19·#69, 2026-09-16).
+            //   `strtoll` 은 18446744073709551615 를 **9223372036854775807 로 잘라** 넣었다 —
+            //   조용히 다른 수를 준 것이고, 표시까지 그 잘린 수였다. 부호 없는 글자에는
+            //   `strtoull` 을 쓰고 **비트 그대로** 싣는다(안쪽은 64 비트 두 해석을 같이 쓴다).
+            proven_i64 av;
+            if (argv[i][0] != '-') av = (proven_i64)strtoull(argv[i], NULL, 10);
+            else                   av = (proven_i64)strtoll(argv[i], NULL, 10);
+            run_args[nrun_args++] = av;
             if (nshaped < LOW_HDR_MAXP)
-                shaped[nshaped++] = (low_ir_arg_t){ .is_slice = false,
-                                                    .v = strtoll(argv[i], NULL, 10) };
+                shaped[nshaped++] = (low_ir_arg_t){ .is_slice = false, .v = av };
         }
         else if (npaths < MAX_FILES) paths[npaths++] = argv[i];
         // ★★★ **넘치는 인자를 조용히 버리지 않는다** (2026-09-09 · REQ-0012).
@@ -1956,15 +1962,37 @@ int main(int argc, char **argv) {
                                 if (fb[q] == '.' || fb[q] == 'e' || fb[q] == 'n' || fb[q] == 'i') dot = true;
                             printf("%s%s", fb, dot ? "" : ".0"); continue;
                         }
-                        if (!shaped[i].is_slice) { printf("%lld", (long long)shaped[i].v); continue; }
+                        // ★ 부호 없는 매개변수의 인자는 **부호 없이** 되비춘다(결함 노트 #19) —
+                        //   값은 옳은데 메아리가 `-1` 이면 읽는 사람이 값을 의심한다.
+                        if (!shaped[i].is_slice) {
+                            bool u_ = false;
+                            for (proven_size_t q = 0; q < ir.ndefs && i < LOW_MAX_PARAMS; q++)
+                                if (ir.defs[q].name.size == strlen(run_op) &&
+                                    memcmp(ir.defs[q].name.ptr, run_op, ir.defs[q].name.size) == 0) {
+                                    u_ = ((ir.defs[q].param_u64 >> i) & 1u) != 0; break;
+                                }
+                            if (u_ && shaped[i].v < 0) printf("%llu", (unsigned long long)shaped[i].v);
+                            else                       printf("%lld", (long long)shaped[i].v);
+                            continue;
+                        }
                         printf("[");
                         for (proven_size_t j = 0; j < shaped[i].n; j++)
                             printf("%s%u", j ? "," : "", (unsigned)shaped[i].bytes[j]);
                         printf("]");
                     }
                 } else {
-                    for (proven_size_t i = 0; i < nrun_args; i++)
-                        printf("%s%lld", i ? ", " : "", (long long)run_args[i]);
+                    for (proven_size_t i = 0; i < nrun_args; i++) {
+                        bool u_ = false;   // ★ 부호 없는 매개변수는 부호 없이 되비춘다 (#19)
+                        for (proven_size_t q = 0; q < ir.ndefs && i < LOW_MAX_PARAMS; q++)
+                            if (ir.defs[q].name.size == strlen(run_op) &&
+                                memcmp(ir.defs[q].name.ptr, run_op, ir.defs[q].name.size) == 0) {
+                                u_ = ((ir.defs[q].param_u64 >> i) & 1u) != 0; break;
+                            }
+                        if (u_ && run_args[i] < 0)
+                            printf("%s%llu", i ? ", " : "", (unsigned long long)run_args[i]);
+                        else
+                            printf("%s%lld", i ? ", " : "", (long long)run_args[i]);
+                    }
                 }
                 printf(") = %s\n", rr.text);
                 // ★ mut 슬라이스로 **쓴 값**을 되보여 준다 — 안 보이면 쓰기 op 는 검증할 수가 없다.

@@ -6627,8 +6627,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //   아무 방벽이 없었고, 구간 분석은 그 범위를 사실로 믿고 검사를 제거해 뒀다 —
     //   그래서 네이티브가 조용히 틀린 값을 냈다(u8 op 이 -2 를 냈다). 경계가 마지막 문이다.
     fputs("struct lw_prng { int has; long long lo, hi; };\n", out);
+    // ★ `pf32` — 어느 파라미터가 **32 비트 부동소수**인가(결함 노트 #83). 경계에서 반올림해야
+    //   프로그램 안의 `f32` 와 밖에서 들어온 `f32` 가 같은 정밀도를 갖는다(VM 도 같은 자리에서 한다).
     fputs("struct lw_entry { const char *name; lowv (*fn)(const lowv *); int nparams; unsigned pslice;"
-          " unsigned pflt; unsigned pstruct; unsigned char psidx[LW_MAXP];"
+          " unsigned pflt; unsigned pf32; unsigned pu64; unsigned pstruct; int ounsigned; unsigned char psidx[LW_MAXP];"
           " struct lw_prng prng[LW_MAXP]; struct lw_prng ptype[LW_MAXP]; };\n", out);
     // ★★★ R2 — **진짜 스레드.** `parallel s split` op 마다 `<name>_par` 를 낸다:
     //   슬라이스를 K 조각으로 나누고 **각 조각을 pthread 로** 돌린 뒤, `reduce` 로 합친다.
@@ -6702,8 +6704,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         if (!cbe_emittable(&ir->defs[i])) continue;
         fputs("    { \"", out); put_view(out, ir->defs[i].name);
         fputs("\", lw_op_", out); put_sym(out, &ir->defs[i]);
-        fprintf(out, ", %zu, %uu, %uu, %uu, {", (size_t)ir->defs[i].nparams,
-                ir->defs[i].param_slice, ir->defs[i].param_flt, ir->defs[i].param_struct);
+        fprintf(out, ", %zu, %uu, %uu, %uu, %uu, %uu, %d, {", (size_t)ir->defs[i].nparams,
+                ir->defs[i].param_slice, ir->defs[i].param_flt, ir->defs[i].param_f32,
+                ir->defs[i].param_u64, ir->defs[i].param_struct,
+                // ★ 출력이 **부호 없는** 정수인가 — 표시를 VM 과 같게 한다(결함 노트 #69).
+                (ir->defs[i].out_tyname.size && ir->defs[i].out_tyname.ptr[0] == (proven_byte_t)'u') ? 1 : 0);
         for (proven_size_t p = 0; p < LOW_MAX_PARAMS; p++)
             fprintf(out, "%s%u", p ? "," : "", (unsigned)ir->defs[i].param_sidx[p]);
         fputs("}, {", out);

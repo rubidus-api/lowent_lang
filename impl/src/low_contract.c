@@ -28,6 +28,8 @@ typedef struct {
     bool           *ok;
     const low_parse_result_t *pr;   // ★ `try` 가 부른 op 의 errors 절을 보러 간다
     const low_cst_t *self_enum;     // ★ 이 op 의 오류 enum 블록(절이 없을 때의 기준)
+    bool            self_result;    // ★ 이 op 의 출력이 `result` 인가 (try 를 쓸 자격 — §6.5.8(2))
+    proven_u32      self_line;
     // per-op scratch
     proven_u8str_view_t declared[CT_MAX];  proven_size_t ndeclared;
     // ★★★★★ **여기 있던 고정 표를 없앴다** (2026-08-30, WO-0150 — 계측이 벼랑을 보여 줬다).
@@ -103,7 +105,9 @@ static proven_u8str_view_t ct_try_callee(const low_cst_t *nd, proven_size_t j) {
 }
 
 // walk body: any `error NAME` / `err NAME` must have NAME in the declared error set
-static void ct_walk_errors(ct_ctx_t *c, const low_cst_t *nd) {
+static void ct_walk_errors_in(ct_ctx_t *c, const low_cst_t *nd, bool consumed);
+static void ct_walk_errors(ct_ctx_t *c, const low_cst_t *nd) { ct_walk_errors_in(c, nd, false); }
+static void ct_walk_errors_in(ct_ctx_t *c, const low_cst_t *nd, bool consumed) {
     if (!nd) return;
     // ★ MM5/MM3b — **`case error e` 는 반환이 아니라 패턴**(error 케이스를 매칭하고 값을 e 에 묶는다,
     //   RFC-0081). case 폼의 **직접 자식**(패턴 부분)에서는 `error NAME` 을 반환으로 보지 않는다 —
@@ -122,6 +126,49 @@ static void ct_walk_errors(ct_ctx_t *c, const low_cst_t *nd) {
     // ★ `try <op>` — 부른 op 의 선언된 오류가 **내 절 안에** 있어야 한다.
     for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {
         if (!is_atom_word(nd->kids[j], "try")) continue;
+        // ★★★★★ **`try` 를 쓰는 op 은 자기도 그 오류를 돌려줄 수 있어야 한다** (정본 §6.5.8(2) ·
+        //   결함 노트 #43, 2026-09-16). `output u8` 인 op 안의 `try` 가 통과했고, 실패하면 VM 이
+        //   **오류 값을 u8 자리로** 돌려줬다(`plus(250) = err too_big`). 네이티브는 아예 짓지
+        //   못했다(C 컴파일러가 «returning lw_r but long long expected»). 두 뒤끝이 갈리는 자리다.
+        // ★ 꼬리를 붙인 `try`(`else_none` · `else_error`)는 **채널을 바꾼다**(§6.5.8(4)) —
+        //   실패가 위로 가지 않으므로 이 op 이 `result` 일 필요가 없다.
+        // ★ `let r result … be try … .` — 값이 **result 이름에 담기면** 실패는 밖으로 나가지 않는다.
+        // ★ 이 폼 자신이 «소비하는» 자리인가 — `--flat`(정규화 끈 대조 스위치)에서는 `try` 가
+        //   소비 op 과 **같은 폼의 형제**로 온다(나무에서는 자식이다). 두 모양을 같게 본다.
+        bool head_consumer = false;   // 이 폼 안에 **소비하는 낱말**이 있는가(§6.5.8(3))
+        for (proven_size_t z = 0; z < nd->nkids; z++)
+            if (nd->kids[z]->kind == LOW_CST_ATOM &&
+                (is_atom_word(nd->kids[z], "is_ok") || is_atom_word(nd->kids[z], "is_error") ||
+                 is_atom_word(nd->kids[z], "is_some") || is_atom_word(nd->kids[z], "is_none") ||
+                 is_atom_word(nd->kids[z], "ok_value") || is_atom_word(nd->kids[z], "error_value") ||
+                 is_atom_word(nd->kids[z], "some_value") || is_atom_word(nd->kids[z], "value_or")))
+                { head_consumer = true; break; }
+        bool self_bind_result = false;
+        if (nd->nkids >= 3 && nd->kids[0]->kind == LOW_CST_ATOM &&
+            (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR))
+            for (proven_size_t z = 2; z < nd->nkids; z++) {
+                if (nd->kids[z]->kind != LOW_CST_ATOM) continue;
+                if (nd->kids[z]->tok.kw == LOW_KW_BE) break;
+                if (veq(nd->kids[z]->tok.lex, "result") || veq(nd->kids[z]->tok.lex, "option"))
+                    { self_bind_result = true; break; }
+            }
+        bool bound_to_result = consumed || head_consumer || self_bind_result;
+        bool has_tail = false;
+        for (proven_size_t z = j + 1; z < nd->nkids; z++)
+            if (nd->kids[z]->kind == LOW_CST_ATOM &&
+                (is_atom_word(nd->kids[z], "else_none") || is_atom_word(nd->kids[z], "else_error") ||
+                 is_atom_word(nd->kids[z], "map_error")))
+                { has_tail = true; break; }
+        if (!c->self_result && !has_tail && !bound_to_result) {
+            ct_emit(c, "E-TRY-NORESULT",
+                    "`try` may only be used in an op that can RETURN that error (§6.5.8(2)): this op's "
+                    "output is not a `result`, so there is nowhere for the failure to go. It used to "
+                    "pass, and the VM then returned the ERROR VALUE in the plain output slot while the "
+                    "native build would not compile at all. Declare `output result <T> <E> .` (and the "
+                    "matching `errors` clause), or handle the failure here (`guard is_ok …` / "
+                    "`value_or` / a `case error` arm)", nd->kids[j]->line);
+            continue;
+        }
         proven_u8str_view_t callee = ct_try_callee(nd, j);
         if (!callee.size) continue;
         const low_cst_t *g = ct_find_op(c->pr, callee);
@@ -144,7 +191,30 @@ static void ct_walk_errors(ct_ctx_t *c, const low_cst_t *nd) {
                         "so it never leaves. (RFC-0006 §6: errors is a CLOSURE, not a hint)",
                         nd->kids[j]->line);
     }
-    for (proven_size_t j = 0; j < nd->nkids; j++) ct_walk_errors(c, nd->kids[j]);
+    // ★ `let r result … be …` 아래로는 «담긴다» 는 사실을 물려준다 — 그 자리의 실패는
+    //   밖으로 나가지 않는다(§6.5.8(3) 의 «묻는 것·꺼내는 것» 으로 이어진다).
+    bool child_consumed = consumed;
+    // ★ 소비하는 낱말이 이 폼에 있으면 **블록이 아닌** 자식에게만 물려준다 — 블록 안은 다른
+    //   문장이고, 거기서 새는 실패까지 덮으면 안 된다. (`--flat` 은 `try` 를 형제로 둔다.)
+    bool form_consumer = false;
+    for (proven_size_t z = 0; z < nd->nkids; z++)
+        if (nd->kids[z]->kind == LOW_CST_ATOM &&
+            (is_atom_word(nd->kids[z], "is_ok") || is_atom_word(nd->kids[z], "is_error") ||
+             is_atom_word(nd->kids[z], "is_some") || is_atom_word(nd->kids[z], "is_none") ||
+             is_atom_word(nd->kids[z], "ok_value") || is_atom_word(nd->kids[z], "error_value") ||
+             is_atom_word(nd->kids[z], "some_value") || is_atom_word(nd->kids[z], "value_or")))
+            { form_consumer = true; break; }
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && nd->kids[0]->kind == LOW_CST_ATOM &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR))
+        for (proven_size_t z = 2; z < nd->nkids; z++) {
+            if (nd->kids[z]->kind != LOW_CST_ATOM) continue;
+            if (nd->kids[z]->tok.kw == LOW_KW_BE) break;
+            if (veq(nd->kids[z]->tok.lex, "result") || veq(nd->kids[z]->tok.lex, "option"))
+                { child_consumed = true; break; }
+        }
+    for (proven_size_t j = 0; j < nd->nkids; j++)
+        ct_walk_errors_in(c, nd->kids[j],
+                          child_consumed || (form_consumer && nd->kids[j]->kind != LOW_CST_BLOCK));
 }
 
 // ── E-CONTRACT-DEAD — `requires` 가 이미 배제한 오류는 **도달할 수 없다** ─────────
@@ -456,6 +526,12 @@ low_contract_result_t low_contract(proven_allocator_t work, const low_parse_resu
 
         // errors-closure over the body
         c.self_enum = ct_err_enum(pr, f);
+        // 출력이 `result` 인가 — 머리에서 `output` 뒤 첫 낱말을 본다.
+        c.self_result = false;
+        for (proven_size_t z = 2; z + 1 < f->nkids; z++)
+            if (f->kids[z]->kind == LOW_CST_ATOM && veq(f->kids[z]->tok.lex, "output") &&
+                f->kids[z + 1]->kind == LOW_CST_ATOM &&
+                veq(f->kids[z + 1]->tok.lex, "result")) { c.self_result = true; break; }
         ct_walk_errors(&c, body);
         // ★ 그리고 **지금 판정할 수 있는 계약은 지금 판정한다**(위 ct_static_calls 주석).
         ct_static_calls(&c, body);

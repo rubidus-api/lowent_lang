@@ -133,7 +133,6 @@
   [`E-TYPE-FIELD`], [구조체를 만들 때 칸이 빠졌거나 없는 칸을 적었다], [#chref("structs-enums")],
   [`E-TYPE-INSTANCE`], [같은 제네릭의 서로 다른 인스턴스를 섞었다], [#chref("lib-alloc")],
   [`E-TYPE-KIND`], [그 연산에 쓸 수 없는 갈래의 타입이다(예: `bool` 을 `cast`)], [#chref("expr"), #chref("structs-enums"), #chref("named-types")],
-  [`E-TYPE-LOGICAL`], [논리 연산에 참거짓이 아닌 값을 주었다], [#chref("expr")],
   [`E-TYPE-MIX`], [부동소수와 정수 리터럴을 섞어 셈한다], [#chref("numbers")],
   [`E-TYPE-MUT`], [`mut` 이 아닌 슬라이스의 원소에 쓴다], [#chref("slices")],
   [`E-TYPE-NOMINAL`], [표현이 같아도 이름이 다른 타입을 섞었다], [#chref("named-types")],

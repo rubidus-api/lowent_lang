@@ -9,6 +9,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-ACCESS-MODE` | the body breaks the read or write promise made with `access` | chapter 27 |
 | `E-ACTOR-FIELD` | an actor’s state field is read from outside | chapter 25 |
 | `E-ACTOR-STATE-REF` | a borrow is kept in an actor state field | chapter 25 |
+| `E-ACTOR-UNINIT` | a just-spawned actor’s slice state field is read before it is set | chapter 20 |
 | `E-ALLOC-AMBIGUOUS` | more than one fitting allocator and none chosen with `using` | chapter 20 |
 | `E-ALLOC-NESTED` | allocated from an outer source while an inner region of the same root is open | chapter 18 |
 | `E-ALLOC-NOCAP` | declares `alloc` but receives no allocation capability | chapter 16 |
@@ -26,6 +27,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-BRAND-REUSED` | a brand opens a second storage | chapter 35 |
 | `E-CAP-FORGE` | spawns an actor holding a capability without holding that capability | chapter 16, chapter 20, chapter 25 |
 | `E-CAP-KIND` | a capability of the wrong kind was handed over | chapter 16 |
+| `E-CAP-LOCAL` | a received capability was copied into a local name | chapter 16 |
 | `E-CAP-MISSING` | a capability-requiring builtin was not given its capability as the first operand | chapter 16 |
 | `E-CHAR` | a character (symbol) this language does not have | chapter 6, chapter 7, chapter 8, chapter 9 |
 | `E-CHAR-WIDTH` | a character literal is not a single character | chapter 3 |
@@ -37,6 +39,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-CONFIG-UNDEF` | a configuration or `config` names an undeclared build option | chapter 31 |
 | `E-CONTRACT-DEAD` | declares an error that `requires` already excludes | chapter 14 |
 | `E-CONTRACT-IMPOSSIBLE` | a call with constant arguments breaks the callee’s `requires` | chapter 14, chapter 35 |
+| `E-CONTRACT-UNSAT` | two preconditions that cannot both hold | chapter 14 |
 | `E-DEP-MISSING` | the file at a `use … from` place cannot be read | chapter 21 |
 | `E-EFFECT` | performs an effect its `effects` clause does not declare | chapter 15, chapter 20, chapter 26 |
 | `E-EFFECT-CALC` | a pure `fn` performs an effect | chapter 1, chapter 5, chapter 15, chapter 16, chapter 18, chapter 24 |
@@ -57,6 +60,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-EXPR-APP` | a call inside an `expr` island is not parenthesised | chapter 8 |
 | `E-EXPR-CHAIN` | comparisons chained in an `expr` island | chapter 3 |
 | `E-EXPR-UNARY` | a unary operator in an `expr` island | chapter 8 |
+| `E-FFI-LINK` | an `extern` op does not name the C symbol it calls | chapter 29 |
 | `E-FFI-NOCAP` | calls C without receiving `cap c` | chapter 29 |
 | `E-FFI-NOEFFECT` | an op calling C declares no effect | chapter 29 |
 | `E-FFI-NOUNSAFE` | calls C without the `unsafe` mark | chapter 29 |
@@ -65,6 +69,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-FN-CAP` | an op to be passed as a callback requires a capability | chapter 29 |
 | `E-FN-NOTEXPORT` | `unsafe_fn` names an op that is not `export extern` | chapter 29 |
 | `E-FOLD-OP` | a `pipe` stage names an op that does not exist | chapter 24 |
+| `E-FOLD-ORDER` | a fold stage op declares its accumulator with a type other than its result | chapter 24 |
 | `E-GROUP-UNCLOSED` | an unclosed parenthesis | chapter 3 |
 | `E-GUARD-FALLTHROUGH` | the `else` of a `guard` does not leave | chapter 7 |
 | `E-HEAP-NOHOST` | asks for the growing root on a freestanding target | chapter 18 |
@@ -77,14 +82,17 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-ISR-PARAMS` | an interrupt handler takes parameters | chapter 30 |
 | `E-LET-NOVALUE` | nothing after `be` | chapter 6 |
 | `E-LOCK-NOTYET` | shared lock types are not built yet | chapter 26 |
-| `E-MATCH-INEXHAUSTIVE` | a `match` does not cover every case | chapter 7, chapter 10, chapter 11 |
+| `E-MATCH-INEXHAUSTIVE` | a `match` does not cover every case | chapter 7, chapter 10 |
 | `E-MATCH-REDUNDANT` | a `match` arm can never run (an arm after `_`, overlapping ranges) | chapter 11 |
+| `E-METHOD-RECV` | an attached op’s receiver is not its first input | chapter 23 |
 | `E-METHOD-UNDEF` | no op of that name is attached to the receiver’s type | chapter 22, chapter 23 |
 | `E-MMIO-BYVALUE` | an mmio register block taken by value | chapter 30 |
 | `E-MMIO-PERM` | writes a read-only register | chapter 30 |
+| `E-MONO-NOTYPE` | a generic call gives no leading type argument | chapter 22 |
 | `E-MREF-SLICE` | `mut ref slice` used | chapter 12 |
 | `E-NAME-BUILTIN` | a builtin op’s name is used for a declaration or local | chapter 5, chapter 6 |
 | `E-NAME-DUP` | the same name declared twice in one module | chapter 21 |
+| `E-NAME-SCOPE` | a name declared inside a block is read outside it | chapter 6 |
 | `E-NAME-SHADOW` | re-binds a live name (shadowing) | chapter 3, chapter 6 |
 | `E-OPT-UNUSED` | a declared build option that no code reads | chapter 31 |
 | `E-OWN-INCOMPLETE` | a value that needs completion is dropped implicitly | chapter 19, chapter 28, chapter 36 |
@@ -103,12 +111,14 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-REGION-ESCAPE` | carries region bytes out of the region | chapter 18 |
 | `E-RETURN-PARTIAL` | some path does not return a value | chapter 3, chapter 5, chapter 7 |
 | `E-SPAWN-SCOPE` | spawns a task outside a `task_group` | chapter 26 |
+| `E-STMT-ELSE` | `else` sits inside the block | chapter 7 |
 | `E-TIER-EFFECT` | an effect the declared machine tier cannot carry | chapter 30 |
 | `E-TOPLEVEL` | something that cannot appear at top level is at top level | chapter 3 |
 | `E-TRAIT-EFFECT` | the implementing op has more effects than the signature | chapter 23 |
 | `E-TRAIT-MISSING` | an op required by the trait is missing | chapter 23 |
 | `E-TRAIT-SIG` | `fn`/`proc` in a signature, or a parameter-count mismatch | chapter 23 |
 | `E-TRY-NORESULT` | `try` used in an op that cannot return that error | chapter 11 |
+| `E-TYPE-ARG` | an argument’s type does not match the parameter | chapter 12 |
 | `E-TYPE-ARGMUT` | a read-only value is passed where it would be written (`mut_ref` of a `let`) | chapter 9, chapter 12 |
 | `E-TYPE-ARRAY` | `array` length written after the type | chapter 9 |
 | `E-TYPE-BITCAST` | `bit_cast` target is not a plain scalar | chapter 20 |
@@ -117,19 +127,22 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-TYPE-DECL` | `be` in a type declaration | chapter 13 |
 | `E-TYPE-FIELD` | a field is missing or unknown when building a struct | chapter 10 |
 | `E-TYPE-INSTANCE` | mixes different instances of the same generic | chapter 35 |
-| `E-TYPE-KIND` | a type of the wrong kind for that operation (e.g. `cast` of `bool`) | chapter 8, chapter 13 |
-| `E-TYPE-LOGICAL` | a non-boolean value given to a logical operation | chapter 8 |
+| `E-TYPE-KIND` | a type of the wrong kind for that operation (e.g. `cast` of `bool`) | chapter 8, chapter 10, chapter 13 |
+| `E-TYPE-MIX` | float and integer literals mixed in one calculation | chapter 4 |
 | `E-TYPE-MUT` | writes an element of a non-`mut` slice | chapter 9 |
 | `E-TYPE-NOMINAL` | mixes nominally distinct types | chapter 13 |
 | `E-TYPE-REF` | writes through a shared `ref` | chapter 12 |
+| `E-TYPE-REFVAL` | a reference is used as if it were a value | chapter 12 |
 | `E-TYPE-RETURN` | the returned value does not match the op’s output type | chapter 11, chapter 31 |
 | `E-TYPE-SIGN` | mixes signs with no value-preserving widening | chapter 4, chapter 39, chapter 40 |
-| `E-TYPE-WIDTH` | the value does not fit the declared type | chapter 3, chapter 13 |
+| `E-TYPE-WIDTH` | the value does not fit the declared type | chapter 3, chapter 4, chapter 13 |
 | `E-UNSAFE-UNDECLARED` | declares the `unsafe` effect but the op is not marked `unsafe` | chapter 29 |
+| `E-VEC-SPLAT` | `splat` was written inline in an expression | chapter 27 |
 | `E-VISIBILITY` | reaches a non-exported name of another module | chapter 21 |
 | `E-VOCAB-REMOVED` | a removed word or spelling | chapter 3, chapter 5, chapter 7, chapter 15, chapter 48 |
 | `E-WIDEN-SIGN` | `widen` from a signed to an unsigned type | chapter 13 |
 | `W-EFFECT-OVER` | an effect declared but never performed (warning) | chapter 15, chapter 16 |
+| `W-EXPORT-HIDDEN` | an exported signature names a type the module keeps to itself | chapter 21 |
 | `W-NOT-YET` | a word accepted by name that has no meaning yet | chapter 13 |
 | `W-USE-EXTERNAL` | imports a module not in the compilation unit (warning) | chapter 32 |
 

@@ -782,19 +782,20 @@ ratio_ok(10, 5) = 1
 table_size() = 64
 $ lowentc --run pick compt.low
 pick() = 500
-</code></pre></div></div><p><code>size_of u32</code> gives the number of bytes of one value of that type at translation time. It lets code that takes a type as a parameter compute its costs honestly instead of assuming the widest type (chapter 22).</p><p><code>comptime (add 2 3)</code> marks an expression to be computed at translation time. When the value a <code>match</code> splits on is a translation-time constant, the <code>match</code> folds to the one matching arm and the run-time comparisons disappear. The folded-away arms are still type-checked, unlike code removed with C’s <code>#ifdef</code>, which is not even checked. <code>config &lt;option></code>, which reads the build configuration, is also used as a translation-time constant (chapter 31).</p><h3 id="s8-6">8.6 Common mistakes<a class="plink" href="#s8-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Mixing comparisons with <code>and</code>/<code>or</code> without parentheses</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mistake_mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_mixcmp .
-<em><span class="tok-c">rem expect: E-TYPE-LOGICAL</span></em>
+</code></pre></div></div><p><code>size_of u32</code> gives the number of bytes of one value of that type at translation time. It lets code that takes a type as a parameter compute its costs honestly instead of assuming the widest type (chapter 22).</p><p><code>comptime (add 2 3)</code> marks an expression to be computed at translation time. When the value a <code>match</code> splits on is a translation-time constant, the <code>match</code> folds to the one matching arm and the run-time comparisons disappear. The folded-away arms are still type-checked, unlike code removed with C’s <code>#ifdef</code>, which is not even checked. <code>config &lt;option></code>, which reads the build configuration, is also used as a translation-time constant (chapter 31).</p><h3 id="s8-6">8.6 Common mistakes<a class="plink" href="#s8-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Comparison (level 2) binds tighter than <code>and</code> (level 1b), so mixing them without parentheses has exactly one meaning.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp .
+<em><span class="tok-c">rem run: in_range 3 1 5</span></em>
+<em><span class="tok-c">rem run: in_range 9 1 5</span></em>
 
 <strong><span class="tok-k">fn</span></strong> in_range <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> lo <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> hi <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <em><span class="tok-c">rem ✘ comparisons mixed with `and` without parentheses --- wrap each comparison</span></em>
+  <em><span class="tok-c">rem comparison binds tighter than `and`, so mixing without parentheses has one meaning</span></em>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> lo le x and x le hi .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_mixcmp.low
-mistake_mixcmp.low:7:0 E-TYPE-LOGICAL: `and`/`or`/`not` take bool, not a number — this language has no truthiness (D12: no implicit int↔bool). Say what the test is: `ne x 0` instead of `x`
-mistake_mixcmp.low:7:0 E-TYPE-LOGICAL: `and`/`or`/`not` take bool, not a number — this language has no truthiness (D12: no implicit int↔bool). Say what the test is: `ne x 0` instead of `x`
-mistake_mixcmp.low:7:0 E-TYPE-LOGICAL: `and`/`or`/`not` take bool, not a number — this language has no truthiness (D12: no implicit int↔bool). Say what the test is: `ne x 0` instead of `x`
-</code></pre></div></div><p>By the table, comparison (level 2) binds tighter than <code>and</code> (level 1b), so <code>lo le x and x le hi</code> ought to have exactly one meaning. This edition’s compiler nevertheless rejects it with <code>E-TYPE-LOGICAL</code>, claiming <code>and</code> received a number — the precedence table and the tool disagree here, and the development repository records it as a defect. “Received a number” is not the real cause. Wrap each comparison in parentheses, and neither the tool nor the reader needs to recall the table.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp_fixed .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run in_range mixcmp.low 3 1 5
+in_range(3, 1, 5) = 1
+$ lowentc --run in_range mixcmp.low 9 1 5
+in_range(9, 1, 5) = 0
+</code></pre></div></div><p>Writing the parentheses anyway spares the reader from recalling the table. Below is the same thing written that way.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mixcmp_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mixcmp_fixed .
 <em><span class="tok-c">rem run: in_range 5 1 9</span></em>
 <em><span class="tok-c">rem run: in_range 12 1 9</span></em>
 
@@ -806,7 +807,7 @@ mistake_mixcmp.low:7:0 E-TYPE-LOGICAL: `and`/`or`/`not` take bool, not a number 
 in_range(5, 1, 9) = 1
 $ lowentc --run in_range mixcmp_fixed.low 12 1 9
 in_range(12, 1, 9) = 0
-</code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing the remainder as <code>%</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mistake_percent.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_percent .
+</code></pre></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing the remainder as <code>%</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mistake_percent.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_percent .
 <em><span class="tok-c">rem expect: E-CHAR</span></em>
 
 <strong><span class="tok-k">fn</span></strong> last_digit <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .

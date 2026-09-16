@@ -13,6 +13,9 @@ module vm_config .
 build option smp bool default true .   rem ★ `on` 은 **이미 버린 낱말**이다(액터의 `on`) — 버린 철자를 되살리지 않는다
 build option hz choice 100 250 1000 default 250 depends smp .
 build option maxcpu int default 64 .
+rem ★ **bool 손잡이의 `depends`** — 여기만이 「없는 빌드」를 뜻한다(정본 §5(3)).
+rem   `choice` 는 「꺼짐」이 없어 기댐이 안 맞아도 알림일 뿐이다(§5(3a) · W-CONFIG-DEPENDS).
+build option trace bool default false depends smp .
 
 rem --- 꺼진 옵션의 가지는 **코드에 없다**(비용 0). 그런데 **검사는 받았다.**
 fn tick_rate output u64 . do
@@ -24,4 +27,11 @@ end .
 
 fn cpus output u64 . do
     return config maxcpu .
+end .
+
+fn traced output u64 . do
+    if config trace . do
+        return 1 .
+    end .
+    return 0 .
 end .

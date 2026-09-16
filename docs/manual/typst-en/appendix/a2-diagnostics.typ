@@ -133,7 +133,6 @@ Only the diagnostics that this book's examples actually trigger are listed. A co
   [`E-TYPE-FIELD`], [a field is missing or unknown when building a struct], [#chref("structs-enums")],
   [`E-TYPE-INSTANCE`], [mixes different instances of the same generic], [#chref("lib-alloc")],
   [`E-TYPE-KIND`], [a type of the wrong kind for that operation (e.g. `cast` of `bool`)], [#chref("expr"), #chref("structs-enums"), #chref("named-types")],
-  [`E-TYPE-LOGICAL`], [a non-boolean value given to a logical operation], [#chref("expr")],
   [`E-TYPE-MIX`], [float and integer literals mixed in one calculation], [#chref("numbers")],
   [`E-TYPE-MUT`], [writes an element of a non-`mut` slice], [#chref("slices")],
   [`E-TYPE-NOMINAL`], [mixes nominally distinct types], [#chref("named-types")],

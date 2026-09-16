@@ -9,6 +9,7 @@
 | `E-ACCESS-MODE` | `access` 로 적은 읽기·쓰기 약속을 몸이 어긴다 | 27장 |
 | `E-ACTOR-FIELD` | 액터의 상태 칸을 바깥에서 읽는다 | 25장 |
 | `E-ACTOR-STATE-REF` | 액터 상태 칸에 빌림을 둔다 | 25장 |
+| `E-ACTOR-UNINIT` | 갓 띄운 액터의 슬라이스 칸을 세우기 전에 읽는다 | 20장 |
 | `E-ALLOC-AMBIGUOUS` | 맞는 할당기가 둘 이상인데 `using` 으로 고르지 않았다 | 20장 |
 | `E-ALLOC-NESTED` | 같은 뿌리의 안쪽 영역이 열린 채 바깥 출처로 깎았다 | 18장 |
 | `E-ALLOC-NOCAP` | `alloc` 을 적었는데 할당 권한을 받지 않았다 | 16장 |
@@ -26,6 +27,7 @@
 | `E-BRAND-REUSED` | 같은 브랜드로 저장소를 두 번 열었다 | 35장 |
 | `E-CAP-FORGE` | 권한 칸을 가진 액터를 그 권한 없이 띄운다 | 16장, 20장, 25장 |
 | `E-CAP-KIND` | 다른 종류의 권한을 건넸다 | 16장 |
+| `E-CAP-LOCAL` | 받은 권한을 지역 이름에 옮겨 담았다 | 16장 |
 | `E-CAP-MISSING` | 권한이 필요한 내장 연산에 권한을 첫 피연산자로 적지 않았다 | 16장 |
 | `E-CHAR` | 이 언어에 없는 글자(기호)다 | 6장, 7장, 8장, 9장 |
 | `E-CHAR-WIDTH` | 글자 리터럴이 글자 하나가 아니다 | 3장 |
@@ -37,6 +39,7 @@
 | `E-CONFIG-UNDEF` | 선언하지 않은 빌드 손잡이를 구성이나 `config` 가 부른다 | 31장 |
 | `E-CONTRACT-DEAD` | `requires` 가 이미 배제한 오류를 선언했다 | 14장 |
 | `E-CONTRACT-IMPOSSIBLE` | 상수끼리의 호출이 상대의 `requires` 를 어긴다 | 14장, 35장 |
+| `E-CONTRACT-UNSAT` | 함께 참일 수 없는 전제 둘 | 14장 |
 | `E-DEP-MISSING` | `use … from` 의 자리에서 파일을 읽을 수 없다 | 21장 |
 | `E-EFFECT` | 선언하지 않은 효과를 낸다 | 15장, 20장, 26장 |
 | `E-EFFECT-CALC` | 순수한 `fn` 이 효과를 낸다 | 1장, 5장, 15장, 16장, 18장, 24장 |
@@ -57,6 +60,7 @@
 | `E-EXPR-APP` | `expr` 섬 안의 부름을 괄호로 묶지 않았다 | 8장 |
 | `E-EXPR-CHAIN` | `expr` 섬에서 비교를 이어 썼다 | 3장 |
 | `E-EXPR-UNARY` | `expr` 섬에 단항 연산자를 썼다 | 8장 |
+| `E-FFI-LINK` | extern op 이 부를 씨 심볼을 적지 않았다 | 29장 |
 | `E-FFI-NOCAP` | C 를 부르는데 `cap c` 를 받지 않았다 | 29장 |
 | `E-FFI-NOEFFECT` | C 를 부르는 op 에 효과 줄이 없다 | 29장 |
 | `E-FFI-NOUNSAFE` | C 를 부르는데 `unsafe` 표시가 없다 | 29장 |
@@ -65,6 +69,7 @@
 | `E-FN-CAP` | 되부름으로 넘길 op 이 권한을 요구한다 | 29장 |
 | `E-FN-NOTEXPORT` | `unsafe_fn` 이 `export extern` 이 아닌 op 을 가리킨다 | 29장 |
 | `E-FOLD-OP` | `pipe` 스테이지가 없는 op 을 부른다 | 24장 |
+| `E-FOLD-ORDER` | fold 단계 op 의 누산값 자리가 결과 타입과 다르다 | 24장 |
 | `E-GROUP-UNCLOSED` | 괄호가 닫히지 않았다 | 3장 |
 | `E-GUARD-FALLTHROUGH` | `guard` 의 `else` 가 떠나지 않는다 | 7장 |
 | `E-HEAP-NOHOST` | 운영체제 없는 대상에서 자라는 뿌리를 청한다 | 18장 |
@@ -77,14 +82,17 @@
 | `E-ISR-PARAMS` | 인터럽트 처리기가 매개변수를 받는다 | 30장 |
 | `E-LET-NOVALUE` | `be` 뒤에 값이 없다 | 6장 |
 | `E-LOCK-NOTYET` | 흐름끼리 나누는 자물쇠 타입은 아직 짓지 않았다 | 26장 |
-| `E-MATCH-INEXHAUSTIVE` | `match` 가 모든 경우를 덮지 않는다 | 7장, 10장, 11장 |
+| `E-MATCH-INEXHAUSTIVE` | `match` 가 모든 경우를 덮지 않는다 | 7장, 10장 |
 | `E-MATCH-REDUNDANT` | `match` 의 갈래가 영영 돌지 않는다(`_` 뒤의 갈래·겹친 범위) | 11장 |
+| `E-METHOD-RECV` | 붙은 op 의 수신자가 첫 입력이 아니다 | 23장 |
 | `E-METHOD-UNDEF` | 수신자의 타입에 그 이름의 붙은 op 이 없다 | 22장, 23장 |
 | `E-MMIO-BYVALUE` | 레지스터 묶음을 값으로 받는다 | 30장 |
 | `E-MMIO-PERM` | 읽기 전용 레지스터에 쓴다 | 30장 |
+| `E-MONO-NOTYPE` | 제네릭 부름에 앞자리 타입 인자가 없다 | 22장 |
 | `E-MREF-SLICE` | `mut ref slice` 를 썼다 | 12장 |
 | `E-NAME-BUILTIN` | 내장 op 의 이름을 선언이나 지역 이름으로 썼다 | 5장, 6장 |
 | `E-NAME-DUP` | 한 모듈에 같은 이름을 두 번 선언했다 | 21장 |
+| `E-NAME-SCOPE` | 블록 안에서 지은 이름을 블록 밖에서 읽는다 | 6장 |
 | `E-NAME-SHADOW` | 살아 있는 이름을 다시 지었다(가림) | 3장, 6장 |
 | `E-OPT-UNUSED` | 선언한 빌드 손잡이를 아무 코드도 읽지 않는다 | 31장 |
 | `E-OWN-INCOMPLETE` | 완결이 필요한 값을 끝내지 않고 버린다 | 19장, 28장, 36장 |
@@ -103,12 +111,14 @@
 | `E-REGION-ESCAPE` | 영역에서 얻은 바이트를 밖으로 들고 나간다 | 18장 |
 | `E-RETURN-PARTIAL` | 어떤 길에서 값을 돌려주지 않는다 | 3장, 5장, 7장 |
 | `E-SPAWN-SCOPE` | `task_group` 밖에서 흐름을 만든다 | 26장 |
+| `E-STMT-ELSE` | `else` 가 블록 안에 있다 | 7장 |
 | `E-TIER-EFFECT` | 선언한 기계 등급이 감당하지 못하는 효과다 | 30장 |
 | `E-TOPLEVEL` | 최상위에 올 수 없는 것이 최상위에 있다 | 3장 |
 | `E-TRAIT-EFFECT` | 갖춘 op 이 서명보다 많은 효과를 가진다 | 23장 |
 | `E-TRAIT-MISSING` | 트레이트의 op 하나가 없다 | 23장 |
 | `E-TRAIT-SIG` | 서명에 `fn`·`proc` 을 적었거나 매개변수 수가 다르다 | 23장 |
 | `E-TRY-NORESULT` | `try` 를 썼는데 이 op 은 그 오류를 돌려줄 수 없다 | 11장 |
+| `E-TYPE-ARG` | 인자의 타입이 매개변수와 맞지 않는다 | 12장 |
 | `E-TYPE-ARGMUT` | 읽기만 되는 값을 고치는 자리에 넘긴다(`let` 을 `mut_ref` 로) | 9장, 12장 |
 | `E-TYPE-ARRAY` | `array` 의 길이를 타입 뒤에 적었다 | 9장 |
 | `E-TYPE-BITCAST` | `bit_cast` 의 목표가 모든 비트열이 값인 타입이 아니다 | 20장 |
@@ -117,19 +127,22 @@
 | `E-TYPE-DECL` | 타입 선언에 `be` 를 끼웠다 | 13장 |
 | `E-TYPE-FIELD` | 구조체를 만들 때 칸이 빠졌거나 없는 칸을 적었다 | 10장 |
 | `E-TYPE-INSTANCE` | 같은 제네릭의 서로 다른 인스턴스를 섞었다 | 35장 |
-| `E-TYPE-KIND` | 그 연산에 쓸 수 없는 갈래의 타입이다(예: `bool` 을 `cast`) | 8장, 13장 |
-| `E-TYPE-LOGICAL` | 논리 연산에 참거짓이 아닌 값을 주었다 | 8장 |
+| `E-TYPE-KIND` | 그 연산에 쓸 수 없는 갈래의 타입이다(예: `bool` 을 `cast`) | 8장, 10장, 13장 |
+| `E-TYPE-MIX` | 부동소수와 정수 리터럴을 섞어 셈한다 | 4장 |
 | `E-TYPE-MUT` | `mut` 이 아닌 슬라이스의 원소에 쓴다 | 9장 |
 | `E-TYPE-NOMINAL` | 표현이 같아도 이름이 다른 타입을 섞었다 | 13장 |
 | `E-TYPE-REF` | 읽기 참조로 쓴다 | 12장 |
+| `E-TYPE-REFVAL` | 참조를 값처럼 썼다 | 12장 |
 | `E-TYPE-RETURN` | 돌려주는 값이 op 의 출력 타입과 다르다 | 11장, 31장 |
 | `E-TYPE-SIGN` | 값을 지키는 넓히기가 없는 부호 섞기다 | 4장, 39장, 40장 |
-| `E-TYPE-WIDTH` | 값이 선언된 타입에 들어가지 않는다 | 3장, 13장 |
+| `E-TYPE-WIDTH` | 값이 선언된 타입에 들어가지 않는다 | 3장, 4장, 13장 |
 | `E-UNSAFE-UNDECLARED` | `unsafe` 효과를 적었는데 op 에 `unsafe` 표시가 없다 | 29장 |
+| `E-VEC-SPLAT` | splat 을 식 안에 바로 적었다 | 27장 |
 | `E-VISIBILITY` | 다른 모듈의 감춘 이름에 닿는다 | 21장 |
 | `E-VOCAB-REMOVED` | 없앤 낱말이나 철자다 | 3장, 5장, 7장, 15장, 48장 |
 | `E-WIDEN-SIGN` | 부호 있는 수를 부호 없는 타입으로 `widen` 했다 | 13장 |
 | `W-EFFECT-OVER` | 선언만 하고 내지 않는 효과다(경고) | 15장, 16장 |
+| `W-EXPORT-HIDDEN` | 내보낸 서명이 감춘 타입을 쓴다 | 21장 |
 | `W-NOT-YET` | 이름은 받지만 아직 뜻이 없는 낱말을 썼다 | 13장 |
 | `W-USE-EXTERNAL` | 번역 단위에 없는 모듈을 들여온다(경고) | 32장 |
 

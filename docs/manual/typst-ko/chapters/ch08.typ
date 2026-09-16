@@ -132,15 +132,13 @@
 
 == 흔한 실수
 
-#antipattern[비교를 괄호 없이 `and`·`or` 와 섞는다][
-  #demo("examples/ch08/mistake_mixcmp.low")
+비교(단계 2)가 `and`(단계 1b)보다 강하므로, 괄호 없이 섞어도 뜻은 하나다.
 
-  표로는 비교(단계 2)가 `and`(단계 1b)보다 강하므로 `lo le x and x le hi` 는 뜻이 하나로 정해져야 한다. 그런데 이 판의 컴파일러는
-  `and` 가 수를 받았다며 `E-TYPE-LOGICAL` 로 거절한다 --- 우선순위표와 도구가 어긋나는 자리이고 개발 저장소에 결함으로 적어
-  두었다. 진단문의 "수를 받았다" 는 원인이 아니다. 비교마다 괄호로 묶으면 도구도 사람도 표를 떠올릴 필요가 없다.
+#demo("examples/ch08/mixcmp.low")
 
-  #demo("examples/ch08/mixcmp_fixed.low")
-]
+그래도 괄호를 적으면 읽는 사람이 표를 떠올리지 않아도 된다. 아래가 같은 일을 괄호로 적은 것이다.
+
+#demo("examples/ch08/mixcmp_fixed.low")
 
 #antipattern[나머지를 `%` 로 적는다][
   #demo("examples/ch08/mistake_percent.low")

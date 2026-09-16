@@ -608,7 +608,53 @@ static ty_t tc_slice_of_elem(ty_t e) {
     return sl;
 }
 
+// ★★★ **섬의 우선순위는 한 표에서 온다**(정본 §6.3.2 · `ir_prec` 와 같은 수). 아래 갈림은
+//   그 가운데 `and`·`or` 만 쓴다 — 나머지는 지금까지처럼 왼쪽부터 접는 고리가 본다.
+static int tc_prec(const low_cst_t *nd) {
+    if (!nd || nd->kind != LOW_CST_ATOM) return -1;
+    if (nd->tok.kind == LOW_TOK_OP) {
+        char ch = (char)nd->tok.lex.ptr[0];
+        return (ch == '*' || ch == '/') ? 5 : 4;
+    }
+    proven_u8str_view_t v = nd->tok.lex;
+    if (veq(v, "eq") || veq(v, "ne") || veq(v, "lt") || veq(v, "le") ||
+        veq(v, "gt") || veq(v, "ge")) return 3;
+    if (veq(v, "and")) return 2;
+    if (veq(v, "or"))  return 1;
+    return -1;
+}
+static ty_t tc_infer_expr(tc_ctx_t *c, low_cst_t *const *k, proven_size_t n, const tc_var_t *env, proven_size_t nenv);
+// ★★★★ **`expr a lt b and b lt 10` 이 거절되고 있었다** (결함 노트 #2, 2026-09-16).
+//
+//   정본 §6.3.2 는 비교가 `and` 보다 **강하다**고 적고, 하강(`ir_prec`)도 그렇게 접는다 —
+//   그래서 그 식은 **옳게 돈다**(`flat(3,5)=1` · `flat(3,50)=0`). 그런데 타입 검사만 섬을
+//   평평한 낱말 줄로 보고, `and` 를 만나면 **줄에 있는 모든 낱말**을 그 피연산자로 여겼다.
+//   `a`·`b`·`10` 은 수이므로 `E-TYPE-LOGICAL` 셋이 났다 — 도구가 자기 하강과 어긋난 것이다.
+//   ⇒ `and`·`or` 자리에서 **갈라서** 양쪽을 따로 본다. 비교와 산술은 지금 고리가 그대로 본다
+//     (그 자리에서 폭·부호를 재는 검사가 산다 — 갈라 버리면 그것이 사라진다).
+static bool tc_expr_logic_split(tc_ctx_t *c, low_cst_t *const *k, proven_size_t n,
+                                const tc_var_t *env, proven_size_t nenv, ty_t *out) {
+    int lowest = 99; proven_size_t at = n;
+    for (proven_size_t i = 0; i < n; i++) {
+        int p = tc_prec(k[i]);
+        if (p >= 0 && p <= lowest) { lowest = p; at = i; }   // 좌결합 ⇒ 오른쪽 것을 고른다
+    }
+    if (at == n || at == 0 || at + 1 >= n || lowest > 2) return false;
+    ty_t L = tc_infer_expr(c, k, at, env, nenv);
+    ty_t R = tc_infer_expr(c, k + at + 1, n - at - 1, env, nenv);
+    for (int s = 0; s < 2; s++) {
+        ty_t o = s ? R : L;
+        if (o.k == TK_INT || o.k == TK_FLOAT)
+            tc_emit(c, "E-TYPE-LOGICAL",
+                    "`and`/`or` take bool on BOTH sides, not a number — this language has no "
+                    "truthiness (D12: no implicit int↔bool). Say what the test is: `ne x 0` "
+                    "instead of `x`", k[at]->line);
+    }
+    *out = tk(TK_BOOL);
+    return true;
+}
 static ty_t tc_infer_expr(tc_ctx_t *c, low_cst_t *const *k, proven_size_t n, const tc_var_t *env, proven_size_t nenv) {
+    { ty_t split_out; if (tc_expr_logic_split(c, k, n, env, nenv, &split_out)) return split_out; }
     ty_t acc = tk(TK_UNKNOWN);
     bool have = false, cmp_seen = false;
     for (proven_size_t i = 0; i < n; i++) {

@@ -130,16 +130,13 @@ translation-time constant (#chref("build-test")).
 
 == Common mistakes
 
-#antipattern[Mixing comparisons with `and`/`or` without parentheses][
-  #demo("examples/ch08/mistake_mixcmp.low")
+Comparison (level 2) binds tighter than `and` (level 1b), so mixing them without parentheses has exactly one meaning.
 
-  By the table, comparison (level 2) binds tighter than `and` (level 1b), so `lo le x and x le hi` ought to have exactly one meaning. This
-  edition's compiler nevertheless rejects it with `E-TYPE-LOGICAL`, claiming `and` received a number --- the precedence table and the tool
-  disagree here, and the development repository records it as a defect. "Received a number" is not the real cause. Wrap each comparison in
-  parentheses, and neither the tool nor the reader needs to recall the table.
+#demo("examples/ch08/mixcmp.low")
 
-  #demo("examples/ch08/mixcmp_fixed.low")
-]
+Writing the parentheses anyway spares the reader from recalling the table. Below is the same thing written that way.
+
+#demo("examples/ch08/mixcmp_fixed.low")
 
 #antipattern[Writing the remainder as `%`][
   #demo("examples/ch08/mistake_percent.low")

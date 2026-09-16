@@ -1,6 +1,5 @@
 module mistake_contradict .
-rem trap: pick 50
-rem trap: pick 250
+rem expect: E-CONTRACT-UNSAT
 
 rem ko: ✘ 두 조건을 함께 만족하는 값이 없다 --- 어떻게 불러도 멈춘다 /// en: ✘ no value satisfies both conditions --- every call stops
 fn pick input a u8 . output u8 .

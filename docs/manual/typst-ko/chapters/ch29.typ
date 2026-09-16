@@ -51,7 +51,7 @@ C 함수를 부르는 op 은 셋을 *모두* 갖춘다.
 
 #idx("extern")
 `extern` op 은 몸이 C 에 있으므로 `do` 대신 `link "lw_c_area"` 로 C 쪽 이름을 댄다. 이름은 처리기가 op 이름에서 지어내지
-않는다. 다른 언어에 하는 약속이므로 약속한 사람이 적는다. `area_twice` 는 그 op 을 부르므로 스스로도 `unsafe` 이고 `cap c`
+않는다. 다른 언어에 하는 약속이므로 약속한 사람이 적는다 --- 빠뜨리면 `E-FFI-LINK` 다. `area_twice` 는 그 op 을 부르므로 스스로도 `unsafe` 이고 `cap c`
 를 받는다. 표시와 권리가 호출 사슬을 따라 올라간다.
 
 #demo("examples/ch29/nounsafe.low")
@@ -144,6 +144,13 @@ C 에게 Lowent 함수를 넘겨 되부르게 하려면 `export extern` op 의 �
   진단이 둘 나온다. `E-FFI-NOEFFECT` 는 "C 를 부르는데 효과 줄이 없다" 이고, `E-UNSAFE-UNUSED` 는 "`unsafe` 표시를 했는데 `unsafe` 효과가
   없으니 거짓 경보다" 이다. 둘은 같은 뿌리에서 나온다. 표시(`unsafe`)는 *누가 책임지는가*, 효과 줄(`effects unsafe`)은 *무엇을 하는가* 를
   말하고, 한쪽만 있으면 짝이 맞지 않는다. `effects unsafe .` 한 줄로 둘 다 사라진다.
+]
+
+#antipattern[`extern` op 에 `link` 절을 적지 않는다][
+  #demo("examples/ch29/mistake_nolink.low")
+
+  `link` 가 없으면 어느 C 심볼을 부르는지 소스 어디에도 없다. 처리기가 op 이름에서 지어내면 op 의 이름을 바꾸는 순간 *다른 C 함수*를
+  부르게 되고 그 사실이 적힌 데가 없다. 그래서 `E-FFI-LINK` 로 거절한다 --- 약속은 적은 사람의 것이다.
 ]
 
 #antipattern[C 를 부르는 op 을 부르면서 `unsafe` 표시를 빠뜨린다][

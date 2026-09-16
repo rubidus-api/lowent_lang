@@ -1,5 +1,5 @@
 module mistake_floatint .
-rem trap: half 3.0
+rem expect: E-TYPE-MIX
 
 fn half input x f64 . output f64 .
 do

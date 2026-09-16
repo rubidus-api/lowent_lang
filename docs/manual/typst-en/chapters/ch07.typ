@@ -159,9 +159,8 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   #demo("examples/ch07/mistake_innerelse.low")
 
   In C and several other languages `else` follows the previous block, as in `if … { … } else { … }`. In Lowent `else` comes *after* the
-  previous block is closed with `end` (`end else do`). With `else` on its own line inside the block, this edition's tool does not reject
-  the translation; it prints `check: ok` with only a note that "one op cannot be lowered". At run time it stops with `E-VM-UNSUP`, and the
-  native build leaves the op out entirely (recorded as a defect in the development repository). Read the note above `check: ok` as well.
+  previous block is closed with `end` (`end else do`). With `else` on its own line inside the block the program is rejected with
+  `E-STMT-ELSE`; it used to translate and then stop at run time with `E-VM-UNSUP`, while the native build left the op out entirely.
 ]
 
 #antipattern[Using a symbol such as `<` in a condition][

@@ -130,9 +130,8 @@ export proc sort_by input comptime t type . input s mut slice t .
   #demo("examples/ch22/mistake_notypearg.low")
 
   `max_of` 의 첫 입력은 타입이다. 인자의 타입에서 `score` 를 알아낼 수 있어 보여도 Lowent 는 추론하지 않는다 --- 무엇이 만들어지는지가
-  부르는 자리에 보여야 하기 때문이다. 이 판의 도구는 이 자리를 `E-IR-UNDEF` 로, 그것도 "`max_of` 라는 이름이 없다" 고 알린다. op 은
-  분명히 있으므로 틀린 안내다(개발 저장소에 결함으로 적어 두었다). 제네릭 op 을 부르는 줄에서 이 진단이 나오면 앞자리의 타입 인자부터
-  확인한다.
+  부르는 자리에 보여야 하기 때문이다. 앞자리를 비우면 `E-MONO-NOTYPE` 으로, 타입을 앞에 적으라고 말한다. 전에는 같은 자리가
+  "`max_of` 라는 이름이 없다"(`E-IR-UNDEF`)였다 --- op 은 분명히 있으므로 틀린 안내였다.
 ]
 
 #antipattern[본문이 쓰는 행동을 타입 조건으로 적지 않는다][

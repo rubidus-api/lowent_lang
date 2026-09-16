@@ -1,6 +1,5 @@
 module mistake_outside .
-rem run: big_or_zero 5
-rem run: big_or_zero 1
+rem expect: E-NAME-SCOPE
 
 fn big_or_zero input a u64 . output u64 .
 do

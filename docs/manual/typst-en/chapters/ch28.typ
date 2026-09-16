@@ -127,10 +127,10 @@ down its error branch, writes the message and returns 2. It is off by default.
 #antipattern[Opening in read mode and writing --- without checking the byte count][
   #demo("examples/ch28/mistake_readmode.low")
 
-  `files.open fs "notes.txt" 0` is read mode. Writing there should fail, but in this edition `files.write` returns `ok 0` ("0 bytes
-  written") instead of an error (recorded as a defect in the development repository). Had the code asked only `is_ok w`, it would have
-  passed as a success. This example checks that the count is 11 and exposes the problem with exit code 3. Check the mode (0 read · 1 write
-  · 2 append), and look at *the number of bytes written* as well as success. A short write means the remaining bytes must be written again.
+  `files.open fs "notes.txt" 0` is read mode. Writing there makes `files.write` return a failure --- a short write with the stream's error
+  flag set is a failure, not a value --- and this example leaves with exit code 2. The same spot used to answer `ok 0` ("0 bytes written"),
+  so code that asked only `is_ok w` passed it as a success. Check the mode (0 read · 1 write · 2 append), and look at *the number of bytes
+  written* as well as success. A short write means the remaining bytes must be written again.
 ]
 
 #antipattern[Writing with a handle that was already closed][

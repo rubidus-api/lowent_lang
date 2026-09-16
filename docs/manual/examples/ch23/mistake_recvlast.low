@@ -1,5 +1,5 @@
 module mistake_recvlast .
-rem trap: f
+rem expect: E-METHOD-RECV
 
 struct rect do
   w u64 .

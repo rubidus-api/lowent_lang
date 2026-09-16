@@ -1,5 +1,5 @@
 module mistake_nomutref .
-rem trap: use_bump 7
+rem expect: E-TYPE-ARG
 
 proc bump input p mut_ref u64 . output u64 .
 do

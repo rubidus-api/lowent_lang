@@ -1,5 +1,5 @@
 module mistake_notypearg .
-rem expect: E-IR-UNDEF
+rem expect: E-MONO-NOTYPE
 
 trait ordered do
   less input a self . input b self . output bool .

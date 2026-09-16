@@ -1,5 +1,5 @@
 module mistake_narrowloop .
-rem trap: tally
+rem expect: E-TYPE-WIDTH
 
 fn tally output u64 .
 do

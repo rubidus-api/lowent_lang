@@ -1,5 +1,5 @@
 module mistake_eqstruct .
-rem trap: same
+rem expect: E-TYPE-KIND
 
 struct point do
   x u64 .

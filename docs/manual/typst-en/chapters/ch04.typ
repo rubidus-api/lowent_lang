@@ -223,17 +223,16 @@ Lowent stops --- and the place it stops is the place to fix.
 #antipattern[Giving a loop counter too narrow a type][
   #demo("examples/ch04/mistake_narrowloop.low")
 
-  A `u8` can never reach 256, so `lt i 256` is always true. In C, `i` would wrap from 255 back to 0 and the loop would *never end*. In
-  Lowent the 256th `add i 1` overflows and stops, so at least it does not hang silently. Give a loop counter a type wider than the largest
-  value it counts to (`u64`).
+  A `u8` can never reach 256, so `lt i 256` is always true. In C, `i` would wrap from 255 back to 0 and the loop would *never end*. Lowent
+  refuses the comparison at translation time with `E-TYPE-WIDTH`: comparing against a value the type cannot hold gives the same answer for
+  every input, so it decides nothing. Give a loop counter a type wider than the largest value it counts to (`u64`).
 ]
 
 #antipattern[Doing float arithmetic with an integer literal][
   #demo("examples/ch04/mistake_floatint.low")
 
-  Integers and floats never convert into each other automatically. To divide an `f64`, write the literal as a float too: `2.0`. This
-  edition's tool does not catch the mix at compile time and stops *while running* with `E-VM-TYPE` --- it ought to be rejected at compile
-  time, and the development repository records it as a defect. When you see this stop, look for the mixed literal.
+  Integers and floats never convert into each other automatically. To divide an `f64`, write the literal as a float too: `2.0`. Mixing
+  them is rejected at translation time with `E-TYPE-MIX`; it used to stop *while running* with `E-VM-TYPE`.
 ]
 
 #antipattern[Testing with the largest `u64` passed as a `--run` argument][

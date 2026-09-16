@@ -174,17 +174,16 @@ the number of bytes filled. When tests need repeatable random numbers, use `rng_
   #demo("examples/ch16/mistake_caplocal.low")
 
   A capability is passed down the chain *under the name it was received with*. Moving it into a local name makes the chain look
-  broken, so this edition's tool rejects it with `E-CAP-MISSING`. The message only says "the value the entry received as its first
-  operand" and does not name the move as the cause (recorded in the development repository). Write the parameter name directly, as
-  in `write_out out 1 …`.
+  broken, so it is rejected with `E-CAP-LOCAL`; the message names the local and the kind that was copied into it. Write the
+  parameter name directly, as in `write_out out 1 …`.
 ]
 
 #antipattern[Writing to standard output with a capability of another kind][
   #demo("examples/ch16/mistake_fscapout.low")
 
   `cap file_system` opens files and directories; it is not the capability for standard output. Capabilities are authorised *by kind,
-  not by possession*, so this is rejected. Here this edition's tool reports `E-CAP-MISSING` rather than `E-CAP-KIND`. Either way the
-  fix is the same: the entry receives `input out cap io .` and passes that name.
+  not by possession*, so this is rejected with `E-CAP-KIND`, which prints the kind required beside the kind handed over. The fix:
+  the entry receives `input out cap io .` and passes that name.
 ]
 
 #antipattern[Passing a number where a capability belongs][

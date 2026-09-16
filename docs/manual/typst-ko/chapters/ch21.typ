@@ -157,13 +157,13 @@
 #antipattern[내보낸 op 의 서명에 감춘 타입을 쓴다][
   #demo("examples/ch21/secretbox.low")
 
-  `secretbox` 는 번역을 통과한다. 문제는 들여오는 쪽에서 드러난다.
+  `secretbox` 자체는 번역을 통과하지만 내보내는 쪽에서 `W-EXPORT-HIDDEN` 으로 알린다 --- 이 export 는 밖에서 쓸 수 없다는 뜻이다.
+  그 알림이 없다면 문제는 들여오는 쪽에서야 드러난다.
 
   #demo("examples/ch21/mistake_privtype.low")
 
   `make_secret` 은 내보냈지만 그 결과의 타입 `secret` 은 감췄다. 들여온 쪽은 결과를 담을 이름을 적을 수 없어 `E-VISIBILITY` 로
-  거절된다. 쓸 수 없는 export 인 셈이다. 내보내는 쪽에서 알려야 할 자리인데 이 판의 도구는 알리지 않는다(개발 저장소에 결함으로 적어
-  두었다). 내보낸 op 의 입력·출력 타입도 함께 `export` 한다.
+  거절된다. 쓸 수 없는 export 인 셈이다. 내보낸 op 의 입력·출력 타입도 함께 `export` 한다.
 ]
 
 #antipattern[다른 모듈의 열거형 갈래를 `case` 에 모듈 이름과 함께 적는다][

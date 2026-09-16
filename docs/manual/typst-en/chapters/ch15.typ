@@ -211,7 +211,7 @@ proof.
   #demo("examples/ch15/mistake_blocking.low")
 
   `blocking` means "may hold the flow of execution", so a `fn` calling such an op is not pure, and it is refused with `E-EFFECT-CALC`.
-  Until 2026-09-16 five atoms --- `blocking`, `page_fault`, `cancel`, `detach` and `device` --- did **not** spread to the caller, so this
+  Until 2026-09-16 five atoms --- `blocking`, `page_fault`, `cancel`, `detach` and `device` --- did *not* spread to the caller, so this
   passed; `device`, which touches hardware directly, could hide behind a pure function. The same shape with `wait` was refused even then.
 
   #demo("examples/ch15/blocking_wait.low")

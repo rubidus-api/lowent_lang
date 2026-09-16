@@ -86,10 +86,10 @@
 #qa[
   `collect into` 로 쓰는 op 인데 머리가 `effects none` 이다. 호출자의 버퍼를 바꾸는데 효과가 없는가?
 ][
-  명세의 예제도 `effects none` 으로 적고, 이 판의 처리기는 `collect into` 의 쓰기를 `state` 효과로 세지 않는다(`state`
-  를 적으면 "선언했지만 하지 않는다" 는 경고가 난다). 반면 `set (index xs i) …` 로 호출자의 슬라이스에 쓰면
-  `effects state` 를 요구한다. 두 판정이 어긋나는 자리이고, 이 책은 결함으로 본다. 어느 쪽이든 호출자는 `mut slice` 를
-  건네는 자리에서 쓰기가 일어날 수 있다는 것을 안다(#chref("references")).
+  명세의 예제도 `effects none` 으로 적는다. `collect into` 는 `effects state` 를 *요구하지는* 않지만, 적어 두면 처리기가
+  그것을 호출자 저장소 쓰기로 세므로 "선언했지만 하지 않는다" 는 경고는 나지 않는다 --- `mut`·`mut_ref` 매개변수에 쓰는
+  자리와 같은 판정이다. 어느 쪽으로 적든 호출자는 `mut slice` 를 건네는 자리에서 쓰기가 일어날 수 있다는 것을
+  안다(#chref("references")).
 ]
 
 == 한 번에 훑는 것은 정의다
@@ -146,8 +146,8 @@
   #demo("examples/ch24/mistake_foldorder.low")
 
   `fold` 는 op 에 *누산값을 먼저, 원소를 다음* 에 준다. `add_small_swapped` 는 차례를 거꾸로 받았으므로 `x` 에 누산값이, `acc` 에 원소가
-  들어온다. 100 이상인 원소를 건너뛰어야 할 조건이 누산값에 걸려 200 이 더해지고 답이 206 이 된다. 타입이 `u8` 과 `u64` 로 달라도 이 판의
-  도구는 대조하지 않는다(결함으로 적어 두었다). `fold`·`scan` 의 op 은 언제나 `input acc … . input x … .` 차례로 적는다.
+  들어온다. 한 걸음이 `누산값 = op(누산값, 원소)` 이므로 첫 입력의 타입은 출력 타입과 같아야 하는데 여기서는 `u8` 과 `u64` 로 다르다 ---
+  `E-FOLD-ORDER` 로 거절한다. `fold`·`scan` 의 op 은 언제나 `input acc … . input x … .` 차례로 적는다.
 ]
 
 #antipattern[멈출 수 있는 스테이지 op 을 쓰고 `fn` 으로 적는다][

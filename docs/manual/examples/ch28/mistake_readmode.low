@@ -12,7 +12,7 @@ do
   let w result u64 files.file_error be files.write fs h "extra line\n" .
   let c result void files.file_error be files.close fs h .
   guard is_ok w . else return 2 .
-  rem ko: 오류가 아니라 "0 바이트 썼다" 가 돌아온다 --- 쓴 수를 확인해야 드러난다 /// en: what comes back is not an error but "0 bytes written" --- only checking the count reveals it
+  rem ko: 쓰기가 실패했으므로 여기서 2 로 나간다 --- 짧게 쓰인 것도 함께 본다 /// en: the write failed, so it leaves with 2 here --- a short write is checked too
   guard eq (ok_value w) 11 . else return 3 .
   return 0 .
 end .

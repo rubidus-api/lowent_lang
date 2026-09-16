@@ -143,8 +143,7 @@ fixed, and the `index` that follows a position still gets its bounds check. The 
   #demo("examples/ch10/mistake_eqstruct.low")
 
   `eq` compares numbers and booleans. What it means for two structs to be "equal" differs by type --- must every field match, or only an
-  identifying one? This edition's tool does not reject the comparison at compile time but stops while running (recorded as a defect).
-  Write down what equality means as an op.
+  identifying one? So it is rejected at translation time with `E-TYPE-KIND`. Write down what equality means as an op.
 
   #demo("examples/ch10/eqstruct_fixed.low")
 ]

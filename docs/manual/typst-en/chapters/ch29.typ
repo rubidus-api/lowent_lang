@@ -50,7 +50,7 @@ An op that calls a C function has *all* three.
 
 #idx("extern")
 An `extern` op's body is in C, so instead of `do` it names the C side with `link "lw_c_area"`. The processor does not make the name up from the op's name. It is
-a promise made to another language, so whoever promises writes it. `area_twice` calls that op, so it is itself `unsafe` and receives `cap c`. The mark and the right
+a promise made to another language, so whoever promises writes it --- leaving it out is `E-FFI-LINK`. `area_twice` calls that op, so it is itself `unsafe` and receives `cap c`. The mark and the right
 travel up the call chain.
 
 #demo("examples/ch29/nounsafe.low")
@@ -145,6 +145,13 @@ opposite direction (C calling our variadics) does not exist.
   has no `unsafe` effect, so it is a false alarm". Both have the same root. The marker (`unsafe`) says *who takes responsibility*, the
   effects line (`effects unsafe`) says *what it does*, and one without the other does not pair up. A single `effects unsafe .` line removes
   both.
+]
+
+#antipattern[Leaving the `link` clause off an `extern` op][
+  #demo("examples/ch29/mistake_nolink.low")
+
+  Without `link`, nothing in the source says which C symbol is called. If the tool derived it from the op name, renaming the op would call a
+  *different C function* with nothing recording that. So it is rejected with `E-FFI-LINK` --- the promise belongs to whoever writes it.
 ]
 
 #antipattern[Calling an op that calls C without the `unsafe` marker][

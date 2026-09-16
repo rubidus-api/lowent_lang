@@ -1,4 +1,5 @@
 module mistake_innerelse .
+rem expect: E-STMT-ELSE
 
 fn pick input a u8 . output u8 .
 do

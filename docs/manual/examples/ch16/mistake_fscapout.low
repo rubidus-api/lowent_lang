@@ -1,5 +1,5 @@
 module mistake_fscapout .
-rem expect: E-CAP-MISSING
+rem expect: E-CAP-KIND
 
 rem ko: ✘ 파일 권한으로 표준출력에 쓰려 한다 /// en: ✘ tries to write to standard output with the file capability
 proc main input fs cap file_system . output u8 . effects io .

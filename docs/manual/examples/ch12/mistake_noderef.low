@@ -1,5 +1,5 @@
 module mistake_noderef .
-rem trap: double 7
+rem expect: E-TYPE-REFVAL
 
 fn twice input p ref u64 . output u64 .
 do

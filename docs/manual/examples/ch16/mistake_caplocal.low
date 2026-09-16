@@ -1,5 +1,5 @@
 module mistake_caplocal .
-rem expect: E-CAP-MISSING
+rem expect: E-CAP-LOCAL
 
 proc say input out cap io . output u64 . effects io .
 do

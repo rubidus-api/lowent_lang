@@ -211,8 +211,7 @@ boundary, where *a person promises* the contracts are true. It is one reason the
 
   The returned value is named `ret`. `result` is already a type name (`result u8 e`), so it is not reused as a value name. An
   `ensures` that names something undefined checks nothing, yet the analysis might derive a result range from it, so this is an
-  error (`E-ENS-UNDEF`), not a warning. This edition's tool omits the file name in front of this diagnostic; find it by the line
-  number.
+  error (`E-ENS-UNDEF`), not a warning.
 ]
 
 #antipattern[Writing an index precondition with `le`][
@@ -228,9 +227,8 @@ boundary, where *a person promises* the contracts are true. It is one reason the
   #demo("examples/ch14/mistake_contradict.low")
 
   No `u8` is both at most 100 and at least 200, so this op stops at entry however it is called. Usually one `le` or `ge` was written
-  backwards, or an old line was not removed during an edit. This edition's tool catches an error declaration that can never happen
-  (`E-CONTRACT-DEAD`) but not a precondition that can never hold (recorded as a defect in the development repository). When there
-  are two or more preconditions, check for yourself that at least one value makes them all true.
+  backwards, or an old line was not removed during an edit. It sits beside an error declaration that can never happen
+  (`E-CONTRACT-DEAD`) and is rejected with `E-CONTRACT-UNSAT`: a contract no argument satisfies is not a strong contract but a dead op.
 ]
 
 #misconception[`requires` is a tool for validating user input][

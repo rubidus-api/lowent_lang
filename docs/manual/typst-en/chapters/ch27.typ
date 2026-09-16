@@ -190,10 +190,17 @@ four slots remain at the end of a slice.
   [`prefetch xs i`], [pull a place about to be used into cache], [a performance hint that does not change meaning],
 )
 
-Watch two things. First, using `splat` directly inside an expression (`gt v (splat 5)`) leaves no type to give the lane count, so this
-edition's tool reads it as a scalar comparison and reports `E-TYPE-VAR`. Store it first, as the example does: `var lim vec u32 4 be splat 5 .`.
+Watch two things. First, `splat` takes its lane count from the *declared type*, so it cannot be written inline in an expression.
 Second, the canon's table lists `sum`, `sum_fast` and `avg` as ordinary lane ops, but this edition's tool treats them as in the right column
 above. The two disagree, and it is recorded as a defect in the development repository. To add lanes, use `reduce_add`.
+
+#antipattern[Writing `splat` inline in an expression][
+  #demo("examples/ch27/mistake_splatinline.low")
+
+  `splat` fills every lane with one value, and only the declared type says *how many lanes there are*. Inside an expression there is nothing
+  to say it, so the value is read as a scalar and the surrounding comparison stops matching its `mask` type. It is rejected with
+  `E-VEC-SPLAT`; store it first under a name that writes the lane count down --- `var lim vec u32 4 be splat 5 .`, then `gt v lim`.
+]
 
 == Saying how a place is used --- `access`
 

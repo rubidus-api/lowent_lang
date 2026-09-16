@@ -199,8 +199,8 @@ end .
   #demo("examples/ch23/mistake_recvlast.low")
 
   붙은 op 의 첫 입력은 수신자다. `method r scaled 5` 는 `r` 을 첫 자리에, 5 를 둘째 자리에 넣는다. `scaled` 는 첫 자리를 `k`, 둘째를 `s`
-  로 받았으므로 구조체에 곱셈을 하려다 멈춘다. 뜻으로는 번역이 거절해야 할 머리인데 이 판의 도구는 통과시킨다(개발 저장소에 결함으로 적어
-  두었다). 붙은 op 은 `input s rect .` 를 언제나 맨 앞에 둔다.
+  로 받았으므로 구조체에 곱셈을 하려다 멈춘다. 그런 머리는 `E-METHOD-RECV` 로 번역 때 거절한다. 붙은 op 은 `input s rect .` 를
+  언제나 맨 앞에 둔다.
 ]
 
 #misconception[타입에 붙은 op 은 `method` 로만 부를 수 있다][

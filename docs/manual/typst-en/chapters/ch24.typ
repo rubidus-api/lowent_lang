@@ -88,10 +88,9 @@ immediately taken apart, there is no hidden allocation.
 #qa[
   An op that uses `collect into` has `effects none` in its head. It changes the caller's buffer --- is that not an effect?
 ][
-  The specification's examples also write `effects none`, and the processor in this edition does not count the writes of `collect into` as the `state` effect
-  (declaring `state` produces a "declared but not performed" warning). On the other hand, writing to the caller's slice with `set (index xs i) …` requires
-  `effects state`. The two judgements disagree, and this book regards that as a defect. Either way, the caller knows writes may happen where it hands over a
-  `mut slice` (#chref("references")).
+  The specification's examples also write `effects none`. `collect into` does not *require* `effects state`, but if you write it the processor counts the
+  write to caller storage, so no "declared but not performed" warning appears --- the same judgement it makes for writes through a `mut` or `mut_ref`
+  parameter. Either way, the caller knows writes may happen where it hands over a `mut slice` (#chref("references")).
 ]
 
 == Walking once is the definition
@@ -148,9 +147,9 @@ A terminal ends the flow. A stage after the terminal is rejected.
   #demo("examples/ch24/mistake_foldorder.low")
 
   `fold` gives its op *the accumulator first and the element second*. `add_small_swapped` takes them the other way round, so `x` receives
-  the accumulator and `acc` receives the element. The condition meant to skip elements of 100 or more is applied to the accumulator, 200
-  gets added, and the answer becomes 206. Even though the types differ (`u8` and `u64`), this edition's tool does not compare them
-  (recorded as a defect). Always write the op of `fold` or `scan` in the order `input acc … . input x … .`.
+  the accumulator and `acc` receives the element. Each step is `acc = op(acc, element)`, so the first input must have the same type as the
+  output; here they are `u8` and `u64`, and the program is refused with `E-FOLD-ORDER`. Always write the op of `fold` or `scan` in the
+  order `input acc … . input x … .`.
 ]
 
 #antipattern[Using a stage op that can stop, in a `fn`][

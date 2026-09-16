@@ -200,8 +200,8 @@ fixed window for every ticket.
   #demo("examples/ch23/mistake_recvlast.low")
 
   The first input of an attached op is the receiver. `method r scaled 5` puts `r` in the first position and 5 in the second. `scaled` takes
-  the first as `k` and the second as `s`, so it tries to multiply a struct and stops. By meaning, translation should reject this head, but
-  this edition's tool accepts it (recorded as a defect in the development repository). Always put `input s rect .` first in an attached op.
+  the first as `k` and the second as `s`, so it tries to multiply a struct and stops. Such a head is rejected at translation time with
+  `E-METHOD-RECV`. Always put `input s rect .` first in an attached op.
 ]
 
 #misconception[An op attached to a type can only be called through `method`][

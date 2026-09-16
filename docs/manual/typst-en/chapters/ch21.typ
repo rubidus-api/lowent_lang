@@ -157,13 +157,13 @@ A file as a whole is skimmed, but a body is read top to bottom.
 #antipattern[Using a hidden type in an exported op's signature][
   #demo("examples/ch21/secretbox.low")
 
-  `secretbox` translates without complaint. The problem shows up in the module that imports it.
+  `secretbox` itself translates, but the exporting side is warned with `W-EXPORT-HIDDEN`: this export cannot be used from outside.
+  Without that warning the problem only shows up in the module that imports it.
 
   #demo("examples/ch21/mistake_privtype.low")
 
   `make_secret` is exported, but the type of its result, `secret`, is hidden. The importer cannot write a name to hold the result and is
-  rejected with `E-VISIBILITY`. The export is unusable. This should be reported on the exporting side, but this edition's tool does not
-  (recorded as a defect in the development repository). Export the input and output types of an exported op as well.
+  rejected with `E-VISIBILITY`. The export is unusable. Export the input and output types of an exported op as well.
 ]
 
 #antipattern[Writing another module's enum variant with the module name in a `case`][

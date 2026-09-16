@@ -146,10 +146,9 @@ from each branch. When the value is one of several cases over and over, `match` 
 #antipattern[Reading a local outside the block that declared it][
   #demo("examples/ch06/mistake_outside.low")
 
-  `big` was declared inside the `if` block, so it disappears when the block ends. This edition's tool, however, does not reject the read,
-  and when the block was never entered (`a` is 1) it *quietly gives 0* --- a value that appears nowhere in the source. It should be
-  rejected at compile time, and the development repository records it as a defect. Until the tool is fixed, protect yourself: declare a
-  value you need after the block *before* the block.
+  `big` was declared inside the `if` block, so it disappears when the block ends. Reading that name outside the block is rejected with
+  `E-NAME-SCOPE`; it used to *quietly give 0* on the path that never entered the block --- a value that appears nowhere in the source.
+  Declare a value you need after the block *before* the block.
 
   #demo("examples/ch06/outside_fixed.low")
 

@@ -165,9 +165,8 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   #demo("examples/ch07/mistake_innerelse.low")
 
   C 나 몇몇 언어는 `if … { … } else { … }` 처럼 `else` 가 앞 블록 뒤에 붙는다. Lowent 에서 `else` 는 앞 블록을 `end` 로 닫은 *뒤에*
-  온다(`end else do`). 블록 안에 `else` 를 한 줄로 두면 이 판의 도구는 번역을 거절하지 않고 "낮출 수 없는 op 이 하나 있다" 는 알림만
-  붙인 채 `check: ok` 를 낸다. 실행하면 `E-VM-UNSUP` 으로 멈추고, 네이티브 빌드에서는 그 op 이 아예 빠진다(개발 저장소에 결함으로 적어
-  두었다). `check: ok` 위에 붙은 알림(note)도 읽는다.
+  온다(`end else do`). 블록 안에 `else` 를 한 줄로 두면 `E-STMT-ELSE` 로 거절한다 --- 전에는 번역이 통과하고 실행에서야
+  `E-VM-UNSUP` 으로 멈췄으며, 네이티브 빌드는 그 op 을 아예 뺐다.
 ]
 
 #antipattern[조건에 `<` 같은 기호를 쓴다][

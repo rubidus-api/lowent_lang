@@ -128,9 +128,8 @@ multiple keys are also a matter of writing `less` that way. Instead of mode argu
   #demo("examples/ch22/mistake_notypearg.low")
 
   The first input of `max_of` is a type. It may look as if `score` could be worked out from the arguments, but Lowent does not infer ---
-  what gets built must be visible at the call. This edition's tool reports the spot as `E-IR-UNDEF`, and even says "there is no name
-  `max_of`". The op clearly exists, so the message misleads (recorded as a defect in the development repository). When this diagnostic
-  appears on a line that calls a generic op, check the leading type argument first.
+  what gets built must be visible at the call. Leaving the leading position empty is `E-MONO-NOTYPE`, which asks for the type up front.
+  The same spot used to say "there is no name `max_of`" (`E-IR-UNDEF`) --- the op clearly exists, so that message misled.
 ]
 
 #antipattern[Not stating, as a type condition, the behaviour the body uses][

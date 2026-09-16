@@ -7179,19 +7179,7 @@ static void ck_actor_state_refs(low_check_result_t *out, const low_cst_t *actor_
 //   결함**(`E-VM-ANALYSIS`)으로 알리고, **네이티브는 아예 검사하지 않는다** — 두 뒤끝이 갈렸다.
 //   정본은 `errors` 조건을 들어올 때 값으로 읽는지 나갈 때 값으로 읽는지 적지 않았다(RFC-0115 §8).
 //   ⇒ 뜻이 정해질 때까지 **그 모양을 거절한다.** 검사할 수 없는 선언을 안전의 근거로 삼지 않는다.
-static const low_cst_t *ck_actor_block_of(const low_parse_result_t *pr, const low_cst_t *opform) {
-    for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i];
-        if (!(f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]) &&
-              f->kids[0]->tok.kw == LOW_KW_ACTOR)) continue;
-        for (proven_size_t b = 0; b < f->nkids; b++) {
-            const low_cst_t *blk = f->kids[b];
-            if (!blk || blk->kind != LOW_CST_BLOCK) continue;
-            for (proven_size_t q = 0; q < blk->nkids; q++) if (blk->kids[q] == opform) return blk;
-        }
-    }
-    return NULL;
-}
+// (담은 actor 의 BLOCK 은 `op_actor[]` 표가 이미 들고 있다 — 따로 찾지 않는다.)
 // 조건 나무가 상태 칸 이름을 읽는가 — **되돌림으로 훑는다**(고정 표는 깊은 조건을 조용히 자른다).
 static bool ck_cond_reads_state(const low_cst_t *nd, const low_cst_t *actor_blk) {
     if (!nd) return false;

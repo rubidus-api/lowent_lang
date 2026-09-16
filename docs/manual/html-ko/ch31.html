@@ -877,7 +877,7 @@ say(0, 5) = 3
 $ lowentc --run say mistake_runcap.low 5
 == ir diagnostics (1) ==
 0:0 E-VM-ARITY: argument count does not match op arity
-</code></pre></div></div><p>시작점(<code>main</code>)은 도구가 권한을 채워 주지만, 그 밖의 op 을 <code>--run</code> 으로 곧장 부르면 권한 자리도 인자 수에 든다. <code>say 5</code> 는 인자가 하나 모자라 <code>E-VM-ARITY</code> 이고, 권한 자리에 자리표 <code>0</code> 을 채운 <code>say 0 5</code> 는 돈다(장치 권한 <code>cap mmio</code> 도 같다 — 30장). 이 자리표는 시험을 위한 도구의 편의일 뿐이다. 프로그램 안에서 권한 자리에 수를 넘기는 것은 이 판의 구멍이고(16장), 그렇게 쓰지 않는다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>구성에서 꺼진 가지는 검사하지 않는다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/dead_branch.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead_branch .
+</code></pre></div></div><p>시작점(<code>main</code>)은 도구가 권한을 채워 주지만, 그 밖의 op 을 <code>--run</code> 으로 곧장 부르면 권한 자리도 인자 수에 든다. <code>say 5</code> 는 인자가 하나 모자라 <code>E-VM-ARITY</code> 이고, 권한 자리에 자리표 <code>0</code> 을 채운 <code>say 0 5</code> 는 돈다(장치 권한 <code>cap mmio</code> 도 같다 — 30장). 이 자리표는 시험을 위한 도구의 편의일 뿐이다. 프로그램 안에서 권한 자리에 수를 넘기면 <code>E-CAP-FORGE</code> 로 거절된다(16장).</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>구성에서 꺼진 가지는 검사하지 않는다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/dead_branch.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead_branch .
 <em><span class="tok-c">rem flags: --config smp_off.config</span></em>
 <em><span class="tok-c">rem expect: E-TYPE-RETURN</span></em>
 

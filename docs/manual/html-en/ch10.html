@@ -819,7 +819,7 @@ enum_dot.low:6:0 E-ENUM-DOT: this enum variant is not closed with `.`, so the NE
 mistake_missfield.low:12:0 E-TYPE-FIELD: a declared field is missing from this `make` (every field must be given)
 </code></pre></div></div><p>C fills missing struct fields with 0, and some languages insert a default. Lowent rejects it with <code>E-TYPE-FIELD</code>, because the source cannot tell whether the missing field was intended or forgotten. If you want 0, write <code>y 0 .</code> — a written 0 is obviously intended. A misspelt field name produces the same code, saying “no such field”.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Passing a value-less variant as <code>Type.variant</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_unitvariant.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_unitvariant .
 <em><span class="tok-c">rem run: pick_bare</span></em>
-<em><span class="tok-c">rem trap: pick_qualified</span></em>
+<em><span class="tok-c">rem run: pick_qualified</span></em>
 
 <strong><span class="tok-k">enum</span></strong> light <strong><span class="tok-k">do</span></strong>
   red .
@@ -848,9 +848,8 @@ mistake_missfield.low:12:0 E-TYPE-FIELD: a declared field is missing from this `
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run pick_bare mistake_unitvariant.low
 pick_bare() = 2
 $ lowentc --run pick_qualified mistake_unitvariant.low
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: arithmetic/compare needs ints
-</code></pre></div></div><p>A variant that carries values is built with the type name in front, as in <code>shape.circle 2</code>, but a variant carrying nothing is written by <strong>its name alone</strong> (<code>green</code>). This edition’s tool does not reject <code>light.green</code> at compile time; it stops with <code>E-VM-TYPE</code> when run — something that should be reported at compile time, recorded in the development repository as a defect. When you see this stop, remove the type name in front of the variant.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Comparing two structs with <code>eq</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_eqstruct.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_eqstruct .
+pick_qualified() = 2
+</code></pre></div></div><p>A variant that carries values is built with the type name in front, as in <code>shape.circle 2</code>, and this book writes a variant carrying nothing by <strong>its name alone</strong> (<code>green</code>). Both are the same value — <code>pick_bare</code> and <code>pick_qualified</code> both answer 2. Until 2026-09-16 the tool lowered a value-less variant written as <code>light.green</code> to a <strong>different representation</strong> (a record with a tag), so it stopped at run time with <code>E-VM-TYPE</code>. Now both lower to the same index. Prefer the shorter spelling, and qualify where the enum would otherwise be hard to tell.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Comparing two structs with <code>eq</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_eqstruct.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_eqstruct .
 <em><span class="tok-c">rem trap: same</span></em>
 
 <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
@@ -908,8 +907,8 @@ same() = 1
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run copy_then_change mistake_alias.low
-copy_then_change() = 99
-</code></pre></div></div><p>After <code>var q point be p .</code>, a field of <code>q</code> was changed and <code>p</code>’s field became 99. In this edition, putting a struct under another name makes <strong>an alias to the same place</strong>. <code>p</code> is a <code>let</code> and must not change, so this breaks a promise; the specification does not yet define copying of struct values either — the development repository records it as its heaviest defect. Until it is fixed, <strong>build a new value with <code>make</code></strong> whenever you need one.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/alias_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> alias_fixed .
+copy_then_change() = 1
+</code></pre></div></div><p><code>var q point be p .</code> builds <strong>a new value with <code>p</code>’s fields copied</strong>. So changing <code>q</code>’s field to 99 leaves <code>p</code> at 1. A value without ownership is copied; a value with ownership is moved (chapter 19). Until 2026-09-16 the tool made an alias to the same place, and <code>p</code> changed too — the <code>let</code> promise broke there. Lowering now copies the fields.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/alias_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> alias_fixed .
 <em><span class="tok-c">rem run: copy_then_change</span></em>
 
 <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>

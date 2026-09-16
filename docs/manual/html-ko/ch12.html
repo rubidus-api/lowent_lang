@@ -823,7 +823,7 @@ first_two([9,8,7,6]) = 2
 == ir diagnostics (1) ==
 0:0 E-VM-TYPE: arithmetic/compare needs ints
 </code></pre></div></div><p>참조는 값이 <strong>있는 곳</strong>이지 값이 아니다. 읽을 때마다 <code>deref p</code> 라고 적어서 “여기서 빌린 값을 읽는다” 를 드러낸다. C 에서 <code>*p</code> 를 빠뜨리면 주소끼리 더하는 엉뚱한 계산이 되지만, Lowent 는 주소 계산을 허용하지 않으므로 잘못된 값이 조용히 나오지는 않는다. 다만 이 판의 도구는 번역에서 알리지 않고 실행 중에 멈춘다(결함으로 적어 두었다). 고친 줄은 <code>add (deref p) (deref p)</code> 다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>let</code> 으로 지은 이름을 쓰기로 빌려준다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_letmutref.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_letmutref .
-<em><span class="tok-c">rem run: use_bump 7</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-ARGMUT</span></em>
 
 <strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> .
 <strong><span class="tok-k">do</span></strong>
@@ -838,9 +838,9 @@ first_two([9,8,7,6]) = 2
   bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
   <strong><span class="tok-k">return</span></strong> n .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run use_bump mistake_letmutref.low 7
-use_bump(7) = 8
-</code></pre></div></div><p><code>let</code> 은 “이 이름의 값은 바뀌지 않는다” 는 약속이다. 그런 이름을 <code>mut_ref</code> 로 빌려주면 약속이 깨진다. 그러니 거절되어야 하는데, 이 판의 도구는 통과시키고 실행 결과에서 <code>n</code> 이 8 로 바뀐다. 정본과 도구가 어긋나는 결함이고 개발 저장소에 적어 두었다. 바뀌어야 하는 값은 처음부터 <code>var</code> 로 짓는다. 그러면 읽는 사람이 “이 값은 어딘가에서 바뀐다” 를 선언에서 안다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>input</code> 으로 넘긴 변수는 불린 op 이 바꿀 수 있다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/copyparam.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> copyparam .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_letmutref.low
+mistake_letmutref.low:14:0 E-TYPE-ARGMUT: a WRITE borrow (`mut_ref`) was taken of a name that cannot be written: a `let` binding (or a shared input). `let` says the value does not change (§6.5.1) — if a borrow could change it, the reader who checked that name once would be wrong, and the borrow makes the change invisible at the call site. Bind it with `var`, or take a read borrow (`ref`)
+</code></pre></div></div><p><code>let</code> 은 “이 이름의 값은 바뀌지 않는다” 는 약속이다. 그런 이름을 <code>mut_ref</code> 로 빌려주면 약속이 깨지므로 <code>E-TYPE-ARGMUT</code> 로 거절한다. 빌림은 부르는 자리에서 보이지 않게 값을 바꾸기 때문에, 한 번 확인하면 된다는 <code>let</code> 의 값이 사라진다. 바뀌어야 하는 값은 처음부터 <code>var</code> 로 짓는다. 그러면 읽는 사람이 “이 값은 어딘가에서 바뀐다” 를 선언에서 안다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>input</code> 으로 넘긴 변수는 불린 op 이 바꿀 수 있다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/copyparam.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> copyparam .
 <em><span class="tok-c">rem run: use_inc 7</span></em>
 
 <strong><span class="tok-k">proc</span></strong> inc <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .

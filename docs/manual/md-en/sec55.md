@@ -7,6 +7,8 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | **Code** | **Meaning** | **Shown in** |
 |---|---|---|
 | `E-ACCESS-MODE` | the body breaks the read or write promise made with `access` | chapter 27 |
+| `E-ACTOR-FIELD` | an actor’s state field is read from outside | chapter 25 |
+| `E-ACTOR-STATE-REF` | a borrow is kept in an actor state field | chapter 25 |
 | `E-ALLOC-AMBIGUOUS` | more than one fitting allocator and none chosen with `using` | chapter 20 |
 | `E-ALLOC-NESTED` | allocated from an outer source while an inner region of the same root is open | chapter 18 |
 | `E-ALLOC-NOCAP` | declares `alloc` but receives no allocation capability | chapter 16 |
@@ -22,7 +24,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-BLOCK-UNCLOSED` | a block opened with `do` is never closed with `end` | chapter 2 |
 | `E-BOUND-UNSAT` | the type argument does not satisfy the required trait | chapter 22, chapter 23 |
 | `E-BRAND-REUSED` | a brand opens a second storage | chapter 35 |
-| `E-CAP-FORGE` | spawns an actor holding a capability without holding that capability | chapter 20, chapter 25 |
+| `E-CAP-FORGE` | spawns an actor holding a capability without holding that capability | chapter 16, chapter 20, chapter 25 |
 | `E-CAP-KIND` | a capability of the wrong kind was handed over | chapter 16 |
 | `E-CAP-MISSING` | a capability-requiring builtin was not given its capability as the first operand | chapter 16 |
 | `E-CHAR` | a character (symbol) this language does not have | chapter 6, chapter 7, chapter 8, chapter 9 |
@@ -49,6 +51,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-ENUM-DOT` | an enum variant not closed with `.` | chapter 10 |
 | `E-ENUM-INFINITE` | a variant embeds its own type by value | chapter 10 |
 | `E-ERR-UNDECLARED` | returns an error not in its `errors` clause | chapter 11 |
+| `E-ERRORS-STATE` | an `errors` condition reads an actor state field | chapter 25 |
 | `E-ESCAPE` | a reference to a local escapes the op | chapter 12 |
 | `E-EXCL` | overlapping borrows or owner access to the same value | chapter 12, chapter 26, chapter 43 |
 | `E-EXPR-APP` | a call inside an `expr` island is not parenthesised | chapter 8 |
@@ -90,6 +93,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-PAR-ASSOC` | the reduction operator is not associative | chapter 27 |
 | `E-PAR-CARRY` | a split loop writes a local that lives across iterations | chapter 27 |
 | `E-PAR-FLOAT` | a floating-point accumulation declared splittable | chapter 27 |
+| `E-PAR-IDENTITY` | a `reduce` starts from a value that is not the operator’s identity | chapter 27 |
 | `E-PAR-NOLOOP` | the `parallel` clause finds no loop to split | chapter 27 |
 | `E-PAR-READ` | a split loop reads another iteration’s element | chapter 27 |
 | `E-PAR-WRITE` | a split loop writes another iteration’s element | chapter 27, chapter 45 |
@@ -104,6 +108,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-TRAIT-EFFECT` | the implementing op has more effects than the signature | chapter 23 |
 | `E-TRAIT-MISSING` | an op required by the trait is missing | chapter 23 |
 | `E-TRAIT-SIG` | `fn`/`proc` in a signature, or a parameter-count mismatch | chapter 23 |
+| `E-TYPE-ARGMUT` | a read-only value is passed where it would be written (`mut_ref` of a `let`) | chapter 12 |
 | `E-TYPE-ARRAY` | `array` length written after the type | chapter 9 |
 | `E-TYPE-BITCAST` | `bit_cast` target is not a plain scalar | chapter 20 |
 | `E-TYPE-COND` | a non-boolean in a condition | chapter 4 |

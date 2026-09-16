@@ -1065,8 +1065,8 @@ burst() = 3
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_unknownmsg.low
 mistake_unknownmsg.low:19:0 E-IR-UNDEF: send names a message this actor does not handle (the handler is looked up IN THE RECEIVER'S TYPE — it used to be found by BARE NAME, so two actors with a handler of the same name silently shared one)
-</code></pre></div></div><p>메시지 이름은 <strong>받는 액터의 타입 안에서</strong> 찾는다. <code>counter</code> 에는 <code>dec</code> 가 없으므로 <code>E-IR-UNDEF</code> 다. 진단이 덧붙인 사연대로, 한때는 이름만으로 찾아서 같은 이름의 처리기를 가진 두 액터가 조용히 하나를 나눠 썼다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 바깥에서 액터의 상태 칸을 읽는다 — 이 판의 구멍</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_peekstate.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_peekstate .
-<em><span class="tok-c">rem run: peek</span></em>
+</code></pre></div></div><p>메시지 이름은 <strong>받는 액터의 타입 안에서</strong> 찾는다. <code>counter</code> 에는 <code>dec</code> 가 없으므로 <code>E-IR-UNDEF</code> 다. 진단이 덧붙인 사연대로, 한때는 이름만으로 찾아서 같은 이름의 처리기를 가진 두 액터가 조용히 하나를 나눠 썼다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 바깥에서 액터의 상태 칸을 읽는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_peekstate.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_peekstate .
+<em><span class="tok-c">rem expect: E-ACTOR-FIELD</span></em>
 
 <strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
@@ -1086,9 +1086,10 @@ mistake_unknownmsg.low:19:0 E-IR-UNDEF: send names a message this actor does not
   <em><span class="tok-c">rem ✘ 액터의 상태 칸을 바깥에서 읽는다 --- 막혀야 할 자리가 이 판에서는 통과한다</span></em>
   <strong><span class="tok-k">return</span></strong> field c value .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run peek mistake_peekstate.low
-peek() = 1
-</code></pre></div></div><p>이 장의 첫 약속은 “상태는 액터 안에만 있고 바깥에서 직접 건드릴 수 없다” 였다. 그런데 이 판의 도구는 <code>field c value</code> 를 거절하지 않고 1 을 돌려준다. 액터의 격리는 동시성 증명의 전제이므로 중대한 결함으로 개발 저장소에 적어 두었다. 고쳐지기 전까지는 스스로 규칙을 지킨다 — 상태가 필요하면 <code>get</code> 같은 읽기 메시지를 두고 <code>send c get</code> 으로 묻는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 메시지 op 의 오류 조건에 상태 칸을 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_errorsstate.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_errorsstate .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_peekstate.low
+mistake_peekstate.low:20:0 E-ACTOR-FIELD: this reads a STATE FIELD of an actor from outside it. An actor's state lives inside the actor and nowhere else (§10.2): the only door is a message (`send a &lt;op> …`). If the state were readable from outside, the isolation that makes actors safe without locks — one message at a time — would not hold, and the reader would see a value between two messages. Add an op to the actor that returns what you need
+</code></pre></div></div><p>이 장의 첫 약속은 “상태는 액터 안에만 있고 바깥에서 직접 건드릴 수 없다” 였다. <code>field c value</code> 는 그 문을 돌아가려는 시도이고, <code>E-ACTOR-FIELD</code> 로 거절된다. 상태가 바깥에서 읽히면 메시지를 한 번에 하나씩 처리한다는 전제가 소용없어진다 — 읽는 쪽이 메시지 사이의 값을 보기 때문이다. 상태가 필요하면 <code>get</code> 같은 읽기 메시지를 두고 <code>send c get</code> 으로 묻는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 메시지 op 의 오류 조건에 상태 칸을 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_errorsstate.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_errorsstate .
+<em><span class="tok-c">rem expect: E-ERRORS-STATE</span></em>
 
 <strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
   insufficient .
@@ -1125,9 +1126,9 @@ peek() = 1
   <strong><span class="tok-k">return</span></strong> ok_value r .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_errorsstate.low
-== check: ok ==
-</code></pre></div></div><p><code>errors insufficient gt amount balance .</code> 는 “잔액보다 많이 빼려 하면 이 오류” 라는 뜻으로 적었다. 그런데 <code>errors</code> 의 조건은 <strong>나갈 때</strong> 확인된다. 성공 경로에서 잔액이 50 에서 20 으로 줄었으므로, 나갈 때 <code>gt 30 20</code> 이 참이 되어 “조건이 참인데 오류를 내지 않았다” 가 된다. 이 판에서 VM 은 이 자리를 <code>E-VM-ANALYSIS</code>(“구간 분석이 건전하지 않다 — 컴파일러 결함”) 로 멈추고, 네이티브는 검사 없이 20 을 낸다. 진단의 이름도 두 뒤끝의 동작도 틀린 결함이고 개발 저장소에 적어 두었다. 상태를 바꾸는 op 에서는 오류 조건에 상태 칸을 쓰지 않는다. 위의 <code>transfer.low</code> 처럼 조건 없이 <code>errors insufficient .</code> 만 적고, 조건은 본문의 <code>guard</code> 가 맡는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 상태 칸에 빌림을 둔다 — 이 판의 구멍</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_reffield.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_reffield .
-<em><span class="tok-c">rem trap: peek_it</span></em>
+21:0 E-ERRORS-STATE: the condition of this `errors` clause reads an actor STATE field. The condition is read again ON EXIT, by which time the successful path has changed that field — the clause then says an error was owed that the op never returned. Today the two backends do not even agree on it (the VM reports its own analysis as unsound, native code checks nothing), and the canon does not say whether such a condition is read on entry or on exit. Write the condition over the INPUTS, and guard on the state inside the body
+</code></pre></div></div><p><code>errors insufficient gt amount balance .</code> 는 “잔액보다 많이 빼려 하면 이 오류” 라는 뜻으로 적었다. 그런데 <code>errors</code> 의 조건은 <strong>나갈 때</strong> 확인된다. 성공 경로에서 잔액이 50 에서 20 으로 줄었으므로, 나갈 때 <code>gt 30 20</code> 이 참이 되어 “조건이 참인데 오류를 내지 않았다” 가 된다. 그래서 번역이 <code>E-ERRORS-STATE</code> 로 거절한다. 2026-09-16 까지는 통과시켰고, VM 은 <code>E-VM-ANALYSIS</code>(“구간 분석이 건전하지 않다”)로 멈추고 네이티브는 검사 없이 20 을 냈다 — 두 뒤끝이 갈렸다. 조건을 들어올 때 값으로 읽을지 나갈 때 값으로 읽을지는 정본이 아직 정하지 않았고, 그 사이에 검사할 수 없는 선언을 받아 주지 않는다. 오류 조건은 <strong>입력</strong>으로 적고, 상태를 보는 판정은 본문의 <code>guard</code> 가 맡는다 — 위의 <code>transfer.low</code> 처럼 조건 없이 <code>errors insufficient .</code> 만 적는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 상태 칸에 빌림을 둔다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_reffield.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_reffield .
+<em><span class="tok-c">rem expect: E-ACTOR-STATE-REF</span></em>
 
 <strong><span class="tok-k">actor</span></strong> holder <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
@@ -1144,10 +1145,9 @@ peek() = 1
   <strong><span class="tok-k">var</span></strong> h holder <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> holder .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> h peek .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run peek_it mistake_reffield.low
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: deref needs a reference
-</code></pre></div></div><p>빌림(<code>ref</code>)은 빌려준 쪽보다 오래 살 수 없다(12장). 액터의 상태는 액터가 사는 동안 남으므로, 그 칸이 무엇을 빌렸는지 적을 자리가 없다. 뜻으로는 번역에서 거절되어야 하는데, 이 판의 도구는 선언을 받아들이고 칸을 비운 채 액터를 띄운다. <code>deref r</code> 에 이르러서야 VM 은 <code>E-VM-TYPE</code> 으로, 네이티브는 <code>panic</code> 으로 멈춘다. 개발 저장소에 결함으로 적어 두었다. 상태에는 빌림 대신 값을 두고, 값이 크면 슬라이스로 받아 둔다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>다시 세운 액터는 터지기 직전 상태에서 이어 간다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/restart_resets.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> restart_resets .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_reffield.low
+7:0 E-ACTOR-STATE-REF: an actor STATE field may not be a borrow (`ref` / `mut_ref`). A borrow may not outlive what it borrows (§8.4.1), and a state field lives as long as the actor — there is nowhere here to say what it borrows. Keep a VALUE in state (copy it in), or keep a slice the actor was handed and owns for its lifetime
+</code></pre></div></div><p>빌림(<code>ref</code>)은 빌려준 쪽보다 오래 살 수 없다(12장). 액터의 상태는 액터가 사는 동안 남으므로, 그 칸이 무엇을 빌렸는지 적을 자리가 없다. 그래서 선언에서 <code>E-ACTOR-STATE-REF</code> 로 거절한다. 2026-09-16 까지는 선언을 받아들이고 칸을 비운 채 액터를 띄웠고, <code>deref r</code> 에 이르러서야 VM 은 <code>E-VM-TYPE</code> 으로, 네이티브는 <code>panic</code> 으로 멈췄다. 상태에는 빌림 대신 값을 두고, 값이 크면 액터가 사는 동안 유효한 슬라이스를 받아 둔다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>다시 세운 액터는 터지기 직전 상태에서 이어 간다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/restart_resets.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> restart_resets .
 <em><span class="tok-c">rem run: three_incs</span></em>
 
 <strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>

@@ -819,7 +819,7 @@ enum_dot.low:6:0 E-ENUM-DOT: this enum variant is not closed with `.`, so the NE
 mistake_missfield.low:12:0 E-TYPE-FIELD: a declared field is missing from this `make` (every field must be given)
 </code></pre></div></div><p>C 의 구조체 초기화는 빠진 칸을 0 으로 채우고, 어떤 언어는 기본값을 넣는다. Lowent 는 <code>E-TYPE-FIELD</code> 로 거절한다. 빠진 칸이 의도였는지 실수였는지 소스에서 알 수 없기 때문이다. 0 이 필요하면 <code>y 0 .</code> 이라고 적는다 — 적힌 0 은 누가 봐도 의도다. 칸 이름을 잘못 적어도 같은 코드가 “그런 칸이 없다” 로 나온다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 값을 지니지 않은 갈래를 <code>타입.갈래</code> 로 넘긴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_unitvariant.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_unitvariant .
 <em><span class="tok-c">rem run: pick_bare</span></em>
-<em><span class="tok-c">rem trap: pick_qualified</span></em>
+<em><span class="tok-c">rem run: pick_qualified</span></em>
 
 <strong><span class="tok-k">enum</span></strong> light <strong><span class="tok-k">do</span></strong>
   red .
@@ -848,9 +848,8 @@ mistake_missfield.low:12:0 E-TYPE-FIELD: a declared field is missing from this `
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run pick_bare mistake_unitvariant.low
 pick_bare() = 2
 $ lowentc --run pick_qualified mistake_unitvariant.low
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: arithmetic/compare needs ints
-</code></pre></div></div><p>값을 지니는 갈래는 <code>shape.circle 2</code> 처럼 타입 이름을 붙여 만들지만, 아무것도 지니지 않는 갈래는 <strong>이름만</strong> 적는다(<code>green</code>). 이 판의 도구는 <code>light.green</code> 을 번역에서 거절하지 않고, 실행하면 <code>E-VM-TYPE</code> 으로 멈춘다 — 번역 때 알려야 할 자리이고 개발 저장소에 결함으로 적어 두었다. 멈춤을 보면 갈래 이름 앞의 타입 이름을 지운다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 구조체 둘을 <code>eq</code> 로 비교한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_eqstruct.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_eqstruct .
+pick_qualified() = 2
+</code></pre></div></div><p>값을 지니는 갈래는 <code>shape.circle 2</code> 처럼 타입 이름을 붙여 만들고, 아무것도 지니지 않는 갈래는 <code>green</code> 처럼 이름만 적는 것이 이 책의 버릇이다. 둘 다 같은 값이다 — <code>pick_bare</code> 와 <code>pick_qualified</code> 가 같은 2 를 낸다. 2026-09-16 까지 이 판의 도구는 값 없는 갈래를 <code>light.green</code> 으로 적으면 <strong>다른 표현</strong>(태그를 가진 레코드)으로 낮췄고, 그래서 실행 중에 <code>E-VM-TYPE</code> 으로 멈췄다. 지금은 둘이 같은 인덱스로 낮아진다. 짧은 쪽을 쓰되, 어느 열거형의 갈래인지 헷갈리는 자리에서는 타입 이름을 붙여도 된다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 구조체 둘을 <code>eq</code> 로 비교한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_eqstruct.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_eqstruct .
 <em><span class="tok-c">rem trap: same</span></em>
 
 <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
@@ -908,8 +907,8 @@ same() = 1
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run copy_then_change mistake_alias.low
-copy_then_change() = 99
-</code></pre></div></div><p><code>var q point be p .</code> 뒤에 <code>q</code> 의 칸을 바꾸었는데 <code>p</code> 의 칸이 99 가 되었다. 이 판에서는 구조체를 다른 이름에 담으면 <strong>같은 자리를 가리키는 별칭</strong>이 되기 때문이다. <code>p</code> 는 <code>let</code> 이라 바뀌지 않아야 하므로 이것은 약속을 깨는 결함이고, 명세도 구조체 값의 복사를 아직 적지 않았다 — 개발 저장소에 가장 무거운 결함으로 적어 두었다. 고쳐지기 전까지는 새 값이 필요할 때 <strong><code>make</code> 로 새로 만든다</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/alias_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> alias_fixed .
+copy_then_change() = 1
+</code></pre></div></div><p><code>var q point be p .</code> 는 <code>p</code> 의 칸을 <strong>베낀 새 값</strong>을 만든다. 그래서 <code>q</code> 의 칸을 99 로 바꾸어도 <code>p</code> 는 1 그대로다. 소유가 없는 값은 베껴지고, 소유가 있는 값은 옮겨진다(19장). 2026-09-16 까지 이 판의 도구는 구조체를 담을 때 같은 자리를 가리키는 별칭을 만들어 <code>p</code> 까지 바뀌었다 — <code>let</code> 의 약속이 깨지는 자리였고, 지금은 하강이 칸을 베낀다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/alias_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> alias_fixed .
 <em><span class="tok-c">rem run: copy_then_change</span></em>
 
 <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>

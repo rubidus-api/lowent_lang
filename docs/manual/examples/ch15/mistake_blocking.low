@@ -1,4 +1,5 @@
 module mistake_blocking .
+rem expect: E-EFFECT-CALC
 
 rem ko: blocking — 실행 흐름을 붙잡아 둘 수 있다고 머리에 적는다 /// en: blocking: the head says it may hold the flow of execution
 proc wait_for_device output u64 . effects blocking .

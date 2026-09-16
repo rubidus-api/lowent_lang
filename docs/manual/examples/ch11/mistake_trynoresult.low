@@ -1,4 +1,5 @@
 module mistake_trynoresult .
+rem expect: E-TRY-NORESULT
 
 enum half_error do
   too_big .

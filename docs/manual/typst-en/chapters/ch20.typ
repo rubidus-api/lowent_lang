@@ -245,10 +245,10 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
 #antipattern[Attaching the same bytes to two allocators][
   #demo("examples/ch20/mistake_sharedbuf.low")
 
-  The two allocators know nothing of each other. Both cut from the front of `buf`, so `pv` and `qv` are the same place. Write 65 into `pv`
-  and 66 into `qv`, and reading `pv` gives 66. The rule that there is only one write borrow (#chref("references")) should hold here, but
-  this edition's tool cannot follow the borrow of bytes passed through `init` and accepts the program (recorded as a defect). Attach separate
-  bytes to each allocator. If one buffer must be shared out, cut two non-overlapping pieces with `subslice` and attach those.
+  The two allocators know nothing of each other. Both cut from the front of `buf`, so `pv` and `qv` become the same place: write 65 and
+  then 66, and reading `pv` gives 66. The rule that there is only one write borrow (#chref("references")) must hold across the actor
+  boundary too, so this is refused with `E-EXCL` (until 2026-09-16 it passed). Attach separate bytes to each allocator; if one buffer must
+  be shared out, cut two non-overlapping pieces with `subslice`.
 ]
 
 #antipattern[Leaving out `using` when two allocators fit][

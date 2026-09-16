@@ -158,9 +158,12 @@ translation-time constant (#chref("build-test")).
 
   #demo("examples/ch08/mistake_pow.low")
 
-  `square 5` is 5, not 25. Neither compilation nor run-time checks say anything: a *silently wrong answer*, the most dangerous kind, and the
-  development repository records it as a defect. Until it is fixed, do not use `pow` on integers.
+  The canon makes `pow`, `sqrt`, `sin`, `cos`, `exp`, `log` and `fmod` floating-point only (§6.3.9). Given an integer they are refused
+  with `E-TYPE-KIND`. Until 2026-09-16 they were not: `square 5` answered 5 instead of 25, and neither translation nor the run said
+  anything --- a quiet wrong answer. Write an integer power as multiplication, and convert with `cast f64 n` to compute in floating point.
 ]
+
+  #demo("examples/ch08/pow_fixed.low")
 
 #misconception[Nested calls must always be parenthesised][
   #demo("examples/ch08/noparen.low")

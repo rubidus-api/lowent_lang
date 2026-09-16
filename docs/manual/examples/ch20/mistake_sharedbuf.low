@@ -1,5 +1,5 @@
 module mistake_sharedbuf .
-rem run: twice [0,0,0,0,0,0]
+rem expect: E-EXCL
 
 use allocs .
 

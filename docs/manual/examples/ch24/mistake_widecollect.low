@@ -1,5 +1,5 @@
 module mistake_widecollect .
-rem run: scale [1,2] [0,0]
+rem expect: E-TYPE-COLLECT
 
 fn times1000 input a u8 . output u64 .
 do

@@ -96,6 +96,8 @@ MEANING = {
  "W-USE-EXTERNAL": ("번역 단위에 없는 모듈을 들여온다(경고)", "imports a module not in the compilation unit (warning)"),
  "E-ALLOC-AMBIGUOUS": ("맞는 할당기가 둘 이상인데 `using` 으로 고르지 않았다", "more than one fitting allocator and none chosen with `using`"),
  "E-ALLOC-USING-UNUSED": ("할당기를 쓰지 않는 호출에 `using` 을 적었다", "`using` on a call that does not draw from an allocator"),
+ "E-TRY-NORESULT": ("`try` 를 썼는데 이 op 은 그 오류를 돌려줄 수 없다", "`try` used in an op that cannot return that error"),
+ "E-TYPE-COLLECT": ("`collect into` 가 넓은 값을 좁은 그릇에 담는다", "`collect into` would put a wider value into a narrower buffer"),
  "E-TYPE-ARGMUT": ("읽기만 되는 값을 고치는 자리에 넘긴다(`let` 을 `mut_ref` 로)", "a read-only value is passed where it would be written (`mut_ref` of a `let`)"),
  "E-ERRORS-STATE": ("`errors` 조건이 액터의 상태 칸을 읽는다", "an `errors` condition reads an actor state field"),
  "E-ACTOR-FIELD": ("액터의 상태 칸을 바깥에서 읽는다", "an actor's state field is read from outside"),

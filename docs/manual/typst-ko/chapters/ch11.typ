@@ -186,10 +186,10 @@ return ok (add v 1) .
 #antipattern[`result` 를 돌려주지 않는 op 에서 `try` 를 쓴다][
   #demo("examples/ch11/mistake_trynoresult.low")
 
-  `try` 는 실패를 *위로 넘긴다*. 그러려면 이 op 도 실패를 돌려줄 수 있어야 한다. 그런데 `plus` 는 `u8` 만 돌려주고 `errors` 절도 없다.
-  뜻으로는 틀린 프로그램인데 이 판의 도구는 `--check` 에서 거절하지 않는다. VM 으로 `plus 250` 을 돌리면 `u8` 자리에 `err too_big`
-  이 나오고, 네이티브로는 C 컴파일 단계에서 지어지지 않는다. 번역 때 알려야 할 자리이고 개발 저장소에 결함으로 적어 두었다.
-  검사가 통과했다고 믿지 말고, `try` 를 쓴 op 의 머리를 `result` 와 `errors` 로 맞춘다.
+  `try` 는 실패를 *위로 넘긴다*. 그러려면 이 op 도 실패를 돌려줄 수 있어야 한다(§6.5.8(2)). 그런데 `plus` 는 `u8` 만 돌려주고
+  `errors` 절도 없어서 `E-TRY-NORESULT` 로 거절된다. 2026-09-16 까지는 통과했고, `plus 250` 은 `u8` 자리에 `err too_big` 을 냈으며
+  네이티브는 C 컴파일 단계에서 지어지지도 않았다. 꼬리를 붙여 채널을 바꾸거나(`else_none`·`else_error`), `is_ok` 처럼 여기서 다루면
+  `result` 를 돌려주지 않아도 된다. 실패를 위로 넘길 생각이라면 머리를 `result` 와 `errors` 로 맞춘다.
 
   #demo("examples/ch11/trynoresult_fixed.low")
 ]

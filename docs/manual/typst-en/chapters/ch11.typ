@@ -184,11 +184,10 @@ appear exactly once when read hides defects.
 #antipattern[Using `try` in an op that does not return a `result`][
   #demo("examples/ch11/mistake_trynoresult.low")
 
-  `try` *passes failure upwards*, so this op must be able to return a failure itself. But `plus` returns only a `u8` and has no
-  `errors` clause. The program is wrong in meaning, yet this edition's tool does not reject it in `--check`. Running `plus 250`
-  on the VM prints `err too_big` where a `u8` belongs, and the native build fails at the C compile step. This should be reported
-  at translation time, and it is recorded as a defect in the development repository. Do not trust the passing check: give an op
-  that uses `try` a `result` output and an `errors` clause.
+  `try` *passes failure upwards*, so this op must be able to return that failure itself (§6.5.8(2)). `plus` returns only a `u8` and has
+  no `errors` clause, so it is refused with `E-TRY-NORESULT`. Until 2026-09-16 it passed: `plus 250` printed `err too_big` where a `u8`
+  belongs, and the native build would not even compile. Adding a tail (`else_none`, `else_error`) or handling it here (`is_ok` and the
+  rest of §6.5.8(3)) keeps the op free of `result`; to pass the failure up, give the head a `result` output and an `errors` clause.
 
   #demo("examples/ch11/trynoresult_fixed.low")
 ]

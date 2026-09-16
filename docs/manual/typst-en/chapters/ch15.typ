@@ -207,17 +207,17 @@ proof.
   `requires ge (len xs) 1 .`, or return an `option`.
 ]
 
-#antipattern[Calling an op with a rare effect from a pure `fn` --- a hole in this edition][
+#antipattern[Calling an op with a rare effect from a pure `fn`][
   #demo("examples/ch15/mistake_blocking.low")
 
-  `blocking` means "may hold the flow of execution", so a `fn` calling such an op is not pure. By meaning it should be refused, but this edition's
-  tool lets it through. Five atoms --- `blocking`, `page_fault`, `cancel`, `detach` and `device` --- do not spread to the caller. Write `wait` in the
-  same shape and it is refused properly.
+  `blocking` means "may hold the flow of execution", so a `fn` calling such an op is not pure, and it is refused with `E-EFFECT-CALC`.
+  Until 2026-09-16 five atoms --- `blocking`, `page_fault`, `cancel`, `detach` and `device` --- did **not** spread to the caller, so this
+  passed; `device`, which touches hardware directly, could hide behind a pure function. The same shape with `wait` was refused even then.
 
   #demo("examples/ch15/blocking_wait.low")
 
-  It is recorded as a defect in the development repository. Until it is fixed, write the caller of an op with a rare effect as a `proc` and copy
-  the same effect by hand.
+  These five have no primitive that performs them yet, so they are not asked about by "declared but never performed" (`W-EFFECT-OVER`)
+  --- there is no body to ask. They only propagate.
 ]
 
 == This chapter's syntax at a glance

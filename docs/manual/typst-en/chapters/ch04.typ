@@ -239,21 +239,20 @@ Lowent stops --- and the place it stops is the place to fix.
 #antipattern[Testing with the largest `u64` passed as a `--run` argument][
   #demo("examples/ch04/mistake_runmax.low")
 
-  `echo 18446744073709551615` should return what it received, yet 9223372036854775807 (the largest `i64`) comes out. In this edition `--run`
-  reads command-line arguments as signed 64-bit numbers and cuts them down. The VM and the native build do the same, so comparing the two back
-  ends does not reveal it either (recorded as a defect in the development repository). A literal stored with `let` inside a `test` block is intact,
-  so write boundary-value tests there, as `largest_u64` does. Printed results are also shown as `i64` in this edition, so for `u64` values above
-  the `i64` maximum, trust the comparisons of `expect` rather than the printed number.
+  `echo 18446744073709551615` is refused at the boundary (`E-VM-CONTRACT`). Until 2026-09-16 it was quietly cut down to
+  9223372036854775807 --- a different number, and both back ends did it, so comparing them did not reveal it. It is now refused instead of
+  cut. The reason is that the interval analysis records the upper bound of `u64` as the largest `i64`; a value above that makes the
+  analysis unsound. Literals inside the program are whole, so write boundary-value tests there, as `largest_u64` does, and results now
+  print unsigned.
 ]
 
-#misconception[It is written `f32`, so the value is already 32 bits --- a hole in this edition][
+#misconception[`f32` and `f64` hold the same number][
   #demo("examples/ch04/mistake_f32literal.low")
 
-  `stored` widens an `f32` holding the literal 0.1 and compares it with the `f64` 0.1, and the answer is true. Had it been rounded to 32 bits it
-  would be false. This edition's tool does not round a literal (or an argument passed with `--run`) when storing it in an `f32` place; the value
-  becomes 32 bits only after one operation (`computed` is false). The VM and native code agree on this. It is recorded as a defect in the
-  development repository. Code that relies on the exact bits of an `f32` (hashing, serialisation, comparison tests) should not trust literal
-  values as they are in this edition.
+  Both `stored` and `computed` are false. The 0.1 held in an `f32` place is rounded to 32 bits, so widening it still does not equal the
+  `f64` 0.1. Until 2026-09-16 a literal (or an argument passed with `--run`) was not rounded, and `stored` was true --- the same type held
+  values of different precision depending on where they came from. Choose the width deliberately, and write `widen` or `narrow` when
+  comparing two widths.
 ]
 
 #misconception[`div 7 2` is 3.5][

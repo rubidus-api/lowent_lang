@@ -139,10 +139,9 @@ A terminal ends the flow. A stage after the terminal is rejected.
 #antipattern[Collecting a `map` that produces wide values into a narrow buffer][
   #demo("examples/ch24/mistake_widecollect.low")
 
-  `times1000` produces `u64`, but `out` is a `u8` buffer. 1000 and 2000 are stored as 232 and 208. By Lowent's principles a lossy narrowing
-  should happen only where `narrow` is written, but this edition's tool does not check the type of `collect into` and wraps silently
-  (recorded as a defect in the development repository). Match the output type of `map` and the element type of the buffer by eye. If
-  narrowing is needed, write `narrow` inside the op given to `map`, so the place where it may stop is visible.
+  `times1000` produces `u64`, but `out` is a `u8` buffer. A narrowing that loses value happens only where it is written (§6.2.5), so this
+  is refused with `E-TYPE-COLLECT`. Until 2026-09-16 it passed and 1000 and 2000 were stored silently as 232 and 208. If narrowing is
+  needed, write `narrow`, `narrow_wrap` or `narrow_sat` inside the op given to `map`, so the place where it may stop is visible.
 ]
 
 #antipattern[Swapping the accumulator and the element in a `fold` op][

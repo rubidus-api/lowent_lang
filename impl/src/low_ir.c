@@ -752,6 +752,68 @@ static bool ir_names_cap(const low_cst_t *def_form, proven_u8str_view_t name, co
     }
     return false;
 }
+// ★★★ **«권한이 없다» 는 원인을 말해야 한다** (결함 노트 #50, 2026-09-16).
+//   여태 잎이 첫 피연산자에서 권한을 못 찾으면 무조건 `E-CAP-MISSING`(«entry 가 받은 값을
+//   첫 피연산자로 대라»)이었다. 그런데 실제로 흔한 두 원인은 다른 것이다:
+//     ① 받은 권한을 **지역 이름에 옮겨 담았다**(`let k cap io be out .`) — 그 이름은
+//        서명에 없으므로 추적이 끊긴다. 권한은 값처럼 복사해 다니는 것이 아니다.
+//     ② **다른 종류**의 권한을 댔다(`write_out` 에 `cap file_system`) — 없는 것이 아니라
+//        맞지 않는 것이다(`E-CAP-KIND`).
+//   둘 다 "entry 가 첫 피연산자로 받았다" 는 문장으로는 **원인이 안 보인다**.
+static bool ir_local_cap_kind(const low_cst_t *nd, proven_u8str_view_t name,
+                              proven_u8str_view_t *kind) {
+    if (!nd) return false;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && is_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) &&
+        is_atom(nd->kids[1]) && proven_u8str_view_eq(nd->kids[1]->tok.lex, name) &&
+        is_atom(nd->kids[2]) && veq(nd->kids[2]->tok.lex, "cap") && is_atom(nd->kids[3])) {
+        *kind = nd->kids[3]->tok.lex; return true;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        if (ir_local_cap_kind(nd->kids[i], name, kind)) return true;
+    return false;
+}
+static bool ir_param_cap_kind(const low_cst_t *def_form, proven_u8str_view_t name,
+                              proven_u8str_view_t *kind) {
+    if (!def_form) return false;
+    low_op_header_t h = low_op_header(def_form);
+    for (proven_size_t q = 0; q < h.np; q++) {
+        if (!proven_u8str_view_eq(h.p[q].name, name)) continue;
+        proven_size_t cw = h.p[q].core;
+        if (cw + 1 < h.p[q].te && cw + 1 < def_form->nkids &&
+            is_atom(def_form->kids[cw]) && is_atom(def_form->kids[cw + 1]) &&
+            veq(def_form->kids[cw]->tok.lex, "cap")) { *kind = def_form->kids[cw + 1]->tok.lex; return true; }
+        return false;
+    }
+    return false;
+}
+// 원인을 알면 그것을 말하고 true 를 준다 — 그러면 부르는 쪽은 일반 문구를 내지 않는다.
+static bool ir_cap_cause(ir_ctx_t *c, const char *kind, low_cst_t *const *k,
+                         const proven_size_t *pos, proven_size_t end, proven_u32 line) {
+    if (!(*pos < end && is_atom(k[*pos]))) return false;
+    proven_u8str_view_t nm = k[*pos]->tok.lex, got = { 0 };
+    char buf[256];
+    if (ir_param_cap_kind(c->def_form, nm, &got)) {
+        if (veq(got, kind)) return false;                 // 종류가 맞다 — 다른 이유다
+        snprintf(buf, sizeof buf,
+                 "this leaf needs a `cap %s`, and `%.*s` is a `cap %.*s`. One capability never "
+                 "stands in for another: each names a different right, and holding one says "
+                 "nothing about the other (RFC-0011)",
+                 kind, (int)nm.size, (const char *)nm.ptr, (int)got.size, (const char *)got.ptr);
+        ir_fail_buf(c, "E-CAP-KIND", buf, line);
+        return true;
+    }
+    if (ir_local_cap_kind(c->def_form, nm, &got)) {
+        snprintf(buf, sizeof buf,
+                 "`%.*s` is a LOCAL that a `cap %.*s` was copied into. A capability is not a value "
+                 "you carry in a local name: only a parameter of this op names a right it was "
+                 "handed, so hand the parameter itself to the leaf (RFC-0030 D2)",
+                 (int)nm.size, (const char *)nm.ptr, (int)got.size, (const char *)got.ptr);
+        ir_fail_buf(c, "E-CAP-LOCAL", buf, line);
+        return true;
+    }
+    return false;
+}
 // (구판 이름 유지 — 호출부가 읽기 쉽다)
 //   권한은 여기서 갈린다: `count`/`arg` 는 이 이름을 첫 피연산자로 댈 때만 인자에 닿는다.
 static proven_u8str_view_t ir_argscap_of(const low_cst_t *f) { return ir_capname_of(f, "args"); }
@@ -3164,6 +3226,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     //   («처리기가 아직 못 한다») 이라 `--check` 가 «낮출 수 없는 op» 주석과 함께 초록이었다. 아래 열 자리가 같은 코드다.
                     if (!(ic.size && *pos < end && is_atom(k[*pos]) &&
                           ir_names_cap(c->def_form, k[*pos]->tok.lex, "io"))) {
+                        if (ir_cap_cause(c, "io", k, pos, end, nd->line)) return;
                         ir_fail(c, "E-CAP-MISSING",
                                 "`write_out` writes to the process output and needs the `cap io` value "
                                 "the entry received as its FIRST operand — output is a RIGHT you are "
@@ -3261,6 +3324,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     proven_u8str_view_t ic = ir_capname_of(c->def_form, "io");
                     if (!(ic.size && *pos < end && is_atom(k[*pos]) &&
                           ir_names_cap(c->def_form, k[*pos]->tok.lex, "io"))) {
+                        if (ir_cap_cause(c, "io", k, pos, end, nd->line)) return;
                         ir_fail(c, "E-CAP-MISSING",
                                 "`read_in` reads the process input and needs the `cap io` value as "
                                 "its FIRST operand — input is a RIGHT you are handed (RFC-0030 D2), "
@@ -3282,6 +3346,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     proven_u8str_view_t ic = ir_capname_of(c->def_form, "io");
                     if (!(ic.size && *pos < end && is_atom(k[*pos]) &&
                           ir_names_cap(c->def_form, k[*pos]->tok.lex, "io"))) {
+                        if (ir_cap_cause(c, "io", k, pos, end, nd->line)) return;
                         ir_fail(c, "E-CAP-MISSING",
                                 is_new
                                   ? "`reactor_new` needs the `cap io` value as its FIRST operand. "
@@ -3324,6 +3389,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         proven_u8str_view_t tc = ir_capname_of(c->def_form, "tty");
                         if (!(tc.size && *pos < end && is_atom(k[*pos]) &&
                               ir_names_cap(c->def_form, k[*pos]->tok.lex, "tty"))) {
+                            if (ir_cap_cause(c, "tty", k, pos, end, nd->line)) return;
                             ir_fail(c, "E-CAP-MISSING",
                                     "a terminal leaf needs the `cap tty` this op received — write "
                                     "`tty_read <cap> …`. Without the capability the right is not held, "
@@ -3350,6 +3416,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         proven_u8str_view_t cc = ir_capname_of(c->def_form, "clock");
                         if (!(cc.size && *pos < end && is_atom(k[*pos]) &&
                               ir_names_cap(c->def_form, k[*pos]->tok.lex, "clock"))) {
+                            if (ir_cap_cause(c, "clock", k, pos, end, nd->line)) return;
                             ir_fail(c, "E-CAP-MISSING",
                                     "a clock leaf needs the `cap clock` this op received — write "
                                     "`time_now <cap>`. Reading a clock has no side effect you can see, "
@@ -3374,6 +3441,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         proven_u8str_view_t rc = ir_capname_of(c->def_form, "random");
                         if (!(rc.size && *pos < end && is_atom(k[*pos]) &&
                               ir_names_cap(c->def_form, k[*pos]->tok.lex, "random"))) {
+                            if (ir_cap_cause(c, "random", k, pos, end, nd->line)) return;
                             ir_fail(c, "E-CAP-MISSING",
                                     "`random_bytes` needs the `cap random` this op received — write "
                                     "`random_bytes <cap> <dst>`. Asking the OS for entropy breaks "
@@ -3409,6 +3477,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         proven_u8str_view_t fc = ir_capname_of(c->def_form, "file_system");
                         if (!(fc.size && *pos < end && is_atom(k[*pos]) &&
                               ir_names_cap(c->def_form, k[*pos]->tok.lex, "file_system"))) {
+                            if (ir_cap_cause(c, "file_system", k, pos, end, nd->line)) return;
                             ir_fail(c, "E-CAP-MISSING",
                                     "this stream op touches the file system and needs the "
                                     "`cap file_system` value as its FIRST operand — the file system "
@@ -3437,6 +3506,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         proven_u8str_view_t nc = ir_capname_of(c->def_form, "net");
                         if (!(nc.size && *pos < end && is_atom(k[*pos]) &&
                               ir_names_cap(c->def_form, k[*pos]->tok.lex, "net"))) {
+                            if (ir_cap_cause(c, "net", k, pos, end, nd->line)) return;
                             ir_fail(c, "E-CAP-MISSING",
                                     "this socket op touches the network and needs the "
                                     "`cap net` value as its FIRST operand — the network "

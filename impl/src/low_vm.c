@@ -2276,6 +2276,15 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (hf_ == 1) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 size_t want_ = (hf_ == 2) ? lw_hf_cap(bv.n, hfk_) : bv.n;
                 size_t w = fwrite(bv.p, 1, want_, vm->files[hv.i]);
+                // ★★ **모자란 쓰기는 성공이 아니다** (결함 노트 #65, 2026-09-16). 읽기 모드로 연
+                //   파일에 쓰면 `fwrite` 가 0 을 답하는데, 그 0 을 `some 0`("0 바이트 썼다")으로
+                //   싸서 **실패가 성공처럼** 보였다 — `is_ok w` 만 본 호출자는 그냥 지나간다.
+                //   `ferror` 가 켜졌으면 답은 **없음**이다(스트림 오류는 값이 아니라 실패다).
+                if (w < want_ && ferror(vm->files[hv.i])) {
+                    clearerr(vm->files[hv.i]);
+                    stack[sp++] = (vmv_t){ .tag = VMV_NONE };
+                    break;
+                }
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)w);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };

@@ -29,6 +29,7 @@ typedef struct {
     const low_parse_result_t *pr;   // ★ `try` 가 부른 op 의 errors 절을 보러 간다
     const low_cst_t *self_enum;     // ★ 이 op 의 오류 enum 블록(절이 없을 때의 기준)
     bool            self_result;    // ★ 이 op 의 출력이 `result` 인가 (try 를 쓸 자격 — §6.5.8(2))
+    const low_cst_t *cur_form;      // ★ 지금 보는 op — 진단에 **파일 이름**을 싣는다(결함 노트 #48)
     proven_u32      self_line;
     // per-op scratch
     proven_u8str_view_t declared[CT_MAX];  proven_size_t ndeclared;
@@ -43,7 +44,10 @@ typedef struct {
 } ct_ctx_t;
 
 static void ct_emit(ct_ctx_t *c, const char *code, const char *msg, proven_u32 line) {
-    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0 };
+    // ★ 한 단위가 여러 파일이고 줄 번호는 파일마다 1 부터 다시 시작한다 — 파일을 안 적으면
+    //   읽는 사람이 어느 파일의 6 번 줄인지 모른다(결함 노트 #48, 2026-09-16).
+    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = line, .col = 0,
+                     .file = low_cst_file_for_line(c->cur_form, line) };
     (void)proven_array_push(c->diags, &d);
     *c->ok = false;
 }
@@ -525,6 +529,7 @@ low_contract_result_t low_contract(proven_allocator_t work, const low_parse_resu
         }
 
         // errors-closure over the body
+        c.cur_form = f;
         c.self_enum = ct_err_enum(pr, f);
         // 출력이 `result` 인가 — 머리에서 `output` 뒤 첫 낱말을 본다.
         c.self_result = false;

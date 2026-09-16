@@ -223,6 +223,20 @@ end .", "E-ALLOC-NESTED")
     #para("2")[
       이 규칙을 어기면 번역이 거부된다.
     ]
+    #para("3")[
+      참조는 값이 아니다. 참조를 받은 이름을 셈이나 비교에 그대로 쓰는 것은 적합하지
+      아니하다(`E-TYPE-REFVAL`) — 가리키는 값을 쓰려면 `deref` 로 **적어서** 꺼낸다.
+    ]
+    #para("4")[
+      구조체의 칸을 따로 빌리는 표기는 이 판에 없다. 칸을 빌리려 적는 것은 적합하지
+      아니하다(`E-BORROW-FIELD`) — 빌림은 값 전체를 단위로 한다(#cref("8.12")).
+    ]
+    #rejected("참조를 값처럼 셈에 쓴다", "module ex_ref_value .
+
+fn twice input p ref u64 . output u64 .
+do
+  return add p p .    rem 가리키는 값은 `deref p` 로 꺼낸다
+end", "E-TYPE-REFVAL")
   ]
   #sub("8.4.1", "참조는 자기가 가리키는 것보다 오래 살 수 없다")[
     #para("1")[

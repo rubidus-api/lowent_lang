@@ -6121,10 +6121,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "      if (hv.i < 0 || hv.i >= 32 || !lw_files[hv.i]) lw_panic(\"not an open file handle\");\n"
                           "      { unsigned long hfk_ = 1; int hf_ = lw_hf_probe(\"write\", &hfk_);\n"
                           "        if (hf_ == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else {\n"
-                          "        size_t w_ = fwrite(bv.p, 1, (hf_ == 2) ? lw_hf_cap(bv.n, hfk_) : bv.n, lw_files[hv.i]);\n"
+                          "        size_t want_ = (hf_ == 2) ? lw_hf_cap(bv.n, hfk_) : bv.n;\n"
+                          "        size_t w_ = fwrite(bv.p, 1, want_, lw_files[hv.i]);\n"
+                          /* ★ 모자란 쓰기 + ferror = 실패(none). VM 과 같은 규율(결함 노트 #65). */
+                          "        if (w_ < want_ && ferror(lw_files[hv.i])) { clearerr(lw_files[hv.i]);\n"
+                          "          st[sp++] = (lowv){ .tag = LWV_NONE }; } else {\n"
                           "        if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
                           "        lw_boxes[lw_nbox] = lw_int((long long)w_);\n"
-                          "        st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
+                          "        st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
                     break;
                 case IRW_FCLOSE:
                     fputs("    { lowv hv = st[--sp];\n"

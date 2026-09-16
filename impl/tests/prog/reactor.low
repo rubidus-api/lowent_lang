@@ -58,7 +58,7 @@ proc post .
   effects state .            rem ★ 예약 블록은 모듈 가변 전역이다(RFC-0029)
 do
   write_volatile q posted (add (read_volatile q posted) 1) .
-  return 0 .
+  return .
 end .
 
 rem ★★ `fn` 이 아니라 `proc` 이다 — ISR 이 바꾸는 값을 읽는 것은 **순수가 아니다.**
@@ -77,7 +77,7 @@ proc take .
   effects state .
 do
   write_volatile q taken (add (read_volatile q taken) 1) .
-  return 0 .
+  return .
 end .
 
 rem ── 장치 — blink 에서 검증된 것 그대로 ──────────────────────────────────
@@ -117,7 +117,7 @@ proc on_systick .
 do
   var q tickq . be view tickq .        rem ★ 줄 사람이 없어도 열린다 — 벡터가 권한이다
   post q .                             rem ★ 그리고 **라이브러리에 넘어간다**
-  return 0 .
+  return .
 end .
 
 rem ── 리셋 진입 — 초기화하고, 그다음이 리액터 루프다 (RFC-0042 D5-c) ──────
@@ -152,5 +152,5 @@ do
       take q .
     end .
   end .
-  return 0 .
+  return .
 end .

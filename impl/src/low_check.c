@@ -592,6 +592,36 @@ static unsigned walk_effects_in(const low_cst_t *nd, const low_opinfo_t *tab, pr
                                 proven_u8str_view_t own, const low_cst_t *selfform) {
     if (!nd) return EFF_NONE;
     unsigned e = EFF_NONE;
+    // ★★★ **`method` 로 부른 op 의 효과도 부르는 쪽의 것이다** (정본 §7.1 · §6.11.3 · 결함 노트 #15).
+    //   `method s boom` 은 `rect.boom s` 를 부르는 폼인데, 이 워크는 원자 `boom` 만 보았고 표에
+    //   있는 이름은 `rect.boom` 이라 **아무것도 못 찾았다** — 순수한 `fn` 이 `panic` 하는 메서드를
+    //   불러도 통과했다(직접 부르면 `E-EFFECT-CALC`). 같은 부름이 철자에 따라 다르게 판정됐다.
+    //   ★ 수신자의 타입을 알면 `<타입>.<이름>` 하나를 고르고, 모르면 **그 이름의 메서드가 단위에
+    //     딱 하나일 때만** 센다 — 지어내지 않는다(여럿이면 어느 것인지 이 층은 모른다).
+    //   ☞ CST 는 **평평하다** — `return method s boom .` 은 한 폼이라 `method` 가 머리가 아니다.
+    //     그래서 자리를 가리지 않고 훑는다(`ck_capkind_walk` 가 같은 이유로 그렇게 돈다).
+    proven_size_t mpos = nd->nkids;
+    if (nd->kind == LOW_CST_FORM)
+        for (proven_size_t z = 0; z < nd->nkids; z++)
+            if (nd->kids[z]->kind == LOW_CST_ATOM && nd->kids[z]->tok.kw == LOW_KW_NONE &&
+                veq(nd->kids[z]->tok.lex, "method")) { mpos = z; break; }
+    if (mpos + 2 < nd->nkids) {
+        for (proven_size_t q = mpos + 2; q < nd->nkids; q++) {
+            if (nd->kids[q]->kind != LOW_CST_ATOM || nd->kids[q]->tok.kw != LOW_KW_NONE) continue;
+            proven_u8str_view_t mn = nd->kids[q]->tok.lex;
+            proven_size_t hit = n, nhit = 0;
+            for (proven_size_t i = 0; i < n; i++) {
+                proven_u8str_view_t tn = tab[i].name;
+                proven_size_t dot = tn.size;
+                for (proven_size_t z = tn.size; z-- > 0; ) if (tn.ptr[z] == (proven_byte_t)'.') { dot = z; break; }
+                if (dot >= tn.size) continue;
+                proven_u8str_view_t suf = { .ptr = tn.ptr + dot + 1, .size = tn.size - dot - 1 };
+                if (!proven_u8str_view_eq(suf, mn)) continue;
+                hit = i; nhit++;
+            }
+            if (nhit == 1) e |= tab[hit].declared;
+        }
+    }
     // ★★★ **`task_group` 이 `concurrent` 를 흡수한다 — 멤버가 둘 이상일 때만** (RFC-0071 A5).
     //
     //   `concurrent` 는 *"동료가 돌아야 완결된다"* 는 요구다. 멤버가 **둘 이상인** 그룹은
@@ -767,7 +797,8 @@ static void emit_r(low_check_result_t *out, const char *code, const char *msg,
 }
 // 경고는 ok 를 깨지 않는다 — 그러나 **보인다.** 조용히 무시하는 것이 죄다.
 static void warn(low_check_result_t *out, const char *code, const char *msg, proven_u32 line) {
-    low_diag_t d = { .sev = LOW_SEV_WARNING, .code = code, .msg = msg, .line = line, .col = 0 };
+    low_diag_t d = { .sev = LOW_SEV_WARNING, .code = code, .msg = msg, .line = line, .col = 0,
+                     .file = low_cst_file_for_line(ck_cur_form, line) };
     (void)proven_array_push(&out->diags, &d);
 }
 // ★★★★ **경고도 파일을 말한다** (2026-09-06). `emit_at` 이 오류에 대해 하던 일을 경고에도.
@@ -1171,7 +1202,8 @@ static void ck_op_names(low_check_result_t *out, const low_cst_t *f,
     ck_scb_t binds[CK_MAXBIND];
     proven_size_t nb = 0;
     ck_scope_walk(out, blk, binds, &nb, 0, ps, np);
-    if (ck_op_yields_value(f) && !ck_blk_returns(blk))
+    if (ck_op_yields_value(f) && !ck_blk_returns(blk)) {
+        ck_cur_form = f;   // ★ 진단에 **파일 이름**을 싣는다(결함 노트 #48)
         emit(out, "E-RETURN-PARTIAL",
              "this op says it OUTPUTS a value, but some path through its body reaches the end "
              "without a `return`. Until now the tool quietly returned 0 there — a value that "
@@ -1179,6 +1211,7 @@ static void ck_op_names(low_check_result_t *out, const low_cst_t *f,
              "say `output void` if it really produces nothing. An exhaustive `match` whose every "
              "arm returns counts as returning",
              f->line);
+    }
 }
 
 // ★ 액터·트레이트 몸 안의 op 까지 내려가며 위를 부른다.
@@ -1221,6 +1254,29 @@ static bool ck_clause_word(proven_u8str_view_t v) { return low_is_clause_word(v)
 //   나머지(sequential/random/streaming/tiled/read_mostly)는 커널 스케줄 힌트라 아직 의미가 없다.
 //   ⇒ **지금 강제할 수 있는 것은 지금 강제한다.** 못 하는 것만 W-NOT-YET 로 말한다.
 //     (그 둘을 한 덩어리로 "아직" 이라고 하면, 잡을 수 있는 거짓말을 놓친다.)
+// ★★ **호출자 저장소에 쓰면 `state` 다** (결함 노트 #4 · #16 · #63, 2026-09-16).
+//   `mut`/`mut_ref` 매개변수와 `collect into <매개변수>` 는 **부르는 쪽이 보는 자리**에 쓴다.
+//   순수성 쪽(E-EFFECT-PURITY)은 그것을 이미 그렇게 판정하는데 효과 계수는 안 세어,
+//   같은 몸을 `proc … effects state .` 로 적으면 «선언했는데 안 한다»(W-EFFECT-OVER)가 났다.
+//   요구와 경고가 서로를 부정하면 둘 중 하나는 거짓말이다 — 한 판정으로 모은다.
+static bool ck_writes_place(const low_cst_t *nd, proven_u8str_view_t name);
+static bool ck_writes_name(const low_cst_t *nd, proven_u8str_view_t name);
+static bool ck_writes_caller_storage(const low_cst_t *f) {
+    if (!f) return false;
+    low_op_header_t h = low_op_header(f);
+    if (!h.body) return false;
+    for (proven_size_t q = 0; q < h.np; q++) {
+        bool mut_like = h.p[q].is_mut;
+        for (proven_size_t k2 = h.p[q].ts; k2 < h.p[q].te && k2 < f->nkids; k2++)
+            if (f->kids[k2]->kind == LOW_CST_ATOM &&
+                (veq(f->kids[k2]->tok.lex, "mut_ref") || veq(f->kids[k2]->tok.lex, "mut")))
+                mut_like = true;
+        if (!mut_like) continue;
+        if (ck_writes_place(h.body, h.p[q].name) || ck_writes_name(h.body, h.p[q].name)) return true;
+    }
+    return false;
+}
+
 // ★ **이름에 직접 쓰는가** — `set v expr v + 1 . .`
 //   `ck_writes_place` 는 `set (index X …)` 처럼 **장소를 거친** 쓰기만 본다(`mut` 파라미터가
 //   그 모양이다). 그런데 **액터 상태는 이름에 바로 쓴다.** 그 서술어가 없어서 상태 쓰기가
@@ -1250,6 +1306,14 @@ static bool ck_writes_place(const low_cst_t *nd, proven_u8str_view_t name) {
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
         (veq(nd->kids[0]->tok.lex, "map") || veq(nd->kids[0]->tok.lex, "filter")) &&
         nd->kids[1]->kind == LOW_CST_ATOM && proven_u8str_view_eq(nd->kids[1]->tok.lex, name)) return true;
+    // ★★★ `collect into <자리>` 도 그 자리에 **쓴다** (결함 노트 #16, 2026-09-16). 호출자 저장소
+    //   쓰기의 효과 판정이 세 갈래로 갈려 있었다: `mut slice` 원소 쓰기는 `state` 를 요구하고,
+    //   `collect into` 는 세지 않으며(`effects state` 면 «선언했는데 안 한다»), `mut_ref` 는
+    //   이름으로 쓰므로 아무도 안 봤다. 한 규칙으로 센다 — 쓰는 자리는 다 쓰는 것이다.
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && nd->kids[0]->kind == LOW_CST_ATOM &&
+        veq(nd->kids[0]->tok.lex, "collect") && nd->kids[1]->kind == LOW_CST_ATOM &&
+        veq(nd->kids[1]->tok.lex, "into") && nd->kids[2]->kind == LOW_CST_ATOM &&
+        proven_u8str_view_eq(nd->kids[2]->tok.lex, name)) return true;
     // ★ `store <dst> <idx> <vec>`·`store_masked <dst> <idx> <vec> <mask>` (RFC-0040) 도 dst(첫 인자)에 **쓴다**
     //   — 관측적 순수성이 봐야 한다(fn 금지). masked store 는 켜진 lane 만 쓰지만 여전히 메모리 쓰기다.
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
@@ -1323,8 +1387,8 @@ static void ck_clause_names(low_check_result_t *out, const low_cst_t *f,
                 if (veq(a, "via")) { j++; continue; }        // ★ RFC-0112 D7 — `via <타입>` 은 원자가 아니다
                 if (!effect_word_known(a))
                     emit(out, "E-EFFECT-UNDEF",
-                         "unknown effect (the vocabulary is closed: none/alloc/io/wait/lock/atomic/"
-                         "unsafe/device/page_fault/blocking/cancel/detach/panic/state) — "
+                         "unknown effect (the vocabulary is closed: none/alloc/heap/io/wait/concurrent/lock/"
+                         "atomic/unsafe/device/page_fault/blocking/cancel/detach/panic/state) — "
                          "a typo here silently declares the op PURE", f->line);
                 if (veq(a, "none")) has_none = true; else has_real = true;
                 for (proven_size_t k = 0; k < neff && !dup_done; k++)
@@ -1920,6 +1984,57 @@ static bool ck_is_trait_name(const low_parse_result_t *pr, proven_u8str_view_t n
     }
     return false;
 }
+static bool ck_uint_literal(const low_cst_t *a, proven_u64 *v);   // ★ 아래 정의를 앞당겨 쓴다
+// ★★ **함께 참일 수 없는 전제는 모든 부름을 입구에서 막는다** (결함 노트 #47, 2026-09-16).
+//   `requires le a 100 .` 과 `requires ge a 200 .` 을 나란히 적으면 어떤 인자로 불러도 진입에서
+//   멈춘다 — 그런데 `--check` 는 조용했다. 일어날 수 없는 **오류 선언**은 이미 물면서
+//   (`E-CONTRACT-DEAD`) 일어날 수 없는 **전제**는 안 봤다. 대개 고치다 옛 줄을 안 지운 자리다.
+//   ★ 좁게 문다: 같은 이름에 대한 `le`/`lt`/`ge`/`gt`/`eq` 와 **수 리터럴**만 본다.
+static void ck_requires_unsat(low_check_result_t *out, const low_parse_result_t *pr) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
+        if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
+        low_kw_t kw = f->kids[0]->tok.kw;
+        if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
+        struct { proven_u8str_view_t nm; proven_u64 lo, hi; proven_u32 line; } iv[16];
+        proven_size_t niv = 0;
+        for (proven_size_t j = 2; j + 3 < f->nkids; j++) {
+            if (!ck_atom(f->kids[j]) || !veq(f->kids[j]->tok.lex, "requires")) continue;
+            const low_cst_t *c = f->kids[j + 1], *n = f->kids[j + 2], *v = f->kids[j + 3];
+            if (!ck_atom(c) || !ck_atom(n) || n->tok.kind != LOW_TOK_IDENT) continue;
+            proven_u64 k = 0;
+            if (!ck_uint_literal(v, &k)) continue;
+            proven_u64 lo = 0, hi = ~(proven_u64)0;
+            proven_u8str_view_t w = c->tok.lex;
+            if      (veq(w, "le")) hi = k;
+            else if (veq(w, "lt")) { if (!k) continue; hi = k - 1; }
+            else if (veq(w, "ge")) lo = k;
+            else if (veq(w, "gt")) { if (k == ~(proven_u64)0) continue; lo = k + 1; }
+            else if (veq(w, "eq")) { lo = k; hi = k; }
+            else continue;
+            proven_size_t z = niv;
+            for (proven_size_t q = 0; q < niv; q++)
+                if (proven_u8str_view_eq(iv[q].nm, n->tok.lex)) z = q;
+            if (z == niv) {
+                if (niv >= 16) continue;                      // ★ 조용히 자르지 않는다 — 더 못 보면 안 본다
+                iv[niv].nm = n->tok.lex; iv[niv].lo = 0; iv[niv].hi = ~(proven_u64)0;
+                iv[niv].line = f->kids[j]->tok.line; niv++;
+            }
+            if (lo > iv[z].lo) iv[z].lo = lo;
+            if (hi < iv[z].hi) iv[z].hi = hi;
+            if (iv[z].lo > iv[z].hi) {
+                emit(out, "E-CONTRACT-UNSAT",
+                     "two preconditions on the same input cannot both hold, so EVERY call stops at "
+                     "the door and the body never runs. A contract that no argument satisfies is not "
+                     "a strong contract, it is a dead op — usually one line left behind when the "
+                     "other was edited. Keep the one you meant",
+                     f->kids[j]->tok.line);
+                break;
+            }
+        }
+    }
+}
+
 static void ck_trait_bound(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
@@ -2968,6 +3083,41 @@ static void ck_toplevel(low_check_result_t *out, const low_parse_result_t *pr) {
                         //   더 정확하므로 이 게이트가 가로채지 않는다.
         proven_u8str_view_t h = f->kids[0]->tok.lex;
         if (veq(h, "build") || veq(h, "package")) continue;   // 문맥 낱말(선언 자리 전용)
+        // ★ `export let …` / `export test …` 는 **머리가 `export` 로 남는다** — 벗기기가
+        //   fn·proc·struct·enum·type·newtype·actor·trait 만 벗기기 때문이다(low_cst.c).
+        //   그때 위의 일반 문구는 «선언 머리로 시작하라» 고만 말해 **원인을 안 말한다**:
+        //   쓴 사람은 선언 머리(`let`)를 이미 적었고, 틀린 것은 **거기에 `export` 를 붙인 것**이다
+        //   (결함 노트 #76, 2026-09-16).
+        // ★ 밀려난 것이 **문장**이면 원인은 «선언 머리를 안 썼다» 가 아니라 «앞의 `end` 가
+        //   op 을 먼저 닫았다» 이다. 제어 머리는 `do` 없이도 **뒤따르는 한 문장**을 몸으로
+        //   삼으므로(`if c . return 1 .` ≡ `if c . do return 1 . end`), `if` 에 `do` 를 안 쓰고
+        //   `end` 를 적으면 그 `end` 가 **op 의 끝**이 된다 — 뒤 문장들이 통째로 밖으로 나온다.
+        //   전에는 그 자리에서 이 진단과 `E-RETURN-PARTIAL` 만 나와 **원인을 아무도 말하지
+        //   않았다**(결함 노트 #29, 2026-09-16).
+        if (kw == LOW_KW_RETURN || kw == LOW_KW_SET || kw == LOW_KW_IF || kw == LOW_KW_WHILE ||
+            kw == LOW_KW_GUARD || kw == LOW_KW_MATCH || kw == LOW_KW_BREAK ||
+            kw == LOW_KW_CONTINUE) {
+            emit(out, "E-TOPLEVEL",
+                 "this is a STATEMENT, and it sits outside every op body — an `end` above it "
+                 "closed the op earlier than you meant. The usual cause is a control head written "
+                 "without `do`: `if <cond> .` alone takes the ONE statement that follows as its "
+                 "body, so the `end` written for the `if` ends the OP instead. Write the body as "
+                 "`if <cond> . do … end .` whenever it holds more than one statement",
+                 f->line);
+            continue;
+        }
+        if (veq(h, "export") || veq(h, "unsafe") || veq(h, "extern")) {
+            emit(out, "E-TOPLEVEL",
+                 "`export` · `unsafe` · `extern` attach to a DECLARATION that can be named from "
+                 "another module — fn · proc · struct · enum · type · newtype · actor · trait. What "
+                 "follows here is none of those. A module constant (`let`), a module variable (`var`) "
+                 "and a `test` block CANNOT be exported: a constant is not part of the module surface "
+                 "(hand it out through an op — `fn limit output u64 . do return 100 . end`), and a "
+                 "test belongs to the module that owns it. Written this way the modifier stays as the "
+                 "form's head and the declaration under it is never seen at all",
+                 f->line);
+            continue;
+        }
         emit(out, "E-TOPLEVEL",
              "a top-level form must begin with a DECLARATION head — module · use · fn · "
              "proc · struct · enum · type · newtype · actor · trait · contract · test · "
@@ -3280,6 +3430,192 @@ static void ck_option(low_check_result_t *out, const low_parse_result_t *pr) {
 //
 //   그리고 못 보는 것은 **가둔다**(인라인 asm 과 **같은 규율**):
 //     unsafe(표시) · `cap c`(건네받는 권리) · effects(호출자가 안다).
+// ★★ **내보낸 op 의 서명에 감춘 타입을 쓸 수 없다** (결함 노트 #55, 2026-09-16).
+//   `export fn make_secret output secret .` 에서 `secret` 이 `export` 가 아니면, 들여온 쪽은
+//   `k4.secret` 을 적는 순간 `E-VISIBILITY` 라 **결과를 받을 이름을 지을 수가 없다** — 쓸 수 없는
+//   export 다. 그런데 거절은 **들여온 쪽에서만** 났다: 내보내는 쪽은 초록이었다. 자기 서명의
+//   결함은 자기가 알아야 한다.
+static bool ck_type_is_exported(const low_parse_result_t *pr, proven_u8str_view_t ty, bool *found,
+                                const char *same_file) {
+    *found = false;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *g = pr->forms[i];
+        if (!(g->kind == LOW_CST_FORM && g->nkids >= 2 && ck_atom(g->kids[0]) && ck_atom(g->kids[1])))
+            continue;
+        low_kw_t k = g->kids[0]->tok.kw;
+        if (k != LOW_KW_STRUCT && k != LOW_KW_ENUM && k != LOW_KW_NEWTYPE &&
+            k != LOW_KW_ACTOR) continue;   // ★ `type` 별칭은 **투명**하다 — 쓰는 쪽이 바탕 타입을 적으면 된다
+        if (!proven_u8str_view_eq(g->kids[1]->tok.lex, ty)) continue;
+        // ★ **같은 모듈**의 타입만 따진다. 한 번역 단위에 여러 파일이 들어오고, 제네릭이
+        //   단형화되면 **부르는 쪽의 타입 이름**이 내보낸 서명에 실려 온다 — 그것은 감춘 것이
+        //   아니라 애초에 그 모듈의 것이다(lib/sortgen.low 의 `sort_by` 가 그 자리다).
+        if (same_file && g->file && g->file != same_file) continue;
+        if (same_file && !g->file) continue;
+        *found = true;
+        return g->is_export;
+    }
+    return false;
+}
+// ★★ **제네릭 op 은 타입 인자를 앞자리에 받는다 — 빠뜨리면 그렇게 말해야 한다**
+//   (결함 노트 #57, 2026-09-16). 전에는 `E-IR-UNDEF: undefined name max_of` 였다 — op 은 분명히
+//   있는데 «없다» 고 말하는 진단이다. 단형화가 타입 인자로 인스턴스를 만들므로, 인자가 없으면
+//   만들 인스턴스가 없어 이름이 안 풀린 것뿐이다. 원인은 «없음» 이 아니라 «앞자리가 비었음» 이다.
+static bool ck_is_type_word(const low_parse_result_t *pr, proven_u8str_view_t w) {
+    static const char *PRIM[] = { "u8","u16","u32","u64","usize","i8","i16","i32","i64",
+                                  "f32","f64","bool","str","void","slice","option","result" };
+    for (size_t i = 0; i < sizeof PRIM / sizeof PRIM[0]; i++) if (veq(w, PRIM[i])) return true;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *g = pr->forms[i];
+        if (!(g->kind == LOW_CST_FORM && g->nkids >= 2 && ck_atom(g->kids[0]) && ck_atom(g->kids[1])))
+            continue;
+        low_kw_t k = g->kids[0]->tok.kw;
+        if ((k == LOW_KW_STRUCT || k == LOW_KW_ENUM || k == LOW_KW_TYPE || k == LOW_KW_NEWTYPE ||
+             k == LOW_KW_ACTOR) && proven_u8str_view_eq(g->kids[1]->tok.lex, w)) return true;
+    }
+    return false;
+}
+// ★★ **`splat` 은 레인 수를 문맥에서 받는다** (결함 노트 #73, 2026-09-16).
+//   `var m mask 4 be gt v (splat 5) .` 처럼 식 **안**에 바로 쓰면 몇 레인짜리를 지어야 하는지
+//   알 자리가 없어 스칼라로 읽히고, 진단은 `E-TYPE-VAR: expected mask, found bool` 이라
+//   **원인을 말하지 않았다**. 쓸 수 있는 자리는 하나다: `var lim vec u32 4 be splat 5 .`
+//   — 선언된 벡터 타입이 레인 수를 말해 주는 자리.
+static void ck_splat_walk(low_check_result_t *out, const low_cst_t *nd,
+                          const low_cst_t *parent, proven_size_t idx) {
+    if (!nd) return;
+    bool is_splat = (nd->kind == LOW_CST_FORM && nd->nkids >= 1 && ck_atom(nd->kids[0]) &&
+                     nd->kids[0]->tok.kw == LOW_KW_NONE && veq(nd->kids[0]->tok.lex, "splat")) ||
+                    (nd->kind == LOW_CST_ATOM && nd->tok.kw == LOW_KW_NONE &&
+                     veq(nd->tok.lex, "splat") && idx != 0);   // ★ 제 폼의 머리 자리는 제 자신이다
+    if (is_splat && parent && parent->kind == LOW_CST_FORM && ck_atom(parent->kids[0])) {
+        bool ok = false;
+        low_kw_t k0 = parent->kids[0]->tok.kw;
+        if (k0 == LOW_KW_LET || k0 == LOW_KW_VAR) {
+            for (proven_size_t b = 1; b < parent->nkids; b++)
+                if (ck_atom(parent->kids[b]) && parent->kids[b]->tok.kw == LOW_KW_BE && b + 1 == idx)
+                    ok = true;                                   // `… be splat <값> .`
+        } else if (k0 == LOW_KW_BE && idx == 1) ok = true;        // 갈라진 바인딩의 뒷줄
+        if (!ok)
+            emit(out, "E-VEC-SPLAT",
+                 "`splat` fills every lane of a vector, and how many lanes there are comes from the "
+                 "declared type — inside an expression there is nothing to say it, so the value is "
+                 "read as a plain scalar and the surrounding comparison stops matching its `mask` "
+                 "type. Bind it first, with the lane count written down: `var lim vec u32 4 be splat "
+                 "5 .`, then use `lim`",
+                 nd->line);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *ch = nd->kids[i];
+        // 저자가 적은 괄호는 자리만 감싼다 — 부모는 그대로 물려준다.
+        if (ch && ch->kind == LOW_CST_GROUP && ch->nkids == 1)
+            ck_splat_walk(out, ch->kids[0], parent && nd->kind == LOW_CST_GROUP ? parent : nd, i);
+        else
+            ck_splat_walk(out, ch, nd, i);
+    }
+}
+
+typedef struct { proven_u8str_view_t name, mod; const char *file; } ck_tpl_t;
+// 이 파일이 선언한 모듈 이름 (없으면 빈 것).
+static proven_u8str_view_t ck_module_of_file(const low_parse_result_t *pr, const char *file) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *g = pr->forms[i];
+        if (g->kind == LOW_CST_FORM && g->nkids >= 2 && ck_atom(g->kids[0]) &&
+            g->kids[0]->tok.kw == LOW_KW_MODULE && ck_atom(g->kids[1]) && g->file == file)
+            return g->kids[1]->tok.lex;
+    }
+    return (proven_u8str_view_t){ 0 };
+}
+static void ck_typearg_walk(low_check_result_t *out, const low_cst_t *nd,
+                            const low_parse_result_t *pr, const ck_tpl_t *tpl,
+                            proven_size_t ntpl) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM)
+        for (proven_size_t z = 0; z + 1 < nd->nkids; z++) {
+            if (nd->kids[z]->kind != LOW_CST_ATOM || nd->kids[z]->tok.kw != LOW_KW_NONE) continue;
+            // ★ **이름만으로 고르지 않는다.** 두 모듈이 같은 이름의 op 을 가질 수 있고
+            //   (`vecgen.open` 은 틀, `growvec.open` 은 아니다), 그때 이름만 보면 남의 틀을
+            //   이 부름에 씌운다 — 실측으로 골든 여섯이 그렇게 거짓 거절됐다.
+            bool is_tpl = false;
+            proven_u8str_view_t qm = nd->kids[z]->qual_mod;
+            for (proven_size_t q = 0; q < ntpl; q++) {
+                if (!proven_u8str_view_eq(tpl[q].name, nd->kids[z]->tok.lex)) continue;
+                if (qm.size) { if (tpl[q].mod.size && proven_u8str_view_eq(qm, tpl[q].mod)) is_tpl = true; }
+                else if (nd->file == tpl[q].file) is_tpl = true;   // 맨이름은 제 모듈 안에서만
+            }
+            if (!is_tpl) continue;
+            const low_cst_t *a = nd->kids[z + 1];
+            if (a->kind == LOW_CST_ATOM && a->tok.kw == LOW_KW_NONE &&
+                ck_is_type_word(pr, a->tok.lex)) continue;                 // 타입 인자가 있다
+            emit(out, "E-MONO-NOTYPE",
+                 "this op takes a TYPE as its first input (`input comptime t type .`) and the call "
+                 "does not give one. Nothing is inferred from the argument types here: what is being "
+                 "built has to be visible at the call — write the type first, as in `max_of score a "
+                 "b`. (Without it the instance is never built, which is why the tool used to say the "
+                 "op did not exist)",
+                 nd->kids[z]->tok.line);
+        }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_typearg_walk(out, nd->kids[i], pr, tpl, ntpl);
+}
+static void ck_typeargs(low_check_result_t *out, const low_parse_result_t *pr) {
+    ck_tpl_t tpl[64]; proven_size_t ntpl = 0;
+    // ★ 단형화는 **인스턴스가 하나도 없는 틀**을 폼 목록에서 뺀다(`pr->gforms` 에 남긴다) —
+    //   타입 인자를 빠뜨린 부름이 정확히 그 경우다. 그래서 두 목록을 함께 훑는다.
+    for (int pass = 0; pass < 2 && ntpl < 64; pass++) {
+        low_cst_t *const *fs = pass ? pr->gforms : pr->forms;
+        proven_size_t nfs = pass ? pr->ngforms : pr->nforms;
+        for (proven_size_t i = 0; i < nfs && ntpl < 64; i++) {
+            const low_cst_t *f = fs[i];
+            if (!(f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]) && ck_atom(f->kids[1])))
+                continue;
+            low_kw_t k = f->kids[0]->tok.kw;
+            if (k != LOW_KW_FN && k != LOW_KW_PROC) continue;
+            if (low_is_generic_template(f)) {
+                tpl[ntpl].name = f->kids[1]->tok.lex; tpl[ntpl].file = f->file;
+                tpl[ntpl].mod = ck_module_of_file(pr, f->file); ntpl++;
+            }
+        }
+    }
+    if (!ntpl) return;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
+        if (!(f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]))) continue;
+        low_kw_t k = f->kids[0]->tok.kw;
+        if (k != LOW_KW_FN && k != LOW_KW_PROC) continue;
+        if (low_is_generic_template(f)) continue;        // 틀 안에서는 `t` 가 타입 이름이다
+        low_op_header_t h = low_op_header(f);
+        if (h.body) ck_typearg_walk(out, h.body, pr, tpl, ntpl);
+    }
+}
+
+static void ck_export_surface(low_check_result_t *out, const low_parse_result_t *pr) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
+        if (!(f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]))) continue;
+        low_kw_t kw = f->kids[0]->tok.kw;
+        if ((kw != LOW_KW_FN && kw != LOW_KW_PROC) || !f->is_export) continue;
+        low_op_header_t h = low_op_header(f);
+        proven_size_t spans[LOW_HDR_MAXP + 1][2]; proven_size_t ns = 0;
+        for (proven_size_t q = 0; q < h.np && ns < LOW_HDR_MAXP; q++) {
+            spans[ns][0] = h.p[q].ts; spans[ns][1] = h.p[q].te; ns++;
+        }
+        if (h.out_s) { spans[ns][0] = h.out_s; spans[ns][1] = h.out_e; ns++; }
+        for (proven_size_t z = 0; z < ns; z++)
+            for (proven_size_t w = spans[z][0]; w < spans[z][1] && w < f->nkids; w++) {
+                if (!ck_atom(f->kids[w]) || f->kids[w]->tok.kw != LOW_KW_NONE) continue;
+                bool found = false;
+                bool exported = ck_type_is_exported(pr, f->kids[w]->tok.lex, &found, f->file);
+                if (!found || exported) continue;
+                // ★ 경고다 — 프로그램 자체는 옳고(한 모듈만 있는 자리에서는 아무 문제가 없다),
+                //   **다른 모듈이 쓸 수 없다**는 사실을 내보내는 쪽에 알리는 것이 이 자리의 일이다.
+                warn(out, "W-EXPORT-HIDDEN",
+                     "this op is exported and its signature names a type this module keeps to "
+                     "itself. An importing module cannot write that type, so it has nowhere to put "
+                     "the value and the export cannot be used from outside (§6.10.1). Export the "
+                     "type too, or give the op a signature made of types the other side can name",
+                     f->kids[w]->tok.line);
+            }
+    }
+}
+
 static void ck_ffi(low_check_result_t *out, const low_parse_result_t *pr) {
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
@@ -3317,6 +3653,23 @@ static void ck_ffi(low_check_result_t *out, const low_parse_result_t *pr) {
             emit(out, "E-FFI-BODY",
                  "an `extern` op has a body. Its body is IN C — that is what `extern` MEANS. "
                  "Two bodies is not a program, it is a question nobody can answer", ln);
+
+        // ★★★ **C 심볼의 이름은 저자가 적는다 — 도구가 op 이름에서 지어내지 않는다**
+        //   (RFC-0063 · 결함 노트 #67, 2026-09-16). `link` 절이 없으면 하강이 op 이름을 C 심볼로
+        //   삼았다. 그러면 op 의 이름을 바꾸는 순간 **다른 C 함수를 부르게 되고**, 그 사실이
+        //   소스 어디에도 안 적혀 있다. 약속은 적힌 것이어야 한다.
+        {
+            bool has_link = false;
+            for (proven_size_t z = 2; z + 1 < f->nkids; z++)
+                if (ck_atom(f->kids[z]) && veq(f->kids[z]->tok.lex, "link")) has_link = true;
+            if (!has_link)
+                emit(out, "E-FFI-LINK",
+                     "an `extern` op does not say which C symbol it calls. Write `link \"strlen\" .` "
+                     "(and `link \"sin\" from \"m\" .` when it lives in a library). The C name is a "
+                     "promise made to another language, so the author writes it: derived from the op "
+                     "name it would change the moment the op is renamed, with nothing in the source "
+                     "saying so (RFC-0063)", ln);
+        }
 
         if (!f->is_unsafe)
             emit(out, "E-FFI-NOUNSAFE",
@@ -3604,7 +3957,7 @@ static void ck_clause_order_one(low_check_result_t *out, const low_cst_t *f, pro
             char *buf = msgs[r][maxr];
             snprintf(buf, sizeof msgs[0][0],
                      "%s comes after %s. An op header has ONE order: `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · "
-                     "capability/region inputs · `using` · data inputs · `output` · `effects` · `link`/`variadic` · `effects` · `asm` · "
+                     "capability/region inputs · `using` · data inputs · `output` · `effects` · `link`/`variadic` · `asm` · "
                      "`access`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input "
                      "clauses for you; inputs are call positions, so reorder those and their call sites yourself)",
                      ck_rank_name(r), ck_rank_name(maxr));
@@ -6211,8 +6564,8 @@ static const struct { const char *word; const char *why; } CK_REMOVED[] = {
     // ★★ 2026-07-13 (2차)
     { "to",   "infix access is gone. `a to b` meant EXACTLY what `field a b` means — access had "
               "FOUR spellings for one meaning (prefix · `to` · `in` · the glued dot), and they had "
-              "already DIVERGED: the glued dot could not index. Write `field a b` / `index a i`, or "
-              "the glued dot: `a.b` / `a.3`. (`send` now reads `send <actor> <message> [args…]` — "
+              "already DIVERGED: the glued dot could not index. Write `field a b` / `index a i` — the glued "
+              "dot (`a.b`) is refused too (`E-FIELD-GLUED`). (`send` now reads `send <actor> <message> [args…]` — "
               "the actor comes FIRST, because a message IS an op call and the instance IS its first "
               "parameter)" },
     { "in",   "infix access is gone — `b in a` was the reverse spelling of `a to b`, i.e. a THIRD "
@@ -6652,6 +7005,44 @@ static void ck_capkind_walk(low_check_result_t *out, const low_cst_t *nd, const 
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_capkind_walk(out, nd->kids[i], def_form);
 }
 
+// ★★★ **한 저장소를 쓰기 자리와 다른 자리에 함께 넘길 수 없다** (정본 §8.4 · §8.12 · 결함 노트 #9).
+//   `copy_into buf buf` 는 같은 바이트를 **쓰는 쪽과 읽는 쪽**으로 동시에 건넨다. `mut_ref` 를
+//   두 번 넘기면 `E-EXCL` 인데 이 모양은 통과했다 — 배타 규칙은 «쓰기 하나 **또는** 읽기 여럿»
+//   이지 «쓰기 하나와 읽기 하나» 가 아니다.
+static void ck_excl_args_walk(low_check_result_t *out, const low_cst_t *nd,
+                              const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) &&
+        nd->kids[0]->tok.kw == LOW_KW_NONE) {
+        proven_u8str_view_t callee = nd->kids[0]->tok.lex;
+        // ① 첫 인자가 **쓰는 자리**인 내장 op 들. 이름이 곧 그 약속이다.
+        static const char *DSTFIRST[] = { "copy_into" };
+        bool dst_first = false;
+        for (size_t i = 0; i < sizeof DSTFIRST / sizeof DSTFIRST[0]; i++)
+            if (veq(callee, DSTFIRST[i])) dst_first = true;
+        if (dst_first && ck_atom(nd->kids[1]) && nd->kids[1]->tok.kind == LOW_TOK_IDENT) {
+            for (proven_size_t q = 2; q < nd->nkids; q++)
+                if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kind == LOW_TOK_IDENT &&
+                    proven_u8str_view_eq(nd->kids[q]->tok.lex, nd->kids[1]->tok.lex)) {
+                    emit(out, "E-EXCL",
+                         "the same storage is handed to this op as the place it WRITES and, at the "
+                         "same time, as a place it reads. The rule is one writer OR many readers "
+                         "(§8.12), never both at once: while the write is in progress the other side "
+                         "sees bytes that are half old and half new, and which half depends on the "
+                         "direction the copy happens to run. Use two separate slices, or an op that "
+                         "says it works in place",
+                         nd->kids[0]->tok.line);
+                    break;
+                }
+        }
+        // ☞ **사용자 op 은 여기서 안 문다.** 제자리 연산(`mont_mul acc acc r2 …` — 몽고메리
+        //   곱은 누산기를 읽고 그 자리에 쓴다)이 표준 라이브러리의 정상적인 모양이고, 그것을
+        //   금지할지는 언어 설계의 결정이지 이 검사가 혼자 정할 일이 아니다(RFC-0115 로 남긴다).
+        (void)tab; (void)nt;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_excl_args_walk(out, nd->kids[i], tab, nt);
+}
+
 // ★★★★★ **권한은 건네받는 것이지 지어내는 것이 아니다** (RFC-0030 D2 · 결함 노트 #49, 2026-09-16).
 //   `input k cap io .` 을 받는 op 을 `say 0` 으로 부르면 — 권한 자리에 **수 리터럴** — `--check` 가
 //   통과했고 VM·네이티브 모두 출력을 냈다. 권한을 하나도 안 받은 `main` 이 그렇게 바깥에 닿았다.
@@ -6831,6 +7222,464 @@ static void ck_errors_on_state(low_check_result_t *out, const low_cst_t *f,
                      f->line);
                 return;
             }
+        }
+    }
+}
+// ═══ 결함 노트 #30·#33·#66 — **흐름의 구멍 셋** (2026-09-16) ═══
+
+// ① #30 — `output void` 인 op 이 값을 돌려준다.
+static void ck_void_return(low_check_result_t *out, const low_cst_t *nd, const low_cst_t *f,
+                           const low_op_header_t *h) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        nd->kids[0]->tok.kw == LOW_KW_RETURN) {
+        const low_cst_t *v = nd->kids[1];
+        bool has_value = v && !(ck_atom(v) && v->tok.kw == LOW_KW_ELSE);
+        if (has_value && h->out_s && h->out_s < f->nkids && ck_atom(f->kids[h->out_s]) &&
+            veq(f->kids[h->out_s]->tok.lex, "void"))
+            emit(out, "E-TYPE-RETURN",
+                 "this op declares `output void .` and yet returns a VALUE. A void op returns with "
+                 "`return .` alone (§6.5.5(2)) — the value written here goes nowhere, and the caller "
+                 "has no place to put it. Declare the type you meant to return, or drop the value",
+                 nd->kids[0]->tok.line);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_void_return(out, nd->kids[i], f, h);
+}
+
+// ② #66 — 블록 **안**의 `else`(C 식). 앞 블록을 `end else do` 로 닫아야 한다.
+static void ck_inner_else(low_check_result_t *out, const low_cst_t *blk) {
+    if (!blk) return;
+    if (blk->kind == LOW_CST_BLOCK)
+        for (proven_size_t i = 0; i < blk->nkids; i++) {
+            const low_cst_t *st = blk->kids[i];
+            if (st && st->kind == LOW_CST_FORM && st->nkids >= 1 && ck_atom(st->kids[0]) &&
+                st->kids[0]->tok.kw == LOW_KW_ELSE)
+                emit(out, "E-STMT-ELSE",
+                     "`else` sits INSIDE the block, the way C writes it. Here a block is closed "
+                     "before the other arm opens: `if <cond> . do … end else do … end .`. Written "
+                     "this way the arm used to be accepted by every static check and then dropped at "
+                     "lowering — the VM stopped with an unsupported body and the native build "
+                     "silently left the op out",
+                     st->kids[0]->tok.line);
+        }
+    for (proven_size_t i = 0; i < blk->nkids; i++) ck_inner_else(out, blk->kids[i]);
+}
+
+// ③ #33 — 블록 **안**에서 지은 이름을 블록 **밖**에서 읽는다(안 들어간 길에서는 조용히 0 이었다).
+static void ck_block_names(const low_cst_t *blk, proven_u8str_view_t *names, proven_size_t *n,
+                           proven_size_t cap) {
+    if (!blk) return;
+    if (blk->kind == LOW_CST_FORM && blk->nkids >= 2 && ck_atom(blk->kids[0]) &&
+        (blk->kids[0]->tok.kw == LOW_KW_LET || blk->kids[0]->tok.kw == LOW_KW_VAR) &&
+        ck_atom(blk->kids[1]) && *n < cap)
+        names[(*n)++] = blk->kids[1]->tok.lex;
+    for (proven_size_t i = 0; i < blk->nkids; i++) ck_block_names(blk->kids[i], names, n, cap);
+}
+// 이 나무 **어디에서든** 그 이름을 새로 짓는가(let/var) — 그러면 그것은 다른 이름이다.
+static bool ck_declares_name(const low_cst_t *nd, proven_u8str_view_t nm) {
+    if (!nd) return false;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) &&
+        ck_atom(nd->kids[1]) && proven_u8str_view_eq(nd->kids[1]->tok.lex, nm)) return true;
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        if (ck_declares_name(nd->kids[i], nm)) return true;
+    return false;
+}
+static bool ck_uses_name(const low_cst_t *nd, proven_u8str_view_t nm) {
+    if (!nd) return false;
+    if (ck_atom(nd) && nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE &&
+        proven_u8str_view_eq(nd->tok.lex, nm)) return true;
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (ck_uses_name(nd->kids[i], nm)) return true;
+    return false;
+}
+static void ck_scope_escape(low_check_result_t *out, const low_cst_t *body) {
+    if (!body || body->kind != LOW_CST_BLOCK) return;
+    for (proven_size_t i = 0; i < body->nkids; i++) {
+        const low_cst_t *st = body->kids[i];
+        if (!st || st->kind != LOW_CST_FORM || st->nkids < 1 || !ck_atom(st->kids[0])) continue;
+        low_kw_t kw = st->kids[0]->tok.kw;
+        if (kw != LOW_KW_IF && kw != LOW_KW_WHILE && kw != LOW_KW_FOR) continue;
+        proven_u8str_view_t inner[64]; proven_size_t ni = 0;
+        for (proven_size_t b = 0; b < st->nkids; b++)
+            if (st->kids[b] && st->kids[b]->kind == LOW_CST_BLOCK)
+                ck_block_names(st->kids[b], inner, &ni, 64);
+        for (proven_size_t q = 0; q < ni; q++)
+            for (proven_size_t j = i + 1; j < body->nkids; j++) {
+                const low_cst_t *later = body->kids[j];
+                // ★ 뒤에서 **다시 선언**하면 그것은 새 이름이다 — 그 자리부터는 볼 것이 없다
+                //   (표준 라이브러리가 같은 이름을 블록 안팎에서 따로 짓는다: lib/sort.low 의 `ti`).
+                if (ck_declares_name(later, inner[q])) break;
+                if (ck_uses_name(later, inner[q])) {
+                    emit(out, "E-NAME-SCOPE",
+                         "this name was declared INSIDE a block and is read outside it. A block is "
+                         "where a name lives (§6.5.1): on the path that did not enter the block the "
+                         "name never existed, and the tool used to answer 0 there — a value that "
+                         "appears nowhere in the source. Declare it before the block (`var … be 0 .`) "
+                         "and set it inside",
+                         body->kids[j]->line);
+                    q = ni; break;
+                }
+            }
+    }
+    for (proven_size_t i = 0; i < body->nkids; i++)
+        if (body->kids[i]) for (proven_size_t b = 0; b < body->kids[i]->nkids; b++)
+            ck_scope_escape(out, body->kids[i]->kids[b]);
+}
+
+// ═══ 결함 노트 #20·#28·#35 — **오류 코드를 찍고도 초록이던 셋** (2026-09-16) ═══
+//
+//   셋 다 `E-IR-UNSUP`("도구가 아직 못 한다")로 나왔고, 그 갈래는 `--check` 를 빨갛게 하지
+//   않는다 — 옳은 규칙이다. 틀린 것은 **분류**였다: 이 셋은 «아직 못 한다» 가 아니라
+//   «프로그램이 틀렸다» 이거나 «없는 낱말이다». 그래서 각자의 이름으로 거절한다.
+static void ck_slashslash_walk(low_check_result_t *out, const low_cst_t *nd) {
+    if (!nd) return;
+    // ★ 렉서는 `//` 를 낱말 `/` **둘**로 쪼갠다. 그 **연속된 둘**만 본다 — `expr` 섬 안의 나눗셈
+    //   (`expr a / b`)과 문자열 `"/"` 는 정당하다(실측으로 둘 다 물렸다).
+    bool slashslash = false;
+    for (proven_size_t i = 0; i + 1 < nd->nkids; i++) {
+        const low_cst_t *a = nd->kids[i], *b = nd->kids[i + 1];
+        if (ck_atom(a) && ck_atom(b) && a->tok.kind != LOW_TOK_STRING && b->tok.kind != LOW_TOK_STRING &&
+            a->tok.lex.size == 1 && a->tok.lex.ptr[0] == (proven_byte_t)'/' &&
+            b->tok.lex.size == 1 && b->tok.lex.ptr[0] == (proven_byte_t)'/') { slashslash = true; break; }
+    }
+    if (slashslash)
+        emit(out, "E-VOCAB-REMOVED",
+             "`//` is not a comment here — this language has never had it. A comment starts with "
+             "`rem` (to the end of the line) or `note <tag>` … `<tag>` (several lines). Until today "
+             "`//` slipped through to lowering and was reported as an unsupported FEATURE, which "
+             "sent the reader looking for a missing capability instead of a wrong spelling",
+             nd->line);
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_slashslash_walk(out, nd->kids[i]);
+}
+static void ck_loopword_walk(low_check_result_t *out, const low_cst_t *nd, bool in_loop) {
+    if (!nd) return;
+    bool opens_loop = in_loop;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 1 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_WHILE || nd->kids[0]->tok.kw == LOW_KW_FOR))
+        opens_loop = true;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 1 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_BREAK || nd->kids[0]->tok.kw == LOW_KW_CONTINUE) && !in_loop)
+        emit(out, "E-LOOP-OUTSIDE",
+             "`break` / `continue` name a loop to leave or to continue, and there is no loop here. "
+             "This used to reach lowering and be reported as an unsupported feature — the tool said "
+             "\"not built\" about a program that simply has no loop to break out of",
+             nd->kids[0]->tok.line);
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_loopword_walk(out, nd->kids[i], opens_loop);
+}
+static void ck_fieldborrow_walk(low_check_result_t *out, const low_cst_t *nd) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        (veq(nd->kids[0]->tok.lex, "ref") || veq(nd->kids[0]->tok.lex, "mut_ref"))) {
+        const low_cst_t *t = nd->kids[1];
+        while (t && t->kind == LOW_CST_GROUP && t->nkids == 1) t = t->kids[0];
+        if (t && t->kind == LOW_CST_FORM && t->nkids >= 2 && ck_atom(t->kids[0]) &&
+            veq(t->kids[0]->tok.lex, "field"))
+            emit(out, "E-BORROW-FIELD",
+                 "a borrow of a FIELD is not built. A borrow carries a lifetime, and a field's "
+                 "lifetime is the whole value's — there is no way to say that yet, so the tool "
+                 "refuses instead of lowering something it cannot check (it used to report this as "
+                 "an unsupported feature AND still print `check: ok`). Copy the field into a local "
+                 "and borrow that, or pass the whole value as `mut`",
+                 nd->kids[0]->tok.line);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_fieldborrow_walk(out, nd->kids[i]);
+}
+
+// ═══ 결함 노트 #31·#39·#44·#45·#58 — **타입 검사를 지나 실행에서 멈추던 다섯** (2026-09-16) ═══
+//
+//   다섯 모양이 `--check` 를 지나 실행 중 `E-VM-TYPE` 으로 멈췄다. 실행까지 갈 이유가 없다:
+//   타입은 머리에 적혀 있고, 그 머리를 읽으면 셋 다 번역에서 말할 수 있다.
+
+// 이름이 이 op 의 파라미터라면 그 **알맹이 타입 낱말**을 돌려준다(없으면 빈 것).
+static proven_u8str_view_t ck_param_core_word(const low_cst_t *f, const low_op_header_t *h,
+                                              proven_u8str_view_t nm) {
+    for (proven_size_t q = 0; q < h->np; q++)
+        if (proven_u8str_view_eq(h->p[q].name, nm)) {
+            proven_size_t cw = h->p[q].core;
+            if (cw < f->nkids && ck_atom(f->kids[cw])) return f->kids[cw]->tok.lex;
+            break;
+        }
+    return (proven_u8str_view_t){ 0 };
+}
+static bool ck_is_arith_word(proven_u8str_view_t w) {
+    return veq(w, "add") || veq(w, "sub") || veq(w, "mul") || veq(w, "div") || veq(w, "mod") ||
+           veq(w, "lt") || veq(w, "le") || veq(w, "gt") || veq(w, "ge") ||
+           veq(w, "eq") || veq(w, "ne");
+}
+// 지역 이름의 **선언된 타입 낱말**(`let p point be …` → `point`). 없으면 빈 것.
+static proven_u8str_view_t ck_local_type_word(const low_cst_t *body, proven_u8str_view_t nm) {
+    if (!body) return (proven_u8str_view_t){ 0 };
+    if (body->kind == LOW_CST_FORM && body->nkids >= 4 && ck_atom(body->kids[0]) &&
+        (body->kids[0]->tok.kw == LOW_KW_LET || body->kids[0]->tok.kw == LOW_KW_VAR) &&
+        ck_atom(body->kids[1]) && proven_u8str_view_eq(body->kids[1]->tok.lex, nm) &&
+        ck_atom(body->kids[2]) && body->kids[2]->tok.kw != LOW_KW_BE)
+        return body->kids[2]->tok.lex;
+    for (proven_size_t i = 0; i < body->nkids; i++) {
+        proven_u8str_view_t r = ck_local_type_word(body->kids[i], nm);
+        if (r.size) return r;
+    }
+    return (proven_u8str_view_t){ 0 };
+}
+static bool ck_name_is_struct(const low_parse_result_t *pr, proven_u8str_view_t ty) {
+    if (!ty.size) return false;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *g = pr->forms[i];
+        if (g->kind == LOW_CST_FORM && g->nkids >= 2 && ck_atom(g->kids[0]) &&
+            g->kids[0]->tok.kw == LOW_KW_STRUCT && ck_atom(g->kids[1]) &&
+            proven_u8str_view_eq(g->kids[1]->tok.lex, ty)) return true;
+    }
+    return false;
+}
+// ★★ **자리의 타입에 안 들어가는 리터럴과의 비교는 언제나 같은 답이다** (결함 노트 #32, 2026-09-16).
+//   `u8` 지역과 `lt i 256` 은 참일 수밖에 없다. 루프의 끝 조건을 그렇게 적으면 **끝나지 않는다**.
+//   대입 자리의 리터럴은 `E-TYPE-WIDTH` 가 오래 전부터 물었는데 **비교 자리는 안 봤다**.
+static bool ck_int_range(proven_u8str_view_t ty, proven_i64 *lo, proven_u64 *hi) {
+    static const struct { const char *w; proven_i64 lo; proven_u64 hi; } R[] = {
+        { "u8", 0, 255u }, { "u16", 0, 65535u }, { "u32", 0, 4294967295u },
+        { "i8", -128, 127u }, { "i16", -32768, 32767u }, { "i32", -2147483648LL, 2147483647u },
+    };
+    for (size_t i = 0; i < sizeof R / sizeof R[0]; i++)
+        if (veq(ty, R[i].w)) { *lo = R[i].lo; *hi = R[i].hi; return true; }
+    return false;
+}
+// 십진·십육진 정수 리터럴만 읽는다 — 부동소수·밑줄·부호는 여기서 안 본다(보수적으로 건너뛴다).
+static bool ck_uint_literal(const low_cst_t *a, proven_u64 *v) {
+    if (!a || a->kind != LOW_CST_ATOM || a->tok.kind != LOW_TOK_NUMBER) return false;
+    proven_u8str_view_t x = a->tok.lex;
+    if (!x.size) return false;
+    proven_u64 acc = 0; proven_size_t i = 0; int base = 10;
+    if (x.size > 2 && x.ptr[0] == '0' && (x.ptr[1] == 'x' || x.ptr[1] == 'X')) { base = 16; i = 2; }
+    for (; i < x.size; i++) {
+        proven_u8 ch = x.ptr[i]; int d;
+        if (ch == '_') continue;
+        if (ch >= '0' && ch <= '9') d = ch - '0';
+        else if (base == 16 && ch >= 'a' && ch <= 'f') d = ch - 'a' + 10;
+        else if (base == 16 && ch >= 'A' && ch <= 'F') d = ch - 'A' + 10;
+        else return false;                       // `.`·`e`·접미사 — 정수가 아니다
+        if (acc > (~(proven_u64)0 - (proven_u64)d) / (proven_u64)base) return false;  // 넘침 — 안 본다
+        acc = acc * (proven_u64)base + (proven_u64)d;
+    }
+    *v = acc; return true;
+}
+static void ck_cmpwidth_walk(low_check_result_t *out, const low_cst_t *nd, const low_cst_t *f,
+                             const low_op_header_t *h, const low_cst_t *body) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids == 3 && ck_atom(nd->kids[0]) &&
+        nd->kids[0]->tok.kw == LOW_KW_NONE) {
+        proven_u8str_view_t w = nd->kids[0]->tok.lex;
+        if (veq(w, "lt") || veq(w, "le") || veq(w, "gt") || veq(w, "ge") ||
+            veq(w, "eq") || veq(w, "ne")) {
+            for (int side = 0; side < 2; side++) {
+                const low_cst_t *nm = nd->kids[1 + side], *lit = nd->kids[2 - side];
+                if (!ck_atom(nm) || nm->tok.kind != LOW_TOK_IDENT || nm->tok.kw != LOW_KW_NONE) continue;
+                proven_u64 v = 0;
+                if (!ck_uint_literal(lit, &v)) continue;
+                proven_u8str_view_t ty = ck_param_core_word(f, h, nm->tok.lex);
+                if (!ty.size) ty = ck_local_type_word(body, nm->tok.lex);
+                proven_i64 lo = 0; proven_u64 hi = 0;
+                if (!ck_int_range(ty, &lo, &hi)) continue;
+                if (v <= hi) continue;
+                emit(out, "E-TYPE-WIDTH",
+                     "this comparison holds a value that the other side's type cannot hold, so the "
+                     "answer is the same for every input — the comparison decides nothing. A name "
+                     "declared `u8` is at most 255, `u16` at most 65535, `i8` at most 127; a literal "
+                     "beyond that is out of range exactly as it would be in an assignment, where the "
+                     "tool has always refused it. Widen the name's type, or compare against a value "
+                     "the type can reach. (This is how a loop written `while lt i 256 .` over a `u8` "
+                     "counter never ends)",
+                     nd->kids[0]->tok.line);
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_cmpwidth_walk(out, nd->kids[i], f, h, body);
+}
+
+// ★★ **fold 의 누산값은 첫 입력이고, 그것이 곧 결과다** (결함 노트 #60, 2026-09-16).
+//   `fold 0 addu` 의 단계 op 머리를 `input x u8 . input acc u64 .` 로 거꾸로 적어도 통과했고,
+//   400 이 넘는 누산값이 `u8` 매개변수로 들어갔다(`f([200,200,200]) = 600`). 차례를 대조할 자리가
+//   없었던 것이 아니라 **아무도 안 봤다**: acc' = op(acc, x) 이므로 첫 입력의 타입과 출력 타입은
+//   같아야 한다. 다르면 누산이 매 걸음 다른 자리에 들어간다.
+static void ck_foldorder_walk(low_check_result_t *out, const low_cst_t *nd,
+                              const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) &&
+        (veq(nd->kids[0]->tok.lex, "fold") || veq(nd->kids[0]->tok.lex, "scan")) &&
+        ck_atom(nd->kids[2]) && nd->kids[2]->tok.kw == LOW_KW_NONE) {
+        proven_u8str_view_t opn = nd->kids[2]->tok.lex;
+        for (proven_size_t i = 0; i < nt; i++) {
+            if (!proven_u8str_view_eq(tab[i].name, opn) || !tab[i].form) continue;
+            const low_cst_t *g = tab[i].form;
+            low_op_header_t gh = low_op_header(g);
+            if (gh.np < 1) break;
+            proven_size_t cw = gh.p[0].core;
+            if (!(cw < g->nkids && ck_atom(g->kids[cw]))) break;
+            if (!(gh.out_s && gh.out_s < g->nkids && ck_atom(g->kids[gh.out_s]))) break;
+            proven_u8str_view_t a = g->kids[cw]->tok.lex, o = g->kids[gh.out_s]->tok.lex;
+            proven_i64 lo1 = 0, lo2 = 0; proven_u64 h1 = 0, h2 = 0;
+            // 폭이 있는 정수 타입끼리만 따진다 — 이름만으로는 별칭을 갈라 볼 수 없다.
+            if (!(ck_int_range(a, &lo1, &h1) || veq(a, "u64") || veq(a, "i64") || veq(a, "usize"))) break;
+            if (!(ck_int_range(o, &lo2, &h2) || veq(o, "u64") || veq(o, "i64") || veq(o, "usize"))) break;
+            if (proven_u8str_view_eq(a, o)) break;
+            emit(out, "E-FOLD-ORDER",
+                 "the accumulator of a `fold`/`scan` is the FIRST input of its op and also its "
+                 "output, because each step computes `acc = op(acc, element)`. Here the first input "
+                 "and the output are declared with different types, so the running total is handed "
+                 "to a parameter that cannot hold it — a `u8` first input takes a total of 600 as "
+                 "88 and the answer is silently wrong. Write the op as `input acc <out-type> . "
+                 "input x <element-type> .`",
+                 nd->kids[0]->tok.line);
+            break;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_foldorder_walk(out, nd->kids[i], tab, nt);
+}
+
+static void ck_typeholes_walk(low_check_result_t *out, const low_cst_t *nd,
+                              const low_cst_t *f, const low_op_header_t *h,
+                              const low_parse_result_t *pr, const low_opinfo_t *tab,
+                              proven_size_t nt) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        nd->kids[0]->tok.kw == LOW_KW_NONE) {
+        proven_u8str_view_t head = nd->kids[0]->tok.lex;
+        // ① #45 — 빌림을 **수처럼** 쓴다: `add p p`(p 는 `ref u64`). `deref p` 가 빠졌다.
+        // ② #39 — 구조체를 `eq`/`ne` 로 비교한다. 「같다」의 뜻은 타입마다 다르다.
+        // ③ #31 — 부동소수와 **정수 리터럴**을 섞어 셈한다(`div x 2`).
+        if (ck_is_arith_word(head)) {
+            bool saw_float = false, saw_intlit = false;
+            for (proven_size_t q = 1; q < nd->nkids; q++) {
+                const low_cst_t *a = nd->kids[q];
+                while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
+                if (!a || !ck_atom(a)) continue;
+                if (a->tok.kind == LOW_TOK_NUMBER) {
+                    bool dot = false;
+                    for (proven_size_t z = 0; z < a->tok.lex.size; z++)
+                        if (a->tok.lex.ptr[z] == (proven_byte_t)'.' ||
+                            a->tok.lex.ptr[z] == (proven_byte_t)'e' ||
+                            a->tok.lex.ptr[z] == (proven_byte_t)'E') dot = true;
+                    if (dot) saw_float = true; else saw_intlit = true;
+                    continue;
+                }
+                if (a->tok.kind != LOW_TOK_IDENT || a->tok.kw != LOW_KW_NONE) continue;
+                proven_u8str_view_t pw = ck_param_core_word(f, h, a->tok.lex);
+                if (veq(pw, "ref") || veq(pw, "mut_ref")) {
+                    emit(out, "E-TYPE-REFVAL",
+                         "a BORROW is being used where a number is expected. `ref t` / `mut_ref t` "
+                         "names a place, not the value in it — read it with `deref <name>` (and write "
+                         "through it with `set <name> …`). It used to pass `--check` and stop at run "
+                         "time with `E-VM-TYPE`, which blamed the arithmetic instead of the missing read",
+                         a->tok.line);
+                    return;
+                }
+                if (veq(pw, "f32") || veq(pw, "f64")) saw_float = true;
+                proven_u8str_view_t lw = pw.size ? pw : ck_local_type_word(h->body, a->tok.lex);
+                if (veq(lw, "f32") || veq(lw, "f64")) saw_float = true;
+                if ((veq(head, "eq") || veq(head, "ne")) && ck_name_is_struct(pr, lw)) {
+                    emit(out, "E-TYPE-KIND",
+                         "`eq` / `ne` compare numbers and booleans, not STRUCTS. What \"equal\" means "
+                         "for a struct differs by type — every field, or only the identifying one? — so "
+                         "the language does not guess: write an op that says it (field by field). This "
+                         "used to pass `--check` and stop at run time with `E-VM-TYPE`",
+                         a->tok.line);
+                    return;
+                }
+            }
+            if (saw_float && saw_intlit) {
+                emit(out, "E-TYPE-MIX",
+                     "a floating-point value and an INTEGER literal are mixed in one operation. "
+                     "Floating point and integers do not convert implicitly (§6.2.5), so write the "
+                     "literal as a float (`2.0`) — or convert the other side. It used to pass "
+                     "`--check` and stop at run time (`E-VM-TYPE: arithmetic needs ints`)",
+                     nd->kids[0]->tok.line);
+                return;
+            }
+        }
+        // ④ #44 — `mut_ref`/`ref` 를 받는 자리에 **맨 값**을 넘긴다.
+        for (proven_size_t i = 0; i < nt; i++) {
+            if (!proven_u8str_view_eq(tab[i].name, head)) continue;
+            if (!tab[i].form) break;
+            low_op_header_t ch = low_op_header(tab[i].form);
+            for (proven_size_t q = 0; q < ch.np && q + 1 < nd->nkids; q++) {
+                proven_size_t cw = ch.p[q].core;
+                if (cw >= tab[i].form->nkids || !ck_atom(tab[i].form->kids[cw])) continue;
+                proven_u8str_view_t want = tab[i].form->kids[cw]->tok.lex;
+                if (!veq(want, "ref") && !veq(want, "mut_ref")) continue;
+                const low_cst_t *arg = nd->kids[q + 1];
+                while (arg && arg->kind == LOW_CST_GROUP && arg->nkids == 1) arg = arg->kids[0];
+                bool ok = false;
+                if (arg && arg->kind == LOW_CST_FORM && arg->nkids >= 2 && ck_atom(arg->kids[0]) &&
+                    (veq(arg->kids[0]->tok.lex, "ref") || veq(arg->kids[0]->tok.lex, "mut_ref")))
+                    ok = true;
+                if (arg && ck_atom(arg) && arg->tok.kind == LOW_TOK_IDENT) {
+                    proven_u8str_view_t aw = ck_param_core_word(f, h, arg->tok.lex);
+                    if (!aw.size) aw = ck_local_type_word(h->body, arg->tok.lex);
+                    if (veq(aw, "ref") || veq(aw, "mut_ref")) ok = true;
+                }
+                if (!ok)
+                    emit(out, "E-TYPE-ARG",
+                         "this op takes a BORROW here (`ref` / `mut_ref`), and a plain value was "
+                         "passed. Take the borrow at the call — `mut_ref <name>` — so the reader sees "
+                         "where the callee may write. It used to pass `--check` and stop at run time "
+                         "with `E-VM-TYPE: deref needs a reference`",
+                         arg && ck_atom(arg) ? arg->tok.line : nd->kids[0]->tok.line);
+            }
+            break;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        ck_typeholes_walk(out, nd->kids[i], f, h, pr, tab, nt);
+}
+// ⑥ #72 — `sum`·`sum_fast` 는 **부동소수 합**이다(결함 노트 #71). 정수 출력에 그대로 돌려주면
+//   `--check` 가 통과하고 결과가 `20.0` 으로 찍혔다 — 반환 타입 검사가 그 결과 타입을 몰랐다.
+static void ck_sum_return(low_check_result_t *out, const low_cst_t *nd, const low_cst_t *f,
+                          const low_op_header_t *h) {
+    if (!nd) return;
+    const low_cst_t *rv = NULL;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        nd->kids[0]->tok.kw == LOW_KW_RETURN) {
+        rv = nd->kids[1];
+        while (rv && rv->kind == LOW_CST_GROUP && rv->nkids == 1) rv = rv->kids[0];
+        if (rv && rv->kind == LOW_CST_FORM && rv->nkids >= 1) rv = rv->kids[0];   // 감싼 폼의 머리
+    }
+    if (rv && ck_atom(rv) && (veq(rv->tok.lex, "sum") || veq(rv->tok.lex, "sum_fast")) &&
+        h->out_s && h->out_s < f->nkids && ck_atom(f->kids[h->out_s])) {
+        proven_u8str_view_t ow = f->kids[h->out_s]->tok.lex;
+        bool is_int_out = ow.size >= 2 &&
+            (ow.ptr[0] == (proven_byte_t)'u' || ow.ptr[0] == (proven_byte_t)'i') &&
+            ow.ptr[1] >= (proven_byte_t)'0' && ow.ptr[1] <= (proven_byte_t)'9';
+        if (is_int_out)
+            emit(out, "E-TYPE-RETURN",
+                 "`sum` / `sum_fast` add FLOATING-POINT values (a compensated and a running sum), so "
+                 "their result is a float — returning it where an integer is declared used to pass "
+                 "`--check` and then print `20.0` from an op whose head said `u64`. To add lanes of an "
+                 "integer vector use `reduce_add`; to keep the float, declare the output as one",
+                 rv->tok.line);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_sum_return(out, nd->kids[i], f, h);
+}
+// ⑤ #58 — 붙은 op(`fn <타입>.<이름>`)의 **수신자는 첫 입력**이어야 한다.
+static void ck_method_receiver(low_check_result_t *out, const low_cst_t *f) {
+    if (f->nkids < 2 || !ck_atom(f->kids[1])) return;
+    proven_u8str_view_t nm = f->kids[1]->tok.lex;
+    proven_size_t dot = nm.size;
+    for (proven_size_t i = 0; i < nm.size; i++) if (nm.ptr[i] == (proven_byte_t)'.') { dot = i; break; }
+    if (dot >= nm.size || dot == 0) return;                 // 붙은 op 이 아니다
+    proven_u8str_view_t ty = { .ptr = nm.ptr, .size = dot };
+    low_op_header_t h = low_op_header(f);
+    if (!h.np) return;
+    proven_size_t cw = h.p[0].core;
+    if (cw < f->nkids && ck_atom(f->kids[cw]) && proven_u8str_view_eq(f->kids[cw]->tok.lex, ty))
+        return;                                             // 첫 입력이 수신자다 — 옳다
+    for (proven_size_t q = 1; q < h.np; q++) {              // 다른 자리에 있으면 그 자리를 말한다
+        proven_size_t c2 = h.p[q].core;
+        if (c2 < f->nkids && ck_atom(f->kids[c2]) && proven_u8str_view_eq(f->kids[c2]->tok.lex, ty)) {
+            emit(out, "E-METHOD-RECV",
+                 "an op attached to a type takes that type as its FIRST input — that is what `method "
+                 "<value> <name> …` passes. Here the receiver is not first, so a `method` call hands "
+                 "the value to the wrong parameter: it used to pass `--check` and stop at run time "
+                 "with `E-VM-TYPE`. Move the receiver to the first `input` clause",
+                 f->kids[1]->tok.line);
+            return;
         }
     }
 }
@@ -7436,6 +8285,9 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_asm(&out, pr);             // ★★★ **인라인 asm = 검증 불가한 탈출구 ⇒ 격리** (RFC-0041)
         ck_option(&out, pr);          // ★★★ **아무도 안 읽는 손잡이는 거짓말이다** (RFC-0036 D5)
         ck_ffi(&out, pr);             // ★★★ **C ABI/FFI — 계약이 경계를 지킨다** (RFC-0063)
+        ck_requires_unsat(&out, pr);  // ★ 함께 참일 수 없는 전제 (#47)
+        ck_export_surface(&out, pr);  // ★ 내보낸 서명에 감춘 타입 (#55)
+        ck_typeargs(&out, pr);        // ★ 제네릭 op 의 앞자리 타입 인자 (#57)
         ck_col0(&out, pr);            // ★★★ **안전지대 앵커 — 최상위는 열 0** (RFC-0065)
         ck_isr(&out, pr);             // ★★★ **ISR — 하드웨어가 부르는 진입** (RFC-0042 D5)
 
@@ -7812,7 +8664,10 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                             mref = true;
                     if (!mref) continue;
                 }
-                if (!ck_writes_place(h.body, h.p[q].name)) continue;
+                // ★ `mut_ref` 는 장소를 거치지 않고 **이름에 바로** 쓴다(`set p (add p 1)`) —
+                //   `ck_writes_place` 만 보던 이 자리가 그 모양을 통째로 놓쳤다(결함 노트 #8).
+                if (!ck_writes_place(h.body, h.p[q].name) &&
+                    !ck_writes_name(h.body, h.p[q].name)) continue;
                 emit(&out, "E-EFFECT-PURITY",
                      "a `fn` WRITES through a `mut` parameter — that write is visible to the "
                      "CALLER. A fn is an enforced purity contract (SPEC-003 §27): callers may "
@@ -7848,8 +8703,22 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             ck_launder_walk(&out, h.body, tab0, ops.len, binds, nb, pr);
             ck_capkind_walk(&out, h.body, f);   // ★ 권위는 종류로 (RFC-0077 §P1-2)
             ck_capforge_walk(&out, h.body, tab0, ops.len);  // ★ 권한은 지어낼 수 없다 (RFC-0030 D2)
+            ck_excl_args_walk(&out, h.body, tab0, ops.len); // ★ 쓰기 자리와 읽기 자리에 같은 저장소 (#9)
             ck_mutref_of_ro_walk(&out, h.body, binds, nb);   // ★ `let` 은 참조로도 안 바뀐다 (#46)
             ck_mut_literal_bind_walk(&out, h.body);          // ★ 리터럴은 고칠 자리가 아니다 (#84)
+            ck_typeholes_walk(&out, h.body, f, &h, pr, tab0, ops.len);  // ★ 실행까지 새던 다섯 (#31·#39·#44·#45)
+            ck_method_receiver(&out, f);                     // ★ 수신자는 첫 입력 (#58)
+            ck_sum_return(&out, h.body, f, &h);              // ★ sum 은 부동소수 합 (#72)
+            ck_slashslash_walk(&out, h.body);                // ★ `//` 는 주석이 아니다 (#28)
+            ck_loopword_walk(&out, h.body, false);           // ★ 반복 밖의 break (#35)
+            ck_fieldborrow_walk(&out, h.body);               // ★ 칸의 빌림은 안 지었다 (#20)
+            ck_void_return(&out, h.body, f, &h);             // ★ void 는 값을 안 돌려준다 (#30)
+            ck_inner_else(&out, h.body);                     // ★ 블록 안의 else (#66)
+            ck_splat_walk(&out, h.body, NULL, 0);            // ★ splat 은 문맥에서 레인 수를 받는다 (#73)
+            {   low_op_header_t hh = low_op_header(f);
+                ck_cmpwidth_walk(&out, h.body, f, &hh, h.body); }   // ★ 자리에 안 들어가는 리터럴과의 비교 (#32)
+            ck_foldorder_walk(&out, h.body, tab0, ops.len);        // ★ fold 단계 op 의 누산 차례 (#60)
+            ck_scope_escape(&out, h.body);                   // ★ 블록 안 이름을 밖에서 (#33)
             {   // ★ 같은 쓰기 자리를 두 액터에게 (#54)
                 ck_lent_t lent[64]; proven_size_t nl = 0;
                 ck_actor_lend_walk(&out, h.body, binds, nb, lent, &nl, 64);
@@ -7972,6 +8841,12 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             //   panic 만 하는 핸들러가 "state 선언했는데 안 함" 으로 거짓 경고된다(vm_restart boom).
             unsigned used_over = used;
             if (tab[i].is_handler && (used & EFF_PANIC)) used_over |= EFF_STATE;
+            // ★★ **호출자 저장소에 쓰면 `state` 를 적은 것이 과장이 아니다** (결함 노트 #4 · #16 · #63).
+            //   `mut`/`mut_ref` 매개변수와 `collect into <매개변수>` 는 **부르는 쪽이 보는 자리**에
+            //   쓴다 — 순수성 쪽은 그것을 그렇게 판정하는데(E-EFFECT-PURITY) 이 경고만 안 세어,
+            //   같은 몸을 `proc … effects state .` 로 정직하게 적으면 «선언했는데 안 한다» 고 울었다.
+            //   ☞ 요구하지는 않는다(그것은 언어 설계를 바꾸는 일이다) — **적은 것을 부정하지 않을 뿐**이다.
+            if (tab[i].form && ck_writes_caller_storage(tab[i].form)) used_over |= EFF_STATE;
             unsigned over = tab[i].declared & ~used_over & ~EFF_NOPRIM;   // ★ 추론할 원시어가 없는 여섯은 묻지 않는다
             // ★★★★ RFC-0112 D7 — `via <타입>` 으로 들어온 효과는 **그 타입이 할 수 있는 것**의 합이다. 이 op 이
             //   그 가운데 일부만 부르는 것(예: `grow` 만)은 과장이 아니다 — 그 몫은 경고에서 뺀다.

@@ -1,16 +1,20 @@
 rem S-impl-4 V1 fixture — runtime references: cross-frame mut_ref write-through
 rem (green path) + shared-ref write (E-VM-READONLY, statics currently miss it).
-fn bump .
+rem ★ `proc` 다 — 호출자의 저장소에 쓰기 때문이다(2026-09-16, 결함 노트 #8: 순수한 `fn` 이
+rem   `mut_ref` 에 이름으로 쓰는 것을 순수성 검사가 못 봤다. 이제 `E-EFFECT-PURITY` 다).
+proc bump .
   input p mut_ref u64 . .
   output u64 .
+  effects state .
 do
   set p expr (deref p) + 1 . .
   return deref p .
 end .
 
-fn bump42 .
+proc bump42 .
   input n u64 .
   output u64 .
+  effects state .
 do
   var x u64 be n .
   var r mut_ref u64 . be mut_ref x .

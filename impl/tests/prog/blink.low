@@ -70,7 +70,7 @@ do
   var c rcc . be view rcc .
   rem ★ 읽고-고치고-쓴다. 통째로 쓰면 **남의 주변장치 클럭을 꺼 버린다**.
   write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
-  return 0 .
+  return .
 end .
 
 rem ── 핀 5 = 보드 LED (Nucleo-F401 의 LD2) ────────────────────────────────
@@ -94,7 +94,7 @@ do
   set m (bit_and m (bit_not (shl 3 10))) .
   set m (bit_or m (shl 1 10)) .
   write_volatile g moder m .
-  return 0 .
+  return .
 end .
 
 rem ── ISR: 시스틱이 부를 때마다 LED 를 뒤집는다 ───────────────────────────
@@ -111,7 +111,7 @@ do
   var g gpioa . be view gpioa .          rem ★ 줄 사람이 없어도 열린다
   var cur u32 . be read_volatile g odr .
   write_volatile g odr (bit_xor cur led_bit) .
-  return 0 .
+  return .
 end .
 
 rem ── SysTick — 무엇이 ISR 을 부르는가 ────────────────────────────────────
@@ -133,7 +133,7 @@ do
   write_volatile s load 15999 .    rem 16MHz / 16000 = 1kHz
   write_volatile s val 0 .
   write_volatile s ctrl 7 .        rem enable | tickint | clksource
-  return 0 .
+  return .
 end .
 
 rem ── `wfi` — 인터럽트를 기다린다 ─────────────────────────────────────────
@@ -201,7 +201,7 @@ do
       wfi
     ASM .
   end .
-  return 0 .
+  return .
 end .
 
 rem ── 주 루프 ─────────────────────────────────────────────────────────────
@@ -221,5 +221,5 @@ do
   while true . do
     wait_irq k .
   end .
-  return 0 .
+  return .
 end .

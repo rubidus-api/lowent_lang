@@ -696,7 +696,45 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                         f->line);
                 return;
             }
-            ir_run(c, f->kids, vstart, f->nkids - vstart);
+            // ★★★★★ **소유가 없는 값은 베껴진다** (정본 §8.3(1) · 결함 노트 #40, 2026-09-16).
+            //
+            //   `var q point be p .` 뒤의 `set (field q x) 99 .` 가 **`p` 의 칸도** 바꿨다 —
+            //   VM 은 구조체를 상자에 담고, 묶기가 그 **상자를 함께 가리켰기** 때문이다.
+            //   그러면 `let p` 가 «바뀌지 않는다» 고 말해 놓고 바뀐다(§6.5.1). 정본은 옮기기와
+            //   베끼기를 가른다: 소유가 있으면 옮기고, 없으면 **벤다.** 그래서 구조체 이름을
+            //   그대로 묶는 자리에서 **칸을 읽어 새 값을 짓는다**(액터 인스턴스는 제외 — 그것은
+            //   값이 아니라 실행 단위이고, 베끼면 상태가 둘이 된다).
+            bool copied_struct = false;
+            if (vstart + 1 == f->nkids && is_atom(f->kids[vstart]) &&
+                f->kids[vstart]->tok.kind == LOW_TOK_IDENT && f->kids[vstart]->tok.kw == LOW_KW_NONE) {
+                bool sfnd; proven_size_t sslot2 = ir_local_find(c, f->kids[vstart]->tok.lex, &sfnd);
+                if (sfnd && c->locals[sslot2].tyname.size) {
+                    bool stf; proven_size_t si2 = ir_struct_find(c->out, c->locals[sslot2].tyname, &stf);
+                    if (stf) {
+                        const low_ir_struct_t *sd = &c->out->structs[si2];
+                        bool plain = sd->nf > 0 && !sd->is_actor_state && !sd->is_mmio &&
+                                     !(sd->f[0].name.size == 2 && sd->f[0].name.ptr[0] == (proven_u8)'$');
+                        bool has_actor_def = false;      // actor 인스턴스 타입이면 베끼지 않는다
+                        for (proven_size_t q = 0; q < c->out->ndefs; q++)
+                            if (c->out->defs[q].is_actor && c->out->defs[q].param_sidx[0] == (proven_u8)si2)
+                                { has_actor_def = true; break; }
+                        if (plain && !has_actor_def && c->out->nmakes < IR_MAXMAKES &&
+                            sd->nf <= IR_MAKE_MAXF) {
+                            proven_size_t my2 = c->out->nmakes++;
+                            low_ir_make_t mk2 = { .type_name = sd->name, .nfields = 0 };
+                            for (proven_size_t q = 0; q < sd->nf; q++) {
+                                mk2.fields[mk2.nfields++] = sd->f[q].name;
+                                ir_node(c, f->kids[vstart]);                 // 원본 값
+                                ir_emit(c, IRW_FIELD, (proven_i64)ir_field_intern(c, sd->f[q].name));
+                            }
+                            c->out->makes[my2] = mk2;
+                            ir_emit(c, IRW_MAKE, (proven_i64)my2);
+                            copied_struct = true;
+                        }
+                    }
+                }
+            }
+            if (!copied_struct) ir_run(c, f->kids, vstart, f->nkids - vstart);
             proven_u8 decl_bset_w = c->bset_w;   // ★ 리셋 전에 선언 폭을 잡아 둔다
             c->vec_lanes = 0; c->vec_esz = 0; c->vec_sign = false; c->bset_w = 0;
             // ★★★★★ **`let` 이 comptime 정수면 이름을 표에 담는다** (2026-08-18).

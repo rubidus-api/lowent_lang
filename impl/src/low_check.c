@@ -2132,6 +2132,12 @@ static void ck_narrow_qual(const low_parse_result_t *pr) {
     if (nmods) for (proven_size_t i = 0; i < pr->nforms; i++) ck_narrow_walk(pr->forms[i], mods, nmods);
 }
 
+// ★★★★★ **좁히기는 검사기만의 일이 아니다** (결함 노트 #77, 2026-09-16).
+//   `M.member` → bare 좁히기가 `low_check` 안에서만 돌아서, `--run`·`--emit-c` 는 좁혀지지 않은
+//   나무를 봤다: 하강은 `case sizes.small` 을 갈래로 못 알아보고 «이름 하나 묶기»로 읽어 그 갈래가
+//   **모든 값을 잡았다**(500=`big` 이 첫 갈래를 돌아 1). 한 나무를 두 층이 다르게 읽으면 틀린다.
+void low_narrow_qualified(const low_parse_result_t *pr) { ck_narrow_qual(pr); }
+
 // ★ import 는 이름을 덮어쓰지 않는다 (RFC-0011, 2026-07-25) — 바인딩 이름(별칭 Y, 또는 모듈 X)이
 //   다른 import 바인딩이나 최상위 선언과 겹치면 `E-NAME-COLLISION`. glob 이 없으므로 충돌면은 낱말 하나뿐.
 static void ck_import_noshadow(low_check_result_t *out, const low_parse_result_t *pr) {
@@ -5485,6 +5491,39 @@ static void ck_parallel(low_check_result_t *out, const low_cst_t *f) {
         nreds++;
     }
 
+    // ★★★★★ **시작값이 항등원이 아니면 나눈 답이 순차와 다르다** (DET-1 · 결함 노트 #64, 2026-09-16).
+    //   조각마다 그 시작값에서 다시 시작하므로 조각 수만큼 더해진다(실측: 순차 121 · 네이티브 621).
+    //   결합성은 *모양*을, 항등원은 *시작*을 지킨다 — 둘 다 있어야 한 답이다.
+    for (proven_size_t q = 0; q < nreds; q++) {
+        const char *want = NULL;
+        if (veq(reds[q].op, "add") || veq(reds[q].op, "bit_or") || veq(reds[q].op, "bit_xor")) want = "0";
+        else if (veq(reds[q].op, "mul")) want = "1";
+        else if (veq(reds[q].op, "max")) want = "0";
+        if (!want) continue;                 // min · bit_and 의 항등원은 폭의 최댓값 — 여기서는 안 본다
+        for (proven_size_t i = 0; i < body->nkids; i++) {
+            const low_cst_t *st = body->kids[i];
+            if (st->kind != LOW_CST_FORM || st->nkids < 5 || st->kids[0]->kind != LOW_CST_ATOM) continue;
+            low_kw_t kw2 = st->kids[0]->tok.kw;
+            if (kw2 != LOW_KW_VAR && kw2 != LOW_KW_LET) continue;
+            if (st->kids[1]->kind != LOW_CST_ATOM ||
+                !proven_u8str_view_eq(st->kids[1]->tok.lex, reds[q].acc)) continue;
+            if (veq(reds[q].op, "max") && st->kids[2]->kind == LOW_CST_ATOM &&
+                st->kids[2]->tok.lex.size && st->kids[2]->tok.lex.ptr[0] != (proven_u8)0x75) break;
+            const low_cst_t *init = st->kids[st->nkids - 1];
+            if (init->kind != LOW_CST_ATOM || init->tok.kind != LOW_TOK_NUMBER) break;
+            if (!veq(init->tok.lex, want))
+                emit(out, "E-PAR-IDENTITY",
+                     "the accumulator this reduction starts from is not the IDENTITY of its "
+                     "operator, so a split answer is not the sequential one: every piece starts "
+                     "again from that value and it is counted once per piece (measured: sequential "
+                     "121, native split 621). DET-1 promises a split is bit-identical — that holds "
+                     "only from the identity (`add`/`bit_or`/`bit_xor` → 0, `mul` → 1, `max` → 0 on "
+                     "an unsigned width). Start from the identity and add the offset once, after "
+                     "the loop", st->line);
+            break;
+        }
+    }
+
     bool found_loop = false, any_err = false;
     proven_size_t before = 0;
     for (proven_size_t i = 0; i < body->nkids; i++) {
@@ -6582,6 +6621,205 @@ static void ck_capkind_walk(low_check_result_t *out, const low_cst_t *nd, const 
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_capkind_walk(out, nd->kids[i], def_form);
 }
+
+// ★★★★★ **권한은 건네받는 것이지 지어내는 것이 아니다** (RFC-0030 D2 · 결함 노트 #49, 2026-09-16).
+//   `input k cap io .` 을 받는 op 을 `say 0` 으로 부르면 — 권한 자리에 **수 리터럴** — `--check` 가
+//   통과했고 VM·네이티브 모두 출력을 냈다. 권한을 하나도 안 받은 `main` 이 그렇게 바깥에 닿았다.
+//   자리표 `0` 은 **도구의 입구**(`--run`)에서만 뜻이 있다 — 프로그램 안에서는 아니다.
+static void ck_capforge_walk(low_check_result_t *out, const low_cst_t *nd,
+                             const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
+        nd->kids[0]->tok.kw == LOW_KW_NONE) {
+        proven_u8str_view_t callee = nd->kids[0]->tok.lex;
+        proven_u8str_view_t qmod = nd->kids[0]->qual_mod;
+        for (proven_size_t i = 0; i < nt; i++) {
+            if (!proven_u8str_view_eq(tab[i].name, callee)) continue;
+            if (qmod.size && !proven_u8str_view_eq(tab[i].mod, qmod)) continue;
+            if (!tab[i].form) break;
+            low_op_header_t ch = low_op_header(tab[i].form);
+            for (proven_size_t q = 0; q < ch.np && q + 1 < nd->nkids; q++) {
+                proven_size_t cw = ch.p[q].core;
+                if (cw >= tab[i].form->nkids || !ck_atom(tab[i].form->kids[cw]) ||
+                    !veq(tab[i].form->kids[cw]->tok.lex, "cap")) continue;
+                const low_cst_t *arg = nd->kids[q + 1];
+                while (arg && arg->kind == LOW_CST_GROUP && arg->nkids == 1) arg = arg->kids[0];
+                if (!arg || arg->kind != LOW_CST_ATOM) continue;
+                bool literal = arg->tok.kind == LOW_TOK_NUMBER || arg->tok.kind == LOW_TOK_STRING ||
+                               arg->tok.kind == LOW_TOK_HEREDOC ||
+                               arg->tok.kw == LOW_KW_TRUE || arg->tok.kw == LOW_KW_FALSE;
+                if (literal)
+                    emit(out, "E-CAP-FORGE",
+                         "a LITERAL was passed where a capability is taken. A capability is handed "
+                         "over, never conjured: it can only be a name you were given (an `input … "
+                         "cap …`) or an actor's capability field (RFC-0030 D2). Passing a number "
+                         "here would let an op that received NO right reach the outside, and then "
+                         "the entry point no longer tells what the program can touch. The "
+                         "placeholder `0` means something only at the tool's door (`--run`)",
+                         arg->tok.line);
+            }
+            break;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_capforge_walk(out, nd->kids[i], tab, nt);
+}
+
+// 이 op 폼이 어떤 actor 블록 **안에** 있는가 (핸들러면 상태 칸을 맨 이름으로 읽는 것이 정상이다).
+static bool ck_form_is_handler_of(const low_parse_result_t *pr, const low_cst_t *opform) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (!(f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]) &&
+              f->kids[0]->tok.kw == LOW_KW_ACTOR)) continue;
+        for (proven_size_t b = 0; b < f->nkids; b++) {
+            const low_cst_t *blk = f->kids[b];
+            if (!blk || blk->kind != LOW_CST_BLOCK) continue;
+            for (proven_size_t q = 0; q < blk->nkids; q++) if (blk->kids[q] == opform) return true;
+        }
+    }
+    return false;
+}
+static bool ck_is_actor_type(const low_parse_result_t *pr, proven_u8str_view_t nm) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]) &&
+            f->kids[0]->tok.kw == LOW_KW_ACTOR && ck_atom(f->kids[1]) &&
+            proven_u8str_view_eq(f->kids[1]->tok.lex, nm)) return true;
+    }
+    return false;
+}
+static void ck_collect_actor_locals(const low_cst_t *nd, const low_parse_result_t *pr,
+                                    proven_u8str_view_t *names, proven_size_t *n, proven_size_t cap) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) &&
+        ck_atom(nd->kids[1]) && ck_atom(nd->kids[2]) &&
+        ck_is_actor_type(pr, nd->kids[2]->tok.lex) && *n < cap)
+        names[(*n)++] = nd->kids[1]->tok.lex;
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_collect_actor_locals(nd->kids[i], pr, names, n, cap);
+}
+// ★★★★★ **액터의 상태는 액터 안에만 있다** (정본 §10.2(1) · 결함 노트 #61, 2026-09-16).
+static void ck_actorfield_walk(low_check_result_t *out, const low_cst_t *nd,
+                               const proven_u8str_view_t *names, proven_size_t n) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) &&
+        veq(nd->kids[0]->tok.lex, "field") && ck_atom(nd->kids[1])) {
+        for (proven_size_t i = 0; i < n; i++)
+            if (proven_u8str_view_eq(names[i], nd->kids[1]->tok.lex)) {
+                emit(out, "E-ACTOR-FIELD",
+                     "this reads a STATE FIELD of an actor from outside it. An actor's state lives "
+                     "inside the actor and nowhere else (§10.2): the only door is a message "
+                     "(`send a <op> …`). If the state were readable from outside, the isolation that "
+                     "makes actors safe without locks — one message at a time — would not hold, and "
+                     "the reader would see a value between two messages. Add an op to the actor that "
+                     "returns what you need",
+                     nd->kids[1]->tok.line);
+                break;
+            }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_actorfield_walk(out, nd->kids[i], names, n);
+}
+// ★★★★ **빌림은 상태 칸에 살 수 없다** (정본 §8.4.1 · 결함 노트 #74).
+static void ck_actor_state_refs(low_check_result_t *out, const low_cst_t *actor_form) {
+    for (proven_size_t i = 0; i < actor_form->nkids; i++) {
+        const low_cst_t *blk = actor_form->kids[i];
+        if (!blk || blk->kind != LOW_CST_BLOCK) continue;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *st = blk->kids[j];
+            if (!st || st->kind != LOW_CST_FORM || st->nkids < 2 || !ck_atom(st->kids[0])) continue;
+            if (st->kids[0]->tok.kw != LOW_KW_STATE) continue;
+            for (proven_size_t b = 0; b < st->nkids; b++) {
+                const low_cst_t *sb = st->kids[b];
+                if (!sb || sb->kind != LOW_CST_BLOCK) continue;
+                for (proven_size_t q = 0; q < sb->nkids; q++) {
+                    const low_cst_t *fld = sb->kids[q];
+                    if (!fld || fld->kind != LOW_CST_FORM) continue;
+                    for (proven_size_t z = 1; z < fld->nkids; z++)
+                        if (ck_atom(fld->kids[z]) &&
+                            (veq(fld->kids[z]->tok.lex, "ref") || veq(fld->kids[z]->tok.lex, "mut_ref"))) {
+                            emit(out, "E-ACTOR-STATE-REF",
+                                 "an actor STATE field may not be a borrow (`ref` / `mut_ref`). A "
+                                 "borrow may not outlive what it borrows (§8.4.1), and a state field "
+                                 "lives as long as the actor — there is nowhere here to say what it "
+                                 "borrows. Keep a VALUE in state (copy it in), or keep a slice the "
+                                 "actor was handed and owns for its lifetime",
+                                 fld->line);
+                            break;
+                        }
+                }
+            }
+        }
+    }
+}
+// ★★★★★ **나갈 때 다시 읽히는 상태 칸을 오류 조건에 쓰지 않는다** (결함 노트 #62, 2026-09-16).
+//
+//   `errors insufficient gt amount balance .` — 조건이 액터의 상태 칸 `balance` 를 읽는다.
+//   성공 경로가 그 칸을 줄이면, **나갈 때 다시 읽힌 조건**이 참이 되어 «조건이 참인데 그 오류를
+//   내지 않았다» 가 된다. 그런데 VM 은 그것을 계약 위반(`E-VM-CONTRACT`)이 아니라 **컴파일러
+//   결함**(`E-VM-ANALYSIS`)으로 알리고, **네이티브는 아예 검사하지 않는다** — 두 뒤끝이 갈렸다.
+//   정본은 `errors` 조건을 들어올 때 값으로 읽는지 나갈 때 값으로 읽는지 적지 않았다(RFC-0115 §8).
+//   ⇒ 뜻이 정해질 때까지 **그 모양을 거절한다.** 검사할 수 없는 선언을 안전의 근거로 삼지 않는다.
+static const low_cst_t *ck_actor_block_of(const low_parse_result_t *pr, const low_cst_t *opform) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (!(f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]) &&
+              f->kids[0]->tok.kw == LOW_KW_ACTOR)) continue;
+        for (proven_size_t b = 0; b < f->nkids; b++) {
+            const low_cst_t *blk = f->kids[b];
+            if (!blk || blk->kind != LOW_CST_BLOCK) continue;
+            for (proven_size_t q = 0; q < blk->nkids; q++) if (blk->kids[q] == opform) return blk;
+        }
+    }
+    return NULL;
+}
+// 조건 나무가 상태 칸 이름을 읽는가 — **되돌림으로 훑는다**(고정 표는 깊은 조건을 조용히 자른다).
+static bool ck_cond_reads_state(const low_cst_t *nd, const low_cst_t *actor_blk) {
+    if (!nd) return false;
+    if (ck_atom(nd) && nd->tok.kind == LOW_TOK_IDENT &&
+        ck_name_is_state_field(actor_blk, nd->tok.lex)) return true;
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        if (ck_cond_reads_state(nd->kids[i], actor_blk)) return true;
+    return false;
+}
+static void ck_errors_on_state(low_check_result_t *out, const low_cst_t *f,
+                               const low_cst_t *actor_blk) {
+    if (!actor_blk) return;
+    for (proven_size_t j = 2; j + 1 < f->nkids; j++) {
+        if (!ck_atom(f->kids[j]) || !veq(f->kids[j]->tok.lex, "errors")) continue;
+        for (proven_size_t e = j + 2; e < f->nkids; e++) {          // j+1 은 오류 갈래 이름
+            const low_cst_t *n2 = f->kids[e];
+            if (!n2 || n2->kind == LOW_CST_BLOCK) break;              // ★ 몸이 시작되면 절은 끝났다
+            if (ck_atom(n2) && ck_clause_word(n2->tok.lex)) break;   // 다음 절
+            if (ck_cond_reads_state(n2, actor_blk)) {
+                emit(out, "E-ERRORS-STATE",
+                     "the condition of this `errors` clause reads an actor STATE field. The "
+                     "condition is read again ON EXIT, by which time the successful path has "
+                     "changed that field — the clause then says an error was owed that the op "
+                     "never returned. Today the two backends do not even agree on it (the VM "
+                     "reports its own analysis as unsound, native code checks nothing), and the "
+                     "canon does not say whether such a condition is read on entry or on exit. "
+                     "Write the condition over the INPUTS, and guard on the state inside the body",
+                     f->line);
+                return;
+            }
+        }
+    }
+}
+// ★★★★★ **`let` 의 불변은 참조로 뚫리지 않는다** (정본 §6.5.1(1) · §8.8 · 결함 노트 #46).
+static void ck_mutref_of_ro_walk(low_check_result_t *out, const low_cst_t *nd,
+                                 const ck_bind_t *binds, proven_size_t nb) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        veq(nd->kids[0]->tok.lex, "mut_ref") && ck_atom(nd->kids[1]) &&
+        nd->kids[1]->tok.kind == LOW_TOK_IDENT && nd->kids[1]->tok.kw == LOW_KW_NONE &&
+        ck_name_is_ro(binds, nb, nd->kids[1]->tok.lex))
+        emit(out, "E-TYPE-ARGMUT",
+             "a WRITE borrow (`mut_ref`) was taken of a name that cannot be written: a `let` binding "
+             "(or a shared input). `let` says the value does not change (§6.5.1) — if a borrow could "
+             "change it, the reader who checked that name once would be wrong, and the borrow makes "
+             "the change invisible at the call site. Bind it with `var`, or take a read borrow (`ref`)",
+             nd->kids[1]->tok.line);
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_mutref_of_ro_walk(out, nd->kids[i], binds, nb);
+}
 static void ck_launder_walk(low_check_result_t *out, const low_cst_t *nd,
                             const low_opinfo_t *tab, proven_size_t nt,
                             const ck_bind_t *binds, proven_size_t nb,
@@ -6787,6 +7025,24 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         info.self_declared = declared;
         if (op_actor[fi] && (declared & EFF_STATE)) info.self_declared |= EFF_PANIC;   // 자기검사만
         (void)PROVEN_ARRAY_PUSH(&ops, low_opinfo_t, info);
+    }
+
+    // ★ 액터 상태 칸에 빌림을 두는 것 (§8.4.1 · 결함 노트 #74) · 상태를 읽는 오류 조건 (#62)
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *af = pr->forms[i];
+        if (!(af->kind == LOW_CST_FORM && af->nkids >= 2 && ck_atom(af->kids[0]) &&
+              af->kids[0]->tok.kw == LOW_KW_ACTOR)) continue;
+        ck_actor_state_refs(&out, af);
+        for (proven_size_t b = 0; b < af->nkids; b++) {
+            const low_cst_t *blk = af->kids[b];
+            if (!blk || blk->kind != LOW_CST_BLOCK) continue;
+            for (proven_size_t q = 0; q < blk->nkids; q++) {
+                const low_cst_t *hop = blk->kids[q];
+                if (hop && hop->kind == LOW_CST_FORM && hop->nkids >= 2 && ck_atom(hop->kids[0]) &&
+                    (hop->kids[0]->tok.kw == LOW_KW_FN || hop->kids[0]->tok.kw == LOW_KW_PROC))
+                    ck_errors_on_state(&out, hop, blk);
+            }
+        }
     }
 
     // ★★ **중복 이름** — 이름공간이 **평면**이다(가림도, 한정 경로도 없다).
@@ -7491,6 +7747,13 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             ck_collect_binds(h.body, binds, &nb, 256);
             ck_launder_walk(&out, h.body, tab0, ops.len, binds, nb, pr);
             ck_capkind_walk(&out, h.body, f);   // ★ 권위는 종류로 (RFC-0077 §P1-2)
+            ck_capforge_walk(&out, h.body, tab0, ops.len);  // ★ 권한은 지어낼 수 없다 (RFC-0030 D2)
+            ck_mutref_of_ro_walk(&out, h.body, binds, nb);   // ★ `let` 은 참조로도 안 바뀐다 (#46)
+            if (!ck_form_is_handler_of(pr, f)) {             // ★ 액터 밖에서 상태 칸을 읽는가 (§10.2)
+                proven_u8str_view_t anames[64]; proven_size_t na = 0;
+                ck_collect_actor_locals(h.body, pr, anames, &na, 64);
+                if (na) ck_actorfield_walk(&out, h.body, anames, na);
+            }
             // ★ A2 — 반환값 세탁: 출력이 가변 장소인 op 이 공유(읽기 전용) 입력을 돌려주면 거절.
             if (ck_output_is_mut_place(f, &h))
                 ck_retlaunder_walk(&out, h.body, binds, nb, pr);

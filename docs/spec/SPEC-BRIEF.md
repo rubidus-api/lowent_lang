@@ -91,16 +91,16 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   프로파일  freestanding  embedded  native  server
 ```
 
-## 6. 오류 코드 — 계열 **94**  ·  *출처: `impl/src/*.c`*
+## 6. 오류 코드 — 계열 **95**  ·  *출처: `impl/src/*.c`*
 
 **전부 적지 않는다**(수백 개다). 어느 계열이 얼마나 굵은지만 — 굵은 계열이 곧 이 언어가
 가장 자주 거절하는 자리다.
 
 ```text
   E-VM(50)  E-TYPE(34)  E-ASM(11)  E-NAME(11)  E-ALLOC(10)
-  E-ENUM(9)  E-EFFECT(8)  E-PKG(8)  E-MMIO(8)  E-PAR(6)
+  E-ENUM(9)  E-EFFECT(8)  E-PKG(8)  E-MMIO(8)  E-PAR(7)
   E-FFI(6)  E-IR(6)  E-TRAIT(5)  E-OWN(5)
-  … 그 밖 80 계열
+  … 그 밖 81 계열
 ```
 
 ## 7. 지금의 수  ·  *가리키기만 한다*

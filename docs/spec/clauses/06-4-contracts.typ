@@ -112,6 +112,9 @@ end .", "E-CLAUSE-ORDER")
     ]
     #term("errors", "error condition")[
       op 이 실패하는 경우와 그때의 오류 값. 어떤 조건에서 어떤 오류가 나오는지를 적는다.
+      조건은 **op 의 입력**으로 적는다 — 액터의 상태 칸을 읽는 조건은 거부된다
+      (`E-ERRORS-STATE`). 그런 조건은 op 이 상태를 바꾼 **뒤에 다시 읽히면** 뜻이 달라지고,
+      어느 시점의 값으로 읽어야 하는지가 아직 정해지지 않았다.
     ]
     #term("effects", "effect declaration")[
       이 op 이 내는 효과의 목록(#cref("7.1")). 아무 효과도 내지 않으면 `effects none` 이다.

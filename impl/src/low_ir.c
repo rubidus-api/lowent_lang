@@ -1898,6 +1898,15 @@ static bool ir_enum_ctor(ir_ctx_t *c, const low_cst_t *nd,
     proven_u8str_view_t vseg  = { v.ptr + dot + 1, v.size - dot - 1 };
     proven_size_t vi;
     if (!ir_enum_variant_of(c, ehead, vseg, &vi)) return false;   // not <enum>.<variant> — caller falls through
+    // ★★★★★ **페이로드 없는 enum 은 값이 인덱스다** (결함 노트 #21·#41, 2026-09-16).
+    //   맨 이름 `green` 은 `IRW_CONST <인덱스>` 로 낮아지는데, 한정한 `light.green` 은 여기서
+    //   **태그 필드를 가진 레코드**를 지었다 — 같은 값의 두 표현. 그래서 `--check` 는 통과하고
+    //   실행에서 `E-VM-TYPE: arithmetic/compare needs ints` 로 멈췄다(두 뒤끝 모두).
+    //   ☞ *한 값에 표현이 둘이면 그 둘이 만나는 자리에서 반드시 터진다.*
+    if (!ir_enum_is_payload(c, (proven_i64)vi)) {
+        ir_emit(c, IRW_CONST, (proven_i64)vi);
+        return true;
+    }
     if (c->out->nmakes >= IR_MAXMAKES) { ir_fail(c, "E-IR-UNSUP", "too many make sites", nd->line); return true; }
     proven_size_t my = c->out->nmakes++;
     low_ir_make_t mk = { .type_name = ehead, .nfields = 0 };

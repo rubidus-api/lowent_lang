@@ -1712,6 +1712,7 @@ int main(int argc, char **argv) {
         //   `--run`/`--emit-c`/`--test` 는 켜지 않는다: 그 출력은 답이거나 C 소스이고,
         //   VM 과 네이티브를 **바이트로** 견주는 검사들이 그것을 읽는다.
         low_ir_set_author_warnings(want_ir);
+        low_narrow_qualified(&pr);          // ★ 하강도 좁혀진 이름을 본다 (결함 노트 #77)
         low_ir_t ir = low_ir_build(heap, &pr);
         low_ir_set_author_warnings(false);
         if (want_ir && low_ir_build_dropped())

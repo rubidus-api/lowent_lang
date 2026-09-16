@@ -42,4 +42,9 @@ const char *low_effect_bit_name(unsigned bit);
 // Analyse MVP declarations in `pr`. `work` (heap) backs the op table + diag array.
 [[nodiscard]] low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *pr);
 
+// ★ 모듈 한정 이름(`M.member`)을 bare 로 좁힌다 — **하강도 같은 나무를 본다**(결함 노트 #77).
+//   `low_check` 안에서만 돌던 때, `--run` 은 좁혀지지 않은 `case M.v` 를 «이름 묶기»로 읽어
+//   그 갈래가 모든 값을 잡았다. 한 나무를 두 층이 다르게 읽으면 그중 하나는 틀린다.
+void low_narrow_qualified(const low_parse_result_t *pr);
+
 #endif // LOW_CHECK_H

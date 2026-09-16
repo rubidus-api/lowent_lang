@@ -843,7 +843,7 @@ $ lowentc --run running pairs.low [1,2,3,4] [0,0,0,0]
 running([1,2,3,4], [1,3,6,10]) = 0
   arg0 (written) = [1,2,3,4]
   arg1 (written) = [1,3,6,10]
-</code></pre></div></div><p><code>enumerate idxadd</code> 는 <code>idxadd</code> 에 순번과 원소를 준다. <code>zip ys addb</code> 는 <code>xs</code> 의 원소와 <code>ys</code> 의 같은 자리 원소를 <code>addb</code> 에 준다. 짧은 쪽이 끝나면 흐름 전체가 끝나서 짝이 늘 맞는다. <code>scan 0 addb</code> 는 누적합을 원소로 흘린다. 쌍을 만들었다 곧장 풀지 않으므로 숨은 할당도 없다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> <code>collect into</code> 로 쓰는 op 인데 머리가 <code>effects none</code> 이다. 호출자의 버퍼를 바꾸는데 효과가 없는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 명세의 예제도 <code>effects none</code> 으로 적고, 이 판의 처리기는 <code>collect into</code> 의 쓰기를 <code>state</code> 효과로 세지 않는다(<code>state</code> 를 적으면 “선언했지만 하지 않는다” 는 경고가 난다). 반면 <code>set (index xs i) …</code> 로 호출자의 슬라이스에 쓰면 <code>effects state</code> 를 요구한다. 두 판정이 어긋나는 자리이고, 이 책은 결함으로 본다. 어느 쪽이든 호출자는 <code>mut slice</code> 를 건네는 자리에서 쓰기가 일어날 수 있다는 것을 안다(12장).</p></div></div><h3 id="s24-3">24.3 한 번에 훑는 것은 정의다<a class="plink" href="#s24-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>한 <code>pipe</code> 는 <strong>한 번의 훑기</strong>로 실행되고 스테이지 사이에 중간 배열이 만들어지지 않는다. 이것은 처리기가 해 볼 수 있는 최적화가 아니라 <code>pipe</code> 의 정의이고, 중간 배열을 만드는 처리기는 적합하지 않다.</p><p>왜 정의로 두는가. 융합을 최적화로 두면 “어디까지 융합되는가” 가 처리기마다 다르고, 쓰는 사람은 <strong>절벽</strong>을 만난다. 한 줄을 고쳤더니 갑자기 중간 배열이 생기고 느려지는 자리다. 그 절벽은 소스만 봐서는 안 보인다. Lowent 는 융합할 수 없는 연산을 스테이지 낱말에 <strong>아예 넣지 않았다</strong>. 정렬처럼 전체를 봐야 하는 연산이 스테이지에 없는 이유다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/bad_stage.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bad_stage .
+</code></pre></div></div><p><code>enumerate idxadd</code> 는 <code>idxadd</code> 에 순번과 원소를 준다. <code>zip ys addb</code> 는 <code>xs</code> 의 원소와 <code>ys</code> 의 같은 자리 원소를 <code>addb</code> 에 준다. 짧은 쪽이 끝나면 흐름 전체가 끝나서 짝이 늘 맞는다. <code>scan 0 addb</code> 는 누적합을 원소로 흘린다. 쌍을 만들었다 곧장 풀지 않으므로 숨은 할당도 없다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> <code>collect into</code> 로 쓰는 op 인데 머리가 <code>effects none</code> 이다. 호출자의 버퍼를 바꾸는데 효과가 없는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 명세의 예제도 <code>effects none</code> 으로 적는다. <code>collect into</code> 는 <code>effects state</code> 를 <strong>요구하지는</strong> 않지만, 적어 두면 처리기가 그것을 호출자 저장소 쓰기로 세므로 “선언했지만 하지 않는다” 는 경고는 나지 않는다 — <code>mut</code>·<code>mut_ref</code> 매개변수에 쓰는 자리와 같은 판정이다. 어느 쪽으로 적든 호출자는 <code>mut slice</code> 를 건네는 자리에서 쓰기가 일어날 수 있다는 것을 안다(12장).</p></div></div><h3 id="s24-3">24.3 한 번에 훑는 것은 정의다<a class="plink" href="#s24-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>한 <code>pipe</code> 는 <strong>한 번의 훑기</strong>로 실행되고 스테이지 사이에 중간 배열이 만들어지지 않는다. 이것은 처리기가 해 볼 수 있는 최적화가 아니라 <code>pipe</code> 의 정의이고, 중간 배열을 만드는 처리기는 적합하지 않다.</p><p>왜 정의로 두는가. 융합을 최적화로 두면 “어디까지 융합되는가” 가 처리기마다 다르고, 쓰는 사람은 <strong>절벽</strong>을 만난다. 한 줄을 고쳤더니 갑자기 중간 배열이 생기고 느려지는 자리다. 그 절벽은 소스만 봐서는 안 보인다. Lowent 는 융합할 수 없는 연산을 스테이지 낱말에 <strong>아예 넣지 않았다</strong>. 정렬처럼 전체를 봐야 하는 연산이 스테이지에 없는 이유다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/bad_stage.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bad_stage .
 <em><span class="tok-c">rem expect: E-PIPE-STAGE</span></em>
 
 <strong><span class="tok-k">fn</span></strong> is_digit <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
@@ -929,16 +929,7 @@ count_big([1,2,3,4,5]) = 3
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_widecollect.low
 mistake_widecollect.low:14:0 E-TYPE-COLLECT: this `collect into` would put a WIDER value into a narrower buffer, and that loses bits silently (measured: 1000 became 232). A conversion that loses value never happens implicitly here (§6.2.5) — put a `map` in front that says which narrowing you mean (`narrow`, `narrow_wrap`, `narrow_sat`, `narrow_try`), or collect into a buffer of the produced width
 </code></pre></div></div><p><code>times1000</code> 은 <code>u64</code> 를 내는데 <code>out</code> 은 <code>u8</code> 버퍼다. 값을 잃는 좁히기는 적어야만 일어나므로(§6.2.5) <code>E-TYPE-COLLECT</code> 로 거절된다. 2026-09-16 까지는 통과했고 1000 과 2000 이 조용히 232 와 208 로 담겼다. 좁혀야 한다면 <code>map</code> 의 op 안에서 <code>narrow</code>·<code>narrow_wrap</code>· <code>narrow_sat</code> 로 어느 좁히기인지 적어 멈출 자리를 드러낸다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>fold</code> 의 op 에서 누산값과 원소의 차례를 바꾼다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_foldorder.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_foldorder .
-<em><span class="tok-c">rem run: sum_small_right [1,2,3,200]</span></em>
-<em><span class="tok-c">rem run: sum_small_wrong [1,2,3,200]</span></em>
-
-<em><span class="tok-c">rem 올바른 차례 --- 누산값이 먼저, 원소가 다음</span></em>
-<strong><span class="tok-k">fn</span></strong> add_small <strong><span class="tok-k">input</span></strong> acc <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">requires</span></strong> le acc <span class="tok-n">1000000</span> .
-<strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">guard</span></strong> lt x <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> acc .
-  <strong><span class="tok-k">return</span></strong> add acc (widen <strong><span class="tok-t">u64</span></strong> x) .
-<strong><span class="tok-k">end</span></strong> .
+<em><span class="tok-c">rem expect: E-FOLD-ORDER</span></em>
 
 <em><span class="tok-c">rem ✘ 원소를 먼저 받았다 --- 누산값이 `x` 로, 원소가 `acc` 로 들어온다</span></em>
 <strong><span class="tok-k">fn</span></strong> add_small_swapped <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> acc <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -948,26 +939,15 @@ mistake_widecollect.low:14:0 E-TYPE-COLLECT: this `collect into` would put a WID
   <strong><span class="tok-k">return</span></strong> add acc (widen <strong><span class="tok-t">u64</span></strong> x) .
 <strong><span class="tok-k">end</span></strong> .
 
-<strong><span class="tok-k">fn</span></strong> sum_small_right <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
-    fold <span class="tok-n">0</span> add_small .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
-
 <strong><span class="tok-k">fn</span></strong> sum_small_wrong <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
     fold <span class="tok-n">0</span> add_small_swapped .
   <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run sum_small_right mistake_foldorder.low [1,2,3,200]
-sum_small_right([1,2,3,200]) = 6
-  arg0 (written) = [1,2,3,200]
-$ lowentc --run sum_small_wrong mistake_foldorder.low [1,2,3,200]
-sum_small_wrong([1,2,3,200]) = 206
-  arg0 (written) = [1,2,3,200]
-</code></pre></div></div><p><code>fold</code> 는 op 에 <strong>누산값을 먼저, 원소를 다음</strong> 에 준다. <code>add_small_swapped</code> 는 차례를 거꾸로 받았으므로 <code>x</code> 에 누산값이, <code>acc</code> 에 원소가 들어온다. 100 이상인 원소를 건너뛰어야 할 조건이 누산값에 걸려 200 이 더해지고 답이 206 이 된다. 타입이 <code>u8</code> 과 <code>u64</code> 로 달라도 이 판의 도구는 대조하지 않는다(결함으로 적어 두었다). <code>fold</code>·<code>scan</code> 의 op 은 언제나 <code>input acc … . input x … .</code> 차례로 적는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 멈출 수 있는 스테이지 op 을 쓰고 <code>fn</code> 으로 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_stageeffect.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_stageeffect .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_foldorder.low
+mistake_foldorder.low:15:0 E-FOLD-ORDER: the accumulator of a `fold`/`scan` is the FIRST input of its op and also its output, because each step computes `acc = op(acc, element)`. Here the first input and the output are declared with different types, so the running total is handed to a parameter that cannot hold it — a `u8` first input takes a total of 600 as 88 and the answer is silently wrong. Write the op as `input acc &lt;out-type> . input x &lt;element-type> .`
+</code></pre></div></div><p><code>fold</code> 는 op 에 <strong>누산값을 먼저, 원소를 다음</strong> 에 준다. <code>add_small_swapped</code> 는 차례를 거꾸로 받았으므로 <code>x</code> 에 누산값이, <code>acc</code> 에 원소가 들어온다. 한 걸음이 <code>누산값 = op(누산값, 원소)</code> 이므로 첫 입력의 타입은 출력 타입과 같아야 하는데 여기서는 <code>u8</code> 과 <code>u64</code> 로 다르다 — <code>E-FOLD-ORDER</code> 로 거절한다. <code>fold</code>·<code>scan</code> 의 op 은 언제나 <code>input acc … . input x … .</code> 차례로 적는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 멈출 수 있는 스테이지 op 을 쓰고 <code>fn</code> 으로 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_stageeffect.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_stageeffect .
 <em><span class="tok-c">rem expect: E-EFFECT-CALC</span></em>
 
 <strong><span class="tok-k">proc</span></strong> nonzero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .

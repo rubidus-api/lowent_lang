@@ -850,7 +850,7 @@ pick_bare() = 2
 $ lowentc --run pick_qualified mistake_unitvariant.low
 pick_qualified() = 2
 </code></pre></div></div><p>값을 지니는 갈래는 <code>shape.circle 2</code> 처럼 타입 이름을 붙여 만들고, 아무것도 지니지 않는 갈래는 <code>green</code> 처럼 이름만 적는 것이 이 책의 버릇이다. 둘 다 같은 값이다 — <code>pick_bare</code> 와 <code>pick_qualified</code> 가 같은 2 를 낸다. 2026-09-16 까지 이 판의 도구는 값 없는 갈래를 <code>light.green</code> 으로 적으면 <strong>다른 표현</strong>(태그를 가진 레코드)으로 낮췄고, 그래서 실행 중에 <code>E-VM-TYPE</code> 으로 멈췄다. 지금은 둘이 같은 인덱스로 낮아진다. 짧은 쪽을 쓰되, 어느 열거형의 갈래인지 헷갈리는 자리에서는 타입 이름을 붙여도 된다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 구조체 둘을 <code>eq</code> 로 비교한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/mistake_eqstruct.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_eqstruct .
-<em><span class="tok-c">rem trap: same</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-KIND</span></em>
 
 <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
   x <strong><span class="tok-t">u64</span></strong> .
@@ -864,10 +864,9 @@ pick_qualified() = 2
   <em><span class="tok-c">rem ✘ 구조체 둘을 `eq` 로 비교했다 --- `eq` 는 수와 참거짓을 비교한다</span></em>
   <strong><span class="tok-k">return</span></strong> eq p q .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run same mistake_eqstruct.low
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: arithmetic/compare needs ints
-</code></pre></div></div><p><code>eq</code> 는 수와 참거짓을 비교한다. 구조체 둘이 “같다” 는 것은 타입마다 뜻이 다르다 — 모든 칸이 같아야 하는지, 이름표 칸만 같으면 되는지. 이 판의 도구는 이 비교를 번역에서 거절하지 않고 실행 중에 멈춘다(결함으로 적어 두었다). 같음의 뜻을 op 으로 적는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/eqstruct_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> eqstruct_fixed .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_eqstruct.low
+mistake_eqstruct.low:14:0 E-TYPE-KIND: `eq` / `ne` compare numbers and booleans, not STRUCTS. What "equal" means for a struct differs by type — every field, or only the identifying one? — so the language does not guess: write an op that says it (field by field). This used to pass `--check` and stop at run time with `E-VM-TYPE`
+</code></pre></div></div><p><code>eq</code> 는 수와 참거짓을 비교한다. 구조체 둘이 “같다” 는 것은 타입마다 뜻이 다르다 — 모든 칸이 같아야 하는지, 이름표 칸만 같으면 되는지. 그래서 <code>E-TYPE-KIND</code> 로 번역 때 거절한다. 같음의 뜻을 op 으로 적는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/eqstruct_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> eqstruct_fixed .
 <em><span class="tok-c">rem run: same</span></em>
 
 <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>

@@ -896,6 +896,7 @@ grade(70) = 1
 $ lowentc --run grade elseif.low 95
 grade(95) = 2
 </code></pre></div></div><p>마지막 갈래는 <code>end else do … end .</code> 이다. 갈래가 셋 이상이고 모두 한 값을 가르는 것이면 <code>match</code> 가 더 알맞다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. C 처럼 블록 안에 <code>else</code> 를 둔다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_innerelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_innerelse .
+<em><span class="tok-c">rem expect: E-STMT-ELSE</span></em>
 
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -909,8 +910,8 @@ grade(95) = 2
   <strong><span class="tok-k">return</span></strong> r .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_innerelse.low
-== check: ok ==
-</code></pre></div></div><p>C 나 몇몇 언어는 <code>if … { … } else { … }</code> 처럼 <code>else</code> 가 앞 블록 뒤에 붙는다. Lowent 에서 <code>else</code> 는 앞 블록을 <code>end</code> 로 닫은 <strong>뒤에</strong> 온다(<code>end else do</code>). 블록 안에 <code>else</code> 를 한 줄로 두면 이 판의 도구는 번역을 거절하지 않고 “낮출 수 없는 op 이 하나 있다” 는 알림만 붙인 채 <code>check: ok</code> 를 낸다. 실행하면 <code>E-VM-UNSUP</code> 으로 멈추고, 네이티브 빌드에서는 그 op 이 아예 빠진다(개발 저장소에 결함으로 적어 두었다). <code>check: ok</code> 위에 붙은 알림(note)도 읽는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 조건에 <code>&lt;</code> 같은 기호를 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_less.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_less .
+mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C writes it. Here a block is closed before the other arm opens: `if &lt;cond> . do … end else do … end .`. Written this way the arm used to be accepted by every static check and then dropped at lowering — the VM stopped with an unsupported body and the native build silently left the op out
+</code></pre></div></div><p>C 나 몇몇 언어는 <code>if … { … } else { … }</code> 처럼 <code>else</code> 가 앞 블록 뒤에 붙는다. Lowent 에서 <code>else</code> 는 앞 블록을 <code>end</code> 로 닫은 <strong>뒤에</strong> 온다(<code>end else do</code>). 블록 안에 <code>else</code> 를 한 줄로 두면 <code>E-STMT-ELSE</code> 로 거절한다 — 전에는 번역이 통과하고 실행에서야 <code>E-VM-UNSUP</code> 으로 멈췄으며, 네이티브 빌드는 그 op 을 아예 뺐다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 조건에 <code>&lt;</code> 같은 기호를 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_less.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_less .
 <em><span class="tok-c">rem expect: E-CHAR</span></em>
 
 <strong><span class="tok-k">fn</span></strong> upto <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -937,8 +938,10 @@ grade(95) = 2
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .</code></pre><p>첫 짝수에서 <code>i</code> 가 더 이상 오르지 않아 반복이 끝나지 않는다. 번역도 실행 검사도 이것을 잡지 못한다 — 멈추지 않는 것은 넘침이 아니기 때문이다. 증가를 몸의 <strong>맨 앞</strong>으로 옮기거나(그러면 색인에는 증가 전의 값을 따로 담는다), 원소를 훑는 일이면 처음부터 <code>for x xs do</code> 를 쓴다. <code>for</code> 는 다음 원소로 넘어가는 일을 언어가 맡으므로 이 결함이 생길 자리가 없다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>match</code> 의 나머지를 <code>else</code> 로 받는다 — 이 판의 구멍</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_matchelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_matchelse .
-<em><span class="tok-c">rem expect: E-MATCH-INEXHAUSTIVE</span></em>
+<strong><span class="tok-k">end</span></strong> .</code></pre><p>첫 짝수에서 <code>i</code> 가 더 이상 오르지 않아 반복이 끝나지 않는다. 번역도 실행 검사도 이것을 잡지 못한다 — 멈추지 않는 것은 넘침이 아니기 때문이다. 증가를 몸의 <strong>맨 앞</strong>으로 옮기거나(그러면 색인에는 증가 전의 값을 따로 담는다), 원소를 훑는 일이면 처음부터 <code>for x xs do</code> 를 쓴다. <code>for</code> 는 다음 원소로 넘어가는 일을 언어가 맡으므로 이 결함이 생길 자리가 없다.</p></div></div><p>나머지를 받는 자리는 두 가지로 적을 수 있다. <code>case _ .</code> 와 마지막 <code>else</code> 는 같은 일을 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/matchelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> matchelse .
+<em><span class="tok-c">rem run: band 1</span></em>
+<em><span class="tok-c">rem run: band 3</span></em>
+<em><span class="tok-c">rem run: band 99</span></em>
 
 <strong><span class="tok-k">fn</span></strong> band <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> n <strong><span class="tok-k">do</span></strong>
@@ -948,15 +951,19 @@ grade(95) = 2
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">2</span> to <span class="tok-n">5</span> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">20</span> .
     <strong><span class="tok-k">end</span></strong> .
-    <em><span class="tok-c">rem ✘ 나머지를 else 로 받는다 — 문법 부록과 진단은 권하지만 이 판의 도구는 받지 않는다</span></em>
+    <em><span class="tok-c">rem 나머지를 `else` 로 받는다 --- `case _ .` 와 같은 자리다</span></em>
     <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> .
     <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_matchelse.low
-mistake_matchelse.low:5:0 E-MATCH-INEXHAUSTIVE: this `match` on an integer is not exhaustive — the literals/ranges leave a gap, so a `case _ .` wildcard (or `else`) is required, OR the ranges must TILE the whole domain of the scrutinee's type (e.g. `0 to 127` + `128 to 255` on a u8) (RFC-0020 §6.4; MM4 tiling)
-</code></pre></div></div><p>정본의 문법 부록은 <code>match … do &lt;가지>* [else do … end] end</code> 를 적고, 진단문도 “<code>case _ .</code> 나 <code>else</code> 가 필요하다” 고 말한다. 그런데 이 판의 도구는 <code>match</code> 안의 <code>else</code> 를 나머지 갈래로 읽지 않아 같은 진단을 다시 낸다. 개발 저장소에 결함으로 적어 두었다. 지금은 나머지를 <code>case _ do … end .</code> 로 받는다. <code>_</code> 는 “어떤 값이든” 이라는 뜻의 자리다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>match</code> 의 갈래도 C 의 <code>switch</code> 처럼 아래로 흘러간다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/nofall.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nofall .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run band matchelse.low 1
+band(1) = 10
+$ lowentc --run band matchelse.low 3
+band(3) = 20
+$ lowentc --run band matchelse.low 99
+band(99) = 99
+</code></pre></div></div><p><code>else</code> 뒤에는 갈래를 더 둘 수 없다 — 이미 다 받았으므로 그 뒤의 갈래는 한 번도 돌지 않고, <code>E-MATCH-REDUNDANT</code> 로 거절된다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>match</code> 의 갈래도 C 의 <code>switch</code> 처럼 아래로 흘러간다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/nofall.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nofall .
 <em><span class="tok-c">rem run: label 1</span></em>
 <em><span class="tok-c">rem run: label 2</span></em>
 <em><span class="tok-c">rem run: label 9</span></em>

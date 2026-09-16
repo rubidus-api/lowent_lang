@@ -801,7 +801,7 @@ E-DEP-MISSING: `use geom from "geom"` — cannot read that source. A dependency 
   <strong><span class="tok-k">return</span></strong> str.eq_str a b .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_filename.low
-5:0 W-USE-EXTERNAL: this module is not in the compilation unit — there is no module search path, so nothing here can confirm it exists. Pass the file that declares it and it WILL be checked (several .low files link into one unit)
+mistake_filename.low:5:0 W-USE-EXTERNAL: this module is not in the compilation unit — there is no module search path, so nothing here can confirm it exists. Pass the file that declares it and it WILL be checked (several .low files link into one unit)
 mistake_filename.low:9:0 E-IR-UNDEF: undefined name `str.eq_str` — `str` is not a module used by this unit (`use str .`) nor an enum
 </code></pre></div></div><p><code>lib/str.low</code> 파일의 모듈 이름은 <code>strings</code> 다. <code>use str .</code> 은 그런 모듈을 찾지 못해 <code>W-USE-EXTERNAL</code> 로 “확인할 수 없다” 고 알리고, 이름을 실제로 쓰는 자리에서 <code>E-IR-UNDEF</code> 로 거절된다. 경고를 먼저 보고 모듈 이름을 확인한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/filename_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> filename_fixed .
 <em><span class="tok-c">rem run: same [104,105] [104,105]</span></em>
@@ -822,20 +822,21 @@ same([104,105], [104,111]) = 0
   arg0 (written) = [104,105]
   arg1 (written) = [104,111]
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">반례. 내보낸 op 의 서명에 감춘 타입을 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/secretbox.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> secretbox .
+<em><span class="tok-c">rem expect: W-EXPORT-HIDDEN</span></em>
 
 <em><span class="tok-c">rem `export` 가 없는 타입 --- 이 모듈 밖에서는 이름을 적을 수 없다</span></em>
 <strong><span class="tok-k">struct</span></strong> secret <strong><span class="tok-k">do</span></strong>
   v <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 
-<em><span class="tok-c">rem 내보낸 op 이 감춘 타입을 돌려준다 --- 이 판의 도구는 여기서 알리지 않는다</span></em>
+<em><span class="tok-c">rem ✘ 내보낸 op 이 감춘 타입을 돌려준다 --- 들여온 쪽은 그 이름을 적을 수 없다</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> make_secret <strong><span class="tok-k">output</span></strong> secret .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> secret <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check secretbox.low
-== check: ok ==
-</code></pre></div></div><p><code>secretbox</code> 는 번역을 통과한다. 문제는 들여오는 쪽에서 드러난다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_privtype.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_privtype .
+secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names a type this module keeps to itself. An importing module cannot write that type, so it has nowhere to put the value and the export cannot be used from outside (§6.10.1). Export the type too, or give the op a signature made of types the other side can name
+</code></pre></div></div><p><code>secretbox</code> 자체는 번역을 통과하지만 내보내는 쪽에서 <code>W-EXPORT-HIDDEN</code> 으로 알린다 — 이 export 는 밖에서 쓸 수 없다는 뜻이다. 그 알림이 없다면 문제는 들여오는 쪽에서야 드러난다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_privtype.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_privtype .
 <em><span class="tok-c">rem expect: E-VISIBILITY</span></em>
 
 <strong><span class="tok-k">use</span></strong> secretbox from <span class="tok-s">"</span><span class="tok-s">secretbox.low</span><span class="tok-s">"</span> .
@@ -848,7 +849,8 @@ same([104,105], [104,111]) = 0
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_privtype.low
 mistake_privtype.low:9:0 E-VISIBILITY: this name belongs to ANOTHER module and is not `export`ed — qualifying it does not open the door. A module that cannot keep anything private is not a module, it is a prefix. Mark it `export`, or stop reaching in (RFC-0011 §6.2)
-</code></pre></div></div><p><code>make_secret</code> 은 내보냈지만 그 결과의 타입 <code>secret</code> 은 감췄다. 들여온 쪽은 결과를 담을 이름을 적을 수 없어 <code>E-VISIBILITY</code> 로 거절된다. 쓸 수 없는 export 인 셈이다. 내보내는 쪽에서 알려야 할 자리인데 이 판의 도구는 알리지 않는다(개발 저장소에 결함으로 적어 두었다). 내보낸 op 의 입력·출력 타입도 함께 <code>export</code> 한다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 다른 모듈의 열거형 갈래를 <code>case</code> 에 모듈 이름과 함께 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/sizes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sizes .
+secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names a type this module keeps to itself. An importing module cannot write that type, so it has nowhere to put the value and the export cannot be used from outside (§6.10.1). Export the type too, or give the op a signature made of types the other side can name
+</code></pre></div></div><p><code>make_secret</code> 은 내보냈지만 그 결과의 타입 <code>secret</code> 은 감췄다. 들여온 쪽은 결과를 담을 이름을 적을 수 없어 <code>E-VISIBILITY</code> 로 거절된다. 쓸 수 없는 export 인 셈이다. 내보낸 op 의 입력·출력 타입도 함께 <code>export</code> 한다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 다른 모듈의 열거형 갈래를 <code>case</code> 에 모듈 이름과 함께 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/sizes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sizes .
 
 <em><span class="tok-c">rem 다른 모듈이 쓸 열거형 — 갈래는 값을 지니지 않는다</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">enum</span></strong> kind <strong><span class="tok-k">do</span></strong>

@@ -975,7 +975,7 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nosatisfies.low
 17:0 E-BOUND-UNSAT: this generic was instantiated with a type that does NOT satisfy the required trait. A bound is a PROMISE the callee relies on — instantiating past it would make the callee's contract a lie (RFC-0021 §6.3). Add `satisfies &lt;trait> .` to the struct, and the required ops as `fn &lt;Type>.&lt;name>`
 </code></pre></div></div><p><code>rect.area</code> 가 있으니 “넓이를 알려 주는 타입” 인 것은 맞다. 그래도 <code>satisfies shape .</code> 를 적지 않으면 <code>double_area rect r</code> 은 <code>E-BOUND-UNSAT</code> 이다. 모양만 맞으면 통과시키는 방식(덕 타이핑)에서는 우연히 이름이 같은 op 이 약속을 갖춘 것으로 잘못 읽힌다. <code>satisfies</code> 는 “나는 이 계약을 지키겠다” 는 선언이고, 그 선언이 있어야 처리기가 목록 전체를 검사한다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 수신자를 첫 입력이 아닌 자리에 둔다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/mistake_recvlast.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_recvlast .
-<em><span class="tok-c">rem trap: f</span></em>
+<em><span class="tok-c">rem expect: E-METHOD-RECV</span></em>
 
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   w <strong><span class="tok-t">u64</span></strong> .
@@ -992,10 +992,9 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
   <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> method r scaled <span class="tok-n">5</span> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run f mistake_recvlast.low
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: arithmetic/compare needs ints
-</code></pre></div></div><p>붙은 op 의 첫 입력은 수신자다. <code>method r scaled 5</code> 는 <code>r</code> 을 첫 자리에, 5 를 둘째 자리에 넣는다. <code>scaled</code> 는 첫 자리를 <code>k</code>, 둘째를 <code>s</code> 로 받았으므로 구조체에 곱셈을 하려다 멈춘다. 뜻으로는 번역이 거절해야 할 머리인데 이 판의 도구는 통과시킨다(개발 저장소에 결함으로 적어 두었다). 붙은 op 은 <code>input s rect .</code> 를 언제나 맨 앞에 둔다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>타입에 붙은 op 은 <code>method</code> 로만 부를 수 있다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/direct_call.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> direct_call .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_recvlast.low
+mistake_recvlast.low:9:0 E-METHOD-RECV: an op attached to a type takes that type as its FIRST input — that is what `method &lt;value> &lt;name> …` passes. Here the receiver is not first, so a `method` call hands the value to the wrong parameter: it used to pass `--check` and stop at run time with `E-VM-TYPE`. Move the receiver to the first `input` clause
+</code></pre></div></div><p>붙은 op 의 첫 입력은 수신자다. <code>method r scaled 5</code> 는 <code>r</code> 을 첫 자리에, 5 를 둘째 자리에 넣는다. <code>scaled</code> 는 첫 자리를 <code>k</code>, 둘째를 <code>s</code> 로 받았으므로 구조체에 곱셈을 하려다 멈춘다. 그런 머리는 <code>E-METHOD-RECV</code> 로 번역 때 거절한다. 붙은 op 은 <code>input s rect .</code> 를 언제나 맨 앞에 둔다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>타입에 붙은 op 은 <code>method</code> 로만 부를 수 있다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/direct_call.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> direct_call .
 <em><span class="tok-c">rem run: f</span></em>
 
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>

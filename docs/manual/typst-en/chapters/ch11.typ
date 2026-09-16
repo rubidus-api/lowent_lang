@@ -192,16 +192,12 @@ appear exactly once when read hides defects.
   #demo("examples/ch11/trynoresult_fixed.low")
 ]
 
-#antipattern[Being asked for `_` after covering every case with nested patterns][
-  #demo("examples/ch11/mistake_nestedwild.low")
+Nested patterns count towards exhaustiveness too. An outer tag is covered when *its inner pattern is itself exhaustive*.
 
-  `ok (some x)`, `ok none` and `error e` are every case of `result (option u64) read_error`. Even so, this edition's tool
-  cannot count coverage all the way through nested patterns and rejects the match with `E-MATCH-INEXHAUSTIVE`. It is a tool
-  limitation, recorded as a defect. For now, take the last case with `_`. A comment saying what `_` receives keeps the reader
-  from guessing.
+#demo("examples/ch11/nestedwild.low")
 
-  #demo("examples/ch11/nestedwild_fixed.low")
-]
+`ok (some x)` and `ok none` together cover `ok`, and `error e` covers the rest, so no `_` is needed. Leave one case out and it is
+refused with `E-MATCH-INEXHAUSTIVE` --- better than a `_` that covers nothing. A `_` says nothing when a variant is added later.
 
 #misconception[With `value_or` you can still tell when a value was absent][
   #demo("examples/ch11/valueor_blind.low")

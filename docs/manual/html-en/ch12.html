@@ -785,7 +785,7 @@ mref_slice.low:4:0 E-MREF-SLICE: `mut ref slice` gives nothing that `mut slice` 
 first_two([9,8,7,6]) = 2
   arg0 (written) = [9,8,7,6]
 </code></pre></div></div><p><code>take_front</code> returns a new slice pointing at the first <code>n</code> elements. That the length changed shows in the return value and in <code>let front</code>.</p><h3 id="s12-6">12.6 Common mistakes<a class="plink" href="#s12-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Forgetting <code>mut_ref</code> at the call site</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_nomutref.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nomutref .
-<em><span class="tok-c">rem trap: use_bump 7</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-ARG</span></em>
 
 <strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -801,11 +801,10 @@ first_two([9,8,7,6]) = 2
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> bump n .
   <strong><span class="tok-k">return</span></strong> add n r .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run use_bump mistake_nomutref.low 7
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: deref needs a reference
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nomutref.low
+mistake_nomutref.low:15:0 E-TYPE-ARG: this op takes a BORROW here (`ref` / `mut_ref`), and a plain value was passed. Take the borrow at the call — `mut_ref &lt;name>` — so the reader sees where the callee may write. It used to pass `--check` and stop at run time with `E-VM-TYPE: deref needs a reference`
 </code></pre></div></div><p><code>bump</code> expects “a reference to a number”, but <code>bump n</code> passes the number 7 itself. C++ reference parameters need no mark at the call, but Lowent makes you write <code>mut_ref n</code> so the call alone tells you what may change. This edition’s tool does not reject the omission at translation time; at run time <code>deref</code> meets something that is not a reference and stops (recorded as a defect in the development repository). When the stop says “deref needs a reference”, look for a missing <code>mut_ref</code> or <code>ref</code> at the call site.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a reference as a number without <code>deref</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_noderef.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noderef .
-<em><span class="tok-c">rem trap: double 7</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-REFVAL</span></em>
 
 <strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -819,9 +818,8 @@ first_two([9,8,7,6]) = 2
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> x .
   <strong><span class="tok-k">return</span></strong> twice (<strong><span class="tok-k">ref</span></strong> n) .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run double mistake_noderef.low 7
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: arithmetic/compare needs ints
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noderef.low
+mistake_noderef.low:7:0 E-TYPE-REFVAL: a BORROW is being used where a number is expected. `ref t` / `mut_ref t` names a place, not the value in it — read it with `deref &lt;name>` (and write through it with `set &lt;name> …`). It used to pass `--check` and stop at run time with `E-VM-TYPE`, which blamed the arithmetic instead of the missing read
 </code></pre></div></div><p>A reference is <strong>where</strong> a value lives, not the value. Each read spells <code>deref p</code>, making “read the borrowed value here” visible. In C, dropping the <code>*</code> turns the code into address arithmetic; Lowent has no address arithmetic, so a wrong value never comes out quietly. This edition’s tool does not report it at translation time, though, and stops at run time instead (recorded as a defect). The fixed line is <code>add (deref p) (deref p)</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Lending a <code>let</code> name for writing</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_letmutref.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_letmutref .
 <em><span class="tok-c">rem expect: E-TYPE-ARGMUT</span></em>
 

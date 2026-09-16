@@ -240,9 +240,9 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
 #antipattern[범프 할당기에 `init` 을 잊는다][
   #demo("examples/ch20/mistake_noinit.low")
 
-  `bump_bytes` 는 스스로 메모리를 만들지 않는다. 잘라 줄 바이트를 `send a init buf` 로 걸기 전에는 나눠 줄 것이 없다. 뜻으로는 첫
-  `reserve` 가 `none` 이어야 할 자리인데, 이 판에서는 번역이 통과시키고 VM 은 `E-VM-TYPE` 으로 멈추며 네이티브는 `none` 을 받아 91 을
-  돌려준다. 두 뒤끝이 다르게 도는 결함이고 개발 저장소에 적어 두었다. 할당기를 띄우는 줄 바로 다음에 `init` 을 둔다.
+  `bump_bytes` 는 스스로 메모리를 만들지 않는다. 잘라 줄 바이트를 `send a init buf` 로 걸기 전에는 나눠 줄 것이 없다. 갓 띄운 액터의
+  상태 칸은 모두 0 이고, 0 은 슬라이스가 아니다 --- 그 자리를 읽으면 VM 과 네이티브가 서로 다르게 돈다. 그래서 번역이 거절한다
+  (`E-ACTOR-UNINIT`). 할당기를 띄우는 줄 바로 다음에 `init` 을 둔다.
 ]
 
 #antipattern[같은 바이트를 두 할당기에 건다][

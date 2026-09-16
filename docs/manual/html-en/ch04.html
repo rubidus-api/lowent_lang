@@ -910,7 +910,7 @@ mid(255, 255) = 255
 == ir diagnostics (1) ==
 0:0 E-VM-OVERFLOW: integer overflow at the declared width (use wrap_*/sat_*, or prove the range)
 </code></pre></div></div><p><code>u64</code> has nothing below 0. <code>3 − 5</code> is not −2 but an <strong>overflow</strong>, so it stops (C would give 18446744073709551614). If you want the size of the difference, subtract the smaller from the larger — <code>if ge a b . do return sub a b . end . return sub b a .</code> — and if a negative result is meaningful, compute in <code>i64</code> from the start.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Giving a loop counter too narrow a type</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_narrowloop.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_narrowloop .
-<em><span class="tok-c">rem trap: tally</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-WIDTH</span></em>
 
 <strong><span class="tok-k">fn</span></strong> tally <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -923,21 +923,19 @@ mid(255, 255) = 255
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> n .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run tally mistake_narrowloop.low
-== ir diagnostics (1) ==
-0:0 E-VM-OVERFLOW: integer overflow at the declared width (use wrap_*/sat_*, or prove the range)
-</code></pre></div></div><p>A <code>u8</code> can never reach 256, so <code>lt i 256</code> is always true. In C, <code>i</code> would wrap from 255 back to 0 and the loop would <strong>never end</strong>. In Lowent the 256th <code>add i 1</code> overflows and stops, so at least it does not hang silently. Give a loop counter a type wider than the largest value it counts to (<code>u64</code>).</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Doing float arithmetic with an integer literal</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_floatint.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_floatint .
-<em><span class="tok-c">rem trap: half 3.0</span></em>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_narrowloop.low
+mistake_narrowloop.low:9:0 E-TYPE-WIDTH: this comparison holds a value that the other side's type cannot hold, so the answer is the same for every input — the comparison decides nothing. A name declared `u8` is at most 255, `u16` at most 65535, `i8` at most 127; a literal beyond that is out of range exactly as it would be in an assignment, where the tool has always refused it. Widen the name's type, or compare against a value the type can reach. (This is how a loop written `while lt i 256 .` over a `u8` counter never ends)
+</code></pre></div></div><p>A <code>u8</code> can never reach 256, so <code>lt i 256</code> is always true. In C, <code>i</code> would wrap from 255 back to 0 and the loop would <strong>never end</strong>. Lowent refuses the comparison at translation time with <code>E-TYPE-WIDTH</code>: comparing against a value the type cannot hold gives the same answer for every input, so it decides nothing. Give a loop counter a type wider than the largest value it counts to (<code>u64</code>).</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Doing float arithmetic with an integer literal</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_floatint.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_floatint .
+<em><span class="tok-c">rem expect: E-TYPE-MIX</span></em>
 
 <strong><span class="tok-k">fn</span></strong> half <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ divides an f64 by the integer literal 2 --- write 2.0 where a float is expected</span></em>
   <strong><span class="tok-k">return</span></strong> div x <span class="tok-n">2</span> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run half mistake_floatint.low 3.0
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: arithmetic/compare needs ints
-</code></pre></div></div><p>Integers and floats never convert into each other automatically. To divide an <code>f64</code>, write the literal as a float too: <code>2.0</code>. This edition’s tool does not catch the mix at compile time and stops <strong>while running</strong> with <code>E-VM-TYPE</code> — it ought to be rejected at compile time, and the development repository records it as a defect. When you see this stop, look for the mixed literal.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Testing with the largest <code>u64</code> passed as a <code>--run</code> argument</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runmax .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_floatint.low
+mistake_floatint.low:7:0 E-TYPE-MIX: a floating-point value and an INTEGER literal are mixed in one operation. Floating point and integers do not convert implicitly (§6.2.5), so write the literal as a float (`2.0`) — or convert the other side. It used to pass `--check` and stop at run time (`E-VM-TYPE: arithmetic needs ints`)
+</code></pre></div></div><p>Integers and floats never convert into each other automatically. To divide an <code>f64</code>, write the literal as a float too: <code>2.0</code>. Mixing them is rejected at translation time with <code>E-TYPE-MIX</code>; it used to stop <strong>while running</strong> with <code>E-VM-TYPE</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Testing with the largest <code>u64</code> passed as a <code>--run</code> argument</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runmax .
 <em><span class="tok-c">rem trap: echo 18446744073709551615</span></em>
 <em><span class="tok-c">rem test</span></em>
 

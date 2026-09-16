@@ -118,9 +118,8 @@ Second, an allocator whose cursor does not move atomically cannot be handed to a
 #demo("examples/ch26/mistake_taskshared.low")
 
 Two tasks reserving from the same `b` race over one cursor. If the allocator's `reserve` does not declare `atomic`, it is `E-ALLOC-SHARED`.
-The diagnostic suggests giving each task its own allocator, but this edition's tool refuses separately spawned allocators with the same
-diagnostic, because it blocks passing an allocator value at all (recorded as a defect in the development repository). The way that works today
-is to hand over *bytes* and create the allocator inside the task.
+What is refused is the *sharing* --- handing one allocator to two tasks, or handing it to a task and still using it beside them. Spawning a
+separate allocator for each task works. Another way is to hand over *bytes* and create the allocator inside the task, which is what follows.
 
 #demo("examples/ch26/taskshared_fixed.low")
 

@@ -236,10 +236,9 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
 #antipattern[Forgetting `init` on a bump allocator][
   #demo("examples/ch20/mistake_noinit.low")
 
-  `bump_bytes` does not create memory by itself. Until bytes are attached with `send a init buf`, it has nothing to hand out. By meaning,
-  the first `reserve` should give `none`; in this edition, translation accepts the program, the VM stops with `E-VM-TYPE`, and the native
-  build receives `none` and returns 91. The two back ends run it differently, which is a defect recorded in the development repository. Put
-  the `init` on the line right after spawning the allocator.
+  `bump_bytes` does not create memory by itself. Until bytes are attached with `send a init buf`, it has nothing to hand out. A just-spawned
+  actor's state fields are all zeroes, and zero is not a slice --- reading that field makes the VM and the native build run differently. So
+  translation refuses it (`E-ACTOR-UNINIT`). Put the `init` on the line right after spawning the allocator.
 ]
 
 #antipattern[Attaching the same bytes to two allocators][

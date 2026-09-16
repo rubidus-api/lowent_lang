@@ -752,6 +752,7 @@ pick(0) = 1
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check outer.low
 outer.low:8:0 E-NAME-SHADOW: an inner block binds a name that is already bound OUTSIDE it. The namespace is FLAT (SPEC-002 2.10: no shadowing) — the outer value is still alive and the same letters now point at a different one. Rename the inner binding
+outer.low:11:0 E-NAME-SCOPE: this name was declared INSIDE a block and is read outside it. A block is where a name lives (§6.5.1): on the path that did not enter the block the name never existed, and the tool used to answer 0 there — a value that appears nowhere in the source. Declare it before the block (`var … be 0 .`) and set it inside
 </code></pre></div></div><p>Inside the inner block <code>t</code> would be 2, and outside it 1 again. When the same letters mean different values on different lines, the reader thinks of the wrong value. It is the same rule as the parameter shadowing in chapter 3 — the name space is flat.</p><h3 id="s6-5">6.5 <code>if</code> yields no value<a class="plink" href="#s6-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p><code>if</code> is a statement. It cannot stand where an expression is expected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/ifvalue.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ifvalue .
 <em><span class="tok-c">rem expect: E-IF-VALUE</span></em>
 
@@ -799,8 +800,7 @@ mistake_typo.low:8:0 E-IR-UNDEF: set of an undeclared name
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_localname.low
 mistake_localname.low:7:0 E-NAME-BUILTIN: a local takes the name of a BUILTIN op. The namespace is FLAT (no shadowing), so this name now means two things — and which one it means decides how the SENTENCE IS BRACKETED: `f len data` reads as `f(len(data), …)` if `len` is the builtin (arity 1) and as `f(len, data)` if it is your local (arity 0). Same letters, different tree, no error. That is RFC-0046 P1. Rename the local
 </code></pre></div></div><p>Names such as <code>count</code>, <code>sum</code>, <code>len</code>, <code>min</code>, <code>max</code>, <code>ok</code> and <code>avg</code> are already builtin ops. The name space is flat, so if a local took one of them, <code>f count data</code> would group differently depending on whether <code>count</code> is the builtin call or the local. The same letters would build a different tree, so <code>E-NAME-BUILTIN</code> rules it out. Use names like <code>n</code>, <code>total</code> or <code>size</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Reading a local outside the block that declared it</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/mistake_outside.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_outside .
-<em><span class="tok-c">rem run: big_or_zero 5</span></em>
-<em><span class="tok-c">rem run: big_or_zero 1</span></em>
+<em><span class="tok-c">rem expect: E-NAME-SCOPE</span></em>
 
 <strong><span class="tok-k">fn</span></strong> big_or_zero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -810,11 +810,9 @@ mistake_localname.low:7:0 E-NAME-BUILTIN: a local takes the name of a BUILTIN op
   <em><span class="tok-c">rem ✘ `big` only lives inside the block above --- it is read outside</span></em>
   <strong><span class="tok-k">return</span></strong> big .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run big_or_zero mistake_outside.low 5
-big_or_zero(5) = 50
-$ lowentc --run big_or_zero mistake_outside.low 1
-big_or_zero(1) = 0
-</code></pre></div></div><p><code>big</code> was declared inside the <code>if</code> block, so it disappears when the block ends. This edition’s tool, however, does not reject the read, and when the block was never entered (<code>a</code> is 1) it <strong>quietly gives 0</strong> — a value that appears nowhere in the source. It should be rejected at compile time, and the development repository records it as a defect. Until the tool is fixed, protect yourself: declare a value you need after the block <strong>before</strong> the block.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/outside_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> outside_fixed .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_outside.low
+mistake_outside.low:10:0 E-NAME-SCOPE: this name was declared INSIDE a block and is read outside it. A block is where a name lives (§6.5.1): on the path that did not enter the block the name never existed, and the tool used to answer 0 there — a value that appears nowhere in the source. Declare it before the block (`var … be 0 .`) and set it inside
+</code></pre></div></div><p><code>big</code> was declared inside the <code>if</code> block, so it disappears when the block ends. Reading that name outside the block is rejected with <code>E-NAME-SCOPE</code>; it used to <strong>quietly give 0</strong> on the path that never entered the block — a value that appears nowhere in the source. Declare a value you need after the block <strong>before</strong> the block.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/outside_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> outside_fixed .
 <em><span class="tok-c">rem run: big_or_zero 5</span></em>
 <em><span class="tok-c">rem run: big_or_zero 1</span></em>
 

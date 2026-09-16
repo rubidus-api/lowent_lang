@@ -1,4 +1,5 @@
 module mistake_noinit .
+rem expect: E-ACTOR-UNINIT
 
 use allocs .
 

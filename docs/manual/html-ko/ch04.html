@@ -910,7 +910,7 @@ mid(255, 255) = 255
 == ir diagnostics (1) ==
 0:0 E-VM-OVERFLOW: integer overflow at the declared width (use wrap_*/sat_*, or prove the range)
 </code></pre></div></div><p><code>u64</code> 는 0 아래가 없다. <code>3 − 5</code> 는 −2 가 아니라 <strong>넘침</strong>이고, 그래서 멈춘다(C 라면 18446744073709551614 가 나온다). 차이의 크기가 알고 싶으면 큰 쪽에서 작은 쪽을 뺀다 — <code>if ge a b . do return sub a b . end . return sub b a .</code> — 음수가 뜻이 있는 값이면 처음부터 <code>i64</code> 로 계산한다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 반복 변수를 너무 좁은 타입으로 둔다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_narrowloop.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_narrowloop .
-<em><span class="tok-c">rem trap: tally</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-WIDTH</span></em>
 
 <strong><span class="tok-k">fn</span></strong> tally <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -923,21 +923,19 @@ mid(255, 255) = 255
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> n .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run tally mistake_narrowloop.low
-== ir diagnostics (1) ==
-0:0 E-VM-OVERFLOW: integer overflow at the declared width (use wrap_*/sat_*, or prove the range)
-</code></pre></div></div><p><code>u8</code> 은 256 에 닿을 수 없으니 <code>lt i 256</code> 은 영원히 참이다. C 라면 <code>i</code> 가 255 에서 0 으로 감겨 <strong>끝나지 않는 반복</strong>이 되었을 것이다. Lowent 에서는 256 번째 <code>add i 1</code> 이 넘쳐 멈추므로 적어도 조용히 매달리지는 않는다. 반복 변수는 셀 수 있는 가장 큰 값보다 넓은 타입(<code>u64</code>)으로 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 부동소수를 정수 리터럴로 계산한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_floatint.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_floatint .
-<em><span class="tok-c">rem trap: half 3.0</span></em>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_narrowloop.low
+mistake_narrowloop.low:9:0 E-TYPE-WIDTH: this comparison holds a value that the other side's type cannot hold, so the answer is the same for every input — the comparison decides nothing. A name declared `u8` is at most 255, `u16` at most 65535, `i8` at most 127; a literal beyond that is out of range exactly as it would be in an assignment, where the tool has always refused it. Widen the name's type, or compare against a value the type can reach. (This is how a loop written `while lt i 256 .` over a `u8` counter never ends)
+</code></pre></div></div><p><code>u8</code> 은 256 에 닿을 수 없으니 <code>lt i 256</code> 은 영원히 참이다. C 라면 <code>i</code> 가 255 에서 0 으로 감겨 <strong>끝나지 않는 반복</strong>이 되었을 것이다. Lowent 는 그 비교를 번역 때 <code>E-TYPE-WIDTH</code> 로 거절한다 — 자리에 안 들어가는 값과의 비교는 입력과 무관하게 답이 같으므로 아무것도 가르지 않는다. 반복 변수는 셀 수 있는 가장 큰 값보다 넓은 타입(<code>u64</code>)으로 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 부동소수를 정수 리터럴로 계산한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_floatint.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_floatint .
+<em><span class="tok-c">rem expect: E-TYPE-MIX</span></em>
 
 <strong><span class="tok-k">fn</span></strong> half <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ f64 를 정수 리터럴 2 로 나눴다 --- 부동소수 자리에는 2.0 을 쓴다</span></em>
   <strong><span class="tok-k">return</span></strong> div x <span class="tok-n">2</span> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run half mistake_floatint.low 3.0
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: arithmetic/compare needs ints
-</code></pre></div></div><p>정수와 부동소수는 서로 자동으로 바뀌지 않는다. <code>f64</code> 를 나누려면 리터럴도 부동소수로 <code>2.0</code> 이라고 적는다. 이 판의 도구는 이 섞임을 번역할 때 잡지 못하고 <strong>실행 중에</strong> <code>E-VM-TYPE</code> 로 멈춘다 — 번역 때 거절해야 하는 자리라서 개발 저장소에 결함으로 적어 두었다. 멈추는 자리를 보면 섞인 리터럴을 찾는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>--run</code> 인자로 <code>u64</code> 의 가장 큰 값을 넘겨 시험한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runmax .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_floatint.low
+mistake_floatint.low:7:0 E-TYPE-MIX: a floating-point value and an INTEGER literal are mixed in one operation. Floating point and integers do not convert implicitly (§6.2.5), so write the literal as a float (`2.0`) — or convert the other side. It used to pass `--check` and stop at run time (`E-VM-TYPE: arithmetic needs ints`)
+</code></pre></div></div><p>정수와 부동소수는 서로 자동으로 바뀌지 않는다. <code>f64</code> 를 나누려면 리터럴도 부동소수로 <code>2.0</code> 이라고 적는다. 섞어 적으면 <code>E-TYPE-MIX</code> 로 번역 때 거절한다 — 전에는 <strong>실행 중에</strong> <code>E-VM-TYPE</code> 으로 멈췄다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>--run</code> 인자로 <code>u64</code> 의 가장 큰 값을 넘겨 시험한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runmax .
 <em><span class="tok-c">rem trap: echo 18446744073709551615</span></em>
 <em><span class="tok-c">rem test</span></em>
 

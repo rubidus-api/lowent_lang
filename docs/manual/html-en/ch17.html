@@ -869,9 +869,10 @@ explain([120]) = 2
 $ lowentc --run explain dropwhy_fixed.low [55]
 explain([55]) = 9
   arg0 (written) = [55]
-</code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Believing <code>case error &lt;variant name></code> splits on an error variant</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/mistake_errvariant.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_errvariant .
+</code></pre></div></div></div></div><p>Split on an error variant directly with <code>case error &lt;variant name></code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/errvariant.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> errvariant .
 <em><span class="tok-c">rem run: explain []</span></em>
 <em><span class="tok-c">rem run: explain [120]</span></em>
+<em><span class="tok-c">rem run: explain [53]</span></em>
 
 <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   empty .
@@ -890,19 +891,23 @@ explain([55]) = 9
 
 <strong><span class="tok-k">fn</span></strong> explain <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem a declared variant name after `case error` matches that variant alone</span></em>
   <strong><span class="tok-k">match</span></strong> parse_digit s <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> ok v . <strong><span class="tok-k">return</span></strong> <span class="tok-n">9</span> .
-    <em><span class="tok-c">rem ✘ `not_digit` here is not the variant but a new name --- it takes any error</span></em>
+    <strong><span class="tok-k">case</span></strong> error empty . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
     <strong><span class="tok-k">case</span></strong> error not_digit . <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
   <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run explain mistake_errvariant.low []
-explain([]) = 2
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run explain errvariant.low []
+explain([]) = 1
   arg0 (written) = []
-$ lowentc --run explain mistake_errvariant.low [120]
+$ lowentc --run explain errvariant.low [120]
 explain([120]) = 2
   arg0 (written) = [120]
-</code></pre></div></div><p>In <code>case error not_digit .</code>, <code>not_digit</code> is not the enum variant but <strong>a new name given to the error value</strong>, so every error comes to this arm. Even empty input (<code>empty</code>) gives 2. This <code>match</code>, which looks as if it had only two arms, also passes the exhaustiveness check. If you write one arm per variant, the second is rejected with <code>E-MATCH-REDUNDANT</code>, because the first arm already took every error. This edition’s tool does not warn that a variant name is hidden by a binding (recorded as a defect in the development repository). Bind a name with <code>case error e</code> and <code>match</code> on <code>e</code> once more, as <code>dropwhy_fixed.low</code> above does.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Calling an op that returns a <code>result</code> as a statement</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/mistake_dropresult.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_dropresult .
+$ lowentc --run explain errvariant.low [53]
+explain([53]) = 9
+  arg0 (written) = [53]
+</code></pre></div></div><p>When the name after <code>case error</code> is a <strong>declared variant</strong>, that arm takes that variant alone. When it is not, it binds the whole error value to that name (<code>case error e</code>). One spelling carries two meanings, but the rule is the one that holds everywhere else in a <code>match</code>: a bare name that is a variant is that variant (chapter 7). Write one arm per variant and the exhaustiveness check finds the one you forgot; bind a name instead and that single arm takes every error, so there is nothing left to find.</p><div class="dev antipattern"><p class="dev-label">Counter-example. Calling an op that returns a <code>result</code> as a statement</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch17/mistake_dropresult.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_dropresult .
 <em><span class="tok-c">rem run: main</span></em>
 
 <strong><span class="tok-k">enum</span></strong> config_error <strong><span class="tok-k">do</span></strong>

@@ -779,7 +779,7 @@ halve_or_zero(250) = 0
   <strong><span class="tok-k">return</span></strong> ok (index s <span class="tok-n">0</span>) .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check undeclared.low
-13:0 E-ERR-UNDECLARED: op returns an error not in its errors clause
+undeclared.low:13:0 E-ERR-UNDECLARED: op returns an error not in its errors clause
 </code></pre></div></div><p><code>too_long</code> is a variant of <code>parse_error</code>, but it is not in <code>first_byte</code>’s <code>errors</code> clause. A caller reading the head would believe handling <code>empty</code> is enough. When what is written and what is produced differ, one side meets failures it never saw and the other handles failures that never come.</p><h3 id="s11-3">11.3 <code>try</code> — passing failure upwards<a class="plink" href="#s11-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-25"></span><p>Writing the failure check by hand every time makes code long, and long code skips checks. <code>try</code> takes a <code>result</code> and, on success, takes out the value; on failure it <strong>returns that error as is and leaves the op</strong>. <code>halve_plus_one</code> in <code>halve.low</code> has that shape.</p><pre><code data-lang="lowent"><strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
 <strong><span class="tok-k">return</span></strong> ok (add v <span class="tok-n">1</span>) .</code></pre><p>Notice that <code>halve_plus_one</code> writes <code>errors</code> in its own head too. To pass an error up with <code>try</code>, it must itself be able to return that error, and it must say so in its contract. There is no path by which a failure silently disappears. To handle the failure here instead of passing it up, ask with <code>is_error</code> and take out with <code>ok_value</code>, as <code>halve_or_zero</code> does.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>try</code> is the <code>try</code> of exception handling</strong></p><div class="dev-body">Java’s or C++‘s <code>try</code> is a place that catches exceptions thrown anywhere in a block. Lowent’s <code>try</code> is attached to <strong>one expression</strong> and marks that expression’s failure as <strong>passed upwards</strong>; it is closer to Rust’s <code>?</code>. There is no throw-and-catch control flow. Failures always come back as values, and where they can be passed on is written in the source.</div></div><h3 id="s11-4">11.4 Crossing between the two channels<a class="plink" href="#s11-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Sometimes the calling op and the called op use different channels. A tail on <code>try</code> changes the container.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/tails.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> tails .
 <em><span class="tok-c">rem run: maybe_half 100</span></em>
@@ -867,7 +867,6 @@ must_find(9) = err not_found
     <strong><span class="tok-k">case</span></strong> ok (some x) . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> x . <strong><span class="tok-k">end</span></strong> .
     <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
     <strong><span class="tok-k">case</span></strong> error . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 
@@ -962,7 +961,7 @@ mistake_nosome.low:8:0 E-TYPE-RETURN: the returned value does not match the op's
   <strong><span class="tok-k">return</span></strong> add v <span class="tok-n">1</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_trynoresult.low
-18:0 E-TRY-NORESULT: `try` may only be used in an op that can RETURN that error (§6.5.8(2)): this op's output is not a `result`, so there is nowhere for the failure to go. It used to pass, and the VM then returned the ERROR VALUE in the plain output slot while the native build would not compile at all. Declare `output result &lt;T> &lt;E> .` (and the matching `errors` clause), or handle the failure here (`guard is_ok …` / `value_or` / a `case error` arm)
+mistake_trynoresult.low:18:0 E-TRY-NORESULT: `try` may only be used in an op that can RETURN that error (§6.5.8(2)): this op's output is not a `result`, so there is nowhere for the failure to go. It used to pass, and the VM then returned the ERROR VALUE in the plain output slot while the native build would not compile at all. Declare `output result &lt;T> &lt;E> .` (and the matching `errors` clause), or handle the failure here (`guard is_ok …` / `value_or` / a `case error` arm)
 </code></pre></div></div><p><code>try</code> <strong>passes failure upwards</strong>, so this op must be able to return that failure itself (§6.5.8(2)). <code>plus</code> returns only a <code>u8</code> and has no <code>errors</code> clause, so it is refused with <code>E-TRY-NORESULT</code>. Until 2026-09-16 it passed: <code>plus 250</code> printed <code>err too_big</code> where a <code>u8</code> belongs, and the native build would not even compile. Adding a tail (<code>else_none</code>, <code>else_error</code>) or handling it here (<code>is_ok</code> and the rest of §6.5.8(3)) keeps the op free of <code>result</code>; to pass the failure up, give the head a <code>result</code> output and an <code>errors</code> clause.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/trynoresult_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> trynoresult_fixed .
 <em><span class="tok-c">rem run: plus 10</span></em>
 <em><span class="tok-c">rem run: plus 250</span></em>
@@ -989,25 +988,7 @@ mistake_nosome.low:8:0 E-TYPE-RETURN: the returned value does not match the op's
 plus(10) = ok 6
 $ lowentc --run plus trynoresult_fixed.low 250
 plus(250) = err too_big
-</code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Being asked for <code>_</code> after covering every case with nested patterns</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/mistake_nestedwild.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nestedwild .
-<em><span class="tok-c">rem expect: E-MATCH-INEXHAUSTIVE</span></em>
-
-<strong><span class="tok-k">enum</span></strong> read_error <strong><span class="tok-k">do</span></strong>
-  broken .
-<strong><span class="tok-k">end</span></strong> .
-
-<strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong>) read_error . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">do</span></strong>
-  <em><span class="tok-c">rem ✘ all three cases are written, yet this edition rejects it for lacking `_`</span></em>
-  <strong><span class="tok-k">match</span></strong> r <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> ok (some x) . <strong><span class="tok-k">return</span></strong> x .
-    <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> . <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-    <strong><span class="tok-k">case</span></strong> error e . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nestedwild.low
-mistake_nestedwild.low:11:0 E-MATCH-INEXHAUSTIVE: this `match` on an option/result does not handle every case — add the missing `case some`/`case none` (option) or `case ok`/`case error` (result), or a `_` wildcard
-</code></pre></div></div><p><code>ok (some x)</code>, <code>ok none</code> and <code>error e</code> are every case of <code>result (option u64) read_error</code>. Even so, this edition’s tool cannot count coverage all the way through nested patterns and rejects the match with <code>E-MATCH-INEXHAUSTIVE</code>. It is a tool limitation, recorded as a defect. For now, take the last case with <code>_</code>. A comment saying what <code>_</code> receives keeps the reader from guessing.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/nestedwild_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nestedwild_fixed .
+</code></pre></div></div></div></div><p>Nested patterns count towards exhaustiveness too. An outer tag is covered when <strong>its inner pattern is itself exhaustive</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/nestedwild.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nestedwild .
 <em><span class="tok-c">rem run: via_match</span></em>
 
 <strong><span class="tok-k">enum</span></strong> read_error <strong><span class="tok-k">do</span></strong>
@@ -1016,11 +997,11 @@ mistake_nestedwild.low:11:0 E-MATCH-INEXHAUSTIVE: this `match` on an option/resu
 
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong>) read_error . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem three nested patterns are every case --- no separate `_`</span></em>
   <strong><span class="tok-k">match</span></strong> r <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> ok (some x) . <strong><span class="tok-k">return</span></strong> x .
     <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> . <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-    <em><span class="tok-c">rem take the last case with `_` --- only error is left</span></em>
-    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+    <strong><span class="tok-k">case</span></strong> error e . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 
@@ -1028,9 +1009,9 @@ mistake_nestedwild.low:11:0 E-MATCH-INEXHAUSTIVE: this `match` on an option/resu
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> pick (ok (some <span class="tok-n">42</span>)) .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run via_match nestedwild_fixed.low
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run via_match nestedwild.low
 via_match() = 42
-</code></pre></div></div></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>With <code>value_or</code> you can still tell when a value was absent</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/valueor_blind.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> valueor_blind .
+</code></pre></div></div><p><code>ok (some x)</code> and <code>ok none</code> together cover <code>ok</code>, and <code>error e</code> covers the rest, so no <code>_</code> is needed. Leave one case out and it is refused with <code>E-MATCH-INEXHAUSTIVE</code> — better than a <code>_</code> that covers nothing. A <code>_</code> says nothing when a variant is added later.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>With <code>value_or</code> you can still tell when a value was absent</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/valueor_blind.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> valueor_blind .
 <em><span class="tok-c">rem run: find_or_zero 0</span></em>
 <em><span class="tok-c">rem run: find_or_zero 7</span></em>
 <em><span class="tok-c">rem run: found 0</span></em>

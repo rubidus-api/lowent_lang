@@ -887,6 +887,7 @@ float_bits(1.0) = 4607182418800017408
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check bitcast_bool.low
 bitcast_bool.low:6:0 E-TYPE-BITCAST: bit_cast's target must be a `plain` scalar type — every bit pattern valid, no padding (SPEC-004 §190). bool/enum have trap representations and are NOT plain, so they are outside safe punning
 </code></pre></div></div><p><code>u8</code> 의 2 를 <code>bool</code> 로 읽으면 참도 거짓도 아닌 값이 된다. 그런 값이 만들어지는 길을 막는다.</p><h3 id="s20-9">20.9 흔한 실수<a class="plink" href="#s20-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 범프 할당기에 <code>init</code> 을 잊는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_noinit.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noinit .
+<em><span class="tok-c">rem expect: E-ACTOR-UNINIT</span></em>
 
 <strong><span class="tok-k">use</span></strong> allocs .
 
@@ -899,8 +900,8 @@ bitcast_bool.low:6:0 E-TYPE-BITCAST: bit_cast's target must be a `plain` scalar 
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> a used .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noinit.low
-== check: ok ==
-</code></pre></div></div><p><code>bump_bytes</code> 는 스스로 메모리를 만들지 않는다. 잘라 줄 바이트를 <code>send a init buf</code> 로 걸기 전에는 나눠 줄 것이 없다. 뜻으로는 첫 <code>reserve</code> 가 <code>none</code> 이어야 할 자리인데, 이 판에서는 번역이 통과시키고 VM 은 <code>E-VM-TYPE</code> 으로 멈추며 네이티브는 <code>none</code> 을 받아 91 을 돌려준다. 두 뒤끝이 다르게 도는 결함이고 개발 저장소에 적어 두었다. 할당기를 띄우는 줄 바로 다음에 <code>init</code> 을 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 같은 바이트를 두 할당기에 건다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_sharedbuf.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_sharedbuf .
+mistake_noinit.low:10:0 E-ACTOR-UNINIT: this is the FIRST message sent to an actor that was just spawned, and the handler READS a state field that holds a slice without setting it. A fresh actor's state is all zeroes, and zero is not a slice: the VM stops (`len needs a slice`) while native quietly answers `none` — the two back ends disagree, which means one of them is lying. Send the message that sets it up first (the one whose handler `set`s that field, typically `init`)
+</code></pre></div></div><p><code>bump_bytes</code> 는 스스로 메모리를 만들지 않는다. 잘라 줄 바이트를 <code>send a init buf</code> 로 걸기 전에는 나눠 줄 것이 없다. 갓 띄운 액터의 상태 칸은 모두 0 이고, 0 은 슬라이스가 아니다 — 그 자리를 읽으면 VM 과 네이티브가 서로 다르게 돈다. 그래서 번역이 거절한다 (<code>E-ACTOR-UNINIT</code>). 할당기를 띄우는 줄 바로 다음에 <code>init</code> 을 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 같은 바이트를 두 할당기에 건다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_sharedbuf.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_sharedbuf .
 <em><span class="tok-c">rem expect: E-EXCL</span></em>
 
 <strong><span class="tok-k">use</span></strong> allocs .

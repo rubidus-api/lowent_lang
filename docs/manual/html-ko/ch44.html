@@ -679,7 +679,7 @@ effect_dup.low:4:0 E-EFFECT-DUP: an effect atom appears more than once in the `e
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check effect_typo.low
-effect_typo.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/alloc/io/wait/lock/atomic/unsafe/device/page_fault/blocking/cancel/detach/panic/state) — a typo here silently declares the op PURE
+effect_typo.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/alloc/heap/io/wait/concurrent/lock/atomic/unsafe/device/page_fault/blocking/cancel/detach/panic/state) — a typo here silently declares the op PURE
 </code></pre></div></div><p>같은 원자를 두 번 적으면 거절된다. 집합에 중복은 뜻이 없고, 읽는 사람이 그것이 잡음인지 판단해야 한다. 없는 원자는 오타로 잡힌다 — 진단이 말하듯 오타가 조용히 지나가면 그 op 은 <strong>순수하다고 선언한 것</strong>이 된다. 당연해 보이는 규칙이지만, 구현이 절의 <strong>첫 낱말 하나만</strong> 읽던 때가 있었다. 그때 <code>effects io alloc</code> 은 <code>io</code> 로만 등록되었고 둘째 원자부터는 적어도 없는 것과 같았다. 선언을 읽는 코드의 결함은 선언 체계 전체를 무력하게 만든다.</p><p><strong>규칙 4 — 멈춤은 효과가 아니다.</strong> 이 장에서 가장 생각할 거리다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch44/trap_not_effect.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> trap_not_effect .
 <em><span class="tok-c">rem run: pick [1,2,3] 1</span></em>
 <em><span class="tok-c">rem trap: pick [1,2,3] 7</span></em>

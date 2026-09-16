@@ -200,13 +200,11 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   처음부터 `for x xs do` 를 쓴다. `for` 는 다음 원소로 넘어가는 일을 언어가 맡으므로 이 결함이 생길 자리가 없다.
 ]
 
-#antipattern[`match` 의 나머지를 `else` 로 받는다 --- 이 판의 구멍][
-  #demo("examples/ch07/mistake_matchelse.low")
+나머지를 받는 자리는 두 가지로 적을 수 있다. `case _ .` 와 마지막 `else` 는 같은 일을 한다.
 
-  정본의 문법 부록은 `match … do <가지>* [else do … end] end` 를 적고, 진단문도 "`case _ .` 나 `else` 가 필요하다" 고 말한다. 그런데 이 판의
-  도구는 `match` 안의 `else` 를 나머지 갈래로 읽지 않아 같은 진단을 다시 낸다. 개발 저장소에 결함으로 적어 두었다. 지금은 나머지를
-  `case _ do … end .` 로 받는다. `_` 는 "어떤 값이든" 이라는 뜻의 자리다.
-]
+#demo("examples/ch07/matchelse.low")
+
+`else` 뒤에는 갈래를 더 둘 수 없다 --- 이미 다 받았으므로 그 뒤의 갈래는 한 번도 돌지 않고, `E-MATCH-REDUNDANT` 로 거절된다.
 
 #misconception[`match` 의 갈래도 C 의 `switch` 처럼 아래로 흘러간다][
   #demo("examples/ch07/nofall.low")

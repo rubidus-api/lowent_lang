@@ -115,6 +115,8 @@ MEANING = {
  "E-ERRORS-STATE": ("`errors` 조건이 액터의 상태 칸을 읽는다", "an `errors` condition reads an actor state field"),
  "E-ACTOR-FIELD": ("액터의 상태 칸을 바깥에서 읽는다", "an actor's state field is read from outside"),
  "E-ACTOR-STATE-REF": ("액터 상태 칸에 빌림을 둔다", "a borrow is kept in an actor state field"),
+ "E-ACTOR-UNINIT": ("갓 띄운 액터의 슬라이스 칸을 세우기 전에 읽는다", "a just-spawned actor's slice state field is read before it is set"),
+ "W-CONFIG-DEPENDS": ("기댐이 안 맞는 손잡이에 구성이 값을 골랐다", "the config picks a value for a knob whose dependency is off"),
  "E-PAR-IDENTITY": ("`reduce` 의 시작값이 그 연산의 항등원이 아니다", "a `reduce` starts from a value that is not the operator's identity"),
  "W-NOT-YET": ("이름은 받지만 아직 뜻이 없는 낱말을 썼다", "a word accepted by name that has no meaning yet"),
  "E-LOCK-NOTYET": ("흐름끼리 나누는 자물쇠 타입은 아직 짓지 않았다", "shared lock types are not built yet"),

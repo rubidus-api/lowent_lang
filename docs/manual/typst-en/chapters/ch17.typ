@@ -138,15 +138,14 @@ sparingly.
   #demo("examples/ch17/dropwhy_fixed.low")
 ]
 
-#antipattern[Believing `case error <variant name>` splits on an error variant][
-  #demo("examples/ch17/mistake_errvariant.low")
+Split on an error variant directly with `case error <variant name>`.
 
-  In `case error not_digit .`, `not_digit` is not the enum variant but *a new name given to the error value*, so every error comes to this
-  arm. Even empty input (`empty`) gives 2. This `match`, which looks as if it had only two arms, also passes the exhaustiveness check. If you
-  write one arm per variant, the second is rejected with `E-MATCH-REDUNDANT`, because the first arm already took every error. This edition's
-  tool does not warn that a variant name is hidden by a binding (recorded as a defect in the development repository). Bind a name with
-  `case error e` and `match` on `e` once more, as `dropwhy_fixed.low` above does.
-]
+#demo("examples/ch17/errvariant.low")
+
+When the name after `case error` is a *declared variant*, that arm takes that variant alone. When it is not, it binds the whole error value
+to that name (`case error e`). One spelling carries two meanings, but the rule is the one that holds everywhere else in a `match`: a bare
+name that is a variant is that variant (#chref("control")). Write one arm per variant and the exhaustiveness check finds the one you
+forgot; bind a name instead and that single arm takes every error, so there is nothing left to find.
 
 #antipattern[Calling an op that returns a `result` as a statement][
   #demo("examples/ch17/mistake_dropresult.low")

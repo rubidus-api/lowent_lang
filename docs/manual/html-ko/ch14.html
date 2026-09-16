@@ -776,7 +776,7 @@ third(10) = 3
   <strong><span class="tok-k">return</span></strong> small <span class="tok-n">200</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check impossible.low
-12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requires`, and BOTH SIDES ARE CONSTANTS — so it can be decided here, now. It used to compile green and trap at run time (E-VM-CONTRACT): a bit budget that does not fit (`slot + shard + generation > word`) shipped as a runnable program. A contract that can be decided at compile time IS decided at compile time (RFC-0104 §8-3)
+impossible.low:12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requires`, and BOTH SIDES ARE CONSTANTS — so it can be decided here, now. It used to compile green and trap at run time (E-VM-CONTRACT): a bit budget that does not fit (`slot + shard + generation > word`) shipped as a runnable program. A contract that can be decided at compile time IS decided at compile time (RFC-0104 §8-3)
 </code></pre></div></div><p>진단이 적은 사연대로, 이것은 한때 초록으로 번역되어 실행 중에야 멈췄다. 맞지 않는 비트 예산을 지닌 프로그램이 실행할 수 있는 모습으로 배포되었다. 답이 지금 나는 계약은 지금 말한다.</p><p>반대쪽 실수도 거절된다. <code>requires</code> 가 이미 배제한 조건에 오류를 선언하면, 그 오류는 결코 나지 않는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/dead.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead .
 <em><span class="tok-c">rem expect: E-CONTRACT-DEAD</span></em>
 
@@ -792,7 +792,7 @@ third(10) = 3
   <strong><span class="tok-k">return</span></strong> ok (div a b) .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check dead.low
-10:0 E-CONTRACT-DEAD: this declared error can never occur: `requires` already excludes the condition, and the condition's inputs cannot change during the op (remove the `requires`, or remove the error — not both)
+dead.low:10:0 E-CONTRACT-DEAD: this declared error can never occur: `requires` already excludes the condition, and the condition's inputs cannot change during the op (remove the `requires`, or remove the error — not both)
 </code></pre></div></div><p><code>requires ne b 0 .</code> 가 있으니 <code>errors by_zero eq b 0 .</code> 은 영영 참이 될 수 없다. 이 선언이 남아 있으면 부르는 쪽은 <code>by_zero</code> 를 다루는 코드를 쓰고, 그 코드는 영영 돌지 않는다. 돌지 않는 코드는 시험되지 않고, 시험되지 않는 코드는 언젠가 틀린다. 진단은 둘 중 하나를 지우라고 한다 — 부르는 쪽에 책임을 지우든(<code>requires</code>), op 이 스스로 처리하든(<code>errors</code>).</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>계약은 많이 적을수록 안전하다</strong></p><div class="dev-body">적은 계약이 서로 겹치거나 일어날 수 없는 경우를 약속하면 틀린 그림이 된다. 계약은 <strong>사실</strong>이어야 한다. <code>requires</code> 와 <code>errors</code> 가 같은 조건을 두고 다투는 것은 누가 책임지는지를 흐리는 일이고, 그래서 거절된다. 좋은 계약은 짧고, 책임이 한 곳에 있다.</div></div><h3 id="s14-7">14.7 계약의 등급<a class="plink" href="#s14-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-36"></span><p>계약 절 하나에 등급을 붙여 그 조건을 언제 무엇으로 다룰지 정할 수 있다. <code>requires &lt;등급> &lt;조건> .</code> 꼴이다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>등급</strong></th><th><strong>언제 보나</strong></th><th><strong>뜻</strong></th></tr><tr><td>(없음)</td><td>할 수 있을 때</td><td>증명할 수 있으면 증명하고, 못 하면 빌드 모드대로 남긴다</td></tr><tr><td><code>static</code></td><td>번역할 때</td><td>처리기가 증명해야 한다. 못 하면 번역이 실패한다</td></tr><tr><td><code>debug</code></td><td>돌 때</td><td>빌드 모드가 검사를 두는 동안만 본다</td></tr><tr><td><code>assume</code></td><td>보지 않는다</td><td>적어 두기만 한다. 사실로 쓰지 않는다</td></tr></table></div><p class="float-caption">표 14.2 — 계약의 등급</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/grades.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> grades .
 <em><span class="tok-c">rem run: bump_checked 10</span></em>
 <em><span class="tok-c">rem trap: bump_checked 250</span></em>
@@ -846,8 +846,8 @@ bump(250) = 251
   <strong><span class="tok-k">return</span></strong> a .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_result.low
-6:0 E-ENS-UNDEF: ensures references an undefined name — an ensures that names nothing checks nothing, and the interval analysis DERIVES the result range from it (`ret` is the result)
-</code></pre></div></div><p>돌려주는 값의 이름은 <code>ret</code> 이다. <code>result</code> 는 타입 이름(<code>result u8 e</code>)에 이미 쓰이므로 값 이름으로 겹쳐 쓰지 않는다. 없는 이름을 가리키는 <code>ensures</code> 는 아무것도 검사하지 않으면서 처리기가 결과 범위를 끌어내는 데 쓰일 수 있으므로, 경고가 아니라 오류 (<code>E-ENS-UNDEF</code>)다. 이 판의 도구는 이 진단의 앞에 파일 이름을 적지 않는다. 줄 번호만 보고 찾는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 색인의 전제를 <code>le</code> 로 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/mistake_leindex.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_leindex .
+mistake_result.low:6:0 E-ENS-UNDEF: ensures references an undefined name — an ensures that names nothing checks nothing, and the interval analysis DERIVES the result range from it (`ret` is the result)
+</code></pre></div></div><p>돌려주는 값의 이름은 <code>ret</code> 이다. <code>result</code> 는 타입 이름(<code>result u8 e</code>)에 이미 쓰이므로 값 이름으로 겹쳐 쓰지 않는다. 없는 이름을 가리키는 <code>ensures</code> 는 아무것도 검사하지 않으면서 처리기가 결과 범위를 끌어내는 데 쓰일 수 있으므로, 경고가 아니라 오류 (<code>E-ENS-UNDEF</code>)다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 색인의 전제를 <code>le</code> 로 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/mistake_leindex.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_leindex .
 <em><span class="tok-c">rem run: at [1,2,3] 2</span></em>
 <em><span class="tok-c">rem trap: at [1,2,3] 3</span></em>
 
@@ -864,8 +864,7 @@ $ lowentc --run at mistake_leindex.low [1,2,3] 3
 == ir diagnostics (1) ==
 0:0 E-VM-BOUNDS: slice index out of bounds (panic)
 </code></pre></div></div><p>길이가 3 인 줄의 칸 번호는 0, 1, 2 다. <code>requires le i (len xs)</code> 는 <code>i = 3</code> 도 허락하므로 계약은 통과하고, 그다음 <code>index</code> 가 한 칸 밖을 읽으려다 <code>E-VM-BOUNDS</code> 로 멈춘다. 계약이 틀리면 멈추는 자리가 계약에서 본문으로 옮겨 가고, 진단이 “부르는 쪽의 잘못” 대신 “경계 밖” 을 말한다. 색인에는 <code>lt</code> 를 쓴다. 개수(<code>n</code> 개를 읽는다)에는 <code>le</code> 가 맞다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 함께 만족할 수 없는 전제를 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/mistake_contradict.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_contradict .
-<em><span class="tok-c">rem trap: pick 50</span></em>
-<em><span class="tok-c">rem trap: pick 250</span></em>
+<em><span class="tok-c">rem expect: E-CONTRACT-UNSAT</span></em>
 
 <em><span class="tok-c">rem ✘ 두 조건을 함께 만족하는 값이 없다 --- 어떻게 불러도 멈춘다</span></em>
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
@@ -874,13 +873,9 @@ $ lowentc --run at mistake_leindex.low [1,2,3] 3
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run pick mistake_contradict.low 50
-== ir diagnostics (1) ==
-0:0 E-VM-CONTRACT: `requires` violated at entry — the caller broke the contract
-$ lowentc --run pick mistake_contradict.low 250
-== ir diagnostics (1) ==
-0:0 E-VM-CONTRACT: `requires` violated at entry — the caller broke the contract
-</code></pre></div></div><p>100 이하이면서 200 이상인 <code>u8</code> 은 없다. 그러니 이 op 은 어떻게 불러도 진입에서 멈춘다. 대개 한 줄의 <code>le</code>·<code>ge</code> 를 거꾸로 적었거나, 고치다가 옛 줄을 지우지 않은 것이다. 이 판의 도구는 일어날 수 없는 오류 선언(<code>E-CONTRACT-DEAD</code>)은 잡지만 만족할 수 없는 전제는 잡지 않는다(개발 저장소에 결함으로 적어 두었다). 전제가 둘 이상이면 “둘 다 참인 값이 하나라도 있는가” 를 직접 따져 본다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>requires</code> 는 사용자 입력을 검증하는 도구다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/contract_input.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> contract_input .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_contradict.low
+mistake_contradict.low:7:0 E-CONTRACT-UNSAT: two preconditions on the same input cannot both hold, so EVERY call stops at the door and the body never runs. A contract that no argument satisfies is not a strong contract, it is a dead op — usually one line left behind when the other was edited. Keep the one you meant
+</code></pre></div></div><p>100 이하이면서 200 이상인 <code>u8</code> 은 없다. 그러니 이 op 은 어떻게 불러도 진입에서 멈춘다. 대개 한 줄의 <code>le</code>·<code>ge</code> 를 거꾸로 적었거나, 고치다가 옛 줄을 지우지 않은 것이다. 일어날 수 없는 오류 선언(<code>E-CONTRACT-DEAD</code>)과 같은 자리이므로 <code>E-CONTRACT-UNSAT</code> 으로 거절한다 — 어떤 인자도 만족하지 못하는 계약은 강한 계약이 아니라 죽은 op 이다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>requires</code> 는 사용자 입력을 검증하는 도구다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/contract_input.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> contract_input .
 <em><span class="tok-c">rem run: check_age 30</span></em>
 <em><span class="tok-c">rem trap: age_strict 200</span></em>
 <em><span class="tok-c">rem run: age_checked 200</span></em>

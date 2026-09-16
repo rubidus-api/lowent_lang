@@ -785,7 +785,7 @@ mref_slice.low:4:0 E-MREF-SLICE: `mut ref slice` gives nothing that `mut slice` 
 first_two([9,8,7,6]) = 2
   arg0 (written) = [9,8,7,6]
 </code></pre></div></div><p><code>take_front</code> 는 앞쪽 <code>n</code> 개를 가리키는 새 슬라이스를 돌려준다. 길이가 달라졌다는 사실이 반환값과 <code>let front</code> 에 드러난다.</p><h3 id="s12-6">12.6 흔한 실수<a class="plink" href="#s12-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 부르는 자리에 <code>mut_ref</code> 를 빠뜨린다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_nomutref.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nomutref .
-<em><span class="tok-c">rem trap: use_bump 7</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-ARG</span></em>
 
 <strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -801,11 +801,10 @@ first_two([9,8,7,6]) = 2
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> bump n .
   <strong><span class="tok-k">return</span></strong> add n r .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run use_bump mistake_nomutref.low 7
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: deref needs a reference
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nomutref.low
+mistake_nomutref.low:15:0 E-TYPE-ARG: this op takes a BORROW here (`ref` / `mut_ref`), and a plain value was passed. Take the borrow at the call — `mut_ref &lt;name>` — so the reader sees where the callee may write. It used to pass `--check` and stop at run time with `E-VM-TYPE: deref needs a reference`
 </code></pre></div></div><p><code>bump</code> 는 “수를 가리키는 참조” 를 받기로 했는데 <code>bump n</code> 은 수 7 을 그대로 넘긴다. C++ 의 참조 매개변수는 부르는 자리에 아무 표시가 없어도 되지만, Lowent 는 호출만 보고도 무엇이 바뀔지 알게 하려고 <code>mut_ref n</code> 을 적게 한다. 이 판의 도구는 이 빠뜨림을 번역에서 거절하지 않고, 실행하면 <code>deref</code> 가 참조가 아닌 것을 만나 멈춘다(개발 저장소에 결함으로 적어 두었다). 멈춤의 메시지가 “deref needs a reference” 이면 부르는 자리에서 <code>mut_ref</code> 나 <code>ref</code> 를 찾는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 참조를 <code>deref</code> 없이 수처럼 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_noderef.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noderef .
-<em><span class="tok-c">rem trap: double 7</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-REFVAL</span></em>
 
 <strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -819,9 +818,8 @@ first_two([9,8,7,6]) = 2
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> x .
   <strong><span class="tok-k">return</span></strong> twice (<strong><span class="tok-k">ref</span></strong> n) .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run double mistake_noderef.low 7
-== ir diagnostics (1) ==
-0:0 E-VM-TYPE: arithmetic/compare needs ints
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noderef.low
+mistake_noderef.low:7:0 E-TYPE-REFVAL: a BORROW is being used where a number is expected. `ref t` / `mut_ref t` names a place, not the value in it — read it with `deref &lt;name>` (and write through it with `set &lt;name> …`). It used to pass `--check` and stop at run time with `E-VM-TYPE`, which blamed the arithmetic instead of the missing read
 </code></pre></div></div><p>참조는 값이 <strong>있는 곳</strong>이지 값이 아니다. 읽을 때마다 <code>deref p</code> 라고 적어서 “여기서 빌린 값을 읽는다” 를 드러낸다. C 에서 <code>*p</code> 를 빠뜨리면 주소끼리 더하는 엉뚱한 계산이 되지만, Lowent 는 주소 계산을 허용하지 않으므로 잘못된 값이 조용히 나오지는 않는다. 다만 이 판의 도구는 번역에서 알리지 않고 실행 중에 멈춘다(결함으로 적어 두었다). 고친 줄은 <code>add (deref p) (deref p)</code> 다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>let</code> 으로 지은 이름을 쓰기로 빌려준다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_letmutref.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_letmutref .
 <em><span class="tok-c">rem expect: E-TYPE-ARGMUT</span></em>
 

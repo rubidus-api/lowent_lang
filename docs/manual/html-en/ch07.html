@@ -896,6 +896,7 @@ grade(70) = 1
 $ lowentc --run grade elseif.low 95
 grade(95) = 2
 </code></pre></div></div><p>The last branch is <code>end else do … end .</code>. When there are three or more branches that all split one value, <code>match</code> is a better fit.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Putting <code>else</code> inside the block, C style</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_innerelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_innerelse .
+<em><span class="tok-c">rem expect: E-STMT-ELSE</span></em>
 
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -909,8 +910,8 @@ grade(95) = 2
   <strong><span class="tok-k">return</span></strong> r .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_innerelse.low
-== check: ok ==
-</code></pre></div></div><p>In C and several other languages <code>else</code> follows the previous block, as in <code>if … { … } else { … }</code>. In Lowent <code>else</code> comes <strong>after</strong> the previous block is closed with <code>end</code> (<code>end else do</code>). With <code>else</code> on its own line inside the block, this edition’s tool does not reject the translation; it prints <code>check: ok</code> with only a note that “one op cannot be lowered”. At run time it stops with <code>E-VM-UNSUP</code>, and the native build leaves the op out entirely (recorded as a defect in the development repository). Read the note above <code>check: ok</code> as well.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a symbol such as <code>&lt;</code> in a condition</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_less.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_less .
+mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C writes it. Here a block is closed before the other arm opens: `if &lt;cond> . do … end else do … end .`. Written this way the arm used to be accepted by every static check and then dropped at lowering — the VM stopped with an unsupported body and the native build silently left the op out
+</code></pre></div></div><p>In C and several other languages <code>else</code> follows the previous block, as in <code>if … { … } else { … }</code>. In Lowent <code>else</code> comes <strong>after</strong> the previous block is closed with <code>end</code> (<code>end else do</code>). With <code>else</code> on its own line inside the block the program is rejected with <code>E-STMT-ELSE</code>; it used to translate and then stop at run time with <code>E-VM-UNSUP</code>, while the native build left the op out entirely.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a symbol such as <code>&lt;</code> in a condition</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_less.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_less .
 <em><span class="tok-c">rem expect: E-CHAR</span></em>
 
 <strong><span class="tok-k">fn</span></strong> upto <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -937,8 +938,10 @@ grade(95) = 2
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .</code></pre><p>At the first even number, <code>i</code> stops increasing and the loop never ends. Neither compilation nor run-time checks catch this — running forever is not an overflow. Move the increment to the <strong>top</strong> of the body (keeping the pre-increment value for indexing), or, if you are walking elements, use <code>for x xs do</code> in the first place. With <code>for</code>, moving to the next element is the language’s job, so this bug has nowhere to live.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Catching the rest of a <code>match</code> with <code>else</code> — a hole in this edition</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_matchelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_matchelse .
-<em><span class="tok-c">rem expect: E-MATCH-INEXHAUSTIVE</span></em>
+<strong><span class="tok-k">end</span></strong> .</code></pre><p>At the first even number, <code>i</code> stops increasing and the loop never ends. Neither compilation nor run-time checks catch this — running forever is not an overflow. Move the increment to the <strong>top</strong> of the body (keeping the pre-increment value for indexing), or, if you are walking elements, use <code>for x xs do</code> in the first place. With <code>for</code>, moving to the next element is the language’s job, so this bug has nowhere to live.</p></div></div><p>There are two ways to write the slot that takes the rest. <code>case _ .</code> and a final <code>else</code> do the same thing.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/matchelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> matchelse .
+<em><span class="tok-c">rem run: band 1</span></em>
+<em><span class="tok-c">rem run: band 3</span></em>
+<em><span class="tok-c">rem run: band 99</span></em>
 
 <strong><span class="tok-k">fn</span></strong> band <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> n <strong><span class="tok-k">do</span></strong>
@@ -948,15 +951,19 @@ grade(95) = 2
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">2</span> to <span class="tok-n">5</span> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">20</span> .
     <strong><span class="tok-k">end</span></strong> .
-    <em><span class="tok-c">rem ✘ catching the rest with else; the grammar annex and the diagnostic suggest it, but this edition's tool does not accept it</span></em>
+    <em><span class="tok-c">rem catch the rest with `else` --- the same place as `case _ .`</span></em>
     <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> .
     <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_matchelse.low
-mistake_matchelse.low:5:0 E-MATCH-INEXHAUSTIVE: this `match` on an integer is not exhaustive — the literals/ranges leave a gap, so a `case _ .` wildcard (or `else`) is required, OR the ranges must TILE the whole domain of the scrutinee's type (e.g. `0 to 127` + `128 to 255` on a u8) (RFC-0020 §6.4; MM4 tiling)
-</code></pre></div></div><p>The canon’s grammar annex writes <code>match … do &lt;arm>* [else do … end] end</code>, and the diagnostic also says “a <code>case _ .</code> or <code>else</code> is required”. Yet this edition’s tool does not read an <code>else</code> inside a <code>match</code> as the remaining arm and gives the same diagnostic again. It is recorded as a defect in the development repository. For now, catch the rest with <code>case _ do … end .</code>; <code>_</code> is a slot meaning “any value”.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>match</code> arms fall through like C’s <code>switch</code></strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/nofall.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nofall .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run band matchelse.low 1
+band(1) = 10
+$ lowentc --run band matchelse.low 3
+band(3) = 20
+$ lowentc --run band matchelse.low 99
+band(99) = 99
+</code></pre></div></div><p>Nothing may follow an <code>else</code> — it has already taken everything, so a later arm never runs and is refused with <code>E-MATCH-REDUNDANT</code>.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>match</code> arms fall through like C’s <code>switch</code></strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/nofall.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nofall .
 <em><span class="tok-c">rem run: label 1</span></em>
 <em><span class="tok-c">rem run: label 2</span></em>
 <em><span class="tok-c">rem run: label 9</span></em>

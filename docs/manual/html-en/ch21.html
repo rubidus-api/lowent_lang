@@ -801,7 +801,7 @@ E-DEP-MISSING: `use geom from "geom"` — cannot read that source. A dependency 
   <strong><span class="tok-k">return</span></strong> str.eq_str a b .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_filename.low
-5:0 W-USE-EXTERNAL: this module is not in the compilation unit — there is no module search path, so nothing here can confirm it exists. Pass the file that declares it and it WILL be checked (several .low files link into one unit)
+mistake_filename.low:5:0 W-USE-EXTERNAL: this module is not in the compilation unit — there is no module search path, so nothing here can confirm it exists. Pass the file that declares it and it WILL be checked (several .low files link into one unit)
 mistake_filename.low:9:0 E-IR-UNDEF: undefined name `str.eq_str` — `str` is not a module used by this unit (`use str .`) nor an enum
 </code></pre></div></div><p>The module in the file <code>lib/str.low</code> is named <code>strings</code>. <code>use str .</code> finds no such module, so it warns with <code>W-USE-EXTERNAL</code> (“cannot confirm it exists”), and the place that actually uses the name is rejected with <code>E-IR-UNDEF</code>. Read the warning first and check the module name.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/filename_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> filename_fixed .
 <em><span class="tok-c">rem run: same [104,105] [104,105]</span></em>
@@ -822,20 +822,21 @@ same([104,105], [104,111]) = 0
   arg0 (written) = [104,105]
   arg1 (written) = [104,111]
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a hidden type in an exported op’s signature</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/secretbox.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> secretbox .
+<em><span class="tok-c">rem expect: W-EXPORT-HIDDEN</span></em>
 
 <em><span class="tok-c">rem a type without `export` --- its name cannot be written outside this module</span></em>
 <strong><span class="tok-k">struct</span></strong> secret <strong><span class="tok-k">do</span></strong>
   v <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 
-<em><span class="tok-c">rem an exported op returns the hidden type --- this edition's tool does not report it here</span></em>
+<em><span class="tok-c">rem ✘ an exported op returns the hidden type --- the importing side cannot write that name</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> make_secret <strong><span class="tok-k">output</span></strong> secret .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> secret <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check secretbox.low
-== check: ok ==
-</code></pre></div></div><p><code>secretbox</code> translates without complaint. The problem shows up in the module that imports it.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_privtype.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_privtype .
+secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names a type this module keeps to itself. An importing module cannot write that type, so it has nowhere to put the value and the export cannot be used from outside (§6.10.1). Export the type too, or give the op a signature made of types the other side can name
+</code></pre></div></div><p><code>secretbox</code> itself translates, but the exporting side is warned with <code>W-EXPORT-HIDDEN</code>: this export cannot be used from outside. Without that warning the problem only shows up in the module that imports it.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_privtype.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_privtype .
 <em><span class="tok-c">rem expect: E-VISIBILITY</span></em>
 
 <strong><span class="tok-k">use</span></strong> secretbox from <span class="tok-s">"</span><span class="tok-s">secretbox.low</span><span class="tok-s">"</span> .
@@ -848,7 +849,8 @@ same([104,105], [104,111]) = 0
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_privtype.low
 mistake_privtype.low:9:0 E-VISIBILITY: this name belongs to ANOTHER module and is not `export`ed — qualifying it does not open the door. A module that cannot keep anything private is not a module, it is a prefix. Mark it `export`, or stop reaching in (RFC-0011 §6.2)
-</code></pre></div></div><p><code>make_secret</code> is exported, but the type of its result, <code>secret</code>, is hidden. The importer cannot write a name to hold the result and is rejected with <code>E-VISIBILITY</code>. The export is unusable. This should be reported on the exporting side, but this edition’s tool does not (recorded as a defect in the development repository). Export the input and output types of an exported op as well.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing another module’s enum variant with the module name in a <code>case</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/sizes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sizes .
+secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names a type this module keeps to itself. An importing module cannot write that type, so it has nowhere to put the value and the export cannot be used from outside (§6.10.1). Export the type too, or give the op a signature made of types the other side can name
+</code></pre></div></div><p><code>make_secret</code> is exported, but the type of its result, <code>secret</code>, is hidden. The importer cannot write a name to hold the result and is rejected with <code>E-VISIBILITY</code>. The export is unusable. Export the input and output types of an exported op as well.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing another module’s enum variant with the module name in a <code>case</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/sizes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sizes .
 
 <em><span class="tok-c">rem an enum for other modules to use; its variants carry no value</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">enum</span></strong> kind <strong><span class="tok-k">do</span></strong>

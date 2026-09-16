@@ -142,15 +142,13 @@
   #demo("examples/ch17/dropwhy_fixed.low")
 ]
 
-#antipattern[`case error <갈래이름>` 으로 오류 갈래를 가른다고 믿는다][
-  #demo("examples/ch17/mistake_errvariant.low")
+오류 갈래는 `case error <갈래이름>` 으로 곧바로 가른다.
 
-  `case error not_digit .` 의 `not_digit` 은 열거형의 갈래가 아니라 *오류 값에 새로 붙인 이름*이다. 그래서 어떤 오류든 이 갈래로 온다.
-  빈 입력(`empty`)을 줘도 2 가 나온다. 갈래가 둘뿐인 것처럼 보이는 이 `match` 는 망라 검사도 통과한다. 갈래마다 적으면 둘째 줄이
-  `E-MATCH-REDUNDANT` 로 거절되는데, 첫 줄이 이미 모든 오류를 받았기 때문이다. 이 판의 도구는 갈래 이름이 묶음 이름으로 가려지는 것을
-  알리지 않는다(개발 저장소에 결함으로 적어 두었다). 위의 `dropwhy_fixed.low` 처럼 `case error e` 로 이름을 묶고 `e` 를 한 번 더
-  `match` 한다.
-]
+#demo("examples/ch17/errvariant.low")
+
+`case error` 뒤의 이름이 *선언된 갈래*면 그 갈래만 받는다. 선언된 갈래가 아니면 오류 값 전체를 그 이름에 묶는다(`case error e`) ---
+이름 하나로 두 가지 뜻을 쓰는 셈이지만, 가르는 규칙은 `match` 의 다른 자리와 같다: 맨 이름이 갈래면 갈래다(#chref("control")).
+갈래마다 적으면 망라 검사가 갈래 하나가 빠진 것을 잡는다. 이름으로 묶으면 그 하나가 모든 오류를 받으므로 잡을 것이 없다.
 
 #antipattern[`result` 를 문장으로 불러 버린다][
   #demo("examples/ch17/mistake_dropresult.low")

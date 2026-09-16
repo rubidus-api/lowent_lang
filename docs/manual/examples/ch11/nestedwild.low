@@ -1,4 +1,4 @@
-module nestedwild_fixed .
+module nestedwild .
 rem run: via_match
 
 enum read_error do
@@ -7,11 +7,11 @@ end .
 
 fn pick input r result (option u64) read_error . output u64 .
 do
+  rem ko: 겹친 패턴 셋이 모든 경우다 --- `_` 를 따로 두지 않는다 /// en: three nested patterns are every case --- no separate `_`
   match r do
     case ok (some x) . return x .
     case ok none . return 0 .
-    rem ko: 마지막 경우를 `_` 로 받는다 --- 남은 것은 error 뿐이다 /// en: take the last case with `_` --- only error is left
-    case _ . return 1 .
+    case error e . return 1 .
   end .
 end .
 

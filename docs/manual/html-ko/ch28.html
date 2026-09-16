@@ -750,13 +750,13 @@ LOW_HOST_FAULT="close:err"       닫기가 실패한다</code></pre><p>VM 과 �
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> files.file_error <strong><span class="tok-k">be</span></strong> files.write fs h <span class="tok-s">"</span><span class="tok-s">extra line</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error <strong><span class="tok-k">be</span></strong> files.close fs h .
   <strong><span class="tok-k">guard</span></strong> is_ok w . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
-  <em><span class="tok-c">rem 오류가 아니라 "0 바이트 썼다" 가 돌아온다 --- 쓴 수를 확인해야 드러난다</span></em>
+  <em><span class="tok-c">rem 쓰기가 실패했으므로 여기서 2 로 나간다 --- 짧게 쓰인 것도 함께 본다</span></em>
   <strong><span class="tok-k">guard</span></strong> eq (ok_value w) <span class="tok-n">11</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main mistake_readmode.low
-main() = 3
-</code></pre></div></div><p><code>files.open fs "notes.txt" 0</code> 은 읽기 모드다. 거기에 쓰면 실패해야 하는데, 이 판에서는 <code>files.write</code> 가 오류 대신 <code>ok 0</code>(“0 바이트 썼다”)을 돌려준다(개발 저장소에 결함으로 적어 두었다). <code>is_ok w</code> 만 확인했다면 성공으로 지나갔을 것이다. 이 예제는 쓴 수가 11 인지 확인해서 종료 코드 3 으로 드러낸다. 모드를 확인하고(0 읽기 · 1 쓰기 · 2 덧붙이기), 쓰기의 답은 성공 여부와 함께 <strong>쓴 수</strong>까지 본다. 짧게 쓰인 것은 남은 바이트를 다시 써야 한다는 뜻이다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 닫은 핸들로 또 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch28/mistake_afterclose.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_afterclose .
+main() = 2
+</code></pre></div></div><p><code>files.open fs "notes.txt" 0</code> 은 읽기 모드다. 거기에 쓰면 <code>files.write</code> 가 실패를 돌려주고(스트림 오류가 켜진 짧은 쓰기는 값이 아니라 실패다) 이 예제는 종료 코드 2 로 나간다. 전에는 같은 자리가 <code>ok 0</code>(“0 바이트 썼다”)이어서 <code>is_ok w</code> 만 본 코드가 성공으로 지나갔다. 모드를 확인하고(0 읽기 · 1 쓰기 · 2 덧붙이기), 쓰기의 답은 성공 여부와 함께 <strong>쓴 수</strong>까지 본다. 짧게 쓰인 것은 남은 바이트를 다시 써야 한다는 뜻이다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 닫은 핸들로 또 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch28/mistake_afterclose.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_afterclose .
 <em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
 
 <strong><span class="tok-k">use</span></strong> files .

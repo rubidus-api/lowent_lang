@@ -42,7 +42,6 @@ fn pick input k u8 . output u32 . do
     case ok (some x) . do return x . end .
     case ok none . do return 0 . end .
     case error . do return 99 . end .
-    case _ . do return 255 . end .
   end .
 end .
 

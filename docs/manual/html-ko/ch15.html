@@ -672,7 +672,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">return</span></strong> x .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check undef.low
-undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/alloc/io/wait/lock/atomic/unsafe/device/page_fault/blocking/cancel/detach/panic/state) — a typo here silently declares the op PURE
+undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/alloc/heap/io/wait/concurrent/lock/atomic/unsafe/device/page_fault/blocking/cancel/detach/panic/state) — a typo here silently declares the op PURE
 </code></pre></div></div><p>오타를 조용히 받아 주면 그 op 은 효과가 없는 것으로 읽힌다. 진단의 말대로 “a typo here silently declares the op PURE” 가 되는 자리를 막는다.</p><h3 id="s15-2">15.2 효과는 부르는 쪽으로 번진다<a class="plink" href="#s15-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>op 을 부르면 그 op 의 효과가 부르는 쪽 효과에 더해진다. 적은 것보다 많은 효과를 내면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/spread.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> spread .
 <em><span class="tok-c">rem expect: E-EFFECT</span></em>
 

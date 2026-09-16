@@ -194,15 +194,12 @@ return ok (add v 1) .
   #demo("examples/ch11/trynoresult_fixed.low")
 ]
 
-#antipattern[겹친 패턴으로 다 덮었는데 `_` 를 요구받는다][
-  #demo("examples/ch11/mistake_nestedwild.low")
+겹친 패턴도 망라에 센다. 바깥 꼬리표는 *안쪽이 스스로 빠짐없을 때* 덮인 것으로 세어진다.
 
-  `ok (some x)` · `ok none` · `error e` 셋이면 `result (option u64) read_error` 의 모든 경우다. 그래도 이 판의 도구는 겹친
-  패턴의 망라를 끝까지 세지 못해 `E-MATCH-INEXHAUSTIVE` 로 거절한다. 도구의 한계이고 결함으로 적어 두었다. 지금은 마지막 갈래를
-  `_` 로 받는다. `_` 가 받는 것이 무엇인지 주석으로 적어 두면 읽는 사람이 헷갈리지 않는다.
+#demo("examples/ch11/nestedwild.low")
 
-  #demo("examples/ch11/nestedwild_fixed.low")
-]
+`ok (some x)` 와 `ok none` 이 함께 `ok` 를 덮고 `error e` 가 나머지를 덮으므로 `_` 가 필요 없다. 하나라도 빠지면
+`E-MATCH-INEXHAUSTIVE` 로 거절된다 --- 쓸모없는 `_` 를 두는 것보다 낫다. `_` 는 나중에 갈래가 늘어도 아무 말을 하지 않는다.
 
 #misconception[`value_or` 를 쓰면 없는 경우도 알 수 있다][
   #demo("examples/ch11/valueor_blind.low")

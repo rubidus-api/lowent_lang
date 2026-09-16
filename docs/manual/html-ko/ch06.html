@@ -752,6 +752,7 @@ pick(0) = 1
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check outer.low
 outer.low:8:0 E-NAME-SHADOW: an inner block binds a name that is already bound OUTSIDE it. The namespace is FLAT (SPEC-002 2.10: no shadowing) — the outer value is still alive and the same letters now point at a different one. Rename the inner binding
+outer.low:11:0 E-NAME-SCOPE: this name was declared INSIDE a block and is read outside it. A block is where a name lives (§6.5.1): on the path that did not enter the block the name never existed, and the tool used to answer 0 there — a value that appears nowhere in the source. Declare it before the block (`var … be 0 .`) and set it inside
 </code></pre></div></div><p>안쪽 블록에서 <code>t</code> 는 2 이고 블록을 나오면 다시 1 이다. 같은 글자가 줄에 따라 다른 값을 가리키면 읽는 사람이 틀린 값을 떠올린다. 3장에서 본 매개변수 가림과 같은 규칙이다 — 이름 공간은 평평하다.</p><h3 id="s6-5">6.5 <code>if</code> 는 값을 내지 않는다<a class="plink" href="#s6-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>if</code> 는 문장이다. 식의 자리에 둘 수 없다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/ifvalue.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ifvalue .
 <em><span class="tok-c">rem expect: E-IF-VALUE</span></em>
 
@@ -799,8 +800,7 @@ mistake_typo.low:8:0 E-IR-UNDEF: set of an undeclared name
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_localname.low
 mistake_localname.low:7:0 E-NAME-BUILTIN: a local takes the name of a BUILTIN op. The namespace is FLAT (no shadowing), so this name now means two things — and which one it means decides how the SENTENCE IS BRACKETED: `f len data` reads as `f(len(data), …)` if `len` is the builtin (arity 1) and as `f(len, data)` if it is your local (arity 0). Same letters, different tree, no error. That is RFC-0046 P1. Rename the local
 </code></pre></div></div><p><code>count</code>·<code>sum</code>·<code>len</code>·<code>min</code>·<code>max</code>·<code>ok</code>·<code>avg</code> 같은 이름은 이미 내장 op 이다. 이름 공간이 평평하므로 지역이 그 이름을 가져가면 <code>f count data</code> 가 “count 를 부른 값” 인지 “지역 count” 인지에 따라 문장이 다르게 묶인다. 같은 글자가 다른 나무가 되는 자리라서 <code>E-NAME-BUILTIN</code> 으로 막는다. <code>n</code>·<code>total</code>·<code>size</code> 처럼 짓는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 블록 안에서 지은 지역을 블록 밖에서 읽는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/mistake_outside.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_outside .
-<em><span class="tok-c">rem run: big_or_zero 5</span></em>
-<em><span class="tok-c">rem run: big_or_zero 1</span></em>
+<em><span class="tok-c">rem expect: E-NAME-SCOPE</span></em>
 
 <strong><span class="tok-k">fn</span></strong> big_or_zero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -810,11 +810,9 @@ mistake_localname.low:7:0 E-NAME-BUILTIN: a local takes the name of a BUILTIN op
   <em><span class="tok-c">rem ✘ `big` 은 위 블록 안에서만 산다 --- 블록 밖에서 읽었다</span></em>
   <strong><span class="tok-k">return</span></strong> big .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run big_or_zero mistake_outside.low 5
-big_or_zero(5) = 50
-$ lowentc --run big_or_zero mistake_outside.low 1
-big_or_zero(1) = 0
-</code></pre></div></div><p><code>big</code> 은 <code>if</code> 블록 안에서 지었으므로 블록이 끝나면 사라진다. 그런데 이 판의 도구는 그 읽기를 거절하지 않고, 블록에 들어가지 않은 경우(<code>a</code> 가 1) <strong>조용히 0 을 준다.</strong> 소스 어디에도 없는 값이다 — 번역 때 거절해야 하는 자리이고 개발 저장소에 결함으로 적어 두었다. 도구가 고쳐지기 전까지는 스스로 지킨다: 블록 밖에서도 쓸 값은 블록 <strong>앞에서</strong> 짓는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/outside_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> outside_fixed .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_outside.low
+mistake_outside.low:10:0 E-NAME-SCOPE: this name was declared INSIDE a block and is read outside it. A block is where a name lives (§6.5.1): on the path that did not enter the block the name never existed, and the tool used to answer 0 there — a value that appears nowhere in the source. Declare it before the block (`var … be 0 .`) and set it inside
+</code></pre></div></div><p><code>big</code> 은 <code>if</code> 블록 안에서 지었으므로 블록이 끝나면 사라진다. 그 이름을 블록 밖에서 읽으면 <code>E-NAME-SCOPE</code> 로 거절한다 — 전에는 블록에 들어가지 않은 길에서 <strong>조용히 0 을</strong> 주었다. 소스 어디에도 없는 값이다. 블록 밖에서도 쓸 값은 블록 <strong>앞에서</strong> 짓는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/outside_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> outside_fixed .
 <em><span class="tok-c">rem run: big_or_zero 5</span></em>
 <em><span class="tok-c">rem run: big_or_zero 1</span></em>
 

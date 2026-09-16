@@ -901,7 +901,7 @@ bitcast_bool.low:6:0 E-TYPE-BITCAST: bit_cast's target must be a `plain` scalar 
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noinit.low
 == check: ok ==
 </code></pre></div></div><p><code>bump_bytes</code> 는 스스로 메모리를 만들지 않는다. 잘라 줄 바이트를 <code>send a init buf</code> 로 걸기 전에는 나눠 줄 것이 없다. 뜻으로는 첫 <code>reserve</code> 가 <code>none</code> 이어야 할 자리인데, 이 판에서는 번역이 통과시키고 VM 은 <code>E-VM-TYPE</code> 으로 멈추며 네이티브는 <code>none</code> 을 받아 91 을 돌려준다. 두 뒤끝이 다르게 도는 결함이고 개발 저장소에 적어 두었다. 할당기를 띄우는 줄 바로 다음에 <code>init</code> 을 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 같은 바이트를 두 할당기에 건다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_sharedbuf.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_sharedbuf .
-<em><span class="tok-c">rem run: twice [0,0,0,0,0,0]</span></em>
+<em><span class="tok-c">rem expect: E-EXCL</span></em>
 
 <strong><span class="tok-k">use</span></strong> allocs .
 
@@ -923,10 +923,9 @@ bitcast_bool.low:6:0 E-TYPE-BITCAST: bit_cast's target must be a `plain` scalar 
   <em><span class="tok-c">rem 65 를 썼는데 66 이 나온다</span></em>
   <strong><span class="tok-k">return</span></strong> index pv <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run twice mistake_sharedbuf.low [0,0,0,0,0,0]
-twice([66,0,0,0,0,0]) = 66
-  arg0 (written) = [66,0,0,0,0,0]
-</code></pre></div></div><p>두 할당기는 서로를 모른다. 둘 다 <code>buf</code> 의 앞에서부터 잘라 주므로 <code>pv</code> 와 <code>qv</code> 는 같은 자리다. <code>pv</code> 에 65 를 쓰고 <code>qv</code> 에 66 을 쓰면 <code>pv</code> 를 읽어도 66 이다. 쓰기 빌림은 하나여야 한다는 규칙(12장)이 여기서 지켜져야 하는데, 이 판의 도구는 <code>init</code> 으로 넘긴 바이트의 빌림을 따라가지 못해 통과시킨다(결함으로 적어 두었다). 할당기마다 따로 된 바이트를 건다. 한 버퍼를 나눠야 하면 <code>subslice</code> 로 겹치지 않는 두 조각을 만들어 건다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 맞는 할당기가 둘인데 <code>using</code> 을 적지 않는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_ambiguous.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_ambiguous .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_sharedbuf.low
+mistake_sharedbuf.low:12:0 E-EXCL: the same WRITABLE place was handed to a SECOND actor. A write borrow is exclusive (§8.4): two actors holding the same bytes both hand them out, so two containers silently overlap and a write through one is read through the other (measured: 65 written, 66 read back). Give each actor its own bytes — `subslice` the buffer into pieces that do not overlap
+</code></pre></div></div><p>두 할당기는 서로를 모른다. 둘 다 <code>buf</code> 의 앞에서부터 잘라 주므로 <code>pv</code> 와 <code>qv</code> 가 같은 자리가 되고, 65 를 쓴 뒤 66 을 쓰면 <code>pv</code> 를 읽어도 66 이다. 쓰기 빌림은 하나여야 한다는 규칙(12장)이 액터 경계에서도 서야 하므로 <code>E-EXCL</code> 로 거절한다 (2026-09-16 까지는 통과했다). 할당기마다 따로 된 바이트를 건다. 한 버퍼를 나눠야 하면 <code>subslice</code> 로 겹치지 않는 두 조각을 만든다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 맞는 할당기가 둘인데 <code>using</code> 을 적지 않는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_ambiguous.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_ambiguous .
 <em><span class="tok-c">rem expect: E-ALLOC-AMBIGUOUS</span></em>
 
 <strong><span class="tok-k">use</span></strong> allocs .

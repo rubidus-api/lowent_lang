@@ -53,7 +53,7 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-ERR-UNDECLARED` | returns an error not in its `errors` clause | chapter 11 |
 | `E-ERRORS-STATE` | an `errors` condition reads an actor state field | chapter 25 |
 | `E-ESCAPE` | a reference to a local escapes the op | chapter 12 |
-| `E-EXCL` | overlapping borrows or owner access to the same value | chapter 12, chapter 26, chapter 43 |
+| `E-EXCL` | overlapping borrows or owner access to the same value | chapter 12, chapter 20, chapter 26, chapter 43 |
 | `E-EXPR-APP` | a call inside an `expr` island is not parenthesised | chapter 8 |
 | `E-EXPR-CHAIN` | comparisons chained in an `expr` island | chapter 3 |
 | `E-EXPR-UNARY` | a unary operator in an `expr` island | chapter 8 |
@@ -108,14 +108,16 @@ Only the diagnostics that this book’s examples actually trigger are listed. A 
 | `E-TRAIT-EFFECT` | the implementing op has more effects than the signature | chapter 23 |
 | `E-TRAIT-MISSING` | an op required by the trait is missing | chapter 23 |
 | `E-TRAIT-SIG` | `fn`/`proc` in a signature, or a parameter-count mismatch | chapter 23 |
-| `E-TYPE-ARGMUT` | a read-only value is passed where it would be written (`mut_ref` of a `let`) | chapter 12 |
+| `E-TRY-NORESULT` | `try` used in an op that cannot return that error | chapter 11 |
+| `E-TYPE-ARGMUT` | a read-only value is passed where it would be written (`mut_ref` of a `let`) | chapter 9, chapter 12 |
 | `E-TYPE-ARRAY` | `array` length written after the type | chapter 9 |
 | `E-TYPE-BITCAST` | `bit_cast` target is not a plain scalar | chapter 20 |
+| `E-TYPE-COLLECT` | `collect into` would put a wider value into a narrower buffer | chapter 24 |
 | `E-TYPE-COND` | a non-boolean in a condition | chapter 4 |
 | `E-TYPE-DECL` | `be` in a type declaration | chapter 13 |
 | `E-TYPE-FIELD` | a field is missing or unknown when building a struct | chapter 10 |
 | `E-TYPE-INSTANCE` | mixes different instances of the same generic | chapter 35 |
-| `E-TYPE-KIND` | a type of the wrong kind for that operation (e.g. `cast` of `bool`) | chapter 13 |
+| `E-TYPE-KIND` | a type of the wrong kind for that operation (e.g. `cast` of `bool`) | chapter 8, chapter 13 |
 | `E-TYPE-LOGICAL` | a non-boolean value given to a logical operation | chapter 8 |
 | `E-TYPE-MUT` | writes an element of a non-`mut` slice | chapter 9 |
 | `E-TYPE-NOMINAL` | mixes nominally distinct types | chapter 13 |

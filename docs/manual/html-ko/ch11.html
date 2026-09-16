@@ -942,6 +942,7 @@ mistake_optarith.low:13:0 E-TYPE-RETURN: the returned value does not match the o
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nosome.low
 mistake_nosome.low:8:0 E-TYPE-RETURN: the returned value does not match the op's `output` — expected `option …`, found `u64`
 </code></pre></div></div><p>머리에 <code>output option u64</code> 라고 적었으면 돌려주는 값도 상자여야 한다. <code>none</code> 은 상자이지만 <code>mul k 10</code> 은 맨 수라서 <code>E-TYPE-RETURN</code> 이다. 몇몇 언어는 값을 알아서 감싸 주지만 Lowent 는 감싸지 않는다. <code>return some (mul k 10) .</code> 처럼 “있다” 를 적어야 읽는 사람이 두 갈래를 모두 본다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>result</code> 를 돌려주지 않는 op 에서 <code>try</code> 를 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/mistake_trynoresult.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_trynoresult .
+<em><span class="tok-c">rem expect: E-TRY-NORESULT</span></em>
 
 <strong><span class="tok-k">enum</span></strong> half_error <strong><span class="tok-k">do</span></strong>
   too_big .
@@ -961,8 +962,8 @@ mistake_nosome.low:8:0 E-TYPE-RETURN: the returned value does not match the op's
   <strong><span class="tok-k">return</span></strong> add v <span class="tok-n">1</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_trynoresult.low
-== check: ok ==
-</code></pre></div></div><p><code>try</code> 는 실패를 <strong>위로 넘긴다</strong>. 그러려면 이 op 도 실패를 돌려줄 수 있어야 한다. 그런데 <code>plus</code> 는 <code>u8</code> 만 돌려주고 <code>errors</code> 절도 없다. 뜻으로는 틀린 프로그램인데 이 판의 도구는 <code>--check</code> 에서 거절하지 않는다. VM 으로 <code>plus 250</code> 을 돌리면 <code>u8</code> 자리에 <code>err too_big</code> 이 나오고, 네이티브로는 C 컴파일 단계에서 지어지지 않는다. 번역 때 알려야 할 자리이고 개발 저장소에 결함으로 적어 두었다. 검사가 통과했다고 믿지 말고, <code>try</code> 를 쓴 op 의 머리를 <code>result</code> 와 <code>errors</code> 로 맞춘다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/trynoresult_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> trynoresult_fixed .
+18:0 E-TRY-NORESULT: `try` may only be used in an op that can RETURN that error (§6.5.8(2)): this op's output is not a `result`, so there is nowhere for the failure to go. It used to pass, and the VM then returned the ERROR VALUE in the plain output slot while the native build would not compile at all. Declare `output result &lt;T> &lt;E> .` (and the matching `errors` clause), or handle the failure here (`guard is_ok …` / `value_or` / a `case error` arm)
+</code></pre></div></div><p><code>try</code> 는 실패를 <strong>위로 넘긴다</strong>. 그러려면 이 op 도 실패를 돌려줄 수 있어야 한다(§6.5.8(2)). 그런데 <code>plus</code> 는 <code>u8</code> 만 돌려주고 <code>errors</code> 절도 없어서 <code>E-TRY-NORESULT</code> 로 거절된다. 2026-09-16 까지는 통과했고, <code>plus 250</code> 은 <code>u8</code> 자리에 <code>err too_big</code> 을 냈으며 네이티브는 C 컴파일 단계에서 지어지지도 않았다. 꼬리를 붙여 채널을 바꾸거나(<code>else_none</code>·<code>else_error</code>), <code>is_ok</code> 처럼 여기서 다루면 <code>result</code> 를 돌려주지 않아도 된다. 실패를 위로 넘길 생각이라면 머리를 <code>result</code> 와 <code>errors</code> 로 맞춘다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/trynoresult_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> trynoresult_fixed .
 <em><span class="tok-c">rem run: plus 10</span></em>
 <em><span class="tok-c">rem run: plus 250</span></em>
 

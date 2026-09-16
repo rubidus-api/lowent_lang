@@ -828,25 +828,36 @@ in_range(12, 1, 9) = 0
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run last_digit_plus percent_fixed.low 1234 1
 last_digit_plus(1234, 1) = 5
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing powers as <code>^</code>, or using <code>pow</code> on integers</p><div class="dev-body"><p><code>^</code> is not an island operator (<code>E-CHAR</code>) — it means power in some languages and exclusive or in others, so it was left out. Square an integer with <code>mul a a</code>. And <code>pow</code> is the power of <strong>floating-point</strong> numbers. This edition’s tool does not reject <code>pow</code> on integers; it gives a wrong value.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mistake_pow.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_pow .
-<em><span class="tok-c">rem run: square 5</span></em>
-<em><span class="tok-c">rem run: square_f 1.5</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-KIND</span></em>
 
 <strong><span class="tok-k">fn</span></strong> square <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <em><span class="tok-c">rem ✘ `pow` on an integer --- this edition's tool does not reject it and gives a wrong value</span></em>
+  <em><span class="tok-c">rem ✘ `pow` on an integer; transcendental functions are floating-point only</span></em>
   <strong><span class="tok-k">return</span></strong> pow a <span class="tok-n">2</span> .
 <strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_pow.low
+mistake_pow.low:7:0 E-TYPE-KIND: this is a floating-point-only operation (canon §6.3.9) and it was given an INTEGER. `pow` used to answer anyway — and the answer was wrong (`pow 5 2` gave 5 on both backends), which is the worst kind of wrong: quiet. Convert first (`cast f64 n`), or use repeated multiplication for an integer power
+</code></pre></div></div><p>The canon makes <code>pow</code>, <code>sqrt</code>, <code>sin</code>, <code>cos</code>, <code>exp</code>, <code>log</code> and <code>fmod</code> floating-point only (§6.3.9). Given an integer they are refused with <code>E-TYPE-KIND</code>. Until 2026-09-16 they were not: <code>square 5</code> answered 5 instead of 25, and neither translation nor the run said anything — a quiet wrong answer. Write an integer power as multiplication, and convert with <code>cast f64 n</code> to compute in floating point.</p></div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/pow_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> pow_fixed .
+<em><span class="tok-c">rem run: square_f 1.5</span></em>
+<em><span class="tok-c">rem run: square_i 5</span></em>
 
 <strong><span class="tok-k">fn</span></strong> square_f <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem `pow` works correctly on floats</span></em>
   <strong><span class="tok-k">return</span></strong> pow a <span class="tok-n">2.0</span> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run square mistake_pow.low 5
-square(5) = 5
-$ lowentc --run square_f mistake_pow.low 1.5
+
+<strong><span class="tok-k">fn</span></strong> square_i <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem an integer power is written as multiplication; the name says what it does</span></em>
+  <strong><span class="tok-k">return</span></strong> mul a a .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run square_f pow_fixed.low 1.5
 square_f(1.5) = 2.25
-</code></pre></div></div><p><code>square 5</code> is 5, not 25. Neither compilation nor run-time checks say anything: a <strong>silently wrong answer</strong>, the most dangerous kind, and the development repository records it as a defect. Until it is fixed, do not use <code>pow</code> on integers.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Nested calls must always be parenthesised</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/noparen.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> noparen .
+$ lowentc --run square_i pow_fixed.low 5
+square_i(5) = 25
+</code></pre></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Nested calls must always be parenthesised</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/noparen.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> noparen .
 <em><span class="tok-c">rem run: with_parens 3 4</span></em>
 <em><span class="tok-c">rem run: without_parens 3 4</span></em>
 

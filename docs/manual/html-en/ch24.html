@@ -910,7 +910,7 @@ mistake_lambda.low:8:0 E-FOLD-OP: this `pipe` stage names an op that does not ex
 count_big([1,2,3,4,5]) = 3
   arg0 (written) = [1,2,3,4,5]
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Collecting a <code>map</code> that produces wide values into a narrow buffer</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_widecollect.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_widecollect .
-<em><span class="tok-c">rem run: scale [1,2] [0,0]</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-COLLECT</span></em>
 
 <strong><span class="tok-k">fn</span></strong> times1000 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -926,11 +926,9 @@ count_big([1,2,3,4,5]) = 3
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run scale mistake_widecollect.low [1,2] [0,0]
-scale([1,2], [232,208]) = 0
-  arg0 (written) = [1,2]
-  arg1 (written) = [232,208]
-</code></pre></div></div><p><code>times1000</code> produces <code>u64</code>, but <code>out</code> is a <code>u8</code> buffer. 1000 and 2000 are stored as 232 and 208. By Lowent’s principles a lossy narrowing should happen only where <code>narrow</code> is written, but this edition’s tool does not check the type of <code>collect into</code> and wraps silently (recorded as a defect in the development repository). Match the output type of <code>map</code> and the element type of the buffer by eye. If narrowing is needed, write <code>narrow</code> inside the op given to <code>map</code>, so the place where it may stop is visible.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Swapping the accumulator and the element in a <code>fold</code> op</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_foldorder.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_foldorder .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_widecollect.low
+mistake_widecollect.low:14:0 E-TYPE-COLLECT: this `collect into` would put a WIDER value into a narrower buffer, and that loses bits silently (measured: 1000 became 232). A conversion that loses value never happens implicitly here (§6.2.5) — put a `map` in front that says which narrowing you mean (`narrow`, `narrow_wrap`, `narrow_sat`, `narrow_try`), or collect into a buffer of the produced width
+</code></pre></div></div><p><code>times1000</code> produces <code>u64</code>, but <code>out</code> is a <code>u8</code> buffer. A narrowing that loses value happens only where it is written (§6.2.5), so this is refused with <code>E-TYPE-COLLECT</code>. Until 2026-09-16 it passed and 1000 and 2000 were stored silently as 232 and 208. If narrowing is needed, write <code>narrow</code>, <code>narrow_wrap</code> or <code>narrow_sat</code> inside the op given to <code>map</code>, so the place where it may stop is visible.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Swapping the accumulator and the element in a <code>fold</code> op</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch24/mistake_foldorder.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_foldorder .
 <em><span class="tok-c">rem run: sum_small_right [1,2,3,200]</span></em>
 <em><span class="tok-c">rem run: sum_small_wrong [1,2,3,200]</span></em>
 

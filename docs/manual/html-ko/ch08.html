@@ -828,25 +828,36 @@ in_range(12, 1, 9) = 0
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run last_digit_plus percent_fixed.low 1234 1
 last_digit_plus(1234, 1) = 5
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">반례. 거듭제곱을 <code>^</code> 로 적거나 정수에 <code>pow</code> 를 쓴다</p><div class="dev-body"><p><code>^</code> 는 섬의 연산자가 아니다(<code>E-CHAR</code>) — 어떤 언어는 거듭제곱, 어떤 언어는 배타적 논리합이라서 넣지 않았다. 정수의 제곱은 <code>mul a a</code> 로 적는다. 그리고 <code>pow</code> 는 <strong>부동소수</strong>의 거듭제곱이다. 이 판의 도구는 정수에 쓴 <code>pow</code> 를 거절하지 않고 틀린 값을 준다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mistake_pow.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_pow .
-<em><span class="tok-c">rem run: square 5</span></em>
-<em><span class="tok-c">rem run: square_f 1.5</span></em>
+<em><span class="tok-c">rem expect: E-TYPE-KIND</span></em>
 
 <strong><span class="tok-k">fn</span></strong> square <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <em><span class="tok-c">rem ✘ 정수에 `pow` 를 썼다 --- 이 판의 도구는 거절하지 않고 틀린 값을 준다</span></em>
+  <em><span class="tok-c">rem ✘ 정수에 `pow` 를 썼다 — 초월 함수는 부동소수 전용이다</span></em>
   <strong><span class="tok-k">return</span></strong> pow a <span class="tok-n">2</span> .
 <strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_pow.low
+mistake_pow.low:7:0 E-TYPE-KIND: this is a floating-point-only operation (canon §6.3.9) and it was given an INTEGER. `pow` used to answer anyway — and the answer was wrong (`pow 5 2` gave 5 on both backends), which is the worst kind of wrong: quiet. Convert first (`cast f64 n`), or use repeated multiplication for an integer power
+</code></pre></div></div><p>정본은 <code>pow</code>·<code>sqrt</code>·<code>sin</code>·<code>cos</code>·<code>exp</code>·<code>log</code>·<code>fmod</code> 를 <strong>부동소수 전용</strong>으로 정한다(§6.3.9). 정수를 주면 <code>E-TYPE-KIND</code> 로 거절된다. 2026-09-16 까지는 거절하지 않고 <code>square 5</code> 가 25 가 아니라 5 를 냈다 — 번역도 실행도 알리지 않는 조용한 오답이었다. 정수의 거듭제곱은 곱셈으로 적고, 부동소수로 셈하려면 <code>cast f64 n</code> 으로 먼저 옮긴다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/pow_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> pow_fixed .
+<em><span class="tok-c">rem run: square_f 1.5</span></em>
+<em><span class="tok-c">rem run: square_i 5</span></em>
 
 <strong><span class="tok-k">fn</span></strong> square_f <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem `pow` 는 부동소수에서 맞게 돈다</span></em>
   <strong><span class="tok-k">return</span></strong> pow a <span class="tok-n">2.0</span> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run square mistake_pow.low 5
-square(5) = 5
-$ lowentc --run square_f mistake_pow.low 1.5
+
+<strong><span class="tok-k">fn</span></strong> square_i <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem 정수의 거듭제곱은 곱셈으로 적는다 — 이름이 하는 일을 말한다</span></em>
+  <strong><span class="tok-k">return</span></strong> mul a a .
+<strong><span class="tok-k">end</span></strong> .
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run square_f pow_fixed.low 1.5
 square_f(1.5) = 2.25
-</code></pre></div></div><p><code>square 5</code> 가 25 가 아니라 5 다. 번역도 실행 검사도 알리지 않는 <strong>조용히 틀린 답</strong>이라 가장 위험한 갈래이고, 개발 저장소에 결함으로 적어 두었다. 고쳐지기 전까지 정수에는 <code>pow</code> 를 쓰지 않는다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>중첩된 부름에는 괄호가 반드시 있어야 한다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/noparen.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> noparen .
+$ lowentc --run square_i pow_fixed.low 5
+square_i(5) = 25
+</code></pre></div></div></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>중첩된 부름에는 괄호가 반드시 있어야 한다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/noparen.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> noparen .
 <em><span class="tok-c">rem run: with_parens 3 4</span></em>
 <em><span class="tok-c">rem run: without_parens 3 4</span></em>
 

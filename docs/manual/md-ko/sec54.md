@@ -53,7 +53,7 @@
 | `E-ERR-UNDECLARED` | `errors` 절에 없는 오류를 돌려준다 | 11장 |
 | `E-ERRORS-STATE` | `errors` 조건이 액터의 상태 칸을 읽는다 | 25장 |
 | `E-ESCAPE` | 지역을 가리키는 참조가 op 밖으로 나간다 | 12장 |
-| `E-EXCL` | 같은 값에 대한 빌림이 겹친다 | 12장, 26장, 43장 |
+| `E-EXCL` | 같은 값에 대한 빌림이 겹친다 | 12장, 20장, 26장, 43장 |
 | `E-EXPR-APP` | `expr` 섬 안의 부름을 괄호로 묶지 않았다 | 8장 |
 | `E-EXPR-CHAIN` | `expr` 섬에서 비교를 이어 썼다 | 3장 |
 | `E-EXPR-UNARY` | `expr` 섬에 단항 연산자를 썼다 | 8장 |
@@ -108,14 +108,16 @@
 | `E-TRAIT-EFFECT` | 갖춘 op 이 서명보다 많은 효과를 가진다 | 23장 |
 | `E-TRAIT-MISSING` | 트레이트의 op 하나가 없다 | 23장 |
 | `E-TRAIT-SIG` | 서명에 `fn`·`proc` 을 적었거나 매개변수 수가 다르다 | 23장 |
-| `E-TYPE-ARGMUT` | 읽기만 되는 값을 고치는 자리에 넘긴다(`let` 을 `mut_ref` 로) | 12장 |
+| `E-TRY-NORESULT` | `try` 를 썼는데 이 op 은 그 오류를 돌려줄 수 없다 | 11장 |
+| `E-TYPE-ARGMUT` | 읽기만 되는 값을 고치는 자리에 넘긴다(`let` 을 `mut_ref` 로) | 9장, 12장 |
 | `E-TYPE-ARRAY` | `array` 의 길이를 타입 뒤에 적었다 | 9장 |
 | `E-TYPE-BITCAST` | `bit_cast` 의 목표가 모든 비트열이 값인 타입이 아니다 | 20장 |
+| `E-TYPE-COLLECT` | `collect into` 가 넓은 값을 좁은 그릇에 담는다 | 24장 |
 | `E-TYPE-COND` | 조건 자리에 참거짓이 아닌 값이 왔다 | 4장 |
 | `E-TYPE-DECL` | 타입 선언에 `be` 를 끼웠다 | 13장 |
 | `E-TYPE-FIELD` | 구조체를 만들 때 칸이 빠졌거나 없는 칸을 적었다 | 10장 |
 | `E-TYPE-INSTANCE` | 같은 제네릭의 서로 다른 인스턴스를 섞었다 | 35장 |
-| `E-TYPE-KIND` | 그 연산에 쓸 수 없는 갈래의 타입이다(예: `bool` 을 `cast`) | 13장 |
+| `E-TYPE-KIND` | 그 연산에 쓸 수 없는 갈래의 타입이다(예: `bool` 을 `cast`) | 8장, 13장 |
 | `E-TYPE-LOGICAL` | 논리 연산에 참거짓이 아닌 값을 주었다 | 8장 |
 | `E-TYPE-MUT` | `mut` 이 아닌 슬라이스의 원소에 쓴다 | 9장 |
 | `E-TYPE-NOMINAL` | 표현이 같아도 이름이 다른 타입을 섞었다 | 13장 |

@@ -938,10 +938,10 @@ mid(255, 255) = 255
 == ir diagnostics (1) ==
 0:0 E-VM-TYPE: arithmetic/compare needs ints
 </code></pre></div></div><p>Integers and floats never convert into each other automatically. To divide an <code>f64</code>, write the literal as a float too: <code>2.0</code>. This edition’s tool does not catch the mix at compile time and stops <strong>while running</strong> with <code>E-VM-TYPE</code> — it ought to be rejected at compile time, and the development repository records it as a defect. When you see this stop, look for the mixed literal.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Testing with the largest <code>u64</code> passed as a <code>--run</code> argument</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runmax .
-<em><span class="tok-c">rem run: echo 18446744073709551615</span></em>
+<em><span class="tok-c">rem trap: echo 18446744073709551615</span></em>
 <em><span class="tok-c">rem test</span></em>
 
-<em><span class="tok-c">rem returns the value it received</span></em>
+<em><span class="tok-c">rem ✘ giving the upper half of u64 as a `--run` argument is refused at the boundary: the interval analysis believes u64 tops out at the i64 maximum</span></em>
 <strong><span class="tok-k">fn</span></strong> echo <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
@@ -955,11 +955,12 @@ mid(255, 255) = 255
   <strong><span class="tok-k">expect</span></strong> eq (div m <span class="tok-n">2</span>) <span class="tok-n">9223372036854775807</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run echo mistake_runmax.low 18446744073709551615
-echo(9223372036854775807) = 9223372036854775807
+== ir diagnostics (1) ==
+0:0 E-VM-CONTRACT: a parameter's TYPE range was violated at the program boundary — the value does not fit the declared type (the interval analysis TRUSTS the type and deletes checks on that basis; the boundary is what makes that trust true)
 $ lowentc --test mistake_runmax.low
   [PASS] largest_u64
 == tests: 1 run, 1 passed, 0 FAILED ==
-</code></pre></div></div><p><code>echo 18446744073709551615</code> should return what it received, yet 9223372036854775807 (the largest <code>i64</code>) comes out. In this edition <code>--run</code> reads command-line arguments as signed 64-bit numbers and cuts them down. The VM and the native build do the same, so comparing the two back ends does not reveal it either (recorded as a defect in the development repository). A literal stored with <code>let</code> inside a <code>test</code> block is intact, so write boundary-value tests there, as <code>largest_u64</code> does. Printed results are also shown as <code>i64</code> in this edition, so for <code>u64</code> values above the <code>i64</code> maximum, trust the comparisons of <code>expect</code> rather than the printed number.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>It is written <code>f32</code>, so the value is already 32 bits — a hole in this edition</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_f32literal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_f32literal .
+</code></pre></div></div><p><code>echo 18446744073709551615</code> is refused at the boundary (<code>E-VM-CONTRACT</code>). Until 2026-09-16 it was quietly cut down to 9223372036854775807 — a different number, and both back ends did it, so comparing them did not reveal it. It is now refused instead of cut. The reason is that the interval analysis records the upper bound of <code>u64</code> as the largest <code>i64</code>; a value above that makes the analysis unsound. Literals inside the program are whole, so write boundary-value tests there, as <code>largest_u64</code> does, and results now print unsigned.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>f32</code> and <code>f64</code> hold the same number</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_f32literal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_f32literal .
 <em><span class="tok-c">rem run: stored</span></em>
 <em><span class="tok-c">rem run: computed</span></em>
 
@@ -978,10 +979,10 @@ $ lowentc --test mistake_runmax.low
   <strong><span class="tok-k">return</span></strong> eq (widen <strong><span class="tok-t">f64</span></strong> c) b .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run stored mistake_f32literal.low
-stored() = 1
+stored() = 0
 $ lowentc --run computed mistake_f32literal.low
 computed() = 0
-</code></pre></div></div><p><code>stored</code> widens an <code>f32</code> holding the literal 0.1 and compares it with the <code>f64</code> 0.1, and the answer is true. Had it been rounded to 32 bits it would be false. This edition’s tool does not round a literal (or an argument passed with <code>--run</code>) when storing it in an <code>f32</code> place; the value becomes 32 bits only after one operation (<code>computed</code> is false). The VM and native code agree on this. It is recorded as a defect in the development repository. Code that relies on the exact bits of an <code>f32</code> (hashing, serialisation, comparison tests) should not trust literal values as they are in this edition.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>div 7 2</code> is 3.5</strong></p><div class="dev-body"><p>Integer division keeps only the quotient and drops the fraction.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/intdiv.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> intdiv .
+</code></pre></div></div><p>Both <code>stored</code> and <code>computed</code> are false. The 0.1 held in an <code>f32</code> place is rounded to 32 bits, so widening it still does not equal the <code>f64</code> 0.1. Until 2026-09-16 a literal (or an argument passed with <code>--run</code>) was not rounded, and <code>stored</code> was true — the same type held values of different precision depending on where they came from. Choose the width deliberately, and write <code>widen</code> or <code>narrow</code> when comparing two widths.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>div 7 2</code> is 3.5</strong></p><div class="dev-body"><p>Integer division keeps only the quotient and drops the fraction.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/intdiv.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> intdiv .
 <em><span class="tok-c">rem run: avg2 3 4</span></em>
 <em><span class="tok-c">rem run: avg_f 3.0 4.0</span></em>
 

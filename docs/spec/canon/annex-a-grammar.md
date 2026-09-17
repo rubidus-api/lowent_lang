@@ -303,7 +303,7 @@ rem 자리와 빌림
 ref   mut_ref   mut   owned   region
 
 rem 바깥과 이어지는 것
-cap   clock   device   file_system   net   tty   mmio
+cap   mmio
 fn    unsafe_fn
 
 rem 그 밖
@@ -315,7 +315,8 @@ self
 
 ```문법틀: 이름만 받는 타입 낱말
 byte   char   str   string   bytes_view   dyn   atomic
-list   raw   addr   rng
+list   raw   addr
+rng   clock   device   file_system   net   tty
 ```
 
 (2a) 뒤의 넷(`list`·`raw`·`addr`·`rng`)은 이 판에서 이 갈래로 옮겼다. 위 (1) 의 목록에
@@ -329,10 +330,10 @@ list   raw   addr   rng
       아니한다 --- 홀로 타입으로 선 `rng` 만이 이름뿐이다. 그래서 위 (1) 의 권능 종류 줄에서
       `rng` 을 내렸다.
 
-> [!미정]
-> 같은 줄의 `clock` · `device` · `file_system` · `net` · `tty` 도 홀로 타입으로 서면 `rng` 과
-> 같은 처지다 --- 뜻을 정한 조항이 없다. 이 판의 처리기는 그것들은 **말하지 아니한다.**
-> 여섯을 같은 갈래로 묶을지는 정해지지 않았다 --- RFC-0115 §8-26.
+(2c) `rng` · `clock` · `device` · `file_system` · `net` · `tty` 여섯은 **권능의 종류**이며,
+      `cap <종류>` 자리에서만 뜻이 있다(⟦§7.2⟧). 홀로 타입으로 적으면 이 갈래에 든다 ---
+      여섯이 같은 처지이므로 **같이 말한다.** 하나만 말하고 다섯이 조용하면, 읽는 사람은
+      그 차이에 뜻이 있다고 여기게 된다.
 
 (3) 다음 셋은 **공유 상태의 타입**이며 지금은 거절된다. 이름이 어휘에 있는 까닭은
       *"없는 타입"* 이라 말하는 것이 거짓이기 때문이다 — 명세에 있는 타입을 두고

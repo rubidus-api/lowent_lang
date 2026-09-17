@@ -1729,7 +1729,10 @@ int main(int argc, char **argv) {
         //   ⇒ `--run` 은 이제 `--check` 와 **같은 검사**를 먼저 돌리고, 거절하면 돌지 않는다.
         //   ☞ 오라클 픽스처는 「거절당한 프로그램이 실행에서는 무엇을 하는가」를 재야 하므로
         //     `--unchecked` 로 **일부러** 그 문을 연다. 기본이 안전하고, 예외는 적어야 보인다.
-        if (run_op && !run_unchecked && !lex.diags.len && !pr.diags.len) {
+        //   ☞ 2026-09-17 (RFC-0115 §8-22): **`--test` 도 같은 문을 쓴다.** `--run` 만 고쳤더니
+        //     `--test` 가 거절당한 단위를 그대로 돌리고 「1 passed」까지 냈다(실측) — 시험이
+        //     초록이라는 사실은 «이 프로그램은 성하다» 로 읽히므로 `--run` 보다 해롭다.
+        if ((run_op || want_test) && !run_unchecked && !lex.diags.len && !pr.diags.len) {
             low_check_result_t rcr = low_check(heap, &pr);
             low_typecheck_result_t rtr = low_typecheck(heap, &pr);
             low_contract_result_t rkr = low_contract(heap, &pr);
@@ -1739,9 +1742,10 @@ int main(int argc, char **argv) {
                 dump_diags("type diagnostics", &rtr.diags);
                 dump_diags("contract diagnostics", &rkr.diags);
                 dump_diags("region diagnostics", &rrr.diags);
-                printf("   ^ `--run` REFUSED this unit: it does not pass the same checks as `--check`. "
+                printf("   ^ `%s` REFUSED this unit: it does not pass the same checks as `--check`. "
                        "A program the language rejects must not run — that is the whole of the promise. "
-                       "(To measure what a rejected program DOES at run time, ask for it: `--unchecked`.)\n");
+                       "(To measure what a rejected program DOES at run time, ask for it: `--unchecked`.)\n",
+                       run_op ? "--run" : "--test");
                 run_refused = true;
                 rc = 2;
             }
@@ -1941,7 +1945,7 @@ int main(int argc, char **argv) {
         }
 
         // ★★ 테스트 러너 — `test N do … end` 이 **드디어 실행된다.**
-        if (want_test) {
+        if (want_test && !run_refused) {
             low_ir_test_result_t tr = low_ir_run_tests(&ir, heap, true);
             printf("== tests: %zu run, %zu passed, %zu FAILED ==\n",
                    (size_t)tr.total, (size_t)tr.passed, (size_t)tr.failed);

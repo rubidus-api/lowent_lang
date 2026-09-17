@@ -796,6 +796,7 @@ classify([66,82,69,87,32,47,32,72,84,84,80,47,49,46,49,13,10,13,10]) = 0
   <strong><span class="tok-k">guard</span></strong> is_ok r1 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
   <em><span class="tok-c">rem ✘ `write` 가 가져간 옛 대기 값 `p` 로 또 쓴다 --- 새 대기 값은 `r1` 안에 있다</span></em>
   <strong><span class="tok-k">let</span></strong> r2 <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">owned</span></strong> outbuf.pending) outbuf.io_error <strong><span class="tok-k">be</span></strong> outbuf.write out p buf <span class="tok-s">"</span><span class="tok-s">second</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">drop</span></strong> r2 .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_pendingmoved.low
@@ -847,6 +848,7 @@ two_rolls(2) = 56
   <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> .
   <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> net.recv_once k (net.pair_b p) (some_value g) .
   <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> net.net_error <strong><span class="tok-k">be</span></strong> net.shut_pair k p .
+  <strong><span class="tok-k">drop</span></strong> s .
   <strong><span class="tok-k">guard</span></strong> is_some got . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (some_value got) .
 <strong><span class="tok-k">end</span></strong> .

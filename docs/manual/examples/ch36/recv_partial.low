@@ -15,6 +15,7 @@ do
   guard is_some g . else return 3 .
   let got option u64 be net.recv_once k (net.pair_b p) (some_value g) .
   let s result void net.net_error be net.shut_pair k p .
+  drop s .
   guard is_some got . else return 4 .
   return narrow u8 (some_value got) .
 end .

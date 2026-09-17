@@ -117,6 +117,7 @@ MEANING = {
  "E-ACTOR-STATE-REF": ("액터 상태 칸에 빌림을 둔다", "a borrow is kept in an actor state field"),
  "E-ACTOR-UNINIT": ("갓 띄운 액터의 슬라이스 칸을 세우기 전에 읽는다", "a just-spawned actor's slice state field is read before it is set"),
  "E-MMIO-PLAIN": ("장치 레지스터를 보통의 칸처럼 읽거나 쓴다", "a device register is read or written like an ordinary field"),
+ "E-USE-ALIASED": ("`as` 로 바꿔 부른 모듈을 원래 이름으로 부른다", "a module renamed with `as` is called by its original name"),
  "W-RESULT-DISCARD": ("`result` 를 문장으로 버렸다 — 실패가 자취 없이 사라진다", "a `result` is dropped as a statement — the failure leaves no trace"),
  "W-ERRORS-UNRAISED": ("`errors` 로 적은 오류를 몸통이 한 번도 내지 않는다", "an `errors` clause names a failure the body never returns"),
  "W-CONFIG-DEPENDS": ("기댐이 안 맞는 손잡이에 구성이 값을 골랐다", "the config picks a value for a knob whose dependency is off"),

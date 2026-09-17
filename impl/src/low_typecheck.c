@@ -1198,6 +1198,11 @@ static bool ty_is_name_only(proven_u8str_view_t v) {
         //   ☞ `addr`·`raw` 는 **연산자로는** 뜻이 있다(`addr x` — 주소를 얻는다, unsafe 효과).
         //     여기서 막는 것은 **타입 자리**뿐이고, `cap rng` 는 위의 after_cap 이 빼 준다.
         "list", "raw", "addr", "rng",
+        // ★★★ **권능의 종류 여섯** (RFC-0115 §8-26, 2026-09-17). `cap` 뒤에서만 뜻이 있는 낱말인데
+        //   홀로 타입 자리에 서도 아무 말이 없었다. `rng` 만 말하고 다섯은 조용한 것이 가장 나쁘다 —
+        //   읽는 사람이 그 차이에 뜻이 있다고 여긴다. 위의 after_cap 이 `cap <종류>` 를 빼 주므로
+        //   여기 걸리는 것은 **홀로 선 것**뿐이다.
+        "clock", "device", "file_system", "net", "tty",
     };
     for (proven_size_t i = 0; i < sizeof k / sizeof k[0]; i++) if (veq(v, k[i])) return true;
     return false;

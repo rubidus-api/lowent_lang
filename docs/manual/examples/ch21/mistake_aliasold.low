@@ -1,0 +1,11 @@
+module mistake_aliasold .
+rem expect: E-USE-ALIASED
+
+use geom from "geom.low" as g .
+
+fn origin_x output i64 .
+do
+  rem ko: ✘ 별칭을 적어 놓고 원래 이름으로 부른다 --- 같은 모듈을 두 철자로 부르는 코드가 된다 /// en: ✘ an alias was written, yet the original name is used --- the same module would be called by two spellings
+  let p geom.point be make geom.point do x 7 . y 0 . end .
+  return field p x .
+end .

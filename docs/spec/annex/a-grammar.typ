@@ -301,7 +301,7 @@ rem 자리와 빌림
 ref   mut_ref   mut   owned   region
 
 rem 바깥과 이어지는 것
-cap   clock   device   file_system   net   tty   mmio
+cap   mmio
 fn    unsafe_fn
 
 rem 그 밖
@@ -311,7 +311,8 @@ self")
       #cref("4.7")) — 조용히 받아 주지 아니한다.
     ]
     #shape("이름만 받는 타입 낱말", "byte   char   str   string   bytes_view   dyn   atomic
-list   raw   addr   rng")
+list   raw   addr
+rng   clock   device   file_system   net   tty")
     #para("2a")[
       뒤의 넷(`list`·`raw`·`addr`·`rng`)은 이 판에서 이 갈래로 옮겼다. 위 (1) 의 목록에
       실려 있었으나 **뜻을 정한 조항이 이 정본 어디에도 없었고**, 하강도 그 이름을 읽지
@@ -324,6 +325,12 @@ list   raw   addr   rng")
       낱말이다. 마찬가지로 `cap rng` 의 `rng` 는 권능의 **종류**이므로 이 조항에 들지
       아니한다 --- 홀로 타입으로 선 `rng` 만이 이름뿐이다. 그래서 위 (1) 의 권능 종류 줄에서
       `rng` 을 내렸다.
+    ]
+    #para("2c")[
+      `rng` · `clock` · `device` · `file_system` · `net` · `tty` 여섯은 **권능의 종류**이며,
+      `cap <종류>` 자리에서만 뜻이 있다(#cref("7.2")). 홀로 타입으로 적으면 이 갈래에 든다 ---
+      여섯이 같은 처지이므로 **같이 말한다.** 하나만 말하고 다섯이 조용하면, 읽는 사람은
+      그 차이에 뜻이 있다고 여기게 된다.
     ]
     #para("3")[
       다음 셋은 **공유 상태의 타입**이며 지금은 거절된다. 이름이 어휘에 있는 까닭은

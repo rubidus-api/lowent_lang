@@ -749,6 +749,7 @@ LOW_HOST_FAULT="close:err"       closing fails</code></pre><p>The VM and native 
   <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> files.handle <strong><span class="tok-k">be</span></strong> ok_value o .
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> files.file_error <strong><span class="tok-k">be</span></strong> files.write fs h <span class="tok-s">"</span><span class="tok-s">extra line</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error <strong><span class="tok-k">be</span></strong> files.close fs h .
+  <strong><span class="tok-k">drop</span></strong> c .
   <strong><span class="tok-k">guard</span></strong> is_ok w . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
   <em><span class="tok-c">rem the write failed, so it leaves with 2 here --- a short write is checked too</span></em>
   <strong><span class="tok-k">guard</span></strong> eq (ok_value w) <span class="tok-n">11</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> .
@@ -767,12 +768,14 @@ main() = 2
   <strong><span class="tok-k">guard</span></strong> is_ok o . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> files.handle <strong><span class="tok-k">be</span></strong> ok_value o .
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error <strong><span class="tok-k">be</span></strong> files.close fs h .
+  <strong><span class="tok-k">drop</span></strong> c .
   <em><span class="tok-c">rem ✘ writes again with the closed handle --- `close` took ownership</span></em>
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> files.file_error <strong><span class="tok-k">be</span></strong> files.write fs h <span class="tok-s">"</span><span class="tok-s">late</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">drop</span></strong> w .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_afterclose.low
-mistake_afterclose.low:13:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
+mistake_afterclose.low:14:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
 </code></pre></div></div><p><code>files.close</code> takes an <code>owned handle</code>, so ownership passes the moment it is called. Afterwards <code>h</code> is a handle that no longer exists, so this is <code>E-OWN-MOVED</code>. In C, <code>fwrite</code> after <code>fclose</code> is undefined behaviour, and if the same number was reused by a newly opened file, the bytes land in the wrong file. Ownership stops that at translation time.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Asking only about failure in the answer of a read</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch28/mistake_eof.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_eof .
 <em><span class="tok-c">rem trap: main</span></em>
 
@@ -798,6 +801,7 @@ mistake_afterclose.low:13:0 E-OWN-MOVED: this `owned` value was already MOVED (c
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error <strong><span class="tok-k">be</span></strong> files.close fs h .
+  <strong><span class="tok-k">drop</span></strong> c .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> total .
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main mistake_eof.low
@@ -825,6 +829,7 @@ mistake_afterclose.low:13:0 E-OWN-MOVED: this `owned` value was already MOVED (c
     <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong>) files.file_error <strong><span class="tok-k">be</span></strong> files.read fs h buf .
     <strong><span class="tok-k">guard</span></strong> is_ok r . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">let</span></strong> c1 <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> files.file_error <strong><span class="tok-k">be</span></strong> files.close fs h .
+      <strong><span class="tok-k">drop</span></strong> c1 .
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> .
     <strong><span class="tok-k">end</span></strong> .
     <em><span class="tok-c">rem split all three places --- read · end · failure</span></em>

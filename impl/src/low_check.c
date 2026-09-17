@@ -2253,6 +2253,64 @@ static void ck_narrow_walk(const low_cst_t *nd, const proven_u8str_view_t *mods,
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_narrow_walk(nd->kids[i], mods, nmods);
 }
+// ★★★★ **별칭은 덧이름이 아니라 바꿔 부르기다** (RFC-0115 §8-24 · 정본 §6.10.2(4b), 2026-09-17).
+//
+//   `use files as f .` 를 적고 나면 그 모듈을 부를 이름은 **`f` 하나**다. 앞선 판은 `files.open` 도
+//   함께 받았다(실측) — 그러면 같은 모듈을 두 이름으로 부르는 코드가 생기고, 읽는 사람이 둘이
+//   같은 것인지 확인해야 한다. 별칭을 적은 까닭은 원래 이름이 불편해서인데, 그 이름이 계속 서 있으면
+//   별칭이 한 일이 없다. 「한 뜻에 한 철자」.
+static void ck_alias_walk(low_check_result_t *out, const low_cst_t *nd,
+                          const proven_u8str_view_t *old, const proven_u8str_view_t *nw,
+                          proven_size_t n) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_ATOM && nd->tok.kind == LOW_TOK_IDENT && nd->tok.kw == LOW_KW_NONE) {
+        proven_u8str_view_t v = nd->tok.lex;
+        proven_size_t dot = v.size;
+        for (proven_size_t i = 0; i < v.size; i++)
+            if (v.ptr[i] == (proven_u8)'.') { dot = i; break; }
+        if (dot > 0 && dot + 1 < v.size) {
+            proven_u8str_view_t head = { .ptr = v.ptr, .size = dot };
+            for (proven_size_t m = 0; m < n; m++)
+                if (proven_u8str_view_eq(head, old[m])) {
+                    // ★ 진단은 문구를 **가리킨다**(복사하지 않는다). 그래서 문구에 **그 자리에서만
+                    //   달라지는 것**(멤버 이름)을 넣으면, 같은 별칭의 두 번째 자리가 첫 번째의 문구를
+                    //   덮는다 — 실측으로 확인했다(E-CLAUSE-ORDER 가 같은 함정을 적어 두었다).
+                    //   ⇒ 별칭마다 한 칸을 두고, 문구에는 **별칭만** 넣는다.
+                    static char abuf[64][288];
+                    char *buf = abuf[m < 64 ? m : 63];
+                    snprintf(buf, sizeof abuf[0],
+                             "this unit renamed that module with `as`, so its name here is `%.*s` — "
+                             "the original name no longer stands. One thing, one spelling: if both "
+                             "names worked, a reader would have to check that they mean the same "
+                             "module. Write the member under `%.*s.`",
+                             (int)nw[m].size, (const char *)nw[m].ptr,
+                             (int)nw[m].size, (const char *)nw[m].ptr);
+                    emit_at(out, "E-USE-ALIASED", buf, nd);
+                    break;
+                }
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_alias_walk(out, nd->kids[i], old, nw, n);
+}
+static void ck_use_aliased(low_check_result_t *out, const low_parse_result_t *pr) {
+    proven_u8str_view_t old[64], nw[64]; proven_size_t n = 0;
+    for (proven_size_t i = 0; i < pr->nforms && n < 64; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
+        if (f->kids[0]->tok.kw != LOW_KW_USE || !ck_atom(f->kids[1])) continue;
+        for (proven_size_t j = 2; j + 1 < f->nkids; j++)
+            if (ck_atom(f->kids[j]) && veq(f->kids[j]->tok.lex, "as") && ck_atom(f->kids[j + 1])) {
+                old[n] = f->kids[1]->tok.lex; nw[n] = f->kids[j + 1]->tok.lex; n++; break;
+            }
+    }
+    if (!n) return;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
+        if (f->kind == LOW_CST_FORM && f->nkids >= 2 && ck_atom(f->kids[0]) &&
+            f->kids[0]->tok.kw == LOW_KW_USE) continue;          // `use` 줄 자신은 원래 이름을 적는 자리다
+        ck_alias_walk(out, f, old, nw, n);
+    }
+}
 static void ck_narrow_qual(const low_parse_result_t *pr) {
     proven_u8str_view_t mods[256]; proven_size_t nmods = 0;
     for (proven_size_t i = 0; i < pr->nforms && nmods < 256; i++) {
@@ -7930,13 +7988,30 @@ static void ck_result_discard_walk(low_check_result_t *out, const low_cst_t *bod
                      "dropped here, so a failure leaves no trace at all. Bind it and look at it "
                      "(`let r … be …` then `is_error`), forward it (`try`), or say in the code why "
                      "the failure does not matter", s->kids[0]->tok.line ? s->kids[0]->tok.line : s->line);
-            // ☞ **`let r … be <부름>` 인데 r 을 안 읽는 것은 여기서 안 문다** (2026-09-17 측정).
-            //   그 모양도 실패를 버리기는 한다. 그러나 이 판에는 «나는 이 실패를 일부러 넘긴다» 를
-            //   적는 철자가 **없다** — 그러니 물면 없앨 방법이 없는 경고가 된다(결함 노트 #75 가
-            //   가르친 함정: 권하는 고침이 그 자체로 거절당하는 진단은 길을 여는 것이 아니라 닫는다).
-            //   ★ 실측: `lib`·예제·시험에서 그 모양 여덟 자리가 모두 «오류 경로에서 닫고 나간다» 였다.
-            //     그 자리에서 닫기의 실패로 할 수 있는 일은 없다. 이름에 담은 것 자체가 «받아 보았다» 다.
-            //   ⇒ **이름조차 없이 사라지는 것**만 문다. 「무시한다」를 적는 철자는 RFC-0115 §8-25.
+            // ② `let r … be <result 를 내는 부름>` 인데 r 을 한 번도 안 읽는다.
+            //   ★★★ 이 갈래는 한 번 뺐다가 되돌렸다 (RFC-0115 §8-25, 2026-09-17). 뺐던 까닭은
+            //     «나는 이 실패를 일부러 넘긴다» 를 적는 철자가 없어서였다 — 물어도 없앨 방법이
+            //     없는 경고는 길을 닫는다(결함 노트 #75). 소유자가 그 철자를 **`drop`** 으로 골랐고,
+            //     `drop` 은 이미 «나는 이것을 여기서 끝낸다» 를 뜻하므로 새 낱말이 들지 않았다.
+            //   ☞ 재는 법이 그래서 단순하다: `drop r .` 도 **이름을 한 번 부르는 것**이므로 아래
+            //     세기에 잡힌다. 곧 담아 두고 `drop` 도 안 한 자리만 남는다.
+            if ((kw == LOW_KW_LET || kw == LOW_KW_VAR) && s->nkids >= 3 && ck_atom(s->kids[1])) {
+                const low_cst_t *rhs = s->kids[s->nkids - 1];
+                while (rhs && rhs->kind == LOW_CST_GROUP && rhs->nkids == 1) rhs = rhs->kids[0];
+                proven_u8str_view_t head = { 0 };
+                if (rhs && rhs->kind == LOW_CST_FORM && rhs->nkids && ck_atom(rhs->kids[0]))
+                    head = rhs->kids[0]->tok.lex;
+                else if (rhs && ck_atom(rhs)) head = rhs->tok.lex;
+                if (head.size && ck_op_returns_result(tab, nt, head) &&
+                    ck_name_count(body, s->kids[1]->tok.lex) <= 1)
+                    warn(out, "W-RESULT-DISCARD",
+                         "this binding holds a `result` that nothing ever reads — the failure it "
+                         "carries is discarded as surely as if the call were a bare statement. Look "
+                         "at it (`is_error`), forward it (`try`), or — if letting this one go is the "
+                         "right thing, as it often is when closing a handle on an error path — say "
+                         "so with `drop <name> .`",
+                         s->kids[1]->tok.line ? s->kids[1]->tok.line : s->line);
+            }
         }
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_result_discard_walk(out, body, nd->kids[i], tab, nt);
@@ -8195,6 +8270,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     //   수 있다(RFC-0011 §6.3 qualified-by-default). narrow 가 먼저 벗기면 그 구별이 사라진다.
     ck_visibility(&out, pr);      // ★★★ **가시성** — export 도 bare 로는 못 넘는다(한정 강제)
     ck_import_noshadow(&out, pr); // ★★★ **import 는 이름을 덮어쓰지 않는다** (E-NAME-COLLISION)
+    ck_use_aliased(&out, pr);   // ★ 별칭을 적었으면 원래 이름은 서지 않는다 (#24)
     ck_narrow_qual(pr);   // ★ `M.member` → bare (뒤 검증기·IR 이 bare 로 본다, RFC-0011). additive.
     ck_package(&out, pr);
     ck_toplevel(&out, pr);

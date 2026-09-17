@@ -20,6 +20,7 @@ do
     let r result (option u64) files.file_error be files.read fs h buf .
     guard is_ok r . else do
       let c1 result void files.file_error be files.close fs h .
+      drop c1 .
       return 3 .
     end .
     rem ko: 세 자리를 모두 가른다 --- 읽었다 · 끝이다 · 실패다 /// en: split all three places --- read · end · failure

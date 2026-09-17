@@ -87,7 +87,17 @@ When a module name is long, or two modules share a name, shorten it with `as`.
 #demo("examples/ch21/alias.low")
 
 After `use geom from "geom.low" as g .` you call `g.point` and `g.manhattan`. The alias is a name used only inside this file; the module's
-real name (`geom`) does not change. Importing the same name twice gives `E-NAME-COLLISION`, and the remedy that diagnostic suggests is this alias.
+real name (`geom`) does not change. Inside this file, though, the original name no longer stands --- writing `geom.point` is `E-USE-ALIASED`.
+An alias is a rename, not a second name: if a module could be called by two spellings, a reader would have to check that they mean the same
+thing. Importing the same name twice gives `E-NAME-COLLISION`, and the remedy that diagnostic suggests is this alias.
+
+#antipattern[Writing an alias and then using the original name][
+  #demo("examples/ch21/mistake_aliasold.low")
+
+  The moment you write `as g`, the module's name in this file is `g` and nothing else. `geom.point` is refused with `E-USE-ALIASED`. If both
+  spellings stood, code would get changed on one side only, and a reader would have to keep checking that the two are the same module. The one
+  place the original name belongs is the `use` line.
+]
 
 == There is no search path
 

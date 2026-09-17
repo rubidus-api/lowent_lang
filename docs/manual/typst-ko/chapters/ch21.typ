@@ -89,7 +89,16 @@
 #demo("examples/ch21/alias.low")
 
 `use geom from "geom.low" as g .` 뒤로는 `g.point`·`g.manhattan` 으로 부른다. 별칭은 이 파일 안에서만 쓰는 이름이고, 모듈의 실제
-이름(`geom`)은 바뀌지 않는다. 같은 이름을 두 번 들여오면 `E-NAME-COLLISION` 이 나는데, 그 진단이 권하는 해법이 이 별칭이다.
+이름(`geom`)은 바뀌지 않는다. 다만 *이 파일 안에서는* 원래 이름이 서지 않는다 --- `geom.point` 라고 적으면 `E-USE-ALIASED` 다. 별칭은
+덧이름이 아니라 바꿔 부르기이고, 같은 모듈을 두 철자로 부르면 읽는 사람이 둘이 같은 것인지 확인해야 한다. 같은 이름을 두 번 들여오면
+`E-NAME-COLLISION` 이 나는데, 그 진단이 권하는 해법이 이 별칭이다.
+
+#antipattern[별칭을 적어 놓고 원래 이름으로 부른다][
+  #demo("examples/ch21/mistake_aliasold.low")
+
+  `as g` 를 적은 순간 이 파일에서 그 모듈의 이름은 `g` 하나다. `geom.point` 는 `E-USE-ALIASED` 로 거절된다. 두 철자가 다 서면 한쪽만 고친
+  코드가 생기고, 읽는 사람은 둘이 같은 모듈인지 매번 확인해야 한다. 원래 이름을 적는 자리는 `use` 줄 하나뿐이다.
+]
 
 == 검색 경로가 없다
 

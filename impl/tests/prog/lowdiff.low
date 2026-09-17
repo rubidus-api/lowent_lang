@@ -178,6 +178,7 @@ do
     rem ★ 여기서 **바로 돌아온다** — 닫고 나서 합류하면 `fa` 의 소유 상태가 갈래마다 달라진다
     rem   (E-OWN-JOIN: 한쪽에서만 소비된 owned 는 합류점에서 정적으로 일치해야 한다).
     let ca result void files.file_error . be files.close fs fa .
+    drop ca .
     return 2 .
   end .
   var fb owned files.handle be ok_value hb .

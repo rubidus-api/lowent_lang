@@ -11,6 +11,7 @@ do
   var h owned files.handle be ok_value o .
   let w result u64 files.file_error be files.write fs h "extra line\n" .
   let c result void files.file_error be files.close fs h .
+  drop c .
   guard is_ok w . else return 2 .
   rem ko: 쓰기가 실패했으므로 여기서 2 로 나간다 --- 짧게 쓰인 것도 함께 본다 /// en: the write failed, so it leaves with 2 here --- a short write is checked too
   guard eq (ok_value w) 11 . else return 3 .

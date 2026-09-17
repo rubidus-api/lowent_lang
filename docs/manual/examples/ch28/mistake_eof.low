@@ -23,5 +23,6 @@ do
     set i (add i 1) .
   end .
   let c result void files.file_error be files.close fs h .
+  drop c .
   return narrow u8 total .
 end .

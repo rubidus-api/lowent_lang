@@ -1136,7 +1136,7 @@ void low_cst_fmt(const low_parse_result_t *pr) {
             if (f->is_export) fputs("export ", stdout);
             if (f->is_unsafe) fputs("unsafe ", stdout);
             // ★★★★ **네 번째 수식자.** `unsafe target x86_sse2 proc av` 가 평범한
-            //   `unsafe proc` 으로 찍혀 intrinsic 이 격리 밖으로 나왔다(E-INTRIN-OUTSIDE).
+            //   `unsafe proc` 으로 찍혀 op 이 게이트 밖으로 나왔다.
             //   export·unsafe·extern 이 같은 자리에서 같은 이유로 빠졌었고 세 번 다
             //   def 해시가 잡았다 — **이번엔 못 잡았다.** `target` 은 몸통이 아니라
             //   **게이트**라서 def 에 안 들어간다. 한 오라클이 세 번 잡았다고 네 번째도

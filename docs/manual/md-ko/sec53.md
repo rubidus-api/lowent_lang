@@ -57,9 +57,9 @@
 | 장치 | `read_volatile` `write_volatile` |
 | 동시성 | `await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send` |
 | 원자(비트) | `atomic_and` `atomic_or` `atomic_xor` |
-| 부동소수 수학 — 4장 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` |
+| 부동소수 수학 — 4장 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq` |
 | 파이프 단계 — 24장 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `reverse` `collect` `count` `all` `any` `into` |
-| 레인(SIMD) — 27장 | `splat` `load` `store` `load_masked` `store_masked` `select` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `sum` `sum_fast` `avg` `native_lanes` `rotate` `prefetch` |
+| 레인(SIMD) — 27장 | `splat` `load` `store` `load_masked` `store_masked` `select` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `avg` `native_lanes` `rotate` `prefetch` |
 | 작은 수의 집합 — 13장 | `bitset_new` `union` `intersect` `difference` `complement` `contains` `is_subset` `is_empty` `remove` |
 | 배치와 뷰 — 13장 | `encode` `try_view` `view_segments` `seg` `segs` `capacity` |
 | 빌림과 영역 — 12장 · 18장 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap` |

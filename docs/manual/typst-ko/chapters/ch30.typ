@@ -191,10 +191,10 @@ op 에 `vector <번호> .` 절을 붙이면 그 op 은 인터럽트 처리기가
 #antipattern[레지스터를 보통 칸처럼 읽고 쓴다][
   #demo("examples/ch30/mistake_plainfield.low")
 
-  `set (field g moder) 2` 와 `field g idr` 도 이 판에서는 통과하고, VM 에서는 `read_volatile` 과 같은 답을 낸다. 닿는 법(`ro`·`wo`)도 여기서
-  강제된다. 그러나 보통 칸 접근은 처리기가 합치거나 지워도 되는 연산이다. 같은 레지스터를 두 번 읽는 코드가 한 번으로 줄면 실제 장치에서는
-  동작이 달라진다. 정본이 이 철자를 허용하는지는 개발 저장소에서 확인 중이다. 장치 레지스터에는 언제나 `read_volatile`·`write_volatile` 을
-  쓴다.
+  `set (field g moder) 2` 와 `field g idr` 는 거절된다(`E-MMIO-PLAIN`). 보통 칸 접근은 처리기가 합치거나 지워도 되는 연산이기 때문이다 ---
+  같은 레지스터를 두 번 읽는 코드가 한 번으로 줄거나, 아무도 읽지 않는 쓰기가 사라져도 보통 메모리에서는 답이 같다. 장치에서는 그 접근
+  자체가 일이므로 답이 달라진다. 장치 레지스터에는 `read_volatile`·`write_volatile` 을 쓴다 --- 닿는 법(`ro`·`wo`)도 그 자리에서 함께
+  검사한다.
 ]
 
 == 이 장의 문법 한눈에

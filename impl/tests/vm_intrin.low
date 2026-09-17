@@ -1,23 +1,18 @@
-rem ★★★ **D5 intrinsic 몸통 — `avg`** (RFC-0040 D5). 게이트가 지키는 **진짜 내용물**이다.
+rem ★★★ **레인별 라운딩 평균 `avg`** — 정본 §6.3.7.
 rem
-rem   `avg <va> <vb>` = 레인별 **라운딩 평균** (a+b+1)>>1 — x86 PAVGB/PAVGW · ARM VRHADD · SVE URHADD.
-rem   ★ **왜 특수 명령인가(= 왜 portable 로 못 쓰나)**: u8 레인에서 `a+b` 가 **넘친다**(200+100=300>255).
-rem     정확한 평균은 **widening** 이 필요하다 — 단일 portable op 으로 합성 불가. 그래서 D5 대상이다.
-rem   ★ **격리**: `unsafe target <iset>` 안에서만 쓴다(E-INTRIN-OUTSIDE). 게다가 그 iset 이 이 명령을
-rem     **비트-정확하게 주는** 것이어야 한다(E-INTRIN-ISET) — riscv_v 의 vaaddu 는 반올림이 vxrm CSR 에
-rem     달려 있어 비트-정확이 보장되지 않으므로 뺐다(있는 척하면 그것이 검사되지 않는 거짓말이다).
-rem   ★★ **오라클 안에 남는다**: 이 intrinsic 은 **비트-정확**이라 VM(레인 시뮬)과 C 가 **같은 값**을 낸다
-rem     ⇒ diff-sweep 로 VM≡native 검증. target intrinsic 이라고 다 오라클 밖인 것이 아니라, **비트-정확한
-rem     것을 고르면 검증할 수 있다** — 그것이 이 조각을 실을 수 있었던 이유다.
-rem     (레인 시뮬은 기존 portable 벡터 op 과 같은 수준이다. 진짜 패킹된 SIMD 레지스터 코드젠은 벡터 전체의
-rem      후속 과제이지 이 intrinsic 만의 문제가 아니다.)
+rem   `avg <va> <vb>` = 레인별 **라운딩 평균** (a+b+1)>>1.
+rem   ★ **넓혀 더한다**: u8 레인에서 `a+b` 가 넘친다(200+100=300>255). 정확한 평균은
+rem     **widening** 이 필요하다 — 두 뒤끝 모두 u64 로 넓혀 더한 뒤 좁힌다.
+rem   ★★ **오라클 안이다**: 비트-정확이라 VM(레인 시뮬)과 씨가 **같은 값**을 낸다 ⇒ diff-sweep 검증.
+rem   ☞ 2026-09-17: 전에는 이것을 «기계 붙박이» 로 보아 `unsafe target <iset>` 안에만 두었다
+rem     (결함 노트 #70). 정본이 보통 레인 op 으로 적고 있었고 두 뒤끝도 기계 명령을 쓰지 않으므로
+rem     그 울타리를 걷었다 — 막고 있던 것이 있지도 않은 기계 의존이었다.
 
 module vm_intrin .
 
 type bytes slice u8 . .
 
-rem 기본 target 은 x86_64 라 x86_sse2 게이트가 열린다(PAVGB).
-unsafe target x86_sse2 proc av input a bytes . input b bytes . input out mut slice u8 . output u64 . effects unsafe . do
+proc av input a bytes . input b bytes . input out mut slice u8 . output u64 . effects none . do
   var xa slice u8 . be view_array u8 a .
   var xb slice u8 . be view_array u8 b .
   var va vec u8 4 . be load xa 0 .

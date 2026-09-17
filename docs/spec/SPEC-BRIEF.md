@@ -69,7 +69,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   sat_mul         sat_sub         scan            seg             segs            select          send            sha256
   sha512          shl             shr             sin             size_of         skip            some_value      spawn
   splat           sqrt            stack_new       store           store_masked    str_from_cstr   sub             subslice
-  sum             sum_fast        swap            take            trailing_zeros  try_view        union           value_or
+  sum_neumaier    sum_seq         swap            take            trailing_zeros  try_view        union           value_or
   view            view_array      view_segments   widen           wrap_add        wrap_mul        wrap_shl        wrap_shr
   wrap_sub        write_out       write_volatile  zip
 ```
@@ -91,16 +91,16 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   프로파일  freestanding  embedded  native  server
 ```
 
-## 6. 오류 코드 — 계열 **97**  ·  *출처: `impl/src/*.c`*
+## 6. 오류 코드 — 계열 **96**  ·  *출처: `impl/src/*.c`*
 
 **전부 적지 않는다**(수백 개다). 어느 계열이 얼마나 굵은지만 — 굵은 계열이 곧 이 언어가
 가장 자주 거절하는 자리다.
 
 ```text
   E-VM(50)  E-TYPE(36)  E-NAME(12)  E-ASM(11)  E-ALLOC(10)
-  E-ENUM(9)  E-EFFECT(8)  E-PKG(8)  E-MMIO(8)  E-PAR(7)
+  E-MMIO(9)  E-ENUM(9)  E-EFFECT(8)  E-PKG(8)  E-PAR(7)
   E-FFI(7)  E-IR(6)  E-CONTRACT(5)  E-TRAIT(5)
-  … 그 밖 83 계열
+  … 그 밖 82 계열
 ```
 
 ## 7. 지금의 수  ·  *가리키기만 한다*

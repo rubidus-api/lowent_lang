@@ -8,8 +8,13 @@ enum flush_error do
 end .
 
 fn finish input j owned journal . output result u8 flush_error .
-  errors disk_full .
+  errors disk_full eq j 0 .
 do
+  rem ko: 빈 일지는 쓸 자리가 없었다는 뜻이다 --- 그래서 이 갈래가 실제로 난다 /// en: an empty journal means there was no room to write --- so this arm really does happen
+  guard ne j 0 . else do
+    drop j .
+    return error disk_full .
+  end .
   drop j .
   return ok 0 .
 end .

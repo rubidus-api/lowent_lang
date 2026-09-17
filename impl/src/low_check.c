@@ -4453,35 +4453,19 @@ static void ck_target_intrin(low_check_result_t *out, const low_parse_result_t *
         { "x86_sse2", "x86_64" }, { "x86_avx2", "x86_64" }, { "x86_avx512", "x86_64" },
         { "arm_neon", "arm64" },  { "arm_sve", "arm64" },   { "riscv_v", "riscv64" },
     };
-    // ★★★ **intrinsic 격리** — target intrinsic 은 그것을 **주는 명령셋**으로 게이트된 op 안에서만 쓸 수 있다.
-    //   `avg`(라운딩 평균)는 x86 PAVGB/W · ARM VRHADD · SVE URHADD 가 **정확히 (a+b+1)>>1** 로 준다.
-    //   riscv_v 의 vaaddu 는 반올림이 vxrm CSR 에 달려 있어 **비트-정확이 보장되지 않는다** — 그래서 뺀다
-    //   (있는 척하면 그것이 곧 검사되지 않는 거짓말이다).
-    static const char *AVG_ISETS[] = { "x86_sse2", "x86_avx2", "x86_avx512", "arm_neon", "arm_sve" };
+    // ★★★ **`avg` 의 격리를 푼다** (결함 노트 #70 · RFC-0115 §8-8, 2026-09-17).
+    //   여기 있던 것: `avg` 를 «x86 PAVGB / ARM VRHADD 가 있어야 뜻이 서는 기계 붙박이» 로 보고
+    //   `unsafe target <iset>` 안에서만 쓰게 막았다(`E-INTRIN-OUTSIDE` · `E-INTRIN-ISET`).
+    //   ☞ 그런데 **정본 §6.3.7 은 `avg` 를 보통 레인 op 으로 적는다**. 그리고 실제로 두 뒤끝 모두
+    //     기계 명령이 아니라 **넓힌 정수 산술**로 낸다(VM: u64 로 넓혀 더함 · 씨: 같은 식을 그대로
+    //     찍는다). 곧 이 op 은 이미 어느 기계에서나 같은 값을 내고 오라클 안에 있다 —
+    //     막고 있던 것은 **있지도 않은 기계 의존**이었다. 글과 도구가 갈린 자리에서 **글을 따른다.**
+    //   ★ 잃지 않아야 할 지식: 뒷날 이 op 을 기계 명령으로 내리려는 처리기는 그 명령이 정확히
+    //     (a+b+1)>>1 인지 확인해야 한다 — RISC-V 의 vaaddu 는 반올림이 vxrm CSR 에 달려 있어
+    //     비트-정확이 보장되지 않는다. 그 사실은 정본 §6.3.7 의 [!주의] 로 옮겨 적었다.
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (!f || f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) continue;
-        low_kw_t okw = f->kids[0]->tok.kw;
-        if ((okw == LOW_KW_FN || okw == LOW_KW_PROC) &&
-            ck_uses_head(f->nkids ? f->kids[f->nkids - 1] : NULL, "avg")) {
-            if (!f->target_iset.size) {
-                emit(out, "E-INTRIN-OUTSIDE",
-                     "`avg` is a TARGET INTRINSIC (the rounding average x86 PAVGB / ARM VRHADD) — it exists "
-                     "only on machines that have that instruction, so it must be QUARANTINED inside a gated "
-                     "op: `unsafe target <iset> proc … effects unsafe .` (RFC-0040 D5). Outside that gate "
-                     "there is nothing making its target visible, and portable code would silently depend on it", f->line);
-            } else {
-                bool provides = false;
-                for (proven_size_t z = 0; z < sizeof AVG_ISETS / sizeof AVG_ISETS[0]; z++)
-                    if (veq(f->target_iset, AVG_ISETS[z])) { provides = true; break; }
-                if (provides == false)
-                    emit(out, "E-INTRIN-ISET",
-                         "this op is gated on an instruction set that does NOT provide `avg` with exact "
-                         "(a+b+1)>>1 rounding (RFC-0040 D5). x86_sse2/x86_avx2/x86_avx512 (PAVGB/W), "
-                         "arm_neon/arm_sve (VRHADD/URHADD) provide it; riscv_v's vaaddu rounds per the vxrm "
-                         "CSR, so it is not bit-exact and is not claimed here. Gate on an iset that has it", f->line);
-            }
-        }
         if (!f->target_iset.size) continue;
         const char *need_tgt = NULL;
         for (proven_size_t z = 0; z < sizeof ISETS / sizeof ISETS[0]; z++)
@@ -7423,32 +7407,49 @@ static void ck_actor_state_refs(low_check_result_t *out, const low_cst_t *actor_
 //   ⇒ 뜻이 정해질 때까지 **그 모양을 거절한다.** 검사할 수 없는 선언을 안전의 근거로 삼지 않는다.
 // (담은 actor 의 BLOCK 은 `op_actor[]` 표가 이미 들고 있다 — 따로 찾지 않는다.)
 // 조건 나무가 상태 칸 이름을 읽는가 — **되돌림으로 훑는다**(고정 표는 깊은 조건을 조용히 자른다).
-static bool ck_cond_reads_state(const low_cst_t *nd, const low_cst_t *actor_blk) {
+// ★ 조건 나무가 **바뀔 수 있는 이름**을 읽는가. 바뀔 수 있는 것은 셋이다 —
+//   액터 상태 칸 · 모듈 `var` · `mut` 파라미터. 그 밖의 이름은 들어올 때와 나갈 때가 같다.
+typedef struct { proven_u8str_view_t n[64]; proven_size_t nn; } ck_mutset_t;
+static bool ck_mutset_has(const ck_mutset_t *ms, proven_u8str_view_t v) {
+    for (proven_size_t i = 0; i < ms->nn; i++) if (proven_u8str_view_eq(ms->n[i], v)) return true;
+    return false;
+}
+static void ck_mutset_add(ck_mutset_t *ms, proven_u8str_view_t v) {
+    if (ms->nn < 64 && v.size && !ck_mutset_has(ms, v)) ms->n[ms->nn++] = v;
+}
+static bool ck_cond_reads_state(const low_cst_t *nd, const low_cst_t *actor_blk,
+                                const ck_mutset_t *ms) {
     if (!nd) return false;
     if (ck_atom(nd) && nd->tok.kind == LOW_TOK_IDENT &&
-        ck_name_is_state_field(actor_blk, nd->tok.lex)) return true;
+        (ck_name_is_state_field(actor_blk, nd->tok.lex) || ck_mutset_has(ms, nd->tok.lex)))
+        return true;
     for (proven_size_t i = 0; i < nd->nkids; i++)
-        if (ck_cond_reads_state(nd->kids[i], actor_blk)) return true;
+        if (ck_cond_reads_state(nd->kids[i], actor_blk, ms)) return true;
     return false;
 }
 static void ck_errors_on_state(low_check_result_t *out, const low_cst_t *f,
-                               const low_cst_t *actor_blk) {
-    if (!actor_blk) return;
+                               const low_cst_t *actor_blk, const ck_mutset_t *modvars) {
+    ck_mutset_t ms = modvars ? *modvars : (ck_mutset_t){ 0 };
+    {   // ★ `mut` 파라미터도 바뀔 수 있다 — 머리가 이미 그것을 밝히고 있다.
+        low_op_header_t h = low_op_header(f);
+        for (proven_size_t q = 0; q < h.np; q++) if (h.p[q].is_mut) ck_mutset_add(&ms, h.p[q].name);
+    }
     for (proven_size_t j = 2; j + 1 < f->nkids; j++) {
         if (!ck_atom(f->kids[j]) || !veq(f->kids[j]->tok.lex, "errors")) continue;
         for (proven_size_t e = j + 2; e < f->nkids; e++) {          // j+1 은 오류 갈래 이름
             const low_cst_t *n2 = f->kids[e];
             if (!n2 || n2->kind == LOW_CST_BLOCK) break;              // ★ 몸이 시작되면 절은 끝났다
             if (ck_atom(n2) && ck_clause_word(n2->tok.lex)) break;   // 다음 절
-            if (ck_cond_reads_state(n2, actor_blk)) {
+            if (ck_cond_reads_state(n2, actor_blk, &ms)) {
                 emit(out, "E-ERRORS-STATE",
-                     "the condition of this `errors` clause reads an actor STATE field. The "
-                     "condition is read again ON EXIT, by which time the successful path has "
-                     "changed that field — the clause then says an error was owed that the op "
-                     "never returned. Today the two backends do not even agree on it (the VM "
-                     "reports its own analysis as unsound, native code checks nothing), and the "
-                     "canon does not say whether such a condition is read on entry or on exit. "
-                     "Write the condition over the INPUTS, and guard on the state inside the body",
+                     "the condition of this `errors` clause names something whose value can DIFFER "
+                     "between entry and exit — an actor state field, a module `var`, or a `mut` "
+                     "parameter. An `errors` condition is read on the values the op was ENTERED "
+                     "with (canon §6.4.2): the clause says what the CALLER got wrong, and what the "
+                     "caller handed over is all it can be blamed for. A name the body may change "
+                     "cannot carry that meaning — read on exit it accuses the op of owing an error "
+                     "it never owed. Write the condition over the inputs that do not change (and "
+                     "module constants), and guard on the changing thing inside the body",
                      f->line);
                 return;
             }
@@ -7859,7 +7860,7 @@ static void ck_typeholes_walk(low_check_result_t *out, const low_cst_t *nd,
     for (proven_size_t i = 0; i < nd->nkids; i++)
         ck_typeholes_walk(out, nd->kids[i], f, h, pr, tab, nt);
 }
-// ⑥ #72 — `sum`·`sum_fast` 는 **부동소수 합**이다(결함 노트 #71). 정수 출력에 그대로 돌려주면
+// ⑥ #72 — `sum_neumaier`·`sum_seq` 는 **부동소수 합**이다(결함 노트 #71). 정수 출력에 그대로 돌려주면
 //   `--check` 가 통과하고 결과가 `20.0` 으로 찍혔다 — 반환 타입 검사가 그 결과 타입을 몰랐다.
 static void ck_sum_return(low_check_result_t *out, const low_cst_t *nd, const low_cst_t *f,
                           const low_op_header_t *h) {
@@ -7871,7 +7872,7 @@ static void ck_sum_return(low_check_result_t *out, const low_cst_t *nd, const lo
         while (rv && rv->kind == LOW_CST_GROUP && rv->nkids == 1) rv = rv->kids[0];
         if (rv && rv->kind == LOW_CST_FORM && rv->nkids >= 1) rv = rv->kids[0];   // 감싼 폼의 머리
     }
-    if (rv && ck_atom(rv) && (veq(rv->tok.lex, "sum") || veq(rv->tok.lex, "sum_fast")) &&
+    if (rv && ck_atom(rv) && (veq(rv->tok.lex, "sum_neumaier") || veq(rv->tok.lex, "sum_seq")) &&
         h->out_s && h->out_s < f->nkids && ck_atom(f->kids[h->out_s])) {
         proven_u8str_view_t ow = f->kids[h->out_s]->tok.lex;
         bool is_int_out = ow.size >= 2 &&
@@ -7879,13 +7880,104 @@ static void ck_sum_return(low_check_result_t *out, const low_cst_t *nd, const lo
             ow.ptr[1] >= (proven_byte_t)'0' && ow.ptr[1] <= (proven_byte_t)'9';
         if (is_int_out)
             emit(out, "E-TYPE-RETURN",
-                 "`sum` / `sum_fast` add FLOATING-POINT values (a compensated and a running sum), so "
-                 "their result is a float — returning it where an integer is declared used to pass "
-                 "`--check` and then print `20.0` from an op whose head said `u64`. To add lanes of an "
-                 "integer vector use `reduce_add`; to keep the float, declare the output as one",
+                 "`sum_neumaier` / `sum_seq` add FLOATING-POINT values (a compensated and a running "
+                 "sum), so their result is a float — returning it where an integer is declared used to "
+                 "pass `--check` and then print `20.0` from an op whose head said `u64`. To add lanes of "
+                 "an integer vector use `reduce_add`; to keep the float, declare the output as one",
                  rv->tok.line);
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_sum_return(out, nd->kids[i], f, h);
+}
+// ═══ 결함 노트 #51 — **실패가 조용히 사라지는 세 자리** (RFC-0115 §8-5, 2026-09-17) ═══
+//
+//   `result` 는 «실패가 값이다» 를 쓰는 타입이다. 그런데 그 값을 **버리는** 것이 아무 말 없이
+//   통과하고 있었다: 문장으로 부르고 답을 안 받거나(`check_port 0 .`), `let r` 에 담고 한 번도
+//   안 읽거나, `errors` 절을 적어 놓고 몸통이 그 오류를 **한 번도 내지 않거나**.
+//   ⇒ 오류가 아니라 **알림**이다 — 실패를 정말 무시해도 되는 자리가 있고, 그 자리를 적는 문법
+//     (`ignore …` 따위)이 아직 없다. 없는 문법을 지키라고 거절할 수는 없다.
+// ★ 이 op 이 `result` 를 돌려주는가 — 표에서 찾아 머리의 `output` 첫 낱말을 본다.
+static bool ck_op_returns_result(const low_opinfo_t *tab, proven_size_t nt,
+                                 proven_u8str_view_t name) {
+    for (proven_size_t i = 0; i < nt; i++) {
+        if (!proven_u8str_view_eq(tab[i].name, name) || !tab[i].form) continue;
+        low_op_header_t h = low_op_header(tab[i].form);
+        if (!h.out_s || h.out_s >= tab[i].form->nkids) return false;
+        const low_cst_t *o = tab[i].form->kids[h.out_s];
+        return ck_atom(o) && veq(o->tok.lex, "result");
+    }
+    return false;
+}
+// ★ 이름이 나무에 몇 번 나오는가 — 묶은 자리 말고 **읽는 자리**가 있는지 세려는 것이다.
+static proven_size_t ck_name_count(const low_cst_t *nd, proven_u8str_view_t nm) {
+    if (!nd) return 0;
+    proven_size_t n = (ck_atom(nd) && nd->tok.kind == LOW_TOK_IDENT &&
+                       proven_u8str_view_eq(nd->tok.lex, nm)) ? 1 : 0;
+    for (proven_size_t i = 0; i < nd->nkids; i++) n += ck_name_count(nd->kids[i], nm);
+    return n;
+}
+static void ck_result_discard_walk(low_check_result_t *out, const low_cst_t *body,
+                                   const low_cst_t *nd, const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_BLOCK) {
+        for (proven_size_t i = 0; i < nd->nkids; i++) {
+            const low_cst_t *s = nd->kids[i];
+            if (!s || s->kind != LOW_CST_FORM || !s->nkids || !ck_atom(s->kids[0])) continue;
+            low_kw_t kw = s->kids[0]->tok.kw;
+            // ① 문장으로 부르고 답을 안 받는다
+            if (kw == LOW_KW_NONE && ck_op_returns_result(tab, nt, s->kids[0]->tok.lex))
+                warn(out, "W-RESULT-DISCARD",
+                     "this op returns a `result` — it says failure is a VALUE — and the value is "
+                     "dropped here, so a failure leaves no trace at all. Bind it and look at it "
+                     "(`let r … be …` then `is_error`), forward it (`try`), or say in the code why "
+                     "the failure does not matter", s->kids[0]->tok.line ? s->kids[0]->tok.line : s->line);
+            // ☞ **`let r … be <부름>` 인데 r 을 안 읽는 것은 여기서 안 문다** (2026-09-17 측정).
+            //   그 모양도 실패를 버리기는 한다. 그러나 이 판에는 «나는 이 실패를 일부러 넘긴다» 를
+            //   적는 철자가 **없다** — 그러니 물면 없앨 방법이 없는 경고가 된다(결함 노트 #75 가
+            //   가르친 함정: 권하는 고침이 그 자체로 거절당하는 진단은 길을 여는 것이 아니라 닫는다).
+            //   ★ 실측: `lib`·예제·시험에서 그 모양 여덟 자리가 모두 «오류 경로에서 닫고 나간다» 였다.
+            //     그 자리에서 닫기의 실패로 할 수 있는 일은 없다. 이름에 담은 것 자체가 «받아 보았다» 다.
+            //   ⇒ **이름조차 없이 사라지는 것**만 문다. 「무시한다」를 적는 철자는 RFC-0115 §8-25.
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_result_discard_walk(out, body, nd->kids[i], tab, nt);
+}
+// ③ `errors <갈래>` 를 적어 놓고 몸통이 그 오류를 한 번도 내지 않는다.
+//   ★ `try` 가 있으면 **부른 쪽의 오류를 그대로 넘긴다** — 그 갈래는 여기서 안 보이므로 세지 않는다.
+// ★ 몸통이 **남의 result 를 그대로 넘기는가** — `return <result 를 내는 부름>`.
+//   그 갈래는 부른 쪽이 내는 것이라 여기서는 안 보인다. 안 보이는 것을 «없다» 고 하면 오탐이다.
+//   (`docs/manual/examples/ch19/complete.low` 의 `session` 이 이것을 잡아 주었다.)
+static bool ck_forwards_result(const low_cst_t *nd, const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd) return false;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        nd->kids[0]->tok.kw == LOW_KW_RETURN) {
+        const low_cst_t *v = nd->kids[1];
+        while (v && v->kind == LOW_CST_GROUP && v->nkids == 1) v = v->kids[0];
+        proven_u8str_view_t h = { 0 };
+        if (v && v->kind == LOW_CST_FORM && v->nkids && ck_atom(v->kids[0])) h = v->kids[0]->tok.lex;
+        else if (v && ck_atom(v)) h = v->tok.lex;
+        if (h.size && ck_op_returns_result(tab, nt, h)) return true;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        if (ck_forwards_result(nd->kids[i], tab, nt)) return true;
+    return false;
+}
+static void ck_errors_unraised(low_check_result_t *out, const low_cst_t *f, const low_cst_t *body,
+                               const low_opinfo_t *tab, proven_size_t nt) {
+    if (!body) return;
+    if (ck_uses_head(body, "try")) return;
+    if (ck_forwards_result(body, tab, nt)) return;
+    for (proven_size_t j = 2; j + 1 < f->nkids; j++) {
+        if (!ck_atom(f->kids[j]) || !veq(f->kids[j]->tok.lex, "errors")) continue;
+        if (!ck_atom(f->kids[j + 1])) continue;
+        proven_u8str_view_t v = f->kids[j + 1]->tok.lex;
+        if (ck_name_count(body, v) > 0) continue;
+        warn(out, "W-ERRORS-UNRAISED",
+             "this `errors` clause names a failure the body never returns. The clause is read as a "
+             "promise about what this op can do, and the callers write their handling from it — a "
+             "branch that can never be taken is dead code the reader cannot tell from live code. "
+             "Return it (`return error <variant>`), forward one (`try`), or remove the clause",
+             f->kids[j]->tok.line ? f->kids[j]->tok.line : f->line);
+    }
 }
 // ⑤ #58 — 붙은 op(`fn <타입>.<이름>`)의 **수신자는 첫 입력**이어야 한다.
 static void ck_method_receiver(low_check_result_t *out, const low_cst_t *f) {
@@ -8207,6 +8299,23 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     }
 
     // ★ 액터 상태 칸에 빌림을 두는 것 (§8.4.1 · 결함 노트 #74) · 상태를 읽는 오류 조건 (#62)
+    // ★★★ **모듈 수준 `var` 를 먼저 모은다** (결함 노트 #62 의 넓힘, 2026-09-17).
+    //   `errors` 조건은 **들어올 때 값**으로 읽는다(정본 §6.4.2). 그러므로 조건에 설 수 있는
+    //   이름은 들어올 때와 나갈 때가 **같은 것**뿐이다 — 모듈 `var` 는 몸통이 바꿀 수 있다.
+    ck_mutset_t ck_modvars = { 0 };
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *mf = pr->forms[i];
+        if (mf && mf->kind == LOW_CST_FORM && mf->nkids >= 2 && ck_atom(mf->kids[0]) &&
+            mf->kids[0]->tok.kw == LOW_KW_VAR && ck_atom(mf->kids[1]))
+            ck_mutset_add(&ck_modvars, mf->kids[1]->tok.lex);
+    }
+    // ★ 액터 밖의 op 도 같은 규율을 받는다 — 액터만 보던 것이 결함 노트 #62 의 좁음이었다.
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *tf = pr->forms[i];
+        if (tf && tf->kind == LOW_CST_FORM && tf->nkids >= 2 && ck_atom(tf->kids[0]) &&
+            (tf->kids[0]->tok.kw == LOW_KW_FN || tf->kids[0]->tok.kw == LOW_KW_PROC))
+            ck_errors_on_state(&out, tf, NULL, &ck_modvars);
+    }
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *af = pr->forms[i];
         if (!(af->kind == LOW_CST_FORM && af->nkids >= 2 && ck_atom(af->kids[0]) &&
@@ -8219,7 +8328,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                 const low_cst_t *hop = blk->kids[q];
                 if (hop && hop->kind == LOW_CST_FORM && hop->nkids >= 2 && ck_atom(hop->kids[0]) &&
                     (hop->kids[0]->tok.kw == LOW_KW_FN || hop->kids[0]->tok.kw == LOW_KW_PROC))
-                    ck_errors_on_state(&out, hop, blk);
+                    ck_errors_on_state(&out, hop, blk, &ck_modvars);
             }
         }
     }
@@ -8939,6 +9048,8 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             ck_typeholes_walk(&out, h.body, f, &h, pr, tab0, ops.len);  // ★ 실행까지 새던 다섯 (#31·#39·#44·#45)
             ck_method_receiver(&out, f);                     // ★ 수신자는 첫 입력 (#58)
             ck_sum_return(&out, h.body, f, &h);              // ★ sum 은 부동소수 합 (#72)
+            ck_result_discard_walk(&out, h.body, h.body, tab0, ops.len);  // ★ 버려지는 실패 (#51)
+            ck_errors_unraised(&out, f, h.body, tab0, ops.len);  // ★ 한 번도 내지 않는 오류 갈래 (#51)
             ck_slashslash_walk(&out, h.body);                // ★ `//` 는 주석이 아니다 (#28)
             ck_loopword_walk(&out, h.body, false);           // ★ 반복 밖의 break (#35)
             ck_fieldborrow_walk(&out, h.body);               // ★ 칸의 빌림은 안 지었다 (#20)

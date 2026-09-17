@@ -1,12 +1,15 @@
 rem RFC-0053 E5 — 오차가 이름에 적혀 있다.
 rem [1e16, 1.0, -1e16] : 1e16 + 1 은 double 에서 반올림돼 1 을 잃는다(2^53 ≈ 9e15).
-rem   sum_fast(축차) → 0   |   sum(보정, Neumaier) → 1
+rem   sum_seq(축차) → 0   |   sum_neumaier(보정) → 1
+rem ☞ 2026-09-17: 이름을 `sum`·`sum_fast` 에서 바꿨다(결함 노트 #71). 한 이름이 «레인을 더한다»
+rem   (정본 §6.3.7)와 «부동 슬라이스를 보정해 더한다»(도구) 둘을 뜻하고 있었다. 이름이 **어떻게
+rem   더하는지**를 말하게 했다.
 type bytes slice u8 . .
 fn s_good input b bytes . output f64 . do
   var xs slice f64 . be view_array f64 b .
-  return sum xs .
+  return sum_neumaier xs .
 end .
 fn s_fast input b bytes . output f64 . do
   var xs slice f64 . be view_array f64 b .
-  return sum_fast xs .
+  return sum_seq xs .
 end .

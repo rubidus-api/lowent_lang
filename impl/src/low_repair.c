@@ -237,8 +237,6 @@ static const low_repair_row_t REPAIR[] = {
     { "E-TARGET-ISET",         "R-USE-KNOWN-ISET" },
     { "E-TARGET-LEAF",         "R-CHANGE-TARGET" },   /* POSIX 잎 ↔ POSIX 아닌 호스트(win64) — 타깃을 바꾸거나 그 잎을 안 쓴다 */
     { "E-TARGET-INTRIN",       "R-CHANGE-TARGET" },
-    { "E-INTRIN-ISET",         "R-CHANGE-TARGET" },
-    { "E-INTRIN-OUTSIDE",      "R-WRAP-TARGET-OP" },
 
     // C 경계
     { "E-FFI-BODY",            "R-DROP-BODY" },

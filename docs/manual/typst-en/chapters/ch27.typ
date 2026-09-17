@@ -185,14 +185,15 @@ four slots remain at the end of a slice.
   [`reduce_add` · `reduce_max` · `reduce_min` · `reduce_mul`], [gather the lanes into one], [the result has the element type],
   [`reverse` · `rotate`], [reverse · rotate the lanes], [the count is a translation-time constant],
   [`native_lanes`], [this machine's lane count (translation time)], [does not change answers],
-  [`sum` · `sum_fast`], [add up a number array seen through `view_array`], [in this edition they produce float sums --- `sum` compensated (fixed order), `sum_fast` order chosen by the processor],
-  [`avg`], [rounding average per lane], [a target intrinsic, allowed only inside `unsafe target … proc` (`E-INTRIN-OUTSIDE`)],
+  [`sum_neumaier` · `sum_seq`], [add up a float slice seen through `view_array`], [not lane ops --- the name says how they add (compensated · front to back)],
+  [`avg`], [rounding average per lane], [its value is fixed at `(a+b+1)>>1` — the sum is widened so a lane cannot overflow],
   [`prefetch xs i`], [pull a place about to be used into cache], [a performance hint that does not change meaning],
 )
 
 Watch two things. First, `splat` takes its lane count from the *declared type*, so it cannot be written inline in an expression.
-Second, the canon's table lists `sum`, `sum_fast` and `avg` as ordinary lane ops, but this edition's tool treats them as in the right column
-above. The two disagree, and it is recorded as a defect in the development repository. To add lanes, use `reduce_add`.
+Second, **adding lanes and adding a slice are different ops** --- lanes are `reduce_add`, a float slice is `sum_neumaier` or `sum_seq`. Until
+2026-09-17 the latter were spelled `sum` and `sum_fast`, while the canon used those same names for "add all the lanes". One name meant two
+things, so the names were split (canon 6.3.7.1).
 
 #antipattern[Writing `splat` inline in an expression][
   #demo("examples/ch27/mistake_splatinline.low")
@@ -228,7 +229,7 @@ kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT
   #demo("examples/ch27/mistake_floatreduce.low")
 
   Floating-point addition is not associative. How the pieces are split changes the rounding, so the answer would depend on the number of
-  cores. Hence `E-PAR-FLOAT`. As the diagnostic suggests, use the sequential `sum` (a compensated sum). Determinism is part of the meaning,
+  cores. Hence `E-PAR-FLOAT`. As the diagnostic suggests, use the sequential `sum_neumaier` (a compensated sum). Determinism is part of the meaning,
   not a performance option.
 ]
 

@@ -3311,18 +3311,18 @@ int main(void) {
         proven_array_destroy(&p.diags); proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }
 
-    // ── RFC-0053 E5 (P2′ 오차 가시): sum(보정) vs sum_fast(축차) — 오차가 이름에 있다 ──
+    // ── RFC-0053 E5 (P2′ 오차 가시): sum_neumaier(보정) vs sum_seq(축차) — 오차가 이름에 있다 ──
     {
         const char *src =
             "type bytes slice u8 . . "
             "fn s_good input b bytes . output f64 .  do "
-            "  var xs u64 . be view_array f64 b . return sum xs . end "
+            "  var xs u64 . be view_array f64 b . return sum_neumaier xs . end "
             "fn s_fast input b bytes . output f64 .  do "
-            "  var xs u64 . be view_array f64 b . return sum_fast xs . end";
+            "  var xs u64 . be view_array f64 b . return sum_seq xs . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
-        check(ir.ok, "E5: sum / sum_fast lower");
+        check(ir.ok, "E5: sum_neumaier / sum_seq lower");
         // [1e16, 1.0, -1e16] — 1e16 + 1 은 double 에서 반올림돼 1 을 잃는다(2^53 ≈ 9e15).
         double xs[3] = { 1e16, 1.0, -1e16 };
         proven_u8 raw[24];
@@ -3331,10 +3331,10 @@ int main(void) {
         for (int i = 0; i < 24; i++) args[i] = raw[i];
         low_ir_run_result_t r = low_ir_run(&ir, proven_u8str_view_from_cstr("s_fast"), args, 24, heap, &ir.diags);
         check(r.ok && strcmp(r.text, "0.0") == 0,
-              "E5: sum_fast (naive) LOSES the 1 — error is O(n·eps), and the name says so");
+              "E5: sum_seq (naive) LOSES the 1 — error is O(n·eps), and the name says so");
         r = low_ir_run(&ir, proven_u8str_view_from_cstr("s_good"), args, 24, heap, &ir.diags);
         check(r.ok && strcmp(r.text, "1.0") == 0,
-              "E5: sum (Neumaier) KEEPS it — error is O(eps), independent of the term count. "
+              "E5: sum_neumaier KEEPS it — error is O(eps), independent of the term count. "
               "The accurate one is the DEFAULT; the fast one wears its cost in its name (P2').");
         low_ir_free(heap, &ir);
         if (p.forms) heap.free_fn(heap.ctx, p.forms);

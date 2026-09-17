@@ -5,3 +5,9 @@ rem ko: byte 는 이름만 아는 타입 낱말이다 — 뜻이 없어 경고�
 fn first input x byte . output u64 . do
   return 0 .
 end .
+
+rem ko: 문법 부록 A.9 의 `list` 도 같다 — 목록에는 있었으나 뜻을 정한 조항이 없다 /// en: `list` in grammar annex A.9 is the same — it was on the list, but no clause ever gave it a meaning
+fn count input xs list u64 . output u64 .
+do
+  return 0 .
+end .

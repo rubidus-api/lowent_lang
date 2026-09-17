@@ -292,16 +292,16 @@ u8    i8    u16   i16   u32   i32   u64   i64   usize  isize   f32   f64
 bool  void
 
 rem 줄과 묶음
-slice   array   segments   list   set   stack   range   vec   bitset   mask
+slice   array   segments   set   stack   range   vec   bitset   mask
 
 rem 답을 담는 것
 result   option
 
 rem 자리와 빌림
-ref   mut_ref   mut   owned   raw   addr   region
+ref   mut_ref   mut   owned   region
 
 rem 바깥과 이어지는 것
-cap   clock   device   file_system   net   tty   mmio   rng
+cap   clock   device   file_system   net   tty   mmio
 fn    unsafe_fn
 
 rem 그 밖
@@ -310,7 +310,21 @@ self")
       다음 낱말은 **이름으로 받되 뜻이 아직 없다.** 처리기는 그것을 말한다(`W-NOT-YET`,
       #cref("4.7")) — 조용히 받아 주지 아니한다.
     ]
-    #shape("이름만 받는 타입 낱말", "byte   char   str   string   bytes_view   dyn   atomic")
+    #shape("이름만 받는 타입 낱말", "byte   char   str   string   bytes_view   dyn   atomic
+list   raw   addr   rng")
+    #para("2a")[
+      뒤의 넷(`list`·`raw`·`addr`·`rng`)은 이 판에서 이 갈래로 옮겼다. 위 (1) 의 목록에
+      실려 있었으나 **뜻을 정한 조항이 이 정본 어디에도 없었고**, 하강도 그 이름을 읽지
+      못한다 — 그 서명의 op 은 통째로 해석기로 내려간다. 뜻을 지어내는 것보다 **아직
+      없다고 말하는 것**이 옳다.
+    ]
+    #para("2b")[
+      `addr` 과 `raw` 는 **연산으로는 뜻이 있다**(`addr <이름>` 은 자리를 얻고, 그것은
+      `unsafe` 효과다 --- #cref("8.11")). 여기서 뜻이 없다고 하는 것은 **타입을 적는 자리**의
+      낱말이다. 마찬가지로 `cap rng` 의 `rng` 는 권능의 **종류**이므로 이 조항에 들지
+      아니한다 --- 홀로 타입으로 선 `rng` 만이 이름뿐이다. 그래서 위 (1) 의 권능 종류 줄에서
+      `rng` 을 내렸다.
+    ]
     #para("3")[
       다음 셋은 **공유 상태의 타입**이며 지금은 거절된다. 이름이 어휘에 있는 까닭은
       *"없는 타입"* 이라 말하는 것이 거짓이기 때문이다 — 명세에 있는 타입을 두고

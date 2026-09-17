@@ -216,12 +216,12 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   #demo("examples/ch25/mistake_errorsstate.low")
 
   `errors insufficient gt amount balance .` was written to mean "this error when withdrawing more than the balance". But an `errors`
-  condition is checked *on exit*. On the success path the balance dropped from 50 to 20, so on exit `gt 30 20` is true, which amounts to
-  "the condition holds, yet the error was not returned". So translation refuses it with `E-ERRORS-STATE`. Until 2026-09-16 it passed: the VM
-  stopped with `E-VM-ANALYSIS` ("the interval analysis is unsound"), and the native build returned 20 without checking --- the two back
-  ends disagreed. Whether such a condition is read on entry or on exit is not settled in the canon yet, and until it is, a declaration that
-  cannot be checked is not accepted. Write the error condition over the *inputs*, and let the `guard` in the body judge the state --- as
-  `transfer.low` above does with a bare `errors insufficient .`.
+  condition is read on the values the op was *entered* with (canon 6.4.2). `errors` stands on the same side as `requires` --- it says what
+  the *caller* got wrong, and what the caller did is hand things over. So a name the body can change (a state field, a module `var`, a `mut`
+  parameter) cannot stand in the condition, and translation refuses it with `E-ERRORS-STATE`. Read on exit, a successful run would accuse
+  itself: the balance dropped from 50 to 20, so on exit `gt 30 20` is true, which amounts to "the condition holds, yet the error was not
+  returned". Write the error condition over the *inputs*, and let the `guard` in the body judge the state --- as `transfer.low` above does
+  with a bare `errors insufficient .`.
 ]
 
 #antipattern[Keeping a borrow in a state field][

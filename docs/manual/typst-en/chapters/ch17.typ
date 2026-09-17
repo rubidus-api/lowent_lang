@@ -150,9 +150,11 @@ forgot; bind a name instead and that single arm takes every error, so there is n
 #antipattern[Calling an op that returns a `result` as a statement][
   #demo("examples/ch17/mistake_dropresult.low")
 
-  `check_port 0 .` returned an error, but nobody received it. The port is 0, yet "started" is printed and the exit code is 0. The design of
-  returning failure as a value only holds when the caller *looks at* that value. This edition's tool does not report a dropped `result`.
-  Always receive the `result` of such an op with `let` and ask, pass it on with `try`, or split it with `match`.
+  `check_port 0 .` returned an error, but nobody received it: the port is 0, yet "started" would be printed and the exit code would be 0. The
+  design of returning failure as a value only holds when the caller *looks at* that value, so the tool reports it as `W-RESULT-DISCARD`.
+  Receive the `result` of such an op with `let` and ask, pass it on with `try`, or split it with `match`. Binding it and never reading it is
+  not reported --- closing a handle on an error path has nothing it could do with the failure, and there is no spelling yet for "I am letting
+  this one go".
 ]
 
 == This chapter's syntax at a glance

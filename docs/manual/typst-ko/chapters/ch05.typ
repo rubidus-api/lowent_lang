@@ -214,7 +214,7 @@ end .
 #antipattern[내장 op 의 이름으로 op 을 짓는다][
   #demo("examples/ch05/mistake_builtin.low")
 
-  이름 공간은 평평해서 같은 이름이 둘일 수 없다. 내장 op(`add`·`sum`·`len`·`ok` …)의 이름을 쓰면 그 선언은 영영 불리지
+  이름 공간은 평평해서 같은 이름이 둘일 수 없다. 내장 op(`add`·`min`·`len`·`ok` …)의 이름을 쓰면 그 선언은 영영 불리지
   않으므로 `E-NAME-BUILTIN` 으로 알려 준다. 지역 이름에도 같은 규칙이 붙는다. 내장 이름의 목록은 부록 A 에 있다.
 ]
 

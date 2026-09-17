@@ -240,8 +240,8 @@ static void render_op(FILE *o, const low_cst_t *f, proven_u8str_view_t src,
     {   // RFC-0053 E5 / P2′ — **오차 가시**. 수치 오차는 숨은 비용이다: 본문이 쓰는 op 의
         // 오차 특성을 문서가 *반드시* 드러낸다. 이름만으로 구별되는 계열이라 더더욱 그렇다.
         static const struct { const char *op; const char *bound; } ERRB[] = {
-            { "sum",       "|result - Σxᵢ| ≤ 2ε·|Σ|xᵢ||   (Kahan-Babuška-Neumaier — **항의 개수에 무관**)" },
-            { "sum_fast",  "|result - Σxᵢ| ≤ n·ε·Σ|xᵢ|    (축차합 — 오차가 항의 개수에 **비례**한다)" },
+            { "sum_neumaier", "|result - Σxᵢ| ≤ 2ε·|Σ|xᵢ||   (Kahan-Babuška-Neumaier — **항의 개수에 무관**)" },
+            { "sum_seq",      "|result - Σxᵢ| ≤ n·ε·Σ|xᵢ|    (축차합 — 오차가 항의 개수에 **비례**한다)" },
             { "fma",       "단일 반올림(융합) — 명시 호출 시에만. fp-contraction 은 기본 off" },
         };
         const low_cst_t *b0 = (f->nkids && f->kids[f->nkids-1]->kind == LOW_CST_BLOCK) ? f->kids[f->nkids-1] : NULL;

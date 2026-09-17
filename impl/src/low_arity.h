@@ -128,7 +128,7 @@
     X(sqrt, "V")  X(abs, "V")  X(floor, "V")  X(ceil, "V")                     \
     /* ★ 초월 함수 (RFC-0090 N2) — libm. 부동 전용 · 권한 없음 · 호스트 전용 */    \
     X(sin, "V")   X(cos, "V")  X(exp, "V")    X(log, "V")   X(round, "V")      \
-    X(nonzero_of, "V")  X(sum, "V")  X(sum_fast, "V")                          \
+    X(nonzero_of, "V")  X(sum_neumaier, "V")  X(sum_seq, "V")                          \
     X(fmod, "VV") X(min, "VV") X(max, "VV")   X(pow, "VV")                     \
     /* SIMD */                                                                 \
     X(splat, "V")       X(load, "VV")       X(store, "VVV")                    \

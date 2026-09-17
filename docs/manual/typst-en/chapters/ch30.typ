@@ -189,10 +189,10 @@ runs only natively.
 #antipattern[Reading and writing registers as ordinary fields][
   #demo("examples/ch30/mistake_plainfield.low")
 
-  `set (field g moder) 2` and `field g idr` also pass in this edition, and on the VM they give the same answers as `read_volatile`. The access
-  modes (`ro`·`wo`) are enforced here too. But ordinary field access is an operation the processor may merge or remove. If code that reads the
-  same register twice is reduced to one read, a real device behaves differently. Whether the canon allows this spelling is being checked in
-  the development repository. For device registers, always use `read_volatile` and `write_volatile`.
+  `set (field g moder) 2` and `field g idr` are refused (`E-MMIO-PLAIN`). Ordinary field access is an operation the processor may merge or
+  remove --- two reads of one register becoming one read, or a store nothing reads going away, change nothing in ordinary memory. On a device
+  the access itself is the work, so the answers change. For device registers write `read_volatile` and `write_volatile`, which is also where
+  the access modes (`ro`·`wo`) are checked.
 ]
 
 == This chapter's syntax at a glance

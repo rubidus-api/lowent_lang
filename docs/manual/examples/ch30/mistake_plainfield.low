@@ -1,5 +1,5 @@
 module mistake_plainfield .
-rem run: drive 0 [0,0,0,0,7,0,0,0,0,0,0,0]
+rem expect: E-MMIO-PLAIN
 
 struct gpio do
   mmio 0x40020000 .

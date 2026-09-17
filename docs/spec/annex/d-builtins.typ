@@ -184,8 +184,8 @@
         [`str_from_cstr`], [C 문자열에서 읽는다],
         [`sub`], [앞에서 뒤를 뺀다. 넘치면 트랩한다],
         [`subslice`], [부분 슬라이스 — 복사하지 아니한다],
-        [`sum`], [모두 더한다. 넘치면 트랩한다],
-        [`sum_fast`], [모두 더한다 — 결합 순서를 처리기가 고른다],
+        [`sum_neumaier`], [부동 조각을 **보정하며** 더한다 — 오차가 항의 개수에 매이지 아니한다],
+        [`sum_seq`], [부동 조각을 앞에서 뒤로 한 번 더한다 — 빠르고, 오차가 항의 개수에 비례한다],
         [`swap`], [두 자리를 맞바꾼다],
         [`take`], [앞에서 n 개],
         [`trailing_zeros`], [맨 뒤의 0 비트 수],
@@ -262,7 +262,7 @@ sha512                shl                   shr                   sin
 size_of               skip                  some_value            spawn
 splat                 sqrt                  stack_new             store
 store_masked          str_from_cstr         sub                   subslice
-sum                   sum_fast              swap                  take
+sum_neumaier          sum_seq               swap                  take
 trailing_zeros        try_view              union                 value_or
 view                  view_array            view_segments         widen
 wrap_add              wrap_mul              wrap_shl              wrap_shr

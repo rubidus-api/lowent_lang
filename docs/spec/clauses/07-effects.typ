@@ -421,6 +421,28 @@ end")
     #para("2")[
       이 접근에는 `device` 효과와 그에 맞는 권한이 있어야 한다(#cref("7.2")).
     ]
+    #para("3")[
+      그 자리를 **보통의 칸처럼** 읽거나 쓰는 것은 거부된다(`E-MMIO-PLAIN`) --- 곧
+      `field <묶음> <레지스터>` 로 읽거나 `set (field <묶음> <레지스터>) <값>` 으로 쓰는
+      것이다. 보통의 칸 접근은 처리기가 **합치거나 없애도 되는** 연산이므로, 그 철자로
+      적힌 장치 접근은 (1) 이 요구하는 것을 **지킬 수 없다.** 같은 뜻을 적는 길이 둘인데
+      한쪽만 그 약속을 지킨다면, 다른 쪽은 길이 아니라 함정이다.
+    ]
+    #rejected("장치 레지스터를 보통의 칸처럼 만진다", "module ex_mmio_plain .
+
+build tier t1 .
+
+struct gpio do
+  mmio 0x40020000 .
+  moder u32 rw .
+end .
+
+unsafe proc drive input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
+do
+  var g gpio . be view gpio regs .
+  set (field g moder) 2 .       rem 보통 칸 쓰기 — 처리기가 없애도 되는 연산이다
+  return 0 .
+end", "E-MMIO-PLAIN")
     #note[
       보통의 읽기는 *"값을 안다"* 가 목적이므로 처리기가 두 번째 읽기를 지워도 된다.
       장치 레지스터는 **읽는 행위 자체가 일**이다 — 읽으면 상태가 바뀌기도 한다.
@@ -443,6 +465,7 @@ end")
       [`E-MMIO-FIELD`], [레지스터가 기계가 한 번에 닿을 수 있는 모양이 아니다 — 폭이 1·2·4·8 이고 제 자리에 놓여야 한다],
       [`E-MMIO-BYVALUE`], [레지스터 묶음을 **값으로** 받으려 한다. 값으로 받는 것은 베끼는 것이고, **장치를 베낄 수는 없다**],
       [`E-MMIO-PERM`], [읽기 전용(`ro`)인 레지스터에 쓰려 한다],
+      [`E-MMIO-PLAIN`], [레지스터를 보통의 칸처럼 읽거나 쓴다 --- `read_volatile`·`write_volatile` 로 적어야 한다],
       [`E-MMIO-NOCAP` · `E-MMIO-NOEFFECT`], [권한(`cap mmio`)이나 효과(`device`)가 없다],
       [`E-MMIO-NOHOST`], [운영체제가 있는 기계에서 절대 주소를 열려 한다 — 그 주소는 장치가 아니다],
       )

@@ -1480,6 +1480,23 @@ proven_u64 ir_f_to_bits(double d, proven_u8 size) {
     if (!sf) return;
     const low_ir_struct_t *st = &c->out->structs[si];
     if (!st->is_mmio) return;                          // ★ **mmio 뷰일 때만** 검사한다(타입 기반)
+    // ★★★★★ **장치 칸은 보통 칸처럼 만지지 아니한다** (결함 노트 #68 · RFC-0115 §8-7, 2026-09-17).
+    //
+    //   이 함수를 부르는 자리는 **전부 보통 접근**이다 — `field g idr` · `set (field g moder) 2` ·
+    //   붙은 이름. `read_volatile`/`write_volatile` 은 저 위에서 따로 내려가고 여기 오지 않는다.
+    //   ☞ 그러니 여기 닿았다는 것 자체가 «장치 레지스터를 보통 칸으로 만졌다» 는 뜻이다.
+    //   ★ 왜 거절인가: 보통 칸 접근은 처리기가 **합치거나 지워도 되는** 연산이다(같은 칸을 두 번
+    //     읽으면 한 번으로, 읽지 않는 쓰기는 없애도 된다). 장치에서는 그 접근 **자체가 일**이라
+    //     지워지면 하드웨어가 틀린 일을 한다. 앞서 이 자리는 `ro`/`wo` 만 보고 있었으므로
+    //     **«쓸 수 있는 칸을 보통으로 쓰는 것»** 은 조용히 통과했다 — 가장 흔한 모양이 그것이다.
+    ir_fail(c, "E-MMIO-PLAIN",
+            "this is a DEVICE register, and this reads/writes it like ordinary memory. An ordinary "
+            "access is one the translator may merge or delete (two reads of the same field become "
+            "one; a store nothing reads goes away) — for a device the access ITSELF is the work, so "
+            "deleting it makes the hardware do the wrong thing. Write `read_volatile <block> <reg>` "
+            "or `write_volatile <block> <reg> <value>`, which say exactly once, in the written order "
+            "(RFC-0042 D1). The `ro`/`wo` permission is checked there too", line);
+    if (c->failed) return;
     for (proven_size_t z = 0; z < st->nf; z++) {
         if (!proven_u8str_view_eq(st->f[z].name, reg)) continue;
         if (wr && st->f[z].perm == FP_RO)
@@ -2481,8 +2498,8 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     { "floor", IRW_UNM, 2, 1 }, { "ceil", IRW_UNM, 3, 1 },
                     { "nonzero_of", IRW_UNM, 4, 1 },   // D6: τ → option (nonzero τ)
                     // RFC-0053 E5 (P2′ 오차 가시): 오차 특성을 **이름이** 말한다.
-                    { "sum",      IRW_UNM, 5, 1 },   // 보정합(Neumaier). 오차 O(ε) — 항의 개수에 무관. **기본값**
-                    { "sum_fast", IRW_UNM, 6, 1 },   // 축차합. 오차 O(n·ε). 빠른 쪽이 이름에 그렇게 적혀 있다
+                    { "sum_neumaier", IRW_UNM, 5, 1 },   // 보정합(Neumaier). 오차 O(ε) — 항의 개수에 무관
+                    { "sum_seq",      IRW_UNM, 6, 1 },   // 축차합(앞에서 뒤로 한 번). 오차 O(n·ε)
                     // ★★★ **초월 함수 여섯** (RFC-0090 N2, 2026-08-11) — libm 에 붙는다.
                     //   권한 없음(순수 계산). ★ 오라클은 **알려진 답과 항등식**이다:
                     //   sin 0 = 0 · exp 0 = 1 · log 1 = 0 · sin²+cos² = 1 (오차 한계 안에서).

@@ -1191,6 +1191,13 @@ static bool ty_is_name_only(proven_u8str_view_t v) {
         "str", "string", "char", "byte", "bytes_view", "dyn",
         // SPEC-008 §74 의 공유 상태 타입 — 이름만 받는다고 위에 적혀 있다.
         "shared_read", "lock", "rwlock", "atomic",
+        // ★★★ **문법 부록 A.9 의 낱말 넷** (결함 노트 #80 · RFC-0115 §8-10, 2026-09-17).
+        //   `list`·`raw`·`addr`·`rng` 는 «쓸 수 있는 타입 낱말» 로 실려 있으나 **뜻을 정한
+        //   조항이 정본에 없다** — `input x list u64 .` 가 경고 없이 통과했다. 하강은 이
+        //   이름들을 슬라이스로도 스칼라로도 못 읽으므로 그 서명의 op 은 해석기로 떨어진다.
+        //   ☞ `addr`·`raw` 는 **연산자로는** 뜻이 있다(`addr x` — 주소를 얻는다, unsafe 효과).
+        //     여기서 막는 것은 **타입 자리**뿐이고, `cap rng` 는 위의 after_cap 이 빼 준다.
+        "list", "raw", "addr", "rng",
     };
     for (proven_size_t i = 0; i < sizeof k / sizeof k[0]; i++) if (veq(v, k[i])) return true;
     return false;

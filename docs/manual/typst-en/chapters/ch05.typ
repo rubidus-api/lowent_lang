@@ -211,7 +211,7 @@ can come back to this section.
 #antipattern[Naming an op after a builtin][
   #demo("examples/ch05/mistake_builtin.low")
 
-  Names live in one flat space, so the same name cannot mean two things. A declaration named after a builtin op (`add`, `sum`, `len`,
+  Names live in one flat space, so the same name cannot mean two things. A declaration named after a builtin op (`add`, `min`, `len`,
   `ok` …) could never be called, and `E-NAME-BUILTIN` says so. Local names follow the same rule. Appendix A lists the builtin names.
 ]
 

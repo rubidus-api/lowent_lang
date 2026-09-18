@@ -1,0 +1,452 @@
+rem ★★★★★ **lowget — 이 언어로 만든 두 번째 실물 도구** (백로그 X-0032)
+rem
+rem   `lowdiff` 가 첫 번째였다: 사람이 실제로 돌리고, 외부 표준 도구(`diff -rq`)와 답을 맞댈
+rem   수 있는 프로그램. 이것은 그 기준을 잇는다 — **진짜 서버에 TLS 1.3 으로 붙어 본문을 받는다.**
+rem
+rem ★ **왜 이 프로그램인가.** 원장이 재는 사실 하나: 이 저장소의 암호·TLS 모듈 열 편은
+rem   소비자가 **합성 프로그램뿐**이었다(우리가 만든 것을 우리가 읽는다). 클라이언트가 서면
+rem   바깥의 진짜 구현이 반대편에 서고, 그때 비로소 *"규격을 같게 읽었다"* 가 확인된다.
+rem
+rem ★★ **이 판이 아직 확인하지 않는 것: 인증서다.** 체인도 유효기간도 이름도 보지 않는다.
+rem   그래서 `--insecure` 없이는 **거절한다**(종료 코드 4). 검증하지 않는 클라이언트를 조용히
+rem   내놓지 않는다 — 이 프로그램의 위험은 「안 도는 것」이 아니라 「도는데 아무것도 확인하지
+rem   않는 것」이다. 체인 검증은 X-0032 P3 의 자리다.
+rem
+rem   종료 코드: 0 성공 · 1 HTTP 오류 상태 · 2 사용법 · 3 연결/한도 ·
+rem              4 인증서를 확인하지 않았다(--insecure 없이) · 5 프로토콜 위반
+rem
+rem   버퍼 지도(한 덩이 65536 을 나눠 쓴다 — 힙 아레나가 64 KiB 다):
+rem     [0     .. 20000)  msgs  전사(핸드셰이크 메시지를 이어붙인다)
+rem     [20000 .. 36700)  rec   레코드 한 장(5 + 16384 + 여유)
+rem     [36700 .. 53100)  inner 복호한 평문
+rem     [53100 .. 54400)  w     작업 공간(tlscli 가 1216 을 요구한다)
+rem     [54400 .. 55800)  xw    x25519 작업(u64 175)
+rem     [55800 .. 56200)  u     레코드 작업(u64 42)
+rem     [56200 .. 56400)  keys  c_hs·s_hs·hs(96) + 트래픽 키(44×2)
+rem     [56400 .. 65536)  보냄 버퍼와 그 밖
+
+module lowget .
+
+use net from "../../../lib/net.low" .
+use tlscli from "../../../lib/tlscli.low" .
+use tlssrv from "../../../lib/tlssrv.low" .
+use tls13 from "../../../lib/tls13.low" .
+use x25519 from "../../../lib/x25519.low" .
+use http from "../../../lib/http.low" .
+
+rem ★ 정확히 n 바이트를 받는다. **한 번의 recv 가 전부를 준다는 보장이 없다** — 그 가정이
+rem   네트워크 코드에서 가장 흔한 조용한 실패다.
+proc recv_exact input k cap net . input fd u64 . input dst mut slice u8 . input n u64 .
+     output u64 . effects io .
+do
+  guard ge (len dst) n . else return 0 .
+  var got u64 be 0 .
+  var spin u64 be 0 .
+  while lt got n . do
+    let r option u64 . be net.recv_once k fd (subslice dst got n) .
+    guard is_some r . else return 0 .
+    let m u64 be some_value r .
+    guard gt m 0 . else return 0 .
+    set got (add got m) .
+    set spin (add spin 1) .
+    guard le spin 8192 . else return 0 .
+  end .
+  return got .
+end .
+
+rem ★ 레코드 한 장을 받는다 — 머리 5 를 먼저 읽고, 적힌 만큼 더 읽는다.
+rem   `rec` 에는 **머리까지** 담는다(AEAD 의 덧붙인 자료가 그 다섯 바이트다).
+proc recv_rec input k cap net . input fd u64 . input rec mut slice u8 . output u64 . effects io .
+do
+  guard ge (len rec) 5 . else return 0 .
+  guard eq (recv_exact k fd rec 5) 5 . else return 0 .
+  let n u64 be tlscli.rec_len (subslice rec 0 5) .
+  guard gt n 0 . else return 0 .
+  guard ge (len rec) (add 5 n) . else return 0 .
+  guard eq (recv_exact k fd (subslice rec 5 (add 5 n)) n) n . else return 0 .
+  return add 5 n .
+end .
+
+rem ★★★★★ **핸드셰이크 한 판.** 이 op 이 끝나면 응용 트래픽 키가 서 있다.
+rem
+rem   차례(RFC 8446 §2): CH → SH → {EE, Cert, CV, Fin} → {우리 Fin}
+rem   중괄호 안은 **암호화된** 레코드다. 그래서 SH 를 받은 직후에 키 사다리를 올라야 그 다음을
+rem   읽을 수 있고, 그것이 이 프로토콜의 매듭이다.
+rem
+rem ★ 전사(transcript)는 **레코드가 아니라 메시지**를 이어붙인 것이다. 한 레코드에 메시지가
+rem   여럿 들어올 수 있고, 한 메시지가 레코드 둘에 걸칠 수도 있다 — 그래서 레코드를 풀어
+rem   메시지 단위로 모은다. 이 구별을 놓치면 Finished 검산이 **조용히** 틀린다.
+proc handshake input k cap net . input fd u64 . input buf mut slice u8 . input host slice u8 .
+     input priv slice u8 . input rnd slice u8 . input sid slice u8 . output u64 . effects io .
+do
+  guard ge (len buf) 65536 . else return 90 .
+  guard eq (len priv) 32 . else return 90 .
+
+  let xw mut slice u64 . be view_array u64 (subslice buf 54400 55800) .
+  let u  mut slice u64 . be view_array u64 (subslice buf 55800 56200) .
+
+  rem ── ① 우리 몫의 키를 만든다 — 공개키 = priv · 기저점 ──────────────────
+  rem   기저점은 9 뒤에 0 서른하나다(RFC 7748 §5).
+  var bi u64 be 0 .
+  while lt bi 32 . do  set (index buf (add 56400 bi)) 0 .  set bi (add bi 1) .  end .
+  set (index buf 56400) 9 .
+  guard eq (x25519.agree (subslice buf 56432 56464) priv (subslice buf 56400 56432) (subslice buf 56464 56496) xw) 32 . else return 91 .
+
+  rem ── ② ClientHello — 전사의 첫 메시지이자 첫 레코드 ────────────────────
+  let chn u64 be tlscli.build_ch rnd sid (subslice buf 56432 56464) host (subslice buf 0 20000) .
+  guard gt chn 0 . else return 92 .
+  guard eq (tlscli.plain_hdr chn (subslice buf 20000 20005)) 5 . else return 92 .
+  var ci u64 be 0 .
+  while lt ci chn . do
+    set (index buf (add 20005 ci)) (index buf ci) .
+    set ci (add ci 1) .
+  end .
+  let sent option u64 . be net.send_all k fd (subslice buf 20000 (add 20005 chn)) .
+  guard is_some sent . else return 93 .
+  var mn u64 be chn .                       rem 전사에 쌓인 길이
+
+  rem ── ③ ServerHello ────────────────────────────────────────────────────
+  let r1 u64 be recv_rec k fd (subslice buf 20000 36700) .
+  guard gt r1 0 . else return 94 .
+  guard eq (tlscli.rec_type (subslice buf 20000 20005)) 22 . else return 95 .
+  let shn u64 be sub r1 5 .
+  guard le (add mn shn) 20000 . else return 96 .
+  var si u64 be 0 .
+  while lt si shn . do
+    set (index buf (add mn si)) (index buf (add 20005 si)) .
+    set si (add si 1) .
+  end .
+  let sh slice u8 be subslice buf mn (add mn shn) .
+  guard tlscli.sh_usable sh . else return 97 .
+  let kso u64 be tlscli.sh_key_share_off sh .
+  guard eq (x25519.agree (subslice buf 56496 56528) priv (subslice sh kso (add kso 32)) (subslice buf 56528 56560) xw) 32 . else return 98 .
+  set mn (add mn shn) .
+
+  rem ── ④ 키 사다리 — 여기서부터 읽을 수 있다 ────────────────────────────
+  guard eq (tlscli.hs_secrets (subslice buf 56496 56528) (subslice buf 0 mn) (subslice buf 56200 56296) (subslice buf 53100 54400)) 96 . else return 99 .
+  rem c_hs = 56200..56232 · s_hs = 56232..56264 · handshake secret = 56264..56296
+  guard eq (tlssrv.traffic_keys (subslice buf 56232 56264) 16 (subslice buf 56296 56340) (subslice buf 53100 54400)) 28 . else return 100 .
+
+  rem ── ⑤ EE · Certificate · CertificateVerify · Finished 를 연다 ─────────
+  var seq u64 be 0 .
+  var fin_at u64 be 0 .
+  var fin_len u64 be 0 .
+  var rounds u64 be 0 .
+  while eq fin_at 0 . do
+    let rn u64 be recv_rec k fd (subslice buf 20000 36700) .
+    guard gt rn 0 . else return 101 .
+    let rt u64 be tlscli.rec_type (subslice buf 20000 20005) .
+    rem 바뀜 신호(ChangeCipherSpec)는 1.3 에서 **뜻이 없다** — 중간 상자를 위한 장식이다. 버린다.
+    if eq rt 20 . do  set rounds (add rounds 1) . end .
+    if eq rt 23 . do
+      let pl u64 be tls13.record_open 1 (subslice buf 56296 56312) (subslice buf 56312 56324) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
+      guard gt pl 0 . else return 102 .
+      set seq (add seq 1) .
+      guard eq (tls13.inner_type (subslice buf 36700 (add 36700 pl))) 22 . else return 103 .
+      rem 속 평문에서 마지막 한 바이트(타입)를 뺀 자리까지가 메시지들이다.
+      var at u64 be 0 .
+      let body u64 be sub pl 1 .
+      var walk u64 be 0 .
+      while lt at body . do
+        let hsz u64 be tls13.hs_size (subslice buf 36700 (add 36700 body)) at .
+        guard gt hsz 0 . else return 104 .
+        guard le (add at hsz) body . else return 104 .
+        let ht u64 be tls13.hs_type (subslice buf 36700 (add 36700 body)) at .
+        guard le (add mn hsz) 20000 . else return 96 .
+        var wi u64 be 0 .
+        while lt wi hsz . do
+          set (index buf (add mn wi)) (index buf (add (add 36700 at) wi)) .
+          set wi (add wi 1) .
+        end .
+        if eq ht 20 . do
+          set fin_at mn .
+          set fin_len hsz .
+        end .
+        set mn (add mn hsz) .
+        set at (add at hsz) .
+        set walk (add walk 1) .
+        guard le walk 64 . else return 104 .
+      end .
+    end .
+    set rounds (add rounds 1) .
+    guard le rounds 64 . else return 105 .
+  end .
+
+  rem ── ⑥ 서버의 Finished 를 검산한다 ────────────────────────────────────
+  rem   ★ 전사는 **Finished 앞까지**다 — 자기 자신은 자기 검산에 안 들어간다.
+  guard tlscli.check_server_fin (subslice buf 56232 56264) (subslice buf 0 fin_at) (subslice buf fin_at (add fin_at fin_len)) (subslice buf 53100 54400) . else return 106 .
+
+  rem ── ⑦ 우리 Finished — 전사는 **서버 Finished 까지** 포함한다 ─────────
+  guard eq (tlssrv.traffic_keys (subslice buf 56200 56232) 16 (subslice buf 56340 56384) (subslice buf 53100 54400)) 28 . else return 107 .
+  let fn2 u64 be tlscli.build_client_fin (subslice buf 56200 56232) (subslice buf 0 mn) (subslice buf 56400 56440) (subslice buf 53100 54400) .
+  guard eq fn2 36 . else return 108 .
+  let sn u64 be tlscli.seal_rec 1 (subslice buf 56340 56384) 16 0 22 (subslice buf 56400 56436) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
+  guard gt sn 0 . else return 109 .
+  let s2 option u64 . be net.send_all k fd (subslice buf 20000 (add 20000 sn)) .
+  guard is_some s2 . else return 110 .
+
+  rem ── ⑧ 응용 트래픽 키 ─────────────────────────────────────────────────
+  guard eq (tlssrv.app_secrets (subslice buf 56264 56296) (subslice buf 0 mn) (subslice buf 56440 56504) (subslice buf 53100 54400)) 64 . else return 111 .
+  rem c_ap = 56440..56472 · s_ap = 56472..56504 → 트래픽 키는 56504·56548
+  guard eq (tlssrv.traffic_keys (subslice buf 56440 56472) 16 (subslice buf 56504 56548) (subslice buf 53100 54400)) 28 . else return 112 .
+  guard eq (tlssrv.traffic_keys (subslice buf 56472 56504) 16 (subslice buf 56548 56592) (subslice buf 53100 54400)) 28 . else return 113 .
+  return 0 .
+end .
+
+rem ★ 한 판을 처음부터 끝까지 — 붙고, 핸드셰이크하고, 닫는다.
+rem   ☞ 지금은 열쇠 재료를 **부르는 쪽이 준다**(`seed`). 진짜 도구는 `cap random` 에서 받아야
+rem     하고(같은 열쇠를 두 번 쓰면 그 연결의 비밀이 사라진다), 그것은 아래 `main` 의 몫이다.
+rem     검사는 씨를 못박아 **결정적으로** 잴 수 있어야 하므로 여기서 가르지 않는다.
+proc session input k cap net . input al cap allocator . input out cap io . input ip u64 . input port u64 .
+     input host slice u8 . input path slice u8 . input seed u64 . output u64 . effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  guard is_some g . else return 89 .
+  let buf mut slice u8 . be some_value g .
+
+  rem 씨에서 세 재료를 편다 — 검사에서 되풀이할 수 있게.
+  var i u64 be 0 .
+  while lt i 32 . do
+    set (index buf (add 60000 i)) (narrow u8 (bit_and (add (mul seed 7) (add i 1)) 255)) .
+    set (index buf (add 60032 i)) (narrow u8 (bit_and (add (mul seed 11) (add i 41)) 255)) .
+    set (index buf (add 60064 i)) (narrow u8 (bit_and (add (mul seed 13) (add i 91)) 255)) .
+    set i (add i 1) .
+  end .
+  rem x25519 비밀 열쇠의 다듬기(RFC 7748 §5) — 아래 셋을 깎고 위 둘을 세운다.
+  set (index buf 60000) (narrow u8 (bit_and (cast u64 (index buf 60000)) 248)) .
+  set (index buf 60031) (narrow u8 (bit_or (bit_and (cast u64 (index buf 60031)) 127) 64)) .
+
+  let copt option net.conn . be net.dial k ip port .
+  guard is_some copt . else return 3 .
+  var c owned net.conn be some_value copt .
+  let cfd u64 be net.conn_fd c .
+  let st u64 be handshake k cfd buf host (subslice buf 60000 60032) (subslice buf 60032 60064) (subslice buf 60064 60096) .
+  if ne st 0 . do
+    let s0 result void net.net_error . be net.shut k c .
+    drop s0 .
+    return st .
+  end .
+  let got u64 be http_get k out cfd buf host path .
+  let sh result void net.net_error . be net.shut k c .
+  drop sh .
+  return got .
+end .
+
+rem ★ 한 조각을 이어 붙인다 — 붙인 뒤의 자리를 낸다(0 = 자리가 모자라다).
+rem   ☞ 길이를 손으로 적는 자리를 아예 없애려고 둔다.
+proc put_s input dst mut slice u8 . input at u64 . input s slice u8 . output u64 . effects none .
+do
+  guard le (add at (len s)) (len dst) . else return 0 .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    set (index dst (add at i)) (index s i) .
+    set i (add i 1) .
+  end .
+  return add at (len s) .
+end .
+
+rem ★★★ **요청을 보내고 응답을 흘려 낸다.**
+rem   ☞ 본문은 **모으지 않는다** — 레코드 한 장을 풀면 그만큼 바로 내보낸다. 64 KiB 아레나에서
+rem     응답 전체를 들 수 없기도 하지만, 그보다 **들 필요가 없다**: 받는 대로 쓰는 것이 옳다.
+rem   ☞ 핸드셰이크 뒤에도 서버는 `NewSessionTicket`(속 타입 22)을 보낼 수 있다. 그것은 우리가
+rem     쓰지 않으므로 **세지 않고 버린다** — 다만 **순번은 센다**(레코드마다 올라간다).
+rem     이 구별을 놓치면 그 다음 레코드가 열리지 않는다.
+proc http_get input k cap net . input out cap io . input fd u64 . input buf mut slice u8 .
+     input host slice u8 . input path slice u8 . output u64 . effects io .
+do
+  let u mut slice u64 . be view_array u64 (subslice buf 55800 56200) .
+
+  rem ── 요청 줄을 짓는다: GET <path> HTTP/1.1 ─────────────────────────────
+  rem ★★★ 길이를 **손으로 세지 않는다.** 처음에 그렇게 썼다가 `"\r\nConnection: close\r\n\r\n"`
+  rem   을 23 대신 21 로 세어 요청이 `\r\n\r` 로 끝났다. 자기 기계의 서버는 너그러워 통과했고,
+  rem   **바깥 서버에서야** 응답이 안 오는 것으로 나타났다 — 손으로 센 수는 언젠가 틀리고,
+  rem   그 틀림은 가장 먼 자리에서 드러난다. `len` 에게 세게 한다.
+  var at u64 be 0 .
+  set at (put_s (subslice buf 56600 58600) at "GET ") .
+  set at (put_s (subslice buf 56600 58600) at path) .
+  set at (put_s (subslice buf 56600 58600) at " HTTP/1.1\r\nHost: ") .
+  set at (put_s (subslice buf 56600 58600) at host) .
+  set at (put_s (subslice buf 56600 58600) at "\r\nConnection: close\r\n\r\n") .
+  guard gt at 0 . else return 125 .
+
+  let sn u64 be tlscli.seal_rec 1 (subslice buf 56504 56548) 16 0 23 (subslice buf 56600 (add 56600 at)) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
+  guard gt sn 0 . else return 120 .
+  let s1 option u64 . be net.send_all k fd (subslice buf 20000 (add 20000 sn)) .
+  guard is_some s1 . else return 121 .
+
+  rem ── 응답을 받는다 ────────────────────────────────────────────────────
+  var seq u64 be 0 .
+  var done u64 be 0 .
+  var rounds u64 be 0 .
+  var status u64 be 0
+ .
+  while eq done 0 . do
+    let rn u64 be recv_rec k fd (subslice buf 20000 36700) .
+    if eq rn 0 . do  set done 1 . end .
+    if eq done 0 . do
+      let rt u64 be tlscli.rec_type (subslice buf 20000 20005) .
+      if eq rt 23 . do
+        let pl u64 be tls13.record_open 1 (subslice buf 56548 56564) (subslice buf 56564 56576) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
+        guard gt pl 0 . else return 122 .
+        set seq (add seq 1) .
+        let it u64 be tls13.inner_type (subslice buf 36700 (add 36700 pl)) .
+        rem 21 = alert. close_notify(0) 는 정상 종료다 — 그 밖은 규약 위반으로 본다.
+        if eq it 21 . do  set done 1 . end .
+        if eq it 23 . do
+          let body u64 be sub pl 1 .
+          if eq status 0 . do
+            rem 첫 조각의 머리에서 상태 코드를 읽는다: "HTTP/1.1 200 OK"
+            if ge body 12 . do
+              set status (add (add (mul (sub (cast u64 (index buf (add 36700 9))) 48) 100)
+                                   (mul (sub (cast u64 (index buf (add 36700 10))) 48) 10))
+                              (sub (cast u64 (index buf (add 36700 11))) 48)) .
+            end .
+          end .
+          rem ★★★ **끝까지 쓴다.** 한 번의 `write_out` 이 전부를 쓴다는 보장이 없다 —
+          rem   파이프로 내보낼 때 실제로 짧게 쓰였고, 그 결과 응답의 **마지막 한 바이트**가
+          rem   조용히 사라졌다(curl 과 맞대 보고서야 보였다: 20272 대 20273).
+          rem   ☞ 이 저장소가 `send_all` 에 적어 둔 것과 같은 함정이고, 나가는 쪽에도 똑같이 있다.
+          var wrote u64 be 0 .
+          var wspin u64 be 0 .
+          while lt wrote body . do
+            let w u64 be write_out out 1 (subslice buf (add 36700 wrote) (add 36700 body)) .
+            guard gt w 0 . else return 123 .
+            set wrote (add wrote w) .
+            set wspin (add wspin 1) .
+            guard le wspin 4096 . else return 123 .
+          end .
+        end .
+      end .
+      set rounds (add rounds 1) .
+      guard le rounds 4096 . else return 124 .
+    end .
+  end .
+  if eq status 0 . do  return 5 . end .
+  if ge status 400 . do  return 1 . end .
+  return 0 .
+end .
+
+rem ── URL 을 가른다 ────────────────────────────────────────────────────────
+rem   `https://<호스트>[:<포트>]<길>` 만 받는다. 다른 스킴은 거절한다 — 받는 모양을
+rem   열거하는 것이 곧 나머지를 거절하는 것이다.
+rem   낸 값: 호스트가 시작하는 자리(0 = 성하지 않다). 포트와 길의 자리는 따로 묻는다.
+export fn url_host_off input u slice u8 . output u64 . do
+  if lt (len u) 9 . do  return 0 . end .
+  var i u64 be 0 .
+  while lt i 8 . do
+    if ne (index u i) (index "https://" i) . do  return 0 . end .
+    set i (add i 1) .
+  end .
+  return 8 .
+end .
+rem 호스트가 끝나는 자리 — `:` 나 `/` 앞까지.
+export fn url_host_end input u slice u8 . output u64 . do
+  let o u64 be url_host_off u .
+  if eq o 0 . do  return 0 . end .
+  var i u64 be o .
+  while lt i (len u) . do
+    if eq (index u i) 58 . do  return i . end .
+    if eq (index u i) 47 . do  return i . end .
+    set i (add i 1) .
+  end .
+  return i .
+end .
+rem 포트 — 안 적혔으면 443.
+export fn url_port input u slice u8 . output u64 . do
+  let e u64 be url_host_end u .
+  if eq e 0 . do  return 0 . end .
+  if ge e (len u) . do  return 443 . end .
+  if ne (index u e) 58 . do  return 443 . end .
+  var i u64 be add e 1 .
+  var p u64 be 0 .
+  var seen u64 be 0 .
+  while lt i (len u) . do
+    if eq (index u i) 47 . do  set i (len u) . end .
+    if lt i (len u) . do
+      let d u64 be cast u64 (index u i) .
+      if lt d 48 . do  return 0 . end .
+      if gt d 57 . do  return 0 . end .
+      set p (add (mul p 10) (sub d 48)) .
+      set seen 1 .
+      if gt p 65535 . do  return 0 . end .
+      set i (add i 1) .
+    end .
+  end .
+  if eq seen 0 . do  return 0 . end .
+  return p .
+end .
+rem 길이 시작하는 자리 — 없으면 0(그러면 부르는 쪽이 "/" 를 쓴다).
+export fn url_path_off input u slice u8 . output u64 . do
+  let o u64 be url_host_off u .
+  if eq o 0 . do  return 0 . end .
+  var i u64 be o .
+  while lt i (len u) . do
+    if eq (index u i) 47 . do  return i . end .
+    set i (add i 1) .
+  end .
+  return 0 .
+end .
+
+rem ★★★★★ **도구의 얼굴.**
+rem   `lowget <url> [--insecure]`
+rem   ☞ 이 판은 **인증서를 확인하지 않는다.** 그래서 `--insecure` 없이는 거절한다(4).
+rem     확인하지 않는다는 사실을 도구가 **말하지 못하는 판**은 내놓지 않는다.
+proc main .
+  input k  cap net .
+  input al cap allocator .
+  input out cap io .
+  input a  cap args .
+  output u8 .
+  effects alloc io .
+do
+  var w u64 be 0 .
+  let a0 option slice u8 . be arg a 0 .
+  if eq (is_some a0) false . do
+    set w (write_out out 2 "usage: lowget https://<host>[:<port>]/<path> [--insecure]\n") .
+    return 2 .
+  end .
+  let u slice u8 be some_value a0 .
+  guard gt (url_host_off u) 0 . else do
+    set w (write_out out 2 "lowget: only https:// is understood\n") .
+    return 2 .
+  end .
+
+  rem ★ 인증서를 안 보는 판이므로 **일부러 그러겠다고 적어야** 한다.
+  let a1 option slice u8 . be arg a 1 .
+  var ins u64 be 0 .
+  if is_some a1 . do
+    let f slice u8 be some_value a1 .
+    if eq (len f) 10 . do
+      var m u64 be 0 .
+      var same u64 be 1 .
+      while lt m 10 . do
+        if ne (index f m) (index "--insecure" m) . do  set same 0 . end .
+        set m (add m 1) .
+      end .
+      set ins same .
+    end .
+  end .
+  if eq ins 0 . do
+    set w (write_out out 2 "lowget: this build does NOT check the server's certificate — not its chain, not its dates, not its name. Refusing rather than pretending: pass --insecure if you mean it (X-0032 P3 is where checking arrives)\n") .
+    return 4 .
+  end .
+  set w (write_out out 2 "lowget: --insecure — the certificate is NOT checked\n") .
+
+  let he u64 be url_host_end u .
+  let host slice u8 be subslice u (url_host_off u) he .
+  guard gt (len host) 0 . else return 2 .
+  let port u64 be url_port u .
+  guard gt port 0 . else return 2 .
+  let po u64 be url_path_off u .
+
+  let ipo option u64 . be net.resolve k host .
+  guard is_some ipo . else do
+    set w (write_out out 2 "lowget: cannot resolve that name\n") .
+    return 3 .
+  end .
+
+  if eq po 0 . do
+    return narrow u8 (session k al out (some_value ipo) port host "/" 7) .
+  end .
+  return narrow u8 (session k al out (some_value ipo) port host (subslice u po (len u)) 7) .
+end .

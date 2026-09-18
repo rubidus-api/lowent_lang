@@ -87,7 +87,7 @@ do
           set at stop .
           if gt (index dn 0) 0 . do
             let cand slice u8 be subslice out 0 (index dn 0) .
-            if verify.name_eq cand (x509.subject_off cand) want wo . do
+            if verify.dn_eq cand (x509.subject_off cand) want wo . do
               set found (index dn 0) .
               set scanning 0 .
               set done 1 .

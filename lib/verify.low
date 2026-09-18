@@ -200,10 +200,12 @@ end .
 
 rem ── 체인을 잇는 판단 ────────────────────────────────────────────────────
 
-rem ★ 두 이름이 **바이트로** 같은가. DER 은 한 이름에 한 바이트열이므로 그것이 옳다.
+rem ★ 두 이름이 **바이트로** 같은가. 이름을 `dn_eq` 로 지은 까닭: `name_eq` 는 [http](http) 가
+rem   이미 쓰고 있었고, 이름공간이 평평한 이 언어에서 그것은 곧 부딪치는 이름이다
+rem   (`check-export-names` 가 그 자리에서 말했다, 2026-09-18). DN 은 Distinguished Name 이다. DER 은 한 이름에 한 바이트열이므로 그것이 옳다.
 rem   ☞ 문자열로 풀어 견주면 대소문자·인코딩·공백 규칙이 끼어들고, 그 규칙마다 «같다» 의
 rem     뜻이 조금씩 달라진다. 여기서는 그 물음을 아예 만들지 않는다.
-export fn name_eq input a slice u8 . input ao u64 . input b slice u8 . input bo u64 . output bool . do
+export fn dn_eq input a slice u8 . input ao u64 . input b slice u8 . input bo u64 . output bool . do
   if eq ao 0 . do  return false . end .
   if eq bo 0 . do  return false . end .
   let al u64 be x509.elem_len a ao .
@@ -294,7 +296,7 @@ rem   1 = 잇는다 · 그 밖 = 거절한 까닭(2 이름 · 3 CA 아님 · 4 �
 export proc link_ok input child slice u8 . input parent slice u8 . input now u64 .
      input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
 do
-  if eq (name_eq child (x509.issuer_off child) parent (x509.subject_off parent)) false . do  return 2 . end .
+  if eq (dn_eq child (x509.issuer_off child) parent (x509.subject_off parent)) false . do  return 2 . end .
   if eq (x509.is_ca parent) false . do  return 3 . end .
   if eq (dates_ok child now) false . do  return 4 . end .
   if eq (dates_ok parent now) false . do  return 4 . end .

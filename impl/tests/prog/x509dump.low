@@ -11,9 +11,14 @@ module x509dump .
 use x509 from "../../../lib/x509.low" .
 use der from "../../../lib/der.low" .
 
-proc putnum input out cap io . input tag slice u8 . input v u64 . output u64 . effects io .
+rem ★★★★★ **리터럴은 고칠 자리가 아니다.** 처음에 `view_array u8 "        "` 로 글자 리터럴을
+rem   쓰기 버퍼로 삼았다. VM 은 받아 주었고 네이티브는 **트랩했다** — 씨는 리터럴을 읽기 전용
+rem   자리에 놓기 때문이다. 차등 훑기(VM↔네이티브)가 그 자리에서 잡았다(2026-09-18).
+rem   ☞ 두 뒤끝이 같은 프로그램에 다른 답을 내면 그것은 **언제나** 결함이다. 여기서는 내 결함이었다.
+rem   ⇒ 쓰는 자리는 **부르는 쪽이 준다**(이 저장소의 규율 그대로).
+proc putnum input out cap io . input tag slice u8 . input v u64 . input d mut slice u8 . output u64 . effects io .
 do
-  var d mut slice u8 . be view_array u8 "                    " .
+  guard ge (len d) 20 . else return 0 .
   var i u64 be 20 .
   var x u64 be v .
   if eq x 0 . do
@@ -34,6 +39,23 @@ do
   return 1 .
 end .
 
+rem ★ 바이트열을 16진으로 낸다 — 증인의 출력은 언제나 글이어야 한다.
+proc puthex input out cap io . input b slice u8 . input d mut slice u8 . output u64 . effects io .
+do
+  guard ge (len d) 2 . else return 0 .
+  var i u64 be 0 .
+  while lt i (len b) . do
+    let hi u64 be shr (cast u64 (index b i)) 4 .
+    let lo u64 be bit_and (cast u64 (index b i)) 15 .
+    set (index d 0) (narrow u8 (add (add 48 hi) (mul (div hi 10) 39))) .
+    set (index d 1) (narrow u8 (add (add 48 lo) (mul (div lo 10) 39))) .
+    let w u64 be write_out out 1 (subslice d 0 2) .
+    guard gt w 0 . else return 0 .
+    set i (add i 1) .
+  end .
+  return 1 .
+end .
+
 proc dump input k cap io . input al cap allocator . output u8 . effects alloc io .
 do
   let g option mut slice u8 . . be alloc_bytes al capacity 16384 .
@@ -46,27 +68,29 @@ do
   let c slice u8 be subslice buf 0 n .
 
   guard gt (x509.tbs_off c) 0 . else return 1 .
-  guard gt (putnum k "notBefore " (x509.not_before c)) 0 . else return 9 .
-  guard gt (putnum k "notAfter " (x509.not_after c)) 0 . else return 9 .
+  guard gt (putnum k "notBefore " (x509.not_before c) (subslice buf 15000 15032)) 0 . else return 9 .
+  guard gt (putnum k "notAfter " (x509.not_after c) (subslice buf 15000 15032)) 0 . else return 9 .
   if x509.is_ca c . do
-    guard gt (putnum k "ca " 1) 0 . else return 9 .
+    guard gt (putnum k "ca " 1 (subslice buf 15000 15032)) 0 . else return 9 .
   end .
   if eq (x509.is_ca c) false . do
-    guard gt (putnum k "ca " 0) 0 . else return 9 .
+    guard gt (putnum k "ca " 0 (subslice buf 15000 15032)) 0 . else return 9 .
   end .
-  guard gt (putnum k "tbs_off " (x509.tbs_off c)) 0 . else return 9 .
-  guard gt (putnum k "tbs_end " (x509.tbs_end c)) 0 . else return 9 .
-  guard gt (putnum k "sig_len " (x509.sig_len c)) 0 . else return 9 .
-  guard gt (putnum k "issuer_len " (x509.elem_len c (x509.issuer_off c))) 0 . else return 9 .
-  guard gt (putnum k "subject_len " (x509.elem_len c (x509.subject_off c))) 0 . else return 9 .
+  guard gt (putnum k "tbs_off " (x509.tbs_off c) (subslice buf 15000 15032)) 0 . else return 9 .
+  guard gt (putnum k "tbs_end " (x509.tbs_end c) (subslice buf 15000 15032)) 0 . else return 9 .
+  guard gt (putnum k "sig_len " (x509.sig_len c) (subslice buf 15000 15032)) 0 . else return 9 .
+  guard gt (putnum k "issuer_len " (x509.elem_len c (x509.issuer_off c)) (subslice buf 15000 15032)) 0 . else return 9 .
+  guard gt (putnum k "subject_len " (x509.elem_len c (x509.subject_off c)) (subslice buf 15000 15032)) 0 . else return 9 .
 
   var s u64 be x509.san_next c 0 .
   var guard_ u64 be 0 .
   while gt s 0 . do
     let w1 u64 be write_out k 1 "san " .
     guard gt w1 0 . else return 9 .
-    let w2 u64 be write_out k 1 (subslice c (der.value_off c s) (add (der.value_off c s) (der.value_len c s))) .
-    guard gt w2 0 . else return 9 .
+    rem ★★★ 이름을 **날바이트로 찍지 않는다.** 차등 퍼저는 이 op 에 **쓰레기 인자**를 준다 —
+    rem   그러면 아무 바이트나 표준출력으로 나가고, 그것을 글로 읽는 도구(스윕)가 그 자리에서
+    rem   죽는다(실측 2026-09-18: UTF-8 아닌 0xFF 에서 멈췄다). 증인의 출력은 **언제나 글**이어야 한다.
+    guard gt (puthex k (subslice c (der.value_off c s) (add (der.value_off c s) (der.value_len c s))) (subslice buf 15040 15048)) 0 . else return 9 .
     let w3 u64 be write_out k 1 "\n" .
     guard gt w3 0 . else return 9 .
     set s (x509.san_next c s) .

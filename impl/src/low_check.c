@@ -8139,6 +8139,24 @@ static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *n
         }
         if (has_mut && be + 1 < nd->nkids) {
             const low_cst_t *init = nd->kids[be + 1];
+            // ★★★★★ **리터럴은 한 겹 뒤에 숨을 수 있다** (2026-09-18, X-0032).
+            //   이 검사는 `be` 바로 뒤의 **원자**만 보고 있었다. 그래서
+            //   `var d mut slice u8 . be view_array u8 "  " .` 가 **그대로 통과했고**,
+            //   VM 은 그 리터럴을 고쳐 주고 네이티브는 **트랩했다** — 차등 훑기가 그것을
+            //   잡았다. 검사기가 볼 수 있었던 것을 오라클이 대신 잡은 자리다.
+            //   ⇒ 재해석하는 한 겹(`view_array`·`subslice`)을 지나서도 본다.
+            while (init && init->kind == LOW_CST_GROUP && init->nkids == 1) init = init->kids[0];
+            if (init && init->kind == LOW_CST_FORM && init->nkids >= 2 && ck_atom(init->kids[0]) &&
+                veq(init->kids[0]->tok.lex, "view_array")) {
+                // ☞ `subslice <리터럴> 0 0` 은 넣지 않는다 — 길이 0 인 자리표이고 쓸 수가 없다.
+                //   («쓸 수 있는 것처럼 보이는가» 가 아니라 «쓸 수 있는가» 로 가른다.)
+                const low_cst_t *inner = init->kids[init->nkids - 1];
+                while (inner && inner->kind == LOW_CST_GROUP && inner->nkids == 1) inner = inner->kids[0];
+                for (proven_size_t q = 1; q < init->nkids; q++)
+                    if (ck_atom(init->kids[q]) &&
+                        (init->kids[q]->tok.kind == LOW_TOK_STRING ||
+                         init->kids[q]->tok.kind == LOW_TOK_HEREDOC)) { init = init->kids[q]; break; }
+            }
             if (ck_atom(init) && (init->tok.kind == LOW_TOK_STRING || init->tok.kind == LOW_TOK_HEREDOC))
                 emit(out, "E-TYPE-ARGMUT",
                      "a string LITERAL was bound to a name declared `mut`. A literal is bytes baked "

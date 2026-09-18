@@ -32,7 +32,14 @@ use tlscli from "../../../lib/tlscli.low" .
 use tlssrv from "../../../lib/tlssrv.low" .
 use tls13 from "../../../lib/tls13.low" .
 use x25519 from "../../../lib/x25519.low" .
-use http from "../../../lib/http.low" .
+rem ☞ [http](http) 를 들이지 **않는다**. 응답의 상태 줄만 보면 되는데, 그 모듈을 함께 들이면
+rem   `value_off`·`body_off` 가 [der](der)·[pem](pem) 의 같은 이름과 부딪친다 — 이름공간이
+rem   평평하고 씨의 심볼 이름도 평평하기 때문이다(도구가 `E-ABI-NAME-DUP` 으로 거절한다).
+rem   쓰지 않는 것을 들이지 않는 것이 여기서는 고침이기도 하다.
+use verify from "../../../lib/verify.low" .
+use trust from "../../../lib/trust.low" .
+use x509 from "../../../lib/x509.low" .
+use clock from "../../../lib/clock.low" .
 
 rem ★ 정확히 n 바이트를 받는다. **한 번의 recv 가 전부를 준다는 보장이 없다** — 그 가정이
 rem   네트워크 코드에서 가장 흔한 조용한 실패다.
@@ -81,6 +88,8 @@ proc handshake input k cap net . input fd u64 . input buf mut slice u8 . input h
 do
   guard ge (len buf) 65536 . else return 90 .
   guard eq (len priv) 32 . else return 90 .
+  set (index buf 56592) 0 .  set (index buf 56593) 0 .
+  set (index buf 56594) 0 .  set (index buf 56595) 0 .
 
   let xw mut slice u64 . be view_array u64 (subslice buf 54400 55800) .
   let u  mut slice u64 . be view_array u64 (subslice buf 55800 56200) .
@@ -162,6 +171,14 @@ do
           set fin_at mn .
           set fin_len hsz .
         end .
+        rem ★ Certificate 메시지의 자리를 적어 둔다 — 검증이 그것을 읽는다.
+        rem   자리를 버퍼에 네 바이트로 남긴다(돌려줄 자리가 없다 — 이 op 은 이미 인자가 일곱이다).
+        if eq ht 11 . do
+          set (index buf 56592) (narrow u8 (shr mn 24)) .
+          set (index buf 56593) (narrow u8 (bit_and (shr mn 16) 255)) .
+          set (index buf 56594) (narrow u8 (bit_and (shr mn 8) 255)) .
+          set (index buf 56595) (narrow u8 (bit_and mn 255)) .
+        end .
         set mn (add mn hsz) .
         set at (add at hsz) .
         set walk (add walk 1) .
@@ -197,8 +214,9 @@ rem ★ 한 판을 처음부터 끝까지 — 붙고, 핸드셰이크하고, 닫
 rem   ☞ 지금은 열쇠 재료를 **부르는 쪽이 준다**(`seed`). 진짜 도구는 `cap random` 에서 받아야
 rem     하고(같은 열쇠를 두 번 쓰면 그 연결의 비밀이 사라진다), 그것은 아래 `main` 의 몫이다.
 rem     검사는 씨를 못박아 **결정적으로** 잴 수 있어야 하므로 여기서 가르지 않는다.
-proc session input k cap net . input al cap allocator . input out cap io . input ip u64 . input port u64 .
-     input host slice u8 . input path slice u8 . input seed u64 . output u64 . effects alloc io .
+proc session input k cap net . input fs cap file_system . input al cap allocator . input out cap io .
+     input ip u64 . input port u64 . input host slice u8 . input path slice u8 .
+     input now u64 . input bundle slice u8 . input seed u64 . output u64 . effects alloc io .
 do
   let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
   guard is_some g . else return 89 .
@@ -226,6 +244,27 @@ do
     drop s0 .
     return st .
   end .
+
+  rem ★★★★★ **인증서를 확인한다 — 요청을 보내기 전에.** `now` 가 0 이면 확인하지 않는다
+  rem   (`--insecure`). 그 갈래는 부르는 쪽이 **일부러** 골라야 하고, 도구가 그렇게 적는다.
+  if gt now 0 . do
+    let v u64 be check_chain fs buf host now bundle .
+    if ne v 1 . do
+      rem ★ 왜 거절했는지 **말한다**. 「인증서 오류」 한 마디는 쓰는 사람에게 아무것도 못 준다.
+      var w2 u64 be 0 .
+      if eq v 2 . do  set w2 (write_out out 2 "lowget: the certificate is not for this host (no matching name)\n") . end .
+      if eq v 3 . do  set w2 (write_out out 2 "lowget: the certificate is outside its validity dates\n") . end .
+      if eq v 4 . do  set w2 (write_out out 2 "lowget: the chain does not hold — a link failed (name, CA flag, dates, or a signature this build cannot check: only sha256WithRSA and ecdsa-with-SHA256 are verified here)\n") . end .
+      if eq v 5 . do  set w2 (write_out out 2 "lowget: the chain does not reach a certificate in the trust store\n") . end .
+      if eq v 6 . do  set w2 (write_out out 2 "lowget: the server sent no certificate this build could read\n") . end .
+      let s1 result void net.net_error . be net.shut k c .
+      drop s1 .
+      return 4 .
+    end .
+    let w3 u64 be write_out out 2 "lowget: certificate checked — name, dates, chain, trust anchor\n" .
+    guard gt w3 0 . else return 5 .
+  end .
+
   let got u64 be http_get k out cfd buf host path .
   let sh result void net.net_error . be net.shut k c .
   drop sh .
@@ -393,6 +432,8 @@ rem   ☞ 이 판은 **인증서를 확인하지 않는다.** 그래서 `--insec
 rem     확인하지 않는다는 사실을 도구가 **말하지 못하는 판**은 내놓지 않는다.
 proc main .
   input k  cap net .
+  input fs cap file_system .
+  input ck cap clock .
   input al cap allocator .
   input out cap io .
   input a  cap args .
@@ -402,7 +443,7 @@ do
   var w u64 be 0 .
   let a0 option slice u8 . be arg a 0 .
   if eq (is_some a0) false . do
-    set w (write_out out 2 "usage: lowget https://<host>[:<port>]/<path> [--insecure]\n") .
+    set w (write_out out 2 "usage: lowget https://<host>[:<port>]/<path> [--insecure] [--cafile <path>]\n") .
     return 2 .
   end .
   let u slice u8 be some_value a0 .
@@ -412,25 +453,38 @@ do
   end .
 
   rem ★ 인증서를 안 보는 판이므로 **일부러 그러겠다고 적어야** 한다.
-  let a1 option slice u8 . be arg a 1 .
+  rem 뒤따르는 낱말들을 본다: `--insecure` 와 `--cafile <길>`.
   var ins u64 be 0 .
-  if is_some a1 . do
-    let f slice u8 be some_value a1 .
-    if eq (len f) 10 . do
-      var m u64 be 0 .
-      var same u64 be 1 .
-      while lt m 10 . do
-        if ne (index f m) (index "--insecure" m) . do  set same 0 . end .
-        set m (add m 1) .
+  var caf u64 be 0 .
+  var ai u64 be 1 .
+  while lt ai 6 . do
+    let ax option slice u8 . be arg a ai .
+    if is_some ax . do
+      let f slice u8 be some_value ax .
+      if eq (len f) 10 . do
+        var m u64 be 0 .
+        var same u64 be 1 .
+        while lt m 10 . do
+          if ne (index f m) (index "--insecure" m) . do  set same 0 . end .
+          set m (add m 1) .
+        end .
+        if eq same 1 . do  set ins 1 . end .
       end .
-      set ins same .
+      if eq (len f) 8 . do
+        var m2 u64 be 0 .
+        var s2 u64 be 1 .
+        while lt m2 8 . do
+          if ne (index f m2) (index "--cafile" m2) . do  set s2 0 . end .
+          set m2 (add m2 1) .
+        end .
+        if eq s2 1 . do  set caf (add ai 1) . end .
+      end .
     end .
+    set ai (add ai 1) .
   end .
-  if eq ins 0 . do
-    set w (write_out out 2 "lowget: this build does NOT check the server's certificate — not its chain, not its dates, not its name. Refusing rather than pretending: pass --insecure if you mean it (X-0032 P3 is where checking arrives)\n") .
-    return 4 .
+  if eq ins 1 . do
+    set w (write_out out 2 "lowget: --insecure — the certificate is NOT checked\n") .
   end .
-  set w (write_out out 2 "lowget: --insecure — the certificate is NOT checked\n") .
 
   let he u64 be url_host_end u .
   let host slice u8 be subslice u (url_host_off u) he .
@@ -445,8 +499,85 @@ do
     return 3 .
   end .
 
-  if eq po 0 . do
-    return narrow u8 (session k al out (some_value ipo) port host "/" 7) .
+  rem ★ 지금 시각을 YYYYMMDDhhmmss 한 수로. `--insecure` 면 0 을 주어 «확인하지 않는다» 를
+  rem   **한 자리에서** 말한다.
+  var now u64 be 0 .
+  if eq ins 0 . do
+    let p u64 be clock.local_packed ck .
+    set now (add (add (add (mul (clock.year_of p) 10000000000) (mul (clock.month_of p) 100000000))
+                      (add (mul (clock.day_of p) 1000000) (mul (clock.hour_of p) 10000)))
+                 (add (mul (clock.minute_of p) 100) (clock.second_of p))) .
+    guard gt now 0 . else return 4 .
   end .
-  return narrow u8 (session k al out (some_value ipo) port host (subslice u po (len u)) 7) .
+  rem 신뢰 저장소의 자리 — `--cafile` 로 갈아탈 수 있다. 여기서 「믿는다」는 곧 「이 파일을
+  rem   믿는다」이므로, 그 파일이 무엇인지 쓰는 사람이 정할 수 있어야 한다.
+  var cabundle slice u8 be "/etc/ssl/certs/ca-certificates.crt" .
+  if gt caf 0 . do
+    let cx option slice u8 . be arg a caf .
+    guard is_some cx . else do
+      set w (write_out out 2 "lowget: --cafile needs a path\n") .
+      return 2 .
+    end .
+    set cabundle (some_value cx) .
+  end .
+  if eq po 0 . do
+    return narrow u8 (session k fs al out (some_value ipo) port host "/" now cabundle 7) .
+  end .
+  return narrow u8 (session k fs al out (some_value ipo) port host (subslice u po (len u)) now cabundle 7) .
+end .
+
+rem ★★★★★ **인증서를 확인한다.** 핸드셰이크가 끝난 뒤의 자리(레코드·평문 버퍼)를 빌려 쓴다.
+rem   1 = 믿을 만하다 · 2 = 이름이 안 맞다 · 3 = 기간 밖 · 4 = 체인이 끊겼다 ·
+rem   5 = 믿는 뿌리에 닿지 못했다 · 6 = 인증서를 못 찾았다
+rem
+rem   자리(핸드셰이크 뒤라 20000..56000 이 비어 있다):
+rem     [20000..28800) wu(u64 1100) · [28800..30000) wb · [30000..46400) 창 ·
+rem     [46400..52400) 푸는 자리 · [52400..56000) 찾은 앵커
+proc check_chain input fs cap file_system . input buf mut slice u8 . input host slice u8 .
+     input now u64 . input bundle slice u8 . output u64 . effects io .
+do
+  let co u64 be add (add (mul (cast u64 (index buf 56592)) 16777216) (mul (cast u64 (index buf 56593)) 65536))
+                    (add (mul (cast u64 (index buf 56594)) 256) (cast u64 (index buf 56595))) .
+  guard gt co 0 . else return 6 .
+  let msgs slice u8 be subslice buf 0 20000 .
+  let l0 u64 be tlscli.cert_at msgs co 0 .
+  let n0 u64 be tlscli.cert_len msgs co 0 .
+  guard gt l0 0 . else return 6 .
+  guard gt n0 0 . else return 6 .
+  let leaf slice u8 be subslice buf l0 (add l0 n0) .
+
+  guard verify.host_ok leaf host . else return 2 .
+  guard verify.dates_ok leaf now . else return 3 .
+
+  let wu mut slice u64 . be view_array u64 (subslice buf 20000 28800) .
+  rem ★ `view_array u64` 는 길이가 여덟의 배수여야 한다 — 네 바이트를 주었다가 그 자리에서
+  rem   멈췄다(panic). 한 칸(8 바이트)을 따로 준다.
+  let dn mut slice u64 . be view_array u64 (subslice buf 59000 59008) .
+
+  rem ── 받은 사슬을 위로 오른다 ─────────────────────────────────────────
+  var cur_o u64 be l0 .
+  var cur_n u64 be n0 .
+  var idx u64 be 1 .
+  var climbing u64 be 1 .
+  while eq climbing 1 . do
+    let uo u64 be tlscli.cert_at msgs co idx .
+    let un u64 be tlscli.cert_len msgs co idx .
+    if eq uo 0 . do  set climbing 0 . end .
+    if eq climbing 1 . do
+      let lk u64 be verify.link_ok (subslice buf cur_o (add cur_o cur_n)) (subslice buf uo (add uo un)) now (subslice buf 28800 30000) wu .
+      if ne lk 1 . do  return 4 . end .
+      set cur_o uo .
+      set cur_n un .
+      set idx (add idx 1) .
+      if gt idx 8 . do  set climbing 0 . end .
+    end .
+  end .
+
+  rem ── 그 꼭대기를 **믿는 뿌리**에 잇는다 ──────────────────────────────
+  let top slice u8 be subslice buf cur_o (add cur_o cur_n) .
+  let ao u64 be trust.find_anchor fs bundle top (x509.issuer_off top) (subslice buf 30000 46400) (subslice buf 46400 52400) (subslice buf 52400 56000) dn .
+  guard gt ao 0 . else return 5 .
+  let anchor slice u8 be subslice buf 52400 (add 52400 ao) .
+  guard eq (verify.link_ok top anchor now (subslice buf 28800 30000) wu) 1 . else return 5 .
+  return 1 .
 end .

@@ -130,7 +130,10 @@ export proc signed_by input c slice u8 . input issuer slice u8 .
      input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
 do
   guard ge (len wb) 1024 . else return 0 .
-  guard ge (len wu) 2200 . else return 0 .
+  rem ★ 실제로 쓰는 만큼만 요구한다: RSA 는 (k+4)×7 ≤ 924, ECDSA 는 곡선 64 + r·s·e·키 80 +
+  rem   일터 924 = 1068. 넉넉함은 공짜가 아니다 — 64 KiB 아레나에서는 그 넉넉함이 곧 다른
+  rem   자리를 못 쓰게 만든다.
+  guard ge (len wu) 1100 . else return 0 .
   let kind u64 be sig_kind c .
   guard gt kind 0 . else return 0 .
 

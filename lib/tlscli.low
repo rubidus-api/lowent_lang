@@ -449,3 +449,45 @@ export fn rec_type input h slice u8 . output u64 . do
   if lt (len h) 5 . do  return 0 . end .
   return cast u64 (index h 0) .
 end .
+
+rem ── Certificate 메시지에서 인증서를 꺼낸다 ──────────────────────────────
+rem
+rem   0b <len3> <문맥길이 1><문맥> <목록길이 3> { <인증서길이 3><인증서> <확장길이 2><확장> }…
+rem
+rem ★ 첫째가 **잎**이고 그 뒤가 중간자다(RFC 8446 §4.4.2). 차례가 곧 뜻이므로 그대로 센다.
+rem ☞ 길이는 전부 상대가 쓴 것이다 — 한 걸음마다 버퍼 안인지 본다.
+export fn cert_at input b slice u8 . input off u64 . input n u64 . output u64 . do
+  if ge (add off 8) (len b) . do  return 0 . end .
+  if ne (cast u64 (index b off)) 11 . do  return 0 . end .
+  let ctx u64 be cast u64 (index b (add off 4)) .
+  var at u64 be add (add off 5) ctx .
+  if ge (add at 3) (len b) . do  return 0 . end .
+  let listn u64 be add (add (mul (cast u64 (index b at)) 65536) (mul (cast u64 (index b (add at 1))) 256))
+                       (cast u64 (index b (add at 2))) .
+  let endo u64 be add (add at 3) listn .
+  if gt endo (len b) . do  return 0 . end .
+  set at (add at 3) .
+  var i u64 be 0 .
+  while lt i n . do
+    if ge (add at 3) endo . do  return 0 . end .
+    let cl u64 be add (add (mul (cast u64 (index b at)) 65536) (mul (cast u64 (index b (add at 1))) 256))
+                      (cast u64 (index b (add at 2))) .
+    let nx u64 be add (add at 3) cl .
+    if gt (add nx 2) endo . do  return 0 . end .
+    let el u64 be add (mul (cast u64 (index b nx)) 256) (cast u64 (index b (add nx 1))) .
+    set at (add (add nx 2) el) .
+    set i (add i 1) .
+  end .
+  if ge (add at 3) endo . do  return 0 . end .
+  let cl2 u64 be add (add (mul (cast u64 (index b at)) 65536) (mul (cast u64 (index b (add at 1))) 256))
+                     (cast u64 (index b (add at 2))) .
+  if eq cl2 0 . do  return 0 . end .
+  if gt (add (add at 3) cl2) endo . do  return 0 . end .
+  return add at 3 .
+end .
+export fn cert_len input b slice u8 . input off u64 . input n u64 . output u64 . do
+  let a u64 be cert_at b off n .
+  if eq a 0 . do  return 0 . end .
+  return add (add (mul (cast u64 (index b (sub a 3))) 65536) (mul (cast u64 (index b (sub a 2))) 256))
+             (cast u64 (index b (sub a 1))) .
+end .

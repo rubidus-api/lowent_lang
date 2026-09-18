@@ -37,7 +37,11 @@
 #define IR_MAXERRS   64
 #define IR_MAXLOOP   16
 #define IR_MAXMAKES  64
-#define IR_MAXOPS    256
+/* ★ 256 → 512 (2026-09-18, X-0032). `lowget` 이 TLS·암호·인증서·신뢰 저장소를 한 단위로
+ *   묶으면서 op 이 256 을 넘었다. 도구는 **정직하게 거절했다**(E-IR-LIMIT) — 그것이 이 수가
+ *   있는 까닭이고, 올릴 때도 그 규율은 그대로다. 이 표는 컴파일러 안의 자리일 뿐이고
+ *   프로그램이 쓰는 메모리와 무관하다. 타입 검사 쪽 짝은 `TC_MAXSIG`(같은 날 512 로). */
+#define IR_MAXOPS    512
 #define IR_MAXPATCH  64
 #define IR_MAXOPT 64
 #define IR_MAXSTRS   256

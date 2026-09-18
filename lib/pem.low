@@ -22,6 +22,12 @@ rem
 rem ☞ 안 지은 것: 암호화된 PEM(`Proc-Type: 4,ENCRYPTED`) · url-safe base64 · 여러 개를
 rem   한 번에 꺼내기(첫 번째만 낸다 — 체인을 다 읽으려면 부르는 쪽이 뒤에서 다시 부른다).
 
+rem ☞ **이름에 `pem_` 을 붙인 까닭** (2026-09-18, X-0032): 이 모듈의 `body_off`·`end_off` 는
+rem   [http](http) 의 `body_off` 와 **철자가 같았다.** 이름공간이 평평한 이 언어에서 두 모듈을
+rem   한 단위에 함께 들이면 그 순간 서로의 이름을 부른다 — 실제로 `pem` 안의 `body_off` 호출이
+rem   `http` 의 것(인자 하나)으로 묶여 `E-IR-ARITY` 가 났다. 모듈이 갈라 놓는다고 믿기 쉬운데,
+rem   **가르는 것은 모듈이 아니라 이름**이다.
+rem
 module pem .
 
 use codec from "codec.low" .
@@ -52,7 +58,7 @@ end .
 rem ── 봉투 ──────────────────────────────────────────────────────────────────
 rem `-----BEGIN ` 다음 줄이 시작하는 자리. 없으면 0.
 rem ★ 라벨은 부르는 쪽이 준다(`"CERTIFICATE"` · `"PRIVATE KEY"` · `"EC PRIVATE KEY"`).
-export proc body_off input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . output u64 . effects none . do
+export proc pem_body_off input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . output u64 . effects none . do
   rem scratch 에 `-----BEGIN <라벨>-----` 을 조립한다(리터럴을 이어 붙일 자리가 없다).
   let need u64 be add (len label) 16 .   rem `-----BEGIN ` 11 + 라벨 + `-----` 5
   guard ge (len scratch) need . else return 0 .
@@ -83,7 +89,7 @@ export proc body_off input src slice u8 . . input label slice u8 . . input scrat
 end .
 
 rem `-----END <라벨>-----` 이 시작하는 자리. 없으면 0.
-export proc end_off input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . input from u64 . output u64 . effects none . do
+export proc pem_end_off input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . input from u64 . output u64 . effects none . do
   let need u64 be add (len label) 14 .   rem `-----END ` 9 + 라벨 + `-----` 5
   guard ge (len scratch) need . else return 0 .
   var k u64 be 0 .
@@ -117,9 +123,9 @@ rem     `gcm` 이 `aead` 의 `seal`/`unseal` 을 피해 `encrypt`/`decrypt` 를 
 rem   `scratch` 는 두 몫을 진다: 머리말 조립(앞)과 **접힘을 편 base64**(뒤).
 rem   ⇒ `len scratch ≥ len src + 라벨 + 16` 이면 넉넉하다.
 export proc unwrap input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . input out mut slice u8 . . output option u64 . effects none . do
-  let b u64 be body_off src label scratch .
+  let b u64 be pem_body_off src label scratch .
   guard gt b 0 . else return none .
-  let e u64 be end_off src label scratch b .
+  let e u64 be pem_end_off src label scratch b .
   guard gt e 0 . else return none .
   guard gt e b . else return none .
   rem 접힌 것을 편다 — 공백·CR·LF 를 버린다. 그 밖의 글자는 base64 디코더가 판단한다.

@@ -26,13 +26,17 @@ proc one input win slice u8 . input from u64 . input scratch mut slice u8 . inpu
 do
   guard ge (len dn) 1 . else return 0 .
   set (index dn 0) 0 .
+  rem ★★★ `pem.find_from` 은 **못 찾으면 `len` 을 답한다** — 0 이 아니다. 그리고 0 은 **진짜
+  rem   자리**다(파일이 `-----BEGIN` 으로 시작하면 그렇다). 그것을 「못 찾음」으로 읽었더니
+  rem   인증서 한 장짜리 묶음에서 앵커를 영영 못 찾았다(2026-09-18 실측). 여러 장짜리에서는
+  rem   둘째부터 맞아떨어져 **문제가 안 보였다** — 가장 작은 입력이 가장 늦게 시험된다.
   let b u64 be pem.find_from win "-----BEGIN CERTIFICATE-----" from .
-  guard gt b 0 . else return 0 .
+  guard lt b (len win) . else return 0 .
   let e u64 be pem.find_from win "-----END CERTIFICATE-----" b .
-  guard gt e 0 . else return 0 .
+  guard lt e (len win) . else return 0 .
   let stop u64 be add e 25 .
   guard le stop (len win) . else return 0 .
-  let got option u64 . be pem.unwrap (subslice win (sub b 1) stop) "CERTIFICATE" scratch out .
+  let got option u64 . be pem.unwrap (subslice win b stop) "CERTIFICATE" scratch out .
   guard is_some got . else return stop .
   set (index dn 0) (some_value got) .
   return stop .

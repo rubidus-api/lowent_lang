@@ -194,3 +194,107 @@ do
                            (subslice wu 32 48) (subslice wu 48 64)
                            (subslice wu 144 1068) .
 end .
+
+rem ── 체인을 잇는 판단 ────────────────────────────────────────────────────
+
+rem ★ 두 이름이 **바이트로** 같은가. DER 은 한 이름에 한 바이트열이므로 그것이 옳다.
+rem   ☞ 문자열로 풀어 견주면 대소문자·인코딩·공백 규칙이 끼어들고, 그 규칙마다 «같다» 의
+rem     뜻이 조금씩 달라진다. 여기서는 그 물음을 아예 만들지 않는다.
+export fn name_eq input a slice u8 . input ao u64 . input b slice u8 . input bo u64 . output bool . do
+  if eq ao 0 . do  return false . end .
+  if eq bo 0 . do  return false . end .
+  let al u64 be x509.elem_len a ao .
+  let bl u64 be x509.elem_len b bo .
+  if eq al 0 . do  return false . end .
+  if ne al bl . do  return false . end .
+  if gt (add ao al) (len a) . do  return false . end .
+  if gt (add bo bl) (len b) . do  return false . end .
+  var i u64 be 0 .
+  var diff u64 be 0 .
+  while lt i al . do
+    set diff (bit_or diff (bit_xor (cast u64 (index a (add ao i))) (cast u64 (index b (add bo i))))) .
+    set i (add i 1) .
+  end .
+  return eq diff 0 .
+end .
+
+rem ★ 유효기간이 지금을 담는가. `now` 는 YYYYMMDDhhmmss 한 수다.
+export fn dates_ok input c slice u8 . input now u64 . output bool . do
+  let nb u64 be x509.not_before c .
+  let na u64 be x509.not_after c .
+  if eq nb 0 . do  return false . end .
+  if eq na 0 . do  return false . end .
+  if lt now nb . do  return false . end .
+  if gt now na . do  return false . end .
+  return true .
+end .
+
+rem ★★ 한 이름이 SAN 의 한 칸과 맞는가 — 와일드카드는 **맨 앞 한 마디**만 받는다.
+rem   `*.a.b` 는 `x.a.b` 와 맞고 `a.b` 나 `y.x.a.b` 와는 맞지 않는다(RFC 6125 §6.4.3).
+rem   ☞ 대소문자는 아스키로만 내린다 — 이름에 아스키 밖이 오면 그것은 A-라벨이어야 하고,
+rem     A-라벨은 이미 아스키다.
+fn lower input c u64 . output u64 . do
+  if lt c 65 . do  return c . end .
+  if gt c 90 . do  return c . end .
+  return add c 32 .
+end .
+fn label_eq input pat slice u8 . input po u64 . input pn u64 . input h slice u8 . input ho u64 . input hn u64 . output bool . do
+  if ne pn hn . do  return false . end .
+  var i u64 be 0 .
+  while lt i pn . do
+    if ne (lower (cast u64 (index pat (add po i)))) (lower (cast u64 (index h (add ho i)))) . do  return false . end .
+    set i (add i 1) .
+  end .
+  return true .
+end .
+export fn san_matches input c slice u8 . input so u64 . input host slice u8 . output bool . do
+  let vo u64 be der.value_off c so .
+  let vl u64 be der.value_len c so .
+  if eq vo 0 . do  return false . end .
+  if eq vl 0 . do  return false . end .
+  if eq (len host) 0 . do  return false . end .
+  rem 와일드카드가 아니면 통째로 견준다.
+  if ne (index c vo) 42 . do
+    return label_eq c vo vl host 0 (len host) .
+  end .
+  rem `*` 다음은 반드시 `.` 이어야 한다.
+  if lt vl 3 . do  return false . end .
+  if ne (index c (add vo 1)) 46 . do  return false . end .
+  rem 호스트의 첫 `.` 뒤가 패턴의 `.` 뒤와 같아야 하고, 첫 마디는 비어 있지 않아야 한다.
+  var d u64 be 0 .
+  var seen u64 be 0 .
+  while lt d (len host) . do
+    if eq (index host d) 46 . do
+      if eq seen 0 . do  set seen (add d 1) . end .
+    end .
+    set d (add d 1) .
+  end .
+  if eq seen 0 . do  return false . end .
+  if eq seen 1 . do  return false . end .
+  return label_eq c (add vo 2) (sub vl 2) host seen (sub (len host) seen) .
+end .
+export fn host_ok input c slice u8 . input host slice u8 . output bool . do
+  var s u64 be x509.san_next c 0 .
+  var steps u64 be 0 .
+  while gt s 0 . do
+    if san_matches c s host . do  return true . end .
+    set s (x509.san_next c s) .
+    set steps (add steps 1) .
+    if gt steps 128 . do  return false . end .
+  end .
+  return false .
+end .
+
+rem ★★★★★ **한 마디를 잇는다**: child 가 parent 에게 서명받았고, parent 가 남을 발급할 수
+rem   있으며, 이름이 이어지고, 둘 다 기간 안에 있는가.
+rem   1 = 잇는다 · 그 밖 = 거절한 까닭(2 이름 · 3 CA 아님 · 4 기간 · 5 서명)
+export proc link_ok input child slice u8 . input parent slice u8 . input now u64 .
+     input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
+do
+  if eq (name_eq child (x509.issuer_off child) parent (x509.subject_off parent)) false . do  return 2 . end .
+  if eq (x509.is_ca parent) false . do  return 3 . end .
+  if eq (dates_ok child now) false . do  return 4 . end .
+  if eq (dates_ok parent now) false . do  return 4 . end .
+  if eq (signed_by child parent wb wu) 1 . do  return 1 . end .
+  return 5 .
+end .

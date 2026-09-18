@@ -1,0 +1,171 @@
+rem ★★★ **인증서 한 장이 다른 한 장에게 서명받았는가** — [verify](verify) 의 증인 (X-0032 P3).
+rem
+rem   표준 입력으로 두 장을 잇대어 받는다: `<4바이트 길이><인증서1><4바이트 길이><인증서2>`.
+rem   첫째가 **서명된** 것이고 둘째가 **서명한** 것이다.
+rem   낸 값: 0 = 맞다 · 1 = 안 맞다 · 그 밖 = 읽지 못했다.
+rem
+rem ★ 음성 시험이 본체다: 한 비트를 뒤집으면 **거절되어야** 한다. 통과 하나보다 거절이 증거다.
+
+module certverify .
+
+use verify from "../../../lib/verify.low" .
+use x509 from "../../../lib/x509.low" .
+use der from "../../../lib/der.low" .
+use bigint from "../../../lib/bigint.low" .
+use p256 from "../../../lib/p256.low" .
+
+proc run input k cap io . input al cap allocator . output u8 . effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  guard is_some g . else return 9 .
+  let buf mut slice u8 . be some_value g .
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 9 .
+  let n u64 be some_value rn .
+  guard gt n 8 . else return 9 .
+
+  let l1 u64 be add (add (mul (cast u64 (index buf 0)) 16777216) (mul (cast u64 (index buf 1)) 65536))
+                    (add (mul (cast u64 (index buf 2)) 256) (cast u64 (index buf 3))) .
+  guard gt l1 0 . else return 9 .
+  guard le (add 4 l1) n . else return 9 .
+  let o2 u64 be add 4 l1 .
+  guard le (add o2 4) n . else return 9 .
+  let l2 u64 be add (add (mul (cast u64 (index buf o2)) 16777216) (mul (cast u64 (index buf (add o2 1))) 65536))
+                    (add (mul (cast u64 (index buf (add o2 2))) 256) (cast u64 (index buf (add o2 3)))) .
+  guard gt l2 0 . else return 9 .
+  guard le (add (add o2 4) l2) n . else return 9 .
+
+  let c1 slice u8 be subslice buf 4 (add 4 l1) .
+  let c2 slice u8 be subslice buf (add o2 4) (add (add o2 4) l2) .
+
+  let wu mut slice u64 . be view_array u64 (subslice buf 40000 60000) .
+  let good u64 be verify.signed_by c1 c2 (subslice buf 20000 40000) wu .
+  if eq good 1 . do  return 0 . end .
+  return 1 .
+end .
+
+rem ★ 어디서 막히는지 말한다 — 값이 아니라 **자리**를 찾는 자리.
+proc why input k cap io . input al cap allocator . output u8 . effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  guard is_some g . else return 99 .
+  let buf mut slice u8 . be some_value g .
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 99 .
+  let n u64 be some_value rn .
+  let l1 u64 be add (add (mul (cast u64 (index buf 0)) 16777216) (mul (cast u64 (index buf 1)) 65536))
+                    (add (mul (cast u64 (index buf 2)) 256) (cast u64 (index buf 3))) .
+  let o2 u64 be add 4 l1 .
+  let l2 u64 be add (add (mul (cast u64 (index buf o2)) 16777216) (mul (cast u64 (index buf (add o2 1))) 65536))
+                    (add (mul (cast u64 (index buf (add o2 2))) 256) (cast u64 (index buf (add o2 3)))) .
+  let c1 slice u8 be subslice buf 4 (add 4 l1) .
+  let c2 slice u8 be subslice buf (add o2 4) (add (add o2 4) l2) .
+  if eq (verify.sig_kind c1) 0 . do  return 10 . end .
+  if eq (x509.tbs_off c1) 0 . do  return 11 . end .
+  if eq (x509.sig_off c1) 0 . do  return 12 . end .
+  if eq (x509.spki_off c2) 0 . do  return 13 . end .
+  if eq (der.key_off c2 (x509.spki_off c2)) 0 . do  return 14 . end .
+  if eq (verify.sig_kind c1) 2 . do
+    if ne (der.key_len c2 (x509.spki_off c2)) 65 . do  return 15 . end .
+    if eq (verify.ecdsa_rs (subslice c1 (x509.sig_off c1) (add (x509.sig_off c1) (x509.sig_len c1))) (subslice buf 20000 20064)) 0 . do  return 16 . end .
+    return 20 .
+  end .
+  if eq (der.rsa_n_off c2 (der.key_off c2 (x509.spki_off c2))) 0 . do  return 17 . end .
+  if ne (x509.sig_len c1) (der.rsa_n_len c2 (der.key_off c2 (x509.spki_off c2))) . do  return 18 . end .
+  return 21 .
+end .
+
+rem ★ tbs 의 해시를 그대로 낸다 — 남의 도구와 맞대려고.
+proc tbshash input k cap io . input al cap allocator . output u8 . effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  guard is_some g . else return 99 .
+  let buf mut slice u8 . be some_value g .
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 99 .
+  let n u64 be some_value rn .
+  let l1 u64 be add (add (mul (cast u64 (index buf 0)) 16777216) (mul (cast u64 (index buf 1)) 65536))
+                    (add (mul (cast u64 (index buf 2)) 256) (cast u64 (index buf 3))) .
+  let c1 slice u8 be subslice buf 4 (add 4 l1) .
+  let tb u64 be x509.tbs_off c1 .
+  let te u64 be x509.tbs_end c1 .
+  guard gt te tb . else return 98 .
+  guard eq (sha256 (subslice c1 tb te) (subslice buf 20000 20032)) 32 . else return 97 .
+  let w u64 be write_out k 1 (subslice buf 20000 20032) .
+  guard gt w 0 . else return 96 .
+  return 0 .
+end .
+
+rem ★ r‖s 와 공개키를 그대로 낸다 — 남의 파서와 맞대려고.
+proc rsdump input k cap io . input al cap allocator . output u8 . effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  guard is_some g . else return 99 .
+  let buf mut slice u8 . be some_value g .
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 99 .
+  let n u64 be some_value rn .
+  let l1 u64 be add (add (mul (cast u64 (index buf 0)) 16777216) (mul (cast u64 (index buf 1)) 65536))
+                    (add (mul (cast u64 (index buf 2)) 256) (cast u64 (index buf 3))) .
+  let o2 u64 be add 4 l1 .
+  let l2 u64 be add (add (mul (cast u64 (index buf o2)) 16777216) (mul (cast u64 (index buf (add o2 1))) 65536))
+                    (add (mul (cast u64 (index buf (add o2 2))) 256) (cast u64 (index buf (add o2 3)))) .
+  let c1 slice u8 be subslice buf 4 (add 4 l1) .
+  let c2 slice u8 be subslice buf (add o2 4) (add (add o2 4) l2) .
+  guard eq (verify.ecdsa_rs (subslice c1 (x509.sig_off c1) (add (x509.sig_off c1) (x509.sig_len c1))) (subslice buf 20000 20064)) 64 . else return 98 .
+  let ko u64 be der.key_off c2 (x509.spki_off c2) .
+  let w1 u64 be write_out k 1 (subslice buf 20000 20064) .
+  guard gt w1 0 . else return 96 .
+  let w2 u64 be write_out k 1 (subslice c2 ko (add ko 65)) .
+  guard gt w2 0 . else return 96 .
+  return 0 .
+end .
+
+rem ★ 곡선 상수를 도로 바이트로 펴서 낸다 — 내가 쓴 16진 해독이 맞는지 본다.
+proc curvedump input k cap io . input al cap allocator . output u8 . effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  guard is_some g . else return 99 .
+  let buf mut slice u8 . be some_value g .
+  let wu mut slice u64 . be view_array u64 (subslice buf 40000 60000) .
+  guard eq (verify.curve (subslice wu 0 64) (subslice buf 20000 20128)) 1 . else return 98 .
+  guard eq (bigint.to_bytes (subslice wu 0 16) 16 (subslice buf 100 132)) 32 . else return 97 .
+  guard eq (bigint.to_bytes (subslice wu 32 48) 16 (subslice buf 132 164)) 32 . else return 97 .
+  let w u64 be write_out k 1 (subslice buf 100 164) .
+  guard gt w 0 . else return 96 .
+  return 0 .
+end .
+
+rem ★ p256 을 **직접** 부른다 — 조각을 하나씩 따로 두어 겹침을 배제한다.
+proc ecdirect input k cap io . input al cap allocator . output u8 . effects alloc io .
+do
+  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  guard is_some g . else return 99 .
+  let buf mut slice u8 . be some_value g .
+  let rn option u64 . be read_in k 0 buf .
+  guard is_some rn . else return 99 .
+  let l1 u64 be add (add (mul (cast u64 (index buf 0)) 16777216) (mul (cast u64 (index buf 1)) 65536))
+                    (add (mul (cast u64 (index buf 2)) 256) (cast u64 (index buf 3))) .
+  let o2 u64 be add 4 l1 .
+  let l2 u64 be add (add (mul (cast u64 (index buf o2)) 16777216) (mul (cast u64 (index buf (add o2 1))) 65536))
+                    (add (mul (cast u64 (index buf (add o2 2))) 256) (cast u64 (index buf (add o2 3)))) .
+  let c1 slice u8 be subslice buf 4 (add 4 l1) .
+  let c2 slice u8 be subslice buf (add o2 4) (add (add o2 4) l2) .
+  let wu mut slice u64 . be view_array u64 (subslice buf 40000 60000) .
+
+  guard eq (sha256 (subslice c1 (x509.tbs_off c1) (x509.tbs_end c1)) (subslice buf 20000 20032)) 32 . else return 90 .
+  guard eq (verify.ecdsa_rs (subslice c1 (x509.sig_off c1) (add (x509.sig_off c1) (x509.sig_len c1))) (subslice buf 20032 20096)) 64 . else return 91 .
+  guard eq (verify.curve (subslice wu 0 64) (subslice buf 20096 20224)) 1 . else return 92 .
+  let ko u64 be der.key_off c2 (x509.spki_off c2) .
+  guard eq (bigint.from_bytes (subslice buf 20032 20064) (subslice wu 64 80) 16) 16 . else return 93 .
+  guard eq (bigint.from_bytes (subslice buf 20064 20096) (subslice wu 80 96) 16) 16 . else return 93 .
+  guard eq (bigint.from_bytes (subslice buf 20000 20032) (subslice wu 96 112) 16) 16 . else return 93 .
+  guard eq (bigint.from_bytes (subslice c2 (add ko 1) (add ko 33)) (subslice wu 112 128) 16) 16 . else return 93 .
+  guard eq (bigint.from_bytes (subslice c2 (add ko 33) (add ko 65)) (subslice wu 128 144) 16) 16 . else return 93 .
+  let v u64 be p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112)
+                                 (subslice wu 112 144)
+                                 (subslice wu 0 16) (subslice wu 16 32)
+                                 (subslice wu 32 48) (subslice wu 48 64)
+                                 (subslice wu 144 1068) .
+  return narrow u8 (add 50 v) .
+end .

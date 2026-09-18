@@ -1,0 +1,196 @@
+rem ★★★★★ **인증서의 서명을 확인한다** (백로그 X-0032 P3)
+rem
+rem   [x509](x509) 가 인증서를 **읽어** 주고, 이 모듈이 그 위에서 **한 장이 다른 한 장에게
+rem   서명받았는가**를 답한다. 체인을 잇는 판단·유효기간·이름 대조는 부르는 쪽이 이 op 을
+rem   되풀이해 짓는다.
+rem
+rem ★★ **서명 알고리즘을 이름으로 가른다.** 인증서가 스스로 적은 OID 를 보고 고르되, 우리가
+rem   검증할 수 있는 둘만 받는다: `sha256WithRSAEncryption`(1.2.840.113549.1.1.11) ·
+rem   `ecdsa-with-SHA256`(1.2.840.10045.4.3.2). 모르는 알고리즘은 **거절**한다 — 모르는 것을
+rem   통과시키면 그때부터 이 함수의 답은 «확인했다» 가 아니라 «못 알아봤다» 가 된다.
+rem
+rem ☞ 안 지은 것: SHA-384/512 계열 · RSA-PSS 서명 인증서 · Ed25519 인증서 · 폐기.
+rem   그 인증서를 만나면 **거절한다**(조용히 지나가지 않는다).
+
+module verify .
+
+use x509 from "x509.low" .
+use der from "der.low" .
+use rsa from "rsa.low" .
+use p256 from "p256.low" .
+use bigint from "bigint.low" .
+
+rem ── 알고리즘 이름 ────────────────────────────────────────────────────────
+rem 1 = RSA PKCS#1 v1.5 + SHA-256 · 2 = ECDSA P-256 + SHA-256 · 0 = 우리가 모른다
+export fn sig_kind input c slice u8 . output u64 . do
+  let o u64 be x509.sigalg_oid_off c .
+  let n u64 be x509.sigalg_oid_len c .
+  if eq o 0 . do  return 0 . end .
+  if eq n 9 . do
+    rem 2a 86 48 86 f7 0d 01 01 0b
+    if eq (index c o) 42 . do
+      if eq (index c (add o 3)) 134 . do
+        if eq (index c (add o 8)) 11 . do  return 1 . end .
+      end .
+    end .
+  end .
+  if eq n 8 . do
+    rem 2a 86 48 ce 3d 04 03 02
+    if eq (index c o) 42 . do
+      if eq (index c (add o 3)) 206 . do
+        if eq (index c (add o 7)) 2 . do  return 2 . end .
+      end .
+    end .
+  end .
+  return 0 .
+end .
+
+rem ── ECDSA 서명은 DER 이다: SEQUENCE { r INTEGER, s INTEGER } ─────────────
+rem ★ INTEGER 는 **앞에 0 이 붙을 수 있고**(최상위 비트가 1 이면 붙는다) 짧을 수도 있다.
+rem   그래서 32 바이트 자리에 **오른쪽 맞춤**으로 옮긴다 — 그냥 베끼면 한 바이트 밀린 값으로
+rem   검증하게 되고, 그것은 언제나 «서명이 틀렸다» 로만 보인다.
+export proc ecdsa_rs input sig slice u8 . input out mut slice u8 . output u64 . effects none . do
+  guard ge (len out) 64 . else return 0 .
+  guard gt (len sig) 8 . else return 0 .
+  guard eq (der.tag_at sig 0) 48 . else return 0 .
+  var i u64 be 0 .
+  while lt i 64 . do  set (index out i) 0 .  set i (add i 1) .  end .
+  let ro u64 be der.value_off sig 0 .
+  guard gt ro 0 . else return 0 .
+  guard eq (der.tag_at sig ro) 2 . else return 0 .
+  let rv u64 be der.value_off sig ro .
+  let rl u64 be der.value_len sig ro .
+  guard gt rv 0 . else return 0 .
+  let so u64 be der.next_off sig ro .
+  guard gt so 0 . else return 0 .
+  guard eq (der.tag_at sig so) 2 . else return 0 .
+  let sv u64 be der.value_off sig so .
+  let sl u64 be der.value_len sig so .
+  guard gt sv 0 . else return 0 .
+  rem 앞의 0 을 떼고, 32 를 넘으면 이 곡선의 값이 아니다.
+  var rs2 u64 be rv .
+  var rn2 u64 be rl .
+  while gt rn2 32 . do
+    guard eq (index sig rs2) 0 . else return 0 .
+    set rs2 (add rs2 1) .
+    set rn2 (sub rn2 1) .
+  end .
+  var ss2 u64 be sv .
+  var sn2 u64 be sl .
+  while gt sn2 32 . do
+    guard eq (index sig ss2) 0 . else return 0 .
+    set ss2 (add ss2 1) .
+    set sn2 (sub sn2 1) .
+  end .
+  var a u64 be 0 .
+  while lt a rn2 . do
+    set (index out (add (sub 32 rn2) a)) (index sig (add rs2 a)) .
+    set a (add a 1) .
+  end .
+  var b u64 be 0 .
+  while lt b sn2 . do
+    set (index out (add (add 32 (sub 32 sn2)) b)) (index sig (add ss2 b)) .
+    set b (add b 1) .
+  end .
+  return 64 .
+end .
+
+rem ── P-256 의 상수 ────────────────────────────────────────────────────────
+rem   p · n · Gx · Gy 를 16 조각씩. 한 자리에만 적는다.
+fn hexd input c u64 . output u64 . do
+  if lt c 58 . do  return sub c 48 . end .
+  return sub c 87 .
+end .
+proc limbs_of input h slice u8 . input out mut slice u64 . input w mut slice u8 . output u64 . effects none . do
+  guard eq (len h) 64 . else return 0 .
+  guard ge (len w) 32 . else return 0 .
+  var i u64 be 0 .
+  while lt i 32 . do
+    set (index w i) (narrow u8 (add (mul (hexd (cast u64 (index h (mul i 2)))) 16)
+                                    (hexd (cast u64 (index h (add (mul i 2) 1)))))) .
+    set i (add i 1) .
+  end .
+  return bigint.from_bytes (subslice w 0 32) out 16 .
+end .
+export proc curve input cw mut slice u64 . input w mut slice u8 . output u64 . effects none . do
+  guard ge (len cw) 64 . else return 0 .
+  guard eq (limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" (subslice cw 0 16) w) 16 . else return 0 .
+  guard eq (limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" (subslice cw 16 32) w) 16 . else return 0 .
+  guard eq (limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" (subslice cw 32 48) w) 16 . else return 0 .
+  guard eq (limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" (subslice cw 48 64) w) 16 . else return 0 .
+  return 1 .
+end .
+
+rem ★★★★★ **한 장이 다른 한 장에게 서명받았는가.** 1 = 그렇다 · 0 = 아니다(또는 못 알아본다).
+rem
+rem   wb: 바이트 작업 공간 1024 이상 · wu: 조각 작업 공간 2200 이상.
+rem ☞ 서명은 **원본 바이트** 위에서 확인한다 — `tbs_off`..`tbs_end` 를 그대로 해시한다.
+rem   베낀 자리에서 하면 언젠가 베끼기가 틀려도 서명이 맞는 것처럼 보인다.
+export proc signed_by input c slice u8 . input issuer slice u8 .
+     input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
+do
+  guard ge (len wb) 1024 . else return 0 .
+  guard ge (len wu) 2200 . else return 0 .
+  let kind u64 be sig_kind c .
+  guard gt kind 0 . else return 0 .
+
+  let tb u64 be x509.tbs_off c .
+  let te u64 be x509.tbs_end c .
+  guard gt tb 0 . else return 0 .
+  guard gt te tb . else return 0 .
+  guard eq (sha256 (subslice c tb te) (subslice wb 0 32)) 32 . else return 0 .
+
+  let so u64 be x509.sig_off c .
+  let sl u64 be x509.sig_len c .
+  guard gt so 0 . else return 0 .
+  guard gt sl 0 . else return 0 .
+
+  let sp u64 be x509.spki_off issuer .
+  guard gt sp 0 . else return 0 .
+  let ko u64 be der.key_off issuer sp .
+  guard gt ko 0 . else return 0 .
+
+  if eq kind 1 . do
+    let no u64 be der.rsa_n_off issuer ko .
+    let nl u64 be der.rsa_n_len issuer ko .
+    let e  u64 be der.rsa_e issuer ko .
+    guard gt no 0 . else return 0 .
+    guard gt nl 0 . else return 0 .
+    guard gt e 0 . else return 0 .
+    guard eq sl nl . else return 0 .
+    guard le nl 512 . else return 0 .
+    rem ★★★ **조각은 k 가 아니라 k+4 여야 한다.** 몽고메리 곱이 자리를 더 쓴다 —
+    rem   정확히 k 를 주면 `mod_exp` 가 0 을 답하고, 그것은 «서명이 틀렸다» 와 **같은 얼굴**로
+    rem   나온다. 그래서 진짜 인증서 넷이 모두 거절됐다(2026-09-18 실측). `lockbox` 가 이미
+    rem   `need = k + 4` 로 쓰고 있었고, 나는 그 수를 안 보고 새로 지었다.
+    let k u64 be shr nl 1 .
+    let need u64 be add k 4 .
+    guard ge (len wu) (mul need 7) . else return 0 .
+    return rsa.verify_pkcs1 (subslice c so (add so sl)) (subslice issuer no (add no nl)) e (subslice wb 0 32)
+             (subslice wb 64 576)
+             (subslice wu 0 need) (subslice wu need (mul need 2)) (subslice wu (mul need 2) (mul need 3))
+             (subslice wu (mul need 3) (mul need 4)) (subslice wu (mul need 4) (mul need 5))
+             (subslice wu (mul need 5) (mul need 6)) (subslice wu (mul need 6) (mul need 7)) .
+  end .
+
+  rem ECDSA P-256 — 공개키는 04‖X‖Y 예순다섯 바이트다(압축은 안 받는다).
+  rem ★ `key_len` 은 **SPKI 자리**를 받고 `rsa_n_off` 는 **키 자리**를 받는다 — 둘을 바꿔
+  rem   넣었다가 모든 ECDSA 인증서를 거절했다(2026-09-18). 같은 모듈의 이웃 두 얼굴이 서로
+  rem   다른 자리를 받는 것은 읽는 사람이 매번 확인해야 하는 모양이다 — [der](der) 쪽에
+  rem   물어볼 자리로 적어 둔다.
+  let kl u64 be der.key_len issuer sp .
+  guard eq kl 65 . else return 0 .
+  guard eq (index issuer ko) 4 . else return 0 .
+  guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 128)) 64 . else return 0 .
+  guard eq (curve (subslice wu 0 64) (subslice wb 128 256)) 1 . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 64 96) (subslice wu 64 80) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 96 128) (subslice wu 80 96) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 96 112) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes (subslice issuer (add ko 1) (add ko 33)) (subslice wu 112 128) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes (subslice issuer (add ko 33) (add ko 65)) (subslice wu 128 144) 16) 16 . else return 0 .
+  return p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112)
+                           (subslice wu 112 144)
+                           (subslice wu 0 16) (subslice wu 16 32)
+                           (subslice wu 32 48) (subslice wu 48 64)
+                           (subslice wu 144 1068) .
+end .

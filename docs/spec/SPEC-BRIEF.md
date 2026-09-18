@@ -43,7 +43,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   use           var           while
 ```
 
-## 3. 빌트인 op **188**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
+## 3. 빌트인 op **189**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
 
 ★ 외워야 하는 것은 키워드 수가 아니라 **키워드 + op** 이다. 그래서 둘 다 센다.
 
@@ -61,17 +61,17 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   le              leading_zeros   len             link_type       load            load_masked     log             lt
   map             max             min             mod             mul             mut_ref         narrow          narrow_sat
   narrow_try      narrow_wrap     native_lanes    ne              neg             net_accept      net_close       net_connect
-  net_listen      net_pair        net_port        net_recv        net_send        nonzero_of      not             ok
-  ok_value        or              panic           path_remove     path_rename     pipe            pop             pow
-  prefetch        push            r_read          r_write         range           reactor_new     read_in         read_volatile
-  reduce_add      reduce_max      reduce_min      reduce_mul      ref             region          remove          ret
-  reverse         rng_next        rotate          rotl            rotr            round           same_slice      sat_add
-  sat_mul         sat_sub         scan            seg             segs            select          send            sha256
-  sha512          shl             shr             sin             size_of         skip            some_value      spawn
-  splat           sqrt            stack_new       store           store_masked    str_from_cstr   sub             subslice
-  sum_neumaier    sum_seq         swap            take            trailing_zeros  try_view        union           value_or
-  view            view_array      view_segments   widen           wrap_add        wrap_mul        wrap_shl        wrap_shr
-  wrap_sub        write_out       write_volatile  zip
+  net_listen      net_pair        net_port        net_recv        net_resolve     net_send        nonzero_of      not
+  ok              ok_value        or              panic           path_remove     path_rename     pipe            pop
+  pow             prefetch        push            r_read          r_write         range           reactor_new     read_in
+  read_volatile   reduce_add      reduce_max      reduce_min      reduce_mul      ref             region          remove
+  ret             reverse         rng_next        rotate          rotl            rotr            round           same_slice
+  sat_add         sat_mul         sat_sub         scan            seg             segs            select          send
+  sha256          sha512          shl             shr             sin             size_of         skip            some_value
+  spawn           splat           sqrt            stack_new       store           store_masked    str_from_cstr   sub
+  subslice        sum_neumaier    sum_seq         swap            take            trailing_zeros  try_view        union
+  value_or        view            view_array      view_segments   widen           wrap_add        wrap_mul        wrap_shl
+  wrap_shr        wrap_sub        write_out       write_volatile  zip
 ```
 
 ## 4. effect atom **15**  ·  *출처: 정본 §7.1*

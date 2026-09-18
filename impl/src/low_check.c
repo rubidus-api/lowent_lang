@@ -183,7 +183,8 @@ static unsigned builtin_effect(proven_u8str_view_t v) {
     if (veq(v, "net_pair") || veq(v, "net_send") ||                        // ★ 소켓 리프 (cap net)
         veq(v, "net_recv") || veq(v, "net_close") ||
         veq(v, "net_listen") || veq(v, "net_port") ||                      // ★ 네트워크 면
-        veq(v, "net_connect") || veq(v, "net_accept"))
+        veq(v, "net_connect") || veq(v, "net_accept") ||
+        veq(v, "net_resolve"))   // ★ 이름 해석도 바깥에 닿는다 (X-0032)
         return EFF_IO;
     // ★ RFC-0057 — 원시어가 있는 효과는 **전부** 추론한다. 안 하면 선언이 장식이다.
     if (veq(v, "stack_new") || veq(v, "alloc_bytes"))     return EFF_ALLOC;   // ★ A3 — 바이트를 얻는다

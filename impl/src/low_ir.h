@@ -198,7 +198,13 @@ typedef enum {
     //   (loopback 은 백로그가 있으면 connect 가 즉시 완료되고 accept 가 대기 없이 받는다).
     IRW_NLISTEN,  // ★ cap net — (port)      → option u64 (듣는 소켓 핸들) · 0 = 임시포트
     IRW_NPORT,    // ★ cap net — (fd)        → option u64 (실제로 묶인 포트)
-    IRW_NCONNECT, // ★ cap net — (port)      → option u64 (연결된 소켓 핸들) · 127.0.0.1
+    IRW_NCONNECT, // ★ cap net — (addr u32, port) → option u64 (연결된 소켓 핸들)
+    //   ★★★ 2026-09-18 (X-0032): 주소를 **받는다**. 그전에는 127.0.0.1 이 박혀 있어
+    //     이 언어는 자기 기계 밖으로 나갈 수 없었다. 주소는 호스트 바이트 차례의 u32 다.
+    IRW_NRESOLVE, // ★ cap net — (이름 slice) → option u32 (IPv4 주소) · DNS
+    //   ★ 이름을 주소로 바꾸는 일도 **바깥에 닿는 일**이라 `cap net` 이고 `effects io` 다.
+    //     connect 와 **가른 까닭**: 주소만 가진 프로그램이 DNS 에 닿지 않게 하고, 골든이
+    //     주소를 손으로 주어 **망 없이** 연결을 잴 수 있게 하기 위해서다.
     IRW_NACCEPT,  // ★ cap net — (fd)        → option u64 (받아들인 연결 핸들)
     // ★★★ **어휘 region 블록** (SPEC-004 §4.5 도입형태 ① · RFC-0004 §157).
     //   `region <이름> <종류> do … end` — 수명이 **스코프**다. MVP region 은 명세 그대로

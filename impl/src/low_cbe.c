@@ -1001,6 +1001,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_DMAKE: case IRW_PREMOVE: case IRW_PRENAME:   // ★ 파일시스템 변경 (§6)
         case IRW_NPAIR: case IRW_NSEND: case IRW_NRECV: case IRW_NCLOSE:   // ★ 소켓 리프 (cap net)
         case IRW_NLISTEN: case IRW_NPORT: case IRW_NCONNECT: case IRW_NACCEPT:   // ★ 네트워크 면
+        case IRW_NRESOLVE:                                                       // ★ 이름 해석 (X-0032)
         case IRW_BREMOVE: case IRW_BUNION: case IRW_BINTER: case IRW_BDIFF:
         case IRW_BEMPTY: case IRW_BSUBSET: case IRW_BCOMPL:  // ★ 집합 연산 — 전부 워드 bitwise
         case IRW_SNEW: case IRW_SPUSH: case IRW_SPOP_INTO:  // ★ 스택 = 배열 + 길이
@@ -6209,14 +6210,16 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "          lw_boxes[lw_nbox] = lw_int((long long)ntohs(sa_.sin_port));\n"
                           "          st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } }\n", out);
                     break;
+                // ★★★ 주소를 받는다 (X-0032, 2026-09-18) — VM 과 **같은 의미**여야 한다.
                 case IRW_NCONNECT:
-                    fputs("    { lowv pv = st[--sp];\n"
+                    fputs("    { lowv pv = st[--sp]; lowv av = st[--sp];\n"
                           "      if (pv.i < 0 || pv.i > 65535) lw_panic(\"port out of range\");\n"
+                          "      if (av.i < 0 || av.i > 4294967295LL) lw_panic(\"IPv4 address out of range\");\n"
                           "      if (lw_hf_probe(\"connect\", 0) == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else\n"
                           "      { int fd_ = socket(AF_INET, SOCK_STREAM, 0);\n"
                           "        if (fd_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
                           "        else { struct sockaddr_in sa_; memset(&sa_, 0, sizeof sa_);\n"
-                          "          sa_.sin_family = AF_INET; sa_.sin_addr.s_addr = htonl(INADDR_LOOPBACK);\n"
+                          "          sa_.sin_family = AF_INET; sa_.sin_addr.s_addr = htonl((unsigned int)av.i);\n"
                           "          sa_.sin_port = htons((unsigned short)pv.i);\n"
                           "          if (connect(fd_, (struct sockaddr *)&sa_, sizeof sa_) != 0) {\n"
                           "            close(fd_); st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
@@ -6225,6 +6228,25 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "            lw_socks[sl_] = fd_ + 1;\n"
                           "            if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
                           "            lw_boxes[lw_nbox] = lw_int(sl_);\n"
+                          "            st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    break;
+                // ★★★ 이름을 주소로 (X-0032) — VM 과 같은 의미: 첫 A 레코드 하나.
+                case IRW_NRESOLVE:
+                    fputs("    { lowv nv = st[--sp];\n"
+                          "      if (lw_hf_probe(\"resolve\", 0) == 1) { st[sp++] = (lowv){ .tag = LWV_NONE }; } else\n"
+                          "      { char host_[256];\n"
+                          "        if (nv.n == 0 || (size_t)nv.n >= sizeof host_) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
+                          "        else { memcpy(host_, nv.p, nv.n); host_[nv.n] = 0;\n"
+                          "          struct addrinfo hints_; memset(&hints_, 0, sizeof hints_);\n"
+                          "          hints_.ai_family = AF_INET; hints_.ai_socktype = SOCK_STREAM;\n"
+                          "          struct addrinfo *res_ = 0;\n"
+                          "          if (getaddrinfo(host_, 0, &hints_, &res_) != 0 || !res_) {\n"
+                          "            if (res_) freeaddrinfo(res_);\n"
+                          "            st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
+                          "          else { unsigned int a_ = ntohl(((struct sockaddr_in *)res_->ai_addr)->sin_addr.s_addr);\n"
+                          "            freeaddrinfo(res_);\n"
+                          "            if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "            lw_boxes[lw_nbox] = lw_int((long long)a_);\n"
                           "            st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
                     break;
                 case IRW_NACCEPT:

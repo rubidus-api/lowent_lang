@@ -114,11 +114,12 @@ ne	다른가
 neg	부호를 뒤집는다
 net_accept	들어온 연결을 받는다
 net_close	닫는다
-net_connect	연결을 건다
+net_connect	주소와 포트로 연결을 건다
 net_listen	듣는 소켓을 연다
 net_pair	맞물린 소켓 한 쌍
 net_port	그 듣는 소켓의 포트
 net_recv	받는다
+net_resolve	이름을 IPv4 주소로 바꾼다 — DNS. 첫 A 레코드 하나
 net_send	보낸다
 nonzero_of	0 이 아님을 증명해 담는다
 not	논리 부정

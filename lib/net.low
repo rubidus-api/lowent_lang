@@ -89,10 +89,25 @@ export proc serve input k cap net . input port u64 . output option listener . ef
 end .
 
 rem 연결한다. 실패는 값이다.
-export proc dial input k cap net . input port u64 . output option conn . effects io . do
-  let c option u64 . be net_connect k port .
+rem ★★★ **주소를 받는다** (X-0032, 2026-09-18). 그전에는 포트만 받고 127.0.0.1 로만 붙었다 —
+rem   이 언어로 쓴 프로그램은 자기 기계 밖으로 나갈 수 없었다.
+rem   주소는 **호스트 바이트 차례의 u32** 다: 127.0.0.1 = 2130706433 (0x7F000001).
+export proc dial input k cap net . input ip u64 . input port u64 . output option conn . effects io . do
+  let c option u64 . be net_connect k ip port .
   guard is_some c . else return none .
   return (some (make conn do fd (some_value c) . end)) .
+end .
+
+rem ★ 자기 기계. 주소를 손으로 적는 자리마다 이 이름을 쓰면 그 수가 한 곳에만 산다.
+export fn loopback output u64 . do  return 2130706433 . end .
+
+rem ★★ **이름을 주소로.** DNS 도 바깥에 닿는 일이라 `cap net` 이고 `effects io` 다 —
+rem   감춰 두면 소스만 보고는 이 줄이 망에 닿는지 알 수 없다. 그래서 `dial` 안에 넣지 않고
+rem   **따로** 둔다: 주소만 가진 프로그램은 DNS 에 아예 닿지 않고, 검사는 주소를 손으로 주어
+rem   **망 없이** 연결을 잴 수 있다.
+rem ☞ 첫 A 레코드 하나만 답한다. 여럿 가운데 어느 것을 고르는가는 아직 정하지 않았다.
+export proc resolve input k cap net . input name slice u8 . output option u64 . effects io . do
+  return net_resolve k name .
 end .
 
 rem 하나를 받아들인다.

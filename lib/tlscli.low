@@ -35,18 +35,18 @@ rem `hmac.extract` 를 곧바로 부른다 — 들여오지 않으면 그 이름
 use hmac from "hmac.low" .
 
 rem ── 상태 (RFC 8446 부록 A.1 클라이언트 쪽) ────────────────────────────────
-export fn st_start        output u64 . do  return 0 . end .
-export fn st_wait_sh      output u64 . do  return 1 . end .
-export fn st_wait_ee      output u64 . do  return 2 . end .
-export fn st_wait_cert    output u64 . do  return 3 . end .
-export fn st_wait_cv      output u64 . do  return 4 . end .
-export fn st_wait_finished output u64 . do  return 5 . end .
-export fn st_connected    output u64 . do  return 6 . end .
+export fn cst_start        output u64 . do  return 0 . end .
+export fn cst_wait_sh      output u64 . do  return 1 . end .
+export fn cst_wait_ee      output u64 . do  return 2 . end .
+export fn cst_wait_cert    output u64 . do  return 3 . end .
+export fn cst_wait_cv      output u64 . do  return 4 . end .
+export fn cst_wait_finished output u64 . do  return 5 . end .
+export fn cst_connected    output u64 . do  return 6 . end .
 
 rem ★ 지금 이 메시지를 받아도 되는가. 순서는 규격의 절반이다 — 순서를 안 지키면 중간자가
 rem   메시지를 빼거나 바꿔치기 할 수 있다. 받아들이는 자리를 **열거하는 것**이 곧 나머지를
-rem   거절하는 것이다(tlssrv.next_ok 와 같은 규율).
-export fn next_ok input st u64 . input hs u64 . output bool . do
+rem   거절하는 것이다(tlssrv.cnext_ok 와 같은 규율).
+export fn cnext_ok input st u64 . input hs u64 . output bool . do
   if eq st 1 . do  return eq hs 2 . end .
   if eq st 2 . do  return eq hs 8 . end .
   if eq st 3 . do  return eq hs 11 . end .
@@ -56,17 +56,15 @@ export fn next_ok input st u64 . input hs u64 . output bool . do
 end .
 
 rem 그 다음 상태.
-export fn step input st u64 . output u64 . do
+export fn cstep input st u64 . output u64 . do
   if lt st 6 . do  return add st 1 . end .
   return 6 .
 end .
 
 rem ── 작은 도우미 ───────────────────────────────────────────────────────────
-rem 두 바이트를 큰끝으로 읽는다. 자리가 없으면 0 — 부르는 쪽이 먼저 길이를 본다.
-export fn be16 input b slice u8 . input o u64 . output u64 . do
-  if ge (add o 1) (len b) . do  return 0 . end .
-  return add (mul (cast u64 (index b o)) 256) (cast u64 (index b (add o 1))) .
-end .
+rem ★ 두 바이트를 큰끝으로 읽는 일은 [tlssrv](tlssrv) 가 이미 갖고 있다(`be16`). 같은 계산을
+rem   두 벌 두지 않는다 — 이름공간이 평평한 이 언어에서는 그것이 곧 부딪치는 이름이기도 하다
+rem   (`check-export-names` 가 실제로 그것을 잡아 주었다, 2026-09-18).
 
 rem ── ClientHello 를 짓는다 ────────────────────────────────────────────────
 rem
@@ -193,7 +191,7 @@ rem ★ 모든 자리가 **상대가 쓴 길이**를 타고 간다. 한 걸음�
 export fn sh_ok input b slice u8 . output bool . do
   if lt (len b) 44 . do  return false . end .
   if ne (cast u64 (index b 0)) 2 . do  return false . end .
-  let body u64 be add (mul (cast u64 (index b 1)) 65536) (be16 b 2) .
+  let body u64 be add (mul (cast u64 (index b 1)) 65536) (tlssrv.be16 b 2) .
   if ne (add body 4) (len b) . do  return false . end .
   if ne (cast u64 (index b 4)) 3 . do  return false . end .
   if ne (cast u64 (index b 5)) 3 . do  return false . end .
@@ -201,7 +199,7 @@ export fn sh_ok input b slice u8 . output bool . do
   if gt sl 32 . do  return false . end .
   let at u64 be add 39 sl .
   if gt (add at 5) (len b) . do  return false . end .
-  let el u64 be be16 b (add at 3) .
+  let el u64 be tlssrv.be16 b (add at 3) .
   if ne (add (add at 5) el) (len b) . do  return false . end .
   return true .
 end .
@@ -227,7 +225,7 @@ rem 고른 스위트. `sh_ok` 를 통과한 뒤에만 뜻이 있다.
 export fn sh_suite input b slice u8 . output u64 . do
   if eq (sh_ok b) false . do  return 0 . end .
   let sl u64 be cast u64 (index b 38) .
-  return be16 b (add 39 sl) .
+  return tlssrv.be16 b (add 39 sl) .
 end .
 
 rem 확장 묶음의 시작과 길이.
@@ -239,7 +237,7 @@ end .
 export fn sh_ext_len input b slice u8 . output u64 . do
   if eq (sh_ok b) false . do  return 0 . end .
   let sl u64 be cast u64 (index b 38) .
-  return be16 b (add (add 39 sl) 3) .
+  return tlssrv.be16 b (add (add 39 sl) 3) .
 end .
 
 rem ★ 확장 하나를 찾는다 — 값의 시작 자리를 낸다(0 = 없다).
@@ -253,8 +251,8 @@ export fn sh_ext_find input b slice u8 . input want u64 . output u64 . do
   var guard_ u64 be 0 .
   while lt i n . do
     if gt (add (add o i) 4) (len b) . do  return 0 . end .
-    let t u64 be be16 b (add o i) .
-    let l u64 be be16 b (add (add o i) 2) .
+    let t u64 be tlssrv.be16 b (add o i) .
+    let l u64 be tlssrv.be16 b (add (add o i) 2) .
     if gt (add (add (add o i) 4) l) (len b) . do  return 0 . end .
     if eq t want . do  return add (add o i) 4 . end .
     set i (add i (add 4 l)) .
@@ -266,7 +264,7 @@ end .
 export fn sh_ext_find_len input b slice u8 . input want u64 . output u64 . do
   let v u64 be sh_ext_find b want .
   if eq v 0 . do  return 0 . end .
-  return be16 b (sub v 2) .
+  return tlssrv.be16 b (sub v 2) .
 end .
 
 rem ★ 고른 판이 정말 TLS 1.3 인가 — supported_versions(002b) 가 0304 여야 한다.
@@ -275,7 +273,7 @@ export fn sh_is_tls13 input b slice u8 . output bool . do
   let v u64 be sh_ext_find b 43 .
   if eq v 0 . do  return false . end .
   if ne (sh_ext_find_len b 43) 2 . do  return false . end .
-  return eq (be16 b v) 772 .
+  return eq (tlssrv.be16 b v) 772 .
 end .
 
 rem ★ 서버의 key_share — x25519(001d) 32 바이트여야 한다. 그 자리(오프셋)를 낸다(0 = 없다).
@@ -283,8 +281,8 @@ export fn sh_key_share_off input b slice u8 . output u64 . do
   let v u64 be sh_ext_find b 51 .
   if eq v 0 . do  return 0 . end .
   if ne (sh_ext_find_len b 51) 36 . do  return 0 . end .
-  if ne (be16 b v) 29 . do  return 0 . end .
-  if ne (be16 b (add v 2)) 32 . do  return 0 . end .
+  if ne (tlssrv.be16 b v) 29 . do  return 0 . end .
+  if ne (tlssrv.be16 b (add v 2)) 32 . do  return 0 . end .
   return add v 4 .
 end .
 
@@ -380,7 +378,7 @@ do
   guard eq (len fin) 36 . else return false .
   guard eq (cast u64 (index fin 0)) 20 . else return false .
   guard eq (cast u64 (index fin 1)) 0 . else return false .
-  guard eq (be16 fin 2) 32 . else return false .
+  guard eq (tlssrv.be16 fin 2) 32 . else return false .
   guard ge (len w) 1216 . else return false .
   guard eq (finished_vd s_hs msgs2 (subslice w 1024 1056) (subslice w 0 1024)) 32 . else return false .
   var diff u64 be 0 .

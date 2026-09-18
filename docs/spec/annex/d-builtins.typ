@@ -11,7 +11,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 188 개다.]
+  #para("2")[모두 189 개다.]
 
   #tbl("내장 연산과 그 뜻")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
@@ -119,11 +119,12 @@
         [`neg`], [부호를 뒤집는다],
         [`net_accept`], [들어온 연결을 받는다],
         [`net_close`], [닫는다],
-        [`net_connect`], [연결을 건다],
+        [`net_connect`], [주소와 포트로 연결을 건다],
         [`net_listen`], [듣는 소켓을 연다],
         [`net_pair`], [맞물린 소켓 한 쌍],
         [`net_port`], [그 듣는 소켓의 포트],
         [`net_recv`], [받는다],
+        [`net_resolve`], [이름을 IPv4 주소로 바꾼다 — DNS. 첫 A 레코드 하나],
         [`net_send`], [보낸다],
         [`nonzero_of`], [0 이 아님을 증명해 담는다],
         [`not`], [논리 부정],
@@ -214,7 +215,7 @@
   ]
 
   #note[
-    실측(2026-08-25): 188 개 가운데 지역 이름 선언이 막히는 것은 **173 개**,
+    실측(2026-08-25): 189 개 가운데 지역 이름 선언이 막히는 것은 **174 개**,
     쓸 수 있는 것은 **15 개**다 — `borrow` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `range` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 **이름 충돌 규칙을 틀리게 말하기**
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
@@ -247,24 +248,25 @@ mul                   mut_ref               narrow                narrow_sat
 narrow_try            narrow_wrap           native_lanes          ne
 neg                   net_accept            net_close             net_connect
 net_listen            net_pair              net_port              net_recv
-net_send              nonzero_of            not                   ok
-ok_value              or                    panic                 path_remove
-path_rename           pipe                  pop                   pow
-prefetch              push                  r_read                r_write
-range                 reactor_new           read_in               read_volatile
-reduce_add            reduce_max            reduce_min            reduce_mul
-ref                   region                remove                ret
-reverse               rng_next              rotate                rotl
-rotr                  round                 same_slice            sat_add
-sat_mul               sat_sub               scan                  seg
-segs                  select                send                  sha256
-sha512                shl                   shr                   sin
-size_of               skip                  some_value            spawn
-splat                 sqrt                  stack_new             store
-store_masked          str_from_cstr         sub                   subslice
-sum_neumaier          sum_seq               swap                  take
-trailing_zeros        try_view              union                 value_or
-view                  view_array            view_segments         widen
-wrap_add              wrap_mul              wrap_shl              wrap_shr
-wrap_sub              write_out             write_volatile        zip")
+net_resolve           net_send              nonzero_of            not
+ok                    ok_value              or                    panic
+path_remove           path_rename           pipe                  pop
+pow                   prefetch              push                  r_read
+r_write               range                 reactor_new           read_in
+read_volatile         reduce_add            reduce_max            reduce_min
+reduce_mul            ref                   region                remove
+ret                   reverse               rng_next              rotate
+rotl                  rotr                  round                 same_slice
+sat_add               sat_mul               sat_sub               scan
+seg                   segs                  select                send
+sha256                sha512                shl                   shr
+sin                   size_of               skip                  some_value
+spawn                 splat                 sqrt                  stack_new
+store                 store_masked          str_from_cstr         sub
+subslice              sum_neumaier          sum_seq               swap
+take                  trailing_zeros        try_view              union
+value_or              view                  view_array            view_segments
+widen                 wrap_add              wrap_mul              wrap_shl
+wrap_shr              wrap_sub              write_out             write_volatile
+zip")
 ]

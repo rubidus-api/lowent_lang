@@ -77,7 +77,7 @@ are not words but cannot be used as names.
   [Contracts and errors --- #chref("contracts")], [`range` `ret` `expect` `panic`],
   [Hashes --- #chref("lib-text")], [`crc32` `hash_bytes` `sha256` `sha512`],
   [C strings --- #chref("ffi")], [`cstr_of` `str_from_cstr`],
-  [Host leaves --- #chref("lib-map")], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `rng_next` `reactor_new` `r_read` `r_write`],
+  [Host leaves --- #chref("lib-map")], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `rng_next` `reactor_new` `r_read` `r_write`],
 )
 
 This table sorts every builtin of the canon into a group. The chapter next to each group name explains that group with examples. The

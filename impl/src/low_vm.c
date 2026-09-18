@@ -35,6 +35,7 @@ extern char **environ;   // ★ cap env (RFC-0030 D2′) — 호스트 프로파
 #include <sys/socket.h> // ★ 소켓 리프 (socketpair/send/recv — cap net)
 #include <netinet/in.h> // ★ 네트워크 면 (sockaddr_in · TCP loopback)
 #include <arpa/inet.h>  // ★ htons/htonl
+#include <netdb.h>      // ★ getaddrinfo — net_resolve (X-0032)
 #include <unistd.h>     // ★ close (소켓/파일 fd)
 #include <sys/stat.h>   // ★ 파일 타입 질의 (RFC-0069 §6 — stat/S_ISDIR/S_ISREG)
 #include <errno.h>      // ★ readdir 의 끝(NULL·errno==0) vs 오류(NULL·errno!=0) 를 가른다
@@ -2411,16 +2412,23 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
             }
+            // ★★★★★ **주소를 받는다** (X-0032, 2026-09-18). 그전에는 127.0.0.1 이 박혀 있어
+            //   이 언어로 쓴 프로그램은 **자기 기계 밖으로 나갈 수 없었다** — 그래서 TLS 코드의
+            //   소비자가 전부 우리가 만든 것을 우리가 읽는 합성 프로그램이었다.
+            //   ☞ 주소는 **호스트 바이트 차례의 u32** 다(127.0.0.1 = 0x7F000001). 이름을 주소로
+            //     바꾸는 일은 IRW_NRESOLVE 가 따로 한다 — 주소만 가진 프로그램이 DNS 에 닿지
+            //     않게 하고, 골든이 주소를 손으로 주어 **망 없이** 연결을 잴 수 있게 하려고.
             case IRW_NCONNECT: {
-                if (sp < 1) return false;
-                vmv_t pv = stack[--sp];
-                if (pv.tag != VMV_INT) { vm_diag(vm->diags, "E-VM-TYPE", "net_connect needs a port"); return false; }
+                if (sp < 2) return false;
+                vmv_t pv = stack[--sp], av = stack[--sp];
+                if (pv.tag != VMV_INT || av.tag != VMV_INT) { vm_diag(vm->diags, "E-VM-TYPE", "net_connect needs (address, port)"); return false; }
                 if (pv.i < 0 || pv.i > 65535) { vm_diag(vm->diags, "E-VM-TYPE", "port out of range"); return false; }
+                if (av.i < 0 || av.i > 4294967295LL) { vm_diag(vm->diags, "E-VM-TYPE", "IPv4 address out of range"); return false; }
                 if (lw_hf_probe("connect", NULL) == 1) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 int fd = socket(AF_INET, SOCK_STREAM, 0);
                 if (fd < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
                 struct sockaddr_in sa; memset(&sa, 0, sizeof sa);
-                sa.sin_family = AF_INET; sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+                sa.sin_family = AF_INET; sa.sin_addr.s_addr = htonl((uint32_t)av.i);
                 sa.sin_port = htons((unsigned short)pv.i);
                 if (connect(fd, (struct sockaddr *)&sa, sizeof sa) != 0) {
                     close(fd); stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break;
@@ -2430,6 +2438,37 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 vm->socks[sl] = fd + 1;
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted — 4096 slots for the values that `some`/`ok` wrap, and this pool is NEVER rewound (docs/runtime-pools.md). The emitted C shares the same number (LW_BOXPOOL), so a loop that wraps a value per iteration ends the same way there"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)sl);
+                stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
+                break;
+            }
+            // ★★★ **이름을 주소로** (X-0032, 2026-09-18). DNS 도 바깥에 닿는 일이라 `cap net` 이고
+            //   `effects io` 다 — 감춰 두면 소스만 보고는 이 줄이 망에 닿는지 알 수 없다.
+            //   ☞ **왜 connect 와 가르나**: ① 주소만 가진 프로그램이 DNS 에 아예 안 닿는다
+            //     ② 골든이 주소를 손으로 주어 **망 없이** 연결을 잰다 ③ 이름 해석은 기계·시점마다
+            //     다른 답을 낼 수 있는데, 그 비결정성을 한 줄에 가둬 둔다.
+            //   ☞ 첫 A 레코드 하나만 답한다. 여럿을 돌려주는 것은 「어느 것을 고르는가」를
+            //     새로 정하는 일이고, 그것은 이 칸이 아니다(없는 것을 있는 척하지 않는다).
+            case IRW_NRESOLVE: {
+                if (sp < 1) return false;
+                vmv_t nv = stack[--sp];
+                if (nv.tag != VMV_SLICE && nv.tag != VMV_VARRAY) {
+                    vm_diag(vm->diags, "E-VM-TYPE", "net_resolve needs a name as a byte slice"); return false;
+                }
+                if (lw_hf_probe("resolve", NULL) == 1) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
+                char host_[256];
+                if (nv.n == 0 || nv.n >= sizeof host_) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
+                memcpy(host_, nv.p, nv.n); host_[nv.n] = 0;
+                struct addrinfo hints_; memset(&hints_, 0, sizeof hints_);
+                hints_.ai_family = AF_INET; hints_.ai_socktype = SOCK_STREAM;
+                struct addrinfo *res_ = NULL;
+                if (getaddrinfo(host_, NULL, &hints_, &res_) != 0 || !res_) {
+                    if (res_) freeaddrinfo(res_);
+                    stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break;
+                }
+                uint32_t a_ = ntohl(((struct sockaddr_in *)res_->ai_addr)->sin_addr.s_addr);
+                freeaddrinfo(res_);
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted"); return false; }
+                vm->boxes[vm->nbox] = vmv_int((proven_i64)a_);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
                 break;
             }

@@ -27,6 +27,7 @@ const char LW_HDR_HOSTED[] =
 "#include <sys/socket.h>\n" /* ★ 소켓 리프 (socketpair/send/recv — cap net) */
 "#include <netinet/in.h>\n" /* ★ 네트워크 면 (sockaddr_in · TCP loopback) */
 "#include <arpa/inet.h>\n"
+"#include <netdb.h>\n" /* ★ getaddrinfo — net_resolve (X-0032) */
 "#include <errno.h>\n"    /* ★ readdir 끝 vs 오류 */
 "#include <string.h>\n"   /* ★ 결함 주입기가 strncmp 를 쓴다 (RFC-0075 S5) */
 // ★ 죽는 방법도 타깃이 정한다. 호스트엔 stderr 와 종료 상태가 있다.

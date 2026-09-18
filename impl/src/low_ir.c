@@ -716,6 +716,7 @@ const char *low_ir_leaf_cap_kind(proven_u8str_view_t name) {
         { "dir_make", "file_system" }, { "path_remove", "file_system" }, { "path_rename", "file_system" },
         { "net_pair", "net" }, { "net_send", "net" }, { "net_recv", "net" }, { "net_close", "net" },
         { "net_listen", "net" }, { "net_port", "net" }, { "net_connect", "net" }, { "net_accept", "net" },
+        { "net_resolve", "net" },
         { "random_bytes", "random" },
         { "env_get", "env" },
         { "alloc_bytes", "allocator" },
@@ -3521,8 +3522,9 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         { "net_close", IRW_NCLOSE, 1 },   // (fd)        → bool
                         { "net_listen",  IRW_NLISTEN,  1 },   // (port)  → option u64 (0=임시)
                         { "net_port",    IRW_NPORT,    1 },   // (fd)    → option u64 (묶인 포트)
-                        { "net_connect", IRW_NCONNECT, 1 },   // (port)  → option u64
+                        { "net_connect", IRW_NCONNECT, 2 },   // (addr u32, port) → option u64
                         { "net_accept",  IRW_NACCEPT,  1 },   // (fd)    → option u64
+                        { "net_resolve", IRW_NRESOLVE, 1 },   // (이름)  → option u32 (IPv4)
                     };
                     for (size_t ni = 0; ni < sizeof NOPS / sizeof NOPS[0]; ni++) {
                         if (!veq(nd->tok.lex, NOPS[ni].w)) continue;

@@ -77,7 +77,7 @@
   [계약과 오류 --- #chref("contracts")], [`range` `ret` `expect` `panic`],
   [해시 --- #chref("lib-text")], [`crc32` `hash_bytes` `sha256` `sha512`],
   [C 문자열 --- #chref("ffi")], [`cstr_of` `str_from_cstr`],
-  [호스트 잎 --- #chref("lib-map")], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `rng_next` `reactor_new` `r_read` `r_write`],
+  [호스트 잎 --- #chref("lib-map")], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `rng_next` `reactor_new` `r_read` `r_write`],
 )
 
 이 표는 정본의 내장 연산을 빠짐없이 무리로 나눈 것이다. 무리 이름 옆의 장이 그 무리를 예제와 함께 설명한다. 한 줄씩의 뜻은 저장소의

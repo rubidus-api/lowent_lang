@@ -214,11 +214,17 @@ rem ★ 한 판을 처음부터 끝까지 — 붙고, 핸드셰이크하고, 닫
 rem   ☞ 지금은 열쇠 재료를 **부르는 쪽이 준다**(`seed`). 진짜 도구는 `cap random` 에서 받아야
 rem     하고(같은 열쇠를 두 번 쓰면 그 연결의 비밀이 사라진다), 그것은 아래 `main` 의 몫이다.
 rem     검사는 씨를 못박아 **결정적으로** 잴 수 있어야 하므로 여기서 가르지 않는다.
-proc session input k cap net . input fs cap file_system . input al cap allocator . input out cap io .
+proc session input k cap net . input fs cap file_system . input hp cap heap . input out cap io .
      input ip u64 . input port u64 . input host slice u8 . input path slice u8 .
-     input now u64 . input bundle slice u8 . input seed u64 . output u64 . effects alloc io .
+     input now u64 . input bundle slice u8 . input seed u64 . output u64 . effects heap io .
 do
-  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  rem ★★★ **자라는 뿌리에서 받는다**(`cap heap` · RFC-0112 D2). 핸드셰이크는 64 KiB 안에서
+  rem   끝나지만 **인증서 검증**은 그렇지 않다: RSA-4096 뿌리 하나에 큰수 조각이 1820 개(14.5 KB)
+  rem   들고, 신뢰 저장소를 흘려 읽는 창·푸는 자리·찾은 인증서가 더 필요하다. 그것을 고정 창에
+  rem   우겨넣으려 창을 줄였더니 **묶음에 있는 앵커를 못 찾았다** — 자리가 모자란 것과
+  rem   「믿는 뿌리가 없다」가 **같은 얼굴**로 나왔다(2026-09-18 실측).
+  rem   ⇒ 이 도구는 운영체제 위에서만 뜻이 있고, **서명이 그렇게 말한다**.
+  let g option mut slice u8 . . be alloc_bytes hp capacity 262144 .
   guard is_some g . else return 89 .
   let buf mut slice u8 . be some_value g .
 
@@ -434,11 +440,11 @@ proc main .
   input k  cap net .
   input fs cap file_system .
   input ck cap clock .
-  input al cap allocator .
+  input hp cap heap .
   input out cap io .
   input a  cap args .
   output u8 .
-  effects alloc io .
+  effects heap io .
 do
   var w u64 be 0 .
   let a0 option slice u8 . be arg a 0 .
@@ -521,18 +527,23 @@ do
     set cabundle (some_value cx) .
   end .
   if eq po 0 . do
-    return narrow u8 (session k fs al out (some_value ipo) port host "/" now cabundle 7) .
+    return narrow u8 (session k fs hp out (some_value ipo) port host "/" now cabundle 7) .
   end .
-  return narrow u8 (session k fs al out (some_value ipo) port host (subslice u po (len u)) now cabundle 7) .
+  return narrow u8 (session k fs hp out (some_value ipo) port host (subslice u po (len u)) now cabundle 7) .
 end .
 
 rem ★★★★★ **인증서를 확인한다.** 핸드셰이크가 끝난 뒤의 자리(레코드·평문 버퍼)를 빌려 쓴다.
 rem   1 = 믿을 만하다 · 2 = 이름이 안 맞다 · 3 = 기간 밖 · 4 = 체인이 끊겼다 ·
 rem   5 = 믿는 뿌리에 닿지 못했다 · 6 = 인증서를 못 찾았다
 rem
-rem   자리(핸드셰이크 뒤라 20000..56000 이 비어 있다):
-rem     [20000..28800) wu(u64 1100) · [28800..30000) wb · [30000..46400) 창 ·
-rem     [46400..52400) 푸는 자리 · [52400..56000) 찾은 앵커
+rem   자리(핸드셰이크 뒤라 레코드·평문 버퍼가 비어 있다):
+rem     [70000..100000) wu(u64 3750) · [100000..104000) wb · [104000..134000) 창 ·
+rem     [134000..154000) 푸는 자리 · [154000..170000) 찾은 앵커 · [170000..170008) 길이 한 칸
+rem ★ 핸드셰이크가 쓰는 64 KiB **위쪽**을 쓴다 — 아래는 전사가 그대로 살아 있어야 한다
+rem   (인증서가 거기 있다). 넉넉함이 여기서는 공짜다: 자라는 뿌리이기 때문이다.
+rem ★ wu 가 1820 인 까닭: RSA-4096 뿌리를 만나면 큰수 조각이 (k+4)×7 = 1820 든다. 1100 을
+rem   주었다가 **RSA 체인 사이트가 통째로 거절됐다**(2026-09-18 실측) — 그리고 그 거절은
+rem   「체인이 안 선다」로만 보였다. 작업 공간이 모자란 것과 서명이 틀린 것이 **같은 얼굴**이다.
 proc check_chain input fs cap file_system . input buf mut slice u8 . input host slice u8 .
      input now u64 . input bundle slice u8 . output u64 . effects io .
 do
@@ -549,10 +560,10 @@ do
   guard verify.host_ok leaf host . else return 2 .
   guard verify.dates_ok leaf now . else return 3 .
 
-  let wu mut slice u64 . be view_array u64 (subslice buf 20000 28800) .
+  let wu mut slice u64 . be view_array u64 (subslice buf 70000 100000) .
   rem ★ `view_array u64` 는 길이가 여덟의 배수여야 한다 — 네 바이트를 주었다가 그 자리에서
   rem   멈췄다(panic). 한 칸(8 바이트)을 따로 준다.
-  let dn mut slice u64 . be view_array u64 (subslice buf 59000 59008) .
+  let dn mut slice u64 . be view_array u64 (subslice buf 170000 170008) .
 
   rem ── 받은 사슬을 위로 오른다 ─────────────────────────────────────────
   var cur_o u64 be l0 .
@@ -564,7 +575,7 @@ do
     let un u64 be tlscli.cert_len msgs co idx .
     if eq uo 0 . do  set climbing 0 . end .
     if eq climbing 1 . do
-      let lk u64 be verify.link_ok (subslice buf cur_o (add cur_o cur_n)) (subslice buf uo (add uo un)) now (subslice buf 28800 30000) wu .
+      let lk u64 be verify.link_ok (subslice buf cur_o (add cur_o cur_n)) (subslice buf uo (add uo un)) now (subslice buf 100000 104000) wu .
       if ne lk 1 . do  return 4 . end .
       set cur_o uo .
       set cur_n un .
@@ -575,9 +586,9 @@ do
 
   rem ── 그 꼭대기를 **믿는 뿌리**에 잇는다 ──────────────────────────────
   let top slice u8 be subslice buf cur_o (add cur_o cur_n) .
-  let ao u64 be trust.find_anchor fs bundle top (x509.issuer_off top) (subslice buf 30000 46400) (subslice buf 46400 52400) (subslice buf 52400 56000) dn .
+  let ao u64 be trust.find_anchor fs bundle top (x509.issuer_off top) (subslice buf 104000 134000) (subslice buf 134000 154000) (subslice buf 154000 170000) dn .
   guard gt ao 0 . else return 5 .
-  let anchor slice u8 be subslice buf 52400 (add 52400 ao) .
+  let anchor slice u8 be subslice buf 154000 (add 154000 ao) .
   guard eq (verify.link_ok top anchor now (subslice buf 28800 30000) wu) 1 . else return 5 .
   return 1 .
 end .

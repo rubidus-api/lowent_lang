@@ -87,8 +87,40 @@ static long long lw_sha512(const void *src, unsigned long long n,               
     return 64;                                                                                 \
 }
 
+/* ★★★ **SHA-384 는 SHA-512 의 다른 시작값이다** (2026-09-18, X-0032 · 소유자 결정).
+ *   블록 함수도 채움도 같고 **초기 해시값 여덟**만 다르며, 낸 것의 **앞 48 바이트**만 쓴다
+ *   (RFC 6234 §6.3). 그래서 여기 한 벌 아래에 얹는다 — 베껴 두 벌을 만들면 언젠가 갈린다.
+ *   ☞ 왜 필요한가: 진짜 인증서 체인의 중간 마디가 흔히 `ecdsa-with-SHA384` 로 서명돼 있다.
+ *     이것이 없으면 「검증하는 HTTPS 클라이언트」가 바깥에서 쓰이지 못한다. */
+#define LOW_SHA384_BODY                                                                       \
+static long long lw_sha384(const void *src, unsigned long long n,                             \
+                           unsigned char *dst, unsigned long long dn) {                       \
+    if (dn < 48) return 0;                                                                    \
+    lw_sha5_t s;                                                                              \
+    s.h[0]=0xcbbb9d5dc1059ed8ULL; s.h[1]=0x629a292a367cd507ULL;                               \
+    s.h[2]=0x9159015a3070dd17ULL; s.h[3]=0x152fecd8f70e5939ULL;                               \
+    s.h[4]=0x67332667ffc00b31ULL; s.h[5]=0x8eb44a8768581511ULL;                               \
+    s.h[6]=0xdb0c2e0d64f98fa7ULL; s.h[7]=0x47b5481dbefa4fa4ULL;                               \
+    const unsigned char *p = (const unsigned char *)src;                                      \
+    unsigned long long i = 0;                                                                 \
+    while (n - i >= 128) { lw_sha5_block(&s, p + i); i += 128; }                              \
+    unsigned char t[256]; unsigned long long r = n - i, m;                                    \
+    for (m = 0; m < r; m++) t[m] = p[i + m];                                                  \
+    t[r] = 0x80; m = r + 1;                                                                   \
+    unsigned long long need = (r < 112) ? 128 : 256;                                          \
+    while (m < need - 16) t[m++] = 0;                                                         \
+    for (m = 0; m < 8; m++) t[need - 16 + m] = 0;                                             \
+    unsigned long long bits = n * 8ULL;                                                       \
+    for (m = 0; m < 8; m++) t[need - 8 + m] = (unsigned char)((bits >> (56 - 8 * m)) & 0xff);  \
+    for (m = 0; m < need; m += 128) lw_sha5_block(&s, t + m);                                  \
+    for (m = 0; m < 6; m++)                                                                    \
+        for (unsigned long long j = 0; j < 8; j++)                                             \
+            dst[m * 8 + j] = (unsigned char)((s.h[m] >> (56 - 8 * j)) & 0xff);                 \
+    return 48;                                                                                 \
+}
+
 #define LOW_SHA512_STR2(...) #__VA_ARGS__
 #define LOW_SHA512_STR(...)  LOW_SHA512_STR2(__VA_ARGS__)
-#define LOW_SHA512_C_SOURCE  LOW_SHA512_STR(LOW_SHA512_BODY) "\n"
+#define LOW_SHA512_C_SOURCE  LOW_SHA512_STR(LOW_SHA512_BODY) "\n" LOW_SHA512_STR(LOW_SHA384_BODY) "\n"
 
 #endif

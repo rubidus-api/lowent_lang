@@ -4698,7 +4698,7 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
         case IRW_ALOAD:
         case IRW_ELEMCK:
         case IRW_SAMESL:   // ★ RFC-0112 D10 — 두 슬라이스 → 참거짓. 빠뜨리면 구간 분석이 스택을 잘못 세어 뒤 guard 를 지웠다(실측)
-        case IRW_SHA256: case IRW_SHA512:   // ★ WO-0215 에서 같이 찾음 — (바이트, 쓸 버퍼) → 길이. 이 표에 없었다
+        case IRW_SHA256: case IRW_SHA512: case IRW_SHA384:   // ★ WO-0215 에서 같이 찾음 — (바이트, 쓸 버퍼) → 길이. 이 표에 없었다
             return 2;
         case IRW_HASH64: case IRW_CRC32: case IRW_RNGNEXT:   // ★ 같은 까닭(WO-0215) — 하나 받아 수 하나
             return 1;
@@ -4955,6 +4955,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_RANDBYTES: return "random.bytes"; case IRW_RNGNEXT: return "random.next";
         case IRW_SHA256: return "hash.sha256";
         case IRW_SHA512: return "hash.sha512";
+        case IRW_SHA384: return "hash.sha384";
         case IRW_WRAP_OK: return "wrap.ok"; case IRW_WRAP_SOME: return "wrap.some"; case IRW_WRAP_NONE: return "wrap.none"; case IRW_WRAP_ERR: return "wrap.err";
         case IRW_TRY: return "try"; case IRW_MAKE: return "make";
         case IRW_SNEW: return "stack.new"; case IRW_SPUSH: return "stack.push";

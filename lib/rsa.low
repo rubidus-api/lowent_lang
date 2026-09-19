@@ -140,10 +140,16 @@ rem ★ **꼴을 짓지 말고 받은 것을 뜯어본다.** 흔한 실수는 EM
 rem   그러면 채움 바이트 수를 세는 자리가 둘이 되고 그중 하나가 느슨해진다. 여기서는 받은
 rem   EM 을 앞에서부터 **강제로** 읽는다: 0x00 0x01 · 0xFF 가 여덟 이상 · 0x00 · 그 다음이
 rem   정확히 DigestInfo 51 바이트 · 그 안의 해시가 우리 것과 같다. 남는 바이트는 없어야 한다.
-export proc pkcs1_verify input em slice u8 . input mhash slice u8 . output u64 . effects none . do
-  guard eq (len mhash) 32 . else return 0 .
-  rem 0x00 0x01 + 채움 여덟 이상 + 0x00 + DigestInfo 51
-  guard ge (len em) 62 . else return 0 .
+rem ★ DigestInfo 의 **머리**를 인자로 받는다 — SHA-256 과 SHA-384 는 그 열아홉 바이트만 다르고
+rem   나머지 규율은 같다. 지어 견주지 않고 **받은 것을 뜯어보는** 성질도 그대로다.
+rem   SHA-256: 30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20
+rem   SHA-384: 30 41 30 0d 06 09 60 86 48 01 65 03 04 02 02 05 00 04 30
+export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di slice u8 . output u64 . effects none . do
+  guard eq (len di) 19 . else return 0 .
+  guard ge (len mhash) 32 . else return 0 .
+  guard le (len mhash) 64 . else return 0 .
+  rem 0x00 0x01 + 채움 여덟 이상 + 0x00 + DigestInfo(19 + 해시)
+  guard ge (len em) (add 30 (add 19 (len mhash))) . else return 0 .
   guard eq (index em 0) 0 . else return 0 .
   guard eq (index em 1) 1 . else return 0 .
 
@@ -166,17 +172,17 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . output u64 .
 
   rem ③ 남은 것이 **정확히** DigestInfo 51 바이트여야 한다. 남으면 거절 — 뒤에 무엇이든
   rem   붙일 수 있게 두면 같은 해시에 서명이 여럿 생긴다(Bleichenbacher 가 그것으로 열었다).
-  guard eq (sub (len em) i) 51 . else return 0 .
+  guard eq (sub (len em) i) (add 19 (len mhash)) . else return 0 .
   var j u64 be 0 .
   while lt j 19 . do
-    if ne (index em (add i j)) (index "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20" j) . do  return 0 . end .
+    if ne (index em (add i j)) (index di j) . do  return 0 . end .
     set j (add j 1) .
   end .
 
   rem ④ 해시를 **끝까지** 견준다 — 첫 바이트에서 돌아서면 그 시간이 곧 정보다.
   var diff u64 be 0 .
   var m u64 be 0 .
-  while lt m 32 . do
+  while lt m (len mhash) . do
     set diff (bit_or diff (bit_xor (cast u64 (index em (add (add i 19) m))) (cast u64 (index mhash m)))) .
     set m (add m 1) .
   end .
@@ -186,7 +192,7 @@ end .
 
 rem ★ 서명을 풀어 위 검사를 돌린다 — `verify_pss` 와 같은 앞자락(모듈러 거듭제곱)을 쓴다.
 export proc verify_pkcs1 input sig slice u8 . input nb slice u8 . input e u64 . input mhash slice u8 .
-     input em mut slice u8 .
+     input di slice u8 . input em mut slice u8 .
      input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
      input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
      output u64 . effects none . do
@@ -198,5 +204,5 @@ export proc verify_pkcs1 input sig slice u8 . input nb slice u8 . input e u64 . 
   guard eq (bigint.ge_mod sw nw k) 0 . else return 0 .
   guard eq (bigint.mod_exp ow sw e nw k r2 acc mw tw) 1 . else return 0 .
   guard eq (bigint.to_bytes ow k em) (len nb) . else return 0 .
-  return pkcs1_verify (subslice em 0 (len nb)) mhash .
+  return pkcs1_verify (subslice em 0 (len nb)) mhash di .
 end .

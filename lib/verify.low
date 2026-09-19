@@ -21,24 +21,29 @@ use p256 from "p256.low" .
 use bigint from "bigint.low" .
 
 rem ── 알고리즘 이름 ────────────────────────────────────────────────────────
-rem 1 = RSA PKCS#1 v1.5 + SHA-256 · 2 = ECDSA P-256 + SHA-256 · 0 = 우리가 모른다
+rem 1 = RSA v1.5 + SHA-256 · 2 = ECDSA + SHA-256 · 3 = RSA v1.5 + SHA-384 ·
+rem 4 = ECDSA + SHA-384 · 0 = 우리가 모른다
+rem ☞ SHA-384 은 2026-09-18 에 들어왔다(소유자 결정 — 빌트인 `sha384`). 그전에는 진짜 체인의
+rem   중간 마디를 **거절만** 했다: 안 지은 것을 지은 척하지 않는 쪽이었고, 이제 지었다.
 export fn sig_kind input c slice u8 . output u64 . do
   let o u64 be x509.sigalg_oid_off c .
   let n u64 be x509.sigalg_oid_len c .
   if eq o 0 . do  return 0 . end .
   if eq n 9 . do
-    rem 2a 86 48 86 f7 0d 01 01 0b
+    rem 2a 86 48 86 f7 0d 01 01 <0b=SHA-256 · 0c=SHA-384>
     if eq (index c o) 42 . do
       if eq (index c (add o 3)) 134 . do
         if eq (index c (add o 8)) 11 . do  return 1 . end .
+        if eq (index c (add o 8)) 12 . do  return 3 . end .
       end .
     end .
   end .
   if eq n 8 . do
-    rem 2a 86 48 ce 3d 04 03 02
+    rem 2a 86 48 ce 3d 04 03 <02=SHA-256 · 03=SHA-384>
     if eq (index c o) 42 . do
       if eq (index c (add o 3)) 206 . do
         if eq (index c (add o 7)) 2 . do  return 2 . end .
+        if eq (index c (add o 7)) 3 . do  return 4 . end .
       end .
     end .
   end .
@@ -141,7 +146,15 @@ do
   let te u64 be x509.tbs_end c .
   guard gt tb 0 . else return 0 .
   guard gt te tb . else return 0 .
-  guard eq (sha256 (subslice c tb te) (subslice wb 0 32)) 32 . else return 0 .
+  rem ★ 해시는 서명 알고리즘이 고른다 — 그것이 OID 가 말하는 절반이다.
+  var hn u64 be 32 .
+  if lt kind 3 . do
+    guard eq (sha256 (subslice c tb te) (subslice wb 0 32)) 32 . else return 0 .
+  end .
+  if ge kind 3 . do
+    guard eq (sha384 (subslice c tb te) (subslice wb 0 48)) 48 . else return 0 .
+    set hn 48 .
+  end .
 
   let so u64 be x509.sig_off c .
   let sl u64 be x509.sig_len c .
@@ -153,7 +166,8 @@ do
   let ko u64 be der.key_off issuer sp .
   guard gt ko 0 . else return 0 .
 
-  if eq kind 1 . do
+  if lt kind 3 . do  set kind kind . end .
+  if eq (mod kind 2) 1 . do
     let no u64 be der.rsa_n_off issuer ko .
     let nl u64 be der.rsa_n_len issuer ko .
     let e  u64 be der.rsa_e issuer ko .
@@ -169,8 +183,13 @@ do
     let k u64 be shr nl 1 .
     let need u64 be add k 4 .
     guard ge (len wu) (mul need 7) . else return 0 .
-    return rsa.verify_pkcs1 (subslice c so (add so sl)) (subslice issuer no (add no nl)) e (subslice wb 0 32)
-             (subslice wb 64 576)
+    rem DigestInfo 의 머리 — 해시마다 다르다.
+    var di slice u8 be "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20" .
+    if eq hn 48 . do
+      set di "\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30" .
+    end .
+    return rsa.verify_pkcs1 (subslice c so (add so sl)) (subslice issuer no (add no nl)) e (subslice wb 0 hn)
+             di (subslice wb 64 576)
              (subslice wu 0 need) (subslice wu need (mul need 2)) (subslice wu (mul need 2) (mul need 3))
              (subslice wu (mul need 3) (mul need 4)) (subslice wu (mul need 4) (mul need 5))
              (subslice wu (mul need 5) (mul need 6)) (subslice wu (mul need 6) (mul need 7)) .
@@ -188,6 +207,9 @@ do
   guard eq (curve (subslice wu 0 64) (subslice wb 128 256)) 1 . else return 0 .
   guard eq (bigint.from_bytes (subslice wb 64 96) (subslice wu 64 80) 16) 16 . else return 0 .
   guard eq (bigint.from_bytes (subslice wb 96 128) (subslice wu 80 96) 16) 16 . else return 0 .
+  rem ★★ ECDSA 는 해시를 **곡선의 크기만큼 왼쪽에서** 잘라 쓴다(RFC 6979 §2.3.2 · SEC1 §4.1.4).
+  rem   P-256 에 SHA-384 을 쓰면 48 바이트 가운데 **앞 32**만 쓴다 — 뒤를 쓰거나 전체를 넣으면
+  rem   서명이 언제나 틀린 것처럼 보인다(그리고 그 실패는 「서명 오류」로만 나온다).
   guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 96 112) 16) 16 . else return 0 .
   guard eq (bigint.from_bytes (subslice issuer (add ko 1) (add ko 33)) (subslice wu 112 128) 16) 16 . else return 0 .
   guard eq (bigint.from_bytes (subslice issuer (add ko 33) (add ko 65)) (subslice wu 128 144) 16) 16 . else return 0 .

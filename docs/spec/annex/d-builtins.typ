@@ -11,7 +11,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 189 개다.]
+  #para("2")[모두 190 개다.]
 
   #tbl("내장 연산과 그 뜻")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
@@ -169,6 +169,7 @@
         [`select`], [가림막에 따라 두 값 중 하나를 레인마다 고른다],
         [`send`], [액터에 메시지를 보낸다],
         [`sha256`], [SHA-256],
+        [`sha384`], [SHA-384 — SHA-512 의 다른 시작값이고 앞 48 바이트다],
         [`sha512`], [SHA-512],
         [`shl`], [왼쪽으로 민다. 시프트 양이 폭 이상이면 트랩한다],
         [`shr`], [오른쪽으로 민다. 부호 있는 값은 산술 이동이다],
@@ -215,7 +216,7 @@
   ]
 
   #note[
-    실측(2026-08-25): 189 개 가운데 지역 이름 선언이 막히는 것은 **174 개**,
+    실측(2026-08-25): 190 개 가운데 지역 이름 선언이 막히는 것은 **175 개**,
     쓸 수 있는 것은 **15 개**다 — `borrow` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `range` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 **이름 충돌 규칙을 틀리게 말하기**
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
@@ -259,14 +260,14 @@ ret                   reverse               rng_next              rotate
 rotl                  rotr                  round                 same_slice
 sat_add               sat_mul               sat_sub               scan
 seg                   segs                  select                send
-sha256                sha512                shl                   shr
-sin                   size_of               skip                  some_value
-spawn                 splat                 sqrt                  stack_new
-store                 store_masked          str_from_cstr         sub
-subslice              sum_neumaier          sum_seq               swap
-take                  trailing_zeros        try_view              union
-value_or              view                  view_array            view_segments
-widen                 wrap_add              wrap_mul              wrap_shl
-wrap_shr              wrap_sub              write_out             write_volatile
-zip")
+sha256                sha384                sha512                shl
+shr                   sin                   size_of               skip
+some_value            spawn                 splat                 sqrt
+stack_new             store                 store_masked          str_from_cstr
+sub                   subslice              sum_neumaier          sum_seq
+swap                  take                  trailing_zeros        try_view
+union                 value_or              view                  view_array
+view_segments         widen                 wrap_add              wrap_mul
+wrap_shl              wrap_shr              wrap_sub              write_out
+write_volatile        zip")
 ]

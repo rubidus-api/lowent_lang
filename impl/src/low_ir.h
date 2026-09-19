@@ -184,6 +184,7 @@ typedef enum {
     IRW_RNGNEXT,  // (u64 상태) → u64  xoshiro-류 다음 값 — **권한 없음**(시드는 호출자 것)
     IRW_SHA256,
     IRW_SHA512,   // (slice, mut slice 32) → u64  써 넣은 바이트 수 — **권한 없음**(순수)
+    IRW_SHA384,   // ★ (slice, mut slice 48) → u64 — SHA-512 의 다른 시작값 (X-0032)
     // ★★★ **소켓 리프** (2026-07-23) — 전부 `cap net` 을 **대야** 한다(파일과 같은 규율).
     //   AF_UNIX socketpair 로 시작: 주소·listen/accept 없이 **두 연결된 fd** — 결정적 loopback 이라
     //   VM·native 가 같은 바이트를 본다(오라클 안). 핸들은 **풀 인덱스**(raw fd 위조 방지, 파일과 같다).

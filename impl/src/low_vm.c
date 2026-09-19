@@ -51,6 +51,7 @@ extern char **environ;   // ★ cap env (RFC-0030 D2′) — 호스트 프로파
 //   ☞ 쪼개면서 따라왔다 — `low_ir.c` 는 이것을 **한 번도 안 쓴다**(실측 0 회).
 LOW_SHA256_BODY
 LOW_SHA512_BODY
+LOW_SHA384_BODY
 
 // ★ `round` 는 **반올림 방향을 이름이 못 말한다** — C 의 round() 는 half-away-from-zero 다.
 //   방출 C 도 같은 함수를 쓰므로 두 뒤끝이 같다. (banker's rounding 이 필요하면 별도 이름으로.)
@@ -2678,6 +2679,20 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 long long wrote5 = lw_sha512(src.p, src.n, (unsigned char *)(proven_u8 *)dst.p, dst.n);
                 stack[sp++] = vmv_int((proven_i64)wrote5);
+                break;
+            }
+            // ★ SHA-384 — SHA-512 의 다른 시작값이고 앞 48 바이트만 쓴다. 버퍼가 48 보다
+            //   짧으면 0 을 답하고 **아무것도 안 쓴다**(sha256·sha512 와 같은 규율).
+            case IRW_SHA384: {   // (src, mut dst48) → u64 써 넣은 바이트 수 — 권한 없음
+                if (sp < 2) return false;
+                bool t2c_; vmv_t dst = vm_through(vm, stack[--sp], true, &t2c_);
+                bool t1c_; vmv_t src = vm_through(vm, stack[--sp], false, &t1c_);
+                if ((src.tag != VMV_SLICE && src.tag != VMV_VARRAY && src.tag != VMV_VIEW) ||
+                    (dst.tag != VMV_SLICE && dst.tag != VMV_VARRAY)) {
+                    vm_diag(vm->diags, "E-VM-TYPE", "sha384 needs (bytes, mutable 48-byte slice)"); return false;
+                }
+                long long wrote3 = lw_sha384(src.p, src.n, (unsigned char *)(proven_u8 *)dst.p, dst.n);
+                stack[sp++] = vmv_int((proven_i64)wrote3);
                 break;
             }
             case IRW_RANDBYTES: {   // cap random — (mut slice) → u64 채운 바이트 수

@@ -983,7 +983,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_ELSE_NONE: case IRW_ELSE_ERR: case IRW_TRY:
         case IRW_BNEW: case IRW_CONTAINS: case IRW_COUNT:   // ★ 비트셋 = 64비트 마스크
         case IRW_SAMESL:                                    // ★ 같은 바이트인가 — 두 슬라이스 → 참거짓
-        case IRW_SHA256: case IRW_SHA512: case IRW_CRC32:   // ★ 해시 — 태그와 **같은 함수**를 부른다
+        case IRW_SHA256: case IRW_SHA512: case IRW_SHA384: case IRW_CRC32:   // ★ 해시 — 태그와 **같은 함수**를 부른다
         case IRW_HASH64: case IRW_RNGNEXT: case IRW_RANDBYTES:  // ★ 해시·난수 — 같은 모양
         case IRW_VREVERSE: case IRW_VROTATE: case IRW_VSHUFFLE:  // ★ 레인 순열 — 그냥 레인 옮기기
         case IRW_VAVG:                                          // ★ 레인 평균 — (a+b+1)>>1
@@ -1369,7 +1369,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             //   그 목록을 아무도 정기적으로 안 읽었다(2026-08-16 벡터 저장과 **같은 부류**:
             //   *느린 게 아니라 부를 수 없었다*. 답은 맞으니 차등 스윕도 못 본다).
             //   ★ 모양은 단순하다: `(바이트, 쓰기 가능한 바이트) → 쓴 길이`.
-            case IRW_SHA256: case IRW_SHA512:
+            case IRW_SHA256: case IRW_SHA512: case IRW_SHA384:
                             if (st.n < 2 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL) return false;
                             st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_SAMESL:
@@ -2906,8 +2906,9 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             //   가장 확실한 방법은 같은 코드를 부르는 것이다. 다른 것은 값이 오는 자리뿐:
             //   태그는 `lowv`, 여기는 `ss[]`(포인터+길이 그대로).
             //   ★ 쓰기 대상의 const 를 벗긴다 — 빠른 경로가 `index.store` 에서 이미 하는 일이다.
-            case IRW_SHA256: case IRW_SHA512: {
-                const char *fn = in->w == IRW_SHA256 ? "lw_sha256" : "lw_sha512";
+            case IRW_SHA256: case IRW_SHA512: case IRW_SHA384: {
+                const char *fn = in->w == IRW_SHA256 ? "lw_sha256"
+                               : (in->w == IRW_SHA384 ? "lw_sha384" : "lw_sha512");
                 fprintf(out, "    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp];\n"
                              "      st[sp++] = %s(s_.p, s_.n, (unsigned char *)d_.p, d_.n); }\n", fn);
                 ks.n -= 2; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.n++;
@@ -5915,6 +5916,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_SHA512:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]); sp--;\n"
                           "      st[sp-1] = lw_int(lw_sha512(s_.p, s_.n, (unsigned char *)d_.p, d_.n)); }\n", out); break;
+                case IRW_SHA384:
+                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]); sp--;\n"
+                          "      st[sp-1] = lw_int(lw_sha384(s_.p, s_.n, (unsigned char *)d_.p, d_.n)); }\n", out); break;
                 case IRW_RANDBYTES:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); unsigned long hfk_ = 1;\n"
                           "      int hf_ = lw_hf_probe(\"random\", &hfk_);\n"

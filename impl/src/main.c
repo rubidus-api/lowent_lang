@@ -1086,6 +1086,8 @@ int main(int argc, char **argv) {
     //   상한이었고, 스크래치를 명령 수에 비례해 받는 op(regex 의 캡처 슬롯 ni×16)은 그 벽에
     //   막혀 **CLI 로 시험할 수가 없었다.** 도구가 못 재는 것은 아무도 안 재게 된다(교훈 4).
     static proven_u8 sbufs[16][8192];
+    // ★ `@file` 인자 한 개의 상한 — 정적 칸이 아니라 **읽어서 잡는다**(X-0034 ⓑ).
+    #define LOW_ARGFILE_MAX (16u * 1024u * 1024u)
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-t") == 0) want_tokens = true;
         else if (strcmp(argv[i], "--cst") == 0) want_cst = true;
@@ -1223,6 +1225,43 @@ int main(int argc, char **argv) {
         //   다른 op 의 --run 인자 규칙(숫자·[슬라이스])은 그대로 둔다 — main 만 소비한다.
         else if (run_op && npaths && strcmp(run_op, "main") == 0 && nraw < 64) {
             rawargs[nraw++] = argv[i];
+        }
+        // ★★★★ **`@파일` — 배열 인자를 파일에서 읽는다** (X-0034 ⓑ, 소유자 선택 2026-09-19).
+        //   브래킷 인자는 정적 칸(8192 B)에 담겨 **1024 조각**이 상한이었고, 그 벽이
+        //   라이브러리의 자리 배치를 바꾸고 있었다 — `lib/p256.low` 의 머리글이 적어 둔 그대로다
+        //   (*"처음엔 1400 을 요구했는데 그러면 --run 의 배열 인자 상한을 넘어 시험이 못 돈다"*).
+        //   ⇒ 도구가 못 재서 코드를 줄이는 일을 끝낸다. 파일의 **바이트 그대로**가 조각이 된다.
+        //   ☞ 자르지 않는다: 못 읽거나 너무 크면 **말하고 멈춘다**.
+        else if (run_op && npaths && argv[i][0] == '@' && argv[i][1] && nshaped < LOW_HDR_MAXP) {
+            const char *fp = argv[i] + 1;
+            FILE *af = fopen(fp, "rb");
+            if (!af) {
+                fprintf(stderr, "E-CLI-ARGFILE: cannot read `%s` — a `@file` argument is the "
+                        "BYTES of that file, used as one slice argument\n", fp);
+                return 2;
+            }
+            if (fseek(af, 0, SEEK_END) != 0) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: `%s` is not seekable\n", fp); return 2; }
+            long alen = ftell(af);
+            rewind(af);
+            if (alen < 0) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: cannot size `%s`\n", fp); return 2; }
+            if ((unsigned long)alen > LOW_ARGFILE_MAX) {
+                fclose(af);
+                fprintf(stderr, "E-CLI-ARGTOOBIG: `%s` is %ld bytes and this tool carries %llu per "
+                        "`@file` argument — refusing rather than truncating (a silently short slice "
+                        "makes the program answer \"buffer too small\" and sends you hunting in your "
+                        "own code)\n", fp, alen, (unsigned long long)LOW_ARGFILE_MAX);
+                return 2;
+            }
+            proven_u8 *ab = (proven_u8 *)calloc((size_t)alen ? (size_t)alen : 1, 1);
+            if (!ab) { fclose(af); fprintf(stderr, "E-CLI-ARGFILE: out of memory for `%s`\n", fp); return 2; }
+            if (alen > 0 && fread(ab, 1, (size_t)alen, af) != (size_t)alen) {
+                fclose(af); free(ab);
+                fprintf(stderr, "E-CLI-ARGFILE: short read on `%s` — a half-read argument is not an argument\n", fp);
+                return 2;
+            }
+            fclose(af);
+            any_bracket = true;
+            shaped[nshaped++] = (low_ir_arg_t){ .is_slice = true, .bytes = ab, .n = (proven_size_t)alen };
         }
         else if (run_op && npaths && argv[i][0] == '[' && nshaped < LOW_HDR_MAXP) {
             any_bracket = true;
@@ -1957,23 +1996,60 @@ int main(int argc, char **argv) {
             // ★ RFC-0030 D2′ — 엔트리(main)가 cap 파라미터를 선언했으면 CLI 의 나머지는
             //   **프로그램 인자**다: cap 자리는 불투명 토큰으로 채우고, 원문 문자열이
             //   `count`/`arg` 가 읽는 목록이 된다. 다른 op 의 --run 규칙은 불변.
-            const low_ir_def_t *entry_d = NULL;
-            if (strcmp(run_op, "main") == 0)
+            // ★★★★ **권한 자리는 어느 op 에서든 채운다** (X-0033 ⓐ, 소유자 선택 2026-09-19).
+            //   전에는 `main` 에서만 채웠다. 그래서 `cap` 을 받는 **증인 프로그램**은 VM 으로
+            //   부를 수가 없었고(`E-VM-ARITY`), 이 저장소의 오라클 — 두 뒤끝이 같은 답을 내는가 —
+            //   이 인증서 검증 경로에서 **통째로 끊겨 있었다**(certverify·x509dump·anchorfind 셋은
+            //   네이티브로만 돌려 봤다 = VM 쪽은 아무도 안 봤다).
+            //   ☞ 파라미터 종류표(`param_cap` 비트마스크)가 **이미** 어느 자리가 권한인지 안다.
+            //     권한 없는 op 은 아래 옛 길을 그대로 타므로 골든의 `--run` 자리들은 안 바뀐다.
+            const low_ir_def_t *run_d = NULL;
+            {
+                proven_size_t rl = strlen(run_op);
                 for (proven_size_t q = 0; q < ir.ndefs; q++)
-                    if (ir.defs[q].name.size == 4 &&
-                        memcmp(ir.defs[q].name.ptr, "main", 4) == 0) { entry_d = &ir.defs[q]; break; }
+                    if (ir.defs[q].name.size == rl &&
+                        memcmp(ir.defs[q].name.ptr, run_op, rl) == 0) { run_d = &ir.defs[q]; break; }
+            }
+            bool is_main = strcmp(run_op, "main") == 0;
+            const low_ir_def_t *entry_d = (is_main && run_d) ? run_d : NULL;
             bool entry_caps = entry_d && entry_d->param_cap;
+            // ★★★ **모자랄 때만 채운다.** 옛 규칙은 CLI 인자를 파라미터에 **자리대로** 실었고,
+            //   권한 자리에도 그렇게 실렸다(그 값은 안 쓰인다). 그 규칙을 그대로 두지 않으면
+            //   이미 있는 부름 695 자리와 차등 훑기가 **다른 뜻**이 된다 — 실제로 한 번
+            //   그렇게 갈라졌다(2026-09-19: VM 은 남는 인자를 조용히 버리고 네이티브는 거절했다).
+            //   ⇒ 인자를 **덜 준 경우에만** 권한 자리를 채운다. 그러면 옛 부름은 한 글자도 안 바뀐다.
+            proven_size_t given_n = any_bracket ? nshaped : nrun_args;
+            bool op_caps = !is_main && run_d && run_d->param_cap && given_n < run_d->nparams;
             proven_u8str_view_t pargs[64];
             low_ir_arg_t captoks[LOW_HDR_MAXP];
+            low_ir_arg_t mixed[LOW_HDR_MAXP];
+            proven_size_t nmixed = 0;
             if (entry_caps) {
                 for (proven_size_t q = 0; q < nraw && q < 64; q++)
                     pargs[q] = proven_u8str_view_from_cstr(rawargs[q]);
                 memset(captoks, 0, sizeof captoks);
             }
+            if (op_caps) {
+                // 파라미터를 왼쪽부터 걸으며 권한 자리는 **빈 토큰**으로, 나머지는 CLI 인자로 채운다.
+                memset(mixed, 0, sizeof mixed);
+                proven_size_t take = 0;
+                for (proven_size_t p = 0; p < run_d->nparams && p < LOW_HDR_MAXP; p++) {
+                    if ((run_d->param_cap >> p) & 1u) { nmixed++; continue; }   // 권한 = 0 토큰
+                    if (any_bracket) {
+                        if (take < nshaped) mixed[nmixed] = shaped[take++];
+                    } else if (take < nrun_args) {
+                        mixed[nmixed] = (low_ir_arg_t){ .is_slice = false, .v = run_args[take++] };
+                    }
+                    nmixed++;
+                }
+            }
             low_ir_run_result_t rr =
                 entry_caps
                   ? low_ir_run_argv(&ir, proven_u8str_view_from_cstr(run_op),
                                     captoks, entry_d->nparams, heap, &ir.diags, pargs, nraw)
+                  : op_caps
+                  ? low_ir_run_argv(&ir, proven_u8str_view_from_cstr(run_op),
+                                    mixed, nmixed, heap, &ir.diags, NULL, 0)
                   : any_bracket
                   ? low_ir_run_argv(&ir, proven_u8str_view_from_cstr(run_op),
                                     shaped, nshaped, heap, &ir.diags, NULL, 0)

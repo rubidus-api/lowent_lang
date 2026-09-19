@@ -6661,7 +6661,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //   프로그램 안의 `f32` 와 밖에서 들어온 `f32` 가 같은 정밀도를 갖는다(VM 도 같은 자리에서 한다).
     fputs("struct lw_entry { const char *name; lowv (*fn)(const lowv *); int nparams; unsigned pslice;"
           " unsigned pflt; unsigned pf32; unsigned pu64; unsigned pstruct; int ounsigned; unsigned char psidx[LW_MAXP];"
-          " struct lw_prng prng[LW_MAXP]; struct lw_prng ptype[LW_MAXP]; };\n", out);
+          " struct lw_prng prng[LW_MAXP]; struct lw_prng ptype[LW_MAXP]; unsigned pcap; };\n", out);
     // ★★★ R2 — **진짜 스레드.** `parallel s split` op 마다 `<name>_par` 를 낸다:
     //   슬라이스를 K 조각으로 나누고 **각 조각을 pthread 로** 돌린 뒤, `reduce` 로 합친다.
     //   ★ 청크는 **부분 슬라이스**다 — 같은 버퍼를 가리키므로 쓰기가 그대로 반영된다.
@@ -6756,7 +6756,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
             put_i64(out, ir->defs[i].ptype[p].rlo); fputs(",", out);
             put_i64(out, ir->defs[i].ptype[p].rhi); fputs("}", out);
         }
-        fputs("} },\n", out);
+        fprintf(out, "}, %uu },\n", ir->defs[i].param_cap);
         // ★★★ R2 — `parallel` op 은 **스레드판도** 등재한다: `<name>_par`.
         //   같은 인자로 부르면 pthread 로 쪼개 돈다. 결과는 **순차와 비트 동일**해야 한다
         //   (LowentPar.v Qed). 게이트가 그것을 **요구한다** — 그래야 증명이 값을 한다.

@@ -9,6 +9,7 @@
 !/pkg.low
 !/impl/
 !/lib/
+!/apps/
 !/skills/
 !/docs/
 /docs/*

@@ -99,7 +99,7 @@ build/lowentc                               # 전체 옵션 도움말
 | `run_tests.c` | 단위 시험 (`make test`) |
 | `smoke.sh` · `smoke/` | 공개 회귀 시험 (`make check`) |
 | `vm_*.low` 와 그 밖의 `*.low` | 기능별 픽스처. 대부분 파일 머리 `rem` 에 무엇을 지키는지 적혀 있다 |
-| `prog/` | 실제 쓰임에 가까운 작은 프로그램들 (`lowdiff`, `grep`, `json` …) |
+| `prog/` | 실제 쓰임에 가까운 작은 프로그램들 (`grep`, `json`, `chcheck` …). ☞ **제품**은 여기 살지 않는다 — `apps/` 로 갔다(`lowdiff`·`lowget`) |
 | `mod/` | 여러 모듈을 잇는 시험 |
 
 ## 코드 규칙

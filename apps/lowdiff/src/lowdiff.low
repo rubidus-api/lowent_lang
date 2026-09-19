@@ -18,8 +18,20 @@ rem     그것이 가리키는 것으로 보인다. 「따라가지 않고 제�
 
 module lowdiff .
 
-use files from "../../../lib/file.low" .
-use strbuf from "../../../lib/strbuf.low" .
+use files .
+use strbuf .
+use io .
+
+rem ★★★ **끝까지 쓴다.** 잎(`write_out`)은 **짧게 쓴다** — 파이프가 차면 아홉 바이트짜리
+rem   줄도 잘린다. 그러면 이 도구의 답(발견 한 줄)이 **조용히 반 줄이 된다**.
+rem   루프는 `io.write_all` 이 진다(X-0037) — 여기는 그것을 이 파일의 관용구(쓴 수를 u64 로
+rem   받는 모양)에 맞추는 여섯 줄이다.
+proc emit input out cap io . input d u64 . input s slice u8 . output u64 . effects io .
+do
+  let r option u64 . be io.write_all out d s .
+  guard is_some r . else return 0 .
+  return some_value r .
+end .
 
 rem ── 한도. 넘치면 **말하고 멈춘다**(3번 종료 코드). 조용히 자르는 것이 이 저장소가 가장
 rem    무서워하는 일이다.
@@ -272,11 +284,11 @@ do
   let a0 option slice u8 . be arg a 0 .
   let a1 option slice u8 . be arg a 1 .
   if eq (is_some a0) false . do
-    set w (write_out out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
+    set w (emit out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
   end .
   guard is_some a0 . else return 2 .
   if eq (is_some a1) false . do
-    set w (write_out out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
+    set w (emit out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
   end .
   guard is_some a1 . else return 2 .
   let rootA slice u8 be some_value a0 .
@@ -394,16 +406,16 @@ do
           let plb u64 be index scratch 0 .
 
           if eq side 1 . do
-            set w (write_out out 1 "deleted ") .
-            set w (write_out out 1 childrel) .
-            set w (write_out out 1 "\n") .
+            set w (emit out 1 "deleted ") .
+            set w (emit out 1 childrel) .
+            set w (emit out 1 "\n") .
             set diffs (add diffs 1) .
             set ia (add ia 1) .
           end .
           if eq side 2 . do
-            set w (write_out out 1 "added ") .
-            set w (write_out out 1 childrel) .
-            set w (write_out out 1 "\n") .
+            set w (emit out 1 "added ") .
+            set w (emit out 1 childrel) .
+            set w (emit out 1 "\n") .
             set diffs (add diffs 1) .
             set ib (add ib 1) .
           end .
@@ -417,15 +429,15 @@ do
             let lp u64 be link_pair fs (subslice pathA 0 pla) (subslice pathB 0 plb) .
             var skip_pair bool be false .
             if eq lp 1 . do
-              set w (write_out out 1 "symlink ") .
-              set w (write_out out 1 childrel) .
-              set w (write_out out 1 "\n") .
+              set w (emit out 1 "symlink ") .
+              set w (emit out 1 childrel) .
+              set w (emit out 1 "\n") .
               set skip_pair true .
             end .
             if eq lp 2 . do
-              set w (write_out out 1 "changed ") .
-              set w (write_out out 1 childrel) .
-              set w (write_out out 1 "\n") .
+              set w (emit out 1 "changed ") .
+              set w (emit out 1 childrel) .
+              set w (emit out 1 "\n") .
               set diffs (add diffs 1) .
               set skip_pair true .
             end .
@@ -437,9 +449,9 @@ do
             if is_some tb . do set kb (some_value tb) . end .
             if skip_pair . do set ka 7 . set kb 7 . end .
             if ne ka kb . do
-              set w (write_out out 1 "changed ") .
-              set w (write_out out 1 childrel) .
-              set w (write_out out 1 "\n") .
+              set w (emit out 1 "changed ") .
+              set w (emit out 1 childrel) .
+              set w (emit out 1 "\n") .
               set diffs (add diffs 1) .
             end .
             if eq ka kb . do
@@ -464,15 +476,15 @@ do
               if eq ka 0 . do
                 let v u64 be same_file fs (subslice pathA 0 pla) (subslice pathB 0 plb) chunkA chunkB .
                 if eq v 1 . do
-                  set w (write_out out 1 "changed ") .
-                  set w (write_out out 1 childrel) .
-                  set w (write_out out 1 "\n") .
+                  set w (emit out 1 "changed ") .
+                  set w (emit out 1 childrel) .
+                  set w (emit out 1 "\n") .
                   set diffs (add diffs 1) .
                 end .
                 if eq v 2 . do
-                  set w (write_out out 1 "unreadable ") .
-                  set w (write_out out 1 childrel) .
-                  set w (write_out out 1 "\n") .
+                  set w (emit out 1 "unreadable ") .
+                  set w (emit out 1 childrel) .
+                  set w (emit out 1 "\n") .
                   set diffs (add diffs 1) .
                   set io_bad true .
                 end .
@@ -483,9 +495,9 @@ do
               end .
               if eq ka 2 . do
                 rem 보통 파일도 디렉터리도 아닌 것(장치·파이프 등) — 견주지 않고 **말한다**
-                set w (write_out out 1 "skipped ") .
-                set w (write_out out 1 childrel) .
-                set w (write_out out 1 "\n") .
+                set w (emit out 1 "skipped ") .
+                set w (emit out 1 childrel) .
+                set w (emit out 1 "\n") .
               end .
             end .
             set ia (add ia 1) .
@@ -497,7 +509,7 @@ do
   end .
 
   if limit_hit . do
-    set w (write_out out 2 "lowdiff: an internal limit was reached (entries per directory, path length, or pending directories) — the comparison is INCOMPLETE\n") .
+    set w (emit out 2 "lowdiff: an internal limit was reached (entries per directory, path length, or pending directories) — the comparison is INCOMPLETE\n") .
     return 3 .
   end .
   if gt diffs 0 . do return 1 . end .

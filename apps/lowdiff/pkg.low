@@ -1,0 +1,11 @@
+rem ★★★ `lowdiff` 의 매니페스트 — 이 앱의 **정체**를 한 곳에 적는다(RFC-0031 §6.1).
+rem
+rem ☞ 의존이 여기 안 적혀 있는 것은 **빠진 것이 아니다.** 소스가 `use files .` 처럼 이름만
+rem   부르고, 도구가 **표준 모듈**로 해소한다(RFC-0011 §6.3). 이 앱은 이 저장소의 자리가
+rem   아니라 **언어의 표준 라이브러리**에 기댄다.
+
+package name "lowdiff" .
+package version "0.1.0" .
+package description "두 폴더를 내용으로 비교한다 — 크기와 시각이 아니라 바이트로" .
+package license "MIT" .
+build entry "src/lowdiff.low" .

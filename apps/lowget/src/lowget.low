@@ -49,19 +49,20 @@ rem   (서버가 준 Location · 다음에 부를 url · 지금 url 의 권한�
 
 module lowget .
 
-use net from "../../../lib/net.low" .
-use tlscli from "../../../lib/tlscli.low" .
-use tlssrv from "../../../lib/tlssrv.low" .
-use tls13 from "../../../lib/tls13.low" .
-use x25519 from "../../../lib/x25519.low" .
+use net .
+use tlscli .
+use tlssrv .
+use tls13 .
+use x25519 .
 rem ☞ [http](http) 를 들이지 **않는다**. 응답의 상태 줄만 보면 되는데, 그 모듈을 함께 들이면
 rem   `value_off`·`body_off` 가 [der](der)·[pem](pem) 의 같은 이름과 부딪친다 — 이름공간이
 rem   평평하고 씨의 심볼 이름도 평평하기 때문이다(도구가 `E-ABI-NAME-DUP` 으로 거절한다).
 rem   쓰지 않는 것을 들이지 않는 것이 여기서는 고침이기도 하다.
-use verify from "../../../lib/verify.low" .
-use trust from "../../../lib/trust.low" .
-use x509 from "../../../lib/x509.low" .
-use clock from "../../../lib/clock.low" .
+use verify .
+use trust .
+use x509 .
+use clock .
+use io .
 
 rem ★ 정확히 n 바이트를 받는다. **한 번의 recv 가 전부를 준다는 보장이 없다** — 그 가정이
 rem   네트워크 코드에서 가장 흔한 조용한 실패다.
@@ -501,19 +502,14 @@ fn chunk_size input l slice u8 . input n u64 . output u64 . do
   return add v 1 .
 end .
 
-rem 끝까지 쓴다 — 한 번의 `write_out` 이 전부를 쓴다는 보장이 없다(나가는 쪽의 `send_all`).
+rem 끝까지 쓴다 — 한 번의 `write_out` 이 전부를 쓴다는 보장이 없다.
+rem ★ 루프는 **라이브러리가 진다**(`io.write_all`, X-0037). 전에는 이 파일과 `lowdiff` 가
+rem   **각각** 같은 루프를 지고 있었다 — 같은 함정을 두 번 밟은 것이 아니라, 한 번도
+rem   라이브러리가 그것을 대신해 주지 않은 것이다.
 proc put_all input out cap io . input b slice u8 . output u64 . effects io .
 do
-  if eq (len b) 0 . do  return 1 . end .
-  var wrote u64 be 0 .
-  var spin u64 be 0 .
-  while lt wrote (len b) . do
-    let w u64 be write_out out 1 (subslice b wrote (len b)) .
-    guard gt w 0 . else return 0 .
-    set wrote (add wrote w) .
-    set spin (add spin 1) .
-    guard le spin 4096 . else return 0 .
-  end .
+  let r option u64 . be io.write_all out 1 b .
+  guard is_some r . else return 0 .
   return 1 .
 end .
 

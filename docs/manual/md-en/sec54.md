@@ -64,7 +64,7 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | Layouts and views — chapter 13 | `encode` `try_view` `view_segments` `seg` `segs` `capacity` |
 | Borrows and regions — chapter 12 · chapter 18 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap` |
 | Contracts and errors — chapter 14 | `range` `ret` `expect` `panic` |
-| Hashes — chapter 33 | `crc32` `hash_bytes` `sha256` `sha512` |
+| Hashes — chapter 33 | `crc32` `hash_bytes` `sha256` `sha384` `sha512` |
 | C strings — chapter 29 | `cstr_of` `str_from_cstr` |
 | Host leaves — chapter 32 | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `rng_next` `reactor_new` `r_read` `r_write` |
 

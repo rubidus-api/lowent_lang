@@ -5,11 +5,13 @@ rem   서명받았는가**를 답한다. 체인을 잇는 판단·유효기간·
 rem   되풀이해 짓는다.
 rem
 rem ★★ **서명 알고리즘을 이름으로 가른다.** 인증서가 스스로 적은 OID 를 보고 고르되, 우리가
-rem   검증할 수 있는 둘만 받는다: `sha256WithRSAEncryption`(1.2.840.113549.1.1.11) ·
-rem   `ecdsa-with-SHA256`(1.2.840.10045.4.3.2). 모르는 알고리즘은 **거절**한다 — 모르는 것을
-rem   통과시키면 그때부터 이 함수의 답은 «확인했다» 가 아니라 «못 알아봤다» 가 된다.
+rem   검증할 수 있는 넷만 받는다: `sha256WithRSAEncryption`(1.2.840.113549.1.1.11) ·
+rem   `sha384WithRSAEncryption`(…1.1.12) · `ecdsa-with-SHA256`(1.2.840.10045.4.3.2) ·
+rem   `ecdsa-with-SHA384`(…4.3.3). 곡선은 **공개키 길이**가 가른다(65 = P-256 · 97 = P-384).
+rem   모르는 알고리즘은 **거절**한다 — 모르는 것을 통과시키면 그때부터 이 함수의 답은
+rem   «확인했다» 가 아니라 «못 알아봤다» 가 된다.
 rem
-rem ☞ 안 지은 것: SHA-384/512 계열 · RSA-PSS 서명 인증서 · Ed25519 인증서 · 폐기.
+rem ☞ 안 지은 것: SHA-512 계열 · RSA-PSS 서명 인증서 · Ed25519 인증서 · P-521 · 폐기.
 rem   그 인증서를 만나면 **거절한다**(조용히 지나가지 않는다).
 
 module verify .
@@ -18,6 +20,7 @@ use x509 from "x509.low" .
 use der from "der.low" .
 use rsa from "rsa.low" .
 use p256 from "p256.low" .
+use p384 from "p384.low" .
 use bigint from "bigint.low" .
 
 rem ── 알고리즘 이름 ────────────────────────────────────────────────────────
@@ -54,12 +57,14 @@ rem ── ECDSA 서명은 DER 이다: SEQUENCE { r INTEGER, s INTEGER } ──�
 rem ★ INTEGER 는 **앞에 0 이 붙을 수 있고**(최상위 비트가 1 이면 붙는다) 짧을 수도 있다.
 rem   그래서 32 바이트 자리에 **오른쪽 맞춤**으로 옮긴다 — 그냥 베끼면 한 바이트 밀린 값으로
 rem   검증하게 되고, 그것은 언제나 «서명이 틀렸다» 로만 보인다.
-export proc ecdsa_rs input sig slice u8 . input out mut slice u8 . output u64 . effects none . do
-  guard ge (len out) 64 . else return 0 .
+export proc ecdsa_rs input sig slice u8 . input out mut slice u8 . input sz u64 . output u64 . effects none . do
+  rem ★ `sz` 는 **곡선의 크기**다(P-256 은 32 · P-384 은 48). 값이 아니라 자리를 정한다.
+  guard gt sz 0 . else return 0 .
+  guard ge (len out) (mul sz 2) . else return 0 .
   guard gt (len sig) 8 . else return 0 .
   guard eq (der.tag_at sig 0) 48 . else return 0 .
   var i u64 be 0 .
-  while lt i 64 . do  set (index out i) 0 .  set i (add i 1) .  end .
+  while lt i (mul sz 2) . do  set (index out i) 0 .  set i (add i 1) .  end .
   let ro u64 be der.value_off sig 0 .
   guard gt ro 0 . else return 0 .
   guard eq (der.tag_at sig ro) 2 . else return 0 .
@@ -72,32 +77,32 @@ export proc ecdsa_rs input sig slice u8 . input out mut slice u8 . output u64 . 
   let sv u64 be der.value_off sig so .
   let sl u64 be der.value_len sig so .
   guard gt sv 0 . else return 0 .
-  rem 앞의 0 을 떼고, 32 를 넘으면 이 곡선의 값이 아니다.
+  rem 앞의 0 을 떼고, 곡선 크기를 넘으면 이 곡선의 값이 아니다.
   var rs2 u64 be rv .
   var rn2 u64 be rl .
-  while gt rn2 32 . do
+  while gt rn2 sz . do
     guard eq (index sig rs2) 0 . else return 0 .
     set rs2 (add rs2 1) .
     set rn2 (sub rn2 1) .
   end .
   var ss2 u64 be sv .
   var sn2 u64 be sl .
-  while gt sn2 32 . do
+  while gt sn2 sz . do
     guard eq (index sig ss2) 0 . else return 0 .
     set ss2 (add ss2 1) .
     set sn2 (sub sn2 1) .
   end .
   var a u64 be 0 .
   while lt a rn2 . do
-    set (index out (add (sub 32 rn2) a)) (index sig (add rs2 a)) .
+    set (index out (add (sub sz rn2) a)) (index sig (add rs2 a)) .
     set a (add a 1) .
   end .
   var b u64 be 0 .
   while lt b sn2 . do
-    set (index out (add (add 32 (sub 32 sn2)) b)) (index sig (add ss2 b)) .
+    set (index out (add (add sz (sub sz sn2)) b)) (index sig (add ss2 b)) .
     set b (add b 1) .
   end .
-  return 64 .
+  return mul sz 2 .
 end .
 
 rem ── P-256 의 상수 ────────────────────────────────────────────────────────
@@ -126,6 +131,69 @@ export proc curve input cw mut slice u64 . input w mut slice u8 . output u64 . e
   return 1 .
 end .
 
+rem ── P-384 의 상수 ────────────────────────────────────────────────────────
+rem   p · n · Gx · Gy 를 24 조각씩(FIPS 186-4 D.1.2.4). 한 자리에만 적는다.
+proc limbs_of96 input h slice u8 . input out mut slice u64 . input w mut slice u8 . output u64 . effects none . do
+  guard eq (len h) 96 . else return 0 .
+  guard ge (len w) 48 . else return 0 .
+  var i u64 be 0 .
+  while lt i 48 . do
+    set (index w i) (narrow u8 (add (mul (hexd (cast u64 (index h (mul i 2)))) 16)
+                                    (hexd (cast u64 (index h (add (mul i 2) 1)))))) .
+    set i (add i 1) .
+  end .
+  return bigint.from_bytes (subslice w 0 48) out 24 .
+end .
+export proc curve384 input cw mut slice u64 . input w mut slice u8 . output u64 . effects none . do
+  guard ge (len cw) 96 . else return 0 .
+  guard eq (limbs_of96 "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff" (subslice cw 0 24) w) 24 . else return 0 .
+  guard eq (limbs_of96 "ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973" (subslice cw 24 48) w) 24 . else return 0 .
+  guard eq (limbs_of96 "aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7" (subslice cw 48 72) w) 24 . else return 0 .
+  guard eq (limbs_of96 "3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f" (subslice cw 72 96) w) 24 . else return 0 .
+  return 1 .
+end .
+
+rem ★★★ **ECDSA P-384 갈래** — `signed_by` 에서 갈라져 나온 자리.
+rem
+rem   자리를 따로 둔 까닭은 **수가 다르기 때문**이다: 조각 24 · 서명 96 바이트 ·
+rem   일터 1364 조각. 한 함수 안에서 두 곡선의 자리를 같이 세면 읽는 이가 매번 어느
+rem   곡선의 수인지 되짚어야 한다.
+rem
+rem ★ 해시는 **왼쪽에서 곡선 크기만큼** 쓴다(SEC1 §4.1.4). SHA-384 은 48 바이트라 그대로고,
+rem   SHA-256 으로 서명한 P-384 키라면 32 바이트를 **오른쪽에 맞춰** 48 자리에 넣는다 —
+rem   그것이 그 해시가 나타내는 수다. 왼쪽에 붙이면 2^128 배가 된 수를 검증하게 된다.
+rem
+rem   wu 는 1600 조각 이상: 곡선 96 · r·s·e·키 120 · 일터 1364.
+proc ec384 input c slice u8 . input so u64 . input sl u64 . input issuer slice u8 . input ko u64 .
+     input mh slice u8 . input hn u64 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
+do
+  guard ge (len wu) 1600 . else return 0 .
+  guard ge (len wb) 256 . else return 0 .
+  guard eq (index issuer ko) 4 . else return 0 .
+  guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 160) 48) 96 . else return 0 .
+  rem e ← 해시를 48 바이트 자리에 오른쪽 맞춤으로.
+  var i u64 be 0 .
+  while lt i 48 . do  set (index wb (add 160 i)) 0 .  set i (add i 1) .  end .
+  let hb u64 be hn .
+  guard le hb 48 . else return 0 .
+  var j u64 be 0 .
+  while lt j hb . do
+    set (index wb (add (add 160 (sub 48 hb)) j)) (index mh j) .
+    set j (add j 1) .
+  end .
+  guard eq (curve384 (subslice wu 0 96) (subslice wb 208 256)) 1 . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 64 112) (subslice wu 96 120) 24) 24 . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 112 160) (subslice wu 120 144) 24) 24 . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 160 208) (subslice wu 144 168) 24) 24 . else return 0 .
+  guard eq (bigint.from_bytes (subslice issuer (add ko 1) (add ko 49)) (subslice wu 168 192) 24) 24 . else return 0 .
+  guard eq (bigint.from_bytes (subslice issuer (add ko 49) (add ko 97)) (subslice wu 192 216) 24) 24 . else return 0 .
+  return p384.ecdsa_ok (subslice wu 96 120) (subslice wu 120 144) (subslice wu 144 168)
+                           (subslice wu 168 216)
+                           (subslice wu 0 24) (subslice wu 24 48)
+                           (subslice wu 48 72) (subslice wu 72 96)
+                           (subslice wu 216 1580) .
+end .
+
 rem ★★★★★ **한 장이 다른 한 장에게 서명받았는가.** 1 = 그렇다 · 0 = 아니다(또는 못 알아본다).
 rem
 rem   wb: 바이트 작업 공간 1024 이상 · wu: 조각 작업 공간 2200 이상.
@@ -135,9 +203,11 @@ export proc signed_by input c slice u8 . input issuer slice u8 .
      input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
 do
   guard ge (len wb) 1024 . else return 0 .
-  rem ★ 실제로 쓰는 만큼만 요구한다: RSA 는 (k+4)×7 ≤ 924, ECDSA 는 곡선 64 + r·s·e·키 80 +
-  rem   일터 924 = 1068. 넉넉함은 공짜가 아니다 — 64 KiB 아레나에서는 그 넉넉함이 곧 다른
-  rem   자리를 못 쓰게 만든다.
+  rem ★ 실제로 쓰는 만큼만 요구한다: RSA 는 (k+4)×7 ≤ 1820(4096 비트), P-256 은 곡선 64 +
+  rem   r·s·e·키 80 + 일터 924 = 1068. 넉넉함은 공짜가 아니다 — 아레나에서는 그 넉넉함이 곧
+  rem   다른 자리를 못 쓰게 만든다.
+  rem   ☞ **P-384 는 1600 을 따로 요구한다**(`ec384` 가 그 자리에서 막는다) — 여기서 한꺼번에
+  rem     1600 을 요구하면 P-384 를 안 쓰는 부르는 쪽까지 그만큼 내놓아야 한다.
   guard ge (len wu) 1100 . else return 0 .
   let kind u64 be sig_kind c .
   guard gt kind 0 . else return 0 .
@@ -201,9 +271,15 @@ do
   rem   다른 자리를 받는 것은 읽는 사람이 매번 확인해야 하는 모양이다 — [der](der) 쪽에
   rem   물어볼 자리로 적어 둔다.
   let kl u64 be der.key_len issuer sp .
+  rem ★★ 곡선은 **공개키의 길이**가 말한다 — 04‖X‖Y 이므로 65 = P-256 · 97 = P-384.
+  rem   ☞ 인증서는 곡선 OID 도 적어 두지만, 우리가 실제로 쓰는 것은 이 바이트들이다.
+  rem     길이와 OID 가 어긋난 인증서라면 **어느 쪽을 믿어도 서명이 맞지 않는다.**
+  if eq kl 97 . do
+    return ec384 c so sl issuer ko (subslice wb 0 hn) hn wb wu .
+  end .
   guard eq kl 65 . else return 0 .
   guard eq (index issuer ko) 4 . else return 0 .
-  guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 128)) 64 . else return 0 .
+  guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 128) 32) 64 . else return 0 .
   guard eq (curve (subslice wu 0 64) (subslice wb 128 256)) 1 . else return 0 .
   guard eq (bigint.from_bytes (subslice wb 64 96) (subslice wu 64 80) 16) 16 . else return 0 .
   guard eq (bigint.from_bytes (subslice wb 96 128) (subslice wu 80 96) 16) 16 . else return 0 .

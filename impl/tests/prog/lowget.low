@@ -7,23 +7,34 @@ rem ★ **왜 이 프로그램인가.** 원장이 재는 사실 하나: 이 저�
 rem   소비자가 **합성 프로그램뿐**이었다(우리가 만든 것을 우리가 읽는다). 클라이언트가 서면
 rem   바깥의 진짜 구현이 반대편에 서고, 그때 비로소 *"규격을 같게 읽었다"* 가 확인된다.
 rem
-rem ★★ **이 판이 아직 확인하지 않는 것: 인증서다.** 체인도 유효기간도 이름도 보지 않는다.
-rem   그래서 `--insecure` 없이는 **거절한다**(종료 코드 4). 검증하지 않는 클라이언트를 조용히
-rem   내놓지 않는다 — 이 프로그램의 위험은 「안 도는 것」이 아니라 「도는데 아무것도 확인하지
-rem   않는 것」이다. 체인 검증은 X-0032 P3 의 자리다.
+rem ★★ **이 판은 인증서를 확인한다**(X-0032 P3 이 선 뒤로): 이름(SAN·와일드카드 한 단계) ·
+rem   유효기간(`cap clock` 이 지금을 준다) · 체인의 마디마다 서명 · CA 표시 · 그리고 체인이
+rem   **믿는 뿌리**에 닿는가(시스템 묶음, `--cafile` 로 갈아탈 수 있다).
+rem   확인을 건너뛰려면 `--insecure` 라고 **적어야** 하고, 그러면 도구가 stderr 에 그 사실을
+rem   한 줄로 말한다. 검증하지 않는 클라이언트를 조용히 내놓지 않는다.
+rem   ☞ 서명은 RSA(v1.5)·ECDSA 의 SHA-256/SHA-384 넷을 확인한다. 모르는 알고리즘은 **거절**한다.
 rem
-rem   종료 코드: 0 성공 · 1 HTTP 오류 상태 · 2 사용법 · 3 연결/한도 ·
-rem              4 인증서를 확인하지 않았다(--insecure 없이) · 5 프로토콜 위반
+rem ★★ **응답은 사람이 바라는 모양으로 낸다** — 머리를 떼고 `chunked` 껍질을 벗겨 본문만
+rem   흘린다(`-i` 를 주면 머리도 함께). 실측(2026-09-19): example.com · cloudflare.com ·
+rem   www.wikipedia.org · api.github.com 넷에서 `curl -sS` 와 **본문 바이트가 같다**.
 rem
-rem   버퍼 지도(한 덩이 65536 을 나눠 쓴다 — 힙 아레나가 64 KiB 다):
-rem     [0     .. 20000)  msgs  전사(핸드셰이크 메시지를 이어붙인다)
-rem     [20000 .. 36700)  rec   레코드 한 장(5 + 16384 + 여유)
-rem     [36700 .. 53100)  inner 복호한 평문
-rem     [53100 .. 54400)  w     작업 공간(tlscli 가 1216 을 요구한다)
-rem     [54400 .. 55800)  xw    x25519 작업(u64 175)
-rem     [55800 .. 56200)  u     레코드 작업(u64 42)
-rem     [56200 .. 56400)  keys  c_hs·s_hs·hs(96) + 트래픽 키(44×2)
-rem     [56400 .. 65536)  보냄 버퍼와 그 밖
+rem   `lowget <url> [-i] [--insecure] [--cafile <path>]`
+rem   종료 코드: 0 성공 · 1 HTTP 오류 상태(400 이상) · 2 사용법 · 3 연결/이름 ·
+rem              4 인증서를 믿지 못한다 · 5 규약 위반
+rem   ☞ 안쪽의 자세한 수(89..126 — 어디서 멈췄는가)는 **stderr 로만** 나간다. 종료 코드는
+rem     위의 여섯 가지뿐이다: 부르는 쪽이 세어야 할 것을 늘리지 않는다.
+rem
+rem   버퍼 지도(자라는 뿌리에서 한 덩이 262144 — `cap heap`):
+rem     [0      ..  20000)  msgs  전사(핸드셰이크 메시지를 이어붙인다)
+rem     [20000  ..  36700)  rec   레코드 한 장(5 + 16384 + 여유)
+rem     [36700  ..  53100)  inner 복호한 평문
+rem     [53100  ..  54400)  w     작업 공간(tlscli 가 1216 을 요구한다)
+rem     [54400  ..  55800)  xw    x25519 작업(u64 175)
+rem     [55800  ..  56200)  u     레코드 작업(u64 42)
+rem     [56200  ..  56400)  keys  c_hs·s_hs·hs(96) + 트래픽 키(44×2)
+rem     [56400  ..  60096)  보냄 버퍼 · 인증서 자리표 · 씨에서 편 재료
+rem     [70000  .. 170008)  인증서 검증(아래 `check_chain` 이 자리를 적는다)
+rem     [180000 .. 196512)  응답을 푸는 자리(머리 · 길이 줄 · 상태 여덟 칸)
 
 module lowget .
 
@@ -214,9 +225,38 @@ rem ★ 한 판을 처음부터 끝까지 — 붙고, 핸드셰이크하고, 닫
 rem   ☞ 지금은 열쇠 재료를 **부르는 쪽이 준다**(`seed`). 진짜 도구는 `cap random` 에서 받아야
 rem     하고(같은 열쇠를 두 번 쓰면 그 연결의 비밀이 사라진다), 그것은 아래 `main` 의 몫이다.
 rem     검사는 씨를 못박아 **결정적으로** 잴 수 있어야 하므로 여기서 가르지 않는다.
+rem ★ 「어디서 멈췄는가」를 한 줄로 적는다 — 수는 소스의 `return <수>` 자리를 가리킨다.
+proc say_step input out cap io . input tag slice u8 . input n u64 . input d mut slice u8 . output u64 . effects io .
+do
+  guard ge (len d) 32 . else return 0 .
+  var w u64 be write_out out 2 tag .
+  guard gt w 0 . else return 0 .
+  set w (write_out out 2 " (step ") .
+  guard gt w 0 . else return 0 .
+  var v u64 be n .
+  var i u64 be 0 .
+  while gt v 0 . do
+    set (index d i) (narrow u8 (add 48 (mod v 10))) .
+    set v (div v 10) .
+    set i (add i 1) .
+    guard le i 20 . else return 0 .
+  end .
+  if eq i 0 . do  set (index d 0) 48 .  set i 1 . end .
+  var j u64 be i .
+  while gt j 0 . do
+    set j (sub j 1) .
+    set (index d (add 21 (sub i (add j 1)))) (index d j) .
+  end .
+  set w (write_out out 2 (subslice d 21 (add 21 i))) .
+  guard gt w 0 . else return 0 .
+  set w (write_out out 2 ")\n") .
+  guard gt w 0 . else return 0 .
+  return 1 .
+end .
+
 proc session input k cap net . input fs cap file_system . input hp cap heap . input out cap io .
      input ip u64 . input port u64 . input host slice u8 . input path slice u8 .
-     input now u64 . input bundle slice u8 . input seed u64 . output u64 . effects heap io .
+     input now u64 . input bundle slice u8 . input seed u64 . input hdrs u64 . output u64 . effects heap io .
 do
   rem ★★★ **자라는 뿌리에서 받는다**(`cap heap` · RFC-0112 D2). 핸드셰이크는 64 KiB 안에서
   rem   끝나지만 **인증서 검증**은 그렇지 않다: RSA-4096 뿌리 하나에 큰수 조각이 1820 개(14.5 KB)
@@ -248,7 +288,12 @@ do
   if ne st 0 . do
     let s0 result void net.net_error . be net.shut k c .
     drop s0 .
-    return st .
+    rem ★ 안쪽의 자세한 수(89..126)는 **어디서 멈췄는지**를 말한다. 그것을 종료 코드로
+    rem   내보내면 머리글이 적은 여섯 가지 약속이 깨진다 — 자세함은 stderr 로 가고,
+    rem   종료 코드는 약속한 자리(5 = 규약 위반)로 간다.
+    let e0 u64 be say_step out "lowget: the handshake did not hold" st (subslice buf 59900 59932) .
+    guard gt e0 0 . else return 5 .
+    return 5 .
   end .
 
   rem ★★★★★ **인증서를 확인한다 — 요청을 보내기 전에.** `now` 가 0 이면 확인하지 않는다
@@ -260,7 +305,7 @@ do
       var w2 u64 be 0 .
       if eq v 2 . do  set w2 (write_out out 2 "lowget: the certificate is not for this host (no matching name)\n") . end .
       if eq v 3 . do  set w2 (write_out out 2 "lowget: the certificate is outside its validity dates\n") . end .
-      if eq v 4 . do  set w2 (write_out out 2 "lowget: the chain does not hold — a link failed (name, CA flag, dates, or a signature this build cannot check: only sha256WithRSA and ecdsa-with-SHA256 are verified here)\n") . end .
+      if eq v 4 . do  set w2 (write_out out 2 "lowget: the chain does not hold — a link failed (name, CA flag, dates, or a signature this build cannot check: this build verifies RSA-v1.5 and ECDSA with SHA-256 or SHA-384)\n") . end .
       if eq v 5 . do  set w2 (write_out out 2 "lowget: the chain does not reach a certificate in the trust store\n") . end .
       if eq v 6 . do  set w2 (write_out out 2 "lowget: the server sent no certificate this build could read\n") . end .
       let s1 result void net.net_error . be net.shut k c .
@@ -271,9 +316,14 @@ do
     guard gt w3 0 . else return 5 .
   end .
 
-  let got u64 be http_get k out cfd buf host path .
+  let got u64 be http_get k out cfd buf host path hdrs .
   let sh result void net.net_error . be net.shut k c .
   drop sh .
+  if ge got 89 . do
+    let e1 u64 be say_step out "lowget: the response did not hold" got (subslice buf 59900 59932) .
+    guard gt e1 0 . else return 5 .
+    return 5 .
+  end .
   return got .
 end .
 
@@ -290,6 +340,203 @@ do
   return add at (len s) .
 end .
 
+rem ★★★★★ **응답을 사람이 바라는 모양으로 낸다** — 머리를 떼고, 청크 껍질을 벗긴다.
+rem
+rem ☞ **이것은 고침이다**(2026-09-19). 그전까지 `lowget` 은 받은 바이트를 **그대로** 흘려
+rem   냈다 — 머리줄도, `Transfer-Encoding: chunked` 의 길이 줄도 함께. 우리 기계의 시험
+rem   서버가 `Content-Length` 로 답했기에 그 자리에서는 드러나지 않았고, P-384 이 서면서
+rem   **바깥 사이트가 열리고 나서야** 보였다(example.com: 우리 868 바이트 대 `curl` 559).
+rem   ★ 가까운 곳에서만 재면 먼 곳의 모양을 못 본다.
+rem
+rem ★★ **한 바이트씩 상태를 이어 간다.** 머리의 `\r\n\r\n` 도, 청크의 길이 줄도 TLS 레코드
+rem   경계를 **가로지를 수 있다**. 그래서 상태를 `st` 칸에 두고 레코드마다 이어받는다 —
+rem   «한 레코드에 한 덩이가 온다» 는 가정이 이 자리에서 가장 흔한 조용한 실패다.
+rem
+rem   st: 0 판(0 머리 · 1 몸통 · 2 청크 · 3 끝) · 1 머리에 쌓인 수 · 2 남은 청크 ·
+rem       3 청크 갈래(0 길이줄 · 1 자료 · 2 CRLF 넘김) · 4 길이줄에 쌓인 수 · 5 머리도 낼까
+
+rem 대문자를 소문자로 — 머리 이름은 대소문자를 가리지 않는다(RFC 9112 §5).
+fn lcase input c u64 . output u64 . do
+  if ge c 65 . do  if le c 90 . do  return add c 32 . end . end .
+  return c .
+end .
+
+rem 머리 안에 `Transfer-Encoding: … chunked …` 줄이 있는가.
+rem ★ 머리 전체에서 "chunked" 를 찾지 **않는다** — 다른 줄(예: `Location:`)에 그 글자가
+rem   들어 있을 수 있고, 그러면 없는 청크를 벗기려다 본문을 망친다. 줄을 갈라 본다.
+fn hdr_chunked input h slice u8 . input n u64 . output u64 . do
+  var i u64 be 0 .
+  var ls u64 be 0 .
+  while lt i n . do
+    if eq (index h i) 10 . do
+      if ge (sub i ls) 18 . do
+        var m u64 be 0 .
+        var same u64 be 1 .
+        while lt m 18 . do
+          if ne (lcase (cast u64 (index h (add ls m)))) (cast u64 (index "transfer-encoding:" m)) . do  set same 0 . end .
+          set m (add m 1) .
+        end .
+        if eq same 1 . do
+          var q u64 be add ls 18 .
+          while lt q i . do
+            if le (add q 7) i . do
+              var t u64 be 0 .
+              var s3 u64 be 1 .
+              while lt t 7 . do
+                if ne (lcase (cast u64 (index h (add q t)))) (cast u64 (index "chunked" t)) . do  set s3 0 . end .
+                set t (add t 1) .
+              end .
+              if eq s3 1 . do  return 1 . end .
+            end .
+            set q (add q 1) .
+          end .
+        end .
+      end .
+      set ls (add i 1) .
+    end .
+    set i (add i 1) .
+  end .
+  return 0 .
+end .
+
+rem 16진 길이 줄을 읽는다 — `1a2b` 도 `1a2b;ext=1` 도 받는다. 답은 길이(0 = 끝 또는 못 읽음).
+rem   ☞ `bad` 자리에 1 을 두어 «0 이라서 끝» 과 «못 읽었다» 를 가른다.
+fn chunk_size input l slice u8 . input n u64 . output u64 . do
+  var v u64 be 0 .
+  var i u64 be 0 .
+  var seen u64 be 0 .
+  while lt i n . do
+    let c u64 be cast u64 (index l i) .
+    if eq c 59 . do  set i n . end .
+    if eq c 13 . do  set i n . end .
+    if lt i n . do
+      var d u64 be 16 .
+      if ge c 48 . do  if le c 57 . do  set d (sub c 48) . end . end .
+      if ge (lcase c) 97 . do  if le (lcase c) 102 . do  set d (sub (lcase c) 87) . end . end .
+      if ge d 16 . do  return 0 . end .
+      if gt v 268435455 . do  return 0 . end .
+      set v (add (mul v 16) d) .
+      set seen 1 .
+      set i (add i 1) .
+    end .
+  end .
+  if eq seen 0 . do  return 0 . end .
+  return add v 1 .
+end .
+
+rem 끝까지 쓴다 — 한 번의 `write_out` 이 전부를 쓴다는 보장이 없다(나가는 쪽의 `send_all`).
+proc put_all input out cap io . input b slice u8 . output u64 . effects io .
+do
+  if eq (len b) 0 . do  return 1 . end .
+  var wrote u64 be 0 .
+  var spin u64 be 0 .
+  while lt wrote (len b) . do
+    let w u64 be write_out out 1 (subslice b wrote (len b)) .
+    guard gt w 0 . else return 0 .
+    set wrote (add wrote w) .
+    set spin (add spin 1) .
+    guard le spin 4096 . else return 0 .
+  end .
+  return 1 .
+end .
+
+rem ★ 평문 한 조각을 먹인다. 1 = 이어 간다 · 2 = 본문이 끝났다 · 0 = 규약 위반.
+proc feed input out cap io . input p slice u8 . input hdr mut slice u8 . input line mut slice u8 .
+     input st mut slice u64 . output u64 . effects io .
+do
+  var i u64 be 0 .
+  while lt i (len p) . do
+    if eq (index st 3) 9 . do  return 0 . end .
+
+    rem ── 머리 ────────────────────────────────────────────────────────────
+    if eq (index st 0) 0 . do
+      let c u64 be cast u64 (index p i) .
+      guard lt (index st 1) (len hdr) . else return 0 .
+      set (index hdr (index st 1)) (narrow u8 c) .
+      set (index st 1) (add (index st 1) 1) .
+      set i (add i 1) .
+      let n u64 be index st 1 .
+      if ge n 4 . do
+        if eq (index hdr (sub n 4)) 13 . do
+        if eq (index hdr (sub n 3)) 10 . do
+        if eq (index hdr (sub n 2)) 13 . do
+        if eq (index hdr (sub n 1)) 10 . do
+          if eq (index st 5) 1 . do
+            guard eq (put_all out (subslice hdr 0 n)) 1 . else return 0 .
+          end .
+          set (index st 0) 1 .
+          if eq (hdr_chunked hdr n) 1 . do
+            set (index st 0) 2 .
+            set (index st 3) 0 .
+            set (index st 4) 0 .
+          end .
+        end . end . end . end .
+      end .
+    end .
+
+    rem ── 길이를 안 적은 몸통: 닫힐 때까지 그대로 흘린다 ──────────────────
+    if eq (index st 0) 1 . do
+      guard eq (put_all out (subslice p i (len p))) 1 . else return 0 .
+      set i (len p) .
+    end .
+
+    rem ── 청크 ────────────────────────────────────────────────────────────
+    if eq (index st 0) 2 . do
+      if lt i (len p) . do
+        rem ① 길이 줄
+        if eq (index st 3) 0 . do
+          let c2 u64 be cast u64 (index p i) .
+          set i (add i 1) .
+          if eq c2 10 . do
+            let sz u64 be chunk_size line (index st 4) .
+            if eq sz 0 . do  set (index st 3) 9 . end .
+            if gt sz 0 . do
+              set (index st 2) (sub sz 1) .
+              set (index st 4) 0 .
+              if eq (index st 2) 0 . do
+                set (index st 0) 3 .
+                return 2 .
+              end .
+              set (index st 3) 1 .
+            end .
+          end .
+          if ne c2 10 . do
+            guard lt (index st 4) (len line) . else return 0 .
+            set (index line (index st 4)) (narrow u8 c2) .
+            set (index st 4) (add (index st 4) 1) .
+          end .
+        end .
+        rem ② 자료
+        if eq (index st 3) 1 . do
+          var nn u64 be sub (len p) i .
+          if gt nn (index st 2) . do  set nn (index st 2) . end .
+          guard eq (put_all out (subslice p i (add i nn))) 1 . else return 0 .
+          set i (add i nn) .
+          set (index st 2) (sub (index st 2) nn) .
+          if eq (index st 2) 0 . do
+            set (index st 3) 2 .
+            set (index st 4) 0 .
+          end .
+        end .
+        rem ③ 자료 뒤의 CRLF 를 넘긴다
+        if eq (index st 3) 2 . do
+          if lt i (len p) . do
+            set i (add i 1) .
+            set (index st 4) (add (index st 4) 1) .
+            if ge (index st 4) 2 . do
+              set (index st 3) 0 .
+              set (index st 4) 0 .
+            end .
+          end .
+        end .
+      end .
+    end .
+
+    if eq (index st 0) 3 . do  return 2 . end .
+  end .
+  return 1 .
+end .
+
 rem ★★★ **요청을 보내고 응답을 흘려 낸다.**
 rem   ☞ 본문은 **모으지 않는다** — 레코드 한 장을 풀면 그만큼 바로 내보낸다. 64 KiB 아레나에서
 rem     응답 전체를 들 수 없기도 하지만, 그보다 **들 필요가 없다**: 받는 대로 쓰는 것이 옳다.
@@ -297,9 +544,17 @@ rem   ☞ 핸드셰이크 뒤에도 서버는 `NewSessionTicket`(속 타입 22)�
 rem     쓰지 않으므로 **세지 않고 버린다** — 다만 **순번은 센다**(레코드마다 올라간다).
 rem     이 구별을 놓치면 그 다음 레코드가 열리지 않는다.
 proc http_get input k cap net . input out cap io . input fd u64 . input buf mut slice u8 .
-     input host slice u8 . input path slice u8 . output u64 . effects io .
+     input host slice u8 . input path slice u8 . input hdrs u64 . output u64 . effects io .
 do
   let u mut slice u64 . be view_array u64 (subslice buf 55800 56200) .
+  rem 응답을 푸는 자리 — 핸드셰이크가 끝난 뒤라 위쪽이 비어 있다.
+  rem   [180000..196384) 머리 · [196384..196448) 길이 줄 · [196448..196512) 상태 여덟 칸
+  let hdr mut slice u8 . be subslice buf 180000 196384 .
+  let line mut slice u8 . be subslice buf 196384 196448 .
+  let st mut slice u64 . be view_array u64 (subslice buf 196448 196512) .
+  var zi u64 be 0 .
+  while lt zi 8 . do  set (index st zi) 0 .  set zi (add zi 1) .  end .
+  set (index st 5) hdrs .
 
   rem ── 요청 줄을 짓는다: GET <path> HTTP/1.1 ─────────────────────────────
   rem ★★★ 길이를 **손으로 세지 않는다.** 처음에 그렇게 썼다가 `"\r\nConnection: close\r\n\r\n"`
@@ -311,7 +566,10 @@ do
   set at (put_s (subslice buf 56600 58600) at path) .
   set at (put_s (subslice buf 56600 58600) at " HTTP/1.1\r\nHost: ") .
   set at (put_s (subslice buf 56600 58600) at host) .
-  set at (put_s (subslice buf 56600 58600) at "\r\nConnection: close\r\n\r\n") .
+  rem ★ `User-Agent` 와 `Accept` 를 적는다 — 없으면 **403 으로 막는 서버가 실제로 있다**
+  rem   (2026-09-19 실측: api.github.com · www.wikipedia.org 가 둘 다 403 에 «User-Agent 를
+  rem   적으라» 고 답했다). 자기를 밝히지 않는 손님을 안 들이는 것은 서버의 권리다.
+  set at (put_s (subslice buf 56600 58600) at "\r\nUser-Agent: lowget/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n") .
   guard gt at 0 . else return 125 .
 
   let sn u64 be tlscli.seal_rec 1 (subslice buf 56504 56548) 16 0 23 (subslice buf 56600 (add 56600 at)) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
@@ -347,19 +605,11 @@ do
                               (sub (cast u64 (index buf (add 36700 11))) 48)) .
             end .
           end .
-          rem ★★★ **끝까지 쓴다.** 한 번의 `write_out` 이 전부를 쓴다는 보장이 없다 —
-          rem   파이프로 내보낼 때 실제로 짧게 쓰였고, 그 결과 응답의 **마지막 한 바이트**가
-          rem   조용히 사라졌다(curl 과 맞대 보고서야 보였다: 20272 대 20273).
-          rem   ☞ 이 저장소가 `send_all` 에 적어 둔 것과 같은 함정이고, 나가는 쪽에도 똑같이 있다.
-          var wrote u64 be 0 .
-          var wspin u64 be 0 .
-          while lt wrote body . do
-            let w u64 be write_out out 1 (subslice buf (add 36700 wrote) (add 36700 body)) .
-            guard gt w 0 . else return 123 .
-            set wrote (add wrote w) .
-            set wspin (add wspin 1) .
-            guard le wspin 4096 . else return 123 .
-          end .
+          rem ★ 머리를 떼고 청크를 벗겨 낸다 — `feed` 가 상태를 레코드 너머로 이어 간다.
+          rem   ☞ 끝까지 쓰는 함정(`write_out` 이 짧게 쓴다)은 `put_all` 이 진다.
+          let fr u64 be feed out (subslice buf 36700 (add 36700 body)) hdr line st .
+          guard gt fr 0 . else return 126 .
+          if eq fr 2 . do  set done 1 . end .
         end .
       end .
       set rounds (add rounds 1) .
@@ -449,7 +699,7 @@ do
   var w u64 be 0 .
   let a0 option slice u8 . be arg a 0 .
   if eq (is_some a0) false . do
-    set w (write_out out 2 "usage: lowget https://<host>[:<port>]/<path> [--insecure] [--cafile <path>]\n") .
+    set w (write_out out 2 "usage: lowget https://<host>[:<port>]/<path> [-i] [--insecure] [--cafile <path>]\n") .
     return 2 .
   end .
   let u slice u8 be some_value a0 .
@@ -462,6 +712,7 @@ do
   rem 뒤따르는 낱말들을 본다: `--insecure` 와 `--cafile <길>`.
   var ins u64 be 0 .
   var caf u64 be 0 .
+  var hdrs u64 be 0 .
   var ai u64 be 1 .
   while lt ai 6 . do
     let ax option slice u8 . be arg a ai .
@@ -475,6 +726,11 @@ do
           set m (add m 1) .
         end .
         if eq same 1 . do  set ins 1 . end .
+      end .
+      if eq (len f) 2 . do
+        if eq (index f 0) 45 . do
+          if eq (index f 1) 105 . do  set hdrs 1 . end .
+        end .
       end .
       if eq (len f) 8 . do
         var m2 u64 be 0 .
@@ -527,9 +783,9 @@ do
     set cabundle (some_value cx) .
   end .
   if eq po 0 . do
-    return narrow u8 (session k fs hp out (some_value ipo) port host "/" now cabundle 7) .
+    return narrow u8 (session k fs hp out (some_value ipo) port host "/" now cabundle 7 hdrs) .
   end .
-  return narrow u8 (session k fs hp out (some_value ipo) port host (subslice u po (len u)) now cabundle 7) .
+  return narrow u8 (session k fs hp out (some_value ipo) port host (subslice u po (len u)) now cabundle 7 hdrs) .
 end .
 
 rem ★★★★★ **인증서를 확인한다.** 핸드셰이크가 끝난 뒤의 자리(레코드·평문 버퍼)를 빌려 쓴다.

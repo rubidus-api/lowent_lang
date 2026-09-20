@@ -36,17 +36,17 @@
 
 #demo("examples/ch36/buffered.low")
 
-- `outbuf.open 1` makes *pending output* to emit to standard output (1). It is `owned outbuf.pending`.
-- `outbuf.write out p buf s` gathers `s` into the buffer, emitting and continuing when the buffer fills. It takes a pending value and returns a new one (ownership moves
+- `outbuf.buf_open 1` makes *pending output* to emit to standard output (1). It is `owned outbuf.pending`.
+- `outbuf.buf_write out p buf s` gathers `s` into the buffer, emitting and continuing when the buffer fills. It takes a pending value and returns a new one (ownership moves
   along).
-- `outbuf.finish` emits the remaining bytes and ends the pending value.
+- `outbuf.buf_finish` emits the remaining bytes and ends the pending value.
 
 The buffer is only 8 bytes, so it is flushed once partway through writing "buffered ". The output is the same. Gathering and emitting instead of `write_out` byte by byte is
-the value of buffering. Forget the final `finish` and the bytes left in the buffer vanish. So translation refuses.
+the value of buffering. Forget the final `buf_finish` and the bytes left in the buffer vanish. So translation refuses.
 
 #demo("examples/ch36/unflushed.low")
 
-`finish` takes `owned pending` and returns a `result`, so `pending` is a type needing completion (#chref("ownership")). The defect "the last line was not printed" shows before
+`buf_finish` takes `owned pending` and returns a `result`, so `pending` is a type needing completion (#chref("ownership")). The defect "the last line was not printed" shows before
 running.
 
 == Networking --- handles are resources
@@ -133,12 +133,12 @@ certificates are received from outside. The principle of not pretending to have 
 
 == Common mistakes
 
-#antipattern[Writing again with the old pending value passed to `outbuf.write`][
+#antipattern[Writing again with the old pending value passed to `outbuf.buf_write`][
   #demo("examples/ch36/mistake_pendingmoved.low")
 
-  `outbuf.write` takes an `owned pending` and returns a *new* pending value inside its `result`. The `p` you passed has already moved, so
+  `outbuf.buf_write` takes an `owned pending` and returns a *new* pending value inside its `result`. The `p` you passed has already moved, so
   using it again is `E-OWN-MOVED`. Pending values move around so that exactly one value always knows what is left in the buffer; only then
-  can translation count whether the final `finish` was forgotten. Receive them in turn, `p` → `p2` → `p3`, as `buffered.low` in this chapter
+  can translation count whether the final `buf_finish` was forgotten. Receive them in turn, `p` → `p2` → `p3`, as `buffered.low` in this chapter
   does.
 ]
 
@@ -169,9 +169,9 @@ certificates are received from outside. The principle of not pretending to have 
   id: "lib-io-net-glance",
   caption: [Shapes of the I/O, network and crypto modules --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`var p owned outbuf.pending be outbuf.open 1 .`], [pending output for standard output], [forgetting it: `E-OWN-INCOMPLETE`],
-  [`outbuf.write out p buf s` → `result (owned pending) …`], [gather, flush when full, return a new pending value], [one value knows --- the old one is `E-OWN-MOVED`],
-  [`outbuf.finish out p buf`], [flush the rest and finish], [completion --- it can fail],
+  [`var p owned outbuf.pending be outbuf.buf_open 1 .`], [pending output for standard output], [forgetting it: `E-OWN-INCOMPLETE`],
+  [`outbuf.buf_write out p buf s` → `result (owned pending) …`], [gather, flush when full, return a new pending value], [one value knows --- the old one is `E-OWN-MOVED`],
+  [`outbuf.buf_finish out p buf`], [flush the rest and finish], [completion --- it can fail],
   [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [connected pair · send all · receive once · close], [`cap net` first --- a receive takes at most the buffer],
   [`random.step seed` · `random.bytes k dst`], [reproducible next state · OS entropy (`cap random`)], [computation separated from authority],
   [`clock.now_ns k` · `clock.since_ns k start`], [monotonic clock --- elapsed time], [a different promise from wall time --- `cap clock`, effect `none`],

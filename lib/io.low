@@ -139,33 +139,3 @@ export actor mem_reader do
     return (some v) .
   end .
 end .
-
-rem ★★★★ **끝까지 쓴다** — 잎(`write_out`)은 **짧게 쓴다**(X-0037, 2026-09-19 실측).
-rem
-rem   파이프로 내보낼 때 실제로 짧게 쓰였고, `lowget` 은 그 때문에 응답의 **마지막 한 바이트를
-rem   잃었다**(`curl` 과 맞대 보고서야 보였다: 20272 대 20273). `lowdiff` 와 `lowget` 이 **각각**
-rem   같은 루프를 다시 지었다 — 같은 함정을 두 번 밟은 것이 아니라, 한 번도 라이브러리가
-rem   그것을 대신해 주지 않은 것이다. 나가는 쪽에는 이미 `net.send_all` 이 있다: 이것은 그 대칭이다.
-rem
-rem ☞ **왜 `outbuf`(lib/out.low) 가 아니라 여기인가** — 거기가 개념상 제자리다. 그런데
-rem   `outbuf` 는 `open`·`write`·`close` 를 내보내고 `files` 도 같은 이름을 내보낸다. 이름공간이
-rem   평평해서 **두 모듈은 한 단위에 같이 설 수 없다**(실측: `lowget` 에 `use outbuf .` 를 더하니
-rem   `lib/file.low` 안의 `open fs path 0` 이 `outbuf.open` 으로 풀려 E-IR-ARITY 가 났다 —
-rem   **앱 저자가 쓰지도 않은 파일**에서). 그 자리를 X-0039 로 적어 두었고, 그때까지는
-rem   파일을 여는 프로그램도 쓸 수 있는 이 모듈에 둔다.
-export proc write_all input out cap io . input d u64 . input b slice u8 . output option u64 . effects io .
-do
-  if eq (len b) 0 . do  return some 0 . end .
-  var wrote u64 be 0 .
-  var spin u64 be 0 .
-  while lt wrote (len b) . do
-    let n u64 be write_out out d (subslice b wrote (len b)) .
-    rem 0 은 «더는 못 쓴다» 다 — 무한히 되돌지 않는다.
-    guard gt n 0 . else return none .
-    set wrote (add wrote n) .
-    rem ★ 걸음 상한은 **길이 그 자체**다: 한 걸음에 적어도 한 바이트는 나간다.
-    set spin (add spin 1) .
-    guard le spin (len b) . else return none .
-  end .
-  return some wrote .
-end .

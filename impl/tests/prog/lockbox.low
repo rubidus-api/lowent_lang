@@ -95,7 +95,7 @@ rem     안 지은 것을 지은 척하지 않는 자리다.
 proc peer_key_from_cert input cert slice u8 . input nb mut slice u8 . output u64 . effects none . do
   let sp u64 be der.find_spki cert .
   guard gt sp 0 . else return 0 .
-  let ko u64 be der.key_off cert sp .
+  let ko u64 be der.spki_key_off cert sp .
   guard gt ko 0 . else return 0 .
   let no u64 be der.rsa_n_off cert ko .
   guard gt no 0 . else return 0 .

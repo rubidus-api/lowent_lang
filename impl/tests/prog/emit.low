@@ -38,7 +38,7 @@ do
   guard is_some ng . else return 71 .
   let nb mut slice u8 . be some_value ng .
 
-  var p owned outbuf.pending be outbuf.open 1 .
+  var p owned outbuf.pending be outbuf.buf_open 1 .
 
   var i u64 be 1 .
   while le i 5 . do
@@ -51,14 +51,14 @@ do
     guard is_some c . else return 74 .
     rem ★ 소유를 **값으로 이어받는다** — 소비하고 새 상태를 돌려받아 그 자리에 다시 넣는다.
     rem   `set` 은 사용이 아니라 **재초기화**이고, 그래서 루프 안에서도 소유가 유지된다.
-    let w result (owned outbuf.pending) outbuf.io_error . be outbuf.write out p buf (subslice nb 0 (some_value c)) .
+    let w result (owned outbuf.pending) outbuf.io_error . be outbuf.buf_write out p buf (subslice nb 0 (some_value c)) .
     guard is_ok w . else return 75 .
     set p (ok_value w) .
     set i (add i 1) .
   end .
 
   rem ★★★ **이것을 지우면 컴파일이 안 된다.** 남은 바이트가 있는데 조용히 버릴 수 없다.
-  let f result void outbuf.io_error . be outbuf.finish out p buf .
+  let f result void outbuf.io_error . be outbuf.buf_finish out p buf .
   guard is_ok f . else return 76 .
   return 0 .
 end .

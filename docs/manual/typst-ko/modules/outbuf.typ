@@ -2,18 +2,20 @@
 
 = `outbuf` --- 버퍼링 출력, flush 망각은 컴파일 오류 <mod-outbuf>
 
-#modhead(file: "lib/out.low", layer: [L2 --- 바깥 세계], caps: [`flush` · `write` · `finish` 에 `cap io`])
+#note[op 이름이 모두 `buf_` 로 시작하는 까닭: 이름공간이 평평해서 `open`·`write`·`finish` 는 `files` 가 이미 쓰는 이름이다. 두 모듈이 같은 이름을 내보내면 *한 프로그램에 같이 설 수 없다* --- 파일을 여는 프로그램이 버퍼링 출력을 못 쓰게 된다.]
+
+#modhead(file: "lib/out.low", layer: [L2 --- 바깥 세계], caps: [`buf_flush` · `buf_write` · `buf_finish` 에 `cap io`])
 
 출력을 *모아 두었다가 한 번에* 내보낸다. `write_out` 은 호출마다 비우므로 조각마다 부르면 조각마다 시스템 호출이다 --- 이 라이터는 바이트를 호출자 버퍼에 쌓았다가 가득 찰
 때만 비워 시스템 호출 수를 바이트 수에서 버퍼 수로 줄인다. 그리고 마지막에 반드시 `finish` 를 부르게 만들어 "모아 둔 것을 내보내지 않고 끝내는" 사고를 *컴파일 단계에서*
 막는다.
 
 ```lowent
-var p owned outbuf.pending be outbuf.open 1 .
-let w result (owned outbuf.pending) outbuf.io_error . be outbuf.write out p buf "hi\n" .
+var p owned outbuf.pending be outbuf.buf_open 1 .
+let w result (owned outbuf.pending) outbuf.io_error . be outbuf.buf_write out p buf "hi\n" .
 guard is_ok w . else return 1 .
 set p (ok_value w) .
-let r result void outbuf.io_error . be outbuf.finish out p buf .
+let r result void outbuf.io_error . be outbuf.buf_finish out p buf .
 ```
 
 *소유되는 것은 버퍼가 아니라 아직 나가지 않은 바이트다.* 버퍼는 호출자 것으로 두고(#modref("fmt")[`fmt`] 와 같은 규율), `owned` 로 지키는 것은 비워지지 않은 상태
@@ -29,16 +31,17 @@ let r result void outbuf.io_error . be outbuf.finish out p buf .
   id: "mod-outbuf-ops",
   caption: [`outbuf` 의 op],
   [*op*], [*모양*], [*실패*],
+  [`write_all`], [`proc (out cap io, d u64, b slice u8) → option u64` --- 버퍼를 거치지 않고 한 조각을 *끝까지* 쓴다], [`none` --- 더는 못 쓴다],
   [`io_error` · `pending`], [enum `write_failed` · 구조체 `pos u64`(쌓인 바이트 수) · `fd u64`(1 = stdout, 2 = stderr)], [---],
-  [`open`], [`fn (d u64) → pending`, effects none], [없음 --- 다만 여는 순간 갚아야 할 빚이 생긴다],
-  [`flush`], [`proc (out cap io, p owned pending, buf mut slice u8) → result (owned pending) io_error`], [`error write_failed`],
-  [`write`], [`proc (out cap io, p owned pending, buf mut slice u8, s slice u8) → result (owned pending) io_error` --- 가득 차면 스스로 비운다], [`error write_failed`],
-  [`finish`], [`proc (out cap io, p owned pending, buf mut slice u8) → result void io_error` --- 꼬리를 비우고 완결], [`error write_failed`],
+  [`buf_open`], [`fn (d u64) → pending`, effects none], [없음 --- 다만 여는 순간 갚아야 할 빚이 생긴다],
+  [`buf_flush`], [`proc (out cap io, p owned pending, buf mut slice u8) → result (owned pending) io_error`], [`error write_failed`],
+  [`buf_write`], [`proc (out cap io, p owned pending, buf mut slice u8, s slice u8) → result (owned pending) io_error` --- 가득 차면 스스로 비운다], [`error write_failed`],
+  [`buf_finish`], [`proc (out cap io, p owned pending, buf mut slice u8) → result void io_error` --- 꼬리를 비우고 완결], [`error write_failed`],
 )
 
-`write` 와 `flush` 는 소유를 소비하고 새 상태를 `ok` 로 돌려준다 --- 호출자는 `set p (ok_value w)` 로 매번 이어받는다. `set` 은 사용이 아니라 재초기화라 루프 안에서도 소유가
-유지된다. *부분 쓰기는 실패다* --- 쓴 수가 요청과 다르면 `write_failed` 이고, 그때 pending 은 소비되어 그 시점 버퍼의 바이트는 잃는다(재시도는 짓지 않았다). 버퍼가
-작아도 동작은 맞고 크기는 속도에만 영향을 준다. `flush` 를 직접 부를 일은 "이 줄이 당장 화면에 보여야 한다" 같은 때뿐이다.
+`buf_write` 와 `buf_flush` 는 소유를 소비하고 새 상태를 `ok` 로 돌려준다 --- 호출자는 `set p (ok_value w)` 로 매번 이어받는다. `set` 은 사용이 아니라 재초기화라 루프 안에서도 소유가
+유지된다. *짧게 쓰인 것은 실패가 아니다* --- 잎(`write_out`)은 파이프가 차면 요청보다 적게 쓰고, 그것은 정상이다. `buf_flush` 는 `write_all` 로 *끝까지* 쓴다. 실패(`write_failed`)는 "더는 못 쓴다" 일 때만 나고, 그때 pending 은 소비되어 그 시점 버퍼의 바이트는 잃는다(재시도는 짓지 않았다). 버퍼가
+작아도 동작은 맞고 크기는 속도에만 영향을 준다. `buf_flush` 를 직접 부를 일은 "이 줄이 당장 화면에 보여야 한다" 같은 때뿐이다.
 
 ```lowent
 module emit .
@@ -53,7 +56,7 @@ proc main input out cap io . input al cap allocator . output u8 . effects alloc 
   let ng option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some ng . else return 71 .
   let nb mut slice u8 . be some_value ng .
-  var p owned outbuf.pending be outbuf.open 1 .
+  var p owned outbuf.pending be outbuf.buf_open 1 .
   var i u64 be 1 .
   while le i 5 . do
     let a option u64 . be fmt.put_str nb 0 "line " .
@@ -63,12 +66,12 @@ proc main input out cap io . input al cap allocator . output u8 . effects alloc 
     let c option u64 . be fmt.put_nl nb (some_value b) .
     guard is_some c . else return 74 .
     let w result (owned outbuf.pending) outbuf.io_error .
-      be outbuf.write out p buf (subslice nb 0 (some_value c)) .
+      be outbuf.buf_write out p buf (subslice nb 0 (some_value c)) .
     guard is_ok w . else return 75 .
     set p (ok_value w) .
     set i (add i 1) .
   end
-  let f result void outbuf.io_error . be outbuf.finish out p buf .
+  let f result void outbuf.io_error . be outbuf.buf_finish out p buf .
   guard is_ok f . else return 76 .
   return 0 .
 end

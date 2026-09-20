@@ -8,8 +8,8 @@ do
   let g option mut slice u8 be alloc_bytes al capacity 64 .
   guard is_some g . else return 1 .
   let buf mut slice u8 be some_value g .
-  var p owned outbuf.pending be outbuf.open 1 .
-  let r1 result (owned outbuf.pending) outbuf.io_error be outbuf.write out p buf "lost?\n" .
+  var p owned outbuf.pending be outbuf.buf_open 1 .
+  let r1 result (owned outbuf.pending) outbuf.io_error be outbuf.buf_write out p buf "lost?\n" .
   guard is_ok r1 . else return 2 .
   var p2 owned outbuf.pending be ok_value r1 .
   return 0 .

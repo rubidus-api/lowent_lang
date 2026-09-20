@@ -36,17 +36,17 @@
 
 #demo("examples/ch36/buffered.low")
 
-- `outbuf.open 1` 은 표준출력(1)에 내보낼 *대기 중 출력*을 만든다. `owned outbuf.pending` 이다.
-- `outbuf.write out p buf s` 는 `s` 를 버퍼에 모으고, 버퍼가 차면 내보낸 뒤 이어 쓴다. 대기 값을 받아 새 대기 값을 돌려준다(소유가
+- `outbuf.buf_open 1` 은 표준출력(1)에 내보낼 *대기 중 출력*을 만든다. `owned outbuf.pending` 이다.
+- `outbuf.buf_write out p buf s` 는 `s` 를 버퍼에 모으고, 버퍼가 차면 내보낸 뒤 이어 쓴다. 대기 값을 받아 새 대기 값을 돌려준다(소유가
   옮겨 다닌다).
-- `outbuf.finish` 가 남은 바이트를 내보내고 대기 값을 끝낸다.
+- `outbuf.buf_finish` 가 남은 바이트를 내보내고 대기 값을 끝낸다.
 
 버퍼가 8 바이트뿐이라 "buffered " 를 쓰는 도중에 한 번 비워진다. 출력은 같다. 한 바이트씩 `write_out` 하는 대신 모아서 내보내는 것이
-버퍼링의 값이다. 마지막 `finish` 를 잊으면 버퍼에 남은 바이트가 사라진다. 그래서 번역이 거절한다.
+버퍼링의 값이다. 마지막 `buf_finish` 를 잊으면 버퍼에 남은 바이트가 사라진다. 그래서 번역이 거절한다.
 
 #demo("examples/ch36/unflushed.low")
 
-`finish` 가 `owned pending` 을 받아 `result` 를 돌려주므로 `pending` 은 완결이 필요한 타입이다(#chref("ownership")). "마지막 줄이 안
+`buf_finish` 가 `owned pending` 을 받아 `result` 를 돌려주므로 `pending` 은 완결이 필요한 타입이다(#chref("ownership")). "마지막 줄이 안
 찍혔다" 는 결함이 실행 전에 드러난다.
 
 == 네트워크 --- 핸들은 자원이다
@@ -135,11 +135,11 @@
 
 == 흔한 실수
 
-#antipattern[`outbuf.write` 에 넘긴 옛 대기 값으로 또 쓴다][
+#antipattern[`outbuf.buf_write` 에 넘긴 옛 대기 값으로 또 쓴다][
   #demo("examples/ch36/mistake_pendingmoved.low")
 
-  `outbuf.write` 는 `owned pending` 을 받아 *새* 대기 값을 `result` 안에 돌려준다. 넘긴 `p` 는 이미 옮겨 갔으므로 다시 쓰면 `E-OWN-MOVED` 다. 대기 값이
-  옮겨 다니는 까닭은, 버퍼에 무엇이 남았는지를 아는 값이 언제나 하나뿐이어야 마지막 `finish` 를 잊었는지 번역이 셀 수 있기 때문이다. 이 장의
+  `outbuf.buf_write` 는 `owned pending` 을 받아 *새* 대기 값을 `result` 안에 돌려준다. 넘긴 `p` 는 이미 옮겨 갔으므로 다시 쓰면 `E-OWN-MOVED` 다. 대기 값이
+  옮겨 다니는 까닭은, 버퍼에 무엇이 남았는지를 아는 값이 언제나 하나뿐이어야 마지막 `buf_finish` 를 잊었는지 번역이 셀 수 있기 때문이다. 이 장의
   `buffered.low` 처럼 `p` → `p2` → `p3` 으로 이어 받는다.
 ]
 
@@ -169,9 +169,9 @@
   id: "lib-io-net-glance",
   caption: [입출력·네트워크·암호 모듈의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`var p owned outbuf.pending be outbuf.open 1 .`], [표준출력으로 내보낼 대기 출력], [잊으면 `E-OWN-INCOMPLETE`],
-  [`outbuf.write out p buf s` → `result (owned pending) …`], [모으고, 차면 내보내고, 새 대기 값을 준다], [아는 값이 늘 하나 --- 옛 값은 `E-OWN-MOVED`],
-  [`outbuf.finish out p buf`], [남은 바이트를 내보내고 끝낸다], [완결 --- 실패할 수 있다],
+  [`var p owned outbuf.pending be outbuf.buf_open 1 .`], [표준출력으로 내보낼 대기 출력], [잊으면 `E-OWN-INCOMPLETE`],
+  [`outbuf.buf_write out p buf s` → `result (owned pending) …`], [모으고, 차면 내보내고, 새 대기 값을 준다], [아는 값이 늘 하나 --- 옛 값은 `E-OWN-MOVED`],
+  [`outbuf.buf_finish out p buf`], [남은 바이트를 내보내고 끝낸다], [완결 --- 실패할 수 있다],
   [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [연결 쌍 · 다 보내기 · 한 번 받기 · 닫기], [`cap net` 이 첫 인자 --- 받기는 버퍼만큼],
   [`random.step seed` · `random.bytes k dst`], [재현되는 다음 상태 · 운영체제 엔트로피(`cap random`)], [셈과 권위를 가른다],
   [`clock.now_ns k` · `clock.since_ns k start`], [단조 시계 --- 경과 시간], [벽시계와 약속이 다르다 --- `cap clock`, 효과 `none`],

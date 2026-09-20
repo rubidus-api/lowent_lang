@@ -20,15 +20,15 @@ module lowdiff .
 
 use files .
 use strbuf .
-use io .
+use outbuf .
 
 rem ★★★ **끝까지 쓴다.** 잎(`write_out`)은 **짧게 쓴다** — 파이프가 차면 아홉 바이트짜리
 rem   줄도 잘린다. 그러면 이 도구의 답(발견 한 줄)이 **조용히 반 줄이 된다**.
-rem   루프는 `io.write_all` 이 진다(X-0037) — 여기는 그것을 이 파일의 관용구(쓴 수를 u64 로
+rem   루프는 `outbuf.write_all` 이 진다(X-0037) — 여기는 그것을 이 파일의 관용구(쓴 수를 u64 로
 rem   받는 모양)에 맞추는 여섯 줄이다.
 proc emit input out cap io . input d u64 . input s slice u8 . output u64 . effects io .
 do
-  let r option u64 . be io.write_all out d s .
+  let r option u64 . be outbuf.write_all out d s .
   guard is_some r . else return 0 .
   return some_value r .
 end .

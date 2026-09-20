@@ -233,7 +233,7 @@ do
 
   let sp u64 be x509.spki_off issuer .
   guard gt sp 0 . else return 0 .
-  let ko u64 be der.key_off issuer sp .
+  let ko u64 be der.spki_key_off issuer sp .
   guard gt ko 0 . else return 0 .
 
   if lt kind 3 . do  set kind kind . end .
@@ -270,7 +270,7 @@ do
   rem   넣었다가 모든 ECDSA 인증서를 거절했다(2026-09-18). 같은 모듈의 이웃 두 얼굴이 서로
   rem   다른 자리를 받는 것은 읽는 사람이 매번 확인해야 하는 모양이다 — [der](der) 쪽에
   rem   물어볼 자리로 적어 둔다.
-  let kl u64 be der.key_len issuer sp .
+  let kl u64 be der.spki_key_len issuer sp .
   rem ★★ 곡선은 **공개키의 길이**가 말한다 — 04‖X‖Y 이므로 65 = P-256 · 97 = P-384.
   rem   ☞ 인증서는 곡선 OID 도 적어 두지만, 우리가 실제로 쓰는 것은 이 바이트들이다.
   rem     길이와 OID 가 어긋난 인증서라면 **어느 쪽을 믿어도 서명이 맞지 않는다.**

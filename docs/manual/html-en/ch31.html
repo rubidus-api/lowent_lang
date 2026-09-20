@@ -861,23 +861,23 @@ build <strong><span class="tok-k">option</span></strong> maxcpu int default <spa
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check --config badvalue.config mistake_configvalue.low
 8:0 E-CONFIG-TYPE: the config picks a value this `choice` option does not offer
-</code></pre></div></div><p><code>hz</code> is one of 100, 250 and 1000. Given 300, the tool neither rounds to the nearest nor falls back to the default; it stops with <code>E-CONFIG-TYPE</code>. The choices also mean “tested with these values”. If you need a new value, add it to the declaration in the source.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Leaving the capability position empty when calling an op with <code>--run</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/mistake_runcap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runcap .
-<em><span class="tok-c">rem trap: say 5</span></em>
+</code></pre></div></div><p><code>hz</code> is one of 100, 250 and 1000. Given 300, the tool neither rounds to the nearest nor falls back to the default; it stops with <code>E-CONFIG-TYPE</code>. The choices also mean “tested with these values”. If you need a new value, add it to the declaration in the source.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>An op that takes a capability cannot be called with <code>--run</code></strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/runcap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> runcap .
+<em><span class="tok-c">rem run: say 5</span></em>
 <em><span class="tok-c">rem run: say 0 5</span></em>
 
-<em><span class="tok-c">rem when calling an op that takes a capability with `--run`, fill the capability position too (a placeholder 0)</span></em>
+<em><span class="tok-c">rem `--run` FILLS capability positions when you leave them out (2026-09-20). The old placeholder `0` still works too</span></em>
 <strong><span class="tok-k">proc</span></strong> say <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run say mistake_runcap.low 0 5
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run say runcap.low 5
+hi
+say(5) = 3
+$ lowentc --run say runcap.low 0 5
 hi
 say(0, 5) = 3
-$ lowentc --run say mistake_runcap.low 5
-== ir diagnostics (1) ==
-0:0 E-VM-ARITY: argument count does not match op arity
-</code></pre></div></div><p>For the entry point (<code>main</code>), the tool fills in capabilities, but when you call another op directly with <code>--run</code>, capability positions count among the arguments. <code>say 5</code> is one argument short, hence <code>E-VM-ARITY</code>; <code>say 0 5</code>, with a placeholder <code>0</code> in the capability position, runs (the device capability <code>cap mmio</code> works the same way — chapter 30). This placeholder is only a convenience of the tool for testing. Inside a program, passing a number where a capability belongs is refused with <code>E-CAP-FORGE</code> (chapter 16).</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Branches switched off by the configuration are not checked</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/dead_branch.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead_branch .
+</code></pre></div></div><p>That was true until 2026-09-20: capability positions counted among the arguments, so <code>say 5</code> was <code>E-VM-ARITY</code> and only <code>say 0 5</code>, with a placeholder <code>0</code>, ran. The cost was quiet: <strong>witness programs</strong> taking <code>cap io</code> or <code>cap allocator</code> ran on the native back end only, so the two-back-end oracle this book relies on was broken exactly there. The tool now FILLS capability positions — but only when arguments are missing — so both <code>say 5</code> and <code>say 0 5</code> run. The placeholder is still only a convenience of the tool: inside a program, passing a number where a capability belongs is refused with <code>E-CAP-FORGE</code> (chapter 16).</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Branches switched off by the configuration are not checked</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/dead_branch.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead_branch .
 <em><span class="tok-c">rem flags: --config smp_off.config</span></em>
 <em><span class="tok-c">rem expect: E-TYPE-RETURN</span></em>
 

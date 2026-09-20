@@ -32,12 +32,18 @@ module pem .
 
 use codec from "codec.low" .
 
-rem `hay` 의 `from` 부터 `needle` 이 나오는 자리. 없으면 `len hay` 를 낸다(자리 아님).
-export fn find_from input hay slice u8 . . input needle slice u8 . . input from u64 . output u64 . do
+rem ★★★★ `hay` 의 `from` 부터 `needle` 이 나오는 자리. **없으면 `none`** 이다.
+rem
+rem ☞ **2026-09-20 에 답의 모양을 바꿨다**(X-0036). 그전에는 못 찾으면 `len hay` 를 냈다 —
+rem   그리고 **0 은 진짜 자리**다. 그래서 「못 찾음 = 0」으로 읽은 코드가
+rem   **인증서 한 장짜리 묶음에서만** 틀렸다(여러 장이면 첫 장이 0 이 아니라 가려졌다).
+rem   ★ 그 실패는 **입력에 따라 숨는다.** 규약을 외워야 안 틀리는 자리는 언젠가 틀린다 —
+rem     읽는 사람이 규약을 외우지 않아도 되게, 「없다」를 **타입으로** 말한다.
+export fn find_from input hay slice u8 . . input needle slice u8 . . input from u64 . output option u64 . do
   let n u64 be len needle .
   let h u64 be len hay .
-  if eq n 0 . do return h . end .
-  if gt n h . do return h . end .
+  if eq n 0 . do return none . end .
+  if gt n h . do return none . end .
   var i u64 be from .
   while le i (sub h n) . do
     var j u64 be 0 .
@@ -49,10 +55,10 @@ export fn find_from input hay slice u8 . . input needle slice u8 . . input from 
       end .
       if same . do set j (add j 1) . end .
     end .
-    if same . do return i . end .
+    if same . do return some i . end .
     set i (add i 1) .
   end .
-  return h .
+  return none .
 end .
 
 rem ── 봉투 ──────────────────────────────────────────────────────────────────
@@ -77,8 +83,9 @@ export proc pem_body_off input src slice u8 . . input label slice u8 . . input s
     set (index scratch (add (add 11 (len label)) m)) 45 .
     set m (add m 1) .
   end .
-  let at u64 be find_from src (subslice scratch 0 need) 0 .
-  if ge at (len src) . do return 0 . end .
+  let ao option u64 . be find_from src (subslice scratch 0 need) 0 .
+  guard is_some ao . else return 0 .
+  let at u64 be some_value ao .
   rem 그 줄의 끝(LF)까지 건너뛴다.
   var i u64 be add at need .
   while lt i (len src) . do
@@ -107,9 +114,9 @@ export proc pem_end_off input src slice u8 . . input label slice u8 . . input sc
     set (index scratch (add (add 9 (len label)) m)) 45 .
     set m (add m 1) .
   end .
-  let at u64 be find_from src (subslice scratch 0 need) from .
-  if ge at (len src) . do return 0 . end .
-  return at .
+  let ao option u64 . be find_from src (subslice scratch 0 need) from .
+  guard is_some ao . else return 0 .
+  return some_value ao .
 end .
 
 rem ── 해체 ──────────────────────────────────────────────────────────────────

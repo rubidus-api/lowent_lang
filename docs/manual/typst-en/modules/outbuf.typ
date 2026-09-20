@@ -2,18 +2,18 @@
 
 = `outbuf` --- buffered output where forgetting to flush is a compile error <mod-outbuf>
 
-#modhead(file: "lib/out.low", layer: [L2 --- the outside world], caps: [`cap io` for `flush` · `write` · `finish`])
+#modhead(file: "lib/out.low", layer: [L2 --- the outside world], caps: [`cap io` for `buf_flush` · `buf_write` · `buf_finish`])
 
 Output is *gathered and sent at once*. `write_out` flushes on every call, so calling it per piece costs a system call per piece --- this writer accumulates bytes in a caller
 buffer and flushes only when full, reducing system calls from the number of bytes to the number of buffers. And it forces a final `finish`, preventing "ended without sending
 what was gathered" *at compile time*.
 
 ```lowent
-var p owned outbuf.pending be outbuf.open 1 .
-let w result (owned outbuf.pending) outbuf.io_error . be outbuf.write out p buf "hi\n" .
+var p owned outbuf.pending be outbuf.buf_open 1 .
+let w result (owned outbuf.pending) outbuf.io_error . be outbuf.buf_write out p buf "hi\n" .
 guard is_ok w . else return 1 .
 set p (ok_value w) .
-let r result void outbuf.io_error . be outbuf.finish out p buf .
+let r result void outbuf.io_error . be outbuf.buf_finish out p buf .
 ```
 
 *What is owned is not the buffer but the bytes not yet sent.* The buffer stays the caller's (the same discipline as #modref("fmt")[`fmt`]), and `owned` guards the unflushed
@@ -29,16 +29,17 @@ leave --- *the writer cannot flush behind your back* (#chref("capabilities")).
   id: "mod-outbuf-ops",
   caption: [Ops of `outbuf`],
   [*op*], [*Shape*], [*Failure*],
+  [`write_all`], [`proc (out cap io, d u64, b slice u8) → option u64` --- writes one slice *to the end*, bypassing the buffer], [`none` --- cannot write any more],
   [`io_error` · `pending`], [enum `write_failed` · struct `pos u64` (bytes accumulated) · `fd u64` (1 = stdout, 2 = stderr)], [---],
-  [`open`], [`fn (d u64) → pending`, effects none], [none --- but opening creates a debt],
-  [`flush`], [`proc (out cap io, p owned pending, buf mut slice u8) → result (owned pending) io_error`], [`error write_failed`],
-  [`write`], [`proc (out cap io, p owned pending, buf mut slice u8, s slice u8) → result (owned pending) io_error` --- flushes itself when full], [`error write_failed`],
-  [`finish`], [`proc (out cap io, p owned pending, buf mut slice u8) → result void io_error` --- flushes the tail and completes], [`error write_failed`],
+  [`buf_open`], [`fn (d u64) → pending`, effects none], [none --- but opening creates a debt],
+  [`buf_flush`], [`proc (out cap io, p owned pending, buf mut slice u8) → result (owned pending) io_error`], [`error write_failed`],
+  [`buf_write`], [`proc (out cap io, p owned pending, buf mut slice u8, s slice u8) → result (owned pending) io_error` --- flushes itself when full], [`error write_failed`],
+  [`buf_finish`], [`proc (out cap io, p owned pending, buf mut slice u8) → result void io_error` --- flushes the tail and completes], [`error write_failed`],
 )
 
-`write` and `flush` consume ownership and return the new state in `ok` --- the caller takes it over with `set p (ok_value w)` every time. `set` is reinitialisation, not use, so
+`buf_write` and `buf_flush` consume ownership and return the new state in `ok` --- the caller takes it over with `set p (ok_value w)` every time. `set` is reinitialisation, not use, so
 ownership holds inside loops. *A partial write is failure* --- if the count written differs from the request it is `write_failed`, the pending is consumed and bytes in the buffer
-at that moment are lost (retry was not built). A small buffer still behaves correctly; size only affects speed. Call `flush` directly only when "this line must appear on screen
+at that moment are lost (retry was not built). A small buffer still behaves correctly; size only affects speed. Call `buf_flush` directly only when "this line must appear on screen
 now".
 
 ```lowent
@@ -54,7 +55,7 @@ proc main input out cap io . input al cap allocator . output u8 . effects alloc 
   let ng option mut slice u8 . . be alloc_bytes al capacity 32 .
   guard is_some ng . else return 71 .
   let nb mut slice u8 . be some_value ng .
-  var p owned outbuf.pending be outbuf.open 1 .
+  var p owned outbuf.pending be outbuf.buf_open 1 .
   var i u64 be 1 .
   while le i 5 . do
     let a option u64 . be fmt.put_str nb 0 "line " .
@@ -64,12 +65,12 @@ proc main input out cap io . input al cap allocator . output u8 . effects alloc 
     let c option u64 . be fmt.put_nl nb (some_value b) .
     guard is_some c . else return 74 .
     let w result (owned outbuf.pending) outbuf.io_error .
-      be outbuf.write out p buf (subslice nb 0 (some_value c)) .
+      be outbuf.buf_write out p buf (subslice nb 0 (some_value c)) .
     guard is_ok w . else return 75 .
     set p (ok_value w) .
     set i (add i 1) .
   end
-  let f result void outbuf.io_error . be outbuf.finish out p buf .
+  let f result void outbuf.io_error . be outbuf.buf_finish out p buf .
   guard is_ok f . else return 76 .
   return 0 .
 end

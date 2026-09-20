@@ -204,12 +204,13 @@ why-slow: 0 / 1 op(s) still on the tagged path
   선택지는 그 값들로 시험되었다는 뜻이기도 하다. 새 값이 필요하면 소스의 선언에 선택지를 더한다.
 ]
 
-#antipattern[권한을 받는 op 을 `--run` 으로 부르며 권한 자리를 비운다][
-  #demo("examples/ch31/mistake_runcap.low")
+#misconception[권한을 받는 op 은 `--run` 으로 못 부른다][
+  #demo("examples/ch31/runcap.low")
 
-  시작점(`main`)은 도구가 권한을 채워 주지만, 그 밖의 op 을 `--run` 으로 곧장 부르면 권한 자리도 인자 수에 든다. `say 5` 는 인자가 하나 모자라
-  `E-VM-ARITY` 이고, 권한 자리에 자리표 `0` 을 채운 `say 0 5` 는 돈다(장치 권한 `cap mmio` 도 같다 --- #chref("hardware")). 이 자리표는 시험을
-  위한 도구의 편의일 뿐이다. 프로그램 안에서 권한 자리에 수를 넘기면 `E-CAP-FORGE` 로 거절된다(#chref("capabilities")).
+  2026-09-20 까지는 그랬다: 권한 자리도 인자 수에 들어서 `say 5` 는 `E-VM-ARITY` 였고, 자리표 `0` 을 채운 `say 0 5` 만 돌았다. 그래서 `cap io` 나
+  `cap allocator` 를 받는 *증인 프로그램* 들은 네이티브로만 돌았고, 두 뒤끝을 맞대는 이 책의 규율이 그 자리에서 끊겨 있었다.
+  이제 도구가 권한 자리를 **채운다** --- 인자를 덜 준 경우에만. 그래서 `say 5` 도 `say 0 5` 도 돈다.
+  자리표는 여전히 도구의 편의일 뿐이다: 프로그램 안에서 권한 자리에 수를 넘기면 `E-CAP-FORGE` 로 거절된다(#chref("capabilities")).
 ]
 
 #misconception[구성에서 꺼진 가지는 검사하지 않는다][

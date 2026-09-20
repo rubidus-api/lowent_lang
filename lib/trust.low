@@ -26,14 +26,18 @@ proc one input win slice u8 . input from u64 . input scratch mut slice u8 . inpu
 do
   guard ge (len dn) 1 . else return 0 .
   set (index dn 0) 0 .
-  rem ★★★ `pem.find_from` 은 **못 찾으면 `len` 을 답한다** — 0 이 아니다. 그리고 0 은 **진짜
-  rem   자리**다(파일이 `-----BEGIN` 으로 시작하면 그렇다). 그것을 「못 찾음」으로 읽었더니
-  rem   인증서 한 장짜리 묶음에서 앵커를 영영 못 찾았다(2026-09-18 실측). 여러 장짜리에서는
-  rem   둘째부터 맞아떨어져 **문제가 안 보였다** — 가장 작은 입력이 가장 늦게 시험된다.
-  let b u64 be pem.find_from win "-----BEGIN CERTIFICATE-----" from .
-  guard lt b (len win) . else return 0 .
-  let e u64 be pem.find_from win "-----END CERTIFICATE-----" b .
-  guard lt e (len win) . else return 0 .
+  rem ★★★ 그전에 이 자리에서 태웠다(2026-09-18): `pem.find_from` 이 **못 찾으면 `len` 을
+  rem   답했고**, 0 은 **진짜 자리**다(파일이 `-----BEGIN` 으로 시작하면 그렇다). 「못 찾음 = 0」
+  rem   으로 읽었더니 인증서 **한 장짜리** 묶음에서 앵커를 영영 못 찾았다 — 여러 장짜리에서는
+  rem   둘째부터 맞아떨어져 문제가 안 보였다. **가장 작은 입력이 가장 늦게 시험된다.**
+  rem   ⇒ 2026-09-20(X-0036): 그 op 이 이제 `option` 을 답한다. 「없다」가 **타입**이 됐으므로
+  rem     이 자리에서 규약을 외울 일이 없다.
+  let bo option u64 . be pem.find_from win "-----BEGIN CERTIFICATE-----" from .
+  guard is_some bo . else return 0 .
+  let b u64 be some_value bo .
+  let eo option u64 . be pem.find_from win "-----END CERTIFICATE-----" b .
+  guard is_some eo . else return 0 .
+  let e u64 be some_value eo .
   let stop u64 be add e 25 .
   guard le stop (len win) . else return 0 .
   let got option u64 . be pem.unwrap (subslice win b stop) "CERTIFICATE" scratch out .

@@ -861,23 +861,23 @@ build <strong><span class="tok-k">option</span></strong> maxcpu int default <spa
 <strong><span class="tok-k">end</span></strong> .
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check --config badvalue.config mistake_configvalue.low
 8:0 E-CONFIG-TYPE: the config picks a value this `choice` option does not offer
-</code></pre></div></div><p><code>hz</code> 는 100 · 250 · 1000 가운데 하나다. 300 을 주면 가장 가까운 값으로 맞추거나 기본값으로 돌아가지 않고 <code>E-CONFIG-TYPE</code> 으로 멈춘다. 선택지는 그 값들로 시험되었다는 뜻이기도 하다. 새 값이 필요하면 소스의 선언에 선택지를 더한다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 권한을 받는 op 을 <code>--run</code> 으로 부르며 권한 자리를 비운다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/mistake_runcap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runcap .
-<em><span class="tok-c">rem trap: say 5</span></em>
+</code></pre></div></div><p><code>hz</code> 는 100 · 250 · 1000 가운데 하나다. 300 을 주면 가장 가까운 값으로 맞추거나 기본값으로 돌아가지 않고 <code>E-CONFIG-TYPE</code> 으로 멈춘다. 선택지는 그 값들로 시험되었다는 뜻이기도 하다. 새 값이 필요하면 소스의 선언에 선택지를 더한다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>권한을 받는 op 은 <code>--run</code> 으로 못 부른다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/runcap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> runcap .
+<em><span class="tok-c">rem run: say 5</span></em>
 <em><span class="tok-c">rem run: say 0 5</span></em>
 
-<em><span class="tok-c">rem 권한을 받는 op 을 `--run` 으로 부를 때는 권한 자리에도 인자(자리표 0)를 채운다</span></em>
+<em><span class="tok-c">rem `--run` 은 권한 자리를 **비워 두면 채워 준다**(2026-09-20). 자리표 `0` 을 넣던 옛 모양도 그대로 돈다</span></em>
 <strong><span class="tok-k">proc</span></strong> say <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
 <strong><span class="tok-k">end</span></strong> .
-</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run say mistake_runcap.low 0 5
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run say runcap.low 5
+hi
+say(5) = 3
+$ lowentc --run say runcap.low 0 5
 hi
 say(0, 5) = 3
-$ lowentc --run say mistake_runcap.low 5
-== ir diagnostics (1) ==
-0:0 E-VM-ARITY: argument count does not match op arity
-</code></pre></div></div><p>시작점(<code>main</code>)은 도구가 권한을 채워 주지만, 그 밖의 op 을 <code>--run</code> 으로 곧장 부르면 권한 자리도 인자 수에 든다. <code>say 5</code> 는 인자가 하나 모자라 <code>E-VM-ARITY</code> 이고, 권한 자리에 자리표 <code>0</code> 을 채운 <code>say 0 5</code> 는 돈다(장치 권한 <code>cap mmio</code> 도 같다 — 30장). 이 자리표는 시험을 위한 도구의 편의일 뿐이다. 프로그램 안에서 권한 자리에 수를 넘기면 <code>E-CAP-FORGE</code> 로 거절된다(16장).</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>구성에서 꺼진 가지는 검사하지 않는다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/dead_branch.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead_branch .
+</code></pre></div></div><p>2026-09-20 까지는 그랬다: 권한 자리도 인자 수에 들어서 <code>say 5</code> 는 <code>E-VM-ARITY</code> 였고, 자리표 <code>0</code> 을 채운 <code>say 0 5</code> 만 돌았다. 그래서 <code>cap io</code> 나 <code>cap allocator</code> 를 받는 <strong>증인 프로그램</strong> 들은 네이티브로만 돌았고, 두 뒤끝을 맞대는 이 책의 규율이 그 자리에서 끊겨 있었다. 이제 도구가 권한 자리를 <strong></strong>채운다<strong></strong> — 인자를 덜 준 경우에만. 그래서 <code>say 5</code> 도 <code>say 0 5</code> 도 돈다. 자리표는 여전히 도구의 편의일 뿐이다: 프로그램 안에서 권한 자리에 수를 넘기면 <code>E-CAP-FORGE</code> 로 거절된다(16장).</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>구성에서 꺼진 가지는 검사하지 않는다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/dead_branch.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead_branch .
 <em><span class="tok-c">rem flags: --config smp_off.config</span></em>
 <em><span class="tok-c">rem expect: E-TYPE-RETURN</span></em>
 

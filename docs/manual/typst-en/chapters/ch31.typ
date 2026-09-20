@@ -200,13 +200,14 @@ the slow path, used to see whether both paths give the same answer.
   `E-CONFIG-TYPE`. The choices also mean "tested with these values". If you need a new value, add it to the declaration in the source.
 ]
 
-#antipattern[Leaving the capability position empty when calling an op with `--run`][
-  #demo("examples/ch31/mistake_runcap.low")
+#misconception[An op that takes a capability cannot be called with `--run`][
+  #demo("examples/ch31/runcap.low")
 
-  For the entry point (`main`), the tool fills in capabilities, but when you call another op directly with `--run`, capability positions
-  count among the arguments. `say 5` is one argument short, hence `E-VM-ARITY`; `say 0 5`, with a placeholder `0` in the capability position,
-  runs (the device capability `cap mmio` works the same way --- #chref("hardware")). This placeholder is only a convenience of the tool for
-  testing. Inside a program, passing a number where a capability belongs is refused with `E-CAP-FORGE` (#chref("capabilities")).
+  That was true until 2026-09-20: capability positions counted among the arguments, so `say 5` was `E-VM-ARITY` and only `say 0 5`, with a
+  placeholder `0`, ran. The cost was quiet: *witness programs* taking `cap io` or `cap allocator` ran on the native back end only, so the
+  two-back-end oracle this book relies on was broken exactly there. The tool now FILLS capability positions --- but only when arguments are
+  missing --- so both `say 5` and `say 0 5` run. The placeholder is still only a convenience of the tool: inside a program, passing a number
+  where a capability belongs is refused with `E-CAP-FORGE` (#chref("capabilities")).
 ]
 
 #misconception[Branches switched off by the configuration are not checked][

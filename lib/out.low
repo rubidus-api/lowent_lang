@@ -41,13 +41,49 @@ export struct pending do
 end .
 
 rem 라이터를 연다. ★ 이 값을 **끝내지 않고 버리면 컴파일 오류**다(아래 finish 가 그렇게 만든다).
-export fn open input d u64 . output pending . do
+export fn buf_open input d u64 . output pending . do
   return make pending do pos 0 . fd d . end .
 end .
 
-rem ★ 버퍼를 비운다 — **여기서만 세상에 닿는다**(write_out). 비운 뒤의 상태를 돌려준다.
-rem   부분 쓰기는 실패로 친다(Go 의 "short write 는 에러" 규율 — 조사 §1.2).
-export proc flush input out cap io . input p owned pending . input buf mut slice u8 . .
+rem ★★★★ **끝까지 쓴다** — 잎(`write_out`)은 **짧게 쓴다**(X-0037, 2026-09-19 실측).
+rem
+rem   파이프로 내보낼 때 실제로 짧게 쓰였고, `lowget` 은 그 때문에 응답의 **마지막 한 바이트를
+rem   잃었다**(`curl` 과 맞대 보고서야 보였다: 20272 대 20273). `lowdiff` 와 `lowget` 이 **각각**
+rem   같은 루프를 다시 지었다 — 같은 함정을 두 번 밟은 것이 아니라, 한 번도 라이브러리가
+rem   그것을 대신해 주지 않은 것이다. 나가는 쪽에는 이미 `net.send_all` 이 있다: 이것은 그 대칭이고,
+rem   모양도 같게 맞췄다(`output option u64` — 쓴 바이트 수, 또는 none).
+rem
+rem ☞ 2026-09-19 에는 이것을 `io`(lib/io.low)에 두어야 했다: 그때 `outbuf` 는 `open`·`write` 를
+rem   내보냈고 `files` 도 같은 이름을 내보내서 **한 단위에 같이 설 수 없었다**(X-0039).
+rem   2026-09-20 에 이 모듈의 이름을 `buf_*` 로 바꿔 그 부딪침을 없앴고, 그래서 **제자리로
+rem   돌아왔다** — 버퍼를 거치지 않고 한 조각을 끝까지 내보내는 자리는 여기다.
+export proc write_all input out cap io . input d u64 . input b slice u8 . output option u64 . effects io .
+do
+  if eq (len b) 0 . do  return some 0 . end .
+  var wrote u64 be 0 .
+  var spin u64 be 0 .
+  while lt wrote (len b) . do
+    let n u64 be write_out out d (subslice b wrote (len b)) .
+    rem 0 은 «더는 못 쓴다» 다 — 무한히 되돌지 않는다.
+    guard gt n 0 . else return none .
+    set wrote (add wrote n) .
+    rem ★ 걸음 상한은 **길이 그 자체**다: 한 걸음에 적어도 한 바이트는 나간다.
+    set spin (add spin 1) .
+    guard le spin (len b) . else return none .
+  end .
+  return some wrote .
+end .
+
+rem ★ 버퍼를 비운다 — **여기서만 세상에 닿는다**. 비운 뒤의 상태를 돌려준다.
+rem
+rem ☞ **2026-09-20 에 고쳤다**(X-0037, 소유자 결정). 그전에는 *"부분 쓰기는 실패로 친다"* 였고
+rem   Go 의 «short write 는 에러» 를 근거로 적어 두었다. 그런데 Go 의 그 규율은 **Writer
+rem   인터페이스의 약속**(다 쓰거나 오류)이지 «잎이 짧게 쓰면 포기하라» 가 아니다.
+rem   ★ 실측: 파이프로 내보내면 `write_out` 이 **정상적으로** 짧게 쓴다(`lowget` 이 그 때문에
+rem     응답의 마지막 한 바이트를 잃었다 — `curl` 과 맞대 보고서야 보였다). 그러니 옛 규율대로면
+rem     **아무 잘못 없는 상황에서 `write_failed`** 가 났다. 이제 `write_all` 이 끝까지 쓰고,
+rem     실패는 «더는 못 쓴다» 일 때만 난다 — 약속은 그대로고, 지키는 방법이 옳아졌다.
+export proc buf_flush input out cap io . input p owned pending . input buf mut slice u8 . .
   output result (owned pending) io_error . effects io .
 errors write_failed .
 do
@@ -58,8 +94,8 @@ do
     return error write_failed .
   end .
   if gt (field p pos) 0 . do
-    let n u64 be write_out out d (subslice buf 0 (field p pos)) .
-    guard eq n (field p pos) . else do
+    let n option u64 . be write_all out d (subslice buf 0 (field p pos)) .
+    guard is_some n . else do
       drop p .
       return error write_failed .
     end .
@@ -70,7 +106,7 @@ end .
 
 rem ★★ 바이트를 **버퍼에 쌓는다.** 가득 차면 그때 비운다 — 그것이 버퍼링의 전부다.
 rem   `write_out` 은 호출마다 fflush 하므로, 이것이 syscall 수를 바이트 수에서 **버퍼 수**로 줄인다.
-export proc write input out cap io . input p owned pending . input buf mut slice u8 . .
+export proc buf_write input out cap io . input p owned pending . input buf mut slice u8 . .
   input s slice u8 .
   output result (owned pending) io_error . effects io .
 errors write_failed .
@@ -79,7 +115,7 @@ do
   var i u64 be 0 .
   while lt i (len s) . do
     if ge (field cur pos) (len buf) . do
-      let r result (owned pending) io_error . be flush out cur buf .
+      let r result (owned pending) io_error . be buf_flush out cur buf .
       guard is_ok r . else return error write_failed .
       set cur (ok_value r) .
     end .
@@ -97,7 +133,7 @@ end .
 
 rem ★★★ **완결.** owned 를 소비하고 result 를 낸다 — 이 선언 하나가 `pending` 을
 rem   *"완결이 필요한 타입"* 으로 만들고, 그래서 이것을 **안 부르면 컴파일이 안 된다**.
-export proc finish input out cap io . input p owned pending . input buf mut slice u8 . .
+export proc buf_finish input out cap io . input p owned pending . input buf mut slice u8 . .
   output result void io_error . effects io .
 errors write_failed .
 do
@@ -105,9 +141,12 @@ do
     drop p .
     return error write_failed .
   end .
+  rem ★ `buf_flush` 와 **같은 규율**로 쓴다(X-0037): 짧게 쓰인 것은 실패가 아니다.
+  rem   ☞ 2026-09-20 에 이 자리가 드러났다 — `buf_flush` 만 고치고 여기를 빠뜨렸더니
+  rem     주입 시험이 «끝에서 실패» 로 갈렸다. **같은 일을 두 자리에 적으면 둘이 갈린다.**
   if gt (field p pos) 0 . do
-    let n u64 be write_out out (field p fd) (subslice buf 0 (field p pos)) .
-    guard eq n (field p pos) . else do
+    let n option u64 . be write_all out (field p fd) (subslice buf 0 (field p pos)) .
+    guard is_some n . else do
       drop p .
       return error write_failed .
     end .

@@ -14,6 +14,13 @@ rem   확인을 건너뛰려면 `--insecure` 라고 **적어야** 하고, 그러
 rem   한 줄로 말한다. 검증하지 않는 클라이언트를 조용히 내놓지 않는다.
 rem   ☞ 서명은 RSA(v1.5)·ECDSA 의 SHA-256/SHA-384 넷을 확인한다. 모르는 알고리즘은 **거절**한다.
 rem
+rem ★★ **암호 스위트 둘을 제안한다** — `TLS_CHACHA20_POLY1305_SHA256` 을 **먼저**, 그 다음
+rem   `TLS_AES_128_GCM_SHA256`. 까닭은 취향이 아니라 **실측**이다: 이 언어로 쓴 두 구현의
+rem   처리량이 123 배 다르다(0.5 대 61.5 MB/s) — `gcm.gmul128` 이 블록마다 128 비트를 하나씩
+rem   도는 GF(2^128) 곱이고 `aes.sbox` 가 표가 아니라 계산이기 때문이다. AES-NI 가 있는
+rem   기계의 OpenSSL 은 순서가 반대다. **기계 명령이 있느냐가 순서를 뒤집는다.**
+rem   ☞ 25.6 MB 를 받는 시간: AES 52.4 초 → ChaCha **0.45 초**(같은 서버·같은 기계).
+rem
 rem ★★ **응답은 사람이 바라는 모양으로 낸다** — 머리를 떼고 `chunked` 껍질을 벗겨 본문만
 rem   흘린다(`-i` 를 주면 머리도 함께). 본문이 끝나는 자리를 **셋으로** 안다: 청크의 `0` 덩이 ·
 rem   `Content-Length` · 그리고 연결이 닫히는 것. 앞의 둘을 안 보면 `Connection: close` 를
@@ -154,6 +161,17 @@ do
   end .
   let sh slice u8 be subslice buf mn (add mn shn) .
   guard tlscli.sh_usable sh . else return 97 .
+
+  rem ★★★★ **고른 것은 서버다** — 우리는 둘을 제안했고(1301·1303) 그 답을 여기서 읽는다.
+  rem   suite 1 = AES-128-GCM(키 16) · suite 2 = ChaCha20-Poly1305(키 32). 같은 자리표를 쓰되
+  rem   **키 길이만 다르다**: 키 칸 44 바이트는 32+12 도 담는다.
+  rem   ☞ 왜 ChaCha 를 쓰나: 이 언어의 두 암호는 처리량이 **123 배** 다르다(0.5 대 61.5 MB/s) —
+  rem     AES-NI 가 없는 소프트웨어 구현에서는 순서가 뒤집힌다(X-0043).
+  var suite u64 be 1 .
+  var ksz u64 be 16 .
+  if eq (tlscli.sh_suite sh) 4867 . do  set suite 2 .  set ksz 32 . end .
+  rem 그 답을 `http_get` 도 알아야 한다 — 전사 자리 옆 한 칸에 적어 둔다.
+  set (index buf 56596) (narrow u8 suite) .
   let kso u64 be tlscli.sh_key_share_off sh .
   let _u1 result u64 x25519.x25519_error . be x25519.agree (subslice buf 56496 56528) priv (subslice sh kso (add kso 32)) (subslice buf 56528 56560) xw .
   guard is_ok _u1 . else return 98 .
@@ -165,9 +183,9 @@ do
   guard is_ok _u2 . else return 99 .
   guard eq (ok_value _u2) 96 . else return 99 .
   rem c_hs = 56200..56232 · s_hs = 56232..56264 · handshake secret = 56264..56296
-  let _u3 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56232 56264) 16 (subslice buf 56296 56340) (subslice buf 53100 54400) .
+  let _u3 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56232 56264) ksz (subslice buf 56296 56340) (subslice buf 53100 54400) .
   guard is_ok _u3 . else return 100 .
-  guard eq (ok_value _u3) 28 . else return 100 .
+  guard eq (ok_value _u3) (add ksz 12) . else return 100 .
 
   rem ── ⑤ EE · Certificate · CertificateVerify · Finished 를 연다 ─────────
   var seq u64 be 0 .
@@ -181,7 +199,7 @@ do
     rem 바뀜 신호(ChangeCipherSpec)는 1.3 에서 **뜻이 없다** — 중간 상자를 위한 장식이다. 버린다.
     if eq rt 20 . do  set rounds (add rounds 1) . end .
     if eq rt 23 . do
-      let pl_r result u64 tls13.tls13_error . be tls13.record_open 1 (subslice buf 56296 56312) (subslice buf 56312 56324) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
+      let pl_r result u64 tls13.tls13_error . be tls13.record_open suite (subslice buf 56296 (add 56296 ksz)) (subslice buf (add 56296 ksz) (add 56296 (add ksz 12))) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
       guard is_ok pl_r . else return 0 .
       let pl u64 be ok_value pl_r .
       guard gt pl 0 . else return 102 .
@@ -232,14 +250,14 @@ do
   guard (ok_value fr) . else return 106 .
 
   rem ── ⑦ 우리 Finished — 전사는 **서버 Finished 까지** 포함한다 ─────────
-  let _u4 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56200 56232) 16 (subslice buf 56340 56384) (subslice buf 53100 54400) .
+  let _u4 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56200 56232) ksz (subslice buf 56340 56384) (subslice buf 53100 54400) .
   guard is_ok _u4 . else return 107 .
-  guard eq (ok_value _u4) 28 . else return 107 .
+  guard eq (ok_value _u4) (add ksz 12) . else return 107 .
   let fn2_r result u64 tlscli.tlscli_error . be tlscli.build_client_fin (subslice buf 56200 56232) (subslice buf 0 mn) (subslice buf 56400 56440) (subslice buf 53100 54400) .
   guard is_ok fn2_r . else return 0 .
   let fn2 u64 be ok_value fn2_r .
   guard eq fn2 36 . else return 108 .
-  let sn_r result u64 tlscli.tlscli_error . be tlscli.seal_rec 1 (subslice buf 56340 56384) 16 0 22 (subslice buf 56400 56436) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
+  let sn_r result u64 tlscli.tlscli_error . be tlscli.seal_rec suite (subslice buf 56340 56384) ksz 0 22 (subslice buf 56400 56436) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
   guard is_ok sn_r . else return 0 .
   let sn u64 be ok_value sn_r .
   guard gt sn 0 . else return 109 .
@@ -251,12 +269,12 @@ do
   guard is_ok _u5 . else return 111 .
   guard eq (ok_value _u5) 64 . else return 111 .
   rem c_ap = 56440..56472 · s_ap = 56472..56504 → 트래픽 키는 56504·56548
-  let _u6 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56440 56472) 16 (subslice buf 56504 56548) (subslice buf 53100 54400) .
+  let _u6 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56440 56472) ksz (subslice buf 56504 56548) (subslice buf 53100 54400) .
   guard is_ok _u6 . else return 112 .
-  guard eq (ok_value _u6) 28 . else return 112 .
-  let _u7 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56472 56504) 16 (subslice buf 56548 56592) (subslice buf 53100 54400) .
+  guard eq (ok_value _u6) (add ksz 12) . else return 112 .
+  let _u7 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56472 56504) ksz (subslice buf 56548 56592) (subslice buf 53100 54400) .
   guard is_ok _u7 . else return 113 .
-  guard eq (ok_value _u7) 28 . else return 113 .
+  guard eq (ok_value _u7) (add ksz 12) . else return 113 .
   return 0 .
 end .
 
@@ -727,6 +745,11 @@ proc http_get input k cap net . input out cap io . input fd u64 . input buf mut 
      input loc mut slice u8 . output u64 . effects io .
 do
   let u mut slice u64 . be view_array u64 (subslice buf 55800 56200) .
+  rem ★ 핸드셰이크가 적어 둔 스위트를 읽는다(1 = AES-128-GCM · 2 = ChaCha20-Poly1305).
+  rem   키 길이가 그것으로 정해지고, 키 칸(44 바이트) 안에서 iv 의 자리가 달라진다.
+  let suite u64 be cast u64 (index buf 56596) .
+  var ksz u64 be 16 .
+  if eq suite 2 . do  set ksz 32 . end .
   rem 응답을 푸는 자리 — 핸드셰이크가 끝난 뒤라 위쪽이 비어 있다.
   rem   [180000..196384) 머리 · [196384..196448) 길이 줄 · [196448..196576) 상태 열여섯 칸
   let hdr mut slice u8 . be subslice buf 180000 196384 .
@@ -753,7 +776,7 @@ do
   set at (put_s (subslice buf 56600 58600) at "\r\nUser-Agent: lowget/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n") .
   guard gt at 0 . else return 125 .
 
-  let sn_r result u64 tlscli.tlscli_error . be tlscli.seal_rec 1 (subslice buf 56504 56548) 16 0 23 (subslice buf 56600 (add 56600 at)) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
+  let sn_r result u64 tlscli.tlscli_error . be tlscli.seal_rec suite (subslice buf 56504 56548) ksz 0 23 (subslice buf 56600 (add 56600 at)) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
   guard is_ok sn_r . else return 0 .
   let sn u64 be ok_value sn_r .
   guard gt sn 0 . else return 120 .
@@ -770,7 +793,7 @@ do
     if eq done 0 . do
       let rt u64 be tlscli.rec_type (subslice buf 20000 20005) .
       if eq rt 23 . do
-        let pl_r result u64 tls13.tls13_error . be tls13.record_open 1 (subslice buf 56548 56564) (subslice buf 56564 56576) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
+        let pl_r result u64 tls13.tls13_error . be tls13.record_open suite (subslice buf 56548 (add 56548 ksz)) (subslice buf (add 56548 ksz) (add 56548 (add ksz 12))) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
         guard is_ok pl_r . else return 0 .
         let pl u64 be ok_value pl_r .
         guard gt pl 0 . else return 122 .

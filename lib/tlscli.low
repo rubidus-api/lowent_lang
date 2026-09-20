@@ -76,7 +76,7 @@ rem   (`check-export-names` 가 실제로 그것을 잡아 주었다, 2026-09-18
 
 rem ── ClientHello 를 짓는다 ────────────────────────────────────────────────
 rem
-rem   01 <len3> 0303 <random 32> 20 <sid 32> <suites_len 2> 1301 01 00 <ext_len 2> <확장>
+rem   01 <len3> 0303 <random 32> 20 <sid 32> <suites_len 2> 1303 1301 01 00 <ext_len 2> <확장>
 rem
 rem   확장 다섯을 이 차례로 싣는다:
 rem     server_name(0000) · supported_groups(000a) · signature_algorithms(000d) ·
@@ -105,7 +105,7 @@ do
   let extlen u64 be add (add e_sni e_grp) (add e_sig (add e_ver e_ks)) .
   rem 본문 = 버전 2 + 랜덤 32 + sid_len 1 + sid 32 + 스위트길이 2 + 스위트 2
   rem        + 압축 2 + 확장길이 2 + 확장
-  let body u64 be add 75 extlen .
+  let body u64 be add 77 extlen .
   guard le (add body 4) (len out) . else return 0 .
 
   set (index out 0) 1 .
@@ -125,14 +125,23 @@ do
     set (index out (add 39 j)) (index sid j) .
     set j (add j 1) .
   end .
-  rem cipher_suites: 0002 1301 (TLS_AES_128_GCM_SHA256 하나)
-  set (index out 71) 0 .   set (index out 72) 2 .
-  set (index out 73) 19 .  set (index out 74) 1 .
+  rem ★★★★ cipher_suites: 0004 **1301 1303** — AES-128-GCM 과 ChaCha20-Poly1305 **둘**을 제안한다.
+  rem
+  rem ☞ 2026-09-20 까지는 `1301` 하나였다(X-0043, 소유자 선택 ⓐ). 재 보니 이 언어로 쓴 두 암호의
+  rem   처리량이 **123 배** 달랐다 — AES-128-GCM 0.5 MB/s 대 ChaCha20-Poly1305 61.5 MB/s
+  rem   (같은 기계·같은 컴파일러, 4 MiB). 까닭은 `gcm.gmul128` 이 블록마다 128 비트를 하나씩 도는
+  rem   GF(2^128) 곱이고 `aes.sbox` 가 표가 아니라 계산이기 때문이다. OpenSSL 은 반대다(AES-NI 로
+  rem   AES 가 두 배 빠르다) — **기계 명령이 있느냐**가 순서를 뒤집는다.
+  rem   ★ 그래서 우리는 **ChaCha 를 먼저 적는다**: 서버가 순서를 존중하면 빠른 쪽을 고른다.
+  rem     레코드 층은 이미 둘 다 안다([tls13](tls13) 의 suite 1·2) — 막혀 있던 것은 이 제안뿐이었다.
+  set (index out 71) 0 .   set (index out 72) 4 .
+  set (index out 73) 19 .  set (index out 74) 3 .
+  set (index out 75) 19 .  set (index out 76) 1 .
   rem legacy_compression_methods: 01 00
-  set (index out 75) 1 .   set (index out 76) 0 .
-  set (index out 77) (narrow u8 (shr extlen 8)) .
-  set (index out 78) (narrow u8 (bit_and extlen 255)) .
-  var at u64 be 79 .
+  set (index out 77) 1 .   set (index out 78) 0 .
+  set (index out 79) (narrow u8 (shr extlen 8)) .
+  set (index out 80) (narrow u8 (bit_and extlen 255)) .
+  var at u64 be 81 .
 
   rem ① server_name — 이름은 **바이트 그대로** 싣는다(A-라벨은 부르는 쪽이 만든다).
   let n1 u64 be add 5 (len host) .
@@ -301,7 +310,13 @@ export fn sh_usable input b slice u8 . output bool . do
   if eq (sh_ok b) false . do  return false . end .
   if sh_is_hrr b . do  return false . end .
   if eq (sh_is_tls13 b) false . do  return false . end .
-  if ne (sh_suite b) 4865 . do  return false . end .
+  rem ★ 받아들이는 스위트 둘: 4865 = TLS_AES_128_GCM_SHA256 · 4867 = TLS_CHACHA20_POLY1305_SHA256.
+  rem   ☞ 고르는 것은 서버다. 우리는 **제안한 둘 가운데 하나인지**만 본다 — 제안하지 않은 것을
+  rem     서버가 골랐다면 그것은 규약 위반이고, 여기서 거절하는 것이 그 자리다.
+  var suite_ok bool be false .
+  if eq (sh_suite b) 4865 . do  set suite_ok true . end .
+  if eq (sh_suite b) 4867 . do  set suite_ok true . end .
+  if eq suite_ok false . do  return false . end .
   if eq (sh_key_share_off b) 0 . do  return false . end .
   return true .
 end .

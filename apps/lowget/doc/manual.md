@@ -76,6 +76,18 @@ lowget: the server sent no certificate this build could read
 - `#조각`은 서버에 보내지 않는다(RFC 3986 §3.5).
 - `User-Agent: lowget/1.0` 과 `Accept: */*` 를 적는다 — 없으면 403 으로 막는 서버가 있다.
 
+## 얼마나 빠른가 (2026-09-20 실측, 로컬 TLS 서버)
+
+| 본문 | `lowget` | `curl` |
+|---:|---:|---:|
+| 1.3 KB | 44 ms | 18 ms |
+| 25.6 MB (ChaCha20-Poly1305) | **0.45 s** (약 57 MB/s) | 55 ms |
+| 25.6 MB (AES-128-GCM) | 52.4 s (약 0.5 MB/s) | — |
+
+★ 스위트 둘을 제안하고 **ChaCha 를 먼저 적는다.** 이 언어에는 AES-NI 가 없어서 소프트웨어
+AES-GCM 이 ChaCha20-Poly1305 보다 **123 배 느리다**(`gcm.gmul128` 이 블록마다 128 비트를
+하나씩 돈다). 서버가 AES 만 받으면 그 길로 가고, 그때는 느리다 — 그 수를 위에 적어 둔다.
+
 ## 안 지은 것 (정직하게)
 
 - **HTTP/2·HTTP/3 없음.** ALPN 을 제안하지 않으므로 서버가 HTTP/1.1 로 답한다.

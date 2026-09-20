@@ -983,6 +983,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_ELSE_NONE: case IRW_ELSE_ERR: case IRW_TRY:
         case IRW_BNEW: case IRW_CONTAINS: case IRW_COUNT:   // ★ 비트셋 = 64비트 마스크
         case IRW_SAMESL:                                    // ★ 같은 바이트인가 — 두 슬라이스 → 참거짓
+        case IRW_AESCTR: case IRW_GHASH:                    // ★ 암호 잎 — 해시와 같은 모양(슬라이스와 수)
         case IRW_SHA256: case IRW_SHA512: case IRW_SHA384: case IRW_CRC32:   // ★ 해시 — 태그와 **같은 함수**를 부른다
         case IRW_HASH64: case IRW_RNGNEXT: case IRW_RANDBYTES:  // ★ 해시·난수 — 같은 모양
         case IRW_VREVERSE: case IRW_VROTATE: case IRW_VSHUFFLE:  // ★ 레인 순열 — 그냥 레인 옮기기
@@ -1372,6 +1373,15 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_SHA256: case IRW_SHA512: case IRW_SHA384:
                             if (st.n < 2 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL) return false;
                             st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
+            /* ★ 암호 잎: 슬라이스 넷(셋) → 수 하나. 모양이 해시와 같아 빠른 경로에 그대로 선다. */
+            case IRW_AESCTR:
+                            if (st.n < 4 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL ||
+                                st.k[st.n-3] != K_SL || st.k[st.n-4] != K_SL) return false;
+                            st.n -= 3; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
+            case IRW_GHASH:
+                            if (st.n < 3 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL ||
+                                st.k[st.n-3] != K_SL) return false;
+                            st.n -= 2; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_SAMESL:
                             if (st.n < 2 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL) return false;
                             if (st.fl[st.n-1] || st.fl[st.n-2]) return false;
@@ -2906,6 +2916,19 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             //   가장 확실한 방법은 같은 코드를 부르는 것이다. 다른 것은 값이 오는 자리뿐:
             //   태그는 `lowv`, 여기는 `ss[]`(포인터+길이 그대로).
             //   ★ 쓰기 대상의 const 를 벗긴다 — 빠른 경로가 `index.store` 에서 이미 하는 일이다.
+            case IRW_AESCTR: {
+                fputs("    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], c_ = ss[--ssp], k_ = ss[--ssp];\n"
+                      "      st[sp++] = lw_aes_ctr(k_.p, k_.n, (void *)c_.p, c_.n, s_.p, s_.n,"
+                      " (void *)d_.p, d_.n); }\n", out);
+                ks.n -= 4; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
+            }
+            case IRW_GHASH: {
+                fputs("    { lw_sl d_ = ss[--ssp], z_ = ss[--ssp], h_ = ss[--ssp];\n"
+                      "      st[sp++] = lw_ghash(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n); }\n", out);
+                ks.n -= 3; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
+            }
             case IRW_SHA256: case IRW_SHA512: case IRW_SHA384: {
                 const char *fn = in->w == IRW_SHA256 ? "lw_sha256"
                                : (in->w == IRW_SHA384 ? "lw_sha384" : "lw_sha512");
@@ -5919,6 +5942,15 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_SHA384:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]); sp--;\n"
                           "      st[sp-1] = lw_int(lw_sha384(s_.p, s_.n, (unsigned char *)d_.p, d_.n)); }\n", out); break;
+                case IRW_AESCTR:
+                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
+                          "      lowv c_ = lw_thru(st[sp-3]); lowv k_ = lw_thru(st[sp-4]); sp -= 3;\n"
+                          "      st[sp-1] = lw_int(lw_aes_ctr(k_.p, k_.n, (void *)c_.p, c_.n,\n"
+                          "                                   s_.p, s_.n, (void *)d_.p, d_.n)); }\n", out); break;
+                case IRW_GHASH:
+                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv z_ = lw_thru(st[sp-2]);\n"
+                          "      lowv h_ = lw_thru(st[sp-3]); sp -= 2;\n"
+                          "      st[sp-1] = lw_int(lw_ghash(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n)); }\n", out); break;
                 case IRW_RANDBYTES:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); unsigned long hfk_ = 1;\n"
                           "      int hf_ = lw_hf_probe(\"random\", &hfk_);\n"

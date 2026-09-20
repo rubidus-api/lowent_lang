@@ -29,7 +29,8 @@ extern char **environ;   // ★ cap env (RFC-0030 D2′) — 호스트 프로파
 #include "low_hostfault.inc"
 #include <dirent.h>     // ★ 디렉터리 순회 (RFC-0069 §6 — opendir/readdir/closedir)
 #include "low_sha256.h"
-#include "low_sha512.h"        // ★ SHA-256 **한 벌** — VM 은 컴파일, 백엔드는 문자열화
+#include "low_sha512.h"
+#include "low_aes.h"        // ★ SHA-256 **한 벌** — VM 은 컴파일, 백엔드는 문자열화
 #include "proven_sys_random.h" // ★ 난수 리프 (RFC-0090 N3b) — OS 엔트로피 한 자리
 #include "proven_sys_time.h"   // ★ 시계 리프 (RFC-0090 N1) — proven_c_lib 이 이미 준다
 #include <sys/socket.h> // ★ 소켓 리프 (socketpair/send/recv — cap net)
@@ -2693,6 +2694,41 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 long long wrote3 = lw_sha384(src.p, src.n, (unsigned char *)(proven_u8 *)dst.p, dst.n);
                 stack[sp++] = vmv_int((proven_i64)wrote3);
+                break;
+            }
+            case IRW_AESCTR: {   // (key16, mut ctr16, src, mut dst) → u64 — 권한 없음(순수)
+                if (sp < 4) return false;
+                bool t4c_; vmv_t dst = vm_through(vm, stack[--sp], true,  &t4c_);
+                bool t3c_; vmv_t src = vm_through(vm, stack[--sp], false, &t3c_);
+                bool t2c_; vmv_t ctr = vm_through(vm, stack[--sp], true,  &t2c_);
+                bool t1c_; vmv_t key = vm_through(vm, stack[--sp], false, &t1c_);
+                if ((key.tag != VMV_SLICE && key.tag != VMV_VARRAY && key.tag != VMV_VIEW) ||
+                    (ctr.tag != VMV_SLICE && ctr.tag != VMV_VARRAY) ||
+                    (src.tag != VMV_SLICE && src.tag != VMV_VARRAY && src.tag != VMV_VIEW) ||
+                    (dst.tag != VMV_SLICE && dst.tag != VMV_VARRAY)) {
+                    vm_diag(vm->diags, "E-VM-TYPE",
+                            "aes_ctr needs (16-byte key, mutable 16-byte counter, bytes, mutable bytes)");
+                    return false;
+                }
+                long long nact = lw_aes_ctr(key.p, key.n, (void *)ctr.p, ctr.n,
+                                            src.p, src.n, (void *)dst.p, dst.n);
+                stack[sp++] = vmv_int((proven_i64)nact);
+                break;
+            }
+            case IRW_GHASH: {   // (h16, mut z16, data) → u64 — 권한 없음(순수)
+                if (sp < 3) return false;
+                bool g3c_; vmv_t dat = vm_through(vm, stack[--sp], false, &g3c_);
+                bool g2c_; vmv_t zz  = vm_through(vm, stack[--sp], true,  &g2c_);
+                bool g1c_; vmv_t hh  = vm_through(vm, stack[--sp], false, &g1c_);
+                if ((hh.tag != VMV_SLICE && hh.tag != VMV_VARRAY && hh.tag != VMV_VIEW) ||
+                    (zz.tag != VMV_SLICE && zz.tag != VMV_VARRAY) ||
+                    (dat.tag != VMV_SLICE && dat.tag != VMV_VARRAY && dat.tag != VMV_VIEW)) {
+                    vm_diag(vm->diags, "E-VM-TYPE",
+                            "ghash needs (16-byte H, mutable 16-byte accumulator, bytes)");
+                    return false;
+                }
+                long long ngh = lw_ghash(hh.p, hh.n, (void *)zz.p, zz.n, dat.p, dat.n);
+                stack[sp++] = vmv_int((proven_i64)ngh);
                 break;
             }
             case IRW_RANDBYTES: {   // cap random — (mut slice) → u64 채운 바이트 수

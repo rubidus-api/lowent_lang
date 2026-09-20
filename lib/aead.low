@@ -31,6 +31,12 @@ use poly from "poly.low" .
 
 rem ★ 한 조각을 16 바이트 블록들로 잘라 Poly1305 에 먹인다. 남는 꼬리는 0 으로 채워
 rem   **꽉 찬 블록**으로 만든다(pad16). `pad` 는 16 바이트 작업 공간.
+rem
+rem ★★★ **`pad` 를 잘라서 넘긴다** (2026-09-21). `poly.block` 은 «최대 16 바이트» 를 받고
+rem   더 길면 **0 을 내고 아무것도 누적하지 않는다**. 위쪽 guard 는 `ge (len pad) 16` 이라
+rem   17 바이트짜리를 받아들였고, 그러면 꼬리 블록이 **말없이 사라져** 태그가 틀렸다 —
+rem   자리가 남아서 생긴 오답이라 «모자란다» 로도 안 보인다. 이 저장소가 두 번 밟은 모양이다
+rem   (`hash.digest_ok` 의 정확 길이 규칙과 같은 자리). 잘라 넘기면 경우가 하나로 준다.
 proc feed input pst mut slice u64 . input data slice u8 . input pad mut slice u8 . output u64 . effects none . do
   var off u64 be 0 .
   while le (add off 16) (len data) . do
@@ -48,7 +54,7 @@ proc feed input pst mut slice u64 . input data slice u8 . input pad mut slice u8
       set (index pad j) (index data (add off j)) .
       set j (add j 1) .
     end .
-    let z2 u64 be poly.block pst pad 1 .
+    let z2 u64 be poly.block pst (subslice pad 0 16) 1 .
   end .
   return 1 .
 end .
@@ -61,7 +67,7 @@ proc feed_lens input pst mut slice u64 . input alen u64 . input clen u64 . input
     set (index pad (add 8 b)) (cast u8 (bit_and (shr clen (mul b 8)) 255)) .
     set b (add b 1) .
   end .
-  return poly.block pst pad 1 .
+  return poly.block pst (subslice pad 0 16) 1 .
 end .
 
 rem ★ 일회용 Poly1305 키: ChaCha20 블록 0 의 앞 32 바이트(RFC 8439 §2.6).

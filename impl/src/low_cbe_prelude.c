@@ -14,6 +14,7 @@
 #include "low_cbe_prelude.h"
 #include "low_sha256.h"   /* ★ 방출 런타임이 VM 과 **같은 매크로**를 찍는다 — 갈릴 자리가 없다 */
 #include "low_sha512.h"
+#include "low_aes.h"
 #include "low_blake3.h"
 #include "low_version.h" /* ★ 방출 헤더가 자기가 어느 epoch 의 것인지 적는다 */
 
@@ -594,6 +595,7 @@ const char LW_PRELUDE[] =
 "}\n"
 LOW_SHA256_C_SOURCE
 LOW_SHA512_C_SOURCE
+LOW_AES_C_SOURCE
 "static long long lw_rng_next(long long st) {\n"
 "    unsigned long long z = (unsigned long long)st + 0x9e3779b97f4a7c15ull;\n"
 "    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;\n"

@@ -11,13 +11,14 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 190 개다.]
+  #para("2")[모두 192 개다.]
 
   #tbl("내장 연산과 그 뜻")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
       [*연산*], [*무엇을 하는가*],
         [`abs`], [절댓값. 가장 작은 음수에서는 넘치므로 트랩한다],
         [`add`], [두 수를 더한다. 넘치면 트랩한다],
+        [`aes_ctr`], [AES-128-CTR — 키 16 · 카운터 16 을 제자리에서 올린다. 낸 값은 흐른 바이트 수],
         [`all`], [모두 참인가 — 첫 거짓에서 멈춘다],
         [`alloc_bytes`], [영역에서 바이트 자리를 얻는다],
         [`and`], [논리 곱 — 앞이 거짓이면 뒤를 **안 본다**],
@@ -85,6 +86,7 @@
         [`fmod`], [부동소수 나머지],
         [`fold`], [누산기에 차례로 접는다],
         [`ge`], [앞이 크거나 같은가],
+        [`ghash`], [GHASH — GF(2^128) 누산. h 16 · z 16 을 제자리에서 고친다. 낸 값은 먹인 바이트 수],
         [`gt`], [앞이 큰가],
         [`hash_bytes`], [바이트열의 해시],
         [`index`], [그 자리의 원소],
@@ -216,58 +218,58 @@
   ]
 
   #note[
-    실측(2026-08-25): 190 개 가운데 지역 이름 선언이 막히는 것은 **175 개**,
+    실측(2026-08-25): 192 개 가운데 지역 이름 선언이 막히는 것은 **177 개**,
     쓸 수 있는 것은 **15 개**다 — `borrow` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `range` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 **이름 충돌 규칙을 틀리게 말하기**
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
   ]
 
-  #shape("내장 연산 이름", "abs                   add                   all                   alloc_bytes
-and                   any                   arg                   atomic_add
-atomic_and            atomic_cas            atomic_fence          atomic_load
-atomic_or             atomic_store          atomic_sub            atomic_swap
-atomic_xor            avg                   bit_and               bit_cast
-bit_not               bit_or                bit_xor               bitset_new
-borrow                byte_swap             capacity              cast
-ceil                  chk_add               chk_mul               chk_sub
-collect               complement            config                contains
-cos                   count                 count_ones            crc32
-cstr_of               deref                 difference            dir_close
-dir_make              dir_open              dir_read              div
-div_nz                encode                enumerate             env_get
-eq                    error                 error_value           exp
-expect                field                 file_close            file_open
-file_read             file_seek             file_type             file_write
-filter                floor                 fmod                  fold
-ge                    gt                    hash_bytes            index
-intersect             into                  is_empty              is_error
-is_none               is_ok                 is_some               is_subset
-le                    leading_zeros         len                   link_type
-load                  load_masked           log                   lt
-map                   max                   min                   mod
-mul                   mut_ref               narrow                narrow_sat
-narrow_try            narrow_wrap           native_lanes          ne
-neg                   net_accept            net_close             net_connect
-net_listen            net_pair              net_port              net_recv
-net_resolve           net_send              nonzero_of            not
-ok                    ok_value              or                    panic
-path_remove           path_rename           pipe                  pop
-pow                   prefetch              push                  r_read
-r_write               range                 reactor_new           read_in
-read_volatile         reduce_add            reduce_max            reduce_min
-reduce_mul            ref                   region                remove
-ret                   reverse               rng_next              rotate
-rotl                  rotr                  round                 same_slice
-sat_add               sat_mul               sat_sub               scan
-seg                   segs                  select                send
-sha256                sha384                sha512                shl
-shr                   sin                   size_of               skip
-some_value            spawn                 splat                 sqrt
-stack_new             store                 store_masked          str_from_cstr
-sub                   subslice              sum_neumaier          sum_seq
-swap                  take                  trailing_zeros        try_view
-union                 value_or              view                  view_array
-view_segments         widen                 wrap_add              wrap_mul
-wrap_shl              wrap_shr              wrap_sub              write_out
-write_volatile        zip")
+  #shape("내장 연산 이름", "abs                   add                   aes_ctr               all
+alloc_bytes           and                   any                   arg
+atomic_add            atomic_and            atomic_cas            atomic_fence
+atomic_load           atomic_or             atomic_store          atomic_sub
+atomic_swap           atomic_xor            avg                   bit_and
+bit_cast              bit_not               bit_or                bit_xor
+bitset_new            borrow                byte_swap             capacity
+cast                  ceil                  chk_add               chk_mul
+chk_sub               collect               complement            config
+contains              cos                   count                 count_ones
+crc32                 cstr_of               deref                 difference
+dir_close             dir_make              dir_open              dir_read
+div                   div_nz                encode                enumerate
+env_get               eq                    error                 error_value
+exp                   expect                field                 file_close
+file_open             file_read             file_seek             file_type
+file_write            filter                floor                 fmod
+fold                  ge                    ghash                 gt
+hash_bytes            index                 intersect             into
+is_empty              is_error              is_none               is_ok
+is_some               is_subset             le                    leading_zeros
+len                   link_type             load                  load_masked
+log                   lt                    map                   max
+min                   mod                   mul                   mut_ref
+narrow                narrow_sat            narrow_try            narrow_wrap
+native_lanes          ne                    neg                   net_accept
+net_close             net_connect           net_listen            net_pair
+net_port              net_recv              net_resolve           net_send
+nonzero_of            not                   ok                    ok_value
+or                    panic                 path_remove           path_rename
+pipe                  pop                   pow                   prefetch
+push                  r_read                r_write               range
+reactor_new           read_in               read_volatile         reduce_add
+reduce_max            reduce_min            reduce_mul            ref
+region                remove                ret                   reverse
+rng_next              rotate                rotl                  rotr
+round                 same_slice            sat_add               sat_mul
+sat_sub               scan                  seg                   segs
+select                send                  sha256                sha384
+sha512                shl                   shr                   sin
+size_of               skip                  some_value            spawn
+splat                 sqrt                  stack_new             store
+store_masked          str_from_cstr         sub                   subslice
+sum_neumaier          sum_seq               swap                  take
+trailing_zeros        try_view              union                 value_or
+view                  view_array            view_segments         widen
+wrap_add              wrap_mul              wrap_shl              wrap_shr
+wrap_sub              write_out             write_volatile        zip")
 ]

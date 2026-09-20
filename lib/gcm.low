@@ -79,29 +79,22 @@ export proc gmul128 input z mut slice u8 . input h slice u8 . input v mut slice 
   return 1 .
 end .
 
-rem ★ 한 조각을 16 바이트 블록으로 잘라 GHASH 에 먹인다. 꼬리는 0 으로 채운다.
-proc ghash_feed input z mut slice u8 . input h slice u8 . input data slice u8 . input v mut slice u8 . input blk mut slice u8 . output u64 . effects none . do
-  var off u64 be 0 .
-  while lt off (len data) . do
-    var i u64 be 0 .
-    while lt i 16 . do  set (index blk i) 0 .  set i (add i 1) .  end .
-    var j u64 be 0 .
-    while lt j 16 . do
-      if lt (add off j) (len data) . do
-        set (index blk j) (index data (add off j)) .
-      end .
-      set j (add j 1) .
-    end .
-    let z1 u64 be xor16 z blk .
-    let z2 u64 be gmul128 z h v .
-    set off (add off 16) .
-  end .
+rem ★★★★ **한 조각을 GHASH 에 먹인다 — 이제 잎 하나가 판다** (X-0043ⓑ, 2026-09-20).
+rem   그전에는 `gmul128` 이 블록마다 128 비트를 하나씩 돌았다. 같은 기계에서 4 MiB 를 재면
+rem   GHASH 만 983 ms(4.1 MB/s) 였고, 그래서 AES-GCM 전체가 ChaCha20-Poly1305 의 **123 분의 1**
+rem   이었다. `ghash` 는 그 셈을 C 로 한 번 적어 **VM 과 네이티브가 같은 코드를 부른다**.
+rem   ☞ `gmul128` 은 지우지 않았다 — 이 모듈이 말하는 **뜻의 정의**로 남고, 골든이 둘을 맞댄다.
+proc ghash_feed input z mut slice u8 . input h slice u8 . input data slice u8 . output u64 . effects none . do
+  guard ge (len z) 16 . else return 0 .
+  guard ge (len h) 16 . else return 0 .
+  let g u64 be ghash (subslice h 0 16) (subslice z 0 16) data .
   return 1 .
 end .
 
 rem ★ 길이 블록: [len(A)]64 ‖ [len(C)]64, **비트 수**로, 빅엔디언.
 rem   ☞ 바이트가 아니라 **비트**다. 여기서 8 을 빠뜨리는 것이 이 알고리즘의 고전적 오답이다.
-proc ghash_lens input z mut slice u8 . input h slice u8 . input alen u64 . input clen u64 . input v mut slice u8 . input blk mut slice u8 . output u64 . effects none . do
+proc ghash_lens input z mut slice u8 . input h slice u8 . input alen u64 . input clen u64 . input blk mut slice u8 . output u64 . effects none . do
+  guard ge (len blk) 16 . else return 0 .
   let abits u64 be mul alen 8 .
   let cbits u64 be mul clen 8 .
   var i u64 be 0 .
@@ -110,8 +103,7 @@ proc ghash_lens input z mut slice u8 . input h slice u8 . input alen u64 . input
     set (index blk (add 8 i)) (cast u8 (bit_and (shr cbits (mul (sub 7 i) 8)) 255)) .
     set i (add i 1) .
   end .
-  let z1 u64 be xor16 z blk .
-  return gmul128 z h v .
+  return ghash_feed z h (subslice blk 0 16) .
 end .
 
 rem ★ GCTR 한 블록: 카운터 블록을 암호화해 평문과 XOR 한다.
@@ -150,10 +142,15 @@ rem     손대지 않은 암호문을 본다.
 rem ★ 한 판의 준비: rk(0..176) · H(176..192) · J0(256..272) · ctr(240..256) = J0+1.
 proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard eq (len nonce) 12 . else return 0 .
+  guard eq (len key) 16 . else return 0 .
   guard ge (len w) 320 . else return 0 .
   rem w 의 자리: 0..176 rk · 176..192 h · 192..208 z · 208..224 v · 224..240 blk
-  rem            240..256 ctr · 256..272 j0 · 272..288 ks · 288..304 tmp
+  rem            240..256 ctr · 256..272 j0 · 272..288 ks · 288..304 tmp · 304..320 key
   guard eq (aes.expand_key key (subslice w 0 176)) 176 . else return 0 .
+  rem ★ 원래 키를 일터에 둔다 — `gcm_stream` 이 부르는 잎(`aes_ctr`)은 확장키가 아니라
+  rem   **16 바이트 키**를 받는다(확장은 잎이 제 안에서 한다).
+  var kk u64 be 0 .
+  while lt kk 16 . do  set (index w (add 304 kk)) (index key kk) .  set kk (add kk 1) .  end .
 
   rem H = AES_K(0^128)
   var i u64 be 0 .
@@ -174,21 +171,17 @@ proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 .
   return 16 .
 end .
 
-rem ★ 흐름: dst = src XOR 키스트림(카운터 J0+1 부터). 암호화도 복호도 이것이다.
+rem ★★★★ **흐름 — 이제 잎 하나가 판다** (X-0043ⓑ, 2026-09-20).
+rem   그전에는 `gctr_block` 이 블록마다 `aes.encrypt_block` 을 불렀고, 4 MiB 에 7172 ms
+rem   (0.6 MB/s) 였다 — AES-GCM 느림의 **88%** 가 여기였다. `aes_ctr` 는 키 확장부터
+rem   카운터 증가까지 한 번의 호출 안에서 돈다.
+rem   ☞ 카운터는 `w[240..256]` — `gcm_prep` 이 J0+1 로 놓았고, 잎이 **뒤 4 바이트만** 올린다
+rem     (inc32). 그래서 여러 번 나눠 불러도 이어진다.
 proc gcm_stream input src slice u8 . input dst mut slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard ge (len dst) (len src) . else return 0 .
-  var off u64 be 0 .
-  while lt off (len src) . do
-    guard eq (gctr_block (subslice w 0 176) (subslice w 240 256) (subslice w 272 288) (subslice w 288 304)) 16 . else return 0 .
-    var k u64 be 0 .
-    while lt k 16 . do
-      if lt (add off k) (len src) . do
-        set (index dst (add off k)) (cast u8 (bit_xor (cast u64 (index src (add off k))) (cast u64 (index w (add 272 k))))) .
-      end .
-      set k (add k 1) .
-    end .
-    set off (add off 16) .
-  end .
+  guard ge (len w) 320 . else return 0 .
+  let n u64 be aes_ctr (subslice w 304 320) (subslice w 240 256) src dst .
+  guard eq n (len src) . else return 0 .
   return 16 .
 end .
 
@@ -198,9 +191,9 @@ proc gcm_tag input aad slice u8 . input ct slice u8 . input tag mut slice u8 . i
   guard ge (len tag) 16 . else return 0 .
   var q u64 be 0 .
   while lt q 16 . do  set (index w (add 192 q)) 0 .  set q (add q 1) .  end .
-  let g1 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) aad (subslice w 208 224) (subslice w 224 240) .
-  let g2 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) ct (subslice w 208 224) (subslice w 224 240) .
-  let g3 u64 be ghash_lens (subslice w 192 208) (subslice w 176 192) (len aad) (len ct) (subslice w 208 224) (subslice w 224 240) .
+  let g1 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) aad .
+  let g2 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) ct .
+  let g3 u64 be ghash_lens (subslice w 192 208) (subslice w 176 192) (len aad) (len ct) (subslice w 224 240) .
 
   rem T = S XOR AES_K(J0)
   var m u64 be 0 .

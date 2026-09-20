@@ -185,6 +185,12 @@ typedef enum {
     IRW_SHA256,
     IRW_SHA512,   // (slice, mut slice 32) → u64  써 넣은 바이트 수 — **권한 없음**(순수)
     IRW_SHA384,   // ★ (slice, mut slice 48) → u64 — SHA-512 의 다른 시작값 (X-0032)
+    // ★★★★ **AES 와 GHASH 는 잎이다** (X-0043 ⓑ, 소유자 지시 2026-09-20). 이 언어로 쓴 구현이
+    //   각각 0.6 MB/s · 4.1 MB/s 였고(실측), 그래서 AES-128-GCM 전체가 0.5 MB/s 였다.
+    //   ☞ 내린 것은 **계산**뿐이다: GCM 의 짜임(J0 · 태그를 먼저 검증하고 복호 · 길이를 비트로)은
+    //     `lib/gcm.low` 에 남는다. 숨은 규율은 검사할 수 없다.
+    IRW_AESCTR,   // (key16, mut ctr16, src, mut dst) → u64  처리한 바이트 수 · 권한 없음
+    IRW_GHASH,    // (h16, mut z16, data)             → u64  먹인 바이트 수   · 권한 없음
     // ★★★ **소켓 리프** (2026-07-23) — 전부 `cap net` 을 **대야** 한다(파일과 같은 규율).
     //   AF_UNIX socketpair 로 시작: 주소·listen/accept 없이 **두 연결된 fd** — 결정적 loopback 이라
     //   VM·native 가 같은 바이트를 본다(오라클 안). 핸들은 **풀 인덱스**(raw fd 위조 방지, 파일과 같다).

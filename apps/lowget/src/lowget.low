@@ -793,6 +793,25 @@ do
   end .
   let status u64 be index st 6 .
   if eq status 0 . do  return 5 . end .
+
+  rem ★★★★ **덜 온 본문을 «성공» 이라 하지 않는다** (2026-09-20 실측으로 찾았다).
+  rem   서버가 `Content-Length: 1000` 이라 적고 5 바이트만 보내고 끊으면, 그전의 이 도구는
+  rem   **0 으로 끝났다** — 받은 것이 전부인 양. `curl` 은 같은 자리에서 «995 바이트가 모자라다»
+  rem   고 말하고 18 로 끝난다(실측). 조용히 짧은 답을 내는 것은 이 저장소가 금지하는 거짓말이다.
+  rem   ☞ st[0]: 1 = 길이를 아는 몸통이 안 끝났다 · 2 = 청크의 `0` 덩이를 못 봤다 · 3 = 끝났다.
+  rem     길이를 **모르는** 몸통(st[7] = 0)은 닫힘이 곧 끝이므로 여기 해당하지 않는다.
+  if eq (index st 0) 1 . do
+    if gt (index st 7) 1 . do
+      let w9 u64 be write_out out 2 "lowget: the body stopped early — the server said how long it would be and sent less\n" .
+      guard gt w9 0 . else return 5 .
+      return 5 .
+    end .
+  end .
+  if eq (index st 0) 2 . do
+    let w8 u64 be write_out out 2 "lowget: the chunked body stopped early — the final 0-sized chunk never arrived\n" .
+    guard gt w8 0 . else return 5 .
+    return 5 .
+  end .
   rem ★ 따라갈 참이고 3xx 에 Location 이 있으면 **6 을 낸다** — 부르는 쪽이 다음 자리로 간다.
   if eq follow 1 . do
     if ge status 300 . do

@@ -88,6 +88,8 @@ proc list_dir .
   input arena mut slice u8 . .
   input offs mut slice u64 . .
   input lens mut slice u64 . .
+  input soffs mut slice u64 . .
+  input slens mut slice u64 . .
   input st mut slice u64 . .
   output u64 .
   effects io .
@@ -144,30 +146,62 @@ do
   let c result void files.file_error . be files.close_dir fs dh .
   if eq (is_ok c) false . do set (index st 0) 72 . end .
 
-  rem 삽입 정렬 — 색인만 옮긴다. 엔트리 수가 작아(한 디렉터리) 이것으로 충분하다.
-  var i u64 be 1 .
-  while lt i n . do
-    var j u64 be i .
-    var moving bool be true .
-    while moving . do
-      if eq j 0 . do set moving false . end .
-      if gt j 0 . do
-        let pj u64 be sub j 1 .
-        let cur slice u8 be subslice arena (index offs j) (add (index offs j) (index lens j)) .
-        let prv slice u8 be subslice arena (index offs pj) (add (index offs pj) (index lens pj)) .
-        if less cur prv . do
-          let sv_o u64 be index offs j .
-          let sv_l u64 be index lens j .
-          set (index offs j) (index offs pj) .
-          set (index lens j) (index lens pj) .
-          set (index offs pj) sv_o .
-          set (index lens pj) sv_l .
-          set j pj .
+  rem ★★★★ **병합 정렬** — 색인만 옮긴다(X-0042, 소유자 선택 ⓐ 2026-09-20).
+  rem
+  rem ☞ 여기 있던 삽입 정렬의 주석은 *"엔트리 수가 작아(한 디렉터리) 이것으로 충분하다"* 였다.
+  rem   그 가정은 **한 번도 측정되지 않았고**, 재 보니 틀렸다: 한 폴더의 파일을 두 배로 하면
+  rem   시간이 **네 배**가 됐다(실측 500→93 ms · 1000→334 ms · 2000→1205 ms · 4000→4522 ms.
+  rem   같은 입력에 `diff -rq` 는 15·29·62·115 ms — 선형이다).
+  rem   ★ `node_modules`·빌드 산출물·메일 상자처럼 한 폴더에 수천 개가 있는 자리는 흔하다.
+  rem
+  rem   아래에서 위로 합친다(재귀가 없다). `soffs`/`slens` 는 부르는 쪽이 준 같은 크기의 자리다 —
+  rem   이 언어에서 할당은 호출자의 몫이고, 그래서 이 op 은 여전히 자리를 안 잡는다.
+  rem ★ **같은 값은 순서를 지킨다**(안정 정렬): 왼쪽이 «작지 않을 때만» 오른쪽을 집는다.
+  rem   출력 순서가 이 도구의 계약이라 그 성질이 필요하다.
+  var width u64 be 1 .
+  while lt width n . do
+    var lo u64 be 0 .
+    while lt lo n . do
+      var mid u64 be add lo width .
+      if gt mid n . do  set mid n . end .
+      var hi u64 be add lo (mul width 2) .
+      if gt hi n . do  set hi n . end .
+      var ia u64 be lo .
+      var ib u64 be mid .
+      var k u64 be lo .
+      while lt k hi . do
+        var from_a bool be false .
+        if ge ib hi . do  set from_a true . end .
+        if lt ib hi . do
+          if lt ia mid . do
+            let ra slice u8 be subslice arena (index offs ia) (add (index offs ia) (index lens ia)) .
+            let rb slice u8 be subslice arena (index offs ib) (add (index offs ib) (index lens ib)) .
+            rem 오른쪽이 **더 작을 때만** 오른쪽을 집는다 ⇒ 같으면 왼쪽(안정).
+            if eq (less rb ra) false . do  set from_a true . end .
+          end .
         end .
-        if eq (less cur prv) false . do set moving false . end .
+        if from_a . do
+          set (index soffs k) (index offs ia) .
+          set (index slens k) (index lens ia) .
+          set ia (add ia 1) .
+        end .
+        if eq from_a false . do
+          set (index soffs k) (index offs ib) .
+          set (index slens k) (index lens ib) .
+          set ib (add ib 1) .
+        end .
+        set k (add k 1) .
       end .
+      rem 합친 자리를 제자리로 되돌린다.
+      var mc u64 be lo .
+      while lt mc hi . do
+        set (index offs mc) (index soffs mc) .
+        set (index lens mc) (index slens mc) .
+        set mc (add mc 1) .
+      end .
+      set lo hi .
     end .
-    set i (add i 1) .
+    set width (mul width 2) .
   end .
   return n .
 end .
@@ -305,8 +339,10 @@ do
   rem      offsA 516K..549K · lensA 549K..582K · offsB 582K..614K · lensB 614K..647K ·
   rem      pend 647K..909K · poffs 909K..942K · plens 942K..975K · rel 975K..979K ·
   rem      pathA 979K..983K · pathB 983K..987K · chunkA 987K..1052K · chunkB 1052K..1118K ·
-  rem      scratch 1118K..1118K+64
-  let gm option mut slice u8 . . be alloc_bytes hp capacity 1145408 .
+  rem      scratch 1104K..1104K+64 · sortO 1104K+64..1136K · sortL 1136K..1168K
+  rem    ★ sortO/sortL 은 **병합 정렬의 임시 자리**다(X-0042). A 와 B 를 차례로 읽으므로
+  rem      한 벌이면 족하다 — 자리를 두 배로 쓰지 않는다.
+  let gm option mut slice u8 . . be alloc_bytes hp capacity 1196096 .
   guard is_some gm . else return 70 .
   let mem mut slice u8 . be some_value gm .
   let namebuf mut slice u8 . be subslice mem 0 4096 .
@@ -325,6 +361,8 @@ do
   let chunkA mut slice u8 . be subslice mem 999424 1064960 .
   let chunkB mut slice u8 . be subslice mem 1064960 1130496 .
   let scratch mut slice u64 . be view_array u64 (subslice mem 1130496 1130560) .
+  let sortO mut slice u64 . be view_array u64 (subslice mem 1130560 1163328) .
+  let sortL mut slice u64 . be view_array u64 (subslice mem 1163328 1196096) .
 
   rem 대기 목록: 아직 안 본 **상대 경로**들. 시작은 뿌리(빈 문자열) 하나.
   var np u64 be 1 .
@@ -354,10 +392,10 @@ do
     var nA u64 be 0 .
     var nB u64 be 0 .
     if eq limit_hit false . do
-      set nA (list_dir fs (subslice pathA 0 la) namebuf arenaA offsA lensA scratch) .
+      set nA (list_dir fs (subslice pathA 0 la) namebuf arenaA offsA lensA sortO sortL scratch) .
       if eq (index scratch 0) 3 . do set limit_hit true . end .
       if gt (index scratch 0) 3 . do set io_bad true . end .
-      set nB (list_dir fs (subslice pathB 0 lb) namebuf arenaB offsB lensB scratch) .
+      set nB (list_dir fs (subslice pathB 0 lb) namebuf arenaB offsB lensB sortO sortL scratch) .
       if eq (index scratch 0) 3 . do set limit_hit true . end .
       if gt (index scratch 0) 3 . do set io_bad true . end .
     end .

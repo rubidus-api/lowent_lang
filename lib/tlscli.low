@@ -26,6 +26,14 @@ rem   x25519 아닌 그룹 · TLS_AES_128_GCM_SHA256 아닌 스위트.
 
 module tlscli .
 
+rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
+rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
+rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
+export enum tlscli_error do
+  short_workspace .
+end .
+
+
 use tls13 from "tls13.low" .
 rem ★ 방향을 타지 않는 네 가지(`traffic_keys`·`app_secrets`·`seal_app`·`open_app`)는 [tlssrv](tlssrv)
 rem   가 이미 갖고 있다. 이름이 서버를 가리키지만 하는 일은 **양쪽 공통**이다 — 베껴 두 벌을
@@ -310,11 +318,12 @@ rem
 rem ★ 전부 0 인 ECDHE 는 거절한다(RFC 8446 §7.4.2 MUST). `x25519.agree` 도 거절하지만 여기서
 rem   한 번 더 본다 — 이 op 은 x25519 를 안 거친 값도 받을 수 있다. **경계마다 자기 입력을 본다.**
 export proc hs_secrets input ecdhe slice u8 . input msgs1 slice u8 .
-     input out mut slice u8 . input w mut slice u8 . output u64 . effects none .
+     input out mut slice u8 . input w mut slice u8 . output result u64 tlscli_error . effects none .
+errors short_workspace .
 do
-  guard eq (len ecdhe) 32 . else return 0 .
-  guard ge (len out) 64 . else return 0 .
-  guard ge (len w) 1024 . else return 0 .
+  guard eq (len ecdhe) 32 . else return ok 0 .
+  guard ge (len out) 64 . else return ok 0 .
+  guard ge (len w) 1024 . else return ok 0 .
 
   var esum u64 be 0 .
   var ei u64 be 0 .
@@ -322,10 +331,10 @@ do
     set esum (bit_or esum (cast u64 (index ecdhe ei))) .
     set ei (add ei 1) .
   end .
-  guard gt esum 0 . else return 0 .
+  guard gt esum 0 . else return ok 0 .
 
   rem ① 빈 해시 — Derive-Secret(…, "derived", "") 가 쓴다.
-  guard eq (sha256 (subslice w 0 0) (subslice w 0 32)) 32 . else return 0 .
+  guard eq (sha256 (subslice w 0 0) (subslice w 0 32)) 32 . else return ok 0 .
 
   rem ② early secret = HKDF-Extract(0, 0)
   var z u64 be 0 .
@@ -334,36 +343,47 @@ do
     set (index w (add 64 z)) 0 .
     set z (add z 1) .
   end .
-  guard eq (hmac.extract (subslice w 32 64) (subslice w 64 96) (subslice w 512 1024) (subslice w 96 128)) 32 . else return 0 .
+  let _u0 result u64 hmac.hmac_error . be hmac.extract (subslice w 32 64) (subslice w 64 96) (subslice w 512 1024) (subslice w 96 128) .
+  guard is_ok _u0 . else return error short_workspace .
+  guard eq (ok_value _u0) 32 . else return ok 0 .
 
   rem ③ handshake secret = advance(early, ECDHE)
-  guard eq (tls13.advance (subslice w 96 128) ecdhe (subslice w 0 32) (subslice w 128 160) (subslice w 160 288) (subslice w 512 1024) (subslice w 288 320)) 32 . else return 0 .
+  let _u1 result u64 tls13.tls13_error . be tls13.advance (subslice w 96 128) ecdhe (subslice w 0 32) (subslice w 128 160) (subslice w 160 288) (subslice w 512 1024) (subslice w 288 320) .
+  guard is_ok _u1 . else return error short_workspace .
+  guard eq (ok_value _u1) 32 . else return ok 0 .
 
   rem ④ 전사 H(CH‖SH) 하나로 두 비밀을 뽑는다.
-  guard eq (tls13.transcript msgs1 (len msgs1) (subslice w 320 352)) 32 . else return 0 .
-  guard eq (tls13.derive_secret (subslice w 288 320) "c hs traffic" (subslice w 320 352) (subslice w 160 288) (subslice w 512 1024) (subslice out 0 32)) 32 . else return 0 .
-  guard eq (tls13.derive_secret (subslice w 288 320) "s hs traffic" (subslice w 320 352) (subslice w 160 288) (subslice w 512 1024) (subslice out 32 64)) 32 . else return 0 .
+  guard eq (tls13.transcript msgs1 (len msgs1) (subslice w 320 352)) 32 . else return ok 0 .
+  let _u2 result u64 tls13.tls13_error . be tls13.derive_secret (subslice w 288 320) "c hs traffic" (subslice w 320 352) (subslice w 160 288) (subslice w 512 1024) (subslice out 0 32) .
+  guard is_ok _u2 . else return error short_workspace .
+  guard eq (ok_value _u2) 32 . else return ok 0 .
+  let _u3 result u64 tls13.tls13_error . be tls13.derive_secret (subslice w 288 320) "s hs traffic" (subslice w 320 352) (subslice w 160 288) (subslice w 512 1024) (subslice out 32 64) .
+  guard is_ok _u3 . else return error short_workspace .
+  guard eq (ok_value _u3) 32 . else return ok 0 .
 
   rem ⑤ handshake secret 자체도 낸다 — 앱 비밀(`tlssrv.app_secrets`)이 그것을 먹는다.
-  guard ge (len out) 96 . else return 64 .
+  guard ge (len out) 96 . else return ok 64 .
   var m u64 be 0 .
   while lt m 32 . do
     set (index out (add 64 m)) (index w (add 288 m)) .
     set m (add m 1) .
   end .
-  return 96 .
+  return ok 96 .
 end .
 
 rem ★ 어떤 트래픽 비밀로든 verify_data 를 낸다 — 서버 것을 검산할 때도, 우리 것을 지을 때도
 rem   **같은 계산**이다. 한 자리에 둔다.
 export proc finished_vd input secret slice u8 . input msgs slice u8 .
-     input out mut slice u8 . input w mut slice u8 . output u64 . effects none .
+     input out mut slice u8 . input w mut slice u8 . output result u64 tlscli_error . effects none .
+errors short_workspace .
 do
-  guard eq (len secret) 32 . else return 0 .
-  guard ge (len out) 32 . else return 0 .
-  guard ge (len w) 1024 . else return 0 .
-  guard eq (tls13.finished_key secret (subslice w 0 128) (subslice w 512 1024) (subslice w 128 160)) 32 . else return 0 .
-  guard eq (tls13.transcript msgs (len msgs) (subslice w 160 192)) 32 . else return 0 .
+  guard eq (len secret) 32 . else return ok 0 .
+  guard ge (len out) 32 . else return ok 0 .
+  guard ge (len w) 1024 . else return ok 0 .
+  let _u2 result u64 tls13.tls13_error . be tls13.finished_key secret (subslice w 0 128) (subslice w 512 1024) (subslice w 128 160) .
+  guard is_ok _u2 . else return error short_workspace .
+  guard eq (ok_value _u2) 32 . else return ok 0 .
+  guard eq (tls13.transcript msgs (len msgs) (subslice w 160 192)) 32 . else return ok 0 .
   return tls13.verify_data (subslice w 128 160) (subslice w 160 192) (subslice w 512 1024) (subslice out 0 32) .
 end .
 
@@ -373,30 +393,36 @@ rem   (인증서 쪽은 P3 이 본다. 이 op 이 참이어도 «누구인지» 
 rem ☞ 견줌은 **길이를 먼저 보고 바이트를 끝까지 훑는다** — 첫 바이트에서 돌아서면 그 시간이
 rem   곧 정보다.
 export proc check_server_fin input s_hs slice u8 . input msgs2 slice u8 . input fin slice u8 .
-     input w mut slice u8 . output bool . effects none .
+     input w mut slice u8 . output result bool tlscli_error . effects none .
+errors short_workspace .
 do
-  guard eq (len fin) 36 . else return false .
-  guard eq (cast u64 (index fin 0)) 20 . else return false .
-  guard eq (cast u64 (index fin 1)) 0 . else return false .
-  guard eq (tlssrv.be16 fin 2) 32 . else return false .
-  guard ge (len w) 1216 . else return false .
-  guard eq (finished_vd s_hs msgs2 (subslice w 1024 1056) (subslice w 0 1024)) 32 . else return false .
+  guard eq (len fin) 36 . else return ok false .
+  guard eq (cast u64 (index fin 0)) 20 . else return ok false .
+  guard eq (cast u64 (index fin 1)) 0 . else return ok false .
+  guard eq (tlssrv.be16 fin 2) 32 . else return ok false .
+  guard ge (len w) 1216 . else return ok false .
+  let _u1 result u64 tlscli_error . be finished_vd s_hs msgs2 (subslice w 1024 1056) (subslice w 0 1024) .
+  guard is_ok _u1 . else return error short_workspace .
+  guard eq (ok_value _u1) 32 . else return ok false .
   var diff u64 be 0 .
   var i u64 be 0 .
   while lt i 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index fin (add 4 i))) (cast u64 (index w (add 1024 i))))) .
     set i (add i 1) .
   end .
-  return eq diff 0 .
+  return ok (eq diff 0) .
 end .
 
 rem ★ 우리 Finished 를 짓는다. 메시지 모양은 서버 것과 같으므로 [tlssrv](tlssrv) 의 조립기를 쓴다.
 export proc build_client_fin input c_hs slice u8 . input msgs3 slice u8 .
-     input out mut slice u8 . input w mut slice u8 . output u64 . effects none .
+     input out mut slice u8 . input w mut slice u8 . output result u64 tlscli_error . effects none .
+errors short_workspace .
 do
-  guard ge (len w) 1216 . else return 0 .
-  guard eq (finished_vd c_hs msgs3 (subslice w 1024 1056) (subslice w 0 1024)) 32 . else return 0 .
-  return tlssrv.build_fin (subslice w 1024 1056) out .
+  guard ge (len w) 1216 . else return ok 0 .
+  let _u0 result u64 tlscli_error . be finished_vd c_hs msgs3 (subslice w 1024 1056) (subslice w 0 1024) .
+  guard is_ok _u0 . else return error short_workspace .
+  guard eq (ok_value _u0) 32 . else return ok 0 .
+  return ok (tlssrv.build_fin (subslice w 1024 1056) out) .
 end .
 
 rem ── 레코드를 짓고 연다 ───────────────────────────────────────────────────
@@ -407,12 +433,13 @@ rem   **22(handshake)** 다. 그래서 타입을 **받는** 얼굴을 여기 둔
 rem   여는 것이 베껴 두 벌 만드는 것보다 낫다.
 export proc seal_rec input suite u64 . input keys slice u8 . input klen u64 . input seq u64 .
      input inner_t u64 . input data slice u8 . input rec mut slice u8 . input w mut slice u8 .
-     input u mut slice u64 . output u64 . effects none .
+     input u mut slice u64 . output result u64 tlscli_error . effects none .
+errors short_workspace .
 do
-  guard ge (len keys) (add klen 12) . else return 0 .
-  guard ge (len w) 1024 . else return 0 .
+  guard ge (len keys) (add klen 12) . else return ok 0 .
+  guard ge (len w) 1024 . else return ok 0 .
   let n u64 be add (len data) 1 .
-  guard ge (len w) (add 640 n) . else return 0 .
+  guard ge (len w) (add 640 n) . else return ok 0 .
   var i u64 be 0 .
   while lt i (len data) . do
     set (index w (add 640 i)) (index data i) .

@@ -18,7 +18,9 @@ proc t_rsa_big input sig slice u8 . input nb slice u8 . input mhash slice u8 .
      input sw mut slice u64 . input nw mut slice u64 . input ow mut slice u64 .
      input r2 mut slice u64 . input acc mut slice u64 . input tw mut slice u64 . input mw mut slice u64 .
      output u64 . effects none . do
-  guard eq (rsa.verify_pss sig nb 65537 mhash 32 em w sw nw ow r2 acc tw mw) 0 . else return 0 .
+  let _u6 result u64 rsa.rsa_error . be rsa.verify_pss sig nb 65537 mhash 32 em w sw nw ow r2 acc tw mw .
+  guard is_ok _u6 . else return 0 .
+  guard eq (ok_value _u6) 0 . else return 0 .
   return 1 .
 end .
 
@@ -28,13 +30,17 @@ proc t_ec_zero input v mut slice u64 . input w mut slice u64 . output u64 . effe
   var i u64 be 0 .
   while lt i 144 . do  set (index v i) 0 .  set i (add i 1) .  end .
   rem 전부 0 이면 r = 0 이고 n = 0 이다 — 어느 쪽이든 거절이 옳다.
-  guard eq (p256.ecdsa_verify (subslice v 0 16) (subslice v 16 32) (subslice v 32 48) (subslice v 48 80) (subslice v 80 96) (subslice v 96 112) (subslice v 112 128) (subslice v 128 144) w) 0 . else return 0 .
+  let _u5 result u64 p256.p256_error . be p256.ecdsa_verify (subslice v 0 16) (subslice v 16 32) (subslice v 32 48) (subslice v 48 80) (subslice v 80 96) (subslice v 96 112) (subslice v 112 128) (subslice v 128 144) w .
+  guard is_ok _u5 . else return 0 .
+  guard eq (ok_value _u5) 0 . else return 0 .
   return 1 .
 end .
 
 rem MGF1 은 카운터를 **돌려야** 한다: 32 바이트를 넘게 달라고 하면 뒷부분이 앞과 달라야 한다.
 proc t_mgf_extends input seed slice u8 . input out mut slice u8 . input w mut slice u8 . output u64 . effects none . do
-  guard eq (rsa.mgf1 seed 64 out w) 64 . else return 0 .
+  let _u4 result u64 rsa.rsa_error . be rsa.mgf1 seed 64 out w .
+  guard is_ok _u4 . else return 0 .
+  guard eq (ok_value _u4) 64 . else return 0 .
   var diff u64 be 0 .
   var i u64 be 0 .
   while lt i 32 . do
@@ -50,10 +56,18 @@ rem   틀리게 적으면 이 검사가 깨진다: 옮겨 적은 것을 *믿지 
 rem   항등원의 압축은 0x01 다음 0 이 31 개다.
 proc t_order input out mut slice u8 . input bb mut slice u8 . input w mut slice u64 . output u64 . effects none . do
   guard eq (ed25519.make_l (subslice bb 0 32)) 32 . else return 0 .
-  guard eq (ed25519.make_d (subslice w 0 16) (subslice w 16 144)) 1 . else return 0 .
-  guard eq (ed25519.make_base (subslice w 144 208) (subslice w 0 16) (subslice w 208 768) (subslice bb 32 192)) 1 . else return 0 .
-  guard eq (ed25519.esmul (subslice w 768 832) (subslice bb 0 32) (subslice w 144 208) (subslice w 0 16) (subslice w 208 608)) 1 . else return 0 .
-  guard eq (ed25519.compress out (subslice w 768 832) (subslice w 832 960) (subslice bb 192 256)) 32 . else return 0 .
+  let _u0 result u64 ed25519.ed25519_error . be ed25519.make_d (subslice w 0 16) (subslice w 16 144) .
+  guard is_ok _u0 . else return 0 .
+  guard eq (ok_value _u0) 1 . else return 0 .
+  let _u1 result u64 ed25519.ed25519_error . be ed25519.make_base (subslice w 144 208) (subslice w 0 16) (subslice w 208 768) (subslice bb 32 192) .
+  guard is_ok _u1 . else return 0 .
+  guard eq (ok_value _u1) 1 . else return 0 .
+  let _u2 result u64 ed25519.ed25519_error . be ed25519.esmul (subslice w 768 832) (subslice bb 0 32) (subslice w 144 208) (subslice w 0 16) (subslice w 208 608) .
+  guard is_ok _u2 . else return 0 .
+  guard eq (ok_value _u2) 1 . else return 0 .
+  let _u3 result u64 ed25519.ed25519_error . be ed25519.compress out (subslice w 768 832) (subslice w 832 960) (subslice bb 192 256) .
+  guard is_ok _u3 . else return 0 .
+  guard eq (ok_value _u3) 32 . else return 0 .
   guard eq (cast u64 (index out 0)) 1 . else return 0 .
   var i u64 be 1 .
   while lt i 32 . do

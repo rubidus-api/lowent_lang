@@ -30,6 +30,14 @@ rem   **가르는 것은 모듈이 아니라 이름**이다.
 rem
 module pem .
 
+rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
+rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
+rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
+export enum pem_error do
+  short_workspace .
+end .
+
+
 use codec from "codec.low" .
 
 rem ★★★★ `hay` 의 `from` 부터 `needle` 이 나오는 자리. **없으면 `none`** 이다.
@@ -64,10 +72,11 @@ end .
 rem ── 봉투 ──────────────────────────────────────────────────────────────────
 rem `-----BEGIN ` 다음 줄이 시작하는 자리. 없으면 0.
 rem ★ 라벨은 부르는 쪽이 준다(`"CERTIFICATE"` · `"PRIVATE KEY"` · `"EC PRIVATE KEY"`).
-export proc pem_body_off input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . output u64 . effects none . do
+export proc pem_body_off input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . output result u64 pem_error . effects none .
+errors short_workspace . do
   rem scratch 에 `-----BEGIN <라벨>-----` 을 조립한다(리터럴을 이어 붙일 자리가 없다).
   let need u64 be add (len label) 16 .   rem `-----BEGIN ` 11 + 라벨 + `-----` 5
-  guard ge (len scratch) need . else return 0 .
+  guard ge (len scratch) need . else return error short_workspace .
   var k u64 be 0 .
   while lt k 11 . do
     set (index scratch k) (index "-----BEGIN " k) .
@@ -84,21 +93,22 @@ export proc pem_body_off input src slice u8 . . input label slice u8 . . input s
     set m (add m 1) .
   end .
   let ao option u64 . be find_from src (subslice scratch 0 need) 0 .
-  guard is_some ao . else return 0 .
+  guard is_some ao . else return ok 0 .
   let at u64 be some_value ao .
   rem 그 줄의 끝(LF)까지 건너뛴다.
   var i u64 be add at need .
   while lt i (len src) . do
-    if eq (index src i) 10 . do return add i 1 . end .
+    if eq (index src i) 10 . do return ok (add i 1) . end .
     set i (add i 1) .
   end .
-  return 0 .
+  return ok 0 .
 end .
 
 rem `-----END <라벨>-----` 이 시작하는 자리. 없으면 0.
-export proc pem_end_off input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . input from u64 . output u64 . effects none . do
+export proc pem_end_off input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . input from u64 . output result u64 pem_error . effects none .
+errors short_workspace . do
   let need u64 be add (len label) 14 .   rem `-----END ` 9 + 라벨 + `-----` 5
-  guard ge (len scratch) need . else return 0 .
+  guard ge (len scratch) need . else return error short_workspace .
   var k u64 be 0 .
   while lt k 9 . do
     set (index scratch k) (index "-----END " k) .
@@ -115,8 +125,8 @@ export proc pem_end_off input src slice u8 . . input label slice u8 . . input sc
     set m (add m 1) .
   end .
   let ao option u64 . be find_from src (subslice scratch 0 need) from .
-  guard is_some ao . else return 0 .
-  return some_value ao .
+  guard is_some ao . else return ok 0 .
+  return ok (some_value ao) .
 end .
 
 rem ── 해체 ──────────────────────────────────────────────────────────────────
@@ -129,15 +139,21 @@ rem   ☞ **라이브러리는 혼자 초록인 것으로 충분하지 않다 �
 rem     `gcm` 이 `aead` 의 `seal`/`unseal` 을 피해 `encrypt`/`decrypt` 를 고른 것과 같은 자리다.
 rem   `scratch` 는 두 몫을 진다: 머리말 조립(앞)과 **접힘을 편 base64**(뒤).
 rem   ⇒ `len scratch ≥ len src + 라벨 + 16` 이면 넉넉하다.
-export proc unwrap input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . input out mut slice u8 . . output option u64 . effects none . do
-  let b u64 be pem_body_off src label scratch .
-  guard gt b 0 . else return none .
-  let e u64 be pem_end_off src label scratch b .
-  guard gt e 0 . else return none .
-  guard gt e b . else return none .
+export proc unwrap input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . input out mut slice u8 . . output result (option u64) pem_error . effects none .
+errors short_workspace . do
+  rem ★ 두 자리 찾기도 이제 «자리가 모자라다» 를 실패로 말한다 — 그것을 **그대로 넘긴다**.
+  let br result u64 pem_error . be pem_body_off src label scratch .
+  guard is_ok br . else return error short_workspace .
+  let b u64 be ok_value br .
+  guard gt b 0 . else return ok none .
+  let er result u64 pem_error . be pem_end_off src label scratch b .
+  guard is_ok er . else return error short_workspace .
+  let e u64 be ok_value er .
+  guard gt e 0 . else return ok none .
+  guard gt e b . else return ok none .
   rem 접힌 것을 편다 — 공백·CR·LF 를 버린다. 그 밖의 글자는 base64 디코더가 판단한다.
   let need u64 be add (len label) 16 .   rem `-----BEGIN ` 11 + 라벨 + `-----` 5
-  guard ge (len scratch) (add need (sub e b)) . else return none .
+  guard ge (len scratch) (add need (sub e b)) . else return ok none .
   var w u64 be need .
   var i u64 be b .
   while lt i e . do
@@ -154,6 +170,6 @@ export proc unwrap input src slice u8 . . input label slice u8 . . input scratch
     end .
     set i (add i 1) .
   end .
-  guard gt w need . else return none .
-  return codec.b64_dec (subslice scratch need w) out .
+  guard gt w need . else return ok none .
+  return ok (codec.b64_dec (subslice scratch need w) out) .
 end .

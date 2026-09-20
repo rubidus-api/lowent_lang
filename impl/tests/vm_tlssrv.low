@@ -208,7 +208,9 @@ export proc flight input w mut slice u8 . . input v mut slice u8 . . output u64 
   guard is_some d1 . else return 0 .
   let d2 option u64 . be codec.hex_dec "010000c00303cb34ecb1e78163ba1c38c6dacb196a6dffa21a8d9912ec18a2ef6283024dece7000006130113031302010000910000000b0009000006736572766572ff01000100000a00140012001d0017001800190100010101020103010400230000003300260024001d002099381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c002b0003020304000d0020001e040305030603020308040805080604010501060102010402050206020202002d00020101001c00024001020000560303a6af06a4121860dc5e6e60249cd34c95930c8ac5cb1434dac155772ed3e2692800130100002e00330024001d0020c9828876112095fe66762bdbf7c672e156d6cc253b833df1dd69b1b04e751f0f002b00020304080000240022000a00140012001d00170018001901000101010201030104001c00024001000000000b0001b9000001b50001b0308201ac30820115a003020102020102300d06092a864886f70d01010b0500300e310c300a06035504031303727361301e170d3136303733303031323335395a170d3236303733303031323335395a300e310c300a0603550403130372736130819f300d06092a864886f70d010101050003818d0030818902818100b4bb498f8279303d980836399b36c6988c0c68de55e1bdb826d3901a2461eafd2de49a91d015abbc9a95137ace6c1af19eaa6af98c7ced43120998e187a80ee0ccb0524b1b018c3e0b63264d449a6d38e22a5fda430846748030530ef0461c8ca9d9efbfae8ea6d1d03e2bd193eff0ab9a8002c47428a6d35a8d88d79f7f1e3f0203010001a31a301830090603551d1304023000300b0603551d0f0404030205a0300d06092a864886f70d01010b05000381810085aad2a0e5b9276b908c65f73a7267170618a54c5f8a7b337d2df7a594365417f2eae8f8a58c8f8172f9319cf36b7fd6c55b80f21a03015156726096fd335e5e67f2dbf102702e608ccae6bec1fc63a42a99be5c3eb7107c3c54e9b9eb2bd5203b1c3b84e0a8b2f759409ba3eac9d91d402dcc0cc8f8961229ac9187b42b4de100000f000084080400805a747c5d88fa9bd2e55ab085a61015b7211f824cd484145ab3ff52f1fda8477b0b7abc90db78e2d33a5c141a078653fa6bef780c5ea248eeaaa785c4f394cab6d30bbe8d4859ee511f602957b15411ac027671459e46445c9ea58c181e818e95b8c3fb0bf3278409d3be152a3da5043e063dda65cdf5aea20d53dfacd42f74f3" (subslice v 318 1225) .
   guard is_some d2 . else return 0 .
-  let n u64 be tlssrv.server_finished (subslice v 0 32) (subslice v 32 318) (subslice v 318 1225) (subslice v 1225 1261) w .
+  let n_r result u64 tlssrv.tlssrv_error . be tlssrv.server_finished (subslice v 0 32) (subslice v 32 318) (subslice v 318 1225) (subslice v 1225 1261) w .
+  guard is_ok n_r . else return 0 .
+  let n u64 be ok_value n_r .
   guard eq n 36 . else return add 20000 n .
   return cmp_hex (subslice v 1225 1261) 36 "140000209b9b141d906337fbd2cbdce71df4deda4ab42c309572cb7fffee5454b78f0718" (subslice v 1269 1333) .
 end .
@@ -223,7 +225,9 @@ export proc ecdhe_ok input wu mut slice u64 . input v mut slice u8 . . output u6
   guard is_some dp . else return 0 .
   let dc option u64 . be codec.hex_dec "99381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c" (subslice v 32 64) .
   guard is_some dc . else return 0 .
-  guard eq (x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175)) 32 . else return 0 .
+  let _u2 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  guard is_ok _u2 . else return 0 .
+  guard eq (ok_value _u2) 32 . else return 0 .
   return cmp_hex (subslice v 64 96) 32 "8bd4054fb55b9d63fdfbacf9f04b9f0d35e6d63f537563efd46272900f89492d" (subslice v 128 256) .
 end .
 
@@ -252,7 +256,9 @@ export proc ap_secrets input w mut slice u8 . . input v mut slice u8 . . output 
   guard eq (lay_msgs v) 1 . else return 0 .
   let dh option u64 . be codec.hex_dec "1dc826e93606aa6fdc0aadc12f741b01046aa6b99f691ed221a9f0ca043fbeac" (subslice v 1107 1171) .
   guard is_some dh . else return 0 .
-  guard eq (tlssrv.app_secrets (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 943 1007) w) 64 . else return 0 .
+  let _u1 result u64 tlssrv.tlssrv_error . be tlssrv.app_secrets (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 943 1007) w .
+  guard is_ok _u1 . else return 0 .
+  guard eq (ok_value _u1) 64 . else return 0 .
   rem 두 비밀의 첫 4 바이트를 한 수로 접는다(클라 전부 · 서버는 하위 4비트만 — u64 안에 들게).
   var a u64 be 0 .
   var i u64 be 0 .
@@ -278,7 +284,9 @@ export proc client_fin_ok input w mut slice u8 . . input v mut slice u8 . . outp
   guard is_some dc . else return 0 .
   let df option u64 . be codec.hex_dec "14000020a8ec436d677634ae525ac1fcebe11a039ec17694fac6e98527b642f2edd5ce61" (subslice v 1007 1043) .
   guard is_some df . else return 0 .
-  return tlssrv.check_client_finished (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 1007 1043) w .
+  let _rr result u64 tlssrv.tlssrv_error . be tlssrv.check_client_finished (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 1007 1043) w .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ✘ **한 비트만 바꾸면 거절돼야 한다** — 성립만 보면 "언제나 참" 을 못 거른다.
@@ -290,7 +298,9 @@ export proc client_fin_bad input w mut slice u8 . . input v mut slice u8 . . out
   let df option u64 . be codec.hex_dec "14000020a8ec436d677634ae525ac1fcebe11a039ec17694fac6e98527b642f2edd5ce61" (subslice v 1007 1043) .
   guard is_some df . else return 0 .
   set (index v (add 1007 35)) (cast u8 (bit_xor (cast u64 (index v (add 1007 35))) 1)) .
-  return tlssrv.check_client_finished (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 1007 1043) w .
+  let _rr result u64 tlssrv.tlssrv_error . be tlssrv.check_client_finished (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 1007 1043) w .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ── ★★★★★ 응용 데이터 레코드 — 정본과 바이트로 ──────────────────────────
@@ -303,7 +313,9 @@ export proc app_keys input w mut slice u8 . . input v mut slice u8 . . output u6
   guard ge (len w) 1024 . else return 0 .
   let ds option u64 . be codec.hex_dec "a11af9f05531f856ad47116b45a950328204b4f44bfb6b3a4b4f1f3fcb631643" (subslice v 0 32) .
   guard is_some ds . else return 0 .
-  guard eq (tlssrv.traffic_keys (subslice v 0 32) 16 (subslice v 32 60) w) 28 . else return 0 .
+  let _u0 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice v 0 32) 16 (subslice v 32 60) w .
+  guard is_ok _u0 . else return 0 .
+  guard eq (ok_value _u0) 28 . else return 0 .
   return cmp_hex (subslice v 32 60) 28 "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 64 256) .
 end .
 
@@ -315,7 +327,9 @@ export proc app_seal input w mut slice u8 . . input v mut slice u8 . . input u m
   guard is_some dk . else return 0 .
   let dp option u64 . be codec.hex_dec "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031" (subslice v 32 82) .
   guard is_some dp . else return 0 .
-  let n u64 be tlssrv.seal_app 1 (subslice v 0 28) 16 1 (subslice v 32 82) (subslice v 128 256) w u .
+  let n_r result u64 tlssrv.tlssrv_error . be tlssrv.seal_app 1 (subslice v 0 28) 16 1 (subslice v 32 82) (subslice v 128 256) w u .
+  guard is_ok n_r . else return 0 .
+  let n u64 be ok_value n_r .
   guard eq n 72 . else return add 20000 n .
   return cmp_hex (subslice v 128 256) 72 "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 256 512) .
 end .
@@ -328,7 +342,9 @@ export proc app_open input w mut slice u8 . . input v mut slice u8 . . input u m
   guard is_some dk . else return 0 .
   let dr option u64 . be codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
   guard is_some dr . else return 0 .
-  let n u64 be tlssrv.open_app 1 (subslice v 0 28) 16 1 (subslice v 32 104) (subslice v 128 256) w u .
+  let nr result u64 tlssrv.tlssrv_error . be tlssrv.open_app 1 (subslice v 0 28) 16 1 (subslice v 32 104) (subslice v 128 256) w u .
+  guard is_ok nr . else return 0 .
+  let n u64 be ok_value nr .
   guard eq n 51 . else return add 20000 n .
   rem 속 타입이 23(application_data) 인가 · 평문 첫 4 바이트가 00 01 02 03 인가
   var acc u64 be 0 .
@@ -349,7 +365,9 @@ export proc app_open_bad input w mut slice u8 . . input v mut slice u8 . . input
   let dr option u64 . be codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
   guard is_some dr . else return 0 .
   set (index v 40) (cast u8 (bit_xor (cast u64 (index v 40)) 1)) .
-  return tlssrv.open_app 1 (subslice v 0 28) 16 1 (subslice v 32 104) (subslice v 128 256) w u .
+  let _rr result u64 tlssrv.tlssrv_error . be tlssrv.open_app 1 (subslice v 0 28) 16 1 (subslice v 32 104) (subslice v 128 256) w u .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ✘ **시퀀스가 틀리면 열리면 안 된다** — 논스가 달라지므로 태그가 안 맞는다.
@@ -361,7 +379,9 @@ export proc app_open_seq input w mut slice u8 . . input v mut slice u8 . . input
   guard is_some dk . else return 0 .
   let dr option u64 . be codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
   guard is_some dr . else return 0 .
-  return tlssrv.open_app 1 (subslice v 0 28) 16 0 (subslice v 32 104) (subslice v 128 256) w u .
+  let _rr result u64 tlssrv.tlssrv_error . be tlssrv.open_app 1 (subslice v 0 28) 16 0 (subslice v 32 104) (subslice v 128 256) w u .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ✔ **경보도 같은 레코드다** — 정본의 경보(24 B)를 열면 속이 2 B + 타입이고 타입은 21 이다.
@@ -377,7 +397,9 @@ export proc alert_open input w mut slice u8 . . input v mut slice u8 . . input u
   rem ★ 정본의 서버 응용 키 시퀀스: **NewSessionTicket 0 · 응용 데이터 1 · 경보 2**.
   rem   ☞ 처음에 0·1 로 적었다가 안 열렸다 — 시퀀스는 **레코드마다** 오르고, 핸드셰이크 뒤
   rem     첫 응용-키 레코드는 티켓이다. *세는 것은 레코드이지 "내가 보낸 데이터" 가 아니다.*
-  let n u64 be tlssrv.open_app 1 (subslice v 0 28) 16 2 (subslice v 32 56) (subslice v 128 256) w u .
+  let nr2 result u64 tlssrv.tlssrv_error . be tlssrv.open_app 1 (subslice v 0 28) 16 2 (subslice v 32 56) (subslice v 128 256) w u .
+  guard is_ok nr2 . else return 0 .
+  let n u64 be ok_value nr2 .
   guard eq n 3 . else return add 20000 n .
   return add (mul (tls13.inner_type (subslice v 128 131)) 100) (cast u64 (index v 128)) .
 end .
@@ -397,15 +419,23 @@ export proc t_x25519_smallorder input v mut slice u8 . . input wu mut slice u64 
   guard is_some dp . else return 0 .
   var i u64 be 0 .
   while lt i 32 . do  set (index v (add 32 i)) 0 .  set i (add i 1) .  end .
-  if ne (x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175)) 0 . do  return 91 . end .
+  let _ag0 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  guard is_ok _ag0 . else return 0 .
+  if ne (ok_value _ag0) 0 . do  return 91 . end .
   set (index v 32) 1 .
-  if ne (x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175)) 0 . do  return 92 . end .
+  let _ag1 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  guard is_ok _ag1 . else return 0 .
+  if ne (ok_value _ag1) 0 . do  return 92 . end .
   let d8 option u64 . be codec.hex_dec "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800" (subslice v 32 64) .
   guard is_some d8 . else return 0 .
-  if ne (x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175)) 0 . do  return 93 . end .
+  let _ag2 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  guard is_ok _ag2 . else return 0 .
+  if ne (ok_value _ag2) 0 . do  return 93 . end .
   let dc option u64 . be codec.hex_dec "99381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c" (subslice v 32 64) .
   guard is_some dc . else return 0 .
-  if ne (x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175)) 32 . do  return 94 . end .
+  let _ag3 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  guard is_ok _ag3 . else return 0 .
+  if ne (ok_value _ag3) 32 . do  return 94 . end .
   return 1 .
 end .
 
@@ -419,7 +449,9 @@ export proc t_sf_zero_ecdhe input w mut slice u8 . . input v mut slice u8 . . ou
   guard eq (ch_bytes (subslice v 32 228)) 196 . else return 0 .
   let ds option u64 . be codec.hex_dec (sh_hex) (subslice v 228 318) .
   guard is_some ds . else return 0 .
-  if ne (tlssrv.server_finished (subslice v 0 32) (subslice v 32 318) (subslice v 32 318) (subslice v 1225 1261) w) 0 . do  return 95 . end .
+  let _sf4 result u64 tlssrv.tlssrv_error . be tlssrv.server_finished (subslice v 0 32) (subslice v 32 318) (subslice v 32 318) (subslice v 1225 1261) w .
+  guard is_ok _sf4 . else return 0 .
+  if ne (ok_value _sf4) 0 . do  return 95 . end .
   return 1 .
 end .
 

@@ -36,7 +36,9 @@ do
   let c2 slice u8 be subslice buf (add o2 4) (add (add o2 4) l2) .
 
   let wu mut slice u64 . be view_array u64 (subslice buf 40000 60000) .
-  let good u64 be verify.signed_by c1 c2 (subslice buf 20000 40000) wu .
+  let good_r result u64 verify.verify_error . be verify.signed_by c1 c2 (subslice buf 20000 40000) wu .
+  guard is_ok good_r . else return 0 .
+  let good u64 be ok_value good_r .
   if eq good 1 . do  return 0 . end .
   return 1 .
 end .

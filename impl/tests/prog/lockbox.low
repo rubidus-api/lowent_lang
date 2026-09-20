@@ -66,7 +66,9 @@ proc check_peer input sig slice u8 . input nb slice u8 . input mhash slice u8 .
   let k u64 be shr (len nb) 1 .
   let need u64 be add k 4 .
   guard ge (len bw) (mul need 7) . else return 0 .
-  return rsa.verify_pss sig nb 65537 mhash 32 em w (subslice bw 0 need) (subslice bw need (mul need 2)) (subslice bw (mul need 2) (mul need 3)) (subslice bw (mul need 3) (mul need 4)) (subslice bw (mul need 4) (mul need 5)) (subslice bw (mul need 5) (mul need 6)) (subslice bw (mul need 6) (mul need 7)) .
+  let _rr result u64 rsa.rsa_error . be rsa.verify_pss sig nb 65537 mhash 32 em w (subslice bw 0 need) (subslice bw need (mul need 2)) (subslice bw (mul need 2) (mul need 3)) (subslice bw (mul need 3) (mul need 4)) (subslice bw (mul need 4) (mul need 5)) (subslice bw (mul need 5) (mul need 6)) (subslice bw (mul need 6) (mul need 7)) .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ★★ 상대 확인의 **둘째 얼굴** — ECDSA P-256.
@@ -76,7 +78,9 @@ rem   ☞ 여기서도 중요한 것은 음성이다: 맞지 않으면 **아무�
 proc check_peer_ec input r slice u64 . input s slice u64 . input e slice u64 . input pub slice u64 .
      input p slice u64 . input n slice u64 . input gx slice u64 . input gy slice u64 .
      input w mut slice u64 . output u64 . effects none . do
-  return p256.ecdsa_verify r s e pub p n gx gy w .
+  let _rr result u64 p256.p256_error . be p256.ecdsa_verify r s e pub p n gx gy w .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ★★ 상대 확인의 **셋째 얼굴** — Ed25519.
@@ -85,7 +89,9 @@ rem     `rsa_pss_rsae_sha256` · `ecdsa_secp256r1_sha256` · `ed25519`.
 rem   ☞ 셋이 다 서야 협상 코드에 **죽은 분기가 없다**.
 proc check_peer_ed input sig slice u8 . input pub slice u8 . input msg slice u8 .
      input sc mut slice u8 . input bb mut slice u8 . input w mut slice u64 . output u64 . effects none . do
-  return ed25519.verify sig pub msg sc bb w .
+  let _rr result u64 ed25519.ed25519_error . be ed25519.verify sig pub msg sc bb w .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ★★ 상대의 **인증서에서 공개키를 꺼낸다**(N7c: 체인은 안 본다).
@@ -117,14 +123,24 @@ proc derive input shared slice u8 . input label slice u8 . input b mut slice u8 
   guard eq (sha256 (subslice b 0 0) (subslice b 288 320)) 32 . else return 0 .
 
   rem Early Secret = HKDF-Extract(0, 0)
-  guard eq (hmac.extract (subslice b 572 604) (subslice b 572 604) (subslice b 604 1116) (subslice b 160 192)) 32 . else return 0 .
+  let _u6 result u64 hmac.hmac_error . be hmac.extract (subslice b 572 604) (subslice b 572 604) (subslice b 604 1116) (subslice b 160 192) .
+  guard is_ok _u6 . else return 0 .
+  guard eq (ok_value _u6) 32 . else return 0 .
   rem Handshake Secret = Extract(Derive-Secret(Early,"derived",""), ECDHE)
-  guard eq (tls13.advance (subslice b 160 192) shared (subslice b 288 320) (subslice b 256 288) (subslice b 428 556) (subslice b 604 1116) (subslice b 192 224)) 32 . else return 0 .
+  let _u7 result u64 tls13.tls13_error . be tls13.advance (subslice b 160 192) shared (subslice b 288 320) (subslice b 256 288) (subslice b 428 556) (subslice b 604 1116) (subslice b 192 224) .
+  guard is_ok _u7 . else return 0 .
+  guard eq (ok_value _u7) 32 . else return 0 .
   rem 이 프로그램의 비밀 — TLS 라면 "c ap traffic" 이 올 자리다.
-  guard eq (tls13.derive_secret (subslice b 192 224) label (subslice b 288 320) (subslice b 428 556) (subslice b 604 1116) (subslice b 224 256)) 32 . else return 0 .
+  let _u8 result u64 tls13.tls13_error . be tls13.derive_secret (subslice b 192 224) label (subslice b 288 320) (subslice b 428 556) (subslice b 604 1116) (subslice b 224 256) .
+  guard is_ok _u8 . else return 0 .
+  guard eq (ok_value _u8) 32 . else return 0 .
   rem 레코드 키와 IV
-  guard eq (tls13.traffic_key (subslice b 224 256) 32 (subslice b 428 556) (subslice b 604 1116) (subslice b 320 352)) 32 . else return 0 .
-  guard eq (tls13.traffic_iv (subslice b 224 256) (subslice b 428 556) (subslice b 604 1116) (subslice b 352 384)) 12 . else return 0 .
+  let _u9 result u64 tls13.tls13_error . be tls13.traffic_key (subslice b 224 256) 32 (subslice b 428 556) (subslice b 604 1116) (subslice b 320 352) .
+  guard is_ok _u9 . else return 0 .
+  guard eq (ok_value _u9) 32 . else return 0 .
+  let _u10 result u64 tls13.tls13_error . be tls13.traffic_iv (subslice b 224 256) (subslice b 428 556) (subslice b 604 1116) (subslice b 352 384) .
+  guard is_ok _u10 . else return 0 .
+  guard eq (ok_value _u10) 12 . else return 0 .
   rem nonce — 이 프로그램은 레코드 하나뿐이므로 시퀀스 0 이다.
   rem   ☞ 여럿을 보내려면 번호를 **세어야** 하고, 그 책임은 호출자에게 있다(tls13 이 그렇게 짜였다).
   return tls13.record_nonce (subslice b 352 364) 0 (subslice b 384 396) .
@@ -146,12 +162,20 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
   var i u64 be 0 .
   while lt i 32 . do  set (index b (add 64 i)) 0 .  set i (add i 1) .  end .
   set (index b 64) 9 .
-  guard eq (x25519.agree (subslice b 0 32) ska (subslice b 64 96) (subslice b 396 428) w) 32 . else return 91 .
-  guard eq (x25519.agree (subslice b 32 64) skb (subslice b 64 96) (subslice b 396 428) w) 32 . else return 92 .
+  let _u0 result u64 x25519.x25519_error . be x25519.agree (subslice b 0 32) ska (subslice b 64 96) (subslice b 396 428) w .
+  guard is_ok _u0 . else return 91 .
+  guard eq (ok_value _u0) 32 . else return 91 .
+  let _u1 result u64 x25519.x25519_error . be x25519.agree (subslice b 32 64) skb (subslice b 64 96) (subslice b 396 428) w .
+  guard is_ok _u1 . else return 92 .
+  guard eq (ok_value _u1) 32 . else return 92 .
 
   rem ② 각자 **상대의** 공개키로 공유 비밀에 이른다 — 같은 값이어야 한다.
-  guard eq (x25519.agree (subslice b 96 128) ska (subslice b 32 64) (subslice b 396 428) w) 32 . else return 93 .
-  guard eq (x25519.agree (subslice b 128 160) skb (subslice b 0 32) (subslice b 396 428) w) 32 . else return 94 .
+  let _u2 result u64 x25519.x25519_error . be x25519.agree (subslice b 96 128) ska (subslice b 32 64) (subslice b 396 428) w .
+  guard is_ok _u2 . else return 93 .
+  guard eq (ok_value _u2) 32 . else return 93 .
+  let _u3 result u64 x25519.x25519_error . be x25519.agree (subslice b 128 160) skb (subslice b 0 32) (subslice b 396 428) w .
+  guard is_ok _u3 . else return 94 .
+  guard eq (ok_value _u3) 32 . else return 94 .
   var j u64 be 0 .
   while lt j 32 . do
     guard eq (index b (add 96 j)) (index b (add 128 j)) . else return 95 .
@@ -163,10 +187,14 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
 
   rem ④ 봉인 — 스위트가 여기서 갈린다. AES-128 은 키의 **앞 16 바이트**만 쓴다.
   if eq suite 1 . do
-    guard eq (gcm.encrypt (subslice b 320 336) (subslice b 384 396) salt msg ct tag (subslice b 1228 1548)) 16 . else return 97 .
+    let _u4 result u64 gcm.gcm_error . be gcm.encrypt (subslice b 320 336) (subslice b 384 396) salt msg ct tag (subslice b 1228 1548) .
+    guard is_ok _u4 . else return 97 .
+    guard eq (ok_value _u4) 16 . else return 97 .
   end .
   if eq suite 2 . do
-    guard eq (aead.seal (subslice b 320 352) (subslice b 384 396) salt msg ct tag (subslice b 1116 1148) pst cst cwk (subslice b 1164 1228) (subslice b 556 572)) 16 . else return 97 .
+    let _u5 result u64 aead.aead_error . be aead.seal (subslice b 320 352) (subslice b 384 396) salt msg ct tag (subslice b 1116 1148) pst cst cwk (subslice b 1164 1228) (subslice b 556 572) .
+    guard is_ok _u5 . else return 97 .
+    guard eq (ok_value _u5) 16 . else return 97 .
   end .
 
   if eq flip 1 . do
@@ -177,10 +205,14 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
   guard eq (derive (subslice b 128 160) label b) 12 . else return 98 .
   var verdict u64 be 0 .
   if eq suite 1 . do
-    set verdict (gcm.decrypt (subslice b 320 336) (subslice b 384 396) salt ct tag out (subslice b 1148 1164) (subslice b 1228 1548)) .
+    let vr result u64 gcm.gcm_error . be gcm.decrypt (subslice b 320 336) (subslice b 384 396) salt ct tag out (subslice b 1148 1164) (subslice b 1228 1548) .
+    guard is_ok vr . else return 0 .
+    set verdict (ok_value vr) .
   end .
   if eq suite 2 . do
-    set verdict (aead.unseal (subslice b 320 352) (subslice b 384 396) salt ct tag out (subslice b 1116 1148) pst cst cwk (subslice b 1164 1228) (subslice b 556 572) (subslice b 1148 1164)) .
+    let ur result u64 aead.aead_error . be aead.unseal (subslice b 320 352) (subslice b 384 396) salt ct tag out (subslice b 1116 1148) pst cst cwk (subslice b 1164 1228) (subslice b 556 572) (subslice b 1148 1164) .
+    guard is_ok ur . else return 0 .
+    set verdict (ok_value ur) .
   end .
   if eq flip 1 . do
     rem 변조된 것은 **거절돼야** 한다 — 그것이 이 줄의 전부다.

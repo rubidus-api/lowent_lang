@@ -47,7 +47,9 @@ proc t_certverify input cert slice u8 . input sig slice u8 . input mhash slice u
   guard gt e 0 . else return 90 .
   let nl u64 be t_nlen cert .
   guard eq nl (len sig) . else return 91 .
-  return rsa.verify_pss sig (subslice nb 0 nl) e mhash 32 em w sw nw ow r2 acc tw mw .
+  let _rr result u64 rsa.rsa_error . be rsa.verify_pss sig (subslice nb 0 nl) e mhash 32 em w sw nw ow r2 acc tw mw .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ★★ **길이는 상대가 쓴 것이다.** 잘린 버퍼에서 파서는 **0 을 답해야** 한다 —

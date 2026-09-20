@@ -17,6 +17,14 @@ rem   언어에서 타이밍을 *약속*할 수는 없다 — 약속하지 못�
 
 module aead .
 
+rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
+rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
+rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
+export enum aead_error do
+  short_workspace .
+end .
+
+
 rem 이 모듈은 혼자 서지 않는다 — 흐름은 chacha 가, 증언은 poly 가 만든다.
 use chacha from "chacha.low" .
 use poly from "poly.low" .
@@ -57,33 +65,41 @@ proc feed_lens input pst mut slice u64 . input alen u64 . input clen u64 . input
 end .
 
 rem ★ 일회용 Poly1305 키: ChaCha20 블록 0 의 앞 32 바이트(RFC 8439 §2.6).
-export proc key_gen input key slice u8 . input nonce slice u8 . input otk mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none . do
-  guard ge (len otk) 32 . else return 0 .
-  guard eq (chacha.prep key nonce 0 st) 16 . else return 0 .
-  guard eq (chacha.keystream st work ks) 64 . else return 0 .
+export proc key_gen input key slice u8 . input nonce slice u8 . input otk mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output result u64 aead_error . effects none .
+errors short_workspace . do
+  guard ge (len otk) 32 . else return ok 0 .
+  guard eq (chacha.prep key nonce 0 st) 16 . else return ok 0 .
+  let _u2 result u64 chacha.chacha_error . be chacha.keystream st work ks .
+  guard is_ok _u2 . else return error short_workspace .
+  guard eq (ok_value _u2) 64 . else return ok 0 .
   var i u64 be 0 .
   while lt i 32 . do
     set (index otk i) (index ks i) .
     set i (add i 1) .
   end .
-  return 32 .
+  return ok 32 .
 end .
 
 rem ★★ 봉인: 평문 → 암호문 + 16 바이트 태그.
 rem   작업 공간은 전부 호출자가 든다 — otk 32 · pst 10 · st 16 · work 16 · ks 64 · pad 16.
-export proc seal input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . output u64 . effects none . do
-  guard ge (len ct) (len msg) . else return 0 .
-  guard ge (len tag) 16 . else return 0 .
-  guard ge (len pad) 16 . else return 0 .
-  guard eq (key_gen key nonce otk st work ks) 32 . else return 0 .
+export proc seal input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 . input ct mut slice u8 . input tag mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . output result u64 aead_error . effects none .
+errors short_workspace . do
+  guard ge (len ct) (len msg) . else return ok 0 .
+  guard ge (len tag) 16 . else return ok 0 .
+  guard ge (len pad) 16 . else return ok 0 .
+  let _u1 result u64 aead_error . be key_gen key nonce otk st work ks .
+  guard is_ok _u1 . else return error short_workspace .
+  guard eq (ok_value _u1) 32 . else return ok 0 .
   rem ★ 카운터는 **1** 부터다 — 0 은 위에서 Poly1305 키로 이미 썼다.
-  let n u64 be chacha.stream key nonce 1 msg ct st work ks .
-  guard eq n (len msg) . else return 0 .
-  guard eq (poly.setup otk pst) 1 . else return 0 .
+  let n_r result u64 chacha.chacha_error . be chacha.stream key nonce 1 msg ct st work ks .
+  guard is_ok n_r . else return error short_workspace .
+  let n u64 be ok_value n_r .
+  guard eq n (len msg) . else return ok 0 .
+  guard eq (poly.setup otk pst) 1 . else return ok 0 .
   let a1 u64 be feed pst aad pad .
   let a2 u64 be feed pst (subslice ct 0 (len msg)) pad .
   let a3 u64 be feed_lens pst (len aad) (len msg) pad .
-  return poly.emit pst otk tag .
+  return ok (poly.emit pst otk tag) .
 end .
 
 rem ★★ 개봉: 태그를 먼저 확인하고, 맞을 때만 평문을 낸다.
@@ -91,25 +107,30 @@ rem   ☞ 비교는 XOR 누적이다 — 조기 반환이 없다는 뜻이고, �
 rem   ☞ `tag` 는 **정확히 16** 이어야 한다. 전엔 `ge 16` 이어서 17 바이트 태그의 앞 16 만 보고
 rem     나머지를 말없이 지나쳤다 — `hash.digest_ok`(정확 길이)와 갈라져 있던 자리다
 rem     (2026-09-04 검토 RU). `gcm.decrypt` 도 같은 규칙으로 맞췼다.
-export proc unseal input key slice u8 . input nonce slice u8 . input aad slice u8 . input ct slice u8 . input tag slice u8 . input msg mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . input want mut slice u8 . output u64 . effects none . do
-  guard ge (len msg) (len ct) . else return 0 .
-  guard eq (len tag) 16 . else return 0 .
-  guard ge (len want) 16 . else return 0 .
-  guard ge (len pad) 16 . else return 0 .
-  guard eq (key_gen key nonce otk st work ks) 32 . else return 0 .
-  guard eq (poly.setup otk pst) 1 . else return 0 .
+export proc unseal input key slice u8 . input nonce slice u8 . input aad slice u8 . input ct slice u8 . input tag slice u8 . input msg mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . input want mut slice u8 . output result u64 aead_error . effects none .
+errors short_workspace . do
+  guard ge (len msg) (len ct) . else return ok 0 .
+  guard eq (len tag) 16 . else return ok 0 .
+  guard ge (len want) 16 . else return ok 0 .
+  guard ge (len pad) 16 . else return ok 0 .
+  let _u0 result u64 aead_error . be key_gen key nonce otk st work ks .
+  guard is_ok _u0 . else return error short_workspace .
+  guard eq (ok_value _u0) 32 . else return ok 0 .
+  guard eq (poly.setup otk pst) 1 . else return ok 0 .
   let a1 u64 be feed pst aad pad .
   let a2 u64 be feed pst ct pad .
   let a3 u64 be feed_lens pst (len aad) (len ct) pad .
-  guard eq (poly.emit pst otk want) 16 . else return 0 .
+  guard eq (poly.emit pst otk want) 16 . else return ok 0 .
   var diff u64 be 0 .
   var i u64 be 0 .
   while lt i 16 . do
     set diff (bit_or diff (bit_xor (cast u64 (index want i)) (cast u64 (index tag i)))) .
     set i (add i 1) .
   end .
-  guard eq diff 0 . else return 0 .
-  let n u64 be chacha.stream key nonce 1 ct msg st work ks .
-  guard eq n (len ct) . else return 0 .
-  return 1 .
+  guard eq diff 0 . else return ok 0 .
+  let n_r result u64 chacha.chacha_error . be chacha.stream key nonce 1 ct msg st work ks .
+  guard is_ok n_r . else return error short_workspace .
+  let n u64 be ok_value n_r .
+  guard eq n (len ct) . else return ok 0 .
+  return ok 1 .
 end .

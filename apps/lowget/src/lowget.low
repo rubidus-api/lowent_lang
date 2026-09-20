@@ -24,7 +24,9 @@ rem   (뒤의 것은 한 번짜리 난수 3 바이트만 다르다).
 rem
 rem   `lowget <url> [-i] [-L] [--insecure] [--cafile <path>]`
 rem   종료 코드: 0 성공 · 1 HTTP 오류 상태(400 이상) · 2 사용법 · 3 연결·이름·따라갈 수 없는 자리 ·
-rem              4 인증서를 믿지 못한다 · 5 규약 위반
+rem              4 인증서를 믿지 못한다 · 5 규약 위반 · 7 **확인을 끝내지 못했다**(자리가 모자라다)
+rem   ☞ 7 이 따로 있는 까닭(X-0035): 「믿지 못한다」와 「재지 못했다」는 **다른 사실**이다.
+rem     그전에는 둘 다 4 로 보였고, 창을 좁게 준 판이 «믿는 뿌리가 없다» 로 나왔다.
 rem   ☞ `-o <파일>` 은 **안 만들었다**: `lowget … > 파일` 과 하는 일이 정확히 같고(진단은 이미
 rem     stderr 로 간다), 같은 일을 두 자리에서 하면 둘이 언젠가 달라진다.
 rem   ☞ `-L` 은 최대 **여덟 번** 따라간다. `https://…` 와 `/…` 만 따라가고, 그 밖(`http://` ·
@@ -122,7 +124,9 @@ do
   var bi u64 be 0 .
   while lt bi 32 . do  set (index buf (add 56400 bi)) 0 .  set bi (add bi 1) .  end .
   set (index buf 56400) 9 .
-  guard eq (x25519.agree (subslice buf 56432 56464) priv (subslice buf 56400 56432) (subslice buf 56464 56496) xw) 32 . else return 91 .
+  let _u0 result u64 x25519.x25519_error . be x25519.agree (subslice buf 56432 56464) priv (subslice buf 56400 56432) (subslice buf 56464 56496) xw .
+  guard is_ok _u0 . else return 91 .
+  guard eq (ok_value _u0) 32 . else return 91 .
 
   rem ── ② ClientHello — 전사의 첫 메시지이자 첫 레코드 ────────────────────
   let chn u64 be tlscli.build_ch rnd sid (subslice buf 56432 56464) host (subslice buf 0 20000) .
@@ -151,13 +155,19 @@ do
   let sh slice u8 be subslice buf mn (add mn shn) .
   guard tlscli.sh_usable sh . else return 97 .
   let kso u64 be tlscli.sh_key_share_off sh .
-  guard eq (x25519.agree (subslice buf 56496 56528) priv (subslice sh kso (add kso 32)) (subslice buf 56528 56560) xw) 32 . else return 98 .
+  let _u1 result u64 x25519.x25519_error . be x25519.agree (subslice buf 56496 56528) priv (subslice sh kso (add kso 32)) (subslice buf 56528 56560) xw .
+  guard is_ok _u1 . else return 98 .
+  guard eq (ok_value _u1) 32 . else return 98 .
   set mn (add mn shn) .
 
   rem ── ④ 키 사다리 — 여기서부터 읽을 수 있다 ────────────────────────────
-  guard eq (tlscli.hs_secrets (subslice buf 56496 56528) (subslice buf 0 mn) (subslice buf 56200 56296) (subslice buf 53100 54400)) 96 . else return 99 .
+  let _u2 result u64 tlscli.tlscli_error . be tlscli.hs_secrets (subslice buf 56496 56528) (subslice buf 0 mn) (subslice buf 56200 56296) (subslice buf 53100 54400) .
+  guard is_ok _u2 . else return 99 .
+  guard eq (ok_value _u2) 96 . else return 99 .
   rem c_hs = 56200..56232 · s_hs = 56232..56264 · handshake secret = 56264..56296
-  guard eq (tlssrv.traffic_keys (subslice buf 56232 56264) 16 (subslice buf 56296 56340) (subslice buf 53100 54400)) 28 . else return 100 .
+  let _u3 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56232 56264) 16 (subslice buf 56296 56340) (subslice buf 53100 54400) .
+  guard is_ok _u3 . else return 100 .
+  guard eq (ok_value _u3) 28 . else return 100 .
 
   rem ── ⑤ EE · Certificate · CertificateVerify · Finished 를 연다 ─────────
   var seq u64 be 0 .
@@ -171,7 +181,9 @@ do
     rem 바뀜 신호(ChangeCipherSpec)는 1.3 에서 **뜻이 없다** — 중간 상자를 위한 장식이다. 버린다.
     if eq rt 20 . do  set rounds (add rounds 1) . end .
     if eq rt 23 . do
-      let pl u64 be tls13.record_open 1 (subslice buf 56296 56312) (subslice buf 56312 56324) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
+      let pl_r result u64 tls13.tls13_error . be tls13.record_open 1 (subslice buf 56296 56312) (subslice buf 56312 56324) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
+      guard is_ok pl_r . else return 0 .
+      let pl u64 be ok_value pl_r .
       guard gt pl 0 . else return 102 .
       set seq (add seq 1) .
       guard eq (tls13.inner_type (subslice buf 36700 (add 36700 pl))) 22 . else return 103 .
@@ -214,22 +226,37 @@ do
 
   rem ── ⑥ 서버의 Finished 를 검산한다 ────────────────────────────────────
   rem   ★ 전사는 **Finished 앞까지**다 — 자기 자신은 자기 검산에 안 들어간다.
-  guard tlscli.check_server_fin (subslice buf 56232 56264) (subslice buf 0 fin_at) (subslice buf fin_at (add fin_at fin_len)) (subslice buf 53100 54400) . else return 106 .
+  rem ★ 「못 맞췄다」와 「재지 못했다」를 가른다(X-0035).
+  let fr result bool tlscli.tlscli_error . be tlscli.check_server_fin (subslice buf 56232 56264) (subslice buf 0 fin_at) (subslice buf fin_at (add fin_at fin_len)) (subslice buf 53100 54400) .
+  guard is_ok fr . else return 106 .
+  guard (ok_value fr) . else return 106 .
 
   rem ── ⑦ 우리 Finished — 전사는 **서버 Finished 까지** 포함한다 ─────────
-  guard eq (tlssrv.traffic_keys (subslice buf 56200 56232) 16 (subslice buf 56340 56384) (subslice buf 53100 54400)) 28 . else return 107 .
-  let fn2 u64 be tlscli.build_client_fin (subslice buf 56200 56232) (subslice buf 0 mn) (subslice buf 56400 56440) (subslice buf 53100 54400) .
+  let _u4 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56200 56232) 16 (subslice buf 56340 56384) (subslice buf 53100 54400) .
+  guard is_ok _u4 . else return 107 .
+  guard eq (ok_value _u4) 28 . else return 107 .
+  let fn2_r result u64 tlscli.tlscli_error . be tlscli.build_client_fin (subslice buf 56200 56232) (subslice buf 0 mn) (subslice buf 56400 56440) (subslice buf 53100 54400) .
+  guard is_ok fn2_r . else return 0 .
+  let fn2 u64 be ok_value fn2_r .
   guard eq fn2 36 . else return 108 .
-  let sn u64 be tlscli.seal_rec 1 (subslice buf 56340 56384) 16 0 22 (subslice buf 56400 56436) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
+  let sn_r result u64 tlscli.tlscli_error . be tlscli.seal_rec 1 (subslice buf 56340 56384) 16 0 22 (subslice buf 56400 56436) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
+  guard is_ok sn_r . else return 0 .
+  let sn u64 be ok_value sn_r .
   guard gt sn 0 . else return 109 .
   let s2 option u64 . be net.send_all k fd (subslice buf 20000 (add 20000 sn)) .
   guard is_some s2 . else return 110 .
 
   rem ── ⑧ 응용 트래픽 키 ─────────────────────────────────────────────────
-  guard eq (tlssrv.app_secrets (subslice buf 56264 56296) (subslice buf 0 mn) (subslice buf 56440 56504) (subslice buf 53100 54400)) 64 . else return 111 .
+  let _u5 result u64 tlssrv.tlssrv_error . be tlssrv.app_secrets (subslice buf 56264 56296) (subslice buf 0 mn) (subslice buf 56440 56504) (subslice buf 53100 54400) .
+  guard is_ok _u5 . else return 111 .
+  guard eq (ok_value _u5) 64 . else return 111 .
   rem c_ap = 56440..56472 · s_ap = 56472..56504 → 트래픽 키는 56504·56548
-  guard eq (tlssrv.traffic_keys (subslice buf 56440 56472) 16 (subslice buf 56504 56548) (subslice buf 53100 54400)) 28 . else return 112 .
-  guard eq (tlssrv.traffic_keys (subslice buf 56472 56504) 16 (subslice buf 56548 56592) (subslice buf 53100 54400)) 28 . else return 113 .
+  let _u6 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56440 56472) 16 (subslice buf 56504 56548) (subslice buf 53100 54400) .
+  guard is_ok _u6 . else return 112 .
+  guard eq (ok_value _u6) 28 . else return 112 .
+  let _u7 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice buf 56472 56504) 16 (subslice buf 56548 56592) (subslice buf 53100 54400) .
+  guard is_ok _u7 . else return 113 .
+  guard eq (ok_value _u7) 28 . else return 113 .
   return 0 .
 end .
 
@@ -726,7 +753,9 @@ do
   set at (put_s (subslice buf 56600 58600) at "\r\nUser-Agent: lowget/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n") .
   guard gt at 0 . else return 125 .
 
-  let sn u64 be tlscli.seal_rec 1 (subslice buf 56504 56548) 16 0 23 (subslice buf 56600 (add 56600 at)) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
+  let sn_r result u64 tlscli.tlscli_error . be tlscli.seal_rec 1 (subslice buf 56504 56548) 16 0 23 (subslice buf 56600 (add 56600 at)) (subslice buf 20000 36700) (subslice buf 53100 54400) u .
+  guard is_ok sn_r . else return 0 .
+  let sn u64 be ok_value sn_r .
   guard gt sn 0 . else return 120 .
   let s1 option u64 . be net.send_all k fd (subslice buf 20000 (add 20000 sn)) .
   guard is_some s1 . else return 121 .
@@ -741,7 +770,9 @@ do
     if eq done 0 . do
       let rt u64 be tlscli.rec_type (subslice buf 20000 20005) .
       if eq rt 23 . do
-        let pl u64 be tls13.record_open 1 (subslice buf 56548 56564) (subslice buf 56564 56576) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
+        let pl_r result u64 tls13.tls13_error . be tls13.record_open 1 (subslice buf 56548 56564) (subslice buf 56564 56576) seq (subslice buf 20000 (add 20000 rn)) (subslice buf 36700 53100) (subslice buf 53100 53740) u .
+        guard is_ok pl_r . else return 0 .
+        let pl u64 be ok_value pl_r .
         guard gt pl 0 . else return 122 .
         set seq (add seq 1) .
         let it u64 be tls13.inner_type (subslice buf 36700 (add 36700 pl)) .
@@ -1064,7 +1095,11 @@ do
 
   rem ── 그 꼭대기를 **믿는 뿌리**에 잇는다 ──────────────────────────────
   let top slice u8 be subslice buf cur_o (add cur_o cur_n) .
-  let ao u64 be trust.find_anchor fs bundle top (x509.issuer_off top) (subslice buf 104000 134000) (subslice buf 134000 154000) (subslice buf 154000 170000) dn .
+  rem ★ 「믿는 뿌리가 없다」(ok 0)와 「재지 못했다」(error)는 **다른 말**이다 — X-0035.
+  rem   그전에는 둘 다 0 이라, 창을 좁게 준 판이 «믿는 뿌리가 없다» 로 보였다(2026-09-18).
+  let ar result u64 trust.trust_error . be trust.find_anchor fs bundle top (x509.issuer_off top) (subslice buf 104000 134000) (subslice buf 134000 154000) (subslice buf 154000 170000) dn .
+  guard is_ok ar . else return 7 .
+  let ao u64 be ok_value ar .
   guard gt ao 0 . else return 5 .
   let anchor slice u8 be subslice buf 154000 (add 154000 ao) .
   guard eq (verify.link_ok top anchor now (subslice buf 28800 30000) wu) 1 . else return 5 .

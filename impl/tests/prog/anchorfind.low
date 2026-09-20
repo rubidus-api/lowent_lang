@@ -22,7 +22,9 @@ do
   guard gt io_ 0 . else return 9 .
 
   let dn mut slice u64 . be view_array u64 (subslice buf 60000 60008) .
-  let f u64 be trust.find_anchor fs path c io_ (subslice buf 20000 40000) (subslice buf 40000 50000) (subslice buf 50000 58000) dn .
-  if gt f 0 . do  return 0 . end .
+  let fr result u64 trust.trust_error . be trust.find_anchor fs path c io_ (subslice buf 20000 40000) (subslice buf 40000 50000) (subslice buf 50000 58000) dn .
+  rem ★ 2 = **재지 못했다**(자리가 모자라다). 1 = 재고 나서 «없다». 그 둘은 다른 답이다.
+  guard is_ok fr . else return 2 .
+  if gt (ok_value fr) 0 . do  return 0 . end .
   return 1 .
 end .

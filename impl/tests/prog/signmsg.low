@@ -64,10 +64,12 @@ do
   let dh option u64 . be codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" (subslice wb 0 32) .
   guard is_some dh . else return 89 .
 
-  guard eq (ecdsa.sign (subslice wb 0 32) (subslice wb 32 64)
+  let sg result u64 ecdsa.ecdsa_error . be ecdsa.sign (subslice wb 0 32) (subslice wb 32 64)
                        (subslice wu 0 16) (subslice wu 16 32)
                        (subslice wu 32 48) (subslice wu 48 64)
-                       rs (subslice wb 64 640) (subslice wu 64 1016)) 64 . else return 43 .
+                       rs (subslice wb 64 640) (subslice wu 64 1016) .
+  guard is_ok sg . else return 43 .
+  guard eq (ok_value sg) 64 . else return 43 .
 
   guard eq (bigint.from_bytes (subslice rs 0 32) (subslice wu 1016 1032) 16) 16 . else return 89 .
   guard eq (bigint.from_bytes (subslice rs 32 64) (subslice wu 1032 1048) 16) 16 . else return 89 .
@@ -75,20 +77,24 @@ do
   guard eq (limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" (subslice wu 1064 1080) wb) 16 . else return 89 .
   guard eq (limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" (subslice wu 1080 1096) wb) 16 . else return 89 .
 
-  guard eq (p256.ecdsa_verify (subslice wu 1016 1032) (subslice wu 1032 1048) (subslice wu 1048 1064)
+  let ev1 result u64 p256.p256_error . be p256.ecdsa_verify (subslice wu 1016 1032) (subslice wu 1032 1048) (subslice wu 1048 1064)
                               (subslice wu 1064 1096)
                               (subslice wu 0 16) (subslice wu 16 32)
                               (subslice wu 32 48) (subslice wu 48 64)
-                              (subslice wu 1096 2020)) 1 . else return 44 .
+                              (subslice wu 1096 2020) .
+  guard is_ok ev1 . else return 44 .
+  guard eq (ok_value ev1) 1 . else return 44 .
 
   rem ── 한 비트를 뒤집으면 **거절되어야** 한다 ──
   set (index rs 0) (bit_xor (index rs 0) 1) .
   guard eq (bigint.from_bytes (subslice rs 0 32) (subslice wu 1016 1032) 16) 16 . else return 89 .
-  guard ne (p256.ecdsa_verify (subslice wu 1016 1032) (subslice wu 1032 1048) (subslice wu 1048 1064)
+  let ev2 result u64 p256.p256_error . be p256.ecdsa_verify (subslice wu 1016 1032) (subslice wu 1032 1048) (subslice wu 1048 1064)
                               (subslice wu 1064 1096)
                               (subslice wu 0 16) (subslice wu 16 32)
                               (subslice wu 32 48) (subslice wu 48 64)
-                              (subslice wu 1096 2020)) 1 . else return 45 .
+                              (subslice wu 1096 2020) .
+  guard is_ok ev2 . else return 45 .
+  guard ne (ok_value ev2) 1 . else return 45 .
 
   return 42 .
 end

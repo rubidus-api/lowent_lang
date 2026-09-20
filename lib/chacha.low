@@ -11,6 +11,14 @@ rem   그것이 곧 *"랩을 원하면 이름으로 말하라"* 는 이 언어�
 
 module chacha .
 
+rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
+rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
+rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
+export enum chacha_error do
+  short_workspace .
+end .
+
+
 let mask32 u64 be 4294967295 .
 
 rem 32비트 왼쪽 회전.
@@ -41,9 +49,10 @@ end .
 
 rem ★ 블록 함수: 상태 16 워드를 20 라운드 돌리고 원래 상태를 더한다.
 rem   `st` 에는 호출자가 초기 상태를 채워 둔다. `work` 는 16 원소 작업 공간.
-export proc rounds input st slice u64 . input work mut slice u64 . output u64 . effects none . do
-  guard ge (len st) 16 . else return 0 .
-  guard ge (len work) 16 . else return 0 .
+export proc rounds input st slice u64 . input work mut slice u64 . output result u64 chacha_error . effects none .
+errors short_workspace . do
+  guard ge (len st) 16 . else return ok 0 .
+  guard ge (len work) 16 . else return error short_workspace .
   var i u64 be 0 .
   while lt i 16 . do
     set (index work i) (index st i) .
@@ -68,7 +77,7 @@ export proc rounds input st slice u64 . input work mut slice u64 . output u64 . 
     set (index work j) (add32 (index work j) (index st j)) .
     set j (add j 1) .
   end .
-  return 16 .
+  return ok 16 .
 end .
 
 rem ★ 상태를 세운다: 상수 4 · 키 8 · 카운터 1 · nonce 3 = 16 워드.
@@ -111,9 +120,12 @@ export proc prep input key slice u8 . input nonce slice u8 . input counter u64 .
 end .
 
 rem ★ 키스트림 한 블록(64 바이트)을 `ks` 에 리틀엔디언으로 편다.
-export proc keystream input st slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none . do
-  guard ge (len ks) 64 . else return 0 .
-  guard eq (rounds st work) 16 . else return 0 .
+export proc keystream input st slice u64 . input work mut slice u64 . input ks mut slice u8 . output result u64 chacha_error . effects none .
+errors short_workspace . do
+  guard ge (len ks) 64 . else return ok 0 .
+  let _u1 result u64 chacha_error . be rounds st work .
+  guard is_ok _u1 . else return error short_workspace .
+  guard eq (ok_value _u1) 16 . else return ok 0 .
   var i u64 be 0 .
   while lt i 16 . do
     var b u64 be 0 .
@@ -123,19 +135,22 @@ export proc keystream input st slice u64 . input work mut slice u64 . input ks m
     end .
     set i (add i 1) .
   end .
-  return 64 .
+  return ok 64 .
 end .
 
 rem ★★ 스트림 암·복호(같은 연산이다). `counter` 는 시작 블록 번호.
 rem   `st`·`work` 16 원소, `ks` 64 바이트를 호출자가 준다 — 이 언어에서 할당은
 rem   **호출자의 몫**이다. 그래서 이 프로시저는 effects none 이다.
-export proc stream input key slice u8 . input nonce slice u8 . input counter u64 . input inp slice u8 . input out mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none . do
-  guard ge (len out) (len inp) . else return 0 .
+export proc stream input key slice u8 . input nonce slice u8 . input counter u64 . input inp slice u8 . input out mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output result u64 chacha_error . effects none .
+errors short_workspace . do
+  guard ge (len out) (len inp) . else return ok 0 .
   var off u64 be 0 .
   var blk u64 be counter .
   while lt off (len inp) . do
-    guard eq (prep key nonce blk st) 16 . else return 0 .
-    guard eq (keystream st work ks) 64 . else return 0 .
+    guard eq (prep key nonce blk st) 16 . else return ok 0 .
+    let _u0 result u64 chacha_error . be keystream st work ks .
+    guard is_ok _u0 . else return error short_workspace .
+    guard eq (ok_value _u0) 64 . else return ok 0 .
     var k u64 be 0 .
     while lt k 64 . do
       if lt (add off k) (len inp) . do
@@ -146,5 +161,5 @@ export proc stream input key slice u8 . input nonce slice u8 . input counter u64
     set off (add off 64) .
     set blk (add blk 1) .
   end .
-  return len inp .
+  return ok (len inp) .
 end .

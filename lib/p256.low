@@ -17,6 +17,14 @@ rem   P-384/P-521(같은 코드로 붙지만 지금 필요하지 않다).
 
 module p256 .
 
+rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
+rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
+rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
+export enum p256_error do
+  short_workspace .
+end .
+
+
 rem ☞ **왜 `padd`/`pdbl` 인가**: `add` 는 빌트인이고 `dbl` 은 짧아 남과 부딪히기 쉽다.
 rem   이름공간이 평면이라 모듈 안이라고 안전하지 않다 — 도구가 E-VISIBILITY 로 잡았다.
 
@@ -86,8 +94,9 @@ end .
 rem ★★ 모듈러 역원 — 페르마(a^(m−2)). m 이 소수일 때만 옳다: p 도 n 도 소수다.
 rem   ☞ 확장 유클리드가 더 빠르지만 **입력에 따라 도는 횟수가 달라진다**. 여기는 고정이다.
 rem   `w` 는 조각 작업 공간(≥ 6·18).
-export proc minv input o mut slice u64 . input a slice u64 . input m slice u64 . input w mut slice u64 . output u64 . effects none . do
-  guard ge (len w) 108 . else return 0 .
+export proc minv input o mut slice u64 . input a slice u64 . input m slice u64 . input w mut slice u64 . output result u64 p256_error . effects none .
+errors short_workspace . do
+  guard ge (len w) 108 . else return error short_workspace .
   rem exp = m − 2 를 만든다.
   let z0 u64 be bigint.zero (subslice w 0 18) 16 .
   set (index w 0) 2 .
@@ -122,7 +131,7 @@ export proc minv input o mut slice u64 . input a slice u64 . input m slice u64 .
   rem 몽고메리 벗기기
   let z4 u64 be bigint.zero (subslice w 72 90) 16 .
   set (index w 72) 1 .
-  return bigint.mont_mul o (subslice w 54 72) (subslice w 72 90) m 16 n0i (subslice w 90 108) .
+  return ok (bigint.mont_mul o (subslice w 54 72) (subslice w 72 90) m 16 n0i (subslice w 90 108)) .
 end .
 
 rem ── 곡선 위의 점 (야코비 좌표) ────────────────────────────────────────────
@@ -156,8 +165,9 @@ end .
 rem ★★ 점 두 배 `pdbl` (야코비, a = −3 인 곡선의 표준 식).
 rem   `w` 는 조각 작업 공간(≥ 8·18 = 144).
 export proc pdbl input o mut slice u64 . input pt slice u64 . input p slice u64 .
-     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
-  guard ge (len w) 180 . else return 0 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output result u64 p256_error . effects none .
+errors short_workspace . do
+  guard ge (len w) 180 . else return error short_workspace .
   let X slice u64 be subslice pt 0 16 .
   let Y slice u64 be subslice pt 16 32 .
   let Z slice u64 be subslice pt 32 48 .
@@ -192,7 +202,7 @@ export proc pdbl input o mut slice u64 . input pt slice u64 . input p slice u64 
   let c6 u64 be madd (subslice w 80 96) (subslice w 80 96) (subslice w 80 96) p .
   let c7 u64 be madd (subslice w 80 96) (subslice w 80 96) (subslice w 80 96) p .
   let c8 u64 be msub (subslice o 16 32) (subslice w 64 80) (subslice w 80 96) p .
-  return 1 .
+  return ok 1 .
 end .
 
 rem 16 조각이 전부 0 인가 — 무한원점 판정과 H=0 판정에 쓴다.
@@ -214,10 +224,11 @@ rem ★★ 점 덧셈 `padd` (야코비 + 야코비, EFD add-2007-bl).
 rem   `w` 는 조각 작업 공간(≥ 300). 무한원점과 **같은 점**(H=0)을 따로 다룬다 —
 rem   ☞ 그 갈래를 빠뜨리면 *"거의 언제나 맞는"* 구현이 된다. 거의는 여기서 실패다.
 export proc padd input o mut slice u64 . input pa slice u64 . input pb slice u64 . input p slice u64 .
-     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
-  guard ge (len w) 300 . else return 0 .
-  if eq (is_zero (subslice pa 32 48)) 1 . do  return copy48 o pb .  end .
-  if eq (is_zero (subslice pb 32 48)) 1 . do  return copy48 o pa .  end .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output result u64 p256_error . effects none .
+errors short_workspace . do
+  guard ge (len w) 300 . else return error short_workspace .
+  if eq (is_zero (subslice pa 32 48)) 1 . do  return ok (copy48 o pb) .  end .
+  if eq (is_zero (subslice pb 32 48)) 1 . do  return ok (copy48 o pa) .  end .
   let T slice u64 be subslice w 264 282 .
   let U slice u64 be subslice w 282 300 .
   rem Z1Z1 = Z1² (w0) · Z2Z2 = Z2² (w1)
@@ -241,7 +252,7 @@ export proc padd input o mut slice u64 . input pa slice u64 . input pb slice u64
     end .
     var zi u64 be 0 .
     while lt zi 48 . do  set (index o zi) 0 .  set zi (add zi 1) .  end .
-    return 1 .
+    return ok 1 .
   end .
   let f2 u64 be madd (subslice w 112 128) (subslice w 112 128) (subslice w 112 128) p .
   rem I = (2H)² (w8) · J = H·I (w9) · V = U1·I (w10)
@@ -274,29 +285,34 @@ export proc padd input o mut slice u64 . input pa slice u64 . input pb slice u64
     set (index o (add 32 c)) (index w (add 240 c)) .
     set c (add c 1) .
   end .
-  return 1 .
+  return ok 1 .
 end .
 
 rem ★★ 스칼라 곱 acc ← k·P (이진 두 배-더하기, 위에서부터).
 rem   `w` 는 조각 작업 공간(≥ 396): 0..48 tmp · 48..96 tmp2 · 96..396 add/dbl 공용.
 export proc smul input acc mut slice u64 . input k slice u64 . input pt slice u64 . input p slice u64 .
-     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
-  guard ge (len w) 396 . else return 0 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output result u64 p256_error . effects none .
+errors short_workspace . do
+  guard ge (len w) 396 . else return error short_workspace .
   var zi u64 be 0 .
   while lt zi 48 . do  set (index acc zi) 0 .  set zi (add zi 1) .  end .
   var bi u64 be 256 .
   var done u64 be 0 .
   while eq done 0 . do
     set bi (sub bi 1) .
-    let d u64 be pdbl (subslice w 0 48) acc p r2 n0i (subslice w 96 396) .
+    let d_r result u64 p256_error . be pdbl (subslice w 0 48) acc p r2 n0i (subslice w 96 396) .
+    guard is_ok d_r . else return error short_workspace .
+    let d u64 be ok_value d_r .
     let c u64 be copy48 acc (subslice w 0 48) .
     if eq (bit_and (shr (index k (shr bi 4)) (bit_and bi 15)) 1) 1 . do
-      let a u64 be padd (subslice w 48 96) acc pt p r2 n0i (subslice w 96 396) .
+      let a_r result u64 p256_error . be padd (subslice w 48 96) acc pt p r2 n0i (subslice w 96 396) .
+      guard is_ok a_r . else return error short_workspace .
+      let a u64 be ok_value a_r .
       let c2 u64 be copy48 acc (subslice w 48 96) .
     end .
     if eq bi 0 . do  set done 1 .  end .
   end .
-  return 1 .
+  return ok 1 .
 end .
 
 rem ★★★★★ **상수시간 갈래** — 서명이 쓰는 자리 (2026-08-21, RFC-0090 §N7b⑤).
@@ -328,22 +344,27 @@ end .
 
 rem ★★★ 상수시간 스칼라 곱 — 걸음마다 **두 배와 덧셈을 둘 다** 하고 마스크로 고른다.
 export proc smul_ct input acc mut slice u64 . input k slice u64 . input pt slice u64 . input p slice u64 .
-     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
-  guard ge (len w) 396 . else return 0 .
+     input r2 slice u64 . input n0i u64 . input w mut slice u64 . output result u64 p256_error . effects none .
+errors short_workspace . do
+  guard ge (len w) 396 . else return error short_workspace .
   var zi u64 be 0 .
   while lt zi 48 . do  set (index acc zi) 0 .  set zi (add zi 1) .  end .
   var bi u64 be 256 .
   var done u64 be 0 .
   while eq done 0 . do
     set bi (sub bi 1) .
-    let d u64 be pdbl (subslice w 0 48) acc p r2 n0i (subslice w 96 396) .
+    let d_r result u64 p256_error . be pdbl (subslice w 0 48) acc p r2 n0i (subslice w 96 396) .
+    guard is_ok d_r . else return error short_workspace .
+    let d u64 be ok_value d_r .
     rem ★ 덧셈을 **언제나** 한다 — 비트를 보고 하지 않는다.
-    let a u64 be padd (subslice w 48 96) (subslice w 0 48) pt p r2 n0i (subslice w 96 396) .
+    let a_r result u64 p256_error . be padd (subslice w 48 96) (subslice w 0 48) pt p r2 n0i (subslice w 96 396) .
+    guard is_ok a_r . else return error short_workspace .
+    let a u64 be ok_value a_r .
     let bit u64 be bit_and (shr (index k (shr bi 4)) (bit_and bi 15)) 1 .
     let c u64 be csel48 acc (subslice w 0 48) (subslice w 48 96) bit .
     if eq bi 0 . do  set done 1 .  end .
   end .
-  return 1 .
+  return ok 1 .
 end .
 
 rem ★★★ **ECDSA 검증** (`ecdsa_secp256r1_sha256`).
@@ -355,27 +376,30 @@ rem
 rem   pub 은 아핀 (x‖y) 조각 32 개. `w` 는 조각 작업 공간(≥ 1400).
 export proc ecdsa_verify input r slice u64 . input s slice u64 . input e slice u64 . input pub slice u64 .
      input p slice u64 . input n slice u64 . input gx slice u64 . input gy slice u64 .
-     input w mut slice u64 . output u64 . effects none . do
+     input w mut slice u64 . output result u64 p256_error . effects none .
+errors short_workspace . do
   rem ☞ **작업 공간은 924 조각이면 족하다.** 처음엔 1400 을 요구했는데, 그러면
   rem   `--run` 의 배열 인자 상한(8192 바이트 = u64 1024)을 넘어 시험이 못 돈다.
   rem   자리를 겹치지 않게 다시 짜서 924 로 줄였다 — 넉넉함은 공짜가 아니다.
-  guard ge (len w) 924 . else return 0 .
+  guard ge (len w) 924 . else return error short_workspace .
   rem ① r, s 가 [1, n−1] 인가
-  guard eq (is_zero r) 0 . else return 0 .
-  guard eq (is_zero s) 0 . else return 0 .
-  guard eq (bigint.ge_mod r n 16) 0 . else return 0 .
-  guard eq (bigint.ge_mod s n 16) 0 . else return 0 .
+  guard eq (is_zero r) 0 . else return ok 0 .
+  guard eq (is_zero s) 0 . else return ok 0 .
+  guard eq (bigint.ge_mod r n 16) 0 . else return ok 0 .
+  guard eq (bigint.ge_mod s n 16) 0 . else return ok 0 .
 
   let n0p u64 be bigint.n0inv16 (index p 0) .
   let n0n u64 be bigint.n0inv16 (index n 0) .
   rem R² — p 쪽(w 0..16)과 n 쪽(w 16..32)을 따로 만든다.
-  guard eq (make_r2 (subslice w 0 16) p) 1 . else return 0 .
-  guard eq (make_r2 (subslice w 16 32) n) 1 . else return 0 .
+  guard eq (make_r2 (subslice w 0 16) p) 1 . else return ok 0 .
+  guard eq (make_r2 (subslice w 16 32) n) 1 . else return ok 0 .
 
   rem ② winv = s^-1 mod n · u1 = e·winv · u2 = r·winv
-  guard eq (minv (subslice w 32 48) s n (subslice w 780 888)) 1 . else return 0 .
-  guard eq (pmul (subslice w 48 64) e (subslice w 32 48) n (subslice w 16 32) n0n (subslice w 888 906) (subslice w 906 924)) 1 . else return 0 .
-  guard eq (pmul (subslice w 64 80) r (subslice w 32 48) n (subslice w 16 32) n0n (subslice w 888 906) (subslice w 906 924)) 1 . else return 0 .
+  let _u0 result u64 p256_error . be minv (subslice w 32 48) s n (subslice w 780 888) .
+  guard is_ok _u0 . else return error short_workspace .
+  guard eq (ok_value _u0) 1 . else return ok 0 .
+  guard eq (pmul (subslice w 48 64) e (subslice w 32 48) n (subslice w 16 32) n0n (subslice w 888 906) (subslice w 906 924)) 1 . else return ok 0 .
+  guard eq (pmul (subslice w 64 80) r (subslice w 32 48) n (subslice w 16 32) n0n (subslice w 888 906) (subslice w 906 924)) 1 . else return ok 0 .
 
   rem ③ G 와 Q 를 야코비 점으로(Z=1)
   var i u64 be 0 .
@@ -392,16 +416,24 @@ export proc ecdsa_verify input r slice u64 . input s slice u64 . input e slice u
   set (index w 160) 1 .
 
   rem ④ R = u1·G + u2·Q
-  guard eq (smul (subslice w 176 224) (subslice w 48 64) (subslice w 80 128) p (subslice w 0 16) n0p (subslice w 384 780)) 1 . else return 0 .
-  guard eq (smul (subslice w 224 272) (subslice w 64 80) (subslice w 128 176) p (subslice w 0 16) n0p (subslice w 384 780)) 1 . else return 0 .
-  guard eq (padd (subslice w 272 320) (subslice w 176 224) (subslice w 224 272) p (subslice w 0 16) n0p (subslice w 384 684)) 1 . else return 0 .
+  let _u1 result u64 p256_error . be smul (subslice w 176 224) (subslice w 48 64) (subslice w 80 128) p (subslice w 0 16) n0p (subslice w 384 780) .
+  guard is_ok _u1 . else return error short_workspace .
+  guard eq (ok_value _u1) 1 . else return ok 0 .
+  let _u2 result u64 p256_error . be smul (subslice w 224 272) (subslice w 64 80) (subslice w 128 176) p (subslice w 0 16) n0p (subslice w 384 780) .
+  guard is_ok _u2 . else return error short_workspace .
+  guard eq (ok_value _u2) 1 . else return ok 0 .
+  let _u3 result u64 p256_error . be padd (subslice w 272 320) (subslice w 176 224) (subslice w 224 272) p (subslice w 0 16) n0p (subslice w 384 684) .
+  guard is_ok _u3 . else return error short_workspace .
+  guard eq (ok_value _u3) 1 . else return ok 0 .
   rem 무한원점이면 거짓이다 — 여기서 참을 내면 **아무 서명이나 통과**한다.
-  guard eq (is_zero (subslice w 304 320)) 0 . else return 0 .
+  guard eq (is_zero (subslice w 304 320)) 0 . else return ok 0 .
 
   rem ⑤ R 을 아핀으로: x = X/Z²
-  guard eq (minv (subslice w 320 336) (subslice w 304 320) p (subslice w 780 888)) 1 . else return 0 .
-  guard eq (pmul (subslice w 336 352) (subslice w 320 336) (subslice w 320 336) p (subslice w 0 16) n0p (subslice w 888 906) (subslice w 906 924)) 1 . else return 0 .
-  guard eq (pmul (subslice w 352 368) (subslice w 272 288) (subslice w 336 352) p (subslice w 0 16) n0p (subslice w 888 906) (subslice w 906 924)) 1 . else return 0 .
+  let _u4 result u64 p256_error . be minv (subslice w 320 336) (subslice w 304 320) p (subslice w 780 888) .
+  guard is_ok _u4 . else return error short_workspace .
+  guard eq (ok_value _u4) 1 . else return ok 0 .
+  guard eq (pmul (subslice w 336 352) (subslice w 320 336) (subslice w 320 336) p (subslice w 0 16) n0p (subslice w 888 906) (subslice w 906 924)) 1 . else return ok 0 .
+  guard eq (pmul (subslice w 352 368) (subslice w 272 288) (subslice w 336 352) p (subslice w 0 16) n0p (subslice w 888 906) (subslice w 906 924)) 1 . else return ok 0 .
 
   rem ⑥ x mod n 이 r 과 같은가. x < p 이고 n < p 이므로 한 번 빼면 족하다.
   var c u64 be 0 .
@@ -416,6 +448,6 @@ export proc ecdsa_verify input r slice u64 . input s slice u64 . input e slice u
     set diff (bit_or diff (bit_xor (index w (add 368 q)) (index r q))) .
     set q (add q 1) .
   end .
-  guard eq diff 0 . else return 0 .
-  return 1 .
+  guard eq diff 0 . else return ok 0 .
+  return ok 1 .
 end .

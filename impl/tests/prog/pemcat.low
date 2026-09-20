@@ -48,7 +48,9 @@ do
   let out mut slice u8 . be some_value go .
 
   rem ── 벗기기: 실패가 **값으로** 돌아온다 ──
-  let d option u64 . be pem.unwrap src "CERTIFICATE" scratch out .
+  let d_r result (option u64) pem.pem_error . be pem.unwrap src "CERTIFICATE" scratch out .
+  guard is_ok d_r . else return 0 .
+  let d option u64 . be ok_value d_r .
   guard is_some d . else return 45 .
 
   let n u64 be some_value d .

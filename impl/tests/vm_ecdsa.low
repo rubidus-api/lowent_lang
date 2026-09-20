@@ -44,7 +44,9 @@ export proc k_head input rs mut slice u8 . input wb mut slice u8 . input wu mut 
   guard is_some dh . else return 0 .
   let hh option u64 . be codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" (subslice wb 32 64) .
   guard is_some hh . else return 0 .
-  guard eq (ecdsa.nonce6979 (subslice wb 0 32) (subslice wb 32 64) (subslice wu 16 32) (subslice rs 0 32) (subslice wb 64 544) (subslice wu 80 96)) 32 . else return 0 .
+  let _u0 result u64 ecdsa.ecdsa_error . be ecdsa.nonce6979 (subslice wb 0 32) (subslice wb 32 64) (subslice wu 16 32) (subslice rs 0 32) (subslice wb 64 544) (subslice wu 80 96) .
+  guard is_ok _u0 . else return 0 .
+  guard eq (ok_value _u0) 32 . else return 0 .
   var acc u64 be 0 .
   var i u64 be 0 .
   while lt i 4 . do
@@ -68,7 +70,9 @@ proc sign_sample input rs mut slice u8 . input wb mut slice u8 . input wu mut sl
   guard is_some dh . else return 0 .
   let hh option u64 . be codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" (subslice wb 32 64) .
   guard is_some hh . else return 0 .
-  return ecdsa.sign (subslice wb 0 32) (subslice wb 32 64) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) rs (subslice wb 64 640) (subslice wu 64 1016) .
+  let _rr result u64 ecdsa.ecdsa_error . be ecdsa.sign (subslice wb 0 32) (subslice wb 32 64) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) rs (subslice wb 64 640) (subslice wu 64 1016) .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 proc head4 input b slice u8 . input at u64 . output u64 . effects none . do
@@ -105,7 +109,9 @@ export proc sign_then_verify input rs mut slice u8 . input wb mut slice u8 . inp
   guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 96 112) 16) 16 . else return 0 .
   guard eq (limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" (subslice wu 112 128) wb) 16 . else return 0 .
   guard eq (limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" (subslice wu 128 144) wb) 16 . else return 0 .
-  return p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112) (subslice wu 112 144) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) (subslice vw 0 924) .
+  let _rr result u64 p256.p256_error . be p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112) (subslice wu 112 144) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) (subslice vw 0 924) .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ✘ **한 비트만 바꾸면 거절돼야 한다.** 왕복만 보이면 "복사했다" 와 구별이 안 된다.
@@ -120,7 +126,9 @@ export proc tampered input rs mut slice u8 . input wb mut slice u8 . input wu mu
   guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 96 112) 16) 16 . else return 0 .
   guard eq (limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" (subslice wu 112 128) wb) 16 . else return 0 .
   guard eq (limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" (subslice wu 128 144) wb) 16 . else return 0 .
-  return p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112) (subslice wu 112 144) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) (subslice vw 0 924) .
+  let _rr result u64 p256.p256_error . be p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112) (subslice wu 112 144) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) (subslice vw 0 924) .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 rem ✔ 둘째 공식 벡터 — 메시지 "test".
@@ -132,7 +140,9 @@ proc sign_test input rs mut slice u8 . input wb mut slice u8 . input wu mut slic
   guard is_some dh . else return 0 .
   let hh option u64 . be codec.hex_dec "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08" (subslice wb 32 64) .
   guard is_some hh . else return 0 .
-  return ecdsa.sign (subslice wb 0 32) (subslice wb 32 64) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) rs (subslice wb 64 640) (subslice wu 64 972) .
+  let _rr result u64 ecdsa.ecdsa_error . be ecdsa.sign (subslice wb 0 32) (subslice wb 32 64) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) rs (subslice wb 64 640) (subslice wu 64 972) .
+  guard is_ok _rr . else return 0 .
+  return ok_value _rr .
 end .
 
 export proc r_head_test input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none . do

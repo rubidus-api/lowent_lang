@@ -16,6 +16,14 @@ rem   그 인증서를 만나면 **거절한다**(조용히 지나가지 않는�
 
 module verify .
 
+rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
+rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
+rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
+export enum verify_error do
+  short_workspace .
+end .
+
+
 use x509 from "x509.low" .
 use der from "der.low" .
 use rsa from "rsa.low" .
@@ -122,13 +130,17 @@ proc limbs_of input h slice u8 . input out mut slice u64 . input w mut slice u8 
   end .
   return bigint.from_bytes (subslice w 0 32) out 16 .
 end .
-export proc curve input cw mut slice u64 . input w mut slice u8 . output u64 . effects none . do
-  guard ge (len cw) 64 . else return 0 .
-  guard eq (limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" (subslice cw 0 16) w) 16 . else return 0 .
-  guard eq (limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" (subslice cw 16 32) w) 16 . else return 0 .
-  guard eq (limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" (subslice cw 32 48) w) 16 . else return 0 .
-  guard eq (limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" (subslice cw 48 64) w) 16 . else return 0 .
-  return 1 .
+export proc curve input cw mut slice u64 . input w mut slice u8 . output result u64 verify_error . effects none .
+errors short_workspace . do
+  rem ★ 자리가 모자란 것은 **답이 아니라 실패**다(X-0035): `cw` 는 상수를 놓을 자리,
+  rem   `w` 는 16진을 푸는 자리. 둘 중 하나라도 좁으면 우리는 **재지 못한 것**이다.
+  guard ge (len cw) 64 . else return error short_workspace .
+  guard ge (len w) 32 . else return error short_workspace .
+  guard eq (limbs_of "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff" (subslice cw 0 16) w) 16 . else return ok 0 .
+  guard eq (limbs_of "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551" (subslice cw 16 32) w) 16 . else return ok 0 .
+  guard eq (limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" (subslice cw 32 48) w) 16 . else return ok 0 .
+  guard eq (limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" (subslice cw 48 64) w) 16 . else return ok 0 .
+  return ok 1 .
 end .
 
 rem ── P-384 의 상수 ────────────────────────────────────────────────────────
@@ -144,13 +156,15 @@ proc limbs_of96 input h slice u8 . input out mut slice u64 . input w mut slice u
   end .
   return bigint.from_bytes (subslice w 0 48) out 24 .
 end .
-export proc curve384 input cw mut slice u64 . input w mut slice u8 . output u64 . effects none . do
-  guard ge (len cw) 96 . else return 0 .
-  guard eq (limbs_of96 "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff" (subslice cw 0 24) w) 24 . else return 0 .
-  guard eq (limbs_of96 "ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973" (subslice cw 24 48) w) 24 . else return 0 .
-  guard eq (limbs_of96 "aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7" (subslice cw 48 72) w) 24 . else return 0 .
-  guard eq (limbs_of96 "3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f" (subslice cw 72 96) w) 24 . else return 0 .
-  return 1 .
+export proc curve384 input cw mut slice u64 . input w mut slice u8 . output result u64 verify_error . effects none .
+errors short_workspace . do
+  guard ge (len cw) 96 . else return error short_workspace .
+  guard ge (len w) 48 . else return error short_workspace .
+  guard eq (limbs_of96 "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff" (subslice cw 0 24) w) 24 . else return ok 0 .
+  guard eq (limbs_of96 "ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973" (subslice cw 24 48) w) 24 . else return ok 0 .
+  guard eq (limbs_of96 "aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7" (subslice cw 48 72) w) 24 . else return ok 0 .
+  guard eq (limbs_of96 "3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f" (subslice cw 72 96) w) 24 . else return ok 0 .
+  return ok 1 .
 end .
 
 rem ★★★ **ECDSA P-384 갈래** — `signed_by` 에서 갈라져 나온 자리.
@@ -165,33 +179,41 @@ rem   그것이 그 해시가 나타내는 수다. 왼쪽에 붙이면 2^128 배
 rem
 rem   wu 는 1600 조각 이상: 곡선 96 · r·s·e·키 120 · 일터 1364.
 proc ec384 input c slice u8 . input so u64 . input sl u64 . input issuer slice u8 . input ko u64 .
-     input mh slice u8 . input hn u64 . input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
+     input mh slice u8 . input hn u64 . input wb mut slice u8 . input wu mut slice u64 .
+     output result u64 verify_error . effects none .
+errors short_workspace .
 do
-  guard ge (len wu) 1600 . else return 0 .
-  guard ge (len wb) 256 . else return 0 .
-  guard eq (index issuer ko) 4 . else return 0 .
-  guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 160) 48) 96 . else return 0 .
+  guard ge (len wu) 1600 . else return error short_workspace .
+  guard ge (len wb) 256 . else return error short_workspace .
+  guard eq (index issuer ko) 4 . else return ok 0 .
+  guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 160) 48) 96 . else return ok 0 .
   rem e ← 해시를 48 바이트 자리에 오른쪽 맞춤으로.
   var i u64 be 0 .
   while lt i 48 . do  set (index wb (add 160 i)) 0 .  set i (add i 1) .  end .
   let hb u64 be hn .
-  guard le hb 48 . else return 0 .
+  guard le hb 48 . else return ok 0 .
   var j u64 be 0 .
   while lt j hb . do
     set (index wb (add (add 160 (sub 48 hb)) j)) (index mh j) .
     set j (add j 1) .
   end .
-  guard eq (curve384 (subslice wu 0 96) (subslice wb 208 256)) 1 . else return 0 .
-  guard eq (bigint.from_bytes (subslice wb 64 112) (subslice wu 96 120) 24) 24 . else return 0 .
-  guard eq (bigint.from_bytes (subslice wb 112 160) (subslice wu 120 144) 24) 24 . else return 0 .
-  guard eq (bigint.from_bytes (subslice wb 160 208) (subslice wu 144 168) 24) 24 . else return 0 .
-  guard eq (bigint.from_bytes (subslice issuer (add ko 1) (add ko 49)) (subslice wu 168 192) 24) 24 . else return 0 .
-  guard eq (bigint.from_bytes (subslice issuer (add ko 49) (add ko 97)) (subslice wu 192 216) 24) 24 . else return 0 .
-  return p384.ecdsa_ok (subslice wu 96 120) (subslice wu 120 144) (subslice wu 144 168)
+  let _u1 result u64 verify_error . be curve384 (subslice wu 0 96) (subslice wb 208 256) .
+  guard is_ok _u1 . else return ok 0 .
+  guard eq (ok_value _u1) 1 . else return ok 0 .
+  guard eq (bigint.from_bytes (subslice wb 64 112) (subslice wu 96 120) 24) 24 . else return ok 0 .
+  guard eq (bigint.from_bytes (subslice wb 112 160) (subslice wu 120 144) 24) 24 . else return ok 0 .
+  guard eq (bigint.from_bytes (subslice wb 160 208) (subslice wu 144 168) 24) 24 . else return ok 0 .
+  guard eq (bigint.from_bytes (subslice issuer (add ko 1) (add ko 49)) (subslice wu 168 192) 24) 24 . else return ok 0 .
+  guard eq (bigint.from_bytes (subslice issuer (add ko 49) (add ko 97)) (subslice wu 192 216) 24) 24 . else return ok 0 .
+  rem ★ P-384 의 실패(자리 모자람)를 **그대로 이어받는다** — 여기서 0 으로 뭉개면
+  rem   «서명이 틀렸다» 가 되고, 그것은 우리가 재지 못한 것을 재고 나서 하는 말로 바꾸는 일이다.
+  let pr result u64 p384.p384_error . be p384.ecdsa_ok (subslice wu 96 120) (subslice wu 120 144) (subslice wu 144 168)
                            (subslice wu 168 216)
                            (subslice wu 0 24) (subslice wu 24 48)
                            (subslice wu 48 72) (subslice wu 72 96)
                            (subslice wu 216 1580) .
+  guard is_ok pr . else return error short_workspace .
+  return ok (ok_value pr) .
 end .
 
 rem ★★★★★ **한 장이 다른 한 장에게 서명받았는가.** 1 = 그렇다 · 0 = 아니다(또는 못 알아본다).
@@ -200,69 +222,70 @@ rem   wb: 바이트 작업 공간 1024 이상 · wu: 조각 작업 공간 2200 �
 rem ☞ 서명은 **원본 바이트** 위에서 확인한다 — `tbs_off`..`tbs_end` 를 그대로 해시한다.
 rem   베낀 자리에서 하면 언젠가 베끼기가 틀려도 서명이 맞는 것처럼 보인다.
 export proc signed_by input c slice u8 . input issuer slice u8 .
-     input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
+     input wb mut slice u8 . input wu mut slice u64 . output result u64 verify_error . effects none .
+errors short_workspace .
 do
-  guard ge (len wb) 1024 . else return 0 .
+  guard ge (len wb) 1024 . else return ok 0 .
   rem ★ 실제로 쓰는 만큼만 요구한다: RSA 는 (k+4)×7 ≤ 1820(4096 비트), P-256 은 곡선 64 +
   rem   r·s·e·키 80 + 일터 924 = 1068. 넉넉함은 공짜가 아니다 — 아레나에서는 그 넉넉함이 곧
   rem   다른 자리를 못 쓰게 만든다.
   rem   ☞ **P-384 는 1600 을 따로 요구한다**(`ec384` 가 그 자리에서 막는다) — 여기서 한꺼번에
   rem     1600 을 요구하면 P-384 를 안 쓰는 부르는 쪽까지 그만큼 내놓아야 한다.
-  guard ge (len wu) 1100 . else return 0 .
+  guard ge (len wu) 1100 . else return ok 0 .
   let kind u64 be sig_kind c .
-  guard gt kind 0 . else return 0 .
+  guard gt kind 0 . else return ok 0 .
 
   let tb u64 be x509.tbs_off c .
   let te u64 be x509.tbs_end c .
-  guard gt tb 0 . else return 0 .
-  guard gt te tb . else return 0 .
+  guard gt tb 0 . else return ok 0 .
+  guard gt te tb . else return ok 0 .
   rem ★ 해시는 서명 알고리즘이 고른다 — 그것이 OID 가 말하는 절반이다.
   var hn u64 be 32 .
   if lt kind 3 . do
-    guard eq (sha256 (subslice c tb te) (subslice wb 0 32)) 32 . else return 0 .
+    guard eq (sha256 (subslice c tb te) (subslice wb 0 32)) 32 . else return ok 0 .
   end .
   if ge kind 3 . do
-    guard eq (sha384 (subslice c tb te) (subslice wb 0 48)) 48 . else return 0 .
+    guard eq (sha384 (subslice c tb te) (subslice wb 0 48)) 48 . else return ok 0 .
     set hn 48 .
   end .
 
   let so u64 be x509.sig_off c .
   let sl u64 be x509.sig_len c .
-  guard gt so 0 . else return 0 .
-  guard gt sl 0 . else return 0 .
+  guard gt so 0 . else return ok 0 .
+  guard gt sl 0 . else return ok 0 .
 
   let sp u64 be x509.spki_off issuer .
-  guard gt sp 0 . else return 0 .
+  guard gt sp 0 . else return ok 0 .
   let ko u64 be der.spki_key_off issuer sp .
-  guard gt ko 0 . else return 0 .
+  guard gt ko 0 . else return ok 0 .
 
   if lt kind 3 . do  set kind kind . end .
   if eq (mod kind 2) 1 . do
     let no u64 be der.rsa_n_off issuer ko .
     let nl u64 be der.rsa_n_len issuer ko .
     let e  u64 be der.rsa_e issuer ko .
-    guard gt no 0 . else return 0 .
-    guard gt nl 0 . else return 0 .
-    guard gt e 0 . else return 0 .
-    guard eq sl nl . else return 0 .
-    guard le nl 512 . else return 0 .
+    guard gt no 0 . else return ok 0 .
+    guard gt nl 0 . else return ok 0 .
+    guard gt e 0 . else return ok 0 .
+    guard eq sl nl . else return ok 0 .
+    guard le nl 512 . else return ok 0 .
     rem ★★★ **조각은 k 가 아니라 k+4 여야 한다.** 몽고메리 곱이 자리를 더 쓴다 —
     rem   정확히 k 를 주면 `mod_exp` 가 0 을 답하고, 그것은 «서명이 틀렸다» 와 **같은 얼굴**로
     rem   나온다. 그래서 진짜 인증서 넷이 모두 거절됐다(2026-09-18 실측). `lockbox` 가 이미
     rem   `need = k + 4` 로 쓰고 있었고, 나는 그 수를 안 보고 새로 지었다.
     let k u64 be shr nl 1 .
     let need u64 be add k 4 .
-    guard ge (len wu) (mul need 7) . else return 0 .
+    guard ge (len wu) (mul need 7) . else return error short_workspace .
     rem DigestInfo 의 머리 — 해시마다 다르다.
     var di slice u8 be "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20" .
     if eq hn 48 . do
       set di "\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30" .
     end .
-    return rsa.verify_pkcs1 (subslice c so (add so sl)) (subslice issuer no (add no nl)) e (subslice wb 0 hn)
+    return ok (rsa.verify_pkcs1 (subslice c so (add so sl)) (subslice issuer no (add no nl)) e (subslice wb 0 hn)
              di (subslice wb 64 576)
              (subslice wu 0 need) (subslice wu need (mul need 2)) (subslice wu (mul need 2) (mul need 3))
              (subslice wu (mul need 3) (mul need 4)) (subslice wu (mul need 4) (mul need 5))
-             (subslice wu (mul need 5) (mul need 6)) (subslice wu (mul need 6) (mul need 7)) .
+             (subslice wu (mul need 5) (mul need 6)) (subslice wu (mul need 6) (mul need 7))) .
   end .
 
   rem ECDSA P-256 — 공개키는 04‖X‖Y 예순다섯 바이트다(압축은 안 받는다).
@@ -277,18 +300,20 @@ do
   if eq kl 97 . do
     return ec384 c so sl issuer ko (subslice wb 0 hn) hn wb wu .
   end .
-  guard eq kl 65 . else return 0 .
-  guard eq (index issuer ko) 4 . else return 0 .
-  guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 128) 32) 64 . else return 0 .
-  guard eq (curve (subslice wu 0 64) (subslice wb 128 256)) 1 . else return 0 .
-  guard eq (bigint.from_bytes (subslice wb 64 96) (subslice wu 64 80) 16) 16 . else return 0 .
-  guard eq (bigint.from_bytes (subslice wb 96 128) (subslice wu 80 96) 16) 16 . else return 0 .
+  guard eq kl 65 . else return ok 0 .
+  guard eq (index issuer ko) 4 . else return ok 0 .
+  guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 128) 32) 64 . else return ok 0 .
+  let _u0 result u64 verify_error . be curve (subslice wu 0 64) (subslice wb 128 256) .
+  guard is_ok _u0 . else return error short_workspace .
+  guard eq (ok_value _u0) 1 . else return ok 0 .
+  guard eq (bigint.from_bytes (subslice wb 64 96) (subslice wu 64 80) 16) 16 . else return ok 0 .
+  guard eq (bigint.from_bytes (subslice wb 96 128) (subslice wu 80 96) 16) 16 . else return ok 0 .
   rem ★★ ECDSA 는 해시를 **곡선의 크기만큼 왼쪽에서** 잘라 쓴다(RFC 6979 §2.3.2 · SEC1 §4.1.4).
   rem   P-256 에 SHA-384 을 쓰면 48 바이트 가운데 **앞 32**만 쓴다 — 뒤를 쓰거나 전체를 넣으면
   rem   서명이 언제나 틀린 것처럼 보인다(그리고 그 실패는 「서명 오류」로만 나온다).
-  guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 96 112) 16) 16 . else return 0 .
-  guard eq (bigint.from_bytes (subslice issuer (add ko 1) (add ko 33)) (subslice wu 112 128) 16) 16 . else return 0 .
-  guard eq (bigint.from_bytes (subslice issuer (add ko 33) (add ko 65)) (subslice wu 128 144) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 96 112) 16) 16 . else return ok 0 .
+  guard eq (bigint.from_bytes (subslice issuer (add ko 1) (add ko 33)) (subslice wu 112 128) 16) 16 . else return ok 0 .
+  guard eq (bigint.from_bytes (subslice issuer (add ko 33) (add ko 65)) (subslice wu 128 144) 16) 16 . else return ok 0 .
   return p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112)
                            (subslice wu 112 144)
                            (subslice wu 0 16) (subslice wu 16 32)
@@ -398,6 +423,9 @@ do
   if eq (x509.is_ca parent) false . do  return 3 . end .
   if eq (dates_ok child now) false . do  return 4 . end .
   if eq (dates_ok parent now) false . do  return 4 . end .
-  if eq (signed_by child parent wb wu) 1 . do  return 1 . end .
+  rem ★ 「서명이 안 맞는다」와 「재지 못했다」를 가른다(X-0035): 못 잰 것은 **6** 이다.
+  let sb result u64 verify_error . be signed_by child parent wb wu .
+  guard is_ok sb . else return 6 .
+  if eq (ok_value sb) 1 . do  return 1 . end .
   return 5 .
 end .

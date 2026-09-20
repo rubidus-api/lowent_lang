@@ -12,6 +12,14 @@ rem ☞ 안 지은 것: **상수시간 보장**. 이 저장소의 다른 암호 
 
 module gcm .
 
+rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
+rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
+rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
+export enum gcm_error do
+  short_workspace .
+end .
+
+
 rem ☞ **왜 `seal`/`unseal` 이 아니라 `encrypt`/`decrypt` 인가.**
 rem   `lib/aead.low`(ChaCha20-Poly1305)가 이미 그 이름을 쓴다. 두 모듈이 같은 이름을 가지면
 rem   한정해서 불러도 도구가 **다른 쪽 시그니처로 arity 를 잰다**(7 vs 12 → E-IR-ARITY).
@@ -208,12 +216,15 @@ end .
 
 rem ★ 암호화 — 흐름을 먼저 돌리고, **만든 암호문**에 태그를 매긴다.
 export proc encrypt input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
-     input ct mut slice u8 . input tag mut slice u8 . input w mut slice u8 . output u64 . effects none . do
-  guard ge (len ct) (len msg) . else return 0 .
-  guard ge (len tag) 16 . else return 0 .
-  guard eq (gcm_prep key nonce w) 16 . else return 0 .
-  guard eq (gcm_stream msg ct w) 16 . else return 0 .
-  return gcm_tag aad (subslice ct 0 (len msg)) tag w .
+     input ct mut slice u8 . input tag mut slice u8 . input w mut slice u8 . output result u64 gcm_error . effects none .
+errors short_workspace . do
+  rem ★ 일터가 모자란 것은 **답이 아니라 실패**다(X-0035). 안쪽 `gcm_prep` 이 320 을 쓴다.
+  guard ge (len w) 320 . else return error short_workspace .
+  guard ge (len ct) (len msg) . else return ok 0 .
+  guard ge (len tag) 16 . else return ok 0 .
+  guard eq (gcm_prep key nonce w) 16 . else return ok 0 .
+  guard eq (gcm_stream msg ct w) 16 . else return ok 0 .
+  return ok (gcm_tag aad (subslice ct 0 (len msg)) tag w) .
 end .
 
 rem ★★ 복호 — **받은 암호문**에 태그를 매겨 먼저 대조하고, 맞을 때만 평문을 낸다.
@@ -223,19 +234,21 @@ rem     보고 나머지를 말없이 지나친다. 둘 다 *"조용히 다르�
 rem     정확 길이 규칙이다(2026-09-04 검토 RU: 복사본들이 갈라져 있었다).
 rem   ☞ 비교는 XOR 누적이다 — 조기 반환이 없다.
 export proc decrypt input key slice u8 . input nonce slice u8 . input aad slice u8 . input ct slice u8 .
-     input tag slice u8 . input msg mut slice u8 . input want mut slice u8 . input w mut slice u8 . output u64 . effects none . do
-  guard eq (len tag) 16 . else return 0 .
-  guard ge (len want) 16 . else return 0 .
-  guard ge (len msg) (len ct) . else return 0 .
-  guard eq (gcm_prep key nonce w) 16 . else return 0 .
-  guard eq (gcm_tag aad ct want w) 16 . else return 0 .
+     input tag slice u8 . input msg mut slice u8 . input want mut slice u8 . input w mut slice u8 . output result u64 gcm_error . effects none .
+errors short_workspace . do
+  guard ge (len w) 320 . else return error short_workspace .
+  guard eq (len tag) 16 . else return ok 0 .
+  guard ge (len want) 16 . else return ok 0 .
+  guard ge (len msg) (len ct) . else return ok 0 .
+  guard eq (gcm_prep key nonce w) 16 . else return ok 0 .
+  guard eq (gcm_tag aad ct want w) 16 . else return ok 0 .
   var diff u64 be 0 .
   var i u64 be 0 .
   while lt i 16 . do
     set diff (bit_or diff (bit_xor (cast u64 (index want i)) (cast u64 (index tag i)))) .
     set i (add i 1) .
   end .
-  guard eq diff 0 . else return 0 .
-  guard eq (gcm_stream ct msg w) 16 . else return 0 .
-  return 1 .
+  guard eq diff 0 . else return ok 0 .
+  guard eq (gcm_stream ct msg w) 16 . else return ok 0 .
+  return ok 1 .
 end .

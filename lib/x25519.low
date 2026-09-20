@@ -20,6 +20,14 @@ rem   경계 검사와 트랩이 있는 언어에서 타이밍을 약속할 수�
 
 module x25519 .
 
+rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
+rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
+rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
+export enum x25519_error do
+  short_workspace .
+end .
+
+
 rem 자리올림 — 조각을 16 비트로 되돌린다. 2^256 ≡ 38 (mod p) 이므로 넘친 것은 38 배로 접는다.
 rem   ☞ 세 번 도는 이유: 첫 번째 뒤 o[0] 이 최대 2^36 까지 커진다(38·c). 두 번째가 그것을
 rem     흘려보내고, 세 번째는 **아무것도 안 바뀌는 것을 확인하는 자리**다 — 여유가 증명이 아니라면
@@ -319,7 +327,8 @@ rem   이 라이브러리를 쓴 첫 프로그램이 거기서 E-IR-ARITY 로 �
 rem   ⇒ `w` 하나(u64 175 원소 이상)를 잘라 쓴다. 자리 배치는 여기 **한 곳**에만 있다.
 rem     fe 아홉 = w[0..144] · 곱셈 자리 = w[144..175]
 export proc agree input q mut slice u8 . input n slice u8 . input pt slice u8 .
-     input zb mut slice u8 . input w mut slice u64 . output u64 . effects none . do
-  guard ge (len w) 175 . else return 0 .
-  return scalarmult q n pt zb (subslice w 0 16) (subslice w 16 32) (subslice w 32 48) (subslice w 48 64) (subslice w 64 80) (subslice w 80 96) (subslice w 96 112) (subslice w 112 128) (subslice w 128 144) (subslice w 144 175) .
+     input zb mut slice u8 . input w mut slice u64 . output result u64 x25519_error . effects none .
+errors short_workspace . do
+  guard ge (len w) 175 . else return error short_workspace .
+  return ok (scalarmult q n pt zb (subslice w 0 16) (subslice w 16 32) (subslice w 32 48) (subslice w 48 64) (subslice w 64 80) (subslice w 80 96) (subslice w 96 112) (subslice w 112 128) (subslice w 128 144) (subslice w 144 175)) .
 end .

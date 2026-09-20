@@ -56,11 +56,14 @@ rem   없었다 — 실패를 모른 채 고정된 열(시드 0)을 쓰는 것�
 rem   그래서 성공 쪽에서 해시 0 은 1 로 옮긴다(2^64 분의 1 의 값 하나를 포기하고 뜻 하나를 산다).
 rem   ⇒ 호출자는 `guard ne seed 0` 하나로 실패를 잡는다. (`option u64` 가 정직한 모양이지만 시그니처
 rem     변경이라 여기서는 안 골랐다 — 포크로 남긴다.)
+rem ☞ X-0035 에서 이 op 은 **안 바꿨다**: 자리 요구가 이미 `requires` 로 적혀 있고,
+rem   그것은 **부르는 쪽이 어긴 것**이라 실행 시간의 실패가 아니라 계약 위반이다.
+rem   실패로 말해야 하는 것은 «계약은 지켰는데 재지 못했다» 일 때다.
 export proc seed_from_os input k cap random . input scratch mut slice u8 . output u64 . effects none .
   requires ge (len scratch) 8 . do
   let got u64 be random_bytes k scratch .
-  guard ge got 8 . else return 0 .
+  guard ge got 8 . else return ok 0 .
   let h u64 be hash_bytes (subslice scratch 0 8) .
-  guard ne h 0 . else return 1 .
+  guard ne h 0 . else return ok 1 .
   return h .
 end .

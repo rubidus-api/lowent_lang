@@ -14,6 +14,16 @@ rem   감추지 않으려고 경로를 **인자로** 받는다(안에 못박지 
 
 module trust .
 
+rem ★★★★ **「자리가 모자라다」와 「못 찾았다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
+rem
+rem   그전에는 둘 다 **0** 이었다. 그래서 창(`win`)을 좁게 주면 도구가 «믿는 뿌리가 없다» 고
+rem   말했고(2026-09-18 실측), 그것은 **재지 못한 것**이지 **없는 것**이 아니었다.
+rem   ⇒ 모자람은 이제 `error short_workspace` 다. 「못 찾았다」는 `ok 0` 으로 남는다 —
+rem     그것은 우리가 **재고 나서** 하는 말이기 때문이다.
+export enum trust_error do
+  short_workspace .
+end .
+
 use files from "file.low" .
 use pem from "pem.low" .
 use x509 from "x509.low" .
@@ -40,7 +50,10 @@ do
   let e u64 be some_value eo .
   let stop u64 be add e 25 .
   guard le stop (len win) . else return 0 .
-  let got option u64 . be pem.unwrap (subslice win b stop) "CERTIFICATE" scratch out .
+  rem ★ `pem.unwrap` 도 이제 «자리가 모자라다» 를 실패로 말한다 — 그 말을 삼키지 않는다.
+  let gr result (option u64) pem.pem_error . be pem.unwrap (subslice win b stop) "CERTIFICATE" scratch out .
+  guard is_ok gr . else return 0 .
+  let got option u64 . be ok_value gr .
   guard is_some got . else return stop .
   set (index dn 0) (some_value got) .
   return stop .
@@ -48,7 +61,8 @@ end .
 
 rem ★★★★ **이름이 이것인 인증서를 묶음에서 찾는다.**
 rem   `want`/`wo` 는 «이 이름을 주체로 갖는 것을 찾아라» 이다(보통 자식의 발급자 이름).
-rem   찾으면 그 DER 을 `out` 에 담고 길이를 낸다. 0 = 못 찾았다.
+rem   찾으면 그 DER 을 `out` 에 담고 길이를 낸다. `ok 0` = 못 찾았다 ·
+rem   `error short_workspace` = **재지 못했다**(창이나 칸이 모자라다). 그 둘은 다른 사실이다.
 rem
 rem   win: 창(16 KiB 넘게) · scratch: 푸는 자리 · out: 찾은 인증서가 담길 자리
 rem ☞ 한 덩이가 창 경계에 걸치면 그 덩이는 이번 창에서 안 풀린다. 그래서 **남은 꼬리를 앞으로
@@ -57,12 +71,13 @@ rem   없는 것이 된다(그리고 그 하나가 하필 우리 앵커일 수 �
 export proc find_anchor input fs cap file_system . input path slice u8 .
      input want slice u8 . input wo u64 .
      input win mut slice u8 . input scratch mut slice u8 . input out mut slice u8 .
-     input dn mut slice u64 . output u64 . effects io .
+     input dn mut slice u64 . output result u64 trust_error . effects io .
+errors short_workspace .
 do
-  guard ge (len win) 16384 . else return 0 .
-  guard ge (len dn) 1 . else return 0 .
+  guard ge (len win) 16384 . else return error short_workspace .
+  guard ge (len dn) 1 . else return error short_workspace .
   let ho result files.handle files.file_error . be files.open fs path 0 .
-  guard is_ok ho . else return 0 .
+  guard is_ok ho . else return ok 0 .
   var h owned files.handle be ok_value ho .
 
   var keep u64 be 0 .
@@ -117,5 +132,5 @@ do
   end .
   let c2 result void files.file_error . be files.close fs h .
   drop c2 .
-  return found .
+  return ok found .
 end .

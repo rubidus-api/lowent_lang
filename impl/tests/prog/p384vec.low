@@ -23,7 +23,9 @@ rem          buf: 16진을 푸는 자리 0..48 · r 64..112 · s 112..160 · e 1
 proc prep input buf mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
   guard ge (len wu) 1580 . else return 0 .
   guard ge (len buf) 304 . else return 0 .
-  guard eq (verify.curve384 (subslice wu 0 96) (subslice buf 0 48)) 1 . else return 0 .
+  let _u0 result u64 verify.verify_error . be verify.curve384 (subslice wu 0 96) (subslice buf 0 48) .
+  guard is_ok _u0 . else return 0 .
+  guard eq (ok_value _u0) 1 . else return 0 .
   let dr option u64 . be codec.hex_dec "6ae4768089f6801184a788b4df81f008c71b7f652d0ac0cf20143a84c4dfa6e352eb9194879159892d04ff27d133d4e6" (subslice buf 64 112) .
   guard is_some dr . else return 0 .
   let ds option u64 . be codec.hex_dec "95daf82a122a9cbe5dc29d099b27251c1780dc94eb9d7142efa9087b25aa8c78b7897404b7e3473caf18ec227619c2d9" (subslice buf 112 160) .
@@ -47,12 +49,15 @@ proc fill input buf slice u8 . input wu mut slice u64 . output u64 . effects non
   return 1 .
 end .
 
+rem ★ 「자리가 모자라다」는 **9** 로 따로 답한다 — 「서명이 틀렸다」(0)와 섞지 않는다(X-0035).
 proc judge input wu mut slice u64 . output u64 . effects none . do
-  return p384.ecdsa_ok (subslice wu 96 120) (subslice wu 120 144) (subslice wu 144 168)
+  let jr result u64 p384.p384_error . be p384.ecdsa_ok (subslice wu 96 120) (subslice wu 120 144) (subslice wu 144 168)
                            (subslice wu 168 216)
                            (subslice wu 0 24) (subslice wu 24 48)
                            (subslice wu 48 72) (subslice wu 72 96)
                            (subslice wu 216 1580) .
+  guard is_ok jr . else return 9 .
+  return ok_value jr .
 end .
 
 rem ── 네 가지를 한 번에 잰다 ──────────────────────────────────────────────

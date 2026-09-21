@@ -108,34 +108,51 @@ static long long lw_aes_ctr(const void *keyp, unsigned long long klen,          
     }                                                                                                                   \
     return (long long)slen;                                                                                              \
 }                                                                                                                         \
-/* (h16, z16 mut, data) → 먹인 바이트 수. 마지막 조각은 0 으로 채운다(GCM 규약).                  \
-   z ^= 블록 ; z = z·h  in GF(2^128), 축약 다항식 x^128 + x^7 + x^2 + x + 1. */                   \
-static long long lw_ghash(const void *hp, unsigned long long hlen,                                  \
+/* (h16, z16 mut, data) → 먹인 바이트 수. 마지막 조각은 0 으로 채운다(GCM 규약).                                        \
+   z ^= 블록 ; z = z·h  in GF(2^128), 축약 다항식 x^128 + x^7 + x^2 + x + 1.                                \
+   ★★★ X-0044 (2026-09-21) — **64 비트 낱말 둘 · 분기 없이 가림(mask)으로** 곱한다.                                  \
+   전에는 바이트 16 칸을 비트마다 `if (z 의 비트) acc ^= v` 로 돌았다. 그것은 **데이터에 따라                                    \
+   분기**하므로 상수시간도 아니었고(«표를 안 쓰니 상수시간 쪽» 이라는 판단이 틀렸다) 느렸다.                                             \
+   이제 비트는 0/전부-1 가림이 되어 흐름이 데이터와 무관하고, 4 MiB 에 783 → 62 ms (-O2) 다.                                  \
+   ☞ 4비트 표(45 배)는 **안 쓴다** — 키에 따라 표를 읽어 캐시 타이밍이 샌다.                                                 \
+   ☞ 이것으로 GCM 이 상수시간이 되지는 않는다: AES 라운드(`lw_aes_block`)는 S-box 표를 읽는다. */                             \
+static unsigned long long lw_gh_be64(const unsigned char *p) {                                       \
+    unsigned long long x = 0; int i;                                                                 \
+    for (i = 0; i < 8; i++) x = (x << 8) | p[i];                                                     \
+    return x;                                                                                        \
+}                                                                                                    \
+static void lw_gh_put64(unsigned char *p, unsigned long long x) {                                    \
+    int i;                                                                                           \
+    for (i = 7; i >= 0; i--) { p[i] = (unsigned char)x; x >>= 8; }                                   \
+}                                                                                                    \
+static long long lw_ghash(const void *hp, unsigned long long hlen,                                   \
                           void *zp, unsigned long long zlen,                                         \
-                          const void *datap, unsigned long long dlen) {                               \
-    const unsigned char *h = (const unsigned char *)hp;                                                \
-    unsigned char *z = (unsigned char *)zp;                                                             \
-    const unsigned char *data = (const unsigned char *)datap;                                            \
-    unsigned long long off;                                                                               \
-    if (hlen != 16 || zlen != 16) return 0;                                                                \
-    for (off = 0; off < dlen; off += 16) {                                                                  \
-        unsigned char v[16]; int b; unsigned long long i, n = dlen - off;                                    \
-        if (n > 16) n = 16;                                                                                   \
-        for (i = 0; i < n; i++) z[i] = (unsigned char)(z[i] ^ data[off + i]);                                  \
-        for (i = 0; i < 16; i++) v[i] = h[i];                                                                   \
-        { unsigned char acc[16]; int k;                                                                          \
-          for (k = 0; k < 16; k++) acc[k] = 0;                                                                    \
-          for (b = 0; b < 128; b++) {                                                                              \
-              if (z[b >> 3] & (unsigned char)(0x80 >> (b & 7)))                                                     \
-                  for (k = 0; k < 16; k++) acc[k] = (unsigned char)(acc[k] ^ v[k]);                                  \
-              { int lsb = v[15] & 1, k2;                                                                              \
-                for (k2 = 15; k2 > 0; k2--) v[k2] = (unsigned char)((v[k2] >> 1) | ((v[k2-1] & 1) << 7));              \
-                v[0] = (unsigned char)(v[0] >> 1);                                                                      \
-                if (lsb) v[0] = (unsigned char)(v[0] ^ 0xe1); }                                                          \
-          }                                                                                                               \
-          for (k = 0; k < 16; k++) z[k] = acc[k]; }                                                                        \
-    }                                                                                                                       \
-    return (long long)dlen;                                                                                                  \
+                          const void *datap, unsigned long long dlen) {                              \
+    const unsigned char *h = (const unsigned char *)hp;                                              \
+    unsigned char *z = (unsigned char *)zp;                                                          \
+    const unsigned char *data = (const unsigned char *)datap;                                        \
+    unsigned long long off, h0, h1, z0, z1;                                                          \
+    if (hlen != 16 || zlen != 16) return 0;                                                          \
+    h0 = lw_gh_be64(h); h1 = lw_gh_be64(h + 8);                                                      \
+    z0 = lw_gh_be64(z); z1 = lw_gh_be64(z + 8);                                                      \
+    for (off = 0; off < dlen; off += 16) {                                                           \
+        unsigned char blk[16]; unsigned long long i, n = dlen - off;                                 \
+        unsigned long long v0 = h0, v1 = h1, a0 = 0, a1 = 0, w, mk, lsb; int b;                      \
+        if (n > 16) n = 16;                                                                          \
+        for (i = 0; i < 16; i++) blk[i] = (unsigned char)(i < n ? data[off + i] : 0);                \
+        z0 ^= lw_gh_be64(blk); z1 ^= lw_gh_be64(blk + 8);                                            \
+        for (b = 0; b < 128; b++) {                                                                  \
+            w = b < 64 ? z0 : z1;                                                                    \
+            mk = 0ull - ((w >> (63 - (b & 63))) & 1ull);                                             \
+            a0 ^= v0 & mk; a1 ^= v1 & mk;                                                            \
+            lsb = 0ull - (v1 & 1ull);                                                                \
+            v1 = (v1 >> 1) | (v0 << 63);                                                             \
+            v0 = (v0 >> 1) ^ (0xe100000000000000ull & lsb);                                          \
+        }                                                                                            \
+        z0 = a0; z1 = a1;                                                                            \
+    }                                                                                                \
+    lw_gh_put64(z, z0); lw_gh_put64(z + 8, z1);                                                      \
+    return (long long)dlen;                                                                          \
 }
 
 /* ★ 가변 인자로 받는다 — 본문에 쉼표(표 초기화)가 있어서 한 인자 매크로로는 못 싣는다.

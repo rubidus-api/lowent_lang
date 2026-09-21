@@ -7378,7 +7378,12 @@ static void ck_capkind_walk(low_check_result_t *out, const low_cst_t *nd, const 
 //     작업 버퍼를 상수 구간으로 서로소하게 잘라 쓰는 모양(코퍼스 ~300 줄)은 그대로 통과한다.
 //   ☞ 통째로 다시 대입되는 이름(`set x …`)은 별칭으로 믿지 않는다 — 흐름을 안 따라가는 대신 좁게 본다.
 #define CK_SK_MAX 96
-typedef struct { proven_u8str_view_t root; bool whole, known; unsigned long long a, b; } ck_skey_t;
+// ★★★ **칸 경로도 저장소다** (결함 `field-path-exclusivity`, 2026-09-22 · RFC-0116 D3). `(field s a)` 를 `mut` 입력에
+//   넘기면 칸 **자리**가 넘어간다 — 그래서 같은 칸 두 번 · 전체와 그 칸은 쓰기 둘이다. 열쇠에 경로를 더한다:
+//   경로가 갈라지면(`a` 와 `b`) 서로소, 한쪽이 다른 쪽의 앞부분이면(같은 칸 · 부모와 자식) 겹친다.
+#define CK_SK_PATH 4
+typedef struct { proven_u8str_view_t root; bool whole, known; unsigned long long a, b;
+                 proven_u8str_view_t path[CK_SK_PATH]; unsigned np; } ck_skey_t;
 typedef struct { proven_u8str_view_t name; ck_skey_t key; } ck_salias_t;
 typedef struct { ck_salias_t v[CK_SK_MAX]; proven_size_t n;
                  proven_u8str_view_t reset[CK_SK_MAX]; proven_size_t nreset; bool full; } ck_sctx_t;
@@ -7417,6 +7422,13 @@ static ck_skey_t ck_skey_seq(const ck_sctx_t *c, const low_cst_t *const *k, prov
             return ck_skey_seq(c, (const low_cst_t *const *)nd->kids, 0, nd->nkids, depth + 1);
         return z;
     }
+    if (to - from == 3 && ck_atom(k[from]) && veq(k[from]->tok.lex, "field") && ck_atom(k[from + 2])) {
+        ck_skey_t base = ck_skey_seq(c, k, from + 1, from + 2, depth + 1);
+        // ★ 조각을 잘라 낸 뒤의 칸(`field (subslice …) f`)은 뜻이 없다 · 경로가 표보다 깊으면 «모른다»(가르지 않는다)
+        if (!base.root.size || !base.whole || base.np >= CK_SK_PATH) return z;
+        base.path[base.np++] = k[from + 2]->tok.lex;
+        return base;
+    }
     if (to - from == 4 && ck_atom(k[from]) && veq(k[from]->tok.lex, "subslice")) {
         ck_skey_t base = ck_skey_seq(c, k, from + 1, from + 2, depth + 1);
         if (!base.root.size) return z;
@@ -7449,9 +7461,9 @@ static void ck_sk_collect(ck_sctx_t *c, const low_cst_t *nd, bool resets) {
                 const low_cst_t *h = nd->kids[be + 1];
                 while (h && h->kind == LOW_CST_GROUP && h->nkids == 1) h = h->kids[0];
                 bool shape = (be + 2 == nd->nkids && h && h->kind == LOW_CST_ATOM) ||
-                             (h && ck_atom(h) && veq(h->tok.lex, "subslice")) ||
+                             (h && ck_atom(h) && (veq(h->tok.lex, "subslice") || veq(h->tok.lex, "field"))) ||
                              (h && h->kind == LOW_CST_FORM && h->nkids && ck_atom(h->kids[0]) &&
-                              veq(h->kids[0]->tok.lex, "subslice"));
+                              (veq(h->kids[0]->tok.lex, "subslice") || veq(h->kids[0]->tok.lex, "field")));
                 if (k.root.size && shape && !proven_u8str_view_eq(k.root, nd->kids[1]->tok.lex)) {
                     if (c->n >= CK_SK_MAX) c->full = true;
                     else { c->v[c->n].name = nd->kids[1]->tok.lex; c->v[c->n].key = k; c->n += 1; }
@@ -7463,6 +7475,10 @@ static void ck_sk_collect(ck_sctx_t *c, const low_cst_t *nd, bool resets) {
 }
 static bool ck_sk_overlap(ck_skey_t x, ck_skey_t y) {
     if (!x.root.size || !y.root.size || !proven_u8str_view_eq(x.root, y.root)) return false;
+    unsigned m = x.np < y.np ? x.np : y.np;
+    for (unsigned i = 0; i < m; i++)
+        if (!proven_u8str_view_eq(x.path[i], y.path[i])) return false;     // 갈라진 칸 — 서로소
+    if (x.np != y.np) return true;                                         // 부모와 자식 — 겹친다
     if (x.whole && y.whole) return true;
     if (x.whole) return y.known && y.b > y.a;
     if (y.whole) return x.known && x.b > x.a;
@@ -7549,7 +7565,7 @@ static void ck_excl_args_walk2(low_check_result_t *out, const low_cst_t *nd,
                     // ★ `inplace` 는 «**같은 구간**이어도 된다» 만 허락한다. 부분 겹침(어긋난 구간 · 버퍼 전체와 그 일부)은
                     //   선언으로도 안 된다 — 원소마다 읽고 쓰는 몸(`madd` 꼴)은 같은 구간에서만 옳고, 부르는 쪽은 피호출자가
                     //   버퍼의 **어디에** 쓰는지 모른다. 저장소를 겹치지 않게 잘라 넘긴다(RFC-0116 §6.2 의 세 경우).
-                    bool same = (kq.whole && kr.whole) || (kq.known && kr.known && kq.a == kr.a && kq.b == kr.b);
+                    bool same = kq.np == kr.np && ((kq.whole && kr.whole) || (kq.known && kr.known && kq.a == kr.a && kq.b == kr.b));   // ★ 부모와 자식은 같은 구간이 아니다
                     if (same && ck_has_inplace(op->form, h.p[ai].name, h.p[bi].name)) continue;
                     if (!same) {
                         emit(out, "E-EXCL-INPLACE",

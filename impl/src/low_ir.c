@@ -4623,6 +4623,17 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
 
  int ir_word_arity(const low_ir_t *ir, low_irw_t w, proven_i64 a) {
     switch (w) {
+        /* ★★★ **빌트인의 인자 수는 `low_arity.h` 한 곳에서 온다** (X-0047, 2026-09-21).
+           전에는 같은 80 개의 수를 여기에도 손으로 적었고, 떨어지는 `case` 묶음 사이에 새 잎
+           (`IRW_AESCTR`)을 끼우자 이웃 셋(`IRW_ALOAD`·`IRW_ELEMCK`·`IRW_SAMESL`)이 **넷을 문다**고
+           답했다 — 구간 분석이 스택을 잘못 세어 타입 메타가 사라지고, VM 은 옳은데 네이티브만
+           틀렸다. 같은 수를 두 곳에 적은 것이 원인이다. 이제 새 빌트인은 **이 표에 안 들어온다**;
+           누가 손으로 다시 적으면 `case` 가 겹쳐 **컴파일이 멈춘다**.
+           ☞ 아래에 남은 것은 표면 이름이 없는 **내부 낱말**(90 개)뿐이고, 그것들은 여전히 떨어지는
+             묶음이다 — 내부 낱말을 더할 때는 **묶음 사이에 끼우지 말고** 제 `return` 과 함께 새 줄로. */
+#define X(n, w, a) case w: return a;
+        LOW_BUILTINS(X)
+#undef X
         case IRW_CONST: case IRW_LOAD: case IRW_STR: case IRW_REF: case IRW_MREF:
         case IRW_SCHED:                                          // ★ `schedule` — 피연산자 0, 단위 push
         case IRW_YIELD:                                          // ★ `yield` — 피연산자 0, 단위 push
@@ -4664,67 +4675,32 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
         case IRW_NLISTEN: case IRW_NPORT:                         // ★ 네트워크 (port)/(fd)
         case IRW_NCONNECT: case IRW_NACCEPT:                      // ★ (port)/(fd)
             return 1;
-        case IRW_NEG: case IRW_NOT: case IRW_LEN: case IRW_DEREF: case IRW_WRAP_OK:
-        case IRW_CSTR2STR:                                        // ★ cstr → str (피연산자 1: 포인터)
-        case IRW_STR2CSTR:                                        // ★ str_buf → cstr (피연산자 1: 슬라이스)
+        case IRW_WRAP_OK:
         case IRW_WRAP_SOME: case IRW_ARGV: case IRW_ENVGET: case IRW_ALLOCB:
         case IRW_HASVAL:   // ★ option|result → bool (value_or 의 지연 분기용)
-        case IRW_TRY: case IRW_ISSOME: case IRW_SOMEVAL: case IRW_VARRAY:
+        case IRW_TRY: case IRW_VARRAY:
         case IRW_ELSE_NONE: case IRW_ELSE_ERR:
-        case IRW_ISOK: case IRW_ISERR: case IRW_OKVAL: case IRW_ERRVAL:
         case IRW_VIEW: case IRW_TRYVIEW: case IRW_ENCODE: case IRW_SPLAT: case IRW_BITCAST:
-        case IRW_BCOMPL: case IRW_BEMPTY:
-        case IRW_COUNT: case IRW_BNEW: case IRW_SNEW: case IRW_FIELD:
-        case IRW_RADD: case IRW_RMUL: case IRW_RMIN: case IRW_RMAX:
+        case IRW_SNEW: case IRW_FIELD:
         case IRW_VREVERSE: case IRW_VROTATE: case IRW_VSHUFFLE:   // vec → vec (레인 재배열, vec 1개 소비)
-        case IRW_MANY: case IRW_MALL: case IRW_SPOP_INTO:
-        case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP:
+        case IRW_SPOP_INTO:
         case IRW_DRAIN:                       // ★ drain — 인스턴스 하나 소비
         case IRW_CHRECV:                      // ★ chrecv — 채널 하나 소비, 값 push
         case IRW_AWAIT:                       // ★ await — job 핸들 하나 소비, 결과 push
             return 1;
         case IRW_CHSEND:                      // ★ chsend — 채널·값 소비, 단위 push
             return 2;
-        case IRW_ADD: case IRW_SUB: case IRW_MUL: case IRW_DIV: case IRW_MOD:
-        case IRW_AND: case IRW_OR: case IRW_EQ: case IRW_NE: case IRW_LT:
-        case IRW_BREMOVE: case IRW_BUNION: case IRW_BINTER: case IRW_BDIFF: case IRW_BSUBSET:
-        case IRW_LE: case IRW_GT: case IRW_GE: case IRW_INDEX: case IRW_CONTAINS:
-        case IRW_SPUSH: case IRW_VLOAD: case IRW_FSTORE:
+        case IRW_VLOAD: case IRW_FSTORE:
         case IRW_VAVG:     // va, vb → vec (target intrinsic)
-        case IRW_VALOR:    // (option|result), default → t
-        case IRW_BAND: case IRW_BOR: case IRW_BXOR:
-        case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
-        case IRW_ROTL: case IRW_ROTR:
-        case IRW_ALOAD:
         case IRW_ELEMCK:
-        case IRW_SAMESL:   // ★ RFC-0112 D10 — 두 슬라이스 → 참거짓. 빠뜨리면 구간 분석이 스택을 잘못 세어 뒤 guard 를 지웠다(실측)
-        case IRW_SHA256: case IRW_SHA512: case IRW_SHA384:   // ★ WO-0215 에서 같이 찾음 — (바이트, 쓸 버퍼) → 길이. 이 표에 없었다
             return 2;
-        /* ★★★★★ **이 두 줄을 위 묶음 *앞*에 넣었다가 컴파일러를 망가뜨렸다** (2026-09-21).
-           바로 위는 `case` 라벨이 줄줄이 붙은 **떨어짐(fall-through)** 묶음이다 —
-           `IRW_ALOAD`·`IRW_ELEMCK`·`IRW_SAMESL` 이 `return 2` 로 떨어지고 있었다.
-           그 사이에 `return 4` 를 끼우자 셋이 **넷을 문다**고 답했고, 구간 분석이 스택을
-           잘못 세어 **타입 메타(부호·폭)가 통째로 사라졌다**: `u64` 산술이 부호 있는 것이
-           되고, 경계 증명이 무너져 검사가 275 곳 늘었다. 증상은 엉뚱한 데서 났다 —
-           `lowget` 이 ChaCha20-Poly1305 서버와 핸드셰이크를 못 했다(태그가 안 맞는다).
-           ☞ **떨어지는 묶음 사이에 새 case 를 끼우지 않는다.** 뒤에 붙인다. */
-        case IRW_AESCTR:      // (key, ctr, src, dst) → 넷
-            return 4;
-        case IRW_GHASH:       // (h, z, data) → 셋
+        case IRW_ISTORE: case IRW_VSTORE:
             return 3;
-        case IRW_HASH64: case IRW_CRC32: case IRW_RNGNEXT:   // ★ 같은 까닭(WO-0215) — 하나 받아 수 하나
-            return 1;
-        case IRW_SUBSLICE: case IRW_SELECT: case IRW_ISTORE: case IRW_VSTORE:
-        case IRW_ASTORE: case IRW_AADD: case IRW_ASUB: case IRW_AAND:
-        case IRW_AOR: case IRW_AXOR: case IRW_ASWAP: case IRW_SWAP:
-            return 3;
-        case IRW_ACAS:
         case IRW_VLOADM:   // src, idx, mask, passthrough → vec (merge)
         case IRW_VSTOREM:  // dst, idx, vec, mask → ()
             return 4;
         case IRW_PREFETCH:  // ★ 슬라이스 + 색인 — 미는 값은 없다(힌트)
             return 2;
-        case IRW_AFENCE:
         case IRW_RESBLK:    // ★ 피연산자 0 — 저장소는 **링커가 준다**(RFC-0039 §9-2)
         case IRW_MMIOBLK:   // ★ 피연산자 0 — 기저 주소는 **타입 안에** 있다(RFC-0042 §8-2)
             return 0;

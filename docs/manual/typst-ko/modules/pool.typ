@@ -47,8 +47,10 @@ struct 다(actor state 는 슬라이스를 들 수 없다).
 `take` 는 *놓은 것을 먼저 준다*(자유 목록은 LIFO) --- 받고 놓기를 되풀이해도 풀이 마르지 않는다. 재사용된 블록의 핸들은 세대가 올라간 새 핸들이다. 브랜드를 매번 적는
 이유 --- 이 언어에는 추론되는 타입 파라미터가 없고, 그 한 낱말이 "이 핸들은 저 풀의 것" 이라는 계약이다.
 
-*남는 창 하나* --- `bytes` 로 빌린 슬라이스를 *든 채* `release` 하면 그 슬라이스는 여전히 쓸 수 있다. 그 창은 `borrow <이름> be <식> do … end` 블록이 어휘적으로
-닫는다 --- 빌림 안에서만 바이트를 만지고, 해제는 빌림 밖에서 한다(#chref("references")).
+*뷰는 빌림 머리에서 꺼낸다* --- `bytes` 가 준 슬라이스는 평범한 슬라이스라 반환을 모른다. 그래서 뷰는
+`borrow v be some_value (pool.bytes <브랜드> p h) do … end` 처럼 *빌림 머리에서* 꺼내고, 바이트는 빌림 안에서만 만지고, 해제는
+블록 *뒤에* 한다(#chref("references")). 이렇게 꺼내면 처리기가 빌림 동안 그 풀을 쓰기 자리에 넘기는 것(`release`·`take`)과 같은 풀로
+두 번째 빌림을 여는 것을 `E-BORROW-EXCL` 로 거절한다.
 
 ```lowent
 newtype demo_brand u8 .
@@ -61,11 +63,9 @@ do
   let h option (pool.handle demo_brand) . be pool.take demo_brand p .
   guard is_some h . else return 91 .
   let hh pool.handle demo_brand . be some_value h .
-  let b option mut slice u8 . . be pool.bytes demo_brand p hh .
-  guard is_some b . else return 92 .
-  let bv mut slice u8 . be some_value b .
+  guard pool.alive demo_brand p hh . else return 92 .
   var total u64 be 0 .
-  borrow v be bv do
+  borrow v be some_value (pool.bytes demo_brand p hh) do
     set (index v 8) 3 .
     set (index v 9) 4 .
     set total (add (narrow u64 (index v 8)) (narrow u64 (index v 9))) .
@@ -90,6 +90,17 @@ end
 
 #antipattern[빌린 이름을 블록 밖으로 내보낸다][
   `borrow v be bv do set out v . end` 는 컴파일 에러 `E-BORROW-ESCAPE` 다 --- 빌림은 블록 끝에서 끝난다.
+]
+
+#antipattern[빌림 안에서 해제한다][
+  `borrow v be some_value (pool.bytes b p h) do pool.release b p h . … end` 는 컴파일 에러 `E-BORROW-EXCL` 이다 --- 반환은 풀을 고치고,
+  빌린 뷰는 그것을 모른다. 해제는 블록을 닫은 뒤에 한다.
+]
+
+#antipattern[빌림 *전에* 뷰를 이름에 묶는다][
+  `let bv … be some_value (pool.bytes b p h) .` 로 먼저 묶으면 처리기는 `bv` 가 풀에서 왔다는 것을 모른다. 그 이름을 든 채 해제하고
+  쓰면 *아무 진단 없이* 다음 주인의 블록과 자유 목록 링크를 덮는다. 이 판의 구멍이다(RFC-0116 D4 의 출처 추적이 서야 규칙으로 막힌다) ---
+  그래서 뷰는 빌림 머리에서만 꺼낸다.
 ]
 
 *주의.* 핸들은 값이라 복사해 들고 다닐 수 있지만, 어느 복사본으로든 `release` 하면 전부 낡는다. 받고 놓기를 아무리 되풀이해도 `outstanding` 이 늘지 않는 것이 자유

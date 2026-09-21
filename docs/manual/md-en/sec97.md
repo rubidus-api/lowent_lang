@@ -43,7 +43,7 @@ let h option (pool.handle pa) . be pool.take pa p .
 
 `take` **gives back released blocks first** (the free list is LIFO) — repeated take and release never dries the pool. A reused block’s handle is a new handle with a bumped generation. Why the brand is written every time — this language has no inferred type parameters, and that one word is the contract “this handle belongs to that pool”.
 
-**One remaining window** — releasing while **holding** a slice borrowed through `bytes` leaves that slice usable. A `borrow <name> be <expr> do … end` block closes the window lexically — touch bytes only inside the borrow, and release outside it (chapter 12).
+**Take the view in the borrow head** — the slice `bytes` returns is a plain slice and knows nothing about release. So take the view in the **head of a borrow** — `borrow v be some_value (pool.bytes <brand> p h) do … end` — touch bytes only inside it, and release **after** the block (chapter 12). Taken that way, the processor rejects handing that pool to a writing position (`release`, `take`) or opening a second borrow from the same pool while the borrow lives: `E-BORROW-EXCL`.
 
 ```lowent
 newtype demo_brand u8 .
@@ -56,11 +56,9 @@ do
   let h option (pool.handle demo_brand) . be pool.take demo_brand p .
   guard is_some h . else return 91 .
   let hh pool.handle demo_brand . be some_value h .
-  let b option mut slice u8 . . be pool.bytes demo_brand p hh .
-  guard is_some b . else return 92 .
-  let bv mut slice u8 . be some_value b .
+  guard pool.alive demo_brand p hh . else return 92 .
   var total u64 be 0 .
-  borrow v be bv do
+  borrow v be some_value (pool.bytes demo_brand p hh) do
     set (index v 8) 3 .
     set (index v 9) 4 .
     set total (add (narrow u64 (index v 8)) (narrow u64 (index v 9))) .
@@ -84,6 +82,14 @@ end
 > **Counter-example. Sending a borrowed name out of the block**
 >
 > > `borrow v be bv do set out v . end` is the compile error `E-BORROW-ESCAPE` — a borrow ends at the end of its block.
+
+> **Counter-example. Releasing inside the borrow**
+>
+> > `borrow v be some_value (pool.bytes b p h) do pool.release b p h . … end` is the compile error `E-BORROW-EXCL` — a release changes the pool, and the borrowed view cannot know. Release after closing the block.
+
+> **Counter-example. Binding the view to a name **before** the borrow**
+>
+> > `let bv … be some_value (pool.bytes b p h) .` hides from the processor that `bv` came from the pool. Release while holding it and write through it, and it overwrites the next owner’s block and the free-list link **with no diagnostic**. This is a hole in this edition (a rule can close it only once RFC-0116 D4 tracks provenance) — which is why the view is taken in the borrow head.
 
 **Cautions.** Handles are values and can be copied, but releasing through any copy stales them all. `outstanding` not growing no matter how often you take and release is proof the free list is alive (`used` grows only in the first few rounds). `outstanding` walks the free list, O(free blocks) — do not call it on every hot-path pass. One handle = one block. Sequential delivery is assumed. Why `outstanding`, not `live` — the processor could not tell common words used as local variables from op heads. Designing a handle’s bit widths is helped by [`budget`](sec99.md#mod-budget).
 

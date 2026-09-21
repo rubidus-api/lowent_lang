@@ -4629,90 +4629,102 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
            답했다 — 구간 분석이 스택을 잘못 세어 타입 메타가 사라지고, VM 은 옳은데 네이티브만
            틀렸다. 같은 수를 두 곳에 적은 것이 원인이다. 이제 새 빌트인은 **이 표에 안 들어온다**;
            누가 손으로 다시 적으면 `case` 가 겹쳐 **컴파일이 멈춘다**.
-           ☞ 아래에 남은 것은 표면 이름이 없는 **내부 낱말**(90 개)뿐이고, 그것들은 여전히 떨어지는
-             묶음이다 — 내부 낱말을 더할 때는 **묶음 사이에 끼우지 말고** 제 `return` 과 함께 새 줄로. */
+           ☞ 아래에 남은 것은 표면 이름이 없는 **내부 낱말**(90 개)뿐이고, 그것들은 **한 줄씩 닫는다**
+             (`case X: return N;` — X-0047 ⓐ). 떨어지는 묶음이 없으니 사이에 끼워도 이웃이 안 바뀐다.
+             내부 낱말을 더할 때도 이 모양으로. */
 #define X(n, w, a) case w: return a;
         LOW_BUILTINS(X)
 #undef X
-        case IRW_CONST: case IRW_LOAD: case IRW_STR: case IRW_REF: case IRW_MREF:
-        case IRW_SCHED:                                          // ★ `schedule` — 피연산자 0, 단위 push
-        case IRW_YIELD:                                          // ★ `yield` — 피연산자 0, 단위 push
-        case IRW_CHNEW:                                          // ★ `channel` — 피연산자 0, 핸들 push
-        case IRW_WRAP_ERR: case IRW_FCONST: case IRW_WRAP_NONE:   // ★ `none` — 피연산자 0
-        case IRW_ARGC:                                            // ★ 인자 개수 — 피연산자 0
-        case IRW_RMARK:                                           // ★ region 표식 — 피연산자 0
-        case IRW_FNREF:                                           // ★ `unsafe_fn <op>` — 주소를 낸다(0 소비)
-        case IRW_NPAIR:                                           // ★ 소켓 쌍 — 피연산자 0(cap 만), option u64 push
-            return 0;
-        case IRW_CAST: case IRW_UNM: case IRW_ASSERT:
-            return 1;
-        case IRW_TTYSIZE:                                         // ★ cap tty — 인자 없음
-        case IRW_PANIC:
-            return 0;
-        case IRW_BINM:
-        case IRW_WRITE:                                           // ★ (fd, bytes)
-        case IRW_RDIN:                                            // ★ (fd, dst)
-        case IRW_RNEW:                                            // ★ (mem, depth)
-        case IRW_FOPEN: case IRW_FREAD: case IRW_FWRITE:          // ★ 스트림 리프 (둘씩)
-        case IRW_DREAD:                                           // ★ (dh, dst)
-        case IRW_PRENAME:                                         // ★ (old, new)
-        case IRW_NSEND: case IRW_NRECV:                          // ★ 소켓 (fd, bytes)/(fd, dst)
-            return 2;
-        case IRW_RREAD:                                           // ★ (rh, fd, dst)
-        case IRW_RWRITE:                                          // ★ (rh, fd, src)
-        case IRW_FSEEK:                                           // ★ (fd, off, whence)
-            return 3;
-        case IRW_TTYRAW:                                          // ★ cap tty — (on)
-        case IRW_TTYREAD:                                         // ★ cap tty — (dst)
-        case IRW_FCLOSE:                                          // ★ (fd)
-        case IRW_DOPEN:                                           // ★ (path)
-        case IRW_DCLOSE:                                          // ★ (dh)
-        case IRW_FTYPE: case IRW_LTYPE:                           // ★ (path)
-        case IRW_DMAKE:                                           // ★ (path)
-        case IRW_PREMOVE:                                         // ★ (path)
-        case IRW_RRESET:                                          // ★ region 표식으로 되돌린다
-        case IRW_NCLOSE:                                          // ★ 소켓 (fd)
-        case IRW_NLISTEN: case IRW_NPORT:                         // ★ 네트워크 (port)/(fd)
-        case IRW_NCONNECT: case IRW_NACCEPT:                      // ★ (port)/(fd)
-            return 1;
-        case IRW_WRAP_OK:
-        case IRW_WRAP_SOME: case IRW_ARGV: case IRW_ENVGET: case IRW_ALLOCB:
-        case IRW_HASVAL:   // ★ option|result → bool (value_or 의 지연 분기용)
-        case IRW_TRY: case IRW_VARRAY:
-        case IRW_ELSE_NONE: case IRW_ELSE_ERR:
-        case IRW_VIEW: case IRW_TRYVIEW: case IRW_ENCODE: case IRW_SPLAT: case IRW_BITCAST:
-        case IRW_SNEW: case IRW_FIELD:
-        case IRW_VREVERSE: case IRW_VROTATE: case IRW_VSHUFFLE:   // vec → vec (레인 재배열, vec 1개 소비)
-        case IRW_SPOP_INTO:
-        case IRW_DRAIN:                       // ★ drain — 인스턴스 하나 소비
-        case IRW_CHRECV:                      // ★ chrecv — 채널 하나 소비, 값 push
-        case IRW_AWAIT:                       // ★ await — job 핸들 하나 소비, 결과 push
-            return 1;
-        case IRW_CHSEND:                      // ★ chsend — 채널·값 소비, 단위 push
-            return 2;
-        case IRW_VLOAD: case IRW_FSTORE:
-        case IRW_VAVG:     // va, vb → vec (target intrinsic)
-        case IRW_ELEMCK:
-            return 2;
-        case IRW_ISTORE: case IRW_VSTORE:
-            return 3;
-        case IRW_VLOADM:   // src, idx, mask, passthrough → vec (merge)
-        case IRW_VSTOREM:  // dst, idx, vec, mask → ()
-            return 4;
-        case IRW_PREFETCH:  // ★ 슬라이스 + 색인 — 미는 값은 없다(힌트)
-            return 2;
-        case IRW_RESBLK:    // ★ 피연산자 0 — 저장소는 **링커가 준다**(RFC-0039 §9-2)
-        case IRW_MMIOBLK:   // ★ 피연산자 0 — 기저 주소는 **타입 안에** 있다(RFC-0042 §8-2)
-            return 0;
-        case IRW_CALL:
-            return (int)ir->defs[IR_CALL_IDX(a)].nparams;
-        case IRW_ASEND:                       // ★ async send — 핸들러 파라미터 수(instance+args) 소비
-        case IRW_TASEND:                      // ★ try async send — 같은 팝(instance+args), result 를 민다
-            return (int)ir->defs[a & 0xffff].nparams;
-        case IRW_TSPAWN:                      // ★ task spawn — op 파라미터 수(인스턴스 없음) 소비
-            return (int)ir->defs[a & 0xffff].nparams;
-        case IRW_MAKE:
-            return (int)ir->makes[a].nfields;
+        case IRW_CONST: return 0;
+        case IRW_LOAD: return 0;
+        case IRW_STR: return 0;
+        case IRW_REF: return 0;
+        case IRW_MREF: return 0;
+        case IRW_SCHED: return 0;                              // ★ `schedule` — 피연산자 0, 단위 push
+        case IRW_YIELD: return 0;                              // ★ `yield` — 피연산자 0, 단위 push
+        case IRW_CHNEW: return 0;                              // ★ `channel` — 피연산자 0, 핸들 push
+        case IRW_WRAP_ERR: return 0;                           // ★ `none` — 피연산자 0
+        case IRW_FCONST: return 0;
+        case IRW_WRAP_NONE: return 0;
+        case IRW_ARGC: return 0;                               // ★ 인자 개수 — 피연산자 0
+        case IRW_RMARK: return 0;                              // ★ region 표식 — 피연산자 0
+        case IRW_FNREF: return 0;                              // ★ `unsafe_fn <op>` — 주소를 낸다(0 소비)
+        case IRW_NPAIR: return 0;                              // ★ 소켓 쌍 — 피연산자 0(cap 만), option u64 push
+        case IRW_CAST: return 1;
+        case IRW_UNM: return 1;
+        case IRW_ASSERT: return 1;
+        case IRW_TTYSIZE: return 0;                            // ★ cap tty — 인자 없음
+        case IRW_PANIC: return 0;
+        case IRW_BINM: return 2;
+        case IRW_WRITE: return 2;                              // ★ (fd, bytes)
+        case IRW_RDIN: return 2;                               // ★ (fd, dst)
+        case IRW_RNEW: return 2;                               // ★ (mem, depth)
+        case IRW_FOPEN: return 2;                              // ★ 스트림 리프 (둘씩)
+        case IRW_FREAD: return 2;
+        case IRW_FWRITE: return 2;
+        case IRW_DREAD: return 2;                              // ★ (dh, dst)
+        case IRW_PRENAME: return 2;                            // ★ (old, new)
+        case IRW_NSEND: return 2;                              // ★ 소켓 (fd, bytes)/(fd, dst)
+        case IRW_NRECV: return 2;
+        case IRW_RREAD: return 3;                              // ★ (rh, fd, dst)
+        case IRW_RWRITE: return 3;                             // ★ (rh, fd, src)
+        case IRW_FSEEK: return 3;                              // ★ (fd, off, whence)
+        case IRW_TTYRAW: return 1;                             // ★ cap tty — (on)
+        case IRW_TTYREAD: return 1;                            // ★ cap tty — (dst)
+        case IRW_FCLOSE: return 1;                             // ★ (fd)
+        case IRW_DOPEN: return 1;                              // ★ (path)
+        case IRW_DCLOSE: return 1;                             // ★ (dh)
+        case IRW_FTYPE: return 1;                              // ★ (path)
+        case IRW_LTYPE: return 1;
+        case IRW_DMAKE: return 1;                              // ★ (path)
+        case IRW_PREMOVE: return 1;                            // ★ (path)
+        case IRW_RRESET: return 1;                             // ★ region 표식으로 되돌린다
+        case IRW_NCLOSE: return 1;                             // ★ 소켓 (fd)
+        case IRW_NLISTEN: return 1;                            // ★ 네트워크 (port)/(fd)
+        case IRW_NPORT: return 1;
+        case IRW_NCONNECT: return 1;                           // ★ (port)/(fd)
+        case IRW_NACCEPT: return 1;
+        case IRW_WRAP_OK: return 1;
+        case IRW_WRAP_SOME: return 1;
+        case IRW_ARGV: return 1;
+        case IRW_ENVGET: return 1;
+        case IRW_ALLOCB: return 1;
+        case IRW_HASVAL: return 1;                             // ★ option|result → bool (value_or 의 지연 분기용)
+        case IRW_TRY: return 1;
+        case IRW_VARRAY: return 1;
+        case IRW_ELSE_NONE: return 1;
+        case IRW_ELSE_ERR: return 1;
+        case IRW_VIEW: return 1;
+        case IRW_TRYVIEW: return 1;
+        case IRW_ENCODE: return 1;
+        case IRW_SPLAT: return 1;
+        case IRW_BITCAST: return 1;
+        case IRW_SNEW: return 1;
+        case IRW_FIELD: return 1;
+        case IRW_VREVERSE: return 1;                           // vec → vec (레인 재배열, vec 1개 소비)
+        case IRW_VROTATE: return 1;
+        case IRW_VSHUFFLE: return 1;
+        case IRW_SPOP_INTO: return 1;
+        case IRW_DRAIN: return 1;                              // ★ drain — 인스턴스 하나 소비
+        case IRW_CHRECV: return 1;                             // ★ chrecv — 채널 하나 소비, 값 push
+        case IRW_AWAIT: return 1;                              // ★ await — job 핸들 하나 소비, 결과 push
+        case IRW_CHSEND: return 2;                             // ★ chsend — 채널·값 소비, 단위 push
+        case IRW_VLOAD: return 2;
+        case IRW_FSTORE: return 2;
+        case IRW_VAVG: return 2;                               // va, vb → vec (target intrinsic)
+        case IRW_ELEMCK: return 2;
+        case IRW_ISTORE: return 3;
+        case IRW_VSTORE: return 3;
+        case IRW_VLOADM: return 4;                             // src, idx, mask, passthrough → vec (merge)
+        case IRW_VSTOREM: return 4;                            // dst, idx, vec, mask → ()
+        case IRW_PREFETCH: return 2;                           // ★ 슬라이스 + 색인 — 미는 값은 없다(힌트)
+        case IRW_RESBLK: return 0;                             // ★ 피연산자 0 — 저장소는 **링커가 준다**(RFC-0039 §9-2)
+        case IRW_MMIOBLK: return 0;                            // ★ 피연산자 0 — 기저 주소는 **타입 안에** 있다(RFC-0042 §8-2)
+        case IRW_CALL: return (int)ir->defs[IR_CALL_IDX(a)].nparams;
+        case IRW_ASEND: return (int)ir->defs[a & 0xffff].nparams;   // ★ async send — 핸들러 파라미터 수(instance+args) 소비
+        case IRW_TASEND: return (int)ir->defs[a & 0xffff].nparams;   // ★ try async send — 같은 팝(instance+args), result 를 민다
+        case IRW_TSPAWN: return (int)ir->defs[a & 0xffff].nparams;   // ★ task spawn — op 파라미터 수(인스턴스 없음) 소비
+        case IRW_MAKE: return (int)ir->makes[a].nfields;
         default:
             return -1;   // statements (STORE/DROP/RET/BR/BRZ) handled separately
     }

@@ -1407,6 +1407,30 @@ static void ck_clause_names(low_check_result_t *out, const low_cst_t *f,
                      "`none` sits in the `effects` clause ALONGSIDE a real effect — `none` means this "
                      "op performs no effects, so it cannot co-occur with one. Say the effects, or say "
                      "none; not both (RFC-0057 E2)", f->line);
+        } else if (veq(w, "inplace")) {
+            // ★★★★ RFC-0116 D2 B1 (소유자 결정 ⓑ, 2026-09-22) — `inplace <쓰기 입력> <읽기 입력> .`
+            //   «이 둘이 같은 저장소여도 된다» 는 선언이다. 모양: 이름 **둘**, 둘 다 이 op 의 입력, 앞의 것은
+            //   `mut`, 둘은 다르다. 선언이 **참인지**(몸이 읽기를 다 마친 뒤에만 쓰는지)는 이 판이 재지 않는다 —
+            //   지은 이의 의무다(정본 §8.12(7)). 재는 일은 B2.
+            proven_size_t n = 0; proven_u8str_view_t nm2[2] = { { 0 }, { 0 } }; bool bad = false;
+            for (proven_size_t j = i + 1; j < f->nkids; j++) {
+                if (f->kids[j]->kind != LOW_CST_ATOM || ck_clause_word(f->kids[j]->tok.lex)) break;
+                if (f->kids[j]->tok.kind != LOW_TOK_IDENT) { bad = true; break; }
+                if (n < 2) nm2[n] = f->kids[j]->tok.lex;
+                n++;
+            }
+            bool wmut = false;
+            if (n == 2 && !bad) {
+                low_op_header_t hh = low_op_header(f);
+                for (proven_size_t q = 0; q < hh.np; q++)
+                    if (proven_u8str_view_eq(hh.p[q].name, nm2[0])) { wmut = hh.p[q].is_mut; break; }
+            }
+            if (bad || n != 2 || !ck_is_param_name(f, nm2[0]) || !ck_is_param_name(f, nm2[1]) ||
+                proven_u8str_view_eq(nm2[0], nm2[1]) || !wmut)
+                emit(out, "E-INPLACE-FORM",
+                     "an `inplace` clause names exactly TWO inputs of this op: first the `mut` input it writes, then "
+                     "the input it reads — `inplace out a .` says «`out` and `a` may be the same storage». One pair "
+                     "per clause; the two must differ (RFC-0116 D2 · §8.12(7))", f->line);
         } else if (veq(w, "access") && i + 1 < f->nkids && f->kids[i + 1]->kind == LOW_CST_ATOM) {
             if (!ck_is_param(f, f->kids[i + 1]->tok.lex))
                 emit(out, "E-CONTRACT-UNDEF",
@@ -4133,7 +4157,7 @@ static const char *ck_rank_name(int r) {
         case 0: return "`satisfies`/`lowdoc`"; case 1: return "`vector`/`priority`"; case 2: return "a `comptime` input";
         case 3: return "a capability/region input"; case 4: return "`using`"; case 5: return "a data input";
         case 6: return "`output`"; case 7: return "`effects`"; case 8: return "`link`/`variadic`"; case 9: return "`asm`";
-        case 10: return "`access`/`parallel`/`reduce`"; case 11: return "`requires`"; case 12: return "`ensures`";
+        case 10: return "`access`/`inplace`/`parallel`/`reduce`"; case 11: return "`requires`"; case 12: return "`ensures`";
         case 13: return "`errors`"; case 14: return "`tests`"; case 15: return "`schedule`"; default: return "a clause";
     }
 }
@@ -4155,7 +4179,7 @@ static void ck_clause_order_one(low_check_result_t *out, const low_cst_t *f, pro
             snprintf(buf, sizeof msgs[0][0],
                      "%s comes after %s. An op header has ONE order: `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · "
                      "capability/region inputs · `using` · data inputs · `output` · `effects` · `link`/`variadic` · `asm` · "
-                     "`access`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input "
+                     "`access`/`inplace`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input "
                      "clauses for you; inputs are call positions, so reorder those and their call sites yourself)",
                      ck_rank_name(r), ck_rank_name(maxr));
             emit_at(out, "E-CLAUSE-ORDER", buf, f->kids[i]);
@@ -7462,6 +7486,18 @@ static const low_opinfo_t *ck_find_callee(const low_opinfo_t *tab, proven_size_t
     return NULL;
 }
 
+// 이 op 머리에 `inplace <w> <r> .` 이 있나
+static bool ck_has_inplace(const low_cst_t *form, proven_u8str_view_t w, proven_u8str_view_t r) {
+    if (!form) return false;
+    for (proven_size_t i = 0; i + 2 < form->nkids; i++) {
+        if (form->kids[i]->kind == LOW_CST_BLOCK) break;
+        if (!(ck_atom(form->kids[i]) && veq(form->kids[i]->tok.lex, "inplace"))) continue;
+        if (ck_atom(form->kids[i + 1]) && ck_atom(form->kids[i + 2]) &&
+            proven_u8str_view_eq(form->kids[i + 1]->tok.lex, w) && proven_u8str_view_eq(form->kids[i + 2]->tok.lex, r))
+            return true;
+    }
+    return false;
+}
 static void ck_excl_args_walk2(low_check_result_t *out, const low_cst_t *nd,
                                const low_opinfo_t *tab, proven_size_t nt, const ck_sctx_t *c) {
     if (!nd) return;
@@ -7492,6 +7528,60 @@ static void ck_excl_args_walk2(low_check_result_t *out, const low_cst_t *nd,
                          "whose constant ranges overlap, are the same storage.) Give each `mut` "
                          "position its own storage",
                          nd->kids[0]->tok.line);
+                    hit = true; break;
+                }
+            }
+            // ★★★★ **쓰는 자리 하나 + 읽는 자리 — 선언한 짝만** (RFC-0116 D2 B1, 소유자 결정 ⓑ 2026-09-22).
+            //   전엔 이 모양을 아무도 안 봤다(RFC-0115 §8-15 ⓒ — 지은 이의 의무). 이제 피호출자가
+            //   `inplace <쓰기> <읽기> .` 로 그 짝을 허락했을 때만 같거나 겹치는 저장소를 받는다. 허락 없는 op 이
+            //   몸 가운데서 그 자리에 먼저 쓰면 뒤의 읽기가 **바뀐 값**을 읽는다 — 진단이 아니라 틀린 답이다.
+            //   ☞ 겹침 판정은 위와 같은 저장소 열쇠다. 구간이 상수가 아니면 가르지 않는다.
+            for (proven_size_t q = 1; q < nd->nkids && !hit; q++) {
+                proven_size_t ai = q - 1;
+                if (ai >= h.np || !h.p[ai].is_mut) continue;
+                ck_skey_t kq = ck_skey_seq(c, (const low_cst_t *const *)nd->kids, q, q + 1, 0);
+                if (!kq.root.size) continue;
+                for (proven_size_t r = 1; r < nd->nkids; r++) {
+                    proven_size_t bi = r - 1;
+                    if (r == q || bi >= h.np || h.p[bi].is_mut) continue;
+                    ck_skey_t kr = ck_skey_seq(c, (const low_cst_t *const *)nd->kids, r, r + 1, 0);
+                    if (!ck_sk_overlap(kq, kr)) continue;
+                    // ★ `inplace` 는 «**같은 구간**이어도 된다» 만 허락한다. 부분 겹침(어긋난 구간 · 버퍼 전체와 그 일부)은
+                    //   선언으로도 안 된다 — 원소마다 읽고 쓰는 몸(`madd` 꼴)은 같은 구간에서만 옳고, 부르는 쪽은 피호출자가
+                    //   버퍼의 **어디에** 쓰는지 모른다. 저장소를 겹치지 않게 잘라 넘긴다(RFC-0116 §6.2 의 세 경우).
+                    bool same = (kq.whole && kr.whole) || (kq.known && kr.known && kq.a == kr.a && kq.b == kr.b);
+                    if (same && ck_has_inplace(op->form, h.p[ai].name, h.p[bi].name)) continue;
+                    if (!same) {
+                        emit(out, "E-EXCL-INPLACE",
+                             "the storage this op WRITES overlaps, but is not the same range as, storage it READS (shifted "
+                             "ranges, or a whole buffer and a piece of it). No declaration allows that: an op that reads and "
+                             "writes element by element is right only on the SAME range, and the caller cannot see where in "
+                             "the buffer the op writes. Hand the op storage that does not overlap — carve the workspace so "
+                             "the input lives outside the piece it writes (RFC-0116 D2 · §6.2)",
+                             nd->kids[0]->tok.line);
+                        hit = true; break;
+                    }
+                    // ★ 문구에 **피호출자와 두 입력 이름**을 싣는다 — 고칠 자리(`inplace <w> <r> .`)를 그대로 말한다.
+                    //   진단은 문구를 가리키므로 버퍼는 한 번씩만 쓴다. 다 쓰면 일반 문구로 돌아간다(덮어쓰지 않는다).
+                    static char ibuf[256][460]; static unsigned ibn;
+                    const char *msg =
+                         "the same storage is handed to this op in a position it WRITES and a position it READS, and "
+                         "the op does not say it can take that. If its body writes before it has finished reading, the "
+                         "later read sees the new value — a wrong answer, not a diagnostic. The op must declare the pair "
+                         "(`inplace <written> <read> .`, RFC-0116 D2), or give the output its own storage";
+                    if (ibn < 256) {
+                        proven_u8str_view_t cn = nd->kids[0]->tok.lex, wn = h.p[ai].name, rn = h.p[bi].name;
+                        snprintf(ibuf[ibn], sizeof ibuf[0],
+                                 "the same storage goes to `%.*s`'s WRITTEN input `%.*s` and its READ input `%.*s`, and the op "
+                                 "does not say it can take that — if its body writes before it has finished reading, the read "
+                                 "sees the new value (a wrong answer, not a diagnostic). Declare `inplace %.*s %.*s .` on the op "
+                                 "if its body reads first (RFC-0116 D2), or give the output its own storage",
+                                 (int)cn.size, (const char *)cn.ptr, (int)wn.size, (const char *)wn.ptr,
+                                 (int)rn.size, (const char *)rn.ptr, (int)wn.size, (const char *)wn.ptr,
+                                 (int)rn.size, (const char *)rn.ptr);
+                        msg = ibuf[ibn++];
+                    }
+                    emit(out, "E-EXCL-INPLACE", msg, nd->kids[0]->tok.line);
                     hit = true; break;
                 }
             }

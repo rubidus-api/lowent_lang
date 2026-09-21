@@ -113,7 +113,9 @@ errors short_workspace . do
   set (index scratch 404) 118 .
   set (index scratch 405) 101 .
   set (index scratch 406) 100 .
-  let _u6 result u64 tls13_error . be derive_secret prev (subslice scratch 400 407) empty_hash info scratch derived .
+  rem ★ 라벨이 `scratch[400..]` 에 산다 — 작업 칸은 **그 앞까지만** 넘긴다(겹치면 E-EXCL-INPLACE, RFC-0116 D2).
+  rem   `hmac.expand1` 은 작업 칸을 130 + len(info) ≤ 190 바이트만 쓴다.
+  let _u6 result u64 tls13_error . be derive_secret prev (subslice scratch 400 407) empty_hash info (subslice scratch 0 400) derived .
   guard is_ok _u6 . else return error short_workspace .
   guard eq (ok_value _u6) 32 . else return ok 0 .
   return hmac.extract derived ikm scratch out .
@@ -135,7 +137,7 @@ errors short_workspace . do
   set (index scratch 400) 107 .
   set (index scratch 401) 101 .
   set (index scratch 402) 121 .
-  return expand_label secret (subslice scratch 400 403) (subslice scratch 407 407) klen info scratch out .
+  return expand_label secret (subslice scratch 400 403) (subslice scratch 407 407) klen info (subslice scratch 0 400) out .
 end .
 
 rem ★ 레코드 IV: iv = Expand-Label(비밀,"iv","",12). 앞 12 바이트만 쓴다.
@@ -144,7 +146,7 @@ errors short_workspace . do
   guard ge (len scratch) 512 . else return error short_workspace .
   set (index scratch 400) 105 .
   set (index scratch 401) 118 .
-  return expand_label secret (subslice scratch 400 402) (subslice scratch 407 407) 12 info scratch out .
+  return expand_label secret (subslice scratch 400 402) (subslice scratch 407 407) 12 info (subslice scratch 0 400) out .
 end .
 
 rem ★★ Finished — 상대가 **같은 전사를 보았음**을 증언한다.
@@ -161,7 +163,7 @@ errors short_workspace . do
   set (index scratch 405) 104 .
   set (index scratch 406) 101 .
   set (index scratch 407) 100 .
-  return expand_label secret (subslice scratch 400 408) (subslice scratch 408 408) 32 info scratch out .
+  return expand_label secret (subslice scratch 400 408) (subslice scratch 408 408) 32 info (subslice scratch 0 400) out .
 end .
 
 rem ★ verify_data = HMAC(finished_key, 전사해시).

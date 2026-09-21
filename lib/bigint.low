@@ -132,7 +132,7 @@ end .
 rem ★★ 몽고메리 곱 (CIOS): out ← a·b·R^-1 mod n.  `t` 는 k+2 조각 작업 공간.
 rem   n0inv = −n[0]^-1 mod 2^16.
 export proc mont_mul input out mut slice u64 . input a slice u64 . input b slice u64 . input n slice u64 .
-     input k u64 . input n0inv u64 . input t mut slice u64 . output u64 . effects none . do
+     input k u64 . input n0inv u64 . input t mut slice u64 . output u64 . effects none . inplace out a . inplace out b . do
   guard ge (len t) (add k 2) . else return 0 .
   var z u64 be 0 .
   while lt z (add k 2) . do  set (index t z) 0 .  set z (add z 1) .  end .

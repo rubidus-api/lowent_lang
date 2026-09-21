@@ -55,7 +55,7 @@ rem 조각 수는 24(=384비트).
 fn q_limbs output u64 . do  return 24 . end .
 
 rem ★ 모듈러 뺄셈: o ← (a − b) mod m. 빌림이 나면 m 을 더해 되돌린다.
-proc q_msub input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . do
+proc q_msub input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . inplace o a . inplace o b . do
   var borrow u64 be 0 .
   var i u64 be 0 .
   while lt i 24 . do
@@ -78,7 +78,7 @@ proc q_msub input o mut slice u64 . input a slice u64 . input b slice u64 . inpu
 end .
 
 rem ★ 모듈러 덧셈: o ← (a + b) mod m.
-proc q_madd input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . do
+proc q_madd input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . inplace o a . inplace o b . do
   var carry u64 be 0 .
   var i u64 be 0 .
   while lt i 24 . do
@@ -165,7 +165,7 @@ rem   짓지 않는다** — 이 축에서는 그 편이 값싸다(검증은 한
 
 rem o ← a·b mod p (일반 형태). `t`·`u` 는 26 조각 작업 공간, r2 는 R² mod p.
 proc q_pmul input o mut slice u64 . input a slice u64 . input b slice u64 . input p slice u64 .
-     input r2 slice u64 . input n0i u64 . input t mut slice u64 . input u mut slice u64 . output u64 . effects none . do
+     input r2 slice u64 . input n0i u64 . input t mut slice u64 . input u mut slice u64 . output u64 . effects none . inplace o a . inplace o b . do
   guard eq (bigint.mont_mul u a b p 24 n0i t) 1 . else return 0 .
   return bigint.mont_mul o u r2 p 24 n0i t .
 end .

@@ -72,7 +72,7 @@ export proc fcopy input o mut slice u64 . input a slice u64 . output u64 . effec
 end .
 
 rem o = a + b
-export proc fadd input o mut slice u64 . input a slice u64 . input b slice u64 . output u64 . effects none . do
+export proc fadd input o mut slice u64 . input a slice u64 . input b slice u64 . output u64 . effects none . inplace o a . inplace o b . do
   guard ge (len o) 16 . else return 0 .
   guard ge (len a) 16 . else return 0 .
   guard ge (len b) 16 . else return 0 .
@@ -87,7 +87,7 @@ end .
 rem ★ o = a − b, 음수 없이. 4p = 2^257 − 76 의 조각을 더하고 뺀다:
 rem     4p 의 조각 = [0x1FFB4, 0x1FFFE × 15]   (0xFFDA·2 와 0xFFFF·2)
 rem   b 의 조각이 16 비트로 정리돼 있으면(호출 전 fcar) 언제나 음이 아니다.
-export proc fsub input o mut slice u64 . input a slice u64 . input b slice u64 . output u64 . effects none . do
+export proc fsub input o mut slice u64 . input a slice u64 . input b slice u64 . output u64 . effects none . inplace o a . inplace o b . do
   guard ge (len o) 16 . else return 0 .
   guard ge (len a) 16 . else return 0 .
   guard ge (len b) 16 . else return 0 .
@@ -103,7 +103,7 @@ export proc fsub input o mut slice u64 . input a slice u64 . input b slice u64 .
 end .
 
 rem o = a · b.  `t` 는 31 원소 작업 공간. o 는 a·b 와 같은 자리여도 된다(t 를 다 채운 뒤 옮긴다).
-export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 . input t mut slice u64 . output u64 . effects none . do
+export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 . input t mut slice u64 . output u64 . effects none . inplace o a . inplace o b . do
   guard ge (len o) 16 . else return 0 .
   guard ge (len a) 16 . else return 0 .
   guard ge (len b) 16 . else return 0 .
@@ -130,7 +130,7 @@ export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 .
   return fcar o .
 end .
 
-export proc fsq input o mut slice u64 . input a slice u64 . input t mut slice u64 . output u64 . effects none . do
+export proc fsq input o mut slice u64 . input a slice u64 . input t mut slice u64 . output u64 . effects none . inplace o a . do
   return fmul o a a t .
 end .
 

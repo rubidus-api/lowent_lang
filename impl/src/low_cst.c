@@ -799,6 +799,9 @@ bool low_is_clause_word(proven_u8str_view_t v) {
                                // ★★★★ RFC-0112 D8 — `using <이름> <타입> .` 은 op 이 깎아 쓰는 얼로케이터를 적는 **절**이다.
                                //   arity 에 들지 않는다 — 부르는 쪽은 그것을 위치로 적지 않는다(`low_using.c`).
                                "using",
+                               // ★★★★ RFC-0116 D2 B1 (소유자 결정 ⓑ, 2026-09-22) — `inplace <쓰기 입력> <읽기 입력> .` 은
+                               //   «이 둘이 같은 저장소여도 된다» 는 **절**이다. 부르는 쪽 검사(E-EXCL-INPLACE)가 읽는다.
+                               "inplace",
                                // ★ RFC-0041 — 인라인 asm 도 **절**이다(ISA·피연산자·clobber·options).
                                //   그래서 능력의 이름은 `cap machine` 이다: `asm` 은 절 낱말이라
                                //   **값 자리에 못 온다.** 충돌은 발견하는 게 아니라 **설계로 없앤다.**
@@ -1197,7 +1200,7 @@ int low_clause_rank(proven_u8str_view_t w) {
         //   앞의 것이 뒤의 것에 쓰인다(타입 매개변수가 입력·출력 타입에, 입력이 출력·계약에, 권한이 효과에).
         { "satisfies", 0 }, { "lowdoc", 0 }, { "vector", 1 }, { "priority", 1 },
         { "using", 4 }, { "output", 6 }, { "effects", 7 }, { "link", 8 }, { "variadic", 8 }, { "asm", 9 },
-        { "access", 10 }, { "parallel", 10 }, { "reduce", 10 },
+        { "access", 10 }, { "inplace", 10 }, { "parallel", 10 }, { "reduce", 10 },   // ★ inplace — 입력의 메모리를 어떻게 만지나(RFC-0116 D2 B1)
         { "requires", 11 }, { "ensures", 12 }, { "errors", 13 }, { "tests", 14 }, { "schedule", 15 },
     };
     for (proven_size_t i = 0; i < sizeof T / sizeof T[0]; i++)

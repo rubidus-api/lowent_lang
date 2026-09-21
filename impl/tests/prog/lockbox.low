@@ -114,7 +114,8 @@ proc peer_key_from_cert input cert slice u8 . input nb mut slice u8 . output u64
 end .
 
 rem ★ 공유 비밀 → 레코드 키·IV·nonce. **TLS 1.3 사다리를 그대로 탄다.**
-proc derive input shared slice u8 . input label slice u8 . input b mut slice u8 . output u64 . effects none . do
+rem ★ 공유 비밀은 `b` 안(오프셋 `so`)에 산다 — 별도 슬라이스로 받으면 쓰기 자리 `b` 와 **겹친다**(E-EXCL-INPLACE, RFC-0116 D2).
+proc derive input so u64 . input label slice u8 . input b mut slice u8 . output u64 . effects none . do
   guard ge (len b) 1228 . else return 0 .
 
   rem 사다리가 요구하는 두 상수를 **여기서 만들어 넘긴다** — 라이브러리가 몰래 만들지 않는다.
@@ -127,7 +128,7 @@ proc derive input shared slice u8 . input label slice u8 . input b mut slice u8 
   guard is_ok _u6 . else return 0 .
   guard eq (ok_value _u6) 32 . else return 0 .
   rem Handshake Secret = Extract(Derive-Secret(Early,"derived",""), ECDHE)
-  let _u7 result u64 tls13.tls13_error . be tls13.advance (subslice b 160 192) shared (subslice b 288 320) (subslice b 256 288) (subslice b 428 556) (subslice b 604 1116) (subslice b 192 224) .
+  let _u7 result u64 tls13.tls13_error . be tls13.advance (subslice b 160 192) (subslice b so (add so 32)) (subslice b 288 320) (subslice b 256 288) (subslice b 428 556) (subslice b 604 1116) (subslice b 192 224) .
   guard is_ok _u7 . else return 0 .
   guard eq (ok_value _u7) 32 . else return 0 .
   rem 이 프로그램의 비밀 — TLS 라면 "c ap traffic" 이 올 자리다.
@@ -183,7 +184,7 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
   end .
 
   rem ③ TLS 1.3 사다리로 레코드 키·IV·nonce 를 얻는다.
-  guard eq (derive (subslice b 96 128) label b) 12 . else return 96 .
+  guard eq (derive 96 label b) 12 . else return 96 .
 
   rem ④ 봉인 — 스위트가 여기서 갈린다. AES-128 은 키의 **앞 16 바이트**만 쓴다.
   if eq suite 1 . do
@@ -202,7 +203,7 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
   end .
 
   rem ⑤ 받는 쪽이 **자기** 비밀에서 같은 사다리를 타고 개봉한다.
-  guard eq (derive (subslice b 128 160) label b) 12 . else return 98 .
+  guard eq (derive 128 label b) 12 . else return 98 .
   var verdict u64 be 0 .
   if eq suite 1 . do
     let vr result u64 gcm.gcm_error . be gcm.decrypt (subslice b 320 336) (subslice b 384 396) salt ct tag out (subslice b 1148 1164) (subslice b 1228 1548) .

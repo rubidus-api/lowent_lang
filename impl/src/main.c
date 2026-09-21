@@ -320,7 +320,13 @@ static int deps_of(proven_allocator_t heap, const proven_byte_t *buf, proven_siz
 //   (2D: 예약 이름 해소의 뿌리는 **설치 자체**다 — 실행파일 기준 상대 경로).
 #include <dirent.h>
 typedef struct { char name[64]; char path[512]; } std_mod_t;
-static std_mod_t g_std[64];
+// ★★★ **칸이 모자라면 말한다** (2026-09-21). 전에는 64 칸이었고, 넘치면 `readdir` 루프가 **조용히**
+//   멈췄다. 표준 라이브러리가 63 개로 자라자 사용자 스코프(`~/.lowent/lib`)에 남은 자리가 한 칸뿐이
+//   되어, `lowentc install` 로 넣은 모듈이 **디렉터리 순서에 따라** 색인에서 사라졌다 — `use greeter .`
+//   가 E-IR-UNDEF 로 호출자를 탓했다(골든 `install --user` 가 캐시가 풀린 날에만 빨갰다).
+//   ⇒ 칸을 넉넉히 두고, 그래도 넘치면 버리는 대신 **한 번 소리 내어** 알린다.
+#define LOW_STD_CAP 1024
+static std_mod_t g_std[LOW_STD_CAP];
 static int       g_nstd = -1;   // -1 = 아직 안 훑음
 
 // 소스 바이트에서 `module <name> .` 을 읽는다 — std_scan_dir 과 **같은 규칙**(한 어휘, 한 자리).
@@ -347,7 +353,14 @@ static void std_scan_dir(const char *dir) {
     DIR *d = opendir(dir);
     if (!d) return;
     struct dirent *e;
-    while ((e = readdir(d)) && g_nstd < 64) {
+    while ((e = readdir(d))) {
+        if (g_nstd >= LOW_STD_CAP) {
+            static bool told;
+            if (!told) fprintf(stderr, "lowentc: ★ module index is full (%d) — modules under %s were NOT indexed; "
+                                       "`use <name> .` for them will fail. Raise LOW_STD_CAP.\n", LOW_STD_CAP, dir);
+            told = true;
+            break;
+        }
         size_t ln = strlen(e->d_name);
         if (ln < 5 || strcmp(e->d_name + ln - 4, ".low") != 0) continue;
         char fp[600]; snprintf(fp, sizeof fp, "%s/%s", dir, e->d_name);

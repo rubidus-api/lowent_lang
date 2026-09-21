@@ -572,10 +572,46 @@ end", "E-PAREN-ESCAPE")
       아니라 **피호출자의 문장 차례**가 정하며, 부르는 쪽 글에는 그것을 알 길이 없다.
     ]
     #para("7")[
-      같은 저장소를 `mut` 자리 **하나**와 읽는 자리에 함께 넘기는 것(제자리 연산)은, 그 op 이
-      **읽기를 다 마친 뒤에만 그 `mut` 자리에 쓸 때에만** 적합하다. 그 성질은 op 의 몸이
-      정하므로 op 을 지은 이가 `lowdoc` 에 밝힌다. 이 판의 도구는 그것을 재지 아니한다.
+      같은 저장소를 `mut` 자리 **하나**와 읽는 자리에 함께 넘기는 것(제자리 연산)은, 피호출자가 그 두 입력의 짝을
+      `inplace <쓰기 입력> <읽기 입력> .` 절(#cref("6.4.1") (3a))로 **선언했고** 두 저장소가 **같은 구간**일 때에만 적합하다
+      (`E-EXCL-INPLACE`). 같은 구간이란 같은 저장소의 전체이거나, 같은 저장소에서 잘라 낸 같은 시작·같은 끝의 조각이다.
+      구간이 어긋나게 겹치거나 한쪽이 다른 쪽의 일부이면(**부분 겹침**) 선언이 있어도 적합하지 아니하다 — 원소마다 읽고
+      쓰는 몸은 같은 구간에서만 옳고, 부르는 쪽은 피호출자가 저장소의 어디에 쓰는지 알 수 없다.
     ]
+    #para("7a")[
+      `inplace` 절은 이름 **둘**을 적는다: 앞의 것은 그 op 의 `mut` 입력, 뒤의 것은 그 op 의 다른 입력이다. 짝 하나에 절
+      하나를 적는다. 모양이 어긋나면 `E-INPLACE-FORM` 이다. 그 선언이 **참인지** — 몸이 같은 구간에서 옳게 도는지 — 는 op 을
+      지은 이의 의무이며 이 판의 도구는 재지 아니한다.
+    ]
+    #para("7b")[
+      두 구간이 겹치는지 가를 수 없을 때(잘라 낸 끝이 상수가 아닐 때) 처리기는 (6)·(7) 을 묻지 아니한다.
+    ]
+    #plain[
+      (7) 은 2026-09-21 까지 «읽기를 다 마친 뒤에만 쓰는 op» 에 대한 **지은 이의 의무**였고 도구가 보지 않았다(RFC-0115 §8-15 ⓒ).
+      그래서 어긴 부름은 진단이 아니라 틀린 답으로 나타났다. 이제 허락은 **op 의 머리에 적히고**, 부르는 쪽 한 자리에서
+      물을 수 있다(RFC-0116 D2 B1, 2026-09-22 소유자 결정 ⓑ). 옛 규칙이 허락하던 부분 겹침은 새 규칙이 막는다 — 코퍼스의
+      그런 부름 일곱은 저장소를 겹치지 않게 잘라 넘기도록 고쳤다.
+    ]
+    #rejected("선언하지 않은 op 에 같은 저장소를 쓰기·읽기로 함께 넘긴다", "module ex_inplace_undeclared .
+
+proc scale input o mut slice u64 . input a slice u64 . output u64 . effects none . do
+  set (index o 0) (mul (index a 0) 2) .
+  return 1 .
+end .
+
+proc f input w mut slice u64 . output u64 . effects none . do
+  return scale w w .
+end .", "E-EXCL-INPLACE")
+    #ex("같은 구간을 허락한 op 의 제자리 부름", "module ex_inplace_ok .
+
+proc scale input o mut slice u64 . input a slice u64 . output u64 . effects none . inplace o a . do
+  set (index o 0) (mul (index a 0) 2) .
+  return 1 .
+end .
+
+proc f input w mut slice u64 . output u64 . effects none . do
+  return scale (subslice w 0 4) (subslice w 0 4) .
+end .")
     #plain[
       이 규칙이 지키는 것은 #cref("8.8") 과 같다 — **읽는 쪽의 믿음**이다. 다만 §8.8 이 「쓸 수
       있는가」를 타입으로 가른다면, 여기는 「지금 이 자리에 누가 함께 있는가」를 가린다.

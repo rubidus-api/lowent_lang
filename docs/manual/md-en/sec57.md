@@ -15,7 +15,7 @@ The normative text is the specification; this appendix is a reference gathering 
   output <type> .                          ⑦
   effects <atoms…> [via <type>] .          ⑧
   link "<name>" · variadic · asm <machine> ⑨ joining the outside
-  access · parallel <name> split · reduce  ⑩ how it runs split
+  access · inplace <written> <read> · parallel <name> split · reduce  ⑩ how it touches memory · runs split
   requires [static|debug|assume] <cond> .  ⑪ input conditions
   ensures <cond> .                         ⑫ output promises (ret)
   errors <variant> [<cond>] .              ⑬ failure

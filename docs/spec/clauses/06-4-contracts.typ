@@ -29,7 +29,7 @@
     #para("3a")[
       머리의 절은 **한 가지 차례로만** 적는다. 앞에서 뒤로:
       `satisfies`·`lowdoc` · `vector`·`priority` · `comptime` 입력 · 권한·영역 입력(타입이 `cap …`·`region …`) ·
-      `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm` · `access`·`parallel`·`reduce` ·
+      `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm` · `access`·`inplace`·`parallel`·`reduce` ·
       `requires` · `ensures` · `errors` · `tests` · `schedule`. 같은 자리의 절끼리는 적힌 차례를 지킨다.
       trait 의 메서드 서명(#cref("6.11.2"))과 actor 안의 `proc` 도 같은 차례를 따른다.
       이 차례를 어기면 번역이 거부된다(`E-CLAUSE-ORDER`). 입력의 차례는 부르는 쪽 인자의 차례이기도 하다 —

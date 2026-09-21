@@ -178,6 +178,7 @@ loop has its length change even though its own code contains no assignment. Retu
   [`set p <value> .`], [write where a reference points (`mut_ref`)], [through a read borrow it is `E-TYPE-REF`],
   [`field v a`], [read a field through a reference], [same spelling for a reference to a struct],
   [two `mut_ref` of one value · `ref` plus a write], [overlapping borrows --- rejected (`E-EXCL`)], [many readers or one writer],
+  [one storage in a written and a read position], [only when the callee allows it with `inplace <written> <read> .` and the ranges are *the same* --- else `E-EXCL-INPLACE`], [a body that reads and writes element by element is right only on the same range],
   [`return ref here .`], [return a reference to a local --- rejected], [never point at a value that is gone],
   [`mut ref slice`], [does not exist --- rejected (`E-MREF-SLICE`)], [no hidden length change --- return a new slice],
 )

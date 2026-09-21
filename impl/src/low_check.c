@@ -5250,15 +5250,6 @@ static bool ck_scalar_head(proven_u8str_view_t w) {
     for (proven_size_t i = 0; i < sizeof S / sizeof S[0]; i++) if (veq(w, S[i])) return true;
     return false;
 }
-static bool ck_carries_region(const low_cst_t *nd, proven_u8str_view_t n) {
-    if (!nd) return false;
-    if (nd->kind == LOW_CST_ATOM) return proven_u8str_view_eq(nd->tok.lex, n);
-    if (nd->nkids && ck_atom(nd->kids[0]) && ck_scalar_head(nd->kids[0]->tok.lex))
-        return false;                       // ★ 스칼라를 낸다 — 자리를 안 들고 나간다
-    for (proven_size_t i = 0; i < nd->nkids; i++)
-        if (ck_carries_region(nd->kids[i], n)) return true;
-    return false;
-}
 
 // ★★★ **`borrow` — 빌린 것의 수명을 스코프로 못 박는다** (2026-07-19, 사용자 결정).
 //
@@ -5277,9 +5268,30 @@ static bool ck_carries_region(const low_cst_t *nd, proven_u8str_view_t n) {
 //        **readers-XOR-writer 를 actor 로 옮긴 것**이다.
 //   ☞ ②는 **과엄격이다**(P 에게 읽기만 묻는 것도 막는다). 그런데 과엄격은 안전하고 구멍은
 //     안전하지 않다 — 이 세션에서 이미 두 번 같은 저울을 썼다.
+// ★★★★ **밖 이름에 대입해도 나가는 것이다** (결함 `borrow-escape-by-assignment`, 2026-09-21).
+//   전엔 ①이 `return`/`give` 만 봤다. `set keep v .` · `set keep (subslice v 0 4) .` 는 빌림을 블록
+//   밖 이름에 담는데 통과했다. region 의 같은 검사(E-REGION-ESCAPE)가 이미 하던 것을 옮긴다:
+//     · 블록 안에서 **선언된** 이름은 안쪽이다(거기 담는 것은 나가는 게 아니다)
+//     · 빌린 이름에서 나온 값을 받은 안쪽 이름도 **빌림을 든다**(오염이 번진다)
+//     · 스칼라를 내는 식(`len`·`index`·`narrow` …)은 자리를 안 들고 나간다
+static bool ck_name_in(const proven_u8str_view_t *v, proven_size_t n, proven_u8str_view_t w);
+static bool ck_carries_taint(const low_cst_t *nd, const proven_u8str_view_t *t, proven_size_t nt);
+static bool ck_type_word_scalar(proven_u8str_view_t w);
+#define CK_BW_NAMES 64
+typedef struct { proven_u8str_view_t inner[CK_BW_NAMES]; proven_size_t ninner;
+                 proven_u8str_view_t taint[CK_BW_NAMES + 1]; proven_size_t ntaint; } ck_bwctx_t;   // 오염 ⊆ 안쪽 이름 ∪ {빌린 이름}
+static void ck_borrow_walk_in(low_check_result_t *out, const low_cst_t *nd,
+                              proven_u8str_view_t nm, proven_u8str_view_t lender,
+                              bool have_lender, bool inside, ck_bwctx_t *bc);
 static void ck_borrow_walk(low_check_result_t *out, const low_cst_t *nd,
                            proven_u8str_view_t nm, proven_u8str_view_t lender,
                            bool have_lender, bool inside) {
+    ck_bwctx_t bc = { .ninner = 0, .ntaint = 0 };
+    ck_borrow_walk_in(out, nd, nm, lender, have_lender, inside, &bc);
+}
+static void ck_borrow_walk_in(low_check_result_t *out, const low_cst_t *nd,
+                              proven_u8str_view_t nm, proven_u8str_view_t lender,
+                              bool have_lender, bool inside, ck_bwctx_t *bc) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     bool is_borrow = (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
                       veq(nd->kids[0]->tok.lex, "borrow") && ck_atom(nd->kids[1]));
@@ -5309,24 +5321,71 @@ static void ck_borrow_walk(low_check_result_t *out, const low_cst_t *nd,
                     if (tgt && ck_atom(tgt)) { lend = tgt->tok.lex; has = true; }
                 }
             }
+            // ★ 새 빌림 — 제 안쪽 이름과 오염을 새로 센다(빌린 이름 자신이 첫 오염이다)
+            ck_bwctx_t sub = { .ninner = 0, .ntaint = 0 };
+            sub.taint[sub.ntaint++] = nd->kids[1]->tok.lex;
             for (proven_size_t i = 0; i < blk->nkids; i++)
-                ck_borrow_walk(out, blk->kids[i], nd->kids[1]->tok.lex, lend, has, true);
+                ck_borrow_walk_in(out, blk->kids[i], nd->kids[1]->tok.lex, lend, has, true, &sub);
             return;
         }
     }
     if (inside && nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0])) {
         low_kw_t kw = nd->kids[0]->tok.kw;
-        // ① 빌린 이름이 블록 밖으로 나가나
-        if (kw == LOW_KW_RETURN || kw == LOW_KW_GIVE) {
-            for (proven_size_t j = 1; j < nd->nkids; j++)
-                if (ck_carries_region(nd->kids[j], nm)) {
+        // ⓪ 블록 안에서 선언된 이름 — 초기식이 빌림을 들면 그 이름도 빌림을 든다
+        if ((kw == LOW_KW_LET || kw == LOW_KW_VAR) && ck_atom(nd->kids[1]) && bc->ninner >= CK_BW_NAMES) {
+            emit(out, "E-IR-LIMIT",
+                 "too many names declared inside this `borrow` block for the escape checker's table — "
+                 "refused rather than checked partly. Split the block",
+                 nd->kids[0]->tok.line);
+            return;
+        }
+        if ((kw == LOW_KW_LET || kw == LOW_KW_VAR) && ck_atom(nd->kids[1])) {
+            bc->inner[bc->ninner] = nd->kids[1]->tok.lex; bc->ninner += 1;
+            proven_size_t be = nd->nkids;
+            for (proven_size_t q = 2; q < nd->nkids; q++)
+                if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
+            bool scalar = (be == 3 && ck_atom(nd->kids[2]) && ck_type_word_scalar(nd->kids[2]->tok.lex));
+            for (proven_size_t q = be + 1; q < nd->nkids && !scalar; q++)
+                if (ck_carries_taint(nd->kids[q], bc->taint, bc->ntaint)) {
+                    // ★ 오염 표는 안쪽 이름 표 + 빌린 이름 하나를 넘지 않는다(안쪽 이름만 오염된다) — 자리가 늘 있다
+                    bc->taint[bc->ntaint] = nd->kids[1]->tok.lex; bc->ntaint += 1;
+                    break;
+                }
+        }
+        // ① 빌린 것이 블록 밖으로 나가나 — return · give · 밖 이름(또는 그 칸·원소)에 대입
+        bool leaves = (kw == LOW_KW_RETURN || kw == LOW_KW_GIVE);
+        if (kw == LOW_KW_SET) {
+            const low_cst_t *tg = nd->kids[1];
+            for (int hop = 0; tg && hop < 16; hop++) {           // `set (index s i) v` — 밑동 이름
+                if (tg->kind == LOW_CST_GROUP) tg = tg->nkids ? tg->kids[0] : NULL;
+                else if (tg->kind == LOW_CST_FORM && tg->nkids >= 2) tg = tg->kids[1];
+                else break;
+            }
+            if (tg && ck_atom(tg)) {
+                bool is_inner = ck_name_in(bc->inner, bc->ninner, tg->tok.lex) ||
+                                proven_u8str_view_eq(tg->tok.lex, nm);
+                leaves = !is_inner;
+                if (is_inner && !ck_name_in(bc->taint, bc->ntaint, tg->tok.lex))
+                    for (proven_size_t j = 2; j < nd->nkids; j++)
+                        if (ck_carries_taint(nd->kids[j], bc->taint, bc->ntaint)) { bc->taint[bc->ntaint] = tg->tok.lex; bc->ntaint += 1; break; }
+            }
+        }
+        if (leaves) {
+            for (proven_size_t j = 1; j < nd->nkids; j++) {
+                if (kw == LOW_KW_SET && j == 1) continue;       // 대상은 값이 아니다
+                if (j > 1 && ck_atom(nd->kids[j]) && ck_atom(nd->kids[j - 1]) && ck_scalar_head(nd->kids[j - 1]->tok.lex))
+                    continue;
+                if (ck_carries_taint(nd->kids[j], bc->taint, bc->ntaint)) {
                     emit(out, "E-BORROW-ESCAPE",
                          "this borrow is being carried OUT of its `borrow` block. The borrow lives "
                          "for the block and not one statement longer — that is what makes it safe to "
-                         "hand out a plain slice at all. Copy what you need, or widen the block",
+                         "hand out a plain slice at all. Storing it in a name declared OUTSIDE the "
+                         "block (or in that name's field or element) carries it out just as `return` "
+                         "does. Copy what you need, or widen the block",
                          nd->kids[0]->tok.line);
                     return;
                 }
+            }
         }
         // ② 빌려준 자에게 다시 말을 거나
         if (have_lender && lender.size) {
@@ -5345,7 +5404,7 @@ static void ck_borrow_walk(low_check_result_t *out, const low_cst_t *nd,
         }
     }
     for (proven_size_t i = 0; i < nd->nkids; i++)
-        ck_borrow_walk(out, nd->kids[i], nm, lender, have_lender, inside);
+        ck_borrow_walk_in(out, nd->kids[i], nm, lender, have_lender, inside, bc);
 }
 
 // ★★★ **region 에서 할당한 것은 그 블록을 벗어날 수 없다** (SPEC-004 §4.5 ESC · 2026-07-19).
@@ -7284,48 +7343,301 @@ static void ck_capkind_walk(low_check_result_t *out, const low_cst_t *nd, const 
 //   `copy_into buf buf` 는 같은 바이트를 **쓰는 쪽과 읽는 쪽**으로 동시에 건넨다. `mut_ref` 를
 //   두 번 넘기면 `E-EXCL` 인데 이 모양은 통과했다 — 배타 규칙은 «쓰기 하나 **또는** 읽기 여럿»
 //   이지 «쓰기 하나와 읽기 하나» 가 아니다.
-static void ck_excl_args_walk(low_check_result_t *out, const low_cst_t *nd,
-                              const low_opinfo_t *tab, proven_size_t nt) {
+// ★★★★ **«같은 이름» 이 아니라 «같은 저장소»** (결함 `excl-same-storage-by-alias`, 2026-09-21).
+//   정본 §8.12(6) 은 같은 **저장소**를 `mut` 자리 둘에 넘기는 것을 거절한다. 전엔 같은 **이름**만
+//   봐서 `var x be buf` 뒤 `two buf x`, `two (subslice buf 0 4) (subslice buf 0 4)` 가 통과했다 —
+//   뒤 쓰기가 앞 쓰기를 조용히 덮었다. 이제 인자마다 **저장소 열쇠**(밑동 이름 + 구간)를 낸다:
+//     · 이름 — 이 op 안의 별칭(`let/var x … be <이름>` · `be subslice <이름> a b`)을 따라 밑동으로
+//     · `subslice E a b` — a·b 가 **수 리터럴**이면 구간을 안다(별칭의 구간과 합친다)
+//   겹침 판정: 밑동이 같고, 한쪽이 전체이거나 두 상수 구간이 겹치면 `E-EXCL`.
+//   ☞ 구간이 **상수가 아니면** 가르지 않는다(거절하지 않는다) — 그것은 RFC-0116 D2(동적 범위)의 몫이다.
+//     작업 버퍼를 상수 구간으로 서로소하게 잘라 쓰는 모양(코퍼스 ~300 줄)은 그대로 통과한다.
+//   ☞ 통째로 다시 대입되는 이름(`set x …`)은 별칭으로 믿지 않는다 — 흐름을 안 따라가는 대신 좁게 본다.
+#define CK_SK_MAX 96
+typedef struct { proven_u8str_view_t root; bool whole, known; unsigned long long a, b; } ck_skey_t;
+typedef struct { proven_u8str_view_t name; ck_skey_t key; } ck_salias_t;
+typedef struct { ck_salias_t v[CK_SK_MAX]; proven_size_t n;
+                 proven_u8str_view_t reset[CK_SK_MAX]; proven_size_t nreset; bool full; } ck_sctx_t;
+
+static bool ck_num_lit(const low_cst_t *nd, unsigned long long *out) {
+    while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
+    if (!nd || nd->kind != LOW_CST_ATOM || nd->tok.kind != LOW_TOK_NUMBER) return false;
+    unsigned long long v = 0;
+    if (!nd->tok.lex.size || nd->tok.lex.size > 19) return false;
+    for (proven_size_t i = 0; i < nd->tok.lex.size; i++) {
+        unsigned c = nd->tok.lex.ptr[i];
+        if (c < '0' || c > '9') return false;            // 10 진 리터럴만 — 나머지는 «모른다»
+        v = v * 10 + (c - '0');
+    }
+    *out = v; return true;
+}
+static bool ck_sk_reset(const ck_sctx_t *c, proven_u8str_view_t n) {
+    for (proven_size_t i = 0; i < c->nreset; i++) if (proven_u8str_view_eq(c->reset[i], n)) return true;
+    return false;
+}
+// kids[from..to) 를 한 식으로 보고 저장소 열쇠를 낸다(root.size == 0 → 저장소를 모른다)
+static ck_skey_t ck_skey_seq(const ck_sctx_t *c, const low_cst_t *const *k, proven_size_t from, proven_size_t to, int depth) {
+    ck_skey_t z = { 0 };
+    if (depth > 8 || from >= to) return z;
+    if (to - from == 1) {
+        const low_cst_t *nd = k[from];
+        while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
+        if (!nd) return z;
+        if (nd->kind == LOW_CST_ATOM) {
+            if (nd->tok.kind != LOW_TOK_IDENT) return z;
+            for (proven_size_t i = 0; i < c->n; i++)
+                if (proven_u8str_view_eq(c->v[i].name, nd->tok.lex)) return c->v[i].key;
+            z.root = nd->tok.lex; z.whole = true; return z;
+        }
+        if ((nd->kind == LOW_CST_FORM || nd->kind == LOW_CST_GROUP) && nd->nkids)
+            return ck_skey_seq(c, (const low_cst_t *const *)nd->kids, 0, nd->nkids, depth + 1);
+        return z;
+    }
+    if (to - from == 4 && ck_atom(k[from]) && veq(k[from]->tok.lex, "subslice")) {
+        ck_skey_t base = ck_skey_seq(c, k, from + 1, from + 2, depth + 1);
+        if (!base.root.size) return z;
+        unsigned long long a, b;
+        if (!(ck_num_lit(k[from + 2], &a) && ck_num_lit(k[from + 3], &b)) || b < a) {
+            base.whole = false; base.known = false; return base;      // 구간을 모른다
+        }
+        if (base.whole) { base.whole = false; base.known = true; base.a = a; base.b = b; return base; }
+        if (base.known) { base.a += a; base.b = base.a + (b - a); return base; }
+        return base;                                                  // 밑이 이미 모르는 구간
+    }
+    return z;
+}
+static void ck_sk_collect(ck_sctx_t *c, const low_cst_t *nd, bool resets) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0])) {
+        low_kw_t kw = nd->kids[0]->tok.kw;
+        if (resets && kw == LOW_KW_SET && ck_atom(nd->kids[1]) && !ck_sk_reset(c, nd->kids[1]->tok.lex)) {   // ★ 이름마다 한 번(600 문장 몸이 표를 넘쳤다 — vm_bigbody)
+            if (c->nreset >= CK_SK_MAX) c->full = true;
+            else { c->reset[c->nreset] = nd->kids[1]->tok.lex; c->nreset += 1; }
+        }
+        if (!resets && (kw == LOW_KW_LET || kw == LOW_KW_VAR) && ck_atom(nd->kids[1]) &&
+            !ck_sk_reset(c, nd->kids[1]->tok.lex)) {
+            proven_size_t be = nd->nkids;
+            for (proven_size_t q = 2; q < nd->nkids; q++)
+                if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
+            if (be + 1 < nd->nkids) {
+                ck_skey_t k = ck_skey_seq(c, (const low_cst_t *const *)nd->kids, be + 1, nd->nkids, 0);
+                // ★ 별칭은 **이름이나 subslice** 에서만 선다 — 부름의 결과는 새 저장소일 수 있다
+                const low_cst_t *h = nd->kids[be + 1];
+                while (h && h->kind == LOW_CST_GROUP && h->nkids == 1) h = h->kids[0];
+                bool shape = (be + 2 == nd->nkids && h && h->kind == LOW_CST_ATOM) ||
+                             (h && ck_atom(h) && veq(h->tok.lex, "subslice")) ||
+                             (h && h->kind == LOW_CST_FORM && h->nkids && ck_atom(h->kids[0]) &&
+                              veq(h->kids[0]->tok.lex, "subslice"));
+                if (k.root.size && shape && !proven_u8str_view_eq(k.root, nd->kids[1]->tok.lex)) {
+                    if (c->n >= CK_SK_MAX) c->full = true;
+                    else { c->v[c->n].name = nd->kids[1]->tok.lex; c->v[c->n].key = k; c->n += 1; }
+                }
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_sk_collect(c, nd->kids[i], resets);
+}
+static bool ck_sk_overlap(ck_skey_t x, ck_skey_t y) {
+    if (!x.root.size || !y.root.size || !proven_u8str_view_eq(x.root, y.root)) return false;
+    if (x.whole && y.whole) return true;
+    if (x.whole) return y.known && y.b > y.a;
+    if (y.whole) return x.known && x.b > x.a;
+    if (!x.known || !y.known) return false;                           // 모르는 구간 — D2 의 몫
+    unsigned long long lo = x.a > y.a ? x.a : y.a, hi = x.b < y.b ? x.b : y.b;
+    return lo < hi;
+}
+// 한정 호출(`m.f`)은 그 모듈의 op 을, 맨이름은 이름으로 찾는다(op_declared_q 와 같은 규율)
+static const low_opinfo_t *ck_find_callee(const low_opinfo_t *tab, proven_size_t nt, proven_u8str_view_t callee) {
+    proven_size_t dot = callee.size;
+    for (proven_size_t i = 0; i < callee.size; i++) if (callee.ptr[i] == '.') { dot = i; break; }
+    if (dot < callee.size) {
+        proven_u8str_view_t head = { callee.ptr, dot }, tail = { callee.ptr + dot + 1, callee.size - dot - 1 };
+        for (proven_size_t t = 0; t < nt; t++)
+            if (tab[t].form && proven_u8str_view_eq(tab[t].name, tail) && proven_u8str_view_eq(tab[t].mod, head))
+                return &tab[t];
+        return NULL;
+    }
+    for (proven_size_t t = 0; t < nt; t++)
+        if (tab[t].form && proven_u8str_view_eq(tab[t].name, callee)) return &tab[t];
+    return NULL;
+}
+
+static void ck_excl_args_walk2(low_check_result_t *out, const low_cst_t *nd,
+                               const low_opinfo_t *tab, proven_size_t nt, const ck_sctx_t *c) {
     if (!nd) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) &&
         nd->kids[0]->tok.kw == LOW_KW_NONE) {
-        proven_u8str_view_t callee = nd->kids[0]->tok.lex;
-        // ★★ **쓰는 자리 둘에 같은 이름** — 이것은 재는 데 아무 추론도 필요 없다. §8.12 는
-        //   «쓰는 쪽 하나, 아니면 읽는 쪽 여럿» 이다. 한 부름이 같은 저장소를 `mut` 자리 둘에
-        //   넘기면 **쓰는 쪽이 둘**이고, 어느 쓰기가 남는지는 피호출자의 문장 차례가 정한다.
-        //   (`mont_mul acc a b n k n0i acc` — 결과 칸과 scratch 칸이 같은 바이트다.)
-        //
-        //   ☞ **쓰는 자리 하나 + 읽는 자리**(`mont_mul acc acc r2 …`)는 여기서 안 문다.
-        //     몽고메리 곱은 scratch 에 다 셈한 뒤 마지막에 `out` 으로 옮기므로 제자리가 안전하고,
-        //     그것이 `lib/bigint`·`ecdsa`·`ed25519`·`p256`·`rsa`·`x25519` 의 정상적인 모양이다.
-        //     그 안전함은 **피호출자의 문장 차례**에 달렸고 이 층은 그것을 못 본다 —
-        //     정본 §8.12(3) 에 «읽기를 다 마친 뒤에만 쓰는 op 만 제자리로 부를 수 있다» 고
-        //     적고, 재는 일은 RFC-0115 §8-15 ⓑ(선언으로 받기)가 정해지면 그때 한다.
-        for (proven_size_t t = 0; t < nt; t++) {
-            if (!proven_u8str_view_eq(tab[t].name, callee) || !tab[t].form) continue;
-            low_op_header_t h = low_op_header(tab[t].form);
-            for (proven_size_t q = 1; q < nd->nkids; q++) {
+        // ★★ **쓰는 자리 둘에 같은 저장소** — §8.12 는 «쓰는 쪽 하나, 아니면 읽는 쪽 여럿» 이다.
+        //   ☞ **쓰는 자리 하나 + 읽는 자리**(`mont_mul acc acc r2 …`)는 여기서 안 문다 — 정본 §8.12(7) ·
+        //     RFC-0115 §8-15 ⓒ(작성자 의무) · RFC-0116 D2(현행 유지, 2026-09-21 소유자 결정).
+        const low_opinfo_t *op = ck_find_callee(tab, nt, nd->kids[0]->tok.lex);
+        if (op) {
+            low_op_header_t h = low_op_header(op->form);
+            bool hit = false;
+            for (proven_size_t q = 1; q < nd->nkids && !hit; q++) {
                 proven_size_t ai = q - 1;
                 if (ai >= h.np || !h.p[ai].is_mut) continue;
-                if (!(ck_atom(nd->kids[q]) && nd->kids[q]->tok.kind == LOW_TOK_IDENT)) continue;
+                ck_skey_t kq = ck_skey_seq(c, (const low_cst_t *const *)nd->kids, q, q + 1, 0);
+                if (!kq.root.size) continue;
                 for (proven_size_t r = q + 1; r < nd->nkids; r++) {
                     proven_size_t bi = r - 1;
                     if (bi >= h.np || !h.p[bi].is_mut) continue;
-                    if (!(ck_atom(nd->kids[r]) && nd->kids[r]->tok.kind == LOW_TOK_IDENT)) continue;
-                    if (!proven_u8str_view_eq(nd->kids[r]->tok.lex, nd->kids[q]->tok.lex)) continue;
+                    ck_skey_t kr = ck_skey_seq(c, (const low_cst_t *const *)nd->kids, r, r + 1, 0);
+                    if (!ck_sk_overlap(kq, kr)) continue;
                     emit(out, "E-EXCL",
                          "the same storage is handed to this op in TWO places it writes. The rule is "
                          "one writer or many readers (§8.12), never two writers at once: which write "
                          "survives depends on the order of statements inside the op you called, not "
-                         "on anything written here. Give each `mut` position its own storage",
+                         "on anything written here. (Two names that alias one buffer, or two subslices "
+                         "whose constant ranges overlap, are the same storage.) Give each `mut` "
+                         "position its own storage",
                          nd->kids[0]->tok.line);
-                    r = nd->nkids; q = nd->nkids;
+                    hit = true; break;
                 }
             }
-            break;
         }
     }
-    for (proven_size_t i = 0; i < nd->nkids; i++) ck_excl_args_walk(out, nd->kids[i], tab, nt);
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_excl_args_walk2(out, nd->kids[i], tab, nt, c);
+}
+// ★★★★ **struct 에서 빌린 동안 빌려준 저장소에 쓰지 않는다** (RFC-0116 D1 (iii), 소유자 결정 2026-09-21).
+//   §8.12(4) 는 액터에게서 빌린 채 그 액터에게 말 거는 것을 막는다(`E-BORROW-EXCL`, `borrow … be send P …`).
+//   그런데 풀은 2026-08-28 봉인(RFC-0104 §8-2)에서 **struct** 가 됐고, 그날부터 그 규칙이 풀을 못 지켰다 —
+//   `borrow v be … do pool.release pa p hh . set (index v 0) 5 . end` 가 통과해 반환된 블록에 썼다.
+//   ⇒ 빌림 머리 식에 나온 **저장소 이름**(`some_value (pool.bytes pa p hh)` 의 `p` 등)을 빌려준 자로 본다.
+//     빌림 동안 ⓐ 그 이름을 부름의 `mut` 자리에 넘기거나 그 이름(의 칸·원소)에 직접 쓰는 것,
+//     ⓑ 그 이름을 머리에 둔 **두 번째 빌림**을 여는 것 — 둘 다 `E-BORROW-EXCL` 이다.
+//   ☞ 과엄격이다: 빌림 동안 같은 풀에서 **다른 블록**을 받거나 빌리는 것도 막는다(과엄격은 안전하다).
+//   ☞ 못 막는 것(정직히): 빌림 **전에** `let bv be … bytes …` 로 뷰를 묶어 두면 식에 풀 이름이 없다.
+//     그 모양은 라이브러리 규약(«`bytes` 는 빌림 머리에서만»)으로 막고, 규칙으로 막는 것은 D4(출처)의 몫이다.
+#define CK_LEND_MAX 32
+static proven_u8str_view_t ck_arg_root(const low_cst_t *nd, int depth) {
+    proven_u8str_view_t z = { 0 };
+    while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
+    if (!nd || depth > 8) return z;
+    if (nd->kind == LOW_CST_ATOM) return nd->tok.kind == LOW_TOK_IDENT ? nd->tok.lex : z;
+    if ((nd->kind == LOW_CST_FORM || nd->kind == LOW_CST_GROUP) && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        (veq(nd->kids[0]->tok.lex, "subslice") || veq(nd->kids[0]->tok.lex, "field") ||
+         veq(nd->kids[0]->tok.lex, "index")))
+        return ck_arg_root(nd->kids[1], depth + 1);
+    return z;
+}
+static void ck_lend_names(const low_cst_t *nd, proven_u8str_view_t *v, proven_size_t *n, bool head_of_form, bool *full) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_ATOM) {
+        if (head_of_form || nd->tok.kind != LOW_TOK_IDENT || nd->tok.kw != LOW_KW_NONE) return;
+        if (ck_name_in(v, *n, nd->tok.lex)) return;
+        if (*n >= CK_LEND_MAX) { *full = true; return; }      // ★ 넘침은 아래에서 E-IR-LIMIT 로 말한다
+        v[*n] = nd->tok.lex; *n += 1;
+        return;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        ck_lend_names(nd->kids[i], v, n, nd->kind == LOW_CST_FORM && i == 0, full);
+}
+static void ck_borrow_lend_walk(low_check_result_t *out, const low_cst_t *nd,
+                                const low_opinfo_t *tab, proven_size_t nt,
+                                const proven_u8str_view_t *lend, proven_size_t nlend) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    bool is_borrow = (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+                      veq(nd->kids[0]->tok.lex, "borrow") && ck_atom(nd->kids[1]));
+    if (is_borrow) {
+        proven_size_t bi = nd->nkids;
+        const low_cst_t *blk = NULL;
+        for (proven_size_t i = 0; i < nd->nkids; i++)
+            if (nd->kids[i]->kind == LOW_CST_BLOCK) { blk = nd->kids[i]; bi = i; }
+        if (!blk) {
+            const low_cst_t *last = nd->kids[nd->nkids - 1];
+            if (last && last->kind == LOW_CST_FORM && last->nkids &&
+                last->kids[last->nkids - 1]->kind == LOW_CST_BLOCK) { blk = last->kids[last->nkids - 1]; bi = nd->nkids - 1; }
+        }
+        if (blk) {
+            proven_u8str_view_t mine[CK_LEND_MAX]; proven_size_t nm = 0; bool full = false;
+            for (proven_size_t i = 2; i < bi; i++)
+                if (!(ck_atom(nd->kids[i]) && nd->kids[i]->tok.kw == LOW_KW_BE))
+                    ck_lend_names(nd->kids[i], mine, &nm, false, &full);
+            if (bi == nd->nkids - 1 && blk != nd->kids[bi]) {       // `be <식> do…end` 가 한 폼으로 붙은 모양
+                const low_cst_t *last = nd->kids[bi];
+                for (proven_size_t i = 0; i + 1 < last->nkids; i++) ck_lend_names(last->kids[i], mine, &nm, i == 0, &full);
+            }
+            // ⓑ 바깥 빌림의 빌려준 자로 두 번째 빌림을 연다
+            for (proven_size_t i = 0; i < nm; i++)
+                if (ck_name_in(lend, nlend, mine[i])) {
+                    emit(out, "E-BORROW-EXCL",
+                         "this opens a SECOND borrow from storage that is already lent out by an enclosing "
+                         "`borrow`. Two live borrows of one storage are two writers (§8.12(1)) — each can "
+                         "change what the other is reading. Close the outer borrow first, or take both "
+                         "views in one borrow (RFC-0116 D1)",
+                         nd->kids[0]->tok.line);
+                    return;
+                }
+            // ★ 표가 차면 **자르지 않고 거절한다** — 잘린 빌려준 자는 검사가 안 도는 자리다(check-limits).
+            if (full || nlend + nm > CK_LEND_MAX * 2) {
+                emit(out, "E-IR-LIMIT",
+                     "too many storage names in this borrow head (or in the borrows around it) for the "
+                     "checker's lender table. Rather than check some of them and silently skip the rest, "
+                     "this is refused — split the expression, or narrow the nesting",
+                     nd->kids[0]->tok.line);
+                return;
+            }
+            proven_u8str_view_t all[CK_LEND_MAX * 2]; proven_size_t na = 0;
+            for (proven_size_t i = 0; i < nlend; i++) all[na++] = lend[i];
+            for (proven_size_t i = 0; i < nm; i++) all[na++] = mine[i];
+            for (proven_size_t i = 0; i < blk->nkids; i++) ck_borrow_lend_walk(out, blk->kids[i], tab, nt, all, na);
+            return;
+        }
+    }
+    if (nlend && nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0])) {
+        // ⓐ-1 빌려준 저장소(의 칸·원소)에 직접 쓴다
+        if (nd->kids[0]->tok.kw == LOW_KW_SET) {
+            proven_u8str_view_t r = ck_arg_root(nd->kids[1], 0);
+            if (r.size && ck_name_in(lend, nlend, r)) {
+                emit(out, "E-BORROW-EXCL",
+                     "this writes to storage that is lent out by the enclosing `borrow`. While the borrow "
+                     "lives, the lender has exactly one writer — the borrow (§8.12(1)). Write through the "
+                     "borrowed name, or close the block first (RFC-0116 D1)",
+                     nd->kids[0]->tok.line);
+                return;
+            }
+        }
+        // ⓐ-2 빌려준 저장소를 부름의 `mut` 자리에 넘긴다(`pool.release pa p hh` — 반환이 빌린 뷰를 무효로 만든다)
+        if (nd->kids[0]->tok.kw == LOW_KW_NONE) {
+            const low_opinfo_t *op = ck_find_callee(tab, nt, nd->kids[0]->tok.lex);
+            if (op) {
+                low_op_header_t h = low_op_header(op->form);
+                for (proven_size_t q = 1; q < nd->nkids; q++) {
+                    proven_size_t ai = q - 1;
+                    if (ai >= h.np || !h.p[ai].is_mut) continue;
+                    proven_u8str_view_t r = ck_arg_root(nd->kids[q], 0);
+                    if (!r.size || !ck_name_in(lend, nlend, r)) continue;
+                    emit(out, "E-BORROW-EXCL",
+                         "this hands storage that is lent out by the enclosing `borrow` to a position the "
+                         "callee WRITES. Whatever it does — release a block, grow, reset — can invalidate the "
+                         "view you are holding, and nothing would say so: the view is a plain slice. "
+                         "Finish with the borrow first (close the block), then call this. For a pool: take "
+                         "the view in the borrow head and release after the block (RFC-0116 D1)",
+                         nd->kids[0]->tok.line);
+                    return;
+                }
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_borrow_lend_walk(out, nd->kids[i], tab, nt, lend, nlend);
+}
+
+static void ck_excl_args_walk(low_check_result_t *out, const low_cst_t *nd,
+                              const low_opinfo_t *tab, proven_size_t nt) {
+    static ck_sctx_t c;                       // op 하나씩 — 다시 부를 때 비운다
+    c.n = 0; c.nreset = 0; c.full = false;
+    ck_sk_collect(&c, nd, true);              // ① 통째로 다시 대입되는 이름
+    ck_sk_collect(&c, nd, false);             // ② 별칭(이름·subslice)
+    if (c.full) {                             // ★ 별칭 표가 차면 자르지 않고 거절한다(check-limits)
+        emit(out, "E-IR-LIMIT",
+             "this op declares more slice aliases (or whole-name reassignments) than the exclusivity "
+             "checker's table holds. Rather than miss an alias and let two writers through, this is "
+             "refused — split the op",
+             nd && nd->kind != LOW_CST_ATOM && nd->nkids && ck_atom(nd->kids[0]) ? nd->kids[0]->tok.line : 0);
+        return;
+    }
+    ck_excl_args_walk2(out, nd, tab, nt, &c);
 }
 
 // ★★★★★ **권한은 건네받는 것이지 지어내는 것이 아니다** (RFC-0030 D2 · 결함 노트 #49, 2026-09-16).
@@ -9138,6 +9450,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             ck_capkind_walk(&out, h.body, f);   // ★ 권위는 종류로 (RFC-0077 §P1-2)
             ck_capforge_walk(&out, h.body, tab0, ops.len);  // ★ 권한은 지어낼 수 없다 (RFC-0030 D2)
             ck_excl_args_walk(&out, h.body, tab0, ops.len); // ★ 쓰기 자리와 읽기 자리에 같은 저장소 (#9)
+            ck_borrow_lend_walk(&out, h.body, tab0, ops.len, NULL, 0);  // ★ struct 빌려준 자 (RFC-0116 D1)
             ck_mutref_of_ro_walk(&out, h.body, binds, nb);   // ★ `let` 은 참조로도 안 바뀐다 (#46)
             ck_mut_literal_bind_walk(&out, h.body);          // ★ 리터럴은 고칠 자리가 아니다 (#84)
             ck_typeholes_walk(&out, h.body, f, &h, pr, tab0, ops.len);  // ★ 실행까지 새던 다섯 (#31·#39·#44·#45)

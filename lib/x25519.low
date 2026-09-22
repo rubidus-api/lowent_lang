@@ -91,12 +91,14 @@ export proc fsub input o mut slice u64 . input a slice u64 . input b slice u64 .
   guard ge (len o) 16 . else return 0 .
   guard ge (len a) 16 . else return 0 .
   guard ge (len b) 16 . else return 0 .
-  guard le (index b 0) 130996 . else return 0 .
-  set (index o 0) (sub (add (index a 0) 130996) (index b 0)) .
-  var i u64 be 1 .
+  rem ★ 첫 원소의 상수(130996)도 반복 안에서 고른다 — 원소마다 «읽고 같은 색인에 쓴다» 한 모양이어야
+  rem   `inplace o a`·`inplace o b` 가 같은 구간에서 옳음을 처리기가 보인다(RFC-0116 B2). 뜻은 그대로다.
+  var i u64 be 0 .
   while lt i 16 . do
-    guard le (index b i) 131070 . else return 0 .
-    set (index o i) (sub (add (index a i) 131070) (index b i)) .
+    var lim u64 be 131070 .
+    if eq i 0 . do set lim 130996 . end .
+    guard le (index b i) lim . else return 0 .
+    set (index o i) (sub (add (index a i) lim) (index b i)) .
     set i (add i 1) .
   end .
   return fcar o .

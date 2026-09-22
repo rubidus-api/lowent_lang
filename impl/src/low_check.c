@@ -5486,9 +5486,46 @@ static bool ck_name_in(const proven_u8str_view_t *v, proven_size_t n, proven_u8s
     return false;
 }
 // 오염된 이름을 싣는가 — 평평한 폼에서도: 스칼라 머리 **바로 뒤**의 이름은 싣지 않는다.
+// ★★★★ 후속 ③ R1 (2026-09-22) — **칸마다 오염**. 부름의 결과가 구조체이고 피호출자의 요약이 칸마다 출처를 말하면,
+//   오염된 칸만 적는다(`r.c` 는 영역 바이트, `r.h` 는 영역 밖 입력). `(field r h)` 는 그 칸이 오염됐을 때만 들고 나간다.
+//   이름 `r` 을 통째로 쓰면 칸 하나라도 오염됐으면 오염이다(보수적).
+struct ck_r1_sum_s; static const low_opinfo_t *ck_r1_tab; static proven_size_t ck_r1_nt;
+static const low_opinfo_t *ck_find_callee(const low_opinfo_t *tab, proven_size_t nt, proven_u8str_view_t callee);
+static bool ck_r1_flow_mask(const low_opinfo_t *op, unsigned long long *all);
+#define CK_FT_MAX 64
+static proven_u8str_view_t ck_ft_name[CK_FT_MAX], ck_ft_fld[CK_FT_MAX]; static proven_size_t ck_ft_n; static bool ck_ft_full;
+static bool ck_ft_has_name(proven_u8str_view_t w) {
+    for (proven_size_t i = 0; i < ck_ft_n; i++) if (proven_u8str_view_eq(ck_ft_name[i], w)) return true;
+    return false;
+}
+static bool ck_ft_has(proven_u8str_view_t w, proven_u8str_view_t fl) {
+    for (proven_size_t i = 0; i < ck_ft_n; i++)
+        if (proven_u8str_view_eq(ck_ft_name[i], w) && proven_u8str_view_eq(ck_ft_fld[i], fl)) return true;
+    return false;
+}
+static void ck_ft_add(proven_u8str_view_t w, proven_u8str_view_t fl) {
+    if (ck_ft_has(w, fl)) return;
+    if (ck_ft_n >= CK_FT_MAX) { ck_ft_full = true; return; }       // 넘침은 부른 쪽이 E-IR-LIMIT 로 말한다
+    ck_ft_name[ck_ft_n] = w; ck_ft_fld[ck_ft_n] = fl; ck_ft_n += 1;
+}
 static bool ck_carries_taint(const low_cst_t *nd, const proven_u8str_view_t *t, proven_size_t nt) {
     if (!nd) return false;
-    if (nd->kind == LOW_CST_ATOM) return ck_name_in(t, nt, nd->tok.lex);
+    if (nd->kind == LOW_CST_ATOM) return ck_name_in(t, nt, nd->tok.lex) || ck_ft_has_name(nd->tok.lex);
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "field") &&
+        ck_atom(nd->kids[1]) && ck_atom(nd->kids[2]) && !ck_name_in(t, nt, nd->kids[1]->tok.lex) &&
+        ck_ft_has_name(nd->kids[1]->tok.lex))
+        return ck_ft_has(nd->kids[1]->tok.lex, nd->kids[2]->tok.lex);
+    // ★ 후속 ③ R1 — 요약을 아는 op 의 부름은 **결과로 흐르는 인자만** 오염을 옮긴다(`pick_first a <영역 바이트>` 는 `a` 만).
+    if (ck_r1_tab && nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_NONE &&
+        !ck_scalar_head(nd->kids[0]->tok.lex)) {
+        const low_opinfo_t *op = ck_find_callee(ck_r1_tab, ck_r1_nt, nd->kids[0]->tok.lex);
+        unsigned long long all = 0;
+        if (op && ck_r1_flow_mask(op, &all)) {
+            for (proven_size_t q = 1; q < nd->nkids && q - 1 < 64; q++)
+                if ((all >> (q - 1) & 1ull) && ck_carries_taint(nd->kids[q], t, nt)) return true;
+            return false;
+        }
+    }
     if (nd->nkids && ck_atom(nd->kids[0]) && ck_scalar_head(nd->kids[0]->tok.lex)) return false;
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         if (i > 0 && ck_atom(nd->kids[i]) && ck_atom(nd->kids[i - 1]) && ck_scalar_head(nd->kids[i - 1]->tok.lex))
@@ -5541,6 +5578,81 @@ static void ck_nested_scan(low_check_result_t *out, const low_cst_t *nd, const c
                  nd->kids[j]->tok.line);
     }
 }
+// ★★★★ 후속 ③ R1 — op 요약: 결과(와 결과 구조체의 칸마다)가 **어느 입력에서 오나**. `return` 식들을 읽는다.
+//   식이 입력 아닌 지역 이름을 쓰면 «모른다» → 모든 입력(지금까지처럼 뭉뚱그림). 부름의 인자로 쓰인 입력은 결과로 흐른다고 본다.
+#define CK_R1_FLD 12
+typedef struct { unsigned long long all; bool struct_ok; proven_size_t nf;
+                 proven_u8str_view_t fname[CK_R1_FLD]; unsigned long long fmask[CK_R1_FLD]; } ck_r1_sum_t;
+static unsigned long long ck_r1_expr_mask(const low_cst_t *nd, const low_op_header_t *h, bool head, bool *unknown) {
+    if (!nd) return 0;
+    if (nd->kind == LOW_CST_ATOM) {
+        if (head || nd->tok.kind != LOW_TOK_IDENT || nd->tok.kw != LOW_KW_NONE) return 0;
+        for (proven_size_t q = 0; q < h->np && q < 64; q++) if (proven_u8str_view_eq(h->p[q].name, nd->tok.lex)) return 1ull << q;
+        *unknown = true; return 0;                                 // 입력이 아닌 이름 — 모른다
+    }
+    unsigned long long m = 0;
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        m |= ck_r1_expr_mask(nd->kids[i], h, nd->kind == LOW_CST_FORM && i == 0, unknown);
+    return m;
+}
+static const low_cst_t *ck_r1_make_block(const low_cst_t *e) {
+    while (e && e->kind == LOW_CST_GROUP && e->nkids == 1) e = e->kids[0];
+    if (!e || e->kind != LOW_CST_FORM || e->nkids < 2 || !ck_atom(e->kids[0]) || e->kids[0]->tok.kw != LOW_KW_MAKE) return NULL;
+    for (proven_size_t i = 1; i < e->nkids; i++) {
+        const low_cst_t *k = e->kids[i];
+        if (k->kind == LOW_CST_BLOCK) return k;
+        if (k->kind == LOW_CST_FORM && k->nkids && k->kids[k->nkids - 1]->kind == LOW_CST_BLOCK) return k->kids[k->nkids - 1];
+    }
+    return NULL;
+}
+static void ck_r1_scan(const low_cst_t *nd, const low_op_header_t *h, ck_r1_sum_t *s, bool *seen_nonmake, bool *seen_make) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_RETURN || nd->kids[0]->tok.kw == LOW_KW_GIVE)) {
+        const low_cst_t *mb = (nd->nkids == 2) ? ck_r1_make_block(nd->kids[1]) : NULL;
+        if (mb) {
+            *seen_make = true;
+            for (proven_size_t i = 0; i < mb->nkids; i++) {
+                const low_cst_t *fe = mb->kids[i];
+                if (fe->kind != LOW_CST_FORM || fe->nkids < 2 || !ck_atom(fe->kids[0])) { s->struct_ok = false; continue; }
+                bool unk = false; unsigned long long m = 0;
+                for (proven_size_t j = 1; j < fe->nkids; j++) m |= ck_r1_expr_mask(fe->kids[j], h, false, &unk);
+                if (unk) m = ~0ull;
+                s->all |= m;
+                proven_size_t k = 0;
+                while (k < s->nf && !proven_u8str_view_eq(s->fname[k], fe->kids[0]->tok.lex)) k++;
+                if (k == s->nf) { if (s->nf >= CK_R1_FLD) { s->struct_ok = false; continue; } s->fname[s->nf] = fe->kids[0]->tok.lex; s->fmask[s->nf] = 0; s->nf++; }
+                s->fmask[k] |= m;
+            }
+        } else {
+            *seen_nonmake = true;
+            bool unk = false; unsigned long long m = 0;
+            for (proven_size_t j = 1; j < nd->nkids; j++) m |= ck_r1_expr_mask(nd->kids[j], h, false, &unk);
+            s->all |= unk ? ~0ull : m;
+        }
+        return;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_r1_scan(nd->kids[i], h, s, seen_nonmake, seen_make);
+}
+// 요약을 못 내면 false(부른 쪽은 지금처럼 뭉뚱그린다)
+static bool ck_r1_summary(const low_opinfo_t *op, ck_r1_sum_t *s);
+static bool ck_r1_flow_mask(const low_opinfo_t *op, unsigned long long *all) {
+    ck_r1_sum_t s;
+    if (!ck_r1_summary(op, &s)) return false;
+    *all = s.all;
+    return true;
+}
+static bool ck_r1_summary(const low_opinfo_t *op, ck_r1_sum_t *s) {
+    memset(s, 0, sizeof *s);
+    if (!op || !op->body) return false;
+    low_op_header_t h = low_op_header(op->form);
+    if (h.np > 64) return false;
+    s->struct_ok = true;
+    bool nonmake = false, mk = false;
+    ck_r1_scan(op->body, &h, s, &nonmake, &mk);
+    if (nonmake || !mk) s->struct_ok = false;                        // 칸마다는 모든 return 이 make 일 때만
+    return true;
+}
 static void ck_region_walk(low_check_result_t *out, const low_cst_t *nd, ck_rgctx_t *rc,
                            proven_u8str_view_t *inner, proven_size_t *ninner,
                            proven_u8str_view_t *taint, proven_size_t *ntaint, bool inside) {
@@ -5581,7 +5693,28 @@ static void ck_region_walk(low_check_result_t *out, const low_cst_t *nd, ck_rgct
                 if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
             bool scalar = (be == 3 && ck_atom(nd->kids[2]) && ck_type_word_scalar(nd->kids[2]->tok.lex));
             bool fresh = false;
-            for (proven_size_t q = be; q < nd->nkids; q++) {
+            // ★ 후속 ③ R1 — 초기식이 **요약을 아는 op 의 부름 하나**면, 결과로 흐르는 인자만 본다(칸마다면 칸마다).
+            bool r1_done = false;
+            if (be + 2 == nd->nkids && ck_r1_tab) {
+                const low_cst_t *call = nd->kids[be + 1];
+                while (call && call->kind == LOW_CST_GROUP && call->nkids == 1) call = call->kids[0];
+                if (call && call->kind == LOW_CST_FORM && call->nkids >= 2 && ck_atom(call->kids[0]) &&
+                    call->kids[0]->tok.kw == LOW_KW_NONE && !ck_has_fresh_bytes(call)) {
+                    const low_opinfo_t *op = ck_find_callee(ck_r1_tab, ck_r1_nt, call->kids[0]->tok.lex);
+                    ck_r1_sum_t sm;
+                    if (op && ck_r1_summary(op, &sm)) {
+                        unsigned long long targ = 0;
+                        for (proven_size_t q = 1; q < call->nkids && q - 1 < 64; q++)
+                            if (ck_carries_taint(call->kids[q], taint, *ntaint)) targ |= 1ull << (q - 1);
+                        if (sm.struct_ok && sm.nf) {
+                            for (proven_size_t k = 0; k < sm.nf; k++)
+                                if (sm.fmask[k] & targ) ck_ft_add(nd->kids[1]->tok.lex, sm.fname[k]);
+                        } else if (sm.all & targ) fresh = true;
+                        r1_done = true;
+                    }
+                }
+            }
+            for (proven_size_t q = be; q < nd->nkids && !r1_done; q++) {
                 if (ck_has_fresh_bytes(nd->kids[q])) fresh = true;
                 if (q > be && ck_atom(nd->kids[q]) && ck_atom(nd->kids[q - 1]) && ck_scalar_head(nd->kids[q - 1]->tok.lex))
                     continue;
@@ -7763,12 +7896,23 @@ static void ck_borrow_lend_walk(low_check_result_t *out, const low_cst_t *nd,
 //   ☞ 출처는 뭉뚱그린다(부름의 결과는 인자 모두에서 나온다) — 과엄격한 쪽이다. 칸마다 출처(R1)는 수요가 생길 때.
 #define CK_VT_MAX 64
 #define CK_VT_SRC 8
+// ★★★★ 후속 ① (2026-09-22) — **같은 부름 열쇠의 쓰기 뷰 둘**. 효과 없는 op(같은 인자면 같은 것을 돌려주는 접근자 —
+//   `pool.bytes pa p hh`)을 이름·수 인자로 부른 결과는 «부름 열쇠» 를 든다. 같은 열쇠의 **쓰기 뷰**가 또 생기면 앞의 뷰는
+//   쓰는 이가 둘이 된 것이다(§8.12(1)) — 그 뒤 앞의 뷰를 쓰면 `E-EXCL`. 효과가 있는 부름(`alloc_bytes`)은 매번 새 저장소라 뺀다.
+#define CK_VT_KEY 10
 typedef struct { proven_u8str_view_t name; proven_u8str_view_t src[CK_VT_SRC]; unsigned ns;
-                 bool invalid, told; proven_u32 inval_line; } ck_view_t;
+                 bool invalid, told; proven_u32 inval_line;
+                 bool mutv, aliased; proven_u32 alias_line; proven_u8str_view_t key[CK_VT_KEY]; unsigned nk;
+                 bool isfld; proven_u8str_view_t fld; } ck_view_t;   // isfld: `set (field name fld) <뷰>` 로 칸에 담은 뷰
 typedef struct { ck_view_t v[CK_VT_MAX]; proven_size_t n; bool full; } ck_vstate_t;
 
 static ck_view_t *ck_vt_find(ck_vstate_t *s, proven_u8str_view_t nm) {
-    for (proven_size_t i = s->n; i-- > 0; ) if (proven_u8str_view_eq(s->v[i].name, nm)) return &s->v[i];
+    for (proven_size_t i = s->n; i-- > 0; ) if (!s->v[i].isfld && proven_u8str_view_eq(s->v[i].name, nm)) return &s->v[i];
+    return NULL;
+}
+static ck_view_t *ck_vt_find_fld(ck_vstate_t *s, proven_u8str_view_t nm, proven_u8str_view_t fl) {
+    for (proven_size_t i = s->n; i-- > 0; )
+        if (s->v[i].isfld && proven_u8str_view_eq(s->v[i].name, nm) && proven_u8str_view_eq(s->v[i].fld, fl)) return &s->v[i];
     return NULL;
 }
 static void ck_vt_addsrc(ck_vstate_t *s, ck_view_t *d, proven_u8str_view_t w) {
@@ -7810,6 +7954,22 @@ static void ck_vt_uses(low_check_result_t *out, ck_vstate_t *s, const low_cst_t 
     if (nd->kind == LOW_CST_ATOM) {
         if (nd->tok.kind != LOW_TOK_IDENT) return;
         ck_view_t *v = ck_vt_find(s, nd->tok.lex);
+        if (v && !v->invalid && v->aliased && !v->told) {
+            static char abuf[64][360]; static unsigned abn;
+            const char *msg = "this write view shares its storage with a second write view taken later from the same "
+                              "accessor call — two writers of one storage (§8.12(1)); either can change what the other "
+                              "holds. Take one view, or take the second only after you are done with the first";
+            if (abn < 64) {
+                snprintf(abuf[abn], sizeof abuf[0],
+                         "`%.*s` is a write view, and line %u took a SECOND write view of the same storage from the same "
+                         "accessor call — two writers of one storage (§8.12(1)); either can change what the other holds. "
+                         "Use one view, or take the second only after you are done with the first",
+                         (int)v->name.size, (const char *)v->name.ptr, (unsigned)v->alias_line);
+                msg = abuf[abn++];
+            }
+            emit(out, "E-EXCL", msg, nd->tok.line);
+            v->told = true;
+        }
         if (v && v->invalid && !v->told) {
             static char vbuf[128][360]; static unsigned vbn;
             const char *msg = "this view came from storage that a call above made INVALID (it released a block, grew and "
@@ -7830,7 +7990,76 @@ static void ck_vt_uses(low_check_result_t *out, ck_vstate_t *s, const low_cst_t 
         }
         return;
     }
+    // ★ 후속 ② — 칸에 담은 뷰: `(field h f)` 를 읽으면 그 칸의 출처를 본다
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "field") &&
+        ck_atom(nd->kids[1]) && ck_atom(nd->kids[2])) {
+        ck_view_t *v = ck_vt_find_fld(s, nd->kids[1]->tok.lex, nd->kids[2]->tok.lex);
+        if (v && v->invalid && !v->told) {
+            emit(out, "E-VIEW-INVALIDATED",
+                 "this field holds a view (stored with `set (field …) <view>`) whose storage a call above made INVALID — "
+                 "the callee releases, moves or rewinds it (declared with `invalidates`, or inferred from a call it makes). "
+                 "The field still points at the old place. Store a fresh view after that call (RFC-0116 D4)",
+                 nd->kids[0]->tok.line);
+            v->told = true;
+        }
+    }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_vt_uses(out, s, nd->kids[i], skip);
+}
+// ★★★★ 후속 ② (2026-09-22) — **무효화도 op 경계를 넘는다.** `invalidates` 를 적지 않았어도 몸 안에서 무효화 op 에
+//   자기 입력을 넘기는 op(감싼 함수)은 그 입력을 무효로 만든다. 입력마다 한 비트 — 재귀는 고정점까지 돈다.
+#define CK_INV_OPS 4096
+static const low_opinfo_t *ck_inv_tab; static proven_size_t ck_inv_nt;
+static unsigned long long ck_inv_mask[CK_INV_OPS]; static unsigned char ck_inv_state[CK_INV_OPS];   // 0 모름 · 1 도는 중 · 2 앎
+static unsigned long long ck_inv_params(const low_opinfo_t *op);
+static void ck_inv_scan(const low_cst_t *nd, const low_op_header_t *mine, unsigned long long *mask) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_inv_scan(nd->kids[i], mine, mask);
+    if (nd->kind != LOW_CST_FORM || nd->nkids < 2 || !ck_atom(nd->kids[0]) || nd->kids[0]->tok.kw != LOW_KW_NONE) return;
+    const low_opinfo_t *callee = ck_find_callee(ck_inv_tab, ck_inv_nt, nd->kids[0]->tok.lex);
+    if (!callee) return;
+    unsigned long long cm = ck_inv_params(callee);
+    if (!cm) return;
+    for (proven_size_t q = 0; q < 64 && q + 1 < nd->nkids; q++) {
+        if (!(cm >> q & 1ull)) continue;
+        proven_u8str_view_t r = ck_arg_root(nd->kids[q + 1], 0);
+        if (!r.size) continue;
+        for (proven_size_t m = 0; m < mine->np && m < 64; m++)
+            if (proven_u8str_view_eq(mine->p[m].name, r)) *mask |= 1ull << m;
+    }
+}
+static unsigned long long ck_inv_params(const low_opinfo_t *op) {
+    proven_size_t idx = (proven_size_t)(op - ck_inv_tab);
+    if (!ck_inv_tab || idx >= ck_inv_nt || idx >= CK_INV_OPS) return 0;
+    if (ck_inv_state[idx] == 2 || ck_inv_state[idx] == 1) return ck_inv_mask[idx];   // 도는 중이면 지금까지 안 것
+    ck_inv_state[idx] = 1;
+    low_op_header_t h = low_op_header(op->form);
+    unsigned long long m = 0;
+    const low_cst_t *form = op->form;
+    for (proven_size_t i = 0; i + 1 < form->nkids; i++) {             // 선언한 것
+        if (form->kids[i]->kind == LOW_CST_BLOCK) break;
+        if (ck_atom(form->kids[i]) && veq(form->kids[i]->tok.lex, "invalidates") && ck_atom(form->kids[i + 1]))
+            for (proven_size_t q = 0; q < h.np && q < 64; q++)
+                if (proven_u8str_view_eq(h.p[q].name, form->kids[i + 1]->tok.lex)) m |= 1ull << q;
+    }
+    ck_inv_mask[idx] = m;
+    if (op->body) ck_inv_scan(op->body, &h, &m);                        // 추론한 것
+    ck_inv_mask[idx] = m;
+    ck_inv_state[idx] = 2;
+    return m;
+}
+static void ck_inv_prepare(const low_opinfo_t *tab, proven_size_t nt) {
+    if (ck_inv_tab == tab && ck_inv_nt == nt) return;
+    ck_inv_tab = tab; ck_inv_nt = nt;
+    memset(ck_inv_state, 0, sizeof ck_inv_state); memset(ck_inv_mask, 0, sizeof ck_inv_mask);
+    // ★ 고정점: 재귀 사슬에서 «도는 중» 으로 읽힌 부분 답이 있을 수 있으므로 바뀌지 않을 때까지 다시 돈다
+    for (int round = 0; round < 8; round++) {
+        unsigned long long before = 0, after = 0;
+        for (proven_size_t i = 0; i < nt && i < CK_INV_OPS; i++) before += ck_inv_mask[i] * (i + 1);
+        for (proven_size_t i = 0; i < nt && i < CK_INV_OPS; i++) ck_inv_state[i] = 0;
+        for (proven_size_t i = 0; i < nt && i < CK_INV_OPS; i++) (void)ck_inv_params(&tab[i]);
+        for (proven_size_t i = 0; i < nt && i < CK_INV_OPS; i++) after += ck_inv_mask[i] * (i + 1);
+        if (before == after) break;
+    }
 }
 // 이 식 안의 부름 가운데 `invalidates` 를 선언한 것이 있으면 그 자리의 저장소에서 나온 뷰를 무효로 만든다
 static void ck_vt_invalidate(ck_vstate_t *s, const low_cst_t *nd, const low_opinfo_t *tab, proven_size_t nt) {
@@ -7839,21 +8068,63 @@ static void ck_vt_invalidate(ck_vstate_t *s, const low_cst_t *nd, const low_opin
     if (nd->kind != LOW_CST_FORM || nd->nkids < 2 || !ck_atom(nd->kids[0]) || nd->kids[0]->tok.kw != LOW_KW_NONE) return;
     const low_opinfo_t *op = ck_find_callee(tab, nt, nd->kids[0]->tok.lex);
     if (!op) return;
-    const low_cst_t *form = op->form;
-    for (proven_size_t i = 0; i + 1 < form->nkids; i++) {
-        if (form->kids[i]->kind == LOW_CST_BLOCK) break;
-        if (!(ck_atom(form->kids[i]) && veq(form->kids[i]->tok.lex, "invalidates") && ck_atom(form->kids[i + 1]))) continue;
-        low_op_header_t h = low_op_header(form);
-        for (proven_size_t q = 0; q < h.np; q++) {
-            if (!proven_u8str_view_eq(h.p[q].name, form->kids[i + 1]->tok.lex) || q + 1 >= nd->nkids) continue;
-            proven_u8str_view_t r = ck_arg_root(nd->kids[q + 1], 0);
-            if (!r.size) continue;
-            for (proven_size_t k = 0; k < s->n; k++)
-                for (unsigned m = 0; m < s->v[k].ns; m++)
-                    if (proven_u8str_view_eq(s->v[k].src[m], r) && !s->v[k].invalid) {
-                        s->v[k].invalid = true; s->v[k].inval_line = nd->kids[0]->tok.line; break;
-                    }
+    unsigned long long cm = ck_inv_params(op);                          // 선언 + 추론(후속 ②)
+    for (proven_size_t q = 0; q < 64 && q + 1 < nd->nkids; q++) {
+        if (!(cm >> q & 1ull)) continue;
+        proven_u8str_view_t r = ck_arg_root(nd->kids[q + 1], 0);
+        if (!r.size) continue;
+        for (proven_size_t k = 0; k < s->n; k++)
+            for (unsigned m = 0; m < s->v[k].ns; m++)
+                if (proven_u8str_view_eq(s->v[k].src[m], r) && !s->v[k].invalid) {
+                    s->v[k].invalid = true; s->v[k].inval_line = nd->kids[0]->tok.line; break;
+                }
+    }
+}
+// 초기식이 «효과 없는 op 을 이름·수 인자로 부른 것» 이면 그 부름 열쇠를 적는다(`some_value` 겹은 벗긴다).
+//   돌려주는 것이 `mut` 뷰인지도 함께 답한다(피호출자의 `output` 절에 `mut` 이 있나).
+static bool ck_vt_key(ck_view_t *d, const low_cst_t *const *k, proven_size_t from, proven_size_t to,
+                      const low_opinfo_t *tab, proven_size_t nt, bool *out_mut) {
+    for (int hop = 0; hop < 4; hop++) {
+        if (to - from == 1) {
+            const low_cst_t *n = k[from];
+            while (n && n->kind == LOW_CST_GROUP && n->nkids == 1) n = n->kids[0];
+            if (!n || n->kind == LOW_CST_ATOM) return false;
+            k = (const low_cst_t *const *)n->kids; from = 0; to = n->nkids;
+            continue;
         }
+        if (ck_atom(k[from]) && veq(k[from]->tok.lex, "some_value")) { from++; continue; }
+        break;
+    }
+    if (to - from < 2 || !ck_atom(k[from]) || to - from > CK_VT_KEY) return false;
+    const low_opinfo_t *op = ck_find_callee(tab, nt, k[from]->tok.lex);
+    if (!op || op->declared != 0) return false;                       // 효과 없는 접근자만
+    for (proven_size_t i = from + 1; i < to; i++) if (!ck_atom(k[i])) return false;
+    d->nk = 0;
+    for (proven_size_t i = from; i < to; i++) d->key[d->nk++] = k[i]->tok.lex;
+    bool m = false; const low_cst_t *form = op->form;
+    for (proven_size_t i = 0; i < form->nkids; i++) {
+        if (form->kids[i]->kind == LOW_CST_BLOCK) break;
+        if (ck_atom(form->kids[i]) && veq(form->kids[i]->tok.lex, "output")) {
+            for (proven_size_t j = i + 1; j < form->nkids && ck_atom(form->kids[j]) && !ck_clause_word(form->kids[j]->tok.lex); j++)
+                if (veq(form->kids[j]->tok.lex, "mut")) m = true;
+            break;
+        }
+    }
+    *out_mut = m;
+    return true;
+}
+static bool ck_vt_same_key(const ck_view_t *a, const ck_view_t *b) {
+    if (!a->nk || a->nk != b->nk) return false;
+    for (unsigned i = 0; i < a->nk; i++) if (!proven_u8str_view_eq(a->key[i], b->key[i])) return false;
+    return true;
+}
+// 새 쓰기 뷰 d 와 같은 열쇠를 가진, 아직 살아 있는 쓰기 뷰에 «쓰는 이가 둘» 표시
+static void ck_vt_mark_alias(ck_vstate_t *s, ck_view_t *d, proven_u32 line) {
+    if (!d->mutv || !d->nk) return;
+    for (proven_size_t i = 0; i < s->n; i++) {
+        ck_view_t *o = &s->v[i];
+        if (o == d || !o->mutv || o->invalid || o->aliased) continue;
+        if (ck_vt_same_key(o, d)) { o->aliased = true; o->alias_line = line; }
     }
 }
 static void ck_vt_block(low_check_result_t *out, ck_vstate_t *s, const low_cst_t *blk,
@@ -7885,6 +8156,10 @@ static void ck_vt_stmt(low_check_result_t *out, ck_vstate_t *s, const low_cst_t 
         if (d) {
             for (proven_size_t i = 2; i < bi; i++) ck_vt_sources(s, d, nd->kids[i], false);
             if (glued) for (proven_size_t i = 0; i + 1 < glued->nkids; i++) ck_vt_sources(s, d, glued->kids[i], i == 0 && glued->nkids > 2);
+            bool omut = false, hk = false;
+            if (glued) hk = ck_vt_key(d, (const low_cst_t *const *)glued->kids, 0, glued->nkids - 1, tab, nt, &omut);
+            else if (bi > 3) hk = ck_vt_key(d, (const low_cst_t *const *)nd->kids, 3, bi, tab, nt, &omut);
+            if (hk) { d->mutv = omut; ck_vt_mark_alias(s, d, nd->kids[0]->tok.line); }
         }
         if (blk) ck_vt_block(out, s, blk, tab, nt);
         // 빌린 이름은 블록과 함께 끝난다 — 바깥 뷰의 무효 표시는 남긴다
@@ -7922,6 +8197,32 @@ static void ck_vt_stmt(low_check_result_t *out, ck_vstate_t *s, const low_cst_t 
         *s = acc;
         return;
     }
+    // ★ 후속 ② — `set (field h f) <식>` : 식이 뷰를 들면 그 칸이 뷰의 출처를 든다(칸에 담은 뷰)
+    if (kw == LOW_KW_SET && nd->nkids >= 3) {
+        const low_cst_t *tg = nd->kids[1];
+        while (tg && tg->kind == LOW_CST_GROUP && tg->nkids == 1) tg = tg->kids[0];
+        if (tg && tg->kind == LOW_CST_FORM && tg->nkids == 3 && ck_atom(tg->kids[0]) && veq(tg->kids[0]->tok.lex, "field") &&
+            ck_atom(tg->kids[1]) && ck_atom(tg->kids[2])) {
+            for (proven_size_t i = 2; i < nd->nkids; i++) { ck_vt_uses(out, s, nd->kids[i], NULL); ck_vt_invalidate(s, nd->kids[i], tab, nt); }
+            ck_view_t tmp; memset(&tmp, 0, sizeof tmp);
+            bool holds_view = false;
+            for (proven_size_t i = 2; i < nd->nkids; i++) {
+                const low_cst_t *v = nd->kids[i];
+                while (v && v->kind == LOW_CST_GROUP && v->nkids == 1) v = v->kids[0];
+                if (v && ck_atom(v) && ck_vt_find(s, v->tok.lex)) holds_view = true;
+                ck_vt_sources(s, &tmp, nd->kids[i], false);
+            }
+            ck_view_t *d = ck_vt_find_fld(s, tg->kids[1]->tok.lex, tg->kids[2]->tok.lex);
+            if (holds_view) {
+                if (!d) d = ck_vt_new(s, tg->kids[1]->tok.lex);
+                if (d) { proven_u8str_view_t nm = tg->kids[1]->tok.lex, fl = tg->kids[2]->tok.lex;
+                         *d = tmp; d->name = nm; d->fld = fl; d->isfld = true; }
+            } else if (d) {                                          // 뷰가 아닌 것을 담으면 그 칸은 더 뷰가 아니다
+                d->invalid = false; d->ns = 0; d->told = true;
+            }
+            return;
+        }
+    }
     // 통째 대입 `set <뷰 이름> <식>` — 새 출처로 되살린다
     if (kw == LOW_KW_SET && nd->nkids >= 3 && ck_atom(nd->kids[1]) && ck_vt_find(s, nd->kids[1]->tok.lex)) {
         for (proven_size_t i = 2; i < nd->nkids; i++) { ck_vt_uses(out, s, nd->kids[i], NULL); ck_vt_invalidate(s, nd->kids[i], tab, nt); }
@@ -7940,7 +8241,16 @@ static void ck_vt_stmt(low_check_result_t *out, ck_vstate_t *s, const low_cst_t 
             if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
         if (be < nd->nkids && ck_vt_is_view_type(nd, 2, be)) {
             ck_view_t *d = ck_vt_new(s, nd->kids[1]->tok.lex);
-            if (d) for (proven_size_t q = be + 1; q < nd->nkids; q++) ck_vt_sources(s, d, nd->kids[q], false);
+            if (d) {
+                for (proven_size_t q = be + 1; q < nd->nkids; q++) ck_vt_sources(s, d, nd->kids[q], false);
+                bool tmut = false;
+                for (proven_size_t q = 2; q < be; q++) if (ck_atom(nd->kids[q]) && veq(nd->kids[q]->tok.lex, "mut")) tmut = true;
+                bool omut = false;
+                if (ck_vt_key(d, (const low_cst_t *const *)nd->kids, be + 1, nd->nkids, tab, nt, &omut)) {
+                    d->mutv = tmut;
+                    ck_vt_mark_alias(s, d, nd->kids[0]->tok.line);
+                }
+            }
         }
     }
 }
@@ -7955,13 +8265,179 @@ static void ck_view_inval_walk(low_check_result_t *out, const low_cst_t *body,
     if (!body || body->kind != LOW_CST_BLOCK) return;
     static ck_vstate_t s;
     s.n = 0; s.full = false;
+    ck_inv_prepare(tab, nt);
     ck_vt_block(out, &s, body, tab, nt);
+    if (nt > CK_INV_OPS) s.full = true;      // 추론 표 밖의 op 은 선언도 못 읽는다 — 놓치느니 거절한다
     if (s.full)                              // ★ 표가 차면 자르지 않고 거절한다(check-limits)
         emit(out, "E-IR-LIMIT",
-             "this op holds more views (or view sources, or nested branches) than the invalidation tracker's table — "
+             "this op holds more views (or view sources, or nested branches) — or the program more ops — than the invalidation tracker's table — "
              "refused rather than tracked partly, which would let a stale view through. Split the op (RFC-0116 D4)",
              body->nkids && body->kids[0]->kind != LOW_CST_ATOM && body->kids[0]->nkids && ck_atom(body->kids[0]->kids[0])
                  ? body->kids[0]->kids[0]->tok.line : 0);
+}
+
+// ★★★★★ 후속 ④ B2 (2026-09-22) — **`inplace w r` 선언이 참인지 몸에서 본다.** 선언은 «같은 구간이어도 옳다» 는 약속이고,
+//   이제 처리기가 두 모양 가운데 하나를 요구한다(못 보이면 `E-INPLACE-UNPROVEN`):
+//     ⓐ 읽기 먼저 — `r`(과 그 별칭)을 마지막으로 읽는 윗문장 L 보다 **앞의** 윗문장은 `w`(와 그 별칭)에 쓰지 않는다. L 뒤는 자유.
+//     ⓑ 원소별 — L 자신이 `w` 에 쓰면: L 안의 `r` 읽기는 모두 `(index r V)`, `w` 쓰기는 모두 `set (index w V) …` 이고 V 는
+//        **한 낱말**로 같다. L 이 반복이면 그 몸의 윗문장 차례에서 `r` 읽기가 `w` 쓰기보다 뒤에 오지 않는다.
+//   ☞ 위임: `w`·`r` 을 **그대로** 받는 부름이 피호출자의 선언한 짝(`inplace X Y`)으로 넘기면 그 부름은 ⓑ 를 만족한 쓰기로 본다.
+//   ☞ `w` 를 부름의 `mut` 자리에 넘기는 것은 쓰기, `r` 을 어디든 넘기는 것은 읽기다. 뷰 별칭(`let x be subslice r …`)은 따라간다.
+#define CK_B2_NAMES 16
+typedef struct { proven_u8str_view_t r[CK_B2_NAMES], w[CK_B2_NAMES]; proven_size_t nr, nw; bool full; } ck_b2_t;
+static bool ck_b2_in(const proven_u8str_view_t *v, proven_size_t n, proven_u8str_view_t x) {
+    for (proven_size_t i = 0; i < n; i++) if (proven_u8str_view_eq(v[i], x)) return true;
+    return false;
+}
+static bool ck_b2_mentions(const low_cst_t *nd, const proven_u8str_view_t *v, proven_size_t n) {
+    if (!nd) return false;
+    if (nd->kind == LOW_CST_ATOM) return nd->tok.kind == LOW_TOK_IDENT && ck_b2_in(v, n, nd->tok.lex);
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (ck_b2_mentions(nd->kids[i], v, n)) return true;
+    return false;
+}
+// 별칭 모으기: `let/var x … be <식>` 의 식이 r(w) 이름을 쓰고 x 가 뷰 타입이면 x 도 r(w) 다
+static void ck_b2_aliases(const low_cst_t *nd, ck_b2_t *b) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) && ck_atom(nd->kids[1])) {
+        proven_size_t be = nd->nkids;
+        for (proven_size_t q = 2; q < nd->nkids; q++) if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
+        if (be < nd->nkids && ck_vt_is_view_type(nd, 2, be)) {
+            for (proven_size_t q = be + 1; q < nd->nkids; q++) {
+                if (ck_b2_mentions(nd->kids[q], b->r, b->nr) && !ck_b2_in(b->r, b->nr, nd->kids[1]->tok.lex)) {
+                    if (b->nr >= CK_B2_NAMES) b->full = true; else b->r[b->nr++] = nd->kids[1]->tok.lex;
+                }
+                if (ck_b2_mentions(nd->kids[q], b->w, b->nw) && !ck_b2_in(b->w, b->nw, nd->kids[1]->tok.lex)) {
+                    if (b->nw >= CK_B2_NAMES) b->full = true; else b->w[b->nw++] = nd->kids[1]->tok.lex;
+                }
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_b2_aliases(nd->kids[i], b);
+}
+// r 을 읽나(쓰기 대상 자리 밖에서 r 이름이 나오나)
+static bool ck_b2_reads_r(const low_cst_t *nd, const ck_b2_t *b) { return ck_b2_mentions(nd, b->r, b->nr); }
+// w 에 쓰는 자리를 훑는다. 모양 ⓑ 를 만족하는 쓰기(색인 V, 또는 위임)만 있으면 *ok, 아니면 *bad. 쓰기가 하나라도 있으면 *any.
+static void ck_b2_writes(const low_cst_t *nd, const ck_b2_t *b, const low_opinfo_t *tab, proven_size_t nt,
+                         proven_u8str_view_t *var, bool *any, bool *bad) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0])) {
+        low_kw_t kw = nd->kids[0]->tok.kw;
+        if (kw == LOW_KW_SET) {
+            const low_cst_t *tg = nd->kids[1];
+            while (tg && tg->kind == LOW_CST_GROUP && tg->nkids == 1) tg = tg->kids[0];
+            proven_u8str_view_t root = ck_arg_root(tg, 0);
+            if (root.size && ck_b2_in(b->w, b->nw, root)) {
+                *any = true;
+                bool idx_ok = tg && tg->kind == LOW_CST_FORM && tg->nkids == 3 && ck_atom(tg->kids[0]) &&
+                              veq(tg->kids[0]->tok.lex, "index") && ck_atom(tg->kids[1]) && ck_atom(tg->kids[2]);
+                if (!idx_ok) *bad = true;
+                else if (!var->size) *var = tg->kids[2]->tok.lex;
+                else if (!proven_u8str_view_eq(*var, tg->kids[2]->tok.lex)) *bad = true;
+            }
+        } else if (kw == LOW_KW_NONE) {
+            const low_opinfo_t *op = ck_find_callee(tab, nt, nd->kids[0]->tok.lex);
+            if (op) {
+                low_op_header_t h = low_op_header(op->form);
+                for (proven_size_t q = 0; q + 1 < nd->nkids && q < h.np; q++) {
+                    if (!h.p[q].is_mut) continue;
+                    proven_u8str_view_t root = ck_arg_root(nd->kids[q + 1], 0);
+                    if (!root.size || !ck_b2_in(b->w, b->nw, root)) continue;
+                    *any = true;
+                    // 위임: w 를 그대로 받은 자리 X 에 대해, r 을 받은 모든 자리 Y 가 선언된 짝이면 좋다
+                    const low_cst_t *wa = nd->kids[q + 1];
+                    while (wa && wa->kind == LOW_CST_GROUP && wa->nkids == 1) wa = wa->kids[0];
+                    bool whole_w = wa && ck_atom(wa);
+                    bool deleg = whole_w;
+                    for (proven_size_t y = 0; y + 1 < nd->nkids && y < h.np && deleg; y++) {
+                        if (y == q || !ck_b2_mentions(nd->kids[y + 1], b->r, b->nr)) continue;
+                        const low_cst_t *ra = nd->kids[y + 1];
+                        while (ra && ra->kind == LOW_CST_GROUP && ra->nkids == 1) ra = ra->kids[0];
+                        if (!(ra && ck_atom(ra)) || !ck_has_inplace(op->form, h.p[q].name, h.p[y].name)) deleg = false;
+                    }
+                    if (!deleg) *bad = true;
+                }
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_b2_writes(nd->kids[i], b, tab, nt, var, any, bad);
+}
+// r 읽기가 모두 `(index r V)` 인가(V 가 정해졌으면 같아야 한다)
+static bool ck_b2_reads_indexed(const low_cst_t *nd, const ck_b2_t *b, proven_u8str_view_t var) {
+    if (!nd) return true;
+    if (nd->kind == LOW_CST_ATOM) return !(nd->tok.kind == LOW_TOK_IDENT && ck_b2_in(b->r, b->nr, nd->tok.lex));
+    if (nd->kind == LOW_CST_FORM && nd->nkids == 3 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "index") &&
+        ck_atom(nd->kids[1]) && ck_b2_in(b->r, b->nr, nd->kids[1]->tok.lex))
+        return ck_atom(nd->kids[2]) && (!var.size || proven_u8str_view_eq(var, nd->kids[2]->tok.lex));
+    // `set (index w V) …` 의 대상 자리는 읽기가 아니다
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (!ck_b2_reads_indexed(nd->kids[i], b, var)) return false;
+    return true;
+}
+static bool ck_b2_pair_ok(const low_cst_t *body, proven_u8str_view_t w, proven_u8str_view_t r,
+                          const low_opinfo_t *tab, proven_size_t nt, bool *full) {
+    ck_b2_t b; memset(&b, 0, sizeof b);
+    b.r[b.nr++] = r; b.w[b.nw++] = w;
+    for (int k = 0; k < 3; k++) ck_b2_aliases(body, &b);             // 별칭의 별칭
+    if (b.full) { *full = true; return false; }
+    proven_size_t L = body->nkids;                                     // r 을 마지막으로 읽는 윗문장
+    for (proven_size_t i = body->nkids; i-- > 0; ) if (ck_b2_reads_r(body->kids[i], &b)) { L = i; break; }
+    if (L == body->nkids) return true;                                 // r 을 안 읽는다
+    for (proven_size_t i = 0; i < L; i++) {                            // ⓐ L 앞은 w 에 안 쓴다
+        proven_u8str_view_t v = { 0 }; bool any = false, bad = false;
+        ck_b2_writes(body->kids[i], &b, tab, nt, &v, &any, &bad);
+        if (any) return false;
+    }
+    const low_cst_t *S = body->kids[L];
+    proven_u8str_view_t v = { 0 }; bool any = false, bad = false;
+    ck_b2_writes(S, &b, tab, nt, &v, &any, &bad);
+    if (!any) return true;                                             // ⓐ
+    if (bad) return false;
+    if (!v.size) return true;                                          // 위임만 있는 문장
+    if (!ck_b2_reads_indexed(S, &b, v)) return false;                  // ⓑ 같은 색인 하나
+    // 반복이면 그 몸의 윗문장 차례에서 r 읽기가 w 쓰기 뒤에 오지 않는다
+    const low_cst_t *blk = NULL;
+    if (S->kind == LOW_CST_FORM) for (proven_size_t i = 0; i < S->nkids; i++) if (S->kids[i]->kind == LOW_CST_BLOCK) blk = S->kids[i];
+    if (blk) {
+        bool wrote = false;
+        for (proven_size_t i = 0; i < blk->nkids; i++) {
+            proven_u8str_view_t v2 = { 0 }; bool a2 = false, b2 = false;
+            ck_b2_writes(blk->kids[i], &b, tab, nt, &v2, &a2, &b2);
+            bool rd = ck_b2_reads_r(blk->kids[i], &b);
+            if (wrote && rd) return false;
+            if (a2) wrote = true;
+        }
+    }
+    return true;
+}
+static void ck_inplace_body_check(low_check_result_t *out, const low_cst_t *form, const low_cst_t *body,
+                                  const low_opinfo_t *tab, proven_size_t nt) {
+    if (!form || !body || body->kind != LOW_CST_BLOCK) return;
+    for (proven_size_t i = 0; i + 2 < form->nkids; i++) {
+        if (form->kids[i]->kind == LOW_CST_BLOCK) break;
+        if (!(ck_atom(form->kids[i]) && veq(form->kids[i]->tok.lex, "inplace") && ck_atom(form->kids[i + 1]) && ck_atom(form->kids[i + 2])))
+            continue;
+        bool full = false;
+        if (ck_b2_pair_ok(body, form->kids[i + 1]->tok.lex, form->kids[i + 2]->tok.lex, tab, nt, &full)) continue;
+        if (full) { emit(out, "E-IR-LIMIT", "too many view aliases for the `inplace` body check's table — refused rather than "
+                         "checked partly (RFC-0116 B2)", form->kids[i]->tok.line); continue; }
+        static char pbuf[64][460]; static unsigned pbn;
+        const char *msg = "this op declares `inplace`, but its body is not one of the two shapes the processor can show "
+                          "right on the SAME range: ⓐ every read of the read input comes before any write to the written "
+                          "input, or ⓑ in the last statement that reads it, reads and writes are element by element with ONE "
+                          "index and each read comes before the write. Reshape the body, or drop the declaration (RFC-0116 B2)";
+        if (pbn < 64) {
+            proven_u8str_view_t w = form->kids[i + 1]->tok.lex, r = form->kids[i + 2]->tok.lex;
+            snprintf(pbuf[pbn], sizeof pbuf[0],
+                     "`inplace %.*s %.*s` is declared, but the body is not one of the two shapes the processor can show "
+                     "right on the SAME range: ⓐ every read of `%.*s` before any write to `%.*s`, or ⓑ in the last statement "
+                     "that reads `%.*s`, element-by-element reads and writes with ONE index, each read before the write. "
+                     "Reshape the body, or drop the declaration (RFC-0116 B2)",
+                     (int)w.size, (const char *)w.ptr, (int)r.size, (const char *)r.ptr, (int)r.size, (const char *)r.ptr,
+                     (int)w.size, (const char *)w.ptr, (int)r.size, (const char *)r.ptr);
+            msg = pbuf[pbn++];
+        }
+        emit(out, "E-INPLACE-UNPROVEN", msg, form->kids[i]->tok.line);
+    }
 }
 
 static void ck_excl_args_walk(low_check_result_t *out, const low_cst_t *nd,
@@ -8947,18 +9423,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     ck_package(&out, pr);
     ck_toplevel(&out, pr);
     ck_struct_fields(&out, pr);
-    // ★ region 탈출 검사 — op 본문마다.
-    for (proven_size_t i = 0; i < pr->nforms; i++) {
-        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
-        if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
-        low_kw_t k0 = f->kids[0]->tok.kw;
-        if (k0 != LOW_KW_FN && k0 != LOW_KW_PROC) continue;
-        ck_rgctx_t rc = { .nrgn = 0, .opform = f };
-        proven_u8str_view_t inn[CK_RG_NAMES], tnt[CK_RG_NAMES]; proven_size_t nin = 0, ntn = 0;
-        ck_region_walk(&out, f, &rc, inn, &nin, tnt, &ntn, false);
-        proven_u8str_view_t z = { 0 };
-        ck_borrow_walk(&out, f, z, z, false, false);
-    }
+    // ★ region 탈출 검사는 op 표가 선 **뒤로** 옮겼다(후속 ③ R1 — 부름의 요약을 읽는다). 아래 «op 표» 다음.
     ck_immutable(&out, pr);       // ★ `let` 은 **불변**이다 — 아니면 `var` 의 동의어일 뿐이다
     ck_guard_diverges(&out, pr);  // ★ `guard` 의 else 는 **발산**해야 한다 — 아니면 `if not` 이다
 
@@ -9045,6 +9510,26 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         if (op_actor[fi] && (declared & EFF_STATE)) info.self_declared |= EFF_PANIC;   // 자기검사만
         (void)PROVEN_ARRAY_PUSH(&ops, low_opinfo_t, info);
     }
+
+    // ★ region 탈출 검사 — op 본문마다. (op 표를 읽는다 — 후속 ③ R1 요약)
+    ck_r1_tab = (const low_opinfo_t *)ops.data; ck_r1_nt = ops.len;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0])) continue;
+        low_kw_t k0 = f->kids[0]->tok.kw;
+        if (k0 != LOW_KW_FN && k0 != LOW_KW_PROC) continue;
+        ck_rgctx_t rc = { .nrgn = 0, .opform = f };
+        proven_u8str_view_t inn[CK_RG_NAMES], tnt[CK_RG_NAMES]; proven_size_t nin = 0, ntn = 0;
+        ck_ft_n = 0; ck_ft_full = false;
+        ck_region_walk(&out, f, &rc, inn, &nin, tnt, &ntn, false);
+        if (ck_ft_full)
+            emit(&out, "E-IR-LIMIT", "this op holds more field-level taints than the region checker's table — refused "
+                 "rather than checked partly (RFC-0116 R1)", f->line);
+        ck_ft_n = 0;
+        proven_u8str_view_t z = { 0 };
+        ck_borrow_walk(&out, f, z, z, false, false);
+    }
+    ck_r1_tab = NULL; ck_r1_nt = 0;
 
     // ★ 액터 상태 칸에 빌림을 두는 것 (§8.4.1 · 결함 노트 #74) · 상태를 읽는 오류 조건 (#62)
     // ★★★ **모듈 수준 `var` 를 먼저 모은다** (결함 노트 #62 의 넓힘, 2026-09-17).
@@ -9793,6 +10278,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             ck_excl_args_walk(&out, h.body, tab0, ops.len); // ★ 쓰기 자리와 읽기 자리에 같은 저장소 (#9)
             ck_borrow_lend_walk(&out, h.body, tab0, ops.len, NULL, 0);  // ★ struct 빌려준 자 (RFC-0116 D1)
             ck_view_inval_walk(&out, h.body, tab0, ops.len);            // ★ 무효화된 출처의 뷰 (RFC-0116 D4 I)
+            ck_inplace_body_check(&out, f, h.body, tab0, ops.len);      // ★ `inplace` 선언이 참인가 (RFC-0116 B2)
             ck_mutref_of_ro_walk(&out, h.body, binds, nb);   // ★ `let` 은 참조로도 안 바뀐다 (#46)
             ck_mut_literal_bind_walk(&out, h.body);          // ★ 리터럴은 고칠 자리가 아니다 (#84)
             ck_typeholes_walk(&out, h.body, f, &h, pr, tab0, ops.len);  // ★ 실행까지 새던 다섯 (#31·#39·#44·#45)

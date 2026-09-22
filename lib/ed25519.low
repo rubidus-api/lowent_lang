@@ -244,11 +244,10 @@ errors short_workspace . do
   var done u64 be 0 .
   while eq done 0 . do
     set bi (sub bi 1) .
-    guard eq (x25519.fsq (subslice w 16 32) (subslice w 0 16) (subslice w 48 79)) 1 . else return ok 0 .
-    guard eq (x25519.fcopy (subslice w 0 16) (subslice w 16 32)) 1 . else return ok 0 .
+    rem ★ 자리에서 제곱·곱한다(X-0050) — `fsq`·`fmul` 의 `inplace` 가 선 뒤 곁 자리와 되옮기기가 필요 없다.
+    guard eq (x25519.fsq (subslice w 0 16) (subslice w 0 16) (subslice w 48 79)) 1 . else return ok 0 .
     if eq (bit_and (shr (cast u64 (index e (shr bi 3))) (bit_and bi 7)) 1) 1 . do
-      guard eq (x25519.fmul (subslice w 16 32) (subslice w 0 16) a (subslice w 48 79)) 1 . else return ok 0 .
-      guard eq (x25519.fcopy (subslice w 0 16) (subslice w 16 32)) 1 . else return ok 0 .
+      guard eq (x25519.fmul (subslice w 0 16) (subslice w 0 16) a (subslice w 48 79)) 1 . else return ok 0 .
     end .
     if eq bi 0 . do  set done 1 .  end .
   end .

@@ -213,7 +213,7 @@ do
   if eq (bigint.ge_mod (subslice wu 240 256) n 16) 1 . do
     let z1 u64 be p256.msub (subslice wu 240 256) (subslice wu 240 256) n n .
   end .
-  guard eq (p256.is_zero (subslice wu 240 256)) 0 . else return 0 .   rem r = 0 은 거절한다
+  guard eq (p256.is_zero (subslice wu 240 256)) 0 . else return ok 0 .   rem r = 0 은 거절한다
 
   rem ⑤ s = k^-1 (h + r·d) mod n
   guard eq (p256.pmul (subslice wu 256 272) (subslice wu 240 256) (subslice wu 32 48) n (subslice wu 80 96) n0n (subslice wu 320 338) (subslice wu 338 356)) 1 . else return ok 0 .
@@ -222,7 +222,7 @@ do
   guard is_ok _u2 . else return error short_workspace .
   guard eq (ok_value _u2) 1 . else return ok 0 .
   guard eq (p256.pmul (subslice wu 304 320) (subslice wu 288 304) (subslice wu 272 288) n (subslice wu 80 96) n0n (subslice wu 320 338) (subslice wu 338 356)) 1 . else return ok 0 .
-  guard eq (p256.is_zero (subslice wu 304 320)) 0 . else return 0 .   rem s = 0 도 거절한다
+  guard eq (p256.is_zero (subslice wu 304 320)) 0 . else return ok 0 .   rem s = 0 도 거절한다
 
   rem ⑥ 빅엔디언 바이트로.
   guard eq (bigint.to_bytes (subslice wu 240 256) 16 (subslice rs 0 32)) 32 . else return ok 0 .

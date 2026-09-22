@@ -1,8 +1,14 @@
 # Vendored: proven_c_lib
 
 - Upstream: `../../../../proven_c_lib`
-- Version: `proven_c_lib-v0.1.0` (git `e30a517` — 태그 `v0.1.0`. 상류 HEAD `d04e0a0` 는 발행 매뉴얼만 다르고 `include/src/platform` 은 **한 바이트도 같다** — 실측)
-- Vendored: 2026-09-12 **전체 재벤더** (was v26.07.23d / `c0e4d09` / 2026-07-24 · 그전 v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+- Version: `proven_c_lib-v0.1.1` (git `22f964e` — 태그 `v0.1.1`)
+- Vendored: 2026-09-22 전체 재벤더 (was v0.1.0 / `e30a517` / 2026-09-12 · 그전 v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+
+> **2026-09-22 재벤더 (v0.1.0 → v0.1.1).** 바뀐 파일 여덟: `include/proven/version.h` 와
+> `platform/proven_sys_{env,io,math,mem,random,thread,time}.c`. PAL 소스 앞머리에 `_DEFAULT_SOURCE`·
+> `_POSIX_C_SOURCE` 정의가 들어갔을 뿐이다(`#ifndef` 가드, `_WIN32` 제외) — `-D` 없이 `-std=c23` 으로
+> 짓는 손 빌드가 GCC 14/glibc 에서 실패하던 것을 상류가 고쳤다. ★ `PROVEN_SRC` 의
+> `proven_sys_{mem,time,random}.c` 가 이 여덟에 든다. 그리고 `--version` 출력이 `proven_c_lib-v0.1.1` 로 바뀐다.
 - License: MIT (see `LICENSE`). `THIRD_PARTY_NOTICES.md` covers upstream's vendored `nob.h`.
 
 > **2026-09-12 재벤더 (X-0025 · WO-0202).** 상류가 44 커밋 앞서 있었다. 판 번호 규약도 바뀌었다:

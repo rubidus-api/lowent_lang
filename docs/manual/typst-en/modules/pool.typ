@@ -104,8 +104,8 @@ end
 ]
 
 #antipattern[Holding two write views of one handle outside a borrow][
-  Calling `bytes` twice and binding two names gives one block two writers. Taken in borrow heads, the second borrow is rejected with
-  `E-BORROW-EXCL`; two bound outside a borrow are not told apart in this edition. Take views in the borrow head.
+  Calling `bytes` twice with the same arguments and binding two names gives one block two writers. Taken in borrow heads, the second
+  borrow is rejected with `E-BORROW-EXCL`; two bound outside a borrow and both used are rejected with `E-EXCL`. Take one view, in the borrow head.
 ]
 
 *Cautions.* Handles are values and can be copied, but releasing through any copy stales them all. `outstanding` not growing no matter how often you take and release is proof

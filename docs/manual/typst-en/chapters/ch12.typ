@@ -179,6 +179,7 @@ loop has its length change even though its own code contains no assignment. Retu
   [`field v a`], [read a field through a reference], [same spelling for a reference to a struct],
   [two `mut_ref` of one value · `ref` plus a write], [overlapping borrows --- rejected (`E-EXCL`)], [many readers or one writer],
   [one storage in a written and a read position], [only when the callee allows it with `inplace <written> <read> .` and the ranges are *the same* --- else `E-EXCL-INPLACE`], [a body that reads and writes element by element is right only on the same range],
+  [the body of an op that declares `inplace o a`], [write `o` only after every read of `a`, or read and write element by element with one index --- else `E-INPLACE-UNPROVEN`], [the processor checks the declaration against the body],
   [using an old view after calling an op that declares `invalidates <input>` on its storage], [rejected (`E-VIEW-INVALIDATED`) --- take the view again], [after a release, a growth or a rewind the view points at someone else's place],
   [`return ref here .`], [return a reference to a local --- rejected], [never point at a value that is gone],
   [`mut ref slice`], [does not exist --- rejected (`E-MREF-SLICE`)], [no hidden length change --- return a new slice],

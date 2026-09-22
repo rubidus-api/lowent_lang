@@ -93,7 +93,7 @@ end
 
 > **Counter-example. Holding two write views of one handle outside a borrow**
 >
-> > Calling `bytes` twice and binding two names gives one block two writers. Taken in borrow heads, the second borrow is rejected with `E-BORROW-EXCL`; two bound outside a borrow are not told apart in this edition. Take views in the borrow head.
+> > Calling `bytes` twice with the same arguments and binding two names gives one block two writers. Taken in borrow heads, the second borrow is rejected with `E-BORROW-EXCL`; two bound outside a borrow and both used are rejected with `E-EXCL`. Take one view, in the borrow head.
 
 **Cautions.** Handles are values and can be copied, but releasing through any copy stales them all. `outstanding` not growing no matter how often you take and release is proof the free list is alive (`used` grows only in the first few rounds). `outstanding` walks the free list, O(free blocks) — do not call it on every hot-path pass. One handle = one block. Sequential delivery is assumed. Why `outstanding`, not `live` — the processor could not tell common words used as local variables from op heads. Designing a handle’s bit widths is helped by [`budget`](sec99.md#mod-budget).
 

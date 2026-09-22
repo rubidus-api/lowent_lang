@@ -41,13 +41,13 @@ export proc cap_of   input g gvec . output u64 . effects none . do return vecgen
 
 rem ★ 바이트 하나를 민다. 자리가 모자라면 **스스로** 더 큰 자리를 받아 옮긴다.
 rem   못 받으면 false — 트랩이 아니라 값이다(OOM 은 값이다, RFC-0043 D5).
-export proc add_byte input g mut gvec . input b u8 . output bool . effects state . do
+export proc add_byte input g mut gvec . input b u8 . output bool . effects state . invalidates g . do
   return vecgen.append u8 allocs.bump_bytes g b .
 end .
 
 rem ★ 바이트열을 통째로 민다. 하나라도 못 넣으면 false — 다만 **앞부분은 이미 들어가 있다**
 rem   (전량-아니면-무를 약속하지 않는다. 원하면 `reserve_more` 를 먼저 부른다).
-export proc add_all input g mut gvec . input s slice u8 . output bool . effects state . do
+export proc add_all input g mut gvec . input s slice u8 . output bool . effects state . invalidates g . do
   var i u64 be 0 .
   while lt i (len s) . do
     guard vecgen.append u8 allocs.bump_bytes g (index s i) . else return false .
@@ -58,7 +58,7 @@ end .
 
 rem ★ 앞으로 n 개가 더 들어갈 자리를 **미리** 확보한다. 이걸 먼저 부르면 add_all 이 도중에
 rem   실패하지 않는다 — "전량 아니면 무" 를 원하면 이 순서로 쓴다.
-export proc reserve_more input g mut gvec . input more u64 . output bool . effects state . do
+export proc reserve_more input g mut gvec . input more u64 . output bool . effects state . invalidates g . do
   return vecgen.reserve_more u8 allocs.bump_bytes g more .
 end .
 

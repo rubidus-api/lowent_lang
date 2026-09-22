@@ -1407,6 +1407,20 @@ static void ck_clause_names(low_check_result_t *out, const low_cst_t *f,
                      "`none` sits in the `effects` clause ALONGSIDE a real effect — `none` means this "
                      "op performs no effects, so it cannot co-occur with one. Say the effects, or say "
                      "none; not both (RFC-0057 E2)", f->line);
+        } else if (veq(w, "invalidates")) {
+            // ★★★★ RFC-0116 D4 I (소유자 결정, 2026-09-22) — `invalidates <입력> .` : «이 op 은 그 입력에서 나온 뷰를
+            //   무효로 만든다»(블록을 돌려준다 · 자라며 옮긴다 · 되감는다). 이름 **하나**, 이 op 의 입력이어야 한다.
+            proven_size_t n = 0; proven_u8str_view_t nm1 = { 0 }; bool bad = false;
+            for (proven_size_t j = i + 1; j < f->nkids; j++) {
+                if (f->kids[j]->kind != LOW_CST_ATOM || ck_clause_word(f->kids[j]->tok.lex)) break;
+                if (f->kids[j]->tok.kind != LOW_TOK_IDENT) { bad = true; break; }
+                if (n == 0) nm1 = f->kids[j]->tok.lex;
+                n++;
+            }
+            if (bad || n != 1 || !ck_is_param_name(f, nm1))
+                emit(out, "E-INVALIDATES-FORM",
+                     "an `invalidates` clause names exactly ONE input of this op — the storage whose views the op "
+                     "makes invalid (releases a block, grows and moves, rewinds): `invalidates p .` (RFC-0116 D4)", f->line);
         } else if (veq(w, "inplace")) {
             // ★★★★ RFC-0116 D2 B1 (소유자 결정 ⓑ, 2026-09-22) — `inplace <쓰기 입력> <읽기 입력> .`
             //   «이 둘이 같은 저장소여도 된다» 는 선언이다. 모양: 이름 **둘**, 둘 다 이 op 의 입력, 앞의 것은
@@ -4157,7 +4171,7 @@ static const char *ck_rank_name(int r) {
         case 0: return "`satisfies`/`lowdoc`"; case 1: return "`vector`/`priority`"; case 2: return "a `comptime` input";
         case 3: return "a capability/region input"; case 4: return "`using`"; case 5: return "a data input";
         case 6: return "`output`"; case 7: return "`effects`"; case 8: return "`link`/`variadic`"; case 9: return "`asm`";
-        case 10: return "`access`/`inplace`/`parallel`/`reduce`"; case 11: return "`requires`"; case 12: return "`ensures`";
+        case 10: return "`access`/`inplace`/`invalidates`/`parallel`/`reduce`"; case 11: return "`requires`"; case 12: return "`ensures`";
         case 13: return "`errors`"; case 14: return "`tests`"; case 15: return "`schedule`"; default: return "a clause";
     }
 }
@@ -4179,7 +4193,7 @@ static void ck_clause_order_one(low_check_result_t *out, const low_cst_t *f, pro
             snprintf(buf, sizeof msgs[0][0],
                      "%s comes after %s. An op header has ONE order: `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · "
                      "capability/region inputs · `using` · data inputs · `output` · `effects` · `link`/`variadic` · `asm` · "
-                     "`access`/`inplace`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input "
+                     "`access`/`inplace`/`invalidates`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input "
                      "clauses for you; inputs are call positions, so reorder those and their call sites yourself)",
                      ck_rank_name(r), ck_rank_name(maxr));
             emit_at(out, "E-CLAUSE-ORDER", buf, f->kids[i]);
@@ -7735,6 +7749,221 @@ static void ck_borrow_lend_walk(low_check_result_t *out, const low_cst_t *nd,
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_borrow_lend_walk(out, nd->kids[i], tab, nt, lend, nlend);
 }
 
+// ★★★★★ **무효화된 출처에서 나온 뷰를 쓰지 않는다** (RFC-0116 D4 I, 소유자 결정 2026-09-22).
+//   풀의 `bytes` 가 준 슬라이스는 평범한 `{ptr, len}` 이라 반환을 모른다 — 빌림 **전에** 이름에 묶어 두면
+//   `release` 뒤에도 쓸 수 있었고, 그 쓰기가 다음 주인의 블록과 자유 목록 링크를 덮었다(결함
+//   `pool-view-outlives-release`). D1 (iii) 은 빌림 머리에서 꺼낸 뷰만 지켰다.
+//   ⇒ op 몸 안에서 **뷰 지역**(타입에 `slice` 가 든 `let`/`var`/`borrow` 이름)마다 출처 — 초기식에 나온 저장소 이름,
+//     뷰 이름이면 그 출처를 이어받는다 — 를 들고 다닌다. `invalidates <입력> .` 을 선언한 op 을 부르면 그 자리에
+//     넘긴 저장소에서 나온 뷰가 모두 무효가 되고, 그 뒤 그 이름을 쓰면 `E-VIEW-INVALIDATED` 다.
+//   ☞ 흐름: 문장 차례대로. 갈래(`if`·`match`)는 갈래마다 따로 보고 «어느 한 갈래에서라도 무효» 로 합친다.
+//     반복(`while`·`for`)은 몸을 두 번 훑어 다음 바퀴로 넘어가는 무효화도 본다. 이름을 통째로 다시 대입하면
+//     새 출처로 되살아난다.
+//   ☞ 핸들·수 같은 **값**은 뷰가 아니다 — 반환 뒤의 핸들로 `alive`/`bytes` 를 묻는 것은 정상이다(세대가 답한다).
+//   ☞ 출처는 뭉뚱그린다(부름의 결과는 인자 모두에서 나온다) — 과엄격한 쪽이다. 칸마다 출처(R1)는 수요가 생길 때.
+#define CK_VT_MAX 64
+#define CK_VT_SRC 8
+typedef struct { proven_u8str_view_t name; proven_u8str_view_t src[CK_VT_SRC]; unsigned ns;
+                 bool invalid, told; proven_u32 inval_line; } ck_view_t;
+typedef struct { ck_view_t v[CK_VT_MAX]; proven_size_t n; bool full; } ck_vstate_t;
+
+static ck_view_t *ck_vt_find(ck_vstate_t *s, proven_u8str_view_t nm) {
+    for (proven_size_t i = s->n; i-- > 0; ) if (proven_u8str_view_eq(s->v[i].name, nm)) return &s->v[i];
+    return NULL;
+}
+static void ck_vt_addsrc(ck_vstate_t *s, ck_view_t *d, proven_u8str_view_t w) {
+    for (unsigned k = 0; k < d->ns; k++) if (proven_u8str_view_eq(d->src[k], w)) return;
+    if (d->ns >= CK_VT_SRC) { s->full = true; return; }
+    d->src[d->ns++] = w;
+}
+// 식에 나온 저장소 이름을 출처로 모은다(부름의 머리 낱말 · 예약어 · 수는 빼고, 뷰 이름은 그 출처를 잇는다)
+static void ck_vt_sources(ck_vstate_t *s, ck_view_t *d, const low_cst_t *nd, bool head) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_ATOM) {
+        if (head || nd->tok.kind != LOW_TOK_IDENT || nd->tok.kw != LOW_KW_NONE) return;
+        ck_view_t *o = ck_vt_find(s, nd->tok.lex);
+        if (o) { for (unsigned k = 0; k < o->ns; k++) ck_vt_addsrc(s, d, o->src[k]); return; }
+        ck_vt_addsrc(s, d, nd->tok.lex);
+        return;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++)
+        ck_vt_sources(s, d, nd->kids[i], nd->kind == LOW_CST_FORM && i == 0);
+}
+static bool ck_vt_is_view_type(const low_cst_t *f, proven_size_t from, proven_size_t to) {
+    for (proven_size_t i = from; i < to; i++) {
+        const low_cst_t *k = f->kids[i];
+        if (ck_atom(k) && (veq(k->tok.lex, "slice") || veq(k->tok.lex, "view"))) return true;
+        if (k->kind == LOW_CST_GROUP || k->kind == LOW_CST_FORM)
+            if (ck_vt_is_view_type(k, 0, k->nkids)) return true;
+    }
+    return false;
+}
+static ck_view_t *ck_vt_new(ck_vstate_t *s, proven_u8str_view_t nm) {
+    if (s->n >= CK_VT_MAX) { s->full = true; return NULL; }
+    ck_view_t *d = &s->v[s->n++];
+    memset(d, 0, sizeof *d); d->name = nm;
+    return d;
+}
+// 쓰인 이름 가운데 무효가 된 뷰가 있으면 말한다(통째 대입의 대상 자리는 쓰기가 아니라 새 출처라 뺀다)
+static void ck_vt_uses(low_check_result_t *out, ck_vstate_t *s, const low_cst_t *nd, const low_cst_t *skip) {
+    if (!nd || nd == skip) return;
+    if (nd->kind == LOW_CST_ATOM) {
+        if (nd->tok.kind != LOW_TOK_IDENT) return;
+        ck_view_t *v = ck_vt_find(s, nd->tok.lex);
+        if (v && v->invalid && !v->told) {
+            static char vbuf[128][360]; static unsigned vbn;
+            const char *msg = "this view came from storage that a call above made INVALID (it released a block, grew and "
+                              "moved, or rewound — the callee says so with `invalidates`). The view is a plain slice and "
+                              "does not know: reading it sees stale bytes, writing it lands in memory someone else now owns. "
+                              "Take the view again after the call (RFC-0116 D4)";
+            if (vbn < 128) {
+                snprintf(vbuf[vbn], sizeof vbuf[0],
+                         "`%.*s` is a view whose storage was made INVALID by the call on line %u (the callee declares "
+                         "`invalidates`: it released, moved or rewound that storage). The view does not know — reading it "
+                         "sees stale bytes, writing it lands in memory someone else now owns. Take the view again after "
+                         "that call (RFC-0116 D4)",
+                         (int)v->name.size, (const char *)v->name.ptr, (unsigned)v->inval_line);
+                msg = vbuf[vbn++];
+            }
+            emit(out, "E-VIEW-INVALIDATED", msg, nd->tok.line);
+            v->told = true;
+        }
+        return;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_vt_uses(out, s, nd->kids[i], skip);
+}
+// 이 식 안의 부름 가운데 `invalidates` 를 선언한 것이 있으면 그 자리의 저장소에서 나온 뷰를 무효로 만든다
+static void ck_vt_invalidate(ck_vstate_t *s, const low_cst_t *nd, const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_vt_invalidate(s, nd->kids[i], tab, nt);
+    if (nd->kind != LOW_CST_FORM || nd->nkids < 2 || !ck_atom(nd->kids[0]) || nd->kids[0]->tok.kw != LOW_KW_NONE) return;
+    const low_opinfo_t *op = ck_find_callee(tab, nt, nd->kids[0]->tok.lex);
+    if (!op) return;
+    const low_cst_t *form = op->form;
+    for (proven_size_t i = 0; i + 1 < form->nkids; i++) {
+        if (form->kids[i]->kind == LOW_CST_BLOCK) break;
+        if (!(ck_atom(form->kids[i]) && veq(form->kids[i]->tok.lex, "invalidates") && ck_atom(form->kids[i + 1]))) continue;
+        low_op_header_t h = low_op_header(form);
+        for (proven_size_t q = 0; q < h.np; q++) {
+            if (!proven_u8str_view_eq(h.p[q].name, form->kids[i + 1]->tok.lex) || q + 1 >= nd->nkids) continue;
+            proven_u8str_view_t r = ck_arg_root(nd->kids[q + 1], 0);
+            if (!r.size) continue;
+            for (proven_size_t k = 0; k < s->n; k++)
+                for (unsigned m = 0; m < s->v[k].ns; m++)
+                    if (proven_u8str_view_eq(s->v[k].src[m], r) && !s->v[k].invalid) {
+                        s->v[k].invalid = true; s->v[k].inval_line = nd->kids[0]->tok.line; break;
+                    }
+        }
+    }
+}
+static void ck_vt_block(low_check_result_t *out, ck_vstate_t *s, const low_cst_t *blk,
+                        const low_opinfo_t *tab, proven_size_t nt);
+static void ck_vt_stmt(low_check_result_t *out, ck_vstate_t *s, const low_cst_t *nd,
+                       const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_BLOCK) { ck_vt_block(out, s, nd, tab, nt); return; }
+    if (nd->kind != LOW_CST_FORM || !nd->nkids || !ck_atom(nd->kids[0])) { ck_vt_uses(out, s, nd, NULL); ck_vt_invalidate(s, nd, tab, nt); return; }
+    low_kw_t kw = nd->kids[0]->tok.kw;
+    bool has_block = false;
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (nd->kids[i]->kind == LOW_CST_BLOCK) has_block = true;
+    // borrow <이름> be <식> do … end — 빌린 이름도 뷰다(머리 식의 출처를 잇는다)
+    if (ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "borrow") && nd->nkids >= 4 && ck_atom(nd->kids[1])) {
+        const low_cst_t *blk = NULL; proven_size_t bi = nd->nkids;
+        for (proven_size_t i = 0; i < nd->nkids; i++) if (nd->kids[i]->kind == LOW_CST_BLOCK) { blk = nd->kids[i]; bi = i; }
+        // ★ 머리 식과 블록이 한 폼으로 붙는 꼴 `borrow v be FORM[<식…> BLOCK]` 이 흔하다(다른 빌림 검사도 이 꼴을 본다)
+        const low_cst_t *glued = NULL;
+        if (!blk) {
+            const low_cst_t *last = nd->kids[nd->nkids - 1];
+            if (last && last->kind == LOW_CST_FORM && last->nkids && last->kids[last->nkids - 1]->kind == LOW_CST_BLOCK) {
+                blk = last->kids[last->nkids - 1]; bi = nd->nkids - 1; glued = last;
+            }
+        }
+        for (proven_size_t i = 2; i < bi; i++) { ck_vt_uses(out, s, nd->kids[i], NULL); ck_vt_invalidate(s, nd->kids[i], tab, nt); }
+        if (glued) for (proven_size_t i = 0; i + 1 < glued->nkids; i++) { ck_vt_uses(out, s, glued->kids[i], NULL); ck_vt_invalidate(s, glued->kids[i], tab, nt); }
+        proven_size_t keep = s->n;
+        ck_view_t *d = ck_vt_new(s, nd->kids[1]->tok.lex);
+        if (d) {
+            for (proven_size_t i = 2; i < bi; i++) ck_vt_sources(s, d, nd->kids[i], false);
+            if (glued) for (proven_size_t i = 0; i + 1 < glued->nkids; i++) ck_vt_sources(s, d, glued->kids[i], i == 0 && glued->nkids > 2);
+        }
+        if (blk) ck_vt_block(out, s, blk, tab, nt);
+        // 빌린 이름은 블록과 함께 끝난다 — 바깥 뷰의 무효 표시는 남긴다
+        s->n = keep;
+        return;
+    }
+    if (has_block) {
+        // 조건·머리(블록 아닌 조각) 먼저
+        for (proven_size_t i = 1; i < nd->nkids; i++)
+            if (nd->kids[i]->kind != LOW_CST_BLOCK) { ck_vt_uses(out, s, nd->kids[i], NULL); ck_vt_invalidate(s, nd->kids[i], tab, nt); }
+        bool loop = (kw == LOW_KW_WHILE || kw == LOW_KW_FOR);
+        if (loop) {
+            for (int pass = 0; pass < 2; pass++)
+                for (proven_size_t i = 1; i < nd->nkids; i++)
+                    if (nd->kids[i]->kind == LOW_CST_BLOCK) ck_vt_block(out, s, nd->kids[i], tab, nt);
+            return;
+        }
+        // 갈래 — 갈래마다 앞 상태의 사본으로 보고, 무효 표시를 합친다
+        static ck_vstate_t pre[16]; static int depth;
+        if (depth >= 16) { s->full = true; return; }
+        ck_vstate_t *p0 = &pre[depth++];
+        *p0 = *s;
+        ck_vstate_t acc = *s;
+        for (proven_size_t i = 1; i < nd->nkids; i++) {
+            if (nd->kids[i]->kind != LOW_CST_BLOCK) continue;
+            ck_vstate_t br = *p0;
+            ck_vt_block(out, &br, nd->kids[i], tab, nt);
+            for (proven_size_t k = 0; k < p0->n && k < br.n; k++) {
+                if (br.v[k].invalid && !acc.v[k].invalid) { acc.v[k].invalid = true; acc.v[k].inval_line = br.v[k].inval_line; }
+                if (br.v[k].told) acc.v[k].told = true;
+            }
+            if (br.full) acc.full = true;
+        }
+        depth--;
+        *s = acc;
+        return;
+    }
+    // 통째 대입 `set <뷰 이름> <식>` — 새 출처로 되살린다
+    if (kw == LOW_KW_SET && nd->nkids >= 3 && ck_atom(nd->kids[1]) && ck_vt_find(s, nd->kids[1]->tok.lex)) {
+        for (proven_size_t i = 2; i < nd->nkids; i++) { ck_vt_uses(out, s, nd->kids[i], NULL); ck_vt_invalidate(s, nd->kids[i], tab, nt); }
+        ck_view_t *d = ck_vt_find(s, nd->kids[1]->tok.lex);
+        ck_view_t fresh; memset(&fresh, 0, sizeof fresh); fresh.name = d->name;
+        for (proven_size_t i = 2; i < nd->nkids; i++) ck_vt_sources(s, &fresh, nd->kids[i], false);
+        *d = fresh;
+        return;
+    }
+    ck_vt_uses(out, s, nd, NULL);
+    ck_vt_invalidate(s, nd, tab, nt);
+    // let/var <이름> <타입…> be <식> — 타입에 slice 가 들면 뷰로 따라간다
+    if ((kw == LOW_KW_LET || kw == LOW_KW_VAR) && nd->nkids >= 4 && ck_atom(nd->kids[1])) {
+        proven_size_t be = nd->nkids;
+        for (proven_size_t q = 2; q < nd->nkids; q++)
+            if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
+        if (be < nd->nkids && ck_vt_is_view_type(nd, 2, be)) {
+            ck_view_t *d = ck_vt_new(s, nd->kids[1]->tok.lex);
+            if (d) for (proven_size_t q = be + 1; q < nd->nkids; q++) ck_vt_sources(s, d, nd->kids[q], false);
+        }
+    }
+}
+static void ck_vt_block(low_check_result_t *out, ck_vstate_t *s, const low_cst_t *blk,
+                        const low_opinfo_t *tab, proven_size_t nt) {
+    proven_size_t keep = s->n;
+    for (proven_size_t i = 0; i < blk->nkids; i++) ck_vt_stmt(out, s, blk->kids[i], tab, nt);
+    s->n = keep;          // 블록 안에서 난 이름은 블록과 함께 끝난다
+}
+static void ck_view_inval_walk(low_check_result_t *out, const low_cst_t *body,
+                               const low_opinfo_t *tab, proven_size_t nt) {
+    if (!body || body->kind != LOW_CST_BLOCK) return;
+    static ck_vstate_t s;
+    s.n = 0; s.full = false;
+    ck_vt_block(out, &s, body, tab, nt);
+    if (s.full)                              // ★ 표가 차면 자르지 않고 거절한다(check-limits)
+        emit(out, "E-IR-LIMIT",
+             "this op holds more views (or view sources, or nested branches) than the invalidation tracker's table — "
+             "refused rather than tracked partly, which would let a stale view through. Split the op (RFC-0116 D4)",
+             body->nkids && body->kids[0]->kind != LOW_CST_ATOM && body->kids[0]->nkids && ck_atom(body->kids[0]->kids[0])
+                 ? body->kids[0]->kids[0]->tok.line : 0);
+}
+
 static void ck_excl_args_walk(low_check_result_t *out, const low_cst_t *nd,
                               const low_opinfo_t *tab, proven_size_t nt) {
     static ck_sctx_t c;                       // op 하나씩 — 다시 부를 때 비운다
@@ -9563,6 +9792,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             ck_capforge_walk(&out, h.body, tab0, ops.len);  // ★ 권한은 지어낼 수 없다 (RFC-0030 D2)
             ck_excl_args_walk(&out, h.body, tab0, ops.len); // ★ 쓰기 자리와 읽기 자리에 같은 저장소 (#9)
             ck_borrow_lend_walk(&out, h.body, tab0, ops.len, NULL, 0);  // ★ struct 빌려준 자 (RFC-0116 D1)
+            ck_view_inval_walk(&out, h.body, tab0, ops.len);            // ★ 무효화된 출처의 뷰 (RFC-0116 D4 I)
             ck_mutref_of_ro_walk(&out, h.body, binds, nb);   // ★ `let` 은 참조로도 안 바뀐다 (#46)
             ck_mut_literal_bind_walk(&out, h.body);          // ★ 리터럴은 고칠 자리가 아니다 (#84)
             ck_typeholes_walk(&out, h.body, f, &h, pr, tab0, ops.len);  // ★ 실행까지 새던 다섯 (#31·#39·#44·#45)

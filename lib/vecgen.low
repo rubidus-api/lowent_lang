@@ -101,7 +101,7 @@ end .
 
 rem ★ 원소를 하나 민다. 자리가 모자라면 **스스로** 더 받아 옮긴다(두 배 + 8 원소).
 rem   못 받으면 false — 트랩이 아니라 값이다(OOM 은 값이다, RFC-0043 D5).
-export proc append input comptime t type . input comptime a type . input g mut vec t a . input x t . output bool . effects state via a . requires allocs.byte_allocator a . do
+export proc append input comptime t type . input comptime a type . input g mut vec t a . input x t . output bool . effects state via a . invalidates g . requires allocs.byte_allocator a . do
   let room u64 be div (len (field g store)) (size_of t) .
   if lt (field g n) room . do
     var cur mut slice u8 . be (field g store) .
@@ -162,7 +162,7 @@ end .
 
 rem ★ 앞으로 more 개가 더 들어갈 자리를 **미리** 확보한다. 이걸 먼저 부르면 뒤따르는 add 가
 rem   도중에 실패하지 않는다 — "전량 아니면 무" 를 원하면 이 순서로 쓴다.
-export proc reserve_more input comptime t type . input comptime a type . input g mut vec t a . input more u64 . output bool . effects state via a . requires allocs.byte_allocator a . do
+export proc reserve_more input comptime t type . input comptime a type . input g mut vec t a . input more u64 . output bool . effects state via a . invalidates g . requires allocs.byte_allocator a . do
   rem ★ `n + more` 도, 그 바이트 수도 넘칠 수 있다 — 둘 다 **묻고** 못 하면 false 다(2026-09-04).
   rem   호출자가 준 수에 트랩하지 않는다: 자리를 못 잡는 것은 실패지 사고가 아니다.
   let need0 option u64 . be chk_add (field g n) more .

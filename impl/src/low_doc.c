@@ -39,7 +39,7 @@ static void ev(FILE *o, proven_u8str_view_t v) { if (v.size) fwrite(v.ptr, 1, v.
 // the flat MVP clause vocabulary (+ the lowdoc prose clause) = clause boundaries
 static bool is_clause(proven_u8str_view_t v) {
     return dv(v,"input")||dv(v,"output")||dv(v,"effects")||dv(v,"requires")||dv(v,"ensures")||
-           dv(v,"errors")||dv(v,"access")||dv(v,"inplace")||dv(v,"tests")||dv(v,"caps")||dv(v,"allocation")||
+           dv(v,"errors")||dv(v,"access")||dv(v,"inplace")||dv(v,"invalidates")||dv(v,"tests")||dv(v,"caps")||dv(v,"allocation")||
            dv(v,"unsafe")||dv(v,"lowdoc");
 }
 static bool is_grade(proven_u8str_view_t v) { return dv(v,"static")||dv(v,"debug")||dv(v,"assume"); }

@@ -44,9 +44,10 @@ rem     그 문장은 사실이 아니었다(결함 `pool-view-outlives-release`
 rem     ⇒ 지금 규칙: `borrow v be some_value (pool.bytes b p h) do … end` 처럼 **빌림 머리에서** 꺼내면,
 rem       처리기가 빌림 동안 `p` 를 쓰기 자리에 넘기는 것(`release`·`take`)과 `p` 로 두 번째 빌림을
 rem       여는 것을 `E-BORROW-EXCL` 로 거절한다. 언어는 여전히 `pool` 을 모른다 — struct 빌려준 자 규칙이다.
-rem     ☞ **남는 구멍(정직히)**: 빌림 **전에** `let bv be … bytes …` 로 뷰를 묶으면 처리기는 `bv` 가 `p` 에서
-rem       왔다는 것을 모른다 — 든 채 해제하고 쓰면 다음 주인의 블록과 **자유 목록 링크**를 덮는다.
-rem       그래서 뷰는 **빌림 머리에서만** 꺼낸다(규약). 규칙으로 막는 것은 출처 추적(RFC-0116 D4)의 몫이다.
+rem     ★★ 2026-09-22(RFC-0116 D4 I): `release` 가 `invalidates p .` 를 밝힌다 — 빌림 **전에** `let bv be … bytes …` 로
+rem       묶어 둔 뷰를 해제 **뒤에** 쓰면 `E-VIEW-INVALIDATED` 다(처리기가 `bv` 의 출처 `p` 를 따라간다).
+rem     ☞ **남는 모양(정직히)**: 같은 핸들로 `bytes` 를 두 번 불러 빌림 **밖**에서 쓰기 뷰 둘을 드는 것 — 이 판이 가르지 못한다.
+rem       그래서 뷰는 여전히 **빌림 머리에서** 꺼낸다(권고).
 rem
 rem ★★★ **자유 목록 — 해제한 블록이 돌아온다** (2026-07-20, 후속으로 적어 뒀던 것을 지금 짓는다).
 rem   전에는 `take` 가 **순차 배당만** 해서 `release` 한 블록이 영영 안 돌아왔다. 그래서
@@ -182,7 +183,7 @@ rem   메모리는 그대로 있지만 **아무도 그것을 쓸 수 없다** �
 rem ★★ 그리고 **블록을 자유 목록에 되돌린다** — 링크는 블록 자기 바이트에 쓴다(추가 비용 0).
 rem   ★ 순서가 중요하다: 세대를 **먼저** 올려 아무도 못 닿게 만든 뒤에야 그 바이트를 장부로 쓴다.
 export proc release input comptime b type . input p mut block_pool b . input h handle b .
-  output bool . effects none .
+  output bool . effects none . invalidates p .
 do
   var mem mut slice u8 . be (field p mem) .
   var g mut slice u64 . be (field p gens) .

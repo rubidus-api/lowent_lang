@@ -7422,11 +7422,17 @@ static ck_skey_t ck_skey_seq(const ck_sctx_t *c, const low_cst_t *const *k, prov
             return ck_skey_seq(c, (const low_cst_t *const *)nd->kids, 0, nd->nkids, depth + 1);
         return z;
     }
-    if (to - from == 3 && ck_atom(k[from]) && veq(k[from]->tok.lex, "field") && ck_atom(k[from + 2])) {
+    // ★★ `field <값> <마디> …` — 정본 §6.2 의 철자는 **여러 마디 하나**다(`field s a x`). 괄호로 겹친 꼴
+    //   `(field (field s a) x)` 도 같은 경로로 읽는다. 2026-09-22 첫 판은 한 마디만 읽어서 정본 철자의 깊은 칸
+    //   (`two (field s a x) (field s a x)`)이 통과했다 — **철자가 둘이면 둘 다 가르친다.**
+    if (to - from >= 3 && ck_atom(k[from]) && veq(k[from]->tok.lex, "field")) {
         ck_skey_t base = ck_skey_seq(c, k, from + 1, from + 2, depth + 1);
         // ★ 조각을 잘라 낸 뒤의 칸(`field (subslice …) f`)은 뜻이 없다 · 경로가 표보다 깊으면 «모른다»(가르지 않는다)
-        if (!base.root.size || !base.whole || base.np >= CK_SK_PATH) return z;
-        base.path[base.np++] = k[from + 2]->tok.lex;
+        if (!base.root.size || !base.whole) return z;
+        for (proven_size_t m = from + 2; m < to; m++) {
+            if (!ck_atom(k[m]) || base.np >= CK_SK_PATH) return z;
+            base.path[base.np++] = k[m]->tok.lex;       // 이름 마디 · 정수 마디(자리) 모두 경로다
+        }
         return base;
     }
     if (to - from == 4 && ck_atom(k[from]) && veq(k[from]->tok.lex, "subslice")) {

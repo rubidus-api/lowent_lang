@@ -228,7 +228,7 @@ match               match <폼> do <가지>* [else do <폼>* end] end       end"
     #para("2a")[
       `fn`/`proc` 머리의 `<절>*` 은 #cref("6.4.1") (3a) 의 한 차례를 따른다: `satisfies`·`lowdoc` · `vector`·`priority` ·
       comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm` ·
-      `access`·`inplace`·`parallel`·`reduce` · `requires` · `ensures` · `errors` · `tests` · `schedule` (`E-CLAUSE-ORDER`).
+      `access`·`inplace`·`invalidates`·`parallel`·`reduce` · `requires` · `ensures` · `errors` · `tests` · `schedule` (`E-CLAUSE-ORDER`).
     ]
     #para("2b")[
       **블록 선언**(`struct`·`enum`·`trait`·`actor`·`state`·`contract`)의 몸은 `do` 로 열고 `end` 로 닫는다 — `fn` 의 몸과 제어

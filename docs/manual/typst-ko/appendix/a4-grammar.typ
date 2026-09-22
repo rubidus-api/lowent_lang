@@ -17,7 +17,7 @@
   output <타입> .                          ⑦
   effects <원자…> [via <타입>] .           ⑧
   link "<이름>" · variadic · asm <기계>    ⑨ 바깥과 잇는 자리
-  access · inplace <쓰기> <읽기> · parallel <이름> split · reduce  ⑩ 메모리를 만지는 법 · 나누어 도는 방법
+  access · inplace <쓰기> <읽기> · invalidates <입력> · parallel <이름> split · reduce  ⑩ 메모리를 만지는 법 · 나누어 도는 방법
   requires [static|debug|assume] <조건> .  ⑪ 입력 조건
   ensures <조건> .                         ⑫ 출력 약속 (ret)
   errors <갈래> [<조건>] .                 ⑬ 실패

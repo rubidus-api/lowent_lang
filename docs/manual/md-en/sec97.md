@@ -87,9 +87,13 @@ end
 >
 > > `borrow v be some_value (pool.bytes b p h) do pool.release b p h . … end` is the compile error `E-BORROW-EXCL` — a release changes the pool, and the borrowed view cannot know. Release after closing the block.
 
-> **Counter-example. Binding the view to a name **before** the borrow**
+> **Counter-example. Using an old view after the release**
 >
-> > `let bv … be some_value (pool.bytes b p h) .` hides from the processor that `bv` came from the pool. Release while holding it and write through it, and it overwrites the next owner’s block and the free-list link **with no diagnostic**. This is a hole in this edition (a rule can close it only once RFC-0116 D4 tracks provenance) — which is why the view is taken in the borrow head.
+> > `pool.release` declares `invalidates p .`, so a view bound with `let bv … be some_value (pool.bytes b p h) .` and used **after** the release is the compile error `E-VIEW-INVALIDATED` — the processor follows `bv` back to `p`. To reach the block again, ask `bytes` anew (the generation answers `none`).
+
+> **Counter-example. Holding two write views of one handle outside a borrow**
+>
+> > Calling `bytes` twice and binding two names gives one block two writers. Taken in borrow heads, the second borrow is rejected with `E-BORROW-EXCL`; two bound outside a borrow are not told apart in this edition. Take views in the borrow head.
 
 **Cautions.** Handles are values and can be copied, but releasing through any copy stales them all. `outstanding` not growing no matter how often you take and release is proof the free list is alive (`used` grows only in the first few rounds). `outstanding` walks the free list, O(free blocks) — do not call it on every hot-path pass. One handle = one block. Sequential delivery is assumed. Why `outstanding`, not `live` — the processor could not tell common words used as local variables from op heads. Designing a handle’s bit widths is helped by [`budget`](sec99.md#mod-budget).
 

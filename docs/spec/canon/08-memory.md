@@ -584,6 +584,45 @@ proc f input w mut slice u64 . output u64 . effects none . do
 end .
 ```
 
+(8) op 은 머리에 `invalidates <입력> .` 절(⟦§6.4.1⟧ (3a))을 적어, 그 입력의 저장소에서 **나온 뷰를 무효로 만든다**고 밝힐 수 있다 —
+      블록을 돌려주는 것, 자라며 다른 자리로 옮기는 것, 되감는 것이 그렇다. 이름 **하나**를 적으며 그 op 의 입력이어야 한다
+      (`E-INVALIDATES-FORM`).
+
+(8a) 한 op 의 몸 안에서, 뷰(타입에 `slice` 가 든 지역·빌린 이름)는 제 초기식에 나온 저장소를 **출처**로 든다 — 뷰에서 뷰를 만들면
+      출처를 잇는다. `invalidates` 를 밝힌 op 에 그 저장소를 넘긴 뒤 그 뷰를 쓰는 것은 적합하지 아니하다(`E-VIEW-INVALIDATED`).
+      이름을 통째로 다시 대입하면 새 출처로 되살아난다. 갈래는 **어느 한 갈래에서라도** 무효가 되면 합친 뒤 무효이고, 반복은 다음 바퀴의
+      머리까지 무효가 이어진다. 핸들·수 같은 **값**은 뷰가 아니다.
+
+(8b) 이 판의 출처는 **뭉뚱그린다** — 부름의 결과는 그 인자 모두에서 나온 것으로 본다. 그래서 안전한 쓰기를 거절할 수는 있어도 무효화된
+      뷰를 놓치지 아니한다. 뷰를 op 밖으로 돌려주거나 칸에 담아 op 경계를 넘기는 경로는 이 판이 따라가지 아니한다.
+
+```lowent-거부: 자라며 옮기는 op 뒤에 옛 뷰를 쓴다 · E-VIEW-INVALIDATED
+module ex_view_invalidated .
+
+struct buf do
+  data mut slice u8 .
+  n u64 .
+end .
+
+proc grow input b mut buf . output u64 . effects none . invalidates b .
+do
+  set (field b n) (add (field b n) 1) .
+  return 1 .
+end .
+
+proc view_of input b buf . output slice u8 . effects none .
+do
+  return (field b data) .
+end .
+
+proc f input b mut buf . output u64 . effects none .
+do
+  let v slice u8 be view_of b .
+  let r u64 be grow b .
+  return len v .       rem `grow` 가 `b` 의 뷰를 무효로 만들었다 — 뷰를 다시 받는다
+end .
+```
+
 > [!산문]
 > 이 규칙이 지키는 것은 ⟦§8.8⟧ 과 같다 — **읽는 쪽의 믿음**이다. 다만 §8.8 이 「쓸 수
 > 있는가」를 타입으로 가른다면, 여기는 「지금 이 자리에 누가 함께 있는가」를 가린다.

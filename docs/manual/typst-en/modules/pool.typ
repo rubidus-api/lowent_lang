@@ -97,10 +97,15 @@ end
   the pool, and the borrowed view cannot know. Release after closing the block.
 ]
 
-#antipattern[Binding the view to a name *before* the borrow][
-  `let bv … be some_value (pool.bytes b p h) .` hides from the processor that `bv` came from the pool. Release while holding it and
-  write through it, and it overwrites the next owner's block and the free-list link *with no diagnostic*. This is a hole in this
-  edition (a rule can close it only once RFC-0116 D4 tracks provenance) --- which is why the view is taken in the borrow head.
+#antipattern[Using an old view after the release][
+  `pool.release` declares `invalidates p .`, so a view bound with `let bv … be some_value (pool.bytes b p h) .` and used *after* the
+  release is the compile error `E-VIEW-INVALIDATED` --- the processor follows `bv` back to `p`. To reach the block again, ask `bytes`
+  anew (the generation answers `none`).
+]
+
+#antipattern[Holding two write views of one handle outside a borrow][
+  Calling `bytes` twice and binding two names gives one block two writers. Taken in borrow heads, the second borrow is rejected with
+  `E-BORROW-EXCL`; two bound outside a borrow are not told apart in this edition. Take views in the borrow head.
 ]
 
 *Cautions.* Handles are values and can be copied, but releasing through any copy stales them all. `outstanding` not growing no matter how often you take and release is proof

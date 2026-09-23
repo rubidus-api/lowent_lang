@@ -40,6 +40,11 @@ typedef struct {
 const char *low_effect_bit_name(unsigned bit);
 
 // Analyse MVP declarations in `pr`. `work` (heap) backs the op table + diag array.
+// ★★★★★ RFC-0120 §5.2-10 — **흡수를 허락한 모듈**을 매니페스트에서 받아 둔다.
+//   기본값은 **허락 없음**: 아무것도 주지 않으면 어느 모듈도 `absorbs` 를 쓰지 못한다.
+//   ☞ 「누가 보증해도 되는가」는 소스가 아니라 프로젝트의 정체 파일이 정한다.
+void low_check_set_absorb_allow(const char *const *names, int n);
+
 [[nodiscard]] low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *pr);
 
 // ★ 모듈 한정 이름(`M.member`)을 bare 로 좁힌다 — **하강도 같은 나무를 본다**(결함 노트 #77).

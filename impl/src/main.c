@@ -442,6 +442,28 @@ static const char *sub_flag(const char *w) {
 
 static bool file_exists(const char *p) { FILE *f = fopen(p, "rb"); if (f) { fclose(f); return true; } return false; }
 
+// ★★★★★ RFC-0120 §5.2-10 — **누가 흡수해도 되는지는 매니페스트가 정한다.**
+//   소스 파일이 있는 자리에서 위로 걸어 `pkg.low` 를 찾고, `build absorb <모듈> .` 을 읽어
+//   검사기에 넘긴다. 못 찾으면 **아무도 못 한다**(기본값이 허락 없음이다).
+static void feed_absorb_allow(const char *src)
+{
+    char dir[600] = ".";
+    if (src) {
+        snprintf(dir, sizeof dir, "%s", src);
+        char *slash = strrchr(dir, '/');
+        if (slash) *slash = 0; else snprintf(dir, sizeof dir, ".");
+    }
+    low_pkg_t pk = { 0 };
+    const char *allow[16]; int n = 0;
+    if (low_pkg_find(dir, &pk)) {
+        proven_allocator_t heap2 = proven_heap_allocator();
+        char perr[512];
+        if (low_pkg_load(heap2, &pk, perr))
+            for (int i = 0; i < pk.nabsorb && n < 16; i++) allow[n++] = pk.absorb[i];
+    }
+    low_check_set_absorb_allow(allow, n);
+}
+
 // 엔트리를 정한다: 명시 인자 > 매니페스트 `build entry` > 관례(src/main.low → main.low, RFC-0033 D9).
 static bool resolve_entry(const char *arg, low_pkg_t *pkg, char out[600], char err[256]) {
     if (arg) { snprintf(out, 600, "%s", arg); return true; }
@@ -1023,6 +1045,7 @@ static void print_usage(const char *argv0) {
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
         "    --fixed-bytes N      VM 의 고정 창 크기 — 다른 보드를 흉내 낸다 (기본: 타깃이 정한다)\n"
         "    --hw none|auto|pclmul,aes  기계 암호 명령의 **범위** (기본 none — 소프트만)\n"
+        "    --absorbs            `unsafe` 를 흡수한 자리를 한 줄씩 낸다 (RFC-0120)\n"
         "    --emit-h | --emit-ld | --emit-db | --no-fast | --no-elemsl | --no-carry | --conc-t0 | --no-main | --why-slow | --zones  (C 방출 곁가지)\n"
         "\n  누가 읽나\n"
         "    --version | -V       도구가 자기 버전을 말한다 — 버그 보고가 재현 가능해진다\n"
@@ -1085,6 +1108,8 @@ int main(int argc, char **argv) {
     bool run_unchecked = false;   // ★ `--unchecked` — 거절당한 단위를 일부러 돌린다(오라클 픽스처)
     bool run_refused = false;     // ★ 검사가 거절했다 — 돌리지 않는다
     bool want_test = false, want_ops = false, want_nest = false, want_flat = false;
+    // ★★★★★ RFC-0120 §5.2-12 — **못 보는 구역은 보이게 둔다.** 흡수한 자리를 한 줄씩 낸다.
+    bool want_absorbs = false;
     bool want_zones = false;
     bool want_erasure = false;   // RFC-0053 §8-9 — def 마다의 지우기 계수
     proven_i64 run_args[64]; proven_size_t nrun_args = 0;
@@ -1261,6 +1286,7 @@ int main(int argc, char **argv) {
         }
         else if (strcmp(argv[i], "--test") == 0) want_test = true;
         else if (strcmp(argv[i], "--ops") == 0) want_ops = true;
+        else if (strcmp(argv[i], "--absorbs") == 0) want_absorbs = true;
         else if (strcmp(argv[i], "--zones") == 0) want_zones = true;
         // ★ **def 마다의 지우기 계수** (RFC-0053 §8-9). `--ir` 의 사람 읽는 요약은
         //   파일 합계인데, `--ir` 은 딸려온 모듈까지 낮추므로 그 합계는 **수입-가중**이다
@@ -1798,6 +1824,40 @@ int main(int argc, char **argv) {
                    nm ? (int)nm->tok.lex.size : 1, nm ? (const char *)nm->tok.lex.ptr : "?",
                    start, end);
         }
+    } else if (want_absorbs) {
+        // ★★★★★ RFC-0120 §5.2-12 — **어디서 흡수가 일어났나**를 도구가 말한다.
+        //   못 보는 구역을 숨기지 않는 것이 이 기능의 전부다: 한 줄에 하나, 자리와 근거까지.
+        //   ☞ `--why-slow` 와 같은 규율이다 — 도구가 아는 것을 사람이 소스를 뒤져 다시 알아내게 하지 않는다.
+        int nab = 0;
+        for (proven_size_t fi = 0; fi < pr.nforms; fi++) {
+            const low_cst_t *f = pr.forms[fi];
+            if (!f || f->kind != LOW_CST_FORM || f->nkids < 3) continue;
+            const low_cst_t *nm = NULL; proven_u8str_view_t kind = { 0 }, bound = { 0 }, ref = { 0 }, why = { 0 };
+            for (proven_size_t k = 0; k + 1 < f->nkids; k++) {
+                const low_cst_t *a = f->kids[k];
+                if (!a || a->kind != LOW_CST_ATOM) continue;
+                if (a->tok.kw == LOW_KW_PROC || a->tok.kw == LOW_KW_FN) {
+                    if (!nm && f->kids[k + 1]->kind == LOW_CST_ATOM) nm = f->kids[k + 1];
+                } else if ((a->tok.lex.size == 7 && memcmp(a->tok.lex.ptr, "absorbs", 7) == 0) && k + 2 < f->nkids) {
+                    kind = f->kids[k + 1]->tok.lex; bound = f->kids[k + 2]->tok.lex;
+                } else if ((a->tok.lex.size == 9 && memcmp(a->tok.lex.ptr, "reference", 9) == 0)) {
+                    ref = f->kids[k + 1]->tok.lex;
+                } else if ((a->tok.lex.size == 3 && memcmp(a->tok.lex.ptr, "why", 3) == 0)) {
+                    why = f->kids[k + 1]->tok.lex;
+                }
+            }
+            if (!kind.size) continue;
+            nab++;
+            printf("  %-24.*s  absorbs %.*s as `%.*s`  ref=%.*s  line %u\n",
+                   nm ? (int)nm->tok.lex.size : 1, nm ? (const char *)nm->tok.lex.ptr : "?",
+                   (int)kind.size, (const char *)kind.ptr,
+                   (int)bound.size, (const char *)bound.ptr,
+                   ref.size ? (int)ref.size : 1, ref.size ? (const char *)ref.ptr : "-",
+                   f->line);
+            if (why.size) printf("      why: %.*s\n", (int)why.size, (const char *)why.ptr);
+        }
+        printf("absorbs: %d op(s) stop `unsafe` here\n", nab);
+        rc = 0;
     } else if (want_cst) {
         low_cst_dump(&pr);
     } else if (want_emitproof) {
@@ -1823,6 +1883,7 @@ int main(int argc, char **argv) {
         //     `--test` 가 거절당한 단위를 그대로 돌리고 「1 passed」까지 냈다(실측) — 시험이
         //     초록이라는 사실은 «이 프로그램은 성하다» 로 읽히므로 `--run` 보다 해롭다.
         if ((run_op || want_test) && !run_unchecked && !lex.diags.len && !pr.diags.len) {
+            feed_absorb_allow(path);
             low_check_result_t rcr = low_check(heap, &pr);
             low_typecheck_result_t rtr = low_typecheck(heap, &pr);
             low_contract_result_t rkr = low_contract(heap, &pr);
@@ -2176,6 +2237,7 @@ int main(int argc, char **argv) {
         low_region_result_t rr = low_region(heap, &pr);
         rc = rr.ok ? 0 : 1;
     } else if (want_check) {
+        feed_absorb_allow(path);
         low_check_result_t cr = low_check(heap, &pr);
         low_typecheck_result_t tr = low_typecheck(heap, &pr);
         low_contract_result_t kr = low_contract(heap, &pr);

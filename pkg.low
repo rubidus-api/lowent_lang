@@ -13,3 +13,10 @@ package name "lowent" .
 package version "0.1.0" .
 package description "저엔트로피 시스템 언어 — 검사되지 않는 중복은 거짓말로 썩는다" .
 package license "MIT" .
+
+rem ★★★★★ **흡수를 허락한 모듈** (RFC-0120 §5.2-10, 2026-09-23 소유자 지시).
+rem   `absorbs machine <이름> .` 은 «처리기가 못 보는 것을 사람이 보증한다» 는 말이다.
+rem   그러므로 **누가 보증해도 되는지**는 그 보증을 원하는 소스가 아니라 이 파일이 정한다.
+rem   여기 없는 모듈이 흡수하면 `E-ABSORB-PLACE` 다. 기본값은 **허락 없음**이다.
+rem   ☞ 늘릴 때는 흡수 장부(`docs/operations/absorb-registry.md`)의 서명도 함께 본다.
+build absorb vm_absorb .

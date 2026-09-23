@@ -159,6 +159,7 @@ The four guards of the previous section carry a price: `effects unsafe` *travels
 
 The travelling is right --- if the caller does not know about work the processor cannot see, the effect row is a lie. What was missing was *a place that takes responsibility.*
 
+// snippet: skip — absorption needs the manifest to allow the module (`build absorb …`); a wrapped snippet has no manifest
 ```lowent
 export proc add2 input a u64 . input b u64 . output u64 . effects none .
   absorbs machine k .          rem it stops here; `k` is this body's `cap machine`
@@ -175,6 +176,18 @@ end .
 - Only `machine` may be absorbed. Capabilities that touch the world (io, C, heap) may not (`E-ABSORB-SCOPE`): minting one would create authority the caller cannot see.
 
 Leave a prerequisite out and it is refused: a non-empty effect row is `E-ABSORB-IMPURE`, a missing reference implementation `E-ABSORB-NOREF`, a missing `requires` `E-ABSORB-NOCONTRACT`, an empty `why` `E-ABSORB-NOWHY`.
+
+*Who may absorb is the manifest's call.* Absorption says a human vouches, so the source that wants the right cannot grant it to itself. Only a module named in `pkg.low` with `build absorb <module> .` may use the clause; otherwise it is `E-ABSORB-PLACE`. With no manifest at all, nobody may absorb.
+
+*The tool names the places.* `lowentc --absorbs f.low` prints, one line each, which op absorbed what and why. A region the tool cannot see is made visible, not hidden.
+
+```
+  add2                      absorbs machine as `k`  ref=add2_soft  line 40
+      why: it adds two registers and touches no memory…
+absorbs: 1 op(s) stop `unsafe` here
+```
+
+*Timing is written down, not checked.* Whether the code takes value-dependent time is something the tool cannot verify. So the absorb registry has a timing column a human fills in, and leaving it empty fails the gate --- «unknown» is a valid answer.
 
 #aside[Why demand a reference implementation][
   Without a pure version that computes the same answer there is no way to tell «right» from «consistently wrong». It happened here: a GHASH rewritten with machine instructions passed the seal-then-open test while computing a different product entirely. Sealing and opening share the code, so the round trip holds as long as it is self-consistent. What caught it was comparing against the plain computation.

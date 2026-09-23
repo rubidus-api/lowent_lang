@@ -32,6 +32,13 @@ typedef struct {
     char           target[64];    // build target <word>
     low_pkg_dep_t  deps[32];
     int            ndeps;
+    // ★★★★★ RFC-0120 §5.2-10 — **흡수를 허락한 모듈**(`build absorb <모듈> .`).
+    //   기본값은 **허락 없음**이다: 매니페스트가 이름을 적은 모듈만 `absorbs` 를 쓸 수 있다.
+    //   ☞ 흡수는 «처리기가 못 보는 것을 사람이 보증한다» 는 말이므로, **누가 보증해도 되는지**를
+    //     소스가 아니라 프로젝트의 정체 파일이 정한다. 응용이 제 소스만 고쳐 스스로에게 권한을
+    //     주지 못하게 하는 자리가 여기다.
+    char           absorb[16][64];
+    int            nabsorb;
 } low_pkg_t;
 
 // <start_dir> 에서 위로 걸어(최대 8단) pkg.low 를 찾는다. 찾으면 out->dir/path 채우고 true.

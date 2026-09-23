@@ -389,6 +389,37 @@ static bool ck_is_param_name(const low_cst_t *form, proven_u8str_view_t name) {
 // ★★★★ **`alloc_bytes` 의 효과는 뿌리 피연산자의 종류가 정한다** (RFC-0112 D2(5) · WO-0211).
 //   `cap heap` 이거나 `region <이름> heap` 블록이면 `heap`(자라는 뿌리), 그 밖은 `alloc`(고정 창).
 //   이름 휴리스틱(`builtin_effect`)은 인자를 못 보므로 여기서 한 번 더 가른다.
+// ★★★★★ RFC-0120 §5.2-10 — 매니페스트가 허락한 모듈 목록(`build absorb <모듈> .`).
+//   비어 있으면 **아무도 못 한다** — 그것이 기본값이다.
+static char ck_absorb_allow[16][64];
+static int  ck_absorb_nallow;
+void low_check_set_absorb_allow(const char *const *names, int n) {
+    ck_absorb_nallow = 0;
+    for (int i = 0; i < n && i < 16; i++) {
+        snprintf(ck_absorb_allow[ck_absorb_nallow], 64, "%s", names[i]);
+        ck_absorb_nallow++;
+    }
+}
+// ★ 이 번역 단위의 모듈 이름 — `module <이름> .` 한 폼에서 읽는다.
+static proven_u8str_view_t ck_module_name(const low_parse_result_t *pr) {
+    proven_u8str_view_t none = { 0 };
+    if (!pr) return none;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 2) continue;
+        if (ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE && ck_atom(f->kids[1]))
+            return f->kids[1]->tok.lex;
+    }
+    return none;
+}
+static bool ck_absorb_place_ok(proven_u8str_view_t mod) {
+    for (int i = 0; i < ck_absorb_nallow; i++) {
+        proven_size_t n = strlen(ck_absorb_allow[i]);
+        if (n == mod.size && memcmp(ck_absorb_allow[i], mod.ptr, n) == 0) return true;
+    }
+    return false;
+}
+
 // ★★★★★ RFC-0120 — 이 op 이 `absorbs machine <이름> .` 을 적었나. 적었으면 묶는 이름을 낸다.
 //   흡수는 **효과 줄에서 `unsafe` 를 멈추고**, 몸 안에서 그 이름을 `cap machine` 으로 만든다.
 //   그 대가는 §5.2 의 사전요건 다섯이고, 장부(`check-absorb.py`)가 서명·해시를 센다.
@@ -1376,7 +1407,8 @@ static bool ck_assoc_op(proven_u8str_view_t v) {
            veq(v, "bit_and") || veq(v, "bit_or") || veq(v, "bit_xor");
 }
 static void ck_clause_names(low_check_result_t *out, const low_cst_t *f,
-                            const low_opinfo_t *tab, proven_size_t nops) {
+                            const low_opinfo_t *tab, proven_size_t nops,
+                            proven_u8str_view_t modname) {
     for (proven_size_t i = 2; i < f->nkids; i++) {
         if (f->kids[i]->kind != LOW_CST_ATOM) continue;
         proven_u8str_view_t w = f->kids[i]->tok.lex;
@@ -1501,6 +1533,24 @@ static void ck_clause_names(low_check_result_t *out, const low_cst_t *f,
                          "an absorbing op must state what it assumes at the boundary — at least one `requires` clause "
                          "(lengths, alignment, ranges). Inside, the tool cannot see; at the door, it can and does "
                          "(RFC-0120 §5.2-4)", f->line);
+                // ⑩ 자리 제한 — 매니페스트가 이름을 적은 모듈만 흡수할 수 있다(RFC-0120 §5.2-10).
+                {
+                    proven_u8str_view_t mod = modname;
+                    if (!ck_absorb_place_ok(mod)) {
+                        // ★ 진단은 문구를 **가리킨다** — 스택 버퍼를 주면 그 자리가 사라진 뒤 빈 줄이 찍힌다(실측).
+                        static char pbuf[8][460]; static int pbn;
+                        char *pb = pbuf[pbn++ & 7];
+                        snprintf(pb, 460,
+                                 "this op absorbs `machine`, but the manifest does not allow module `%.*s` to. "
+                                 "Absorption says a HUMAN vouches for what the tool cannot see, so WHO may vouch "
+                                 "is decided by the project's identity file, not by the source that wants the "
+                                 "right: add `build absorb %.*s .` to pkg.low (and sign the row in the absorb "
+                                 "registry). With no manifest at all, nobody may absorb (RFC-0120 §5.2-10)",
+                                 (int)mod.size, mod.size ? (const char *)mod.ptr : "",
+                                 (int)mod.size, mod.size ? (const char *)mod.ptr : "");
+                        emit(out, "E-ABSORB-PLACE", pb, f->line);
+                    }
+                }
                 if (!has_why || why_empty)
                     emit(out, "E-ABSORB-NOWHY",
                          "an absorbing op must write down WHY the absorbed code is safe — `why \"…\" .`, not empty. "
@@ -9825,7 +9875,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
             low_kw_t kw = f->kids[0]->tok.kw;
             if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
-            ck_clause_names(&out, f, tab0, ops.len);
+            ck_clause_names(&out, f, tab0, ops.len, ck_module_name(pr));
             ck_mref_slice(&out, f);        // ★ D0(c) — 서술자 갈아끼우기 창을 닫는다
             ck_parallel(&out, f);          // ★ RFC-0009 DET-1 — Bernstein 조건
             {                              // ★ match 의 완전성 · region 이름
@@ -10061,6 +10111,14 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             //   profile 선언이 **"모르는 모드"** 로 오진된다(tier·option 과 같은 병). ck_profile 이 본다.
             else if (f->nkids >= 2 && f->kids[1]->kind == LOW_CST_ATOM &&
                 veq(f->kids[1]->tok.lex, "profile")) { /* ck_profile 이 본다 */ }
+            // ★★★★★ RFC-0120 §5.2-10 — `build absorb <모듈> .` 은 **흡수를 허락한 모듈**이다.
+            //   매니페스트의 열쇠말이고 모드가 아니다. 갈라 읽지 않으면 «모르는 모드» 로 오진된다
+            //   (tier·option·profile 과 같은 병 — 교훈 5).
+            else if (f->nkids >= 2 && f->kids[1]->kind == LOW_CST_ATOM &&
+                veq(f->kids[1]->tok.lex, "absorb")) { /* 매니페스트가 읽는다 — low_pkg.c */ }
+            // ★ `build entry`·`build target` 도 매니페스트 열쇠말이다 — 같은 까닭으로 가른다.
+            else if (f->nkids >= 2 && f->kids[1]->kind == LOW_CST_ATOM &&
+                (veq(f->kids[1]->tok.lex, "entry") || veq(f->kids[1]->tok.lex, "target"))) { /* 매니페스트가 읽는다 */ }
             else
             // ★★★ **모드 어휘는 닫혀 있다** (RFC-0008 §6.5 · SPEC-005 §33).
             //   전엔 이 선언이 **파싱만 되고 아무 데서도 강제되지 않았다** — 즉 무엇을 적든

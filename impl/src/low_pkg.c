@@ -138,7 +138,11 @@ bool low_pkg_load(proven_allocator_t heap, low_pkg_t *out, char err[512]) {
             if      (tveq(&t[i + 1], "entry"))   tcopy(out->entry,   sizeof out->entry,   &t[i + 2]);
             else if (tveq(&t[i + 1], "profile")) tcopy(out->profile, sizeof out->profile, &t[i + 2]);
             else if (tveq(&t[i + 1], "target"))  tcopy(out->target,  sizeof out->target,  &t[i + 2]);
-            else { snprintf(err, 512, "pkg.low:%u E-PKG-KEY: unknown `build` key in the manifest — it knows entry · profile · target (a key nobody reads is a key nobody checks)", t[i + 1].line); return false; }
+            else if (tveq(&t[i + 1], "absorb")) {
+                // ★ RFC-0120 §5.2-10 — `build absorb <모듈> .` : 그 모듈만 `absorbs` 를 쓸 수 있다.
+                if (out->nabsorb < 16) tcopy(out->absorb[out->nabsorb++], 64, &t[i + 2]);
+            }
+            else { snprintf(err, 512, "pkg.low:%u E-PKG-KEY: unknown `build` key in the manifest — it knows entry · profile · target · absorb (a key nobody reads is a key nobody checks)", t[i + 1].line); return false; }
         } else {
             snprintf(err, 512, "pkg.low:%u E-PKG-FORM: unknown declaration head `%.*s` — the manifest is a CLOSED set of flat forms: `package <k> <v> .` · `use <n> from \"<s>\" [hash \"<h>\"] .` · `build <k> <v> .`", t[i].line, (int)(t[i].lex.size < 32 ? t[i].lex.size : 32), (const char *)t[i].lex.ptr);
             return false;

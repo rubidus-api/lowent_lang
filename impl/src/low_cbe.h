@@ -28,6 +28,8 @@ void low_cbe_set_no_fast(bool v);
 void low_cbe_set_no_elemsl(bool v);
 // ★ `--no-carry` — RFC-0111 §8-22 ⓑ(앞 바퀴 값 들고 가기)를 끄는 대조 스위치 (WO-0200).
 void low_cbe_set_no_carry(bool v);
+// 기계 암호 명령의 범위 — 0 소프트만 · 1 기계 명령만 · 2 둘 다 담고 시작할 때 고른다 (RFC-0119)
+void low_cbe_set_hw_clmul(int v);
 // ★ `--conc-t0` — 호스트 타깃에도 **프리스탠딩 협력 스케줄러(T0)** 를 내는 대조 스위치 (WO-0206).
 //   ☞ 이것이 없으면 T0 는 «짓기만 하고 아무도 안 돌린 코드» 가 된다: 베어메탈에서는 지을 수만
 //     있고 돌려 볼 수 없기 때문이다. 호스트에서 돌려 **VM 과 답을 견주는** 것이 이 스위치의 일이다.

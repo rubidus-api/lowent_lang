@@ -11,7 +11,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 192 개다.]
+  #para("2")[모두 194 개다.]
 
   #tbl("내장 연산과 그 뜻")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
@@ -49,6 +49,8 @@
         [`chk_add`], [더하기 — 넘쳤는지 **답과 함께** 돌려준다],
         [`chk_mul`], [곱하기 — 넘쳤는지 답과 함께 돌려준다],
         [`chk_sub`], [빼기 — 넘쳤는지 답과 함께 돌려준다],
+        [`clmul_hi`], [캐리 없는 곱셈의 **윗말** — 64×64 비트 곱의 위쪽 64 비트. 덧셈이 배타합인 셈이다],
+        [`clmul_lo`], [캐리 없는 곱셈의 **아랫말** — 64×64 비트 곱의 아래쪽 64 비트. 기계에 명령이 있으면 그것으로, 없으면 같은 답을 내는 셈으로],
         [`collect`], [파이프라인의 결과를 자리에 담는다],
         [`complement`], [여집합],
         [`config`], [번역 시점의 설정 값],
@@ -218,7 +220,7 @@
   ]
 
   #note[
-    실측(2026-08-25): 192 개 가운데 지역 이름 선언이 막히는 것은 **177 개**,
+    실측(2026-08-25): 194 개 가운데 지역 이름 선언이 막히는 것은 **179 개**,
     쓸 수 있는 것은 **15 개**다 — `borrow` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `range` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 **이름 충돌 규칙을 틀리게 말하기**
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
@@ -232,44 +234,45 @@ atomic_swap           atomic_xor            avg                   bit_and
 bit_cast              bit_not               bit_or                bit_xor
 bitset_new            borrow                byte_swap             capacity
 cast                  ceil                  chk_add               chk_mul
-chk_sub               collect               complement            config
-contains              cos                   count                 count_ones
-crc32                 cstr_of               deref                 difference
-dir_close             dir_make              dir_open              dir_read
-div                   div_nz                encode                enumerate
-env_get               eq                    error                 error_value
-exp                   expect                field                 file_close
-file_open             file_read             file_seek             file_type
-file_write            filter                floor                 fmod
-fold                  ge                    ghash                 gt
-hash_bytes            index                 intersect             into
-is_empty              is_error              is_none               is_ok
-is_some               is_subset             le                    leading_zeros
-len                   link_type             load                  load_masked
-log                   lt                    map                   max
-min                   mod                   mul                   mut_ref
-narrow                narrow_sat            narrow_try            narrow_wrap
-native_lanes          ne                    neg                   net_accept
-net_close             net_connect           net_listen            net_pair
-net_port              net_recv              net_resolve           net_send
-nonzero_of            not                   ok                    ok_value
-or                    panic                 path_remove           path_rename
-pipe                  pop                   pow                   prefetch
-push                  r_read                r_write               range
-reactor_new           read_in               read_volatile         reduce_add
-reduce_max            reduce_min            reduce_mul            ref
-region                remove                ret                   reverse
-rng_next              rotate                rotl                  rotr
-round                 same_slice            sat_add               sat_mul
-sat_sub               scan                  seg                   segs
-select                send                  sha256                sha384
-sha512                shl                   shr                   sin
-size_of               skip                  some_value            spawn
-splat                 sqrt                  stack_new             store
-store_masked          str_from_cstr         sub                   subslice
-sum_neumaier          sum_seq               swap                  take
-trailing_zeros        try_view              union                 value_or
-view                  view_array            view_segments         widen
-wrap_add              wrap_mul              wrap_shl              wrap_shr
-wrap_sub              write_out             write_volatile        zip")
+chk_sub               clmul_hi              clmul_lo              collect
+complement            config                contains              cos
+count                 count_ones            crc32                 cstr_of
+deref                 difference            dir_close             dir_make
+dir_open              dir_read              div                   div_nz
+encode                enumerate             env_get               eq
+error                 error_value           exp                   expect
+field                 file_close            file_open             file_read
+file_seek             file_type             file_write            filter
+floor                 fmod                  fold                  ge
+ghash                 gt                    hash_bytes            index
+intersect             into                  is_empty              is_error
+is_none               is_ok                 is_some               is_subset
+le                    leading_zeros         len                   link_type
+load                  load_masked           log                   lt
+map                   max                   min                   mod
+mul                   mut_ref               narrow                narrow_sat
+narrow_try            narrow_wrap           native_lanes          ne
+neg                   net_accept            net_close             net_connect
+net_listen            net_pair              net_port              net_recv
+net_resolve           net_send              nonzero_of            not
+ok                    ok_value              or                    panic
+path_remove           path_rename           pipe                  pop
+pow                   prefetch              push                  r_read
+r_write               range                 reactor_new           read_in
+read_volatile         reduce_add            reduce_max            reduce_min
+reduce_mul            ref                   region                remove
+ret                   reverse               rng_next              rotate
+rotl                  rotr                  round                 same_slice
+sat_add               sat_mul               sat_sub               scan
+seg                   segs                  select                send
+sha256                sha384                sha512                shl
+shr                   sin                   size_of               skip
+some_value            spawn                 splat                 sqrt
+stack_new             store                 store_masked          str_from_cstr
+sub                   subslice              sum_neumaier          sum_seq
+swap                  take                  trailing_zeros        try_view
+union                 value_or              view                  view_array
+view_segments         widen                 wrap_add              wrap_mul
+wrap_shl              wrap_shr              wrap_sub              write_out
+write_volatile        zip")
 ]

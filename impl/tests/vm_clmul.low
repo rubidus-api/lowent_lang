@@ -1,0 +1,58 @@
+rem ★★★ **캐리 없는 곱셈** — `clmul_lo`·`clmul_hi` (RFC-0119, 2026-09-23).
+rem   덧셈이 배타합인 곱셈이다. GF(2^128) 의 곱(GHASH·CRC)이 이것 위에 선다.
+rem   결과가 128 비트인데 이 언어에는 128 비트 타입이 없으므로 **낱말 둘**로 낸다.
+rem
+rem ★★ **두 경로가 같은 답을 내는지**가 요점이다:
+rem   · VM 은 언제나 소프트 판(셈으로)
+rem   · 방출 C 는 `--hw pclmul|auto` 면 기계 명령(PCLMULQDQ), `--hw none` 이면 소프트
+rem   ⇒ 골든의 `C backend ≡ VM` 비교가 곧 **기계 경로의 차등 시험**이다.
+
+module vm_clmul .
+
+export proc lo input a u64 . input b u64 . output u64 . effects none . do
+  return clmul_lo a b .
+end .
+
+export proc hi input a u64 . input b u64 . output u64 . effects none . do
+  return clmul_hi a b .
+end .
+
+rem 성질 ① — 곱셈은 **자리를 바꿔도 같다**(가환).
+export proc comm input a u64 . input b u64 . output u64 . effects none . do
+  if ne (clmul_lo a b) (clmul_lo b a) . do  return 0 .  end .
+  if ne (clmul_hi a b) (clmul_hi b a) . do  return 0 .  end .
+  return 1 .
+end .
+
+rem 성질 ② — **배타합에 대해 분배한다**: a·(b ⊕ c) = a·b ⊕ a·c.
+export proc distrib input a u64 . input b u64 . input c u64 . output u64 . effects none . do
+  let l1 u64 be clmul_lo a (bit_xor b c) .
+  let l2 u64 be bit_xor (clmul_lo a b) (clmul_lo a c) .
+  let h1 u64 be clmul_hi a (bit_xor b c) .
+  let h2 u64 be bit_xor (clmul_hi a b) (clmul_hi a c) .
+  if ne l1 l2 . do  return 0 .  end .
+  if ne h1 h2 . do  return 0 .  end .
+  return 1 .
+end .
+
+rem 성질 ③ — **1 을 곱하면 그대로**, 0 을 곱하면 0.
+export proc one_zero input a u64 . output u64 . effects none . do
+  if ne (clmul_lo a 1) a . do  return 0 .  end .
+  if ne (clmul_hi a 1) 0 . do  return 0 .  end .
+  if ne (clmul_lo a 0) 0 . do  return 0 .  end .
+  return 1 .
+end .
+
+rem 성질 ④ — **2 를 곱하면 한 칸 민 것**이다(캐리가 없으므로 자리 올림이 없다).
+export proc shift1 input a u64 . output u64 . effects none . do
+  if ne (clmul_lo a 2) (wrap_shl a 1) . do  return 0 .  end .
+  if ne (clmul_hi a 2) (shr a 63) . do  return 0 .  end .
+  return 1 .
+end .
+
+rem ★★★★★ GHASH 는 이 곱셈 위에 선다 — **기계 판과 셈 판이 같은 답인지 여기서 본다.**
+rem   ☞ 2026-09-23 에 이 증인이 없어서 틀린 축약이 통과할 뻔했다: AEAD 드라이버는 봉인→개봉
+rem     왕복만 보므로 **곱셈이 통째로 달라도** 스스로 일관되면 통과한다. 소프트 판과 맞대야 잡힌다.
+export proc gh input h slice u8 . input z mut slice u8 . input d slice u8 . output u64 . effects none . do
+  return ghash h z d .
+end .

@@ -1,0 +1,100 @@
+rem ★★★ **crypto_hw — 기계가 도와주는 암호 셈** (RFC-0119, 2026-09-23 소유자 결정).
+rem
+rem 이름이 왜 `crypto_hw` 인가. 「AES-NI」는 명령 집합 **하나**의 이름이라 곧 좁아진다.
+rem 이 모듈은 «기계에 그런 명령이 있으면 그것으로, 없으면 같은 답을 내는 셈으로» 하는
+rem 자리를 모은다.
+rem
+rem ★★ **이 모듈에 `unsafe` 는 없다.** 기계 명령을 내는 것은 처리기이고, 이 소스가 쓰는 것은
+rem   평범한 낱말(`clmul_lo`·`clmul_hi`)이다. 그래서 효과가 번지지 않는다 — 부르는 쪽은
+rem   `effects none` 그대로다. (어셈블리를 직접 쓰면 `unsafe` 가 TLS 까지 번진다: RFC-0119 §2.)
+rem
+rem ★★★ **범위는 빌드가 정하고, 그 안에서 실행 때 갈린다**(RFC-0119 §9-3):
+rem     `lowentc --hw none`   셈만 (기본)
+rem     `lowentc --hw pclmul` 기계 명령만 — 그 명령이 없는 CPU 에서는 돌지 않는다
+rem     `lowentc --hw auto`   둘 다 담고 **시작할 때 한 번** 골라 고정한다
+rem   VM 은 언제나 셈이다 ⇒ 골든의 «네이티브 ≡ VM» 비교가 기계 경로의 차등 시험이다.
+rem
+rem ⚠ 이 저장소의 크립토는 상수시간을 약속하지 않고 감사받지 않았다. 여기 수는 회귀 기준선이다.
+
+module crypto_hw .
+
+rem ── GF(2^128) — GCM 이 쓰는 체 ────────────────────────────────────────────────
+rem
+rem 값 하나는 **큰끝 바이트 열 열여섯**이고, 조각으로는 낱말 둘이다(`x0` 위, `x1` 아래).
+rem 축약 다항식은 x^128 + x^7 + x^2 + x + 1 이며, 뒤집힌 표현에서 상수는 0xc200… 이다.
+rem
+rem ☞ GHASH 자체는 처리기의 잎(`ghash`)이 한다 — 블록마다 부르면 부름 비용이 셈을 덮는다.
+rem   이 op 은 **한 곱셈**이 필요한 자리(CRC · 시험 · 다른 모드)를 위한 것이다.
+
+rem 캐리 없는 곱셈 한 번 — 128 비트 결과를 낱말 둘로 낸다. `out` 은 조각 2 이상.
+export proc clmul128 input out mut slice u64 . input a u64 . input b u64 . output u64 . effects none . do
+  guard ge (len out) 2 . else return 0 .
+  set (index out 0) (clmul_hi a b) .
+  set (index out 1) (clmul_lo a b) .
+  return 2 .
+end .
+
+rem GF(2^128) 곱 — `x`(조각 2)·`h`(조각 2) → `out`(조각 2). 카라추바로 곱셈 셋만 쓴다.
+rem   뒤집힌 표현이라 256 비트 곱을 **한 칸 왼쪽으로 민 뒤** 축약한다.
+export proc gf128_mul input out mut slice u64 . input x slice u64 . input h slice u64 . output u64 . effects none . do
+  guard ge (len out) 2 . else return 0 .
+  guard ge (len x) 2 . else return 0 .
+  guard ge (len h) 2 . else return 0 .
+  let x0 u64 be index x 0 .
+  let x1 u64 be index x 1 .
+  let h0 u64 be index h 0 .
+  let h1 u64 be index h 1 .
+
+  rem 아래 낱말끼리 · 위 낱말끼리 · 가운데 항(카라추바)
+  let a_lo u64 be clmul_lo x1 h1 .
+  let a_hi u64 be clmul_hi x1 h1 .
+  let b_lo u64 be clmul_lo x0 h0 .
+  let b_hi u64 be clmul_hi x0 h0 .
+  let xm u64 be bit_xor x0 x1 .
+  let hm u64 be bit_xor h0 h1 .
+  let m_lo u64 be bit_xor (clmul_lo xm hm) (bit_xor a_lo b_lo) .
+  let m_hi u64 be bit_xor (clmul_hi xm hm) (bit_xor a_hi b_hi) .
+
+  rem 256 비트 곱을 낱말 넷으로 놓는다(p0 가 가장 아래)
+  var p0 u64 be a_lo .
+  var p1 u64 be bit_xor a_hi m_lo .
+  var p2 u64 be bit_xor b_lo m_hi .
+  var p3 u64 be b_hi .
+
+  rem 뒤집힌 표현이라 한 칸 왼쪽으로 민다 — 그러면 아래 낱말 둘이 차수 ≥ 128 부분이다.
+  set p3 (bit_or (wrap_shl p3 1) (shr p2 63)) .
+  set p2 (bit_or (wrap_shl p2 1) (shr p1 63)) .
+  set p1 (bit_or (wrap_shl p1 1) (shr p0 63)) .
+  set p0 (wrap_shl p0 1) .
+
+  rem ★ 축약: x^128 ≡ x^7 + x^2 + x + 1 이고, **뒤집힌 표현에서 x 를 곱하는 것은 오른쪽으로 한 칸**이다.
+  rem   그래서 차수 ≥ 128 부분(p1·p0)을 1·2·7 칸 민 것과 자기 자신의 배타합으로 접는다.
+  rem   접다가 아래로 흘러나간 비트는 **다시** 차수 ≥ 128 이므로 한 번 더 접는다(이번엔 안 흘러난다).
+  var th u64 be p1 .
+  var tl u64 be p0 .
+  var ov u64 be 0 .
+  set th (bit_xor th (shr p1 1)) .
+  set tl (bit_xor tl (bit_or (shr p0 1) (wrap_shl p1 63))) .
+  set ov (bit_xor ov (wrap_shl p0 63)) .
+  set th (bit_xor th (shr p1 2)) .
+  set tl (bit_xor tl (bit_or (shr p0 2) (wrap_shl p1 62))) .
+  set ov (bit_xor ov (wrap_shl p0 62)) .
+  set th (bit_xor th (shr p1 7)) .
+  set tl (bit_xor tl (bit_or (shr p0 7) (wrap_shl p1 57))) .
+  set ov (bit_xor ov (wrap_shl p0 57)) .
+
+  set th (bit_xor th ov) .
+  set th (bit_xor th (shr ov 1)) .
+  set tl (bit_xor tl (wrap_shl ov 63)) .
+  set th (bit_xor th (shr ov 2)) .
+  set tl (bit_xor tl (wrap_shl ov 62)) .
+  set th (bit_xor th (shr ov 7)) .
+  set tl (bit_xor tl (wrap_shl ov 57)) .
+
+  set p3 (bit_xor p3 th) .
+  set p2 (bit_xor p2 tl) .
+
+  set (index out 0) p3 .
+  set (index out 1) p2 .
+  return 2 .
+end .

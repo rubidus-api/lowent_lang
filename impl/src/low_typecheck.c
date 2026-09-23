@@ -784,6 +784,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     { "bit_and", 3 }, { "bit_or", 3 }, { "bit_xor", 3 }, { "bit_not", 3 },
                     { "shl", 3 }, { "shr", 3 }, { "wshl", 3 }, { "wshr", 3 },
                     { "rotl", 3 }, { "rotr", 3 },
+                    { "clmul_lo", 3 }, { "clmul_hi", 3 },   // ★ 캐리 없는 곱셈 (RFC-0119) — 폭은 피연산자가 말한다
                     { "popcount", 3 }, { "leading_zeros", 3 }, { "trailing_zeros", 3 },
                     { "byte_swap", 3 },
                 };

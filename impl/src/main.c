@@ -1022,6 +1022,7 @@ static void print_usage(const char *argv0) {
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
         "    --fixed-bytes N      VM 의 고정 창 크기 — 다른 보드를 흉내 낸다 (기본: 타깃이 정한다)\n"
+        "    --hw none|pclmul|auto  기계 암호 명령의 범위 (기본 none — 소프트만)\n"
         "    --emit-h | --emit-ld | --emit-db | --no-fast | --no-elemsl | --no-carry | --conc-t0 | --no-main | --why-slow | --zones  (C 방출 곁가지)\n"
         "\n  누가 읽나\n"
         "    --version | -V       도구가 자기 버전을 말한다 — 버그 보고가 재현 가능해진다\n"
@@ -1115,6 +1116,15 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--lock") == 0 && i + 1 < argc) lock_load(argv[++i]);
         else if (strcmp(argv[i], "--lock-write") == 0) want_lock_write = true;
         else if (strcmp(argv[i], "--pkg") == 0 && i + 1 < argc) g_pkg_path = argv[++i];
+        // ★ `--hw <집합>` — 이 바이너리가 담을 기계 명령의 **범위**(RFC-0119 §9-3).
+        //   none(기본) 소프트만 · pclmul 기계 명령만(검사 없음) · auto 둘 다 담고 시작할 때 한 번 고른다.
+        else if (strcmp(argv[i], "--hw") == 0 && i + 1 < argc) {
+            const char *v = argv[++i];
+            if (strcmp(v, "none") == 0) low_cbe_set_hw_clmul(0);
+            else if (strcmp(v, "pclmul") == 0) low_cbe_set_hw_clmul(1);
+            else if (strcmp(v, "auto") == 0) low_cbe_set_hw_clmul(2);
+            else { fprintf(stderr, "lowentc: --hw takes none | pclmul | auto (got `%s`)\n", v); return 2; }
+        }
         else if (strcmp(argv[i], "--no-fast") == 0) low_cbe_set_no_fast(true);
         else if (strcmp(argv[i], "--no-elemsl") == 0) low_cbe_set_no_elemsl(true);
         else if (strcmp(argv[i], "--no-carry") == 0) low_cbe_set_no_carry(true);

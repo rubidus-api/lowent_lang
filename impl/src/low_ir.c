@@ -471,6 +471,10 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 res = ity_join(ops[0], ops[1]);
                 if (!c->tstk_bad) a = ity_meta(res);
                 break;
+            case IRW_CLMULLO: case IRW_CLMULHI:
+                res = ity_join(ops[0], ops[1]);
+                if (!c->tstk_bad) a = ity_meta(res);
+                break;
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
             case IRW_ROTL: case IRW_ROTR:
                 res = ops[0];
@@ -1763,6 +1767,10 @@ static bool ir_glued_local(ir_ctx_t *c, proven_u8str_view_t v, proven_u32 line) 
             case IRW_BAND: *out = a & b; return true;             // 비트 and/or/xor (폭 무관)
             case IRW_BOR:  *out = a | b; return true;
             case IRW_BXOR: *out = a ^ b; return true;
+            case IRW_CLMULLO: case IRW_CLMULHI: {   // 캐리 없는 곱셈 — 상수도 접는다
+                unsigned long long x = (unsigned long long)a, y = (unsigned long long)b, lo = 0, hi = 0;
+                for (int i = 0; i < 64; i++) if ((y >> i) & 1ull) { lo ^= x << i; if (i) hi ^= x >> (64 - i); }
+                *out = (proven_i64)(bt->w == IRW_CLMULLO ? lo : hi); return true; }
             case IRW_SHL: if (b < 0 || b >= 64) return false; *out = a << b; return true;
             case IRW_SHR: if (b < 0 || b >= 64) return false; *out = a >> b; return true;
             case IRW_EQ:  *out = (a == b) ? 1 : 0; return true;
@@ -5009,6 +5017,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_SHL: return "shl"; case IRW_SHR: return "shr";
         case IRW_WSHL: return "wrap.shl"; case IRW_WSHR: return "wrap.shr";
         case IRW_ROTL: return "rotl"; case IRW_ROTR: return "rotr";
+        case IRW_CLMULLO: return "clmul.lo"; case IRW_CLMULHI: return "clmul.hi";
         case IRW_POPCNT: return "count.ones"; case IRW_CLZ: return "leading.zeros";
         case IRW_CTZ: return "trailing.zeros"; case IRW_BSWAP: return "byte.swap";
         case IRW_ALOAD: return "atomic.load"; case IRW_ASTORE: return "atomic.store";

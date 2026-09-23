@@ -1,0 +1,38 @@
+rem ★★★ `crypto_hw` — 라이브러리 쪽에서 캐리 없는 곱셈을 쓴다 (RFC-0119, 2026-09-23).
+rem   이 픽스처가 묻는 것 하나: **`crypto_hw.gf128_mul` 이 처리기의 잎 `ghash` 와 같은 답인가.**
+rem   둘은 같은 곱(GF(2^128), GCM 의 뒤집힌 표현)을 **다른 자리에서** 셈한다 —
+rem   하나는 라이브러리 소스, 하나는 처리기의 C 핵이다. 같아야 한다.
+
+module vm_crypto_hw .
+use hw from "../../lib/crypto_hw.low" .
+rem z(16 B) ^= blk, z = z·h 를 내장 잎으로 — 그리고 같은 것을 crypto_hw 로.
+export proc both input h slice u8 . input blk slice u8 . input w mut slice u64 . input z mut slice u8 . output u64 . effects none . do
+  guard ge (len w) 8 . else return 0 .
+  guard ge (len z) 16 . else return 0 .
+  var i u64 be 0 .
+  while lt i 16 . do  set (index z i) 0 .  set i (add i 1) .  end .
+  let g u64 be ghash h z blk .
+  rem 조각으로 읽어 crypto_hw 로 같은 곱을 한다
+  var j u64 be 0 .
+  var xh u64 be 0 .  var xl u64 be 0 .  var hh u64 be 0 .  var hl u64 be 0 .
+  while lt j 8 . do
+    set xh (bit_or (wrap_shl xh 8) (cast u64 (index blk j))) .
+    set xl (bit_or (wrap_shl xl 8) (cast u64 (index blk (add j 8)))) .
+    set hh (bit_or (wrap_shl hh 8) (cast u64 (index h j))) .
+    set hl (bit_or (wrap_shl hl 8) (cast u64 (index h (add j 8)))) .
+    set j (add j 1) .
+  end .
+  set (index w 0) xh .  set (index w 1) xl .
+  set (index w 2) hh .  set (index w 3) hl .
+  let r u64 be hw.gf128_mul (subslice w 4 6) (subslice w 0 2) (subslice w 2 4) .
+  rem 내장이 낸 z 를 낱말 둘로 읽어 견준다
+  var k u64 be 0 .  var zh u64 be 0 .  var zl u64 be 0 .
+  while lt k 8 . do
+    set zh (bit_or (wrap_shl zh 8) (cast u64 (index z k))) .
+    set zl (bit_or (wrap_shl zl 8) (cast u64 (index z (add k 8)))) .
+    set k (add k 1) .
+  end .
+  if ne zh (index w 4) . do  return 0 .  end .
+  if ne zl (index w 5) . do  return 0 .  end .
+  return 1 .
+end .

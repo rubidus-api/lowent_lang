@@ -26,6 +26,10 @@
     X(shl, IRW_SHL, 2)       X(shr, IRW_SHR, 2)                                    \
     X(wrap_shl, IRW_WSHL, 2) X(wrap_shr, IRW_WSHR, 2)                              \
     X(rotl, IRW_ROTL, 2)     X(rotr, IRW_ROTR, 2)                                  \
+    /* ★★★ **캐리 없는 곱셈** (RFC-0119, 2026-09-23) — GHASH 의 핵이다. 결과가 128 비트인데    \
+       이 언어에 128 비트 타입이 없으므로 **아랫말·윗말 두 낱말**로 낸다. 기계에 명령이 있으면  \
+       C 뒤끝이 그것을 내리고, 없으면 같은 답을 내는 소프트 판으로 내린다 — 뜻은 하나다. */     \
+    X(clmul_lo, IRW_CLMULLO, 2)   X(clmul_hi, IRW_CLMULHI, 2)                          \
     X(count_ones, IRW_POPCNT, 1)  X(leading_zeros, IRW_CLZ, 1)                     \
     X(trailing_zeros, IRW_CTZ, 1) X(byte_swap, IRW_BSWAP, 1)                       \
     /* ★★★ **level-3 atomic** (RFC-0018) — 전위 낱말. 새 키워드 0개.                \

@@ -1413,6 +1413,7 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
             //   u8 의 `bit_not 0` 은 **255** 다. 폭이 계약이면 **연산도 폭 안에 있어야 한다.**
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
+            case IRW_CLMULLO: case IRW_CLMULHI:
             case IRW_ROTL: case IRW_ROTR: {
                 if (sp < 2) return false;
                 vmv_t bv = stack[--sp], av = stack[--sp];
@@ -1458,6 +1459,23 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             proven_i64 sx = ity_wrap((proven_i64)x, (proven_u8)bits, true);
                             r = (proven_u64)(sx >> k) & mask;
                         } else r = (x >> k) & mask;
+                        break;
+                    }
+                    case IRW_CLMULLO: case IRW_CLMULHI: {
+                        // ★ VM 은 **언제나 소프트 판**이다 — 기계 명령을 돌리지 못한다.
+                        //   그래서 네이티브(기계 명령)와 VM(소프트)을 견주는 오라클이
+                        //   곧 **기계 경로의 차등 시험**이 된다(RFC-0119 §5).
+                        if (bits != 64) {
+                            vm_diag(vm->diags, "E-BITOP-TYPE",
+                                    "`clmul_lo`/`clmul_hi` are defined on 64-bit words only "
+                                    "(the product is 128 bits and this language has no 128-bit type, "
+                                    "so it comes back as two words)");
+                            return false;
+                        }
+                        proven_u64 y = (proven_u64)n, lo = 0, hi = 0;
+                        for (int q = 0; q < 64; q++)
+                            if ((y >> q) & 1ull) { lo ^= x << q; if (q) hi ^= x >> (64 - q); }
+                        r = (in->w == IRW_CLMULLO) ? lo : hi;
                         break;
                     }
                     case IRW_ROTL: case IRW_ROTR: {

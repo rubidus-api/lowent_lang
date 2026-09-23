@@ -1013,6 +1013,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_BAND: case IRW_BOR: case IRW_BXOR:         // ★ 비트 연산 (RFC-0064)
         case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
         case IRW_ROTL: case IRW_ROTR:
+        case IRW_CLMULLO: case IRW_CLMULHI:                 // ★ 캐리 없는 곱셈 (RFC-0119)
         case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP:
         case IRW_ALOAD: case IRW_ASTORE: case IRW_AADD: case IRW_ASUB:   // ★ atomic (RFC-0018)
         case IRW_AAND: case IRW_AOR: case IRW_AXOR: case IRW_ASWAP: case IRW_ACAS:
@@ -1580,6 +1581,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
             case IRW_ROTL: case IRW_ROTR:
+            case IRW_CLMULLO: case IRW_CLMULHI:
                 if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_INT) return false;
                 st.n--; st.o[st.n-1] = -1; break;
             case IRW_BNOT: case IRW_POPCNT: case IRW_CLZ: case IRW_CTZ: case IRW_BSWAP:
@@ -2555,6 +2557,9 @@ static void cbe_scalar_body(const low_ir_t *ir, const low_ir_def_t *d, FILE *out
 typedef struct { int h, L, S, s, k, esz; bool on; } cbe_carry_t;
 #define CBE_NCARRY 8
 static bool g_no_carry;
+// ★ 기계 암호 명령의 **범위**는 빌드가 정한다(RFC-0119 §9-3): 0 소프트만 · 1 기계 명령만 · 2 둘 담고 시작할 때 한 번 고른다.
+static int g_hw_clmul;
+void low_cbe_set_hw_clmul(int v) { g_hw_clmul = v; }
 static bool g_conc_t0;   /* --conc-t0: 호스트에서도 T0 런타임 (WO-0206) */
 void low_cbe_set_no_carry(bool v) { g_no_carry = v; }
 void low_cbe_set_conc_t0(bool v) { g_conc_t0 = v; }
@@ -2934,7 +2939,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             }
             case IRW_GHASH: {
                 fputs("    { lw_sl d_ = ss[--ssp], z_ = ss[--ssp], h_ = ss[--ssp];\n"
-                      "      st[sp++] = lw_ghash(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n); }\n", out);
+                      "      st[sp++] = lw_ghash_x(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n); }\n", out);
                 ks.n -= 3; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
@@ -3130,10 +3135,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             }
             case IRW_BAND: case IRW_BOR: case IRW_BXOR:
             case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
-            case IRW_ROTL: case IRW_ROTR: {
+            case IRW_ROTL: case IRW_ROTR: case IRW_CLMULLO: case IRW_CLMULHI: {
                 int op2 = in->w == IRW_BAND ? 0 : in->w == IRW_BOR ? 1 : in->w == IRW_BXOR ? 2
                         : in->w == IRW_SHL ? 3 : in->w == IRW_SHR ? 4 : in->w == IRW_WSHL ? 5
-                        : in->w == IRW_WSHR ? 6 : in->w == IRW_ROTL ? 7 : 8;
+                        : in->w == IRW_WSHR ? 6 : in->w == IRW_ROTL ? 7
+                        : in->w == IRW_CLMULLO ? 9 : in->w == IRW_CLMULHI ? 10 : 8;
                 fprintf(out, "    st[sp-2] = lw_bit2(%lld, %d, st[sp-2], st[sp-1]); sp--;\n",
                         (long long)in->a, op2);
                 ks.n--; ks.o[ks.n-1] = -1; break;
@@ -4878,6 +4884,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //   **배열 밖 쓰기**로 나타난다(병렬 op 이 실제로 그랬다: `lw_ptask.a[8]` 에 아홉 칸을 채웠다).
     //   이제 `LW_MAXP` 하나가 컴파일러의 `LOW_MAX_PARAMS` 에서 나온다.
     fprintf(out, "#define LW_MAXP %d\n", (int)LOW_MAX_PARAMS);
+    fprintf(out, "#define LW_HW_CLMUL %d\n", g_hw_clmul);
     fputs(LW_PRELUDE, out);
     // ★★★ 동시성 런타임은 **쓸 때만** (pay-as-you-go) — 그리고 **reactor 를 쓸 때도** 낸다.
     //   ☞ 처음엔 reactor 를 별도 블록으로 떼었는데, 스케줄러가 `lw_io_poll_once` 를 부르고
@@ -5787,10 +5794,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 // ★★★ **비트 연산** (RFC-0064) — 계산은 **스칼라 핵 하나**에 있다(교훈 7).
                 case IRW_BAND: case IRW_BOR: case IRW_BXOR:
                 case IRW_SHL: case IRW_SHR: case IRW_WSHL: case IRW_WSHR:
-                case IRW_ROTL: case IRW_ROTR: {
+                case IRW_ROTL: case IRW_ROTR: case IRW_CLMULLO: case IRW_CLMULHI: {
                     int op2 = in->w == IRW_BAND ? 0 : in->w == IRW_BOR ? 1 : in->w == IRW_BXOR ? 2
                             : in->w == IRW_SHL ? 3 : in->w == IRW_SHR ? 4 : in->w == IRW_WSHL ? 5
-                            : in->w == IRW_WSHR ? 6 : in->w == IRW_ROTL ? 7 : 8;
+                            : in->w == IRW_WSHR ? 6 : in->w == IRW_ROTL ? 7
+                            : in->w == IRW_CLMULLO ? 9 : in->w == IRW_CLMULHI ? 10 : 8;
                     fprintf(out, "    st[sp-2] = lw_int(lw_bit2(%lld, %d, lw_want_int(st[sp-2], \"ints\"),"
                                  " lw_want_int(st[sp-1], \"ints\"))); sp--;\n", (long long)in->a, op2);
                     break;
@@ -5959,7 +5967,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_GHASH:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv z_ = lw_thru(st[sp-2]);\n"
                           "      lowv h_ = lw_thru(st[sp-3]); sp -= 2;\n"
-                          "      st[sp-1] = lw_int(lw_ghash(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n)); }\n", out); break;
+                          "      st[sp-1] = lw_int(lw_ghash_x(h_.p, h_.n, (void *)z_.p, z_.n, d_.p, d_.n)); }\n", out); break;
                 case IRW_RANDBYTES:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); unsigned long hfk_ = 1;\n"
                           "      int hf_ = lw_hf_probe(\"random\", &hfk_);\n"

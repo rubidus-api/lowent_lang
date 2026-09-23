@@ -46,7 +46,7 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | Arithmetic (choosing the outcome) | `wrap_*` `sat_*` `chk_*` `div_nz` `nonzero_of` |
 | Changing width | `widen` `narrow` `narrow_wrap` `narrow_sat` `narrow_try` `cast` `bit_cast` |
 | Comparison and logic | `eq` `ne` `lt` `le` `gt` `ge` `and` `or` `not` |
-| Bits | `bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` |
+| Bits | `bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` `clmul_lo` `clmul_hi` |
 | Sequences | `len` `index` `subslice` `view` `view_array` `same_slice` |
 | Groupings | `field` `method` `isa` `get` |
 | Answer-carrying types | `some` `ok` `error` `is_some` `is_none` `is_ok` `is_error` `some_value` `ok_value` `error_value` `value_or` |

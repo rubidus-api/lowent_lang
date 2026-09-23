@@ -46,7 +46,7 @@
 | 산술(처분을 고름) | `wrap_*` `sat_*` `chk_*` `div_nz` `nonzero_of` |
 | 폭 바꾸기 | `widen` `narrow` `narrow_wrap` `narrow_sat` `narrow_try` `cast` `bit_cast` |
 | 비교와 논리 | `eq` `ne` `lt` `le` `gt` `ge` `and` `or` `not` |
-| 비트 | `bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` |
+| 비트 | `bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` `clmul_lo` `clmul_hi` |
 | 줄 | `len` `index` `subslice` `view` `view_array` `same_slice` |
 | 묶음 | `field` `method` `isa` `get` |
 | 답을 담는 타입 | `some` `ok` `error` `is_some` `is_none` `is_ok` `is_error` `some_value` `ok_value` `error_value` `value_or` |

@@ -1269,6 +1269,14 @@ static void cbe_local_kinds(const low_ir_def_t *d, unsigned char *lk, proven_siz
 }
 
 // 코드를 **정적으로 돌려** 슬롯 종류를 정한다. 라벨에서 종류가 안 맞으면 **포기**한다.
+// ★ 지역 번호가 빠른 프레임의 32 칸을 넘었다 — **까닭을 말하고** 거절한다 (X-0050, 2026-09-23).
+//   전에는 그냥 `false` 였고, `--why-slow` 는 «`store.local` at 238» 이라고만 했다. 그 수는
+//   IR 안의 자리이지 까닭이 아니어서, 읽는 사람이 «지역이 너무 많다» 를 스스로 알아내야 했다
+//   (실측: `x25519.scalarmult` 이 그래서 태그 경로에 있는 줄 아무도 몰랐다).
+static bool cbe_locals_over(unsigned idx) {
+    snprintf(g_sub, sizeof g_sub, "local %u is past the fast frame's 32 locals", idx);
+    return false;
+}
 static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *sc,
                          kstack_t *at, unsigned char *lk, unsigned char *slot,
                          unsigned char *retk, unsigned char *rmap,
@@ -1297,7 +1305,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
         unsigned char a1, a2, a3;
         switch (in->w) {
             case IRW_CONST: st.o[st.n] = -1; st.k[st.n++] = K_INT; break;
-            case IRW_LOAD:  if (in->a >= 32) return false;
+            case IRW_LOAD:  if (in->a >= 32) return cbe_locals_over(in->a);
                             loaded_ |= 1ull << in->a;
                             st.ve[st.n] = lez[in->a]; st.vn[st.n] = lln[in->a]; st.fl[st.n] = lfl[in->a];
                             if (lk[in->a] == K_REF) {
@@ -1308,7 +1316,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             st.o[st.n] = (signed char)in->a; st.k[st.n++] = lk[in->a]; break;
             /* (뷰는 지역에 담기면 lk 가 K_VIEW 를 기억한다 — 저장소는 슬라이스와 같다) */
             case IRW_STORE:
-                if (st.n < 1 || in->a >= 32) return false;
+                if (st.n < 1) return false;
+                if (in->a >= 32) return cbe_locals_over(in->a);
                 if (st.k[st.n-1] == K_SL || st.k[st.n-1] == K_VEC || st.k[st.n-1] == K_MASK ||
                     st.k[st.n-1] >= K_VIEW) {
                     lez[in->a] = st.ve[st.n-1]; lln[in->a] = st.vn[st.n-1]; lfl[in->a] = st.fl[st.n-1];
@@ -1450,7 +1459,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_FCONST: st.o[st.n] = -1; st.k[st.n++] = K_FLT; break;
             case IRW_REF: case IRW_MREF: {
                 proven_size_t tgt = (proven_size_t)(in->a & 0xffff);
-                if (tgt >= 32) return false;
+                if (tgt >= 32) return cbe_locals_over((unsigned)tgt);
                 if (slot[tgt] != 0xff && slot[tgt] != K_INT) return false;   // 정수 지역만
                 st.o[st.n] = (signed char)tgt;
                 st.k[st.n++] = K_REF;
@@ -1633,7 +1642,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_SPOP_INTO:
                 if (st.n < 1 || st.k[st.n-1] != K_STK) return false;
                 if (st.o[st.n-1] < 0) return false;
-                if (in->a >= 32) return false;
+                if (in->a >= 32) return cbe_locals_over(in->a);
                 if (slot[in->a] == 0xff) { slot[in->a] = K_INT; lk[in->a] = K_INT; }
                 else if (slot[in->a] != K_INT) return false;   // 스택의 원소는 **정수**다
                 st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;

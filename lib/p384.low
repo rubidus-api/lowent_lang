@@ -186,41 +186,43 @@ rem ★★ 점 두 배 `pdbl` (야코비, a = −3 인 곡선의 표준 식).
 rem   `w` 는 조각 작업 공간(≥ 268).
 proc q_pdbl input o mut slice u64 . input pt slice u64 . input p slice u64 .
      input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
+  rem 버리는 답은 받이 하나(`sk`)에 받는다 — 받이마다 지역을 두면 32 를 넘어 태그 경로로 떨어진다(X-0050)
+  var sk u64 be 0 .
   guard ge (len w) 268 . else return 0 .
   let X slice u64 be subslice pt 0 24 .
   let Y slice u64 be subslice pt 24 48 .
   let Z slice u64 be subslice pt 48 72 .
   rem delta = Z², gamma = Y², beta = X·gamma
-  let a1 u64 be q_pmul (subslice w 0 24) Z Z p r2 n0i (subslice w 216 242) (subslice w 242 268) .
-  let a2 u64 be q_pmul (subslice w 24 48) Y Y p r2 n0i (subslice w 216 242) (subslice w 242 268) .
-  let a3 u64 be q_pmul (subslice w 48 72) X (subslice w 24 48) p r2 n0i (subslice w 216 242) (subslice w 242 268) .
+  set sk (q_pmul (subslice w 0 24) Z Z p r2 n0i (subslice w 216 242) (subslice w 242 268)) .
+  set sk (q_pmul (subslice w 24 48) Y Y p r2 n0i (subslice w 216 242) (subslice w 242 268)) .
+  set sk (q_pmul (subslice w 48 72) X (subslice w 24 48) p r2 n0i (subslice w 216 242) (subslice w 242 268)) .
   rem alpha = 3·(X − delta)·(X + delta)
-  let a4 u64 be q_msub (subslice w 72 96) X (subslice w 0 24) p .
-  let a5 u64 be q_madd (subslice w 96 120) X (subslice w 0 24) p .
-  let a6 u64 be q_pmul (subslice w 120 144) (subslice w 72 96) (subslice w 96 120) p r2 n0i (subslice w 216 242) (subslice w 242 268) .
-  let a7 u64 be q_madd (subslice w 144 168) (subslice w 120 144) (subslice w 120 144) p .
-  let a8 u64 be q_madd (subslice w 144 168) (subslice w 144 168) (subslice w 120 144) p .
+  set sk (q_msub (subslice w 72 96) X (subslice w 0 24) p) .
+  set sk (q_madd (subslice w 96 120) X (subslice w 0 24) p) .
+  set sk (q_pmul (subslice w 120 144) (subslice w 72 96) (subslice w 96 120) p r2 n0i (subslice w 216 242) (subslice w 242 268)) .
+  set sk (q_madd (subslice w 144 168) (subslice w 120 144) (subslice w 120 144) p) .
+  set sk (q_madd (subslice w 144 168) (subslice w 144 168) (subslice w 120 144) p) .
   rem X' = alpha² − 8·beta
-  let a9 u64 be q_pmul (subslice w 168 192) (subslice w 144 168) (subslice w 144 168) p r2 n0i (subslice w 216 242) (subslice w 242 268) .
-  let b1 u64 be q_madd (subslice w 192 216) (subslice w 48 72) (subslice w 48 72) p .
-  let b2 u64 be q_madd (subslice w 192 216) (subslice w 192 216) (subslice w 192 216) p .
-  let b3 u64 be q_madd (subslice w 192 216) (subslice w 192 216) (subslice w 192 216) p .
-  let b4 u64 be q_msub (subslice o 0 24) (subslice w 168 192) (subslice w 192 216) p .
+  set sk (q_pmul (subslice w 168 192) (subslice w 144 168) (subslice w 144 168) p r2 n0i (subslice w 216 242) (subslice w 242 268)) .
+  set sk (q_madd (subslice w 192 216) (subslice w 48 72) (subslice w 48 72) p) .
+  set sk (q_madd (subslice w 192 216) (subslice w 192 216) (subslice w 192 216) p) .
+  set sk (q_madd (subslice w 192 216) (subslice w 192 216) (subslice w 192 216) p) .
+  set sk (q_msub (subslice o 0 24) (subslice w 168 192) (subslice w 192 216) p) .
   rem Z' = (Y + Z)² − gamma − delta
-  let b5 u64 be q_madd (subslice w 72 96) Y Z p .
-  let b6 u64 be q_pmul (subslice w 96 120) (subslice w 72 96) (subslice w 72 96) p r2 n0i (subslice w 216 242) (subslice w 242 268) .
-  let b7 u64 be q_msub (subslice w 96 120) (subslice w 96 120) (subslice w 24 48) p .
-  let b8 u64 be q_msub (subslice o 48 72) (subslice w 96 120) (subslice w 0 24) p .
+  set sk (q_madd (subslice w 72 96) Y Z p) .
+  set sk (q_pmul (subslice w 96 120) (subslice w 72 96) (subslice w 72 96) p r2 n0i (subslice w 216 242) (subslice w 242 268)) .
+  set sk (q_msub (subslice w 96 120) (subslice w 96 120) (subslice w 24 48) p) .
+  set sk (q_msub (subslice o 48 72) (subslice w 96 120) (subslice w 0 24) p) .
   rem Y' = alpha·(4·beta − X') − 8·gamma²
-  let b9 u64 be q_madd (subslice w 72 96) (subslice w 48 72) (subslice w 48 72) p .
-  let c1 u64 be q_madd (subslice w 72 96) (subslice w 72 96) (subslice w 72 96) p .
-  let c2 u64 be q_msub (subslice w 72 96) (subslice w 72 96) (subslice o 0 24) p .
-  let c3 u64 be q_pmul (subslice w 96 120) (subslice w 144 168) (subslice w 72 96) p r2 n0i (subslice w 216 242) (subslice w 242 268) .
-  let c4 u64 be q_pmul (subslice w 120 144) (subslice w 24 48) (subslice w 24 48) p r2 n0i (subslice w 216 242) (subslice w 242 268) .
-  let c5 u64 be q_madd (subslice w 120 144) (subslice w 120 144) (subslice w 120 144) p .
-  let c6 u64 be q_madd (subslice w 120 144) (subslice w 120 144) (subslice w 120 144) p .
-  let c7 u64 be q_madd (subslice w 120 144) (subslice w 120 144) (subslice w 120 144) p .
-  let c8 u64 be q_msub (subslice o 24 48) (subslice w 96 120) (subslice w 120 144) p .
+  set sk (q_madd (subslice w 72 96) (subslice w 48 72) (subslice w 48 72) p) .
+  set sk (q_madd (subslice w 72 96) (subslice w 72 96) (subslice w 72 96) p) .
+  set sk (q_msub (subslice w 72 96) (subslice w 72 96) (subslice o 0 24) p) .
+  set sk (q_pmul (subslice w 96 120) (subslice w 144 168) (subslice w 72 96) p r2 n0i (subslice w 216 242) (subslice w 242 268)) .
+  set sk (q_pmul (subslice w 120 144) (subslice w 24 48) (subslice w 24 48) p r2 n0i (subslice w 216 242) (subslice w 242 268)) .
+  set sk (q_madd (subslice w 120 144) (subslice w 120 144) (subslice w 120 144) p) .
+  set sk (q_madd (subslice w 120 144) (subslice w 120 144) (subslice w 120 144) p) .
+  set sk (q_madd (subslice w 120 144) (subslice w 120 144) (subslice w 120 144) p) .
+  set sk (q_msub (subslice o 24 48) (subslice w 96 120) (subslice w 120 144) p) .
   return 1 .
 end .
 
@@ -244,25 +246,27 @@ rem   `w` 는 조각 작업 공간(≥ 436). 무한원점과 **같은 점**(H=0)
 rem   ☞ 그 갈래를 빠뜨리면 *"거의 언제나 맞는"* 구현이 된다. 거의는 여기서 실패다.
 proc q_padd input o mut slice u64 . input pa slice u64 . input pb slice u64 . input p slice u64 .
      input r2 slice u64 . input n0i u64 . input w mut slice u64 . output u64 . effects none . do
+  rem 버리는 답은 받이 하나(`sk`)에 받는다 — 받이마다 지역을 두면 32 를 넘어 태그 경로로 떨어진다(X-0050)
+  var sk u64 be 0 .
   guard ge (len w) 436 . else return 0 .
   if eq (q_is_zero (subslice pa 48 72)) 1 . do  return q_copy72 o pb .  end .
   if eq (q_is_zero (subslice pb 48 72)) 1 . do  return q_copy72 o pa .  end .
   let T slice u64 be subslice w 384 410 .
   let U slice u64 be subslice w 410 436 .
   rem Z1Z1 = Z1² (w0) · Z2Z2 = Z2² (w1)
-  let e1 u64 be q_pmul (subslice w 0 24) (subslice pa 48 72) (subslice pa 48 72) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let e2 u64 be q_pmul (subslice w 24 48) (subslice pb 48 72) (subslice pb 48 72) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
+  set sk (q_pmul (subslice w 0 24) (subslice pa 48 72) (subslice pa 48 72) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_pmul (subslice w 24 48) (subslice pb 48 72) (subslice pb 48 72) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
   rem U1 = X1·Z2Z2 (w2) · U2 = X2·Z1Z1 (w3)
-  let e3 u64 be q_pmul (subslice w 48 72) (subslice pa 0 24) (subslice w 24 48) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let e4 u64 be q_pmul (subslice w 72 96) (subslice pb 0 24) (subslice w 0 24) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
+  set sk (q_pmul (subslice w 48 72) (subslice pa 0 24) (subslice w 24 48) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_pmul (subslice w 72 96) (subslice pb 0 24) (subslice w 0 24) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
   rem S1 = Y1·Z2·Z2Z2 (w4) · S2 = Y2·Z1·Z1Z1 (w5)
-  let e5 u64 be q_pmul (subslice w 96 120) (subslice pa 24 48) (subslice pb 48 72) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let e6 u64 be q_pmul (subslice w 96 120) (subslice w 96 120) (subslice w 24 48) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let e7 u64 be q_pmul (subslice w 120 144) (subslice pb 24 48) (subslice pa 48 72) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let e8 u64 be q_pmul (subslice w 120 144) (subslice w 120 144) (subslice w 0 24) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
+  set sk (q_pmul (subslice w 96 120) (subslice pa 24 48) (subslice pb 48 72) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_pmul (subslice w 96 120) (subslice w 96 120) (subslice w 24 48) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_pmul (subslice w 120 144) (subslice pb 24 48) (subslice pa 48 72) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_pmul (subslice w 120 144) (subslice w 120 144) (subslice w 0 24) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
   rem H = U2 − U1 (w6) · r = 2(S2 − S1) (w7)
-  let e9 u64 be q_msub (subslice w 144 168) (subslice w 72 96) (subslice w 48 72) p .
-  let f1 u64 be q_msub (subslice w 168 192) (subslice w 120 144) (subslice w 96 120) p .
+  set sk (q_msub (subslice w 144 168) (subslice w 72 96) (subslice w 48 72) p) .
+  set sk (q_msub (subslice w 168 192) (subslice w 120 144) (subslice w 96 120) p) .
   rem ★ H = 0 이면 같은 x 다: r 도 0 이면 같은 점(두 배), 아니면 서로의 역(무한원점).
   if eq (q_is_zero (subslice w 144 168)) 1 . do
     if eq (q_is_zero (subslice w 168 192)) 1 . do
@@ -272,29 +276,29 @@ proc q_padd input o mut slice u64 . input pa slice u64 . input pb slice u64 . in
     while lt zi 72 . do  set (index o zi) 0 .  set zi (add zi 1) .  end .
     return 1 .
   end .
-  let f2 u64 be q_madd (subslice w 168 192) (subslice w 168 192) (subslice w 168 192) p .
+  set sk (q_madd (subslice w 168 192) (subslice w 168 192) (subslice w 168 192) p) .
   rem I = (2H)² (w8) · J = H·I (w9) · V = U1·I (w10)
-  let f3 u64 be q_madd (subslice w 192 216) (subslice w 144 168) (subslice w 144 168) p .
-  let f4 u64 be q_pmul (subslice w 192 216) (subslice w 192 216) (subslice w 192 216) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let f5 u64 be q_pmul (subslice w 216 240) (subslice w 144 168) (subslice w 192 216) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let f6 u64 be q_pmul (subslice w 240 264) (subslice w 48 72) (subslice w 192 216) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
+  set sk (q_madd (subslice w 192 216) (subslice w 144 168) (subslice w 144 168) p) .
+  set sk (q_pmul (subslice w 192 216) (subslice w 192 216) (subslice w 192 216) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_pmul (subslice w 216 240) (subslice w 144 168) (subslice w 192 216) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_pmul (subslice w 240 264) (subslice w 48 72) (subslice w 192 216) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
   rem X3 = r² − J − 2V
-  let f7 u64 be q_pmul (subslice w 264 288) (subslice w 168 192) (subslice w 168 192) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let f8 u64 be q_msub (subslice w 264 288) (subslice w 264 288) (subslice w 216 240) p .
-  let f9 u64 be q_madd (subslice w 288 312) (subslice w 240 264) (subslice w 240 264) p .
-  let g1 u64 be q_msub (subslice w 312 336) (subslice w 264 288) (subslice w 288 312) p .
+  set sk (q_pmul (subslice w 264 288) (subslice w 168 192) (subslice w 168 192) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_msub (subslice w 264 288) (subslice w 264 288) (subslice w 216 240) p) .
+  set sk (q_madd (subslice w 288 312) (subslice w 240 264) (subslice w 240 264) p) .
+  set sk (q_msub (subslice w 312 336) (subslice w 264 288) (subslice w 288 312) p) .
   rem Y3 = r·(V − X3) − 2·S1·J
-  let g2 u64 be q_msub (subslice w 336 360) (subslice w 240 264) (subslice w 312 336) p .
-  let g3 u64 be q_pmul (subslice w 336 360) (subslice w 168 192) (subslice w 336 360) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let g4 u64 be q_pmul (subslice w 360 384) (subslice w 96 120) (subslice w 216 240) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let g5 u64 be q_madd (subslice w 360 384) (subslice w 360 384) (subslice w 360 384) p .
-  let g6 u64 be q_msub (subslice w 336 360) (subslice w 336 360) (subslice w 360 384) p .
+  set sk (q_msub (subslice w 336 360) (subslice w 240 264) (subslice w 312 336) p) .
+  set sk (q_pmul (subslice w 336 360) (subslice w 168 192) (subslice w 336 360) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_pmul (subslice w 360 384) (subslice w 96 120) (subslice w 216 240) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_madd (subslice w 360 384) (subslice w 360 384) (subslice w 360 384) p) .
+  set sk (q_msub (subslice w 336 360) (subslice w 336 360) (subslice w 360 384) p) .
   rem Z3 = ((Z1+Z2)² − Z1Z1 − Z2Z2)·H
-  let g7 u64 be q_madd (subslice w 360 384) (subslice pa 48 72) (subslice pb 48 72) p .
-  let g8 u64 be q_pmul (subslice w 360 384) (subslice w 360 384) (subslice w 360 384) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
-  let g9 u64 be q_msub (subslice w 360 384) (subslice w 360 384) (subslice w 0 24) p .
-  let h1 u64 be q_msub (subslice w 360 384) (subslice w 360 384) (subslice w 24 48) p .
-  let h2 u64 be q_pmul (subslice w 360 384) (subslice w 360 384) (subslice w 144 168) p r2 n0i (subslice w 384 410) (subslice w 410 436) .
+  set sk (q_madd (subslice w 360 384) (subslice pa 48 72) (subslice pb 48 72) p) .
+  set sk (q_pmul (subslice w 360 384) (subslice w 360 384) (subslice w 360 384) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
+  set sk (q_msub (subslice w 360 384) (subslice w 360 384) (subslice w 0 24) p) .
+  set sk (q_msub (subslice w 360 384) (subslice w 360 384) (subslice w 24 48) p) .
+  set sk (q_pmul (subslice w 360 384) (subslice w 360 384) (subslice w 144 168) p r2 n0i (subslice w 384 410) (subslice w 410 436)) .
   rem 이제서야 o 에 쓴다 — pa/pb 와 겹쳐도 안전하도록 **읽기를 다 끝낸 뒤**다.
   var c u64 be 0 .
   while lt c 24 . do

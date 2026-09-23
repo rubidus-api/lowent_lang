@@ -153,3 +153,36 @@ export proc s_head_test input rs mut slice u8 . input wb mut slice u8 . input wu
   guard eq (sign_test rs wb wu) 64 . else return 0 .
   return head4 rs 32 .
 end .
+
+rem ★ X-0050 ② 탐침 — 서명만·검증만 따로 반복해 어느 쪽이 느린지 가른다(기록용, 게이트 아님).
+export proc verify_only input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . input vw mut slice u64 . input reps u64 . output u64 . effects none . do
+  guard ge (len vw) 924 . else return 0 .
+  guard eq (sign_sample rs wb wu) 64 . else return 0 .
+  guard eq (bigint.from_bytes (subslice rs 0 32) (subslice wu 64 80) 16) 16 . else return 0 .
+  guard eq (bigint.from_bytes (subslice rs 32 64) (subslice wu 80 96) 16) 16 . else return 0 .
+  let hh option u64 . be codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" (subslice wb 0 32) .
+  guard is_some hh . else return 0 .
+  guard eq (bigint.from_bytes (subslice wb 0 32) (subslice wu 96 112) 16) 16 . else return 0 .
+  guard eq (limbs_of "60fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb6" (subslice wu 112 128) wb) 16 . else return 0 .
+  guard eq (limbs_of "7903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299" (subslice wu 128 144) wb) 16 . else return 0 .
+  var i u64 be 0 .
+  var acc u64 be 0 .
+  while lt i reps . do
+    let _rr result u64 p256.p256_error . be p256.ecdsa_verify (subslice wu 64 80) (subslice wu 80 96) (subslice wu 96 112) (subslice wu 112 144) (subslice wu 0 16) (subslice wu 16 32) (subslice wu 32 48) (subslice wu 48 64) (subslice vw 0 924) .
+    guard is_ok _rr . else return 0 .
+    set acc (add acc (ok_value _rr)) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .
+
+export proc sign_only input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . input reps u64 . output u64 . effects none . do
+  var i u64 be 0 .
+  var acc u64 be 0 .
+  while lt i reps . do
+    guard eq (sign_sample rs wb wu) 64 . else return 0 .
+    set acc (add acc 1) .
+    set i (add i 1) .
+  end .
+  return acc .
+end .

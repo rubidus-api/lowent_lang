@@ -38,24 +38,14 @@ rem   17 바이트짜리를 받아들였고, 그러면 꼬리 블록이 **말없
 rem   자리가 남아서 생긴 오답이라 «모자란다» 로도 안 보인다. 이 저장소가 두 번 밟은 모양이다
 rem   (`hash.digest_ok` 의 정확 길이 규칙과 같은 자리). 잘라 넘기면 경우가 하나로 준다.
 proc feed input pst mut slice u64 . input data slice u8 . input pad mut slice u8 . output u64 . effects none . do
-  var off u64 be 0 .
-  while le (add off 16) (len data) . do
-    let z u64 be poly.block pst (subslice data off (add off 16)) 1 .
-    set off (add off 16) .
-  end .
-  if lt off (len data) . do
-    var i u64 be 0 .
-    while lt i 16 . do
-      set (index pad i) 0 .
-      set i (add i 1) .
-    end .
-    var j u64 be 0 .
-    while lt (add off j) (len data) . do
-      set (index pad j) (index data (add off j)) .
-      set j (add j 1) .
-    end .
-    let z2 u64 be poly.block pst (subslice pad 0 16) 1 .
-  end .
+  rem ★★★★ **낱말 하나가 되풀이를 판다** (RFC-0122, 2026-09-24). 여기서 하던 일 — 열여섯씩
+  rem   먹이고 꼬리를 0 으로 채워 한 번 더 먹이는 것 — 을 `poly1305` 가 **그대로** 한다.
+  rem   `poly.block` 은 지우지 않는다: 그것이 뜻의 정의이고, 골든이 낱말과 그 되풀이를
+  rem   같은 상태·같은 바이트로 맞댄다(`impl/tests/vm_poly.low` 의 `same`).
+  rem   ☞ `pad` 는 이제 이 프로시저가 안 쓴다 — 그래도 받는다. 호출자의 자리 규약을
+  rem     바꾸면 `seal`·`unseal` 의 서명이 따라 바뀌고, 그것은 이 변경이 살 값이 아니다.
+  let z u64 be poly1305 pst data .
+  guard eq z (len data) . else return 0 .
   return 1 .
 end .
 

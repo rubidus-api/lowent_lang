@@ -16,6 +16,7 @@ add	두 수를 더한다. 넘치면 트랩한다
 aes_round	AES 한 라운드 — 상태 16 바이트를 제자리에서(SubBytes·ShiftRows·MixColumns·AddRoundKey). 낸 값은 16
 aes_round_last	마지막 AES 라운드 — MixColumns 없이. 낸 값은 16
 aes_ctr	AES-128-CTR — 키 16 · 카운터 16 을 제자리에서 올린다. 낸 값은 흐른 바이트 수
+chacha20	ChaCha20 (RFC 8439) — 키 32 · 카운터 블록 16(앞 4 = 블록 번호 리틀엔디언 · 뒤 12 = nonce)을 제자리에서 올린다. 낸 값은 흐른 바이트 수
 all	모두 참인가 — 첫 거짓에서 멈춘다
 alloc_bytes	영역에서 바이트 자리를 얻는다
 and	논리 곱 — 앞이 거짓이면 뒤를 **안 본다**
@@ -80,6 +81,7 @@ file_read	파일에서 읽는다
 file_seek	읽고 쓸 자리를 옮긴다
 file_type	그 경로가 무엇인가(파일·디렉터리…)
 ghash	GHASH — GF(2^128) 누산. h 16 · z 16 을 제자리에서 고친다. 낸 값은 먹인 바이트 수
+poly1305	Poly1305 (RFC 8439) — 상태(h 다섯 · r 다섯)를 제자리에서 누산한다. 열여섯의 배수가 아니면 꼬리를 0 으로 채운다. 낸 값은 먹인 바이트 수
 link_type	그 경로 자신이 무엇인가 — 심링크를 따라가지 아니한다
 file_write	파일에 쓴다
 filter	술어가 참인 원소만 지나보낸다

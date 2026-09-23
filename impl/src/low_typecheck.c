@@ -785,6 +785,15 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     { "shl", 3 }, { "shr", 3 }, { "wshl", 3 }, { "wshr", 3 },
                     { "rotl", 3 }, { "rotr", 3 },
                     { "clmul_lo", 3 }, { "clmul_hi", 3 },   // ★ 캐리 없는 곱셈 (RFC-0119) — 폭은 피연산자가 말한다
+                    // ★★ 암호 잎 — **낸 값은 처리한 바이트 수**다(option 도 참거짓도 아니다).
+                    //   근거는 구현 자신이다: VM 의 이 자리들이 전부 `vmv_int` 를 쌓고, C 뒤끝은
+                    //   `lw_int(...)` 로 싣는다. 표에 없어서 `let n u64 be aes_ctr …` 같은 선언이
+                    //   **비틀어도 초록**이었다(돌연변이 측정 `check-decl-types`). RFC-0122 로 낱말이
+                    //   둘 늘면서 그 자리가 하나 더 늘길래, 늘리는 대신 **줄였다**.
+                    { "aes_ctr", 3 }, { "ghash", 3 },
+                    { "aes_round", 3 }, { "aes_round_last", 3 },
+                    { "chacha20", 3 }, { "poly1305", 3 },
+                    { "sha384", 3 },
                     { "popcount", 3 }, { "leading_zeros", 3 }, { "trailing_zeros", 3 },
                     { "byte_swap", 3 },
                 };

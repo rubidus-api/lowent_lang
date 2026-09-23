@@ -56,3 +56,11 @@ rem     왕복만 보므로 **곱셈이 통째로 달라도** 스스로 일관�
 export proc gh input h slice u8 . input z mut slice u8 . input d slice u8 . output u64 . effects none . do
   return ghash h z d .
 end .
+
+rem ★★★★★ 흐름 잎도 같은 자로 (X-0051, 2026-09-24). 기계 판은 이제 **여덟 덩이를 엮어** 돌고
+rem   꼬리만 한 덩이씩 간다 — 즉 길이가 128 을 넘나드는 자리에서 **두 길이 갈린다**.
+rem   ☞ 그래서 골든이 128 의 앞뒤(112·128·144·5)를 모두 소프트 판과 맞댄다. 카운터를 제자리에서
+rem     올리는 규약도 같은 비교로 증언된다 — 여덟을 한 번에 올리며 규약을 바꾸면 여기서 드러난다.
+export proc ctr input key slice u8 . input c mut slice u8 . input s slice u8 . input d mut slice u8 . output u64 . effects none . do
+  return aes_ctr key c s d .
+end .

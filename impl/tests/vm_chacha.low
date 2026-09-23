@@ -1,0 +1,46 @@
+rem ★★★★★ **ChaCha20 — 낱말과 이 언어로 쓴 정의가 같은 답인가** (RFC-0122, 2026-09-24).
+rem
+rem   `chacha20` 은 계산만 내린 낱말이고, 뜻의 정의는 `lib/chacha.low` 에 남아 있다.
+rem   둘이 갈라지면 여기서 드러난다 — `gmul128` 과 잎 `ghash` 가 선 자리와 같은 자리다.
+rem
+rem ★ 그리고 SIMD 경로(`--hw sse2` · `--hw avx2`)와 셈 판(`--hw none`)과 VM 이 **같은 답**인지도
+rem   같은 입력으로 본다. 되돌릴 수 있는 성질(두 번 걸면 원문)만으로 판정하면
+rem   «일관되게 틀린 것» 을 못 잡는다 — 2026-09-23 에 GHASH 가 그렇게 통과할 뻔했다.
+
+module vm_chacha .
+
+use chacha from "../../lib/chacha.low" .
+
+rem 낱말 하나 — 카운터 블록은 **제자리에서** 올라간다(`aes_ctr` 와 같은 규약).
+export proc cc input key slice u8 . input c mut slice u8 . input s slice u8 . input d mut slice u8 . output u64 . effects none . do
+  return chacha20 key c s d .
+end .
+
+rem ★ 낱말과 `lib/chacha.low` 의 `stream` 이 **같은 바이트**를 내는가. 1 이면 같다.
+rem   `c` 는 16 바이트(앞 4 = 블록 번호 리틀엔디언 · 뒤 12 = nonce), `n` 은 같은 nonce 12 바이트.
+export proc same input key slice u8 . input c mut slice u8 . input n slice u8 . input cnt u64 . input s slice u8 .
+  input d1 mut slice u8 . input d2 mut slice u8 .
+  input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none .
+do
+  guard eq (len d1) (len s) . else return 0 .
+  guard eq (len d2) (len s) . else return 0 .
+  let a u64 be chacha20 key c s d1 .
+  guard eq a (len s) . else return 0 .
+  let r result u64 chacha.chacha_error . be chacha.stream key n cnt s d2 st work ks .
+  guard is_ok r . else return 0 .
+  guard eq (ok_value r) (len s) . else return 0 .
+  var i u64 be 0 .
+  while lt i (len s) . do
+    guard eq (cast u64 (index d1 i)) (cast u64 (index d2 i)) . else return 0 .
+    set i (add i 1) .
+  end .
+  return 1 .
+end .
+
+rem 정의 쪽만 — 시험이 왜 0 인지 가르는 자리.
+export proc onlylib input key slice u8 . input n slice u8 . input s slice u8 . input d2 mut slice u8 .
+  input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none . do
+  let r result u64 chacha.chacha_error . be chacha.stream key n 1 s d2 st work ks .
+  guard is_ok r . else return 111 .
+  return ok_value r .
+end .

@@ -1,7 +1,16 @@
 rem ★★★ **ChaCha20** (RFC 8439 §2.4) — Lowent 로 쓴다.
 rem
-rem   리프가 아니다: 32비트 덧셈·xor·회전만 쓰는 순수 계산이고 **언어로 표현된다**.
-rem   ⇒ VM≡native 가 공짜로 따라오고, 계약·게이트가 그대로 적용된다.
+rem   32비트 덧셈·xor·회전만 쓰는 순수 계산이고 **이 언어로 표현된다** — 아래 `qround`·`rounds`·
+rem   `keystream` 이 그 글이다. 그것이 이 모듈이 말하는 **뜻의 정의**이고, 지우지 않는다.
+rem
+rem ★★★★ **다만 흐름은 낱말이 판다** (RFC-0122, 2026-09-24, 소유자 지시 «chacha 의 simd 낱말»).
+rem   언어로 쓴 판은 실측 **89 MB/s** 였다. 모자란 것은 알고리즘이 아니라 **폭**이다: ChaCha 의
+rem   블록들은 서로 독립이므로(카운터만 다르다) 넷·여덟을 한 레지스터의 레인에 나란히 실으면
+rem   그대로 넷·여덟 배가 된다. 그 폭이 이 언어에 없다.
+rem   ⇒ `stream` 은 이제 낱말 `chacha20` 을 부른다. **답은 같다** — 골든이 낱말과 위의 정의를
+rem     같은 입력으로 맞댄다(`impl/tests/vm_chacha.low` 의 `same`). `gmul128` 과 잎 `ghash` 가
+rem     선 자리와 같은 자리다.
+rem   ☞ VM 은 언제나 셈 판을 돈다 ⇒ 오라클(VM ≡ 네이티브)이 SIMD 경로의 차등 시험이다.
 rem
 rem ★ 오라클은 **RFC 8439 의 테스트 벡터**다(§2.3.2 블록 함수 · §2.4.2 암호화).
 rem
@@ -144,22 +153,25 @@ rem   **호출자의 몫**이다. 그래서 이 프로시저는 effects none 이
 export proc stream input key slice u8 . input nonce slice u8 . input counter u64 . input inp slice u8 . input out mut slice u8 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output result u64 chacha_error . effects none .
 errors short_workspace . do
   guard ge (len out) (len inp) . else return ok 0 .
-  var off u64 be 0 .
-  var blk u64 be counter .
-  while lt off (len inp) . do
-    guard eq (prep key nonce blk st) 16 . else return ok 0 .
-    let _u0 result u64 chacha_error . be keystream st work ks .
-    guard is_ok _u0 . else return error short_workspace .
-    guard eq (ok_value _u0) 64 . else return ok 0 .
-    var k u64 be 0 .
-    while lt k 64 . do
-      if lt (add off k) (len inp) . do
-        set (index out (add off k)) (cast u8 (bit_xor (cast u64 (index inp (add off k))) (cast u64 (index ks k)))) .
-      end .
-      set k (add k 1) .
-    end .
-    set off (add off 64) .
-    set blk (add blk 1) .
+  guard eq (len key) 32 . else return ok 0 .
+  guard eq (len nonce) 12 . else return ok 0 .
+  guard ge (len st) 16 . else return ok 0 .
+  guard ge (len work) 16 . else return error short_workspace .
+  guard ge (len ks) 64 . else return ok 0 .
+  rem ★ 카운터 블록을 `ks` 의 앞 16 바이트에 세운다 — 앞 4 는 블록 번호(리틀엔디언),
+  rem   뒤 12 는 nonce. 이 언어에서 뒷받침은 **호출자의 몫**이므로 새 버퍼를 얻지 않고
+  rem   이미 받은 작업 공간을 쓴다(`ks` 는 이 부름 동안 낱말이 채우지 않는다).
+  var b u64 be 0 .
+  while lt b 4 . do
+    set (index ks b) (cast u8 (bit_and (shr counter (mul b 8)) 255)) .
+    set b (add b 1) .
   end .
+  var j u64 be 0 .
+  while lt j 12 . do
+    set (index ks (add 4 j)) (index nonce j) .
+    set j (add j 1) .
+  end .
+  let n u64 be chacha20 key (subslice ks 0 16) inp out .
+  guard eq n (len inp) . else return ok 0 .
   return ok (len inp) .
 end .

@@ -11,7 +11,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 196 개다.]
+  #para("2")[모두 198 개다.]
 
   #tbl("내장 연산과 그 뜻")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
@@ -48,6 +48,7 @@
         [`capacity`], [담을 수 있는 최대],
         [`cast`], [수치 변환(폭·부호·부동소수)],
         [`ceil`], [올림],
+        [`chacha20`], [ChaCha20 (RFC 8439) — 키 32 · 카운터 블록 16(앞 4 = 블록 번호 리틀엔디언 · 뒤 12 = nonce)을 제자리에서 올린다. 낸 값은 흐른 바이트 수],
         [`chk_add`], [더하기 — 넘쳤는지 **답과 함께** 돌려준다],
         [`chk_mul`], [곱하기 — 넘쳤는지 답과 함께 돌려준다],
         [`chk_sub`], [빼기 — 넘쳤는지 답과 함께 돌려준다],
@@ -141,6 +142,7 @@
         [`path_remove`], [지운다],
         [`path_rename`], [이름을 바꾼다],
         [`pipe`], [한 줄기로 흘린다 — **한 번의 훑기**다],
+        [`poly1305`], [Poly1305 (RFC 8439) — 상태(h 다섯 · r 다섯)를 제자리에서 누산한다. 열여섯의 배수가 아니면 꼬리를 0 으로 채운다. 낸 값은 먹인 바이트 수],
         [`pop`], [뒤에서 하나 뺀다],
         [`pow`], [거듭제곱],
         [`prefetch`], [곧 쓸 자리를 미리 끌어 온다],
@@ -222,7 +224,7 @@
   ]
 
   #note[
-    실측(2026-08-25): 196 개 가운데 지역 이름 선언이 막히는 것은 **181 개**,
+    실측(2026-08-25): 198 개 가운데 지역 이름 선언이 막히는 것은 **183 개**,
     쓸 수 있는 것은 **15 개**다 — `borrow` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `range` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 **이름 충돌 규칙을 틀리게 말하기**
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
@@ -236,45 +238,46 @@ atomic_store          atomic_sub            atomic_swap           atomic_xor
 avg                   bit_and               bit_cast              bit_not
 bit_or                bit_xor               bitset_new            borrow
 byte_swap             capacity              cast                  ceil
-chk_add               chk_mul               chk_sub               clmul_hi
-clmul_lo              collect               complement            config
-contains              cos                   count                 count_ones
-crc32                 cstr_of               deref                 difference
-dir_close             dir_make              dir_open              dir_read
-div                   div_nz                encode                enumerate
-env_get               eq                    error                 error_value
-exp                   expect                field                 file_close
-file_open             file_read             file_seek             file_type
-file_write            filter                floor                 fmod
-fold                  ge                    ghash                 gt
-hash_bytes            index                 intersect             into
-is_empty              is_error              is_none               is_ok
-is_some               is_subset             le                    leading_zeros
-len                   link_type             load                  load_masked
-log                   lt                    map                   max
-min                   mod                   mul                   mut_ref
-narrow                narrow_sat            narrow_try            narrow_wrap
-native_lanes          ne                    neg                   net_accept
-net_close             net_connect           net_listen            net_pair
-net_port              net_recv              net_resolve           net_send
-nonzero_of            not                   ok                    ok_value
-or                    panic                 path_remove           path_rename
-pipe                  pop                   pow                   prefetch
-push                  r_read                r_write               range
-reactor_new           read_in               read_volatile         reduce_add
-reduce_max            reduce_min            reduce_mul            ref
-region                remove                ret                   reverse
-rng_next              rotate                rotl                  rotr
-round                 same_slice            sat_add               sat_mul
-sat_sub               scan                  seg                   segs
-select                send                  sha256                sha384
-sha512                shl                   shr                   sin
-size_of               skip                  some_value            spawn
-splat                 sqrt                  stack_new             store
-store_masked          str_from_cstr         sub                   subslice
-sum_neumaier          sum_seq               swap                  take
-trailing_zeros        try_view              union                 value_or
-view                  view_array            view_segments         widen
-wrap_add              wrap_mul              wrap_shl              wrap_shr
-wrap_sub              write_out             write_volatile        zip")
+chacha20              chk_add               chk_mul               chk_sub
+clmul_hi              clmul_lo              collect               complement
+config                contains              cos                   count
+count_ones            crc32                 cstr_of               deref
+difference            dir_close             dir_make              dir_open
+dir_read              div                   div_nz                encode
+enumerate             env_get               eq                    error
+error_value           exp                   expect                field
+file_close            file_open             file_read             file_seek
+file_type             file_write            filter                floor
+fmod                  fold                  ge                    ghash
+gt                    hash_bytes            index                 intersect
+into                  is_empty              is_error              is_none
+is_ok                 is_some               is_subset             le
+leading_zeros         len                   link_type             load
+load_masked           log                   lt                    map
+max                   min                   mod                   mul
+mut_ref               narrow                narrow_sat            narrow_try
+narrow_wrap           native_lanes          ne                    neg
+net_accept            net_close             net_connect           net_listen
+net_pair              net_port              net_recv              net_resolve
+net_send              nonzero_of            not                   ok
+ok_value              or                    panic                 path_remove
+path_rename           pipe                  poly1305              pop
+pow                   prefetch              push                  r_read
+r_write               range                 reactor_new           read_in
+read_volatile         reduce_add            reduce_max            reduce_min
+reduce_mul            ref                   region                remove
+ret                   reverse               rng_next              rotate
+rotl                  rotr                  round                 same_slice
+sat_add               sat_mul               sat_sub               scan
+seg                   segs                  select                send
+sha256                sha384                sha512                shl
+shr                   sin                   size_of               skip
+some_value            spawn                 splat                 sqrt
+stack_new             store                 store_masked          str_from_cstr
+sub                   subslice              sum_neumaier          sum_seq
+swap                  take                  trailing_zeros        try_view
+union                 value_or              view                  view_array
+view_segments         widen                 wrap_add              wrap_mul
+wrap_shl              wrap_shr              wrap_sub              write_out
+write_volatile        zip")
 ]

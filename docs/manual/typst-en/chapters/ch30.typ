@@ -200,9 +200,11 @@ Whether to use the instructions is the builder's choice.
 #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
   [*What you pick*], [*What happens*],
   [`--hw none` (default)], [everything in plain code; stands on any machine],
-  [`--hw pclmul,aes`], [emitted *assuming* those instructions; will not run where they are missing],
-  [`--hw auto`], [carry both and choose *once at start*; stands anywhere, fast where the instructions exist],
+  [`--hw pclmul,aes,sse2,avx2`], [emitted *assuming* those instructions; will not run where they are missing],
+  [`--hw auto`], [carry them all and choose *once at start*; stands anywhere, fast where the instructions exist],
 )
+
+What is carried is not only an instruction that replaces a computation. What `sse2` and `avx2` give is *width* --- the room to put four or eight independent pieces of work side by side in one register, which is exactly the shape of ChaCha20's blocks. The rules are the same: the answer does not change, a machine that lacks the set cannot carry it, and the VM always runs the plain code.
 
 - The answer is the same either way. What differs is speed and timing behaviour --- a computation that reads tables reads at a value-dependent place; these instructions do not.
 - Asking for an instruction set the target does not have is refused (`E-HW-TARGET`). There is no silent fallback: the builder must know what will run.

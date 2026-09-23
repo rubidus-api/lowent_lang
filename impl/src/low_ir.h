@@ -350,6 +350,13 @@ typedef enum {
     IRW_ROTL, IRW_ROTR,
     IRW_CLMULLO, IRW_CLMULHI,          // 캐리 없는 곱셈의 아랫말·윗말 (RFC-0119)
     IRW_AESROUND, IRW_AESLAST,         // AES 한 라운드 · 마지막 라운드 (RFC-0119)
+    // ★★★★ **ChaCha20 은 폭이 모자라서 낱말이 됐다** (RFC-0122, 2026-09-24).
+    //   알고리즘은 이 언어로 표현된다(`lib/chacha.low` 가 그렇게 쓰여 있고, 그것이 뜻의 정의로
+    //   남는다). 없는 것은 **폭**이다: 서로 독립인 블록 넷·여덟을 한 레지스터에 싣는 자리.
+    IRW_CHACHA20, // (key32, mut ctr16, src, mut dst) → u64  처리한 바이트 수 · 권한 없음
+    // ★★★ **Poly1305 의 블록 되풀이** (RFC-0122). 상태의 자리는 `lib/poly.low` 와 **같다**
+    //   (`st[0..5]` = h · `st[5..10]` = r) — `setup`·`emit` 은 언어에 남고 가운데만 내린다.
+    IRW_POLY1305, // (mut st(원소 10 이상), data) → u64  먹인 바이트 수 · 권한 없음
     IRW_POPCNT, IRW_CLZ, IRW_CTZ, IRW_BSWAP,
     // ★★★ **level-3 atomic** (RFC-0018) — RC11 은 **증명됐는데**(LowentRC11.v, 7정리 Qed)
     //   도구가 **안 줬다**(W-NOT-YET). *증명해 놓고 구현 안 한 것*도 검사되지 않는 중복이다.

@@ -43,7 +43,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   use           var           while
 ```
 
-## 3. 빌트인 op **196**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
+## 3. 빌트인 op **198**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
 
 ★ 외워야 하는 것은 키워드 수가 아니라 **키워드 + op** 이다. 그래서 둘 다 센다.
 
@@ -52,27 +52,27 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   any             arg             atomic_add      atomic_and      atomic_cas      atomic_fence    atomic_load     atomic_or
   atomic_store    atomic_sub      atomic_swap     atomic_xor      avg             bit_and         bit_cast        bit_not
   bit_or          bit_xor         bitset_new      borrow          byte_swap       capacity        cast            ceil
-  chk_add         chk_mul         chk_sub         clmul_hi        clmul_lo        collect         complement      config
-  contains        cos             count           count_ones      crc32           cstr_of         deref           difference
-  dir_close       dir_make        dir_open        dir_read        div             div_nz          encode          enumerate
-  env_get         eq              error           error_value     exp             expect          field           file_close
-  file_open       file_read       file_seek       file_type       file_write      filter          floor           fmod
-  fold            ge              ghash           gt              hash_bytes      index           intersect       into
-  is_empty        is_error        is_none         is_ok           is_some         is_subset       le              leading_zeros
-  len             link_type       load            load_masked     log             lt              map             max
-  min             mod             mul             mut_ref         narrow          narrow_sat      narrow_try      narrow_wrap
-  native_lanes    ne              neg             net_accept      net_close       net_connect     net_listen      net_pair
-  net_port        net_recv        net_resolve     net_send        nonzero_of      not             ok              ok_value
-  or              panic           path_remove     path_rename     pipe            pop             pow             prefetch
-  push            r_read          r_write         range           reactor_new     read_in         read_volatile   reduce_add
-  reduce_max      reduce_min      reduce_mul      ref             region          remove          ret             reverse
-  rng_next        rotate          rotl            rotr            round           same_slice      sat_add         sat_mul
-  sat_sub         scan            seg             segs            select          send            sha256          sha384
-  sha512          shl             shr             sin             size_of         skip            some_value      spawn
-  splat           sqrt            stack_new       store           store_masked    str_from_cstr   sub             subslice
-  sum_neumaier    sum_seq         swap            take            trailing_zeros  try_view        union           value_or
-  view            view_array      view_segments   widen           wrap_add        wrap_mul        wrap_shl        wrap_shr
-  wrap_sub        write_out       write_volatile  zip
+  chacha20        chk_add         chk_mul         chk_sub         clmul_hi        clmul_lo        collect         complement
+  config          contains        cos             count           count_ones      crc32           cstr_of         deref
+  difference      dir_close       dir_make        dir_open        dir_read        div             div_nz          encode
+  enumerate       env_get         eq              error           error_value     exp             expect          field
+  file_close      file_open       file_read       file_seek       file_type       file_write      filter          floor
+  fmod            fold            ge              ghash           gt              hash_bytes      index           intersect
+  into            is_empty        is_error        is_none         is_ok           is_some         is_subset       le
+  leading_zeros   len             link_type       load            load_masked     log             lt              map
+  max             min             mod             mul             mut_ref         narrow          narrow_sat      narrow_try
+  narrow_wrap     native_lanes    ne              neg             net_accept      net_close       net_connect     net_listen
+  net_pair        net_port        net_recv        net_resolve     net_send        nonzero_of      not             ok
+  ok_value        or              panic           path_remove     path_rename     pipe            poly1305        pop
+  pow             prefetch        push            r_read          r_write         range           reactor_new     read_in
+  read_volatile   reduce_add      reduce_max      reduce_min      reduce_mul      ref             region          remove
+  ret             reverse         rng_next        rotate          rotl            rotr            round           same_slice
+  sat_add         sat_mul         sat_sub         scan            seg             segs            select          send
+  sha256          sha384          sha512          shl             shr             sin             size_of         skip
+  some_value      spawn           splat           sqrt            stack_new       store           store_masked    str_from_cstr
+  sub             subslice        sum_neumaier    sum_seq         swap            take            trailing_zeros  try_view
+  union           value_or        view            view_array      view_segments   widen           wrap_add        wrap_mul
+  wrap_shl        wrap_shr        wrap_sub        write_out       write_volatile  zip
 ```
 
 ## 4. effect atom **15**  ·  *출처: 정본 §7.1*

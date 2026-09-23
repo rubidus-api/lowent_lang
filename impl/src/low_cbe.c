@@ -984,6 +984,8 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_BNEW: case IRW_CONTAINS: case IRW_COUNT:   // ★ 비트셋 = 64비트 마스크
         case IRW_SAMESL:                                    // ★ 같은 바이트인가 — 두 슬라이스 → 참거짓
         case IRW_AESCTR: case IRW_GHASH:                    // ★ 암호 잎 — 해시와 같은 모양(슬라이스와 수)
+        case IRW_CHACHA20:                                  // ★ ChaCha20 (RFC-0122) — `aes_ctr` 와 같은 모양
+        case IRW_POLY1305:                                  // ★ Poly1305 (RFC-0122) — 해시와 같은 모양
         case IRW_AESROUND: case IRW_AESLAST:                // ★ AES 한 라운드 (RFC-0119 §10)
         case IRW_SHA256: case IRW_SHA512: case IRW_SHA384: case IRW_CRC32:   // ★ 해시 — 태그와 **같은 함수**를 부른다
         case IRW_HASH64: case IRW_RNGNEXT: case IRW_RANDBYTES:  // ★ 해시·난수 — 같은 모양
@@ -1381,11 +1383,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             //   그 목록을 아무도 정기적으로 안 읽었다(2026-08-16 벡터 저장과 **같은 부류**:
             //   *느린 게 아니라 부를 수 없었다*. 답은 맞으니 차등 스윕도 못 본다).
             //   ★ 모양은 단순하다: `(바이트, 쓰기 가능한 바이트) → 쓴 길이`.
-            case IRW_SHA256: case IRW_SHA512: case IRW_SHA384:
+            case IRW_SHA256: case IRW_SHA512: case IRW_SHA384: case IRW_POLY1305:
                             if (st.n < 2 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL) return false;
                             st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             /* ★ 암호 잎: 슬라이스 넷(셋) → 수 하나. 모양이 해시와 같아 빠른 경로에 그대로 선다. */
-            case IRW_AESCTR:
+            case IRW_AESCTR: case IRW_CHACHA20:
                             if (st.n < 4 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL ||
                                 st.k[st.n-3] != K_SL || st.k[st.n-4] != K_SL) return false;
                             st.n -= 3; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
@@ -2566,6 +2568,10 @@ static int g_hw_clmul;
 void low_cbe_set_hw_clmul(int v) { g_hw_clmul = v; }
 static int g_hw_aes;
 void low_cbe_set_hw_aes(int v) { g_hw_aes = v; }
+static int g_hw_simd;
+void low_cbe_set_hw_simd(int v) { g_hw_simd = v; }
+static int g_hw_avx2;
+void low_cbe_set_hw_avx2(int v) { g_hw_avx2 = v; }
 static bool g_conc_t0;   /* --conc-t0: 호스트에서도 T0 런타임 (WO-0206) */
 void low_cbe_set_no_carry(bool v) { g_no_carry = v; }
 void low_cbe_set_conc_t0(bool v) { g_conc_t0 = v; }
@@ -2941,6 +2947,19 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                       "      st[sp++] = lw_aes_ctr_x(k_.p, k_.n, (void *)c_.p, c_.n, s_.p, s_.n,"
                       " (void *)d_.p, d_.n); }\n", out);
                 ks.n -= 4; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
+            }
+            case IRW_CHACHA20: {
+                fputs("    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], c_ = ss[--ssp], k_ = ss[--ssp];\n"
+                      "      st[sp++] = lw_chacha20_x(k_.p, k_.n, (void *)c_.p, c_.n, s_.p, s_.n,"
+                      " (void *)d_.p, d_.n); }\n", out);
+                ks.n -= 4; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
+            }
+            case IRW_POLY1305: {
+                fputs("    { lw_sl d_ = ss[--ssp], t_ = ss[--ssp];\n"
+                      "      st[sp++] = lw_poly1305((void *)t_.p, t_.n, d_.p, d_.n); }\n", out);
+                ks.n -= 2; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
             case IRW_AESROUND: case IRW_AESLAST: {
@@ -4899,6 +4918,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     fprintf(out, "#define LW_MAXP %d\n", (int)LOW_MAX_PARAMS);
     fprintf(out, "#define LW_HW_CLMUL %d\n", g_hw_clmul);
     fprintf(out, "#define LW_HW_AES %d\n", g_hw_aes);
+    fprintf(out, "#define LW_HW_SSE2 %d\n", g_hw_simd);
+    fprintf(out, "#define LW_HW_AVX2 %d\n", g_hw_avx2);
     fputs(LW_PRELUDE, out);
     // ★★★ 동시성 런타임은 **쓸 때만** (pay-as-you-go) — 그리고 **reactor 를 쓸 때도** 낸다.
     //   ☞ 처음엔 reactor 를 별도 블록으로 떼었는데, 스케줄러가 `lw_io_poll_once` 를 부르고
@@ -5978,6 +5999,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "      lowv c_ = lw_thru(st[sp-3]); lowv k_ = lw_thru(st[sp-4]); sp -= 3;\n"
                           "      st[sp-1] = lw_int(lw_aes_ctr_x(k_.p, k_.n, (void *)c_.p, c_.n,\n"
                           "                                   s_.p, s_.n, (void *)d_.p, d_.n)); }\n", out); break;
+                case IRW_CHACHA20:
+                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
+                          "      lowv c_ = lw_thru(st[sp-3]); lowv k_ = lw_thru(st[sp-4]); sp -= 3;\n"
+                          "      st[sp-1] = lw_int(lw_chacha20_x(k_.p, k_.n, (void *)c_.p, c_.n,\n"
+                          "                                   s_.p, s_.n, (void *)d_.p, d_.n)); }\n", out); break;
+                case IRW_POLY1305:
+                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv t_ = lw_thru(st[sp-2]); sp--;\n"
+                          "      st[sp-1] = lw_int(lw_poly1305((void *)t_.p, t_.n, d_.p, d_.n)); }\n", out); break;
                 case IRW_AESROUND: case IRW_AESLAST:
                     fprintf(out, "    { lowv r_ = lw_thru(st[sp-1]); lowv t_ = lw_thru(st[sp-2]); sp--;\n"
                                  "      st[sp-1] = lw_int(lw_aes_round_x((void *)t_.p, t_.n, r_.p, r_.n, %d)); }\n",

@@ -1,0 +1,50 @@
+rem ★★★★★ **Poly1305 — 낱말과 이 언어로 쓴 정의가 같은 상태를 내는가** (RFC-0122, 2026-09-24).
+rem
+rem   `poly1305` 은 블록 되풀이만 내린 낱말이고, 뜻의 정의는 `lib/poly.low` 의 `block` 이다.
+rem   둘은 **같은 상태 자리**(h 다섯 · r 다섯)를 쓰므로 같은 입력에 **같은 다섯 조각**이 나와야 한다.
+rem   ☞ 태그만 맞대면 부족하다: 마무리(`emit`)가 정규화하므로 가운데가 조금 달라도 가려질 수 있다.
+rem     그래서 여기서는 **누산기 다섯 조각을 그대로** 맞댄다.
+
+module vm_poly .
+
+use poly from "../../lib/poly.low" .
+
+rem 1 이면 낱말과 정의가 같다. `a`·`b` 는 원소 10 이상, `pad` 는 16 바이트.
+export proc same input key slice u8 . input data slice u8 . input pad mut slice u8 .
+  input a mut slice u64 . input b mut slice u64 . output u64 . effects none .
+do
+  guard ge (len pad) 16 . else return 0 .
+  guard eq (poly.setup key a) 1 . else return 0 .
+  guard eq (poly.setup key b) 1 . else return 0 .
+
+  rem 낱말 — 열여섯의 배수가 아니면 꼬리를 0 으로 채운다.
+  let n u64 be poly1305 a data .
+  guard eq n (len data) . else return 0 .
+
+  rem 정의 — `lib/aead.low` 의 `feed` 가 하던 그 되풀이다.
+  var off u64 be 0 .
+  while le (add off 16) (len data) . do
+    let z u64 be poly.block b (subslice data off (add off 16)) 1 .
+    set off (add off 16) .
+  end .
+  if lt off (len data) . do
+    var i u64 be 0 .
+    while lt i 16 . do
+      set (index pad i) 0 .
+      set i (add i 1) .
+    end .
+    var j u64 be 0 .
+    while lt (add off j) (len data) . do
+      set (index pad j) (index data (add off j)) .
+      set j (add j 1) .
+    end .
+    let z2 u64 be poly.block b (subslice pad 0 16) 1 .
+  end .
+
+  var k u64 be 0 .
+  while lt k 5 . do
+    guard eq (index a k) (index b k) . else return 0 .
+    set k (add k 1) .
+  end .
+  return 1 .
+end .

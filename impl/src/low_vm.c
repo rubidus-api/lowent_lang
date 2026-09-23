@@ -31,6 +31,8 @@ extern char **environ;   // ★ cap env (RFC-0030 D2′) — 호스트 프로파
 #include "low_sha256.h"
 #include "low_sha512.h"
 #include "low_aes.h"        // ★ SHA-256 **한 벌** — VM 은 컴파일, 백엔드는 문자열화
+#include "low_chacha.h"
+#include "low_poly.h"        // ★ Poly1305 **한 벌** — 상태의 자리는 lib/poly.low 와 같다     // ★ ChaCha20 **한 벌** — VM 은 언제나 이 셈 판이다(SIMD 를 못 돈다)
 #include "proven_sys_random.h" // ★ 난수 리프 (RFC-0090 N3b) — OS 엔트로피 한 자리
 #include "proven_sys_time.h"   // ★ 시계 리프 (RFC-0090 N1) — proven_c_lib 이 이미 준다
 #include <sys/socket.h> // ★ 소켓 리프 (socketpair/send/recv — cap net)
@@ -2746,6 +2748,40 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 }
                 long long nar = lw_aes_round((void *)stv.p, stv.n, rkv.p, rkv.n, in->w == IRW_AESLAST);
                 stack[sp++] = vmv_int((proven_i64)nar);
+                break;
+            }
+            case IRW_POLY1305: {   // (mut st, data) → u64 — 권한 없음(순수)
+                if (sp < 2) return false;
+                bool p2c_; vmv_t dat = vm_through(vm, stack[--sp], false, &p2c_);
+                bool p1c_; vmv_t stv = vm_through(vm, stack[--sp], true,  &p1c_);
+                if ((stv.tag != VMV_SLICE && stv.tag != VMV_VARRAY) ||
+                    (dat.tag != VMV_SLICE && dat.tag != VMV_VARRAY && dat.tag != VMV_VIEW)) {
+                    vm_diag(vm->diags, "E-VM-TYPE",
+                            "poly1305 needs (mutable state of 10 or more u64, bytes)");
+                    return false;
+                }
+                long long npl = lw_poly1305((void *)stv.p, stv.n, dat.p, dat.n);
+                stack[sp++] = vmv_int((proven_i64)npl);
+                break;
+            }
+            case IRW_CHACHA20: {   // (key32, mut ctr16, src, mut dst) → u64 — 권한 없음(순수)
+                // ★ VM 은 언제나 **셈 판**이다 — SIMD 를 못 돈다. 그래서 오라클이 그 경로의 차등 시험이 된다.
+                if (sp < 4) return false;
+                bool c4c_; vmv_t dst = vm_through(vm, stack[--sp], true,  &c4c_);
+                bool c3c_; vmv_t src = vm_through(vm, stack[--sp], false, &c3c_);
+                bool c2c_; vmv_t ctr = vm_through(vm, stack[--sp], true,  &c2c_);
+                bool c1c_; vmv_t key = vm_through(vm, stack[--sp], false, &c1c_);
+                if ((key.tag != VMV_SLICE && key.tag != VMV_VARRAY && key.tag != VMV_VIEW) ||
+                    (ctr.tag != VMV_SLICE && ctr.tag != VMV_VARRAY) ||
+                    (src.tag != VMV_SLICE && src.tag != VMV_VARRAY && src.tag != VMV_VIEW) ||
+                    (dst.tag != VMV_SLICE && dst.tag != VMV_VARRAY)) {
+                    vm_diag(vm->diags, "E-VM-TYPE",
+                            "chacha20 needs (32-byte key, mutable 16-byte counter block, bytes, mutable bytes)");
+                    return false;
+                }
+                long long ncc = lw_chacha20(key.p, key.n, (void *)ctr.p, ctr.n,
+                                            src.p, src.n, (void *)dst.p, dst.n);
+                stack[sp++] = vmv_int((proven_i64)ncc);
                 break;
             }
             case IRW_GHASH: {   // (h16, mut z16, data) → u64 — 권한 없음(순수)

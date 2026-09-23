@@ -13,6 +13,8 @@
 # op	뜻
 abs	절댓값. 가장 작은 음수에서는 넘치므로 트랩한다
 add	두 수를 더한다. 넘치면 트랩한다
+aes_round	AES 한 라운드 — 상태 16 바이트를 제자리에서(SubBytes·ShiftRows·MixColumns·AddRoundKey). 낸 값은 16
+aes_round_last	마지막 AES 라운드 — MixColumns 없이. 낸 값은 16
 aes_ctr	AES-128-CTR — 키 16 · 카운터 16 을 제자리에서 올린다. 낸 값은 흐른 바이트 수
 all	모두 참인가 — 첫 거짓에서 멈춘다
 alloc_bytes	영역에서 바이트 자리를 얻는다

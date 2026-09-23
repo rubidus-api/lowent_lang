@@ -69,6 +69,11 @@
     X(sha512, IRW_SHA512, 2)  X(sha384, IRW_SHA384, 2)                           \
     /* ★★★★ AES-CTR 과 GHASH — 계산만 내린 잎(X-0043 ⓑ). 짜임은 `lib/gcm.low` 에 남는다. */ \
     X(aes_ctr, IRW_AESCTR, 4)  X(ghash, IRW_GHASH, 3)                            \
+    /* ★★★ **AES 한 라운드** (RFC-0119 §10, 2026-09-23) — FIPS-197 의 라운드 하나를 낱말로.   \
+       `aes_round <상태 16 B mut> <라운드키 16 B>` = SubBytes·ShiftRows·MixColumns·AddRoundKey, \
+       `aes_round_last` 는 MixColumns 없이. 기계에 명령이 있으면 C 뒤끝이 `aesenc`/`aesenclast`  \
+       로 내리고, 없으면 같은 답을 내는 표 셈으로 내린다 — **뜻은 하나**다. */                    \
+    X(aes_round, IRW_AESROUND, 2)  X(aes_round_last, IRW_AESLAST, 2)                   \
     /* ★★★ **맞바꾸기** (2026-07-26) — `index` 는 구조체 원소를 **뷰**로 준다. 그래서 읽은  \
        두 값은 같은 바이트를 가리키고, `set` 두 번으로 맞바꾸면 자기 자신을 덮어쓴다:       \
        **제자리 알고리즘이 언어로 표현될 수 없었다.** 임시 복사가 답이 아닌 이유는 제네릭   \

@@ -1,65 +1,58 @@
-# <a id="mod-budget"></a>`budget` — 핸들 비트 예산과 세대 한 바퀴
+# <a id="mod-shard"></a>`shard` — 저장소를 쪼개는 접근 단위
 
 소스
 
-`lib/budget.low`
+`lib/shard.low`
 
 층
 
-L1 — 순수 계산
+L1 — 호출자의 저장
 
 권한
 
 없음
 
-세대 핸들을 **한 워드**에 넣을 때 세 조각에 몇 비트씩 줄지 정하고, 그 예산이 들어맞는지 **컴파일 때** 확인한다. 저장소를 직접 만들 때 — [`pool`](sec96.md#mod-pool) · [`shard`](sec97.md#mod-shard) 처럼 칸을 나눠 주고 되받는 것을 지을 때 — 핸들의 폭을 소스에 적고 도구가 지키게 하는 자리다.
-
-```text
-h = (generation << (shard_bits + slot_bits)) | (shard << slot_bits) | slot
-      몇 번째 삶                     어느 샤드                  어느 칸
-```
+저장소 한 덩어리를 **서로 겹치지 않는 조각**으로 나눠 각 조각을 따로 바꿀 수 있게 한다. 조각을 대표하는 것이 **토큰**이고, 토큰은 “이 범위는 내 것” 이라는 권한이다. 그것을 여러 스레드에 태우든 순차로 돌든, 겹치지 않는다는 사실 자체가 값이다.
 
 ```lowent
-let ho option u64 . be budget.pack 32 8 24 7 1 0 .
-guard is_some ho . else return 1 .
-let h u64 be some_value ho .
-let slot u64 be budget.slot_of 32 h .
+newtype grid u8 .
+var r owned shard.token grid . be shard.open grid 8 .
+var h shard.halves grid . be shard.split_at grid r 4 .
+var lo owned shard.token grid . be (field h low) .
+var hi owned shard.token grid . be (field h high) .
+rem 이 뒤로 r 은 쓸 수 없다 --- 쓰면 E-OWN-MOVED
 ```
 
-> **이 모듈이 지키는 것**
+> **막아 주는 것 — 그리고 누가 막는가**
 >
-> > **들어가지 않는 예산은 컴파일되지 않는다.** `budget.pack 40 16 16 …` 은 합이 72 라 한 워드를 넘는다 — 상수뿐이므로 부르는 자리에서 `E-CONTRACT-IMPOSSIBLE` 이다. **값이 자기 칸에 들어가지 않으면 `none`** 이다 — 조용히 잘라 담으면 서로 다른 두 핸들이 같아진다. **세대가 한 바퀴 돌면 그 칸은 은퇴한다** — `next_gen` 이 `none` 을 답하고 되살리지 않는다. 0 으로 돌아가면 그 칸의 옛 핸들이 전부 되살아나는데, 그것이 세대 핸들이 막으려던 바로 그 일이다.
+> > ① 쪼갠 뒤 root 로 만지는 것은 컴파일 에러 `E-OWN-MOVED` 다. 그것을 막는 것은 이 모듈이 아니라 언어다 — 토큰이 `owned` 라서 `split_at` 에 넘기는 순간 손을 떠난다. ② 남의 조각 자리를 만지면 `write` · `read` 가 `false` · `none` 으로 답한다(멈추지 않는다 — 실패는 값이다). ③ 다른 저장소의 토큰은 브랜드가 타입으로 달라 섞이지 않는다. **막아 주지 않는 것** — 쪼갠 동안 상대 조각을 읽기 전용으로 보기(동결 교차 읽기)와 region 단위 서로소 증명. 짓지 않았고, 짓지 않았다고 적는다.
 
-| **기계** | **slot · shard · gen** | **담는 수** | **근거** |
-|---|---|---|---|
-| 64 비트 | 32 · 8 · 24 | 약 43 억 칸 · 256 샤드 · 약 1,700 만 삶 | 널리 쓰이는 실물 id 중 가장 넓은 것(SQLite 페이지)이 32 비트 |
-| 32 비트 | 16 · 4 · 12 | 65,536 칸 · 16 샤드 · 4,096 삶 | lwIP 가 길이를 16 비트로 센다 |
-
-*표 50.1 — 권고 기본값과 근거*
-
-기본값일 뿐이다 — 저장소가 자기 수를 적으면 그 수가 이긴다.
+**왜 새 문장 없이 지었나.** 언어 설계 문서는 이 문제의 답으로 `split region R into R1 … Rn by P` 라는 새 문장을 적어 두었다. 그런데 언어에는 이미 둘이 있었다 — **브랜드**(저장소의 정체성을 타입이 든다)와 **`owned`**(값이 하나뿐이고 넘기면 손을 떠난다). 둘을 곱하면 토큰이 곧 접근 단위다(19장).
 
 | **op** | **모양** | **실패하면** |
 |---|---|---|
-| `plan` · `default64` · `default32` | 예산 구조체 · 권고 기본값 | — |
-| `pow2` | `n u64 → u64`(계약 `n < 63`) | 계약 위반은 진입에서 멈춘다 |
-| `slots` · `shards` · `lives` | `p plan → option u64` | 폭이 63 이상이면 `none` |
-| `pack` | 예산 셋 + 값 셋 → `option u64` | 값이 칸을 넘으면 `none` · 예산이 넘치면 컴파일 에러 |
-| `slot_of` · `shard_of` · `gen_of` | 예산 + `h` → `u64` | 계약 위반은 진입에서 멈춘다 |
-| `retired` | `gen_bits, gen → bool` | — |
-| `next_gen` | `gen_bits, gen → option u64` | 은퇴한 칸이면 `none` |
+| `token` · `halves` | 조각 토큰 · 둘로 나눈 결과(`low` · `high`) | — |
+| `open` | `comptime b, n u64 → owned token b` | 없음(범위 `0..n`) |
+| `split_at` | `comptime b, t owned token b, at u64 → halves b` | 없음(`at` 은 범위로 잘린다) |
+| `rejoin` | `comptime b, a owned token b, c owned token b → option (token b)` | 순서 · 인접이 어긋나면 `none` |
+| `covers` | `comptime b, t token b, i u64 → bool` | — |
+| `width` | `comptime b, t token b → u64` | 계약(op 이 스스로 적는 약속) 위반은 진입에서 멈춘다 |
+| `write` | `comptime b, t, mem mut slice u64, i, v → bool` | 범위 밖이면 `false` |
+| `read` | `comptime b, t, mem slice u64, i → option u64` | 범위 밖이면 `none` |
 
-*표 50.2 — `budget` 의 op*
+*표 50.1 — `shard` 의 op*
 
-> **반례. 세대를 그냥 올린다**
+**`rejoin` 의 순서 규약 — 그리고 그것이 계약이 아닌 이유.** 합칠 때는 낮은 id 를 먼저 넘긴다(교착 규약: 교차 획득은 언제나 오름차순). 어기면 `none` 이다. 처음엔 `requires lt (field a id) (field c id) .` 로 적었는데, 계약 시험 생성기가 두 구조체 인자 사이의 관계에 대해서는 거절 사례를 만들지 못한다. 아무도 검증하지 못하는 계약은 검사가 아니라 문장이므로, 부르는 쪽이 반드시 받는 값으로 내렸다.
+
+> **반례. 거꾸로 합친다**
 >
-> > `let g u64 be add gen 1 .` 은 에러가 없지만, 폭을 넘으면 다른 삶의 핸들과 같아진다. `next_gen` 을 쓰고 `none` 을 받는다 — 그 칸은 끝났다는 뜻이다.
+> > `shard.rejoin g hi lo` 는 `none` 이다. 멈추지 않으므로 반환값을 보지 않으면 합쳐지지 않은 것을 모른 채 지나간다. `guard is_some back .` 으로 받는다.
 
-> **반례. 63 비트 칸을 센다**
+> **반례. 브랜드 하나로 저장소 둘을 연다**
 >
-> > `budget.pow2 63` 은 진입 계약이 거절한다. `shl 1 63` 은 부호 있는 64 비트에서 넘쳐 음수가 된다 — 조용히 틀린 수를 돌려주느니 거절한다.
+> > 같은 브랜드 `g` 로 `shard.open` 을 두 번 부르면 컴파일 에러 `E-BRAND-REUSED` 다. 브랜드는 저장소 하나의 이름이다. 저장소가 둘이면 `newtype` 도 둘이다(브랜드는 자료를 나르지 않으므로 값이 0 이다).
 
-**주의.** 되꺼낼 때 **같은 예산**을 준다 — `pack` 과 `slot_of` 가 다른 수를 보면 답이 조용히 틀린다. 예산을 상수 셋으로 한 자리에 적어 두고 그것만 쓴다. op 이름이 `cap` 이 아니라 `pow2` 인 이유 — `cap` 은 문법 자리(`input k cap clock .`)라 op 이름으로 쓰면 `clock` 과 한 단위에 설 수 없었다. 두 워드 핸들은 짓지 않았다.
+**주의.** 토큰은 `var` 에 묶는다(`owned` 는 가변 장소를 요구한다). `split_at` 의 `at` 은 잘린다 — 범위 밖이면 빈 조각이 나오고, 빈 조각은 아무것도 만지지 못하므로 안전하다. 뜨거운 경로에 동기화가 없다 — 토큰이 이미 권한을 말했으므로 남는 것은 범위 검사 하나이고, 시험이 방출된 C 에서 그 경로의 원자 연산 · 락이 0 임을 잰다. 이 모듈은 스레드를 모른다 — 토큰을 실행 단위에 태우는 것은 27장 의 일이다.
 
 ---
 

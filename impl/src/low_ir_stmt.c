@@ -3031,6 +3031,18 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                 }
             }
         }
+        // ★★★★★ RFC-0120 — `absorbs machine <이름> .` 이 묶는 이름은 **그 몸 안의 지역**이다.
+        //   권한은 실행 시 값을 나르지 않는다(정적 토큰) — 그래서 지역 하나면 족하고, 그 지역이
+        //   어셈블리 잎에 넘길 `cap machine` 자리를 채운다. 밖에서는 아무도 그것을 넘기지 않는다:
+        //   **그 op 이 그 권한을 보증하는 자리**이고, 장부가 그 사실을 센다(RFC-0120 §5.2).
+        for (proven_size_t j2 = 2; j2 + 2 < f->nkids; j2++) {
+            if (!is_atom(f->kids[j2]) || !veq(f->kids[j2]->tok.lex, "absorbs")) continue;
+            if (!is_atom(f->kids[j2 + 1]) || !veq(f->kids[j2 + 1]->tok.lex, "machine")) continue;
+            if (!is_atom(f->kids[j2 + 2])) continue;
+            proven_size_t asl = ir_local_declare(&c, f->kids[j2 + 2]->tok.lex, f->line);
+            c.locals[asl].ty = ITY_UNK;
+            break;
+        }
         // ★★ `slice T` (T ≠ u8) 파라미터를 **타입 있는 배열**로 감싼다.
         //   지금까지 이것을 안 해서 slice u32 가 **조용히 바이트로 취급**됐다:
         //     len(slice u32 of 4 elems) = 16   ← 바이트 수를 냈다 (4 여야 한다)

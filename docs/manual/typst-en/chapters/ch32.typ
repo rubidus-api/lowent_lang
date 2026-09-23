@@ -181,6 +181,7 @@ what keeps you oriented when reading module documentation or building a new modu
   [`hash_bytes` · `crc32`], [FNV-1a 64 hash · CRC-32 checksum], [`hash` --- no capability],
   [`sha256` · `sha384` · `sha512`], [SHA-256 · SHA-384 · SHA-512 --- SHA-384 is SHA-512 with a different start value, keeping the first 48 bytes], [`hash`·`hmac`·`tls13` · `ed25519` --- no capability],
   [`aes_ctr` · `ghash`], [AES-128-CTR keystream · GHASH accumulation --- key, counter and accumulator are all 16 bytes. The counter and the accumulator are updated *in place*, so successive calls continue where the last one stopped], [`gcm` --- no capability],
+  [`aes_round` · `aes_round_last`], [one AES round --- the 16-byte state in place. When the machine has the instruction the processor lowers to it (`lowentc --hw aes`); when it does not, to the same answer computed from tables], [`aes` --- no capability],
   [`str_from_cstr`], [scan a NUL-terminated C string into a `str`], [C boundary --- the VM says it cannot, with `E-VM-CSTR`],
 )
 

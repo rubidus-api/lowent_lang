@@ -108,6 +108,34 @@ static long long lw_aes_ctr(const void *keyp, unsigned long long klen,          
     }                                                                                                                   \
     return (long long)slen;                                                                                              \
 }                                                                                                                         \
+/* ★★★ **AES 한 라운드** (RFC-0119 §10, 2026-09-23) — FIPS-197 의 라운드 하나.                 \
+   `last` 면 MixColumns 를 건너뛴다(마지막 라운드). 상태 16 바이트를 제자리에서 고친다.         \
+   ☞ 이 셈은 **S-box 표를 읽는다** — 상수시간이 아니다. 기계 명령(`aesenc`)은 표를 안 읽으므로 \
+     그 경로는 타이밍 성질이 다르고, 그 사실은 정본과 문서가 적는다. */                          \
+static long long lw_aes_round(void *sp2, unsigned long long slen2,                              \
+                              const void *rkp, unsigned long long rklen, int last) {             \
+    unsigned char *s = (unsigned char *)sp2;                                                      \
+    const unsigned char *rk = (const unsigned char *)rkp;                                          \
+    unsigned char t[16]; int i;                                                                     \
+    if (slen2 < 16 || rklen < 16) return 0;                                                          \
+    for (i = 0; i < 16; i++) t[i] = lw_aes_sbox[s[i]];                                               \
+    { unsigned char a;                                                                                \
+      a = t[1];  t[1]  = t[5];  t[5]  = t[9];  t[9]  = t[13]; t[13] = a;                               \
+      a = t[2];  t[2]  = t[10]; t[10] = a; a = t[6]; t[6] = t[14]; t[14] = a;                          \
+      a = t[15]; t[15] = t[11]; t[11] = t[7];  t[7]  = t[3];  t[3]  = a; }                             \
+    if (!last) {                                                                                       \
+        for (i = 0; i < 16; i += 4) {                                                                   \
+            unsigned char a0 = t[i], a1 = t[i+1], a2 = t[i+2], a3 = t[i+3];                              \
+            unsigned char x = (unsigned char)(a0 ^ a1 ^ a2 ^ a3);                                         \
+            t[i]   = (unsigned char)(a0 ^ x ^ lw_aes_xt((unsigned char)(a0 ^ a1)));                       \
+            t[i+1] = (unsigned char)(a1 ^ x ^ lw_aes_xt((unsigned char)(a1 ^ a2)));                        \
+            t[i+2] = (unsigned char)(a2 ^ x ^ lw_aes_xt((unsigned char)(a2 ^ a3)));                         \
+            t[i+3] = (unsigned char)(a3 ^ x ^ lw_aes_xt((unsigned char)(a3 ^ a0)));                          \
+        }                                                                                                     \
+    }                                                                                                          \
+    for (i = 0; i < 16; i++) s[i] = (unsigned char)(t[i] ^ rk[i]);                                              \
+    return 16;                                                                                                   \
+}                                                                                                                  \
 /* (h16, z16 mut, data) → 먹인 바이트 수. 마지막 조각은 0 으로 채운다(GCM 규약).                                        \
    z ^= 블록 ; z = z·h  in GF(2^128), 축약 다항식 x^128 + x^7 + x^2 + x + 1.                                \
    ★★★ X-0044 (2026-09-21) — **64 비트 낱말 둘 · 분기 없이 가림(mask)으로** 곱한다.                                  \

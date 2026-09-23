@@ -984,6 +984,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_BNEW: case IRW_CONTAINS: case IRW_COUNT:   // ★ 비트셋 = 64비트 마스크
         case IRW_SAMESL:                                    // ★ 같은 바이트인가 — 두 슬라이스 → 참거짓
         case IRW_AESCTR: case IRW_GHASH:                    // ★ 암호 잎 — 해시와 같은 모양(슬라이스와 수)
+        case IRW_AESROUND: case IRW_AESLAST:                // ★ AES 한 라운드 (RFC-0119 §10)
         case IRW_SHA256: case IRW_SHA512: case IRW_SHA384: case IRW_CRC32:   // ★ 해시 — 태그와 **같은 함수**를 부른다
         case IRW_HASH64: case IRW_RNGNEXT: case IRW_RANDBYTES:  // ★ 해시·난수 — 같은 모양
         case IRW_VREVERSE: case IRW_VROTATE: case IRW_VSHUFFLE:  // ★ 레인 순열 — 그냥 레인 옮기기
@@ -1392,6 +1393,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             if (st.n < 3 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL ||
                                 st.k[st.n-3] != K_SL) return false;
                             st.n -= 2; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
+            case IRW_AESROUND: case IRW_AESLAST:
+                            if (st.n < 2 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL) return false;
+                            st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; st.ve[st.n-1] = 0; st.fl[st.n-1] = 0; break;
             case IRW_SAMESL:
                             if (st.n < 2 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL) return false;
                             if (st.fl[st.n-1] || st.fl[st.n-2]) return false;
@@ -2560,6 +2564,8 @@ static bool g_no_carry;
 // ★ 기계 암호 명령의 **범위**는 빌드가 정한다(RFC-0119 §9-3): 0 소프트만 · 1 기계 명령만 · 2 둘 담고 시작할 때 한 번 고른다.
 static int g_hw_clmul;
 void low_cbe_set_hw_clmul(int v) { g_hw_clmul = v; }
+static int g_hw_aes;
+void low_cbe_set_hw_aes(int v) { g_hw_aes = v; }
 static bool g_conc_t0;   /* --conc-t0: 호스트에서도 T0 런타임 (WO-0206) */
 void low_cbe_set_no_carry(bool v) { g_no_carry = v; }
 void low_cbe_set_conc_t0(bool v) { g_conc_t0 = v; }
@@ -2932,9 +2938,16 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             //   ★ 쓰기 대상의 const 를 벗긴다 — 빠른 경로가 `index.store` 에서 이미 하는 일이다.
             case IRW_AESCTR: {
                 fputs("    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], c_ = ss[--ssp], k_ = ss[--ssp];\n"
-                      "      st[sp++] = lw_aes_ctr(k_.p, k_.n, (void *)c_.p, c_.n, s_.p, s_.n,"
+                      "      st[sp++] = lw_aes_ctr_x(k_.p, k_.n, (void *)c_.p, c_.n, s_.p, s_.n,"
                       " (void *)d_.p, d_.n); }\n", out);
                 ks.n -= 4; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
+            }
+            case IRW_AESROUND: case IRW_AESLAST: {
+                fprintf(out, "    { lw_sl r_ = ss[--ssp], t_ = ss[--ssp];\n"
+                             "      st[sp++] = lw_aes_round_x((void *)t_.p, t_.n, r_.p, r_.n, %d); }\n",
+                        in->w == IRW_AESLAST ? 1 : 0);
+                ks.n -= 2; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
             case IRW_GHASH: {
@@ -4885,6 +4898,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //   이제 `LW_MAXP` 하나가 컴파일러의 `LOW_MAX_PARAMS` 에서 나온다.
     fprintf(out, "#define LW_MAXP %d\n", (int)LOW_MAX_PARAMS);
     fprintf(out, "#define LW_HW_CLMUL %d\n", g_hw_clmul);
+    fprintf(out, "#define LW_HW_AES %d\n", g_hw_aes);
     fputs(LW_PRELUDE, out);
     // ★★★ 동시성 런타임은 **쓸 때만** (pay-as-you-go) — 그리고 **reactor 를 쓸 때도** 낸다.
     //   ☞ 처음엔 reactor 를 별도 블록으로 떼었는데, 스케줄러가 `lw_io_poll_once` 를 부르고
@@ -5962,8 +5976,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_AESCTR:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
                           "      lowv c_ = lw_thru(st[sp-3]); lowv k_ = lw_thru(st[sp-4]); sp -= 3;\n"
-                          "      st[sp-1] = lw_int(lw_aes_ctr(k_.p, k_.n, (void *)c_.p, c_.n,\n"
+                          "      st[sp-1] = lw_int(lw_aes_ctr_x(k_.p, k_.n, (void *)c_.p, c_.n,\n"
                           "                                   s_.p, s_.n, (void *)d_.p, d_.n)); }\n", out); break;
+                case IRW_AESROUND: case IRW_AESLAST:
+                    fprintf(out, "    { lowv r_ = lw_thru(st[sp-1]); lowv t_ = lw_thru(st[sp-2]); sp--;\n"
+                                 "      st[sp-1] = lw_int(lw_aes_round_x((void *)t_.p, t_.n, r_.p, r_.n, %d)); }\n",
+                            in->w == IRW_AESLAST ? 1 : 0);
+                    break;
                 case IRW_GHASH:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv z_ = lw_thru(st[sp-2]);\n"
                           "      lowv h_ = lw_thru(st[sp-3]); sp -= 2;\n"

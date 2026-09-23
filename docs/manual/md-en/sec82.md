@@ -38,7 +38,7 @@ guard eq n 32 . else return 1 .
 
 *Table 50.1 — Ops of `x25519`*
 
-Field arithmetic is `export` **for testing** (identities are measured). Unless you are building a new protocol, `agree` is all you need. [`ed25519`](sec89.md#mod-ed25519) reuses the same field.
+Field arithmetic is `export` **for testing** (identities are measured). Unless you are building a new protocol, `agree` is all you need. [`ed25519`](sec90.md#mod-ed25519) reuses the same field.
 
 **What is checked** — RFC 7748 §5.2 scalar multiplication vectors, the §6.1 DH round trip (do two parties reach the same secret), field identities (`a·a⁻¹ = 1` and so on), VM/native agreement. **Not built** — constant-time guarantees, small-order point filtering, key generation and clamping convenience ops, X448.
 

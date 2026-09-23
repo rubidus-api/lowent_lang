@@ -1,43 +1,43 @@
-# <a id="mod-der"></a>`der` — minimal DER parser
+# <a id="mod-ed25519"></a>`ed25519` — Ed25519 signature verification
 
 Source
 
-`lib/der.low`
+`lib/ed25519.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-Tells **where the public key starts and how many bytes it is** in X.509 certificate bytes, and finds the EC scalar in a PKCS#8 private key file. Verifying signatures with that key is the job of [`p256`](sec87.md#mod-p256), [`rsa`](sec86.md#mod-rsa) and [`ed25519`](sec89.md#mod-ed25519).
+Verifies signatures on the twisted Edwards curve over **the same prime** as Curve25519, `p = 2^255 − 19` (RFC 8032 §5.1.7). Because the prime is the same, the field arithmetic of [`x25519`](sec82.md#mod-x25519) is reused as is — same prime, same field. That one does key agreement; this one verifies signatures.
 
-> **This is not PKI**
+> **What it promises and what it does not**
 >
-> > Chain validation, CA trust stores, name matching, validity periods, revocation, extensions — **it does none of them**. So this alone cannot answer “can this certificate be trusted”. The caller must **pin** the public key or judge by its own rules. A half-built PKI is worse than none — it makes you believe you can trust it.
+> > It does not promise constant time and has not been audited. **There is no signing.** No `ed25519ph`, `ed25519ctx` or Ed448. **This algorithm cannot be used for public web HTTPS server certificates** — public CAs practically do not issue Ed25519 server certificates. That is [`p256`](sec88.md#mod-p256)′s place. This module verifies **a peer’s** signatures.
 
-**Lengths were written by the other side.** Every DER length field is chosen by the attacker. So this parser keeps three rules — any length exceeding the buffer fails immediately (answers 0); long-form lengths are accepted up to 4 bytes only; there is no recursion (depth is a loop the caller controls). **Every failure is `0`** — a value, not an exception.
+**Edwards addition is complete.** It uses extended coordinates `(X:Y:Z:T)`, `xy = T/Z`. The Edwards addition formula has no exceptions — unlike Jacobian there is no “different formula when the points are equal”. The branch inside `p256`′s `padd` does not exist here at all, and without a branch nothing can go wrong in it or leak through its timing.
+
+**Ambiguous input is rejected.** RFC 8032 lets implementations differ in handling non-canonical encodings and small-order points. Here they are rejected — `S < L` is enforced (otherwise one message has several valid signatures), and failed decompression is rejected. When a standard says “either is fine”, writing down the choice is the document’s job.
 
 | **op** | **What it does** |
 |---|---|
-| `tag_at` | Tag byte at `off` |
-| `value_off` · `value_len` | Where that TLV’s **value** starts · its length |
-| `next_off` | Position of the next sibling TLV |
-| `is_spki` | Is this position **shaped** like SubjectPublicKeyInfo |
-| `find_spki` | Finds the SPKI inside a certificate |
-| `alg_oid_off` · `alg_oid_len` | Position · length of the algorithm OID |
-| `key_off` · `key_len` | Position · length of the public key bit string |
-| `rsa_n_off` · `rsa_n_len` · `rsa_e` | Modulus and exponent inside an RSA key |
-| `p8_alg_off` · `p8_inner_off` · `p8_inner_len` | PKCS#8 algorithm · inner key position · length |
-| `ec_priv_off` · `ec_priv_len` | Position · length of the EC private key (scalar) |
+| `verify` | Does signature `sig` match public key `pub` and message `msg` — usually the only one used |
+| `make_d` · `make_l` · `make_base` | Curve constant `d` · order `L` · base point `B` |
+| `eadd` · `esmul` | Point addition · scalar multiplication |
+| `compress` · `decompress` | Point ↔ 32-byte encoding |
+| `fpow` · `feq` · `fbit0` | Field exponentiation · equality · lowest bit |
+| `pow2_minus` · `reduce_l` | `2^n − k` · reduction `mod L` |
 
-*Table 50.1 — Ops of `der`*
+*Table 50.1 — Ops of `ed25519`*
 
-**Found by shape, not counted by position.** The SPKI is the sixth or seventh field of a certificate — depending on whether `version` is present. Counting positions goes silently wrong on old certificates. So `is_spki` looks at the shape `SEQUENCE { SEQUENCE { OID … }, BIT STRING }`. Counting breaks when what comes before changes; recognising does not.
+The verification equation is `[S]B = R + [k]A` with `k = SHA-512(R ‖ A ‖ M) mod L`.
 
-**What is checked — parse results are not eyeballed.** The key is extracted from the real certificate of RFC 8448 §3 and used to **verify** that handshake’s CertificateVerify signature. If parsing slips by one byte the signature does not match. Two negatives (one bit each of signature and transcript) are checked too. A check where a person looks at whether the extracted value seems plausible is not a check.
+**Constants that must be transcribed are checked by a property.** `d`, `√−1` and `B` are computed — nothing to write down. The order `L` cannot be derived and had to be written. So a test checks that `[L]B` is the identity. Write it wrong and that check breaks — a way to measure a transcription instead of trusting it.
+
+**What is checked** — RFC 8032 §7.1, 3 positive and **6 negative**, `[L]B = identity`, VM/native agreement.
 
 ---
 

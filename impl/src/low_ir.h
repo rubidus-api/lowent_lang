@@ -349,6 +349,7 @@ typedef enum {
     IRW_WSHL, IRW_WSHR,         // wrap_* — 처분을 **이름이 고른다**(RFC-0052)
     IRW_ROTL, IRW_ROTR,
     IRW_CLMULLO, IRW_CLMULHI,          // 캐리 없는 곱셈의 아랫말·윗말 (RFC-0119)
+    IRW_AESROUND, IRW_AESLAST,         // AES 한 라운드 · 마지막 라운드 (RFC-0119)
     IRW_POPCNT, IRW_CLZ, IRW_CTZ, IRW_BSWAP,
     // ★★★ **level-3 atomic** (RFC-0018) — RC11 은 **증명됐는데**(LowentRC11.v, 7정리 Qed)
     //   도구가 **안 줬다**(W-NOT-YET). *증명해 놓고 구현 안 한 것*도 검사되지 않는 중복이다.

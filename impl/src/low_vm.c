@@ -2733,6 +2733,21 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 stack[sp++] = vmv_int((proven_i64)nact);
                 break;
             }
+            case IRW_AESROUND: case IRW_AESLAST: {   // (mut st16, rk16) → 16 — 권한 없음(순수)
+                // ★ VM 은 언제나 **표 셈**이다 — 기계 명령을 못 돌린다. 그래서 오라클이 그 경로의 차등 시험이 된다.
+                if (sp < 2) return false;
+                bool ar2_; vmv_t rkv = vm_through(vm, stack[--sp], false, &ar2_);
+                bool ar1_; vmv_t stv = vm_through(vm, stack[--sp], true,  &ar1_);
+                if ((stv.tag != VMV_SLICE && stv.tag != VMV_VARRAY) ||
+                    (rkv.tag != VMV_SLICE && rkv.tag != VMV_VARRAY && rkv.tag != VMV_VIEW)) {
+                    vm_diag(vm->diags, "E-VM-TYPE",
+                            "`aes_round` needs (mutable 16-byte state, 16-byte round key)");
+                    return false;
+                }
+                long long nar = lw_aes_round((void *)stv.p, stv.n, rkv.p, rkv.n, in->w == IRW_AESLAST);
+                stack[sp++] = vmv_int((proven_i64)nar);
+                break;
+            }
             case IRW_GHASH: {   // (h16, mut z16, data) → u64 — 권한 없음(순수)
                 if (sp < 3) return false;
                 bool g3c_; vmv_t dat = vm_through(vm, stack[--sp], false, &g3c_);

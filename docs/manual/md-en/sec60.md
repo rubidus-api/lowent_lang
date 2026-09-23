@@ -115,7 +115,7 @@ proc grow input small mut slice u8 . . input big mut slice u8 . . output u64 . e
 end
 ```
 
-`build` gives 4 (“ab” 2 + 2 written by trunc) and `grow` gives 5 (“abxyz”). The real use is path assembly — append with `append b pathbuf dpath`, `append b pathbuf "/"`, `append b pathbuf name`, then take the view with `as_str b pathbuf` and pass it to [`files`](sec112.md#mod-files).
+`build` gives 4 (“ab” 2 + 2 written by trunc) and `grow` gives 5 (“abxyz”). The real use is path assembly — append with `append b pathbuf dpath`, `append b pathbuf "/"`, `append b pathbuf name`, then take the view with `as_str b pathbuf` and pass it to [`files`](sec113.md#mod-files).
 
 ## <a id="sx5"></a>Counter-examples
 

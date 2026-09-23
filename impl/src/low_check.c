@@ -389,8 +389,30 @@ static bool ck_is_param_name(const low_cst_t *form, proven_u8str_view_t name) {
 // ★★★★ **`alloc_bytes` 의 효과는 뿌리 피연산자의 종류가 정한다** (RFC-0112 D2(5) · WO-0211).
 //   `cap heap` 이거나 `region <이름> heap` 블록이면 `heap`(자라는 뿌리), 그 밖은 `alloc`(고정 창).
 //   이름 휴리스틱(`builtin_effect`)은 인자를 못 보므로 여기서 한 번 더 가른다.
+// ★★★★★ RFC-0120 — 이 op 이 `absorbs machine <이름> .` 을 적었나. 적었으면 묶는 이름을 낸다.
+//   흡수는 **효과 줄에서 `unsafe` 를 멈추고**, 몸 안에서 그 이름을 `cap machine` 으로 만든다.
+//   그 대가는 §5.2 의 사전요건 다섯이고, 장부(`check-absorb.py`)가 서명·해시를 센다.
+static bool ck_absorbs_machine(const low_cst_t *form, proven_u8str_view_t *bound) {
+    if (!form) return false;
+    for (proven_size_t i = 2; i + 2 < form->nkids; i++) {
+        if (!ck_atom(form->kids[i]) || !veq(form->kids[i]->tok.lex, "absorbs")) continue;
+        if (!ck_atom(form->kids[i + 1]) || !veq(form->kids[i + 1]->tok.lex, "machine")) continue;
+        if (!ck_atom(form->kids[i + 2])) continue;
+        if (bound) *bound = form->kids[i + 2]->tok.lex;
+        return true;
+    }
+    return false;
+}
+
 static bool ck_param_cap_kind(const low_cst_t *form, proven_u8str_view_t name, const char *kind) {
     if (!form) return false;
+    // ★ 흡수가 묶은 이름은 그 op 의 몸 안에서 `cap machine` 이다(RFC-0120 §8-1: «만들어 낼 수 있다,
+    //   단 machine 에 한해서만»). 오늘 `cap machine` 은 **어디에서도 얻을 수 없었다** — 시작점이
+    //   받는 권한 목록(정본 §7.2.2)에 없기 때문이다. 흡수가 그 자리를 연다.
+    if (kind && strcmp(kind, "machine") == 0) {
+        proven_u8str_view_t bound = { 0 };
+        if (ck_absorbs_machine(form, &bound) && proven_u8str_view_eq(bound, name)) return true;
+    }
     for (proven_size_t i = 0; i + 3 < form->nkids; i++) {
         if (form->kids[i]->kind != LOW_CST_ATOM || !veq(form->kids[i]->tok.lex, "input")) continue;
         const low_cst_t *nm = form->kids[i + 1], *c = form->kids[i + 2], *k = form->kids[i + 3];
@@ -1421,6 +1443,70 @@ static void ck_clause_names(low_check_result_t *out, const low_cst_t *f,
                 emit(out, "E-INVALIDATES-FORM",
                      "an `invalidates` clause names exactly ONE input of this op — the storage whose views the op "
                      "makes invalid (releases a block, grows and moves, rewinds): `invalidates p .` (RFC-0116 D4)", f->line);
+        } else if (veq(w, "absorbs")) {
+            // ★★★★★ RFC-0120 (소유자 결정 2026-09-23) — `absorbs machine <이름> .` : «처리기가 못 보는 일을
+            //   **여기서 멈춘다**». 그 op 은 `unsafe` 를 시그니처에 싣지 않고, 몸 안에서 <이름> 이 `cap machine` 이 된다.
+            //   ☞ 번짐 자체는 옳다(정본 §7.2.1(4)). 문제는 **멈추는 자리가 없다**는 것이었고, 그래서 `lib/` 의 asm 사용이 0 이었다.
+            //   ★ 값으로 치르는 대가가 이 검사들이다 — 하나라도 빠지면 흡수는 성립하지 않는다.
+            proven_size_t n = 0; proven_u8str_view_t kindw = { 0 }, bindn = { 0 }; bool bad = false;
+            for (proven_size_t j = i + 1; j < f->nkids; j++) {
+                if (f->kids[j]->kind != LOW_CST_ATOM || ck_clause_word(f->kids[j]->tok.lex)) break;
+                if (f->kids[j]->tok.kind != LOW_TOK_IDENT) { bad = true; break; }
+                if (n == 0) kindw = f->kids[j]->tok.lex;
+                else if (n == 1) bindn = f->kids[j]->tok.lex;
+                n++;
+            }
+            // ① 범위 — `machine` 하나뿐이다. 세상에 닿는 권한은 흡수하지 못한다(RFC-0120 §5.2-1).
+            if (bad || n != 2 || !veq(kindw, "machine"))
+                emit(out, "E-ABSORB-SCOPE",
+                     "an `absorbs` clause reads `absorbs machine <name> .` — and `machine` is the ONLY thing that may be "
+                     "absorbed. A capability that touches the world (`c`, `io`, `net`, `file_system`, `heap`, `mmio`, "
+                     "`clock`, `random`) is never absorbed: absorbing it would MINT authority the caller cannot see. "
+                     "The name is bound inside the body as the `cap machine` this op vouches for (RFC-0120 §5.2)", f->line);
+            else {
+                low_op_header_t ah = low_op_header(f);
+                // ② 순수 — 흡수 뒤 효과 줄은 비어 있어야 한다.
+                bool any_eff = false, none_eff = false;
+                for (proven_size_t j = ah.eff_s; j < ah.eff_e; j++) {
+                    if (!ck_atom(f->kids[j])) continue;
+                    if (veq(f->kids[j]->tok.lex, "none")) none_eff = true;
+                    else if (!veq(f->kids[j]->tok.lex, "effects")) any_eff = true;
+                }
+                if (any_eff || !none_eff)
+                    emit(out, "E-ABSORB-IMPURE",
+                         "an op that absorbs `machine` must end up PURE — `effects none .`. Absorption stops the "
+                         "`unsafe` mark, not the rest: if this op also does io, allocates or touches state, the caller "
+                         "still has to know, and mixing the two makes the boundary unreadable (RFC-0120 §5.2-2)", f->line);
+                // ③ 참조 구현 · ④ 계약 · ⑤ 근거 — 셋 다 있어야 한다.
+                bool has_ref = false, has_why = false, has_req = false, why_empty = false;
+                for (proven_size_t j = 2; j + 1 < f->nkids; j++) {
+                    if (!ck_atom(f->kids[j])) continue;
+                    if (veq(f->kids[j]->tok.lex, "reference") && ck_atom(f->kids[j + 1])) has_ref = true;
+                    if (veq(f->kids[j]->tok.lex, "requires")) has_req = true;
+                    if (veq(f->kids[j]->tok.lex, "why")) {
+                        has_why = true;
+                        if (f->kids[j + 1]->kind == LOW_CST_ATOM &&
+                            f->kids[j + 1]->tok.kind == LOW_TOK_STRING && f->kids[j + 1]->tok.lex.size == 0)
+                            why_empty = true;
+                    }
+                }
+                if (!has_ref)
+                    emit(out, "E-ABSORB-NOREF",
+                         "an absorbing op must name a PURE-LOWENT reference implementation — `reference <op> .`. "
+                         "Without it there is no second place that computes the same answer, and then nothing can tell "
+                         "«right» from «consistently wrong»: a wrong GHASH reduction once passed a seal→open round-trip "
+                         "for exactly that reason (RFC-0120 §5.2-3)", f->line);
+                if (!has_req)
+                    emit(out, "E-ABSORB-NOCONTRACT",
+                         "an absorbing op must state what it assumes at the boundary — at least one `requires` clause "
+                         "(lengths, alignment, ranges). Inside, the tool cannot see; at the door, it can and does "
+                         "(RFC-0120 §5.2-4)", f->line);
+                if (!has_why || why_empty)
+                    emit(out, "E-ABSORB-NOWHY",
+                         "an absorbing op must write down WHY the absorbed code is safe — `why \"…\" .`, not empty. "
+                         "This sentence is what a reviewer signs in `docs/operations/absorb-registry.md`; a promise "
+                         "nobody wrote down is one nobody can check (RFC-0120 §5.2-5)", f->line);
+            }
         } else if (veq(w, "inplace")) {
             // ★★★★ RFC-0116 D2 B1 (소유자 결정 ⓑ, 2026-09-22) — `inplace <쓰기 입력> <읽기 입력> .`
             //   «이 둘이 같은 저장소여도 된다» 는 선언이다. 모양: 이름 **둘**, 둘 다 이 op 의 입력, 앞의 것은
@@ -10386,7 +10472,13 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         // ★ RFC-0083 L1 — subeffecting 은 **폐포 하에서** 판정한다: I ⊑ D ⟺ close(I) ⊆ close(D).
         //   그러면 `concurrent` 를 선언하면 `wait` 사용을 덮고(concurrent ⊇ wait), `wait` 만 선언하고
         //   `concurrent` 를 하면 새어 나온다(E-EFFECT). 포함관계가 이 한 줄에서 대수적으로 강제된다.
-        unsigned leak = eff_close(used) & ~eff_close(tab[i].self_declared);
+        // ★★★★★ RFC-0120 — **흡수가 여기서 멈춘다.** `absorbs machine <이름> .` 을 적은 op 은
+        //   `unsafe` 를 «선언한 것» 으로 쳐서 leak 에서 빠진다 — 그러나 **시그니처에는 싣지 않는다**.
+        //   그래서 부르는 쪽은 아무것도 적지 않는다. 그 자리가 장부에 남고 게이트가 센다(§5.2-6).
+        //   ☞ 나머지 효과는 그대로 샌다: 흡수는 `unsafe` 하나만 멈춘다.
+        unsigned declared_eff = tab[i].self_declared;
+        if (tab[i].form && ck_absorbs_machine(tab[i].form, NULL)) declared_eff |= EFF_UNSAFE;
+        unsigned leak = eff_close(used) & ~eff_close(declared_eff);
         if (leak) {
             // ★ 오류 쪽도 같은 자리다 — 파일을 아는 노드를 손에 쥐고 있으므로 함께 싣는다.
             // ★★★ **어느 효과가 새는지 말한다** (2026-09-14). `leak` 은 여기 있었는데 문장은 «어떤 효과» 라고만 했다.

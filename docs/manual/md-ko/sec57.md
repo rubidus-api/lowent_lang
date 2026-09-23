@@ -34,47 +34,47 @@
 | [`x25519`](sec81.md#mod-x25519) | 키 합의 |
 | [`aes`](sec82.md#mod-aes) | AES-128 블록 암호 — 혼자 쓰면 대개 틀린다 |
 | [`gcm`](sec83.md#mod-gcm) | AES-128-GCM — 논스를 되풀이하지 않는다 |
-| [`bigint`](sec84.md#mod-bigint) | 큰수 모듈러 산술 |
-| [`rsa`](sec85.md#mod-rsa) | RSASSA-PSS 검증 |
-| [`p256`](sec86.md#mod-p256) | NIST P-256 곡선과 ECDSA 검증 |
-| [`ecdsa`](sec87.md#mod-ecdsa) | ECDSA P-256 서명 — 난수 없이 논스를 유도한다 |
-| [`ed25519`](sec88.md#mod-ed25519) | Ed25519 서명 검증 |
-| [`der`](sec89.md#mod-der) | DER 최소 파서 — 공개키만 꺼낸다 |
-| [`pem`](sec90.md#mod-pem) | PEM 봉투 벗기기 |
-| [`tls13`](sec91.md#mod-tls13) | TLS 1.3 의 부품 — 키 스케줄 · 레코드 · 전사 · Finished |
-| [`tlssrv`](sec92.md#mod-tlssrv) | 서버 TLS 핸드셰이크와 응용 데이터 레코드 |
-| [`http`](sec93.md#mod-http) | HTTP/1.1 요청 파서 — 알맹이는 거절이다 |
-| [`soa`](sec94.md#mod-soa) | 구조체 배열을 칸별 배열로 두는 배치의 시범 |
+| [`bigint`](sec85.md#mod-bigint) | 큰수 모듈러 산술 |
+| [`rsa`](sec86.md#mod-rsa) | RSASSA-PSS 검증 |
+| [`p256`](sec87.md#mod-p256) | NIST P-256 곡선과 ECDSA 검증 |
+| [`ecdsa`](sec88.md#mod-ecdsa) | ECDSA P-256 서명 — 난수 없이 논스를 유도한다 |
+| [`ed25519`](sec89.md#mod-ed25519) | Ed25519 서명 검증 |
+| [`der`](sec90.md#mod-der) | DER 최소 파서 — 공개키만 꺼낸다 |
+| [`pem`](sec91.md#mod-pem) | PEM 봉투 벗기기 |
+| [`tls13`](sec92.md#mod-tls13) | TLS 1.3 의 부품 — 키 스케줄 · 레코드 · 전사 · Finished |
+| [`tlssrv`](sec93.md#mod-tlssrv) | 서버 TLS 핸드셰이크와 응용 데이터 레코드 |
+| [`http`](sec94.md#mod-http) | HTTP/1.1 요청 파서 — 알맹이는 거절이다 |
+| [`soa`](sec95.md#mod-soa) | 구조체 배열을 칸별 배열로 두는 배치의 시범 |
 
 *표 50.1 — L0 — 순수 계산(`effects none` · 호출자의 버퍼)*
 
 | **모듈** | **한 줄** |
 |---|---|
-| [`allocs`](sec95.md#mod-allocs) | 할당기 트레이트 · 범프 할당기 · 기본 할당기 둘 |
-| [`pool`](sec96.md#mod-pool) | 세대 핸들 블록 풀 |
-| [`shard`](sec97.md#mod-shard) | 저장소를 겹치지 않는 조각으로 나누는 토큰 |
-| [`budget`](sec98.md#mod-budget) | 핸들의 비트 예산과 세대 수의 은퇴 |
-| [`wire`](sec99.md#mod-wire) | 한 워드를 칸으로 나눠 쓰기 — 마스크가 자리와 폭을 든다 |
-| [`flags`](sec100.md#mod-flags) | 이름 붙은 켬/끔 설정을 한 워드에 |
-| [`segarena`](sec101.md#mod-segarena) | 고정 크기 세그먼트 아레나 |
-| [`pagecache`](sec102.md#mod-pagecache) | 페이지 번호와 고정 토큰 |
-| [`growvec`](sec103.md#mod-growvec) | 자라는 바이트 벡터 — `vecgen.vec u8` 의 짧은 이름 |
-| [`vecgen`](sec104.md#mod-vecgen) | 제네릭 자라는 벡터 `vec t` |
-| [`mapgen`](sec105.md#mod-mapgen) | 제네릭 해시맵 `table k v` |
-| [`nodelist`](sec106.md#mod-nodelist) | 고정 크기 침입형 목록 |
-| [`segview`](sec107.md#mod-segview) | 흩어진 조각 뷰의 커서 · 총길이 · 펴기 |
-| [`lifemode`](sec108.md#mod-lifemode) | `lifemode` · `lifeatom` — 값이 언제 끝나는가 |
+| [`allocs`](sec96.md#mod-allocs) | 할당기 트레이트 · 범프 할당기 · 기본 할당기 둘 |
+| [`pool`](sec97.md#mod-pool) | 세대 핸들 블록 풀 |
+| [`shard`](sec98.md#mod-shard) | 저장소를 겹치지 않는 조각으로 나누는 토큰 |
+| [`budget`](sec99.md#mod-budget) | 핸들의 비트 예산과 세대 수의 은퇴 |
+| [`wire`](sec100.md#mod-wire) | 한 워드를 칸으로 나눠 쓰기 — 마스크가 자리와 폭을 든다 |
+| [`flags`](sec101.md#mod-flags) | 이름 붙은 켬/끔 설정을 한 워드에 |
+| [`segarena`](sec102.md#mod-segarena) | 고정 크기 세그먼트 아레나 |
+| [`pagecache`](sec103.md#mod-pagecache) | 페이지 번호와 고정 토큰 |
+| [`growvec`](sec104.md#mod-growvec) | 자라는 바이트 벡터 — `vecgen.vec u8` 의 짧은 이름 |
+| [`vecgen`](sec105.md#mod-vecgen) | 제네릭 자라는 벡터 `vec t` |
+| [`mapgen`](sec106.md#mod-mapgen) | 제네릭 해시맵 `table k v` |
+| [`nodelist`](sec107.md#mod-nodelist) | 고정 크기 침입형 목록 |
+| [`segview`](sec108.md#mod-segview) | 흩어진 조각 뷰의 커서 · 총길이 · 펴기 |
+| [`lifemode`](sec109.md#mod-lifemode) | `lifemode` · `lifeatom` — 값이 언제 끝나는가 |
 
 *표 50.2 — L1 — 저장(할당 권한이나 빌린 바이트가 필요하다)*
 
 | **모듈** | **한 줄** |
 |---|---|
-| [`io`](sec109.md#mod-io) | 슬라이스 위의 스트림 읽기 |
-| [`outbuf`](sec110.md#mod-outbuf) | 버퍼링 출력 — 비우기를 잊으면 번역이 거절한다 |
-| [`files`](sec111.md#mod-files) | 파일과 디렉터리 — 닫기를 잊으면 번역이 거절한다 |
-| [`tty`](sec112.md#mod-tty) | 터미널 입력 — raw 모드 · 키 읽기 · 순수 키 파싱 |
-| [`net`](sec113.md#mod-net) | 소켓 — TCP 루프백 · 프로세스 안 연결 쌍 |
-| [`clock`](sec114.md#mod-clock) | 시각과 마감 — 단조 시계와 벽시계 |
+| [`io`](sec110.md#mod-io) | 슬라이스 위의 스트림 읽기 |
+| [`outbuf`](sec111.md#mod-outbuf) | 버퍼링 출력 — 비우기를 잊으면 번역이 거절한다 |
+| [`files`](sec112.md#mod-files) | 파일과 디렉터리 — 닫기를 잊으면 번역이 거절한다 |
+| [`tty`](sec113.md#mod-tty) | 터미널 입력 — raw 모드 · 키 읽기 · 순수 키 파싱 |
+| [`net`](sec114.md#mod-net) | 소켓 — TCP 루프백 · 프로세스 안 연결 쌍 |
+| [`clock`](sec115.md#mod-clock) | 시각과 마감 — 단조 시계와 벽시계 |
 
 *표 50.3 — L2 — 호스트(권한이 필요하다)*
 

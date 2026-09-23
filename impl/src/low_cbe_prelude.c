@@ -595,6 +595,26 @@ const char LW_PRELUDE[] =
 "}\n"
 LOW_SHA256_C_SOURCE
 LOW_SHA512_C_SOURCE
+// ★★★★★ **AES 라운드를 기계 명령으로** (RFC-0119 §10, 2026-09-23) — 방출 C 에만 있다.
+//   `_mm_aesenc_si128` 은 SubBytes·ShiftRows·MixColumns·AddRoundKey 를 한 명령에 한다.
+//   ★ 표를 안 읽으므로 **상수시간**이다 — 소프트 판(S-box 표)은 캐시 타이밍을 흘린다.
+//     즉 이 경로는 빠르기만 한 것이 아니라 **타이밍 성질이 다르다**(그 사실을 적는다).
+//   ★★ VM 은 언제나 표 판이다 ⇒ 오라클(VM ≡ 네이티브)이 이 경로의 차등 시험이다.
+"#if defined(__x86_64__) && (LW_HW_AES == 1 || LW_HW_AES == 2)\n"
+"#include <immintrin.h>\n"
+"__attribute__((target(\"aes\"))) static void lw_aes_block_hw(const unsigned char *rk, unsigned char *s) {\n"
+"    __m128i st = _mm_loadu_si128((const __m128i *)s); int r;\n"
+"    st = _mm_xor_si128(st, _mm_loadu_si128((const __m128i *)rk));\n"
+"    for (r = 1; r < 10; r++) st = _mm_aesenc_si128(st, _mm_loadu_si128((const __m128i *)(rk + 16 * r)));\n"
+"    st = _mm_aesenclast_si128(st, _mm_loadu_si128((const __m128i *)(rk + 160)));\n"
+"    _mm_storeu_si128((__m128i *)s, st); }\n"
+"#endif\n"
+"#if defined(__x86_64__) && LW_HW_AES == 2\n"
+"static int lw_hw_aes_ok = -1;\n"
+"static int lw_hw_aes_pick(void) {\n"
+"    if (lw_hw_aes_ok < 0) { __builtin_cpu_init(); lw_hw_aes_ok = __builtin_cpu_supports(\"aes\") ? 1 : 0; }\n"
+"    return lw_hw_aes_ok; }\n"
+"#endif\n"
 // ★★★★★ **캐리 없는 곱셈의 핵** (RFC-0119, 2026-09-23) — 기계 명령이 있으면 그것을, 없으면 같은
 //   답을 내는 소프트 판을 쓴다. **갈림은 여기 한 곳**이다(교훈 7: 계산은 한 곳에).
 //   ★ 범위는 **빌드가** 정한다(`--hw`): `none` 은 소프트만, `pclmul` 은 기계 명령만(검사 없음),
@@ -630,6 +650,51 @@ LOW_SHA512_C_SOURCE
 "#endif\n"
 "}\n"
 LOW_AES_C_SOURCE
+// ★ `aes_round` 의 기계 판 — `aesenc`/`aesenclast` 한 명령이다(표를 안 읽는다 = 상수시간).
+"#if defined(__x86_64__) && (LW_HW_AES == 1 || LW_HW_AES == 2)\n"
+"__attribute__((target(\"aes\"))) static long long lw_aes_round_hw(void *sp2, unsigned long long slen2,\n"
+"                                                                 const void *rkp, unsigned long long rklen, int last) {\n"
+"    __m128i st, rk;\n"
+"    if (slen2 < 16 || rklen < 16) return 0;\n"
+"    st = _mm_loadu_si128((const __m128i *)sp2); rk = _mm_loadu_si128((const __m128i *)rkp);\n"
+"    st = last ? _mm_aesenclast_si128(st, rk) : _mm_aesenc_si128(st, rk);\n"
+"    _mm_storeu_si128((__m128i *)sp2, st); return 16; }\n"
+"static long long lw_aes_round_x(void *sp2, unsigned long long slen2,\n"
+"                                const void *rkp, unsigned long long rklen, int last) {\n"
+"#if LW_HW_AES == 2\n"
+"    if (!lw_hw_aes_pick()) return lw_aes_round(sp2, slen2, rkp, rklen, last);\n"
+"#endif\n"
+"    return lw_aes_round_hw(sp2, slen2, rkp, rklen, last); }\n"
+"#else\n"
+"#define lw_aes_round_x lw_aes_round\n"
+"#endif\n"
+// ★ `aes_ctr` 의 기계 판 — 카운터 규약(마지막 4 바이트 빅엔디언)은 소프트와 **같다**.
+//   같은 일을 두 곳에 적는 셈이라, 골든이 둘을 **같은 입력으로 맞댄다**(그것이 값이다).
+"#if defined(__x86_64__) && (LW_HW_AES == 1 || LW_HW_AES == 2)\n"
+"static long long lw_aes_ctr_x(const void *keyp, unsigned long long klen, void *ctrp, unsigned long long clen,\n"
+"                              const void *srcp, unsigned long long slen, void *dstp, unsigned long long dlen) {\n"
+"#if LW_HW_AES == 2\n"
+"    if (!lw_hw_aes_pick()) return lw_aes_ctr(keyp, klen, ctrp, clen, srcp, slen, dstp, dlen);\n"
+"#endif\n"
+"    { const unsigned char *key = (const unsigned char *)keyp, *src = (const unsigned char *)srcp;\n"
+"      unsigned char *ctr = (unsigned char *)ctrp, *dst = (unsigned char *)dstp;\n"
+"      unsigned char rk[176], ks[16]; unsigned long long off; unsigned int c; int i;\n"
+"      if (klen != 16 || clen != 16 || dlen < slen) return 0;\n"
+"      lw_aes_expand(key, rk);\n"
+"      for (off = 0; off < slen; off += 16) {\n"
+"          unsigned long long n = slen - off; if (n > 16) n = 16;\n"
+"          for (i = 0; i < 16; i++) ks[i] = ctr[i];\n"
+"          lw_aes_block_hw(rk, ks);\n"
+"          for (i = 0; i < (int)n; i++) dst[off + i] = (unsigned char)(src[off + i] ^ ks[i]);\n"
+"          c = (unsigned int)ctr[15] + 1u; ctr[15] = (unsigned char)c;\n"
+"          if (c >> 8) { c = (unsigned int)ctr[14] + 1u; ctr[14] = (unsigned char)c;\n"
+"          if (c >> 8) { c = (unsigned int)ctr[13] + 1u; ctr[13] = (unsigned char)c;\n"
+"          if (c >> 8) { ctr[12] = (unsigned char)(ctr[12] + 1); } } }\n"
+"      }\n"
+"      return (long long)slen; } }\n"
+"#else\n"
+"#define lw_aes_ctr_x lw_aes_ctr\n"
+"#endif\n"
 // ★★★★★ **캐리 없는 곱셈으로 하는 GHASH** (RFC-0119, 2026-09-23) — **방출 C 에만 있다.**
 //   VM 은 `low_aes.h` 의 가림(mask) 판을 그대로 돈다 ⇒ 오라클(VM ≡ 네이티브)이 이 경로의 차등 시험이다.
 //   GCM 의 비트 차례는 뒤집혀 있다. 뒤집힌 표현끼리 곱하면 답이 한 비트 밀리므로 256 비트 곱을

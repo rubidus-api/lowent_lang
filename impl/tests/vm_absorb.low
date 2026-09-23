@@ -1,0 +1,52 @@
+rem ★★★★★ **흡수 경계** — `unsafe` 가 여기서 멈춘다 (RFC-0120, 소유자 결정 2026-09-23).
+rem
+rem 무엇을 보이나. 어셈블리 잎은 `unsafe` 이고 `cap machine` 을 요구한다. 그것을 부르는 op 이
+rem `absorbs machine k .` 를 적으면
+rem   · `unsafe` 가 **그 시그니처에 실리지 않는다** — 부르는 쪽은 아무것도 안 적는다
+rem   · `k` 가 몸 안에서 `cap machine` 이 된다 — 오늘 이 권한은 **다른 어디에서도 못 얻는다**
+rem     (정본 §7.2.2 의 시작점 권한 목록에 `machine` 이 없다)
+rem 대가로 갖춰야 하는 것: 참조 구현 · 계약 · 근거 · 장부의 등재(서명·몸 해시).
+rem
+rem ☞ 흡수 절을 빼면 같은 코드가 `E-EFFECT` 로 거절된다 — 문은 **좁게** 났다.
+
+module vm_absorb .
+
+rem 어셈블리 잎 — 처리기가 그 안을 못 본다. 그래서 `unsafe` 다.
+unsafe proc asm_add2 .
+  input k cap machine .
+  input a u64 .
+  input b u64 .
+  output u64 .
+  effects unsafe .
+  asm x86_64 .
+      reg a .
+      reg b .
+      out reg r .
+      clobber flags .
+      options pure nomem nostack .
+do
+  text ASM
+    mov {a}, {r}
+    add {b}, {r}
+  ASM
+end .
+
+rem 같은 답을 내는 **참조 구현** — 흡수한 자리는 언제나 이것과 맞대어진다.
+export proc add2_soft input a u64 . input b u64 . output u64 . effects none . do
+  return add a b .
+end .
+
+rem 흡수하는 op — 여기서 `unsafe` 가 멈춘다.
+export proc add2 input a u64 . input b u64 . output u64 . effects none .
+  absorbs machine k .
+  reference add2_soft .
+  why "asm_add2 는 레지스터 둘을 더해 하나를 낼 뿐이다(options pure nomem nostack) — 메모리를 읽지도 쓰지도 않으므로 이 op 이 넘겨받은 저장소 밖을 만질 수 없다." .
+  requires ge a 0 .
+do
+  return asm_add2 k a b .
+end .
+
+rem 부르는 쪽 — 아무것도 안 적는다. 그것이 흡수의 값이다.
+export proc caller input a u64 . output u64 . effects none . do
+  return add2 a 41 .
+end .

@@ -1,65 +1,54 @@
-# <a id="mod-http"></a>`http` — HTTP/1.1 request parser
+# <a id="mod-tlssrv"></a>`tlssrv` — the TLS 1.3 server handshake
 
 Source
 
-`lib/http.low`
+`lib/tlssrv.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-Takes request bytes and answers **where each field starts and how many bytes it is** (RFC 9112). It does not cut — the caller cuts with `subslice`. **Every failure is `0`**. `0` can never be a legitimate position — the smallest request is `GET / HTTP/1.1␍␊␍␊`, so no field starts at 0.
+[`tls13`](sec93.md#mod-tls13) holds the **computations** of the standard. This module is the **layer that calls them in order** — reading ClientHello, building server messages, moving state, and sealing and opening application data records. Every failure is `0`, and ops yield **positions** — the caller cuts with `subslice`.
 
-> **What it promises and what it does not**
+> **This alone is not a TLS server**
 >
-> > Server-side request parsing only (no response parsing). There is no transport — the caller gathers the bytes. **Chunked transfer (`Transfer-Encoding: chunked`) is not built** — it only finds that header, so the caller must reject. No trailers, multi-line headers (obs-fold), URL percent-decoding or HTTP/2. HTTP/1.0 is not accepted — its persistent connection rules differ and were not built.
+> > **There is no transport** — no sockets, no reassembly; the caller gathers the bytes (and decides record boundaries). No KeyUpdate, record padding, HelloRetryRequest, PSK, 0-RTT, client certificate requests or session resumption. `build_cert` holds only one certificate of a chain. Extensions are only **found** (interpreting SNI and ALPN is the caller’s). It has not been audited.
 
-```lowent
-let t u64 be http.target_off b .
-let n u64 be http.target_len b .
-guard gt n 0 . else return 0 .
-let target slice u8 . be subslice b t (add t n) .
-```
+**ClientHello is the most hostile input.** It is a byte string nothing has authenticated yet, and every length field was written by the other side. So — any position exceeding the buffer fails immediately. Extension walking does not recurse and bounds its steps by the buffer size (a run of zero-length extensions never ends an unbounded loop). Mismatched lengths are not read charitably — `ch_ok` requires the declared length to equal the buffer **exactly**, and `ch_ext_len` requires extensions to fit to the end.
 
 | **op** | **What it does** |
 |---|---|
-| `method_get` · `method_head` · `method_post` · `method_put` · `method_delete` | Method codes (1 … 5) |
-| `method_code` | Method in the request line → code. 0 = unknown |
-| `line_next` · `line_len` | Position of the next line · content length of this line (without CRLF) |
-| `target_off` · `target_len` | Position · length of the request target |
-| `version_ok` | Is it `HTTP/1.1` |
-| `headers_off` · `header_next` | First header · next header (0 at the blank line) |
-| `name_len` · `value_off` · `value_len` | Header name length · value position · value length |
-| `name_eq` | Is this header’s name that one (case-insensitive) |
-| `header_find` · `header_find_len` | Value position · length for that name. **0 if duplicated** |
-| `content_length` | `option u64` — `some 0` if absent, `none` if malformed |
-| `body_off` | Where the body starts |
+| `st_start` · `st_recvd_ch` · `st_negotiated` · `st_wait_flight2` · `st_wait_finished` · `st_connected` | State numbers |
+| `hs_client_hello` · `hs_server_hello` · `hs_encrypted_extensions` · `hs_certificate` · `hs_certificate_verify` · `hs_finished` | Message type numbers |
+| `next_ok` · `step` | May this message be received now · move state (yields the same state if it cannot) |
+| `ch_ok` | Do type and length match the buffer |
+| `ch_random_off` · `ch_sid_off` · `ch_sid_len` | Random · session_id |
+| `ch_suites_off` · `ch_suites_len` · `ch_has_suite` | Offered suites |
+| `ch_ext_off` · `ch_ext_len` · `ch_ext_find` · `ch_ext_find_len` | Extension block · find by type |
+| `ch_x25519_off` · `be16` | Position of the x25519 public key in key_share · big-endian 2 bytes |
+| `build_sh` · `build_ee` · `build_cert` | Build ServerHello · EncryptedExtensions · Certificate (one DER) |
+| `cv_content` · `build_cv` · `build_fin` | The 130 bytes CertificateVerify signs · build CertificateVerify · Finished |
+| `server_finished` | From ECDHE up the key schedule to the server Finished in one line |
+| `app_secrets` · `check_client_finished` | Application traffic secrets (c · s) · check the peer’s Finished (1 = match) |
+| `traffic_keys` · `seal_app` · `open_app` | Secret → key ‖ IV (one direction at a time) · seal · open application data records |
 
-*Table 50.1 — Ops of `http`*
+*Table 50.1 — Ops of `tlssrv`*
 
-**The core of this module is rejection.** A parser is defined more by what it rejects than what it accepts. Wrong acceptance in HTTP has a name — **request smuggling**. If the front (proxy) and back (server) read the same bytes differently, a request one sees the other does not.
+Message building shares one frame (`<type 1> <length 3> <body>`) — so the frame is written once. Repeating the same arithmetic in four places brings the day only one is fixed.
 
-| **Rejected** | **Why** |
-|---|---|
-| Bare `LF` as line end | If the front accepts only CRLF, boundaries diverge |
-| Space between name and colon (`Host : x`) | RFC 9112 §5.1 requires rejection |
-| Two `Content-Length` | Rejected even if the values agree |
-| `Content-Length: 5, 5` · `+5` · empty | Digits only — that leniency is smuggling |
-| `HTTP/1.0` | Different persistent connection rules, not built |
-| The same header twice (`header_find`) | Whether merging is allowed varies per header and that table was not built — unknown means reject |
-| Empty target (`GET  HTTP/1.1`) · unterminated headers (no blank line) | — |
+**`cv_content` — the 64 spaces are not decoration.** The signed content is `0x20 × 64 ‖ "TLS 1.3, server CertificateVerify" ‖ 0x00 ‖ transcript hash` (§4.4.3). Without that prefix, this signature could be reused as a signature in another context (a certificate signature, a client-side signature). Constants in a standard that make you ask “why is this here” are usually traces of attacks that already happened.
 
-*Table 50.2 — What `http` rejects*
+**Order is half the standard.** `next_ok` enumerates what is accepted, and enumerating is rejecting everything else. Without it a man in the middle could send Finished early or ClientHello twice. **`session_id` is echoed back** — TLS 1.3 does not use that field, but not echoing it gets connections cut by middleboxes on real networks, because it is a compatibility device to look like 1.2 (§4.1.3).
 
-**Why `content_length` is an `option`.** “Absent” and “wrong” are different answers. Absent gives `some 0` (a normal request without a body); malformed gives `none` (the connection must be dropped). With one value the two mix, and where they mix is where attacks live.
+**The transcript is cut three times in this layer.** `s hs traffic` stands on `CH‖SH`, the server Finished on `CH‖…‖CertificateVerify`, and application traffic secrets and **the client Finished** on `CH‖…‖server Finished`. The client Finished does not include itself, and its verify_data comes from the **client** handshake secret — same transcript, different secret. Using the server’s always rejects, and the symptom looks like “the client is broken”.
 
-**This module caught a processor defect.** It was first written with `input b str .`. `--check` passed, but 16 of 21 ops fell onto the slow interpreted path (about 80×). `str` was not a builtin but a local alias in [`strings`](sec59.md#mod-strings) the checker let the name through, but the typed lowering did not know its meaning. The answers were right, so tests could never see it — a silent 80×. Now using such a name in a signature gives a `W-NOT-YET` warning. Passing checks and being fast are different things, and without looking at `--why-slow` this file would have shipped as it was.
+**Application data uses a different secret and a different sequence per direction.** Sharing one makes nonces overlap, and overlapping nonces in AEAD lose plaintext and authentication key together. So key bundles are made one direction at a time. Sequences increase **per record** and restart at 0 per key generation. The output buffer of `traffic_keys` must be 32 bytes even when the key is 16 — `expand_label` uses one HMAC block and always writes 32. Alerts are the same records too — the inner type is 21, and without looking at it an alert is read as data.
 
-**What is checked** — RFC 9112 examples (8 normal), 9 rejections, VM/native agreement, zero ops falling onto the slow path.
+**What is checked** — the real handshake of RFC 8448 §3. The canonical ClientHello’s fields are read, and five messages are built and compared byte for byte with the canonical ones (ServerHello 90 · EncryptedExtensions 40 · Certificate 445 · CertificateVerify 136 · Finished 36). And it is woven end to end — we compute ECDHE from the canonical keys, climb the key schedule and match the server Finished with the canonical one. That one move measures the transcript cut points, the key schedule, finished_key and verify_data together. The canonical CertificateVerify is RSA-PSS and our signer is ECDSA, so the frame is what is measured here; the signature itself is measured separately by [`ecdsa`](sec89.md#mod-ecdsa).
 
 ---
 

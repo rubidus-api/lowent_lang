@@ -1022,7 +1022,7 @@ static void print_usage(const char *argv0) {
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
         "    --fixed-bytes N      VM 의 고정 창 크기 — 다른 보드를 흉내 낸다 (기본: 타깃이 정한다)\n"
-        "    --hw none|pclmul|auto  기계 암호 명령의 범위 (기본 none — 소프트만)\n"
+        "    --hw none|auto|pclmul,aes  기계 암호 명령의 **범위** (기본 none — 소프트만)\n"
         "    --emit-h | --emit-ld | --emit-db | --no-fast | --no-elemsl | --no-carry | --conc-t0 | --no-main | --why-slow | --zones  (C 방출 곁가지)\n"
         "\n  누가 읽나\n"
         "    --version | -V       도구가 자기 버전을 말한다 — 버그 보고가 재현 가능해진다\n"
@@ -1119,11 +1119,39 @@ int main(int argc, char **argv) {
         // ★ `--hw <집합>` — 이 바이너리가 담을 기계 명령의 **범위**(RFC-0119 §9-3).
         //   none(기본) 소프트만 · pclmul 기계 명령만(검사 없음) · auto 둘 다 담고 시작할 때 한 번 고른다.
         else if (strcmp(argv[i], "--hw") == 0 && i + 1 < argc) {
+            // ★ **범위는 빌드가 정한다**(RFC-0119 §9-3): 담을 명령 집합을 쉼표로 늘어놓는다.
+            //   `none` 소프트만 · `auto` 담고 시작할 때 한 번 고른다 · 이름을 적으면 그 명령만(검사 없음).
             const char *v = argv[++i];
-            if (strcmp(v, "none") == 0) low_cbe_set_hw_clmul(0);
-            else if (strcmp(v, "pclmul") == 0) low_cbe_set_hw_clmul(1);
-            else if (strcmp(v, "auto") == 0) low_cbe_set_hw_clmul(2);
-            else { fprintf(stderr, "lowentc: --hw takes none | pclmul | auto (got `%s`)\n", v); return 2; }
+            // ★★★ **없는 기계에 담으라면 거절한다**(정본 §5.6(5b)) — 조용히 평범한 코드로
+            //   바꾸지 않는다. 무엇이 돌지 짓는 사람이 알아야 한다.
+            if (strcmp(v, "none") != 0 && strcmp(v, "auto") != 0) {
+                const low_target_t *tg = low_ir_target();
+                if (!tg || !tg->name || strcmp(tg->name, "x86_64") != 0) {
+                    fprintf(stderr,
+                            "lowentc: E-HW-TARGET: `--hw %s` names instruction sets this machine (`%s`) does "
+                            "not have. The tool does NOT quietly fall back — pick `--hw none` (plain code "
+                            "everywhere) or `--hw auto` (carry both and choose once at start)\n",
+                            v, (tg && tg->name) ? tg->name : "?");
+                    return 2;
+                }
+            }
+            if (strcmp(v, "none") == 0) { low_cbe_set_hw_clmul(0); low_cbe_set_hw_aes(0); }
+            else if (strcmp(v, "auto") == 0) { low_cbe_set_hw_clmul(2); low_cbe_set_hw_aes(2); }
+            else {
+                char buf[128]; size_t bn = strlen(v);
+                if (bn >= sizeof buf) { fprintf(stderr, "lowentc: --hw list is too long\n"); return 2; }
+                memcpy(buf, v, bn + 1);
+                low_cbe_set_hw_clmul(0); low_cbe_set_hw_aes(0);
+                for (char *tok = strtok(buf, ","); tok; tok = strtok(NULL, ",")) {
+                    if (strcmp(tok, "pclmul") == 0) low_cbe_set_hw_clmul(1);
+                    else if (strcmp(tok, "aes") == 0) low_cbe_set_hw_aes(1);
+                    else {
+                        fprintf(stderr, "lowentc: --hw takes none | auto | a comma list of "
+                                        "pclmul,aes (got `%s`)\n", tok);
+                        return 2;
+                    }
+                }
+            }
         }
         else if (strcmp(argv[i], "--no-fast") == 0) low_cbe_set_no_fast(true);
         else if (strcmp(argv[i], "--no-elemsl") == 0) low_cbe_set_no_elemsl(true);

@@ -805,6 +805,11 @@ bool low_is_clause_word(proven_u8str_view_t v) {
                                // ★★★★ RFC-0116 D4 I (소유자 결정, 2026-09-22) — `invalidates <입력> .` 은 «이 op 은 그 입력에서
                                //   나온 뷰를 무효로 만든다» 는 **절**이다. 무효화 추적(E-VIEW-INVALIDATED)이 읽는다.
                                "invalidates",
+                               // ★★★★★ RFC-0120 (소유자 결정 2026-09-23, «저런 흡수경계가 우리한테도 필요해요») —
+                               //   `absorbs machine <이름> .` 는 «처리기가 못 보는 일을 여기서 멈춘다» 는 **절**이다.
+                               //   그 op 은 `unsafe` 를 자기 시그니처에 싣지 않고, 몸 안에서 <이름> 이 `cap machine` 이 된다.
+                               //   값으로 치르는 대가: `reference` 와 `why` 가 함께 있어야 하고 장부에 서명이 있어야 한다.
+                               "absorbs", "reference", "why",
                                // ★ RFC-0041 — 인라인 asm 도 **절**이다(ISA·피연산자·clobber·options).
                                //   그래서 능력의 이름은 `cap machine` 이다: `asm` 은 절 낱말이라
                                //   **값 자리에 못 온다.** 충돌은 발견하는 게 아니라 **설계로 없앤다.**
@@ -1203,6 +1208,7 @@ int low_clause_rank(proven_u8str_view_t w) {
         //   앞의 것이 뒤의 것에 쓰인다(타입 매개변수가 입력·출력 타입에, 입력이 출력·계약에, 권한이 효과에).
         { "satisfies", 0 }, { "lowdoc", 0 }, { "vector", 1 }, { "priority", 1 },
         { "using", 4 }, { "output", 6 }, { "effects", 7 }, { "link", 8 }, { "variadic", 8 }, { "asm", 9 },
+        { "absorbs", 9 }, { "reference", 9 }, { "why", 9 },   // ★ 흡수 경계 — 구현 방식 무리(asm 옆), RFC-0120
         { "access", 10 }, { "inplace", 10 }, { "invalidates", 10 }, { "parallel", 10 }, { "reduce", 10 },   // ★ inplace — 입력의 메모리를 어떻게 만지나(RFC-0116 D2 B1)
         { "requires", 11 }, { "ensures", 12 }, { "errors", 13 }, { "tests", 14 }, { "schedule", 15 },
     };

@@ -1,8 +1,8 @@
-# <a id="mod-ecdsa"></a>`ecdsa` — ECDSA P-256 signing
+# <a id="mod-p256"></a>`p256` — the NIST P-256 curve and ECDSA verification
 
 Source
 
-`lib/ecdsa.low`
+`lib/p256.low`
 
 Layer
 
@@ -12,32 +12,34 @@ Capabilities
 
 none
 
-Takes a private key and a message hash and produces a signature `(r, s)` (RFC 6979). Verification is `ecdsa_verify` of [`p256`](sec87.md#mod-p256). A TLS server uses it to sign `CertificateVerify` with its own private key — without signing there is no server.
+Point arithmetic on the elliptic curve `y² = x³ − 3x + b`, and **ECDSA signature verification** built on it. TLS 1.3′s `ecdsa_secp256r1_sha256` uses this curve.
 
 > **What it promises and what it does not**
 >
-> > **Constant time is promised here only, with its extent written down.** What is removed is branching and memory access that depend on secret scalars (private key d, nonce k). The final conditional subtraction of Montgomery multiplication, the cache hierarchy, power, electromagnetic leakage and whatever a compiler might introduce are not promised. It has not been audited. P-256 only, no key generation. If `r = 0` or `s = 0` it does not retry but answers failure (probability around 2^−128) — building that branch creates untestable code, and untested cryptographic code is worse than none.
+> > It has not been audited. The verification `smul` **branches** on scalar bits — in verification that scalar is public, so that is fine. For secret scalars (private key, nonce) use `smul_ct` — each step does both doubling and addition and chooses by mask, not by branch. That promise extends to **no secret-dependent branches or memory access**; cache hierarchy, power and electromagnetic leakage are not promised. There is no point decompression and no P-384 or P-521.
 
-**Why the nonce is derived, not random.** In ECDSA, a nonce leaked once or repeated once reveals the whole private key.
+**Why this curve.** What public CAs actually issue and browsers actually accept is P-256 and RSA. [`ed25519`](sec90.md#mod-ed25519) is mathematically cleaner but does not work on the public web — the ecosystem decides, not the maths. Signature **generation** is done by [`ecdsa`](sec89.md#mod-ecdsa) on top of this module.
 
-```text
-s = k⁻¹ (h + r·d)   ⇒   d = (s·k − h) / r
-```
+| **op** | **What it does** |
+|---|---|
+| `limbs` | Limb count (16 = 256 bits) |
+| `msub` · `madd` | Modular subtraction · addition |
+| `minv` | Modular inverse (Fermat exponentiation) |
+| `pmul` | Montgomery product (reusing [`bigint`](sec86.md#mod-bigint)’s) |
+| `make_r2` | `R² mod p` — the constant for entering the Montgomery domain |
+| `pdbl` · `padd` | Jacobian point doubling · point addition |
+| `is_zero` | Is it the point at infinity |
+| `smul` | Scalar multiplication `[k]P` — for public scalars |
+| `smul_ct` | Scalar multiplication — for secret scalars, choosing by mask without branches |
+| `ecdsa_verify` | Does signature `(r, s)` match hash `e` and the public key |
 
-Knowing `k` finishes it in that one line, and using the same `k` twice lets `k` be solved from two signatures. And the ways a random source fails are silent — empty entropy, identical state after a fork, a restored virtual machine snapshot. So **no random source is used at all.** `k = HMAC-DRBG(private key, message hash)`. The same (key, message) gives the same signature, and that is a property, not a defect.
+*Table 50.1 — Ops of `p256`*
 
-| **op** | **What it does** | **Requires** |
-|---|---|---|
-| `nonce6979` | RFC 6979 §3.2 — (d, h) → k | `w ≥ 480` bytes · `wu ≥ 16` limbs |
-| `sign` | (d, h) → `r ‖ s`, 64 bytes | `wb ≥ 512` bytes · `wu ≥ 908` limbs |
+Curve constants (p · n · Gx · Gy) are passed in by the caller.
 
-*Table 50.1 — Ops of `ecdsa`*
+**Why Jacobian coordinates — to postpone the inverse.** Point addition in affine coordinates needs a modular inverse every time, and an inverse costs hundreds of times a product. Jacobian coordinates carry the denominator inside the coordinates and postpone the inverse to a single one at the end. For the same reason `ed25519` uses extended coordinates, but its addition formula is **complete** with no exceptional branch, and here there **is** one (a different formula when the points are equal). That branch lives inside `padd`.
 
-Curve constants (p · n · Gx · Gy) are given by the caller — this module holds no tables. Signing uses only `smul_ct` of `p256`, and a test confirms it. `k⁻¹` is Fermat exponentiation whose exponent (n − 2) is public, so the order of operations is fixed.
-
-**Generosity is not free.** The workspace was first sized at 1052 limbs, which exceeded `--run`’s array argument limit (u64 1024) and could not be tested on the VM. Gaps were pulled in twice to reach 908 — a size that cannot be tested is not a size but a defect. **Performance** — `sign` has many parameters, locals and instructions and does not enter the typed fast path. One signature per connection makes that bearable for now.
-
-**What is checked** — the official RFC 6979 §A.2.5 vectors (nonce k and r · s for messages `"sample"` and `"test"`, byte for byte), whether our verifier accepts the signatures produced, and whether flipping one bit is rejected. Vector comparison asks “is it per the standard”; the round trip asks “do our two sides agree”.
+**What is checked** — NIST CAVP P-256/SHA-256 signature verification vectors, 2 positive and **8 negative**, field and scalar multiplication compared with a Python reference curve, VM/native agreement. A signature verification test without negatives cannot catch “always true” — a verification test with only positives verifies nothing.
 
 ---
 

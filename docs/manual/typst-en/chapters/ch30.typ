@@ -153,6 +153,48 @@ does not use is rejected too (`E-ASM-UNUSED`). `options pure` promises "no side 
 says it touches input/output or devices, both cannot be true, so it is rejected (`E-ASM-OPTLIE`). The VM cannot run machine instructions and says so (`E-VM-ASM`). It
 runs only natively.
 
+== The absorbing boundary --- where `unsafe` stops
+
+The four guards of the previous section carry a price: `effects unsafe` *travels with every call.* Write one line of assembly and the op that calls it must declare `unsafe`, and so must its caller, all the way up. That is why machine instructions were never used in the standard library (measured 2026-09-23: zero `asm` in `lib/`'s sixty-four modules).
+
+The travelling is right --- if the caller does not know about work the processor cannot see, the effect row is a lie. What was missing was *a place that takes responsibility.*
+
+```lowent
+export proc add2 input a u64 . input b u64 . output u64 . effects none .
+  absorbs machine k .          rem it stops here; `k` is this body's `cap machine`
+  reference add2_soft .        rem a pure version that must give the same answer
+  why "it adds two registers and touches no memory (options pure nomem nostack)." .
+  requires ge a 0 .
+do
+  return asm_add2 k a b .
+end .
+```
+
+- Callers of this op *write nothing.* That is the whole value of absorption.
+- `absorbs machine <name>` makes that name a `cap machine` inside the body. This is where that right is born --- `machine` is not in the list an entry point may receive.
+- Only `machine` may be absorbed. Capabilities that touch the world (io, C, heap) may not (`E-ABSORB-SCOPE`): minting one would create authority the caller cannot see.
+
+Leave a prerequisite out and it is refused: a non-empty effect row is `E-ABSORB-IMPURE`, a missing reference implementation `E-ABSORB-NOREF`, a missing `requires` `E-ABSORB-NOCONTRACT`, an empty `why` `E-ABSORB-NOWHY`.
+
+#aside[Why demand a reference implementation][
+  Without a pure version that computes the same answer there is no way to tell «right» from «consistently wrong». It happened here: a GHASH rewritten with machine instructions passed the seal-then-open test while computing a different product entirely. Sealing and opening share the code, so the round trip holds as long as it is self-consistent. What caught it was comparing against the plain computation.
+]
+
+== Using what the machine has --- `--hw`
+
+Whether to use the instructions is the builder's choice.
+
+#table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+  [*What you pick*], [*What happens*],
+  [`--hw none` (default)], [everything in plain code; stands on any machine],
+  [`--hw pclmul,aes`], [emitted *assuming* those instructions; will not run where they are missing],
+  [`--hw auto`], [carry both and choose *once at start*; stands anywhere, fast where the instructions exist],
+)
+
+- The answer is the same either way. What differs is speed and timing behaviour --- a computation that reads tables reads at a value-dependent place; these instructions do not.
+- Asking for an instruction set the target does not have is refused (`E-HW-TARGET`). There is no silent fallback: the builder must know what will run.
+- The VM always runs the plain code, so this repository's oracle — «do the VM and native agree?» — is also the test for the machine path.
+
 == Common mistakes
 
 #antipattern[Reading a write-only register to check what was just written][

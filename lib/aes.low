@@ -136,45 +136,17 @@ export proc encrypt_block input rk slice u8 . input st mut slice u8 . input tmp 
   guard ge (len rk) 176 . else return 0 .
   guard ge (len st) 16 . else return 0 .
   guard ge (len tmp) 16 . else return 0 .
+  rem ★★★ 2026-09-23 (RFC-0119 §10): 라운드를 **낱말 하나**로 부른다(`aes_round`).
+  rem   기계에 그 명령이 있으면 C 뒤끝이 `aesenc` 로 내리고(표를 안 읽으므로 상수시간),
+  rem   없으면 같은 답을 내는 표 셈으로 내린다. VM 은 언제나 표 셈이라 오라클이 둘을 맞댄다.
+  rem   ☞ 전에는 SubBytes·ShiftRows·MixColumns 를 이 자리에 손으로 폈다 — 뜻은 같고, 이제
+  rem     그 셈이 **한 곳**(처리기의 잎)에 있다.
   let z0 u64 be add_round_key st rk 0 .
   var r u64 be 1 .
-  while lt r 11 . do
-    rem SubBytes
-    var i u64 be 0 .
-    while lt i 16 . do
-      set (index st i) (cast u8 (sbox (cast u64 (index st i)))) .
-      set i (add i 1) .
-    end .
-    rem ShiftRows — 행 r 을 왼쪽으로 r 칸. 열 우선이므로 색인은 4c+r 이다.
-    var c u64 be 0 .
-    while lt c 4 . do
-      var row u64 be 0 .
-      while lt row 4 . do
-        set (index tmp (add (mul c 4) row)) (index st (add (mul (bit_and (add c row) 3) 4) row)) .
-        set row (add row 1) .
-      end .
-      set c (add c 1) .
-    end .
-    var k u64 be 0 .
-    while lt k 16 . do  set (index st k) (index tmp k) .  set k (add k 1) .  end .
-    rem MixColumns — 마지막 라운드에는 없다.
-    if lt r 10 . do
-      var c2 u64 be 0 .
-      while lt c2 4 . do
-        let b u64 be mul c2 4 .
-        let a0 u64 be cast u64 (index st b) .
-        let a1 u64 be cast u64 (index st (add b 1)) .
-        let a2 u64 be cast u64 (index st (add b 2)) .
-        let a3 u64 be cast u64 (index st (add b 3)) .
-        set (index st b)         (cast u8 (bit_xor (bit_xor (gmul a0 2) (gmul a1 3)) (bit_xor a2 a3))) .
-        set (index st (add b 1)) (cast u8 (bit_xor (bit_xor a0 (gmul a1 2)) (bit_xor (gmul a2 3) a3))) .
-        set (index st (add b 2)) (cast u8 (bit_xor (bit_xor a0 a1) (bit_xor (gmul a2 2) (gmul a3 3)))) .
-        set (index st (add b 3)) (cast u8 (bit_xor (bit_xor (gmul a0 3) a1) (bit_xor a2 (gmul a3 2)))) .
-        set c2 (add c2 1) .
-      end .
-    end .
-    let z1 u64 be add_round_key st rk r .
+  while lt r 10 . do
+    guard eq (aes_round st (subslice rk (mul r 16) (add (mul r 16) 16))) 16 . else return 0 .
     set r (add r 1) .
   end .
+  guard eq (aes_round_last st (subslice rk 160 176)) 16 . else return 0 .
   return 16 .
 end .

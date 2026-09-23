@@ -12,7 +12,7 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 없음
 
-`u64` 열쇠로 `u64` 값을 넣고 찾는 해시 맵이다. 번호로 무언가를 빨리 찾아야 할 때(아이디 → 개수, 핸들 → 상태) 쓴다. 문자열 열쇠는 [`strmap`](sec71.md#mod-strmap), 원소 타입과 얼로케이터를 고르는 컨테이너는 [`mapgen`](sec105.md#mod-mapgen) 이다(34장).
+`u64` 열쇠로 `u64` 값을 넣고 찾는 해시 맵이다. 번호로 무언가를 빨리 찾아야 할 때(아이디 → 개수, 핸들 → 상태) 쓴다. 문자열 열쇠는 [`strmap`](sec71.md#mod-strmap), 원소 타입과 얼로케이터를 고르는 컨테이너는 [`mapgen`](sec106.md#mod-mapgen) 이다(34장).
 
 ```lowent
 let stored bool be hashmap.put b 7 42 .

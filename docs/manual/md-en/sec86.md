@@ -1,44 +1,41 @@
-# <a id="mod-rsa"></a>`rsa` — RSASSA-PSS verification
+# <a id="mod-bigint"></a>`bigint` — big-number modular arithmetic
 
 Source
 
-`lib/rsa.low`
+`lib/bigint.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-Answers whether an RSA-PSS signature from a peer matches the public key and message (RFC 8017 §8.1.2). TLS 1.3′s `rsa_pss_rsae_sha256` is this.
+**Modular multiplication and exponentiation** for numbers that do not fit in one `u64` — such as RSA’s 2048-bit numbers.
 
 > **What it promises and what it does not**
 >
-> > It does not promise constant time and has not been audited. It does **PSS only** — PKCS#1 v1.5 is not built, because RFC 8446 §4.4.3 forbids it in CertificateVerify. There is no SHA-1 family, key generation or decryption (RSA encryption). Signing is not built either — a TLS 1.3 server may need it someday, but what came first is [`p256`](sec87.md#mod-p256), with smaller keys and signatures.
+> > It does not promise constant time and has not been audited. **Only what is needed was built** — what RSA verification (`s^e mod n`) and curve arithmetic require. There is no big-number division, no negatives, no GCD, no inverse. The exponent `e` is **one `u64`** — narrowed to hold RSA’s public exponent (usually 65537). What was not built cannot be wrong.
 
-The old PKCS#1 v1.5 had deterministic padding and shallow structure, and attracted several attacks. PSS mixes in a salt and covers it with a mask. PSS verification has three pieces.
+**Representation — the limb width is set by accumulation.** Numbers are **16-bit limbs** held in `u64`, laid out little-endian. A product is 16×16 = 32 bits, and adding 128 of them stays at 2^39, safe inside `u64`. With 32-bit limbs the product reaches 2^64 and accumulation overflows. “The register is 64 bits, so limbs are 64 bits” looks natural but is wrong — the limb width is set not by the product but by accumulation.
 
-```text
-① s^e mod n  →  EM (encoded message, emLen = key length)
-② make a mask with MGF1(SHA-256) and strip DB
-③ does H' = SHA-256(0x00×8 ‖ mHash ‖ salt) equal H inside EM
-```
-
-① is `mod_exp` of [`bigint`](sec85.md#mod-bigint), and ② and ③ are this module’s job. The eight `0x00×8` bytes are not decoration — they are a prefix the standard added to separate signed content from certificate signatures. Leaving them out lets signatures from another context be reused.
-
-| **op** | **What it does** | **Requires** |
+| **op** | **What it does** | **Requires · notes** |
 |---|---|---|
-| `mgf1` | The MGF1-SHA256 mask generation function | `out ≥ n` · `w` is backing |
-| `pss_verify` | Given EM, is the PSS encoding right | only ② and ③ |
-| `verify_pss` | signature · modulus · exponent · hash → 0 or 1 | all of ①②③ |
+| `zero` | Zeroes the first `k` limbs of `a` | `a ≥ k` |
+| `from_bytes` · `to_bytes` | **Big-endian** bytes ↔ limbs | RSA’s encoding |
+| `from_bytes_le` · `to_bytes_le` | **Little-endian** bytes ↔ limbs | curve convention |
+| `ge_mod` | Is `a ≥ n` (0 · 1) | compares `k` limbs |
+| `dbl_mod` | `a ← 2a mod n` | used to make `R²` |
+| `mont_mul` | `out ← a·b·R⁻¹ mod n` (CIOS) | `t` is workspace |
+| `n0inv16` | `−n⁻¹ mod 2^16` — the Montgomery constant | takes only the lowest limb of `n` |
+| `mod_exp` | `out ← bse^e mod n` | `e` is `u64` · `r2`, `acc`, `tmp`, `t` are workspace |
 
-*Table 50.1 — Ops of `rsa`*
+*Table 50.1 — Ops of `bigint`*
 
-Usually only `verify_pss` is used. `pss_verify` is exposed separately to test ① apart from ② and ③.
+**Why Montgomery — to avoid building division.** In the usual modular product `a·b mod n`, the `mod` is big-number division. Montgomery multiplication yields `a·b·R⁻¹ mod n` instead, and with `R = 2^(16k)` the division becomes a **shift**. The price is moving values into and out of the Montgomery domain and needing `R² mod n`, which is also obtained without division — doubling 1 `2·16k` times (`dbl_mod`) and subtracting `n` whenever it overflows. The whole design of this module is that one line: **the product was changed so that division need not be built.**
 
-**What is checked** — standard PSS test vectors (positive), two negatives (one bit of signature · one bit of hash), MGF1 against a reference implementation, and VM/native agreement. There are two negatives because changing the signature and changing the message are different failures — checking only one cannot filter out an implementation that lets the other pass.
+**What is checked** — byte comparison with Python integer arithmetic, RSA-PSS verification passing end to end ([`rsa`](sec87.md#mod-rsa)), VM/native agreement. **Not built** — constant time, big-number division, negatives, GCD, modular inverse (the curve side’s inverse is Fermat exponentiation in [`p256`](sec88.md#mod-p256)), very large `e`.
 
 ---
 

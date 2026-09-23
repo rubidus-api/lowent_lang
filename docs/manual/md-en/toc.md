@@ -339,8 +339,10 @@ Searches headings and index terms --- not the full text
 - [30.3 Interrupt handlers](ch30.md#s30-3)
 - [30.4 What a machine supports — build tier](ch30.md#s30-4)
 - [30.5 Machine instructions — asm](ch30.md#s30-5)
-- [30.6 Common mistakes](ch30.md#s30-6)
-- [30.7 This chapter’s syntax at a glance](ch30.md#s30-7)
+- [30.6 The absorbing boundary — where unsafe stops](ch30.md#s30-6)
+- [30.7 Using what the machine has — --hw](ch30.md#s30-7)
+- [30.8 Common mistakes](ch30.md#s30-8)
+- [30.9 This chapter’s syntax at a glance](ch30.md#s30-9)
 
 [31 Building and testing — packages, configuration, tests, cross-checks](ch31.md)
 
@@ -683,69 +685,71 @@ Searches headings and index terms --- not the full text
 
 [gcm — AES-128-GCM authenticated encryption](sec84.md)
 
-[bigint — big-number modular arithmetic](sec85.md)
+[crypto_hw — arithmetic the machine helps with](sec85.md)
 
-[rsa — RSASSA-PSS verification](sec86.md)
+[bigint — big-number modular arithmetic](sec86.md)
 
-[p256 — the NIST P-256 curve and ECDSA verification](sec87.md)
+[rsa — RSASSA-PSS verification](sec87.md)
 
-[ecdsa — ECDSA P-256 signing](sec88.md)
+[p256 — the NIST P-256 curve and ECDSA verification](sec88.md)
 
-[ed25519 — Ed25519 signature verification](sec89.md)
+[ecdsa — ECDSA P-256 signing](sec89.md)
 
-[der — minimal DER parser](sec90.md)
+[ed25519 — Ed25519 signature verification](sec90.md)
 
-[pem — unwrapping PEM envelopes](sec91.md)
+[der — minimal DER parser](sec91.md)
 
-[tls13 — the computational parts of TLS 1.3](sec92.md)
+[pem — unwrapping PEM envelopes](sec92.md)
 
-[tlssrv — the TLS 1.3 server handshake](sec93.md)
+[tls13 — the computational parts of TLS 1.3](sec93.md)
 
-[http — HTTP/1.1 request parser](sec94.md)
+[tlssrv — the TLS 1.3 server handshake](sec94.md)
 
-[soa — an SoA layout trial: one array per field](sec95.md)
+[http — HTTP/1.1 request parser](sec95.md)
 
-[allocs — allocator traits, bumps and default allocators](sec96.md)
+[soa — an SoA layout trial: one array per field](sec96.md)
 
-[pool — generational-handle block pool](sec97.md)
+[allocs — allocator traits, bumps and default allocators](sec97.md)
 
-[shard — access units that split a store](sec98.md)
+[pool — generational-handle block pool](sec98.md)
 
-[budget — handle bit budgets and generation wraparound](sec99.md)
+[shard — access units that split a store](sec99.md)
 
-[wire — dividing one word into fields](sec100.md)
+[budget — handle bit budgets and generation wraparound](sec100.md)
 
-[flags — named on/off settings in one word](sec101.md)
+[wire — dividing one word into fields](sec101.md)
 
-[segarena — fixed-size segment arena](sec102.md)
+[flags — named on/off settings in one word](sec102.md)
 
-[pagecache — page ids and pinning cursors](sec103.md)
+[segarena — fixed-size segment arena](sec103.md)
 
-[growvec — self-growing byte vector](sec104.md)
+[pagecache — page ids and pinning cursors](sec104.md)
 
-[vecgen — generic self-growing vector vec t a](sec105.md)
+[growvec — self-growing byte vector](sec105.md)
 
-[mapgen — generic hash map table k v](sec106.md)
+[vecgen — generic self-growing vector vec t a](sec106.md)
 
-[nodelist — fixed intrusive lists](sec107.md)
+[mapgen — generic hash map table k v](sec107.md)
 
-[segview — cursors, total length and coalescing for segment views](sec108.md)
+[nodelist — fixed intrusive lists](sec108.md)
 
-[lifemode · lifeatom — when a value ends](sec109.md)
+[segview — cursors, total length and coalescing for segment views](sec109.md)
 
-[io — stream reading over slices](sec110.md)
+[lifemode · lifeatom — when a value ends](sec110.md)
 
-[outbuf — buffered output where forgetting to flush is a compile error](sec111.md)
+[io — stream reading over slices](sec111.md)
 
-[files — file and directory streams where forgetting to close is a compile error](sec112.md)
+[outbuf — buffered output where forgetting to flush is a compile error](sec112.md)
 
-[tty — terminal input](sec113.md)
+[files — file and directory streams where forgetting to close is a compile error](sec113.md)
 
-[net — sockets (TCP loopback · in-process pairs)](sec114.md)
+[tty — terminal input](sec114.md)
 
-[clock — time and deadlines](sec115.md)
+[net — sockets (TCP loopback · in-process pairs)](sec115.md)
 
-[Index](sec116.md)
+[clock — time and deadlines](sec116.md)
+
+[Index](sec117.md)
 
 ---
 

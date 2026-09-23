@@ -1,41 +1,41 @@
-# <a id="mod-bigint"></a>`bigint` — big-number modular arithmetic
+# `crypto_hw` — arithmetic the machine helps with
 
 Source
 
-`lib/bigint.low`
+`lib/crypto_hw.low`
 
 Layer
 
-L0 — pure computation (the caller’s backing)
+L0 — pure computation (the caller’s scratch)
 
 Capabilities
 
 none
 
-**Modular multiplication and exponentiation** for numbers that do not fit in one `u64` — such as RSA’s 2048-bit numbers.
+The parts of cryptographic arithmetic **the CPU has an instruction for**. Today that is one thing: multiplication in GF(2^128) — what GCM’s GHASH stands on, and what CRC is too.
 
-> **What it promises and what it does not**
+> **There is no `unsafe` in this module**
 >
-> > It does not promise constant time and has not been audited. **Only what is needed was built** — what RSA verification (`s^e mod n`) and curve arithmetic require. There is no big-number division, no negatives, no GCD, no inverse. The exponent `e` is **one `u64`** — narrowed to hold RSA’s public exponent (usually 65537). What was not built cannot be wrong.
+> > The **processor** emits the instruction; this source uses ordinary words (`clmul_lo`, `clmul_hi`). So nothing travels: callers stay `effects none`. Writing assembly directly would carry `unsafe` all the way up to TLS (see «The absorbing boundary» in the chapter 30 chapter).
 
-**Representation — the limb width is set by accumulation.** Numbers are **16-bit limbs** held in `u64`, laid out little-endian. A product is 16×16 = 32 bits, and adding 128 of them stays at 2^39, safe inside `u64`. With 32-bit limbs the product reaches 2^64 and accumulation overflows. “The register is 64 bits, so limbs are 64 bits” looks natural but is wrong — the limb width is set not by the product but by accumulation.
-
-| **op** | **What it does** | **Requires · notes** |
+| **op** | **what it does** | **requires** |
 |---|---|---|
-| `zero` | Zeroes the first `k` limbs of `a` | `a ≥ k` |
-| `from_bytes` · `to_bytes` | **Big-endian** bytes ↔ limbs | RSA’s encoding |
-| `from_bytes_le` · `to_bytes_le` | **Little-endian** bytes ↔ limbs | curve convention |
-| `ge_mod` | Is `a ≥ n` (0 · 1) | compares `k` limbs |
-| `dbl_mod` | `a ← 2a mod n` | used to make `R²` |
-| `mont_mul` | `out ← a·b·R⁻¹ mod n` (CIOS) | `t` is workspace |
-| `n0inv16` | `−n⁻¹ mod 2^16` — the Montgomery constant | takes only the lowest limb of `n` |
-| `mod_exp` | `out ← bse^e mod n` | `e` is `u64` · `r2`, `acc`, `tmp`, `t` are workspace |
+| `clmul128` | one carry-less product — 128 bits as two words | `out ≥ 2` |
+| `gf128_mul` | GF(2^128) product — GCM’s reflected order, Karatsuba (three multiplies) | `out`, `x`, `h` each `≥ 2` |
 
-*Table 50.1 — Ops of `bigint`*
+*Table 50.1 — ops of `crypto_hw`*
 
-**Why Montgomery — to avoid building division.** In the usual modular product `a·b mod n`, the `mod` is big-number division. Montgomery multiplication yields `a·b·R⁻¹ mod n` instead, and with `R = 2^(16k)` the division becomes a **shift**. The price is moving values into and out of the Montgomery domain and needing `R² mod n`, which is also obtained without division — doubling 1 `2·16k` times (`dbl_mod`) and subtracting `n` whenever it overflows. The whole design of this module is that one line: **the product was changed so that division need not be built.**
+**What carry-less multiplication is.** Multiplication with no carries — addition is xor. Every output bit is a combination of input bits, which is why cryptography and checksums are built on it. The answer is 128 bits and this language has no 128-bit type, so it comes back as **two words** (low, high).
 
-**What is checked** — byte comparison with Python integer arithmetic, RSA-PSS verification passing end to end ([`rsa`](sec86.md#mod-rsa)), VM/native agreement. **Not built** — constant time, big-number division, negatives, GCD, modular inverse (the curve side’s inverse is Fermat exponentiation in [`p256`](sec87.md#mod-p256)), very large `e`.
+**The build decides the speed.** Compiled with `lowentc --hw auto`, it uses the instruction where the machine has one and the plain computation where it does not. With `--hw none` (the default) it is always the computation. **The answer is the same either way** — only speed and timing behaviour differ.
+
+**Measured.** The leaf `ghash` went 66 → 594 MB/s and AES-128-GCM as a whole 26.3 → 303.7 MB/s (4 MiB, gcc -O2, best of three). Those numbers need the AES instructions turned on too (`--hw aes`): with only one of the two, the bottleneck just moves.
+
+**What is checked** — the golden suite compares this module’s `gf128_mul` against the processor’s own leaf `ghash`: the same product computed in two different places, each the other’s witness. It also compares the instruction path, the computed path and the VM on the same inputs.
+
+> **Constant time is not promised**
+>
+> > The instruction path reads no tables, so its timing behaviour is better. Even so, this repository’s cryptography promises no constant time and has not been audited — other places remain. Saying so is how that promise stays honest.
 
 ---
 

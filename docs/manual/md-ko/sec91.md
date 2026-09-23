@@ -1,8 +1,8 @@
-# <a id="mod-tls13"></a>`tls13` — TLS 1.3 의 계산 부품
+# <a id="mod-pem"></a>`pem` — PEM 봉투 벗기기
 
 소스
 
-`lib/tls13.low`
+`lib/pem.low`
 
 층
 
@@ -12,50 +12,32 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 없음
 
-TLS 1.3 이 요구하는 순수 계산 넷이다(RFC 8446) — **키 스케줄**(공유 비밀과 전사 해시에서 트래픽 키를 유도, §7.1), **레코드 계층**(레코드를 봉하고 연다, §5), **전사 해시**(지금까지 오간 메시지 전부의 해시, §4.4.1), **Finished**(핸드셰이크가 중간에 바뀌지 않았음을 증명, §4.4.4). 전부 순수해서 전송 없이 지을 수 있고 시험 벡터로 잴 수 있다 — 파서를 먼저, 전송을 나중에.
+`-----BEGIN CERTIFICATE-----` 와 `-----END CERTIFICATE-----` 사이의 접힌 base64 에서 **가운데 바이트(DER)** 를 꺼낸다(RFC 7468). 키 파일도 같은 모양이고 라벨만 다르다. [`codec`](sec64.md#mod-codec) 은 base64 를 알지만 줄 접기는 모른다 — 이 모듈이 머리말을 벗기고 접힘을 펴서 넘긴다. 인증서는 밖에서 받는다(certbot 같은 도구가 파일로 놓아 준다). ACME 는 짓지 않는다.
 
-> **이것은 TLS 구현이 아니다**
+> **무엇을 약속하고 무엇을 하지 않나**
 >
-> > 상태 기계가 없다 — 핸드셰이크를 구동하지 않는다(메시지 층과 순서는 [`tlssrv`](sec92.md#mod-tlssrv) 가 한다). 전송이 없다. PSK · 0-RTT · exporter · resumption 비밀이 없고 1-RTT 한 갈래만 지었다. PKI 가 없다([`der`](sec89.md#mod-der)). 상수 시간을 약속하지 않고 감사받지 않았다. 스위트는 둘뿐이고 모르는 스위트는 거절한다.
-
-```text
-0 ─HKDF-Extract(PSK)→ Early Secret ─Derive-Secret("derived","")→ ┐
-ECDHE ─HKDF-Extract────────────────→ Handshake Secret ←──────────┘
-  ├─ Derive-Secret("c hs traffic", CH..SH)
-  └─ Derive-Secret("s hs traffic", CH..SH)
-─Derive-Secret("derived","")→ ┐
-0 ─HKDF-Extract──────────────→ Master Secret
-  ├─ Derive-Secret("c ap traffic", CH..server Finished)
-  └─ Derive-Secret("s ap traffic", CH..server Finished)
-```
-
-각 비밀에서 레코드 키가 나온다 — `key = Expand-Label(비밀, "key", "", 길이)`, `iv = Expand-Label(비밀, "iv", "", 12)`.
+> > **암호화된 PEM 을 열지 못한다**(`Proc-Type: 4,ENCRYPTED`). **첫 번째 것만** 낸다 — 한 파일에 여러 개(인증서 체인)가 있으면 뒤엣것은 부르는 쪽이 다시 부른다. URL-safe base64 는 없다. **파서이지 신뢰 판단이 아니다** — 검증은 하지 않는다.
 
 | **op** | **하는 일** |
 |---|---|
-| `build_label` · `expand_label` | HkdfLabel 구조체를 바이트로 · `HKDF-Expand-Label` |
-| `derive_secret` | `Derive-Secret(비밀, 라벨, 전사 해시)` |
-| `advance` | 사다리 한 칸 — 위 그림의 화살표 하나 |
-| `traffic_key` · `traffic_iv` | 비밀 → 레코드 키 · IV |
-| `finished_key` · `verify_data` | Finished 의 키와 값 |
-| `record_header` · `record_nonce` | 5 바이트 헤더 `23 ‖ 0x0303 ‖ 길이` · IV 와 시퀀스 번호 → 논스 |
-| `record_seal` · `record_open` | 레코드 봉하기 · 열기 |
-| `inner_type` | 속 평문의 **끝**에서 진짜 내용 타입을 읽는다 |
-| `transcript` | 이어 붙인 메시지 버퍼의 해시 |
-| `hs_type` · `hs_size` · `hs_count` | 핸드셰이크 메시지 걷기 |
-| `check_finished` | 상대의 Finished 를 다시 계산해 맞춰 본다 |
+| `find_from` | `hay` 안에서 `needle` 찾기(없으면 `len hay`) |
+| `body_off` | `-----BEGIN <라벨>-----` **다음 줄**의 자리. 0 = 없음 |
+| `end_off` | `-----END <라벨>-----` 의 자리. 0 = 없음 |
+| `unwrap` | PEM 한 덩이 → DER 바이트. `option u64`(쓴 바이트 수), 실패는 `none` |
 
-*표 50.1 — `tls13` 의 op*
+*표 50.1 — `pem` 의 op*
 
-**레코드는 겉과 속이 다르다.** 겉은 언제나 `23 ‖ 0x0303 ‖ 길이` 다 — 내용이 핸드셰이크든 응용 데이터든 똑같이 보인다. 진짜 내용 타입은 속 평문의 끝에 있다. 관찰자에게 감추려고 그렇게 짰다. AAD 는 그 5 바이트 헤더 자체다.
+`unwrap src label scratch out` 의 `scratch` 는 두 몫을 진다 — 머리말 조립(앞)과 펴 놓은 base64(뒤). `len scratch ≥ len src + 라벨 길이 + 16` 이면 넉넉하다.
 
-**스위트가 둘이라 협상이 뜻을 갖는다.** 스위트 1 = `TLS_AES_128_GCM_SHA256`(MUST, [`gcm`](sec83.md#mod-gcm)), 스위트 2 = `TLS_CHACHA20_POLY1305_SHA256`(SHOULD, [`aead`](sec80.md#mod-aead)). 하나만 지었을 때 이 자리는 죽은 분기였다. 모르는 스위트는 거절한다 — 조용히 하나를 고르지 않는다.
+**라벨을 요구하는 이유.** `unwrap` 은 무엇을 여는지 이름으로 받고, BEGIN 과 END 의 라벨이 다르면 거절한다. 한 파일에 여러 개가 들어 있는 것이 정상이다. 짝을 맞추지 않으면 `CERTIFICATE` 를 열려다 다음 것의 BEGIN 까지 삼켜 쓰레기를 디코드한다 — 그리고 base64 는 쓰레기도 조용히 받아들인다.
 
-**전사 해시가 핸드셰이크의 뼈대다.** 키도 Finished 도 “지금까지 오간 메시지 전부” 의 해시 위에 서므로 중간자가 한 바이트라도 바꾸면 양쪽 키가 갈린다. **전사를 어디서 자르는지가 규격의 절반이다** — RFC 8448 이 각 Derive-Secret 의 해시로 그 자리를 적어 두었고, 시험이 세 자리(`CH…SH`, `CH…서버 Finished`, `CH…클라이언트 Finished`)를 전부 맞댄다. SHA-256 이 한 번에 하는 방식(스트리밍 없음)이라 전사는 **호출자가 이어 붙인 버퍼** 위에서 잰다. 메시지 걷기는 길이 필드를 믿지 않는다 — 버퍼를 넘는 길이가 적혀 있으면 거기서 멈춘다. `check_finished` 의 비교는 32 바이트를 XOR 로 누적해 마지막에 한 번 본다(조기 반환 없음).
+**줄 끝은 LF 도 CRLF 도 받는다 — [`http`](sec94.md#mod-http) 와 반대다.** 그쪽은 경계가 곧 보안이라 맨 LF 를 거절한다(요청 밀반입). 여기는 파일 형식이고 실제 파일이 둘 다 쓴다. 엄격함은 미덕이 아니라 도구다 — 무엇을 막는지에 따라 세기가 달라진다.
 
-**작업 공간을 둘로 묶는 이유.** 파라미터 상한이 16 이라 스위트마다 버퍼를 늘어놓으면 금방 넘는다. 그래서 바이트 `w` 와 `u64` `u` 둘로 묶고 자리를 소스 주석에 적어 나눠 쓴다. 예쁘지 않다 — 언어의 상한이 만든 모양이고, 그 사실을 감추지 않는 편이 낫다.
+**왜 `decode` 가 아니라 `unwrap` 인가.** `utf8.decode` 가 이미 있고, 이름이 겹치면 한정해 불러도 처리기가 다른 모듈의 시그니처로 타입을 재는 알려진 결함이 있다. 두 모듈을 함께 쓰는 시험이 그 조합이 깨지는 것을 잡았다. 라이브러리는 혼자 초록인 것으로 충분하지 않다 — 조합되어야 쓸 수 있다.
 
-**확인하는 것 — 두 겹이다.** 파이썬 `hashlib` · `hmac` 로 §7.1 을 독립 구현해 바이트 대조하고, RFC 8448 §3 의 값들을 정본에서 기계로 뽑아 96 자리를 맞댄다. **그리고 정본이 결함을 하나 잡았다.** `traffic_key` 가 키 길이를 32 로 박아 두었는데, 그 길이는 HkdfLabel 안에 들어가므로 AES-128-GCM(16)을 쓰는 상대와는 키가 통째로 달라진다. 두 번째 구현으로는 잡히지 않았다 — 같은 사람이 같이 32 를 썼기 때문이다. 두 번째 구현은 정본이 아니다.
+PEM → DER → PKCS#8 → 32 바이트 스칼라로 가는 길은 [`der`](sec90.md#mod-der) 와 함께다 — `pem.unwrap src "PRIVATE KEY" sc buf` 로 DER 을 얻고, `der.p8_inner_off` 와 `der.ec_priv_off` 로 스칼라의 자리를 찾는다.
+
+**확인하는 것** — openssl 이 낸 산물과의 대조(인증서 DER 375 바이트가 같고, PKCS#8 안의 스칼라가 자리 36 · 길이 32), 라벨 불일치와 봉투 없음의 거절, VM·네이티브 일치. 시험 벡터의 스칼라는 합성값 `01 02 … 20` 이다 — 구조는 openssl 이 낸 그대로이므로 파서를 재는 힘은 같고, 명백히 비밀이 아니다.
 
 ---
 

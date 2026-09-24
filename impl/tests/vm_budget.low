@@ -21,7 +21,7 @@ proc defaults output u64 . effects none . do
   guard eq (add (add 32 8) 24) 64 . else return 97 .
   guard eq (add (add 16 4) 12) 32 . else return 98 .
   return 1 .
-end .
+end
 
 rem ★★ **넣고 되꺼내면 그대로 나온다** — 64 비트 배분에서.
 proc roundtrip output u64 . effects none . do
@@ -32,7 +32,7 @@ proc roundtrip output u64 . effects none . do
   guard eq (budget.shard_of 32 8 h) 200 . else return 92 .
   guard eq (budget.gen_of 32 8 h) 99 . else return 93 .
   return 2 .
-end .
+end
 
 rem ★★ 32 비트 배분에서도 같다.
 proc roundtrip32 output u64 . effects none . do
@@ -46,7 +46,7 @@ proc roundtrip32 output u64 . effects none . do
   let over option u64 . be budget.pack 16 4 12 65536 0 0 .
   guard eq (is_some over) false . else return 94 .
   return 3 .
-end .
+end
 
 rem ★★★ **세대가 한 바퀴 돌면 그 칸은 은퇴한다** — 조용한 부활이 없다는 것이 요점이다.
 proc wrap_retires output u64 . effects none . do
@@ -63,7 +63,7 @@ proc wrap_retires output u64 . effects none . do
   let n2 option u64 . be budget.next_gen 4 15 .
   guard eq (is_some n2) false . else return 95 .
   return 4 .
-end .
+end
 
 rem 담을 수 있는 수 — 비용표의 그 수다.
 proc capacities output u64 . effects none . do
@@ -78,8 +78,8 @@ proc capacities output u64 . effects none . do
   guard eq (some_value h) 256 . else return 95 .
   guard eq (some_value g) 16777216 . else return 96 .
   rem ★ 셀 수 없는 폭은 **값으로** 거절된다 — 조용히 음수를 내지 않는다.
-  let wide budget.plan be make budget.plan do slot_bits 63 . shard_bits 0 . gen_bits 0 . end .
+  let wide budget.plan be make budget.plan do slot_bits 63 . shard_bits 0 . gen_bits 0 . end
   let w option u64 . be budget.slots wide .
   guard eq (is_some w) false . else return 97 .
   return 5 .
-end .
+end

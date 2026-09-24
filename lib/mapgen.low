@@ -36,7 +36,7 @@ export struct table do
   vals mut slice u8 . .    rem 값 배열의 바이트
   flags mut slice u8 . .   rem 0 빈칸 · 1 참 · 2 무덤
   n u64 .                  rem 담긴 쌍의 수
-end .
+end
 
 rem 섞는다. 암호용이 아니라 **분포용**이다 — 이웃한 키가 이웃한 칸으로 몰리지 않게 한다.
 fn mix input x u64 . output u64 . do
@@ -45,25 +45,25 @@ fn mix input x u64 . output u64 . do
   set h (bit_xor h (shr h 29)) .
   set h (wrap_mul h 14181476777654086739) .
   return bit_xor h (shr h 32) .
-end .
+end
 
 rem 슬롯 수 = flags 의 길이. **2의 거듭제곱**이라 `mod` 대신 마스크를 쓴다.
 export proc slots_of input comptime k type . input comptime v type . input m table k v . output u64 . effects none . do
   return len (field m flags) .
-end .
+end
 
 export fn count_of input comptime k type . input comptime v type . input m table k v . output u64 . do
   return (field m n) .
-end .
+end
 
 rem 2의 거듭제곱으로 올린다(최소 8) — 마스크 탐침이 성립하는 조건이다.
 fn pow2_up input n u64 . output u64 . do
   var p u64 be 8 .
   while lt p n . do
     set p (mul p 2) .
-  end .
+  end
   return p .
-end .
+end
 
 rem ★★ **상태 배열은 우리가 0 으로 깐다** (2026-09-04 보안 검토). `byte_allocator` 는 0 을 약속하지
 rem   않는다 — 다시 `init` 한 범프 · 정적 버퍼 · 스택은 옛 바이트를 그대로 준다. 그 위에서는 빈 맵이
@@ -74,9 +74,9 @@ proc clear input f mut slice u8 . . output u64 . effects none . do
   while lt i (len f) . do
     set (index f i) 0 .
     set i (add i 1) .
-  end .
+  end
   return i .
-end .
+end
 
 rem ★ 빈 맵을 연다. `want` 는 **담을 쌍의 수**다 — 슬롯은 그 두 배 이상(부하율 ≤ 0.5)으로 잡는다.
 rem   부하율을 낮게 잡는 이유: 선형 탐침은 꽉 찰수록 **군집**이 생겨 비용이 급히 오른다.
@@ -104,7 +104,7 @@ export proc open input comptime k type . input comptime v type . using al allocs
     flags f0 .
     n 0 .
   end) .
-end .
+end
 
 rem ★ 키가 있는 칸을 찾는다. 있으면 그 자리, 없으면 **넣을 수 있는 첫 자리**를 준다.
 rem   반환 = 자리 * 2 + (있으면 1) — 한 값에 둘을 담는다(튜플이 없다).
@@ -120,20 +120,20 @@ proc probe input comptime k type . input comptime v type . input m table k v . i
   while lt steps (len fc) . do
     let f u8 be index fc i .
     if eq f 0 . do
-      if eq first (len fc) . do set first i . end .
+      if eq first (len fc) . do set first i . end
       return mul first 2 .
-    end .
+    end
     if eq f 1 . do
-      if eq (index kcells i) key . do return add (mul i 2) 1 . end .
-    end .
+      if eq (index kcells i) key . do return add (mul i 2) 1 . end
+    end
     if eq f 2 . do
-      if eq first (len fc) . do set first i . end .
-    end .
+      if eq first (len fc) . do set first i . end
+    end
     set i (bit_and (add i 1) mask) .
     set steps (add steps 1) .
-  end .
+  end
   return mul first 2 .
-end .
+end
 
 rem ★ 값을 찾는다. 없으면 none — **값으로 답한다**.
 export proc lookup input comptime k type . input comptime v type . input m table k v . input key k . output option v . effects none . do
@@ -142,11 +142,11 @@ export proc lookup input comptime k type . input comptime v type . input m table
   var vc mut slice u8 . be (field m vals) .
   var vcells mut slice v . be view_array v vc .
   return some (index vcells (div p 2)) .
-end .
+end
 
 export proc has input comptime k type . input comptime v type . input m table k v . input key k . output bool . effects none . do
   return eq (mod (probe k v m key) 2) 1 .
-end .
+end
 
 rem 지금 저장소에 그대로 다시 뿌린다(같은 크기의 새 자리로). 자리를 못 받으면 false.
 proc regrow input comptime k type . input comptime v type . input m mut table k v . output bool . effects state . do
@@ -185,25 +185,25 @@ proc regrow input comptime k type . input comptime v type . input m mut table k 
           set (index nvc j) (index ovc i) .
           set (index nf j) 1 .
           set placing false .
-        end .
-        if placing . do set j (bit_and (add j 1) mask) . end .
+        end
+        if placing . do set j (bit_and (add j 1) mask) . end
         set tries (add tries 1) .
-      end .
-    end .
+      end
+    end
     set i (add i 1) .
-  end .
+  end
   set (field m keys) nk .
   set (field m vals) nv .
   set (field m flags) nf .
   return true .
-end .
+end
 
 rem ★ 넣는다(있으면 덮어쓴다). 부하율이 절반을 넘으면 **먼저** 다시 뿌린다.
 rem   자리를 못 받으면 false — 트랩이 아니라 값이다.
 export proc insert input comptime k type . input comptime v type . input m mut table k v . input key k . input val v . output bool . effects state . do
   if ge (mul (add (field m n) 1) 2) (len (field m flags)) . do
     guard regrow k v m . else return false .
-  end .
+  end
   let p u64 be probe k v m key .
   let at u64 be div p 2 .
   guard lt at (len (field m flags)) . else return false .
@@ -217,9 +217,9 @@ export proc insert input comptime k type . input comptime v type . input m mut t
   if ne (index fc at) 1 . do
     set (index fc at) 1 .
     set (field m n) (add (field m n) 1) .
-  end .
+  end
   return true .
-end .
+end
 
 rem ★ 지운다. 있었으면 true. **무덤(2)을 남긴다** — 0 으로 되돌리면 그 자리를 지나 놓인 키를
 rem   영영 못 찾는다(선형 탐침의 사슬이 끊긴다).
@@ -230,7 +230,7 @@ export proc erase input comptime k type . input comptime v type . input m mut ta
   set (index fc (div p 2)) 2 .
   set (field m n) (sub (field m n) 1) .
   return true .
-end .
+end
 
 rem ── 순회 (2026-07-26) ──
 rem
@@ -250,11 +250,11 @@ export proc next_used input comptime k type . input comptime v type . input m ta
   var fc mut slice u8 . be (field m flags) .
   var i u64 be from .
   while lt i (len fc) . do
-    if eq (index fc i) 1 . do return some i . end .
+    if eq (index fc i) 1 . do return some i . end
     set i (add i 1) .
-  end .
+  end
   return none .
-end .
+end
 
 rem ★ 그 자리의 키 · 값. 찬 자리가 아니면 none — **자리 번호를 믿지 않는다**.
 export proc key_at input comptime k type . input comptime v type . input m table k v . input at u64 . output option k . effects none . do
@@ -264,7 +264,7 @@ export proc key_at input comptime k type . input comptime v type . input m table
   var kc mut slice u8 . be (field m keys) .
   var kcells mut slice k . be view_array k kc .
   return some (index kcells at) .
-end .
+end
 
 export proc val_at input comptime k type . input comptime v type . input m table k v . input at u64 . output option v . effects none . do
   var fc mut slice u8 . be (field m flags) .
@@ -273,4 +273,4 @@ export proc val_at input comptime k type . input comptime v type . input m table
   var vc mut slice u8 . be (field m vals) .
   var vcells mut slice v . be view_array v vc .
   return some (index vcells at) .
-end .
+end

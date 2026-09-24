@@ -90,13 +90,13 @@ its own promise" 라고 말한다. 프로그램이 멈췄을 때 "내가 잘못 
 fn bare input a u8 . output u8 .
 do
   return add a 1 .          rem 넘침 검사가 남는다
-end .
+end
 
 fn proven input a u8 . output u8 .
   requires le a 200 .
 do
   return add a 1 .          rem 검사가 없다 — 201 을 넘을 수 없다
-end .
+end
 ```
 
 두 op 은 본문이 같다. 다른 것은 계약 한 줄뿐이고, 그 한 줄이 실행 중 검사 하나를 없앤다. 검사가 사라진
@@ -254,7 +254,7 @@ op 이 스스로 처리하든(`errors`).
   [`ensures le ret 100 .`], [나갈 때의 약속 --- 이 op 의 책임], [`ret` 은 돌려주는 값 --- 부르는 쪽이 사실로 쓴다],
   [`errors too_big gt a 200 .`], [이 조건이면 이 오류를 낸다는 약속], [나가는 쪽의 계약 --- 오류도 약속한다],
   [`requires elem_le ds 9 .`], [모든 원소에 대한 조건], [계약은 식이라 반복문을 쓸 수 없다],
-  [`contract positive do … end .`], [계약에 이름을 준다], [같은 조건을 고칠 자리가 하나가 된다],
+  [`contract positive do … end`], [계약에 이름을 준다], [같은 조건을 고칠 자리가 하나가 된다],
   [`fn half satisfies positive . …`], [이름 붙은 계약을 갖춘다(머리 맨 앞)], [op 이 무엇인지 먼저 말한다],
   [`requires static …` · `debug` · `assume`], [계약의 등급], [언제 무엇으로 볼지 절마다 정한다 --- `assume` 은 사실이 아니다],
   [`build release_fast .`], [증명하지 못한 계약 검사를 없앤다], [속도를 고른 사실이 소스에 남는다],

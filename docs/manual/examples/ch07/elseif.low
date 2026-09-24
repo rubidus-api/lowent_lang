@@ -12,5 +12,5 @@ do
     return 1 .
   end else do
     return 2 .
-  end .
-end .
+  end
+end

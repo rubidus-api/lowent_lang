@@ -29,7 +29,9 @@ The parts of cryptographic arithmetic **the CPU has an instruction for**. Today 
 
 **The build decides the speed.** Compiled with `lowentc --hw auto`, it uses the instruction where the machine has one and the plain computation where it does not. With `--hw none` (the default) it is always the computation. **The answer is the same either way** — only speed and timing behaviour differ.
 
-**Measured.** The leaf `ghash` went 66 → 594 MB/s and AES-128-GCM as a whole 26.3 → 303.7 MB/s (4 MiB, gcc -O2, best of three). Those numbers need the AES instructions turned on too (`--hw aes`): with only one of the two, the bottleneck just moves.
+**Measured.** The leaf `ghash` went 82 → 6562 MB/s, the leaf `aes_ctr` 80 → 5475, and AES-128-GCM as a whole 41 → 2848 MB/s (4 MiB, gcc, best of each column across three alignment settings). Those numbers need the AES instructions turned on too (`--hw aes`): with only one of the two, the bottleneck just moves.
+
+**Carrying the instruction was not the end of it.** With the same instruction, the first version drew only half of what the machine could give. The other half was in **how it was used** — eight blocks at a time, one reduction per eight rather than per block, counters built in a register instead of through memory, and the reduction itself cut down to two multiplies. The leaf `aes_ctr` now runs at **the same speed** as OpenSSL on this box.
 
 **What is checked** — the golden suite compares this module’s `gf128_mul` against the processor’s own leaf `ghash`: the same product computed in two different places, each the other’s witness. It also compares the instruction path, the computed path and the VM on the same inputs.
 

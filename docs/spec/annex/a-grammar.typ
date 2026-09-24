@@ -46,23 +46,23 @@ newtype <이름> <타입> .
 
 struct <이름> do
   <칸이름> <타입> .
-end .
+end
 
 enum <이름> do
   <갈래이름> .
-end .
+end
 
 export fn <이름> input <이름> <타입> . output <타입> .
   requires <조건> .
   ensures <조건> .
 do
   <문장들>
-end .
+end
 
 proc <이름> input <이름> <타입> . output <타입> . effects <효과들> .
 do
   <문장들>
-end .")
+end")
   ]
   #sub("A.3", "문장")[
     #shape("문장", "let <이름> <타입> be <식> .

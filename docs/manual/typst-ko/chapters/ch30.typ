@@ -171,7 +171,7 @@ export proc add2 input a u64 . input b u64 . output u64 . effects none .
   requires ge a 0 .
 do
   return asm_add2 k a b .
-end .
+end
 ```
 
 - 이 op 을 부르는 쪽은 *아무것도 적지 않는다.* 그것이 흡수의 값이다.
@@ -200,7 +200,7 @@ absorbs: 1 op(s) stop `unsafe` here
 
 기계 명령을 *쓸지*는 짓는 사람이 정한다.
 
-#table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+#dtable(columns: 2, id: "hw-choice", caption: [`--hw` 가 고르는 것],
   [*고르는 것*], [*무엇이 일어나나*],
   [`--hw none`(기본)], [모든 셈을 평범한 코드로. 어느 기계에서나 선다],
   [`--hw pclmul,aes,sse2,avx2`], [그 명령이 *있다고 보고* 낸다. 없는 기계에서는 돌지 않는다],
@@ -261,7 +261,7 @@ absorbs: 1 op(s) stop `unsafe` here
   id: "hardware-glance",
   caption: [하드웨어의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`struct gpio do mmio 0x40020000 . moder u32 rw . … end .`], [장치의 레지스터 지도], [새 낱말 없이 구조체에 절 하나],
+  [`struct gpio do mmio 0x40020000 . moder u32 rw . … end`], [장치의 레지스터 지도], [새 낱말 없이 구조체에 절 하나],
   [`rw` · `ro` · `wo`], [닿는 법 --- 번역에서 강제], [어기면 `E-MMIO-PERM`],
   [`read_volatile g idr` · `write_volatile g moder 2`], [합치거나 지우지 않는 접근], [읽는 행위 자체가 일이다],
   [`input dev cap mmio .` + `effects device`], [장치 권한과 효과], [권한 없는 하드웨어 접근이 없다],

@@ -4,25 +4,25 @@ fn good .
 do
   var z u32 be add x y .
   return z .
-end .
+end
 
 fn bad_var .
   output u32 .
 do
   var i u32 be true .
   return i .
-end .
+end
 
 fn bad_return .
   input x u32 .
   output bool .
 do
   return x .
-end .
+end
 
 fn bad_arg .
   input p bool .
   output bool .
 do
   return good 1 2 .
-end .
+end

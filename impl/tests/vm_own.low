@@ -26,46 +26,46 @@ type conn u8 . .          rem 완결이 필요한 값 — 아래 `close` 가 그
 
 enum close_error do
   device_lost .
-end .
+end
 
 rem --- 자동 해제: 아무것도 안 해도 된다. 스코프 끝에서 조용히 풀린다.
 rem     이게 옳은 이유는 하나뿐이다: **해제는 실패하지 않는다.**
 fn automatic input a buffer . output u8 . do
     var h owned buffer be a .
     return 1 .
-end .
+end
 
 rem --- 명시적 해제
 fn released input a buffer . output u8 . do
     var h owned buffer be a .
     drop h .
     return 2 .
-end .
+end
 
 rem --- 이전: 값으로 받는 op 로 넘기면 책임이 넘어간다. 받은 쪽이 끝낸다.
 fn sink input h owned buffer . output u8 . do
     drop h .
     return 9 .
-end .
+end
 
 fn transferred input a buffer . output u8 . do
     var h owned buffer be a .
     return sink h .
-end .
+end
 
 rem --- 완결: 실패할 수 있는 마무리는 **명시적 호출**이고 result 를 돌려준다.
 rem     닫기가 실패했다는 사실을 부르는 쪽이 **받는다**. 자동 drop 이었다면 삼켰을 것이다.
 fn close input h owned conn . output result u8 close_error .
 errors device_lost eq h 0 .
 do
-    if eq h 0 . do return error device_lost . end .
+    if eq h 0 . do return error device_lost . end
     return ok h .
-end .
+end
 
 fn completed input a conn . output option u8 . do
     var h owned conn be a .
     return try (close h) else_none .
-end .
+end
 
 rem --- 빌림은 이동이 아니다: 빌려서 두 번 읽어도 소비는 여전히 정확히 한 번.
 fn peeked input a buffer . output u8 . do
@@ -75,4 +75,4 @@ fn peeked input a buffer . output u8 . do
     var y u8 be deref r .
     drop h .
     return expr x + y . .
-end .
+end

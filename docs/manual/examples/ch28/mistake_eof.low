@@ -21,8 +21,8 @@ do
     rem ko: ✘ 실패만 물었다 --- 파일 끝의 `ok none` 에서 `some_value` 가 멈춘다 /// en: ✘ only failure is checked --- `some_value` stops at the end-of-file `ok none`
     set total (add total (some_value (ok_value r))) .
     set i (add i 1) .
-  end .
+  end
   let c result void files.file_error be files.close fs h .
   drop c .
   return narrow u8 total .
-end .
+end

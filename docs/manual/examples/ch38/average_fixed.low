@@ -7,4 +7,4 @@ do
   let lo u32 be min a b .
   let hi u32 be max a b .
   return add lo (div (sub hi lo) 2) .
-end .
+end

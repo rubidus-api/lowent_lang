@@ -6,4 +6,4 @@ fn to_unsigned input x i32 . output u32 .
 do
   rem ko: C 라면 -1 이 4294967295 가 된다 --- Lowent 는 들어가지 않으면 멈춘다 /// en: in C, -1 would become 4294967295 --- Lowent stops when the value does not fit
   return cast u32 x .
-end .
+end

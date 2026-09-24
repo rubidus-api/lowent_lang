@@ -4,7 +4,7 @@ rem test
 
 enum parse_error do
   too_short .
-end .
+end
 
 fn first_two
   rem ko: lowdoc — 사람이 읽는 설명. 도구가 문서로 뽑는다 /// en: lowdoc is a description for people; tools extract it as documentation
@@ -17,20 +17,20 @@ fn first_two
 do
   guard ge (len data) 2 . else return error too_short .
   return ok (add (widen u64 (index data 0)) (widen u64 (index data 1))) .
-end .
+end
 
 fn first_two_ok output bool . do
   let r result u64 parse_error be first_two "AB" .
   return is_ok r .
-end .
+end
 
 fn first_two_short output bool . do
   let r result u64 parse_error be first_two "A" .
   return is_error r .
-end .
+end
 
 rem ko: test 블록이 시험 op 들을 부른다 — lowentc --test 가 돌린다 /// en: the test block calls the testing ops; lowentc --test runs it
 test first_two_cases do
   expect first_two_ok .
   expect first_two_short .
-end .
+end

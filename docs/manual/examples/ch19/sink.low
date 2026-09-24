@@ -7,10 +7,10 @@ fn consume input h owned buffer . output u8 .
 do
   drop h .
   return 0 .
-end .
+end
 
 fn use_once input v u8 . output u8 .
 do
   var h owned buffer be v .
   return consume h .
-end .
+end

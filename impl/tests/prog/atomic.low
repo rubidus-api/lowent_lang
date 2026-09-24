@@ -96,4 +96,4 @@ do
   guard eq (path_remove fs (strbuf.as_str bf pfin)) true . else return 24 .
   guard eq (path_remove fs (strbuf.as_str bd pdir)) true . else return 25 .
   return (narrow u8 (some_value nv)) .                       rem 5
-end .
+end

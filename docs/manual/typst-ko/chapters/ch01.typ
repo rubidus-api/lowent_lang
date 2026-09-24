@@ -45,7 +45,7 @@ proc main input out cap io . output u8 . effects io .
 
 - `module heads .` 는 이 파일의 이름표다. 모든 파일이 이 한 줄로 시작한다.
 - `rem` 으로 시작하는 줄은 사람에게 하는 말(주석)이다. 컴파일러는 읽지 않는다.
-- `fn area … do … end .` 는 넓이를 셈하는 op 이다. `input w u64 .` 는 "`w` 라는 이름으로 부호 없는 64 비트 정수를 받는다" 이고,
+- `fn area … do … end` 는 넓이를 셈하는 op 이다. `input w u64 .` 는 "`w` 라는 이름으로 부호 없는 64 비트 정수를 받는다" 이고,
   `output u64 .` 는 돌려줄 값의 타입이다. `requires le w 1000 .` 는 "`w` 는 1000 이하여야 한다" 는 약속이다. 곱이 넘치지 않게
   하려는 것이다.
 - `return mul w h .` 는 `w` 곱하기 `h` 를 돌려준다. 연산 이름이 앞에 오고 인자가 뒤에 온다. 문장은 떨어진 마침표로 끝난다.

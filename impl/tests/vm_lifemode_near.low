@@ -19,4 +19,4 @@ proc main input al cap allocator . output u8 . effects alloc . do
   guard is_some b . else return 3 .
   guard eq (some_value b) 1 . else return 4 .
   return 42 .
-end .
+end

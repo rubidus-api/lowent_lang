@@ -3,18 +3,18 @@ rem expect: E-TRAIT-EFFECT
 
 trait shape do
   checked_area input s self . output u64 . effects panic .
-end .
+end
 
 struct rect do
   satisfies shape .
   w u64 .
   h u64 .
-end .
+end
 
 proc rect.checked_area input s rect . output u64 . effects panic wait .
 do
   if eq (field s w) 0 . do
     panic "empty rect" .
-  end .
+  end
   return mul (field s w) (field s h) .
-end .
+end

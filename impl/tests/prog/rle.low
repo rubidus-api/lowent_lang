@@ -23,14 +23,14 @@ do
   while lt (add i n) (len src) . do
     if ne (index src (add i n)) (index src i) . do
       return n .
-    end .
+    end
     if ge n 255 . do
       return n .
-    end .
+    end
     set n expr n + 1 . .
-  end .
+  end
   return n .
-end .
+end
 
 rem ★ 인코딩. 출력 슬라이스에 (개수, 값) 쌍을 쓴다 — **슬라이스 원소 쓰기**.
 rem   ensures: 쓴 바이트 수는 짝수다… 는 구간으로 표현 못 하므로, 상한만 건다.
@@ -43,11 +43,11 @@ proc rle_encode input src bytes . input dst mut bytes . . output u64 . effects n
       set (index dst o) n .
       set (index dst (add o 1)) (index src i) .
       set o expr o + 2 . .
-    end .
+    end
     set i expr i + n . .
-  end .
+  end
   return o .
-end .
+end
 
 rem ★ 디코딩 — 왕복이 원본을 돌려주는가. 이것이 진짜 검증이다.
 proc rle_decode input src bytes . input dst mut bytes . . output u64 . effects none . do
@@ -61,10 +61,10 @@ proc rle_decode input src bytes . input dst mut bytes . . output u64 . effects n
       if lt o (len dst) . do
         set (index dst o) v .
         set o expr o + 1 . .
-      end .
+      end
       set k expr k + 1 . .
-    end .
+    end
     set i expr i + 2 . .
-  end .
+  end
   return o .
-end .
+end

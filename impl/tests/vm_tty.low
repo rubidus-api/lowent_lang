@@ -16,7 +16,7 @@ proc plain input buf mut slice u8 . . output u64 . effects none . do
   guard eq (tty.len_of (some_value p)) 1 . else return 3 .
   guard tty.is_char (tty.key_of (some_value p)) . else return 4 .
   return 42 .
-end .
+end
 
 rem 방향키 ESC [ A = 위쪽(1001), 세 바이트를 먹는다.
 proc arrow input buf mut slice u8 . . output u64 . effects none . do
@@ -31,7 +31,7 @@ proc arrow input buf mut slice u8 . . output u64 . effects none . do
   rem 특수키는 글자가 아니다 — 그 구별이 한 값에 들어 있다.
   guard eq (tty.is_char (tty.key_of (some_value p))) false . else return 4 .
   return 42 .
-end .
+end
 
 rem 숫자꼴 ESC [ 3 ~ = Delete(1007), 네 바이트.
 proc del_key input buf mut slice u8 . . output u64 . effects none . do
@@ -45,7 +45,7 @@ proc del_key input buf mut slice u8 . . output u64 . effects none . do
   guard eq (tty.key_of (some_value p)) 1007 . else return 2 .
   guard eq (tty.len_of (some_value p)) 4 . else return 3 .
   return 42 .
-end .
+end
 
 rem ★ **불완전한 시퀀스는 지어내지 않는다** — ESC [ 만 왔으면 none(더 기다리라는 답이다).
 rem   그런데 ESC 하나만 왔으면 그것은 ESC 키다(뒤가 없으면 기다릴 수 없다).
@@ -59,9 +59,9 @@ proc partial input buf mut slice u8 . . output u64 . effects none . do
     guard is_some q . else return 1 .
     guard eq (tty.key_of (some_value q)) 1010 . else return 2 .
     return 42 .
-  end .
+  end
   return 3 .
-end .
+end
 
 rem ★★★★★ **리프 셋을 실제로 돌린다** (2026-08-07 · 소유자 지시 ③).
 rem   위의 넷은 **파싱**이다(순수·오라클 안). 아래 셋은 **리프**다 — `tty_raw`·`tty_read`·
@@ -85,22 +85,22 @@ rem     같은 답을 내고, 이 셋은 그 일치를 지키는 증인이다.
 
 proc size_is_none input t cap tty . output u64 . effects io . do
   let s option u64 . be tty_size t .
-  if is_some s . do return 1 . end .
+  if is_some s . do return 1 . end
   return 0 .
-end .
+end
 
 rem raw 모드를 요청한다. 터미널이 아니면 들어갈 수 없다. 복귀도 부른다 — 못 들어갔어도
 rem 짝을 맞추는 것이 이 API 의 규율이다.
 proc raw_refused input t cap tty . output u64 . effects io . do
   let entered bool be tty_raw t true .
   let left bool be tty_raw t false .
-  if entered . do return 1 . end .
-  if left . do return 2 . end .
+  if entered . do return 1 . end
+  if left . do return 2 . end
   return 0 .
-end .
+end
 
 proc read_nothing input t cap tty . input dst mut slice u8 . output u64 . effects io . do
   let n option u64 . be tty_read t dst .
-  if is_some n . do return some_value n . end .
+  if is_some n . do return some_value n . end
   return 0 .
-end .
+end

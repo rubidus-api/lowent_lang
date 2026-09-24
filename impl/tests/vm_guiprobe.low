@@ -29,45 +29,45 @@ rem ★ 공개 손잡이 — **word 하나**. 브랜드는 타입 인자로만 �
 export struct handle do
   input comptime b type .
   w u64 .
-end .
+end
 
 rem hot 레코드의 칸 번호 — 8 칸 × u32.
 rem   0 parent · 1 first_child · 2 last_child · 3 prev_sibling · 4 next_sibling · 5 kind · 6 flags · 7 state
 rem   링크는 **슬롯 + 1** 이고 0 은 「없음」이다. flags: bit0 = alive · bit1 = destroy_pending.
 fn rd input hot slice u32 . input i u64 . input f u64 . output u64 . do
   return widen u64 (index hot (add (mul i 8) f)) .
-end .
+end
 
 proc wr input hot mut slice u32 . . input i u64 . input f u64 . input v u64 . output void . effects none . do
   set (index hot (add (mul i 8) f)) (narrow u32 v) .
-end .
+end
 
 rem ★ 저장소를 연다: 세대는 1 부터(0 = 한 번도 안 준 슬롯), 자유 목록은 `next` 칸에 **intrusive** 로.
 proc open input hot mut slice u32 . . input gen mut slice u64 . . input meta mut slice u64 . .
   output u64 . effects none .
 do
   var n u64 be div (len hot) 8 .
-  if gt n (len gen) . do set n (len gen) . end .
+  if gt n (len gen) . do set n (len gen) . end
   var i u64 be 0 .
   while lt i n . do
     set (index gen i) 1 .
     wr hot i 6 0 .
     wr hot i 4 (add i 2) .          rem 다음 자유 슬롯 = i+1 → (+1 인코딩) i+2
     set i (add i 1) .
-  end .
-  if gt n 0 . do wr hot (sub n 1) 4 0 . end .
+  end
+  if gt n 0 . do wr hot (sub n 1) 4 0 . end
   set (index meta 0) 1 .            rem 머리 = 슬롯 0
   set (index meta 1) n .
   set (index meta 2) 0 .
   set (index meta 3) 0 .
   set (index meta 4) 0 .
   return n .
-end .
+end
 
 rem 부모 없음 — 뿌리를 만들 때 넘기는 값. 세대 0 은 어떤 슬롯과도 안 맞으므로 안전하다.
 fn no_parent input comptime b type . output handle b . do
-  return make handle b do w 0 . end .
-end .
+  return make handle b do w 0 . end
+end
 
 rem ★★★ **I1 — 손잡이 검사 다섯**: 브랜드(타입) · shard · slot 범위 · alive ∧ ¬pending · 세대.
 rem   살아 있는 노드에 닿는 **유일한 문**이다. 통과하면 phase-local 슬롯 번호를 준다(§5.3).
@@ -82,7 +82,7 @@ do
   guard eq (bit_and fl 3) 1 . else return none .            rem alive 이고 pending 아님
   guard eq (index gen s) (budget.gen_of 32 8 w) . else return none .
   return some s .
-end .
+end
 
 rem ★ 노드 하나를 만든다. 부모가 있으면 **마지막 자식으로 O(1) 덧붙인다**(§2.2 (2)).
 rem   자유 슬롯이 없으면 `none` — 트랩이 아니다(§3.6 "실패와 상한이 보여야 한다").
@@ -95,7 +95,7 @@ do
     let po option u64 . be resolve b hot gen meta parent .
     guard is_some po . else return none .
     set p (add (some_value po) 1) .
-  end .
+  end
   let fh u64 be index meta 0 .
   guard gt fh 0 . else return none .                         rem capacity_nodes
   let s u64 be sub fh 1 .
@@ -112,15 +112,15 @@ do
     let ps u64 be sub p 1 .
     let last u64 be rd hot ps 2 .
     wr hot s 3 last .
-    if gt last 0 . do wr hot (sub last 1) 4 (add s 1) . end .
-    if eq (rd hot ps 1) 0 . do wr hot ps 1 (add s 1) . end .
+    if gt last 0 . do wr hot (sub last 1) 4 (add s 1) . end
+    if eq (rd hot ps 1) 0 . do wr hot ps 1 (add s 1) . end
     wr hot ps 2 (add s 1) .
-  end .
+  end
   set (index meta 4) (add (index meta 4) 1) .
   let ho option u64 . be budget.pack 32 8 24 s 0 (index gen s) .
   guard is_some ho . else return none .
   return some (make handle b do w (some_value ho) . end) .
-end .
+end
 
 rem 부모에서 뗀다 — O(1). 형제 링크와 부모의 first/last 를 고친다.
 proc unlink input hot mut slice u32 . . input s u64 . output void . effects none . do
@@ -129,14 +129,14 @@ proc unlink input hot mut slice u32 . . input s u64 . output void . effects none
   let ps u64 be sub p 1 .
   let pv u64 be rd hot s 3 .
   let nx u64 be rd hot s 4 .
-  if gt pv 0 . do wr hot (sub pv 1) 4 nx . end .
-  if gt nx 0 . do wr hot (sub nx 1) 3 pv . end .
-  if eq (rd hot ps 1) (add s 1) . do wr hot ps 1 nx . end .
-  if eq (rd hot ps 2) (add s 1) . do wr hot ps 2 pv . end .
+  if gt pv 0 . do wr hot (sub pv 1) 4 nx . end
+  if gt nx 0 . do wr hot (sub nx 1) 3 pv . end
+  if eq (rd hot ps 1) (add s 1) . do wr hot ps 1 nx . end
+  if eq (rd hot ps 2) (add s 1) . do wr hot ps 2 pv . end
   wr hot s 0 0 .
   wr hot s 3 0 .
   wr hot s 4 0 .
-end .
+end
 
 rem ★★★ **삭제의 첫 걸음(§5.7 2·3)** — 부분 나무 전체를 `pending` 으로 표시하고(스택 `stk` 로
 rem   반복 순회, 재귀 없음) 각 슬롯을 `pend` 목록에 적은 뒤, 뿌리만 부모에서 뗀다.
@@ -167,10 +167,10 @@ do
       set (index stk top) (narrow u32 (sub c 1)) .
       set top (add top 1) .
       set c (rd hot (sub c 1) 4) .
-    end .
-  end .
+    end
+  end
   return marked .
-end .
+end
 
 rem ★★★ **안전 지점(§5.7 5)** — pending 슬롯의 세대를 올리고 자유 목록에 되돌린다.
 rem   세대가 한 바퀴 돌면 그 슬롯은 **은퇴**한다(`budget.next_gen` = none): 자유 목록에 안 넣는다.
@@ -195,13 +195,13 @@ do
       wr hot s 4 (index meta 0) .
       set (index meta 0) (add s 1) .
       set freed (add freed 1) .
-    end .
+    end
     if is_none ng . do
       set (index meta 3) (add (index meta 3) 1) .
-    end .
-  end .
+    end
+  end
   return freed .
-end .
+end
 
 rem 자식 수 — first → next 를 따라 센다(순회는 슬롯 번호로, 손잡이 검사는 문에서 한 번뿐).
 fn child_count input hot slice u32 . input s u64 . output u64 . do
@@ -210,9 +210,9 @@ fn child_count input hot slice u32 . input s u64 . output u64 . do
   while gt c 0 . do
     set n (add n 1) .
     set c (rd hot (sub c 1) 4) .
-  end .
+  end
   return n .
-end .
+end
 
 rem ─── 시험 ─────────────────────────────────────────────────────────────────
 
@@ -253,7 +253,7 @@ do
   guard eq (child_count hot ri) 3 . else return 100 .
   guard eq (index meta 4) 5 . else return 101 .
   return 1 .
-end .
+end
 
 rem ② 낡은 손잡이: 지우고 되돌린 슬롯이 **재사용돼도** 옛 손잡이는 `none`(수용 시험 2).
 export proc t_stale input hot mut slice u32 . . input gen mut slice u64 . . input meta mut slice u64 . .
@@ -285,7 +285,7 @@ do
   guard is_none (resolve g_stale hot gen meta a) . else return 103 .   rem 옛 손잡이는 여전히 죽어 있다
   guard eq (index meta 4) 2 . else return 104 .
   return 2 .
-end .
+end
 
 rem ③ dispatch 중 조상 삭제(수용 시험 3): 경로 [b, a, root] 를 걷는 동안 a 의 처리기가
 rem   「a 를 지워라」를 **요청**만 하고(명령 큐), 걷기는 root 까지 **링크 변화 없이** 간다(I4).
@@ -315,15 +315,15 @@ do
   var i u64 be 0 .
   while lt i 3 . do
     var cur u64 be route0 .
-    if eq i 1 . do set cur route1 . end .
-    if eq i 2 . do set cur route2 . end .
+    if eq i 1 . do set cur route1 . end
+    if eq i 2 . do set cur route2 . end
     rem 처리기: a 에서 destroy 를 요청한다 — 나무는 안 만진다.
-    if eq cur ai . do set queued (add queued 1) . end .
+    if eq cur ai . do set queued (add queued 1) . end
     rem 걷는 동안 링크는 그대로다(I4): root 의 first 는 여전히 a.
     guard eq (rd hot ri 1) (add ai 1) . else return 94 .
     set visited (add visited 1) .
     set i (add i 1) .
-  end .
+  end
   guard eq visited 3 . else return 95 .
   guard eq queued 1 . else return 96 .
   rem dispatch 가 끝났다 — 이제 적용한다.
@@ -338,7 +338,7 @@ do
   guard is_some x . else return 102 .
   guard is_some y . else return 102 .
   return 3 .
-end .
+end
 
 rem ④ 휘저음(benchmark 행 「node」): root 아래 자식 하나를 만들고 지우기를 n 번.
 rem   끝에 산 노드 = 1 · 은퇴 0 · 슬롯 하나의 세대 = n+1 이어야 한다. `--emit-c` 로 시간을 잰다.
@@ -359,15 +359,15 @@ do
     guard eq (mark_destroy g_churn hot gen meta stk pend a) 1 . else return 93 .
     guard eq (reclaim hot gen meta pend) 1 . else return 94 .
     set i (add i 1) .
-  end .
+  end
   guard eq (index meta 4) 1 . else return 95 .
   guard eq (index meta 3) 0 . else return 96 .
   guard eq (index gen slot) (add n 1) . else return 97 .
   return 4 .
-end .
+end
 
 rem ⑤ 크기 — 문서가 아니라 도구가 답한다: hot 레코드 = 8 × size_of u32 · 손잡이 = size_of u64.
 rem   답 = 레코드 × 100 + 손잡이 = 3208.
 export fn t_sizes output u64 . do
   return add (mul 100 (mul 8 (size_of u32))) (size_of u64) .
-end .
+end

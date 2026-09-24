@@ -17,4 +17,4 @@ export proc evict_while_pinned output u64 . effects none . do
   rem ★ 캐시 토큰은 위에서 pin 이 삼켰다 — 여기서 거절된다.
   var c2 owned pagecache.cache db . be pagecache.evict db c .
   return (pagecache.epoch_of db c2) .
-end .
+end

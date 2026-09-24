@@ -7,9 +7,9 @@ newtype order_id u64 .
 fn load_order input id order_id . output u64 .
 do
   return 0 .
-end .
+end
 
 fn mistake input u user_id . output u64 .
 do
   return load_order u .
-end .
+end

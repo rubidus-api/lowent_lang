@@ -15,4 +15,4 @@ do
   let r2 result (owned outbuf.pending) outbuf.io_error be outbuf.buf_write out p buf "second\n" .
   drop r2 .
   return 0 .
-end .
+end

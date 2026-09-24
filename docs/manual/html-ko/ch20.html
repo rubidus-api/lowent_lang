@@ -680,7 +680,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">99</span> .
   <strong><span class="tok-k">guard</span></strong> not (is_some q) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> a used .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run carve borrowed.low [0,0,0,0,0,0,0,0]
 carve([65,0,0,0,0,0,0,0]) = 3
   arg0 (written) = [65,0,0,0,0,0,0,0]
@@ -702,7 +702,7 @@ carve([65,0,0,0,0,0,0,0]) = 3
   <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">5</span> .
   <strong><span class="tok-k">guard</span></strong> is_some q . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> with_bump <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -710,7 +710,7 @@ carve([65,0,0,0,0,0,0,0]) = 3
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> b init buf .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">using</span></strong> b <strong><span class="tok-k">be</span></strong> two_from .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> with_aligned <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -718,7 +718,7 @@ carve([65,0,0,0,0,0,0,0]) = 3
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> b init buf .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">using</span></strong> b <strong><span class="tok-k">be</span></strong> two_from .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run with_bump generic.low [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 with_bump([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) = 8
   arg0 (written) = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
@@ -740,14 +740,14 @@ with_aligned([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) = 13
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">3</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 이 op 안에는 깎아 올 할당기가 하나도 없다</span></em>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> one_from .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check nosource.low
 21:16 E-ALLOC-NOSOURCE: this call draws from an allocator, but NO value of a fitting type is visible in this op — no input, no binding, no `using` clause. There is no global allocator: take one as an input, create one here, or declare `using &lt;name> &lt;type> .` on this op (RFC-0112 D8(4))
 nosource.low:19:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
@@ -758,7 +758,7 @@ nosource.low:19:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORMS it.
 
 <strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul x <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> caller <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -767,7 +767,7 @@ nosource.low:19:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORMS it.
   <em><span class="tok-c">rem ✘ twice 는 할당기를 쓰지 않는데 using 으로 골라 준다</span></em>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">using</span></strong> b <strong><span class="tok-k">be</span></strong> twice <span class="tok-n">4</span> .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check usingunused.low
 15:19 E-ALLOC-USING-UNUSED: this binding says which allocator to use, but the call it initialises does not draw from one (no `using` clause on that op). An object that already carries its allocator — like `vecgen.append` on a vector — does not take the caller's choice (RFC-0112 D8(5))
 </code></pre></div></div><p><code>twice</code> 는 수를 두 배로 할 뿐 할당기를 받지 않는다. 쓰이지 않을 선택을 적어 두면 읽는 사람은 <code>twice</code> 가 메모리를 쓴다고 오해한다. 그래서 적은 것은 반드시 쓰여야 한다.</p><h3 id="s20-4">20.4 뿌리에서 곧장 깎는 기본 할당기<a class="plink" href="#s20-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>allocs</code> 는 뿌리에서 곧장 깎는 할당기 둘도 같은 트레이트로 낸다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>액터</strong></th><th><strong>상태</strong></th><th><strong><code>reserve</code> 의 효과</strong></th></tr><tr><td><code>fixed_bytes</code></td><td><code>root cap allocator .</code> · 쓴 양</td><td><code>alloc state</code> — 어디서나</td></tr><tr><td><code>heap_bytes</code></td><td><code>root cap heap .</code> · 쓴 양</td><td><code>heap state</code> — 운영체제가 있는 기계만</td></tr></table></div><p class="float-caption">표 20.3 — 기본 할당기</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> fixed .
@@ -783,7 +783,7 @@ nosource.low:19:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORMS it.
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> fb reserve <span class="tok-n">64</span> .
   <strong><span class="tok-k">guard</span></strong> is_some b . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (<strong><span class="tok-k">send</span></strong> fb used) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main fixed.low
 main() = 128
 </code></pre></div></div><p><code>fixed_bytes</code> 의 상태에는 <strong>권한 칸</strong>이 있다. 권한은 실행 중 값이 아니므로 그 칸은 크기가 없다. 대신 규칙이 하나 붙는다. 권한 칸을 가진 액터는 <strong>같은 종류의 권한을 쥔 op</strong> 에서만 띄울 수 있다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/forge.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> forge .
@@ -795,7 +795,7 @@ main() = 128
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> hb allocs.heap_bytes <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.heap_bytes .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> hb used .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check forge.low
 forge.low:8:0 E-CAP-FORGE: this spawns an actor whose state HOLDS a capability (`cap allocator` / `cap heap`), but the op spawning it holds no capability of that kind. A capability field means nothing at run time — it is only real because the place that creates the actor already had the right. Without that, one `spawn` would forge authority out of thin air (RFC-0112 D6). Take the capability as an input of this op
 forge.low:7:1 W-EFFECT-OVER: this op DECLARES `heap` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
@@ -813,7 +813,7 @@ forge.low:7:1 W-EFFECT-OVER: this op DECLARES `heap` but never PERFORMS it. A de
   <em><span class="tok-c">rem 쓴 양이 100000 이 아니면 2, 맞으면 0 을 돌려준다</span></em>
   <strong><span class="tok-k">guard</span></strong> eq (<strong><span class="tok-k">send</span></strong> hb used) <span class="tok-n">100000</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main heapbytes.low
 main() = 0
 </code></pre></div></div><p><code>main</code> 이 <code>cap heap</code> 을 받았고 효과 줄에 <code>heap</code> 을 적었다. 그래서 <code>heap_bytes</code> 를 띄울 수 있고, 고정 창보다 큰 100000 바이트도 받는다. 힙은 모자라면 청크를 더 잇는다. 운영체제가 없는 기계를 대상으로 지으면 이 파일은 <code>E-HEAP-NOHOST</code> 로 거절된다(18장).</p><h3 id="s20-5">20.5 조각을 늘리고 돌려준다 — <code>grow</code> 와 <code>release</code><a class="plink" href="#s20-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>범프 할당기는 앞으로만 민다. 그래도 <strong>마지막에 준 조각</strong>만은 되돌려도 안전하다. 그 뒤로 아무도 자리를 받지 않았기 때문이다. <code>grow</code> 는 그 조각을 제자리에서 늘리고, <code>release</code>(트레이트 <code>freeing_allocator</code>)는 그 조각을 돌려받는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/growrelease.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> growrelease .
@@ -843,14 +843,14 @@ main() = 0
   <strong><span class="tok-k">var</span></strong> d1 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">if</span></strong> back1 . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> d1 <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">var</span></strong> d2 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">if</span></strong> back2 . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> d2 <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <em><span class="tok-c">rem 쓴 양 · 첫 답 · 둘째 답을 세 자리 수로 묶어 돌려준다</span></em>
   <strong><span class="tok-k">return</span></strong> add (mul u <span class="tok-n">100</span>) (add (mul d1 <span class="tok-n">10</span>) d2) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run regrow growrelease.low [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 regrow([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) = 601
   arg0 (written) = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
@@ -867,12 +867,12 @@ regrow([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) = 601
 <strong><span class="tok-k">fn</span></strong> reinterpret <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> bit_cast <strong><span class="tok-t">u32</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> float_bits <strong><span class="tok-k">input</span></strong> f <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> bit_cast <strong><span class="tok-t">u64</span></strong> f .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run reinterpret bitcast.low -1
 reinterpret(-1) = 4294967295
 $ lowentc --run float_bits bitcast.low 1.0
@@ -883,7 +883,7 @@ float_bits(1.0) = 4607182418800017408
 <strong><span class="tok-k">fn</span></strong> truthy <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> bit_cast <strong><span class="tok-t">bool</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check bitcast_bool.low
 bitcast_bool.low:6:0 E-TYPE-BITCAST: bit_cast's target must be a `plain` scalar type — every bit pattern valid, no padding (SPEC-004 §190). bool/enum have trap representations and are NOT plain, so they are outside safe punning
 </code></pre></div></div><p><code>u8</code> 의 2 를 <code>bool</code> 로 읽으면 참도 거짓도 아닌 값이 된다. 그런 값이 만들어지는 길을 막는다.</p><h3 id="s20-9">20.9 흔한 실수<a class="plink" href="#s20-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 범프 할당기에 <code>init</code> 을 잊는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_noinit.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noinit .
@@ -898,7 +898,7 @@ bitcast_bool.low:6:0 E-TYPE-BITCAST: bit_cast's target must be a `plain` scalar 
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">3</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> a used .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noinit.low
 mistake_noinit.low:10:0 E-ACTOR-UNINIT: this is the FIRST message sent to an actor that was just spawned, and the handler READS a state field that holds a slice without setting it. A fresh actor's state is all zeroes, and zero is not a slice: the VM stops (`len needs a slice`) while native quietly answers `none` — the two back ends disagree, which means one of them is lying. Send the message that sets it up first (the one whose handler `set`s that field, typically `init`)
 </code></pre></div></div><p><code>bump_bytes</code> 는 스스로 메모리를 만들지 않는다. 잘라 줄 바이트를 <code>send a init buf</code> 로 걸기 전에는 나눠 줄 것이 없다. 갓 띄운 액터의 상태 칸은 모두 0 이고, 0 은 슬라이스가 아니다 — 그 자리를 읽으면 VM 과 네이티브가 서로 다르게 돈다. 그래서 번역이 거절한다 (<code>E-ACTOR-UNINIT</code>). 할당기를 띄우는 줄 바로 다음에 <code>init</code> 을 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 같은 바이트를 두 할당기에 건다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_sharedbuf.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_sharedbuf .
@@ -923,7 +923,7 @@ mistake_noinit.low:10:0 E-ACTOR-UNINIT: this is the FIRST message sent to an act
   <strong><span class="tok-k">set</span></strong> (index qv <span class="tok-n">0</span>) <span class="tok-n">66</span> .
   <em><span class="tok-c">rem 65 를 썼는데 66 이 나온다</span></em>
   <strong><span class="tok-k">return</span></strong> index pv <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_sharedbuf.low
 mistake_sharedbuf.low:12:0 E-EXCL: the same WRITABLE place was handed to a SECOND actor. A write borrow is exclusive (§8.4): two actors holding the same bytes both hand them out, so two containers silently overlap and a write through one is read through the other (measured: 65 written, 66 read back). Give each actor its own bytes — `subslice` the buffer into pieces that do not overlap
 </code></pre></div></div><p>두 할당기는 서로를 모른다. 둘 다 <code>buf</code> 의 앞에서부터 잘라 주므로 <code>pv</code> 와 <code>qv</code> 가 같은 자리가 되고, 65 를 쓴 뒤 66 을 쓰면 <code>pv</code> 를 읽어도 66 이다. 쓰기 빌림은 하나여야 한다는 규칙(12장)이 액터 경계에서도 서야 하므로 <code>E-EXCL</code> 로 거절한다 (2026-09-16 까지는 통과했다). 할당기마다 따로 된 바이트를 건다. 한 버퍼를 나눠야 하면 <code>subslice</code> 로 겹치지 않는 두 조각을 만든다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 맞는 할당기가 둘인데 <code>using</code> 을 적지 않는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_ambiguous.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_ambiguous .
@@ -941,7 +941,7 @@ mistake_sharedbuf.low:12:0 E-EXCL: the same WRITABLE place was handed to a SECON
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">3</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> with_two <strong><span class="tok-k">input</span></strong> small <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> big <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -952,7 +952,7 @@ mistake_sharedbuf.low:12:0 E-EXCL: the same WRITABLE place was handed to a SECON
   <em><span class="tok-c">rem ✘ 맞는 타입의 할당기가 둘인데 어느 것인지 적지 않았다</span></em>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> two_from .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_ambiguous.low
 25:16 E-ALLOC-AMBIGUOUS: this call draws from an allocator, and MORE THAN ONE value of a fitting type is in scope — the tool will not guess which one you meant. Say it on the binding: `let &lt;name> &lt;type> using &lt;allocator> be …` (RFC-0112 D8(4))
 </code></pre></div></div><p><code>s</code> 와 <code>g</code> 가 모두 <code>bump_bytes</code> 라서 도구가 짐작할 수 없다. 짐작하면 작은 버퍼에서 깎아야 할 것을 큰 버퍼에서 깎거나 그 반대가 되고, 그런 결함은 메모리가 넉넉한 개발 기계에서는 드러나지 않는다. 그래서 <code>E-ALLOC-AMBIGUOUS</code> 로 멈추고 적으라고 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/ambiguous_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ambiguous_fixed .
@@ -970,7 +970,7 @@ mistake_sharedbuf.low:12:0 E-EXCL: the same WRITABLE place was handed to a SECON
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">3</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> with_two <strong><span class="tok-k">input</span></strong> small <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> big <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -982,7 +982,7 @@ mistake_sharedbuf.low:12:0 E-EXCL: the same WRITABLE place was handed to a SECON
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">using</span></strong> g <strong><span class="tok-k">be</span></strong> two_from .
   <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">using</span></strong> g <strong><span class="tok-k">be</span></strong> two_from .
   <strong><span class="tok-k">return</span></strong> m .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run with_two ambiguous_fixed.low [0,0,0,0] [0,0,0,0,0,0,0,0]
 with_two([0,0,0,0], [0,0,0,0,0,0,0,0]) = 6
   arg0 (written) = [0,0,0,0]
@@ -1003,14 +1003,14 @@ with_two([0,0,0,0], [0,0,0,0,0,0,0,0]) = 6
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">3</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> with_fixed <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> fb allocs.fixed_bytes <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.fixed_bytes .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">using</span></strong> fb <strong><span class="tok-k">be</span></strong> one_from .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_novia.low
 mistake_novia.low:13:1 E-EFFECT: this op performs `alloc`, which its `effects` clause does not declare — add it to `effects …`, or stop calling what needs it
 mistake_novia.low:20:1 W-EFFECT-OVER: this op DECLARES `alloc` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
@@ -1030,7 +1030,7 @@ mistake_novia.low:20:1 W-EFFECT-OVER: this op DECLARES `alloc` but never PERFORM
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> f2 reserve <span class="tok-n">40000</span> .
   <strong><span class="tok-k">guard</span></strong> is_some b . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main shared_window.low
 main() = 2
 </code></pre></div></div><p><code>fixed_bytes</code> 는 <strong>뿌리</strong>에서 깎는다. 뿌리는 하나이고 커서도 하나다(18장). <code>f1</code> 이 40000 바이트를 가져가면 <code>f2</code> 는 아직 아무것도 쓰지 않았어도 기본 창(65536 바이트)에 남은 자리가 모자라 <code>none</code> 을 받는다. 할당기 값의 <code>used</code> 는 <strong>그 할당기가</strong> 쓴 양이지 창 전체의 남은 양이 아니다. 따로 된 예산이 필요하면 창에서 한 번 크게 받아 <code>bump_bytes</code> 여럿에 겹치지 않게 나눠 건다.</p></div></div><h3 id="s20-10">20.10 이 장의 문법 한눈에<a class="plink" href="#s20-10" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>var a allocs.bump_bytes be spawn actor allocs.bump_bytes .</code></td><td>할당기(상태)를 띄운다</td><td>상태는 액터 값 — 전역 할당기가 없다</td></tr><tr><td><code>send a init buf</code></td><td>잘라 줄 바이트를 건다</td><td>할당기는 몰래 메모리를 만들지 않는다</td></tr><tr><td><code>send a reserve 3</code> · <code>send a used</code></td><td>조각을 청한다(<code>option</code>) · 쓴 양</td><td>부족은 트랩이 아니라 값</td></tr><tr><td><code>input comptime a type .</code></td><td>할당기의 타입(정책)을 번역 때 받는다</td><td>갈아 끼우기의 실행 비용이 0</td></tr><tr><td><code>using al a .</code></td><td>그 타입의 할당기 값을 받는다 — 입력이 아니다</td><td>부르는 자리의 인자에 끼지 않는다</td></tr><tr><td><code>let n u64 using g be two_from .</code></td><td>이 호출이 깎을 할당기를 적는다</td><td>둘 이상이면 짐작하지 않는다</td></tr><tr><td><code>effects state via a .</code> · <code>requires allocs.byte_allocator a .</code></td><td>타입의 효과를 물려받는다 · 트레이트 조건</td><td>인스턴스마다 효과가 정확하다</td></tr><tr><td><code>allocs.fixed_bytes</code> · <code>allocs.heap_bytes</code></td><td>뿌리에서 곧장 깎는 기본 할당기</td><td>같은 종류의 권한을 쥔 op 만 띄운다 — <code>E-CAP-FORGE</code></td></tr><tr><td><code>send b grow pv 6</code> · <code>send b release qv</code></td><td>마지막 조각을 늘린다 · 돌려받는다</td><td>크기가 아니라 <code>same_slice</code> 로 정체를 확인한다</td></tr><tr><td>출처 없음 · 쓰이지 않는 <code>using</code></td><td><code>E-ALLOC-NOSOURCE</code> · <code>E-ALLOC-USING-UNUSED</code></td><td>전역 할당기도, 헛된 선택도 없다</td></tr><tr><td><code>bit_cast u32 x</code></td><td>비트는 그대로 두고 읽는 법만 바꾼다</td><td><code>bool</code>·<code>enum</code> 으로는 읽지 않는다</td></tr></table></div><p class="float-caption">표 20.5 — 할당기의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">할당기는 권한·정책(트레이트를 갖춘 타입)·상태(액터 값) 셋이다. 범프 할당기는 빌린 바이트를 잘라 주고 부족을 <code>none</code> 으로 알린다. 할당기는 <code>input comptime a type .</code> 과 <code>using al a .</code> 로 받아 갈아 끼우며 실행 비용이 없고, 전역 할당기는 없다. <code>fixed_bytes</code>·<code>heap_bytes</code> 는 권한 칸을 가진 기본 할당기이고, 같은 종류의 권한을 쥔 op 만 띄울 수 있다. 고정 창의 크기는 링커가 정한다. <code>bit_cast</code> 는 비트를 그대로 두고, <code>bool</code>·<code>enum</code> 으로는 읽지 않는다.</div></div>

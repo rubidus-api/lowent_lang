@@ -28,7 +28,7 @@ do
   guard eq a 1 . else return 90 .
   guard eq b 1 . else return 91 .
   return index out 0 .
-end .
+end
 
 rem 빈 것에서 꺼내면 0.
 export proc pop_empty input k cap atomic . input ctl mut slice u64 . input buf slice u64 .
@@ -39,14 +39,14 @@ export proc pop_empty input k cap atomic . input ctl mut slice u64 . input buf s
   requires ge (len out) 1 .
 do
   return spsc.spsc_pop k ctl buf out .
-end .
+end
 
 rem 용량 = len buf − 1 (한 칸은 늘 비워 둔다).
 export fn cap_is_len_minus_one input buf slice u64 . output u64 .
   requires ge (len buf) 2 .
 do
   return spsc.spsc_capacity buf .
-end .
+end
 
 rem ★★ 가득 채우고 한 번 더 넣어 본다 — 마지막 넣기는 **실패해야** 한다(0).
 export proc fill_then_overflow input k cap atomic . input ctl mut slice u64 .
@@ -61,13 +61,13 @@ do
   while lt i capn . do
     set okc (add okc (spsc.spsc_push k ctl buf i)) .
     set i (add i 1) .
-  end .
+  end
   rem 여기서 한 번 더 — 가득 찼으므로 0 이어야 한다.
   let extra u64 be spsc.spsc_push k ctl buf 999 .
   guard eq extra 0 . else return 90 .
   rem 성공한 넣기 수 = 용량이어야 한다.
   return okc .
-end .
+end
 
 rem ★★★ 링을 **한 바퀴 넘겨** 돌린다: 넣고 꺼내기를 용량보다 여러 번.
 rem   색인이 `mod` 로 감기는 것이 맞는지 — 그리고 FIFO 가 유지되는지.
@@ -87,8 +87,8 @@ do
     guard eq q 1 . else return 91 .
     rem 넣은 것이 그대로 나와야 한다(SPSC 는 FIFO 다).
     rem ★ `guard … else` 는 **반드시 떠나야** 한다(E-GUARD-FALLTHROUGH) — 세기만 할 때는 `if`.
-    if ne (index out 0) i . do set bad (add bad 1) . end .
+    if ne (index out 0) i . do set bad (add bad 1) . end
     set i (add i 1) .
-  end .
+  end
   return bad .
-end .
+end

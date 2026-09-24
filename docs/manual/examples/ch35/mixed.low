@@ -9,4 +9,4 @@ newtype sounds u8 .
 proc wrong input m mut pool.block_pool meshes . input h pool.handle sounds . output bool . effects none .
 do
   return pool.release meshes m h .
-end .
+end

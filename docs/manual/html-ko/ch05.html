@@ -672,7 +672,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">fn</span></strong> add3 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add (add a b) c .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 지역 가변 상태는 op 안에 갇혀 있으므로 fn 도 쓸 수 있다</span></em>
 <strong><span class="tok-k">fn</span></strong> running_total <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -680,16 +680,16 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> total (add total (widen <strong><span class="tok-t">u64</span></strong> x)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> total .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> fact <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">20</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> le n <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> le n <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> mul n (fact (sub n <span class="tok-n">1</span>)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run add3 kinds.low 1 2 3
 add3(1, 2, 3) = 6
 $ lowentc --run running_total kinds.low [4,5,6]
@@ -704,7 +704,7 @@ fact(10) = 3628800
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> (index xs <span class="tok-n">0</span>) <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mutparam.low
 mutparam.low:4:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parameter — that write is visible to the CALLER. A fn is an enforced purity contract (SPEC-003 §27): callers may memoise it, reorder it, or elide it. An op that changes caller-owned storage can do none of those. Declare it a `proc`. (Local mutation stays pure: storage confined to the op is not observable — a machine write is not an observable effect. RFC-0057)
 </code></pre></div></div><p>진단이 설명하는 대로, <code>fn</code> 은 강제되는 순수 계약이다. 호출자는 <code>fn</code> 의 결과를 기억해 두거나(memoise), 부르는 차례를 바꾸거나, 결과를 쓰지 않으면 호출을 지워도 된다. 호출자의 저장소를 바꾸는 op 에는 그 어느 것도 할 수 없다. 그래서 <code>proc</code> 이어야 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/mutproc.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mutproc .
@@ -715,7 +715,7 @@ mutparam.low:4:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parameter — th
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> (index xs <span class="tok-n">0</span>) <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> len xs .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run zero_first mutproc.low [7,8,9]
 zero_first([0,8,9]) = 3
   arg0 (written) = [0,8,9]
@@ -725,7 +725,7 @@ zero_first([0,8,9]) = 3
 <strong><span class="tok-k">fn</span></strong> square <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul a a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check redundant.low
 redundant.low:4:0 E-EFFECT-REDUNDANT: a `fn` is pure by contract, so `effects none .` says nothing that the `fn` did not already say — DROP the clause. One meaning must have one spelling (SPEC-002 §2.5). (Keep writing `effects` on `proc`: there it NARROWS, and omitting it means unrestricted.)
 </code></pre></div></div><p>뜻이 틀려서가 아니라 <strong>한 뜻에 두 표기</strong>가 되기 때문이다. <code>proc</code> 에서는 사정이 다르다. <code>proc</code> 의 <code>effects</code> 절은 <strong>좁히는</strong> 일을 한다. 절이 없는 <code>proc</code> 은 좁히지 않은 것으로 읽힌다 — 입출력·할당·상태를 모두 할 수 있다고 본다. 그러니 <code>proc</code> 에는 절을 적는 편이 낫고, 적은 것보다 많은 일을 하면 거절되며, 적어 놓고 하지 않는 효과도 알려진다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> <code>proc</code> 인데 실제로 아무 효과도 내지 않으면 어떻게 되는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> <code>proc</code> 에 <code>effects none .</code> 을 적는 것은 허락된다. 지역 가변 상태나 반복을 강조하고 싶어서 <code>proc</code> 으로 두는 경우가 옛 코드에 있다. 그러나 관측되는 효과가 없다면 <code>fn</code> 으로 적는 것이 이 언어의 권하는 모양이다. 순수함이 머리에 드러나야 호출자와 컴파일러가 그것을 쓸 수 있다.</p></div></div><h3 id="s5-4">5.4 효과는 부르는 쪽으로 번진다<a class="plink" href="#s5-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>op 을 부르면 그 op 의 효과가 부르는 쪽의 효과에 더해진다. 순수한 <code>fn</code> 이 <code>io</code> 를 내는 <code>proc</code> 을 부르면, 그 <code>fn</code> 은 더 이상 순수하지 않다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/calls.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> calls .
@@ -734,12 +734,12 @@ redundant.low:4:0 E-EFFECT-REDUNDANT: a `fn` is pure by contract, so `effects no
 <strong><span class="tok-k">proc</span></strong> say <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> helper <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> say out .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check calls.low
 calls.low:10:1 E-EFFECT-CALC: this fn is declared pure but performs `io` — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p><code>helper</code> 는 스스로 출력하지 않는다. 출력하는 것은 <code>say</code> 다. 그래도 거절된다. 이 규칙 덕분에 op 의 머리만 보고도 그 op 이 부르는 모든 op 의 효과를 알 수 있다. 효과를 숨긴 채 전달하는 길이 없다. 어떤 효과가 어떤 권한과 짝지어지는지는 15·16장에서 다룬다.</p><h3 id="s5-5">5.5 매개변수와 반환<a class="plink" href="#s5-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>op 하나를 조각조각 뜯어 보면 이렇다. 처음 보는 사람이 가장 헷갈리는 것은 <strong>절마다 마침표로 끝난다</strong>는 점이다. 마침표는 문장의 끝처럼 “이 절은 여기까지” 를 알린다.</p><pre><code data-lang="text">fn   add3   input a i32 .   input b i32 .   input c i32 .   output i32 .
@@ -748,41 +748,41 @@ calls.low:10:1 E-EFFECT-CALC: this fn is declared pure but performs `io` — mak
 └─ 갈래: fn(순수) 또는 proc(효과를 낼 수 있음)
 do                          ← 몸이 여기서 시작한다
   return add (add a b) c .  ← 계산해서 돌려준다. 문장도 마침표로 끝난다
-end .                       ← 몸이 끝나고, 선언 전체가 끝난다</code></pre><p>부를 때는 이름 뒤에 인자를 <strong>공백으로</strong> 늘어놓는다. <code>add3 1 2 3</code> 이 한 번의 호출이고, 괄호는 호출 하나를 다른 호출의 인자로 넣을 때만 쓴다 — <code>add3 (add3 1 2 3) 4 5</code>. 괄호가 곧 “이 안이 값 하나” 라는 표시다. C 처럼 <code>add3(1, 2, 3)</code> 으로 쓰는 법은 없다. 쉼표는 이 언어에서 뜻이 없는 기호이고, 그래서 거절된다(아래 «흔한 실수»).</p><p>매개변수는 <code>input &lt;이름> &lt;타입> .</code> 한 절에 하나다. 여럿이면 절을 되풀이한다. 부르는 쪽은 절의 차례대로 인자를 준다. 돌려주는 값은 <code>output &lt;타입> .</code> 하나이고, 본문에서 <code>return &lt;식> .</code> 으로 돌려준다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">fn</span></strong> compare <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
+end                         ← 몸이 끝나고, 선언 전체도 끝난다(뒤에 점을 찍지 않는다)</code></pre><p>부를 때는 이름 뒤에 인자를 <strong>공백으로</strong> 늘어놓는다. <code>add3 1 2 3</code> 이 한 번의 호출이고, 괄호는 호출 하나를 다른 호출의 인자로 넣을 때만 쓴다 — <code>add3 (add3 1 2 3) 4 5</code>. 괄호가 곧 “이 안이 값 하나” 라는 표시다. C 처럼 <code>add3(1, 2, 3)</code> 으로 쓰는 법은 없다. 쉼표는 이 언어에서 뜻이 없는 기호이고, 그래서 거절된다(아래 «흔한 실수»).</p><p>매개변수는 <code>input &lt;이름> &lt;타입> .</code> 한 절에 하나다. 여럿이면 절을 되풀이한다. 부르는 쪽은 절의 차례대로 인자를 준다. 돌려주는 값은 <code>output &lt;타입> .</code> 하나이고, 본문에서 <code>return &lt;식> .</code> 으로 돌려준다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">fn</span></strong> compare <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> sub a b .
-<strong><span class="tok-k">end</span></strong> .</code></pre><p>타입 앞에 붙는 낱말이 소유와 가변과 유무를 말한다. 자주 만나는 것은 다음과 같다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>적는 것</strong></th><th><strong>뜻</strong></th></tr><tr><td><code>input xs slice u8 .</code></td><td>남의 바이트를 읽기로 빌린다</td></tr><tr><td><code>input xs mut slice u8 .</code></td><td>남의 바이트에 쓸 수 있게 빌린다(<code>proc</code> 이어야 한다)</td></tr><tr><td><code>input p ref point .</code> · <code>mut_ref point</code></td><td>값 하나를 읽기로·쓰기로 빌린다(12장)</td></tr><tr><td><code>input o option u64 .</code></td><td>있을 수도 없을 수도 있는 값(11장)</td></tr><tr><td><code>input out cap io .</code></td><td>권한(16장)</td></tr><tr><td><code>input comptime t type .</code></td><td>번역할 때 정해지는 타입(22장)</td></tr></table></div><p class="float-caption">표 5.1 — 매개변수 타입에 붙는 낱말</p></figure><p>반환값은 하나다. 여럿을 돌려주려면 <code>struct</code> 로 묶거나(10장), 호출자가 넘긴 <code>mut</code> 슬라이스에 쓴다.</p><h3 id="s5-6">5.6 <code>neg</code> 만 단항이다<a class="plink" href="#s5-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>사칙 연산 <code>add</code>·<code>sub</code>·<code>mul</code>·<code>div</code>·<code>mod</code> 는 인자를 둘 받는다. 산술에서 인자를 하나 받는 것은 부호를 뒤집는 <code>neg</code> 뿐이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/neg.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> negs .
+<strong><span class="tok-k">end</span></strong></code></pre><p>타입 앞에 붙는 낱말이 소유와 가변과 유무를 말한다. 자주 만나는 것은 다음과 같다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>적는 것</strong></th><th><strong>뜻</strong></th></tr><tr><td><code>input xs slice u8 .</code></td><td>남의 바이트를 읽기로 빌린다</td></tr><tr><td><code>input xs mut slice u8 .</code></td><td>남의 바이트에 쓸 수 있게 빌린다(<code>proc</code> 이어야 한다)</td></tr><tr><td><code>input p ref point .</code> · <code>mut_ref point</code></td><td>값 하나를 읽기로·쓰기로 빌린다(12장)</td></tr><tr><td><code>input o option u64 .</code></td><td>있을 수도 없을 수도 있는 값(11장)</td></tr><tr><td><code>input out cap io .</code></td><td>권한(16장)</td></tr><tr><td><code>input comptime t type .</code></td><td>번역할 때 정해지는 타입(22장)</td></tr></table></div><p class="float-caption">표 5.1 — 매개변수 타입에 붙는 낱말</p></figure><p>반환값은 하나다. 여럿을 돌려주려면 <code>struct</code> 로 묶거나(10장), 호출자가 넘긴 <code>mut</code> 슬라이스에 쓴다.</p><h3 id="s5-6">5.6 <code>neg</code> 만 단항이다<a class="plink" href="#s5-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>사칙 연산 <code>add</code>·<code>sub</code>·<code>mul</code>·<code>div</code>·<code>mod</code> 는 인자를 둘 받는다. 산술에서 인자를 하나 받는 것은 부호를 뒤집는 <code>neg</code> 뿐이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/neg.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> negs .
 <em><span class="tok-c">rem run: flip 5</span></em>
 <em><span class="tok-c">rem run: dist -3 4</span></em>
 
 <strong><span class="tok-k">fn</span></strong> flip <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> neg a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> dist <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> abs (sub a b) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run flip neg.low 5
 flip(5) = -5
 $ lowentc --run dist neg.low -3 4
 dist(-3, 4) = 7
 </code></pre></div></div><p><code>neg</code> 는 부호 있는 타입의 일이다. 부호 없는 값에 쓰면 넘침이다. <code>abs</code> 는 절댓값이고, <code>i64</code> 의 가장 작은 값처럼 양수로 표현할 수 없는 값을 주면 멈춘다. <code>expr</code> 섬 안에도 단항 연산자는 없어서, 부호를 뒤집으려면 <code>expr 0 - a</code> 로 적거나 <code>(neg a)</code> 를 괄호로 부른다.</p><h3 id="s5-7">5.7 수식어<a class="plink" href="#s5-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>op 머리 앞에 수식어를 붙일 수 있다.</p><ul><li><code>export</code> — 다른 모듈에서 부를 수 있게 내보낸다. 네이티브로 낼 때는 C 에서 부를 수 있는 심볼이 된다. 붙이지 않은 op 은 그 모듈 안에서만 쓴다. 내보내는 것은 선택이지 부작용이 아니어야 하기 때문이다.</li><li><code>extern</code> — 구현이 바깥(C)에 있다. 본문 대신 <code>link</code> 절로 이름을 댄다(29장).</li><li><code>unsafe</code> — 언어가 검사할 수 없는 일을 한다. <code>effects unsafe</code> 와 짝이다.</li></ul><pre><code data-lang="lowent"><strong><span class="tok-k">unsafe</span></strong> <strong><span class="tok-k">extern</span></strong> <strong><span class="tok-k">proc</span></strong> c_area <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> c . <strong><span class="tok-k">input</span></strong> w <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
   <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">unsafe</span></strong> . <strong><span class="tok-k">link</span></strong> lw_c_area .
-<strong><span class="tok-k">end</span></strong> .</code></pre><h3 id="s5-8">5.8 흔한 실수<a class="plink" href="#s5-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>처음 op 을 쓸 때 누구나 한 번쯤 밟는 자리들이다. 모두 번역할 때 걸리므로, 진단 코드를 보고 이 절로 돌아오면 된다.</p><div class="dev antipattern"><p class="dev-label">반례. C 처럼 괄호와 쉼표로 부른다</p><div class="dev-body"><p>다른 언어에 익숙하면 손이 먼저 <code>add3(1, 2, 3)</code> 을 친다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/mistake_ccall.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_ccall .
+<strong><span class="tok-k">end</span></strong></code></pre><h3 id="s5-8">5.8 흔한 실수<a class="plink" href="#s5-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>처음 op 을 쓸 때 누구나 한 번쯤 밟는 자리들이다. 모두 번역할 때 걸리므로, 진단 코드를 보고 이 절로 돌아오면 된다.</p><div class="dev antipattern"><p class="dev-label">반례. C 처럼 괄호와 쉼표로 부른다</p><div class="dev-body"><p>다른 언어에 익숙하면 손이 먼저 <code>add3(1, 2, 3)</code> 을 친다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/mistake_ccall.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_ccall .
 <em><span class="tok-c">rem expect: E-VOCAB-REMOVED</span></em>
 
 <strong><span class="tok-k">fn</span></strong> add3 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add (add a b) c .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> use3 <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ C 처럼 괄호와 쉼표로 불렀다 --- Lowent 의 호출은 `이름 인자 인자 …` 다</span></em>
   <strong><span class="tok-k">return</span></strong> add3(<span class="tok-n">1</span>, <span class="tok-n">2</span>, <span class="tok-n">3</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_ccall.low
 12:16 E-VOCAB-REMOVED: `,` (R3) was removed — RFC-0103, 2026-08-27. It opened the NEXT operand of the same form, but nothing used it that way: every `,` in the corpus was a LINE CONTINUATION, and newlines no longer close a form, so continuing a line needs nothing at all. A form is `head operand*` and ends at its closer `.` — just write the operands, on as many lines as you like.
 12:19 E-VOCAB-REMOVED: `,` (R3) was removed — RFC-0103, 2026-08-27. It opened the NEXT operand of the same form, but nothing used it that way: every `,` in the corpus was a LINE CONTINUATION, and newlines no longer close a form, so continuing a line needs nothing at all. A form is `head operand*` and ends at its closer `.` — just write the operands, on as many lines as you like.
@@ -792,13 +792,13 @@ dist(-3, 4) = 7
 <strong><span class="tok-k">fn</span></strong> add3 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add (add a b) c .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> use3 <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ input 절이 셋인데 인자를 둘만 줬다</span></em>
   <strong><span class="tok-k">return</span></strong> add3 <span class="tok-n">1</span> <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_arity.low
 mistake_arity.low:12:0 E-IR-ARITY: `add3` takes 3 arguments but 2 are given here — an op call is `&lt;name> &lt;arg>…` with exactly as many arguments as its `input` clauses
 </code></pre></div></div><p><code>input</code> 절 하나가 인자 하나다. 기본값 인자나 인자 수가 달라지는 op 은 없다 — 머리를 보면 부르는 모양이 하나로 정해져야 읽는 사람이 헷갈리지 않기 때문이다. 진단이 몇 개를 받고 몇 개를 주었는지 말해 준다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 어느 갈래에서 <code>return</code> 을 빠뜨린다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/mistake_partial.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_partial .
@@ -808,19 +808,19 @@ mistake_arity.low:12:0 E-IR-ARITY: `add3` takes 3 arguments but 2 are given here
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <em><span class="tok-c">rem ✘ a 가 0 이하일 때 돌려줄 값이 없다 --- 끝까지 내려오는 길이 있다</span></em>
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_partial.low
 mistake_partial.low:4:0 E-RETURN-PARTIAL: this op says it OUTPUTS a value, but some path through its body reaches the end without a `return`. Until now the tool quietly returned 0 there — a value that appears NOWHERE in your source (RFC-0019 G-TOTAL). Give every path a `return`, or say `output void` if it really produces nothing. An exhaustive `match` whose every arm returns counts as returning
-</code></pre></div></div><p><code>output</code> 을 적은 op 은 <strong>모든 길</strong>에서 값을 돌려주어야 한다. 옛 도구는 빠진 자리에서 조용히 0 을 돌려주었는데, 그 0 은 소스 어디에도 적혀 있지 않은 값이라 버그를 숨겼다. 그래서 지금은 <code>E-RETURN-PARTIAL</code> 로 거절한다. 고치는 법은 <code>if</code> 뒤에 나머지 경우의 <code>return</code> 을 적는 것이다 — 예를 들면 <code>return 0 .</code> 을 <code>end .</code> 앞에 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 내장 op 의 이름으로 op 을 짓는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/mistake_builtin.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_builtin .
+</code></pre></div></div><p><code>output</code> 을 적은 op 은 <strong>모든 길</strong>에서 값을 돌려주어야 한다. 옛 도구는 빠진 자리에서 조용히 0 을 돌려주었는데, 그 0 은 소스 어디에도 적혀 있지 않은 값이라 버그를 숨겼다. 그래서 지금은 <code>E-RETURN-PARTIAL</code> 로 거절한다. 고치는 법은 <code>if</code> 뒤에 나머지 경우의 <code>return</code> 을 적는 것이다 — 예를 들면 <code>return 0 .</code> 을 <code>end</code> 앞에 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 내장 op 의 이름으로 op 을 짓는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/mistake_builtin.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_builtin .
 <em><span class="tok-c">rem expect: E-NAME-BUILTIN</span></em>
 
 <em><span class="tok-c">rem ✘ `min` 은 이미 내장 op 의 이름이다 --- 이 선언은 영영 불리지 않는다</span></em>
 <strong><span class="tok-k">fn</span></strong> min <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_builtin.low
 mistake_builtin.low:5:0 E-NAME-BUILTIN: this name is a BUILTIN — the resolver always picks the builtin, so your declaration can never be called: it exists and does not exist. The namespace is FLAT (no shadowing). Rename it
 </code></pre></div></div><p>이름 공간은 평평해서 같은 이름이 둘일 수 없다. 내장 op(<code>add</code>·<code>min</code>·<code>len</code>·<code>ok</code> …)의 이름을 쓰면 그 선언은 영영 불리지 않으므로 <code>E-NAME-BUILTIN</code> 으로 알려 준다. 지역 이름에도 같은 규칙이 붙는다. 내장 이름의 목록은 부록 A 에 있다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>결과를 받지 않아도 <code>fn</code> 을 부르면 무언가 일어난다</strong></p><div class="dev-body"><p><code>fn</code> 은 순수하므로 결과를 버리면 <strong>아무 일도 일어나지 않은 것</strong>과 같다. 컴파일러는 그런 호출을 지워도 된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch05/discard.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> discard .
@@ -829,7 +829,7 @@ mistake_builtin.low:5:0 E-NAME-BUILTIN: this name is a BUILTIN — the resolver 
 <strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -838,10 +838,10 @@ mistake_builtin.low:5:0 E-NAME-BUILTIN: this name is a BUILTIN — the resolver 
   <em><span class="tok-c">rem 결과를 쓰려면 이름에 묶는다</span></em>
   <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> twice <span class="tok-n">5</span> .
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run caller discard.low
 caller() = 10
-</code></pre></div></div><p>첫 <code>twice 5 .</code> 는 계산만 하고 흔적을 남기지 않는다. 답이 <code>10</code> 인 것은 둘째 줄에서 결과를 <code>t</code> 에 묶었기 때문이다. 무언가를 <strong>하려는</strong> 호출(출력·쓰기)이라면 그것은 <code>proc</code> 이어야 하고, 그러면 머리에 효과가 적힌다.</p></div></div><h3 id="s5-9">5.9 이 장의 문법 한눈에<a class="plink" href="#s5-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>fn f input a T . output R . do … end .</code></td><td>순수한 op</td><td>결과를 기억·재배치·생략해도 되는지 머리만 보고 알게</td></tr><tr><td><code>proc f … effects E . do … end .</code></td><td>효과를 낼 수 있는 op</td><td>무엇을 하는지(<code>E</code>)가 머리에 드러나게</td></tr><tr><td><code>input x T .</code></td><td>매개변수 하나</td><td>절마다 하나라 이름과 타입이 줄마다 보인다</td></tr><tr><td><code>output T .</code> · <code>output void .</code></td><td>돌려주는 값의 타입 · 돌려주는 값 없음</td><td>반환은 하나 — 여럿이면 <code>struct</code> 로 묶는다</td></tr><tr><td><code>return e .</code></td><td>값을 돌려주고 끝낸다</td><td>모든 길에서 적어야 한다(<code>E-RETURN-PARTIAL</code>)</td></tr><tr><td><code>f a b c</code></td><td>부르기 — 이름 뒤에 인자를 공백으로</td><td>괄호·쉼표 없는 전위 표기</td></tr><tr><td><code>f (g a) b</code></td><td>호출을 인자로 넣기</td><td>괄호는 “이 안이 값 하나” 라는 표시</td></tr><tr><td><code>requires c .</code></td><td>부르는 쪽이 지켜야 할 조건</td><td>어긴 쪽의 잘못임을 진입에서 알린다(14장)</td></tr><tr><td><code>effects state .</code></td><td>호출자의 저장소를 고친다</td><td><code>mut</code> 매개변수로 쓰는 op 의 머리</td></tr><tr><td><code>neg a</code></td><td>부호 뒤집기(유일한 단항 산술)</td><td>빼기와 뒤섞이지 않게 이름으로</td></tr><tr><td><code>export</code> · <code>extern</code> · <code>unsafe</code></td><td>내보내기 · 몸이 C 에 · 검사 못 하는 일</td><td>할 수 있는 일이 머리 앞에 보이게</td></tr></table></div><p class="float-caption">표 5.2 — op 의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">op 은 <code>fn</code> 이거나 <code>proc</code> 이고 갈래는 언제나 적는다. 순수함은 관측적이어서 op 안에 갇힌 변이는 순수로 치지만, <code>mut</code> 매개변수로 호출자에게 보이는 쓰기는 <code>proc</code> 이어야 한다. <code>fn</code> 에는 <code>effects</code> 를 적지 않고, <code>proc</code> 의 <code>effects</code> 는 좁히는 절이다. 효과는 부르는 쪽으로 번진다. 매개변수는 절마다 하나, 반환은 하나이며, 산술의 단항은 <code>neg</code> 뿐이다.</div></div>
+</code></pre></div></div><p>첫 <code>twice 5 .</code> 는 계산만 하고 흔적을 남기지 않는다. 답이 <code>10</code> 인 것은 둘째 줄에서 결과를 <code>t</code> 에 묶었기 때문이다. 무언가를 <strong>하려는</strong> 호출(출력·쓰기)이라면 그것은 <code>proc</code> 이어야 하고, 그러면 머리에 효과가 적힌다.</p></div></div><h3 id="s5-9">5.9 이 장의 문법 한눈에<a class="plink" href="#s5-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>fn f input a T . output R . do … end</code></td><td>순수한 op</td><td>결과를 기억·재배치·생략해도 되는지 머리만 보고 알게</td></tr><tr><td><code>proc f … effects E . do … end</code></td><td>효과를 낼 수 있는 op</td><td>무엇을 하는지(<code>E</code>)가 머리에 드러나게</td></tr><tr><td><code>input x T .</code></td><td>매개변수 하나</td><td>절마다 하나라 이름과 타입이 줄마다 보인다</td></tr><tr><td><code>output T .</code> · <code>output void .</code></td><td>돌려주는 값의 타입 · 돌려주는 값 없음</td><td>반환은 하나 — 여럿이면 <code>struct</code> 로 묶는다</td></tr><tr><td><code>return e .</code></td><td>값을 돌려주고 끝낸다</td><td>모든 길에서 적어야 한다(<code>E-RETURN-PARTIAL</code>)</td></tr><tr><td><code>f a b c</code></td><td>부르기 — 이름 뒤에 인자를 공백으로</td><td>괄호·쉼표 없는 전위 표기</td></tr><tr><td><code>f (g a) b</code></td><td>호출을 인자로 넣기</td><td>괄호는 “이 안이 값 하나” 라는 표시</td></tr><tr><td><code>requires c .</code></td><td>부르는 쪽이 지켜야 할 조건</td><td>어긴 쪽의 잘못임을 진입에서 알린다(14장)</td></tr><tr><td><code>effects state .</code></td><td>호출자의 저장소를 고친다</td><td><code>mut</code> 매개변수로 쓰는 op 의 머리</td></tr><tr><td><code>neg a</code></td><td>부호 뒤집기(유일한 단항 산술)</td><td>빼기와 뒤섞이지 않게 이름으로</td></tr><tr><td><code>export</code> · <code>extern</code> · <code>unsafe</code></td><td>내보내기 · 몸이 C 에 · 검사 못 하는 일</td><td>할 수 있는 일이 머리 앞에 보이게</td></tr></table></div><p class="float-caption">표 5.2 — op 의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">op 은 <code>fn</code> 이거나 <code>proc</code> 이고 갈래는 언제나 적는다. 순수함은 관측적이어서 op 안에 갇힌 변이는 순수로 치지만, <code>mut</code> 매개변수로 호출자에게 보이는 쓰기는 <code>proc</code> 이어야 한다. <code>fn</code> 에는 <code>effects</code> 를 적지 않고, <code>proc</code> 의 <code>effects</code> 는 좁히는 절이다. 효과는 부르는 쪽으로 번진다. 매개변수는 절마다 하나, 반환은 하나이며, 산술의 단항은 <code>neg</code> 뿐이다.</div></div>
 <div class="nav"><a href="ch04.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch06.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

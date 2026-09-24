@@ -28,7 +28,7 @@ build tier t0 .              rem ★ 협력 floor — lock·atomic·blocking·al
 trait executor do
   post  input s self . input job u64 . output u64 . effects state .
   drain input s self . output u64 . effects state .
-end .
+end
 
 rem ── T0 구현: 협력 스케줄러 (정적 잡 큐, 선점 없음 ⇒ 구성상 무경합)
 actor coop do
@@ -36,19 +36,19 @@ actor coop do
   state do
     pending u64 .
     done u64 .
-  end .
+  end
   proc post input job u64 . output u64 . effects state .
   do
     set pending add pending job .
     return pending .
-  end .
+  end
   proc drain output u64 . effects state .
   do
     set done add done pending .
     set pending 0 .
     return done .
-  end .
-end .
+  end
+end
 
 rem ── 또 하나의 구현: 잡을 두 배로 세는 큐 (같은 인터페이스, 다른 기관)
 actor queue do
@@ -56,19 +56,19 @@ actor queue do
   state do
     pending u64 .
     done u64 .
-  end .
+  end
   proc post input job u64 . output u64 . effects state .
   do
     set pending add pending (mul job 2) .
     return pending .
-  end .
+  end
   proc drain output u64 . effects state .
   do
     set done add done pending .
     set pending 0 .
     return done .
-  end .
-end .
+  end
+end
 
 rem ★★★ **호출 코드는 런타임을 모른다** — 경계가 그것을 보장한다.
 proc run .
@@ -81,14 +81,14 @@ do
   var a u64 be send x post 3 .
   var b u64 be send x post 4 .
   return send x drain .
-end .
+end
 
 proc both output u64 . effects state . do
   var c coop be spawn actor coop . .
   var q queue be spawn actor queue . .
   return add (run coop c) (run queue q) .    rem 7 + 14 = 21
-end .
+end
 
 test tiers do
   expect eq (both) 21 .
-end .
+end

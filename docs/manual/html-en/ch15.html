@@ -670,7 +670,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">proc</span></strong> checked <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> crash .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check undef.low
 undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/alloc/heap/io/wait/concurrent/lock/atomic/unsafe/device/page_fault/blocking/cancel/detach/panic/state) — a typo here silently declares the op PURE
 </code></pre></div></div><p>Quietly accepting a typo would make that op read as having no effect — the case the diagnostic describes as “a typo here silently declares the op PURE”.</p><h3 id="s15-2">15.2 Effects spread to the caller<a class="plink" href="#s15-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Calling an op adds its effects to the caller’s. Performing more effects than declared is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/spread.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> spread .
@@ -679,7 +679,7 @@ undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/all
 <strong><span class="tok-k">proc</span></strong> log_line <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> msg <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> msg .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> compute <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
@@ -687,9 +687,9 @@ undef.low:4:0 E-EFFECT-UNDEF: unknown effect (the vocabulary is closed: none/all
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> log_line out <span class="tok-s">"</span><span class="tok-s">computing</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> mul x <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check spread.low
 spread.low:11:1 E-EFFECT: this op performs `io`, which its `effects` clause does not declare — add it to `effects …`, or stop calling what needs it
 </code></pre></div></div><p><code>compute</code> declares only <code>effects panic .</code>, but calls <code>log_line</code> and so also performs <code>io</code>. The diagnostic says “add it to <code>effects</code>, or stop calling what needs it”. Conversely, the layers effects do not spread into are clear too.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/layered.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> layered .
@@ -700,14 +700,14 @@ spread.low:11:1 E-EFFECT: this op performs `io`, which its `effects` clause does
   <strong><span class="tok-k">requires</span></strong> le c <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add (div (mul c <span class="tok-n">9</span>) <span class="tok-n">5</span>) <span class="tok-n">32</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> print_digit <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> d <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
   <strong><span class="tok-k">requires</span></strong> le d <span class="tok-n">9</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-s">"</span><span class="tok-s">0123456789</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> (subslice buf (widen <strong><span class="tok-t">u64</span></strong> d) (add (widen <strong><span class="tok-t">u64</span></strong> d) <span class="tok-n">1</span>)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
@@ -715,7 +715,7 @@ spread.low:11:1 E-EFFECT: this op performs `io`, which its `effects` clause does
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> print_digit out (narrow <strong><span class="tok-t">u8</span></strong> (mod f <span class="tok-n">10</span>)) .
   <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main layered.low
 2
 main() = 0
@@ -726,7 +726,7 @@ main() = 0
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul x <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check over.low
 over.low:6:1 W-EFFECT-OVER: this op DECLARES `panic` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
 </code></pre></div></div><p><code>double</code> says it may stop, but it never stops. Then every op calling it must declare <code>panic</code>, and pure <code>fn</code>s cannot call it — it exaggerated what it does. The diagnostic says to remove it, or to say so if a future version will actually perform it.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Declaring effects generously saves work later</strong></p><div class="dev-body">Generous effects spread to every caller. Declaring one <code>panic</code> in advance makes every calling op declare <code>panic</code>, and computations that should be pure lose their purity. An op that loses purity also loses optimisations such as reordering and memoisation. Declare effects only as far as they are actually performed.</div></div><h3 id="s15-4">15.4 The effects line is a set<a class="plink" href="#s15-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>The effects line is a <strong>set</strong>, not a list. Writing the same word twice is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/dup.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dup .
@@ -734,9 +734,9 @@ over.low:6:1 W-EFFECT-OVER: this op DECLARES `panic` but never PERFORMS it. A de
 
 <strong><span class="tok-k">proc</span></strong> checked <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check dup.low
 dup.low:4:0 E-EFFECT-DUP: an effect atom appears more than once in the `effects` clause — the row is a SET, not a list. A repeat says nothing the first one didn't, and the reader has to decide it's noise (RFC-0057 E3)
 </code></pre></div></div><p>The second <code>panic</code> says nothing the first did not. <code>none</code> cannot appear with any other atom.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/nonemix.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nonemix .
@@ -744,9 +744,9 @@ dup.low:4:0 E-EFFECT-DUP: an effect atom appears more than once in the `effects`
 
 <strong><span class="tok-k">proc</span></strong> checked <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check nonemix.low
 nonemix.low:4:0 E-EFFECT-NONE-MIX: `none` sits in the `effects` clause ALONGSIDE a real effect — `none` means this op performs no effects, so it cannot co-occur with one. Say the effects, or say none; not both (RFC-0057 E2)
 </code></pre></div></div><p>An op cannot both have effects and have none; write the effects or write that there are none. And a <code>fn</code> does not even carry <code>effects none</code> (chapter 5).</p><p>Some effects bring others with them. Today there is one such rule — writing <code>concurrent</code> counts as writing <code>wait</code> too, since waiting for another flow’s progress may mean being suspended. Two sets are therefore compared after applying this closure. Writing <code>concurrent</code> means <code>wait</code> need not be written separately, but writing only <code>wait</code> and doing something <code>concurrent</code> is rejected.</p><h3 id="s15-5">15.5 <code>via</code> — a type argument decides the effects<a class="plink" href="#s15-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Generic containers are in an awkward spot, because their effects depend on which allocator they receive. Opened on a bump allocator over borrowed bytes, the effect is just <code>state</code>; opened on an allocator standing on the growing heap, <code>heap</code> appears. Always declaring the largest effect any allocator could produce is a lie, and declaring only the smallest is a <strong>hidden allocation</strong>.</p><pre><code data-lang="lowent"><strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> append
@@ -762,9 +762,9 @@ nonemix.low:4:0 E-EFFECT-NONE-MIX: `none` sits in the `effects` clause ALONGSIDE
 <em><span class="tok-c">rem ✘ a pure `fn` uses `panic` --- stopping the program is an effect too</span></em>
 <strong><span class="tok-k">fn</span></strong> nonzero <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_fnpanic.low
 mistake_fnpanic.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `panic` — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p>Stopping the program leaves a mark on the outside too. If a caller memoises this op or reorders it, the moment of the stop changes, so a <code>fn</code> cannot use <code>panic</code> and is rejected with <code>E-EFFECT-CALC</code>. Attaching <code>effects panic .</code> to a <code>fn</code> is rejected with the same code — the words <code>fn</code> and <code>proc</code> already say whether an op is pure. There are two fixes: make it a <code>proc</code> that declares stopping as an effect, or move the condition into a contract, which makes it the caller’s responsibility.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/fnpanic_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> fnpanic_fixed .
@@ -774,16 +774,16 @@ mistake_fnpanic.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `pa
 <em><span class="tok-c">rem fix 1 --- a `proc` that declares stopping as an effect</span></em>
 <strong><span class="tok-k">proc</span></strong> nonzero_checked <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem fix 2 --- move the condition into a contract and it stays a `fn`</span></em>
 <strong><span class="tok-k">fn</span></strong> nonzero_strict <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ne x <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run nonzero_checked fnpanic_fixed.low 5
 nonzero_checked(5) = 5
 $ lowentc --run nonzero_strict fnpanic_fixed.low 0
@@ -799,8 +799,8 @@ $ lowentc --run nonzero_strict fnpanic_fixed.low 0
   <strong><span class="tok-k">while</span></strong> lt i (len xs) <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index xs i) <span class="tok-n">0</span> .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_fnmutwrite.low
 mistake_fnmutwrite.low:5:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parameter — that write is visible to the CALLER. A fn is an enforced purity contract (SPEC-003 §27): callers may memoise it, reorder it, or elide it. An op that changes caller-owned storage can do none of those. Declare it a `proc`. (Local mutation stays pure: storage confined to the op is not observable — a machine write is not an observable effect. RFC-0057)
 </code></pre></div></div><p>The zeros written by <code>clear</code> stay in the caller’s slice. To the caller the outside has changed, and such an op cannot be memoised, removed or reordered. Hence <code>E-EFFECT-PURITY</code>. Change the head to <code>proc clear … effects state .</code>. As the diagnostic adds, changing locals inside an op does not break purity (see the misconception below).</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Putting commas between effects</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/mistake_effcomma.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_effcomma .
@@ -809,9 +809,9 @@ mistake_fnmutwrite.low:5:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parame
 <em><span class="tok-c">rem ✘ a comma between effects --- just separate the words with spaces</span></em>
 <strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io, panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> eq x <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> panic <span class="tok-s">"</span><span class="tok-s">zero</span><span class="tok-s">"</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_effcomma.low
 5:68 E-VOCAB-REMOVED: `,` (R3) was removed — RFC-0103, 2026-08-27. It opened the NEXT operand of the same form, but nothing used it that way: every `,` in the corpus was a LINE CONTINUATION, and newlines no longer close a form, so continuing a line needs nothing at all. A form is `head operand*` and ends at its closer `.` — just write the operands, on as many lines as you like.
 </code></pre></div></div><p>The habit of separating a list with commas becomes <code>E-VOCAB-REMOVED</code> here. The comma was once in the grammar but was only ever used to continue a line; newlines no longer close a form, so it was removed. Separate the words with spaces, as in <code>effects io panic .</code>. The form ends at the stop.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Using <code>var</code> and <code>set</code> makes an op impure</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/pure_local.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> pure_local .
@@ -826,9 +826,9 @@ mistake_fnmutwrite.low:5:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parame
   <strong><span class="tok-k">while</span></strong> le i n <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s i) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run sum_to pure_local.low 10
 sum_to(10) = 55
 </code></pre></div></div><p><code>sum_to</code> keeps changing two locals, yet it is a <code>fn</code>. The storage that changes lives only inside this op; the caller sees only the result 55. It always gives the same answer for the same input, and not calling it leaves nothing behind. Purity does not mean “changes nothing inside”; it means “leaves no mark visible from outside”.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>A <code>fn</code> never stops</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/fn_can_stop.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> fn_can_stop .
@@ -839,7 +839,7 @@ sum_to(10) = 55
 <strong><span class="tok-k">fn</span></strong> first <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index xs <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run first fn_can_stop.low [7,8]
 first([7,8]) = 7
   arg0 (written) = [7,8]
@@ -853,12 +853,12 @@ $ lowentc --run first fn_can_stop.low []
 <strong><span class="tok-k">proc</span></strong> wait_for_device <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> blocking .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem ✘ a pure fn calls an op that may hold the flow; in this edition it slips through</span></em>
 <strong><span class="tok-k">fn</span></strong> ready <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> wait_for_device .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_blocking.low
 mistake_blocking.low:11:23 E-EFFECT-CALC: this fn is declared pure but performs (이름 없는 효과 비트) — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p><code>blocking</code> means “may hold the flow of execution”, so a <code>fn</code> calling such an op is not pure, and it is refused with <code>E-EFFECT-CALC</code>. Until 2026-09-16 five atoms — <code>blocking</code>, <code>page_fault</code>, <code>cancel</code>, <code>detach</code> and <code>device</code> — did <strong>not</strong> spread to the caller, so this passed; <code>device</code>, which touches hardware directly, could hide behind a pure function. The same shape with <code>wait</code> was refused even then.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch15/blocking_wait.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> blocking_wait .
@@ -868,11 +868,11 @@ mistake_blocking.low:11:23 E-EFFECT-CALC: this fn is declared pure but performs 
 <strong><span class="tok-k">proc</span></strong> wait_for_device <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> wait .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> ready <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> wait_for_device .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check blocking_wait.low
 blocking_wait.low:6:1 W-EFFECT-OVER: this op DECLARES `wait` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
 blocking_wait.low:10:23 E-EFFECT-CALC: this fn is declared pure but performs `wait` — make it a `proc` with `effects …`, or remove the effect

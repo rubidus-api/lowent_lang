@@ -17,7 +17,7 @@ proc sorted_at input s mut slice u64 . . input k u64 . output u64 . effects none
   sortlib.sort s .
   guard lt k (len s) . else return 0 .
   return index s k .
-end .
+end
 
 rem 정렬 후 (오름차순 AND 합 보존) → 1/0. 임의 입력에서 자기검증 · diff-sweep 이 임의 배열에서 돌린다.
 proc sort_verify input s mut slice u64 . . output u64 . effects none . do
@@ -26,7 +26,7 @@ proc sort_verify input s mut slice u64 . . output u64 . effects none . do
   while lt i (len s) . do
     set pre (wrap_add pre (index s i)) .
     set i (add i 1) .
-  end .
+  end
   sortlib.sort s .
   var post u64 be 0 .
   var sorted u64 be 1 .
@@ -34,11 +34,11 @@ proc sort_verify input s mut slice u64 . . output u64 . effects none . do
   while lt j (len s) . do
     set post (wrap_add post (index s j)) .
     if gt j 0 . do
-      if gt (index s (sub j 1)) (index s j) . do set sorted 0 . end .
-    end .
+      if gt (index s (sub j 1)) (index s j) . do set sorted 0 . end
+    end
     set j (add j 1) .
-  end .
-  if ne pre post . do set sorted 0 . end .
+  end
+  if ne pre post . do set sorted 0 . end
   return sorted .
-end .
+end
 

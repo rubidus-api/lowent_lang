@@ -674,7 +674,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> widen <strong><span class="tok-t">u32</span></strong> (index data <span class="tok-n">0</span>) .
   <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> widen <strong><span class="tok-t">u32</span></strong> (index data <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> add (mul hi <span class="tok-n">256</span>) lo .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run read_pair pair.low [1,2,3]
 read_pair([1,2,3]) = 258
   arg0 (written) = [1,2,3]
@@ -691,7 +691,7 @@ read_pair([1,2,3]) = 258
   <strong><span class="tok-k">ensures</span></strong> le ret <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div (mul part <span class="tok-n">100</span>) whole .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 150 을 넘는 값만 자르고, 101 … 150 은 깜빡 잊었다</span></em>
 <strong><span class="tok-k">fn</span></strong> clamp_to_100 <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -700,9 +700,9 @@ read_pair([1,2,3]) = 258
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> gt n <span class="tok-n">150</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run percent_of blame.low 50 200
 percent_of(50, 200) = 25
 $ lowentc --run clamp_to_100 blame.low 400
@@ -716,13 +716,13 @@ $ lowentc --run clamp_to_100 blame.low 120
 </code></pre></div></div><p><code>percent_of 250 200</code> 은 부분이 전체보다 크니 부르는 쪽의 잘못이고, VM 은 “the caller broke the contract” 라고 말한다. <code>clamp_to_100 120</code> 은 <code>n</code> 이 101 … 150 일 때 자르기를 잊은 op 의 잘못이고, VM 은 “THIS op broke its own promise” 라고 말한다. 프로그램이 멈췄을 때 “내가 잘못 불렀나, 저 op 이 잘못 만들어졌나” 를 진단이 바로 답한다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> <code>ensures</code> 는 결국 op 이 자기 자신을 검사하는 것인데, 시험(<code>test</code>)과 무엇이 다른가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 시험은 몇 가지 입력에서 답이 맞는지 본다. <code>ensures</code> 는 <strong>모든 호출에서</strong> 약속이 지켜지는지 본다. 시험이 고른 입력 밖에서 약속이 깨져도 <code>ensures</code> 는 그 호출에서 멈춘다. 그리고 부르는 쪽은 <code>ensures</code> 를 사실로 쓸 수 있다. <code>clamp_to_100</code> 을 부른 쪽은 결과가 100 이하임을 믿고 <code>narrow u8</code> 의 검사를 지울 수 있다. 개발 저장소의 검증 도구가 기대 출력 없이 계약만으로 op 을 시험할 수 있는 이유이기도 하다(31장).</p></div></div><h3 id="s14-3">14.3 계약이 검사를 지운다<a class="plink" href="#s14-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>처리기는 계약을 사실로 삼아 값이 가질 수 있는 범위를 좁힌다. 그 범위가 안전함을 보이면 넘침·0 나누기·좁히기· 슬라이스 경계 검사를 지운다. 그래서 이 언어에서는 <strong>정직하게 적는 쪽이 빠르다.</strong></p><pre><code data-lang="lowent"><strong><span class="tok-k">fn</span></strong> bare <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .          <em><span class="tok-c">rem 넘침 검사가 남는다</span></em>
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> proven <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .          <em><span class="tok-c">rem 검사가 없다 — 201 을 넘을 수 없다</span></em>
-<strong><span class="tok-k">end</span></strong> .</code></pre><p>두 op 은 본문이 같다. 다른 것은 계약 한 줄뿐이고, 그 한 줄이 실행 중 검사 하나를 없앤다. 검사가 사라진 것이 아니라 진입의 한 번으로 <strong>옮겨진</strong> 것이다. 부르는 쪽이 상수로 부르거나 자기 계약으로 범위를 증명하면 진입 검사마저 사라진다.</p><p>중요한 규칙이 하나 있다. <strong>강제되지 않는 계약은 사실로 쓰지 않는다.</strong> 확인 없이 믿고 검사를 지우면, 그것은 빨라진 것이 아니라 틀린 것이다. 이 규칙이 뒤의 등급과 빌드 모드에서 다시 나온다.</p><h3 id="s14-4">14.4 모든 원소에 대한 조건<a class="plink" href="#s14-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>계약의 조건은 순수한 식이다. 되풀이는 문장이므로 “모든 원소가 9 이하” 를 반복문으로 적을 수 없다. 그래서 그 말을 하는 낱말이 따로 있다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/elems.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> elems .
+<strong><span class="tok-k">end</span></strong></code></pre><p>두 op 은 본문이 같다. 다른 것은 계약 한 줄뿐이고, 그 한 줄이 실행 중 검사 하나를 없앤다. 검사가 사라진 것이 아니라 진입의 한 번으로 <strong>옮겨진</strong> 것이다. 부르는 쪽이 상수로 부르거나 자기 계약으로 범위를 증명하면 진입 검사마저 사라진다.</p><p>중요한 규칙이 하나 있다. <strong>강제되지 않는 계약은 사실로 쓰지 않는다.</strong> 확인 없이 믿고 검사를 지우면, 그것은 빨라진 것이 아니라 틀린 것이다. 이 규칙이 뒤의 등급과 빌드 모드에서 다시 나온다.</p><h3 id="s14-4">14.4 모든 원소에 대한 조건<a class="plink" href="#s14-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>계약의 조건은 순수한 식이다. 되풀이는 문장이므로 “모든 원소가 9 이하” 를 반복문으로 적을 수 없다. 그래서 그 말을 하는 낱말이 따로 있다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/elems.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> elems .
 <em><span class="tok-c">rem run: digit_sum [1,2,3,9]</span></em>
 <em><span class="tok-c">rem trap: digit_sum [1,20]</span></em>
 
@@ -732,9 +732,9 @@ $ lowentc --run clamp_to_100 blame.low 120
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> d ds <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> d)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run digit_sum elems.low [1,2,3,9]
 digit_sum([1,2,3,9]) = 15
   arg0 (written) = [1,2,3,9]
@@ -747,17 +747,17 @@ $ lowentc --run digit_sum elems.low [1,20]
 
 <strong><span class="tok-k">contract</span></strong> positive <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">requires</span></strong> ge a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> half <strong><span class="tok-k">satisfies</span></strong> positive . <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> third <strong><span class="tok-k">satisfies</span></strong> positive . <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div a <span class="tok-n">3</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run half named.low 10
 half(10) = 5
 $ lowentc --run third named.low 10
@@ -769,12 +769,12 @@ third(10) = 3
   <strong><span class="tok-k">requires</span></strong> lt a <span class="tok-n">10</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> small <span class="tok-n">200</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check impossible.low
 impossible.low:12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requires`, and BOTH SIDES ARE CONSTANTS — so it can be decided here, now. It used to compile green and trap at run time (E-VM-CONTRACT): a bit budget that does not fit (`slot + shard + generation > word`) shipped as a runnable program. A contract that can be decided at compile time IS decided at compile time (RFC-0104 §8-3)
 </code></pre></div></div><p>진단이 적은 사연대로, 이것은 한때 초록으로 번역되어 실행 중에야 멈췄다. 맞지 않는 비트 예산을 지닌 프로그램이 실행할 수 있는 모습으로 배포되었다. 답이 지금 나는 계약은 지금 말한다.</p><p>반대쪽 실수도 거절된다. <code>requires</code> 가 이미 배제한 조건에 오류를 선언하면, 그 오류는 결코 나지 않는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/dead.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead .
@@ -782,7 +782,7 @@ impossible.low:12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requir
 
 <strong><span class="tok-k">enum</span></strong> div_error <strong><span class="tok-k">do</span></strong>
   by_zero .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> safe_div <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u32</span></strong> div_error .
   <strong><span class="tok-k">requires</span></strong> ne b <span class="tok-n">0</span> .
@@ -790,7 +790,7 @@ impossible.low:12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requir
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> ne b <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error by_zero .
   <strong><span class="tok-k">return</span></strong> ok (div a b) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check dead.low
 dead.low:10:0 E-CONTRACT-DEAD: this declared error can never occur: `requires` already excludes the condition, and the condition's inputs cannot change during the op (remove the `requires`, or remove the error — not both)
 </code></pre></div></div><p><code>requires ne b 0 .</code> 가 있으니 <code>errors by_zero eq b 0 .</code> 은 영영 참이 될 수 없다. 이 선언이 남아 있으면 부르는 쪽은 <code>by_zero</code> 를 다루는 코드를 쓰고, 그 코드는 영영 돌지 않는다. 돌지 않는 코드는 시험되지 않고, 시험되지 않는 코드는 언젠가 틀린다. 진단은 둘 중 하나를 지우라고 한다 — 부르는 쪽에 책임을 지우든(<code>requires</code>), op 이 스스로 처리하든(<code>errors</code>).</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>계약은 많이 적을수록 안전하다</strong></p><div class="dev-body">적은 계약이 서로 겹치거나 일어날 수 없는 경우를 약속하면 틀린 그림이 된다. 계약은 <strong>사실</strong>이어야 한다. <code>requires</code> 와 <code>errors</code> 가 같은 조건을 두고 다투는 것은 누가 책임지는지를 흐리는 일이고, 그래서 거절된다. 좋은 계약은 짧고, 책임이 한 곳에 있다.</div></div><h3 id="s14-7">14.7 계약의 등급<a class="plink" href="#s14-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-36"></span><p>계약 절 하나에 등급을 붙여 그 조건을 언제 무엇으로 다룰지 정할 수 있다. <code>requires &lt;등급> &lt;조건> .</code> 꼴이다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>등급</strong></th><th><strong>언제 보나</strong></th><th><strong>뜻</strong></th></tr><tr><td>(없음)</td><td>할 수 있을 때</td><td>증명할 수 있으면 증명하고, 못 하면 빌드 모드대로 남긴다</td></tr><tr><td><code>static</code></td><td>번역할 때</td><td>처리기가 증명해야 한다. 못 하면 번역이 실패한다</td></tr><tr><td><code>debug</code></td><td>돌 때</td><td>빌드 모드가 검사를 두는 동안만 본다</td></tr><tr><td><code>assume</code></td><td>보지 않는다</td><td>적어 두기만 한다. 사실로 쓰지 않는다</td></tr></table></div><p class="float-caption">표 14.2 — 계약의 등급</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/grades.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> grades .
@@ -803,13 +803,13 @@ dead.low:10:0 E-CONTRACT-DEAD: this declared error can never occur: `requires` a
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> bump_assumed <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> assume le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run bump_checked grades.low 10
 bump_checked(10) = 11
 $ lowentc --run bump_assumed grades.low 10
@@ -830,7 +830,7 @@ build release_fast .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run bump fast.low 10
 bump(10) = 11
 $ lowentc --run bump fast.low 250
@@ -844,7 +844,7 @@ bump(250) = 251
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_result.low
 mistake_result.low:6:0 E-ENS-UNDEF: ensures references an undefined name — an ensures that names nothing checks nothing, and the interval analysis DERIVES the result range from it (`ret` is the result)
 </code></pre></div></div><p>돌려주는 값의 이름은 <code>ret</code> 이다. <code>result</code> 는 타입 이름(<code>result u8 e</code>)에 이미 쓰이므로 값 이름으로 겹쳐 쓰지 않는다. 없는 이름을 가리키는 <code>ensures</code> 는 아무것도 검사하지 않으면서 처리기가 결과 범위를 끌어내는 데 쓰일 수 있으므로, 경고가 아니라 오류 (<code>E-ENS-UNDEF</code>)다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 색인의 전제를 <code>le</code> 로 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/mistake_leindex.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_leindex .
@@ -856,7 +856,7 @@ mistake_result.low:6:0 E-ENS-UNDEF: ensures references an undefined name — an 
   <strong><span class="tok-k">requires</span></strong> le i (len xs) .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index xs i .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run at mistake_leindex.low [1,2,3] 2
 at([1,2,3], 2) = 3
   arg0 (written) = [1,2,3]
@@ -872,7 +872,7 @@ $ lowentc --run at mistake_leindex.low [1,2,3] 3
   <strong><span class="tok-k">requires</span></strong> ge a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_contradict.low
 mistake_contradict.low:7:0 E-CONTRACT-UNSAT: two preconditions on the same input cannot both hold, so EVERY call stops at the door and the body never runs. A contract that no argument satisfies is not a strong contract, it is a dead op — usually one line left behind when the other was edited. Keep the one you meant
 </code></pre></div></div><p>100 이하이면서 200 이상인 <code>u8</code> 은 없다. 그러니 이 op 은 어떻게 불러도 진입에서 멈춘다. 대개 한 줄의 <code>le</code>·<code>ge</code> 를 거꾸로 적었거나, 고치다가 옛 줄을 지우지 않은 것이다. 일어날 수 없는 오류 선언(<code>E-CONTRACT-DEAD</code>)과 같은 자리이므로 <code>E-CONTRACT-UNSAT</code> 으로 거절한다 — 어떤 인자도 만족하지 못하는 계약은 강한 계약이 아니라 죽은 op 이다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>requires</code> 는 사용자 입력을 검증하는 도구다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/contract_input.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> contract_input .
@@ -882,14 +882,14 @@ mistake_contradict.low:7:0 E-CONTRACT-UNSAT: two preconditions on the same input
 
 <strong><span class="tok-k">enum</span></strong> age_error <strong><span class="tok-k">do</span></strong>
   too_old .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 계약: 부르는 쪽이 이미 확인한 값만 받는다 --- 어기면 프로그램이 멈춘다</span></em>
 <strong><span class="tok-k">fn</span></strong> age_strict <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">150</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 바깥에서 온 값은 틀릴 수 있다 --- 틀림을 값으로 돌려준다</span></em>
 <strong><span class="tok-k">fn</span></strong> age_checked <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> age_error .
@@ -897,15 +897,15 @@ mistake_contradict.low:7:0 E-CONTRACT-UNSAT: two preconditions on the same input
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">150</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_old .
   <strong><span class="tok-k">return</span></strong> ok a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> check_age <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> age_checked a <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> ok v . <strong><span class="tok-k">return</span></strong> age_strict v .
     <strong><span class="tok-k">case</span></strong> error e . <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run check_age contract_input.low 30
 check_age(30) = 30
 $ lowentc --run age_checked contract_input.low 200
@@ -913,7 +913,7 @@ age_checked(200) = err too_old
 $ lowentc --run age_strict contract_input.low 200
 == ir diagnostics (1) ==
 0:0 E-VM-CONTRACT: `requires` violated at entry — the caller broke the contract
-</code></pre></div></div><p>계약이 깨지면 <strong>프로그램이 멈춘다</strong>. 계약은 “부르는 쪽이 이미 확인했다” 는 약속이라서, 깨졌다는 것은 코드에 결함이 있다는 뜻이다. 사용자가 200 살이라고 입력한 것은 결함이 아니라 흔히 일어나는 일이다. 바깥에서 들어온 값은 <code>age_checked</code> 처럼 확인해서 틀림을 <code>result</code> 로 돌려주고, 확인이 끝난 값만 <code>age_strict</code> 같은 계약 있는 op 에 넘긴다. 확인한 뒤에 부르므로 <code>check_age</code> 안의 계약 검사는 처리기가 지운다.</p></div></div><h3 id="s14-10">14.10 이 장의 문법 한눈에<a class="plink" href="#s14-10" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>requires le a 200 .</code></td><td>들어올 때의 조건 — 부르는 쪽의 책임</td><td>검사를 진입의 한 번으로 모으고 본문의 검사를 지운다</td></tr><tr><td><code>ensures le ret 100 .</code></td><td>나갈 때의 약속 — 이 op 의 책임</td><td><code>ret</code> 은 돌려주는 값 — 부르는 쪽이 사실로 쓴다</td></tr><tr><td><code>errors too_big gt a 200 .</code></td><td>이 조건이면 이 오류를 낸다는 약속</td><td>나가는 쪽의 계약 — 오류도 약속한다</td></tr><tr><td><code>requires elem_le ds 9 .</code></td><td>모든 원소에 대한 조건</td><td>계약은 식이라 반복문을 쓸 수 없다</td></tr><tr><td><code>contract positive do … end .</code></td><td>계약에 이름을 준다</td><td>같은 조건을 고칠 자리가 하나가 된다</td></tr><tr><td><code>fn half satisfies positive . …</code></td><td>이름 붙은 계약을 갖춘다(머리 맨 앞)</td><td>op 이 무엇인지 먼저 말한다</td></tr><tr><td><code>requires static …</code> · <code>debug</code> · <code>assume</code></td><td>계약의 등급</td><td>언제 무엇으로 볼지 절마다 정한다 — <code>assume</code> 은 사실이 아니다</td></tr><tr><td><code>build release_fast .</code></td><td>증명하지 못한 계약 검사를 없앤다</td><td>속도를 고른 사실이 소스에 남는다</td></tr></table></div><p class="float-caption">표 14.4 — 계약의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>requires</code> 는 부르는 쪽, <code>ensures</code> 와 <code>errors</code> 는 op 의 책임이고, 진단이 누구의 잘못인지 말한다. 강제되는 계약은 사실이 되어 넘침·경계·0 나누기 검사를 지운다. <code>elem_*</code> 는 모든 원소에 대한 조건이고, <code>contract</code> 와 <code>satisfies</code> 는 계약에 이름을 준다. 상수끼리의 위반은 번역에서, 일어날 수 없는 오류 선언도 번역에서 거절된다. <code>assume</code> 은 사실이 아니며, 빌드 모드는 증명하지 못한 계약의 처분을 정하고 <code>release_fast</code> 는 그 검사를 없앤다.</div></div>
+</code></pre></div></div><p>계약이 깨지면 <strong>프로그램이 멈춘다</strong>. 계약은 “부르는 쪽이 이미 확인했다” 는 약속이라서, 깨졌다는 것은 코드에 결함이 있다는 뜻이다. 사용자가 200 살이라고 입력한 것은 결함이 아니라 흔히 일어나는 일이다. 바깥에서 들어온 값은 <code>age_checked</code> 처럼 확인해서 틀림을 <code>result</code> 로 돌려주고, 확인이 끝난 값만 <code>age_strict</code> 같은 계약 있는 op 에 넘긴다. 확인한 뒤에 부르므로 <code>check_age</code> 안의 계약 검사는 처리기가 지운다.</p></div></div><h3 id="s14-10">14.10 이 장의 문법 한눈에<a class="plink" href="#s14-10" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>requires le a 200 .</code></td><td>들어올 때의 조건 — 부르는 쪽의 책임</td><td>검사를 진입의 한 번으로 모으고 본문의 검사를 지운다</td></tr><tr><td><code>ensures le ret 100 .</code></td><td>나갈 때의 약속 — 이 op 의 책임</td><td><code>ret</code> 은 돌려주는 값 — 부르는 쪽이 사실로 쓴다</td></tr><tr><td><code>errors too_big gt a 200 .</code></td><td>이 조건이면 이 오류를 낸다는 약속</td><td>나가는 쪽의 계약 — 오류도 약속한다</td></tr><tr><td><code>requires elem_le ds 9 .</code></td><td>모든 원소에 대한 조건</td><td>계약은 식이라 반복문을 쓸 수 없다</td></tr><tr><td><code>contract positive do … end</code></td><td>계약에 이름을 준다</td><td>같은 조건을 고칠 자리가 하나가 된다</td></tr><tr><td><code>fn half satisfies positive . …</code></td><td>이름 붙은 계약을 갖춘다(머리 맨 앞)</td><td>op 이 무엇인지 먼저 말한다</td></tr><tr><td><code>requires static …</code> · <code>debug</code> · <code>assume</code></td><td>계약의 등급</td><td>언제 무엇으로 볼지 절마다 정한다 — <code>assume</code> 은 사실이 아니다</td></tr><tr><td><code>build release_fast .</code></td><td>증명하지 못한 계약 검사를 없앤다</td><td>속도를 고른 사실이 소스에 남는다</td></tr></table></div><p class="float-caption">표 14.4 — 계약의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>requires</code> 는 부르는 쪽, <code>ensures</code> 와 <code>errors</code> 는 op 의 책임이고, 진단이 누구의 잘못인지 말한다. 강제되는 계약은 사실이 되어 넘침·경계·0 나누기 검사를 지운다. <code>elem_*</code> 는 모든 원소에 대한 조건이고, <code>contract</code> 와 <code>satisfies</code> 는 계약에 이름을 준다. 상수끼리의 위반은 번역에서, 일어날 수 없는 오류 선언도 번역에서 거절된다. <code>assume</code> 은 사실이 아니며, 빌드 모드는 증명하지 못한 계약의 처분을 정하고 <code>release_fast</code> 는 그 검사를 없앤다.</div></div>
 <div class="nav"><a href="ch13.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch15.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

@@ -16,7 +16,7 @@ fn sred input b bytes . output i64 . do
   var xs slice i16 be view_array i16 b .
   var v vec i16 4 be load xs 0 .
   return widen i64 (reduce_add v) .
-end .
+end
 
 rem 부호 비교: 모든 레인이 0 보다 큰가 → 음수가 있으니 **거짓**(무부호면 참으로 잘못 본다).
 fn sall input b bytes . output u64 . do
@@ -26,18 +26,18 @@ fn sall input b bytes . output u64 . do
   var m mask 4 be gt v z .
   guard all m . else return 0 .
   return 1 .
-end .
+end
 
 rem 부호 최솟값 = -100 (무부호면 5).
 fn smin input b bytes . output i64 . do
   var xs slice i16 be view_array i16 b .
   var v vec i16 4 be load xs 0 .
   return widen i64 (reduce_min v) .
-end .
+end
 
 rem 무부호 대조 — 같은 바이트를 u16 으로 보면 131174 그대로여야(불변).
 fn ured input b bytes . output i64 . do
   var xs slice u16 be view_array u16 b .
   var v vec u16 4 be load xs 0 .
   return widen i64 (reduce_add v) .
-end .
+end

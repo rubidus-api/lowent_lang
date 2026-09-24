@@ -14,4 +14,4 @@ use lib_math from "lib_math.low" .   rem ★ 경로는 **이 파일 기준**이�
 
 fn clamped input a u64 . output u64 . do
     return lib_math.clamp255 a .
-end .
+end

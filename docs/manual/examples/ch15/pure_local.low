@@ -10,6 +10,6 @@ do
   while le i n do
     set s (add s i) .
     set i (add i 1) .
-  end .
+  end
   return s .
-end .
+end

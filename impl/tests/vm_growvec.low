@@ -22,7 +22,7 @@ proc grows input al cap allocator . output u64 . effects state alloc . do
     let okv bool be growvec.add_byte g (narrow u8 (add 65 i)) .
     guard okv . else return add 10 i .
     set i (add i 1) .
-  end .
+  end
   guard eq (growvec.count_of g) 8 . else return 3 .
   rem ★ 자랐다: 용량이 처음의 2 보다 커야 한다.
   guard gt (growvec.cap_of g) 2 . else return 4 .
@@ -32,7 +32,7 @@ proc grows input al cap allocator . output u64 . effects state alloc . do
   guard eq (index v 0) 65 . else return 6 .
   guard eq (index v 7) 72 . else return 7 .
   return 42 .
-end .
+end
 
 rem 바이트열 통째로 밀기 · 미리 확보하기.
 proc bulk input al cap allocator . output u64 . effects state alloc . do
@@ -55,7 +55,7 @@ proc bulk input al cap allocator . output u64 . effects state alloc . do
   guard eq (index v 0) 104 . else return 6 .
   guard eq (index v 10) 100 . else return 7 .
   return 42 .
-end .
+end
 
 rem ★ cap 은 CLI 인자로 못 넘긴다 — 엔트리가 받아서 넘긴다(vecgrow 와 같은 꼴).
 proc main input al cap allocator . output u8 . effects state alloc . do
@@ -64,4 +64,4 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   let b u64 be bulk al .
   guard eq b 42 . else return narrow u8 b .
   return 42 .
-end .
+end

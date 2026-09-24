@@ -19,20 +19,20 @@ module settings .
 use flags from "../../../lib/flags.low" .
 
 rem 설정 자리표 — **번호**다. 저장된 설정에서는 이 번호가 계약이므로 재사용하지 않는다(§6.4).
-fn f_sound  output u64 . do return 0 . end .
-fn f_music  output u64 . do return 1 . end .
-fn f_shadow output u64 . do return 2 . end .
-fn f_vsync  output u64 . do return 3 . end .
+fn f_sound  output u64 . do return 0 . end
+fn f_music  output u64 . do return 1 . end
+fn f_shadow output u64 . do return 2 . end
+fn f_vsync  output u64 . do return 3 . end
 
 rem 소리·음악 두 자리만 보는 마스크 — «그중 무엇이 바뀌었나» 를 물을 때 쓴다.
 fn m_audio output u64 . do
   return flags.join (flags.of (f_sound)) (flags.of (f_music)) .
-end .
+end
 
 rem 공장 기본값: 소리 켬 · 음악 켬 · 나머지 끔.
 fn defaults output u64 . do
   return flags.join (flags.of (f_sound)) (flags.of (f_music)) .
-end .
+end
 
 rem 환경 변수가 있으면 그 자리를 켜고, 없으면 그대로 둔다(존재가 곧 스위치다).
 rem ★ `effects none` 이다 — 환경을 **읽기만** 하는 것은 바깥을 고치지 않는다. 처음엔 옆 프로그램
@@ -44,7 +44,7 @@ do
   let v option slice u8 . be env_get e name .
   guard is_some v . else return s .
   return flags.with s n .
-end .
+end
 
 proc main input e cap env . output u8 . effects none . do
   var s u64 be flags.empty .
@@ -61,11 +61,11 @@ proc main input e cap env . output u8 . effects none . do
   var eff u64 be s .
   if is_some lock . do
     set eff (flags.overlay s (defaults) (m_audio)) .
-  end .
+  end
 
   rem ⓓ 기본값과 다른 자리만 — 그리고 그중 소리·음악에서 바뀐 자리만.
   let diff u64 be flags.from_default eff (defaults) .
   let audio u64 be flags.changes_in eff (defaults) (m_audio) .
 
   return (narrow u8 (add (mul (flags.ones diff) 10) (flags.ones audio))) .
-end .
+end

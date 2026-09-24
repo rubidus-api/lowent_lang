@@ -8,4 +8,4 @@ fn area_loud input out cap io . input w u64 . input h u64 . output u64 .
 do
   let n u64 be write_out out 1 "computing\n" .
   return mul w h .
-end .
+end

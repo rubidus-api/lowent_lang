@@ -195,10 +195,10 @@ capabilities pair with effects is tabulated in #chref("capabilities").
 
 These are the rejections and stops you meet most often in a first program. When you see one of these codes, come back here.
 
-#antipattern[Opening `do` and never closing it with `end .`][
+#antipattern[Opening `do` and never closing it with `end`][
   #demo("examples/ch02/mistake_noend.low")
 
-  A body opens with `do` and closes with `end .`. If the file ends before the closer, the compiler cannot tell where the body stops and
+  A body opens with `do` and closes with `end`. If the file ends before the closer, the compiler cannot tell where the body stops and
   reports `E-BLOCK-UNCLOSED`. The `5:1` in the diagnostic is the position of the `do` left without a partner --- when bodies are nested,
   match the pairs starting from that line. Consistent indentation makes the pairs easy to see.
 ]
@@ -239,10 +239,10 @@ These are the rejections and stops you meet most often in a first program. When 
   [`module hello .`], [the module name of this file], [the name other files use in `use hello .`],
   [`rem …`], [line comment (to the end of the line)], [a word rather than a symbol --- this book also uses it for check directives],
   [`proc main input out cap io . output u8 . effects io .`], [where the program starts], [rights received, exit code returned and what it does are all in the head],
-  [`do … end .`], [a body], [an opener and a closer that pair up],
+  [`do … end`], [a body], [an opener and a closer that pair up],
   [`write_out out 1 "…"`], [write to standard output (1) and return the byte count], [the capability `out` comes first --- no right, no writing],
   [`narrow u8 n`], [narrow to `u8` (stops if it does not fit)], [so values never change silently],
-  [`requires c .` · `test t do … end .` · `expect c .`], [contract · test block · assertion inside a test], [promises are checked; tests run separately],
+  [`requires c .` · `test t do … end` · `expect c .`], [contract · test block · assertion inside a test], [promises are checked; tests run separately],
   [`lowentc --check f.low`], [check only], [the command line shows what was done --- there is no default mode],
   [`lowentc --run op f.low args…`], [run one op on the VM], [try any op in the file on its own],
   [`lowentc --emit-c f.low > f.c`], [emit C for a native build], [so the result can be compared with the VM],

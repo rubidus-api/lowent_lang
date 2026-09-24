@@ -31,7 +31,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum tlscli_error do
   short_workspace .
-end .
+end
 
 
 use tls13 from "tls13.low" .
@@ -43,31 +43,31 @@ rem `hmac.extract` 를 곧바로 부른다 — 들여오지 않으면 그 이름
 use hmac from "hmac.low" .
 
 rem ── 상태 (RFC 8446 부록 A.1 클라이언트 쪽) ────────────────────────────────
-export fn cst_start        output u64 . do  return 0 . end .
-export fn cst_wait_sh      output u64 . do  return 1 . end .
-export fn cst_wait_ee      output u64 . do  return 2 . end .
-export fn cst_wait_cert    output u64 . do  return 3 . end .
-export fn cst_wait_cv      output u64 . do  return 4 . end .
-export fn cst_wait_finished output u64 . do  return 5 . end .
-export fn cst_connected    output u64 . do  return 6 . end .
+export fn cst_start        output u64 . do  return 0 . end
+export fn cst_wait_sh      output u64 . do  return 1 . end
+export fn cst_wait_ee      output u64 . do  return 2 . end
+export fn cst_wait_cert    output u64 . do  return 3 . end
+export fn cst_wait_cv      output u64 . do  return 4 . end
+export fn cst_wait_finished output u64 . do  return 5 . end
+export fn cst_connected    output u64 . do  return 6 . end
 
 rem ★ 지금 이 메시지를 받아도 되는가. 순서는 규격의 절반이다 — 순서를 안 지키면 중간자가
 rem   메시지를 빼거나 바꿔치기 할 수 있다. 받아들이는 자리를 **열거하는 것**이 곧 나머지를
 rem   거절하는 것이다(tlssrv.cnext_ok 와 같은 규율).
 export fn cnext_ok input st u64 . input hs u64 . output bool . do
-  if eq st 1 . do  return eq hs 2 . end .
-  if eq st 2 . do  return eq hs 8 . end .
-  if eq st 3 . do  return eq hs 11 . end .
-  if eq st 4 . do  return eq hs 15 . end .
-  if eq st 5 . do  return eq hs 20 . end .
+  if eq st 1 . do  return eq hs 2 . end
+  if eq st 2 . do  return eq hs 8 . end
+  if eq st 3 . do  return eq hs 11 . end
+  if eq st 4 . do  return eq hs 15 . end
+  if eq st 5 . do  return eq hs 20 . end
   return false .
-end .
+end
 
 rem 그 다음 상태.
 export fn cstep input st u64 . output u64 . do
-  if lt st 6 . do  return add st 1 . end .
+  if lt st 6 . do  return add st 1 . end
   return 6 .
-end .
+end
 
 rem ── 작은 도우미 ───────────────────────────────────────────────────────────
 rem ★ 두 바이트를 큰끝으로 읽는 일은 [tlssrv](tlssrv) 가 이미 갖고 있다(`be16`). 같은 계산을
@@ -118,13 +118,13 @@ do
   while lt i 32 . do
     set (index out (add 6 i)) (index rnd i) .
     set i (add i 1) .
-  end .
+  end
   set (index out 38) 32 .
   var j u64 be 0 .
   while lt j 32 . do
     set (index out (add 39 j)) (index sid j) .
     set j (add j 1) .
-  end .
+  end
   rem ★★★★ cipher_suites: 0004 **1301 1303** — AES-128-GCM 과 ChaCha20-Poly1305 **둘**을 제안한다.
   rem
   rem ☞ 2026-09-20 까지는 `1301` 하나였다(X-0043, 소유자 선택 ⓐ). 재 보니 이 언어로 쓴 두 암호의
@@ -161,7 +161,7 @@ do
   while lt h (len host) . do
     set (index out (add (add at 9) h)) (index host h) .
     set h (add h 1) .
-  end .
+  end
   set at (add at e_sni) .
 
   rem ② supported_groups: 000a 0004 0002 001d — x25519 하나만 댄다.
@@ -199,9 +199,9 @@ do
   while lt k 32 . do
     set (index out (add (add at 10) k)) (index key k) .
     set k (add k 1) .
-  end .
+  end
   return add body 4 .
-end .
+end
 
 rem ── ServerHello 를 읽는다 ────────────────────────────────────────────────
 rem
@@ -209,20 +209,20 @@ rem   02 <len3> 0303 <random 32> <sid_len 1> <sid> <suite 2> <압축 1> <ext_len
 rem
 rem ★ 모든 자리가 **상대가 쓴 길이**를 타고 간다. 한 걸음마다 버퍼 안인지 본다.
 export fn sh_ok input b slice u8 . output bool . do
-  if lt (len b) 44 . do  return false . end .
-  if ne (cast u64 (index b 0)) 2 . do  return false . end .
+  if lt (len b) 44 . do  return false . end
+  if ne (cast u64 (index b 0)) 2 . do  return false . end
   let body u64 be add (mul (cast u64 (index b 1)) 65536) (tlssrv.be16 b 2) .
-  if ne (add body 4) (len b) . do  return false . end .
-  if ne (cast u64 (index b 4)) 3 . do  return false . end .
-  if ne (cast u64 (index b 5)) 3 . do  return false . end .
+  if ne (add body 4) (len b) . do  return false . end
+  if ne (cast u64 (index b 4)) 3 . do  return false . end
+  if ne (cast u64 (index b 5)) 3 . do  return false . end
   let sl u64 be cast u64 (index b 38) .
-  if gt sl 32 . do  return false . end .
+  if gt sl 32 . do  return false . end
   let at u64 be add 39 sl .
-  if gt (add at 5) (len b) . do  return false . end .
+  if gt (add at 5) (len b) . do  return false . end
   let el u64 be tlssrv.be16 b (add at 3) .
-  if ne (add (add at 5) el) (len b) . do  return false . end .
+  if ne (add (add at 5) el) (len b) . do  return false . end
   return true .
-end .
+end
 
 rem ★★★ **HelloRetryRequest 를 ServerHello 로 읽지 않는다** (RFC 8446 §4.1.4).
 rem   HRR 은 ServerHello 와 **같은 메시지 종류**이고, 랜덤 자리에 정해진 32 바이트가 들어가는
@@ -230,35 +230,35 @@ rem   것으로만 구분된다. 그것을 모르면 HRR 의 랜덤을 진짜 �
 rem   틀린 값**에서 쌓는다. 우리는 HRR 을 **짓지 않기로** 했으므로, 알아보고 거절한다 —
 rem   모르고 지나가는 것과 알고 거절하는 것은 다르다.
 export fn sh_is_hrr input b slice u8 . output bool . do
-  if lt (len b) 38 . do  return false . end .
+  if lt (len b) 38 . do  return false . end
   rem CF 21 AD 74 E5 9A 61 11 BE 1D 8C 02 1E 65 B8 91 C2 A2 11 16 7A BB 8C 5E 07 9E 09 E2 C8 A8 33 9C
-  if ne (cast u64 (index b 6)) 207 . do  return false . end .
-  if ne (cast u64 (index b 7)) 33 . do  return false . end .
-  if ne (cast u64 (index b 8)) 173 . do  return false . end .
-  if ne (cast u64 (index b 9)) 116 . do  return false . end .
-  if ne (cast u64 (index b 36)) 51 . do  return false . end .
-  if ne (cast u64 (index b 37)) 156 . do  return false . end .
+  if ne (cast u64 (index b 6)) 207 . do  return false . end
+  if ne (cast u64 (index b 7)) 33 . do  return false . end
+  if ne (cast u64 (index b 8)) 173 . do  return false . end
+  if ne (cast u64 (index b 9)) 116 . do  return false . end
+  if ne (cast u64 (index b 36)) 51 . do  return false . end
+  if ne (cast u64 (index b 37)) 156 . do  return false . end
   return true .
-end .
+end
 
 rem 고른 스위트. `sh_ok` 를 통과한 뒤에만 뜻이 있다.
 export fn sh_suite input b slice u8 . output u64 . do
-  if eq (sh_ok b) false . do  return 0 . end .
+  if eq (sh_ok b) false . do  return 0 . end
   let sl u64 be cast u64 (index b 38) .
   return tlssrv.be16 b (add 39 sl) .
-end .
+end
 
 rem 확장 묶음의 시작과 길이.
 export fn sh_ext_off input b slice u8 . output u64 . do
-  if eq (sh_ok b) false . do  return 0 . end .
+  if eq (sh_ok b) false . do  return 0 . end
   let sl u64 be cast u64 (index b 38) .
   return add (add 39 sl) 5 .
-end .
+end
 export fn sh_ext_len input b slice u8 . output u64 . do
-  if eq (sh_ok b) false . do  return 0 . end .
+  if eq (sh_ok b) false . do  return 0 . end
   let sl u64 be cast u64 (index b 38) .
   return tlssrv.be16 b (add (add 39 sl) 3) .
-end .
+end
 
 rem ★ 확장 하나를 찾는다 — 값의 시작 자리를 낸다(0 = 없다).
 rem   ☞ **재귀를 안 한다.** 걸음 수를 확장 묶음 길이로 묶는다: 길이가 0 인 확장을 계속 적어
@@ -266,63 +266,63 @@ rem     보낸 상대가 있으면 무한 걷기가 된다.
 export fn sh_ext_find input b slice u8 . input want u64 . output u64 . do
   let o u64 be sh_ext_off b .
   let n u64 be sh_ext_len b .
-  if eq o 0 . do  return 0 . end .
+  if eq o 0 . do  return 0 . end
   var i u64 be 0 .
   var guard_ u64 be 0 .
   while lt i n . do
-    if gt (add (add o i) 4) (len b) . do  return 0 . end .
+    if gt (add (add o i) 4) (len b) . do  return 0 . end
     let t u64 be tlssrv.be16 b (add o i) .
     let l u64 be tlssrv.be16 b (add (add o i) 2) .
-    if gt (add (add (add o i) 4) l) (len b) . do  return 0 . end .
-    if eq t want . do  return add (add o i) 4 . end .
+    if gt (add (add (add o i) 4) l) (len b) . do  return 0 . end
+    if eq t want . do  return add (add o i) 4 . end
     set i (add i (add 4 l)) .
     set guard_ (add guard_ 1) .
-    if gt guard_ 64 . do  return 0 . end .
-  end .
+    if gt guard_ 64 . do  return 0 . end
+  end
   return 0 .
-end .
+end
 export fn sh_ext_find_len input b slice u8 . input want u64 . output u64 . do
   let v u64 be sh_ext_find b want .
-  if eq v 0 . do  return 0 . end .
+  if eq v 0 . do  return 0 . end
   return tlssrv.be16 b (sub v 2) .
-end .
+end
 
 rem ★ 고른 판이 정말 TLS 1.3 인가 — supported_versions(002b) 가 0304 여야 한다.
 rem   ☞ 머리의 `0303` 은 **장식**이다(중간 상자를 속이는 자리). 판을 고르는 것은 이 확장이다.
 export fn sh_is_tls13 input b slice u8 . output bool . do
   let v u64 be sh_ext_find b 43 .
-  if eq v 0 . do  return false . end .
-  if ne (sh_ext_find_len b 43) 2 . do  return false . end .
+  if eq v 0 . do  return false . end
+  if ne (sh_ext_find_len b 43) 2 . do  return false . end
   return eq (tlssrv.be16 b v) 772 .
-end .
+end
 
 rem ★ 서버의 key_share — x25519(001d) 32 바이트여야 한다. 그 자리(오프셋)를 낸다(0 = 없다).
 export fn sh_key_share_off input b slice u8 . output u64 . do
   let v u64 be sh_ext_find b 51 .
-  if eq v 0 . do  return 0 . end .
-  if ne (sh_ext_find_len b 51) 36 . do  return 0 . end .
-  if ne (tlssrv.be16 b v) 29 . do  return 0 . end .
-  if ne (tlssrv.be16 b (add v 2)) 32 . do  return 0 . end .
+  if eq v 0 . do  return 0 . end
+  if ne (sh_ext_find_len b 51) 36 . do  return 0 . end
+  if ne (tlssrv.be16 b v) 29 . do  return 0 . end
+  if ne (tlssrv.be16 b (add v 2)) 32 . do  return 0 . end
   return add v 4 .
-end .
+end
 
 rem ★★ 한 번에 판정한다: 우리가 이어 갈 수 있는 ServerHello 인가.
 rem   ☞ 이 op 이 참이면 그 뒤의 자리들은 **자리가 있다**. 부르는 쪽이 하나씩 다시 묻지 않게
 rem     하는 것이 요점이다 — 하나라도 잊으면 그 자리가 곧 구멍이다.
 export fn sh_usable input b slice u8 . output bool . do
-  if eq (sh_ok b) false . do  return false . end .
-  if sh_is_hrr b . do  return false . end .
-  if eq (sh_is_tls13 b) false . do  return false . end .
+  if eq (sh_ok b) false . do  return false . end
+  if sh_is_hrr b . do  return false . end
+  if eq (sh_is_tls13 b) false . do  return false . end
   rem ★ 받아들이는 스위트 둘: 4865 = TLS_AES_128_GCM_SHA256 · 4867 = TLS_CHACHA20_POLY1305_SHA256.
   rem   ☞ 고르는 것은 서버다. 우리는 **제안한 둘 가운데 하나인지**만 본다 — 제안하지 않은 것을
   rem     서버가 골랐다면 그것은 규약 위반이고, 여기서 거절하는 것이 그 자리다.
   var suite_ok bool be false .
-  if eq (sh_suite b) 4865 . do  set suite_ok true . end .
-  if eq (sh_suite b) 4867 . do  set suite_ok true . end .
-  if eq suite_ok false . do  return false . end .
-  if eq (sh_key_share_off b) 0 . do  return false . end .
+  if eq (sh_suite b) 4865 . do  set suite_ok true . end
+  if eq (sh_suite b) 4867 . do  set suite_ok true . end
+  if eq suite_ok false . do  return false . end
+  if eq (sh_key_share_off b) 0 . do  return false . end
   return true .
-end .
+end
 
 rem ── 키 사다리 ────────────────────────────────────────────────────────────
 rem
@@ -348,7 +348,7 @@ do
   while lt ei 32 . do
     set esum (bit_or esum (cast u64 (index ecdhe ei))) .
     set ei (add ei 1) .
-  end .
+  end
   guard gt esum 0 . else return ok 0 .
 
   rem ① 빈 해시 — Derive-Secret(…, "derived", "") 가 쓴다.
@@ -360,7 +360,7 @@ do
     set (index w (add 32 z)) 0 .
     set (index w (add 64 z)) 0 .
     set z (add z 1) .
-  end .
+  end
   let _u0 result u64 hmac.hmac_error . be hmac.extract (subslice w 32 64) (subslice w 64 96) (subslice w 512 1024) (subslice w 96 128) .
   guard is_ok _u0 . else return error short_workspace .
   guard eq (ok_value _u0) 32 . else return ok 0 .
@@ -385,9 +385,9 @@ do
   while lt m 32 . do
     set (index out (add 64 m)) (index w (add 288 m)) .
     set m (add m 1) .
-  end .
+  end
   return ok 96 .
-end .
+end
 
 rem ★ 어떤 트래픽 비밀로든 verify_data 를 낸다 — 서버 것을 검산할 때도, 우리 것을 지을 때도
 rem   **같은 계산**이다. 한 자리에 둔다.
@@ -403,7 +403,7 @@ do
   guard eq (ok_value _u2) 32 . else return ok 0 .
   guard eq (tls13.transcript msgs (len msgs) (subslice w 160 192)) 32 . else return ok 0 .
   return tls13.verify_data (subslice w 128 160) (subslice w 160 192) (subslice w 512 1024) (subslice out 0 32) .
-end .
+end
 
 rem ★★★ **서버의 Finished 를 검산한다.** 이것이 핸드셰이크에서 «상대가 정말 그 비밀을
 rem   갖고 있는가» 를 묻는 유일한 자리다 — 인증서가 누구 것인지와는 **다른 물음**이다.
@@ -427,9 +427,9 @@ do
   while lt i 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index fin (add 4 i))) (cast u64 (index w (add 1024 i))))) .
     set i (add i 1) .
-  end .
+  end
   return ok (eq diff 0) .
-end .
+end
 
 rem ★ 우리 Finished 를 짓는다. 메시지 모양은 서버 것과 같으므로 [tlssrv](tlssrv) 의 조립기를 쓴다.
 export proc build_client_fin input c_hs slice u8 . input msgs3 slice u8 .
@@ -441,7 +441,7 @@ do
   guard is_ok _u0 . else return error short_workspace .
   guard eq (ok_value _u0) 32 . else return ok 0 .
   return ok (tlssrv.build_fin (subslice w 1024 1056) out) .
-end .
+end
 
 rem ── 레코드를 짓고 연다 ───────────────────────────────────────────────────
 rem
@@ -462,10 +462,10 @@ do
   while lt i (len data) . do
     set (index w (add 640 i)) (index data i) .
     set i (add i 1) .
-  end .
+  end
   set (index w (add 640 (len data))) (narrow u8 inner_t) .
   return tls13.record_seal suite (subslice keys 0 klen) (subslice keys klen (add klen 12)) seq (subslice w 640 (add 640 n)) rec (subslice w 0 640) u .
-end .
+end
 
 rem ★ 평문 레코드의 머리를 짓는다 — ClientHello 는 아직 열쇠가 없어 그대로 나간다.
 rem   ☞ 첫 레코드의 판 자리는 **0x0301** 이다(TLS 1.0). 규격이 그렇게 적었고(RFC 8446 §5.1),
@@ -479,21 +479,21 @@ export proc plain_hdr input n u64 . input out mut slice u8 . output u64 . effect
   set (index out 3) (narrow u8 (shr n 8)) .
   set (index out 4) (narrow u8 (bit_and n 255)) .
   return 5 .
-end .
+end
 
 rem ★ 받은 레코드의 머리를 읽는다. 길이만 낸다(0 = 성하지 않다).
 rem   ☞ 16384 + 256 을 넘는 레코드는 규격 위반이다 — 고쳐 읽지 않고 거절한다.
 export fn rec_len input h slice u8 . output u64 . do
-  if lt (len h) 5 . do  return 0 . end .
+  if lt (len h) 5 . do  return 0 . end
   let n u64 be add (mul (cast u64 (index h 3)) 256) (cast u64 (index h 4)) .
-  if gt n 16640 . do  return 0 . end .
-  if eq n 0 . do  return 0 . end .
+  if gt n 16640 . do  return 0 . end
+  if eq n 0 . do  return 0 . end
   return n .
-end .
+end
 export fn rec_type input h slice u8 . output u64 . do
-  if lt (len h) 5 . do  return 0 . end .
+  if lt (len h) 5 . do  return 0 . end
   return cast u64 (index h 0) .
-end .
+end
 
 rem ── Certificate 메시지에서 인증서를 꺼낸다 ──────────────────────────────
 rem
@@ -502,37 +502,37 @@ rem
 rem ★ 첫째가 **잎**이고 그 뒤가 중간자다(RFC 8446 §4.4.2). 차례가 곧 뜻이므로 그대로 센다.
 rem ☞ 길이는 전부 상대가 쓴 것이다 — 한 걸음마다 버퍼 안인지 본다.
 export fn cert_at input b slice u8 . input off u64 . input n u64 . output u64 . do
-  if ge (add off 8) (len b) . do  return 0 . end .
-  if ne (cast u64 (index b off)) 11 . do  return 0 . end .
+  if ge (add off 8) (len b) . do  return 0 . end
+  if ne (cast u64 (index b off)) 11 . do  return 0 . end
   let ctx u64 be cast u64 (index b (add off 4)) .
   var at u64 be add (add off 5) ctx .
-  if ge (add at 3) (len b) . do  return 0 . end .
+  if ge (add at 3) (len b) . do  return 0 . end
   let listn u64 be add (add (mul (cast u64 (index b at)) 65536) (mul (cast u64 (index b (add at 1))) 256))
                        (cast u64 (index b (add at 2))) .
   let endo u64 be add (add at 3) listn .
-  if gt endo (len b) . do  return 0 . end .
+  if gt endo (len b) . do  return 0 . end
   set at (add at 3) .
   var i u64 be 0 .
   while lt i n . do
-    if ge (add at 3) endo . do  return 0 . end .
+    if ge (add at 3) endo . do  return 0 . end
     let cl u64 be add (add (mul (cast u64 (index b at)) 65536) (mul (cast u64 (index b (add at 1))) 256))
                       (cast u64 (index b (add at 2))) .
     let nx u64 be add (add at 3) cl .
-    if gt (add nx 2) endo . do  return 0 . end .
+    if gt (add nx 2) endo . do  return 0 . end
     let el u64 be add (mul (cast u64 (index b nx)) 256) (cast u64 (index b (add nx 1))) .
     set at (add (add nx 2) el) .
     set i (add i 1) .
-  end .
-  if ge (add at 3) endo . do  return 0 . end .
+  end
+  if ge (add at 3) endo . do  return 0 . end
   let cl2 u64 be add (add (mul (cast u64 (index b at)) 65536) (mul (cast u64 (index b (add at 1))) 256))
                      (cast u64 (index b (add at 2))) .
-  if eq cl2 0 . do  return 0 . end .
-  if gt (add (add at 3) cl2) endo . do  return 0 . end .
+  if eq cl2 0 . do  return 0 . end
+  if gt (add (add at 3) cl2) endo . do  return 0 . end
   return add at 3 .
-end .
+end
 export fn cert_len input b slice u8 . input off u64 . input n u64 . output u64 . do
   let a u64 be cert_at b off n .
-  if eq a 0 . do  return 0 . end .
+  if eq a 0 . do  return 0 . end
   return add (add (mul (cast u64 (index b (sub a 3))) 65536) (mul (cast u64 (index b (sub a 2))) 256))
              (cast u64 (index b (sub a 1))) .
-end .
+end

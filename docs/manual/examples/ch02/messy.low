@@ -4,4 +4,4 @@ rem expect: E-CLAUSE-ORDER
 fn area output u64 . input w u64 . input h u64 .
 do
   return mul w h .
-end .
+end

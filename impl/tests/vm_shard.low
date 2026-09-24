@@ -38,7 +38,7 @@ proc disjoint input mem mut slice u64 . . output u64 . effects none . do
   guard eq (some_value a) 103 . else return 98 .
   guard eq (some_value b) 104 . else return 99 .
   return 1 .
-end .
+end
 
 rem ★★ **오름차순 교차 획득과 rejoin.** 낮은 id 를 먼저 넘긴다 — 계약이 그것을 요구한다.
 proc order_and_rejoin output u64 . effects none . do
@@ -55,7 +55,7 @@ proc order_and_rejoin output u64 . effects none . do
   var back shard.token grid2 . be some_value ok1 .
   guard eq (shard.width grid2 back) 10 . else return 94 .
   return 2 .
-end .
+end
 
 rem ★ 쪼갠 뒤 **다시 쪼개도** 범위는 계속 서로소다(계층 = root → shard → …).
 proc nested output u64 . effects none . do
@@ -70,10 +70,10 @@ proc nested output u64 . effects none . do
   rem 조각 넷이 8 을 정확히 덮는다
   guard covers_all q1 q2 . else return 93 .
   return 3 .
-end .
+end
 
 fn covers_all input a shard.token grid . input b shard.token grid . output bool . do
-  if eq (shard.covers grid a 4) false . do return false . end .
-  if eq (shard.covers grid a 6) true . do return false . end .
+  if eq (shard.covers grid a 4) false . do return false . end
+  if eq (shard.covers grid a 6) true . do return false . end
   return shard.covers grid b 6 .
-end .
+end

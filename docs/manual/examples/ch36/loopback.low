@@ -17,4 +17,4 @@ do
   guard is_some got . else return 4 .
   guard is_ok s . else return 5 .
   return narrow u8 (some_value got) .
-end .
+end

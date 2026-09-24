@@ -8,8 +8,8 @@ Handles many on/off settings *in one integer*. Positions are called by *bit numb
 settings screen, feature switches, dirty markers, device status bits --- places where carrying each separately is wasteful and bundling makes comparison easy.
 
 ```lowent
-fn f_sound output u64 . do return 0 . end .
-fn f_music output u64 . do return 1 . end .
+fn f_sound output u64 . do return 0 . end
+fn f_music output u64 . do return 1 . end
 let s0 u64 be flags.with (flags.empty) (f_sound) .
 let playing bool be flags.has s0 (f_music) .
 ```

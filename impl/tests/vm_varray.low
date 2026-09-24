@@ -9,21 +9,21 @@ do
   var t u64 be 0 .
   for x view_array u16 b . do
     set t expr t + x . .
-  end .
+  end
   return t .
-end .
+end
 
 fn va_at .
   input b bytes .
   output u64 .
 do
   return index (view_array u32 b) 1 .
-end .
+end
 
-fn slen output u64 . do return len "hello" . end .
-fn schar output u64 . do return index "AB" 1 . end .
+fn slen output u64 . do return len "hello" . end
+fn schar output u64 . do return index "AB" 1 . end
 fn ssum output u64 . do
   var t u64 be 0 .
-  for ch "abc" do set t expr t + ch . . end .
+  for ch "abc" do set t expr t + ch . . end
   return t .
-end .
+end

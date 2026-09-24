@@ -224,7 +224,7 @@ VM 은 부동소수 결과를 짧게 보여 준다(`0.333333`). 부동소수를 
   #demo("examples/ch04/mistake_usub.low")
 
   `u64` 는 0 아래가 없다. `3 − 5` 는 −2 가 아니라 *넘침*이고, 그래서 멈춘다(C 라면 18446744073709551614 가 나온다). 차이의 크기가
-  알고 싶으면 큰 쪽에서 작은 쪽을 뺀다 --- `if ge a b . do return sub a b . end . return sub b a .` --- 음수가 뜻이 있는 값이면
+  알고 싶으면 큰 쪽에서 작은 쪽을 뺀다 --- `if ge a b . do return sub a b . end return sub b a .` --- 음수가 뜻이 있는 값이면
   처음부터 `i64` 로 계산한다.
 ]
 

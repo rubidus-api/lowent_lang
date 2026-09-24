@@ -120,7 +120,7 @@ fn   add3   input a i32 .   input b i32 .   input c i32 .   output i32 .
 └─ 갈래: fn(순수) 또는 proc(효과를 낼 수 있음)
 do                          ← 몸이 여기서 시작한다
   return add (add a b) c .  ← 계산해서 돌려준다. 문장도 마침표로 끝난다
-end .                       ← 몸이 끝나고, 선언 전체가 끝난다
+end                         ← 몸이 끝나고, 선언 전체도 끝난다(뒤에 점을 찍지 않는다)
 ```
 
 부를 때는 이름 뒤에 인자를 *공백으로* 늘어놓는다. `add3 1 2 3` 이 한 번의 호출이고, 괄호는 호출 하나를 다른 호출의 인자로
@@ -134,7 +134,7 @@ end .                       ← 몸이 끝나고, 선언 전체가 끝난다
 fn compare input a i32 . input b i32 . output i32 .
 do
   return sub a b .
-end .
+end
 ```
 
 타입 앞에 붙는 낱말이 소유와 가변과 유무를 말한다. 자주 만나는 것은 다음과 같다.
@@ -179,7 +179,7 @@ op 머리 앞에 수식어를 붙일 수 있다.
 ```lowent
 unsafe extern proc c_area input k cap c . input w i64 . input h i64 . output i64 .
   effects unsafe . link lw_c_area .
-end .
+end
 ```
 
 == 흔한 실수
@@ -208,7 +208,7 @@ end .
 
   `output` 을 적은 op 은 *모든 길*에서 값을 돌려주어야 한다. 옛 도구는 빠진 자리에서 조용히 0 을 돌려주었는데, 그 0 은 소스
   어디에도 적혀 있지 않은 값이라 버그를 숨겼다. 그래서 지금은 `E-RETURN-PARTIAL` 로 거절한다. 고치는 법은 `if` 뒤에 나머지
-  경우의 `return` 을 적는 것이다 --- 예를 들면 `return 0 .` 을 `end .` 앞에 둔다.
+  경우의 `return` 을 적는 것이다 --- 예를 들면 `return 0 .` 을 `end` 앞에 둔다.
 ]
 
 #antipattern[내장 op 의 이름으로 op 을 짓는다][
@@ -234,8 +234,8 @@ end .
   id: "ops-glance",
   caption: [op 의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`fn f input a T . output R . do … end .`], [순수한 op], [결과를 기억·재배치·생략해도 되는지 머리만 보고 알게],
-  [`proc f … effects E . do … end .`], [효과를 낼 수 있는 op], [무엇을 하는지(`E`)가 머리에 드러나게],
+  [`fn f input a T . output R . do … end`], [순수한 op], [결과를 기억·재배치·생략해도 되는지 머리만 보고 알게],
+  [`proc f … effects E . do … end`], [효과를 낼 수 있는 op], [무엇을 하는지(`E`)가 머리에 드러나게],
   [`input x T .`], [매개변수 하나], [절마다 하나라 이름과 타입이 줄마다 보인다],
   [`output T .` · `output void .`], [돌려주는 값의 타입 · 돌려주는 값 없음], [반환은 하나 --- 여럿이면 `struct` 로 묶는다],
   [`return e .`], [값을 돌려주고 끝낸다], [모든 길에서 적어야 한다(`E-RETURN-PARTIAL`)],

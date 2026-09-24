@@ -9,6 +9,6 @@ do
   while le i (len xs) . do
     set t (add t (widen u64 (index xs i))) .
     set i (add i 1) .
-  end .
+  end
   return t .
-end .
+end

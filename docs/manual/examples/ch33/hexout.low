@@ -15,4 +15,4 @@ do
   let small option u64 be codec.hex_enc "too long for eight" (subslice dst 0 8) .
   guard not (is_some small) . else return 3 .
   return 0 .
-end .
+end

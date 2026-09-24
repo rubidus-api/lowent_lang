@@ -22,7 +22,7 @@ rem   ⇒ 모자람은 이제 `error short_workspace` 다. 「못 찾았다」�
 rem     그것은 우리가 **재고 나서** 하는 말이기 때문이다.
 export enum trust_error do
   short_workspace .
-end .
+end
 
 use files from "file.low" .
 use pem from "pem.low" .
@@ -57,7 +57,7 @@ do
   guard is_some got . else return stop .
   set (index dn 0) (some_value got) .
   return stop .
-end .
+end
 
 rem ★★★★ **이름이 이것인 인증서를 묶음에서 찾는다.**
 rem   `want`/`wo` 는 «이 이름을 주체로 갖는 것을 찾아라» 이다(보통 자식의 발급자 이름).
@@ -90,10 +90,10 @@ do
     var bad u64 be 0 .
     if is_ok rr . do
       let mo option u64 . be ok_value rr .
-      if is_some mo . do  set got (some_value mo) . end .
-    end .
-    if eq (is_ok rr) false . do  set bad 1 . end .
-    if eq bad 1 . do  set done 1 . end .
+      if is_some mo . do  set got (some_value mo) . end
+    end
+    if eq (is_ok rr) false . do  set bad 1 . end
+    if eq bad 1 . do  set done 1 . end
 
     if eq done 0 . do
       let have u64 be add keep got .
@@ -101,7 +101,7 @@ do
       var scanning u64 be 1 .
       while eq scanning 1 . do
         let stop u64 be one (subslice win 0 have) at scratch out dn .
-        if eq stop 0 . do  set scanning 0 . end .
+        if eq stop 0 . do  set scanning 0 . end
         if eq scanning 1 . do
           set at stop .
           if gt (index dn 0) 0 . do
@@ -110,27 +110,27 @@ do
               set found (index dn 0) .
               set scanning 0 .
               set done 1 .
-            end .
-          end .
-        end .
-      end .
-      if eq got 0 . do  set done 1 . end .
+            end
+          end
+        end
+      end
+      if eq got 0 . do  set done 1 . end
       if eq done 0 . do
         rem 남은 꼬리를 앞으로 당긴다.
         var i u64 be 0 .
         while lt i (sub have at) . do
           set (index win i) (index win (add at i)) .
           set i (add i 1) .
-        end .
+        end
         set keep (sub have at) .
         rem 꼬리가 창을 거의 다 먹으면 그 덩이는 이 창에 안 들어간다 — 포기하고 앞으로 간다.
-        if gt keep 12288 . do  set keep 0 . end .
-      end .
-    end .
+        if gt keep 12288 . do  set keep 0 . end
+      end
+    end
     set rounds (add rounds 1) .
-    if gt rounds 256 . do  set done 1 . end .
-  end .
+    if gt rounds 256 . do  set done 1 . end
+  end
   let c2 result void files.file_error . be files.close fs h .
   drop c2 .
   return ok found .
-end .
+end

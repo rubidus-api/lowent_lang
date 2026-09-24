@@ -4,16 +4,16 @@ rem requires 가 계약을 callee 안으로 나른다면, ensures 는 그 반대
 rem ① 증명된다: a ∈ [0,100] → a*2 ∈ [0,200] → ret ≤ 200 은 **참이다.** 검사 제거.
 fn double_it input a range 0 100 . output u16 . ensures le ret 200 . do
   return mul a 2 .
-end .
+end
 
 rem ② 호출자가 그 사실을 **받는다**: double_it 의 결과는 [0,200] 이므로 u8 로 좁히는 것이
 rem    안전함이 증명된다(200 ≤ 255). ensures 가 없었다면 u16 전체 [0,65535] 라 트랩했을 것.
 fn use_it input x range 0 100 . output u8 . do
   return narrow u8 (double_it x) .
-end .
+end
 
 rem ③ 지키지 못하는 약속: a ∈ [0,255] → a*2 ∈ [0,510] ⊄ [0,200]. 증명 실패 → 검사 유지.
 rem    그리고 실제로 어기면 **이 op 이 스스로 고발당한다**(E-VM-CONTRACT, 호출자 잘못이 아니다).
 fn liar input a u16 . output u16 . ensures le ret 200 . do
   return mul a 2 .
-end .
+end

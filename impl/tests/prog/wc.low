@@ -41,14 +41,14 @@ proc count_lines input src slice u8 . output u64 . effects state . do
     let l option slice u8 . be send r take_line 4096 .
     rem ★ `guard` 는 **반드시 나가야** 한다(E-GUARD-FALLTHROUGH) — 루프를 한 번 더 돌지
     rem   말지 고르는 자리는 `guard` 가 아니라 `if` 다. 언어가 이 구별을 강제한다.
-    if is_some l . do set lines (add lines 1) . end .
-    if eq (is_some l) false . do set going false . end .
-  end .
+    if is_some l . do set lines (add lines 1) . end
+    if eq (is_some l) false . do set going false . end
+  end
   rem 마지막 개행 뒤에 남은 바이트가 있으면 그것도 한 줄이다(개행 없이 끝난 파일).
   let rest u64 be send r remaining .
-  if gt rest 0 . do set lines (add lines 1) . end .
+  if gt rest 0 . do set lines (add lines 1) . end
   return lines .
-end .
+end
 
 proc main .
   input fs cap file_system .
@@ -89,4 +89,4 @@ do
 
   let w u64 be write_out out 1 (subslice ob 0 (some_value p5)) .
   return (narrow u8 lines) .
-end .
+end

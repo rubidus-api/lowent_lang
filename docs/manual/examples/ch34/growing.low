@@ -15,8 +15,8 @@ do
     let pushed bool be vecgen.append u32 allocs.heap_bytes v (mul i 2) .
     guard pushed . else return 254 .
     set i (add i 1) .
-  end .
+  end
   let x option u32 be vecgen.at u32 allocs.heap_bytes v 50 .
   guard is_some x . else return 253 .
   return narrow u8 (some_value x) .
-end .
+end

@@ -168,7 +168,7 @@ export proc add2 input a u64 . input b u64 . output u64 . effects none .
   requires ge a 0 .
 do
   return asm_add2 k a b .
-end .
+end
 ```
 
 - Callers of this op *write nothing.* That is the whole value of absorption.
@@ -197,7 +197,7 @@ absorbs: 1 op(s) stop `unsafe` here
 
 Whether to use the instructions is the builder's choice.
 
-#table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+#dtable(columns: 2, id: "hw-choice", caption: [What `--hw` chooses],
   [*What you pick*], [*What happens*],
   [`--hw none` (default)], [everything in plain code; stands on any machine],
   [`--hw pclmul,aes,sse2,avx2`], [emitted *assuming* those instructions; will not run where they are missing],
@@ -259,7 +259,7 @@ What is carried is not only an instruction that replaces a computation. What `ss
   id: "hardware-glance",
   caption: [Hardware syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`struct gpio do mmio 0x40020000 . moder u32 rw . … end .`], [a device's register map], [one clause on a struct, no new words],
+  [`struct gpio do mmio 0x40020000 . moder u32 rw . … end`], [a device's register map], [one clause on a struct, no new words],
   [`rw` · `ro` · `wo`], [access modes --- enforced at translation], [violations: `E-MMIO-PERM`],
   [`read_volatile g idr` · `write_volatile g moder 2`], [access that is never merged or removed], [reading is itself an action],
   [`input dev cap mmio .` + `effects device`], [device capability and effect], [no hardware access without authority],

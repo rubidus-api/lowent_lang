@@ -7,7 +7,7 @@ struct big do
   b u64 .
   c u64 .
   d u64 .
-end .
+end
 
 fn total input v ref big . output u64 .
   requires le (field v a) 1000 .
@@ -16,20 +16,20 @@ fn total input v ref big . output u64 .
   requires le (field v d) 1000 .
 do
   return add (add (field v a) (field v b)) (add (field v c) (field v d)) .
-end .
+end
 
 fn use_sum input x u64 . output u64 .
   requires le x 1000 .
 do
-  let v big be make big do a x . b 2 . c 3 . d 4 . end .
+  let v big be make big do a x . b 2 . c 3 . d 4 . end
   return add (total (ref v)) (total (ref v)) .
-end .
+end
 
 proc bump input p mut_ref u64 . output u64 .
 do
   set p (add (deref p) 1) .
   return deref p .
-end .
+end
 
 proc use_bump input start u64 . output u64 .
   requires lt start 1000 .
@@ -37,4 +37,4 @@ do
   var n u64 be start .
   let r u64 be bump (mut_ref n) .
   return add n r .
-end .
+end

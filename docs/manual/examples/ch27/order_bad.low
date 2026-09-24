@@ -4,4 +4,4 @@ rem expect: E-ATOMIC-ORDER
 proc peek input k cap atomic . input s mut slice u64 . output u64 . effects atomic .
 do
   return atomic_load s 0 order release .
-end .
+end

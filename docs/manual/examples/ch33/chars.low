@@ -11,11 +11,11 @@ do
   let n option u64 be utf8.count_chars s .
   guard is_some n . else return 999 .
   return some_value n .
-end .
+end
 
 fn first_char input s slice u8 . output u64 .
 do
   let c option u64 be utf8.decode s 0 .
   guard is_some c . else return 0 .
   return some_value c .
-end .
+end

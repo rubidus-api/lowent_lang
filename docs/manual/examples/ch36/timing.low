@@ -10,6 +10,6 @@ do
   while lt i 1000 . do
     set acc (wrap_add acc i) .
     set i (add i 1) .
-  end .
+  end
   return clock.since_ns k start .
-end .
+end

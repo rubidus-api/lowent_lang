@@ -5,4 +5,4 @@ fn f output u8 .
 do
   let x u8 be 300 .
   return x .
-end .
+end

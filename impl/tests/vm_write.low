@@ -9,18 +9,18 @@ proc dbl input s mut slice u8 . . output u64 . effects none . do
   while lt i (len s) . do
     set (index s i) expr (index s i) * 2 . .
     set i expr i + 1 . .
-  end .
+  end
   var acc u64 be 0 .
   var j u64 be 0 .
   while lt j (len s) . do
     set acc expr acc + (index s j) . .
     set j expr j + 1 . .
-  end .
+  end
   return acc .
-end .
+end
 
 rem ② 가드 없는 쓰기 — 검사가 남고, 경계 밖이면 트랩한다.
 proc poke input i u64 . input s mut slice u8 . . output u64 . effects none . do
   set (index s i) 9 .
   return len s .
-end .
+end

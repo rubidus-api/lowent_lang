@@ -12,8 +12,8 @@ module vm_abialign .
 export struct pub do
   align machine.cache_line .
   a u64 .
-end .
+end
 
 fn f output u64 . do
   return 1 .
-end .
+end

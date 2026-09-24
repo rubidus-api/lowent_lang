@@ -12,31 +12,31 @@ export actor ring_bytes do
     mem mut slice u8 . .
     off u64 .
     laps u64 .
-  end .
+  end
 
   proc init input backing mut slice u8 . . output u64 . effects state . do
     set mem backing .
     set off 0 .
     set laps 0 .
     return len mem .
-  end .
+  end
 
   proc reserve input n u64 . output option mut slice u8 . . effects state . do
     guard le n (len mem) . else return none .
     if gt n (sub (len mem) off) . do
       set off 0 .
       set laps (add laps 1) .
-    end .
+    end
     let v mut slice u8 . be subslice mem off (add off n) .
     set off (add off n) .
     return (some v) .
-  end .
+  end
 
   proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects none . do
     return none .
-  end .
+  end
 
   proc used output u64 . effects none . do
     return add (mul laps 1000) off .
-  end .
-end .
+  end
+end

@@ -18,7 +18,7 @@ fn t_scan output u64 . do
   guard eq (is_some (io.scan_until "ab,cd" 3 44 100)) false . else return 92 .
   guard eq (is_some (io.scan_until "ab,cd" 0 44 2)) false . else return 93 .
   return 1 .
-end .
+end
 
 rem ── 리더: peek 는 소비하지 않고, take 는 소비한다 ──────────────────────
 
@@ -36,7 +36,7 @@ proc t_peek_take output u64 . effects state . do
   guard eq (is_some (send r take 99)) false . else return 96 .
   guard eq (send r remaining) 3 . else return 97 .
   return 1 .
-end .
+end
 
 rem ── EOF 는 오류가 아니라 none ──────────────────────────────────────────
 
@@ -49,7 +49,7 @@ proc t_eof output u64 . effects state . do
   guard eq (is_some (send r take 1)) false . else return 92 .
   guard eq (len (send r take_rest)) 0 . else return 93 .
   return 1 .
-end .
+end
 
 rem ── 프레이밍: 줄 단위 읽기 (개행 3 개 + 꼬리) ─────────────────────────
 
@@ -66,10 +66,10 @@ proc t_lines input buf slice u8 . output u64 . effects state . do
     set lines (add lines 1) .
     set bytes (add bytes (len (some_value l))) .
     set l (send r take_line 100) .
-  end .
+  end
   rem 답: 줄수*100 + 줄바이트*10 + 꼬리길이. "aa\nb\n\ncc" → 3 줄·3 바이트·꼬리 2 = 332
   return add (add (mul lines 100) (mul bytes 10)) (len (send r take_rest)) .
-end .
+end
 
 rem ── 상한이 무는가 · toss ──────────────────────────────────────────────
 
@@ -83,7 +83,7 @@ proc t_limit_toss output u64 . effects state . do
   guard eq (send r toss 99) 6 . else return 94 .
   guard eq (send r remaining) 0 . else return 95 .
   return 1 .
-end .
+end
 
 rem ── 뷰인가 복사인가 — 원본을 가리켜야 한다 ─────────────────────────────
 
@@ -96,7 +96,7 @@ proc t_view output u64 . effects state . do
   guard eq (index (some_value w) 0) 104 . else return 92 .
   guard eq (send r remaining) 5 . else return 93 .
   return 1 .
-end .
+end
 
 rem ── ★ 같은 것을 **리터럴로** — 이스케이프·heredoc 이 닫힌 뒤에야 쓸 수 있게 된 시험 ────
 
@@ -111,9 +111,9 @@ proc t_lines_lit output u64 . effects state . do
     set lines (add lines 1) .
     set bytes (add bytes (len (some_value l))) .
     set l (send r take_line 100) .
-  end .
+  end
   return add (add (mul lines 100) (mul bytes 10)) (len (send r take_rest)) .
-end .
+end
 
 proc t_lines_heredoc output u64 . effects state . do
   rem heredoc 판: **원문 그대로** — 같은 데이터를 이스케이프 없이 쓴다.
@@ -132,6 +132,6 @@ END .
     set lines (add lines 1) .
     set bytes (add bytes (len (some_value l))) .
     set l (send r take_line 100) .
-  end .
+  end
   return add (add (mul lines 100) (mul bytes 10)) (len (send r take_rest)) .
-end .
+end

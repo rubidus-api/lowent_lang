@@ -6,4 +6,4 @@ fn peek input data slice u8 . output u64 .
   access data shared_read .
 do
   return widen u64 (index data 0) .
-end .
+end

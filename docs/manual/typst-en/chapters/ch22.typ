@@ -105,7 +105,7 @@ would hide. Instead *the type carries the comparison*. The head of the standard 
 ```lowent
 export trait ordered do
   less input a self . input b self . output bool . effects none .
-end .
+end
 
 export proc sort_by input comptime t type . input s mut slice t .
   output void .

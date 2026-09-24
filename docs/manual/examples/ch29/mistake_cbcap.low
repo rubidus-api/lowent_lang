@@ -9,11 +9,11 @@ export extern fn cmp_logged input out cap io . input a i64 . input b i64 . outpu
   requires le b 1000000 .
 do
   return sub a b .
-end .
+end
 
 unsafe proc callback_addr input k cap c . output u64 . effects unsafe .
 do
   rem ko: ✘ C 가 되부를 때 건넬 권한이 없다 /// en: ✘ when C calls back, it has no capability to hand over
   let f u64 be unsafe_fn cmp_logged .
   return f .
-end .
+end

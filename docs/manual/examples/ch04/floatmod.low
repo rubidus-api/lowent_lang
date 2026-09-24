@@ -6,10 +6,10 @@ rem ko: 부동소수의 나머지는 `fmod` --- 정수의 `mod` 와 이름을 �
 fn rest output f64 .
 do
   return fmod 7.5 2.0 .
-end .
+end
 
 fn whole_rest input a u64 . input b u64 . output u64 .
   requires gt b 0 .
 do
   return mod a b .
-end .
+end

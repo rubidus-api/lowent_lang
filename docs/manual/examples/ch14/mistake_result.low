@@ -7,4 +7,4 @@ fn clamp input a u8 . output u8 .
 do
   guard le a 100 . else return 100 .
   return a .
-end .
+end

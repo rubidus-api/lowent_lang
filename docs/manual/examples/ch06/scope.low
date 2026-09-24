@@ -8,10 +8,10 @@ do
   if gt a 1 . do
     let doubled u64 be mul a 2 .
     set result doubled .
-  end .
+  end
   if le a 1 . do
     let doubled u64 be 1 .
     set result doubled .
-  end .
+  end
   return result .
-end .
+end

@@ -6,11 +6,11 @@ rem ★ errors 절이 거는 변형들이 **선언돼 있지 않았다**(E-ERR-U
 enum parse_error do
   too_short .
   bad_version .
-end .
+end
 enum io_error do
   open_failed .
   read_failed .
-end .
+end
 
 module sorted_search .
 
@@ -27,7 +27,7 @@ DOC .
   tests parse_header_ok parse_header_short .
 do
   return ok true . .
-end .
+end
 
 proc load_file .
   lowdoc "Read a file into a byte slice." .
@@ -44,7 +44,7 @@ proc load_file .
   tests load_file_ok load_file_missing .
 do
   return ok true . .
-end .
+end
 
 rem Compare two keys for ordering.
 rem Returns negative, zero, or positive.
@@ -54,11 +54,11 @@ fn compare .
   output i32 .
 do
   return 0 .
-end .
+end
 
 rem ── `tests` 절이 이름으로 건 op 들. **정의돼 있지 않았다** — 검사기가 잡았다.
 rem    이 픽스처는 문서 렌더링용이지만, 없는 이름을 거는 건 여기서도 거짓말이다.
-fn parse_header_ok output bool . do return true . end .
-fn parse_header_short output bool . do return false . end .
-fn load_file_ok output bool . do return true . end .
-fn load_file_missing output bool . do return false . end .
+fn parse_header_ok output bool . do return true . end
+fn parse_header_short output bool . do return false . end
+fn load_file_ok output bool . do return true . end
+fn load_file_missing output bool . do return false . end

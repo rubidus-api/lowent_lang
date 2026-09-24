@@ -23,9 +23,9 @@ export fn dot input a slice u32 . input b slice u32 . output u32 . do
     var y vec u32 L . be load b i .
     set acc (add acc (mul x y)) .
     set i (add i L) .
-  end .
+  end
   return reduce_add acc .
-end .
+end
 
 rem ② 성립 — 같은 커널을 **리터럴 폭**으로 적으면 같은 답이다(이름이 뜻을 안 바꾼다).
 export fn dot4 input a slice u32 . input b slice u32 . output u32 . do
@@ -37,9 +37,9 @@ export fn dot4 input a slice u32 . input b slice u32 . output u32 . do
     var y vec u32 4 . be load b i .
     set acc (add acc (mul x y)) .
     set i (add i 4) .
-  end .
+  end
   return reduce_add acc .
-end .
+end
 
 rem ★★★ **마스크 적재·저장 — 빠른 경로가 받는 모양** (2026-08-18).
 rem   `vm_vmask.low` 는 대상이 **바이트 슬라이스**(`mut slice u8`)인데 레인은 u32 라, 빠른 경로가
@@ -57,4 +57,4 @@ export fn masked input b slice u8 . input o mut slice u8 . output u32 . do
   var r vec u32 4 . be load_masked xs 0 m pass .
   store_masked ys 0 r m .
   return reduce_add r .
-end .
+end

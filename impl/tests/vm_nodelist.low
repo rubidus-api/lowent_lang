@@ -34,7 +34,7 @@ proc walks input al cap allocator . output u64 . effects alloc . do
   guard eq (index nx 2) 2 . else return 8 .
   guard eq (nodelist.nl_count nx 2) 1 . else return 9 .
   return 42 .
-end .
+end
 
 rem ── ② 이동은 이동권을 요구한다 — 안 링크된 노드는 옮길 수 있다 ────
 proc moves_when_free output u64 . effects none . do
@@ -48,7 +48,7 @@ proc moves_when_free output u64 . effects none . do
   var s4 owned nodelist.site lru . be nodelist.nl_relocate lru s3 1 .
   guard eq (nodelist.nl_slot_of lru s4) 1 . else return 3 .
   return 42 .
-end .
+end
 
 rem ── ① 등록 role 만 — role 토큰은 `shard` 로 쪼갠다 ─────────────────
 rem   role 0 = LRU 목록, role 1 = 해시 버킷. **둘 다 돌려줘야** 이동권이 다시 선다.
@@ -66,7 +66,7 @@ proc roles output u64 . effects none . do
   let back option (shard.token roleset) . be shard.rejoin roleset r0 r1 .
   guard is_some back . else return 5 .
   return 42 .
-end .
+end
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
@@ -77,4 +77,4 @@ do
   let c u64 be roles .
   guard eq c 42 . else return narrow u8 c .
   return 42 .
-end .
+end

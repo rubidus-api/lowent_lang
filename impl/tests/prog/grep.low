@@ -38,7 +38,7 @@ proc line_hits input prog slice u64 . input line slice u8 .
 do
   let h option u64 . be regex.search prog line cl nl mk cs ns .
   return is_some h .
-end .
+end
 
 proc main .
   input fs cap file_system .
@@ -135,12 +135,12 @@ do
         let q4 option u64 . be fmt.put_nl ob (some_value q3) .
         guard is_some q4 . else return 72 .
         let w u64 be write_out out 1 (subslice ob 0 (some_value q4)) .
-      end .
-    end .
-    if eq (is_some l) false . do set going false . end .
-  end .
+      end
+    end
+    if eq (is_some l) false . do set going false . end
+  end
 
   rem ★ 하나도 못 찾은 것은 **오류가 아니다** — grep 의 관례대로 1 이다.
-  if eq hits 0 . do return 1 . end .
+  if eq hits 0 . do return 1 . end
   return 0 .
-end .
+end

@@ -11,4 +11,4 @@ do
   guard eq c 1 . else return 0 .
   drop h .
   return 1 .
-end .
+end

@@ -144,7 +144,7 @@ export trait byte_allocator do
   reserve input s self . input n u64 . output option mut slice u8 . effects state via self .
   grow input s self . input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state via self .
   used input s self . output u64 . effects state .
-end .
+end
 ```
 
 범프의 `reserve` 는 `state` 뿐이고, 힙에서 깎는 `heap_bytes` 의 `reserve` 는 `heap state` 다. 그 차이가 제네릭 op 의
@@ -220,9 +220,9 @@ end .
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`fn rect.area input s rect . …`], [타입에 op 을 붙인다 --- 첫 입력이 수신자], [이름 칸을 나누는 장치이지 상속이 아니다],
   [`method r area` · `rect.area r`], [값의 타입으로 찾아 부른다 · 이름으로 곧장 부른다], [번역 때 정해진다 --- 가상 함수 표가 없다],
-  [`trait shape do area input s self . output u64 . end .`], [타입이 갖출 op 의 목록], [`self` 는 갖출 타입 자신],
+  [`trait shape do area input s self . output u64 . end`], [타입이 갖출 op 의 목록], [`self` 는 갖출 타입 자신],
   [서명 줄: 이름 · 입력 · 출력 · 효과], [op 머리와 같은 차례, `fn`·`proc` 은 적지 않는다], [효과 줄이 갖추는 쪽의 상한],
-  [`struct rect do satisfies shape . … end .`], [이 타입이 약속을 갖춘다고 선언], [선언이 있어야 목록 전체를 검사한다],
+  [`struct rect do satisfies shape . … end`], [이 타입이 약속을 갖춘다고 선언], [선언이 있어야 목록 전체를 검사한다],
   [`requires shape t .`], [제네릭 op 의 타입 조건], [갖추지 못한 타입은 `E-BOUND-UNSAT`],
   [`effects state via self .`(서명)], [할당 계열 효과만 더 적어도 된다], [할당기마다 효과가 다르다],
   [`E-TRAIT-MISSING` · `-SIG` · `-EFFECT` · `-RECV` · `-UNDEF`], [갖추지 못한 자리마다의 진단], [`satisfies` 는 주석이 아니다],

@@ -22,9 +22,9 @@ proc dbl input s mut slice u8 . . output u64 . effects none . parallel s split .
   while lt i (len s) . do
     set (index s i) expr (index s i) * 2 . .
     set i expr i + 1 . .
-  end .
+  end
   return len s .
-end .
+end
 
 rem ── ★★ DET-3 — reduction 은 **트리를 고정해야** 하는가? 연산이 결합적이냐에 달렸다.
 rem
@@ -40,6 +40,6 @@ do
   while lt i (len s) . do
     set acc expr acc + (index s i) . .
     set i expr i + 1 . .
-  end .
+  end
   return acc .
-end .
+end

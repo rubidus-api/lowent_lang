@@ -5,7 +5,7 @@ proc bump input p mut_ref u64 . output void .
   requires lt (deref p) 1000 .
 do
   set p (add (deref p) 1) .
-end .
+end
 
 proc use_twice input start u64 . output u64 .
   requires lt start 900 .
@@ -15,4 +15,4 @@ do
   bump (mut_ref n) .
   bump (mut_ref n) .
   return n .
-end .
+end

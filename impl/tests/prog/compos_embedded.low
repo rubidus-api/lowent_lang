@@ -14,19 +14,19 @@ fn stage_sum input buf slice u8 . output u64 . do
   while lt i (len buf) . do
     set acc (add acc (index buf i)) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 fn stage_scale input v u64 . output u64 . do
   return mul v 2 .
-end .
+end
 
 proc main output u8 . effects none . do
   var out u64 be 0 .
   task_group do
     let s u64 be stage_sum "\x01\x02\x03\x04" .
     set out (stage_scale s) .
-  end .
+  end
   return narrow u8 out .
-end .
+end

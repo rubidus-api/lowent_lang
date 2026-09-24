@@ -48,7 +48,7 @@ proc handles output u64 . effects none . do
   guard eq (budget.shard_of 32 8 h) 1 . else return 94 .
   guard eq (budget.gen_of 32 8 h) 3 . else return 95 .
   return 1 .
-end .
+end
 
 rem ── ② pool — 레코드 슬래브: 넷을 얻고 하나를 돌려준 뒤 재사용 ──────────
 proc records input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
@@ -61,13 +61,13 @@ do
   var i u64 be 0 .
   while lt i 4 . do
     let h option (pool.handle kv_rec) . be pool.take kv_rec p .
-    if is_some h . do set got (add got 1) . end .
+    if is_some h . do set got (add got 1) . end
     set i (add i 1) .
-  end .
+  end
   guard eq got 4 . else return 92 .
   guard eq (pool.outstanding kv_rec p) 4 . else return 93 .
   return 2 .
-end .
+end
 
 
 rem ── ③ nodelist — 슬롯 위의 **고리형 LRU**: 넷을 잇고 가운데를 끊는다 ──────
@@ -81,7 +81,7 @@ proc lru input nx mut slice u64 . . input pv mut slice u64 . . output u64 . effe
   guard eq (nodelist.nl_walk_cut nx pv 0 2) 4 . else return 96 .
   guard eq (nodelist.nl_count nx 0) 3 . else return 97 .
   return 3 .
-end .
+end
 
 rem ── ④ pagecache — 색인 페이지: 읽는 동안 고정하고, 놓은 뒤에야 축출된다 ────
 proc index_read output u64 . effects none . do
@@ -96,7 +96,7 @@ proc index_read output u64 . effects none . do
   var c3 owned pagecache.cache kv_page . be pagecache.evict kv_page c2 .
   guard eq (pagecache.epoch_of kv_page c3) 1 . else return 93 .
   return 4 .
-end .
+end
 
 rem ── ⑤ segarena — 값 바이트를 분절로 키운다(분절당 directory load 1회) ────
 proc values input dir mut slice u64 . . input cap0 u64 . output u64 . effects none . do
@@ -110,7 +110,7 @@ proc values input dir mut slice u64 . . input cap0 u64 . output u64 . effects no
   guard eq (segarena.seg_of kv_bytes a 5) 1 . else return 95 .
   guard eq (segarena.slot_of kv_bytes a 5) 1 . else return 96 .
   return 5 .
-end .
+end
 
 rem ── ⑥ segview — 분절 둘에 걸친 값을 **한 값으로** 읽는다 ────────────────
 proc spanning input al cap allocator . output u64 . effects alloc . do
@@ -138,7 +138,7 @@ proc spanning input al cap allocator . output u64 . effects alloc . do
   guard is_some no . else return 98 .
   guard eq (some_value no) 4 . else return 99 .
   return 6 .
-end .
+end
 
 rem ── ⑦ shard — 두 일꾼이 겹치지 않는 키 구역을 쓴다(락·원자 없음) ────────
 proc workers input mem mut slice u64 . . output u64 . effects none . do
@@ -153,7 +153,7 @@ proc workers input mem mut slice u64 . . output u64 . effects none . do
   guard is_some a . else return 94 .
   guard eq (some_value a) 104 . else return 95 .
   return 7 .
-end .
+end
 
 rem ── ⑧ lifemode — 공유되는 값의 근거리 수명(단일 스레드 refcount) ────────
 proc sharing input c mut slice u64 . . output u64 . effects none . do
@@ -167,7 +167,7 @@ proc sharing input c mut slice u64 . . output u64 . effects none . do
   guard is_some z . else return 95 .
   guard eq (some_value z) 0 . else return 96 .
   return 8 .
-end .
+end
 
 
 rem ══ 측정 하네스 (RFC-0104 §6.6 · WO-0149) ══════════════════════════════════════
@@ -191,9 +191,9 @@ do
     set acc (add acc (nodelist.nl_count nx 0)) .
     set acc (add acc (nodelist.nl_walk_cut nx pv 0 2)) .
     set r (add r 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem 슬래브 — 넷을 얻고 넷을 돌려준다(재사용 경로).
 proc bench_pool input mem mut slice u8 . . input gens mut slice u64 . . input reps u64 . output u64 .
@@ -208,12 +208,12 @@ do
     let h option (pool.handle kv_bench_rec) . be pool.take kv_bench_rec p .
     if is_some h . do
       set acc (add acc 1) .
-      if pool.release kv_bench_rec p (some_value h) . do set acc (add acc 1) . end .
-    end .
+      if pool.release kv_bench_rec p (some_value h) . do set acc (add acc 1) . end
+    end
     set r (add r 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem 샤드 — 겹치지 않는 구역에 쓴다(steady state 에 락·원자가 없어야 한다).
 proc bench_shard input mem mut slice u64 . . input reps u64 . output u64 . effects none . do
@@ -221,13 +221,13 @@ proc bench_shard input mem mut slice u64 . . input reps u64 . output u64 . effec
   var acc u64 be 0 .
   var r u64 be 0 .
   while lt r reps . do
-    if shard.write kv_bench_keys t mem 3 r . do set acc (add acc 1) . end .
+    if shard.write kv_bench_keys t mem 3 r . do set acc (add acc 1) . end
     let v option u64 . be shard.read kv_bench_keys t mem 3 .
-    if is_some v . do set acc (add acc 1) . end .
+    if is_some v . do set acc (add acc 1) . end
     set r (add r 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem 조각 사슬 — 경계를 넘는 바이트를 읽는다(원소마다 디렉터리를 다시 안 읽어야 한다).
 proc bench_seg input back mut slice u8 . . input d mut slice u64 . . input reps u64 . output u64 .
@@ -240,11 +240,11 @@ do
   var r u64 be 0 .
   while lt r reps . do
     let b option u8 . be segview.byte_at ss (mod r 4) .
-    if is_some b . do set acc (add acc 1) . end .
+    if is_some b . do set acc (add acc 1) . end
     set r (add r 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem ── 시간을 재는 자리 ────────────────────────────────────────────────────
 rem   `= <ns/op> ` 하나만 낸다. 부르는 쪽(스크립트)이 그것을 표에 옮긴다.
@@ -266,14 +266,14 @@ do
     guard is_some cb . else return 0 .
     var pv mut slice u64 . be view_array u64 (some_value cb) .
     set work (bench_list m64 pv reps) .
-  end .
-  if eq which 1 . do set work (bench_pool m8 m64 reps) . end .
-  if eq which 2 . do set work (bench_shard m64 reps) . end .
-  if eq which 3 . do set work (bench_seg m8 m64 reps) . end .
+  end
+  if eq which 1 . do set work (bench_pool m8 m64 reps) . end
+  if eq which 2 . do set work (bench_shard m64 reps) . end
+  if eq which 3 . do set work (bench_seg m8 m64 reps) . end
   let dt u64 be clock.since_ns k t0 .
   guard gt work 0 . else return 0 .
   return div dt reps .
-end .
+end
 
 rem ── 여덟이 함께 서는지 확인하는 자리 ──────────────────────────────────────
 rem   ★ **`main` 이 아니라 `stands` 다.** 까닭은 하나뿐이고 도구의 사정이다: 네이티브 빌드는
@@ -321,4 +321,4 @@ export proc stands input al cap allocator . output u8 . effects alloc . do
   guard eq (sharing rc) 8 . else return 8 .
 
   return 0 .
-end .
+end

@@ -25,7 +25,7 @@ proc fits input buf mut slice u8 . . output u64 . effects none . do
   rem ★★★ **F3=(a) 봉인**: len 자리에 널이 봉인돼 있다 — cstr 수출이 O(1)인 이유(D2).
   guard eq (index buf 2) 0 . else return 94 .           rem buf[len] == 0 (봉인)
   return 1 .
-end .
+end
 
 rem ★★★ **핵심 ①: 안 들어가면 한 바이트도 안 쓴다.**
 rem   내용 용량 4(버퍼 5 − 널 1) 인데 5 를 넣으려 한다 — 거절되고 **버퍼가 안 더럽혀진다**.
@@ -42,7 +42,7 @@ proc atomic_refuses input buf mut slice u8 . . output u64 . effects none . do
   guard eq (index buf 2) 0 . else return 93 .
   guard eq (index buf 3) 0 . else return 94 .
   return 1 .
-end .
+end
 
 rem ★★★ **핵심 ②: 자르되 잘랐다고 말한다.** 같은 상황에서 trunc 는 2 를 쓰고 2 를 돌려준다.
 rem   ⇒ ①과 **다른 답**이다. 그래서 이름이 둘일 값이 있다.
@@ -56,7 +56,7 @@ proc trunc_writes_part input buf mut slice u8 . . output u64 . effects none . do
   guard eq (index buf 2) 120 . else return 93 .          rem 'x'
   guard eq (index buf 3) 121 . else return 94 .          rem 'y'
   return 1 .
-end .
+end
 
 rem ★★★ **핵심 ③: 키운다 — 더 큰 자리는 호출자가 준다.**
 rem   라이브러리가 몰래 할당하지 않는다(RFC-0043 D1). 옛 내용이 옮겨지고 새 것이 이어진다.
@@ -78,7 +78,7 @@ do
   guard eq (index big 2) 120 . else return 96 .          rem 'x' — 이어졌다
   guard eq (index big 4) 122 . else return 97 .          rem 'z'
   return 1 .
-end .
+end
 
 rem ★ 성장도 **원자적**이다: 새 자리조차 모자라면 아무것도 안 옮긴다.
 proc grow_atomic input small mut slice u8 . . input big mut slice u8 . . output u64 .
@@ -93,4 +93,4 @@ do
   guard eq (field b len) 2 . else return 92 .            rem 길이 불변
   guard eq (index big 0) 0 . else return 93 .            rem 새 자리도 안 건드려졌다
   return 1 .
-end .
+end

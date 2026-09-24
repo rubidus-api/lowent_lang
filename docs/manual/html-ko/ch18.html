@@ -677,20 +677,20 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
     <strong><span class="tok-k">while</span></strong> lt i (len buf) . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> (index buf i) <span class="tok-n">7</span> .
       <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">for</span></strong> b buf <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> b)) .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">return</span></strong> s .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (fill_count <span class="tok-n">10</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main scratch.low
 main() = 70
 </code></pre></div></div><ul><li><code>region work arena do … end</code> 가 영역을 연다. <code>arena</code> 는 “앞에서부터 깎고 한꺼번에 되돌린다” 는 종류다.</li><li><code>alloc_bytes work capacity n</code> 은 <code>option mut slice u8</code> 을 준다. 자리가 모자라면 <code>none</code> 이다. 메모리가 모자란 것도 <strong>값</strong>이다.</li><li><code>fill_count</code> 의 머리에 <code>effects alloc</code> 이 있다. 자리를 얻는 것은 효과다. 순수한 <code>fn</code> 은 영역을 쓸 수 없다.</li><li>블록을 나가는 <strong>모든 길</strong> — 끝에 닿기, <code>return</code>, 감싼 반복의 <code>break</code>·<code>continue</code> — 에서 영역은 되감긴다. <code>return s .</code> 로 떠나도 버퍼는 걷힌다. 개별로 돌려주는 코드가 없다.</li></ul><p><code>main</code> 은 <code>cap allocator</code> 를 받는다. <code>fill_count</code> 의 <code>alloc</code> 효과가 번져 오므로, 그 효과를 허락할 권한이 필요하다 (16장). 영역 블록은 그 블록을 연 op 안에서 자리를 얻을 자격이 되지만, 효과는 부르는 쪽으로 번진다.</p><p>영역의 종류는 닫힌 여덟이다 — <code>stack</code>·<code>frame</code>·<code>arena</code>·<code>static</code>·<code>heap</code>·<code>mmap</code>·<code>disk</code>·<code>device</code>. 그 밖의 낱말은 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/kinds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> kinds .
@@ -705,10 +705,10 @@ main() = 70
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> carve_static <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
@@ -717,10 +717,10 @@ main() = 70
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run carve_stack kinds.low
 carve_stack() = 32
 $ lowentc --run carve_static kinds.low
@@ -737,10 +737,10 @@ carve_static() = 64
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> carve_static <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
@@ -749,10 +749,10 @@ carve_static() = 64
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run carve_stack kinds.low
 carve_stack() = 32
 $ lowentc --run carve_static kinds.low
@@ -773,18 +773,18 @@ carve_static() = 64
   <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (mul i i)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> sum_squares r <span class="tok-n">5</span> .
     <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> v .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main param.low
 main() = 30
 </code></pre></div></div><p><code>sum_squares</code> 는 스스로 영역을 열지 않고, 부르는 쪽이 연 영역 <code>r</code> 을 받아 그 안에서 깎는다. 그래서 받은 버퍼의 수명은 부르는 쪽의 영역이 정한다. 영역에서 얻은 것은 영역보다 오래 살 수 없고, 영역이 끝나면 거기서 얻은 것도 끝난다.</p><h3 id="s18-4">18.4 영역 밖으로 들고 나갈 수 없다<a class="plink" href="#s18-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>영역에서 얻은 바이트를 영역 밖의 이름에 담으면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/escape.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> escape .
@@ -797,10 +797,10 @@ main() = 30
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">16</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> keep (some_value g) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> len keep .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check escape.low
 escape.low:10:0 E-REGION-ESCAPE: this value was allocated inside a `region` block and is being carried OUT of it. The block RECLAIMS its memory at `end` (SPEC-004 §4.5: the lifetime IS the scope — that is why there is no `free`), so the value would point at bytes the next allocation hands to somebody else. Copy what you need into memory that outlives the block, or move the block outward so it covers every use
 </code></pre></div></div><p>영역이 <code>end</code> 에서 닫히면 그 바이트는 되감긴다. 밖에 남은 <code>keep</code> 은 없는 것을 가리키게 된다. 들고 나가는 자리는 <code>return</code>, 영역 밖 이름에 대입하기, 영역 밖 이름의 칸이나 원소에 대입하기다. 반대로 정수·참거짓처럼 영역의 바이트를 들지 않는 값 — <code>len buf</code> 나 합계 — 은 들고 나가도 된다. <code>fill_count</code> 가 합을 돌려준 것이 그 모양이다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>영역은 결국 수명을 사람이 관리하는 것이다</strong></p><div class="dev-body">수명을 <strong>정하는</strong> 것은 사람이지만, 그 수명을 <strong>지키는</strong> 것은 번역이다. 영역에서 얻은 값이 밖으로 새는 길, 닫힌 영역을 가리키는 길은 번역에서 막힌다. 사람이 하는 일은 “이 값들은 함께 죽는다” 를 블록으로 적는 것이고, 그 블록은 눈에 보인다. C 의 <code>free</code> 는 흩어져 있고 검사되지 않는다.</div></div><h3 id="s18-5">18.5 뿌리마다 커서는 하나다<a class="plink" href="#s18-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>같은 뿌리의 영역이 안쪽에 열려 있는 동안 바깥 영역의 이름으로 깎으면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/nested.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nested .
@@ -811,10 +811,10 @@ escape.low:10:0 E-REGION-ESCAPE: this value was allocated inside a `region` bloc
   <strong><span class="tok-k">region</span></strong> outer arena <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">region</span></strong> inner arena <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes outer capacity <span class="tok-n">8</span> .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check nested.low
 nested.low:8:0 E-ALLOC-NESTED: this allocation names an OUTER source while a region of the SAME root is open inside it. Each root (the fixed window, the heap) has ONE cursor, so the inner region's `end` rewinds past these bytes and hands them to the next allocation — the value would silently change under you (RFC-0112 D4). Allocate from the innermost region, move this allocation outside the inner block, or open the inner region on the other root
 </code></pre></div></div><p>고정 창에는 깎는 자리(커서)가 하나뿐이다. 안쪽 영역이 끝날 때 커서를 되감으면 그 사이에 바깥 이름으로 받은 바이트까지 함께 되감긴다. 다른 뿌리 — 힙 영역 안에서 고정 창 권한으로 깎는 것 — 는 커서가 따로라서 상관없다.</p><p>같은 이유로 태스크로 띄우는 op 은 뿌리에서 곧장 얻지 못한다(<code>E-ALLOC-TASK</code>). 커서가 실행 흐름 사이에 나뉘지 않기 때문이다. 흐름 사이에서 할당기를 나누려면 커서를 원자적으로 옮기는 할당기가 필요하다(27장).</p><h3 id="s18-6">18.6 자라는 뿌리<a class="plink" href="#s18-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-42"></span><p><code>region &lt;이름> heap</code> 은 자라는 뿌리에서 깎는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/heap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> heap .
@@ -828,16 +828,16 @@ nested.low:8:0 E-ALLOC-NESTED: this allocation names an OUTER source while a reg
     <strong><span class="tok-k">guard</span></strong> is_some a . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">guard</span></strong> is_some b . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">return</span></strong> add (len (some_value a)) (len (some_value b)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">cap</span></strong> heap . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> heap .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> grow_twice .
   <strong><span class="tok-k">guard</span></strong> eq n <span class="tok-n">8192</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main heap.low
 main() = 0
 </code></pre></div></div><p>효과는 <code>alloc</code> 이 아니라 <code>heap</code> 이고, 짝이 되는 권한은 <code>cap heap</code> 이다. 힙 영역도 블록을 나갈 때 한꺼번에 걷힌다. 다만 이미 준 바이트를 옮기지 않는다.</p><p>운영체제가 없는 기계를 대상으로 지으면 힙은 어느 자리로도 청할 수 없다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/heap_mcu.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> heap_mcu .
@@ -849,7 +849,7 @@ main() = 0
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes h capacity <span class="tok-n">4096</span> .
   <strong><span class="tok-k">guard</span></strong> is_some a . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> len (some_value a) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check --target cortex_m heap_mcu.low
 heap_mcu.low:5:0 E-HEAP-NOHOST: this op asks for the GROWING root — the `heap` effect, a `cap heap` input or a `region &lt;name> heap` block — but the build target is FREESTANDING (`machine.no_heap`, e.g. cortex_m). A bare-metal board has no allocator that can hand out more memory at run time. What it DOES have is the fixed window its linker script reserves: carve from that with `cap allocator` / `effects alloc` or any other region kind (RFC-0112 D2 · RFC-0038 — the gate is on what the MACHINE cannot do, and only that)
 </code></pre></div></div><p><code>--target cortex_m</code> 은 운영체제 없는 마이크로컨트롤러다. <code>heap</code> 효과, <code>cap heap</code> 입력, <code>region … heap</code> 블록이 모두 거절된다. 같은 기계에서 고정 창을 깎는 <code>alloc</code> 은 쓸 수 있다. 코드가 어느 뿌리를 딛는지가 머리에 적혀 있으므로, 어떤 라이브러리가 운영체제 없는 기계에서 도는지는 번역이 답한다.</p><h3 id="s18-7">18.7 영역 위의 스택<a class="plink" href="#s18-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>영역에서 얻는 것은 바이트만이 아니다. <code>stack_new &lt;영역> capacity &lt;n></code> 은 그 영역에 원소 <code>n</code> 개짜리 스택을 만든다. 되풀이로 나무나 그래프를 훑을 때처럼 “나중에 넣은 것을 먼저 꺼내는” 일에 쓴다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/stack.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stack_demo .
@@ -866,26 +866,26 @@ heap_mcu.low:5:0 E-HEAP-NOHOST: this op asks for the GROWING root — the `heap`
   <strong><span class="tok-k">while</span></strong> gt v <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     push work (mod v <span class="tok-n">10</span>) .
     <strong><span class="tok-k">set</span></strong> v (div v <span class="tok-n">10</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">var</span></strong> out <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> place <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">while</span></strong> pop work into d . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> out (add out (mul d place)) .
     <strong><span class="tok-k">set</span></strong> place (mul place <span class="tok-n">10</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> out .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (reverse_digits r <span class="tok-n">47</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main stack.low
 main() = 74
-</code></pre></div></div><ul><li><code>let work stack u64 be stack_new temp capacity 8 .</code> 이 스택을 만든다. 영역에서 자리를 얻으므로 <code>effects alloc</code> 이다.</li><li><code>push work x .</code> 는 넣는다.</li><li><code>while pop work into d . do … end .</code> 는 꺼낼 것이 있는 동안 하나씩 꺼내 <code>d</code> 에 묶는다. 비면 되풀이가 끝난다 — 빈 스택에서 꺼내다 멈추는 길이 문법에 없다.</li></ul><p>47 의 자릿수 7·4 를 넣으면 4·7 차례로 나와 74 가 된다. 스택도 영역과 함께 걷히므로 따로 돌려주는 코드가 없다.</p><h3 id="s18-8">18.8 흔한 실수<a class="plink" href="#s18-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 자리를 얻었는지 묻지 않고 <code>some_value</code> 로 꺼낸다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_nocheck.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nocheck .
+</code></pre></div></div><ul><li><code>let work stack u64 be stack_new temp capacity 8 .</code> 이 스택을 만든다. 영역에서 자리를 얻으므로 <code>effects alloc</code> 이다.</li><li><code>push work x .</code> 는 넣는다.</li><li><code>while pop work into d . do … end</code> 는 꺼낼 것이 있는 동안 하나씩 꺼내 <code>d</code> 에 묶는다. 비면 되풀이가 끝난다 — 빈 스택에서 꺼내다 멈추는 길이 문법에 없다.</li></ul><p>47 의 자릿수 7·4 를 넣으면 4·7 차례로 나와 74 가 된다. 스택도 영역과 함께 걷히므로 따로 돌려주는 코드가 없다.</p><h3 id="s18-8">18.8 흔한 실수<a class="plink" href="#s18-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 자리를 얻었는지 묻지 않고 <code>some_value</code> 로 꺼낸다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_nocheck.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nocheck .
 <em><span class="tok-c">rem run: buf_len 16</span></em>
 <em><span class="tok-c">rem trap: buf_len 1000000</span></em>
 
@@ -895,9 +895,9 @@ main() = 74
     <em><span class="tok-c">rem ✘ 자리를 얻었는지 묻지 않고 꺼낸다 --- 창이 모자라면 `none` 을 꺼내다 멈춘다</span></em>
     <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> some_value (alloc_bytes work capacity n) .
     <strong><span class="tok-k">return</span></strong> len buf .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run buf_len mistake_nocheck.low 16
 buf_len(16) = 16
 $ lowentc --run buf_len mistake_nocheck.low 1000000
@@ -913,9 +913,9 @@ $ lowentc --run buf_len mistake_nocheck.low 1000000
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> subslice <span class="tok-s">"</span><span class="tok-s">"</span> <span class="tok-n">0</span> <span class="tok-n">0</span> .
     <em><span class="tok-c">rem ✘ 이 블록이 끝나면 걷힐 바이트를 돌려준다</span></em>
     <strong><span class="tok-k">return</span></strong> some_value g .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> subslice <span class="tok-s">"</span><span class="tok-s">"</span> <span class="tok-n">0</span> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_returnbuf.low
 mistake_returnbuf.low:10:0 E-REGION-ESCAPE: this value was allocated inside a `region` block and is being carried OUT of it. The block RECLAIMS its memory at `end` (SPEC-004 §4.5: the lifetime IS the scope — that is why there is no `free`), so the value would point at bytes the next allocation hands to somebody else. Copy what you need into memory that outlives the block, or move the block outward so it covers every use
 mistake_returnbuf.low:12:0 E-TYPE-RETMUT: this op declares a MUTABLE output (`mut slice`/`mut_ref`) but RETURNS a read-only place — a shared parameter, a `let` without `mut`, a `ref X`, or a subslice/index/field of one. The caller would receive a mutable alias of storage that is only held read-only, and could write through it — laundering the shared / fn-purity guarantee (measured: a pure fn mutated its shared input via such a return). Return a mutable place — a fresh allocation, a `mut`/`owned` parameter, or a `var`/`mut` local — or drop `mut` from the output type
@@ -934,18 +934,18 @@ mistake_returnbuf.low:12:0 E-TYPE-RETMUT: this op declares a MUTABLE output (`mu
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> b buf <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> b)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> add s (len buf) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> filled_sum r <span class="tok-n">5</span> .
     <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> v .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main returnbuf_fixed.low
 main() = 5
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">반례. 영역을 쓰는 op 을 <code>fn</code> 으로 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_fnregion.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_fnregion .
@@ -958,9 +958,9 @@ main() = 5
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity n .
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">return</span></strong> len (some_value g) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_fnregion.low
 mistake_fnregion.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `alloc` — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p>블록이 끝나면 모두 되감기니 바깥에 남는 것이 없어 보인다. 그래도 자리를 얻는 것은 <code>alloc</code> 효과다. 창에 자리가 있는지에 따라 결과가 달라질 수 있고(<code>none</code>), 같은 창을 쓰는 다른 코드와 겹친다. 그래서 <code>E-EFFECT-CALC</code> 다. <code>proc … effects alloc .</code> 으로 적는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 영역 밖에서 태어난 액터에게 영역의 바이트를 건넨다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_outlives.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_outlives .
@@ -976,10 +976,10 @@ mistake_fnregion.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `a
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <em><span class="tok-c">rem ✘ 영역 밖에서 태어난 액터에게 영역의 바이트를 건넨다</span></em>
       <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a init (some_value g) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_outlives.low
 mistake_outlives.low:13:0 E-ALLOC-OUTLIVES: this hands bytes from a `region` block to an actor that was born OUTSIDE the block. The actor outlives the region, and nothing here can see whether it keeps the slice — if it does, it will read bytes the region's `end` gave to somebody else (RFC-0112 D5). Create the actor inside the region, or give it memory that outlives it
 </code></pre></div></div><p>액터 <code>a</code> 는 영역보다 먼저 태어났으니 영역이 닫힌 뒤에도 산다. 그 액터가 받은 슬라이스를 상태에 넣어 두는지는 번역할 때 알 수 없다. 넣어 둔다면 영역의 <code>end</code> 가 그 바이트를 다른 쪽에 준 뒤에도 옛 자리를 읽는다. 그래서 보수적으로 <code>E-ALLOC-OUTLIVES</code> 로 막는다. 액터도 영역 안에서 만들면 둘이 함께 사라진다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/outlives_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> outlives_fixed .
@@ -999,11 +999,11 @@ mistake_outlives.low:13:0 E-ALLOC-OUTLIVES: this hands bytes from a `region` blo
       <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">10</span> .
       <strong><span class="tok-k">if</span></strong> is_some p . <strong><span class="tok-k">do</span></strong>
         <strong><span class="tok-k">set</span></strong> n (<strong><span class="tok-k">send</span></strong> a used) .
-      <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run carve_inside outlives_fixed.low
 carve_inside() = 10
 </code></pre></div></div></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>반복 안에서 얻은 자리는 바퀴마다 돌려준다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/loop_region.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loop_region .
@@ -1018,12 +1018,12 @@ carve_inside() = 10
     <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity <span class="tok-n">4096</span> .
-      <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong>
       <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> got .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 영역을 반복 안에서 연다 --- 바퀴가 끝날 때마다 되감긴다</span></em>
 <strong><span class="tok-k">proc</span></strong> count_inner <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
@@ -1033,17 +1033,17 @@ carve_inside() = 10
   <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">region</span></strong> work arena <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity <span class="tok-n">4096</span> .
-      <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> got .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run count_outer loop_region.low
 count_outer() = 16
 $ lowentc --run count_inner loop_region.low
 count_inner() = 100
-</code></pre></div></div><p>영역은 <strong>블록</strong>이 끝날 때 되감긴다. 바퀴가 끝날 때가 아니다. <code>count_outer</code> 는 영역이 반복 바깥에 있어서 4096 바이트씩 쌓이고, 이 판의 기본 고정 창(65536 바이트)에서 열여섯 번째 뒤로는 <code>none</code> 을 받는다. <code>count_inner</code> 는 영역을 바퀴 안에서 열어 매번 되감기므로 백 번 모두 얻는다. 한 바퀴에서만 쓰는 버퍼는 영역을 반복 안에서 연다.</p></div></div><h3 id="s18-9">18.9 이 장의 문법 한눈에<a class="plink" href="#s18-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>region work arena do … end .</code></td><td>영역을 연다 — 블록을 나가는 모든 길에서 한꺼번에 되감긴다</td><td><code>free</code> 가 없다 — 수명이 곧 블록</td></tr><tr><td><code>alloc_bytes work capacity n</code></td><td>영역에서 <code>n</code> 바이트를 청한다 — <code>option mut slice u8</code></td><td>모자람도 값이다</td></tr><tr><td><code>effects alloc</code> · <code>effects heap</code></td><td>고정 창에서 얻는다 · 자라는 힙에서 얻는다</td><td>어느 뿌리를 딛는지 머리에 보인다</td></tr><tr><td><code>input al cap allocator .</code> · <code>cap heap</code></td><td>시작점이 받는 할당 권한</td><td>효과를 허락하는 짝</td></tr><tr><td><code>input temp region scratch .</code></td><td>부르는 쪽이 연 영역을 받는다</td><td>버퍼의 수명을 부르는 쪽이 정한다</td></tr><tr><td><code>stack</code>·<code>frame</code>·<code>arena</code>·<code>static</code>·<code>heap</code>·<code>mmap</code>·<code>disk</code>·<code>device</code></td><td>닫힌 영역 종류 여덟</td><td>낱말이 뜻을 말하게 — 밖의 낱말은 <code>E-REGION-KIND</code></td></tr><tr><td>영역 밖 이름에 담기 · 돌려주기</td><td>거절(<code>E-REGION-ESCAPE</code>)</td><td>걷힌 바이트를 가리키지 않게</td></tr><tr><td>안쪽 영역이 열린 동안 바깥 이름으로 깎기</td><td>거절(<code>E-ALLOC-NESTED</code>)</td><td>뿌리마다 커서는 하나</td></tr><tr><td><code>--target cortex_m</code> + <code>heap</code></td><td>거절(<code>E-HEAP-NOHOST</code>)</td><td>운영체제 없는 기계에는 힙이 없다</td></tr><tr><td>영역 밖 액터에게 영역 바이트를 <code>send</code></td><td><code>E-ALLOC-OUTLIVES</code></td><td>액터가 바이트를 쥐고 영역보다 오래 살 수 있다 — 액터도 영역 안에서 만든다</td></tr></table></div><p class="float-caption">표 18.3 — 영역의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">값은 지역·정적·얻은 것 가운데 한 곳에 살고, 얻는 뿌리는 자라지 않는 고정 창(<code>alloc</code>)과 자라는 힙(<code>heap</code>)이다. <code>region &lt;이름> &lt;종류> do … end</code> 가 영역을 열고, 블록을 나가는 모든 길에서 한꺼번에 되감긴다. 영역은 매개변수로 건넬 수 있다. 영역에서 얻은 바이트는 밖으로 들고 나갈 수 없고, 같은 뿌리의 안쪽 영역이 열린 동안 바깥에서 깎을 수 없다. 운영체제가 없는 기계에서는 힙이 거절된다.</div></div>
+</code></pre></div></div><p>영역은 <strong>블록</strong>이 끝날 때 되감긴다. 바퀴가 끝날 때가 아니다. <code>count_outer</code> 는 영역이 반복 바깥에 있어서 4096 바이트씩 쌓이고, 이 판의 기본 고정 창(65536 바이트)에서 열여섯 번째 뒤로는 <code>none</code> 을 받는다. <code>count_inner</code> 는 영역을 바퀴 안에서 열어 매번 되감기므로 백 번 모두 얻는다. 한 바퀴에서만 쓰는 버퍼는 영역을 반복 안에서 연다.</p></div></div><h3 id="s18-9">18.9 이 장의 문법 한눈에<a class="plink" href="#s18-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>region work arena do … end</code></td><td>영역을 연다 — 블록을 나가는 모든 길에서 한꺼번에 되감긴다</td><td><code>free</code> 가 없다 — 수명이 곧 블록</td></tr><tr><td><code>alloc_bytes work capacity n</code></td><td>영역에서 <code>n</code> 바이트를 청한다 — <code>option mut slice u8</code></td><td>모자람도 값이다</td></tr><tr><td><code>effects alloc</code> · <code>effects heap</code></td><td>고정 창에서 얻는다 · 자라는 힙에서 얻는다</td><td>어느 뿌리를 딛는지 머리에 보인다</td></tr><tr><td><code>input al cap allocator .</code> · <code>cap heap</code></td><td>시작점이 받는 할당 권한</td><td>효과를 허락하는 짝</td></tr><tr><td><code>input temp region scratch .</code></td><td>부르는 쪽이 연 영역을 받는다</td><td>버퍼의 수명을 부르는 쪽이 정한다</td></tr><tr><td><code>stack</code>·<code>frame</code>·<code>arena</code>·<code>static</code>·<code>heap</code>·<code>mmap</code>·<code>disk</code>·<code>device</code></td><td>닫힌 영역 종류 여덟</td><td>낱말이 뜻을 말하게 — 밖의 낱말은 <code>E-REGION-KIND</code></td></tr><tr><td>영역 밖 이름에 담기 · 돌려주기</td><td>거절(<code>E-REGION-ESCAPE</code>)</td><td>걷힌 바이트를 가리키지 않게</td></tr><tr><td>안쪽 영역이 열린 동안 바깥 이름으로 깎기</td><td>거절(<code>E-ALLOC-NESTED</code>)</td><td>뿌리마다 커서는 하나</td></tr><tr><td><code>--target cortex_m</code> + <code>heap</code></td><td>거절(<code>E-HEAP-NOHOST</code>)</td><td>운영체제 없는 기계에는 힙이 없다</td></tr><tr><td>영역 밖 액터에게 영역 바이트를 <code>send</code></td><td><code>E-ALLOC-OUTLIVES</code></td><td>액터가 바이트를 쥐고 영역보다 오래 살 수 있다 — 액터도 영역 안에서 만든다</td></tr></table></div><p class="float-caption">표 18.3 — 영역의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">값은 지역·정적·얻은 것 가운데 한 곳에 살고, 얻는 뿌리는 자라지 않는 고정 창(<code>alloc</code>)과 자라는 힙(<code>heap</code>)이다. <code>region &lt;이름> &lt;종류> do … end</code> 가 영역을 열고, 블록을 나가는 모든 길에서 한꺼번에 되감긴다. 영역은 매개변수로 건넬 수 있다. 영역에서 얻은 바이트는 밖으로 들고 나갈 수 없고, 같은 뿌리의 안쪽 영역이 열린 동안 바깥에서 깎을 수 없다. 운영체제가 없는 기계에서는 힙이 거절된다.</div></div>
 <div class="nav"><a href="ch17.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch19.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

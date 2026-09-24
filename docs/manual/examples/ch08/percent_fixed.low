@@ -5,4 +5,4 @@ fn last_digit_plus input a u64 . input k u64 . output u64 .
 do
   rem ko: 표에 없는 연산은 섬 안에서도 전위로 적고 괄호로 감싼다 /// en: operations missing from the table are written prefix inside the island, wrapped in parentheses
   return expr (mod a 10) + k .
-end .
+end

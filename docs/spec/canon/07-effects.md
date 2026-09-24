@@ -403,7 +403,7 @@ build tier t1 .
 struct gpio do
   mmio 0x40020000 .
   moder u32 rw .
-end .
+end
 
 unsafe proc drive input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
 do

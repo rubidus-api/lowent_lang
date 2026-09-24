@@ -202,7 +202,7 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   [`len xs`], [number of elements], [just reads the length field; no cost],
   [`index xs i`], [element `i` (from 0)], [stops when out of range --- never reads someone else's memory],
   [`set (index xs i) v .`], [write element `i`], [needs a `mut slice` and a `proc`],
-  [`for x xs do … end .`], [each element in turn], [no room for index mistakes],
+  [`for x xs do … end`], [each element in turn], [no room for index mistakes],
   [`subslice xs from to`], [a window from `from` up to, not including, `to` (no copy)], [half-open --- the length is `to − from`],
   [`"hello"`], [a literal of type `slice u8` --- indexable as is], [there is no separate string type],
   [`requires le n (len xs) .`], [a length condition as a contract], [bounds checks in the body are removed],

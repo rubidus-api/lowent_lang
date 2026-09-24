@@ -6,4 +6,4 @@ fn pick input table slice u8 . input h u64 . output u8 .
   requires gt (len table) 0 .
 do
   return index table (mod h (len table)) .
-end .
+end

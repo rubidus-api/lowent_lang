@@ -12,4 +12,4 @@ do
   rem ko: 쓴 양이 100000 이 아니면 2, 맞으면 0 을 돌려준다 /// en: return 2 if the amount used is not 100000, and 0 if it is
   guard eq (send hb used) 100000 . else return 2 .
   return 0 .
-end .
+end

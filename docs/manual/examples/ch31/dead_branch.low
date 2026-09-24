@@ -9,6 +9,6 @@ do
   if config smp . do
     rem ko: 이 구성에서는 꺼진 가지다 --- 그래도 검사받는다 /// en: this branch is switched off in this configuration --- it is checked all the same
     return true .
-  end .
+  end
   return 0 .
-end .
+end

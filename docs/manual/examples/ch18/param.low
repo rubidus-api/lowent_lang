@@ -14,15 +14,15 @@ do
   while lt i n . do
     set s (add s (mul i i)) .
     set i (add i 1) .
-  end .
+  end
   return s .
-end .
+end
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
   region r arena do
     let v u64 be sum_squares r 5 .
     return narrow u8 v .
-  end .
+  end
   return 1 .
-end .
+end

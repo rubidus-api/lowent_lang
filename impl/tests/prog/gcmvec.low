@@ -24,10 +24,10 @@ proc same16 input a slice u8 . input b slice u8 . output u64 . effects none . do
   while lt i 16 . do
     set diff (bit_or diff (bit_xor (cast u64 (index a i)) (cast u64 (index b i)))) .
     set i (add i 1) .
-  end .
-  if eq diff 0 . do  return 1 .  end .
+  end
+  if eq diff 0 . do  return 1 .  end
   return 0 .
-end .
+end
 
 rem 자리표 — 0..16 키 · 16..28 nonce · 28..28 aad(빈) · 32..48 평문 · 48..64 암호문
 rem   64..80 태그 · 80..96 푼 것 · 96..112 want · 128..448 gcm 일터
@@ -37,7 +37,7 @@ proc main input al cap allocator . output u8 . effects alloc . do
   guard is_some g . else return 9 .
   let b mut slice u8 . be some_value g .
   var i u64 be 0 .
-  while lt i 1024 . do  set (index b i) 0 .  set i (add i 1) .  end .
+  while lt i 1024 . do  set (index b i) 0 .  set i (add i 1) .  end
 
   rem ── ① 잎 하나: AES-128(키 0^128, 블록 0^128) = 66e94bd4ef8a2c3b884cfa59ca342b2e ──
   guard eq (call_builtin aes_ctr (subslice b 0 16) (subslice b 480 496) (subslice b 32 48) (subslice b 512 528)) 16 . else return 9 .
@@ -56,7 +56,7 @@ proc main input al cap allocator . output u8 . effects alloc . do
   rem ── ③ 두 정의가 서로를 증언한다: `gmul128` 과 `ghash` 가 같은 곱을 낸다 ──
   rem   z 에는 ② 가 남긴 값이 들어 있다. 그것에 H 를 한 번 더 곱한다.
   var k u64 be 0 .
-  while lt k 16 . do  set (index b (add 592 k)) (index b (add 528 k)) .  set k (add k 1) .  end .
+  while lt k 16 . do  set (index b (add 592 k)) (index b (add 528 k)) .  set k (add k 1) .  end
   guard eq (gcm.gmul128 (subslice b 528 544) (subslice b 512 528) (subslice b 544 560)) 1 . else return 9 .
   rem 빌트인 쪽: 0 을 16 바이트 먹이면 XOR 은 아무것도 안 바꾸고 곱만 남는다.
   guard eq (call_builtin ghash (subslice b 512 528) (subslice b 592 608) (subslice b 608 624)) 16 . else return 9 .
@@ -88,4 +88,4 @@ proc main input al cap allocator . output u8 . effects alloc . do
   guard eq (ok_value v2) 0 . else return 8 .
 
   return 0 .
-end .
+end

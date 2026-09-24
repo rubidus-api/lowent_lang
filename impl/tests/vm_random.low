@@ -13,19 +13,19 @@ rem splitmix64(0) = 0xE220A8397B1DCDAF. 규격이 정한 수이지 우리가 고
 fn t_known input z u64 . output u64 . do
   guard eq (call_builtin rng_next 0) 16294208416658607535 . else return 90 .
   return 1 .
-end .
+end
 
 rem 같은 시드는 같은 답 — 재현성이 이 자리의 값이다.
 fn t_repeat input z u64 . output u64 . do
   guard eq (call_builtin rng_next 7) (call_builtin rng_next 7) . else return 90 .
   return 1 .
-end .
+end
 
 rem 다른 시드는 다른 답 — 상수를 돌려주는 구현을 거른다.
 fn t_differs input z u64 . output u64 . do
   guard ne (call_builtin rng_next 1) (call_builtin rng_next 2) . else return 90 .
   return 1 .
-end .
+end
 
 rem 열은 이어진다: 상태를 물려 세 번 돌리면 처음과 다르다.
 fn t_stream input z u64 . output u64 . do
@@ -36,4 +36,4 @@ fn t_stream input z u64 . output u64 . do
   guard ne b c . else return 91 .
   guard ne a c . else return 92 .
   return 1 .
-end .
+end

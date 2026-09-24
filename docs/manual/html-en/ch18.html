@@ -677,20 +677,20 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
     <strong><span class="tok-k">while</span></strong> lt i (len buf) . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> (index buf i) <span class="tok-n">7</span> .
       <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">for</span></strong> b buf <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> b)) .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">return</span></strong> s .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (fill_count <span class="tok-n">10</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main scratch.low
 main() = 70
 </code></pre></div></div><ul><li><code>region work arena do … end</code> opens a region. <code>arena</code> is the kind meaning “carve from the front and give back all at once”.</li><li><code>alloc_bytes work capacity n</code> gives an <code>option mut slice u8</code>. If there is not enough space, it is <code>none</code>. Running out of memory is a <strong>value</strong> too.</li><li><code>fill_count</code>’s head has <code>effects alloc</code>. Obtaining space is an effect; a pure <code>fn</code> cannot use a region.</li><li>On <strong>every path</strong> out of the block — reaching the end, <code>return</code>, <code>break</code> or <code>continue</code> of an enclosing loop — the region is rewound. Even leaving with <code>return s .</code> reclaims the buffer. There is no code that gives it back piece by piece.</li></ul><p><code>main</code> receives <code>cap allocator</code>. The <code>alloc</code> effect of <code>fill_count</code> spreads up to it, so a capability authorising that effect is needed (chapter 16). A region block is entitlement to obtain space inside the op that opened it, but the effect still spreads to the caller.</p><p>A region’s kind is one of a closed eight — <code>stack</code>, <code>frame</code>, <code>arena</code>, <code>static</code>, <code>heap</code>, <code>mmap</code>, <code>disk</code>, <code>device</code>. Any other word is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/kinds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> kinds .
@@ -705,10 +705,10 @@ main() = 70
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> carve_static <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
@@ -717,10 +717,10 @@ main() = 70
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run carve_stack kinds.low
 carve_stack() = 32
 $ lowentc --run carve_static kinds.low
@@ -737,10 +737,10 @@ carve_static() = 64
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> carve_static <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
@@ -749,10 +749,10 @@ carve_static() = 64
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run carve_stack kinds.low
 carve_stack() = 32
 $ lowentc --run carve_static kinds.low
@@ -773,18 +773,18 @@ carve_static() = 64
   <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (mul i i)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> sum_squares r <span class="tok-n">5</span> .
     <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> v .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main param.low
 main() = 30
 </code></pre></div></div><p><code>sum_squares</code> opens no region itself; it carves inside the region <code>r</code> the caller opened. So the lifetime of the buffer it received is decided by the caller’s region. What is obtained from a region cannot outlive the region; when the region ends, what came from it ends too.</p><h3 id="s18-4">18.4 Nothing is carried out of a region<a class="plink" href="#s18-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Putting bytes obtained from a region into a name outside the region is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/escape.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> escape .
@@ -797,10 +797,10 @@ main() = 30
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">16</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> keep (some_value g) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> len keep .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check escape.low
 escape.low:10:0 E-REGION-ESCAPE: this value was allocated inside a `region` block and is being carried OUT of it. The block RECLAIMS its memory at `end` (SPEC-004 §4.5: the lifetime IS the scope — that is why there is no `free`), so the value would point at bytes the next allocation hands to somebody else. Copy what you need into memory that outlives the block, or move the block outward so it covers every use
 </code></pre></div></div><p>When the region closes at <code>end</code>, those bytes are rewound, and <code>keep</code> outside would point at nothing. The places that carry things out are <code>return</code>, assignment to a name outside the region, and assignment to a field or element of such a name. Values that do not carry the region’s bytes — integers and booleans such as <code>len buf</code> or a sum — may be carried out. That is what <code>fill_count</code> did when it returned a sum.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>A region is just people managing lifetimes after all</strong></p><div class="dev-body">People <strong>decide</strong> the lifetime, but translation <strong>enforces</strong> it. Paths by which a value from a region leaks out, and paths that point into a closed region, are blocked at translation. What people do is write “these values die together” as a block, and the block is visible. C’s <code>free</code> calls are scattered and unchecked.</div></div><h3 id="s18-5">18.5 One cursor per root<a class="plink" href="#s18-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Carving with the name of an outer region while a region of the same root is open inside is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/nested.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nested .
@@ -811,10 +811,10 @@ escape.low:10:0 E-REGION-ESCAPE: this value was allocated inside a `region` bloc
   <strong><span class="tok-k">region</span></strong> outer arena <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">region</span></strong> inner arena <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes outer capacity <span class="tok-n">8</span> .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check nested.low
 nested.low:8:0 E-ALLOC-NESTED: this allocation names an OUTER source while a region of the SAME root is open inside it. Each root (the fixed window, the heap) has ONE cursor, so the inner region's `end` rewinds past these bytes and hands them to the next allocation — the value would silently change under you (RFC-0112 D4). Allocate from the innermost region, move this allocation outside the inner block, or open the inner region on the other root
 </code></pre></div></div><p>The fixed window has a single place it carves from (a cursor). When the inner region ends and rewinds the cursor, bytes obtained in between with the outer name would be rewound with it. A different root — carving with a fixed-window capability inside a heap region — has its own cursor and is fine.</p><p>For the same reason, an op spawned as a task cannot obtain memory directly from a root (<code>E-ALLOC-TASK</code>), because a cursor is not shared between flows. Sharing an allocator between flows needs an allocator that moves its cursor atomically (chapter 27).</p><h3 id="s18-6">18.6 The growing root<a class="plink" href="#s18-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-42"></span><p><code>region &lt;name> heap</code> carves from the growing root.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/heap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> heap .
@@ -828,16 +828,16 @@ nested.low:8:0 E-ALLOC-NESTED: this allocation names an OUTER source while a reg
     <strong><span class="tok-k">guard</span></strong> is_some a . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">guard</span></strong> is_some b . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">return</span></strong> add (len (some_value a)) (len (some_value b)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">cap</span></strong> heap . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> heap .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> grow_twice .
   <strong><span class="tok-k">guard</span></strong> eq n <span class="tok-n">8192</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main heap.low
 main() = 0
 </code></pre></div></div><p>The effect is <code>heap</code>, not <code>alloc</code>, and its partner capability is <code>cap heap</code>. A heap region is also reclaimed all at once when the block is left; it never moves bytes it has already handed out.</p><p>When building for a machine without an operating system, the heap cannot be requested through any door.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/heap_mcu.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> heap_mcu .
@@ -849,7 +849,7 @@ main() = 0
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes h capacity <span class="tok-n">4096</span> .
   <strong><span class="tok-k">guard</span></strong> is_some a . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> len (some_value a) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check --target cortex_m heap_mcu.low
 heap_mcu.low:5:0 E-HEAP-NOHOST: this op asks for the GROWING root — the `heap` effect, a `cap heap` input or a `region &lt;name> heap` block — but the build target is FREESTANDING (`machine.no_heap`, e.g. cortex_m). A bare-metal board has no allocator that can hand out more memory at run time. What it DOES have is the fixed window its linker script reserves: carve from that with `cap allocator` / `effects alloc` or any other region kind (RFC-0112 D2 · RFC-0038 — the gate is on what the MACHINE cannot do, and only that)
 </code></pre></div></div><p><code>--target cortex_m</code> is a microcontroller without an operating system. The <code>heap</code> effect, <code>cap heap</code> inputs and <code>region … heap</code> blocks are all rejected. On the same machine, <code>alloc</code> carving from the fixed window is still available. Which root code stands on is written in its head, so whether a library runs on a machine without an operating system is answered by translation.</p><h3 id="s18-7">18.7 A stack on a region<a class="plink" href="#s18-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A region hands out more than bytes. <code>stack_new &lt;region> capacity &lt;n></code> makes a stack of <code>n</code> elements in that region. Use it for “take out what went in last first”, as when walking a tree or graph with a loop.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/stack.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stack_demo .
@@ -866,26 +866,26 @@ heap_mcu.low:5:0 E-HEAP-NOHOST: this op asks for the GROWING root — the `heap`
   <strong><span class="tok-k">while</span></strong> gt v <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     push work (mod v <span class="tok-n">10</span>) .
     <strong><span class="tok-k">set</span></strong> v (div v <span class="tok-n">10</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">var</span></strong> out <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> place <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">while</span></strong> pop work into d . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> out (add out (mul d place)) .
     <strong><span class="tok-k">set</span></strong> place (mul place <span class="tok-n">10</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> out .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (reverse_digits r <span class="tok-n">47</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main stack.low
 main() = 74
-</code></pre></div></div><ul><li><code>let work stack u64 be stack_new temp capacity 8 .</code> makes the stack. It takes space from the region, so it is <code>effects alloc</code>.</li><li><code>push work x .</code> puts a value in.</li><li><code>while pop work into d . do … end .</code> takes values out one at a time, binding each to <code>d</code>, as long as there is one. When the stack is empty the loop ends — the grammar has no way to stop by popping an empty stack.</li></ul><p>Putting in the digits 7 and 4 of 47 brings them out as 4 and 7, giving 74. The stack is reclaimed together with the region, so there is no code to give it back.</p><h3 id="s18-8">18.8 Common mistakes<a class="plink" href="#s18-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Taking the buffer out with <code>some_value</code> without asking whether space was granted</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_nocheck.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nocheck .
+</code></pre></div></div><ul><li><code>let work stack u64 be stack_new temp capacity 8 .</code> makes the stack. It takes space from the region, so it is <code>effects alloc</code>.</li><li><code>push work x .</code> puts a value in.</li><li><code>while pop work into d . do … end</code> takes values out one at a time, binding each to <code>d</code>, as long as there is one. When the stack is empty the loop ends — the grammar has no way to stop by popping an empty stack.</li></ul><p>Putting in the digits 7 and 4 of 47 brings them out as 4 and 7, giving 74. The stack is reclaimed together with the region, so there is no code to give it back.</p><h3 id="s18-8">18.8 Common mistakes<a class="plink" href="#s18-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Taking the buffer out with <code>some_value</code> without asking whether space was granted</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_nocheck.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nocheck .
 <em><span class="tok-c">rem run: buf_len 16</span></em>
 <em><span class="tok-c">rem trap: buf_len 1000000</span></em>
 
@@ -895,9 +895,9 @@ main() = 74
     <em><span class="tok-c">rem ✘ takes it out without asking whether space was granted --- if the window is too small it stops taking out `none`</span></em>
     <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> some_value (alloc_bytes work capacity n) .
     <strong><span class="tok-k">return</span></strong> len buf .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run buf_len mistake_nocheck.low 16
 buf_len(16) = 16
 $ lowentc --run buf_len mistake_nocheck.low 1000000
@@ -913,9 +913,9 @@ $ lowentc --run buf_len mistake_nocheck.low 1000000
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> subslice <span class="tok-s">"</span><span class="tok-s">"</span> <span class="tok-n">0</span> <span class="tok-n">0</span> .
     <em><span class="tok-c">rem ✘ returns bytes that are reclaimed when this block ends</span></em>
     <strong><span class="tok-k">return</span></strong> some_value g .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> subslice <span class="tok-s">"</span><span class="tok-s">"</span> <span class="tok-n">0</span> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_returnbuf.low
 mistake_returnbuf.low:10:0 E-REGION-ESCAPE: this value was allocated inside a `region` block and is being carried OUT of it. The block RECLAIMS its memory at `end` (SPEC-004 §4.5: the lifetime IS the scope — that is why there is no `free`), so the value would point at bytes the next allocation hands to somebody else. Copy what you need into memory that outlives the block, or move the block outward so it covers every use
 mistake_returnbuf.low:12:0 E-TYPE-RETMUT: this op declares a MUTABLE output (`mut slice`/`mut_ref`) but RETURNS a read-only place — a shared parameter, a `let` without `mut`, a `ref X`, or a subslice/index/field of one. The caller would receive a mutable alias of storage that is only held read-only, and could write through it — laundering the shared / fn-purity guarantee (measured: a pure fn mutated its shared input via such a return). Return a mutable place — a fresh allocation, a `mut`/`owned` parameter, or a `var`/`mut` local — or drop `mut` from the output type
@@ -934,18 +934,18 @@ mistake_returnbuf.low:12:0 E-TYPE-RETMUT: this op declares a MUTABLE output (`mu
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> b buf <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> b)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> add s (len buf) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> filled_sum r <span class="tok-n">5</span> .
     <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> v .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main returnbuf_fixed.low
 main() = 5
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing an op that uses a region as a <code>fn</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_fnregion.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_fnregion .
@@ -958,9 +958,9 @@ main() = 5
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity n .
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">return</span></strong> len (some_value g) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_fnregion.low
 mistake_fnregion.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `alloc` — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p>Everything is rewound when the block ends, so it looks as if nothing is left outside. Taking space is still the <code>alloc</code> effect: the result can depend on whether the window has room (<code>none</code>), and it overlaps with other code using the same window. Hence <code>E-EFFECT-CALC</code>. Write it as <code>proc … effects alloc .</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Handing region bytes to an actor born outside the region</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_outlives.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_outlives .
@@ -976,10 +976,10 @@ mistake_fnregion.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `a
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <em><span class="tok-c">rem ✘ handing region bytes to an actor born outside the region</span></em>
       <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a init (some_value g) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_outlives.low
 mistake_outlives.low:13:0 E-ALLOC-OUTLIVES: this hands bytes from a `region` block to an actor that was born OUTSIDE the block. The actor outlives the region, and nothing here can see whether it keeps the slice — if it does, it will read bytes the region's `end` gave to somebody else (RFC-0112 D5). Create the actor inside the region, or give it memory that outlives it
 </code></pre></div></div><p>The actor <code>a</code> was born before the region, so it lives on after the region closes. Whether it keeps the slice it receives in its state cannot be known at translation. If it does, it reads the old place even after the region’s <code>end</code> has given those bytes to someone else. So the check is conservative and refuses with <code>E-ALLOC-OUTLIVES</code>. Create the actor inside the region too, and both go away together.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/outlives_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> outlives_fixed .
@@ -999,11 +999,11 @@ mistake_outlives.low:13:0 E-ALLOC-OUTLIVES: this hands bytes from a `region` blo
       <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">10</span> .
       <strong><span class="tok-k">if</span></strong> is_some p . <strong><span class="tok-k">do</span></strong>
         <strong><span class="tok-k">set</span></strong> n (<strong><span class="tok-k">send</span></strong> a used) .
-      <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run carve_inside outlives_fixed.low
 carve_inside() = 10
 </code></pre></div></div></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Space taken inside a loop is given back every round</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/loop_region.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loop_region .
@@ -1018,12 +1018,12 @@ carve_inside() = 10
     <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity <span class="tok-n">4096</span> .
-      <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong>
       <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> got .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem the region is opened inside the loop --- it is rewound at the end of every round</span></em>
 <strong><span class="tok-k">proc</span></strong> count_inner <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
@@ -1033,17 +1033,17 @@ carve_inside() = 10
   <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">region</span></strong> work arena <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity <span class="tok-n">4096</span> .
-      <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> got .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run count_outer loop_region.low
 count_outer() = 16
 $ lowentc --run count_inner loop_region.low
 count_inner() = 100
-</code></pre></div></div><p>A region is rewound when its <strong>block</strong> ends, not when a round of the loop ends. In <code>count_outer</code> the region is outside the loop, so 4096 bytes pile up each round, and with this edition’s default fixed window (65536 bytes) every request after the sixteenth gets <code>none</code>. <code>count_inner</code> opens the region inside the round and rewinds it every time, so all hundred requests succeed. For a buffer used only within one round, open the region inside the loop.</p></div></div><h3 id="s18-9">18.9 This chapter’s syntax at a glance<a class="plink" href="#s18-9" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>region work arena do … end .</code></td><td>open a region — rewound all at once on every way out of the block</td><td>no <code>free</code> — the lifetime is the block</td></tr><tr><td><code>alloc_bytes work capacity n</code></td><td>request <code>n</code> bytes from the region — <code>option mut slice u8</code></td><td>running short is a value too</td></tr><tr><td><code>effects alloc</code> · <code>effects heap</code></td><td>take from the fixed window · take from the growing heap</td><td>the root in use is visible in the head</td></tr><tr><td><code>input al cap allocator .</code> · <code>cap heap</code></td><td>allocation capabilities received by the entry point</td><td>the pair that allows the effect</td></tr><tr><td><code>input temp region scratch .</code></td><td>receive a region the caller opened</td><td>the caller decides how long the buffer lives</td></tr><tr><td><code>stack</code>·<code>frame</code>·<code>arena</code>·<code>static</code>·<code>heap</code>·<code>mmap</code>·<code>disk</code>·<code>device</code></td><td>the eight closed region kinds</td><td>words that mean something — others are <code>E-REGION-KIND</code></td></tr><tr><td>storing into an outside name · returning</td><td>rejected (<code>E-REGION-ESCAPE</code>)</td><td>never point at reclaimed bytes</td></tr><tr><td>carving with an outer name while an inner region is open</td><td>rejected (<code>E-ALLOC-NESTED</code>)</td><td>one cursor per root</td></tr><tr><td><code>--target cortex_m</code> + <code>heap</code></td><td>rejected (<code>E-HEAP-NOHOST</code>)</td><td>a machine without an OS has no heap</td></tr><tr><td><code>send</code> region bytes to an actor from outside</td><td><code>E-ALLOC-OUTLIVES</code></td><td>the actor may keep the bytes and outlive the region — create the actor inside</td></tr></table></div><p class="float-caption">Table 18.3 — Region syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">Values live in one of local, static and obtained, and the roots they are obtained from are the fixed window that does not grow (<code>alloc</code>) and the heap that does (<code>heap</code>). <code>region &lt;name> &lt;kind> do … end</code> opens a region, rewound all at once on every path out of the block. Regions can be passed as parameters. Bytes from a region cannot be carried out, and an outer region cannot be carved from while an inner region of the same root is open. On machines without an operating system the heap is rejected.</div></div>
+</code></pre></div></div><p>A region is rewound when its <strong>block</strong> ends, not when a round of the loop ends. In <code>count_outer</code> the region is outside the loop, so 4096 bytes pile up each round, and with this edition’s default fixed window (65536 bytes) every request after the sixteenth gets <code>none</code>. <code>count_inner</code> opens the region inside the round and rewinds it every time, so all hundred requests succeed. For a buffer used only within one round, open the region inside the loop.</p></div></div><h3 id="s18-9">18.9 This chapter’s syntax at a glance<a class="plink" href="#s18-9" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>region work arena do … end</code></td><td>open a region — rewound all at once on every way out of the block</td><td>no <code>free</code> — the lifetime is the block</td></tr><tr><td><code>alloc_bytes work capacity n</code></td><td>request <code>n</code> bytes from the region — <code>option mut slice u8</code></td><td>running short is a value too</td></tr><tr><td><code>effects alloc</code> · <code>effects heap</code></td><td>take from the fixed window · take from the growing heap</td><td>the root in use is visible in the head</td></tr><tr><td><code>input al cap allocator .</code> · <code>cap heap</code></td><td>allocation capabilities received by the entry point</td><td>the pair that allows the effect</td></tr><tr><td><code>input temp region scratch .</code></td><td>receive a region the caller opened</td><td>the caller decides how long the buffer lives</td></tr><tr><td><code>stack</code>·<code>frame</code>·<code>arena</code>·<code>static</code>·<code>heap</code>·<code>mmap</code>·<code>disk</code>·<code>device</code></td><td>the eight closed region kinds</td><td>words that mean something — others are <code>E-REGION-KIND</code></td></tr><tr><td>storing into an outside name · returning</td><td>rejected (<code>E-REGION-ESCAPE</code>)</td><td>never point at reclaimed bytes</td></tr><tr><td>carving with an outer name while an inner region is open</td><td>rejected (<code>E-ALLOC-NESTED</code>)</td><td>one cursor per root</td></tr><tr><td><code>--target cortex_m</code> + <code>heap</code></td><td>rejected (<code>E-HEAP-NOHOST</code>)</td><td>a machine without an OS has no heap</td></tr><tr><td><code>send</code> region bytes to an actor from outside</td><td><code>E-ALLOC-OUTLIVES</code></td><td>the actor may keep the bytes and outlive the region — create the actor inside</td></tr></table></div><p class="float-caption">Table 18.3 — Region syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">Values live in one of local, static and obtained, and the roots they are obtained from are the fixed window that does not grow (<code>alloc</code>) and the heap that does (<code>heap</code>). <code>region &lt;name> &lt;kind> do … end</code> opens a region, rewound all at once on every path out of the block. Regions can be passed as parameters. Bytes from a region cannot be carried out, and an outer region cannot be carved from while an inner region of the same root is open. On machines without an operating system the heap is rejected.</div></div>
 <div class="nav"><a href="ch17.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch19.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

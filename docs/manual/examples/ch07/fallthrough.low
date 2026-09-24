@@ -5,6 +5,6 @@ fn clamp5 input n u32 . output u32 .
 do
   guard le n 5 . else do
     let capped u32 be 5 .
-  end .
+  end
   return n .
-end .
+end

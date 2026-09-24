@@ -7,28 +7,28 @@ rem run: must_find 9
 enum lookup_error do
   too_big .
   not_found .
-end .
+end
 
 fn halve input a u8 . output result u8 lookup_error .
   errors too_big gt a 200 .
 do
   guard le a 200 . else return error too_big .
   return ok (div a 2) .
-end .
+end
 
 fn find input k u8 . output option u8 .
 do
   guard lt k 3 . else return none .
   return some (mul k 10) .
-end .
+end
 
 fn maybe_half input a u8 . output option u8 .
 do
   return try (halve a) else_none .
-end .
+end
 
 fn must_find input k u8 . output result u8 lookup_error .
   errors not_found .
 do
   return try (find k) else_error not_found .
-end .
+end

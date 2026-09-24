@@ -26,11 +26,11 @@ do
   while lt k n . do
     if eq (index s k) 1 . do
       set cnt (add cnt 1) .
-    end .
+    end
     set k (add k 1) .
-  end .
+  end
   return cnt .
-end .
+end
 
 rem ✘ 대조군: **반복 수를 모르면** 카운터도 안 묶인다. 남는 것이 정상이다.
 rem ★★ 2026-08-27 에 이 대조군의 **근거를 옮겼다**(WO-0131). 전에는 `len s` 를 상한으로
@@ -45,9 +45,9 @@ export proc ones_count_nobound input s slice u8 . . input n u64 . output u64 . e
   while lt k n . do
     set cnt (add cnt 1) .
     set k (add k 1) .
-  end .
+  end
   return cnt .
-end .
+end
 
 rem ✔ **중첩**도 곱해진다: 바깥 ≤ 257 · 안쪽 ≤ 65 ⇒ hits ≤ 16705, u64 안이다.
 export proc count_pairs input a slice u8 . . input b slice u8 . . output u64 . effects none .
@@ -63,13 +63,13 @@ do
     while lt j nb . do
       if eq (index a i) (index b j) . do
         set hits (add hits 1) .
-      end .
+      end
       set j (add j 1) .
-    end .
+    end
     set i (add i 1) .
-  end .
+  end
   return hits .
-end .
+end
 
 rem ★★ **상수 나눗셈은 구간을 좁힌다** (2026-08-19) — `bench_lru` 의 `q = prod / 6` 사슬이
 rem   못 지워지던 자리. `x / c` ⇒ [lo/c, hi/c] · `x % c` ⇒ [0, c−1] (무부호만 — 부호형은
@@ -80,7 +80,7 @@ do
   let q u64 be div x 6 .
   let r u64 be mod x 6 .
   return add (mul q 6) (mul r 100) .
-end .
+end
 
 rem ★★ **나머지 항등식** (2026-08-19) — `x − (x/c)·c = x mod c ∈ [0, c−1]`.
 rem   무부호에서 `(x/c)·c ≤ x` 이므로 이 뺄셈은 **밑돌 수 없다**. 구간만으로는 못 본다:
@@ -94,4 +94,4 @@ do
   let q u64 be div x 6 .
   let key u64 be sub x (mul q 6) .
   return mul key 100 .
-end .
+end

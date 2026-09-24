@@ -411,7 +411,7 @@ type pct be u8 .
 
 fn f output pct . do
   return 1 .
-end .
+end
 ```
 
 > [!참고]
@@ -799,7 +799,7 @@ module ex_field_form .
 
 struct p do
   x .              rem 타입이 없다
-end .
+end
 
 fn f output u8 . do return 1 . end
 ```

@@ -5,14 +5,14 @@ rem run: age_checked 200
 
 enum age_error do
   too_old .
-end .
+end
 
 rem ko: 계약: 부르는 쪽이 이미 확인한 값만 받는다 --- 어기면 프로그램이 멈춘다 /// en: contract: accept only values the caller has already checked --- breaking it stops the program
 fn age_strict input a u8 . output u8 .
   requires le a 150 .
 do
   return a .
-end .
+end
 
 rem ko: 바깥에서 온 값은 틀릴 수 있다 --- 틀림을 값으로 돌려준다 /// en: values from outside may be wrong --- report it as a value
 fn age_checked input a u8 . output result u8 age_error .
@@ -20,12 +20,12 @@ fn age_checked input a u8 . output result u8 age_error .
 do
   guard le a 150 . else return error too_old .
   return ok a .
-end .
+end
 
 fn check_age input a u8 . output u8 .
 do
   match age_checked a do
     case ok v . return age_strict v .
     case error e . return 0 .
-  end .
-end .
+  end
+end

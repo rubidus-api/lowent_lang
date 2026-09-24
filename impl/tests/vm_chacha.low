@@ -14,7 +14,7 @@ use chacha from "../../lib/chacha.low" .
 rem 낱말 하나 — 카운터 블록은 **제자리에서** 올라간다(`aes_ctr` 와 같은 규약).
 export proc cc input key slice u8 . input c mut slice u8 . input s slice u8 . input d mut slice u8 . output u64 . effects none . do
   return call_builtin chacha20 key c s d .
-end .
+end
 
 rem ★ 낱말과 `lib/chacha.low` 의 `stream` 이 **같은 바이트**를 내는가. 1 이면 같다.
 rem   `c` 는 16 바이트(앞 4 = 블록 번호 리틀엔디언 · 뒤 12 = nonce), `n` 은 같은 nonce 12 바이트.
@@ -33,9 +33,9 @@ do
   while lt i (len s) . do
     guard eq (cast u64 (index d1 i)) (cast u64 (index d2 i)) . else return 0 .
     set i (add i 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem 정의 쪽만 — 시험이 왜 0 인지 가르는 자리.
 export proc onlylib input key slice u8 . input n slice u8 . input s slice u8 . input d2 mut slice u8 .
@@ -43,7 +43,7 @@ export proc onlylib input key slice u8 . input n slice u8 . input s slice u8 . i
   let r result u64 chacha.chacha_error . be chacha.stream key n 1 s d2 st work ks .
   guard is_ok r . else return 111 .
   return ok_value r .
-end .
+end
 
 rem ★★★★★ **엮은 판과 잎 둘이 같은 답인가** (RFC-0128, 2026-09-24).
 rem   `chacha_poly` 의 뜻은 «`chacha20` 을 돌리고 그 암호문을 `poly1305` 에 먹인다» 이다.
@@ -52,7 +52,7 @@ rem   나와야 한다. 512 의 앞뒤가 갈림길이다(엮은 고리는 512 �
 export proc cp input key slice u8 . input c mut slice u8 . input st mut slice u64 .
   input s slice u8 . input d mut slice u8 . output u64 . effects none . do
   return call_builtin chacha_poly key c st s d .
-end .
+end
 
 rem 같은 일을 **잎 둘로** — 증인은 이 둘의 답이 같다는 것이다.
 export proc cppair input key slice u8 . input c mut slice u8 . input st mut slice u64 .
@@ -60,4 +60,4 @@ export proc cppair input key slice u8 . input c mut slice u8 . input st mut slic
   let n u64 be call_builtin chacha20 key c s d .
   guard eq n (len s) . else return 0 .
   return call_builtin poly1305 st d .
-end .
+end

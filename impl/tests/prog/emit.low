@@ -55,10 +55,10 @@ do
     guard is_ok w . else return 75 .
     set p (ok_value w) .
     set i (add i 1) .
-  end .
+  end
 
   rem ★★★ **이것을 지우면 컴파일이 안 된다.** 남은 바이트가 있는데 조용히 버릴 수 없다.
   let f result void outbuf.io_error . be outbuf.buf_finish out p buf .
   guard is_ok f . else return 76 .
   return 0 .
-end .
+end

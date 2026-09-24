@@ -17,8 +17,8 @@ export fn guarded input n u64 . output u64 . do
   let total u64 be add n 10 .
   guard ge total 10 . else return 0 .
   return total .
-end .
+end
 
 proc main output u8 . effects none . do
   return 0 .
-end .
+end

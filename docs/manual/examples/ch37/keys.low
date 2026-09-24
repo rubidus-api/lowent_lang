@@ -11,9 +11,9 @@ do
   let code u64 be tty.key_of (some_value k) .
   if eq code (tty.key_up) . do
     return 1 .
-  end .
+  end
   if tty.is_char code . do
     return 2 .
-  end .
+  end
   return 3 .
-end .
+end

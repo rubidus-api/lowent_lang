@@ -41,23 +41,23 @@ do
   while going . do
     rem ★ 세 자리다(2026-08-15): 실패는 `error`, **끝은 `ok none`**.
     let n result (option u64) files.file_error . be files.read_dir fs dh namebuf .
-    if eq (is_ok n) false . do set going false . end .
+    if eq (is_ok n) false . do set going false . end
     if is_ok n . do
       let nvo option u64 . be ok_value n .
-      if eq (is_some nvo) false . do set going false . end .
+      if eq (is_some nvo) false . do set going false . end
       var nl u64 be 0 .
-      if is_some nvo . do set nl (some_value nvo) . end .
-      if eq nl 0 . do set going false . end .
+      if is_some nvo . do set nl (some_value nvo) . end
+      if eq nl 0 . do set going false . end
       if gt nl 0 . do
         var is_dot bool be false .
         if eq nl 1 . do
-          if eq (index namebuf 0) 46 . do set is_dot true . end .
-        end .
+          if eq (index namebuf 0) 46 . do set is_dot true . end
+        end
         if eq nl 2 . do
           if eq (index namebuf 0) 46 . do
-            if eq (index namebuf 1) 46 . do set is_dot true . end .
-          end .
-        end .
+            if eq (index namebuf 1) 46 . do set is_dot true . end
+          end
+        end
         if eq is_dot false . do
           rem 전체 경로 = dpath + "/" + name — str_buf 로 조립한다
           var b strbuf.str_buf be strbuf.new .
@@ -69,14 +69,14 @@ do
           guard is_ok r3 . else return 82 .
           let t option u64 . be files.type_of fs (strbuf.as_str b pathbuf) .
           guard is_some t . else return 83 .
-          if eq (some_value t) 1 . do set dirs (add dirs 1) . end .
-          if eq (some_value t) 0 . do set nfiles (add nfiles 1) . end .
-        end .
-      end .
-    end .
-  end .
+          if eq (some_value t) 1 . do set dirs (add dirs 1) . end
+          if eq (some_value t) 0 . do set nfiles (add nfiles 1) . end
+        end
+      end
+    end
+  end
 
   let c result void files.file_error . be files.close_dir fs dh .
   guard is_ok c . else return 72 .
   return (narrow u8 (add (mul nfiles 10) dirs)) .   rem tree = 2 files, 1 dir → 21
-end .
+end

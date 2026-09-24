@@ -7,7 +7,7 @@ fn pass .
   output mut_ref u32 . .
 do
   return a .
-end .
+end
 
 fn launder .
   output u32 .
@@ -18,7 +18,7 @@ do
   set x 9 .
   set t 5 .
   return x .
-end .
+end
 
 fn ok1 .
   output u32 .
@@ -28,4 +28,4 @@ do
   var t mut_ref u32 . be pass r .
   set t 5 .
   return x .
-end .
+end

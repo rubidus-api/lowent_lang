@@ -8,13 +8,13 @@ struct header do
   version u8 .
   flags u8 .
   length u16 .
-end .
+end
 
 enum parse_error do
   too_short .
   bad_version .
   too_long .
-end .
+end
 
 rem ★ 명세의 예제는 `read_u16_be` 를 부르는데 **그것을 정의하지 않는다.**
 rem    프렐류드에도 없다. 즉 예제가 **존재하지 않는 op 을 부른다** — 그런데 지금까지
@@ -25,7 +25,7 @@ fn read_u16_be .
   output u16 .
 do
   return expr ((index d 0) * 256) + (index d 1) . .
-end .
+end
 
 fn parse_header .
   input data bytes .
@@ -44,8 +44,8 @@ do
     version index data 0 . .
     flags index data 1 . .
     length length .
-  end .
-end .
+  end
+end
 
 rem ── `tests` 절이 이름으로 건 세 op. 명세의 예제(SPEC-015 §17.1 · RFC-0001 §부록)는
 rem    이 이름들을 적어 놓고 **정의하지 않았다.** 검사기가 그것을 잡았다(E-CONTRACT-UNDEF).
@@ -54,14 +54,14 @@ rem    약속했으니 쓴다.
 fn parse_header_short input data bytes . output bool . do
   let r be parse_header data . .
   return is_error r .
-end .
+end
 
 fn parse_header_bad_version input data bytes . output bool . do
   let r be parse_header data . .
   return is_error r .
-end .
+end
 
 fn parse_header_ok input data bytes . output bool . do
   let r be parse_header data . .
   return is_ok r .
-end .
+end

@@ -6,4 +6,4 @@ proc main output u8 . effects io .
 do
   let n u64 be write_out 1 "hi\n" .
   return narrow u8 n .
-end .
+end

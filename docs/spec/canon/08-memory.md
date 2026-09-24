@@ -105,19 +105,19 @@ end
 ```lowent-거부: 영역의 슬라이스를 바깥 묶음의 칸에 넣는다 · E-REGION-ESCAPE
 module ex_region_field .
 
-struct holder do store mut slice u8 . . end .
+struct holder do store mut slice u8 . . end
 
 proc f output u64 . effects alloc . do
-  var h holder be make holder do store (subslice "abcd" 0 0) . end .
+  var h holder be make holder do store (subslice "abcd" 0 0) . end
   region r arena do
     let g option mut slice u8 . . be alloc_bytes r capacity 16 .
     if is_some g . do
       let b mut slice u8 . be some_value g .
       set (field h store) b .
-    end .
-  end .
+    end
+  end
   return len (field h store) .
-end .
+end
 ```
 
 (4b) 그 op 의 영역 매개변수가 아닌 이름으로 영역을 여는 것도 적합하지 아니하다
@@ -136,10 +136,10 @@ proc f output u64 . effects alloc . do
   region outer arena do
     region inner arena do
       let g option mut slice u8 . . be alloc_bytes outer capacity 8 .
-    end .
-  end .
+    end
+  end
   return 0 .
-end .
+end
 ```
 
 (4d) 영역 안에서 얻은 바이트를 **영역 밖에서 태어난 actor** 에게 보내는 것은 적합하지 아니하다
@@ -572,11 +572,11 @@ module ex_inplace_undeclared .
 proc scale input o mut slice u64 . input a slice u64 . output u64 . effects none . do
   set (index o 0) (mul (index a 0) 2) .
   return 1 .
-end .
+end
 
 proc f input w mut slice u64 . output u64 . effects none . do
   return scale w w .
-end .
+end
 ```
 
 ```lowent 예제: 같은 구간을 허락한 op 의 제자리 부름
@@ -585,11 +585,11 @@ module ex_inplace_ok .
 proc scale input o mut slice u64 . input a slice u64 . output u64 . effects none . inplace o a . do
   set (index o 0) (mul (index a 0) 2) .
   return 1 .
-end .
+end
 
 proc f input w mut slice u64 . output u64 . effects none . do
   return scale (subslice w 0 4) (subslice w 0 4) .
-end .
+end
 ```
 
 ```lowent-거부: 같은 구간이면 쓴 뒤에 읽는 몸에 inplace 를 적는다 · E-INPLACE-UNPROVEN
@@ -598,7 +598,7 @@ module ex_inplace_unproven .
 proc late_read input o mut slice u64 . input a slice u64 . output u64 . effects none . inplace o a . do
   set (index o 0) 1 .
   return index a 0 .
-end .
+end
 ```
 
 (8) op 은 머리에 `invalidates <입력> .` 절(⟦§6.4.1⟧ (3a))을 적어, 그 입력의 저장소에서 **나온 뷰를 무효로 만든다**고 밝힐 수 있다 —
@@ -627,25 +627,25 @@ module ex_view_invalidated .
 struct buf do
   data mut slice u8 .
   n u64 .
-end .
+end
 
 proc grow input b mut buf . output u64 . effects none . invalidates b .
 do
   set (field b n) (add (field b n) 1) .
   return 1 .
-end .
+end
 
 proc view_of input b buf . output slice u8 . effects none .
 do
   return (field b data) .
-end .
+end
 
 proc f input b mut buf . output u64 . effects none .
 do
   let v slice u8 be view_of b .
   let r u64 be grow b .
   return len v .       rem `grow` 가 `b` 의 뷰를 무효로 만들었다 — 뷰를 다시 받는다
-end .
+end
 ```
 
 > [!산문]
@@ -715,18 +715,18 @@ module ex_cap_forge .
 actor grower do
   state do
     root cap heap .
-  end .
+  end
   proc take input n u64 . output u64 . effects heap . do
     let g option mut slice u8 . . be alloc_bytes root capacity n .
-    if is_some g . do return n . end .
+    if is_some g . do return n . end
     return 0 .
-  end .
-end .
+  end
+end
 
 proc f output u64 . effects heap state . do
   var g grower be spawn actor grower . .     rem `input h cap heap .` 가 없다
   return send g take 8 .
-end .
+end
 ```
 
 ## 8.14 객체마다 얼로케이터를 고르기 — `using`
@@ -783,35 +783,35 @@ module ex_using .
 
 trait carver do
   reserve input s self . input n u64 . output u64 . effects state .
-end .
+end
 
 rem 정책 둘 — 하나는 요청만큼, 하나는 두 배씩 센다
 actor exact do
   satisfies carver .
   state do
     used u64 .
-  end .
+  end
   proc reserve input n u64 . output u64 . effects state . do
     set used (add used n) .
     return used .
-  end .
-end .
+  end
+end
 
 actor doubled do
   satisfies carver .
   state do
     used u64 .
-  end .
+  end
   proc reserve input n u64 . output u64 . effects state . do
     set used (add used (mul n 2)) .
     return used .
-  end .
-end .
+  end
+end
 
 rem 받는 쪽 — 부르는 쪽은 얼로케이터도, 그 타입도 적지 않는다
 proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a . do
   return send al reserve n .
-end .
+end
 
 proc main output u8 . effects state . do
   var e exact be spawn actor exact . .
@@ -819,7 +819,7 @@ proc main output u8 . effects state . do
   let x u64 using e be take 3 .      rem 3
   let y u64 using d be take 3 .      rem 6
   return narrow u8 (add x y) .
-end .
+end
 ```
 
 ```lowent-거부: 보이는 얼로케이터가 둘인데 고르지 않았다 · E-ALLOC-AMBIGUOUS
@@ -827,27 +827,27 @@ module ex_using_ambiguous .
 
 trait carver do
   reserve input s self . input n u64 . output u64 . effects state .
-end .
+end
 
 actor exact do
   satisfies carver .
   state do
     used u64 .
-  end .
+  end
   proc reserve input n u64 . output u64 . effects state . do
     set used (add used n) .
     return used .
-  end .
-end .
+  end
+end
 
 proc take input comptime a type . using al a . input n u64 . output u64 . effects state . requires carver a . do
   return send al reserve n .
-end .
+end
 
 proc main output u8 . effects state . do
   var e exact be spawn actor exact . .
   var f exact be spawn actor exact . .
   let x u64 be take 3 .              rem e 인가 f 인가 — 짐작하지 않는다
   return narrow u8 x .
-end .
+end
 ```

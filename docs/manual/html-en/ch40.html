@@ -670,7 +670,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">fn</span></strong> same_width <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check order_strict.low
 order_strict.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)
 </code></pre></div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch40/order_ok.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> order_ok .
@@ -679,7 +679,7 @@ order_strict.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening ex
 <strong><span class="tok-k">fn</span></strong> wider <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i16</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run wider order_ok.low 200
 wider(200) = 200
 </code></pre></div></div><p>What <code>NumericLattice.v</code> proves about this relation:</p><ul><li><strong>It preserves values</strong> (<code>sub_preserves</code>). If <code>t ⊑ u</code> and <code>v</code> is in <code>t</code>’s range, it is in <code>u</code>’s range. This is why widening has no run-time check.</li><li><strong>It is a partial order</strong> (<code>sub_refl</code>, <code>sub_trans</code>, <code>sub_antisym</code>). If transitivity broke, the language would allow <code>u8 → u16</code> and <code>u16 → u32</code> but not <code>u8 → u32</code>. Managing the table by hand really does make such holes.</li><li><strong>The join holds both and is one of the two</strong> (<code>join_sound</code>, <code>join_is_an_operand</code>). When two values go into one operation, the type picked holds both values and does not invent a third type absent from the source (chapter 39′s <code>u8 ⊔ u16 = u16</code>).</li><li><strong>Narrowing has exactly one condition</strong> (<code>narrow_ok_iff</code>). <code>narrow_try u8 300</code> never quietly succeeds giving 44.</li></ul><div class="dev mathbox"><p class="dev-label">The mathematics. The skeleton of the proof that widening preserves values</p><div class="dev-body">Split into four cases. If <code>uN ⊑ uM</code> (N ≤ M), both lower ends are 0 and the upper ends satisfy 2<sup>N</sup> − 1 ≤ 2<sup>M</sup> − 1 — using only the fact that powers of 2 are monotonic. If <code>uN ⊑ iM</code> (N &lt; M), then N ≤ M − 1, so 2<sup>N</sup> − 1 ≤ 2<sup>M−1</sup> − 1. Signed pairs are the same, and <code>iN ⊑ uM</code> is false by definition, so there is nothing to do. The key lemma is just “if a ≤ b then 2<sup>a</sup> ≤ 2<sup>b</sup>”. The whole proof stands on high-school exponent laws. What is hard is not the argument but <strong>missing not a single case</strong>, which is why it is left to a machine.</div></div><h3 id="s40-2">40.2 Division and remainder<a class="plink" href="#s40-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Division is a place this language treats with unusual care.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch40/division.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> division .
@@ -690,12 +690,12 @@ wider(200) = 200
 
 <strong><span class="tok-k">fn</span></strong> quot <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem the sign of mod follows the divisor</span></em>
 <strong><span class="tok-k">fn</span></strong> rest <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mod a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run quot division.low -7 2
 quot(-7, 2) = -3
 $ lowentc --run rest division.low -7 3
@@ -713,7 +713,7 @@ $ lowentc --run quot division.low -128 -1
   <strong><span class="tok-k">requires</span></strong> gt (len table) <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index table (mod h (len table)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run pick modslot.low [5,6,7,8] 1000003
 pick([5,6,7,8], 1000003) = 8
   arg0 (written) = [5,6,7,8]

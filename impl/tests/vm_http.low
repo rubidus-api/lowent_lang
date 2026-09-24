@@ -10,84 +10,84 @@ use http from "../../lib/http.low" .
 rem ── 정상 요청 ─────────────────────────────────────────────────────────────
 export fn ok_method output u64 . do
   return http.method_code "GET /a HTTP/1.1\r\nHost: x\r\n\r\n" .
-end .
+end
 export fn ok_post output u64 . do
   return http.method_code "POST /a HTTP/1.1\r\n\r\n" .
-end .
+end
 export fn ok_target output u64 . do
   rem 대상은 "/api/x" — 자리 4, 길이 6.
   let b slice u8 . be "GET /api/x HTTP/1.1\r\nHost: y\r\n\r\n" .
   return add (mul (http.target_off b) 100) (http.target_len b) .
-end .
+end
 export fn ok_version output bool . do
   return http.version_ok "GET / HTTP/1.1\r\n\r\n" .
-end .
+end
 export fn ok_body output u64 . do
   rem "GET / HTTP/1.1\r\n" = 16, "Host: x\r\n" = 9, "\r\n" = 2  ⇒ 몸통은 27
   return http.body_off "GET / HTTP/1.1\r\nHost: x\r\n\r\nBODY" .
-end .
+end
 export fn ok_find output u64 . do
   let b slice u8 . be "GET / HTTP/1.1\r\nHost: example\r\n\r\n" .
   return add (mul (http.header_find b "host") 100) (http.header_find_len b "host") .
-end .
+end
 export proc ok_clen output u64 . effects none . do
   let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 42\r\n\r\n" .
   guard is_some c . else return 999 .
   return some_value c .
-end .
+end
 export proc ok_noclen output u64 . effects none . do
   rem 없으면 `some 0` — *"없다"* 는 정상이다.
   let c option u64 . be http.content_length "GET / HTTP/1.1\r\nHost: x\r\n\r\n" .
   guard is_some c . else return 999 .
   return some_value c .
-end .
+end
 
 rem ── ✘ 거절돼야 하는 것들 (전부 0/false/none 이어야 한다) ──────────────────
 rem ✘ 맨 LF 를 줄 끝으로 받으면 앞단과 다르게 읽는다.
 export fn no_bare_lf output u64 . do
   return http.body_off "GET / HTTP/1.1\nHost: x\n\n" .
-end .
+end
 rem ✘ 이름과 콜론 사이의 공백 — RFC 9112 §5.1 이 거절을 요구한다.
 export fn no_space_before_colon output u64 . do
   return http.name_len "Host : x\r\n" 0 .
-end .
+end
 rem ✘ `Content-Length` 가 둘 — 값이 같아도 거절한다.
 export proc no_dup_clen output u64 . effects none . do
   let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 5\r\nContent-Length: 5\r\n\r\n" .
-  if is_some c . do return 1 . end .
+  if is_some c . do return 1 . end
   return 0 .
-end .
+end
 rem ✘ 숫자가 아닌 길이(`5, 5` · `+5` · 빈 값).
 export proc no_list_clen output u64 . effects none . do
   let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 5, 5\r\n\r\n" .
-  if is_some c . do return 1 . end .
+  if is_some c . do return 1 . end
   return 0 .
-end .
+end
 export proc no_plus_clen output u64 . effects none . do
   let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: +5\r\n\r\n" .
-  if is_some c . do return 1 . end .
+  if is_some c . do return 1 . end
   return 0 .
-end .
+end
 rem ✘ HTTP/1.0 은 안 받는다 — 지속 연결 규칙이 다르고 그것을 안 지었다.
 export fn no_http10 output bool . do
   return http.version_ok "GET / HTTP/1.0\r\n\r\n" .
-end .
+end
 rem ✘ 같은 헤더가 둘이면 `header_find` 는 0 이다(모르면 거절한다).
 export fn no_dup_header output u64 . do
   return http.header_find "GET / HTTP/1.1\r\nX: a\r\nX: b\r\n\r\n" "x" .
-end .
+end
 rem ✘ 빈 대상.
 export fn no_empty_target output u64 . do
   return http.target_len "GET  HTTP/1.1\r\n\r\n" .
-end .
+end
 rem ✘ 헤더가 안 끝났다(빈 줄이 없다).
 export fn no_unterminated output u64 . do
   return http.body_off "GET / HTTP/1.1\r\nHost: x\r\n" .
-end .
+end
 
 proc main output u8 . effects none . do
   return 0 .
-end .
+end
 
 rem ── ★ 라이브러리 보안 점검 증인 (2026-09-04, libreview) ─────────────────────
 rem   `line_len` 은 **성하지 않은 줄**(맨 CR/LF · 안 끝난 줄)에도 0 을 낸다 — 그것을 「빈 줄 =
@@ -96,34 +96,34 @@ rem   전부 1 이어야 한다(= 거절했다). 9x 는 틀린 갈래를 말한�
 rem ✘ 헤더가 안 끝났는데 Content-Length 를 답하면 안 된다.
 export proc t_clen_unterminated output u64 . effects none . do
   let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 5\r\nX-Fo" .
-  if is_some c . do return 91 . end .
+  if is_some c . do return 91 . end
   return 1 .
-end .
+end
 rem ✘ 헤더 안의 맨 LF — 앞단은 줄 둘로 읽는다.
 export proc t_clen_bare_lf output u64 . effects none . do
   let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 5\r\nX: a\nb\r\n\r\nhello" .
-  if is_some c . do return 92 . end .
+  if is_some c . do return 92 . end
   return 1 .
-end .
+end
 rem ✘ 콜론 앞 공백 — 건너뛰고 `some 0` 을 내면 관대한 앞단(5)과 갈린다.
 export proc t_clen_space_colon output u64 . effects none . do
   let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length : 5\r\n\r\nhello" .
-  if is_some c . do return 93 . end .
+  if is_some c . do return 93 . end
   return 1 .
-end .
+end
 rem ✘ 안 끝난 블록에서 `header_find` 가 자리를 내면 안 된다.
 export fn t_find_unterminated output u64 . do
-  if ne (http.header_find "GET / HTTP/1.1\r\nHost: x\r\nX-Fo" "host") 0 . do return 94 . end .
+  if ne (http.header_find "GET / HTTP/1.1\r\nHost: x\r\nX-Fo" "host") 0 . do return 94 . end
   return 1 .
-end .
+end
 rem ✘ `header_find_len` 은 `header_find` 와 짝이다 — 중복이면 둘 다 0.
 export fn t_find_len_dup output u64 . do
-  if ne (http.header_find_len "GET / HTTP/1.1\r\nHost: a\r\nHost: b\r\n\r\n" "host") 0 . do return 95 . end .
+  if ne (http.header_find_len "GET / HTTP/1.1\r\nHost: a\r\nHost: b\r\n\r\n" "host") 0 . do return 95 . end
   return 1 .
-end .
+end
 rem ✘ 성하지 않은 줄을 **건너뛰지** 않는다 — 그 줄에서 실패한다.
 export fn t_find_malformed_line output u64 . do
-  if ne (http.header_find "GET / HTTP/1.1\r\nBad line\r\nHost: x\r\n\r\n" "host") 0 . do return 96 . end .
-  if ne (http.header_find_len "GET / HTTP/1.1\r\nBad line\r\nHost: x\r\n\r\n" "host") 0 . do return 97 . end .
+  if ne (http.header_find "GET / HTTP/1.1\r\nBad line\r\nHost: x\r\n\r\n" "host") 0 . do return 96 . end
+  if ne (http.header_find_len "GET / HTTP/1.1\r\nBad line\r\nHost: x\r\n\r\n" "host") 0 . do return 97 . end
   return 1 .
-end .
+end

@@ -256,7 +256,7 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   id: "actors-glance",
   caption: [Actor syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`actor counter do state do value u64 . end . … end .`], [declare a unit of execution that encloses state], [there is no way to touch the state concurrently],
+  [`actor counter do state do value u64 . end … end`], [declare a unit of execution that encloses state], [there is no way to touch the state concurrently],
   [`proc inc … effects state .` · `fn get …`], [a message that changes state · one that only reads], [`fn`/`proc` rules unchanged --- a `fn` that writes is `E-EFFECT-PURITY`],
   [`var c counter be spawn actor counter .`], [create one actor (state starts at 0)], [each `spawn` has its own state],
   [`send c inc` · `send acct deposit a`], [send and wait until processed · carry a value], [actor first --- a message is an op taking the actor as first parameter],
@@ -264,7 +264,7 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   [`mailbox bounded 2 .` · `try spawn send`], [mailbox size · receive overflow as a value], [overflow stops, or becomes a `result`],
   [`failure restart max 3 .` · `never` · `always`], [restart a panicked actor from its initial state], [when used up, the failure goes upward],
   [`build profile server .`], [where actors (level 3) may be used], [only those who write it take on the promise],
-  [`state do root cap allocator . … end .`], [a capability field --- size 0 at run time], [`E-CAP-FORGE` if the spawning op lacks that capability],
+  [`state do root cap allocator . … end`], [a capability field --- size 0 at run time], [`E-CAP-FORGE` if the spawning op lacks that capability],
 )
 
 #recap[

@@ -22,7 +22,7 @@ enum eval_error do
   underflow .           rem 이항 연산에 피연산자 부족
   div_by_zero .
   bad_expr .            rem 평가 후 스택에 정확히 1개가 안 남음
-end .
+end
 
 struct token do
   kind  u8 .

@@ -5,9 +5,9 @@ fn add_const input comptime n u8 . input a u8 . output u8 .
   requires le a 200 .
 do
   return add a n .
-end .
+end
 
 fn caller input k u8 . output u8 .
 do
   return add_const k 4 .
-end .
+end

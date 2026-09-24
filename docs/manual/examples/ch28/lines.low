@@ -6,7 +6,7 @@ use files .
 fn is_newline input c u8 . output bool .
 do
   return eq c 10 .
-end .
+end
 
 proc main input out cap io . input fs cap file_system . input al cap allocator .
   output u8 .
@@ -19,12 +19,12 @@ do
   guard not (is_error r) . else do
     let e u64 be write_out out 1 "cannot read notes.txt\n" .
     return 2 .
-  end .
+  end
   let body slice u8 be subslice buf 0 (ok_value r) .
   let n u64 be pipe body do
     filter is_newline .
     count .
-  end .
+  end
   let w u64 be write_out out 1 body .
   return narrow u8 n .
-end .
+end

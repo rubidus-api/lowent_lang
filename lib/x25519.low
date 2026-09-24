@@ -25,7 +25,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum x25519_error do
   short_workspace .
-end .
+end
 
 
 rem 자리올림 — 조각을 16 비트로 되돌린다. 2^256 ≡ 38 (mod p) 이므로 넘친 것은 38 배로 접는다.
@@ -43,33 +43,33 @@ export proc fcar input o mut slice u64 . output u64 . effects none . do
       set (index o i) (bit_and v 65535) .
       set c (shr v 16) .
       set i (add i 1) .
-    end .
+    end
     set (index o 0) (add (index o 0) (mul c 38)) .
     set pass (add pass 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 export proc fzero input o mut slice u64 . output u64 . effects none . do
   guard ge (len o) 16 . else return 0 .
   var i u64 be 0 .
-  while lt i 16 . do  set (index o i) 0 .  set i (add i 1) .  end .
+  while lt i 16 . do  set (index o i) 0 .  set i (add i 1) .  end
   return 1 .
-end .
+end
 
 export proc fone input o mut slice u64 . output u64 . effects none . do
   guard eq (fzero o) 1 . else return 0 .
   set (index o 0) 1 .
   return 1 .
-end .
+end
 
 export proc fcopy input o mut slice u64 . input a slice u64 . output u64 . effects none . do
   guard ge (len o) 16 . else return 0 .
   guard ge (len a) 16 . else return 0 .
   var i u64 be 0 .
-  while lt i 16 . do  set (index o i) (index a i) .  set i (add i 1) .  end .
+  while lt i 16 . do  set (index o i) (index a i) .  set i (add i 1) .  end
   return 1 .
-end .
+end
 
 rem o = a + b
 export proc fadd input o mut slice u64 . input a slice u64 . input b slice u64 . output u64 . effects none . inplace o a . inplace o b . do
@@ -80,9 +80,9 @@ export proc fadd input o mut slice u64 . input a slice u64 . input b slice u64 .
   while lt i 16 . do
     set (index o i) (add (index a i) (index b i)) .
     set i (add i 1) .
-  end .
+  end
   return fcar o .
-end .
+end
 
 rem ★ o = a − b, 음수 없이. 4p = 2^257 − 76 의 조각을 더하고 뺀다:
 rem     4p 의 조각 = [0x1FFB4, 0x1FFFE × 15]   (0xFFDA·2 와 0xFFFF·2)
@@ -96,13 +96,13 @@ export proc fsub input o mut slice u64 . input a slice u64 . input b slice u64 .
   var i u64 be 0 .
   while lt i 16 . do
     var lim u64 be 131070 .
-    if eq i 0 . do set lim 130996 . end .
+    if eq i 0 . do set lim 130996 . end
     guard le (index b i) lim . else return 0 .
     set (index o i) (sub (add (index a i) lim) (index b i)) .
     set i (add i 1) .
-  end .
+  end
   return fcar o .
-end .
+end
 
 rem o = a · b.  `t` 는 31 원소 작업 공간. o 는 a·b 와 같은 자리여도 된다(t 를 다 채운 뒤 옮긴다).
 export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 . input t mut slice u64 . output u64 . effects none . inplace o a . inplace o b . do
@@ -111,30 +111,30 @@ export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 .
   guard ge (len b) 16 . else return 0 .
   guard ge (len t) 31 . else return 0 .
   var k u64 be 0 .
-  while lt k 31 . do  set (index t k) 0 .  set k (add k 1) .  end .
+  while lt k 31 . do  set (index t k) 0 .  set k (add k 1) .  end
   var i u64 be 0 .
   while lt i 16 . do
     var j u64 be 0 .
     while lt j 16 . do
       set (index t (add i j)) (add (index t (add i j)) (mul (index a i) (index b j))) .
       set j (add j 1) .
-    end .
+    end
     set i (add i 1) .
-  end .
+  end
   rem 2^256 ≡ 38 — 위쪽 15 조각을 38 배로 접어 내린다.
   var m u64 be 0 .
   while lt m 15 . do
     set (index t m) (add (index t m) (mul 38 (index t (add m 16)))) .
     set m (add m 1) .
-  end .
+  end
   var q u64 be 0 .
-  while lt q 16 . do  set (index o q) (index t q) .  set q (add q 1) .  end .
+  while lt q 16 . do  set (index o q) (index t q) .  set q (add q 1) .  end
   return fcar o .
-end .
+end
 
 export proc fsq input o mut slice u64 . input a slice u64 . input t mut slice u64 . output u64 . effects none . inplace o a . do
   return fmul o a a t .
-end .
+end
 
 rem o = a · 121665  (몽고메리 곡선 상수 (A−2)/4)
 export proc fmul121665 input o mut slice u64 . input a slice u64 . output u64 . effects none . do
@@ -144,9 +144,9 @@ export proc fmul121665 input o mut slice u64 . input a slice u64 . output u64 . 
   while lt i 16 . do
     set (index o i) (mul (index a i) 121665) .
     set i (add i 1) .
-  end .
+  end
   return fcar o .
-end .
+end
 
 rem ★ 조건부 교환 — `bit` 가 1 이면 p 와 q 를 바꾼다. **분기가 아니라 마스크**다.
 rem   mask = 0 − bit  ⇒ bit=1 이면 전부 1, bit=0 이면 전부 0. (0−1 은 감기므로 `wrap_sub`.)
@@ -161,9 +161,9 @@ export proc fsel input p mut slice u64 . input q mut slice u64 . input bit u64 .
     set (index p i) (bit_xor (index p i) d) .
     set (index q i) (bit_xor (index q i) d) .
     set i (add i 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem 32 바이트(리틀엔디언) → 조각 16 개. 최상위 비트는 버린다(RFC 7748 §5).
 export proc funpack input o mut slice u64 . input s slice u8 . output u64 . effects none . do
@@ -174,10 +174,10 @@ export proc funpack input o mut slice u64 . input s slice u8 . output u64 . effe
     set (index o i) (bit_or (cast u64 (index s (mul i 2)))
                             (shl (cast u64 (index s (add (mul i 2) 1))) 8)) .
     set i (add i 1) .
-  end .
+  end
   set (index o 15) (bit_and (index o 15) 32767) .
   return 1 .
-end .
+end
 
 rem ★★ 정규화해서 32 바이트로 낸다. **여기가 유일하게 "진짜 값"을 정하는 자리**다 —
 rem   그 전까지 조각 표현은 같은 값을 여러 모양으로 담을 수 있다(p 를 더해도 값은 같다).
@@ -197,7 +197,7 @@ export proc fpack input out mut slice u8 . input a mut slice u64 . input m mut s
                                 (bit_and (shr (index m (sub i 1)) 16) 1)) .
       set (index m (sub i 1)) (bit_and (index m (sub i 1)) 65535) .
       set i (add i 1) .
-    end .
+    end
     set (index m 15) (wrap_sub (wrap_sub (index a 15) 32767)
                                (bit_and (shr (index m 14) 16) 1)) .
     let borrow u64 be bit_and (shr (index m 15) 16) 1 .
@@ -206,15 +206,15 @@ export proc fpack input out mut slice u8 . input a mut slice u64 . input m mut s
     let pick u64 be sub 1 borrow .
     let z u64 be fsel a m pick .
     set trim (add trim 1) .
-  end .
+  end
   var k u64 be 0 .
   while lt k 16 . do
     set (index out (mul k 2)) (cast u8 (bit_and (index a k) 255)) .
     set (index out (add (mul k 2) 1)) (cast u8 (bit_and (shr (index a k) 8) 255)) .
     set k (add k 1) .
-  end .
+  end
   return 32 .
-end .
+end
 
 rem ★★ 역원 — a^(p−2) 를 제곱·곱셈 사슬로 낸다(페르마). p−2 의 비트는 2 와 4 자리만 0 이다.
 rem   ☞ 왜 확장 유클리드가 아닌가: 그것은 **입력에 따라 도는 횟수가 달라진다**. 여기 사슬은
@@ -229,12 +229,12 @@ export proc finv input o mut slice u64 . input a slice u64 . input c mut slice u
     if ne i 2 . do
       if ne i 4 . do
         let z2 u64 be fmul c c a t .
-      end .
-    end .
+      end
+    end
     set j (add j 1) .
-  end .
+  end
   return fcopy o c .
-end .
+end
 
 rem ★★★ **몽고메리 사다리** (RFC 7748 §5) — 스칼라 곱 q = n · P.
 rem   작업 공간은 전부 호출자가 든다: fe 아홉(a b c d e f g x s, 각 16) · t(31) · z(32 바이트).
@@ -252,7 +252,7 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
 
   rem ★ 스칼라 다듬기(clamp, RFC 7748 §5): 하위 3 비트를 끄고, 최상위 비트를 끄고 그 아래를 켠다.
   var i u64 be 0 .
-  while lt i 32 . do  set (index z i) (index n i) .  set i (add i 1) .  end .
+  while lt i 32 . do  set (index z i) (index n i) .  set i (add i 1) .  end
   set (index z 0) (cast u8 (bit_and (cast u64 (index z 0)) 248)) .
   set (index z 31) (cast u8 (bit_or (bit_and (cast u64 (index z 31)) 127) 64)) .
 
@@ -294,7 +294,7 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
     set sk (fsel fa fb r) .
     set sk (fsel fc fd r) .
     set j (add j 1) .
-  end .
+  end
 
   rem q = a / c  — 사영 좌표를 되돌린다.
   guard eq (finv fg fc fs t) 1 . else return 0 .
@@ -312,10 +312,10 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
   while lt zi 32 . do
     set zsum (bit_or zsum (cast u64 (index q zi))) .
     set zi (add zi 1) .
-  end .
+  end
   guard gt zsum 0 . else return 0 .
   return 32 .
-end .
+end
 
 rem ★★ 부르기 좋은 얼굴 — 작업 공간을 **하나로** 받는다.
 rem   `scalarmult` 는 체 원소 아홉과 곱셈 자리를 따로 받는다(그 편이 안에서 읽기 쉽다).
@@ -328,4 +328,4 @@ export proc agree input q mut slice u8 . input n slice u8 . input pt slice u8 .
 errors short_workspace . do
   guard ge (len w) 175 . else return error short_workspace .
   return ok (scalarmult q n pt zb (subslice w 0 16) (subslice w 16 32) (subslice w 32 48) (subslice w 48 64) (subslice w 64 80) (subslice w 80 96) (subslice w 96 112) (subslice w 112 128) (subslice w 128 144) (subslice w 144 175)) .
-end .
+end

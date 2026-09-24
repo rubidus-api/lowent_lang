@@ -4,4 +4,4 @@ rem expect: E-ENUM-INFINITE
 enum expr_tree do
   lit v u32 .
   add l expr_tree r expr_tree .
-end .
+end

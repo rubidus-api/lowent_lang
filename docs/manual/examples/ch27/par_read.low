@@ -8,6 +8,6 @@ do
   while lt i (len s) . do
     set (index s i) (wrap_sub (index s i) (index s 0)) .
     set i (add i 1) .
-  end .
+  end
   return len s .
-end .
+end

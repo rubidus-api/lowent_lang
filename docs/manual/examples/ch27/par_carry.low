@@ -9,6 +9,6 @@ do
   while lt i (len s) . do
     set acc (add acc (widen u64 (index s i))) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end

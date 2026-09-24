@@ -23,7 +23,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum ed25519_error do
   short_workspace .
-end .
+end
 
 
 use x25519 from "x25519.low" .
@@ -50,7 +50,7 @@ errors short_workspace . do
   guard eq (x25519.fsub (subslice w 48 64) (subslice w 32 48) (subslice w 0 16)) 1 . else return ok 0 .
   guard eq (x25519.finv (subslice w 64 80) (subslice w 16 32) (subslice w 80 96) (subslice w 96 128)) 1 . else return ok 0 .
   return ok (x25519.fmul d (subslice w 48 64) (subslice w 64 80) (subslice w 96 128)) .
-end .
+end
 
 rem ★ 확장 좌표 점 하나 = fe 넷 = 조각 64. (X, Y, Z, T)
 rem   완비 덧셈 공식(RFC 8032 §5.1.4). `w` 는 조각 작업 공간(≥ 200).
@@ -83,9 +83,9 @@ errors short_workspace . do
   guard eq (x25519.fmul (subslice w 32 48) (subslice w 112 128) (subslice w 128 144) (subslice w 160 191)) 1 . else return ok 0 .
   guard eq (x25519.fmul (subslice w 48 64) (subslice w 96 112) (subslice w 144 160) (subslice w 160 191)) 1 . else return ok 0 .
   var i u64 be 0 .
-  while lt i 64 . do  set (index o i) (index w i) .  set i (add i 1) .  end .
+  while lt i 64 . do  set (index o i) (index w i) .  set i (add i 1) .  end
   return ok 1 .
-end .
+end
 
 rem ★ 스칼라 곱 acc ← k·P. k 는 32 바이트(리틀엔디언). `w` 는 조각 작업 공간(≥ 400).
 export proc esmul input acc mut slice u64 . input k slice u8 . input pt slice u64 . input d slice u64 .
@@ -105,19 +105,19 @@ errors short_workspace . do
     guard is_ok _u12 . else return error short_workspace .
     guard eq (ok_value _u12) 1 . else return ok 0 .
     var c u64 be 0 .
-    while lt c 64 . do  set (index acc c) (index w c) .  set c (add c 1) .  end .
+    while lt c 64 . do  set (index acc c) (index w c) .  set c (add c 1) .  end
     let byte u64 be cast u64 (index k (shr bi 3)) .
     if eq (bit_and (shr byte (bit_and bi 7)) 1) 1 . do
       let _u13 result u64 ed25519_error . be eadd (subslice w 64 128) acc pt d (subslice w 128 328) .
       guard is_ok _u13 . else return error short_workspace .
       guard eq (ok_value _u13) 1 . else return ok 0 .
       var c2 u64 be 0 .
-      while lt c2 64 . do  set (index acc c2) (index w (add 64 c2)) .  set c2 (add c2 1) .  end .
-    end .
-    if eq bi 0 . do  set done 1 .  end .
-  end .
+      while lt c2 64 . do  set (index acc c2) (index w (add 64 c2)) .  set c2 (add c2 1) .  end
+    end
+    if eq bi 0 . do  set done 1 .  end
+  end
   return ok 1 .
-end .
+end
 
 rem ★★ **점 압축 해제** (RFC 8032 §5.1.3): 32 바이트에서 y 와 x 의 부호 한 비트를 읽고
 rem   x = ±√((y²−1)/(d·y²+1)) 을 낸다. p ≡ 5 (mod 8) 이므로
@@ -179,7 +179,7 @@ errors short_workspace . do
     let okx_s result u64 ed25519_error . be feq (subslice w 192 208) (subslice w 48 64) (subslice w 320 384) (subslice bb 64 128) .
     guard is_ok okx_s . else return error short_workspace .
     set okx (ok_value okx_s) .
-  end .
+  end
   guard eq okx 1 . else return ok 0 .
 
   rem 부호를 맞춘다: 정규화한 x 의 최하위 비트가 sign 과 달라야 하면 x ← −x
@@ -189,7 +189,7 @@ errors short_workspace . do
   if ne b0 sign . do
     guard eq (x25519.fzero (subslice w 224 240)) 1 . else return ok 0 .
     guard eq (x25519.fsub (subslice w 176 192) (subslice w 224 240) (subslice w 176 192)) 1 . else return ok 0 .
-  end .
+  end
 
   rem (X, Y, Z=1, T=X·Y)
   var i u64 be 0 .
@@ -197,10 +197,10 @@ errors short_workspace . do
     set (index o i) (index w (add 176 i)) .
     set (index o (add 16 i)) (index w i) .
     set i (add i 1) .
-  end .
+  end
   guard eq (x25519.fone (subslice o 32 48)) 1 . else return ok 0 .
   return ok (x25519.fmul (subslice o 48 64) (subslice o 0 16) (subslice o 16 32) (subslice w 384 415)) .
-end .
+end
 
 rem ★★★ **지수를 손으로 적지 않는다.** 처음엔 *"1 이 249 개, 그다음 0, 마지막 1"* 처럼
 rem   비트 모양을 산문으로 적었다 — 그것이 바로 이 저장소가 세 번 데인 부류다
@@ -213,7 +213,7 @@ export proc pow2_minus input out mut slice u8 . input n u64 . input k u64 . outp
   guard lt n 256 . else return 0 .
   guard le k 255 . else return 0 .
   var i u64 be 0 .
-  while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end .
+  while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end
   set (index out (shr n 3)) (cast u8 (shl 1 (bit_and n 7))) .
   rem − k : 빌림을 바이트로 흘린다.
   var borrow u64 be k .
@@ -224,15 +224,15 @@ export proc pow2_minus input out mut slice u8 . input n u64 . input k u64 . outp
       set (index out j) (cast u8 (sub cur borrow)) .
       set borrow 0 .
       set j 32 .
-    end .
+    end
     if lt j 32 . do
       set (index out j) (cast u8 (sub (add cur 256) borrow)) .
       set borrow 1 .
       set j (add j 1) .
-    end .
-  end .
+    end
+  end
   return 32 .
-end .
+end
 
 rem ★ 일반 체 거듭제곱: o ← a^e (e 는 32 바이트 리틀엔디언). `w` 는 조각 ≥ 80.
 export proc fpow input o mut slice u64 . input a slice u64 . input e slice u8 . input w mut slice u64 . output result u64 ed25519_error . effects none .
@@ -248,11 +248,11 @@ errors short_workspace . do
     guard eq (x25519.fsq (subslice w 0 16) (subslice w 0 16) (subslice w 48 79)) 1 . else return ok 0 .
     if eq (bit_and (shr (cast u64 (index e (shr bi 3))) (bit_and bi 7)) 1) 1 . do
       guard eq (x25519.fmul (subslice w 0 16) (subslice w 0 16) a (subslice w 48 79)) 1 . else return ok 0 .
-    end .
-    if eq bi 0 . do  set done 1 .  end .
-  end .
+    end
+    if eq bi 0 . do  set done 1 .  end
+  end
   return ok (x25519.fcopy o (subslice w 0 16)) .
-end .
+end
 
 rem ★ 두 체 원소가 같은가 — **정규화해서** 본다. 같은 값이 여러 모양을 가질 수 있으므로
 rem   `fpack` 으로 32 바이트를 낸 뒤 XOR 누적으로 비교한다(조기 반환 없음).
@@ -270,10 +270,10 @@ errors short_workspace . do
   while lt i 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index bb i)) (cast u64 (index bb (add 32 i))))) .
     set i (add i 1) .
-  end .
-  if eq diff 0 . do  return ok (1) .  end .
+  end
+  if eq diff 0 . do  return ok (1) .  end
   return ok 0 .
-end .
+end
 
 rem ★ 정규화한 x 의 최하위 비트(부호).
 export proc fbit0 input a slice u64 . input w mut slice u64 . input bb mut slice u8 . output result u64 ed25519_error . effects none .
@@ -283,7 +283,7 @@ errors short_workspace . do
   guard eq (x25519.fcopy (subslice w 0 16) a) 1 . else return ok 0 .
   guard eq (x25519.fpack (subslice bb 0 32) (subslice w 0 16) (subslice w 16 32)) 32 . else return ok 0 .
   return ok (bit_and (cast u64 (index bb 0)) 1) .
-end .
+end
 
 rem ── 위수 L 과 기저점 B ────────────────────────────────────────────────────
 rem
@@ -294,14 +294,14 @@ rem   게이트가 본다. 틀리게 적으면 그 검사가 깨진다: 옮겨 �
 export proc make_l input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 0 .
   var i u64 be 0 .
-  while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end .
+  while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end
   set (index out 0) 237 .   set (index out 1) 211 .  set (index out 2) 245 .  set (index out 3) 92 .
   set (index out 4) 26 .    set (index out 5) 99 .   set (index out 6) 18 .   set (index out 7) 88 .
   set (index out 8) 214 .   set (index out 9) 156 .  set (index out 10) 247 . set (index out 11) 162 .
   set (index out 12) 222 .  set (index out 13) 249 . set (index out 14) 222 . set (index out 15) 20 .
   set (index out 31) 16 .
   return 32 .
-end .
+end
 
 rem ★ 기저점 B: y = 4/5 mod p, x 의 부호 비트 0. **계산으로 낸다**(인코딩을 안 적는다).
 rem   `w` 는 조각 ≥ 560, `bb` 는 바이트 ≥ 160.
@@ -318,7 +318,7 @@ errors short_workspace . do
   guard eq (x25519.fpack (subslice bb 0 32) (subslice w 96 112) (subslice w 112 128)) 32 . else return ok 0 .
   set (index bb 31) (cast u8 (bit_and (cast u64 (index bb 31)) 127)) .
   return decompress o (subslice bb 0 32) d (subslice w 128 548) (subslice bb 32 160) .
-end .
+end
 
 rem ★ 점을 32 바이트로 압축한다: y 를 싣고 x 의 최하위 비트를 최상위 비트에 얹는다.
 rem   `w` 는 조각 ≥ 128, `bb` 는 바이트 ≥ 64.
@@ -336,7 +336,7 @@ errors short_workspace . do
   let xb u64 be ok_value xb_r .
   set (index out 31) (cast u8 (bit_or (bit_and (cast u64 (index out 31)) 127) (shl xb 7))) .
   return ok 32 .
-end .
+end
 
 rem ★★ 64 바이트를 L 로 줄인다. **바이트를 위에서부터 흘려 넣는다**:
 rem   acc ← acc·256 + byte (mod L). 곱하기 256 은 배로 늘리기 여덟 번이다 —
@@ -354,15 +354,15 @@ errors short_workspace . do
     while lt s 8 . do
       guard eq (bigint.dbl_mod (subslice w 0 16) lw 16) 1 . else return ok 0 .
       set s (add s 1) .
-    end .
+    end
     rem + byte (mod L) — 한 조각에 더하고 자리올림을 흘린 뒤 필요하면 L 을 한 번 뺀다.
     guard eq (bigint.zero (subslice w 16 32) 16) 1 . else return ok 0 .
     set (index w 16) (cast u64 (index h i)) .
     guard eq (addmod_l (subslice w 0 16) (subslice w 16 32) lw) 1 . else return ok 0 .
-    if eq i 0 . do  set done 1 .  end .
-  end .
+    if eq i 0 . do  set done 1 .  end
+  end
   return ok (bigint.to_bytes_le out (subslice w 0 16)) .
-end .
+end
 
 rem a ← (a + b) mod L.
 proc addmod_l input a mut slice u64 . input b slice u64 . input lw slice u64 . output u64 . effects none . do
@@ -373,7 +373,7 @@ proc addmod_l input a mut slice u64 . input b slice u64 . input lw slice u64 . o
     set (index a i) (bit_and s 65535) .
     set carry (shr s 16) .
     set i (add i 1) .
-  end .
+  end
   if eq (bigint.ge_mod a lw 16) 1 . do
     var borrow u64 be 0 .
     var j u64 be 0 .
@@ -382,10 +382,10 @@ proc addmod_l input a mut slice u64 . input b slice u64 . input lw slice u64 . o
       set (index a j) (bit_and dd 65535) .
       set borrow (bit_and (shr dd 63) 1) .
       set j (add j 1) .
-    end .
-  end .
+    end
+  end
   return 1 .
-end .
+end
 
 rem ★★★ **Ed25519 서명 검증** (RFC 8032 §5.1.7).
 rem     sig = R(32) ‖ S(32),  pub = A(32),  k = SHA-512(R ‖ A ‖ M) mod L
@@ -440,9 +440,9 @@ errors short_workspace . do
     set (index sc i) (index sig i) .
     set (index sc (add 32 i)) (index pub i) .
     set i (add i 1) .
-  end .
+  end
   var j u64 be 0 .
-  while lt j (len msg) . do  set (index sc (add 64 j)) (index msg j) .  set j (add j 1) .  end .
+  while lt j (len msg) . do  set (index sc (add 64 j)) (index msg j) .  set j (add j 1) .  end
   guard eq (call_builtin sha512 (subslice sc 0 (add 64 (len msg))) (subslice bb 192 256)) 64 . else return ok 0 .
   let _u4 result u64 ed25519_error . be reduce_l (subslice bb 256 288) (subslice bb 192 256) (subslice w 16 32) (subslice w 432 472) .
   guard is_ok _u4 . else return error short_workspace .
@@ -472,7 +472,7 @@ errors short_workspace . do
   while lt q 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index bb (add 288 q))) (cast u64 (index bb q)))) .
     set q (add q 1) .
-  end .
+  end
   guard eq diff 0 . else return ok 0 .
   return ok 1 .
-end .
+end

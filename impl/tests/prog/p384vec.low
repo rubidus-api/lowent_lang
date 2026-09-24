@@ -37,7 +37,7 @@ proc prep input buf mut slice u8 . input wu mut slice u64 . output u64 . effects
   let dy option u64 . be codec.hex_dec "e28eb6f7bde42f610829f8c42bfdfe666cd29ba93cf2cb06ad97a253a4e47ce8ce4ce5b916e69113a79eea43c0df7c34" (subslice buf 256 304) .
   guard is_some dy . else return 0 .
   return 1 .
-end .
+end
 
 rem 바이트 자리를 조각 자리로 옮긴다 — 손댄 뒤에 다시 부르면 손댄 값이 들어간다.
 proc fill input buf slice u8 . input wu mut slice u64 . output u64 . effects none . do
@@ -47,7 +47,7 @@ proc fill input buf slice u8 . input wu mut slice u64 . output u64 . effects non
   guard eq (bigint.from_bytes (subslice buf 208 256) (subslice wu 168 192) 24) 24 . else return 0 .
   guard eq (bigint.from_bytes (subslice buf 256 304) (subslice wu 192 216) 24) 24 . else return 0 .
   return 1 .
-end .
+end
 
 rem ★ 「자리가 모자라다」는 **9** 로 따로 답한다 — 「서명이 틀렸다」(0)와 섞지 않는다(X-0035).
 proc judge input wu mut slice u64 . output u64 . effects none . do
@@ -58,7 +58,7 @@ proc judge input wu mut slice u64 . output u64 . effects none . do
                            (subslice wu 216 1580) .
   guard is_ok jr . else return 9 .
   return ok_value jr .
-end .
+end
 
 rem ── 네 가지를 한 번에 잰다 ──────────────────────────────────────────────
 rem   낸 값: 0 = 네 가지 모두 바라던 대로 · 1 참을 거절했다 · 2 고친 s 를 받았다 ·
@@ -90,9 +90,9 @@ proc main input al cap allocator . output u8 . effects alloc . do
   rem ✘ s = 0 은 **점 연산 이전에** 걸려야 한다. 이 갈래를 빠뜨린 검증기는 아무 서명이나 받는다.
   guard eq (prep buf wu) 1 . else return 9 .
   var i u64 be 112 .
-  while lt i 160 . do  set (index buf i) 0 .  set i (add i 1) .  end .
+  while lt i 160 . do  set (index buf i) 0 .  set i (add i 1) .  end
   guard eq (fill buf wu) 1 . else return 9 .
   guard eq (judge wu) 0 . else return 4 .
 
   return 0 .
-end .
+end

@@ -675,9 +675,9 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index s i) (wrap_mul (index s i) <span class="tok-n">2</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> len s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">parallel</span></strong> s split .
@@ -688,9 +688,9 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run double_all split.low [1,2,3,4,5,6]
 double_all([2,4,6,8,10,12]) = 6
   arg0 (written) = [2,4,6,8,10,12]
@@ -707,9 +707,9 @@ total([1,2,3,4,5,6]) = 21
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index s i) (wrap_sub (index s i) (index s <span class="tok-n">0</span>)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> len s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check par_read.low
 par_read.low:9:0 E-PAR-READ: a splittable loop may only read its OWN element of the split slice — reading another index creates a cross-iteration dependence (Bernstein: rd ∩ wr = ∅)
 </code></pre></div></div><p>This loop subtracts the first element from every element. If the first piece changes <code>index s 0</code> first, the first element other pieces read has already changed. Even run sequentially, the loop has the defect of subtracting 0 after the first step, and splitting makes that defect depend on ordering.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/par_carry.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> par_carry .
@@ -723,9 +723,9 @@ par_read.low:9:0 E-PAR-READ: a splittable loop may only read its OWN element of 
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check par_carry.low
 par_carry.low:10:0 E-PAR-CARRY: a splittable loop may not write a local that lives across iterations (a loop-carried dependence) — declare it: `reduce &lt;acc> &lt;op> .`
 </code></pre></div></div><p>It accumulated into <code>acc</code> without <code>reduce</code>. The diagnostic says exactly how to fix it.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>If answers sometimes differ when run in parallel, that is a performance tuning issue</strong></p><div class="dev-body">A program whose answer depends on ordering is not slow but wrong. In Lowent the <code>parallel</code> clause does not change meaning. The answer run split and the answer run one by one must always be the same, and if that condition cannot be confirmed, translation refuses. “Fast but sometimes wrong” is not something this language sells.</div></div><h3 id="s27-3">27.3 The combining operation must be associative<a class="plink" href="#s27-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>When gathering with <code>reduce</code>, the shape of the tree that combines pieces changes depending on how they were split. If the operation is associative, the shape does not change the answer; if not, it does.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/par_assoc.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> par_assoc .
@@ -740,9 +740,9 @@ par_carry.low:10:0 E-PAR-CARRY: a splittable loop may not write a local that liv
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (sub acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check par_assoc.low
 par_assoc.low:4:0 E-PAR-ASSOC: this reduction operator is not associative, so the shape of the reduction tree changes the result — a split tree is not deterministic (★ nonassoc_shape_matters, Qed — docs/proofs/coq/LowentPar.v)
 par_assoc.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may be split (DET-1 proves the parallel result is bit-identical to the sequential one — docs/proofs/coq/LowentPar.v). Execution is still sequential, which is a VALID implementation precisely because of that theorem
@@ -758,9 +758,9 @@ par_assoc.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may
   <strong><span class="tok-k">while</span></strong> lt i (len data) . <strong><span class="tok-k">do</span></strong>
     atomic_add counter <span class="tok-n">0</span> <span class="tok-n">1</span> .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> atomic . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> atomic alloc .
 <strong><span class="tok-k">do</span></strong>
@@ -770,7 +770,7 @@ par_assoc.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may
   atomic_store cells <span class="tok-n">0</span> <span class="tok-n">0</span> .
   count_par k <span class="tok-s">"</span><span class="tok-s">abcdefghij</span><span class="tok-s">"</span> cells .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (atomic_load cells <span class="tok-n">0</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main counter.low
 main() = 10
 </code></pre></div></div><ul><li><code>atomic_add counter 0 1</code> atomically adds 1 at position 0 of the slice <code>counter</code>. A place is addressed by <strong>slice and index</strong>.</li><li><code>count_par</code> splits <code>data</code> and updates the shared counter. It counted ten bytes, so the result is 10.</li><li>Atomic operations are the <code>atomic</code> effect and require receiving <code>cap atomic</code>. <code>main</code> receives <code>cap atomic</code> at the entry point.</li><li><code>view_array u64</code> views the 8 allocated bytes as a slice of one <code>u64</code> without copying (chapter 13).</li></ul><p>Declaring the atomic effect without the capability is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/nocap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nocap .
@@ -780,7 +780,7 @@ main() = 10
 <strong><span class="tok-k">do</span></strong>
   atomic_add s <span class="tok-n">0</span> <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> atomic_load s <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check nocap.low
 nocap.low:4:0 E-ATOMIC-NOCAP: this op declares the `atomic` effect but receives NO `cap atomic`. Like `io`, `alloc` and `heap`, `atomic` is an effect you are HANDED the right to: `input k cap atomic .` (§7.2 (6))
 </code></pre></div></div><p>Atomic operations are not free. Used on a value only one flow touches, they only slow things down. So they are not the default; they are chosen by name, and their cost is written in the head’s effects and capabilities.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> If there are atomic operations, why is there no lock?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> Lock state shared between flows is not built in this edition, and using it says <code>E-LOCK-NOTYET</code>. Instead the standard library has data structures built on atomic operations. <code>spsc</code> is a ring buffer through which one producer and one consumer pass values without locks, and its correctness was confirmed by borrowing a proof in a weak-memory model (chapters 34 and 47).</p></div></div><h3 id="s27-5">27.5 Memory orderings<a class="plink" href="#s27-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-62"></span><p>Appending <code>order &lt;name></code> to an atomic operation decides what other flows see and when.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Name</strong></th><th><strong>Meaning</strong></th></tr><tr><td><code>seq_cst</code></td><td>Every flow sees one single order. The strongest; the default when not written</td></tr><tr><td><code>acq_rel</code></td><td>For read-write operations, nothing leaks forward or backward</td></tr><tr><td><code>acquire</code></td><td>Work after this read does not leak ahead of it</td></tr><tr><td><code>release</code></td><td>Work before this write does not leak behind it</td></tr><tr><td><code>relaxed</code></td><td>Atomicity only, no ordering</td></tr></table></div><p class="float-caption">Table 27.2 — Memory orderings</p></figure><p>The strongest is the default because it is the easiest to reason about. It is proven that when every access is <code>seq_cst</code> you may think sequentially. Weakening is a choice made in writing by someone who knows its value.</p><p>Combinations that mean nothing for an operation are rejected.</p><p>Using four of the orders with the operations they pair with looks like this.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/orders.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> orders .
@@ -797,7 +797,7 @@ nocap.low:4:0 E-ATOMIC-NOCAP: this op declares the `atomic` effect but receives 
   <strong><span class="tok-k">let</span></strong> old <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> atomic_swap cells <span class="tok-n">0</span> <span class="tok-n">7</span> order acq_rel .
   atomic_store cells <span class="tok-n">0</span> (add old <span class="tok-n">10</span>) order release .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (atomic_load cells <span class="tok-n">0</span> order acquire) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main orders.low
 main() = 15
 </code></pre></div></div><p><code>atomic_store … order seq_cst</code> writes 5, <code>atomic_swap … order acq_rel</code>, which reads and writes, swaps in 7 and returns the old 5, <code>order release</code> writes 15, and <code>order acquire</code> reads it back, so 15 is returned. A pairing that does not match is refused.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/order_bad.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> order_bad .
@@ -806,7 +806,7 @@ main() = 15
 <strong><span class="tok-k">proc</span></strong> peek <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> atomic . <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> atomic .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> atomic_load s <span class="tok-n">0</span> order release .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check order_bad.low
 order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this atomic op (a load cannot be `release`, a store cannot be `acquire`, a fence cannot be `relaxed`) — RFC-0018 §6.1
 </code></pre></div></div><p>What would a read release? C leaves such combinations undefined. A write cannot be <code>acquire</code>, and a fence (<code>atomic_fence</code>), which only sets order, cannot be <code>relaxed</code>.</p><h3 id="s27-6">27.6 Lanes — computing several values at once<a class="plink" href="#s27-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-63"></span><p>Where <code>parallel</code> splits a loop across <strong>flows</strong>, <code>vec</code> holds <strong>several values</strong> as one value within a single flow and computes them at once (SIMD). <code>vec u32 4</code> is a value with four lanes holding four <code>u32</code>s, and the lane count is part of the type. Whether the machine computes the lanes at once or one by one, the answer is the same (canon 6.2.11).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/lanes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> lanes .
@@ -825,7 +825,7 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
   <strong><span class="tok-k">var</span></strong> over mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v lim .
   <strong><span class="tok-k">var</span></strong> capped vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> select over lim v .
   <strong><span class="tok-k">return</span></strong> reduce_add capped .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem across the lanes: the largest, the smallest, and the product of all</span></em>
 <strong><span class="tok-k">proc</span></strong> extremes <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
@@ -834,7 +834,7 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
   <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
   <strong><span class="tok-k">var</span></strong> v vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load xs <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> add (mul (reduce_max v) <span class="tok-n">1000</span>) (add (mul (reduce_min v) <span class="tok-n">100</span>) (reduce_mul v)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem reverse the lanes, rotate by one, and write them to memory</span></em>
 <strong><span class="tok-k">proc</span></strong> turned <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
@@ -848,13 +848,13 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
   <strong><span class="tok-k">var</span></strong> t vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> rotate r <span class="tok-n">1</span> .
   store ys <span class="tok-n">0</span> t .
   <strong><span class="tok-k">return</span></strong> reduce_add t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem how many u32 lanes this machine handles at once --- a translation-time number</span></em>
 <strong><span class="tok-k">fn</span></strong> lanes_here <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> native_lanes <strong><span class="tok-t">u32</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run capped_sum lanes.low [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]
 capped_sum([1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]) = 14
   arg0 (written) = [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]
@@ -882,7 +882,7 @@ lanes_here() = 4
   <strong><span class="tok-k">var</span></strong> m mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v lim .
   store_masked out <span class="tok-n">0</span> v m .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem read only the lanes that are on, and put the default 100 in the others</span></em>
 <strong><span class="tok-k">proc</span></strong> read_big <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
@@ -895,7 +895,7 @@ lanes_here() = 4
   <strong><span class="tok-k">var</span></strong> fallback vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> splat <span class="tok-n">100</span> .
   <strong><span class="tok-k">var</span></strong> r vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load_masked xs <span class="tok-n">0</span> m fallback .
   <strong><span class="tok-k">return</span></strong> reduce_add r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run keep_big masked.low [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0] [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 keep_big([1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0], [0,0,0,0,9,0,0,0,0,0,0,0,7,0,0,0]) = 0
   arg0 (written) = [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]
@@ -913,7 +913,7 @@ read_big([1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]) = 216
   <em><span class="tok-c">rem ✘ `splat` written inline --- nothing says how many lanes</span></em>
   <strong><span class="tok-k">var</span></strong> over mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v (splat <span class="tok-n">5</span>) .
   <strong><span class="tok-k">return</span></strong> reduce_add (select over v v) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_splatinline.low
 mistake_splatinline.low:9:0 E-VEC-SPLAT: `splat` fills every lane of a vector, and how many lanes there are comes from the declared type — inside an expression there is nothing to say it, so the value is read as a plain scalar and the surrounding comparison stops matching its `mask` type. Bind it first, with the lane count written down: `var lim vec u32 4 be splat 5 .`, then use `lim`
 mistake_splatinline.low:9:0 E-TYPE-VAR: the initializer's type does not match the declared type — expected `mask`, found `bool`
@@ -925,7 +925,7 @@ mistake_splatinline.low:9:0 E-TYPE-VAR: the initializer's type does not match th
   <strong><span class="tok-k">access</span></strong> data shared_read .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> (index data <span class="tok-n">0</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run peek access.low [9,8,7]
 peek([9,8,7]) = 9
   arg0 (written) = [9,8,7]
@@ -940,9 +940,9 @@ peek([9,8,7]) = 9
     <em><span class="tok-c">rem ✘ every piece reads, adds to and writes the same place `index counter 0`</span></em>
     <strong><span class="tok-k">set</span></strong> (index counter <span class="tok-n">0</span>) (wrap_add (index counter <span class="tok-n">0</span>) <span class="tok-n">1</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_sharedwrite.low
 mistake_sharedwrite.low:10:0 E-PAR-WRITE: a splittable loop may only write its OWN element `index &lt;s> &lt;i>` — this write can collide with another iteration (Bernstein: wr ∩ wr = ∅)
 </code></pre></div></div><p>Every piece reads <code>index counter 0</code>, adds 1 and writes it back. When two threads read the same value and each writes its sum, one increment is lost. That is a write to a place outside the piece’s own share, so it is rejected with <code>E-PAR-WRITE</code>. If a shared place really must be updated together, take <code>cap atomic</code> and use <code>atomic_add counter 0 1</code> (this chapter’s <code>counter.low</code>). Usually, though, gathering per-piece counts with <code>reduce</code> is faster.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Splitting a sum of floats</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/mistake_floatreduce.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_floatreduce .
@@ -958,9 +958,9 @@ mistake_sharedwrite.low:10:0 E-PAR-WRITE: a splittable loop may only write its O
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (index s i)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_floatreduce.low
 mistake_floatreduce.low:9:0 E-PAR-IDENTITY: the accumulator this reduction starts from is not the IDENTITY of its operator, so a split answer is not the sequential one: every piece starts again from that value and it is counted once per piece (measured: sequential 121, native split 621). DET-1 promises a split is bit-identical — that holds only from the identity (`add`/`bit_or`/`bit_xor` → 0, `mul` → 1, `max` → 0 on an unsigned width). Start from the identity and add the offset once, after the loop
 mistake_floatreduce.low:9:0 E-PAR-FLOAT: a FLOAT reduction cannot be split: float addition is not associative, so the tree shape changes the result and the answer would depend on the schedule (★ nonassoc_shape_matters, Qed). Use the sequential `sum` (Neumaier) — determinism is part of the meaning, not a detail
@@ -978,9 +978,9 @@ mistake_floatreduce.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditio
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_reduceinit.low
 mistake_reduceinit.low:9:0 E-PAR-IDENTITY: the accumulator this reduction starts from is not the IDENTITY of its operator, so a split answer is not the sequential one: every piece starts again from that value and it is counted once per piece (measured: sequential 121, native split 621). DET-1 promises a split is bit-identical — that holds only from the identity (`add`/`bit_or`/`bit_xor` → 0, `mul` → 1, `max` → 0 on an unsigned width). Start from the identity and add the offset once, after the loop
 mistake_reduceinit.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may be split (DET-1 proves the parallel result is bit-identical to the sequential one — docs/proofs/coq/LowentPar.v). Execution is still sequential, which is a VALID implementation precisely because of that theorem
@@ -995,9 +995,9 @@ mistake_reduceinit.low:4:0 W-PAR-OK: this loop satisfies the Bernstein condition
   <strong><span class="tok-k">while</span></strong> lt (add i <span class="tok-n">1</span>) (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index s i) (div (wrap_add (index s i) (index s (add i <span class="tok-n">1</span>))) <span class="tok-n">2</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> len s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noloop.low
 mistake_noloop.low:4:0 E-PAR-NOLOOP: the `parallel` clause names a slice, but no `while lt &lt;i> (len &lt;slice>) . do … end` loop was found to split. That clause is a CLAIM — DET-1 proves a split is bit-identical only when there IS a loop to split — so with no loop the compiler verifies NOTHING while the annotation still tells every reader it was checked. An unchecked promise is the lie PRINCIPLES.md §0 is about; the same judgement already refused `mailbox unbounded` and `bounded 0`. Delete the clause (it means nothing here) or write the loop it describes
 </code></pre></div></div><p>The processor recognises only loops of the shape <code>while lt i (len s) . do … end</code> as candidates for splitting. <code>while lt (add i 1) (len s)</code> is not that shape, so this is <code>E-PAR-NOLOOP</code>. As the diagnostic says, the <code>parallel</code> clause is a <strong>claim</strong>, and with no loop to split, nothing is verified and only the claim remains. This loop also reads the neighbouring element <code>index s (add i 1)</code>; even with the shape fixed it would be rejected with <code>E-PAR-READ</code>. Write neighbour-reading computations (smoothing and the like) as a sequential loop that writes its results into another slice.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Declaring <code>write_only</code> and then reading</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/mistake_access.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_access .
@@ -1009,7 +1009,7 @@ mistake_noloop.low:4:0 E-PAR-NOLOOP: the `parallel` clause names a slice, but no
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> index out <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_access.low
 mistake_access.low:5:0 E-ACCESS-MODE: `access &lt;p> write_only` says this op never READS that place — but it does. A write_only place may be uninitialised: reading it is reading garbage, and the declaration is what told the caller it was safe
 mistake_access.low:7:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
@@ -1025,13 +1025,13 @@ mistake_access.low:7:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORM
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> best (max best (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> best .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run biggest max_gather.low [3,9,2,7]
 biggest([3,9,2,7]) = 9
   arg0 (written) = [3,9,2,7]
-</code></pre></div></div><p>Any associative operation can be gathered. <code>max</code> is associative, and 0 is its identity for <code>u64</code>, so taking the largest value in each piece and combining them again with <code>max</code> gives the same answer. <code>min</code>, <code>mul</code> and the bit operations work on the same principle. What is rejected is an operation such as <code>sub</code>, where grouping changes the answer (<code>E-PAR-ASSOC</code>), and floating-point operations (<code>E-PAR-FLOAT</code>).</p></div></div><h3 id="s27-9">27.9 This chapter’s syntax at a glance<a class="plink" href="#s27-9" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>parallel s split .</code> (op head)</td><td>declares that <code>s</code> may be split and processed by many</td><td>a claim that is checked, not trusted — <code>W-PAR-OK</code> when it holds</td></tr><tr><td><code>while lt i (len s) . do … end .</code></td><td>the shape of a splittable loop</td><td>any other shape is <code>E-PAR-NOLOOP</code></td></tr><tr><td>reading and writing only <code>index s i</code></td><td>only its own share</td><td>others’ places: <code>E-PAR-READ</code> · <code>E-PAR-WRITE</code></td></tr><tr><td><code>reduce acc add .</code></td><td>accumulate per piece, then combine with the operation</td><td>start at the identity — the operation must be associative (<code>E-PAR-ASSOC</code>)</td></tr><tr><td><code>atomic_add counter 0 1</code> · <code>atomic_load cells 0</code></td><td>atomically on a place named by slice and index</td><td><code>effects atomic</code> + <code>cap atomic</code></td></tr><tr><td><code>… order seq_cst</code> · <code>acq_rel</code> · <code>acquire</code> · <code>release</code> · <code>relaxed</code></td><td>memory ordering — <code>seq_cst</code> if unwritten</td><td>the easiest to reason about is the default</td></tr><tr><td><code>order release</code> on a read, and so on</td><td>rejected (<code>E-ATOMIC-ORDER</code>)</td><td>meaningless combinations are not left undefined</td></tr><tr><td><code>view_array u64 bytes</code></td><td>see bytes as a <code>u64</code> slice without copying</td><td>atomic cells live on an allocated window</td></tr><tr><td><code>var v vec u32 4 be load xs 0 .</code> · <code>reduce_add v</code></td><td>read four lanes as one value · gather lanes</td><td>SIMD within one flow — the lane count is part of the type</td></tr><tr><td><code>access data shared_read .</code> · <code>access out write_only .</code></td><td>a promise to only read · only write — checked against the body</td><td>read-only lets several tasks hold it · breaking it is <code>E-ACCESS-MODE</code></td></tr></table></div><p class="float-caption">Table 27.4 — Parallel and atomic syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>parallel &lt;slice> split .</code> declares that a loop may be split, and the processor checks that it reads and writes only its own share and does not write places that live across steps. Accumulation is stated with <code>reduce &lt;place> &lt;op> .</code>, and the operation must be associative. The split answer is bit-for-bit identical to the sequential one. When a shared place is updated together, receive <code>cap atomic</code> and use atomic operations, choosing a memory ordering with <code>order</code>; the default is <code>seq_cst</code>, and meaningless combinations are rejected.</div></div>
+</code></pre></div></div><p>Any associative operation can be gathered. <code>max</code> is associative, and 0 is its identity for <code>u64</code>, so taking the largest value in each piece and combining them again with <code>max</code> gives the same answer. <code>min</code>, <code>mul</code> and the bit operations work on the same principle. What is rejected is an operation such as <code>sub</code>, where grouping changes the answer (<code>E-PAR-ASSOC</code>), and floating-point operations (<code>E-PAR-FLOAT</code>).</p></div></div><h3 id="s27-9">27.9 This chapter’s syntax at a glance<a class="plink" href="#s27-9" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>parallel s split .</code> (op head)</td><td>declares that <code>s</code> may be split and processed by many</td><td>a claim that is checked, not trusted — <code>W-PAR-OK</code> when it holds</td></tr><tr><td><code>while lt i (len s) . do … end</code></td><td>the shape of a splittable loop</td><td>any other shape is <code>E-PAR-NOLOOP</code></td></tr><tr><td>reading and writing only <code>index s i</code></td><td>only its own share</td><td>others’ places: <code>E-PAR-READ</code> · <code>E-PAR-WRITE</code></td></tr><tr><td><code>reduce acc add .</code></td><td>accumulate per piece, then combine with the operation</td><td>start at the identity — the operation must be associative (<code>E-PAR-ASSOC</code>)</td></tr><tr><td><code>atomic_add counter 0 1</code> · <code>atomic_load cells 0</code></td><td>atomically on a place named by slice and index</td><td><code>effects atomic</code> + <code>cap atomic</code></td></tr><tr><td><code>… order seq_cst</code> · <code>acq_rel</code> · <code>acquire</code> · <code>release</code> · <code>relaxed</code></td><td>memory ordering — <code>seq_cst</code> if unwritten</td><td>the easiest to reason about is the default</td></tr><tr><td><code>order release</code> on a read, and so on</td><td>rejected (<code>E-ATOMIC-ORDER</code>)</td><td>meaningless combinations are not left undefined</td></tr><tr><td><code>view_array u64 bytes</code></td><td>see bytes as a <code>u64</code> slice without copying</td><td>atomic cells live on an allocated window</td></tr><tr><td><code>var v vec u32 4 be load xs 0 .</code> · <code>reduce_add v</code></td><td>read four lanes as one value · gather lanes</td><td>SIMD within one flow — the lane count is part of the type</td></tr><tr><td><code>access data shared_read .</code> · <code>access out write_only .</code></td><td>a promise to only read · only write — checked against the body</td><td>read-only lets several tasks hold it · breaking it is <code>E-ACCESS-MODE</code></td></tr></table></div><p class="float-caption">Table 27.4 — Parallel and atomic syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>parallel &lt;slice> split .</code> declares that a loop may be split, and the processor checks that it reads and writes only its own share and does not write places that live across steps. Accumulation is stated with <code>reduce &lt;place> &lt;op> .</code>, and the operation must be associative. The split answer is bit-for-bit identical to the sequential one. When a shared place is updated together, receive <code>cap atomic</code> and use atomic operations, choosing a memory ordering with <code>order</code>; the default is <code>seq_cst</code>, and meaningless combinations are rejected.</div></div>
 <div class="nav"><a href="ch26.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch28.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

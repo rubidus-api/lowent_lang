@@ -7,9 +7,9 @@ rem trap: to_signed 3000000000
 fn truncate input x f64 . output i32 .
 do
   return cast i32 x .
-end .
+end
 
 fn to_signed input x u32 . output i32 .
 do
   return cast i32 x .
-end .
+end

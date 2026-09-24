@@ -11,19 +11,19 @@ enum color do
   red .
   green .
   blue .
-end .
+end
 
 
 fn code input c color . output u8 . do
   match c do
-    case red . do return 10 . end .
-    case green . do return 20 . end .
-    case blue . do return 30 . end .
-  end .
-end .
+    case red . do return 10 . end
+    case green . do return 20 . end
+    case blue . do return 30 . end
+  end
+end
 
 rem enum 값을 값 자리에 쓴다(변형 인덱스로 낮아진다).
 fn pick input n u8 . output color . do
-  if lt n 5 . do return red . end .
+  if lt n 5 . do return red . end
   return blue .
-end .
+end

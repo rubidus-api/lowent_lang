@@ -11,9 +11,9 @@ module labeled .
 use flags from "../../../lib/flags.low" .
 
 rem 이름표 — **여기 있다**(라이브러리가 아니라). 안 쓰는 프로그램은 이 바이트를 안 진다.
-fn names output slice u8 . do return "sound\x00music\x00shadow\x00vsync\x00" . end .
+fn names output slice u8 . do return "sound\x00music\x00shadow\x00vsync\x00" . end
 
-fn defaults output u64 . do return flags.join (flags.of 0) (flags.of 1) . end .
+fn defaults output u64 . do return flags.join (flags.of 0) (flags.of 1) . end
 
 proc main input k cap io . output u8 . effects io . do
   rem 소리는 그대로 · 음악은 끄고 · 그림자를 켠 설정
@@ -32,6 +32,6 @@ proc main input k cap io . output u8 . effects io . do
     let w2 u64 be write_out k 1 "\x0a" .
     set rest (flags.without rest b) .
     set n (add n 1) .
-  end .
+  end
   return (narrow u8 n) .
-end .
+end

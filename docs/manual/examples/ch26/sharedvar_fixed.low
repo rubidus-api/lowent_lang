@@ -5,7 +5,7 @@ rem ko: 흐름은 자기 몫을 돌려주고, 합치는 일은 묶는 쪽이 `aw
 fn one output u64 .
 do
   return 1 .
-end .
+end
 
 proc count2 output u64 . effects state .
 do
@@ -16,6 +16,6 @@ do
     let a u64 be await h1 .
     let b u64 be await h2 .
     set n (add a b) .
-  end .
+  end
   return n .
-end .
+end

@@ -4,4 +4,4 @@ rem expect: E-EXPR-CHAIN
 fn between input a u32 . input b u32 . input c u32 . output bool .
 do
   return expr a lt b lt c .
-end .
+end

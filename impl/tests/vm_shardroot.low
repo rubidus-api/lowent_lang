@@ -14,4 +14,4 @@ export proc after_split input mem mut slice u64 . . output u64 . effects none . 
   rem ★ root 는 위에서 소비됐다 — 여기서 거절된다.
   guard shard.write grid r mem 0 7 . else return 91 .
   return 1 .
-end .
+end

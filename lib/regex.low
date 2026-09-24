@@ -59,12 +59,12 @@ proc rx_emit input prog mut slice u64 . . input st mut slice u64 . . input op u6
   guard le top space_fl . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   set (index prog (add 2 (mul 3 ni))) op .
   set (index prog (add 3 (mul 3 ni))) a .
   set (index prog (add 4 (mul 3 ni))) b .
   set (index st 0) (add ni 1) .
-end .
+end
 
 rem [method from to] 를 한 명령 위로 민다(그 안을 가리키는 목표는 +1). `? * |` 가 앞에 SPLIT 을 심는 길.
 proc rx_shift input prog mut slice u64 . . input st mut slice u64 . . input from u64 . output void . effects none . do
@@ -74,7 +74,7 @@ proc rx_shift input prog mut slice u64 . . input st mut slice u64 . . input from
   guard le top space_fl . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   var i u64 be ni .
   while gt i from . do
     let s u64 be sub i 1 .
@@ -82,22 +82,22 @@ proc rx_shift input prog mut slice u64 . . input st mut slice u64 . . input from
     set (index prog (add 3 (mul 3 i))) (index prog (add 3 (mul 3 s))) .
     set (index prog (add 4 (mul 3 i))) (index prog (add 4 (mul 3 s))) .
     set i s .
-  end .
+  end
   set (index st 0) (add ni 1) .
   rem 옮겨진 [from+method 1 ni] 안의 SPLIT/JMP 목표가 [method from ni-1] 를 가리키면 +1.
   var q u64 be add from 1 .
   while le q ni . do
     let op u64 be index prog (add 2 (mul 3 q)) .
     if eq op 3 . do
-      if ge (index prog (add 3 (mul 3 q))) from . do set (index prog (add 3 (mul 3 q))) (add (index prog (add 3 (mul 3 q))) 1) . end .
-      if ge (index prog (add 4 (mul 3 q))) from . do set (index prog (add 4 (mul 3 q))) (add (index prog (add 4 (mul 3 q))) 1) . end .
-    end .
+      if ge (index prog (add 3 (mul 3 q))) from . do set (index prog (add 3 (mul 3 q))) (add (index prog (add 3 (mul 3 q))) 1) . end
+      if ge (index prog (add 4 (mul 3 q))) from . do set (index prog (add 4 (mul 3 q))) (add (index prog (add 4 (mul 3 q))) 1) . end
+    end
     if eq op 4 . do
-      if ge (index prog (add 3 (mul 3 q))) from . do set (index prog (add 3 (mul 3 q))) (add (index prog (add 3 (mul 3 q))) 1) . end .
-    end .
+      if ge (index prog (add 3 (mul 3 q))) from . do set (index prog (add 3 (mul 3 q))) (add (index prog (add 3 (mul 3 q))) 1) . end
+    end
     set q (add q 1) .
-  end .
-end .
+  end
+end
 
 rem 새 클래스 비트맵 자리를 연다(0 으로 비운다). 반환 = 클래스 번호. 자리 없으면 st[3].
 proc rx_class_new input prog mut slice u64 . . input st mut slice u64 . . output u64 . effects none . do
@@ -108,7 +108,7 @@ proc rx_class_new input prog mut slice u64 . . input st mut slice u64 . . output
   guard ge (len prog) (add (mul 4 (add k 1)) top) . else do
     set (index st 3) 1 .
     return 0 .
-  end .
+  end
   let base u64 be sub (len prog) (mul 4 (add k 1)) .
   set (index prog base) 0 .
   set (index prog (add base 1)) 0 .
@@ -116,20 +116,20 @@ proc rx_class_new input prog mut slice u64 . . input st mut slice u64 . . output
   set (index prog (add base 3)) 0 .
   set (index st 1) (add k 1) .
   return k .
-end .
+end
 
 rem 클래스 k 에 바이트 b 를 켠다.
 proc rx_class_set input prog mut slice u64 . . input k u64 . input b u64 . output void . effects none . do
   let base u64 be sub (len prog) (mul 4 (add k 1)) .
   let w u64 be add base (div b 64) .
   set (index prog w) (bit_or (index prog w) (shl 1 (mod b 64))) .
-end .
+end
 
 rem 클래스 k 가 바이트 b 를 담는가.
 export fn class_has input prog slice u64 . input k u64 . input b u64 . output bool . do
   let base u64 be sub (len prog) (mul 4 (add k 1)) .
   return ne (bit_and (index prog (add base (div b 64))) (shl 1 (mod b 64))) 0 .
-end .
+end
 
 rem \d \w \s 를 클래스로 편다. which: 0=d 1=w 2=s.
 proc rx_class_preset input prog mut slice u64 . . input k u64 . input which u64 . output void . effects none . do
@@ -138,26 +138,26 @@ proc rx_class_preset input prog mut slice u64 . . input k u64 . input which u64 
     while le c 57 . do
       rx_class_set prog k c .
       set c (add c 1) .
-    end .
-  end .
+    end
+  end
   if eq which 1 . do
     var c u64 be 48 .
     while le c 57 . do
       rx_class_set prog k c .
       set c (add c 1) .
-    end .
+    end
     set c 65 .
     while le c 90 . do
       rx_class_set prog k c .
       set c (add c 1) .
-    end .
+    end
     set c 97 .
     while le c 122 . do
       rx_class_set prog k c .
       set c (add c 1) .
-    end .
+    end
     rx_class_set prog k 95 .
-  end .
+  end
   if eq which 2 . do
     rx_class_set prog k 32 .
     rx_class_set prog k 9 .
@@ -165,8 +165,8 @@ proc rx_class_preset input prog mut slice u64 . . input k u64 . input which u64 
     rx_class_set prog k 13 .
     rx_class_set prog k 11 .
     rx_class_set prog k 12 .
-  end .
-end .
+  end
+end
 
 
 rem ── 유니코드 코드포인트 하나 `\X` (2026-07-26) ──
@@ -192,9 +192,9 @@ proc rx_class_range input prog mut slice u64 . . input st mut slice u64 . . inpu
   while le v hi . do
     rx_class_set prog k v .
     set v (add v 1) .
-  end .
+  end
   return k .
-end .
+end
 
 rem `\X` — 코드포인트 하나. 갈래 넷을 SPLIT/JMP 로 엮는다(자리를 먼저 잡고 뒤에 메운다).
 proc rx_atom_utf8 input prog mut slice u64 . . input st mut slice u64 . . output void . effects none . do
@@ -249,7 +249,7 @@ proc rx_atom_utf8 input prog mut slice u64 . . input st mut slice u64 . . output
   set (index prog (add 3 (mul 3 s3))) (add s3 1) .
   set (index prog (add 4 (mul 3 s3))) a4 .
   set (index prog (add 3 (mul 3 j3))) fin .
-end .
+end
 
 rem `\p{X}` / `\P{X}` 를 읽는다. neg=1 이면 부정(`\P`). 표 번호: 0=L 1=N 2=P 3=Z 4=M.
 rem   먼저 코드포인트 하나를 먹고(rx_atom_utf8), 그 뒤에 CPPROP 을 심는다 — 순서가 요점이다.
@@ -257,74 +257,74 @@ proc rx_atom_prop input pat slice u8 . input prog mut slice u64 . . input st mut
   guard lt (index st 2) (len pat) . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   guard eq (index pat (index st 2)) 123 . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   set (index st 2) (add (index st 2) 1) .
   guard lt (index st 2) (len pat) . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   let nm u8 be index pat (index st 2) .
   var tab u64 be 99 .
-  if eq nm 76 . do set tab 0 . end .
-  if eq nm 78 . do set tab 1 . end .
-  if eq nm 80 . do set tab 2 . end .
-  if eq nm 90 . do set tab 3 . end .
-  if eq nm 77 . do set tab 4 . end .
+  if eq nm 76 . do set tab 0 . end
+  if eq nm 78 . do set tab 1 . end
+  if eq nm 80 . do set tab 2 . end
+  if eq nm 90 . do set tab 3 . end
+  if eq nm 77 . do set tab 4 . end
   guard lt tab 5 . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   set (index st 2) (add (index st 2) 1) .
   guard lt (index st 2) (len pat) . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   rem ★ 두 글자 이름(Lu·Ll·Nd)이면 여기서 좁힌다 — `}` 가 아니면 둘째 글자다.
   rem   모르는 조합(Lt·No…)은 **거절**한다: 넓은 표로 대신 답하면 조용히 틀린 매치가 된다.
   if ne (index pat (index st 2)) 125 . do
     let n2 u8 be index pat (index st 2) .
     var narrowed u64 be 99 .
     if eq tab 0 . do
-      if eq n2 117 . do set narrowed 5 . end .
-      if eq n2 108 . do set narrowed 6 . end .
+      if eq n2 117 . do set narrowed 5 . end
+      if eq n2 108 . do set narrowed 6 . end
       rem Lt(제목꼴) · Lm(수식) · Lo(그 밖) — 2026-07-26 에 표가 생겨 물을 수 있게 됐다.
-      if eq n2 116 . do set narrowed 8 . end .
-      if eq n2 109 . do set narrowed 9 . end .
-      if eq n2 111 . do set narrowed 10 . end .
-    end .
+      if eq n2 116 . do set narrowed 8 . end
+      if eq n2 109 . do set narrowed 9 . end
+      if eq n2 111 . do set narrowed 10 . end
+    end
     if eq tab 1 . do
-      if eq n2 100 . do set narrowed 7 . end .
-      if eq n2 108 . do set narrowed 11 . end .
-      if eq n2 111 . do set narrowed 12 . end .
-    end .
+      if eq n2 100 . do set narrowed 7 . end
+      if eq n2 108 . do set narrowed 11 . end
+      if eq n2 111 . do set narrowed 12 . end
+    end
     guard lt narrowed 13 . else do
       set (index st 3) 1 .
       return .
-    end .
+    end
     set tab narrowed .
     set (index st 2) (add (index st 2) 1) .
     guard lt (index st 2) (len pat) . else do
       set (index st 3) 1 .
       return .
-    end .
-  end .
+    end
+  end
   guard eq (index pat (index st 2)) 125 . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   set (index st 2) (add (index st 2) 1) .
   rem ① 코드포인트 하나를 먹는다 ② 먹은 것이 표에 드는지 묻는다.
   rx_atom_utf8 prog st .
   guard eq (index st 3) 0 . else return .
   rem 부정은 **16 을 더해** 표현한다(표가 8 개라 5 로는 더 못 민다).
   var code u64 be tab .
-  if eq inv 1 . do set code (add tab 16) . end .
+  if eq inv 1 . do set code (add tab 16) . end
   rx_emit prog st 9 code 0 .
-end .
+end
 
 rem 이스케이프 문자 c 의 처리: 클래스형(dws)이면 CLASS 명령, 아니면 리터럴 바이트를 낸다.
 proc rx_atom_escape input prog mut slice u64 . . input st mut slice u64 . . input c u8 . output void . effects none . do
@@ -334,32 +334,32 @@ proc rx_atom_escape input prog mut slice u64 . . input st mut slice u64 . . inpu
     rx_class_preset prog k 0 .
     rx_emit prog st 2 k 0 .
     return .
-  end .
+  end
   if eq c 119 . do
     let k u64 be rx_class_new prog st .
     guard eq (index st 3) 0 . else return .
     rx_class_preset prog k 1 .
     rx_emit prog st 2 k 0 .
     return .
-  end .
+  end
   if eq c 115 . do
     let k u64 be rx_class_new prog st .
     guard eq (index st 3) 0 . else return .
     rx_class_preset prog k 2 .
     rx_emit prog st 2 k 0 .
     return .
-  end .
+  end
   if eq c 88 . do
     rx_atom_utf8 prog st .
     return .
-  end .
+  end
 
   var lit u64 be widen u64 c .
-  if eq c 110 . do set lit 10 . end .
-  if eq c 116 . do set lit 9 . end .
-  if eq c 114 . do set lit 13 . end .
+  if eq c 110 . do set lit 10 . end
+  if eq c 116 . do set lit 9 . end
+  if eq c 114 . do set lit 13 . end
   rx_emit prog st 0 lit 0 .
-end .
+end
 
 rem `[...]` 를 파싱한다. st[2] 는 `[` 다음을 가리키고 있다. 끝나면 `]` 다음으로.
 proc rx_atom_class input pat slice u8 . input prog mut slice u64 . . input st mut slice u64 . . output void . effects none . do
@@ -370,8 +370,8 @@ proc rx_atom_class input pat slice u8 . input prog mut slice u64 . . input st mu
     if eq (index pat (index st 2)) 94 . do
       set invert 1 .
       set (index st 2) (add (index st 2) 1) .
-    end .
-  end .
+    end
+  end
   var closed u64 be 0 .
   rem ★ 첫 글자 `]` 는 닫음이 아니라 **원소**다(POSIX/PCRE: `[]a]`·`[^]a]`). 그래서 `[]`·`[^]` 만은
   rem   닫히지 않은 클래스 = 컴파일 오류가 된다 — 전엔 `[^]` 가 "아무 바이트"로 조용히 통했다.
@@ -380,14 +380,14 @@ proc rx_atom_class input pat slice u8 . input prog mut slice u64 . . input st mu
     guard lt (index st 2) (len pat) . else do
       set (index st 3) 1 .
       return .
-    end .
+    end
     let c u8 be index pat (index st 2) .
     if eq c 93 . do
       if eq first 0 . do
         set closed 1 .
         set (index st 2) (add (index st 2) 1) .
-      end .
-    end .
+      end
+    end
     set first 0 .
     if eq closed 0 . do
       var lo u64 be widen u64 c .
@@ -397,27 +397,27 @@ proc rx_atom_class input pat slice u8 . input prog mut slice u64 . . input st mu
         guard lt (index st 2) (len pat) . else do
           set (index st 3) 1 .
           return .
-        end .
+        end
         let e u8 be index pat (index st 2) .
         if eq e 100 . do
           rx_class_preset prog k 0 .
           set lo 256 .
-        end .
+        end
         if eq e 119 . do
           rx_class_preset prog k 1 .
           set lo 256 .
-        end .
+        end
         if eq e 115 . do
           rx_class_preset prog k 2 .
           set lo 256 .
-        end .
+        end
         if lt lo 256 . do
           set lo (widen u64 e) .
-          if eq e 110 . do set lo 10 . end .
-          if eq e 116 . do set lo 9 . end .
-          if eq e 114 . do set lo 13 . end .
-        end .
-      end .
+          if eq e 110 . do set lo 10 . end
+          if eq e 116 . do set lo 9 . end
+          if eq e 114 . do set lo 13 . end
+        end
+      end
       set (index st 2) (add (index st 2) 1) .
       if lt lo 256 . do
         rem 범위 a-z ? (`-` 가 오고 그 다음이 `]` 가 아니면)
@@ -433,37 +433,37 @@ proc rx_atom_class input pat slice u8 . input prog mut slice u64 . . input st mu
                 guard lt (add (index st 2) 2) (len pat) . else do
                   set (index st 3) 1 .
                   return .
-                end .
+                end
                 let he u8 be index pat (add (index st 2) 2) .
-                if eq he 100 . do set (index st 3) 1 . end .
-                if eq he 119 . do set (index st 3) 1 . end .
-                if eq he 115 . do set (index st 3) 1 . end .
+                if eq he 100 . do set (index st 3) 1 . end
+                if eq he 119 . do set (index st 3) 1 . end
+                if eq he 115 . do set (index st 3) 1 . end
                 guard eq (index st 3) 0 . else return .
                 set hi (widen u64 he) .
-                if eq he 110 . do set hi 10 . end .
-                if eq he 116 . do set hi 9 . end .
-                if eq he 114 . do set hi 13 . end .
+                if eq he 110 . do set hi 10 . end
+                if eq he 116 . do set hi 9 . end
+                if eq he 114 . do set hi 13 . end
                 set (index st 2) (add (index st 2) 3) .
-              end .
+              end
               if ne h 92 . do
                 set hi (widen u64 h) .
                 set (index st 2) (add (index st 2) 2) .
-              end .
-            end .
-          end .
-        end .
+              end
+            end
+          end
+        end
         guard le lo hi . else do
           set (index st 3) 1 .
           return .
-        end .
+        end
         var v u64 be lo .
         while le v hi . do
           rx_class_set prog k v .
           set v (add v 1) .
-        end .
-      end .
-    end .
-  end .
+        end
+      end
+    end
+  end
   if eq invert 1 . do
     rem 부정: 비트맵 반전 (256비트 전부).
     let base u64 be sub (len prog) (mul 4 (add k 1)) .
@@ -471,35 +471,35 @@ proc rx_atom_class input pat slice u8 . input prog mut slice u64 . . input st mu
     while lt w 4 . do
       set (index prog (add base w)) (bit_not (index prog (add base w))) .
       set w (add w 1) .
-    end .
-  end .
+    end
+  end
   rx_emit prog st 2 k 0 .
-end .
+end
 
 rem 원자 하나: 리터럴 · `.` · `(alt)` · `[class]` · `\e` · `^` · `$`. 반환 없음(코드로 남는다).
 proc rx_atom input pat slice u8 . input prog mut slice u64 . . input st mut slice u64 . . input depth u64 . output void . effects none . do
   guard lt (index st 2) (len pat) . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   let c u8 be index pat (index st 2) .
   set (index st 2) (add (index st 2) 1) .
   if eq c 46 . do
     rx_emit prog st 1 0 0 .
     return .
-  end .
+  end
   if eq c 94 . do
     rx_emit prog st 6 0 0 .
     return .
-  end .
+  end
   if eq c 36 . do
     rx_emit prog st 7 0 0 .
     return .
-  end .
+  end
   if eq c 91 . do
     rx_atom_class pat prog st .
     return .
-  end .
+  end
   if eq c 40 . do
     rem ★ 캡처 그룹(슬라이스 6): 여는 괄호에서 그룹 번호를 하나 받고 SAVE(2g) 를,
     rem   닫는 괄호 뒤에 SAVE(2g+1) 을 심는다. 매칭기가 그 자리에서 위치를 적어 둔다.
@@ -509,7 +509,7 @@ proc rx_atom input pat slice u8 . input prog mut slice u64 . . input st mut slic
     guard lt depth 16 . else do
       set (index st 3) 1 .
       return .
-    end .
+    end
     var grp u64 be index st 4 .
     var capturing u64 be 0 .
     if lt grp 8 . do
@@ -517,28 +517,28 @@ proc rx_atom input pat slice u8 . input prog mut slice u64 . . input st mut slic
       set (index st 4) (add grp 1) .
       rx_emit prog st 8 (mul 2 grp) 0 .
       guard eq (index st 3) 0 . else return .
-    end .
+    end
     rx_alt pat prog st (add depth 1) .
     guard eq (index st 3) 0 . else return .
     guard lt (index st 2) (len pat) . else do
       set (index st 3) 1 .
       return .
-    end .
+    end
     guard eq (index pat (index st 2)) 41 . else do
       set (index st 3) 1 .
       return .
-    end .
+    end
     set (index st 2) (add (index st 2) 1) .
     if eq capturing 1 . do
       rx_emit prog st 8 (add (mul 2 grp) 1) 0 .
-    end .
+    end
     return .
-  end .
+  end
   if eq c 92 . do
     guard lt (index st 2) (len pat) . else do
       set (index st 3) 1 .
       return .
-    end .
+    end
     let e u8 be index pat (index st 2) .
     set (index st 2) (add (index st 2) 1) .
     rem ★★★ `\p{L}` / `\P{L}` — 유니코드 **속성** 클래스 (슬라이스 10, 2026-07-26).
@@ -547,37 +547,37 @@ proc rx_atom input pat slice u8 . input prog mut slice u64 . . input st mut slic
     if eq e 112 . do
       rx_atom_prop pat prog st 0 .
       return .
-    end .
+    end
     if eq e 80 . do
       rx_atom_prop pat prog st 1 .
       return .
-    end .
+    end
     rx_atom_escape prog st e .
     return .
-  end .
+  end
   rem `) | * + ?` 가 원자 자리에 오면 패턴이 틀렸다.
   if eq c 41 . do
     set (index st 3) 1 .
     return .
-  end .
+  end
   if eq c 124 . do
     set (index st 3) 1 .
     return .
-  end .
+  end
   if eq c 42 . do
     set (index st 3) 1 .
     return .
-  end .
+  end
   if eq c 43 . do
     set (index st 3) 1 .
     return .
-  end .
+  end
   if eq c 63 . do
     set (index st 3) 1 .
     return .
-  end .
+  end
   rx_emit prog st 0 (widen u64 c) 0 .
-end .
+end
 
 rem 원자 + 후위 `* + ?` (탐욕 — SPLIT 의 첫 갈래가 "더 먹기").
 proc rx_post input pat slice u8 . input prog mut slice u64 . . input st mut slice u64 . . input depth u64 . output void . effects none . do
@@ -597,14 +597,14 @@ proc rx_post input pat slice u8 . input prog mut slice u64 . . input st mut slic
     set (index prog (add 4 (mul 3 s))) (add cur 1) .
     rx_emit prog st 4 s 0 .
     return .
-  end .
+  end
   if eq c 43 . do
     rem e+ : 본체 뒤에 SPLIT(되돌기, 밖).
     set (index st 2) (add (index st 2) 1) .
     let cur u64 be index st 0 .
     rx_emit prog st 3 s (add cur 1) .
     return .
-  end .
+  end
   if eq c 63 . do
     rem e? : SPLIT(본체, 밖) 만 앞에 심는다.
     set (index st 2) (add (index st 2) 1) .
@@ -615,14 +615,14 @@ proc rx_post input pat slice u8 . input prog mut slice u64 . . input st mut slic
     set (index prog (add 3 (mul 3 s))) (add s 1) .
     set (index prog (add 4 (mul 3 s))) cur .
     return .
-  end .
+  end
   if eq c 123 . do
     rem e{m,n} : **컴파일 시 펼친다** — 새 옵코드 0. 런타임 카운터를 두면 스레드마다 상태가
     rem   생겨 Pike VM 의 "스레드=pc 하나" 불변식이 깨진다(그러면 marks 중복 제거도 못 한다).
     rx_repeat pat prog st s .
     return .
-  end .
-end .
+  end
+end
 
 rem `{m}` `{m,}` `{m,n}` 을 읽어 [s..) 의 본체를 복제·선택화한다. (탐욕, 새 옵코드 0.)
 proc rx_repeat input pat slice u8 . input prog mut slice u64 . . input st mut slice u64 . . input s u64 . output void . effects none . do
@@ -632,34 +632,34 @@ proc rx_repeat input pat slice u8 . input prog mut slice u64 . . input st mut sl
   var digits u64 be 0 .
   var lscan u64 be 1 .
   while eq lscan 1 . do
-    if ge (index st 2) (len pat) . do set lscan 0 . end .
+    if ge (index st 2) (len pat) . do set lscan 0 . end
     if eq lscan 1 . do
       let d u8 be index pat (index st 2) .
       var isdig u64 be 0 .
       if ge d 48 . do
-        if le d 57 . do set isdig 1 . end .
-      end .
+        if le d 57 . do set isdig 1 . end
+      end
       if eq isdig 1 . do
         rem ★ 세 자리까지만 — 값은 어차피 ≤ 64 인데 스무 자리를 그냥 곱하면 u64 가 넘쳐 **트랩**이었다.
         guard lt digits 3 . else do
           set (index st 3) 1 .
           return .
-        end .
+        end
         set lo (add (mul lo 10) (sub (widen u64 d) 48)) .
         set digits (add digits 1) .
         set (index st 2) (add (index st 2) 1) .
-      end .
-      if eq isdig 0 . do set lscan 0 . end .
-    end .
-  end .
+      end
+      if eq isdig 0 . do set lscan 0 . end
+    end
+  end
   guard gt digits 0 . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   guard lt (index st 2) (len pat) . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   var hi u64 be lo .
   var cls_open u64 be 0 .
   if eq (index pat (index st 2)) 44 . do
@@ -668,76 +668,76 @@ proc rx_repeat input pat slice u8 . input prog mut slice u64 . . input st mut sl
     var hdig u64 be 0 .
     var scanning u64 be 1 .
     while eq scanning 1 . do
-      if ge (index st 2) (len pat) . do set scanning 0 . end .
+      if ge (index st 2) (len pat) . do set scanning 0 . end
       if eq scanning 1 . do
         let d u8 be index pat (index st 2) .
         var isdig u64 be 0 .
         if ge d 48 . do
-          if le d 57 . do set isdig 1 . end .
-        end .
+          if le d 57 . do set isdig 1 . end
+        end
         if eq isdig 1 . do
           guard lt hdig 3 . else do
             set (index st 3) 1 .
             return .
-          end .
+          end
           set hi (add (mul hi 10) (sub (widen u64 d) 48)) .
           set hdig (add hdig 1) .
           set (index st 2) (add (index st 2) 1) .
-        end .
-        if eq isdig 0 . do set scanning 0 . end .
-      end .
-    end .
-    if eq hdig 0 . do set cls_open 1 . end .
-  end .
+        end
+        if eq isdig 0 . do set scanning 0 . end
+      end
+    end
+    if eq hdig 0 . do set cls_open 1 . end
+  end
   guard lt (index st 2) (len pat) . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   guard eq (index pat (index st 2)) 125 . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   set (index st 2) (add (index st 2) 1) .
   if eq cls_open 0 . do
     guard le lo hi . else do
       set (index st 3) 1 .
       return .
-    end .
-  end .
+    end
+  end
   rem 상한 — 펼치는 것이라 폭발을 막는다(버퍼가 먼저 막지만 이유를 분명히 한다).
   guard le lo 64 . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   guard le hi 64 . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   let bl u64 be sub (index st 0) s .
   guard gt bl 0 . else do
     set (index st 3) 1 .
     return .
-  end .
+  end
   rem ★ e{0} · e{0,0}: 본체를 **지운다** — 빈 문자열에 매치한다(2026-09-04; 전엔 e{1} 처럼 굴었다).
   rem   본체가 열어 둔 클래스 비트맵은 그대로 둔다(자리만 차지하고 해가 없다).
   if eq cls_open 0 . do
     if eq hi 0 . do
       set (index st 0) s .
       return .
-    end .
-  end .
+    end
+  end
   rem ① 본체 총 개수(`{m,n}` 은 n, `{m,}` 은 m — 최소 1). 원본이 하나 있으니 그보다 하나 적게
   rem   복제한다 — **전부 밀기(SPLIT 끼우기) 전에, 원본에서.** 전엔 선택 복사본을 하나 끼운 뒤
   rem   이미 밀린 창을 다시 떠서 `a{0,2}` 가 `a*` 가 됐다(2026-09-04).
   var bodies u64 be hi .
-  if eq cls_open 1 . do set bodies lo . end .
-  if eq bodies 0 . do set bodies 1 . end .
+  if eq cls_open 1 . do set bodies lo . end
+  if eq bodies 0 . do set bodies 1 . end
   var k u64 be 1 .
   while lt k bodies . do
     rx_copy prog st s bl .
     guard eq (index st 3) 0 . else return .
     set k (add k 1) .
-  end .
+  end
   if eq cls_open 1 . do
     rem `{m,}` = m 회 뒤 `*` — 마지막 본체를 SPLIT/JMP 로 되돌린다.
     let bs u64 be sub (index st 0) bl .
@@ -749,7 +749,7 @@ proc rx_repeat input pat slice u8 . input prog mut slice u64 . . input st mut sl
     set (index prog (add 4 (mul 3 bs))) (add cur 1) .
     rx_emit prog st 4 bs 0 .
     return .
-  end .
+  end
   rem ② 선택 본체 j = lo..hi-1 앞에 SPLIT(본체, 전체 끝) — 앞에서부터 끊을 수 있다.
   rem   앞에서부터 끼우므로 j 번째 본체의 자리는 s + j·bl + (j − lo): 앞서 끼운 SPLIT 수만큼
   rem   밀렸고, 뒤의 끼움은 앞을 움직이지 않는다. 그래서 자리를 **계산**할 수 있고 표지가 필요 없다.
@@ -762,7 +762,7 @@ proc rx_repeat input pat slice u8 . input prog mut slice u64 . . input st mut sl
     set (index prog (add 3 (mul 3 bs))) (add bs 1) .
     set (index prog (add 4 (mul 3 bs))) 0 .
     set j (add j 1) .
-  end .
+  end
   rem ③ 모든 선택 SPLIT 의 "밖" 갈래를 전체 끝으로 맞춘다.
   let endp u64 be index st 0 .
   set j lo .
@@ -770,8 +770,8 @@ proc rx_repeat input pat slice u8 . input prog mut slice u64 . . input st mut sl
     let bs u64 be add s (add (mul j bl) (sub j lo)) .
     set (index prog (add 4 (mul 3 bs))) endp .
     set j (add j 1) .
-  end .
-end .
+  end
+end
 
 rem [from, from+n) 의 명령을 코드 끝에 그대로 복사한다. 내부 목표는 새 자리로 옮긴다.
 rem ★ 본체의 **끝**(from+n)을 가리키는 목표도 옮긴다(2026-09-04): `\X` 의 JMP·`(a|b)` 의 JMP 가
@@ -786,39 +786,39 @@ proc rx_copy input prog mut slice u64 . . input st mut slice u64 . . input from 
     var b u64 be index prog (add 4 (mul 3 src)) .
     if eq op 3 . do
       if ge a from . do
-        if le a (add from n) . do set a (add base (sub a from)) . end .
-      end .
+        if le a (add from n) . do set a (add base (sub a from)) . end
+      end
       if ge b from . do
-        if le b (add from n) . do set b (add base (sub b from)) . end .
-      end .
-    end .
+        if le b (add from n) . do set b (add base (sub b from)) . end
+      end
+    end
     if eq op 4 . do
       if ge a from . do
-        if le a (add from n) . do set a (add base (sub a from)) . end .
-      end .
-    end .
+        if le a (add from n) . do set a (add base (sub a from)) . end
+      end
+    end
     rx_emit prog st op a b .
     guard eq (index st 3) 0 . else return .
     set k (add k 1) .
-  end .
-end .
+  end
+end
 
 rem 이어붙임: 원자+후위 를 `|` `)` 끝까지.
 proc rx_cat input pat slice u8 . input prog mut slice u64 . . input st mut slice u64 . . input depth u64 . output void . effects none . do
   var going u64 be 1 .
   while eq going 1 . do
-    if ge (index st 2) (len pat) . do set going 0 . end .
+    if ge (index st 2) (len pat) . do set going 0 . end
     if eq going 1 . do
       let c u8 be index pat (index st 2) .
-      if eq c 124 . do set going 0 . end .
-      if eq c 41 . do set going 0 . end .
+      if eq c 124 . do set going 0 . end
+      if eq c 41 . do set going 0 . end
       if eq going 1 . do
         rx_post pat prog st depth .
         guard eq (index st 3) 0 . else return .
-      end .
-    end .
-  end .
-end .
+      end
+    end
+  end
+end
 
 rem 갈래: cat (`|` cat)* — e1|e2|e3 = SPLIT(e1, e2); e1; JMP end; SPLIT(e2, e3); e2; JMP end; e3; end.
 rem ★ 되돌이다, 재귀가 아니다(2026-09-04): 갈래마다 재귀하면 `a|a|…` 갈래 수가 그대로 VM 프레임이
@@ -834,9 +834,9 @@ proc rx_alt input pat slice u8 . input prog mut slice u64 . . input st mut slice
     guard eq (index st 3) 0 . else return .
     var more u64 be 0 .
     if lt (index st 2) (len pat) . do
-      if eq (index pat (index st 2)) 124 . do set more 1 . end .
-    end .
-    if eq more 0 . do set going 0 . end .
+      if eq (index pat (index st 2)) 124 . do set more 1 . end
+    end
+    if eq more 0 . do set going 0 . end
     if eq more 1 . do
       set (index st 2) (add (index st 2) 1) .
       rx_shift prog st s .
@@ -848,8 +848,8 @@ proc rx_alt input pat slice u8 . input prog mut slice u64 . . input st mut slice
       set (index prog (add 3 (mul 3 s))) (add s 1) .
       set (index prog (add 4 (mul 3 s))) e2 .
       set s e2 .
-    end .
-  end .
+    end
+  end
   rem 표지 달린 JMP 를 전부 이 묶음의 끝으로 — 그리고 표지를 지운다.
   let endp u64 be index st 0 .
   var q u64 be s0 .
@@ -858,11 +858,11 @@ proc rx_alt input pat slice u8 . input prog mut slice u64 . . input st mut slice
       if eq (index prog (add 4 (mul 3 q))) 1 . do
         set (index prog (add 3 (mul 3 q))) endp .
         set (index prog (add 4 (mul 3 q))) 0 .
-      end .
-    end .
+      end
+    end
     set q (add q 1) .
-  end .
-end .
+  end
+end
 
 rem ★ 패턴을 컴파일한다. 성공 = some <명령 수>. 문법 오류·버퍼 부족 = none 하나다.
 rem   prog 는 매칭 때 **그대로**(같은 길이로) 넘겨야 한다 — 클래스 비트맵이 꼬리에 산다.
@@ -885,7 +885,7 @@ export proc compile input pat slice u8 . input prog mut slice u64 . . input st m
   set (index prog 0) (index st 0) .
   set (index prog 1) (index st 1) .
   return some (index st 0) .
-end .
+end
 
 rem ★ 방금 먹은 코드포인트를 **뒤로 돌아** 읽는다 — UTF-8 은 자기동기적이라 이어지기
 rem   바이트(10xxxxxx)를 거슬러 올라가면 선두 바이트가 나온다. pos 는 그 코드포인트의 **끝**이다.
@@ -897,18 +897,18 @@ proc rx_cp_before input s slice u8 . input pos u64 . output option u64 . effects
   while going . do
     guard le back pos . else return none .
     let b u8 be index s (sub pos back) .
-    if lt (bit_and (widen u64 b) 192) 128 . do set going false . end .
-    if ge (bit_and (widen u64 b) 192) 192 . do set going false . end .
+    if lt (bit_and (widen u64 b) 192) 128 . do set going false . end
+    if ge (bit_and (widen u64 b) 192) 192 . do set going false . end
     if going . do
       set back (add back 1) .
       guard le back 4 . else return none .
-    end .
-  end .
+    end
+  end
   let start u64 be sub pos back .
   let n u64 be utf8.seq_len (index s start) .
   guard eq n back . else return none .
   return utf8.decode s start .
-end .
+end
 
 rem ★ CPPROP 판정: 표 번호 code(0~4 = L·N·P·Z·M, 5~9 = 그 부정)로 방금 먹은 글자를 묻는다.
 proc rx_prop_ok input s slice u8 . input pos u64 . input code u64 . output bool . effects none . do
@@ -920,23 +920,23 @@ proc rx_prop_ok input s slice u8 . input pos u64 . input code u64 . output bool 
   if ge code 16 . do
     set tab (sub code 16) .
     set want false .
-  end .
+  end
   var hit bool be false .
-  if eq tab 0 . do set hit (unicode.is_letter cp) . end .
-  if eq tab 1 . do set hit (unicode.is_number cp) . end .
-  if eq tab 2 . do set hit (unicode.is_punct cp) . end .
-  if eq tab 3 . do set hit (unicode.is_space cp) . end .
-  if eq tab 4 . do set hit (unicode.is_mark cp) . end .
-  if eq tab 5 . do set hit (unicode.is_upper cp) . end .
-  if eq tab 6 . do set hit (unicode.is_lower cp) . end .
-  if eq tab 7 . do set hit (unicode.is_digit cp) . end .
-  if eq tab 8 . do set hit (unicode.is_title cp) . end .
-  if eq tab 9 . do set hit (unicode.is_modifier cp) . end .
-  if eq tab 10 . do set hit (unicode.is_other_letter cp) . end .
-  if eq tab 11 . do set hit (unicode.is_numletter cp) . end .
-  if eq tab 12 . do set hit (unicode.is_numother cp) . end .
+  if eq tab 0 . do set hit (unicode.is_letter cp) . end
+  if eq tab 1 . do set hit (unicode.is_number cp) . end
+  if eq tab 2 . do set hit (unicode.is_punct cp) . end
+  if eq tab 3 . do set hit (unicode.is_space cp) . end
+  if eq tab 4 . do set hit (unicode.is_mark cp) . end
+  if eq tab 5 . do set hit (unicode.is_upper cp) . end
+  if eq tab 6 . do set hit (unicode.is_lower cp) . end
+  if eq tab 7 . do set hit (unicode.is_digit cp) . end
+  if eq tab 8 . do set hit (unicode.is_title cp) . end
+  if eq tab 9 . do set hit (unicode.is_modifier cp) . end
+  if eq tab 10 . do set hit (unicode.is_other_letter cp) . end
+  if eq tab 11 . do set hit (unicode.is_numletter cp) . end
+  if eq tab 12 . do set hit (unicode.is_numother cp) . end
   return eq hit want .
-end .
+end
 
 rem ── Pike VM 매처 ──
 
@@ -954,32 +954,32 @@ proc rx_add input prog slice u64 . input s slice u8 . input pos u64 . input pc u
   if eq op 3 . do
     let n2 u64 be rx_add prog s pos (index prog (add 3 (mul 3 pc))) list n marks token (add depth 1) .
     return rx_add prog s pos (index prog (add 4 (mul 3 pc))) list n2 marks token (add depth 1) .
-  end .
+  end
   if eq op 4 . do
     return rx_add prog s pos (index prog (add 3 (mul 3 pc))) list n marks token (add depth 1) .
-  end .
+  end
   if eq op 9 . do
     rem ★ CPPROP — 바이트를 안 먹는다(엡실론). 방금 먹은 코드포인트가 표에 들면 지나가고,
     rem   아니면 이 스레드는 여기서 죽는다.
     guard rx_prop_ok s pos (index prog (add 3 (mul 3 pc))) . else return n .
     return rx_add prog s pos (add pc 1) list n marks token (add depth 1) .
-  end .
+  end
   if eq op 8 . do
     rem ★ SAVE 는 캡처를 안 쓰는 경로에서는 **그냥 지나가는 표식**이다(엡실론).
     return rx_add prog s pos (add pc 1) list n marks token (add depth 1) .
-  end .
+  end
   if eq op 6 . do
     guard eq pos 0 . else return n .
     return rx_add prog s pos (add pc 1) list n marks token (add depth 1) .
-  end .
+  end
   if eq op 7 . do
     guard eq pos (len s) . else return n .
     return rx_add prog s pos (add pc 1) list n marks token (add depth 1) .
-  end .
+  end
   guard lt n (len list) . else return n .
   set (index list n) pc .
   return add n 1 .
-end .
+end
 
 rem ★ `at` 에서 시작하는 매치의 **가장 긴 끝**을 찾는다(탐욕). 없으면 none.
 rem   clist/nlist/marks 는 호출자 스크래치 — 각각 길이 ≥ 명령 수. 선형: O((len s)×명령수).
@@ -993,7 +993,7 @@ export proc match_at input prog slice u64 . input s slice u8 . input at u64 . in
   while lt z ni . do
     set (index marks z) 0 .
     set z (add z 1) .
-  end .
+  end
   var best u64 be 0 .
   var found u64 be 0 .
   var nc u64 be 0 .
@@ -1012,44 +1012,44 @@ export proc match_at input prog slice u64 . input s slice u8 . input at u64 . in
       if eq op 5 . do
         set best pos .
         set found 1 .
-      end .
+      end
       if lt pos (len s) . do
         let ch u64 be widen u64 (index s pos) .
         if eq op 0 . do
           if eq (index prog (add 3 (mul 3 pc))) ch . do
             set nn (rx_add prog s (add pos 1) (add pc 1) nlist nn marks token 0) .
-          end .
-        end .
+          end
+        end
         if eq op 1 . do
           if ne ch 10 . do
             set nn (rx_add prog s (add pos 1) (add pc 1) nlist nn marks token 0) .
-          end .
-        end .
+          end
+        end
         if eq op 2 . do
           if class_has prog (index prog (add 3 (mul 3 pc))) ch . do
             set nn (rx_add prog s (add pos 1) (add pc 1) nlist nn marks token 0) .
-          end .
-        end .
-      end .
+          end
+        end
+      end
       set i (add i 1) .
-    end .
+    end
     rem 다음 목록으로 — 비었으면 끝.
     if eq nn 0 . do
       set going 0 .
-    end .
+    end
     if eq going 1 . do
       var q u64 be 0 .
       while lt q nn . do
         set (index clist q) (index nlist q) .
         set q (add q 1) .
-      end .
+      end
       set nc nn .
       set pos (add pos 1) .
-    end .
-  end .
+    end
+  end
   guard eq found 1 . else return none .
   return some best .
-end .
+end
 
 rem ★ 왼쪽 최선 탐색: 매치가 **시작되는** 가장 왼쪽 위치. 재시작 루프 — 상한 O(n²·m)이지만
 rem   **지수 폭발은 없다**(각 시도가 Pike VM 선형). 단일 패스는 아래 `search`.
@@ -1057,11 +1057,11 @@ export proc find input prog slice u64 . input s slice u8 . input clist mut slice
   var at u64 be 0 .
   while le at (len s) . do
     let m option u64 . be match_at prog s at clist nlist marks .
-    if is_some m . do return some at . end .
+    if is_some m . do return some at . end
     set at (add at 1) .
-  end .
+  end
   return none .
-end .
+end
 
 rem ── 단일 패스 무anchored 탐색 (3차 슬라이스 4, 2026-07-26) ──
 rem
@@ -1085,33 +1085,33 @@ proc rx_add_s input prog slice u64 . input s slice u8 . input pos u64 . input pc
   if eq op 3 . do
     let n2 u64 be rx_add_s prog s pos (index prog (add 3 (mul 3 pc))) start list starts n marks token (add depth 1) .
     return rx_add_s prog s pos (index prog (add 4 (mul 3 pc))) start list starts n2 marks token (add depth 1) .
-  end .
+  end
   if eq op 4 . do
     return rx_add_s prog s pos (index prog (add 3 (mul 3 pc))) start list starts n marks token (add depth 1) .
-  end .
+  end
   if eq op 9 . do
     rem ★ CPPROP — 바이트를 안 먹는다(엡실론). 방금 먹은 코드포인트가 표에 들면 지나가고,
     rem   아니면 이 스레드는 여기서 죽는다.
     guard rx_prop_ok s pos (index prog (add 3 (mul 3 pc))) . else return n .
     return rx_add_s prog s pos (add pc 1) start list starts n marks token (add depth 1) .
-  end .
+  end
   if eq op 8 . do
     return rx_add_s prog s pos (add pc 1) start list starts n marks token (add depth 1) .
-  end .
+  end
   if eq op 6 . do
     guard eq pos 0 . else return n .
     return rx_add_s prog s pos (add pc 1) start list starts n marks token (add depth 1) .
-  end .
+  end
   if eq op 7 . do
     guard eq pos (len s) . else return n .
     return rx_add_s prog s pos (add pc 1) start list starts n marks token (add depth 1) .
-  end .
+  end
   guard lt n (len list) . else return n .
   guard lt n (len starts) . else return n .
   set (index list n) pc .
   set (index starts n) start .
   return add n 1 .
-end .
+end
 
 rem ★ 한 번의 통과로 **가장 왼쪽 매치의 시작**을 찾는다. 없으면 none. O(입력 × 명령수).
 rem   clist/nlist/marks/cstart/nstart 는 전부 호출자 스크래치(길이 ≥ 명령 수).
@@ -1128,7 +1128,7 @@ export proc search input prog slice u64 . input s slice u8 . input clist mut sli
   while lt z ni . do
     set (index marks z) 0 .
     set z (add z 1) .
-  end .
+  end
   var best u64 be 0 .
   var found u64 be 0 .
   var nc u64 be 0 .
@@ -1139,7 +1139,7 @@ export proc search input prog slice u64 . input s slice u8 . input clist mut sli
     if eq found 0 . do
       set nc (rx_add_s prog s pos 0 pos clist cstart nc marks (add (mul 2 (add pos 1)) 1) 0) .
       guard ne nc (bit_not 0) . else return none .
-    end .
+    end
     rem ② 현재 목록을 훑는다: MATCH 기록(왼쪽 우선) · 소비 명령은 다음 목록으로.
     var nn u64 be 0 .
     let token u64 be mul 2 (add pos 2) .
@@ -1153,61 +1153,61 @@ export proc search input prog slice u64 . input s slice u8 . input clist mut sli
         if eq found 0 . do
           set best st0 .
           set found 1 .
-        end .
+        end
         if eq found 1 . do
-          if lt st0 best . do set best st0 . end .
-        end .
-      end .
+          if lt st0 best . do set best st0 . end
+        end
+      end
       if lt pos (len s) . do
         let ch u64 be widen u64 (index s pos) .
         if eq op 0 . do
           if eq (index prog (add 3 (mul 3 pc))) ch . do
             set nn (rx_add_s prog s (add pos 1) (add pc 1) st0 nlist nstart nn marks token 0) .
-          end .
-        end .
+          end
+        end
         if eq op 1 . do
           if ne ch 10 . do
             set nn (rx_add_s prog s (add pos 1) (add pc 1) st0 nlist nstart nn marks token 0) .
-          end .
-        end .
+          end
+        end
         if eq op 2 . do
           if class_has prog (index prog (add 3 (mul 3 pc))) ch . do
             set nn (rx_add_s prog s (add pos 1) (add pc 1) st0 nlist nstart nn marks token 0) .
-          end .
-        end .
-      end .
+          end
+        end
+      end
       set i (add i 1) .
-    end .
+    end
     rem ③ 진행: 입력이 끝났거나(마지막 위치까지 봤다) 살아남은 스레드가 없고 새로 넣을 일도
     rem   없으면(이미 매치를 찾았으면) 끝난다.
     if ge pos (len s) . do
       set going 0 .
-    end .
+    end
     if eq going 1 . do
       if eq nn 0 . do
-        if eq found 1 . do set going 0 . end .
-      end .
-    end .
+        if eq found 1 . do set going 0 . end
+      end
+    end
     if eq going 1 . do
       var q u64 be 0 .
       while lt q nn . do
         set (index clist q) (index nlist q) .
         set (index cstart q) (index nstart q) .
         set q (add q 1) .
-      end .
+      end
       set nc nn .
       set pos (add pos 1) .
-    end .
-  end .
+    end
+  end
   guard eq found 1 . else return none .
   return some best .
-end .
+end
 
 rem ★ 어딘가에 매치가 있는가.
 export proc test_at input prog slice u64 . input s slice u8 . input clist mut slice u64 . . input nlist mut slice u64 . . input marks mut slice u64 . . output bool . effects none . do
   let f option u64 . be find prog s clist nlist marks .
   return is_some f .
-end .
+end
 
 rem ── 캡처 매칭 (슬라이스 6, 2026-07-26) ──
 rem
@@ -1224,8 +1224,8 @@ proc rx_slots_copy input dst mut slice u64 . . input di u64 . input src slice u6
   while lt k 16 . do
     set (index dst (add (mul di 16) k)) (index src (add (mul si 16) k)) .
     set k (add k 1) .
-  end .
-end .
+  end
+end
 
 rem 캡처를 들고 다니는 엡실론 폐포. work/wslots 는 **지금 만드는 스레드의 임시 슬롯**이다.
 proc rx_add_c input prog slice u64 . input s slice u8 . input pos u64 . input pc u64 . input list mut slice u64 . . input slots mut slice u64 . . input n u64 . input marks mut slice u64 . . input token u64 . input cur mut slice u64 . . input depth u64 . output u64 . effects none . do
@@ -1238,16 +1238,16 @@ proc rx_add_c input prog slice u64 . input s slice u8 . input pos u64 . input pc
   if eq op 3 . do
     let n2 u64 be rx_add_c prog s pos (index prog (add 3 (mul 3 pc))) list slots n marks token cur (add depth 1) .
     return rx_add_c prog s pos (index prog (add 4 (mul 3 pc))) list slots n2 marks token cur (add depth 1) .
-  end .
+  end
   if eq op 4 . do
     return rx_add_c prog s pos (index prog (add 3 (mul 3 pc))) list slots n marks token cur (add depth 1) .
-  end .
+  end
   if eq op 9 . do
     rem ★ CPPROP — 바이트를 안 먹는다(엡실론). 방금 먹은 코드포인트가 표에 들면 지나가고,
     rem   아니면 이 스레드는 여기서 죽는다.
     guard rx_prop_ok s pos (index prog (add 3 (mul 3 pc))) . else return n .
     return rx_add_c prog s pos (add pc 1) list slots n marks token cur (add depth 1) .
-  end .
+  end
   if eq op 8 . do
     rem ★ SAVE: 이 자리를 적고 지나간다. 되돌릴 필요가 없다 — 갈래는 이미 갈린 스레드다.
     let sl u64 be index prog (add 3 (mul 3 pc)) .
@@ -1255,25 +1255,25 @@ proc rx_add_c input prog slice u64 . input s slice u8 . input pos u64 . input pc
     if lt sl 16 . do
       set old (index cur sl) .
       set (index cur sl) pos .
-    end .
+    end
     let r u64 be rx_add_c prog s pos (add pc 1) list slots n marks token cur (add depth 1) .
-    if lt sl 16 . do set (index cur sl) old . end .
+    if lt sl 16 . do set (index cur sl) old . end
     return r .
-  end .
+  end
   if eq op 6 . do
     guard eq pos 0 . else return n .
     return rx_add_c prog s pos (add pc 1) list slots n marks token cur (add depth 1) .
-  end .
+  end
   if eq op 7 . do
     guard eq pos (len s) . else return n .
     return rx_add_c prog s pos (add pc 1) list slots n marks token cur (add depth 1) .
-  end .
+  end
   guard lt n (len list) . else return n .
   guard le (mul (add n 1) 16) (len slots) . else return n .
   set (index list n) pc .
   rx_slots_copy slots n cur 0 .
   return add n 1 .
-end .
+end
 
 rem ★ `at` 에서 시작하는 매치를 찾고 **그룹 위치를 out 에 적는다**. 반환 = 매치의 끝(탐욕).
 rem   out 은 16칸 이상 — [2g]=그룹 g 의 시작, [2g+1]=끝. 안 잡힌 슬롯은 MAX(`bit_not 0`).
@@ -1292,13 +1292,13 @@ export proc match_caps input prog slice u64 . input s slice u8 . input at u64 . 
   while lt z ni . do
     set (index mk z) 0 .
     set z (add z 1) .
-  end .
+  end
   set z 0 .
   while lt z 16 . do
     set (index tmp z) (bit_not 0) .
     set (index out z) (bit_not 0) .
     set z (add z 1) .
-  end .
+  end
   var best u64 be 0 .
   var found u64 be 0 .
   var nc u64 be 0 .
@@ -1316,47 +1316,47 @@ export proc match_caps input prog slice u64 . input s slice u8 . input at u64 . 
       if eq op 5 . do
         rem ★ 탐욕: 더 긴 매치가 이긴다 — 그때 **그 스레드의 슬롯**을 답으로 옮긴다.
         var better u64 be 0 .
-        if eq found 0 . do set better 1 . end .
+        if eq found 0 . do set better 1 . end
         if eq found 1 . do
-          if gt pos best . do set better 1 . end .
-        end .
+          if gt pos best . do set better 1 . end
+        end
         if eq better 1 . do
           set best pos .
           set found 1 .
           rx_slots_copy out 0 cs i .
-        end .
-      end .
+        end
+      end
       if lt pos (len s) . do
         let ch u64 be widen u64 (index s pos) .
         var hit_take u64 be 0 .
         if eq op 0 . do
-          if eq (index prog (add 3 (mul 3 pc))) ch . do set hit_take 1 . end .
-        end .
+          if eq (index prog (add 3 (mul 3 pc))) ch . do set hit_take 1 . end
+        end
         if eq op 1 . do
-          if ne ch 10 . do set hit_take 1 . end .
-        end .
+          if ne ch 10 . do set hit_take 1 . end
+        end
         if eq op 2 . do
-          if class_has prog (index prog (add 3 (mul 3 pc))) ch . do set hit_take 1 . end .
-        end .
+          if class_has prog (index prog (add 3 (mul 3 pc))) ch . do set hit_take 1 . end
+        end
         if eq hit_take 1 . do
           rx_slots_copy tmp 0 cs i .
           set nn (rx_add_c prog s (add pos 1) (add pc 1) nl ns nn mk token tmp 0) .
-        end .
-      end .
+        end
+      end
       set i (add i 1) .
-    end .
-    if eq nn 0 . do set going 0 . end .
+    end
+    if eq nn 0 . do set going 0 . end
     if eq going 1 . do
       var q u64 be 0 .
       while lt q nn . do
         set (index cl q) (index nl q) .
         rx_slots_copy cs q ns q .
         set q (add q 1) .
-      end .
+      end
       set nc nn .
       set pos (add pos 1) .
-    end .
-  end .
+    end
+  end
   guard eq found 1 . else return none .
   return some best .
-end .
+end

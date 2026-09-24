@@ -29,12 +29,12 @@ do
     mov {a}, {r}
     add {b}, {r}
   ASM
-end .
+end
 
 rem 같은 답을 내는 **참조 구현** — 흡수한 자리는 언제나 이것과 맞대어진다.
 export proc add2_soft input a u64 . input b u64 . output u64 . effects none . do
   return add a b .
-end .
+end
 
 rem 흡수하는 op — 여기서 `unsafe` 가 멈춘다.
 export proc add2 input a u64 . input b u64 . output u64 . effects none .
@@ -44,9 +44,9 @@ export proc add2 input a u64 . input b u64 . output u64 . effects none .
   requires ge a 0 .
 do
   return asm_add2 k a b .
-end .
+end
 
 rem 부르는 쪽 — 아무것도 안 적는다. 그것이 흡수의 값이다.
 export proc caller input a u64 . output u64 . effects none . do
   return add2 a 41 .
-end .
+end

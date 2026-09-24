@@ -12,9 +12,9 @@ fn direct input s slice u8 . output u64 . do
   while lt i (len s) . do
     set t (wrap_add t (widen u64 (index s i))) .
     set i (add i 1) .
-  end .
+  end
   return t .
-end .
+end
 
 rem ko: 2 --- 길이를 지역에 담았다 /// en: 2 --- the length is stored in a local
 fn stored input s slice u8 . output u64 . do
@@ -24,9 +24,9 @@ fn stored input s slice u8 . output u64 . do
   while lt i n . do
     set t (wrap_add t (widen u64 (index s i))) .
     set i (add i 1) .
-  end .
+  end
   return t .
-end .
+end
 
 rem ko: 3 --- 계약이 용량을 말한다 /// en: 3 --- a contract states the capacity
 fn capacity input s slice u8 . input cap u64 . output u64 .
@@ -37,9 +37,9 @@ do
   while lt j cap . do
     set t (wrap_add t (widen u64 (index s j))) .
     set j (add j 1) .
-  end .
+  end
   return t .
-end .
+end
 
 rem ko: 4 --- 행우선 주소 i·n + k /// en: 4 --- row-major address i·n + k
 fn grid input a slice u8 . input n u64 . output u64 .
@@ -53,8 +53,8 @@ do
     while lt k n . do
       set t (wrap_add t (widen u64 (index a (add (mul i n) k)))) .
       set k (add k 1) .
-    end .
+    end
     set i (add i 1) .
-  end .
+  end
   return t .
-end .
+end

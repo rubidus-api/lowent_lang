@@ -48,7 +48,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   while lt s (len bk) . do
     set (index bk s) 0 .
     set s (add s 1) .
-  end .
+  end
   guard hashmap.put bk 10 0 . else return 4 .
   guard hashmap.put bk 20 1 . else return 5 .
   guard hashmap.put bk 30 2 . else return 6 .
@@ -60,9 +60,9 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   var occ u64 be 0 .
   var sl u64 be 0 .
   while lt sl (hashmap.size bk) . do
-    if hashmap.occupied_at bk sl . do set occ (add occ 1) . end .
+    if hashmap.occupied_at bk sl . do set occ (add occ 1) . end
     set sl (add sl 1) .
-  end .
+  end
   guard eq occ 4 . else return 22 .
 
   rem 색인이 실제로 자리를 짚는가 — 없는 id 는 none 이어야 한다.
@@ -89,7 +89,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
     guard is_some po . else return 13 .
     guard growvec.add_byte g (narrow u8 (mod (soa.get_x xs (some_value po)) 256)) . else return 14 .
     set k (add k 1) .
-  end .
+  end
   guard eq (growvec.count_of g) 4 . else return 15 .
   guard gt (growvec.cap_of g) 2 . else return 16 .
 
@@ -101,4 +101,4 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   guard eq (index v 2) 47 . else return 20 .
   guard eq (index v 3) 148 . else return 21 .
   return 42 .
-end .
+end

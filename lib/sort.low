@@ -22,8 +22,8 @@ proc qsort input s mut slice u64 . input lo0 u64 . input hi0 u64 . output void .
   rem ★ 방어: 잘못된 구간이면 아무것도 안 한다. u64 는 늘 [0, len) 을 주지만, 이 op 을
   rem   직접 부르는 쪽(차등 퍼저 포함)이 뒤집힌·범위 밖 lo/hi 를 줘도 **경계 밖을 안 만진다**.
   rem   (그래야 VM 과 네이티브가 같은 답 — 무동작 — 을 내고 diff-sweep 이 지켜진다.)
-  if gt hi0 (len s) . do return . end .
-  if ge lo0 hi0 . do return . end .
+  if gt hi0 (len s) . do return . end
+  if ge lo0 hi0 . do return . end
   var lo u64 be lo0 .
   var hi u64 be hi0 .
   rem 구간 크기가 2 미만이면(0·1 원소) 이미 정렬됨. 그 위만 돈다.
@@ -40,9 +40,9 @@ proc qsort input s mut slice u64 . input lo0 u64 . input hi0 u64 . output void .
         set (index s i) tj .
         set (index s j) ti .
         set i (add i 1) .
-      end .
+      end
       set j (add j 1) .
-    end .
+    end
     rem 피벗을 제자리(i)로 — 이제 s[i] 가 확정된 자리다
     let ti u64 be index s i .
     let tp u64 be index s (sub hi 1) .
@@ -54,18 +54,18 @@ proc qsort input s mut slice u64 . input lo0 u64 . input hi0 u64 . output void .
     if le leftlen rightlen . do
       qsort s lo i .
       set lo (add i 1) .
-    end .
+    end
     if gt leftlen rightlen . do
       qsort s (add i 1) hi .
       set hi i .
-    end .
-  end .
+    end
+  end
   return .
-end .
+end
 
 rem ★ 공개 진입 — `mut slice u64` 를 **제자리** 오름차순 정렬한다.
 export proc sort input s mut slice u64 . . output void . effects none . do
   qsort s 0 (len s) .
   return .
-end .
+end
 

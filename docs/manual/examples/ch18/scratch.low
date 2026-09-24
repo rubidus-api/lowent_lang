@@ -11,17 +11,17 @@ do
     while lt i (len buf) . do
       set (index buf i) 7 .
       set i (add i 1) .
-    end .
+    end
     var s u64 be 0 .
     for b buf do
       set s (add s (widen u64 b)) .
-    end .
+    end
     return s .
-  end .
+  end
   return 0 .
-end .
+end
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
   return narrow u8 (fill_count 10) .
-end .
+end

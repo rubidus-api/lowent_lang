@@ -23,7 +23,7 @@ proc goto_seq input buf mut slice u8 . . output u64 . effects none . do
   let f option u64 . be t.goto tiny 0 2 4 .
   guard is_some f . else return 42 .
   return 9 .
-end .
+end
 
 rem 스타일: t_sgr 0 → ESC[0m · t_color256 196 전경 → ESC[38;5;196m (11 바이트).
 proc style_seq input buf mut slice u8 . . output u64 . effects none . do
@@ -41,7 +41,7 @@ proc style_seq input buf mut slice u8 . . output u64 . effects none . do
   guard eq (index buf 7) 49 . else return 9 .
   guard eq (index buf 10) 109 . else return 10 .
   return 42 .
-end .
+end
 
 rem ★ diff: 폭 5·두 행에서 둘째 행의 연속 두 셀만 바뀜 → goto(1,1) + 두 바이트 = 8 바이트.
 proc diff_run input out mut slice u8 . . output u64 . effects none . do
@@ -59,7 +59,7 @@ proc diff_run input out mut slice u8 . . output u64 . effects none . do
   guard eq (index out 6) 120 . else return 7 .
   guard eq (index out 7) 121 . else return 8 .
   return 42 .
-end .
+end
 
 rem diff 무변경 = 0 바이트("화면 건드리지 마라"가 값이다) · 행 경계는 구간을 가른다.
 proc diff_edges input out mut slice u8 . . output u64 . effects none . do
@@ -83,9 +83,9 @@ proc diff_edges input out mut slice u8 . . output u64 . effects none . do
     let bad2 option u64 . be t.diff "ab" "cd" 0 out 0 .
     guard is_some bad2 . else return 42 .
     return 8 .
-  end .
+  end
   return 7 .
-end .
+end
 
 rem ★★ UTF-8 셀(슬라이스 5): 열은 **바이트가 아니라 코드포인트 번째**다 — 터미널 커서가 그렇게 센다.
 proc utf8_cells input out mut slice u8 . . output u64 . effects none . do
@@ -102,7 +102,7 @@ proc utf8_cells input out mut slice u8 . . output u64 . effects none . do
   let far option u64 . be t.col_off "a한b" 9 .
   guard is_some far . else return 42 .
   return 5 .
-end .
+end
 
 rem ★ UTF-8 행 diff: 같으면 0바이트 · 둘째 셀만 바뀌면 goto(0,1)+3바이트 = 9바이트.
 proc utf8_diff input out mut slice u8 . . output u64 . effects none . do
@@ -119,7 +119,7 @@ proc utf8_diff input out mut slice u8 . . output u64 . effects none . do
   guard eq (index out 5) 72 . else return 7 .
   guard eq (index out 6) 235 . else return 8 .
   return 42 .
-end .
+end
 
 rem ★★ 표시 폭(슬라이스 9): 셀 하나가 늘 한 칸은 아니다 — 한글·CJK 는 **두 칸**을 먹는다.
 proc widths input out mut slice u8 . . output u64 . effects none . do
@@ -140,7 +140,7 @@ proc widths input out mut slice u8 . . output u64 . effects none . do
   guard is_some wm . else return 7 .
   guard eq (some_value wm) 4 . else return 8 .
   return 42 .
-end .
+end
 
 rem ★ 칸 수로 자를 때 **글자 한가운데를 자르지 않는다** — 자르면 뒤 바이트가 쓰레기가 된다.
 proc fitting input out mut slice u8 . . output u64 . effects none . do
@@ -157,7 +157,7 @@ proc fitting input out mut slice u8 . . output u64 . effects none . do
   guard is_some f1 . else return 5 .
   guard eq (some_value f1) 0 . else return 6 .
   return 42 .
-end .
+end
 
 rem ★★ 사람이 세는 "한 글자" = grapheme cluster. 코드포인트 수와 다르다.
 proc clusters output u64 . effects none . do
@@ -181,4 +181,4 @@ proc clusters output u64 . effects none . do
   guard is_some g3 . else return 11 .
   guard eq (some_value g3) 3 . else return 12 .
   return 42 .
-end .
+end

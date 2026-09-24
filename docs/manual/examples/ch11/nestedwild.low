@@ -3,7 +3,7 @@ rem run: via_match
 
 enum read_error do
   broken .
-end .
+end
 
 fn pick input r result (option u64) read_error . output u64 .
 do
@@ -12,10 +12,10 @@ do
     case ok (some x) . return x .
     case ok none . return 0 .
     case error e . return 1 .
-  end .
-end .
+  end
+end
 
 fn via_match output u64 .
 do
   return pick (ok (some 42)) .
-end .
+end

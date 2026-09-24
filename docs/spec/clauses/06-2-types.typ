@@ -423,7 +423,7 @@ type pct be u8 .
 
 fn f output pct . do
   return 1 .
-end .", "E-TYPE-DECL")
+end", "E-TYPE-DECL")
     #note[
       둘을 가르는 이유는 실수를 막기 위해서다. 사용자 번호와 주문 번호가 둘 다 `u64` 라면
       바꿔 넣어도 처리기가 모른다. `newtype` 으로 갈라 두면 처리기가 그 실수를 잡는다.
@@ -852,7 +852,7 @@ fn f input s str . output u8 . do return 1 . end",
 
 struct p do
   x .              rem 타입이 없다
-end .
+end
 
 fn f output u8 . do return 1 . end", "E-FIELD-FORM")
   ]

@@ -7,30 +7,30 @@ module vm_isnone .
 
 export fn in_if input x u64 . output u64 . do
   var o option u64 . be none .
-  if gt x 0 . do set o (some x) . end .
-  if is_none o . do return 1 . end .
+  if gt x 0 . do set o (some x) . end
+  if is_none o . do return 1 . end
   return 2 .
-end .
+end
 
 export fn in_let input x u64 . output u64 . do
   var o option u64 . be none .
-  if gt x 0 . do set o (some x) . end .
+  if gt x 0 . do set o (some x) . end
   let q bool be is_none o .
-  if q . do return 1 . end .
+  if q . do return 1 . end
   return 2 .
-end .
+end
 
 export fn in_guard input x u64 . output u64 . do
   var o option u64 . be none .
-  if gt x 0 . do set o (some x) . end .
+  if gt x 0 . do set o (some x) . end
   guard is_none o . else return 2 .
   return 1 .
-end .
+end
 
 rem ★ `not (is_some …)` 과 같은 답이다 — 그것이 하강의 모양이기도 하다.
 export fn agrees input x u64 . output u64 . do
   var o option u64 . be none .
-  if gt x 0 . do set o (some x) . end .
-  if eq (is_none o) (not (is_some o)) . do return 1 . end .
+  if gt x 0 . do set o (some x) . end
+  if eq (is_none o) (not (is_some o)) . do return 1 . end
   return 0 .
-end .
+end

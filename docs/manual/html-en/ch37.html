@@ -685,7 +685,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">let</span></strong> p3 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.sgr buf (add at <span class="tok-n">2</span>) <span class="tok-n">0</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p3 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> some_value p3 .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run paint assemble.low [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 paint([27,91,51,59,54,72,27,91,49,109,104,105,27,91,48,109,0,0,0,0,0,0,0,0]) = 16
   arg0 (written) = [27,91,51,59,54,72,27,91,49,109,104,105,27,91,48,109,0,0,0,0,0,0,0,0]
@@ -704,7 +704,7 @@ paint([27,91,51,59,54,72,27,91,49,109,104,105,27,91,48,109,0,0,0,0,0,0,0,0]) = 1
   <strong><span class="tok-k">let</span></strong> changed <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.diff <span class="tok-s">"</span><span class="tok-s">hello   </span><span class="tok-s">"</span> <span class="tok-s">"</span><span class="tok-s">help!   </span><span class="tok-s">"</span> <span class="tok-n">8</span> out <span class="tok-n">0</span> .
   <strong><span class="tok-k">guard</span></strong> is_some changed . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (add (mul (some_value same) <span class="tok-n">100</span>) (some_value changed)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main diffing.low
 main() = 8
 </code></pre></div></div><p><code>term.diff prev next w out pos</code> compares the previous screen <code>prev</code> with the new screen <code>next</code> and writes into <code>out</code> only the changed runs, as “go there and write this”. If the two screens are the same it is 0 bytes — <strong>0 bytes is exactly the answer “don’t touch the screen”</strong>. When “hello” becomes “help!”, it is 8 bytes of cursor movement and two changed characters. Redrawing the whole screen every time flickers, and over remote connections transfers a lot.</p><h3 id="s37-3">37.3 The number of cells is not the number of bytes<a class="plink" href="#s37-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch37/widths.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> widths .
@@ -720,19 +720,19 @@ main() = 8
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.row_width row .
   <strong><span class="tok-k">guard</span></strong> is_some w . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> some_value w .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> emoji_width <strong><span class="tok-k">input</span></strong> cp <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> term.cp_width cp .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> clusters <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.row_clusters row .
   <strong><span class="tok-k">guard</span></strong> is_some n . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> some_value n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run columns widths.low [104,105]
 columns([104,105]) = 2
   arg0 (written) = [104,105]
@@ -757,12 +757,12 @@ clusters([101,204,129,120]) = 2
   <strong><span class="tok-k">let</span></strong> code <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty.key_of (some_value k) .
   <strong><span class="tok-k">if</span></strong> eq code (tty.key_up) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">if</span></strong> tty.is_char code . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run first_key keys.low [27,91,65,113]
 first_key([27,91,65,113]) = 1
   arg0 (written) = [27,91,65,113]
@@ -786,18 +786,18 @@ first_key([113]) = 2
     <strong><span class="tok-k">guard</span></strong> is_some n . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> going <span class="tok-n">false</span> .
       <strong><span class="tok-k">continue</span></strong> .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty.parse_key (subslice buf <span class="tok-n">0</span> (some_value n)) <span class="tok-n">0</span> .
     <strong><span class="tok-k">if</span></strong> is_some p . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> last (tty.key_of (some_value p)) .
       <strong><span class="tok-k">if</span></strong> eq last <span class="tok-n">113</span> . <strong><span class="tok-k">do</span></strong>
         <strong><span class="tok-k">set</span></strong> going <span class="tok-n">false</span> .
-      <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+      <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">let</span></strong> restored <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">be</span></strong> tty_raw t <span class="tok-n">false</span> .
   <strong><span class="tok-k">return</span></strong> narrow_sat <strong><span class="tok-t">u8</span></strong> last .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check rawmode.low
 == check: ok ==
 </code></pre></div></div><ul><li>The buffer is obtained <strong>before</strong> entering raw mode. If allocation failed after entering and it returned, the terminal would be left in raw mode.</li><li>Bytes read with <code>tty_read</code> are interpreted with <code>tty.parse_key</code>, and pressing <code>q</code> ends it.</li><li>At the end it always restores with <code>tty_raw t false</code>.</li></ul><p>Raw mode <strong>changes the user’s terminal settings</strong>. Even if the program dies, the change remains, and in the user’s shell input becomes invisible and line breaks stop working. If such a capability floated around ambiently, any library could wreck someone’s shell. So only its holder exercises it. This example waits for key input, so the verification script only checks it.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Restoring raw mode could just be enforced with ownership too</strong></p><div class="dev-body">A good idea, but this edition does not do so. <code>tty_raw</code> is a builtin op returning a boolean, and there is no owned value representing “in raw mode”. So forgetting to restore is not stopped at translation. It contrasts with <code>outbuf</code> and <code>files</code> enforcing completion through ownership, and for now it is a discipline a person must remember. The module document warns about this in bold too.</div></div><h3 id="s37-6">37.6 What is not built yet<a class="plink" href="#s37-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>The <code>tty</code> module document lists these itself — mouse reporting, bracketed paste, interpreting terminal query responses, and screen resize signal (SIGWINCH) integration. Each is a separate piece to build. Because the list is in the source and document, anyone building an editor with this module knows what they must do themselves before importing it.</p><h3 id="s37-7">37.7 Common mistakes<a class="plink" href="#s37-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Creating a path that leaves raw mode without restoring it</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch37/mistake_rawleak.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_rawleak .
@@ -813,7 +813,7 @@ first_key([113]) = 2
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty_read t (some_value g) .
   <strong><span class="tok-k">let</span></strong> restored <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">be</span></strong> tty_raw t <span class="tok-n">false</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_rawleak.low
 == check: ok ==
 </code></pre></div></div><p>This code passes translation (restoring <code>tty_raw</code> is not enforced by ownership). But if allocation fails, it leaves through <code>return 2</code> with the terminal still in raw mode. The user’s shell stops echoing input and line breaks go wrong. As <code>rawmode.low</code> in this chapter does, finish every preparation that can fail (getting the buffer) <strong>before</strong> entering raw mode, and make every path after entering it pass through <code>tty_raw t false</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Cutting a row by byte count to fit the screen width</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch37/mistake_bytecut.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_bytecut .
@@ -829,7 +829,7 @@ first_key([113]) = 2
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.row_width (subslice row <span class="tok-n">0</span> <span class="tok-n">5</span>) .
   <strong><span class="tok-k">guard</span></strong> is_some w . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> some_value w .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem ask where to cut by columns --- the longest prefix fitting three columns is the 3 bytes of "안"</span></em>
 <strong><span class="tok-k">proc</span></strong> cut_columns <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
@@ -837,7 +837,7 @@ first_key([113]) = 2
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.fit_width row <span class="tok-n">3</span> .
   <strong><span class="tok-k">guard</span></strong> is_some n . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> some_value n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run cut_bytes mistake_bytecut.low [236,149,136,235,133,149]
 cut_bytes([236,149,136,235,133,149]) = 999
   arg0 (written) = [236,149,136,235,133,149]
@@ -858,9 +858,9 @@ cut_columns([236,149,136,235,133,149]) = 3
   <strong><span class="tok-k">let</span></strong> code <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty.key_of (some_value k) .
   <strong><span class="tok-k">if</span></strong> eq code (tty.key_up) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run first_key partial_key.low [27,91]
 first_key([27,91]) = 0
   arg0 (written) = [27,91]

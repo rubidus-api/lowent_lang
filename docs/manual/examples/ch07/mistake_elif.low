@@ -8,6 +8,6 @@ do
   rem ko: ✘ `elif` 는 낱말이 아니다 --- 이어지는 갈래는 `end else if … do` 다 /// en: ✘ `elif` is not a word --- a following branch is `end else if … do`
   end elif lt n 80 . do
     return 1 .
-  end .
+  end
   return 2 .
-end .
+end

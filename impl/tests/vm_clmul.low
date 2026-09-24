@@ -11,18 +11,18 @@ module vm_clmul .
 
 export proc lo input a u64 . input b u64 . output u64 . effects none . do
   return call_builtin clmul_lo a b .
-end .
+end
 
 export proc hi input a u64 . input b u64 . output u64 . effects none . do
   return call_builtin clmul_hi a b .
-end .
+end
 
 rem 성질 ① — 곱셈은 **자리를 바꿔도 같다**(가환).
 export proc comm input a u64 . input b u64 . output u64 . effects none . do
-  if ne (call_builtin clmul_lo a b) (call_builtin clmul_lo b a) . do  return 0 .  end .
-  if ne (call_builtin clmul_hi a b) (call_builtin clmul_hi b a) . do  return 0 .  end .
+  if ne (call_builtin clmul_lo a b) (call_builtin clmul_lo b a) . do  return 0 .  end
+  if ne (call_builtin clmul_hi a b) (call_builtin clmul_hi b a) . do  return 0 .  end
   return 1 .
-end .
+end
 
 rem 성질 ② — **배타합에 대해 분배한다**: a·(b ⊕ c) = a·b ⊕ a·c.
 export proc distrib input a u64 . input b u64 . input c u64 . output u64 . effects none . do
@@ -30,32 +30,32 @@ export proc distrib input a u64 . input b u64 . input c u64 . output u64 . effec
   let l2 u64 be bit_xor (call_builtin clmul_lo a b) (call_builtin clmul_lo a c) .
   let h1 u64 be call_builtin clmul_hi a (bit_xor b c) .
   let h2 u64 be bit_xor (call_builtin clmul_hi a b) (call_builtin clmul_hi a c) .
-  if ne l1 l2 . do  return 0 .  end .
-  if ne h1 h2 . do  return 0 .  end .
+  if ne l1 l2 . do  return 0 .  end
+  if ne h1 h2 . do  return 0 .  end
   return 1 .
-end .
+end
 
 rem 성질 ③ — **1 을 곱하면 그대로**, 0 을 곱하면 0.
 export proc one_zero input a u64 . output u64 . effects none . do
-  if ne (call_builtin clmul_lo a 1) a . do  return 0 .  end .
-  if ne (call_builtin clmul_hi a 1) 0 . do  return 0 .  end .
-  if ne (call_builtin clmul_lo a 0) 0 . do  return 0 .  end .
+  if ne (call_builtin clmul_lo a 1) a . do  return 0 .  end
+  if ne (call_builtin clmul_hi a 1) 0 . do  return 0 .  end
+  if ne (call_builtin clmul_lo a 0) 0 . do  return 0 .  end
   return 1 .
-end .
+end
 
 rem 성질 ④ — **2 를 곱하면 한 칸 민 것**이다(캐리가 없으므로 자리 올림이 없다).
 export proc shift1 input a u64 . output u64 . effects none . do
-  if ne (call_builtin clmul_lo a 2) (wrap_shl a 1) . do  return 0 .  end .
-  if ne (call_builtin clmul_hi a 2) (shr a 63) . do  return 0 .  end .
+  if ne (call_builtin clmul_lo a 2) (wrap_shl a 1) . do  return 0 .  end
+  if ne (call_builtin clmul_hi a 2) (shr a 63) . do  return 0 .  end
   return 1 .
-end .
+end
 
 rem ★★★★★ GHASH 는 이 곱셈 위에 선다 — **기계 판과 셈 판이 같은 답인지 여기서 본다.**
 rem   ☞ 2026-09-23 에 이 증인이 없어서 틀린 축약이 통과할 뻔했다: AEAD 드라이버는 봉인→개봉
 rem     왕복만 보므로 **곱셈이 통째로 달라도** 스스로 일관되면 통과한다. 소프트 판과 맞대야 잡힌다.
 export proc gh input h slice u8 . input z mut slice u8 . input d slice u8 . output u64 . effects none . do
   return call_builtin ghash h z d .
-end .
+end
 
 rem ★★★★★ 흐름 잎도 같은 자로 (X-0051, 2026-09-24). 기계 판은 이제 **여덟 덩이를 엮어** 돌고
 rem   꼬리만 한 덩이씩 간다 — 즉 길이가 128 을 넘나드는 자리에서 **두 길이 갈린다**.
@@ -63,7 +63,7 @@ rem   ☞ 그래서 골든이 128 의 앞뒤(112·128·144·5)를 모두 소프�
 rem     올리는 규약도 같은 비교로 증언된다 — 여덟을 한 번에 올리며 규약을 바꾸면 여기서 드러난다.
 export proc ctr input key slice u8 . input c mut slice u8 . input s slice u8 . input d mut slice u8 . output u64 . effects none . do
   return call_builtin aes_ctr key c s d .
-end .
+end
 
 rem ★★★★★ **엮은 판과 따로 부른 판이 같은 답인가** (RFC-0124, 2026-09-24).
 rem   `aes_gcm` 의 뜻은 «`aes_ctr` 를 돌리고 그 결과를 `ghash` 에 먹인다» 이다(`low_aes.h`).
@@ -72,7 +72,7 @@ rem   나와야 한다. 128 의 앞뒤가 갈림길이다(엮은 고리는 128 �
 export proc gcmx input key slice u8 . input c mut slice u8 . input h slice u8 . input z mut slice u8 .
   input s slice u8 . input d mut slice u8 . output u64 . effects none . do
   return call_builtin aes_gcm key c h z s d .
-end .
+end
 
 rem 같은 일을 **잎 둘로** — 증인은 이 둘의 답이 같다는 것이다.
 export proc gcmpair input key slice u8 . input c mut slice u8 . input h slice u8 . input z mut slice u8 .
@@ -80,4 +80,4 @@ export proc gcmpair input key slice u8 . input c mut slice u8 . input h slice u8
   let n u64 be call_builtin aes_ctr key c s d .
   guard eq n (len s) . else return 0 .
   return call_builtin ghash h z d .
-end .
+end

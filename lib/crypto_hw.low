@@ -32,7 +32,7 @@ export proc clmul128 input out mut slice u64 . input a u64 . input b u64 . outpu
   set (index out 0) (call_builtin clmul_hi a b) .
   set (index out 1) (call_builtin clmul_lo a b) .
   return 2 .
-end .
+end
 
 rem GF(2^128) 곱 — `x`(조각 2)·`h`(조각 2) → `out`(조각 2). 카라추바로 곱셈 셋만 쓴다.
 rem   뒤집힌 표현이라 256 비트 곱을 **한 칸 왼쪽으로 민 뒤** 축약한다.
@@ -97,4 +97,4 @@ export proc gf128_mul input out mut slice u64 . input x slice u64 . input h slic
   set (index out 0) p3 .
   set (index out 1) p2 .
   return 2 .
-end .
+end

@@ -14,4 +14,4 @@ do
   let r option u64 be fmt.put_u64 buf (some_value q) 42 .
   guard is_some r . else return 0 .
   return some_value r .
-end .
+end

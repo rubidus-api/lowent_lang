@@ -15,4 +15,4 @@ proc main input al cap allocator . input k cap atomic . output u8 . effects allo
   guard eq (lifeatom.rc_share k c) 2 . else return 2 .
   guard eq (lifeatom.rc_release k c) 1 . else return 3 .
   return 42 .
-end .
+end

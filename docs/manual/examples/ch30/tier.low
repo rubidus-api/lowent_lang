@@ -8,4 +8,4 @@ do
   let g option mut slice u8 be alloc_bytes al capacity 16 .
   guard is_some g . else return 0 .
   return len (some_value g) .
-end .
+end

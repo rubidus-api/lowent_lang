@@ -29,27 +29,27 @@ proc release input al cap allocator . output u64 . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
-end .
+end
 proc acquire input al cap allocator . output u64 . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
-end .
+end
 proc relaxed input al cap allocator . output u64 . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
-end .
+end
 proc acq_rel input al cap allocator . output u64 . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
-end .
+end
 proc seq_cst input al cap allocator . output u64 . effects alloc . do
   let g option mut slice u8 . . be alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
   return len (some_value g) .
-end .
+end
 
 rem ★ 그 다섯 이름을 순서 자리에 쓴다. 이 op 은 `atomic` 만 선언한다 —
 rem   순서 낱말이 호출로 세어지면 state 가 새어 E-EFFECT 가 난다.
@@ -63,11 +63,11 @@ do
   let b u64 be atomic_load ctl 1 order seq_cst .
   atomic_store ctl 2 b order seq_cst .
   return b .
-end .
+end
 
 rem ★ 그리고 같은 이름의 op 들은 **여전히 부를 수 있다** — 순서 자리가 아닌 곳에서는 이름이다.
 rem   (건너뛰기가 너무 넓으면 이 줄이 조용히 안 세어진다: 여기 `alloc` 이 안 잡히면 W-EFFECT-OVER
 rem    가 운다. 즉 이 op 은 **고침이 지나치지 않았음**을 지키는 반대편 증인이다.)
 proc still_callable input al cap allocator . output u64 . effects alloc . do
   return release al .
-end .
+end

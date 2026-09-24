@@ -25,7 +25,7 @@ proc release_then_evict output u64 . effects none . do
   var c4 owned pagecache.cache db . be pagecache.reset db c3 .
   guard eq (pagecache.epoch_of db c4) 2 . else return 93 .
   return 1 .
-end .
+end
 
 rem ★★ **겹치면 LIFO 다** — 바깥을 놓아야 안쪽에 닿는다. 깊이가 타입에 보인다.
 proc stack_is_lifo output u64 . effects none . do
@@ -40,7 +40,7 @@ proc stack_is_lifo output u64 . effects none . do
   var c2 owned pagecache.cache db2 . be pagecache.release db2 back .
   guard eq (pagecache.epoch_of db2 c2) 0 . else return 93 .
   return 2 .
-end .
+end
 
 rem ★★★ **상한이 시험에 드러난다** — 이 기계의 캐시라인이 정한다.
 proc limit_shows output u64 . effects none . do
@@ -51,11 +51,11 @@ proc limit_shows output u64 . effects none . do
   rem 깊이 2 는 어떤 타깃에서도 상한 안이거나(≥2) 밖이다 — 그 판정이 값으로 보인다
   guard eq (pagecache.within_limit 1) true . else return 93 .
   return lim .
-end .
+end
 
 fn within_ok input lim u64 . output bool . do
   return le lim 64 .
-end .
+end
 
 rem ★ **id 는 이동을 견딘다** — 자리는 epoch 로 바뀌지만 id 는 그대로다.
 proc id_survives_move output u64 . effects none . do
@@ -70,4 +70,4 @@ proc id_survives_move output u64 . effects none . do
   rem 자리는 옮겨졌고(축출이 지나갔다), 그래도 우리는 **같은 id 42 로** 물었다
   guard ne before after . else return 91 .
   return 3 .
-end .
+end

@@ -8,7 +8,7 @@ fn head_or_zero input data slice u8 . output u8 .
 do
   guard ge (len data) 1 . else return 0 .
   return index data 0 .
-end .
+end
 
 fn grade input score u8 . output u8 .
 do
@@ -18,7 +18,7 @@ do
   end else do
     if ge score 60 . do
       return 66 .
-    end .
-  end .
+    end
+  end
   return 70 .
-end .
+end

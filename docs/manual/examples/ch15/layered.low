@@ -6,14 +6,14 @@ fn celsius_to_f input c i64 . output i64 .
   requires le c 1000 .
 do
   return add (div (mul c 9) 5) 32 .
-end .
+end
 
 proc print_digit input out cap io . input d u8 . output u64 . effects io .
   requires le d 9 .
 do
   let buf slice u8 be "0123456789" .
   return write_out out 1 (subslice buf (widen u64 d) (add (widen u64 d) 1)) .
-end .
+end
 
 proc main input out cap io . output u8 . effects io .
 do
@@ -21,4 +21,4 @@ do
   let n u64 be print_digit out (narrow u8 (mod f 10)) .
   let m u64 be write_out out 1 "\n" .
   return 0 .
-end .
+end

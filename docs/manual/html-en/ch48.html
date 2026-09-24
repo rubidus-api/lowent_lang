@@ -675,7 +675,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> a .
   <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">1</span> . <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> blocked <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
@@ -683,9 +683,9 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> a .
   <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run bare oneform.low 3
 bare(3) = 13
 $ lowentc --run blocked oneform.low 3
@@ -696,20 +696,20 @@ fn bare .
   input a u64 .
   output u64 .
   requires le a 1000 .
-do .
+do
   var x u64 be a .
-  if (gt a 1) do set x (add x 10) . end .
+  if (gt a 1) do set x (add x 10) . end
   return x .
-end .
+end
 fn blocked .
   input a u64 .
   output u64 .
   requires le a 1000 .
-do .
+do
   var x u64 be a .
-  if (gt a 1) do set x (add x 10) . end .
+  if (gt a 1) do set x (add x 10) . end
   return x .
-end .
+end
 </code></pre></div></div><p><code>bare</code> writes one statement directly as the body of <code>if</code>, and <code>blocked</code> wraps it in <code>do … end</code>. The answers are the same, and the canonical form printed by <code>--fmt</code> does not differ by a single character.</p><div class="dev mathbox"><p class="dev-label">The mathematics. Theorem G1 (<code>one_form_is_a_block</code> in <code>LowentBlock.v</code>)</p><div class="dev-body"><code>forall s, denote (wrap s) = denote s.</code> Wrapping one statement in a block does not change its meaning. Here “same meaning” means that the function <code>denote</code>, sending each tree to a flat sequence of statements, gives the same result. Defining “the same” by a function and confirming equations by computation is the only technique in this chapter. The corollary <code>body_is_one_thing</code> says that writing a statement or a block in a body position is the same.</div></div><p>This theorem justifies a design decision. C separates statements and compound statements into different kinds. <code>if (c) x = 1;</code> and <code>if (c) { x = 1; }</code> are grammatically different, and the famous <code>goto fail;</code> trap came from that gap — the indentation made two lines look as if they belonged to the <code>if</code>, but the grammar made only one belong. Lowent does not separate them.</p><h3 id="s48-3">48.3 Closers do the same job<a class="plink" href="#s48-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev mathbox"><p class="dev-label">The mathematics. Theorem G2 (<code>closers_agree</code>)</p><div class="dev-body"><code>forall c1 c2 h ops, close c1 h ops = close c2 h ops.</code> Closing with any of <code>.</code>, <code>end</code> or <code>)</code> gives the same tree. All three “close the innermost open form”. Blocks are associative, so a block within a block unfolds in place (<code>block_assoc</code>, <code>nested_block_flattens</code>).</div></div><p>Seen in an example:</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch48/closers.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> closers .
 <em><span class="tok-c">rem run: one_line 4</span></em>
 <em><span class="tok-c">rem run: spread 4</span></em>
@@ -718,7 +718,7 @@ end .
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add (mul x x) (add x <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem spreading arguments over several lines needs no marker --- a newline is whitespace</span></em>
 <strong><span class="tok-k">fn</span></strong> spread <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -728,7 +728,7 @@ end .
     (mul x x)
     (add x
          <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run one_line closers.low 4
 one_line(4) = 21
 $ lowentc --run spread closers.low 4
@@ -744,7 +744,7 @@ spread(4) = 21
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> add a b
   <strong><span class="tok-k">set</span></strong> s (mul s <span class="tok-n">2</span>) .
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noperiod.low
 mistake_noperiod.low:10:0 E-IR-ARITY: extra operands in expression (strict arity)
 </code></pre></div></div><p>The diagnostic points not at the line missing its period but at <strong>the next line</strong>. A newline closes nothing, so <code>set s (mul s 2)</code> was joined onto <code>add a b</code>, <code>add</code> ended up with four operands, and the tool says “extra operands”. Look one line above the reported number first. Even if this diagnostic is confusing, the rule stays. If a line ended a statement, merely splitting a long expression would change its meaning.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Closing with <code>;</code> as in C</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch48/mistake_semicolon.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_semicolon .
@@ -754,7 +754,7 @@ mistake_noperiod.low:10:0 E-IR-ARITY: extra operands in expression (strict arity
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ closing with a semicolon, as in C</span></em>
   <strong><span class="tok-k">return</span></strong> mul a <span class="tok-n">2</span> ;
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_semicolon.low
 7:18 E-VOCAB-REMOVED: `;` was a THIRD spelling of the closer `.` (the lexer literally emitted a DOT for it) — one meaning, three spellings, and SPEC-002 §2.5 forbids synonyms. It only survived inside the old interpreter's second language. Write `.`
 </code></pre></div></div><p><code>;</code> used to be a third spelling of the period. Three spellings for one meaning make readers hunt for a difference, so it was removed and is now refused with <code>E-VOCAB-REMOVED</code>. It is not silently accepted, because a word that parses but means nothing is the hardest trap to find.</p></div></div><h3 id="s48-5">48.5 What is not proven<a class="plink" href="#s48-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><ul><li><strong>There is no guarantee that the real parser is this model.</strong> The model is a few small functions building trees, and the real parser is much larger. The correspondence is backed by unit and regression tests.</li><li><strong><code>denote</code> is a flat sequence.</strong> Position information, comments and error recovery were not modelled. So “the same tree” means the same structure, not the same diagnostic quality.</li><li><strong>The lexical (token) layer is separate.</strong> Whether tokens split exactly into this model’s three closers is the lexer tests’ job.</li></ul><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">A sequence of statements is a monoid with associativity and identity, and whether two spellings are the same is decided by a denotation into flat sequences, confirmed by computation. One statement equals a one-statement block (G1), <code>.</code>, <code>end</code> and <code>)</code> build the same tree (G2), and a block within a block unfolds in place. Newline closing was left out even though provable, and theorems of removed rules were removed with them. These theorems stop the compiler from drifting, but that the real parser is this model is backed by tests.</div></div>

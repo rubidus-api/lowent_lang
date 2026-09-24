@@ -11,7 +11,7 @@ fn percent_of input part u64 . input whole u64 . output u64 .
   ensures le ret 100 .
 do
   return div (mul part 100) whole .
-end .
+end
 
 rem ko: 150 을 넘는 값만 자르고, 101 … 150 은 깜빡 잊었다 /// en: clamps only values above 150 and forgets 101 … 150
 fn clamp_to_100 input n u64 . output u64 .
@@ -20,6 +20,6 @@ fn clamp_to_100 input n u64 . output u64 .
 do
   if gt n 150 . do
     return 100 .
-  end .
+  end
   return n .
-end .
+end

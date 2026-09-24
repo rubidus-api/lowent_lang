@@ -21,4 +21,4 @@ module vm_tintrin .
 rem 기본 target 은 x86_64 이므로 x86_avx2 게이트는 여기서 **열린다**(컴파일되고 실행된다).
 unsafe target x86_avx2 proc bump input a u64 . output u64 . effects unsafe . do
   return add a 1 .
-end .
+end

@@ -7,4 +7,4 @@ proc bad_fill input out mut slice u8 . . output u64 . effects state .
 do
   let x u8 be index out 0 .
   return widen u64 x .
-end .
+end

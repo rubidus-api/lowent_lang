@@ -12,6 +12,6 @@ do
     set x (add x 1) .
     set seen (deref r) .
     set i (add i 1) .
-  end .
+  end
   return seen .
-end .
+end

@@ -14,9 +14,9 @@ rem   첫 슬라이스(D-C)는 넷: stage {filter, map} × terminal {collect int
 
 module vm_pipe .
 
-fn over2 input a u8 . output bool . do return gt a 2 . end .
-fn dbl   input a u8 . output u8 . do return (wrap_add a a) . end .
-fn addu  input acc u64 . input e u8 . output u64 . do return (add acc (widen u64 e)) . end .
+fn over2 input a u8 . output bool . do return gt a 2 . end
+fn dbl   input a u8 . output u8 . do return (wrap_add a a) . end
+fn addu  input acc u64 . input e u8 . output u64 . do return (add acc (widen u64 e)) . end
 
 rem filter → map → collect into : 한 루프. [1,2,3,4,5] → >2 → ×2 → [6,8,10]
 proc fm input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
@@ -24,26 +24,26 @@ proc fm input xs slice u8 . input out mut slice u8 . output u64 . effects none .
     filter over2 .
     map dbl .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 rem 스테이지 없이 collect — 복사. 파이프라인의 최소형.
 proc copy_all input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 rem filter → fold : 누산기 종결자. 스테이지가 걸러낸 것만 더한다.
 proc sum_over2 input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     filter over2 .
     fold 0 addu .
-  end .
+  end
   return 0 .
-end .
+end
 
 rem ── 값 내는 terminal 셋 — 파이프라인은 **식**이다(§6.1). count·any·all.
 rem   ★ any/all 은 **단락 종료**한다: 첫 참(any)·첫 거짓(all)에서 루프를 곧장 빠져나온다.
@@ -52,20 +52,20 @@ fn cnt_over2 input xs slice u8 . output u64 . do
   return pipe xs do
     filter over2 .
     count .
-  end .
-end .
+  end
+end
 
 fn any_over2 input xs slice u8 . output bool . do
   return pipe xs do
     any over2 .
-  end .
-end .
+  end
+end
 
 fn all_over2 input xs slice u8 . output bool . do
   return pipe xs do
     all over2 .
-  end .
-end .
+  end
+end
 
 rem ── ★ **접두 절단 — take / skip** (RFC-0010 §8-2 → 구현).
 rem   take n = 앞 n 개만 통과시키고 **거기서 상류를 멈춘다**(단락). skip n = 앞 n 개를 버린다(단락 아님).
@@ -79,17 +79,17 @@ proc first3 input xs slice u8 . input out mut slice u8 . output u64 . effects no
   pipe xs do
     take 3 .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 proc drop2 input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     skip 2 .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 rem 조합 — skip → take → map 이 한 루프에서 순서대로 흐른다.
 proc mid2x input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
@@ -98,17 +98,17 @@ proc mid2x input xs slice u8 . input out mut slice u8 . output u64 . effects non
     take 2 .
     map dbl .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 rem take 0 — 아무것도 통과하지 않고 루프가 곧장 끝난다(단락의 극단).
 fn none_taken input xs slice u8 . output u64 . do
   return pipe xs do
     take 0 .
     count .
-  end .
-end .
+  end
+end
 
 rem ── ★ **enumerate / zip — 튜플 없이** (RFC-0010 §8-2).
 rem   이 언어엔 튜플이 없고 더할 이유도 없다: `,` 는 이미 **인자 닫개**(§0 D8)라 `(a, b)` 는 쉼표에 두
@@ -120,24 +120,24 @@ rem   쌍을 만들었다 즉시 분해하지 않으므로 P3(숨은 할당 0)·
 rem   ★ zip 은 **짧은 쪽이 끝나면 전체 종료**한다(단락) — 그래야 짝이 항상 맞는다.
 rem   ★ enumerate 의 인덱스는 **그 스테이지에 도달한 순번**이다(앞선 filter 를 반영한다).
 
-fn idxadd input i u64 . input e u8 . output u8 . do return (wrap_add e (narrow_wrap u8 i)) . end .
-fn addb   input a u8 .  input b u8 . output u8 . do return (wrap_add a b) . end .
+fn idxadd input i u64 . input e u8 . output u8 . do return (wrap_add e (narrow_wrap u8 i)) . end
+fn addb   input a u8 .  input b u8 . output u8 . do return (wrap_add a b) . end
 
 proc with_idx input xs slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     enumerate idxadd .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 proc zipped input xs slice u8 . input ys slice u8 . input out mut slice u8 . output u64 . effects none . do
   pipe xs do
     zip ys addb .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 rem ── ★ **scan — 누적 prefix** (RFC-0010 §8-3 → 구현).
 rem   acc0 = init ; acc(n+1) = op(acc n, x n) ; 흘려보내는 값 = acc(n+1). 즉 각 원소가 **누적 상태**가 된다.
@@ -150,9 +150,9 @@ proc running_sum input xs slice u8 . input out mut slice u8 . output u64 . effec
   pipe xs do
     scan 0 addb .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 rem ── ★ **in-place 변환** (RFC-0010 §8-1 — [open] 이었다. 답: 안전하고, 그것은 LOWER 의 불변식이다).
 rem   `collect into xs` 로 **소스에 되쓴다**. 안전한 이유는 새 규칙이 아니라 융합 루프의 구조다:
@@ -164,14 +164,14 @@ proc inplace_map input xs mut slice u8 . output u64 . effects none . do
   pipe xs do
     map dbl .
     collect into xs .
-  end .
+  end
   return 0 .
-end .
+end
 
 proc inplace_filter input xs mut slice u8 . output u64 . effects none . do
   pipe xs do
     filter over2 .
     collect into xs .
-  end .
+  end
   return 0 .
-end .
+end

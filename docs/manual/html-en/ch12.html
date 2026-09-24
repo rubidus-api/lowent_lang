@@ -673,7 +673,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   b <strong><span class="tok-t">u64</span></strong> .
   c <strong><span class="tok-t">u64</span></strong> .
   d <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-k">ref</span></strong> big . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le (field v a) <span class="tok-n">1000</span> .
@@ -682,20 +682,20 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">requires</span></strong> le (field v d) <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add (add (field v a) (field v b)) (add (field v c) (field v d)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> use_sum <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> v big <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> big <strong><span class="tok-k">do</span></strong> a x . b <span class="tok-n">2</span> . c <span class="tok-n">3</span> . d <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> v big <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> big <strong><span class="tok-k">do</span></strong> a x . b <span class="tok-n">2</span> . c <span class="tok-n">3</span> . d <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> add (total (<strong><span class="tok-k">ref</span></strong> v)) (total (<strong><span class="tok-k">ref</span></strong> v)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> deref p .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> use_bump <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
@@ -703,7 +703,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> start .
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
   <strong><span class="tok-k">return</span></strong> add n r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run use_sum borrow.low 7
 use_sum(7) = 32
 $ lowentc --run use_bump borrow.low 7
@@ -715,7 +715,7 @@ use_bump(7) = 16
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check ref_write.low
 ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 </code></pre></div></div><p>The other direction is blocked too. Passing a value received only for reading to a position that takes <code>mut</code>, <code>mut_ref</code> or <code>owned</code> is rejected with <code>E-TYPE-ARGMUT</code>. Something writable can be passed on for reading, but something read-only cannot be passed to a writable position. Whoever received a value for reading must be able to trust that <strong>it does not change while they look at it</strong>, and that trust holds only when nobody gains write permission behind their back.</p><h3 id="s12-3">12.3 Many readers or one writer<a class="plink" href="#s12-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-28"></span><p>The trouble is overlapping borrows of the same value. Two overlapping write borrows are rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/excl.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> excl .
@@ -725,14 +725,14 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> a <span class="tok-n">1</span> .
   <strong><span class="tok-k">set</span></strong> b <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> confused <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   set_both (<strong><span class="tok-k">mut_ref</span></strong> n) (<strong><span class="tok-k">mut_ref</span></strong> n) .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check excl.low
 13:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
 </code></pre></div></div><p>The body of <code>set_both</code> believes <code>a</code> and <code>b</code> are different values. Lending the same <code>n</code> twice breaks that belief, and whether 1 or 2 remains depends on the order of writes. Overlapping read and write is rejected too.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/stale.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stale .
@@ -744,7 +744,7 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">ref</span></strong> n .
   <strong><span class="tok-k">set</span></strong> n <span class="tok-n">5</span> .
   <strong><span class="tok-k">return</span></strong> deref r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check stale.low
 8:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
 </code></pre></div></div><p>Writing 5 to <code>n</code> while <code>r</code> holds a read borrow of <code>n</code> means whoever reads through <code>r</code> cannot tell when the value they saw changed. These two shapes — another flow changing a value at the same time, and a value changing while being read — are defects hard to find by reading the source, so a rule removes them.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>The exclusivity rule only matters for multithreaded programs</strong></p><div class="dev-body">The two examples above contain no threads. Even within one flow, when two names point at the same value, a write through one breaks what the other believes. That is also why C’s <code>memcpy</code> is undefined for overlapping buffers. But once the rule holds within one flow, the absence of data races when the work is split into several flows follows, and that is where the proofs of Part VII lean (chapter 45).</div></div><h3 id="s12-4">12.4 A borrow cannot outlive what it borrows<a class="plink" href="#s12-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Returning a reference to a local from its op is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/escape.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> escape .
@@ -754,7 +754,7 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> here <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">42</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">ref</span></strong> here .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check escape.low
 7:0 E-ESCAPE: reference to a local escapes the op (dangling)
 </code></pre></div></div><p>If this code were translated, the returned reference would point at a value already gone, and nobody knows what reading it would give. Lowent knows this not by running it but <strong>at translation time</strong>. A borrow cannot leave the block that opened it (<code>E-BORROW-ESCAPE</code>), and a borrow still alive after the lent value has moved is rejected too (<code>E-EXCL-MOVED</code>).</p><p>If a value must leave the op, return <strong>the value</strong> rather than a reference, or put it in storage the caller passed. If you need storage that outlives the caller, use a region (chapter 18).</p><h3 id="s12-5">12.5 There is no <code>mut ref slice</code><a class="plink" href="#s12-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Slices do not take <code>mut ref</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mref_slice.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mref_slice .
@@ -763,7 +763,7 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 <strong><span class="tok-k">proc</span></strong> shrink <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mref_slice.low
 mref_slice.low:4:0 E-MREF-SLICE: `mut ref slice` gives nothing that `mut slice` does not — the elements are already writable through a plain `mut slice` (the descriptor is copied, the bytes are shared). The ONLY thing it adds is replacing the caller's descriptor, which silently changes the length behind the caller's back. Say the new slice with a RETURN VALUE instead (SPEC-004 §4.4a: the windows through which someone else can change your local are listed, and this one is closed)
 </code></pre></div></div><p>Passing a <code>mut slice</code> already makes the elements writable. The slice value <code>{start, length}</code> is copied, but the bytes it points to are the same. So what <code>mut ref slice</code> adds is exactly one thing — <strong>secretly changing the length and start of the caller’s slice</strong>. Then the caller’s loop has its length change even though its own code contains no assignment. Return the new slice instead.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/head.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> head .
@@ -773,14 +773,14 @@ mref_slice.low:4:0 E-MREF-SLICE: `mut ref slice` gives nothing that `mut slice` 
   <strong><span class="tok-k">requires</span></strong> le n (len p) .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> subslice p <span class="tok-n">0</span> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> first_two <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge (len xs) <span class="tok-n">2</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> front <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> take_front xs <span class="tok-n">2</span> .
   <strong><span class="tok-k">return</span></strong> len front .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run first_two head.low [9,8,7,6]
 first_two([9,8,7,6]) = 2
   arg0 (written) = [9,8,7,6]
@@ -791,7 +791,7 @@ first_two([9,8,7,6]) = 2
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> deref p .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> use_bump <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
@@ -800,7 +800,7 @@ first_two([9,8,7,6]) = 2
   <em><span class="tok-c">rem ✘ `mut_ref` is missing at the call --- the number 7 is passed, not a reference</span></em>
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> bump n .
   <strong><span class="tok-k">return</span></strong> add n r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nomutref.low
 mistake_nomutref.low:15:0 E-TYPE-ARG: this op takes a BORROW here (`ref` / `mut_ref`), and a plain value was passed. Take the borrow at the call — `mut_ref &lt;name>` — so the reader sees where the callee may write. It used to pass `--check` and stop at run time with `E-VM-TYPE: deref needs a reference`
 </code></pre></div></div><p><code>bump</code> expects “a reference to a number”, but <code>bump n</code> passes the number 7 itself. C++ reference parameters need no mark at the call, but Lowent makes you write <code>mut_ref n</code> so the call alone tells you what may change. This edition’s tool does not reject the omission at translation time; at run time <code>deref</code> meets something that is not a reference and stops (recorded as a defect in the development repository). When the stop says “deref needs a reference”, look for a missing <code>mut_ref</code> or <code>ref</code> at the call site.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a reference as a number without <code>deref</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_noderef.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noderef .
@@ -810,14 +810,14 @@ mistake_nomutref.low:15:0 E-TYPE-ARG: this op takes a BORROW here (`ref` / `mut_
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `p` is not a number but a reference to one --- read it with `deref p`</span></em>
   <strong><span class="tok-k">return</span></strong> add p p .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> double <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> x .
   <strong><span class="tok-k">return</span></strong> twice (<strong><span class="tok-k">ref</span></strong> n) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noderef.low
 mistake_noderef.low:7:0 E-TYPE-REFVAL: a BORROW is being used where a number is expected. `ref t` / `mut_ref t` names a place, not the value in it — read it with `deref &lt;name>` (and write through it with `set &lt;name> …`). It used to pass `--check` and stop at run time with `E-VM-TYPE`, which blamed the arithmetic instead of the missing read
 </code></pre></div></div><p>A reference is <strong>where</strong> a value lives, not the value. Each read spells <code>deref p</code>, making “read the borrowed value here” visible. In C, dropping the <code>*</code> turns the code into address arithmetic; Lowent has no address arithmetic, so a wrong value never comes out quietly. This edition’s tool does not report it at translation time, though, and stops at run time instead (recorded as a defect). The fixed line is <code>add (deref p) (deref p)</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Lending a <code>let</code> name for writing</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/mistake_letmutref.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_letmutref .
@@ -826,7 +826,7 @@ mistake_noderef.low:7:0 E-TYPE-REFVAL: a BORROW is being used where a number is 
 <strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> use_bump <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
@@ -835,7 +835,7 @@ mistake_noderef.low:7:0 E-TYPE-REFVAL: a BORROW is being used where a number is 
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> start .
   bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_letmutref.low
 mistake_letmutref.low:14:0 E-TYPE-ARGMUT: a WRITE borrow (`mut_ref`) was taken of a name that cannot be written: a `let` binding (or a shared input). `let` says the value does not change (§6.5.1) — if a borrow could change it, the reader who checked that name once would be wrong, and the borrow makes the change invisible at the call site. Bind it with `var`, or take a read borrow (`ref`)
 </code></pre></div></div><p><code>let</code> promises “the value of this name does not change”. Lending such a name with <code>mut_ref</code> breaks that promise, so it is refused with <code>E-TYPE-ARGMUT</code>. A borrow changes the value invisibly at the call site, which is exactly what would cost <code>let</code> its worth: that checking the name once is enough. Make a value that must change a <code>var</code> from the start, so the reader learns from the declaration that it changes somewhere.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>A variable passed as <code>input</code> can be changed by the op it is passed to</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/copyparam.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> copyparam .
@@ -848,7 +848,7 @@ mistake_letmutref.low:14:0 E-TYPE-ARGMUT: a WRITE borrow (`mut_ref`) was taken o
   <strong><span class="tok-k">var</span></strong> y <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> x .
   <strong><span class="tok-k">set</span></strong> y (add y <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> y .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> use_inc <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
@@ -857,7 +857,7 @@ mistake_letmutref.low:14:0 E-TYPE-ARGMUT: a WRITE borrow (`mut_ref`) was taken o
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> inc n .
   <em><span class="tok-c">rem `n` is still 7 --- lend it with `mut_ref n` to let it change</span></em>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run use_inc copyparam.low 7
 use_inc(7) = 7
 </code></pre></div></div><p>A plain value parameter (<code>input x u64</code>) receives a <strong>copy</strong> of the caller’s value. Whatever <code>inc</code> does inside, <code>n</code> in <code>use_inc</code> stays</p><ol><li value="7">Some languages pass large values by reference behind your back and blur this line; in Lowent the only way to change a caller’s</li></ol><p>value is <code>mut_ref</code>, and that mark stays at the call site.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Within one op you may lend a value with <code>mut_ref</code> only once</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/seqborrow.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> seqborrow .
@@ -867,7 +867,7 @@ use_inc(7) = 7
   <strong><span class="tok-k">requires</span></strong> lt (deref p) <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> use_twice <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">900</span> .
@@ -877,7 +877,7 @@ use_inc(7) = 7
   bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
   bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run use_twice seqborrow.low 7
 use_twice(7) = 9
 </code></pre></div></div><p>The exclusivity rule forbids borrows that <strong>overlap in time</strong>. A <code>mut_ref n</code> passed to one call comes back when that call ends, so the next line may borrow again. What is rejected is a shape like <code>set_both (mut_ref n) (mut_ref n)</code>, where two borrows live inside a single call.</p></div></div><h3 id="s12-7">12.7 This chapter’s syntax at a glance<a class="plink" href="#s12-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>input v ref big .</code></td><td>receive a read borrow</td><td>no copy of a large value, and a promise not to change it</td></tr><tr><td><code>input p mut_ref u64 .</code></td><td>receive a write borrow</td><td>the only way to change a caller’s value</td></tr><tr><td><code>total (ref v)</code> · <code>bump (mut_ref n)</code></td><td>lend at the call site</td><td>the call alone shows what may change</td></tr><tr><td><code>deref p</code></td><td>read the value a reference points to</td><td>a value and its place are never mixed up</td></tr><tr><td><code>set p &lt;value> .</code></td><td>write where a reference points (<code>mut_ref</code>)</td><td>through a read borrow it is <code>E-TYPE-REF</code></td></tr><tr><td><code>field v a</code></td><td>read a field through a reference</td><td>same spelling for a reference to a struct</td></tr><tr><td>two <code>mut_ref</code> of one value · <code>ref</code> plus a write</td><td>overlapping borrows — rejected (<code>E-EXCL</code>)</td><td>many readers or one writer</td></tr><tr><td>one storage in a written and a read position</td><td>only when the callee allows it with <code>inplace &lt;written> &lt;read> .</code> and the ranges are <strong>the same</strong> — else <code>E-EXCL-INPLACE</code></td><td>a body that reads and writes element by element is right only on the same range</td></tr><tr><td>the body of an op that declares <code>inplace o a</code></td><td>write <code>o</code> only after every read of <code>a</code>, or read and write element by element with one index — else <code>E-INPLACE-UNPROVEN</code></td><td>the processor checks the declaration against the body</td></tr><tr><td>using an old view after calling an op that declares <code>invalidates &lt;input></code> on its storage</td><td>rejected (<code>E-VIEW-INVALIDATED</code>) — take the view again</td><td>after a release, a growth or a rewind the view points at someone else’s place</td></tr><tr><td><code>return ref here .</code></td><td>return a reference to a local — rejected</td><td>never point at a value that is gone</td></tr><tr><td><code>mut ref slice</code></td><td>does not exist — rejected (<code>E-MREF-SLICE</code>)</td><td>no hidden length change — return a new slice</td></tr></table></div><p class="float-caption">Table 12.1 — Borrowing syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>ref t</code> is a read borrow and <code>mut_ref t</code> a write borrow, and the borrower writes <code>ref x</code> or <code>mut_ref n</code> at the call site. The value a reference points to is read with <code>deref</code>. Write permission only narrows. Borrows of one value are many readers or one writer, and a borrow cannot outlive the lent value. <code>mut ref slice</code> is rejected; return the new slice.</div></div>

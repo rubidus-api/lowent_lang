@@ -30,19 +30,19 @@ struct uart do
   mmio 0x40011000 .
   cr   u32 rw .              rem 제어  — 칸과 자리가 섞여 산다
   bsrr u32 wo .              rem 세울/지울 짝 (아래 16 비트=세움 · 위 16 비트=지움)
-end .
+end
 
 rem 자리표 — 칸은 마스크로(`wire`), 자리는 번호로(`flags`). 한 곳에만 적는다.
-fn m_baud   output u64 . do return 65520 . end .    rem 비트 4~15 (GENMASK(15,4))
-fn f_enable output u64 . do return 0 . end .        rem 0 번 자리
-fn f_parity output u64 . do return 1 . end .        rem 1 번 자리
+fn m_baud   output u64 . do return 65520 . end    rem 비트 4~15 (GENMASK(15,4))
+fn f_enable output u64 . do return 0 . end        rem 0 번 자리
+fn f_parity output u64 . do return 1 . end        rem 1 번 자리
 
 rem 제어 낱말을 **짓는다** — 순수 계산이다. 권한이 필요 없다(그래서 시험하기 쉽다).
 fn control input baud u64 . input parity bool . output u64 . do
   var w u64 be flags.with (flags.empty) (f_enable) .
-  if parity . do set w (flags.with w (f_parity)) . end .
+  if parity . do set w (flags.with w (f_parity)) . end
   return wire.merge (m_baud) w baud .
-end .
+end
 
 unsafe proc drive .
   input dev cap mmio .
@@ -69,4 +69,4 @@ do
   write_volatile u bsrr (narrow u32 (bit_or s (shl c 16))) .
 
   return (narrow u32 (control baud true)) .
-end .
+end

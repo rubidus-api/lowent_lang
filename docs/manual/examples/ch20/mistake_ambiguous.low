@@ -13,7 +13,7 @@ do
   let p option mut slice u8 be send al reserve 3 .
   guard is_some p . else return 91 .
   return send al used .
-end .
+end
 
 proc with_two input small mut slice u8 . input big mut slice u8 . output u64 . effects state .
 do
@@ -24,4 +24,4 @@ do
   rem ko: ✘ 맞는 타입의 할당기가 둘인데 어느 것인지 적지 않았다 /// en: ✘ two allocators of a fitting type are in scope, and the call does not say which
   let n u64 be two_from .
   return n .
-end .
+end

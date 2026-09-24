@@ -16,6 +16,6 @@ proc main input e cap env . output u8 . effects none . do
   let s slice u8 be some_value v .
   rem 값의 길이 + 접두가 "on" 이면 100 을 더한다(라이브러리가 환경 값에 그대로 작동한다).
   var code u64 be (len s) .
-  if strings.starts_with s "on" . do set code (add code 100) . end .
+  if strings.starts_with s "on" . do set code (add code 100) . end
   return (narrow u8 code) .
-end .
+end

@@ -20,4 +20,4 @@ do
   let missing option u64 be searchlib.bsearch xs 20 .
   guard not (is_some missing) . else return 253 .
   return narrow u8 (add (mul (index xs 0) 10) (some_value at)) .
-end .
+end

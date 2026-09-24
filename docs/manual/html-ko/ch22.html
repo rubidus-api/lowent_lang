@@ -671,13 +671,13 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">requires</span></strong> le items <span class="tok-n">1000000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (size_of t) items .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> add_const <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> n <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> report <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -685,7 +685,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> bytes_for <strong><span class="tok-t">u64</span></strong> <span class="tok-n">100</span> .
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> add_const <span class="tok-n">7</span> <span class="tok-n">10</span> .
   <strong><span class="tok-k">return</span></strong> add (add a b) (widen <strong><span class="tok-t">u64</span></strong> c) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run report sizes.low
 report() = 917
 </code></pre></div></div><ul><li><code>bytes_for</code> 의 <code>input comptime t type .</code> 은 타입을 받는다. 본문의 <code>size_of t</code> 는 그 타입의 크기를 번역할 때 준다. <code>bytes_for u8 100</code> 은 100, <code>bytes_for u64 100</code> 은 800 이다.</li><li><code>add_const</code> 의 <code>input comptime n u8 .</code> 은 값을 받는다. <code>add_const 7 10</code> 은 17 이다.</li><li>부르는 자리는 타입이나 상수를 <strong>보통 인자처럼</strong> 앞자리에 적는다. 꺾쇠(<code>&lt;T></code>)도, 추론도 없다.</li></ul><p>comptime 매개변수는 머리에서 가장 앞(권한 입력보다도 앞)에 온다(3장). 뒤따르는 입력과 출력의 타입이 그 이름을 쓰기 때문이다.</p><p>번역 시점에 알 수 없는 값을 주면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch22/rt_arg.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> rt_arg .
@@ -695,12 +695,12 @@ report() = 917
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add_const k <span class="tok-n">4</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check rt_arg.low
 rt_arg.low:12:0 E-COMPTIME-ARG: this argument sits in a `comptime` parameter, so it must be a COMPILE-TIME CONSTANT (an integer literal, or a module `let`). A runtime value there makes the word `comptime` a lie — and the analysis, the folding and the monomorphisation all believe it
 </code></pre></div></div><p><code>k</code> 는 실행할 때에야 정해진다. 그 자리에 <code>comptime</code> 이라고 적힌 이상, 실행 값을 받으면 그 낱말이 거짓말이 된다. comptime 자리에 올 수 있는 것은 정수 리터럴과 모듈 수준의 <code>let</code> 상수다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 타입 인자를 추론하지 않는 이유는 무엇인가? <code>max_of a b</code> 라고만 써도 <code>a</code> 의 타입에서 알 수 있지 않은가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 알 수 있다. 그러나 추론하면 <strong>무엇이 만들어지는지</strong>가 부르는 자리에서 보이지 않는다. 같은 줄이 인자의 타입에 따라 다른 실물을 부르고, 그 수는 소스를 따라가야 센다. Lowent 는 쓰인 조합의 수가 곧 만들어지는 코드의 양이라는 비용을 부르는 자리에서 셀 수 있게 두는 쪽을 골랐다.</p></div></div><h3 id="s22-2">22.2 조합마다 실물이 만들어진다<a class="plink" href="#s22-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-52"></span><p>처리기는 쓰인 조합마다 그 조합 전용 op 을 만든다. 이것을 <strong>단형화</strong>(monomorphisation)라 한다. <code>bytes_for u8</code> 과 <code>bytes_for u64</code> 는 네이티브 코드에서 서로 다른 두 함수다. 타입이 확정된 뒤 만들어지므로 크기와 연산이 모두 상수로 박히고, 호출은 직접 호출이다.</p><p>대가는 코드의 양이다. 열 가지 타입으로 부르면 열 벌이 생긴다. 이 비용은 숨지 않는다. 부르는 자리에 타입이 적혀 있으니 몇 벌이 생길지를 소스에서 센다.</p><h3 id="s22-3">22.3 타입에 조건을 건다<a class="plink" href="#s22-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>타입을 받는 op 은 대개 그 타입이 무언가를 할 줄 알아야 한다. 최댓값을 고르려면 비교할 줄 알아야 한다. 그 조건을 <code>requires &lt;트레이트> &lt;타입> .</code> 으로 건다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch22/bound.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bound .
@@ -709,32 +709,32 @@ rt_arg.low:12:0 E-COMPTIME-ARG: this argument sits in a `comptime` parameter, so
 
 <strong><span class="tok-k">trait</span></strong> ordered <strong><span class="tok-k">do</span></strong>
   less <strong><span class="tok-k">input</span></strong> a <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> b <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> score <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> ordered .
   v <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> score.less <strong><span class="tok-k">input</span></strong> a score . <strong><span class="tok-k">input</span></strong> b score . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> lt (field a v) (field b v) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> max_of <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> a t . <strong><span class="tok-k">input</span></strong> b t . <strong><span class="tok-k">output</span></strong> t .
   <strong><span class="tok-k">requires</span></strong> ordered t .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> method a less b . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> b .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> bigger <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> y <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> m score <strong><span class="tok-k">be</span></strong> max_of score (<strong><span class="tok-k">make</span></strong> score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">make</span></strong> score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run bigger bound.low 3 9
 bigger(3, 9) = 9
 $ lowentc --run bigger bound.low 12 5
@@ -744,31 +744,31 @@ bigger(12, 5) = 12
 
 <strong><span class="tok-k">trait</span></strong> ordered <strong><span class="tok-k">do</span></strong>
   less <strong><span class="tok-k">input</span></strong> a <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> b <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> plain <strong><span class="tok-k">do</span></strong>
   v <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> max_of <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> a t . <strong><span class="tok-k">input</span></strong> b t . <strong><span class="tok-k">output</span></strong> t .
   <strong><span class="tok-k">requires</span></strong> ordered t .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> method a less b . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> b .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> m plain <strong><span class="tok-k">be</span></strong> max_of plain (<strong><span class="tok-k">make</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">make</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check unsat.low
 13:0 E-BOUND-UNSAT: this generic was instantiated with a type that does NOT satisfy the required trait. A bound is a PROMISE the callee relies on — instantiating past it would make the callee's contract a lie (RFC-0021 §6.3). Add `satisfies &lt;trait> .` to the struct, and the required ops as `fn &lt;Type>.&lt;name>`
 </code></pre></div></div><p>타입 조건은 약속이고, 부르는 쪽이 그것을 넘어 실물을 만들게 하면 받는 쪽의 계약이 거짓이 된다. 진단은 그 타입에 <code>satisfies</code> 와 필요한 op 을 더하라고 한다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>제네릭 코드는 느리다</strong></p><div class="dev-body">언어에 따라 다르다. 타입을 지우고 모든 값을 상자에 담아 간접 호출로 다루는 방식은 느리다. 단형화하는 방식은 손으로 타입마다 베껴 쓴 코드와 같은 기계어가 된다. Lowent 는 단형화한다. 대가는 속도가 아니라 코드의 양이고, 그 양은 부르는 자리에서 셀 수 있다.</div></div><h3 id="s22-4">22.4 값을 넘기지 않고 타입이 들고 온다<a class="plink" href="#s22-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>C 의 <code>qsort</code> 는 비교 함수를 <strong>값</strong>으로 받는다. Lowent 에는 일급 함수가 없고, 있더라도 함수 포인터를 거치는 간접 호출이 숨는다. 대신 <strong>비교를 타입이 들고 온다</strong>. 표준 라이브러리 <code>sortgen</code> 의 머리가 그 모양이다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">trait</span></strong> ordered <strong><span class="tok-k">do</span></strong>
   less <strong><span class="tok-k">input</span></strong> a <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> b <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> sort_by <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> t .
   <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> .
@@ -778,33 +778,33 @@ bigger(12, 5) = 12
 
 <strong><span class="tok-k">trait</span></strong> ordered <strong><span class="tok-k">do</span></strong>
   less <strong><span class="tok-k">input</span></strong> a <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> b <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> score <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> ordered .
   v <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> score.less <strong><span class="tok-k">input</span></strong> a score . <strong><span class="tok-k">input</span></strong> b score . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> lt (field a v) (field b v) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> max_of <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> a t . <strong><span class="tok-k">input</span></strong> b t . <strong><span class="tok-k">output</span></strong> t .
   <strong><span class="tok-k">requires</span></strong> ordered t .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> method a less b . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> b .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> bigger <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> y <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 앞자리의 타입 인자 `score` 를 빠뜨렸다 --- 추론은 없다</span></em>
   <strong><span class="tok-k">let</span></strong> m score <strong><span class="tok-k">be</span></strong> max_of (<strong><span class="tok-k">make</span></strong> score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">make</span></strong> score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_notypearg.low
 mistake_notypearg.low:30:0 E-MONO-NOTYPE: this op takes a TYPE as its first input (`input comptime t type .`) and the call does not give one. Nothing is inferred from the argument types here: what is being built has to be visible at the call — write the type first, as in `max_of score a b`. (Without it the instance is never built, which is why the tool used to say the op did not exist)
 </code></pre></div></div><p><code>max_of</code> 의 첫 입력은 타입이다. 인자의 타입에서 <code>score</code> 를 알아낼 수 있어 보여도 Lowent 는 추론하지 않는다 — 무엇이 만들어지는지가 부르는 자리에 보여야 하기 때문이다. 앞자리를 비우면 <code>E-MONO-NOTYPE</code> 으로, 타입을 앞에 적으라고 말한다. 전에는 같은 자리가 “<code>max_of</code> 라는 이름이 없다”(<code>E-IR-UNDEF</code>)였다 — op 은 분명히 있으므로 틀린 안내였다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 본문이 쓰는 행동을 타입 조건으로 적지 않는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch22/mistake_nobound.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nobound .
@@ -812,26 +812,26 @@ mistake_notypearg.low:30:0 E-MONO-NOTYPE: this op takes a TYPE as its first inpu
 
 <strong><span class="tok-k">trait</span></strong> ordered <strong><span class="tok-k">do</span></strong>
   less <strong><span class="tok-k">input</span></strong> a <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> b <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> plain <strong><span class="tok-k">do</span></strong>
   v <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem ✘ 본문은 `less` 를 부르는데 머리에 `requires ordered t .` 가 없다</span></em>
 <strong><span class="tok-k">fn</span></strong> max_of <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> a t . <strong><span class="tok-k">input</span></strong> b t . <strong><span class="tok-k">output</span></strong> t .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> method a less b . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> b .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> m plain <strong><span class="tok-k">be</span></strong> max_of plain (<strong><span class="tok-k">make</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">make</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nobound.low
 mistake_nobound.low:15:0 E-METHOD-UNDEF: no op of that name is associated with the receiver's type — declare it as `fn &lt;type>.&lt;name> input &lt;recv> &lt;type> . …` (RFC-0062)
 23:0 N-MONO-SITE: …and THIS is the line that asked for that instance — the error above is inside a GENERIC template you did not write. The template's line is right; what was missing is WHERE it was instantiated. Fix the type argument here, or state the requirement on the template's boundary
@@ -842,13 +842,13 @@ mistake_nobound.low:15:0 E-METHOD-UNDEF: no op of that name is associated with t
   <strong><span class="tok-k">requires</span></strong> le items <span class="tok-n">1000000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (size_of t) items .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 타입 자리에 크기(8)를 넘겼다 --- `u64` 라고 적는다</span></em>
   <strong><span class="tok-k">return</span></strong> bytes_for <span class="tok-n">8</span> <span class="tok-n">100</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_valuetype.low
 mistake_valuetype.low:7:0 E-IR-UNDEF: size_of needs a SIZED type (a scalar, or a VIEWABLE struct the unit declares) — it does not answer for slices or views, whose size is not a property of the type
 13:0 N-MONO-SITE: …and THIS is the line that asked for that instance — the error above is inside a GENERIC template you did not write. The template's line is right; what was missing is WHERE it was instantiated. Fix the type argument here, or state the requirement on the template's boundary
@@ -860,9 +860,9 @@ mistake_valuetype.low:7:0 E-IR-UNDEF: size_of needs a SIZED type (a scalar, or a
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_comptimeorder.low
-mistake_comptimeorder.low:5:27 E-CLAUSE-ORDER: a `comptime` input comes after a data input. An op header has ONE order: `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · capability/region inputs · `using` · data inputs · `output` · `effects` · `link`/`variadic` · `asm` · `access`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input clauses for you; inputs are call positions, so reorder those and their call sites yourself)
+mistake_comptimeorder.low:5:27 E-CLAUSE-ORDER: a `comptime` input comes after a data input. An op header has ONE order: `satisfies`/`lowdoc` · `vector`/`priority` · `comptime` inputs · capability/region inputs · `using` · data inputs · `output` · `effects` · `link`/`variadic` · `asm` · `access`/`inplace`/`invalidates`/`parallel`/`reduce` · `requires` · `ensures` · `errors` · `tests` (`--fmt` moves the non-input clauses for you; inputs are call positions, so reorder those and their call sites yourself)
 </code></pre></div></div><p>머리의 차례는 하나로 정해져 있다. <code>comptime</code> 입력은 권한 입력보다도 앞, 가장 앞이다. 뒤따르는 입력과 출력의 타입이 그 이름을 쓸 수 있어야 하고, 부르는 자리에서도 “무엇을 만들지” 가 먼저 읽혀야 하기 때문이다. <code>E-CLAUSE-ORDER</code> 의 진단은 머리 차례 전체를 한 줄로 보여 준다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>값이 늘 같은 지역 <code>let</code> 은 번역 시점 상수다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch22/mistake_localconst.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_localconst .
 <em><span class="tok-c">rem expect: E-COMPTIME-ARG</span></em>
 
@@ -870,14 +870,14 @@ mistake_comptimeorder.low:5:27 E-CLAUSE-ORDER: a `comptime` input comes after a 
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> seventeen <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 값은 늘 7 이지만 op 안의 `let` 은 실행 중에 생기는 이름이다</span></em>
   <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">7</span> .
   <strong><span class="tok-k">return</span></strong> add_const k <span class="tok-n">10</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_localconst.low
 mistake_localconst.low:14:0 E-COMPTIME-ARG: this argument sits in a `comptime` parameter, so it must be a COMPILE-TIME CONSTANT (an integer literal, or a module `let`). A runtime value there makes the word `comptime` a lie — and the analysis, the folding and the monomorphisation all believe it
 </code></pre></div></div><p><code>k</code> 는 언제나 7 이지만, op 안의 <code>let</code> 은 op 이 불릴 때 생기는 이름이다. <code>comptime</code> 자리가 받는 것은 정수 리터럴과 <strong>모듈 수준의</strong> <code>let</code> 뿐이다. 식을 따라가 “결국 상수” 인지 판정하기 시작하면, 어느 식이 번역 시점에 풀리는지가 도구의 영리함에 달린다. 상수로 쓸 값은 모듈 수준에 이름을 붙인다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch22/module_const.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> module_const .
@@ -890,12 +890,12 @@ mistake_localconst.low:14:0 E-COMPTIME-ARG: this argument sits in a `comptime` p
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> seventeen <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add_const step <span class="tok-n">10</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run seventeen module_const.low
 seventeen() = 17
 </code></pre></div></div></div></div><h3 id="s22-6">22.6 이 장의 문법 한눈에<a class="plink" href="#s22-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>input comptime t type .</code></td><td>타입을 번역 시점에 받는다(머리 맨 앞)</td><td>뒤따르는 타입이 그 이름을 쓴다</td></tr><tr><td><code>input comptime n u8 .</code></td><td>값을 번역 시점에 받는다</td><td>상수로 접히고 검사가 지워진다</td></tr><tr><td><code>bytes_for u64 100</code> · <code>add_const 7 10</code></td><td>타입과 상수를 앞자리 인자로 적는다</td><td>꺾쇠도 추론도 없다 — 무엇이 만들어지는지 보인다</td></tr><tr><td><code>let step u8 be 7 .</code>(모듈 수준)</td><td><code>comptime</code> 자리에 올 수 있는 이름 붙은 상수</td><td>op 안의 <code>let</code> 은 실행 중의 이름</td></tr><tr><td><code>size_of t</code></td><td>번역 시점에 타입의 크기</td><td>크기가 상수로 박힌다</td></tr><tr><td><code>requires ordered t .</code></td><td>타입 조건 — 트레이트를 갖추어야 한다</td><td>못 갖추면 부르는 자리에서 <code>E-BOUND-UNSAT</code></td></tr><tr><td><code>method a less b</code></td><td>조건이 약속한 op 을 부른다</td><td>직접 호출로 단형화된다</td></tr><tr><td>쓰인 조합마다 실물 한 벌</td><td>단형화</td><td>비용은 속도가 아니라 코드의 양 — 소스에서 센다</td></tr></table></div><p class="float-caption">표 22.1 — 제네릭의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>comptime</code> 매개변수는 번역 시점에 값이 정해지고, 타입도 <code>input comptime t type .</code> 으로 받는다. 부르는 자리는 타입과 상수를 앞자리 인자로 적으며 추론은 없다. 실행 값을 comptime 자리에 주면 거절된다. 쓰인 조합마다 실물이 만들어져 직접 호출이 되고, 그 수가 곧 코드의 양이다. <code>requires &lt;트레이트> t .</code> 는 타입 조건이고, 갖추지 못한 타입은 거절된다. 비교 같은 행동은 값이 아니라 타입이 들고 온다.</div></div>

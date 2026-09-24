@@ -1,6 +1,6 @@
 module m .
 rem expect: E-IR-ARITY
-fn g input a u64 . input b u64 . output u64 . do return add a b . end .
+fn g input a u64 . input b u64 . output u64 . do return add a b . end
 fn f output u64 . do
   return g 1 .
-end .
+end

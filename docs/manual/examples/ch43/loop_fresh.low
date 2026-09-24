@@ -5,7 +5,7 @@ proc bump input p mut_ref u64 . output u64 .
 do
   set p (add (deref p) 1) .
   return deref p .
-end .
+end
 
 proc drift input n u64 . output u64 .
   requires le n 100 .
@@ -16,6 +16,6 @@ do
   while lt i n . do
     set seen (bump (mut_ref x)) .
     set i (add i 1) .
-  end .
+  end
   return seen .
-end .
+end

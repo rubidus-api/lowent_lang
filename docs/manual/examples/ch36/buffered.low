@@ -18,4 +18,4 @@ do
   let f result void outbuf.io_error be outbuf.buf_finish out p3 buf .
   guard is_ok f . else return 4 .
   return 0 .
-end .
+end

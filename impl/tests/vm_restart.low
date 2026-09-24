@@ -13,31 +13,31 @@ module vm_restart .
 
 rem 자기 상태를 오염시켜 다음 호출에 panic 한다. restart 가 상태를 초기화하면 **복구된다**.
 actor recov do
-  state do bad u64 . end .
+  state do bad u64 . end
   failure restart max 3 .
   proc step output u64 . effects state .
   do
-    if ne bad 0 . do panic "corrupted state" . end .
+    if ne bad 0 . do panic "corrupted state" . end
     set bad 1 .
     return 42 .
-  end .
-end .
+  end
+end
 
 rem 첫 step 은 OK(bad→1). 둘째 step 은 panic(bad=1) → 슈퍼바이저가 bad→0 초기화 → 재시도 → 42.
 proc recover output u64 . effects state . do
   var c recov be spawn actor recov . .
   var x u64 be send c step .
   return send c step .
-end .
+end
 
 rem 언제나 panic 한다 — 초기화해도 또 터진다. max 2 소진 → escalate.
 actor doomed do
-  state do v u64 . end .
+  state do v u64 . end
   failure restart max 2 .
-  proc boom output u64 . effects state . do panic "always fails" . return 0 . end .
-end .
+  proc boom output u64 . effects state . do panic "always fails" . return 0 . end
+end
 
 proc escalate output u64 . effects state . do
   var c doomed be spawn actor doomed . .
   return send c boom .
-end .
+end

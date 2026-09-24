@@ -30,24 +30,24 @@ rem ★ 키 하나가 상태를 어떻게 옮기는가 — **순수하고, 이�
 rem   범위 밖으로 나가지 않는다(맨 위에서 위로 = 그대로). 모르는 키는 상태를 안 바꾼다.
 fn step input cur u64 . input keycode u64 . output u64 . do
   if eq keycode 1002 . do
-    if lt cur 3 . do return add cur 1 . end .
+    if lt cur 3 . do return add cur 1 . end
     return cur .
-  end .
+  end
   if eq keycode 1001 . do
-    if gt cur 0 . do return sub cur 1 . end .
+    if gt cur 0 . do return sub cur 1 . end
     return cur .
-  end .
-  if eq keycode 1005 . do return 0 . end .
-  if eq keycode 1006 . do return 3 . end .
+  end
+  if eq keycode 1005 . do return 0 . end
+  if eq keycode 1006 . do return 3 . end
   return cur .
-end .
+end
 
 rem ★ 확정 키인가 — Enter(13) 또는 Space(32).
 fn is_commit input keycode u64 . output bool . do
-  if eq keycode 13 . do return true . end .
-  if eq keycode 32 . do return true . end .
+  if eq keycode 13 . do return true . end
+  if eq keycode 32 . do return true . end
   return false .
-end .
+end
 
 rem ── 화면 한 장을 **바이트로** 만든다. 순수하다: 아무 데도 안 쓴다.
 rem   `pos` 에서 시작해 새 pos 를 돌려준다(모자라면 none — 자르지 않는다).
@@ -69,7 +69,7 @@ do
       let s option u64 . be term.sgr buf pos 7 .
       guard is_some s . else return none .
       set pos (some_value s) .
-    end .
+    end
 
     let t1 option u64 . be fmt.put_str buf pos "item " .
     guard is_some t1 . else return none .
@@ -81,11 +81,11 @@ do
       let s2 option u64 . be term.sgr buf pos 0 .
       guard is_some s2 . else return none .
       set pos (some_value s2) .
-    end .
+    end
     set i (add i 1) .
-  end .
+  end
   return some pos .
-end .
+end
 
 proc main .
   input in_c cap io .
@@ -112,13 +112,13 @@ do
   var done bool be false .
   var going bool be true .
   while going . do
-    if ge at n . do set going false . end .
+    if ge at n . do set going false . end
     if going . do
       let p option u64 . be tty.parse_key (subslice inbuf 0 n) at .
       if eq (is_some p) false . do
         rem ★ 못 읽는 바이트는 **한 칸 건너뛴다**(멈추지 않는다 — 잘린 이스케이프가 흔하다).
         set at (add at 1) .
-      end .
+      end
       if is_some p . do
         let packed u64 be some_value p .
         let k u64 be tty.key_of packed .
@@ -126,20 +126,20 @@ do
         if is_commit k . do
           set done true .
           set going false .
-        end .
-        if eq done false . do set cur (step cur k) . end .
+        end
+        if eq done false . do set cur (step cur k) . end
         rem ★ 길이가 0 이면 영원히 돈다 — 최소 한 칸은 나아간다.
-        if eq used 0 . do set at (add at 1) . end .
-        if gt used 0 . do set at (add at used) . end .
-      end .
-    end .
-  end .
+        if eq used 0 . do set at (add at 1) . end
+        if gt used 0 . do set at (add at used) . end
+      end
+    end
+  end
 
   rem ③ 마지막 화면을 한 번에 낸다(그리는 동안엔 한 바이트도 안 나갔다).
   let e option u64 . be render outbuf 0 cur .
   guard is_some e . else return 72 .
   let w u64 be write_out in_c 1 (subslice outbuf 0 (some_value e)) .
 
-  if done . do return narrow u8 cur . end .
+  if done . do return narrow u8 cur . end
   return 4 .
-end .
+end

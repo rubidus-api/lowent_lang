@@ -6,4 +6,4 @@ rem ko: 순수한 `fn` 이지만 빈 줄을 받으면 멈춘다 --- 경계 검�
 fn first input xs slice u8 . output u8 .
 do
   return index xs 0 .
-end .
+end

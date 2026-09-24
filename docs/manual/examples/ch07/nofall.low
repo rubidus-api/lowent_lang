@@ -11,6 +11,6 @@ do
     case 1 . set score (add score 10) .
     case 2 . set score (add score 20) .
     case _ . set score (add score 1) .
-  end .
+  end
   return score .
-end .
+end

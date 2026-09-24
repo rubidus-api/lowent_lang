@@ -19,4 +19,4 @@ do
   let p3 option u64 be term.sgr buf (add at 2) 0 .
   guard is_some p3 . else return 0 .
   return some_value p3 .
-end .
+end

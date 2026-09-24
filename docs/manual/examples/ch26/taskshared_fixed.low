@@ -11,9 +11,9 @@ do
   let g option mut slice u8 . . be send a reserve 4 .
   if is_some g . do
     return send a used .
-  end .
+  end
   return 0 .
-end .
+end
 
 proc share input buf mut slice u8 . output u64 . effects state .
 do
@@ -25,6 +25,6 @@ do
     let a u64 be await h1 .
     let b u64 be await h2 .
     set r (add a b) .
-  end .
+  end
   return r .
-end .
+end

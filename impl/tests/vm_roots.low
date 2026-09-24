@@ -23,13 +23,13 @@ do
       if is_some g . do
         let b mut slice u8 . be some_value g .
         set (index b 32767) 9 .
-        if eq (index b 32767) 9 . do set got (add got 1) . end .
-      end .
+        if eq (index b 32767) 9 . do set got (add got 1) . end
+      end
       set i (add i 1) .
-    end .
-  end .
+    end
+  end
   return got .
-end .
+end
 
 export proc grow_fixed output u64 . effects alloc .
 do
@@ -38,12 +38,12 @@ do
     var i u64 be 0 .
     while lt i 8 . do
       let g option mut slice u8 . . be alloc_bytes r capacity 32768 .
-      if is_some g . do set got (add got 1) . end .
+      if is_some g . do set got (add got 1) . end
       set i (add i 1) .
-    end .
-  end .
+    end
+  end
   return got .
-end .
+end
 
 export proc both output u64 . effects alloc heap .
 do
@@ -58,15 +58,15 @@ do
         if is_some b . do
           let bv mut slice u8 . be some_value b .
           set (index bv 3) 55 .
-        end .
-      end .
+        end
+      end
       let c option mut slice u8 . . be alloc_bytes f capacity 16 .
       if is_some c . do
         let cv mut slice u8 . be some_value c .
         set (index cv 3) 11 .
-      end .
+      end
       set keep (add (mul (narrow u64 (index av 3)) 100) 1) .
-    end .
-  end .
+    end
+  end
   return keep .
-end .
+end

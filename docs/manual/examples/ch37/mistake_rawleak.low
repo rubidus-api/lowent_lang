@@ -11,4 +11,4 @@ do
   let n option u64 be tty_read t (some_value g) .
   let restored bool be tty_raw t false .
   return 0 .
-end .
+end

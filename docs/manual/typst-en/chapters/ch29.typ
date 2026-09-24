@@ -185,7 +185,7 @@ opposite direction (C calling our variadics) does not exist.
   id: "ffi-glance",
   caption: [C boundary syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`unsafe extern proc c_area input k cap c . … effects unsafe . link "lw_c_area" . end .`], [an op whose body is in C], [marker, right and effects line must all be present],
+  [`unsafe extern proc c_area input k cap c . … effects unsafe . link "lw_c_area" . end`], [an op whose body is in C], [marker, right and effects line must all be present],
   [`unsafe proc area_twice input k cap c . … effects unsafe .`], [an op that calls an op that calls C], [marker and right travel up the call chain],
   [`input xs slice u8 .` (at the boundary)], [two arguments in C: pointer and length], [only slices are mapped automatically],
   [`option`·`result`·vectors at the boundary], [rejected (`E-FFI-TYPE`)], [nothing absent from the C ABI is faked],

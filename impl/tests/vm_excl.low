@@ -10,7 +10,7 @@ do
   set a 1 .
   set b 2 .
   return x .
-end .
+end
 
 fn owner_read .
   output u64 .
@@ -20,4 +20,4 @@ do
   var y u64 be x .
   set r 5 .
   return x .
-end .
+end

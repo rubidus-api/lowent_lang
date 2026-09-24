@@ -50,7 +50,7 @@ do
       set total (add total (len buf)) .
       let w2 u64 be write_out k 1 buf .
       guard eq w2 (len buf) . else return 72 .
-    end .
-  end .
+    end
+  end
   return 0 .
-end .
+end

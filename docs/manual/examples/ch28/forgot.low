@@ -9,4 +9,4 @@ do
   guard is_ok o . else return 1 .
   var h owned files.handle be ok_value o .
   return 0 .
-end .
+end

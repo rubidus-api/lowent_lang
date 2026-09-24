@@ -95,7 +95,7 @@ Every place that groups statements opens with `do` and closes with `end`: an op 
 struct point do
   x u64 .
   y u64 .
-end .
+end
 
 fn sum_to input n u64 . output u64 .
 do
@@ -104,9 +104,9 @@ do
   while le i n . do
     set total (add total i) .
     set i (add i 1) .
-  end .
+  end
   return total .
-end .
+end
 ```
 
 The full stop after `end` closes the form that contains the block (the `struct` declaration, the `while` statement). `end` also closes
@@ -270,7 +270,7 @@ proc copy_upper
   requires gt (len src) 0 .
 do
   return write_out out 1 src .
-end .
+end
 ```
 
 Written on one line or one clause per line, the meaning is the same (newlines are whitespace). This book writes short heads on one
@@ -316,7 +316,7 @@ to remember the shapes too.
 #antipattern[Opening an `if` body without `do`][
   #demo("examples/ch03/mistake_ifdo.low")
 
-  Bodies are not opened by indentation as in Python. Without `do`, the `if` form ends at the stop after the condition, and the `end .`
+  Bodies are not opened by indentation as in Python. Without `do`, the `if` form ends at the stop after the condition, and the `end`
   below closes *the op's body* rather than the `if`. The remaining `return 0 .` then falls outside any declaration, which gives
   `E-TOPLEVEL` (something other than a declaration at the top level), and because the body closed early, the return paths go wrong too
   (`E-RETURN-PARTIAL`). When you see those two together, suspect a missing `do`. The fix: `if gt a 3 . do`.
@@ -348,7 +348,7 @@ to remember the shapes too.
   [*Shape*], [*Meaning*], [*Why*],
   [`add a (mul b c)`], [prefix notation --- name first, inner calls in parentheses], [no precedence rules to memorise],
   [`… .`], [a detached stop closes a form (statement or clause)], [newlines never change meaning --- break lines anywhere],
-  [`do … end .`], [every block], [only one way to open a block],
+  [`do … end`], [every block], [only one way to open a block],
   [`rem …` · `note WHY … WHY`], [line comment · multi-line comment], [no symbol comments (`//`, `#`) --- they open with a word],
   [`42` · `0x2A` · `0b101010` · `1_000`], [integer literals (the position decides the type)], [no octal --- `0755` is 755],
   [`"hi\n"` · `'a'`], [a string (several bytes) · one character], [the quote itself is the type difference],

@@ -1,14 +1,14 @@
 rem RFC-0055 D3 — 계약이 시그니처에 실려 op 경계를 넘는다.
 fn scale input a range 0 100 . output u8 . do
   return mul a 2 .                  rem [0,100]*2 = [0,200] ⊆ u8 → 검사 제거
-end .
+end
 
 rem ★ 호출자가 증명한다: x ∈ [0,50] ⊆ [0,100] → **진입 검사 제거**
 fn good input x range 0 50 . output u8 . do
   return scale x .
-end .
+end
 
 rem 증명 못 한다: y ∈ [0,255] ⊄ [0,100] → 진입 검사 유지
 fn bad input y u8 . output u8 . do
   return scale y .
-end .
+end

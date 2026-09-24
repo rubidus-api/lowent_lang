@@ -2,7 +2,7 @@ module m .
 rem expect: E-ENUM-NOVARIANT
 enum e do
   a .
-end .
+end
 fn f output e . do
   return e.b .
-end .
+end

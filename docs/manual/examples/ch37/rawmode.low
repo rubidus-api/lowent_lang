@@ -15,15 +15,15 @@ do
     guard is_some n . else do
       set going false .
       continue .
-    end .
+    end
     let p option u64 be tty.parse_key (subslice buf 0 (some_value n)) 0 .
     if is_some p . do
       set last (tty.key_of (some_value p)) .
       if eq last 113 . do
         set going false .
-      end .
-    end .
-  end .
+      end
+    end
+  end
   let restored bool be tty_raw t false .
   return narrow_sat u8 last .
-end .
+end

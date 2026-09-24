@@ -4,15 +4,15 @@ rem expect: E-METHOD-RECV
 struct rect do
   w u64 .
   h u64 .
-end .
+end
 rem ko: ✘ 수신자 `s` 가 첫 입력이 아니다 /// en: ✘ the receiver `s` is not the first input
 fn rect.scaled input k u64 . input s rect . output u64 .
   requires le k 100 .
 do
   return mul k (field s w) .
-end .
+end
 fn f output u64 .
 do
-  let r rect be make rect do w 2 . h 3 . end .
+  let r rect be make rect do w 2 . h 3 . end
   return method r scaled 5 .
-end .
+end

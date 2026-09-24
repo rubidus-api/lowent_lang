@@ -1,24 +1,24 @@
 rem ① div0: 계약이 제수 ≠ 0 을 보장 → 검사 제거
 fn dsafe input a u32 . input b u32 . output u32 .
   requires ge b 1 .
-do return div a b . end .
+do return div a b . end
 
 rem ② div0: 계약 없음 → 검사 잔존
 fn dbare input a u32 . input b u32 . output u32 .
-do return div a b . end .
+do return div a b . end
 
 rem ③ narrow: 계약이 범위를 보장 → 트랩 제거
 fn nsafe input x u32 . output u8 .
   requires le x 200 .
-do return narrow u8 x . end .
+do return narrow u8 x . end
 
 rem ④ narrow: 계약 없음 → 트랩 잔존
 fn nbare input x u32 . output u8 .
-do return narrow u8 x . end .
+do return narrow u8 x . end
 
 rem ⑤ narrow_try: 실패를 값으로
 fn ntry input x u32 . output u64 . do
   var r u64 . be narrow_try u8 x .
   guard is_some r . else return 999 . .
   return some_value r .
-end .
+end

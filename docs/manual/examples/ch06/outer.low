@@ -7,6 +7,6 @@ do
   if gt a 1 . do
     let t u64 be 2 .
     return t .
-  end .
+  end
   return t .
-end .
+end

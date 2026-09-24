@@ -5,39 +5,39 @@ rem trap: escalate
 actor recov do
   state do
     bad u64 .
-  end .
+  end
   failure restart max 3 .
   proc step output u64 . effects state panic .
   do
     if ne bad 0 . do
       panic "corrupted state" .
-    end .
+    end
     set bad 1 .
     return 42 .
-  end .
-end .
+  end
+end
 
 actor doomed do
   state do
     v u64 .
-  end .
+  end
   failure restart max 2 .
   proc boom output u64 . effects state panic .
   do
     panic "always fails" .
     return 0 .
-  end .
-end .
+  end
+end
 
 proc recover output u64 . effects state panic .
 do
   var c recov be spawn actor recov .
   let x u64 be send c step .
   return send c step .
-end .
+end
 
 proc escalate output u64 . effects state panic .
 do
   var c doomed be spawn actor doomed .
   return send c boom .
-end .
+end

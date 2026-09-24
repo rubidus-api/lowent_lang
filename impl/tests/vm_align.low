@@ -6,13 +6,13 @@ struct reg do
   align 16 .
   ctrl u32 .
   stat u16 .
-end .
+end
 
-fn reg_size output u64 . do return len encode reg mk . . end .
+fn reg_size output u64 . do return len encode reg mk . . end
 
 fn mk output reg . do
-  return make reg do ctrl 7 . stat 2 . end .
-end .
+  return make reg do ctrl 7 . stat 2 . end
+end
 
 rem a view of a slice that starts mid-buffer breaks the contract → none / panic.
 fn tv_at .
@@ -24,4 +24,4 @@ do
   guard is_some o . else return 0 . .
   var h reg . be some_value o .
   return expr (field h ctrl) + 1000 . .
-end .
+end

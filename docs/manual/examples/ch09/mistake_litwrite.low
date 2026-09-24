@@ -6,4 +6,4 @@ fn poke output u8 . do
   let buf mut slice u8 . be "abc" .
   set (index buf 0) 65 .
   return index buf 0 .
-end .
+end

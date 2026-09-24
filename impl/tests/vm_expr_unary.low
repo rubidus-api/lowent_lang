@@ -11,8 +11,8 @@ module vm_expr_unary .
 
 fn neg_in_island output u64 . do
   return expr - 5 .
-end .
+end
 
 proc main output u8 . effects none . do
   return 0 .
-end .
+end

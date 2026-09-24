@@ -19,29 +19,29 @@ module vm_typedpass .
 struct pt do
   x u8 .
   y u8 .
-end .
+end
 
 fn inner_len input s slice u32 . output u64 . do
   return len s .
-end .
+end
 
 rem ★ 넘긴다 — 여기가 깨지던 자리다.
 fn outer_len input s slice u32 . output u64 . do
   return inner_len s .
-end .
+end
 
 fn inner_first_x input s slice pt . output u8 . do
   let p be index s 0 . .
   return field p x .
-end .
+end
 
 fn outer_first_x input s slice pt . output u8 . do
   return inner_first_x s .
-end .
+end
 
 test typed_slices_cross_op_boundaries do
   rem "abcdefgh" = u32 둘
   expect eq (outer_len "abcdefgh") 2 .
   rem "abcd" = pt 둘: (97,98) (99,100)
   expect eq (outer_first_x "abcd") 97 .
-end .
+end

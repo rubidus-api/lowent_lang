@@ -7,6 +7,6 @@ do
   var total u64 be 0 .
   for x xs do
     set total (add total (widen u64 x)) .
-  end .
+  end
   return div total (len xs) .
-end .
+end

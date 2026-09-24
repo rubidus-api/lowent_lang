@@ -19,27 +19,27 @@ module vm_chain .
 
 fn needs_small input a range 0 10 . output u8 . do
   return a .
-end .
+end
 
 fn bounded input a u8 . output u8 . ensures le ret 10 .
 do
-  if gt a 10 . do return 10 . end .
+  if gt a 10 . do return 10 . end
   return a .
-end .
+end
 
 rem ★ 약속을 쓴다 → 검사가 사라진다.
 fn chain input a u8 . output u8 . do
   let v be bounded a . .
   return needs_small v .
-end .
+end
 
 rem 대조: 약속이 없다 → 검사가 남는다.
 fn nochain input a u8 . output u8 . do
   return needs_small a .
-end .
+end
 
 test contracts_flow_through_calls do
   expect eq (chain 200) 10 .       rem bounded 가 클램프한다 — 그리고 검사는 없다
   expect eq (chain 5) 5 .
   expect eq (nochain 5) 5 .        rem 계약 안 — 통과
-end .
+end

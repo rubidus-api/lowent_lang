@@ -5,11 +5,11 @@ fn bad .
 do
   var l u64 be 5 .
   return ref l .
-end .
+end
 
 fn use_bad .
   output u64 .
 do
   var r ref u64 . be bad .
   return deref r .
-end .
+end

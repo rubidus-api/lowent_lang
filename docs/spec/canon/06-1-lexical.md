@@ -401,6 +401,25 @@ let mixed u32 be add 1 (mul 2 3) .
 (2) 폼은 자기 닫개에서 끝난다. 닫개는 점 `.` 하나이며, 감싼 것이 끝나는 자리
       — `)` 와 `end` — 가 안에 열린 것을 함께 닫는다.
 
+(2a) 블록(`do … end`)으로 끝나는 폼은 그 `end` 가 **블록과 폼을 함께** 닫는다. 그러므로 `end`
+      바로 뒤에 점을 적으면 닫을 것이 없고, 번역이 거부된다(`E-DOT-STRAY`). 블록을 여는
+      `do` 바로 뒤의 점도 같다 — 거기에는 아직 닫을 폼이 없다.
+
+```lowent-거부: `end` 뒤의 점은 닫을 것이 없다 · E-DOT-STRAY
+module ex_dot_after_end .
+
+fn f input a u64 . output u64 . do
+  if eq a 0 . do return 1 . end .
+  return a .
+end
+```
+
+> [!산문]
+> 한때는 `end .` 와 `end` 가 둘 다 섰다 — 처리기가 뒤의 점을 **빈 폼**으로 보고 조용히 버렸기
+> 때문이다. 같은 뜻에 철자가 둘이면 읽는 사람은 그 점이 무엇을 닫는지 찾게 되고, 찾아도 없다.
+> 그리고 ⟦§6.1.5⟧ (4) 가 말한 «점의 개수는 검사합» 이 그 자리에서 참이 아니었다. 그래서 점을
+> 뗐다(2026-09-25).
+
 (3) 그러므로 줄을 어디서 나누어도 뜻이 같다. 줄을 이어 쓰는 표시를 두지
       아니한다 — 행끝 이음표도, 줄 끝의 쉼표도, 들여쓰기 규칙도 없다.
 
@@ -410,10 +429,10 @@ let mixed u32 be add 1 (mul 2 3) .
 module ex_newline .
 
 rem 개행은 공백이다. 폼은 자기 닫개 `.` 에서 끝난다.
-fn poly input a u64 . input b u64 . output u64 . do .
+fn poly input a u64 . input b u64 . output u64 . do
   return add (mul a 2)
              (mul b 3) .
-end .
+end
 ```
 
 > [!산문]

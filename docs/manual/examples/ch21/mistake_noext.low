@@ -7,4 +7,4 @@ use geom from "geom" .
 fn same input v i64 . output i64 .
 do
   return v .
-end .
+end

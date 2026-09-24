@@ -7,4 +7,4 @@ do
   rem ko: 비었으면 여기서 떠난다 --- 아래에서는 원소가 하나 이상이라는 것이 사실이다 /// en: leave here if empty --- below this line, having at least one element is a fact
   guard gt (len xs) 0 . else return fallback .
   return index xs 0 .
-end .
+end

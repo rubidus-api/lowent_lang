@@ -9,6 +9,6 @@ do
   var s u64 be 0 .
   for x xs do
     set s (add s (widen u64 x)) .
-  end .
+  end
   return s .
-end .
+end

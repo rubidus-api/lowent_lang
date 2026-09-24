@@ -15,19 +15,19 @@ struct wide do
   f1 u8 .  f2 u8 .  f3 u8 .  f4 u8 .
   f5 u8 .  f6 u8 .  f7 u8 .  f8 u8 .
   f9 u8 .  f10 u8 . f11 u8 . f12 u8 .
-end .
+end
 
 fn ninth input s slice u8 . output u8 . do
   let v be view wide s . .
   return field v f9 .              rem 9번째 — **조용히 없어졌던 자리**
-end .
+end
 
 fn twelfth input s slice u8 . output u8 . do
   let v be view wide s . .
   return field v f12 .
-end .
+end
 
 test fields_past_eight do
   expect eq (ninth "abcdefghijkl") 105 .     rem 'i' = 105
   expect eq (twelfth "abcdefghijkl") 108 .   rem 'l' = 108
-end .
+end

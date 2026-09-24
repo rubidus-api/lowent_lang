@@ -35,7 +35,7 @@ fn pick input given option slice u8 . output slice u8 . do
   let t slice u8 be strings.trim_end (strings.trim_start (some_value given) " ") " " .
   guard gt (len t) 0 . else return "world" .
   return t .
-end .
+end
 
 rem ★ **줄 하나를 버퍼에 조립한다** — `effects none` 이다. 이 op 은 출력도 할당도 하지 않고,
 rem   **호출자가 준 버퍼**에만 쓴다. 안 들어가면 `none` — 잘린 줄을 내보내지 않는다(전량-아니면-무).
@@ -58,7 +58,7 @@ do
   let g option u64 . be fmt.put_str buf (some_value f) " bytes)" .
   guard is_some g . else return none .
   return fmt.put_nl buf (some_value g) .
-end .
+end
 
 rem ── 엔트리 — 여기서만 권한이 들어온다 ─────────────────────────────────
 
@@ -91,4 +91,4 @@ do
   rem ⑤ **한 번 쓴다.** greet 은 세 번 썼다 — 조립할 곳이 없어서.
   let wrote u64 be write_out out 1 (subslice buf 0 (some_value n)) .
   return (narrow u8 wrote) .
-end .
+end

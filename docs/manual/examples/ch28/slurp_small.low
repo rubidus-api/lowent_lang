@@ -15,4 +15,4 @@ do
   rem ko: 앞 8 바이트로 잘려 오지 않는다 --- 오류다 /// en: it does not come back cut to the first 8 bytes --- it is an error
   guard not (is_error r) . else return 2 .
   return narrow u8 (ok_value r) .
-end .
+end

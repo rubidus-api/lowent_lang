@@ -9,6 +9,6 @@ do
   while lt (add i 1) (len s) . do
     set (index s i) (div (wrap_add (index s i) (index s (add i 1))) 2) .
     set i (add i 1) .
-  end .
+  end
   return len s .
-end .
+end

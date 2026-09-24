@@ -13,7 +13,7 @@ do
   let p option mut slice u8 be send al reserve 3 .
   guard is_some p . else return 91 .
   return send al used .
-end .
+end
 
 proc with_two input small mut slice u8 . input big mut slice u8 . output u64 . effects state .
 do
@@ -25,4 +25,4 @@ do
   let n u64 using g be two_from .
   let m u64 using g be two_from .
   return m .
-end .
+end

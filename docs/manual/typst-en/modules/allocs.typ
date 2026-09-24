@@ -24,7 +24,7 @@ export trait byte_allocator do
   reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
   grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
   used    input s self . output u64 . effects state .
-end .
+end
 ```
 
 `freeing_allocator` adds `release input s self . input v mut slice u8 . . output bool .` to the same three. `via self` means "this op's effect is the effect the implementation
@@ -82,14 +82,14 @@ do
   guard is_some q . else return 92 .
   let g option mut slice u8 . . be send al grow (some_value q) 9 .
   return send al used .
-end .
+end
 
 proc borrowed2 input buf mut slice u8 . . output u64 . effects state . do
   var b allocs.bump_bytes be spawn actor allocs.bump_bytes . .
   let c u64 be send b init buf .
   let n u64 using b be two_from .
   return n .
-end .
+end
 ```
 
 With a bump, 3 + 5 grown to 9 gives 12; with `bump_aligned` the second piece starts at 8, giving 17; with `heap_bytes`, `grow` is `none` and `heap` appears in the instance's

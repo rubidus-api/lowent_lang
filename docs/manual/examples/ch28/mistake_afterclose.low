@@ -14,4 +14,4 @@ do
   let w result u64 files.file_error be files.write fs h "late\n" .
   drop w .
   return 0 .
-end .
+end

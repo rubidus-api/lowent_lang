@@ -17,7 +17,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum gcm_error do
   short_workspace .
-end .
+end
 
 
 rem ☞ **왜 `seal`/`unseal` 이 아니라 `encrypt`/`decrypt` 인가.**
@@ -34,9 +34,9 @@ proc xor16 input z mut slice u8 . input x slice u8 . output u64 . effects none .
   while lt i 16 . do
     set (index z i) (cast u8 (bit_xor (cast u64 (index z i)) (cast u64 (index x i)))) .
     set i (add i 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★★ z = z · h  in GF(2^128).  `v` 는 16 바이트 작업 공간.
 export proc gmul128 input z mut slice u8 . input h slice u8 . input v mut slice u8 . output u64 . effects none . do
@@ -49,7 +49,7 @@ export proc gmul128 input z mut slice u8 . input h slice u8 . input v mut slice 
     set (index v i) (index z i) .
     set (index z i) 0 .
     set i (add i 1) .
-  end .
+  end
   var b u64 be 0 .
   while lt b 128 . do
     rem h 의 비트 b — **첫 바이트의 최상위 비트가 b=0** 이다.
@@ -57,7 +57,7 @@ export proc gmul128 input z mut slice u8 . input h slice u8 . input v mut slice 
     let bit u64 be bit_and (shr byte (sub 7 (bit_and b 7))) 1 .
     if eq bit 1 . do
       let zz u64 be xor16 z v .
-    end .
+    end
     rem v 를 오른쪽으로 한 비트. 밀려난 최하위 비트는 0xE1 로 되돌아온다.
     let lsb u64 be bit_and (cast u64 (index v 15)) 1 .
     var k u64 be 15 .
@@ -66,18 +66,18 @@ export proc gmul128 input z mut slice u8 . input h slice u8 . input v mut slice 
       var cur u64 be shr (cast u64 (index v k)) 1 .
       if gt k 0 . do
         set cur (bit_or cur (shl (bit_and (cast u64 (index v (sub k 1))) 1) 7)) .
-      end .
+      end
       set (index v k) (cast u8 cur) .
-      if eq k 0 . do  set done 1 .  end .
-      if eq done 0 . do  set k (sub k 1) .  end .
-    end .
+      if eq k 0 . do  set done 1 .  end
+      if eq done 0 . do  set k (sub k 1) .  end
+    end
     if eq lsb 1 . do
       set (index v 0) (cast u8 (bit_xor (cast u64 (index v 0)) 225)) .
-    end .
+    end
     set b (add b 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★★★★ **한 조각을 GHASH 에 먹인다 — 이제 잎 하나가 판다** (X-0043ⓑ, 2026-09-20).
 rem   그전에는 `gmul128` 이 블록마다 128 비트를 하나씩 돌았다. 같은 기계에서 4 MiB 를 재면
@@ -89,7 +89,7 @@ proc ghash_feed input z mut slice u8 . input h slice u8 . input data slice u8 . 
   guard ge (len h) 16 . else return 0 .
   let g u64 be call_builtin ghash (subslice h 0 16) (subslice z 0 16) data .
   return 1 .
-end .
+end
 
 rem ★ 길이 블록: [len(A)]64 ‖ [len(C)]64, **비트 수**로, 빅엔디언.
 rem   ☞ 바이트가 아니라 **비트**다. 여기서 8 을 빠뜨리는 것이 이 알고리즘의 고전적 오답이다.
@@ -102,14 +102,14 @@ proc ghash_lens input z mut slice u8 . input h slice u8 . input alen u64 . input
     set (index blk i) (cast u8 (bit_and (shr abits (mul (sub 7 i) 8)) 255)) .
     set (index blk (add 8 i)) (cast u8 (bit_and (shr cbits (mul (sub 7 i) 8)) 255)) .
     set i (add i 1) .
-  end .
+  end
   return ghash_feed z h (subslice blk 0 16) .
-end .
+end
 
 rem ★ GCTR 한 블록: 카운터 블록을 암호화해 평문과 XOR 한다.
 proc gctr_block input rk slice u8 . input ctr mut slice u8 . input ks mut slice u8 . input tmp mut slice u8 . output u64 . effects none . do
   var i u64 be 0 .
-  while lt i 16 . do  set (index ks i) (index ctr i) .  set i (add i 1) .  end .
+  while lt i 16 . do  set (index ks i) (index ctr i) .  set i (add i 1) .  end
   guard eq (aes.encrypt_block rk ks tmp) 16 . else return 0 .
   rem 카운터의 **뒤 4 바이트**를 1 증가(inc32).
   var k u64 be 15 .
@@ -121,9 +121,9 @@ proc gctr_block input rk slice u8 . input ctr mut slice u8 . input ks mut slice 
     set carry (shr s 8) .
     set k (sub k 1) .
     set n (add n 1) .
-  end .
+  end
   return 16 .
-end .
+end
 
 rem ★★ 봉인: 평문 → 암호문 + 16 바이트 태그. nonce 는 **12 바이트**만 받는다.
 rem   ☞ 96비트가 아닌 IV 는 J0 를 GHASH 로 만들어야 한다 — TLS 는 언제나 96비트이므로
@@ -162,7 +162,7 @@ proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 .
 
   rem 원래 키를 일터에 둔다 — 잎은 확장키가 아니라 **16 바이트 키**를 받는다.
   var kk u64 be 0 .
-  while lt kk 16 . do  set (index w (add 304 kk)) (index key kk) .  set kk (add kk 1) .  end .
+  while lt kk 16 . do  set (index w (add 304 kk)) (index key kk) .  set kk (add kk 1) .  end
 
   rem H = AES_K(0^128) — 카운터 0, 평문 0 으로 한 블록.
   var i u64 be 0 .
@@ -170,7 +170,7 @@ proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 .
     set (index w (add 176 i)) 0 .
     set (index w (add 208 i)) 0 .
     set i (add i 1) .
-  end .
+  end
   let h1 u64 be call_builtin aes_ctr (subslice w 304 320) (subslice w 208 224) (subslice w 176 192) (subslice w 176 192) .
   guard eq h1 16 . else return 0 .
 
@@ -180,18 +180,18 @@ proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 .
   while lt n 12 . do
     set (index w (add 256 n)) (index nonce n) .
     set n (add n 1) .
-  end .
+  end
   set (index w 268) 0 .  set (index w 269) 0 .  set (index w 270) 0 .  set (index w 271) 1 .
   var c u64 be 0 .
   while lt c 16 . do
     set (index w (add 240 c)) (index w (add 256 c)) .
     set (index w (add 272 c)) 0 .
     set c (add c 1) .
-  end .
+  end
   let j1 u64 be call_builtin aes_ctr (subslice w 304 320) (subslice w 240 256) (subslice w 272 288) (subslice w 272 288) .
   guard eq j1 16 . else return 0 .
   return 16 .
-end .
+end
 
 rem ★★★★ **흐름 — 이제 잎 하나가 판다** (X-0043ⓑ, 2026-09-20).
 rem   그전에는 `gctr_block` 이 블록마다 `aes.encrypt_block` 을 불렀고, 4 MiB 에 7172 ms
@@ -205,18 +205,18 @@ proc gcm_stream input src slice u8 . input dst mut slice u8 . input w mut slice 
   let n u64 be call_builtin aes_ctr (subslice w 304 320) (subslice w 240 256) src dst .
   guard eq n (len src) . else return 0 .
   return 16 .
-end .
+end
 
 rem ★ 태그: T = GHASH(H, A ‖ pad ‖ C ‖ pad ‖ [len(A)]64 ‖ [len(C)]64) XOR AES_K(J0).
 rem   `ct` 는 **암호문**이다 — 암호화면 방금 쓴 것, 복호면 받은 것. 평문을 넣으면 틀린다.
 proc gcm_tag input aad slice u8 . input ct slice u8 . input tag mut slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard ge (len tag) 16 . else return 0 .
   var q u64 be 0 .
-  while lt q 16 . do  set (index w (add 192 q)) 0 .  set q (add q 1) .  end .
+  while lt q 16 . do  set (index w (add 192 q)) 0 .  set q (add q 1) .  end
   let g1 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) aad .
   let g2 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) ct .
   return gcm_tag_finish (len aad) (len ct) tag w .
-end .
+end
 
 rem ★★★ **태그 마무리** — 길이 블록을 먹이고 `T = S XOR AES_K(J0)` 를 낸다.
 rem   누산은 **이미 되어 있다**: 봉인은 낱말이 흐르며 먹였고(RFC-0124), 복호는 `gcm_tag` 가 먹였다.
@@ -231,9 +231,9 @@ proc gcm_tag_finish input alen u64 . input clen u64 . input tag mut slice u8 . i
   while lt t 16 . do
     set (index tag t) (cast u8 (bit_xor (cast u64 (index w (add 192 t))) (cast u64 (index w (add 272 t))))) .
     set t (add t 1) .
-  end .
+  end
   return 16 .
-end .
+end
 
 rem ★★★★★ **봉인의 흐름 — 흐르는 자리와 누산하는 자리를 한 바퀴에** (RFC-0124, 2026-09-24).
 rem   그전에는 `gcm_stream`(흐름) 한 바퀴, `gcm_tag`(누산) 또 한 바퀴였다. 둘 다 기계 명령을
@@ -251,13 +251,13 @@ proc gcm_seal_stream input aad slice u8 . input src slice u8 . input dst mut sli
   guard ge (len dst) (len src) . else return 0 .
   guard ge (len w) 320 . else return 0 .
   var q u64 be 0 .
-  while lt q 16 . do  set (index w (add 192 q)) 0 .  set q (add q 1) .  end .
+  while lt q 16 . do  set (index w (add 192 q)) 0 .  set q (add q 1) .  end
   let g1 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) aad .
   let n u64 be call_builtin aes_gcm (subslice w 304 320) (subslice w 240 256)
                        (subslice w 176 192) (subslice w 192 208) src dst .
   guard eq n (len src) . else return 0 .
   return 16 .
-end .
+end
 
 rem ★ 암호화 — 흐름을 먼저 돌리고, **만든 암호문**에 태그를 매긴다.
 export proc encrypt input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
@@ -270,7 +270,7 @@ errors short_workspace . do
   guard eq (gcm_prep key nonce w) 16 . else return ok 0 .
   guard eq (gcm_seal_stream aad msg ct w) 16 . else return ok 0 .
   return ok (gcm_tag_finish (len aad) (len msg) tag w) .
-end .
+end
 
 rem ★★ 복호 — **받은 암호문**에 태그를 매겨 먼저 대조하고, 맞을 때만 평문을 낸다.
 rem   태그가 틀리면 `msg` 에는 **한 바이트도 쓰지 않는다**.
@@ -292,8 +292,8 @@ errors short_workspace . do
   while lt i 16 . do
     set diff (bit_or diff (bit_xor (cast u64 (index want i)) (cast u64 (index tag i)))) .
     set i (add i 1) .
-  end .
+  end
   guard eq diff 0 . else return ok 0 .
   guard eq (gcm_stream ct msg w) 16 . else return ok 0 .
   return ok 1 .
-end .
+end

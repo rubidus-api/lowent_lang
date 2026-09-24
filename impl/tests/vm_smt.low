@@ -19,7 +19,7 @@ export proc chain_two_hops input s slice u8 . . input i u64 . input j u64 . inpu
   requires ge (len s) cap .
 do
   return index s i .
-end .
+end
 
 rem ✔ ② **구간과 계약을 섞는다**: i ≤ 7(계약이 준 구간) · len(s) ≥ n · n ≥ 8.
 rem   상계는 **구간**에서 오고 길이 사실은 **계약**에서 온다. 용량 규칙은 `i < cap` 이라는
@@ -31,7 +31,7 @@ export proc mixed_interval_contract input s slice u8 . . input i u64 . input n u
   requires ge (len s) n .
 do
   return index s i .
-end .
+end
 
 rem ✔ ③ 같은 엮기를 **쓰기** 쪽에서도 (istore) — 읽기만 지우고 쓰기를 놓치면 절반짜리다.
 export proc write_two_hops input s mut slice u8 . . input i u64 . input j u64 . input cap u64 .
@@ -41,7 +41,7 @@ export proc write_two_hops input s mut slice u8 . . input i u64 . input j u64 . 
   requires ge (len s) cap .
 do
   set (index s i) 9 .
-end .
+end
 
 rem ✘ ④ **증명되면 안 된다** — 반례가 있다. `le i n`(비엄격) + `len(s) ≥ n` 은
 rem   i = n = len(s) 를 허용하고, 그것은 범위 **밖**이다.
@@ -52,11 +52,11 @@ export proc must_not_prove input s slice u8 . . input i u64 . input n u64 .
   requires ge (len s) n .
 do
   return index s i .
-end .
+end
 
 rem ★ 진입점 — `export` 로 내면 방출된 C 의 `main` 과 **이름이 부딪힌다**(실측: conflicting
 rem   types for 'main'). 차등 스윕이 그것을 잡았다: `--check` 는 초록인데 **네이티브가 안 지어졌다**.
 proc main output u8 . effects none .
 do
   return 0 .
-end .
+end

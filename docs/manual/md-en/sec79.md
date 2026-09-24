@@ -31,7 +31,7 @@ It is pure computation using only 32-bit addition, XOR and rotation, so it is ex
 
 The face usually used is `stream`. It answers the number of bytes processed, and **0 means failure**.
 
-**What is checked** — the RFC 8439 §2.3.2 block function vector and §2.4.2 encryption vector. The block function is measured separately because matching only the stream can coincide even with a wrong state layout, and then the next person to build on it goes wrong. **Not built** — authentication (`aead`), XChaCha20 (extended nonce), counter exhaustion detection, constant-time guarantees, parallel block generation.
+**What is checked** — the RFC 8439 §2.3.2 block function vector and §2.4.2 encryption vector. The block function is measured separately because matching only the stream can coincide even with a wrong state layout, and then the next person to build on it goes wrong. **Not built** — authentication (`aead`), XChaCha20 (extended nonce), counter exhaustion detection, constant-time guarantees.
 
 ---
 

@@ -52,7 +52,7 @@ fn twice output u32 .
   requires le n 2147483647 .
 do
   return mul n 2 .
-end .
+end
 ```
 
 > [!산문]

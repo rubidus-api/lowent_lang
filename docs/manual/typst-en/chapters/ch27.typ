@@ -276,7 +276,7 @@ kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT
   caption: [Parallel and atomic syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`parallel s split .` (op head)], [declares that `s` may be split and processed by many], [a claim that is checked, not trusted --- `W-PAR-OK` when it holds],
-  [`while lt i (len s) . do … end .`], [the shape of a splittable loop], [any other shape is `E-PAR-NOLOOP`],
+  [`while lt i (len s) . do … end`], [the shape of a splittable loop], [any other shape is `E-PAR-NOLOOP`],
   [reading and writing only `index s i`], [only its own share], [others' places: `E-PAR-READ` · `E-PAR-WRITE`],
   [`reduce acc add .`], [accumulate per piece, then combine with the operation], [start at the identity --- the operation must be associative (`E-PAR-ASSOC`)],
   [`atomic_add counter 0 1` · `atomic_load cells 0`], [atomically on a place named by slice and index], [`effects atomic` + `cap atomic`],

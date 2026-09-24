@@ -21,11 +21,11 @@ do
     if lt i (len a) . do
       let v u32 be index a i .
       set (index a i) (add v 1) .
-    end .
+    end
     set i (add i 1) .
-  end .
+  end
   return 0 .
-end .
+end
 
 rem ── ② 안 묶인다: 한 걸음이 **곱**이다(+1 이 아니다). 검증이 후보를 버려야 한다.
 export proc blow input a mut slice u32 . . input n u64 . .
@@ -39,8 +39,8 @@ do
     if lt i (len a) . do
       let v u32 be index a i .
       set (index a i) (mul v 3) .
-    end .
+    end
     set i (add i 1) .
-  end .
+  end
   return 0 .
-end .
+end

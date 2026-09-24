@@ -4,10 +4,10 @@ rem ko: 몸이 C 에 있다 — 표시·권리·효과 줄 셋을 모두 갖춘�
 unsafe extern proc c_area input k cap c . input w i64 . input h i64 . output i64 .
   effects unsafe .
   link "lw_c_area" .
-end .
+end
 
 unsafe proc area_twice input k cap c . input w i64 . input h i64 . output i64 .
   effects unsafe .
 do
   return add (c_area k w h) (c_area k w h) .
-end .
+end

@@ -7,7 +7,7 @@ fn consume input h owned buffer . output u8 .
 do
   drop h .
   return 1 .
-end .
+end
 
 fn three_times input v u8 . output u8 .
 do
@@ -19,7 +19,7 @@ do
     rem ko: 넘긴 자리를 새 값으로 다시 채운다 --- 바퀴가 시작할 때와 같은 모양으로 끝난다 /// en: refill the moved place with a new value --- the round ends in the same shape it began
     set h v .
     set i (add i 1) .
-  end .
+  end
   drop h .
   return n .
-end .
+end

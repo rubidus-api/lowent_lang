@@ -6,4 +6,4 @@ proc main input fs cap file_system . output u8 . effects io .
 do
   let n u64 be write_out fs 1 "hi\n" .
   return 0 .
-end .
+end

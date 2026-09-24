@@ -747,7 +747,7 @@ int main(void) {
         proven_array_destroy(&p.diags); if (p.forms) heap.free_fn(heap.ctx, p.forms);
     }
     {
-        low_parse_result_t p = PARSE("let w record do x 1 . end .");
+        low_parse_result_t p = PARSE("let w record do x 1 . end");
         low_cst_t *val = (p.nforms && p.forms[0]->nkids == 3) ? p.forms[0]->kids[2] : NULL;
         check(val && val->kind == LOW_CST_FORM && val->closer == LOW_TOK_EOF, "headed record block, end closer");
         proven_array_destroy(&p.diags); if (p.forms) heap.free_fn(heap.ctx, p.forms);
@@ -2149,7 +2149,7 @@ int main(void) {
     //   그 검사가 없으면 match 는 그냥 if 사슬이고, 새 변형이 조용히 빠진다.
     {
         const char *src =
-            "enum color do\n red .\n green .\n blue .\nend .\n"
+            "enum color do\n red .\n green .\n blue .\nend\n"
             "fn code input c color . output u8 .  do "
             "  match c do "
             "    case red . do return 10 . end "
@@ -2178,18 +2178,18 @@ int main(void) {
         proven_array_destroy(&p.diags); proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }
     // ★★ 완전성 — 이것이 match 의 값어치다.
-    check(CHECK("enum e do\n a .\n b .\nend .\n"
+    check(CHECK("enum e do\n a .\n b .\nend\n"
                 "fn f input c e . output u8 .  do "
                 "  match c do case a . do return 1 . end end end end") == false,
           "match: ★★ a missing variant → E-MATCH-INEXHAUSTIVE. THIS is what a `match` buys over an "
           "if-chain: add a variant to the enum later and the compiler finds every place that must "
           "change");
-    check(CHECK("enum e do\n a .\n b .\nend .\n"
+    check(CHECK("enum e do\n a .\n b .\nend\n"
                 "fn f input c e . output u8 .  do "
                 "  match c do case a . do return 1 . end case ghost . do return 2 . end "
                 "  case b . do return 3 . end end end end") == false,
           "match: ★ a `case` naming a variant the enum does not contain → E-MATCH-UNDEF");
-    check(CHECK("enum e do\n a .\n b .\nend .\n"
+    check(CHECK("enum e do\n a .\n b .\nend\n"
                 "fn f input c e . output u8 .  do "
                 "  match c do case a . do return 1 . end case b . do return 2 . end end end end") == true,
           "match: an exhaustive match passes (no false positive)");
@@ -2650,7 +2650,7 @@ int main(void) {
     //   문법이 열려 있으면 파서가 **조용히 다른 뜻으로 읽는다.** 닫힌 문법이 그것을 막는다.
     {
         const char *src =
-            "enum k do\n a .\n b .\nend .\n"
+            "enum k do\n a .\n b .\nend\n"
             "fn f input s slice u8 . output u64 .  do "
             "  var n u64 be 0 . var i u64 be 0 . "
             "  while lt i (len s) . do "
@@ -2717,9 +2717,9 @@ int main(void) {
     // (슬라이스 원소 쓰기 `set (index s i) v .` 와 같은 자리다.)
     {
         const char *src =
-            "struct p do\n x u8 .\n y u8 .\nend .\n"
+            "struct p do\n x u8 .\n y u8 .\nend\n"
             "fn f input v u8 . output u8 .  do "
-            "  var q p be make p do x 1 . y 2 . end . "
+            "  var q p be make p do x 1 . y 2 . end "
             "  set (field q x) v . "
             "  return expr (field q x) + (field q y) . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -2733,14 +2733,14 @@ int main(void) {
         if (p.forms) heap.free_fn(heap.ctx, p.forms);
         proven_array_destroy(&p.diags); proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }
-    check(TYCK("struct p do\n x u8 .\nend .\n"
+    check(TYCK("struct p do\n x u8 .\nend\n"
                "fn f output u8 .  do "
-               "  var q p be make p do x 1 . end . set (field q ghost) 5 . "
+               "  var q p be make p do x 1 . end set (field q ghost) 5 . "
                "  return field q x . end") == false,
           "field write: ★ writing a field no struct declares → E-TYPE-FIELD");
-    check(TYCK("struct p do\n x u8 .\nend .\n"
+    check(TYCK("struct p do\n x u8 .\nend\n"
                "fn f input a i32 . output u8 .  do "
-               "  var q p be make p do x 1 . end . set (field q x) a . "
+               "  var q p be make p do x 1 . end set (field q x) a . "
                "  return field q x . end") == false,
           "field write: ★ a value that does not match the field's declared type is caught "
           "(the ⊑ lattice applies here too)");

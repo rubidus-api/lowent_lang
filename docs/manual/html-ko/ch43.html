@@ -678,9 +678,9 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
     <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">1</span>) .
     <strong><span class="tok-k">set</span></strong> seen (deref r) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> seen .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check loop_stale.low
 12:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
 12:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
@@ -691,7 +691,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> deref p .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> drift <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
@@ -702,9 +702,9 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> seen (bump (<strong><span class="tok-k">mut_ref</span></strong> x)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> seen .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run drift loop_fresh.low 5
 drift(5) = 6
 </code></pre></div></div><p>반대로 빌림이 반복 <strong>안에서 태어나 안에서 끝나면</strong> 회차마다 신선하고, 회차 사이에 낡은 것이 남지 않는다. “반복 안에서 만들고 반복 안에서 끝내라” 는 흔한 조언에 증명이 붙은 것이다.</p><h3 id="s43-2">43.2 고정점이면 몇 번이든<a class="plink" href="#s43-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>여기서 함수 <code>f</code> 는 “반복 몸을 한 번 도는 것” 이고, 값 <code>x</code> 는 <strong>정적 검사기의 상태</strong>(살아 있는 빌림 목록)다. 몸을 한 번 돌아도 정적 상태가 그대로면 그것이 고정점이다. 그러면 귀납법이 선다.</p><pre><code data-lang="text">0 번 돌면 안전하다.                                      기초 --- 아무 일도 안 했다
@@ -719,7 +719,7 @@ drift(5) = 6
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> deref p .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 안쪽 반복은 바깥 회차마다 다른 횟수로 돈다(0, 1, 2, 3 번)</span></em>
 <strong><span class="tok-k">proc</span></strong> tri <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -732,11 +732,11 @@ drift(5) = 6
     <strong><span class="tok-k">while</span></strong> lt k i . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">let</span></strong> seen <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> bump (<strong><span class="tok-k">mut_ref</span></strong> x) .
       <strong><span class="tok-k">set</span></strong> k (add k <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run tri nested.low 4
 tri(4) = 6
 </code></pre></div></div><p>안쪽 반복은 바깥 회차마다 0, 1, 2, 3 번 돈다. 빌림 <code>mut_ref x</code> 는 안쪽 몸 안에서 태어나 끝나므로 어느 회차에서도 안전하다.</p><p>평평한 정리 B 는 <code>unroll body k</code> — “모든 회차가 똑같이 돈다” — 를 강요한다. 실제 프로그램은 그렇지 않다. 중첩 반복의 증명(<code>LowentNest.v</code>)은 프로그램을 나무(<code>NLeaf</code>·<code>NSeq</code>·<code>NLoop</code>)로 두고, 펼침을 <strong>함수가 아니라 관계</strong>로 적었다.</p><div class="dev mathbox"><p class="dev-label">수학. 중첩 반복(<code>nested_agreement</code>)</p><div class="dev-body">정적 검사를 통과한 중첩 반복 프로그램은 <strong>어떤 펼침에서도</strong> 차용 위반이 없다. 깊이 제한이 없고, 반복 횟수 제한이 없고, <strong>회차마다 달리 돌아도 된다</strong>. 관계로 적으면 “1 회차의 안쪽은 세 번, 2 회차는 0 번” 이 그냥 같은 나무의 다른 펼침이다. 그리고 옛 평평한 정리는 따름정리로 되찾는다 (<code>flat_loop_recovered</code>). 되찾지 못하면 그것은 일반화가 아니라 다른 정리다.</div></div><p>첫 회차가 상태를 바꾸는 반복도 들어온다. <code>b ; loop b</code> 로 한 번 벗기면 그 뒤로는 고정점이 된다(<code>peeled_loop_is_safe</code>).</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 컴파일러는 고정점을 어떻게 찾는가? 정리가 그것까지 보장하는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 정리는 들어가는 자리에서 고정점을 <strong>전제</strong>로 요구한다. 컴파일러는 갈래와 회차의 상태를 합류시켜(격자의 join 과 단조 반복으로) 그 자리에 <strong>닿는데</strong>, 그 닿는 과정은 모델 밖이다. 그 간극은 유계 전수 검사가 받친다 — 반복 체커가 90,376 형태를 회차 1 … 3 으로 모두 돌려 모델과 구현의 판정이 같은지 본다. 이것은 “증명됨” 이 아니라 “전수 검사됨” 이다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>반복 몸을 한 번 따라가 보아 문제가 없으면 몇 번을 돌아도 괜찮다</strong></p><div class="dev-body"><code>loop_stale.low</code> 가 반례다. 1 회차는 멀쩡하고 2 회차에서 죽은 빌림을 쓴다. “한 번 따라가 보기” 가 충분한 것은 몸을 한 번 돈 뒤의 정적 상태가 <strong>처음과 같을 때</strong>, 곧 고정점일 때뿐이다. 그래서 검사기는 한 번이 아니라 상태가 더 바뀌지 않을 때까지 몸을 되풀이해 적용하고, 이 장의 정리가 그 멈춤이 옳다는 것을 보장한다. 사람이 코드를 읽을 때도 같다 — “둘째 바퀴가 시작할 때 무엇이 살아 있는가” 를 묻는다.</div></div><h3 id="s43-6">43.6 증명하지 않은 것<a class="plink" href="#s43-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><ul><li><strong>갈래(<code>if</code>)의 합류는 정리 B 안에 없다.</strong> 모델은 <code>(pre, body)</code> 두 직선 나열이다. 합류의 정확성은 위의 전수 검사가 받친다.</li><li><strong>고정점에 닿는 과정</strong>은 모델 밖이다. 정리는 닿은 뒤를 말한다.</li><li><strong>반복이 끝나는지는 다루지 않는다.</strong> 정리는 “돌면 안전하다” 이지 “끝난다” 가 아니다. 무한 반복은 펌웨어의 주 반복처럼 이 언어에서 정당한 프로그램이다. 그래서 도구가 스스로 만든 시험을 돌릴 때는 걸음 예산을 둔다(41장) — 종료를 보장할 수 없으니 도구가 멈출 줄 알아야 한다.</li></ul><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">반복을 넘어 사는 빌림과 몸의 소유자 접근이 만나면 두 번째 회차에서 깨지고, 처리기는 그 짝 하나를 거절한다. 몸 안에서 태어나 끝나는 빌림은 회차마다 신선하다. 정적 상태가 한 바퀴 뒤 되돌아오면(고정점) 몇 번을 돌든 차용 위반이 없다는 정리 B 는 <code>k</code> 에 대한 귀납이고, 회차마다 새 토큰을 내는 모델과 불변식 FRESH 가 이름 문제를 없앤다. 중첩 반복은 펼침을 관계로 적어 회차마다 달리 도는 반복까지 덮었다. 합류와 고정점에 닿는 과정은 전수 검사가 받치고, 종료는 다루지 않는다.</div></div>

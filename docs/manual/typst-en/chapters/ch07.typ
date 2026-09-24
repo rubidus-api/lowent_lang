@@ -39,7 +39,7 @@
 
 #demo("examples/ch07/loops.low")
 
-- `count_big` counts from 0 up to `n` and counts only numbers greater than 5. Look at the shape `while lt i n . do … end .` --- the
+- `count_big` counts from 0 up to `n` and counts only numbers greater than 5. Look at the shape `while lt i n . do … end` --- the
   condition is a form too, so it is closed with a full stop, and `do` opens the body after it.
 - `first_zero` leaves the loop with `break` when it meets a 0, and returns the length if there is none.
 - `odd_sum` walks the elements with `for x xs do … end` and skips even ones with `continue`. The `for` name `x` has the slice's element
@@ -152,7 +152,7 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
 
   #demo("examples/ch07/elseif.low")
 
-  The last branch is `end else do … end .`. When there are three or more branches that all split one value, `match` is a better fit.
+  The last branch is `end else do … end`. When there are three or more branches that all split one value, `match` is a better fit.
 ]
 
 #antipattern[Putting `else` inside the block, C style][
@@ -182,12 +182,12 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
     while lt i (len xs) . do
       if eq (mod (index xs i) 2) 0 . do
         continue .
-      end .
+      end
       set n (add n 1) .
       set i (add i 1) .
-    end .
+    end
     return n .
-  end .
+  end
   ```
 
   At the first even number, `i` stops increasing and the loop never ends. Neither compilation nor run-time checks catch this --- running
@@ -216,15 +216,15 @@ Nothing may follow an `else` --- it has already taken everything, so a later arm
   id: "control-glance",
   caption: [Control-flow syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`if c . do … end .`], [run the block when the condition is true], [the condition is a form closed by a stop; the body opens with `do`],
-  [`if c . do … end else do … end .`], [one of two], [openers and closers always pair up],
-  [`… end else if c2 . do … end .`], [chaining branches], [joins existing words instead of adding `elif`],
-  [`while c . do … end .`], [repeat while the condition is true], [the one shape for counting loops],
-  [`for x xs do … end .`], [each element of a slice in turn], [moving to the next element is the language's job],
+  [`if c . do … end`], [run the block when the condition is true], [the condition is a form closed by a stop; the body opens with `do`],
+  [`if c . do … end else do … end`], [one of two], [openers and closers always pair up],
+  [`… end else if c2 . do … end`], [chaining branches], [joins existing words instead of adding `elif`],
+  [`while c . do … end`], [repeat while the condition is true], [the one shape for counting loops],
+  [`for x xs do … end`], [each element of a slice in turn], [moving to the next element is the language's job],
   [`break .` · `continue .`], [leave the loop · go to the next round], [statements that change the flow],
   [`guard c . else return … .`], [leave unless the condition holds --- afterwards it is a fact], [`else` must always leave],
   [`return e .`], [return a value and finish], [on every path of an op that produces a value],
-  [`match v do case … . statement … end .`], [split by cases], [complete and non-overlapping --- no fall-through],
+  [`match v do case … . statement … end`], [split by cases], [complete and non-overlapping --- no fall-through],
   [`case 1 to 9 .` · `case _ .` · `case y when c .`], [a range · everything else · a guarded arm], [integers have many cases, so `_` is often needed],
   [`panic "…" .`], [an irreversible stop (an effect)], [only in a `proc` that declares `effects panic`],
 )

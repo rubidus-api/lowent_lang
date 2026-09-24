@@ -33,7 +33,7 @@ fn t_escape output u64 . do
   rem 이스케이프 없는 문자열은 그대로다.
   guard eq (len "plain") 5 . else return 98 .
   return 1 .
-end .
+end
 
 rem ★★★ **`\xNN` — 임의 바이트, 자리 수 고정** (2026-08-05).
 rem   전엔 여기 없는 바이트(ESC 0x1b 등)를 **리터럴로 적을 방법이 아예 없었다** — 히어독의
@@ -59,7 +59,7 @@ fn t_hex output u64 . do
   rem 한 리터럴에 셋이 같이 있어도 된다.
   guard eq (len "\xff\x00\x1bA") 4 . else return 99 .
   return 1 .
-end .
+end
 
 rem ── ② heredoc ─────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ fn t_heredoc_one output u64 . do
 abc
 END .
   return len s .
-end .
+end
 
 fn t_heredoc_multi output u64 . do
   rem "aa\nb" — 4 바이트, 인덱스 2 가 LF(10).
@@ -80,7 +80,7 @@ END .
   guard eq (len s) 4 . else return 90 .
   guard eq (index s 2) 10 . else return 91 .
   return 1 .
-end .
+end
 
 fn t_heredoc_trail output u64 . do
   rem ★ 개행을 **남기고 싶으면 빈 줄 하나** — "ab\n" 3 바이트.
@@ -91,7 +91,7 @@ END .
   guard eq (len s) 3 . else return 90 .
   guard eq (index s 2) 10 . else return 91 .
   return 1 .
-end .
+end
 
 rem ★★★ **접두 리터럴 — C23 의 "…"·u"…"·U"…"** (RFC-0035 D5, 2026-08-07 · 소유자 요청).
 rem   새 키워드 **0**: 낱말이 여는 따옴표에 **붙어** 있으면 그것은 이름이 아니라 접두사다.
@@ -113,7 +113,7 @@ fn t_prefix_u8 output u64 . do
   rem 한글은 UTF-8 로 세 바이트 — 바이트 슬라이스이므로 6.
   guard eq (len "한글") 6 . else return 92 .
   return 1 .
-end .
+end
 
 fn t_prefix_u16 output u64 . do
   let a slice u16 be u"AB" .
@@ -130,7 +130,7 @@ fn t_prefix_u16 output u64 . do
   guard eq (index e 0) 55357 . else return 96 .
   guard eq (index e 1) 56832 . else return 97 .
   return 1 .
-end .
+end
 
 fn t_prefix_u32 output u64 . do
   let a slice u32 be U"AB" .
@@ -144,7 +144,7 @@ fn t_prefix_u32 output u64 . do
   guard eq (len k) 2 . else return 94 .
   guard eq (index k 0) 54620 . else return 95 .
   return 1 .
-end .
+end
 
 fn t_prefix_heredoc output u64 . do
   rem ★ **두 표면이 같은 어휘를 쓴다** — 인라인 접두사와 heredoc 태그가 같은 낱말이다.
@@ -154,13 +154,13 @@ END .
   guard eq (len a) 2 . else return 90 .
   guard eq (index a 1) 66 . else return 91 .
   return 1 .
-end .
+end
 
 fn t_prefix_space output u64 . do
   rem ★ **띄어쓰기가 문법이다**: 붙어야 접두사다. 아래는 접두사가 아니라 그냥 문자열이다.
   guard eq (len "AB") 2 . else return 90 .
   return 1 .
-end .
+end
 
 rem ★★★★★ **문자 리터럴** `'a'` (2026-08-07 · 소유자 요청).
 rem
@@ -186,7 +186,7 @@ fn t_char_byte output u64 . do
   guard eq '\x1b' 27 . else return 97 .
   guard eq '\\' 92 . else return 98 .
   return 1 .
-end .
+end
 
 fn t_char_wide output u64 . do
   rem BMP 안이면 u16 유닛 하나 · 코드포인트 하나 — 같은 수다.
@@ -195,7 +195,7 @@ fn t_char_wide output u64 . do
   rem ★ 비-BMP 는 갈린다: 코드포인트로는 하나, UTF-16 으로는 **쌍**이라 u'…' 이 거절된다.
   guard eq U'😀' 128512 . else return 92 .
   return 1 .
-end .
+end
 
 fn t_char_sep output u64 . do
   rem ★★★ **자릿수 구분자가 부동소수에서 조용히 값을 잘랐다** (2026-08-07 실측):
@@ -209,7 +209,7 @@ fn t_char_sep output u64 . do
   rem ★ 선행 0 은 **8진이 아니다**(C 라면 493). 파일 권한을 적다 물리는 자리를 안 만든다.
   guard eq 0755 755 . else return 93 .
   return 1 .
-end .
+end
 
 fn t_num_neg output i64 . do
   rem ★ 부호는 **붙여야** 한다 — `- 5` 는 리터럴이 아니다(폼 자리에서 거절된다).
@@ -217,4 +217,4 @@ fn t_num_neg output i64 . do
   guard eq -0xff (sub 0 255) . else return 91 .
   guard eq -1_000 (sub 0 1000) . else return 92 .
   return 1 .
-end .
+end

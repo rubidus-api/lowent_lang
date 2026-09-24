@@ -26,42 +26,42 @@
 rem 모양마다 넓이를 구하는 법은 다르다. 그러나 «넓이를 알려 준다» 는 약속은 같다.
 trait shape do
   area input s self . output u64 .
-end .
+end
 
 struct rect do
   satisfies shape .
   w u64 .
   h u64 .
-end .
+end
 
 struct square do
   satisfies shape .
   side u64 .
-end .
+end
 
 fn rect.area input s rect . output u64 .
 do
   return mul (field s w) (field s h) .
-end .
+end
 
 fn square.area input s square . output u64 .
 do
   return mul (field s side) (field s side) .
-end .
+end
 
 rem 이 op 은 **어떤 모양이든** 받는다 — `requires shape t` 가 «넓이를 알려 주는 타입만» 이라고 못박는다.
 fn double_area input comptime t type . input s t . output u64 .
   requires shape t .
 do
   return mul 2 (method s area) .
-end .
+end
 
 fn demo output u64 .
 do
-  let r rect be make rect do w 2 . h 3 . end .
-  let q square be make square do side 4 . end .
+  let r rect be make rect do w 2 . h 3 . end
+  let q square be make square do side 4 . end
   return add (double_area rect r) (double_area square q) .
-end .",
+end",
       out: "demo() = 44")
     #para("1a")[
       트레이트는 op 을 **여럿** 적을 수 있다. 서명 하나는 op 의 **이름으로 시작**하고 그 op 의 절이 뒤따르며,
@@ -166,13 +166,13 @@ end
 
 fn rect.grow input s rect . input k u64 . output rect .
 do
-  return make rect do w (add (field s w) k) . h (add (field s h) k) . end .
+  return make rect do w (add (field s w) k) . h (add (field s h) k) . end
 end
 
 rem 효과를 적은 서명은 그 효과를 적은 `proc` 으로 갖춘다.
 proc rect.checked_area input s rect . output u64 . effects panic .
 do
-  if eq (field s w) 0 . do panic \"empty rect\" . end .
+  if eq (field s w) 0 . do panic \"empty rect\" . end
   return mul (field s w) (field s h) .
 end")
     #rejected("효과 줄이 없는 proc 으로 효과 없는 서명을 갖추려 한다", "module ex_trait_proc_noeff .
@@ -259,7 +259,7 @@ end")
 
 struct p do
   x u8 .
-end .
+end
 
 fn f input s p . output u8 .
 do

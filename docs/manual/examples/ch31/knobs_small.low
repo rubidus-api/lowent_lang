@@ -11,11 +11,11 @@ fn tick_rate output u64 .
 do
   if config smp . do
     return config hz .
-  end .
+  end
   return 100 .
-end .
+end
 
 fn cpus output u64 .
 do
   return config maxcpu .
-end .
+end

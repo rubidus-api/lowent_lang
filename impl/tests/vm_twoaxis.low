@@ -22,7 +22,7 @@ export struct gv do input comptime t type . input comptime a type .
   al a .
   store mut slice u8 . .     rem 얼로케이터가 준 **바이트** — 소유하는 저장소
   n u64 .                    rem 담긴 **원소** 개수
-end .
+end
 
 rem 빈 컨테이너를 연다. 자리를 못 받으면 none — OOM 은 값이다(RFC-0043 D5).
 export proc open .
@@ -37,7 +37,7 @@ do
   let b option mut slice u8 . be send al reserve (mul cap0 (size_of t)) .
   guard is_some b . else return none .
   return some (make gv t a do al al . store (some_value b) . n 0 . end) .
-end .
+end
 
 rem 한 원소를 잇는다. 방이 없으면 false — 여기서는 **안 자란다**(자람은 `vecgen` 의 몫이다).
 export proc add_one .
@@ -56,7 +56,7 @@ do
   set (index cells (field g n)) x .
   set (field g n) (add (field g n) 1) .
   return true .
-end .
+end
 
 export fn get .
   input comptime t type .
@@ -70,14 +70,14 @@ do
   var cur mut slice u8 . be (field g store) .
   var cells mut slice t . be view_array t cur .
   return some (index cells i) .
-end .
+end
 
 export fn count_of .
   input comptime t type . input comptime a type . input g gv t a . output u64 .
   requires allocs.byte_allocator a .
 do
   return field g n .
-end .
+end
 
 rem ── 원소 축: 같은 틀에서 u32 컨테이너 ────────────────────────────────────────
 proc part_axis_t input al cap allocator . output u8 . effects alloc state . do
@@ -106,7 +106,7 @@ proc part_axis_t input al cap allocator . output u8 . effects alloc state . do
   guard eq (add_one u32 allocs.bump_bytes g 12) false . else return 32 .
 
   return 42 .
-end .
+end
 
 rem ── 같은 틀·다른 원소폭. 원소 축이 실제로 도는지. ────────────────────────────
 proc part_u16 input al cap allocator . output u8 . effects alloc state . do
@@ -126,7 +126,7 @@ proc part_u16 input al cap allocator . output u8 . effects alloc state . do
   guard is_some e2 . else return 7 .
   guard eq (some_value e2) 3000 . else return 8 .
   return 43 .
-end .
+end
 
 rem ── 얼로케이터 축. 같은 틀을 **다른 얼로케이터 타입**으로 인스턴스화한다. ────
 rem   ★ 이 자리가 두 축의 증거다: 위 둘은 `t` 를 바꿨고, 이것은 `a` 를 바꾼다.
@@ -136,14 +136,14 @@ export actor pair_bytes do
     mem mut slice u8 . .
     off u64 .
     last u64 .
-  end .
+  end
 
   proc init input backing mut slice u8 . . output u64 . effects state . do
     set mem backing .
     set off 0 .
     set last 0 .
     return len mem .
-  end .
+  end
 
   rem ★ 한 번에 **두 배**를 떼어 준다 — bump 와 **다른 정책**이라 타입이 달라야 할 이유가 된다.
   proc reserve input n u64 . output option mut slice u8 . . effects state . do
@@ -153,7 +153,7 @@ export actor pair_bytes do
     set last off .
     set off (add off want) .
     return (some v) .
-  end .
+  end
 
   rem ★★★ **제자리 성장 — 정책이 달라도 판정은 같다** (2026-08-18, 트레이트에 `grow` 가 생겼다).
   rem   이 얼로케이터는 요청의 **두 배**를 떼어 주지만, "마지막 할당이 어디서 시작했나" 는
@@ -168,12 +168,12 @@ export actor pair_bytes do
     guard le (add last newn) (len mem) . else return none .
     set off (add last newn) .
     return (some (subslice mem last (add last newn))) .
-  end .
+  end
 
   proc used output u64 . effects none . do
     return off .
-  end .
-end .
+  end
+end
 
 proc part_pair input al cap allocator . output u8 . effects alloc state . do
   let mo option mut slice u8 . be alloc_bytes al capacity 256 .
@@ -196,7 +196,7 @@ proc part_pair input al cap allocator . output u8 . effects alloc state . do
   guard is_some e3 . else return 9 .
   guard eq (some_value e3) 8 . else return 10 .
   return 44 .
-end .
+end
 
 rem ── 진입점. 세 장면을 한 자리에서 — 골든은 `main` 하나만 부른다. ─────────────
 proc main input al cap allocator . output u8 . effects alloc state . do
@@ -204,4 +204,4 @@ proc main input al cap allocator . output u8 . effects alloc state . do
   guard eq (part_u16 al) 43 . else return 2 .
   guard eq (part_pair al) 44 . else return 3 .
   return 42 .
-end .
+end

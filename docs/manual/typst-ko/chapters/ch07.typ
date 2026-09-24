@@ -40,7 +40,7 @@
 
 #demo("examples/ch07/loops.low")
 
-- `count_big` 은 0 부터 `n` 미만까지 세면서 5 보다 큰 수만 센다. `while lt i n . do … end .` 의 모양을
+- `count_big` 은 0 부터 `n` 미만까지 세면서 5 보다 큰 수만 센다. `while lt i n . do … end` 의 모양을
   보면, 조건도 폼이므로 마침표로 닫고 그 뒤에 몸을 여는 `do` 가 온다.
 - `first_zero` 는 0 을 만나면 `break` 로 되풀이를 벗어난다. 끝까지 없으면 길이를 돌려준다.
 - `odd_sum` 은 `for x xs do … end` 로 원소를 훑고, 짝수면 `continue` 로 다음 원소로 넘어간다. `for`
@@ -158,7 +158,7 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
 
   #demo("examples/ch07/elseif.low")
 
-  마지막 갈래는 `end else do … end .` 이다. 갈래가 셋 이상이고 모두 한 값을 가르는 것이면 `match` 가 더 알맞다.
+  마지막 갈래는 `end else do … end` 이다. 갈래가 셋 이상이고 모두 한 값을 가르는 것이면 `match` 가 더 알맞다.
 ]
 
 #antipattern[C 처럼 블록 안에 `else` 를 둔다][
@@ -187,12 +187,12 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
     while lt i (len xs) . do
       if eq (mod (index xs i) 2) 0 . do
         continue .
-      end .
+      end
       set n (add n 1) .
       set i (add i 1) .
-    end .
+    end
     return n .
-  end .
+  end
   ```
 
   첫 짝수에서 `i` 가 더 이상 오르지 않아 반복이 끝나지 않는다. 번역도 실행 검사도 이것을 잡지 못한다 --- 멈추지 않는 것은
@@ -220,15 +220,15 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   id: "control-glance",
   caption: [흐름의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`if c . do … end .`], [조건이 참이면 블록], [조건도 폼이라 마침표로 닫고, 몸은 `do` 로 연다],
-  [`if c . do … end else do … end .`], [둘 중 하나], [여는 말과 닫는 말이 늘 짝을 이룬다],
-  [`… end else if c2 . do … end .`], [갈래 잇기], [새 낱말(`elif`) 없이 있는 낱말을 잇는다],
-  [`while c . do … end .`], [조건이 참인 동안], [수를 세는 반복은 이 모양 하나],
-  [`for x xs do … end .`], [슬라이스의 원소를 차례로], [다음 원소로 넘어가는 일을 언어가 맡는다],
+  [`if c . do … end`], [조건이 참이면 블록], [조건도 폼이라 마침표로 닫고, 몸은 `do` 로 연다],
+  [`if c . do … end else do … end`], [둘 중 하나], [여는 말과 닫는 말이 늘 짝을 이룬다],
+  [`… end else if c2 . do … end`], [갈래 잇기], [새 낱말(`elif`) 없이 있는 낱말을 잇는다],
+  [`while c . do … end`], [조건이 참인 동안], [수를 세는 반복은 이 모양 하나],
+  [`for x xs do … end`], [슬라이스의 원소를 차례로], [다음 원소로 넘어가는 일을 언어가 맡는다],
   [`break .` · `continue .`], [반복에서 나가기 · 다음 회차로], [흐름을 바꾸는 문장],
   [`guard c . else return … .`], [조건이 아니면 떠난다 --- 지난 뒤엔 조건이 사실], [`else` 가 반드시 떠나야 한다],
   [`return e .`], [값을 돌려주고 끝낸다], [값을 내는 op 은 모든 길에서],
-  [`match v do case … . 문장 … end .`], [경우별로 가르기], [빠짐없이, 겹침 없이 --- 흘러내림이 없다],
+  [`match v do case … . 문장 … end`], [경우별로 가르기], [빠짐없이, 겹침 없이 --- 흘러내림이 없다],
   [`case 1 to 9 .` · `case _ .` · `case y when c .`], [범위 · 나머지 전부 · 가드가 붙은 갈래], [정수는 경우가 많아 `_` 가 흔히 필요하다],
   [`panic "…" .`], [되돌릴 수 없는 멈춤(효과)], [`effects panic` 을 적는 `proc` 에서만],
 )

@@ -5,10 +5,10 @@ fn twice input a u32 . output u32 .
   requires le a 1000 .
 do
   return mul a 2 .
-end .
+end
 
 fn use input a u32 . output u32 .
   requires le a 100 .
 do
   return expr twice a + 1 .
-end .
+end

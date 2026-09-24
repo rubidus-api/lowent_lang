@@ -670,21 +670,21 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">proc</span></strong> say <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> msg <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out k <span class="tok-n">1</span> msg .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> say_twice <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> msg <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> say k msg .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> say k msg .
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> say_twice k <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">guard</span></strong> eq n <span class="tok-n">6</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main chain.low
 hi
 hi
@@ -698,7 +698,7 @@ main() = 0
   <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main pairs.low
 hi
 main() = 0
@@ -709,7 +709,7 @@ main() = 0
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> write_out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check nocap.low
 nocap.low:4:0 E-EFFECT-NO-CAP: this op declares the `io` effect but receives NO capability that authorizes it. `io` is a cap-effect (RFC-0007 §6.7): I/O is a RIGHT you are HANDED, not an ambient power — `input fs cap file_system .` (or another `cap …` input). An effect you declare but hold no capability for is a claim the signature cannot back
 </code></pre></div></div><p>Allocation is the same: it declares using memory but not where the memory comes from.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch16/alloc_nocap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> alloc_nocap .
@@ -718,7 +718,7 @@ nocap.low:4:0 E-EFFECT-NO-CAP: this op declares the `io` effect but receives NO 
 <strong><span class="tok-k">proc</span></strong> scratch <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check alloc_nocap.low
 alloc_nocap.low:4:0 E-ALLOC-NOCAP: this op declares the `alloc` effect but receives NO allocation capability. There is no ambient heap in this language (RFC-0043 D1): to allocate you must be HANDED the right — `input a cap allocator .` or `input r region &lt;name> . .` (a region IS an arena allocator, RFC-0043 D7). An allocation nobody granted is exactly the hidden dependency this model removes
 alloc_nocap.low:5:1 W-EFFECT-OVER: this op DECLARES `alloc` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
@@ -728,7 +728,7 @@ alloc_nocap.low:5:1 W-EFFECT-OVER: this op DECLARES `alloc` but never PERFORMS i
 <strong><span class="tok-k">proc</span></strong> hello <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hello</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check missing.low
 missing.low:6:0 E-CAP-MISSING: `write_out` writes to the process output and needs the `cap io` value the entry received as its FIRST operand — output is a RIGHT you are handed (RFC-0030 D2), never ambient. There is no hidden stdout
 </code></pre></div></div><p>There is no way to reach a capability without naming it — in other words, there is no hidden standard output.</p><h3 id="s16-4">16.4 Kind, not presence<a class="plink" href="#s16-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Holding some capability does not open every door.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch16/kind.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> kind .
@@ -737,7 +737,7 @@ missing.low:6:0 E-CAP-MISSING: `write_out` writes to the process output and need
 <strong><span class="tok-k">proc</span></strong> stamp <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> time_now out .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check kind.low
 kind.low:6:0 E-CAP-KIND: this host leaf was handed a capability of the WRONG KIND. Authority is by KIND, not by mere presence: an unrelated right (io, net, …) does not authorize the clock, the filesystem, the socket or the OS entropy (RFC-0083 L3 · RFC-0077 §P1-2). Take the right this leaf names — the FFI boundary has always been checked this way (E-FFI-CAPKIND); the host leaves used to be refused only at lowering, where a WRONG RIGHT was reported as an UNSUPPORTED FEATURE
 </code></pre></div></div><p><code>time_now</code> is the primitive that reads the clock. A <code>cap io</code> was handed over, so it is rejected as the wrong kind. Capabilities authorise by <strong>what they are</strong>.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Reading the time with <code>cap clock</code> requires declaring the <code>io</code> effect</strong></p><div class="dev-body">The standard library’s <code>clock.now_ms</code> takes a <code>cap clock</code> but is <code>effects none</code>. A clock breaks determinism, so it needs a capability, but it leaves no trace outside. Capabilities and effects are not always one-to-one. The <code>io</code> row of the pair table is a rule in one direction: “to perform the <code>io</code> effect you must receive one of these”.</div></div><p>Authors can name capabilities of their own. Receiving your own capability as a parameter, as in <code>input logger cap audit .</code>, lets you build ops that only code holding that capability can call. What the processor gives meaning to are the kinds in the table above, and work of those kinds requires those kinds.</p><h3 id="s16-5">16.5 What the entry point receives<a class="plink" href="#s16-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>The op a program starts from receives <strong>only capabilities</strong>. It does not receive data, because nobody is there to hand it over.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch16/entry.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> entry .
@@ -746,7 +746,7 @@ kind.low:6:0 E-CAP-KIND: this host leaf was handed a capability of the WRONG KIN
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check entry.low
 entry.low:4:0 E-ENTRY-PARAMS: the entry point takes CAPABILITY inputs only (`input a cap args .`). A data parameter here would be a magic argv — RFC-0030 D2 rejects that: arguments are a RIGHT the runtime hands you, queried via `count`/`arg` on the cap
 entry.low:5:1 W-EFFECT-OVER: this op DECLARES `io` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
@@ -767,7 +767,7 @@ entry.low:5:1 W-EFFECT-OVER: this op DECLARES `io` but never PERFORMS it. A decl
   <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> env_get e <span class="tok-s">"</span><span class="tok-s">LOWENT_MANUAL_DEMO</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">guard</span></strong> is_some v . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> n .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main envrandom.low
 main() = 8
 </code></pre></div></div><p><code>env_get e "…"</code> needs <code>cap env</code>, and <code>random.bytes r buf</code> needs <code>cap random</code>. An environment variable is a channel that quietly changes behaviour from outside the program, and randomness is a channel that changes the answer for the same input. Both must be visible in the head so that the head alone tells whether “this program’s answer is decided by its inputs”. With no variable, <code>env_get</code> gives <code>none</code> and the example returns 8, the number of bytes filled. When tests need repeatable random numbers, use <code>rng_next</code> (the next number from a seed), which needs no capability.</p><h3 id="s16-6">16.6 Common mistakes<a class="plink" href="#s16-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Thinking a <code>fn</code> may print because it received a capability</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch16/mistake_fncap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_fncap .
@@ -777,7 +777,7 @@ main() = 8
 <strong><span class="tok-k">fn</span></strong> say <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_fncap.low
 mistake_fncap.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `io` — make it a `proc` with `effects …`, or remove the effect
 </code></pre></div></div><p>A capability says “who allowed it”; an effect says “what it does”. Neither stands in for the other. Even with <code>cap io</code>, printing is the <code>io</code> effect, and a pure <code>fn</code> cannot perform effects, so this is <code>E-EFFECT-CALC</code>. Change it to <code>proc say … effects io .</code>. Both the permission (capability) and the action (effect) must be in the head, so that each checks the other.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Moving a received capability into a local name</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch16/mistake_caplocal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_caplocal .
@@ -788,7 +788,7 @@ mistake_fncap.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `io` 
   <em><span class="tok-c">rem ✘ the capability is moved into a local name --- pass the received name directly</span></em>
   <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">cap</span></strong> io <strong><span class="tok-k">be</span></strong> out .
   <strong><span class="tok-k">return</span></strong> write_out k <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_caplocal.low
 mistake_caplocal.low:8:0 E-CAP-LOCAL: `k` is a LOCAL that a `cap io` was copied into. A capability is not a value you carry in a local name: only a parameter of this op names a right it was handed, so hand the parameter itself to the leaf (RFC-0030 D2)
 </code></pre></div></div><p>A capability is passed down the chain <strong>under the name it was received with</strong>. Moving it into a local name makes the chain look broken, so it is rejected with <code>E-CAP-LOCAL</code>; the message names the local and the kind that was copied into it. Write the parameter name directly, as in <code>write_out out 1 …</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing to standard output with a capability of another kind</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch16/mistake_fscapout.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_fscapout .
@@ -799,7 +799,7 @@ mistake_caplocal.low:8:0 E-CAP-LOCAL: `k` is a LOCAL that a `cap io` was copied 
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> write_out fs <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_fscapout.low
 mistake_fscapout.low:7:0 E-CAP-KIND: this leaf needs a `cap io`, and `fs` is a `cap file_system`. One capability never stands in for another: each names a different right, and holding one says nothing about the other (RFC-0011)
 </code></pre></div></div><p><code>cap file_system</code> opens files and directories; it is not the capability for standard output. Capabilities are authorised <strong>by kind, not by possession</strong>, so this is rejected with <code>E-CAP-KIND</code>, which prints the kind required beside the kind handed over. The fix: the entry receives <code>input out cap io .</code> and passes that name.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Passing a number where a capability belongs</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch16/mistake_capforge.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_capforge .
@@ -808,14 +808,14 @@ mistake_fscapout.low:7:0 E-CAP-KIND: this leaf needs a `cap io`, and `fs` is a `
 <strong><span class="tok-k">proc</span></strong> say <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> io . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out k <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem ✘ receives no capability at all, yet prints by passing the number 0 where a capability belongs</span></em>
 <strong><span class="tok-k">proc</span></strong> start <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> say <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_capforge.low
 mistake_capforge.low:12:0 E-CAP-FORGE: a LITERAL was passed where a capability is taken. A capability is handed over, never conjured: it can only be a name you were given (an `input … cap …`) or an actor's capability field (RFC-0030 D2). Passing a number here would let an op that received NO right reach the outside, and then the entry point no longer tells what the program can touch. The placeholder `0` means something only at the tool's door (`--run`)
 </code></pre></div></div><p><code>start</code> receives no capability at all, so it should not be able to print. Passing the number 0 in the <code>cap io</code> position of <code>say</code> looks like a way around that rule, and it is refused with <code>E-CAP-FORGE</code>. Only a <strong>name you were handed</strong> (<code>input … cap …</code>) or an actor’s capability field may stand in a capability position. Without that, the promise of this chapter — “the entry point tells you everything the program can reach” — would fall to a single line. The placeholder <code>0</code> that <code>--run</code> uses means something only at the tool’s door (chapter 31).</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>It is convenient to take capabilities and effects in advance, in case they are needed later</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch16/capjustincase.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> capjustincase .
@@ -827,7 +827,7 @@ mistake_capforge.low:12:0 E-CAP-FORGE: a LITERAL was passed where a capability i
   <strong><span class="tok-k">requires</span></strong> le h <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul w h .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check capjustincase.low
 capjustincase.low:8:1 W-EFFECT-OVER: this op DECLARES `io` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
 </code></pre></div></div><p><code>area</code> only multiplies, yet it declares <code>cap io</code> and <code>effects io</code>. Now every caller must find a <code>cap io</code> to pass, and pure code cannot call it at all. The tool warns with <code>W-EFFECT-OVER</code>. Take as few capabilities as possible — the list of received capabilities <strong>is</strong> “what this op can reach”, so a generous list tells a lie.</p></div></div><h3 id="s16-7">16.7 This chapter’s syntax at a glance<a class="plink" href="#s16-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>input out cap io .</code></td><td>receive the standard I/O capability</td><td>no ambient authority — power is handed in as an argument</td></tr><tr><td><code>input fs cap file_system .</code> · <code>cap net</code> · <code>cap clock</code> …</td><td>each kind opens different things</td><td>least authority — the head says what it can reach</td></tr><tr><td><code>say k msg</code></td><td>pass a received capability name as is</td><td>the chain is visible up to the entry point</td></tr><tr><td><code>write_out out 1 "…"</code></td><td>builtins that use a capability take it as the first operand</td><td>no way to reach a capability without a name</td></tr><tr><td><code>effects io</code> + <code>cap io</code></td><td>an effect and the capability that allows it</td><td>missing: <code>E-EFFECT-NO-CAP</code></td></tr><tr><td><code>effects alloc</code> + <code>cap allocator</code></td><td>the pair for fixed-window allocation</td><td>missing: <code>E-ALLOC-NOCAP</code></td></tr><tr><td><code>proc main input … cap … . output u8 .</code></td><td>the entry point receives only capabilities</td><td>nobody can hand it data</td></tr><tr><td><code>input logger cap audit .</code></td><td>a capability named by the author</td><td>only ops that received it can call the guarded op</td></tr><tr><td><code>env_get e "…"</code> · <code>random.bytes r buf</code></td><td>environment variable · OS randomness — <code>cap env</code> · <code>cap random</code></td><td>outside channels that change the answer show in the head</td></tr></table></div><p class="float-caption">Table 16.3 — Capability syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">Capabilities are handed over as <code>input &lt;name> cap &lt;kind> .</code>, and the received name is passed on as is. Looking at the entry point shows what outside a program can reach. Effects and capabilities are a pair: declaring an effect requires receiving an authorising capability, and builtin ops that use a capability take it as their first operand. Capabilities authorise by kind and cost nothing at run time. The entry point receives only capabilities from a closed list.</div></div>

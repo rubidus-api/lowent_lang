@@ -12,20 +12,20 @@ do
   while gt v 0 . do
     push work (mod v 10) .
     set v (div v 10) .
-  end .
+  end
   var out u64 be 0 .
   var place u64 be 1 .
   while pop work into d . do
     set out (add out (mul d place)) .
     set place (mul place 10) .
-  end .
+  end
   return out .
-end .
+end
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
   region r arena do
     return narrow u8 (reverse_digits r 47) .
-  end .
+  end
   return 0 .
-end .
+end

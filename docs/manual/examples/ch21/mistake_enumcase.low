@@ -10,9 +10,9 @@ fn describe input n u64 . output u64 . do
     rem ko: ✘ 모듈 이름을 붙인 갈래 — 이 판에서는 어떤 값에나 맞는다 /// en: ✘ a variant with the module name in front; in this edition it matches any value
     case sizes.small do
       return 1 .
-    end .
+    end
     case sizes.big do
       return 2 .
-    end .
-  end .
-end .
+    end
+  end
+end

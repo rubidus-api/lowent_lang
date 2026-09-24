@@ -9,6 +9,6 @@ do
   while lt i n . do
     set s (add s (widen u64 (index a i))) .
     set i (add i 1) .
-  end .
+  end
   return s .
-end .
+end

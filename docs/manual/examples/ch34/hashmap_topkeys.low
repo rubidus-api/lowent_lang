@@ -13,8 +13,8 @@ do
   let b bool be hashmap.put slots 18446744073709551614 50 .
   let c bool be hashmap.put slots 18446744073709551613 60 .
   var r u8 be 0 .
-  if a . do set r (add r 1) . end .
-  if b . do set r (add r 2) . end .
-  if c . do set r (add r 4) . end .
+  if a . do set r (add r 1) . end
+  if b . do set r (add r 2) . end
+  if c . do set r (add r 4) . end
   return r .
-end .
+end

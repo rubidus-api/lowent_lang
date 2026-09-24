@@ -13,4 +13,4 @@ export proc over output u64 . effects none . do
   let h option u64 . be budget.pack 40 16 16 1 1 1 .
   guard is_some h . else return 0 .
   return some_value h .
-end .
+end

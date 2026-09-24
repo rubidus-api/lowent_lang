@@ -15,8 +15,8 @@ do
       let p option mut slice u8 . . be send a reserve 10 .
       if is_some p . do
         set n (send a used) .
-      end .
-    end .
-  end .
+      end
+    end
+  end
   return n .
-end .
+end

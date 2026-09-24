@@ -29,7 +29,7 @@ proc near input al cap allocator . output u64 . effects alloc . do
   guard is_some z . else return 6 .
   guard eq (some_value z) 0 . else return 7 .
   return 42 .
-end .
+end
 
 rem ★ 국한 refcount 가 **포화**한다 — 상한에서는 안 는다(감기지 않는다).
 proc near_top input al cap allocator . output u64 . effects alloc . do
@@ -43,7 +43,7 @@ proc near_top input al cap allocator . output u64 . effects alloc . do
   guard eq (some_value a) (lifemode.ceiling) . else return 2 .
   guard eq (index c 0) (lifemode.ceiling) . else return 3 .
   return 42 .
-end .
+end
 
 rem ── ③ 원자 공유 refcount ────────────────────────────────────────
 proc far input al cap allocator . input k cap atomic . output u64 . effects alloc atomic . do
@@ -58,7 +58,7 @@ proc far input al cap allocator . input k cap atomic . output u64 . effects allo
   rem 마지막 하나 — 0 을 답하고, 그 자리에서 acquire 담을 친다.
   guard eq (lifeatom.rc_release k c) 0 . else return 6 .
   return 42 .
-end .
+end
 
 rem ★★ **원자 refcount 도 포화한다** — 이것이 이 작업의 유일한 실제 구멍이었다.
 rem   그냥 `atomic_add` 를 쓰면 상한에서 **조용히 0 으로 감긴다**(네이티브로 확인했다).
@@ -72,33 +72,33 @@ proc far_top input al cap allocator . input k cap atomic . output u64 . effects 
   rem 포화한 칸은 **줄지도 않는다** — 한 번 포화하면 그 객체는 영원히 산다.
   guard eq (lifeatom.rc_release k c) (lifemode.ceiling) . else return 3 .
   return 42 .
-end .
+end
 
 rem ── ④ 외부 완료 — 완료권이 값이다 ────────────────────────────────
 rem   끝내는 것이 남이므로, 이쪽이 드는 것은 **완료권**뿐이다. 그것을 `owned` 로 만들면
 rem   두 번 완료는 컴파일이 거절하고(E-OWN-MOVED), 완료가 실패할 수 있으면 안 하는 것도
 rem   거절한다(E-OWN-INCOMPLETE). ⇒ **정확히 1 회**가 언어에서 나온다.
-export enum late do too_late . end .
+export enum late do too_late . end
 
 export struct ticket do
   id u64 .
-end .
+end
 
 export fn issue input i u64 . output owned vm_lifemode.ticket . do
-  return make ticket do id i . end .
-end .
+  return make ticket do id i . end
+end
 
 rem 완료는 표를 **먹는다**. 그리고 **실패할 수 있다** — 그래서 잊는 것도 오류가 된다.
 export fn finish input t owned vm_lifemode.ticket . output result u64 vm_lifemode.late . do
   return ok (field t id) .
-end .
+end
 
 proc once output u64 . effects none . do
   var t owned vm_lifemode.ticket . be vm_lifemode.issue 7 .
   let r result u64 vm_lifemode.late . be vm_lifemode.finish t .
   guard is_ok r . else return 0 .
   return ok_value r .
-end .
+end
 
 proc main input al cap allocator . input k cap atomic . output u8 . effects alloc atomic .
 do
@@ -113,4 +113,4 @@ do
   let e u64 be once .
   guard eq e 7 . else return narrow u8 e .
   return 42 .
-end .
+end

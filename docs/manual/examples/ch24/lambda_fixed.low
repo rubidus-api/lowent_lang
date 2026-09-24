@@ -5,12 +5,12 @@ rem ko: 조건에 이름을 붙인다 --- 이름이 곧 설명이 된다 /// en:
 fn over2 input a u8 . output bool .
 do
   return gt a 2 .
-end .
+end
 
 fn count_big input xs slice u8 . output u64 .
 do
   return pipe xs do
     filter over2 .
     count .
-  end .
-end .
+  end
+end

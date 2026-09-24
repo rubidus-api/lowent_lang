@@ -6,36 +6,36 @@ rem run: running [1,2,3,4] [0,0,0,0]
 fn idxadd input i u64 . input e u8 . output u8 .
 do
   return wrap_add e (narrow_wrap u8 i) .
-end .
+end
 
 fn addb input a u8 . input b u8 . output u8 .
 do
   return wrap_add a b .
-end .
+end
 
 proc with_index input xs slice u8 . input out mut slice u8 . output u64 . effects none .
 do
   pipe xs do
     enumerate idxadd .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 proc added input xs slice u8 . input ys slice u8 . input out mut slice u8 . output u64 . effects none .
 do
   pipe xs do
     zip ys addb .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end
 
 proc running input xs slice u8 . input out mut slice u8 . output u64 . effects none .
 do
   pipe xs do
     scan 0 addb .
     collect into out .
-  end .
+  end
   return 0 .
-end .
+end

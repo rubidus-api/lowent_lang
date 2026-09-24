@@ -6,9 +6,9 @@ rem run: rest 7 -3
 
 fn quot input a i8 . input b i8 . output i8 . do
   return div a b .
-end .
+end
 
 rem ko: mod 의 부호는 나누는 수를 따른다 /// en: the sign of mod follows the divisor
 fn rest input a i8 . input b i8 . output i8 . do
   return mod a b .
-end .
+end

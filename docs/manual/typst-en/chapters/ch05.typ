@@ -115,7 +115,7 @@ fn   add3   input a i32 .   input b i32 .   input c i32 .   output i32 .
 └─ kind: fn (pure) or proc (may have effects)
 do                          ← the body starts here
   return add (add a b) c .  ← compute and return; a statement also ends with a stop
-end .                       ← the body ends, and so does the whole declaration
+end                         ← the body ends, and so does the whole declaration (no stop after it)
 ```
 
 To call an op, write its name followed by the arguments *separated by spaces*. `add3 1 2 3` is one call, and parentheses are used only to
@@ -129,7 +129,7 @@ returned value is a single `output <type> .`, and the body returns it with `retu
 fn compare input a i32 . input b i32 . output i32 .
 do
   return sub a b .
-end .
+end
 ```
 
 Words in front of the type say ownership, mutability and presence. The ones you meet often are these.
@@ -174,7 +174,7 @@ Modifiers can go in front of an op head.
 ```lowent
 unsafe extern proc c_area input k cap c . input w i64 . input h i64 . output i64 .
   effects unsafe . link lw_c_area .
-end .
+end
 ```
 
 == Common mistakes
@@ -205,7 +205,7 @@ can come back to this section.
 
   An op that declares an `output` must return a value on *every path*. The old tool silently returned 0 on the missing path, and that 0
   appeared nowhere in the source, so it hid bugs. It is now rejected with `E-RETURN-PARTIAL`. The fix is to return something for the
-  remaining case after the `if` --- for example, put `return 0 .` before `end .`.
+  remaining case after the `if` --- for example, put `return 0 .` before `end`.
 ]
 
 #antipattern[Naming an op after a builtin][
@@ -231,8 +231,8 @@ can come back to this section.
   id: "ops-glance",
   caption: [Op syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`fn f input a T . output R . do … end .`], [a pure op], [the head alone tells whether results may be cached, reordered or dropped],
-  [`proc f … effects E . do … end .`], [an op that may have effects], [what it does (`E`) is visible in the head],
+  [`fn f input a T . output R . do … end`], [a pure op], [the head alone tells whether results may be cached, reordered or dropped],
+  [`proc f … effects E . do … end`], [an op that may have effects], [what it does (`E`) is visible in the head],
   [`input x T .`], [one parameter], [one per clause, so each name and type sits on its own line],
   [`output T .` · `output void .`], [type of the returned value · no returned value], [one return value --- bundle several in a `struct`],
   [`return e .`], [return a value and finish], [required on every path (`E-RETURN-PARTIAL`)],

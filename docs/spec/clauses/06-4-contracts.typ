@@ -53,7 +53,7 @@ fn twice output u32 .
   requires le n 2147483647 .
 do
   return mul n 2 .
-end .", "E-CLAUSE-ORDER")
+end", "E-CLAUSE-ORDER")
     #plain[
       `export` 는 다른 모듈이 이 op 을 쓸 수 있게 한다는 표시다. 붙이지 않으면 그 모듈
       안에서만 쓴다.

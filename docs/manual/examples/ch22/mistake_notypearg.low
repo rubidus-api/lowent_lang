@@ -3,30 +3,30 @@ rem expect: E-MONO-NOTYPE
 
 trait ordered do
   less input a self . input b self . output bool .
-end .
+end
 
 struct score do
   satisfies ordered .
   v u64 .
-end .
+end
 
 fn score.less input a score . input b score . output bool .
 do
   return lt (field a v) (field b v) .
-end .
+end
 
 fn max_of input comptime t type . input a t . input b t . output t .
   requires ordered t .
 do
   if method a less b . do
     return b .
-  end .
+  end
   return a .
-end .
+end
 
 fn bigger input x u64 . input y u64 . output u64 .
 do
   rem ko: ✘ 앞자리의 타입 인자 `score` 를 빠뜨렸다 --- 추론은 없다 /// en: ✘ the leading type argument `score` is missing --- nothing is inferred
   let m score be max_of (make score do v x . end) (make score do v y . end) .
   return field m v .
-end .
+end

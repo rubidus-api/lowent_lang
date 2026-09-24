@@ -673,13 +673,13 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> use_once <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer <strong><span class="tok-k">be</span></strong> v .
   <strong><span class="tok-k">return</span></strong> consume h .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run use_once sink.low 5
 use_once(5) = 0
 </code></pre></div></div><p><code>consume</code> 은 <code>owned buffer</code> 를 받아 <code>drop h .</code> 로 없앤다. <code>use_once</code> 는 <code>var h owned buffer be v .</code> 로 소유 값을 만들어 <code>consume</code> 에 넘긴다. 넘기는 순간 소유가 <strong>옮겨진다</strong>. 이제 <code>h</code> 를 없앨 책임은 <code>consume</code> 에 있고, <code>use_once</code> 는 <code>h</code> 를 더 쓸 수 없다.</p><p>옮긴 값을 다시 쓰면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/moved.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> moved .
@@ -691,14 +691,14 @@ use_once(5) = 0
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> reuse <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> consume h .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> consume h .
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check moved.low
 moved.low:15:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
 </code></pre></div></div><p>두 번 없애도 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/twice.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> twice_drop .
@@ -711,7 +711,7 @@ moved.low:15:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — 
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check twice.low
 twice.low:9:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
 </code></pre></div></div><p>진단은 이것이 명세가 늘 오류라고 불러 온 자리이고 한때는 아무것도 강제하지 않았다고 적는다. 지금은 번역이 막는다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 소유가 없는 값은 넘길 때 어떻게 되는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 베껴진다. <code>u64</code> 나 <code>point</code> 같은 값은 넘기면 복사되고 원래 이름도 계속 쓸 수 있다. 소유가 있는 값만 옮겨진다. 베끼기의 비용이 걱정되는 큰 값은 <code>ref</code> 로 빌려 넘긴다(12장). 그리고 값을 만드는 식이 놓일 자리가 비어 있고, 도중에 실패하지 않으며, 그 자리가 그 값만의 것이면 값은 목적지에 곧바로 만들어진다. 중간 임시값도, 옮기는 복사도 없다. 이 세 조건은 소스만 보고 셀 수 있다.</p></div></div><h3 id="s19-2">19.2 갈래가 만나는 자리<a class="plink" href="#s19-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>if</code> 로 갈라졌다가 다시 만나는 자리에서, 소유 상태는 모든 길에서 같아야 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/join.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> join .
@@ -723,9 +723,9 @@ twice.low:9:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — u
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> c . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">drop</span></strong> h .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check join.low
 join.low:8:0 E-OWN-JOIN: this `owned` value is CONSUMED on one path of this branch but still LIVE on another where they merge — Lowent requires the ownership state to be STATICALLY consistent at a join (RFC-0044 §9.3): no hidden drop-flag decides it at runtime. Consume it on EVERY path, or make it conditionally owned (`?owned`)
 </code></pre></div></div><p><code>c</code> 가 참인 길에서는 <code>h</code> 가 없어졌고 거짓인 길에서는 살아 있다. 두 길이 만난 뒤 <code>h</code> 가 살아 있는지를 아무도 말할 수 없다. 어떤 언어는 이 자리에 숨은 “없앴는지 표시하는 깃발” 을 두지만, Lowent 는 소유 상태가 <strong>정적으로</strong> 한 가지이기를 요구한다. 두 길 모두에서 없애거나, 두 길 모두에서 넘기면 된다.</p><p>같은 원리로, 묶음의 <code>owned</code> 칸 하나를 옮긴 뒤 묶음 전체를 다시 옮기면 거절된다(<code>E-OWN-PARTIAL</code>). 받는 쪽은 온전한 묶음을 받았다고 여기는데 그 안의 한 칸은 이미 남의 것이다.</p><h3 id="s19-3">19.3 해제와 완결<a class="plink" href="#s19-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>없애는 일은 두 갈래다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>갈래</strong></th><th><strong>예</strong></th><th><strong>다루는 법</strong></th></tr><tr><td>해제</td><td>메모리를 돌려준다</td><td>실패가 없으므로 수명이 끝나는 자리에서 조용히 일어나도 된다</td></tr><tr><td>완결</td><td>파일을 닫는다, 버퍼를 비운다, 거래를 커밋한다</td><td>실패할 수 있으므로 저자가 적어서 불러야 한다</td></tr></table></div><p class="float-caption">표 19.1 — 없애는 일의 두 갈래</p></figure><p>해제는 삼킬 실패가 없다. 완결은 조용히 일어나면 그 실패를 건네줄 자리가 없다. 기준은 하나다 — <strong>끝내는 일이 실패할 수 있는가.</strong></p><span id="idx-entry-44"></span><p>어떤 타입이 완결을 요구하는지는 프로그램 자신이 선언한다. 그 타입을 <code>owned</code> 로 받아 <code>result</code> 를 돌려주는 op 이 있으면, 그것이 “이것을 끝내는 일은 실패할 수 있다” 는 선언이다. 새 낱말은 없다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/complete.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> complete .
@@ -735,7 +735,7 @@ join.low:8:0 E-OWN-JOIN: this `owned` value is CONSUMED on one path of this bran
 
 <strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
   disk_full .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> finish <strong><span class="tok-k">input</span></strong> j <strong><span class="tok-k">owned</span></strong> journal . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> flush_error .
   <strong><span class="tok-k">errors</span></strong> disk_full eq j <span class="tok-n">0</span> .
@@ -744,17 +744,17 @@ join.low:8:0 E-OWN-JOIN: this `owned` value is CONSUMED on one path of this bran
   <strong><span class="tok-k">guard</span></strong> ne j <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">drop</span></strong> j .
     <strong><span class="tok-k">return</span></strong> error disk_full .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">drop</span></strong> j .
   <strong><span class="tok-k">return</span></strong> ok <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> session <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> flush_error .
   <strong><span class="tok-k">errors</span></strong> disk_full .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> j <strong><span class="tok-k">owned</span></strong> journal <strong><span class="tok-k">be</span></strong> n .
   <strong><span class="tok-k">return</span></strong> finish j .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run session complete.low 3
 session(3) = ok 0
 </code></pre></div></div><p><code>finish</code> 가 <code>owned journal</code> 을 받아 <code>result</code> 를 돌려주므로 <code>journal</code> 은 완결이 필요한 타입이 된다. <code>session</code> 은 <code>finish j</code> 를 불러 끝내고, 그 결과(실패할 수도 있는)를 자기 결과로 돌려준다. 완결을 부르지 않고 범위를 벗어나게 두면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/incomplete.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> incomplete .
@@ -764,19 +764,19 @@ session(3) = ok 0
 
 <strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
   disk_full .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> finish <strong><span class="tok-k">input</span></strong> j <strong><span class="tok-k">owned</span></strong> journal . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> flush_error .
   <strong><span class="tok-k">errors</span></strong> disk_full .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">drop</span></strong> j .
   <strong><span class="tok-k">return</span></strong> ok <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> forget <strong><span class="tok-k">input</span></strong> j <strong><span class="tok-k">owned</span></strong> journal . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check incomplete.low
 incomplete.low:11:0 W-ERRORS-UNRAISED: this `errors` clause names a failure the body never returns. The clause is read as a promise about what this op can do, and the callers write their handling from it — a branch that can never be taken is dead code the reader cannot tell from live code. Return it (`return error &lt;variant>`), forward one (`try`), or remove the clause
 17:0 E-OWN-INCOMPLETE: this value is dropped automatically at the end of scope — but the program itself declares an op that takes this type `owned` BY VALUE and returns a `result`: finishing it CAN FAIL. An automatic drop is a RELEASE (total, non-suspending), and it has nowhere to hand you that failure — it would SWALLOW it. A fallible finish (flush/commit/close) is a COMPLETION and must be EXPLICIT: call it and handle the `result`. If you really mean to discard the value and its failure, say so with `drop`. RFC-0058
@@ -789,7 +789,7 @@ incomplete.low:11:0 W-ERRORS-UNRAISED: this `errors` clause names a failure the 
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> three_times <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -799,9 +799,9 @@ incomplete.low:11:0 W-ERRORS-UNRAISED: this `errors` clause names a failure the 
     <em><span class="tok-c">rem ✘ 첫 바퀴에서 옮겨 간 `h` 를 둘째 바퀴가 또 넘긴다</span></em>
     <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> consume h .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_loopmove.low
 mistake_loopmove.low:16:0 E-OWN-MOVED: this `owned` value is CONSUMED inside a LOOP and never put back — the SECOND iteration would be a use-after-move. A loop body must end the way it began: consume it and REASSIGN the place (`set &lt;name> …`, which re-initialises it), or move the consumption out of the loop
 </code></pre></div></div><p>첫 바퀴에서 <code>consume h</code> 가 소유를 가져가면 둘째 바퀴의 <code>h</code> 는 이미 남의 것이다. 번역은 바퀴를 하나씩 따라가지 않고도 “바퀴 몸이 시작할 때와 다른 모양으로 끝난다” 를 보고 <code>E-OWN-MOVED</code> 로 거절한다. 고치는 길은 둘이다. 넘기기를 반복 밖으로 빼거나, 넘긴 자리를 <code>set</code> 으로 새 값으로 다시 채워 바퀴가 같은 모양으로 끝나게 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/loopmove_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loopmove_fixed .
@@ -813,7 +813,7 @@ mistake_loopmove.low:16:0 E-OWN-MOVED: this `owned` value is CONSUMED inside a L
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> three_times <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -825,10 +825,10 @@ mistake_loopmove.low:16:0 E-OWN-MOVED: this `owned` value is CONSUMED inside a L
     <em><span class="tok-c">rem 넘긴 자리를 새 값으로 다시 채운다 --- 바퀴가 시작할 때와 같은 모양으로 끝난다</span></em>
     <strong><span class="tok-k">set</span></strong> h v .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run three_times loopmove_fixed.low 5
 three_times(5) = 3
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">반례. 읽기만 했다고 생각하고 옮긴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_readmove.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_readmove .
@@ -842,7 +842,7 @@ three_times(5) = 3
   <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> h .
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">return</span></strong> v .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_readmove.low
 mistake_readmove.low:10:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
 </code></pre></div></div><p><code>let v u8 be h .</code> 는 <code>h</code> 를 들여다보는 것이 아니라 <code>v</code> 로 <strong>옮기는</strong> 것이다. 소유가 있는 값은 이름에 담는 순간 옮겨 가므로 뒤의 <code>drop h</code> 는 옮긴 값을 없애려는 셈이다. 들여다보기만 하려면 같은 op 안에서 <code>ref h</code> 로 빌린다. 진단이 적은 대로 op 경계를 넘는 빌림은 이 판에서 아직 낮춰지지 않는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 다른 이름에 담으면 사본이 생긴다고 믿는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_twonames.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_twonames .
@@ -854,7 +854,7 @@ mistake_readmove.low:10:0 E-OWN-MOVED: this `owned` value was already MOVED (con
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> both <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -863,7 +863,7 @@ mistake_readmove.low:10:0 E-OWN-MOVED: this `owned` value was already MOVED (con
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> consume h2 .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> consume h .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_twonames.low
 mistake_twonames.low:17:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
 </code></pre></div></div><p><code>u64</code> 같은 값은 다른 이름에 담으면 베껴진다. 소유가 있는 값은 베껴지지 않고 옮겨 간다. 사본이 둘이면 누가 없앨지 정할 수 없고, 둘 다 없애면 두 번 없애기가 되기 때문이다. <code>var h2 owned buffer be h .</code> 뒤로 소유자는 <code>h2</code> 하나다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>drop</code> 을 적지 않으면 샌다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/implicit_release.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> implicit_release .
@@ -879,7 +879,7 @@ mistake_twonames.low:17:0 E-OWN-MOVED: this `owned` value was already MOVED (con
   <strong><span class="tok-k">guard</span></strong> eq c <span class="tok-n">1</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">drop</span></strong> h .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run keep_or_drop implicit_release.low 5 1
 keep_or_drop(5, 1) = 1
 $ lowentc --run keep_or_drop implicit_release.low 5 0

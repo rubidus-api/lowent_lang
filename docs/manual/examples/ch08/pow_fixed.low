@@ -6,11 +6,11 @@ fn square_f input a f64 . output f64 .
 do
   rem ko: `pow` 는 부동소수에서 맞게 돈다 /// en: `pow` works correctly on floats
   return pow a 2.0 .
-end .
+end
 
 fn square_i input a u64 . output u64 .
   requires le a 1000 .
 do
   rem ko: 정수의 거듭제곱은 곱셈으로 적는다 — 이름이 하는 일을 말한다 /// en: an integer power is written as multiplication; the name says what it does
   return mul a a .
-end .
+end

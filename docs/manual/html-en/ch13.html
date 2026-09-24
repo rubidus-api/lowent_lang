@@ -676,12 +676,12 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">requires</span></strong> le h <span class="tok-n">1000000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul w h .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> half_percent <strong><span class="tok-k">input</span></strong> p pct . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (div p <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run area aliases.low 3 4
 area(3, 4) = 12
 $ lowentc --run half_percent aliases.low 90
@@ -701,12 +701,12 @@ type_be.low:4:0 E-TYPE-DECL: a type alias is `type N T .` and a newtype is `newt
 <strong><span class="tok-k">fn</span></strong> load_order <strong><span class="tok-k">input</span></strong> id order_id . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> mistake <strong><span class="tok-k">input</span></strong> u user_id . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> load_order u .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check ids.low
 ids.low:14:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/isize) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
 </code></pre></div></div><p><code>user_id</code> and <code>order_id</code> are both represented as 64-bit numbers, but cannot be swapped. Such mistakes are hard to find with tests — when the numbers happen to coincide, the wrong order is fetched without a sound. Split them with <code>newtype</code> and translation catches it.</p><p>When you mean to cross over, write <code>cast</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/ids_ok.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ids_ok .
@@ -717,17 +717,17 @@ ids.low:14:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same re
 <strong><span class="tok-k">fn</span></strong> user_of <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> user_id .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> cast user_id n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> raw_of <strong><span class="tok-k">input</span></strong> u user_id . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u64</span></strong> u .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> roundtrip <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> raw_of (user_of n) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run roundtrip ids_ok.low 42
 roundtrip(42) = 42
 </code></pre></div></div><p>With only one or two crossing ops like <code>user_of</code> and <code>raw_of</code>, the places where a raw number enters as a <code>user_id</code> gather into those two. Those are the only places that need checking.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> Does a <code>newtype</code> cost anything at run time?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> No. The representation is the same, so in native code <code>user_id</code> is just a 64-bit integer. The distinction exists only at translation time, and <code>cast user_id n</code> does not change the value. It is a free distinction, worth using freely.</p></div></div><h3 id="s13-2">13.2 <code>range</code> — a contract that became the shape of a parameter<a class="plink" href="#s13-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-30"></span><p>Writing <code>range &lt;low> &lt;high></code> in a parameter’s type position makes that parameter accept only values between the two ends, inclusive.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/ranges.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ranges .
@@ -737,7 +737,7 @@ roundtrip(42) = 42
 <strong><span class="tok-k">fn</span></strong> scale <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">range</span></strong> <span class="tok-n">0</span> <span class="tok-n">100</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (mul a <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run scale ranges.low 100
 scale(100) = 200
 $ lowentc --run scale ranges.low 101
@@ -752,12 +752,12 @@ $ lowentc --run scale ranges.low 101
 <strong><span class="tok-k">fn</span></strong> truncate <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">i32</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> to_signed <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">i32</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run truncate casts.low 7.9
 truncate(7.9) = 7
 $ lowentc --run truncate casts.low -2.9
@@ -776,7 +776,7 @@ $ lowentc --run to_signed casts.low 3000000000
 <strong><span class="tok-k">fn</span></strong> grow <strong><span class="tok-k">input</span></strong> x ten_bits . <strong><span class="tok-k">output</span></strong> ten_bits .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add x <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run grow tiny.low 1000
 grow(1000) = 1001
 $ lowentc --run grow tiny.low 1023
@@ -791,13 +791,13 @@ $ lowentc --run grow tiny.low 1023
   magic <strong><span class="tok-t">u32</span></strong> big .
   length <strong><span class="tok-t">u16</span></strong> big .
   kind <strong><span class="tok-t">u8</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> header_kind <strong><span class="tok-k">input</span></strong> b bytes . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> v view wire_header <strong><span class="tok-k">be</span></strong> view wire_header b .
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> (field v kind) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check packed.low
 == check: ok ==
 </code></pre></div></div><ul><li><code>layout packed .</code> puts no padding between fields. Fields sit next to each other in declaration order.</li><li><code>big</code> and <code>little</code> after a field set its byte order. If not written, the machine’s order is used.</li><li><code>view wire_header b</code> reads a byte slice as a value of that layout <strong>without copying</strong>. If length or alignment do not fit, execution stops.</li></ul><p>A field can also carry an access mark such as <code>rw</code>, <code>ro</code> or <code>wo</code>. In a struct that maps device registers, reading a write-only field is refused at translation (chapter 30). Pinning the layout takes choices away from the processor, so pin it only where needed.</p><h3 id="s13-6">13.6 Both directions of a layout, and a view that can fail<a class="plink" href="#s13-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p><code>view</code> <strong>reads</strong> bytes as a value of that layout. The opposite direction — <strong>making</strong> bytes of that layout from a value — is <code>encode</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/encoded.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> encoded .
@@ -808,15 +808,15 @@ $ lowentc --run grow tiny.low 1023
   magic <strong><span class="tok-t">u32</span></strong> big .
   length <strong><span class="tok-t">u16</span></strong> big .
   kind <strong><span class="tok-t">u8</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem the opposite of `view` --- turn a value into bytes of that layout</span></em>
 <strong><span class="tok-k">fn</span></strong> header_bytes <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> h wire_header <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> wire_header <strong><span class="tok-k">do</span></strong> magic <span class="tok-n">1</span> . length <span class="tok-n">2</span> . kind k . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> h wire_header <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> wire_header <strong><span class="tok-k">do</span></strong> magic <span class="tok-n">1</span> . length <span class="tok-n">2</span> . kind k . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">let</span></strong> bytes <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> encode wire_header h .
   <strong><span class="tok-k">return</span></strong> add (mul (len bytes) <span class="tok-n">1000</span>) (widen <strong><span class="tok-t">u64</span></strong> (index bytes <span class="tok-n">6</span>)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run header_bytes encoded.low 9
 header_bytes(9) = 7009
 </code></pre></div></div><p><code>encode wire_header h</code> produces seven bytes in the byte order written on each field (<code>big</code>). The result 7009 puts the length 7 and the 9 of the last byte, <code>kind</code>, side by side. The side that builds a header going onto the wire uses <code>encode</code>; the side that reads a received header uses <code>view</code>.</p><p><code>view</code> <strong>stops</strong> when the length or alignment is off, because it treats that as a broken contract. Bytes from a network, however, are often short. In such places use <code>try_view</code>, which does the same work but reports failure as a value (chapter 17).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/tryview.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> tryview .
@@ -828,7 +828,7 @@ header_bytes(9) = 7009
   magic <strong><span class="tok-t">u32</span></strong> big .
   length <strong><span class="tok-t">u16</span></strong> big .
   kind <strong><span class="tok-t">u8</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem bytes from outside may be short --- `try_view` gives `none` instead of stopping like `view`</span></em>
 <strong><span class="tok-k">fn</span></strong> kind_or_zero <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -837,7 +837,7 @@ header_bytes(9) = 7009
   <strong><span class="tok-k">guard</span></strong> is_some o . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">let</span></strong> v view wire_header <strong><span class="tok-k">be</span></strong> some_value o .
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> (field v kind) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run kind_or_zero tryview.low [1,2,3,4,0,5,9]
 kind_or_zero([1,2,3,4,0,5,9]) = 9
   arg0 (written) = [1,2,3,4,0,5,9]
@@ -865,10 +865,10 @@ kind_or_zero([1,2,3]) = 0
   <em><span class="tok-c">rem remove 1 from the set --- it changes in place</span></em>
   remove a <span class="tok-n">1</span> .
   <strong><span class="tok-k">var</span></strong> code <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> add (mul (count both) <span class="tok-n">100</span>) (mul (count only_a) <span class="tok-n">10</span>) .
-  <strong><span class="tok-k">if</span></strong> is_subset both a . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> code (add code <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">if</span></strong> is_empty only_a . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> code (add code <span class="tok-n">1000</span>) . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> is_subset both a . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> code (add code <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> is_empty only_a . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> code (add code <span class="tok-n">1000</span>) . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> code .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem a complement only means something within the width --- put one of eight in, and seven remain</span></em>
 <strong><span class="tok-k">fn</span></strong> flipped <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -876,7 +876,7 @@ kind_or_zero([1,2,3]) = 0
   <strong><span class="tok-k">var</span></strong> a bitset <span class="tok-n">8</span> <strong><span class="tok-k">be</span></strong> bitset_new <span class="tok-n">8</span> .
   add a <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> count (complement a) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run overlap sets.low 5
 overlap(5) = 211
 $ lowentc --run overlap sets.low 3
@@ -907,7 +907,7 @@ flipped() = 7
   <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> seg ss <span class="tok-n">1</span> .
   <em><span class="tok-c">rem the piece count 2 times 10, plus byte 1 of the second piece (the 30 at original position 9)</span></em>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (add (mul (segs ss) <span class="tok-n">10</span>) (index p <span class="tok-n">1</span>)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main pieces.low
 main() = 50
 </code></pre></div></div><ul><li><code>view_segments back d</code> binds the backing bytes <code>back</code> and the descriptor <code>d</code> into a view of type <code>segments u8</code>. The descriptor is a row of (start, length) pairs; here 4 bytes from 0 and 4 bytes from 8.</li><li><code>segs ss</code> gives the piece count 2, and <code>seg ss 1</code> gives the second piece as an ordinary <code>slice u8</code>. Byte 1 of the second piece is the 30 at original position 9.</li><li>There is no new machine instruction. It lowers to building a grouping, reading fields and slicing, so the cost is visible.</li></ul><h3 id="s13-9">13.9 Three kinds of type words<a class="plink" href="#s13-9" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>The words that may stand in a type position form a closed list set by the canon. Some of them are known by name only and have no meaning yet.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/notyet.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> notyet .
@@ -916,13 +916,13 @@ main() = 50
 <em><span class="tok-c">rem byte is a type word known by name only; it has no meaning yet, so a warning is given; write a byte as u8</span></em>
 <strong><span class="tok-k">fn</span></strong> first <strong><span class="tok-k">input</span></strong> x byte . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem `list` in grammar annex A.9 is the same — it was on the list, but no clause ever gave it a meaning</span></em>
 <strong><span class="tok-k">fn</span></strong> count <strong><span class="tok-k">input</span></strong> xs list <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check notyet.low
 notyet.low:10:0 E-NAME-BUILTIN: this name is a BUILTIN — the resolver always picks the builtin, so your declaration can never be called: it exists and does not exist. The namespace is FLAT (no shadowing). Rename it
 notyet.low:5:0 W-NOT-YET: this type NAME is accepted but carries NO MEANING yet: lowering cannot read it, so every op in its signature falls to the interpreter (~80x). The answer stays right, so no oracle will ever see this. Declare it (`type str slice u8 .`) or write the underlying type
@@ -933,13 +933,13 @@ notyet.low:10:0 W-NOT-YET: this type NAME is accepted but carries NO MEANING yet
 <strong><span class="tok-k">fn</span></strong> scale <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">range</span></strong> <span class="tok-n">0</span> <span class="tok-n">100</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (mul a <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> call_scale <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `u64` is wider than 0 … 100 --- the caller has not shown the value is in range</span></em>
   <strong><span class="tok-k">return</span></strong> scale x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_rangewide.low
 mistake_rangewide.low:12:0 E-TYPE-WIDTH: value does not fit the declared type (a literal out of range, or a narrowing — use narrow / narrow_wrap / narrow_sat / round_to)
 </code></pre></div></div><p><code>scale</code> says in its signature that it takes only 0 … 100. A <code>u64</code> value is wider than that, so unless the caller shows it is in range, translation rejects the call with <code>E-TYPE-WIDTH</code>. The point of rejecting is to settle who is responsible: only the caller knows what to do with an out-of-range value. Check the range with <code>guard</code>, answer separately when it is outside, and pass the value on with <code>narrow</code> when it is inside.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/rangewide_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> rangewide_fixed .
@@ -949,14 +949,14 @@ mistake_rangewide.low:12:0 E-TYPE-WIDTH: value does not fit the declared type (a
 <strong><span class="tok-k">fn</span></strong> scale <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">range</span></strong> <span class="tok-n">0</span> <span class="tok-n">100</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (mul a <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> call_scale <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem answer separately when out of range; otherwise narrow and pass it on</span></em>
   <strong><span class="tok-k">guard</span></strong> le x <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> .
   <strong><span class="tok-k">return</span></strong> scale (narrow <strong><span class="tok-t">u8</span></strong> x) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run call_scale rangewide_fixed.low 40
 call_scale(40) = 80
 $ lowentc --run call_scale rangewide_fixed.low 400
@@ -968,7 +968,7 @@ call_scale(400) = 255
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ a negative number has no place in `u64` --- `widen` fails even though the width is larger</span></em>
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_widensign.low
 mistake_widensign.low:7:0 E-WIDEN-SIGN: a signed integer cannot widen into an unsigned one — a negative value has no place there. Use `cast` if that is what you mean
 </code></pre></div></div><p>Going from <code>i32</code> to <code>u64</code> makes the width larger, but a negative number such as −1 has no place in <code>u64</code>. <code>widen</code> is only for places where <strong>no value changes</strong>, so this is <code>E-WIDEN-SIGN</code>. If you know no negative value can arrive, write <code>cast u64 x</code> to leave that judgement in the source; <code>cast</code> stops if a negative value does arrive. If negatives need their own handling, put <code>guard ge x 0 .</code> first.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Turning a <code>bool</code> into a number with <code>cast</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/mistake_boolcast.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_boolcast .
@@ -978,7 +978,7 @@ mistake_widensign.low:7:0 E-WIDEN-SIGN: a signed integer cannot widen into an un
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ whether true is 1 is for the program to decide, not the language</span></em>
   <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u8</span></strong> b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_boolcast.low
 mistake_boolcast.low:7:0 E-TYPE-KIND: bool is not numeric: it cannot be a cast SOURCE either. Which side is `1` is for the PROGRAM to say, not the language — write `if b . do 1 . else 0 .`
 </code></pre></div></div><p>C treats true as 1, but whether true is 1, 0 or −1 is a promise of the program, not something the language should decide. So <code>bool</code> can be neither the source nor the target of <code>cast</code>, and it is rejected with <code>E-TYPE-KIND</code>. As the tool suggests, write “1 if true, 0 if false” with <code>if</code>. That one line puts the promise in the source.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Giving a type another name with <code>type</code> keeps units from mixing</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/type_units.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> type_units .
@@ -993,7 +993,7 @@ mistake_boolcast.low:7:0 E-TYPE-KIND: bool is not numeric: it cannot be a cast S
   <strong><span class="tok-k">requires</span></strong> le f <span class="tok-n">1000000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add m f .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run total type_units.low 100 100
 total(100, 100) = 200
 </code></pre></div></div><p><code>meters</code> and <code>feet</code> are both just <strong>other names</strong> for <code>u64</code>, so nothing stops you adding them: 100 meters plus 100 feet comes out as 200 meters. Meanings that must not mix are separated with <code>newtype</code>; then, as in <code>ids.low</code>, translation stops the mix with <code>E-TYPE-NOMINAL</code>, and every crossing shows up as a <code>cast</code>. Use <code>type</code> to shorten long names or to hand down a range.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>cast</code> of a negative number into an unsigned type gives a big number, as in C</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/negcast.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> negcast .
@@ -1004,7 +1004,7 @@ total(100, 100) = 200
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem in C, -1 would become 4294967295 --- Lowent stops when the value does not fit</span></em>
   <strong><span class="tok-k">return</span></strong> cast <strong><span class="tok-t">u32</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run to_unsigned negcast.low 5
 to_unsigned(5) = 5
 $ lowentc --run to_unsigned negcast.low -1

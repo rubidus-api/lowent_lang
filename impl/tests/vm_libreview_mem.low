@@ -46,7 +46,7 @@ proc t_sb input buf mut slice u8 . . output u64 . effects none . do
   guard eq (strbuf.room b (subslice buf 0 4)) 0 . else return 98 .
   guard eq (index buf 3) 0 . else return 99 .
   return 1 .
-end .
+end
 
 rem ── budget: gen_bits = 64(slot 0 · shard 0)는 계약을 통과하는 구성이다 — `shl 1 64` 트랩이 아니라 값 ──
 proc t_budget output u64 . effects none . do
@@ -61,7 +61,7 @@ proc t_budget output u64 . effects none . do
   let c option u64 . be budget.pack 0 0 4 0 0 16 .
   guard eq (is_some c) false . else return 95 .
   return 2 .
-end .
+end
 
 rem ── nodelist: 머리를 자르며 돌아도 셈은 고리의 크기다 (전에는 len nx + 1) ──
 proc t_nl input nx mut slice u64 . . input pv mut slice u64 . . output u64 . effects none . do
@@ -82,7 +82,7 @@ proc t_nl input nx mut slice u64 . . input pv mut slice u64 . . output u64 . eff
   guard eq (nodelist.nl_walk_cut nx pv 1 2) 3 . else return 83 .
   guard eq (nodelist.nl_count nx 1) 2 . else return 84 .
   return 3 .
-end .
+end
 
 rem ── soa: `xoff > voff` 인 기하에서 경계 밖 대신 멈춘 자리 i 를 답한다 ──
 proc t_soa input rows mut slice u64 . . output u64 . effects none . do
@@ -94,7 +94,7 @@ proc t_soa input rows mut slice u64 . . output u64 . effects none . do
   guard eq (soa.step_x_aos rows 2 1 0 2) 1 . else return 91 .
   guard eq (index rows 1) 11 . else return 92 .        rem 첫 줄은 처리됐다: x(10) += v(1)
   return 4 .
-end .
+end
 
 rem ── pool: 지어 낸 핸들 — 부풀린 len 은 풀의 블록 크기로 잘리고, 안 나간 블록은 거절된다 ──
 proc t_pool input mem mut slice u8 . . input gens mut slice u64 . . output u64 . effects none . do
@@ -128,7 +128,7 @@ proc t_pool input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
   guard eq (pool.outstanding pf p) 3 . else return 81 .
   guard eq (pool.alive pf p real) true . else return 82 .
   return 5 .
-end .
+end
 
 rem ── hashmap: 빈칸의 `key_at` 은 0 이다 (전에는 `sub 0 1`) ──
 proc t_hm input b mut slice u64 . . output u64 . effects none . do
@@ -137,7 +137,7 @@ proc t_hm input b mut slice u64 . . output u64 . effects none . do
   while lt i (len b) . do
     set (index b i) 0 .
     set i (add i 1) .
-  end .
+  end
   guard eq (hashmap.key_at b 0) 0 . else return 91 .
   guard eq (hashmap.occupied_at b 0) false . else return 92 .
   guard eq (hashmap.put b 10 100) true . else return 93 .
@@ -146,12 +146,12 @@ proc t_hm input b mut slice u64 . . output u64 . effects none . do
   while lt slot (hashmap.size b) . do
     if hashmap.occupied_at b slot . do
       set total (add total (hashmap.key_at b slot)) .
-    end .
+    end
     set slot (add slot 1) .
-  end .
+  end
   guard eq total 10 . else return 94 .
   return 7 .
-end .
+end
 
 rem ── alloc: 큰 n 의 `reserve`/`grow` 는 none 이다 (전에는 `add off n` 이 넘쳐 트랩) ──
 proc t_alloc input buf mut slice u8 . . output u64 . effects state . do
@@ -185,7 +185,7 @@ proc t_alloc input buf mut slice u8 . . output u64 . effects state . do
   let q3 option mut slice u8 . . be send al grow q0v big .
   guard eq (is_some q3) false . else return 80 .
   return 8 .
-end .
+end
 
 rem ── pagecache: 2^64 근처의 id 도 `slot_of` 가 값으로 답한다 (전에는 `add id epoch` 가 넘쳐 트랩) ──
 proc t_page output u64 . effects none . do
@@ -199,7 +199,7 @@ proc t_page output u64 . effects none . do
   guard is_some t . else return 93 .
   guard eq (some_value t) 10 . else return 94 .
   return 10 .
-end .
+end
 
 rem ── segarena: 큰 s 의 `sum_global` 은 0 이다 (전에는 `mul s width` 가 넘쳐 트랩) ──
 proc t_seg input dir mut slice u64 . . input mem slice u64 . . output u64 . effects none . do
@@ -211,4 +211,4 @@ proc t_seg input dir mut slice u64 . . input mem slice u64 . . output u64 . effe
   guard eq (segarena.sum_global sg a dir mem 1) 0 . else return 93 .
   guard eq (segarena.sum_global sg a dir mem 0) (segarena.sum_seg sg a dir mem 0) . else return 94 .
   return 11 .
-end .
+end

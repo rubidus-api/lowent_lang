@@ -7,4 +7,4 @@ do
   let r ref u64 be ref n .
   set n 5 .
   return deref r .
-end .
+end

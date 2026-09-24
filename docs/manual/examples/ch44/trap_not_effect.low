@@ -5,4 +5,4 @@ rem trap: pick [1,2,3] 7
 rem ko: 범위를 벗어나면 멈추지만, 이 op 은 여전히 순수한 fn 이다 /// en: it stops when out of range, but this op is still a pure fn
 fn pick input s slice u8 . input i u64 . output u8 . do
   return index s i .
-end .
+end

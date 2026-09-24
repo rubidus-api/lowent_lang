@@ -43,7 +43,7 @@
 - `filter is_digit .` --- `is_digit` 이 참인 원소만 남긴다.
 - `count .` --- 남은 원소를 센다. 흐름을 끝내는 낱말(*종결자*)은 정확히 하나다.
 
-`pipe` 는 문장이지만 값을 내는 종결자(`count`·`fold`·`any`·`all`)로 끝나면 식처럼 `return pipe s do … end .` 로 쓸 수 있다.
+`pipe` 는 문장이지만 값을 내는 종결자(`count`·`fold`·`any`·`all`)로 끝나면 식처럼 `return pipe s do … end` 로 쓸 수 있다.
 
 == 스테이지와 종결자
 
@@ -172,12 +172,12 @@
   id: "pipe-glance",
   caption: [`pipe` 의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`pipe xs do … end .`], [원천 `xs` 를 한 번 훑는다], [뼈대(색인·끝 조건)를 언어가 맡는다],
+  [`pipe xs do … end`], [원천 `xs` 를 한 번 훑는다], [뼈대(색인·끝 조건)를 언어가 맡는다],
   [`filter over2 .` · `map dbl .`], [남기기 · 바꾸기 --- 이름 붙은 op 을 건넨다], [람다가 없다 --- 이름이 설명이 된다],
   [`take 2 .` · `skip 1 .`], [앞 몇 개만 · 앞 몇 개 버리기], [필요한 만큼만 읽는다],
   [`enumerate idxadd .` · `zip ys addb .`], [순번·짝을 op 의 인자로 건넨다], [튜플을 만들지 않는다],
   [`scan 0 addb .` · `fold 0 addu .`], [누적해 흘리기 · 누적해 값 하나], [op 은 누산값이 먼저, 원소가 다음],
-  [`count .` · `any is_zero .` · `all under10 .`], [값을 내는 종결자], [`return pipe … end .` 로 쓸 수 있다],
+  [`count .` · `any is_zero .` · `all under10 .`], [값을 내는 종결자], [`return pipe … end` 로 쓸 수 있다],
   [`collect into out .`], [부르는 쪽 버퍼에 담는다], [`pipe` 는 할당하지 않는다 --- 차면 끝난다],
   [종결자는 정확히 하나, 맨 끝], [뒤에 스테이지가 오면 `E-PIPE-NO-TERMINAL`], [흐름의 끝이 한곳에 보인다],
   [`sort` 같은 낱말], [없다 --- `E-PIPE-STAGE`], [융합할 수 없는 연산은 넣지 않았다],

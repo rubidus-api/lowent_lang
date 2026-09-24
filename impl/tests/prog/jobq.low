@@ -62,7 +62,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
     set (index buf i) (add 100 i) .
     set qn (add qn 1) .
     set i (add i 1) .
-  end .
+  end
   guard eq qn 5 . else return 6 .
 
   rem ── ⑤ 소비: 꺼내면서 블록을 빌리고, 결과를 색인하고, 순서를 남긴다 ────
@@ -81,7 +81,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
     guard (pool.release jobs pl h) . else return 12 .
     guard not (pool.alive jobs pl h) . else return 13 .
     set done (add done 1) .
-  end .
+  end
   guard eq done 5 . else return 14 .
 
   rem ── ⑥ 대조: 색인·순서·풀이 서로 맞는가 ──────────────────────────────
@@ -102,4 +102,4 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   rem 빌린 것을 모두 돌려줬으니 미반납은 0 이어야 한다.
   guard eq (pool.outstanding jobs pl) 0 . else return 24 .
   return 42 .
-end .
+end

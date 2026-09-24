@@ -23,12 +23,12 @@ use wire  from "../../../lib/wire.low" .
 use clock from "../../../lib/clock.low" .
 
 rem 자리표 — **여기 한 곳에만** 적힌다. 접근자마다 자리와 폭을 따로 적지 않는다.
-fn m_year   output u64 . do return 18446744004990074880 . end .
-fn m_month  output u64 . do return 64424509440 . end .
-fn m_day    output u64 . do return 4160749568 . end .
-fn m_hour   output u64 . do return 130023424 . end .
-fn m_minute output u64 . do return 4128768 . end .
-fn m_second output u64 . do return 64512 . end .
+fn m_year   output u64 . do return 18446744004990074880 . end
+fn m_month  output u64 . do return 64424509440 . end
+fn m_day    output u64 . do return 4160749568 . end
+fn m_hour   output u64 . do return 130023424 . end
+fn m_minute output u64 . do return 4128768 . end
+fn m_second output u64 . do return 64512 . end
 
 rem 날짜 여섯 조각을 한 낱말로 짓는다.
 fn build input y u64 . input mo u64 . input d u64 . input h u64 . input mi u64 . input s u64 .
@@ -40,7 +40,7 @@ do
   let w3 u64 be wire.merge (m_hour)   w2 h .
   let w4 u64 be wire.merge (m_minute) w3 mi .
   return wire.merge (m_second) w4 s .
-end .
+end
 
 proc main output u8 . effects none . do
   let w u64 be build 2026 9 7 13 45 30 .
@@ -66,4 +66,4 @@ proc main output u8 . effects none . do
   guard not (wire.fits (m_month) 16) . else return 43 .
 
   return 0 .
-end .
+end

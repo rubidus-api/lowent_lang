@@ -9,7 +9,7 @@ proc bump .
 do
   set p expr (deref p) + 1 . .
   return deref p .
-end .
+end
 
 proc bump42 .
   input n u64 .
@@ -20,7 +20,7 @@ do
   var r mut_ref u64 . be mut_ref x .
   bump r .
   return x .
-end .
+end
 
 fn ro_write .
   input n u64 .
@@ -30,4 +30,4 @@ do
   var r ref u64 . be ref x .
   set r 9 .
   return x .
-end .
+end

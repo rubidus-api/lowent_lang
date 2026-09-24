@@ -62,7 +62,7 @@ end", "E-LET-NOVALUE")
       블록은 `do` 로 열고 `end` 로 닫는다.
     ]
     #para("3a")[
-      `else` 는 앞 블록을 `end` 로 닫은 **뒤에** 온다: `if <조건> . do … end else do … end .`.
+      `else` 는 앞 블록을 `end` 로 닫은 **뒤에** 온다: `if <조건> . do … end else do … end`.
       `else` 를 블록 **안**에 두는 것은 적합하지 아니하다(`E-STMT-ELSE`).
     ]
     #para("4")[
@@ -124,9 +124,9 @@ do
   var acc u64 be 0 .
   for x xs do
     set acc (add acc (widen u64 x)) .
-  end .
+  end
   return acc .
-end .",
+end",
       out: "원소를 모두 더한다")
     #caution("")[
       `in` 은 이 언어의 낱말이 **아니다**. `for x in xs` 라고 적으면 거부된다
@@ -212,7 +212,7 @@ end", "E-GUARD-FALLTHROUGH")
 
 enum short do
   too_short .
-end .
+end
 
 fn head input b slice u8 . . output result u8 short .
 errors too_short .
@@ -280,7 +280,7 @@ fn pick input a u64 . output u64 .
 do
   if gt a 1 . do
     let big u64 be mul a 2 .
-  end .
+  end
   return big .        rem 들어가지 아니한 길에는 `big` 이 없다
 end", "E-NAME-SCOPE")
     #plain[
@@ -508,7 +508,7 @@ end                      rem `a` 가 5 이하인 길에는 값이 없다", "E-RE
 
 enum e do
   bad .
-end .
+end
 
 fn f output result u8 e .
 do
@@ -518,11 +518,11 @@ end", "E-ERR-UNDECLARED")
 
 enum parse_error do
   bad_digit .
-end .
+end
 
 enum load_error do
   too_long .
-end .
+end
 
 fn read_digit input c u8 . output result u8 parse_error .
 errors bad_digit .
@@ -541,11 +541,11 @@ end", "E-ERR-UNDECLARED")
 
 enum parse_error do
   bad_digit .
-end .
+end
 
 enum load_error do
   too_long .
-end .
+end
 
 fn read_digit input c u8 . output result u8 parse_error .
 errors bad_digit .

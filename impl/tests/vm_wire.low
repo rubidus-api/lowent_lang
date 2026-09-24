@@ -18,24 +18,24 @@ rem ── ① 답이 같은가 ────────────────
 rem 달을 꺼낸다 — 라이브러리 판.
 fn month_lib input p u64 . output u64 . do
   return wire.pick 64424509440 p .          rem 0x0f_0000_0000 = 32~35 비트
-end .
+end
 
 rem ★ «모두 1» 인 낱말에서 꺼내기 — 값을 **프로그램 안의 리터럴**로 적는다.
 rem   (`--run` 인자로는 u64 의 위쪽 절반이 아직 들어오지 못한다: 구간 도메인이 i64 라
 rem    그 상계를 표현하지 못하고, 경계가 조용히 자르는 대신 거절한다 — 결함 노트 #19·#69.)
 fn month_all output u64 . do
   return wire.pick 64424509440 18446744073709551615 .
-end .
+end
 
 rem 같은 일 — 손으로 쓴 판(오늘 `clock.low` 가 하는 그대로).
 fn month_hand input p u64 . output u64 . do
   return bit_and (shr p 32) 15 .
-end .
+end
 
 rem 달을 갈아 끼운다 — 라이브러리 판.
 fn set_month_lib input p u64 . input v u64 . output u64 . do
   return wire.merge 64424509440 p v .
-end .
+end
 
 rem 같은 일 — 손으로.
 rem ★★★★ **이 줄을 처음 쓸 때 상수를 틀렸다** — `18446744004990074879` 로 적었는데 그것은
@@ -46,26 +46,26 @@ rem   ☞ *손으로 센 자리는 틀리고, 그 틀림은 «인자가 0 인 �
 rem     `wire` 가 사는 이유가 이 두 줄이다 — 자리를 손으로 세지 않는다.
 fn set_month_hand input p u64 . input v u64 . output u64 . do
   return bit_or (bit_and p 18446744009285042175) (bit_and (shl v 32) 64424509440) .
-end .
+end
 
 rem ── ② 마스크가 스스로 말하는 것 ──────────────────────────────────────────
 
-fn shift_says output u64 . do return wire.shift_of 64424509440 . end .   rem 32
-fn max_says   output u64 . do return wire.max_of   64424509440 . end .   rem 15
+fn shift_says output u64 . do return wire.shift_of 64424509440 . end   rem 32
+fn max_says   output u64 . do return wire.max_of   64424509440 . end   rem 15
 
 rem 구멍 난 마스크는 **한 덩어리가 아니다** — 그것을 라이브러리가 말한다.
 fn solid_says output u64 . do
   guard wire.solid 64424509440 . else return 0 .
   guard not (wire.solid 5) . else return 0 .        rem 0b101 — 가운데가 비었다
   return 1 .
-end .
+end
 
 rem 칸보다 큰 값은 안 들어간다 — 넣기 전에 물을 수 있다.
 fn fits_says output u64 . do
   guard wire.fits 64424509440 15 . else return 0 .
   guard not (wire.fits 64424509440 16) . else return 0 .
   return 1 .
-end .
+end
 
 test wire_same do
   expect eq (month_lib 1099511627776) (month_hand 1099511627776) .
@@ -79,4 +79,4 @@ test wire_same do
   expect eq (max_says) 15 .
   expect eq (solid_says) 1 .
   expect eq (fits_says) 1 .
-end .
+end

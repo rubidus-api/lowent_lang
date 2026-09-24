@@ -25,7 +25,7 @@ do
   guard lt pos (len buf) . else return none .
   set (index buf pos) b .
   return (some (add pos 1)) .
-end .
+end
 
 rem 바이트열. ★ **전량 아니면 무**(all-or-nothing): 들어갈 자리가 모자라면 **한 바이트도
 rem   안 쓴다.** 절반 쓴 버퍼는 조용히 틀린 출력이 되기 때문이다.
@@ -37,9 +37,9 @@ do
   while lt i (len s) . do
     set (index buf (add pos i)) (index s i) .
     set i (add i 1) .
-  end .
+  end
   return (some (add pos (len s))) .
-end .
+end
 
 rem ── 수 ────────────────────────────────────────────────────────────────
 
@@ -50,9 +50,9 @@ export fn dec_width input n u64 . output u64 . do
   while ge v 10 . do
     set v (div v 10) .
     set w (add w 1) .
-  end .
+  end
   return w .
-end .
+end
 
 rem u64 를 10 진수로. ★ format.md 는 LSB 먼저 쓰고 **뒤집었지만**, 폭을 먼저 세면 뒤집기가
 rem   필요 없다 — 그리고 그래야 **자리가 모자랄 때 버퍼를 안 건드린다**(전량 아니면 무).
@@ -67,9 +67,9 @@ do
     set i (sub i 1) .
     set (index buf (add pos i)) (narrow u8 (add 48 (mod v 10))) .
     set v (div v 10) .
-  end .
+  end
   return (some (add pos w)) .
-end .
+end
 
 rem 부호 있는 10 진수. ★ **최솟값이 함정이다**: i64 의 -9223372036854775808 은 부호를 뒤집을 수
 rem   없다(양수 쪽에 그 값이 없다). 그래서 **크기를 u64 로 다룬다** — `0 - n` 을 u64 에서
@@ -87,7 +87,7 @@ do
   let m option u64 . be put_byte buf pos 45 .          rem '-'
   guard is_some m . else return none .
   return (put_u64 buf (some_value m) mag) .
-end .
+end
 
 rem 16 진수(소문자, 접두 없음). 폭을 먼저 세는 것은 10 진과 같은 이유다.
 export fn hex_width input n u64 . output u64 . do
@@ -96,9 +96,9 @@ export fn hex_width input n u64 . output u64 . do
   while ge v 16 . do
     set v (div v 16) .
     set w (add w 1) .
-  end .
+  end
   return w .
-end .
+end
 
 export proc put_hex input buf mut slice u8 . . input pos u64 . input n u64 .
   output option u64 . effects none .
@@ -114,9 +114,9 @@ do
     if ge d 10 . do set c (add 87 d) . end            rem 'a' = 97 = 87 + 10 . .
     set (index buf (add pos i)) (narrow u8 c) .
     set v (div v 16) .
-  end .
+  end
   return (some (add pos w)) .
-end .
+end
 
 rem ── 편의 ──────────────────────────────────────────────────────────────
 
@@ -126,11 +126,11 @@ export proc put_bool input buf mut slice u8 . . input pos u64 . input b bool .
 do
   guard b . else return (put_str buf pos "false") .
   return (put_str buf pos "true") .
-end .
+end
 
 rem 줄바꿈 하나 — LF. (lib/io.low 의 take_line 과 같은 규약: LF 만이 줄 구분자다.)
 export proc put_nl input buf mut slice u8 . . input pos u64 .
   output option u64 . effects none .
 do
   return (put_byte buf pos 10) .
-end .
+end

@@ -6,4 +6,4 @@ proc zero_first input xs mut slice u8 . output u64 . effects state .
 do
   set (index xs 0) 0 .
   return len xs .
-end .
+end

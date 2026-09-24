@@ -675,26 +675,26 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">requires</span></strong> ge (len data) <span class="tok-n">1</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index data <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> last4 <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">array</span></strong> <span class="tok-n">4</span> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index xs <span class="tok-n">3</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> x)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> at <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index xs i .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run head basics.low [9,8,7]
 head([9,8,7]) = 9
   arg0 (written) = [9,8,7]
@@ -713,7 +713,7 @@ $ lowentc --run at basics.low [1,2,3] 5
 <strong><span class="tok-k">fn</span></strong> last <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">4</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index xs <span class="tok-n">3</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check array_order.low
 array_order.low:4:0 E-TYPE-ARRAY: `array` is written `array &lt;count> &lt;type>` — the length first, as a literal (`array 4 u64`). The other order used to be read as a plain slice and the length was dropped silently
 </code></pre></div></div><p>진단에 따르면 옛 도구는 <code>array u8 4</code> 를 그냥 슬라이스로 읽고 길이를 조용히 버렸다. 적은 약속이 사라지는 자리였다. 지금 <code>array</code> 는 op 의 입력 자리에서만 쓰고, 출력·지역·구조체 칸에서는 <code>slice</code> 와 계약으로 적는다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 문자열은 따로 된 타입이 없는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 없다. 문자열 리터럴 <code>"hello"</code> 는 <code>slice u8</code> 이다. 글자가 몇 개인지, UTF-8 로 올바른지 같은 질문은 타입이 아니라 라이브러리의 op 이 답한다(33장). 바이트와 글자를 같은 것으로 여기는 순간 생기는 결함을 피하려는 선택이다.</p></div></div><h3 id="s9-2">9.2 쓰려면 <code>mut slice</code><a class="plink" href="#s9-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>슬라이스의 원소에 쓰려면 그 슬라이스가 <code>mut</code> 여야 한다. 그리고 호출자가 넘긴 바이트를 바꾸는 일은 호출자에게 보이므로 <code>proc</code> 이어야 한다(5장).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/fill.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> fill .
@@ -727,9 +727,9 @@ array_order.low:4:0 E-TYPE-ARRAY: `array` is written `array &lt;count> &lt;type>
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> x)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run fill_two fill.low [0,0,5]
 fill_two([10,20,5]) = 35
   arg0 (written) = [10,20,5]
@@ -740,7 +740,7 @@ fill_two([10,20,5]) = 35
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> (index xs <span class="tok-n">0</span>) <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check readonly.low
 readonly.low:6:0 E-TYPE-MUT: writing an element of a slice that is not declared `mut` (a shared slice is read-only)
 </code></pre></div></div><p><code>mut</code> 는 슬라이스의 <strong>원소</strong>에 대한 권한이다. 슬라이스를 담은 이름을 <code>let</code> 으로 지었는지와는 다른 질문이다 (6장). 원소에 쓸 수 있는 슬라이스는 한 번에 한 곳에서만 빌릴 수 있다는 규칙이 뒤따른다 (12장).</p><h3 id="s9-3">9.3 창을 좁힌다<a class="plink" href="#s9-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>subslice s from to</code> 는 <code>s</code> 의 <code>from</code> 번부터 <code>to</code> 번 <strong>앞</strong>까지를 가리키는 새 슬라이스를 만든다. 바이트를 베끼지 않는다. 같은 바이트 위에 좁은 창을 하나 더 얹을 뿐이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/windows.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> windows .
@@ -754,15 +754,15 @@ readonly.low:6:0 E-TYPE-MUT: writing an element of a slice that is not declared 
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x mid <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> x)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> prefix_char <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt k <span class="tok-n">11</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index <span class="tok-s">"</span><span class="tok-s">/api/users/</span><span class="tok-s">"</span> k .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run middle_sum windows.low [1,2,3,4,5]
 middle_sum([1,2,3,4,5]) = 9
   arg0 (written) = [1,2,3,4,5]
@@ -777,17 +777,17 @@ prefix_char(4) = 47
   <strong><span class="tok-k">requires</span></strong> lt k <span class="tok-n">11</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index <span class="tok-s">"</span><span class="tok-s">/api/users/</span><span class="tok-s">"</span> k .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 같은 일을 if 사슬로 쓰면 글자마다 비교와 분기가 하나씩 생긴다</span></em>
 <strong><span class="tok-k">fn</span></strong> prefix_chain <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">47</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">97</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">2</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">112</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">3</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">105</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">4</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">47</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">47</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">97</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">2</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">112</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">3</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">105</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq k <span class="tok-n">4</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">47</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run prefix_char table.low 4
 prefix_char(4) = 47
 $ lowentc --run prefix_chain table.low 4
@@ -803,9 +803,9 @@ prefix_chain(4) = 47
   <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> (index a i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run sum_first bounds.low [3,4,5,6] 3
 sum_first([3,4,5,6], 3) = 12
   arg0 (written) = [3,4,5,6]
@@ -822,9 +822,9 @@ sum_first([3,4,5,6], 3) = 12
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> s (subslice s <span class="tok-n">0</span> <span class="tok-n">2</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 길이를 미리 담았다 --- s 가 짧아져도 m 은 그대로다</span></em>
 <strong><span class="tok-k">fn</span></strong> stale <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
@@ -836,9 +836,9 @@ sum_first([3,4,5,6], 3) = 12
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> s (subslice s <span class="tok-n">0</span> <span class="tok-n">2</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run fresh stale_len.low [1,2,3,4]
 fresh([1,2,3,4]) = 3
   arg0 (written) = [1,2,3,4]
@@ -856,9 +856,9 @@ $ lowentc --run stale stale_len.low [1,2,3,4]
   <strong><span class="tok-k">while</span></strong> le i (len xs) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (add t (widen <strong><span class="tok-t">u64</span></strong> (index xs i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run total mistake_offbyone.low [1,2,3]
 == ir diagnostics (1) ==
 0:0 E-VM-BOUNDS: slice index out of bounds (panic)
@@ -869,7 +869,7 @@ $ lowentc --run stale stale_len.low [1,2,3,4]
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 대괄호 색인은 없다 --- `index xs 0` 으로 읽는다</span></em>
   <strong><span class="tok-k">return</span></strong> xs[<span class="tok-n">0</span>] .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_cindex.low
 7:12 E-CHAR: unexpected character
 7:14 E-CHAR: unexpected character
@@ -881,7 +881,7 @@ $ lowentc --run stale stale_len.low [1,2,3,4]
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 빈 줄에는 0 번 원소가 없다</span></em>
   <strong><span class="tok-k">return</span></strong> index xs <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run first mistake_empty.low []
 == ir diagnostics (1) ==
 0:0 E-VM-BOUNDS: slice index out of bounds (panic)
@@ -894,7 +894,7 @@ $ lowentc --run stale stale_len.low [1,2,3,4]
   <em><span class="tok-c">rem 비었으면 여기서 떠난다 --- 아래에서는 원소가 하나 이상이라는 것이 사실이다</span></em>
   <strong><span class="tok-k">guard</span></strong> gt (len xs) <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> fallback .
   <strong><span class="tok-k">return</span></strong> index xs <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run first_or empty_fixed.low [] 0
 first_or([], 0) = 0
   arg0 (written) = []
@@ -908,7 +908,7 @@ first_or([7,8], 0) = 7
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 시작(3)이 끝(1)보다 뒤다 --- `subslice s from to` 는 from ≤ to ≤ len 이어야 한다</span></em>
   <strong><span class="tok-k">return</span></strong> len (subslice xs <span class="tok-n">3</span> <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run tail_len mistake_subrev.low [1,2,3,4]
 == ir diagnostics (1) ==
 0:0 E-VM-BOUNDS: subslice out of bounds (panic)
@@ -919,7 +919,7 @@ first_or([7,8], 0) = 7
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem 1 번부터 3 번 앞까지 --- 1 번과 2 번, 둘이다</span></em>
   <strong><span class="tok-k">return</span></strong> len (subslice xs <span class="tok-n">1</span> <span class="tok-n">3</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run middle subslice_end.low [10,20,30,40,50]
 middle([10,20,30,40,50]) = 2
   arg0 (written) = [10,20,30,40,50]
@@ -931,10 +931,10 @@ middle([10,20,30,40,50]) = 2
   <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">be</span></strong> <span class="tok-s">"</span><span class="tok-s">abc</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">set</span></strong> (index buf <span class="tok-n">0</span>) <span class="tok-n">65</span> .
   <strong><span class="tok-k">return</span></strong> index buf <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_litwrite.low
 mistake_litwrite.low:6:0 E-TYPE-ARGMUT: a string LITERAL was bound to a name declared `mut`. A literal is bytes baked into the program, not a place that can be written: the VM used to change them while the native build did not, so the same program gave two answers, and a library op writing there killed the native build. Take bytes you will change from `alloc_bytes` or from the caller's buffer, and copy the literal into them
-</code></pre></div></div><p>문자열 리터럴은 프로그램에 박힌 바이트라 고칠 자리가 아니다. 그래서 <code>mut</code> 로 선언한 이름에 묶는 것도, <code>mut</code> 자리에 넘기는 것도 <code>E-TYPE-ARGMUT</code> 로 거절된다. 2026-09-16 까지는 둘 다 통과했고, 실행하면 VM 은 65 를 네이티브는 97 을 돌려줬다 — 같은 프로그램이 두 답을 냈고, 표준 라이브러리가 그 바이트에 쓰면 네이티브는 세그폴트로 죽었다. 고칠 바이트는 <code>alloc_bytes</code> 나 호출자의 버퍼로 받고, 리터럴은 거기에 베껴 넣는다.</p></div></div><h3 id="s9-6">9.6 이 장의 문법 한눈에<a class="plink" href="#s9-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>slice u8</code></td><td><code>u8</code> 이 연속으로 놓인 구간(시작 + 길이)</td><td>개수를 따로 들고 다니지 않게</td></tr><tr><td><code>mut slice u8</code></td><td>원소에 쓸 수 있는 구간</td><td>쓸 수 있는지가 타입에 보인다</td></tr><tr><td><code>input xs array 4 u8 .</code></td><td>길이가 정확히 4 인 줄을 받는다(입력 자리만)</td><td>길이를 먼저 적는다 — 진입에서 검사</td></tr><tr><td><code>len xs</code></td><td>원소 개수</td><td>길이 칸을 꺼낼 뿐, 비용이 없다</td></tr><tr><td><code>index xs i</code></td><td><code>i</code> 번 원소(0 부터)</td><td>범위 밖이면 멈춘다 — 남의 메모리를 읽지 않는다</td></tr><tr><td><code>set (index xs i) v .</code></td><td><code>i</code> 번에 쓰기</td><td><code>mut slice</code> 와 <code>proc</code> 이어야 한다</td></tr><tr><td><code>for x xs do … end .</code></td><td>원소를 차례로</td><td>번호 실수가 생길 자리가 없다</td></tr><tr><td><code>subslice xs from to</code></td><td><code>from</code> 부터 <code>to</code> 앞까지의 창(베끼지 않음)</td><td>반열린 구간 — 길이는 <code>to − from</code></td></tr><tr><td><code>"hello"</code></td><td><code>slice u8</code> 인 리터럴 — 그대로 색인된다</td><td>문자열 타입이 따로 없다</td></tr><tr><td><code>requires le n (len xs) .</code></td><td>길이 조건을 계약으로</td><td>본문의 경계 검사가 지워진다</td></tr></table></div><p class="float-caption">표 9.1 — 줄의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">슬라이스는 시작과 길이를 함께 갖는다. <code>len</code> 은 길이 칸을 꺼내고, <code>index</code> 는 범위 밖이면 멈추며, <code>for</code> 는 원소를 훑는다. <code>array n t</code> 는 길이를 먼저 적고 입력 자리에서 쓴다. 원소에 쓰려면 <code>mut slice</code> 와 <code>proc</code> 이 필요하다. <code>subslice</code> 는 베끼지 않고 창을 좁힌다. 길이 조건을 계약으로 적으면 본문의 경계 검사가 지워지고, 문자열 리터럴은 그대로 색인되는 표다.</div></div>
+</code></pre></div></div><p>문자열 리터럴은 프로그램에 박힌 바이트라 고칠 자리가 아니다. 그래서 <code>mut</code> 로 선언한 이름에 묶는 것도, <code>mut</code> 자리에 넘기는 것도 <code>E-TYPE-ARGMUT</code> 로 거절된다. 2026-09-16 까지는 둘 다 통과했고, 실행하면 VM 은 65 를 네이티브는 97 을 돌려줬다 — 같은 프로그램이 두 답을 냈고, 표준 라이브러리가 그 바이트에 쓰면 네이티브는 세그폴트로 죽었다. 고칠 바이트는 <code>alloc_bytes</code> 나 호출자의 버퍼로 받고, 리터럴은 거기에 베껴 넣는다.</p></div></div><h3 id="s9-6">9.6 이 장의 문법 한눈에<a class="plink" href="#s9-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>slice u8</code></td><td><code>u8</code> 이 연속으로 놓인 구간(시작 + 길이)</td><td>개수를 따로 들고 다니지 않게</td></tr><tr><td><code>mut slice u8</code></td><td>원소에 쓸 수 있는 구간</td><td>쓸 수 있는지가 타입에 보인다</td></tr><tr><td><code>input xs array 4 u8 .</code></td><td>길이가 정확히 4 인 줄을 받는다(입력 자리만)</td><td>길이를 먼저 적는다 — 진입에서 검사</td></tr><tr><td><code>len xs</code></td><td>원소 개수</td><td>길이 칸을 꺼낼 뿐, 비용이 없다</td></tr><tr><td><code>index xs i</code></td><td><code>i</code> 번 원소(0 부터)</td><td>범위 밖이면 멈춘다 — 남의 메모리를 읽지 않는다</td></tr><tr><td><code>set (index xs i) v .</code></td><td><code>i</code> 번에 쓰기</td><td><code>mut slice</code> 와 <code>proc</code> 이어야 한다</td></tr><tr><td><code>for x xs do … end</code></td><td>원소를 차례로</td><td>번호 실수가 생길 자리가 없다</td></tr><tr><td><code>subslice xs from to</code></td><td><code>from</code> 부터 <code>to</code> 앞까지의 창(베끼지 않음)</td><td>반열린 구간 — 길이는 <code>to − from</code></td></tr><tr><td><code>"hello"</code></td><td><code>slice u8</code> 인 리터럴 — 그대로 색인된다</td><td>문자열 타입이 따로 없다</td></tr><tr><td><code>requires le n (len xs) .</code></td><td>길이 조건을 계약으로</td><td>본문의 경계 검사가 지워진다</td></tr></table></div><p class="float-caption">표 9.1 — 줄의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">슬라이스는 시작과 길이를 함께 갖는다. <code>len</code> 은 길이 칸을 꺼내고, <code>index</code> 는 범위 밖이면 멈추며, <code>for</code> 는 원소를 훑는다. <code>array n t</code> 는 길이를 먼저 적고 입력 자리에서 쓴다. 원소에 쓰려면 <code>mut slice</code> 와 <code>proc</code> 이 필요하다. <code>subslice</code> 는 베끼지 않고 창을 좁힌다. 길이 조건을 계약으로 적으면 본문의 경계 검사가 지워지고, 문자열 리터럴은 그대로 색인되는 표다.</div></div>
 <div class="nav"><a href="ch08.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch10.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

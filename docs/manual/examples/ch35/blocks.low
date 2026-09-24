@@ -23,9 +23,9 @@ do
   let after bool be pool.alive objects p h .
   let again bool be pool.release objects p h .
   var code u8 be 0 .
-  if before . do set code (add code 1) . end .
-  if first . do set code (add code 2) . end .
-  if after . do set code (add code 4) . end .
-  if again . do set code (add code 8) . end .
+  if before . do set code (add code 1) . end
+  if first . do set code (add code 2) . end
+  if after . do set code (add code 4) . end
+  if again . do set code (add code 8) . end
   return code .
-end .
+end

@@ -37,7 +37,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum ecdsa_error do
   short_workspace .
-end .
+end
 
 
 use hmac from "hmac.low" .
@@ -67,7 +67,7 @@ do
     set (index w i) 1 .
     set (index w (add 32 i)) 0 .
     set i (add i 1) .
-  end .
+  end
 
   rem 두 바퀴: 접미 바이트가 00 · 01.
   var phase u64 be 0 .
@@ -79,21 +79,21 @@ do
       set (index w (add 129 j)) (index x j) .
       set (index w (add 161 j)) (index h1 j) .
       set j (add j 1) .
-    end .
+    end
     set (index w 128) (narrow u8 phase) .
     let _u3 result u64 hmac.hmac_error . be hmac.mac (subslice w 32 64) (subslice w 96 193) (subslice w 256 480) (subslice w 64 96) .
     guard is_ok _u3 . else return error short_workspace .
     guard eq (ok_value _u3) 32 . else return ok 0 .
     var c u64 be 0 .
-    while lt c 32 . do  set (index w (add 32 c)) (index w (add 64 c)) .  set c (add c 1) .  end .
+    while lt c 32 . do  set (index w (add 32 c)) (index w (add 64 c)) .  set c (add c 1) .  end
     rem V = HMAC_K(V)
     let _u4 result u64 hmac.hmac_error . be hmac.mac (subslice w 32 64) (subslice w 0 32) (subslice w 256 480) (subslice w 64 96) .
     guard is_ok _u4 . else return error short_workspace .
     guard eq (ok_value _u4) 32 . else return ok 0 .
     var c2 u64 be 0 .
-    while lt c2 32 . do  set (index w c2) (index w (add 64 c2)) .  set c2 (add c2 1) .  end .
+    while lt c2 32 . do  set (index w c2) (index w (add 64 c2)) .  set c2 (add c2 1) .  end
     set phase (add phase 1) .
-  end .
+  end
 
   rem ── T = HMAC_K(V) → k. 범위 밖이면 다시 ──────────────────────────────────
   rem ☞ **되풀이가 있다는 것 자체가 규격의 일부**다. 실제로는 거의 첫 바퀴에 끝나지만
@@ -105,40 +105,40 @@ do
     guard is_ok _u5 . else return error short_workspace .
     guard eq (ok_value _u5) 32 . else return ok 0 .
     var c3 u64 be 0 .
-    while lt c3 32 . do  set (index w c3) (index w (add 64 c3)) .  set c3 (add c3 1) .  end .
+    while lt c3 32 . do  set (index w c3) (index w (add 64 c3)) .  set c3 (add c3 1) .  end
     rem 후보를 조각으로 바꿔 [1, n−1] 인지 본다.
     guard eq (bigint.from_bytes (subslice w 0 32) wu 16) 16 . else return ok 0 .
     var nz u64 be 0 .
     var q u64 be 0 .
     while lt q 16 . do
-      if ne (index wu q) 0 . do  set nz 1 .  end .
+      if ne (index wu q) 0 . do  set nz 1 .  end
       set q (add q 1) .
-    end .
+    end
     if eq nz 1 . do
       if eq (bigint.ge_mod wu nl 16) 0 . do
         var o u64 be 0 .
-        while lt o 32 . do  set (index out o) (index w o) .  set o (add o 1) .  end .
+        while lt o 32 . do  set (index out o) (index w o) .  set o (add o 1) .  end
         return ok 32 .
-      end .
-    end .
+      end
+    end
     rem 다시: K = HMAC_K(V ‖ 00) · V = HMAC_K(V)
     var r2 u64 be 0 .
-    while lt r2 32 . do  set (index w (add 96 r2)) (index w r2) .  set r2 (add r2 1) .  end .
+    while lt r2 32 . do  set (index w (add 96 r2)) (index w r2) .  set r2 (add r2 1) .  end
     set (index w 128) 0 .
     let _u6 result u64 hmac.hmac_error . be hmac.mac (subslice w 32 64) (subslice w 96 129) (subslice w 256 480) (subslice w 64 96) .
     guard is_ok _u6 . else return error short_workspace .
     guard eq (ok_value _u6) 32 . else return ok 0 .
     var c4 u64 be 0 .
-    while lt c4 32 . do  set (index w (add 32 c4)) (index w (add 64 c4)) .  set c4 (add c4 1) .  end .
+    while lt c4 32 . do  set (index w (add 32 c4)) (index w (add 64 c4)) .  set c4 (add c4 1) .  end
     let _u7 result u64 hmac.hmac_error . be hmac.mac (subslice w 32 64) (subslice w 0 32) (subslice w 256 480) (subslice w 64 96) .
     guard is_ok _u7 . else return error short_workspace .
     guard eq (ok_value _u7) 32 . else return ok 0 .
     var c5 u64 be 0 .
-    while lt c5 32 . do  set (index w c5) (index w (add 64 c5)) .  set c5 (add c5 1) .  end .
+    while lt c5 32 . do  set (index w c5) (index w (add 64 c5)) .  set c5 (add c5 1) .  end
     set tries (add tries 1) .
-  end .
+  end
   return ok 0 .
-end .
+end
 
 rem ── 서명 ──────────────────────────────────────────────────────────────────
 rem ★★★★★ `sign` — (개인키 d, 메시지 해시 h) → (r, s).
@@ -181,7 +181,7 @@ do
   rem h 는 n 보다 클 수 있다 — 한 번 빼면 족하다(둘 다 256비트).
   if eq (bigint.ge_mod (subslice wu 48 64) n 16) 1 . do
     let z0 u64 be p256.msub (subslice wu 48 64) (subslice wu 48 64) n n .
-  end .
+  end
 
   let n0p u64 be bigint.n0inv16 (index p 0) .
   let n0n u64 be bigint.n0inv16 (index n 0) .
@@ -195,7 +195,7 @@ do
     set (index wu (add 112 i)) (index gy i) .
     set (index wu (add 128 i)) 0 .
     set i (add i 1) .
-  end .
+  end
   set (index wu 128) 1 .
   let _u9 result u64 p256.p256_error . be p256.smul_ct (subslice wu 144 192) (subslice wu 16 32) (subslice wu 96 144) p (subslice wu 64 80) n0p (subslice wu 512 908) .
   guard is_ok _u9 . else return error short_workspace .
@@ -209,10 +209,10 @@ do
   guard eq (p256.pmul (subslice wu 208 224) (subslice wu 192 208) (subslice wu 192 208) p (subslice wu 64 80) n0p (subslice wu 320 338) (subslice wu 338 356)) 1 . else return ok 0 .
   guard eq (p256.pmul (subslice wu 224 240) (subslice wu 144 160) (subslice wu 208 224) p (subslice wu 64 80) n0p (subslice wu 320 338) (subslice wu 338 356)) 1 . else return ok 0 .
   var c u64 be 0 .
-  while lt c 16 . do  set (index wu (add 240 c)) (index wu (add 224 c)) .  set c (add c 1) .  end .
+  while lt c 16 . do  set (index wu (add 240 c)) (index wu (add 224 c)) .  set c (add c 1) .  end
   if eq (bigint.ge_mod (subslice wu 240 256) n 16) 1 . do
     let z1 u64 be p256.msub (subslice wu 240 256) (subslice wu 240 256) n n .
-  end .
+  end
   guard eq (p256.is_zero (subslice wu 240 256)) 0 . else return ok 0 .   rem r = 0 은 거절한다
 
   rem ⑤ s = k^-1 (h + r·d) mod n
@@ -228,4 +228,4 @@ do
   guard eq (bigint.to_bytes (subslice wu 240 256) 16 (subslice rs 0 32)) 32 . else return ok 0 .
   guard eq (bigint.to_bytes (subslice wu 304 320) 16 (subslice rs 32 64)) 32 . else return ok 0 .
   return ok 64 .
-end .
+end

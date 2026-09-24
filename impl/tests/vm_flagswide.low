@@ -49,19 +49,19 @@ proc wide_roundtrip input buf mut slice u8 . output u64 . effects none . do
   guard eq (flags.wide_ones buf) 3 . else return 97 .
 
   return 42 .
-end .
+end
 
 rem ④ 경계의 두 판 — 골든이 이 짝의 **명령 수**를 세어 문서의 수와 견준다.
-fn narrow_has input s u64 . output bool . do return flags.has s 63 . end .
-fn wide_has1  input s slice u8 . output bool . do return flags.wide_has s 64 . end .
+fn narrow_has input s u64 . output bool . do return flags.has s 63 . end
+fn wide_has1  input s slice u8 . output bool . do return flags.wide_has s 64 . end
 
 rem ★ `test` 블록은 인자를 못 준다 — 이 증인은 골든이 32 바이트를 넘겨 부른다(§증인 ①~③).
 rem   여기 남기는 시험은 **인자 없는 것**뿐이다.
 rem ★ 소스에서 바이트 열을 적는 방법은 **문자열 리터럴**이다(`[…]` 는 명령줄 인자의 문법이지
 rem   소스의 문법이 아니다 — 이 픽스처를 쓰다 배웠다). `\x00` 은 0 바이트다.
-fn four_zero output slice u8 . do return "\x00\x00\x00\x00" . end .
-fn one_at_18 output slice u8 . do return "\x00\x00\x04\x00" . end .   rem 18 번 자리
-fn nine_ones output slice u8 . do return "\xff\x01\x00\x00" . end .
+fn four_zero output slice u8 . do return "\x00\x00\x00\x00" . end
+fn one_at_18 output slice u8 . do return "\x00\x00\x04\x00" . end   rem 18 번 자리
+fn nine_ones output slice u8 . do return "\xff\x01\x00\x00" . end
 
 test wide_flags do
   expect eq (flags.wide_bits (four_zero)) 32 .
@@ -71,4 +71,4 @@ test wide_flags do
   expect eq (flags.wide_has (one_at_18) 18) true .
   expect eq (flags.wide_has (one_at_18) 19) false .
   expect eq (flags.wide_has (one_at_18) 99) false .
-end .
+end

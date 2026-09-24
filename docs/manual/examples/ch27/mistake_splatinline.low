@@ -8,4 +8,4 @@ do
   rem ko: ✘ `splat` 을 식 안에 바로 적었다 --- 레인 수를 말해 줄 타입이 없다 /// en: ✘ `splat` written inline --- nothing says how many lanes
   var over mask 4 be gt v (splat 5) .
   return reduce_add (select over v v) .
-end .
+end

@@ -10,12 +10,12 @@ enum parse_error do
   empty .
   not_digit .
   too_big .
-end .
+end
 
 fn is_digit input c u8 . output bool .
 do
   return and (ge c 48) (le c 57) .
-end .
+end
 
 rem ko: 바깥에서 온 바이트 — 무엇이든 올 수 있으므로 실패는 값이다 /// en: bytes from outside — anything can arrive, so failure is a value
 fn parse_u16 input s slice u8 . output result u16 parse_error .
@@ -29,9 +29,9 @@ do
     guard is_digit c . else return error not_digit .
     set acc (add (mul acc 10) (widen u64 (sub c 48))) .
     guard le acc 65535 . else return error too_big .
-  end .
+  end
   return ok (narrow u16 acc) .
-end .
+end
 
 rem ko: 이 층은 «왜» 가 필요 없다 — 없으면 기본값을 쓴다 /// en: this layer needs no «why» — if absent, use the default
 fn port_or_default input s slice u8 . output u16 .
@@ -39,4 +39,4 @@ do
   let r result u16 parse_error be parse_u16 s .
   guard not (is_error r) . else return 8080 .
   return ok_value r .
-end .
+end

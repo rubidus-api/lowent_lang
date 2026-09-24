@@ -24,7 +24,7 @@
   tests … · schedule …                     ⑭
 do
   <문장들>
-end .
+end
 ```
 
 == 선언
@@ -34,14 +34,14 @@ module <이름> .
 use <모듈> [from "<자리>"] .
 type <이름> <타입> .
 newtype <이름> <타입> .
-struct <이름> do [satisfies <트레이트> .] [layout packed .] [mmio <주소> .] <칸 이름> <타입> [big|little] [rw|ro|wo] . … end .
-enum <이름> do <갈래> [<칸> <타입>]… . … end .
-trait <이름> do <op 이름> <절…> . … end .
-contract <이름> do requires <조건> . … end .
-actor <이름> do [satisfies …] state do <칸> <타입> . … end . [failure restart max <수> .] [mailbox bounded <수> .] <op>… end .
+struct <이름> do [satisfies <트레이트> .] [layout packed .] [mmio <주소> .] <칸 이름> <타입> [big|little] [rw|ro|wo] . … end
+enum <이름> do <갈래> [<칸> <타입>]… . … end
+trait <이름> do <op 이름> <절…> . … end
+contract <이름> do requires <조건> . … end
+actor <이름> do [satisfies …] state do <칸> <타입> . … end [failure restart max <수> .] [mailbox bounded <수> .] <op>… end
 build profile <이름> .        build tier t0|t1|t2|t3 .        build <모드> .
 build option <이름> bool|int|choice … default <값> .
-test <이름> [schedule explore_interleavings [limit <수>]] do expect <조건> . … end .
+test <이름> [schedule explore_interleavings [limit <수>]] do expect <조건> . … end
 ```
 
 == 문장
@@ -51,15 +51,15 @@ let <이름> [<타입>] [using <출처>] be <식> .
 var <이름> [<타입>] be <식> .
 set <자리> <식> .                         (자리 = 이름 · field … · index …)
 if <조건> . do … end [else do … end] .
-while <조건> . do … end .
-for <이름> <슬라이스> do … end .
+while <조건> . do … end
+for <이름> <슬라이스> do … end
 guard <조건> . else <떠나는 문장> .
-match <값> do case <패턴> [when <조건>] . do … end … end .
+match <값> do case <패턴> [when <조건>] . do … end … end
 return [<식>] .    break .    continue .    panic "<글>" .
 drop <이름> .
-region <이름> stack|frame|arena|static|heap|mmap|disk|device do … end .
-task_group [cancel_on_error] do … end .
-pipe <원천> do <스테이지> . … <종결자> . end .
+region <이름> stack|frame|arena|static|heap|mmap|disk|device do … end
+task_group [cancel_on_error] do … end
+pipe <원천> do <스테이지> . … <종결자> . end
 spawn send <액터> <메시지> <값>… .    drain <액터> .    schedule .
 ```
 

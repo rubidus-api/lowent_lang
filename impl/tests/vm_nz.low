@@ -4,10 +4,10 @@ fn chk input a u8 . output u64 . do
   var r u64 . be chk_add a 1 .
   guard is_some r . else return 999 . .
   return some_value r .
-end .
+end
 
 fn dz input a u32 . input b u32 . output u32 . do
   var nb u32 . be nonzero_of b .
   guard is_some nb . else return 0 . .
   return div_nz a (some_value nb) .        rem 제수가 0 이 아님이 여기서 보장된다
-end .
+end

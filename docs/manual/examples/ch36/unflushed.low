@@ -13,4 +13,4 @@ do
   guard is_ok r1 . else return 2 .
   var p2 owned outbuf.pending be ok_value r1 .
   return 0 .
-end .
+end

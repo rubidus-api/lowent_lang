@@ -7,7 +7,7 @@ fn consume input h owned buffer . output u8 .
 do
   drop h .
   return 0 .
-end .
+end
 
 fn both input h owned buffer . output u8 .
 do
@@ -16,4 +16,4 @@ do
   let a u8 be consume h2 .
   let b u8 be consume h .
   return 0 .
-end .
+end

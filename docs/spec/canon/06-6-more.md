@@ -71,23 +71,23 @@
 module ex_range_match .
 
 fn band input a u8 . output u8 .
-do .
+do
   match a do
     case 0 to 9 . do return 1 . end
     case 10 to 255 . do return 2 . end
-  end .
-end .
+  end
+end
 ```
 
 ```lowent-거부: 덮이지 않은 값이 있으면 거부된다 · E-MATCH-INEXHAUSTIVE
 module ex_range_gap .
 
 fn band input a u8 . output u8 .
-do .
+do
   match a do
     case 0 to 9 . do return 1 . end
-  end .
-end .
+  end
+end
 ```
 
 > [!산문]
@@ -101,15 +101,15 @@ module ex_match .
 enum color do
   red .
   green .
-end .
+end
 
 export fn code input c color . output u32 .
-do .
+do
   match c do
     case red . do return 1 . end
     case green . do return 2 . end
-  end .
-end .
+  end
+end
 ```
 
 ```lowent-거부: 갈래가 빠진 match · E-MATCH-INEXHAUSTIVE
@@ -118,15 +118,15 @@ module ex_match_bad .
 enum color do
   red .
   green .
-end .
+end
 
 export fn code input c color . output u32 .
-do .
+do
   match c do
     case red . do return 1 . end
     rem `green` 을 안 다뤘다
-  end .
-end .
+  end
+end
 ```
 
 > [!산문]
@@ -154,14 +154,14 @@ module ex_test .
 
 export fn twice input n u32 . output u32 .
   requires le n 100 .
-do .
+do
   return mul n 2 .
-end .
+end
 
 test twice_works
 do
   expect eq (twice 5) 10 .
-end .
+end
 ```
 
 > [!주의] 계약 위반과 시험 실패는 다르다
@@ -190,28 +190,28 @@ end .
 module ex_comptime .
 
 fn twice input comptime n u8 . input a u8 . output u8 .
-do .
+do
   return add a n .
-end .
+end
 
 fn use output u8 .
-do .
+do
   return twice 3 4 .
-end .
+end
 ```
 
 ```lowent-거부: 번역 시점에 알 수 없는 값은 줄 수 없다 · E-COMPTIME-ARG
 module ex_comptime_rt .
 
 fn twice input comptime n u8 . input a u8 . output u8 .
-do .
+do
   return add a n .
-end .
+end
 
 fn use input k u8 . output u8 .
-do .
+do
   return twice k 4 .
-end .
+end
 ```
 
 > [!참고]

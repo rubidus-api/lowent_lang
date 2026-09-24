@@ -40,14 +40,14 @@ export proc step_x input xs mut slice u64 . . input vxs slice u64 . input n u64 
 do
   var i u64 be 0 .
   var m u64 be n .
-  if gt m (len xs) . do set m (len xs) . end .
-  if gt m (len vxs) . do set m (len vxs) . end .
+  if gt m (len xs) . do set m (len xs) . end
+  if gt m (len vxs) . do set m (len vxs) . end
   while lt i m . do
     set (index xs i) (add (index xs i) (index vxs i)) .
     set i (add i 1) .
-  end .
+  end
   return m .
-end .
+end
 
 rem ★ 한 필드만 합친다 — 다른 필드는 **읽지도 않는다**.
 export fn sum_field input f slice u64 . output u64 . do
@@ -56,16 +56,16 @@ export fn sum_field input f slice u64 . output u64 . do
   while lt i (len f) . do
     set t (add t (index f i)) .
     set i (add i 1) .
-  end .
+  end
   return t .
-end .
+end
 
 rem ☞ **막히는 자리 ①**: 원소 하나를 "한 덩어리" 로 못 준다. 필드마다 따로 꺼낸다.
 rem   사전 조사의 `load i` / `row i` 가 풀려던 문제이고, 지금은 **불편할 뿐** 불가능하지는 않다.
 export fn get_x input xs slice u64 . input i u64 . output u64 . do
   guard lt i (len xs) . else return 0 .
   return index xs i .
-end .
+end
 
 rem ☞ **막히는 자리 ②**: 필드 수만큼 인자가 는다. 넷이면 넷, 여덟이면 여덟.
 rem   구조체로 묶으려면 필드가 `mut slice` 여야 하는데 **그게 안 된다** — 이것이 이 시범이
@@ -76,9 +76,9 @@ export proc step_all input xs mut slice u64 . . input ys mut slice u64 . .
 do
   let a u64 be step_x xs vxs n .
   let b u64 be step_x ys vys n .
-  if lt b a . do return b . end .
+  if lt b a . do return b . end
   return a .
-end .
+end
 
 rem ── AoS 판 — 같은 계산, 다른 배치 ────────────────────────────────────
 rem
@@ -103,6 +103,6 @@ do
     let nx u64 be add (index rows (add base xoff)) (index rows (add base voff)) .
     set (index rows (add base xoff)) nx .
     set i (add i 1) .
-  end .
+  end
   return n .
-end .
+end

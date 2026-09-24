@@ -19,20 +19,20 @@ rem   go 1 → 최대 in-flight 2 (OK) · go 2 → 3 (E-VM-MAILBOX-FULL).
 actor pinger do
   state do
     me pinger .
-  end .
+  end
   mailbox bounded 2 .
   proc setme input m pinger . output u64 . effects state .
-  do set me m . return 0 . end .
+  do set me m . return 0 . end
   proc go input d u64 . output u64 . effects state .
   do
     guard gt d 0 . else return 0 .
     return send me go (sub d 1) .
-  end .
-end .
+  end
+end
 
 rem 재진입 깊이를 인자로 받아 바운드의 경계를 양쪽에서 친다(계약 오라클과 같은 정신).
 proc drive input n u64 . output u64 . effects state . do
   var c pinger be spawn actor pinger . .
   var x u64 be send c setme c .
   return send c go n .
-end .
+end

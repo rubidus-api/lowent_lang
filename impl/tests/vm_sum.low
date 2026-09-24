@@ -8,8 +8,8 @@ type bytes slice u8 . .
 fn s_good input b bytes . output f64 . do
   var xs slice f64 . be view_array f64 b .
   return sum_neumaier xs .
-end .
+end
 fn s_fast input b bytes . output f64 . do
   var xs slice f64 . be view_array f64 b .
   return sum_seq xs .
-end .
+end

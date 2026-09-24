@@ -8,5 +8,5 @@ do
   while lt i (len xs) do
     set (index xs i) 0 .
     set i (add i 1) .
-  end .
-end .
+  end
+end

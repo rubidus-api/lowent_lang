@@ -676,32 +676,32 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> lt k <span class="tok-n">3</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">return</span></strong> some (mul k <span class="tok-n">10</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> find_or <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> value_or (find k) <span class="tok-n">99</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> find_asked <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> find k .
   <strong><span class="tok-k">guard</span></strong> is_some r . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> .
   <strong><span class="tok-k">return</span></strong> some_value r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> find_match <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> find k <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> some v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> some v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> find_raw <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> some_value (find k) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run find lookup.low 2
 find(2) = some 20
 $ lowentc --run find lookup.low 7
@@ -726,7 +726,7 @@ $ lowentc --run find_raw lookup.low 7
 <strong><span class="tok-k">enum</span></strong> io_error <strong><span class="tok-k">do</span></strong>
   too_big .
   odd .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> halve <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> io_error .
   <strong><span class="tok-k">errors</span></strong> too_big gt a <span class="tok-n">200</span> .
@@ -735,7 +735,7 @@ $ lowentc --run find_raw lookup.low 7
   <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">200</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big .
   <strong><span class="tok-k">guard</span></strong> eq (mod a <span class="tok-n">2</span>) <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error odd .
   <strong><span class="tok-k">return</span></strong> ok (div a <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> halve_plus_one <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> io_error .
   <strong><span class="tok-k">errors</span></strong> too_big gt a <span class="tok-n">200</span> .
@@ -743,14 +743,14 @@ $ lowentc --run find_raw lookup.low 7
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
   <strong><span class="tok-k">return</span></strong> ok (add v <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> halve_or_zero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> io_error <strong><span class="tok-k">be</span></strong> halve a .
   <strong><span class="tok-k">guard</span></strong> not (is_error r) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> ok_value r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run halve halve.low 100
 halve(100) = ok 50
 $ lowentc --run halve halve.low 250
@@ -769,7 +769,7 @@ halve_or_zero(250) = 0
 <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   empty .
   too_long .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> first_byte <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> parse_error .
   <strong><span class="tok-k">errors</span></strong> empty eq (len s) <span class="tok-n">0</span> .
@@ -777,7 +777,7 @@ halve_or_zero(250) = 0
   <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
   <strong><span class="tok-k">guard</span></strong> le (len s) <span class="tok-n">16</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_long .
   <strong><span class="tok-k">return</span></strong> ok (index s <span class="tok-n">0</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check undeclared.low
 undeclared.low:13:0 E-ERR-UNDECLARED: op returns an error not in its errors clause
 </code></pre></div></div><p><code>too_long</code> is a variant of <code>parse_error</code>, but it is not in <code>first_byte</code>’s <code>errors</code> clause. A caller reading the head would believe handling <code>empty</code> is enough. When what is written and what is produced differ, one side meets failures it never saw and the other handles failures that never come.</p><h3 id="s11-3">11.3 <code>try</code> — passing failure upwards<a class="plink" href="#s11-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-25"></span><p>Writing the failure check by hand every time makes code long, and long code skips checks. <code>try</code> takes a <code>result</code> and, on success, takes out the value; on failure it <strong>returns that error as is and leaves the op</strong>. <code>halve_plus_one</code> in <code>halve.low</code> has that shape.</p><pre><code data-lang="lowent"><strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
@@ -790,31 +790,31 @@ undeclared.low:13:0 E-ERR-UNDECLARED: op returns an error not in its errors clau
 <strong><span class="tok-k">enum</span></strong> lookup_error <strong><span class="tok-k">do</span></strong>
   too_big .
   not_found .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> halve <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> lookup_error .
   <strong><span class="tok-k">errors</span></strong> too_big gt a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">200</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big .
   <strong><span class="tok-k">return</span></strong> ok (div a <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> find <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> lt k <span class="tok-n">3</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">return</span></strong> some (mul k <span class="tok-n">10</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> maybe_half <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">try</span></strong> (halve a) else_none .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> must_find <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> lookup_error .
   <strong><span class="tok-k">errors</span></strong> not_found .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">try</span></strong> (find k) else_error not_found .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run maybe_half tails.low 100
 maybe_half(100) = some 50
 $ lowentc --run maybe_half tails.low 250
@@ -834,58 +834,58 @@ must_find(9) = err not_found
   red .
   green .
   blue .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">enum</span></strong> node <strong><span class="tok-k">do</span></strong>
   lit v <strong><span class="tok-t">u32</span></strong> .
   plus l <strong><span class="tok-t">u32</span></strong> r <strong><span class="tok-t">u32</span></strong> .
   times l <strong><span class="tok-t">u32</span></strong> r <strong><span class="tok-t">u32</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem any one match takes the arm --- red, green and blue are all covered, so no _ is needed</span></em>
 <strong><span class="tok-k">fn</span></strong> warm <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> c color <strong><span class="tok-k">be</span></strong> green .
   <strong><span class="tok-k">match</span></strong> c <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> red or green . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> blue . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> red or green . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> blue . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem arms joined with or must bind the same names</span></em>
 <strong><span class="tok-k">fn</span></strong> combine <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> e node <strong><span class="tok-k">be</span></strong> node.times <span class="tok-n">6</span> <span class="tok-n">7</span> .
   <strong><span class="tok-k">match</span></strong> e <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> plus l r or times l r . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add l r . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> lit v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> plus l r or times l r . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add l r . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> lit v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem splits an option inside a result in one go</span></em>
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u32</span></strong> color <strong><span class="tok-k">be</span></strong> ok (some <span class="tok-n">42</span>) .
   <strong><span class="tok-k">match</span></strong> r <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> ok (some x) . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> x . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> error . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> ok (some x) . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> x . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> error . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem if the value being split is a compile-time constant, it folds to the one matching arm</span></em>
 <strong><span class="tok-k">fn</span></strong> choose <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> <strong><span class="tok-k">comptime</span></strong> (add <span class="tok-n">2</span> <span class="tok-n">3</span>) <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">5</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">500</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">5</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">500</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem the two ranges cover all of u8 without gaps, so no _ is needed</span></em>
 <strong><span class="tok-k">fn</span></strong> half <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> b <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">127</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">128</span> to <span class="tok-n">255</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">127</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">128</span> to <span class="tok-n">255</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run warm patterns.low 1
 warm(1) = 1
 $ lowentc --run combine patterns.low 1
@@ -902,15 +902,15 @@ half(200) = 1
 <strong><span class="tok-k">enum</span></strong> light <strong><span class="tok-k">do</span></strong>
   lit .
   dark .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> name <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> s light <strong><span class="tok-k">be</span></strong> lit .
   <strong><span class="tok-k">match</span></strong> s <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> lit . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> lit . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check arm_after_wild.low
 arm_after_wild.low:13:0 E-MATCH-REDUNDANT: this `case` comes AFTER a `_` (wildcard) arm — the wildcard already matched, so this arm can never run. A dead arm is an error here, not a warning (RFC-0020 §6.4)
 </code></pre></div></div><p><code>_</code> has already taken everything, so the arm after it can never run. A dead arm is an error, not a warning — a <code>match</code> where each case does not appear exactly once when read hides defects.</p><h3 id="s11-7">11.7 Common mistakes<a class="plink" href="#s11-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using an <code>option</code> in arithmetic as if it were a number</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/mistake_optarith.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_optarith .
@@ -920,13 +920,13 @@ arm_after_wild.low:13:0 E-MATCH-REDUNDANT: this `case` comes AFTER a `_` (wildca
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> lt k <span class="tok-n">5</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">return</span></strong> some (mul k <span class="tok-n">10</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> plus_one <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ an `option u64` is not a number --- ask whether it is there and take it out before adding</span></em>
   <strong><span class="tok-k">return</span></strong> add (find k) <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_optarith.low
 mistake_optarith.low:13:0 E-TYPE-RETURN: the returned value does not match the op's `output` — expected `u64`, found `option …`
 </code></pre></div></div><p><code>find k</code> does not give back a <code>u64</code>; it gives back “a box that may or may not hold a <code>u64</code>”. You cannot add 1 to a box. In other languages a null flows into the calculation and blows up much later; Lowent stops you right here with <code>E-TYPE-RETURN</code>. There are three fixes: supply a stand-in with <code>value_or (find k) 0</code>, ask with <code>is_some</code> and take it out with <code>some_value</code>, or split with <code>match</code>. Which one to pick depends on “what should happen when it is absent”.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Forgetting <code>some</code> in an op that returns an <code>option</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/mistake_nosome.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nosome .
@@ -937,7 +937,7 @@ mistake_optarith.low:13:0 E-TYPE-RETURN: the returned value does not match the o
   <strong><span class="tok-k">guard</span></strong> lt k <span class="tok-n">5</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> .
   <em><span class="tok-c">rem ✘ the value is not wrapped in `some`</span></em>
   <strong><span class="tok-k">return</span></strong> mul k <span class="tok-n">10</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nosome.low
 mistake_nosome.low:8:0 E-TYPE-RETURN: the returned value does not match the op's `output` — expected `option …`, found `u64`
 </code></pre></div></div><p>Once the head says <code>output option u64</code>, the value you return must be a box too. <code>none</code> is a box, but <code>mul k 10</code> is a bare number, so this is <code>E-TYPE-RETURN</code>. Some languages wrap the value for you; Lowent does not. Writing <code>return some (mul k 10) .</code> spells out “it is there”, so the reader sees both branches.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using <code>try</code> in an op that does not return a <code>result</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/mistake_trynoresult.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_trynoresult .
@@ -945,21 +945,21 @@ mistake_nosome.low:8:0 E-TYPE-RETURN: the returned value does not match the op's
 
 <strong><span class="tok-k">enum</span></strong> half_error <strong><span class="tok-k">do</span></strong>
   too_big .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> halve <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> half_error .
 <strong><span class="tok-k">errors</span></strong> too_big gt a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">200</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big .
   <strong><span class="tok-k">return</span></strong> ok (div a <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem ✘ uses `try`, but this op neither returns a `result` nor has an `errors` clause</span></em>
 <strong><span class="tok-k">fn</span></strong> plus <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
   <strong><span class="tok-k">return</span></strong> add v <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_trynoresult.low
 mistake_trynoresult.low:18:0 E-TRY-NORESULT: `try` may only be used in an op that can RETURN that error (§6.5.8(2)): this op's output is not a `result`, so there is nowhere for the failure to go. It used to pass, and the VM then returned the ERROR VALUE in the plain output slot while the native build would not compile at all. Declare `output result &lt;T> &lt;E> .` (and the matching `errors` clause), or handle the failure here (`guard is_ok …` / `value_or` / a `case error` arm)
 </code></pre></div></div><p><code>try</code> <strong>passes failure upwards</strong>, so this op must be able to return that failure itself (§6.5.8(2)). <code>plus</code> returns only a <code>u8</code> and has no <code>errors</code> clause, so it is refused with <code>E-TRY-NORESULT</code>. Until 2026-09-16 it passed: <code>plus 250</code> printed <code>err too_big</code> where a <code>u8</code> belongs, and the native build would not even compile. Adding a tail (<code>else_none</code>, <code>else_error</code>) or handling it here (<code>is_ok</code> and the rest of §6.5.8(3)) keeps the op free of <code>result</code>; to pass the failure up, give the head a <code>result</code> output and an <code>errors</code> clause.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/trynoresult_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> trynoresult_fixed .
@@ -968,14 +968,14 @@ mistake_trynoresult.low:18:0 E-TRY-NORESULT: `try` may only be used in an op tha
 
 <strong><span class="tok-k">enum</span></strong> half_error <strong><span class="tok-k">do</span></strong>
   too_big .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> halve <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> half_error .
 <strong><span class="tok-k">errors</span></strong> too_big gt a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">200</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_big .
   <strong><span class="tok-k">return</span></strong> ok (div a <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem an op that passes failure upward returns a result itself and lists the errors it may pass in `errors`</span></em>
 <strong><span class="tok-k">fn</span></strong> plus <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> half_error .
@@ -983,7 +983,7 @@ mistake_trynoresult.low:18:0 E-TRY-NORESULT: `try` may only be used in an op tha
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
   <strong><span class="tok-k">return</span></strong> ok (add v <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run plus trynoresult_fixed.low 10
 plus(10) = ok 6
 $ lowentc --run plus trynoresult_fixed.low 250
@@ -993,7 +993,7 @@ plus(250) = err too_big
 
 <strong><span class="tok-k">enum</span></strong> read_error <strong><span class="tok-k">do</span></strong>
   broken .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong>) read_error . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -1002,13 +1002,13 @@ plus(250) = err too_big
     <strong><span class="tok-k">case</span></strong> ok (some x) . <strong><span class="tok-k">return</span></strong> x .
     <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> . <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">case</span></strong> error e . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> via_match <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> pick (ok (some <span class="tok-n">42</span>)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run via_match nestedwild.low
 via_match() = 42
 </code></pre></div></div><p><code>ok (some x)</code> and <code>ok none</code> together cover <code>ok</code>, and <code>error e</code> covers the rest, so no <code>_</code> is needed. Leave one case out and it is refused with <code>E-MATCH-INEXHAUSTIVE</code> — better than a <code>_</code> that covers nothing. A <code>_</code> says nothing when a variant is added later.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>With <code>value_or</code> you can still tell when a value was absent</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/valueor_blind.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> valueor_blind .
@@ -1021,19 +1021,19 @@ via_match() = 42
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> lt k <span class="tok-n">3</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">return</span></strong> some (mul k <span class="tok-n">10</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem slot 0 really holds 0 and slot 7 is absent --- yet both come out as 0</span></em>
 <strong><span class="tok-k">fn</span></strong> find_or_zero <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> value_or (find k) <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem if you need to know whether it is there, ask before covering it with a stand-in</span></em>
 <strong><span class="tok-k">fn</span></strong> found <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> is_some (find k) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run find_or_zero valueor_blind.low 0
 find_or_zero(0) = 0
 $ lowentc --run find_or_zero valueor_blind.low 7

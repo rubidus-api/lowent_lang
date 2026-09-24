@@ -7,4 +7,4 @@ fn small_sum input a u8 . input b u8 . output u16 .
   requires le b 100 .
 do
   return add (widen u16 a) (widen u16 b) .
-end .
+end

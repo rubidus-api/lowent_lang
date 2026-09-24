@@ -13,15 +13,15 @@ do
   var s u64 be 0 .
   for b buf do
     set s (add s (widen u64 b)) .
-  end .
+  end
   return add s (len buf) .
-end .
+end
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
   region r arena do
     let v u64 be filled_sum r 5 .
     return narrow u8 v .
-  end .
+  end
   return 1 .
-end .
+end

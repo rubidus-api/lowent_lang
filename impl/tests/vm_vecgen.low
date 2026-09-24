@@ -22,7 +22,7 @@ proc grows_u32 input al cap allocator . output u64 . effects state alloc . do
     let okv bool be vecgen.append u32 allocs.bump_bytes g (narrow u32 (add 100 i)) .
     guard okv . else return add 10 i .
     set i (add i 1) .
-  end .
+  end
   guard eq (vecgen.count_of u32 allocs.bump_bytes g) 8 . else return 3 .
   rem 자란 뒤에도 옛 내용이 살아 있어야 한다.
   let x0 option u32 . be vecgen.at u32 allocs.bump_bytes g 0 .
@@ -35,7 +35,7 @@ proc grows_u32 input al cap allocator . output u64 . effects state alloc . do
   let x9 option u32 . be vecgen.at u32 allocs.bump_bytes g 9 .
   guard eq (is_some x9) false . else return 8 .
   return 42 .
-end .
+end
 
 rem ★★ 같은 틀의 **다른 인스턴스**: u8 은 원소가 1바이트라 같은 바이트로 4배를 담는다.
 rem   이것이 `size_of t` 가 없으면 못 하는 일이다(최대 폭으로 잡으면 u8 이 8배를 쓴다).
@@ -56,7 +56,7 @@ proc bytes_fit input al cap allocator . output u64 . effects state alloc . do
   rem 4 + 16 = 20 바이트를 썼다.
   guard eq (send bump used) 20 . else return 5 .
   return 42 .
-end .
+end
 
 rem 미리 자리를 잡으면 뒤따르는 append 가 도중에 실패하지 않는다.
 proc reserved input al cap allocator . output u64 . effects state alloc . do
@@ -73,7 +73,7 @@ proc reserved input al cap allocator . output u64 . effects state alloc . do
   while lt i 10 . do
     guard vecgen.append u16 allocs.bump_bytes g (narrow u16 (mul i 3)) . else return add 20 i .
     set i (add i 1) .
-  end .
+  end
   rem 고쳐 쓰기 — 범위 밖이면 false 다(조용히 늘리지 않는다).
   guard vecgen.set_at u16 allocs.bump_bytes g 0 999 . else return 4 .
   guard eq (vecgen.set_at u16 allocs.bump_bytes g 10 1) false . else return 5 .
@@ -85,7 +85,7 @@ proc reserved input al cap allocator . output u64 . effects state alloc . do
   guard eq (len v) 10 . else return 8 .
   guard eq (index v 9) 27 . else return 9 .
   return 42 .
-end .
+end
 
 rem ★★★ **구조체 원소** (2026-07-26) — 제네릭 컨테이너가 스칼라에 갇혀 있던 자리.
 rem   기계장치(IR_STRUCT_BIT)는 이미 있었다: `index` 가 정수 대신 **구조체 뷰**를 준다.
@@ -93,7 +93,7 @@ rem   표면만 안 이어져 있었고, 그래서 `vec point` 가 못 섰다.
 struct pt do
   x u32 .
   y u32 .
-end .
+end
 
 proc structs input al cap allocator . output u64 . effects state alloc . do
   let memo option mut slice u8 . . be alloc_bytes al capacity 1024 .
@@ -110,7 +110,7 @@ proc structs input al cap allocator . output u64 . effects state alloc . do
   while lt i 5 . do
     guard vecgen.append pt allocs.bump_bytes g (make pt do x (narrow u32 i) . y (narrow u32 (mul i 10)) . end) . else return add 10 i .
     set i (add i 1) .
-  end .
+  end
   guard eq (vecgen.count_of pt allocs.bump_bytes g) 5 . else return 3 .
   rem 자란 뒤에도 옛 원소가 **필드까지** 살아 있어야 한다.
   let e0 option pt . be vecgen.at pt allocs.bump_bytes g 0 .
@@ -124,7 +124,7 @@ proc structs input al cap allocator . output u64 . effects state alloc . do
   guard eq (field v4 x) 4 . else return 8 .
   guard eq (field v4 y) 40 . else return 9 .
   return 42 .
-end .
+end
 
 rem ★★ **중첩** (2026-07-26) — 타입 인자는 낱말 하나가 아니어도 된다: 괄호로 싸면 그것도 인자다.
 rem   `nest (nest u32)` 는 접고 나면 `nest#nest#u32` 라는 **평범한 구체 struct** 다.
@@ -132,25 +132,25 @@ rem   ☞ 괄호 없는 `nest nest u32` 는 **일부러 안 받는다** — 인�
 struct nest do
   input comptime t type .
   v t .
-end .
+end
 
 proc wrap input comptime t type . input x t . output nest t . effects none . do
-  return make nest t do v x . end .
-end .
+  return make nest t do v x . end
+end
 
 proc nested output u64 . effects none . do
   let inner nest u32 be wrap u32 7 .
-  let outer nest (nest u32) be make nest (nest u32) do v inner . end .
+  let outer nest (nest u32) be make nest (nest u32) do v inner . end
   rem 두 겹을 벗겨도 값이 그대로여야 한다.
   let back nest u32 be (field outer v) .
   guard eq (field back v) 7 . else return 1 .
   rem 세 겹도 된다(고정점이 도니까).
-  let deep nest (nest (nest u32)) be make nest (nest (nest u32)) do v outer . end .
+  let deep nest (nest (nest u32)) be make nest (nest (nest u32)) do v outer . end
   let d1 nest (nest u32) be (field deep v) .
   let d2 nest u32 be (field d1 v) .
   guard eq (field d2 v) 7 . else return 2 .
   return 42 .
-end .
+end
 
 rem ★★★★ **얼로케이터 축** (RFC-0075 S3 축소, 2026-08-15) — 같은 틀·같은 op 을 **다른
 rem   얼로케이터 타입**으로 인스턴스화한다. 이 자리가 축소가 산 것이다: 전에는 `vecgen` 이
@@ -171,7 +171,7 @@ proc aligned_axis input al cap allocator . output u64 . effects state alloc . do
   while lt i 6 . do
     guard vecgen.append u32 allocs.bump_aligned g (narrow u32 (add 200 i)) . else return add 10 i .
     set i (add i 1) .
-  end .
+  end
   rem 자라면서도 옛 내용을 지킨다 — 얼로케이터가 달라도 계약은 같다.
   guard eq (vecgen.count_of u32 allocs.bump_aligned g) 6 . else return 3 .
   let x0 option u32 . be vecgen.at u32 allocs.bump_aligned g 0 .
@@ -181,7 +181,7 @@ proc aligned_axis input al cap allocator . output u64 . effects state alloc . do
   guard is_some x5 . else return 6 .
   guard eq (some_value x5) 205 . else return 7 .
   return 42 .
-end .
+end
 
 rem ★ cap 은 CLI 인자로 못 넘긴다 — 엔트리가 받아서 넘긴다(vm_growvec 와 같은 꼴).
 proc main input al cap allocator . output u8 . effects state alloc . do
@@ -198,4 +198,4 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   let f u64 be aligned_axis al .
   guard eq f 42 . else return narrow u8 f .
   return 42 .
-end .
+end

@@ -676,31 +676,31 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">requires</span></strong> le b <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> a + b * <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> score_prefix <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le b <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a (mul b <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> grouped <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le b <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> (a + b) * <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> in_range <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> lo <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> hi <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> (lo le x) and (x le hi) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> spread <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> (max a b) - (min a b) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run score island.low 3 4
 score(3, 4) = 11
 $ lowentc --run score_prefix island.low 3 4
@@ -718,13 +718,13 @@ spread(3, 9) = 6
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> <strong><span class="tok-k">use</span></strong> <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> twice a + <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check app_bad.low
 app_bad.low:13:0 E-EXPR-APP: an op call inside an `expr` island must be parenthesised — write `(len d) ge 4`, not `len d ge 4`. The island has infix operators only: without the parentheses nothing says where the argument list ends, and you and the compiler would read it differently
 </code></pre></div></div><p>As the diagnostic’s example shows, a call inside the island is parenthesised, as in <code>(twice a) + 1</code>.</p><p>Second, unary operators. The island has no operator without a left operand.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/unary_bad.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> unary_bad .
@@ -733,7 +733,7 @@ app_bad.low:13:0 E-EXPR-APP: an op call inside an `expr` island must be parenthe
 <strong><span class="tok-k">fn</span></strong> flip <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> - a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check unary_bad.low
 unary_bad.low:6:0 E-EXPR-UNARY: an `expr` island has INFIX operators only — there is no unary form. `expr - 5` has nothing on the left of `-`. Write the prefix op instead (`neg 5`, `not b`, `bit_not x`), or give the left operand. The island exists to read like arithmetic; a unary sign would make `a - 5` and `a (- 5)` two readings of the same letters (SPEC-002 §2.5 · RFC-0091)
 </code></pre></div></div><p>To flip a sign, write <code>neg a</code> in prefix, or inside the island call <code>(neg a)</code> or write <code>expr 0 - a</code>. <code>not b</code> and <code>bit_not x</code> are the same.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>The island is small because it is unfinished</strong></p><div class="dev-body">Its size is intentional. Infix notation is only worth having <strong>when nobody needs to look up precedence</strong>. The operations in the table work like school arithmetic, so everyone reads them the same way. Adding bitwise or unary operators would add things to look up rather than making code easier to read. The specification states that the island will not grow.</div></div><h3 id="s8-4">8.4 Short-circuiting guards conditions<a class="plink" href="#s8-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-17"></span><p><code>and</code> and <code>or</code> do not compute the right-hand side when the left-hand side already decides the answer. Using that, you can put the condition that makes the right-hand side safe on the left.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/shortcircuit.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> shortcircuit .
@@ -745,12 +745,12 @@ unary_bad.low:6:0 E-EXPR-UNARY: an `expr` island has INFIX operators only — th
 <strong><span class="tok-k">fn</span></strong> safe_first_is_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> and (gt (len xs) <span class="tok-n">0</span>) (eq (index xs <span class="tok-n">0</span>) <span class="tok-n">0</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> ratio_ok <strong><span class="tok-k">input</span></strong> num <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> den <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> and (ne den <span class="tok-n">0</span>) (ge (div num den) <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run safe_first_is_zero shortcircuit.low []
 safe_first_is_zero([]) = 0
   arg0 (written) = []
@@ -768,16 +768,16 @@ ratio_ok(10, 5) = 1
 <strong><span class="tok-k">fn</span></strong> table_size <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (size_of <strong><span class="tok-t">u32</span></strong>) <span class="tok-n">16</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> <strong><span class="tok-k">comptime</span></strong> (add <span class="tok-n">2</span> <span class="tok-n">3</span>) <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">5</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">500</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">5</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">500</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run table_size compt.low
 table_size() = 64
 $ lowentc --run pick compt.low
@@ -790,7 +790,7 @@ pick() = 500
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem comparison binds tighter than `and`, so mixing without parentheses has one meaning</span></em>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> lo le x and x le hi .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run in_range mixcmp.low 3 1 5
 in_range(3, 1, 5) = 1
 $ lowentc --run in_range mixcmp.low 9 1 5
@@ -802,7 +802,7 @@ in_range(9, 1, 5) = 0
 <strong><span class="tok-k">fn</span></strong> in_range <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> lo <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> hi <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> (lo le x) and (x le hi) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run in_range mixcmp_fixed.low 5 1 9
 in_range(5, 1, 9) = 1
 $ lowentc --run in_range mixcmp_fixed.low 12 1 9
@@ -814,7 +814,7 @@ in_range(12, 1, 9) = 0
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `%` is not an island operator --- call `mod` in parentheses for the remainder</span></em>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> a % <span class="tok-n">10</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_percent.low
 7:17 E-CHAR: unexpected character
 7:17 E-FORM-UNEXPECTED: unexpected token in form
@@ -825,7 +825,7 @@ in_range(12, 1, 9) = 0
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem operations missing from the table are written prefix inside the island, wrapped in parentheses</span></em>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">expr</span></strong> (mod a <span class="tok-n">10</span>) + k .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run last_digit_plus percent_fixed.low 1234 1
 last_digit_plus(1234, 1) = 5
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing powers as <code>^</code>, or using <code>pow</code> on integers</p><div class="dev-body"><p><code>^</code> is not an island operator (<code>E-CHAR</code>) — it means power in some languages and exclusive or in others, so it was left out. Square an integer with <code>mul a a</code>. And <code>pow</code> is the power of <strong>floating-point</strong> numbers. This edition’s tool does not reject <code>pow</code> on integers; it gives a wrong value.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/mistake_pow.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_pow .
@@ -835,7 +835,7 @@ last_digit_plus(1234, 1) = 5
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `pow` on an integer; transcendental functions are floating-point only</span></em>
   <strong><span class="tok-k">return</span></strong> pow a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_pow.low
 mistake_pow.low:7:0 E-TYPE-KIND: this is a floating-point-only operation (canon §6.3.9) and it was given an INTEGER. `pow` used to answer anyway — and the answer was wrong (`pow 5 2` gave 5 on both backends), which is the worst kind of wrong: quiet. Convert first (`cast f64 n`), or use repeated multiplication for an integer power
 </code></pre></div></div><p>The canon makes <code>pow</code>, <code>sqrt</code>, <code>sin</code>, <code>cos</code>, <code>exp</code>, <code>log</code> and <code>fmod</code> floating-point only (§6.3.9). Given an integer they are refused with <code>E-TYPE-KIND</code>. Until 2026-09-16 they were not: <code>square 5</code> answered 5 instead of 25, and neither translation nor the run said anything — a quiet wrong answer. Write an integer power as multiplication, and convert with <code>cast f64 n</code> to compute in floating point.</p></div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/pow_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> pow_fixed .
@@ -846,14 +846,14 @@ mistake_pow.low:7:0 E-TYPE-KIND: this is a floating-point-only operation (canon 
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem `pow` works correctly on floats</span></em>
   <strong><span class="tok-k">return</span></strong> pow a <span class="tok-n">2.0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> square_i <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem an integer power is written as multiplication; the name says what it does</span></em>
   <strong><span class="tok-k">return</span></strong> mul a a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run square_f pow_fixed.low 1.5
 square_f(1.5) = 2.25
 $ lowentc --run square_i pow_fixed.low 5
@@ -865,13 +865,13 @@ square_i(5) = 25
 <strong><span class="tok-k">fn</span></strong> with_parens <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add <span class="tok-n">1</span> (mul a b) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> without_parens <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem without parentheses, the grouping comes from `mul` taking two arguments --- the same 13</span></em>
   <strong><span class="tok-k">return</span></strong> add <span class="tok-n">1</span> mul a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run with_parens noparen.low 3 4
 with_parens(3, 4) = 13
 $ lowentc --run without_parens noparen.low 3 4

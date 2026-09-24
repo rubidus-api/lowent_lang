@@ -12,26 +12,26 @@ rem   실측(16코어): 워커 1→4 에서 4.3배 스케일.
 
 module vm_workers .
 
-proc w0 output u64 . effects none . do return 0 . end .
-proc w1 output u64 . effects none . do return 1 . end .
-proc w2 output u64 . effects none . do return 2 . end .
-proc w3 output u64 . effects none . do return 3 . end .
-proc w4 output u64 . effects none . do return 4 . end .
-proc w5 output u64 . effects none . do return 5 . end .
-proc w6 output u64 . effects none . do return 6 . end .
-proc w7 output u64 . effects none . do return 7 . end .
-proc w8 output u64 . effects none . do return 8 . end .
-proc w9 output u64 . effects none . do return 9 . end .
-proc w10 output u64 . effects none . do return 10 . end .
-proc w11 output u64 . effects none . do return 11 . end .
-proc w12 output u64 . effects none . do return 12 . end .
-proc w13 output u64 . effects none . do return 13 . end .
-proc w14 output u64 . effects none . do return 14 . end .
-proc w15 output u64 . effects none . do return 15 . end .
-proc w16 output u64 . effects none . do return 16 . end .
-proc w17 output u64 . effects none . do return 17 . end .
-proc w18 output u64 . effects none . do return 18 . end .
-proc w19 output u64 . effects none . do return 19 . end .
+proc w0 output u64 . effects none . do return 0 . end
+proc w1 output u64 . effects none . do return 1 . end
+proc w2 output u64 . effects none . do return 2 . end
+proc w3 output u64 . effects none . do return 3 . end
+proc w4 output u64 . effects none . do return 4 . end
+proc w5 output u64 . effects none . do return 5 . end
+proc w6 output u64 . effects none . do return 6 . end
+proc w7 output u64 . effects none . do return 7 . end
+proc w8 output u64 . effects none . do return 8 . end
+proc w9 output u64 . effects none . do return 9 . end
+proc w10 output u64 . effects none . do return 10 . end
+proc w11 output u64 . effects none . do return 11 . end
+proc w12 output u64 . effects none . do return 12 . end
+proc w13 output u64 . effects none . do return 13 . end
+proc w14 output u64 . effects none . do return 14 . end
+proc w15 output u64 . effects none . do return 15 . end
+proc w16 output u64 . effects none . do return 16 . end
+proc w17 output u64 . effects none . do return 17 . end
+proc w18 output u64 . effects none . do return 18 . end
+proc w19 output u64 . effects none . do return 19 . end
 
 rem 태스크 스물을 한 그룹에 — 협조·워커N·워커1 이 모두 190(=0+1+..+19)을 내야 한다.
 proc twenty output u8 . effects state . do
@@ -76,7 +76,7 @@ proc twenty output u8 . effects state . do
     set h17 spawn w17 .
     set h18 spawn w18 .
     set h19 spawn w19 .
-  end .
+  end
   var s u64 be 0 .
   set s (add s (await h0)) .
   set s (add s (await h1)) .
@@ -99,4 +99,4 @@ proc twenty output u8 . effects state . do
   set s (add s (await h18)) .
   set s (add s (await h19)) .
   return narrow u8 s .
-end .
+end

@@ -25,11 +25,11 @@ do
   var d1 u64 be 0 .
   if back1 . do
     set d1 1 .
-  end .
+  end
   var d2 u64 be 0 .
   if back2 . do
     set d2 1 .
-  end .
+  end
   rem ko: 쓴 양 · 첫 답 · 둘째 답을 세 자리 수로 묶어 돌려준다 /// en: pack the amount used, the first answer and the second answer into one three-digit number
   return add (mul u 100) (add (mul d1 10) d2) .
-end .
+end

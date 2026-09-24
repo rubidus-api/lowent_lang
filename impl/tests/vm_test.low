@@ -12,24 +12,24 @@ rem     최적화로 사라진 테스트는 **안 돌아간 테스트**다.
 
 module vm_test .
 
-fn inc input a u8 . output u8 . do return expr a + 1 . . end .
+fn inc input a u8 . output u8 . do return expr a + 1 . . end
 
 fn clamp input a u8 . output u8 . do
-  if gt a 100 . do return 100 . end .
+  if gt a 100 . do return 100 . end
   return a .
-end .
+end
 
 test inc_adds_one do
   expect eq (inc 3) 4 .
   expect eq (inc 0) 1 .
-end .
+end
 
 test clamp_caps do
   expect eq (clamp 200) 100 .
   expect eq (clamp 50) 50 .
-end .
+end
 
 test boundary do
   expect eq (clamp 100) 100 .
   expect eq (clamp 101) 100 .
-end .
+end

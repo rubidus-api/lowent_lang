@@ -12,7 +12,7 @@ proc fill input dst mut slice u8 . . input at u64 . input v u64 . output u64 . e
   guard lt at (len dst) . else return 0 .
   set (index dst at) (narrow u8 v) .
   return 1 .
-end .
+end
 
 proc main input al cap allocator . output u8 . effects alloc state . do
   let g option mut slice u8 . . be alloc_bytes al capacity 4 .
@@ -22,7 +22,7 @@ proc main input al cap allocator . output u8 . effects alloc state . do
     spawn fill dst 0 10 .
     spawn fill dst 1 20 .
     spawn fill dst 2 30 .
-  end .
+  end
   rem 그룹이 끝났으므로 셋 다 썼다 — 합이 답이다.
   return narrow u8 (add (index dst 0) (add (index dst 1) (index dst 2))) .
-end .
+end

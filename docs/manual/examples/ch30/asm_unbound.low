@@ -17,4 +17,4 @@ do
     mov {a}, {r}
     add {c}, {r}
   ASM
-end .
+end

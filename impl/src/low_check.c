@@ -3341,7 +3341,7 @@ static void ck_toplevel(low_check_result_t *out, const low_parse_result_t *pr) {
                  "closed the op earlier than you meant. The usual cause is a control head written "
                  "without `do`: `if <cond> .` alone takes the ONE statement that follows as its "
                  "body, so the `end` written for the `if` ends the OP instead. Write the body as "
-                 "`if <cond> . do … end .` whenever it holds more than one statement",
+                 "`if <cond> . do … end` whenever it holds more than one statement",
                  f->line);
             continue;
         }
@@ -8817,7 +8817,7 @@ static void ck_inner_else(low_check_result_t *out, const low_cst_t *blk) {
                 st->kids[0]->tok.kw == LOW_KW_ELSE)
                 emit(out, "E-STMT-ELSE",
                      "`else` sits INSIDE the block, the way C writes it. Here a block is closed "
-                     "before the other arm opens: `if <cond> . do … end else do … end .`. Written "
+                     "before the other arm opens: `if <cond> . do … end else do … end`. Written "
                      "this way the arm used to be accepted by every static check and then dropped at "
                      "lowering — the VM stopped with an unsupported body and the native build "
                      "silently left the op out",

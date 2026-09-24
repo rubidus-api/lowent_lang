@@ -107,7 +107,7 @@ do
     set i (add i 1) .
   end
   return true .
-end .
+end
 ```
 
 Shape rules you will hit immediately:
@@ -123,8 +123,8 @@ Shape rules you will hit immediately:
   `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`; `--fmt` moves the non-input clauses).
   `proc save input fs cap file_system . input name slice u8 . output u64 . effects io . do … end`.
 - **Every body is `do … end`**: op bodies, control blocks AND block declarations —
-  `struct p do x u8 . end .`, `enum e do a . end .`, `trait t do area input s self . output u64 . end .`,
-  `actor c do state do v u64 . end . … end .` (`struct p .` / a bare line break → `E-STMT-NODO`).
+  `struct p do x u8 . end`, `enum e do a . end`, `trait t do area input s self . output u64 . end`,
+  `actor c do state do v u64 . end … end` (`struct p .` / a bare line break → `E-STMT-NODO`).
   A trait signature has no `fn`/`proc`; its `effects` line says what the op may do.
 - **Capabilities are named at the use site**: a host leaf takes its capability as the first
   operand (`write_out out 1 s`, `alloc_bytes al capacity n`); holding it is not enough

@@ -42,22 +42,22 @@ export newtype cstr unsafe_ptr u8 .
 
 export enum sb_error do
   no_room .
-end .
+end
 
 rem ★ 상태만. 바이트는 호출자가 든다.
 rem   `cap` 은 **호출자가 준 버퍼의 길이**를 그대로 적는다 — 두 곳에 적으면 어긋난다(§0).
 export struct str_buf do
   len u64 .
-end .
+end
 
 export fn new output str_buf . do
-  return make str_buf do len 0 . end .
-end .
+  return make str_buf do len 0 . end
+end
 
 rem 지금까지 쓴 바이트의 **뷰**. 복사가 아니다. (널은 뷰에 안 든다 — 길이가 진실이다.)
 export fn as_str input b str_buf . input buf slice u8 . output slice u8 . do
   return subslice buf 0 (field b len) .
-end .
+end
 
 rem ★ 내용 용량 = len(buf) − 1 (마지막 1 바이트는 널 봉인 자리, D2).
 rem ★ 빈 버퍼거나 `len` 이 버퍼 길이에 닿았으면(낡은 str_buf 를 짧은 버퍼에 댄 경우) **0** 이다 —
@@ -65,7 +65,7 @@ rem   전에는 뺄셈이 밑으로 감겨 2^64−1 을 냈다(2026-09-04 보안
 export fn room input b str_buf . input buf slice u8 . output u64 . do
   guard lt (field b len) (len buf) . else return 0 .
   return sub (sub (len buf) 1) (field b len) .
-end .
+end
 
 rem ★★★ **str_buf → cstr** (RFC-0068 S4 · C4 · D2 봉인) — **O(1)·무할당**. `len` 자리에 널을 봉인하고
 rem   base 포인터를 cstr 로 낸다. `cstr_of` 가 `effects unsafe` 라 이 op 도 unsafe 다 — 그리고 그것이
@@ -74,7 +74,7 @@ rem   ☞ 버퍼는 `len + 1 ≤ len(buf)` 여야 한다(append 가 예약해 �
 export unsafe proc as_cstr input b str_buf . input buf mut slice u8 . . output cstr . effects unsafe . do
   set (index buf (field b len)) 0 .
   return cstr_of buf .
-end .
+end
 
 rem ── ① 전량-아니면-무 ─────────────────────────────────────────────────
 rem
@@ -90,11 +90,11 @@ do
   while lt i (len s) . do
     set (index buf (add (field b len) i)) (index s i) .
     set i (add i 1) .
-  end .
+  end
   set (field b len) (add (field b len) (len s)) .
   set (index buf (field b len)) 0 .              rem ★ 봉인 — len 자리에 널(cstr 수출이 O(1))
   return ok .
-end .
+end
 
 rem ── ② 되는 만큼 ──────────────────────────────────────────────────────
 rem
@@ -109,16 +109,16 @@ do
   rem ★ 내용 용량 = len(buf) − 1 (널 봉인 자리 예약, D2).
   var avail u64 be sub (sub (len buf) 1) (field b len) .
   var n u64 be len s .
-  if gt n avail . do set n avail . end .
+  if gt n avail . do set n avail . end
   var i u64 be 0 .
   while lt i n . do
     set (index buf (add (field b len) i)) (index s i) .
     set i (add i 1) .
-  end .
+  end
   set (field b len) (add (field b len) n) .
   set (index buf (field b len)) 0 .              rem ★ 봉인
   return n .
-end .
+end
 
 rem ── ③ 키운다 ─────────────────────────────────────────────────────────
 rem
@@ -139,14 +139,14 @@ do
   while lt i (field b len) . do
     set (index new_buf i) (index old i) .
     set i (add i 1) .
-  end .
+  end
   rem 그 뒤에 새 바이트를 잇는다
   var j u64 be 0 .
   while lt j (len s) . do
     set (index new_buf (add (field b len) j)) (index s j) .
     set j (add j 1) .
-  end .
+  end
   set (field b len) (add (field b len) (len s)) .
   set (index new_buf (field b len)) 0 .          rem ★ 봉인
   return ok .
-end .
+end

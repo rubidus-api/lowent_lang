@@ -8,4 +8,4 @@ fn bump input a u8 . output u8 .
   requires le a 200 .
 do
   return add a 1 .
-end .
+end

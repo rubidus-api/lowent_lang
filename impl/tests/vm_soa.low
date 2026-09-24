@@ -55,7 +55,7 @@ do
   rem ★★★ **두 배치가 같은 답을 낸다** — 배치는 성능 축이지 의미 축이 아니다.
   guard eq s1 s2 . else return 92 .
   return s1 .                                    rem 11 + 22 + 33 = 66
-end .
+end
 
 rem ★ **필드 하나만 훑는다** — SoA 가 이기는 자리(다른 필드는 캐시에 안 올라온다).
 rem   여기서는 정확성만 잰다: 속도 주장은 **측정 없이 안 한다**(RFC-0070 §4).
@@ -64,7 +64,7 @@ proc field_only input xs mut slice u64 . . output u64 . effects none . do
   set (index xs 1) 7 .
   set (index xs 2) 9 .
   return soa.sum_field (subslice xs 0 3) .            rem 21
-end .
+end
 
 rem ☞ **막히는 자리 ②를 그대로 보인다**: 두 필드를 함께 전진시키려니 **인자가 넷**이다.
 rem   구조체로 묶으려면 필드가 `mut slice` 여야 하는데 그게 안 된다.
@@ -78,4 +78,4 @@ do
   let m u64 be soa.step_all xs ys vxs vys 1 .
   guard eq m 1 . else return 90 .
   return add (index xs 0) (index ys 0) .          rem 11 + 22 = 33
-end .
+end

@@ -22,7 +22,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum rsa_error do
   short_workspace .
-end .
+end
 
 
 use bigint from "bigint.low" .
@@ -35,7 +35,7 @@ errors short_workspace . do
   let sl u64 be len seed .
   guard ge (len w) (add (add sl 4) 32) . else return error short_workspace .
   var i u64 be 0 .
-  while lt i sl . do  set (index w i) (index seed i) .  set i (add i 1) .  end .
+  while lt i sl . do  set (index w i) (index seed i) .  set i (add i 1) .  end
   var counter u64 be 0 .
   var off u64 be 0 .
   while lt off n . do
@@ -49,14 +49,14 @@ errors short_workspace . do
     while lt j 32 . do
       if lt (add off j) n . do
         set (index out (add off j)) (index w (add (add sl 4) j)) .
-      end .
+      end
       set j (add j 1) .
-    end .
+    end
     set off (add off 32) .
     set counter (add counter 1) .
-  end .
+  end
   return ok n .
-end .
+end
 
 rem ★★★ **EMSA-PSS-VERIFY** (RFC 8017 §9.1.2). `em` 은 emLen 바이트, mHash 는 32.
 rem   `slen` 은 salt 길이(TLS 1.3 은 해시 길이와 같게 32 를 쓴다).
@@ -86,7 +86,7 @@ errors short_workspace . do
   while lt i dblen . do
     set (index w i) (cast u8 (bit_xor (cast u64 (index w i)) (cast u64 (index em i)))) .
     set i (add i 1) .
-  end .
+  end
   set (index w 0) (cast u8 (bit_and (cast u64 (index w 0)) 127)) .
 
   rem ④ DB 는 0x00 … 0x00 ‖ 0x01 ‖ salt 여야 한다.
@@ -94,20 +94,20 @@ errors short_workspace . do
   while lt p (sub (sub dblen slen) 1) . do
     guard eq (cast u64 (index w p)) 0 . else return ok 0 .
     set p (add p 1) .
-  end .
+  end
   guard eq (cast u64 (index w (sub (sub dblen slen) 1))) 1 . else return ok 0 .
 
   rem ⑤ M' = 0x00×8 ‖ mHash ‖ salt,  H' = SHA-256(M') 가 EM 안의 H 와 같은가
   let mp u64 be add emlen 0 .
   var q u64 be 0 .
-  while lt q 8 . do  set (index w (add mp q)) 0 .  set q (add q 1) .  end .
+  while lt q 8 . do  set (index w (add mp q)) 0 .  set q (add q 1) .  end
   var r u64 be 0 .
-  while lt r 32 . do  set (index w (add (add mp 8) r)) (index mhash r) .  set r (add r 1) .  end .
+  while lt r 32 . do  set (index w (add (add mp 8) r)) (index mhash r) .  set r (add r 1) .  end
   var t u64 be 0 .
   while lt t slen . do
     set (index w (add (add mp 40) t)) (index w (add (sub dblen slen) t)) .
     set t (add t 1) .
-  end .
+  end
   guard eq (call_builtin sha256 (subslice w mp (add (add mp 40) slen)) (subslice w (add (add mp 40) slen) (add (add (add mp 40) slen) 32))) 32 . else return ok 0 .
   rem 비교는 XOR 누적 — 조기 반환이 없다.
   var diff u64 be 0 .
@@ -115,10 +115,10 @@ errors short_workspace . do
   while lt z 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index w (add (add (add mp 40) slen) z))) (cast u64 (index em (add dblen z))))) .
     set z (add z 1) .
-  end .
+  end
   guard eq diff 0 . else return ok 0 .
   return ok 1 .
-end .
+end
 
 rem ★★ 한 번에: 서명 · 공개키(n, e) · 메시지 해시 → 맞으면 1.
 rem   `sw`/`nw`/`ow`/`r2`/`acc`/`tw`/`mw` 는 조각 작업 공간(각 k+2 이상), `w` 는 바이트 공간.
@@ -138,7 +138,7 @@ errors short_workspace . do
   guard eq (bigint.mod_exp ow sw e nw k r2 acc mw tw) 1 . else return ok 0 .
   guard eq (bigint.to_bytes ow k em) (len nb) . else return ok 0 .
   return pss_verify (subslice em 0 (len nb)) mhash slen w .
-end .
+end
 
 rem ★★★★★ **PKCS#1 v1.5 서명 검증** (백로그 X-0032 P3)
 rem
@@ -170,12 +170,12 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
   var i u64 be 2 .
   var run u64 be 1 .
   while eq run 1 . do
-    if ge i (len em) . do  set run 0 . end .
+    if ge i (len em) . do  set run 0 . end
     if eq run 1 . do
-      if ne (index em i) 255 . do  set run 0 . end .
-      if eq run 1 . do  set i (add i 1) . end .
-    end .
-  end .
+      if ne (index em i) 255 . do  set run 0 . end
+      if eq run 1 . do  set i (add i 1) . end
+    end
+  end
   guard ge (sub i 2) 8 . else return 0 .
 
   rem ② 채움 뒤는 0x00 하나.
@@ -188,9 +188,9 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
   guard eq (sub (len em) i) (add 19 (len mhash)) . else return 0 .
   var j u64 be 0 .
   while lt j 19 . do
-    if ne (index em (add i j)) (index di j) . do  return 0 . end .
+    if ne (index em (add i j)) (index di j) . do  return 0 . end
     set j (add j 1) .
-  end .
+  end
 
   rem ④ 해시를 **끝까지** 견준다 — 첫 바이트에서 돌아서면 그 시간이 곧 정보다.
   var diff u64 be 0 .
@@ -198,10 +198,10 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
   while lt m (len mhash) . do
     set diff (bit_or diff (bit_xor (cast u64 (index em (add (add i 19) m))) (cast u64 (index mhash m)))) .
     set m (add m 1) .
-  end .
-  if eq diff 0 . do  return 1 . end .
+  end
+  if eq diff 0 . do  return 1 . end
   return 0 .
-end .
+end
 
 rem ★ 서명을 풀어 위 검사를 돌린다 — `verify_pss` 와 같은 앞자락(모듈러 거듭제곱)을 쓴다.
 export proc verify_pkcs1 input sig slice u8 . input nb slice u8 . input e u64 . input mhash slice u8 .
@@ -218,4 +218,4 @@ export proc verify_pkcs1 input sig slice u8 . input nb slice u8 . input e u64 . 
   guard eq (bigint.mod_exp ow sw e nw k r2 acc mw tw) 1 . else return 0 .
   guard eq (bigint.to_bytes ow k em) (len nb) . else return 0 .
   return pkcs1_verify (subslice em 0 (len nb)) mhash di .
-end .
+end

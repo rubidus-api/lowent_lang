@@ -5,4 +5,4 @@ fn first input xs slice u8 . output u8 .
 do
   rem ko: ✘ 대괄호 색인은 없다 --- `index xs 0` 으로 읽는다 /// en: ✘ there is no bracket indexing --- read with `index xs 0`
   return xs[0] .
-end .
+end

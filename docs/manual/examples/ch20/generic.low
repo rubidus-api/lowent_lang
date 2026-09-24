@@ -16,7 +16,7 @@ do
   let q option mut slice u8 be send al reserve 5 .
   guard is_some q . else return 92 .
   return send al used .
-end .
+end
 
 proc with_bump input buf mut slice u8 . output u64 . effects state .
 do
@@ -24,7 +24,7 @@ do
   let c u64 be send b init buf .
   let n u64 using b be two_from .
   return n .
-end .
+end
 
 proc with_aligned input buf mut slice u8 . output u64 . effects state .
 do
@@ -32,4 +32,4 @@ do
   let c u64 be send b init buf .
   let n u64 using b be two_from .
   return n .
-end .
+end

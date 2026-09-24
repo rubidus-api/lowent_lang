@@ -17,7 +17,7 @@ fn node_count_of .
   output u64 .
 do
   return index g 0 .
-end .
+end
 
 fn children_of .
   input g graph .
@@ -29,9 +29,9 @@ do
   while lt i node . do
     set at expr at + (index g at) + 1 . .
     set i expr i + 1 . .
-  end .
+  end
   return subslice g (add at 1) (add (add at 1) (index g at)) .
-end .
+end
 
 proc graph_reachable .
   input temp region frame . .
@@ -46,13 +46,13 @@ do
   while pop work into node . do
     if contains out node . do
       continue .
-    end .
+    end
     add out node .
     for child children_of g node . do
       push work child .
-    end .
-  end .
-end .
+    end
+  end
+end
 
 rem ★★★ **할당 = 명시 권한** (RFC-0043 D1). 이 op 은 할당한다(`bitset_new`) — 그러면
 rem   **어디서 할당하는지**를 건네받아야 한다. 전엔 아무것도 안 받고 할당했다: **ambient 힙**.
@@ -67,4 +67,4 @@ do
   var out bitset be bitset_new 64 . .
   graph_reachable temp g root out .
   return count out .
-end .
+end

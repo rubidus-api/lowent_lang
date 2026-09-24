@@ -10,17 +10,17 @@ module m .
 type bytes slice u8 .
 
 rem 타입 슬라이스를 반환하는 op.
-fn mk4  input b bytes . output slice u32 . do return view_array u32 b . end .
+fn mk4  input b bytes . output slice u32 . do return view_array u32 b . end
 
 rem 그 반환을 바로 index — 원소 1. [1,0,0,0,2,0,0,0] → 2.
-fn idx1 input c bytes . output u32 . do return index (mk4 c) 1 . end .
+fn idx1 input c bytes . output u32 . do return index (mk4 c) 1 . end
 
 rem stride 증명: [10,11,12,13,20,21,22,23] 원소1 = 0x17161514 = 387323156 (바이트라면 11).
-fn stride input c bytes . output u32 . do return index (mk4 c) 1 . end .
+fn stride input c bytes . output u32 . do return index (mk4 c) 1 . end
 
 rem len 은 원소 수 — 원래 일치(불변 대조). 2 원소.
-fn mlen input c bytes . output u64 . do return len (mk4 c) . end .
+fn mlen input c bytes . output u64 . do return len (mk4 c) . end
 
 rem 부호형 i32 반환 — 원래 일치했다(태그 경로). 원소1 = -5.
-fn mk4i input b bytes . output slice i32 . do return view_array i32 b . end .
-fn idxi input c bytes . output i64 . do return widen i64 (index (mk4i c) 1) . end .
+fn mk4i input b bytes . output slice i32 . do return view_array i32 b . end
+fn idxi input c bytes . output i64 . do return widen i64 (index (mk4i c) 1) . end

@@ -3,9 +3,9 @@ rem expect: E-EFFECT-CALC
 
 proc nonzero input a u8 . output bool . effects panic .
 do
-  if eq a 0 . do panic "zero in input" . end .
+  if eq a 0 . do panic "zero in input" . end
   return true .
-end .
+end
 
 rem ko: ✘ 스테이지 op 이 멈출 수 있는데 `pipe` 를 쓴 op 을 `fn` 으로 적었다 /// en: ✘ the stage op can stop, yet the op using the `pipe` is written as a `fn`
 fn count_checked input xs slice u8 . output u64 .
@@ -13,5 +13,5 @@ do
   return pipe xs do
     filter nonzero .
     count .
-  end .
-end .
+  end
+end

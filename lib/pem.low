@@ -35,7 +35,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum pem_error do
   short_workspace .
-end .
+end
 
 
 use codec from "codec.low" .
@@ -50,8 +50,8 @@ rem     읽는 사람이 규약을 외우지 않아도 되게, 「없다」를 *
 export fn find_from input hay slice u8 . . input needle slice u8 . . input from u64 . output option u64 . do
   let n u64 be len needle .
   let h u64 be len hay .
-  if eq n 0 . do return none . end .
-  if gt n h . do return none . end .
+  if eq n 0 . do return none . end
+  if gt n h . do return none . end
   var i u64 be from .
   while le i (sub h n) . do
     var j u64 be 0 .
@@ -60,14 +60,14 @@ export fn find_from input hay slice u8 . . input needle slice u8 . . input from 
       if ne (index hay (add i j)) (index needle j) . do
         set same false .
         set j n .
-      end .
-      if same . do set j (add j 1) . end .
-    end .
-    if same . do return some i . end .
+      end
+      if same . do set j (add j 1) . end
+    end
+    if same . do return some i . end
     set i (add i 1) .
-  end .
+  end
   return none .
-end .
+end
 
 rem ── 봉투 ──────────────────────────────────────────────────────────────────
 rem `-----BEGIN ` 다음 줄이 시작하는 자리. 없으면 0.
@@ -81,28 +81,28 @@ errors short_workspace . do
   while lt k 11 . do
     set (index scratch k) (index "-----BEGIN " k) .
     set k (add k 1) .
-  end .
+  end
   var j u64 be 0 .
   while lt j (len label) . do
     set (index scratch (add 11 j)) (index label j) .
     set j (add j 1) .
-  end .
+  end
   var m u64 be 0 .
   while lt m 5 . do
     set (index scratch (add (add 11 (len label)) m)) 45 .
     set m (add m 1) .
-  end .
+  end
   let ao option u64 . be find_from src (subslice scratch 0 need) 0 .
   guard is_some ao . else return ok 0 .
   let at u64 be some_value ao .
   rem 그 줄의 끝(LF)까지 건너뛴다.
   var i u64 be add at need .
   while lt i (len src) . do
-    if eq (index src i) 10 . do return ok (add i 1) . end .
+    if eq (index src i) 10 . do return ok (add i 1) . end
     set i (add i 1) .
-  end .
+  end
   return ok 0 .
-end .
+end
 
 rem `-----END <라벨>-----` 이 시작하는 자리. 없으면 0.
 export proc pem_end_off input src slice u8 . . input label slice u8 . . input scratch mut slice u8 . . input from u64 . output result u64 pem_error . effects none .
@@ -113,21 +113,21 @@ errors short_workspace . do
   while lt k 9 . do
     set (index scratch k) (index "-----END " k) .
     set k (add k 1) .
-  end .
+  end
   var j u64 be 0 .
   while lt j (len label) . do
     set (index scratch (add 9 j)) (index label j) .
     set j (add j 1) .
-  end .
+  end
   var m u64 be 0 .
   while lt m 5 . do
     set (index scratch (add (add 9 (len label)) m)) 45 .
     set m (add m 1) .
-  end .
+  end
   let ao option u64 . be find_from src (subslice scratch 0 need) from .
   guard is_some ao . else return ok 0 .
   return ok (some_value ao) .
-end .
+end
 
 rem ── 해체 ──────────────────────────────────────────────────────────────────
 rem ★★★★ PEM 한 덩이를 DER 바이트로. 실패는 `none` 이다.
@@ -164,12 +164,12 @@ errors short_workspace . do
           if ne c 9 . do
             set (index scratch w) c .
             set w (add w 1) .
-          end .
-        end .
-      end .
-    end .
+          end
+        end
+      end
+    end
     set i (add i 1) .
-  end .
+  end
   guard gt w need . else return ok none .
   return ok (codec.b64_dec (subslice scratch need w) out) .
-end .
+end

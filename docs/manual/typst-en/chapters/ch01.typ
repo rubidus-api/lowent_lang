@@ -43,7 +43,7 @@ Let us look at a small program that actually runs.
 
 - `module heads .` is this file's name tag. Every file starts with this one line.
 - Lines starting with `rem` are words for people (comments). The compiler does not read them.
-- `fn area … do … end .` is an op that computes an area. `input w u64 .` means "take an unsigned 64-bit integer under the name `w`",
+- `fn area … do … end` is an op that computes an area. `input w u64 .` means "take an unsigned 64-bit integer under the name `w`",
   and `output u64 .` is the type of the value returned. `requires le w 1000 .` is a promise: "`w` must be at most 1000". It is there
   so the product cannot overflow.
 - `return mul w h .` returns `w` times `h`. The operation name comes first and the arguments follow. A statement ends with a detached

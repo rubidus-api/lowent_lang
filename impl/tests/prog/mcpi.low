@@ -33,12 +33,12 @@ fn inside input seed u64 . input n u64 . output u64 . do
     guard le (add (mul x x) (mul y y)) 1.0 . else do
       set i (add i 1) .
       continue .
-    end .
+    end
     set hits (add hits 1) .
     set i (add i 1) .
-  end .
+  end
   return hits .
-end .
+end
 
 proc main .
   input al cap allocator .
@@ -74,4 +74,4 @@ do
   rem ★ 오라클: 추정값이 π 에 가까운가. `math.close` 가 허용 오차를 **인자로** 받는다.
   guard math.close est (math.pi) 0.05 . else return 43 .
   return 42 .
-end .
+end

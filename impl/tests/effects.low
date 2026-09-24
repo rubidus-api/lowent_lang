@@ -3,22 +3,22 @@ fn clean_add .
   output i32 .
 do
   return add a b .
-end .
+end
 
 fn bad_pure .
   input x i32 .
 do
   print "side effect!" .
   return x .
-end .
+end
 
 proc do_io .
   effects io .
 do
   print "ok in proc" .
-end .
+end
 
 fn calls_proc .
 do
   do_io .
-end .
+end

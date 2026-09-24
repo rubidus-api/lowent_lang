@@ -39,14 +39,14 @@ use allocs  from "../../../lib/alloc.low" .
 
 rem ★ 두 바이트열이 같은가 — 왕복 검산이 쓴다.
 fn same_bytes input a slice u8 . input b slice u8 . output bool . do
-  if ne (len a) (len b) . do return false . end .
+  if ne (len a) (len b) . do return false . end
   var i u64 be 0 .
   while lt i (len a) . do
-    if ne (index a i) (index b i) . do return false . end .
+    if ne (index a i) (index b i) . do return false . end
     set i (add i 1) .
-  end .
+  end
   return true .
-end .
+end
 
 rem ★ 글자 종류를 센다 — `unicode` 의 표가 실제로 쓰이는 자리.
 proc scan_kinds input src slice u8 . input dst mut slice u8 . . input pos0 u64 .
@@ -61,16 +61,16 @@ do
     let d option u64 . be utf8.decode src at .
     guard is_some d . else return none .
     let cp u64 be some_value d .
-    if unicode.is_letter cp . do set n_letters (add n_letters 1) . end .
-    if unicode.is_number cp . do set n_digits (add n_digits 1) . end .
-    if unicode.is_space cp . do set n_spaces (add n_spaces 1) . end .
+    if unicode.is_letter cp . do set n_letters (add n_letters 1) . end
+    if unicode.is_number cp . do set n_digits (add n_digits 1) . end
+    if unicode.is_space cp . do set n_spaces (add n_spaces 1) . end
     if eq (unicode.is_alnum cp) false . do
-      if eq (unicode.is_space cp) false . do set n_others (add n_others 1) . end .
-    end .
+      if eq (unicode.is_space cp) false . do set n_others (add n_others 1) . end
+    end
     let nx option u64 . be utf8.next src at .
     guard is_some nx . else return none .
     set at (some_value nx) .
-  end .
+  end
   var pos u64 be pos0 .
   let sk1 option u64 . be fmt.put_u64 dst pos n_letters .
   guard is_some sk1 . else return none .
@@ -89,7 +89,7 @@ do
   let sk8 option u64 . be fmt.put_str dst (some_value sk7) " other" .
   guard is_some sk8 . else return none .
   return some (some_value sk8) .
-end .
+end
 
 proc main .
   input fs cap file_system .
@@ -133,7 +133,7 @@ do
       guard same_bytes src (subslice backbuf 0 (some_value b)) . else return 2 .
       let w u64 be write_out out 1 enc .
       return 0 .
-    end .
+    end
     if eq (index mode 0) 98 . do
       rem ★ 이름을 갈라 준다 — 이름공간이 평평해서 같은 이름을 두 가지에 못 쓴다(E-NAME-DUP).
       let e6 option u64 . be codec.b64_enc src encbuf .
@@ -144,8 +144,8 @@ do
       guard same_bytes src (subslice backbuf 0 (some_value b6)) . else return 2 .
       let w6 u64 be write_out out 1 enc6 .
       return 0 .
-    end .
-  end .
+    end
+  end
 
   rem ── 글자 종류 세기 ──────────────────────────────────────────────────────
   if eq (len mode) 4 . do
@@ -157,8 +157,8 @@ do
       guard is_some e2 . else return 72 .
       let w u64 be write_out out 1 (subslice encbuf 0 (some_value e2)) .
       return 0 .
-    end .
-  end .
+    end
+  end
 
   rem ── UTF-8 ↔ UTF-16 왕복 ─────────────────────────────────────────────────
   rem ★ `utf8` 에는 **인코더가 없다**(decode/next/count/is_valid 뿐). 없는 것을 있는 척하지 않고,
@@ -184,7 +184,7 @@ do
         guard is_some nx . else return 65 .
         set rpos (some_value nx) .
         set n (add n 1) .
-      end .
+      end
       rem 되돌린다 — 두 축을 나란히 걸으며 코드포인트를 하나씩 맞댄다.
       let u16v slice u16 be subslice u16buf 0 wpos .
       guard utf16.is_valid u16v . else return 2 .
@@ -204,7 +204,7 @@ do
         guard is_some rb . else return 2 .
         set w2 (some_value rb) .
         set m (add m 1) .
-      end .
+      end
       guard eq m n . else return 2 .
       rem ★ 세는 것도 두 모듈이 **따로** 답한다 — 같은 글자 수여야 한다.
       let c8 option u64 . be utf8.count_chars src .
@@ -220,9 +220,9 @@ do
       guard is_some e4 . else return 72 .
       let w4 u64 be write_out out 1 (subslice backbuf 0 (some_value e4)) .
       return 0 .
-    end .
-  end .
+    end
+  end
 
   rem 모르는 모드는 **거절한다** — 조용히 아무 일도 안 하는 것보다 낫다.
   return 64 .
-end .
+end

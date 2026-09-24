@@ -11,7 +11,7 @@ do
     if is_some g . do
       rem ko: ✘ 영역 밖에서 태어난 액터에게 영역의 바이트를 건넨다 /// en: ✘ handing region bytes to an actor born outside the region
       let c u64 be send a init (some_value g) .
-    end .
-  end .
+    end
+  end
   return 0 .
-end .
+end

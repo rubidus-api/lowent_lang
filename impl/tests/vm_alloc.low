@@ -33,7 +33,7 @@ trait allocator do
   init input s self . input c u64 . output u64 . effects state .
   reserve input s self . input n u64 . output option u64 . effects state .
   used input s self . output u64 . effects state .
-end .
+end
 
 rem ── D3: **fixed_buffer bump** — 정적 버퍼 위의 순차 할당. **힙 0.** ATtiny 가능.
 rem   할당의 결과는 **버퍼 안의 오프셋**이다(포인터가 아니다) — 그래서 VM 에서 진짜로 돈다.
@@ -42,24 +42,24 @@ actor bump do
   state do
     off u64 .
     cap u64 .
-  end .
+  end
   proc init input c u64 . output u64 . effects state .
   do
     set cap c .
     return cap .
-  end .
+  end
   proc reserve input n u64 . output option u64 . effects state .
   do
     guard le (add off n) cap . else return none .    rem ★ OOM 은 **값**이다
     var at u64 be off .
     set off add off n .
     return some at .
-  end .
+  end
   proc used output u64 . effects none .
   do
     return off .
-  end .
-end .
+  end
+end
 
 rem ── 또 하나의 구현: **정렬을 8바이트로 맞추는** bump (같은 인터페이스, 다른 정책)
 actor aligned do
@@ -67,12 +67,12 @@ actor aligned do
   state do
     off u64 .
     cap u64 .
-  end .
+  end
   proc init input c u64 . output u64 . effects state .
   do
     set cap c .
     return cap .
-  end .
+  end
   proc reserve input n u64 . output option u64 . effects state .
   do
     var pad u64 be mod (sub 8 (mod off 8)) 8 .
@@ -80,12 +80,12 @@ actor aligned do
     guard le (add at n) cap . else return none .
     set off add at n .
     return some at .
-  end .
+  end
   proc used output u64 . effects none .
   do
     return off .
-  end .
-end .
+  end
+end
 
 rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계가 인터페이스를 보장한다.
 rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계(trait bound)가 인터페이스를 보장한다.
@@ -100,7 +100,7 @@ do
   var x option u64 be send al reserve 3 .
   var y option u64 be send al reserve 5 .
   return send al used .
-end .
+end
 
 proc demo output u64 . effects state . do
   var b bump be spawn actor bump . .
@@ -108,7 +108,7 @@ proc demo output u64 . effects state . do
   let p u64 using b be two_takes .
   let q u64 using g be two_takes .
   return add p q .   rem 8 + 13 = 21
-end .
+end
 
 rem ★★★ **OOM 은 값이다**(D5) — panic 이 아니다. 임베디드는 **반드시 처리**한다.
 proc oom output bool . effects state . do
@@ -116,9 +116,9 @@ proc oom output bool . effects state . do
   var c u64 be send b init 4 .
   var x option u64 be send b reserve 99 .      rem 4 바이트 버퍼에 99 를 달라고 한다
   return is_some x .                        rem → **false**. 트랩이 아니라 **none**.
-end .
+end
 
 test alloc_holds do
   expect eq (demo) 21 .
   expect eq (oom) false .
-end .
+end

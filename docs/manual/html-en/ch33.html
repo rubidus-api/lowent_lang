@@ -693,7 +693,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">guard</span></strong> is_some p5 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> .
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> write_out out <span class="tok-n">1</span> (subslice buf <span class="tok-n">0</span> (some_value p5)) .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main request.low
 path=/users/42 len=9
 main() = 0
@@ -710,14 +710,14 @@ main() = 0
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> utf8.count_chars s .
   <strong><span class="tok-k">guard</span></strong> is_some n . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> some_value n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> first_char <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> utf8.decode s <span class="tok-n">0</span> .
   <strong><span class="tok-k">guard</span></strong> is_some c . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> some_value c .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run characters chars.low [236,149,136,235,133,149]
 characters([236,149,136,235,133,149]) = 2
   arg0 (written) = [236,149,136,235,133,149]
@@ -747,7 +747,7 @@ first_char([236,149,136,235,133,149]) = 50504
   <strong><span class="tok-k">let</span></strong> small <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> codec.hex_enc <span class="tok-s">"</span><span class="tok-s">too long for eight</span><span class="tok-s">"</span> (subslice dst <span class="tok-n">0</span> <span class="tok-n">8</span>) .
   <strong><span class="tok-k">guard</span></strong> not (is_some small) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">3</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main hexout.low
 4c6f77656e74
 main() = 0
@@ -760,13 +760,13 @@ main() = 0
 <strong><span class="tok-k">fn</span></strong> checksum <strong><span class="tok-k">input</span></strong> data <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> hash.crc data .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> slot <strong><span class="tok-k">input</span></strong> key <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> nslots <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> gt nslots <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> hash.bucket_of key nslots .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run checksum codes.low [104,101,108,108,111]
 checksum([104,101,108,108,111]) = 907060870
   arg0 (written) = [104,101,108,108,111]
@@ -784,7 +784,7 @@ slot([104,101,108,108,111], 16) = 11
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> rest <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> strings.remove_prefix line <span class="tok-s">"</span><span class="tok-s">GET </span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> len rest .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run path_len mistake_removeprefix.low [71,69,84,32,47,97]
 path_len([71,69,84,32,47,97]) = 2
   arg0 (written) = [71,69,84,32,47,97]
@@ -802,7 +802,7 @@ path_len([80,79,83,84,32,47,97]) = 7
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> strings.starts_with line <span class="tok-s">"</span><span class="tok-s">GET </span><span class="tok-s">"</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> len (strings.remove_prefix line <span class="tok-s">"</span><span class="tok-s">GET </span><span class="tok-s">"</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run path_len removeprefix_fixed.low [71,69,84,32,47,97]
 path_len([71,69,84,32,47,97]) = 2
   arg0 (written) = [71,69,84,32,47,97]
@@ -823,7 +823,7 @@ path_len([80,79,83,84,32,47,97]) = 0
   <strong><span class="tok-k">guard</span></strong> is_some n . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
   <em><span class="tok-c">rem ✘ treating all of `dst` as the result adds four unwritten bytes --- 12 were written, the buffer is 16</span></em>
   <strong><span class="tok-k">return</span></strong> add (mul (len dst) <span class="tok-n">100</span>) (some_value n) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run sizes mistake_wholedst.low 0
 sizes(0) = 1612
 </code></pre></div></div><p><code>codec.hex_enc</code> writes 12 bytes into the 16-byte buffer and returns 12 (the result 1612 puts the buffer size 16 and the count 12 side by side). Using all of <code>dst</code> as the result tacks four unwritten bytes onto the end. It is the same mistake as discarding the return value of C’s <code>sprintf</code> and sending the whole buffer. The result is always <code>subslice dst 0 n</code>.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>len</code> is the number of characters, and a byte position is a character position</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch33/bytes_not_chars.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bytes_not_chars .
@@ -839,7 +839,7 @@ sizes(0) = 1612
   <strong><span class="tok-k">let</span></strong> chars <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> utf8.count_chars s .
   <strong><span class="tok-k">guard</span></strong> is_some chars . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> add (mul (len s) <span class="tok-n">10</span>) (some_value chars) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem no character starts at byte 1 --- the second character starts at byte 3</span></em>
 <strong><span class="tok-k">fn</span></strong> decode_at <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> at <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -847,7 +847,7 @@ sizes(0) = 1612
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> utf8.decode s at .
   <strong><span class="tok-k">guard</span></strong> is_some c . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> some_value c .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run lengths bytes_not_chars.low [236,149,136,235,133,149]
 lengths([236,149,136,235,133,149]) = 62
   arg0 (written) = [236,149,136,235,133,149]

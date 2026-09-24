@@ -15,11 +15,11 @@ rem     이것도 결과다 — 그리고 검사되는 결과다(아래 게이�
 
 module vm_collect .
 
-fn dbl input a u8 . output u8 . do return (wrap_add a a) . end .
+fn dbl input a u8 . output u8 . do return (wrap_add a a) . end
 
 rem 할당이 준 오프셋 off 자리에 map 의 결과를 모은다 — 이것이 "collect into" 다.
 proc collect_at input xs slice u8 . input buf mut slice u8 . input off u64 . input n u64 . output u64 . effects none . do
   var dst mut slice u8 . be subslice buf off (add off n) .
   map dst dbl xs .
   return 0 .
-end .
+end

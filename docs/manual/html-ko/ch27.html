@@ -675,9 +675,9 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index s i) (wrap_mul (index s i) <span class="tok-n">2</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> len s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">parallel</span></strong> s split .
@@ -688,9 +688,9 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run double_all split.low [1,2,3,4,5,6]
 double_all([2,4,6,8,10,12]) = 6
   arg0 (written) = [2,4,6,8,10,12]
@@ -707,9 +707,9 @@ total([1,2,3,4,5,6]) = 21
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index s i) (wrap_sub (index s i) (index s <span class="tok-n">0</span>)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> len s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check par_read.low
 par_read.low:9:0 E-PAR-READ: a splittable loop may only read its OWN element of the split slice — reading another index creates a cross-iteration dependence (Bernstein: rd ∩ wr = ∅)
 </code></pre></div></div><p>모든 원소에서 첫 원소를 빼는 되풀이다. 첫 조각이 <code>index s 0</code> 을 먼저 바꾸면, 다른 조각이 읽는 첫 원소는 이미 바뀐 값이다. 순차로 돌려도 첫 걸음 이후에는 0 을 빼게 되는 결함이 있는데, 나누면 그 결함이 차례에 따라 달라진다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/par_carry.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> par_carry .
@@ -723,9 +723,9 @@ par_read.low:9:0 E-PAR-READ: a splittable loop may only read its OWN element of 
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check par_carry.low
 par_carry.low:10:0 E-PAR-CARRY: a splittable loop may not write a local that lives across iterations (a loop-carried dependence) — declare it: `reduce &lt;acc> &lt;op> .`
 </code></pre></div></div><p><code>reduce</code> 없이 <code>acc</code> 에 누적했다. 진단이 고치는 법을 그대로 알려 준다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>병렬로 돌려서 답이 가끔 다르면 그건 성능 조정의 문제다</strong></p><div class="dev-body">답이 차례에 따라 달라지는 프로그램은 느린 프로그램이 아니라 틀린 프로그램이다. Lowent 에서 <code>parallel</code> 절은 뜻을 바꾸지 않는다. 나누어 돈 답과 하나씩 돈 답은 언제나 같아야 하고, 그 조건을 확인할 수 없으면 번역이 거절한다. “빠르지만 가끔 틀림” 은 이 언어가 파는 물건이 아니다.</div></div><h3 id="s27-3">27.3 모으는 연산은 결합적이어야 한다<a class="plink" href="#s27-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>reduce</code> 로 모을 때, 조각을 어떻게 나누느냐에 따라 합치는 나무의 모양이 달라진다. 연산이 결합적이면 모양이 답을 바꾸지 않고, 결합적이지 않으면 바꾼다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/par_assoc.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> par_assoc .
@@ -740,9 +740,9 @@ par_carry.low:10:0 E-PAR-CARRY: a splittable loop may not write a local that liv
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (sub acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check par_assoc.low
 par_assoc.low:4:0 E-PAR-ASSOC: this reduction operator is not associative, so the shape of the reduction tree changes the result — a split tree is not deterministic (★ nonassoc_shape_matters, Qed — docs/proofs/coq/LowentPar.v)
 par_assoc.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may be split (DET-1 proves the parallel result is bit-identical to the sequential one — docs/proofs/coq/LowentPar.v). Execution is still sequential, which is a VALID implementation precisely because of that theorem
@@ -758,9 +758,9 @@ par_assoc.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may
   <strong><span class="tok-k">while</span></strong> lt i (len data) . <strong><span class="tok-k">do</span></strong>
     atomic_add counter <span class="tok-n">0</span> <span class="tok-n">1</span> .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> atomic . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> atomic alloc .
 <strong><span class="tok-k">do</span></strong>
@@ -770,7 +770,7 @@ par_assoc.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may
   atomic_store cells <span class="tok-n">0</span> <span class="tok-n">0</span> .
   count_par k <span class="tok-s">"</span><span class="tok-s">abcdefghij</span><span class="tok-s">"</span> cells .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (atomic_load cells <span class="tok-n">0</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main counter.low
 main() = 10
 </code></pre></div></div><ul><li><code>atomic_add counter 0 1</code> 은 슬라이스 <code>counter</code> 의 0 번 자리에 원자적으로 1 을 더한다. 자리는 <strong>슬라이스와 색인</strong>으로 가리킨다.</li><li><code>count_par</code> 는 <code>data</code> 를 나누어 돌면서 공유 카운터를 갱신한다. 열 바이트를 세었으므로 10 이다.</li><li>원자 연산은 <code>atomic</code> 효과이고, <code>cap atomic</code> 을 받아야 한다. <code>main</code> 은 시작점에서 <code>cap atomic</code> 을 받는다.</li><li><code>view_array u64</code> 는 할당받은 8 바이트를 베끼지 않고 <code>u64</code> 하나의 슬라이스로 본다(13장).</li></ul><p>권한 없이 원자 효과를 적으면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/nocap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nocap .
@@ -780,7 +780,7 @@ main() = 10
 <strong><span class="tok-k">do</span></strong>
   atomic_add s <span class="tok-n">0</span> <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> atomic_load s <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check nocap.low
 nocap.low:4:0 E-ATOMIC-NOCAP: this op declares the `atomic` effect but receives NO `cap atomic`. Like `io`, `alloc` and `heap`, `atomic` is an effect you are HANDED the right to: `input k cap atomic .` (§7.2 (6))
 </code></pre></div></div><p>원자 연산은 공짜가 아니다. 한 흐름만 만지는 값에 쓰면 느려지기만 한다. 그래서 기본으로 두지 않고 이름으로 고르게 하며, 그 비용이 머리의 효과와 권한에 적힌다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 원자 연산이 있는데 자물쇠(<code>lock</code>)는 왜 없는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 나누어 가지는 자물쇠 상태는 이 판에서 아직 짓지 않았고, 쓰면 <code>E-LOCK-NOTYET</code> 으로 없다고 말한다. 대신 표준 라이브러리에 원자 연산으로 지은 자료구조가 있다. <code>spsc</code> 는 락 없이 한 생산자와 한 소비자가 값을 넘기는 링 버퍼이고, 그 정확성은 약한 메모리 모델의 증명을 빌려 확인되었다(34·47장).</p></div></div><h3 id="s27-5">27.5 기억 차례<a class="plink" href="#s27-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-62"></span><p>원자 연산 뒤에 <code>order &lt;이름></code> 을 붙여 다른 흐름에게 무엇이 언제 보이는지 정할 수 있다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>이름</strong></th><th><strong>뜻</strong></th></tr><tr><td><code>seq_cst</code></td><td>모든 흐름이 같은 하나의 차례를 본다. 가장 강하고, 적지 않으면 이것이다</td></tr><tr><td><code>acq_rel</code></td><td>읽고 쓰는 연산에서 앞뒤 모두 새어 나가지 않는다</td></tr><tr><td><code>acquire</code></td><td>이 읽기 뒤의 일이 앞으로 새어 나가지 않는다</td></tr><tr><td><code>release</code></td><td>이 쓰기 앞의 일이 뒤로 새어 나가지 않는다</td></tr><tr><td><code>relaxed</code></td><td>원자성만 있고 차례는 없다</td></tr></table></div><p class="float-caption">표 27.2 — 기억 차례</p></figure><p>가장 강한 것이 기본인 까닭은 그것이 가장 추론하기 쉽기 때문이다. 모든 접근이 <code>seq_cst</code> 이면 순서대로 사고해도 된다는 것이 증명되어 있다. 약하게 하는 것은 그 값을 아는 사람이 적어서 고르는 일이다.</p><p>연산에 따라 뜻이 없는 조합은 거절된다.</p><p>차례 넷을 짝이 맞는 연산에 쓰면 이렇다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/orders.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> orders .
@@ -797,7 +797,7 @@ nocap.low:4:0 E-ATOMIC-NOCAP: this op declares the `atomic` effect but receives 
   <strong><span class="tok-k">let</span></strong> old <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> atomic_swap cells <span class="tok-n">0</span> <span class="tok-n">7</span> order acq_rel .
   atomic_store cells <span class="tok-n">0</span> (add old <span class="tok-n">10</span>) order release .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (atomic_load cells <span class="tok-n">0</span> order acquire) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main orders.low
 main() = 15
 </code></pre></div></div><p><code>atomic_store … order seq_cst</code> 로 5 를 쓰고, 읽고 쓰는 <code>atomic_swap … order acq_rel</code> 로 7 과 바꾸며 옛값 5 를 얻는다. <code>order release</code> 로 15 를 쓰고 <code>order acquire</code> 로 읽어 15 를 돌려준다. 짝이 맞지 않는 조합은 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/order_bad.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> order_bad .
@@ -806,7 +806,7 @@ main() = 15
 <strong><span class="tok-k">proc</span></strong> peek <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> atomic . <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> atomic .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> atomic_load s <span class="tok-n">0</span> order release .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check order_bad.low
 order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this atomic op (a load cannot be `release`, a store cannot be `acquire`, a fence cannot be `relaxed`) — RFC-0018 §6.1
 </code></pre></div></div><p>읽기가 무엇을 내보낸다는 말인가. C 는 이런 조합을 정의되지 않은 동작으로 둔다. 쓰기는 <code>acquire</code> 일 수 없고, 차례만 정하는 울타리(<code>atomic_fence</code>)는 <code>relaxed</code> 일 수 없다.</p><h3 id="s27-6">27.6 레인 — 값 여럿을 한 번에 셈한다<a class="plink" href="#s27-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-63"></span><p><code>parallel</code> 이 되풀이를 <strong>흐름</strong> 여럿에 나눈다면, <code>vec</code> 은 한 흐름 안에서 <strong>값 여럿</strong>을 한 값으로 들고 한 번에 셈한다(SIMD). <code>vec u32 4</code> 는 <code>u32</code> 네 개를 담는 레인 넷짜리 값이고, 레인 수는 타입의 일부다. 기계가 한 번에 셈하든 하나씩 셈하든 답은 같다(정본 6.2.11).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/lanes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> lanes .
@@ -825,7 +825,7 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
   <strong><span class="tok-k">var</span></strong> over mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v lim .
   <strong><span class="tok-k">var</span></strong> capped vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> select over lim v .
   <strong><span class="tok-k">return</span></strong> reduce_add capped .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 레인을 가로질러 가장 큰 것 · 가장 작은 것 · 모두 곱한 것</span></em>
 <strong><span class="tok-k">proc</span></strong> extremes <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
@@ -834,7 +834,7 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
   <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
   <strong><span class="tok-k">var</span></strong> v vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load xs <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> add (mul (reduce_max v) <span class="tok-n">1000</span>) (add (mul (reduce_min v) <span class="tok-n">100</span>) (reduce_mul v)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 레인의 차례를 뒤집고, 한 칸 돌려 메모리에 쓴다</span></em>
 <strong><span class="tok-k">proc</span></strong> turned <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
@@ -848,13 +848,13 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
   <strong><span class="tok-k">var</span></strong> t vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> rotate r <span class="tok-n">1</span> .
   store ys <span class="tok-n">0</span> t .
   <strong><span class="tok-k">return</span></strong> reduce_add t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 이 기계가 u32 레인을 한 번에 몇 개 다루나 --- 번역 시점의 수</span></em>
 <strong><span class="tok-k">fn</span></strong> lanes_here <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> native_lanes <strong><span class="tok-t">u32</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run capped_sum lanes.low [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]
 capped_sum([1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]) = 14
   arg0 (written) = [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]
@@ -882,7 +882,7 @@ lanes_here() = 4
   <strong><span class="tok-k">var</span></strong> m mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v lim .
   store_masked out <span class="tok-n">0</span> v m .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 켜진 레인만 읽고 나머지 레인에는 기본값 100 을 둔다</span></em>
 <strong><span class="tok-k">proc</span></strong> read_big <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
@@ -895,7 +895,7 @@ lanes_here() = 4
   <strong><span class="tok-k">var</span></strong> fallback vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> splat <span class="tok-n">100</span> .
   <strong><span class="tok-k">var</span></strong> r vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load_masked xs <span class="tok-n">0</span> m fallback .
   <strong><span class="tok-k">return</span></strong> reduce_add r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run keep_big masked.low [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0] [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 keep_big([1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0], [0,0,0,0,9,0,0,0,0,0,0,0,7,0,0,0]) = 0
   arg0 (written) = [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]
@@ -913,7 +913,7 @@ read_big([1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]) = 216
   <em><span class="tok-c">rem ✘ `splat` 을 식 안에 바로 적었다 --- 레인 수를 말해 줄 타입이 없다</span></em>
   <strong><span class="tok-k">var</span></strong> over mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v (splat <span class="tok-n">5</span>) .
   <strong><span class="tok-k">return</span></strong> reduce_add (select over v v) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_splatinline.low
 mistake_splatinline.low:9:0 E-VEC-SPLAT: `splat` fills every lane of a vector, and how many lanes there are comes from the declared type — inside an expression there is nothing to say it, so the value is read as a plain scalar and the surrounding comparison stops matching its `mask` type. Bind it first, with the lane count written down: `var lim vec u32 4 be splat 5 .`, then use `lim`
 mistake_splatinline.low:9:0 E-TYPE-VAR: the initializer's type does not match the declared type — expected `mask`, found `bool`
@@ -925,7 +925,7 @@ mistake_splatinline.low:9:0 E-TYPE-VAR: the initializer's type does not match th
   <strong><span class="tok-k">access</span></strong> data shared_read .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> (index data <span class="tok-n">0</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run peek access.low [9,8,7]
 peek([9,8,7]) = 9
   arg0 (written) = [9,8,7]
@@ -940,9 +940,9 @@ peek([9,8,7]) = 9
     <em><span class="tok-c">rem ✘ 모든 조각이 같은 자리 `index counter 0` 에 읽고 더해 쓴다</span></em>
     <strong><span class="tok-k">set</span></strong> (index counter <span class="tok-n">0</span>) (wrap_add (index counter <span class="tok-n">0</span>) <span class="tok-n">1</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_sharedwrite.low
 mistake_sharedwrite.low:10:0 E-PAR-WRITE: a splittable loop may only write its OWN element `index &lt;s> &lt;i>` — this write can collide with another iteration (Bernstein: wr ∩ wr = ∅)
 </code></pre></div></div><p>조각마다 <code>index counter 0</code> 을 읽고 1 을 더해 쓴다. 두 스레드가 같은 값을 읽고 각자 더해 쓰면 하나가 사라진다. 이것은 자기 몫이 아닌 자리에 쓰는 것이라 <code>E-PAR-WRITE</code> 로 거절된다. 공유 자리를 함께 갱신해야 하면 <code>cap atomic</code> 을 받고 <code>atomic_add counter 0 1</code> 을 쓴다(이 장의 <code>counter.low</code>). 대개는 그보다 조각마다 센 값을 <code>reduce</code> 로 모으는 편이 빠르다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 부동소수의 합을 나누어 모은다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/mistake_floatreduce.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_floatreduce .
@@ -958,9 +958,9 @@ mistake_sharedwrite.low:10:0 E-PAR-WRITE: a splittable loop may only write its O
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (index s i)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_floatreduce.low
 mistake_floatreduce.low:9:0 E-PAR-IDENTITY: the accumulator this reduction starts from is not the IDENTITY of its operator, so a split answer is not the sequential one: every piece starts again from that value and it is counted once per piece (measured: sequential 121, native split 621). DET-1 promises a split is bit-identical — that holds only from the identity (`add`/`bit_or`/`bit_xor` → 0, `mul` → 1, `max` → 0 on an unsigned width). Start from the identity and add the offset once, after the loop
 mistake_floatreduce.low:9:0 E-PAR-FLOAT: a FLOAT reduction cannot be split: float addition is not associative, so the tree shape changes the result and the answer would depend on the schedule (★ nonassoc_shape_matters, Qed). Use the sequential `sum` (Neumaier) — determinism is part of the meaning, not a detail
@@ -978,9 +978,9 @@ mistake_floatreduce.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditio
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_reduceinit.low
 mistake_reduceinit.low:9:0 E-PAR-IDENTITY: the accumulator this reduction starts from is not the IDENTITY of its operator, so a split answer is not the sequential one: every piece starts again from that value and it is counted once per piece (measured: sequential 121, native split 621). DET-1 promises a split is bit-identical — that holds only from the identity (`add`/`bit_or`/`bit_xor` → 0, `mul` → 1, `max` → 0 on an unsigned width). Start from the identity and add the offset once, after the loop
 mistake_reduceinit.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may be split (DET-1 proves the parallel result is bit-identical to the sequential one — docs/proofs/coq/LowentPar.v). Execution is still sequential, which is a VALID implementation precisely because of that theorem
@@ -995,9 +995,9 @@ mistake_reduceinit.low:4:0 W-PAR-OK: this loop satisfies the Bernstein condition
   <strong><span class="tok-k">while</span></strong> lt (add i <span class="tok-n">1</span>) (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index s i) (div (wrap_add (index s i) (index s (add i <span class="tok-n">1</span>))) <span class="tok-n">2</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> len s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noloop.low
 mistake_noloop.low:4:0 E-PAR-NOLOOP: the `parallel` clause names a slice, but no `while lt &lt;i> (len &lt;slice>) . do … end` loop was found to split. That clause is a CLAIM — DET-1 proves a split is bit-identical only when there IS a loop to split — so with no loop the compiler verifies NOTHING while the annotation still tells every reader it was checked. An unchecked promise is the lie PRINCIPLES.md §0 is about; the same judgement already refused `mailbox unbounded` and `bounded 0`. Delete the clause (it means nothing here) or write the loop it describes
 </code></pre></div></div><p>처리기는 <code>while lt i (len s) . do … end</code> 모양의 되풀이만 나눌 대상으로 알아본다. <code>while lt (add i 1) (len s)</code> 는 그 모양이 아니라서 <code>E-PAR-NOLOOP</code> 다. 진단의 말대로 <code>parallel</code> 절은 <strong>주장</strong>이고, 나눌 되풀이를 찾지 못하면 아무것도 확인하지 못한 채 주장만 남는다. 게다가 이 되풀이는 이웃 원소 <code>index s (add i 1)</code> 을 읽는다. 모양을 고쳐도 <code>E-PAR-READ</code> 로 거절될 것이다 — 이웃을 읽는 계산(평활화 따위)은 결과를 다른 슬라이스에 쓰는 순차 되풀이로 적는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>write_only</code> 라고 적고 읽는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/mistake_access.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_access .
@@ -1009,7 +1009,7 @@ mistake_noloop.low:4:0 E-PAR-NOLOOP: the `parallel` clause names a slice, but no
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> index out <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_access.low
 mistake_access.low:5:0 E-ACCESS-MODE: `access &lt;p> write_only` says this op never READS that place — but it does. A write_only place may be uninitialised: reading it is reading garbage, and the declaration is what told the caller it was safe
 mistake_access.low:7:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
@@ -1025,13 +1025,13 @@ mistake_access.low:7:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORM
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> best (max best (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> best .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run biggest max_gather.low [3,9,2,7]
 biggest([3,9,2,7]) = 9
   arg0 (written) = [3,9,2,7]
-</code></pre></div></div><p>결합적인 연산이면 모을 수 있다. <code>max</code> 는 결합적이고 <code>u64</code> 에서 0 이 항등원이라 조각마다 가장 큰 값을 구해 다시 <code>max</code> 로 합쳐도 답이 같다. <code>min</code>·<code>mul</code>·비트 연산도 같은 원리다. 거절되는 것은 <code>sub</code> 처럼 묶는 차례가 답을 바꾸는 연산(<code>E-PAR-ASSOC</code>)과 부동소수 연산(<code>E-PAR-FLOAT</code>)이다.</p></div></div><h3 id="s27-9">27.9 이 장의 문법 한눈에<a class="plink" href="#s27-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>parallel s split .</code>(op 머리)</td><td><code>s</code> 를 조각으로 나누어 여럿이 돌아도 된다는 선언</td><td>주장을 믿지 않고 확인한다 — 확인되면 <code>W-PAR-OK</code></td></tr><tr><td><code>while lt i (len s) . do … end .</code></td><td>나눌 수 있는 되풀이의 모양</td><td>다른 모양이면 <code>E-PAR-NOLOOP</code></td></tr><tr><td><code>index s i</code> 만 읽고 쓰기</td><td>자기 몫만</td><td>남의 자리는 <code>E-PAR-READ</code> · <code>E-PAR-WRITE</code></td></tr><tr><td><code>reduce acc add .</code></td><td>조각마다 누적한 뒤 연산으로 합친다</td><td>시작값은 항등원 — 연산은 결합적(<code>E-PAR-ASSOC</code>)</td></tr><tr><td><code>atomic_add counter 0 1</code> · <code>atomic_load cells 0</code></td><td>슬라이스와 색인으로 가리킨 자리를 원자적으로</td><td><code>effects atomic</code> + <code>cap atomic</code></td></tr><tr><td><code>… order seq_cst</code> · <code>acq_rel</code> · <code>acquire</code> · <code>release</code> · <code>relaxed</code></td><td>기억 차례 — 적지 않으면 <code>seq_cst</code></td><td>가장 추론하기 쉬운 것이 기본</td></tr><tr><td>읽기에 <code>order release</code> 따위</td><td>거절(<code>E-ATOMIC-ORDER</code>)</td><td>뜻 없는 조합을 정의되지 않은 동작으로 두지 않는다</td></tr><tr><td><code>view_array u64 bytes</code></td><td>바이트를 베끼지 않고 <code>u64</code> 슬라이스로 본다</td><td>원자 칸을 할당받은 창 위에 둔다</td></tr><tr><td><code>var v vec u32 4 be load xs 0 .</code> · <code>reduce_add v</code></td><td>레인 넷을 한 값으로 읽기 · 레인 모으기</td><td>한 흐름 안의 SIMD — 레인 수는 타입의 일부</td></tr><tr><td><code>access data shared_read .</code> · <code>access out write_only .</code></td><td>읽기만 · 쓰기만 한다는 약속 — 몸을 검사한다</td><td>읽기만이면 여러 태스크가 함께 쥔다 · 어기면 <code>E-ACCESS-MODE</code></td></tr></table></div><p class="float-caption">표 27.4 — 병렬과 원자 연산의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>parallel &lt;슬라이스> split .</code> 은 되풀이를 나눌 수 있다는 선언이고, 처리기는 자기 몫만 읽고 쓰며 걸음을 넘어 사는 자리에 쓰지 않는지 확인한다. 누적은 <code>reduce &lt;자리> &lt;연산> .</code> 으로 밝히고 연산은 결합적이어야 한다. 나누어 돈 답은 순차와 비트까지 같다. 공유 자리를 함께 갱신할 때는 <code>cap atomic</code> 을 받아 원자 연산을 쓰고, <code>order</code> 로 기억 차례를 고르되 기본은 <code>seq_cst</code> 이며 뜻 없는 조합은 거절된다.</div></div>
+</code></pre></div></div><p>결합적인 연산이면 모을 수 있다. <code>max</code> 는 결합적이고 <code>u64</code> 에서 0 이 항등원이라 조각마다 가장 큰 값을 구해 다시 <code>max</code> 로 합쳐도 답이 같다. <code>min</code>·<code>mul</code>·비트 연산도 같은 원리다. 거절되는 것은 <code>sub</code> 처럼 묶는 차례가 답을 바꾸는 연산(<code>E-PAR-ASSOC</code>)과 부동소수 연산(<code>E-PAR-FLOAT</code>)이다.</p></div></div><h3 id="s27-9">27.9 이 장의 문법 한눈에<a class="plink" href="#s27-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>parallel s split .</code>(op 머리)</td><td><code>s</code> 를 조각으로 나누어 여럿이 돌아도 된다는 선언</td><td>주장을 믿지 않고 확인한다 — 확인되면 <code>W-PAR-OK</code></td></tr><tr><td><code>while lt i (len s) . do … end</code></td><td>나눌 수 있는 되풀이의 모양</td><td>다른 모양이면 <code>E-PAR-NOLOOP</code></td></tr><tr><td><code>index s i</code> 만 읽고 쓰기</td><td>자기 몫만</td><td>남의 자리는 <code>E-PAR-READ</code> · <code>E-PAR-WRITE</code></td></tr><tr><td><code>reduce acc add .</code></td><td>조각마다 누적한 뒤 연산으로 합친다</td><td>시작값은 항등원 — 연산은 결합적(<code>E-PAR-ASSOC</code>)</td></tr><tr><td><code>atomic_add counter 0 1</code> · <code>atomic_load cells 0</code></td><td>슬라이스와 색인으로 가리킨 자리를 원자적으로</td><td><code>effects atomic</code> + <code>cap atomic</code></td></tr><tr><td><code>… order seq_cst</code> · <code>acq_rel</code> · <code>acquire</code> · <code>release</code> · <code>relaxed</code></td><td>기억 차례 — 적지 않으면 <code>seq_cst</code></td><td>가장 추론하기 쉬운 것이 기본</td></tr><tr><td>읽기에 <code>order release</code> 따위</td><td>거절(<code>E-ATOMIC-ORDER</code>)</td><td>뜻 없는 조합을 정의되지 않은 동작으로 두지 않는다</td></tr><tr><td><code>view_array u64 bytes</code></td><td>바이트를 베끼지 않고 <code>u64</code> 슬라이스로 본다</td><td>원자 칸을 할당받은 창 위에 둔다</td></tr><tr><td><code>var v vec u32 4 be load xs 0 .</code> · <code>reduce_add v</code></td><td>레인 넷을 한 값으로 읽기 · 레인 모으기</td><td>한 흐름 안의 SIMD — 레인 수는 타입의 일부</td></tr><tr><td><code>access data shared_read .</code> · <code>access out write_only .</code></td><td>읽기만 · 쓰기만 한다는 약속 — 몸을 검사한다</td><td>읽기만이면 여러 태스크가 함께 쥔다 · 어기면 <code>E-ACCESS-MODE</code></td></tr></table></div><p class="float-caption">표 27.4 — 병렬과 원자 연산의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>parallel &lt;슬라이스> split .</code> 은 되풀이를 나눌 수 있다는 선언이고, 처리기는 자기 몫만 읽고 쓰며 걸음을 넘어 사는 자리에 쓰지 않는지 확인한다. 누적은 <code>reduce &lt;자리> &lt;연산> .</code> 으로 밝히고 연산은 결합적이어야 한다. 나누어 돈 답은 순차와 비트까지 같다. 공유 자리를 함께 갱신할 때는 <code>cap atomic</code> 을 받아 원자 연산을 쓰고, <code>order</code> 로 기억 차례를 고르되 기본은 <code>seq_cst</code> 이며 뜻 없는 조합은 거절된다.</div></div>
 <div class="nav"><a href="ch26.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch28.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

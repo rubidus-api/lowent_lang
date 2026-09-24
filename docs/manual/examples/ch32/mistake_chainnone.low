@@ -10,4 +10,4 @@ do
   let p u64 be some_value (fmt.put_str buf 0 "hello") .
   let q u64 be some_value (fmt.put_byte buf p 32) .
   return some_value (fmt.put_u64 buf q 42) .
-end .
+end

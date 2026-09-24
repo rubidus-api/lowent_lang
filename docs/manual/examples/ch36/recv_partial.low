@@ -18,4 +18,4 @@ do
   drop s .
   guard is_some got . else return 4 .
   return narrow u8 (some_value got) .
-end .
+end

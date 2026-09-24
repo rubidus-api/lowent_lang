@@ -220,7 +220,7 @@ Lowent stops --- and the place it stops is the place to fix.
   #demo("examples/ch04/mistake_usub.low")
 
   `u64` has nothing below 0. `3 − 5` is not −2 but an *overflow*, so it stops (C would give 18446744073709551614). If you want the size of
-  the difference, subtract the smaller from the larger --- `if ge a b . do return sub a b . end . return sub b a .` --- and if a negative
+  the difference, subtract the smaller from the larger --- `if ge a b . do return sub a b . end return sub b a .` --- and if a negative
   result is meaningful, compute in `i64` from the start.
 ]
 

@@ -3,23 +3,23 @@ rem expect: E-BOUND-UNSAT
 
 trait ordered do
   less input a self . input b self . output bool .
-end .
+end
 
 struct plain do
   v u64 .
-end .
+end
 
 fn max_of input comptime t type . input a t . input b t . output t .
   requires ordered t .
 do
   if method a less b . do
     return b .
-  end .
+  end
   return a .
-end .
+end
 
 fn caller output u64 .
 do
   let m plain be max_of plain (make plain do v 1 . end) (make plain do v 2 . end) .
   return field m v .
-end .
+end

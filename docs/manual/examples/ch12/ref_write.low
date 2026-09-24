@@ -5,4 +5,4 @@ proc reset input p ref u64 . output u64 .
 do
   set p 0 .
   return 0 .
-end .
+end

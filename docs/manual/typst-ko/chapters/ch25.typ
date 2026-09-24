@@ -254,7 +254,7 @@
   id: "actors-glance",
   caption: [액터의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`actor counter do state do value u64 . end . … end .`], [상태를 가둔 실행 단위를 선언], [상태를 동시에 만질 길이 처음부터 없다],
+  [`actor counter do state do value u64 . end … end`], [상태를 가둔 실행 단위를 선언], [상태를 동시에 만질 길이 처음부터 없다],
   [`proc inc … effects state .` · `fn get …`], [상태를 고치는 메시지 · 읽기만 하는 메시지], [`fn`·`proc` 규칙이 그대로 --- 고치면서 `fn` 이면 `E-EFFECT-PURITY`],
   [`var c counter be spawn actor counter .`], [액터 하나를 만든다(상태는 0 에서 시작)], [`spawn` 마다 상태가 따로],
   [`send c inc` · `send acct deposit a`], [보내고 처리가 끝날 때까지 기다린다 · 값을 싣는다], [액터가 먼저 --- 메시지는 액터를 첫 매개변수로 받는 op],
@@ -262,7 +262,7 @@
   [`mailbox bounded 2 .` · `try spawn send`], [우편함 크기 · 넘침을 값으로 받기], [넘치면 멈추거나 `result`],
   [`failure restart max 3 .` · `never` · `always`], [`panic` 한 액터를 처음 상태로 다시 세운다], [다 쓰면 실패를 위로 넘긴다],
   [`build profile server .`], [액터(3 등급)를 쓸 수 있는 자리], [적은 사람만 그 약속을 진다],
-  [`state do root cap allocator . … end .`], [권한 칸 --- 실행 중 크기 0], [띄우는 op 에 같은 권한이 없으면 `E-CAP-FORGE`],
+  [`state do root cap allocator . … end`], [권한 칸 --- 실행 중 크기 0], [띄우는 op 에 같은 권한이 없으면 `E-CAP-FORGE`],
 )
 
 #recap[

@@ -31,7 +31,7 @@ rem ① 관계형 계약: a ≤ b 를 알면 b − a 는 절대 언더플로하�
 rem    구간만 보면 a,b ∈ [0,255] 라 b − a ∈ [−255,255] 다 → u8 검사가 **절대** 안 지워졌다.
 fn gap input a u8 . input b u8 . output u8 . requires le a b . ensures ge ret 0 . do
     return sub b a .
-end .
+end
 
 rem ② 그리고 계약을 어기면 **호출자가 고발당한다** — 검사를 지웠으니 강제가 반드시 있어야 한다.
 rem    (gap 10 3 → E-VM-CONTRACT: requires violated at entry)
@@ -39,16 +39,16 @@ rem    (gap 10 3 → E-VM-CONTRACT: requires violated at entry)
 rem ③ 대조군: requires 가 없으면 검사는 **남는다.** 지우는 근거가 없으니까.
 fn gap_unchecked input a u8 . input b u8 . output u8 . do
     return sat_sub b a .
-end .
+end
 
 rem ④ 경계 곱은 이미 증명된다 — 여기 적어 두는 이유는 "비선형" 이라는 진단이 **틀렸음**을
 rem    회귀로 못 박기 위해서다. 진짜 갭은 비선형이 아니라 **관계형**이었다.
 fn bounded_mul input a range 0 3 . input b range 0 3 . output u8 . ensures le ret 9 . do
     return mul a b .
-end .
+end
 
 rem ⑤ 분기에서 배운 관계도 사실이다 — requires 없이 `if` 하나로.
 fn gap_guarded input a u8 . input b u8 . output u8 . do
-    if gt a b . do return 0 . end .
+    if gt a b . do return 0 . end
     return sub b a .
-end .
+end

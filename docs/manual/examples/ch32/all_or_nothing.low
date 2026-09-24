@@ -9,4 +9,4 @@ do
   let p option u64 be fmt.put_str buf 0 "Lowent" .
   guard is_some p . else return 99 .
   return some_value p .
-end .
+end

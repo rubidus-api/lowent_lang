@@ -8,7 +8,7 @@ do
   var y u64 be x .
   set y (add y 1) .
   return y .
-end .
+end
 
 proc use_inc input start u64 . output u64 .
   requires lt start 1000 .
@@ -17,4 +17,4 @@ do
   let r u64 be inc n .
   rem ko: `n` 은 그대로 7 이다 --- 바꾸게 하려면 `mut_ref n` 으로 빌려준다 /// en: `n` is still 7 --- lend it with `mut_ref n` to let it change
   return n .
-end .
+end

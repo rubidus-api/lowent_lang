@@ -7,4 +7,4 @@ proc area input out cap io . input w u64 . input h u64 . output u64 . effects io
   requires le h 1000 .
 do
   return mul w h .
-end .
+end

@@ -5,4 +5,4 @@ fn perm output u64 .
 do
   rem ko: 앞자리 0 은 아무 뜻이 없다 --- 이것은 칠백오십오다 /// en: a leading 0 means nothing --- this is seven hundred fifty-five
   return 0755 .
-end .
+end

@@ -26,7 +26,7 @@ rem   ⇒ Lowent 쪽 이름은 그대로 `math.close` 이고, **C 쪽 이름만*
 rem     이 자리를 위해 있다. 새 게이트 `check-export-names.py` 가 이것을 찾았다.
 export fn close input a f64 . input b f64 . input tol f64 . output bool . link "math_close" . do
   return lt (abs (sub a b)) tol .
-end .
+end
 
 rem ── 상수 (계산으로 낸다 — 리터럴을 손으로 적으면 그것이 두 번째 진실이다) ──
 
@@ -34,22 +34,22 @@ rem ★ π = acos(-1) 이 정석이나 `acos` 가 아직 없다. 대신 **정의
 rem   `atan` 이 없으므로, 지금은 리터럴을 쓰되 **출처를 적는다**(IEEE-754 배정도 최근접).
 export fn pi output f64 . do
   return 3.141592653589793 .
-end .
+end
 
 rem ★ e = exp(1) — 이것은 **계산으로 낸다**. 상수를 적을 이유가 없다.
 export fn e output f64 . do
   return exp 1.0 .
-end .
+end
 
 rem ── 각도 ───────────────────────────────────────────────────────────────────
 
 export fn deg_to_rad input d f64 . output f64 . do
   return div (mul d 3.141592653589793) 180.0 .
-end .
+end
 
 export fn rad_to_deg input r f64 . output f64 . do
   return div (mul r 180.0) 3.141592653589793 .
-end .
+end
 
 rem ── 자주 쓰는 조합 ─────────────────────────────────────────────────────────
 
@@ -57,14 +57,14 @@ rem ★ 빗변 — `hypot` 이 없으므로 조합한다. 큰 값에서 넘칠 �
 rem   ☞ 안 지은 것에 적었다: 넘침에 강한 `hypot` 은 별도 리프가 필요하다.
 export fn hyp input x f64 . input y f64 . output f64 . do
   return sqrt (add (mul x x) (mul y y)) .
-end .
+end
 
 rem ★ 밑이 임의인 로그 — log_b(x) = ln x / ln b.
 export fn log_base input x f64 . input b f64 . output f64 . do
   return div (log x) (log b) .
-end .
+end
 
 rem ★ 선형 보간. t 를 [0,1] 로 가정하지 **않는다** — 밖이면 외삽이고, 그것도 쓸모가 있다.
 export fn lerp input a f64 . input b f64 . input t f64 . output f64 . do
   return add a (mul t (sub b a)) .
-end .
+end

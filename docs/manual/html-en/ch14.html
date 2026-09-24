@@ -674,7 +674,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> widen <strong><span class="tok-t">u32</span></strong> (index data <span class="tok-n">0</span>) .
   <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> widen <strong><span class="tok-t">u32</span></strong> (index data <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> add (mul hi <span class="tok-n">256</span>) lo .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run read_pair pair.low [1,2,3]
 read_pair([1,2,3]) = 258
   arg0 (written) = [1,2,3]
@@ -691,7 +691,7 @@ read_pair([1,2,3]) = 258
   <strong><span class="tok-k">ensures</span></strong> le ret <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div (mul part <span class="tok-n">100</span>) whole .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem clamps only values above 150 and forgets 101 … 150</span></em>
 <strong><span class="tok-k">fn</span></strong> clamp_to_100 <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -700,9 +700,9 @@ read_pair([1,2,3]) = 258
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> gt n <span class="tok-n">150</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run percent_of blame.low 50 200
 percent_of(50, 200) = 25
 $ lowentc --run clamp_to_100 blame.low 400
@@ -716,13 +716,13 @@ $ lowentc --run clamp_to_100 blame.low 120
 </code></pre></div></div><p><code>percent_of 250 200</code> has a part larger than the whole, so it is the caller’s fault, and the VM says “the caller broke the contract”. <code>clamp_to_100 120</code> is the fault of an op that forgot to clamp values from 101 to 150, and the VM says “THIS op broke its own promise”. When a program stops, the diagnostic answers at once “did I call it wrong, or is that op built wrong?”.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> <code>ensures</code> is the op checking itself — how does that differ from a test?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> A test checks that the answer is right for a few inputs. <code>ensures</code> checks that the promise holds <strong>on every call</strong>. Even if the promise breaks outside the inputs a test chose, <code>ensures</code> stops on that call. And callers may use <code>ensures</code> as a fact: a caller of <code>clamp_to_100</code> may trust that the result is at most 100 and have the check in <code>narrow u8</code> removed. It is also why the development repository’s tooling can test ops from their contracts alone, without expected outputs (chapter 31).</p></div></div><h3 id="s14-3">14.3 Contracts remove checks<a class="plink" href="#s14-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>The processor uses contracts as facts to narrow the ranges values can take. When those ranges show safety, it removes overflow, division by zero, narrowing and slice bounds checks. So in this language <strong>writing honestly makes code faster</strong>.</p><pre><code data-lang="lowent"><strong><span class="tok-k">fn</span></strong> bare <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .          <em><span class="tok-c">rem the overflow check remains</span></em>
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> proven <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .          <em><span class="tok-c">rem no check --- it cannot exceed 201</span></em>
-<strong><span class="tok-k">end</span></strong> .</code></pre><p>The two ops have the same body. The only difference is one line of contract, and that line removes a run-time check. The check did not vanish but was <strong>moved</strong> to one check on entry. If the caller calls with a constant, or proves the range with its own contract, even the entry check disappears.</p><p>There is one important rule. <strong>A contract that is not enforced is not used as a fact.</strong> Trusting without checking and removing checks is not being faster but being wrong. This rule returns below with grades and build modes.</p><h3 id="s14-4">14.4 Conditions over every element<a class="plink" href="#s14-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A contract’s condition is a pure expression. Loops are statements, so “every element is at most 9” cannot be written as a loop. There are words that say it instead.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/elems.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> elems .
+<strong><span class="tok-k">end</span></strong></code></pre><p>The two ops have the same body. The only difference is one line of contract, and that line removes a run-time check. The check did not vanish but was <strong>moved</strong> to one check on entry. If the caller calls with a constant, or proves the range with its own contract, even the entry check disappears.</p><p>There is one important rule. <strong>A contract that is not enforced is not used as a fact.</strong> Trusting without checking and removing checks is not being faster but being wrong. This rule returns below with grades and build modes.</p><h3 id="s14-4">14.4 Conditions over every element<a class="plink" href="#s14-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A contract’s condition is a pure expression. Loops are statements, so “every element is at most 9” cannot be written as a loop. There are words that say it instead.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/elems.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> elems .
 <em><span class="tok-c">rem run: digit_sum [1,2,3,9]</span></em>
 <em><span class="tok-c">rem trap: digit_sum [1,20]</span></em>
 
@@ -732,9 +732,9 @@ $ lowentc --run clamp_to_100 blame.low 120
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> d ds <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> d)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run digit_sum elems.low [1,2,3,9]
 digit_sum([1,2,3,9]) = 15
   arg0 (written) = [1,2,3,9]
@@ -747,17 +747,17 @@ $ lowentc --run digit_sum elems.low [1,20]
 
 <strong><span class="tok-k">contract</span></strong> positive <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">requires</span></strong> ge a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> half <strong><span class="tok-k">satisfies</span></strong> positive . <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div a <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> third <strong><span class="tok-k">satisfies</span></strong> positive . <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div a <span class="tok-n">3</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run half named.low 10
 half(10) = 5
 $ lowentc --run third named.low 10
@@ -769,12 +769,12 @@ third(10) = 3
   <strong><span class="tok-k">requires</span></strong> lt a <span class="tok-n">10</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> small <span class="tok-n">200</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check impossible.low
 impossible.low:12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requires`, and BOTH SIDES ARE CONSTANTS — so it can be decided here, now. It used to compile green and trap at run time (E-VM-CONTRACT): a bit budget that does not fit (`slot + shard + generation > word`) shipped as a runnable program. A contract that can be decided at compile time IS decided at compile time (RFC-0104 §8-3)
 </code></pre></div></div><p>As the diagnostic’s story says, this once translated green and only stopped at run time. A program carrying a bit budget that did not fit shipped in runnable form. A contract whose answer is available now is decided now.</p><p>The mistake in the other direction is rejected too. Declaring an error for a condition that <code>requires</code> already excludes means that error can never happen.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/dead.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dead .
@@ -782,7 +782,7 @@ impossible.low:12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requir
 
 <strong><span class="tok-k">enum</span></strong> div_error <strong><span class="tok-k">do</span></strong>
   by_zero .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> safe_div <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u32</span></strong> div_error .
   <strong><span class="tok-k">requires</span></strong> ne b <span class="tok-n">0</span> .
@@ -790,7 +790,7 @@ impossible.low:12:0 E-CONTRACT-IMPOSSIBLE: this call breaks the callee's `requir
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> ne b <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error by_zero .
   <strong><span class="tok-k">return</span></strong> ok (div a b) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check dead.low
 dead.low:10:0 E-CONTRACT-DEAD: this declared error can never occur: `requires` already excludes the condition, and the condition's inputs cannot change during the op (remove the `requires`, or remove the error — not both)
 </code></pre></div></div><p>With <code>requires ne b 0 .</code>, <code>errors by_zero eq b 0 .</code> can never be true. If the declaration stays, callers write code to handle <code>by_zero</code>, and that code never runs. Code that never runs is never tested, and untested code is wrong someday. The diagnostic says to remove one of the two — either make it the caller’s responsibility (<code>requires</code>) or have the op handle it itself (<code>errors</code>).</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>The more contracts you write, the safer</strong></p><div class="dev-body">Contracts that overlap or promise impossible cases draw a wrong picture. Contracts must be <strong>facts</strong>. A <code>requires</code> and an <code>errors</code> fighting over the same condition blur who is responsible, which is why it is rejected. Good contracts are short and put responsibility in one place.</div></div><h3 id="s14-7">14.7 Contract grades<a class="plink" href="#s14-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-36"></span><p>A grade on a single contract clause decides when and how its condition is treated. The shape is <code>requires &lt;grade> &lt;condition> .</code>.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Grade</strong></th><th><strong>When looked at</strong></th><th><strong>Meaning</strong></th></tr><tr><td>(none)</td><td>whenever possible</td><td>Prove it if possible; otherwise leave it as the build mode says</td></tr><tr><td><code>static</code></td><td>at translation</td><td>The processor must prove it; if it cannot, translation fails</td></tr><tr><td><code>debug</code></td><td>at run time</td><td>Checked only while the build mode keeps checks</td></tr><tr><td><code>assume</code></td><td>never</td><td>Only written down. Not used as a fact</td></tr></table></div><p class="float-caption">Table 14.2 — Contract grades</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/grades.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> grades .
@@ -803,13 +803,13 @@ dead.low:10:0 E-CONTRACT-DEAD: this declared error can never occur: `requires` a
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> bump_assumed <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> assume le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run bump_checked grades.low 10
 bump_checked(10) = 11
 $ lowentc --run bump_assumed grades.low 10
@@ -830,7 +830,7 @@ build release_fast .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run bump fast.low 10
 bump(10) = 11
 $ lowentc --run bump fast.low 250
@@ -844,7 +844,7 @@ bump(250) = 251
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">100</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_result.low
 mistake_result.low:6:0 E-ENS-UNDEF: ensures references an undefined name — an ensures that names nothing checks nothing, and the interval analysis DERIVES the result range from it (`ret` is the result)
 </code></pre></div></div><p>The returned value is named <code>ret</code>. <code>result</code> is already a type name (<code>result u8 e</code>), so it is not reused as a value name. An <code>ensures</code> that names something undefined checks nothing, yet the analysis might derive a result range from it, so this is an error (<code>E-ENS-UNDEF</code>), not a warning.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing an index precondition with <code>le</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/mistake_leindex.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_leindex .
@@ -856,7 +856,7 @@ mistake_result.low:6:0 E-ENS-UNDEF: ensures references an undefined name — an 
   <strong><span class="tok-k">requires</span></strong> le i (len xs) .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index xs i .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run at mistake_leindex.low [1,2,3] 2
 at([1,2,3], 2) = 3
   arg0 (written) = [1,2,3]
@@ -872,7 +872,7 @@ $ lowentc --run at mistake_leindex.low [1,2,3] 3
   <strong><span class="tok-k">requires</span></strong> ge a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_contradict.low
 mistake_contradict.low:7:0 E-CONTRACT-UNSAT: two preconditions on the same input cannot both hold, so EVERY call stops at the door and the body never runs. A contract that no argument satisfies is not a strong contract, it is a dead op — usually one line left behind when the other was edited. Keep the one you meant
 </code></pre></div></div><p>No <code>u8</code> is both at most 100 and at least 200, so this op stops at entry however it is called. Usually one <code>le</code> or <code>ge</code> was written backwards, or an old line was not removed during an edit. It sits beside an error declaration that can never happen (<code>E-CONTRACT-DEAD</code>) and is rejected with <code>E-CONTRACT-UNSAT</code>: a contract no argument satisfies is not a strong contract but a dead op.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>requires</code> is a tool for validating user input</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch14/contract_input.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> contract_input .
@@ -882,14 +882,14 @@ mistake_contradict.low:7:0 E-CONTRACT-UNSAT: two preconditions on the same input
 
 <strong><span class="tok-k">enum</span></strong> age_error <strong><span class="tok-k">do</span></strong>
   too_old .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem contract: accept only values the caller has already checked --- breaking it stops the program</span></em>
 <strong><span class="tok-k">fn</span></strong> age_strict <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">150</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem values from outside may be wrong --- report it as a value</span></em>
 <strong><span class="tok-k">fn</span></strong> age_checked <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> age_error .
@@ -897,15 +897,15 @@ mistake_contradict.low:7:0 E-CONTRACT-UNSAT: two preconditions on the same input
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> le a <span class="tok-n">150</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_old .
   <strong><span class="tok-k">return</span></strong> ok a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> check_age <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> age_checked a <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> ok v . <strong><span class="tok-k">return</span></strong> age_strict v .
     <strong><span class="tok-k">case</span></strong> error e . <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run check_age contract_input.low 30
 check_age(30) = 30
 $ lowentc --run age_checked contract_input.low 200
@@ -913,7 +913,7 @@ age_checked(200) = err too_old
 $ lowentc --run age_strict contract_input.low 200
 == ir diagnostics (1) ==
 0:0 E-VM-CONTRACT: `requires` violated at entry — the caller broke the contract
-</code></pre></div></div><p>When a contract breaks, <strong>the program stops</strong>. A contract promises “the caller has already checked”, so a broken one means there is a bug in the code. A user typing an age of 200 is not a bug; it happens all the time. Check values from outside as <code>age_checked</code> does and report the problem as a <code>result</code>; pass only checked values to an op with a contract such as <code>age_strict</code>. Because the call comes after the check, the analysis removes the contract check inside <code>check_age</code>.</p></div></div><h3 id="s14-10">14.10 This chapter’s syntax at a glance<a class="plink" href="#s14-10" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>requires le a 200 .</code></td><td>condition on entry — the caller’s responsibility</td><td>gathers checks into one at entry and removes checks in the body</td></tr><tr><td><code>ensures le ret 100 .</code></td><td>promise on exit — this op’s responsibility</td><td><code>ret</code> is the returned value — callers use it as a fact</td></tr><tr><td><code>errors too_big gt a 200 .</code></td><td>promise to return this error under this condition</td><td>a contract on the way out — errors are promised too</td></tr><tr><td><code>requires elem_le ds 9 .</code></td><td>a condition on every element</td><td>contracts are expressions, so no loops</td></tr><tr><td><code>contract positive do … end .</code></td><td>give a contract a name</td><td>one place to change a shared condition</td></tr><tr><td><code>fn half satisfies positive . …</code></td><td>adopt a named contract (first in the head)</td><td>say what the op is first</td></tr><tr><td><code>requires static …</code> · <code>debug</code> · <code>assume</code></td><td>contract grades</td><td>decide per clause when and how it is checked — <code>assume</code> is not a fact</td></tr><tr><td><code>build release_fast .</code></td><td>remove unproven contract checks</td><td>the choice of speed stays in the source</td></tr></table></div><p class="float-caption">Table 14.4 — Contract syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>requires</code> is the caller’s responsibility, <code>ensures</code> and <code>errors</code> the op’s, and the diagnostic says whose fault it was. Enforced contracts become facts and remove overflow, bounds and division-by-zero checks. <code>elem_*</code> expresses conditions over every element, and <code>contract</code> with <code>satisfies</code> names contracts. Violations between constants are rejected at translation, and so are declarations of impossible errors. <code>assume</code> is not a fact; build modes decide the treatment of unproven contracts, and <code>release_fast</code> removes those checks.</div></div>
+</code></pre></div></div><p>When a contract breaks, <strong>the program stops</strong>. A contract promises “the caller has already checked”, so a broken one means there is a bug in the code. A user typing an age of 200 is not a bug; it happens all the time. Check values from outside as <code>age_checked</code> does and report the problem as a <code>result</code>; pass only checked values to an op with a contract such as <code>age_strict</code>. Because the call comes after the check, the analysis removes the contract check inside <code>check_age</code>.</p></div></div><h3 id="s14-10">14.10 This chapter’s syntax at a glance<a class="plink" href="#s14-10" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>requires le a 200 .</code></td><td>condition on entry — the caller’s responsibility</td><td>gathers checks into one at entry and removes checks in the body</td></tr><tr><td><code>ensures le ret 100 .</code></td><td>promise on exit — this op’s responsibility</td><td><code>ret</code> is the returned value — callers use it as a fact</td></tr><tr><td><code>errors too_big gt a 200 .</code></td><td>promise to return this error under this condition</td><td>a contract on the way out — errors are promised too</td></tr><tr><td><code>requires elem_le ds 9 .</code></td><td>a condition on every element</td><td>contracts are expressions, so no loops</td></tr><tr><td><code>contract positive do … end</code></td><td>give a contract a name</td><td>one place to change a shared condition</td></tr><tr><td><code>fn half satisfies positive . …</code></td><td>adopt a named contract (first in the head)</td><td>say what the op is first</td></tr><tr><td><code>requires static …</code> · <code>debug</code> · <code>assume</code></td><td>contract grades</td><td>decide per clause when and how it is checked — <code>assume</code> is not a fact</td></tr><tr><td><code>build release_fast .</code></td><td>remove unproven contract checks</td><td>the choice of speed stays in the source</td></tr></table></div><p class="float-caption">Table 14.4 — Contract syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>requires</code> is the caller’s responsibility, <code>ensures</code> and <code>errors</code> the op’s, and the diagnostic says whose fault it was. Enforced contracts become facts and remove overflow, bounds and division-by-zero checks. <code>elem_*</code> expresses conditions over every element, and <code>contract</code> with <code>satisfies</code> names contracts. Violations between constants are rejected at translation, and so are declarations of impossible errors. <code>assume</code> is not a fact; build modes decide the treatment of unproven contracts, and <code>release_fast</code> removes those checks.</div></div>
 <div class="nav"><a href="ch13.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch15.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

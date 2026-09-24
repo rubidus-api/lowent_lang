@@ -26,7 +26,7 @@ proc hex_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output 
   guard is_some up . else return 9 .
   guard eq (index dec 0) 74 . else return 10 .
   return 42 .
-end .
+end
 
 rem 잘못된 hex 는 값으로 거절된다: 홀수 길이 · hex 아닌 글자 · 모자란 출력 버퍼 → 셋 다 none.
 proc hex_rejects input dst mut slice u8 . . output u64 . effects none . do
@@ -38,11 +38,11 @@ proc hex_rejects input dst mut slice u8 . . output u64 . effects none . do
       let small option u64 . be c.hex_enc "abcdefgh" dst .
       guard is_some small . else return 42 .
       return 3 .
-    end .
+    end
     return 2 .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem base64 왕복: "hi"(꼬리 2) → "aGk=" → "hi" · "abc"(꼬리 0) → "YWJj" → "abc".
 proc b64_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output u64 . effects none . do
@@ -68,7 +68,7 @@ proc b64_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output 
   guard eq (some_value d2) 3 . else return 13 .
   guard eq (index dec 2) 99 . else return 14 .
   return 42 .
-end .
+end
 
 rem base64 도 값으로 거절한다: 4의 배수 아닌 길이 · 알파벳 밖 글자 · **가운데 패딩**.
 proc b64_rejects input dst mut slice u8 . . output u64 . effects none . do
@@ -80,11 +80,11 @@ proc b64_rejects input dst mut slice u8 . . output u64 . effects none . do
       let midpad option u64 . be c.b64_dec "aG==YWJj" dst .
       guard is_some midpad . else return 42 .
       return 3 .
-    end .
+    end
     return 2 .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★ 마지막 그룹의 **남는 비트가 0 이 아니면** 거절한다(RFC 4648 §3.5 · 검토 2026-09-04).
 rem   "QQ==" → 'A' 와 "QUI=" → "AB" 는 정규라서 열리고, 같은 바이트를 내는 "QR==" · "QUJ=" 는 none.
@@ -101,9 +101,9 @@ proc b64_canon input dst mut slice u8 . . output u64 . effects none . do
     let bad2 option u64 . be c.b64_dec "QUJ=" dst .
     guard is_some bad2 . else return 42 .
     return 6 .
-  end .
+  end
   return 3 .
-end .
+end
 
 rem ★ hex_digit 의 범위 밖은 '?'(63) — 전엔 E-VM-CAST 트랩이었다(검토 2026-09-04). 0→'0' · 15→'f' 는 그대로.
 fn hex_digit_range output u64 . do
@@ -112,4 +112,4 @@ fn hex_digit_range output u64 . do
   guard eq (widen u64 (c.hex_digit 15)) 102 . else return 3 .
   guard eq (widen u64 (c.hex_digit 0)) 48 . else return 4 .
   return 42 .
-end .
+end

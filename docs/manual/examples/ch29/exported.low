@@ -7,13 +7,13 @@ export fn clamp_add input a u32 . input b u32 . output u32 .
   ensures le ret 2000 .
 do
   return add a b .
-end .
+end
 
 export fn sum_bytes input xs slice u8 . output u64 .
 do
   var s u64 be 0 .
   for x xs do
     set s (add s (widen u64 x)) .
-  end .
+  end
   return s .
-end .
+end

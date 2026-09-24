@@ -30,6 +30,8 @@ It does 130-bit arithmetic on `u64` split into **five 26-bit limbs**. The larges
 
 `addhi` is an argument because a short last block must place the top 1 bit differently. `aead` **fills every block** with `pad16`, so it always passes 1 — the saying that padding exists to reduce cases to one becomes concrete here.
 
+`block` stays as this module’s **definition of the meaning**. The loop over blocks, though, is what [`aead`](sec81.md#mod-aead) now calls as the word `poly1305` — the state has the same layout (five h, five r), so `setup` and `emit` remain in the language and only the middle went down (measured 331 → 1840 MB/s). A regression test holds the word and the loop over `block` against the same state.
+
 **What is checked** — the RFC 8439 §2.5.2 tag vector and VM/native agreement. **Not built** — constant-time guarantees, tag comparison, detection of key reuse, serialising streaming state.
 
 ---

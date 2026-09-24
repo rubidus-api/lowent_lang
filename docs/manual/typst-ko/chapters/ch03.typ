@@ -98,7 +98,7 @@ let mixed u64 be add 1 (mul 2 3) .
 struct point do
   x u64 .
   y u64 .
-end .
+end
 
 fn sum_to input n u64 . output u64 .
 do
@@ -107,9 +107,9 @@ do
   while le i n . do
     set total (add total i) .
     set i (add i 1) .
-  end .
+  end
   return total .
-end .
+end
 ```
 
 `end` 뒤의 마침표는 그 블록을 담은 폼(`struct` 선언, `while` 문장)을 닫는다. `end` 는 자기 안에 열린
@@ -272,7 +272,7 @@ proc copy_upper
   requires gt (len src) 0 .
 do
   return write_out out 1 src .
-end .
+end
 ```
 
 한 줄에 이어 적어도, 절마다 줄을 나누어도 뜻은 같다(개행은 공백이다). 짧은 머리는 한 줄로, 계약이
@@ -317,7 +317,7 @@ end .
 #antipattern[`if` 의 몸을 `do` 없이 연다][
   #demo("examples/ch03/mistake_ifdo.low")
 
-  Python 처럼 들여쓰기로 몸을 여는 문법이 아니다. `do` 가 없으면 `if` 폼은 조건 뒤의 마침표에서 끝나고, 아래의 `end .` 는
+  Python 처럼 들여쓰기로 몸을 여는 문법이 아니다. `do` 가 없으면 `if` 폼은 조건 뒤의 마침표에서 끝나고, 아래의 `end` 는
   `if` 가 아니라 *op 의 몸*을 닫아 버린다. 그러면 남은 `return 0 .` 이 선언 밖으로 떨어져 `E-TOPLEVEL`(최상위에 선언이 아닌
   것이 있다)이 나오고, 몸이 일찍 닫혔으니 돌려주는 길도 어긋난다(`E-RETURN-PARTIAL`). 두 진단이 함께 보이면 빠진 `do` 를
   의심한다. 고치는 법: `if gt a 3 . do`.
@@ -348,7 +348,7 @@ end .
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`add a (mul b c)`], [전위 표기 --- 이름이 먼저, 안쪽 호출은 괄호로], [우선순위를 외울 필요가 없다],
   [`… .`], [떨어진 마침표가 폼(문장·절)을 닫는다], [개행이 뜻을 바꾸지 않게 --- 줄은 어디서 나눠도 된다],
-  [`do … end .`], [모든 블록], [블록을 여는 모양이 하나뿐],
+  [`do … end`], [모든 블록], [블록을 여는 모양이 하나뿐],
   [`rem …` · `note WHY … WHY`], [줄 주석 · 여러 줄 주석], [기호 주석(`//`·`#`)이 없다 --- 낱말로 연다],
   [`42` · `0x2A` · `0b101010` · `1_000`], [정수 리터럴(자리가 타입을 정한다)], [팔진 표기가 없다 --- `0755` 는 755],
   [`"hi\n"` · `'a'`], [문자열(바이트 여럿) · 글자 하나], [따옴표가 곧 타입의 차이],

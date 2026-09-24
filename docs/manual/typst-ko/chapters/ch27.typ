@@ -269,7 +269,7 @@
   caption: [병렬과 원자 연산의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`parallel s split .`(op 머리)], [`s` 를 조각으로 나누어 여럿이 돌아도 된다는 선언], [주장을 믿지 않고 확인한다 --- 확인되면 `W-PAR-OK`],
-  [`while lt i (len s) . do … end .`], [나눌 수 있는 되풀이의 모양], [다른 모양이면 `E-PAR-NOLOOP`],
+  [`while lt i (len s) . do … end`], [나눌 수 있는 되풀이의 모양], [다른 모양이면 `E-PAR-NOLOOP`],
   [`index s i` 만 읽고 쓰기], [자기 몫만], [남의 자리는 `E-PAR-READ` · `E-PAR-WRITE`],
   [`reduce acc add .`], [조각마다 누적한 뒤 연산으로 합친다], [시작값은 항등원 --- 연산은 결합적(`E-PAR-ASSOC`)],
   [`atomic_add counter 0 1` · `atomic_load cells 0`], [슬라이스와 색인으로 가리킨 자리를 원자적으로], [`effects atomic` + `cap atomic`],

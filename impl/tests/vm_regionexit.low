@@ -17,19 +17,19 @@ do
     let g option mut slice u8 . . be alloc_bytes r capacity 8 .
     guard is_some g . else return 1 .
     return 2 .
-  end .
+  end
   return 3 .
-end .
+end
 
 proc once output u64 . effects alloc .
 do
   region r arena do
     let g option mut slice u8 . . be alloc_bytes r capacity 60000 .
-    if is_some g . do return 1 . end .
+    if is_some g . do return 1 . end
     return 0 .
-  end .
+  end
   return 0 .
-end .
+end
 
 export proc leave_early output u64 . effects alloc .
 do
@@ -40,10 +40,10 @@ do
     while lt i 100 . do
       set n (add n (once)) .
       set i (add i 1) .
-    end .
-  end .
+    end
+  end
   return n .
-end .
+end
 
 export proc skip output u64 . effects alloc .
 do
@@ -56,11 +56,11 @@ do
       if is_some g . do
         set n (add n 1) .
         continue .
-      end .
-    end .
-  end .
+      end
+    end
+  end
   return n .
-end .
+end
 
 export proc stop output u64 . effects alloc .
 do
@@ -71,28 +71,28 @@ do
       if is_some g . do
         set n (add n 1) .
         break .
-      end .
-    end .
-  end .
+      end
+    end
+  end
   region s arena do
     let h option mut slice u8 . . be alloc_bytes s capacity 60000 .
-    if is_some h . do set n (add n 1) . end .
-  end .
+    if is_some h . do set n (add n 1) . end
+  end
   return n .
-end .
+end
 
 proc carve input t region scratch . . output u64 . effects alloc .
 do
   let g option mut slice u8 . . be alloc_bytes t capacity 8 .
-  if is_some g . do return len (some_value g) . end .
+  if is_some g . do return len (some_value g) . end
   return 0 .
-end .
+end
 
 export proc down output u64 . effects alloc .
 do
   var n u64 be 0 .
   region r arena do
     set n (carve r) .
-  end .
+  end
   return n .
-end .
+end

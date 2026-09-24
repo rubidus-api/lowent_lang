@@ -12,7 +12,7 @@
   caption: [겉모습에서 걸리는 실수],
   [*실수*], [*진단*], [*고치는 법*],
   [`output` 을 `input` 앞에 적는다], [`E-CLAUSE-ORDER`], [절 차례표를 따른다. 입력 밖의 절은 `--fmt` 가 옮긴다(#chref("surface"))],
-  [`struct p .` 처럼 블록을 점이나 줄바꿈으로 연다], [`E-STMT-NODO`], [`struct p do … end .` (`--fmt` 가 고친다)],
+  [`struct p .` 처럼 블록을 점이나 줄바꿈으로 연다], [`E-STMT-NODO`], [`struct p do … end` (`--fmt` 가 고친다)],
   [`;` 나 `,` 로 닫는다], [`E-VOCAB-REMOVED`], [떨어진 마침표 `.`],
   [`p.x` 로 칸을 읽는다], [`E-FIELD-GLUED`], [`field p x`],
   [`for x in xs`], [`E-VOCAB-REMOVED`], [`for x xs do … end`],

@@ -7,7 +7,7 @@ fn stored output bool . do
   let a f32 be 0.1 .
   let b f64 be 0.1 .
   return eq (widen f64 a) b .
-end .
+end
 
 rem ko: 셈을 한 번 거친 f32(0.1 + 0)는 32 비트로 반올림되어 다르다고 나온다 /// en: an f32 that went through one operation (0.1 + 0) is rounded to 32 bits and compares unequal
 fn computed output bool . do
@@ -15,4 +15,4 @@ fn computed output bool . do
   let c f32 be add a 0.0 .
   let b f64 be 0.1 .
   return eq (widen f64 c) b .
-end .
+end

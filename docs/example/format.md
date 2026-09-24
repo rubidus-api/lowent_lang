@@ -16,7 +16,7 @@ type scratch u64 . .
 
 enum write_error do
   overflow .         rem 버퍼 부족 — 실행-유도 오류(조건 없이 errors 절에 이름만)
-end .
+end
 
 rem ── 저수준 라이터: 모두 (buf, pos) → 새 pos 를 돌려주는 순수 빌더(숨은 alloc 0) ──
 

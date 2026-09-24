@@ -14,10 +14,10 @@ rem     결과를 바꾸면 E-SCHED-NONDET. 순서 무관이면 초록. 동시�
 module vm_gthread .
 
 actor counter do
-  state do v u64 . end .
-  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
-  fn get output u64 . do return v . end .
-end .
+  state do v u64 . end
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end
+  fn get output u64 . do return v . end
+end
 
 rem 각 태스크가 inc, **yield**, inc — yield 에서 스케줄러가 다른 태스크로 넘어간다. 교환법칙이라
 rem   어떤 인터리빙이든 get=4. yield 가 진짜 중단·재개를 하는데도 결과가 안정적임을 오라클이 확인한다.
@@ -25,20 +25,20 @@ proc ta input c counter . output u64 . effects state . do
   var x u64 be send c inc .
   yield .
   return send c inc .
-end .
+end
 proc tb input c counter . output u64 . effects state . do
   var x u64 be send c inc .
   yield .
   return send c inc .
-end .
+end
 test gthread_yield schedule explore_interleavings do
   var c counter be spawn actor counter . .
   task_group do
     spawn ta c .
     spawn tb c .
-  end .
+  end
   expect eq (send c get) 4 .
-end .
+end
 
 rem `yield` 를 쓴 task_group + 스칼라 반환 — VM(코루틴 인터리빙)≡네이티브(yield no-op, 완주). 차등 스윕.
 proc drive output u64 . effects state . do
@@ -46,6 +46,6 @@ proc drive output u64 . effects state . do
   task_group do
     spawn ta c .
     spawn tb c .
-  end .
+  end
   return send c get .
-end .
+end

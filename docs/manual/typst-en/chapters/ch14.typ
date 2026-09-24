@@ -87,13 +87,13 @@ zero, narrowing and slice bounds checks. So in this language *writing honestly m
 fn bare input a u8 . output u8 .
 do
   return add a 1 .          rem the overflow check remains
-end .
+end
 
 fn proven input a u8 . output u8 .
   requires le a 200 .
 do
   return add a 1 .          rem no check --- it cannot exceed 201
-end .
+end
 ```
 
 The two ops have the same body. The only difference is one line of contract, and that line removes a run-time check. The check did not vanish
@@ -251,7 +251,7 @@ boundary, where *a person promises* the contracts are true. It is one reason the
   [`ensures le ret 100 .`], [promise on exit --- this op's responsibility], [`ret` is the returned value --- callers use it as a fact],
   [`errors too_big gt a 200 .`], [promise to return this error under this condition], [a contract on the way out --- errors are promised too],
   [`requires elem_le ds 9 .`], [a condition on every element], [contracts are expressions, so no loops],
-  [`contract positive do … end .`], [give a contract a name], [one place to change a shared condition],
+  [`contract positive do … end`], [give a contract a name], [one place to change a shared condition],
   [`fn half satisfies positive . …`], [adopt a named contract (first in the head)], [say what the op is first],
   [`requires static …` · `debug` · `assume`], [contract grades], [decide per clause when and how it is checked --- `assume` is not a fact],
   [`build release_fast .`], [remove unproven contract checks], [the choice of speed stays in the source],

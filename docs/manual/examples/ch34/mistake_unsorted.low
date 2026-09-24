@@ -17,4 +17,4 @@ do
   let at option u64 be searchlib.bsearch xs 42 .
   guard is_some at . else return 99 .
   return some_value at .
-end .
+end

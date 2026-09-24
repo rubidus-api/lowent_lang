@@ -5,7 +5,7 @@ proc relay input inbox u64 . input outbox u64 . output u64 . effects concurrent 
 do
   let x u64 be chrecv inbox .
   return chsend outbox x .
-end .
+end
 proc crossed output u64 . effects state .
 do
   var a u64 be channel u64 .
@@ -14,6 +14,6 @@ do
     rem ko: ✘ 둘 다 받기부터 한다 --- 첫 값을 넣어 줄 흐름이 없다 /// en: ✘ both start by receiving --- no flow puts in the first value
     spawn relay a b .
     spawn relay b a .
-  end .
+  end
   return 0 .
-end .
+end

@@ -9,9 +9,9 @@ do
   while lt i (len s) . do
     set (index s i) (wrap_mul (index s i) 2) .
     set i (add i 1) .
-  end .
+  end
   return len s .
-end .
+end
 
 fn total input s slice u8 . output u64 .
   parallel s split .
@@ -22,6 +22,6 @@ do
   while lt i (len s) . do
     set acc (add acc (widen u64 (index s i))) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end

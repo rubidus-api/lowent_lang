@@ -13,16 +13,16 @@ module vm_wireaxes .
 use wire from "../../lib/wire.low" .
 
 rem ② 항등 기술자와 «그냥 돌려주기» — 골든이 이 짝의 명령 수를 견준다.
-fn ident_emit input v u64 . output u64 . do return wire.onwire 0 0 v 8 . end .
-fn plain_copy input v u64 . output u64 . do return v . end .
+fn ident_emit input v u64 . output u64 . do return wire.onwire 0 0 v 8 . end
+fn plain_copy input v u64 . output u64 . do return v . end
 
 rem 축을 하나씩 켠 판들
-fn rev_emit input v u64 . output u64 . do return wire.onwire 1 0 v 8 . end .
-fn inv_emit input v u64 . output u64 . do return wire.onwire 0 255 v 8 . end .
+fn rev_emit input v u64 . output u64 . do return wire.onwire 1 0 v 8 . end
+fn inv_emit input v u64 . output u64 . do return wire.onwire 0 255 v 8 . end
 
 rem ③ 순열 표 — 논리 자리 0..3 이 선에서는 3..0 에 앉는 보드
-fn tab_rev output slice u8 . do return "\x03\x02\x01\x00" . end .
-fn tab_id  output slice u8 . do return "\x00\x01\x02\x03" . end .
+fn tab_rev output slice u8 . do return "\x03\x02\x01\x00" . end
+fn tab_id  output slice u8 . do return "\x00\x01\x02\x03" . end
 
 test wire_axes do
   rem ① 축이 따로 논다
@@ -51,4 +51,4 @@ test wire_axes do
   expect eq (bit_and (wire.to_set 5 6) (wire.to_clear 5 6)) 0 .
   rem 세우고 지운 결과가 정말 want 다 — 읽고-고쳐-쓰기 없이
   expect eq (bit_and (bit_or 5 (wire.to_set 5 6)) (bit_not (wire.to_clear 5 6))) 6 .
-end .
+end

@@ -11,9 +11,9 @@ fn poly input a u64 . input b u64 . output u64 .
 do
   return add (mul a 2)
              (mul b 3) .
-end .
+end
 
 fn poly_expr input a u64 . input b u64 . output u64 .
 do
   return expr a * 2 + b * 3 .
-end .
+end

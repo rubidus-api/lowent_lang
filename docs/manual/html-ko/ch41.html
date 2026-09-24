@@ -676,7 +676,7 @@ a × b ∈ [0, 10000]      부호가 섞이면 네 곱의 최소·최대</code><
   <strong><span class="tok-k">requires</span></strong> le b <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add (widen <strong><span class="tok-t">u16</span></strong> a) (widen <strong><span class="tok-t">u16</span></strong> b) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run small_sum sum_contract.low 100 100
 small_sum(100, 100) = 200
 $ lowentc --ir sum_contract.low
@@ -689,7 +689,7 @@ $ lowentc --ir sum_contract.low
 <strong><span class="tok-k">fn</span></strong> product <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run product product_bare.low 1000 1000
 product(1000, 1000) = 1000000
 $ lowentc --ir product_bare.low
@@ -711,9 +711,9 @@ lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실�
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 2 --- 길이를 지역에 담았다</span></em>
 <strong><span class="tok-k">fn</span></strong> stored <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
@@ -723,9 +723,9 @@ lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실�
   <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 3 --- 계약이 용량을 말한다</span></em>
 <strong><span class="tok-k">fn</span></strong> capacity <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">cap</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -736,9 +736,9 @@ lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실�
   <strong><span class="tok-k">while</span></strong> lt j <strong><span class="tok-k">cap</span></strong> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (index s j))) .
     <strong><span class="tok-k">set</span></strong> j (add j <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 4 --- 행우선 주소 i·n + k</span></em>
 <strong><span class="tok-k">fn</span></strong> grid <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -752,11 +752,11 @@ lerel[i] = n     지역 i 는 지역 n 보다 작다</code></pre><p>이 사실�
     <strong><span class="tok-k">while</span></strong> lt k n . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (index a (add (mul i n) k)))) .
       <strong><span class="tok-k">set</span></strong> k (add k <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run direct bound_stages.low [1,2,3]
 direct([1,2,3]) = 6
   arg0 (written) = [1,2,3]
@@ -799,11 +799,11 @@ grid 43 add.i64 R-ADD-LEREL 0 999 1 1 64 0
     <strong><span class="tok-k">while</span></strong> lt k n . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (index a (wrap_add (wrap_mul i n) k)))) .
       <strong><span class="tok-k">set</span></strong> k (add k <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run grid grid_wrap.low [1,2,3,4] 2
 grid([1,2,3,4], 2) = 10
   arg0 (written) = [1,2,3,4]

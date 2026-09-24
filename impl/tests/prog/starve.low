@@ -23,13 +23,13 @@ proc reader input k cap io . input buf mut slice u8 . . output u64 . effects io 
   let r option u64 . be reactor_new k (subslice buf 0 32) 1 .
   guard is_some r . else return 90 .
   let n option u64 . be r_read k (some_value r) 0 (subslice buf 32 64) .
-  if is_some n . do return some_value n . end .
+  if is_some n . do return some_value n . end
   return 0 .
-end .
+end
 proc marker input k cap io . output u64 . effects io . do
   let w u64 be write_out k 1 "MARK\n" .
   return w .
-end .
+end
 proc main input k cap io . input al cap allocator . output u8 . effects alloc io state . do
   let b0 option mut slice u8 . . be alloc_bytes al capacity 64 .
   guard is_some b0 . else return 69 .
@@ -37,6 +37,6 @@ proc main input k cap io . input al cap allocator . output u8 . effects alloc io
   task_group do
     spawn reader k buf .
     spawn marker k .
-  end .
+  end
   return 0 .
-end .
+end

@@ -674,22 +674,22 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">fn</span></strong> mix <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i16</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> shrink <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> shrink_sat <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow_sat <strong><span class="tok-t">u8</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> shrink_wrap <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow_wrap <strong><span class="tok-t">u8</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run mix widths.low 200 -100
 mix(200, -100) = 100
 $ lowentc --run shrink widths.low 200
@@ -707,7 +707,7 @@ $ lowentc --run shrink widths.low 300
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check sign_bad.low
 sign_bad.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)
 </code></pre></div></div><span id="idx-entry-7"></span><p>A conversion that can lose a value is <strong>narrowing</strong>, and it must be written. <code>shrink</code> in the same file narrows a <code>u64</code> to a <code>u8</code> with <code>narrow u8 x</code>. 200 fits and comes out unchanged, but 300 does not, so execution stops (<code>E-VM-CAST</code>). If you do not want it to stop, choose the treatment you want by name. <code>narrow_sat</code> stops at the end value 255, and <code>narrow_wrap</code> wraps like C and gives 44. <code>narrow_try</code> gives <code>none</code> when the value does not fit.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> If <code>narrow_wrap</code> does what C does, why isn’t wrapping the default?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> To leave in the source whether wrapping was <strong>intended or a mistake</strong>. If wrapping were the default, someone reading a place where <code>narrow u8 x</code> gave 44 could not tell whether that was the wanted value. With stopping as the default, an author who wanted wrapping <strong>wrote</strong> <code>narrow_wrap</code>. The name written is the record of the author’s intent.</p></div></div><h3 id="s4-3">4.3 Overflow stops<a class="plink" href="#s4-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-8"></span><p>Arithmetic happens <strong>at the declared width</strong>. If the result does not fit the width, execution stops (a trap).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/overflow.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> overflow .
@@ -719,17 +719,17 @@ sign_bad.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exists
 <strong><span class="tok-k">fn</span></strong> bump <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> bump_wrap <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> wrap_add a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> bump_sat <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> sat_add a <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run bump overflow.low 254
 bump(254) = 255
 $ lowentc --run bump_wrap overflow.low 255
@@ -748,7 +748,7 @@ $ lowentc --run bump overflow.low 255
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> chk_add a <span class="tok-n">1</span> .
   <strong><span class="tok-k">guard</span></strong> is_some r . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> (some_value r) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run safe_bump chk.low 255
 safe_bump(255) = 999
 $ lowentc --run safe_bump chk.low 7
@@ -763,19 +763,19 @@ safe_bump(7) = 8
 <strong><span class="tok-k">fn</span></strong> quot <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> modulo <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mod a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> safe_div <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> nz <strong><span class="tok-k">option</span></strong> nonzero <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> nonzero_of b .
   <strong><span class="tok-k">guard</span></strong> is_some nz . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> div_nz a (some_value nz) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run quot divide.low -7 2
 quot(-7, 2) = -3
 $ lowentc --run modulo divide.low -7 2
@@ -792,9 +792,9 @@ $ lowentc --run quot divide.low 1 0
 
 <strong><span class="tok-k">fn</span></strong> nonzero_flag <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">if</span></strong> n . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">if</span></strong> n . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check cond_bad.low
 cond_bad.low:6:0 E-TYPE-COND: a condition must be bool, not a number — this language has no truthiness (D12: no implicit int↔bool). Say what the test is: `ne x 0`
 </code></pre></div></div><p>C’s <code>if (n)</code> reads as “n is not zero”, but the reader has to guess from context whether it means “n exists” or “n is true”. Lowent makes you write what you are asking — <code>if gt n 0 .</code>. Conversely, a <code>bool</code> cannot be added like a number. <code>and</code>, <code>or</code> and <code>not</code> take only booleans, and <code>and</code> and <code>or</code> skip the right-hand side when the left-hand side already decides the answer.</p><h3 id="s4-6">4.6 Bitwise operations<a class="plink" href="#s4-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Bitwise operations treat a value as a sequence of bits. They use words instead of symbols.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/bits.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bits .
@@ -806,12 +806,12 @@ cond_bad.low:6:0 E-TYPE-COND: a condition must be bool, not a number — this la
 <em><span class="tok-c">rem run: ones 7</span></em>
 
 <em><span class="tok-c">rem 12 = 0000_1100 · 10 = 0000_1010</span></em>
-<strong><span class="tok-k">fn</span></strong> mask <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> bit_and a b . <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">fn</span></strong> flip <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> bit_not a . <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">fn</span></strong> spin <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> rotl a n . <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">fn</span></strong> s_shr <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> shr a n . <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">fn</span></strong> u_shr <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> shr a n . <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">fn</span></strong> ones <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> count_ones a . <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">fn</span></strong> mask <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> bit_and a b . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> flip <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> bit_not a . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> spin <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> rotl a n . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> s_shr <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> shr a n . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> u_shr <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> shr a n . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> ones <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> count_ones a . <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run mask bits.low 12 10
 mask(12, 10) = 8
 $ lowentc --run flip bits.low 12
@@ -831,12 +831,12 @@ ones(7) = 3
 <strong><span class="tok-k">fn</span></strong> third <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div x <span class="tok-n">3.0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> hyp <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> sqrt (add (mul a a) (mul b b)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run third floats.low 1.0
 third(1.0) = 0.333333
 $ lowentc --run hyp floats.low 3.0 4.0
@@ -853,19 +853,19 @@ hyp(3.0, 4.0) = 5.0
   <strong><span class="tok-k">requires</span></strong> le k <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add (cast <strong><span class="tok-t">isize</span></strong> n) k .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem f32 is a 32-bit float: half the memory, about seven significant digits</span></em>
 <strong><span class="tok-k">fn</span></strong> third32 <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f32</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div x <span class="tok-n">3.0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem even 1/3 is a different number in f32 and f64; widened and compared, they are not equal</span></em>
 <strong><span class="tok-k">fn</span></strong> same_third <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f32</span></strong> . <strong><span class="tok-k">input</span></strong> y <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">f32</span></strong> <strong><span class="tok-k">be</span></strong> div x <span class="tok-n">3.0</span> .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">f64</span></strong> <strong><span class="tok-k">be</span></strong> div y <span class="tok-n">3.0</span> .
   <strong><span class="tok-k">return</span></strong> eq (widen <strong><span class="tok-t">f64</span></strong> a) b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run step sizes.low 5 -8
 step(5, -8) = -3
 $ lowentc --run third32 sizes.low 1.0
@@ -879,7 +879,7 @@ same_third(1.0, 1.0) = 0
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ adding first gives 300, which does not fit in u8</span></em>
   <strong><span class="tok-k">return</span></strong> div (add a b) <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run mid mistake_midpoint.low 200 100
 == ir diagnostics (1) ==
 0:0 E-VM-OVERFLOW: integer overflow at the declared width (use wrap_*/sat_*, or prove the range)
@@ -893,7 +893,7 @@ same_third(1.0, 1.0) = 0
   <strong><span class="tok-k">let</span></strong> both <strong><span class="tok-t">u16</span></strong> <strong><span class="tok-k">be</span></strong> add (widen <strong><span class="tok-t">u16</span></strong> a) (widen <strong><span class="tok-t">u16</span></strong> b) .
   <em><span class="tok-c">rem half of it fits in u8 again; we know that, and narrow checks it</span></em>
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (div both <span class="tok-n">2</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run mid midpoint_fixed.low 200 100
 mid(200, 100) = 150
 $ lowentc --run mid midpoint_fixed.low 255 255
@@ -905,11 +905,11 @@ mid(255, 255) = 255
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ unsigned numbers cannot go below 0 --- 3 − 5 is not negative, it stops</span></em>
   <strong><span class="tok-k">return</span></strong> sub a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run gap mistake_usub.low 3 5
 == ir diagnostics (1) ==
 0:0 E-VM-OVERFLOW: integer overflow at the declared width (use wrap_*/sat_*, or prove the range)
-</code></pre></div></div><p><code>u64</code> has nothing below 0. <code>3 − 5</code> is not −2 but an <strong>overflow</strong>, so it stops (C would give 18446744073709551614). If you want the size of the difference, subtract the smaller from the larger — <code>if ge a b . do return sub a b . end . return sub b a .</code> — and if a negative result is meaningful, compute in <code>i64</code> from the start.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Giving a loop counter too narrow a type</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_narrowloop.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_narrowloop .
+</code></pre></div></div><p><code>u64</code> has nothing below 0. <code>3 − 5</code> is not −2 but an <strong>overflow</strong>, so it stops (C would give 18446744073709551614). If you want the size of the difference, subtract the smaller from the larger — <code>if ge a b . do return sub a b . end return sub b a .</code> — and if a negative result is meaningful, compute in <code>i64</code> from the start.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Giving a loop counter too narrow a type</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_narrowloop.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_narrowloop .
 <em><span class="tok-c">rem expect: E-TYPE-WIDTH</span></em>
 
 <strong><span class="tok-k">fn</span></strong> tally <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -920,9 +920,9 @@ mid(255, 255) = 255
   <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">256</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> n (add n <span class="tok-n">1</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_narrowloop.low
 mistake_narrowloop.low:9:0 E-TYPE-WIDTH: this comparison holds a value that the other side's type cannot hold, so the answer is the same for every input — the comparison decides nothing. A name declared `u8` is at most 255, `u16` at most 65535, `i8` at most 127; a literal beyond that is out of range exactly as it would be in an assignment, where the tool has always refused it. Widen the name's type, or compare against a value the type can reach. (This is how a loop written `while lt i 256 .` over a `u8` counter never ends)
 </code></pre></div></div><p>A <code>u8</code> can never reach 256, so <code>lt i 256</code> is always true. In C, <code>i</code> would wrap from 255 back to 0 and the loop would <strong>never end</strong>. Lowent refuses the comparison at translation time with <code>E-TYPE-WIDTH</code>: comparing against a value the type cannot hold gives the same answer for every input, so it decides nothing. Give a loop counter a type wider than the largest value it counts to (<code>u64</code>).</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Doing float arithmetic with an integer literal</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_floatint.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_floatint .
@@ -932,7 +932,7 @@ mistake_narrowloop.low:9:0 E-TYPE-WIDTH: this comparison holds a value that the 
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ divides an f64 by the integer literal 2 --- write 2.0 where a float is expected</span></em>
   <strong><span class="tok-k">return</span></strong> div x <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_floatint.low
 mistake_floatint.low:7:0 E-TYPE-MIX: a floating-point value and an INTEGER literal are mixed in one operation. Floating point and integers do not convert implicitly (§6.2.5), so write the literal as a float (`2.0`) — or convert the other side. It used to pass `--check` and stop at run time (`E-VM-TYPE: arithmetic needs ints`)
 </code></pre></div></div><p>Integers and floats never convert into each other automatically. To divide an <code>f64</code>, write the literal as a float too: <code>2.0</code>. Mixing them is rejected at translation time with <code>E-TYPE-MIX</code>; it used to stop <strong>while running</strong> with <code>E-VM-TYPE</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Testing with the largest <code>u64</code> passed as a <code>--run</code> argument</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runmax .
@@ -943,7 +943,7 @@ mistake_floatint.low:7:0 E-TYPE-MIX: a floating-point value and an INTEGER liter
 <strong><span class="tok-k">fn</span></strong> echo <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem write boundary values as literals inside a test</span></em>
 <strong><span class="tok-k">test</span></strong> largest_u64
@@ -951,7 +951,7 @@ mistake_floatint.low:7:0 E-TYPE-MIX: a floating-point value and an INTEGER liter
   <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">18446744073709551615</span> .
   <strong><span class="tok-k">expect</span></strong> gt m <span class="tok-n">9223372036854775807</span> .
   <strong><span class="tok-k">expect</span></strong> eq (div m <span class="tok-n">2</span>) <span class="tok-n">9223372036854775807</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run echo mistake_runmax.low 18446744073709551615
 == ir diagnostics (1) ==
 0:0 E-VM-CONTRACT: a parameter's TYPE range was violated at the program boundary — the value does not fit the declared type (the interval analysis TRUSTS the type and deletes checks on that basis; the boundary is what makes that trust true)
@@ -967,7 +967,7 @@ $ lowentc --test mistake_runmax.low
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">f32</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0.1</span> .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">f64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0.1</span> .
   <strong><span class="tok-k">return</span></strong> eq (widen <strong><span class="tok-t">f64</span></strong> a) b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem an f32 that went through one operation (0.1 + 0) is rounded to 32 bits and compares unequal</span></em>
 <strong><span class="tok-k">fn</span></strong> computed <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
@@ -975,7 +975,7 @@ $ lowentc --test mistake_runmax.low
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">f32</span></strong> <strong><span class="tok-k">be</span></strong> add a <span class="tok-n">0.0</span> .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">f64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0.1</span> .
   <strong><span class="tok-k">return</span></strong> eq (widen <strong><span class="tok-t">f64</span></strong> c) b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run stored mistake_f32literal.low
 stored() = 0
 $ lowentc --run computed mistake_f32literal.low
@@ -988,13 +988,13 @@ computed() = 0
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem integer division drops the fraction --- 7 / 2 is 3</span></em>
   <strong><span class="tok-k">return</span></strong> div (add a b) <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> avg_f <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem if you need the fraction, compute in floating point from the start</span></em>
   <strong><span class="tok-k">return</span></strong> div (add a b) <span class="tok-n">2.0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run avg2 intdiv.low 3 4
 avg2(3, 4) = 3
 $ lowentc --run avg_f intdiv.low 3.0 4.0
@@ -1007,13 +1007,13 @@ avg_f(3.0, 4.0) = 3.5
 <strong><span class="tok-k">fn</span></strong> rest <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> fmod <span class="tok-n">7.5</span> <span class="tok-n">2.0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> whole_rest <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> gt b <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mod a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run rest floatmod.low
 rest() = 1.5
 $ lowentc --run whole_rest floatmod.low 7 2

@@ -3,14 +3,14 @@ rem expect: W-RESULT-DISCARD
 
 enum config_error do
   port_zero .
-end .
+end
 
 fn check_port input port u16 . output result u16 config_error .
   errors port_zero eq port 0 .
 do
   guard ne port 0 . else return error port_zero .
   return ok port .
-end .
+end
 
 proc main input out cap io . output u8 . effects io .
 do
@@ -18,4 +18,4 @@ do
   check_port 0 .
   let n u64 be write_out out 1 "started\n" .
   return 0 .
-end .
+end

@@ -21,7 +21,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum verify_error do
   short_workspace .
-end .
+end
 
 
 use x509 from "x509.low" .
@@ -39,27 +39,27 @@ rem   중간 마디를 **거절만** 했다: 안 지은 것을 지은 척하지 
 export fn sig_kind input c slice u8 . output u64 . do
   let o u64 be x509.sigalg_oid_off c .
   let n u64 be x509.sigalg_oid_len c .
-  if eq o 0 . do  return 0 . end .
+  if eq o 0 . do  return 0 . end
   if eq n 9 . do
     rem 2a 86 48 86 f7 0d 01 01 <0b=SHA-256 · 0c=SHA-384>
     if eq (index c o) 42 . do
       if eq (index c (add o 3)) 134 . do
-        if eq (index c (add o 8)) 11 . do  return 1 . end .
-        if eq (index c (add o 8)) 12 . do  return 3 . end .
-      end .
-    end .
-  end .
+        if eq (index c (add o 8)) 11 . do  return 1 . end
+        if eq (index c (add o 8)) 12 . do  return 3 . end
+      end
+    end
+  end
   if eq n 8 . do
     rem 2a 86 48 ce 3d 04 03 <02=SHA-256 · 03=SHA-384>
     if eq (index c o) 42 . do
       if eq (index c (add o 3)) 206 . do
-        if eq (index c (add o 7)) 2 . do  return 2 . end .
-        if eq (index c (add o 7)) 3 . do  return 4 . end .
-      end .
-    end .
-  end .
+        if eq (index c (add o 7)) 2 . do  return 2 . end
+        if eq (index c (add o 7)) 3 . do  return 4 . end
+      end
+    end
+  end
   return 0 .
-end .
+end
 
 rem ── ECDSA 서명은 DER 이다: SEQUENCE { r INTEGER, s INTEGER } ─────────────
 rem ★ INTEGER 는 **앞에 0 이 붙을 수 있고**(최상위 비트가 1 이면 붙는다) 짧을 수도 있다.
@@ -72,7 +72,7 @@ export proc ecdsa_rs input sig slice u8 . input out mut slice u8 . input sz u64 
   guard gt (len sig) 8 . else return 0 .
   guard eq (der.tag_at sig 0) 48 . else return 0 .
   var i u64 be 0 .
-  while lt i (mul sz 2) . do  set (index out i) 0 .  set i (add i 1) .  end .
+  while lt i (mul sz 2) . do  set (index out i) 0 .  set i (add i 1) .  end
   let ro u64 be der.value_off sig 0 .
   guard gt ro 0 . else return 0 .
   guard eq (der.tag_at sig ro) 2 . else return 0 .
@@ -92,33 +92,33 @@ export proc ecdsa_rs input sig slice u8 . input out mut slice u8 . input sz u64 
     guard eq (index sig rs2) 0 . else return 0 .
     set rs2 (add rs2 1) .
     set rn2 (sub rn2 1) .
-  end .
+  end
   var ss2 u64 be sv .
   var sn2 u64 be sl .
   while gt sn2 sz . do
     guard eq (index sig ss2) 0 . else return 0 .
     set ss2 (add ss2 1) .
     set sn2 (sub sn2 1) .
-  end .
+  end
   var a u64 be 0 .
   while lt a rn2 . do
     set (index out (add (sub sz rn2) a)) (index sig (add rs2 a)) .
     set a (add a 1) .
-  end .
+  end
   var b u64 be 0 .
   while lt b sn2 . do
     set (index out (add (add sz (sub sz sn2)) b)) (index sig (add ss2 b)) .
     set b (add b 1) .
-  end .
+  end
   return mul sz 2 .
-end .
+end
 
 rem ── P-256 의 상수 ────────────────────────────────────────────────────────
 rem   p · n · Gx · Gy 를 16 조각씩. 한 자리에만 적는다.
 fn hexd input c u64 . output u64 . do
-  if lt c 58 . do  return sub c 48 . end .
+  if lt c 58 . do  return sub c 48 . end
   return sub c 87 .
-end .
+end
 proc limbs_of input h slice u8 . input out mut slice u64 . input w mut slice u8 . output u64 . effects none . do
   guard eq (len h) 64 . else return 0 .
   guard ge (len w) 32 . else return 0 .
@@ -127,9 +127,9 @@ proc limbs_of input h slice u8 . input out mut slice u64 . input w mut slice u8 
     set (index w i) (narrow u8 (add (mul (hexd (cast u64 (index h (mul i 2)))) 16)
                                     (hexd (cast u64 (index h (add (mul i 2) 1)))))) .
     set i (add i 1) .
-  end .
+  end
   return bigint.from_bytes (subslice w 0 32) out 16 .
-end .
+end
 export proc curve input cw mut slice u64 . input w mut slice u8 . output result u64 verify_error . effects none .
 errors short_workspace . do
   rem ★ 자리가 모자란 것은 **답이 아니라 실패**다(X-0035): `cw` 는 상수를 놓을 자리,
@@ -141,7 +141,7 @@ errors short_workspace . do
   guard eq (limbs_of "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" (subslice cw 32 48) w) 16 . else return ok 0 .
   guard eq (limbs_of "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5" (subslice cw 48 64) w) 16 . else return ok 0 .
   return ok 1 .
-end .
+end
 
 rem ── P-384 의 상수 ────────────────────────────────────────────────────────
 rem   p · n · Gx · Gy 를 24 조각씩(FIPS 186-4 D.1.2.4). 한 자리에만 적는다.
@@ -153,9 +153,9 @@ proc limbs_of96 input h slice u8 . input out mut slice u64 . input w mut slice u
     set (index w i) (narrow u8 (add (mul (hexd (cast u64 (index h (mul i 2)))) 16)
                                     (hexd (cast u64 (index h (add (mul i 2) 1)))))) .
     set i (add i 1) .
-  end .
+  end
   return bigint.from_bytes (subslice w 0 48) out 24 .
-end .
+end
 export proc curve384 input cw mut slice u64 . input w mut slice u8 . output result u64 verify_error . effects none .
 errors short_workspace . do
   guard ge (len cw) 96 . else return error short_workspace .
@@ -165,7 +165,7 @@ errors short_workspace . do
   guard eq (limbs_of96 "aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7" (subslice cw 48 72) w) 24 . else return ok 0 .
   guard eq (limbs_of96 "3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f" (subslice cw 72 96) w) 24 . else return ok 0 .
   return ok 1 .
-end .
+end
 
 rem ★★★ **ECDSA P-384 갈래** — `signed_by` 에서 갈라져 나온 자리.
 rem
@@ -189,14 +189,14 @@ do
   guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 160) 48) 96 . else return ok 0 .
   rem e ← 해시를 48 바이트 자리에 오른쪽 맞춤으로.
   var i u64 be 0 .
-  while lt i 48 . do  set (index wb (add 160 i)) 0 .  set i (add i 1) .  end .
+  while lt i 48 . do  set (index wb (add 160 i)) 0 .  set i (add i 1) .  end
   let hb u64 be hn .
   guard le hb 48 . else return ok 0 .
   var j u64 be 0 .
   while lt j hb . do
     set (index wb (add (add 160 (sub 48 hb)) j)) (index mh j) .
     set j (add j 1) .
-  end .
+  end
   let _u1 result u64 verify_error . be curve384 (subslice wu 0 96) (subslice wb 208 256) .
   guard is_ok _u1 . else return ok 0 .
   guard eq (ok_value _u1) 1 . else return ok 0 .
@@ -214,7 +214,7 @@ do
                            (subslice wu 216 1580) .
   guard is_ok pr . else return error short_workspace .
   return ok (ok_value pr) .
-end .
+end
 
 rem ★★★★★ **한 장이 다른 한 장에게 서명받았는가.** 1 = 그렇다 · 0 = 아니다(또는 못 알아본다).
 rem
@@ -243,11 +243,11 @@ do
   var hn u64 be 32 .
   if lt kind 3 . do
     guard eq (call_builtin sha256 (subslice c tb te) (subslice wb 0 32)) 32 . else return ok 0 .
-  end .
+  end
   if ge kind 3 . do
     guard eq (call_builtin sha384 (subslice c tb te) (subslice wb 0 48)) 48 . else return ok 0 .
     set hn 48 .
-  end .
+  end
 
   let so u64 be x509.sig_off c .
   let sl u64 be x509.sig_len c .
@@ -259,7 +259,7 @@ do
   let ko u64 be der.spki_key_off issuer sp .
   guard gt ko 0 . else return ok 0 .
 
-  if lt kind 3 . do  set kind kind . end .
+  if lt kind 3 . do  set kind kind . end
   if eq (mod kind 2) 1 . do
     let no u64 be der.rsa_n_off issuer ko .
     let nl u64 be der.rsa_n_len issuer ko .
@@ -280,13 +280,13 @@ do
     var di slice u8 be "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20" .
     if eq hn 48 . do
       set di "\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30" .
-    end .
+    end
     return ok (rsa.verify_pkcs1 (subslice c so (add so sl)) (subslice issuer no (add no nl)) e (subslice wb 0 hn)
              di (subslice wb 64 576)
              (subslice wu 0 need) (subslice wu need (mul need 2)) (subslice wu (mul need 2) (mul need 3))
              (subslice wu (mul need 3) (mul need 4)) (subslice wu (mul need 4) (mul need 5))
              (subslice wu (mul need 5) (mul need 6)) (subslice wu (mul need 6) (mul need 7))) .
-  end .
+  end
 
   rem ECDSA P-256 — 공개키는 04‖X‖Y 예순다섯 바이트다(압축은 안 받는다).
   rem ★ `key_len` 은 **SPKI 자리**를 받고 `rsa_n_off` 는 **키 자리**를 받는다 — 둘을 바꿔
@@ -299,7 +299,7 @@ do
   rem     길이와 OID 가 어긋난 인증서라면 **어느 쪽을 믿어도 서명이 맞지 않는다.**
   if eq kl 97 . do
     return ec384 c so sl issuer ko (subslice wb 0 hn) hn wb wu .
-  end .
+  end
   guard eq kl 65 . else return ok 0 .
   guard eq (index issuer ko) 4 . else return ok 0 .
   guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 128) 32) 64 . else return ok 0 .
@@ -319,7 +319,7 @@ do
                            (subslice wu 0 16) (subslice wu 16 32)
                            (subslice wu 32 48) (subslice wu 48 64)
                            (subslice wu 144 1068) .
-end .
+end
 
 rem ── 체인을 잇는 판단 ────────────────────────────────────────────────────
 
@@ -329,89 +329,89 @@ rem   (`check-export-names` 가 그 자리에서 말했다, 2026-09-18). DN 은 
 rem   ☞ 문자열로 풀어 견주면 대소문자·인코딩·공백 규칙이 끼어들고, 그 규칙마다 «같다» 의
 rem     뜻이 조금씩 달라진다. 여기서는 그 물음을 아예 만들지 않는다.
 export fn dn_eq input a slice u8 . input ao u64 . input b slice u8 . input bo u64 . output bool . do
-  if eq ao 0 . do  return false . end .
-  if eq bo 0 . do  return false . end .
+  if eq ao 0 . do  return false . end
+  if eq bo 0 . do  return false . end
   let al u64 be x509.elem_len a ao .
   let bl u64 be x509.elem_len b bo .
-  if eq al 0 . do  return false . end .
-  if ne al bl . do  return false . end .
-  if gt (add ao al) (len a) . do  return false . end .
-  if gt (add bo bl) (len b) . do  return false . end .
+  if eq al 0 . do  return false . end
+  if ne al bl . do  return false . end
+  if gt (add ao al) (len a) . do  return false . end
+  if gt (add bo bl) (len b) . do  return false . end
   var i u64 be 0 .
   var diff u64 be 0 .
   while lt i al . do
     set diff (bit_or diff (bit_xor (cast u64 (index a (add ao i))) (cast u64 (index b (add bo i))))) .
     set i (add i 1) .
-  end .
+  end
   return eq diff 0 .
-end .
+end
 
 rem ★ 유효기간이 지금을 담는가. `now` 는 YYYYMMDDhhmmss 한 수다.
 export fn dates_ok input c slice u8 . input now u64 . output bool . do
   let nb u64 be x509.not_before c .
   let na u64 be x509.not_after c .
-  if eq nb 0 . do  return false . end .
-  if eq na 0 . do  return false . end .
-  if lt now nb . do  return false . end .
-  if gt now na . do  return false . end .
+  if eq nb 0 . do  return false . end
+  if eq na 0 . do  return false . end
+  if lt now nb . do  return false . end
+  if gt now na . do  return false . end
   return true .
-end .
+end
 
 rem ★★ 한 이름이 SAN 의 한 칸과 맞는가 — 와일드카드는 **맨 앞 한 마디**만 받는다.
 rem   `*.a.b` 는 `x.a.b` 와 맞고 `a.b` 나 `y.x.a.b` 와는 맞지 않는다(RFC 6125 §6.4.3).
 rem   ☞ 대소문자는 아스키로만 내린다 — 이름에 아스키 밖이 오면 그것은 A-라벨이어야 하고,
 rem     A-라벨은 이미 아스키다.
 fn lower input c u64 . output u64 . do
-  if lt c 65 . do  return c . end .
-  if gt c 90 . do  return c . end .
+  if lt c 65 . do  return c . end
+  if gt c 90 . do  return c . end
   return add c 32 .
-end .
+end
 fn label_eq input pat slice u8 . input po u64 . input pn u64 . input h slice u8 . input ho u64 . input hn u64 . output bool . do
-  if ne pn hn . do  return false . end .
+  if ne pn hn . do  return false . end
   var i u64 be 0 .
   while lt i pn . do
-    if ne (lower (cast u64 (index pat (add po i)))) (lower (cast u64 (index h (add ho i)))) . do  return false . end .
+    if ne (lower (cast u64 (index pat (add po i)))) (lower (cast u64 (index h (add ho i)))) . do  return false . end
     set i (add i 1) .
-  end .
+  end
   return true .
-end .
+end
 export fn san_matches input c slice u8 . input so u64 . input host slice u8 . output bool . do
   let vo u64 be der.value_off c so .
   let vl u64 be der.value_len c so .
-  if eq vo 0 . do  return false . end .
-  if eq vl 0 . do  return false . end .
-  if eq (len host) 0 . do  return false . end .
+  if eq vo 0 . do  return false . end
+  if eq vl 0 . do  return false . end
+  if eq (len host) 0 . do  return false . end
   rem 와일드카드가 아니면 통째로 견준다.
   if ne (index c vo) 42 . do
     return label_eq c vo vl host 0 (len host) .
-  end .
+  end
   rem `*` 다음은 반드시 `.` 이어야 한다.
-  if lt vl 3 . do  return false . end .
-  if ne (index c (add vo 1)) 46 . do  return false . end .
+  if lt vl 3 . do  return false . end
+  if ne (index c (add vo 1)) 46 . do  return false . end
   rem 호스트의 첫 `.` 뒤가 패턴의 `.` 뒤와 같아야 하고, 첫 마디는 비어 있지 않아야 한다.
   var d u64 be 0 .
   var seen u64 be 0 .
   while lt d (len host) . do
     if eq (index host d) 46 . do
-      if eq seen 0 . do  set seen (add d 1) . end .
-    end .
+      if eq seen 0 . do  set seen (add d 1) . end
+    end
     set d (add d 1) .
-  end .
-  if eq seen 0 . do  return false . end .
-  if eq seen 1 . do  return false . end .
+  end
+  if eq seen 0 . do  return false . end
+  if eq seen 1 . do  return false . end
   return label_eq c (add vo 2) (sub vl 2) host seen (sub (len host) seen) .
-end .
+end
 export fn host_ok input c slice u8 . input host slice u8 . output bool . do
   var s u64 be x509.san_next c 0 .
   var steps u64 be 0 .
   while gt s 0 . do
-    if san_matches c s host . do  return true . end .
+    if san_matches c s host . do  return true . end
     set s (x509.san_next c s) .
     set steps (add steps 1) .
-    if gt steps 128 . do  return false . end .
-  end .
+    if gt steps 128 . do  return false . end
+  end
   return false .
-end .
+end
 
 rem ★★★★★ **한 마디를 잇는다**: child 가 parent 에게 서명받았고, parent 가 남을 발급할 수
 rem   있으며, 이름이 이어지고, 둘 다 기간 안에 있는가.
@@ -419,13 +419,13 @@ rem   1 = 잇는다 · 그 밖 = 거절한 까닭(2 이름 · 3 CA 아님 · 4 �
 export proc link_ok input child slice u8 . input parent slice u8 . input now u64 .
      input wb mut slice u8 . input wu mut slice u64 . output u64 . effects none .
 do
-  if eq (dn_eq child (x509.issuer_off child) parent (x509.subject_off parent)) false . do  return 2 . end .
-  if eq (x509.is_ca parent) false . do  return 3 . end .
-  if eq (dates_ok child now) false . do  return 4 . end .
-  if eq (dates_ok parent now) false . do  return 4 . end .
+  if eq (dn_eq child (x509.issuer_off child) parent (x509.subject_off parent)) false . do  return 2 . end
+  if eq (x509.is_ca parent) false . do  return 3 . end
+  if eq (dates_ok child now) false . do  return 4 . end
+  if eq (dates_ok parent now) false . do  return 4 . end
   rem ★ 「서명이 안 맞는다」와 「재지 못했다」를 가른다(X-0035): 못 잰 것은 **6** 이다.
   let sb result u64 verify_error . be signed_by child parent wb wu .
   guard is_ok sb . else return 6 .
-  if eq (ok_value sb) 1 . do  return 1 . end .
+  if eq (ok_value sb) 1 . do  return 1 . end
   return 5 .
-end .
+end

@@ -9,4 +9,4 @@ do
   var s u64 be add a b
   set s (mul s 2) .
   return s .
-end .
+end

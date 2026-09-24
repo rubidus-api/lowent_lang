@@ -43,7 +43,7 @@ proc basic input al cap allocator . output u64 . effects state alloc . do
   guard is_some d . else return 18 .
   guard eq (some_value d) 902 . else return 19 .
   return 42 .
-end .
+end
 
 rem ★★ 스스로 다시 뿌린다: 4개 자리로 열고 40개를 넣는다 — 전부 살아남아야 한다.
 proc regrows input al cap allocator . output u64 . effects state alloc . do
@@ -58,7 +58,7 @@ proc regrows input al cap allocator . output u64 . effects state alloc . do
   while lt i 40 . do
     guard mapgen.insert u32 u64 m (narrow u32 i) (add 1000 (mul i 7)) . else return add 100 i .
     set i (add i 1) .
-  end .
+  end
   guard eq (mapgen.count_of u32 u64 m) 40 . else return 2 .
   rem 다시 뿌린 뒤에도 **전부** 제자리에 있어야 한다.
   var j u64 be 0 .
@@ -67,9 +67,9 @@ proc regrows input al cap allocator . output u64 . effects state alloc . do
     guard is_some x . else return add 200 j .
     guard eq (some_value x) (add 1000 (mul j 7)) . else return add 300 j .
     set j (add j 1) .
-  end .
+  end
   return 42 .
-end .
+end
 
 rem ★ 인스턴스가 **다르면 산술도 다르다**: u8→u16 맵은 같은 개수에 훨씬 적은 바이트를 쓴다.
 proc other_pair input al cap allocator . output u64 . effects state alloc . do
@@ -88,7 +88,7 @@ proc other_pair input al cap allocator . output u64 . effects state alloc . do
   guard is_some x . else return 5 .
   guard eq (some_value x) 60000 . else return 6 .
   return 42 .
-end .
+end
 
 rem ★★ **순회** — 반복자 객체가 없다. `next_used` 가 다음으로 **찬 자리**를 주고, 그 자리로
 rem   키·값을 꺼낸다. 순서는 약속하지 않으므로 **합계**로 검사한다(순서에 안 기대는 검사).
@@ -104,7 +104,7 @@ proc walking input al cap allocator . output u64 . effects state alloc . do
   while lt i 6 . do
     guard mapgen.insert u32 u64 m (narrow u32 i) (mul i 100) . else return add 10 i .
     set i (add i 1) .
-  end .
+  end
   rem 전부 한 번씩 — 키 합 0+1+…+5 = 15, 값 합 0+100+…+500 = 1500.
   var ksum u64 be 0 .
   var vsum u64 be 0 .
@@ -116,7 +116,7 @@ proc walking input al cap allocator . output u64 . effects state alloc . do
     guard is_some nx . else do
       set going false .
       continue .
-    end .
+    end
     let s u64 be some_value nx .
     let kk option u32 . be mapgen.key_at u32 u64 m s .
     guard is_some kk . else return 2 .
@@ -126,7 +126,7 @@ proc walking input al cap allocator . output u64 . effects state alloc . do
     set vsum (add vsum (some_value vv)) .
     set seen (add seen 1) .
     set at (add s 1) .
-  end .
+  end
   guard eq seen 6 . else return 4 .
   guard eq ksum 15 . else return 5 .
   guard eq vsum 1500 . else return 6 .
@@ -140,15 +140,15 @@ proc walking input al cap allocator . output u64 . effects state alloc . do
     guard is_some nx2 . else do
       set more false .
       continue .
-    end .
+    end
     set cnt (add cnt 1) .
     set at2 (add (some_value nx2) 1) .
-  end .
+  end
   guard eq cnt 5 . else return 8 .
   rem 빈 자리를 물으면 none — 자리 번호를 믿지 않는다.
   guard eq (is_some (mapgen.key_at u32 u64 m 9999)) false . else return 9 .
   return 42 .
-end .
+end
 
 proc main input al cap allocator . output u8 . effects state alloc . do
   let a u64 be basic al .
@@ -160,4 +160,4 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   let d u64 be walking al .
   guard eq d 42 . else return narrow u8 d .
   return 42 .
-end .
+end

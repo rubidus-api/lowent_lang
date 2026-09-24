@@ -3,7 +3,7 @@ rem expect: E-CONTRACT-DEAD
 
 enum div_error do
   by_zero .
-end .
+end
 
 fn safe_div input a u32 . input b u32 . output result u32 div_error .
   requires ne b 0 .
@@ -11,4 +11,4 @@ fn safe_div input a u32 . input b u32 . output result u32 div_error .
 do
   guard ne b 0 . else return error by_zero .
   return ok (div a b) .
-end .
+end

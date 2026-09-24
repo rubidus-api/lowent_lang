@@ -11,4 +11,4 @@ do
   let a u64 be add (random.below_biased s1 6) 1 .
   let b u64 be add (random.below_biased s2 6) 1 .
   return add (mul a 10) b .
-end .
+end

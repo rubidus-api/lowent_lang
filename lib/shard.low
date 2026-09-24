@@ -33,20 +33,20 @@ export struct token do
   id u64 .
   lo u64 .
   hi u64 .
-end .
+end
 
 rem ★ 쪼갠 결과. 필드가 `owned` 다 — 그래야 **꺼내 쓰면 그만큼 손을 떠난다**.
 export struct halves do
   input comptime b type .
   low owned token b .
   high owned token b .
-end .
+end
 
 rem 저장소 하나에 대한 **root 토큰**을 연다. `n` = 슬롯 수.
 rem ★ 여는 자리는 하나여야 한다 — 브랜드가 그것을 지킨다(`E-BRAND-REUSED`, §8-2).
 export fn open input comptime b type . input n u64 . output owned token b . do
-  return make token b do id 0 . lo 0 . hi n . end .
-end .
+  return make token b do id 0 . lo 0 . hi n . end
+end
 
 rem ★★★ **쪼갠다 — root 를 소비한다.** 이 한 줄이 이 모듈의 전부다:
 rem   `input t owned token b` 이므로 부른 쪽의 root 는 **여기서 손을 떠나고**, 그 뒤로 root 를
@@ -55,13 +55,13 @@ rem   ☞ `at` 이 범위 밖이면 **빈 조각**이 나온다 — 트랩이 �
 rem     안전하고, 그 사실은 `covers` 가 답한다.
 export fn split_at input comptime b type . input t owned token b . input at u64 . output halves b . do
   var cut u64 be at .
-  if lt cut (field t lo) . do set cut (field t lo) . end .
-  if gt cut (field t hi) . do set cut (field t hi) . end .
+  if lt cut (field t lo) . do set cut (field t lo) . end
+  if gt cut (field t hi) . do set cut (field t hi) . end
   rem ☞ `make` 안의 `make` 는 코어 밖이다(E-IR-UNSUP) — 먼저 이름에 묶는다.
-  let a token b . be make token b do id (mul (field t id) 2) .         lo (field t lo) . hi cut .    end .
-  let c token b . be make token b do id (add (mul (field t id) 2) 1) . lo cut .         hi (field t hi) . end .
-  return make halves b do low a . high c . end .
-end .
+  let a token b . be make token b do id (mul (field t id) 2) .         lo (field t lo) . hi cut .    end
+  let c token b . be make token b do id (add (mul (field t id) 2) 1) . lo cut .         hi (field t hi) . end
+  return make halves b do low a . high c . end
+end
 
 rem ★★ **합친다 — 두 조각을 소비하고 root 를 돌려준다.**
 rem   **오름차순**이 규약이다: 낮은 id 를 먼저 넘긴다(교착 규약). 그리고 맞닿아 있어야 한다
@@ -81,13 +81,13 @@ do
   guard le (field a lo) (field a hi) . else return none .
   guard le (field c lo) (field c hi) . else return none .
   return some (make token b do id (div (field a id) 2) . lo (field a lo) . hi (field c hi) . end) .
-end .
+end
 
 rem 이 토큰이 그 자리를 덮는가 — **접근 전에 묻는 유일한 질문**이다.
 export fn covers input comptime b type . input t token b . input i u64 . output bool . do
-  if lt i (field t lo) . do return false . end .
+  if lt i (field t lo) . do return false . end
   return lt i (field t hi) .
-end .
+end
 
 rem 토큰이 덮는 자리 수.
 rem ★ **계약이 뺄셈을 지킨다**(오라클이 잡았다, 2026-08-28): 토큰의 불변식은 `lo ≤ hi` 인데
@@ -97,7 +97,7 @@ export fn width input comptime b type . input t token b . output u64 .
 requires le (field t lo) (field t hi) .
 do
   return sub (field t hi) (field t lo) .
-end .
+end
 
 rem ★★★ **shard-local 쓰기 — 뜨거운 경로다.** 여기에 공통 lock 도 atomic 도 **없다**:
 rem   토큰이 이미 *"이 범위는 내 것"* 을 말했으므로 더 물을 것이 없다. 남는 것은
@@ -110,7 +110,7 @@ do
   guard lt i (len mem) . else return false .
   set (index mem i) v .
   return true .
-end .
+end
 
 rem 같은 규율의 읽기.
 export proc read input comptime b type . input t token b . input mem slice u64 . . input i u64 .
@@ -119,4 +119,4 @@ do
   guard covers b t i . else return none .
   guard lt i (len mem) . else return none .
   return some (index mem i) .
-end .
+end

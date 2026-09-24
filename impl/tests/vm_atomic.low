@@ -20,12 +20,12 @@ proc bump input k cap atomic . input s mut slice u64 . output u64 . effects atom
   atomic_add s 0 10 .
   atomic_sub s 0 3 .
   return atomic_load s 0 .
-end .
+end
 
 rem CAS: counter[0] 이 0 이면 42 로 바꾼다 (성공하면 1).
 proc try_set input k cap atomic . input s mut slice u64 . output u64 . effects atomic . do
   return atomic_cas s 0 0 42 .
-end .
+end
 
 rem ★★★ **약한 ordering** (RFC-0018 §6.1) — `order <name>` 절.
 rem   이 절은 **진작 있었는데 도구가 안 줬다**: 파서가 arity 로 중첩해 `order acquire` 가
@@ -36,12 +36,12 @@ rem   ★ 잘못된 조합은 `E-ATOMIC-ORDER` 가 막는다(load≠release · s
 proc rel_acq input k cap atomic . input s mut slice u64 . output u64 . effects atomic . do
   atomic_store s 0 7 order release .
   return atomic_load s 0 order acquire .
-end .
+end
 
 rem swap: 옛 값을 돌려주고 새 값을 쓴다.
 proc exchange input k cap atomic . input s mut slice u64 . output u64 . effects atomic . do
   return atomic_swap s 0 99 .
-end .
+end
 
 rem ★★★ **RC11 이 증명한 것이 실제로 돈다** — parallel 워커가 공유 카운터를 원자적으로 갱신.
 rem   각 원소를 1씩 세어 counter[0] 에 원자적으로 더한다. **진짜 pthread, 진짜 원자성.**
@@ -55,9 +55,9 @@ do
   while lt i (len data) . do
     atomic_add counter 0 1 .
     set i (add i 1) .
-  end .
+  end
   return .
-end .
+end
 
 rem ★★★ **약한 메모리 ordering** (RFC-0018 §6.1) — `order <name>` 선택 절.
 rem   생략 = seq_cst. relaxed 카운터·acquire/release 핸드오프가 소스에 **보인다**(P2 비용 가시).
@@ -66,7 +66,7 @@ proc weak_bump input k cap atomic . input s mut slice u64 . output u64 . effects
   atomic_add s 0 1 order relaxed .
   atomic_store s 1 7 order release .
   return (atomic_load s 1 order acquire) .
-end .
+end
 
 rem ★★★★★ **비트 연산 셋과 fence — 차등 훑기가 한 번도 못 본 자리였다** (2026-08-07).
 rem   `atomic.and`·`atomic.or`·`atomic.xor`·`atomic.fence` 는 **어느 픽스처에도 없었다.**
@@ -80,7 +80,7 @@ proc mask_and input k cap atomic . input s mut slice u64 . output u64 . effects 
   atomic_store s 0 255 .
   atomic_and s 0 15 .
   return atomic_load s 0 .
-end .
+end
 
 rem 깃발을 세운다: 0x10 을 켜고 0x01 을 더 켠다.
 proc flags_or input k cap atomic . input s mut slice u64 . output u64 . effects atomic . do
@@ -88,7 +88,7 @@ proc flags_or input k cap atomic . input s mut slice u64 . output u64 . effects 
   atomic_or s 0 16 .
   atomic_or s 0 1 .
   return atomic_load s 0 .
-end .
+end
 
 rem 토글: 같은 값을 두 번 xor 하면 처음으로 돌아온다(제 짝을 지운다).
 proc toggle_xor input k cap atomic . input s mut slice u64 . output u64 . effects atomic . do
@@ -96,7 +96,7 @@ proc toggle_xor input k cap atomic . input s mut slice u64 . output u64 . effect
   atomic_xor s 0 5 .
   atomic_xor s 0 5 .
   return atomic_load s 0 .
-end .
+end
 
 rem ★ fence — 값을 안 만지고 **순서만** 세운다. 그래서 앞뒤 값이 그대로여야 한다.
 rem   `relaxed` 는 거절된다(E-ATOMIC-ORDER): 아무 순서도 안 세우는 fence 는 fence 가 아니다.
@@ -104,4 +104,4 @@ proc fenced input k cap atomic . input s mut slice u64 . output u64 . effects at
   atomic_store s 0 21 order release .
   atomic_fence order acquire .
   return atomic_load s 0 order acquire .
-end .
+end

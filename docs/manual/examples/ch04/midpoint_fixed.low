@@ -8,4 +8,4 @@ do
   let both u16 be add (widen u16 a) (widen u16 b) .
   rem ko: 둘로 나눈 값은 다시 u8 에 들어간다는 것을 우리는 알고, narrow 가 그것을 확인한다 /// en: half of it fits in u8 again; we know that, and narrow checks it
   return narrow u8 (div both 2) .
-end .
+end

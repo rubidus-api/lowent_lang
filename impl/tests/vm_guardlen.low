@@ -14,53 +14,53 @@ rem 양성 — 가드 둘(a 먼저).
 export proc g_two input a slice u64 . . input c slice u64 . . input b slice u8 . . output u64 . effects none .
 do
   let m u64 be len b .
-  if gt (add m 1) (len a) . do return 0 . end .
-  if gt (add m 1) (len c) . do return 0 . end .
+  if gt (add m 1) (len a) . do return 0 . end
+  if gt (add m 1) (len c) . do return 0 . end
   var s u64 be 0 .
   var k u64 be 0 .
   while le k m . do
     set s (add (mod s 1000003) (add (mod (index a k) 1000) (mod (index c k) 1000))) .
     set k (add k 1) .
-  end .
+  end
   return s .
-end .
+end
 
 rem 양성 — 같은 것, 가드 순서만 바꿨다(c 먼저).
 export proc g_two_rev input a slice u64 . . input c slice u64 . . input b slice u8 . . output u64 . effects none .
 do
   let m u64 be len b .
-  if gt (add m 1) (len c) . do return 0 . end .
-  if gt (add m 1) (len a) . do return 0 . end .
+  if gt (add m 1) (len c) . do return 0 . end
+  if gt (add m 1) (len a) . do return 0 . end
   var s u64 be 0 .
   var k u64 be 0 .
   while le k m . do
     set s (add (mod s 1000003) (add (mod (index a k) 1000) (mod (index c k) 1000))) .
     set k (add k 1) .
-  end .
+  end
   return s .
-end .
+end
 
 rem 반례 — 가드가 **한 경로에만** 있다(f 가 0 일 때만). 합류 뒤에는 사실이 아니다.
 export proc g_one input a slice u64 . . input b slice u8 . . input f u64 . output u64 . effects none .
 do
   let m u64 be len b .
   if eq f 0 . do
-    if gt (add m 1) (len a) . do return 0 . end .
-  end .
+    if gt (add m 1) (len a) . do return 0 . end
+  end
   var s u64 be 0 .
   var k u64 be 0 .
   while le k m . do
     set s (add (mod s 1000003) (mod (index a k) 1000)) .
     set k (add k 1) .
-  end .
+  end
   return s .
-end .
+end
 
 rem 반례 — 가드 뒤에 슬라이스를 **바꿔 든다**(짧은 쪽으로). 옛 사실은 새 슬라이스의 것이 아니다.
 export proc g_rebind input a slice u64 . . input z slice u64 . . input b slice u8 . . output u64 . effects none .
 do
   let m u64 be len b .
-  if gt (add m 1) (len a) . do return 0 . end .
+  if gt (add m 1) (len a) . do return 0 . end
   var t slice u64 . be a .
   set t z .
   var s u64 be 0 .
@@ -68,6 +68,6 @@ do
   while le k m . do
     set s (add (mod s 1000003) (mod (index t k) 1000)) .
     set k (add k 1) .
-  end .
+  end
   return s .
-end .
+end

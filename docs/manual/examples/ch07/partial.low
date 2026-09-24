@@ -5,5 +5,5 @@ fn sign_flag input a i32 . output u8 .
 do
   if gt a 0 . do
     return 1 .
-  end .
-end .
+  end
+end

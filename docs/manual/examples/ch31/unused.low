@@ -6,4 +6,4 @@ build option trace bool default false .
 fn answer output u64 .
 do
   return 42 .
-end .
+end

@@ -17,7 +17,7 @@ type bytes slice u8 .
 
 rem 타입 슬라이스를 **반환**하는 op — 이것을 부르면 부르는 쪽이 **태그 경로**로 내려간다.
 rem (빠른 경로는 반환 슬라이스의 원소폭을 못 물려받으므로 — vm_callslice.low 의 그 자리다.)
-fn mk4 input b bytes . output slice u32 . do return view_array u32 b . end .
+fn mk4 input b bytes . output slice u32 . do return view_array u32 b . end
 
 rem ── ① 벡터 풀 · **빠른 경로** — 풀이 아예 없다(값이 프레임에 산다). 300만 번도 돈다.
 fn vec_fast input a bytes . input n u64 . output u64 . do
@@ -28,9 +28,9 @@ fn vec_fast input a bytes . input n u64 . output u64 . do
     var v vec u32 4 . be load xa 0 .
     set acc (add acc (widen u64 (reduce_add v))) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem ── ② 벡터 풀 · **태그 경로** — 32칸 풀. **여기가 33번째 반복에서 죽던 자리**다.
 rem   VM 과 방출된 C 가 **둘 다** 이 풀을 쓰므로, 되감기는 양쪽에 같이 들어가야 한다:
@@ -42,16 +42,16 @@ fn vec_tag input a bytes . input n u64 . output u64 . do
     var v vec u32 4 . be load (mk4 a) 0 .
     set acc (add acc (widen u64 (reduce_add v))) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem ── ③ 벡터를 **돌려주는** op 을 루프에서 부른다 — 반환 하나만 콜리의 바닥으로 내려온다.
 rem   되감기가 반환을 안 챙기면 여기서 죽거나(풀 고갈) 레인이 어긋난다(잘못된 답).
 fn vmake input a bytes . output vec u32 4 . do
   var v vec u32 4 . be load (mk4 a) 0 .
   return v .
-end .
+end
 fn vec_ret input a bytes . input n u64 . output u64 . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
@@ -59,9 +59,9 @@ fn vec_ret input a bytes . input n u64 . output u64 . do
     var v vec u32 4 . be vmake a .
     set acc (add acc (widen u64 (reduce_add v))) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem ── ④ 박스 풀 · option — 4096칸이고 **되감기지 않는다**(표의 ⛔ 그대로).
 rem   여기서 재는 것은 생존이 아니라 **두 뒤끝이 같이 살고 같이 죽는가** 다.
@@ -72,9 +72,9 @@ fn box_pool input n u64 . output u64 . do
     var o option u64 . be some i .
     set acc (add acc (some_value o)) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem ── ⑤ **오류 전파의 조기 반환**도 되감아야 한다 — 벡터가 살아 있는 채로 프레임을 빠져나가는
 rem   유일한 다른 문이다. 여기서 안 되감으면 *"루프에서 오류를 전파하면 풀이 마른다"* 가 된다.
@@ -82,31 +82,31 @@ rem   ☞ 이 자리에는 **깊이 원장**이 새던 옛 결함이 이미 있�
 rem     를 안 했던 것 — `vm_errloop.low`). 조기 반환은 이 방출기에서 **두 번 잊힌 자리**다.
 enum e do
   bad .
-end .
+end
 
 fn fails input k u64 . output result u64 e .
 errors bad ge k 1 .
 do
-  if ge k 1 . do return error bad . end .
+  if ge k 1 . do return error bad . end
   return ok k .
-end .
+end
 
 fn vtry input a bytes . input k u64 . output result u64 e . do
   var v vec u32 4 . be load (mk4 a) 0 .
   var x u64 . be try (fails k) .
   return ok (add x (widen u64 (reduce_add v))) .
-end .
+end
 
 fn vec_try input a bytes . input n u64 . output u64 . do
   var c u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
     var r result u64 e . be vtry a 1 .
-    if is_error r . do set c (add c 1) . end .
+    if is_error r . do set c (add c 1) . end
     set i (add i 1) .
-  end .
+  end
   return c .
-end .
+end
 
 rem ── ⑥ 나머지 유한 풀도 같은 질문을 받는다 (RFC-0089 후속 F1) — 레코드·스택·비트셋.
 rem   벡터는 **잎**이었지만 이들은 서로를 품는다(박스 안에 레코드, 레코드 필드에 스택…).
@@ -114,18 +114,18 @@ rem   그래서 되감기는 "새면 포기" 가 아니라 **전이 표시 + 압
 struct pt do
   x u64 .
   y u64 .
-end .
+end
 
 fn rec_pool input n u64 . output u64 . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
-    var p pt . be make pt do x i . y 1 . end .
+    var p pt . be make pt do x i . y 1 . end
     set acc (add acc (field p x)) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 type slot u64 . .
 proc stk_pool input temp region slot . . input n u64 . output u64 . effects alloc . do
@@ -136,9 +136,9 @@ proc stk_pool input temp region slot . . input n u64 . output u64 . effects allo
     push s i .
     set acc (add acc (count s)) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 fn bset_pool input n u64 . output u64 . do
   var acc u64 . be 0 .
@@ -148,9 +148,9 @@ fn bset_pool input n u64 . output u64 . do
     add b 1 .
     set acc (add acc (count b)) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem ── ⑦ **태그 경로**에서도 같은 질문 — 박스를 루프에서 만들되 하강을 막는다(mk4 를 부른다).
 rem   단계 B 의 교훈: 한쪽만 되감으면 결함은 사라지지 않고 **반대편으로 옮겨간다**.
@@ -161,6 +161,6 @@ fn box_tag input a bytes . input n u64 . output u64 . do
     var o option u64 . be some (widen u64 (len (mk4 a))) .
     set acc (add acc (some_value o)) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end

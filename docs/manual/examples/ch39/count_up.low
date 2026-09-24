@@ -8,6 +8,6 @@ fn ten output u8 . do
   while lt i 10 . do
     set s (add s i) .
     set i (add i 1) .
-  end .
+  end
   return s .
-end .
+end

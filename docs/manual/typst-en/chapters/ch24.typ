@@ -45,7 +45,7 @@ two lines.
 - `count .` --- counts what is left. The word that ends the flow (the *terminal*) is exactly one.
 
 `pipe` is a statement, but when it ends with a value-producing terminal (`count`, `fold`, `any`, `all`) it can be used like an expression, as in
-`return pipe s do … end .`.
+`return pipe s do … end`.
 
 == Stages and terminals
 
@@ -175,12 +175,12 @@ A terminal ends the flow. A stage after the terminal is rejected.
   id: "pipe-glance",
   caption: [`pipe` syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`pipe xs do … end .`], [scan the source `xs` once], [the language owns the skeleton (index, end test)],
+  [`pipe xs do … end`], [scan the source `xs` once], [the language owns the skeleton (index, end test)],
   [`filter over2 .` · `map dbl .`], [keep · transform --- pass a named op], [no lambdas --- the name is the explanation],
   [`take 2 .` · `skip 1 .`], [only the first few · drop the first few], [read only as much as needed],
   [`enumerate idxadd .` · `zip ys addb .`], [pass the index or partner as op arguments], [no tuples are built],
   [`scan 0 addb .` · `fold 0 addu .`], [emit running values · accumulate into one value], [the op takes the accumulator first, then the element],
-  [`count .` · `any is_zero .` · `all under10 .`], [terminators that produce a value], [usable as `return pipe … end .`],
+  [`count .` · `any is_zero .` · `all under10 .`], [terminators that produce a value], [usable as `return pipe … end`],
   [`collect into out .`], [store into the caller's buffer], [a `pipe` never allocates --- it ends when full],
   [exactly one terminator, at the end], [a stage after it is `E-PIPE-NO-TERMINAL`], [the end of the flow is in one place],
   [a word like `sort`], [does not exist --- `E-PIPE-STAGE`], [operations that cannot fuse were left out],

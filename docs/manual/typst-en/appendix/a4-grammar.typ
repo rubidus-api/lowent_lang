@@ -24,7 +24,7 @@ The normative text is the specification; this appendix is a reference gathering 
   tests … · schedule …                     ⑭
 do
   <statements>
-end .
+end
 ```
 
 == Declarations
@@ -34,14 +34,14 @@ module <name> .
 use <module> [from "<place>"] .
 type <name> <type> .
 newtype <name> <type> .
-struct <name> do [satisfies <trait> .] [layout packed .] [mmio <address> .] <field> <type> [big|little] [rw|ro|wo] . … end .
-enum <name> do <variant> [<field> <type>]… . … end .
-trait <name> do <op name> <clauses…> . … end .
-contract <name> do requires <cond> . … end .
-actor <name> do [satisfies …] state do <field> <type> . … end . [failure restart max <n> .] [mailbox bounded <n> .] <op>… end .
+struct <name> do [satisfies <trait> .] [layout packed .] [mmio <address> .] <field> <type> [big|little] [rw|ro|wo] . … end
+enum <name> do <variant> [<field> <type>]… . … end
+trait <name> do <op name> <clauses…> . … end
+contract <name> do requires <cond> . … end
+actor <name> do [satisfies …] state do <field> <type> . … end [failure restart max <n> .] [mailbox bounded <n> .] <op>… end
 build profile <name> .        build tier t0|t1|t2|t3 .        build <mode> .
 build option <name> bool|int|choice … default <value> .
-test <name> [schedule explore_interleavings [limit <n>]] do expect <cond> . … end .
+test <name> [schedule explore_interleavings [limit <n>]] do expect <cond> . … end
 ```
 
 == Statements
@@ -51,15 +51,15 @@ let <name> [<type>] [using <source>] be <expr> .
 var <name> [<type>] be <expr> .
 set <place> <expr> .                      (place = name · field … · index …)
 if <cond> . do … end [else do … end] .
-while <cond> . do … end .
-for <name> <slice> do … end .
+while <cond> . do … end
+for <name> <slice> do … end
 guard <cond> . else <leaving statement> .
-match <value> do case <pattern> [when <cond>] . do … end … end .
+match <value> do case <pattern> [when <cond>] . do … end … end
 return [<expr>] .    break .    continue .    panic "<text>" .
 drop <name> .
-region <name> stack|frame|arena|static|heap|mmap|disk|device do … end .
-task_group [cancel_on_error] do … end .
-pipe <source> do <stage> . … <terminal> . end .
+region <name> stack|frame|arena|static|heap|mmap|disk|device do … end
+task_group [cancel_on_error] do … end
+pipe <source> do <stage> . … <terminal> . end
 spawn send <actor> <message> <value>… .    drain <actor> .    schedule .
 ```
 

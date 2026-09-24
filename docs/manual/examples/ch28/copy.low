@@ -14,4 +14,4 @@ do
   guard is_ok c . else return 3 .
   let m u64 be write_out out 1 "wrote and closed\n" .
   return 0 .
-end .
+end

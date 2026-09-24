@@ -22,17 +22,17 @@ do
       let c1 result void files.file_error be files.close fs h .
       drop c1 .
       return 3 .
-    end .
+    end
     rem ko: 세 자리를 모두 가른다 --- 읽었다 · 끝이다 · 실패다 /// en: split all three places --- read · end · failure
     let got option u64 be ok_value r .
     if is_some got . do
       set total (add total (some_value got)) .
     end else do
       set more false .
-    end .
+    end
     set rounds (add rounds 1) .
-  end .
+  end
   let c result void files.file_error be files.close fs h .
   guard is_ok c . else return 4 .
   return narrow u8 total .
-end .
+end

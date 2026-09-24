@@ -8,7 +8,7 @@
   #shape("pipe 문", "pipe <원천> do
   <스테이지> .        rem 없어도 된다. 여럿일 수 있다.
   <종결자> .          rem 정확히 하나.
-end .")
+end")
   #plain[
     슬라이스를 훑는 반복은 거의 언제나 같은 뼈대다 — *인덱스를 두고, 끝인지 보고, 원소를 꺼내 조건을 보고,
     무언가를 쌓고, 인덱스를 늘린다.* 그 뼈대를 손으로 쓰면 **하려는 일**(«숫자만 남기고 센다»)이 인덱스와 카운터
@@ -18,7 +18,7 @@ end .")
   ]
   #ex("같은 일을 손으로 쓴 반복과 pipe 로 — 둘 다 한 번 훑는다", "module ex_pipe_why .
 
-fn is_digit input c u8 . output bool . do return and (ge c 48) (le c 57) . end .
+fn is_digit input c u8 . output bool . do return and (ge c 48) (le c 57) . end
 
 rem 손으로 쓴 반복 — 카운터·인덱스·조건·증가를 사람이 하나하나 맞춘다.
 fn digits_loop input s slice u8 . output u64 .
@@ -26,11 +26,11 @@ do
   var n u64 be 0 .
   var i u64 be 0 .
   while lt i (len s) . do
-    if is_digit (index s i) . do set n (add n 1) . end .
+    if is_digit (index s i) . do set n (add n 1) . end
     set i (add i 1) .
-  end .
+  end
   return n .
-end .
+end
 
 rem 같은 일을 pipe 로 — «숫자인 것만 남기고, 센다». 하는 일이 줄마다 한 낱말로 보인다.
 fn digits_pipe input s slice u8 . output u64 .
@@ -38,8 +38,8 @@ do
   return pipe s do
     filter is_digit .
     count .
-  end .
-end .")
+  end
+end")
   #para("2")[
     스테이지는 일곱이다: `filter` · `map` · `take` · `skip` · `scan` · `zip` · `enumerate`.
       종결자는 다섯이다: `collect into` · `fold` · `count` · `any` · `all`.
@@ -112,7 +112,7 @@ proc fm input xs slice u8 . input out mut slice u8 . output u64 . effects none .
     filter over2 .
     map dbl .
     collect into out .
-  end .
+  end
   return 0 .
 end
 ")

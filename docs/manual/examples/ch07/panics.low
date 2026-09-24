@@ -6,6 +6,6 @@ proc checked input n u32 . output u32 . effects panic .
 do
   if eq n 0 . do
     panic "n must not be zero" .
-  end .
+  end
   return div 100 n .
-end .
+end

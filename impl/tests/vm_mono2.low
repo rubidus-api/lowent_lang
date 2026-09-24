@@ -15,29 +15,29 @@ module vm_mono2 .
 struct pt do
   x u32 .
   y u32 .
-end .
+end
 
 struct rc do
   w u32 .
   h u32 .
-end .
+end
 
 rem 타입 파라미터 **둘** — 서로 다른 구조체를 한 op 이 받는다.
 fn pair input comptime a type . input comptime b type . input p a . input q b . output u32 . do
   return (add (field p x) (field q w)) .
-end .
+end
 
 fn two output u32 . do
-  var u pt . be make pt do x 3 . y 4 . end .
-  var v rc . be make rc do w 5 . h 6 . end .
+  var u pt . be make pt do x 3 . y 4 . end
+  var v rc . be make rc do w 5 . h 6 . end
   return (pair pt rc u v) .
-end .
+end
 
 rem ★ 본문이 **똑같은** 두 제네릭 — 같은 타입으로 세우면 iface·def 해시가 같아 한 몸으로 접힌다.
-fn ga input comptime t type . input p t . output u32 . do return (field p x) . end .
-fn gb input comptime t type . input p t . output u32 . do return (field p x) . end .
+fn ga input comptime t type . input p t . output u32 . do return (field p x) . end
+fn gb input comptime t type . input p t . output u32 . do return (field p x) . end
 
 fn dedup output u32 . do
-  var u pt . be make pt do x 3 . y 0 . end .
+  var u pt . be make pt do x 3 . y 0 . end
   return (add (ga pt u) (gb pt u)) .
-end .
+end

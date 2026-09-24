@@ -12,24 +12,24 @@ struct counter do
   align machine.cache_line .
   hits u32 .
   miss u16 .
-end .
+end
 
 rem 한 칸의 크기 = 정렬로 올림된 크기. x86_64·arm64 는 64, cortex_m 은 4 다.
 fn cell_size output u64 . do
   return len encode counter mk . .
-end .
+end
 
 fn mk output counter . do
-  return make counter do hits 3 . miss 1 . end .
-end .
+  return make counter do hits 3 . miss 1 . end
+end
 
 rem 페이지 크기도 같은 표에서 온다 — 세그먼트·슬랩을 고르는 자리다.
 rem   ★ 프리스탠딩에는 페이지가 없다: `0` 이 **정직한 답**이고, 그것을 아는 프로그램은
 rem     페이지 대신 다른 단위를 고른다.
 fn page output u64 . do
   return machine.page_size .
-end .
+end
 
 fn line output u64 . do
   return machine.cache_line .
-end .
+end

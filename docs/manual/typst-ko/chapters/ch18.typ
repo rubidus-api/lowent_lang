@@ -168,7 +168,7 @@
 
 - `let work stack u64 be stack_new temp capacity 8 .` 이 스택을 만든다. 영역에서 자리를 얻으므로 `effects alloc` 이다.
 - `push work x .` 는 넣는다.
-- `while pop work into d . do … end .` 는 꺼낼 것이 있는 동안 하나씩 꺼내 `d` 에 묶는다. 비면 되풀이가 끝난다 --- 빈 스택에서 꺼내다 멈추는 길이 문법에
+- `while pop work into d . do … end` 는 꺼낼 것이 있는 동안 하나씩 꺼내 `d` 에 묶는다. 비면 되풀이가 끝난다 --- 빈 스택에서 꺼내다 멈추는 길이 문법에
   없다.
 
 47 의 자릿수 7·4 를 넣으면 4·7 차례로 나와 74 가 된다. 스택도 영역과 함께 걷히므로 따로 돌려주는 코드가 없다.
@@ -225,7 +225,7 @@
   id: "regions-glance",
   caption: [영역의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`region work arena do … end .`], [영역을 연다 --- 블록을 나가는 모든 길에서 한꺼번에 되감긴다], [`free` 가 없다 --- 수명이 곧 블록],
+  [`region work arena do … end`], [영역을 연다 --- 블록을 나가는 모든 길에서 한꺼번에 되감긴다], [`free` 가 없다 --- 수명이 곧 블록],
   [`alloc_bytes work capacity n`], [영역에서 `n` 바이트를 청한다 --- `option mut slice u8`], [모자람도 값이다],
   [`effects alloc` · `effects heap`], [고정 창에서 얻는다 · 자라는 힙에서 얻는다], [어느 뿌리를 딛는지 머리에 보인다],
   [`input al cap allocator .` · `cap heap`], [시작점이 받는 할당 권한], [효과를 허락하는 짝],

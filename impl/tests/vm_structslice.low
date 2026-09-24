@@ -17,16 +17,16 @@ module vm_structslice .
 struct pt do
   x u8 .
   y u8 .
-end .
+end
 
 fn n_pts input s slice pt . output u64 . do
   return len s .                    rem **원소 개수**다. 바이트가 아니다.
-end .
+end
 
 fn nth_x input s slice pt . input i u64 . output u8 . do
   let p be index s i . .
   return field p x .                rem 원소는 **구조체 뷰**다
-end .
+end
 
 fn sum_y input s slice pt . output u64 . do
   var t u64 be 0 .
@@ -35,9 +35,9 @@ fn sum_y input s slice pt . output u64 . do
     let p be index s i . .
     set t expr t + (field p y) . .
     set i expr i + 1 . .
-  end .
+  end
   return t .
-end .
+end
 
 rem 문자열 리터럴은 **바이트 슬라이스**다 — 언어 안에서 구조체 배열을 만드는 길.
 rem   "abcd" = 4바이트 = pt 2개.  a=97 b=98 c=99 d=100
@@ -46,4 +46,4 @@ test struct_slice do
   expect eq (nth_x "abcd" 0) 97 .
   expect eq (nth_x "abcd" 1) 99 .
   expect eq (sum_y "abcd") 198 .        rem 98 + 100
-end .
+end

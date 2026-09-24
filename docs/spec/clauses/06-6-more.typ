@@ -84,21 +84,21 @@
   #ex("범위로 가른다", "module ex_range_match .
 
 fn band input a u8 . output u8 .
-do .
+do
   match a do
     case 0 to 9 . do return 1 . end
     case 10 to 255 . do return 2 . end
-  end .
-end .",
+  end
+end",
     out: "band(5) = 1 · band(200) = 2")
   #rejected("덮이지 않은 값이 있으면 거부된다", "module ex_range_gap .
 
 fn band input a u8 . output u8 .
-do .
+do
   match a do
     case 0 to 9 . do return 1 . end
-  end .
-end .", "E-MATCH-INEXHAUSTIVE")
+  end
+end", "E-MATCH-INEXHAUSTIVE")
   #plain[
     빈틈을 남기면 번역이 거부되므로, *"나머지는 무엇인가"* 를 저자가 반드시 말하게 된다.
     다른 언어에서 이 자리는 조용히 아무 일도 안 하거나 예외가 되는데, 둘 다 소스를 읽고는
@@ -109,29 +109,29 @@ end .", "E-MATCH-INEXHAUSTIVE")
 enum color do
   red .
   green .
-end .
+end
 
 export fn code input c color . output u32 .
-do .
+do
   match c do
     case red . do return 1 . end
     case green . do return 2 . end
-  end .
-end .")
+  end
+end")
   #rejected("갈래가 빠진 match", "module ex_match_bad .
 
 enum color do
   red .
   green .
-end .
+end
 
 export fn code input c color . output u32 .
-do .
+do
   match c do
     case red . do return 1 . end
     rem `green` 을 안 다뤘다
-  end .
-end .", "E-MATCH-INEXHAUSTIVE")
+  end
+end", "E-MATCH-INEXHAUSTIVE")
   #plain[
     조건문을 이어 쓰는 것으로도 같은 일을 할 수 있다. `match` 가 나은 점은 **완전성**
     하나다 — 갈래를 하나 더 만들었을 때, 그것을 안 다룬 자리를 처리기가 전부 찾아 준다.
@@ -159,14 +159,14 @@ end .", "E-MATCH-INEXHAUSTIVE")
 
 export fn twice input n u32 . output u32 .
   requires le n 100 .
-do .
+do
   return mul n 2 .
-end .
+end
 
 test twice_works
 do
   expect eq (twice 5) 10 .
-end .")
+end")
     #caution("계약 위반과 시험 실패는 다르다")[
       계약 위반은 **코드가 자기 약속을 어긴 것**이고, 시험 실패는 **시험이 코드가 틀렸다고
       말하는 것**이다. 둘은 다른 진단으로 나온다 — 무엇을 고쳐야 하는지가 다르기 때문이다.
@@ -198,26 +198,26 @@ end .")
     #ex("번역 시점 값을 받는다", "module ex_comptime .
 
 fn twice input comptime n u8 . input a u8 . output u8 .
-do .
+do
   return add a n .
-end .
+end
 
 fn use output u8 .
-do .
+do
   return twice 3 4 .
-end .",
+end",
       out: "use() = 7")
     #rejected("번역 시점에 알 수 없는 값은 줄 수 없다", "module ex_comptime_rt .
 
 fn twice input comptime n u8 . input a u8 . output u8 .
-do .
+do
   return add a n .
-end .
+end
 
 fn use input k u8 . output u8 .
-do .
+do
   return twice k 4 .
-end .", "E-COMPTIME-ARG")
+end", "E-COMPTIME-ARG")
     #note[
       다른 언어의 제네릭이 하는 일과 겹치지만, 여기서는 **암묵적인 것이 없다**. 무엇이
       만들어지는지 소스만 보고 알 수 있어야 하고, 그것이 이 언어가 추론을 안 쓰는 이유다.

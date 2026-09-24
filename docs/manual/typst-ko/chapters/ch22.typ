@@ -107,7 +107,7 @@ C 의 `qsort` 는 비교 함수를 *값*으로 받는다. Lowent 에는 일급 �
 ```lowent
 export trait ordered do
   less input a self . input b self . output bool . effects none .
-end .
+end
 
 export proc sort_by input comptime t type . input s mut slice t .
   output void .

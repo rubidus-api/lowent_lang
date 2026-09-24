@@ -21,4 +21,4 @@ do
   rem ko: ✘ 같은 브랜드 `objects` 로 저장소를 또 연다 --- 두 풀의 핸들이 섞여도 타입이 막지 못한다 /// en: ✘ opens a second store under the same brand `objects` --- the types could no longer stop handles of the two pools mixing
   let p2 option (pool.block_pool objects) be pool.init objects (some_value g2) gens2 16 .
   return 0 .
-end .
+end

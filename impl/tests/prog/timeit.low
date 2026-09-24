@@ -51,4 +51,4 @@ proc main input k cap clock . output u8 . effects wait . do
   guard le (clock.minute_of p) 59 . else return 16 .
   guard le (clock.second_of p) 60 . else return 17 .
   return 42 .
-end .
+end

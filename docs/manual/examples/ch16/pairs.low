@@ -7,4 +7,4 @@ do
   guard is_some g . else return 1 .
   let n u64 be write_out out 1 "hi\n" .
   return 0 .
-end .
+end

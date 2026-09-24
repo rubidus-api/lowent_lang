@@ -7,14 +7,14 @@ rem run: bump_sat 255
 fn bump input a u8 . output u8 .
 do
   return add a 1 .
-end .
+end
 
 fn bump_wrap input a u8 . output u8 .
 do
   return wrap_add a 1 .
-end .
+end
 
 fn bump_sat input a u8 . output u8 .
 do
   return sat_add a 1 .
-end .
+end

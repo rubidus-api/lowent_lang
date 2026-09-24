@@ -684,7 +684,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> outbuf.io_error <strong><span class="tok-k">be</span></strong> outbuf.buf_finish out p3 buf .
   <strong><span class="tok-k">guard</span></strong> is_ok f . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main buffered.low
 buffered output
 main() = 0
@@ -703,7 +703,7 @@ main() = 0
   <strong><span class="tok-k">guard</span></strong> is_ok r1 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
   <strong><span class="tok-k">var</span></strong> p2 <strong><span class="tok-k">owned</span></strong> outbuf.pending <strong><span class="tok-k">be</span></strong> ok_value r1 .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check unflushed.low
 14:0 E-OWN-INCOMPLETE: this value is dropped automatically at the end of scope — but the program itself declares an op that takes this type `owned` BY VALUE and returns a `result`: finishing it CAN FAIL. An automatic drop is a RELEASE (total, non-suspending), and it has nowhere to hand you that failure — it would SWALLOW it. A fallible finish (flush/commit/close) is a COMPLETION and must be EXPLICIT: call it and handle the `result`. If you really mean to discard the value and its failure, say so with `drop`. RFC-0058
 </code></pre></div></div><p><code>buf_finish</code> 가 <code>owned pending</code> 을 받아 <code>result</code> 를 돌려주므로 <code>pending</code> 은 완결이 필요한 타입이다(19장). “마지막 줄이 안 찍혔다” 는 결함이 실행 전에 드러난다.</p><h3 id="s36-2">36.2 네트워크 — 핸들은 자원이다<a class="plink" href="#s36-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch36/loopback.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loopback .
@@ -725,7 +725,7 @@ main() = 0
   <strong><span class="tok-k">guard</span></strong> is_some got . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> .
   <strong><span class="tok-k">guard</span></strong> is_ok s . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">5</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (some_value got) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main loopback.low
 main() = 4
 </code></pre></div></div><p><code>net.pair_of</code> 는 프로세스 안에서 서로 이어진 연결 한 쌍을 만든다. 한쪽(<code>pair_a</code>)으로 “ping” 을 보내고 다른 쪽(<code>pair_b</code>)에서 받아 4 바이트를 얻는다. <code>net.shut_pair</code> 로 쌍을 닫는다. 닫기는 실패할 수 있고 <code>result</code> 를 준다.</p><p><code>net</code> 의 연결과 리스너는 <code>files</code> 의 핸들처럼 <strong>자원</strong>이다. 소켓을 닫지 않으면 서버가 오래 돌수록 기술자가 바닥난다. <code>serve</code>·<code>dial</code>·<code>take</code> 로 TCP 루프백 연결을 열 수 있고, 모든 op 이 <code>cap net</code> 을 첫 인자로 받는다. 이 모듈을 쓰지 않는 코드는 네트워크에 닿을 수 없다는 것이 머리에 보인다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 예제가 실제 TCP 포트를 열지 않고 프로세스 안 쌍을 쓰는 이유는 무엇인가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 예제는 VM 과 네이티브에서 똑같이 돌아 같은 답을 내야 한다. 실제 포트는 기계의 상태(이미 쓰이는 포트, 방화벽)에 따라 결과가 달라진다. 프로세스 안 쌍은 바깥 상태에 기대지 않으므로 결정적이다. 실제 서버 코드는 <code>serve</code> 와 <code>take</code> 로 같은 <code>send_all</code>·<code>recv_once</code> 를 쓴다.</p></div></div><h3 id="s36-3">36.3 난수 — 재현되는 열과 운영체제 엔트로피<a class="plink" href="#s36-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch36/dice.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dice .
@@ -739,7 +739,7 @@ main() = 4
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> s1 <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> random.step seed .
   <strong><span class="tok-k">return</span></strong> add (random.below_biased s1 <span class="tok-n">6</span>) <span class="tok-n">1</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run roll dice.low 42
 roll(42) = 3
 $ lowentc --run roll dice.low 42
@@ -758,9 +758,9 @@ roll(43) = 5
   <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">1000</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (wrap_add acc i) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> clock.since_ns k start .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check timing.low
 == check: ok ==
 </code></pre></div></div><p><code>clock.now_ns</code> 는 <strong>단조</strong> 시계다. 뒤로 가지 않으므로 두 번 재서 뺄 수 있다(<code>since_ns</code>). 절대 시각이 아니다. 벽시계(<code>local_packed</code> 와 <code>year_of</code> 따위)는 사람이 쓰는 날짜와 시각이고, 시간대 변경이나 시각 동기화로 뒤로 갈 수 있다. 경과 시간을 벽시계로 재면 음수가 나올 수 있다. 둘은 약속이 다르므로 op 이 다르다.</p><p>시계를 읽으면 같은 입력에 다른 답이 나오므로 결정성이 깨진다. 그래서 <code>cap clock</code> 이 필요하다. 그러나 바깥에 흔적을 남기지는 않으므로 효과는 <code>none</code> 이다(16장). 이 예제는 실행할 때마다 답이 달라서, 이 책의 검증 스크립트는 검사만 한다. <code>sleep_ms</code> 는 기다리므로 <code>wait</code> 효과다.</p><h3 id="s36-5">36.5 HTTP 요청 파서 — 알맹이는 거절이다<a class="plink" href="#s36-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch36/request_line.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> request_line .
@@ -774,7 +774,7 @@ roll(43) = 5
   <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> http.method_code req .
   <strong><span class="tok-k">guard</span></strong> http.version_ok req . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> .
   <strong><span class="tok-k">return</span></strong> m .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run classify request_line.low [71,69,84,32,47,32,72,84,84,80,47,49,46,49,13,10,13,10]
 classify([71,69,84,32,47,32,72,84,84,80,47,49,46,49,13,10,13,10]) = 1
   arg0 (written) = [71,69,84,32,47,32,72,84,84,80,47,49,46,49,13,10,13,10]
@@ -798,7 +798,7 @@ classify([66,82,69,87,32,47,32,72,84,84,80,47,49,46,49,13,10,13,10]) = 0
   <strong><span class="tok-k">let</span></strong> r2 <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">owned</span></strong> outbuf.pending) outbuf.io_error <strong><span class="tok-k">be</span></strong> outbuf.buf_write out p buf <span class="tok-s">"</span><span class="tok-s">second</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">drop</span></strong> r2 .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_pendingmoved.low
 mistake_pendingmoved.low:15:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
 </code></pre></div></div><p><code>outbuf.buf_write</code> 는 <code>owned pending</code> 을 받아 <strong>새</strong> 대기 값을 <code>result</code> 안에 돌려준다. 넘긴 <code>p</code> 는 이미 옮겨 갔으므로 다시 쓰면 <code>E-OWN-MOVED</code> 다. 대기 값이 옮겨 다니는 까닭은, 버퍼에 무엇이 남았는지를 아는 값이 언제나 하나뿐이어야 마지막 <code>buf_finish</code> 를 잊었는지 번역이 셀 수 있기 때문이다. 이 장의 <code>buffered.low</code> 처럼 <code>p</code> → <code>p2</code> → <code>p3</code> 으로 이어 받는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 같은 시드에서 두 번 굴린다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch36/mistake_sameseed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_sameseed .
@@ -812,7 +812,7 @@ mistake_pendingmoved.low:15:0 E-OWN-MOVED: this `owned` value was already MOVED 
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> add (random.below_biased (random.step seed) <span class="tok-n">6</span>) <span class="tok-n">1</span> .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> add (random.below_biased (random.step seed) <span class="tok-n">6</span>) <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> add (mul a <span class="tok-n">10</span>) b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run two_rolls mistake_sameseed.low 2
 two_rolls(2) = 55
 </code></pre></div></div><p><code>random.step</code> 은 순수한 <code>fn</code> 이라 같은 입력에 늘 같은 답을 낸다. 두 굴림에 같은 <code>seed</code> 를 주면 두 주사위가 늘 같다(시드 2 에서 55). 전역 난수 상태가 없으므로 <strong>다음 상태</strong>를 이어 넘기는 일은 부르는 쪽의 몫이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch36/sameseed_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sameseed_fixed .
@@ -828,7 +828,7 @@ two_rolls(2) = 55
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> add (random.below_biased s1 <span class="tok-n">6</span>) <span class="tok-n">1</span> .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> add (random.below_biased s2 <span class="tok-n">6</span>) <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> add (mul a <span class="tok-n">10</span>) b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run two_rolls sameseed_fixed.low 2
 two_rolls(2) = 56
 </code></pre></div></div><p>고친 판은 첫 걸음이 낸 <code>s1</code> 에서 둘째 걸음을 시작해 56 을 낸다. 같은 시드로 부르면 언제나 같은 두 수가 나오는 것은 결함이 아니라 이 모듈의 약속이다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>recv_once</code> 는 상대가 보낸 것을 한 번에 다 받는다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch36/recv_partial.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> recv_partial .
@@ -851,7 +851,7 @@ two_rolls(2) = 56
   <strong><span class="tok-k">drop</span></strong> s .
   <strong><span class="tok-k">guard</span></strong> is_some got . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">4</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (some_value got) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main recv_partial.low
 main() = 4
 </code></pre></div></div><p>“ping pong” 아홉 바이트를 보냈지만 네 칸 버퍼로 한 번 받으면 4 다. 받기는 버퍼만큼, 그리고 그때 도착한 만큼만 준다. 스트림에는 메시지의 경계가 없다. 보낸 쪽이 두 번에 나눠 보냈어도 한 번에 올 수 있고, 한 번에 보냈어도 나눠 올 수 있다. 메시지 단위가 필요하면 길이를 앞에 붙이거나 구분자를 정하고, 다 모일 때까지 되풀이해 받는다.</p></div></div><h3 id="s36-8">36.8 이 장의 문법 한눈에<a class="plink" href="#s36-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>var p owned outbuf.pending be outbuf.buf_open 1 .</code></td><td>표준출력으로 내보낼 대기 출력</td><td>잊으면 <code>E-OWN-INCOMPLETE</code></td></tr><tr><td><code>outbuf.buf_write out p buf s</code> → <code>result (owned pending) …</code></td><td>모으고, 차면 내보내고, 새 대기 값을 준다</td><td>아는 값이 늘 하나 — 옛 값은 <code>E-OWN-MOVED</code></td></tr><tr><td><code>outbuf.buf_finish out p buf</code></td><td>남은 바이트를 내보내고 끝낸다</td><td>완결 — 실패할 수 있다</td></tr><tr><td><code>net.pair_of k</code> · <code>net.send_all</code> · <code>net.recv_once</code> · <code>net.shut_pair</code></td><td>연결 쌍 · 다 보내기 · 한 번 받기 · 닫기</td><td><code>cap net</code> 이 첫 인자 — 받기는 버퍼만큼</td></tr><tr><td><code>random.step seed</code> · <code>random.bytes k dst</code></td><td>재현되는 다음 상태 · 운영체제 엔트로피(<code>cap random</code>)</td><td>셈과 권위를 가른다</td></tr><tr><td><code>clock.now_ns k</code> · <code>clock.since_ns k start</code></td><td>단조 시계 — 경과 시간</td><td>벽시계와 약속이 다르다 — <code>cap clock</code>, 효과 <code>none</code></td></tr><tr><td><code>http.method_code req</code> · <code>http.version_ok req</code></td><td>요청 줄 해석(순수)</td><td>애매한 입력을 거절한다</td></tr><tr><td><code>aead</code> · <code>gcm</code> · <code>x25519</code> · <code>ed25519</code> · <code>tls13</code> · <code>tlssrv</code></td><td>봉인 · 키 합의 · 서명 · TLS 계산</td><td>혼자 쓰면 틀리는 조각은 문서가 경고한다</td></tr></table></div><p class="float-caption">표 36.2 — 입출력·네트워크·암호 모듈의 모양 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>outbuf</code> 는 출력을 모았다가 내보내고, 비우지 않은 대기 값은 번역이 거절한다. <code>net</code> 의 연결은 <code>cap net</code> 으로 여는 자원이며 닫기가 실패할 수 있다. <code>random.step</code> 은 재현되는 순수 계산이고 <code>random.bytes</code> 는 <code>cap random</code> 으로 얻는 엔트로피다. 단조 시계와 벽시계는 약속이 다르다. <code>http</code> 파서는 애매한 입력을 거절하는 순수 계산이다. 암호 모듈은 유도·봉인·키 합의·서명·TLS 계산 순으로 쌓여 있고, 전송하는 TLS 는 아직 없다.</div></div>

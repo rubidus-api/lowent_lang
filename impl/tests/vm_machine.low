@@ -1,22 +1,22 @@
 rem RFC-0054 — 같은 소스, 타깃마다 다른 코드. 두 가지 모두 타입 검사된다.
 fn word_size output u64 . do
   return machine.ptr_width .
-end .
+end
 
 fn endian_tag output u64 . do
   if machine.big_endian . do
     return 1 .
-  end .
+  end
   else do
     return 0 .
-  end .
-end .
+  end
+end
 
 fn fpu_path input a u64 . output u64 . do
   if machine.has_fpu . do
     return add a 1 .        rem FPU 있는 경로
-  end .
+  end
   else do
     return add a 2 .        rem 소프트 경로(폴백)
-  end .
-end .
+  end
+end

@@ -10,8 +10,8 @@ export proc main input al cap allocator . input h cap heap . output u8 . effects
 do
   var r u64 be 0 .
   let g option mut slice u8 . . be alloc_bytes al capacity 70000 .
-  if is_some g . do set r (add r 100) . end .
+  if is_some g . do set r (add r 100) . end
   let k option mut slice u8 . . be alloc_bytes h capacity 1048576 .
-  if is_some k . do set r (add r 1) . end .
+  if is_some k . do set r (add r 1) . end
   return narrow u8 r .
-end .
+end

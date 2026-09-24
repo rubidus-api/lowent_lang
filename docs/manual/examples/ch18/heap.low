@@ -9,13 +9,13 @@ do
     guard is_some a . else return 0 .
     guard is_some b . else return 0 .
     return add (len (some_value a)) (len (some_value b)) .
-  end .
+  end
   return 0 .
-end .
+end
 
 proc main input h cap heap . output u8 . effects heap .
 do
   let n u64 be grow_twice .
   guard eq n 8192 . else return 1 .
   return 0 .
-end .
+end

@@ -9,7 +9,7 @@ rem run: halve_or_zero 250
 enum io_error do
   too_big .
   odd .
-end .
+end
 
 fn halve input a u8 . output result u8 io_error .
   errors too_big gt a 200 .
@@ -18,7 +18,7 @@ do
   guard le a 200 . else return error too_big .
   guard eq (mod a 2) 0 . else return error odd .
   return ok (div a 2) .
-end .
+end
 
 fn halve_plus_one input a u8 . output result u8 io_error .
   errors too_big gt a 200 .
@@ -26,11 +26,11 @@ fn halve_plus_one input a u8 . output result u8 io_error .
 do
   let v u8 be try halve a .
   return ok (add v 1) .
-end .
+end
 
 fn halve_or_zero input a u8 . output u8 .
 do
   let r result u8 io_error be halve a .
   guard not (is_error r) . else return 0 .
   return ok_value r .
-end .
+end

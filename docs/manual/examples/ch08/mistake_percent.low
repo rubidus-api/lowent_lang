@@ -5,4 +5,4 @@ fn last_digit input a u64 . output u64 .
 do
   rem ko: ✘ `%` 는 섬의 연산자가 아니다 --- 나머지는 `mod` 를 괄호로 부른다 /// en: ✘ `%` is not an island operator --- call `mod` in parentheses for the remainder
   return expr a % 10 .
-end .
+end

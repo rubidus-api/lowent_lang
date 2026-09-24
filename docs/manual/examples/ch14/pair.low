@@ -8,4 +8,4 @@ do
   let hi u32 be widen u32 (index data 0) .
   let lo u32 be widen u32 (index data 1) .
   return add (mul hi 256) lo .
-end .
+end

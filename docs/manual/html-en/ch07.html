@@ -678,11 +678,11 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> gt i <span class="tok-n">5</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> total (add total <span class="tok-n">1</span>) .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> total .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> first_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -690,11 +690,11 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">while</span></strong> lt i (len xs) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> eq (index xs i) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">break</span></strong> .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> i .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> odd_sum <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -702,11 +702,11 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> eq (mod x <span class="tok-n">2</span>) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">continue</span></strong> .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> x)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> acc .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run count_big loops.low 10
 count_big(10) = 4
 $ lowentc --run first_zero loops.low [5,3,0,9]
@@ -718,7 +718,7 @@ first_zero([5,3]) = 2
 $ lowentc --run odd_sum loops.low [1,2,3,4,5]
 odd_sum([1,2,3,4,5]) = 9
   arg0 (written) = [1,2,3,4,5]
-</code></pre></div></div><ul><li><code>count_big</code> counts from 0 up to <code>n</code> and counts only numbers greater than 5. Look at the shape <code>while lt i n . do … end .</code> — the condition is a form too, so it is closed with a full stop, and <code>do</code> opens the body after it.</li><li><code>first_zero</code> leaves the loop with <code>break</code> when it meets a 0, and returns the length if there is none.</li><li><code>odd_sum</code> walks the elements with <code>for x xs do … end</code> and skips even ones with <code>continue</code>. The <code>for</code> name <code>x</code> has the slice’s element type (<code>u8</code>) and lives only inside the block.</li></ul><p>Writing <code>for x in xs</code> is rejected with <code>E-VOCAB-REMOVED</code>. The thing to walk comes right after the name.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> How do you write a loop counting from 0 to <code>n</code> with <code>for</code>?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> <code>for</code> is a tool for walking slices and does not take a numeric range directly. Counting loops are written with <code>while</code> and <code>var</code>. Having one shape for counting loops makes the range of the counter easy for the compiler to see and keeps the analysis that removes bounds checks simple. Filtering, counting and collecting over a slice are <code>pipe</code>’s job (chapter 24).</p></div></div><h3 id="s7-2">7.2 <code>guard</code> — turning a condition into a fact<a class="plink" href="#s7-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-13"></span><p><code>guard &lt;condition> . else &lt;leave> .</code> <strong>leaves on the spot</strong> if the condition is not true. The leaving statements are <code>return</code>, <code>break</code>, <code>continue</code> and <code>panic</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/guards.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> guards .
+</code></pre></div></div><ul><li><code>count_big</code> counts from 0 up to <code>n</code> and counts only numbers greater than 5. Look at the shape <code>while lt i n . do … end</code> — the condition is a form too, so it is closed with a full stop, and <code>do</code> opens the body after it.</li><li><code>first_zero</code> leaves the loop with <code>break</code> when it meets a 0, and returns the length if there is none.</li><li><code>odd_sum</code> walks the elements with <code>for x xs do … end</code> and skips even ones with <code>continue</code>. The <code>for</code> name <code>x</code> has the slice’s element type (<code>u8</code>) and lives only inside the block.</li></ul><p>Writing <code>for x in xs</code> is rejected with <code>E-VOCAB-REMOVED</code>. The thing to walk comes right after the name.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> How do you write a loop counting from 0 to <code>n</code> with <code>for</code>?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> <code>for</code> is a tool for walking slices and does not take a numeric range directly. Counting loops are written with <code>while</code> and <code>var</code>. Having one shape for counting loops makes the range of the counter easy for the compiler to see and keeps the analysis that removes bounds checks simple. Filtering, counting and collecting over a slice are <code>pipe</code>’s job (chapter 24).</p></div></div><h3 id="s7-2">7.2 <code>guard</code> — turning a condition into a fact<a class="plink" href="#s7-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-13"></span><p><code>guard &lt;condition> . else &lt;leave> .</code> <strong>leaves on the spot</strong> if the condition is not true. The leaving statements are <code>return</code>, <code>break</code>, <code>continue</code> and <code>panic</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/guards.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> guards .
 <em><span class="tok-c">rem run: head_or_zero [7,8]</span></em>
 <em><span class="tok-c">rem run: head_or_zero []</span></em>
 <em><span class="tok-c">rem run: grade 95</span></em>
@@ -728,7 +728,7 @@ odd_sum([1,2,3,4,5]) = 9
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> ge (len data) <span class="tok-n">1</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> index data <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> grade <strong><span class="tok-k">input</span></strong> score <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -738,10 +738,10 @@ odd_sum([1,2,3,4,5]) = 9
   <strong><span class="tok-k">end</span></strong> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> ge score <span class="tok-n">60</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">66</span> .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">70</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run head_or_zero guards.low [7,8]
 head_or_zero([7,8]) = 7
   arg0 (written) = [7,8]
@@ -759,9 +759,9 @@ grade(42) = 70
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> le n <span class="tok-n">5</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">let</span></strong> capped <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">5</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check fallthrough.low
 fallthrough.low:6:0 E-GUARD-FALLTHROUGH: this `guard`'s `else` FALLS THROUGH — it must LEAVE (`return` / `break` / `continue` / `panic`). If it falls through, the code AFTER the guard wrongly believes the condition holds. Leaving is the WHOLE point of `guard`: it is what lets the rest of the op assume the condition. (SPEC-002 D6 always said so and nothing enforced it — which made `guard` an exact synonym of `if not`.) If you do not mean to leave, write `if`
 </code></pre></div></div><p>If the <code>else</code> flows on instead of leaving, the code below the <code>guard</code> believes <code>n</code> is at most 5 while it is not. Rather than letting code believe an unreliable fact, translation is refused. If you do not mean to leave, use <code>if</code>.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong><code>guard</code> is syntactic sugar for shorter code</strong></p><div class="dev-body">Being shorter is a side effect. The real point of <code>guard</code> is <strong>handing a fact to the compiler and the reader</strong>. After a <code>guard</code> the compiler knows the condition is true and uses it to remove bounds checks. You can write the same meaning with <code>if … do return … end</code> and get the same behaviour, but leaving is not guaranteed by the grammar.</div></div><h3 id="s7-3">7.3 Every path returns a value<a class="plink" href="#s7-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>An op that returns a value must return one on <strong>every path</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/partial.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> partial .
@@ -771,8 +771,8 @@ fallthrough.low:6:0 E-GUARD-FALLTHROUGH: this `guard`'s `else` FALLS THROUGH —
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check partial.low
 partial.low:4:0 E-RETURN-PARTIAL: this op says it OUTPUTS a value, but some path through its body reaches the end without a `return`. Until now the tool quietly returned 0 there — a value that appears NOWHERE in your source (RFC-0019 G-TOTAL). Give every path a `return`, or say `output void` if it really produces nothing. An exhaustive `match` whose every arm returns counts as returning
 </code></pre></div></div><p>On the path where <code>a</code> is 0 or less, there is no <code>return</code>. The old tool quietly returned 0 on that path — a value that appears nowhere in the source. Now it is rejected. The statements recognised as returning are <code>return</code>, an <code>if … else</code> where both branches return, and a <code>match</code> where every arm returns. <code>while</code>, <code>for</code> and <code>guard</code> have ways out, so they do not count as returning by themselves. That is why a loop is always followed by a <code>return</code>.</p><p>An op that returns nothing (<code>output void</code>) may run to the end of its body without <code>return</code>. Where it ends is where it returns.</p><h3 id="s7-4">7.4 <code>match</code> — every case, none missing<a class="plink" href="#s7-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-14"></span><p><code>match</code> splits a value into cases. Unlike an <code>if</code> chain, it <strong>must handle every case</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/bands.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bands .
@@ -785,27 +785,27 @@ partial.low:4:0 E-RETURN-PARTIAL: this op says it OUTPUTS a value, but some path
 <strong><span class="tok-k">fn</span></strong> band <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> x <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">9</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">10</span> to <span class="tok-n">19</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">9</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">10</span> to <span class="tok-n">19</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> half <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> b <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">127</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">128</span> to <span class="tok-n">255</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">127</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">128</span> to <span class="tok-n">255</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> big <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> x <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> y when gt y <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> y when gt y <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run band bands.low 9
 band(9) = 1
 $ lowentc --run band bands.low 10
@@ -822,10 +822,10 @@ big(101) = 1
 <strong><span class="tok-k">fn</span></strong> band <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">match</span></strong> x <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">9</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
-    <strong><span class="tok-k">case</span></strong> <span class="tok-n">11</span> to <span class="tok-n">255</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">9</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">11</span> to <span class="tok-n">255</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check inexhaustive.low
 inexhaustive.low:6:0 E-MATCH-INEXHAUSTIVE: this `match` on an integer is not exhaustive — the literals/ranges leave a gap, so a `case _ .` wildcard (or `else`) is required, OR the ranges must TILE the whole domain of the scrutinee's type (e.g. `0 to 127` + `128 to 255` on a u8) (RFC-0020 §6.4; MM4 tiling)
 </code></pre></div></div><p>10 falls in no arm. Writing the same case twice, or an arm after <code>_</code>, is rejected with <code>E-MATCH-REDUNDANT</code>. It is an error, not a warning — an arm that can never run usually hides a defect.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> Besides exhaustiveness, what makes <code>match</code> better than an <code>if</code> chain?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> It shows when cases grow. Add a variant to an enum and every <code>match</code> over that enum stops at translation and tells you where to fix it (chapter 10). An <code>if</code> chain lets the new case slide silently into its last <code>else</code>. Also, <code>--ir</code> has the tool report the dispatch cost, such as the number of arms and the worst-case number of comparisons.</p></div></div><h3 id="s7-5">7.5 <code>panic</code> is an effect<a class="plink" href="#s7-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-15"></span><p><code>panic</code> stops the program immediately. It is an irreversible stop, so it is an effect, and an op that uses it must be a <code>proc</code> declaring <code>effects panic</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/panics.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> panics .
@@ -836,9 +836,9 @@ inexhaustive.low:6:0 E-MATCH-INEXHAUSTIVE: this `match` on an integer is not exh
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     panic <span class="tok-s">"</span><span class="tok-s">n must not be zero</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> div <span class="tok-n">100</span> n .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run checked panics.low 3
 checked(3) = 33
 $ lowentc --run checked panics.low 0
@@ -853,9 +853,9 @@ $ lowentc --run checked panics.low 0
   <em><span class="tok-c">rem ✘ wrote `in` --- `for` is `for &lt;name> &lt;slice> do`</span></em>
   <strong><span class="tok-k">for</span></strong> x in xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (add t (widen <strong><span class="tok-t">u64</span></strong> x)) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> t .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_forin.low
 8:0 E-VOCAB-REMOVED: infix access is gone — `b in a` was the reverse spelling of `a to b`, i.e. a THIRD way to say `field a b`. Write `field a b` / `index a i`, or the glued dot: `a.b` / `a.3`. (`for` now reads `for &lt;name> &lt;seq> do` — `do` marks the end, so the marker carried nothing)
 </code></pre></div></div><p><code>for</code> is <code>for &lt;name> &lt;slice> do</code>. The thing to walk comes right after the name, and <code>do</code> already marks where the body starts, so <code>in</code> would carry nothing. It was removed so that one meaning has one spelling. The long diagnostic suggests the glued dot (<code>a.b</code>) as an alternative, but that spelling is also rejected nowadays — the message is out of date in this edition. The fix: <code>for x xs do</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Chaining branches with <code>elif</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_elif.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_elif .
@@ -868,9 +868,9 @@ $ lowentc --run checked panics.low 0
   <em><span class="tok-c">rem ✘ `elif` is not a word --- a following branch is `end else if … do`</span></em>
   <strong><span class="tok-k">end</span></strong> elif lt n <span class="tok-n">80</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_elif.low
 mistake_elif.low:9:0 E-IR-UNDEF: undefined name `elif` — not a local, an input, an op, a constant or an enum variant in scope here
 </code></pre></div></div><p><code>elif</code>, <code>elsif</code> and <code>else if:</code> vary between languages. Lowent joins words it already has: close the previous block with <code>end</code> and add <code>else if</code>. <code>elif</code> is not a word, so it is read as an unknown name (<code>E-IR-UNDEF</code>).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/elseif.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> elseif .
@@ -887,15 +887,15 @@ mistake_elif.low:9:0 E-IR-UNDEF: undefined name `elif` — not a local, an input
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">end</span></strong> <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run grade elseif.low 30
 grade(30) = 0
 $ lowentc --run grade elseif.low 70
 grade(70) = 1
 $ lowentc --run grade elseif.low 95
 grade(95) = 2
-</code></pre></div></div><p>The last branch is <code>end else do … end .</code>. When there are three or more branches that all split one value, <code>match</code> is a better fit.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Putting <code>else</code> inside the block, C style</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_innerelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_innerelse .
+</code></pre></div></div><p>The last branch is <code>end else do … end</code>. When there are three or more branches that all split one value, <code>match</code> is a better fit.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Putting <code>else</code> inside the block, C style</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_innerelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_innerelse .
 <em><span class="tok-c">rem expect: E-STMT-ELSE</span></em>
 
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
@@ -906,11 +906,11 @@ grade(95) = 2
   <em><span class="tok-c">rem ✘ `else` sits on its own line inside the block, C style --- the previous block must be closed with `end else do`</span></em>
   <strong><span class="tok-k">else</span></strong>
     <strong><span class="tok-k">set</span></strong> r <span class="tok-n">2</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_innerelse.low
-mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C writes it. Here a block is closed before the other arm opens: `if &lt;cond> . do … end else do … end .`. Written this way the arm used to be accepted by every static check and then dropped at lowering — the VM stopped with an unsupported body and the native build silently left the op out
+mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C writes it. Here a block is closed before the other arm opens: `if &lt;cond> . do … end else do … end`. Written this way the arm used to be accepted by every static check and then dropped at lowering — the VM stopped with an unsupported body and the native build silently left the op out
 </code></pre></div></div><p>In C and several other languages <code>else</code> follows the previous block, as in <code>if … { … } else { … }</code>. In Lowent <code>else</code> comes <strong>after</strong> the previous block is closed with <code>end</code> (<code>end else do</code>). With <code>else</code> on its own line inside the block the program is rejected with <code>E-STMT-ELSE</code>; it used to translate and then stop at run time with <code>E-VM-UNSUP</code>, while the native build left the op out entirely.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a symbol such as <code>&lt;</code> in a condition</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_less.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_less .
 <em><span class="tok-c">rem expect: E-CHAR</span></em>
 
@@ -920,9 +920,9 @@ mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C 
   <em><span class="tok-c">rem ✘ `&lt;` is not a symbol of this language --- the comparison is `lt i n`</span></em>
   <strong><span class="tok-k">while</span></strong> i &lt; n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> i .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_less.low
 8:11 E-CHAR: unexpected character
 8:11 E-FORM-UNEXPECTED: unexpected token in form
@@ -933,12 +933,12 @@ mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C 
   <strong><span class="tok-k">while</span></strong> lt i (len xs) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> eq (mod (index xs i) <span class="tok-n">2</span>) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">continue</span></strong> .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> n (add n <span class="tok-n">1</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
-<strong><span class="tok-k">end</span></strong> .</code></pre><p>At the first even number, <code>i</code> stops increasing and the loop never ends. Neither compilation nor run-time checks catch this — running forever is not an overflow. Move the increment to the <strong>top</strong> of the body (keeping the pre-increment value for indexing), or, if you are walking elements, use <code>for x xs do</code> in the first place. With <code>for</code>, moving to the next element is the language’s job, so this bug has nowhere to live.</p></div></div><p>There are two ways to write the slot that takes the rest. <code>case _ .</code> and a final <code>else</code> do the same thing.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/matchelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> matchelse .
+<strong><span class="tok-k">end</span></strong></code></pre><p>At the first even number, <code>i</code> stops increasing and the loop never ends. Neither compilation nor run-time checks catch this — running forever is not an overflow. Move the increment to the <strong>top</strong> of the body (keeping the pre-increment value for indexing), or, if you are walking elements, use <code>for x xs do</code> in the first place. With <code>for</code>, moving to the next element is the language’s job, so this bug has nowhere to live.</p></div></div><p>There are two ways to write the slot that takes the rest. <code>case _ .</code> and a final <code>else</code> do the same thing.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/matchelse.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> matchelse .
 <em><span class="tok-c">rem run: band 1</span></em>
 <em><span class="tok-c">rem run: band 3</span></em>
 <em><span class="tok-c">rem run: band 99</span></em>
@@ -947,16 +947,16 @@ mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C 
   <strong><span class="tok-k">match</span></strong> n <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">1</span> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">10</span> .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">2</span> to <span class="tok-n">5</span> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">20</span> .
-    <strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
     <em><span class="tok-c">rem catch the rest with `else` --- the same place as `case _ .`</span></em>
     <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> .
-    <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run band matchelse.low 1
 band(1) = 10
 $ lowentc --run band matchelse.low 3
@@ -976,16 +976,16 @@ band(99) = 99
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">set</span></strong> score (add score <span class="tok-n">10</span>) .
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">set</span></strong> score (add score <span class="tok-n">20</span>) .
     <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">set</span></strong> score (add score <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> score .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run label nofall.low 1
 label(1) = 10
 $ lowentc --run label nofall.low 2
 label(2) = 20
 $ lowentc --run label nofall.low 9
 label(9) = 1
-</code></pre></div></div><p>Only <strong>the one</strong> matching arm runs, and it never falls into the next. There is no <code>break</code> to remember and no bug from forgetting it. To do the same thing for two cases, join the arms with <code>or</code> (chapter 11).</p></div></div><h3 id="s7-7">7.7 This chapter’s syntax at a glance<a class="plink" href="#s7-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>if c . do … end .</code></td><td>run the block when the condition is true</td><td>the condition is a form closed by a stop; the body opens with <code>do</code></td></tr><tr><td><code>if c . do … end else do … end .</code></td><td>one of two</td><td>openers and closers always pair up</td></tr><tr><td><code>… end else if c2 . do … end .</code></td><td>chaining branches</td><td>joins existing words instead of adding <code>elif</code></td></tr><tr><td><code>while c . do … end .</code></td><td>repeat while the condition is true</td><td>the one shape for counting loops</td></tr><tr><td><code>for x xs do … end .</code></td><td>each element of a slice in turn</td><td>moving to the next element is the language’s job</td></tr><tr><td><code>break .</code> · <code>continue .</code></td><td>leave the loop · go to the next round</td><td>statements that change the flow</td></tr><tr><td><code>guard c . else return … .</code></td><td>leave unless the condition holds — afterwards it is a fact</td><td><code>else</code> must always leave</td></tr><tr><td><code>return e .</code></td><td>return a value and finish</td><td>on every path of an op that produces a value</td></tr><tr><td><code>match v do case … . statement … end .</code></td><td>split by cases</td><td>complete and non-overlapping — no fall-through</td></tr><tr><td><code>case 1 to 9 .</code> · <code>case _ .</code> · <code>case y when c .</code></td><td>a range · everything else · a guarded arm</td><td>integers have many cases, so <code>_</code> is often needed</td></tr><tr><td><code>panic "…" .</code></td><td>an irreversible stop (an effect)</td><td>only in a <code>proc</code> that declares <code>effects panic</code></td></tr></table></div><p class="float-caption">Table 7.1 — Control-flow syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">Conditions must be <code>bool</code>s. <code>while</code> repeats on a condition and <code>for</code> over a slice, and <code>break</code> and <code>continue</code> change the flow. The <code>else</code> of a <code>guard</code> must leave, and after the <code>guard</code> the condition is a fact. An op that returns a value must return on every path. <code>match</code> must cover cases with no gaps and no overlaps. <code>panic</code> is an effect.</div></div>
+</code></pre></div></div><p>Only <strong>the one</strong> matching arm runs, and it never falls into the next. There is no <code>break</code> to remember and no bug from forgetting it. To do the same thing for two cases, join the arms with <code>or</code> (chapter 11).</p></div></div><h3 id="s7-7">7.7 This chapter’s syntax at a glance<a class="plink" href="#s7-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>if c . do … end</code></td><td>run the block when the condition is true</td><td>the condition is a form closed by a stop; the body opens with <code>do</code></td></tr><tr><td><code>if c . do … end else do … end</code></td><td>one of two</td><td>openers and closers always pair up</td></tr><tr><td><code>… end else if c2 . do … end</code></td><td>chaining branches</td><td>joins existing words instead of adding <code>elif</code></td></tr><tr><td><code>while c . do … end</code></td><td>repeat while the condition is true</td><td>the one shape for counting loops</td></tr><tr><td><code>for x xs do … end</code></td><td>each element of a slice in turn</td><td>moving to the next element is the language’s job</td></tr><tr><td><code>break .</code> · <code>continue .</code></td><td>leave the loop · go to the next round</td><td>statements that change the flow</td></tr><tr><td><code>guard c . else return … .</code></td><td>leave unless the condition holds — afterwards it is a fact</td><td><code>else</code> must always leave</td></tr><tr><td><code>return e .</code></td><td>return a value and finish</td><td>on every path of an op that produces a value</td></tr><tr><td><code>match v do case … . statement … end</code></td><td>split by cases</td><td>complete and non-overlapping — no fall-through</td></tr><tr><td><code>case 1 to 9 .</code> · <code>case _ .</code> · <code>case y when c .</code></td><td>a range · everything else · a guarded arm</td><td>integers have many cases, so <code>_</code> is often needed</td></tr><tr><td><code>panic "…" .</code></td><td>an irreversible stop (an effect)</td><td>only in a <code>proc</code> that declares <code>effects panic</code></td></tr></table></div><p class="float-caption">Table 7.1 — Control-flow syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">Conditions must be <code>bool</code>s. <code>while</code> repeats on a condition and <code>for</code> over a slice, and <code>break</code> and <code>continue</code> change the flow. The <code>else</code> of a <code>guard</code> must leave, and after the <code>guard</code> the condition is a fact. An op that returns a value must return on every path. <code>match</code> must cover cases with no gaps and no overlaps. <code>panic</code> is an effect.</div></div>
 <div class="nav"><a href="ch06.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch08.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

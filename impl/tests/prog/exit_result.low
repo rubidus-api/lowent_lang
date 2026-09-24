@@ -12,9 +12,9 @@ module exit_result .
 enum run_error do
   bad_config .
   no_input .
-end .
+end
 
 rem ★ 엔트리 — 보통 op 이다. no_input 은 2번째 변형(ord 1) ⇒ 종료 코드 2.
 proc main output result u8 run_error . effects none . errors no_input . do
   return error no_input .
-end .
+end

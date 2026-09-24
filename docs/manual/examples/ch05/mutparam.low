@@ -5,4 +5,4 @@ fn zero_first input xs mut slice u64 . output u64 .
 do
   set (index xs 0) 0 .
   return 0 .
-end .
+end

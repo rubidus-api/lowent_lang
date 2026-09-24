@@ -57,4 +57,4 @@ do
   let c result void files.file_error . be files.close fs rh .
   guard is_ok c . else return 77 .
   return (narrow u8 (ok_value sz)) .                    rem sample.txt = 23
-end .
+end

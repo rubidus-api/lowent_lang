@@ -8,8 +8,8 @@
 화면의 켬 · 끔 항목, 기능 스위치, 더티 표시, 장치의 상태 비트 --- 여럿을 따로 들고 다니기는 아깝고 하나로 묶으면 비교가 쉬운 자리다.
 
 ```lowent
-fn f_sound output u64 . do return 0 . end .
-fn f_music output u64 . do return 1 . end .
+fn f_sound output u64 . do return 0 . end
+fn f_music output u64 . do return 1 . end
 let s0 u64 be flags.with (flags.empty) (f_sound) .
 let playing bool be flags.has s0 (f_music) .
 ```

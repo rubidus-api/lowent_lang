@@ -24,16 +24,16 @@ use qual_b from "vm_qual_b.low" .
 rem ★ 한정자가 **다른 답**을 낸다 — 11 과 22 는 서로 다른 모듈의 것이다.
 fn both output u64 . do
   return add (mul (qual_a.pick) 100) (qual_b.pick) .
-end .
+end
 
 rem ★ 한 쪽만 불러도 그 모듈의 것이 온다.
 fn first output u64 . do
   return qual_a.pick .
-end .
+end
 
 fn second output u64 . do
   return qual_b.pick .
-end .
+end
 
 rem ★★★★★ **지역 이름이 남의 export 와 같아도, 한정 호출은 그 op 을 부른다** (2026-09-05).
 rem
@@ -49,4 +49,4 @@ rem     닿으므로 맨이름 지역이 가릴 수가 없다(2026-08-11 의 범
 fn local_shadows_export output u64 . do
   let pick u64 be 3 .
   return add pick (qual_a.pick) .
-end .
+end

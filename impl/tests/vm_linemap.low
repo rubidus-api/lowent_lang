@@ -16,4 +16,4 @@ proc main input al cap allocator . output u8 . effects alloc . do
   let b mut slice u8 . be some_value g .
   set (index b 99) 1 .
   return 0 .
-end .
+end

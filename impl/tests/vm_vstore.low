@@ -17,7 +17,7 @@ proc scale2 input b bytes . input out mut slice u8 . output u64 . effects none .
   var r vec u32 4 . be mul v two .
   store out 0 r .
   return 0 .
-end .
+end
 
 rem 레인별 덧셈 후 되쓰기 — 두 입력을 더해 out 에.
 proc add_lanes input a bytes . input b bytes . input out mut slice u8 . output u64 . effects none . do
@@ -28,4 +28,4 @@ proc add_lanes input a bytes . input b bytes . input out mut slice u8 . output u
   var s vec u32 4 . be add va vb .
   store out 0 s .
   return 0 .
-end .
+end

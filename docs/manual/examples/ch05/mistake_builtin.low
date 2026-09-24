@@ -5,4 +5,4 @@ rem ko: ✘ `min` 은 이미 내장 op 의 이름이다 --- 이 선언은 영영
 fn min input a u64 . input b u64 . output u64 .
 do
   return add a b .
-end .
+end

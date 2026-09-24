@@ -21,7 +21,7 @@ proc mstore input b bytes . input out mut slice u8 . output u64 . effects none .
   var m mask 4 . be gt v lim .
   store_masked out 0 v m .
   return 0 .
-end .
+end
 
 rem masked load (merge) — v>5 인 lane 은 메모리를 읽고, 나머지는 passthrough(=100). 결과를 out 에 되쓴다.
 proc mload input b bytes . input out mut slice u8 . output u64 . effects none . do
@@ -33,7 +33,7 @@ proc mload input b bytes . input out mut slice u8 . output u64 . effects none . 
   var r vec u32 4 . be load_masked xs 0 m pass .
   store out 0 r .
   return 0 .
-end .
+end
 
 rem ★ **꼬리(tail) 안전** — short 는 u32 3개뿐(레인 4보다 짧다). mask=[켜,켜,켜,꺼] 로 load_masked 하면
 rem   레인 0..2 는 메모리를 읽고 **레인 3 은 short[3](경계 밖)을 안 읽고** passthrough(=9) 를 쓴다.
@@ -49,4 +49,4 @@ proc tail input full bytes . input short bytes . input out mut slice u8 . output
   var r vec u32 4 . be load_masked xs 0 m pass .
   store out 0 r .
   return 0 .
-end .
+end

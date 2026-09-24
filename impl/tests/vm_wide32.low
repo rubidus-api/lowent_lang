@@ -22,4 +22,4 @@ export proc wide32   input a u64 . input b u64 . input c u64 . input d u64 .
   output u64 . effects none .
 do
   return add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add add a b c d e f g h i j k l m n o p q r s t u v w x y z aa ab ac ad ae af .
-end .
+end

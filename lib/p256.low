@@ -22,7 +22,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum p256_error do
   short_workspace .
-end .
+end
 
 
 rem ☞ **왜 `padd`/`pdbl` 인가**: `add` 는 빌트인이고 `dbl` 은 짧아 남과 부딪히기 쉽다.
@@ -31,7 +31,7 @@ rem   이름공간이 평면이라 모듈 안이라고 안전하지 않다 — �
 use bigint from "bigint.low" .
 
 rem 조각 수는 16(=256비트).
-export fn limbs output u64 . do  return 16 . end .
+export fn limbs output u64 . do  return 16 . end
 
 rem ★ 모듈러 뺄셈: o ← (a − b) mod m. 빌림이 나면 m 을 더해 되돌린다.
 export proc msub input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . inplace o a . inplace o b . do
@@ -42,7 +42,7 @@ export proc msub input o mut slice u64 . input a slice u64 . input b slice u64 .
     set (index o i) (bit_and d 65535) .
     set borrow (bit_and (shr d 63) 1) .
     set i (add i 1) .
-  end .
+  end
   if eq borrow 1 . do
     var carry u64 be 0 .
     var j u64 be 0 .
@@ -51,10 +51,10 @@ export proc msub input o mut slice u64 . input a slice u64 . input b slice u64 .
       set (index o j) (bit_and s 65535) .
       set carry (shr s 16) .
       set j (add j 1) .
-    end .
-  end .
+    end
+  end
   return 1 .
-end .
+end
 
 rem ★ 모듈러 덧셈: o ← (a + b) mod m.
 export proc madd input o mut slice u64 . input a slice u64 . input b slice u64 . input m slice u64 . output u64 . effects none . inplace o a . inplace o b . do
@@ -65,7 +65,7 @@ export proc madd input o mut slice u64 . input a slice u64 . input b slice u64 .
     set (index o i) (bit_and s 65535) .
     set carry (shr s 16) .
     set i (add i 1) .
-  end .
+  end
   rem 넘쳤거나 m 이상이면 한 번 뺀다.
   if eq carry 1 . do
     var borrow u64 be 0 .
@@ -75,9 +75,9 @@ export proc madd input o mut slice u64 . input a slice u64 . input b slice u64 .
       set (index o j) (bit_and d 65535) .
       set borrow (bit_and (shr d 63) 1) .
       set j (add j 1) .
-    end .
+    end
     return 1 .
-  end .
+  end
   if eq (bigint.ge_mod o m 16) 1 . do
     var borrow2 u64 be 0 .
     var q u64 be 0 .
@@ -86,10 +86,10 @@ export proc madd input o mut slice u64 . input a slice u64 . input b slice u64 .
       set (index o q) (bit_and d2 65535) .
       set borrow2 (bit_and (shr d2 63) 1) .
       set q (add q 1) .
-    end .
-  end .
+    end
+  end
   return 1 .
-end .
+end
 
 rem ★★ 모듈러 역원 — 페르마(a^(m−2)). m 이 소수일 때만 옳다: p 도 n 도 소수다.
 rem   ☞ 확장 유클리드가 더 빠르지만 **입력에 따라 도는 횟수가 달라진다**. 여기는 고정이다.
@@ -110,7 +110,7 @@ errors short_workspace . do
   while lt d 512 . do
     let zz u64 be bigint.dbl_mod (subslice w 36 54) m 16 .
     set d (add d 1) .
-  end .
+  end
   rem acc ← R mod m,  base ← a·R mod m
   let z3 u64 be bigint.zero (subslice w 54 72) 16 .
   set (index w 54) 1 .
@@ -125,14 +125,14 @@ errors short_workspace . do
     let limb u64 be index w (add 18 (shr bi 4)) .
     if eq (bit_and (shr limb (bit_and bi 15)) 1) 1 . do
       let mu u64 be bigint.mont_mul (subslice w 54 72) (subslice w 54 72) (subslice w 72 90) m 16 n0i (subslice w 90 108) .
-    end .
-    if eq bi 0 . do  set done 1 .  end .
-  end .
+    end
+    if eq bi 0 . do  set done 1 .  end
+  end
   rem 몽고메리 벗기기
   let z4 u64 be bigint.zero (subslice w 72 90) 16 .
   set (index w 72) 1 .
   return ok (bigint.mont_mul o (subslice w 54 72) (subslice w 72 90) m 16 n0i (subslice w 90 108)) .
-end .
+end
 
 rem ── 곡선 위의 점 (야코비 좌표) ────────────────────────────────────────────
 rem
@@ -148,7 +148,7 @@ export proc pmul input o mut slice u64 . input a slice u64 . input b slice u64 .
      input r2 slice u64 . input n0i u64 . input t mut slice u64 . input u mut slice u64 . output u64 . effects none . inplace o a . inplace o b . do
   guard eq (bigint.mont_mul u a b p 16 n0i t) 1 . else return 0 .
   return bigint.mont_mul o u r2 p 16 n0i t .
-end .
+end
 
 rem ★ R² mod p 를 한 번 만들어 둔다(1 을 512 번 배로 늘린다).
 export proc make_r2 input r2 mut slice u64 . input p slice u64 . output u64 . effects none . do
@@ -158,9 +158,9 @@ export proc make_r2 input r2 mut slice u64 . input p slice u64 . output u64 . ef
   while lt d 512 . do
     let zz u64 be bigint.dbl_mod r2 p 16 .
     set d (add d 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★★ 점 두 배 `pdbl` (야코비, a = −3 인 곡선의 표준 식).
 rem   `w` 는 조각 작업 공간(≥ 8·18 = 144).
@@ -205,22 +205,22 @@ errors short_workspace . do
   set sk (madd (subslice w 80 96) (subslice w 80 96) (subslice w 80 96) p) .
   set sk (msub (subslice o 16 32) (subslice w 64 80) (subslice w 80 96) p) .
   return ok 1 .
-end .
+end
 
 rem 16 조각이 전부 0 인가 — 무한원점 판정과 H=0 판정에 쓴다.
 export fn is_zero input a slice u64 . output u64 . do
   var i u64 be 0 .
   var acc u64 be 0 .
-  while lt i 16 . do  set acc (bit_or acc (index a i)) .  set i (add i 1) .  end .
-  if eq acc 0 . do  return 1 .  end .
+  while lt i 16 . do  set acc (bit_or acc (index a i)) .  set i (add i 1) .  end
+  if eq acc 0 . do  return 1 .  end
   return 0 .
-end .
+end
 
 proc copy48 input o mut slice u64 . input a slice u64 . output u64 . effects none . do
   var i u64 be 0 .
-  while lt i 48 . do  set (index o i) (index a i) .  set i (add i 1) .  end .
+  while lt i 48 . do  set (index o i) (index a i) .  set i (add i 1) .  end
   return 1 .
-end .
+end
 
 rem ★★ 점 덧셈 `padd` (야코비 + 야코비, EFD add-2007-bl).
 rem   `w` 는 조각 작업 공간(≥ 300). 무한원점과 **같은 점**(H=0)을 따로 다룬다 —
@@ -231,8 +231,8 @@ errors short_workspace . do
   rem 버리는 답은 받이 하나(`sk`)에 받는다 — 받이마다 지역을 두면 32 를 넘어 태그 경로로 떨어진다(X-0050)
   var sk u64 be 0 .
   guard ge (len w) 300 . else return error short_workspace .
-  if eq (is_zero (subslice pa 32 48)) 1 . do  return ok (copy48 o pb) .  end .
-  if eq (is_zero (subslice pb 32 48)) 1 . do  return ok (copy48 o pa) .  end .
+  if eq (is_zero (subslice pa 32 48)) 1 . do  return ok (copy48 o pb) .  end
+  if eq (is_zero (subslice pb 32 48)) 1 . do  return ok (copy48 o pa) .  end
   let T slice u64 be subslice w 264 282 .
   let U slice u64 be subslice w 282 300 .
   rem Z1Z1 = Z1² (w0) · Z2Z2 = Z2² (w1)
@@ -253,11 +253,11 @@ errors short_workspace . do
   if eq (is_zero (subslice w 96 112)) 1 . do
     if eq (is_zero (subslice w 112 128)) 1 . do
       return pdbl o pa p r2 n0i w .
-    end .
+    end
     var zi u64 be 0 .
-    while lt zi 48 . do  set (index o zi) 0 .  set zi (add zi 1) .  end .
+    while lt zi 48 . do  set (index o zi) 0 .  set zi (add zi 1) .  end
     return ok 1 .
-  end .
+  end
   set sk (madd (subslice w 112 128) (subslice w 112 128) (subslice w 112 128) p) .
   rem I = (2H)² (w8) · J = H·I (w9) · V = U1·I (w10)
   set sk (madd (subslice w 128 144) (subslice w 96 112) (subslice w 96 112) p) .
@@ -288,9 +288,9 @@ errors short_workspace . do
     set (index o (add 16 c)) (index w (add 224 c)) .
     set (index o (add 32 c)) (index w (add 240 c)) .
     set c (add c 1) .
-  end .
+  end
   return ok 1 .
-end .
+end
 
 rem ★★ 스칼라 곱 acc ← k·P (이진 두 배-더하기, 위에서부터).
 rem   `w` 는 조각 작업 공간(≥ 396): 0..48 tmp · 48..96 tmp2 · 96..396 add/dbl 공용.
@@ -299,7 +299,7 @@ export proc smul input acc mut slice u64 . input k slice u64 . input pt slice u6
 errors short_workspace . do
   guard ge (len w) 396 . else return error short_workspace .
   var zi u64 be 0 .
-  while lt zi 48 . do  set (index acc zi) 0 .  set zi (add zi 1) .  end .
+  while lt zi 48 . do  set (index acc zi) 0 .  set zi (add zi 1) .  end
   var bi u64 be 256 .
   var done u64 be 0 .
   while eq done 0 . do
@@ -313,11 +313,11 @@ errors short_workspace . do
       guard is_ok a_r . else return error short_workspace .
       let a u64 be ok_value a_r .
       let c2 u64 be copy48 acc (subslice w 48 96) .
-    end .
-    if eq bi 0 . do  set done 1 .  end .
-  end .
+    end
+    if eq bi 0 . do  set done 1 .  end
+  end
   return ok 1 .
-end .
+end
 
 rem ★★★★★ **상수시간 갈래** — 서명이 쓰는 자리 (2026-08-21, RFC-0090 §N7b⑤).
 rem
@@ -342,9 +342,9 @@ proc csel48 input o mut slice u64 . input a slice u64 . input b slice u64 . inpu
   while lt i 48 . do
     set (index o i) (bit_and (bit_or (bit_and (index a i) (bit_not m)) (bit_and (index b i) m)) 65535) .
     set i (add i 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★★★ 상수시간 스칼라 곱 — 걸음마다 **두 배와 덧셈을 둘 다** 하고 마스크로 고른다.
 export proc smul_ct input acc mut slice u64 . input k slice u64 . input pt slice u64 . input p slice u64 .
@@ -352,7 +352,7 @@ export proc smul_ct input acc mut slice u64 . input k slice u64 . input pt slice
 errors short_workspace . do
   guard ge (len w) 396 . else return error short_workspace .
   var zi u64 be 0 .
-  while lt zi 48 . do  set (index acc zi) 0 .  set zi (add zi 1) .  end .
+  while lt zi 48 . do  set (index acc zi) 0 .  set zi (add zi 1) .  end
   var bi u64 be 256 .
   var done u64 be 0 .
   while eq done 0 . do
@@ -366,10 +366,10 @@ errors short_workspace . do
     let a u64 be ok_value a_r .
     let bit u64 be bit_and (shr (index k (shr bi 4)) (bit_and bi 15)) 1 .
     let c u64 be csel48 acc (subslice w 0 48) (subslice w 48 96) bit .
-    if eq bi 0 . do  set done 1 .  end .
-  end .
+    if eq bi 0 . do  set done 1 .  end
+  end
   return ok 1 .
-end .
+end
 
 rem ★★★ **ECDSA 검증** (`ecdsa_secp256r1_sha256`).
 rem   s^-1 = w,  u1 = e·w mod n,  u2 = r·w mod n,  R = u1·G + u2·Q,  R.x ≡ r (mod n) 이면 참.
@@ -415,7 +415,7 @@ errors short_workspace . do
     set (index w (add 144 i)) (index pub (add 16 i)) .
     set (index w (add 160 i)) 0 .
     set i (add i 1) .
-  end .
+  end
   set (index w 112) 1 .
   set (index w 160) 1 .
 
@@ -441,17 +441,17 @@ errors short_workspace . do
 
   rem ⑥ x mod n 이 r 과 같은가. x < p 이고 n < p 이므로 한 번 빼면 족하다.
   var c u64 be 0 .
-  while lt c 16 . do  set (index w (add 368 c)) (index w (add 352 c)) .  set c (add c 1) .  end .
+  while lt c 16 . do  set (index w (add 368 c)) (index w (add 352 c)) .  set c (add c 1) .  end
   if eq (bigint.ge_mod (subslice w 368 384) n 16) 1 . do
     let z u64 be msub (subslice w 368 384) (subslice w 368 384) n n .
-  end .
+  end
   rem 비교는 XOR 누적 — 조기 반환이 없다.
   var diff u64 be 0 .
   var q u64 be 0 .
   while lt q 16 . do
     set diff (bit_or diff (bit_xor (index w (add 368 q)) (index r q))) .
     set q (add q 1) .
-  end .
+  end
   guard eq diff 0 . else return ok 0 .
   return ok 1 .
-end .
+end

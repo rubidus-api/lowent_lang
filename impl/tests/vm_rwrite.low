@@ -28,7 +28,7 @@ export proc write_out_bytes input k cap io . input buf mut slice u8 . . output u
   let n option u64 . be r_write k (some_value r) 1 "abcdefghij" .
   guard is_some n . else return 91 .
   return some_value n .
-end .
+end
 
 rem ✔ 빈 버퍼를 쓰면 **0** 이다 — 실패가 아니다.
 rem   ☞ *"아무것도 안 갔다"* 와 *"못 썼다"* 는 다른 답이고, 그 둘을 섞으면 호출자가
@@ -39,7 +39,7 @@ export proc empty_write input k cap io . input buf mut slice u8 . . output u64 .
   let n option u64 . be r_write k (some_value r) 2 (subslice buf 0 0) .
   guard is_some n . else return 91 .
   return some_value n .
-end .
+end
 
 rem ★ `cap io` 를 받으므로 `--run` 으로는 못 부른다 — **entry 의 종료 코드**로 잰다.
 rem   ☞ 이 저장소가 cap 엔트리를 재는 방식이 그것이다(차등 스윕이 안 훑는 자리이고,
@@ -53,4 +53,4 @@ proc main input k cap io . input al cap allocator . output u8 . effects alloc io
   let b u64 be empty_write k buf .
   guard eq b 0 . else return narrow u8 (add b 100) .
   return 42 .
-end .
+end

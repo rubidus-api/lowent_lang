@@ -22,19 +22,19 @@ proc t_rsa_big input sig slice u8 . input nb slice u8 . input mhash slice u8 .
   guard is_ok _u6 . else return 0 .
   guard eq (ok_value _u6) 0 . else return 0 .
   return 1 .
-end .
+end
 
 rem r 또는 s 가 0 인 ECDSA 서명은 **거절돼야** 한다.
 proc t_ec_zero input v mut slice u64 . input w mut slice u64 . output u64 . effects none . do
   guard ge (len v) 144 . else return 0 .
   var i u64 be 0 .
-  while lt i 144 . do  set (index v i) 0 .  set i (add i 1) .  end .
+  while lt i 144 . do  set (index v i) 0 .  set i (add i 1) .  end
   rem 전부 0 이면 r = 0 이고 n = 0 이다 — 어느 쪽이든 거절이 옳다.
   let _u5 result u64 p256.p256_error . be p256.ecdsa_verify (subslice v 0 16) (subslice v 16 32) (subslice v 32 48) (subslice v 48 80) (subslice v 80 96) (subslice v 96 112) (subslice v 112 128) (subslice v 128 144) w .
   guard is_ok _u5 . else return 0 .
   guard eq (ok_value _u5) 0 . else return 0 .
   return 1 .
-end .
+end
 
 rem MGF1 은 카운터를 **돌려야** 한다: 32 바이트를 넘게 달라고 하면 뒷부분이 앞과 달라야 한다.
 proc t_mgf_extends input seed slice u8 . input out mut slice u8 . input w mut slice u8 . output u64 . effects none . do
@@ -46,10 +46,10 @@ proc t_mgf_extends input seed slice u8 . input out mut slice u8 . input w mut sl
   while lt i 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index out i)) (cast u64 (index out (add 32 i))))) .
     set i (add i 1) .
-  end .
-  if eq diff 0 . do  return 0 .  end .
+  end
+  if eq diff 0 . do  return 0 .  end
   return 1 .
-end .
+end
 
 rem ★★★ **[L]B 가 항등원인가** — 옮겨 적을 수밖에 없던 위수 L 을 **성질로** 검사한다.
 rem   틀리게 적으면 이 검사가 깨진다: 옮겨 적은 것을 *믿지 않고 재는* 방법이다.
@@ -73,6 +73,6 @@ proc t_order input out mut slice u8 . input bb mut slice u8 . input w mut slice 
   while lt i 32 . do
     guard eq (cast u64 (index out i)) 0 . else return 0 .
     set i (add i 1) .
-  end .
+  end
   return 1 .
-end .
+end

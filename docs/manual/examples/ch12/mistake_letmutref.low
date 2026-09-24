@@ -4,7 +4,7 @@ rem expect: E-TYPE-ARGMUT
 proc bump input p mut_ref u64 . output void .
 do
   set p (add (deref p) 1) .
-end .
+end
 
 proc use_bump input start u64 . output u64 .
   requires lt start 1000 .
@@ -13,4 +13,4 @@ do
   let n u64 be start .
   bump (mut_ref n) .
   return n .
-end .
+end

@@ -10,4 +10,4 @@ fn total input m meters . input f feet . output meters .
   requires le f 1000000 .
 do
   return add m f .
-end .
+end

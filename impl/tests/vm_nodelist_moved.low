@@ -14,8 +14,8 @@ proc move_while_linked output u64 . effects none . do
   var h owned nodelist.held lru . be nodelist.nl_link lru s .
   var s2 owned nodelist.site lru . be nodelist.nl_relocate lru s 9 .
   return nodelist.nl_slot_of lru s2 .
-end .
+end
 
 proc main output u8 . effects none . do
   return 0 .
-end .
+end

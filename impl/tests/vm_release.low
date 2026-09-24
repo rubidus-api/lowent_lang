@@ -24,16 +24,16 @@ do
   guard is_some qo . else return 92 .
   let q mut slice u8 . be some_value qo .
   var r u64 be 0 .
-  if eq (send a release p) false . do set r (add r 100000) . end .
-  if send a release q . do set r (add r 10000) . end .
+  if eq (send a release p) false . do set r (add r 100000) . end
+  if send a release q . do set r (add r 10000) . end
   let so option mut slice u8 . . be send a reserve 8 .
   guard is_some so . else return 93 .
   let s mut slice u8 . be some_value so .
-  if same_slice s q . do set r (add r 1000) . end .
+  if same_slice s q . do set r (add r 1000) . end
   let g1 option mut slice u8 . . be send a grow p 16 .
-  if eq (is_some g1) false . do set r (add r 100) . end .
+  if eq (is_some g1) false . do set r (add r 100) . end
   let g2 option mut slice u8 . . be send a grow s 16 .
-  if is_some g2 . do set r (add r 10) . end .
-  if and (same_slice p (subslice buf 0 8)) (eq (same_slice p (subslice buf 0 7)) false) . do set r (add r 1) . end .
+  if is_some g2 . do set r (add r 10) . end
+  if and (same_slice p (subslice buf 0 8)) (eq (same_slice p (subslice buf 0 7)) false) . do set r (add r 1) . end
   return r .
-end .
+end

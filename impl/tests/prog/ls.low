@@ -37,30 +37,30 @@ do
   while going . do
     rem ★ 세 자리다(2026-08-15): 실패는 `error`, **끝은 `ok none`**.
     let n result (option u64) files.file_error . be files.read_dir fs dh buf .
-    if eq (is_ok n) false . do set going false . end .
+    if eq (is_ok n) false . do set going false . end
     if is_ok n . do
       let nvo option u64 . be ok_value n .
-      if eq (is_some nvo) false . do set going false . end .
+      if eq (is_some nvo) false . do set going false . end
       var nl u64 be 0 .
-      if is_some nvo . do set nl (some_value nvo) . end .
+      if is_some nvo . do set nl (some_value nvo) . end
       if eq nl 0 . do set going false . end          rem 끝 . .
       if gt nl 0 . do
         rem `.`(길이 1) 와 `..`(길이 2) 를 거른다 — readdir 이 낸 것이니 프로그램이 판단한다
         var is_dot bool be false .
         if eq nl 1 . do
-          if eq (index buf 0) 46 . do set is_dot true . end .
-        end .
+          if eq (index buf 0) 46 . do set is_dot true . end
+        end
         if eq nl 2 . do
           if eq (index buf 0) 46 . do
-            if eq (index buf 1) 46 . do set is_dot true . end .
-          end .
-        end .
-        if eq is_dot false . do set total (add total nl) . end .
-      end .
-    end .
-  end .
+            if eq (index buf 1) 46 . do set is_dot true . end
+          end
+        end
+        if eq is_dot false . do set total (add total nl) . end
+      end
+    end
+  end
 
   let c result void files.file_error . be files.close_dir fs dh .
   guard is_ok c . else return 72 .
   return (narrow u8 total) .                          rem dirfix = 14
-end .
+end

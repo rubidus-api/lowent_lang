@@ -684,14 +684,14 @@ build <strong><span class="tok-k">option</span></strong> maxcpu int default <spa
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> config smp . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> config hz .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> cpus <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> config maxcpu .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run tick_rate knobs.low
 tick_rate() = 250
 $ lowentc --run cpus knobs.low
@@ -710,14 +710,14 @@ build <strong><span class="tok-k">option</span></strong> maxcpu int default <spa
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> config smp . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> config hz .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> cpus <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> config maxcpu .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --config small.config --run tick_rate knobs_small.low
 tick_rate() = 100
 $ lowentc --config small.config --run cpus knobs_small.low
@@ -730,7 +730,7 @@ build <strong><span class="tok-k">option</span></strong> trace <strong><span cla
 <strong><span class="tok-k">fn</span></strong> answer <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">42</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check unused.low
 unused.low:4:0 E-OPT-UNUSED: this build option is declared and NO code reads it (`config &lt;name>`). It shows up in the configuration, the user turns it off — and nothing happens. A knob that does nothing is worse than no knob: it is a decision that LOOKS like it was made
 </code></pre></div></div><p>그런 손잡이는 구성에 나타나고, 쓰는 사람이 그것을 끄는데, 아무 일도 일어나지 않는다. 결정처럼 보이지만 결정이 아니다. 구성 파일이 선택지에 없는 값을 주거나(<code>E-CONFIG-TYPE</code>), 없는 손잡이를 적어도(<code>E-CONFIG-UNDEF</code>) 거절된다.</p><div class="dev realcase"><p class="dev-label">실제 사례. 끌 수 없는 손잡이</p><div class="dev-body">명세의 예는 <code>hz</code> 손잡이가 <code>smp</code> 에 기대게(<code>depends smp</code>) 적는다. 기대는 쪽이 켜져 있는데 기댐을 받는 쪽이 꺼져 있으면 그런 빌드는 없으므로 거절한다는 규칙이다. 이 책을 쓰며 그 예를 돌려 보니, <code>choice</code> 손잡이는 늘 값이 있어 “켜짐” 으로 읽혀서 <code>smp</code> 를 끄는 구성이 모두 <code>E-CONFIG-DEPENDS</code> 로 거절되었다. 개발 저장소의 시험은 그 구성으로 실행만 보고 검사는 보지 않아 이 어긋남을 놓쳤다. 이 장의 예제가 <code>depends</code> 를 뺀 이유다. 시험이 보는 것과 사용자가 하는 것이 다르면 초록불이 아무것도 말하지 않는다는 교훈이 여기에도 있다.</div></div><h3 id="s31-4">31.4 시험<a class="plink" href="#s31-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>test &lt;이름> do … end</code> 블록 안의 <code>expect</code> 가 단언이다. <code>--test</code> 가 모든 시험을 돌린다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/tests_clause.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> tests_clause .
@@ -739,17 +739,17 @@ unused.low:4:0 E-OPT-UNUSED: this build option is declared and NO code reads it 
 <strong><span class="tok-k">fn</span></strong> clamp8 <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow_sat <strong><span class="tok-t">u8</span></strong> v .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">test</span></strong> clamp_keeps_small
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">expect</span></strong> eq (clamp8 <span class="tok-n">7</span>) <span class="tok-n">7</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">test</span></strong> clamp_saturates
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">expect</span></strong> eq (clamp8 <span class="tok-n">1000</span>) <span class="tok-n">255</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --test tests_clause.low
   [PASS] clamp_keeps_small
   [PASS] clamp_saturates
@@ -760,12 +760,12 @@ unused.low:4:0 E-OPT-UNUSED: this build option is declared and NO code reads it 
 <strong><span class="tok-k">fn</span></strong> clamp8 <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> narrow_wrap <strong><span class="tok-t">u8</span></strong> v .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">test</span></strong> clamp_saturates
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">expect</span></strong> eq (clamp8 <span class="tok-n">1000</span>) <span class="tok-n">255</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --test failing.low
   [FAIL] clamp_saturates
          E-TEST-FAIL: an `expect` in this test is FALSE — the test failed (this is not a contract violation: it is the test telling you the code is wrong)
@@ -776,7 +776,7 @@ unused.low:4:0 E-OPT-UNUSED: this build option is declared and NO code reads it 
 
 <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   too_short .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> first_two
   <em><span class="tok-c">rem lowdoc — 사람이 읽는 설명. 도구가 문서로 뽑는다</span></em>
@@ -789,23 +789,23 @@ unused.low:4:0 E-OPT-UNUSED: this build option is declared and NO code reads it 
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> ge (len data) <span class="tok-n">2</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_short .
   <strong><span class="tok-k">return</span></strong> ok (add (widen <strong><span class="tok-t">u64</span></strong> (index data <span class="tok-n">0</span>)) (widen <strong><span class="tok-t">u64</span></strong> (index data <span class="tok-n">1</span>))) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> first_two_ok <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> parse_error <strong><span class="tok-k">be</span></strong> first_two <span class="tok-s">"</span><span class="tok-s">AB</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> is_ok r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> first_two_short <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> parse_error <strong><span class="tok-k">be</span></strong> first_two <span class="tok-s">"</span><span class="tok-s">A</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> is_error r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem test 블록이 시험 op 들을 부른다 — lowentc --test 가 돌린다</span></em>
 <strong><span class="tok-k">test</span></strong> first_two_cases <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">expect</span></strong> first_two_ok .
   <strong><span class="tok-k">expect</span></strong> first_two_short .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run first_two clauses.low [65,66]
 first_two([65,66]) = ok 131
   arg0 (written) = [65,66]
@@ -827,14 +827,14 @@ build <strong><span class="tok-k">option</span></strong> maxcpu int default <spa
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> config smp . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> config hz .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> cpus <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> config maxcpu .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check --config typo.config mistake_configtypo.low
 0:0 E-CONFIG-UNDEF: the config selects an option that is not declared. A setting nobody reads changes nothing — and it LOOKS like it does
 </code></pre></div></div><p><code>maxcpus 8</code> 은 아무도 읽지 않는 설정이다. 조용히 넘기면 <code>maxcpu</code> 는 기본값 64 로 남고, 쓰는 사람은 8 로 지었다고 믿는다. 그래서 <code>E-CONFIG-UNDEF</code> 로 멈춘다. 진단의 줄 번호가 <code>0:0</code> 인 것은 잘못이 소스가 아니라 구성 파일에 있기 때문이다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>choice</code> 손잡이에 선택지에 없는 값을 준다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/mistake_configvalue.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_configvalue .
@@ -851,14 +851,14 @@ build <strong><span class="tok-k">option</span></strong> maxcpu int default <spa
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> config smp . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> config hz .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> cpus <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> config maxcpu .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check --config badvalue.config mistake_configvalue.low
 8:0 E-CONFIG-TYPE: the config picks a value this `choice` option does not offer
 </code></pre></div></div><p><code>hz</code> 는 100 · 250 · 1000 가운데 하나다. 300 을 주면 가장 가까운 값으로 맞추거나 기본값으로 돌아가지 않고 <code>E-CONFIG-TYPE</code> 으로 멈춘다. 선택지는 그 값들로 시험되었다는 뜻이기도 하다. 새 값이 필요하면 소스의 선언에 선택지를 더한다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>권한을 받는 op 은 <code>--run</code> 으로 못 부른다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch31/runcap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> runcap .
@@ -870,7 +870,7 @@ build <strong><span class="tok-k">option</span></strong> maxcpu int default <spa
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> write_out out <span class="tok-n">1</span> <span class="tok-s">"</span><span class="tok-s">hi</span><span class="tok-n">\n</span><span class="tok-s">"</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run say runcap.low 5
 hi
 say(5) = 3
@@ -888,12 +888,12 @@ build <strong><span class="tok-k">option</span></strong> smp <strong><span class
   <strong><span class="tok-k">if</span></strong> config smp . <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem 이 구성에서는 꺼진 가지다 --- 그래도 검사받는다</span></em>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check --config smp_off.config dead_branch.low
 dead_branch.low:11:0 E-TYPE-RETURN: the returned value does not match the op's `output` — expected `u64`, found `bool`
-</code></pre></div></div><p><code>smp</code> 를 끈 구성에서는 <code>return true .</code> 가 결코 돌지 않는다. 그래도 <code>u64</code> 자리에 <code>bool</code> 을 돌려주는 이 줄은 <code>E-TYPE-RETURN</code> 으로 거절된다. C 의 <code>#ifdef</code> 안 코드는 켜지지 않은 조합에서 아무에게도 읽히지 않지만, <code>config</code> 의 꺼진 가지는 파싱되고 타입 검사를 받는다. 값이 정해진 뒤 생성물에서 빠질 뿐이다. 그래서 어떤 구성으로 지어도 나머지 조합이 썩지 않는다.</p></div></div><h3 id="s31-8">31.8 이 장의 문법 한눈에<a class="plink" href="#s31-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>package name "greeter" .</code> · <code>package version "0.1.0" .</code></td><td><code>pkg.low</code> 매니페스트</td><td>여기만은 적은 것을 검사한다 — 열쇠말은 닫힌 집합</td></tr><tr><td><code>lowentc run</code> · <code>lowentc build</code></td><td>프로젝트를 VM 으로 돌린다 · <code>out/</code> 에 짓는다</td><td>매니페스트를 걸어 올라가며 찾는다</td></tr><tr><td><code>lowentc add &lt;이름> &lt;자리></code> · <code>--lock-write</code> · <code>--lock</code></td><td>의존을 해시와 함께 고정한다</td><td>판 번호가 같아도 바이트가 다르면 다른 의존</td></tr><tr><td><code>build option smp bool default true .</code></td><td>빌드 손잡이 — <code>bool</code>·<code>int</code>·<code>choice</code></td><td>읽히지 않는 손잡이는 <code>E-OPT-UNUSED</code></td></tr><tr><td><code>config smp</code> · <code>--config small.config</code></td><td>손잡이 값을 번역 시점 상수로 읽는다 · 구성 파일</td><td>꺼진 가지도 검사받는다</td></tr><tr><td><code>test &lt;이름> do expect &lt;조건> . end .</code> · <code>--test</code></td><td>시험 블록과 단언</td><td>실패는 <code>E-TEST-FAIL</code> — 계약 위반과 다른 진단</td></tr><tr><td><code>test … schedule explore_interleavings limit &lt;수> do … end .</code></td><td>모든 차례를 돌리는 시험</td><td>드문 차례의 결함</td></tr><tr><td><code>lowentc --run &lt;op> &lt;파일> &lt;인자…></code></td><td>op 하나를 VM 으로 돌린다</td><td>권한 자리에는 자리표 <code>0</code></td></tr><tr><td><code>--why-slow</code> · <code>--no-fast</code></td><td>느린 길에 남은 op 과 이유 · 모두 느린 길로</td><td>성능을 도구가 말한다</td></tr><tr><td><code>lowdoc "…" .</code> · <code>tests op1 op2 .</code></td><td>op 에 딸린 문서 · 이 op 을 시험하는 op 이름</td><td>문서는 op 과 함께 움직이고, 없어진 시험은 머리가 알린다</td></tr></table></div><p class="float-caption">표 31.2 — 빌드와 시험의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>pkg.low</code> 는 검사되는 매니페스트이고 <code>lowentc run</code>·<code>build</code> 가 프로젝트를 돌리고 짓는다. 의존은 내용 해시로 고정하고 진본은 서명으로 따로 확인한다. <code>build option</code> 과 <code>config</code> 는 빌드마다 다른 프로그램을 짓되 꺼진 가지도 검사받으며, 읽히지 않는 손잡이는 거절된다. <code>test</code> 블록의 실패는 계약 위반과 다른 진단이다. 컴파일러는 두 백엔드·계약·분석·증명서·한 줄 바꾸기로 맞대어 검증되고, <code>--why-slow</code> 는 느린 자리를 말한다.</div></div>
+</code></pre></div></div><p><code>smp</code> 를 끈 구성에서는 <code>return true .</code> 가 결코 돌지 않는다. 그래도 <code>u64</code> 자리에 <code>bool</code> 을 돌려주는 이 줄은 <code>E-TYPE-RETURN</code> 으로 거절된다. C 의 <code>#ifdef</code> 안 코드는 켜지지 않은 조합에서 아무에게도 읽히지 않지만, <code>config</code> 의 꺼진 가지는 파싱되고 타입 검사를 받는다. 값이 정해진 뒤 생성물에서 빠질 뿐이다. 그래서 어떤 구성으로 지어도 나머지 조합이 썩지 않는다.</p></div></div><h3 id="s31-8">31.8 이 장의 문법 한눈에<a class="plink" href="#s31-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>package name "greeter" .</code> · <code>package version "0.1.0" .</code></td><td><code>pkg.low</code> 매니페스트</td><td>여기만은 적은 것을 검사한다 — 열쇠말은 닫힌 집합</td></tr><tr><td><code>lowentc run</code> · <code>lowentc build</code></td><td>프로젝트를 VM 으로 돌린다 · <code>out/</code> 에 짓는다</td><td>매니페스트를 걸어 올라가며 찾는다</td></tr><tr><td><code>lowentc add &lt;이름> &lt;자리></code> · <code>--lock-write</code> · <code>--lock</code></td><td>의존을 해시와 함께 고정한다</td><td>판 번호가 같아도 바이트가 다르면 다른 의존</td></tr><tr><td><code>build option smp bool default true .</code></td><td>빌드 손잡이 — <code>bool</code>·<code>int</code>·<code>choice</code></td><td>읽히지 않는 손잡이는 <code>E-OPT-UNUSED</code></td></tr><tr><td><code>config smp</code> · <code>--config small.config</code></td><td>손잡이 값을 번역 시점 상수로 읽는다 · 구성 파일</td><td>꺼진 가지도 검사받는다</td></tr><tr><td><code>test &lt;이름> do expect &lt;조건> . end</code> · <code>--test</code></td><td>시험 블록과 단언</td><td>실패는 <code>E-TEST-FAIL</code> — 계약 위반과 다른 진단</td></tr><tr><td><code>test … schedule explore_interleavings limit &lt;수> do … end</code></td><td>모든 차례를 돌리는 시험</td><td>드문 차례의 결함</td></tr><tr><td><code>lowentc --run &lt;op> &lt;파일> &lt;인자…></code></td><td>op 하나를 VM 으로 돌린다</td><td>권한 자리에는 자리표 <code>0</code></td></tr><tr><td><code>--why-slow</code> · <code>--no-fast</code></td><td>느린 길에 남은 op 과 이유 · 모두 느린 길로</td><td>성능을 도구가 말한다</td></tr><tr><td><code>lowdoc "…" .</code> · <code>tests op1 op2 .</code></td><td>op 에 딸린 문서 · 이 op 을 시험하는 op 이름</td><td>문서는 op 과 함께 움직이고, 없어진 시험은 머리가 알린다</td></tr></table></div><p class="float-caption">표 31.2 — 빌드와 시험의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>pkg.low</code> 는 검사되는 매니페스트이고 <code>lowentc run</code>·<code>build</code> 가 프로젝트를 돌리고 짓는다. 의존은 내용 해시로 고정하고 진본은 서명으로 따로 확인한다. <code>build option</code> 과 <code>config</code> 는 빌드마다 다른 프로그램을 짓되 꺼진 가지도 검사받으며, 읽히지 않는 손잡이는 거절된다. <code>test</code> 블록의 실패는 계약 위반과 다른 진단이다. 컴파일러는 두 백엔드·계약·분석·증명서·한 줄 바꾸기로 맞대어 검증되고, <code>--why-slow</code> 는 느린 자리를 말한다.</div></div>
 <div class="nav"><a href="ch30.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch32.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

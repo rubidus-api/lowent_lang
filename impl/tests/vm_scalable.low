@@ -27,7 +27,7 @@ proc dbl input a bytes . input out mut slice u8 . output u64 . effects none . do
   var r vec u8 scalable . be mul v two .
   store out 0 r .
   return 0 .
-end .
+end
 
 rem 같은 방식, u32 원소 — 같은 simd_bytes 에서 폭이 4 로 선다(16/4).
 proc tri input a bytes . input out mut slice u8 . output u64 . effects none . do
@@ -37,4 +37,4 @@ proc tri input a bytes . input out mut slice u8 . output u64 . effects none . do
   var r vec u32 scalable . be mul v three .
   store out 0 r .
   return 0 .
-end .
+end

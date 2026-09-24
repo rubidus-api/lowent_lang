@@ -10,9 +10,9 @@ fn area input w meters . input h meters . output u64 .
   requires le h 1000000 .
 do
   return mul w h .
-end .
+end
 
 fn half_percent input p pct . output u8 .
 do
   return narrow u8 (div p 2) .
-end .
+end

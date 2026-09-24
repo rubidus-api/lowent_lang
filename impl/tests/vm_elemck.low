@@ -19,7 +19,7 @@ export proc lookup input s slice u8 . . input t slice u64 . . input i u64 . .
   requires lt i (len s) . requires ge (len t) 201 .
 do
   return (index t (index s i)) .
-end .
+end
 
 export proc run input al cap allocator . output u64 . effects alloc . do
   let ms option mut slice u8 . . be alloc_bytes al capacity 4 .
@@ -31,9 +31,9 @@ export proc run input al cap allocator . output u64 . effects alloc . do
   set (index a 0) 3 .
   set (index b 3) 42 .
   return (lookup a b 0) .
-end .
+end
 
 export proc main input al cap allocator . output u8 . effects alloc . do
   guard eq (run al) 42 . else return 1 .
   return 0 .
-end .
+end

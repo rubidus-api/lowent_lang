@@ -9,17 +9,17 @@ newtype gb u8 .
 struct handle do
   input comptime b type .
   w u64 .
-end .
+end
 
 fn resolve input comptime b type . input gen slice u64 . input h handle b . output option u64 . do
   guard lt (field h w) (len gen) . else return none .
   return some (field h w) .
-end .
+end
 
 export fn mix input gen slice u64 . output u64 . do
-  let ha handle ga . be make handle ga do w 0 . end .
+  let ha handle ga . be make handle ga do w 0 . end
   rem ★ A 의 손잡이를 **B** 에 묻는다 — 여기서 거절되어야 한다.
   let r option u64 . be resolve gb gen ha .
-  if is_some r . do return 1 . end .
+  if is_some r . do return 1 . end
   return 0 .
-end .
+end

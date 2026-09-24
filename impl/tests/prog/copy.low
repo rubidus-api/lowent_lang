@@ -48,17 +48,17 @@ do
   while going . do
     rem ★ 세 자리다(2026-08-15): 실패는 `error`, **끝은 `ok none`** — 둘을 갈라 다룬다.
     let n result (option u64) files.file_error . be files.read fs rh buf .
-    if eq (is_ok n) false . do set going false . end .
+    if eq (is_ok n) false . do set going false . end
     if is_ok n . do
       let v option u64 . be ok_value n .
-      if eq (is_some v) false . do set going false . end .
+      if eq (is_some v) false . do set going false . end
       if is_some v . do
         let w result u64 files.file_error . be files.write fs wh (subslice buf 0 (some_value v)) .
-        if eq (is_ok w) false . do set going false . end .
+        if eq (is_ok w) false . do set going false . end
         set total (add total (some_value v)) .
-      end .
-    end .
-  end .
+      end
+    end
+  end
 
   rem ★★★ 둘 다 닫는다. 하나라도 빼면 **컴파일이 안 된다**.
   let c1 result void files.file_error . be files.close fs rh .
@@ -66,4 +66,4 @@ do
   guard is_ok c1 . else return 73 .
   guard is_ok c2 . else return 74 .
   return (narrow u8 (mod total 251)) .
-end .
+end

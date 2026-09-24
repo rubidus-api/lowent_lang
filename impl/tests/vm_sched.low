@@ -16,10 +16,10 @@ rem   ★ `schedule` 문 자체는 VM≡네이티브(FIFO) — 차등 스윕이 
 module vm_sched .
 
 actor counter do
-  state do v u64 . end .
-  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
-  fn get output u64 . do return v . end .
-end .
+  state do v u64 . end
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end
+  fn get output u64 . do return v . end
+end
 
 rem 순서 무관: inc 는 교환법칙 → 어떤 배달 순서든 get=2. 오라클이 4 interleaving 전부에서 확인한다.
 test counter_order_independent schedule explore_interleavings do
@@ -28,7 +28,7 @@ test counter_order_independent schedule explore_interleavings do
   spawn send c inc .
   schedule .
   expect eq (send c get) 2 .
-end .
+end
 
 rem 두 actor 로 교차 배달 — 각자 독립이므로 어떤 interleaving 이든 a=1, b=1. 교차 순서가 진짜로 바뀌어도 불변.
 test two_actors_independent schedule explore_interleavings do
@@ -40,7 +40,7 @@ test two_actors_independent schedule explore_interleavings do
   schedule .
   expect eq (send a get) 2 .
   expect eq (send b get) 1 .
-end .
+end
 
 rem `schedule` 문 자체 — 전역 quiescence 배달(FIFO). 셋을 넣고 비우면 get=3. VM≡네이티브(차등 스윕).
 proc run_sched output u64 . effects state . do
@@ -50,4 +50,4 @@ proc run_sched output u64 . effects state . do
   spawn send c inc .
   schedule .
   return send c get .
-end .
+end

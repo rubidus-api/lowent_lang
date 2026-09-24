@@ -4,4 +4,4 @@ rem expect: E-TYPE-SIGN
 rem ko: u8 과 i8 을 둘 다 담는 타입은 i16 이다. 처리기는 그 넓히기를 대신 고르지 않는다 /// en: the type holding both u8 and i8 is i16. The processor does not pick that widening for you
 fn mix input a u8 . input b i8 . output i16 . do
   return add a b .
-end .
+end

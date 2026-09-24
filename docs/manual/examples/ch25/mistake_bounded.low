@@ -4,18 +4,18 @@ rem trap: burst
 actor counter do
   state do
     value u64 .
-  end .
+  end
   mailbox bounded 2 .
   proc inc output u64 . effects state .
   do
     set value (add value 1) .
     return value .
-  end .
+  end
   fn get output u64 .
   do
     return value .
-  end .
-end .
+  end
+end
 
 proc burst output u64 . effects state .
 do
@@ -26,4 +26,4 @@ do
   spawn send c inc .
   drain c .
   return send c get .
-end .
+end

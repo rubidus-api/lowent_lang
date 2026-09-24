@@ -12,4 +12,4 @@ do
   let old u64 be atomic_swap cells 0 7 order acq_rel .
   atomic_store cells 0 (add old 10) order release .
   return narrow u8 (atomic_load cells 0 order acquire) .
-end .
+end

@@ -12,22 +12,22 @@ rem   전부 동시에 막혀 끝난 자리가 없다) — **오직 성장만이
 module vm_conc_grow .
 
 actor counter do
-  state do v u64 . end .
-  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
-  fn get output u64 . do return v . end .
-end .
+  state do v u64 . end
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end
+  fn get output u64 . do return v . end
+end
 
 rem 소비자: 하나 받고 **카운터를 올린다**(완료를 셀 수 있게). 받기 전까지 chrecv 로 막힌다.
 proc cons input c u64 . input k counter . output u64 . effects state concurrent . do
   var x u64 be chrecv c .
   spawn send k inc .
   return x .
-end .
+end
 
 rem 생산자: 하나 보낸다.
 proc prod input c u64 . output u64 . effects concurrent . do
   return chsend c 1 .
-end .
+end
 
 rem ★ 소비자 40 을 **먼저 전부** spawn → 전부 동시에 막힌다(>16, 재활용 불가) → 생산자 40.
 rem   상한이 있으면 여기서 거절/데드락한다. 성장하면 40 이 다 돌고 카운터 = 40.
@@ -39,12 +39,12 @@ proc grew output u64 . effects state . do
     while lt i 40 . do
       var h u64 be spawn cons c k .
       set i (add i 1) .
-    end .
+    end
     var j u64 be 0 .
     while lt j 40 . do
       var p u64 be spawn prod c .
       set j (add j 1) .
-    end .
-  end .
+    end
+  end
   return send k get .
-end .
+end

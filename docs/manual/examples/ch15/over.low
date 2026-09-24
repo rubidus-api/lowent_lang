@@ -5,4 +5,4 @@ proc double input x u64 . output u64 . effects panic .
   requires le x 1000 .
 do
   return mul x 2 .
-end .
+end

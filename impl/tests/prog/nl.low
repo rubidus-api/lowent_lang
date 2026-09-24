@@ -47,7 +47,7 @@ do
   var going bool be true .
   while going . do
     let l option slice u8 . be send r take_line 65536 .
-    if eq (is_some l) false . do set going false . end .
+    if eq (is_some l) false . do set going false . end
     if is_some l . do
       set n (add n 1) .
       let a option u64 . be fmt.put_u64 dst pos n .
@@ -59,8 +59,8 @@ do
       let d option u64 . be fmt.put_nl dst (some_value c) .
       guard is_some d . else return none .
       set pos (some_value d) .
-    end .
-  end .
+    end
+  end
   rem 개행 없이 끝난 마지막 조각도 한 줄이다.
   let rest u64 be send r remaining .
   if gt rest 0 . do
@@ -77,9 +77,9 @@ do
     let d option u64 . be fmt.put_nl dst (some_value c) .
     guard is_some d . else return none .
     set pos (some_value d) .
-  end .
+  end
   return (some pos) .
-end .
+end
 
 proc main .
   input out cap io .
@@ -104,4 +104,4 @@ do
   rem ③ **한 번 비운다.** 줄마다 불렀다면 줄마다 flush 였다.
   let put u64 be write_out out 1 (subslice outbuf 0 (some_value w)) .
   return 0 .
-end .
+end

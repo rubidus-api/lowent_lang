@@ -9,9 +9,9 @@ do
   while le i n . do
     set acc mul acc i .
     set i expr i + 1 . .
-  end .
+  end
   return acc .
-end .
+end
 
 fn fib .
   input n u64 .
@@ -19,6 +19,6 @@ fn fib .
 do
   if lt n 2 . do
     return n .
-  end .
+  end
   return expr (fib (expr n - 1 .)) + (fib (expr n - 2 .)) . .
-end .
+end

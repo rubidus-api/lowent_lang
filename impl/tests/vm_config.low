@@ -21,17 +21,17 @@ rem --- 꺼진 옵션의 가지는 **코드에 없다**(비용 0). 그런데 **�
 fn tick_rate output u64 . do
     if config smp . do
         return config hz .
-    end .
+    end
     return 100 .
-end .
+end
 
 fn cpus output u64 . do
     return config maxcpu .
-end .
+end
 
 fn traced output u64 . do
     if config trace . do
         return 1 .
-    end .
+    end
     return 0 .
-end .
+end

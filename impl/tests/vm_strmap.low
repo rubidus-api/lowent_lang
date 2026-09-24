@@ -19,7 +19,7 @@ proc sm_check input slots mut slice u64 . . input keys mut slice u8 . . output u
   while lt i (len slots) . do
     set (index slots i) 0 .
     set i (add i 1) .
-  end .
+  end
   guard eq (strmap.put slots keys "apple" 1) true . else return 0 .
   guard eq (strmap.put slots keys "banana" 2) true . else return 0 .
   guard eq (strmap.put slots keys "cherry" 3) true . else return 0 .
@@ -38,7 +38,7 @@ proc sm_check input slots mut slice u64 . . input keys mut slice u8 . . output u
   let d option u64 . be strmap.lookup slots keys "grape" .
   guard eq (is_some d) false . else return 0 .
   return 1 .
-end .
+end
 
 rem ★ 접두사가 겹치는 키를 구별하는가 — "ab" 와 "abc" 는 **다른 키**다(길이 비교가 먼저).
 proc sm_prefix input slots mut slice u64 . . input keys mut slice u8 . . output u64 . effects none . do
@@ -46,7 +46,7 @@ proc sm_prefix input slots mut slice u64 . . input keys mut slice u8 . . output 
   while lt i (len slots) . do
     set (index slots i) 0 .
     set i (add i 1) .
-  end .
+  end
   guard eq (strmap.put slots keys "ab" 10) true . else return 0 .
   guard eq (strmap.put slots keys "abc" 20) true . else return 0 .
   let a option u64 . be strmap.lookup slots keys "ab" .
@@ -56,7 +56,7 @@ proc sm_prefix input slots mut slice u64 . . input keys mut slice u8 . . output 
   guard is_some b . else return 0 .
   guard eq (some_value b) 20 . else return 0 .
   return 1 .
-end .
+end
 
 rem ── ★★★ **순회** — 맵을 열거해 집계한다. apple→1·banana→2·cherry→3 을 넣고 순회한다.
 rem   occupancy 는 keylen>0 으로 판별한다(none 없이). 누산 변수는 `total`(빌트인 `sum` 과 겹치지 않게).
@@ -67,7 +67,7 @@ proc sm_sum_vals input slots mut slice u64 . . input keys mut slice u8 . . outpu
   while lt i (len slots) . do
     set (index slots i) 0 .
     set i (add i 1) .
-  end .
+  end
   guard eq (strmap.put slots keys "apple" 1) true . else return 999 .
   guard eq (strmap.put slots keys "banana" 2) true . else return 999 .
   guard eq (strmap.put slots keys "cherry" 3) true . else return 999 .
@@ -76,11 +76,11 @@ proc sm_sum_vals input slots mut slice u64 . . input keys mut slice u8 . . outpu
   while lt slot (strmap.size slots) . do
     if gt (strmap.keylen_at slots slot) 0 . do
       set total (add total (strmap.val_at slots slot)) .
-    end .
+    end
     set slot (add slot 1) .
-  end .
+  end
   return total .
-end .
+end
 
 rem 최대 값 → 3 ("가장 흔한 것"). 순회로 집계하는 실제 쓰임.
 proc sm_maxval input slots mut slice u64 . . input keys mut slice u8 . . output u64 . effects none . do
@@ -88,7 +88,7 @@ proc sm_maxval input slots mut slice u64 . . input keys mut slice u8 . . output 
   while lt i (len slots) . do
     set (index slots i) 0 .
     set i (add i 1) .
-  end .
+  end
   guard eq (strmap.put slots keys "apple" 1) true . else return 999 .
   guard eq (strmap.put slots keys "banana" 2) true . else return 999 .
   guard eq (strmap.put slots keys "cherry" 3) true . else return 999 .
@@ -97,12 +97,12 @@ proc sm_maxval input slots mut slice u64 . . input keys mut slice u8 . . output 
   while lt slot (strmap.size slots) . do
     if gt (strmap.keylen_at slots slot) 0 . do
       let v u64 be strmap.val_at slots slot .
-      if gt v mx . do set mx v . end .
-    end .
+      if gt v mx . do set mx v . end
+    end
     set slot (add slot 1) .
-  end .
+  end
   return mx .
-end .
+end
 
 rem 각 키의 **첫 바이트** 합 → 'a'+'b'+'c' = 97+98+99 = 294. keyoff/keylen 로 **키를 읽는다** 는 증명.
 proc sm_keysum input slots mut slice u64 . . input keys mut slice u8 . . output u64 . effects none . do
@@ -110,7 +110,7 @@ proc sm_keysum input slots mut slice u64 . . input keys mut slice u8 . . output 
   while lt i (len slots) . do
     set (index slots i) 0 .
     set i (add i 1) .
-  end .
+  end
   guard eq (strmap.put slots keys "apple" 1) true . else return 999 .
   guard eq (strmap.put slots keys "banana" 2) true . else return 999 .
   guard eq (strmap.put slots keys "cherry" 3) true . else return 999 .
@@ -121,11 +121,11 @@ proc sm_keysum input slots mut slice u64 . . input keys mut slice u8 . . output 
     if gt kl 0 . do
       let ko u64 be strmap.keyoff_at slots slot .
       set total (add total (index keys ko)) .
-    end .
+    end
     set slot (add slot 1) .
-  end .
+  end
   return total .
-end .
+end
 
 rem ── ★★★ **삭제(tombstone) 자기검증** → 1/0. 세 문자열을 넣고 · 하나 지우고 · 지운 건 none 인데
 rem   나머지는 여전히 찾히는가(프로브 체인 보존) · 없는 키 삭제는 false · 재삽입은 묘비 재사용 ·
@@ -135,7 +135,7 @@ proc sm_del_check input slots mut slice u64 . . input keys mut slice u8 . . outp
   while lt i (len slots) . do
     set (index slots i) 0 .
     set i (add i 1) .
-  end .
+  end
   guard eq (strmap.put slots keys "apple" 1) true . else return 0 .
   guard eq (strmap.put slots keys "banana" 2) true . else return 0 .
   guard eq (strmap.put slots keys "cherry" 3) true . else return 0 .
@@ -165,12 +165,12 @@ proc sm_del_check input slots mut slice u64 . . input keys mut slice u8 . . outp
   while lt slot (strmap.size slots) . do
     if strmap.occupied_at slots slot . do
       set cnt (add cnt 1) .
-    end .
+    end
     set slot (add slot 1) .
-  end .
+  end
   guard eq cnt 3 . else return 0 .
   return 1 .
-end .
+end
 
 rem ── ★★★ **성장(rehash) 자기검증** → 1/0. 2 슬롯짜리 os 를 꽉 채우고(셋째 키 false) · 큰 ns/na 로
 rem   rehash 하고(키 바이트가 na 로 새로 복사) · 이제 셋째 키가 들어가고 · 옛 키가 다 살아 있는가.
@@ -180,12 +180,12 @@ proc sm_rehash_check input os mut slice u64 . . input oa mut slice u8 . . input 
   while lt i (len os) . do
     set (index os i) 0 .
     set i (add i 1) .
-  end .
+  end
   var j u64 be 0 .
   while lt j (len ns) . do
     set (index ns j) 0 .
     set j (add j 1) .
-  end .
+  end
   guard eq (strmap.size os) 2 . else return 0 .           rem os = 정확히 2 슬롯
   guard ge (strmap.size ns) 4 . else return 0 .
   guard eq (strmap.put os oa "apple" 1) true . else return 0 .
@@ -212,12 +212,12 @@ proc sm_rehash_check input os mut slice u64 . . input oa mut slice u8 . . input 
   while lt slot (strmap.size ns) . do
     if strmap.occupied_at ns slot . do
       set cnt (add cnt 1) .
-    end .
+    end
     set slot (add slot 1) .
-  end .
+  end
   guard eq cnt 3 . else return 0 .
   return 1 .
-end .
+end
 
 rem 임의 키(퍼저가 준다)를 넣고 꺼낸다 → 값. diff-sweep 이 임의 버퍼·키에서 VM≡native 를 지킨다.
 proc sm_roundtrip input slots mut slice u64 . . input keys mut slice u8 . . input k slice u8 . input v u64 .
@@ -227,10 +227,10 @@ do
   while lt i (len slots) . do
     set (index slots i) 0 .
     set i (add i 1) .
-  end .
+  end
   let ok_put bool be strmap.put slots keys k v .
   guard eq ok_put true . else return 4000000001 .
   let g option u64 . be strmap.lookup slots keys k .
   guard is_some g . else return 4000000002 .
   return some_value g .
-end .
+end

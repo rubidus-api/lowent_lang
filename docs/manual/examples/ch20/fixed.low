@@ -11,4 +11,4 @@ do
   let b option mut slice u8 be send fb reserve 64 .
   guard is_some b . else return 2 .
   return narrow u8 (send fb used) .
-end .
+end

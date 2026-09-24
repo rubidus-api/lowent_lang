@@ -670,7 +670,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">fn</span></strong> same_width <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check order_strict.low
 order_strict.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)
 </code></pre></div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch40/order_ok.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> order_ok .
@@ -679,7 +679,7 @@ order_strict.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening ex
 <strong><span class="tok-k">fn</span></strong> wider <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i16</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> a .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run wider order_ok.low 200
 wider(200) = 200
 </code></pre></div></div><p><code>NumericLattice.v</code> 가 이 관계에 대해 증명한 것들이다.</p><ul><li><strong>값을 보존한다</strong>(<code>sub_preserves</code>). <code>t ⊑ u</code> 이고 <code>v</code> 가 <code>t</code> 의 범위에 있으면 <code>u</code> 의 범위에도 있다. 넓히기에 실행 중 검사가 없는 근거다.</li><li><strong>부분 순서다</strong>(<code>sub_refl</code>·<code>sub_trans</code>·<code>sub_antisym</code>). 추이성이 깨지면 <code>u8 → u16</code> 과 <code>u16 → u32</code> 는 되는데 <code>u8 → u32</code> 는 안 되는 언어가 된다. 표를 손으로 관리하면 실제로 그런 구멍이 생긴다.</li><li><strong>join 은 둘 다를 담고, 둘 가운데 하나다</strong>(<code>join_sound</code>·<code>join_is_an_operand</code>). 두 값을 한 연산에 넣을 때 고르는 타입은 두 값을 모두 담고, 소스에 없는 제3의 타입을 지어내지 않는다(39장의 <code>u8 ⊔ u16 = u16</code>).</li><li><strong>좁히기의 조건은 정확히 하나다</strong>(<code>narrow_ok_iff</code>). <code>narrow_try u8 300</code> 이 조용히 성공해 44 를 주는 일이 없다.</li></ul><div class="dev mathbox"><p class="dev-label">수학. 넓히기가 값을 보존한다는 증명의 뼈대</p><div class="dev-body">경우를 넷으로 나눈다. <code>uN ⊑ uM</code>(N ≤ M)이면 두 아래 끝이 모두 0 이고, 위 끝은 2<sup>N</sup> − 1 ≤ 2<sup>M</sup> − 1 이다 — 2 의 거듭제곱이 단조라는 사실만 쓴다. <code>uN ⊑ iM</code>(N &lt; M)이면 N ≤ M − 1 이므로 2<sup>N</sup> − 1 ≤ 2<sup>M−1</sup> − 1 이다. 부호 있음끼리도 같고, <code>iN ⊑ uM</code> 은 정의상 거짓이라 할 일이 없다. 핵심 보조정리는 “a ≤ b 이면 2<sup>a</sup> ≤ 2<sup>b</sup>” 하나다. 증명 전체가 고등학교 지수법칙 위에 서 있다. 어려운 것은 논증이 아니라 <strong>경우를 하나도 빠뜨리지 않는 것</strong>이고, 그것이 기계에게 맡기는 이유다.</div></div><h3 id="s40-2">40.2 나눗셈과 나머지<a class="plink" href="#s40-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>나눗셈은 이 언어가 유별나게 조심하는 자리다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch40/division.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> division .
@@ -690,12 +690,12 @@ wider(200) = 200
 
 <strong><span class="tok-k">fn</span></strong> quot <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> div a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem mod 의 부호는 나누는 수를 따른다</span></em>
 <strong><span class="tok-k">fn</span></strong> rest <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mod a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run quot division.low -7 2
 quot(-7, 2) = -3
 $ lowentc --run rest division.low -7 3
@@ -713,7 +713,7 @@ $ lowentc --run quot division.low -128 -1
   <strong><span class="tok-k">requires</span></strong> gt (len table) <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> index table (mod h (len table)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run pick modslot.low [5,6,7,8] 1000003
 pick([5,6,7,8], 1000003) = 8
   arg0 (written) = [5,6,7,8]

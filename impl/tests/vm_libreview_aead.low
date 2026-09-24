@@ -24,7 +24,7 @@ proc t_gcm_taglen input key slice u8 . input nonce slice u8 . input aad slice u8
   guard is_ok _u10 . else return 92 .
   guard eq (ok_value _u10) 0 . else return 92 .
   var i u64 be 0 .
-  while lt i 16 . do  set (index t17 i) (index tag i) .  set i (add i 1) .  end .
+  while lt i 16 . do  set (index t17 i) (index tag i) .  set i (add i 1) .  end
   let _u11 result u64 gcm.gcm_error . be gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice t17 0 17) out want w .
   guard is_ok _u11 . else return 93 .
   guard eq (ok_value _u11) 0 . else return 93 .
@@ -33,7 +33,7 @@ proc t_gcm_taglen input key slice u8 . input nonce slice u8 . input aad slice u8
   guard eq (ok_value _u12) 1 . else return 94 .
   guard eq (index out 0) (index msg 0) . else return 95 .
   return 1 .
-end .
+end
 
 rem ★ gcm: 태그가 틀리면 `msg` 에 **한 바이트도 쓰지 않는다** — 전엔 평문이 먼저 쓰이고 0 이 돌아왔다.
 proc t_gcm_rup input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
@@ -45,7 +45,7 @@ proc t_gcm_rup input key slice u8 . input nonce slice u8 . input aad slice u8 . 
   guard eq (ok_value _u7) 16 . else return 91 .
   set (index tag 0) (cast u8 (bit_xor (cast u64 (index tag 0)) 1)) .
   var i u64 be 0 .
-  while lt i (len out) . do  set (index out i) 0 .  set i (add i 1) .  end .
+  while lt i (len out) . do  set (index out i) 0 .  set i (add i 1) .  end
   let _u8 result u64 gcm.gcm_error . be gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 16) out want w .
   guard is_ok _u8 . else return 92 .
   guard eq (ok_value _u8) 0 . else return 92 .
@@ -53,9 +53,9 @@ proc t_gcm_rup input key slice u8 . input nonce slice u8 . input aad slice u8 . 
   while lt j (len msg) . do
     guard eq (index out j) 0 . else return 93 .
     set j (add j 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★ aead: 17 바이트 태그(앞 16 이 맞아도)는 거절 · 16 은 개봉 — gcm 과 **같은 규칙**.
 proc t_aead_taglen input key slice u8 . input nonce slice u8 . input aad slice u8 . input msg slice u8 .
@@ -67,7 +67,7 @@ proc t_aead_taglen input key slice u8 . input nonce slice u8 . input aad slice u
   guard is_ok _u4 . else return 91 .
   guard eq (ok_value _u4) 16 . else return 91 .
   var i u64 be 0 .
-  while lt i 16 . do  set (index t17 i) (index tag i) .  set i (add i 1) .  end .
+  while lt i 16 . do  set (index t17 i) (index tag i) .  set i (add i 1) .  end
   let _u5 result u64 aead.aead_error . be aead.unseal key nonce aad (subslice ct 0 (len msg)) (subslice t17 0 17) outp otk pst st work ks pad want .
   guard is_ok _u5 . else return 92 .
   guard eq (ok_value _u5) 0 . else return 92 .
@@ -75,7 +75,7 @@ proc t_aead_taglen input key slice u8 . input nonce slice u8 . input aad slice u
   guard is_ok _u6 . else return 93 .
   guard eq (ok_value _u6) 1 . else return 93 .
   return 1 .
-end .
+end
 
 rem ★ aes: 키는 **정확히 16** — 32 는 거절(전엔 앞 16 으로 조용히 AES-128), 15 도 거절, 16 은 176.
 proc t_aes_keylen input key32 slice u8 . input rk mut slice u8 . output u64 . effects none . do
@@ -84,7 +84,7 @@ proc t_aes_keylen input key32 slice u8 . input rk mut slice u8 . output u64 . ef
   guard eq (aes.expand_key (subslice key32 0 15) rk) 0 . else return 92 .
   guard eq (aes.expand_key (subslice key32 0 16) rk) 176 . else return 93 .
   return 1 .
-end .
+end
 
 rem ★ chacha: 키 32 · nonce 12 **정확히** — 33/16 은 거절(전엔 앞부분만 쓰고 16 을 답했다).
 proc t_chacha_len input key33 slice u8 . input nonce16 slice u8 . input st mut slice u64 . output u64 . effects none . do
@@ -94,7 +94,7 @@ proc t_chacha_len input key33 slice u8 . input nonce16 slice u8 . input st mut s
   guard eq (chacha.prep (subslice key33 0 32) nonce16 1 st) 0 . else return 92 .
   guard eq (chacha.prep (subslice key33 0 32) (subslice nonce16 0 12) 1 st) 16 . else return 93 .
   return 1 .
-end .
+end
 
 rem ★ hmac: scratch 요구는 **한 수** max(64+len msg, 96) — 66 은 `out` 에 손대기 전에 거절,
 rem   96 은 32 를 답하고 그 값은 큰 scratch 로 낸 것과 같다. `extract` 도 같은 규칙.
@@ -102,7 +102,7 @@ proc t_hmac_scratch input key slice u8 . input msg slice u8 . input scratch mut 
   guard eq (len msg) 2 . else return 90 .
   guard ge (len scratch) 256 . else return 90 .
   var i u64 be 0 .
-  while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end .
+  while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end
   rem ★ X-0035 뒤로 «자리가 모자라다» 는 **0 이 아니라 실패**다 — 그것이 이 검사의 요점이다:
   rem   재지 못한 것과 재고 나서 «아니다» 하는 것이 이제 타입으로 갈린다.
   let _u0 result u64 hmac.hmac_error . be hmac.mac key msg (subslice scratch 0 66) out .
@@ -111,7 +111,7 @@ proc t_hmac_scratch input key slice u8 . input msg slice u8 . input scratch mut 
   while lt j 32 . do
     guard eq (index out j) 0 . else return 92 .
     set j (add j 1) .
-  end .
+  end
   let _u1 result u64 hmac.hmac_error . be hmac.mac key msg (subslice scratch 0 96) out .
   guard is_ok _u1 . else return 93 .
   guard eq (ok_value _u1) 32 . else return 93 .
@@ -122,8 +122,8 @@ proc t_hmac_scratch input key slice u8 . input msg slice u8 . input scratch mut 
   while lt k 32 . do
     guard eq (index out k) (index out2 k) . else return 95 .
     set k (add k 1) .
-  end .
+  end
   let _u3 result u64 hmac.hmac_error . be hmac.extract key msg (subslice scratch 0 66) out .
   guard is_error _u3 . else return 96 .
   return 1 .
-end .
+end

@@ -8,4 +8,4 @@ do
   let ho option u64 be budget.pack 40 16 16 7 1 0 .
   guard is_some ho . else return 0 .
   return some_value ho .
-end .
+end

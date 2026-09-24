@@ -15,7 +15,7 @@ fn scale input s slice u8 . output u8 .
 do
   let n u8 be cast u8 (len s) . .
   return mul n 60 .
-end .
+end
 
 rem 같은 뜻을 반대로 적은 것도 같이 문다.
 fn scale_mirror input s slice u8 . output u8 .
@@ -23,4 +23,4 @@ fn scale_mirror input s slice u8 . output u8 .
 do
   let n u8 be cast u8 (len s) . .
   return mul n 60 .
-end .
+end

@@ -31,7 +31,7 @@ proc build input dir mut slice u64 . . input cap0 u64 . output u64 . effects non
   guard eq (segarena.seg_of grid a 9) 2 . else return 98 .
   guard eq (segarena.slot_of grid a 9) 1 . else return 99 .
   return 1 .
-end .
+end
 
 rem ★★ 두 순회가 **같은 답**을 낸다 — 비용만 다르다.
 proc same_answer input dir mut slice u64 . . input mem slice u64 . . input cap0 u64 .
@@ -50,7 +50,7 @@ do
   guard eq s0 g0 . else return 93 .
   guard eq s1 g1 . else return 94 .
   return add s0 s1 .
-end .
+end
 
 rem 열지 않은 조각은 **없다고 답한다** — 트랩이 아니다.
 proc beyond input dir mut slice u64 . . input mem slice u64 . . input cap0 u64 .
@@ -65,4 +65,4 @@ do
   let w option u64 . be segarena.at grid3 a dir mem 3 .
   guard is_some w . else return 93 .
   return 2 .
-end .
+end

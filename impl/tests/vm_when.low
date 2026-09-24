@@ -5,7 +5,7 @@ module t .
 type bytes slice u8 . .
 enum e do
   small .
-end .
+end
 
 rem ① 정직하다 — guard 의 조건과 when 이 같은 식이다.
 rem    ★ 그래서 **술어 기억**이 그것을 증명하고 검사가 사라진다. 정직은 공짜다.
@@ -14,7 +14,7 @@ fn honest input data bytes . output result u8 e . .
 do
   guard ge len data . 4 . else return error small . . .
   return ok index data 0 . .
-end .
+end
 
 rem ② 거짓말이다 — "len < 2 일 때만 small" 이라 선언하고, 본문은 len < 9 일 때 낸다.
 rem    증명 실패 → 검사 유지 → 실제로 어기면 **errors 절이 거짓말했다**고 고발한다.
@@ -23,7 +23,7 @@ fn liar input data bytes . output result u8 e . .
 do
   guard ge len data . 9 . else return error small . . .
   return ok index data 0 . .
-end .
+end
 
 rem ③ ★★ 가장 미묘한 거짓말 — **같은 식, 반대 극성.**
 rem    선언: "len ≥ 4 일 때 small 을 낸다"   본문: len < 4 일 때 낸다.
@@ -42,4 +42,4 @@ fn inverted input data bytes . output result u8 e . .
 do
   guard ge len data . 4 . else return error small . . .
   return ok index data 0 . .
-end .
+end

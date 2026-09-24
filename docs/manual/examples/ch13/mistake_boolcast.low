@@ -5,4 +5,4 @@ fn flag input b bool . output u8 .
 do
   rem ko: ✘ 참이 1 인지는 언어가 아니라 프로그램이 정할 일이다 /// en: ✘ whether true is 1 is for the program to decide, not the language
   return cast u8 b .
-end .
+end

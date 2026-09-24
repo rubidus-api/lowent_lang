@@ -669,41 +669,41 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">trait</span></strong> shape <strong><span class="tok-k">do</span></strong>
   area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> square <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   side <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> rect.area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> square.area <strong><span class="tok-k">input</span></strong> s square . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s side) (field s side) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> double_area <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> s t . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> shape t .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul <span class="tok-n">2</span> (method s area) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> demo <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> q square <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> square <strong><span class="tok-k">do</span></strong> side <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> q square <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> square <strong><span class="tok-k">do</span></strong> side <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> add (double_area rect r) (double_area square q) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run demo why.low
 demo() = 44
 </code></pre></div></div><span id="idx-entry-53"></span><ul><li><code>trait shape do … end</code> is the promise “has <code>area</code>”. <code>self</code> in a signature is the type that will satisfy the promise.</li><li><code>rect</code> and <code>square</code> write <code>satisfies shape .</code> in their bodies, declaring they will satisfy it.</li><li><code>fn rect.area</code> and <code>fn square.area</code> actually satisfy it. The <code>rect.</code> in the name means the op is attached to <code>rect</code>.</li><li><code>double_area</code> accepts <strong>any shape</strong>. <code>requires shape t .</code> pins it down to “only types that can tell their area”.</li><li><code>method s area</code> calls the <code>area</code> attached to the type of <code>s</code> — <code>rect.area</code> for a <code>rect</code>, <code>square.area</code> for a <code>square</code>.</li></ul><p><code>double_area rect r</code> and <code>double_area square q</code> are each monomorphised to their own instance (chapter 22), so <code>method</code> is resolved at translation, not looked up at run time. There is no virtual function table.</p><h3 id="s23-2">23.2 Ops attached to types, and <code>method</code><a class="plink" href="#s23-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-54"></span><p>An op can be attached to a type even without a trait. Put the type name and a dot in front of the op name, and its first input is a value of that type. <code>method &lt;value> &lt;name> &lt;args…></code> calls that op. The receiver may be the result of another form — <code>method (method r grow 1) area</code>. If no such op is attached, the call is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/method_undef.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> method_undef .
@@ -711,12 +711,12 @@ demo() = 44
 
 <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
   x <strong><span class="tok-t">u8</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">input</span></strong> p point . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> method p nosuch .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check method_undef.low
 method_undef.low:10:0 E-METHOD-UNDEF: no op of that name is associated with the receiver's type — declare it as `fn &lt;type>.&lt;name> input &lt;recv> &lt;type> . …` (RFC-0062)
 </code></pre></div></div><p>Calling a name that does not exist does not search upwards. Attached ops are a device for dividing the name space, not inheritance.</p><h3 id="s23-3">23.3 Traits with several ops<a class="plink" href="#s23-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/many.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> many .
@@ -728,51 +728,51 @@ method_undef.low:10:0 E-METHOD-UNDEF: no op of that name is associated with the 
   perimeter <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   grow <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">self</span> .
   checked_area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> rect.area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> rect.perimeter <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul <span class="tok-n">2</span> (add (field s w) (field s h)) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> rect.grow <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> rect .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w (add (field s w) k) . h (add (field s h) k) . <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w (add (field s w) k) . h (add (field s h) k) . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> rect.checked_area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> eq (field s w) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     panic <span class="tok-s">"</span><span class="tok-s">empty rect</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> demo <strong><span class="tok-k">input</span></strong> w <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
   <strong><span class="tok-k">requires</span></strong> le w <span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le h <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w w . h h . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w w . h h . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">let</span></strong> big rect <strong><span class="tok-k">be</span></strong> method r grow <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> add (method big perimeter) (method big checked_area) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> demo_empty <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">0</span> . h <span class="tok-n">5</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">0</span> . h <span class="tok-n">5</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> method r checked_area .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run demo many.low 3 4
 demo(3, 4) = 38
 $ lowentc --run demo_empty many.low
@@ -783,7 +783,7 @@ $ lowentc --run demo_empty many.low
 
 <strong><span class="tok-k">trait</span></strong> shape <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">fn</span></strong> area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check sig_kind.low
 5:3 E-TRAIT-SIG: a trait signature does not say `fn` or `proc` — write `area input s self . output u64 .`. Its `effects` line says what the op may do (none = pure), and the implementation chooses `fn` or `proc` (§6.11.2)
 </code></pre></div></div><p>What the op may do is decided by the signature’s <code>effects</code> line.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Signature’s <code>effects</code></strong></th><th><strong>Implementer</strong></th></tr><tr><td>none</td><td>a <code>fn</code>, or a <code>proc</code> that writes <code>effects</code></td></tr><tr><td>present, e.g. <code>effects panic</code></td><td>a <code>proc</code> declaring those effects or fewer; a <code>fn</code> if it uses none</td></tr></table></div><p class="float-caption">Table 23.1 — A signature’s <code>effects</code> and the implementer</p></figure><p>A <code>proc</code> <strong>without</strong> an <code>effects</code> line is not narrowed and reads as able to do anything (chapter 5). So implementing an effect-free signature with such a <code>proc</code> is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/proc_noeff.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> proc_noeff .
@@ -791,18 +791,18 @@ $ lowentc --run demo_empty many.low
 
 <strong><span class="tok-k">trait</span></strong> shape <strong><span class="tok-k">do</span></strong>
   area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> rect.area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check proc_noeff.low
 9:0 E-TRAIT-EFFECT: the implementation is a `proc` with NO `effects` clause, so it may do anything — more than the trait declares. Write the same `effects` line the trait has (or fewer), or make it a `fn` if it is pure
 </code></pre></div></div><p>Declaring more effects than the signature is rejected too.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/more_effect.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> more_effect .
@@ -810,21 +810,21 @@ $ lowentc --run demo_empty many.low
 
 <strong><span class="tok-k">trait</span></strong> shape <strong><span class="tok-k">do</span></strong>
   checked_area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> rect.checked_area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic wait .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">if</span></strong> eq (field s w) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     panic <span class="tok-s">"</span><span class="tok-s">empty rect</span><span class="tok-s">"</span> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check more_effect.low
 9:0 E-TRAIT-EFFECT: the implementation has an EFFECT the trait does not declare. A caller reasons against the TRAIT's contract — if the implementation does more, that reasoning is a lie (this is exactly what makes dynamic dispatch safe or unsafe)
 more_effect.low:15:1 W-EFFECT-OVER: this op DECLARES `wait` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
@@ -834,43 +834,43 @@ more_effect.low:15:1 W-EFFECT-OVER: this op DECLARES `wait` but never PERFORMS i
 <strong><span class="tok-k">trait</span></strong> shape <strong><span class="tok-k">do</span></strong>
   area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   perimeter <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> rect.area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check missing.low
 10:0 E-TRAIT-MISSING: this type claims to satisfy a trait, but the trait REQUIRES an op that the type does not have. Declare it as `fn &lt;Type>.&lt;name> …` (RFC-0062). A claim that is not checked is the defect this language exists to remove
 </code></pre></div></div><p><code>satisfies</code> is not a comment. The moment you write that you will satisfy a trait, the processor checks the whole list.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> Can a trait op have a default implementation?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> No. A trait is only a list and holds no code. If several types want to share an implementation, write it as a generic op (like <code>double_area</code>) and have the types satisfy only the minimum that op needs. With default implementations you have to search upwards to find where a type’s <code>area</code> came from, and that is the entropy inheritance creates.</p></div></div><h3 id="s23-6">23.6 <code>via self</code> — more allocation effects only<a class="plink" href="#s23-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Some promises, like the allocator trait, have allocation effects that differ by implementation. When a signature’s effects line says <code>via self</code>, the implementer may declare <strong>more</strong> allocation-family effects (<code>alloc</code>, <code>heap</code>, <code>lock</code>, <code>atomic</code>) than the signature. Declaring more of any other effect is still <code>E-TRAIT-EFFECT</code>.</p><pre><code data-lang="lowent"><strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">trait</span></strong> byte_allocator <strong><span class="tok-k">do</span></strong>
   reserve <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">via</span></strong> <span class="tok-n">self</span> .
   grow <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">input</span></strong> old <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> newn <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">via</span></strong> <span class="tok-n">self</span> .
   used <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
-<strong><span class="tok-k">end</span></strong> .</code></pre><p>A bump allocator’s <code>reserve</code> is just <code>state</code>, while <code>heap_bytes</code>, carving from the heap, has <code>heap state</code>. That difference rises through a generic op’s <code>via a</code> all the way to its callers (chapter 20).</p><p>The same device serves promises that are not allocators. Two actors satisfy a ticket-issuing trait: one only counts, the other carves bytes from the fixed window for every ticket.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/viaself.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> viaself .
+<strong><span class="tok-k">end</span></strong></code></pre><p>A bump allocator’s <code>reserve</code> is just <code>state</code>, while <code>heap_bytes</code>, carving from the heap, has <code>heap state</code>. That difference rises through a generic op’s <code>via a</code> all the way to its callers (chapter 20).</p><p>The same device serves promises that are not allocators. Two actors satisfy a ticket-issuing trait: one only counts, the other carves bytes from the fixed window for every ticket.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/viaself.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> viaself .
 <em><span class="tok-c">rem run: main</span></em>
 
 <em><span class="tok-c">rem a promise to hand out tickets; an implementation may add allocation-family effects</span></em>
 <strong><span class="tok-k">trait</span></strong> ticketer <strong><span class="tok-k">do</span></strong>
   issue <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">via</span></strong> <span class="tok-n">self</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem only counts, so its effect is just state</span></em>
 <strong><span class="tok-k">actor</span></strong> counter <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> ticketer .
   <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
     next <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">proc</span></strong> issue <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> next (add next <span class="tok-n">1</span>) .
     <strong><span class="tok-k">return</span></strong> next .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem carves 8 bytes from the fixed window per ticket, so it adds alloc</span></em>
 <strong><span class="tok-k">actor</span></strong> carver <strong><span class="tok-k">do</span></strong>
@@ -878,14 +878,14 @@ more_effect.low:15:1 W-EFFECT-OVER: this op DECLARES `wait` but never PERFORMS i
   <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
     root <strong><span class="tok-k">cap</span></strong> allocator .
     count <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">proc</span></strong> issue <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes root capacity <span class="tok-n">8</span> .
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">set</span></strong> count (add count <span class="tok-n">1</span>) .
     <strong><span class="tok-k">return</span></strong> mul count <span class="tok-n">10</span> .
-  <strong><span class="tok-k">end</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem takes any implementation; via t carries that implementation's effects up to here</span></em>
 <strong><span class="tok-k">proc</span></strong> issue_two
@@ -898,7 +898,7 @@ more_effect.low:15:1 W-EFFECT-OVER: this op DECLARES `wait` but never PERFORMS i
   <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> who issue .
   <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> who issue .
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -907,7 +907,7 @@ more_effect.low:15:1 W-EFFECT-OVER: this op DECLARES `wait` but never PERFORMS i
   <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> issue_two counter c .
   <strong><span class="tok-k">let</span></strong> y <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> issue_two carver k .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (add x y) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main viaself.low
 main() = 33
 </code></pre></div></div><ul><li>The signature is <code>issue input s self . output u64 . effects state via self .</code>. <code>counter</code> satisfies it with <code>effects state .</code> and <code>carver</code> with <code>effects alloc state .</code>. <code>alloc</code> belongs to the allocation family, so <code>via self</code> allows it.</li><li><code>issue_two</code> says <code>effects state via t .</code>. The instance specialised to <code>counter</code> has the effect <code>state</code>; the one specialised to <code>carver</code> has <code>alloc state</code>. The effects are exact <strong>per instance</strong>.</li><li>That is why <code>main</code> must receive <code>cap allocator</code> and declare <code>alloc</code>. Without the line that calls with <code>carver</code>, <code>main</code> would need no <code>alloc</code>.</li><li>The answer 33 is <code>counter</code>’s 1 + 2 plus <code>carver</code>’s 10 + 20.</li></ul><p><code>carver</code>’s state has a <strong>capability field</strong>, <code>root cap allocator .</code>. The rule for that field is covered in chapter 25.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Satisfying a trait inherits something from it</strong></p><div class="dev-body">Nothing is inherited. Satisfying a trait is only the <strong>fact</strong> that “these ops exist”, and no hierarchy arises between types. <code>rect</code> and <code>square</code> have no relation to each other even after satisfying <code>shape</code>. This language has no inheritance.</div></div><h3 id="s23-7">23.7 Common mistakes<a class="plink" href="#s23-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing the name before the value after <code>method</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/mistake_methodorder.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_methodorder .
@@ -916,17 +916,17 @@ main() = 33
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> rect.area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
   <em><span class="tok-c">rem ✘ after `method` comes the value first, then the name</span></em>
   <strong><span class="tok-k">return</span></strong> method area r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_methodorder.low
 mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated with the receiver's type — declare it as `fn &lt;type>.&lt;name> input &lt;recv> &lt;type> . …` (RFC-0062)
 </code></pre></div></div><p>Translating <code>r.area()</code> from an object-oriented language backwards easily gives <code>method area r</code>. <code>method</code> takes <strong>the value first</strong>, because the value’s type decides which attached op to look for. With the name first, the tool reads <code>area</code> as the value, looks for an op <code>r</code> on its type, and reports <code>E-METHOD-UNDEF</code>. Write <code>method r area</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Leaving the type prefix off the name of the implementing op</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/mistake_noprefix.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noprefix .
@@ -934,17 +934,17 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 
 <strong><span class="tok-k">trait</span></strong> shape <strong><span class="tok-k">do</span></strong>
   area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <em><span class="tok-c">rem ✘ no `rect.` in the name --- an ordinary op, not attached to the type</span></em>
 <strong><span class="tok-k">fn</span></strong> area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noprefix.low
 8:0 E-TRAIT-MISSING: this type claims to satisfy a trait, but the trait REQUIRES an op that the type does not have. Declare it as `fn &lt;Type>.&lt;name> …` (RFC-0062). A claim that is not checked is the defect this language exists to remove
 </code></pre></div></div><p><code>fn area input s rect .</code> is an <strong>ordinary op</strong> that takes a <code>rect</code>, not an op attached to <code>rect</code>. The trait looks for <code>rect.area</code>, so this is <code>E-TRAIT-MISSING</code>. The tool does not attach ops by looking at their input types because, when several ordinary ops take the same type, the name alone should tell you which one fulfils the promise. This diagnostic lacks the file name; its line number points at the type declaration that says <code>satisfies</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Treating a type as adopting a trait just because the op exists</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/mistake_nosatisfies.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nosatisfies .
@@ -952,26 +952,26 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 
 <strong><span class="tok-k">trait</span></strong> shape <strong><span class="tok-k">do</span></strong>
   area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <em><span class="tok-c">rem ✘ `rect.area` exists, but `satisfies shape .` is not written</span></em>
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> rect.area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> double_area <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> t <strong><span class="tok-k">type</span></strong> . <strong><span class="tok-k">input</span></strong> s t . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> shape t .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul <span class="tok-n">2</span> (method s area) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> double_area rect r .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nosatisfies.low
 17:0 E-BOUND-UNSAT: this generic was instantiated with a type that does NOT satisfy the required trait. A bound is a PROMISE the callee relies on — instantiating past it would make the callee's contract a lie (RFC-0021 §6.3). Add `satisfies &lt;trait> .` to the struct, and the required ops as `fn &lt;Type>.&lt;name>`
 </code></pre></div></div><p>With <code>rect.area</code> in place, <code>rect</code> is indeed “a type that reports an area”. Without <code>satisfies shape .</code>, though, <code>double_area rect r</code> is <code>E-BOUND-UNSAT</code>. Under duck typing, where matching shape is enough, an op that happens to share a name is wrongly read as fulfilling the promise. <code>satisfies</code> declares “I will keep this contract”, and only that declaration makes the processor check the whole list.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Putting the receiver somewhere other than the first input</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/mistake_recvlast.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_recvlast .
@@ -980,18 +980,18 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <em><span class="tok-c">rem ✘ the receiver `s` is not the first input</span></em>
 <strong><span class="tok-k">fn</span></strong> rect.scaled <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le k <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul k (field s w) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> method r scaled <span class="tok-n">5</span> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_recvlast.low
 mistake_recvlast.low:9:0 E-METHOD-RECV: an op attached to a type takes that type as its FIRST input — that is what `method &lt;value> &lt;name> …` passes. Here the receiver is not first, so a `method` call hands the value to the wrong parameter: it used to pass `--check` and stop at run time with `E-VM-TYPE`. Move the receiver to the first `input` clause
 </code></pre></div></div><p>The first input of an attached op is the receiver. <code>method r scaled 5</code> puts <code>r</code> in the first position and 5 in the second. <code>scaled</code> takes the first as <code>k</code> and the second as <code>s</code>, so it tries to multiply a struct and stops. Such a head is rejected at translation time with <code>E-METHOD-RECV</code>. Always put <code>input s rect .</code> first in an attached op.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>An op attached to a type can only be called through <code>method</code></strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/direct_call.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> direct_call .
@@ -1000,20 +1000,20 @@ mistake_recvlast.low:9:0 E-METHOD-RECV: an op attached to a type takes that type
 <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> rect.area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> mul (field s w) (field s h) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
   <em><span class="tok-c">rem the same op called two ways --- directly by name, and through `method`</span></em>
   <strong><span class="tok-k">return</span></strong> add (rect.area r) (method r area) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run f direct_call.low
 f() = 12
-</code></pre></div></div><p><code>rect.area r</code> calls it directly by name, and <code>method r area</code> finds the same op from the value’s type. They are the same op, and the results are 6 and 6. <code>method</code> earns its place where the type is a generic parameter and its name cannot be written (<code>method s area</code> in <code>double_area</code>). Where the type is known, a direct call also propagates effects correctly (see the defect case above).</p></div></div><h3 id="s23-8">23.8 This chapter’s syntax at a glance<a class="plink" href="#s23-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>fn rect.area input s rect . …</code></td><td>attach an op to a type — the first input is the receiver</td><td>a way to divide the name space, not inheritance</td></tr><tr><td><code>method r area</code> · <code>rect.area r</code></td><td>call by the value’s type · call directly by name</td><td>fixed at translation time — no virtual table</td></tr><tr><td><code>trait shape do area input s self . output u64 . end .</code></td><td>the list of ops a type must have</td><td><code>self</code> is the adopting type itself</td></tr><tr><td>signature line: name · inputs · output · effects</td><td>same order as an op head; no <code>fn</code>/<code>proc</code></td><td>the effects line caps the implementer</td></tr><tr><td><code>struct rect do satisfies shape . … end .</code></td><td>declare that this type keeps the promise</td><td>the declaration triggers the full check</td></tr><tr><td><code>requires shape t .</code></td><td>type condition of a generic op</td><td>a type that does not adopt it: <code>E-BOUND-UNSAT</code></td></tr><tr><td><code>effects state via self .</code> (signature)</td><td>only allocation effects may be added</td><td>allocators differ in effects</td></tr><tr><td><code>E-TRAIT-MISSING</code> · <code>-SIG</code> · <code>-EFFECT</code> · <code>-RECV</code> · <code>-UNDEF</code></td><td>one diagnostic per way of falling short</td><td><code>satisfies</code> is not a comment</td></tr><tr><td><code>effects state via t .</code> (generic op)</td><td>inherits the extra effects the specialised type declared with <code>via self</code></td><td><code>state</code> for <code>counter</code>, <code>alloc state</code> for <code>carver</code></td></tr></table></div><p class="float-caption">Table 23.3 — Trait syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>fn &lt;type>.&lt;name></code> attaches an op to a type and <code>method</code> calls it. A trait is a list of ops a type must have, and a type declares it satisfies one with <code>satisfies</code> in its body. Signatures start with a name and write inputs, output and effects in order, without <code>fn</code> or <code>proc</code>. A signature’s <code>effects</code> is the upper bound on the implementer’s effects. Mismatches are rejected with <code>E-TRAIT-*</code>, and <code>via self</code> allows only more allocation-family effects. A trait is not inheritance.</div></div>
+</code></pre></div></div><p><code>rect.area r</code> calls it directly by name, and <code>method r area</code> finds the same op from the value’s type. They are the same op, and the results are 6 and 6. <code>method</code> earns its place where the type is a generic parameter and its name cannot be written (<code>method s area</code> in <code>double_area</code>). Where the type is known, a direct call also propagates effects correctly (see the defect case above).</p></div></div><h3 id="s23-8">23.8 This chapter’s syntax at a glance<a class="plink" href="#s23-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>fn rect.area input s rect . …</code></td><td>attach an op to a type — the first input is the receiver</td><td>a way to divide the name space, not inheritance</td></tr><tr><td><code>method r area</code> · <code>rect.area r</code></td><td>call by the value’s type · call directly by name</td><td>fixed at translation time — no virtual table</td></tr><tr><td><code>trait shape do area input s self . output u64 . end</code></td><td>the list of ops a type must have</td><td><code>self</code> is the adopting type itself</td></tr><tr><td>signature line: name · inputs · output · effects</td><td>same order as an op head; no <code>fn</code>/<code>proc</code></td><td>the effects line caps the implementer</td></tr><tr><td><code>struct rect do satisfies shape . … end</code></td><td>declare that this type keeps the promise</td><td>the declaration triggers the full check</td></tr><tr><td><code>requires shape t .</code></td><td>type condition of a generic op</td><td>a type that does not adopt it: <code>E-BOUND-UNSAT</code></td></tr><tr><td><code>effects state via self .</code> (signature)</td><td>only allocation effects may be added</td><td>allocators differ in effects</td></tr><tr><td><code>E-TRAIT-MISSING</code> · <code>-SIG</code> · <code>-EFFECT</code> · <code>-RECV</code> · <code>-UNDEF</code></td><td>one diagnostic per way of falling short</td><td><code>satisfies</code> is not a comment</td></tr><tr><td><code>effects state via t .</code> (generic op)</td><td>inherits the extra effects the specialised type declared with <code>via self</code></td><td><code>state</code> for <code>counter</code>, <code>alloc state</code> for <code>carver</code></td></tr></table></div><p class="float-caption">Table 23.3 — Trait syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body"><code>fn &lt;type>.&lt;name></code> attaches an op to a type and <code>method</code> calls it. A trait is a list of ops a type must have, and a type declares it satisfies one with <code>satisfies</code> in its body. Signatures start with a name and write inputs, output and effects in order, without <code>fn</code> or <code>proc</code>. A signature’s <code>effects</code> is the upper bound on the implementer’s effects. Mismatches are rejected with <code>E-TRAIT-*</code>, and <code>via self</code> allows only more allocation-family effects. A trait is not inheritance.</div></div>
 <div class="nav"><a href="ch22.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch24.html">Next →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

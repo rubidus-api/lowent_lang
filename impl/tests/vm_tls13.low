@@ -13,9 +13,9 @@ fn head8 input d slice u8 . output u64 . do
   while lt i 8 . do
     set acc (add (shl acc 8) (cast u64 (index d i))) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem Expand-Label 한 번 — 라벨과 문맥과 길이를 그대로 받는다.
 proc t_expand input secret slice u8 . input label slice u8 . input ctx slice u8 . input outlen u64 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
@@ -23,7 +23,7 @@ proc t_expand input secret slice u8 . input label slice u8 . input ctx slice u8 
   guard is_ok _u11 . else return 0 .
   guard eq (ok_value _u11) outlen . else return 0 .
   return head8 out .
-end .
+end
 
 rem 사다리 한 칸: prev 에서 "derived" 를 뽑아 ikm 을 Extract 한다.
 proc t_advance input prev slice u8 . input ikm slice u8 . input ehash slice u8 . input derived mut slice u8 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
@@ -31,7 +31,7 @@ proc t_advance input prev slice u8 . input ikm slice u8 . input ehash slice u8 .
   guard is_ok _u10 . else return 0 .
   guard eq (ok_value _u10) 32 . else return 0 .
   return head8 out .
-end .
+end
 
 rem 레코드 키와 IV.
 proc t_key input secret slice u8 . input klen u64 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
@@ -39,14 +39,14 @@ proc t_key input secret slice u8 . input klen u64 . input info mut slice u8 . in
   guard is_ok _u9 . else return 0 .
   guard eq (ok_value _u9) klen . else return 0 .
   return head8 out .
-end .
+end
 
 proc t_iv input secret slice u8 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
   let _u8 result u64 tls13.tls13_error . be tls13.traffic_iv secret info scratch out .
   guard is_ok _u8 . else return 0 .
   guard eq (ok_value _u8) 12 . else return 0 .
   return head8 out .
-end .
+end
 
 rem Finished — 키를 뽑고 전사에 서명한다.
 proc t_finished input secret slice u8 . input thash slice u8 . input info mut slice u8 . input scratch mut slice u8 . input fkey mut slice u8 . input out mut slice u8 . output u64 . effects none . do
@@ -57,7 +57,7 @@ proc t_finished input secret slice u8 . input thash slice u8 . input info mut sl
   guard is_ok _u7 . else return 0 .
   guard eq (ok_value _u7) 32 . else return 0 .
   return head8 out .
-end .
+end
 
 rem ★★ 레코드 nonce — 시퀀스 번호가 IV 의 **뒤쪽 8 바이트**와 XOR 된다.
 proc t_nonce input iv slice u8 . input seq u64 . input out mut slice u8 . output u64 . effects none . do
@@ -67,9 +67,9 @@ proc t_nonce input iv slice u8 . input seq u64 . input out mut slice u8 . output
   while lt i 12 . do
     set acc (add (shl acc 8) (cast u64 (index out i))) .
     set i (add i 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem HKDF-Extract 한 번 — RFC 8448 이 사다리의 각 칸에 salt/IKM/secret 을 적어 둔다.
 proc t_extract input salt slice u8 . input ikm slice u8 . input scratch mut slice u8 . input prk mut slice u8 . output u64 . effects none . do
@@ -77,17 +77,17 @@ proc t_extract input salt slice u8 . input ikm slice u8 . input scratch mut slic
   guard is_ok _u5 . else return 0 .
   guard eq (ok_value _u5) 32 . else return 0 .
   return head8 prk .
-end .
+end
 
 rem ★ 레코드 헤더 — 겉은 언제나 23 ‖ 0x0303 ‖ 길이다.
 proc t_header input n u64 . input out mut slice u8 . output u64 . effects none . do
   return tls13.record_header n out .
-end .
+end
 
 rem ★★ 속 평문의 **끝**에서 진짜 내용 타입을 읽는다(0 패딩을 건너뛴다).
 proc t_inner_type input inner slice u8 . output u64 . effects none . do
   return tls13.inner_type inner .
-end .
+end
 
 rem ★★ 레코드 봉인 → 개봉 왕복. 1 이면 원문이 돌아왔다.
 proc t_record input suite u64 . input key slice u8 . input iv slice u8 . input seq u64 . input inner slice u8 .
@@ -104,9 +104,9 @@ proc t_record input suite u64 . input key slice u8 . input iv slice u8 . input s
   while lt i (len inner) . do
     guard eq (index back i) (index inner i) . else return 92 .
     set i (add i 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★★ 시퀀스 번호가 틀리면 개봉은 **거절해야** 한다 — nonce 가 달라지기 때문이다.
 proc t_record_seq input suite u64 . input key slice u8 . input iv slice u8 . input inner slice u8 .
@@ -122,7 +122,7 @@ proc t_record_seq input suite u64 . input key slice u8 . input iv slice u8 . inp
   guard is_ok ro . else return 92 .
   guard eq (ok_value ro) (len inner) . else return 92 .
   return 1 .
-end .
+end
 
 rem ★★★ **정본의 레코드를 그대로 만든다** — RFC 8448 §3 의 암호문·태그까지.
 rem   inner 는 정본의 payload 에 내용 타입 한 바이트를 붙인 것이고, 그 결과가 정본의
@@ -132,17 +132,17 @@ proc t_record_exact input suite u64 . input key slice u8 . input iv slice u8 . i
   let _rr result u64 tls13.tls13_error . be tls13.record_seal suite key iv seq inner rec w u .
   guard is_ok _rr . else return 0 .
   return ok_value _rr .
-end .
+end
 
 rem ★ 전사 해시 — 버퍼 앞 n 바이트.
 proc t_transcript input buf slice u8 . input n u64 . input out mut slice u8 . output u64 . effects none . do
   return tls13.transcript buf n out .
-end .
+end
 
 rem ★ 핸드셰이크 메시지 걷기 — 타입 · 크기 · 개수.
-fn t_hs_type input buf slice u8 . input off u64 . output u64 . do  return tls13.hs_type buf off . end .
-fn t_hs_size input buf slice u8 . input off u64 . output u64 . do  return tls13.hs_size buf off . end .
-fn t_hs_count input buf slice u8 . output u64 . do  return tls13.hs_count buf . end .
+fn t_hs_type input buf slice u8 . input off u64 . output u64 . do  return tls13.hs_type buf off . end
+fn t_hs_size input buf slice u8 . input off u64 . output u64 . do  return tls13.hs_size buf off . end
+fn t_hs_count input buf slice u8 . output u64 . do  return tls13.hs_count buf . end
 
 rem ★★ 서버 Finished 가 우리가 본 전사와 맞는가. 1 이면 맞다.
 proc t_check_finished input secret slice u8 . input thash slice u8 . input got slice u8 .
@@ -150,7 +150,7 @@ proc t_check_finished input secret slice u8 . input thash slice u8 . input got s
   let _rr result u64 tls13.tls13_error . be tls13.check_finished secret thash got info w .
   guard is_ok _rr . else return 0 .
   return ok_value _rr .
-end .
+end
 
 rem ── ★ 라이브러리 보안 점검 증인 (2026-09-04, libreview) ─────────────────────
 rem ✘ Finished 의 verify_data 는 **정확히 32 바이트**다(RFC 8446 §4.4.4). 전에는 `ge` 라서
@@ -165,7 +165,7 @@ proc t_fin_exact input secret slice u8 . input thash slice u8 . input info mut s
   guard is_ok _u1 . else return 0 .
   guard eq (ok_value _u1) 32 . else return 0 .
   var i u64 be 32 .
-  while lt i 40 . do  set (index got i) 255 .  set i (add i 1) .  end .
+  while lt i 40 . do  set (index got i) 255 .  set i (add i 1) .  end
   let _u2 result u64 tls13.tls13_error . be tls13.check_finished secret thash (subslice got 0 32) info (subslice w 0 576) .
   guard is_ok _u2 . else return 91 .
   guard eq (ok_value _u2) 1 . else return 91 .
@@ -173,4 +173,4 @@ proc t_fin_exact input secret slice u8 . input thash slice u8 . input info mut s
   guard is_ok _u3 . else return 92 .
   guard eq (ok_value _u3) 0 . else return 92 .
   return 1 .
-end .
+end

@@ -13,4 +13,4 @@ do
   let changed option u64 be term.diff "hello   " "help!   " 8 out 0 .
   guard is_some changed . else return 253 .
   return narrow u8 (add (mul (some_value same) 100) (some_value changed)) .
-end .
+end

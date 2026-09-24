@@ -9,4 +9,4 @@ do
   let m u64 be write_out out 1 (some_value who) .
   let k u64 be write_out out 1 "\n" .
   return 0 .
-end .
+end

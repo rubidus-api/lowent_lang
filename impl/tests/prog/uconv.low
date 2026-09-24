@@ -72,4 +72,4 @@ fn f output u64 . do
   guard utf8.is_valid m8 . else return 112 .
   guard utf16.is_valid m16 . else return 113 .
   return 42 .
-end .
+end

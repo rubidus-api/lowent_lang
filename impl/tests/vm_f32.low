@@ -3,10 +3,10 @@ rem 2^24 + 1 은 f32 에 표현 불가: f32 면 결과가 a 와 같고, double �
 fn f32_rounds output bool . do
   var a f32 be 16777216.0 .
   return eq (add a 1.0) a .
-end .
+end
 fn f64_keeps output bool . do
   var a f64 be 16777216.0 .
   return eq (add a 1.0) a .
-end .
+end
 rem D14 — sqrt 는 부동 전용. 정수는 명시 변환이 필요하다.
-fn fsqrt input x u64 . output f64 . do return sqrt (cast f64 x) . end .
+fn fsqrt input x u64 . output f64 . do return sqrt (cast f64 x) . end

@@ -5,10 +5,10 @@ rem run: close_enough
 fn tenths output bool .
 do
   return eq (add 0.1 0.2) 0.3 .
-end .
+end
 
 fn close_enough output bool .
 do
   let d f64 be sub (add 0.1 0.2) 0.3 .
   return lt (abs d) 0.000000001 .
-end .
+end

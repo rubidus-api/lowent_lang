@@ -27,4 +27,4 @@ do
   guard is_some p5 . else return 4 .
   let w u64 be write_out out 1 (subslice buf 0 (some_value p5)) .
   return 0 .
-end .
+end

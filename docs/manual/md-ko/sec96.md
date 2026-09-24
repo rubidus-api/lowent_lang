@@ -27,7 +27,7 @@ export trait byte_allocator do
   reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
   grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
   used    input s self . output u64 . effects state .
-end .
+end
 ```
 
 `freeing_allocator` 는 같은 셋에 `release input s self . input v mut slice u8 . . output bool .` 을 더한다. `via self` 는 “이 op 의 효과는 구현이 적은 효과다” 라는 뜻이다 — 범프의 `reserve` 는 `state` 뿐이고 `heap_bytes` 의 `reserve` 는 `heap state` 다. 그래서 그 얼로케이터로 단형화한 컨테이너 op 의 서명에 `heap` 이 선다.
@@ -73,14 +73,14 @@ do
   guard is_some q . else return 92 .
   let g option mut slice u8 . . be send al grow (some_value q) 9 .
   return send al used .
-end .
+end
 
 proc borrowed2 input buf mut slice u8 . . output u64 . effects state . do
   var b allocs.bump_bytes be spawn actor allocs.bump_bytes . .
   let c u64 be send b init buf .
   let n u64 using b be two_from .
   return n .
-end .
+end
 ```
 
 범프를 주면 3 + 5 를 9 로 늘려 12, `bump_aligned` 를 주면 둘째 조각이 8 에서 시작해 17, `heap_bytes` 를 주면 `grow` 가 `none` 이고 인스턴스 서명에 `heap` 이 선다.

@@ -4,7 +4,7 @@ rem expect: E-CONC-DEADLOCK
 proc consumer input ch u64 . output u64 . effects concurrent .
 do
   return chrecv ch .
-end .
+end
 
 proc stuck output u64 . effects state .
 do
@@ -12,6 +12,6 @@ do
   task_group do
     spawn consumer ch .
     spawn consumer ch .
-  end .
+  end
   return 0 .
-end .
+end

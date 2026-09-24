@@ -4,14 +4,14 @@ rem run: copy_then_change
 struct point do
   x u64 .
   y u64 .
-end .
+end
 
 fn copy_then_change output u64 .
 do
-  let p point be make point do x 1 . y 2 . end .
+  let p point be make point do x 1 . y 2 . end
   rem ko: ✘ 복사본을 만든다고 믿었다 --- 이 판에서 q 는 p 와 같은 자리를 가리킨다 /// en: ✘ meant to make a copy --- in this edition q refers to the same place as p
   var q point be p .
   set (field q x) 99 .
   rem ko: p 는 let 인데도 99 가 나온다 /// en: p is a let, and yet this gives 99
   return field p x .
-end .
+end

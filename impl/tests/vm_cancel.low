@@ -17,24 +17,24 @@ module vm_cancel .
 
 enum e do
   bad .
-end .
+end
 
 actor cnt do
-  state do v u64 . end .
-  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end .
-  fn get output u64 . do return v . end .
-end .
+  state do v u64 . end
+  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end
+  fn get output u64 . do return v . end
+end
 
 rem n>0 이면 오류, 아니면 ok. spawn 해서 오류/정상 태스크를 만든다.
 fn mk input n u64 . output result u64 e . errors bad gt n 0 .
 do
-  if gt n 0 . do return error bad . end .
+  if gt n 0 . do return error bad . end
   return ok n .
-end .
+end
 proc okb input x cnt . output result u64 e . effects state . do
   spawn send x inc .
   return ok 0 .
-end .
+end
 
 rem 오류 전파(결정적): 오류 자식을 await 하면 오류가 온다 → got=1. 어떤 interleaving 이든 성립.
 test coe_error_propagates schedule explore_interleavings do
@@ -42,10 +42,10 @@ test coe_error_propagates schedule explore_interleavings do
   task_group cancel_on_error do
     var h1 u64 be spawn mk 1 .
     var h2 u64 be spawn mk 0 .
-    if is_error (await h1) do set got 1 . . end .
-  end .
+    if is_error (await h1) do set got 1 . . end
+  end
   expect eq got 1 .
-end .
+end
 
 rem 취소 메커니즘(결정적 --run): erra(h1) 먼저 오류 → okb(h2) 취소 → inc 안 됨 → get=0.
 proc drive_cancel output u64 . effects state . do
@@ -54,9 +54,9 @@ proc drive_cancel output u64 . effects state . do
     var h1 u64 be spawn mk 1 .
     var h2 u64 be spawn okb x .
     var r u64 be await h1 .
-  end .
+  end
   return send x get .
-end .
+end
 rem 취소 없이(대조): erra 오류(효과 없음) + okb 실행(inc) → get=1.
 proc drive_plain output u64 . effects state . do
   var x cnt be spawn actor cnt . .
@@ -64,9 +64,9 @@ proc drive_plain output u64 . effects state . do
     var h1 u64 be spawn mk 1 .
     var h2 u64 be spawn okb x .
     var r u64 be await h1 .
-  end .
+  end
   return send x get .
-end .
+end
 
 rem ★★★ **중첩 ①**: 바깥 cancel, 안쪽 **평범** — 안쪽 h2 는 평범이라 취소 상속 안 하고 실행(get=1).
 rem   전엔 전역 하나라 안쪽이 바깥의 취소 스코프를 물려받아 잘못 취소됐다(get=0).
@@ -77,10 +77,10 @@ proc drive_nested output u64 . effects state . do
       var h1 u64 be spawn mk 1 .
       var h2 u64 be spawn okb x .
       var r u64 be await h1 .
-    end .
-  end .
+    end
+  end
   return send x get .
-end .
+end
 
 rem ★★★ **중첩 ②**(복원): 바깥 cancel, 안쪽 평범이 **먼저** 돌고, 그 뒤 바깥 형제 h1 오류 →
 rem   바깥 스코프가 복원됐으니 h2(okb) 는 취소된다(get=0). 복원 실패면 스코프가 0 에 눌러붙어 1.
@@ -90,10 +90,10 @@ proc drive_restore output u64 . effects state . do
     task_group do
       var hp u64 be spawn mk 0 .
       var rp u64 be await hp .
-    end .
+    end
     var h1 u64 be spawn mk 1 .
     var h2 u64 be spawn okb x .
     var r u64 be await h1 .
-  end .
+  end
   return send x get .
-end .
+end

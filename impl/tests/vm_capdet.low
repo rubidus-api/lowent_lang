@@ -20,7 +20,7 @@ export proc mono input k cap clock . output u64 . effects none . do
   let b u64 be time_now k .
   guard ge b a . else return 0 .
   return 1 .
-end .
+end
 
 rem OS 엔트로피는 **버퍼를 채우고 채운 수를 답한다** — 못 채우면 0 이다(조용히 덜 채우지 않는다).
 rem ★ 재현 가능한 `rng_next` 는 권한이 없다. 권한이 필요한 것은 **OS 에게 묻는 자리** 하나뿐이다.
@@ -29,7 +29,7 @@ export proc entropy input al cap allocator . input k cap random . output u64 . e
   guard is_some g . else return 0 .
   var buf mut slice u8 . be some_value g .
   return random_bytes k buf .
-end .
+end
 
 rem ★ 진입점 — **권한은 여기서 들어온다**(RFC-0030 D2′). `--run` 이 건네주는 자리는 `main` 뿐이고,
 rem   그래서 이 픽스처의 두 주장이 실제로 도는 것도 여기서다: 시계가 뒤로 안 가고(1),
@@ -43,4 +43,4 @@ do
   let n u64 be entropy al r .
   guard eq n 8 . else return 2 .
   return 0 .
-end .
+end

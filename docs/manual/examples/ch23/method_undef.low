@@ -3,9 +3,9 @@ rem expect: E-METHOD-UNDEF
 
 struct point do
   x u8 .
-end .
+end
 
 fn f input p point . output u8 .
 do
   return method p nosuch .
-end .
+end

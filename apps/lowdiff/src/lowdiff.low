@@ -31,7 +31,7 @@ do
   let r option u64 . be outbuf.write_all out d s .
   guard is_some r . else return 0 .
   return some_value r .
-end .
+end
 
 rem ── 한도. 넘치면 **말하고 멈춘다**(3번 종료 코드). 조용히 자르는 것이 이 저장소가 가장
 rem    무서워하는 일이다.
@@ -39,11 +39,11 @@ rem ★★ 이 수들은 **호스티드를 가정한다** (X-0031 · WO-0211, �
 rem   정적 64 KiB 였고, 그래서 한 디렉터리에 256 개까지만 받았다 — 실제 폴더에는 그보다 많은
 rem   엔트리가 흔하다. 이제 호스티드에서는 아레나가 청크로 자라므로 그 천장에 맞출 이유가 없다.
 rem   ☞ *한도는 여전히 있다. 그러나 그 수는 «기계가 못 해서» 가 아니라 «여기까지는 본다» 여야 한다.*
-fn max_entries output u64 . do return 4096 . end .
-fn max_names   output u64 . do return 262144 . end .
-fn max_pend    output u64 . do return 4096 . end .
-fn max_pendbuf output u64 . do return 262144 . end .
-fn chunk_size  output u64 . do return 65536 . end .
+fn max_entries output u64 . do return 4096 . end
+fn max_names   output u64 . do return 262144 . end
+fn max_pend    output u64 . do return 4096 . end
+fn max_pendbuf output u64 . do return 262144 . end
+fn chunk_size  output u64 . do return 65536 . end
 
 rem 바이트 사전순: a < b 인가.
 fn less input a slice u8 . input b slice u8 . output bool .
@@ -53,18 +53,18 @@ do
   while lt i (len a) . do
     if lt i (len b) . do
       if eq ans 2 . do
-        if lt (index a i) (index b i) . do set ans 1 . end .
-        if gt (index a i) (index b i) . do set ans 0 . end .
-      end .
-    end .
+        if lt (index a i) (index b i) . do set ans 1 . end
+        if gt (index a i) (index b i) . do set ans 0 . end
+      end
+    end
     set i (add i 1) .
-  end .
+  end
   if eq ans 2 . do
-    if lt (len a) (len b) . do set ans 1 . end .
-    if eq ans 2 . do set ans 0 . end .
-  end .
+    if lt (len a) (len b) . do set ans 1 . end
+    if eq ans 2 . do set ans 0 . end
+  end
   return eq ans 1 .
-end .
+end
 
 rem 같은 바이트열인가.
 fn same_bytes input a slice u8 . input b slice u8 . output bool .
@@ -73,11 +73,11 @@ do
   var i u64 be 0 .
   var verd bool be true .
   while lt i (len a) . do
-    if ne (index a i) (index b i) . do set verd false . end .
+    if ne (index a i) (index b i) . do set verd false . end
     set i (add i 1) .
-  end .
+  end
   return verd .
-end .
+end
 
 rem ── 한 디렉터리의 엔트리 이름을 모은다(`.`/`..` 은 뺀다). 색인만 정렬한다.
 rem    돌려주는 수: 엔트리 개수. 실패·한도 초과는 `err` 에 적는다(0=ok · 71=열기 · 72=닫기 · 3=한도).
@@ -96,7 +96,7 @@ proc list_dir .
 do
   set (index st 0) 0 .
   let di result files.dir_handle files.file_error . be files.open_dir fs path .
-  if eq (is_ok di) false . do set (index st 0) 71 . end .
+  if eq (is_ok di) false . do set (index st 0) 71 . end
   guard is_ok di . else return 0 .
   var dh owned files.dir_handle be ok_value di .
 
@@ -105,28 +105,28 @@ do
   var going bool be true .
   while going . do
     let r result (option u64) files.file_error . be files.read_dir fs dh namebuf .
-    if eq (is_ok r) false . do set going false . set (index st 0) 71 . end .
+    if eq (is_ok r) false . do set going false . set (index st 0) 71 . end
     if is_ok r . do
       let nv option u64 . be ok_value r .
-      if eq (is_some nv) false . do set going false . end .
+      if eq (is_some nv) false . do set going false . end
       var nl u64 be 0 .
-      if is_some nv . do set nl (some_value nv) . end .
-      if eq nl 0 . do set going false . end .
+      if is_some nv . do set nl (some_value nv) . end
+      if eq nl 0 . do set going false . end
       if gt nl 0 . do
         rem `.` 과 `..` 은 건너뛴다
         var skip bool be false .
         if eq nl 1 . do
-          if eq (index namebuf 0) 46 . do set skip true . end .
-        end .
+          if eq (index namebuf 0) 46 . do set skip true . end
+        end
         if eq nl 2 . do
           if eq (index namebuf 0) 46 . do
-            if eq (index namebuf 1) 46 . do set skip true . end .
-          end .
-        end .
+            if eq (index namebuf 1) 46 . do set skip true . end
+          end
+        end
         if eq skip false . do
-          if ge n (max_entries) . do set (index st 0) 3 . set going false . end .
+          if ge n (max_entries) . do set (index st 0) 3 . set going false . end
           if lt n (max_entries) . do
-            if gt (add used nl) (max_names) . do set (index st 0) 3 . set going false . end .
+            if gt (add used nl) (max_names) . do set (index st 0) 3 . set going false . end
             if le (add used nl) (max_names) . do
               set (index offs n) used .
               set (index lens n) nl .
@@ -134,17 +134,17 @@ do
               while lt k nl . do
                 set (index arena (add used k)) (index namebuf k) .
                 set k (add k 1) .
-              end .
+              end
               set used (add used nl) .
               set n (add n 1) .
-            end .
-          end .
-        end .
-      end .
-    end .
-  end .
+            end
+          end
+        end
+      end
+    end
+  end
   let c result void files.file_error . be files.close_dir fs dh .
-  if eq (is_ok c) false . do set (index st 0) 72 . end .
+  if eq (is_ok c) false . do set (index st 0) 72 . end
 
   rem ★★★★ **병합 정렬** — 색인만 옮긴다(X-0042, 소유자 선택 ⓐ 2026-09-20).
   rem
@@ -163,48 +163,48 @@ do
     var lo u64 be 0 .
     while lt lo n . do
       var mid u64 be add lo width .
-      if gt mid n . do  set mid n . end .
+      if gt mid n . do  set mid n . end
       var hi u64 be add lo (mul width 2) .
-      if gt hi n . do  set hi n . end .
+      if gt hi n . do  set hi n . end
       var ia u64 be lo .
       var ib u64 be mid .
       var k u64 be lo .
       while lt k hi . do
         var from_a bool be false .
-        if ge ib hi . do  set from_a true . end .
+        if ge ib hi . do  set from_a true . end
         if lt ib hi . do
           if lt ia mid . do
             let ra slice u8 be subslice arena (index offs ia) (add (index offs ia) (index lens ia)) .
             let rb slice u8 be subslice arena (index offs ib) (add (index offs ib) (index lens ib)) .
             rem 오른쪽이 **더 작을 때만** 오른쪽을 집는다 ⇒ 같으면 왼쪽(안정).
-            if eq (less rb ra) false . do  set from_a true . end .
-          end .
-        end .
+            if eq (less rb ra) false . do  set from_a true . end
+          end
+        end
         if from_a . do
           set (index soffs k) (index offs ia) .
           set (index slens k) (index lens ia) .
           set ia (add ia 1) .
-        end .
+        end
         if eq from_a false . do
           set (index soffs k) (index offs ib) .
           set (index slens k) (index lens ib) .
           set ib (add ib 1) .
-        end .
+        end
         set k (add k 1) .
-      end .
+      end
       rem 합친 자리를 제자리로 되돌린다.
       var mc u64 be lo .
       while lt mc hi . do
         set (index offs mc) (index soffs mc) .
         set (index lens mc) (index slens mc) .
         set mc (add mc 1) .
-      end .
+      end
       set lo hi .
-    end .
+    end
     set width (mul width 2) .
-  end .
+  end
   return n .
-end .
+end
 
 rem ── 두 파일을 **청크로** 견준다. 0 = 같다 · 1 = 다르다 · 2 = 읽지 못했다.
 proc same_file .
@@ -226,7 +226,7 @@ do
     let ca result void files.file_error . be files.close fs fa .
     drop ca .
     return 2 .
-  end .
+  end
   var fb owned files.handle be ok_value hb .
 
   var verdict u64 be 0 .
@@ -236,31 +236,31 @@ do
     rem   `ok (some n)` = n 바이트. 끝과 실패를 한 자리로 뭉개면 «읽다 만 파일» 이 «같다» 가 된다.
     let ra result (option u64) files.file_error . be files.read fs fa ba .
     let rb result (option u64) files.file_error . be files.read fs fb bb .
-    if eq (is_ok ra) false . do set verdict 2 . set going false . end .
-    if eq (is_ok rb) false . do set verdict 2 . set going false . end .
+    if eq (is_ok ra) false . do set verdict 2 . set going false . end
+    if eq (is_ok rb) false . do set verdict 2 . set going false . end
     if going . do
       var na u64 be 0 .
       var nb u64 be 0 .
       let oa option u64 . be ok_value ra .
       let ob option u64 . be ok_value rb .
-      if is_some oa . do set na (some_value oa) . end .
-      if is_some ob . do set nb (some_value ob) . end .
-      if ne na nb . do set verdict 1 . set going false . end .
-      if eq na 0 . do set going false . end .
+      if is_some oa . do set na (some_value oa) . end
+      if is_some ob . do set nb (some_value ob) . end
+      if ne na nb . do set verdict 1 . set going false . end
+      if eq na 0 . do set going false . end
       if going . do
         if eq (same_bytes (subslice ba 0 na) (subslice bb 0 nb)) false . do
           set verdict 1 . set going false .
-        end .
-      end .
-    end .
-  end .
+        end
+      end
+    end
+  end
 
   let ca2 result void files.file_error . be files.close fs fa .
   let cb2 result void files.file_error . be files.close fs fb .
-  if eq (is_ok ca2) false . do set verdict 2 . end .
-  if eq (is_ok cb2) false . do set verdict 2 . end .
+  if eq (is_ok ca2) false . do set verdict 2 . end
+  if eq (is_ok cb2) false . do set verdict 2 . end
   return verdict .
-end .
+end
 
 rem ── 두 경로가 **심링크인가**를 한 번에 묻는다. 0 = 둘 다 아니다 · 1 = 둘 다 링크다 ·
 rem    2 = 한쪽만 링크다. `link_type` 은 링크를 **따라가지 않는다**(3 = 심링크).
@@ -277,12 +277,12 @@ do
   var sb bool be false .
   let la option u64 . be files.link_type_of fs pa .
   let lb option u64 . be files.link_type_of fs pb .
-  if is_some la . do if eq (some_value la) 3 . do set sa true . end . end .
-  if is_some lb . do if eq (some_value lb) 3 . do set sb true . end . end .
-  if ne sa sb . do return 2 . end .
-  if sa . do return 1 . end .
+  if is_some la . do if eq (some_value la) 3 . do set sa true . end end
+  if is_some lb . do if eq (some_value lb) 3 . do set sb true . end end
+  if ne sa sb . do return 2 . end
+  if sa . do return 1 . end
   return 0 .
-end .
+end
 
 rem ── 경로 조립: base + "/" + name (base 가 비었으면 name 만). 실패하면 false.
 proc join_path .
@@ -299,12 +299,12 @@ do
     guard is_ok r1 . else return false .
     let r2 result void strbuf.sb_error . be strbuf.append b buf "/" .
     guard is_ok r2 . else return false .
-  end .
+  end
   let r3 result void strbuf.sb_error . be strbuf.append b buf name .
   guard is_ok r3 . else return false .
   set (index outlen 0) (len (strbuf.as_str b buf)) .
   return true .
-end .
+end
 
 proc main .
   input fs cap file_system .
@@ -319,11 +319,11 @@ do
   let a1 option slice u8 . be arg a 1 .
   if eq (is_some a0) false . do
     set w (emit out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
-  end .
+  end
   guard is_some a0 . else return 2 .
   if eq (is_some a1) false . do
     set w (emit out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
-  end .
+  end
   guard is_some a1 . else return 2 .
   let rootA slice u8 be some_value a0 .
   let rootB slice u8 be some_value a1 .
@@ -384,63 +384,63 @@ do
 
     rem 이 상대 경로의 양쪽 실제 경로
     rem ★ 판정 하나를 **변수 하나**로 받는다 — `main` 의 지역이 언어 한도(64)에 닿아 있다.
-    if eq (join_path rootA rel pathA scratch) false . do set limit_hit true . end .
+    if eq (join_path rootA rel pathA scratch) false . do set limit_hit true . end
     let la u64 be index scratch 0 .
-    if eq (join_path rootB rel pathB scratch) false . do set limit_hit true . end .
+    if eq (join_path rootB rel pathB scratch) false . do set limit_hit true . end
     let lb u64 be index scratch 0 .
 
     var nA u64 be 0 .
     var nB u64 be 0 .
     if eq limit_hit false . do
       set nA (list_dir fs (subslice pathA 0 la) namebuf arenaA offsA lensA sortO sortL scratch) .
-      if eq (index scratch 0) 3 . do set limit_hit true . end .
-      if gt (index scratch 0) 3 . do set io_bad true . end .
+      if eq (index scratch 0) 3 . do set limit_hit true . end
+      if gt (index scratch 0) 3 . do set io_bad true . end
       set nB (list_dir fs (subslice pathB 0 lb) namebuf arenaB offsB lensB sortO sortL scratch) .
-      if eq (index scratch 0) 3 . do set limit_hit true . end .
-      if gt (index scratch 0) 3 . do set io_bad true . end .
-    end .
+      if eq (index scratch 0) 3 . do set limit_hit true . end
+      if gt (index scratch 0) 3 . do set io_bad true . end
+    end
 
     rem ── 두 정렬 목록을 합친다.
     var ia u64 be 0 .
     var ib u64 be 0 .
     var merging bool be true .
-    if limit_hit . do set merging false . end .
+    if limit_hit . do set merging false . end
     while merging . do
       if ge ia nA . do
-        if ge ib nB . do set merging false . end .
-      end .
+        if ge ib nB . do set merging false . end
+      end
       if merging . do
         var side u64 be 0 .   rem 0 = 양쪽 · 1 = A 만(지워짐) · 2 = B 만(더해짐)
-        if ge ia nA . do set side 2 . end .
-        if ge ib nB . do set side 1 . end .
+        if ge ia nA . do set side 2 . end
+        if ge ib nB . do set side 1 . end
         if lt ia nA . do
           if lt ib nB . do
             if less (subslice arenaA (index offsA ia) (add (index offsA ia) (index lensA ia)))
-                    (subslice arenaB (index offsB ib) (add (index offsB ib) (index lensB ib))) . do set side 1 . end .
+                    (subslice arenaB (index offsB ib) (add (index offsB ib) (index lensB ib))) . do set side 1 . end
             if less (subslice arenaB (index offsB ib) (add (index offsB ib) (index lensB ib)))
-                    (subslice arenaA (index offsA ia) (add (index offsA ia) (index lensA ia))) . do set side 2 . end .
-          end .
-        end .
+                    (subslice arenaA (index offsA ia) (add (index offsA ia) (index lensA ia))) . do set side 2 . end
+          end
+        end
 
         rem 이름 하나를 고르고, 그 상대 경로를 만든다
         var nmo u64 be 0 .
         var nml u64 be 0 .
         var from_a bool be true .
-        if eq side 2 . do set from_a false . end .
-        if from_a . do set nmo (index offsA ia) . set nml (index lensA ia) . end .
-        if eq from_a false . do set nmo (index offsB ib) . set nml (index lensB ib) . end .
+        if eq side 2 . do set from_a false . end
+        if from_a . do set nmo (index offsA ia) . set nml (index lensA ia) . end
+        if eq from_a false . do set nmo (index offsB ib) . set nml (index lensB ib) . end
         var nm slice u8 be subslice arenaA nmo (add nmo nml) .
-        if eq from_a false . do set nm (subslice arenaB nmo (add nmo nml)) . end .
+        if eq from_a false . do set nm (subslice arenaB nmo (add nmo nml)) . end
 
         let okr bool be join_path rel nm relbuf scratch .
         let rl2 u64 be index scratch 0 .
-        if eq okr false . do set limit_hit true . set merging false . end .
+        if eq okr false . do set limit_hit true . set merging false . end
 
         if merging . do
           let childrel slice u8 be subslice relbuf 0 rl2 .
-          if eq (join_path rootA childrel pathA scratch) false . do set limit_hit true . end .
+          if eq (join_path rootA childrel pathA scratch) false . do set limit_hit true . end
           let pla u64 be index scratch 0 .
-          if eq (join_path rootB childrel pathB scratch) false . do set limit_hit true . end .
+          if eq (join_path rootB childrel pathB scratch) false . do set limit_hit true . end
           let plb u64 be index scratch 0 .
 
           if eq side 1 . do
@@ -449,14 +449,14 @@ do
             set w (emit out 1 "\n") .
             set diffs (add diffs 1) .
             set ia (add ia 1) .
-          end .
+          end
           if eq side 2 . do
             set w (emit out 1 "added ") .
             set w (emit out 1 childrel) .
             set w (emit out 1 "\n") .
             set diffs (add diffs 1) .
             set ib (add ib 1) .
-          end .
+          end
           if eq side 0 . do
             rem ★★★ **심링크는 따라가지 않는다** (X-0030 ⓐ · WO-0210). `link_type` 은 링크 자신을
             rem   본다(3 = 심링크). 전에는 `file_type`(stat)만 있어서 링크가 **가리키는 대상**으로
@@ -471,33 +471,33 @@ do
               set w (emit out 1 childrel) .
               set w (emit out 1 "\n") .
               set skip_pair true .
-            end .
+            end
             if eq lp 2 . do
               set w (emit out 1 "changed ") .
               set w (emit out 1 childrel) .
               set w (emit out 1 "\n") .
               set diffs (add diffs 1) .
               set skip_pair true .
-            end .
+            end
             let ta option u64 . be files.type_of fs (subslice pathA 0 pla) .
             let tb option u64 . be files.type_of fs (subslice pathB 0 plb) .
             var ka u64 be 9 .
             var kb u64 be 9 .
-            if is_some ta . do set ka (some_value ta) . end .
-            if is_some tb . do set kb (some_value tb) . end .
-            if skip_pair . do set ka 7 . set kb 7 . end .
+            if is_some ta . do set ka (some_value ta) . end
+            if is_some tb . do set kb (some_value tb) . end
+            if skip_pair . do set ka 7 . set kb 7 . end
             if ne ka kb . do
               set w (emit out 1 "changed ") .
               set w (emit out 1 childrel) .
               set w (emit out 1 "\n") .
               set diffs (add diffs 1) .
-            end .
+            end
             if eq ka kb . do
               if eq ka 1 . do
                 rem 둘 다 디렉터리 — 대기 목록에 넣는다
-                if ge np (max_pend) . do set limit_hit true . end .
+                if ge np (max_pend) . do set limit_hit true . end
                 if lt np (max_pend) . do
-                  if gt (add pused rl2) (max_pendbuf) . do set limit_hit true . end .
+                  if gt (add pused rl2) (max_pendbuf) . do set limit_hit true . end
                   if le (add pused rl2) (max_pendbuf) . do
                     set (index poffs np) pused .
                     set (index plens np) rl2 .
@@ -505,12 +505,12 @@ do
                     while lt z rl2 . do
                       set (index pend (add pused z)) (index relbuf z) .
                       set z (add z 1) .
-                    end .
+                    end
                     set pused (add pused rl2) .
                     set np (add np 1) .
-                  end .
-                end .
-              end .
+                  end
+                end
+              end
               if eq ka 0 . do
                 let v u64 be same_file fs (subslice pathA 0 pla) (subslice pathB 0 plb) chunkA chunkB .
                 if eq v 1 . do
@@ -518,39 +518,39 @@ do
                   set w (emit out 1 childrel) .
                   set w (emit out 1 "\n") .
                   set diffs (add diffs 1) .
-                end .
+                end
                 if eq v 2 . do
                   set w (emit out 1 "unreadable ") .
                   set w (emit out 1 childrel) .
                   set w (emit out 1 "\n") .
                   set diffs (add diffs 1) .
                   set io_bad true .
-                end .
-              end .
+                end
+              end
               if eq ka 7 . do
                 rem ★ 심링크 자리 — 위에서 이미 말했다. 여기서 또 말하지 않는다.
                 set ka ka .
-              end .
+              end
               if eq ka 2 . do
                 rem 보통 파일도 디렉터리도 아닌 것(장치·파이프 등) — 견주지 않고 **말한다**
                 set w (emit out 1 "skipped ") .
                 set w (emit out 1 childrel) .
                 set w (emit out 1 "\n") .
-              end .
-            end .
+              end
+            end
             set ia (add ia 1) .
             set ib (add ib 1) .
-          end .
-        end .
-      end .
-    end .
-  end .
+          end
+        end
+      end
+    end
+  end
 
   if limit_hit . do
     set w (emit out 2 "lowdiff: an internal limit was reached (entries per directory, path length, or pending directories) — the comparison is INCOMPLETE\n") .
     return 3 .
-  end .
-  if gt diffs 0 . do return 1 . end .
-  if io_bad . do return 1 . end .
+  end
+  if gt diffs 0 . do return 1 . end
+  if io_bad . do return 1 . end
   return 0 .
-end .
+end

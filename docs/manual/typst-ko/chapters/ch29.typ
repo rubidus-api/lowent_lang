@@ -183,7 +183,7 @@ C 에게 Lowent 함수를 넘겨 되부르게 하려면 `export extern` op 의 �
   id: "ffi-glance",
   caption: [C 경계의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`unsafe extern proc c_area input k cap c . … effects unsafe . link "lw_c_area" . end .`], [C 에 몸이 있는 op], [표시·권리·효과 줄 셋이 모두 있어야 한다],
+  [`unsafe extern proc c_area input k cap c . … effects unsafe . link "lw_c_area" . end`], [C 에 몸이 있는 op], [표시·권리·효과 줄 셋이 모두 있어야 한다],
   [`unsafe proc area_twice input k cap c . … effects unsafe .`], [C 를 부르는 op 을 부르는 op], [표시와 권리가 호출 사슬을 따라 올라간다],
   [`input xs slice u8 .`(경계)], [C 에서는 포인터와 길이 두 인자], [저절로 사상되는 것은 슬라이스뿐],
   [`option`·`result`·벡터를 경계에], [거절(`E-FFI-TYPE`)], [C ABI 에 없는 것을 있는 척하지 않는다],

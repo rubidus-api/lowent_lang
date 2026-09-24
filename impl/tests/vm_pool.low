@@ -37,14 +37,14 @@ do
   var i u64 be 0 .
   while lt i n . do
     let h option (pool.handle p_many) . be pool.take p_many p .
-    if is_some h . do set got (add got 1) . end .
+    if is_some h . do set got (add got 1) . end
     set i (add i 1) .
-  end .
+  end
   rem 다 썼으면 그다음은 none — 트랩이 아니다.
   let over option (pool.handle p_many) . be pool.take p_many p .
-  if is_some over . do set got (add got 100) . end .
+  if is_some over . do set got (add got 100) . end
   return got .
-end .
+end
 
 rem ★★★ **이 파일의 핵심 주장**: 해제하면 **옛 핸들이 죽는다.**
 rem   메모리는 그대로 있는데 **아무도 그것을 못 쓴다** — 그것이 세대 핸들의 전부다.
@@ -87,7 +87,7 @@ do
   let twice bool be pool.release p_stale p hh .
   guard eq twice false . else return 96 .
   return 1 .
-end .
+end
 
 rem ★★ **복사해서 옮기고 옛 것을 버린다** — 사용자가 말한 그 모양.
 proc copy_and_release input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
@@ -131,7 +131,7 @@ do
   guard is_some live . else return 98 .
   let lv mut slice u8 . be some_value live .
   return narrow u64 (index lv 8) .    rem 55 — 복사가 살아남았다
-end .
+end
 
 rem ★★★ **자유 목록 — 놓은 것이 돌아온다** (2026-07-20).
 rem   전에는 `take` 가 순차 배당만 해서, 받고-놓기를 반복하면 풀이 **쓰지도 않고 말라붙었다**.
@@ -160,13 +160,13 @@ do
     let rel bool be pool.release p_reuse p hh .
     guard eq rel true . else return 93 .
     set i (add i 1) .
-  end .
+  end
 
   rem ★★ 그리고 **밖에 나가 있는 블록이 0** 이다 — 전부 돌아왔다.
   let out_n u64 be pool.outstanding p_reuse p .
   guard eq out_n 0 . else return 94 .
   return 1 .
-end .
+end
 
 rem ★★ 자유 목록은 **LIFO** 다: 마지막에 놓은 것이 먼저 나온다(캐시에 아직 따뜻하다).
 proc free_list_is_lifo input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
@@ -206,7 +206,7 @@ do
   let al bool be pool.alive p_lifo p a .
   guard eq al false . else return 81 .
   return 1 .
-end .
+end
 
 rem ★★★ **④ `borrow` 와 풀을 붙인다** — 이것이 정직히 적어 두었던 약점의 답이다.
 rem   `bytes` 로 받은 슬라이스를 **든 채** `release` 하면 그 슬라이스는 여전히 쓸 수 있고
@@ -236,7 +236,7 @@ do
     set (index v 8) 3 .
     set (index v 9) 4 .
     set total (add (narrow u64 (index v 8)) (narrow u64 (index v 9))) .
-  end .
+  end
   guard eq total 7 . else return 93 .
 
   rem ★★★ 해제는 **빌림 밖**에서 일어난다 — 그것이 이 배치가 주는 것이다.
@@ -245,4 +245,4 @@ do
   let dead option mut slice u8 . . be pool.bytes p_borrow p hh .
   guard eq (is_some dead) false . else return 95 .
   return total .
-end .
+end

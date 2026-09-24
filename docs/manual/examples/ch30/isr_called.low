@@ -7,9 +7,9 @@ proc on_exti
   effects device .
 do
   return .
-end .
+end
 
 proc impatient output void . effects device .
 do
   on_exti .
-end .
+end

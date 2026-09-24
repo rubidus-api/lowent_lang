@@ -26,7 +26,7 @@ rem     그래야 해제가 앞선 모든 쓰기를 본다. 이 절이 오늘 �
 export proc rc_open input k cap atomic . input c mut slice u64 . . output u64 . effects atomic . do
   atomic_store c 0 1 .
   return 1 .
-end .
+end
 
 rem ★★ **포화하는 증가** — CAS 고리다. 상한에서는 CAS 를 시도하지 않고 그대로 답한다.
 rem   그냥 `atomic_add` 를 쓰면 넘칠 때 **조용히 0 으로 감긴다**(실측). 그 값을 여기서 막는다.
@@ -36,12 +36,12 @@ export proc rc_share input k cap atomic . input c mut slice u64 . . output u64 .
     let won u64 be atomic_cas c 0 cur (add cur 1) .
     if eq won 1 . do
       return add cur 1 .
-    end .
+    end
     set cur (atomic_load c 0 order relaxed) .
-  end .
+  end
   rem 포화 — 영구 누수. 메모리 안전은 안 깨진다.
   return cur .
-end .
+end
 
 rem 하나 놓는다 — **0 을 답하면 마지막이었다**. 포화한 칸은 안 줄인다.
 rem ★★ **이미 0 인 칸을 놓으면 `ceiling` 을 답한다** (2026-09-04 보안 검토). 전에는 0 을 답했다 —
@@ -58,11 +58,11 @@ export proc rc_release input k cap atomic . input c mut slice u64 . . output u64
       rem 마지막 하나였다면 **여기서 담을 친다** — 해제가 앞선 쓰기를 보게.
       if eq cur 1 . do
         atomic_fence order acquire .
-      end .
+      end
       return sub cur 1 .
-    end .
+    end
     set cur (atomic_load c 0 order relaxed) .
-  end .
+  end
   rem 여기 왔으면 칸이 이미 0 이었다 — 놓을 참조가 없다. 거두라는 신호가 **아니다**.
   return (lifemode.ceiling) .
-end .
+end

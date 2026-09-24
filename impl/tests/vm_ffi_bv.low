@@ -13,19 +13,19 @@ module vm_ffi_bv .
 struct pt do
   x i64 .
   y i64 .
-end .
+end
 
 rem area(struct pt) = x*y — 16바이트(2×i64) → SysV 로 레지스터 둘에 실린다.
-unsafe extern proc c_area input k cap c . input p pt . output i64 . effects unsafe . link lw_c_area . end .
+unsafe extern proc c_area input k cap c . input p pt . output i64 . effects unsafe . link lw_c_area . end
 
 unsafe proc area_via_c input k cap c . input p pt . output i64 . effects unsafe . do
   return c_area k p .
-end .
+end
 
 rem ★★★ **`make` 로 지은 구조체도 값으로 넘어간다.** Lowent 의 구조체는 레코드(풀 저장, .p 없음)라,
 rem   `*(struct*).p` 가 널을 역참조해 **segfault** 했다(조합 테스트가 잡음). 이제 필드에서 struct 를
 rem   실체화한다(lw_sty_N_of — 레코드면 필드 모아 짓고, 바이트 뷰면 그대로 읽는다).
 unsafe proc area_made input k cap c . output i64 . effects unsafe . do
-  var p pt . be make pt do x 6 . y 7 . end .
+  var p pt . be make pt do x 6 . y 7 . end
   return c_area k p .
-end .
+end

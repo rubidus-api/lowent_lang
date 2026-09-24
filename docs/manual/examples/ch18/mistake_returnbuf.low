@@ -8,6 +8,6 @@ do
     guard is_some g . else return subslice "" 0 0 .
     rem ko: ✘ 이 블록이 끝나면 걷힐 바이트를 돌려준다 /// en: ✘ returns bytes that are reclaimed when this block ends
     return some_value g .
-  end .
+  end
   return subslice "" 0 0 .
-end .
+end

@@ -9,7 +9,7 @@ module unlabeled .
 
 use flags from "../../../lib/flags.low" .
 
-fn defaults output u64 . do return flags.join (flags.of 0) (flags.of 1) . end .
+fn defaults output u64 . do return flags.join (flags.of 0) (flags.of 1) . end
 
 proc main input k cap io . output u8 . effects io . do
   rem 소리는 그대로 · 음악은 끄고 · 그림자를 켠 설정
@@ -25,6 +25,6 @@ proc main input k cap io . output u8 . effects io . do
     let w2 u64 be write_out k 1 "\x0a" .
     set rest (flags.without rest b) .
     set n (add n 1) .
-  end .
+  end
   return (narrow u8 n) .
-end .
+end

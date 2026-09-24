@@ -29,15 +29,15 @@ export fn gmul input a u64 . input b u64 . output u64 . do
   var r u64 be 0 .
   var i u64 be 0 .
   while lt i 8 . do
-    if eq (bit_and y 1) 1 . do  set r (bit_xor r x) .  end .
+    if eq (bit_and y 1) 1 . do  set r (bit_xor r x) .  end
     let hi u64 be bit_and x 128 .
     set x (bit_and (shl x 1) 255) .
-    if eq hi 128 . do  set x (bit_xor x 27) .  end .
+    if eq hi 128 . do  set x (bit_xor x 27) .  end
     set y (shr y 1) .
     set i (add i 1) .
-  end .
+  end
   return bit_and r 255 .
-end .
+end
 
 rem ★ GF(2^8) 역원 — x^254. x=0 이면 0(S-box 의 규약).
 export fn ginv input a u64 . output u64 . do
@@ -45,12 +45,12 @@ export fn ginv input a u64 . output u64 . do
   var b u64 be a .
   var e u64 be 254 .
   while gt e 0 . do
-    if eq (bit_and e 1) 1 . do set r (gmul r b) . end .
+    if eq (bit_and e 1) 1 . do set r (gmul r b) . end
     set b (gmul b b) .
     set e (shr e 1) .
-  end .
+  end
   return r .
-end .
+end
 
 rem ★★ S-box — **표가 아니라 정의**다(FIPS 197 §5.1.1).
 rem   b = x^(-1) 의 비트를 회전해 더하고 0x63 을 더한다.
@@ -62,9 +62,9 @@ export fn sbox input a u64 . output u64 . do
     let rot u64 be bit_and (bit_or (shl b i) (shr b (sub 8 i))) 255 .
     set r (bit_xor r rot) .
     set i (add i 1) .
-  end .
+  end
   return bit_and r 255 .
-end .
+end
 
 rem 역 S-box — 아핀의 역을 먼저 풀고 역원을 취한다.
 export fn inv_sbox input a u64 . output u64 . do
@@ -77,9 +77,9 @@ export fn inv_sbox input a u64 . output u64 . do
     let b3 u64 be bit_and (shr a (bit_and (add i 7) 7)) 1 .
     set t (bit_or t (shl (bit_xor (bit_xor b1 b2) b3) i)) .
     set i (add i 1) .
-  end .
+  end
   return ginv (bit_xor t 5) .
-end .
+end
 
 rem ★★ 키 스케줄 — 128비트 키를 11 개의 라운드 키(각 16 바이트)로 편다.
 rem   `rk` 는 176 바이트 이상. `key` 는 **정확히 16 바이트**다.
@@ -93,7 +93,7 @@ export proc expand_key input key slice u8 . input rk mut slice u8 . output u64 .
   while lt i 16 . do
     set (index rk i) (index key i) .
     set i (add i 1) .
-  end .
+  end
   var rcon u64 be 1 .
   var w u64 be 16 .
   while lt w 176 . do
@@ -109,15 +109,15 @@ export proc expand_key input key slice u8 . input rk mut slice u8 . output u64 .
       set t2 (sbox t3) .
       set t3 (sbox a0) .
       set rcon (gmul rcon 2) .
-    end .
+    end
     set (index rk w) (cast u8 (bit_xor (cast u64 (index rk (sub w 16))) t0)) .
     set (index rk (add w 1)) (cast u8 (bit_xor (cast u64 (index rk (sub (add w 1) 16))) t1)) .
     set (index rk (add w 2)) (cast u8 (bit_xor (cast u64 (index rk (sub (add w 2) 16))) t2)) .
     set (index rk (add w 3)) (cast u8 (bit_xor (cast u64 (index rk (sub (add w 3) 16))) t3)) .
     set w (add w 4) .
-  end .
+  end
   return 176 .
-end .
+end
 
 rem 라운드 키를 더한다(XOR).
 proc add_round_key input st mut slice u8 . input rk slice u8 . input r u64 . output u64 . effects none . do
@@ -125,9 +125,9 @@ proc add_round_key input st mut slice u8 . input rk slice u8 . input r u64 . out
   while lt i 16 . do
     set (index st i) (cast u8 (bit_xor (cast u64 (index st i)) (cast u64 (index rk (add (mul r 16) i))))) .
     set i (add i 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★★ 블록 암호화 — 상태는 **열 우선**이다(st[r + 4c] 가 아니라 st[4c + r]).
 rem   ☞ FIPS 197 의 그림은 행 우선처럼 보이지만 바이트 순서는 열 우선이다. 이 자리를
@@ -146,7 +146,7 @@ export proc encrypt_block input rk slice u8 . input st mut slice u8 . input tmp 
   while lt r 10 . do
     guard eq (call_builtin aes_round st (subslice rk (mul r 16) (add (mul r 16) 16))) 16 . else return 0 .
     set r (add r 1) .
-  end .
+  end
   guard eq (call_builtin aes_round_last st (subslice rk 160 176)) 16 . else return 0 .
   return 16 .
-end .
+end

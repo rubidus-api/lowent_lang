@@ -33,7 +33,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum tls13_error do
   short_workspace .
-end .
+end
 
 
 use hmac from "hmac.low" .
@@ -69,15 +69,15 @@ export proc build_label input label slice u8 . input ctx slice u8 . input outlen
   while lt i (len label) . do
     set (index info (add 9 i)) (index label i) .
     set i (add i 1) .
-  end .
+  end
   set (index info (add 9 (len label))) (cast u8 (len ctx)) .
   var j u64 be 0 .
   while lt j (len ctx) . do
     set (index info (add (add 10 (len label)) j)) (index ctx j) .
     set j (add j 1) .
-  end .
+  end
   return total .
-end .
+end
 
 rem ★ HKDF-Expand-Label. `out` 은 32 바이트를 받고, 쓸 만큼은 호출자가 앞에서 잘라 쓴다.
 rem   ☞ 32 바이트 한 블록만 낸다 — TLS 1.3 의 라벨은 전부 32 이하다(키·IV·finished).
@@ -89,14 +89,14 @@ errors short_workspace . do
   guard is_ok _u7 . else return error short_workspace .
   guard eq (ok_value _u7) 32 . else return ok 0 .
   return ok outlen .
-end .
+end
 
 rem ★ Derive-Secret(비밀, 라벨, 전사해시) — 문맥이 곧 전사 해시이고 길이는 32 고정.
 export proc derive_secret input secret slice u8 . input label slice u8 . input thash slice u8 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output result u64 tls13_error . effects none .
 errors short_workspace . do
   guard eq (len thash) 32 . else return ok 0 .
   return expand_label secret label thash 32 info scratch out .
-end .
+end
 
 rem ★★ 사다리 한 칸: 앞 비밀에서 "derived" 를 뽑아 그것을 salt 로 새 재료를 Extract 한다.
 rem   빈 전사 해시(SHA-256(""))는 **호출자가 준다** — 라이브러리가 몰래 계산하지 않는다.
@@ -119,7 +119,7 @@ errors short_workspace . do
   guard is_ok _u6 . else return error short_workspace .
   guard eq (ok_value _u6) 32 . else return ok 0 .
   return hmac.extract derived ikm scratch out .
-end .
+end
 
 rem ★ 레코드 키: key = Expand-Label(비밀,"key","",klen).
 rem
@@ -138,7 +138,7 @@ errors short_workspace . do
   set (index scratch 401) 101 .
   set (index scratch 402) 121 .
   return expand_label secret (subslice scratch 400 403) (subslice scratch 407 407) klen info (subslice scratch 0 400) out .
-end .
+end
 
 rem ★ 레코드 IV: iv = Expand-Label(비밀,"iv","",12). 앞 12 바이트만 쓴다.
 export proc traffic_iv input secret slice u8 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output result u64 tls13_error . effects none .
@@ -147,7 +147,7 @@ errors short_workspace . do
   set (index scratch 400) 105 .
   set (index scratch 401) 118 .
   return expand_label secret (subslice scratch 400 402) (subslice scratch 407 407) 12 info (subslice scratch 0 400) out .
-end .
+end
 
 rem ★★ Finished — 상대가 **같은 전사를 보았음**을 증언한다.
 rem   finished_key = Expand-Label(비밀,"finished","",32) · verify_data = HMAC(finished_key, 전사해시)
@@ -164,14 +164,14 @@ errors short_workspace . do
   set (index scratch 406) 101 .
   set (index scratch 407) 100 .
   return expand_label secret (subslice scratch 400 408) (subslice scratch 408 408) 32 info (subslice scratch 0 400) out .
-end .
+end
 
 rem ★ verify_data = HMAC(finished_key, 전사해시).
 export proc verify_data input fkey slice u8 . input thash slice u8 . input scratch mut slice u8 . input out mut slice u8 . output result u64 tls13_error . effects none .
 errors short_workspace . do
   guard eq (len thash) 32 . else return ok 0 .
   return hmac.mac fkey thash scratch out .
-end .
+end
 
 rem ★★ 레코드 nonce: IV 를 시퀀스 번호와 XOR 한다(RFC 8446 §5.3).
 rem   ☞ **번호를 세는 것은 호출자의 일이다.** 같은 nonce 를 두 번 쓰면 ChaCha20-Poly1305 는
@@ -183,15 +183,15 @@ export proc record_nonce input iv slice u8 . input seq u64 . input out mut slice
   while lt i 12 . do
     set (index out i) (index iv i) .
     set i (add i 1) .
-  end .
+  end
   var b u64 be 0 .
   while lt b 8 . do
     let pos u64 be sub 11 b .
     set (index out pos) (cast u8 (bit_xor (cast u64 (index out pos)) (bit_and (shr seq (mul b 8)) 255))) .
     set b (add b 1) .
-  end .
+  end
   return 12 .
-end .
+end
 
 rem ── 레코드 계층 (RFC 8446 §5) ────────────────────────────────────────────
 rem
@@ -215,7 +215,7 @@ export proc record_header input n u64 . input out mut slice u8 . output u64 . ef
   set (index out 3) (cast u8 (bit_and (shr n 8) 255)) .
   set (index out 4) (cast u8 (bit_and n 255)) .
   return 5 .
-end .
+end
 
 rem ★★★ **스위트가 둘이므로 레코드 계층은 갈라진다.**
 rem     suite 1 = TLS_AES_128_GCM_SHA256        (RFC 8446 §9.1 **MUST**)
@@ -242,16 +242,16 @@ errors short_workspace . do
     guard is_ok _u4 . else return error short_workspace .
     guard eq (ok_value _u4) 16 . else return ok 0 .
     return ok (add 5 total) .
-  end .
+  end
   if eq suite 2 . do
     let _u5 result u64 aead.aead_error . be aead.seal key (subslice w 0 12) (subslice rec 0 5) inner (subslice rec 5 (add 5 (len inner))) (subslice rec (add 5 (len inner)) (add 5 total)) (subslice w 12 44) (subslice u 0 10) (subslice u 10 26) (subslice u 26 42) (subslice w 44 108) (subslice w 108 124) .
     guard is_ok _u5 . else return error short_workspace .
     guard eq (ok_value _u5) 16 . else return ok 0 .
     return ok (add 5 total) .
-  end .
+  end
   rem ☞ 모르는 스위트는 **거절한다**. 조용히 하나를 고르지 않는다.
   return ok 0 .
-end .
+end
 
 rem ★★ 레코드 하나를 개봉한다. 태그가 맞을 때만 속 평문을 낸다.
 rem   ☞ 겉 타입이 23 이 아니면 **거절한다**: TLS 1.3 에서 보호된 레코드는 언제나 23 이다.
@@ -274,15 +274,15 @@ errors short_workspace . do
     guard is_ok _u2 . else return error short_workspace .
     guard eq (ok_value _u2) 1 . else return ok 0 .
     return ok plen .
-  end .
+  end
   if eq suite 2 . do
     let _u3 result u64 aead.aead_error . be aead.unseal key (subslice w 0 12) (subslice rec 0 5) (subslice rec 5 (add 5 plen)) (subslice rec (add 5 plen) (add 5 n)) (subslice inner 0 plen) (subslice w 12 44) (subslice u 0 10) (subslice u 10 26) (subslice u 26 42) (subslice w 44 108) (subslice w 108 124) (subslice w 124 140) .
     guard is_ok _u3 . else return error short_workspace .
     guard eq (ok_value _u3) 1 . else return ok 0 .
     return ok plen .
-  end .
+  end
   return ok 0 .
-end .
+end
 
 rem ★ 속 평문의 **끝**에서 진짜 내용 타입을 읽는다 — 0 패딩을 건너뛴다.
 rem   ☞ 패딩이 전부 0 인지도 본다: 0 이 아닌 것이 섞였는데 지나치면, 그것은
@@ -296,12 +296,12 @@ export proc inner_type input inner slice u8 . output u64 . effects none . do
     if ne (index inner i) 0 . do
       set found (cast u64 (index inner i)) .
       set done 1 .
-    end .
-    if eq i 0 . do  set done 1 .  end .
-    if eq done 0 . do  set i (sub i 1) .  end .
-  end .
+    end
+    if eq i 0 . do  set done 1 .  end
+    if eq done 0 . do  set i (sub i 1) .  end
+  end
   return found .
-end .
+end
 
 rem ── 핸드셰이크: 전사(transcript)와 메시지 걷기 (RFC 8446 §4) ──────────────
 rem
@@ -321,13 +321,13 @@ export proc transcript input buf slice u8 . input n u64 . input out mut slice u8
   guard le n (len buf) . else return 0 .
   guard ge (len out) 32 . else return 0 .
   return call_builtin sha256 (subslice buf 0 n) out .
-end .
+end
 
 rem ★ 핸드셰이크 메시지 하나의 겉모습: type(1) ‖ length(3, 빅엔디언) ‖ body.
 export fn hs_type input buf slice u8 . input off u64 . output u64 . do
   guard lt off (len buf) . else return 256 .
   return cast u64 (index buf off) .
-end .
+end
 
 rem 메시지 전체 길이(머리 4 포함). 버퍼를 넘으면 0 — **넘는 길이를 믿지 않는다**.
 export fn hs_size input buf slice u8 . input off u64 . output u64 . do
@@ -335,7 +335,7 @@ export fn hs_size input buf slice u8 . input off u64 . output u64 . do
   let n u64 be add (add (shl (cast u64 (index buf (add off 1))) 16) (shl (cast u64 (index buf (add off 2))) 8)) (cast u64 (index buf (add off 3))) .
   guard le (add (add off 4) n) (len buf) . else return 0 .
   return add 4 n .
-end .
+end
 
 rem ★★ 버퍼에 온전히 담긴 메시지가 몇 개인가. 길이가 버퍼를 넘으면 거기서 멈춘다.
 rem   ☞ 길이 필드는 **상대가 쓴 것**이다. 그것을 믿고 읽으면 상대가 우리 메모리를 읽는다.
@@ -346,15 +346,15 @@ export fn hs_count input buf slice u8 . output u64 . do
   var done u64 be 0 .
   while eq done 0 . do
     let sz u64 be hs_size buf off .
-    if eq sz 0 . do  set done 1 .  end .
+    if eq sz 0 . do  set done 1 .  end
     if eq done 0 . do
       set off (add off sz) .
       set n (add n 1) .
-      if ge off (len buf) . do  set done 1 .  end .
-    end .
-  end .
+      if ge off (len buf) . do  set done 1 .  end
+    end
+  end
   return n .
-end .
+end
 
 rem ★★ 서버가 보낸 Finished 가 **우리가 본 전사와 맞는가**.
 rem   verify_data = HMAC(Expand-Label(비밀,"finished","",32), 전사해시)
@@ -380,7 +380,7 @@ errors short_workspace . do
   while lt i 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index w (add 32 i))) (cast u64 (index got i)))) .
     set i (add i 1) .
-  end .
+  end
   guard eq diff 0 . else return ok 0 .
   return ok 1 .
-end .
+end

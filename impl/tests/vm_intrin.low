@@ -20,4 +20,4 @@ proc av input a bytes . input b bytes . input out mut slice u8 . output u64 . ef
   var r vec u8 4 . be avg va vb .
   store out 0 r .
   return 0 .
-end .
+end

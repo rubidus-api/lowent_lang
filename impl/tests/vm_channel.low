@@ -14,33 +14,33 @@ module vm_channel .
 
 enum e do
   bad .
-end .
+end
 
 fn g input a u8 . output result u8 e . errors bad gt a 10 .
 do
-  if gt a 10 . do return error bad . end .
+  if gt a 10 . do return error bad . end
   return ok a .
-end .
+end
 
 fn to_opt input a u8 . output option u8 . do
   return try (g a) else_none .
-end .
+end
 
 fn back input a u8 . output result u8 e . do
   return try (to_opt a) else_error bad .
-end .
+end
 
 rem 단언은 스칼라로 — 채널 자체가 아니라 **채널이 나른 값**을 본다.
 fn opt_is_some input a u8 . output bool . do
   return is_some (to_opt a) .
-end .
+end
 fn back_is_ok input a u8 . output bool . do
   return is_ok (back a) .
-end .
+end
 
 test channels_round_trip do
   expect opt_is_some 5 .
   expect not (opt_is_some 20) .
   expect back_is_ok 5 .
   expect not (back_is_ok 20) .
-end .
+end

@@ -32,7 +32,7 @@ do
     mov {a}, {r}
     add {b}, {r}
   ASM
-end .
+end
 
 rem --- ★ 특정 레지스터도 묶인다 — syscall 은 레지스터를 **고른다**(rdi/rsi/rax).
 unsafe proc asm_shift .
@@ -51,4 +51,4 @@ do
     mov {a}, {r}
     shl %cl, {r}
   ASM
-end .
+end

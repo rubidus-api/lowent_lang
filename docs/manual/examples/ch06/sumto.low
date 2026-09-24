@@ -9,6 +9,6 @@ do
   while le i n . do
     set total (add total i) .
     set i (add i 1) .
-  end .
+  end
   return total .
-end .
+end

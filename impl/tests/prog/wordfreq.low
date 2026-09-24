@@ -53,11 +53,11 @@ do
   var q u64 be 0 .
   while lt q n . do
     let ch u8 be index tbuf q .
-    if eq ch 10 . do set (index tbuf q) 32 . end .
-    if eq ch 9 . do set (index tbuf q) 32 . end .
-    if eq ch 13 . do set (index tbuf q) 32 . end .
+    if eq ch 10 . do set (index tbuf q) 32 . end
+    if eq ch 9 . do set (index tbuf q) 32 . end
+    if eq ch 13 . do set (index tbuf q) 32 . end
     set q (add q 1) .
-  end .
+  end
 
   rem 공백으로 쪼개며 각 단어를 센다: 현재 빈도를 꺼내(없으면 0) +1 해 넣는다.
   let content slice u8 be subslice tbuf 0 n .
@@ -65,19 +65,19 @@ do
   var going bool be true .
   while going . do
     let piece option slice u8 . be strings.split_next content 32 pos .
-    if eq (is_some piece) false . do set going false . end .
+    if eq (is_some piece) false . do set going false . end
     if is_some piece . do
       let word slice u8 be some_value piece .
       if gt (len word) 0 . do
         let cur option u64 . be strmap.lookup slots keys word .
         var cnt u64 be 0 .
-        if is_some cur . do set cnt (some_value cur) . end .
+        if is_some cur . do set cnt (some_value cur) . end
         let putok bool be strmap.put slots keys word (add cnt 1) .
         guard eq putok true . else return 72 .
-      end .
+      end
       set pos (add pos (add (len word) 1)) .
-    end .
-  end .
+    end
+  end
 
   rem 맵을 순회해 **가장 흔한 단어의 빈도**를 찾는다.
   var slot u64 be 0 .
@@ -85,9 +85,9 @@ do
   while lt slot (strmap.size slots) . do
     if gt (strmap.keylen_at slots slot) 0 . do
       let val u64 be strmap.val_at slots slot .
-      if gt val mx . do set mx val . end .
-    end .
+      if gt val mx . do set mx val . end
+    end
     set slot (add slot 1) .
-  end .
+  end
   return (narrow u8 mx) .
-end .
+end

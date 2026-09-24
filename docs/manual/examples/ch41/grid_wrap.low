@@ -14,8 +14,8 @@ do
     while lt k n . do
       set t (wrap_add t (widen u64 (index a (wrap_add (wrap_mul i n) k)))) .
       set k (add k 1) .
-    end .
+    end
     set i (add i 1) .
-  end .
+  end
   return t .
-end .
+end

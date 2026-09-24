@@ -9,4 +9,4 @@ do
   let m u64 be http.method_code req .
   guard http.version_ok req . else return 99 .
   return m .
-end .
+end

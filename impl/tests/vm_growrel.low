@@ -22,11 +22,11 @@ do
   while lt j 100 . do
     if lt k 5 . do
       set i (add i 1) .
-    end .
+    end
     set j (add j 1) .
-  end .
+  end
   return sub i lo .
-end .
+end
 
 rem ✔ ② 걸음이 0 이어도(늘 같은 값) 하한 관계는 산다.
 export proc zero_step input lo u64 . output u64 . effects none .
@@ -35,7 +35,7 @@ do
   var i u64 be lo .
   set i (add i 0) .
   return sub i lo .
-end .
+end
 
 rem ✘ ③ **증명되면 안 된다** — 줄어드는 대입은 하한 관계를 죽인다.
 rem    (`i = i − 1` 뒤에는 `lo ≤ i` 가 거짓일 수 있다)
@@ -46,7 +46,7 @@ do
   var i u64 be lo .
   set i (sub i 1) .
   return sub i lo .
-end .
+end
 
 rem ✘ ④ **증명되면 안 된다** — 다른 값으로 덮어쓰면 관계는 죽는다.
 export proc clobber input lo u64 . input other u64 . output u64 . effects none .
@@ -55,9 +55,9 @@ do
   var i u64 be lo .
   set i other .
   return sub i lo .
-end .
+end
 
 proc main output u8 . effects none .
 do
   return 0 .
-end .
+end

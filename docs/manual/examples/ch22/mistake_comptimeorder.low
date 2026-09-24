@@ -6,4 +6,4 @@ fn add_const input a u8 . input comptime n u8 . output u8 .
   requires le a 200 .
 do
   return add a n .
-end .
+end

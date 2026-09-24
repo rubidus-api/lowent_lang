@@ -165,7 +165,7 @@ what went in last first", as when walking a tree or graph with a loop.
 
 - `let work stack u64 be stack_new temp capacity 8 .` makes the stack. It takes space from the region, so it is `effects alloc`.
 - `push work x .` puts a value in.
-- `while pop work into d . do … end .` takes values out one at a time, binding each to `d`, as long as there is one. When the stack is empty the
+- `while pop work into d . do … end` takes values out one at a time, binding each to `d`, as long as there is one. When the stack is empty the
   loop ends --- the grammar has no way to stop by popping an empty stack.
 
 Putting in the digits 7 and 4 of 47 brings them out as 4 and 7, giving 74. The stack is reclaimed together with the region, so there is no
@@ -226,7 +226,7 @@ code to give it back.
   id: "regions-glance",
   caption: [Region syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`region work arena do … end .`], [open a region --- rewound all at once on every way out of the block], [no `free` --- the lifetime is the block],
+  [`region work arena do … end`], [open a region --- rewound all at once on every way out of the block], [no `free` --- the lifetime is the block],
   [`alloc_bytes work capacity n`], [request `n` bytes from the region --- `option mut slice u8`], [running short is a value too],
   [`effects alloc` · `effects heap`], [take from the fixed window · take from the growing heap], [the root in use is visible in the head],
   [`input al cap allocator .` · `cap heap`], [allocation capabilities received by the entry point], [the pair that allows the effect],

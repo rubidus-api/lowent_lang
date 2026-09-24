@@ -7,11 +7,11 @@ fn add_small_swapped input x u8 . input acc u64 . output u64 .
 do
   guard lt x 100 . else return acc .
   return add acc (widen u64 x) .
-end .
+end
 
 fn sum_small_wrong input xs slice u8 . output u64 .
 do
   return pipe xs do
     fold 0 add_small_swapped .
-  end .
-end .
+  end
+end

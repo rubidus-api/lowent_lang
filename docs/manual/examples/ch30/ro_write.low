@@ -5,11 +5,11 @@ struct gpio do
   mmio 0x40020000 .
   moder u32 rw .
   idr u32 ro .
-end .
+end
 
 unsafe proc poke input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
 do
   var g gpio be view gpio regs .
   write_volatile g idr 1 .
   return 0 .
-end .
+end

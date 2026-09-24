@@ -17,16 +17,16 @@ module xd .
 
 rem 4비트 하나를 16진 글자로. 10 미만은 `0`+n, 그 위는 `a`+(n-10) 이다.
 proc hexit input v u64 . output u8 . effects none . requires lt v 16 . do
-  if lt v 10 . do return (cast u8 (add v 48)) . end .
+  if lt v 10 . do return (cast u8 (add v 48)) . end
   return (cast u8 (add v 87)) .
-end .
+end
 
 rem 인쇄 가능한 ASCII 인가 — 그 밖은 점으로 찍는다.
 proc printable input b u64 . output u8 . effects none . do
-  if lt b 32 . do return 46 . end .
-  if gt b 126 . do return 46 . end .
+  if lt b 32 . do return 46 . end
+  if gt b 126 . do return 46 . end
   return (cast u8 b) .
-end .
+end
 
 proc main .
   input al cap allocator .
@@ -54,7 +54,7 @@ do
       let sh u64 be mul (sub 7 d) 4 .
       set (index line d) (hexit (bit_and (shr off sh) 15)) .
       set d (add d 1) .
-    end .
+    end
     set (index line 8) 32 .
     set (index line 9) 32 .
 
@@ -68,14 +68,14 @@ do
         set (index line hx) (hexit (div b 16)) .
         set (index line (add hx 1)) (hexit (mod b 16)) .
         set (index line ax) (printable b) .
-      end . else do
+      end else do
         set (index line hx) 32 .
         set (index line (add hx 1)) 32 .
         set (index line ax) 32 .
-      end .
+      end
       set (index line (add hx 2)) 32 .
       set col (add col 1) .
-    end .
+    end
     set (index line 58) 32 .
     set (index line 75) 10 .
 
@@ -83,6 +83,6 @@ do
     let wrote u64 be write_out k 1 ln .
     guard eq wrote 76 . else return 72 .
     set off (add off 16) .
-  end .
+  end
   return 0 .
-end .
+end

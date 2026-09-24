@@ -8,6 +8,6 @@ do
     rem ko: ✘ 자리를 얻었는지 묻지 않고 꺼낸다 --- 창이 모자라면 `none` 을 꺼내다 멈춘다 /// en: ✘ takes it out without asking whether space was granted --- if the window is too small it stops taking out `none`
     let buf mut slice u8 be some_value (alloc_bytes work capacity n) .
     return len buf .
-  end .
+  end
   return 0 .
-end .
+end

@@ -19,8 +19,8 @@ proc reuse_role output u64 . effects none . do
   guard is_some a . else return 1 .
   guard is_some b . else return 2 .
   return 42 .
-end .
+end
 
 proc main output u8 . effects none . do
   return 0 .
-end .
+end

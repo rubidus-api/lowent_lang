@@ -4,4 +4,4 @@ rem expect: E-CAP-MISSING
 proc hello input out cap io . output u64 . effects io .
 do
   return write_out 1 "hello\n" .
-end .
+end

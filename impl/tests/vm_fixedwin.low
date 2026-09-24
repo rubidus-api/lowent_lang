@@ -16,13 +16,13 @@ do
   var i u64 be 0 .
   while lt i 10 . do
     let g option mut slice u8 . . be alloc_bytes al capacity 1000 .
-    if is_some g . do set n (add n 1) . end .
+    if is_some g . do set n (add n 1) . end
     set i (add i 1) .
-  end .
+  end
   return n .
-end .
+end
 
 export proc main input al cap allocator . output u8 . effects alloc .
 do
   return narrow u8 (carve al) .
-end .
+end

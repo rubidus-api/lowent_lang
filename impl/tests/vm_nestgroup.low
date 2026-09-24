@@ -10,23 +10,23 @@ rem     슬롯만** 다루고(ready·재활용·deadlock 스캔이 base 부터),
 rem   ★ tests/ 에 task_group 을 중첩한 fixture 가 하나도 없어 diff-sweep 이 못 봤다.
 module m .
 
-proc leaf output u64 . effects none . do return 1 . end .
+proc leaf output u64 . effects none . do return 1 . end
 
 rem 그린스레드로 도는 worker 가 **자기 안에서** task_group 을 연다(await 없음 — 이게 항상 깨졌다).
 proc worker output u64 . effects state . do
   task_group do
     spawn leaf .
-  end .
+  end
   return 7 .
-end .
+end
 
-proc idle output u64 . effects none . do return 0 . end .
+proc idle output u64 . effects none . do return 0 . end
 
 rem 바깥 그룹이 worker(중첩 그룹)와 idle 을 함께 돌린다. → 9.
 proc drive output u64 . effects state . do
   task_group do
     spawn worker .
     spawn idle .
-  end .
+  end
   return 9 .
-end .
+end

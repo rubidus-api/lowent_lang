@@ -44,7 +44,7 @@ proc t_vec input al cap allocator . output u64 . effects state alloc . do
     guard vecgen.append u8 allocs.bump_bytes a (narrow u8 (add 10 i)) . else return 92 .
     guard vecgen.append u8 allocs.bump_bytes b (narrow u8 (add 200 i)) . else return 93 .
     set i (add i 1) .
-  end .
+  end
   rem ★ A 의 다섯째 — B 가 마지막 할당(길이가 같은 4)이라, 옛 `grow` 는 B 의 자리를 A 에 줬다
   guard vecgen.append u8 allocs.bump_bytes a 14 . else return 94 .
   let a0 option u8 . be vecgen.at u8 allocs.bump_bytes a 0 .
@@ -69,7 +69,7 @@ proc t_vec input al cap allocator . output u64 . effects state alloc . do
   while lt j 16 . do
     guard vecgen.append u8 allocs.bump_bytes b (narrow u8 j) . else return 86 .
     set j (add j 1) .
-  end .
+  end
   guard vecgen.append u8 allocs.bump_bytes b 16 . else return 87 .
   guard eq (send bump used) 64 . else return 88 .
   let b16 option u8 . be vecgen.at u8 allocs.bump_bytes b 16 .
@@ -79,7 +79,7 @@ proc t_vec input al cap allocator . output u64 . effects state alloc . do
   guard is_some b1 . else return 77 .
   guard eq (some_value b1) 77 . else return 76 .
   return 9 .
-end .
+end
 
 rem ── mapgen: 더러운 바닥(전부 1) 위에서도 빈 맵은 비어 있고, 다시 뿌리기도 끝난다 ──
 proc t_mapgen input al cap allocator . output u64 . effects state alloc . do
@@ -90,7 +90,7 @@ proc t_mapgen input al cap allocator . output u64 . effects state alloc . do
   while lt i (len dirty) . do
     set (index dirty i) 1 .
     set i (add i 1) .
-  end .
+  end
   var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
   var c u64 be send bump init dirty .
   let mo option (mapgen.table u32 u64) . using bump be mapgen.open u32 u64 2 .
@@ -104,14 +104,14 @@ proc t_mapgen input al cap allocator . output u64 . effects state alloc . do
   while lt j 30 . do          rem 여러 번 다시 뿌린다 — 새 상태 배열도 더러운 바이트 위에 온다
     guard mapgen.insert u32 u64 m (narrow u32 (add 100 j)) j . else return add 200 j .
     set j (add j 1) .
-  end .
+  end
   guard eq (mapgen.count_of u32 u64 m) 31 . else return 95 .
   let v option u64 . be mapgen.lookup u32 u64 m 7 .
   guard is_some v . else return 96 .
   guard eq (some_value v) 900 . else return 97 .
   guard eq (is_some (mapgen.lookup u32 u64 m 8)) false . else return 98 .
   return 6 .
-end .
+end
 
 rem ── vecgen · mapgen: 호출자가 준 개수가 커도 산술이 트랩하지 않는다 — none/false 다 ──
 proc t_vecsize input al cap allocator . output u64 . effects state alloc . do
@@ -141,7 +141,7 @@ proc t_vecsize input al cap allocator . output u64 . effects state alloc . do
   let m2 option (mapgen.table u32 u64) . using bump be mapgen.open u32 u64 4611686018427387903 .
   guard eq (is_some m2) false . else return 99 .
   return 13 .
-end .
+end
 
 rem ── lifeatom: 이미 0 인 칸을 놓으면 "거둬라"(0)가 아니다 ──
 proc t_rc input al cap allocator . input k cap atomic . output u64 . effects alloc atomic . do
@@ -155,7 +155,7 @@ proc t_rc input al cap allocator . input k cap atomic . output u64 . effects all
   guard eq again (lifemode.ceiling) . else return 94 .
   guard eq (index c 0) 0 . else return 95 .                         rem 칸은 안 건드렸다
   return 12 .
-end .
+end
 
 rem cap 은 CLI 로 못 넘긴다 — 엔트리가 받아서 넘긴다. 42 면 셋 다 맞았다.
 proc main input al cap allocator . input k cap atomic . output u8 . effects state alloc atomic . do
@@ -168,4 +168,4 @@ proc main input al cap allocator . input k cap atomic . output u8 . effects stat
   let d u64 be t_vecsize al .
   guard eq d 13 . else return narrow u8 d .
   return 42 .
-end .
+end

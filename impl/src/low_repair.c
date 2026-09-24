@@ -277,6 +277,8 @@ static const low_repair_row_t REPAIR[] = {
     { "E-PAREN-UNCLOSED",      "R-CLOSE-PAREN" },
     { "E-PAREN-ESCAPE",        "R-CLOSE-PAREN" },
     { "E-PAREN-STRAY",         "R-DROP-PAREN" },
+    // ★ X-0052 ⓐ — `end`·`do` 뒤의 점은 닫을 것이 없다. 수리는 하나: 지운다.
+    { "E-DOT-STRAY",           "R-DROP-DOT" },
     { "E-STR-UNTERM",          "R-CLOSE-STRING" },
     { "E-CHAR-UNTERM",         "R-CLOSE-STRING" },
     // ★ 구분자가 자릿수 사이가 아닌 자리에 있다 — 수리는 **하나뿐이다: 지운다.**

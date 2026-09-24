@@ -4,4 +4,4 @@ rem expect: E-ALLOC-NOCAP
 proc scratch output u8 . effects alloc .
 do
   return 1 .
-end .
+end

@@ -4,10 +4,10 @@ rem expect: E-FIELD-GLUED
 struct point do
   x u64 .
   y u64 .
-end .
+end
 
 fn getx input p point . output u64 .
 do
   rem ko: ✘ 붙임 점으로 필드를 읽었다 --- 필드는 `field p x` 로 읽는다 /// en: ✘ reads a field with a glued dot --- fields are read with `field p x`
   return p.x .
-end .
+end

@@ -7,4 +7,4 @@ fn pick input a u8 . output u8 .
   requires ge a 200 .
 do
   return a .
-end .
+end

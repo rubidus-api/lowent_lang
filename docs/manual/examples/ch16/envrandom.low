@@ -15,4 +15,4 @@ do
   let v option slice u8 be env_get e "LOWENT_MANUAL_DEMO" .
   guard is_some v . else return narrow u8 n .
   return 99 .
-end .
+end

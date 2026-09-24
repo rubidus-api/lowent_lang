@@ -24,7 +24,7 @@ rem ── 해시맵 자리 ─────────────────�
 rem ★ 바이트열의 64비트 해시(FNV-1a).
 export fn of input data slice u8 . output u64 . do
   return call_builtin hash_bytes data .
-end .
+end
 
 rem ★ 슬롯 번호로 바로 접는다(이름은 `bucket_of` — `slot` 은 `regex` 가 쓰고 있어 비켰다) — `mod` 는 나눗셈이라 2의 거듭제곱이면 마스크가 싸다.
 rem   ★ 매개변수 이름이 `slots` 였다: `regex`·`strmap` 이 같은 이름을 쓰는데 **계약의 이름
@@ -37,25 +37,25 @@ rem   자기 매개변수를 먼저 넣도록 고쳤다 — 이제 단위가 아
 export fn bucket_of input data slice u8 . input nslots u64 . output u64 .
   requires ge nslots 1 . do
   return mod (call_builtin hash_bytes data) nslots .
-end .
+end
 
 rem ★ 2의 거듭제곱 전용 — 마스크 한 번이다(`slots` 는 2^k 여야 한다).
 export fn bucket_mask input data slice u8 . input mask u64 . output u64 . do
   return bit_and (call_builtin hash_bytes data) mask .
-end .
+end
 
 rem ── 손상 검출 ──────────────────────────────────────────────────────────────
 
 rem ★ CRC-32. 값의 범위는 [0, 2^32-1] 이고 u64 로 돌려준다(폭을 잃지 않으려고).
 export fn crc input data slice u8 . output u64 . do
   return call_builtin crc32 data .
-end .
+end
 
 rem ★★ **왕복이 오라클이다** — 받은 바이트와 함께 온 검사값이 맞는가.
 rem   이 자리를 라이브러리가 들고 있으면 호출자가 비교를 빠뜨릴 수 없다.
 export fn crc_ok input data slice u8 . input want u64 . output bool . do
   return eq (call_builtin crc32 data) want .
-end .
+end
 
 rem ── 성질 ───────────────────────────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ rem   ☞ 이름이 약속을 지켜야 한다: `same` 이라 부르면 그것�
 export fn maybe_same input a slice u8 . input b slice u8 . output bool . do
   guard eq (len a) (len b) . else return false .
   return eq (call_builtin hash_bytes a) (call_builtin hash_bytes b) .
-end .
+end
 
 rem ── 암호 해시 (SHA-256) ────────────────────────────────────────────────────
 
@@ -74,7 +74,7 @@ rem   (RFC-0043 D1). 버퍼가 32 보다 짧으면 **0 을 답하고 아무것�
 rem   것이 이 축에서 가장 위험한 실패다(짧은 다이제스트는 맞아 보인다).
 export fn digest input data slice u8 . input out mut slice u8 . output u64 . do
   return call_builtin sha256 data out .
-end .
+end
 
 rem ★★ **왕복이 아니라 대조가 오라클이다** — 받은 다이제스트와 다시 센 것이 같은가.
 rem   여기서 **이른 반환을 하지 않는다**(첫 다른 바이트에서 멈추지 않는다): 타이밍이 새면
@@ -88,6 +88,6 @@ export fn digest_ok input data slice u8 . input out mut slice u8 . input want sl
   while lt i 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index out i)) (cast u64 (index want i)))) .
     set i (add i 1) .
-  end .
+  end
   return eq diff 0 .
-end .
+end

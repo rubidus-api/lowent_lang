@@ -16,7 +16,7 @@ proc t_mono input k cap clock . output u64 . effects none . do
   let b u64 be time_now k .
   guard ge b a . else return 90 .
   return 1 .
-end .
+end
 
 rem 잠들면 실제로 나아간다. 요청보다 덜 자지는 않는다(더 잘 수는 있다).
 proc t_sleep input k cap clock . output u64 . effects wait . do
@@ -26,7 +26,7 @@ proc t_sleep input k cap clock . output u64 . effects wait . do
   guard ge m 15 . else return 90 .
   guard ge (sub b a) 15000000 . else return 91 .
   return 1 .
-end .
+end
 
 rem 날짜시각 팩 — 자리마다 값이 그럴듯한 범위인가. 절대값은 안 본다.
 proc t_local input k cap clock . output u64 . effects none . do
@@ -38,4 +38,4 @@ proc t_local input k cap clock . output u64 . effects none . do
   guard le (bit_and (shr p 22) 31) 23 . else return 94 .
   guard le (bit_and (shr p 16) 63) 59 . else return 95 .
   return 1 .
-end .
+end

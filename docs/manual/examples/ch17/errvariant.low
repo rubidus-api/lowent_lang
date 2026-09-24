@@ -6,7 +6,7 @@ rem run: explain [53]
 enum parse_error do
   empty .
   not_digit .
-end .
+end
 
 fn parse_digit input s slice u8 . output result u8 parse_error .
   errors empty eq (len s) 0 .
@@ -16,7 +16,7 @@ do
   let c u8 be index s 0 .
   guard and (ge c 48) (le c 57) . else return error not_digit .
   return ok (sub c 48) .
-end .
+end
 
 fn explain input s slice u8 . output u8 .
 do
@@ -25,5 +25,5 @@ do
     case ok v . return 9 .
     case error empty . return 1 .
     case error not_digit . return 2 .
-  end .
-end .
+  end
+end

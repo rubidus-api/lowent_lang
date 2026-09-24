@@ -675,7 +675,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> a .
   <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">1</span> . <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> blocked <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
@@ -683,9 +683,9 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> a .
   <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run bare oneform.low 3
 bare(3) = 13
 $ lowentc --run blocked oneform.low 3
@@ -696,20 +696,20 @@ fn bare .
   input a u64 .
   output u64 .
   requires le a 1000 .
-do .
+do
   var x u64 be a .
-  if (gt a 1) do set x (add x 10) . end .
+  if (gt a 1) do set x (add x 10) . end
   return x .
-end .
+end
 fn blocked .
   input a u64 .
   output u64 .
   requires le a 1000 .
-do .
+do
   var x u64 be a .
-  if (gt a 1) do set x (add x 10) . end .
+  if (gt a 1) do set x (add x 10) . end
   return x .
-end .
+end
 </code></pre></div></div><p><code>bare</code> 는 <code>if</code> 의 몸에 문장 하나를 그대로 적었고, <code>blocked</code> 는 <code>do … end</code> 로 감쌌다. 답이 같고, <code>--fmt</code> 가 찍는 정규형도 한 글자 다르지 않다.</p><div class="dev mathbox"><p class="dev-label">수학. 정리 G1(<code>LowentBlock.v</code> 의 <code>one_form_is_a_block</code>)</p><div class="dev-body"><code>forall s, denote (wrap s) = denote s.</code> 문장 하나를 블록으로 감싸도 뜻이 같다. 여기서 “뜻이 같다” 는 각 나무를 평평한 문장 나열로 보내는 함수 <code>denote</code> 의 결과가 같다는 뜻이다. “같다” 의 뜻을 함수로 정하고 등식을 계산으로 확인하는 것이 이 장의 유일한 기술이다. 따름정리 <code>body_is_one_thing</code> 은 몸 자리에 문장을 쓰든 블록을 쓰든 같다고 말한다.</div></div><p>이 정리는 설계 결정 하나를 정당화한다. C 는 문장과 복합문을 다른 종류로 갈라 놓았다. <code>if (c) x = 1;</code> 과 <code>if (c) { x = 1; }</code> 가 문법적으로 다른 것이고, 유명한 <code>goto fail;</code> 함정이 그 틈에서 나왔다 — 들여쓰기는 두 줄이 <code>if</code> 에 속한 것처럼 보였지만 문법은 한 줄만 속하게 했다. Lowent 는 가르지 않는다.</p><h3 id="s48-3">48.3 닫개는 같은 일을 한다<a class="plink" href="#s48-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev mathbox"><p class="dev-label">수학. 정리 G2(<code>closers_agree</code>)</p><div class="dev-body"><code>forall c1 c2 h ops, close c1 h ops = close c2 h ops.</code> <code>.</code>·<code>end</code>·<code>)</code> 가운데 어느 것으로 닫아도 같은 나무가 나온다. 셋 다 “열려 있는 가장 안쪽 폼을 닫는다” 를 한다. 블록은 결합적이어서 블록 안의 블록은 자기 자리에서 펼쳐진다(<code>block_assoc</code>·<code>nested_block_flattens</code>).</div></div><p>예제로 보면 이렇다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch48/closers.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> closers .
 <em><span class="tok-c">rem run: one_line 4</span></em>
 <em><span class="tok-c">rem run: spread 4</span></em>
@@ -718,7 +718,7 @@ end .
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add (mul x x) (add x <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem 인자를 여러 줄에 늘어놓아도 표시가 필요 없다 --- 개행은 공백이다</span></em>
 <strong><span class="tok-k">fn</span></strong> spread <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -728,7 +728,7 @@ end .
     (mul x x)
     (add x
          <span class="tok-n">1</span>) .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run one_line closers.low 4
 one_line(4) = 21
 $ lowentc --run spread closers.low 4
@@ -744,7 +744,7 @@ spread(4) = 21
   <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> add a b
   <strong><span class="tok-k">set</span></strong> s (mul s <span class="tok-n">2</span>) .
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noperiod.low
 mistake_noperiod.low:10:0 E-IR-ARITY: extra operands in expression (strict arity)
 </code></pre></div></div><p>진단은 마침표를 빠뜨린 줄이 아니라 <strong>다음 줄</strong>을 가리킨다. 개행이 아무것도 닫지 않으니 <code>add a b</code> 뒤에 <code>set s (mul s 2)</code> 가 이어 붙어 <code>add</code> 가 인자를 넷 받은 모양이 되었고, 도구는 “인자가 남는다” 고 말한다. 줄 번호보다 한 줄 위를 먼저 본다. 이 진단이 헷갈려도 규칙은 바뀌지 않는다. 줄이 문장을 끝낸다면 긴 식을 나누는 것만으로 뜻이 바뀐다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. C 처럼 <code>;</code> 로 닫는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch48/mistake_semicolon.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_semicolon .
@@ -754,7 +754,7 @@ mistake_noperiod.low:10:0 E-IR-ARITY: extra operands in expression (strict arity
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ C 처럼 쌍반점으로 닫는다</span></em>
   <strong><span class="tok-k">return</span></strong> mul a <span class="tok-n">2</span> ;
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_semicolon.low
 7:18 E-VOCAB-REMOVED: `;` was a THIRD spelling of the closer `.` (the lexer literally emitted a DOT for it) — one meaning, three spellings, and SPEC-002 §2.5 forbids synonyms. It only survived inside the old interpreter's second language. Write `.`
 </code></pre></div></div><p><code>;</code> 는 예전에 마침표의 셋째 철자였다. 한 뜻에 철자가 셋이면 읽는 사람이 차이를 찾게 되므로 뺐고, 이제 <code>E-VOCAB-REMOVED</code> 로 거절한다. 조용히 받아들이지 않는 것은, 파싱은 되는데 아무 뜻이 없는 낱말이 가장 찾기 어려운 함정이기 때문이다.</p></div></div><h3 id="s48-5">48.5 증명하지 않은 것<a class="plink" href="#s48-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><ul><li><strong>실제 파서가 이 모델이라는 보장이 없다.</strong> 모델은 나무를 만드는 작은 함수들이고 실제 파서는 훨씬 크다. 대응은 단위 시험과 회귀 시험이 받친다.</li><li><strong><code>denote</code> 는 평평한 나열이다.</strong> 위치 정보·주석·오류 복구를 모델링하지 않았다. 그러니 “같은 나무” 는 구조가 같다는 뜻이지 진단의 품질까지 같다는 뜻이 아니다.</li><li><strong>어휘(토큰) 층은 별도다.</strong> 토큰이 이 모델의 닫개 셋으로 정확히 나뉘는지는 렉서 시험의 몫이다.</li></ul><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">문장 나열은 결합법칙과 항등원을 갖는 모노이드이고, 두 표기가 같은지는 평평한 나열로 보내는 뜻함수로 정해 계산으로 확인한다. 문장 하나는 문장 하나짜리 블록과 같고(G1), <code>.</code>·<code>end</code>·<code>)</code> 는 같은 나무를 만들며(G2), 블록 안의 블록은 제자리에서 펼쳐진다. 개행 닫기는 증명돼도 두지 않았고, 언어에서 뺀 규칙의 정리는 함께 뺐다. 이 정리들은 컴파일러의 표류를 막지만, 실제 파서가 이 모델이라는 보장은 시험이 받친다.</div></div>

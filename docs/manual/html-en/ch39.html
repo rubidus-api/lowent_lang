@@ -671,7 +671,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <em><span class="tok-c">rem adding u8 and u16 computes in the smallest type holding both (u16)</span></em>
 <strong><span class="tok-k">fn</span></strong> wider <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run wider wider.low 200 60000
 wider(200, 60000) = 60200
 $ lowentc --run wider wider.low 255 65535
@@ -683,7 +683,7 @@ $ lowentc --run wider wider.low 255 65535
 <em><span class="tok-c">rem the type holding both u8 and i8 is i16. The processor does not pick that widening for you</span></em>
 <strong><span class="tok-k">fn</span></strong> mix <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i16</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check sign_join.low
 sign_join.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)
 </code></pre></div></div><p>The “strictly wider signed type” in the diagnostic is exactly <code>u8 ⊔ i8 = i16</code>. Widening both to <code>i16</code> explicitly is accepted.</p><h3 id="s39-5">39.5 Monotone functions and fixed points — why analysis stops<a class="plink" href="#s39-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-77"></span><p>A <strong>monotone function</strong> is one whose output does not get smaller as its input gets larger. A <strong>fixed point</strong> is a point where <code>f(x) = x</code> — applying once more changes nothing.</p><p>These two ideas do the work when the processor analyses a loop. The analyser does not know a variable’s range on entering the loop. So it starts narrow and widens repeatedly.</p><pre><code data-lang="text">after round 1: i ∈ [0, 0]
@@ -698,9 +698,9 @@ after round 3: i ∈ [0, 2]      … this way it never ends</code></pre><p>So it
   <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">10</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s i) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run ten count_up.low
 ten() = 45
 $ lowentc --emit-proof count_up.low

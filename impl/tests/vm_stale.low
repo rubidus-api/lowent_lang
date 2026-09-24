@@ -3,9 +3,9 @@ rem rejected statically (E-EXCL): a view is a shared borrow (RFC-0025 §6.6).
 struct pairr do
   a u32 .
   b u32 .
-end .
+end
 
-fn mkp output pairr . do return make pairr do a 5 . b 6 . end end .
+fn mkp output pairr . do return make pairr do a 5 . b 6 . end end
 
 fn stale_view .
   output u64 .
@@ -14,4 +14,4 @@ do
   var h pairr . be view pairr s .
   set s encode pairr mkp . .
   return field h a .
-end .
+end

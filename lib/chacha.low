@@ -25,7 +25,7 @@ rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
 export enum chacha_error do
   short_workspace .
-end .
+end
 
 
 let mask32 u64 be 4294967295 .
@@ -35,12 +35,12 @@ fn rotl32 input x u64 . input n u64 . output u64 . do
   let a u64 be bit_and (shl x n) 4294967295 .
   let b u64 be shr (bit_and x 4294967295) (sub 32 n) .
   return bit_or a b .
-end .
+end
 
 rem 32비트 덧셈(랩).
 fn add32 input a u64 . input b u64 . output u64 . do
   return bit_and (add (bit_and a 4294967295) (bit_and b 4294967295)) 4294967295 .
-end .
+end
 
 rem ★ 쿼터라운드 하나를 상태 슬라이스 위에서 제자리로 돈다.
 rem   `st` 는 원소 16 개(각 32비트 값을 u64 로 담는다).
@@ -54,7 +54,7 @@ proc qround input st mut slice u64 . input a u64 . input b u64 . input c u64 . i
   set (index st c) (add32 (index st c) (index st d)) .
   set (index st b) (rotl32 (bit_xor (index st b) (index st c)) 7) .
   return 1 .
-end .
+end
 
 rem ★ 블록 함수: 상태 16 워드를 20 라운드 돌리고 원래 상태를 더한다.
 rem   `st` 에는 호출자가 초기 상태를 채워 둔다. `work` 는 16 원소 작업 공간.
@@ -66,7 +66,7 @@ errors short_workspace . do
   while lt i 16 . do
     set (index work i) (index st i) .
     set i (add i 1) .
-  end .
+  end
   var r u64 be 0 .
   while lt r 10 . do
     rem 열(column) 라운드
@@ -80,14 +80,14 @@ errors short_workspace . do
     let z7 u64 be qround work 2 7 8 13 .
     let z8 u64 be qround work 3 4 9 14 .
     set r (add r 1) .
-  end .
+  end
   var j u64 be 0 .
   while lt j 16 . do
     set (index work j) (add32 (index work j) (index st j)) .
     set j (add j 1) .
-  end .
+  end
   return ok 16 .
-end .
+end
 
 rem ★ 상태를 세운다: 상수 4 · 키 8 · 카운터 1 · nonce 3 = 16 워드.
 rem   상수는 "expand 32-byte k" 를 리틀엔디언 32비트 넷으로 읽은 것이다(RFC 8439 §2.3).
@@ -109,10 +109,10 @@ export proc prep input key slice u8 . input nonce slice u8 . input counter u64 .
     while lt b 4 . do
       set w (bit_or w (shl (cast u64 (index key (add (mul i 4) b))) (mul b 8))) .
       set b (add b 1) .
-    end .
+    end
     set (index st (add 4 i)) w .
     set i (add i 1) .
-  end .
+  end
   set (index st 12) (bit_and counter 4294967295) .
   var j u64 be 0 .
   while lt j 3 . do
@@ -121,12 +121,12 @@ export proc prep input key slice u8 . input nonce slice u8 . input counter u64 .
     while lt c 4 . do
       set v (bit_or v (shl (cast u64 (index nonce (add (mul j 4) c))) (mul c 8))) .
       set c (add c 1) .
-    end .
+    end
     set (index st (add 13 j)) v .
     set j (add j 1) .
-  end .
+  end
   return 16 .
-end .
+end
 
 rem ★ 키스트림 한 블록(64 바이트)을 `ks` 에 리틀엔디언으로 편다.
 export proc keystream input st slice u64 . input work mut slice u64 . input ks mut slice u8 . output result u64 chacha_error . effects none .
@@ -141,11 +141,11 @@ errors short_workspace . do
     while lt b 4 . do
       set (index ks (add (mul i 4) b)) (cast u8 (bit_and (shr (index work i) (mul b 8)) 255)) .
       set b (add b 1) .
-    end .
+    end
     set i (add i 1) .
-  end .
+  end
   return ok 64 .
-end .
+end
 
 rem ★★ 스트림 암·복호(같은 연산이다). `counter` 는 시작 블록 번호.
 rem   `st`·`work` 16 원소, `ks` 64 바이트를 호출자가 준다 — 이 언어에서 할당은
@@ -165,13 +165,13 @@ errors short_workspace . do
   while lt b 4 . do
     set (index ks b) (cast u8 (bit_and (shr counter (mul b 8)) 255)) .
     set b (add b 1) .
-  end .
+  end
   var j u64 be 0 .
   while lt j 12 . do
     set (index ks (add 4 j)) (index nonce j) .
     set j (add j 1) .
-  end .
+  end
   let n u64 be call_builtin chacha20 key (subslice ks 0 16) inp out .
   guard eq n (len inp) . else return ok 0 .
   return ok (len inp) .
-end .
+end

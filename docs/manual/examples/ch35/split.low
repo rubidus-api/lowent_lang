@@ -10,4 +10,4 @@ do
   var r owned shard.token grid be shard.open grid 8 .
   var h shard.halves grid be shard.split_at grid r 4 .
   return shard.width grid r .
-end .
+end

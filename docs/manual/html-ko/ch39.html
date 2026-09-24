@@ -671,7 +671,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <em><span class="tok-c">rem u8 과 u16 을 더하면 둘을 다 담는 가장 작은 타입(u16)에서 계산된다</span></em>
 <strong><span class="tok-k">fn</span></strong> wider <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run wider wider.low 200 60000
 wider(200, 60000) = 60200
 $ lowentc --run wider wider.low 255 65535
@@ -683,7 +683,7 @@ $ lowentc --run wider wider.low 255 65535
 <em><span class="tok-c">rem u8 과 i8 을 둘 다 담는 타입은 i16 이다. 처리기는 그 넓히기를 대신 고르지 않는다</span></em>
 <strong><span class="tok-k">fn</span></strong> mix <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i16</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> add a b .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check sign_join.low
 sign_join.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)
 </code></pre></div></div><p>진단이 말하는 “strictly wider signed type” 이 바로 <code>u8 ⊔ i8 = i16</code> 이다. 둘을 모두 <code>i16</code> 으로 넓혀 적으면 받아들여진다.</p><h3 id="s39-5">39.5 단조 함수와 고정점 — 분석은 왜 멈추는가<a class="plink" href="#s39-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-77"></span><p><strong>단조 함수</strong>는 입력이 커지면 출력이 작아지지 않는 함수다. <strong>고정점</strong>은 <code>f(x) = x</code> 인 점, 곧 한 번 더 적용해도 변하지 않는 점이다.</p><p>처리기가 반복을 분석할 때 이 두 개념이 일한다. 분석기는 반복에 들어올 때 변수의 범위를 모른다. 그래서 좁게 시작해 되풀이하며 넓힌다.</p><pre><code data-lang="text">1 바퀴 뒤: i ∈ [0, 0]
@@ -698,9 +698,9 @@ sign_join.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exist
   <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">10</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s i) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> s .
-<strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run ten count_up.low
 ten() = 45
 $ lowentc --emit-proof count_up.low

@@ -22,9 +22,9 @@ rem k 조각짜리 수를 0 으로.
 export proc zero input a mut slice u64 . input k u64 . output u64 . effects none . do
   guard ge (len a) k . else return 0 .
   var i u64 be 0 .
-  while lt i k . do  set (index a i) 0 .  set i (add i 1) .  end .
+  while lt i k . do  set (index a i) 0 .  set i (add i 1) .  end
   return 1 .
-end .
+end
 
 rem 빅엔디언 바이트열 → 16비트 조각 리틀엔디언. 조각 수 k 를 돌려준다.
 export proc from_bytes input src slice u8 . input a mut slice u64 . input k u64 . output u64 . effects none . do
@@ -36,9 +36,9 @@ export proc from_bytes input src slice u8 . input a mut slice u64 . input k u64 
     let lo u64 be cast u64 (index src (add (mul (sub (sub k 1) i) 2) 1)) .
     set (index a i) (bit_or (shl hi 8) lo) .
     set i (add i 1) .
-  end .
+  end
   return k .
-end .
+end
 
 rem 조각 → 빅엔디언 바이트열.
 export proc to_bytes input a slice u64 . input k u64 . input out mut slice u8 . output u64 . effects none . do
@@ -48,9 +48,9 @@ export proc to_bytes input a slice u64 . input k u64 . input out mut slice u8 . 
     set (index out (mul (sub (sub k 1) i) 2)) (cast u8 (bit_and (shr (index a i) 8) 255)) .
     set (index out (add (mul (sub (sub k 1) i) 2) 1)) (cast u8 (bit_and (index a i) 255)) .
     set i (add i 1) .
-  end .
+  end
   return mul k 2 .
-end .
+end
 
 rem **리틀엔디언** 바이트열 → 조각.
 export proc from_bytes_le input src slice u8 . input a mut slice u64 . output u64 . effects none . do
@@ -60,9 +60,9 @@ export proc from_bytes_le input src slice u8 . input a mut slice u64 . output u6
   while lt i 16 . do
     set (index a i) (bit_or (cast u64 (index src (mul i 2))) (shl (cast u64 (index src (add (mul i 2) 1))) 8)) .
     set i (add i 1) .
-  end .
+  end
   return 16 .
-end .
+end
 
 rem 조각 → **리틀엔디언** 바이트열. (Ed25519 의 스칼라가 이 순서다.)
 export proc to_bytes_le input out mut slice u8 . input a slice u64 . output u64 . effects none . do
@@ -72,9 +72,9 @@ export proc to_bytes_le input out mut slice u8 . input a slice u64 . output u64 
     set (index out (mul i 2)) (cast u8 (bit_and (index a i) 255)) .
     set (index out (add (mul i 2) 1)) (cast u8 (bit_and (shr (index a i) 8) 255)) .
     set i (add i 1) .
-  end .
+  end
   return 32 .
-end .
+end
 
 rem a >= n 인가 (둘 다 k 조각).
 export fn ge_mod input a slice u64 . input n slice u64 . input k u64 . output u64 . do
@@ -82,17 +82,17 @@ export fn ge_mod input a slice u64 . input n slice u64 . input k u64 . output u6
   var res u64 be 1 .
   var done u64 be 0 .
   while eq done 0 . do
-    if eq i 0 . do  set done 1 .  end .
+    if eq i 0 . do  set done 1 .  end
     if eq done 0 . do
       set i (sub i 1) .
-      if gt (index a i) (index n i) . do  set res 1 .  set done 1 .  end .
+      if gt (index a i) (index n i) . do  set res 1 .  set done 1 .  end
       if eq done 0 . do
-        if lt (index a i) (index n i) . do  set res 0 .  set done 1 .  end .
-      end .
-    end .
-  end .
+        if lt (index a i) (index n i) . do  set res 0 .  set done 1 .  end
+      end
+    end
+  end
   return res .
-end .
+end
 
 rem a ← a − n (a >= n 일 때만 부른다).
 proc sub_mod input a mut slice u64 . input n slice u64 . input k u64 . output u64 . effects none . do
@@ -104,9 +104,9 @@ proc sub_mod input a mut slice u64 . input n slice u64 . input k u64 . output u6
     rem 빌림은 **비트로 읽는다** — wrap_sub 이 감기면 상위가 전부 1 이 된다.
     set borrow (bit_and (shr d 63) 1) .
     set i (add i 1) .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★ a ← 2a mod n. 나눗셈 없이 R 이나 R^2 를 만드는 도구다.
 export proc dbl_mod input a mut slice u64 . input n slice u64 . input k u64 . output u64 . effects none . do
@@ -117,17 +117,17 @@ export proc dbl_mod input a mut slice u64 . input n slice u64 . input k u64 . ou
     set (index a i) (bit_and v 65535) .
     set carry (shr v 16) .
     set i (add i 1) .
-  end .
+  end
   rem 넘친 비트가 있거나 n 이상이면 한 번 뺀다. (2a < 2n 이므로 한 번이면 족하다.)
   if eq carry 1 . do
     let z1 u64 be sub_mod a n k .
     return 1 .
-  end .
+  end
   if eq (ge_mod a n k) 1 . do
     let z2 u64 be sub_mod a n k .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★★ 몽고메리 곱 (CIOS): out ← a·b·R^-1 mod n.  `t` 는 k+2 조각 작업 공간.
 rem   n0inv = −n[0]^-1 mod 2^16.
@@ -135,7 +135,7 @@ export proc mont_mul input out mut slice u64 . input a slice u64 . input b slice
      input k u64 . input n0inv u64 . input t mut slice u64 . output u64 . effects none . inplace out a . inplace out b . do
   guard ge (len t) (add k 2) . else return 0 .
   var z u64 be 0 .
-  while lt z (add k 2) . do  set (index t z) 0 .  set z (add z 1) .  end .
+  while lt z (add k 2) . do  set (index t z) 0 .  set z (add z 1) .  end
   var i u64 be 0 .
   while lt i k . do
     rem t ← t + a[i]·b
@@ -146,7 +146,7 @@ export proc mont_mul input out mut slice u64 . input a slice u64 . input b slice
       set (index t j) (bit_and s 65535) .
       set carry (shr s 16) .
       set j (add j 1) .
-    end .
+    end
     let s1 u64 be add (index t k) carry .
     set (index t k) (bit_and s1 65535) .
     set (index t (add k 1)) (add (index t (add k 1)) (shr s1 16)) .
@@ -160,25 +160,25 @@ export proc mont_mul input out mut slice u64 . input a slice u64 . input b slice
       set (index t (sub q 1)) (bit_and s3 65535) .
       set carry2 (shr s3 16) .
       set q (add q 1) .
-    end .
+    end
     let s4 u64 be add (index t k) carry2 .
     set (index t (sub k 1)) (bit_and s4 65535) .
     set (index t k) (add (index t (add k 1)) (shr s4 16)) .
     set (index t (add k 1)) 0 .
     set i (add i 1) .
-  end .
+  end
   var c u64 be 0 .
-  while lt c k . do  set (index out c) (index t c) .  set c (add c 1) .  end .
+  while lt c k . do  set (index out c) (index t c) .  set c (add c 1) .  end
   rem t[k] 가 서 있거나 n 이상이면 한 번 뺀다.
   if gt (index t k) 0 . do
     let z3 u64 be sub_mod out n k .
     return 1 .
-  end .
+  end
   if eq (ge_mod out n k) 1 . do
     let z4 u64 be sub_mod out n k .
-  end .
+  end
   return 1 .
-end .
+end
 
 rem ★ n0inv = −n[0]^-1 mod 2^16 — 뉴턴 반복 네 번이면 16 비트가 찬다.
 export fn n0inv16 input n0 u64 . output u64 . do
@@ -192,10 +192,10 @@ export fn n0inv16 input n0 u64 . output u64 . do
     let d16 u64 be bit_and (wrap_sub 2 (bit_and (mul x inv) 65535)) 65535 .
     set inv (bit_and (mul inv d16) 65535) .
     set i (add i 1) .
-  end .
+  end
   rem −inv mod 2^16
   return bit_and (wrap_sub 0 inv) 65535 .
-end .
+end
 
 rem ★★★ RSA 검증의 전부: out ← base^e mod n.  e 는 작은 지수(3 · 65537 …).
 rem   작업 공간: r2·acc·bse·t 각각 k+2 조각 이상.
@@ -213,7 +213,7 @@ export proc mod_exp input out mut slice u64 . input bse slice u64 . input e u64 
   while lt d (mul 32 k) . do
     let zz u64 be dbl_mod r2 n k .
     set d (add d 1) .
-  end .
+  end
 
   rem acc ← 1 을 몽고메리 형태로(= R mod n) · tmp ← base 를 몽고메리 형태로
   let z1 u64 be zero acc k .
@@ -225,22 +225,22 @@ export proc mod_exp input out mut slice u64 . input bse slice u64 . input e u64 
   var hb u64 be 63 .
   var found u64 be 0 .
   while eq found 0 . do
-    if eq (bit_and (shr e hb) 1) 1 . do  set found 1 .  end .
-    if eq found 0 . do  set hb (sub hb 1) .  end .
-  end .
+    if eq (bit_and (shr e hb) 1) 1 . do  set found 1 .  end
+    if eq found 0 . do  set hb (sub hb 1) .  end
+  end
   var bi u64 be hb .
   var done u64 be 0 .
   while eq done 0 . do
     let sq u64 be mont_mul acc acc acc n k n0i t .
     if eq (bit_and (shr e bi) 1) 1 . do
       let mu u64 be mont_mul acc acc tmp n k n0i t .
-    end .
-    if eq bi 0 . do  set done 1 .  end .
-    if eq done 0 . do  set bi (sub bi 1) .  end .
-  end .
+    end
+    if eq bi 0 . do  set done 1 .  end
+    if eq done 0 . do  set bi (sub bi 1) .  end
+  end
 
   rem 몽고메리 형태를 벗긴다: ×1
   let z2 u64 be zero tmp k .
   set (index tmp 0) 1 .
   return mont_mul out acc tmp n k n0i t .
-end .
+end

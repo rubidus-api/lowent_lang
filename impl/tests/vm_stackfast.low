@@ -19,14 +19,14 @@ do
     while lt i n . do
         push s i .
         set i (add i 1) .
-    end .
+    end
     var t u64 be 0 .
     var v u64 be 0 .
     while pop s into v . do
         set t (add t v) .
-    end .
+    end
     return t .
-end .
+end
 
 rem 루프마다 **새 스택**을 만든다 — 태그 경로는 9번째에 죽는다.
 proc many input temp region frame . . input k u64 . output u64 . effects alloc .
@@ -39,6 +39,6 @@ do
         push s 9 .
         set t (add t (count s)) .
         set j (add j 1) .
-    end .
+    end
     return t .
-end .
+end

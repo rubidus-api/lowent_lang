@@ -55,7 +55,7 @@
 export fn starts_with input s str . input prefix str . output bool . do
   guard le (len prefix) (len s) . else return false .
   return eq_str (subslice s 0 (len prefix)) prefix .
-end .
+end
 ```
 
 이 책에서 배운 것만으로 읽힌다. 라이브러리만 쓸 수 있는 숨은 통로가 있으면 그 통로를 지나는 순간 프로그램의 보장이 끊기기 때문이다.

@@ -25,9 +25,9 @@ do
   while lt k 8 . do
     set acc (add acc (add start k)) .
     set k (add k 1) .
-  end .
+  end
   return acc .
-end .
+end
 
 rem ✔ ② 세 홉 — 한 칸 더 늘려도 닫힌다(폐포는 반복한다).
 export proc chain_three input a u64 . input b u64 . input c u64 . input d u64 .
@@ -38,16 +38,16 @@ export proc chain_three input a u64 . input b u64 . input c u64 . input d u64 .
   requires le d 1000 .
 do
   return add a 1 .
-end .
+end
 
 rem ✘ ③ **증명되면 안 된다** — 사슬의 끝이 열려 있으면(상계 없음) 아무것도 안 따라온다.
 export proc open_chain input a u64 . input b u64 . output u64 . effects none .
   requires le a b .
 do
   return add a 1 .
-end .
+end
 
 proc main output u8 . effects none .
 do
   return 0 .
-end .
+end

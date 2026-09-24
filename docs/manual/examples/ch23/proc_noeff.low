@@ -3,15 +3,15 @@ rem expect: E-TRAIT-EFFECT
 
 trait shape do
   area input s self . output u64 .
-end .
+end
 
 struct rect do
   satisfies shape .
   w u64 .
   h u64 .
-end .
+end
 
 proc rect.area input s rect . output u64 .
 do
   return mul (field s w) (field s h) .
-end .
+end

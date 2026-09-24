@@ -3,23 +3,23 @@ rem expect: E-METHOD-UNDEF
 
 trait ordered do
   less input a self . input b self . output bool .
-end .
+end
 
 struct plain do
   v u64 .
-end .
+end
 
 rem ko: ✘ 본문은 `less` 를 부르는데 머리에 `requires ordered t .` 가 없다 /// en: ✘ the body calls `less`, but the head has no `requires ordered t .`
 fn max_of input comptime t type . input a t . input b t . output t .
 do
   if method a less b . do
     return b .
-  end .
+  end
   return a .
-end .
+end
 
 fn caller output u64 .
 do
   let m plain be max_of plain (make plain do v 1 . end) (make plain do v 2 . end) .
   return field m v .
-end .
+end

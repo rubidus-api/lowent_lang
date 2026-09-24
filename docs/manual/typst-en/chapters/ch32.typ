@@ -56,7 +56,7 @@ The standard library has no privileges. It gets the same rules as code the autho
 export fn starts_with input s str . input prefix str . output bool . do
   guard le (len prefix) (len s) . else return false .
   return eq_str (subslice s 0 (len prefix)) prefix .
-end .
+end
 ```
 
 It reads with only what this book has taught. If there were a hidden passage only the library could use, a program's guarantees would break the moment it passed

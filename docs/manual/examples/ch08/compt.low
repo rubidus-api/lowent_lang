@@ -5,13 +5,13 @@ rem run: pick
 fn table_size output u64 .
 do
   return mul (size_of u32) 16 .
-end .
+end
 
 fn pick output u32 .
 do
   match comptime (add 2 3) do
-    case 0 . do return 100 . end .
-    case 5 . do return 500 . end .
-    case _ . do return 999 . end .
-  end .
-end .
+    case 0 . do return 100 . end
+    case 5 . do return 500 . end
+    case _ . do return 999 . end
+  end
+end

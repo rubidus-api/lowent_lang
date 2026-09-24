@@ -20,7 +20,7 @@ fn unit_counts output u64 . do
   guard eq (utf16.units 65536) 2 . else return 93 .      rem U+10000 — 여기부터 짝
   guard eq (utf16.units 128169) 2 . else return 94 .     rem U+1F4A9 — 이모지
   return 1 .
-end .
+end
 
 rem ── ② 왕복 — 써 넣고 다시 읽으면 같은 코드포인트 ─────────────────────
 rem ★ 이것이 이 라이브러리의 핵심 주장이다. 짝을 만들고, 그 짝을 다시 하나로 읽는다.
@@ -44,7 +44,7 @@ proc round_trip input buf mut slice u16 . . output u64 . effects none . do
   guard is_some rb . else return 98 .
   guard eq (some_value rb) 128169 . else return 99 .
   return 1 .
-end .
+end
 
 rem ── ③ ★★★ 짝이 안 맞으면 거절한다 — 이 파일의 진짜 값 ────────────────
 rem
@@ -74,7 +74,7 @@ proc rejects_broken input buf mut slice u16 . . output u64 . effects none . do
   guard is_some d . else return 93 .
   guard eq (some_value d) 128169 . else return 94 .
   return 1 .
-end .
+end
 
 rem ── ④ 서로게이트는 **코드포인트가 아니다** ────────────────────────────
 rem ★ `lib/utf8.low` 이 UTF-8 안의 서로게이트를 거절하므로, 서로게이트는 **오직 UTF-16
@@ -86,7 +86,7 @@ fn surrogates_are_not_codepoints output u64 . do
   guard utf16.cp_valid 128169 . else return 93 .             rem 진짜 코드포인트는 통과
   guard utf16.cp_valid 65 . else return 94 .
   return 1 .
-end .
+end
 
 rem ── ⑤ 전체 훑기 — 망가진 자리를 만나면 **수를 안 낸다** ────────────────
 proc counts_and_validates input buf mut slice u16 . . output u64 . effects none . do
@@ -106,7 +106,7 @@ proc counts_and_validates input buf mut slice u16 . . output u64 . effects none 
   guard eq (is_some m) false . else return 93 .
   guard eq (utf16.is_valid (subslice buf 0 4)) false . else return 94 .
   return 1 .
-end .
+end
 
 rem ── ⑥ 자리가 모자라면 **한 칸도 안 쓴다** (전량-아니면-무) ─────────────
 rem ★ `lib/strbuf.low` 의 `sb_append` 와 같은 규율이다 — 반쯤 쓰인 버퍼는 조용히 틀린 내용이다.
@@ -118,4 +118,4 @@ proc put_is_atomic input buf mut slice u16 . . output u64 . effects none . do
   guard eq (is_some r) false . else return 90 .
   guard eq (index buf last) 7 . else return 91 .      rem 손대지 않았다
   return 1 .
-end .
+end

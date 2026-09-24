@@ -31,10 +31,10 @@ proc use_it output u64 . effects alloc . do
       set (index b 0) 7 .
       rem ★ `index` 는 **바이트**를 낸다 — 자리를 안 들고 나간다.
       set t (narrow u64 (index b 0)) .
-    end .
-  end .
+    end
+  end
   return t .
-end .
+end
 
 rem ★★★ **되돌리기가 실제로 일어난다는 증거.** 두 블록이 각각 32 바이트를 쓰는데, 첫 블록이
 rem   반납하므로 두 번째가 **같은 바이트**를 받는다 — 그리고 0 으로 다시 채워져 나온다.
@@ -48,18 +48,18 @@ proc reuse output u64 . effects alloc . do
       let b mut slice u8 . be some_value g .
       set (index b 0) 99 .
       set first (narrow u64 (index b 0)) .
-    end .
-  end .
+    end
+  end
   region c arena do
     let g2 option mut slice u8 . . be alloc_bytes c capacity 32 .
     if is_some g2 . do
       let b2 mut slice u8 . be some_value g2 .
       rem ★ 같은 자리를 받았다면 여기서 99 가 아니라 **0** 이 보인다.
       set second (narrow u64 (index b2 0)) .
-    end .
-  end .
+    end
+  end
   return add (mul first 1000) second .           rem 99000
-end .
+end
 
 rem ★ 블록이 여러 번 돌아도 자리가 **안 자란다** — 매 바퀴 반납하므로.
 proc many output u64 . effects alloc . do
@@ -68,9 +68,9 @@ proc many output u64 . effects alloc . do
   while lt i 100 . do
     region r arena do
       let g option mut slice u8 . . be alloc_bytes r capacity 512 .
-      if is_some g . do set n (add n 1) . end .
-    end .
+      if is_some g . do set n (add n 1) . end
+    end
     set i (add i 1) .
-  end .
+  end
   return n .                                     rem 100 — 반납이 없었다면 51200 바이트라 고갈된다
-end .
+end

@@ -4969,6 +4969,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_AESROUND: return "crypto.aes_round"; case IRW_AESLAST: return "crypto.aes_round_last";
         case IRW_CHACHA20: return "crypto.chacha20";
         case IRW_POLY1305: return "crypto.poly1305";
+        case IRW_AESGCM:   return "crypto.aes_gcm";
         case IRW_WRAP_OK: return "wrap.ok"; case IRW_WRAP_SOME: return "wrap.some"; case IRW_WRAP_NONE: return "wrap.none"; case IRW_WRAP_ERR: return "wrap.err";
         case IRW_TRY: return "try"; case IRW_MAKE: return "make";
         case IRW_SNEW: return "stack.new"; case IRW_SPUSH: return "stack.push";

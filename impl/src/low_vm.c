@@ -2750,6 +2750,32 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 stack[sp++] = vmv_int((proven_i64)nar);
                 break;
             }
+            case IRW_AESGCM: {   // (key16, mut ctr16, h16, mut z16, src, mut dst) → u64 — 권한 없음
+                // ★ VM 은 **엮지 않은 판**을 돈다(잎 둘을 차례로) ⇒ 오라클이 엮은 경로의 차등 시험이다.
+                if (sp < 6) return false;
+                bool q6_; vmv_t dst = vm_through(vm, stack[--sp], true,  &q6_);
+                bool q5_; vmv_t src = vm_through(vm, stack[--sp], false, &q5_);
+                bool q4_; vmv_t zz  = vm_through(vm, stack[--sp], true,  &q4_);
+                bool q3_; vmv_t hh  = vm_through(vm, stack[--sp], false, &q3_);
+                bool q2_; vmv_t ctr = vm_through(vm, stack[--sp], true,  &q2_);
+                bool q1_; vmv_t key = vm_through(vm, stack[--sp], false, &q1_);
+                if ((key.tag != VMV_SLICE && key.tag != VMV_VARRAY && key.tag != VMV_VIEW) ||
+                    (ctr.tag != VMV_SLICE && ctr.tag != VMV_VARRAY) ||
+                    (hh.tag  != VMV_SLICE && hh.tag  != VMV_VARRAY && hh.tag != VMV_VIEW) ||
+                    (zz.tag  != VMV_SLICE && zz.tag  != VMV_VARRAY) ||
+                    (src.tag != VMV_SLICE && src.tag != VMV_VARRAY && src.tag != VMV_VIEW) ||
+                    (dst.tag != VMV_SLICE && dst.tag != VMV_VARRAY)) {
+                    vm_diag(vm->diags, "E-VM-TYPE",
+                            "aes_gcm needs (16-byte key, mutable 16-byte counter, 16-byte H, "
+                            "mutable 16-byte accumulator, bytes, mutable bytes)");
+                    return false;
+                }
+                long long ngc = lw_aes_gcm(key.p, key.n, (void *)ctr.p, ctr.n,
+                                           hh.p, hh.n, (void *)zz.p, zz.n,
+                                           src.p, src.n, (void *)dst.p, dst.n);
+                stack[sp++] = vmv_int((proven_i64)ngc);
+                break;
+            }
             case IRW_POLY1305: {   // (mut st, data) → u64 — 권한 없음(순수)
                 if (sp < 2) return false;
                 bool p2c_; vmv_t dat = vm_through(vm, stack[--sp], false, &p2c_);

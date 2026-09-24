@@ -7,11 +7,15 @@
  *   받는 자리**가 남는다. 그 자리에서 이 언어는 못 쓸 물건이었다.
  *   ⇒ 「빌트인 op 증가 0」 규율을 여기서 한 번 연다. 소유자가 그렇게 정했다.
  *
- * ★★★ 무엇을 잎으로 내리고 무엇을 안 내렸나 — **구성은 남는다.**
- *   내린 것: 라운드 함수(AES)와 GF(2^128) 곱(GHASH). 둘 다 «기계가 잘하는 계산» 이다.
- *   안 내린 것: GCM 의 **짜임** — J0 를 만들고, 태그를 **먼저 검증하고 나서** 복호하고,
- *   길이 블록을 비트로 세는 규율은 `lib/gcm.low` 에 남는다. 그것이 골든이 재는 자리다.
- *   ☞ AEAD 통째로 내리면 그 규율이 C 안으로 숨는다. 숨은 규율은 검사할 수 없다.
+ * ★★★ 무엇을 잎으로 내리고 무엇을 안 내렸나 — **선은 «계산 대 차례» 다.**
+ *   내린 것: 라운드 함수(AES)와 GF(2^128) 곱(GHASH), 그리고 RFC-0124 부터는 **그 둘이 같은
+ *   바이트 위에서 맞물려 도는 것**(`lw_aes_gcm`)까지. 셋 다 «기계가 잘하는 계산» 이다.
+ *   안 내린 것: GCM 의 **차례** — J0 를 만들고, AAD 를 먼저 먹이고, 길이 블록을 비트로 세고,
+ *   태그를 **먼저 증언하고 나서** 복호하는 규율은 `lib/gcm.low` 에 남는다. 골든이 재는 자리다.
+ *   ☞ AEAD 통째로 내리면 그 차례가 C 안으로 숨는다. 숨은 규율은 검사할 수 없다.
+ *   ☞ 그 선이 진짜라는 증거: **복호는 엮지 않는다.** 증언 전에 평문을 쓰지 않으려면 두 바퀴여야
+ *     하고, 그래서 봉인은 3,661 MB/s 인데 복호는 2,848 에 머문다. 규율이 값을 치르고 있고,
+ *     그 값이 이제 **수로 보인다.**
  *
  * ★★ 두 뒤끝이 **같은 글자**를 쓴다: VM 은 이 헤더를 컴파일해 넣고, C 방출기는 같은 글을
  *   문자열로 실어 보낸다(`LOW_AES_C_SOURCE`). 나뉘어 있으면 언젠가 갈린다 —
@@ -181,6 +185,21 @@ static long long lw_ghash(const void *hp, unsigned long long hlen,              
     }                                                                                                \
     lw_gh_put64(z, z0); lw_gh_put64(z + 8, z1);                                                      \
     return (long long)dlen;                                                                          \
+}                                                                                                    \
+/* ★★★★ **GCM 한 덩이 — 뜻은 «있는 잎 둘을 차례로 부르는 것» 이다** (RFC-0124, 2026-09-24).       \
+   새 셈을 하나도 안 적는다 — 그래서 «엮은 판이 맞는가» 가 «따로 부른 것과 같은가» 로        \
+   환원된다. VM 은 언제나 이 판을 돌고, 기계 판은 방출 C 에만 있다 ⇒ 오라클이 그 경로의   \
+   차등 시험이다. ☆ 누산은 **암호문**에 매긴다 — 흘리고 나서 먹이는 차례가 그것이다. */   \
+static long long lw_aes_gcm(const void *keyp, unsigned long long klen,                               \
+                            void *ctrp, unsigned long long clen,                                     \
+                            const void *hp, unsigned long long hlen,                                 \
+                            void *zp, unsigned long long zlen,                                       \
+                            const void *srcp, unsigned long long slen,                               \
+                            void *dstp, unsigned long long dlen) {                                   \
+    long long n = lw_aes_ctr(keyp, klen, ctrp, clen, srcp, slen, dstp, dlen);                        \
+    if (n != (long long)slen) return 0;                                                              \
+    if (lw_ghash(hp, hlen, zp, zlen, dstp, slen) != (long long)slen) return 0;                       \
+    return n;                                                                                        \
 }
 
 /* ★ 가변 인자로 받는다 — 본문에 쉼표(표 초기화)가 있어서 한 인자 매크로로는 못 싣는다.

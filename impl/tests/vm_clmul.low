@@ -64,3 +64,20 @@ rem     올리는 규약도 같은 비교로 증언된다 — 여덟을 한 번�
 export proc ctr input key slice u8 . input c mut slice u8 . input s slice u8 . input d mut slice u8 . output u64 . effects none . do
   return aes_ctr key c s d .
 end .
+
+rem ★★★★★ **엮은 판과 따로 부른 판이 같은 답인가** (RFC-0124, 2026-09-24).
+rem   `aes_gcm` 의 뜻은 «`aes_ctr` 를 돌리고 그 결과를 `ghash` 에 먹인다» 이다(`low_aes.h`).
+rem   기계 판만 둘을 엮어 돌므로, 같은 입력에 **같은 암호문·같은 누산기·같은 카운터**가
+rem   나와야 한다. 128 의 앞뒤가 갈림길이다(엮은 고리는 128 씩, 꼬리는 잎 둘이 판다).
+export proc gcmx input key slice u8 . input c mut slice u8 . input h slice u8 . input z mut slice u8 .
+  input s slice u8 . input d mut slice u8 . output u64 . effects none . do
+  return aes_gcm key c h z s d .
+end .
+
+rem 같은 일을 **잎 둘로** — 증인은 이 둘의 답이 같다는 것이다.
+export proc gcmpair input key slice u8 . input c mut slice u8 . input h slice u8 . input z mut slice u8 .
+  input s slice u8 . input d mut slice u8 . output u64 . effects none . do
+  let n u64 be aes_ctr key c s d .
+  guard eq n (len s) . else return 0 .
+  return ghash h z d .
+end .

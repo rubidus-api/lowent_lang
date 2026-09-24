@@ -193,9 +193,16 @@ proc gcm_tag input aad slice u8 . input ct slice u8 . input tag mut slice u8 . i
   while lt q 16 . do  set (index w (add 192 q)) 0 .  set q (add q 1) .  end .
   let g1 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) aad .
   let g2 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) ct .
-  let g3 u64 be ghash_lens (subslice w 192 208) (subslice w 176 192) (len aad) (len ct) (subslice w 224 240) .
+  return gcm_tag_finish (len aad) (len ct) tag w .
+end .
 
-  rem T = S XOR AES_K(J0)
+rem ★★★ **태그 마무리** — 길이 블록을 먹이고 `T = S XOR AES_K(J0)` 를 낸다.
+rem   누산은 **이미 되어 있다**: 봉인은 낱말이 흐르며 먹였고(RFC-0124), 복호는 `gcm_tag` 가 먹였다.
+rem   ☞ 갈라 둔 까닭이 그것이다 — 먹이는 자리는 둘인데 마무리는 하나다.
+proc gcm_tag_finish input alen u64 . input clen u64 . input tag mut slice u8 . input w mut slice u8 . output u64 . effects none . do
+  guard ge (len tag) 16 . else return 0 .
+  guard ge (len w) 320 . else return 0 .
+  let g3 u64 be ghash_lens (subslice w 192 208) (subslice w 176 192) alen clen (subslice w 224 240) .
   var m u64 be 0 .
   while lt m 16 . do  set (index w (add 272 m)) (index w (add 256 m)) .  set m (add m 1) .  end .
   guard eq (aes.encrypt_block (subslice w 0 176) (subslice w 272 288) (subslice w 288 304)) 16 . else return 0 .
@@ -204,6 +211,30 @@ proc gcm_tag input aad slice u8 . input ct slice u8 . input tag mut slice u8 . i
     set (index tag t) (cast u8 (bit_xor (cast u64 (index w (add 192 t))) (cast u64 (index w (add 272 t))))) .
     set t (add t 1) .
   end .
+  return 16 .
+end .
+
+rem ★★★★★ **봉인의 흐름 — 흐르는 자리와 누산하는 자리를 한 바퀴에** (RFC-0124, 2026-09-24).
+rem   그전에는 `gcm_stream`(흐름) 한 바퀴, `gcm_tag`(누산) 또 한 바퀴였다. 둘 다 기계 명령을
+rem   쓰는데도 **따로 돌면 처리량이 둘의 조화평균에 묶인다** — 실측 2,848 MB/s 가 그 한계였다.
+rem   낱말 `aes_gcm` 은 그 둘을 한 바퀴에 돈다(엮은 판은 방출 C 에만, VM 은 잎 둘을 차례로).
+rem
+rem ★★ **차례는 여기 남는다.** 낱말이 아는 것은 «한 덩이를 흘리고 그 암호문을 누산한다» 뿐이다:
+rem   누산기를 0 으로 놓는 것 · AAD 를 **먼저** 먹이는 것 · 길이 블록을 **마지막에** 먹이는 것은
+rem   이 프로시저와 `gcm_tag_finish` 가 한다. 숨은 규율은 검사할 수 없다.
+rem
+rem ☞ **복호는 이 길로 안 온다.** 받은 암호문을 먼저 증언하고 **맞을 때만** 푸는 차례여야 하므로
+rem   (2026-09-04 검토 A2 — 증언 안 된 평문을 내놓지 않는다) 복호는 두 바퀴로 남는다.
+rem   규율이 값을 치르는 자리이고, 그 값은 이제 수로 보인다.
+proc gcm_seal_stream input aad slice u8 . input src slice u8 . input dst mut slice u8 . input w mut slice u8 . output u64 . effects none . do
+  guard ge (len dst) (len src) . else return 0 .
+  guard ge (len w) 320 . else return 0 .
+  var q u64 be 0 .
+  while lt q 16 . do  set (index w (add 192 q)) 0 .  set q (add q 1) .  end .
+  let g1 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) aad .
+  let n u64 be aes_gcm (subslice w 304 320) (subslice w 240 256)
+                       (subslice w 176 192) (subslice w 192 208) src dst .
+  guard eq n (len src) . else return 0 .
   return 16 .
 end .
 
@@ -216,8 +247,8 @@ errors short_workspace . do
   guard ge (len ct) (len msg) . else return ok 0 .
   guard ge (len tag) 16 . else return ok 0 .
   guard eq (gcm_prep key nonce w) 16 . else return ok 0 .
-  guard eq (gcm_stream msg ct w) 16 . else return ok 0 .
-  return ok (gcm_tag aad (subslice ct 0 (len msg)) tag w) .
+  guard eq (gcm_seal_stream aad msg ct w) 16 . else return ok 0 .
+  return ok (gcm_tag_finish (len aad) (len msg) tag w) .
 end .
 
 rem ★★ 복호 — **받은 암호문**에 태그를 매겨 먼저 대조하고, 맞을 때만 평문을 낸다.

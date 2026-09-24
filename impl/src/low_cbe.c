@@ -987,6 +987,7 @@ static bool cbe_fast_word(const low_ir_ins_t *in) {
         case IRW_CHACHA20:                                  // ★ ChaCha20 (RFC-0122) — `aes_ctr` 와 같은 모양
         case IRW_POLY1305:                                  // ★ Poly1305 (RFC-0122) — 해시와 같은 모양
         case IRW_AESGCM:                                    // ★ GCM 한 덩이 (RFC-0124) — 슬라이스 여섯
+        case IRW_CHAPOLY:                                   // ★ ChaCha20-Poly1305 한 덩이 (RFC-0128)
         case IRW_AESROUND: case IRW_AESLAST:                // ★ AES 한 라운드 (RFC-0119 §10)
         case IRW_SHA256: case IRW_SHA512: case IRW_SHA384: case IRW_CRC32:   // ★ 해시 — 태그와 **같은 함수**를 부른다
         case IRW_HASH64: case IRW_RNGNEXT: case IRW_RANDBYTES:  // ★ 해시·난수 — 같은 모양
@@ -1397,6 +1398,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                                 st.k[st.n-3] != K_SL || st.k[st.n-4] != K_SL ||
                                 st.k[st.n-5] != K_SL || st.k[st.n-6] != K_SL) return false;
                             st.n -= 5; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
+            case IRW_CHAPOLY:
+                            if (st.n < 5 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL ||
+                                st.k[st.n-3] != K_SL || st.k[st.n-4] != K_SL ||
+                                st.k[st.n-5] != K_SL) return false;
+                            st.n -= 4; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_GHASH:
                             if (st.n < 3 || st.k[st.n-1] != K_SL || st.k[st.n-2] != K_SL ||
                                 st.k[st.n-3] != K_SL) return false;
@@ -2964,7 +2970,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             }
             case IRW_POLY1305: {
                 fputs("    { lw_sl d_ = ss[--ssp], t_ = ss[--ssp];\n"
-                      "      st[sp++] = lw_poly1305((void *)t_.p, t_.n, d_.p, d_.n); }\n", out);
+                      "      st[sp++] = lw_poly1305_x((void *)t_.p, t_.n, d_.p, d_.n); }\n", out);
                 ks.n -= 2; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
@@ -2974,6 +2980,14 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                       "      st[sp++] = lw_aes_gcm_x(k_.p, k_.n, (void *)c_.p, c_.n, h_.p, h_.n,\n"
                       "                              (void *)z_.p, z_.n, s_.p, s_.n, (void *)d_.p, d_.n); }\n", out);
                 ks.n -= 6; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
+                break;
+            }
+            case IRW_CHAPOLY: {
+                fputs("    { lw_sl d_ = ss[--ssp], s_ = ss[--ssp], t_ = ss[--ssp],\n"
+                      "            c_ = ss[--ssp], k_ = ss[--ssp];\n"
+                      "      st[sp++] = lw_chacha_poly_x(k_.p, k_.n, (void *)c_.p, c_.n,\n"
+                      "                                  (void *)t_.p, t_.n, s_.p, s_.n, (void *)d_.p, d_.n); }\n", out);
+                ks.n -= 5; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.ve[ks.n] = 0; ks.fl[ks.n] = 0; ks.n++;
                 break;
             }
             case IRW_AESROUND: case IRW_AESLAST: {
@@ -6020,7 +6034,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "                                   s_.p, s_.n, (void *)d_.p, d_.n)); }\n", out); break;
                 case IRW_POLY1305:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv t_ = lw_thru(st[sp-2]); sp--;\n"
-                          "      st[sp-1] = lw_int(lw_poly1305((void *)t_.p, t_.n, d_.p, d_.n)); }\n", out); break;
+                          "      st[sp-1] = lw_int(lw_poly1305_x((void *)t_.p, t_.n, d_.p, d_.n)); }\n", out); break;
                 case IRW_AESGCM:
                     fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
                           "      lowv z_ = lw_thru(st[sp-3]); lowv h_ = lw_thru(st[sp-4]);\n"
@@ -6028,6 +6042,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "      st[sp-1] = lw_int(lw_aes_gcm_x(k_.p, k_.n, (void *)c_.p, c_.n, h_.p, h_.n,\n"
                           "                                     (void *)z_.p, z_.n, s_.p, s_.n,\n"
                           "                                     (void *)d_.p, d_.n)); }\n", out); break;
+                case IRW_CHAPOLY:
+                    fputs("    { lowv d_ = lw_thru(st[sp-1]); lowv s_ = lw_thru(st[sp-2]);\n"
+                          "      lowv t_ = lw_thru(st[sp-3]); lowv c_ = lw_thru(st[sp-4]);\n"
+                          "      lowv k_ = lw_thru(st[sp-5]); sp -= 4;\n"
+                          "      st[sp-1] = lw_int(lw_chacha_poly_x(k_.p, k_.n, (void *)c_.p, c_.n,\n"
+                          "                                         (void *)t_.p, t_.n, s_.p, s_.n,\n"
+                          "                                         (void *)d_.p, d_.n)); }\n", out); break;
                 case IRW_AESROUND: case IRW_AESLAST:
                     fprintf(out, "    { lowv r_ = lw_thru(st[sp-1]); lowv t_ = lw_thru(st[sp-2]); sp--;\n"
                                  "      st[sp-1] = lw_int(lw_aes_round_x((void *)t_.p, t_.n, r_.p, r_.n, %d)); }\n",

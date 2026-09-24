@@ -44,3 +44,20 @@ export proc onlylib input key slice u8 . input n slice u8 . input s slice u8 . i
   guard is_ok r . else return 111 .
   return ok_value r .
 end .
+
+rem ★★★★★ **엮은 판과 잎 둘이 같은 답인가** (RFC-0128, 2026-09-24).
+rem   `chacha_poly` 의 뜻은 «`chacha20` 을 돌리고 그 암호문을 `poly1305` 에 먹인다» 이다.
+rem   기계 판만 둘을 어긋내어 엮으므로, 같은 입력에 **같은 암호문·같은 누산기·같은 카운터**가
+rem   나와야 한다. 512 의 앞뒤가 갈림길이다(엮은 고리는 512 씩, 꼬리는 잎 둘이 판다).
+export proc cp input key slice u8 . input c mut slice u8 . input st mut slice u64 .
+  input s slice u8 . input d mut slice u8 . output u64 . effects none . do
+  return call_builtin chacha_poly key c st s d .
+end .
+
+rem 같은 일을 **잎 둘로** — 증인은 이 둘의 답이 같다는 것이다.
+export proc cppair input key slice u8 . input c mut slice u8 . input st mut slice u64 .
+  input s slice u8 . input d mut slice u8 . output u64 . effects none . do
+  let n u64 be call_builtin chacha20 key c s d .
+  guard eq n (len s) . else return 0 .
+  return call_builtin poly1305 st d .
+end .

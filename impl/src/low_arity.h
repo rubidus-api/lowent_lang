@@ -142,7 +142,8 @@
     X(aes_round_last, IRW_AESLAST, 2)  X(aes_ctr, IRW_AESCTR, 4)  X(ghash, IRW_GHASH, 3) \
     X(chacha20, IRW_CHACHA20, 4)  X(poly1305, IRW_POLY1305, 2)  X(aes_gcm, IRW_AESGCM, 6) \
     X(sha256, IRW_SHA256, 2)  X(sha384, IRW_SHA384, 2)  X(sha512, IRW_SHA512, 2) \
-    X(crc32, IRW_CRC32, 1)  X(hash_bytes, IRW_HASH64, 1)  X(rng_next, IRW_RNGNEXT, 1)
+    X(crc32, IRW_CRC32, 1)  X(hash_bytes, IRW_HASH64, 1)  X(rng_next, IRW_RNGNEXT, 1) \
+    X(chacha_poly, IRW_CHAPOLY, 5)
 
 // ★ 합집합 — 표는 하나다(위 주석).
 #define LOW_BUILTINS(X)  LOW_BUILTINS_CORE(X) LOW_CALL_BUILTIN(X)

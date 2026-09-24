@@ -87,13 +87,23 @@ errors short_workspace . do
   guard is_ok _u1 . else return error short_workspace .
   guard eq (ok_value _u1) 32 . else return ok 0 .
   rem ★ 카운터는 **1** 부터다 — 0 은 위에서 Poly1305 키로 이미 썼다.
-  let n_r result u64 chacha.chacha_error . be chacha.stream key nonce 1 msg ct st work ks .
-  guard is_ok n_r . else return error short_workspace .
-  let n u64 be ok_value n_r .
-  guard eq n (len msg) . else return ok 0 .
+  rem ★★★★★ **흐름과 누산을 한 바퀴에** (RFC-0128, 2026-09-24).
+  rem   그전에는 `chacha.stream` 한 바퀴, `feed` 가 또 한 바퀴였다. 둘 다 빠른데 따로 돌면
+  rem   처리량이 **조화평균에 묶인다** — 1/(1/2439 + 1/1840) = 1,048 이고 실측 1,040 이었다.
+  rem   ☞ 두 셈은 쓰는 실행 자원이 다르다(벡터 대 정수 곱셈기). 낱말 `chacha_poly` 가 한 고리
+  rem     몸 안에서 어긋내어 돌리므로 겹쳐 돈다 — **답은 같다**(골든이 잎 둘과 맞댄다).
+  rem ★★ **차례는 여기 남는다**: 일회용 키를 먼저 만들고 · 누산기를 세우고 · AAD 를 먼저 먹이고 ·
+  rem   길이 블록을 마지막에 먹인다. 낱말이 아는 것은 «흘리고 그 암호문을 누산한다» 뿐이다.
   guard eq (poly.setup otk pst) 1 . else return ok 0 .
   let a1 u64 be feed pst aad pad .
-  let a2 u64 be feed pst (subslice ct 0 (len msg)) pad .
+  rem 카운터 블록: 앞 4 = 블록 번호 1(리틀엔디언) · 뒤 12 = nonce. `ks` 앞 16 을 빌려 쓴다.
+  var cb u64 be 0 .
+  while lt cb 16 . do  set (index ks cb) 0 .  set cb (add cb 1) .  end .
+  set (index ks 0) 1 .
+  var cn u64 be 0 .
+  while lt cn 12 . do  set (index ks (add 4 cn)) (index nonce cn) .  set cn (add cn 1) .  end .
+  let n u64 be call_builtin chacha_poly key (subslice ks 0 16) pst msg ct .
+  guard eq n (len msg) . else return ok 0 .
   let a3 u64 be feed_lens pst (len aad) (len msg) pad .
   return ok (poly.emit pst otk tag) .
 end .

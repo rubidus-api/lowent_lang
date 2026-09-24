@@ -75,7 +75,7 @@
   [배치와 뷰 --- #chref("named-types")], [`encode` `try_view` `view_segments` `seg` `segs` `capacity`],
   [빌림과 영역 --- #chref("references") · #chref("regions")], [`ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap`],
   [계약과 오류 --- #chref("contracts")], [`range` `ret` `expect` `panic`],
-  [계산 잎 --- `call_builtin` 뒤에서만 선다], [`clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next`],
+  [계산 잎 --- `call_builtin` 뒤에서만 선다], [`clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next`],
   [C 문자열 --- #chref("ffi")], [`cstr_of` `str_from_cstr`],
   [호스트 잎 --- #chref("lib-map")], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `reactor_new` `r_read` `r_write`],
 )

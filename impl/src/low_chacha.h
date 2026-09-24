@@ -86,6 +86,27 @@ static long long lw_chacha20(const void *keyp, unsigned long long klen,         
 }
 
 /* ★ 가변 인자로 받는다 — 본문에 쉼표(표 초기화)가 있어서 한 인자 매크로로는 못 싣는다. */
+/* ★★★★ **ChaCha20-Poly1305 한 덩이 — 뜻은 «있는 잎 둘을 차례로 부르는 것»** (RFC-0128).
+ *   새 셈을 하나도 안 적는다 — 그래서 «엮은 판이 맞는가» 가 «따로 부른 것과 같은가» 로 환원된다.
+ *   ☞ 누산은 **암호문**에 매긴다(흘리고 나서 먹인다) — RFC 8439 §2.8 의 차례다.
+ *   ☞ VM 은 언제나 이 판을 돌고, 엮은 판은 방출 C 에만 있다 ⇒ 오라클이 그 경로의 차등 시험이다.
+ *   ★ 이 함수는 `lw_poly1305` 를 부르므로 `low_poly.h` **뒤에** 와야 한다. */
+#define LOW_CHAPOLY_BODY                                                                       \
+static long long lw_chacha_poly(const void *keyp, unsigned long long klen,                     \
+                                void *ctrp, unsigned long long clen,                           \
+                                void *stp, unsigned long long stn,                             \
+                                const void *srcp, unsigned long long slen,                     \
+                                void *dstp, unsigned long long dlen) {                         \
+    long long n = lw_chacha20(keyp, klen, ctrp, clen, srcp, slen, dstp, dlen);                 \
+    if (n != (long long)slen) return 0;                                                        \
+    if (lw_poly1305(stp, stn, dstp, slen) != (long long)slen) return 0;                        \
+    return n;                                                                                  \
+}
+
+#define LOW_CHAPOLY_STR2(...) #__VA_ARGS__
+#define LOW_CHAPOLY_STR(...)  LOW_CHAPOLY_STR2(__VA_ARGS__)
+#define LOW_CHAPOLY_C_SOURCE  LOW_CHAPOLY_STR(LOW_CHAPOLY_BODY) "\n"
+
 #define LOW_CHACHA_STR2(...) #__VA_ARGS__
 #define LOW_CHACHA_STR(...)  LOW_CHACHA_STR2(__VA_ARGS__)
 #define LOW_CHACHA_C_SOURCE LOW_CHACHA_STR(LOW_CHACHA_BODY) "\n"

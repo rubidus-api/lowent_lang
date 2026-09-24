@@ -361,6 +361,9 @@ typedef enum {
     //   내린 것은 여전히 **계산**이고, 차례(무엇을 먼저 먹이나 · 언제 증언하나)는 `lib/gcm.low` 에 남는다.
     //   ☞ 복호는 이 낱말을 **안 쓴다**: 태그를 먼저 증언하고 나서 푸는 차례가 그 자리의 물건이다.
     IRW_AESGCM,   // (key16, mut ctr16, h16, mut z16, src, mut dst) → u64  흐른 바이트 수 · 권한 없음
+    // ★★★★ **ChaCha20-Poly1305 한 덩이** (RFC-0128) — 흐름과 누산을 한 바퀴에.
+    //   둘은 쓰는 실행 자원이 다르다(AVX2 벡터 대 정수 곱셈기) ⇒ 겹치면 거의 공짜다.
+    IRW_CHAPOLY,  // (key32, mut ctr16, mut st(u64 10↑), src, mut dst) → u64 · 권한 없음
     IRW_POPCNT, IRW_CLZ, IRW_CTZ, IRW_BSWAP,
     // ★★★ **level-3 atomic** (RFC-0018) — RC11 은 **증명됐는데**(LowentRC11.v, 7정리 Qed)
     //   도구가 **안 줬다**(W-NOT-YET). *증명해 놓고 구현 안 한 것*도 검사되지 않는 중복이다.

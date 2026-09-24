@@ -443,7 +443,7 @@ errors short_workspace . do
   end .
   var j u64 be 0 .
   while lt j (len msg) . do  set (index sc (add 64 j)) (index msg j) .  set j (add j 1) .  end .
-  guard eq (sha512 (subslice sc 0 (add 64 (len msg))) (subslice bb 192 256)) 64 . else return ok 0 .
+  guard eq (call_builtin sha512 (subslice sc 0 (add 64 (len msg))) (subslice bb 192 256)) 64 . else return ok 0 .
   let _u4 result u64 ed25519_error . be reduce_l (subslice bb 256 288) (subslice bb 192 256) (subslice w 16 32) (subslice w 432 472) .
   guard is_ok _u4 . else return error short_workspace .
   guard eq (ok_value _u4) 32 . else return ok 0 .

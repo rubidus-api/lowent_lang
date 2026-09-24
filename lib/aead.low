@@ -44,7 +44,7 @@ proc feed input pst mut slice u64 . input data slice u8 . input pad mut slice u8
   rem   같은 상태·같은 바이트로 맞댄다(`impl/tests/vm_poly.low` 의 `same`).
   rem   ☞ `pad` 는 이제 이 프로시저가 안 쓴다 — 그래도 받는다. 호출자의 자리 규약을
   rem     바꾸면 `seal`·`unseal` 의 서명이 따라 바뀌고, 그것은 이 변경이 살 값이 아니다.
-  let z u64 be poly1305 pst data .
+  let z u64 be call_builtin poly1305 pst data .
   guard eq z (len data) . else return 0 .
   return 1 .
 end .

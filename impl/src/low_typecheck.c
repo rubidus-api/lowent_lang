@@ -797,9 +797,17 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     { "popcount", 3 }, { "leading_zeros", 3 }, { "trailing_zeros", 3 },
                     { "byte_swap", 3 },
                 };
+                // ★ RFC-0125 — 계산 잎은 `call_builtin <이름> …` 으로 온다. 머리만 보면
+                //   이름을 못 보고, 그러면 선언 타입이 **다시 안 검사된다**(실측 175 → 181).
+                //   ⇒ 머리가 `call_builtin` 이면 **다음 원자**를 이름으로 읽고 자리를 하나 민다.
+                proven_u8str_view_t hleaf = h2;
+                proven_size_t lskip = 1;
+                if (veq(h2, "call_builtin") && n >= 2 && k[start + 1]->kind == LOW_CST_ATOM) {
+                    hleaf = k[start + 1]->tok.lex; lskip = 2;
+                }
                 for (proven_size_t li = 0; li < sizeof LEAF / sizeof LEAF[0]; li++) {
-                    if (!veq(h2, LEAF[li].w)) continue;
-                    for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                    if (!veq(hleaf, LEAF[li].w)) continue;
+                    for (proven_size_t q = lskip; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
                     if (LEAF[li].kind == 1) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; return w; }
                     if (LEAF[li].kind == 2) return tk(TK_BOOL);
                     // ★ **폭은 안 말한다**(bits = 0 = 미상). 비트 낱말은 피연산자의 폭을

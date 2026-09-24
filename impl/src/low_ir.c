@@ -700,6 +700,19 @@ static const ir_builtin_t *ir_builtin(proven_u8str_view_t name) {
         if (veq(name, IR_BUILTINS[i].name)) return &IR_BUILTINS[i];
     return NULL;
 }
+// ★★★★★ **자리에 가둔 이름** (RFC-0125, 2026-09-24) — 계산 잎 열다섯은 `call_builtin` 뒤에서만 선다.
+//   `ir_builtin` 은 합집합을 보므로 arity·IR 낱말 조회는 전과 같다. 달라지는 것은 **이 술어**를
+//   보고 «맨몸으로 왔나» 를 가르는 자리 하나뿐이다.
+static const ir_builtin_t CB_BUILTINS[] = {
+#define X(n, w, a) { #n, w, a },
+    LOW_CALL_BUILTIN(X)
+#undef X
+};
+static const ir_builtin_t *ir_call_builtin(proven_u8str_view_t name) {
+    for (proven_size_t i = 0; i < sizeof CB_BUILTINS / sizeof CB_BUILTINS[0]; i++)
+        if (veq(name, CB_BUILTINS[i].name)) return &CB_BUILTINS[i];
+    return NULL;
+}
 // ★ RFC-0030 D2′ — 이 def 가 받은 `cap <kind>` 파라미터의 이름(없으면 빈 뷰).
 //   `args` 로 시작했고 `env` 가 **같은 길을 그대로** 따라온다 — cap 이름만 다르다.
 // ★★★★★ **권위는 종류로 온다 — 그리고 그 표는 하나여야 한다** (RFC-0077 §P1-2, 2026-08-14).
@@ -3599,6 +3612,38 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 return;
             }
             const ir_builtin_t *b = ir_builtin(nd->tok.lex);
+            // ★★★★★ **`call_builtin <이름> …`** (RFC-0125) — 계산 잎의 이름을 **자리에** 가둔다.
+            //   전역에 느는 이름은 `call_builtin` 하나뿐이고, 꾸러미(RFC-0126)가 잎을 더해도 안 는다.
+            //   ☞ 머리가 `call_builtin` 이면 **다음 원자가 이름**이다. 아는 이름이면 그것으로 내리고,
+            //     모르는 이름이면 `E-BUILTIN-NAME` — 조용히 사용자 op 으로 넘기지 않는다(오타가 숨는다).
+            if (!b && veq(nd->tok.lex, "call_builtin")) {
+                if (*pos >= end || !is_atom(k[*pos]) || k[*pos]->tok.kind != LOW_TOK_IDENT) {
+                    ir_fail(c, "E-BUILTIN-NAME",
+                            "`call_builtin` takes the NAME of a computation leaf as its first operand "
+                            "(`call_builtin sha256 msg out`). The name is scoped to this position on "
+                            "purpose: it is not a global word.", nd->line);
+                    return;
+                }
+                b = ir_call_builtin(k[*pos]->tok.lex);
+                if (!b) {
+                    ir_fail(c, "E-BUILTIN-NAME",
+                            "this is not a computation leaf. The names that stand after `call_builtin` "
+                            "are a closed set (clmul_lo, clmul_hi, aes_round, aes_round_last, aes_ctr, "
+                            "ghash, chacha20, poly1305, aes_gcm, sha256, sha384, sha512, crc32, "
+                            "hash_bytes, rng_next).", nd->line);
+                    return;
+                }
+                (*pos)++;
+                nd = k[*pos - 1];   /* 진단의 자리를 이름 쪽으로 옮긴다 */
+            }
+            // ★ 가둔 이름을 **맨몸으로** 부르면 거절한다 — 그러지 않으면 가둔 것이 아니다.
+            else if (b && ir_call_builtin(nd->tok.lex)) {
+                ir_fail(c, "E-BUILTIN-BARE",
+                        "this computation leaf stands only after `call_builtin` — write "
+                        "`call_builtin <name> ...`. Its name is scoped to that position so that the "
+                        "global vocabulary does not grow with words a program needs once.", nd->line);
+                return;
+            }
             if (b) {
                 // ★★★ **피연산자가 모자라면 거절한다.** 전엔 `end` 를 넘어가도 그냥 불렀고,
                 //   `ir_value` 가 조용히 아무것도 안 하면 스택에 **쓰레기가 남았다**:

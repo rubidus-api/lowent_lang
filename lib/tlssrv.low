@@ -566,7 +566,7 @@ do
   guard gt esum 0 . else return ok 0 .
 
   rem ① 빈 해시 — Derive-Secret(…, "derived", "") 가 쓴다.
-  guard eq (sha256 (subslice w 0 0) (subslice w 0 32)) 32 . else return ok 0 .
+  guard eq (call_builtin sha256 (subslice w 0 0) (subslice w 0 32)) 32 . else return ok 0 .
 
   rem ② early secret = HKDF-Extract(0, 0)  — salt 도 IKM 도 0×32.
   var z u64 be 0 .
@@ -634,7 +634,7 @@ do
   guard ge (len w) 1024 . else return ok 0 .
 
   rem 빈 해시 · 0×32 (master 의 IKM 은 0 이다)
-  guard eq (sha256 (subslice w 0 0) (subslice w 0 32)) 32 . else return ok 0 .
+  guard eq (call_builtin sha256 (subslice w 0 0) (subslice w 0 32)) 32 . else return ok 0 .
   var z u64 be 0 .
   while lt z 32 . do  set (index w (add 32 z)) 0 .  set z (add z 1) . end .
 

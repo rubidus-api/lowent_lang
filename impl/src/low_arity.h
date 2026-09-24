@@ -13,7 +13,7 @@
 #ifndef LOW_ARITY_H
 #define LOW_ARITY_H
 
-#define LOW_BUILTINS(X)                                                        \
+#define LOW_BUILTINS_CORE(X)                                                        \
     X(add, IRW_ADD, 2)   X(sub, IRW_SUB, 2)   X(mul, IRW_MUL, 2)               \
     X(div, IRW_DIV, 2)   X(mod, IRW_MOD, 2)   X(neg, IRW_NEG, 1)               \
     X(and, IRW_AND, 2)   X(or, IRW_OR, 2)     X(not, IRW_NOT, 1)               \
@@ -29,7 +29,6 @@
     /* ★★★ **캐리 없는 곱셈** (RFC-0119, 2026-09-23) — GHASH 의 핵이다. 결과가 128 비트인데    \
        이 언어에 128 비트 타입이 없으므로 **아랫말·윗말 두 낱말**로 낸다. 기계에 명령이 있으면  \
        C 뒤끝이 그것을 내리고, 없으면 같은 답을 내는 소프트 판으로 내린다 — 뜻은 하나다. */     \
-    X(clmul_lo, IRW_CLMULLO, 2)   X(clmul_hi, IRW_CLMULHI, 2)                          \
     X(count_ones, IRW_POPCNT, 1)  X(leading_zeros, IRW_CLZ, 1)                     \
     X(trailing_zeros, IRW_CTZ, 1) X(byte_swap, IRW_BSWAP, 1)                       \
     /* ★★★ **level-3 atomic** (RFC-0018) — 전위 낱말. 새 키워드 0개.                \
@@ -50,7 +49,6 @@
        ★ 알고리즘을 **고정**한다: hash_bytes = FNV-1a 64 · crc32 = 반사 CRC-32           \
        (다항식 0xEDB88320). 고정해야 두 뒤끝이 같고, **알려진 답**이 오라클이 된다.       \
        그러지 않으면 "해시가 나온다" 는 것 말고는 아무것도 검사할 수 없다.  */            \
-    X(hash_bytes, IRW_HASH64, 1)   X(crc32, IRW_CRC32, 1)                       \
     /* ★★★★ **같은 바이트인가** (RFC-0112 D10 · WO-0215) — 두 슬라이스가 **같은 자리에서 시작하고 길이가 \
        같은가**. 권한 없음·순수. 얼로케이터의 `grow`/`release` 가 «내가 마지막에 준 그 조각인가» 를 크기가  \
        아니라 **정체**로 묻는 유일한 길이다(크기만 보면 같은 길이의 남의 버퍼를 늘렸다 — F13). 주소는      \
@@ -59,34 +57,26 @@
     /* ★ 재현 가능한 난수 — **권한 없음**. 상태를 받아 다음 상태를 돌려준다(순수).       \
        OS 엔트로피(`random_bytes`)만 `cap random` 을 요구한다 — 갈라 둔 이유는 하나다:   \
        시험은 재현되어야 하고, 열쇠는 예측되면 안 된다. 한 낱말로는 둘 다 못 한다. */   \
-    X(rng_next, IRW_RNGNEXT, 1)                                                  \
     /* ★★★ **SHA-256** (RFC-0090 N3c) — 권한 없음(순수). 출력은 **호출자 버퍼**에 쓴다:      \
        라이브러리가 몰래 할당하지 않는다는 규율(RFC-0043 D1)이 리프에도 적용된다.            \
        32 바이트를 채우고 **채운 수**를 답한다 — 버퍼가 짧으면 0 이고, 조용히 덜 쓰지 않는다.\
        ★ 오라클은 **표준 테스트 벡터**다. 이 축에서 가장 강한 종류이고, 그래서 N3 을         \
          N2 보다 먼저 했다. */                                                               \
-    X(sha256, IRW_SHA256, 2)                                                     \
-    X(sha512, IRW_SHA512, 2)  X(sha384, IRW_SHA384, 2)                           \
     /* ★★★★ AES-CTR 과 GHASH — 계산만 내린 잎(X-0043 ⓑ). **차례**는 `lib/gcm.low` 에 남는다. */ \
-    X(aes_ctr, IRW_AESCTR, 4)  X(ghash, IRW_GHASH, 3)                            \
     /* ★★★ **AES 한 라운드** (RFC-0119 §10, 2026-09-23) — FIPS-197 의 라운드 하나를 낱말로.   \
        `aes_round <상태 16 B mut> <라운드키 16 B>` = SubBytes·ShiftRows·MixColumns·AddRoundKey, \
        `aes_round_last` 는 MixColumns 없이. 기계에 명령이 있으면 C 뒤끝이 `aesenc`/`aesenclast`  \
        로 내리고, 없으면 같은 답을 내는 표 셈으로 내린다 — **뜻은 하나**다. */                    \
-    X(aes_round, IRW_AESROUND, 2)  X(aes_round_last, IRW_AESLAST, 2)                   \
     /* ★★★ **ChaCha20** (RFC-0122, 2026-09-24) — `chacha20 <키 32 B> <카운터 16 B mut>       \
        <원본> <결과 mut>`. 모양은 `aes_ctr` 와 **같다**: 카운터 블록을 제자리에서 올리므로      \
        나눠 불러도 이어진다. 뜻의 정의는 `lib/chacha.low` 에 남고 골든이 둘을 맞댄다. */        \
-    X(chacha20, IRW_CHACHA20, 4)                                                       \
     /* ★★★ **Poly1305** (RFC-0122) — `poly1305 <상태 mut slice u64> <바이트>`. 열여섯의      \
        배수가 아니면 마지막 조각을 0 으로 채운다(ChaCha20-Poly1305 가 그렇게 먹인다).        \
        뜻의 정의는 `lib/poly.low` 의 `block` 에 남고, 골든이 둘을 맞댄다. */                 \
-    X(poly1305, IRW_POLY1305, 2)                                                       \
     /* ★★★ **GCM 한 덩이** (RFC-0124, 2026-09-24) — `aes_gcm <키 16> <카운터 16 mut>        \
        <H 16> <누산기 16 mut> <원본> <결과 mut>`. 흐름(`aes_ctr`)과 누산(`ghash`)을 한 바퀴에.  \
        뜻은 «그 둘을 차례로 부른 것» 이고(`low_aes.h`), 기계 판만 둘을 엮어 돈다.              \
        ☞ 봉인만 쓴다 — 복호는 태그를 먼저 증언해야 하므로 여전히 두 바퀴다. */                 \
-    X(aes_gcm, IRW_AESGCM, 6)                                                          \
     /* ★★★ **맞바꾸기** (2026-07-26) — `index` 는 구조체 원소를 **뷰**로 준다. 그래서 읽은  \
        두 값은 같은 바이트를 가리키고, `set` 두 번으로 맞바꾸면 자기 자신을 덮어쓴다:       \
        **제자리 알고리즘이 언어로 표현될 수 없었다.** 임시 복사가 답이 아닌 이유는 제네릭   \
@@ -136,6 +126,27 @@
 //   `R` 은 이미 `expr`·`send` 가 쓰던 것이라 **새 개념 0** 이다.
 //   ☞ 붙은 점 `o.i.z` 를 없애는 대신 그 일을 **전위 하나로 모은다** — 같은 뜻을 적는
 //     길이 둘이면 읽는 사람이 둘 다 알아야 한다(§2.5 정신).
+// ★★★★★ **계산 잎은 `call_builtin` 뒤에서만 선다** (RFC-0125, 2026-09-24).
+//   전역 어휘가 199 까지 왔고, 하루에 셋이 늘었다(`chacha20`·`poly1305`·`aes_gcm`). 그런데 늘어난
+//   셋은 전부 «특수한 자리에서만 쓰는 것» 이다 — `aes_gcm` 은 코퍼스에 두 자리뿐이다.
+//   ⇒ 아래 열다섯은 **이름을 자리로 가둔다**: `call_builtin sha256 msg out` 으로만 부른다.
+//     맨몸으로 부르면 `E-BUILTIN-BARE`, `call_builtin` 뒤에 모르는 이름이면 `E-BUILTIN-NAME`.
+//   ☞ 새 규율이 아니다. `pipe … do take 3 … end` 의 닫힌 어휘와 `cast u8 x` 의 타입 슬롯이
+//     이미 같은 일을 한다 — **자리가 정해져 있어 사용자 이름과 안 부딪친다.**
+//   ★ **표는 여전히 하나다.** `LOW_BUILTINS` 는 아래 둘의 합집합이고, arity·IR 낱말·타입·방출을
+//     읽는 소비자는 한 줄도 안 바뀐다. 달라지는 것은 **이름 푸는 자리 하나**뿐이다.
+//   ★★ 고르는 잣대: **알고리즘을 처리기가 고정한 계산.** 권한 잎(`file_*`·`net_*`)은 여기 없다 —
+//     그것들은 첫 피연산자가 권한이라 이미 특별함이 보인다(그 재검토는 RFC-0127).
+#define LOW_CALL_BUILTIN(X)                                                    \
+    X(clmul_lo, IRW_CLMULLO, 2)  X(clmul_hi, IRW_CLMULHI, 2)  X(aes_round, IRW_AESROUND, 2) \
+    X(aes_round_last, IRW_AESLAST, 2)  X(aes_ctr, IRW_AESCTR, 4)  X(ghash, IRW_GHASH, 3) \
+    X(chacha20, IRW_CHACHA20, 4)  X(poly1305, IRW_POLY1305, 2)  X(aes_gcm, IRW_AESGCM, 6) \
+    X(sha256, IRW_SHA256, 2)  X(sha384, IRW_SHA384, 2)  X(sha512, IRW_SHA512, 2) \
+    X(crc32, IRW_CRC32, 1)  X(hash_bytes, IRW_HASH64, 1)  X(rng_next, IRW_RNGNEXT, 1)
+
+// ★ 합집합 — 표는 하나다(위 주석).
+#define LOW_BUILTINS(X)  LOW_BUILTINS_CORE(X) LOW_CALL_BUILTIN(X)
+
 #define LOW_SHAPES(X)                                                          \
     /* 접근·생성 */                                                            \
     X(field, "VR")      X(ok, "V")          X(error, "W")                      \
@@ -230,6 +241,7 @@
 //     전에도 예약어가 아니었다 — 그것이 틈이라면 **그 자체로 다뤄야 할 틈**이지,
 //     "정리" 커밋이 조용히 바꿀 것이 아니다(후속으로 기록).
 #define LOW_VOCAB_ONLY(X)                                                      \
+    X(call_builtin)                                                            \
     X(pop)  X(range)  X(into)  X(is_none)  X(capacity)  X(ret)                 \
     X(pipe)  X(take)  X(skip)  X(enumerate)  X(zip)  X(scan)  X(collect)         \
     X(region)  X(borrow)

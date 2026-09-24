@@ -121,7 +121,7 @@ proc derive input so u64 . input label slice u8 . input b mut slice u8 . output 
   rem 사다리가 요구하는 두 상수를 **여기서 만들어 넘긴다** — 라이브러리가 몰래 만들지 않는다.
   var i u64 be 0 .
   while lt i 32 . do  set (index b (add 572 i)) 0 .  set i (add i 1) .  end .
-  guard eq (sha256 (subslice b 0 0) (subslice b 288 320)) 32 . else return 0 .
+  guard eq (call_builtin sha256 (subslice b 0 0) (subslice b 288 320)) 32 . else return 0 .
 
   rem Early Secret = HKDF-Extract(0, 0)
   let _u6 result u64 hmac.hmac_error . be hmac.extract (subslice b 572 604) (subslice b 572 604) (subslice b 604 1116) (subslice b 160 192) .

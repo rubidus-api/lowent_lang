@@ -87,7 +87,7 @@ rem   ☞ `gmul128` 은 지우지 않았다 — 이 모듈이 말하는 **뜻의
 proc ghash_feed input z mut slice u8 . input h slice u8 . input data slice u8 . output u64 . effects none . do
   guard ge (len z) 16 . else return 0 .
   guard ge (len h) 16 . else return 0 .
-  let g u64 be ghash (subslice h 0 16) (subslice z 0 16) data .
+  let g u64 be call_builtin ghash (subslice h 0 16) (subslice z 0 16) data .
   return 1 .
 end .
 
@@ -180,7 +180,7 @@ rem     (inc32). 그래서 여러 번 나눠 불러도 이어진다.
 proc gcm_stream input src slice u8 . input dst mut slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard ge (len dst) (len src) . else return 0 .
   guard ge (len w) 320 . else return 0 .
-  let n u64 be aes_ctr (subslice w 304 320) (subslice w 240 256) src dst .
+  let n u64 be call_builtin aes_ctr (subslice w 304 320) (subslice w 240 256) src dst .
   guard eq n (len src) . else return 0 .
   return 16 .
 end .
@@ -232,7 +232,7 @@ proc gcm_seal_stream input aad slice u8 . input src slice u8 . input dst mut sli
   var q u64 be 0 .
   while lt q 16 . do  set (index w (add 192 q)) 0 .  set q (add q 1) .  end .
   let g1 u64 be ghash_feed (subslice w 192 208) (subslice w 176 192) aad .
-  let n u64 be aes_gcm (subslice w 304 320) (subslice w 240 256)
+  let n u64 be call_builtin aes_gcm (subslice w 304 320) (subslice w 240 256)
                        (subslice w 176 192) (subslice w 192 208) src dst .
   guard eq n (len src) . else return 0 .
   return 16 .

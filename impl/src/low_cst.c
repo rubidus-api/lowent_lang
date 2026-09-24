@@ -1324,7 +1324,10 @@ low_op_header_t low_op_header(const low_cst_t *f) {
 typedef struct { const char *name; const char *shape; } nest_head_t;
 static const nest_head_t NEST_SHAPE[] = {
 #define X(n, w, a) { #n, (a) == 1 ? "V" : (a) == 2 ? "VV" : (a) == 3 ? "VVV" : "" },
-    LOW_BUILTINS(X)
+    // ★ **핵심 표만** 본다 (RFC-0125). 계산 잎 열다섯은 `call_builtin <이름> …` 로 오므로,
+    //   여기서 그 이름에 모양을 주면 중첩기가 `sha256 s o` 를 **한 마디로 묶어 버리고**
+    //   머리 푸는 자리가 이름을 못 본다. 그 자리는 평평하게 두고 하강이 읽는다(RFC-0046).
+    LOW_BUILTINS_CORE(X)
 #undef X
 #define X(n, sh) { #n, sh },
     LOW_SHAPES(X)

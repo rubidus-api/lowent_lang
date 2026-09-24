@@ -171,7 +171,7 @@ errors short_workspace . do
     set (index ks (add 4 j)) (index nonce j) .
     set j (add j 1) .
   end .
-  let n u64 be chacha20 key (subslice ks 0 16) inp out .
+  let n u64 be call_builtin chacha20 key (subslice ks 0 16) inp out .
   guard eq n (len inp) . else return ok 0 .
   return ok (len inp) .
 end .

@@ -14,7 +14,7 @@ module vm_sha256 .
 
 rem 앞 8 바이트를 u64 로 접는다.
 fn head8 input src slice u8 . input dst mut slice u8 . output u64 . do
-  let n u64 be sha256 src dst .
+  let n u64 be call_builtin sha256 src dst .
   guard eq n 32 . else return 0 .
   var acc u64 be 0 .
   var i u64 be 0 .
@@ -42,6 +42,6 @@ rem ★ 버퍼가 짧으면 **0 을 답하고 아무것도 안 쓴다** — 조�
 rem   가장 위험한 실패다(짧은 다이제스트는 맞아 보인다).
 fn t_short input src slice u8 . input dst mut slice u8 . output u64 . do
   guard lt (len dst) 32 . else return 89 .
-  guard eq (sha256 src dst) 0 . else return 90 .
+  guard eq (call_builtin sha256 src dst) 0 . else return 90 .
   return 1 .
 end .

@@ -187,6 +187,8 @@ what keeps you oriented when reading module documentation or building a new modu
   [`str_from_cstr`], [scan a NUL-terminated C string into a `str`], [C boundary --- the VM says it cannot, with `E-VM-CSTR`],
 )
 
+*Computation leaves stand only after `call_builtin`* --- `call_builtin sha256 msg out`. The name lives in that position and never becomes a global word: a word a program uses once should not cost every reader a name to remember. The stage names inside `pipe` and the type slot of `cast u8 x` already work this way. Leaves that touch the operating system (`file_open`, `net_send`, …) are called plainly --- their first operand is a capability, so their specialness already shows.
+
 The qualification for a leaf is one question: "can it be written in Lowent?" `rng_next` and the three hashes are pure computation yet leaves,
 because the processor fixes their algorithms so that the VM and the native build give bit-identical answers. Every leaf that needs a
 capability takes it as the *first operand* (#chref("capabilities")).

@@ -75,10 +75,12 @@ are not words but cannot be used as names.
   [Layouts and views --- #chref("named-types")], [`encode` `try_view` `view_segments` `seg` `segs` `capacity`],
   [Borrows and regions --- #chref("references") · #chref("regions")], [`ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap`],
   [Contracts and errors --- #chref("contracts")], [`range` `ret` `expect` `panic`],
-  [Hashes --- #chref("lib-text")], [`crc32` `hash_bytes` `sha256` `sha384` `sha512`],
+  [Computation leaves --- stand only after `call_builtin`], [`clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next`],
   [C strings --- #chref("ffi")], [`cstr_of` `str_from_cstr`],
-  [Host leaves --- #chref("lib-map")], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `rng_next` `reactor_new` `r_read` `r_write`],
+  [Host leaves --- #chref("lib-map")], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `reactor_new` `r_read` `r_write`],
 )
+
+★ *The fifteen computation leaves are not global words.* They stand only in that position --- `call_builtin sha256 msg out`. Calling one bare is `E-BUILTIN-BARE`; naming something else after `call_builtin` is `E-BUILTIN-NAME`. The reason is one: a word a program uses once should not cost every reader a name to remember. The same rule already governs the stage names inside `pipe` and the type slot of `cast u8 x`.
 
 This table sorts every builtin of the canon into a group. The chapter next to each group name explains that group with examples. The
 one-line meanings are authoritative in the repository's `docs/spec/BUILTIN-MEANINGS.tsv`.

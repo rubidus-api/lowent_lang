@@ -242,10 +242,10 @@ do
   rem ★ 해시는 서명 알고리즘이 고른다 — 그것이 OID 가 말하는 절반이다.
   var hn u64 be 32 .
   if lt kind 3 . do
-    guard eq (sha256 (subslice c tb te) (subslice wb 0 32)) 32 . else return ok 0 .
+    guard eq (call_builtin sha256 (subslice c tb te) (subslice wb 0 32)) 32 . else return ok 0 .
   end .
   if ge kind 3 . do
-    guard eq (sha384 (subslice c tb te) (subslice wb 0 48)) 48 . else return ok 0 .
+    guard eq (call_builtin sha384 (subslice c tb te) (subslice wb 0 48)) 48 . else return ok 0 .
     set hn 48 .
   end .
 

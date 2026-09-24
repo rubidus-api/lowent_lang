@@ -59,7 +59,7 @@ do
   guard ge (len wu) 2020 . else return 89 .
   guard eq (curve (subslice wu 0 64) wb) 1 . else return 89 .
 
-  guard eq (sha256 msg (subslice wb 32 64)) 32 . else return 89 .
+  guard eq (call_builtin sha256 msg (subslice wb 32 64)) 32 . else return 89 .
 
   let dh option u64 . be codec.hex_dec "c9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721" (subslice wb 0 32) .
   guard is_some dh . else return 89 .

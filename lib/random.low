@@ -25,19 +25,19 @@ rem   ☞ 매개변수를 `state` 라 부를 수 없다 — 그것은 **효과 �
 rem     도구는 `E-IR-UNSUP: unsupported atom` 이라고만 했는데, 그 말은 원인을 안 가리킨다.
 rem     (평평한 어휘의 대가다. 여기서는 `seed` 로 비켰다.)
 export fn step input seed u64 . output u64 . do
-  return rng_next seed .
+  return call_builtin rng_next seed .
 end .
 
 rem ★ 0 이상 bound 미만으로 접는다. **치우침이 있다**(모듈로 편향) — 이름이 그것을 숨기지 않도록
 rem   `_biased` 를 붙였다. 통계가 걸린 자리에는 쓰지 말고, 셔플·샘플링 정도에 쓴다.
 export fn below_biased input seed u64 . input bound u64 . output u64 .
   requires ge bound 1 . do
-  return mod (rng_next seed) bound .
+  return mod (call_builtin rng_next seed) bound .
 end .
 
 rem ★ 동전 — 최상위 비트를 본다(하위 비트가 약한 생성기가 있으므로 상위를 쓴다).
 export fn coin input seed u64 . output bool . do
-  return ge (shr (rng_next seed) 63) 1 .
+  return ge (shr (call_builtin rng_next seed) 63) 1 .
 end .
 
 rem ── OS 엔트로피 (cap random) ──────────────────────────────────────────────
@@ -63,7 +63,7 @@ export proc seed_from_os input k cap random . input scratch mut slice u8 . outpu
   requires ge (len scratch) 8 . do
   let got u64 be random_bytes k scratch .
   guard ge got 8 . else return ok 0 .
-  let h u64 be hash_bytes (subslice scratch 0 8) .
+  let h u64 be call_builtin hash_bytes (subslice scratch 0 8) .
   guard ne h 0 . else return ok 1 .
   return h .
 end .

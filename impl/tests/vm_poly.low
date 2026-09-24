@@ -18,7 +18,7 @@ do
   guard eq (poly.setup key b) 1 . else return 0 .
 
   rem 낱말 — 열여섯의 배수가 아니면 꼬리를 0 으로 채운다.
-  let n u64 be poly1305 a data .
+  let n u64 be call_builtin poly1305 a data .
   guard eq n (len data) . else return 0 .
 
   rem 정의 — `lib/aead.low` 의 `feed` 가 하던 그 되풀이다.

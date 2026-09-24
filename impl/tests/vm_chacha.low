@@ -13,7 +13,7 @@ use chacha from "../../lib/chacha.low" .
 
 rem 낱말 하나 — 카운터 블록은 **제자리에서** 올라간다(`aes_ctr` 와 같은 규약).
 export proc cc input key slice u8 . input c mut slice u8 . input s slice u8 . input d mut slice u8 . output u64 . effects none . do
-  return chacha20 key c s d .
+  return call_builtin chacha20 key c s d .
 end .
 
 rem ★ 낱말과 `lib/chacha.low` 의 `stream` 이 **같은 바이트**를 내는가. 1 이면 같다.
@@ -24,7 +24,7 @@ export proc same input key slice u8 . input c mut slice u8 . input n slice u8 . 
 do
   guard eq (len d1) (len s) . else return 0 .
   guard eq (len d2) (len s) . else return 0 .
-  let a u64 be chacha20 key c s d1 .
+  let a u64 be call_builtin chacha20 key c s d1 .
   guard eq a (len s) . else return 0 .
   let r result u64 chacha.chacha_error . be chacha.stream key n cnt s d2 st work ks .
   guard is_ok r . else return 0 .

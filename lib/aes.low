@@ -144,9 +144,9 @@ export proc encrypt_block input rk slice u8 . input st mut slice u8 . input tmp 
   let z0 u64 be add_round_key st rk 0 .
   var r u64 be 1 .
   while lt r 10 . do
-    guard eq (aes_round st (subslice rk (mul r 16) (add (mul r 16) 16))) 16 . else return 0 .
+    guard eq (call_builtin aes_round st (subslice rk (mul r 16) (add (mul r 16) 16))) 16 . else return 0 .
     set r (add r 1) .
   end .
-  guard eq (aes_round_last st (subslice rk 160 176)) 16 . else return 0 .
+  guard eq (call_builtin aes_round_last st (subslice rk 160 176)) 16 . else return 0 .
   return 16 .
 end .

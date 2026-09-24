@@ -44,7 +44,7 @@ errors short_workspace . do
     set (index w (add sl 1)) (cast u8 (bit_and (shr counter 16) 255)) .
     set (index w (add sl 2)) (cast u8 (bit_and (shr counter 8) 255)) .
     set (index w (add sl 3)) (cast u8 (bit_and counter 255)) .
-    guard eq (sha256 (subslice w 0 (add sl 4)) (subslice w (add sl 4) (add (add sl 4) 32))) 32 . else return ok 0 .
+    guard eq (call_builtin sha256 (subslice w 0 (add sl 4)) (subslice w (add sl 4) (add (add sl 4) 32))) 32 . else return ok 0 .
     var j u64 be 0 .
     while lt j 32 . do
       if lt (add off j) n . do
@@ -108,7 +108,7 @@ errors short_workspace . do
     set (index w (add (add mp 40) t)) (index w (add (sub dblen slen) t)) .
     set t (add t 1) .
   end .
-  guard eq (sha256 (subslice w mp (add (add mp 40) slen)) (subslice w (add (add mp 40) slen) (add (add (add mp 40) slen) 32))) 32 . else return ok 0 .
+  guard eq (call_builtin sha256 (subslice w mp (add (add mp 40) slen)) (subslice w (add (add mp 40) slen) (add (add (add mp 40) slen) 32))) 32 . else return ok 0 .
   rem 비교는 XOR 누적 — 조기 반환이 없다.
   var diff u64 be 0 .
   var z u64 be 0 .

@@ -320,7 +320,7 @@ rem ★ 전사 해시: 버퍼 앞 `n` 바이트의 SHA-256.
 export proc transcript input buf slice u8 . input n u64 . input out mut slice u8 . output u64 . effects none . do
   guard le n (len buf) . else return 0 .
   guard ge (len out) 32 . else return 0 .
-  return sha256 (subslice buf 0 n) out .
+  return call_builtin sha256 (subslice buf 0 n) out .
 end .
 
 rem ★ 핸드셰이크 메시지 하나의 겉모습: type(1) ‖ length(3, 빅엔디언) ‖ body.

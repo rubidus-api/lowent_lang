@@ -29,8 +29,8 @@ rem   이 op 은 **한 곱셈**이 필요한 자리(CRC · 시험 · 다른 모�
 rem 캐리 없는 곱셈 한 번 — 128 비트 결과를 낱말 둘로 낸다. `out` 은 조각 2 이상.
 export proc clmul128 input out mut slice u64 . input a u64 . input b u64 . output u64 . effects none . do
   guard ge (len out) 2 . else return 0 .
-  set (index out 0) (clmul_hi a b) .
-  set (index out 1) (clmul_lo a b) .
+  set (index out 0) (call_builtin clmul_hi a b) .
+  set (index out 1) (call_builtin clmul_lo a b) .
   return 2 .
 end .
 
@@ -46,14 +46,14 @@ export proc gf128_mul input out mut slice u64 . input x slice u64 . input h slic
   let h1 u64 be index h 1 .
 
   rem 아래 낱말끼리 · 위 낱말끼리 · 가운데 항(카라추바)
-  let a_lo u64 be clmul_lo x1 h1 .
-  let a_hi u64 be clmul_hi x1 h1 .
-  let b_lo u64 be clmul_lo x0 h0 .
-  let b_hi u64 be clmul_hi x0 h0 .
+  let a_lo u64 be call_builtin clmul_lo x1 h1 .
+  let a_hi u64 be call_builtin clmul_hi x1 h1 .
+  let b_lo u64 be call_builtin clmul_lo x0 h0 .
+  let b_hi u64 be call_builtin clmul_hi x0 h0 .
   let xm u64 be bit_xor x0 x1 .
   let hm u64 be bit_xor h0 h1 .
-  let m_lo u64 be bit_xor (clmul_lo xm hm) (bit_xor a_lo b_lo) .
-  let m_hi u64 be bit_xor (clmul_hi xm hm) (bit_xor a_hi b_hi) .
+  let m_lo u64 be bit_xor (call_builtin clmul_lo xm hm) (bit_xor a_lo b_lo) .
+  let m_hi u64 be bit_xor (call_builtin clmul_hi xm hm) (bit_xor a_hi b_hi) .
 
   rem 256 비트 곱을 낱말 넷으로 놓는다(p0 가 가장 아래)
   var p0 u64 be a_lo .

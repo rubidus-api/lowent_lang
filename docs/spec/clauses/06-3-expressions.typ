@@ -123,6 +123,34 @@ end", "E-EXPR-CHAIN")
       아래에 드는 것은 **기본이 되는 것을 갈래별로 보인 것**이지 전부가 아니다. 전체 목록과
       각 연산의 뜻은 부록 D 에 있다.
     ]
+    #para("1c")[
+      내장 연산 가운데 **계산 잎**은 머리말 `call_builtin` 뒤에서만 선다:
+      `call_builtin <이름> <피연산자>*`. 그 이름은 **닫힌 집합**이며 그 자리에서만 뜻이 있다 —
+      전역 이름이 아니므로 저자가 같은 철자를 제 이름으로 쓸 수 있다(#cref("6.1.3") 의 가림 금지가
+      여기에는 미치지 아니한다). 어느 이름이 그러한지는 부록 D 가 적는다.
+    ]
+    #plain[
+      왜 가두는가. 한 프로그램이 **한 번** 쓰는 연산이 모두의 어휘를 늘리면, 읽는 사람이 외울
+      이름이 는다. 그 비용은 쓰는 사람 하나가 아니라 **읽는 사람 전부**가 치른다. 같은 까닭으로
+      파이프의 스테이지 이름도 `pipe` 안에서만 뜻이 있고(#cref("6.12")), 타입 낱말도 제 자리에서만 선다.
+    ]
+    #para("1d")[
+      계산 잎을 `call_builtin` 없이 머리에 놓는 것은 적합하지 아니하다(`E-BUILTIN-BARE`).
+      `call_builtin` 뒤에 그 닫힌 집합 밖의 낱말을 놓는 것도 적합하지 아니하다
+      (`E-BUILTIN-NAME`) — 그 자리는 저자의 이름으로 조용히 넘어가지 아니한다.
+    ]
+    #rejected("계산 잎을 맨몸으로 머리에 놓을 수 없다", "module ex_bare .
+
+proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
+do
+  return sha256 s o .
+end", "E-BUILTIN-BARE")
+    #ex("같은 것을 자리에 맞게 적으면 선다", "module ex_call .
+
+proc p input s slice u8 . input o mut slice u8 . output u64 . effects none .
+do
+  return call_builtin sha256 s o .
+end")
     #para("2")[
       산술 연산은 `add` `sub` `mul` `div` `mod` 이다. 나머지를 내는 연산의 철자는 `mod` 이며,
       `rem` 은 **주석을 여는 낱말**이다(#cref("6.1.2")) — 같은 철자를 두 뜻에 쓰지 아니한다.

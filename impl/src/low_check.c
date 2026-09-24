@@ -2374,6 +2374,12 @@ kids:
             for (proven_size_t i = 2; i < nd->nkids; i++) {
                 if (nd->kids[i]->kind == LOW_CST_ATOM && veq(nd->kids[i]->tok.lex, "tests") &&
                     i + 1 < nd->nkids) { i++; continue; }
+                // ★★★ 2026-09-25 — **머리의 절 낱말도 참조가 아니다** (결함 link-clause-false-visibility).
+                //   절 낱말은 키워드가 아니라 맨 IDENT 라(low_is_clause_word), `link "…"` 의 `link` 를
+                //   이름 참조로 읽었다. 그래서 **부르는 쪽 모듈이 `link` 라는 op 을 가지면**, 그것을 부른 적도
+                //   없는 남의 모듈 머리가 «비공개 이름에 손댄다» 로 고발됐다(certverify 의 `proc link`).
+                //   최소 재현이 오래 안 만들어진 까닭이 그것이다 — 겹치는 이름이 **소비자 쪽**에 있어야 했다.
+                if (nd->kids[i]->kind == LOW_CST_ATOM && low_is_clause_word(nd->kids[i]->tok.lex)) continue;
                 if (nd->kids[i]->kind == LOW_CST_ATOM && nd->kids[i]->tok.kw == LOW_KW_SEND &&
                     i + 2 < nd->nkids) {
                     ck_vis_walk(out, nd->kids[i + 1], v, nv, cur);

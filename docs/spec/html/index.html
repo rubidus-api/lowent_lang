@@ -878,7 +878,7 @@ end</code></pre><pre class="out">halve(100) = ok 50 · halve(250) = err too_big 
 fn f input a u8 . output u8 .
 do
   if gt a 5 . do return 1 . end
-end                      rem `a` 가 5 이하인 길에는 값이 없다</code></pre><p class="diag">진단: <code>E-RETURN-PARTIAL</code></p></div></section><section class="subclause" id="c6.5.12"><h3>6.5.12 오류는 적은 것만 난다</h3><p class="para" id="p1"><span class="pno">1</span> op 이 내는 오류는 <code>errors</code> 절이 적은 것 안에 있어야 한다(<code>E-ERR-UNDECLARED</code>).</p><p class="para" id="p2"><span class="pno">2</span> <code>errors</code> 절이 그 op 의 오류 타입에 <strong></strong>없는 이름<strong></strong>을 적는 것도 거부된다 (<code>E-ERR-UNDEF</code>).</p><p class="para" id="p3"><span class="pno">3</span> 다른 op 의 <code>result</code> 를 <code>return &lt;op> …</code> 로 그대로 돌려주면 그 op 의 실패가 이 op 의 실패가 된다. 그래서 <code>try</code> 와 같은 규칙을 따른다 — 부른 op 의 <code>errors</code> 절에 적힌 오류가 이 op 의 <code>errors</code> 절(절이 없으면 이 op 의 오류 타입) 안에 있어야 한다(<code>E-ERR-UNDECLARED</code>).</p><div class="caution"><b>주의 —<span style="white-space: pre-wrap">&#x20;</span></b> 두 규칙은 같은 문장의 양쪽이다 — <strong></strong>적은 것과 내는 것이 같아야 한다.<strong></strong> 한쪽이 넘치면 부르는 쪽이 못 본 실패가 오고, 다른 쪽이 넘치면 오지 않을 실패를 다루게 된다 (<a href="#c6.4.12" class="cref">§6.4.12</a> (4) 와 같은 까닭이다).</div><div class="rejected"><b>거부되는 예제 (rejected) — 적지 않은 오류를 낸다</b><pre><code>module ex_err_undeclared .
+end                      rem `a` 가 5 이하인 길에는 값이 없다</code></pre><p class="diag">진단: <code>E-RETURN-PARTIAL</code></p></div></section><section class="subclause" id="c6.5.12"><h3>6.5.12 오류는 적은 것만 난다</h3><p class="para" id="p1"><span class="pno">1</span> op 이 내는 오류는 <code>errors</code> 절이 적은 것 안에 있어야 한다(<code>E-ERR-UNDECLARED</code>).</p><p class="para" id="p2"><span class="pno">2</span> <code>errors</code> 절이 그 op 의 오류 타입에 <strong></strong>없는 이름<strong></strong>을 적는 것도 거부된다 (<code>E-ERR-UNDEF</code>).</p><p class="para" id="p3"><span class="pno">3</span> 다른 op 의 실패를 넘겨 올리면 — <code>try &lt;op></code> 로, 또는 <code>return &lt;op> …</code> 로 그 <code>result</code> 를 그대로 돌려주면 — 그 op 의 실패가 이 op 의 실패가 된다. 그래서 부른 op 이 <strong></strong>낼 수 있는 오류<strong></strong>가 이 op 의 <code>errors</code> 절(절이 없으면 이 op 의 오류 타입) 안에 있어야 한다 (<code>E-ERR-UNDECLARED</code>).</p><p class="para" id="p3a"><span class="pno">3a</span> 부른 op 이 낼 수 있는 오류는 그 op 의 <code>errors</code> 절이 적은 것이다. 절이 없으면 그 op 의 <strong></strong>오류 타입 전체<strong></strong>다 — 절을 적지 않는 것은 «이 타입의 오류는 무엇이든 날 수 있다» 는 뜻이고, 부르는 쪽도 그 뜻 그대로 읽는다.</p><div class="caution"><b>주의 —<span style="white-space: pre-wrap">&#x20;</span></b> 두 규칙은 같은 문장의 양쪽이다 — <strong></strong>적은 것과 내는 것이 같아야 한다.<strong></strong> 한쪽이 넘치면 부르는 쪽이 못 본 실패가 오고, 다른 쪽이 넘치면 오지 않을 실패를 다루게 된다 (<a href="#c6.4.12" class="cref">§6.4.12</a> (4) 와 같은 까닭이다).</div><div class="rejected"><b>거부되는 예제 (rejected) — 적지 않은 오류를 낸다</b><pre><code>module ex_err_undeclared .
 
 enum e do
   bad .
@@ -909,6 +909,34 @@ errors too_long .
 do
   guard le c 200 . else return error too_long .
   return read_digit c .     rem `bad_digit` 은 `load_byte` 의 약속에 없다
+end</code></pre><p class="diag">진단: <code>E-ERR-UNDECLARED</code></p></div><div class="rejected"><b>거부되는 예제 (rejected) — 절 없는 op 이 넘겨받은 실패를 다시 넘긴다</b><pre><code>module ex_err_clauseless .
+
+enum parse_error do
+  bad_digit .
+end .
+
+enum load_error do
+  too_long .
+end .
+
+fn read_digit input c u8 . output result u8 parse_error .
+errors bad_digit .
+do
+  guard le c 9 . else return error bad_digit .
+  return ok c .
+end
+
+fn digit_or_fail input c u8 . output result u8 parse_error .
+do
+  return read_digit c .     rem 절이 없다 — `parse_error` 의 무엇이든 날 수 있다
+end
+
+fn load_byte input c u8 . output result u8 load_error .
+errors too_long .
+do
+  guard le c 200 . else return error too_long .
+  let v u8 be try digit_or_fail c .     rem `parse_error` 는 `load_byte` 의 약속에 없다
+  return ok v .
 end</code></pre><p class="diag">진단: <code>E-ERR-UNDECLARED</code></p></div></section></section><section class="subclause" id="c6.6"><h3>6.6 갈래를 가르기 — `match`</h3><p class="para" id="p1"><span class="pno">1</span> <code>match</code> 는 <code>enum</code> 값이 어느 갈래인지 보고 그에 맞는 블록을 실행한다.</p><p class="para" id="p2"><span class="pno">2</span> <code>match</code> 는 <strong></strong>모든 갈래를 덮어야 한다.<strong></strong> 하나라도 빠지면 번역이 거부된다.</p><p class="para" id="p3"><span class="pno">3</span> <code>match</code> 는 <code>enum</code> 뿐 아니라 정수도 가를 수 있다. 그때 한 갈래는 값 하나이거나 <strong></strong>범위<strong></strong> 이며, 범위는 <code>&lt;처음> to &lt;끝></code> 으로 적고 양 끝을 포함한다.</p><p class="para" id="p4"><span class="pno">4</span> 정수를 가를 때도 <strong></strong>모든 값이 덮여야<strong></strong> 한다. 타입이 가질 수 있는 값을 범위들이 빈틈없이 덮거나, 나머지를 받는 갈래(<code>_</code>)가 있어야 한다.</p><p class="para" id="p5"><span class="pno">5</span> 한 갈래가 값을 여럿 받으려면 <code>or</code> 로 잇는다.</p><p class="para" id="p6"><span class="pno">6</span> 앞선 갈래가 이미 덮은 것을 뒤의 갈래가 다시 적는 것은 거부된다 (<code>E-MATCH-REDUNDANT</code>). 그 갈래는 <strong></strong>결코 돌지 않으며<strong></strong>, 돌지 않는 코드가 거기 있는 것은 쓴 사람의 뜻과 프로그램의 뜻이 갈렸다는 표시다.</p><p class="para" id="p7"><span class="pno">7</span> <code>case</code> 에 적은 <strong></strong>맨 이름은 언제나 갈래<strong></strong>다. 선언된 갈래가 아니면 거부된다 (<code>E-MATCH-UNDEF</code>). 무엇이든 잡으려면 <code>_</code> 를 쓴다.</p><div class="plain"><b>쉬운 말로</b> 2026-09-03 이전에는 맨 이름이 갈래가 아니면 <strong></strong>그 값을 묶는 이름<strong></strong>으로 읽혔고, 그래서 갈래 이름의 오타가 잡히기는커녕 <strong></strong>모든 것을 잡는 갈래<strong></strong>가 되어 (2) 의 빠짐 검사까지 만족시켰다. 갈래를 하나 더 늘려도 아무 말이 없었다 — 그 오타 갈래가 새 갈래까지 삼키기 때문이다. <strong></strong>처리기가 가장 쉽게 잡을 수 있는 잘못을 잡지 못하는 자리는 규칙이 아니라 구멍이다.<strong></strong></div><p class="para" id="p7a"><span class="pno">7a</span> 이름 뒤에 이름이 더 오면 그것은 <strong></strong>해체<strong></strong>다 — 값을 지닌 갈래를 푸는 것 (<a href="#c6.2.19" class="cref">§6.2.19</a>)이거나 짜임의 칸을 묶는 것이다. 그 자리의 첫 이름은 갈래가 아니어도 된다(짜임의 이름일 수 있다).</p><p class="para" id="p7b"><span class="pno">7b</span> <code>case error &lt;이름></code> 의 이름이 그 오류 열거의 <strong></strong>선언된 갈래<strong></strong>면 그 갈래만 받는다. 선언된 갈래가 아니면 오류 값 전체를 그 이름에 묶는다(그 가지가 모든 오류를 받는다). (7) 이 <code>match</code> 전체에 대해 정한 규율 — 맨 이름이 갈래면 갈래다 — 을 이 자리에도 그대로 적용한 것이다.</p><div class="plain"><b>쉬운 말로</b> 2026-09-16 이전에는 이 자리의 이름을 <strong></strong>언제나 묶음<strong></strong>으로 읽었다. 그래서 <code>case error not_digit .</code> 이 <code>empty</code> 오류까지 받았고, 갈래 둘 중 하나만 적은 <code>match</code> 가 빠짐 검사를 통과했으며, 갈래마다 적으면 둘째가 「이미 다뤘다」로 거부됐다(결함 노트 52). 갈래 이름을 적었는데 <strong></strong>다른 갈래가 그 가지로 들어오는 것<strong></strong>은 (7) 이 막으려던 바로 그 잘못이다.</div><p class="para" id="p8"><span class="pno">8</span> 값을 지닌 갈래(<a href="#c6.2.19" class="cref">§6.2.19</a>)를 가를 때, 묶는 이름의 수는 그 갈래가 지닌 것의 수와 <strong></strong>같아야<strong></strong> 한다(<code>E-MATCH-ARITY</code>).</p><p class="para" id="p8a"><span class="pno">8a</span> <code>match</code> 의 마지막 자리에 <code>else do … end</code> 를 두면 그것이 <strong></strong>나머지를 받는 갈래<strong></strong>다 — <code>case _ .</code> 와 같은 일을 한다(부록 A.7 의 문법이 그 자리를 이미 적고 있다). 빠짐 검사는 그것을 덮은 것으로 세며, 그 뒤에 갈래를 더 적으면 (6) 에 걸린다.</p><p class="para" id="p8b"><span class="pno">8b</span> 갈래의 패턴이 <strong></strong>중첩<strong></strong>일 때(<code>case ok (some x)</code> · <code>case ok none</code>), 그 바깥 꼬리표는 <strong></strong>안쪽 패턴이 스스로 빠짐없을 때<strong></strong> 덮인 것으로 센다. 안쪽이 빠짐없다는 것은 안쪽에 <code>_</code> 나 묶는 이름이 있거나, 안쪽이 <code>some</code> 과 <code>none</code> 을 다 적었거나, 안쪽 갈래들이 그 열거의 갈래를 다 적었다는 뜻이다.</p><div class="plain"><b>쉬운 말로</b> (8b) 이전에는 중첩 갈래를 아예 <strong></strong>세지 않아서<strong></strong>, 빠짐없이 가른 <code>match</code> 가 <code>_</code> 를 요구받았다. 쓸모없는 <code>_</code> 는 나중에 갈래가 늘어도 아무 말을 하지 않으므로, 그것을 강요하는 것은 (2) 의 빠짐 검사를 <strong></strong>끄게 만드는 일<strong></strong>이었다.</div><p class="para" id="p9"><span class="pno">9</span> <code>or</code> 로 이은 갈래들이 값을 묶으려면, <strong></strong>모든 갈래가 같은 자리에 같은 이름<strong></strong>을 지녀야 한다(<code>E-MATCH-ORBIND</code>). 그렇지 않으면 그 이름이 어느 갈래에서 왔느냐에 따라 다른 것을 가리키게 된다.</p><div class="plain"><b>쉬운 말로</b> (2)·(4) 가 <strong></strong>빠짐<strong></strong>을 막는다면 (6) 은 <strong></strong>겹침<strong></strong>을 막는다. 둘은 같은 규율의 앞뒤다 — 갈래를 가르는 일은 값의 공간을 <strong></strong>빠짐없이, 겹침없이<strong></strong> 나누는 일이며, 어느 한쪽만 지키면 나눈 것이 아니라 그저 늘어놓은 것이다.</div><div class="ex"><b>예제 (example) — 범위로 가른다</b><pre><code>module ex_range_match .
 
 fn band input a u8 . output u8 .

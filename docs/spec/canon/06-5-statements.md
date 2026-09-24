@@ -467,9 +467,14 @@ end                      rem `a` 가 5 이하인 길에는 값이 없다
 (2) `errors` 절이 그 op 의 오류 타입에 **없는 이름**을 적는 것도 거부된다
       (`E-ERR-UNDEF`).
 
-(3) 다른 op 의 `result` 를 `return <op> …` 로 그대로 돌려주면 그 op 의 실패가 이 op 의 실패가
-      된다. 그래서 `try` 와 같은 규칙을 따른다 — 부른 op 의 `errors` 절에 적힌 오류가 이 op 의
-      `errors` 절(절이 없으면 이 op 의 오류 타입) 안에 있어야 한다(`E-ERR-UNDECLARED`).
+(3) 다른 op 의 실패를 넘겨 올리면 — `try <op>` 로, 또는 `return <op> …` 로 그 `result` 를
+      그대로 돌려주면 — 그 op 의 실패가 이 op 의 실패가 된다. 그래서 부른 op 이 **낼 수 있는
+      오류**가 이 op 의 `errors` 절(절이 없으면 이 op 의 오류 타입) 안에 있어야 한다
+      (`E-ERR-UNDECLARED`).
+
+(3a) 부른 op 이 낼 수 있는 오류는 그 op 의 `errors` 절이 적은 것이다. 절이 없으면 그 op 의
+      **오류 타입 전체**다 — 절을 적지 않는 것은 «이 타입의 오류는 무엇이든 날 수 있다» 는
+      뜻이고, 부르는 쪽도 그 뜻 그대로 읽는다.
 
 > [!주의]
 > 두 규칙은 같은 문장의 양쪽이다 — **적은 것과 내는 것이 같아야 한다.** 한쪽이 넘치면
@@ -512,5 +517,37 @@ errors too_long .
 do
   guard le c 200 . else return error too_long .
   return read_digit c .     rem `bad_digit` 은 `load_byte` 의 약속에 없다
+end
+```
+
+```lowent-거부: 절 없는 op 이 넘겨받은 실패를 다시 넘긴다 · E-ERR-UNDECLARED
+module ex_err_clauseless .
+
+enum parse_error do
+  bad_digit .
+end .
+
+enum load_error do
+  too_long .
+end .
+
+fn read_digit input c u8 . output result u8 parse_error .
+errors bad_digit .
+do
+  guard le c 9 . else return error bad_digit .
+  return ok c .
+end
+
+fn digit_or_fail input c u8 . output result u8 parse_error .
+do
+  return read_digit c .     rem 절이 없다 — `parse_error` 의 무엇이든 날 수 있다
+end
+
+fn load_byte input c u8 . output result u8 load_error .
+errors too_long .
+do
+  guard le c 200 . else return error too_long .
+  let v u8 be try digit_or_fail c .     rem `parse_error` 는 `load_byte` 의 약속에 없다
+  return ok v .
 end
 ```

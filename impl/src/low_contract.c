@@ -109,6 +109,26 @@ static proven_u8str_view_t ct_try_callee(const low_cst_t *nd, proven_size_t j) {
     return (proven_u8str_view_t){ .ptr = NULL, .size = 0 };
 }
 
+// ★★★ 2026-09-25 (소유자 선택 ⓐ) — **부른 op 이 낼 수 있는 오류**: `errors` 절이 있으면 그 절,
+//   **없으면 그 op 의 오류 enum 전체**. 전엔 절만 읽어서 절 없는 op 을 `try`·`return` 으로 넘기면
+//   **아무것도 대조하지 않았다** — 절 없는 op 은 직접 `return error` 는 못 해도(E-ERR-UNDECLARED)
+//   자기 아래에서 넘겨받은 실패는 올린다. 그 실패가 선언과 맞는지 아무도 안 봤다.
+//   ☞ 절을 안 적는 것은 여전히 정당한 선택이다 — 다만 그 뜻(«이 타입의 오류는 뭐든 난다»)을
+//     **부르는 쪽에서도 그대로** 읽는다. 절을 강제하지 않는다(그것은 다른 결정이다, ⓑ).
+static proven_size_t ct_callee_errors(const ct_ctx_t *c, const low_cst_t *g,
+                                      proven_u8str_view_t *out, proven_size_t max) {
+    proven_size_t n = ct_op_errors(g, out, max);
+    if (n) return n;
+    const low_cst_t *eb = ct_err_enum(c->pr, g);
+    if (!eb) return 0;                     // 오류 타입이 선언된 enum 이 아니다 — 모르면 안 본다
+    for (proven_size_t v = 0; v < eb->nkids && n < max; v++) {
+        const low_cst_t *vk = eb->kids[v];
+        if (vk->kind == LOW_CST_FORM && vk->nkids && vk->kids[0]->kind == LOW_CST_ATOM) vk = vk->kids[0];
+        if (vk->kind == LOW_CST_ATOM && vk->tok.kind == LOW_TOK_IDENT) out[n++] = vk->tok.lex;
+    }
+    return n;
+}
+
 // walk body: any `error NAME` / `err NAME` must have NAME in the declared error set
 static void ct_walk_errors_in(ct_ctx_t *c, const low_cst_t *nd, bool consumed);
 static void ct_walk_errors(ct_ctx_t *c, const low_cst_t *nd) { ct_walk_errors_in(c, nd, false); }
@@ -179,7 +199,7 @@ static void ct_walk_errors_in(ct_ctx_t *c, const low_cst_t *nd, bool consumed) {
         const low_cst_t *g = ct_find_op(c->pr, callee);
         if (!g) continue;                       // 모르는 이름(내장·외부) — 보수적으로 넘어간다
         proven_u8str_view_t es[CT_MAX];
-        proven_size_t ne = ct_op_errors(g, es, CT_MAX);
+        proven_size_t ne = ct_callee_errors(c, g, es, CT_MAX);
         // ★ 기준은 **두 단계**다 (실측으로 배웠다 — 첫 판은 fixture 넷을 거짓 양성으로 잡았다):
         //     `errors` 절이 있으면  → 그 절이 기준이다(더 좁은 주장을 했으므로 지켜야 한다)
         //     절이 없으면          → **오류 enum 자체**가 기준이다(주장은 타입뿐이다)
@@ -199,8 +219,7 @@ static void ct_walk_errors_in(ct_ctx_t *c, const low_cst_t *nd, bool consumed) {
     // ★★★ 2026-09-25 — **`return <op> …` 도 부른 op 의 실패를 그대로 올린다** — `try` 와 같은 닫힘이다.
     //   `try` 만 대조해서, `output result u64 b_error` 인 op 이 `return a w .` 로 **a_error 의 변형**을
     //   내보내도 `--check` 초록이었다(known-defects/bare-return-under-result.md «형제 증상»).
-    //   기준은 `try` 와 **똑같다**: 부른 op 의 `errors` 절에 적힌 오류가 내 절(절이 없으면 내 enum) 안에.
-    //   ☞ 부른 op 에 절이 없으면 `try` 도 이것도 아무것도 보지 않는다 — 더 엄하게 하는 것은 따로 정할 일이다.
+    //   기준은 `try` 와 **똑같다** — 같은 `ct_callee_errors` 를 쓴다.
     if (c->self_result)
         for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {
             if (nd->kids[j]->kind != LOW_CST_ATOM || nd->kids[j]->tok.kw != LOW_KW_RETURN) continue;
@@ -209,7 +228,7 @@ static void ct_walk_errors_in(ct_ctx_t *c, const low_cst_t *nd, bool consumed) {
             const low_cst_t *g = ct_find_op(c->pr, callee);
             if (!g || !ct_err_enum(c->pr, g)) continue;   // 모르는 op · result 가 아닌 op — 보수적으로 넘어간다
             proven_u8str_view_t es[CT_MAX];
-            proven_size_t ne = ct_op_errors(g, es, CT_MAX);
+            proven_size_t ne = ct_callee_errors(c, g, es, CT_MAX);
             for (proven_size_t e = 0; e < ne; e++)
                 if (c->ndeclared ? !in_set(c->declared, c->ndeclared, es[e])
                                  : (c->self_enum && !ct_in_enum(c->self_enum, es[e]))) {

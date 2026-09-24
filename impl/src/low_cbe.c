@@ -2584,6 +2584,8 @@ static int g_hw_simd;
 void low_cbe_set_hw_simd(int v) { g_hw_simd = v; }
 static int g_hw_avx2;
 void low_cbe_set_hw_avx2(int v) { g_hw_avx2 = v; }
+static int g_hw_asm;
+void low_cbe_set_hw_asm(int v) { g_hw_asm = v; }
 static bool g_conc_t0;   /* --conc-t0: 호스트에서도 T0 런타임 (WO-0206) */
 void low_cbe_set_no_carry(bool v) { g_no_carry = v; }
 void low_cbe_set_conc_t0(bool v) { g_conc_t0 = v; }
@@ -4948,6 +4950,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     fprintf(out, "#define LW_HW_AES %d\n", g_hw_aes);
     fprintf(out, "#define LW_HW_SSE2 %d\n", g_hw_simd);
     fprintf(out, "#define LW_HW_AVX2 %d\n", g_hw_avx2);
+    fprintf(out, "#define LW_HW_ASM %d\n", g_hw_asm);
     fputs(LW_PRELUDE, out);
     // ★★★ 동시성 런타임은 **쓸 때만** (pay-as-you-go) — 그리고 **reactor 를 쓸 때도** 낸다.
     //   ☞ 처음엔 reactor 를 별도 블록으로 떼었는데, 스케줄러가 `lw_io_poll_once` 를 부르고

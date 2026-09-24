@@ -10,7 +10,7 @@
 #ifndef LOW_VERSION_H
 #define LOW_VERSION_H
 
-#define LOW_VERSION "1.0.0"
+#define LOW_VERSION "1.1.0"
 
 // ★★★ **"버전" 은 한 낱말이 아니라 네 축이다** (RFC-0089 R4 · 단계 E, 2026-08-03).
 //
@@ -55,7 +55,12 @@
 //   표면을 옮길 수 있지만(의도를 커밋에 적는 조건으로), frozen 에서는 그 문이 **닫힌다** —
 //   `check-abi.py` 가 그 규칙을 강제한다. 상태를 낱말 하나 고치는 것이 곧 규율을 바꾼다.
 #define LOW_RELEASE      LOW_VERSION          /* ① lowentc 릴리스 */
-#define LOW_LANG_REV     "1.0"                /* ② 언어 개정(표면·의미) */
+#define LOW_LANG_REV     "1.1"                /* ② 언어 개정(표면·의미) */
+// ★ 1.0 → 1.1 (2026-09-24): 빌트인이 196 → 201 이 됐고, 계산 잎 열다섯이
+//   `call_builtin <이름>` 뒤로 내려갔다(RFC-0125). **맨몸 호출은 이제 안 선다**
+//   (`E-BUILTIN-BARE`) — 표면이 깨지는 방향이다. 이 축의 규칙이 «키워드/빌트인이
+//   바뀌면 움직인다» 이므로 움직인다. ☞ epoch 가 아직 `provisional` 이라 이 깨짐은
+//   약속 위반이 아니다 — 「조용히 바뀌지 않는다」만 약속했고, 이렇게 적는 것이 그 약속이다.
 #define LOW_ABI_EPOCH        "2026-08-05"     /* ③ 호환성 epoch — **원점(날짜)** */
 #define LOW_ABI_EPOCH_STATUS "provisional"    /*    그 눈금의 성격: 잠정 / frozen */
 #define LOW_MATURITY     "freestanding-verified"  /* ④ 성숙도(stable-core 아님) */

@@ -1044,7 +1044,7 @@ static void print_usage(const char *argv0) {
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
         "    --fixed-bytes N      VM 의 고정 창 크기 — 다른 보드를 흉내 낸다 (기본: 타깃이 정한다)\n"
-        "    --hw none|auto|pclmul,aes,sse2,avx2  기계 명령의 **범위** (기본 none — 소프트만)\n"
+        "    --hw none|auto|pclmul,aes,sse2,avx2,asm  기계 명령의 **범위** (기본 none — 소프트만)\n"
         "    --absorbs            `unsafe` 를 흡수한 자리를 한 줄씩 낸다 (RFC-0120)\n"
         "    --emit-h | --emit-ld | --emit-db | --no-fast | --no-elemsl | --no-carry | --conc-t0 | --no-main | --why-slow | --zones  (C 방출 곁가지)\n"
         "\n  누가 읽나\n"
@@ -1161,23 +1161,26 @@ int main(int argc, char **argv) {
                 }
             }
             if (strcmp(v, "none") == 0) { low_cbe_set_hw_clmul(0); low_cbe_set_hw_aes(0);
-                                          low_cbe_set_hw_simd(0); low_cbe_set_hw_avx2(0); }
+                                          low_cbe_set_hw_simd(0); low_cbe_set_hw_avx2(0); low_cbe_set_hw_asm(0); }
             else if (strcmp(v, "auto") == 0) { low_cbe_set_hw_clmul(2); low_cbe_set_hw_aes(2);
-                                               low_cbe_set_hw_simd(2); low_cbe_set_hw_avx2(2); }
+                                               low_cbe_set_hw_simd(2); low_cbe_set_hw_avx2(2); low_cbe_set_hw_asm(2); }
             else {
                 char buf[128]; size_t bn = strlen(v);
                 if (bn >= sizeof buf) { fprintf(stderr, "lowentc: --hw list is too long\n"); return 2; }
                 memcpy(buf, v, bn + 1);
                 low_cbe_set_hw_clmul(0); low_cbe_set_hw_aes(0);
-                low_cbe_set_hw_simd(0); low_cbe_set_hw_avx2(0);
+                low_cbe_set_hw_simd(0); low_cbe_set_hw_avx2(0); low_cbe_set_hw_asm(0);
                 for (char *tok = strtok(buf, ","); tok; tok = strtok(NULL, ",")) {
                     if (strcmp(tok, "pclmul") == 0) low_cbe_set_hw_clmul(1);
                     else if (strcmp(tok, "aes") == 0) low_cbe_set_hw_aes(1);
                     else if (strcmp(tok, "sse2") == 0) low_cbe_set_hw_simd(1);
                     else if (strcmp(tok, "avx2") == 0) { low_cbe_set_hw_simd(1); low_cbe_set_hw_avx2(1); }
+                    // ★ 셋째 층 — 손으로 쓴 지름길. 내장함수 판을 **대신**하는 것이 아니라
+                    //   같은 갈림에 후보로 선다: 없으면 내장함수, 그것도 없으면 셈 판.
+                    else if (strcmp(tok, "asm") == 0) low_cbe_set_hw_asm(1);
                     else {
                         fprintf(stderr, "lowentc: --hw takes none | auto | a comma list of "
-                                        "pclmul,aes,sse2,avx2 (got `%s`)\n", tok);
+                                        "pclmul,aes,sse2,avx2,asm (got `%s`)\n", tok);
                         return 2;
                     }
                 }

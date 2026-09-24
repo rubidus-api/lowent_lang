@@ -1047,6 +1047,8 @@ LOW_POLY_C_SOURCE_26
 "            LW_CC_OUT(0, g, r0); LW_CC_OUT(1, g, r1); LW_CC_OUT(2, g, r2); LW_CC_OUT(3, g, r3); }\n"
 "        cs[12] = (unsigned int)(cs[12] + 4u); }\n"
 "    *done = off; }\n"
+"#undef m16\n"
+"#undef m8\n"
 "#endif\n"
 "#if defined(__x86_64__) && (LW_HW_AVX2 == 1 || LW_HW_AVX2 == 2)\n"
 "#define LW_CW_ROTL(x, n) _mm256_or_si256(_mm256_slli_epi32(x, n), _mm256_srli_epi32(x, 32 - (n)))\n"
@@ -1071,13 +1073,20 @@ LOW_POLY_C_SOURCE_26
 "    _mm_storeu_si128((__m128i *)(dst + off + 64 * ((B) + 4) + 16 * (G)),\\\n"
 "        _mm_xor_si128(_mm_loadu_si128((const __m128i *)(src + off + 64 * ((B) + 4) + 16 * (G))),\\\n"
 "                      _mm256_extracti128_si256(R, 1))); } while (0)\n"
+// ★ 마스크를 **파일 자리의 상수**로 둔다 (RFC-0129 후속, 2026-09-24). 함수 지역 const 로 두면
+//   gcc 가 그것을 ymm 에 앉히려 들 때가 있는데, ChaCha 8 블록은 상태만으로 ymm 열여섯을
+//   다 쓴다(디스어셈블 실측: 쓰인 ymm 16/16 · 한 더블라운드당 스택 유출 저장 45). 곧
+//   **한 칸도 여유가 없다.** 파일 자리에 두면 `vpshufb ymm, ymm, [rip+…]` 로 내려가
+//   레지스터를 안 먹는다 — 실측 2,512 → 2,570 MB/s.
+"static const unsigned char lw_cw_m16b[32] = {2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13,\n"
+"                                            2,3,0,1,6,7,4,5,10,11,8,9,14,15,12,13};\n"
+"static const unsigned char lw_cw_m8b[32]  = {3,0,1,2,7,4,5,6,11,8,9,10,15,12,13,14,\n"
+"                                            3,0,1,2,7,4,5,6,11,8,9,10,15,12,13,14};\n"
+"#define m16 (*(const __m256i *)lw_cw_m16b)\n"
+"#define m8  (*(const __m256i *)lw_cw_m8b)\n"
 "__attribute__((target(\"avx2\"))) static void lw_chacha20_avx2(unsigned int *cs, const unsigned char *src,\n"
 "                            unsigned long long slen, unsigned char *dst, unsigned long long *done) {\n"
 "    __m256i v[16], c0, r0, r1, r2, r3; unsigned long long off; int i, r, g;\n"
-"    const __m256i m16 = _mm256_setr_epi8(2,3,0,1, 6,7,4,5, 10,11,8,9, 14,15,12,13,\n"
-"                                         2,3,0,1, 6,7,4,5, 10,11,8,9, 14,15,12,13);\n"
-"    const __m256i m8  = _mm256_setr_epi8(3,0,1,2, 7,4,5,6, 11,8,9,10, 15,12,13,14,\n"
-"                                         3,0,1,2, 7,4,5,6, 11,8,9,10, 15,12,13,14);\n"
 "    for (off = 0; off + 512 <= slen; off += 512) {\n"
 "        for (i = 0; i < 12; i++) v[i] = _mm256_set1_epi32((int)cs[i]);\n"
 "        v[12] = _mm256_setr_epi32((int)cs[12], (int)(cs[12] + 1u), (int)(cs[12] + 2u), (int)(cs[12] + 3u),\n"

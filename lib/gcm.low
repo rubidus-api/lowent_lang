@@ -144,20 +144,38 @@ proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 .
   guard eq (len nonce) 12 . else return 0 .
   guard eq (len key) 16 . else return 0 .
   guard ge (len w) 320 . else return 0 .
-  rem w 의 자리: 0..176 rk · 176..192 h · 192..208 z · 208..224 v · 224..240 blk
-  rem            240..256 ctr · 256..272 j0 · 272..288 ks · 288..304 tmp · 304..320 key
-  guard eq (aes.expand_key key (subslice w 0 176)) 176 . else return 0 .
-  rem ★ 원래 키를 일터에 둔다 — `gcm_stream` 이 부르는 잎(`aes_ctr`)은 확장키가 아니라
-  rem   **16 바이트 키**를 받는다(확장은 잎이 제 안에서 한다).
+  rem w 의 자리: 0..176 **안 쓴다**(아래 ★) · 176..192 h · 192..208 z · 208..224 v · 224..240 blk
+  rem            240..256 ctr · 256..272 j0 · 272..288 AES_K(J0) · 288..304 tmp · 304..320 key
+
+  rem ★★★★★ **한 판을 여는 값이 셈보다 컸다** (RFC-0130, 2026-09-24).
+  rem   그전에는 여기서 `aes.expand_key` 로 키 스케줄을 폈다 — 실측 **16,505 사이클**이다.
+  rem   16 바이트를 봉인하는 데 드는 17,502 사이클 가운데 **94%** 가 그것이었다. 까닭은
+  rem   `lib/aes.low` 의 S-box 가 표가 아니라 **대수적 역원**(`ginv`)이라, 키 스케줄이 쓰는
+  rem   S-box 마흔 번이 각각 400 사이클 남짓 걸리기 때문이다.
+  rem   ☞ 그래서 4 MiB 한 덩이는 3,650 MB/s 인데 **1 KiB 는 153** 이었다. TLS 레코드가 그 크기다.
+  rem
+  rem ★★ 고친 방법: **잎 `aes_ctr` 가 이미 제 안에서 키를 편다.** 그리고 CTR 은 평문이 0 이면
+  rem   답이 곧 키스트림, 즉 `AES_K(카운터)` 다. 그러므로 확장키도 `encrypt_block` 도 필요 없다 —
+  rem   이 판이 쓰는 AES 는 **H 하나와 AES_K(J0) 하나**뿐이고 둘 다 그 꼴이다.
+  rem   ⇒ `expand_key` 와 `gctr_block` 이 이 길에서 사라진다. `lib/aes.low` 는 **뜻의 정의로 남는다**.
+  rem   ☞ w[0..176] 은 이제 안 쓴다. 일터 크기(320)는 그대로 둔다 — 부르는 쪽의 약속이다.
+
+  rem 원래 키를 일터에 둔다 — 잎은 확장키가 아니라 **16 바이트 키**를 받는다.
   var kk u64 be 0 .
   while lt kk 16 . do  set (index w (add 304 kk)) (index key kk) .  set kk (add kk 1) .  end .
 
-  rem H = AES_K(0^128)
+  rem H = AES_K(0^128) — 카운터 0, 평문 0 으로 한 블록.
   var i u64 be 0 .
-  while lt i 16 . do  set (index w (add 176 i)) 0 .  set i (add i 1) .  end .
-  guard eq (aes.encrypt_block (subslice w 0 176) (subslice w 176 192) (subslice w 288 304)) 16 . else return 0 .
+  while lt i 16 . do
+    set (index w (add 176 i)) 0 .
+    set (index w (add 208 i)) 0 .
+    set i (add i 1) .
+  end .
+  let h1 u64 be call_builtin aes_ctr (subslice w 304 320) (subslice w 208 224) (subslice w 176 192) (subslice w 176 192) .
+  guard eq h1 16 . else return 0 .
 
-  rem J0 = nonce ‖ 0x00000001,  카운터는 J0+1 부터
+  rem J0 = nonce ‖ 0x00000001. 카운터를 J0 으로 놓고 한 블록을 흘리면 **둘이 한 번에** 온다:
+  rem   나온 값 = AES_K(J0)(태그가 쓴다) · 카운터 = J0+1(흐름이 쓴다).
   var n u64 be 0 .
   while lt n 12 . do
     set (index w (add 256 n)) (index nonce n) .
@@ -165,9 +183,13 @@ proc gcm_prep input key slice u8 . input nonce slice u8 . input w mut slice u8 .
   end .
   set (index w 268) 0 .  set (index w 269) 0 .  set (index w 270) 0 .  set (index w 271) 1 .
   var c u64 be 0 .
-  while lt c 16 . do  set (index w (add 240 c)) (index w (add 256 c)) .  set c (add c 1) .  end .
-  let bump u64 be gctr_block (subslice w 0 176) (subslice w 240 256) (subslice w 272 288) (subslice w 288 304) .
-  guard eq bump 16 . else return 0 .
+  while lt c 16 . do
+    set (index w (add 240 c)) (index w (add 256 c)) .
+    set (index w (add 272 c)) 0 .
+    set c (add c 1) .
+  end .
+  let j1 u64 be call_builtin aes_ctr (subslice w 304 320) (subslice w 240 256) (subslice w 272 288) (subslice w 272 288) .
+  guard eq j1 16 . else return 0 .
   return 16 .
 end .
 
@@ -203,9 +225,8 @@ proc gcm_tag_finish input alen u64 . input clen u64 . input tag mut slice u8 . i
   guard ge (len tag) 16 . else return 0 .
   guard ge (len w) 320 . else return 0 .
   let g3 u64 be ghash_lens (subslice w 192 208) (subslice w 176 192) alen clen (subslice w 224 240) .
-  var m u64 be 0 .
-  while lt m 16 . do  set (index w (add 272 m)) (index w (add 256 m)) .  set m (add m 1) .  end .
-  guard eq (aes.encrypt_block (subslice w 0 176) (subslice w 272 288) (subslice w 288 304)) 16 . else return 0 .
+  rem ★ `AES_K(J0)` 는 `gcm_prep` 이 w[272..288] 에 놓아 두었다(RFC-0130) — 여기서 다시 안 만든다.
+  rem   그 사이에 그 자리를 건드리는 것은 없다: 누산은 192·176 을, 길이 블록은 224 를 쓴다.
   var t u64 be 0 .
   while lt t 16 . do
     set (index tag t) (cast u8 (bit_xor (cast u64 (index w (add 192 t))) (cast u64 (index w (add 272 t))))) .

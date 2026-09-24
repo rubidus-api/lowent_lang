@@ -1422,6 +1422,14 @@ static void tc_walk_makes(tc_ctx_t *c, const low_cst_t *nd,
     for (proven_size_t j = 0; j < nd->nkids; j++) tc_walk_makes(c, nd->kids[j], env, nenv);
 }
 
+// `return <값>` 의 값을 op 의 `output` 에 맞댄다 — 문장 `return` 과 guard 의 `else return` 이 같은 규칙을 쓴다.
+static void tc_check_return(tc_ctx_t *c, low_cst_t *const *kids, proven_size_t from, proven_size_t n,
+                            const tc_var_t *env, proven_size_t nenv, ty_t ret, proven_u32 line) {
+    ty_t actual = tc_infer_run(c, kids, from, n, env, nenv);
+    tc_flag_types(c, compat(ret, actual),
+            "E-TYPE-RETURN", "the returned value does not match the op's `output`", ret, actual, line);
+}
+
 static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, proven_size_t *nenv, ty_t ret) {
     if (!blk) return;
     for (proven_size_t i = 0; i < blk->nkids; i++) {
@@ -1457,9 +1465,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                         "the initializer's type does not match the declared type", declared, actual, f->line);
             if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = declared; }
         } else if (kw == LOW_KW_RETURN) {
-            ty_t actual = tc_infer_run(c, f->kids, 1, f->nkids - 1, env, *nenv);
-            tc_flag_types(c, compat(ret, actual),
-                    "E-TYPE-RETURN", "the returned value does not match the op's `output`", ret, actual, f->line);
+            tc_check_return(c, f->kids, 1, f->nkids - 1, env, *nenv, ret, f->line);
         } else if (kw == LOW_KW_FOR && f->nkids >= 3 && f->kids[1]->kind == LOW_CST_ATOM) {
             // CST: [for, <var>, <seq…>, BLOCK] — 파서가 `in` 마커를 떨어뜨린다(RFC-0049).
             // ★ `for x in <seq> . do … end` — 대상은 **슬라이스**여야 하고,
@@ -1603,6 +1609,22 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             (void)tc_infer(c, f, env, *nenv);
             for (proven_size_t j = 0; j < f->nkids; j++)
                 if (f->kids[j]->kind == LOW_CST_BLOCK) tc_check_body(c, f->kids[j], env, nenv, ret);
+            // ★★★ 2026-09-25 — **guard 의 else 는 BLOCK 이 아니라 FORM 이다**(머리가 `else`, low_cst.c ①).
+            //   위 줄은 BLOCK 자식만 내려가서 guard 의 else 가 **통째로 검사 밖**이었다:
+            //   `result` op 의 `guard … else return 0 .` 이 `--check` 초록이고 실행하면 죽었고
+            //   (known-defects/bare-return-under-result.md), `else do let z u8 be 300 . … end` 조차 통과했다.
+            //   IR(ir_guard)이 읽는 두 모양을 그대로 본다: 마지막이 BLOCK 이면 블록, 아니면 `else return …` 한 줄.
+            if (kw == LOW_KW_GUARD && f->nkids >= 2) {
+                const low_cst_t *ef = f->kids[f->nkids - 1];
+                if (ef->kind == LOW_CST_FORM && ef->nkids >= 2 && ef->kids[0]->kind == LOW_CST_ATOM &&
+                    ef->kids[0]->tok.kw == LOW_KW_ELSE) {
+                    const low_cst_t *last = ef->kids[ef->nkids - 1];
+                    if (last->kind == LOW_CST_BLOCK)
+                        tc_check_body(c, last, env, nenv, ret);
+                    else if (ef->kids[1]->kind == LOW_CST_ATOM && ef->kids[1]->tok.kw == LOW_KW_RETURN)
+                        tc_check_return(c, ef->kids, 2, ef->nkids - 2, env, *nenv, ret, ef->line);
+                }
+            }
         }
     }
 }

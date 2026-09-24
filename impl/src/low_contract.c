@@ -77,6 +77,7 @@ static bool is_atom_word(const low_cst_t *nd, const char *s) {
 //   ☞ 이름 기준이면 충분하다 — 이 언어의 이름공간은 **평평**해서(E-NAME-DUP) 두 enum 이
 //     같은 변형 이름을 가질 수 없다. 그래서 "이름 기준 vs 순서값 기준"(§8-5)이 한 답이다.
 static bool ct_in_enum(const low_cst_t *blk, proven_u8str_view_t name);
+static const low_cst_t *ct_err_enum(const low_parse_result_t *pr, const low_cst_t *f);
 static proven_size_t ct_op_errors(const low_cst_t *g, proven_u8str_view_t *out, proven_size_t max) {
     proven_size_t n = 0;
     for (proven_size_t j = 2; j + 1 < g->nkids && n < max; j++) {
@@ -195,6 +196,33 @@ static void ct_walk_errors_in(ct_ctx_t *c, const low_cst_t *nd, bool consumed) {
                         "so it never leaves. (RFC-0006 §6: errors is a CLOSURE, not a hint)",
                         nd->kids[j]->line);
     }
+    // ★★★ 2026-09-25 — **`return <op> …` 도 부른 op 의 실패를 그대로 올린다** — `try` 와 같은 닫힘이다.
+    //   `try` 만 대조해서, `output result u64 b_error` 인 op 이 `return a w .` 로 **a_error 의 변형**을
+    //   내보내도 `--check` 초록이었다(known-defects/bare-return-under-result.md «형제 증상»).
+    //   기준은 `try` 와 **똑같다**: 부른 op 의 `errors` 절에 적힌 오류가 내 절(절이 없으면 내 enum) 안에.
+    //   ☞ 부른 op 에 절이 없으면 `try` 도 이것도 아무것도 보지 않는다 — 더 엄하게 하는 것은 따로 정할 일이다.
+    if (c->self_result)
+        for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {
+            if (nd->kids[j]->kind != LOW_CST_ATOM || nd->kids[j]->tok.kw != LOW_KW_RETURN) continue;
+            proven_u8str_view_t callee = ct_try_callee(nd, j);
+            if (!callee.size) continue;
+            const low_cst_t *g = ct_find_op(c->pr, callee);
+            if (!g || !ct_err_enum(c->pr, g)) continue;   // 모르는 op · result 가 아닌 op — 보수적으로 넘어간다
+            proven_u8str_view_t es[CT_MAX];
+            proven_size_t ne = ct_op_errors(g, es, CT_MAX);
+            for (proven_size_t e = 0; e < ne; e++)
+                if (c->ndeclared ? !in_set(c->declared, c->ndeclared, es[e])
+                                 : (c->self_enum && !ct_in_enum(c->self_enum, es[e]))) {
+                    ct_emit(c, "E-ERR-UNDECLARED",
+                            "`return <op>` hands on that op's failures as this op's own, but the callee "
+                            "can fail with an error that is NOT in this op's `errors` clause (or error "
+                            "enum) — the declaration promises failures this op cannot keep to. Convert "
+                            "it (`try … map_error` / a `case error` arm), or declare it here. "
+                            "(RFC-0006 §6: errors is a CLOSURE, not a hint)",
+                            nd->kids[j]->line);
+                    break;
+                }
+        }
     // ★ `let r result … be …` 아래로는 «담긴다» 는 사실을 물려준다 — 그 자리의 실패는
     //   밖으로 나가지 않는다(§6.5.8(3) 의 «묻는 것·꺼내는 것» 으로 이어진다).
     bool child_consumed = consumed;

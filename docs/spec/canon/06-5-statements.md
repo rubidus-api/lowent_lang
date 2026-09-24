@@ -199,6 +199,31 @@ end
 (1) `return` 은 op 을 끝내고 값을 돌려준다. 돌려주는 값의 타입은 `output` 에 적은 것과
       같아야 한다.
 
+(1a) 이 규칙은 `return` 이 **어디에 있든** 같다 — `guard` 의 `else` 뒤의 한 문장과 `else` 블록
+      안의 모든 문장도 같은 검사를 받는다. 그래서 `output result …` 인 op 은 `ok <값>` ·
+      `error <변형>` · `result` 를 내는 식으로만 돌아가고, 맨값을 돌려주면 거부된다
+      (`E-TYPE-RETURN`). 반대로 맨 타입을 적은 op 이 `ok <값>` 을 돌려주는 것도 거부된다.
+
+```lowent-거부: `result` 자리에 맨값을 돌려준다 · E-TYPE-RETURN
+module ex_bare_under_result .
+
+enum short do
+  too_short .
+end .
+
+fn head input b slice u8 . . output result u8 short .
+errors too_short .
+do
+  guard ge (len b) 2 . else return 0 .   rem `ok 0` 도 `error too_short` 도 아니다
+  return ok (index b 0) .
+end
+```
+
+> [!산문]
+> 이 자리는 한동안 **검사 밖**이었다(2026-09-25 까지) — `guard` 의 `else` 는 문장 목록이 아니라
+> 한 덩이로 붙어 있어서 검사기가 그 안으로 내려가지 않았다. 그래서 위의 op 은 번역을 통과했고,
+> 부르는 쪽이 `is_ok` 를 묻는 순간 **실행 중에** 멈췄다. 드문 길(입력이 모자람)일수록 늦게 드러난다.
+
 (2) 값을 돌려주지 않는 op(`output void`)은 `return` 만 적어 일찍 끝낼 수 있다.
 
 (2a) 값을 돌려주지 않는 op 은 `return` 없이 **몸의 끝까지 진행해도** 된다. 돌려줄 값이
@@ -442,6 +467,10 @@ end                      rem `a` 가 5 이하인 길에는 값이 없다
 (2) `errors` 절이 그 op 의 오류 타입에 **없는 이름**을 적는 것도 거부된다
       (`E-ERR-UNDEF`).
 
+(3) 다른 op 의 `result` 를 `return <op> …` 로 그대로 돌려주면 그 op 의 실패가 이 op 의 실패가
+      된다. 그래서 `try` 와 같은 규칙을 따른다 — 부른 op 의 `errors` 절에 적힌 오류가 이 op 의
+      `errors` 절(절이 없으면 이 op 의 오류 타입) 안에 있어야 한다(`E-ERR-UNDECLARED`).
+
 > [!주의]
 > 두 규칙은 같은 문장의 양쪽이다 — **적은 것과 내는 것이 같아야 한다.** 한쪽이 넘치면
 > 부르는 쪽이 못 본 실패가 오고, 다른 쪽이 넘치면 오지 않을 실패를 다루게 된다
@@ -457,5 +486,31 @@ end .
 fn f output result u8 e .
 do
   return error bad .   rem `errors bad …` 를 적지 않았다
+end
+```
+
+```lowent-거부: 남의 실패를 `return` 으로 넘긴다 · E-ERR-UNDECLARED
+module ex_err_handed_on .
+
+enum parse_error do
+  bad_digit .
+end .
+
+enum load_error do
+  too_long .
+end .
+
+fn read_digit input c u8 . output result u8 parse_error .
+errors bad_digit .
+do
+  guard le c 9 . else return error bad_digit .
+  return ok c .
+end
+
+fn load_byte input c u8 . output result u8 load_error .
+errors too_long .
+do
+  guard le c 200 . else return error too_long .
+  return read_digit c .     rem `bad_digit` 은 `load_byte` 의 약속에 없다
 end
 ```

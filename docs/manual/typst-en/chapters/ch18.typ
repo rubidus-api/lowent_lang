@@ -98,11 +98,12 @@ written, and the list kept closed, for two reasons: the code need not change whe
 could be anything would say nothing. Someone reading `region t arena` knows "carve from the front, give back all at once".
 
 ```text
- fixed window: [ a 16 ][ b 32 ][ c 8 ][ ··········· empty ··········· ]
-                                      ▲ cursor --- the next alloc_bytes carves from here
- on reaching end:
-               [ ································ empty ································ ]
-               ▲ the cursor rewinds to where the region was opened --- a · b · c vanish at once
+fixed window:
+    [ a 16 ][ b 32 ][ c 8 ][ ··········· empty ··········· ]
+                           ▲ cursor --- the next alloc_bytes carves from here
+on reaching end:
+    [ ···················································· ]
+    ▲ the cursor rewinds to where the region opened --- a · b · c vanish at once
 ```
 
 This picture is why nothing leaks even though no value is given back one by one: giving back is moving one cursor.
@@ -142,10 +143,11 @@ The fixed window has a single place it carves from (a cursor). When the inner re
 name would be rewound with it. A different root --- carving with a fixed-window capability inside a heap region --- has its own cursor and is fine.
 
 ```text
- outer opened here ▼          inner opened here ▼
-            [ outer's ][ ··· ][ inner's ][ ✘ carved under the outer name ]
-                               ▲ when inner ends the cursor rewinds to here
-                                 → the "outer" bytes on the right vanish too (while outer still uses them)
+            ▼ where outer opened
+                        ▼ where inner opened
+            [ a ][ ··· ][ b ][ ✘ c ]
+                        ▲ when inner ends the cursor rewinds to here → c vanishes too
+   a = outer's · b = inner's · c = carved under the outer name while inner was open (✘ E-ALLOC-NESTED)
 ```
 
 For the same reason, an op spawned as a task cannot obtain memory directly from a root (`E-ALLOC-TASK`), because a cursor is not shared between flows. Sharing

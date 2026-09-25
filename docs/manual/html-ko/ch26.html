@@ -704,14 +704,13 @@ drive() = 61
 $ lowentc --test await.low
   [PASS] join_any_order  (schedule: 2 interleavings agree, exhaustive)
 == tests: 1 run, 1 passed, 0 FAILED ==
-</code></pre></div></div><span id="idx-entry-58"></span><ul><li><code>task_group do … end</code> 는 그 안에서 만든 흐름들을 하나로 묶는다. 블록이 끝나는 자리에서 묶인 흐름이 모두 끝나며, 하나라도 남은 채로 나가지 않는다.</li><li><code>spawn square 5</code> 는 <code>square 5</code> 를 도는 흐름을 만들고 그 흐름의 <strong>핸들</strong>을 준다.</li><li><code>await h1</code> 은 그 흐름이 끝날 때까지 기다렸다가 결과를 준다. 기다리는 동안 다른 흐름이 나아간다.</li></ul><p>흐름의 수명을 시간 축에 그리면 이렇다.</p><pre><code data-lang="text"> 시간 →
- drive     ──┬── task_group do ─────────────────────────────── end ──┬──▶ 계속
-             │                                                       │
- 흐름 h1     │     spawn ├──── square 5 돈다 ───┤ 끝                  │
- 흐름 h2     │         spawn ├──── square 6 돈다 ─────────┤ 끝         │
-             │                          await h1 ▲   await h2 ▲      │
-             └─ 블록이 열린 자리                     블록이 닫힌 자리 ─┘
-                 흐름은 이 두 선 *안에서만* 산다 --- end 를 지날 때 남은 흐름은 없다</code></pre><p>흐름은 <strong>자기를 만든 블록보다 오래 살지 못한다.</strong> 그래서 묶는 자리 밖에서 흐름을 만들면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch26/scope.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> scope .
+</code></pre></div></div><span id="idx-entry-58"></span><ul><li><code>task_group do … end</code> 는 그 안에서 만든 흐름들을 하나로 묶는다. 블록이 끝나는 자리에서 묶인 흐름이 모두 끝나며, 하나라도 남은 채로 나가지 않는다.</li><li><code>spawn square 5</code> 는 <code>square 5</code> 를 도는 흐름을 만들고 그 흐름의 <strong>핸들</strong>을 준다.</li><li><code>await h1</code> 은 그 흐름이 끝날 때까지 기다렸다가 결과를 준다. 기다리는 동안 다른 흐름이 나아간다.</li></ul><p>흐름의 수명을 시간 축에 그리면 이렇다.</p><pre><code data-lang="text">drive       ──┬── task_group do                                   end ──┬──▶ 계속
+              │                                                         │
+흐름 h1       │   spawn ├─── square 5 돈다 ─┤ 끝                        │
+흐름 h2       │       spawn ├─── square 6 돈다 ───────┤ 끝              │
+              │                     await h1 ▲    await h2 ▲            │
+              └─ 블록이 열린 자리                     블록이 닫힌 자리 ─┘
+                  흐름은 이 두 선 안에서만 산다 --- end 를 지날 때 남은 흐름은 없다</code></pre><p>흐름은 <strong>자기를 만든 블록보다 오래 살지 못한다.</strong> 그래서 묶는 자리 밖에서 흐름을 만들면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch26/scope.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> scope .
 <em><span class="tok-c">rem expect: E-SPAWN-SCOPE</span></em>
 
 <strong><span class="tok-k">fn</span></strong> square <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .

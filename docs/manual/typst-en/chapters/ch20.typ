@@ -55,10 +55,13 @@ Here it is enough to know that it is made with `spawn actor` and called with `se
 The simplest allocator is a *bump* allocator. It keeps one cursor, cuts off as much as requested, and pushes the cursor forward.
 
 ```text
- buf (8 bytes)       [ a  a  a │ b  b │ ·  ·  · ]
-                       reserve 3  reserve 2  ▲ cursor (used = 5)
-                                             └─ the next reserve cuts from here
- asking reserve 4      only 3 bytes are left → none (running short is a value too)
+    buf (8 bytes)
+    [ a  a  a │ b  b │ ·  ·  · ]
+      └ the piece reserve 3 gave
+                └ the piece reserve 2 gave
+                       ▲ cursor (used = 5) --- the next reserve cuts from here
+
+asking reserve 4: only 3 bytes are left → none (running short is a value too)
 ```
 
 #demo("examples/ch20/borrowed.low")

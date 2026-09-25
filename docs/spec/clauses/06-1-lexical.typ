@@ -424,6 +424,12 @@ let mixed u32 be add 1 (mul 2 3) .")
     #para("2d")[
       블록은 그것을 여는 머리 없이 홀로 설 수 없다(`E-BLOCK-NOHEAD`).
     ]
+    #diagram("end 는 블록만 닫고, 마침표는 문장을 닫는다", "if eq a 0 . do return 1 . end    ← if 문: 블록을 몸으로 갖는다 --- end 에서 끝난다
+└───────────────────────────┘ if 문
+
+let p pt be make pt do x 1 . end .    ← let 문: 블록을 값으로 쓴다 --- 자기 . 으로 끝난다
+            └──────────────────┘ │   ← └┘ 는 make 의 블록, │ 는 let 의 마침표
+└────────────────────────────────┘ let 문")
     #rejected("몸으로 갖는 블록의 `end` 뒤에는 점이 없다", "module ex_dot_after_end .
 
 fn f input a u64 . output u64 . do

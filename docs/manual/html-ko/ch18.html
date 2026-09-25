@@ -725,11 +725,12 @@ main() = 70
 carve_stack() = 32
 $ lowentc --run carve_static kinds.low
 carve_static() = 64
-</code></pre></div></div><p>종류 낱말은 <strong>이 영역이 무엇을 위한 자리인지</strong>를 코드에 남긴다. 이 판에서 실제로 다르게 동작하는 것은 <code>heap</code> 하나다 — 자라는 뿌리에서 깎는다. 나머지 일곱은 모두 고정 창에서 깎고 되감으므로 <code>carve_stack</code> 과 <code>carve_static</code> 은 같은 방식으로 32 와 64 를 얻는다. 그래도 종류를 적고 그 목록을 닫아 둔 까닭은 둘이다. 기계에 맞춰 실체를 달리할 때 코드를 고치지 않으려는 것, 그리고 아무 낱말이나 쓸 수 있으면 그 낱말이 아무것도 말해 주지 못하기 때문이다. <code>region t arena</code> 를 읽은 사람은 “앞에서 깎고 한꺼번에 돌려준다” 를 안다.</p><pre><code data-lang="text"> 고정 창:   [ a 16 ][ b 32 ][ c 8 ][ ··········· 비어 있음 ··········· ]
-                                  ▲ 커서 --- 다음 alloc_bytes 가 여기서부터 깎는다
- end 에 닿으면:
-            [ ····························· 비어 있음 ···························· ]
-            ▲ 커서가 영역을 연 자리로 되감긴다 --- a · b · c 가 한꺼번에 사라진다</code></pre><p>값마다 돌려주는 코드가 없는데도 새는 것이 없는 까닭이 이 그림이다. 돌려주는 일은 커서 하나를 되돌리는 것이다.</p><h3 id="s18-3">18.3 영역을 건네받는다<a class="plink" href="#s18-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>영역은 인자로도 건넨다. <code>input &lt;이름> region &lt;타입> .</code> 으로 받고, 타입은 그 영역을 부르는 이름이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/param.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> param .
+</code></pre></div></div><p>종류 낱말은 <strong>이 영역이 무엇을 위한 자리인지</strong>를 코드에 남긴다. 이 판에서 실제로 다르게 동작하는 것은 <code>heap</code> 하나다 — 자라는 뿌리에서 깎는다. 나머지 일곱은 모두 고정 창에서 깎고 되감으므로 <code>carve_stack</code> 과 <code>carve_static</code> 은 같은 방식으로 32 와 64 를 얻는다. 그래도 종류를 적고 그 목록을 닫아 둔 까닭은 둘이다. 기계에 맞춰 실체를 달리할 때 코드를 고치지 않으려는 것, 그리고 아무 낱말이나 쓸 수 있으면 그 낱말이 아무것도 말해 주지 못하기 때문이다. <code>region t arena</code> 를 읽은 사람은 “앞에서 깎고 한꺼번에 돌려준다” 를 안다.</p><pre><code data-lang="text">고정 창:
+    [ a 16 ][ b 32 ][ c 8 ][ ··········· 비어 있음 ··········· ]
+                           ▲ 커서 --- 다음 alloc_bytes 가 여기서부터 깎는다
+end 에 닿으면:
+    [ ························································ ]
+    ▲ 커서가 영역을 연 자리로 되감긴다 --- a · b · c 가 한꺼번에 사라진다</code></pre><p>값마다 돌려주는 코드가 없는데도 새는 것이 없는 까닭이 이 그림이다. 돌려주는 일은 커서 하나를 되돌리는 것이다.</p><h3 id="s18-3">18.3 영역을 건네받는다<a class="plink" href="#s18-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>영역은 인자로도 건넨다. <code>input &lt;이름> region &lt;타입> .</code> 으로 받고, 타입은 그 영역을 부르는 이름이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/param.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> param .
 <em><span class="tok-c">rem run: main</span></em>
 
 <strong><span class="tok-k">type</span></strong> scratch <strong><span class="tok-t">u64</span></strong> .
@@ -789,10 +790,11 @@ escape.low:10:0 E-REGION-ESCAPE: this value was allocated inside a `region` bloc
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check nested.low
 nested.low:8:0 E-ALLOC-NESTED: this allocation names an OUTER source while a region of the SAME root is open inside it. Each root (the fixed window, the heap) has ONE cursor, so the inner region's `end` rewinds past these bytes and hands them to the next allocation — the value would silently change under you (RFC-0112 D4). Allocate from the innermost region, move this allocation outside the inner block, or open the inner region on the other root
-</code></pre></div></div><p>고정 창에는 깎는 자리(커서)가 하나뿐이다. 안쪽 영역이 끝날 때 커서를 되감으면 그 사이에 바깥 이름으로 받은 바이트까지 함께 되감긴다.</p><pre><code data-lang="text"> outer 을 연 자리 ▼          inner 을 연 자리 ▼
-            [ outer 의 것 ][ ··· ][ inner 의 것 ][ ✘ outer 이름으로 깎은 것 ]
-                                  ▲ inner 이 끝나면 커서가 여기로 되감긴다
-                                    → 오른쪽의 «outer 것» 도 함께 사라진다(바깥은 아직 쓰는 중인데)</code></pre><p>다른 뿌리 — 힙 영역 안에서 고정 창 권한으로 깎는 것 — 는 커서가 따로라서 상관없다.</p><p>같은 이유로 태스크로 띄우는 op 은 뿌리에서 곧장 얻지 못한다(<code>E-ALLOC-TASK</code>). 커서가 실행 흐름 사이에 나뉘지 않기 때문이다. 흐름 사이에서 할당기를 나누려면 커서를 원자적으로 옮기는 할당기가 필요하다(27장).</p><h3 id="s18-6">18.6 자라는 뿌리<a class="plink" href="#s18-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-42"></span><p><code>region &lt;이름> heap</code> 은 자라는 뿌리에서 깎는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/heap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> heap .
+</code></pre></div></div><p>고정 창에는 깎는 자리(커서)가 하나뿐이다. 안쪽 영역이 끝날 때 커서를 되감으면 그 사이에 바깥 이름으로 받은 바이트까지 함께 되감긴다.</p><pre><code data-lang="text">            ▼ outer 를 연 자리
+                        ▼ inner 를 연 자리
+            [ a ][ ··· ][ b ][ ✘ c ]
+                        ▲ inner 이 끝나면 커서가 여기로 되감긴다 → c 도 함께 사라진다
+   a = outer 의 것 · b = inner 의 것 · c = inner 가 열린 동안 outer 이름으로 깎은 것 (✘ E-ALLOC-NESTED)</code></pre><p>다른 뿌리 — 힙 영역 안에서 고정 창 권한으로 깎는 것 — 는 커서가 따로라서 상관없다.</p><p>같은 이유로 태스크로 띄우는 op 은 뿌리에서 곧장 얻지 못한다(<code>E-ALLOC-TASK</code>). 커서가 실행 흐름 사이에 나뉘지 않기 때문이다. 흐름 사이에서 할당기를 나누려면 커서를 원자적으로 옮기는 할당기가 필요하다(27장).</p><h3 id="s18-6">18.6 자라는 뿌리<a class="plink" href="#s18-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-42"></span><p><code>region &lt;이름> heap</code> 은 자라는 뿌리에서 깎는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/heap.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> heap .
 <em><span class="tok-c">rem run: main</span></em>
 
 <strong><span class="tok-k">proc</span></strong> grow_twice <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> heap .

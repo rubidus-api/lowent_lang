@@ -122,11 +122,11 @@ In C terms: no `;` after `if (c) { … }`, but one after `p = (struct point){ 1,
 
 ```text
 while le i n . do  …  end                  block as body: the while statement ends at end
-└──────────── while statement ─┘
+└─── while statement ───┘
 
 let p point be make point do x 1 . end .   block as value: the block is make's, the statement ends with its own .
-               └──── make value ──────┘ │
-└──────────────── let statement ─────────┘
+               └──── make value ─────┘ │
+└─────────── let statement ────────────┘
 ```
 
 Each statement inside a block must end with its own full stop too; `end` does not close an open statement for you. A bare

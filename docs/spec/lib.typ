@@ -182,6 +182,26 @@
   }
 }
 
+// ── 도해 ────────────────────────────────────────────────────────────────────
+// ★ 2026-09-25 — 규칙을 **그림으로** 보이는 자리. 문법 틀(`<…>` 자리를 가진 모양)과도, 예제(컴파일되는
+//   프로그램)와도 다르다: 이것은 규범이 아니라 규범을 읽기 쉽게 하는 그림이고, 검사기는 코드로 보지 않는다.
+#let diagram(caption, code) = {
+  if _html {
+    html.elem("div", attrs: (class: "diagram"), {
+      html.elem("b", [도해 (diagram) — #caption])
+      html.elem("pre", html.elem("code", code))
+    })
+  } else {
+    block(above: 1em, below: 1em, width: 100%, breakable: false)[
+      #text(size: 0.88em, weight: "bold")[도해 (diagram) — #caption]
+
+      #block(width: 100%, inset: 0.6em, fill: rgb("#f5f8fb"), stroke: 0.5pt + rgb("#9ab"))[
+        #raw(code)
+      ]
+    ]
+  }
+}
+
 // ── 거부되는 예제 ───────────────────────────────────────────────────────────
 // ★ 명세는 **되는 것**만 보이면 절반만 말한 것이다. *"이건 왜 안 되는가"* 가 규칙을
 //   가장 또렷하게 가르친다. 이 장치는 그 자리를 따로 표시하고, 어떤 진단이 나오는지 적는다.

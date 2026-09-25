@@ -57,10 +57,13 @@
 가장 단순한 할당기는 *범프*다. 커서 하나를 두고, 달라는 만큼 잘라 준 뒤 커서를 민다.
 
 ```text
- buf (8 바이트)      [ a  a  a │ b  b │ ·  ·  · ]
-                       reserve 3  reserve 2  ▲ 커서 (used = 5)
-                                             └─ 다음 reserve 는 여기서부터 자른다
- reserve 4 를 청하면   남은 것은 3 바이트뿐 → none (모자람도 값이다)
+    buf (8 바이트)
+    [ a  a  a │ b  b │ ·  ·  · ]
+      └ reserve 3 이 준 조각
+                └ reserve 2 가 준 조각
+                       ▲ 커서 (used = 5) --- 다음 reserve 는 여기서부터 자른다
+
+reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값이다)
 ```
 
 #demo("examples/ch20/borrowed.low")

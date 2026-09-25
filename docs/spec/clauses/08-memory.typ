@@ -140,6 +140,11 @@ end", "E-REGION-ESCAPE")
       안쪽 영역이 끝날 때 그 바이트까지 되감기기 때문이다. 다른 뿌리의 영역은 안쪽에 열려 있어도
       상관없다.
     ]
+    #diagram("뿌리마다 커서는 하나 — 안쪽 영역이 끝나면 커서가 되감긴다", "            ▼ outer 를 연 자리
+                        ▼ inner 를 연 자리
+            [ a ][ ··· ][ b ][ ✘ c ]
+                        ▲ inner 이 끝나면 커서가 여기로 되감긴다 → c 도 함께 사라진다
+   a = outer 의 것 · b = inner 의 것 · c = inner 가 열린 동안 outer 이름으로 깎은 것 (✘ E-ALLOC-NESTED)")
     #rejected("안쪽 영역이 열린 채 바깥 영역에서 깎는다", "module ex_region_nested .
 
 proc f output u64 . effects alloc . do
@@ -299,6 +304,10 @@ end", "E-ESCAPE: reference to a local escapes the op (dangling)")
       소유를 가진 값은 **정확히 한 번** 없애져야 한다. 두 번 없애는 것도, 없애지 않고
       버리는 것도 번역 시점에 거부된다.
     ]
+    #diagram("소유는 옮겨 다닌다 — 없앨 책임은 언제나 한 자리에", " var h owned buffer be v .      h ──▶ [ 버퍼 ]            책임: 여기
+ consume h .                    h (빈 이름)  ──옮김──▶ consume 의 h ──▶ [ 버퍼 ]   책임: consume
+ drop h .   (consume 안에서)                               [ 버퍼 ] 없어짐        책임: 끝
+ h 를 다시 쓰면                  E-OWN-MOVED               (옮긴 뒤 사용)")
     #para("3")[
       값을 없애는 일은 **두 갈래**이며, 이 언어는 그 둘을 다르게 다룬다.
     ]
@@ -556,6 +565,12 @@ end", "E-PAREN-ESCAPE")
       것은 적합하지 아니하다(`E-EXCL`). 겹치면 읽는 쪽이 보는 값이 **언제 바뀌는지**
       아무도 말할 수 없다.
     ]
+    #diagram("한 값 n 에 대한 빌림을 시간 순으로", " 시간 →          ①        ②        ③        ④        ⑤
+ ref r1 n     ├─────────────────┤                          읽기 둘은 겹쳐도 된다
+ ref r2 n              ├─────────────────┤
+ mut_ref w n                                   ├────────┤  쓰기는 혼자일 때만
+ ✘ ref r n    ├──────────────────────────┤
+   set n 5                   ●                             읽는 동안 값이 바뀐다  E-EXCL")
     #para("2")[
       빌린 것은 빌려준 값보다 **오래 살 수 없다.** 빌려준 값이 옮겨졌는데 빌림이 남아
       있으면 적합하지 아니하다(`E-EXCL-MOVED`).

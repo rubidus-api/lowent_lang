@@ -37,7 +37,7 @@ proc okb input x cnt . output result u64 e . effects state . do
 end
 
 rem 오류 전파(결정적): 오류 자식을 await 하면 오류가 온다 → got=1. 어떤 interleaving 이든 성립.
-test coe_error_propagates schedule explore_interleavings do
+test coe_error_propagates schedule explore_interleavings . do
   var got u64 be 0 .
   task_group cancel_on_error do
     var h1 u64 be spawn mk 1 .

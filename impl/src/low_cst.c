@@ -226,6 +226,24 @@ static bool low_read_run(low_parser_t *p, proven_array_t *ops, bool headed_ok) {
     while (!low_is_form_boundary(p)) {
         low_tok_kind_t k = low_curk(p);
         if (k == LOW_TOK_DOT) return false;
+        // ★ X-0059 — 문장을 여는 낱말(`let`·`var`·`return`·`guard`)은 피연산자가 될 수 없다. 폼 한가운데서 만나면
+        //   앞 문장의 점이 빠진 것이다(`let x u64 be a` ⏎ `return x .`). 전엔 둘이 한 폼이 되어 엉뚱한 진단
+        //   (`E-RETURN-PARTIAL`)이 났다. `else` 바로 뒤는 나가는 문장의 자리라 제외한다(`else return 1 .`).
+        //   머리가 낱말이 아닌 폼(`// …` 같은 없는 표기)은 그 진단(E-VOCAB-REMOVED)이 원인을 말하므로 건드리지 않는다.
+        const low_cst_t *h0 = ops->len ? *(low_cst_t *const *)PROVEN_ARRAY_GET(ops, low_cst_t *, 0) : NULL;
+        if (ops->len && p->pos && h0 && h0->kind == LOW_CST_ATOM && h0->tok.kind == LOW_TOK_IDENT) {
+            low_kw_t kw = low_curkw(p);
+            const low_token_t *pv = &p->toks[p->pos - 1];
+            if ((kw == LOW_KW_LET || kw == LOW_KW_VAR || kw == LOW_KW_RETURN || kw == LOW_KW_GUARD) &&
+                !(pv->kind == LOW_TOK_IDENT && (pv->kw == LOW_KW_ELSE || pv->kw == LOW_KW_DO))) {
+                proven_u32 col = pv->col + (proven_u32)pv->lex.size;
+                if (pv->kind == LOW_TOK_STRING) col += 2;
+                low_pdiag(p, "E-DOT-MISSING",
+                          "the statement before this one is not closed — every statement ends with its own `.` "
+                          "(`let x u64 be a .` then `return x .`). A newline closes nothing", pv->line, col);
+                return false;
+            }
+        }
         low_cst_t *op = low_parse_access(p, headed_ok);
         if (op) (void)PROVEN_ARRAY_PUSH(ops, low_cst_t *, op);
         if (op && op->kind == LOW_CST_BLOCK) return true;
@@ -310,6 +328,16 @@ static low_cst_t *low_parse_generic(low_parser_t *p) {
     return f;
 }
 
+// X-0059 — 머리의 절이 점 없이 끝났다. 자리는 그 절의 마지막 낱말 바로 뒤(점이 들어갈 곳).
+static void low_head_dot_missing(low_parser_t *p, const low_token_t *last) {
+    proven_u32 col = last->col + (proven_u32)last->lex.size;
+    if (last->kind == LOW_TOK_STRING) col += 2;   // .lex 는 따옴표 안쪽이다
+    low_pdiag(p, "E-DOT-MISSING",
+              "this header clause is not closed — every clause of an op header ends with its own `.`, "
+              "the same as a statement: `fn f input a u64 . output u64 . do … end`. A newline closes nothing, "
+              "and the next clause word does not close the one before it", last->line, col);
+}
+
 // block-statement schema: HEAD operand* do BODY end   (op/if/for/loop);
 // `if` may be followed by an else clause (block or nested if).
 static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
@@ -365,17 +393,33 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
         //   그런데 `guard` 는 `else return 1 .` 를 받았다 — **같은 자리에서 규칙이 달랐다.**
         bool ctrl = (hkw == LOW_KW_IF || hkw == LOW_KW_WHILE || hkw == LOW_KW_FOR ||
                      hkw == LOW_KW_CASE || hkw == LOW_KW_MATCH);
+        // ★★★ X-0059 (소유자 결정 ⓐ, 2026-09-25) — **머리의 절도 자기 점으로 닫는다.** 전엔 선언 머리의 점을
+        //   건너뛰기만 해서 `fn f input a u64 output u64 do` 가 통과했다 — 절은 뒤 단계가 절 낱말로 잘라 주었다.
+        //   문장과 칸은 점이 없으면 거절되는데 머리만 받아 주었다(정본 §6.1.6 (2): 닫개는 점 하나).
+        //   이름 다음부터는 절 낱말이 절을 열고, 열린 절은 다음 절 낱말이나 `do` 앞에서 이미 점으로 닫혀 있어야 한다.
+        bool decl = (hkw == LOW_KW_FN || hkw == LOW_KW_PROC || hkw == LOW_KW_TEST);
+        bool named = false, open = false;
         while (low_curkw(p) != LOW_KW_DO && !low_is_form_boundary(p)) {
             if (low_curk(p) == LOW_TOK_DOT) {
                 low_adv(p);
                 if (ctrl) break;          // ★ 제어 머리에서 `.` 은 **식을 닫는다**
+                open = false;
                 continue;                 //   선언 머리에서 `.` 은 **절을 나눈다**
             }
             // ★ **쉼표는 form 을 닫지 않는다**(R3). 처음엔 여기서 `.` 과 함께 닫게 했다 —
             //   내가 방금 적은 규칙을 내가 곧바로 어겼다. 쉼표는 **인자를 나눌** 뿐이다.
+            proven_size_t at = p->pos;
             low_cst_t *op = low_parse_access(p, false);
+            if (decl && op) {
+                // 첫 낱말은 이름이다 — 이름이 절 낱말과 같아도(`proc link input …`) 절을 열지 않는다.
+                bool cw = named && op->kind == LOW_CST_ATOM && low_is_clause_word(op->tok.lex);
+                if (cw && open && at) low_head_dot_missing(p, &p->toks[at - 1]);
+                if (cw) open = true;
+                named = true;
+            }
             if (op) (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, op);
         }
+        if (decl && open && p->pos) low_head_dot_missing(p, &p->toks[p->pos - 1]);
     }
     if (low_curkw(p) == LOW_KW_DO) {
         (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block(p));
@@ -979,8 +1023,17 @@ static void low_fmt_trait_blk(const low_cst_t *blk) {
 static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
     low_kw_t hk = (nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) ? nd->kids[0]->tok.kw : LOW_KW_NONE;
     bool after_then = false;
+    // ★ X-0059 — 안에 놓인 선언(actor 몸의 `proc` 따위)도 머리 절마다 점을 찍는다. 파서가 머리의 점을 버리므로
+    //   여기서 되살린다: 열린 절은 다음 절 낱말이나 몸 블록 앞에서 닫는다. (맨 위 선언은 low_fmt_decl 이 줄마다 찍는다.)
+    bool decl = (hk == LOW_KW_FN || hk == LOW_KW_PROC || hk == LOW_KW_TEST), dopen = false;
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         if (i) putchar(' ');
+        if (decl && i >= 2) {
+            const low_cst_t *k = nd->kids[i];
+            bool cw = k->kind == LOW_CST_ATOM && low_is_clause_word(k->tok.lex);
+            if ((cw || k->kind == LOW_CST_BLOCK) && dopen) fputs(". ", stdout);
+            if (cw) dopen = true;
+        }
         // ★★ **정규화 층이 `else` 를 guard 의 자식으로 넣었다** — 그런데 표면 문법에서는
         //   `.` 이 조건을 닫고 나서 `else` 가 온다. 서식기는 **표면을 복원해야** 한다:
         //   그러지 않으면 `guard c else …` 로 찍히고, 다시 읽으면 `else` 가 **조건의 원자**로
@@ -1189,15 +1242,15 @@ static proven_size_t low_fmt_hdr_order(const low_cst_t *f, proven_size_t from, p
     return n;
 }
 
-// `fn f` · 절마다 한 줄(닫개 포함) · `do` … `end`
-static void low_fmt_decl(const low_cst_t *f) {
+// `fn f` · 절마다 한 줄(닫개 포함) — 머리의 kids[2, to). 몸 있는 op 과 몸 없는 extern 이 같이 쓴다.
+static void low_fmt_decl_head(const low_cst_t *f, proven_size_t to) {
     low_fmt_node(f->kids[0], false);                 // 머리 (fn / proc / …)
     putchar(' ');
     low_fmt_node(f->kids[1], false);                 // 이름
     fputs(" .\n", stdout);                          // RFC-0103 ⓐ — 머리를 개행이 닫고 있었다
     bool open_clause = false;
     proven_size_t ord[f->nkids];
-    proven_size_t nord = low_fmt_hdr_order(f, 2, f->nkids - 1, ord);
+    proven_size_t nord = low_fmt_hdr_order(f, 2, to, ord);
     for (proven_size_t oi = 0; oi < nord; oi++) {
         const low_cst_t *k = f->kids[ord[oi]];
         bool starts = (k->kind == LOW_CST_ATOM && low_is_clause_word(k->tok.lex));
@@ -1214,6 +1267,10 @@ static void low_fmt_decl(const low_cst_t *f) {
         low_fmt_node(k, true);
     }
     if (open_clause) fputs(" .\n", stdout);
+}
+// `fn f` · 절마다 한 줄(닫개 포함) · `do` … `end`
+static void low_fmt_decl(const low_cst_t *f) {
+    low_fmt_decl_head(f, f->nkids - 1);
     low_fmt_body(f->kids[f->nkids - 1], 0);
 }
 
@@ -1242,12 +1299,12 @@ void low_cst_fmt(const low_parse_result_t *pr) {
         }
         if (low_fmt_is_decl(pr->forms[i])) low_fmt_decl(pr->forms[i]);
         else if (f && f->is_extern && f->kind == LOW_CST_FORM && f->nkids > 2) {
-            // ★ WO-0217 — 몸 없는 extern 머리도 같은 차례로 찍는다
-            proven_size_t ord[f->nkids];
-            proven_size_t nord = low_fmt_hdr_order(f, 2, f->nkids, ord);
-            low_fmt_node(f->kids[0], true); putchar(' '); low_fmt_node(f->kids[1], true);
-            for (proven_size_t oi = 0; oi < nord; oi++) { putchar(' '); low_fmt_node(f->kids[ord[oi]], true); }
-            fputs(" .", stdout);
+            // ★ WO-0217 — 몸 없는 extern 머리도 같은 차례로 찍는다.
+            // ★★ X-0059 — 그리고 **같은 모양으로** 찍는다: 절마다 한 줄, 자기 점. 전엔 한 줄에 원자만 늘어놓아 절의 점을
+            //   모두 지웠다(`… input k cap c input w i64 … link "x" . end`) — 서식기가 규범에 없는 꼴을 만들었다.
+            low_fmt_decl_head(f, f->nkids);
+            fputs("end\n", stdout);
+            continue;
         }
         else low_fmt_stmt(pr->forms[i]);
         // ★★★ **`extern` 선언은 `end` 로 닫힌다** — 본문은 없지만 **끝은 있어야 한다.**

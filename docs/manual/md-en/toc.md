@@ -272,8 +272,9 @@ Searches headings and index terms --- not the full text
 - [24.2 Stages and terminals](ch24.md#s24-2)
 - [24.3 Walking once is the definition](ch24.md#s24-3)
 - [24.4 Reading only as much as needed](ch24.md#s24-4)
-- [24.5 Common mistakes](ch24.md#s24-5)
-- [24.6 This chapter’s syntax at a glance](ch24.md#s24-6)
+- [24.5 The built-in map · filter with the same names](ch24.md#s24-5)
+- [24.6 Common mistakes](ch24.md#s24-6)
+- [24.7 This chapter’s syntax at a glance](ch24.md#s24-7)
 
 ### Part VII — Concurrency
 

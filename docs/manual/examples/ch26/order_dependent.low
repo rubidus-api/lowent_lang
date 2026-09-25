@@ -40,7 +40,7 @@ do
   end
   return send s get .
 end
-test first_is_ten schedule explore_interleavings
+test first_is_ten schedule explore_interleavings .
 do
   var ch u64 be channel u64 .
   var s first_seen be spawn actor first_seen .

@@ -2453,11 +2453,26 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                     else if (veq(w, "rw"))     s->f[s->nf].perm = FP_RW;
                     else if (veq(w, "ro"))     s->f[s->nf].perm = FP_RO;
                     else if (veq(w, "wo"))     s->f[s->nf].perm = FP_WO;
+                    else if (fld->kids[x]->tok.line > fld->kids[0]->tok.line && is_atom(fld->kids[x - 1])) {
+                        // ★ X-0059 — «모르는 표지» 가 **다음 줄**에 있으면 대개 표지가 아니라 다음 칸이다: 윗칸의 점이
+                        //   빠져 두 칸이 한 폼이 됐다(`x u64` ⏎ `y u64 .`). 개행은 닫지 않으므로 뜻은 그대로 거절이고,
+                        //   진단만 실제 원인을 말한다. 자리는 윗칸 마지막 낱말 바로 뒤 — 점이 들어갈 곳.
+                        const low_token_t *lt = &fld->kids[x - 1]->tok;
+                        low_diag_t fd = { .sev = LOW_SEV_ERROR, .code = "E-DOT-MISSING",
+                                          .msg = "this struct field is not closed — each field ends with its own `.` "
+                                                 "(`x u64 .` then `y u64 .`). A newline closes nothing, so the next "
+                                                 "field was read as a marker of this one",
+                                          .line = lt->line, .col = lt->col + (proven_u32)lt->lex.size };
+                        (void)proven_array_push(&ir.diags, &fd);
+                        ir.ok = false;
+                        break;
+                    }
                     else {
                         low_diag_t fd = { .sev = LOW_SEV_ERROR, .code = "E-FIELD-MARK",
-                                          .msg = "unknown marker on a struct field — the only field "
-                                                 "markers are `big` and `little` (byte order). They "
-                                                 "used to be spelled `be`/`le`, which COLLIDED with "
+                                          .msg = "unknown marker on a struct field — the field markers "
+                                                 "are `big`/`little` (byte order) and `rw`/`ro`/`wo` "
+                                                 "(register access). Byte order used to be spelled `be`/`le`, which "
+                                                 "COLLIDED with "
                                                  "the binding marker `be` and with the `le` (≤) "
                                                  "operator — and `le` was never actually READ: it was "
                                                  "indistinguishable from a typo, and only 'worked' "

@@ -41,7 +41,7 @@ contract <name> do requires <cond> . … end
 actor <name> do [satisfies …] state do <field> <type> . … end [failure restart max <n> .] [mailbox bounded <n> .] <op>… end
 build profile <name> .        build tier t0|t1|t2|t3 .        build <mode> .
 build option <name> bool|int|choice … default <value> .
-test <name> [schedule explore_interleavings [limit <n>]] do expect <cond> . … end
+test <name> [schedule explore_interleavings [limit <n>] .] do expect <cond> . … end
 ```
 
 == Statements

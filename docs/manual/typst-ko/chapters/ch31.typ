@@ -125,7 +125,7 @@ C 의 `#ifdef` 와 결정적으로 다른 점이 있다. *꺼진 가지도 파�
 말하는 것*이다. 고칠 것이 다르다. 여기서는 `narrow_wrap` 을 `narrow_sat` 로 바꿔야 한다. 그리고 처리기는 `expect` 를 최적화로
 없애지 않는다. 사라진 시험은 돌지 않은 시험이다.
 
-동시성 코드는 `test <이름> schedule explore_interleavings do … end` 로 가능한 모든 흐름의 차례를 돌려 답이 같은지 본다
+동시성 코드는 `test <이름> schedule explore_interleavings . do … end` 로 가능한 모든 흐름의 차례를 돌려 답이 같은지 본다
 (#chref("tasks-channels")). 경우가 많으면 `limit <수>` 로 상한을 둔다.
 
 op 머리에도 문서와 시험을 적는 절이 있다.
@@ -234,7 +234,7 @@ why-slow: 0 / 1 op(s) still on the tagged path
   [`build option smp bool default true .`], [빌드 손잡이 --- `bool`·`int`·`choice`], [읽히지 않는 손잡이는 `E-OPT-UNUSED`],
   [`config smp` · `--config small.config`], [손잡이 값을 번역 시점 상수로 읽는다 · 구성 파일], [꺼진 가지도 검사받는다],
   [`test <이름> do expect <조건> . end` · `--test`], [시험 블록과 단언], [실패는 `E-TEST-FAIL` --- 계약 위반과 다른 진단],
-  [`test … schedule explore_interleavings limit <수> do … end`], [모든 차례를 돌리는 시험], [드문 차례의 결함],
+  [`test … schedule explore_interleavings limit <수> . do … end`], [모든 차례를 돌리는 시험], [드문 차례의 결함],
   [`lowentc --run <op> <파일> <인자…>`], [op 하나를 VM 으로 돌린다], [권한 자리에는 자리표 `0`],
   [`--why-slow` · `--no-fast`], [느린 길에 남은 op 과 이유 · 모두 느린 길로], [성능을 도구가 말한다],
   [`lowdoc "…" .` · `tests op1 op2 .`], [op 에 딸린 문서 · 이 op 을 시험하는 op 이름], [문서는 op 과 함께 움직이고, 없어진 시험은 머리가 알린다],

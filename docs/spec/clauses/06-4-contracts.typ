@@ -39,6 +39,12 @@
       서식기(`--fmt`)는 입력이 아닌 절과 `using` 을 이 차례로 옮겨 적는다. 입력끼리의 차례는 옮기지 아니한다 —
       입력을 옮기면 호출의 뜻이 바뀌기 때문이다.
     ]
+    #para("3c")[
+      머리의 절은 **저마다 자기 점으로 닫는다** — 문장과 같다(#cref("6.1.6") (2)). 절 낱말은 앞 절을 닫지 아니하고,
+      개행도 닫지 아니한다. 점 없이 다음 절 낱말이나 `do` 를 만나면 번역이 거부된다(`E-DOT-MISSING`).
+      절의 목록이 곧 머리이므로, 이름 뒤에 오는 첫 낱말부터 절이다 — 이름이 절 낱말과 같은 철자여도
+      (`proc link …`) 이름으로 읽는다.
+    ]
     #ex("op 의 선언", "module ex_op .
 
 export fn twice input n u32 . output u32 .
@@ -54,6 +60,12 @@ fn twice output u32 .
 do
   return mul n 2 .
 end", "E-CLAUSE-ORDER")
+    #rejected("머리의 절에 점이 없다", "module ex_clause_dot .
+
+fn twice input n u32 output u32 .
+do
+  return mul n 2 .
+end", "E-DOT-MISSING")
     #plain[
       `export` 는 다른 모듈이 이 op 을 쓸 수 있게 한다는 표시다. 붙이지 않으면 그 모듈
       안에서만 쓴다.

@@ -12,7 +12,7 @@ module vm_await .
 fn square input n u64 . output u64 . do return expr n * n . end
 
 rem 두 태스크를 spawn 하고 await 로 결과를 모아 합한다. 각 결과가 결정적이라 순서 무관 → 25+36=61.
-test await_join schedule explore_interleavings do
+test await_join schedule explore_interleavings . do
   var r u64 be 0 .
   task_group do
     var h1 u64 be spawn square 5 .

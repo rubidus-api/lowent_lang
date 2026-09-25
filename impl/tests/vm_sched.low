@@ -22,7 +22,7 @@ actor counter do
 end
 
 rem 순서 무관: inc 는 교환법칙 → 어떤 배달 순서든 get=2. 오라클이 4 interleaving 전부에서 확인한다.
-test counter_order_independent schedule explore_interleavings do
+test counter_order_independent schedule explore_interleavings . do
   var c counter be spawn actor counter . .
   spawn send c inc .
   spawn send c inc .
@@ -31,7 +31,7 @@ test counter_order_independent schedule explore_interleavings do
 end
 
 rem 두 actor 로 교차 배달 — 각자 독립이므로 어떤 interleaving 이든 a=1, b=1. 교차 순서가 진짜로 바뀌어도 불변.
-test two_actors_independent schedule explore_interleavings do
+test two_actors_independent schedule explore_interleavings . do
   var a counter be spawn actor counter . .
   var b counter be spawn actor counter . .
   spawn send a inc .

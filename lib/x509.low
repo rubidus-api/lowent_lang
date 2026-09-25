@@ -130,7 +130,7 @@ rem   Validity ::= SEQUENCE { notBefore Time, notAfter Time }
 rem   Time ::= UTCTime(23, YYMMDDhhmmssZ) | GeneralizedTime(24, YYYYMMDDhhmmssZ)
 rem ★ 견줄 수 있는 **한 수**로 편다: YYYYMMDDhhmmss. 시간대는 Z 만 받는다 — 오프셋을 받으면
 rem   그것을 더하고 빼는 자리가 생기고, 그 자리가 곧 틀릴 자리다.
-fn digit2 input b slice u8 input o u64 . output u64 . do
+fn digit2 input b slice u8 . input o u64 . output u64 . do
   if ge (add o 1) (len b) . do  return 100 . end
   let d0 u64 be cast u64 (index b o) .
   let d1 u64 be cast u64 (index b (add o 1)) .

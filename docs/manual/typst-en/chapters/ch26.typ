@@ -193,7 +193,7 @@ yet". Until then, when a count must be shared, use atomic operations (#chref("pa
   [`var ch u64 be channel u64 .`], [a bounded, ordered container], [no unbounded channels yet --- `E-CHAN-UNBOUNDED`],
   [`chsend ch n` · `chrecv ch`], [put · take --- blocks when full or empty], [`concurrent` effect --- completion depends on others],
   [a lone wait · receives with no sender], [rejected at translation (`E-CONC-ALONE` · `E-CONC-DEADLOCK`)], [deadlocks visible from the source],
-  [`test … schedule explore_interleavings do … end`], [run every possible order and compare answers], [tests find bugs of rare orders],
+  [`test … schedule explore_interleavings . do … end`], [run every possible order and compare answers], [tests find bugs of rare orders],
   [`alloc` or `heap` in a task op's effects], [`E-ALLOC-TASK`], [a root's rewind relies on order --- a lock cannot protect it],
   [a non-atomic allocator as a `spawn` argument], [`E-ALLOC-SHARED`], [hand over byte pieces and create the allocator inside the task],
   [`lock t` · `rwlock t` · `shared_read t`], [`E-LOCK-NOTYET`], [the name is in the canon --- what is not built is not accepted],

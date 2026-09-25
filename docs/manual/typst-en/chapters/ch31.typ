@@ -120,7 +120,7 @@ When a test fails, it looks like this.
 `E-TEST-FAIL` is a different diagnostic from a contract violation. A contract violation is *code breaking its own promise*; a test failure is *a test saying the code is
 wrong*. What to fix differs. Here `narrow_wrap` must become `narrow_sat`. And the processor does not optimise `expect` away. A vanished test is a test that did not run.
 
-Concurrent code uses `test <name> schedule explore_interleavings do … end` to run every possible ordering of flows and see whether the answers agree
+Concurrent code uses `test <name> schedule explore_interleavings . do … end` to run every possible ordering of flows and see whether the answers agree
 (#chref("tasks-channels")). When there are many cases, `limit <number>` sets a ceiling.
 
 An op head also has clauses for documentation and tests.
@@ -232,7 +232,7 @@ the slow path, used to see whether both paths give the same answer.
   [`build option smp bool default true .`], [a build knob --- `bool`·`int`·`choice`], [a knob nobody reads is `E-OPT-UNUSED`],
   [`config smp` · `--config small.config`], [read a knob as a translation-time constant · a config file], [switched-off branches are checked too],
   [`test <name> do expect <condition> . end` · `--test`], [test blocks and assertions], [failure is `E-TEST-FAIL` --- not a contract violation],
-  [`test … schedule explore_interleavings limit <n> do … end`], [a test that runs every order], [bugs of rare orders],
+  [`test … schedule explore_interleavings limit <n> . do … end`], [a test that runs every order], [bugs of rare orders],
   [`lowentc --run <op> <file> <args…>`], [run one op on the VM], [a placeholder `0` in capability positions],
   [`--why-slow` · `--no-fast`], [ops left on the slow path and why · everything on the slow path], [the tool speaks about performance],
   [`lowdoc "…" .` · `tests op1 op2 .`], [documentation attached to the op · names of ops testing it], [docs move with the op, and a missing test is reported by the head],

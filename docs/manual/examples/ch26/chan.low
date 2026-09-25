@@ -42,7 +42,7 @@ do
   return send s get .
 end
 
-test every_interleaving schedule explore_interleavings
+test every_interleaving schedule explore_interleavings .
 do
   var ch u64 be channel u64 .
   var s sink be spawn actor sink .

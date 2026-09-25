@@ -31,7 +31,7 @@ proc tb input c counter . output u64 . effects state . do
   yield .
   return send c inc .
 end
-test gthread_yield schedule explore_interleavings do
+test gthread_yield schedule explore_interleavings . do
   var c counter be spawn actor counter . .
   task_group do
     spawn ta c .

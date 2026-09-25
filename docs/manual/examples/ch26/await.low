@@ -21,7 +21,7 @@ do
   return r .
 end
 
-test join_any_order schedule explore_interleavings
+test join_any_order schedule explore_interleavings .
 do
   var r u64 be 0 .
   task_group do

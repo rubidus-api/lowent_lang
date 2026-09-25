@@ -62,21 +62,34 @@ Elements pass through the tube one at a time. No separate "array of just the dig
 == Stages and terminals
 
 #dtable(
-  columns: 3,
+  columns: 4,
   id: "pipe-words",
-  caption: [The words of `pipe`],
-  [*Position*], [*Word*], [*What it does*],
-  [stage], [`filter <op>`], [Passes only elements for which the op is true],
-  [], [`map <op>`], [Applies the op to each element],
-  [], [`take <n>` · `skip <n>`], [Passes · drops the first `n`],
-  [], [`enumerate <op>`], [Gives the position and element to the op],
-  [], [`zip <slice> <op>`], [Combines with the matching element of another slice through the op],
-  [], [`scan <init> <op>`], [Passes the accumulated value on as the element],
-  [terminal], [`collect into <buffer>`], [Puts the remaining elements into the buffer],
-  [], [`fold <init> <op>`], [Accumulates into a single value],
-  [], [`count`], [Counts the remaining elements],
-  [], [`any <op>` · `all <op>`], [Is any true · are all true],
+  caption: [The words of `pipe` --- element type `t`, accumulator type `a`],
+  [*Word*], [*Shape of the op*], [*What it does*], [*End · empty flow*],
+  [`filter <op>`], [`t → bool`], [Passes only elements for which the op is true], [---],
+  [`map <op>`], [`t → u`], [Passes the op's answer for each element; the type may become `u`], [---],
+  [`take <n>`], [---], [Passes the first `n`], [*stops walking* after `n`],
+  [`skip <n>`], [---], [Drops the first `n`], [---],
+  [`enumerate <op>`], [`(u64, t) → u`], [Gives the position (from 0) and the element to the op], [---],
+  [`zip <slice> <op>`], [`(t, t2) → u`], [Gives the element and the other slice's element at the same place to the op], [ends when the shorter side ends],
+  [`scan <init> <op>`], [`(a, t) → a`], [Passes the accumulator *after* each step (the initial value is not passed)], [---],
+  [`collect into <buffer>`], [---], [*Terminal.* Fills the buffer from the front and gives *how many it stored* (`u64`)], [stops when the buffer is full --- does not report what did not fit],
+  [`fold <init> <op>`], [`(a, t) → a`], [*Terminal.* Gives the last accumulator (`a`)], [empty: the initial value],
+  [`count`], [---], [*Terminal.* Gives the number of elements (`u64`)], [empty: 0],
+  [`any <op>`], [`t → bool`], [*Terminal.* Is any element true], [stops at the first true · empty: false],
+  [`all <op>`], [`t → bool`], [*Terminal.* Are all elements true], [stops at the first false · empty: true],
 )
+
+Used as a value --- `return pipe … end .` --- a `pipe` is worth what its terminal gives. Each stage hands elements on to the
+next line, and the terminal takes them last and makes one value.
+
+```text
+ xs = [1, 5, 2, 7]
+      │
+      ▼  filter big      (big = gt x 2)       5, 7          1 and 2 are dropped here
+      ▼  map dbl         (dbl = x + x)        10, 14
+      ▼  collect into out                     out = [10, 14, …]   answer = 2 (how many stored)
+```
 
 #demo("examples/ch24/stages.low")
 
@@ -134,6 +147,26 @@ A terminal ends the flow. A stage after the terminal is rejected.
   definition, and stage ops are monomorphised direct calls. One `pipe` lowers to one loop, and its costs arise at the same places as in a hand-written loop.
   The words were chosen so that the convenient way and the fast way do not diverge.
 ]
+
+== The built-in `map` · `filter` with the same names
+
+`map` and `filter` also exist outside `pipe`. These are not stages but *built-in operations that copy one slice into another in a
+single statement*, and they take three arguments --- `map <sink> <op> <source> .` · `filter <sink> <op> <source> .`.
+
+```lowent
+module sink_map .
+
+fn dbl input a u8 . output u8 . do return wrap_add a a . end
+
+proc doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
+do
+  map out dbl xs .
+  return 0 .
+end
+```
+
+Putting `[1,2,3]` into a two-slot `out` gives `[2,4]`; the third is not stored. The sink must be a `mut slice` (`E-MAP-SINK`) and
+the element a scalar (`E-MAP-ELEM`). The word is the same, but inside `pipe` it takes one op --- the number of arguments tells which is meant.
 
 == Common mistakes
 

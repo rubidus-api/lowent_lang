@@ -132,6 +132,8 @@ let p point be make point do x 1 . end .   block as value: the block is make's, 
 Each statement inside a block must end with its own full stop too; `end` does not close an open statement for you. A bare
 `do … end` with nothing opening it is not allowed either (`E-BLOCK-NOHEAD`) --- a block always has a head. Opening a declaration
 block with only a line break instead of `do` is rejected with `E-STMT-NODO`, and `--fmt` inserts the `do`.
+The clauses of an op header work the same way. Each ends with its own stop --- `input n u64 .` · `output u64 .` --- and the next
+clause word does not close the one before it; leaving the stop out is `E-DOT-MISSING`.
 
 == Comments and literals
 

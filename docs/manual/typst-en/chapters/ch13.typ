@@ -56,6 +56,16 @@ A type declaration has no `be`.
 `user_id` and `order_id` are both represented as 64-bit numbers, but cannot be swapped. Such mistakes are hard to find with tests --- when the
 numbers happen to coincide, the wrong order is fetched without a sound. Split them with `newtype` and translation catches it.
 
+```text
+ type meters u64 .                newtype user_id u64 .
+
+   meters ──┐                     user_id ◀── cast ──▶ u64
+            ├──▶ u64
+   u64 ─────┘                     same representation, two types
+   two names, one type            swapping them is E-TYPE-NOMINAL
+   nothing stops a mix            every crossing shows as a cast
+```
+
 When you mean to cross over, write `cast`.
 
 #demo("examples/ch13/ids_ok.low")
@@ -82,6 +92,17 @@ are removed. Keeping to the range is the caller's responsibility. If the type of
 `u64`), translation is refused; a value of a type that can fit, such as `u8`, is checked at the call. Values that come from *outside* the
 program (here, `--run`'s arguments) are also checked at the boundary, and 101 stops there. The specification says translation is refused when
 the caller *cannot prove* the range, but the compiler in this edition hands unproven `u8` values to a run-time check.
+
+Who measures the range, and where, in one picture (the literal `101` was measured on this edition).
+
+```text
+ value the caller passes                         before entering scale
+ 42 (literal)     ── measured at translation ─▶  passes
+ 101 (literal)    ── measured at translation ─▶  E-TYPE-RANGE (refused)
+ a u8 value       ── checked at the call ─────▶  stops if 101
+ a --run argument ── checked at the boundary ─▶  stops if 101
+ a u64 value      ── already wider ───────────▶  E-TYPE-WIDTH (refused)
+```
 
 The same could be written as `requires le a 100 .`. The difference is *where it is written*. `range` becomes the shape of the parameter, so
 the caller sees it from the signature alone, and it can be carried into several ops through an alias (`type pct range 0 100 .`).
@@ -128,6 +149,17 @@ wire, a register a device reads --- write the layout.
 - `big` and `little` after a field set its byte order. If not written, the machine's order is used.
 - `view wire_header b` reads a byte slice as a value of that layout *without copying*. If length or alignment do not fit, execution stops.
 
+A header holding `magic 1 · length 2 · kind 9` lies in bytes like this. `big` puts the high byte first.
+
+```text
+ byte:    0    1    2    3    4    5    6
+        ┌────┬────┬────┬────┬────┬────┬────┐
+        │ 00 │ 00 │ 00 │ 01 │ 00 │ 02 │ 09 │
+        └────┴────┴────┴────┴────┴────┴────┘
+         └───── magic ─────┘ └─ length ┘ kind
+          u32 big            u16 big     u8
+```
+
 A field can also carry an access mark such as `rw`, `ro` or `wo`. In a struct that maps device registers, reading a write-only field is refused
 at translation (#chref("hardware")). Pinning the layout takes choices away from the processor, so pin it only where needed.
 
@@ -140,6 +172,11 @@ at translation (#chref("hardware")). Pinning the layout takes choices away from 
 `encode wire_header h` produces seven bytes in the byte order written on each field (`big`). The result 7009 puts the length 7 and the 9 of
 the last byte, `kind`, side by side. The side that builds a header going onto the wire uses `encode`; the side that reads a received header
 uses `view`.
+
+```text
+ bytes 00 00 00 01 00 02 09 ── view · try_view ──▶ a wire_header value
+ (wire · file · device)     ◀──── encode ───────── magic 1 · length 2 · kind 9
+```
 
 `view` *stops* when the length or alignment is off, because it treats that as a broken contract. Bytes from a network, however, are often
 short. In such places use `try_view`, which does the same work but reports failure as a value (#chref("errors-design")).

@@ -709,7 +709,13 @@ type_be.low:4:0 E-TYPE-DECL: a type alias is `type N T .` and a newtype is `newt
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check ids.low
 ids.low:14:0 E-TYPE-NOMINAL: these are NOMINALLY DISTINCT types with the same representation — a `newtype` (or usize/isize) is not interchangeable with its base or with another newtype. Convert explicitly with `cast &lt;type> &lt;value>` (RFC-0002 §6.3.1)
-</code></pre></div></div><p><code>user_id</code> 와 <code>order_id</code> 는 둘 다 64 비트 수로 표현되지만 서로 바꿔 넣을 수 없다. 이런 실수는 테스트로 찾기 어렵다 — 번호가 우연히 겹치면 엉뚱한 주문을 불러오고도 조용하다. <code>newtype</code> 으로 갈라 두면 번역이 잡는다.</p><p>일부러 건너야 할 때는 <code>cast</code> 로 적는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/ids_ok.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ids_ok .
+</code></pre></div></div><p><code>user_id</code> 와 <code>order_id</code> 는 둘 다 64 비트 수로 표현되지만 서로 바꿔 넣을 수 없다. 이런 실수는 테스트로 찾기 어렵다 — 번호가 우연히 겹치면 엉뚱한 주문을 불러오고도 조용하다. <code>newtype</code> 으로 갈라 두면 번역이 잡는다.</p><pre><code data-lang="text"> type meters u64 .                newtype user_id u64 .
+
+   meters ──┐                     user_id ◀── cast ──▶ u64
+            ├──▶ u64
+   u64 ─────┘                     표현은 같고 타입은 둘
+   이름은 둘, 타입은 하나         바꿔 넣으면 E-TYPE-NOMINAL
+   섞어도 아무도 막지 않는다      건너는 자리는 cast 로 드러난다</code></pre><p>일부러 건너야 할 때는 <code>cast</code> 로 적는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/ids_ok.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ids_ok .
 <em><span class="tok-c">rem run: roundtrip 42</span></em>
 
 <strong><span class="tok-k">newtype</span></strong> user_id <strong><span class="tok-t">u64</span></strong> .
@@ -743,7 +749,12 @@ scale(100) = 200
 $ lowentc --run scale ranges.low 101
 == ir diagnostics (1) ==
 0:0 E-VM-CONTRACT: a parameter's declared range was violated at the program boundary (the value entered from outside — no caller proved it)
-</code></pre></div></div><p><code>scale</code> 의 본문은 <code>a</code> 가 100 이하라는 사실을 쓴다. 그래서 <code>mul a 2</code> 는 200 을 넘지 않고, <code>narrow u8</code> 은 들어가지 않을 수 없으며, 두 자리의 넘침 검사가 모두 지워진다. 범위를 지키는 책임은 부르는 쪽에 있다. 넘기는 값의 타입이 이미 범위보다 넓으면(<code>u64</code> 따위) 번역이 거절되고, <code>u8</code> 처럼 들어갈 수 있는 타입의 값은 부르는 자리에서 범위를 확인한다. 프로그램 <strong>바깥</strong>에서 들어온 값(여기서는 <code>--run</code> 의 인자)도 경계에서 확인되고, 101 은 거기서 멈춘다. 명세는 부르는 쪽이 범위를 <strong>증명하지 못하면</strong> 번역을 거절한다고 적고 있으나, 이 판의 컴파일러는 증명되지 않은 <code>u8</code> 값을 실행 중 확인으로 넘긴다.</p><p>같은 일을 <code>requires le a 100 .</code> 으로도 적을 수 있다. 차이는 <strong>어디에 적히는가</strong>다. <code>range</code> 는 매개변수의 생김새가 되어 부르는 쪽이 서명만 보고도 알고, 별칭(<code>type pct range 0 100 .</code>)에 실어 여러 op 에 물려줄 수 있다.</p><h3 id="s13-3">13.3 <code>cast</code> — 값이 변할 수 있는 자리<a class="plink" href="#s13-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>widen</code> 은 값이 변하지 않는 자리에만 쓴다. 부호를 바꾸거나 갈래를 넘는(부동소수 ↔ 정수) 변환은 <span id="idx-entry-31"></span><code>cast &lt;타입> &lt;값></code> 으로 적는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/casts.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> casts .
+</code></pre></div></div><p><code>scale</code> 의 본문은 <code>a</code> 가 100 이하라는 사실을 쓴다. 그래서 <code>mul a 2</code> 는 200 을 넘지 않고, <code>narrow u8</code> 은 들어가지 않을 수 없으며, 두 자리의 넘침 검사가 모두 지워진다. 범위를 지키는 책임은 부르는 쪽에 있다. 넘기는 값의 타입이 이미 범위보다 넓으면(<code>u64</code> 따위) 번역이 거절되고, <code>u8</code> 처럼 들어갈 수 있는 타입의 값은 부르는 자리에서 범위를 확인한다. 프로그램 <strong>바깥</strong>에서 들어온 값(여기서는 <code>--run</code> 의 인자)도 경계에서 확인되고, 101 은 거기서 멈춘다. 명세는 부르는 쪽이 범위를 <strong>증명하지 못하면</strong> 번역을 거절한다고 적고 있으나, 이 판의 컴파일러는 증명되지 않은 <code>u8</code> 값을 실행 중 확인으로 넘긴다.</p><p>범위를 누가 어디서 재는지 한 장으로 보면 이렇다(<code>101</code> 리터럴은 이 판에서 실측했다).</p><pre><code data-lang="text"> 부르는 쪽이 넘기는 값                  scale 에 들어가기 전
+ 42 (리터럴)      ── 번역이 잰다 ───▶   통과
+ 101 (리터럴)     ── 번역이 잰다 ───▶   E-TYPE-RANGE (거절)
+ u8 값            ── 부르는 자리 ───▶   101 이면 멈춤
+ --run 의 인자    ── 경계에서 ──────▶   101 이면 멈춤
+ u64 값           ── 이미 넓다 ─────▶   E-TYPE-WIDTH (거절)</code></pre><p>같은 일을 <code>requires le a 100 .</code> 으로도 적을 수 있다. 차이는 <strong>어디에 적히는가</strong>다. <code>range</code> 는 매개변수의 생김새가 되어 부르는 쪽이 서명만 보고도 알고, 별칭(<code>type pct range 0 100 .</code>)에 실어 여러 op 에 물려줄 수 있다.</p><h3 id="s13-3">13.3 <code>cast</code> — 값이 변할 수 있는 자리<a class="plink" href="#s13-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>widen</code> 은 값이 변하지 않는 자리에만 쓴다. 부호를 바꾸거나 갈래를 넘는(부동소수 ↔ 정수) 변환은 <span id="idx-entry-31"></span><code>cast &lt;타입> &lt;값></code> 으로 적는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/casts.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> casts .
 <em><span class="tok-c">rem run: truncate 7.9</span></em>
 <em><span class="tok-c">rem run: truncate -2.9</span></em>
 <em><span class="tok-c">rem run: to_signed 200</span></em>
@@ -800,7 +811,12 @@ $ lowentc --run grow tiny.low 1023
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check packed.low
 == check: ok ==
-</code></pre></div></div><ul><li><code>layout packed .</code> 은 칸 사이에 채움(padding)을 두지 않는다. 칸이 선언 차례로 맞붙는다.</li><li>칸 뒤의 <code>big</code>·<code>little</code> 은 바이트 차례를 정한다. 적지 않으면 그 기계의 차례를 따른다.</li><li><code>view wire_header b</code> 는 바이트 슬라이스를 <strong>베끼지 않고</strong> 그 배치의 값으로 읽는다. 길이와 정렬이 맞지 않으면 멈춘다.</li></ul><p>칸 뒤에는 <code>rw</code>·<code>ro</code>·<code>wo</code> 같은 닿는 법도 적을 수 있다. 장치 레지스터를 비추는 구조체에서 쓰기 전용 칸을 읽으면 번역이 거절된다(30장). 배치를 못 박으면 그만큼 처리기가 고를 여지가 줄어드므로, 필요한 자리에만 박는다.</p><h3 id="s13-6">13.6 배치의 두 방향과 실패하는 뷰<a class="plink" href="#s13-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>view</code> 는 바이트를 그 배치의 값으로 <strong>읽는다</strong>. 반대 방향 — 값을 그 배치의 바이트로 <strong>만드는</strong> 일 — 은 <code>encode</code> 가 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/encoded.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> encoded .
+</code></pre></div></div><ul><li><code>layout packed .</code> 은 칸 사이에 채움(padding)을 두지 않는다. 칸이 선언 차례로 맞붙는다.</li><li>칸 뒤의 <code>big</code>·<code>little</code> 은 바이트 차례를 정한다. 적지 않으면 그 기계의 차례를 따른다.</li><li><code>view wire_header b</code> 는 바이트 슬라이스를 <strong>베끼지 않고</strong> 그 배치의 값으로 읽는다. 길이와 정렬이 맞지 않으면 멈춘다.</li></ul><p><code>magic 1 · length 2 · kind 9</code> 를 담은 머리는 바이트로 이렇게 놓인다. <code>big</code> 이라 큰 자리가 앞이다.</p><pre><code data-lang="text"> byte:    0    1    2    3    4    5    6
+        ┌────┬────┬────┬────┬────┬────┬────┐
+        │ 00 │ 00 │ 00 │ 01 │ 00 │ 02 │ 09 │
+        └────┴────┴────┴────┴────┴────┴────┘
+         └───── magic ─────┘ └─ length ┘ kind
+          u32 big            u16 big     u8</code></pre><p>칸 뒤에는 <code>rw</code>·<code>ro</code>·<code>wo</code> 같은 닿는 법도 적을 수 있다. 장치 레지스터를 비추는 구조체에서 쓰기 전용 칸을 읽으면 번역이 거절된다(30장). 배치를 못 박으면 그만큼 처리기가 고를 여지가 줄어드므로, 필요한 자리에만 박는다.</p><h3 id="s13-6">13.6 배치의 두 방향과 실패하는 뷰<a class="plink" href="#s13-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>view</code> 는 바이트를 그 배치의 값으로 <strong>읽는다</strong>. 반대 방향 — 값을 그 배치의 바이트로 <strong>만드는</strong> 일 — 은 <code>encode</code> 가 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/encoded.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> encoded .
 <em><span class="tok-c">rem run: header_bytes 9</span></em>
 
 <strong><span class="tok-k">struct</span></strong> wire_header <strong><span class="tok-k">do</span></strong>
@@ -819,7 +835,8 @@ $ lowentc --run grow tiny.low 1023
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run header_bytes encoded.low 9
 header_bytes(9) = 7009
-</code></pre></div></div><p><code>encode wire_header h</code> 는 칸마다 적힌 바이트 차례(<code>big</code>)대로 일곱 바이트를 만든다. 결과 7009 는 길이 7 과 마지막 바이트 <code>kind</code> 의 9 를 한데 적은 것이다. 선으로 나갈 머리를 짓는 쪽이 <code>encode</code>, 받은 머리를 읽는 쪽이 <code>view</code> 다.</p><p><code>view</code> 는 길이나 정렬이 맞지 않으면 <strong>멈춘다</strong>. 계약이 깨졌다고 보기 때문이다. 그런데 네트워크에서 온 바이트는 짧은 것이 흔한 일이다. 그런 자리에서는 같은 일을 하되 실패를 값으로 주는 <code>try_view</code> 를 쓴다(17장).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/tryview.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> tryview .
+</code></pre></div></div><p><code>encode wire_header h</code> 는 칸마다 적힌 바이트 차례(<code>big</code>)대로 일곱 바이트를 만든다. 결과 7009 는 길이 7 과 마지막 바이트 <code>kind</code> 의 9 를 한데 적은 것이다. 선으로 나갈 머리를 짓는 쪽이 <code>encode</code>, 받은 머리를 읽는 쪽이 <code>view</code> 다.</p><pre><code data-lang="text"> 바이트 00 00 00 01 00 02 09 ── view · try_view ──▶ wire_header 값
+ (선 · 파일 · 장치)          ◀──── encode ───────── magic 1 · length 2 · kind 9</code></pre><p><code>view</code> 는 길이나 정렬이 맞지 않으면 <strong>멈춘다</strong>. 계약이 깨졌다고 보기 때문이다. 그런데 네트워크에서 온 바이트는 짧은 것이 흔한 일이다. 그런 자리에서는 같은 일을 하되 실패를 값으로 주는 <code>try_view</code> 를 쓴다(17장).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch13/tryview.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> tryview .
 <em><span class="tok-c">rem run: kind_or_zero [1,2,3,4,0,5,9]</span></em>
 <em><span class="tok-c">rem run: kind_or_zero [1,2,3]</span></em>
 

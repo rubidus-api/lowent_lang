@@ -50,6 +50,15 @@ On the VM this *really runs*. Instead of a device, a byte buffer handed over by 
 the argument shown in the result, `[2,0,0,0,7,0,0,0,1,0,0,0]`, you can see 2 written to `moder`, 1 to `bsrr`, and the 7 in `idr` read back. The first `0` in the run
 arguments is a placeholder filling the `cap mmio` position.
 
+Laying the map over the buffer looks like this. Fields sit 4 bytes apart in declaration order.
+
+```text
+ address      field  access   in the VM (one u32 = 4 bytes)
+ 0x40020000   moder  rw       [ 2 0 0 0 ]  ◀── write_volatile g moder 2
+ 0x40020004   idr    ro       [ 7 0 0 0 ]  ──▶ read_volatile g idr = 7
+ 0x40020008   bsrr   wo       [ 1 0 0 0 ]  ◀── write_volatile g bsrr 1
+```
+
 #qa[
   C adds the `volatile` qualifier. What is different?
 ][
@@ -174,6 +183,15 @@ end
 - Callers of this op *write nothing.* That is the whole value of absorption.
 - `absorbs machine <name>` makes that name a `cap machine` inside the body. This is where that right is born --- `machine` is not in the list an entry point may receive.
 - Only `machine` may be absorbed. Capabilities that touch the world (io, C, heap) may not (`E-ABSORB-SCOPE`): minting one would create authority the caller cannot see.
+
+As a call chain, the difference looks like this.
+
+```text
+ without absorbs                           with absorbs
+ main      effects unsafe  ▲               main      (nothing to write)
+ add2      effects unsafe  │ spreads up    add2      absorbs machine k ◀ stops here
+ asm_add2  effects unsafe  │               asm_add2  effects unsafe
+```
 
 Leave a prerequisite out and it is refused: a non-empty effect row is `E-ABSORB-IMPURE`, a missing reference implementation `E-ABSORB-NOREF`, a missing `requires` `E-ABSORB-NOCONTRACT`, an empty `why` `E-ABSORB-NOWHY`.
 

@@ -56,6 +56,17 @@
 실패*이므로 `result` 로 돌려준다. 계약으로 "숫자만 주시오" 라고 요구하는 것은 틀린 설계다 --- 부르는 쪽은
 바이트를 받자마자 이 op 에 넘기므로, 요구를 지킬 방법이 없다.
 
+값이 어디서 와서 어디로 가는지 그리면 이렇다.
+
+```text
+ 바깥 (약속 없음)         경계                 안쪽 (이미 걸렀다)
+ 인자 · 파일 · 바이트 ──▶ parse_u16 ── ok ──────▶ slot_of …
+                          result + errors      requires · range · newtype
+                             │ error
+                             ▼
+                          부르는 층이 무엇을 할지 고른다
+```
+
 #qa[
   `errors not_digit .` 처럼 조건 없이 적은 오류와 `errors empty eq (len s) 0 .` 처럼 조건을 붙인 오류는 무엇이
   다른가?
@@ -87,6 +98,19 @@
 - `pick_slot` 은 `try` 로 실패를 위로 넘긴다. 자기도 같은 오류를 `errors` 에 적었다. 성공한 뒤에는 `p` 가 0 이
   아님을 알므로 안쪽 op 을 부른다.
 - `main` 은 가장 바깥 층이다. 더 넘길 곳이 없으므로 실패를 *다룬다* --- 메시지를 쓰고 종료 코드 1 을 돌려준다.
+
+`port` 가 0 일 때 실패가 올라가는 길을 그리면 이렇다. 내려갈 때는 부르고, 올라올 때는 넘기거나 다룬다.
+
+```text
+ main ─────────────────────────  다룬다: "bad port" 를 쓰고 1 을 돌려준다
+  │  ▲ error port_zero
+  ▼  │
+ pick_slot ────────────────────  넘긴다: try 가 그대로 위로
+  │  ▲ error port_zero      │
+  ▼  │                      ▼ 성공한 뒤에만
+ check_port                 slot_of
+ (경계: result)             (안쪽: requires gt slots 0)
+```
 
 규칙으로 정리하면, *넘길 수 있는 가장 가까운 층이 다룰 수 있으면 넘기지 말고, 다룰 수 없으면 넘긴다.*
 `try` 는 넘기는 비용을 한 낱말로 줄였지만, 넘긴다는 사실은 부르는 쪽의 `errors` 절에 남는다.
@@ -171,7 +195,7 @@
   [안쪽의 op `requires` · `range` · `newtype`], [이미 걸러진 값의 불변식], [검사가 경계에 한 번 남고 안쪽에서는 지워진다],
   [`enum parse_error do empty . not_digit . end`], [부르는 쪽이 다르게 행동할 경우마다 갈래 하나], [갈래가 많을수록 다루는 짐이 는다],
   [`let v u16 be try check_port port .`], [다룰 수 없으면 위로 넘긴다], [넘긴 사실이 `errors` 절에 남는다],
-  [`case error e . do match e do … end end`], [오류 값을 묶고 갈래를 한 번 더 가른다], [`case error <이름>` 의 이름은 새 묶음이다],
+  [`case error e . do match e do … end end`], [오류 값을 묶고 갈래를 한 번 더 가른다], [`case error <이름>` 의 이름이 선언된 갈래가 아니면 새 묶음이다],
   [`try … else_none` · `value_or`], [이유를 버린다], [버리는 것은 가능한 한 위 층에서],
   [`proc … effects panic .` + `panic "…"`], [어느 층도 다룰 수 없는 상태에서 멈춘다], [틀린 입력·없는 파일에는 쓰지 않는다],
   [시작점 `output u8 .`], [가장 바깥 층 --- 실패를 다루고 종료 코드로 알린다], [더 넘길 곳이 없다],

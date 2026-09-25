@@ -39,7 +39,7 @@ root being looked for.
   [`find_anchor`], [finds the certificate whose subject name is `want` (at offset `wo`) in the bundle file `path`, puts its DER in `out` and returns the length. `effects io` --- it reads a file],
 )
 
-`find_anchor` has three answers.
+`find_anchor` has four answers.
 
 #dtable(
   columns: 2,
@@ -47,17 +47,20 @@ root being looked for.
   caption: ["not found" and "could not measure" are different],
   [*answer*], [*meaning*],
   [`ok n` (n > 0)], [found --- the first `n` bytes of `out` are that certificate],
-  [`ok 0`], [read to the end, and it is not there],
-  [`error short_workspace`], [the window (`win`, over 16 KiB) or the unwrap space was too small --- it *could not read to the end*],
+  [`ok 0`], [read to the end, and it is not there --- the only thing said *after measuring*],
+  [`error short_workspace`], [the window (`win`, over 16 KiB) or the unwrap space was too small --- it *could not read to the end* (a block larger than the window, or the step limit)],
+  [`error unreadable`], [the bundle file could not be opened, or a read failed --- check the path first],
 )
 
-Once the second and third were both 0. Give it a narrow window and the tool said "there is no trusted root" --- which was not *absent* but
-*unmeasured*.
+The last two rows once did not exist. A window too narrow to read everything gave 0, and a file that would not even open gave
+`ok 0` (fixed 2026-09-25). So the tool said "there is no trusted root" --- which was not *absent* but *unmeasured*.
 
-#aside[A known limit][
-  *If the file cannot be opened or a read fails*, it currently returns `ok 0` ("not there"). That, too, is "could not measure" answered as
-  "not there". If you need to tell a wrong path from a missing root, check first with #modref("files")[`files`] that the file opens.
-]
+```text
+ a read failed ──────────────────────▶ error unreadable
+ block larger than window / step cap ▶ error short_workspace
+ read to the end ─┬─ there ──────────▶ ok n
+                  └─ not there ──────▶ ok 0      <- the only "not there"
+```
 
 Linking the last step with the found root is #modref("verify")[`verify`]'s `link_ok`. Modules it uses: #modref("files")[`files`] ·
 #modref("pem")[`pem`] · #modref("x509")[`x509`] · `verify`.

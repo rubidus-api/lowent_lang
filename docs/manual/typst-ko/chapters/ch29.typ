@@ -92,7 +92,20 @@ long long clamp_add(long long, long long);
 long long sum_bytes(const unsigned char *, size_t);
 ```
 
-`sum_bytes` 의 `slice u8` 이 포인터와 길이 둘로 나뉜 것을 볼 수 있다. `--no-main` 은 `main` 과 명령 줄 디스패처 없이 내보낸
+`sum_bytes` 의 `slice u8` 이 포인터와 길이 둘로 나뉜 것을 볼 수 있다.
+
+```text
+ Lowent
+   input xs slice u8 .
+
+ C (--emit-h 가 낸 머리)
+   sum_bytes(const unsigned char *, size_t)
+             └──────┬────────────┘ └─┬──┘
+                    │                개수 (len xs)
+                    포인터 (xs 의 첫 칸)
+```
+
+`--no-main` 은 `main` 과 명령 줄 디스패처 없이 내보낸
 op 의 진입점만 담은 C 를 낸다. 남의 빌드에 그대로 넣으면 된다. 다음 C 프로그램이 그 둘을 쓴다.
 
 #raw(read("/examples/ch29/host.c"), lang: "c", block: true)
@@ -101,6 +114,19 @@ op 의 진입점만 담은 C 를 낸다. 남의 빌드에 그대로 넣으면 �
 
 앞의 두 호출은 답을 받는다. 셋째 호출은 `requires le a 1000 .` 을 어긴다. C 는 계약을 모르지만, *불려 들어오는 자리는
 이쪽 문*이므로 op 의 계약이 인자에 강제되고 진입에서 멈춘다. 문 안은 Lowent 가, 문 밖은 C 가 책임진다.
+
+두 방향을 한 장에 그리면 이렇다. 나가는 쪽은 *머리에 적고*, 들어오는 쪽은 *문에서 잰다*.
+
+```text
+ 나가는 쪽 --- Lowent 가 C 를 부른다
+   area_twice ──▶ c_area ══ link "lw_c_area" ══▶  lw_c_area (C)
+   unsafe · cap c · effects unsafe                안은 검사 밖, 사람이 책임진다
+
+ 들어오는 쪽 --- C 가 Lowent 를 부른다
+   host.c ── clamp_add(5000, 1) ══▶ ┃ requires le a 1000 .
+                                    ┃ 5000 은 약속을 어긴다
+                                    ┗━▶ 진입에서 멈춘다 (종료 코드 70)
+```
 
 #misconception[FFI 경계에서는 언어의 보장이 모두 사라진다][
   C 로 *나가는* 쪽에서는 C 함수 안이 검사 밖이다. 그러나 그 사실은 `unsafe`·`cap c`·효과 줄로 머리에 적힌다. C 가 *들어오는*

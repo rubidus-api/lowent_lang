@@ -55,6 +55,17 @@ The first principle of the design is to separate the two.
 `result`. Demanding "digits only, please" with a contract would be the wrong design --- the caller hands the bytes to this op as soon as it receives them,
 so it has no way to keep that demand.
 
+Drawn as where a value comes from and where it goes:
+
+```text
+ outside (no promises)    boundary             inside (already filtered)
+ args · files · bytes ──▶ parse_u16 ── ok ──────▶ slot_of …
+                          result + errors      requires · range · newtype
+                             │ error
+                             ▼
+                          the calling layer decides what to do
+```
+
 #qa[
   How does an error written without a condition, like `errors not_digit .`, differ from one with a condition, like `errors empty eq (len s) 0 .`?
 ][
@@ -84,6 +95,19 @@ A layer that receives a failure does one of two things: *pass it on* or *handle 
 - `check_port` is close to a boundary. Port 0 means the configuration is wrong and can be fixed, so it is a `result`.
 - `pick_slot` passes the failure up with `try`, and writes the same error in its own `errors`. After success it knows `p` is not 0 and calls the inner op.
 - `main` is the outermost layer. There is nowhere further to pass the failure, so it *handles* it --- writes a message and returns exit code 1.
+
+The path a failure takes upward when `port` is 0. Going down, layers call; coming up, each passes the failure on or handles it.
+
+```text
+ main ─────────────────────────  handles it: writes "bad port", returns 1
+  │  ▲ error port_zero
+  ▼  │
+ pick_slot ────────────────────  passes it on: try sends it up as is
+  │  ▲ error port_zero      │
+  ▼  │                      ▼ only after success
+ check_port                 slot_of
+ (boundary: result)         (inside: requires gt slots 0)
+```
 
 As a rule: *if the nearest layer that could receive the failure can handle it, do not pass it on; if it cannot, pass it on.* `try` shrank the cost of passing
 it on to one word, but the fact that it is passed on stays in the caller's `errors` clause.
@@ -168,7 +192,7 @@ forgot; bind a name instead and that single arm takes every error, so there is n
   [inner op `requires` · `range` · `newtype`], [invariants of already-filtered values], [one check stays at the boundary; inside it is removed],
   [`enum parse_error do empty . not_digit . end`], [one variant per different caller action], [more variants, more handling work],
   [`let v u16 be try check_port port .`], [pass it upward when you cannot handle it], [the passing stays visible in `errors`],
-  [`case error e . do match e do … end end`], [bind the error value, then split its variants], [the name in `case error <name>` is a new binding],
+  [`case error e . do match e do … end end`], [bind the error value, then split its variants], [the name in `case error <name>` is a new binding unless it names a declared variant],
   [`try … else_none` · `value_or`], [discard the reason], [discard as high up as possible],
   [`proc … effects panic .` + `panic "…"`], [stop in a state no layer can handle], [not for bad input or missing files],
   [entry point `output u8 .`], [the outermost layer --- handle failure and report by exit code], [there is nowhere further to pass it],

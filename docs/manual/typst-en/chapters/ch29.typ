@@ -90,7 +90,20 @@ long long clamp_add(long long, long long);
 long long sum_bytes(const unsigned char *, size_t);
 ```
 
-You can see `sum_bytes`'s `slice u8` split into a pointer and a length. `--no-main` emits C holding only the entry points of exported ops, without `main` and the
+You can see `sum_bytes`'s `slice u8` split into a pointer and a length.
+
+```text
+ Lowent
+   input xs slice u8 .
+
+ C (the header --emit-h writes)
+   sum_bytes(const unsigned char *, size_t)
+             └──────┬────────────┘ └─┬──┘
+                    │                count (len xs)
+                    pointer (xs's first item)
+```
+
+`--no-main` emits C holding only the entry points of exported ops, without `main` and the
 command-line dispatcher, ready to drop into someone else's build. The following C program uses the two.
 
 #raw(read("/examples/ch29/host.c"), lang: "c", block: true)
@@ -99,6 +112,19 @@ command-line dispatcher, ready to drop into someone else's build. The following 
 
 The first two calls get answers. The third breaks `requires le a 1000 .`. C does not know contracts, but *the place being called into is this side's door*, so the op's
 contract is enforced on the arguments and it stops on entry. Lowent answers for inside the door, C for outside.
+
+Both directions in one picture. Going out, it is *written in the head*; coming in, it is *measured at the door*.
+
+```text
+ going out --- Lowent calls C
+   area_twice ──▶ c_area ══ link "lw_c_area" ══▶  lw_c_area (C)
+   unsafe · cap c · effects unsafe                inside is unchecked; a person answers
+
+ coming in --- C calls Lowent
+   host.c ── clamp_add(5000, 1) ══▶ ┃ requires le a 1000 .
+                                    ┃ 5000 breaks the promise
+                                    ┗━▶ stops at entry (exit code 70)
+```
 
 #misconception[At the FFI boundary every guarantee of the language disappears][
   Going *out* to C, the inside of the C function is outside the checks. But that fact is written in the head with `unsafe`, `cap c` and an effects line. Where C comes

@@ -43,6 +43,22 @@
 - `total` accumulates a sum. The accumulator `acc` lives across steps, so as is it cannot be split. `reduce acc add .` states "accumulate per piece, then combine
   with `add`".
 
+In pictures, this is what the two declarations allow.
+
+```text
+ split --- each piece touches only its own share
+   s:  [ 0 1 2 3 | 4 5 6 7 | 8 9 10 11 ]
+         piece A    piece B    piece C        ← all three may run at once without touching each other
+
+ reduce acc add --- gather per piece, then combine
+   piece A: acc_A = 0+1+2+3      = 6  ─┐
+   piece B: acc_B = 4+5+6+7      = 22 ─┼─ add ─▶ acc = 66
+   piece C: acc_C = 8+9+10+11    = 38 ─┘
+```
+
+`add` gives the same answer however it is grouped (it is associative), so any split matches the sequential result. Floating-point addition is
+not, so it cannot be split with `reduce` (see "The combining operation must be associative" below).
+
 When the processor confirms such a declaration, it reports `W-PAR-OK`, and that note contains something important: the VM still runs sequentially. That is *a
 correct implementation* because a theorem is proven that, under the splittable conditions, the parallel result is bit-for-bit identical to the sequential result
 (#chref("proofs-races")). Native code really does split into pieces and run them on several threads. The two back ends agreeing is a measurement of
@@ -191,7 +207,7 @@ four slots remain at the end of a slice.
 )
 
 Watch two things. First, `splat` takes its lane count from the *declared type*, so it cannot be written inline in an expression.
-Second, **adding lanes and adding a slice are different ops** --- lanes are `reduce_add`, a float slice is `sum_neumaier` or `sum_seq`. Until
+Second, *adding lanes and adding a slice are different ops* --- lanes are `reduce_add`, a float slice is `sum_neumaier` or `sum_seq`. Until
 2026-09-17 the latter were spelled `sum` and `sum_fast`, while the canon used those same names for "add all the lanes". One name meant two
 things, so the names were split (canon 6.3.7.1).
 

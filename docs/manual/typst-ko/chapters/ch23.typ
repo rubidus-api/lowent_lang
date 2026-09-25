@@ -43,6 +43,23 @@
 - `double_area` 는 *어떤 모양이든* 받는다. `requires shape t .` 가 "넓이를 알려 주는 타입만" 이라고 못 박는다.
 - `method s area` 는 `s` 의 타입에 붙은 `area` 를 부른다. `rect` 면 `rect.area`, `square` 면 `square.area` 다.
 
+트레이트는 *자격 요건*에 빗대면 쉽다. «넓이를 알려 줄 수 있음» 이라는 요건이 있고, 요건을 갖춘 타입만 그 요건을 요구하는
+op 에 들어올 수 있다.
+
+```text
+                trait shape  ── 요건: area input s self . output u64 .
+                   ▲        ▲
+       satisfies   │        │   satisfies
+     ┌─────────────┴─┐    ┌─┴─────────────┐
+     │ rect          │    │ square        │
+     │ rect.area     │    │ square.area   │   ← 요건을 실제로 갖춘 op
+     └───────────────┘    └───────────────┘
+
+ double_area 는 requires shape t .  ── shape 를 갖춘 타입만 받는다
+   double_area rect r    →  method s area  =  rect.area
+   double_area square q  →  method s area  =  square.area
+```
+
 `double_area rect r` 과 `double_area square q` 는 각각 전용 실물로 단형화되므로(#chref("generics")), `method` 는 실행 중에
 찾는 것이 아니라 번역할 때 정해진다. 가상 함수 표가 없다.
 

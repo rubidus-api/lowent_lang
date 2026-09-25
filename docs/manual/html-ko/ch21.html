@@ -690,7 +690,13 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check geom.low
 == check: ok ==
-</code></pre></div></div><p><code>geom</code> 모듈은 <code>point</code> 구조체와 <code>manhattan</code> op 을 <code>export</code> 로 내보낸다. <code>helper</code> 에는 <code>export</code> 가 없다. 그래서 <code>helper</code> 는 이 모듈 안에서만 쓸 수 있다.</p><span id="idx-entry-50"></span><p><strong>감춘 것이 기본</strong>이다. 밖에서 보이는 것은 곧 약속이고, 실수로 약속하는 일보다 실수로 감추는 일이 고치기 쉽다. 네이티브로 낼 때도 <code>export</code> 한 op 만 C 에서 부를 수 있는 심볼이 되고 나머지는 모두 <code>static</code> 이다.</p><h3 id="s21-2">21.2 들여오기<a class="plink" href="#s21-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>use &lt;모듈> from "&lt;자리>" .</code> 은 그 자리의 파일에서 모듈을 들여온다. 자리는 <strong>선언한 파일을 기준으로 한</strong> 경로다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/app.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> app .
+</code></pre></div></div><p><code>geom</code> 모듈은 <code>point</code> 구조체와 <code>manhattan</code> op 을 <code>export</code> 로 내보낸다. <code>helper</code> 에는 <code>export</code> 가 없다. 그래서 <code>helper</code> 는 이 모듈 안에서만 쓸 수 있다.</p><span id="idx-entry-50"></span><pre><code data-lang="text">          모듈 geom (geom.low)                              모듈 app
+  ┌────────────────────────────────────┐
+  │ export struct point      ─────────┼──▶ 문 ──▶  geom.point       ✔ 보인다
+  │ export fn manhattan      ─────────┼──▶ 문 ──▶  geom.manhattan   ✔ 보인다
+  │ fn helper   (export 없음)          │           geom.helper      ✘ E-VISIBILITY
+  └────────────────────────────────────┘
+      벽 안의 것은 export 로 낸 문으로만 나간다</code></pre><p><strong>감춘 것이 기본</strong>이다. 밖에서 보이는 것은 곧 약속이고, 실수로 약속하는 일보다 실수로 감추는 일이 고치기 쉽다. 네이티브로 낼 때도 <code>export</code> 한 op 만 C 에서 부를 수 있는 심볼이 되고 나머지는 모두 <code>static</code> 이다.</p><h3 id="s21-2">21.2 들여오기<a class="plink" href="#s21-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>use &lt;모듈> from "&lt;자리>" .</code> 은 그 자리의 파일에서 모듈을 들여온다. 자리는 <strong>선언한 파일을 기준으로 한</strong> 경로다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/app.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> app .
 <em><span class="tok-c">rem run: distance 3 4</span></em>
 
 <strong><span class="tok-k">use</span></strong> geom from <span class="tok-s">"</span><span class="tok-s">geom.low</span><span class="tok-s">"</span> .

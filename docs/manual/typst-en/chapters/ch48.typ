@@ -63,7 +63,7 @@ separate them.
 == Closers do the same job
 
 #mathbox[Theorem G2 (`closers_agree`)][
-  `forall c1 c2 h ops, close c1 h ops = close c2 h ops.` Closing with any of `.`, `end` or `)` gives the same tree. All three "close the innermost open form". Blocks are associative,
+  `forall c1 c2 h ops, close c1 h ops = close c2 h ops.` Closing with `.` or `)` gives the same tree. Both "close the innermost open form". `end` is not on the list --- `do … end` is a pair of braces, so `end` closes only its own `do`; if a form is still open inside, it does not close it for you but refuses (`E-DOT-MISSING`). Blocks are associative,
   so a block within a block unfolds in place (`block_assoc`, `nested_block_flattens`).
 ]
 
@@ -102,7 +102,7 @@ catch that drift. What they stop are not users' defects but the compiler's.
 
 #misconception[A line break ends a statement][
   A line break is whitespace. `spread` in `closers.low` lays one form over four lines and, without any mark, becomes the same tree as
-  `one_line`. Only closers (`.`·`end`·`)`) end a form. So a missing stop makes the next line join the previous form and produces an odd
+  `one_line`. Only closers (`.`·`)`) end a form. So a missing stop makes the next line join the previous form and produces an odd
   diagnostic, while splitting a long expression over several lines never changes its meaning. A rule making line breaks closers can also be
   proved, and this second property is exactly why it was not adopted.
 ]
@@ -134,7 +134,7 @@ catch that drift. What they stop are not users' defects but the compiler's.
 
 #recap[
   A sequence of statements is a monoid with associativity and identity, and whether two spellings are the same is decided by a denotation into flat sequences,
-  confirmed by computation. One statement equals a one-statement block (G1), `.`, `end` and `)` build the same tree (G2), and a block within a block unfolds in place.
+  confirmed by computation. One statement equals a one-statement block (G1), `.` and `)` build the same tree (G2), and a block within a block unfolds in place.
   Newline closing was left out even though provable, and theorems of removed rules were removed with them. These theorems stop the compiler from drifting, but that
   the real parser is this model is backed by tests.
 ]

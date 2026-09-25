@@ -23,13 +23,13 @@ guard is_some p . else return 1 .
 
 `0` is `pos` (the next place to write), and the `option u64` returned is **the new `pos` on success, `none` if room ran out**.
 
-**Formatting is not output.** Every op only assembles bytes into the caller’s buffer and, without exception, is `effects none`. Actual output is done separately by a caller holding `cap io`, with `write_out` or [`outbuf`](sec112.md#mod-outbuf). So assembly code can be called from anywhere without capabilities, tests compare buffers rather than screens, and the caller decides what to emit and when. Turning numbers into bytes needs neither kernel nor allocation, so it is a library — no builtin was added, and the whole file is inside the VM/native cross-check.
+**Formatting is not output.** Every op only assembles bytes into the caller’s buffer and, without exception, is `effects none`. Actual output is done separately by a caller holding `cap io`, with `write_out` or [`outbuf`](sec116.md#mod-outbuf). So assembly code can be called from anywhere without capabilities, tests compare buffers rather than screens, and the caller decides what to emit and when. Turning numbers into bytes needs neither kernel nor allocation, so it is a library — no builtin was added, and the whole file is inside the VM/native cross-check.
 
 ## <a id="sx1"></a>Design and boundaries
 
 - **There is one convention — every writer is `(buf, pos) → new pos`.** Success gives `some newpos`, shortage gives `none`. It refuses with a value rather than stopping. Give the new `pos` to the next call as it is and the text joins up.
 - **All or nothing.** If room runs out, not a byte is written — if “12” remains instead of “1234”, nobody notices. That is why `put_u64` and `put_hex` count the digits first (`dec_width`, `hex_width`) and write from the front.
-- **A line break is one LF** (`put_nl`). It is the same convention as `take_line` in [`io`](sec111.md#mod-io), and CRLF is neither made nor removed.
+- **A line break is one LF** (`put_nl`). It is the same convention as `take_line` in [`io`](sec115.md#mod-io), and CRLF is neither made nor removed.
 - **What it does not do** — floating-point formatting, padding and alignment, locale (thousands separators). If needed, measure the width with `dec_width` and fill spaces yourself with `put_byte`.
 - **No state.** No struct, no enum. The buffer and cursor both belong to the caller, so any number of uses anywhere at once do not interfere.
 

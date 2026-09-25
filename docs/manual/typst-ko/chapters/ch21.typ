@@ -42,6 +42,16 @@
 `helper` 는 이 모듈 안에서만 쓸 수 있다.
 
 #idx("export")
+```text
+          모듈 geom (geom.low)                              모듈 app
+  ┌────────────────────────────────────┐
+  │ export struct point      ─────────┼──▶ 문 ──▶  geom.point       ✔ 보인다
+  │ export fn manhattan      ─────────┼──▶ 문 ──▶  geom.manhattan   ✔ 보인다
+  │ fn helper   (export 없음)          │           geom.helper      ✘ E-VISIBILITY
+  └────────────────────────────────────┘
+      벽 안의 것은 export 로 낸 문으로만 나간다
+```
+
 *감춘 것이 기본*이다. 밖에서 보이는 것은 곧 약속이고, 실수로 약속하는 일보다 실수로 감추는 일이 고치기 쉽다. 네이티브로
 낼 때도 `export` 한 op 만 C 에서 부를 수 있는 심볼이 되고 나머지는 모두 `static` 이다.
 

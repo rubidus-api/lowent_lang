@@ -1,101 +1,72 @@
-# <a id="mod-pool"></a>`pool` — 세대 핸들 블록 풀
+# <a id="mod-tlscli"></a>`tlscli` — TLS 1.3 클라이언트 핸드셰이크
 
 소스
 
-`lib/pool.low`
+`lib/tlscli.low`
 
 층
 
-L1 — 호출자의 저장
+L0 — 순수 계산(호출자의 뒷받침)
 
 권한
 
 없음
 
-고정 크기 블록을 빌려 주고 돌려받는 풀이다. 핸들에 **세대 번호**가 붙어 옛 핸들을 알아본다. 객체를 만들고 지우기를 되풀이할 때, 이미 지운 것을 실수로 다시 쓰는 결함(use-after-free)을 막고 싶을 때 쓴다. “필요할 때 4 KiB 씩 받아 쓰고, 원하는 시점에 특정 블록을 해제한다” 는 해제 시점이 어휘적이지 않으므로 `region` 으로도 범프로도 안 된다 — 그래서 정적 검사 대신 세대 핸들로 간다(18장, 35장).
+[`tlssrv`](sec96.md#mod-tlssrv) 의 **거울상**이다. 서버 쪽은 ClientHello 를 읽고 ServerHello 를 짓는다. 이 모듈은 반대로 ClientHello 를 **짓고** ServerHello 이하를 **읽는다**. 규격의 계산(키 스케줄 · 레코드 봉인)은 [`tls13`](sec95.md#mod-tls13) 에 있고, 이 모듈은 그것을 클라이언트의 순서대로 부르는 층이다.
 
-```lowent
-newtype pa u8 .
-let po option (pool.block_pool pa) . be pool.init pa mem gens 4096 .
-guard is_some po . else return 1 .
-var p pool.block_pool pa . be some_value po .
-let h option (pool.handle pa) . be pool.take pa p .
+> **이것만으로는 TLS 클라이언트가 아니다**
+>
+> > **전송이 없다** — 소켓도 재조립도 없고, 바이트열은 부르는 쪽이 모아 온다. 그래서 이 모듈은 `effects none` 이다. **인증서를 확인하지 않는다** — `Certificate` 메시지에서 인증서를 꺼내 줄 뿐이고, 체인 · 유효기간 · 이름은 [`x509`](sec93.md#mod-x509) · [`verify`](sec94.md#mod-verify) · [`trust`](sec120.md#mod-trust) 로 부르는 쪽이 확인한다. 확인하지 않는 도구는 그렇다고 말해야 한다(`lowget` 의 `--insecure`). 짓지 않은 것: HelloRetryRequest · PSK/0-RTT · 세션 재개 · 클라이언트 인증서 · x25519 가 아닌 키 교환 그룹 · `TLS_CHACHA20_POLY1305_SHA256` · `TLS_AES_128_GCM_SHA256` 이 아닌 스위트.
+
+## <a id="sx1"></a>핸드셰이크의 차례
+
+클라이언트는 한 가지 차례로만 메시지를 받는다. 이 차례를 지키지 않으면 중간자가 메시지를 빼거나 바꿔치기할 수 있다. `cnext_ok` 가 상태마다 **받아도 되는 메시지 하나**를 열거하고, 그 밖은 모두 거절한다.
+
+```text
+ cst_start ──ClientHello 보냄──▶ cst_wait_sh
+ cst_wait_sh ──ServerHello(2)──▶ cst_wait_ee        ── 여기서 핸드셰이크 키를 만든다(hs_secrets)
+ cst_wait_ee ──EncryptedExtensions(8)──▶ cst_wait_cert
+ cst_wait_cert ──Certificate(11)──▶ cst_wait_cv     ── cert_at 으로 꺼내 부르는 쪽이 확인
+ cst_wait_cv ──CertificateVerify(15)──▶ cst_wait_finished
+ cst_wait_finished ──Finished(20)──▶ cst_connected  ── check_server_fin 이 참이어야 한다
 ```
 
-> **무엇을 막아 주고, 무엇을 안 막아 주나**
->
-> > **막아 준다 ①** — 돌려준 블록에 **옛 핸들로 접근**하는 것. 세대가 달라 거절된다(실행 중 값으로). **막아 준다 ②** — **풀을 섞는 것**. 핸들과 풀이 **브랜드**를 타입으로 들기 때문에 `handle pa` 를 `block_pool pb` 에 넣으면 컴파일 에러 `E-TYPE-INSTANCE` 다. 그리고 `mem` · `gens` 는 `init` 이 봉해 들어 op 이 더 이상 받지 않는다 — 엉뚱한 배열을 건네는 길이 표면에서 사라졌다. 브랜드는 값이 아니라 타입이라 핸들 칸은 늘지 않는다. **막아 주지 않는다** — 브랜드는 선언마다 하나다. 브랜드를 comptime 인자로 받아 `init` 하는 op 을 두 번 부르면 한 브랜드가 풀 둘을 덮는다. 풀 하나에 브랜드 하나를 지키는 것은 당신의 몫이다. 이것은 언어에 내장된 세대 핸들이 아니다 — 평범한 라이브러리이고, 안전은 이 모듈의 규율에서 나온다.
+괄호 안의 수는 핸드셰이크 메시지 종류 번호다. `cstep` 이 다음 상태를 낸다.
 
-**원리.** 블록마다 세대 번호를 두고, 받을 때 핸들에도 그 번호를 적어 준다. 해제하면 블록의 세대가 올라가고, 그 순간 옛 핸들은 번호가 맞지 않아 자동으로 무효가 된다. **고정 크기**라 해제가 자유 목록에 넣는 것이 전부이고 단편화가 0 이다. 세대는 나란한 배열 `gens` 에 살고(SoA), 검사 비용은 `bytes` 라는 문을 지나는 코드에만 붙는다. **자유 목록 링크는 블록 자기 바이트 안에 산다** — 해제된 블록은 세대가 올라 아무도 닿지 못하므로 그 앞 8 바이트를 장부로 쓰는 것이 공짜다. 풀은 actor 가 아니라 struct 다(actor state 는 슬라이스를 들 수 없다).
+## <a id="sx2"></a>op
 
-| **op** | **모양** | **실패** |
-|---|---|---|
-| `handle b` · `block_pool b` | 구조체 — 핸들은 `blk` · `len` · `gen`, 풀은 봉인된 `mem` · `gens` 와 커서들 | — |
-| `init` | `comptime b, mem mut slice u8, g mut slice u64, bs u64 → option (block_pool b)` | `bs < 8` 이면 `none` |
-| `blocks` | `fn (comptime b, p) → u64` — `min(len mem / bs, len g)` | 없음 |
-| `take` | `(comptime b, p mut block_pool b) → option (handle b)` | 블록이 없으면 `none` |
-| `release` | `(comptime b, p mut, h handle b) → bool` | 낡은 · 범위 밖 핸들(이중 해제 포함)이면 `false` |
-| `bytes` | `(comptime b, p, h) → option mut slice u8` — 바이트에 닿는 유일한 문 | 낡은 · 범위 밖이면 `none` |
-| `alive` | `(comptime b, p, h) → bool` | 없음(거짓이 답) |
-| `used` · `outstanding` | `→ u64` — 순차로 꺼내 본 블록 수 · 지금 밖에 나가 있는 블록 수 | 없음 |
+| **op** | **하는 일** |
+|---|---|
+| `cst_start` … `cst_connected` | 상태 번호(0 … 6) |
+| `cnext_ok` · `cstep` | 지금 상태에서 이 메시지를 받아도 되는가 · 그다음 상태 |
+| `build_ch` | ClientHello 를 짓는다 — 스위트는 ChaCha20-Poly1305 를 먼저, AES-128-GCM 을 다음에, 키 교환은 x25519 |
+| `sh_ok` · `sh_usable` | ServerHello 가 성한가 · 우리가 이어 갈 수 있는 것인가(한 번에 판정) |
+| `sh_is_hrr` | HelloRetryRequest 인가 — 알아보고 **거절한다** |
+| `sh_suite` · `sh_is_tls13` · `sh_key_share_off` | 고른 스위트 · 정말 1.3 인가 · 서버의 x25519 공개값 자리 |
+| `sh_ext_off` · `sh_ext_len` · `sh_ext_find` · `sh_ext_find_len` | 확장 묶음과 확장 하나 찾기 |
+| `hs_secrets` | 핸드셰이크 비밀을 만든다(키 사다리) |
+| `finished_vd` | 어떤 트래픽 비밀로든 Finished 의 검증값을 낸다 |
+| `check_server_fin` | 서버의 Finished 를 검산한다 — «상대가 그 비밀을 정말 갖고 있는가» |
+| `build_client_fin` | 우리 Finished 를 짓는다 |
+| `seal_rec` | 레코드 하나를 봉한다(속 타입을 부르는 쪽이 정한다) |
+| `plain_hdr` · `rec_len` · `rec_type` | 평문 레코드 머리를 짓는다 · 받은 레코드 머리를 읽는다 |
+| `cert_at` · `cert_len` | Certificate 메시지에서 `n` 번째 인증서(0 이 잎)의 자리와 길이 |
 
-*표 50.1 — `pool` 의 op — 첫 인자가 브랜드, 모두 `effects none`*
+*표 50.1 — `tlscli` 의 op*
 
-`take` 는 **놓은 것을 먼저 준다**(자유 목록은 LIFO) — 받고 놓기를 되풀이해도 풀이 마르지 않는다. 재사용된 블록의 핸들은 세대가 올라간 새 핸들이다. 브랜드를 매번 적는 이유 — 이 언어에는 추론되는 타입 파라미터가 없고, 그 한 낱말이 “이 핸들은 저 풀의 것” 이라는 계약이다.
+## <a id="sx3"></a>설계
 
-**뷰는 빌림 머리에서 꺼낸다** — `bytes` 가 준 슬라이스는 평범한 슬라이스라 반환을 모른다. 그래서 뷰는 `borrow v be some_value (pool.bytes <브랜드> p h) do … end` 처럼 **빌림 머리에서** 꺼내고, 바이트는 빌림 안에서만 만지고, 해제는 블록 **뒤에** 한다(12장). 이렇게 꺼내면 처리기가 빌림 동안 그 풀을 쓰기 자리에 넘기는 것(`release`·`take`)과 같은 풀로 두 번째 빌림을 여는 것을 `E-BORROW-EXCL` 로 거절한다.
+**읽는 쪽 길이는 전부 상대가 쓴 것이다.** ServerHello 이하는 아직 아무것도 인증되지 않은 바이트열이다. 어떤 자리도 버퍼를 넘으면 곧바로 0 을 답하고, 길이가 안 맞으면 고쳐 읽지 않는다.
 
-```lowent
-newtype demo_brand u8 .
+**HelloRetryRequest 를 ServerHello 로 읽지 않는다.** HRR 은 ServerHello 와 같은 메시지 종류이고 랜덤 자리에 정해진 32 바이트가 들어가는 것으로만 구분된다. 그것을 모르면 HRR 의 랜덤을 진짜 랜덤으로 읽어 키 사다리를 **조용히 틀린 값**에서 쌓는다. HRR 을 짓지 않기로 했으므로 알아보고 거절한다.
 
-proc demo input mem mut slice u8 . . input gens mut slice u64 . . output u64 . effects none .
-do
-  let po option (pool.block_pool demo_brand) . be pool.init demo_brand mem gens 16 .
-  guard is_some po . else return 89 .
-  var p pool.block_pool demo_brand . be some_value po .
-  let h option (pool.handle demo_brand) . be pool.take demo_brand p .
-  guard is_some h . else return 91 .
-  let hh pool.handle demo_brand . be some_value h .
-  guard pool.alive demo_brand p hh . else return 92 .
-  var total u64 be 0 .
-  borrow v be some_value (pool.bytes demo_brand p hh) do
-    set (index v 8) 3 .
-    set (index v 9) 4 .
-    set total (add (narrow u64 (index v 8)) (narrow u64 (index v 9))) .
-  end
-  let rel bool be pool.release demo_brand p hh .
-  guard eq rel true . else return 94 .
-  let dead option mut slice u8 . . be pool.bytes demo_brand p hh .
-  guard eq (is_some dead) false . else return 95 .
-  return total .
-end
-```
+**판을 고르는 것은 머리가 아니라 확장이다.** 메시지 머리의 `0303` 은 중간 상자를 속이려는 장식이다. 정말 1.3 인지는 `supported_versions` 확장이 `0304` 인지로 본다(`sh_is_tls13`).
 
-> **반례. 해제한 핸들로 다시 닿는다 · 이중 해제**
->
-> > 해제 뒤 `bytes` 는 `none` 이고, 검사 없이 `some_value` 를 부르면 그 줄에서 `E-VM-NONE` 으로 멈춘다. 두 번째 `release` 는 조용히 `false` 를 돌려줄 뿐이라, 반환값을 보지 않으면 “놓았다고 믿었는데 놓이지 않은” 결함이 숨는다. `guard eq rel true .` 로 받는다.
+**왜 ChaCha20 을 먼저 제안하나.** 이 언어로 쓴 두 암호의 처리량을 재어 빠른 쪽을 앞에 둔다. 서버가 순서를 존중하면 빠른 쪽을 고른다.
 
-> **반례. 블록 앞 8 바이트에 남아야 할 값을 두고 해제한다**
->
-> > 해제가 그 자리를 자유 목록 링크로 덮는다. 세대가 올라 아무도 닿지 못하므로 안전하지만, “해제 뒤에도 메모리에 남아 있겠지” 라는 기대는 앞 8 바이트에서 틀린다. 자료는 8 번 바이트부터 둔다.
+**`check_server_fin` 이 참이어도 «누구인지» 는 아직 모른다.** 그것은 «상대가 핸드셰이크 비밀을 갖고 있는가» 를 확인할 뿐이고, 그 상대가 누구인지는 인증서 쪽(`verify`)의 물음이다. 둘을 모두 확인해야 연결을 믿을 수 있다.
 
-> **반례. 빌린 이름을 블록 밖으로 내보낸다**
->
-> > `borrow v be bv do set out v . end` 는 컴파일 에러 `E-BORROW-ESCAPE` 다 — 빌림은 블록 끝에서 끝난다.
-
-> **반례. 빌림 안에서 해제한다**
->
-> > `borrow v be some_value (pool.bytes b p h) do pool.release b p h . … end` 는 컴파일 에러 `E-BORROW-EXCL` 이다 — 반환은 풀을 고치고, 빌린 뷰는 그것을 모른다. 해제는 블록을 닫은 뒤에 한다.
-
-> **반례. 해제한 뒤 옛 뷰를 쓴다**
->
-> > `pool.release` 는 `invalidates p .` 를 밝힌다. 그래서 `let bv … be some_value (pool.bytes b p h) .` 로 묶어 둔 뷰를 해제 **뒤에** 쓰면 컴파일 에러 `E-VIEW-INVALIDATED` 다 — 처리기가 `bv` 가 `p` 에서 왔다는 것을 따라간다. 해제 뒤에 다시 닿으려면 `bytes` 로 새로 묻는다 (세대가 `none` 으로 답한다).
-
-> **반례. 같은 핸들로 쓰기 뷰 둘을 빌림 밖에서 든다**
->
-> > `bytes` 를 같은 인자로 두 번 불러 이름 둘에 묶으면 한 블록에 쓰는 이가 둘이다. 빌림 머리에서 꺼내면 두 번째 빌림이 `E-BORROW-EXCL`, 빌림 밖에서 묶은 둘을 함께 쓰면 `E-EXCL` 로 거절된다. 뷰는 하나만 꺼내 빌림 머리에서 쓴다.
-
-**주의.** 핸들은 값이라 복사해 들고 다닐 수 있지만, 어느 복사본으로든 `release` 하면 전부 낡는다. 받고 놓기를 아무리 되풀이해도 `outstanding` 이 늘지 않는 것이 자유 목록이 사는 증거다(`used` 는 처음 몇 라운드만 는다). `outstanding` 은 자유 목록을 걸으므로 O(자유 블록 수)다 — 뜨거운 경로에서 매번 부르지 않는다. 한 핸들 = 한 블록이다. 순차 배달 전제다. op 이름이 `live` 가 아니라 `outstanding` 인 이유 — 흔한 낱말은 처리기가 지역 변수와 op 머리를 가르지 못했다. 핸들의 비트 폭 설계는 [`budget`](sec99.md#mod-budget) 이 돕는다.
+**왜 이 모듈이 있나.** 클라이언트가 있어야 바깥의 진짜 구현(`openssl s_server`, 실제 웹 서버)이 반대편에 설 수 있다. 우리 서버(`tlssrv`)와만 맞대면 양쪽이 같은 오해를 나눠 가질 수 있고, 그러면 «규격을 같게 읽었다» 는 확인이 되지 않는다. 이 모듈 위에 선 실물 도구가 `apps/lowget` 이다.
 
 ---
 

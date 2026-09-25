@@ -14,7 +14,7 @@ none — an allocator is handed in
 
 A byte vector that, when short of room, **takes a larger place and moves**. Used to gather byte strings of unknown final size. What is missing is reallocation, not growth — take a larger place and move the old contents, which can be written in Lowent. So it is a library, not a builtin, and the growth policy (doubling) belongs to the library too.
 
-|  | **`vecs`** | **[`vecgen`](sec106.md#mod-vecgen)** |
+|  | **`vecs`** | **[`vecgen`](sec110.md#mod-vecgen)** |
 |---|---|---|
 | Storage | **held by the caller** — buffers are passed to ops | owned by the container |
 | Growth | the new place is **returned as a value** (the caller rebinds) | swapped inside |

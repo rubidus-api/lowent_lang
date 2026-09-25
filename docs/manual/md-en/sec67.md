@@ -10,13 +10,13 @@ L0 — pure computation (the caller’s buffer)
 
 Capabilities
 
-none — sending is [`outbuf`](sec112.md#mod-outbuf)’s job
+none — sending is [`outbuf`](sec116.md#mod-outbuf)’s job
 
 **Assembles the ANSI control bytes** to send to a terminal, and computes how much the screen changed and how many cells characters occupy. Used in TUIs to redraw only what changed instead of everything (chapter 37).
 
 > **This module writes nothing to the screen**
 >
-> > It only builds bytes and puts them into the caller’s buffer. Every op is `effects none`. Actually sending to the screen is done by the side holding `cap io` ([`outbuf`](sec112.md#mod-outbuf)) — assembly and output are separate. Missing this leads to the dead end “the code runs but nothing appears”. In return, all escape assembly and diffing is verified by byte comparison without a screen. Key input and raw mode are [`tty`](sec114.md#mod-tty).
+> > It only builds bytes and puts them into the caller’s buffer. Every op is `effects none`. Actually sending to the screen is done by the side holding `cap io` ([`outbuf`](sec116.md#mod-outbuf)) — assembly and output are separate. Missing this leads to the dead end “the code runs but nothing appears”. In return, all escape assembly and diffing is verified by byte comparison without a screen. Key input and raw mode are [`tty`](sec118.md#mod-tty).
 
 ```lowent
 use term as t .

@@ -1,101 +1,72 @@
-# <a id="mod-pool"></a>`pool` — generational-handle block pool
+# <a id="mod-tlscli"></a>`tlscli` — the TLS 1.3 client handshake
 
 Source
 
-`lib/pool.low`
+`lib/tlscli.low`
 
 Layer
 
-L1 — the caller’s storage
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-A pool lending and taking back fixed-size blocks. Handles carry a **generation number** so stale handles are recognised. Used when objects are created and deleted repeatedly and you want to stop the defect of reusing something already deleted (use-after-free). “Take 4 KiB at a time as needed, free a particular block when you choose” has a release time that is not lexical, so neither `region` nor a bump will do — so instead of static checking, generational handles (chapter 18, chapter 35).
+The **mirror image** of [`tlssrv`](sec97.md#mod-tlssrv). The server side reads a ClientHello and builds a ServerHello. This module does the opposite: it **builds** a ClientHello and **reads** the ServerHello and what follows. The protocol’s computation (key schedule, record sealing) is in [`tls13`](sec96.md#mod-tls13) this module is the layer that calls it in the client’s order.
 
-```lowent
-newtype pa u8 .
-let po option (pool.block_pool pa) . be pool.init pa mem gens 4096 .
-guard is_some po . else return 1 .
-var p pool.block_pool pa . be some_value po .
-let h option (pool.handle pa) . be pool.take pa p .
+> **This alone is not a TLS client**
+>
+> > **No transport** — no sockets, no reassembly; the caller gathers the bytes. That is why this module is `effects none`. **It does not check certificates** — it only takes certificates out of the `Certificate` message; the chain, validity and names are checked by the caller with [`x509`](sec94.md#mod-x509) · [`verify`](sec95.md#mod-verify) · [`trust`](sec121.md#mod-trust). A tool that does not check must say so (`lowget`’s `--insecure`). Not built: HelloRetryRequest · PSK/0-RTT · session resumption · client certificates · key-exchange groups other than x25519 · suites other than `TLS_CHACHA20_POLY1305_SHA256` · `TLS_AES_128_GCM_SHA256`.
+
+## <a id="sx1"></a>The order of the handshake
+
+A client accepts messages in one order only. If that order is not kept, a man in the middle can drop or swap messages. `cnext_ok` lists **the one message that may arrive** in each state and refuses everything else.
+
+```text
+ cst_start ──sends ClientHello──▶ cst_wait_sh
+ cst_wait_sh ──ServerHello(2)──▶ cst_wait_ee        ── the handshake keys are made here (hs_secrets)
+ cst_wait_ee ──EncryptedExtensions(8)──▶ cst_wait_cert
+ cst_wait_cert ──Certificate(11)──▶ cst_wait_cv     ── taken out with cert_at; the caller checks them
+ cst_wait_cv ──CertificateVerify(15)──▶ cst_wait_finished
+ cst_wait_finished ──Finished(20)──▶ cst_connected  ── check_server_fin must be true
 ```
 
-> **What it prevents and what it does not**
->
-> > **Prevents ①** — **accessing a returned block through an old handle**. The generation differs, so it is rejected (as a runtime value). **Prevents ②** — **mixing pools**. Handles and pools carry a **brand** as a type, so putting `handle pa` into `block_pool pb` is the compile error `E-TYPE-INSTANCE`. And `init` seals `mem` and `gens`, so ops no longer take them — the path to passing the wrong array vanished from the surface. A brand is a type, not a value, so handles do not grow. **Does not prevent** — one brand per declaration. Calling an op that takes a brand as a comptime argument and runs `init` twice makes one brand cover two pools. Keeping one brand per pool is your job. These are not generational handles built into the language — this is an ordinary library, and the safety comes from its discipline.
+The number in parentheses is the handshake message type. `cstep` gives the next state.
 
-**Principle.** Each block has a generation number, copied into the handle on take. Releasing bumps the block’s generation, and from that moment old handles no longer match and become invalid automatically. **Fixed size** makes release just pushing onto a free list, with zero fragmentation. Generations live in a parallel array `gens` (SoA), and the check cost falls only on code passing through the gate `bytes`. **Free list links live inside the blocks’ own bytes** — a released block has a bumped generation and nobody can reach it, so using its first 8 bytes as the ledger is free. The pool is a struct, not an actor (actor state cannot hold slices).
+## <a id="sx2"></a>ops
 
-| **op** | **Shape** | **Failure** |
-|---|---|---|
-| `handle b` · `block_pool b` | structs — a handle has `blk` · `len` · `gen`; a pool has sealed `mem` · `gens` and cursors | — |
-| `init` | `comptime b, mem mut slice u8, g mut slice u64, bs u64 → option (block_pool b)` | `none` if `bs < 8` |
-| `blocks` | `fn (comptime b, p) → u64` — `min(len mem / bs, len g)` | none |
-| `take` | `(comptime b, p mut block_pool b) → option (handle b)` | `none` if no blocks remain |
-| `release` | `(comptime b, p mut, h handle b) → bool` | `false` for stale or out-of-range handles (double release included) |
-| `bytes` | `(comptime b, p, h) → option mut slice u8` — the only gate to the bytes | `none` if stale or out of range |
-| `alive` | `(comptime b, p, h) → bool` | none (false is the answer) |
-| `used` · `outstanding` | `→ u64` — blocks ever handed out sequentially · blocks out right now | none |
+| **op** | **what it does** |
+|---|---|
+| `cst_start` … `cst_connected` | state numbers (0 … 6) |
+| `cnext_ok` · `cstep` | may this message arrive in this state · the next state |
+| `build_ch` | builds a ClientHello — suites ChaCha20-Poly1305 first, then AES-128-GCM; key exchange x25519 |
+| `sh_ok` · `sh_usable` | is the ServerHello well formed · can we continue with it (decided in one call) |
+| `sh_is_hrr` | is it a HelloRetryRequest — recognised and **refused** |
+| `sh_suite` · `sh_is_tls13` · `sh_key_share_off` | the chosen suite · is it really 1.3 · where the server’s x25519 value is |
+| `sh_ext_off` · `sh_ext_len` · `sh_ext_find` · `sh_ext_find_len` | the extension block, and finding one extension |
+| `hs_secrets` | makes the handshake secrets (the key ladder) |
+| `finished_vd` | the Finished verify value from any traffic secret |
+| `check_server_fin` | checks the server’s Finished — “does the other side really hold the secret” |
+| `build_client_fin` | builds our Finished |
+| `seal_rec` | seals one record (the caller picks the inner type) |
+| `plain_hdr` · `rec_len` · `rec_type` | builds a plaintext record header · reads a received record header |
+| `cert_at` · `cert_len` | offset and length of the `n`-th certificate in a Certificate message (0 is the leaf) |
 
-*Table 50.1 — Ops of `pool` — the first argument is the brand, all `effects none`*
+*Table 50.1 — ops of `tlscli`*
 
-`take` **gives back released blocks first** (the free list is LIFO) — repeated take and release never dries the pool. A reused block’s handle is a new handle with a bumped generation. Why the brand is written every time — this language has no inferred type parameters, and that one word is the contract “this handle belongs to that pool”.
+## <a id="sx3"></a>Design
 
-**Take the view in the borrow head** — the slice `bytes` returns is a plain slice and knows nothing about release. So take the view in the **head of a borrow** — `borrow v be some_value (pool.bytes <brand> p h) do … end` — touch bytes only inside it, and release **after** the block (chapter 12). Taken that way, the processor rejects handing that pool to a writing position (`release`, `take`) or opening a second borrow from the same pool while the borrow lives: `E-BORROW-EXCL`.
+**Every length on the reading side was written by the other side.** Everything from the ServerHello on is bytes nothing has authenticated yet. Any offset past the buffer answers 0 at once, and a length that does not fit is not read “generously”.
 
-```lowent
-newtype demo_brand u8 .
+**A HelloRetryRequest is not read as a ServerHello.** An HRR has the same message type as a ServerHello and differs only by a fixed 32-byte value in the random field. Without knowing that, the HRR’s random is taken as real and the key ladder is built on a **silently wrong** value. HRR is not built, so it is recognised and refused.
 
-proc demo input mem mut slice u8 . . input gens mut slice u64 . . output u64 . effects none .
-do
-  let po option (pool.block_pool demo_brand) . be pool.init demo_brand mem gens 16 .
-  guard is_some po . else return 89 .
-  var p pool.block_pool demo_brand . be some_value po .
-  let h option (pool.handle demo_brand) . be pool.take demo_brand p .
-  guard is_some h . else return 91 .
-  let hh pool.handle demo_brand . be some_value h .
-  guard pool.alive demo_brand p hh . else return 92 .
-  var total u64 be 0 .
-  borrow v be some_value (pool.bytes demo_brand p hh) do
-    set (index v 8) 3 .
-    set (index v 9) 4 .
-    set total (add (narrow u64 (index v 8)) (narrow u64 (index v 9))) .
-  end
-  let rel bool be pool.release demo_brand p hh .
-  guard eq rel true . else return 94 .
-  let dead option mut slice u8 . . be pool.bytes demo_brand p hh .
-  guard eq (is_some dead) false . else return 95 .
-  return total .
-end
-```
+**The extension picks the version, not the header.** The `0303` in the message header is decoration to fool middleboxes. Whether it is really 1.3 is decided by the `supported_versions` extension being `0304` (`sh_is_tls13`).
 
-> **Counter-example. Reaching through a released handle · double release**
->
-> > After release `bytes` is `none`, and an unchecked `some_value` stops with `E-VM-NONE` on that line. A second `release` just returns `false` silently, so without looking at the return value a “believed released but not” defect hides. Receive it with `guard eq rel true .`.
+**Why ChaCha20 is offered first.** The two ciphers written in this language were measured and the faster one goes first. A server that honours the order picks the faster one.
 
-> **Counter-example. Releasing with values that must survive in the first 8 bytes**
->
-> > Release overwrites that place with a free list link. It is safe because the generation is bumped and nobody can reach it, but the expectation “it stays in memory after release” is wrong for the first 8 bytes. Put data from byte 8 on.
+**`check_server_fin` being true does not yet say who.** It confirms “the other side holds the handshake secret”; who that side is, is the certificate’s question (`verify`). Both must be checked before the connection can be trusted.
 
-> **Counter-example. Sending a borrowed name out of the block**
->
-> > `borrow v be bv do set out v . end` is the compile error `E-BORROW-ESCAPE` — a borrow ends at the end of its block.
-
-> **Counter-example. Releasing inside the borrow**
->
-> > `borrow v be some_value (pool.bytes b p h) do pool.release b p h . … end` is the compile error `E-BORROW-EXCL` — a release changes the pool, and the borrowed view cannot know. Release after closing the block.
-
-> **Counter-example. Using an old view after the release**
->
-> > `pool.release` declares `invalidates p .`, so a view bound with `let bv … be some_value (pool.bytes b p h) .` and used **after** the release is the compile error `E-VIEW-INVALIDATED` — the processor follows `bv` back to `p`. To reach the block again, ask `bytes` anew (the generation answers `none`).
-
-> **Counter-example. Holding two write views of one handle outside a borrow**
->
-> > Calling `bytes` twice with the same arguments and binding two names gives one block two writers. Taken in borrow heads, the second borrow is rejected with `E-BORROW-EXCL`; two bound outside a borrow and both used are rejected with `E-EXCL`. Take one view, in the borrow head.
-
-**Cautions.** Handles are values and can be copied, but releasing through any copy stales them all. `outstanding` not growing no matter how often you take and release is proof the free list is alive (`used` grows only in the first few rounds). `outstanding` walks the free list, O(free blocks) — do not call it on every hot-path pass. One handle = one block. Sequential delivery is assumed. Why `outstanding`, not `live` — the processor could not tell common words used as local variables from op heads. Designing a handle’s bit widths is helped by [`budget`](sec100.md#mod-budget).
+**Why this module exists.** With a client, a real outside implementation (`openssl s_server`, a real web server) can stand on the other side. Testing only against our own server (`tlssrv`) lets both sides share the same misreading, and then “we read the spec the same way” is not confirmed. The real tool built on this module is `apps/lowget`.
 
 ---
 

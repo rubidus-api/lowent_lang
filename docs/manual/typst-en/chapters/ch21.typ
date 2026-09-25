@@ -39,6 +39,16 @@ One source file is one module. A module writes its name on the first line, and t
 
 The `geom` module exports the `point` struct and the `manhattan` op with `export`. `helper` has no `export`, so it can be used only inside this module.
 
+```text
+          module geom (geom.low)                            module app
+  ┌────────────────────────────────────┐
+  │ export struct point      ─────────┼──▶ door ──▶ geom.point       ✔ visible
+  │ export fn manhattan      ─────────┼──▶ door ──▶ geom.manhattan   ✔ visible
+  │ fn helper   (no export)            │            geom.helper      ✘ E-VISIBILITY
+  └────────────────────────────────────┘
+      what is inside the wall leaves only through a door made by export
+```
+
 #idx("export")
 *Hidden is the default.* What is visible from outside is a promise, and hiding something by mistake is easier to fix than promising something by mistake.
 When emitting native code, too, only `export`ed ops become symbols callable from C; everything else is `static`.

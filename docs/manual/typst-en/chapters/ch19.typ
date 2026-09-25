@@ -43,6 +43,19 @@
 `consume` takes an `owned buffer` and disposes of it with `drop h .`. `use_once` makes an owned value with `var h owned buffer be v .` and passes it to
 `consume`. At that moment ownership *moves*. Now `consume` is responsible for disposing of `h`, and `use_once` can no longer use `h`.
 
+```text
+  use_once                              consume
+  ┌──────────────────┐   pass (move)    ┌──────────────────┐
+  │ h ──▶ [ buffer ] │ ───────────────▶ │ h ──▶ [ buffer ] │ ── drop h .  → gone
+  └──────────────────┘                  └──────────────────┘
+  h is now an empty name                 the one place responsible
+  (using it again: E-OWN-MOVED)
+```
+
+Think of a locker with a single key. Once you hand the key over, you no longer hold it, and only the one person holding the key can empty
+(dispose of) the locker. So "two people empty it" (double free), "nobody empties it" (leak) and "open it again with the key you gave away"
+(use after move) cannot happen.
+
 Using a moved value again is rejected.
 
 #demo("examples/ch19/moved.low")
@@ -72,6 +85,15 @@ On the path where `c` is true, `h` was disposed of; on the false path it is stil
 languages keep a hidden "already dropped" flag here, but Lowent requires the ownership state to be *statically* one thing. Dispose of it on both paths, or
 pass it on both paths.
 
+```text
+              if c
+          ┌─────┴─────┐
+       drop h       (leave it)
+       h: gone        h: alive
+          └─────┬─────┘
+       where the paths meet --- is h alive or not?  → no single answer, so it is refused
+```
+
 By the same principle, moving one `owned` field of an aggregate and then moving the whole aggregate again is rejected (`E-OWN-PARTIAL`). The receiver thinks it
 got a whole aggregate, but one field inside already belongs to someone else.
 
@@ -89,6 +111,16 @@ Disposal comes in two kinds.
 )
 
 Release has no failure to swallow. Completion, done silently, has nowhere to hand its failure. The criterion is one: *can finishing fail?*
+
+#dtable(
+  columns: 3,
+  id: "own-fates",
+  caption: [when a value is passed and when it ends --- at a glance],
+  [*kind of value*], [*when passed*], [*when it ends*],
+  [no ownership (`u64` · `point` …)], [copied; the original name stays usable], [nothing to do],
+  [`owned`, needs release only], [moved; the original name is emptied], [released silently where its lifetime ends],
+  [`owned`, needs completion], [moved; the original name is emptied], [the author must write the completing call (otherwise `E-OWN-INCOMPLETE`)],
+)
 
 #idx("completion")
 Which types require completion is declared by the program itself. If there is an op that takes the type as `owned` and returns a `result`, that is the

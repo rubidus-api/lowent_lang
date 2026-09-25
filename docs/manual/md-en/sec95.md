@@ -1,65 +1,78 @@
-# <a id="mod-http"></a>`http` — HTTP/1.1 request parser
+# <a id="mod-verify"></a>`verify` — certificate signatures and one link of a chain
 
 Source
 
-`lib/http.low`
+`lib/verify.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-Takes request bytes and answers **where each field starts and how many bytes it is** (RFC 9112). It does not cut — the caller cuts with `subslice`. **Every failure is `0`**. `0` can never be a legitimate position — the smallest request is `GET / HTTP/1.1␍␊␍␊`, so no field starts at 0.
+Once [`x509`](sec94.md#mod-x509) has **read** a certificate, this module answers on top of it: **was this certificate signed by that one**. Besides the signature, it gathers what one **link** of a chain needs — validity, names that connect, and host name matching.
 
 > **What it promises and what it does not**
 >
-> > Server-side request parsing only (no response parsing). There is no transport — the caller gathers the bytes. **Chunked transfer (`Transfer-Encoding: chunked`) is not built** — it only finds that header, so the caller must reject. No trailers, multi-line headers (obs-fold), URL percent-decoding or HTTP/2. HTTP/1.0 is not accepted — its persistent connection rules differ and were not built.
+> > It has not been audited. It accepts four signature algorithms only — RSA v1.5 + SHA-256 · RSA v1.5 + SHA-384 · ECDSA + SHA-256 · ECDSA + SHA-384. Anything else (the SHA-512 family · RSA-PSS certificates · Ed25519 certificates · P-521) is **refused**. There is no revocation check. Letting an unknown algorithm through would turn this module’s answer from “checked” into “could not tell”.
 
-```lowent
-let t u64 be http.target_off b .
-let n u64 be http.target_len b .
-guard gt n 0 . else return 0 .
-let target slice u8 . be subslice b t (add t n) .
+## <a id="sx1"></a>A chain is a line of links
+
+A web server usually sends three layers. Each is signed by the one above it, and the top (the root) must be one we **decided in advance to trust**.
+
+```text
+  root (in the trust store)     ← found by trust.find_anchor
+     │  signs
+     ▼
+  intermediate CA               ← link_ok intermediate · root
+     │  signs
+     ▼
+  leaf (example.com)            ← link_ok leaf · intermediate  +  host_ok leaf · "example.com"
 ```
 
-| **op** | **What it does** |
+Call `link_ok` for each link from the bottom up, and add `host_ok` for the leaf. If any answer is not 1, the chain is broken. **How** the chain is gathered (the order the server sent, how many links) is the caller’s choice — `apps/lowget` is a real example.
+
+| **value** | **meaning** |
 |---|---|
-| `method_get` · `method_head` · `method_post` · `method_put` · `method_delete` | Method codes (1 … 5) |
-| `method_code` | Method in the request line → code. 0 = unknown |
-| `line_next` · `line_len` | Position of the next line · content length of this line (without CRLF) |
-| `target_off` · `target_len` | Position · length of the request target |
-| `version_ok` | Is it `HTTP/1.1` |
-| `headers_off` · `header_next` | First header · next header (0 at the blank line) |
-| `name_len` · `value_off` · `value_len` | Header name length · value position · value length |
-| `name_eq` | Is this header’s name that one (case-insensitive) |
-| `header_find` · `header_find_len` | Value position · length for that name. **0 if duplicated** |
-| `content_length` | `option u64` — `some 0` if absent, `none` if malformed |
-| `body_off` | Where the body starts |
+| `1` | links — signature, CA, names and validity all hold |
+| `2` | the child’s issuer name differs from the parent’s subject name |
+| `3` | the parent is not allowed to issue certificates (not a CA) |
+| `4` | one of the two is outside its validity period |
+| `5` | the signature does not hold (or the algorithm is unknown) |
+| `6` | the workspace for checking the signature was too small — not a result, but **could not measure** |
 
-*Table 50.1 — Ops of `http`*
+*Table 50.1 — what `link_ok` returns — anything but 1 says why it refused*
 
-**The core of this module is rejection.** A parser is defined more by what it rejects than what it accepts. Wrong acceptance in HTTP has a name — **request smuggling**. If the front (proxy) and back (server) read the same bytes differently, a request one sees the other does not.
+## <a id="sx2"></a>ops
 
-| **Rejected** | **Why** |
+| **op** | **what it does** |
 |---|---|
-| Bare `LF` as line end | If the front accepts only CRLF, boundaries diverge |
-| Space between name and colon (`Host : x`) | RFC 9112 §5.1 requires rejection |
-| Two `Content-Length` | Rejected even if the values agree |
-| `Content-Length: 5, 5` · `+5` · empty | Digits only — that leniency is smuggling |
-| `HTTP/1.0` | Different persistent connection rules, not built |
-| The same header twice (`header_find`) | Whether merging is allowed varies per header and that table was not built — unknown means reject |
-| Empty target (`GET  HTTP/1.1`) · unterminated headers (no blank line) | — |
+| `link_ok` | links one step (table above). Byte workspace ≥ 1024 · limb workspace ≥ 2200 |
+| `signed_by` | was the child signed by the parent — `ok 1` / `ok 0`, `error short_workspace` if there is not enough room |
+| `sig_kind` | the algorithm the child names: 1 RSA+SHA-256 · 2 ECDSA+SHA-256 · 3 RSA+SHA-384 · 4 ECDSA+SHA-384 · 0 unknown |
+| `dn_eq` | are two names equal **as bytes** |
+| `dates_ok` | does the validity period contain now (one number `YYYYMMDDhhmmss`) |
+| `host_ok` · `san_matches` | does a host name match one of the subject alternative names |
+| `ecdsa_rs` | takes `r` · `s` out of a DER-wrapped ECDSA signature, right-aligned to the curve size (32 · 48 bytes) |
+| `curve` · `curve384` | fills the P-256 · P-384 constants (`p` · `n` · `Gx` · `Gy`) into a workspace |
 
-*Table 50.2 — What `http` rejects*
+*Table 50.2 — ops of `verify`*
 
-**Why `content_length` is an `option`.** “Absent” and “wrong” are different answers. Absent gives `some 0` (a normal request without a body); malformed gives `none` (the connection must be dropped). With one value the two mix, and where they mix is where attacks live.
+## <a id="sx3"></a>Design
 
-**This module caught a processor defect.** It was first written with `input b str .`. `--check` passed, but 16 of 21 ops fell onto the slow interpreted path (about 80×). `str` was not a builtin but a local alias in [`strings`](sec59.md#mod-strings) the checker let the name through, but the typed lowering did not know its meaning. The answers were right, so tests could never see it — a silent 80×. Now using such a name in a signature gives a `W-NOT-YET` warning. Passing checks and being fast are different things, and without looking at `--why-slow` this file would have shipped as it was.
+**Signatures are checked over the original bytes.** `x509.tbs_off … tbs_end` is hashed as is. Checking a copy could make a signature look right even when the copy is wrong.
 
-**What is checked** — RFC 9112 examples (8 normal), 9 rejections, VM/native agreement, zero ops falling onto the slow path.
+**The public key length picks the curve.** 65 bytes is P-256 ([`p256`](sec88.md#mod-p256)), 97 bytes is P-384 ([`p384`](sec89.md#mod-p384)). RSA goes to [`rsa`](sec87.md#mod-rsa).
+
+**Names are compared as bytes.** DER has one byte string per name, so that is right. Decoding and comparing as text lets case, encoding and whitespace rules in, and each rule shifts what “equal” means.
+
+**A wildcard covers the first label only.** `*.a.b` matches `x.a.b` but not `a.b` or `y.x.a.b` (RFC 6125 §6.4.3). Case folding is ASCII only.
+
+**`ecdsa_rs` right-aligns.** A DER integer may carry a leading 0 (when the top bit is 1) or be short. Copying it as is verifies a value shifted by one byte, and that mistake only ever shows up as “bad signature”.
+
+**A short workspace is a failure.** It is `error short_workspace` — once “not enough room” and “not signed” were both 0, and a program that passed the wrong workspace looked like it had a bad signature.
 
 ---
 

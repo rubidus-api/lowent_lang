@@ -70,6 +70,18 @@ comptime 자리에 올 수 있는 것은 정수 리터럴과 모듈 수준의 `l
 `bytes_for u64` 는 네이티브 코드에서 서로 다른 두 함수다. 타입이 확정된 뒤 만들어지므로 크기와 연산이 모두 상수로
 박히고, 호출은 직접 호출이다.
 
+```text
+ 소스 (틀 하나)                              번역 뒤 (쓰인 조합마다 한 벌)
+ fn bytes_for input comptime t type …   ┌─▶ bytes_for#u8  :  return mul 1 items
+     return mul (size_of t) items        │
+                                         └─▶ bytes_for#u64 :  return mul 8 items
+ 부르는 자리:
+   bytes_for u8 100   ────────────────────▶ bytes_for#u8 을 곧바로 부른다
+   bytes_for u64 100  ────────────────────▶ bytes_for#u64 를 곧바로 부른다
+```
+
+틀에 적힌 `size_of t` 가 각 벌에서는 1 과 8 이라는 상수가 된다. 실행 중에 «t 가 무엇인가» 를 묻는 일이 남지 않는다.
+
 대가는 코드의 양이다. 열 가지 타입으로 부르면 열 벌이 생긴다. 이 비용은 숨지 않는다. 부르는 자리에 타입이 적혀 있으니
 몇 벌이 생길지를 소스에서 센다.
 

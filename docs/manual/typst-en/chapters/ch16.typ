@@ -66,7 +66,25 @@ Passing a capability on needs no special notation. Write the received name like 
 
 #demo("examples/ch16/chain.low")
 
-The chain looks like this --- outside → `main`'s `k` → `say_twice`'s `k` → `say`'s `k` → `write_out`. An op that received no capability cannot call
+The chain looks like this --- outside → `main`'s `k` → `say_twice`'s `k` → `say`'s `k` → `write_out`. Drawn together with effects, the two arrows run in opposite directions.
+
+```text
+                  capability (permission)          effect (what was done)
+                  handed down from the top         spreads up from the bottom
+  outside (OS)
+      │ cap io
+      ▼
+  main       k ─────────────┐                  ▲ effects io
+      │                     │                  │
+      ▼                     ▼                  │
+  say_twice  k ─────────────┐                  ▲ effects io
+      │                     │                  │
+      ▼                     ▼                  │
+  say        k ─────▶ write_out k 1 msg        ▲ effects io   ← io arises here
+```
+
+A capability must be handed down *from above* to be used; an effect arises *below* and is written in the head of every caller. So the head of
+any op shows both "what this op can do (effects)" and "who allowed it (capabilities)". An op that received no capability cannot call
 `say`, because it has nothing to pass. So "can this program touch files?" can be answered *by looking only at the entry point*. No op deep inside can
 secretly open a file: without the capability it cannot, and with it, the chain is visible all the way back to the entry.
 

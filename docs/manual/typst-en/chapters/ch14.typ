@@ -63,6 +63,19 @@ There are two places a contract breaks, and the diagnostic assigns blame.
   [`errors … <condition>`], [on exit], [*this op* --- the condition held but it did not produce the error],
 )
 
+Draw a contract as an op's *two doors* and the blame is decided by which door caught it.
+
+```text
+        caller                         op
+                         ┌─────────────────────────────────────┐
+  percent_of 250 200 ───▶│ way in:  requires                   │  caught here  → the caller's fault
+                         │                                     │
+                         │   … body …                          │
+                         │                                     │
+            result ◀─────│ way out: ensures · errors … cond    │  caught here  → this op's fault
+                         └─────────────────────────────────────┘
+```
+
 #demo("examples/ch14/blame.low")
 
 `percent_of 250 200` has a part larger than the whole, so it is the caller's fault, and the VM says "the caller broke the contract".
@@ -96,7 +109,15 @@ do
 end
 ```
 
-The two ops have the same body. The only difference is one line of contract, and that line removes a run-time check. The check did not vanish
+The two ops have the same body. The only difference is one line of contract, and that line removes a run-time check. What the processor thinks is this short:
+
+```text
+ requires le a 200 .     →  a is 0 … 200
+ add a 1                 →  the result is 1 … 201
+ does it fit u8?         →  201 ≤ 255  ⇒ cannot overflow  ⇒ drop the overflow check
+```
+
+The check did not vanish
 but was *moved* to one check on entry. If the caller calls with a constant, or proves the range with its own contract, even the entry check
 disappears.
 

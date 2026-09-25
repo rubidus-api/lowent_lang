@@ -170,7 +170,7 @@ end
   [`dir_make` · `dir_read` · `dir_close`], [디렉터리를 만들고 항목을 읽고 닫는다], [`files` · `cap file_system`],
   [`path_remove` · `path_rename` · `link_type`], [경로를 지우고 이름을 바꾸고, 심링크를 따라가지 않고 그 자신이 무엇인지 묻는다], [`files` · `cap file_system`],
   [`net_listen` · `net_accept` · `net_connect` · `net_port`], [듣는 소켓 · 연결 받기 · 주소와 포트로 연결 걸기 · 포트 묻기], [`net` · `cap net`],
-  [`net_resolve`], [이름을 IPv4 주소로 --- DNS. 연결과 **가른 잎**이라, 주소를 이미 가진 프로그램은 이름 해석에 닿지 않는다], [`net` · `cap net`],
+  [`net_resolve`], [이름을 IPv4 주소로 --- DNS. 연결과 *가른 잎*이라, 주소를 이미 가진 프로그램은 이름 해석에 닿지 않는다], [`net` · `cap net`],
   [`net_send` · `net_recv` · `net_close` · `net_pair`], [보내기 · 받기 · 닫기 · 맞물린 한 쌍], [`net` · `cap net`],
   [`reactor_new` · `r_read` · `r_write`], [reactor 를 만든다 · reactor 로 읽는다 · reactor 로 쓴다], [모듈 없음 --- `cap io`],
   [`env_get`], [환경 변수를 읽는다], [모듈 없음 --- `cap env`],

@@ -1,8 +1,8 @@
-# <a id="mod-tlssrv"></a>`tlssrv` — TLS 1.3 서버 핸드셰이크
+# <a id="mod-x509"></a>`x509` — X.509 인증서 읽기
 
 소스
 
-`lib/tlssrv.low`
+`lib/x509.low`
 
 층
 
@@ -12,43 +12,49 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 없음
 
-[`tls13`](sec92.md#mod-tls13) 이 규격의 **계산**을 갖고 있다. 이 모듈은 그것을 **순서대로 부르는 층**이다 — ClientHello 를 읽고, 서버 메시지를 짓고, 상태를 옮기고, 응용 데이터 레코드를 봉하고 연다. 모든 실패는 `0` 이고, op 은 **자리**를 낸다 — 자르는 것은 부르는 쪽이 `subslice` 로 한다.
+X.509 인증서(DER)의 **뼈대를 읽어 준다**. 서명이 덮는 부분은 어디서 어디까지인지, 발급자와 주체는 누구인지, 공개키 · 유효기간 · 확장은 어디 있는지를 **자리(오프셋)와 길이**로 낸다. [`der`](sec91.md#mod-der) 가 «공개키만 꺼낸다» 에서 멈춘 자리의 다음 칸이다.
 
-> **이것만으로는 TLS 서버가 아니다**
+> **읽기만 한다**
 >
-> > **전송이 없다** — 소켓도 재조립도 없고 바이트열은 부르는 쪽이 모아 온다(레코드 경계도 부르는 쪽이 정한다). 키 갱신(KeyUpdate) · 레코드 패딩 · HelloRetryRequest · PSK · 0-RTT · 클라이언트 인증서 요구 · 세션 재개가 없다. 인증서 체인은 `build_cert` 가 하나만 담는다. 확장은 **찾아만** 준다(SNI · ALPN 해석은 부르는 쪽). 감사받지 않았다.
+> > 이 모듈은 인증서를 **확인하지 않는다**. 서명이 맞는지, 체인이 이어지는지, 이름이 맞는지는 [`verify`](sec94.md#mod-verify) 가 이 모듈 위에서 답한다. 짓지 않은 것: 폐기 확인(CRL · OCSP) · 이름 제약 · 정책 · v1/v2 의 옛 모양 · UTF-8 이 아닌 이름 비교.
 
-**ClientHello 는 가장 적대적인 입력이다.** 아직 아무것도 인증되지 않은 바이트열이고 길이 필드는 전부 상대가 썼다. 그래서 — 어떤 자리도 버퍼를 넘으면 즉시 실패한다. 확장 걷기는 재귀하지 않고 걸음 수를 버퍼 크기로 묶는다(길이 0 짜리 확장이 이어지면 묶지 않은 루프는 끝나지 않는다). 길이가 맞지 않으면 고쳐 읽지 않는다 — `ch_ok` 는 선언된 길이가 버퍼와 **정확히** 같기를, `ch_ext_len` 은 확장이 끝까지 맞기를 요구한다.
+인증서의 모양과 이 모듈의 op 이 가리키는 자리는 이렇다.
+
+```text
+Certificate
+├─ tbsCertificate ─────────────── tbs_off … tbs_end   ← 서명이 덮는 바이트
+│   ├─ [0] version (없을 수도 있다)
+│   ├─ serialNumber                tbs_field 0
+│   ├─ signature                   tbs_field 1
+│   ├─ issuer (발급자 이름)        issuer_off · elem_len
+│   ├─ validity                    not_before · not_after
+│   ├─ subject (주체 이름)         subject_off · elem_len
+│   ├─ subjectPublicKeyInfo        spki_off
+│   └─ [3] extensions              ext_value_off · is_ca · san_next
+├─ signatureAlgorithm ─────────── sigalg_oid_off · sigalg_oid_len
+└─ signatureValue ─────────────── sig_off · sig_len
+```
 
 | **op** | **하는 일** |
 |---|---|
-| `st_start` · `st_recvd_ch` · `st_negotiated` · `st_wait_flight2` · `st_wait_finished` · `st_connected` | 상태 번호 |
-| `hs_client_hello` · `hs_server_hello` · `hs_encrypted_extensions` · `hs_certificate` · `hs_certificate_verify` · `hs_finished` | 메시지 종류 번호 |
-| `next_ok` · `step` | 지금 이 메시지를 받아도 되는가 · 상태를 옮긴다(못 옮기면 같은 상태를 낸다) |
-| `ch_ok` | 종류와 길이가 버퍼와 맞는가 |
-| `ch_random_off` · `ch_sid_off` · `ch_sid_len` | 랜덤 · session_id |
-| `ch_suites_off` · `ch_suites_len` · `ch_has_suite` | 제안된 스위트 |
-| `ch_ext_off` · `ch_ext_len` · `ch_ext_find` · `ch_ext_find_len` | 확장 블록 · 종류로 찾기 |
-| `ch_x25519_off` · `be16` | key_share 안의 x25519 공개키 자리 · 빅엔디언 2 바이트 |
-| `build_sh` · `build_ee` · `build_cert` | ServerHello · EncryptedExtensions · Certificate(DER 하나) 짓기 |
-| `cv_content` · `build_cv` · `build_fin` | CertificateVerify 가 서명하는 130 바이트 · CertificateVerify · Finished 짓기 |
-| `server_finished` | ECDHE 부터 키 스케줄을 올려 서버 Finished 까지 한 줄로 |
-| `app_secrets` · `check_client_finished` | 응용 트래픽 비밀(c · s) · 상대 Finished 확인(1 = 맞음) |
-| `traffic_keys` · `seal_app` · `open_app` | 비밀 → 키 ‖ IV(한 방향씩) · 응용 데이터 레코드 봉하기 · 열기 |
+| `tbs_off` · `tbs_end` | 서명이 덮는 바이트의 시작과 끝. 서명은 이 구간의 **원본 바이트** 위에서 확인한다 |
+| `sigalg_oid_off` · `sigalg_oid_len` | 바깥 서명 알고리즘 OID 의 자리와 길이 |
+| `sig_off` · `sig_len` | 서명 값(BIT STRING 의 «남은 비트 수» 바이트를 건너뛴 자리) |
+| `tbs_field` | tbsCertificate 안의 `n` 번째 필드 자리(0 serial · 1 signature · 2 issuer · 3 validity · 4 subject · 5 공개키) |
+| `issuer_off` · `subject_off` · `elem_len` | 발급자 · 주체 이름 요소 **전체**의 자리와 길이 — 이름은 바이트로 견준다 |
+| `spki_off` | 공개키(SubjectPublicKeyInfo)의 자리 |
+| `not_before` · `not_after` | 유효기간을 견줄 수 있는 한 수(`YYYYMMDDhhmmss`)로. 시간대는 `Z` 만 받는다 |
+| `ext_value_off` | OID 가 `2.5.29.<n>` 인 확장의 값 자리(17 = 주체 대체 이름 · 19 = basicConstraints) |
+| `is_ca` | 남을 발급할 수 있는 인증서인가. 확장이 **없으면 거짓**이다 |
+| `san_next` | 주체 대체 이름의 DNS 이름을 하나씩 준다(`cur` 가 0 이면 첫째, 0 을 돌려주면 끝) |
 
-*표 50.1 — `tlssrv` 의 op*
+*표 50.1 — `x509` 의 op — 자리를 내는 op 은 0 이면 «성하지 않다»*
 
-메시지 짓기는 틀이 같다(`<종류 1> <길이 3> <본문>`) — 그래서 틀을 한 번만 적었다. 네 곳에 같은 산술을 되풀이하면 한 곳만 고치는 날이 온다.
+**값을 베끼지 않는다.** 모든 op 이 자리와 길이만 낸다. 64 KiB 아레나에 인증서 몇 장을 한꺼번에 들어야 하고, 서명은 원본 바이트 위에서 확인해야 하기 때문이다 — 베낀 자리에서 확인하면 베끼기가 틀려도 서명이 맞는 것처럼 보일 수 있다.
 
-**`cv_content` — 공백 64 개는 장식이 아니다.** 서명 대상은 `0x20 × 64 ‖ "TLS 1.3, server CertificateVerify" ‖ 0x00 ‖ 전사 해시` 다(§4.4.3). 그 앞머리가 없으면 이 서명이 다른 문맥(인증서 서명, 클라이언트 쪽 서명)의 서명으로 재활용될 수 있다. 규격에서 “왜 이런 게 있지” 싶은 상수는 대개 이미 일어난 공격의 흔적이다.
+**길이는 전부 상대가 쓴 것이다.** 인증서는 아직 아무것도 믿을 수 없는 바이트열이다. 자리를 내는 길은 모두 `der.value_off` · `der.value_len` 을 지나고, 그 둘이 버퍼 밖을 막는다. 이 모듈은 그 위에 **차례**를 얹는다 — X.509 의 필드에는 이름표가 없어서 몇 번째인지가 곧 무엇인지이고, 차례를 안 보면 남이 끼워 넣은 필드를 제 자리 것으로 읽는다.
 
-**순서는 규격의 절반이다.** `next_ok` 는 받아들이는 자리를 열거하고, 열거하는 것이 곧 나머지를 거절하는 것이다. 보지 않으면 중간자가 Finished 를 앞당기거나 ClientHello 를 두 번 보낼 수 있다. **`session_id` 는 그대로 되울린다** — TLS 1.3 은 그 필드를 쓰지 않지만, 되울리지 않으면 1.2 로 보이게 하려는 호환 장치 때문에 실제 망의 중간 상자에서 끊긴다(§4.1.3).
-
-**전사는 이 층에서 세 번 잘린다.** `s hs traffic` 은 `CH‖SH`, 서버 Finished 는 `CH‖…‖CertificateVerify`, 응용 트래픽 비밀과 **클라이언트 Finished** 는 `CH‖…‖서버 Finished` 위에 선다. 클라이언트 Finished 는 자기 자신을 포함하지 않고, 그 verify_data 는 **클라이언트** 핸드셰이크 비밀에서 나온다 — 같은 전사, 다른 비밀. 서버 것을 쓰면 언제나 거절하게 되고 증상은 “클라이언트가 이상하다” 로 보인다.
-
-**응용 데이터는 방향마다 다른 비밀 · 다른 시퀀스다.** 하나를 공유하면 논스가 겹치고, AEAD 에서 논스가 겹치는 것은 평문과 인증키를 함께 잃는 일이다. 그래서 키뭉치를 한 방향씩 만든다. 시퀀스는 **레코드마다** 오르고 키 세대마다 0 부터다. `traffic_keys` 의 출력 버퍼는 키가 16 이어도 32 바이트여야 한다 — `expand_label` 은 HMAC 한 블록을 쓰므로 언제나 32 를 쓴다. 경보도 같은 레코드다 — 속 타입이 21 이고, 그것을 보지 않으면 경보를 데이터로 읽는다.
-
-**확인하는 것** — RFC 8448 §3 의 실제 핸드셰이크. 정본의 ClientHello 필드를 읽고, 메시지 다섯을 지어 정본과 바이트로 맞댄다(ServerHello 90 · EncryptedExtensions 40 · Certificate 445 · CertificateVerify 136 · Finished 36). 그리고 끝까지 엮는다 — 정본의 키로 ECDHE 를 우리가 내고 키 스케줄을 올려 서버 Finished 를 정본과 맞춘다. 이 한 수가 전사 자르는 자리 · 키 스케줄 · finished_key · verify_data 를 한꺼번에 잰다. 정본의 CertificateVerify 는 RSA-PSS 이고 우리 서명기는 ECDSA 라, 여기서 재는 것은 틀이고 서명 자체는 [`ecdsa`](sec88.md#mod-ecdsa) 가 따로 잰다.
+**`is_ca` 의 기본값이 중요하다.** basicConstraints 확장이 없으면 CA 가 아니다(RFC 5280 §4.2.1.9). 이 기본값을 놓치면 잎 인증서가 중간 인증기관 노릇을 할 수 있다 — 체인 검증에서 가장 흔한 구멍이다.
 
 ---
 

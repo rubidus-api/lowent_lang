@@ -46,6 +46,20 @@
 
 An actor handles messages *one at a time*. So its state is never touched concurrently. That is why there is no need to take locks by hand.
 
+Think of a bank with a single counter. Customers (messages) queue, and the clerk (the actor) serves one customer at a time. The vault (the
+state) is behind the counter, so no customer can open it directly.
+
+```text
+  senders                        mailbox (queue)          actor counter
+                                                     ┌──────────────────────┐
+  send c inc  ───────▶ ┌─────┬─────┬─────┐           │  handling now: inc   │
+  send c inc  ───────▶ │ inc │ inc │ get │ ────────▶ │                      │
+  send c get  ───────▶ └─────┴─────┴─────┘ one by one│  state: value = 1    │ ← not reachable from outside
+                                                     └──────────────────────┘
+```
+
+Because messages leave the queue one at a time, two messages never change `value` at the same moment.
+
 Writing `fn` for something that changes state is rejected.
 
 #demo("examples/ch25/pure_bad.low")

@@ -1,8 +1,8 @@
-# <a id="mod-ecdsa"></a>`ecdsa` — ECDSA P-256 signing
+# <a id="mod-p384"></a>`p384` — the NIST P-384 curve and ECDSA verification
 
 Source
 
-`lib/ecdsa.low`
+`lib/p384.low`
 
 Layer
 
@@ -12,32 +12,43 @@ Capabilities
 
 none
 
-Takes a private key and a message hash and produces a signature `(r, s)` (RFC 6979). Verification is `ecdsa_verify` of [`p256`](sec88.md#mod-p256). A TLS server uses it to sign `CertificateVerify` with its own private key — without signing there is no server.
+**ECDSA signature verification** on the curve `y² = x³ − 3x + b` over the prime `p = 2^384 − 2^128 − 2^96 + 2^32 − 1`. TLS 1.3′s `ecdsa_secp384r1_sha384` uses this curve. Many intermediate certificate authorities on the public web, and their roots, sign with P-384, so checking a certificate chain to its end needs this curve.
 
 > **What it promises and what it does not**
 >
-> > **Constant time is promised here only, with its extent written down.** What is removed is branching and memory access that depend on secret scalars (private key d, nonce k). The final conditional subtraction of Montgomery multiplication, the cache hierarchy, power, electromagnetic leakage and whatever a compiler might introduce are not promised. It has not been audited. P-256 only, no key generation. If `r = 0` or `s = 0` it does not retry but answers failure (probability around 2^−128) — building that branch creates untestable code, and untested cryptographic code is worse than none.
+> > It has not been audited. It exports **verification** only — no signing, no point decompression, no constant-time scalar multiplication. The scalars in verification are public, so branching on them is fine; handling secret scalars is not this module’s job.
 
-**Why the nonce is derived, not random.** In ECDSA, a nonce leaked once or repeated once reveals the whole private key.
+**Why a new module instead of changing `p256`.** [`p256`](sec88.md#mod-p256) hard-codes its 16 limbs into loop bounds and workspace offsets, and several modules already use it, fully checked. Making it generic over the limb count would touch checked code. So each curve gets its own module — this file is `p256` carried from 16 limbs to 24, and **not one formula differs**. Only the sizes do.
+
+| **place** | **`p256`** | **`p384`** |
+|---|---|---|
+| one number (16-bit limbs) | 16 | 24 |
+| one point (Jacobian X · Y · Z) | 48 | 72 |
+| Montgomery scratch | 18 | 26 |
+| exponent bits | 256 | 384 |
+
+*Table 50.1 — `p256` and `p384` differ only in sizes*
+
+| **op** | **what it does** |
+|---|---|
+| `ecdsa_ok` | does the signature `(r, s)` match hash `e` and public key `pub` — `ok 1` yes · `ok 0` no · `error short_workspace` the workspace is too small |
+
+*Table 50.2 — ops of `p384`*
+
+`ecdsa_ok` takes the curve constants (`p` · `n` · `Gx` · `Gy`) from the caller, the public key in affine form `x ‖ y` (48 limbs), and a workspace `w` of at least 1364 limbs (1.5 × `p256`′s 924). **A short workspace is a failure, not an answer** — once “not enough room” and “bad signature” were both 0, and a program that passed the wrong workspace looked like it had a bad signature.
+
+The computation: first check that `r` and `s` lie in `1 … n−1`, then
 
 ```text
-s = k⁻¹ (h + r·d)   ⇒   d = (s·k − h) / r
+w  = s⁻¹ mod n
+u1 = e·w mod n ,  u2 = r·w mod n
+R  = u1·G + u2·Q         (Q = the public key point)
+true if R.x ≡ r (mod n)
 ```
 
-Knowing `k` finishes it in that one line, and using the same `k` twice lets `k` be solved from two signatures. And the ways a random source fails are silent — empty entropy, identical state after a fork, a restored virtual machine snapshot. So **no random source is used at all.** `k = HMAC-DRBG(private key, message hash)`. The same (key, message) gives the same signature, and that is a property, not a defect.
+Modular multiplication reuses [`bigint`](sec86.md#mod-bigint)’s Montgomery product — `p` and `n` are both odd, so the condition holds and no new arithmetic is built. Coordinates are Jacobian for the same reason as `p256` (the inverse is postponed to one at the very end).
 
-| **op** | **What it does** | **Requires** |
-|---|---|---|
-| `nonce6979` | RFC 6979 §3.2 — (d, h) → k | `w ≥ 480` bytes · `wu ≥ 16` limbs |
-| `sign` | (d, h) → `r ‖ s`, 64 bytes | `wb ≥ 512` bytes · `wu ≥ 908` limbs |
-
-*Table 50.1 — Ops of `ecdsa`*
-
-Curve constants (p · n · Gx · Gy) are given by the caller — this module holds no tables. Signing uses only `smul_ct` of `p256`, and a test confirms it. `k⁻¹` is Fermat exponentiation whose exponent (n − 2) is public, so the order of operations is fixed.
-
-**Generosity is not free.** The workspace was first sized at 1052 limbs, which exceeded `--run`’s array argument limit (u64 1024) and could not be tested on the VM. Gaps were pulled in twice to reach 908 — a size that cannot be tested is not a size but a defect. **Performance** — `sign` has many parameters, locals and instructions and does not enter the typed fast path. One signature per connection makes that bearable for now.
-
-**What is checked** — the official RFC 6979 §A.2.5 vectors (nonce k and r · s for messages `"sample"` and `"test"`, byte for byte), whether our verifier accepts the signatures produced, and whether flipping one bit is rejected. Vector comparison asks “is it per the standard”; the round trip asks “do our two sides agree”.
+**What is checked** — two oracles we did not build. ① A signature made by `openssl` (secp384r1 · SHA-384) and accepted by `openssl dgst -verify` — one positive and **three negatives** (one bit of `s` · one bit of the hash · `s = 0`). ② Real certificate chains signed by real CAs (the intermediate of several public sites is P-384). The NIST CAVP vectors have **not been run yet** — the file is not in the repository. The consumer of this module is [`verify`](sec95.md#mod-verify).
 
 ---
 

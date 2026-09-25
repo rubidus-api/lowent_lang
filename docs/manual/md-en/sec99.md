@@ -1,58 +1,65 @@
-# <a id="mod-shard"></a>`shard` — access units that split a store
+# <a id="mod-http"></a>`http` — HTTP/1.1 request parser
 
 Source
 
-`lib/shard.low`
+`lib/http.low`
 
 Layer
 
-L1 — the caller’s storage
+L0 — pure computation
 
 Capabilities
 
 none
 
-Splits one block of storage into **non-overlapping pieces** so each can be changed separately. A piece is represented by a **token**, and a token is the right “this range is mine”. Whether pieces then ride on several threads or run sequentially, the fact that they do not overlap is itself the value.
+Takes request bytes and answers **where each field starts and how many bytes it is** (RFC 9112). It does not cut — the caller cuts with `subslice`. **Every failure is `0`**. `0` can never be a legitimate position — the smallest request is `GET / HTTP/1.1␍␊␍␊`, so no field starts at 0.
+
+> **What it promises and what it does not**
+>
+> > Server-side request parsing only (no response parsing). There is no transport — the caller gathers the bytes. **Chunked transfer (`Transfer-Encoding: chunked`) is not built** — it only finds that header, so the caller must reject. No trailers, multi-line headers (obs-fold), URL percent-decoding or HTTP/2. HTTP/1.0 is not accepted — its persistent connection rules differ and were not built.
 
 ```lowent
-newtype grid u8 .
-var r owned shard.token grid . be shard.open grid 8 .
-var h shard.halves grid . be shard.split_at grid r 4 .
-var lo owned shard.token grid . be (field h low) .
-var hi owned shard.token grid . be (field h high) .
-rem r can no longer be used --- using it is E-OWN-MOVED
+let t u64 be http.target_off b .
+let n u64 be http.target_len b .
+guard gt n 0 . else return 0 .
+let target slice u8 . be subslice b t (add t n) .
 ```
 
-> **What it prevents — and who prevents it**
->
-> > ① Touching through the root after splitting is the compile error `E-OWN-MOVED`. The language prevents it, not this module — the token is `owned`, so it leaves your hands the moment it is passed to `split_at`. ② Touching another piece’s positions makes `write` and `read` answer `false` and `none` (no stop — failure is a value). ③ Tokens of different stores have different brands as types and do not mix. **Not prevented** — viewing the other piece read-only while split (frozen cross reads) and region-level disjointness proofs. They were not built, and that is written down.
+| **op** | **What it does** |
+|---|---|
+| `method_get` · `method_head` · `method_post` · `method_put` · `method_delete` | Method codes (1 … 5) |
+| `method_code` | Method in the request line → code. 0 = unknown |
+| `line_next` · `line_len` | Position of the next line · content length of this line (without CRLF) |
+| `target_off` · `target_len` | Position · length of the request target |
+| `version_ok` | Is it `HTTP/1.1` |
+| `headers_off` · `header_next` | First header · next header (0 at the blank line) |
+| `name_len` · `value_off` · `value_len` | Header name length · value position · value length |
+| `name_eq` | Is this header’s name that one (case-insensitive) |
+| `header_find` · `header_find_len` | Value position · length for that name. **0 if duplicated** |
+| `content_length` | `option u64` — `some 0` if absent, `none` if malformed |
+| `body_off` | Where the body starts |
 
-**Why it was built without a new statement.** The language design documents proposed a new statement, `split region R into R1 … Rn by P`, as the answer. But the language already had two things — **brands** (types carry a store’s identity) and **`owned`** (a value is unique and leaves your hands when passed). Multiply them and a token is an access unit (chapter 19).
+*Table 50.1 — Ops of `http`*
 
-| **op** | **Shape** | **On failure** |
-|---|---|---|
-| `token` · `halves` | Piece token · result of splitting in two (`low` · `high`) | — |
-| `open` | `comptime b, n u64 → owned token b` | none (range `0..n`) |
-| `split_at` | `comptime b, t owned token b, at u64 → halves b` | none (`at` is clamped to the range) |
-| `rejoin` | `comptime b, a owned token b, c owned token b → option (token b)` | `none` if order or adjacency is wrong |
-| `covers` | `comptime b, t token b, i u64 → bool` | — |
-| `width` | `comptime b, t token b → u64` | contract violation stops on entry |
-| `write` | `comptime b, t, mem mut slice u64, i, v → bool` | `false` out of range |
-| `read` | `comptime b, t, mem slice u64, i → option u64` | `none` out of range |
+**The core of this module is rejection.** A parser is defined more by what it rejects than what it accepts. Wrong acceptance in HTTP has a name — **request smuggling**. If the front (proxy) and back (server) read the same bytes differently, a request one sees the other does not.
 
-*Table 50.1 — Ops of `shard`*
+| **Rejected** | **Why** |
+|---|---|
+| Bare `LF` as line end | If the front accepts only CRLF, boundaries diverge |
+| Space between name and colon (`Host : x`) | RFC 9112 §5.1 requires rejection |
+| Two `Content-Length` | Rejected even if the values agree |
+| `Content-Length: 5, 5` · `+5` · empty | Digits only — that leniency is smuggling |
+| `HTTP/1.0` | Different persistent connection rules, not built |
+| The same header twice (`header_find`) | Whether merging is allowed varies per header and that table was not built — unknown means reject |
+| Empty target (`GET  HTTP/1.1`) · unterminated headers (no blank line) | — |
 
-**`rejoin`’s ordering convention — and why it is not a contract.** When joining, pass the lower id first (deadlock convention: cross acquisition is always ascending). Breaking it gives `none`. It was first written as `requires lt (field a id) (field c id) .`, but the contract test generator cannot produce rejection cases for relations between two struct arguments. A contract nobody can verify is a sentence, not a check, so it was lowered to a value the caller must receive.
+*Table 50.2 — What `http` rejects*
 
-> **Counter-example. Joining in reverse**
->
-> > `shard.rejoin g hi lo` is `none`. It does not stop, so without looking at the return value you pass on unaware that nothing was joined. Receive it with `guard is_some back .`.
+**Why `content_length` is an `option`.** “Absent” and “wrong” are different answers. Absent gives `some 0` (a normal request without a body); malformed gives `none` (the connection must be dropped). With one value the two mix, and where they mix is where attacks live.
 
-> **Counter-example. Opening two stores with one brand**
->
-> > Calling `shard.open` twice with the same brand `g` is the compile error `E-BRAND-REUSED`. A brand names one store. Two stores need two `newtype`s (brands carry no data, so they cost nothing).
+**This module caught a processor defect.** It was first written with `input b str .`. `--check` passed, but 16 of 21 ops fell onto the slow interpreted path (about 80×). `str` was not a builtin but a local alias in [`strings`](sec59.md#mod-strings) the checker let the name through, but the typed lowering did not know its meaning. The answers were right, so tests could never see it — a silent 80×. Now using such a name in a signature gives a `W-NOT-YET` warning. Passing checks and being fast are different things, and without looking at `--why-slow` this file would have shipped as it was.
 
-**Cautions.** Bind tokens to `var` (`owned` requires a mutable place). `split_at`’s `at` is clamped — out of range yields an empty piece, and an empty piece touches nothing, so it is safe. There is no synchronisation on the hot path — the token already stated the right, leaving only a range check, and tests confirm zero atomic operations or locks on that path in emitted C. This module knows nothing of threads — putting tokens on execution units is the business of chapter 27.
+**What is checked** — RFC 9112 examples (8 normal), 9 rejections, VM/native agreement, zero ops falling onto the slow path.
 
 ---
 

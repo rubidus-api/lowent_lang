@@ -1,67 +1,61 @@
-# <a id="mod-soa"></a>`soa` — an SoA layout trial: one array per field
+# <a id="mod-tls13"></a>`tls13` — the computational parts of TLS 1.3
 
 Source
 
-`lib/soa.low`
+`lib/tls13.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-There are two ways to keep n elements of `{x, y, vx, vy}`. **AoS** (Array of Structs) lays whole elements in one array; **SoA** (Struct of Arrays) keeps **one array per field** side by side. For a computation scanning only x, SoA reads just the needed values contiguously and uses the cache economically.
+Four pure computations TLS 1.3 requires (RFC 8446) — the **key schedule** (deriving traffic keys from the shared secret and transcript hash, §7.1), the **record layer** (sealing and opening records, §5), the **transcript hash** (the hash of every message exchanged so far, §4.4.1), and **Finished** (proof that the handshake was not altered along the way, §4.4.4). All are pure, so they can be built without transport and measured against test vectors — parser first, transport later.
 
-> **A measurement, not an answer**
+> **This is not a TLS implementation**
 >
-> > A study proposing SoA as a language feature (a type constructor like `store[T, soa]` with dozens of keywords and ops) was **deferred**, with the reconsideration condition “first write it in `lib/` with zero new builtins; where it gets stuck becomes the list of language work”. This module is that. Finding — **the SoA layout itself is fully expressible as a library**. Per-field arrays, stride-free sequential access and single-field kernels are all written without new language machinery. No speed claims without measurement — this module guarantees only correctness, that both layouts give the same answer, and code touching whole elements is better off with AoS.
+> > There is no state machine — it does not drive the handshake (message layer and ordering are [`tlssrv`](sec97.md#mod-tlssrv)’s). There is no transport. No PSK, 0-RTT, exporter or resumption secrets; only the 1-RTT path was built. No PKI ([`der`](sec92.md#mod-der)). It does not promise constant time and has not been audited. There are two suites, and unknown suites are rejected.
 
-| **op** | **Shape** | **Failure** |
-|---|---|---|
-| `step_x` | `proc (xs mut slice u64, vxs slice u64, n u64) → u64` — `xs[i] += vxs[i]` | none — processes only `min(n, len xs, len vxs)` and answers that count |
-| `sum_field` | `fn (f slice u64) → u64` | none |
-| `get_x` | `fn (xs slice u64, i u64) → u64` | `0` out of range |
-| `step_all` | `proc (xs, ys mut slice u64, vxs, vys slice u64, n u64) → u64` | none — the smaller of two counts |
-| `step_x_aos` | `proc (rows mut slice u64, stride, xoff, voff, n u64) → u64` — the AoS version | stops at the element whose velocity slot is out of range and answers that `i` |
-
-*Table 50.1 — Ops of `soa` — all `effects none`*
-
-```lowent
-proc demo input xs mut slice u64 . . input vxs mut slice u64 . .
-  input rows mut slice u64 . . output u64 .
-do
-  set (index xs 0) 1 .
-  set (index xs 1) 2 .
-  set (index vxs 0) 10 .
-  set (index vxs 1) 20 .
-  let n1 u64 be soa.step_x xs vxs 2 .
-  guard eq n1 2 . else return 90 .
-  let s1 u64 be soa.sum_field (subslice xs 0 2) .
-  set (index rows 0) 1 .
-  set (index rows 1) 10 .
-  set (index rows 2) 2 .
-  set (index rows 3) 20 .
-  let n2 u64 be soa.step_x_aos rows 2 0 1 2 .
-  guard eq n2 2 . else return 91 .
-  var s2 u64 be add (index rows 0) (index rows 2) .
-  guard eq s1 s2 . else return 92 .
-  return s1 .
-end
+```text
+0 ─HKDF-Extract(PSK)→ Early Secret ─Derive-Secret("derived","")→ ┐
+ECDHE ─HKDF-Extract────────────────→ Handshake Secret ←──────────┘
+  ├─ Derive-Secret("c hs traffic", CH..SH)
+  └─ Derive-Secret("s hs traffic", CH..SH)
+─Derive-Secret("derived","")→ ┐
+0 ─HKDF-Extract──────────────→ Master Secret
+  ├─ Derive-Secret("c ap traffic", CH..server Finished)
+  └─ Derive-Secret("s ap traffic", CH..server Finished)
 ```
 
-**Where it gets stuck — the list of language work.** ① There is no syntax for handling one element “as a lump” — the caller gathers fields by hand (`get_x`). Inconvenient, not impossible. ② Arguments multiply with the number of fields (`step_all`) — solved since slices were allowed in struct fields, but this module is a measurement record and keeps the four-argument shape. ③ **Types do not know the layout** — AoS and SoA versions get different op names (`step_x` versus `step_x_aos`), and AoS offset arguments are all `u64` where the compiler cannot help.
+Record keys come from each secret — `key = Expand-Label(secret, "key", "", length)`, `iv = Expand-Label(secret, "iv", "", 12)`.
 
-> **Counter-example. Ignoring the returned count**
->
-> > `soa.step_x xs vxs 1000` silently processes only 3 if `xs` has 3 slots. Code assuming all `n` were processed confirms with `guard eq m n .`.
+| **op** | **What it does** |
+|---|---|
+| `build_label` · `expand_label` | HkdfLabel structure to bytes · `HKDF-Expand-Label` |
+| `derive_secret` | `Derive-Secret(secret, label, transcript hash)` |
+| `advance` | One rung of the ladder — one arrow in the diagram above |
+| `traffic_key` · `traffic_iv` | Secret → record key · IV |
+| `finished_key` · `verify_data` | Key and value of Finished |
+| `record_header` · `record_nonce` | 5-byte header `23 ‖ 0x0303 ‖ length` · IV and sequence number → nonce |
+| `record_seal` · `record_open` | Sealing · opening a record |
+| `inner_type` | Reads the real content type from the **end** of the inner plaintext |
+| `transcript` | Hash of a buffer of concatenated messages |
+| `hs_type` · `hs_size` · `hs_count` | Walking handshake messages |
+| `check_finished` | Recomputes the peer’s Finished and compares |
 
-> **Counter-example. Swapping the AoS offsets**
->
-> > `soa.step_x_aos rows 2 1 0 3` has xoff and voff reversed and adds position to velocity without error. That is how “layout is not in the type” feels.
+*Table 50.1 — Ops of `tls13`*
 
-**Cautions.** Keeping parallel arrays the same length is the caller’s responsibility — ops shrink to the shorter one without telling. `get_x`’s failure value 0 cannot be told from a normal value. A bare `index` does not shrink the range and stops with `E-VM-BOUNDS`. Splitting a long `let` or `set` across lines lets the newline close the form — end the line with `,` to continue.
+**A record’s outside differs from its inside.** The outside is always `23 ‖ 0x0303 ‖ length` — handshake and application data look the same. The real content type is at the end of the inner plaintext, arranged to hide it from observers. The AAD is that 5-byte header itself.
+
+**Two suites give negotiation meaning.** Suite 1 = `TLS_AES_128_GCM_SHA256` (MUST, [`gcm`](sec84.md#mod-gcm)), suite 2 = `TLS_CHACHA20_POLY1305_SHA256` (SHOULD, [`aead`](sec81.md#mod-aead)). With only one built, this place was a dead branch. Unknown suites are rejected — it does not silently pick one.
+
+**The transcript hash is the backbone of the handshake.** Keys and Finished alike stand on the hash of “every message exchanged so far”, so if a man in the middle changes even one byte, the two sides’ keys diverge. **Where the transcript is cut is half the standard** — RFC 8448 records those points as each Derive-Secret’s hash, and tests compare all three (`CH…SH`, `CH…server Finished`, `CH…client Finished`). SHA-256 here works in one shot (no streaming), so the transcript is measured over **a buffer the caller concatenated**. Message walking does not trust length fields — if a length exceeding the buffer is written, it stops there. `check_finished` accumulates XOR over 32 bytes and looks once at the end (no early return).
+
+**Why workspaces are bundled into two.** The parameter limit is 16, so laying out buffers per suite overflows quickly. So they are bundled into bytes `w` and `u64` `u`, with positions written in source comments. It is not pretty — it is the shape the language’s limit made, and better not hidden.
+
+**What is checked — two layers.** §7.1 independently implemented with Python `hashlib` and `hmac` for byte comparison, and 96 values of RFC 8448 §3 extracted mechanically from the canonical text and compared. **And the canonical text caught a defect.** `traffic_key` had the key length fixed at 32, but that length goes inside HkdfLabel, so with a peer using AES-128-GCM (16) the key differs entirely. The second implementation did not catch it — the same person wrote 32 in both. A second implementation is not the canonical source.
 
 ---
 

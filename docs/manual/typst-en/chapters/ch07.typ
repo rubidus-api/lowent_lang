@@ -140,8 +140,7 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   #demo("examples/ch07/mistake_forin.low")
 
   `for` is `for <name> <slice> do`. The thing to walk comes right after the name, and `do` already marks where the body starts, so `in`
-  would carry nothing. It was removed so that one meaning has one spelling. The long diagnostic suggests the glued dot (`a.b`) as an
-  alternative, but that spelling is also rejected nowadays --- the message is out of date in this edition. The fix: `for x xs do`.
+  would carry nothing. It was removed so that one meaning has one spelling. The fix: `for x xs do`.
 ]
 
 #antipattern[Chaining branches with `elif`][

@@ -54,11 +54,13 @@ An *effect* is an influence an op has on the outside. Authors cannot invent new 
   [`lock`], [Takes a lock],
   [`device`], [Touches a device directly],
   [`unsafe`], [Does work the language cannot check],
-  [`page_fault` · `blocking` · `cancel` · `detach`], [Accepted as vocabulary, but no primitive produces them yet],
+  [`page_fault` · `blocking` · `cancel` · `detach`], [a flow stopping or being cut off --- no primitive produces them yet],
 )
 
-`io`, `alloc`, `heap`, `state`, `panic`, `atomic`, `concurrent` and `unsafe` have primitives that actually produce them, and the compiler enforces
-them. The last row is accepted as declarations but has nothing to enforce yet. A word not on the list is rejected.
+The nine `io`, `alloc`, `heap`, `state`, `panic`, `atomic`, `concurrent`, `wait` and `unsafe` have primitives that actually produce them, and the
+compiler enforces them --- a body that does it must say so, and saying it without doing it is reported. The other six (`lock`, `device`, `page_fault`,
+`blocking`, `cancel`, `detach`) have no primitive yet. They are accepted as declarations and *spread* to callers, but whether the body really does
+it cannot be asked. A word not on the list is rejected.
 
 #demo("examples/ch15/undef.low")
 
@@ -211,12 +213,12 @@ proof.
   #demo("examples/ch15/mistake_blocking.low")
 
   `blocking` means "may hold the flow of execution", so a `fn` calling such an op is not pure, and it is refused with `E-EFFECT-CALC`.
-  Until 2026-09-16 five atoms --- `blocking`, `page_fault`, `cancel`, `detach` and `device` --- did *not* spread to the caller, so this
+  Until 2026-09-16 six atoms --- `lock`, `device`, `page_fault`, `blocking`, `cancel` and `detach` --- did *not* spread to the caller, so this
   passed; `device`, which touches hardware directly, could hide behind a pure function. The same shape with `wait` was refused even then.
 
   #demo("examples/ch15/blocking_wait.low")
 
-  These five have no primitive that performs them yet, so they are not asked about by "declared but never performed" (`W-EFFECT-OVER`)
+  These six have no primitive that performs them yet, so they are not asked about by "declared but never performed" (`W-EFFECT-OVER`)
   --- there is no body to ask. They only propagate.
 ]
 

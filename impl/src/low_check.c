@@ -7215,10 +7215,10 @@ static const struct { const char *word; const char *why; } CK_REMOVED[] = {
               "dot (`a.b`) is refused too (`E-FIELD-GLUED`). (`send` now reads `send <actor> <message> [args…]` — "
               "the actor comes FIRST, because a message IS an op call and the instance IS its first "
               "parameter)" },
-    { "in",   "infix access is gone — `b in a` was the reverse spelling of `a to b`, i.e. a THIRD "
-              "way to say `field a b`. Write `field a b` / `index a i`, or the glued dot: `a.b` / "
-              "`a.3`. (`for` now reads `for <name> <seq> do` — `do` marks the end, so the marker "
-              "carried nothing)" },
+    { "in",   "`in` is gone. In a loop write `for <name> <slice> do` — the slice follows the name and "
+              "`do` marks the body, so `in` carried nothing. As access, `b in a` was a reverse spelling "
+              "of `field a b`: write `field a b` / `index a i` (the glued dot `a.b` is refused too, "
+              "`E-FIELD-GLUED`)" },
     { "loop", "`loop` was an exact SYNONYM of `while true .` — SPEC-002 §2.5 forbids synonyms. "
               "Write `while true . do … end`" },
     { "when", "`when` is gone. The `errors` clause now takes ONE error per clause — "

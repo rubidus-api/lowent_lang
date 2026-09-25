@@ -1,67 +1,61 @@
-# <a id="mod-soa"></a>`soa` — SoA 배치 시범: 필드마다 배열 하나
+# <a id="mod-tls13"></a>`tls13` — TLS 1.3 의 계산 부품
 
 소스
 
-`lib/soa.low`
+`lib/tls13.low`
 
 층
 
-L0 — 순수 계산
+L0 — 순수 계산(호출자의 뒷받침)
 
 권한
 
 없음
 
-원소가 `{x, y, vx, vy}` 인 자료 n 개를 두는 방법은 둘이다. **AoS**(Array of Structs)는 한 배열에 원소를 통째로 늘어놓고, **SoA**(Struct of Arrays)는 **필드마다 배열 하나**를 나란히 둔다. x 만 훑는 계산이라면 SoA 쪽이 필요한 값만 연속으로 읽어 캐시를 알뜰하게 쓴다.
+TLS 1.3 이 요구하는 순수 계산 넷이다(RFC 8446) — **키 스케줄**(공유 비밀과 전사 해시에서 트래픽 키를 유도, §7.1), **레코드 계층**(레코드를 봉하고 연다, §5), **전사 해시**(지금까지 오간 메시지 전부의 해시, §4.4.1), **Finished**(핸드셰이크가 중간에 바뀌지 않았음을 증명, §4.4.4). 전부 순수해서 전송 없이 지을 수 있고 시험 벡터로 잴 수 있다 — 파서를 먼저, 전송을 나중에.
 
-> **답이 아니라 측정이다**
+> **이것은 TLS 구현이 아니다**
 >
-> > SoA 를 언어 기능(`store[T, soa]` 같은 타입 생성자와 키워드 · op 수십 개)으로 넣자는 조사는 **보류**됐고, 재검토 조건은 “먼저 `lib/` 에 빌트인 증가 0 으로 써 본다. 거기서 막히는 곳이 언어 작업의 목록이 된다” 였다. 이 모듈이 그것이다. 발견 — **SoA 배치 자체는 라이브러리로 완전히 표현된다**. 필드별 배열, 보폭 없는 순차 접근, 한 필드만 훑는 커널이 전부 새 언어 기계 없이 써진다. 속도 주장은 측정 없이 하지 않는다 — 이 모듈이 보장하는 것은 두 배치가 같은 답을 낸다는 정확성뿐이고, 원소 전체를 만지는 코드는 AoS 가 낫다.
+> > 상태 기계가 없다 — 핸드셰이크를 구동하지 않는다(메시지 층과 순서는 [`tlssrv`](sec96.md#mod-tlssrv) 가 한다). 전송이 없다. PSK · 0-RTT · exporter · resumption 비밀이 없고 1-RTT 한 갈래만 지었다. PKI 가 없다([`der`](sec91.md#mod-der)). 상수 시간을 약속하지 않고 감사받지 않았다. 스위트는 둘뿐이고 모르는 스위트는 거절한다.
 
-| **op** | **모양** | **실패** |
-|---|---|---|
-| `step_x` | `proc (xs mut slice u64, vxs slice u64, n u64) → u64` — `xs[i] += vxs[i]` | 없음 — `min(n, len xs, len vxs)` 만 처리하고 그 수를 답한다 |
-| `sum_field` | `fn (f slice u64) → u64` | 없음 |
-| `get_x` | `fn (xs slice u64, i u64) → u64` | 범위 밖이면 `0` |
-| `step_all` | `proc (xs, ys mut slice u64, vxs, vys slice u64, n u64) → u64` | 없음 — 두 처리 수 중 작은 쪽 |
-| `step_x_aos` | `proc (rows mut slice u64, stride, xoff, voff, n u64) → u64` — AoS 판 | 속도 자리가 범위 밖인 원소에서 멈추고 그 `i` 를 답한다 |
-
-*표 50.1 — `soa` 의 op — 모두 `effects none`*
-
-```lowent
-proc demo input xs mut slice u64 . . input vxs mut slice u64 . .
-  input rows mut slice u64 . . output u64 .
-do
-  set (index xs 0) 1 .
-  set (index xs 1) 2 .
-  set (index vxs 0) 10 .
-  set (index vxs 1) 20 .
-  let n1 u64 be soa.step_x xs vxs 2 .
-  guard eq n1 2 . else return 90 .
-  let s1 u64 be soa.sum_field (subslice xs 0 2) .
-  set (index rows 0) 1 .
-  set (index rows 1) 10 .
-  set (index rows 2) 2 .
-  set (index rows 3) 20 .
-  let n2 u64 be soa.step_x_aos rows 2 0 1 2 .
-  guard eq n2 2 . else return 91 .
-  var s2 u64 be add (index rows 0) (index rows 2) .
-  guard eq s1 s2 . else return 92 .
-  return s1 .
-end
+```text
+0 ─HKDF-Extract(PSK)→ Early Secret ─Derive-Secret("derived","")→ ┐
+ECDHE ─HKDF-Extract────────────────→ Handshake Secret ←──────────┘
+  ├─ Derive-Secret("c hs traffic", CH..SH)
+  └─ Derive-Secret("s hs traffic", CH..SH)
+─Derive-Secret("derived","")→ ┐
+0 ─HKDF-Extract──────────────→ Master Secret
+  ├─ Derive-Secret("c ap traffic", CH..server Finished)
+  └─ Derive-Secret("s ap traffic", CH..server Finished)
 ```
 
-**막히는 자리 — 언어 작업의 목록.** ① 원소 하나를 “한 덩어리” 로 다루는 문법이 없다 — 호출자가 필드를 손으로 모은다(`get_x`). 불편할 뿐 불가능하지 않다. ② 필드 개수만큼 인자가 늘어난다(`step_all`) — 이것은 구조체 필드에 슬라이스를 허용하면서 풀렸지만, 이 모듈은 측정 기록이라 네 인자 모양을 그대로 둔다. ③ **타입이 배치를 모른다** — AoS 판과 SoA 판이 서로 다른 op 이름이 되고(`step_x` 대 `step_x_aos`), AoS 의 오프셋 인자는 전부 `u64` 라 컴파일러가 지켜 주지 못한다.
+각 비밀에서 레코드 키가 나온다 — `key = Expand-Label(비밀, "key", "", 길이)`, `iv = Expand-Label(비밀, "iv", "", 12)`.
 
-> **반례. 반환된 처리 수를 보지 않는다**
->
-> > `soa.step_x xs vxs 1000` 은 `xs` 가 3 칸이면 조용히 3 개만 처리한다. `n` 개가 전부 처리됐다고 가정하는 코드는 `guard eq m n .` 으로 확인한다.
+| **op** | **하는 일** |
+|---|---|
+| `build_label` · `expand_label` | HkdfLabel 구조체를 바이트로 · `HKDF-Expand-Label` |
+| `derive_secret` | `Derive-Secret(비밀, 라벨, 전사 해시)` |
+| `advance` | 사다리 한 칸 — 위 그림의 화살표 하나 |
+| `traffic_key` · `traffic_iv` | 비밀 → 레코드 키 · IV |
+| `finished_key` · `verify_data` | Finished 의 키와 값 |
+| `record_header` · `record_nonce` | 5 바이트 헤더 `23 ‖ 0x0303 ‖ 길이` · IV 와 시퀀스 번호 → 논스 |
+| `record_seal` · `record_open` | 레코드 봉하기 · 열기 |
+| `inner_type` | 속 평문의 **끝**에서 진짜 내용 타입을 읽는다 |
+| `transcript` | 이어 붙인 메시지 버퍼의 해시 |
+| `hs_type` · `hs_size` · `hs_count` | 핸드셰이크 메시지 걷기 |
+| `check_finished` | 상대의 Finished 를 다시 계산해 맞춰 본다 |
 
-> **반례. AoS 판의 오프셋을 바꿔 낀다**
->
-> > `soa.step_x_aos rows 2 1 0 3` 은 xoff 와 voff 가 뒤집혀 에러 없이 속도에 위치가 더해진다. 배치가 타입에 실리지 않는다는 막힘의 실감이다.
+*표 50.1 — `tls13` 의 op*
 
-**주의.** 나란한 배열들의 길이를 맞추는 것은 호출자 책임이다 — op 은 짧은 쪽에 맞춰 줄일 뿐 알려 주지 않는다. `get_x` 의 실패 값 0 은 정상 값과 구분되지 않는다. 맨 `index` 는 범위를 줄여 주지 않고 `E-VM-BOUNDS` 로 멈춘다. 긴 `let` · `set` 을 줄바꿈으로 나누면 개행이 form 을 닫는다 — 이어 쓰려면 줄 끝에 `,` 를 둔다.
+**레코드는 겉과 속이 다르다.** 겉은 언제나 `23 ‖ 0x0303 ‖ 길이` 다 — 내용이 핸드셰이크든 응용 데이터든 똑같이 보인다. 진짜 내용 타입은 속 평문의 끝에 있다. 관찰자에게 감추려고 그렇게 짰다. AAD 는 그 5 바이트 헤더 자체다.
+
+**스위트가 둘이라 협상이 뜻을 갖는다.** 스위트 1 = `TLS_AES_128_GCM_SHA256`(MUST, [`gcm`](sec83.md#mod-gcm)), 스위트 2 = `TLS_CHACHA20_POLY1305_SHA256`(SHOULD, [`aead`](sec80.md#mod-aead)). 하나만 지었을 때 이 자리는 죽은 분기였다. 모르는 스위트는 거절한다 — 조용히 하나를 고르지 않는다.
+
+**전사 해시가 핸드셰이크의 뼈대다.** 키도 Finished 도 “지금까지 오간 메시지 전부” 의 해시 위에 서므로 중간자가 한 바이트라도 바꾸면 양쪽 키가 갈린다. **전사를 어디서 자르는지가 규격의 절반이다** — RFC 8448 이 각 Derive-Secret 의 해시로 그 자리를 적어 두었고, 시험이 세 자리(`CH…SH`, `CH…서버 Finished`, `CH…클라이언트 Finished`)를 전부 맞댄다. SHA-256 이 한 번에 하는 방식(스트리밍 없음)이라 전사는 **호출자가 이어 붙인 버퍼** 위에서 잰다. 메시지 걷기는 길이 필드를 믿지 않는다 — 버퍼를 넘는 길이가 적혀 있으면 거기서 멈춘다. `check_finished` 의 비교는 32 바이트를 XOR 로 누적해 마지막에 한 번 본다(조기 반환 없음).
+
+**작업 공간을 둘로 묶는 이유.** 파라미터 상한이 16 이라 스위트마다 버퍼를 늘어놓으면 금방 넘는다. 그래서 바이트 `w` 와 `u64` `u` 둘로 묶고 자리를 소스 주석에 적어 나눠 쓴다. 예쁘지 않다 — 언어의 상한이 만든 모양이고, 그 사실을 감추지 않는 편이 낫다.
+
+**확인하는 것 — 두 겹이다.** 파이썬 `hashlib` · `hmac` 로 §7.1 을 독립 구현해 바이트 대조하고, RFC 8448 §3 의 값들을 정본에서 기계로 뽑아 96 자리를 맞댄다. **그리고 정본이 결함을 하나 잡았다.** `traffic_key` 가 키 길이를 32 로 박아 두었는데, 그 길이는 HkdfLabel 안에 들어가므로 AES-128-GCM(16)을 쓰는 상대와는 키가 통째로 달라진다. 두 번째 구현으로는 잡히지 않았다 — 같은 사람이 같이 32 를 썼기 때문이다. 두 번째 구현은 정본이 아니다.
 
 ---
 

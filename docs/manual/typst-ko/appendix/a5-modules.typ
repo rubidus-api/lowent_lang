@@ -46,12 +46,16 @@
   [#modref("bigint")[`bigint`]], [큰수 모듈러 산술],
   [#modref("rsa")[`rsa`]], [RSASSA-PSS 검증],
   [#modref("p256")[`p256`]], [NIST P-256 곡선과 ECDSA 검증],
+  [#modref("p384")[`p384`]], [NIST P-384 곡선과 ECDSA 검증 --- 공개 웹의 중간 인증기관],
   [#modref("ecdsa")[`ecdsa`]], [ECDSA P-256 서명 --- 난수 없이 논스를 유도한다],
   [#modref("ed25519")[`ed25519`]], [Ed25519 서명 검증],
   [#modref("der")[`der`]], [DER 최소 파서 --- 공개키만 꺼낸다],
   [#modref("pem")[`pem`]], [PEM 봉투 벗기기],
+  [#modref("x509")[`x509`]], [X.509 인증서 읽기 --- 자리와 길이만 낸다],
+  [#modref("verify")[`verify`]], [인증서 서명과 체인의 한 마디 확인],
   [#modref("tls13")[`tls13`]], [TLS 1.3 의 부품 --- 키 스케줄 · 레코드 · 전사 · Finished],
   [#modref("tlssrv")[`tlssrv`]], [서버 TLS 핸드셰이크와 응용 데이터 레코드],
+  [#modref("tlscli")[`tlscli`]], [클라이언트 TLS 1.3 핸드셰이크 --- 인증서 확인은 부르는 쪽이 한다],
   [#modref("http")[`http`]], [HTTP/1.1 요청 파서 --- 알맹이는 거절이다],
   [#modref("soa")[`soa`]], [구조체 배열을 칸별 배열로 두는 배치의 시범],
 )
@@ -88,6 +92,7 @@
   [#modref("tty")[`tty`]], [터미널 입력 --- raw 모드 · 키 읽기 · 순수 키 파싱],
   [#modref("net")[`net`]], [소켓 --- TCP 루프백 · 프로세스 안 연결 쌍],
   [#modref("clock")[`clock`]], [시각과 마감 --- 단조 시계와 벽시계],
+  [#modref("trust")[`trust`]], [신뢰 저장소에서 믿는 뿌리 찾기 --- 묶음을 흘려 읽는다],
 )
 
 암호 모듈은 TLS 1.3 을 향해 층으로 쌓여 있고, 그 차례와 아직 없는 꼭대기는 #chref("lib-io-net")에 있다.

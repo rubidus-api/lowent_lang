@@ -32,7 +32,7 @@ The caller holds the backing (`scratch`). If short it answers 0 and writes nothi
 
 **GHASH bit order — where people slip.** The reduction polynomial of GF(2^128) is `x^128 + x^7 + x^2 + x + 1`, but GCM uses **reversed bit order** — the top bit of a block’s first byte is x^0. So multiplication runs with right shifts, and overflowing bits come back into the first byte as `0xE1`. Read that convention backwards and the ciphertext is right but the whole tag differs, looking only like “decryption fails”.
 
-**On nonces, again.** GCM is counter mode, so the same (key, nonce) yields the same keystream. The XOR of two plaintexts is revealed, and worse, an equation arises from which the GHASH authentication key can be solved, letting the peer forge any message. TLS 1.3 avoids this by **deriving the nonce from the sequence number** (`record_nonce` of [`tls13`](sec93.md#mod-tls13)). If you use it directly, follow that method — random 96-bit nonces collide sooner than you think.
+**On nonces, again.** GCM is counter mode, so the same (key, nonce) yields the same keystream. The XOR of two plaintexts is revealed, and worse, an equation arises from which the GHASH authentication key can be solved, letting the peer forge any message. TLS 1.3 avoids this by **deriving the nonce from the sequence number** (`record_nonce` of [`tls13`](sec96.md#mod-tls13)). If you use it directly, follow that method — random 96-bit nonces collide sooner than you think.
 
 **What is checked** — NIST GCM test vectors, the record ciphertext of RFC 8448 §3 (ciphertext and tag byte for byte), VM/native agreement.
 

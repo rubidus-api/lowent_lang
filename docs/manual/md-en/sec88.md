@@ -18,7 +18,7 @@ Point arithmetic on the elliptic curve `y² = x³ − 3x + b`, and **ECDSA signa
 >
 > > It has not been audited. The verification `smul` **branches** on scalar bits — in verification that scalar is public, so that is fine. For secret scalars (private key, nonce) use `smul_ct` — each step does both doubling and addition and chooses by mask, not by branch. That promise extends to **no secret-dependent branches or memory access**; cache hierarchy, power and electromagnetic leakage are not promised. There is no point decompression and no P-384 or P-521.
 
-**Why this curve.** What public CAs actually issue and browsers actually accept is P-256 and RSA. [`ed25519`](sec90.md#mod-ed25519) is mathematically cleaner but does not work on the public web — the ecosystem decides, not the maths. Signature **generation** is done by [`ecdsa`](sec89.md#mod-ecdsa) on top of this module.
+**Why this curve.** What public CAs actually issue and browsers actually accept is P-256 and RSA. [`ed25519`](sec91.md#mod-ed25519) is mathematically cleaner but does not work on the public web — the ecosystem decides, not the maths. Signature **generation** is done by [`ecdsa`](sec90.md#mod-ecdsa) on top of this module.
 
 | **op** | **What it does** |
 |---|---|

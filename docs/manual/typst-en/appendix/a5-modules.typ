@@ -47,12 +47,16 @@ Cross-module names are always called qualified (`strings.find`), and a frequentl
   [#modref("bigint")[`bigint`]], [Big-number modular arithmetic],
   [#modref("rsa")[`rsa`]], [RSASSA-PSS verification],
   [#modref("p256")[`p256`]], [NIST P-256 curve and ECDSA verification],
+  [#modref("p384")[`p384`]], [NIST P-384 curve and ECDSA verification --- the public web's intermediates],
   [#modref("ecdsa")[`ecdsa`]], [ECDSA P-256 signing --- nonce derived without randomness],
   [#modref("ed25519")[`ed25519`]], [Ed25519 signature verification],
   [#modref("der")[`der`]], [Minimal DER parser --- extracts public keys only],
   [#modref("pem")[`pem`]], [Unwrapping PEM envelopes],
+  [#modref("x509")[`x509`]], [Reading X.509 certificates --- offsets and lengths only],
+  [#modref("verify")[`verify`]], [Certificate signatures and one link of a chain],
   [#modref("tls13")[`tls13`]], [TLS 1.3 parts --- key schedule · records · transcript · Finished],
   [#modref("tlssrv")[`tlssrv`]], [Server TLS handshake and application data records],
+  [#modref("tlscli")[`tlscli`]], [Client TLS 1.3 handshake --- the caller checks certificates],
   [#modref("http")[`http`]], [HTTP/1.1 request parser --- its heart is rejection],
   [#modref("soa")[`soa`]], [A trial of laying structs out as per-field arrays],
 )
@@ -89,6 +93,7 @@ Cross-module names are always called qualified (`strings.find`), and a frequentl
   [#modref("tty")[`tty`]], [Terminal input --- raw mode · reading keys · pure key parsing],
   [#modref("net")[`net`]], [Sockets --- TCP loopback · in-process connection pairs],
   [#modref("clock")[`clock`]], [Time and deadlines --- monotonic and wall clocks],
+  [#modref("trust")[`trust`]], [Finding a trusted root in the trust store --- the bundle is streamed],
 )
 
 The cryptographic modules are stacked in layers towards TLS 1.3; that order and the top that does not exist yet are in #chref("lib-io-net").

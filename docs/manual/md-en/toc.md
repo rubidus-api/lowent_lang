@@ -557,6 +557,7 @@ Searches headings and index terms --- not the full text
 
 - [ At translation time](sec55.md#sx1)
 - [ When execution stops](sec55.md#sx2)
+- [ Other diagnostics](sec55.md#sx3)
 
 [Appendix C — Common mistakes and how to fix them](sec56.md)
 
@@ -693,63 +694,84 @@ Searches headings and index terms --- not the full text
 
 [p256 — the NIST P-256 curve and ECDSA verification](sec88.md)
 
-[ecdsa — ECDSA P-256 signing](sec89.md)
+[p384 — the NIST P-384 curve and ECDSA verification](sec89.md)
 
-[ed25519 — Ed25519 signature verification](sec90.md)
+[ecdsa — ECDSA P-256 signing](sec90.md)
 
-[der — minimal DER parser](sec91.md)
+[ed25519 — Ed25519 signature verification](sec91.md)
 
-[pem — unwrapping PEM envelopes](sec92.md)
+[der — minimal DER parser](sec92.md)
 
-[tls13 — the computational parts of TLS 1.3](sec93.md)
+[pem — unwrapping PEM envelopes](sec93.md)
 
-[tlssrv — the TLS 1.3 server handshake](sec94.md)
+[x509 — reading X.509 certificates](sec94.md)
 
-[http — HTTP/1.1 request parser](sec95.md)
+[verify — certificate signatures and one link of a chain](sec95.md)
 
-[soa — an SoA layout trial: one array per field](sec96.md)
+- [ A chain is a line of links](sec95.md#sx1)
+- [ ops](sec95.md#sx2)
+- [ Design](sec95.md#sx3)
 
-[allocs — allocator traits, bumps and default allocators](sec97.md)
+[tls13 — the computational parts of TLS 1.3](sec96.md)
 
-[pool — generational-handle block pool](sec98.md)
+[tlssrv — the TLS 1.3 server handshake](sec97.md)
 
-[shard — access units that split a store](sec99.md)
+[tlscli — the TLS 1.3 client handshake](sec98.md)
 
-[budget — handle bit budgets and generation wraparound](sec100.md)
+- [ The order of the handshake](sec98.md#sx1)
+- [ ops](sec98.md#sx2)
+- [ Design](sec98.md#sx3)
 
-[wire — dividing one word into fields](sec101.md)
+[http — HTTP/1.1 request parser](sec99.md)
 
-[flags — named on/off settings in one word](sec102.md)
+[soa — an SoA layout trial: one array per field](sec100.md)
 
-[segarena — fixed-size segment arena](sec103.md)
+[allocs — allocator traits, bumps and default allocators](sec101.md)
 
-[pagecache — page ids and pinning cursors](sec104.md)
+[pool — generational-handle block pool](sec102.md)
 
-[growvec — self-growing byte vector](sec105.md)
+[shard — access units that split a store](sec103.md)
 
-[vecgen — generic self-growing vector vec t a](sec106.md)
+[budget — handle bit budgets and generation wraparound](sec104.md)
 
-[mapgen — generic hash map table k v](sec107.md)
+[wire — dividing one word into fields](sec105.md)
 
-[nodelist — fixed intrusive lists](sec108.md)
+[flags — named on/off settings in one word](sec106.md)
 
-[segview — cursors, total length and coalescing for segment views](sec109.md)
+[segarena — fixed-size segment arena](sec107.md)
 
-[lifemode · lifeatom — when a value ends](sec110.md)
+[pagecache — page ids and pinning cursors](sec108.md)
 
-[io — stream reading over slices](sec111.md)
+[growvec — self-growing byte vector](sec109.md)
 
-[outbuf — buffered output where forgetting to flush is a compile error](sec112.md)
+[vecgen — generic self-growing vector vec t a](sec110.md)
 
-[files — file and directory streams where forgetting to close is a compile error](sec113.md)
+[mapgen — generic hash map table k v](sec111.md)
 
-[tty — terminal input](sec114.md)
+[nodelist — fixed intrusive lists](sec112.md)
 
-[net — sockets (TCP loopback · in-process pairs)](sec115.md)
+[segview — cursors, total length and coalescing for segment views](sec113.md)
 
-[clock — time and deadlines](sec116.md)
+[lifemode · lifeatom — when a value ends](sec114.md)
 
-[Index](sec117.md)
+[io — stream reading over slices](sec115.md)
+
+[outbuf — buffered output where forgetting to flush is a compile error](sec116.md)
+
+[files — file and directory streams where forgetting to close is a compile error](sec117.md)
+
+[tty — terminal input](sec118.md)
+
+[net — sockets (TCP loopback · in-process pairs)](sec119.md)
+
+[clock — time and deadlines](sec120.md)
+
+[trust — finding a trusted root in the trust store](sec121.md)
+
+- [ It never holds the whole bundle](sec121.md#sx1)
+- [ ops](sec121.md#sx2)
+
+[Index](sec122.md)
 
 ---
 

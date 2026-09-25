@@ -94,12 +94,18 @@ A region's kind is one of a closed eight --- `stack`, `frame`, `arena`, `static`
 
 A kind word leaves in the code *what the region is for*. In this edition only `heap` actually behaves differently --- it carves from the growing
 root. The other seven all carve and rewind in the fixed window, so `carve_stack` and `carve_static` get 32 and 64 the same way. The kind is still
-written so that the code need not change when the realisation is later tailored to a machine.
+written, and the list kept closed, for two reasons: the code need not change when the realisation is later tailored to a machine, and a word that
+could be anything would say nothing. Someone reading `region t arena` knows "carve from the front, give back all at once".
 
-#demo("examples/ch18/kinds.low")
+```text
+ fixed window: [ a 16 ][ b 32 ][ c 8 ][ ··········· empty ··········· ]
+                                      ▲ cursor --- the next alloc_bytes carves from here
+ on reaching end:
+               [ ································ empty ································ ]
+               ▲ the cursor rewinds to where the region was opened --- a · b · c vanish at once
+```
 
-The processor in this edition distinguishes behaviour only between *the two roots* (heap and the rest). The other seven are not yet told apart. They are still
-closed because a word that could be anything would say nothing. Someone reading `region t arena` knows "carve from the front, give back all at once".
+This picture is why nothing leaks even though no value is given back one by one: giving back is moving one cursor.
 
 == Receiving a region
 
@@ -134,6 +140,13 @@ Carving with the name of an outer region while a region of the same root is open
 
 The fixed window has a single place it carves from (a cursor). When the inner region ends and rewinds the cursor, bytes obtained in between with the outer
 name would be rewound with it. A different root --- carving with a fixed-window capability inside a heap region --- has its own cursor and is fine.
+
+```text
+ outer opened here ▼          inner opened here ▼
+            [ outer's ][ ··· ][ inner's ][ ✘ carved under the outer name ]
+                               ▲ when inner ends the cursor rewinds to here
+                                 → the "outer" bytes on the right vanish too (while outer still uses them)
+```
 
 For the same reason, an op spawned as a task cannot obtain memory directly from a root (`E-ALLOC-TASK`), because a cursor is not shared between flows. Sharing
 an allocator between flows needs an allocator that moves its cursor atomically (#chref("parallel-atomic")).

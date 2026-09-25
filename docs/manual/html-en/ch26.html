@@ -704,7 +704,14 @@ drive() = 61
 $ lowentc --test await.low
   [PASS] join_any_order  (schedule: 2 interleavings agree, exhaustive)
 == tests: 1 run, 1 passed, 0 FAILED ==
-</code></pre></div></div><span id="idx-entry-58"></span><ul><li><code>task_group do … end</code> binds the flows made inside it into one. Where the block ends, all bound flows end, and none leave with any still running.</li><li><code>spawn square 5</code> makes a flow running <code>square 5</code> and gives that flow’s <strong>handle</strong>.</li><li><code>await h1</code> waits until that flow ends and gives its result. While waiting, other flows progress.</li></ul><p>A flow <strong>cannot outlive the block that made it</strong>. So making a flow outside a binding place is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch26/scope.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> scope .
+</code></pre></div></div><span id="idx-entry-58"></span><ul><li><code>task_group do … end</code> binds the flows made inside it into one. Where the block ends, all bound flows end, and none leave with any still running.</li><li><code>spawn square 5</code> makes a flow running <code>square 5</code> and gives that flow’s <strong>handle</strong>.</li><li><code>await h1</code> waits until that flow ends and gives its result. While waiting, other flows progress.</li></ul><p>Drawn on a time axis, the lifetimes look like this.</p><pre><code data-lang="text"> time →
+ drive     ──┬── task_group do ─────────────────────────────── end ──┬──▶ continues
+             │                                                       │
+ flow h1     │     spawn ├──── square 5 runs ───┤ done                │
+ flow h2     │         spawn ├──── square 6 runs ─────────┤ done       │
+             │                          await h1 ▲   await h2 ▲      │
+             └─ where the block opened                where it closed ┘
+                 flows live *only between these two lines* --- no flow is left when end is passed</code></pre><p>A flow <strong>cannot outlive the block that made it</strong>. So making a flow outside a binding place is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch26/scope.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> scope .
 <em><span class="tok-c">rem expect: E-SPAWN-SCOPE</span></em>
 
 <strong><span class="tok-k">fn</span></strong> square <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .

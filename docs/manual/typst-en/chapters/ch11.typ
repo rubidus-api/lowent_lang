@@ -37,7 +37,19 @@
 == `option` --- a value, or none
 
 #idx("option")
-`option t` is either a value of `t` (`some v`) or nothing (`none`).
+`option t` is either a value of `t` (`some v`) or nothing (`none`). Together with `result`, seen later, it helps to draw them as *two kinds of box*
+that hold a value.
+
+```text
+ option u64         ┌──────────┐              result u64 e     ┌──────────────┐
+                    │ some 20  │  a value                       │ ok 20        │  a value
+                    ├──────────┤                               ├──────────────┤
+                    │ none     │  empty                         │ error bad    │  it failed ---
+                    └──────────┘  (nothing was there)           └──────────────┘  and carries why (bad)
+```
+
+`none` is not something strange but the normal answer "there was nothing", and `error` is the answer "what I tried failed". Either way, the value
+inside cannot be used *before the box is opened*.
 
 #demo("examples/ch11/lookup.low")
 

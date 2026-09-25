@@ -1,99 +1,54 @@
-# <a id="mod-allocs"></a>`allocs` — allocator traits, bumps and default allocators
+# <a id="mod-tlssrv"></a>`tlssrv` — the TLS 1.3 server handshake
 
 Source
 
-`lib/alloc.low`
+`lib/tlssrv.low`
 
 Layer
 
-L1 — storage
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
-none for bumps · `fixed_bytes` spawns only where `cap allocator` is held · `heap_bytes` only where `cap heap` is held
+none
 
-The allocator **interface** (two traits) and four actors satisfying it. The most common use is a bump that **cuts pieces from the front** of a large borrowed byte block — suited to data “made in many pieces, discarded all at once” (a parser’s temporary nodes, strings living for one pass) (chapter 35).
+[`tls13`](sec96.md#mod-tls13) holds the **computations** of the standard. This module is the **layer that calls them in order** — reading ClientHello, building server messages, moving state, and sealing and opening application data records. Every failure is `0`, and ops yield **positions** — the caller cuts with `subslice`.
 
-```lowent
-var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-var c u64 be send bump init mem .
-let b option mut slice u8 . be send bump reserve 64 .
-```
-
-**The root and what sits on it.** Lowent has no implicit global heap. The only place bytes first enter a program is the root op `alloc_bytes <capability> capacity n`, and there are two roots — a **fixed window** (`cap allocator`, effect `alloc`; on bare metal the linker sets the window’s bounds) and a **heap** (`cap heap`, effect `heap`; only on hosted systems with an operating system) (chapter 20). `allocs` handles what sits **on** the root. It does not ask whether the bytes came from a root or were lent by a caller. So code without `cap allocator` still allocates fully on bytes someone else gave — capabilities divide abilities. It is written with actors, traits, options and subslices only, so it is a library, not a builtin.
-
-```lowent
-export trait byte_allocator do
-  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
-  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
-  used    input s self . output u64 . effects state .
-end
-```
-
-`freeing_allocator` adds `release input s self . input v mut slice u8 . . output bool .` to the same three. `via self` means “this op’s effect is the effect the implementation declares” — a bump’s `reserve` is just `state`, while `heap_bytes`’s `reserve` is `heap state`. So `heap` appears in the signature of container ops monomorphised with that allocator.
-
-| **actor** | **Backing · policy** | **`reserve` effect · where usable** |
-|---|---|---|
-| `bump_bytes` | buffer attached with `init` · advances the cursor by the request · both traits | `state` · anywhere |
-| `bump_aligned` | same backing · rounds the start up to a multiple of 8 before cutting (padding is lost) | `state` · anywhere |
-| `fixed_bytes` | capability slot `root cap allocator` · carves straight from the root | `alloc state` · anywhere (the linker window on bare metal) |
-| `heap_bytes` | capability slot `root cap heap` | `heap state` · hosted only (`E-HEAP-NOHOST` on bare metal) |
-
-*Table 50.1 — Actors of `allocs`*
-
-| **op** | **Shape** | **Failure** |
-|---|---|---|
-| `init` (outside the trait) | `backing mut slice u8 → u64` (capacity), `effects state` | none. Calling again switches to the new buffer with the cursor at 0 |
-| `reserve` | `n u64 → option mut slice u8` | `none` — the cursor does not move (no partial allocation) |
-| `grow` | `old mut slice u8, newn u64 → option mut slice u8` | `none` — not the last piece, or no room |
-| `release` | `v mut slice u8 → bool` | `false` — changes nothing unless it is the last piece |
-| `used` | `→ u64` (cursor position, including padding), `effects none` | none |
-
-*Table 50.2 — Ops of the bumps*
-
-- **OOM is a value.** `reserve` returns `none` instead of stopping. Bytes cannot be reached without `guard is_some …`.
-- **What is returned is a view, not an offset.** Writing into `reserve`’s result changes the backing buffer.
-- **`grow` extends the last piece in place.** The test is “is the piece passed **exactly the bytes** last handed out” (`same_slice`). It used to check only length, and another buffer of the same length passed, making two containers silently overlap (found in a security review). **Failure is a value, and this is an optimisation, not a contract** — a new allocator is complete with `grow` as the one line `return none .`. This brought a growing vector’s arena high-water mark from about 4× the request down to 2× ([`growvec`](sec105.md#mod-growvec)).
-- **`release` only accepts the last piece** — silently accepting an unknown piece would let a double release wipe someone else’s place.
-- `fixed_bytes` and `heap_bytes` have no `init`, and `grow` is always `none` (the root does not know whose the last allocation was). A capability slot is not a runtime value — the op spawning that actor must hold the same kind of capability (`E-CAP-FORGE`). A heap cannot be conjured in one line where no capability exists.
-
-Code taking an allocator accepts any implementation with `input comptime a type .` + `using al a .` + `requires allocs.byte_allocator a .`. Callers pass it not as a positional argument but with `let x … using <source> be …`, and if the op has only one source it is the default without being written. Monomorphisation means no vtables and no indirect calls.
-
-```lowent
-proc two_from .
-  input comptime a type .
-  using al a .
-  output u64 .
-  effects state via a .
-  requires allocs.byte_allocator a .
-do
-  let p option mut slice u8 . . be send al reserve 3 .
-  guard is_some p . else return 91 .
-  let q option mut slice u8 . . be send al reserve 5 .
-  guard is_some q . else return 92 .
-  let g option mut slice u8 . . be send al grow (some_value q) 9 .
-  return send al used .
-end
-
-proc borrowed2 input buf mut slice u8 . . output u64 . effects state . do
-  var b allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  let c u64 be send b init buf .
-  let n u64 using b be two_from .
-  return n .
-end
-```
-
-With a bump, 3 + 5 grown to 9 gives 12; with `bump_aligned` the second piece starts at 8, giving 17; with `heap_bytes`, `grow` is `none` and `heap` appears in the instance’s signature.
-
-> **Counter-example. Unwrapping without checking `none`**
+> **This alone is not a TLS server**
 >
-> > `some_value (send a reserve 99)` stops with `E-VM-NONE` when the buffer is small. It compiles, so it is easy to be careless.
+> > **There is no transport** — no sockets, no reassembly; the caller gathers the bytes (and decides record boundaries). No KeyUpdate, record padding, HelloRetryRequest, PSK, 0-RTT, client certificate requests or session resumption. `build_cert` holds only one certificate of a chain. Extensions are only **found** (interpreting SNI and ALPN is the caller’s). It has not been audited.
 
-> **Counter-example. Reaching the root without capability · sending from a fn**
->
-> > An op without a root capability cannot call `alloc_bytes` (`E-ALLOC-NOCAP`, `E-HEAP-NOCAP` for the heap) — `allocs` is not a substitute. Calling handlers from an `effects none` `fn` is `E-EFFECT-CALC`. Passing a source that does not satisfy the trait is `E-BOUND-UNSAT`.
+**ClientHello is the most hostile input.** It is a byte string nothing has authenticated yet, and every length field was written by the other side. So — any position exceeding the buffer fails immediately. Extension walking does not recurse and bounds its steps by the buffer size (a run of zero-length extensions never ends an unbounded loop). Mismatched lengths are not read charitably — `ch_ok` requires the declared length to equal the buffer **exactly**, and `ch_ext_len` requires extensions to fit to the end.
 
-**Cautions.** Nothing but the last piece can be freed — for take-and-release patterns, [`pool`](sec98.md#mod-pool) fits. Scope-based bulk release belongs to `region` blocks (chapter 18). Views from `reserve` alias the backing buffer and do not vanish when `init` is called again. Actors assume sequential delivery — passing a bump to a task is rejected (`E-ALLOC-SHARED`: an allocator handed to a task must have an `atomic` `reserve`). The floor starts at 0 and no addresses are exposed, so VM and native see the same bytes.
+| **op** | **What it does** |
+|---|---|
+| `st_start` · `st_recvd_ch` · `st_negotiated` · `st_wait_flight2` · `st_wait_finished` · `st_connected` | State numbers |
+| `hs_client_hello` · `hs_server_hello` · `hs_encrypted_extensions` · `hs_certificate` · `hs_certificate_verify` · `hs_finished` | Message type numbers |
+| `next_ok` · `step` | May this message be received now · move state (yields the same state if it cannot) |
+| `ch_ok` | Do type and length match the buffer |
+| `ch_random_off` · `ch_sid_off` · `ch_sid_len` | Random · session_id |
+| `ch_suites_off` · `ch_suites_len` · `ch_has_suite` | Offered suites |
+| `ch_ext_off` · `ch_ext_len` · `ch_ext_find` · `ch_ext_find_len` | Extension block · find by type |
+| `ch_x25519_off` · `be16` | Position of the x25519 public key in key_share · big-endian 2 bytes |
+| `build_sh` · `build_ee` · `build_cert` | Build ServerHello · EncryptedExtensions · Certificate (one DER) |
+| `cv_content` · `build_cv` · `build_fin` | The 130 bytes CertificateVerify signs · build CertificateVerify · Finished |
+| `server_finished` | From ECDHE up the key schedule to the server Finished in one line |
+| `app_secrets` · `check_client_finished` | Application traffic secrets (c · s) · check the peer’s Finished (1 = match) |
+| `traffic_keys` · `seal_app` · `open_app` | Secret → key ‖ IV (one direction at a time) · seal · open application data records |
+
+*Table 50.1 — Ops of `tlssrv`*
+
+Message building shares one frame (`<type 1> <length 3> <body>`) — so the frame is written once. Repeating the same arithmetic in four places brings the day only one is fixed.
+
+**`cv_content` — the 64 spaces are not decoration.** The signed content is `0x20 × 64 ‖ "TLS 1.3, server CertificateVerify" ‖ 0x00 ‖ transcript hash` (§4.4.3). Without that prefix, this signature could be reused as a signature in another context (a certificate signature, a client-side signature). Constants in a standard that make you ask “why is this here” are usually traces of attacks that already happened.
+
+**Order is half the standard.** `next_ok` enumerates what is accepted, and enumerating is rejecting everything else. Without it a man in the middle could send Finished early or ClientHello twice. **`session_id` is echoed back** — TLS 1.3 does not use that field, but not echoing it gets connections cut by middleboxes on real networks, because it is a compatibility device to look like 1.2 (§4.1.3).
+
+**The transcript is cut three times in this layer.** `s hs traffic` stands on `CH‖SH`, the server Finished on `CH‖…‖CertificateVerify`, and application traffic secrets and **the client Finished** on `CH‖…‖server Finished`. The client Finished does not include itself, and its verify_data comes from the **client** handshake secret — same transcript, different secret. Using the server’s always rejects, and the symptom looks like “the client is broken”.
+
+**Application data uses a different secret and a different sequence per direction.** Sharing one makes nonces overlap, and overlapping nonces in AEAD lose plaintext and authentication key together. So key bundles are made one direction at a time. Sequences increase **per record** and restart at 0 per key generation. The output buffer of `traffic_keys` must be 32 bytes even when the key is 16 — `expand_label` uses one HMAC block and always writes 32. Alerts are the same records too — the inner type is 21, and without looking at it an alert is read as data.
+
+**What is checked** — the real handshake of RFC 8448 §3. The canonical ClientHello’s fields are read, and five messages are built and compared byte for byte with the canonical ones (ServerHello 90 · EncryptedExtensions 40 · Certificate 445 · CertificateVerify 136 · Finished 36). And it is woven end to end — we compute ECDHE from the canonical keys, climb the key schedule and match the server Finished with the canonical one. That one move measures the transcript cut points, the key schedule, finished_key and verify_data together. The canonical CertificateVerify is RSA-PSS and our signer is ECDSA, so the frame is what is measured here; the signature itself is measured separately by [`ecdsa`](sec90.md#mod-ecdsa).
 
 ---
 

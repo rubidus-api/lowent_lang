@@ -42,7 +42,7 @@ let c bool be lt a b .")
       실행 비용이 없다.
     ]
     #para("3")[
-      우선순위는 **오직 섬 안에만** 존재한다. 다음 표가 그 전부다.
+      우선순위는 **오직 섬 안에만** 있다. 다음 표가 그 전부다.
     ]
     #tbl("`expr` 섬 안의 우선순위 (강한 것이 위)")[
       #table(columns: (auto, auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,

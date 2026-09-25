@@ -557,6 +557,7 @@
 
 - [ 번역할 때](sec54.md#sx1)
 - [ 실행 중에 멈출 때](sec54.md#sx2)
+- [ 그 밖의 진단](sec54.md#sx3)
 
 [부록 C — 흔한 실수와 고치는 법](sec55.md)
 
@@ -693,63 +694,84 @@
 
 [p256 — NIST P-256 곡선과 ECDSA 검증](sec87.md)
 
-[ecdsa — ECDSA P-256 서명 생성](sec88.md)
+[p384 — NIST P-384 곡선과 ECDSA 검증](sec88.md)
 
-[ed25519 — Ed25519 서명 검증](sec89.md)
+[ecdsa — ECDSA P-256 서명 생성](sec89.md)
 
-[der — DER 최소 파서](sec90.md)
+[ed25519 — Ed25519 서명 검증](sec90.md)
 
-[pem — PEM 봉투 벗기기](sec91.md)
+[der — DER 최소 파서](sec91.md)
 
-[tls13 — TLS 1.3 의 계산 부품](sec92.md)
+[pem — PEM 봉투 벗기기](sec92.md)
 
-[tlssrv — TLS 1.3 서버 핸드셰이크](sec93.md)
+[x509 — X.509 인증서 읽기](sec93.md)
 
-[http — HTTP/1.1 요청 파서](sec94.md)
+[verify — 인증서 서명과 체인의 한 마디 확인](sec94.md)
 
-[soa — SoA 배치 시범: 필드마다 배열 하나](sec95.md)
+- [ 체인은 마디의 줄이다](sec94.md#sx1)
+- [ op](sec94.md#sx2)
+- [ 설계](sec94.md#sx3)
 
-[allocs — 얼로케이터 trait 과 범프 · 기본 얼로케이터](sec96.md)
+[tls13 — TLS 1.3 의 계산 부품](sec95.md)
 
-[pool — 세대 핸들 블록 풀](sec97.md)
+[tlssrv — TLS 1.3 서버 핸드셰이크](sec96.md)
 
-[shard — 저장소를 쪼개는 접근 단위](sec98.md)
+[tlscli — TLS 1.3 클라이언트 핸드셰이크](sec97.md)
 
-[budget — 핸들 비트 예산과 세대 한 바퀴](sec99.md)
+- [ 핸드셰이크의 차례](sec97.md#sx1)
+- [ op](sec97.md#sx2)
+- [ 설계](sec97.md#sx3)
 
-[wire — 한 낱말을 칸으로 나눠 쓰기](sec100.md)
+[http — HTTP/1.1 요청 파서](sec98.md)
 
-[flags — 이름 붙은 켬 · 끔을 한 낱말에](sec101.md)
+[soa — SoA 배치 시범: 필드마다 배열 하나](sec99.md)
 
-[segarena — 고정 크기 세그먼트 아레나](sec102.md)
+[allocs — 얼로케이터 trait 과 범프 · 기본 얼로케이터](sec100.md)
 
-[pagecache — 페이지 id 와 고정 커서](sec103.md)
+[pool — 세대 핸들 블록 풀](sec101.md)
 
-[growvec — 자가성장 바이트 벡터](sec104.md)
+[shard — 저장소를 쪼개는 접근 단위](sec102.md)
 
-[vecgen — 제네릭 자가성장 벡터 vec t a](sec105.md)
+[budget — 핸들 비트 예산과 세대 한 바퀴](sec103.md)
 
-[mapgen — 제네릭 해시맵 table k v](sec106.md)
+[wire — 한 낱말을 칸으로 나눠 쓰기](sec104.md)
 
-[nodelist — 고정 intrusive 목록](sec107.md)
+[flags — 이름 붙은 켬 · 끔을 한 낱말에](sec105.md)
 
-[segview — 조각 뷰의 커서 · 총길이 · 펴기](sec108.md)
+[segarena — 고정 크기 세그먼트 아레나](sec106.md)
 
-[lifemode · lifeatom — 값이 언제 끝나는가](sec109.md)
+[pagecache — 페이지 id 와 고정 커서](sec107.md)
 
-[io — 슬라이스 위의 스트림 읽기](sec110.md)
+[growvec — 자가성장 바이트 벡터](sec108.md)
 
-[outbuf — 버퍼링 출력, flush 망각은 컴파일 오류](sec111.md)
+[vecgen — 제네릭 자가성장 벡터 vec t a](sec109.md)
 
-[files — 파일 · 디렉터리 스트림, close 망각은 컴파일 오류](sec112.md)
+[mapgen — 제네릭 해시맵 table k v](sec110.md)
 
-[tty — 터미널 입력](sec113.md)
+[nodelist — 고정 intrusive 목록](sec111.md)
 
-[net — 소켓(TCP loopback · 프로세스 안 한 쌍)](sec114.md)
+[segview — 조각 뷰의 커서 · 총길이 · 펴기](sec112.md)
 
-[clock — 시각과 마감](sec115.md)
+[lifemode · lifeatom — 값이 언제 끝나는가](sec113.md)
 
-[찾아보기](sec116.md)
+[io — 슬라이스 위의 스트림 읽기](sec114.md)
+
+[outbuf — 버퍼링 출력, flush 망각은 컴파일 오류](sec115.md)
+
+[files — 파일 · 디렉터리 스트림, close 망각은 컴파일 오류](sec116.md)
+
+[tty — 터미널 입력](sec117.md)
+
+[net — 소켓(TCP loopback · 프로세스 안 한 쌍)](sec118.md)
+
+[clock — 시각과 마감](sec119.md)
+
+[trust — 신뢰 저장소에서 믿는 뿌리 찾기](sec120.md)
+
+- [ 묶음을 통째로 들지 않는다](sec120.md#sx1)
+- [ op](sec120.md#sx2)
+
+[찾아보기](sec121.md)
 
 ---
 

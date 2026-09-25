@@ -115,7 +115,7 @@ proc grow input small mut slice u8 . . input big mut slice u8 . . output u64 . e
 end
 ```
 
-`build` 는 4(“ab” 2 + 되는 만큼 쓴 2)를, `grow` 는 5(“abxyz”)를 낸다. 실제 쓰임은 경로 조립이다 — `append b pathbuf dpath`, `append b pathbuf "/"`, `append b pathbuf name` 으로 잇고 `as_str b pathbuf` 로 뷰를 꺼내 [`files`](sec112.md#mod-files) 에 넘긴다.
+`build` 는 4(“ab” 2 + 되는 만큼 쓴 2)를, `grow` 는 5(“abxyz”)를 낸다. 실제 쓰임은 경로 조립이다 — `append b pathbuf dpath`, `append b pathbuf "/"`, `append b pathbuf name` 으로 잇고 `as_str b pathbuf` 로 뷰를 꺼내 [`files`](sec116.md#mod-files) 에 넘긴다.
 
 ## <a id="sx5"></a>반례
 

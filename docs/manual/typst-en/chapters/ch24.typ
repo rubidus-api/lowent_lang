@@ -45,7 +45,19 @@ two lines.
 - `count .` --- counts what is left. The word that ends the flow (the *terminal*) is exactly one.
 
 `pipe` is a statement, but when it ends with a value-producing terminal (`count`, `fold`, `any`, `all`) it can be used like an expression, as in
-`return pipe s do … end`.
+`return pipe s do … end .` --- the final stop belongs to the `return` statement (`end` closes only the `pipe` block).
+
+Drawn as a tube that elements flow through:
+
+```text
+ s = "a1b22"
+               ┌─────────────────┐            ┌───────┐
+  a 1 b 2 2 ─▶ │ filter is_digit │ ─▶ 1 2 2 ─▶ │ count │ ─▶ 3
+               └─────────────────┘            └───────┘
+                 stage: filters                 terminal: ends the flow and gives a value
+```
+
+Elements pass through the tube one at a time. No separate "array of just the digits" is built in between.
 
 == Stages and terminals
 

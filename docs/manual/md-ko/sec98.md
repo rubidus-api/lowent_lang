@@ -1,58 +1,65 @@
-# <a id="mod-shard"></a>`shard` — 저장소를 쪼개는 접근 단위
+# <a id="mod-http"></a>`http` — HTTP/1.1 요청 파서
 
 소스
 
-`lib/shard.low`
+`lib/http.low`
 
 층
 
-L1 — 호출자의 저장
+L0 — 순수 계산
 
 권한
 
 없음
 
-저장소 한 덩어리를 **서로 겹치지 않는 조각**으로 나눠 각 조각을 따로 바꿀 수 있게 한다. 조각을 대표하는 것이 **토큰**이고, 토큰은 “이 범위는 내 것” 이라는 권한이다. 그것을 여러 스레드에 태우든 순차로 돌든, 겹치지 않는다는 사실 자체가 값이다.
+요청 바이트열을 받아 각 필드가 **어디서 시작해 몇 바이트인지** 답한다(RFC 9112). 자르지 않는다 — 자르는 것은 부르는 쪽이 `subslice` 로 한다. **모든 실패는 `0`** 이다. `0` 은 정당한 자리가 될 수 없다 — 요청은 최소 `GET / HTTP/1.1␍␊␍␊` 라 어떤 필드도 0 에서 시작하지 않는다.
+
+> **무엇을 약속하고 무엇을 하지 않나**
+>
+> > 서버 쪽 요청 파싱만 한다(응답 파싱 없음). 전송이 없다 — 바이트열은 부르는 쪽이 모아 온다. **청크 전송(`Transfer-Encoding: chunked`)을 짓지 않았다** — 그 헤더를 찾아 주기만 하므로 부르는 쪽이 거절해야 한다. 트레일러 · 여러 줄 헤더(obs-fold) · URL 퍼센트 해체 · HTTP/2 가 없다. HTTP/1.0 을 받지 않는다 — 지속 연결 규칙이 다르고 그것을 짓지 않았다.
 
 ```lowent
-newtype grid u8 .
-var r owned shard.token grid . be shard.open grid 8 .
-var h shard.halves grid . be shard.split_at grid r 4 .
-var lo owned shard.token grid . be (field h low) .
-var hi owned shard.token grid . be (field h high) .
-rem 이 뒤로 r 은 쓸 수 없다 --- 쓰면 E-OWN-MOVED
+let t u64 be http.target_off b .
+let n u64 be http.target_len b .
+guard gt n 0 . else return 0 .
+let target slice u8 . be subslice b t (add t n) .
 ```
 
-> **막아 주는 것 — 그리고 누가 막는가**
->
-> > ① 쪼갠 뒤 root 로 만지는 것은 컴파일 에러 `E-OWN-MOVED` 다. 그것을 막는 것은 이 모듈이 아니라 언어다 — 토큰이 `owned` 라서 `split_at` 에 넘기는 순간 손을 떠난다. ② 남의 조각 자리를 만지면 `write` · `read` 가 `false` · `none` 으로 답한다(멈추지 않는다 — 실패는 값이다). ③ 다른 저장소의 토큰은 브랜드가 타입으로 달라 섞이지 않는다. **막아 주지 않는 것** — 쪼갠 동안 상대 조각을 읽기 전용으로 보기(동결 교차 읽기)와 region 단위 서로소 증명. 짓지 않았고, 짓지 않았다고 적는다.
+| **op** | **하는 일** |
+|---|---|
+| `method_get` · `method_head` · `method_post` · `method_put` · `method_delete` | 메서드 코드(1 … 5) |
+| `method_code` | 요청 줄의 메서드 → 코드. 0 = 모름 |
+| `line_next` · `line_len` | 다음 줄의 자리 · 이 줄의 내용 길이(CRLF 제외) |
+| `target_off` · `target_len` | 요청 대상의 자리 · 길이 |
+| `version_ok` | `HTTP/1.1` 인가 |
+| `headers_off` · `header_next` | 첫 헤더 · 다음 헤더(빈 줄이면 0) |
+| `name_len` · `value_off` · `value_len` | 헤더 이름 길이 · 값 자리 · 값 길이 |
+| `name_eq` | 이 헤더의 이름이 그것인가(대소문자 안 가림) |
+| `header_find` · `header_find_len` | 그 이름의 값 자리 · 길이. **중복이면 0** |
+| `content_length` | `option u64` — 없으면 `some 0`, 성하지 않으면 `none` |
+| `body_off` | 몸통이 시작하는 자리 |
 
-**왜 새 문장 없이 지었나.** 언어 설계 문서는 이 문제의 답으로 `split region R into R1 … Rn by P` 라는 새 문장을 적어 두었다. 그런데 언어에는 이미 둘이 있었다 — **브랜드**(저장소의 정체성을 타입이 든다)와 **`owned`**(값이 하나뿐이고 넘기면 손을 떠난다). 둘을 곱하면 토큰이 곧 접근 단위다(19장).
+*표 50.1 — `http` 의 op*
 
-| **op** | **모양** | **실패하면** |
-|---|---|---|
-| `token` · `halves` | 조각 토큰 · 둘로 나눈 결과(`low` · `high`) | — |
-| `open` | `comptime b, n u64 → owned token b` | 없음(범위 `0..n`) |
-| `split_at` | `comptime b, t owned token b, at u64 → halves b` | 없음(`at` 은 범위로 잘린다) |
-| `rejoin` | `comptime b, a owned token b, c owned token b → option (token b)` | 순서 · 인접이 어긋나면 `none` |
-| `covers` | `comptime b, t token b, i u64 → bool` | — |
-| `width` | `comptime b, t token b → u64` | 계약(op 이 스스로 적는 약속) 위반은 진입에서 멈춘다 |
-| `write` | `comptime b, t, mem mut slice u64, i, v → bool` | 범위 밖이면 `false` |
-| `read` | `comptime b, t, mem slice u64, i → option u64` | 범위 밖이면 `none` |
+**이 모듈의 알맹이는 거절이다.** 파서는 받아들이는 것보다 거절하는 것으로 정의된다. HTTP 에서 잘못 받아들이는 자리에는 이름이 있다 — **요청 밀반입(request smuggling)**. 앞단(프록시)과 뒷단(서버)이 같은 바이트를 다르게 읽으면 하나가 본 요청을 다른 하나는 못 본다.
 
-*표 50.1 — `shard` 의 op*
+| **거절하는 것** | **왜** |
+|---|---|
+| 맨 `LF` 를 줄 끝으로 | 앞단이 CRLF 만 인정하면 경계가 갈린다 |
+| 이름과 콜론 사이 공백(`Host : x`) | RFC 9112 §5.1 이 거절을 요구한다 |
+| `Content-Length` 가 둘 | 값이 같아도 거절한다 |
+| `Content-Length: 5, 5` · `+5` · 빈 값 | 숫자만 받는다 — 그 관용이 밀반입이다 |
+| `HTTP/1.0` | 지속 연결 규칙이 다른데 짓지 않았다 |
+| 같은 헤더가 둘(`header_find`) | 합쳐도 되는지는 헤더마다 다르고 그 표를 짓지 않았다 — 모르면 거절 |
+| 빈 대상(`GET  HTTP/1.1`) · 끝나지 않은 헤더(빈 줄 없음) | — |
 
-**`rejoin` 의 순서 규약 — 그리고 그것이 계약이 아닌 이유.** 합칠 때는 낮은 id 를 먼저 넘긴다(교착 규약: 교차 획득은 언제나 오름차순). 어기면 `none` 이다. 처음엔 `requires lt (field a id) (field c id) .` 로 적었는데, 계약 시험 생성기가 두 구조체 인자 사이의 관계에 대해서는 거절 사례를 만들지 못한다. 아무도 검증하지 못하는 계약은 검사가 아니라 문장이므로, 부르는 쪽이 반드시 받는 값으로 내렸다.
+*표 50.2 — `http` 가 거절하는 것*
 
-> **반례. 거꾸로 합친다**
->
-> > `shard.rejoin g hi lo` 는 `none` 이다. 멈추지 않으므로 반환값을 보지 않으면 합쳐지지 않은 것을 모른 채 지나간다. `guard is_some back .` 으로 받는다.
+**`content_length` 가 `option` 인 이유.** “없다” 와 “틀렸다” 는 다른 답이다. 없으면 `some 0`(몸통이 없는 정상 요청), 성하지 않으면 `none`(연결을 끊어야 할 일). 한 값으로 두면 둘이 섞이고, 섞이는 자리가 곧 공격 자리다.
 
-> **반례. 브랜드 하나로 저장소 둘을 연다**
->
-> > 같은 브랜드 `g` 로 `shard.open` 을 두 번 부르면 컴파일 에러 `E-BRAND-REUSED` 다. 브랜드는 저장소 하나의 이름이다. 저장소가 둘이면 `newtype` 도 둘이다(브랜드는 자료를 나르지 않으므로 값이 0 이다).
+**이 모듈이 처리기 결함을 하나 잡았다.** 처음에 `input b str .` 로 썼다. `--check` 는 통과했는데 21 op 중 16 이 느린 해석 경로로 떨어졌다(약 80 배). `str` 은 빌트인이 아니라 [`strings`](sec58.md#mod-strings) 의 지역 별칭이었고, 검사기는 그 이름을 통과시켰지만 타입 붙은 하강은 뜻을 몰랐다. 답은 맞으므로 시험이 영원히 보지 못하는 조용한 80 배다. 이제 그런 이름을 시그니처에 쓰면 `W-NOT-YET` 경고가 나온다. 검사가 통과하는 것과 빠른 것은 다른 일이고, `--why-slow` 를 보지 않았으면 이 파일은 그대로 실렸을 것이다.
 
-**주의.** 토큰은 `var` 에 묶는다(`owned` 는 가변 장소를 요구한다). `split_at` 의 `at` 은 잘린다 — 범위 밖이면 빈 조각이 나오고, 빈 조각은 아무것도 만지지 못하므로 안전하다. 뜨거운 경로에 동기화가 없다 — 토큰이 이미 권한을 말했으므로 남는 것은 범위 검사 하나이고, 시험이 방출된 C 에서 그 경로의 원자 연산 · 락이 0 임을 잰다. 이 모듈은 스레드를 모른다 — 토큰을 실행 단위에 태우는 것은 27장 의 일이다.
+**확인하는 것** — RFC 9112 예제(정상 8), 거절 9 건, VM·네이티브 일치, 느린 경로로 떨어지는 op 0 개.
 
 ---
 

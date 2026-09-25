@@ -1,65 +1,67 @@
-# <a id="mod-budget"></a>`budget` — 핸들 비트 예산과 세대 한 바퀴
+# <a id="mod-soa"></a>`soa` — SoA 배치 시범: 필드마다 배열 하나
 
 소스
 
-`lib/budget.low`
+`lib/soa.low`
 
 층
 
-L1 — 순수 계산
+L0 — 순수 계산
 
 권한
 
 없음
 
-세대 핸들을 **한 워드**에 넣을 때 세 조각에 몇 비트씩 줄지 정하고, 그 예산이 들어맞는지 **컴파일 때** 확인한다. 저장소를 직접 만들 때 — [`pool`](sec97.md#mod-pool) · [`shard`](sec98.md#mod-shard) 처럼 칸을 나눠 주고 되받는 것을 지을 때 — 핸들의 폭을 소스에 적고 도구가 지키게 하는 자리다.
+원소가 `{x, y, vx, vy}` 인 자료 n 개를 두는 방법은 둘이다. **AoS**(Array of Structs)는 한 배열에 원소를 통째로 늘어놓고, **SoA**(Struct of Arrays)는 **필드마다 배열 하나**를 나란히 둔다. x 만 훑는 계산이라면 SoA 쪽이 필요한 값만 연속으로 읽어 캐시를 알뜰하게 쓴다.
 
-```text
-h = (generation << (shard_bits + slot_bits)) | (shard << slot_bits) | slot
-      몇 번째 삶                     어느 샤드                  어느 칸
-```
+> **답이 아니라 측정이다**
+>
+> > SoA 를 언어 기능(`store[T, soa]` 같은 타입 생성자와 키워드 · op 수십 개)으로 넣자는 조사는 **보류**됐고, 재검토 조건은 “먼저 `lib/` 에 빌트인 증가 0 으로 써 본다. 거기서 막히는 곳이 언어 작업의 목록이 된다” 였다. 이 모듈이 그것이다. 발견 — **SoA 배치 자체는 라이브러리로 완전히 표현된다**. 필드별 배열, 보폭 없는 순차 접근, 한 필드만 훑는 커널이 전부 새 언어 기계 없이 써진다. 속도 주장은 측정 없이 하지 않는다 — 이 모듈이 보장하는 것은 두 배치가 같은 답을 낸다는 정확성뿐이고, 원소 전체를 만지는 코드는 AoS 가 낫다.
+
+| **op** | **모양** | **실패** |
+|---|---|---|
+| `step_x` | `proc (xs mut slice u64, vxs slice u64, n u64) → u64` — `xs[i] += vxs[i]` | 없음 — `min(n, len xs, len vxs)` 만 처리하고 그 수를 답한다 |
+| `sum_field` | `fn (f slice u64) → u64` | 없음 |
+| `get_x` | `fn (xs slice u64, i u64) → u64` | 범위 밖이면 `0` |
+| `step_all` | `proc (xs, ys mut slice u64, vxs, vys slice u64, n u64) → u64` | 없음 — 두 처리 수 중 작은 쪽 |
+| `step_x_aos` | `proc (rows mut slice u64, stride, xoff, voff, n u64) → u64` — AoS 판 | 속도 자리가 범위 밖인 원소에서 멈추고 그 `i` 를 답한다 |
+
+*표 50.1 — `soa` 의 op — 모두 `effects none`*
 
 ```lowent
-let ho option u64 . be budget.pack 32 8 24 7 1 0 .
-guard is_some ho . else return 1 .
-let h u64 be some_value ho .
-let slot u64 be budget.slot_of 32 h .
+proc demo input xs mut slice u64 . . input vxs mut slice u64 . .
+  input rows mut slice u64 . . output u64 .
+do
+  set (index xs 0) 1 .
+  set (index xs 1) 2 .
+  set (index vxs 0) 10 .
+  set (index vxs 1) 20 .
+  let n1 u64 be soa.step_x xs vxs 2 .
+  guard eq n1 2 . else return 90 .
+  let s1 u64 be soa.sum_field (subslice xs 0 2) .
+  set (index rows 0) 1 .
+  set (index rows 1) 10 .
+  set (index rows 2) 2 .
+  set (index rows 3) 20 .
+  let n2 u64 be soa.step_x_aos rows 2 0 1 2 .
+  guard eq n2 2 . else return 91 .
+  var s2 u64 be add (index rows 0) (index rows 2) .
+  guard eq s1 s2 . else return 92 .
+  return s1 .
+end
 ```
 
-> **이 모듈이 지키는 것**
+**막히는 자리 — 언어 작업의 목록.** ① 원소 하나를 “한 덩어리” 로 다루는 문법이 없다 — 호출자가 필드를 손으로 모은다(`get_x`). 불편할 뿐 불가능하지 않다. ② 필드 개수만큼 인자가 늘어난다(`step_all`) — 이것은 구조체 필드에 슬라이스를 허용하면서 풀렸지만, 이 모듈은 측정 기록이라 네 인자 모양을 그대로 둔다. ③ **타입이 배치를 모른다** — AoS 판과 SoA 판이 서로 다른 op 이름이 되고(`step_x` 대 `step_x_aos`), AoS 의 오프셋 인자는 전부 `u64` 라 컴파일러가 지켜 주지 못한다.
+
+> **반례. 반환된 처리 수를 보지 않는다**
 >
-> > **들어가지 않는 예산은 컴파일되지 않는다.** `budget.pack 40 16 16 …` 은 합이 72 라 한 워드를 넘는다 — 상수뿐이므로 부르는 자리에서 `E-CONTRACT-IMPOSSIBLE` 이다. **값이 자기 칸에 들어가지 않으면 `none`** 이다 — 조용히 잘라 담으면 서로 다른 두 핸들이 같아진다. **세대가 한 바퀴 돌면 그 칸은 은퇴한다** — `next_gen` 이 `none` 을 답하고 되살리지 않는다. 0 으로 돌아가면 그 칸의 옛 핸들이 전부 되살아나는데, 그것이 세대 핸들이 막으려던 바로 그 일이다.
+> > `soa.step_x xs vxs 1000` 은 `xs` 가 3 칸이면 조용히 3 개만 처리한다. `n` 개가 전부 처리됐다고 가정하는 코드는 `guard eq m n .` 으로 확인한다.
 
-| **기계** | **slot · shard · gen** | **담는 수** | **근거** |
-|---|---|---|---|
-| 64 비트 | 32 · 8 · 24 | 약 43 억 칸 · 256 샤드 · 약 1,700 만 삶 | 널리 쓰이는 실물 id 중 가장 넓은 것(SQLite 페이지)이 32 비트 |
-| 32 비트 | 16 · 4 · 12 | 65,536 칸 · 16 샤드 · 4,096 삶 | lwIP 가 길이를 16 비트로 센다 |
-
-*표 50.1 — 권고 기본값과 근거*
-
-기본값일 뿐이다 — 저장소가 자기 수를 적으면 그 수가 이긴다.
-
-| **op** | **모양** | **실패하면** |
-|---|---|---|
-| `plan` · `default64` · `default32` | 예산 구조체 · 권고 기본값 | — |
-| `pow2` | `n u64 → u64`(계약 `n < 63`) | 계약 위반은 진입에서 멈춘다 |
-| `slots` · `shards` · `lives` | `p plan → option u64` | 폭이 63 이상이면 `none` |
-| `pack` | 예산 셋 + 값 셋 → `option u64` | 값이 칸을 넘으면 `none` · 예산이 넘치면 컴파일 에러 |
-| `slot_of` · `shard_of` · `gen_of` | 예산 + `h` → `u64` | 계약 위반은 진입에서 멈춘다 |
-| `retired` | `gen_bits, gen → bool` | — |
-| `next_gen` | `gen_bits, gen → option u64` | 은퇴한 칸이면 `none` |
-
-*표 50.2 — `budget` 의 op*
-
-> **반례. 세대를 그냥 올린다**
+> **반례. AoS 판의 오프셋을 바꿔 낀다**
 >
-> > `let g u64 be add gen 1 .` 은 에러가 없지만, 폭을 넘으면 다른 삶의 핸들과 같아진다. `next_gen` 을 쓰고 `none` 을 받는다 — 그 칸은 끝났다는 뜻이다.
+> > `soa.step_x_aos rows 2 1 0 3` 은 xoff 와 voff 가 뒤집혀 에러 없이 속도에 위치가 더해진다. 배치가 타입에 실리지 않는다는 막힘의 실감이다.
 
-> **반례. 63 비트 칸을 센다**
->
-> > `budget.pow2 63` 은 진입 계약이 거절한다. `shl 1 63` 은 부호 있는 64 비트에서 넘쳐 음수가 된다 — 조용히 틀린 수를 돌려주느니 거절한다.
-
-**주의.** 되꺼낼 때 **같은 예산**을 준다 — `pack` 과 `slot_of` 가 다른 수를 보면 답이 조용히 틀린다. 예산을 상수 셋으로 한 자리에 적어 두고 그것만 쓴다. op 이름이 `cap` 이 아니라 `pow2` 인 이유 — `cap` 은 문법 자리(`input k cap clock .`)라 op 이름으로 쓰면 `clock` 과 한 단위에 설 수 없었다. 두 워드 핸들은 짓지 않았다.
+**주의.** 나란한 배열들의 길이를 맞추는 것은 호출자 책임이다 — op 은 짧은 쪽에 맞춰 줄일 뿐 알려 주지 않는다. `get_x` 의 실패 값 0 은 정상 값과 구분되지 않는다. 맨 `index` 는 범위를 줄여 주지 않고 `E-VM-BOUNDS` 로 멈춘다. 긴 `let` · `set` 을 줄바꿈으로 나누면 개행이 form 을 닫는다 — 이어 쓰려면 줄 끝에 `,` 를 둔다.
 
 ---
 

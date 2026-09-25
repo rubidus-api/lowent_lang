@@ -87,7 +87,7 @@ alloc_bytes <root> capacity <n>
 
 ## <a id="sx6"></a>Heads and closers
 
-A form starts with one head and ends with one closer. The closer is the detached period `.`, and `)` and `end` also close what is open inside them. A newline is not a closer but whitespace. Parentheses cannot cross block boundaries.
+A form starts with one head and ends with one closer. The closer is the detached period `.`, and `)` also closes what is open inside it. `do … end` is a pair of braces, so `end` closes only its own `do` — a construct that owns a block ends at its `end`, and a statement that uses a block value ends with its own `.`. A newline is not a closer but whitespace. Parentheses cannot cross block boundaries.
 
 ---
 

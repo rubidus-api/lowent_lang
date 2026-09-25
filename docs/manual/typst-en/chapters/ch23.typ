@@ -43,6 +43,22 @@
 - `double_area` accepts *any shape*. `requires shape t .` pins it down to "only types that can tell their area".
 - `method s area` calls the `area` attached to the type of `s` --- `rect.area` for a `rect`, `square.area` for a `square`.
 
+Think of a trait as a *qualification*. There is a requirement, "can tell its area", and only types that meet it may enter an op that asks for it.
+
+```text
+                trait shape  ── requirement: area input s self . output u64 .
+                   ▲        ▲
+       satisfies   │        │   satisfies
+     ┌─────────────┴─┐    ┌─┴─────────────┐
+     │ rect          │    │ square        │
+     │ rect.area     │    │ square.area   │   ← the ops that actually meet it
+     └───────────────┘    └───────────────┘
+
+ double_area has requires shape t .  ── only types that meet shape
+   double_area rect r    →  method s area  =  rect.area
+   double_area square q  →  method s area  =  square.area
+```
+
 `double_area rect r` and `double_area square q` are each monomorphised to their own instance (#chref("generics")), so `method` is resolved at translation, not
 looked up at run time. There is no virtual function table.
 

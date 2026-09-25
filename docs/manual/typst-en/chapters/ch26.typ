@@ -43,6 +43,19 @@
 - `spawn square 5` makes a flow running `square 5` and gives that flow's *handle*.
 - `await h1` waits until that flow ends and gives its result. While waiting, other flows progress.
 
+Drawn on a time axis, the lifetimes look like this.
+
+```text
+ time →
+ drive     ──┬── task_group do ─────────────────────────────── end ──┬──▶ continues
+             │                                                       │
+ flow h1     │     spawn ├──── square 5 runs ───┤ done                │
+ flow h2     │         spawn ├──── square 6 runs ─────────┤ done       │
+             │                          await h1 ▲   await h2 ▲      │
+             └─ where the block opened                where it closed ┘
+                 flows live *only between these two lines* --- no flow is left when end is passed
+```
+
 A flow *cannot outlive the block that made it*. So making a flow outside a binding place is rejected.
 
 #demo("examples/ch26/scope.low")

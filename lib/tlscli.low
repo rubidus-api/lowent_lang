@@ -22,7 +22,7 @@ rem   그 사이의 도구는 자기가 확인하지 않았다고 **말해야 �
 rem   검증하지 않는 클라이언트를 조용히 내놓지 않는다.
 rem
 rem ☞ 안 지은 것: HelloRetryRequest · PSK/0-RTT · 세션 재개 · 클라이언트 인증서 ·
-rem   x25519 아닌 그룹 · TLS_AES_128_GCM_SHA256 아닌 스위트.
+rem   x25519 아닌 그룹 · TLS_CHACHA20_POLY1305_SHA256 · TLS_AES_128_GCM_SHA256 아닌 스위트.
 
 module tlscli .
 

@@ -1,99 +1,54 @@
-# <a id="mod-allocs"></a>`allocs` — 얼로케이터 trait 과 범프 · 기본 얼로케이터
+# <a id="mod-tlssrv"></a>`tlssrv` — TLS 1.3 서버 핸드셰이크
 
 소스
 
-`lib/alloc.low`
+`lib/tlssrv.low`
 
 층
 
-L1 — 저장
+L0 — 순수 계산(호출자의 뒷받침)
 
 권한
 
-범프는 없음 · `fixed_bytes` 는 `cap allocator` · `heap_bytes` 는 `cap heap` 을 쥔 곳에서만 띄운다
+없음
 
-얼로케이터의 **인터페이스**(trait 둘)와 그것을 충족하는 actor 넷이다. 가장 흔한 쓰임은 빌린 큰 바이트 덩어리를 **앞에서부터 잘라 주는** 범프다 — “만들 때는 여럿, 버릴 때는 한꺼번에” 인 자료(파서의 임시 노드, 한 처리 동안만 사는 문자열)에 맞는다(35장).
+[`tls13`](sec95.md#mod-tls13) 이 규격의 **계산**을 갖고 있다. 이 모듈은 그것을 **순서대로 부르는 층**이다 — ClientHello 를 읽고, 서버 메시지를 짓고, 상태를 옮기고, 응용 데이터 레코드를 봉하고 연다. 모든 실패는 `0` 이고, op 은 **자리**를 낸다 — 자르는 것은 부르는 쪽이 `subslice` 로 한다.
 
-```lowent
-var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-var c u64 be send bump init mem .
-let b option mut slice u8 . be send bump reserve 64 .
-```
-
-**뿌리와 그 위.** Lowent 에는 암묵 전역 힙이 없다. 바이트가 프로그램에 처음 들어오는 자리는 뿌리 op `alloc_bytes <권한> capacity n` 하나뿐이고, 뿌리는 둘이다 — **고정 창**(`cap allocator` · 효과 `alloc`, 베어메탈에서는 링커가 창의 경계를 정한다)과 **힙**(`cap heap` · 효과 `heap`, 운영체제가 있는 호스티드에만 있다)(20장). `allocs` 는 그 뿌리 **위**를 맡는다. 받은 바이트가 뿌리에서 왔든 호출자가 빌려준 것이든 묻지 않는다. 그래서 `cap allocator` 를 받지 않은 코드도 남이 준 바이트 위에서는 온전히 할당한다 — 권한이 능력을 가른다. actor · trait · option · subslice 만으로 쓰이므로 빌트인이 아니라 라이브러리다.
-
-```lowent
-export trait byte_allocator do
-  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
-  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
-  used    input s self . output u64 . effects state .
-end
-```
-
-`freeing_allocator` 는 같은 셋에 `release input s self . input v mut slice u8 . . output bool .` 을 더한다. `via self` 는 “이 op 의 효과는 구현이 적은 효과다” 라는 뜻이다 — 범프의 `reserve` 는 `state` 뿐이고 `heap_bytes` 의 `reserve` 는 `heap state` 다. 그래서 그 얼로케이터로 단형화한 컨테이너 op 의 서명에 `heap` 이 선다.
-
-| **actor** | **받침 · 정책** | **`reserve` 의 효과 · 쓸 수 있는 곳** |
-|---|---|---|
-| `bump_bytes` | `init` 으로 건 버퍼 · 커서를 요청 크기만큼 민다 · 두 trait 모두 | `state` · 어디서나 |
-| `bump_aligned` | 같은 받침 · 시작점을 8 의 배수로 올린 뒤 자른다(패딩은 버려진다) | `state` · 어디서나 |
-| `fixed_bytes` | 권한 칸 `root cap allocator` · 뿌리에서 곧장 깎는다 | `alloc state` · 어디서나(베어메탈은 링커 창) |
-| `heap_bytes` | 권한 칸 `root cap heap` | `heap state` · 호스티드만(베어메탈은 `E-HEAP-NOHOST`) |
-
-*표 50.1 — `allocs` 의 actor*
-
-| **op** | **모양** | **실패** |
-|---|---|---|
-| `init`(trait 밖) | `backing mut slice u8 → u64`(용량), `effects state` | 없음. 다시 부르면 새 버퍼로 갈아타고 커서가 0 |
-| `reserve` | `n u64 → option mut slice u8` | `none` — 커서는 움직이지 않는다(부분 할당 없음) |
-| `grow` | `old mut slice u8, newn u64 → option mut slice u8` | `none` — 마지막 조각이 아니거나 자리 부족 |
-| `release` | `v mut slice u8 → bool` | `false` — 마지막 조각이 아니면 아무것도 바꾸지 않는다 |
-| `used` | `→ u64`(커서 위치, 패딩 포함), `effects none` | 없음 |
-
-*표 50.2 — 범프의 op*
-
-- **OOM 은 값이다.** `reserve` 는 멈추는 대신 `none` 을 돌려준다. `guard is_some …` 없이는 바이트에 닿을 수 없다.
-- **돌려주는 것은 오프셋이 아니라 뷰다.** `reserve` 의 결과에 쓰면 뒷받침 버퍼가 바뀐다.
-- **`grow` 는 마지막 조각을 제자리에서 늘린다.** 판정은 “건넨 조각이 마지막으로 준 **바로 그 바이트**인가”(`same_slice`)다. 전에는 길이만 보았고, 길이만 같은 남의 버퍼가 통과해 두 컨테이너가 조용히 겹쳤다(보안 검토에서 드러났다). **실패는 값이고, 이것은 최적화이지 계약(op 이 스스로 적는 약속)이 아니다** — 새 얼로케이터는 `grow` 를 `return none .` 한 줄로 둬도 완전하다. 이것으로 성장 벡터의 아레나 고수위가 요청의 약 4 배에서 2 배가 됐다([`growvec`](sec104.md#mod-growvec)).
-- **`release` 는 마지막 조각만 받는다** — 모르는 조각을 조용히 받아 두면 두 번 돌려주기가 남의 자리를 지우기 때문이다.
-- `fixed_bytes` · `heap_bytes` 는 `init` 이 없고 `grow` 는 언제나 `none` 이다(뿌리는 마지막 할당이 누구 것인지 모른다). 권한 칸은 실행 중 값이 아니다 — 그 actor 를 `spawn` 하는 op 이 같은 종류의 권한을 쥐고 있어야 한다(`E-CAP-FORGE`). 권한 없는 곳에서 한 줄로 힙을 지어낼 수 없다.
-
-얼로케이터를 받는 코드는 `input comptime a type .` + `using al a .` + `requires allocs.byte_allocator a .` 로 어느 구현이든 받는다. 부르는 쪽은 위치 인자가 아니라 `let x … using <출처> be …` 로 건네고, 그 op 안에 출처가 하나뿐이면 적지 않아도 기본값이 된다. 단형화되므로 vtable 도 간접 호출도 없다.
-
-```lowent
-proc two_from .
-  input comptime a type .
-  using al a .
-  output u64 .
-  effects state via a .
-  requires allocs.byte_allocator a .
-do
-  let p option mut slice u8 . . be send al reserve 3 .
-  guard is_some p . else return 91 .
-  let q option mut slice u8 . . be send al reserve 5 .
-  guard is_some q . else return 92 .
-  let g option mut slice u8 . . be send al grow (some_value q) 9 .
-  return send al used .
-end
-
-proc borrowed2 input buf mut slice u8 . . output u64 . effects state . do
-  var b allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  let c u64 be send b init buf .
-  let n u64 using b be two_from .
-  return n .
-end
-```
-
-범프를 주면 3 + 5 를 9 로 늘려 12, `bump_aligned` 를 주면 둘째 조각이 8 에서 시작해 17, `heap_bytes` 를 주면 `grow` 가 `none` 이고 인스턴스 서명에 `heap` 이 선다.
-
-> **반례. `none` 검사 없이 값을 꺼낸다**
+> **이것만으로는 TLS 서버가 아니다**
 >
-> > `some_value (send a reserve 99)` 는 버퍼가 작으면 `E-VM-NONE` 으로 멈춘다. 컴파일은 통과하므로 방심하기 쉽다.
+> > **전송이 없다** — 소켓도 재조립도 없고 바이트열은 부르는 쪽이 모아 온다(레코드 경계도 부르는 쪽이 정한다). 키 갱신(KeyUpdate) · 레코드 패딩 · HelloRetryRequest · PSK · 0-RTT · 클라이언트 인증서 요구 · 세션 재개가 없다. 인증서 체인은 `build_cert` 가 하나만 담는다. 확장은 **찾아만** 준다(SNI · ALPN 해석은 부르는 쪽). 감사받지 않았다.
 
-> **반례. 권한 없이 뿌리에 닿는다 · fn 에서 send 한다**
->
-> > 뿌리 권한을 받지 않은 op 은 `alloc_bytes` 를 부를 수 없다(`E-ALLOC-NOCAP`, 힙이면 `E-HEAP-NOCAP`) — `allocs` 는 그 대체가 아니다. `effects none` 인 `fn` 에서 핸들러를 부르면 `E-EFFECT-CALC` 다. trait 을 충족하지 않는 값을 출처로 건네면 `E-BOUND-UNSAT` 이다.
+**ClientHello 는 가장 적대적인 입력이다.** 아직 아무것도 인증되지 않은 바이트열이고 길이 필드는 전부 상대가 썼다. 그래서 — 어떤 자리도 버퍼를 넘으면 즉시 실패한다. 확장 걷기는 재귀하지 않고 걸음 수를 버퍼 크기로 묶는다(길이 0 짜리 확장이 이어지면 묶지 않은 루프는 끝나지 않는다). 길이가 맞지 않으면 고쳐 읽지 않는다 — `ch_ok` 는 선언된 길이가 버퍼와 **정확히** 같기를, `ch_ext_len` 은 확장이 끝까지 맞기를 요구한다.
 
-**주의.** 마지막 조각 말고는 해제가 없다 — 받고 놓기를 되풀이하는 모양이면 [`pool`](sec97.md#mod-pool) 이 맞다. 스코프 기반 일괄 해제는 `region` 블록의 몫이다 (18장). `reserve` 가 낸 뷰는 뒷받침 버퍼의 별칭이라 `init` 을 다시 불러도 사라지지 않는다. actor 는 순차 배달 전제다 — 범프를 태스크에 건네면 거절된다 (`E-ALLOC-SHARED`: 태스크에 건네는 얼로케이터는 `reserve` 가 `atomic` 이어야 한다). 바닥이 0 에서 시작하고 주소를 노출하지 않으므로 VM 과 네이티브가 같은 바이트를 본다.
+| **op** | **하는 일** |
+|---|---|
+| `st_start` · `st_recvd_ch` · `st_negotiated` · `st_wait_flight2` · `st_wait_finished` · `st_connected` | 상태 번호 |
+| `hs_client_hello` · `hs_server_hello` · `hs_encrypted_extensions` · `hs_certificate` · `hs_certificate_verify` · `hs_finished` | 메시지 종류 번호 |
+| `next_ok` · `step` | 지금 이 메시지를 받아도 되는가 · 상태를 옮긴다(못 옮기면 같은 상태를 낸다) |
+| `ch_ok` | 종류와 길이가 버퍼와 맞는가 |
+| `ch_random_off` · `ch_sid_off` · `ch_sid_len` | 랜덤 · session_id |
+| `ch_suites_off` · `ch_suites_len` · `ch_has_suite` | 제안된 스위트 |
+| `ch_ext_off` · `ch_ext_len` · `ch_ext_find` · `ch_ext_find_len` | 확장 블록 · 종류로 찾기 |
+| `ch_x25519_off` · `be16` | key_share 안의 x25519 공개키 자리 · 빅엔디언 2 바이트 |
+| `build_sh` · `build_ee` · `build_cert` | ServerHello · EncryptedExtensions · Certificate(DER 하나) 짓기 |
+| `cv_content` · `build_cv` · `build_fin` | CertificateVerify 가 서명하는 130 바이트 · CertificateVerify · Finished 짓기 |
+| `server_finished` | ECDHE 부터 키 스케줄을 올려 서버 Finished 까지 한 줄로 |
+| `app_secrets` · `check_client_finished` | 응용 트래픽 비밀(c · s) · 상대 Finished 확인(1 = 맞음) |
+| `traffic_keys` · `seal_app` · `open_app` | 비밀 → 키 ‖ IV(한 방향씩) · 응용 데이터 레코드 봉하기 · 열기 |
+
+*표 50.1 — `tlssrv` 의 op*
+
+메시지 짓기는 틀이 같다(`<종류 1> <길이 3> <본문>`) — 그래서 틀을 한 번만 적었다. 네 곳에 같은 산술을 되풀이하면 한 곳만 고치는 날이 온다.
+
+**`cv_content` — 공백 64 개는 장식이 아니다.** 서명 대상은 `0x20 × 64 ‖ "TLS 1.3, server CertificateVerify" ‖ 0x00 ‖ 전사 해시` 다(§4.4.3). 그 앞머리가 없으면 이 서명이 다른 문맥(인증서 서명, 클라이언트 쪽 서명)의 서명으로 재활용될 수 있다. 규격에서 “왜 이런 게 있지” 싶은 상수는 대개 이미 일어난 공격의 흔적이다.
+
+**순서는 규격의 절반이다.** `next_ok` 는 받아들이는 자리를 열거하고, 열거하는 것이 곧 나머지를 거절하는 것이다. 보지 않으면 중간자가 Finished 를 앞당기거나 ClientHello 를 두 번 보낼 수 있다. **`session_id` 는 그대로 되울린다** — TLS 1.3 은 그 필드를 쓰지 않지만, 되울리지 않으면 1.2 로 보이게 하려는 호환 장치 때문에 실제 망의 중간 상자에서 끊긴다(§4.1.3).
+
+**전사는 이 층에서 세 번 잘린다.** `s hs traffic` 은 `CH‖SH`, 서버 Finished 는 `CH‖…‖CertificateVerify`, 응용 트래픽 비밀과 **클라이언트 Finished** 는 `CH‖…‖서버 Finished` 위에 선다. 클라이언트 Finished 는 자기 자신을 포함하지 않고, 그 verify_data 는 **클라이언트** 핸드셰이크 비밀에서 나온다 — 같은 전사, 다른 비밀. 서버 것을 쓰면 언제나 거절하게 되고 증상은 “클라이언트가 이상하다” 로 보인다.
+
+**응용 데이터는 방향마다 다른 비밀 · 다른 시퀀스다.** 하나를 공유하면 논스가 겹치고, AEAD 에서 논스가 겹치는 것은 평문과 인증키를 함께 잃는 일이다. 그래서 키뭉치를 한 방향씩 만든다. 시퀀스는 **레코드마다** 오르고 키 세대마다 0 부터다. `traffic_keys` 의 출력 버퍼는 키가 16 이어도 32 바이트여야 한다 — `expand_label` 은 HMAC 한 블록을 쓰므로 언제나 32 를 쓴다. 경보도 같은 레코드다 — 속 타입이 21 이고, 그것을 보지 않으면 경보를 데이터로 읽는다.
+
+**확인하는 것** — RFC 8448 §3 의 실제 핸드셰이크. 정본의 ClientHello 필드를 읽고, 메시지 다섯을 지어 정본과 바이트로 맞댄다(ServerHello 90 · EncryptedExtensions 40 · Certificate 445 · CertificateVerify 136 · Finished 36). 그리고 끝까지 엮는다 — 정본의 키로 ECDHE 를 우리가 내고 키 스케줄을 올려 서버 Finished 를 정본과 맞춘다. 이 한 수가 전사 자르는 자리 · 키 스케줄 · finished_key · verify_data 를 한꺼번에 잰다. 정본의 CertificateVerify 는 RSA-PSS 이고 우리 서명기는 ECDSA 라, 여기서 재는 것은 틀이고 서명 자체는 [`ecdsa`](sec89.md#mod-ecdsa) 가 따로 잰다.
 
 ---
 

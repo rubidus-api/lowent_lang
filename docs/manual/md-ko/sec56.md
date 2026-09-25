@@ -25,6 +25,8 @@ do
 end
 ```
 
+몸이 C 에 있는 `extern` op 은 절을 같은 차례로 `do … end` **안에** 담는다 — `unsafe extern proc <이름> do <절>* end`. 블록에는 절만 온다.
+
 ## <a id="sx2"></a>선언
 
 ```text

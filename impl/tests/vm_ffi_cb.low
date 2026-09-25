@@ -19,7 +19,7 @@ rem 콜백이 될 Lowent op — export extern 이라 씨가 부를 수 있다(�
 export extern fn dbl input a i64 . output i64 . . do return mul a 2 . end
 
 rem lw_c_apply(long long (*f)(long long), long long x) = f(x) + 1 — 씨가 콜백 f 를 부른다.
-unsafe extern proc c_apply .
+unsafe extern proc c_apply do
   input k cap c .
   input f unsafe_fn .
   input x i64 .
@@ -35,7 +35,7 @@ end
 rem ★★★ **조합** — 콜백 + 가변인자를 한 extern 에. 두 기능은 방출 경로가 다르다(콜백은 합성 본문의
 rem   a[], 가변인자는 호출 지점의 스택). 그 둘이 만나자 **가변인자 경로가 콜백 인자를 int 로 오취급**
 rem   했다 — 유닛으로는 안 보이고 **조합에서** 드러났다(교훈 6). 여기 게이트가 그 자리를 지킨다.
-unsafe extern proc c_apply_sum .
+unsafe extern proc c_apply_sum do
   input k cap c .
   input f unsafe_fn .
   input n i64 .

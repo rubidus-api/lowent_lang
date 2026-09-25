@@ -9095,6 +9095,106 @@ static void ck_foldorder_walk(low_check_result_t *out, const low_cst_t *nd,
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_foldorder_walk(out, nd->kids[i], tab, nt);
 }
 
+// ★★ X-0061 (소유자 결정 ⓐ, 2026-09-25) — **판정 op 은 `bool` 을 낸다.** `filter`·`any`·`all`(과 내장 `filter <받는 자리> <op>
+//   <원천>`)의 op 이 수를 내도 통과했고 0 아닌 값을 참으로 보았다 — 이 언어는 `bool` 을 수로 보지 않는다(`cast` 도 `bool`
+//   을 거절한다). 이름이 분명한 수 타입(정수·부동소수)을 내는 op 만 거절한다: 이름만으로는 별칭을 갈라 볼 수 없다.
+static void ck_predbool_walk(low_check_result_t *out, const low_cst_t *nd,
+                             const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd) return;
+    const low_cst_t *opa = NULL;
+    if (nd->kind == LOW_CST_FORM && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_NONE) {
+        proven_u8str_view_t w = nd->kids[0]->tok.lex;
+        if (nd->nkids == 2 && (veq(w, "filter") || veq(w, "any") || veq(w, "all"))) opa = nd->kids[1];
+        else if (nd->nkids == 4 && veq(w, "filter")) opa = nd->kids[2];
+    }
+    if (opa && ck_atom(opa) && opa->tok.kw == LOW_KW_NONE) {
+        for (proven_size_t i = 0; i < nt; i++) {
+            if (!proven_u8str_view_eq(tab[i].name, opa->tok.lex) || !tab[i].form) continue;
+            const low_cst_t *g = tab[i].form;
+            low_op_header_t gh = low_op_header(g);
+            if (!(gh.out_s && gh.out_s < g->nkids && ck_atom(g->kids[gh.out_s]))) break;
+            proven_u8str_view_t o = g->kids[gh.out_s]->tok.lex;
+            proven_i64 lo = 0; proven_u64 hi = 0;
+            if (!(ck_int_range(o, &lo, &hi) || veq(o, "u64") || veq(o, "i64") || veq(o, "usize") ||
+                  veq(o, "f32") || veq(o, "f64"))) break;
+            emit(out, "E-PIPE-PRED",
+                 "the op given to `filter`/`any`/`all` is a PREDICATE — it must answer `bool`. This one "
+                 "answers a number, which used to be taken as true when it was not 0. A number is not a "
+                 "truth value in this language (`cast` refuses `bool` both ways), so say the question: "
+                 "`output bool .` and `return ne x 0 .`",
+                 nd->kids[0]->tok.line);
+            break;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_predbool_walk(out, nd->kids[i], tab, nt);
+}
+
+// ★★ X-0062 (소유자 결정 ⓒ, 2026-09-25) — **받는 자리가 모자란 것을 번역 시점에 알면 거절한다.** 모르면 실행 중 멈춘다
+//   (쓰기의 경계 검사). 여기서 «안다» 는 좁게 잡는다: 원천과 받는 자리의 길이가 둘 다 머리의 계약(`requires eq (len x) N`,
+//   `array <N> <T>` 입력도 그리 바뀐다)에 적혀 있고, 사이의
+//   스테이지가 개수를 모르는 것(`filter`·`zip`)이 아닐 때다. `take`·`skip` 은 개수를 그대로 셈한다.
+static proven_u64 ck_param_array_len(const low_cst_t *f, const low_op_header_t *h, const low_cst_t *nm) {
+    // 길이는 머리의 계약 `requires eq (len <이름>) <N> .` 에 있다 — `array <N> <T>` 입력도 여기로 바뀌어 온다(low_using.c).
+    (void)h;
+    if (!nm || !ck_atom(nm)) return 0;
+    for (proven_size_t i = 0; i + 3 < f->nkids; i++) {
+        if (!(ck_atom(f->kids[i]) && veq(f->kids[i]->tok.lex, "requires"))) continue;
+        const low_cst_t *op = f->kids[i + 1], *ln = f->kids[i + 2], *nv = f->kids[i + 3];
+        if (!(ck_atom(op) && veq(op->tok.lex, "eq"))) continue;
+        while (ln->kind == LOW_CST_GROUP && ln->nkids == 1) ln = ln->kids[0];   // `(len x)` 는 괄호 한 겹 안의 폼
+        if (!(ln->kind == LOW_CST_FORM && ln->nkids == 2 && ck_atom(ln->kids[0]) && veq(ln->kids[0]->tok.lex, "len") &&
+              ck_atom(ln->kids[1]) && proven_u8str_view_eq(ln->kids[1]->tok.lex, nm->tok.lex))) continue;
+        proven_u64 n = 0;
+        if (ck_uint_literal(nv, &n)) return n;
+    }
+    return 0;
+}
+static void ck_collectfull_emit(low_check_result_t *out, proven_u32 line, proven_u64 n, proven_u64 cap) {
+    (void)n; (void)cap;
+    emit(out, "E-COLLECT-FULL",
+         "this puts more elements into a place than it can hold, and both lengths are known here (from "
+         "`requires eq (len x) N` — an `array N T` input says the same). A full place used to drop the rest "
+         "without a word; now an overflow never passes: known lengths are refused here, unknown ones stop the "
+         "run at the first element that does not fit. Give a place at least as long as the flow, or `take` what fits",
+         line);
+}
+static void ck_collectfull_walk(low_check_result_t *out, const low_cst_t *nd,
+                                const low_cst_t *f, const low_op_header_t *h) {
+    if (!nd) return;
+    // `pipe xs do … end`(문장: FORM(pipe, xs, BLOCK)) 와 `return pipe xs do … end .`(값: …, ATOM pipe, FORM(xs, BLOCK)) 둘 다
+    const low_cst_t *src = NULL, *blk = NULL;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "pipe") &&
+        nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK) { src = nd->kids[1]; blk = nd->kids[nd->nkids - 1]; }
+    for (proven_size_t i = 0; !blk && nd->kind == LOW_CST_FORM && i + 1 < nd->nkids; i++) {
+        const low_cst_t *nx = nd->kids[i + 1];
+        if (ck_atom(nd->kids[i]) && veq(nd->kids[i]->tok.lex, "pipe") && nx->kind == LOW_CST_FORM && nx->nkids >= 2 &&
+            nx->kids[nx->nkids - 1]->kind == LOW_CST_BLOCK) { src = nx->kids[0]; blk = nx->kids[nx->nkids - 1]; }
+    }
+    {
+        if (blk) {
+            proven_u64 n = ck_param_array_len(f, h, src);
+            for (proven_size_t s = 0; n && s < blk->nkids; s++) {
+                const low_cst_t *st = blk->kids[s];
+                if (!(st->kind == LOW_CST_FORM && st->nkids && ck_atom(st->kids[0]))) { n = 0; break; }
+                proven_u8str_view_t sw = st->kids[0]->tok.lex; proven_u64 k = 0;
+                if (veq(sw, "filter") || veq(sw, "zip")) { n = 0; break; }
+                if (veq(sw, "take") && st->nkids >= 2 && ck_uint_literal(st->kids[1], &k)) { if (k < n) n = k; continue; }
+                if (veq(sw, "skip") && st->nkids >= 2 && ck_uint_literal(st->kids[1], &k)) { n = k < n ? n - k : 0; continue; }
+                if (veq(sw, "take") || veq(sw, "skip")) { n = 0; break; }
+                if (veq(sw, "collect") && st->nkids >= 3) {
+                    proven_u64 cap = ck_param_array_len(f, h, st->kids[2]);
+                    if (cap && n > cap) ck_collectfull_emit(out, st->kids[0]->tok.line, n, cap);
+                    break;
+                }
+            }
+        } else if (nd->kind == LOW_CST_FORM && nd->nkids == 4 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "map")) {
+            proven_u64 n = ck_param_array_len(f, h, nd->kids[3]), cap = ck_param_array_len(f, h, nd->kids[1]);
+            if (n && cap && n > cap) ck_collectfull_emit(out, nd->kids[0]->tok.line, n, cap);
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_collectfull_walk(out, nd->kids[i], f, h);
+}
+
 static void ck_typeholes_walk(low_check_result_t *out, const low_cst_t *nd,
                               const low_cst_t *f, const low_op_header_t *h,
                               const low_parse_result_t *pr, const low_opinfo_t *tab,
@@ -10445,6 +10545,9 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             {   low_op_header_t hh = low_op_header(f);
                 ck_cmpwidth_walk(&out, h.body, f, &hh, h.body); }   // ★ 자리에 안 들어가는 리터럴과의 비교 (#32)
             ck_foldorder_walk(&out, h.body, tab0, ops.len);        // ★ fold 단계 op 의 누산 차례 (#60)
+            ck_predbool_walk(&out, h.body, tab0, ops.len);         // ★ 판정 op 은 bool (X-0061)
+            {   low_op_header_t hh = low_op_header(f);
+                ck_collectfull_walk(&out, h.body, f, &hh); }        // ★ 받는 자리가 모자란 것을 알면 거절 (X-0062)
             ck_scope_escape(&out, h.body);                   // ★ 블록 안 이름을 밖에서 (#33)
             {   // ★ 같은 쓰기 자리를 두 액터에게 (#54)
                 ck_lent_t lent[64]; proven_size_t nl = 0;

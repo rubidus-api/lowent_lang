@@ -289,8 +289,8 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
                 //   융합 보장의 문법적 근거다: 융합 못 할 것은 애초에 **쓸 수 없다**(절벽이 생기지 않는다).
                 ir_fail(c, "E-PIPE-STAGE",
                         "this word is not a `pipe` stage. The stage vocabulary is CLOSED (RFC-0010 G5/D-A): "
-                        "stages are `filter <op> .`, `map <op> .`, `take <n> .`, `skip <n> .`, `enumerate .`, "
-                        "`zip <other> .` and `scan <init> <op> .`, and the pipeline ends with exactly one "
+                        "stages are `filter <op> .`, `map <op> .`, `take <n> .`, `skip <n> .`, `enumerate <op> .`, "
+                        "`zip <other> <op> .` and `scan <init> <op> .`, and the pipeline ends with exactly one "
                         "terminal — `collect into <mut slice> .`, `fold <init> <op> .`, `count .`, `any <op> .` "
                         "or `all <op> .`. Fusion here is the "
                         "MEANING, not an optimization, so anything that could not fuse into the single loop is "
@@ -364,10 +364,6 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
             // ★ **collect 의 sink-full 단락도 pull 전에** — out 이 꽉 차면(§6.5 유계 싱크) 더는 pull 안 한다.
             //   전엔 sink-full 을 pull **뒤** cond 의 AND 에서만 봐, 꽉 찬 뒤에도 원소 하나를 뽑아 버렸다
             //   (take 없는 map→collect 가 len-0 싱크에도 소스를 한 칸 전진시켰다 — 같은 근인).
-            if (term == 0) {
-                ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
-                tk_brz[ntk++] = ir_emit(c, IRW_BRZ, 0);   // 꽉 참 → pull 건너뛰고 종료로
-            }
             ir_emit(c, IRW_LOAD, (proven_i64)sv); ir_emit(c, IRW_CALL, (proven_i64)nexth);
             ir_emit(c, IRW_STORE, (proven_i64)ov);
             ir_emit(c, IRW_LOAD, (proven_i64)ov); ir_emit(c, IRW_ISSOME, 0);
@@ -380,10 +376,6 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
             }
         } else {
             ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_LOAD, (proven_i64)sv); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
-        }
-        if (term == 0) {   // collect 는 유계 싱크 — out 이 짧으면 넘치지 않고 멈춘다(§6.5)
-            ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
-            ir_emit(c, IRW_AND, 0);
         }
         proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
 
@@ -446,7 +438,8 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
                 ir_emit(c, IRW_STORE, (proven_i64)xv);            // 원소 재바인딩(SSA)
             }
         }
-        // ── sink
+        // ── sink — ★★ X-0062 (소유자 결정 ⓒ): 꽉 찬 자리에서 **말없이 멈추지 않는다.** 전엔 cond 에 `j < len(out)` 을
+        //   두어 남은 원소를 조용히 버렸다. 이제 찬 뒤에 원소가 오면 이 쓰기의 경계 검사가 멈춘다(VM·네이티브 같다).
         if (term == 0) {
             ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_LOAD, (proven_i64)xv);
             ir_emit(c, IRW_ISTORE, 0);

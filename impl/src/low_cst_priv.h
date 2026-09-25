@@ -18,6 +18,7 @@ typedef struct {
     // ★★★ **`extern` 선언에는 본문이 없다** (RFC-0063) — 몸이 **C 에** 있으니까.
     //   그래서 `do … end` 를 요구하면 안 된다. 문맥 비트 하나로 그것을 말한다.
     bool in_extern;
+    bool in_export;   // X-0058 — `export extern` 은 몸이 Lowent 에 있다(C 가 부른다)
     // ★ 2026-09-15 — trait 블록 안인가. 서명에는 `fn`/`proc` 을 적지 않는다(효과 줄이 정한다) — 적으면 분명히 말한다.
     bool in_trait;
     // ★ 2026-09-25 (소유자 결정 «end 는 자기 do 까지만») — 블록을 품은 **값**을 쓰는 문장(`let x be make T do … end .`)이

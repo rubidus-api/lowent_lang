@@ -50,7 +50,8 @@ C 함수를 부르는 op 은 셋을 *모두* 갖춘다.
 )
 
 #idx("extern")
-`extern` op 은 몸이 C 에 있으므로 `do` 대신 `link "lw_c_area"` 로 C 쪽 이름을 댄다. 이름은 처리기가 op 이름에서 지어내지
+`extern` op 은 몸이 C 에 있으므로 이쪽에는 몸이 없다. 대신 `struct` 가 칸을 담듯 *절을* `do … end` 에 담고, 그 가운데
+`link "lw_c_area"` 가 C 쪽 이름을 댄다. 블록에 문장을 적으면 몸이 둘이 되어 `E-FFI-BODY` 다. 이름은 처리기가 op 이름에서 지어내지
 않는다. 다른 언어에 하는 약속이므로 약속한 사람이 적는다 --- 빠뜨리면 `E-FFI-LINK` 다. `area_twice` 는 그 op 을 부르므로 스스로도 `unsafe` 이고 `cap c`
 를 받는다. 표시와 권리가 호출 사슬을 따라 올라간다.
 
@@ -209,7 +210,7 @@ C 에게 Lowent 함수를 넘겨 되부르게 하려면 `export extern` op 의 �
   id: "ffi-glance",
   caption: [C 경계의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`unsafe extern proc c_area input k cap c . … effects unsafe . link "lw_c_area" . end`], [C 에 몸이 있는 op], [표시·권리·효과 줄 셋이 모두 있어야 한다],
+  [`unsafe extern proc c_area do input k cap c . … effects unsafe . link "lw_c_area" . end`], [C 에 몸이 있는 op --- 절을 `do … end` 에 담는다], [표시·권리·효과 줄 셋이 모두 있어야 한다],
   [`unsafe proc area_twice input k cap c . … effects unsafe .`], [C 를 부르는 op 을 부르는 op], [표시와 권리가 호출 사슬을 따라 올라간다],
   [`input xs slice u8 .`(경계)], [C 에서는 포인터와 길이 두 인자], [저절로 사상되는 것은 슬라이스뿐],
   [`option`·`result`·벡터를 경계에], [거절(`E-FFI-TYPE`)], [C ABI 에 없는 것을 있는 척하지 않는다],

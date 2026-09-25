@@ -1,5 +1,6 @@
 module short_buffer .
-rem run: big_doubled [3,4,5,6] [0,0]
+rem run: big_doubled [1,3,4] [0,0]
+rem trap: big_doubled [3,4,5,6] [0,0]
 
 fn over2 input a u8 . output bool .
 do
@@ -11,7 +12,7 @@ do
   return wrap_add a a .
 end
 
-rem ko: 남는 원소는 넷인데 버퍼는 두 칸이다 --- 멈추지 않고 두 칸에서 끝난다 /// en: four elements remain but the buffer has two slots --- it does not stop; it ends after two
+rem ko: 버퍼는 두 칸 --- 남는 원소가 둘이면 담기고, 넷이면 셋째를 담으려는 순간 멈춘다 /// en: the buffer has two slots --- two remaining elements fit; with four, the run stops as the third is stored
 proc big_doubled input xs slice u8 . input out mut slice u8 . output u64 . effects none .
 do
   pipe xs do

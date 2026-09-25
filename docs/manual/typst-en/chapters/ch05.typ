@@ -172,8 +172,13 @@ Modifiers can go in front of an op head.
 
 // snippet: skip — needs the C implementation (`lw_c_area`) to translate — shows the head only
 ```lowent
-unsafe extern proc c_area input k cap c . input w i64 . input h i64 . output i64 .
-  effects unsafe . link lw_c_area .
+unsafe extern proc c_area do
+  input k cap c .
+  input w i64 .
+  input h i64 .
+  output i64 .
+  effects unsafe .
+  link lw_c_area .
 end
 ```
 

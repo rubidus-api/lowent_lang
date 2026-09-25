@@ -73,12 +73,15 @@ Elements pass through the tube one at a time. No separate "array of just the dig
   [`enumerate <op>`], [`(u64, t) → u`], [Gives the position (from 0) and the element to the op], [---],
   [`zip <slice> <op>`], [`(t, t2) → u`], [Gives the element and the other slice's element at the same place to the op], [ends when the shorter side ends],
   [`scan <init> <op>`], [`(a, t) → a`], [Passes the accumulator *after* each step (the initial value is not passed)], [---],
-  [`collect into <buffer>`], [---], [*Terminal.* Fills the buffer from the front and gives *how many it stored* (`u64`)], [stops when the buffer is full --- does not report what did not fit],
+  [`collect into <buffer>`], [---], [*Terminal.* Fills the buffer from the front and gives *how many it stored* (`u64`)], [a buffer too short is refused at translation when the lengths are known (`E-COLLECT-FULL`), otherwise the run stops],
   [`fold <init> <op>`], [`(a, t) → a`], [*Terminal.* Gives the last accumulator (`a`)], [empty: the initial value],
   [`count`], [---], [*Terminal.* Gives the number of elements (`u64`)], [empty: 0],
   [`any <op>`], [`t → bool`], [*Terminal.* Is any element true], [stops at the first true · empty: false],
   [`all <op>`], [`t → bool`], [*Terminal.* Are all elements true], [stops at the first false · empty: true],
 )
+
+The op given to `filter`·`any`·`all` is a *predicate* and must answer `bool`. An op that answers a number is refused with
+`E-PIPE-PRED` --- there is no rule here that reads a nonzero number as true (the same reason as `cast` in #chref("named-types")).
 
 Used as a value --- `return pipe … end .` --- a `pipe` is worth what its terminal gives. Each stage hands elements on to the
 next line, and the terminal takes them last and makes one value.
@@ -165,7 +168,8 @@ do
 end
 ```
 
-Putting `[1,2,3]` into a two-slot `out` gives `[2,4]`; the third is not stored. The sink must be a `mut slice` (`E-MAP-SINK`) and
+Putting `[1,2]` into a three-slot `out` gives `[2,4,0]`. The other way round, putting `[1,2,3]` into two slots stops the run as the third is written ---
+a full sink never drops the rest in silence (the same as `collect into`). The sink must be a `mut slice` (`E-MAP-SINK`) and
 the element a scalar (`E-MAP-ELEM`). The word is the same, but inside `pipe` it takes one op --- the number of arguments tells which is meant.
 
 == Common mistakes
@@ -205,12 +209,13 @@ the element a scalar (`E-MAP-ELEM`). The word is the same, but inside `pipe` it 
   use a pure op that filters out the elements that do not meet the condition.
 ]
 
-#misconception[`collect into` stops when the buffer is too small][
+#misconception[`collect into` drops the rest when the buffer is full][
   #demo("examples/ch24/short_buffer.low")
 
-  Four elements remain (3, 4, 5, 6), but `out` has two slots. Collecting ends when the buffer is full; it does not stop the program. A `pipe`
-  does not allocate, so it cannot grow the buffer either. If you need to know that everything fit, add another `pipe` with the same stages
-  ending in `count` to measure first, and compare with the buffer's length.
+  From `[1,3,4]` two elements remain (3, 4), and they fit in two slots. `[3,4,5,6]` leaves four, so the run *stops* as the third is stored.
+  It used to end quietly after two, and nobody learned that the other two were gone. When both lengths are known at translation (an
+  `array 5 u8` input, say), there is nothing to stop: it is refused with `E-COLLECT-FULL`. A `pipe` does not allocate, so it does not grow the
+  buffer either. To keep only what fits, *write* `take 2`.
 ]
 
 == This chapter's syntax at a glance
@@ -226,7 +231,7 @@ the element a scalar (`E-MAP-ELEM`). The word is the same, but inside `pipe` it 
   [`enumerate idxadd .` · `zip ys addb .`], [pass the index or partner as op arguments], [no tuples are built],
   [`scan 0 addb .` · `fold 0 addu .`], [emit running values · accumulate into one value], [the op takes the accumulator first, then the element],
   [`count .` · `any is_zero .` · `all under10 .`], [terminators that produce a value], [usable as `return pipe … end`],
-  [`collect into out .`], [store into the caller's buffer], [a `pipe` never allocates --- it ends when full],
+  [`collect into out .`], [store into the caller's buffer], [a `pipe` never allocates --- a buffer too short is refused or stops the run],
   [exactly one terminator, at the end], [a stage after it is `E-PIPE-NO-TERMINAL`], [the end of the flow is in one place],
   [a word like `sort`], [does not exist --- `E-PIPE-STAGE`], [operations that cannot fuse were left out],
 )

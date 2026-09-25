@@ -17,7 +17,7 @@ rem ★ 능력(`cap`)은 **C 로 안 넘어간다** — 그것은 **권리**이�
 
 module vm_ffi .
 
-unsafe extern proc c_add .
+unsafe extern proc c_add do
   input k cap c .
   input a i64 .
   input b i64 .
@@ -27,7 +27,7 @@ unsafe extern proc c_add .
   requires ge a 0 .          rem ★ **C 를 부르기 전에** 검사된다
 end
 
-unsafe extern proc c_sum .
+unsafe extern proc c_sum do
   input k cap c .
   input s slice u8 .         rem → C 에서는 **포인터 + 길이**
   output i64 .
@@ -45,7 +45,7 @@ end
 
 rem ★★★ **f64 를 주고받는다** — extern 의 반환이 예전엔 언제나 long long 으로 선언·수신돼
 rem   경계에서 타입이 어긋났다(잠복 UB). 이제 f64 는 double 로 오간다.
-unsafe extern proc c_scale2 .
+unsafe extern proc c_scale2 do
   input k cap c .
   input x f64 .
   output f64 .
@@ -59,7 +59,7 @@ end
 
 rem ★★★ **넓은 슬라이스** — `slice u32` 는 예전엔 `const unsigned char *` 로 넘어갔다(폭 무시,
 rem   f64 반환과 같은 부류의 오타). 이제 `const uint32_t *` 로 넘어가고 길이는 **원소 수**다.
-unsafe extern proc c_sum32 .
+unsafe extern proc c_sum32 do
   input k cap c .
   input s slice u32 .        rem → C 에서는 const uint32_t * + size_t(원소 수)
   output i64 .
@@ -79,8 +79,20 @@ struct pt do
   y i64 .
 end
 
-unsafe extern proc c_ptsum  input k cap c . input p unsafe_ptr pt . output i64 . effects unsafe . link lw_c_ptsum . end
-unsafe extern proc c_ptbump input k cap c . input p unsafe_ptr pt . output i64 . effects unsafe . link lw_c_ptbump . end
+unsafe extern proc c_ptsum do
+  input k cap c .
+  input p unsafe_ptr pt .
+  output i64 .
+  effects unsafe .
+  link lw_c_ptsum .
+  end
+unsafe extern proc c_ptbump do
+  input k cap c .
+  input p unsafe_ptr pt .
+  output i64 .
+  effects unsafe .
+  link lw_c_ptbump .
+  end
 
 unsafe proc ptsum_via_c  input k cap c . input p unsafe_ptr pt . output i64 . effects unsafe . do return c_ptsum k p . end
 unsafe proc ptbump_via_c input k cap c . input p unsafe_ptr pt . output i64 . effects unsafe . do return c_ptbump k p . end

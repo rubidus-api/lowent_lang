@@ -60,12 +60,43 @@ end")
       - `enumerate <op>` (스테이지, op 은 `(u64, t) → u`) — 순번 `i`(0 부터)와 원소를 op 에 주고 그 답을 보낸다.
       - `zip <원천2> <op>` (스테이지, op 은 `(t, t2) → u`) — 원소와 `원천2` 의 같은 자리 원소를 op 에 주고 그 답을 보낸다. **짧은 쪽이 끝나면 흐름이 끝난다.**
       - `scan <초기값> <op>` (스테이지, op 은 `(a, t) → a`) — 누산값을 `초기값` 으로 두고, 원소마다 `누산값 = op(누산값, 원소)` 로 고친 **뒤의** 누산값을 보낸다. 초기값 자신은 보내지 아니한다.
-      - `collect into <자리>` (종결자) — 흐름의 원소를 `<자리>`(`mut slice`)에 앞에서부터 담고, **담은 개수**(`u64`)를 낸다. 자리가 흐름보다 짧으면 자리가 찬 곳에서 담기를 멈춘다 — 담지 못한 원소가 있었다는 것은 따로 알리지 아니한다.
+      - `collect into <자리>` (종결자) — 흐름의 원소를 `<자리>`(`mut slice`)에 앞에서부터 담고, **담은 개수**(`u64`)를 낸다. 자리는 흐름을 모두 담을 만큼 길어야 한다(2c).
       - `fold <초기값> <op>` (종결자, op 은 `(a, t) → a`) — `scan` 처럼 누산하되 마지막 누산값 하나(`a`)를 낸다. 흐름이 비면 초기값이다.
       - `count` (종결자) — 흐름의 원소 수(`u64`)를 낸다.
       - `any <op>` (종결자, op 은 `t → bool`) — op 이 참인 원소가 있으면 참. 흐름이 비면 거짓. 첫 참에서 멈춘다.
       - `all <op>` (종결자, op 은 `t → bool`) — 모든 원소에서 op 이 참이면 참. 흐름이 비면 참. 첫 거짓에서 멈춘다.
   ]
+  #para("2c")[
+    받는 자리가 차면 **말없이 멈추지 아니한다.** 흐름이 받는 자리보다 긴 것을 번역 시점에 알면 — 두 길이가
+      머리의 계약(`requires eq (len x) N`, `array N T` 입력이 그리 된다)에 적혀 있고 사이의 스테이지가 개수를 모르는
+      것(`filter`·`zip`)이 아니면 — 번역이 거부한다(`E-COLLECT-FULL`). 알 수 없으면 실행 중, 담지 못할 원소가 오는
+      순간 멈춘다(쓰기의 경계 검사). 들어갈 만큼만 담으려면 `take` 로 **적는다.**
+  ]
+  #para("2d")[
+    `filter`·`any`·`all` 의 op 은 **판정**이다 — 출력이 `bool` 이어야 한다. 수를 내는 op 을 주는 것은
+      적합하지 아니하다(`E-PIPE-PRED`). 0 이 아닌 수를 참으로 읽는 규칙은 이 언어에 없다(#cref("6.2.16") (4)). #cref("6.12.3") 의 내장
+      `filter` 의 op 도 같다.
+  ]
+  #rejected("다섯을 셋 칸에 담는다 — 두 길이를 번역 시점에 안다", "module ex_collect_full .
+
+fn dbl input a u8 . output u8 . do return wrap_add a a . end
+
+proc over input xs array 5 u8 . input out mut array 3 u8 . output u64 . effects none . do
+  return pipe xs do
+    map dbl .
+    collect into out .
+  end .
+end", "E-COLLECT-FULL")
+  #rejected("수를 내는 op 을 판정 자리에 준다", "module ex_pipe_pred .
+
+fn as_flag input a u8 . output u8 . do return a . end
+
+fn nonzero input xs slice u8 . output u64 . do
+  return pipe xs do
+    filter as_flag .
+    count .
+  end .
+end", "E-PIPE-PRED")
   #para("3")[
     한 `pipe` 문은 종결자를 **정확히 하나** 갖는다. 종결자 없이 끝나거나 둘을 두는 것은
       적합하지 아니하다.
@@ -147,6 +178,10 @@ end
     #para("1")[
       `map` 과 `filter` 는 결과를 **첫 인자(받는 자리)에 써 넣는다.** 그러므로 그 자리는
       고칠 수 있어야 한다(`E-MAP-SINK`, #cref("8.8")).
+    ]
+    #para("1a")[
+      받는 자리가 차는 것은 #cref("6.12") (2c)와 같다 — 알면 번역이, 모르면 실행이 멈춘다. `map` 은 원천의 원소 수만큼,
+      `filter` 는 판정을 지난 원소 수만큼 자리가 있어야 한다.
     ]
     #para("2")[
       이 두 연산이 다루는 원소는 **스칼라**여야 한다(`E-MAP-ELEM`). 묶음과 열거는

@@ -3906,7 +3906,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             // ★★★ **map / filter** (RFC-0016 — 원소별 스테이지). `map <out> <op> <in>` · `filter <out> <pred> <in>`.
             //   결과는 **호출자가 준 mut slice `out` 에 쓴다**(할당 없음 — 유계 싱크, RFC-0016 collect-into 모델).
             //   op/pred 은 이름 op **1 인자**(T->U · T->bool). 경계 안전: `idx < len(in) AND idx < len(out)` 까지만
-            //   쓰고, **쓴 개수를 반환**한다(out 이 짧으면 넘치지 않고 잘린다). fold 과 같은 기계 + ISTORE.
+            //   쓰고, **쓴 개수를 반환**한다(out 이 짧으면 — X-0062 부터 — 쓰는 순간 멈춘다). fold 과 같은 기계 + ISTORE.
             {
                 bool ismap = veq(nd->tok.lex, "map"), isfilter = veq(nd->tok.lex, "filter");
                 if (ismap || isfilter) {
@@ -3930,9 +3930,10 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)i);   // read index
                     ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)j);   // write index (= count)
                     proven_size_t cond = c->code.len;
+                    // ★★ X-0062 (소유자 결정 ⓒ, 2026-09-25) — 받는 자리가 차도 **말없이 멈추지 않는다.** 전엔 조건에
+                    //   `j < len(out)` 이 있어 남은 원소를 조용히 버렸다(원소 3 을 2 칸에 → 둘만 쓰고 끝). 이제 원천을 끝까지 돌고,
+                    //   찬 자리에 쓰려는 순간 경계 검사가 멈춘다(VM E-VM-BOUNDS · 네이티브 panic). 번역 시점에 알면 거절한다.
                     ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_LOAD, (proven_i64)in); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
-                    ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
-                    ir_emit(c, IRW_AND, 0);
                     proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
                     proven_size_t skip = 0; bool have_skip = false;
                     if (isfilter) {

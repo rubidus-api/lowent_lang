@@ -3,7 +3,7 @@ module variadic .
 rem ko: C 의 char* — unsafe_ptr 는 타입 앞에 붙는 한정자다 /// en: C's char*; unsafe_ptr is a qualifier placed before a type
 newtype cstr unsafe_ptr u8 .
 
-unsafe extern proc c_printf .
+unsafe extern proc c_printf do
   input k cap c .
   input fmt cstr .
   output i32 .

@@ -399,7 +399,40 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
         //   이름 다음부터는 절 낱말이 절을 열고, 열린 절은 다음 절 낱말이나 `do` 앞에서 이미 점으로 닫혀 있어야 한다.
         bool decl = (hkw == LOW_KW_FN || hkw == LOW_KW_PROC || hkw == LOW_KW_TEST);
         bool named = false, open = false;
-        while (low_curkw(p) != LOW_KW_DO && !low_is_form_boundary(p)) {
+        // ★★★ X-0058 (소유자 결정 Ⓑ, 2026-09-25) — **몸이 C 에 있는 extern 은 블록 선언이다**: `extern proc f do <절>* end`.
+        //   struct 가 칸을 `do … end` 에 담듯 절을 담는다. 전엔 `extern proc f <절>* end` 였다 — 짝 없는 `end` 가 이 한 자리뿐이었다
+        //   (X-0052: `end` 는 자기 `do` 만 닫는다). 뒤 단계가 보는 나무는 **그대로다**: 블록 안의 절을 머리의 평평한 원자 열로 편다.
+        bool cblock = p->in_extern && !p->in_export && decl;
+        bool in_blk = false;
+        low_token_t blk_at = head;
+        while (cblock || (low_curkw(p) != LOW_KW_DO && !low_is_form_boundary(p))) {
+            if (cblock) {
+                if (!in_blk && named && low_curkw(p) == LOW_KW_DO) { blk_at = low_adv(p); in_blk = true; continue; }
+                if (in_blk && low_curkw(p) == LOW_KW_END) { low_adv(p); break; }
+                if (low_curk(p) == LOW_TOK_EOF || low_curk(p) == LOW_TOK_RPAREN) {
+                    if (in_blk) low_pdiag(p, "E-BLOCK-UNCLOSED", "missing 'end' for do-block", blk_at.line, blk_at.col);
+                    break;
+                }
+                if (!in_blk && low_curkw(p) == LOW_KW_END) {
+                    // 옛 꼴 `extern proc f <절>* end` — 거절하되 같은 나무로 읽고(뒤 진단이 이어지게) `end` 를 먹는다.
+                    low_pdiag(p, "E-STMT-NODO",
+                              "an `extern` op whose body is in C is a block declaration: its clauses go inside "
+                              "`do … end`, like the fields of a struct — `unsafe extern proc f do input k cap c . "
+                              "output i64 . effects unsafe . link \"f\" . end`. `end` closes only its own `do`. "
+                              "`--fmt` writes it for you", head.line, head.col);
+                    low_adv(p);
+                    break;
+                }
+                if (in_blk && !open && named && low_curk(p) == LOW_TOK_IDENT &&
+                    !low_is_clause_word(low_cur(p)->lex) && low_curk(p) != LOW_TOK_DOT) {
+                    low_pdiag(p, "E-FFI-BODY",
+                              "an `extern` op's block holds its CLAUSES only (`input`, `output`, `effects`, `link` …) — "
+                              "its body is IN C. A statement here would be a second body",
+                              low_cur(p)->line, low_cur(p)->col);
+                    while (low_curkw(p) != LOW_KW_END && low_curk(p) != LOW_TOK_EOF) low_adv(p);
+                    continue;
+                }
+            }
             if (low_curk(p) == LOW_TOK_DOT) {
                 low_adv(p);
                 if (ctrl) break;          // ★ 제어 머리에서 `.` 은 **식을 닫는다**
@@ -420,6 +453,12 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
             if (op) (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, op);
         }
         if (decl && open && p->pos) low_head_dot_missing(p, &p->toks[p->pos - 1]);
+        if (cblock) {   // 몸 없는 선언으로 닫는다 — 아래의 `do`/`E-STMT-NODO` 가지를 타지 않는다
+            low_cst_t *xf = low_node(p, LOW_CST_FORM, head);
+            if (xf) { xf->closer = LOW_TOK_EOF; low_take_kids(p, xf, &ops); }
+            else proven_array_destroy(&ops);
+            return xf;
+        }
     }
     if (low_curkw(p) == LOW_KW_DO) {
         (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block(p));
@@ -537,10 +576,11 @@ static low_cst_t *low_parse_export(low_parser_t *p) {
         low_adv(p);  // 'target'
         if (low_curk(p) == LOW_TOK_IDENT) iset = low_adv(p).lex;  // <iset>
     }
-    bool save_ext = p->in_extern;
+    bool save_ext = p->in_extern, save_exp = p->in_export;
     if (ex.kw == LOW_KW_EXTERN) p->in_extern = true;
+    if (ex.kw == LOW_KW_EXPORT) p->in_export = true;
     low_cst_t *def = low_parse_form(p);
-    p->in_extern = save_ext;
+    p->in_extern = save_ext; p->in_export = save_exp;
     low_cst_t *f = low_node(p, LOW_CST_FORM, ex);
     if (f) {
         f->target_iset = iset;   // 비어 있지 않으면 target-게이트
@@ -1243,11 +1283,12 @@ static proven_size_t low_fmt_hdr_order(const low_cst_t *f, proven_size_t from, p
 }
 
 // `fn f` · 절마다 한 줄(닫개 포함) — 머리의 kids[2, to). 몸 있는 op 과 몸 없는 extern 이 같이 쓴다.
-static void low_fmt_decl_head(const low_cst_t *f, proven_size_t to) {
+static void low_fmt_decl_head(const low_cst_t *f, proven_size_t to, bool doblk) {
     low_fmt_node(f->kids[0], false);                 // 머리 (fn / proc / …)
     putchar(' ');
     low_fmt_node(f->kids[1], false);                 // 이름
-    fputs(" .\n", stdout);                          // RFC-0103 ⓐ — 머리를 개행이 닫고 있었다
+    // RFC-0103 ⓐ — 머리를 개행이 닫고 있었다. X-0058 — 몸이 C 에 있는 extern 은 절을 `do … end` 에 담는다.
+    fputs(doblk ? " do\n" : " .\n", stdout);
     bool open_clause = false;
     proven_size_t ord[f->nkids];
     proven_size_t nord = low_fmt_hdr_order(f, 2, to, ord);
@@ -1270,7 +1311,7 @@ static void low_fmt_decl_head(const low_cst_t *f, proven_size_t to) {
 }
 // `fn f` · 절마다 한 줄(닫개 포함) · `do` … `end`
 static void low_fmt_decl(const low_cst_t *f) {
-    low_fmt_decl_head(f, f->nkids - 1);
+    low_fmt_decl_head(f, f->nkids - 1, false);
     low_fmt_body(f->kids[f->nkids - 1], 0);
 }
 
@@ -1302,7 +1343,7 @@ void low_cst_fmt(const low_parse_result_t *pr) {
             // ★ WO-0217 — 몸 없는 extern 머리도 같은 차례로 찍는다.
             // ★★ X-0059 — 그리고 **같은 모양으로** 찍는다: 절마다 한 줄, 자기 점. 전엔 한 줄에 원자만 늘어놓아 절의 점을
             //   모두 지웠다(`… input k cap c input w i64 … link "x" . end`) — 서식기가 규범에 없는 꼴을 만들었다.
-            low_fmt_decl_head(f, f->nkids);
+            low_fmt_decl_head(f, f->nkids, true);
             fputs("end\n", stdout);
             continue;
         }

@@ -17,8 +17,20 @@ module m .
 use strbuf from "../../lib/strbuf.low" .
 
 rem C 쪽: 널종단 char* 를 받아 strlen / 첫 바이트를 낸다(진짜 libc strlen).
-unsafe extern proc c_slen  input k cap c . input p cstr . output i64 . effects unsafe . link lw_c_slen . end
-unsafe extern proc c_first input k cap c . input p cstr . output i64 . effects unsafe . link lw_c_first . end
+unsafe extern proc c_slen do
+  input k cap c .
+  input p cstr .
+  output i64 .
+  effects unsafe .
+  link lw_c_slen .
+  end
+unsafe extern proc c_first do
+  input k cap c .
+  input p cstr .
+  output i64 .
+  effects unsafe .
+  link lw_c_first .
+  end
 
 rem ── str_buf 로 "hello" 를 조립해 cstr 로 C 에 건넨다 → strlen = 5 ──────────────────
 unsafe proc measure input k cap c . input buf mut slice u8 . . output i64 . effects unsafe . do

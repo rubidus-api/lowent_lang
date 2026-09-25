@@ -177,8 +177,13 @@ op 머리 앞에 수식어를 붙일 수 있다.
 
 // snippet: skip — C 쪽 구현(`lw_c_area`)이 있어야 번역된다 — 머리 모양만 보인다
 ```lowent
-unsafe extern proc c_area input k cap c . input w i64 . input h i64 . output i64 .
-  effects unsafe . link lw_c_area .
+unsafe extern proc c_area do
+  input k cap c .
+  input w i64 .
+  input h i64 .
+  output i64 .
+  effects unsafe .
+  link lw_c_area .
 end
 ```
 

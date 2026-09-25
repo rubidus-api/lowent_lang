@@ -1,7 +1,11 @@
 module area_ffi .
 
 rem ko: 몸이 C 에 있다 — 표시·권리·효과 줄 셋을 모두 갖춘다 /// en: the body lives in C — it carries all three: marker, rights and effects
-unsafe extern proc c_area input k cap c . input w i64 . input h i64 . output i64 .
+unsafe extern proc c_area do
+  input k cap c .
+  input w i64 .
+  input h i64 .
+  output i64 .
   effects unsafe .
   link "lw_c_area" .
 end

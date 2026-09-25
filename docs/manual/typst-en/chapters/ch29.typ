@@ -49,7 +49,8 @@ An op that calls a C function has *all* three.
 )
 
 #idx("extern")
-An `extern` op's body is in C, so instead of `do` it names the C side with `link "lw_c_area"`. The processor does not make the name up from the op's name. It is
+An `extern` op's body is in C, so there is no body here. Instead, the way a `struct` holds its fields, it holds its *clauses* in
+`do … end`, and among them `link "lw_c_area"` names the C side. A statement in that block would be a second body: `E-FFI-BODY`. The processor does not make the name up from the op's name. It is
 a promise made to another language, so whoever promises writes it --- leaving it out is `E-FFI-LINK`. `area_twice` calls that op, so it is itself `unsafe` and receives `cap c`. The mark and the right
 travel up the call chain.
 
@@ -211,7 +212,7 @@ opposite direction (C calling our variadics) does not exist.
   id: "ffi-glance",
   caption: [C boundary syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`unsafe extern proc c_area input k cap c . … effects unsafe . link "lw_c_area" . end`], [an op whose body is in C], [marker, right and effects line must all be present],
+  [`unsafe extern proc c_area do input k cap c . … effects unsafe . link "lw_c_area" . end`], [an op whose body is in C --- its clauses go in `do … end`], [marker, right and effects line must all be present],
   [`unsafe proc area_twice input k cap c . … effects unsafe .`], [an op that calls an op that calls C], [marker and right travel up the call chain],
   [`input xs slice u8 .` (at the boundary)], [two arguments in C: pointer and length], [only slices are mapped automatically],
   [`option`·`result`·vectors at the boundary], [rejected (`E-FFI-TYPE`)], [nothing absent from the C ABI is faked],

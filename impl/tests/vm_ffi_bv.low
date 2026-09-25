@@ -16,7 +16,13 @@ struct pt do
 end
 
 rem area(struct pt) = x*y — 16바이트(2×i64) → SysV 로 레지스터 둘에 실린다.
-unsafe extern proc c_area input k cap c . input p pt . output i64 . effects unsafe . link lw_c_area . end
+unsafe extern proc c_area do
+  input k cap c .
+  input p pt .
+  output i64 .
+  effects unsafe .
+  link lw_c_area .
+  end
 
 unsafe proc area_via_c input k cap c . input p pt . output i64 . effects unsafe . do
   return c_area k p .

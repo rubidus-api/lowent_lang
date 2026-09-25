@@ -320,6 +320,33 @@ end
 (1) `extern` 이 붙은 op 은 **몸이 씨에 있다.** 그러므로 이쪽에 몸을 적으면 거부된다
       (`E-FFI-BODY`) — 몸이 둘인 것은 프로그램이 아니라 아무도 답할 수 없는 물음이다.
 
+(1a) 몸이 씨에 있는 `extern` op 은 **블록 선언**이다. `struct` 가 칸을 `do … end` 에 담듯, 절을
+      `do … end` 에 담는다: `extern proc <이름> do <절>* end`. 절은 저마다 자기 점으로 닫는다
+      (⟦§6.4.1⟧ (3c)). 블록에는 절만 온다 — 문장이 오면 몸이 둘이다(`E-FFI-BODY`). `do` 없이 이름
+      뒤에 절을 늘어놓고 `end` 로 닫는 꼴은 거부된다(`E-STMT-NODO`) — `end` 는 자기 `do` 만
+      닫는다(⟦§6.1.6⟧ (2a)).
+
+```lowent 예제: 몸이 씨에 있는 op — 절을 do … end 에 담는다
+module ex_extern_block .
+
+unsafe extern proc c_abs do
+  input k cap c .
+  input a i64 .
+  output i64 .
+  effects unsafe .
+  link "llabs" .
+end
+```
+
+```lowent-거부: do 없이 절을 늘어놓고 end 로 닫는다 · E-STMT-NODO
+module ex_extern_nodo .
+
+unsafe extern proc c_abs input k cap c . input a i64 . output i64 .
+  effects unsafe .
+  link "llabs" .
+end
+```
+
 (2) `export extern` 은 **반대 방향**이다. 씨가 우리를 부르므로 몸은 **이쪽 것**이며,
       몸이 없으면 거부된다(`E-FFI-BODY`).
 

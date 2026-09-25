@@ -27,6 +27,8 @@ do
 end
 ```
 
+An `extern` op whose body is in C holds the same clauses, in the same order, *inside* `do … end` --- `unsafe extern proc <name> do <clause>* end`. Only clauses go in that block.
+
 == Declarations
 
 ```text

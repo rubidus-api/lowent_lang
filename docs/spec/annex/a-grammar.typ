@@ -223,7 +223,7 @@ return              return [<폼>] .           (값이 블록으로 끝나도 �
 break               break .                   (라벨은 없다)             .
 continue            continue .                                         .
 make                make <타입> do <칸초기>* end  (칸초기 = <이름> <폼> .) end
-extern              [export] extern <abi> fn/proc … end                end
+extern              extern fn/proc <이름> do <절>* end  (몸이 씨)       end
 match               match <폼> do <가지>* [else do <폼>* end] end       end")
     #para("2a")[
       `fn`/`proc` 머리의 `<절>*` 은 #cref("6.4.1") (3a) 의 한 차례를 따른다: `satisfies`·`lowdoc` · `vector`·`priority` ·

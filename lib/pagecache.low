@@ -47,7 +47,7 @@ end
 
 rem ★ 캐시를 연다.
 export fn open input comptime b type . input pages u64 . output owned cache b . do
-  return make cache b do pages pages . epoch 0 . end
+  return make cache b do pages pages . epoch 0 . end .
 end
 
 rem ★★ **이 기계에서 커서가 들 수 있는 pin 수** — 한 캐시라인에 들어가는 만큼.
@@ -67,38 +67,38 @@ end
 
 rem ★★★ **고정한다 — 캐시 토큰을 삼킨다.** 이 뒤로 `evict` 는 부를 수 없다(컴파일 거절).
 export fn acquire input comptime b type . input c owned cache b . input id u64 . output pin b . do
-  return make pin b do id id . depth 1 . held c . end
+  return make pin b do id id . depth 1 . held c . end .
 end
 
 rem ★★ 겹쳐 고정한다 — 앞선 pin 을 삼킨다. 깊이가 하나 는다.
 export fn acquire_more input comptime b type . input p owned pin b . input id u64 . output pin2 b . do
-  return make pin2 b do id id . depth (add (field p depth) 1) . under p . end
+  return make pin2 b do id id . depth (add (field p depth) 1) . under p . end .
 end
 
 rem 놓는다 — 캐시 토큰을 돌려준다.
 rem ☞ 부분 이동은 언어가 막으므로(`E-OWN-PARTIAL`) 토큰을 **다시 만든다**. 값은 그대로다.
 export fn release input comptime b type . input p owned pin b . output owned cache b . do
   let h cache b . be (field p held) .
-  return make cache b do pages (field h pages) . epoch (field h epoch) . end
+  return make cache b do pages (field h pages) . epoch (field h epoch) . end .
 end
 
 rem 겹친 것을 놓는다 — 바깥부터. 순서를 어길 길이 **없다**(안쪽은 바깥 안에 있다).
 export fn release_more input comptime b type . input p owned pin2 b . output owned pin b . do
   let u pin b . be (field p under) .
   let h cache b . be (field u held) .
-  let c cache b . be make cache b do pages (field h pages) . epoch (field h epoch) . end
-  return make pin b do id (field u id) . depth (field u depth) . held c . end
+  let c cache b . be make cache b do pages (field h pages) . epoch (field h epoch) . end .
+  return make pin b do id (field u id) . depth (field u depth) . held c . end .
 end
 
 rem ★★★ **축출 — 캐시 토큰을 요구한다.** pin 이 살아 있으면 이 op 을 부를 수가 없다.
 rem   epoch 를 올린다: 그 순간 옮겨진 페이지의 옛 자리를 가리키던 것이 전부 낡는다.
 export fn evict input comptime b type . input c owned cache b . output owned cache b . do
-  return make cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end
+  return make cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end .
 end
 
 rem 캐시를 비운다 — 같은 규율(토큰을 요구한다).
 export fn reset input comptime b type . input c owned cache b . output owned cache b . do
-  return make cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end
+  return make cache b do pages (field c pages) . epoch (add (field c epoch) 1) . end .
 end
 
 rem ★ **id 는 이동을 견딘다** — 페이지가 옮겨져도 id 는 그대로이고 directory 만 고친다.

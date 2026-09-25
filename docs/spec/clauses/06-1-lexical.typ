@@ -402,25 +402,58 @@ let mixed u32 be add 1 (mul 2 3) .")
       #t("개행", "newline") 은 폼을 닫지 아니한다. 사이띄개와 똑같이 다룬다.
     ]
     #para("2")[
-      폼은 자기 닫개에서 끝난다. 닫개는 점 `.` 하나이며, 감싼 것이 끝나는 자리
-      — `)` 와 `end` — 가 안에 열린 것을 함께 닫는다.
+      폼은 자기 닫개에서 끝난다. 닫개는 점 `.` 하나다. 괄호 `( … )` 는 그 안에 열린 폼을 함께
+      닫는다.
     ]
     #para("2a")[
-      블록(`do … end`)으로 끝나는 폼은 그 `end` 가 **블록과 폼을 함께** 닫는다. 그러므로 `end`
-      바로 뒤에 점을 적으면 닫을 것이 없고, 번역이 거부된다(`E-DOT-STRAY`). 블록을 여는
-      `do` 바로 뒤의 점도 같다 — 거기에는 아직 닫을 폼이 없다.
+      `do … end` 는 **서로 짝인 괄호**다. `end` 는 자기 `do` 만 닫고, 블록 밖의 폼은 닫지 아니한다.
+      그러므로 블록 안의 문장은 저마다 자기 점으로 닫혀 있어야 하며, 닫히지 않은 채 `end` 를
+      만나면 번역이 거부된다(`E-DOT-MISSING`).
     ]
-    #rejected("`end` 뒤의 점은 닫을 것이 없다", "module ex_dot_after_end .
+    #para("2b")[
+      블록을 **몸으로 갖는** 구문 — 부록 A 의 표에서 닫개가 `end` 인 머리(`fn` · `proc` · `if` ·
+      `while` · `for` · `match` · `case` · `struct` · `enum` · `region` · `borrow` · `pipe` · `else` …) — 은
+      그 블록이 끝나면 끝난다. 뒤에 점을 적으면 닫을 것이 없어 거부된다(`E-DOT-STRAY`). 블록을
+      여는 `do` 바로 뒤의 점도 같다.
+    ]
+    #para("2c")[
+      블록을 품은 **값**을 쓰는 문장 — `let x t be make t do … end .` · `return pipe xs do … end .` —
+      은 블록을 몸으로 갖지 아니하므로, 여느 문장처럼 **자기 점**으로 닫는다. 괄호 안이면
+      `)` 가 닫는다.
+    ]
+    #para("2d")[
+      블록은 그것을 여는 머리 없이 홀로 설 수 없다(`E-BLOCK-NOHEAD`).
+    ]
+    #rejected("몸으로 갖는 블록의 `end` 뒤에는 점이 없다", "module ex_dot_after_end .
 
 fn f input a u64 . output u64 . do
   if eq a 0 . do return 1 . end .
   return a .
 end", "E-DOT-STRAY")
+    #rejected("블록을 값으로 쓰는 문장은 자기 점으로 닫는다", "module ex_dot_missing .
+
+struct pt do
+  x u64 .
+end
+
+fn f output u64 . do
+  let p pt be make pt do x 1 . end
+  return field p x .
+end", "E-DOT-MISSING")
+    #rejected("머리 없는 블록", "module ex_block_nohead .
+
+fn f input a u64 . output u64 . do
+  do
+    return 1 .
+  end
+  return a .
+end", "E-BLOCK-NOHEAD")
     #plain[
-      한때는 `end .` 와 `end` 가 둘 다 섰다 — 처리기가 뒤의 점을 **빈 폼**으로 보고 조용히 버렸기
-      때문이다. 같은 뜻에 철자가 둘이면 읽는 사람은 그 점이 무엇을 닫는지 찾게 되고, 찾아도 없다.
-      그리고 #cref("6.1.5") (4) 가 말한 «점의 개수는 검사합» 이 그 자리에서 참이 아니었다. 그래서 점을
-      뗐다(2026-09-25).
+      왜 `end` 가 자기 `do` 만 닫는가. `end` 가 바깥 문장까지 닫으면, 한 `end` 가 무엇을 끝냈는지
+      알려면 그 블록을 **누가 품었는지**를 거슬러 올라가 봐야 한다 — `let … be make T do … end` 에서
+      그 `end` 는 `make` 의 블록과 `let` 문장을 함께 끝냈다. 이제 규칙은 둘뿐이다: **`do … end` 는
+      괄호처럼 짝을 이루고, 문장은 자기 점으로 끝난다.** 블록을 몸으로 갖는 구문만 C 의
+      `if (…) { }` 처럼 블록에서 끝난다(2026-09-25).
     ]
     #para("3")[
       그러므로 줄을 어디서 나누어도 뜻이 같다. 줄을 이어 쓰는 표시를 두지

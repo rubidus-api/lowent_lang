@@ -38,7 +38,7 @@ do
   return pipe s do
     filter is_digit .
     count .
-  end
+  end .
 end")
   #para("2")[
     스테이지는 일곱이다: `filter` · `map` · `take` · `skip` · `scan` · `zip` · `enumerate`.

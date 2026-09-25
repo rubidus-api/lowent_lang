@@ -25,5 +25,5 @@ do
   return pipe s do
     filter is_digit .
     count .
-  end
+  end .
 end

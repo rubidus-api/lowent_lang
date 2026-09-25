@@ -701,8 +701,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">requires</span></strong> ge dy -<span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le dy <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a geom.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> b geom.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> a geom.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b geom.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> geom.manhattan a b .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run distance app.low 3 4
@@ -730,8 +730,8 @@ hidden.low:8:0 E-VISIBILITY: this name belongs to ANOTHER module and is not `exp
   <strong><span class="tok-k">requires</span></strong> ge dy -<span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le dy <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a g.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> g.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> b g.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> g.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> a g.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> g.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b g.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> g.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> g.manhattan a b .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run distance alias.low 3 4
@@ -744,7 +744,7 @@ distance(3, 4) = 7
 <strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 별칭을 적어 놓고 원래 이름으로 부른다 --- 같은 모듈을 두 철자로 부르는 코드가 된다</span></em>
-  <strong><span class="tok-k">let</span></strong> p geom.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> p geom.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_aliasold.low
@@ -786,7 +786,7 @@ is_even(7) = 0
 <strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 들여온 이름을 모듈 이름 없이 불렀다</span></em>
-  <strong><span class="tok-k">let</span></strong> a point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> a point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> field a x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_bare.low
@@ -846,7 +846,7 @@ same([104,105], [104,111]) = 0
 <em><span class="tok-c">rem ✘ 내보낸 op 이 감춘 타입을 돌려준다 --- 들여온 쪽은 그 이름을 적을 수 없다</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> make_secret <strong><span class="tok-k">output</span></strong> secret .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> secret <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> secret <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check secretbox.low
 secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names a type this module keeps to itself. An importing module cannot write that type, so it has nowhere to put the value and the export cannot be used from outside (§6.10.1). Export the type too, or give the op a signature made of types the other side can name

@@ -48,7 +48,7 @@ proc main input al cap allocator . input out cap io . output u8 . effects io all
   let b0 option mut slice u8 . be send bump reserve 2 .
   guard is_some b0 . else return 2 .
   var buf mut slice u8 . be some_value b0 .
-  var v vecs.vec_u8 be make vecs.vec_u8 do len 0 . end
+  var v vecs.vec_u8 be make vecs.vec_u8 do len 0 . end .
   var i u64 be 0 .
   while lt i 10 . do
     let r option mut slice u8 . using bump be vecs.push_byte v buf (narrow u8 (add 65 i)) .

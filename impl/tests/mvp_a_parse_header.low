@@ -44,7 +44,7 @@ do
     version index data 0 . .
     flags index data 1 . .
     length length .
-  end
+  end .
 end
 
 rem ── `tests` 절이 이름으로 건 세 op. 명세의 예제(SPEC-015 §17.1 · RFC-0001 §부록)는

@@ -154,7 +154,8 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   #demo("examples/ch07/mistake_elif.low")
 
   `elif`·`elsif`·`else if:` 는 언어마다 다르다. Lowent 는 이미 있는 낱말을 이어 붙인다 --- 앞 블록을 `end` 로 닫고 `else if` 를
-  붙인다. `elif` 는 낱말이 아니므로 모르는 이름(`E-IR-UNDEF`)으로 읽힌다.
+  붙인다. `elif` 는 낱말이 아니므로 `elif lt n 80 .` 이 따로 선 문장으로 읽히고, 그 뒤의 `do … end` 는 여는 머리가
+  없는 블록이 된다(`E-BLOCK-NOHEAD`) --- `do … end` 는 늘 `if`·`while`·`fn` 같은 머리가 연다.
 
   #demo("examples/ch07/elseif.low")
 

@@ -279,6 +279,9 @@ static const low_repair_row_t REPAIR[] = {
     { "E-PAREN-STRAY",         "R-DROP-PAREN" },
     // ★ X-0052 ⓐ — `end`·`do` 뒤의 점은 닫을 것이 없다. 수리는 하나: 지운다.
     { "E-DOT-STRAY",           "R-DROP-DOT" },
+    // ★ 2026-09-25 — `end` 는 자기 `do` 만 닫는다: 닫히지 않은 문장은 자기 점을 받고, 머리 없는 블록은 머리를 받는다.
+    { "E-DOT-MISSING",         "R-ADD-DOT" },
+    { "E-BLOCK-NOHEAD",        "R-ADD-HEAD" },
     { "E-STR-UNTERM",          "R-CLOSE-STRING" },
     { "E-CHAR-UNTERM",         "R-CLOSE-STRING" },
     // ★ 구분자가 자릿수 사이가 아닌 자리에 있다 — 수리는 **하나뿐이다: 지운다.**

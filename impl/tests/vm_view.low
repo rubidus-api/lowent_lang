@@ -42,7 +42,7 @@ do
     magic 3735928559 .
     length 258 .
     kind 7 .
-  end
+  end .
 end
 
 fn wire_bytes .

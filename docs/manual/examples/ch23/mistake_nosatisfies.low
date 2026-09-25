@@ -20,6 +20,6 @@ do
 end
 fn f output u64 .
 do
-  let r rect be make rect do w 2 . h 3 . end
+  let r rect be make rect do w 2 . h 3 . end .
   return double_area rect r .
 end

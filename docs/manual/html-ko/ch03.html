@@ -693,7 +693,7 @@ poly_expr(5, 4) = 22
 
 <strong><span class="tok-k">fn</span></strong> poly <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> add (mul a <span class="tok-n">2</span> (mul b <span class="tok-n">3</span>) .
+  <strong><span class="tok-k">return</span></strong> add (mul a <span class="tok-n">2</span> (mul b <span class="tok-n">3</span>) . .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check dots.low
 7:1 E-PAREN-ESCAPE: a `(` opened inside this block was never closed — it would have ESCAPED past the `end`. It used to: the newline-continuation stayed on for the REST OF THE FILE and every op after it was swallowed into the group. A bracket may not cross a block boundary; it is closed here
@@ -701,9 +701,9 @@ poly_expr(5, 4) = 22
 </code></pre></div></div><p>첫 진단은 괄호가 블록의 <code>end</code> 를 넘어 새어 나가려 했다는 뜻이다. 괄호는 블록 경계를 넘지 못한다. 그래서 괄호 하나를 잘못 닫은 실수가 파일의 나머지를 조용히 삼키는 일 없이, 그 블록 안에서 멈춘다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>세미콜론도 문장을 닫는다</strong></p><div class="dev-body">한때는 그랬다. 처리기가 <code>;</code> 를 만나면 글자 그대로 마침표를 냈다. 같은 뜻의 철자가 둘이면 읽는 사람이 둘을 다 알아야 하므로 없앴다. 지금 <code>;</code> 는 <code>E-VOCAB-REMOVED</code> 로 거절된다.</div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch03/semi.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> semi .
 <em><span class="tok-c">rem expect: E-VOCAB-REMOVED</span></em>
 
-<strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> mul a <span class="tok-n">2</span> ; <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> mul a <span class="tok-n">2</span> . ; <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check semi.low
-4:55 E-VOCAB-REMOVED: `;` was a THIRD spelling of the closer `.` (the lexer literally emitted a DOT for it) — one meaning, three spellings, and SPEC-002 §2.5 forbids synonyms. It only survived inside the old interpreter's second language. Write `.`
+4:57 E-VOCAB-REMOVED: `;` was a THIRD spelling of the closer `.` (the lexer literally emitted a DOT for it) — one meaning, three spellings, and SPEC-002 §2.5 forbids synonyms. It only survived inside the old interpreter's second language. Write `.`
 </code></pre></div></div><h3 id="s3-3">3.3 블록은 언제나 <code>do … end</code><a class="plink" href="#s3-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>여러 문장을 묶는 자리는 모두 <code>do</code> 로 열고 <code>end</code> 로 닫는다. op 의 본문, <code>if</code>·<code>while</code>·<code>for</code> 의 몸, <code>match</code> 의 갈래, 그리고 <code>struct</code>·<code>enum</code>·<code>trait</code>·<code>actor</code> 같은 선언의 몸이 모두 그렇다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
   x <strong><span class="tok-t">u64</span></strong> .
   y <strong><span class="tok-t">u64</span></strong> .

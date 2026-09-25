@@ -700,8 +700,8 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">fn</span></strong> demo <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> q square <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> square <strong><span class="tok-k">do</span></strong> side <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> q square <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> square <strong><span class="tok-k">do</span></strong> side <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> add (double_area rect r) (double_area square q) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run demo why.low
@@ -748,7 +748,7 @@ method_undef.low:10:0 E-METHOD-UNDEF: no op of that name is associated with the 
 
 <strong><span class="tok-k">fn</span></strong> rect.grow <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> rect .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w (add (field s w) k) . h (add (field s h) k) . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w (add (field s w) k) . h (add (field s h) k) . <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> rect.checked_area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
@@ -763,14 +763,14 @@ method_undef.low:10:0 E-METHOD-UNDEF: no op of that name is associated with the 
   <strong><span class="tok-k">requires</span></strong> le w <span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le h <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w w . h h . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w w . h h . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">let</span></strong> big rect <strong><span class="tok-k">be</span></strong> method r grow <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> add (method big perimeter) (method big checked_area) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> demo_empty <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">0</span> . h <span class="tok-n">5</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">0</span> . h <span class="tok-n">5</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> method r checked_area .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run demo many.low 3 4
@@ -923,7 +923,7 @@ main() = 33
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem ✘ after `method` comes the value first, then the name</span></em>
   <strong><span class="tok-k">return</span></strong> method area r .
 <strong><span class="tok-k">end</span></strong>
@@ -969,7 +969,7 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> double_area rect r .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nosatisfies.low
@@ -989,7 +989,7 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> method r scaled <span class="tok-n">5</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_recvlast.low
@@ -1007,7 +1007,7 @@ mistake_recvlast.low:9:0 E-METHOD-RECV: an op attached to a type takes that type
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> r rect <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem the same op called two ways --- directly by name, and through `method`</span></em>
   <strong><span class="tok-k">return</span></strong> add (rect.area r) (method r area) .
 <strong><span class="tok-k">end</span></strong>

@@ -13,16 +13,16 @@ end
 fn mk2 .
   output pairr .
 do
-  return make pairr do a 3 . b 9 . end
+  return make pairr do a 3 . b 9 . end .
 end
 
 fn mko .
   output outerr .
 do
   return make outerr do
-    q make pairr do a 1 . b 2 . end
+    q make pairr do a 1 . b 2 . end .
     tag 7 .
-  end
+  end .
 end
 
 fn geta output u64 . do var p pairr be mk2 . return field p a . end

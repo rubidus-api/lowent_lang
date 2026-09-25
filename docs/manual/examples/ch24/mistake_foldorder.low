@@ -13,5 +13,5 @@ fn sum_small_wrong input xs slice u8 . output u64 .
 do
   return pipe xs do
     fold 0 add_small_swapped .
-  end
+  end .
 end

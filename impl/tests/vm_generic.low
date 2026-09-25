@@ -44,8 +44,8 @@ fn rect.area   input s rect .   output u64 . do return mul (widen u64 (field s w
 fn square.area input s square . output u64 . do var d u64 be widen u64 (field s side) . return mul d d . end
 
 fn demo output u64 . do
-  var r rect . be make rect do w 3 . h 4 . end
-  var q square . be make square do side 5 . end
+  var r rect . be make rect do w 3 . h 4 . end .
+  var q square . be make square do side 5 . end .
   return add (twice rect r) (twice square q) .
 end
 
@@ -64,7 +64,7 @@ do
 end
 
 fn nested output u64 . do
-  var r rect . be make rect do w 3 . h 4 . end
+  var r rect . be make rect do w 3 . h 4 . end .
   return thrice rect r .                 rem 2*12 + 12 = 36
 end
 
@@ -84,8 +84,8 @@ do
 end
 
 fn two_types output u64 . do
-  var a rect . be make rect do w 3 . h 4 . end
-  var b square . be make square do side 5 . end
+  var a rect . be make rect do w 3 . h 4 . end .
+  var b square . be make square do side 5 . end .
   return pair rect square a b .      rem ★ 인스턴스 이름은 `pair#rect#square`
 end
 

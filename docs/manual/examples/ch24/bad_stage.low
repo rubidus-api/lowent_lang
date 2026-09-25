@@ -11,5 +11,5 @@ do
   return pipe s do
     sort .
     count .
-  end
+  end .
 end

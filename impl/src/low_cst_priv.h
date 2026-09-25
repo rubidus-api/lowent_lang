@@ -20,6 +20,9 @@ typedef struct {
     bool in_extern;
     // ★ 2026-09-15 — trait 블록 안인가. 서명에는 `fn`/`proc` 을 적지 않는다(효과 줄이 정한다) — 적으면 분명히 말한다.
     bool in_trait;
+    // ★ 2026-09-25 (소유자 결정 «end 는 자기 do 까지만») — 블록을 품은 **값**을 쓰는 문장(`let x be make T do … end .`)이
+    //   `end` 뒤에 찍은 점은 그 문장의 닫개다. 그 점의 토큰 자리를 적어 두고, 나머지 `end` 뒤 점만 E-DOT-STRAY 로 거절한다.
+    proven_array_t dot_ok;   // proven_size_t — 오름차순(파스가 왼쪽에서 오른쪽으로 간다)
 } low_parser_t;
 
 typedef struct {

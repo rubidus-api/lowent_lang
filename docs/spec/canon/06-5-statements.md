@@ -307,7 +307,7 @@ end
 module ex_channels .
 
 enum io_error do
-  too_big
+  too_big .
 end
 
 rem ① 고칠 수 있는 실패 — result.

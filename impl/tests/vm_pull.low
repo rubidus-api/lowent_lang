@@ -45,7 +45,7 @@ proc found input dummy u64 . output u64 . effects state . do
   var it counter . be spawn actor counter .
   var t bool . be pipe it do
     any over3 .
-  end
+  end .
   if t do return 1 . end
   return 0 .
 end

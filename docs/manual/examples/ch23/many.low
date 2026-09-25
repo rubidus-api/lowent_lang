@@ -27,7 +27,7 @@ end
 
 fn rect.grow input s rect . input k u64 . output rect .
 do
-  return make rect do w (add (field s w) k) . h (add (field s h) k) . end
+  return make rect do w (add (field s w) k) . h (add (field s h) k) . end .
 end
 
 proc rect.checked_area input s rect . output u64 . effects panic .
@@ -42,13 +42,13 @@ proc demo input w u64 . input h u64 . output u64 . effects panic .
   requires le w 1000 .
   requires le h 1000 .
 do
-  let r rect be make rect do w w . h h . end
+  let r rect be make rect do w w . h h . end .
   let big rect be method r grow 1 .
   return add (method big perimeter) (method big checked_area) .
 end
 
 proc demo_empty output u64 . effects panic .
 do
-  let r rect be make rect do w 0 . h 5 . end
+  let r rect be make rect do w 0 . h 5 . end .
   return method r checked_area .
 end

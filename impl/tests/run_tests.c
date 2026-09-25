@@ -151,7 +151,7 @@ static void fz_stmt(fz_t *g, int nest) {
         case 9:           // record literal + field read
             fz_putf(g, "var q%d u64 . be make fzr do f0 ", g->nr, 0);
             fz_iexpr(g, 1); fz_put(g, " . f1 ");
-            fz_iexpr(g, 1); fz_put(g, " . end ");
+            fz_iexpr(g, 1); fz_put(g, " . end . ");
             fz_putf(g, "var v%d u64 be q%d.f0 . ", g->nv, g->nr);
             g->nv++; g->nr++;
             break;
@@ -821,7 +821,7 @@ int main(void) {
         proven_array_destroy(&p.diags); if (p.forms) heap.free_fn(heap.ctx, p.forms);
     }
     {
-        low_parse_result_t p = PARSE("enum parse_error do too_short bad_version end");
+        low_parse_result_t p = PARSE("enum parse_error do too_short . bad_version . end");
         low_cst_t *f = p.nforms ? p.forms[0] : NULL;
         check(p.ok && f && f->kids[0]->tok.kw == LOW_KW_ENUM &&
               f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK, "MVP enum `do … end` parses (normative)");
@@ -1718,8 +1718,8 @@ int main(void) {
             "type bytes slice u8 . . "
             "struct reg do align 16 . ctrl u32 . stat u16 . end "
             "struct nat do ctrl u32 . stat u16 . end "
-            "fn mk output reg .  do return make reg do ctrl 7 . stat 2 . end end "
-            "fn mkn output nat .  do return make nat do ctrl 7 . stat 2 . end end "
+            "fn mk output reg .  do return make reg do ctrl 7 . stat 2 . end . end "
+            "fn mkn output nat .  do return make nat do ctrl 7 . stat 2 . end . end "
             "fn wide output u64 .  do return len encode reg mk . . end "
             "fn narrow output u64 .  do return len encode nat mkn . . end "
             "fn tv_at input off u64 . input b bytes . output u64 .  do "
@@ -1782,7 +1782,7 @@ int main(void) {
             if (!packed && off % maxal) off += maxal - off % maxal;
             FPUT("end fn mk output s .  do return make s do ");
             for (int i = 0; i < nf; i++) FPUT("f%d %llu . ", i, (unsigned long long)vals[i]);
-            FPUT("end end fn rt output u64 .  do "
+            FPUT("end . end fn rt output u64 .  do "
                  "var h s . be view s encode s mk . . return ");
             #define FTERM(i) do { if (flts[i]) FPUT("(cast u64 (field h f%d))", i); else FPUT("(field h f%d)", i); } while (0)
             for (int i = 0; i < nf - 1; i++) { FPUT("add "); FTERM(i); FPUT(" ("); }
@@ -2719,7 +2719,7 @@ int main(void) {
         const char *src =
             "struct p do\n x u8 .\n y u8 .\nend\n"
             "fn f input v u8 . output u8 .  do "
-            "  var q p be make p do x 1 . y 2 . end "
+            "  var q p be make p do x 1 . y 2 . end . "
             "  set (field q x) v . "
             "  return expr (field q x) + (field q y) . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -2735,12 +2735,12 @@ int main(void) {
     }
     check(TYCK("struct p do\n x u8 .\nend\n"
                "fn f output u8 .  do "
-               "  var q p be make p do x 1 . end set (field q ghost) 5 . "
+               "  var q p be make p do x 1 . end . set (field q ghost) 5 . "
                "  return field q x . end") == false,
           "field write: ★ writing a field no struct declares → E-TYPE-FIELD");
     check(TYCK("struct p do\n x u8 .\nend\n"
                "fn f input a i32 . output u8 .  do "
-               "  var q p be make p do x 1 . end set (field q x) a . "
+               "  var q p be make p do x 1 . end . set (field q x) a . "
                "  return field q x . end") == false,
           "field write: ★ a value that does not match the field's declared type is caught "
           "(the ⊑ lattice applies here too)");
@@ -3612,7 +3612,7 @@ int main(void) {
         //   섞으면 지표가 거짓말을 한다 — 도구가 검사한 것만 주장해야 하듯이.
         {
             const char *base =
-                "module m . type bytes slice u8 . . enum e do small end "
+                "module m . type bytes slice u8 . . enum e do small . end "
                 "struct p do x u8 . y u8 . end "
                 "fn helper input a u8 . output u8 .  do return a . end "
                 "fn f input d bytes . output result u8 e . .  "
@@ -3621,7 +3621,7 @@ int main(void) {
                 "   return ok index d 0 . . end "
                 "fn g input a range u8 0 100 . output u8 .  "
                 "  ensures le ret 200 . do return mul a 2 . end "
-                "fn h output p .  do return make p do x 1 . y 2 . end end";
+                "fn h output p .  do return make p do x 1 . y 2 . end . end";
             struct { const char *name; const char *from; const char *to; bool at_runtime; } muts[] = {
                 { "errors variant renamed",     "errors small lt",    "errors ghost lt",       false },
                 { "tests names a ghost op",     "tests helper .",     "tests ghost .",          false },

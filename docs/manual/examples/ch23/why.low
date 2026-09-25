@@ -34,7 +34,7 @@ end
 
 fn demo output u64 .
 do
-  let r rect be make rect do w 2 . h 3 . end
-  let q square be make square do side 4 . end
+  let r rect be make rect do w 2 . h 3 . end .
+  let q square be make square do side 4 . end .
   return add (double_area rect r) (double_area square q) .
 end

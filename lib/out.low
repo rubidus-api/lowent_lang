@@ -42,7 +42,7 @@ end
 
 rem 라이터를 연다. ★ 이 값을 **끝내지 않고 버리면 컴파일 오류**다(아래 finish 가 그렇게 만든다).
 export fn buf_open input d u64 . output pending . do
-  return make pending do pos 0 . fd d . end
+  return make pending do pos 0 . fd d . end .
 end
 
 rem ★★★★ **끝까지 쓴다** — 잎(`write_out`)은 **짧게 쓴다**(X-0037, 2026-09-19 실측).

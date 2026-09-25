@@ -43,24 +43,24 @@ end
 
 rem 자리를 연다 — 아직 어느 목록에도 안 들었다. 이때가 **옮길 수 있는 유일한 때**다.
 export fn nl_open input comptime b type . input slot u64 . output owned nodelist.site b . do
-  return make site b do slot slot . end
+  return make site b do slot slot . end .
 end
 
 rem ★ 링크는 이동권을 **먹는다**. 이 뒤로 그 노드는 못 옮긴다 — 건넬 값이 없기 때문이다.
 export fn nl_link input comptime b type . input s owned nodelist.site b . output owned nodelist.held b . do
-  return make held b do slot (field s slot) . end
+  return make held b do slot (field s slot) . end .
 end
 
 rem 빼면 이동권을 **돌려준다**.
 export fn nl_unlink input comptime b type . input h owned nodelist.held b . output owned nodelist.site b . do
-  return make site b do slot (field h slot) . end
+  return make site b do slot (field h slot) . end .
 end
 
 rem 옮기는 일은 이동권을 **요구한다** — 그것이 이 모듈의 전부다.
 export fn nl_relocate input comptime b type . input s owned nodelist.site b . input dst u64 .
   output owned nodelist.site b .
 do
-  return make site b do slot dst . end
+  return make site b do slot dst . end .
 end
 
 rem 자리 번호를 묻는다(빌려 읽기 — 소비하지 않는다).

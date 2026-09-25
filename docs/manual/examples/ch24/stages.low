@@ -45,21 +45,21 @@ do
   return pipe xs do
     filter over2 .
     fold 0 addu .
-  end
+  end .
 end
 
 fn has_zero input xs slice u8 . output bool .
 do
   return pipe xs do
     any is_zero .
-  end
+  end .
 end
 
 fn all_small input xs slice u8 . output bool .
 do
   return pipe xs do
     all under10 .
-  end
+  end .
 end
 
 proc middle input xs slice u8 . input out mut slice u8 . output u64 . effects none .

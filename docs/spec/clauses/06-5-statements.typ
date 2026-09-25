@@ -312,7 +312,7 @@ end", "E-NAME-SCOPE")
     #ex("세 채널이 각기 다른 모양으로 답한다", "module ex_channels .
 
 enum io_error do
-  too_big
+  too_big .
 end
 
 rem ① 고칠 수 있는 실패 — result.

@@ -11,7 +11,7 @@ do
 end
 fn f output u64 .
 do
-  let r rect be make rect do w 2 . h 3 . end
+  let r rect be make rect do w 2 . h 3 . end .
   rem ko: 같은 op 을 두 길로 부른다 --- 이름으로 곧장, 그리고 `method` 로 /// en: the same op called two ways --- directly by name, and through `method`
   return add (rect.area r) (method r area) .
 end

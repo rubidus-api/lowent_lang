@@ -20,7 +20,7 @@ fn cell_size output u64 . do
 end
 
 fn mk output counter . do
-  return make counter do hits 3 . miss 1 . end
+  return make counter do hits 3 . miss 1 . end .
 end
 
 rem 페이지 크기도 같은 표에서 온다 — 세그먼트·슬랩을 고르는 자리다.

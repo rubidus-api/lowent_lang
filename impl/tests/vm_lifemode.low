@@ -85,7 +85,7 @@ export struct ticket do
 end
 
 export fn issue input i u64 . output owned vm_lifemode.ticket . do
-  return make ticket do id i . end
+  return make ticket do id i . end .
 end
 
 rem 완료는 표를 **먹는다**. 그리고 **실패할 수 있다** — 그래서 잊는 것도 오류가 된다.

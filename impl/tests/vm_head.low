@@ -29,18 +29,18 @@ end
 
 rem ③ 머리 표시로 — 구조가 문자열에 있고, **점이 하나도 없다**(개행이 다 닫는다)
 fn marked input a u8 . input b u8 . output u8 . do
-  return .add a .mul b 2 .
+  return .add a .mul b 2 . . .
 end
 
 rem ④ **점 하나가 안쪽 머리를 닫는다** — 그다음 것은 바깥 머리의 인자다.
 rem    `.add (mul b 2) a`  와 같다.
 fn early_close input a u8 . input b u8 . output u8 . do
-  return .add .mul b 2 . a .
+  return .add .mul b 2 . a . .
 end
 
 rem ⑤ 중첩 — 세 겹
 fn deep input a u8 . output u8 . do
-  return .add 1 .add 2 .add 3 a .
+  return .add 1 .add 2 .add 3 a . . . .
 end
 
 test head_agrees do

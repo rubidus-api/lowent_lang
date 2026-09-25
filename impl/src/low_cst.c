@@ -135,7 +135,21 @@ static low_cst_t *low_parse_primary(low_parser_t *p, bool headed_ok) {
         return g;
     }
 
-    if (low_curkw(p) == LOW_KW_DO) return low_parse_block(p);  // bare block
+    if (low_curkw(p) == LOW_KW_DO) {  // bare block
+        // ★★ 2026-09-25 (소유자 결정) — `do … end` 는 **머리가 여는** 괄호다. 머리 없이 홀로 선 블록은 문법 표
+        //   (정본 부록 A)에 없다. 전엔 받아 놓고 «낮출 수 없다» 는 주석과 함께 `--check` 가 초록이었다(돌지 않는다).
+        const low_token_t *d = low_cur(p);
+        // ☞ 괄호 식 뒤의 `do` 는 머리 있는 블록이다(`borrow b be (subslice s 0 2) do` · `make nest (nest u32) do`) —
+        //   블록이 **폼을 여는** 자리(앞 낱말이 `.`·`end`·`do`·`(` 이거나 맨 앞)일 때만 머리가 없다.
+        const low_token_t *pv = p->pos ? &p->toks[p->pos - 1] : NULL;
+        bool opens = !pv || pv->kind == LOW_TOK_DOT || pv->kind == LOW_TOK_LPAREN ||
+                     (pv->kind == LOW_TOK_IDENT && (pv->kw == LOW_KW_END || pv->kw == LOW_KW_DO));
+        if (opens) low_pdiag(p, "E-BLOCK-NOHEAD",
+                  "a `do … end` block needs a head that owns it — `if … do`, `while … do`, `fn … do`, `make T do`, "
+                  "`region … do` … A bare block is not in the grammar; it used to pass `--check` and then could not "
+                  "be lowered. Put its statements where they belong, or give it its head", d->line, d->col);
+        return low_parse_block(p);
+    }
 
     if (low_is_atom_tok(k)) {
         low_token_t t = low_adv(p);
@@ -266,10 +280,28 @@ static low_cst_t *low_parse_generic(low_parser_t *p) {
     proven_array_t ops = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 4).value;
     bool block_tail = low_read_run(p, &ops, true);
     low_tok_kind_t closer = LOW_TOK_EOF;  // implicit / block-end unless '.' seen
-    if (!block_tail) {
+    // ★★★ X-0052 (소유자 결정 2026-09-25) — `end` 는 자기 `do` 만 닫는다. 그래서 블록을 **몸으로 갖는** 머리
+    //   (`else` · `region` · `borrow`)가 아니면, 블록으로 끝났어도 이 문장은 **자기 점**으로 닫는다
+    //   (`let x be make T do … end .` · `return pipe xs do … end .`). 괄호 안이면 `)` 가 닫는다.
+    //   그리고 블록이 없어도 둘러싼 `end` 가 대신 닫아 주지 않는다 — `do return a end` 는 점이 빠졌다.
+    bool owner = block_tail && head.kind == LOW_TOK_IDENT &&
+                 (head.kw == LOW_KW_ELSE || head.kw == LOW_KW_DO ||   // do = 머리 없는 블록(이미 E-BLOCK-NOHEAD)
+                  proven_u8str_view_eq(head.lex, proven_u8str_view_from_cstr("region")) ||
+                  proven_u8str_view_eq(head.lex, proven_u8str_view_from_cstr("borrow")));
+    if (!owner) {
         if (low_curk(p) == LOW_TOK_DOT) {
             closer = LOW_TOK_DOT;
+            if (block_tail) (void)PROVEN_ARRAY_PUSH(&p->dot_ok, proven_size_t, p->pos);
             low_adv(p);
+        } else if (low_curk(p) != LOW_TOK_RPAREN && low_curk(p) != LOW_TOK_EOF &&
+                   (block_tail || low_curkw(p) == LOW_KW_END) && ops.len &&
+                   // ☞ 여러 줄 원문(`text TERM … TERM`)은 끝 표지가 스스로 닫는다 — asm 몸의 `text ASM … ASM`.
+                   !(p->pos && p->toks[p->pos - 1].kind == LOW_TOK_HEREDOC)) {
+            const low_token_t *last = &p->toks[p->pos ? p->pos - 1 : 0];
+            low_pdiag(p, "E-DOT-MISSING",
+                      "this statement is not closed — `end` closes only its own `do` (it is a brace, not a "
+                      "stop), so the statement must end with its own `.`: `let x be make T do … end .`, "
+                      "`return a .`", last->line, last->col + (proven_u32)last->lex.size);
         }
     }
     low_cst_t *f = low_node(p, LOW_CST_FORM, head);
@@ -677,24 +709,7 @@ low_parse_result_t low_parse(proven_allocator_t node_alloc, proven_allocator_t w
     low_parser_t p = { .toks = (const low_token_t *)tokens->data, .n = tokens->len,
                        .pos = 0, .node_alloc = node_alloc, .work = work, .out = &out };
 
-    // ★★★ X-0052 ⓐ (소유자 결정 2026-09-25) — **`end` 는 블록과 그 폼을 함께 닫는다.** 그 바로 뒤의 점은
-    //   닫을 것이 없는 빈 폼이다. 아래 «빈 폼 버리기» 가 그것을 조용히 삼켜 왔고, 그래서 `end .` 와 `end` 가
-    //   같은 뜻의 두 철자로 살았다(코퍼스 5,112 : 109). 정본 §6.1.5 (4) «점의 개수는 검사합» 을 이 자리에서 지킨다.
-    //   `do` 뒤의 점도 같다 — 블록을 여는 낱말 뒤에 닫을 폼이 없다.
-    //   ☞ 좁게 문다: 앞 낱말이 `end`·`do` 인 점만. 타입을 겹쳐 닫는 점(`slice u8 . .`)은 RFC-0113 R6 몫이다.
-    for (proven_size_t i = 1; i < p.n; i++) {
-        const low_token_t *t = &p.toks[i], *pv = &p.toks[i - 1];
-        if (t->kind != LOW_TOK_DOT || pv->kind != LOW_TOK_IDENT) continue;
-        if (pv->kw == LOW_KW_END)
-            low_pdiag(&p, "E-DOT-STRAY",
-                      "a stop after `end` closes nothing — `end` already closes the block AND the form that "
-                      "owns it. Delete the `.` (X-0052: one spelling, and the stop count is a checksum)",
-                      t->line, t->col);
-        else if (pv->kw == LOW_KW_DO)
-            low_pdiag(&p, "E-DOT-STRAY",
-                      "a stop after `do` closes nothing — `do` opens a block, there is no form to close yet. "
-                      "Delete the `.`", t->line, t->col);
-    }
+    p.dot_ok = PROVEN_ARRAY_INIT(work, proven_size_t, 16).value;
 
     proven_array_t forms = PROVEN_ARRAY_INIT(work, low_cst_t *, 32).value;
     while (low_curk(&p) != LOW_TOK_EOF) {
@@ -703,6 +718,31 @@ low_parse_result_t low_parse(proven_allocator_t node_alloc, proven_allocator_t w
         if (f && f->nkids > 0) (void)PROVEN_ARRAY_PUSH(&forms, low_cst_t *, f);  // skip empty
         if (p.pos == before) low_adv(&p);  // guarantee progress
     }
+    // ★★★ X-0052 (소유자 결정 2026-09-25) — **`do … end` 는 서로 짝인 괄호다. `end` 는 자기 `do` 만 닫는다.**
+    //   블록을 몸으로 갖는 구문(fn·if·while·match·struct·region·borrow·else …)은 그 블록이 끝나면 끝나므로 뒤의 점은
+    //   닫을 것이 없다. 블록을 품은 **값**을 쓰는 문장(`let x be make T do … end .`)은 자기 닫개를 스스로 찍고,
+    //   그 점은 파스가 `dot_ok` 에 적어 두었다. 적히지 않은 `end` 뒤 점과 `do` 뒤 점이 E-DOT-STRAY 다.
+    //   ☞ 좁게 문다: 앞 낱말이 `end`·`do` 인 점만. 타입을 겹쳐 닫는 점(`slice u8 . .`)은 RFC-0113 R6 몫이다.
+    {
+        proven_size_t k = 0;
+        const proven_size_t *ok = (const proven_size_t *)p.dot_ok.data;
+        for (proven_size_t i = 1; i < p.n; i++) {
+            const low_token_t *tk = &p.toks[i], *pv = &p.toks[i - 1];
+            if (tk->kind != LOW_TOK_DOT || pv->kind != LOW_TOK_IDENT) continue;
+            while (k < p.dot_ok.len && ok[k] < i) k++;
+            if (pv->kw == LOW_KW_END && !(k < p.dot_ok.len && ok[k] == i))
+                low_pdiag(&p, "E-DOT-STRAY",
+                          "a stop after `end` closes nothing here — this construct owns its `do … end` block and "
+                          "ends with it (like `}` in C). Delete the `.`. A statement that only USES a block value "
+                          "(`let x be make T do … end .`) does take its own stop",
+                          tk->line, tk->col);
+            else if (pv->kw == LOW_KW_DO)
+                low_pdiag(&p, "E-DOT-STRAY",
+                          "a stop after `do` closes nothing — `do` opens a block, there is no form to close yet. "
+                          "Delete the `.`", tk->line, tk->col);
+        }
+    }
+    proven_array_destroy(&p.dot_ok);
     // ★★★ **정규화 — "form 이 무엇인가" 를 여기서 한 번만 답한다.**
     for (proven_size_t i = 0; i < forms.len; i++)
         low_norm_node(&p, *(low_cst_t *const *)proven_array_get(&forms, i));
@@ -1046,18 +1086,32 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
         default: break;
     }
 }
-// 폼이 **블록으로 끝나는가** — 마지막 자식을 따라 내려간다(`return pipe xs do … end` 처럼 한 겹 안쪽의
-// 폼이 블록으로 끝나도 `end` 가 문장 전체를 닫는다). 괄호(GROUP)는 `)` 가 닫으므로 내려가지 않는다.
-static bool low_fmt_ends_in_block(const low_cst_t *nd) {
-    while (nd && nd->kind == LOW_CST_FORM && nd->nkids) nd = nd->kids[nd->nkids - 1];
-    return nd && nd->kind == LOW_CST_BLOCK;
+// 블록을 **몸으로 갖는** 머리인가 — 그런 구문은 자기 블록의 `end` 에서 끝난다(C 의 `if (…) { }` 처럼).
+// 블록을 품은 **값**을 쓰는 문장(`let x be make T do … end .` · `return pipe xs do … end .`)은 아니다 — 자기 점을 찍는다.
+// (X-0052, 소유자 결정 2026-09-25: `end` 는 자기 `do` 만 닫는다.)
+static bool low_fmt_owns_block(const low_cst_t *nd) {
+    if (!nd || nd->kind != LOW_CST_FORM || !nd->nkids || nd->kids[0]->kind != LOW_CST_ATOM) return false;
+    const low_token_t *h = &nd->kids[0]->tok;
+    switch (h->kw) {
+        case LOW_KW_FN: case LOW_KW_PROC: case LOW_KW_TEST: case LOW_KW_ACTOR: case LOW_KW_STATE:
+        case LOW_KW_CONTRACT: case LOW_KW_STRUCT: case LOW_KW_ENUM: case LOW_KW_TRAIT: case LOW_KW_MATCH:
+        case LOW_KW_CASE: case LOW_KW_WHILE: case LOW_KW_IF: case LOW_KW_FOR: case LOW_KW_ELSE:
+        case LOW_KW_GUARD: case LOW_KW_EXPORT: case LOW_KW_UNSAFE: case LOW_KW_EXTERN: case LOW_KW_MODULE:
+            return true;
+        default: break;
+    }
+    return low_view_eq_cstr(h->lex, "task_group") || low_view_eq_cstr(h->lex, "pipe") ||
+           low_view_eq_cstr(h->lex, "region") || low_view_eq_cstr(h->lex, "borrow");
 }
 static void low_fmt_stmt(const low_cst_t *nd) {
     if (nd->kind == LOW_CST_FORM) {
         low_fmt_inner(nd);
-        bool blocktail = low_fmt_ends_in_block(nd);
+        // ☞ `region r arena do …` · `borrow b be x do …` 는 블록이 마지막 자식 폼(`arena do …`) 안에 있다 — 따라 내려간다.
+        const low_cst_t *tail = nd;
+        while (tail && tail->kind == LOW_CST_FORM && tail->nkids) tail = tail->kids[tail->nkids - 1];
+        bool blocktail = low_fmt_owns_block(nd) && tail && tail->kind == LOW_CST_BLOCK;
         // ★ `guard … else do … end` — 끝이 블록이면 닫개를 붙이지 않는다(`end .` 는 말더듬).
-        if (!blocktail && nd->nkids && low_is_else_form(nd->kids[nd->nkids - 1])) {
+        if (!blocktail && low_fmt_owns_block(nd) && nd->nkids && low_is_else_form(nd->kids[nd->nkids - 1])) {
             const low_cst_t *e = nd->kids[nd->nkids - 1];
             if (e->nkids && e->kids[e->nkids - 1]->kind == LOW_CST_BLOCK) blocktail = true;
         }
@@ -1066,9 +1120,8 @@ static void low_fmt_stmt(const low_cst_t *nd) {
         //   대신 닫아 줬기** 때문이고, 그 규칙이 없어진다(§2.3 R2 폐지). 닫개가 하나뿐인
         //   언어에서 생략은 말더듬이 아니라 **빠뜨림**이다.
         //   무른 판과 def 해시가 같다는 것은 확인했다(dcc4205a28d7079c, IR 바이트 동일).
-        // ★★ X-0052 ⓐ (소유자 결정 2026-09-25) — **`end` 가 블록과 그 폼을 함께 닫는다.** 그 뒤의 점은
-        //   빈 폼이고 이제 `E-DOT-STRAY` 로 거절된다. 그래서 블록으로 끝나면 닫개를 찍지 않는다.
-        //   (위 RFC-0103 ⓐ 의 `end .` 는 이 결정으로 되돌렸다 — 개행 닫개가 없어진 뒤에도 `end` 는 닫개다.)
+        // ★★ X-0052 (소유자 결정 2026-09-25) — `end` 는 자기 `do` 만 닫는다. 블록을 **몸으로 갖는** 구문은 그 블록에서
+        //   끝나므로 닫개를 찍지 않고(찍으면 E-DOT-STRAY), 나머지 문장은 블록으로 끝나도 자기 점을 찍는다.
         if (!blocktail) fputs(" .", stdout);
     } else { low_fmt_node(nd, false); fputs(" .", stdout); }
 }

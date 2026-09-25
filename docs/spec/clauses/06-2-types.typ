@@ -236,7 +236,7 @@ end
 
 export fn origin output point .
 do
-  return make point do x 0 . y 0 . end
+  return make point do x 0 . y 0 . end .
 end
 
 export fn get_x input p point . output u32 .
@@ -273,7 +273,7 @@ end", "E-ENUM-DOT")
     #ex("result 로 실패를 돌려준다", "module ex_result .
 
 enum err do
-  too_small
+  too_small .
 end
 
 rem 2 보다 작으면 반으로 나눌 수 없다고 알린다.
@@ -372,7 +372,7 @@ end",
     #ex("result — 묻고 꺼내기, 그리고 `try` 로 넘기기", "module ex_result_use .
 
 enum io_error do
-  too_big
+  too_big .
 end
 
 rem 만드는 쪽 — 언제 실패하는지 계약으로 적는다.

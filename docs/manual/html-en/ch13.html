@@ -813,7 +813,7 @@ $ lowentc --run grow tiny.low 1023
 <em><span class="tok-c">rem the opposite of `view` --- turn a value into bytes of that layout</span></em>
 <strong><span class="tok-k">fn</span></strong> header_bytes <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> h wire_header <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> wire_header <strong><span class="tok-k">do</span></strong> magic <span class="tok-n">1</span> . length <span class="tok-n">2</span> . kind k . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> h wire_header <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> wire_header <strong><span class="tok-k">do</span></strong> magic <span class="tok-n">1</span> . length <span class="tok-n">2</span> . kind k . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">let</span></strong> bytes <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> encode wire_header h .
   <strong><span class="tok-k">return</span></strong> add (mul (len bytes) <span class="tok-n">1000</span>) (widen <strong><span class="tok-t">u64</span></strong> (index bytes <span class="tok-n">6</span>)) .
 <strong><span class="tok-k">end</span></strong>

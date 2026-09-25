@@ -8,8 +8,8 @@ end
 
 fn same output bool .
 do
-  let p point be make point do x 1 . y 2 . end
-  let q point be make point do x 1 . y 2 . end
+  let p point be make point do x 1 . y 2 . end .
+  let q point be make point do x 1 . y 2 . end .
   rem ko: ✘ 구조체 둘을 `eq` 로 비교했다 --- `eq` 는 수와 참거짓을 비교한다 /// en: ✘ compares two structs with `eq` --- `eq` compares numbers and booleans
   return eq p q .
 end

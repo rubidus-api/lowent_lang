@@ -15,7 +15,7 @@ do
     temp 1.5 .
     scale 2.25 .
     tag 3 .
-  end
+  end .
 end
 
 fn f_roundtrip .

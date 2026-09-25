@@ -12,5 +12,5 @@ do
   return pipe xs do
     filter over2 .
     count .
-  end
+  end .
 end

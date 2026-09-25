@@ -4,5 +4,5 @@ rem expect: E-ENUM-DOT
 enum color do
   red
   green
-  blue
+  blue .
 end

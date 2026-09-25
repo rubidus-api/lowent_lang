@@ -226,7 +226,7 @@ while               while <폼> do <폼>* end                            end
 for                 for <이름> <슬라이스> do <폼>* end                  end
 region              region <이름> <종류> do <폼>* end                   end
 borrow              borrow <이름> be <폼> do <폼>* end                  end
-return              return [<폼>] .           (꼬리 블록이면 end 로 닫힌다) . / end
+return              return [<폼>] .           (값이 블록으로 끝나도 점)   .
 break               break .                   (라벨은 없다)             .
 continue            continue .                                         .
 make                make <타입> do <칸초기>* end  (칸초기 = <이름> <폼> .) end

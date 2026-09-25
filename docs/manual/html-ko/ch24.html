@@ -691,7 +691,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s <strong><span class="tok-k">do</span></strong>
     filter is_digit .
     count .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run digits_loop digits.low [97,49,50,98,51]
 digits_loop([97,49,50,98,51]) = 3
@@ -746,21 +746,21 @@ digits_pipe([97,49,50,98,51]) = 3
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
     filter over2 .
     fold <span class="tok-n">0</span> addu .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> has_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
     any is_zero .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> all_small <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
     all under10 .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> middle <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
@@ -856,7 +856,7 @@ running([1,2,3,4], [1,3,6,10]) = 0
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s <strong><span class="tok-k">do</span></strong>
     sort .
     count .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check bad_stage.low
 bad_stage.low:12:0 E-PIPE-STAGE: this word is not a `pipe` stage. The stage vocabulary is CLOSED (RFC-0010 G5/D-A): stages are `filter &lt;op> .`, `map &lt;op> .`, `take &lt;n> .`, `skip &lt;n> .`, `enumerate .`, `zip &lt;other> .` and `scan &lt;init> &lt;op> .`, and the pipeline ends with exactly one terminal — `collect into &lt;mut slice> .`, `fold &lt;init> &lt;op> .`, `count .`, `any &lt;op> .` or `all &lt;op> .`. Fusion here is the MEANING, not an optimization, so anything that could not fuse into the single loop is not writable as a stage — use an explicit loop, or break the pipeline with an explicit intermediate collect
@@ -873,7 +873,7 @@ bad_stage.low:12:0 E-PIPE-STAGE: this word is not a `pipe` stage. The stage voca
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> s <strong><span class="tok-k">do</span></strong>
     count .
     filter is_digit .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check no_terminal.low
 no_terminal.low:13:0 E-PIPE-NO-TERMINAL: a `pipe` stage may not come AFTER the terminal — the terminal ends the pipeline (RFC-0010 G1)
@@ -886,7 +886,7 @@ no_terminal.low:13:0 E-PIPE-NO-TERMINAL: a `pipe` stage may not come AFTER the t
     <em><span class="tok-c">rem ✘ 이름 없는 함수를 흉내 냈다 --- 스테이지에는 이름 붙은 op 하나를 건넨다</span></em>
     filter gt <span class="tok-n">2</span> .
     count .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_lambda.low
 mistake_lambda.low:8:0 E-FOLD-OP: this `pipe` stage names an op that does not exist
@@ -904,7 +904,7 @@ mistake_lambda.low:8:0 E-FOLD-OP: this `pipe` stage names an op that does not ex
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
     filter over2 .
     count .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run count_big lambda_fixed.low [1,2,3,4,5]
 count_big([1,2,3,4,5]) = 3
@@ -943,7 +943,7 @@ mistake_widecollect.low:14:0 E-TYPE-COLLECT: this `collect into` would put a WID
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
     fold <span class="tok-n">0</span> add_small_swapped .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_foldorder.low
 mistake_foldorder.low:15:0 E-FOLD-ORDER: the accumulator of a `fold`/`scan` is the FIRST input of its op and also its output, because each step computes `acc = op(acc, element)`. Here the first input and the output are declared with different types, so the running total is handed to a parameter that cannot hold it — a `u8` first input takes a total of 600 as 88 and the answer is silently wrong. Write the op as `input acc &lt;out-type> . input x &lt;element-type> .`
@@ -962,7 +962,7 @@ mistake_foldorder.low:15:0 E-FOLD-ORDER: the accumulator of a `fold`/`scan` is t
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">pipe</span></strong> xs <strong><span class="tok-k">do</span></strong>
     filter nonzero .
     count .
-  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_stageeffect.low
 mistake_stageeffect.low:12:1 E-EFFECT-CALC: this fn is declared pure but performs `panic` — make it a `proc` with `effects …`, or remove the effect

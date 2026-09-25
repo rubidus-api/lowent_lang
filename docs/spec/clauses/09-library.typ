@@ -70,7 +70,7 @@
     #ex("라이브러리도 같은 규칙을 지킨다", "module ex_lib .
 
 enum parse_error do
-  too_short
+  too_short .
 end
 
 rem 실패를 값으로 돌려준다 — 특별한 수(−1 따위)를 쓰지 않는다.

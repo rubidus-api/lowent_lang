@@ -120,7 +120,7 @@ fn rec_pool input n u64 . output u64 . do
   var acc u64 . be 0 .
   var i u64 . be 0 .
   while (lt i n) . do
-    var p pt . be make pt do x i . y 1 . end
+    var p pt . be make pt do x i . y 1 . end .
     set acc (add acc (field p x)) .
     set i (add i 1) .
   end

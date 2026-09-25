@@ -135,17 +135,17 @@ struct nest do
 end
 
 proc wrap input comptime t type . input x t . output nest t . effects none . do
-  return make nest t do v x . end
+  return make nest t do v x . end .
 end
 
 proc nested output u64 . effects none . do
   let inner nest u32 be wrap u32 7 .
-  let outer nest (nest u32) be make nest (nest u32) do v inner . end
+  let outer nest (nest u32) be make nest (nest u32) do v inner . end .
   rem 두 겹을 벗겨도 값이 그대로여야 한다.
   let back nest u32 be (field outer v) .
   guard eq (field back v) 7 . else return 1 .
   rem 세 겹도 된다(고정점이 도니까).
-  let deep nest (nest (nest u32)) be make nest (nest (nest u32)) do v outer . end
+  let deep nest (nest (nest u32)) be make nest (nest (nest u32)) do v outer . end .
   let d1 nest (nest u32) be (field deep v) .
   let d2 nest u32 be (field d1 v) .
   guard eq (field d2 v) 7 . else return 2 .

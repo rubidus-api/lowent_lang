@@ -22,5 +22,5 @@ do
 end
 
 fn origin output pt . do
-  return make pt do x 10 . y 20 . end
+  return make pt do x 10 . y 20 . end .
 end

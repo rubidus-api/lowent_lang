@@ -52,19 +52,19 @@ fn cnt_over2 input xs slice u8 . output u64 . do
   return pipe xs do
     filter over2 .
     count .
-  end
+  end .
 end
 
 fn any_over2 input xs slice u8 . output bool . do
   return pipe xs do
     any over2 .
-  end
+  end .
 end
 
 fn all_over2 input xs slice u8 . output bool . do
   return pipe xs do
     all over2 .
-  end
+  end .
 end
 
 rem ── ★ **접두 절단 — take / skip** (RFC-0010 §8-2 → 구현).
@@ -107,7 +107,7 @@ fn none_taken input xs slice u8 . output u64 . do
   return pipe xs do
     take 0 .
     count .
-  end
+  end .
 end
 
 rem ── ★ **enumerate / zip — 튜플 없이** (RFC-0010 §8-2).

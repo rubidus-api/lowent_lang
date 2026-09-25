@@ -47,7 +47,7 @@ do
     version index data 0 . .
     flags index data 1 . .
     length length .
-  end
+  end .
 end
 
 rem ── `tests` 절이 이름으로 건 세 op. 지금까지 **존재하지 않았다** —

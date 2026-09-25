@@ -46,14 +46,14 @@ fn rect.scaled_area input s rect . input k u8 . output u64 . do
 end
 
 fn demo output u64 . do
-  var r rect . be make rect do w 3 . h 4 . end
-  var c circle . be make circle do r 2 . end
+  var r rect . be make rect do w 3 . h 4 . end .
+  var c circle . be make circle do r 2 . end .
   rem ★ 수신자 우선 호출 — 같은 이름 `area` 가 타입마다 다른 op 이다
   return add (method r area) (method c area) .
 end
 
 fn demo2 input k u8 . output u64 . do
-  var r rect . be make rect do w 3 . h 4 . end
+  var r rect . be make rect do w 3 . h 4 . end .
   return method r scaled_area k .
 end
 
@@ -65,16 +65,16 @@ struct box do
 end
 
 fn rect.grow input s rect . input k u8 . output rect . do
-  return make rect do w (add (field s w) k) . h (field s h) . end
+  return make rect do w (add (field s w) k) . h (field s h) . end .
 end
 
 fn shapes_field output u64 . do
-  var b box . be make box do r (make rect do w 3 . h 4 . end) . end
+  var b box . be make box do r (make rect do w 3 . h 4 . end) . end .
   return method b r area .              rem ★ ② **필드**에 메서드 — 필드의 타입은 알 수 있다
 end
 
 fn shapes_chain output u64 . do
-  var x rect . be make rect do w 3 . h 4 . end
+  var x rect . be make rect do w 3 . h 4 . end .
   return method (method x grow 2) area .       rem ★ ③ **사슬** — 앞 op 의 **출력 타입**이 수신자 타입이다
 end
 

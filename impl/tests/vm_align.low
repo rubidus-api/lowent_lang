@@ -11,7 +11,7 @@ end
 fn reg_size output u64 . do return len encode reg mk . . end
 
 fn mk output reg . do
-  return make reg do ctrl 7 . stat 2 . end
+  return make reg do ctrl 7 . stat 2 . end .
 end
 
 rem a view of a slice that starts mid-buffer breaks the contract → none / panic.

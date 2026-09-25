@@ -148,7 +148,8 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   #demo("examples/ch07/mistake_elif.low")
 
   `elif`, `elsif` and `else if:` vary between languages. Lowent joins words it already has: close the previous block with `end` and add
-  `else if`. `elif` is not a word, so it is read as an unknown name (`E-IR-UNDEF`).
+  `else if`. `elif` is not a word, so `elif lt n 80 .` is read as a statement of its own, and the `do … end` after it
+  becomes a block with no head to open it (`E-BLOCK-NOHEAD`) --- a `do … end` is always opened by a head such as `if`, `while` or `fn`.
 
   #demo("examples/ch07/elseif.low")
 

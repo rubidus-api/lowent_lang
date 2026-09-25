@@ -66,7 +66,7 @@ end
 
 rem 부모 없음 — 뿌리를 만들 때 넘기는 값. 세대 0 은 어떤 슬롯과도 안 맞으므로 안전하다.
 fn no_parent input comptime b type . output handle b . do
-  return make handle b do w 0 . end
+  return make handle b do w 0 . end .
 end
 
 rem ★★★ **I1 — 손잡이 검사 다섯**: 브랜드(타입) · shard · slot 범위 · alive ∧ ¬pending · 세대.

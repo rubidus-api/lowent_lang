@@ -124,12 +124,12 @@ proc search_after_sort input s mut slice keyed . . output u64 . effects none . d
   guard ge (len s) 6 . else return 90 .
   sortgen.sort_fast keyed s .
   rem 정렬 후 [1,2,3,4,5,6] 이라고 보고 3 을 찾으면 자리 2.
-  let k3 keyed be make keyed do k 3 . end
+  let k3 keyed be make keyed do k 3 . end .
   let f option u64 . be sortgen.find_by keyed s k3 .
   guard is_some f . else return 1 .
   guard eq (some_value f) 2 . else return 2 .
   rem 없는 값은 none — 트랩이 아니라 값으로 답한다.
-  let k9 keyed be make keyed do k 99 . end
+  let k9 keyed be make keyed do k 99 . end .
   let g option u64 . be sortgen.find_by keyed s k9 .
   guard is_some g . else do
     rem lower_by 는 삽입점을 준다: 99 는 전부보다 커서 len(=6).

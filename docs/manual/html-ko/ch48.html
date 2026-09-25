@@ -753,10 +753,10 @@ mistake_noperiod.low:10:0 E-IR-ARITY: extra operands in expression (strict arity
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ C 처럼 쌍반점으로 닫는다</span></em>
-  <strong><span class="tok-k">return</span></strong> mul a <span class="tok-n">2</span> ;
+  <strong><span class="tok-k">return</span></strong> mul a <span class="tok-n">2</span> . ;
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_semicolon.low
-7:18 E-VOCAB-REMOVED: `;` was a THIRD spelling of the closer `.` (the lexer literally emitted a DOT for it) — one meaning, three spellings, and SPEC-002 §2.5 forbids synonyms. It only survived inside the old interpreter's second language. Write `.`
+7:20 E-VOCAB-REMOVED: `;` was a THIRD spelling of the closer `.` (the lexer literally emitted a DOT for it) — one meaning, three spellings, and SPEC-002 §2.5 forbids synonyms. It only survived inside the old interpreter's second language. Write `.`
 </code></pre></div></div><p><code>;</code> 는 예전에 마침표의 셋째 철자였다. 한 뜻에 철자가 셋이면 읽는 사람이 차이를 찾게 되므로 뺐고, 이제 <code>E-VOCAB-REMOVED</code> 로 거절한다. 조용히 받아들이지 않는 것은, 파싱은 되는데 아무 뜻이 없는 낱말이 가장 찾기 어려운 함정이기 때문이다.</p></div></div><h3 id="s48-5">48.5 증명하지 않은 것<a class="plink" href="#s48-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><ul><li><strong>실제 파서가 이 모델이라는 보장이 없다.</strong> 모델은 나무를 만드는 작은 함수들이고 실제 파서는 훨씬 크다. 대응은 단위 시험과 회귀 시험이 받친다.</li><li><strong><code>denote</code> 는 평평한 나열이다.</strong> 위치 정보·주석·오류 복구를 모델링하지 않았다. 그러니 “같은 나무” 는 구조가 같다는 뜻이지 진단의 품질까지 같다는 뜻이 아니다.</li><li><strong>어휘(토큰) 층은 별도다.</strong> 토큰이 이 모델의 닫개 셋으로 정확히 나뉘는지는 렉서 시험의 몫이다.</li></ul><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">문장 나열은 결합법칙과 항등원을 갖는 모노이드이고, 두 표기가 같은지는 평평한 나열로 보내는 뜻함수로 정해 계산으로 확인한다. 문장 하나는 문장 하나짜리 블록과 같고(G1), <code>.</code>·<code>end</code>·<code>)</code> 는 같은 나무를 만들며(G2), 블록 안의 블록은 제자리에서 펼쳐진다. 개행 닫기는 증명돼도 두지 않았고, 언어에서 뺀 규칙의 정리는 함께 뺐다. 이 정리들은 컴파일러의 표류를 막지만, 실제 파서가 이 모델이라는 보장은 시험이 받친다.</div></div>
 <div class="nav"><a href="ch47.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch49.html">다음 →</a></div>
 </div></main>

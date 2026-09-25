@@ -687,19 +687,19 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">fn</span></strong> demo_dist <strong><span class="tok-k">input</span></strong> dx <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">input</span></strong> dy <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> b point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (add <span class="tok-n">1</span> dx) . y (add <span class="tok-n">1</span> dy) . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> a point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (add <span class="tok-n">1</span> dx) . y (add <span class="tok-n">1</span> dy) . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> manhattan (<strong><span class="tok-k">make</span></strong> segment <strong><span class="tok-k">do</span></strong> start a . stop b . <strong><span class="tok-k">end</span></strong>) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> moved <strong><span class="tok-k">input</span></strong> p point . <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> point .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (add (field p x) k) . y (field p y) . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (add (field p x) k) . y (field p y) . <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> demo_move <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">10</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">10</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> moved p k .
   <strong><span class="tok-k">return</span></strong> field q x .
 <strong><span class="tok-k">end</span></strong>
@@ -763,7 +763,7 @@ missing_case.low:12:0 E-MATCH-INEXHAUSTIVE: this `match` does not handle every v
 <strong><span class="tok-k">enum</span></strong> color <strong><span class="tok-k">do</span></strong>
   red
   green
-  blue
+  blue .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check enum_dot.low
 enum_dot.low:6:0 E-ENUM-DOT: this enum variant is not closed with `.`, so the NEXT line was read as part of it — a newline does not close a form (RFC-0103). Close every variant: `red .` · `green .`. Without the dot `red green blue` is ONE variant `red` whose payload field `green` has a type `blue`
@@ -812,7 +812,7 @@ enum_dot.low:6:0 E-ENUM-DOT: this enum variant is not closed with `.`, so the NE
 <strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `y` 를 채우지 않았다 --- `make` 는 모든 칸을 채워야 한다</span></em>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_missfield.low
@@ -859,8 +859,8 @@ pick_qualified() = 2
 
 <strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem ✘ 구조체 둘을 `eq` 로 비교했다 --- `eq` 는 수와 참거짓을 비교한다</span></em>
   <strong><span class="tok-k">return</span></strong> eq p q .
 <strong><span class="tok-k">end</span></strong>
@@ -882,8 +882,8 @@ mistake_eqstruct.low:14:0 E-TYPE-KIND: `eq` / `ne` compare numbers and booleans,
 
 <strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> point_eq p q .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run same eqstruct_fixed.low
@@ -898,7 +898,7 @@ same() = 1
 
 <strong><span class="tok-k">fn</span></strong> copy_then_change <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem ✘ 복사본을 만든다고 믿었다 --- 이 판에서 q 는 p 와 같은 자리를 가리킨다</span></em>
   <strong><span class="tok-k">var</span></strong> q point <strong><span class="tok-k">be</span></strong> p .
   <strong><span class="tok-k">set</span></strong> (field q x) <span class="tok-n">99</span> .
@@ -917,9 +917,9 @@ copy_then_change() = 1
 
 <strong><span class="tok-k">fn</span></strong> copy_then_change <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem 새 값이 필요하면 make 로 새로 만든다 --- 칸을 하나씩 옮겨 적는다</span></em>
-  <strong><span class="tok-k">var</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (field p x) . y (field p y) . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">var</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (field p x) . y (field p y) . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">set</span></strong> (field q x) <span class="tok-n">99</span> .
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong>

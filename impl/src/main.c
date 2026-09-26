@@ -1743,6 +1743,15 @@ int main(int argc, char **argv) {
         for (int fi = 0; fi < npaths; fi++) {
             proven_u8str_view_t s2 = { .ptr = bufs[fi], .size = lens[fi] };
             low_lex_result_t lx = low_lex(heap, s2);
+            // ★★ X-0064 (2026-09-27) — **가져온 파일**의 렉스·파스 진단에 그 파일 이름을 싣는다.
+            //   노드에는 아래에서 파일을 새기지만, 렉서·파서의 진단은 그보다 **먼저** 찍혀 줄만 들고 나갔다.
+            //   그래서 `lib/x509.low` 133 줄의 잘못이 `lowget.low` 를 검사할 때 `133:27 E-DOT-MISSING` 으로만
+            //   나왔다 — 부르는 파일에는 133 줄이 없기도 했다. 첫 파일(fi == 0)은 전처럼 둔다(출력 모양 그대로).
+            if (fi != 0)
+                for (proven_size_t q = 0; q < lx.diags.len; q++) {
+                    low_diag_t *dq = &((low_diag_t *)lx.diags.data)[q];
+                    if (!dq->file) dq->file = paths[fi];
+                }
             // ★ 토큰 덤프도 **파일의 것**이다 — 의존까지 찍으면 그것은 단위의 덤프다.
             //   (`--fmt` 와 같은 규칙: 파일 도구는 파일을 찍는다.)
             if (want_tokens && fi == 0) dump_tokens(&lx);
@@ -1753,6 +1762,11 @@ int main(int argc, char **argv) {
             //   게이트가 `grep "check: ok"` 로 읽으므로 그 한 줄은 **거짓말**이 된다.
             if (!lx.ok) ok = false;
             low_parse_result_t p2 = low_parse(nodes0, heap, &lx.tokens);
+            if (fi != 0)   // ★ X-0064 — 위와 같다(가져온 파일의 파스 진단)
+                for (proven_size_t q = 0; q < p2.diags.len; q++) {
+                    low_diag_t *dq = &((low_diag_t *)p2.diags.data)[q];
+                    if (!dq->file) dq->file = paths[fi];
+                }
             dump_diags("parse diagnostics", &p2.diags);
             if (!p2.ok) ok = false;
             // ★★★ **이 파일에서 온 노드에 파일을 새긴다** (단계 V). 파일마다 줄이 1 부터 다시

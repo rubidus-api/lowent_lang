@@ -4,7 +4,10 @@
 > **Lowent 는 아직 개발 중이며, 언어 설계도 계속 바뀌고 있습니다.**
 > 문법, 표준 라이브러리, 진단 코드, 명령줄 옵션이 예고 없이 바뀔 수 있습니다. 아직 호환성을 약속하지 않으며, 실제 서비스에 쓸 단계가 아닙니다.
 
-[English](README.md) · [매뉴얼](docs/manual/md-ko/README.md) · [명세](docs/spec/canon/)
+[English](README.md)
+
+**매뉴얼:** [웹에서 읽기](https://rubidus-api.github.io/lowent_lang/manual/html-ko/index.html) · [PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [English web](https://rubidus-api.github.io/lowent_lang/manual/html-en/index.html) · [English PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf)  
+**명세:** [웹](https://rubidus-api.github.io/lowent_lang/spec/html/) · [PDF](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 Lowent 는 **엔트로피가 낮은** 시스템 프로그래밍 언어입니다. 함수의 머리(서명)만 읽어도 그 함수가 무엇을 받고, 무엇을 돌려주고, 바깥 세상에 무엇을 할 수 있는지 알 수 있게 하는 것이 목표입니다. 짐작할 자리가 적은 코드는 사람도 AI 도 틀리지 않고 읽고 고칠 수 있습니다.
 
@@ -291,8 +294,8 @@ cc -O2 -o hello hello.c -lm -lpthread && ./hello main
 
 | 자리 | 무엇 |
 |---|---|
-| [`docs/manual/`](docs/manual/README.md) | **Lowent 매뉴얼** — 책 형식의 안내서입니다(한국어·영어). 언어, 표준 라이브러리(모듈마다 한 쪽), 증명과 그 한계를 다룹니다. 웹·PDF·Markdown 판이 있고, 모든 예제는 두 백엔드로 돌려 확인했습니다 |
-| [`docs/spec/canon/`](docs/spec/canon/) | 규범 명세입니다. 매뉴얼과 명세가 어긋나면 명세가 우선합니다 |
+| [`docs/manual/`](docs/manual/README.md) | **Lowent 매뉴얼** — 책 형식의 안내서입니다(한국어·영어). 언어, 표준 라이브러리(모듈마다 한 쪽), 증명과 그 한계를 다룹니다. [웹](https://rubidus-api.github.io/lowent_lang/manual/html-ko/index.html)·[PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf)로 읽을 수 있고(영어판: [웹](https://rubidus-api.github.io/lowent_lang/manual/html-en/index.html)·[PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf)), GitHub 에서는 Markdown 판으로 볼 수 있습니다. 모든 예제는 두 백엔드로 돌려 확인했습니다 |
+| [`docs/spec/canon/`](docs/spec/canon/) | 규범 명세입니다([웹](https://rubidus-api.github.io/lowent_lang/spec/html/) · [PDF](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)). 매뉴얼과 명세가 어긋나면 명세가 우선합니다 |
 | [`docs/example/`](docs/example/) | 완결된 예제 |
 | [`impl/`](impl/README.md) | 컴파일러 `lowentc` (C23) |
 | [`lib/`](lib/) | 표준 라이브러리 (Lowent 로 작성) |

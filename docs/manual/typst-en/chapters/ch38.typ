@@ -40,6 +40,14 @@ author does not pick large numbers, the defect does not show.
 This is the nature of testing. A test can show "it is wrong on *this* input (∃)" but not "it is wrong on *no* input (∀)". Checking a million natural numbers is not checking all
 natural numbers. No amount of ∃ adds up to ∀. This gap is the one reason proofs are needed.
 
+```text
+ inputs of mean2: two u32 values = about 1.8 × 10^19 pairs
+
+ tests          (10,20) (0,0) (10^6,3·10^6)  three points tried → all right
+ counterexample (4294967295, 1)              a point never tried → overflows, stops
+ proof          ─── every pair ───           speaks about all of them at once
+```
+
 In Lowent this defect is at least *not silent*. In C the overflowing sum would wrap and give a wrong mean. Here it stops (#chref("numbers")). And the fixed version is written in a
 shape that cannot overflow.
 
@@ -61,8 +69,19 @@ check.
   [Cross-checking], [Two implementations on the same inputs], [Catches disagreements], [Misses when both are wrong the same way],
 )
 
-They are overlapped because the three catch different kinds of mistakes. In this repository cross-checks caught defects the proofs missed, and proofs caught defects cross-checks
-missed. And this part does not mix three words. "Proven" means Coq checked every case, "exhaustively checked" means every case of a fixed size was run, and "sketch" means a person
+They are overlapped because the three catch different kinds of mistakes. Drawn as who checks what against what:
+
+```text
+ rules of the spec ── modelled ──▶ Coq model ── proof ──▶ every case in the model
+                                     ▲
+                                     │  exhaustive checking: model vs implementation, small sizes
+                                     ▼
+ compiler ─┬─ run on the VM ───┐
+           └─ emitted as C ────┴─▶ cross-check: different answers = compiler defect
+```
+
+Proofs look at the model, cross-checks look at the implementation, and exhaustive checking ties the two together. In this repository cross-checks caught defects the proofs
+missed, and proofs caught defects cross-checks missed. And this part does not mix three words. "Proven" means Coq checked every case, "exhaustively checked" means every case of a fixed size was run, and "sketch" means a person
 argued it but no machine checked.
 
 #misconception[A program written in a proven language is correct][
@@ -154,6 +173,14 @@ And the ideas this language rests on, reduced to six lines, are these. All six a
   ("laundering a borrow through a function") into a theorem means the proof breaks the moment anyone removes that check. Stories are forgotten, but theorems remain
   (#chref("proofs-ownership")).
 ]
+
+```text
+ theorem ────────────────▶ decides which shapes the compiler must reject
+                            e.g. the condition for uN ⊑ iM is N < M (strict)
+ a defect the compiler hit ▶ turned into a theorem
+                            e.g. laundering a borrow through a function
+                            remove that check and the proof breaks
+```
 
 #recap[
   Tests show that a wrong input *exists*, and proofs show that no input is wrong. Lowent overlaps proof, exhaustive checking and cross-checking, and does not mix "proven",

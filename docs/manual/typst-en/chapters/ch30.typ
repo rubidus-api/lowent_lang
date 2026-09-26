@@ -220,6 +220,7 @@ Whether to use the instructions is the builder's choice.
   [`--hw none` (default)], [everything in plain code; stands on any machine],
   [`--hw pclmul,aes,sse2,avx2`], [emitted *assuming* those instructions; will not run where they are missing],
   [`--hw auto`], [carry them all and choose *once at start*; stands anywhere, fast where the instructions exist],
+  [`--hw …,vaes`], [carries VAES (two AES blocks per ymm register) *on trial*; not part of `auto` yet --- on first use it is checked against the AES-NI path and left unused if they differ],
 )
 
 What is carried is not only an instruction that replaces a computation. What `sse2` and `avx2` give is *width* --- the room to put four or eight independent pieces of work side by side in one register, which is exactly the shape of ChaCha20's blocks. The rules are the same: the answer does not change, a machine that lacks the set cannot carry it, and the VM always runs the plain code.

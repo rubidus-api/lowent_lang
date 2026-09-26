@@ -54,6 +54,17 @@ into *one bundle* (a strongly connected component, SCC). A nameless preliminary 
 order's number instead of a name, the bundle is hashed once, and each member's hash is (bundle hash, its number). Contracting strongly connected components leaves an
 acyclic graph --- the same idea as #chref("proofs-math")'s fixed points appears again.
 
+```text
+ A ⇄ B (they call each other)      C ──▶ A
+
+ 1  group {A, B} into one block (an SCC)
+ 2  order the block with nameless preliminary hashes        A = 0 · B = 1
+ 3  calls inside the block carry the number, not the name   A calls B → "number 1"
+ 4  hash the block once                                     → H
+ 5  hash each member as (H, its number)                     hash(A) = h(H, 0) · hash(B) = h(H, 1)
+    C carries hash(A) — the graph that is left has no cycles
+```
+
 == What changes a hash and what does not
 
 #demo("examples/ch49/h1_plain.low")
@@ -68,6 +79,14 @@ not bytes.
 *H2 --- changing only the body changes only `def`.* Changing `add a a` to `mul a 2` left `iface` as it was and changed only `def`. This is the heart of incremental builds. When only
 an op's body changes, its users are recompiled, but their `iface` stays the same too, so the next dependants hit the cache. Signature changes spread along the chain; body-only changes
 stop after one step.
+
+```text
+ main ──calls──▶ util ──calls──▶ leaf        only leaf's body changed
+
+ leaf   def changes · iface stays
+ util   recompiled · its iface stays too
+ main   cache hit — it stops here
+```
 
 #demo("examples/ch49/h3_effects_a.low")
 

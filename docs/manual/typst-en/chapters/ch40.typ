@@ -50,6 +50,17 @@
 The `<` in the third line is the point. Written as `≤`, `u8 ⊑ i8` would be allowed and 255 would become −1. This one character decides value safety, and people get such things
 wrong.
 
+```text
+ u8 ──▶ u16 ──▶ u32 ──▶ u64
+   ╲       ╲       ╲
+    ▼       ▼       ▼
+ i8 ──▶ i16 ──▶ i32 ──▶ i64
+
+ → is ⊑ (fits without changing the value); following arrows is ⊑ too (transitivity).
+ There is no same-width arrow down such as u8 → i8 or u16 → i16 (N < M),
+ and no arrow up from the i row to the u row (nowhere to hold a negative).
+```
+
 #demo("examples/ch40/order_strict.low")
 
 #demo("examples/ch40/order_ok.low")
@@ -89,6 +100,15 @@ follows *the divisor* --- `mod -7 3` is 2 and `mod 7 -3` is −2.
   [`mod_sign_follows_divisor`], [The sign of `mod` follows the divisor],
   [`mod_is_a_safe_index`], [`mod h (len s)` is always at least 0 and less than `len s`],
 )
+
+```text
+ unsigned div a b     b = 0                 → stops
+                      otherwise             → always a value
+ signed div a b       b = 0                 → stops
+                      a = MIN and b = −1    → stops (undefined behavior in C)
+                      otherwise             → always a value (truncated toward 0)
+ mod h n              when n > 0            → 0 ≤ result < n  (a safe index)
+```
 
 The last theorem has great practical value.
 
@@ -131,6 +151,13 @@ rules (attaching a type to a value requires range evidence) and proven preserved
 And that the conclusion has *three* parts is the point. Checked arithmetic stops instead of producing a value on overflow. Put stopping into values and the theorem
 lies; leave stopping out and the theorem is false. So it is "value · stop · step". Preventing stops at translation time is the normal path's job, done by contracts
 and certificates (#chref("proofs-bounds")).
+
+```text
+ a closed, typed expression e
+    ├─▶ a value v     values_fit: v always fits the width of its type
+    ├─▶ it stops      checked arithmetic overflowed · division by zero
+    └─▶ one step → e' preservation: e' has the same type (and again one of the three)
+```
 
 #qa[
   Is it worth proving separately that widening cannot fail?

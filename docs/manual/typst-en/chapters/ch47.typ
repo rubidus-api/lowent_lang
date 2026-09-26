@@ -56,6 +56,17 @@ type system, and this language's exclusivity rule is in that lineage. #chref("pr
 
 The one-line invariant is the whole lock. `R` cannot be in two places at once, so only one flow holds `R`.
 
+```text
+          acquire — the CAS turns false into true
+   ┌────────────────────────────────────────────┐
+   │                                            ▼
+ open    lk ↦ false ∗ R                  locked  lk ↦ true
+         R sits inside the invariant             R and the token locked γ are in the holder's hands
+   ▲                                            │
+   └────────────────────────────────────────────┘
+          release — hand back both the token and R
+```
+
 == There cannot be two tokens
 
 #mathbox[Theorems in `LowentLock.v`][
@@ -117,6 +128,13 @@ by ghost state (general, and covering fractions). The principle of building two 
   contradicting maximality. That breaking the discipline really deadlocks was also shown by computing a state (`violating_the_order_deadlocks`).
 ]
 
+```text
+ ascending order kept (A < B)          discipline broken
+ flow 1   holds A → wants B            flow 1   holds A → wants B
+ flow 2   wants A (waits)              flow 2   holds B → wants A
+ → flow 1 takes B and goes on          → each waits for the other (deadlock)
+```
+
 Honestly --- *the tool does not enforce this discipline.* So it is "written this way it is safe", not "the compiler stops it". Making it a check would require static
 orders on locks. And the lock's own specification (acquiring gives the resource) does not prevent deadlock, because it says "acquiring gives" and not "it will be
 acquired". Acquire a lock twice and release once, and the second acquire never arrives.
@@ -148,6 +166,13 @@ With that tool one standard library module was built.
 
 The producer *first* fills the slot and then publishes the index with `release`. The consumer reads that index with `acquire` before reading the slot.
 `lowent_spsc_push_is_correct` and `lowent_spsc_pop_is_correct` say this pair is correct under RC11 (including full and empty checks).
+
+```text
+ producer                                 consumer
+ buf[i] ← x          (fill the slot first)
+ tail ← i+1  release ─────────────────▶   tail  acquire  sees i+1, then
+                                          reads buf[i] → it must see x (under RC11)
+```
 
 #realcase[What "borrowed" means][
   The algorithm-level proof is gpfsl's `circ_buff`, and `mp_instance_gen_inv` is gpfsl's too. What this repository did was state and connect "the memory orderings

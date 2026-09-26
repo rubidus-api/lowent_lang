@@ -198,6 +198,19 @@ static bool low_need_digit(low_lexer_t *l, bool (*isdig)(proven_byte_t),
     return false;
 }
 
+// ★ X-0067 — 지수 표시(`e` · `p`) 뒤에 숫자가 없다. 진법 표시 뒤에 숫자가 없는 것(X-0066)과
+//   같은 잘못이므로 같은 이름(`E-NUM-EMPTY`)을 댄다. 한 잘못에 한 이름.
+static void low_num_no_exp_digit(low_lexer_t *l, const char *mark, proven_u32 line, proven_u32 col) {
+    (void)mark;
+    low_diag(l, "E-NUM-EMPTY",
+             "an exponent marker (`e` / `p`) must be followed by at least one digit, with an optional "
+             "sign — write `1e3` or `0x1p4`, not `1e` or `0x1p`",
+             line, col);
+}
+static bool low_is_ident_tail(proven_byte_t c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+}
+
 // number: dec | 0x-hex | 0b-bin | float (glued '.' fraction, optional exponent).
 static void low_scan_number(low_lexer_t *l, proven_u32 line, proven_u32 col) {
     proven_size_t start = l->pos;
@@ -218,6 +231,9 @@ static void low_scan_number(low_lexer_t *l, proven_u32 line, proven_u32 col) {
                 low_adv(l);                          // p/P
                 if (s1 == '+' || s1 == '-') low_adv(l);
                 if (!low_scan_digits(l, low_is_digit, line, col)) return;
+            } else {
+                low_num_no_exp_digit(l, "p", line, col);   // ★ X-0067 — `0x1p` · `0x1p+`
+                return;
             }
         }
     } else if (low_peek(l) == '0' && (low_peek_at(l, 1) == 'b' || low_peek_at(l, 1) == 'B')) {
@@ -239,8 +255,24 @@ static void low_scan_number(low_lexer_t *l, proven_u32 line, proven_u32 col) {
                 low_adv(l);                          // e/E
                 if (s1 == '+' || s1 == '-') low_adv(l);
                 if (!low_scan_digits(l, low_is_digit, line, col)) return;
+            } else {
+                low_num_no_exp_digit(l, "e", line, col);   // ★ X-0067 — `1e` · `1.5e` · `2e+`
+                return;
             }
         }
+    }
+    // ★★ X-0067 (2026-09-27, 소유자 «새 오류 하나 + 기존 재사용») — **수 바로 뒤에 글자가 붙으면**
+    //   그 자리에서 이름을 대고 멈춘다. 전에는 수를 거기서 끊고 나머지(`abc`·`u8`·`o7`·`g`·`2`)를
+    //   다음 토큰으로 넘겨서, `12abc` 를 적은 사람이 «인자가 남는다»(`E-IR-ARITY`)는 말을 들었다 —
+    //   교훈 5 의 오진이다. 부록 A.6 에는 접미사(`3u8`)도 팔진(`0o7`)도 없다.
+    if (low_is_ident_tail(low_peek(l))) {
+        low_diag(l, "E-NUM-SUFFIX",
+                 "a number is glued to the letters or digits after it — this language has no number "
+                 "suffixes (`3u8`), no octal (`0o7`), and a digit outside the base (`0b102`, `0xfg`) "
+                 "does not belong to the number. Put a space between the number and the next word, "
+                 "or fix the spelling of the number",
+                 line, col);
+        return;
     }
     // ★★★ **comptime 정수의 정밀도 하한을 여기서 지킨다** (RFC-0052 §8-5).
     //

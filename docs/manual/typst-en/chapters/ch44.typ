@@ -52,6 +52,19 @@ It is *the same shape* as #chref("proofs-numbers")'s type lattice. The same math
 one `⊆`. Code that allocates must not translate for a machine without a heap (#chref("hardware")), and with effect declarations it is enough to ask "is this op's
 effect within the set this tier supports".
 
+```text
+            {io, alloc}
+             ▲       ▲
+            {io}     {alloc}
+             ▲       ▲
+              none
+
+ propagation  if f calls g (effects io) and h (effects alloc),
+              effects(f) ⊇ {io} ⊔ {alloc} = {io, alloc}      short of it: E-EFFECT
+ gating       if the set a heapless board supports has no alloc,
+              {io, alloc} ⊄ that set                         it does not translate for that board
+```
+
 A *hierarchical* lattice splitting `io` into `{read, write}` is possible too. This language uses a *flat* one for now. The precision a hierarchy gives is already
 available from capabilities, and a flat lattice keeps the `⊆` test simple so the cost is visible. Express precision in two places and the two begin to diverge.
 
@@ -83,6 +96,12 @@ declarations disables the whole declaration system.
 what *contracts* speak of, not effects. The danger of `index` *can be removed* with `requires lt i (len s)`, and the processor really does remove that check
 (#chref("proofs-bounds")). An effect mark is never removed. Marking something removable as an effect makes the mark permanent, nearly every op ends up with
 `panic`, and the mark loses meaning.
+
+```text
+ what ends the op              where it is written         can it disappear
+ panic "…"  (intended)         effects panic               no — it always stays
+ index out of range (breach)   requires lt i (len s)       the check goes once proven
+```
 
 #misconception[An op that can stop is not pure][
   Effects say "what this op does" and contracts say "when it is safe". Because the two were not mixed, the `panic` mark still carries information. An op marked

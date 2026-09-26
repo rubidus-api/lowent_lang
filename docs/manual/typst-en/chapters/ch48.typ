@@ -60,6 +60,18 @@ This theorem justifies a design decision. C separates statements and compound st
 and the famous `goto fail;` trap came from that gap --- the indentation made two lines look as if they belonged to the `if`, but the grammar made only one belong. Lowent does not
 separate them.
 
+```text
+ C       if (c)
+             x = x + 10;
+             y = 0;          ← indented as if inside the if, but the grammar puts it outside
+
+ Lowent  if gt a 1 . set x (add x 10) .        one statement = a one-statement block (G1)
+         if gt a 1 . do
+           set x (add x 10) .
+           set y 0 .
+         end                                   a longer body is ended by end
+```
+
 == Closers do the same job
 
 #mathbox[Theorem G2 (`closers_agree`)][
@@ -73,6 +85,19 @@ Seen in an example:
 
 In `one_line` the two `)` close the inner forms and `.` closes the outer one. `spread` lays the same form over four lines with no marks needed, because a newline
 is whitespace. Both ops give the same answer.
+
+```text
+ return add (mul x x) (add x 1) .      return add
+                                           (mul x x)
+                                           (add x
+                                                1) .
+ both become the same tree:
+                 add
+            ┌─────┴─────┐
+           mul         add
+          ┌─┴─┐       ┌─┴─┐
+          x   x       x   1
+```
 
 A newline could also be made a closer, and that is provable too. It still is not done. If newlines closed, line breaks would carry meaning, and merely splitting a long line would
 change the program. *That a meaning can be proven the same does not mean the spelling must exist.* Theorems once attached to commas, line continuation and newline closing were all

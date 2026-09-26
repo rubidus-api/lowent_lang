@@ -34,6 +34,7 @@ void low_cbe_set_hw_aes(int v);
 void low_cbe_set_hw_simd(int v);   /* ★ ChaCha20 의 폭: 0 없음 · 1 SSE2 · 2 시작할 때 고른다 (RFC-0122) */
 void low_cbe_set_hw_avx2(int v);
 void low_cbe_set_hw_asm(int v);    /* ★ 손으로 쓴 지름길 — 셈 판·내장함수 다음 셋째 층 */
+void low_cbe_set_hw_vaes(int v);   /* ★ VAES(ymm AES) — `--hw vaes` 로만. 담으면 시작할 때 CPU 와 자체 시험으로 고른다 */
 // ★ `--conc-t0` — 호스트 타깃에도 **프리스탠딩 협력 스케줄러(T0)** 를 내는 대조 스위치 (WO-0206).
 //   ☞ 이것이 없으면 T0 는 «짓기만 하고 아무도 안 돌린 코드» 가 된다: 베어메탈에서는 지을 수만
 //     있고 돌려 볼 수 없기 때문이다. 호스트에서 돌려 **VM 과 답을 견주는** 것이 이 스위치의 일이다.

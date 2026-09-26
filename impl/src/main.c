@@ -1963,6 +1963,11 @@ int main(int argc, char **argv) {
             if (ct.len_dropped)
                 printf("     ★ 길이 케이스 %zu 개를 표가 차서 **못 만들었다** — 그만큼 덜 검사했다\n",
                        ct.len_dropped);
+            if (ct.world_skips)
+                printf("     ☞ %zu op(s) NOT RUN — they reach the network or the file system (net_* · file_* · dir_* · path_*), "
+                       "directly or through a call. Fed boundary values they would really open ports and write files, and "
+                       "the oracle would change the machine it measures (X-0041). Their contracts are still checked at "
+                       "translation\n", ct.world_skips);
             if (ct.budget_skips)
                 printf("     ★ %zu case(s) SKIPPED by the budget — the op's COST is an INPUT: either a "
                        "trip count (a boundary value of 2^64-1 would never finish) or a WAIT "

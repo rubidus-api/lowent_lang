@@ -1014,6 +1014,12 @@ typedef struct {
     proven_size_t shape_cases;
     // ★ 걸음 예산에 걸려 **건너뛴** 경우 — 조용히 넘기지 않는다(반복 횟수가 입력인 op 이 그렇다).
     proven_size_t budget_skips;
+    // ★★ **바깥 세계에 닿는 op 은 오라클이 돌리지 않는다** (X-0041 ⓐ, 2026-09-26).
+    //   망·파일 잎(`net_*`·`file_*`·`dir_*`·`path_*`)에 직접 또는 부르는 op 을 거쳐 닿는 op 에
+    //   경계 인자를 먹이면 **진짜로** 포트를 열고 파일을 만든다 — 재는 도구가 기계의 상태를 바꾸고,
+    //   그 실패가 **남의 구획**에서 나타났다. 계약 검사는 이 op 들에 대해서도 번역 때 그대로 선다.
+    //   건너뛴 op 의 수를 **센다**(말하지 않고 빼면 덜 검사한 것이 안 보인다).
+    proven_size_t world_skips;
     proven_size_t len_dropped;   // ★ 표가 차서 못 만든 길이 케이스(RFC-0077 P1-5)
     proven_u64    steps_max_ok;   // ★ 완주한 케이스가 쓴 **최대 걸음**(여유의 증인)
     proven_u64    step_budget;    // 그때의 예산

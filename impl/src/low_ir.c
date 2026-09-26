@@ -5820,6 +5820,37 @@ static bool ct_entry_contract_trap(const proven_array_t *diags, proven_size_t fr
     return false;
 }
 
+// ★★ X-0041 ⓐ — 이 op 이 망·파일 잎에 **닿는가**(직접, 또는 부르는·띄우는 op 을 거쳐).
+//   memo: 0 모름 · 1 보는 중(되부름 고리 — 닿지 않는 쪽으로 친다, 고리의 다른 자리가 답한다) · 2 아니다 · 3 닿는다.
+static bool ct_irw_touches_world(low_irw_t w) {
+    switch (w) {
+    case IRW_FOPEN: case IRW_FREAD: case IRW_FWRITE: case IRW_FCLOSE: case IRW_FSEEK:
+    case IRW_DOPEN: case IRW_DREAD: case IRW_DCLOSE: case IRW_FTYPE: case IRW_LTYPE:
+    case IRW_DMAKE: case IRW_PREMOVE: case IRW_PRENAME:
+    case IRW_NPAIR: case IRW_NSEND: case IRW_NRECV: case IRW_NCLOSE: case IRW_NLISTEN:
+    case IRW_NPORT: case IRW_NCONNECT: case IRW_NACCEPT: case IRW_NRESOLVE:
+        return true;
+    default:
+        return false;
+    }
+}
+static bool ct_reaches_world(const low_ir_t *ir, proven_size_t di, proven_u8 *memo) {
+    if (di >= ir->ndefs) return false;
+    if (memo[di] >= 2) return memo[di] == 3;
+    if (memo[di] == 1) return false;
+    memo[di] = 1;
+    bool hit = false;
+    const low_ir_def_t *d = &ir->defs[di];
+    for (proven_size_t k = 0; k < d->ncode && !hit; k++) {
+        const low_ir_ins_t *in = &d->code[k];
+        if (ct_irw_touches_world(in->w)) hit = true;
+        else if (in->w == IRW_CALL) hit = ct_reaches_world(ir, IR_CALL_IDX(in->a), memo);
+        else if (in->w == IRW_ASEND || in->w == IRW_TSPAWN) hit = ct_reaches_world(ir, (proven_size_t)in->a, memo);
+    }
+    memo[di] = hit ? 3 : 2;
+    return hit;
+}
+
 low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work, bool verbose) {
     // ★★★ **오라클은 멈춰야 한다.** 반복 횟수가 입력인 op 에 경계값을 먹이면 그 실행은 끝나지
     //   않는다(실측: `--ir` 가 60초를 넘겨도 안 끝났다 — `--check` 는 정상). 도구가 멈추면
@@ -5838,6 +5869,19 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
     proven_u64 budget_hits0 = low_ir_run_budget_hits();
     low_ir_ctest_t r = { 0 };
     proven_array_t diags = PROVEN_ARRAY_INIT(work, low_diag_t, 8).value;
+    // ★ X-0041 ⓐ — 바깥 세계에 닿는 op 을 먼저 가려 둔다(아래 세 갈래가 모두 건너뛴다).
+    proven_u8 *world = NULL;
+    if (ir->ndefs) {
+        proven_result_array_t wr = PROVEN_ARRAY_INIT(work, proven_u8, ir->ndefs);
+        if (wr.err == PROVEN_OK && wr.value.cap >= ir->ndefs) {
+            world = (proven_u8 *)wr.value.data;
+            memset(world, 0, ir->ndefs);
+            for (proven_size_t q = 0; q < ir->ndefs; q++) (void)ct_reaches_world(ir, q, world);
+            for (proven_size_t q = 0; q < ir->ndefs; q++)
+                if (world[q] == 3 && ir->defs[q].lowered && !ir->defs[q].is_test) r.world_skips++;
+        }
+    }
+#define CT_SKIP_WORLD(di_) (world && world[(di_)] == 3)
 
     // ── (A) 슬라이스를 받는 op — 계약이 말하는 **길이**를 흔든다 ──────────────
     // `errors E when lt (len data) 4` 는 길이 4 를 경계로 지목한다. 그러면 3·4·5 를 친다.
@@ -5847,6 +5891,7 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
     for (proven_size_t di = 0; di < ir->ndefs; di++) {
         const low_ir_def_t *d = &ir->defs[di];
         if (!d->lowered) continue;
+        if (CT_SKIP_WORLD(di)) continue;
         if (d->nparams != 1 || d->param_slice != 1u) continue;   // 슬라이스 하나짜리 op
         // ★★★ 예전엔 계약이 `len …` 으로 **상수를 언급한** op 만 뽑았다(nlenk > 0).
         //   그러면 슬라이스를 받는 대부분의 op 이 **길이를 한 번도 흔들어 보지 못한다.**
@@ -5930,6 +5975,7 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
     for (proven_size_t di = 0; di < ir->ndefs; di++) {
         const low_ir_def_t *d = &ir->defs[di];
         if (!d->lowered || d->nparams == 0 || d->nparams > 3 || d->param_slice) continue;
+        if (CT_SKIP_WORLD(di)) continue;
 
         // ★★★ 예전엔 계약이 **타입보다 좁아야만** 뽑았다. "타입만 있는 파라미터는 바깥이
         //   뭔지 계약이 말해 주지 않는다" 고 적어 두고 건너뛰었다.
@@ -6155,6 +6201,7 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
         for (proven_size_t di = 0; di < ir->ndefs; di++) {
             const low_ir_def_t *d = &ir->defs[di];
             if (!d->lowered || d->is_test || d->nparams == 0 || d->nparams > 4) continue;
+            if (CT_SKIP_WORLD(di)) continue;
             proven_u32 nslice = 0;
             for (proven_size_t p = 0; p < d->nparams; p++)
                 if (((d->param_slice | d->param_struct) >> p) & 1u) nslice++;
@@ -6202,5 +6249,6 @@ low_ir_ctest_t low_ir_contract_tests(const low_ir_t *ir, proven_allocator_t work
     r.steps_max_ok = low_ir_run_steps_max_ok();
     r.step_budget  = low_oracle_budget();
     low_ir_set_run_budget(0);          // ★ 사용자 실행은 다시 무한이다
+#undef CT_SKIP_WORLD
     return r;
 }

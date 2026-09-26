@@ -906,8 +906,14 @@ for f in out_dir.glob("*.html"):
         anchor_home[aid] = f.name
 for f in out_dir.glob("*.html"):
     txt = f.read_text(encoding="utf-8")
+    # ★ X-0068 — 번호 없는 절의 id(`sx1`·`sx2`…)는 **쪽마다** 다시 센다. 아래 지도는 id 하나에 쪽
+    #   하나만 기억하므로(마지막으로 본 쪽), 그 id 를 가진 쪽이 여럿이면 링크가 **남의 쪽**으로 갔다
+    #   (utf16 쪽의 절 자기 링크가 strings 쪽으로). ⇒ 이 쪽 안에 있는 id 는 이 쪽을 가리킨다.
+    own = set(re.findall(r'id="([^"]+)"', txt))
     def fix(mo):
         aid = mo.group(1)
+        if aid in own:
+            return mo.group(0)
         # ★ 쪽마다 있는 자리표(#content)는 *그 쪽 안*을 가리킨다. 아래의 지도는
         #   「이 id 가 어느 쪽에 사는가」를 담는데, 모든 쪽에 있는 id 는 그중
         #   한 쪽으로 잘못 이어진다 --- 건너뛰기 링크가 1장으로 가 버렸다.

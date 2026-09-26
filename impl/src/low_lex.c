@@ -181,12 +181,30 @@ static bool low_scan_digits(low_lexer_t *l, bool (*isdig)(proven_byte_t),
 
 static bool low_is_bindig(proven_byte_t c) { return c == '0' || c == '1'; }
 
+// ★★ **진법 표시 뒤에는 숫자가 하나 이상 온다** — 부록 A.6 `hexd , { [sep] , hexd }` (X-0066, 2026-09-26).
+//
+//   `low_scan_digits` 는 첫 자리의 `_` 만 보고 **숫자 0 개**는 그냥 통과시켰다. 그래서 `0x` · `0b` ·
+//   `0X` · `0x.` 가 `check: ok` 이고 값 0 을 냈다 — 아무도 적지 않은 수가 0 이 됐다.
+//   바깥(설정 포맷의 리터럴 차분 검사)에서 명세와 도구를 맞대 보다 드러났다.
+//   ☞ `_` 는 여기서 거르지 않는다: `0x_1` 은 «숫자가 없다» 가 아니라 «나눔표가 앞에 왔다» 이고,
+//     그 이름(`E-NUM-SEP`)은 `low_scan_digits` 가 이미 댄다. 한 잘못에 한 이름.
+static bool low_need_digit(low_lexer_t *l, bool (*isdig)(proven_byte_t),
+                           proven_u32 line, proven_u32 col) {
+    if (isdig(low_peek(l)) || low_peek(l) == '_') return true;
+    low_diag(l, "E-NUM-EMPTY",
+             "a base marker (`0x` / `0b`) must be followed by at least one digit of that base — "
+             "write `0x0` or `0b0` for zero",
+             line, col);
+    return false;
+}
+
 // number: dec | 0x-hex | 0b-bin | float (glued '.' fraction, optional exponent).
 static void low_scan_number(low_lexer_t *l, proven_u32 line, proven_u32 col) {
     proven_size_t start = l->pos;
     if (low_peek(l) == '+' || low_peek(l) == '-') low_adv(l);  // optional sign (caller ensured a digit follows)
     if (low_peek(l) == '0' && (low_peek_at(l, 1) == 'x' || low_peek_at(l, 1) == 'X')) {
         low_adv(l); low_adv(l);
+        if (!low_need_digit(l, low_is_hex, line, col)) return;
         if (!low_scan_digits(l, low_is_hex, line, col)) return;
         // hex float: '.' hexdigits and/or 'p'/'P' binary exponent (e.g. 0x1.8p3)
         if (low_peek(l) == '.' && low_is_hex(low_peek_at(l, 1))) {
@@ -204,6 +222,7 @@ static void low_scan_number(low_lexer_t *l, proven_u32 line, proven_u32 col) {
         }
     } else if (low_peek(l) == '0' && (low_peek_at(l, 1) == 'b' || low_peek_at(l, 1) == 'B')) {
         low_adv(l); low_adv(l);
+        if (!low_need_digit(l, low_is_bindig, line, col)) return;
         if (!low_scan_digits(l, low_is_bindig, line, col)) return;
     } else {
         if (!low_scan_digits(l, low_is_digit, line, col)) return;

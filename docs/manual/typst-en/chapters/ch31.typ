@@ -60,6 +60,23 @@ hello from a package
 `lowentc run` finds the manifest and runs the entry point on the VM, and `lowentc build` emits C and builds an executable in `out/`. Builds are cached by the content
 hash of the emitted C, so unchanged code is not compiled again. The manifest is found by walking upwards from the first file's folder.
 
+```text
+ pkg.low ──▶ entry src/main.low
+                  │
+                  ▼
+             the same checks as --check ──▶ rejected: stop here (neither run nor built)
+                  │
+        ┌─────────┴──────────┐
+        ▼                    ▼
+   lowentc run          lowentc build
+   run on the VM        emit C ──▶ same hash: cache ──▶ out/greeter
+                               └─▶ first time: cc ───▶ out/greeter
+```
+
+Both commands pass the same checks as `--check` *before* running or building. A program the language rejects neither runs nor becomes an executable. `run` has
+done so since 2026-09-16, `build` since 2026-09-26 --- before that, `build` skipped the checks and built even a program with a mistake like `return true .`
+(found by measuring while this chapter was revised).
+
 == Dependencies are pinned by hash
 
 `lowentc add <name> <place>` writes a dependency into the manifest *with a hash pin*. `--lock-write` records in a lock file what is being built against now, and
@@ -67,8 +84,22 @@ hash of the emitted C, so unchanged code is not compiled again. The manifest is 
 
 Checking authenticity is a separate layer. `lowentc key new`, `sign` and `verify` make and check ed25519 detached signatures. `verify` splits its answer into four
 layers --- integrity (do hash and pin match), authenticity (signed with a trusted key), transport and access --- because green in one layer does not mean green in
-another. The only environment variable the tool reads is `HOME`, and the precedence of settings (command line > project > user > global) is written in the help. This
-is to reduce places where behaviour is changed secretly outside the source.
+another. The only environment variable read to find settings is `HOME`, and the precedence of settings (command line > project > user > global) is written in the help.
+This is to reduce places where behaviour is changed secretly outside the source. A few other switches whose names start with `LOW` exist, all off by default and
+meant for testing and migration --- the fault injector `LOW_HOST_FAULT` (#chref("io-files")), the rollback door `LOWENT_ALLOW_GLUED_FIELD` that briefly re-admits the
+removed glued-dot field access, and the step limit `LOWENT_ORACLE_BUDGET` of the oracle tools. There is no everyday reason to set them, and setting one shows on the
+command line.
+
+This is how `verify` reports its four layers separately (measured on an unsigned file).
+
+```text
+ [3 integrity]     BLAKE3 a19e7c93…      are these bytes the pinned ones
+ [2 authenticity]  unsigned — LOCAL       who published it --- a trusted key's signature
+ [1 transport]     TLS (curl's job)       who the server is --- not what the bytes are
+ [4 access]        tokens in tool config  may you get in --- separate from integrity
+```
+
+Each layer is looked at on its own even when another is green. A successful TLS connection means the server is the right one, not that the bytes received are.
 
 == A different program per build --- `build option` and `config`
 
@@ -88,6 +119,17 @@ maxcpu 8
 #demo("examples/ch31/knobs_small.low")
 
 With `smp` switched off, `tick_rate` gives 100 and `cpus` gives 8. Once the value is fixed, switched-off branches do not remain in the output. The cost is zero.
+
+```text
+ build option smp bool default true .       ← the source declares the knob
+ small.config:  smp false                   ← the config file gives a value (default if absent)
+
+ if config smp . do return config hz . end  ← the branch when smp is on
+ return 100 .                               ← the branch when it is off
+
+ translation  both branches are parsed and type-checked
+ output       only the chosen branch stays (the off branch costs 0)
+```
 
 There is a decisive difference from C's `#ifdef`. *Switched-off branches are still parsed and type-checked.* In C, code for combinations nobody switches on rots unread,
 and in kernel-scale projects "that option combination does not even build" happens. Here what folds away is *code emission*, not checking.
@@ -233,7 +275,7 @@ the slow path, used to see whether both paths give the same answer.
   [`config smp` · `--config small.config`], [read a knob as a translation-time constant · a config file], [switched-off branches are checked too],
   [`test <name> do expect <condition> . end` · `--test`], [test blocks and assertions], [failure is `E-TEST-FAIL` --- not a contract violation],
   [`test … schedule explore_interleavings limit <n> . do … end`], [a test that runs every order], [bugs of rare orders],
-  [`lowentc --run <op> <file> <args…>`], [run one op on the VM], [a placeholder `0` in capability positions],
+  [`lowentc --run <op> <file> <args…>`], [run one op on the VM], [the tool fills capability positions --- a rejected unit does not run],
   [`--why-slow` · `--no-fast`], [ops left on the slow path and why · everything on the slow path], [the tool speaks about performance],
   [`lowdoc "…" .` · `tests op1 op2 .`], [documentation attached to the op · names of ops testing it], [docs move with the op, and a missing test is reported by the head],
 )

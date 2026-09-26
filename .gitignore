@@ -5,6 +5,7 @@
 !/.gitignore
 !/.gitattributes
 !/README.md
+!/README.ko.md
 !/LICENSE
 !/pkg.low
 !/impl/

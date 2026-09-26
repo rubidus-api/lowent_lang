@@ -540,6 +540,35 @@ static int cmd_build(int nargs, char **args) {
     if (pkg.found) { snprintf(outdir, sizeof outdir, "%s/out", pkg.dir); mkdir(outdir, 0755); }
     else snprintf(outdir, sizeof outdir, ".");
     char cfile[736], bin[736], cmd[4096], ld[512] = { 0 };
+    // ★★★ **거절할 프로그램을 `build` 가 짓고 있었다** (X-0069, 2026-09-26).
+    //   `--run`·`--test` 는 결함 노트 #86 에서 `--check` 와 같은 검사를 먼저 돌게 됐는데, `build` 는
+    //   `--emit-c` 만 불러서 `return true .`(u8 자리) 같은 프로그램도 실행 파일이 되어 돌았다(실측).
+    //   ⇒ 짓기 전에 **같은 손잡이로** `--check` 를 부르고, 거절하면 그 진단을 보이고 짓지 않는다.
+    //   ☞ `--emit-c` 자체는 그대로 둔다 — 오라클이 거절 픽스처의 실행을 재는 데 쓴다.
+    snprintf(cmd, sizeof cmd, "\"%s\"%s --check \"%s\" 2>&1", self, pass, entry);
+    FILE *cp = popen(cmd, "r");
+    if (!cp) { fprintf(stderr, "lowentc build: could not run the checks for %s\n", entry); return 1; }
+    char *clog = NULL; size_t clen = 0, ccap = 0;
+    for (char chunk[1024]; ; ) {
+        size_t k = fread(chunk, 1, sizeof chunk, cp);
+        if (!k) break;
+        if (clen + k + 1 > ccap) {
+            ccap = (clen + k + 1) * 2;
+            char *g = (char *)realloc(clog, ccap);
+            if (!g) { free(clog); pclose(cp); fprintf(stderr, "lowentc build: out of memory\n"); return 1; }
+            clog = g;
+        }
+        memcpy(clog + clen, chunk, k); clen += k;
+    }
+    int crc = pclose(cp);
+    if (crc != 0) {
+        if (clog) { clog[clen] = 0; fputs(clog, stdout); }
+        free(clog);
+        printf("   ^ `build` REFUSED this unit: it does not pass the same checks as `--check`. "
+               "A program the language rejects must not be built — that is the whole of the promise.\n");
+        return 2;
+    }
+    free(clog);
     snprintf(cfile, sizeof cfile, "%s/.%s.c", outdir, name);
     snprintf(bin, sizeof bin, "%s/%s", outdir, name);
     snprintf(cmd, sizeof cmd, "\"%s\"%s --emit-c \"%s\" > \"%s\"", self, pass, entry, cfile);

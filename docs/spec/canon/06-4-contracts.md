@@ -589,8 +589,9 @@ end
       op 의 몸에 오는 폼이 온다. 몸은 op 의 몸과 **같은 타입 규칙**으로 검사된다 — 시험 안이라고
       `let x u8 be 300 .` 이 통과하지 아니한다.
 
-(1a) 한 파일 안의 두 시험 블록은 같은 이름을 가질 수 없다(`E-NAME-DUP`, ⟦§6.4.8⟧ (2)). 시험은 이름으로
-      보고되므로, 이름이 겹치면 어느 시험이 통과하고 어느 시험이 실패했는지 말할 수 없다.
+(1a) 시험의 이름은 op · 타입 · 모듈의 이름과 **같은 이름 공간**에 든다. 한 모듈 안에서 시험끼리, 또는 시험과
+      다른 선언이 같은 이름을 쓰면 거부된다(`E-NAME-DUP`, ⟦§6.4.8⟧ (2)). 시험은 이름으로 보고되고 이름으로
+      불리므로, 이름이 겹치면 어느 것을 가리키는지 말할 수 없다.
 
 (2) `expect <조건> .` 의 조건은 `bool` 이어야 한다. 수를 주는 것은 거부된다(`E-TYPE-COND`) — 0 이 아닌
       수를 참으로 읽는 규칙은 이 언어에 없다(⟦§6.2.16⟧ (4)).
@@ -600,6 +601,9 @@ end
       다르다는 것이다. 고칠 자리가 다르다.
 
 (2b) 처리기는 어느 빌드 모드(⟦§6.4.7⟧)에서도 `expect` 를 없애지 아니한다. 사라진 단언은 돌지 않은 시험이다.
+
+(2c) `expect` 는 시험 블록 안에만 온다. op 의 몸이나 그 밖의 자리에 적으면 거부된다(`E-EXPECT-PLACE`).
+      입력이나 결과에 대한 약속은 `requires` · `ensures`(⟦§6.4.3⟧)로, 일부러 멈추는 것은 `panic`(⟦§7.1⟧)으로 적는다.
 
 (3) 시험은 시험을 돌리라는 요청(`lowentc --test`)을 받았을 때만 실행된다. 보통의 실행과 검사(`--check`)는
       시험을 돌리지 아니하며, 검사는 그 사실을 알린다(`W-TEST-NOT-RUN`) — 검사의 통과가 시험의 통과로
@@ -618,9 +622,6 @@ end
 (4a) 모든 차례에서 통과하면 그 시험은 통과한다. 어떤 차례에서는 통과하고 어떤 차례에서는 실패하면 그
       시험은 실패한다(`E-SCHED-NONDET`) — 결과가 배달 차례에 기대는 것이고, 한 번 돌려 본 답은 그 한
       차례의 답일 뿐이다. 모든 차례에서 실패하면 보통의 시험 실패(`E-TEST-FAIL`)다.
-
-(5) 이 절이 정하지 않는 것: 시험 블록 밖(op 의 몸)에 적은 `expect` 의 뜻, 시험 블록과 op 이 같은 이름을
-      쓰는 것. 지금 처리기는 둘 다 받는다.
 
 ```lowent 예제: 시험 블록과 단언
 module ex_test .
@@ -647,7 +648,7 @@ test counts do
 end
 ```
 
-```lowent-거부: 한 파일의 두 시험은 이름이 달라야 한다 · E-NAME-DUP
+```lowent-거부: 한 모듈의 두 시험은 이름이 달라야 한다 · E-NAME-DUP
 module ex_test_dup .
 
 test same do
@@ -656,5 +657,25 @@ end
 
 test same do
   expect eq 2 2 .
+end
+```
+
+```lowent-거부: 시험과 op 은 한 이름 공간을 쓴다 · E-NAME-DUP
+module ex_test_ns .
+
+fn check output bool . do return true . end
+
+test check do
+  expect check .
+end
+```
+
+```lowent-거부: expect 는 시험 블록 안에만 온다 · E-EXPECT-PLACE
+module ex_expect_place .
+
+fn half input n u8 . output u8 .
+do
+  expect lt n 200 .
+  return div n 2 .
 end
 ```

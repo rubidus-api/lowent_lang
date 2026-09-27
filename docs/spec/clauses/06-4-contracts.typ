@@ -610,8 +610,9 @@ end", "E-CONTRACT-IMPOSSIBLE")
       `let x u8 be 300 .` 이 통과하지 아니한다.
     ]
     #para("1a")[
-      한 파일 안의 두 시험 블록은 같은 이름을 가질 수 없다(`E-NAME-DUP`, #cref("6.4.8") (2)). 시험은 이름으로
-      보고되므로, 이름이 겹치면 어느 시험이 통과하고 어느 시험이 실패했는지 말할 수 없다.
+      시험의 이름은 op · 타입 · 모듈의 이름과 **같은 이름 공간**에 든다. 한 모듈 안에서 시험끼리, 또는 시험과
+      다른 선언이 같은 이름을 쓰면 거부된다(`E-NAME-DUP`, #cref("6.4.8") (2)). 시험은 이름으로 보고되고 이름으로
+      불리므로, 이름이 겹치면 어느 것을 가리키는지 말할 수 없다.
     ]
     #para("2")[
       `expect <조건> .` 의 조건은 `bool` 이어야 한다. 수를 주는 것은 거부된다(`E-TYPE-COND`) — 0 이 아닌
@@ -624,6 +625,10 @@ end", "E-CONTRACT-IMPOSSIBLE")
     ]
     #para("2b")[
       처리기는 어느 빌드 모드(#cref("6.4.7"))에서도 `expect` 를 없애지 아니한다. 사라진 단언은 돌지 않은 시험이다.
+    ]
+    #para("2c")[
+      `expect` 는 시험 블록 안에만 온다. op 의 몸이나 그 밖의 자리에 적으면 거부된다(`E-EXPECT-PLACE`).
+      입력이나 결과에 대한 약속은 `requires` · `ensures`(#cref("6.4.3"))로, 일부러 멈추는 것은 `panic`(#cref("7.1"))으로 적는다.
     ]
     #para("3")[
       시험은 시험을 돌리라는 요청(`lowentc --test`)을 받았을 때만 실행된다. 보통의 실행과 검사(`--check`)는
@@ -648,10 +653,6 @@ end", "E-CONTRACT-IMPOSSIBLE")
       시험은 실패한다(`E-SCHED-NONDET`) — 결과가 배달 차례에 기대는 것이고, 한 번 돌려 본 답은 그 한
       차례의 답일 뿐이다. 모든 차례에서 실패하면 보통의 시험 실패(`E-TEST-FAIL`)다.
     ]
-    #para("5")[
-      이 절이 정하지 않는 것: 시험 블록 밖(op 의 몸)에 적은 `expect` 의 뜻, 시험 블록과 op 이 같은 이름을
-      쓰는 것. 지금 처리기는 둘 다 받는다.
-    ]
     #ex("시험 블록과 단언", "module ex_test .
 
 fn clamp8 input v u64 . output u8 .
@@ -671,7 +672,7 @@ end")
 test counts do
   expect 1 .
 end", "E-TYPE-COND")
-    #rejected("한 파일의 두 시험은 이름이 달라야 한다", "module ex_test_dup .
+    #rejected("한 모듈의 두 시험은 이름이 달라야 한다", "module ex_test_dup .
 
 test same do
   expect eq 1 1 .
@@ -680,5 +681,19 @@ end
 test same do
   expect eq 2 2 .
 end", "E-NAME-DUP")
+    #rejected("시험과 op 은 한 이름 공간을 쓴다", "module ex_test_ns .
+
+fn check output bool . do return true . end
+
+test check do
+  expect check .
+end", "E-NAME-DUP")
+    #rejected("expect 는 시험 블록 안에만 온다", "module ex_expect_place .
+
+fn half input n u8 . output u8 .
+do
+  expect lt n 200 .
+  return div n 2 .
+end", "E-EXPECT-PLACE")
   ]
 ]

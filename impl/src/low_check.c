@@ -9146,6 +9146,21 @@ static void ck_predbool_walk(low_check_result_t *out, const low_cst_t *nd,
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_predbool_walk(out, nd->kids[i], tab, nt);
 }
 
+// ★ X-0072 ①(소유자 «추천대로», 2026-09-27) — **`expect` 는 시험의 단언이다.** op 의 몸에 적으면 받아 주고, 거짓이면
+//   «this test failed» 라고 말했다 — 시험이 아닌데 시험 실패라고. 계약이 할 일이면 `requires`·`ensures`, 멈춤이면 `panic` 이다.
+static void ck_expect_place_walk(low_check_result_t *out, const low_cst_t *nd) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_EXPECT) {
+        emit(out, "E-EXPECT-PLACE",
+             "`expect` is the assertion of a `test` block, and this one is outside any test. In an op body "
+             "it used to run and, when false, report that «the test failed» — there was no test. Say what you "
+             "mean: a promise about inputs or results is `requires` / `ensures`; stopping on purpose is `panic`",
+             nd->kids[0]->tok.line);
+        return;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_expect_place_walk(out, nd->kids[i]);
+}
+
 // ★★ X-0062 (소유자 결정 ⓒ, 2026-09-25) — **받는 자리가 모자란 것을 번역 시점에 알면 거절한다.** 모르면 실행 중 멈춘다
 //   (쓰기의 경계 검사). 여기서 «안다» 는 좁게 잡는다: 원천과 받는 자리의 길이가 둘 다 머리의 계약(`requires eq (len x) N`,
 //   `array <N> <T>` 입력도 그리 바뀐다)에 적혀 있고, 사이의
@@ -9878,6 +9893,9 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             else if (kw == LOW_KW_NEWTYPE) what = "newtype";
             else if (kw == LOW_KW_STRUCT) what = "struct";
             else if (kw == LOW_KW_ENUM)   what = "enum";
+            // ★ X-0072 ②(소유자 «추천대로», 2026-09-27) — 시험 이름도 **같은 한 통**에 든다. 이름 공간이 하나이고 가리기가
+            //   없는 언어에서 `fn a` 와 `test a` 가 함께 서면, `--run a` 가 어느 것을 부르는지 이름만으로는 말할 수 없다.
+            else if (kw == LOW_KW_TEST)   what = "test";
             else continue;
             if (f->kids[1]->kind != LOW_CST_ATOM) continue;
             {   // ★★★ **이름은 맨 식별자다** — 유일한 예외가 op 의 `Type.op` 이다.
@@ -10193,6 +10211,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
         if (f->kind != LOW_CST_FORM || f->nkids < 1 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         proven_u8str_view_t h = f->kids[0]->tok.lex;
+        if (!veq(h, "test")) ck_expect_place_walk(&out, f);   // ★ X-0072 ① — 시험 밖의 expect
         // ★ `test` 는 이제 **실행된다**(`--test`). 그래서 W-NOT-YET 를 걷었다 —
         //   미구현이 아니게 되면 **고지도 걷어야 한다.** 남겨 두면 그것도 거짓말이다.
         //   다만 `--check` 는 테스트를 **돌리지 않는다.** 그 사실은 말해 준다:
@@ -10202,21 +10221,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                  "this unit has `test` blocks, and `--check` does NOT run them — a green check "
                  "means the code type-checks, NOT that the tests pass. Run `--test`",
                  f->kids[0]->tok.line);
-            // ★ 2026-09-27 — 같은 파일의 두 시험이 같은 이름이면 `--test` 가 «[PASS] a» 를 두 번 찍어 어느 것인지 가릴 수 없었다.
-            //   정본 §6.4.8 (2): 한 이름은 한 범위에서 한 대상이다.
-            if (f->nkids >= 2 && ck_atom(f->kids[1]))
-                for (proven_size_t j = 0; j < i; j++) {
-                    const low_cst_t *g = pr->forms[j];
-                    if (g->kind != LOW_CST_FORM || g->nkids < 2 || !ck_atom(g->kids[0]) || !ck_atom(g->kids[1])) continue;
-                    if (!veq(g->kids[0]->tok.lex, "test") || g->file != f->file) continue;
-                    if (!proven_u8str_view_eq(g->kids[1]->tok.lex, f->kids[1]->tok.lex)) continue;
-                    emit(&out, "E-NAME-DUP",
-                         "two `test` blocks have the same name — `--test` reports each by name, so the "
-                         "report could not say WHICH one passed or failed. A name means one thing in "
-                         "its scope: rename one of them",
-                         f->kids[1]->tok.line);
-                    break;
-                }
+            // ★ 같은 이름의 시험 둘 · 시험과 op 의 같은 이름은 위의 E-NAME-DUP 한 곳이 잡는다(X-0071 · X-0072).
         }
         else if (veq(h, "actor")) {
             // ★ actor 는 이제 **컴파일된다**(상태 격리 + `on` 핸들러 + spawn/send).

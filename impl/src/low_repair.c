@@ -333,6 +333,7 @@ static const low_repair_row_t REPAIR[] = {
     { "E-IR-ARITY",            "R-FEWER-PARAMS" },
     { "E-IR-LOCALS",           "R-SPLIT-OP" },
     { "E-PARSE-LIMIT",         "R-SPLIT-OP" },     // ★ 2026-09-27 — 노드 아레나가 찼다: 단위를 나눈다
+    { "E-EXPECT-PLACE",        "R-USE-CONTRACT" }, // ★ X-0072 — 시험 밖 expect: requires/ensures 로(또는 panic)
     { "E-IR-UNSUP",            "R-SHORTEN-LITERAL" },
     { "E-IR-EXTRA",            "R-DROP-OPERANDS" },
     { "E-VOCAB-REMOVED",       "R-USE-REPLACEMENT" },

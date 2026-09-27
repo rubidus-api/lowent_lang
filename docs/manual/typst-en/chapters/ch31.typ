@@ -162,6 +162,8 @@ When a test fails, it looks like this.
 `E-TEST-FAIL` is a different diagnostic from a contract violation. A contract violation is *code breaking its own promise*; a test failure is *a test saying the code is
 wrong*. What to fix differs. Here `narrow_wrap` must become `narrow_sat`. And the processor does not optimise `expect` away. A vanished test is a test that did not run.
 
+`expect` belongs inside a test block only. Written in an op body it is refused with `E-EXPECT-PLACE`; a promise an op keeps is written as `requires` or `ensures`. Test names share one namespace with ops, so `fn check` next to `test check` is `E-NAME-DUP`.
+
 Concurrent code uses `test <name> schedule explore_interleavings . do … end` to run every possible ordering of flows and see whether the answers agree
 (#chref("tasks-channels")). When there are many cases, `limit <number>` sets a ceiling.
 

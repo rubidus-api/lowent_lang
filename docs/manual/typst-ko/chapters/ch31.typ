@@ -167,6 +167,8 @@ C 의 `#ifdef` 와 결정적으로 다른 점이 있다. *꺼진 가지도 파�
 말하는 것*이다. 고칠 것이 다르다. 여기서는 `narrow_wrap` 을 `narrow_sat` 로 바꿔야 한다. 그리고 처리기는 `expect` 를 최적화로
 없애지 않는다. 사라진 시험은 돌지 않은 시험이다.
 
+`expect` 는 시험 블록 안에만 쓴다. op 의 몸에 적으면 `E-EXPECT-PLACE` 로 거절된다. op 이 지킬 약속은 `requires` · `ensures` 로 적는다. 시험의 이름도 op 과 같은 이름 공간에 들어서, `fn check` 와 `test check` 를 함께 두면 `E-NAME-DUP` 이다.
+
 동시성 코드는 `test <이름> schedule explore_interleavings . do … end` 로 가능한 모든 흐름의 차례를 돌려 답이 같은지 본다
 (#chref("tasks-channels")). 경우가 많으면 `limit <수>` 로 상한을 둔다.
 

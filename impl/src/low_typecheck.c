@@ -215,7 +215,7 @@ static ty_t ty_of_word(proven_u8str_view_t v) {
 // τ 를 적으면 표현이 못 박히고 [lo,hi] ⊆ τ 가 **컴파일타임에 강제**된다(E-TYPE-RANGE).
 // τ 를 생략하면 가장 싼 폭이 유도된다(D1) — 두 형태는 같은 타입을 낳는다.
 // 어느 쪽이든 결과는 **TK_INT** 다. 그래서 RFC-0052 의 ⊑ 규칙 전부가 range 값에도 걸린다.
-static bool num_is_float(proven_u8str_view_t v);
+bool low_num_is_float(proven_u8str_view_t v);
 static bool num_value(proven_u8str_view_t v, proven_u64 *out, bool *neg);
 static proven_i64 ty_lo(proven_u8 bits, bool sign) {
     if (!sign) return 0;
@@ -240,7 +240,7 @@ static ty_t ty_derive_range(proven_i64 lo, proven_i64 hi) {
     return t;
 }
 static bool tc_int_lit(proven_u8str_view_t v, proven_i64 *out) {
-    if (num_is_float(v)) return false;
+    if (low_num_is_float(v)) return false;
     proven_u64 val; bool neg;
     if (!num_value(v, &val, &neg)) return false;
     if (neg) { if (val > (proven_u64)INT64_MAX + 1) return false; *out = -(proven_i64)val; }
@@ -274,7 +274,10 @@ static rng_res_t ty_of_range_at(const low_cst_t *f, proven_size_t i, proven_size
     return rng_fits_ty(lo, hi, base) ? RNG_OK : RNG_OVERFLOW;   // ★ [lo,hi] ⊆ τ 강제
 }
 
-static bool num_is_float(proven_u8str_view_t v) {
+// ★ X-0070 (2026-09-27) — «이 수 리터럴은 부동인가» 는 **여기 한 곳**에서 판정한다. low_check.c 가 제 사본을
+//   두고 `.`·`e`·`E` 만 보아서 `0x1p4`(16진 부동)를 정수로, `0xe0`(16진 정수)를 부동으로 잘못 갈랐다 — 앞은 거짓
+//   E-TYPE-MIX, 뒤는 `mul 2.0 0xe0` 이 검사를 지나 실행에서 E-VM-TYPE 로 멈췄다. 교훈 7: 같은 판정 두 벌은 갈린다.
+bool low_num_is_float(proven_u8str_view_t v) {
     proven_size_t o = (v.size && (v.ptr[0] == '-' || v.ptr[0] == '+')) ? 1 : 0;  // skip sign
     if (v.size >= o + 2 && v.ptr[o] == '0' && (v.ptr[o + 1] == 'x' || v.ptr[o + 1] == 'X')) {
         for (proven_size_t i = o + 2; i < v.size; i++)  // hex float: '.' or 'p'/'P'
@@ -308,7 +311,7 @@ static bool num_value(proven_u8str_view_t v, proven_u64 *out, bool *neg) {
     *out = val; return true;
 }
 static ty_t ty_of_number(proven_u8str_view_t v) {
-    if (num_is_float(v)) {   // D3: 부동 리터럴도 comptime 무타입 — 값은 적합 검사용으로 들고 간다
+    if (low_num_is_float(v)) {   // D3: 부동 리터럴도 comptime 무타입 — 값은 적합 검사용으로 들고 간다
         return (ty_t){ .k = TK_FLOAT, .lit = true, .fval = low_num_to_double(v) };
     }
     ty_t t = tk_int(0, false);

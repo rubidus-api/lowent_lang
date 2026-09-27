@@ -248,6 +248,7 @@ typedef enum {
     //   **구현이 없었고**, 도구는 "E-IR-UNDEF: undefined name" 이라 했다 — *네 프로그램이 틀렸다*.
     //   아니다. **도구가 못 한 것이다.** bit_cast 와 같은 오진이다.
     IRW_PANIC,    // a = string index; 즉시 트랩(복구 불가 — 계약 위반과 구별된다)
+                  //   a = IR_PANIC_SINKFULL 이면 도구가 넣은 멈춤: `collect into`·내장 map/filter 의 받는 자리가 찼다(X-0065)
     // ★ SPEC-007 §28 — **채널 전환**. `try E else_none`(result→option) ·
     //   `try E else_error <variant>`(option→result). 명세의 형태인데 **E-IR-ARITY**
     //   ("여분의 피연산자") 로 거절됐다 — 또 오진이다(교훈 5).
@@ -461,6 +462,8 @@ typedef struct {
 //   (퍼저가 곧 분석의 건전성 검증기가 된다 — RFC-0053 §7).
 //   C 백엔드는 이 자리에서 검사 없는 원시 산술을 방출한다(성능 회수).
 #define IR_POL_PROVEN 0x100000
+// ★ X-0065 — IRW_PANIC 의 a 가 이 값이면 «받는 자리가 찼다»(문자열 번호와 겹치지 않는 큰 수).
+#define IR_PANIC_SINKFULL 0x7fff0001
 // IRW_CALL 의 a 는 def 인덱스 + 플래그다. RFC-0055 D3: PROVEN 이면 인자 범위 검사를
 // **호출 지점에서 이미 증명**했다는 뜻 — 진입 검사를 건너뛴다(계약이 공짜가 된다).
 #define IR_CALL_IDX(a) ((proven_size_t)((a) & 0xFFFF))

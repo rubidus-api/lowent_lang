@@ -2,6 +2,7 @@
 // low_cbe.c — S5 C backend (see low_cbe.h).
 #include "low_cbe.h"
 #include "low_cbe_prelude.h"
+#define LW_SINKFULL_MSG "collect into / map / filter: the receiving slice is full and the source still has elements (panic). A full sink never drops the rest in silence (X-0062): give a longer buffer, or say how many with take N"   // ★ X-0065 — VM 의 E-VM-BOUNDS 와 같은 말
 #include "low_sha256.h"
 #include "low_sha512.h"   // ★ VM 과 **같은 매크로**를 방출한다 — 갈릴 자리가 없다
 #include "low_blake3.h"
@@ -4081,6 +4082,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                            : (in->a & 1) ? "ensures violated at exit" : "requires violated at entry");
                 ks.n--; break;
             case IRW_PANIC:
+                if (in->a == IR_PANIC_SINKFULL) { fputs("    lw_panic(\"" LW_SINKFULL_MSG "\");\n", out); break; }   // ★ X-0065
                 fputs("    lw_upanic(\"the program called `panic`\");\n", out); break;
             // ★★★ **asm 문장 — 빠른 경로** (RFC-0042 D11). 피연산자 없는 형태만 여기 온다
             //   (있으면 cbe_mark_scalar 가 이 def 을 태그 경로로 보내며 **이유를 말한다**).
@@ -6568,7 +6570,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 // ★ SPEC-004 §190 T0 — 무비용 비트 재해석. VM 과 **같은 규칙**(폭은 안 바꾼다).
                 case IRW_BITCAST:  fprintf(out, "    st[sp-1] = lw_bitcast(st[sp-1], %lld);\n", (long long)in->a); break;
                 // ★ `panic` — 즉시 트랩. 네이티브도 **같은 자리에서** 멈춘다.
-                case IRW_PANIC:    fputs("    lw_upanic(\"the program called `panic`\");\n", out); break;
+                case IRW_PANIC:    fputs(in->a == IR_PANIC_SINKFULL ? "    lw_panic(\"" LW_SINKFULL_MSG "\");\n"   // ★ X-0065
+                                             : "    lw_upanic(\"the program called `panic`\");\n", out); break;
                 // ★ SPEC-007 §28 — 채널 전환(값은 그대로, 채널만 바뀐다).
                 case IRW_ELSE_NONE: fputs("    st[sp-1] = lw_else_none(st[sp-1]);\n", out); break;
                 case IRW_ELSE_ERR:  fprintf(out, "    st[sp-1] = lw_else_err(st[sp-1], %lld);\n", (long long)in->a); break;

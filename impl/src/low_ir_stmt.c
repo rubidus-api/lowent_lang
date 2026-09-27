@@ -441,6 +441,7 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
         // ── sink — ★★ X-0062 (소유자 결정 ⓒ): 꽉 찬 자리에서 **말없이 멈추지 않는다.** 전엔 cond 에 `j < len(out)` 을
         //   두어 남은 원소를 조용히 버렸다. 이제 찬 뒤에 원소가 오면 이 쓰기의 경계 검사가 멈춘다(VM·네이티브 같다).
         if (term == 0) {
+            ir_emit_sinkfull_guard(c, ou, j);   // ★ X-0065 — 넘침은 «받는 자리가 찼다» 로 이름을 대고 멈춘다
             ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_LOAD, (proven_i64)xv);
             ir_emit(c, IRW_ISTORE, 0);
             ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0); ir_emit(c, IRW_STORE, (proven_i64)j);

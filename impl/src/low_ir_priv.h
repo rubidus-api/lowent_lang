@@ -442,6 +442,7 @@ extern proven_size_t g_ncert;
 
 /* (WO-0165) 공용 어휘 — 문 하강도 같은 낱말을 쓴다 */
 low_ir_ins_t *ir_at(ir_ctx_t *c, proven_size_t i);
+void ir_emit_sinkfull_guard(ir_ctx_t *c, proven_size_t out_local, proven_size_t idx_local);
 proven_size_t ir_field_intern(ir_ctx_t *c, proven_u8str_view_t name);
 void ir_run(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n);
 

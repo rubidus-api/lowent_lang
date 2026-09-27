@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "low_ir.h"
+#include "low_typecheck.h"
 #include "low_check.h"
 
 #include "low_token.h"
@@ -9097,7 +9098,23 @@ static void ck_foldorder_walk(low_check_result_t *out, const low_cst_t *nd,
 
 // ★★ X-0061 (소유자 결정 ⓐ, 2026-09-25) — **판정 op 은 `bool` 을 낸다.** `filter`·`any`·`all`(과 내장 `filter <받는 자리> <op>
 //   <원천>`)의 op 이 수를 내도 통과했고 0 아닌 값을 참으로 보았다 — 이 언어는 `bool` 을 수로 보지 않는다(`cast` 도 `bool`
-//   을 거절한다). 이름이 분명한 수 타입(정수·부동소수)을 내는 op 만 거절한다: 이름만으로는 별칭을 갈라 볼 수 없다.
+//   을 거절한다). 수 타입(정수·부동소수)을 내는 op 을 거절한다 — `type` 별칭은 밑 타입까지 따라간다(X-0065).
+// ★ X-0065 — `type flag u8 .` 같은 **별칭**을 밑 타입 이름까지 따라간다(몇 겹이든, 고리는 8 번에서 끊는다).
+//   판정 op 이 별칭으로 수를 내도 E-PIPE-PRED 가 보도록. `newtype` 은 새 타입이라 따라가지 않는다.
+static proven_u8str_view_t ck_alias_base(proven_u8str_view_t nm) {
+    for (int hop = 0; g_ck_pr && hop < 8; hop++) {
+        bool moved = false;
+        for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
+            const low_cst_t *f = g_ck_pr->forms[i];
+            if (f->kind != LOW_CST_FORM || f->nkids != 3 || !ck_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_TYPE) continue;
+            if (!(ck_atom(f->kids[1]) && ck_atom(f->kids[2]) && proven_u8str_view_eq(f->kids[1]->tok.lex, nm))) continue;
+            nm = f->kids[2]->tok.lex; moved = true; break;
+        }
+        if (!moved) break;
+    }
+    return nm;
+}
+
 static void ck_predbool_walk(low_check_result_t *out, const low_cst_t *nd,
                              const low_opinfo_t *tab, proven_size_t nt) {
     if (!nd) return;
@@ -9113,7 +9130,7 @@ static void ck_predbool_walk(low_check_result_t *out, const low_cst_t *nd,
             const low_cst_t *g = tab[i].form;
             low_op_header_t gh = low_op_header(g);
             if (!(gh.out_s && gh.out_s < g->nkids && ck_atom(g->kids[gh.out_s]))) break;
-            proven_u8str_view_t o = g->kids[gh.out_s]->tok.lex;
+            proven_u8str_view_t o = ck_alias_base(g->kids[gh.out_s]->tok.lex);
             proven_i64 lo = 0; proven_u64 hi = 0;
             if (!(ck_int_range(o, &lo, &hi) || veq(o, "u64") || veq(o, "i64") || veq(o, "usize") ||
                   veq(o, "f32") || veq(o, "f64"))) break;
@@ -9213,12 +9230,8 @@ static void ck_typeholes_walk(low_check_result_t *out, const low_cst_t *nd,
                 while (a && a->kind == LOW_CST_GROUP && a->nkids == 1) a = a->kids[0];
                 if (!a || !ck_atom(a)) continue;
                 if (a->tok.kind == LOW_TOK_NUMBER) {
-                    bool dot = false;
-                    for (proven_size_t z = 0; z < a->tok.lex.size; z++)
-                        if (a->tok.lex.ptr[z] == (proven_byte_t)'.' ||
-                            a->tok.lex.ptr[z] == (proven_byte_t)'e' ||
-                            a->tok.lex.ptr[z] == (proven_byte_t)'E') dot = true;
-                    if (dot) saw_float = true; else saw_intlit = true;
+                    // ★ X-0070 — 판정은 low_typecheck.c 한 곳(`low_num_is_float`). 여기 사본이 16진을 틀리게 갈랐다.
+                    if (low_num_is_float(a->tok.lex)) saw_float = true; else saw_intlit = true;
                     continue;
                 }
                 if (a->tok.kind != LOW_TOK_IDENT || a->tok.kw != LOW_KW_NONE) continue;
@@ -10545,7 +10558,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             {   low_op_header_t hh = low_op_header(f);
                 ck_cmpwidth_walk(&out, h.body, f, &hh, h.body); }   // ★ 자리에 안 들어가는 리터럴과의 비교 (#32)
             ck_foldorder_walk(&out, h.body, tab0, ops.len);        // ★ fold 단계 op 의 누산 차례 (#60)
-            ck_predbool_walk(&out, h.body, tab0, ops.len);         // ★ 판정 op 은 bool (X-0061)
+            ck_predbool_walk(&out, h.body, tab0, ops.len);         // ★ 판정 op 은 bool (X-0061; 별칭도 X-0065)
             {   low_op_header_t hh = low_op_header(f);
                 ck_collectfull_walk(&out, h.body, f, &hh); }        // ★ 받는 자리가 모자란 것을 알면 거절 (X-0062)
             ck_scope_escape(&out, h.body);                   // ★ 블록 안 이름을 밖에서 (#33)

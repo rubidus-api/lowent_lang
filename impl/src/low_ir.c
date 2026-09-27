@@ -552,6 +552,18 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
 }
  low_ir_ins_t *ir_at(ir_ctx_t *c, proven_size_t i) { return (low_ir_ins_t *)proven_array_get(&c->code, i); }
 
+// ★ X-0065 — 받는 자리에 쓰기 **전에** 찼는지 본다: `idx < len(out)` 이 아니면 «받는 자리가 찼다» 로 멈춘다.
+//   전엔 일반 경계 검사(`slice index out of bounds on write`)가 멈춰, 무엇이 넘쳤는지 말하지 않았다.
+void ir_emit_sinkfull_guard(ir_ctx_t *c, proven_size_t out_local, proven_size_t idx_local) {
+    ir_emit(c, IRW_LOAD, (proven_i64)idx_local); ir_emit(c, IRW_LOAD, (proven_i64)out_local);
+    ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
+    proven_size_t full = ir_emit(c, IRW_BRZ, 0);
+    proven_size_t ok = ir_emit(c, IRW_BR, 0);
+    ir_at(c, full)->a = (proven_i64)c->code.len;
+    ir_emit(c, IRW_PANIC, IR_PANIC_SINKFULL);
+    ir_at(c, ok)->a = (proven_i64)c->code.len;
+}
+
 // ★ 이 이름이 **actor 의 상태 필드**인가. 그렇다면 그것은 지역이 아니라 **인스턴스의 필드**다
 //   (슬롯 0 = 인스턴스). 그래서 `value` 는 `field self value` 로 낮춰진다.
  bool ir_is_sfield(const ir_ctx_t *c, proven_u8str_view_t name) {
@@ -3942,12 +3954,14 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         ir_emit(c, IRW_CALL, (proven_i64)oi);     // pred(in[i]) → bool
                         skip = ir_emit(c, IRW_BRZ, 0); have_skip = true;
                         // out[j] = in[i]
+                        ir_emit_sinkfull_guard(c, ou, j);
                         ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LOAD, (proven_i64)j);
                         ir_emit(c, IRW_LOAD, (proven_i64)in); ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_INDEX, 0);
                         ir_emit(c, IRW_ISTORE, 0);
                         ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0); ir_emit(c, IRW_STORE, (proven_i64)j);
                     } else {
                         // out[i] = op(in[i]); write index tracks read index for map (1:1)
+                        ir_emit_sinkfull_guard(c, ou, i);
                         ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LOAD, (proven_i64)i);
                         ir_emit(c, IRW_LOAD, (proven_i64)in); ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_INDEX, 0);
                         ir_emit(c, IRW_CALL, (proven_i64)oi);     // op(in[i]) → U

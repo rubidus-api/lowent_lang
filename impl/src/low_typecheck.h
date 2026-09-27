@@ -16,4 +16,7 @@ typedef struct { proven_array_t diags; bool ok; } low_typecheck_result_t;
 
 [[nodiscard]] low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_result_t *pr);
 
+/* X-0070 — 수 리터럴이 부동인가(16진은 `.`·`p`, 10진은 `.`·`e`). 한 곳에서만 판정한다. */
+bool low_num_is_float(proven_u8str_view_t v);
+
 #endif // LOW_TYPECHECK_H

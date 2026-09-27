@@ -1037,6 +1037,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 break;
             }
             case IRW_PANIC: {    // ★ 즉시 트랩 — **복구 불가**. 계약 위반도 테스트 실패도 아니다.
+                if (in->a == IR_PANIC_SINKFULL) {   // ★ X-0065 — 도구가 넣은 멈춤: 받는 자리가 찼다
+                    vm_diag(vm->diags, "E-VM-BOUNDS", "collect into / map / filter: the receiving slice is full and the source still has elements (panic). A full sink never drops the rest in silence (X-0062): give a longer buffer, or say how many with take N");
+                    return false;
+                }
                 const char *m = "panic";
                 (void)m;
                 vm_diag(vm->diags, "E-VM-PANIC",

@@ -21,7 +21,7 @@ let c option u64 . be utf16.decode s 0 .
 guard is_some c . else return 1 .
 ```
 
-`0` is not “the first character” but **unit 0**. Every position in this module is a unit index, and advancing by character is done by `next` (two units for a pair).
+`0` is not “the first character” but **unit 0**. Every position in this module is a unit index, and advancing by character is done by `next_start` (two units for a pair).
 
 **Why surrogates exist.** UTF-16 first tried to hold every character as “one character = one 16-bit unit”. When Unicode grew beyond 65,536 characters, the value range U+D800 … U+DFFF was left unused as characters, and two units from that range were combined to write large code points. 1024 high values × 1024 low values = 1,048,576, covering exactly U+10000 … U+10FFFF. So in UTF-16 **reading one unit and reading one character differ**.
 
@@ -58,13 +58,13 @@ The code point upper limit is 1114111 (U+10FFFF). Surrogate values themselves ar
 | `unit_lo` | `fn (c u64) → option u64` | `none` for an invalid code point or BMP (one unit) |
 | `put` | `proc (dst mut slice u16, at u64, c u64) → option u64` | `none` for an invalid code point or no room |
 | `decode` | `fn (s slice u16, at u64) → option u64` | `none` if out of range or unpaired |
-| `next` | `fn (s slice u16, at u64) → option u64` | `none` at the end or at a broken place |
+| `next_start` | `fn (s slice u16, at u64) → option u64` | `none` at the end or at a broken place |
 | `count_chars` | `fn (s slice u16) → option u64` | `none` on meeting a broken place |
 | `is_valid` | `fn (s slice u16) → bool` | never fails |
 
 *Table 50.2 — Ops of `utf16`*
 
-The most used in practice are `put` (writing) and `decode` + `next` (iteration).
+The most used in practice are `put` (writing) and `decode` + `next_start` (iteration).
 
 ## <a id="sx3"></a>Ops in detail
 
@@ -73,15 +73,15 @@ The most used in practice are `put` (writing) and `decode` + `next` (iteration).
 - **`units`** — how many units a code point takes. 2 if `c ≥ 65536`, otherwise 1. Use it to size buffers in advance. **It does not check validity.**
 - **`unit_hi`** — the high unit. `some c` for BMP, `some (0xD800 + v/1024)` for two units, `none` if invalid.
 - **`unit_lo`** — the low unit. `none` for BMP — here meaning “there is only one unit”, not an error. `some (0xDC00 + v%1024)` for two units. `none` also for an invalid code point.
-- **`put`** — writes the code point into `dst` from `at` and returns **the next position to write** (`some (at+1)` or `some (at+2)`). It is on the same position axis as `decode` and `next`. If you need how many units were written, `units c` answers. If invalid or `at + units c > len dst`, `none`, and **not a single unit is written**. It makes no memory itself, so the place to write comes from outside.
+- **`put`** — writes the code point into `dst` from `at` and returns **the next position to write** (`some (at+1)` or `some (at+2)`). It is on the same position axis as `decode` and `next_start`. If you need how many units were written, `units c` answers. If invalid or `at + units c > len dst`, `none`, and **not a single unit is written**. It makes no memory itself, so the place to write comes from outside.
 - **`decode`** — reads one code point at `at` in `s`. An ordinary unit gives its value; a high surrogate checks that the next unit is a low and combines them. `none` if `at ≥ len s`, a low comes alone, a high is not followed by a low, or it ends with a high (truncated). A pair is two units, so it takes the whole slice. `at` must be a character’s **start** unit.
-- **`next`** — the position of the next code point. `decode` must succeed; starting at a high surrogate gives `some (at+2)`, otherwise `some (at+1)`. It spares the caller counting two units for a pair.
+- **`next_start`** — the position of the next code point. `decode` must succeed; starting at a high surrogate gives `some (at+2)`, otherwise `some (at+1)`. It spares the caller counting two units for a pair.
 - **`count_chars`** — walks everything and counts code points. On a broken place it **gives no count** — better no count than a wrong one. O(units).
 - **`is_valid`** — whether `count_chars` is `some`. Half a pair looks invalid on its own, so validity is not asked in parts.
 
 ## <a id="sx4"></a>Using it
 
-Writing calls `put` and continues from the returned next position. Reading reads values with `decode` and advances with `next`. Either way the caller holds the cursor.
+Writing calls `put` and continues from the returned next position. Reading reads values with `decode` and advances with `next_start`. Either way the caller holds the cursor.
 
 ```lowent
 module ex_utf16 .
@@ -117,7 +117,7 @@ proc round_trip input buf mut slice u16 . . output u64 . effects none . do
 end
 ```
 
-The high unit `buf[1]` is 55357 (0xD83D) and the low unit `buf[2]` is 56489 (0xDCA9). Iterate with `next`.
+The high unit `buf[1]` is 55357 (0xD83D) and the low unit `buf[2]` is 56489 (0xDCA9). Iterate with `next_start`.
 
 ```lowent
 var i u64 be 0 .
@@ -155,9 +155,9 @@ end
 ## <a id="sx6"></a>Cautions
 
 - **`len s` is a unit count.** Only `count_chars` knows the character count. One emoji takes two units.
-- **Do not cut through a pair.** Splitting between high and low with `subslice` makes both pieces invalid. Cut only at positions `next` gave.
-- **Advance the cursor with `next`.** Advancing by 1 reads a pair’s low unit as a character start, giving `none` or an inflated count.
-- **Costs.** `decode`, `next` and `put` are O(1); `count_chars` and `is_valid` are O(units). Do not count in a loop condition every time.
+- **Do not cut through a pair.** Splitting between high and low with `subslice` makes both pieces invalid. Cut only at positions `next_start` gave.
+- **Advance the cursor with `next_start`.** Advancing by 1 reads a pair’s low unit as a character start, giving `none` or an inflated count.
+- **Costs.** `decode`, `next_start` and `put` are O(1); `count_chars` and `is_valid` are O(units). Do not count in a loop condition every time.
 - **`none` from `unit_lo` has two overlapping meanings** (invalid code point · BMP). If you need to tell them apart, ask `cp_valid` first. When combining, `put` is better, since its failure collapses into one `none`.
 - **Byte serialisation is outside.** Turning **bytes** from a file or network into a `slice u16` is the caller’s job.
 

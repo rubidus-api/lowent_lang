@@ -24,7 +24,7 @@ L0 — 순수 계산(호출자의 뒷받침)
 |---|---|
 | `st_start` · `st_recvd_ch` · `st_negotiated` · `st_wait_flight2` · `st_wait_finished` · `st_connected` | 상태 번호 |
 | `hs_client_hello` · `hs_server_hello` · `hs_encrypted_extensions` · `hs_certificate` · `hs_certificate_verify` · `hs_finished` | 메시지 종류 번호 |
-| `next_ok` · `step` | 지금 이 메시지를 받아도 되는가 · 상태를 옮긴다(못 옮기면 같은 상태를 낸다) |
+| `next_ok` · `transit` | 지금 이 메시지를 받아도 되는가 · 상태를 옮긴다(못 옮기면 같은 상태를 낸다) |
 | `ch_ok` | 종류와 길이가 버퍼와 맞는가 |
 | `ch_random_off` · `ch_sid_off` · `ch_sid_len` | 랜덤 · session_id |
 | `ch_suites_off` · `ch_suites_len` · `ch_has_suite` | 제안된 스위트 |

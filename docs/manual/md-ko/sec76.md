@@ -14,13 +14,13 @@ L0 — 순수 계산 · OS 엔트로피는 권한으로
 
 > **둘을 섞지 않는다 — 이 모듈의 전부가 이 경고다**
 >
-> > `step` · `below_biased` · `coin` 은 **splitmix64** 로 만든 재현 가능한 열이다. 권한이 없고 시험 · 시뮬레이션 · 셔플에 쓴다. `bytes` · `seed_from_os` 는 **OS 엔트로피**다. `cap random` 이 필요하고 열쇠 · 논스 · 토큰에 쓴다. 시험은 재현되어야 하고 열쇠는 예측되면 안 된다 — 한 낱말로는 둘 다 못 하므로 이름을 갈라 두었다. `step` 으로 만든 값을 열쇠로 쓰면 시드를 아는 사람이 그 열쇠를 알고, 시드는 보통 코드나 로그에 남는다.
+> > `advance_seed` · `below_biased` · `coin` 은 **splitmix64** 로 만든 재현 가능한 열이다. 권한이 없고 시험 · 시뮬레이션 · 셔플에 쓴다. `bytes` · `seed_from_os` 는 **OS 엔트로피**다. `cap random` 이 필요하고 열쇠 · 논스 · 토큰에 쓴다. 시험은 재현되어야 하고 열쇠는 예측되면 안 된다 — 한 낱말로는 둘 다 못 하므로 이름을 갈라 두었다. `advance_seed` 으로 만든 값을 열쇠로 쓰면 시드를 아는 사람이 그 열쇠를 알고, 시드는 보통 코드나 로그에 남는다.
 
 **재현되는 쪽.** 상태(= 시드)를 받아 다음 상태를 돌려준다. 호출자가 상태를 들고 다니므로 같은 시드는 언제나 같은 열을 낸다.
 
 ```lowent
 var s u64 be 12345 .
-set s (random.step s) .
+set s (random.advance_seed s) .
 let c bool be random.coin s .
 ```
 
@@ -34,7 +34,7 @@ end
 
 | **op** | **모양** | **비고** |
 |---|---|---|
-| `step` | `(seed u64) → u64` | splitmix64 — 알고리즘 고정(고정해야 검사값이 기준이 된다) |
+| `advance_seed` | `(seed u64) → u64` | splitmix64 — 알고리즘 고정(고정해야 검사값이 기준이 된다) |
 | `below_biased` | `(seed u64, bound u64) → u64` | 이름이 **편향을 자백한다** — 균등이 필요하면 이것이 아니다 |
 | `coin` | `(seed u64) → bool` | 앞 · 뒤 |
 | `bytes` | `(cap random, dst mut slice u8) → u64` | 채운 바이트 수. **0 = 실패** |

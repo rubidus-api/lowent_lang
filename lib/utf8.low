@@ -38,7 +38,7 @@ export fn seq_len input b u8 . output u64 . do
 end
 
 rem ★★★ `at` 에서 코드포인트 하나를 **디코드**한다. 유효하지 않으면 `none`.
-rem   반환은 코드포인트 값 — 길이는 `seq_len` 으로 다시 얻거나 `next` 를 쓴다.
+rem   반환은 코드포인트 값 — 길이는 `seq_len` 으로 다시 얻거나 `next_start` 를 쓴다.
 export fn decode input s slice u8 . input at u64 . output option u64 . link "utf8_decode" . do
   guard lt at (len s) . else return none .
   let b0 u8 be index s at .
@@ -80,9 +80,9 @@ end
 
 rem ★ 다음 코드포인트의 **시작 위치**. 유효하지 않으면 none — 건너뛰며 뭉개지 않는다.
 rem ★ "유효하지 않으면" 은 `decode` 와 **같은 잣대**다(이어지는 바이트·과길이·서로게이트·상한).
-rem   전엔 선두 바이트와 잘림만 봤다 — `C3 41` 을 `next` 는 받고 `decode` 는 거절해, 같은 바이트열에
+rem   전엔 선두 바이트와 잘림만 봤다 — `C3 41` 을 `next_start` 는 받고 `decode` 는 거절해, 같은 바이트열에
 rem   두 답이 있었다. 두 op 이 다른 잣대를 들면 위층(term 의 셀 셈)이 그 틈에서 어긋난다.
-export fn next input s slice u8 . input at u64 . output option u64 . link "utf8_next" . do
+export fn next_start input s slice u8 . input at u64 . output option u64 . link "utf8_next" . do
   guard is_some (decode s at) . else return none .
   return (some (add at (seq_len (index s at)))) .
 end
@@ -95,7 +95,7 @@ export fn count_chars input s slice u8 . output option u64 . link "utf8_count_ch
   while lt i (len s) . do
     let d option u64 . be decode s i .
     guard is_some d . else return none .
-    let nx option u64 . be next s i .
+    let nx option u64 . be next_start s i .
     guard is_some nx . else return none .
     set i (some_value nx) .
     set n (add n 1) .

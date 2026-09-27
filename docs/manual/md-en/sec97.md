@@ -24,7 +24,7 @@ none
 |---|---|
 | `st_start` · `st_recvd_ch` · `st_negotiated` · `st_wait_flight2` · `st_wait_finished` · `st_connected` | State numbers |
 | `hs_client_hello` · `hs_server_hello` · `hs_encrypted_extensions` · `hs_certificate` · `hs_certificate_verify` · `hs_finished` | Message type numbers |
-| `next_ok` · `step` | May this message be received now · move state (yields the same state if it cannot) |
+| `next_ok` · `transit` | May this message be received now · move state (yields the same state if it cannot) |
 | `ch_ok` | Do type and length match the buffer |
 | `ch_random_off` · `ch_sid_off` · `ch_sid_len` | Random · session_id |
 | `ch_suites_off` · `ch_suites_len` · `ch_has_suite` | Offered suites |

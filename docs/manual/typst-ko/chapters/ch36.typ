@@ -26,7 +26,7 @@
 
 #organizer[
   `outbuf` 로 출력을 버퍼에 모았다가 내보내고, 비우지 않으면 번역이 거절한다는 것을 확인한다. `net` 의 프로세스 안 연결 쌍으로 바이트를
-  주고받는 법, 결정적인 `random.step` 과 운영체제 엔트로피 `random.bytes` 를 가르는 이유, 단조 시계와 벽시계의 약속이 다르다는 것을
+  주고받는 법, 결정적인 `random.advance_seed` 과 운영체제 엔트로피 `random.bytes` 를 가르는 이유, 단조 시계와 벽시계의 약속이 다르다는 것을
   알게 된다. HTTP 요청 파서가 무엇을 거절하는지, 암호 모듈이 어떤 층으로 쌓여 있고 무엇이 아직 없는지도 보게 된다.
 ]
 
@@ -71,7 +71,7 @@
 
 #demo("examples/ch36/dice.low")
 
-`random.step` 은 시드에서 다음 값을 *계산*한다. 권한도 효과도 없는 순수한 `fn` 이다. 같은 시드 42 로 두 번 굴리면 두 번 다 3 이다.
+`random.advance_seed` 은 시드에서 다음 값을 *계산*한다. 권한도 효과도 없는 순수한 `fn` 이다. 같은 시드 42 로 두 번 굴리면 두 번 다 3 이다.
 시뮬레이션·시험·절차적 생성처럼 *재현되어야 하는* 난수는 이것을 쓴다.
 
 운영체제의 엔트로피는 `random.bytes k dst` 로 얻고 `cap random` 을 받는다. 키와 논스처럼 *예측되면 안 되는* 난수는 이쪽이다. 두 일에
@@ -146,7 +146,7 @@
 #antipattern[같은 시드에서 두 번 굴린다][
   #demo("examples/ch36/mistake_sameseed.low")
 
-  `random.step` 은 순수한 `fn` 이라 같은 입력에 늘 같은 답을 낸다. 두 굴림에 같은 `seed` 를 주면 두 주사위가 늘 같다(시드 2 에서 55). 전역 난수 상태가
+  `random.advance_seed` 은 순수한 `fn` 이라 같은 입력에 늘 같은 답을 낸다. 두 굴림에 같은 `seed` 를 주면 두 주사위가 늘 같다(시드 2 에서 55). 전역 난수 상태가
   없으므로 *다음 상태*를 이어 넘기는 일은 부르는 쪽의 몫이다.
 
   #demo("examples/ch36/sameseed_fixed.low")
@@ -173,7 +173,7 @@
   [`outbuf.buf_write out p buf s` → `result (owned pending) …`], [모으고, 차면 내보내고, 새 대기 값을 준다], [아는 값이 늘 하나 --- 옛 값은 `E-OWN-MOVED`],
   [`outbuf.buf_finish out p buf`], [남은 바이트를 내보내고 끝낸다], [완결 --- 실패할 수 있다],
   [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [연결 쌍 · 다 보내기 · 한 번 받기 · 닫기], [`cap net` 이 첫 인자 --- 받기는 버퍼만큼],
-  [`random.step seed` · `random.bytes k dst`], [재현되는 다음 상태 · 운영체제 엔트로피(`cap random`)], [셈과 권위를 가른다],
+  [`random.advance_seed seed` · `random.bytes k dst`], [재현되는 다음 상태 · 운영체제 엔트로피(`cap random`)], [셈과 권위를 가른다],
   [`clock.now_ns k` · `clock.since_ns k start`], [단조 시계 --- 경과 시간], [벽시계와 약속이 다르다 --- `cap clock`, 효과 `none`],
   [`http.method_code req` · `http.version_ok req`], [요청 줄 해석(순수)], [애매한 입력을 거절한다],
   [`aead` · `gcm` · `x25519` · `ed25519` · `tls13` · `tlssrv`], [봉인 · 키 합의 · 서명 · TLS 계산], [혼자 쓰면 틀리는 조각은 문서가 경고한다],
@@ -181,7 +181,7 @@
 
 #recap[
   `outbuf` 는 출력을 모았다가 내보내고, 비우지 않은 대기 값은 번역이 거절한다. `net` 의 연결은 `cap net` 으로 여는 자원이며 닫기가 실패할 수
-  있다. `random.step` 은 재현되는 순수 계산이고 `random.bytes` 는 `cap random` 으로 얻는 엔트로피다. 단조 시계와 벽시계는 약속이 다르다.
+  있다. `random.advance_seed` 은 재현되는 순수 계산이고 `random.bytes` 는 `cap random` 으로 얻는 엔트로피다. 단조 시계와 벽시계는 약속이 다르다.
   `http` 파서는 애매한 입력을 거절하는 순수 계산이다. 암호 모듈은 유도·봉인·키 합의·서명·TLS 계산 순으로 쌓여 있고, 전송하는 TLS 는 아직
   없다.
 ]

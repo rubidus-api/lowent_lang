@@ -110,7 +110,7 @@ export fn state_ok output u64 . do
 end
 rem ✔ 못 옮기면 **같은 자리에 머문다** — 조용히 건너뛰지 않는다.
 export fn state_advance output u64 . do
-  return add (mul (tlssrv.step 0 1) 100) (tlssrv.step 0 20) .
+  return add (mul (tlssrv.transit 0 1) 100) (tlssrv.transit 0 20) .
 end
 
 rem ── 나머지 세 메시지와 Finished — 정본과 **바이트로** 맞댄다 ─────────────

@@ -18,13 +18,13 @@ module random .
 rem ── 재현 가능한 열 (권한 없음) ────────────────────────────────────────────
 
 rem ★ 다음 상태. 이 값 자체가 난수이면서 다음 호출의 입력이다.
-rem   ☞ 이름이 `next` 가 아니라 `step` 인 이유: `utf8`·`utf16` 이 **arity 2 인 `next`** 를
-rem     export 한다. 한 단위에 놓이면 arity 가 어긋나 E-IR-ARITY 다(조합 게이트가 잡았다).
-rem     평평한 이름의 대가이고, 여기서는 비켜 주는 편이 싸다.
+rem   ☞ 이름 `advance_seed`: 전엔 `step` 이었다. `step`·`next` 는 `for` 머리의 절 낱말이 되므로
+rem     (RFC-0132) 라이브러리가 비켰다. `advance` 는 `tls13.advance` 와 C 심볼이 부딪치고,
+rem     `next` 는 처음부터 `utf8`·`utf16` 의 arity 2 op 과 어긋났다(E-IR-ARITY).
 rem   ☞ 매개변수를 `state` 라 부를 수 없다 — 그것은 **효과 낱말**이다(`effects state`).
 rem     도구는 `E-IR-UNSUP: unsupported atom` 이라고만 했는데, 그 말은 원인을 안 가리킨다.
 rem     (평평한 어휘의 대가다. 여기서는 `seed` 로 비켰다.)
-export fn step input seed u64 . output u64 . do
+export fn advance_seed input seed u64 . output u64 . do
   return call_builtin rng_next seed .
 end
 

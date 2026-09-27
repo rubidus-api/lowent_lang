@@ -6,8 +6,8 @@ use random .
 rem ko: 다음 굴림은 앞 굴림이 낸 상태에서 시작한다 /// en: the next roll starts from the state the previous roll produced
 fn two_rolls input seed u64 . output u64 .
 do
-  let s1 u64 be random.step seed .
-  let s2 u64 be random.step s1 .
+  let s1 u64 be random.advance_seed seed .
+  let s2 u64 be random.advance_seed s1 .
   let a u64 be add (random.below_biased s1 6) 1 .
   let b u64 be add (random.below_biased s2 6) 1 .
   return add (mul a 10) b .

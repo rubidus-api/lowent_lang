@@ -26,7 +26,7 @@
 
 #organizer[
   You will gather output in a buffer with `outbuf` before emitting it and confirm that forgetting to flush is rejected at translation. You will learn to exchange bytes
-  over `net`'s in-process connection pair, why deterministic `random.step` is separated from operating-system entropy `random.bytes`, and that monotonic clocks and wall
+  over `net`'s in-process connection pair, why deterministic `random.advance_seed` is separated from operating-system entropy `random.bytes`, and that monotonic clocks and wall
   clocks make different promises. You will also see what the HTTP request parser rejects, how the cryptographic modules are layered and what does not exist yet.
 ]
 
@@ -71,7 +71,7 @@ running.
 
 #demo("examples/ch36/dice.low")
 
-`random.step` *computes* the next value from a seed. It is a pure `fn` with no capabilities or effects. Rolling twice with the same seed 42 gives 3 both times. Randomness
+`random.advance_seed` *computes* the next value from a seed. It is a pure `fn` with no capabilities or effects. Rolling twice with the same seed 42 gives 3 both times. Randomness
 that *must be reproducible*, as in simulations, tests and procedural generation, uses this.
 
 Operating-system entropy is obtained with `random.bytes k dst`, which receives `cap random`. Randomness that *must not be predictable*, like keys and nonces, goes this way.
@@ -145,7 +145,7 @@ certificates are received from outside. The principle of not pretending to have 
 #antipattern[Rolling twice from the same seed][
   #demo("examples/ch36/mistake_sameseed.low")
 
-  `random.step` is a pure `fn`, so the same input always gives the same answer. Give both rolls the same `seed` and the two dice always
+  `random.advance_seed` is a pure `fn`, so the same input always gives the same answer. Give both rolls the same `seed` and the two dice always
   match (55 with seed 2). There is no global random state, so passing on *the next state* is the caller's job.
 
   #demo("examples/ch36/sameseed_fixed.low")
@@ -173,7 +173,7 @@ certificates are received from outside. The principle of not pretending to have 
   [`outbuf.buf_write out p buf s` → `result (owned pending) …`], [gather, flush when full, return a new pending value], [one value knows --- the old one is `E-OWN-MOVED`],
   [`outbuf.buf_finish out p buf`], [flush the rest and finish], [completion --- it can fail],
   [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [connected pair · send all · receive once · close], [`cap net` first --- a receive takes at most the buffer],
-  [`random.step seed` · `random.bytes k dst`], [reproducible next state · OS entropy (`cap random`)], [computation separated from authority],
+  [`random.advance_seed seed` · `random.bytes k dst`], [reproducible next state · OS entropy (`cap random`)], [computation separated from authority],
   [`clock.now_ns k` · `clock.since_ns k start`], [monotonic clock --- elapsed time], [a different promise from wall time --- `cap clock`, effect `none`],
   [`http.method_code req` · `http.version_ok req`], [parse the request line (pure)], [ambiguous input is rejected],
   [`aead` · `gcm` · `x25519` · `ed25519` · `tls13` · `tlssrv`], [sealing · key agreement · signatures · TLS computation], [pieces unsafe on their own are flagged in their docs],
@@ -181,7 +181,7 @@ certificates are received from outside. The principle of not pretending to have 
 
 #recap[
   `outbuf` gathers output before emitting it, and translation rejects pending values never flushed. `net` connections are resources opened with `cap net`, and closing can
-  fail. `random.step` is reproducible pure computation, and `random.bytes` is entropy obtained with `cap random`. Monotonic clocks and wall clocks promise different things.
+  fail. `random.advance_seed` is reproducible pure computation, and `random.bytes` is entropy obtained with `cap random`. Monotonic clocks and wall clocks promise different things.
   The `http` parser is pure computation that rejects ambiguous input. The cryptographic modules are stacked as derivation, sealing, key agreement, signatures and TLS
   computation, and a TLS that transports does not exist yet.
 ]

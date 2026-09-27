@@ -67,7 +67,7 @@ do
     if eq (unicode.is_alnum cp) false . do
       if eq (unicode.is_space cp) false . do set n_others (add n_others 1) . end
     end
-    let nx option u64 . be utf8.next src at .
+    let nx option u64 . be utf8.next_start src at .
     guard is_some nx . else return none .
     set at (some_value nx) .
   end
@@ -176,11 +176,11 @@ do
         guard is_some cp . else return 65 .
         let np option u64 . be utf16.put u16buf wpos (some_value cp) .
         guard is_some np . else return 72 .
-        rem ★ 이제 `utf16.put` 도 **새 위치**를 돌려준다(2026-08-15) — `utf8.next` 와 같은 축이다.
+        rem ★ 이제 `utf16.put` 도 **새 위치**를 돌려준다(2026-08-15) — `utf8.next_start` 와 같은 축이다.
         rem   이 프로그램이 그 비대칭에 걸려 본 자리이고(첫 판은 글자 수가 1 이 나왔다),
         rem   그래서 여기가 **축이 하나임을 상시 시험하는 자리**이기도 하다.
         set wpos (some_value np) .
-        let nx option u64 . be utf8.next src rpos .
+        let nx option u64 . be utf8.next_start src rpos .
         guard is_some nx . else return 65 .
         set rpos (some_value nx) .
         set n (add n 1) .
@@ -197,10 +197,10 @@ do
         let b2 option u64 . be utf16.decode u16v w2 .
         guard is_some b2 . else return 2 .
         guard eq (some_value a2) (some_value b2) . else return 2 .
-        let ra option u64 . be utf8.next src r2 .
+        let ra option u64 . be utf8.next_start src r2 .
         guard is_some ra . else return 2 .
         set r2 (some_value ra) .
-        let rb option u64 . be utf16.next u16v w2 .
+        let rb option u64 . be utf16.next_start u16v w2 .
         guard is_some rb . else return 2 .
         set w2 (some_value rb) .
         set m (add m 1) .

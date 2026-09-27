@@ -58,10 +58,11 @@ export fn next_ok input st u64 . input msg u64 . output bool . do
 end
 
 rem 상태를 옮긴다. 못 옮기면 **같은 상태를 그대로 낸다**(조용히 건너뛰지 않는다).
-rem ★ 이름이 `advance` 가 아닌 이유: `tls13.advance`(키 스케줄 한 칸)와 **C 심볼이 부딪힌다**.
+rem ★ 이름 `transit`: 전엔 `step` 이었다 — `step` 은 `for` 머리의 절 낱말이 되어(RFC-0132) 비켰다.
+rem   `advance` 가 아닌 이유: `tls13.advance`(키 스케줄 한 칸)와 **C 심볼이 부딪힌다**.
 rem   C 이름공간은 평면이고 **도구가 이름을 지어내지 않는다**(E-ABI-NAME-DUP) — 옳다.
 rem   *C 심볼은 다른 언어에 한 약속이다.* `gcm`/`aead` 가 `encrypt`/`seal` 로 갈린 것과 같은 자리.
-export fn step input st u64 . input msg u64 . output u64 . do
+export fn transit input st u64 . input msg u64 . output u64 . do
   if next_ok st msg . do
     if eq st 0 . do  return 1 . end
     if eq st 4 . do  return 5 . end

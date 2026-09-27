@@ -80,7 +80,7 @@ end
 rem ★ 실제로 써 넣는다. 자리가 모자라면 **한 칸도 안 쓴다**(전량-아니면-무 — lib/strbuf.low 규율).
 rem   쓴 칸 수를 낸다; 못 쓰면 `none`.
 rem ★★★★ **답은 "새 위치" 다 — 쓴 칸 수가 아니다** (2026-08-15, RFC-0075 §9.3.5).
-rem   전에는 1 또는 2(쓴 칸 수)를 돌려줬다. 그런데 이 모듈의 `decode`·`next` 는 **위치 축**이라,
+rem   전에는 1 또는 2(쓴 칸 수)를 돌려줬다. 그런데 이 모듈의 `decode`·`next_start` 는 **위치 축**이라,
 rem   둘을 함께 쓰는 코드가 `put` 의 답을 위치로 알고 더하지 않으면 **조용히 틀린다** —
 rem   `prog/enc.low` 의 첫 판이 실제로 그렇게 틀렸다(글자 수가 1 로 나왔다).
 rem   ☞ 같은 축을 두 뜻으로 답하지 않는다. 몇 칸 썼는지가 필요하면 `units c` 가 이미 답한다.
@@ -121,7 +121,7 @@ export fn decode input s slice u16 . input at u64 . output option u64 . link "ut
 end
 
 rem 다음 코드포인트의 자리. 끝이거나 망가졌으면 `none`.
-export fn next input s slice u16 . input at u64 . output option u64 . link "utf16_next" . do
+export fn next_start input s slice u16 . input at u64 . output option u64 . link "utf16_next" . do
   guard lt at (len s) . else return none .
   let c option u64 . be decode s at .
   guard is_some c . else return none .
@@ -136,7 +136,7 @@ export fn count_chars input s slice u16 . output option u64 . link "utf16_count_
   var n u64 be 0 .
   var i u64 be 0 .
   while lt i (len s) . do
-    let nx option u64 . be next s i .
+    let nx option u64 . be next_start s i .
     guard is_some nx . else return none .        rem 망가진 자리를 만나면 **수를 안 낸다**
     set i (some_value nx) .
     set n (add n 1) .

@@ -14,13 +14,13 @@ Capabilities
 
 > **Do not mix the two — this warning is the whole module**
 >
-> > `step`, `below_biased` and `coin` are a reproducible sequence made with **splitmix64**. They need no capability and serve tests, simulations and shuffles. `bytes` and `seed_from_os` are **OS entropy**. They need `cap random` and serve keys, nonces and tokens. Tests must be reproducible and keys must not be predictable — one word cannot do both, so the names are split. Use a value made by `step` as a key and anyone who knows the seed knows that key, and seeds usually remain in code or logs.
+> > `advance_seed`, `below_biased` and `coin` are a reproducible sequence made with **splitmix64**. They need no capability and serve tests, simulations and shuffles. `bytes` and `seed_from_os` are **OS entropy**. They need `cap random` and serve keys, nonces and tokens. Tests must be reproducible and keys must not be predictable — one word cannot do both, so the names are split. Use a value made by `advance_seed` as a key and anyone who knows the seed knows that key, and seeds usually remain in code or logs.
 
 **The reproducible side.** Takes a state (= seed) and returns the next state. The caller carries the state, so the same seed always gives the same sequence.
 
 ```lowent
 var s u64 be 12345 .
-set s (random.step s) .
+set s (random.advance_seed s) .
 let c bool be random.coin s .
 ```
 
@@ -34,7 +34,7 @@ end
 
 | **op** | **Shape** | **Notes** |
 |---|---|---|
-| `step` | `(seed u64) → u64` | splitmix64 — algorithm fixed (so check values can be the reference) |
+| `advance_seed` | `(seed u64) → u64` | splitmix64 — algorithm fixed (so check values can be the reference) |
 | `below_biased` | `(seed u64, bound u64) → u64` | The name **confesses the bias** — not this if you need uniformity |
 | `coin` | `(seed u64) → bool` | Heads · tails |
 | `bytes` | `(cap random, dst mut slice u8) → u64` | Bytes filled. **0 = failure** |

@@ -34,10 +34,25 @@ static low_kw_t low_curkw(low_parser_t *p)         { return p->toks[p->pos].kw; 
 }
 
 // ── node allocation (arena) ──
+// ★ 2026-09-27 — **노드 아레나가 차면 말없이 `ok = false` 만 남겼다.** 짧은 문장 381 개짜리 op 에서 `--check` 가
+//   진단 하나 없이 «violations» 를 냈고, `--run` 은 그 거짓 신호를 무시하고 돌았다(골든 «norm truncation»).
+//   찼다는 사실을 이름으로 말한다 — 모르는 이유로 실패하는 것이 가장 나쁜 실패다.
+static void low_node_oom(low_parser_t *p) {
+    p->out->ok = false;
+    if (p->oom_said) return;
+    p->oom_said = true;
+    const low_token_t *t = &p->toks[p->pos < p->n ? p->pos : (p->n ? p->n - 1 : 0)];
+    low_pdiag(p, "E-PARSE-LIMIT",
+              "the syntax tree of this unit outgrew the parser's node arena, so the rest of the tree "
+              "could not be built. Refusing is the honest answer: split the unit, or raise the arena "
+              "size in main.c and say why",
+              p->n ? t->line : 0, p->n ? t->col : 0);
+}
+
  low_cst_t *low_node(low_parser_t *p, low_cst_kind_t kind, low_token_t tok) {
     proven_result_mem_mut_t r =
         p->node_alloc.alloc_fn(p->node_alloc.ctx, sizeof(low_cst_t), alignof(low_cst_t));
-    if (r.err != PROVEN_OK) { p->out->ok = false; return NULL; }
+    if (r.err != PROVEN_OK) { low_node_oom(p); return NULL; }
     low_cst_t *nd = (low_cst_t *)r.value.ptr;
     *nd = (low_cst_t){ .kind = kind, .tok = tok, .line = tok.line, .col = tok.col };
     return nd;
@@ -50,7 +65,7 @@ static low_kw_t low_curkw(low_parser_t *p)         { return p->toks[p->pos].kw; 
     if (tmp->len > 0) {
         proven_result_mem_mut_t r = p->node_alloc.alloc_fn(
             p->node_alloc.ctx, sizeof(low_cst_t *) * tmp->len, alignof(low_cst_t *));
-        if (r.err != PROVEN_OK) { p->out->ok = false; nd->nkids = 0; }
+        if (r.err != PROVEN_OK) { low_node_oom(p); nd->nkids = 0; }
         else {
             nd->kids = (low_cst_t **)r.value.ptr;
             for (proven_size_t i = 0; i < tmp->len; i++) {
@@ -666,7 +681,7 @@ static low_cst_t *low_parse_export(low_parser_t *p) {
  low_cst_t *low_refit(low_parser_t *p, low_cst_t *f, low_cst_t **kids, proven_size_t n) {
     proven_result_mem_mut_t r = p->node_alloc.alloc_fn(
         p->node_alloc.ctx, sizeof(low_cst_t *) * (n ? n : 1), alignof(low_cst_t *));
-    if (r.err != PROVEN_OK) { p->out->ok = false; return f; }
+    if (r.err != PROVEN_OK) { low_node_oom(p); return f; }
     low_cst_t **dst = (low_cst_t **)r.value.ptr;
     for (proven_size_t i = 0; i < n; i++) dst[i] = kids[i];
     f->kids = dst; f->nkids = n;

@@ -1733,7 +1733,10 @@ int main(int argc, char **argv) {
     proven_u8str_view_t src = { .ptr = buf, .size = len };   // --doc / --fmt 는 첫 파일 기준
 
     // node arena (CST) — must outlive evaluation
-    proven_size_t node_bytes = total * 64 + (proven_size_t)65536;
+    // ★ 2026-09-27 — 바이트당 64 는 모자랐다: `set x expr x + 1 . .` 처럼 짧은 낱말이 빽빽하면 줄마다 노드가 열 개를
+    //   넘어, 381 줄에서 아레나가 찼다. 256 배로 잡는다(큰 malloc 은 쓴 만큼만 실제 메모리가 된다). 그래도 차면
+    //   파서가 E-PARSE-LIMIT 로 말한다.
+    proven_size_t node_bytes = total * 256 + (proven_size_t)(1u << 20);
     void *node_mem = malloc(node_bytes);
     proven_arena_t node_arena = proven_arena_create((proven_mem_mut_t){ .ptr = node_mem, .size = node_bytes });
     proven_allocator_t nodes0 = proven_arena_as_allocator(&node_arena);
@@ -1941,7 +1944,17 @@ int main(int argc, char **argv) {
         //   ☞ 2026-09-17 (RFC-0115 §8-22): **`--test` 도 같은 문을 쓴다.** `--run` 만 고쳤더니
         //     `--test` 가 거절당한 단위를 그대로 돌리고 「1 passed」까지 냈다(실측) — 시험이
         //     초록이라는 사실은 «이 프로그램은 성하다» 로 읽히므로 `--run` 보다 해롭다.
-        if ((run_op || want_test) && !run_unchecked && !lex.diags.len && !pr.diags.len) {
+        // ★ 2026-09-27 (X-0071 실측 중) — **렉스·파스 오류가 있는 단위도 돌고 있었다.** 파일별 파스 진단은 찍고 버리며
+        //   단위에는 `pr.ok = false` 만 남는데, 이 문은 `pr.diags.len` 만 보아 «오류 없음» 으로 읽고 검사째 건너뛰었다.
+        //   `fn f output u8 do …`(E-DOT-MISSING)이 `--check` 는 거절, `--run` 은 `f() = 1` · 종료 0, `--test` 는 «1 passed».
+        if ((run_op || want_test) && !run_unchecked && !pr.ok) {
+            printf("   ^ `%s` REFUSED this unit: it has lex/parse errors (above), so `--check` rejects it too. "
+                   "A program the language rejects must not run — that is the whole of the promise. "
+                   "(To measure what a rejected program DOES at run time, ask for it: `--unchecked`.)\n",
+                   run_op ? "--run" : "--test");
+            run_refused = true;
+            rc = 2;
+        } else if ((run_op || want_test) && !run_unchecked && !lex.diags.len && !pr.diags.len) {
             feed_absorb_allow(path);
             low_check_result_t rcr = low_check(heap, &pr);
             low_typecheck_result_t rtr = low_typecheck(heap, &pr);
@@ -2407,7 +2420,7 @@ int main(int argc, char **argv) {
         print_usage(argv[0]);   // ★ 무엇을 잘못했는지 말했으면, 무엇이 가능한지도 말한다
         rc = 2;
     }
-    if (lex.diags.len || pr.diags.len) rc = 1;
+    if ((lex.diags.len || pr.diags.len || !pr.ok) && rc != 2) rc = 1;   // ★ 파스 오류는 `pr.ok` 에만 남는다(위 2026-09-27)
 
     if (pr.forms) heap.free_fn(heap.ctx, pr.forms);
     proven_array_destroy(&pr.diags);

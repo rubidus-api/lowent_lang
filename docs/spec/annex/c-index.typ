@@ -40,6 +40,7 @@
       [내장 연산], [builtin op], [#cref("3.8")],
       [넓히기], [widening], [#cref("3.8")],
       [단락 평가], [short-circuit], [#cref("3.8")],
+      [단언], [assertion], [#cref("6.4.13")],
       [닫개], [closer], [#cref("3.7")],
       [덫 표현], [trap representation], [#cref("3.2")],
       [덫 표현], [trap
@@ -70,6 +71,7 @@
       [스테이지], [stage], [#cref("3.9")],
       [슬라이스], [slice], [#cref("3.2")],
       [시작점], [entry point], [#cref("3.9")],
+      [시험 블록], [test block], [#cref("6.4.13")],
       [식], [expression], [#cref("3.8")],
       [신뢰 경계], [trust boundary], [#cref("3.3")],
       [실행 환경], [execution environment], [#cref("3.9")],

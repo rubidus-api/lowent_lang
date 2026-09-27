@@ -1579,7 +1579,8 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             //   그 침묵이 곧 C 식 진리성을 들여놓은 자리다. bool 이 타입 목록에 있는데
             //   조건이 bool 을 요구하지 않으면 그 타입은 **장식**이다.
             if (f->kids[0]->kind == LOW_CST_ATOM &&
-                (kw == LOW_KW_IF || kw == LOW_KW_GUARD || kw == LOW_KW_WHILE)) {
+                (kw == LOW_KW_IF || kw == LOW_KW_GUARD || kw == LOW_KW_WHILE ||
+                 kw == LOW_KW_EXPECT)) {   // ★ 2026-09-27 — `expect 1 .` 이 통과해 0 아닌 수를 참으로 읽었다(X-0061 과 같은 병)
                 // ★ 조건이 어디서 끝나는가 — 세 모양을 **다** 봐야 한다.
                 //   `if` 는 BLOCK 으로, 어떤 꼴은 `do`/`else` **아톰**으로 끝나는데,
                 //   `guard` 의 else 는 **중첩 FORM**(머리가 `else`)이다. 처음엔 앞의 둘만
@@ -2195,6 +2196,26 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
         c.curmod = c.sigs[i].mod;   // ★ 이 본문은 이 모듈의 코드다 — 맨이름은 제 이웃을 먼저 본다
         c.curform = c.sigs[i].form;
         tc_check_body(&c, c.sigs[i].body, env, &nenv, c.sigs[i].ret);
+    }
+
+    // pass 3: ★ 2026-09-27 (X-0071 실측) — **`test` 블록의 몸은 타입 검사를 한 번도 받지 않았다.** 위 두 패스가
+    //   `fn`/`proc` 만 돌아서, 시험 안의 `let x u8 be 300 .` 도 `expect 1 .` 도 `check: ok` 였다. 시험은 입력이 없는
+    //   몸이므로 빈 환경에서 같은 규칙으로 걷는다.
+    {
+        proven_u8str_view_t tmod = { 0 };
+        for (proven_size_t i = 0; i < pr->nforms; i++) {
+            const low_cst_t *f = pr->forms[i];
+            if (f->kind != LOW_CST_FORM || f->nkids < 2 || f->kids[0]->kind != LOW_CST_ATOM) continue;
+            low_kw_t kw = f->kids[0]->tok.kw;
+            if (kw == LOW_KW_MODULE && f->kids[1]->kind == LOW_CST_ATOM) { tmod = f->kids[1]->tok.lex; continue; }
+            if (kw != LOW_KW_TEST) continue;
+            const low_cst_t *body = f->kids[f->nkids - 1];
+            if (body->kind != LOW_CST_BLOCK) continue;
+            tc_var_t env[TC_MAXENV];
+            proven_size_t nenv = 0;
+            c.curmod = tmod; c.curform = f;
+            tc_check_body(&c, body, env, &nenv, tk(TK_UNKNOWN));
+        }
     }
 
     // ── pass 2b: **actor 핸들러의 몸** (WO-0219 · WO-0213 spill) ──

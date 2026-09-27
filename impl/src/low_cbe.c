@@ -2,6 +2,7 @@
 // low_cbe.c — S5 C backend (see low_cbe.h).
 #include "low_cbe.h"
 #include "low_cbe_prelude.h"
+#define LW_EXPECT_MSG "E-TEST-FAIL: an `expect` is FALSE -- the test failed (this is not a contract violation)"   // ★ 2026-09-27 — 네이티브는 이것을 «requires violated at entry» 로 찍었다
 #define LW_SINKFULL_MSG "collect into / map / filter: the receiving slice is full and the source still has elements (panic). A full sink never drops the rest in silence (X-0062): give a longer buffer, or say how many with take N"   // ★ X-0065 — VM 의 E-VM-BOUNDS 와 같은 말
 #include "low_sha256.h"
 #include "low_sha512.h"   // ★ VM 과 **같은 매크로**를 방출한다 — 갈릴 자리가 없다
@@ -4077,7 +4078,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 //   증명된 출구 검사는 **실제로 지운다**(그것이 계약이 사 주는 성능이다).
                 if ((in->a & 3) && (in->a & IR_POL_PROVEN)) fputs("    sp--;\n", out);
                 else fprintf(out, "    if (LW_UNLIKELY(!st[sp-1])) lw_panic(\"%s\"); sp--;\n",
-                             (in->a & 8) ? "an errors `when` condition is TRUE but the op returned normally"
+                             (in->a & 4) ? LW_EXPECT_MSG   // ★ 2026-09-27 — expect 는 계약이 아니다(VM 의 E-TEST-FAIL)
+                           : (in->a & 8) ? "an errors `when` condition is TRUE but the op returned normally"
                            : (in->a & 2) ? "errors `when` condition is false on this error path"
                            : (in->a & 1) ? "ensures violated at exit" : "requires violated at entry");
                 ks.n--; break;
@@ -5804,7 +5806,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     //   컴파일러가 그것을 알면 뜨거운 경로에서 그 코드를 **치워 준다**.
                     fprintf(out, "    if (LW_UNLIKELY(st[sp-1].tag != LWV_INT || !st[sp-1].i)) "
                                  "lw_panic(\"%s\"); sp--;\n",
-                            (in->a & 8) ? "an errors `when` condition is TRUE but the op returned normally"
+                            (in->a & 4) ? LW_EXPECT_MSG   // ★ 2026-09-27 — 위와 같다
+                          : (in->a & 8) ? "an errors `when` condition is TRUE but the op returned normally"
                           : (in->a & 2) ? "errors `when` condition is false on this error path"
                                         : (in->a & 1) ? "ensures violated at exit"
                                                       : "requires violated at entry");

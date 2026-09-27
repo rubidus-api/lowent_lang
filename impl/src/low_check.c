@@ -9166,11 +9166,38 @@ static proven_u64 ck_param_array_len(const low_cst_t *f, const low_op_header_t *
     }
     return 0;
 }
+// ★ X-0065 ② (2026-09-27, 소유자 «지금») — 길이를 번역 시점에 **확실히** 아는 자리를 넓힌다: 머리의 계약(위) ·
+//   역슬래시도 접두사도 없는 문자열 리터럴(바이트 수 = 본문 길이) · 그런 리터럴에 묶인 `let` 이름(`let` 은 다시 묶이지
+//   않는다). 이스케이프가 든 리터럴은 «모른다» 로 둔다 — 풀이는 한 곳(low_ir.c `ir_unescape`)에만 산다(X-0070 의 교훈).
+//   모르는 것은 실행 중 «받는 자리가 찼다» 가 잡는다.
+static proven_u64 ck_lit_len(const low_cst_t *a) {
+    if (!a || !ck_atom(a) || a->tok.kind != LOW_TOK_STRING || a->tok.aux.size) return 0;
+    for (proven_size_t i = 0; i < a->tok.lex.size; i++) if (a->tok.lex.ptr[i] == (proven_u8)'\\') return 0;
+    return a->tok.lex.size;
+}
+static const low_cst_t *ck_let_value(const low_cst_t *nd, proven_u8str_view_t nm) {
+    if (!nd) return NULL;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_LET &&
+        ck_atom(nd->kids[1]) && proven_u8str_view_eq(nd->kids[1]->tok.lex, nm)) {
+        const low_cst_t *be = nd->kids[nd->nkids - 2];
+        return (ck_atom(be) && veq(be->tok.lex, "be")) ? nd->kids[nd->nkids - 1] : NULL;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) { const low_cst_t *v = ck_let_value(nd->kids[i], nm); if (v) return v; }
+    return NULL;
+}
+static proven_u64 ck_known_len(const low_cst_t *f, const low_op_header_t *h, const low_cst_t *nm) {
+    proven_u64 n = ck_param_array_len(f, h, nm);
+    if (n) return n;
+    if ((n = ck_lit_len(nm))) return n;
+    if (nm && ck_atom(nm) && nm->tok.kind == LOW_TOK_IDENT) return ck_lit_len(ck_let_value(h->body, nm->tok.lex));
+    return 0;
+}
 static void ck_collectfull_emit(low_check_result_t *out, proven_u32 line, proven_u64 n, proven_u64 cap) {
     (void)n; (void)cap;
     emit(out, "E-COLLECT-FULL",
          "this puts more elements into a place than it can hold, and both lengths are known here (from "
-         "`requires eq (len x) N` — an `array N T` input says the same). A full place used to drop the rest "
+         "`requires eq (len x) N` — an `array N T` input says the same — or from a plain string literal, "
+         "directly or through a `let`). A full place used to drop the rest "
          "without a word; now an overflow never passes: known lengths are refused here, unknown ones stop the "
          "run at the first element that does not fit. Give a place at least as long as the flow, or `take` what fits",
          line);
@@ -9189,7 +9216,7 @@ static void ck_collectfull_walk(low_check_result_t *out, const low_cst_t *nd,
     }
     {
         if (blk) {
-            proven_u64 n = ck_param_array_len(f, h, src);
+            proven_u64 n = ck_known_len(f, h, src);
             for (proven_size_t s = 0; n && s < blk->nkids; s++) {
                 const low_cst_t *st = blk->kids[s];
                 if (!(st->kind == LOW_CST_FORM && st->nkids && ck_atom(st->kids[0]))) { n = 0; break; }
@@ -9199,13 +9226,13 @@ static void ck_collectfull_walk(low_check_result_t *out, const low_cst_t *nd,
                 if (veq(sw, "skip") && st->nkids >= 2 && ck_uint_literal(st->kids[1], &k)) { n = k < n ? n - k : 0; continue; }
                 if (veq(sw, "take") || veq(sw, "skip")) { n = 0; break; }
                 if (veq(sw, "collect") && st->nkids >= 3) {
-                    proven_u64 cap = ck_param_array_len(f, h, st->kids[2]);
+                    proven_u64 cap = ck_known_len(f, h, st->kids[2]);
                     if (cap && n > cap) ck_collectfull_emit(out, st->kids[0]->tok.line, n, cap);
                     break;
                 }
             }
         } else if (nd->kind == LOW_CST_FORM && nd->nkids == 4 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "map")) {
-            proven_u64 n = ck_param_array_len(f, h, nd->kids[3]), cap = ck_param_array_len(f, h, nd->kids[1]);
+            proven_u64 n = ck_known_len(f, h, nd->kids[3]), cap = ck_known_len(f, h, nd->kids[1]);
             if (n && cap && n > cap) ck_collectfull_emit(out, nd->kids[0]->tok.line, n, cap);
         }
     }
@@ -10170,11 +10197,27 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         //   미구현이 아니게 되면 **고지도 걷어야 한다.** 남겨 두면 그것도 거짓말이다.
         //   다만 `--check` 는 테스트를 **돌리지 않는다.** 그 사실은 말해 준다:
         //   초록불이 "테스트가 통과했다" 는 뜻이 아니다.
-        if (veq(h, "test"))
+        if (veq(h, "test")) {
             warn(&out, "W-TEST-NOT-RUN",
                  "this unit has `test` blocks, and `--check` does NOT run them — a green check "
                  "means the code type-checks, NOT that the tests pass. Run `--test`",
                  f->kids[0]->tok.line);
+            // ★ 2026-09-27 — 같은 파일의 두 시험이 같은 이름이면 `--test` 가 «[PASS] a» 를 두 번 찍어 어느 것인지 가릴 수 없었다.
+            //   정본 §6.4.8 (2): 한 이름은 한 범위에서 한 대상이다.
+            if (f->nkids >= 2 && ck_atom(f->kids[1]))
+                for (proven_size_t j = 0; j < i; j++) {
+                    const low_cst_t *g = pr->forms[j];
+                    if (g->kind != LOW_CST_FORM || g->nkids < 2 || !ck_atom(g->kids[0]) || !ck_atom(g->kids[1])) continue;
+                    if (!veq(g->kids[0]->tok.lex, "test") || g->file != f->file) continue;
+                    if (!proven_u8str_view_eq(g->kids[1]->tok.lex, f->kids[1]->tok.lex)) continue;
+                    emit(&out, "E-NAME-DUP",
+                         "two `test` blocks have the same name — `--test` reports each by name, so the "
+                         "report could not say WHICH one passed or failed. A name means one thing in "
+                         "its scope: rename one of them",
+                         f->kids[1]->tok.line);
+                    break;
+                }
+        }
         else if (veq(h, "actor")) {
             // ★ actor 는 이제 **컴파일된다**(상태 격리 + `on` 핸들러 + spawn/send).
             //   그래서 "안의 op 이 사라진다" 는 고지는 **걷었다** — 거짓이 되면 걷어야 한다.

@@ -199,7 +199,7 @@ actor               actor <이름> do <state·절·op>* end                  end
 state               state do <칸>* end        (actor 안)                 end
 contract            contract <이름> do <절>* end                        end
 fn / proc           [꾸밈]* fn <이름> <절>* do <폼>* end                end
-test                test <이름> do <폼>* end                           end
+test                test <이름> [schedule <절>] do <폼>* end           end
 expect              expect <조건> .           (시험 블록의 단언)         .
 input               input [comptime] <이름> <타입> .                   .
 using               using <이름> <타입> .     (op 이 깎아 쓰는 얼로케이터) .

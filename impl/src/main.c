@@ -1073,7 +1073,7 @@ static void print_usage(const char *argv0) {
         "    --flat | --nest      arity 정규화를 끄는 **대조 스위치** / 그 계측을 보고한다\n"
         "    --emit-ldscript [--fixed-bytes N]  프리스탠딩 고정 창의 링커 스크립트 조각 (RFC-0112 D3)\n"
         "    --fixed-bytes N      VM 의 고정 창 크기 — 다른 보드를 흉내 낸다 (기본: 타깃이 정한다)\n"
-        "    --hw none|auto|pclmul,aes,sse2,avx2,asm,vaes  기계 명령의 **범위** (기본 none — 소프트만; vaes 는 auto 에 안 든다)\n"
+        "    --hw none|auto|pclmul,aes,sse2,avx2,asm,vaes  기계 명령의 **범위** (기본 none — 소프트만; auto 는 vaes 까지 담는다)\n"
         "    --absorbs            `unsafe` 를 흡수한 자리를 한 줄씩 낸다 (RFC-0120)\n"
         "    --emit-h | --emit-ld | --emit-db | --no-fast | --no-elemsl | --no-carry | --conc-t0 | --no-main | --why-slow | --zones  (C 방출 곁가지)\n"
         "\n  누가 읽나\n"
@@ -1194,7 +1194,9 @@ int main(int argc, char **argv) {
             low_cbe_set_hw_vaes(0);
             if (strcmp(v, "none") == 0) { low_cbe_set_hw_clmul(0); low_cbe_set_hw_aes(0);
                                           low_cbe_set_hw_simd(0); low_cbe_set_hw_avx2(0); low_cbe_set_hw_asm(0); }
-            else if (strcmp(v, "auto") == 0) { low_cbe_set_hw_clmul(2); low_cbe_set_hw_aes(2);
+            // ★ X-0055 (2026-09-27, 소유자 «auto 에 넣는다») — VAES 도 auto 에 든다. 소유자 기기(Zen 3+)에서 aes_ctr 1.53 배·자체 시험 3/3 PASS.
+            //   시작할 때 CPU 와 자체 시험으로 고르고, 어긋나면 AES-NI 로 내려간다.
+            else if (strcmp(v, "auto") == 0) { low_cbe_set_hw_vaes(1); low_cbe_set_hw_clmul(2); low_cbe_set_hw_aes(2);
                                                low_cbe_set_hw_simd(2); low_cbe_set_hw_avx2(2); low_cbe_set_hw_asm(2); }
             else {
                 char buf[128]; size_t bn = strlen(v);
@@ -1210,9 +1212,9 @@ int main(int argc, char **argv) {
                     // ★ 셋째 층 — 손으로 쓴 지름길. 내장함수 판을 **대신**하는 것이 아니라
                     //   같은 갈림에 후보로 선다: 없으면 내장함수, 그것도 없으면 셈 판.
                     else if (strcmp(tok, "asm") == 0) low_cbe_set_hw_asm(1);
-                    // ★ X-0055 — VAES 는 이 상자에서 못 잰다. 적었을 때만 담고, 담으면 AES 도 담는다
-                    //   (VAES 가 없는 CPU 에서는 AES-NI 로, 그것도 없으면 소프트로 내려간다 — 시작할 때 한 번 고른다).
-                    else if (strcmp(tok, "vaes") == 0) { low_cbe_set_hw_vaes(1); low_cbe_set_hw_aes(2); }
+                    // ★ X-0055 — VAES 를 담으면 AES·PCLMUL 도 담는다(VAES 판 GCM·GHASH 가 그 위에 선다).
+                    //   VAES 가 없는 CPU 에서는 AES-NI·PCLMUL 로, 그것도 없으면 소프트로 내려간다 — 시작할 때 한 번 고른다.
+                    else if (strcmp(tok, "vaes") == 0) { low_cbe_set_hw_vaes(1); low_cbe_set_hw_aes(2); low_cbe_set_hw_clmul(2); }
                     else {
                         fprintf(stderr, "lowentc: --hw takes none | auto | a comma list of "
                                         "pclmul,aes,sse2,avx2,asm,vaes (got `%s`)\n", tok);

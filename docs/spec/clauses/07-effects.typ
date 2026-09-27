@@ -25,7 +25,7 @@
       [`lock`], [자물쇠를 잡는다],
       [`atomic`], [나눌 수 없는 읽기·쓰기를 한다],
       [`state`], [모듈이나 액터가 지닌 상태를 고친다],
-      [`panic`], [프로그램을 멈출 수 있다],
+      [`panic`], [명시적 `panic` 으로 프로그램을 끝낼 수 있다 — 경계 밖 색인·넘침 같은 트랩은 효과가 아니라 계약이 맡는다(⟦§6.4.6⟧)],
       [`device`], [장치를 직접 건드린다],
       [`unsafe`], [언어가 검사할 수 없는 일을 한다],
       [`page_fault`], [메모리 접근이 페이지 부재를 일으킬 수 있다],
@@ -34,6 +34,11 @@
       [`detach`], [만든 실행 흐름을 떼어 놓는다],
       )
     ]
+    #para("2a")[
+      이 가운데 여섯 --- `lock` · `device` · `page_fault` · `blocking` · `cancel` · `detach` --- 은 그 일을 하는
+      **기본 연산이 아직 없다.** 적을 수 있고 부르는 쪽으로 번져 올라가지만(아래 (4)), 본문이 그 일을 하는지
+      처리기가 알아낼 길이 없으므로 **적은 대로 믿는다**. 선언만 하고 하지 않아도 알리지 아니한다((6)).
+    ]
     #para("3")[
       op 은 자기가 내는 효과를 `effects` 절에 적어야 한다. **적은 것보다 많은 효과를 내면
       번역이 거부된다.**
@@ -41,6 +46,13 @@
     #para("4")[
       효과는 부르는 쪽으로 **번져 올라간다.** 어떤 op 을 부르면 그 op 의 효과가 부르는 쪽의
       효과에 더해진다.
+    ]
+    #para("4a")[
+      `state` 는 **op 자신이 지닌 상태**(모듈 상태 · 액터의 상태 칸)를 고치는 일을 말한다.
+      부른 쪽이 건넨 저장소(`mut` · `mut_ref` 자리, `collect into <이름>`)에 쓰는 것은 `state`
+      가 아니다 — 그 쓰기는 **타입이 이미 밝히고 있고**, 부른 쪽은 자기 이름을 통해 그것을
+      본다. 감춰진 상태가 아니라서 효과로 셀 것이 없다. 그런 op 이 `effects state` 를 적는
+      것은 허용하며, 적었다고 「선언만 하고 안 한다」(`W-EFFECT-OVER`)로 세지 아니한다.
     ]
     #para("5")[
       어떤 효과는 **다른 효과를 딸고 온다.** 다음 표가 그 전부다.
@@ -57,17 +69,14 @@
       `close(I) ⊆ close(D)` 일 때다. 그래서 `concurrent` 를 적으면 `wait` 을 따로 적지
       않아도 되고, `wait` 만 적고 `concurrent` 한 일을 하면 거부된다.
     ]
-    #para("4a")[
-      `state` 는 **op 자신이 지닌 상태**(모듈 상태 · 액터의 상태 칸)를 고치는 일을 말한다.
-      부른 쪽이 건넨 저장소(`mut` · `mut_ref` 자리, `collect into <이름>`)에 쓰는 것은 `state`
-      가 아니다 — 그 쓰기는 **타입이 이미 밝히고 있고**, 부른 쪽은 자기 이름을 통해 그것을
-      본다. 감춰진 상태가 아니라서 효과로 셀 것이 없다. 그런 op 이 `effects state` 를 적는
-      것은 허용하며, 적었다고 「선언만 하고 안 한다」(`W-EFFECT-OVER`)로 세지 아니한다.
-    ]
     #para("5b")[
       닫는 일은 **한 곳에서만** 일어난다. 원자의 표(위)는 평평하게 남으며, 포함 관계를
       그 표에 섞지 아니한다.
     ]
+    #diagram("효과는 부르는 쪽으로 번져 올라가고, 닫은 뒤에 견준다", " worker  effects concurrent         close = {concurrent, wait}
+   ▲ called by boss
+ boss    effects state wait         close = {state, wait}               → E-EFFECT (no concurrent)
+ boss    effects state concurrent   close = {state, concurrent, wait}   → ok")
     #plain[
       효과 선언이 하는 일을 한 문장으로 말하면 이렇다 — *"이 함수를 부르면 무슨 일이
       벌어질 수 있는지가 시그니처에 적혀 있다."* 본문을 열지 않아도, 그 함수가 부르는
@@ -205,6 +214,10 @@ end", "E-EFFECT-CALC")
       말해 주지 못한다. 종류가 나뉘어 있으므로 서명만 읽고도 닿을 수 있는 바깥세상의
       넓이를 안다.
     ]
+    #diagram("권한은 시작점에서 받아 인자로만 내려간다", " environment ──▶ main  input out cap io .  input fs cap file_system .
+                   ├──▶ save fs     holds file_system only → can open files, cannot print
+                   └──▶ show out    holds io only          → can print, cannot open files
+ an op handed no capability cannot have that effect — there is no global way to get one")
     #para("4")[
       프로그램의 시작점은 실행 환경에서 권한을 받는다(#cref("5.5")). 시작점이 받지 않은
       권한은 프로그램 어디에도 없다.

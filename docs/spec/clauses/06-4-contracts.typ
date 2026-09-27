@@ -45,6 +45,22 @@
       절의 목록이 곧 머리이므로, 이름 뒤에 오는 첫 낱말부터 절이다 — 이름이 절 낱말과 같은 철자여도
       (`proc link …`) 이름으로 읽는다.
     ]
+    #para("3d")[
+      (3a) 의 차례에 나온 절 낱말의 뜻과 정의 자리는 다음과 같다.
+      - `satisfies` — 이 op 이 지키는 이름 붙은 약속(#cref("6.4.5") · #cref("6.11.2")). `lowdoc` — 사람이 읽는 설명(#cref("6.4.3")).
+      - `vector` · `priority` — 이 op 을 인터럽트 처리기로 만든다: 받는 인터럽트의 번호와 그 급함(#cref("7.7")).
+      - `comptime` 입력 — 번역 시점에 정해지는 매개변수(#cref("6.8")). 권한 입력 — 효과를 낼 자격(#cref("7.2")).
+      - `using` — 이 op 이 쓰는 얼로케이터(#cref("8.14")).
+      - `link` · `variadic` — C 쪽의 이름 · 개수가 정해지지 않은 인자(#cref("7.4")).
+      - `asm` — 기계 명령을 직접 적는 자리(#cref("6.9.1")).
+      - `absorbs` · `reference` · `why` — `unsafe` 가 번지는 것을 여기서 멈춘다는 선언과, 그 근거가 되는 순수한 판 · 가정한 것(#cref("7.2.1")).
+      - `access` · `inplace` · `invalidates` — 무엇을 어떤 모드로 건드리는가 · 제자리 쓰기 · 무효로 하는 것(#cref("6.4.3") · #cref("8.12")).
+      - `parallel` · `reduce` — 나누어 도는 되풀이와, 걸음들이 모으는 자리(#cref("6.5.10")).
+      - `requires` · `ensures` · `errors` · `tests` — 계약의 절(#cref("6.4.3")).
+      - `schedule` — 시험(`test`) 머리에만 온다. `schedule explore_interleavings .` 은 메시지가 배달되는 **차례를 모두**
+      돌려 보고 결과가 차례마다 같은지 본다. `limit <수>` 를 붙이면 그 수까지만 돈다. 차례에 따라 결과가 갈리면
+      그 시험은 실패한다(`E-SCHED-NONDET`).
+    ]
     #ex("op 의 선언", "module ex_op .
 
 export fn twice input n u32 . output u32 .
@@ -290,6 +306,10 @@ end")
       두 op 은 본문이 같다. 다른 것은 계약 한 줄뿐이며, 그 한 줄이 실행 중 검사 하나를
       없앤다. 이것이 이 언어에서 계약이 하는 가장 큰 일이다.
     ]
+    #diagram("계약이 진입에서 사실이 되어 넘침 검사를 지운다", " proven 250  ──▶ requires le a 200   entry check fails → E-VM-CONTRACT (caller's fault)
+ proven 150  ──▶ requires le a 200   passes → from here on a ∈ [0, 200] is a fact
+                 add a 1             a + 1 ∈ [1, 201] ⊂ u8 [0, 255] → overflow check removed
+ bare 255    ──▶ add a 1             no fact about a → the check stays → E-VM-OVERFLOW")
   ]
   #sub("6.4.7", "빌드 모드가 남은 검사를 정한다")[
     #para("1")[

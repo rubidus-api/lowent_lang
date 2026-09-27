@@ -104,6 +104,15 @@ end
 > [라이브러리], [누구나], [나머지 전부. 로우엔트로 쓴다],
 > )
 
+```도해: 세 층 — 파일 하나를 읽을 때
+ library   files.open, files.read, files.slurp   Lowent code: owned handle, result
+    |
+ leaf      file_open, file_read, file_close      from the processor, needs cap file_system
+    |
+ OS        open, read, close                     the kernel
+ language  add, len, index, narrow ...           fixed words (6.3.3), used at every layer
+```
+
 > [!산문]
 > 예를 들어 「파일을 열어 정수 핸들을 받는 것」은 커널에 닿으므로 리프다. 그 핸들을
 > **잊을 수 없는 값**으로 감싸는 것은 로우엔트로 쓸 수 있으므로 라이브러리다.

@@ -147,15 +147,15 @@ let back u8 be narrow u8 wide .")
   ]
   #sub("6.2.6", "줄 — 배열과 슬라이스")[
     #para("1")[
-      `array n t` 는 타입 `t` 의 값이 정확히 `n` 개 놓인 줄이다. 길이는 타입의 일부이며
+      `array t n` 은 타입 `t` 의 값이 정확히 `n` 개 놓인 줄이다. 길이는 타입의 일부이며
       번역 시점에 정해진다.
     ]
     #para("1a")[
-      길이 `n` 은 **정수 리터럴로, 타입보다 먼저** 적는다. 반대로 적거나(`array t n`) 리터럴이 아니면
-      거부된다(`E-TYPE-ARRAY`).
+      **원소 타입을 먼저, 길이 `n` 을 뒤에 정수 리터럴로** 적는다 — `vec t n` 과 같은 차례다. 반대로 적거나
+      (`array n t`) 길이가 리터럴이 아니면 거부된다(`E-TYPE-ARRAY`).
     ]
     #para("1b")[
-      op 의 입력 `input x array n t .` 는 길이가 정확히 `n` 인 `slice t` 를 받는다는 뜻이며, 그 길이는
+      op 의 입력 `input x array t n .` 은 길이가 정확히 `n` 인 `slice t` 를 받는다는 뜻이며, 그 길이는
       `requires eq (len x) n .` 과 같이 **진입에서 검사된다**.
     ]
     #para("2")[
@@ -184,9 +184,9 @@ export fn head input data slice u8 . . output u8 .
 do
   return index data 0 .
 end")
-    #rejected("길이를 타입 뒤에 적었다", "module ex_array_order .
+    #rejected("길이를 타입 앞에 적었다", "module ex_array_order .
 
-export fn last input xs array u64 4 . output u64 .
+export fn last input xs array 4 u64 . output u64 .
 do
   return index xs 3 .
 end", "E-TYPE-ARRAY")

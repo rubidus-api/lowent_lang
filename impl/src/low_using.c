@@ -73,11 +73,12 @@ static low_cst_t *us_atom_like(us_ctx_t *c, const low_cst_t *model, proven_u8str
     t.kind = LOW_TOK_IDENT; t.kw = LOW_KW_NONE; t.lex = lex; t.aux = (proven_u8str_view_t){ 0 };
     return low_node(&c->p, LOW_CST_ATOM, t);
 }
-// ★★★ **고정 길이 입력 `array <개수> <타입>`** (정본 §6.2.6 (1) · 2026-09-14).
+// ★★★ **고정 길이 입력 `array <타입> <개수>`** (정본 §6.2.6 (1) · 2026-09-14 · 차례는 RFC-0132 C12 로 2026-09-27 뒤집음 —
+//   SIMD `vec <타입> <레인>` 과 같은 차례).
 //   처리기는 `array` 를 `slice` 의 다른 이름으로 다뤘다 — 바로 뒤 낱말을 원소 타입으로 읽고 **길이는 버렸다.**
 //   그래서 정본 모양 `array 4 u64` 는 원소를 모르는 **바이트 슬라이스**가 됐고(`4` 가 원소 자리), 틀린 차례
 //   `array u64 4` 는 길이 검사 없는 `slice u64` 였다. 둘 다 조용히 통과했다.
-//   ⇒ 입력 자리의 `array N T` 를 **`slice T` + 진입 계약 `requires eq (len <이름>) N .`** 으로 바꿔 적는다.
+//   ⇒ 입력 자리의 `array T N` 을 **`slice T` + 진입 계약 `requires eq (len <이름>) N .`** 으로 바꿔 적는다.
 //     «길이는 타입의 일부» 가 진입 검사로 선다(계약이므로 부르는 쪽이 상수를 주면 번역 시점에도 걸린다).
 //   그 밖의 자리(출력·지역·칸·틀린 차례)는 바꾸지 않고 두어 검사기가 `E-TYPE-ARRAY` 로 거절한다.
 static bool us_is_int_lit(const low_cst_t *n) {
@@ -95,7 +96,7 @@ static void us_arrays_one(us_ctx_t *c, low_cst_t *f) {
     for (proven_size_t q = 0; q < h.np && na < UA_MAX; q++)
         for (proven_size_t z = h.p[q].ts; z + 2 < h.p[q].te && z + 2 < f->nkids; z++)
             if (us_atom(f->kids[z]) && us_eq(f->kids[z]->tok.lex, "array") &&
-                us_is_int_lit(f->kids[z + 1]) && us_atom(f->kids[z + 2]) && !us_is_int_lit(f->kids[z + 2])) {
+                us_atom(f->kids[z + 1]) && !us_is_int_lit(f->kids[z + 1]) && us_is_int_lit(f->kids[z + 2])) {
                 at[na] = z; nm[na] = h.p[q].name; na++;
                 break;
             }
@@ -124,11 +125,11 @@ static void us_arrays_one(us_ctx_t *c, low_cst_t *f) {
                 nk[m++] = us_atom_like(c, model, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"requires", .size = 8 });
                 nk[m++] = us_atom_like(c, model, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"eq", .size = 2 });
                 nk[m++] = grp;
-                nk[m++] = f->kids[at[a] + 1];          // 개수 리터럴을 계약으로 옮긴다
+                nk[m++] = f->kids[at[a] + 2];          // 개수 리터럴을 계약으로 옮긴다(RFC-0132 C12: `array <타입> <개수>`)
             }
         if (i == f->nkids) break;
         bool drop = false, swap = false;
-        for (proven_size_t a = 0; a < na; a++) { if (i == at[a] + 1) drop = true; if (i == at[a]) swap = true; }
+        for (proven_size_t a = 0; a < na; a++) { if (i == at[a] + 2) drop = true; if (i == at[a]) swap = true; }
         if (drop) continue;
         nk[m++] = swap ? us_atom_like(c, f->kids[i], (proven_u8str_view_t){ .ptr = (const proven_u8 *)"slice", .size = 5 })
                        : f->kids[i];

@@ -34,7 +34,7 @@ These are the places people often trip when writing Lowent with habits from othe
 | Missing cases in `match` | `E-MATCH-INEXHAUSTIVE` | The missing `case` or `case _ .` |
 | Writing enum variants one per line without periods | `E-ENUM-DOT` | `red .` for each variant |
 | Extracting with `some_value` without checking | `E-VM-NONE` (at run time) | `guard is_some` · `value_or` · `match` |
-| `array u8 4` | `E-TYPE-ARRAY` | `array 4 u8` |
+| `array 4 u8` | `E-TYPE-ARRAY` | `array u8 4` |
 
 *Table 50.2 — Mistakes with values and flow*
 

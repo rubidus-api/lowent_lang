@@ -1122,19 +1122,19 @@ do
   rem ── 받은 사슬을 위로 오른다 ─────────────────────────────────────────
   var cur_o u64 be l0 .
   var cur_n u64 be n0 .
-  var idx u64 be 1 .
+  var cert_i u64 be 1 .
   var climbing u64 be 1 .
   while eq climbing 1 . do
-    let uo u64 be tlscli.cert_at msgs co idx .
-    let un u64 be tlscli.cert_len msgs co idx .
+    let uo u64 be tlscli.cert_at msgs co cert_i .
+    let un u64 be tlscli.cert_len msgs co cert_i .
     if eq uo 0 . do  set climbing 0 . end
     if eq climbing 1 . do
       let lk u64 be verify.link_ok (subslice buf cur_o (add cur_o cur_n)) (subslice buf uo (add uo un)) now (subslice buf 100000 104000) wu .
       if ne lk 1 . do  return 4 . end
       set cur_o uo .
       set cur_n un .
-      set idx (add idx 1) .
-      if gt idx 8 . do  set climbing 0 . end
+      set cert_i (add cert_i 1) .
+      if gt cert_i 8 . do  set climbing 0 . end
     end
   end
 

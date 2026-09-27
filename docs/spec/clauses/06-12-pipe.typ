@@ -82,7 +82,7 @@ end")
 
 fn dbl input a u8 . output u8 . do return wrap_add a a . end
 
-proc over input xs array 5 u8 . input out mut array 3 u8 . output u64 . effects none . do
+proc over input xs array u8 5 . input out mut array u8 3 . output u64 . effects none . do
   return pipe xs do
     map dbl .
     collect into out .

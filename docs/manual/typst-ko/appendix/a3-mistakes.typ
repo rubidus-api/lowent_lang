@@ -41,7 +41,7 @@
   [`match` 에서 경우를 빠뜨린다], [`E-MATCH-INEXHAUSTIVE`], [빠진 `case` 나 `case _ .`],
   [열거의 갈래를 점 없이 줄마다 적는다], [`E-ENUM-DOT`], [갈래마다 `red .`],
   [확인 없이 `some_value` 로 꺼낸다], [`E-VM-NONE`(실행 중)], [`guard is_some` · `value_or` · `match`],
-  [`array u8 4`], [`E-TYPE-ARRAY`], [`array 4 u8`],
+  [`array 4 u8`], [`E-TYPE-ARRAY`], [`array u8 4`],
 )
 
 == 효과·권한·메모리

@@ -41,16 +41,16 @@ remember separately "how many are here".
 
 - `len data` is the number of elements, and `index data 0` is the first element. Numbering starts at 0.
 #idx("array")
-- `array 4 u8` in `last4` is a sequence of exactly 4. An `array` in an input position means it receives a slice of length 4, and that length
+- `array u8 4` in `last4` is a sequence of exactly 4. An `array` in an input position means it receives a slice of length 4, and that length
   is checked on entry, like `requires eq (len xs) 4 .`.
 - `for x xs do … end` walks the elements in order.
 - Passing a slice of length 3 and 5 to `at` stops with `E-VM-BOUNDS`. It does not read someone else's memory.
 
-An `array` writes its length *first*. The reverse order is rejected.
+An `array` writes the element type *first* and the length *after* it --- the same order as `vec u32 4`. The reverse order is rejected.
 
 #demo("examples/ch09/array_order.low")
 
-According to the diagnostic, the old tool read `array u8 4` as a plain slice and silently dropped the length --- a place where a written
+The earlier tool read a wrongly ordered `array` as a plain slice and silently dropped the length --- a place where a written
 promise vanished. Today `array` is used only in op input positions; in outputs, locals and struct fields, write `slice` with a contract.
 
 #qa[
@@ -198,7 +198,7 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   [*Shape*], [*Meaning*], [*Why*],
   [`slice u8`], [a run of `u8` values (start + length)], [no separate count to carry around],
   [`mut slice u8`], [a run whose elements may be written], [writability is visible in the type],
-  [`input xs array 4 u8 .`], [take a run of exactly 4 (input position only)], [length first --- checked at entry],
+  [`input xs array u8 4 .`], [take a run of exactly 4 (input position only)], [element type, then length --- checked at entry],
   [`len xs`], [number of elements], [just reads the length field; no cost],
   [`index xs i`], [element `i` (from 0)], [stops when out of range --- never reads someone else's memory],
   [`set (index xs i) v .`], [write element `i`], [needs a `mut slice` and a `proc`],

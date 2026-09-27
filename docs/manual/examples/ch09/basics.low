@@ -11,7 +11,7 @@ do
   return index data 0 .
 end
 
-fn last4 input xs array 4 u8 . output u8 .
+fn last4 input xs array u8 4 . output u8 .
 do
   return index xs 3 .
 end

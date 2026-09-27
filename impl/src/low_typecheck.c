@@ -2072,7 +2072,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                         (proven_u8str_view_eq(fd->kids[w]->tok.lex, proven_u8str_view_from_cstr("ref")) ||
                          proven_u8str_view_eq(fd->kids[w]->tok.lex, proven_u8str_view_from_cstr("mut_ref"))))
                         { fref = true; break; }
-                // 타입 낱말은 여럿일 수 있다(`option node` · `ref node` · `array 4 node`).
+                // 타입 낱말은 여럿일 수 있다(`option node` · `ref node` · `array node 4`).
                 // 그 **어느 자리에든** struct 이름이 있으면 그 struct 를 품는다는 뜻이다.
                 for (proven_size_t w = 1; w < fd->nkids && !cyc; w++) {
                     if (fd->kids[w]->kind != LOW_CST_ATOM) continue;

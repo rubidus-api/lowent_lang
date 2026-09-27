@@ -7062,7 +7062,7 @@ static void ck_mref_slice(low_check_result_t *out, const low_cst_t *f) {
 
 // ★★★ **남은 `array` 는 거절이다** (정본 §6.2.6 (1) · 2026-09-14). 입력 자리의 `array N T` 는 `using` 패스가
 //   `slice T` + `requires eq (len x) N .` 으로 바꿔 적었다(`low_using.c`). 여기까지 남은 `array` 는 둘 중 하나다:
-//   ① 차례가 틀렸다(`array u64 4` — 정본은 `array <개수> <타입>`) · ② 입력이 아닌 자리(출력·지역·칸·별칭)라
+//   ① 차례가 틀렸다(`array 4 u64` — 정본은 `array <타입> <개수>`, RFC-0132 C12) · ② 입력이 아닌 자리(출력·지역·칸·별칭)라
 //   **길이를 지킬 곳이 없다**. 전엔 둘 다 `slice` 로 조용히 읽혔다 — 길이를 버린 채로.
 static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
     if (!nd) return false;
@@ -7072,13 +7072,14 @@ static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
             const low_cst_t *nx = (j + 1 < nd->nkids) ? nd->kids[j + 1] : NULL;
             bool lit_next = nx && nx->kind == LOW_CST_ATOM && nx->tok.kind == LOW_TOK_NUMBER;
             emit(out, "E-TYPE-ARRAY",
-                 lit_next
-                   ? "a fixed-length `array <count> <type>` is only accepted as an op INPUT today — there its "
+                 !lit_next
+                   ? "a fixed-length `array <type> <count>` is only accepted as an op INPUT today — there its "
                      "length is checked at entry. In an output, a local, a struct field or an alias the length "
                      "would have nowhere to be kept (it used to be dropped silently). Take `slice <type>` and "
                      "state the length in a contract (`requires eq (len x) N .`)"
-                   : "`array` is written `array <count> <type>` — the length first, as a literal (`array 4 u64`). "
-                     "The other order used to be read as a plain slice and the length was dropped silently",
+                   : "`array` is written `array <type> <count>` — the element type first, then the length as a literal "
+                     "(`array u64 4`, the same order as `vec u32 4`). The order was flipped on 2026-09-27 (RFC-0132); "
+                     "`array 4 u64` is the old order",
                  k->tok.line ? k->tok.line : nd->line);
             return true;
         }

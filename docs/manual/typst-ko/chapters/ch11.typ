@@ -221,7 +221,7 @@ return ok (add v 1) .
   이나 `match` 로 묻는다.
 ]
 
-== 이 장의 문법 한눈에
+== 이 장의 문법을 한눈에
 
 #dtable(
   columns: 3,

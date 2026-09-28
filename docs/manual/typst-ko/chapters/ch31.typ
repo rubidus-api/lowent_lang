@@ -265,7 +265,7 @@ why-slow: 0 / 1 op(s) still on the tagged path
   빠질 뿐이다. 그래서 어떤 구성으로 지어도 나머지 조합이 썩지 않는다.
 ]
 
-== 이 장의 문법 한눈에
+== 이 장의 문법을 한눈에
 
 #dtable(
   columns: 3,

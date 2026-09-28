@@ -291,7 +291,7 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   양이 아니다. 따로 된 예산이 필요하면 창에서 한 번 크게 받아 `bump_bytes` 여럿에 겹치지 않게 나눠 건다.
 ]
 
-== 이 장의 문법 한눈에
+== 이 장의 문법을 한눈에
 
 #dtable(
   columns: 3,

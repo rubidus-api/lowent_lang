@@ -136,7 +136,7 @@ UTF-16 을 쓰는 세계(Windows API·Java·JavaScript)와 값을 주고받을 �
   다르다(#chref("lib-terminal")).
 ]
 
-== 이 장의 문법 한눈에
+== 이 장의 문법을 한눈에
 
 #dtable(
   columns: 3,

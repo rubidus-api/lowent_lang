@@ -213,7 +213,7 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   일을 하려면 갈래를 `or` 로 묶는다(#chref("option-result")).
 ]
 
-== 이 장의 문법 한눈에
+== 이 장의 문법을 한눈에
 
 #dtable(
   columns: 3,

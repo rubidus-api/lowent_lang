@@ -182,7 +182,7 @@ drive       ──┬── task_group do                                   end 
   같도록 처리기를 짠다.
 ]
 
-== 이 장의 문법 한눈에
+== 이 장의 문법을 한눈에
 
 #dtable(
   columns: 3,

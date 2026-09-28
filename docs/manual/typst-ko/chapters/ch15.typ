@@ -224,7 +224,7 @@ export proc append
   전파만 한다.
 ]
 
-== 이 장의 문법 한눈에
+== 이 장의 문법을 한눈에
 
 #dtable(
   columns: 3,

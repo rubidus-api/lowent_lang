@@ -180,7 +180,7 @@ export proc sort_by input comptime t type . input s mut slice t .
   #demo("examples/ch22/module_const.low")
 ]
 
-== 이 장의 문법 한눈에
+== 이 장의 문법을 한눈에
 
 #dtable(
   columns: 3,

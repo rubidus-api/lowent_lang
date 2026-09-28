@@ -272,7 +272,7 @@ absorbs: 1 op(s) stop `unsafe` here
   검사한다.
 ]
 
-== 이 장의 문법 한눈에
+== 이 장의 문법을 한눈에
 
 #dtable(
   columns: 3,

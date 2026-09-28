@@ -4488,10 +4488,43 @@ static proven_size_t ir_cond_stream(ir_ctx_t *c, low_cst_t *const *k, proven_siz
     if (ns < IR_COND_MAXBRZ) sites[ns++] = ir_emit(c, IRW_BRZ, 0);
     return ns;
 }
+// ★★ 조건 자리의 **섬**도 `and` 에서 가른다(2026-09-28, 코드 검토). 섬의 `and` 는 단락 평가로 낮추지만 결과를
+//   0/1 로 합류시키므로 몸통이 술어를 못 봤다 — `if expr (lt i (len xs)) and (lt i 8) .` 은 첨자 검사가 남고, 같은
+//   뜻의 전위 `if and (lt i (len xs)) (lt i 8) .` 은 지웠다(쓰는 법에 따라 검사가 남는 위 병과 같다).
+//   섬의 맨 위 층에 `or` 가 없으면 `and` 가 가장 약한 연산자이므로(§6.3.2 표), 맨 위의 `and` 마다 잘라
+//   조각마다 값을 내고 BRZ 를 낸다. 맨 위에 `or` 가 있거나 `and` 가 없으면 0 을 돌려 보통 길로 보낸다.
+static proven_size_t ir_cond_island(ir_ctx_t *c, low_cst_t *const *k, proven_size_t n,
+                                    proven_size_t *sites, proven_size_t ns) {
+    proven_size_t nand = 0;
+    for (proven_size_t i = 1; i < n; i++) {
+        if (!is_atom(k[i])) continue;
+        int pr = ir_prec(k[i]);
+        if (pr == 1) return 0;                         // 맨 위에 or — 가르지 않는다
+        if (pr == 2) nand++;
+    }
+    if (!nand || ns + nand + 1 > IR_COND_MAXBRZ) return 0;
+    proven_size_t s = 0;
+    for (proven_size_t i = 0; i <= n && !c->failed; i++) {
+        if (i < n && !(i > s && is_atom(k[i]) && ir_prec(k[i]) == 2)) continue;
+        proven_size_t ipos = 0, len = i - s;
+        c->island++;
+        ir_island_climb(c, k + s, len, &ipos, 0);
+        c->island--;
+        if (ipos != len && !c->failed)
+            ir_fail(c, "E-IR-EXTRA", "trailing operands after expr island", k[s]->line);
+        sites[ns++] = ir_emit(c, IRW_BRZ, 0);
+        s = i + 1;
+    }
+    return ns;
+}
  proven_size_t ir_cond_node(ir_ctx_t *c, const low_cst_t *nd,
                                   proven_size_t *sites, proven_size_t ns) {
     if (c->failed || !nd) return ns;
     const low_cst_t *h = ir_cond_peel(nd);
+    if (h && h->kind == LOW_CST_FORM && h->nkids >= 2 && is_atom(h->kids[0]) && h->kids[0]->tok.kw == LOW_KW_EXPR) {
+        proven_size_t r = ir_cond_island(c, h->kids + 1, h->nkids - 1, sites, ns);
+        if (r) return r;
+    }
     // ★ FORM 의 kids[0] 은 **머리 원자**다(헤더 주석과 달리 인자만 있는 게 아니다 —
     //   `le c 90` 이 nkids=3 이다). 그래서 인자는 kids[1], kids[2] 다.
     if (h && h->kind == LOW_CST_FORM && h->nkids == 3 && is_atom_tok_and(h) &&
@@ -4516,6 +4549,10 @@ static proven_size_t ir_cond_stream(ir_ctx_t *c, low_cst_t *const *k, proven_siz
     //   중첩 없이 `and (ge …) (le …)` 를 **노드 여럿**으로 준다. 한쪽만 가르면 두 실행이
     //   *다른 코드*를 내고, def 해시가 갈라진다 — RFC-0012 가 오라클인 자리다:
     //   **같은 뜻이면 같은 해시**. 모양이 둘이면 낮추기도 둘 다 알아야 한다.
+    if (n >= 2 && is_atom(k[start]) && k[start]->tok.kw == LOW_KW_EXPR) {   // 평평한 실행의 섬
+        proven_size_t r = ir_cond_island(c, k + start + 1, n - 1, sites, 0);
+        if (r) return r;
+    }
     if (n >= 2 && is_atom(k[start]) && is_atom_tok_and(k[start])) {
         proven_size_t pos = start, end = start + n;
         proven_size_t ns = ir_cond_stream(c, k, &pos, end, sites, 0);

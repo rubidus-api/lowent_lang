@@ -579,6 +579,7 @@ typedef struct {
     dt_tname_t *tn; proven_size_t ntn, ctn;
     proven_u8str_view_t tp[32]; proven_size_t ntp;     // 지금 걷는 op/구조체의 comptime 타입 매개변수
     bool strict;
+    bool migrate;                                       // `--fmt`: 옛 모양을 새 모양(표면)으로 옮긴다
     proven_u8str_view_t curmod;                         // 지금 걷는 폼의 모듈
     struct { proven_u8str_view_t mod, alias, target; } al[512]; proven_size_t nal;   // `use <t> … as <a>`
 } dt_ctx_t;
@@ -592,7 +593,12 @@ static const char *const DT_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32",
 static const char *const DT_PRE1[] = { "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero",
                                        "atomic","lock","rwlock","shared_read","view", NULL };
 // ★ 이름은 **모듈과 함께** 맞춘다(check-lib-pairs 가 잡았다: `trust` 의 `files.handle` 이 `pool` 의 브랜드 타입 `handle`
-//   (인자 하나)로 읽혀 다음 낱말을 삼켰다). `m.t` 는 모듈 m 의 t 만, 맨 `t` 는 자기 모듈 것을 먼저, 없으면 아무 모듈의 것.
+//   (인자 하나)로 읽혀 다음 낱말을 삼켰다). `m.t` 는 모듈 m 의 t 만, 맨 `t` 는 **자기 모듈 것만**.
+// ★★ 되짚기(«없으면 아무 모듈의 것») 를 좁혔다(2026-09-28, 코드 검토). 전엔 **링크 차례상 처음** 것을 집어, 같은
+//   이름이 두 모듈에 있으면 차례에 따라 남의 제네릭 `box`(인자 하나)가 값의 다음 낱말을 타입 인자로 삼켰다.
+//   남의 모듈 타입을 맨이름으로 쓰는 것은 어차피 오류(E-VISIBILITY — `m.t` 로 쓴다)라, 되짚기는 **어느 오류를
+//   내는가** 만 정한다. 그래서 그 이름을 선언한 모듈이 **하나뿐일 때만** 집는다(그러면 뒤에서 E-VISIBILITY 가
+//   제 원인을 말한다 — 매뉴얼 ch21 mistake_bare). 둘 이상이면 집지 않는다 — 링크 차례에 기대지 않는다.
 static bool dt_tname(dt_ctx_t *c, proven_u8str_view_t v, proven_size_t *arity) {
     proven_u8str_view_t b = us_bare(v), q = us_qual(v);
     for (proven_size_t i = 0; !q.size && i < c->ntp; i++) if (proven_u8str_view_eq(c->tp[i], b)) { *arity = 0; return true; }
@@ -606,7 +612,14 @@ static bool dt_tname(dt_ctx_t *c, proven_u8str_view_t v, proven_size_t *arity) {
     }
     for (proven_size_t i = 0; i < c->ntn; i++)
         if (proven_u8str_view_eq(c->tn[i].name, b) && proven_u8str_view_eq(c->tn[i].mod, c->curmod)) { *arity = c->tn[i].arity; return true; }
-    for (proven_size_t i = 0; i < c->ntn; i++) if (proven_u8str_view_eq(c->tn[i].name, b)) { *arity = c->tn[i].arity; return true; }
+    proven_size_t hit = (proven_size_t)-1, nhit = 0;
+    for (proven_size_t i = 0; i < c->ntn; i++)
+        if (proven_u8str_view_eq(c->tn[i].name, b)) {
+            bool same = hit != (proven_size_t)-1 && proven_u8str_view_eq(c->tn[hit].mod, c->tn[i].mod);
+            if (!same) nhit++;
+            hit = i;
+        }
+    if (nhit == 1) { *arity = c->tn[hit].arity; return true; }
     return false;
 }
 // kids[i..end) 에서 타입 하나가 끝나는 자리. 타입이 아니면 (proven_size_t)-1.
@@ -679,6 +692,49 @@ static void dt_decl(dt_ctx_t *c, low_cst_t *f) {
     // 이름과 `be` 사이: 비었거나 `using <이름>` 뿐이면 새 모양(또는 타입 없음), 타입이 있으면 옛 모양
     bool typeless_mid = (b == 2) ||
         (b == 4 && us_atom(f->kids[2]) && us_eq(f->kids[2]->tok.lex, "using"));
+    if (!typeless_mid && c->migrate) {
+        // ★ `--fmt` 옮김(2026-09-28, 코드 검토): `var i u64 be 0 .` → `var i be u64 0 .`. 타입 뒤 점과 `using <x>` 는
+        //   떼어 `be` 앞에 둔다. 타입의 끝이 문법으로 딱 떨어지지 않으면 괄호로 싼다(TV4 — migrate-decl-order.py 와 같다).
+        low_cst_t *ty[64]; proven_size_t nty = 0; low_cst_t *us = NULL, *ux = NULL;
+        for (proven_size_t i = 2; i < b; i++) {
+            low_cst_t *k = f->kids[i];
+            if (us_atom(k) && k->tok.kind == LOW_TOK_DOT) continue;
+            if (us_atom(k) && us_eq(k->tok.lex, "using") && i + 1 < b) { us = k; ux = f->kids[++i]; continue; }
+            if (nty < 64) ty[nty++] = k;
+        }
+        if (!nty || nty == 64) return;
+        low_cst_t *tnode = ty[0];
+        if (nty > 1 || dt_type_end_h(c, ty, 0, nty, true) != nty) {
+            if (!(nty == 1 && ty[0]->kind == LOW_CST_GROUP)) {
+                low_cst_t *g = (low_cst_t *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, sizeof(low_cst_t), alignof(low_cst_t)).value.ptr;
+                if (!g) return;
+                *g = *ty[0];
+                g->kind = LOW_CST_FORM; g->closer = LOW_TOK_EOF; g->synth = false;
+                (void)low_refit(&c->p, g, ty, nty);
+                if (nty == 1 || dt_type_end_h(c, ty, 0, nty, true) == nty) tnode = NULL;   // 딱 떨어지면 괄호 없이
+                else tnode = g;
+            }
+        } else tnode = NULL;
+        proven_size_t n = f->nkids;
+        low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (n + 2), alignof(low_cst_t *)).value.ptr;
+        if (!nk) return;
+        proven_size_t m = 0;
+        nk[m++] = f->kids[0]; nk[m++] = f->kids[1];
+        if (us) { nk[m++] = us; nk[m++] = ux; }
+        nk[m++] = f->kids[b];
+        if (tnode) nk[m++] = tnode; else for (proven_size_t i = 0; i < nty; i++) nk[m++] = ty[i];
+        for (proven_size_t i = b + 1; i < n; i++) nk[m++] = f->kids[i];
+        (void)low_refit(&c->p, f, nk, m);
+        return;
+    }
+    if (c->migrate) {
+        // 새 모양이면 그대로 찍는다. 타입이 없으면 서식기는 타입을 알 수 없다 — 알리고 실패로 끝낸다.
+        if (dt_type_end_h(c, f->kids, b + 1, f->nkids, true) == (proven_size_t)-1)
+            dt_diag(c, f->kids[1], "E-LET-NOTYPE",
+                      "a binding must show its type in front of the value — `let x be u64 300 .`. `--fmt` cannot "
+                      "guess it: write the type, then format again");
+        return;
+    }
     if (!typeless_mid) {
         if (c->strict)
             dt_diag(c, f->kids[1], "E-LET-OLDFORM",
@@ -688,6 +744,21 @@ static void dt_decl(dt_ctx_t *c, low_cst_t *f) {
         return;
     }
     proven_size_t te = dt_type_end_h(c, f->kids, b + 1, f->nkids, true);
+    // ★ 머리의 괄호 묶음 **뒤에 아무것도 없으면** 그 묶음은 타입이 아니라 값일 수 있다 — `let x be (add a 1) .`.
+    //   전엔 묶음을 늘 타입으로 보아 «값이 없다»(E-LET-NOVALUE, 앞 점 소수 힌트까지)로 잘못 말했다(2026-09-28, 코드 검토).
+    //   묶음 속이 타입 문법으로 딱 떨어질 때만 타입으로 두고(그러면 정말 값이 없는 것), 아니면 타입이 없는 것이다.
+    if (te == f->nkids && te == b + 2 && f->kids[b + 1]->kind == LOW_CST_GROUP) {
+        const low_cst_t *g = f->kids[b + 1];
+        const low_cst_t *in = (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM) ? g->kids[0] : g;
+        // 묶음 속 첫 낱말이 타입 머리면 타입이다(`(result u64)` 처럼 괄호 안에서만 쓰는 짧은 모양도 있다).
+        proven_size_t ar0 = 0;
+        const low_cst_t *h0 = in->nkids ? in->kids[0] : NULL;
+        bool thead = h0 && us_atom(h0) && h0->tok.kind == LOW_TOK_IDENT &&
+            (dt_in(h0->tok.lex, DT_ZERO) || dt_in(h0->tok.lex, DT_PRE1) || us_eq(h0->tok.lex, "result") ||
+             us_eq(h0->tok.lex, "array") || us_eq(h0->tok.lex, "vec") || us_eq(h0->tok.lex, "bitset") ||
+             us_eq(h0->tok.lex, "mask") || us_eq(h0->tok.lex, "cap") || dt_tname(c, h0->tok.lex, &ar0));
+        if (!thead) te = (proven_size_t)-1;
+    }
     if (te == (proven_size_t)-1) {
         if (c->strict)
             dt_diag(c, f->kids[1], "E-LET-NOTYPE",
@@ -734,12 +805,20 @@ static void dt_walk(dt_ctx_t *c, low_cst_t *nd) {
     for (proven_size_t i = 0; i < nd->nkids; i++) dt_walk(c, nd->kids[i]);
     c->ntp = save;
 }
+static void dt_run(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict, bool migrate);
 void low_decl_order(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict) {
+    dt_run(pr, node_alloc, work, strict, false);
+}
+// `--fmt` 용 — 옛 모양을 새 모양으로 **표면에서** 옮긴다(안쪽 모양으로 바꾸는 low_decl_order 의 반대 방향).
+void low_decl_migrate(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    dt_run(pr, node_alloc, work, false, true);
+}
+static void dt_run(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict, bool migrate) {
     dt_ctx_t *c = (dt_ctx_t *)work.alloc_fn(work.ctx, sizeof(dt_ctx_t), alignof(dt_ctx_t)).value.ptr;
     if (!c) return;
     memset(c, 0, sizeof *c);
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
-    c->strict = strict;
+    c->strict = strict; c->migrate = migrate;
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         const low_cst_t *f = pr->forms[i];
         if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE &&

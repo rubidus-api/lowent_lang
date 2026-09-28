@@ -96,7 +96,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 - `input comptime a type .` 은 할당기의 타입이다. 번역할 때 구체 타입으로 정해진다(#chref("generics")).
 #idx("using")
 - `using al a .` 은 그 타입의 할당기 값을 `al` 이라는 이름으로 받는다. `using` 은 입력이 아니다. 부르는 쪽은 인자
-  자리에 적지 않고, 바인딩에 `let n u64 using b be two_from .` 으로 적는다.
+  자리에 적지 않고, 바인딩에 `let n using b be u64 two_from .` 으로 적는다.
 - `requires allocs.byte_allocator a .` 는 `a` 가 트레이트를 갖추어야 한다는 조건이다(#chref("traits")).
 - `effects state via a .` 는 할당기의 `reserve` 가 내는 효과가 곧 이 op 의 효과라는 뜻이다.
 
@@ -298,12 +298,12 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   id: "fixed-memory-glance",
   caption: [할당기의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`var a allocs.bump_bytes be spawn actor allocs.bump_bytes .`], [할당기(상태)를 띄운다], [상태는 액터 값 --- 전역 할당기가 없다],
+  [`var a be allocs.bump_bytes spawn actor allocs.bump_bytes .`], [할당기(상태)를 띄운다], [상태는 액터 값 --- 전역 할당기가 없다],
   [`send a init buf`], [잘라 줄 바이트를 건다], [할당기는 몰래 메모리를 만들지 않는다],
   [`send a reserve 3` · `send a used`], [조각을 청한다(`option`) · 쓴 양], [부족은 트랩이 아니라 값],
   [`input comptime a type .`], [할당기의 타입(정책)을 번역 때 받는다], [갈아 끼우기의 실행 비용이 0],
   [`using al a .`], [그 타입의 할당기 값을 받는다 --- 입력이 아니다], [부르는 자리의 인자에 끼지 않는다],
-  [`let n u64 using g be two_from .`], [이 호출이 깎을 할당기를 적는다], [둘 이상이면 짐작하지 않는다],
+  [`let n using g be u64 two_from .`], [이 호출이 깎을 할당기를 적는다], [둘 이상이면 짐작하지 않는다],
   [`effects state via a .` · `requires allocs.byte_allocator a .`], [타입의 효과를 물려받는다 · 트레이트 조건], [인스턴스마다 효과가 정확하다],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [뿌리에서 곧장 깎는 기본 할당기], [같은 종류의 권한을 쥔 op 만 띄운다 --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [마지막 조각을 늘린다 · 돌려받는다], [크기가 아니라 `same_slice` 로 정체를 확인한다],

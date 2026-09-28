@@ -20,8 +20,8 @@ end
 
 proc use_counter output u64 . effects state .
 do
-  var c counter be spawn actor counter .
-  let a u64 be send c inc .
-  let b u64 be send c inc .
+  var c be counter spawn actor counter .
+  let a be u64 send c inc .
+  let b be u64 send c inc .
   return send c get .
 end

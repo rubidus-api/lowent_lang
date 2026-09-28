@@ -3,7 +3,7 @@ rem expect: E-IMMUTABLE
 
 fn f output u64 .
 do
-  let a u64 be 1 .
+  let a be u64 1 .
   set a 2 .
   return a .
 end

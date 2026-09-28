@@ -23,26 +23,26 @@ proc main .
   output u8 .
   effects alloc io .
 do
-  let src option slice u8 . be arg a 0 .
+  let src be option slice u8 arg a 0 .
   guard is_some src . else return 64 .
 
-  let g option mut slice u8 . . be alloc_bytes al capacity 8 .
+  let g be option mut slice u8 alloc_bytes al capacity 8 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
+  let buf be mut slice u8 some_value g .
 
-  let ri result files.handle files.file_error . be files.open fs (some_value src) 0 .
+  let ri be result files.handle files.file_error files.open fs (some_value src) 0 .
   guard is_ok ri . else return 71 .
-  var rh owned files.handle be ok_value ri .
+  var rh be owned files.handle ok_value ri .
 
   rem ★ 오프셋 6 으로 건너뛴다(whence 0 = 절대) → 새 위치 6
-  let s1 result u64 files.file_error . be files.seek_to fs rh 6 0 .
+  let s1 be result u64 files.file_error files.seek_to fs rh 6 0 .
   guard is_ok s1 . else return 72 .
   guard eq (ok_value s1) 6 . else return 73 .
 
   rem 거기서 4 바이트 읽으면 "beta" 여야 한다 — "alpha\n" 을 건너뛴 증거
-  let n result (option u64) files.file_error . be files.read fs rh (subslice buf 0 4) .
+  let n be result (option u64) files.file_error files.read fs rh (subslice buf 0 4) .
   guard is_ok n . else return 74 .
-  let nv option u64 . be ok_value n .
+  let nv be option u64 ok_value n .
   guard is_some nv . else return 74 .
   guard eq (some_value nv) 4 . else return 75 .
   guard eq (index buf 0) 98 . else return 80 .           rem 'b'
@@ -51,10 +51,10 @@ do
   guard eq (index buf 3) 97 . else return 83 .           rem 'a'
 
   rem ★ 끝으로 건너뛰어 파일 크기를 얻는다(offset 0, whence 2 = end)
-  let sz result u64 files.file_error . be files.seek_to fs rh 0 2 .
+  let sz be result u64 files.file_error files.seek_to fs rh 0 2 .
   guard is_ok sz . else return 76 .
 
-  let c result void files.file_error . be files.close fs rh .
+  let c be result void files.file_error files.close fs rh .
   guard is_ok c . else return 77 .
   return (narrow u8 (ok_value sz)) .                    rem sample.txt = 23
 end

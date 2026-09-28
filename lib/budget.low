@@ -101,7 +101,7 @@ do
   if lt gen_bits 64 . do
     guard lt gen (shl 1 gen_bits) . else return none .
   end
-  let g u64 be shl gen (add slot_bits shard_bits) .
+  let g be u64 shl gen (add slot_bits shard_bits) .
   return some (bit_or (bit_or slot (shl shard slot_bits)) g) .
 end
 

@@ -10,12 +10,12 @@ newtype roleset u32 .
 
 rem ✗ 여기가 거절돼야 한다.
 proc reuse_role output u64 . effects none . do
-  var root owned shard.token roleset . be shard.open roleset 2 .
-  let hs shard.halves roleset . be shard.split_at roleset root 1 .
-  var r0 owned shard.token roleset . be field hs low .
-  var r1 owned shard.token roleset . be field hs high .
-  let a option (shard.token roleset) . be shard.rejoin roleset r0 r1 .
-  let b option (shard.token roleset) . be shard.rejoin roleset r0 r1 .
+  var root be (owned shard.token roleset) shard.open roleset 2 .
+  let hs be (shard.halves roleset) shard.split_at roleset root 1 .
+  var r0 be (owned shard.token roleset) field hs low .
+  var r1 be (owned shard.token roleset) field hs high .
+  let a be option (shard.token roleset) shard.rejoin roleset r0 r1 .
+  let b be option (shard.token roleset) shard.rejoin roleset r0 r1 .
   guard is_some a . else return 1 .
   guard is_some b . else return 2 .
   return 42 .

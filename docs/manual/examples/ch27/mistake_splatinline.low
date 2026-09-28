@@ -3,9 +3,9 @@ rem expect: E-VEC-SPLAT
 
 fn capped input b slice u8 . output u32 .
 do
-  var xs slice u32 be view_array u32 b .
-  var v vec u32 4 be load xs 0 .
+  var xs be slice u32 view_array u32 b .
+  var v be vec u32 4 load xs 0 .
   rem ko: ✘ `splat` 을 식 안에 바로 적었다 --- 레인 수를 말해 줄 타입이 없다 /// en: ✘ `splat` written inline --- nothing says how many lanes
-  var over mask 4 be gt v (splat 5) .
+  var over be mask 4 gt v (splat 5) .
   return reduce_add (select over v v) .
 end

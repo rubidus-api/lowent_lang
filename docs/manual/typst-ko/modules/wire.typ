@@ -17,9 +17,9 @@ wire.merge mask w v  →  (w & ~mask) | put     낱말의 그 칸만 갈아 끼�
 
 ```lowent
 fn m_month output u64 . do return 64424509440 . end
-let mo u64 be wire.pick (m_month) w .
+let mo be u64 wire.pick (m_month) w .
 guard wire.fits (m_month) 9 . else return 1 .
-let w2 u64 be wire.merge (m_month) w 9 .
+let w2 be u64 wire.merge (m_month) w 9 .
 ```
 
 #aside[이 모듈이 지키는 것][

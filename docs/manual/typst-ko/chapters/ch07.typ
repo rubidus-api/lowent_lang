@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  #chref("locals")에서 `let x u64 be if gt a 1 . 5 else 6 .` 은 왜 거절되었고, 갈래마다 값을 정하려면
+  #chref("locals")에서 `let x be u64 if gt a 1 . 5 else 6 .` 은 왜 거절되었고, 갈래마다 값을 정하려면
   어떻게 적는가?
 ][
   `if` 는 값을 내지 않는 문장이라서 식의 자리에 둘 수 없다(`E-IF-VALUE`). 갈래마다 값을 정하려면 `var`
@@ -182,8 +182,8 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
   ```lowent
   fn odd_count input xs slice u8 . output u64 .
   do
-    var n u64 be 0 .
-    var i u64 be 0 .
+    var n be u64 0 .
+    var i be u64 0 .
     while lt i (len xs) . do
       if eq (mod (index xs i) 2) 0 . do
         continue .

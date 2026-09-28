@@ -46,10 +46,10 @@ fn n_samples input s slice sample . output u64 . do
 end
 
 fn sum_values input s slice sample . output u64 . do
-  var t u64 be 0 .
-  var i u64 be 0 .
+  var t be u64 0 .
+  var i be u64 0 .
   while lt i (len s) . do
-    let p be index s i . .
+    let p be sample index s i . .
     set t expr t + (field p value) . .
     set i expr i + 1 . .
   end
@@ -70,8 +70,8 @@ end
 
 rem ★ 헤더 읽기 — 중첩 필드.
 fn header_major input b slice u8 . output u8 . do
-  let h be view header b . .
-  let v be field h ver . .
+  let h be header view header b . .
+  let v be version field h ver . .
   return field v major .
 end
 
@@ -92,10 +92,10 @@ end
 rem ★ 액터를 만들고 메시지를 보낸다 — **순수하지 않다.** 전엔 `fn … effects none` 이었고
 rem   효과 검사기가 빌트인 효과를 **머리 자리에서만** 세어서 통과했다(spawn/send 가 식 안에 중첩).
 proc count_stream input s slice sample . output u64 . effects state . do
-  var t tally be spawn actor tally . .
-  var i u64 be 0 .
+  var t be tally spawn actor tally . .
+  var i be u64 0 .
   while lt i (len s) . do
-    var one u64 be send t bump .
+    var one be u64 send t bump .
     set i expr i + 1 . .
   end
   return send t total .

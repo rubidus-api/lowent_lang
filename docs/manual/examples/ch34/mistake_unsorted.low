@@ -5,16 +5,16 @@ use searchlib .
 
 proc find42 input al cap allocator . output u64 . effects alloc .
 do
-  let g option mut slice u8 be alloc_bytes al capacity 40 .
+  let g be option mut slice u8 alloc_bytes al capacity 40 .
   guard is_some g . else return 255 .
-  var xs mut slice u64 be view_array u64 (some_value g) .
+  var xs be mut slice u64 view_array u64 (some_value g) .
   set (index xs 0) 42 .
   set (index xs 1) 7 .
   set (index xs 2) 19 .
   set (index xs 3) 3 .
   set (index xs 4) 25 .
   rem ko: ✘ 정렬하지 않고 이진 탐색한다 --- 42 가 있는데 못 찾는다 /// en: ✘ binary search without sorting --- 42 is there, yet it is not found
-  let at option u64 be searchlib.bsearch xs 42 .
+  let at be option u64 searchlib.bsearch xs 42 .
   guard is_some at . else return 99 .
   return some_value at .
 end

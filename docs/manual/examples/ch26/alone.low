@@ -8,7 +8,7 @@ end
 
 proc lonely output u64 . effects state concurrent .
 do
-  var ch u64 be channel u64 .
+  var ch be u64 channel u64 .
   task_group do
     spawn consumer ch .
   end

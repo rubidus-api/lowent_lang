@@ -248,7 +248,7 @@ module ex_io .
 rem 출력하려면 `cap io` 를 인자로 받아야 한다.
 proc main input out cap io . output u8 . effects io .
 do
-  let n u64 be write_out out 1 "hello\n" .
+  let n be u64 write_out out 1 "hello\n" .
   return narrow u8 n .
 end
 ```
@@ -258,7 +258,7 @@ module ex_io_bad .
 
 proc main output u8 . effects io .
 do
-  let n u64 be write_out 1 "hello\n" .   rem 권한을 안 받았다
+  let n be u64 write_out 1 "hello\n" .   rem 권한을 안 받았다
   return narrow u8 n .
 end
 ```
@@ -283,15 +283,15 @@ end
 rem 부르는 쪽은 자기가 받은 `k` 를 **그냥 이름으로 넘긴다**.
 proc say_twice input k cap io . input msg slice u8 . output u64 . effects io .
 do
-  let a u64 be say k msg .
-  let b u64 be say k msg .
+  let a be u64 say k msg .
+  let b be u64 say k msg .
   return add a b .
 end
 
 rem 시작점은 권한을 **바깥에서** 받는다 — 아무도 스스로 만들지 못한다.
 proc main input k cap io . output u8 . effects io .
 do
-  let n u64 be say_twice k "hi\n" .
+  let n be u64 say_twice k "hi\n" .
   guard eq n 6 . else return 1 .
   return 0 .
 end
@@ -425,7 +425,7 @@ end
 
 unsafe proc drive input dev cap mmio . input regs mut slice u8 . output u32 . effects device unsafe .
 do
-  var g gpio . be view gpio regs .
+  var g be gpio view gpio regs .
   set (field g moder) 2 .       rem 보통 칸 쓰기 — 처리기가 없애도 되는 연산이다
   return 0 .
 end

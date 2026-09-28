@@ -9,11 +9,11 @@ A table finding values by key, with key and value types *of your choosing*. Each
 types, one value owns storage and allocator, and it rehashes itself when full.
 
 ```lowent
-let mo option (mapgen.table u32 u64) . using bump be mapgen.open u32 u64 4 .
+let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
 guard is_some mo . else return 1 .
-var m mapgen.table u32 u64 . be some_value mo .
+var m be (mapgen.table u32 u64) some_value mo .
 guard mapgen.insert u32 u64 m 7 900 . else return 2 .
-let x option u64 . be mapgen.lookup u32 u64 m 7 .
+let x be option u64 mapgen.lookup u32 u64 m 7 .
 guard mapgen.erase u32 u64 m 7 . else return 3 .
 ```
 
@@ -43,17 +43,17 @@ The key array is `slots × size_of k` bytes and the value array `slots × size_o
 `table u32 u64` takes 104. The arithmetic differs per instance.
 
 ```lowent
-var at u64 be 0 .
-var total u64 be 0 .
-var going bool be true .
+var at be u64 0 .
+var total be u64 0 .
+var going be bool true .
 while going . do
-  let nx option u64 . be mapgen.next_used u32 u64 m at .
+  let nx be option u64 mapgen.next_used u32 u64 m at .
   guard is_some nx . else do
     set going false .
     continue .
   end
-  let s u64 be some_value nx .
-  let v option u64 . be mapgen.val_at u32 u64 m s .
+  let s be u64 some_value nx .
+  let v be option u64 mapgen.val_at u32 u64 m s .
   guard is_some v . else return none .
   set total (add total (some_value v)) .
   set at (add s 1) .

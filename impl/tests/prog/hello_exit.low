@@ -17,7 +17,7 @@ rem   그것은 RFC 가 **명시적으로 거부한 것**이다. 인자를 선�
 
 module hello_exit .
 
-let LIMIT u8 be 10 .
+let LIMIT be u8 10 .
 
 fn clamp input a u8 . output u8 . do
   guard le a LIMIT . else return LIMIT .

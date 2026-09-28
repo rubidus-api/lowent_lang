@@ -11,22 +11,22 @@ module vm_vshuffle .
 type bytes slice u8 . .
 
 proc rev input b bytes . input out mut slice u8 . output u64 . effects none . do
-  var xs slice u32 . be view_array u32 b .
-  var v vec u32 4 . be load xs 0 .
+  var xs be slice u32 view_array u32 b .
+  var v be vec u32 4 load xs 0 .
   store out 0 reverse v .
   return 0 .
 end
 
 proc rot input b bytes . input out mut slice u8 . output u64 . effects none . do
-  var xs slice u32 . be view_array u32 b .
-  var v vec u32 4 . be load xs 0 .
+  var xs be slice u32 view_array u32 b .
+  var v be vec u32 4 load xs 0 .
   store out 0 rotate v 1 .
   return 0 .
 end
 
 proc shuf input b bytes . input out mut slice u8 . output u64 . effects none . do
-  var xs slice u32 . be view_array u32 b .
-  var v vec u32 4 . be load xs 0 .
+  var xs be slice u32 view_array u32 b .
+  var v be vec u32 4 load xs 0 .
   store out 0 shuffle v 3 2 1 0 .
   return 0 .
 end

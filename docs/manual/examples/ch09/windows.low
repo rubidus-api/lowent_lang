@@ -5,8 +5,8 @@ rem run: prefix_char 4
 fn middle_sum input xs slice u8 . output u64 .
   requires ge (len xs) 3 .
 do
-  let mid slice u8 be subslice xs 1 (sub (len xs) 1) .
-  var s u64 be 0 .
+  let mid be slice u8 subslice xs 1 (sub (len xs) 1) .
+  var s be u64 0 .
   for x mid do
     set s (add s (widen u64 x)) .
   end

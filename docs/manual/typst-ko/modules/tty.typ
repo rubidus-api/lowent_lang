@@ -9,10 +9,10 @@
 방향키는 한 바이트가 아니다 --- `↑` 는 `ESC [ A` 세 바이트, `Delete` 는 `ESC [ 3 ~` 네 바이트다. 그 바이트열을 키로 읽어 주는 것이 `parse_key` 다.
 
 ```lowent
-let p option u64 . be tty.parse_key buf 0 .
+let p be option u64 tty.parse_key buf 0 .
 guard is_some p . else return none .
-let code u64 be tty.key_of (some_value p) .
-let used u64 be tty.len_of (some_value p) .
+let code be u64 tty.key_of (some_value p) .
+let used be u64 tty.len_of (some_value p) .
 ```
 
 #aside[raw 모드는 사용자의 터미널 설정을 바꾸고, 그 변경은 프로그램이 죽어도 남는다][
@@ -52,32 +52,32 @@ module keydemo .
 use tty .
 
 proc main input t cap tty . input al cap allocator . output u8 . effects alloc . do
-  let g option mut slice u8 . . be alloc_bytes al capacity 32 .
+  let g be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some g . else return 1 .
-  let buf mut slice u8 . be some_value g .
+  let buf be mut slice u8 some_value g .
   guard tty_raw t true . else return 1 .
-  var going bool be true .
-  var last u64 be 0 .
+  var going be bool true .
+  var last be u64 0 .
   while going . do
-    let n option u64 . be tty_read t buf .
+    let n be option u64 tty_read t buf .
     guard is_some n . else do
       set going false .
       continue .
     end
-    var off u64 be 0 .
+    var off be u64 0 .
     while lt off (some_value n) . do
-      let p option u64 . be tty.parse_key (subslice buf 0 (some_value n)) off .
+      let p be option u64 tty.parse_key (subslice buf 0 (some_value n)) off .
       guard is_some p . else do
         set off (some_value n) .
         continue .
       end
-      let code u64 be tty.key_of (some_value p) .
+      let code be u64 tty.key_of (some_value p) .
       set last code .
       if eq code 113 . do set going false . end
       set off (add off (tty.len_of (some_value p))) .
     end
   end
-  let r bool be tty_raw t false .
+  let r be bool tty_raw t false .
   return narrow u8 last .
 end
 ```

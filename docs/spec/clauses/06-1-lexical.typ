@@ -28,7 +28,7 @@
       `rem` 과 `note` 는 이름이 아니다. 이 둘로 시작하는 자리는 언제나 주석이다.
     ]
     #ex("주석", "rem 이 줄은 전부 주석이다. 한글도 쓸 수 있다.
-let n u32 be 42 .   rem 여기서부터 줄 끝까지도 주석이다.")
+let n be u32 42 .   rem 여기서부터 줄 끝까지도 주석이다.")
     #ex("여러 줄 주석", "module ex_note .
 
 note DOC
@@ -318,10 +318,10 @@ end",
       그 밖의 이름은 거부된다. 조용히 통과시키면 `hex"41"` 이 이름 없는 무언가가 되기
       때문이다.
     ]
-    #ex("리터럴", "let dec u32 be 42 .
-let hex u32 be 0x2A .
-let big u32 be 1_000_000 .
-let flag bool be true .")
+    #ex("리터럴", "let dec be u32 42 .
+let hex be u32 0x2A .
+let big be u32 1_000_000 .
+let flag be bool true .")
     #ex("부동소수 리터럴", "module ex_float .
 
 fn plain output f64 . do return 1.5 . end
@@ -343,18 +343,18 @@ fn negat output f64 . do return -1.5 . end",
 
 fn f output f64 .
 do
-  let x f64 be 3 .     rem 3 은 정수 리터럴이다 — 3.0 이라고 적어야 한다
+  let x be f64 3 .     rem 3 은 정수 리터럴이다 — 3.0 이라고 적어야 한다
   return x .
 end", "E-TYPE-LET")
     #rejected("타입의 범위를 벗어난 리터럴", "module ex_lit .
 
 proc p output u8 . effects none .
 do
-  let x u8 be 300 .     rem 300 은 u8 의 범위(0~255) 밖이다
+  let x be u8 300 .     rem 300 은 u8 의 범위(0~255) 밖이다
   return 0 .
 end", "E-TYPE-WIDTH")
     #caution("정수 리터럴이 조용히 잘리지 않는다")[
-      `let x u8 be 300 .` 은 번역되지 아니한다. 300 은 `u8` 의 범위(0~255) 밖이기 때문이다.
+      `let x be u8 300 .` 은 번역되지 아니한다. 300 은 `u8` 의 범위(0~255) 밖이기 때문이다.
       어떤 언어는 이것을 44 로 잘라서 받아들이는데, 그러면 소스에 적힌 300 과 실제 값 44 가
       달라진다 — 소스를 읽고도 값을 모르게 되는 것이다.
     ]
@@ -376,8 +376,8 @@ end", "E-TYPE-WIDTH")
       점의 개수는 **검사합**이다 — 열린 폼의 수와 점의 수가 맞지 않으면 처리기가 진단을
       낸다. 그래서 괄호를 잘못 닫은 프로그램이 조용히 다른 뜻으로 읽히는 일이 없다.
     ]
-    #ex("전위 표기와 점", "let total u32 be add 1 2 .
-let mixed u32 be add 1 (mul 2 3) .")
+    #ex("전위 표기와 점", "let total be u32 add 1 2 .
+let mixed be u32 add 1 (mul 2 3) .")
     #para("5")[
       점은 **떨어져 있을 때만** 닫는다. 이름에 **붙은** 점은 닫지 않고
       #t("한정", "qualification") 을 뜻한다 — 그리고 한정의 뜻은 **셋뿐**이다:
@@ -417,7 +417,7 @@ let mixed u32 be add 1 (mul 2 3) .")
       여는 `do` 바로 뒤의 점도 같다.
     ]
     #para("2c")[
-      블록을 품은 **값**을 쓰는 문장 — `let x t be make t do … end .` · `return pipe xs do … end .` —
+      블록을 품은 **값**을 쓰는 문장 — `let x be t make t do … end .` · `return pipe xs do … end .` —
       은 블록을 몸으로 갖지 아니하므로, 여느 문장처럼 **자기 점**으로 닫는다. 괄호 안이면
       `)` 가 닫는다.
     ]
@@ -427,7 +427,7 @@ let mixed u32 be add 1 (mul 2 3) .")
     #diagram("end 는 블록만 닫고, 마침표는 문장을 닫는다", "if eq a 0 . do return 1 . end    ← if 문: 블록을 몸으로 갖는다 --- end 에서 끝난다
 └───────────────────────────┘ if 문
 
-let p pt be make pt do x 1 . end .    ← let 문: 블록을 값으로 쓴다 --- 자기 . 으로 끝난다
+let p be pt make pt do x 1 . end .    ← let 문: 블록을 값으로 쓴다 --- 자기 . 으로 끝난다
             └──────────────────┘ │   ← └┘ 는 make 의 블록, │ 는 let 의 마침표
 └────────────────────────────────┘ let 문")
     #rejected("몸으로 갖는 블록의 `end` 뒤에는 점이 없다", "module ex_dot_after_end .
@@ -443,7 +443,7 @@ struct pt do
 end
 
 fn f output u64 . do
-  let p pt be make pt do x 1 . end
+  let p be pt make pt do x 1 . end
   return field p x .
 end", "E-DOT-MISSING")
     #rejected("머리 없는 블록", "module ex_block_nohead .

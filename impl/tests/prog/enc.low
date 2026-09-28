@@ -40,7 +40,7 @@ use allocs  from "../../../lib/alloc.low" .
 rem ★ 두 바이트열이 같은가 — 왕복 검산이 쓴다.
 fn same_bytes input a slice u8 . input b slice u8 . output bool . do
   if ne (len a) (len b) . do return false . end
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len a) . do
     if ne (index a i) (index b i) . do return false . end
     set i (add i 1) .
@@ -52,41 +52,41 @@ rem ★ 글자 종류를 센다 — `unicode` 의 표가 실제로 쓰이는 자
 proc scan_kinds input src slice u8 . input dst mut slice u8 . . input pos0 u64 .
   output option u64 . effects none .
 do
-  var at u64 be 0 .
-  var n_letters u64 be 0 .
-  var n_digits u64 be 0 .
-  var n_spaces u64 be 0 .
-  var n_others u64 be 0 .
+  var at be u64 0 .
+  var n_letters be u64 0 .
+  var n_digits be u64 0 .
+  var n_spaces be u64 0 .
+  var n_others be u64 0 .
   while lt at (len src) . do
-    let d option u64 . be utf8.decode src at .
+    let d be option u64 utf8.decode src at .
     guard is_some d . else return none .
-    let cp u64 be some_value d .
+    let cp be u64 some_value d .
     if unicode.is_letter cp . do set n_letters (add n_letters 1) . end
     if unicode.is_number cp . do set n_digits (add n_digits 1) . end
     if unicode.is_space cp . do set n_spaces (add n_spaces 1) . end
     if eq (unicode.is_alnum cp) false . do
       if eq (unicode.is_space cp) false . do set n_others (add n_others 1) . end
     end
-    let nx option u64 . be utf8.next_start src at .
+    let nx be option u64 utf8.next_start src at .
     guard is_some nx . else return none .
     set at (some_value nx) .
   end
-  var pos u64 be pos0 .
-  let sk1 option u64 . be fmt.put_u64 dst pos n_letters .
+  var pos be u64 pos0 .
+  let sk1 be option u64 fmt.put_u64 dst pos n_letters .
   guard is_some sk1 . else return none .
-  let sk2 option u64 . be fmt.put_str dst (some_value sk1) " letters, " .
+  let sk2 be option u64 fmt.put_str dst (some_value sk1) " letters, " .
   guard is_some sk2 . else return none .
-  let sk3 option u64 . be fmt.put_u64 dst (some_value sk2) n_digits .
+  let sk3 be option u64 fmt.put_u64 dst (some_value sk2) n_digits .
   guard is_some sk3 . else return none .
-  let sk4 option u64 . be fmt.put_str dst (some_value sk3) " digits, " .
+  let sk4 be option u64 fmt.put_str dst (some_value sk3) " digits, " .
   guard is_some sk4 . else return none .
-  let sk5 option u64 . be fmt.put_u64 dst (some_value sk4) n_spaces .
+  let sk5 be option u64 fmt.put_u64 dst (some_value sk4) n_spaces .
   guard is_some sk5 . else return none .
-  let sk6 option u64 . be fmt.put_str dst (some_value sk5) " spaces, " .
+  let sk6 be option u64 fmt.put_str dst (some_value sk5) " spaces, " .
   guard is_some sk6 . else return none .
-  let sk7 option u64 . be fmt.put_u64 dst (some_value sk6) n_others .
+  let sk7 be option u64 fmt.put_u64 dst (some_value sk6) n_others .
   guard is_some sk7 . else return none .
-  let sk8 option u64 . be fmt.put_str dst (some_value sk7) " other" .
+  let sk8 be option u64 fmt.put_str dst (some_value sk7) " other" .
   guard is_some sk8 . else return none .
   return some (some_value sk8) .
 end
@@ -99,50 +99,50 @@ proc main .
   output u8 .
   effects alloc io .
 do
-  let m0 option slice u8 . be arg a 0 .
+  let m0 be option slice u8 arg a 0 .
   guard is_some m0 . else return 64 .
-  let p0 option slice u8 . be arg a 1 .
+  let p0 be option slice u8 arg a 1 .
   guard is_some p0 . else return 64 .
-  let mode slice u8 be some_value m0 .
-  let path slice u8 be some_value p0 .
+  let mode be slice u8 some_value m0 .
+  let path be slice u8 some_value p0 .
 
-  let gsrc option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  let gsrc be option mut slice u8 alloc_bytes al capacity 4096 .
   guard is_some gsrc . else return 70 .
-  let srcbuf mut slice u8 . be some_value gsrc .
-  let sn result u64 files.file_error . be files.slurp fs path srcbuf .
+  let srcbuf be mut slice u8 some_value gsrc .
+  let sn be result u64 files.file_error files.slurp fs path srcbuf .
   guard is_ok sn . else return 66 .
-  let src slice u8 be subslice srcbuf 0 (ok_value sn) .
+  let src be slice u8 subslice srcbuf 0 (ok_value sn) .
 
-  let genc option mut slice u8 . . be alloc_bytes al capacity 16384 .
+  let genc be option mut slice u8 alloc_bytes al capacity 16384 .
   guard is_some genc . else return 70 .
-  let encbuf mut slice u8 . be some_value genc .
+  let encbuf be mut slice u8 some_value genc .
 
-  let gback option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  let gback be option mut slice u8 alloc_bytes al capacity 4096 .
   guard is_some gback . else return 70 .
-  let backbuf mut slice u8 . be some_value gback .
+  let backbuf be mut slice u8 some_value gback .
 
   rem ── hex ─────────────────────────────────────────────────────────────────
   if eq (len mode) 3 . do
     if eq (index mode 0) 104 . do
-      let e option u64 . be codec.hex_enc src encbuf .
+      let e be option u64 codec.hex_enc src encbuf .
       guard is_some e . else return 71 .
-      let enc slice u8 be subslice encbuf 0 (some_value e) .
+      let enc be slice u8 subslice encbuf 0 (some_value e) .
       rem ★ 낸 것을 **되돌려 본다** — 다르면 그 인코딩은 거짓말이다.
-      let b option u64 . be codec.hex_dec enc backbuf .
+      let b be option u64 codec.hex_dec enc backbuf .
       guard is_some b . else return 2 .
       guard same_bytes src (subslice backbuf 0 (some_value b)) . else return 2 .
-      let w u64 be write_out out 1 enc .
+      let w be u64 write_out out 1 enc .
       return 0 .
     end
     if eq (index mode 0) 98 . do
       rem ★ 이름을 갈라 준다 — 이름공간이 평평해서 같은 이름을 두 가지에 못 쓴다(E-NAME-DUP).
-      let e6 option u64 . be codec.b64_enc src encbuf .
+      let e6 be option u64 codec.b64_enc src encbuf .
       guard is_some e6 . else return 71 .
-      let enc6 slice u8 be subslice encbuf 0 (some_value e6) .
-      let b6 option u64 . be codec.b64_dec enc6 backbuf .
+      let enc6 be slice u8 subslice encbuf 0 (some_value e6) .
+      let b6 be option u64 codec.b64_dec enc6 backbuf .
       guard is_some b6 . else return 2 .
       guard same_bytes src (subslice backbuf 0 (some_value b6)) . else return 2 .
-      let w6 u64 be write_out out 1 enc6 .
+      let w6 be u64 write_out out 1 enc6 .
       return 0 .
     end
   end
@@ -151,11 +151,11 @@ do
   if eq (len mode) 4 . do
     if eq (index mode 0) 115 . do
       guard utf8.is_valid src . else return 65 .
-      let e option u64 . be scan_kinds src encbuf 0 .
+      let e be option u64 scan_kinds src encbuf 0 .
       guard is_some e . else return 72 .
-      let e2 option u64 . be fmt.put_nl encbuf (some_value e) .
+      let e2 be option u64 fmt.put_nl encbuf (some_value e) .
       guard is_some e2 . else return 72 .
-      let w u64 be write_out out 1 (subslice encbuf 0 (some_value e2)) .
+      let w be u64 write_out out 1 (subslice encbuf 0 (some_value e2)) .
       return 0 .
     end
   end
@@ -167,58 +167,58 @@ do
   if eq (len mode) 3 . do
     if eq (index mode 0) 117 . do
       guard utf8.is_valid src . else return 65 .
-      var u16buf mut slice u16 . be view_array u16 encbuf .
-      var rpos u64 be 0 .
-      var wpos u64 be 0 .
-      var n u64 be 0 .
+      var u16buf be mut slice u16 view_array u16 encbuf .
+      var rpos be u64 0 .
+      var wpos be u64 0 .
+      var n be u64 0 .
       while lt rpos (len src) . do
-        let cp option u64 . be utf8.decode src rpos .
+        let cp be option u64 utf8.decode src rpos .
         guard is_some cp . else return 65 .
-        let np option u64 . be utf16.put u16buf wpos (some_value cp) .
+        let np be option u64 utf16.put u16buf wpos (some_value cp) .
         guard is_some np . else return 72 .
         rem ★ 이제 `utf16.put` 도 **새 위치**를 돌려준다(2026-08-15) — `utf8.next_start` 와 같은 축이다.
         rem   이 프로그램이 그 비대칭에 걸려 본 자리이고(첫 판은 글자 수가 1 이 나왔다),
         rem   그래서 여기가 **축이 하나임을 상시 시험하는 자리**이기도 하다.
         set wpos (some_value np) .
-        let nx option u64 . be utf8.next_start src rpos .
+        let nx be option u64 utf8.next_start src rpos .
         guard is_some nx . else return 65 .
         set rpos (some_value nx) .
         set n (add n 1) .
       end
       rem 되돌린다 — 두 축을 나란히 걸으며 코드포인트를 하나씩 맞댄다.
-      let u16v slice u16 be subslice u16buf 0 wpos .
+      let u16v be slice u16 subslice u16buf 0 wpos .
       guard utf16.is_valid u16v . else return 2 .
-      var r2 u64 be 0 .
-      var w2 u64 be 0 .
-      var m u64 be 0 .
+      var r2 be u64 0 .
+      var w2 be u64 0 .
+      var m be u64 0 .
       while lt w2 wpos . do
-        let a2 option u64 . be utf8.decode src r2 .
+        let a2 be option u64 utf8.decode src r2 .
         guard is_some a2 . else return 2 .
-        let b2 option u64 . be utf16.decode u16v w2 .
+        let b2 be option u64 utf16.decode u16v w2 .
         guard is_some b2 . else return 2 .
         guard eq (some_value a2) (some_value b2) . else return 2 .
-        let ra option u64 . be utf8.next_start src r2 .
+        let ra be option u64 utf8.next_start src r2 .
         guard is_some ra . else return 2 .
         set r2 (some_value ra) .
-        let rb option u64 . be utf16.next_start u16v w2 .
+        let rb be option u64 utf16.next_start u16v w2 .
         guard is_some rb . else return 2 .
         set w2 (some_value rb) .
         set m (add m 1) .
       end
       guard eq m n . else return 2 .
       rem ★ 세는 것도 두 모듈이 **따로** 답한다 — 같은 글자 수여야 한다.
-      let c8 option u64 . be utf8.count_chars src .
+      let c8 be option u64 utf8.count_chars src .
       guard is_some c8 . else return 2 .
-      let c16 option u64 . be utf16.count_chars u16v .
+      let c16 be option u64 utf16.count_chars u16v .
       guard is_some c16 . else return 2 .
       guard eq (some_value c8) (some_value c16) . else return 2 .
       rem ★ 답은 **다른 버퍼**에 쓴다 — `encbuf` 는 방금 u16 뷰가 덮고 있던 자리다.
       rem   끝났다고 같은 바이트를 두 뜻으로 겹쳐 쓰면, 다음 사람이 그 겹침을 못 본다.
-      let e3 option u64 . be fmt.put_u64 backbuf 0 n .
+      let e3 be option u64 fmt.put_u64 backbuf 0 n .
       guard is_some e3 . else return 72 .
-      let e4 option u64 . be fmt.put_nl backbuf (some_value e3) .
+      let e4 be option u64 fmt.put_nl backbuf (some_value e3) .
       guard is_some e4 . else return 72 .
-      let w4 u64 be write_out out 1 (subslice backbuf 0 (some_value e4)) .
+      let w4 be u64 write_out out 1 (subslice backbuf 0 (some_value e4)) .
       return 0 .
     end
   end

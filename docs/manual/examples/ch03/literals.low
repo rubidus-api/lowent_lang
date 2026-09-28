@@ -11,34 +11,34 @@ END
 
 rem ko: 정수 — 이진 · 자리 구분 _ · 십육진. 앞자리 0 은 팔진이 아니다 /// en: integers: binary, digit separator _, hexadecimal; a leading 0 is not octal
 fn ints output u64 . do
-  let a u64 be 0b1010 .
-  let b u64 be 1_000_000 .
-  let c u64 be 0xFF_FF .
-  let d u64 be 0755 .
+  let a be u64 0b1010 .
+  let b be u64 1_000_000 .
+  let c be u64 0xFF_FF .
+  let d be u64 0755 .
   return add (add a b) (add c d) .
 end
 
 rem ko: 부동소수 — 지수 e · 십육진 부동소수 p(0x1.8 은 1.5, p1 은 곱하기 2) /// en: floating point: exponent e, hexadecimal float p (0x1.8 is 1.5, p1 multiplies by 2)
 fn floats output f64 . do
-  let e f64 be 1.5e3 .
-  let h f64 be 0x1.8p1 .
+  let e be f64 1.5e3 .
+  let h be f64 0x1.8p1 .
   return add e h .
 end
 
 rem ko: 문자 — 'A' 는 바이트 하나, u'가' 는 UTF-16 코드 유닛 하나, U'😀' 는 코드포인트 하나 /// en: characters: 'A' is one byte, u'가' one UTF-16 code unit, U'😀' one code point
 fn chars output u64 . do
-  let a u8 be 'A' .
-  let k u16 be u'가' .
-  let s u32 be U'😀' .
+  let a be u8 'A' .
+  let k be u16 u'가' .
+  let s be u32 U'😀' .
   return add (widen u64 a) (add (widen u64 k) (widen u64 s)) .
 end
 
 rem ko: 문자열 — \x41 은 정확히 두 자리라 "\x41e" 는 두 바이트, u"가나" 는 코드 유닛 둘 /// en: strings: \x41 takes exactly two digits so "\x41e" is two bytes; u"가나" is two code units
 fn texts output u64 . do
-  let x u64 be len "\x41e" .
-  let w u64 be len u"가나" .
+  let x be u64 len "\x41e" .
+  let w be u64 len u"가나" .
   rem ko: text 태그 … 태그 — 여러 줄을 그대로. 본문의 \n 은 풀지 않는다 /// en: text TAG … TAG holds several lines as written; a \n in the body is not unescaped
-  let h u64 be len text DOC
+  let h be u64 len text DOC
 line one
 a\nb
 DOC .

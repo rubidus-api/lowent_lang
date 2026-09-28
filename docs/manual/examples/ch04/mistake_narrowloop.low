@@ -4,8 +4,8 @@ rem expect: E-TYPE-WIDTH
 fn tally output u64 .
 do
   rem ko: ✘ u8 반복 변수는 255 다음이 없다 --- 256 번째 `add i 1` 에서 멈춘다 /// en: ✘ a u8 loop counter has nothing after 255 --- the 256th `add i 1` stops
-  var i u8 be 0 .
-  var n u64 be 0 .
+  var i be u8 0 .
+  var n be u64 0 .
   while lt i 256 . do
     set n (add n 1) .
     set i (add i 1) .

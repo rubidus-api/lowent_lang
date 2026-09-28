@@ -67,7 +67,7 @@ static bool is_atom_word(const low_cst_t *nd, const char *s) {
 //
 //   실측(2026-08-01):
 //       proc p output result u64 e1 . errors a1 . do return error a1 . end
-//       proc q output result u64 e2 . errors b2 . do let v u64 be try p . return ok v . end
+//       proc q output result u64 e2 . errors b2 . do let v be u64 try p . return ok v . end
 //       ⇒ `--check` 초록. 그리고 `q()` 는 **`err a1`** 을 냈다 — **다른 enum 의 변형**이,
 //         자기 `errors` 절에 없는 이름이, 선언된 오류 타입 밖에서 나왔다.
 //   ⇒ 절이 **거짓말**이었다. 계약이 거짓이면 그 위의 모든 것(진단·테스트 오라클·호출자의
@@ -157,7 +157,7 @@ static void ct_walk_errors_in(ct_ctx_t *c, const low_cst_t *nd, bool consumed) {
         //   못했다(C 컴파일러가 «returning lw_r but long long expected»). 두 뒤끝이 갈리는 자리다.
         // ★ 꼬리를 붙인 `try`(`else_none` · `else_error`)는 **채널을 바꾼다**(§6.5.8(4)) —
         //   실패가 위로 가지 않으므로 이 op 이 `result` 일 필요가 없다.
-        // ★ `let r result … be try … .` — 값이 **result 이름에 담기면** 실패는 밖으로 나가지 않는다.
+        // ★ `let r be (result …) try … .` — 값이 **result 이름에 담기면** 실패는 밖으로 나가지 않는다.
         // ★ 이 폼 자신이 «소비하는» 자리인가 — `--flat`(정규화 끈 대조 스위치)에서는 `try` 가
         //   소비 op 과 **같은 폼의 형제**로 온다(나무에서는 자식이다). 두 모양을 같게 본다.
         bool head_consumer = false;   // 이 폼 안에 **소비하는 낱말**이 있는가(§6.5.8(3))
@@ -242,7 +242,7 @@ static void ct_walk_errors_in(ct_ctx_t *c, const low_cst_t *nd, bool consumed) {
                     break;
                 }
         }
-    // ★ `let r result … be …` 아래로는 «담긴다» 는 사실을 물려준다 — 그 자리의 실패는
+    // ★ `let r be (result …) …` 아래로는 «담긴다» 는 사실을 물려준다 — 그 자리의 실패는
     //   밖으로 나가지 않는다(§6.5.8(3) 의 «묻는 것·꺼내는 것» 으로 이어진다).
     bool child_consumed = consumed;
     // ★ 소비하는 낱말이 이 폼에 있으면 **블록이 아닌** 자식에게만 물려준다 — 블록 안은 다른

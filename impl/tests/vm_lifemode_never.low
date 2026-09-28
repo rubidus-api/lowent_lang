@@ -22,7 +22,7 @@ end
 
 rem ✗ 여기가 거절돼야 한다 — 표를 받아 놓고 아무것도 안 한다.
 proc never output u64 . effects none . do
-  var t owned vm_lifemode_never.ticket . be vm_lifemode_never.issue 7 .
+  var t be owned vm_lifemode_never.ticket vm_lifemode_never.issue 7 .
   return 1 .
 end
 

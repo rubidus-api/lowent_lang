@@ -18,7 +18,7 @@ rem    런타임 쪼개기에서도 **발산한다.**)
 
 rem ★ 쪼갤 수 있다 — 각 반복이 **제 원소만** 읽고 쓴다.
 proc dbl input s mut slice u8 . . output u64 . effects none . parallel s split . do
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set (index s i) expr (index s i) * 2 . .
     set i expr i + 1 . .
@@ -35,8 +35,8 @@ rem ① 정수 합 — add 는 결합적이다. 쪼갤 수 있다.
 fn isum input s mut slice u8 . . output u64 .
   parallel s split . reduce acc add .
 do
-  var acc u64 be 0 .
-  var i u64 be 0 .
+  var acc be u64 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set acc expr acc + (index s i) . .
     set i expr i + 1 . .

@@ -242,7 +242,7 @@ static bool low_read_run(low_parser_t *p, proven_array_t *ops, bool headed_ok) {
         low_tok_kind_t k = low_curk(p);
         if (k == LOW_TOK_DOT) return false;
         // ★ X-0059 — 문장을 여는 낱말(`let`·`var`·`return`·`guard`)은 피연산자가 될 수 없다. 폼 한가운데서 만나면
-        //   앞 문장의 점이 빠진 것이다(`let x u64 be a` ⏎ `return x .`). 전엔 둘이 한 폼이 되어 엉뚱한 진단
+        //   앞 문장의 점이 빠진 것이다(`let x be u64 a` ⏎ `return x .`). 전엔 둘이 한 폼이 되어 엉뚱한 진단
         //   (`E-RETURN-PARTIAL`)이 났다. `else` 바로 뒤는 나가는 문장의 자리라 제외한다(`else return 1 .`).
         //   머리가 낱말이 아닌 폼(`// …` 같은 없는 표기)은 그 진단(E-VOCAB-REMOVED)이 원인을 말하므로 건드리지 않는다.
         const low_cst_t *h0 = ops->len ? *(low_cst_t *const *)PROVEN_ARRAY_GET(ops, low_cst_t *, 0) : NULL;
@@ -255,7 +255,7 @@ static bool low_read_run(low_parser_t *p, proven_array_t *ops, bool headed_ok) {
                 if (pv->kind == LOW_TOK_STRING) col += 2;
                 low_pdiag(p, "E-DOT-MISSING",
                           "the statement before this one is not closed — every statement ends with its own `.` "
-                          "(`let x u64 be a .` then `return x .`). A newline closes nothing", pv->line, col);
+                          "(`let x be u64 a .` then `return x .`). A newline closes nothing", pv->line, col);
                 return false;
             }
         }
@@ -672,7 +672,7 @@ static low_cst_t *low_parse_export(low_parser_t *p) {
 //   — 여섯이 평평한 CST 를 **각자** 훑으며 구조를 다시 알아냈다(kids[] 접근 772회).
 //   그리고 여섯이 **조금씩 다른 답**을 냈다. 이번 세션에만 일곱 번 물렸고, 전부 **조용히 틀린 답**:
 //     · guard 의 else 가 **자식이 아니라 형제**  → IR 이 앞으로 훑어 찾았다
-//     · `var x T . be v .` 가 **두 개의 form**   → IR 이 "split binding" 으로 재조립했다
+//     · `var x be T v .` 가 **두 개의 form**   → IR 이 "split binding" 으로 재조립했다
 //     · make 가 괄호 안팎에서 **두 개의 나무**   → IR 에 반창고를 붙였다
 //     · actor 핸들러의 input 절이 **통째로 버려졌다**
 //
@@ -742,7 +742,7 @@ static void low_norm_seq(low_parser_t *p, low_cst_t *blk) {
             }
         }
 
-        // ── ② `var x <type> . be <value> .` — **be 를 form 안으로 끌어들인다.**
+        // ── ② `var x be <type> <value> .` — **be 를 form 안으로 끌어들인다.**
         //   타입이 자기 닫개를 가지면(`ref u8 .`) 점이 var 를 닫아 버려 `be …` 가 형제가 된다.
         if (hk == LOW_KW_VAR || hk == LOW_KW_LET) {
             bool inline_be = false;
@@ -758,7 +758,7 @@ static void low_norm_seq(low_parser_t *p, low_cst_t *blk) {
                 for (; j < blk->nkids && j <= i + 3; j++) {
                     low_cst_t *v = blk->kids[j];
                     if (v->kind != LOW_CST_FORM || !v->nkids || v->kids[0]->kind != LOW_CST_ATOM) break;
-                    // ★★★★ RFC-0112 D8(3) — `let v <타입> . using <출처> be …` : 타입의 닫개 뒤에 온 `using` 폼도
+                    // ★★★★ RFC-0112 D8(3) — `let v be (<타입> . using <출처>) …` : 타입의 닫개 뒤에 온 `using` 폼도
                     //   `be` 폼처럼 바인딩에 붙인다(그 폼 안에 `be` 가 있을 때).
                     bool using_be = false;
                     if (v->kids[0]->kind == LOW_CST_ATOM && low_view_eq_cstr(v->kids[0]->tok.lex, "using"))
@@ -1159,7 +1159,7 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
             //     **"동작이 같다" 는 "뜻이 같다" 가 아니다.**
             bool blocktail = nd->nkids && nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK;
             // ★★★★ **`spawn actor T` 도 괄호로 싸면 안 된다** (2026-08-26, F-B 작업 중 발견).
-            //   `var b a be (spawn actor a) .` 는 `E-PAREN-STRAY` 다 — 안쪽에 닫개를 넣어도
+            //   `var b be a (spawn actor a) .` 는 `E-PAREN-STRAY` 다 — 안쪽에 닫개를 넣어도
             //   (`(spawn actor a .)`) 마찬가지다. `send`·일반 op 은 괄호가 된다(실측).
             //   ⇒ 이것이 "괄호로 싸면 안 되는" **세 번째** 자리다(else form · 머리 붙은 블록에 이어).
             //   ★ 왜 재파싱 실패 23 개가 이 자리에서 났나: 서식기가 몸통을 한 줄로 접을 때
@@ -1566,7 +1566,7 @@ typedef struct {
     //   ⇒ 파싱 중인 자리의 모듈을 들고 다니며 **제 모듈의 op 을 먼저** 본다.
     // ★★★★★ **지역 이름은 남의 모듈 op 이 아니다** (2026-08-29, spill 30).
     //   되짚기(제 모듈에 없으면 아무 모듈의 동명 op)가 **지역 변수를 훔쳤다**:
-    //     tls13:  `let total u64 be … .` · `guard ge (len info) total . else return 0 .`
+    //     tls13:  `let total be u64 … .` · `guard ge (len info) total . else return 0 .`
     //     segview: `export fn total …`(arity 1)
     //   ⇒ `total` 이 **호출로 묶여 `else` 를 삼켰고**, 검사층은 *"guard 의 else 가 안 떠난다"*
     //     (`E-GUARD-FALLTHROUGH`) 라고 **엉뚱한 것을 탓했다**. 이분해서 찾은 자리다.
@@ -1648,7 +1648,7 @@ static const char *nest_shape(nest_ctx_t *c, proven_u8str_view_t v) {
     // ★★★★★ **제 모듈에 없는 맨이름은 남의 모듈에서 집지 않는다** (2026-08-29, spill 30).
     //   2026-08-15 에 *"맨이름도 제 모듈부터"* 를 넣었지만 **되짚기가 남아 있었다** — 제 모듈에
     //   없으면 아무 모듈의 동명 op 이나 집었다. 그래서 **지역 변수**가 남의 export 로 묶였다:
-    //     tls13:  `let total u64 be … .`  ·  `guard ge (len info) total . else return 0 .`
+    //     tls13:  `let total be u64 … .`  ·  `guard ge (len info) total . else return 0 .`
     //     segview: `export fn total …`(arity 1)
     //   ⇒ `total` 이 호출로 묶여 **`else` 를 삼켰고**, 검사층은 *"guard 의 else 가 안 떠난다"*
     //     (`E-GUARD-FALLTHROUGH`)고 **엉뚱한 것을 탓했다**. 실측으로 이분해 찾은 자리다.

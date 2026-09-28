@@ -23,9 +23,9 @@ end
 proc sorted3 input s mut slice keyed . . output u64 . effects none . do
   guard ge (len s) 3 . else return 90 .
   sortgen.sort_by keyed s .
-  let f0 keyed be index s 0 .
-  let f1 keyed be index s 1 .
-  let f2 keyed be index s 2 .
+  let f0 be keyed index s 0 .
+  let f1 be keyed index s 1 .
+  let f2 be keyed index s 2 .
   return add (mul 100 (field f0 k)) (add (mul 10 (field f1 k)) (field f2 k)) .
 end
 ```
@@ -63,7 +63,7 @@ If `less a b` is true, a comes before b. The relation must be a *strict weak ord
 ]
 
 *Cautions.* Descending order and multiple keys are written in `less` --- adding a mode argument is entropy itself. One copy of code is produced per type (the price of
-monomorphisation, in exchange for no indirect calls). *Reading gives a view* --- `let a t be index s j` is a window onto that position, not a copy, so elements are swapped
+monomorphisation, in exchange for no indirect calls). *Reading gives a view* --- `let a be t index s j` is a window onto that position, not a copy, so elements are swapped
 with `swap` (two `set`s would overwrite themselves). Take care if you write a sort yourself --- after one swap the same names `a` and `b` see different values. Decide once per
 step. Comparing twice makes the second comparison see the already swapped values, and an element moves down one place and stops --- a partial sort that, with three elements
 and a single key, happens to give the right answer and hides the defect (it really did hide, until a multi-key example revealed it). It is separate from `sortlib` because

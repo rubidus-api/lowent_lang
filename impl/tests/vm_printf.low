@@ -32,11 +32,11 @@ rem "name=%s val=%d\n" 에 ("lowent", 42) → stdout: name=lowent val=42 · 반�
 unsafe proc formatted input k cap c . input fbuf mut slice u8 . . input nbuf mut slice u8 . .
   output i32 . effects unsafe .
 do
-  var f strbuf.str_buf be strbuf.new .
-  let r1 result void strbuf.sb_error . be strbuf.append f fbuf "name=%s val=%d\n" .
+  var f be strbuf.str_buf strbuf.new .
+  let r1 be result void strbuf.sb_error strbuf.append f fbuf "name=%s val=%d\n" .
   guard is_ok r1 . else return 0 .
-  var nm strbuf.str_buf be strbuf.new .
-  let r2 result void strbuf.sb_error . be strbuf.append nm nbuf "lowent" .
+  var nm be strbuf.str_buf strbuf.new .
+  let r2 be result void strbuf.sb_error strbuf.append nm nbuf "lowent" .
   guard is_ok r2 . else return 0 .
   return c_printf k (strbuf.as_cstr f fbuf) (strbuf.as_cstr nm nbuf) 42 .
 end
@@ -45,11 +45,11 @@ rem 문자열 인자 하나만 — "%s\n" 에 str_buf 로 조립한 "hi" → std
 unsafe proc just_str input k cap c . input fbuf mut slice u8 . . input sbuf mut slice u8 . .
   output i32 . effects unsafe .
 do
-  var f strbuf.str_buf be strbuf.new .
-  let r1 result void strbuf.sb_error . be strbuf.append f fbuf "%s\n" .
+  var f be strbuf.str_buf strbuf.new .
+  let r1 be result void strbuf.sb_error strbuf.append f fbuf "%s\n" .
   guard is_ok r1 . else return 0 .
-  var s strbuf.str_buf be strbuf.new .
-  let r2 result void strbuf.sb_error . be strbuf.append s sbuf "hi" .
+  var s be strbuf.str_buf strbuf.new .
+  let r2 be result void strbuf.sb_error strbuf.append s sbuf "hi" .
   guard is_ok r2 . else return 0 .
   return c_printf k (strbuf.as_cstr f fbuf) (strbuf.as_cstr s sbuf) .
 end

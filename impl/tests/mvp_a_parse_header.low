@@ -38,7 +38,7 @@ fn parse_header .
 do
   guard ge len data . 4 . else return error too_short . . .
   guard eq index data 0 . 1 . else return error bad_version . . .
-  let length u16 be read_u16_be subslice data 2 4 . . .
+  let length be u16 read_u16_be subslice data 2 4 . . .
   guard le length len data . . else return error too_long . . .
   return ok make header do
     version index data 0 . .
@@ -52,16 +52,16 @@ rem    이 이름들을 적어 놓고 **정의하지 않았다.** 검사기가 �
 rem    선언된 이름이 아무것도 가리키지 않는 것 — 그것이 곧 엔트로피다(PRINCIPLES.md §0).
 rem    약속했으니 쓴다.
 fn parse_header_short input data bytes . output bool . do
-  let r be parse_header data . .
+  let r be result header parse_error parse_header data . .
   return is_error r .
 end
 
 fn parse_header_bad_version input data bytes . output bool . do
-  let r be parse_header data . .
+  let r be result header parse_error parse_header data . .
   return is_error r .
 end
 
 fn parse_header_ok input data bytes . output bool . do
-  let r be parse_header data . .
+  let r be result header parse_error parse_header data . .
   return is_ok r .
 end

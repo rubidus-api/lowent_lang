@@ -21,19 +21,19 @@ rem
 rem ★ 호출자가 준 버퍼(CLI 가 채운다) 위에서 사용자 얼로케이터를 돌린다.
 rem   빌린 버퍼로 만든 얼로케이터는 뿌리를 **부를 수가 없다** — 그럴 권한이 없으므로.
 proc borrowed input buf mut slice u8 . . output u64 . effects state . do
-  var a allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  let cap0 u64 be send a init buf .
+  var a be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let cap0 be u64 send a init buf .
   guard ge cap0 8 . else return 90 .
-  let p option mut slice u8 . . be send a reserve 3 .
+  let p be option mut slice u8 send a reserve 3 .
   guard is_some p . else return 91 .
-  let q option mut slice u8 . . be send a reserve 5 .
+  let q be option mut slice u8 send a reserve 5 .
   guard is_some q . else return 92 .
   rem 자른 조각에 쓰면 **원본 버퍼가 바뀐다** — 뷰지 복사가 아니다.
-  let pv mut slice u8 . be some_value p .
+  let pv be mut slice u8 some_value p .
   set (index pv 0) 65 .
   guard eq (index buf 0) 65 . else return 93 .
   rem 두 번째 조각은 첫 조각 **뒤**에서 시작한다(범프).
-  let qv mut slice u8 . be some_value q .
+  let qv be mut slice u8 some_value q .
   set (index qv 0) 66 .
   guard eq (index buf 3) 66 . else return 94 .
   return send a used .                                   rem 3 + 5 = 8
@@ -41,14 +41,14 @@ end
 
 rem ★ 같은 인터페이스, 다른 정책 — 8 로 정렬한다. 3 을 자르면 다음은 8 부터다.
 proc borrowed_aligned input buf mut slice u8 . . output u64 . effects state . do
-  var a allocs.bump_aligned be spawn actor allocs.bump_aligned . .
-  let cap0 u64 be send a init buf .
+  var a be allocs.bump_aligned spawn actor allocs.bump_aligned . .
+  let cap0 be u64 send a init buf .
   guard ge cap0 16 . else return 90 .
-  let p option mut slice u8 . . be send a reserve 3 .
+  let p be option mut slice u8 send a reserve 3 .
   guard is_some p . else return 91 .
-  let q option mut slice u8 . . be send a reserve 1 .
+  let q be option mut slice u8 send a reserve 1 .
   guard is_some q . else return 92 .
-  let qv mut slice u8 . be some_value q .
+  let qv be mut slice u8 some_value q .
   set (index qv 0) 67 .
   guard eq (index buf 8) 67 . else return 93 .           rem ★ 3 이 아니라 8 — 정렬이 실제로 있다
   return send a used .                                   rem 8 + 1 = 9
@@ -56,9 +56,9 @@ end
 
 rem ★ OOM 은 **값**이다(RFC-0043 D5). 4 바이트 버퍼에 99 를 달라면 none — 트랩이 아니다.
 proc borrowed_oom input buf mut slice u8 . . output bool . effects state . do
-  var a allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  let cap0 u64 be send a init (subslice buf 0 4) .
-  let p option mut slice u8 . . be send a reserve 99 .
+  var a be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let cap0 be u64 send a init (subslice buf 0 4) .
+  let p be option mut slice u8 send a reserve 99 .
   return is_some p .
 end
 
@@ -73,11 +73,11 @@ proc two_from .
   effects state .
   requires allocs.byte_allocator a .
 do
-  let cap0 u64 be send al init buf .
+  let cap0 be u64 send al init buf .
   guard ge cap0 8 . else return 90 .
-  let p option mut slice u8 . . be send al reserve 3 .
+  let p be option mut slice u8 send al reserve 3 .
   guard is_some p . else return 91 .
-  let q option mut slice u8 . . be send al reserve 1 .
+  let q be option mut slice u8 send al reserve 1 .
   guard is_some q . else return 92 .
   return send al used .
 end
@@ -85,9 +85,9 @@ end
 rem ★★★ **한 코드가 두 정책을 돌리고 답이 다르다** — 인터페이스가 장식이 아니라는 증거.
 rem   bump_bytes: 3 + 1 = 4 · bump_aligned: 8 + 1 = 9 (3 다음이 8 로 올라간다)
 proc swap_impl input buf mut slice u8 . . output u64 . effects state . do
-  var b allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  var g allocs.bump_aligned be spawn actor allocs.bump_aligned . .
-  let x u64 using b be two_from buf .
-  let y u64 using g be two_from (subslice buf 0 16) .
+  var b be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var g be allocs.bump_aligned spawn actor allocs.bump_aligned . .
+  let x using b be u64 two_from buf .
+  let y using g be u64 two_from (subslice buf 0 16) .
   return add (mul x 100) y .                             rem 4·100 + 9 = 409
 end

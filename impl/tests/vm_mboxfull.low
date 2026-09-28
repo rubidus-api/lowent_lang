@@ -17,8 +17,8 @@ actor counter do
 end
 
 export proc many output u64 . effects state . do
-  var c counter be spawn actor counter . .
-  var i u64 be 0 .
+  var c be counter spawn actor counter . .
+  var i be u64 0 .
   while lt i 40 . do
     spawn send c inc .
     set i (add i 1) .

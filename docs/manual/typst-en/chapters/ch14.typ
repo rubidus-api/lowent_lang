@@ -13,7 +13,7 @@
 #deepqa[
   What did the single line `requires le n (len a) .` do in #chref("slices")'s `sum_first`? And why must an index itself not use `le`?
 ][
-  It gathered the check into one check on entry and let the bounds check on `index a i` inside the loop be removed. With `le` on an index,
+  It gathered the check into one check on entry and let the be (bounds check on `index a i` inside the loop) removed. With `le` on an index,
   `i = len a` would be allowed, and that is one past the end, so indices use `lt`. This chapter covers all of it: what that contract is, who
   keeps it, and when it is checked and when it disappears.
 ]

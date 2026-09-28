@@ -11,6 +11,6 @@ do
   rem ko: 결과를 받지 않은 fn 호출 --- 순수하므로 아무 흔적도 남기지 않는다 /// en: a fn call whose result is not kept --- being pure, it leaves no trace
   twice 5 .
   rem ko: 결과를 쓰려면 이름에 묶는다 /// en: to use the result, bind it to a name
-  let t u64 be twice 5 .
+  let t be u64 twice 5 .
   return t .
 end

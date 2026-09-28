@@ -34,16 +34,16 @@ rem 날짜 여섯 조각을 한 낱말로 짓는다.
 fn build input y u64 . input mo u64 . input d u64 . input h u64 . input mi u64 . input s u64 .
   output u64 .
 do
-  let w0 u64 be wire.put (m_year) y .
-  let w1 u64 be wire.merge (m_month)  w0 mo .
-  let w2 u64 be wire.merge (m_day)    w1 d .
-  let w3 u64 be wire.merge (m_hour)   w2 h .
-  let w4 u64 be wire.merge (m_minute) w3 mi .
+  let w0 be u64 wire.put (m_year) y .
+  let w1 be u64 wire.merge (m_month)  w0 mo .
+  let w2 be u64 wire.merge (m_day)    w1 d .
+  let w3 be u64 wire.merge (m_hour)   w2 h .
+  let w4 be u64 wire.merge (m_minute) w3 mi .
   return wire.merge (m_second) w4 s .
 end
 
 proc main output u8 . effects none . do
-  let w u64 be build 2026 9 7 13 45 30 .
+  let w be u64 build 2026 9 7 13 45 30 .
 
   rem ① 넣은 것이 그대로 나오는가.
   guard eq (wire.pick (m_year)   w) 2026 . else return 41 .

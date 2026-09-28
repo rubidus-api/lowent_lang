@@ -5,7 +5,7 @@ rem ko: ✘ 한꺼번에 돌려주니 바깥에 남는 것이 없다고 보고 `
 fn scratch_len input n u64 . output u64 .
 do
   region work arena do
-    let g option mut slice u8 be alloc_bytes work capacity n .
+    let g be option mut slice u8 alloc_bytes work capacity n .
     guard is_some g . else return 0 .
     return len (some_value g) .
   end

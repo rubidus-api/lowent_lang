@@ -78,14 +78,14 @@ proc run .
   effects state .
   requires executor e .        rem ★ 경계 — e 는 executor 를 충족해야 한다
 do
-  var a u64 be send x post 3 .
-  var b u64 be send x post 4 .
+  var a be u64 send x post 3 .
+  var b be u64 send x post 4 .
   return send x drain .
 end
 
 proc both output u64 . effects state . do
-  var c coop be spawn actor coop . .
-  var q queue be spawn actor queue . .
+  var c be coop spawn actor coop . .
+  var q be queue spawn actor queue . .
   return add (run coop c) (run queue q) .    rem 7 + 14 = 21
 end
 

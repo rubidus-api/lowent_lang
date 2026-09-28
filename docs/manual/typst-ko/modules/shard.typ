@@ -9,10 +9,10 @@
 
 ```lowent
 newtype grid u8 .
-var r owned shard.token grid . be shard.open grid 8 .
-var h shard.halves grid . be shard.split_at grid r 4 .
-var lo owned shard.token grid . be (field h low) .
-var hi owned shard.token grid . be (field h high) .
+var r be (owned shard.token grid) shard.open grid 8 .
+var h be (shard.halves grid) shard.split_at grid r 4 .
+var lo be (owned shard.token grid) (field h low) .
+var hi be (owned shard.token grid) (field h high) .
 rem 이 뒤로 r 은 쓸 수 없다 --- 쓰면 E-OWN-MOVED
 ```
 

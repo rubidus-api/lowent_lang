@@ -29,15 +29,15 @@ proc main .
   output u8 .
   effects alloc io .
 do
-  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  let g be option mut slice u8 alloc_bytes al capacity 65536 .
   guard is_some g . else return 89 .
-  let buf mut slice u8 . be some_value g .
+  let buf be mut slice u8 some_value g .
 
-  let rn option u64 . be read_in k 0 buf .
+  let rn be option u64 read_in k 0 buf .
   guard is_some rn . else return 89 .
-  let got u64 be some_value rn .
+  let got be u64 some_value rn .
   guard ne got 0 . else return 46 .
-  let ch slice u8 be subslice buf 0 got .
+  let ch be slice u8 subslice buf 0 got .
 
   rem ── ① 모양: 남이 쓴 길이를 **믿지 않고** 맞대 본다 ──
   guard tlssrv.ch_ok ch . else return 43 .

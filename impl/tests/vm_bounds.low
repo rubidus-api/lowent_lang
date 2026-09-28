@@ -12,8 +12,8 @@ end
 
 rem ② 루프 — 사실이 매 반복 조건에서 다시 세워진다.
 fn sum_all input g slice u8 . output u64 . do
-  var acc u64 be 0 .
-  var i u64 be 0 .
+  var acc be u64 0 .
+  var i be u64 0 .
   while lt i (len g) . do
     set acc expr acc + (index g i) .    rem ★ 검사 제거
     set i expr i + 1 . .

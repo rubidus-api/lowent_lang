@@ -23,8 +23,8 @@ fn children_of .
   input node u64 .
   output bytes .
 do
-  var at u64 be 1 .
-  var i u64 be 0 .
+  var at be u64 1 .
+  var i be u64 0 .
   while lt i node . do
     set at expr at + (index g at) + 1 . .
     set i expr i + 1 . .
@@ -40,7 +40,7 @@ proc graph_reachable .
   output void .
   effects alloc .
 do
-  let work stack node_id . be stack_new temp capacity node_count_of g . . .
+  let work be stack node_id stack_new temp capacity node_count_of g . . .
   push work root .
   while pop work into node . do
     if contains out node . do

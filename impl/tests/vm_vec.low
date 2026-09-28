@@ -6,9 +6,9 @@ fn dot4 .
   input b bytes .
   output u64 .
 do
-  var xs slice u32 . be view_array u32 b .
-  var va vec u32 4 . be load xs 0 .
-  var vb vec u32 4 . be load xs 4 .
+  var xs be slice u32 view_array u32 b .
+  var va be vec u32 4 load xs 0 .
+  var vb be vec u32 4 load xs 4 .
   return reduce_add mul va vb .
 end
 
@@ -16,11 +16,11 @@ fn clamp_sum .
   input b bytes .
   output u64 .
 do
-  var xs slice u32 . be view_array u32 b .
-  var v vec u32 4 . be load xs 0 .
-  var lim vec u32 4 . be splat 10 .
-  var m mask 4 . be gt v lim .        rem ★ 마스크는 정수가 아니다(레인마다 하나씩)
-  var cc vec u32 4 . be select m lim v .
+  var xs be slice u32 view_array u32 b .
+  var v be vec u32 4 load xs 0 .
+  var lim be vec u32 4 splat 10 .
+  var m be mask 4 gt v lim .        rem ★ 마스크는 정수가 아니다(레인마다 하나씩)
+  var cc be vec u32 4 select m lim v .
   return reduce_add cc .
 end
 
@@ -28,9 +28,9 @@ fn over .
   input b bytes .
   output bool .
 do
-  var xs slice u32 . be view_array u32 b .
-  var v vec u32 4 . be load xs 0 .
-  var lim vec u32 4 . be splat 10 .
+  var xs be slice u32 view_array u32 b .
+  var v be vec u32 4 load xs 0 .
+  var lim be vec u32 4 splat 10 .
   return any gt v lim . .
 end
 
@@ -38,7 +38,7 @@ fn vmax .
   input b bytes .
   output u64 .
 do
-  var xs slice u32 . be view_array u32 b .
-  var v vec u32 4 . be load xs 0 .
+  var xs be slice u32 view_array u32 b .
+  var v be vec u32 4 load xs 0 .
   return reduce_max v .
 end

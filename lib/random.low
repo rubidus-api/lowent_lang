@@ -61,9 +61,9 @@ rem   그것은 **부르는 쪽이 어긴 것**이라 실행 시간의 실패가
 rem   실패로 말해야 하는 것은 «계약은 지켰는데 재지 못했다» 일 때다.
 export proc seed_from_os input k cap random . input scratch mut slice u8 . output u64 . effects none .
   requires ge (len scratch) 8 . do
-  let got u64 be random_bytes k scratch .
+  let got be u64 random_bytes k scratch .
   guard ge got 8 . else return 0 .
-  let h u64 be call_builtin hash_bytes (subslice scratch 0 8) .
+  let h be u64 call_builtin hash_bytes (subslice scratch 0 8) .
   guard ne h 0 . else return 1 .
   return h .
 end

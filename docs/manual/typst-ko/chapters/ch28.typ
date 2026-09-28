@@ -228,7 +228,7 @@ VM 과 네이티브가 같은 주입기를 쓰므로 두 백엔드의 답이 같
   [`write_out out 1 "…"`], [표준출력(1) · 표준오류(2)에 쓴다 --- 쓴 수를 준다], [권한이 첫 피연산자 --- 몰래 찍는 출력이 없다],
   [`use files .` + `input fs cap file_system .`], [파일 모듈과 그 권한], [머리만 보고 파일에 닿는지 안다],
   [`files.open fs "notes.txt" 0`], [연다 --- 0 읽기 · 1 쓰기 · 2 덧붙이기 · `result handle file_error`], [여는 일에는 "끝" 이 없다 --- 두 자리],
-  [`var h owned files.handle be ok_value o .`], [핸들을 소유로 담는다], [잊으면 `E-OWN-INCOMPLETE` · 닫은 뒤 쓰면 `E-OWN-MOVED`],
+  [`var h be owned files.handle ok_value o .`], [핸들을 소유로 담는다], [잊으면 `E-OWN-INCOMPLETE` · 닫은 뒤 쓰면 `E-OWN-MOVED`],
   [`files.read fs h buf`], [`ok (some n)` 읽었다 · `ok none` 끝 · `error e` 실패], [값 하나가 두 뜻을 나르지 않는다],
   [`files.write fs h bytes`], [쓴 수를 `result` 로 준다], [짧게 쓰일 수 있다 --- 수를 확인한다],
   [`files.close fs h`], [`owned` 로 받아 `result` --- 완결], [닫기도 실패할 수 있다],

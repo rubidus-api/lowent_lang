@@ -811,12 +811,12 @@ unused.low:4:0 E-OPT-UNUSED: this build option is declared and NO code reads it 
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> first_two_ok <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> parse_error <strong><span class="tok-k">be</span></strong> first_two <span class="tok-s">"</span><span class="tok-s">AB</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> parse_error first_two <span class="tok-s">"</span><span class="tok-s">AB</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> is_ok r .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> first_two_short <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> parse_error <strong><span class="tok-k">be</span></strong> first_two <span class="tok-s">"</span><span class="tok-s">A</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u64</span></strong> parse_error first_two <span class="tok-s">"</span><span class="tok-s">A</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">return</span></strong> is_error r .
 <strong><span class="tok-k">end</span></strong>
 

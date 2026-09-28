@@ -303,7 +303,7 @@ without a word. It is recorded as a defect in the development repository.
   [`layout packed .` · `magic u32 big .`], [layout without padding · byte order], [make bytes mean the same outside],
   [`view wire_header b`], [read bytes in that layout without copying], [stops if length or alignment is off],
   [`try_view wire_header b` · `encode wire_header h`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],
-  [`var a bitset 64 be bitset_new 64 .` · `add a 1 .` · `intersect a b`], [a set of small numbers and its operations], [a set, not the bits of a word],
+  [`var a be bitset 64 bitset_new 64 .` · `add a 1 .` · `intersect a b`], [a set of small numbers and its operations], [a set, not the bits of a word],
   [`view_segments back d` · `segs ss` · `seg ss i`], [scattered pieces as one view without copying · piece count · piece i], [removes the gathering copy],
   [type words such as `byte` · `lock`], [`W-NOT-YET` · `E-LOCK-NOTYET`], [if there is no meaning, the tool says so],
 )

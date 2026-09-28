@@ -9,9 +9,9 @@ actor logbook do
     entries u64 .
   end
   proc write input code u8 . output bool . effects alloc state . do
-    let g option mut slice u8 . . be alloc_bytes root capacity 16 .
+    let g be option mut slice u8 alloc_bytes root capacity 16 .
     guard is_some g . else return false .
-    let v mut slice u8 . . be some_value g .
+    let v be mut slice u8 some_value g .
     set (index v 0) code .
     set entries (add entries 1) .
     return true .
@@ -23,8 +23,8 @@ end
 
 proc main input al cap allocator . output u8 . effects alloc state .
 do
-  var book logbook be spawn actor logbook .
-  let a bool be send book write 7 .
-  let b bool be send book write 9 .
+  var book be logbook spawn actor logbook .
+  let a be bool send book write 7 .
+  let b be bool send book write 9 .
   return narrow u8 (send book count) .
 end

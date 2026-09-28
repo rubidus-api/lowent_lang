@@ -17,9 +17,9 @@ end
 
 proc three_incs output u64 . effects state panic .
 do
-  var c counter be spawn actor counter .
-  let a u64 be send c inc .
-  let b u64 be send c inc .
+  var c be counter spawn actor counter .
+  let a be u64 send c inc .
+  let b be u64 send c inc .
   rem ko: 셋째 메시지에서 터지고, 상태가 0 으로 돌아간 뒤 이 메시지가 다시 처리된다 /// en: the third message blows up, the state goes back to 0, and this message is processed again
   return send c inc .
 end

@@ -7,10 +7,10 @@ fn grid input a slice u8 . input n u64 . output u64 .
   requires le n 1000 .
   requires ge (len a) (mul n n) .
 do
-  var t u64 be 0 .
-  var i u64 be 0 .
+  var t be u64 0 .
+  var i be u64 0 .
   while lt i n . do
-    var k u64 be 0 .
+    var k be u64 0 .
     while lt k n . do
       set t (wrap_add t (widen u64 (index a (wrap_add (wrap_mul i n) k)))) .
       set k (add k 1) .

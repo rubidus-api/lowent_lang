@@ -9,12 +9,12 @@ end
 
 proc count2 output u64 . effects state .
 do
-  var n u64 be 0 .
+  var n be u64 0 .
   task_group do
-    var h1 u64 be spawn one .
-    var h2 u64 be spawn one .
-    let a u64 be await h1 .
-    let b u64 be await h2 .
+    var h1 be u64 spawn one .
+    var h2 be u64 spawn one .
+    let a be u64 await h1 .
+    let b be u64 await h2 .
     set n (add a b) .
   end
   return n .

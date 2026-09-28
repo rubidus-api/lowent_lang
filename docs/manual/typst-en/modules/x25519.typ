@@ -16,7 +16,7 @@ to split keys out with HKDF from #modref("hmac")[`hmac`].
 
 ```lowent
 rem w has at least 175 u64 elements --- one workspace
-let n u64 be x25519.agree shared mysecret theirpub zbuf w .
+let n be u64 x25519.agree shared mysecret theirpub zbuf w .
 guard eq n 32 . else return 1 .
 ```
 

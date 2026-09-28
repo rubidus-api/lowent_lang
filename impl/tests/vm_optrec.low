@@ -44,7 +44,7 @@ end
 fn mk2 output b2 . do return make b2 do a 3 . b 4 . end . end
 fn blen input s slice u8 . output u64 . do return len s . end
 fn enc_len input f slice u64 . output u64 . do
-  var t u64 be len f .
+  var t be u64 len f .
   return add (blen (encode b2 mk2)) (mul t 0) .
 end
 

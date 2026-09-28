@@ -18,7 +18,7 @@ rem   그 검사가 이것이고, 그래서 지금 등재됐다(효과 평면 at
 module vm_concurrent .
 
 proc consumer input ch u64 . output u64 . effects concurrent . do
-  var x u64 be chrecv ch .
+  var x be u64 chrecv ch .
   return x .
 end
 
@@ -29,7 +29,7 @@ end
 rem ★ 멤버가 **둘** — 동료가 그룹 안에 있다. `concurrent` 가 흡수되어 밖으로 안 샌다.
 rem   그래서 이 op 은 `concurrent` 를 **선언하지 않아도** 된다.
 proc pair output u64 . effects state . do
-  var ch u64 be channel u64 . .
+  var ch be u64 channel u64 . .
   task_group do
     spawn consumer ch .
     spawn producer ch .

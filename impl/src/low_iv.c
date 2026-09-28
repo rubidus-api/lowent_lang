@@ -364,7 +364,7 @@ typedef struct {
 static proven_i64 iv_lemargin(const ivstate_t *st, proven_size_t k, proven_i32 p) {
     if (k >= IR_MAXLOCALS || p < 0) return 0;
     if (st->lerel[k] == p) return st->leoff[k] + (st->lestr[k] ? 1 : 0);
-    // ★★★ **한 홉**(2026-08-17). `var hi u64 be hi0 .` 같은 복사 때문에 관계가 **원본**을
+    // ★★★ **한 홉**(2026-08-17). `var hi be u64 hi0 .` 같은 복사 때문에 관계가 **원본**을
     //   가리킨 채 남는다: `lo < hi0` 인데 쓰는 자리는 `hi` 다. 아래 STORE 가 복사에 대해
     //   `hi0 ≤ hi` 를 심어 두므로, `lo ≤ hi0 ≤ hi` 를 한 걸음으로 잇는다.
     //   ☞ 한 홉까지만 간다 — 두 홉이 필요한 모양은 실제 코드에 안 나왔다.
@@ -1279,7 +1279,7 @@ static void iv_narrow(ivstate_t *st, proven_u8 op, proven_i32 slot, iv_t rhs, pr
     if (op == IRW_LT && !taken && ivstep >= 1 &&
         slot >= 0 && (proven_size_t)slot < IR_MAXLOCALS) {
         proven_i64 bump = ivstep - 1;
-        // ★★ 진입값이 **지역**이면(`var j u64 be lo .`) `lo ≤ X + c − 1` 을 **여기서** 확인한다.
+        // ★★ 진입값이 **지역**이면(`var j be u64 lo .`) `lo ≤ X + c − 1` 을 **여기서** 확인한다.
         //   X = base + off 라 하면 `lo + mw ≤ base` 에서 `lo ≤ base − mw` 이므로
         //   요구는 `−mw ≤ off + c − 1`, 즉 **mw ≥ 1 − off − c** 다.
         //   `qsort` 는 `X = hi − 1`(off = −1) · c = 1 이라 `mw ≥ 1` 을 요구하고,
@@ -1568,7 +1568,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                         if (src >= 0 && (proven_size_t)src < IR_MAXLOCALS && (proven_size_t)src != sl) {
                             st->lerel[sl] = st->lerel[src]; st->lestr[sl] = st->lestr[src];
                             st->leoff[sl] = st->leoff[src];
-                            // ★★ **복사는 같음이다** — `var hi u64 be hi0 .` 뒤로 두 슬롯의 값이
+                            // ★★ **복사는 같음이다** — `var hi be u64 hi0 .` 뒤로 두 슬롯의 값이
                             //   같다. 원본 쪽에 아직 관계가 없을 때만 `src ≤ sl` 을 심는다
                             //   (있는 사실을 덮으면 그것이 더 큰 손해다). 위 한 홉이 이것을 쓴다.
                             if (src < IR_MAXLOCALS && st->lerel[src] < 0)
@@ -2550,7 +2550,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
 //     색인 검사가 **둘 다 사라진다**. 나머지 기계는 이미 다 있었다.
 //
 //   알아보는 모양은 **하나**다 — 실제 코드의 관용구:
-//       var v u64 be 0 .              ← 진입값 상수 0
+//       var v be u64 0 .              ← 진입값 상수 0
 //       while lt v X . do … set v (add v c) . end     ← 몸통에서 대입이 **하나**뿐, 걸음 c ≥ 1
 //   이때 그 가드가 **거짓인 가지**(루프를 벗어난 자리)에서 **v ≤ X + c − 1** 이다.
 //
@@ -2562,7 +2562,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
 //   ★ **셋 중 하나라도 못 세우면 아무 말도 안 한다.** 종료 상계를 틀리면 곧 범위 밖 접근이다.
 //     그래서 `mut_ref`(다른 창으로 바뀔 수 있다)가 걸린 슬롯은 통째로 제외한다.
 //   ★★ 진입값을 **0 으로 좁혔다** — 일반 `k` 는 `k ≤ X + c − 1` 을 따로 증명해야 하고,
-//     실제 관용구는 거의 전부 `var i u64 be 0` 이다. *안 나오는 것을 위해 규칙을 늘리지 않는다.*
+//     실제 관용구는 거의 전부 `var i be u64 0` 이다. *안 나오는 것을 위해 규칙을 늘리지 않는다.*
 typedef struct {
     proven_i64 step[IR_MAXLOCALS];     // 0 = 귀납 변수가 아니다
     proven_i32 from[IR_MAXLOCALS];     // 진입값이 지역이면 그 슬롯(-1 = 상수 0)
@@ -2590,9 +2590,9 @@ static void iv_find_indvars(const low_ir_def_t *d, iv_indvar_t *iv) {
             if (init0[v]) { tainted[v] = true; continue; }
             init0[v] = true; iv->from[v] = -1; continue;
         }
-        // 모양 ①ㄴ 초기화:  LOAD w · STORE v   — `var j u64 be lo .` 의 모양.
+        // 모양 ①ㄴ 초기화:  LOAD w · STORE v   — `var j be u64 lo .` 의 모양.
         //   ★ 이때는 `w ≤ X + c − 1` 을 **쓰는 자리에서** 따로 확인한다(여기서는 못 한다).
-        //     `qsort` 가 정확히 이 모양이라(`var j u64 be lo`) 상수 0 만 받으면 못 닿는다.
+        //     `qsort` 가 정확히 이 모양이라(`var j be u64 lo`) 상수 0 만 받으면 못 닿는다.
         if (i >= 1 && d->code[i-1].w == IRW_LOAD &&
             (proven_size_t)d->code[i-1].a < IR_MAXLOCALS &&
             (proven_size_t)d->code[i-1].a != v) {
@@ -2662,7 +2662,7 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
             else if ((proven_size_t)d->code[h+1].a < IR_MAXLOCALS) {
                 proven_size_t X = (proven_size_t)d->code[h+1].a;
                 hiX = e0->loc[X].hi;
-                // ★★ **`let n u64 be len s .` 은 계약의 길이 상계를 물려받는다.**
+                // ★★ **`let n be u64 len s .` 은 계약의 길이 상계를 물려받는다.**
                 //   진입 구간(`e0->loc`)은 파라미터만 안다. 그런데 실제 코드는 길이를 지역에
                 //   담아 놓고 그것으로 돈다(`sieve` 가 정확히 그 모양이라 처음엔 안 걸렸다).
                 //   ⇒ X 의 대입이 **오직 하나**이고 그것이 `len s` 면 hi 를 그대로 물려받는다.
@@ -2678,7 +2678,7 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
                 if (nx == 1 && lenhi < hiX) hiX = lenhi;
             }
             // ★★ 가드 변수는 **귀납 변수 표에 없어도 된다.** 그 표는 진입값이 상수 0 인 것만
-            //   받는데(그 규칙이 사는 이유는 따로 있다), `var k u64 be 2 .` 같은 흔한 모양이
+            //   받는데(그 규칙이 사는 이유는 따로 있다), `var k be u64 2 .` 같은 흔한 모양이
             //   거기서 빠진다 — 실제로 `sieve` 의 세는 루프가 그것이라 처음엔 아무것도 안 걸렸다.
             //   ⇒ 반복 상계에는 **시작값이 필요 없다**: 무부호라 v ≥ 0 이고 한 바퀴에 ≥1 늘며
             //     `v < X` 인 동안만 도므로 **반복 ≤ hi(X) + 1** 이다. 시작이 2 든 0 이든 상관없다.
@@ -2858,7 +2858,7 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
                             }                                                              \
                             /* ★ R5: 차분 제약도 마찬가지 — 한 경로에서만 참이면 사실이 아니다. */ \
                             /* ★★★ **구문이 다르다고 사실이 없는 게 아니다** (2026-08-17).      \
-                               `var hi u64 be hi0 .` 뒤로 앞 간선은 `lo ≤ hi0` 를, 뒤 간선은     \
+                               `var hi be u64 hi0 .` 뒤로 앞 간선은 `lo ≤ hi0` 를, 뒤 간선은     \
                                `lo ≤ hi` 를 들고 온다 — **같은 결론인데 다른 이름**이라 합류가    \
                                통째로 버렸다. 그래서 `qsort` 의 22:`sub hi lo` 가 영원히 안       \
                                지워졌다. ⇒ 이름이 다르면 **상대에게 같은 결론을 묻는다**          \

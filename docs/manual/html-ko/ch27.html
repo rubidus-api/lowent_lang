@@ -671,7 +671,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">proc</span></strong> double_all <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">parallel</span></strong> s split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index s i) (wrap_mul (index s i) <span class="tok-n">2</span>) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -683,8 +683,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">parallel</span></strong> s split .
   <strong><span class="tok-k">reduce</span></strong> acc add .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -710,7 +710,7 @@ total([1,2,3,4,5,6]) = 21
 <strong><span class="tok-k">proc</span></strong> relative <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">parallel</span></strong> s split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index s i) (wrap_sub (index s i) (index s <span class="tok-n">0</span>)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -725,8 +725,8 @@ par_read.low:9:0 E-PAR-READ: a splittable loop may only read its OWN element of 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">parallel</span></strong> s split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -742,8 +742,8 @@ par_carry.low:10:0 E-PAR-CARRY: a splittable loop may not write a local that liv
   <strong><span class="tok-k">parallel</span></strong> s split .
   <strong><span class="tok-k">reduce</span></strong> acc sub .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">1000</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (sub acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -761,7 +761,7 @@ par_assoc.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may
   <strong><span class="tok-k">effects</span></strong> atomic .
   <strong><span class="tok-k">parallel</span></strong> data split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len data) . <strong><span class="tok-k">do</span></strong>
     atomic_add counter <span class="tok-n">0</span> <span class="tok-n">1</span> .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -771,9 +771,9 @@ par_assoc.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditions and may
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> atomic . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> atomic alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes al capacity <span class="tok-n">8</span> .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">8</span> .
   <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">var</span></strong> cells <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u64</span></strong> (some_value g) .
+  <strong><span class="tok-k">var</span></strong> cells <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> view_array <strong><span class="tok-t">u64</span></strong> (some_value g) .
   atomic_store cells <span class="tok-n">0</span> <span class="tok-n">0</span> .
   count_par k <span class="tok-s">"</span><span class="tok-s">abcdefghij</span><span class="tok-s">"</span> cells .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (atomic_load cells <span class="tok-n">0</span>) .
@@ -797,11 +797,11 @@ nocap.low:4:0 E-ATOMIC-NOCAP: this op declares the `atomic` effect but receives 
 <em><span class="tok-c">rem 읽고 쓰는 연산(atomic_swap)에는 acq_rel, 쓰기에는 release, 읽기에는 acquire</span></em>
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> atomic . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> atomic alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes al capacity <span class="tok-n">8</span> .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">8</span> .
   <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">250</span> .
-  <strong><span class="tok-k">var</span></strong> cells <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u64</span></strong> (some_value g) .
+  <strong><span class="tok-k">var</span></strong> cells <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> view_array <strong><span class="tok-t">u64</span></strong> (some_value g) .
   atomic_store cells <span class="tok-n">0</span> <span class="tok-n">5</span> order seq_cst .
-  <strong><span class="tok-k">let</span></strong> old <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> atomic_swap cells <span class="tok-n">0</span> <span class="tok-n">7</span> order acq_rel .
+  <strong><span class="tok-k">let</span></strong> old <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> atomic_swap cells <span class="tok-n">0</span> <span class="tok-n">7</span> order acq_rel .
   atomic_store cells <span class="tok-n">0</span> (add old <span class="tok-n">10</span>) order release .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (atomic_load cells <span class="tok-n">0</span> order acquire) .
 <strong><span class="tok-k">end</span></strong>
@@ -826,11 +826,11 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
 <strong><span class="tok-k">proc</span></strong> capped_sum <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> v vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load xs <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> lim vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> splat <span class="tok-n">5</span> .
-  <strong><span class="tok-k">var</span></strong> over mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v lim .
-  <strong><span class="tok-k">var</span></strong> capped vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> select over lim v .
+  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> lim <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">5</span> .
+  <strong><span class="tok-k">var</span></strong> over <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v lim .
+  <strong><span class="tok-k">var</span></strong> capped <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> select over lim v .
   <strong><span class="tok-k">return</span></strong> reduce_add capped .
 <strong><span class="tok-k">end</span></strong>
 
@@ -838,8 +838,8 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
 <strong><span class="tok-k">proc</span></strong> extremes <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> v vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> add (mul (reduce_max v) <span class="tok-n">1000</span>) (add (mul (reduce_min v) <span class="tok-n">100</span>) (reduce_mul v)) .
 <strong><span class="tok-k">end</span></strong>
 
@@ -848,11 +848,11 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len out) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> ys <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u32</span></strong> out .
-  <strong><span class="tok-k">var</span></strong> v vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load xs <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> r vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> reverse v .
-  <strong><span class="tok-k">var</span></strong> t vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> rotate r <span class="tok-n">1</span> .
+  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">var</span></strong> ys <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> out .
+  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> reverse v .
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> rotate r <span class="tok-n">1</span> .
   store ys <span class="tok-n">0</span> t .
   <strong><span class="tok-k">return</span></strong> reduce_add t .
 <strong><span class="tok-k">end</span></strong>
@@ -883,10 +883,10 @@ lanes_here() = 4
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len out) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> v vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load xs <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> lim vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> splat <span class="tok-n">5</span> .
-  <strong><span class="tok-k">var</span></strong> m mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v lim .
+  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> lim <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">5</span> .
+  <strong><span class="tok-k">var</span></strong> m <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v lim .
   store_masked out <span class="tok-n">0</span> v m .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
@@ -895,12 +895,12 @@ lanes_here() = 4
 <strong><span class="tok-k">proc</span></strong> read_big <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> v vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load xs <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> lim vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> splat <span class="tok-n">5</span> .
-  <strong><span class="tok-k">var</span></strong> m mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v lim .
-  <strong><span class="tok-k">var</span></strong> fallback vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> splat <span class="tok-n">100</span> .
-  <strong><span class="tok-k">var</span></strong> r vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load_masked xs <span class="tok-n">0</span> m fallback .
+  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> lim <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">5</span> .
+  <strong><span class="tok-k">var</span></strong> m <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v lim .
+  <strong><span class="tok-k">var</span></strong> fallback <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">100</span> .
+  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load_masked xs <span class="tok-n">0</span> m fallback .
   <strong><span class="tok-k">return</span></strong> reduce_add r .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run keep_big masked.low [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0] [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
@@ -915,16 +915,16 @@ read_big([1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]) = 216
 
 <strong><span class="tok-k">fn</span></strong> capped <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> v vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
   <em><span class="tok-c">rem ✘ `splat` 을 식 안에 바로 적었다 --- 레인 수를 말해 줄 타입이 없다</span></em>
-  <strong><span class="tok-k">var</span></strong> over mask <span class="tok-n">4</span> <strong><span class="tok-k">be</span></strong> gt v (splat <span class="tok-n">5</span>) .
+  <strong><span class="tok-k">var</span></strong> over <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v (splat <span class="tok-n">5</span>) .
   <strong><span class="tok-k">return</span></strong> reduce_add (select over v v) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_splatinline.low
-mistake_splatinline.low:9:0 E-VEC-SPLAT: `splat` fills every lane of a vector, and how many lanes there are comes from the declared type — inside an expression there is nothing to say it, so the value is read as a plain scalar and the surrounding comparison stops matching its `mask` type. Bind it first, with the lane count written down: `var lim vec u32 4 be splat 5 .`, then use `lim`
+mistake_splatinline.low:9:0 E-VEC-SPLAT: `splat` fills every lane of a vector, and how many lanes there are comes from the declared type — inside an expression there is nothing to say it, so the value is read as a plain scalar and the surrounding comparison stops matching its `mask` type. Bind it first, with the lane count written down: `var lim be vec u32 4 splat 5 .`, then use `lim`
 mistake_splatinline.low:9:0 E-TYPE-VAR: the initializer's type does not match the declared type — expected `mask`, found `bool`
-</code></pre></div></div><p><code>splat</code> 은 한 값을 모든 레인에 채우는데, <strong>레인이 몇인지</strong>는 선언된 타입만이 말한다. 식 안에는 그것을 말해 줄 자리가 없어 값이 스칼라로 읽히고, 감싼 비교가 <code>mask</code> 타입과 어긋난다. <code>E-VEC-SPLAT</code> 으로 거절하며, 고치는 길은 레인 수를 적은 이름에 먼저 담는 것이다 — <code>var lim vec u32 4 be splat 5 .</code> 뒤에 <code>gt v lim</code> 이다.</p></div></div><h3 id="s27-7">27.7 자리를 어떻게 쓰는지 적는다 — <code>access</code><a class="plink" href="#s27-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>access &lt;이름> &lt;모드> .</code> 절은 op 이 입력 자리를 <strong>읽기만</strong> 하는지, <strong>쓰기만</strong> 하는지 머리에 적는다. 부르는 쪽과 스케줄러가 그 약속을 믿고 판단한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/access.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> <strong><span class="tok-k">access</span></strong> .
+</code></pre></div></div><p><code>splat</code> 은 한 값을 모든 레인에 채우는데, <strong>레인이 몇인지</strong>는 선언된 타입만이 말한다. 식 안에는 그것을 말해 줄 자리가 없어 값이 스칼라로 읽히고, 감싼 비교가 <code>mask</code> 타입과 어긋난다. <code>E-VEC-SPLAT</code> 으로 거절하며, 고치는 길은 레인 수를 적은 이름에 먼저 담는 것이다 — <code>var lim be vec u32 4 splat 5 .</code> 뒤에 <code>gt v lim</code> 이다.</p></div></div><h3 id="s27-7">27.7 자리를 어떻게 쓰는지 적는다 — <code>access</code><a class="plink" href="#s27-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>access &lt;이름> &lt;모드> .</code> 절은 op 이 입력 자리를 <strong>읽기만</strong> 하는지, <strong>쓰기만</strong> 하는지 머리에 적는다. 부르는 쪽과 스케줄러가 그 약속을 믿고 판단한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/access.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> <strong><span class="tok-k">access</span></strong> .
 <em><span class="tok-c">rem run: peek [9,8,7]</span></em>
 
 <em><span class="tok-c">rem access data shared_read — 이 op 은 data 를 읽기만 한다. 여러 태스크가 함께 쥘 수 있다는 약속이다</span></em>
@@ -942,7 +942,7 @@ peek([9,8,7]) = 9
 <strong><span class="tok-k">proc</span></strong> count_par <strong><span class="tok-k">input</span></strong> data <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> counter <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <span class="tok-n">void</span> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">parallel</span></strong> data split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len data) . <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ 모든 조각이 같은 자리 `index counter 0` 에 읽고 더해 쓴다</span></em>
     <strong><span class="tok-k">set</span></strong> (index counter <span class="tok-n">0</span>) (wrap_add (index counter <span class="tok-n">0</span>) <span class="tok-n">1</span>) .
@@ -960,8 +960,8 @@ mistake_sharedwrite.low:10:0 E-PAR-WRITE: a splittable loop may only write its O
   <em><span class="tok-c">rem ✘ 부동소수의 덧셈은 묶는 차례에 따라 답이 달라진다</span></em>
   <strong><span class="tok-k">reduce</span></strong> acc add .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">f64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0.0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">f64</span></strong> <span class="tok-n">0.0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (index s i)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -980,8 +980,8 @@ mistake_floatreduce.low:4:0 W-PAR-OK: this loop satisfies the Bernstein conditio
   <strong><span class="tok-k">reduce</span></strong> acc add .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 누산을 100 에서 시작한다 --- 나누면 조각마다 100 에서 시작한다</span></em>
-  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">100</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">100</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -997,7 +997,7 @@ mistake_reduceinit.low:4:0 W-PAR-OK: this loop satisfies the Bernstein condition
 <strong><span class="tok-k">proc</span></strong> smooth <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">parallel</span></strong> s split .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <em><span class="tok-c">rem ✘ 나눌 되풀이는 `while lt i (len s)` 모양이어야 한다 --- 이웃 원소를 읽는 되풀이이기도 하다</span></em>
   <strong><span class="tok-k">while</span></strong> lt (add i <span class="tok-n">1</span>) (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> (index s i) (div (wrap_add (index s i) (index s (add i <span class="tok-n">1</span>))) <span class="tok-n">2</span>) .
@@ -1014,7 +1014,7 @@ mistake_noloop.low:4:0 E-PAR-NOLOOP: the `parallel` clause names a slice, but no
 <strong><span class="tok-k">proc</span></strong> bad_fill <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
   <strong><span class="tok-k">access</span></strong> out write_only .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> index out <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> index out <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_access.low
@@ -1027,8 +1027,8 @@ mistake_access.low:7:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORM
   <strong><span class="tok-k">parallel</span></strong> s split .
   <strong><span class="tok-k">reduce</span></strong> best max .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> best <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> best <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> best (max best (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -1038,7 +1038,7 @@ mistake_access.low:7:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORM
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run biggest max_gather.low [3,9,2,7]
 biggest([3,9,2,7]) = 9
   arg0 (written) = [3,9,2,7]
-</code></pre></div></div><p>결합적인 연산이면 모을 수 있다. <code>max</code> 는 결합적이고 <code>u64</code> 에서 0 이 항등원이라 조각마다 가장 큰 값을 구해 다시 <code>max</code> 로 합쳐도 답이 같다. <code>min</code>·<code>mul</code>·비트 연산도 같은 원리다. 거절되는 것은 <code>sub</code> 처럼 묶는 차례가 답을 바꾸는 연산(<code>E-PAR-ASSOC</code>)과 부동소수 연산(<code>E-PAR-FLOAT</code>)이다.</p></div></div><h3 id="s27-9">27.9 이 장의 문법을 한눈에<a class="plink" href="#s27-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>parallel s split .</code>(op 머리)</td><td><code>s</code> 를 조각으로 나누어 여럿이 돌아도 된다는 선언</td><td>주장을 믿지 않고 확인한다 — 확인되면 <code>W-PAR-OK</code></td></tr><tr><td><code>while lt i (len s) . do … end</code></td><td>나눌 수 있는 되풀이의 모양</td><td>다른 모양이면 <code>E-PAR-NOLOOP</code></td></tr><tr><td><code>index s i</code> 만 읽고 쓰기</td><td>자기 몫만</td><td>남의 자리는 <code>E-PAR-READ</code> · <code>E-PAR-WRITE</code></td></tr><tr><td><code>reduce acc add .</code></td><td>조각마다 누적한 뒤 연산으로 합친다</td><td>시작값은 항등원 — 연산은 결합적(<code>E-PAR-ASSOC</code>)</td></tr><tr><td><code>atomic_add counter 0 1</code> · <code>atomic_load cells 0</code></td><td>슬라이스와 색인으로 가리킨 자리를 원자적으로</td><td><code>effects atomic</code> + <code>cap atomic</code></td></tr><tr><td><code>… order seq_cst</code> · <code>acq_rel</code> · <code>acquire</code> · <code>release</code> · <code>relaxed</code></td><td>기억 차례 — 적지 않으면 <code>seq_cst</code></td><td>가장 추론하기 쉬운 것이 기본</td></tr><tr><td>읽기에 <code>order release</code> 따위</td><td>거절(<code>E-ATOMIC-ORDER</code>)</td><td>뜻 없는 조합을 정의되지 않은 동작으로 두지 않는다</td></tr><tr><td><code>view_array u64 bytes</code></td><td>바이트를 베끼지 않고 <code>u64</code> 슬라이스로 본다</td><td>원자 칸을 할당받은 창 위에 둔다</td></tr><tr><td><code>var v vec u32 4 be load xs 0 .</code> · <code>reduce_add v</code></td><td>레인 넷을 한 값으로 읽기 · 레인 모으기</td><td>한 흐름 안의 SIMD — 레인 수는 타입의 일부</td></tr><tr><td><code>access data shared_read .</code> · <code>access out write_only .</code></td><td>읽기만 · 쓰기만 한다는 약속 — 몸을 검사한다</td><td>읽기만이면 여러 태스크가 함께 쥔다 · 어기면 <code>E-ACCESS-MODE</code></td></tr></table></div><p class="float-caption">표 27.4 — 병렬과 원자 연산의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>parallel &lt;슬라이스> split .</code> 은 되풀이를 나눌 수 있다는 선언이고, 처리기는 자기 몫만 읽고 쓰며 걸음을 넘어 사는 자리에 쓰지 않는지 확인한다. 누적은 <code>reduce &lt;자리> &lt;연산> .</code> 으로 밝히고 연산은 결합적이어야 한다. 나누어 돈 답은 순차와 비트까지 같다. 공유 자리를 함께 갱신할 때는 <code>cap atomic</code> 을 받아 원자 연산을 쓰고, <code>order</code> 로 기억 차례를 고르되 기본은 <code>seq_cst</code> 이며 뜻 없는 조합은 거절된다.</div></div>
+</code></pre></div></div><p>결합적인 연산이면 모을 수 있다. <code>max</code> 는 결합적이고 <code>u64</code> 에서 0 이 항등원이라 조각마다 가장 큰 값을 구해 다시 <code>max</code> 로 합쳐도 답이 같다. <code>min</code>·<code>mul</code>·비트 연산도 같은 원리다. 거절되는 것은 <code>sub</code> 처럼 묶는 차례가 답을 바꾸는 연산(<code>E-PAR-ASSOC</code>)과 부동소수 연산(<code>E-PAR-FLOAT</code>)이다.</p></div></div><h3 id="s27-9">27.9 이 장의 문법을 한눈에<a class="plink" href="#s27-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>parallel s split .</code>(op 머리)</td><td><code>s</code> 를 조각으로 나누어 여럿이 돌아도 된다는 선언</td><td>주장을 믿지 않고 확인한다 — 확인되면 <code>W-PAR-OK</code></td></tr><tr><td><code>while lt i (len s) . do … end</code></td><td>나눌 수 있는 되풀이의 모양</td><td>다른 모양이면 <code>E-PAR-NOLOOP</code></td></tr><tr><td><code>index s i</code> 만 읽고 쓰기</td><td>자기 몫만</td><td>남의 자리는 <code>E-PAR-READ</code> · <code>E-PAR-WRITE</code></td></tr><tr><td><code>reduce acc add .</code></td><td>조각마다 누적한 뒤 연산으로 합친다</td><td>시작값은 항등원 — 연산은 결합적(<code>E-PAR-ASSOC</code>)</td></tr><tr><td><code>atomic_add counter 0 1</code> · <code>atomic_load cells 0</code></td><td>슬라이스와 색인으로 가리킨 자리를 원자적으로</td><td><code>effects atomic</code> + <code>cap atomic</code></td></tr><tr><td><code>… order seq_cst</code> · <code>acq_rel</code> · <code>acquire</code> · <code>release</code> · <code>relaxed</code></td><td>기억 차례 — 적지 않으면 <code>seq_cst</code></td><td>가장 추론하기 쉬운 것이 기본</td></tr><tr><td>읽기에 <code>order release</code> 따위</td><td>거절(<code>E-ATOMIC-ORDER</code>)</td><td>뜻 없는 조합을 정의되지 않은 동작으로 두지 않는다</td></tr><tr><td><code>view_array u64 bytes</code></td><td>바이트를 베끼지 않고 <code>u64</code> 슬라이스로 본다</td><td>원자 칸을 할당받은 창 위에 둔다</td></tr><tr><td><code>var v be vec u32 4 load xs 0 .</code> · <code>reduce_add v</code></td><td>레인 넷을 한 값으로 읽기 · 레인 모으기</td><td>한 흐름 안의 SIMD — 레인 수는 타입의 일부</td></tr><tr><td><code>access data shared_read .</code> · <code>access out write_only .</code></td><td>읽기만 · 쓰기만 한다는 약속 — 몸을 검사한다</td><td>읽기만이면 여러 태스크가 함께 쥔다 · 어기면 <code>E-ACCESS-MODE</code></td></tr></table></div><p class="float-caption">표 27.4 — 병렬과 원자 연산의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>parallel &lt;슬라이스> split .</code> 은 되풀이를 나눌 수 있다는 선언이고, 처리기는 자기 몫만 읽고 쓰며 걸음을 넘어 사는 자리에 쓰지 않는지 확인한다. 누적은 <code>reduce &lt;자리> &lt;연산> .</code> 으로 밝히고 연산은 결합적이어야 한다. 나누어 돈 답은 순차와 비트까지 같다. 공유 자리를 함께 갱신할 때는 <code>cap atomic</code> 을 받아 원자 연산을 쓰고, <code>order</code> 로 기억 차례를 고르되 기본은 <code>seq_cst</code> 이며 뜻 없는 조합은 거절된다.</div></div>
 <div class="nav"><a href="ch26.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch28.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

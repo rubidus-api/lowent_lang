@@ -677,7 +677,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <em><span class="tok-c">rem local mutable state stays inside the op, so a fn may use it</span></em>
 <strong><span class="tok-k">fn</span></strong> running_total <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> total (add total (widen <strong><span class="tok-t">u64</span></strong> x)) .
   <strong><span class="tok-k">end</span></strong>
@@ -841,7 +841,7 @@ mistake_builtin.low:5:0 E-NAME-BUILTIN: this name is a BUILTIN — the resolver 
   <em><span class="tok-c">rem a fn call whose result is not kept --- being pure, it leaves no trace</span></em>
   twice <span class="tok-n">5</span> .
   <em><span class="tok-c">rem to use the result, bind it to a name</span></em>
-  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> twice <span class="tok-n">5</span> .
+  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> twice <span class="tok-n">5</span> .
   <strong><span class="tok-k">return</span></strong> t .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run caller discard.low

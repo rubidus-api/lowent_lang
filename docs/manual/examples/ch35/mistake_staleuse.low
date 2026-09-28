@@ -7,20 +7,20 @@ newtype objects u8 .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let gm option mut slice u8 be alloc_bytes al capacity 64 .
-  let gg option mut slice u8 be alloc_bytes al capacity 32 .
+  let gm be option mut slice u8 alloc_bytes al capacity 64 .
+  let gg be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some gm . else return 255 .
   guard is_some gg . else return 255 .
-  var gens mut slice u64 be view_array u64 (some_value gg) .
-  let po option (pool.block_pool objects) be pool.init objects (some_value gm) gens 16 .
+  var gens be mut slice u64 view_array u64 (some_value gg) .
+  let po be option (pool.block_pool objects) pool.init objects (some_value gm) gens 16 .
   guard is_some po . else return 254 .
-  var p pool.block_pool objects be some_value po .
-  let ho option (pool.handle objects) be pool.take objects p .
+  var p be (pool.block_pool objects) some_value po .
+  let ho be option (pool.handle objects) pool.take objects p .
   guard is_some ho . else return 253 .
-  let h pool.handle objects be some_value ho .
-  let done bool be pool.release objects p h .
+  let h be (pool.handle objects) some_value ho .
+  let done be bool pool.release objects p h .
   rem ko: ✘ 돌려준 블록의 바이트를 묻지 않고 꺼낸다 --- 세대가 달라 `none` 이다 /// en: ✘ takes out the bytes of a returned block without asking --- the generation differs, so it is `none`
-  var b mut slice u8 be some_value (pool.bytes objects p h) .
+  var b be mut slice u8 some_value (pool.bytes objects p h) .
   set (index b 0) 7 .
   return index b 0 .
 end

@@ -10,7 +10,7 @@ paper; it only writes on the paper handed to it (`mut slice u8`).
 ```lowent
 use fmt .
 
-let p option u64 . be fmt.put_u64 buf 0 1234 .
+let p be option u64 fmt.put_u64 buf 0 1234 .
 guard is_some p . else return 1 .
 ```
 
@@ -83,24 +83,24 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let g option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let g be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
+  let buf be mut slice u8 some_value g .
 
   rem assembly --- not a byte has gone out yet
-  let p1 option u64 . be fmt.put_str buf 0 "answer=" .
+  let p1 be option u64 fmt.put_str buf 0 "answer=" .
   guard is_some p1 . else return 71 .
-  let p2 option u64 . be fmt.put_u64 buf (some_value p1) 42 .
+  let p2 be option u64 fmt.put_u64 buf (some_value p1) 42 .
   guard is_some p2 . else return 72 .
-  let p3 option u64 . be fmt.put_str buf (some_value p2) " hex=" .
+  let p3 be option u64 fmt.put_str buf (some_value p2) " hex=" .
   guard is_some p3 . else return 73 .
-  let p4 option u64 . be fmt.put_hex buf (some_value p3) 255 .
+  let p4 be option u64 fmt.put_hex buf (some_value p3) 255 .
   guard is_some p4 . else return 74 .
-  let p5 option u64 . be fmt.put_nl buf (some_value p4) .
+  let p5 be option u64 fmt.put_nl buf (some_value p4) .
   guard is_some p5 . else return 75 .
 
   rem output --- only the assembled front part (0 … p5) goes out
-  let w u64 be write_out out 1 (subslice buf 0 (some_value p5)) .
+  let w be u64 write_out out 1 (subslice buf 0 (some_value p5)) .
   return 0 .
 end
 ```
@@ -110,7 +110,7 @@ advance works with the same tools.
 
 ```lowent
 fn need_for input n u64 . output u64 . do
-  let w u64 be fmt.dec_width n .
+  let w be u64 fmt.dec_width n .
   return add (add 7 w) 1 .
 end
 ```
@@ -129,8 +129,8 @@ end
 
 #antipattern[Discarding the returned `pos` and reusing the old one][
   ```lowent
-  let p1 option u64 . be fmt.put_str buf 0 "answer=" .
-  let p2 option u64 . be fmt.put_u64 buf 0 42 .        rem ✗ pos should be some_value p1
+  let p1 be option u64 fmt.put_str buf 0 "answer=" .
+  let p2 be option u64 fmt.put_u64 buf 0 42 .        rem ✗ pos should be some_value p1
   ```
   It translates, and the result overlaps like `42swer=` instead of `answer=42`. If the front of the output is mangled, first check whether `pos` was passed on.
 ]

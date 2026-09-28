@@ -17,7 +17,7 @@ explanations are in the chapters named in the tables.
   [Closing with `;` or `,`], [`E-VOCAB-REMOVED`], [The detached period `.`],
   [Reading a field with `p.x`], [`E-FIELD-GLUED`], [`field p x`],
   [`for x in xs`], [`E-VOCAB-REMOVED`], [`for x xs do … end`],
-  [`let x f64 be .5 .`], [`E-LET-NOVALUE`], [`0.5`],
+  [`let x be f64 .5 .`], [`E-LET-NOVALUE`], [`0.5`],
   [Naming a local the same as a parameter], [`E-NAME-SHADOW`], [Pick a new name],
   [Using names like `count`, `text` or `len`], [`E-NAME-BUILTIN` and others], [Builtins and heredoc words cannot be names],
   [A module name equal to an op name], [`E-NAME-DUP`], [Rename the module],

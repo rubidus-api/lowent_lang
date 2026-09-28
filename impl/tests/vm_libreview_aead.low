@@ -17,18 +17,18 @@ proc t_gcm_taglen input key slice u8 . input nonce slice u8 . input aad slice u8
      input ct mut slice u8 . input tag mut slice u8 . input t17 mut slice u8 . input out mut slice u8 .
      input want mut slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard ge (len t17) 17 . else return 90 .
-  let _u9 result u64 gcm.gcm_error . be gcm.encrypt key nonce aad msg ct tag w .
+  let _u9 be result u64 gcm.gcm_error gcm.encrypt key nonce aad msg ct tag w .
   guard is_ok _u9 . else return 91 .
   guard eq (ok_value _u9) 16 . else return 91 .
-  let _u10 result u64 gcm.gcm_error . be gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 8) out want w .
+  let _u10 be result u64 gcm.gcm_error gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 8) out want w .
   guard is_ok _u10 . else return 92 .
   guard eq (ok_value _u10) 0 . else return 92 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 16 . do  set (index t17 i) (index tag i) .  set i (add i 1) .  end
-  let _u11 result u64 gcm.gcm_error . be gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice t17 0 17) out want w .
+  let _u11 be result u64 gcm.gcm_error gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice t17 0 17) out want w .
   guard is_ok _u11 . else return 93 .
   guard eq (ok_value _u11) 0 . else return 93 .
-  let _u12 result u64 gcm.gcm_error . be gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 16) out want w .
+  let _u12 be result u64 gcm.gcm_error gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 16) out want w .
   guard is_ok _u12 . else return 94 .
   guard eq (ok_value _u12) 1 . else return 94 .
   guard eq (index out 0) (index msg 0) . else return 95 .
@@ -40,16 +40,16 @@ proc t_gcm_rup input key slice u8 . input nonce slice u8 . input aad slice u8 . 
      input ct mut slice u8 . input tag mut slice u8 . input out mut slice u8 .
      input want mut slice u8 . input w mut slice u8 . output u64 . effects none . do
   guard gt (len msg) 0 . else return 90 .
-  let _u7 result u64 gcm.gcm_error . be gcm.encrypt key nonce aad msg ct tag w .
+  let _u7 be result u64 gcm.gcm_error gcm.encrypt key nonce aad msg ct tag w .
   guard is_ok _u7 . else return 91 .
   guard eq (ok_value _u7) 16 . else return 91 .
   set (index tag 0) (cast u8 (bit_xor (cast u64 (index tag 0)) 1)) .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len out) . do  set (index out i) 0 .  set i (add i 1) .  end
-  let _u8 result u64 gcm.gcm_error . be gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 16) out want w .
+  let _u8 be result u64 gcm.gcm_error gcm.decrypt key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 16) out want w .
   guard is_ok _u8 . else return 92 .
   guard eq (ok_value _u8) 0 . else return 92 .
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j (len msg) . do
     guard eq (index out j) 0 . else return 93 .
     set j (add j 1) .
@@ -63,15 +63,15 @@ proc t_aead_taglen input key slice u8 . input nonce slice u8 . input aad slice u
      input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 .
      input pad mut slice u8 . input want mut slice u8 . output u64 . effects none . do
   guard ge (len t17) 17 . else return 90 .
-  let _u4 result u64 aead.aead_error . be aead.seal key nonce aad msg ct tag otk pst st work ks pad .
+  let _u4 be result u64 aead.aead_error aead.seal key nonce aad msg ct tag otk pst st work ks pad .
   guard is_ok _u4 . else return 91 .
   guard eq (ok_value _u4) 16 . else return 91 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 16 . do  set (index t17 i) (index tag i) .  set i (add i 1) .  end
-  let _u5 result u64 aead.aead_error . be aead.unseal key nonce aad (subslice ct 0 (len msg)) (subslice t17 0 17) outp otk pst st work ks pad want .
+  let _u5 be result u64 aead.aead_error aead.unseal key nonce aad (subslice ct 0 (len msg)) (subslice t17 0 17) outp otk pst st work ks pad want .
   guard is_ok _u5 . else return 92 .
   guard eq (ok_value _u5) 0 . else return 92 .
-  let _u6 result u64 aead.aead_error . be aead.unseal key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 16) outp otk pst st work ks pad want .
+  let _u6 be result u64 aead.aead_error aead.unseal key nonce aad (subslice ct 0 (len msg)) (subslice tag 0 16) outp otk pst st work ks pad want .
   guard is_ok _u6 . else return 93 .
   guard eq (ok_value _u6) 1 . else return 93 .
   return 1 .
@@ -101,29 +101,29 @@ rem   96 은 32 를 답하고 그 값은 큰 scratch 로 낸 것과 같다. `ext
 proc t_hmac_scratch input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . input out2 mut slice u8 . output u64 . effects none . do
   guard eq (len msg) 2 . else return 90 .
   guard ge (len scratch) 256 . else return 90 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end
   rem ★ X-0035 뒤로 «자리가 모자라다» 는 **0 이 아니라 실패**다 — 그것이 이 검사의 요점이다:
   rem   재지 못한 것과 재고 나서 «아니다» 하는 것이 이제 타입으로 갈린다.
-  let _u0 result u64 hmac.hmac_error . be hmac.mac key msg (subslice scratch 0 66) out .
+  let _u0 be result u64 hmac.hmac_error hmac.mac key msg (subslice scratch 0 66) out .
   guard is_error _u0 . else return 91 .
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j 32 . do
     guard eq (index out j) 0 . else return 92 .
     set j (add j 1) .
   end
-  let _u1 result u64 hmac.hmac_error . be hmac.mac key msg (subslice scratch 0 96) out .
+  let _u1 be result u64 hmac.hmac_error hmac.mac key msg (subslice scratch 0 96) out .
   guard is_ok _u1 . else return 93 .
   guard eq (ok_value _u1) 32 . else return 93 .
-  let _u2 result u64 hmac.hmac_error . be hmac.mac key msg scratch out2 .
+  let _u2 be result u64 hmac.hmac_error hmac.mac key msg scratch out2 .
   guard is_ok _u2 . else return 94 .
   guard eq (ok_value _u2) 32 . else return 94 .
-  var k u64 be 0 .
+  var k be u64 0 .
   while lt k 32 . do
     guard eq (index out k) (index out2 k) . else return 95 .
     set k (add k 1) .
   end
-  let _u3 result u64 hmac.hmac_error . be hmac.extract key msg (subslice scratch 0 66) out .
+  let _u3 be result u64 hmac.hmac_error hmac.extract key msg (subslice scratch 0 66) out .
   guard is_error _u3 . else return 96 .
   return 1 .
 end

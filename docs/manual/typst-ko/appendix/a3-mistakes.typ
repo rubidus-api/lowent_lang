@@ -16,7 +16,7 @@
   [`;` 나 `,` 로 닫는다], [`E-VOCAB-REMOVED`], [떨어진 마침표 `.`],
   [`p.x` 로 칸을 읽는다], [`E-FIELD-GLUED`], [`field p x`],
   [`for x in xs`], [`E-VOCAB-REMOVED`], [`for x xs do … end`],
-  [`let x f64 be .5 .`], [`E-LET-NOVALUE`], [`0.5`],
+  [`let x be f64 .5 .`], [`E-LET-NOVALUE`], [`0.5`],
   [매개변수와 같은 이름의 지역을 짓는다], [`E-NAME-SHADOW`], [새 이름을 짓는다],
   [`count`·`text`·`len` 같은 이름을 쓴다], [`E-NAME-BUILTIN` 따위], [내장 연산·이음글 낱말은 이름이 될 수 없다],
   [모듈 이름과 op 이름이 같다], [`E-NAME-DUP`], [모듈 이름을 바꾼다],

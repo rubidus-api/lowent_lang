@@ -3,6 +3,6 @@ rem expect: E-LET-NOVALUE
 
 fn half output f64 .
 do
-  let x f64 be .5 .
+  let x be f64 .5 .
   return x .
 end

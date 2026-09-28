@@ -687,7 +687,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">fn</span></strong> use_sum <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> v big <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> big <strong><span class="tok-k">do</span></strong> a x . b <span class="tok-n">2</span> . c <span class="tok-n">3</span> . d <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> big <strong><span class="tok-k">make</span></strong> big <strong><span class="tok-k">do</span></strong> a x . b <span class="tok-n">2</span> . c <span class="tok-n">3</span> . d <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> add (total (<strong><span class="tok-k">ref</span></strong> v)) (total (<strong><span class="tok-k">ref</span></strong> v)) .
 <strong><span class="tok-k">end</span></strong>
 
@@ -700,8 +700,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">proc</span></strong> use_bump <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> start .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> start .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
   <strong><span class="tok-k">return</span></strong> add n r .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run use_sum borrow.low 7
@@ -729,7 +729,7 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 
 <strong><span class="tok-k">proc</span></strong> confused <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   set_both (<strong><span class="tok-k">mut_ref</span></strong> n) (<strong><span class="tok-k">mut_ref</span></strong> n) .
   <strong><span class="tok-k">return</span></strong> n .
 <strong><span class="tok-k">end</span></strong>
@@ -740,8 +740,8 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 
 <strong><span class="tok-k">proc</span></strong> look_then_write <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">ref</span></strong> n .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">ref</span></strong> n .
   <strong><span class="tok-k">set</span></strong> n <span class="tok-n">5</span> .
   <strong><span class="tok-k">return</span></strong> deref r .
 <strong><span class="tok-k">end</span></strong>
@@ -760,7 +760,7 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 
 <strong><span class="tok-k">fn</span></strong> leak <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> here <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">42</span> .
+  <strong><span class="tok-k">let</span></strong> here <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> <span class="tok-n">42</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">ref</span></strong> here .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check escape.low
@@ -786,7 +786,7 @@ mref_slice.low:4:0 E-MREF-SLICE: `mut ref slice` gives nothing that `mut slice` 
 <strong><span class="tok-k">fn</span></strong> first_two <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge (len xs) <span class="tok-n">2</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> front <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> take_front xs <span class="tok-n">2</span> .
+  <strong><span class="tok-k">let</span></strong> front <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> take_front xs <span class="tok-n">2</span> .
   <strong><span class="tok-k">return</span></strong> len front .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run first_two head.low [9,8,7,6]
@@ -804,9 +804,9 @@ first_two([9,8,7,6]) = 2
 <strong><span class="tok-k">proc</span></strong> use_bump <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> start .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> start .
   <em><span class="tok-c">rem ✘ 부르는 자리에 `mut_ref` 를 빠뜨렸다 --- 참조가 아니라 수 7 이 넘어간다</span></em>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> bump n .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> bump n .
   <strong><span class="tok-k">return</span></strong> add n r .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nomutref.low
@@ -823,7 +823,7 @@ mistake_nomutref.low:15:0 E-TYPE-ARG: this op takes a BORROW here (`ref` / `mut_
 <strong><span class="tok-k">fn</span></strong> double <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> x .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> x .
   <strong><span class="tok-k">return</span></strong> twice (<strong><span class="tok-k">ref</span></strong> n) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noderef.low
@@ -840,7 +840,7 @@ mistake_noderef.low:7:0 E-TYPE-REFVAL: a BORROW is being used where a number is 
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `let` 으로 지은 이름인데 쓰기로 빌려준다</span></em>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> start .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> start .
   bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
   <strong><span class="tok-k">return</span></strong> n .
 <strong><span class="tok-k">end</span></strong>
@@ -853,7 +853,7 @@ mistake_letmutref.low:14:0 E-TYPE-ARGMUT: a WRITE borrow (`mut_ref`) was taken o
   <strong><span class="tok-k">requires</span></strong> lt x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem `x` 는 호출자가 넘긴 값의 사본이다 --- 여기서 무엇을 해도 호출자의 변수에 닿지 않는다</span></em>
-  <strong><span class="tok-k">var</span></strong> y <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> x .
+  <strong><span class="tok-k">var</span></strong> y <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> x .
   <strong><span class="tok-k">set</span></strong> y (add y <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> y .
 <strong><span class="tok-k">end</span></strong>
@@ -861,8 +861,8 @@ mistake_letmutref.low:14:0 E-TYPE-ARGMUT: a WRITE borrow (`mut_ref`) was taken o
 <strong><span class="tok-k">proc</span></strong> use_inc <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> start .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> inc n .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> start .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> inc n .
   <em><span class="tok-c">rem `n` 은 그대로 7 이다 --- 바꾸게 하려면 `mut_ref n` 으로 빌려준다</span></em>
   <strong><span class="tok-k">return</span></strong> n .
 <strong><span class="tok-k">end</span></strong>
@@ -880,7 +880,7 @@ use_inc(7) = 7
 <strong><span class="tok-k">proc</span></strong> use_twice <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">900</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> start .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> start .
   <em><span class="tok-c">rem 첫 빌림은 이 호출이 끝날 때 돌아온다 --- 그래서 다음 줄에서 또 빌릴 수 있다</span></em>
   bump (<strong><span class="tok-k">mut_ref</span></strong> n) .
   bump (<strong><span class="tok-k">mut_ref</span></strong> n) .

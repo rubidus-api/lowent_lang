@@ -41,7 +41,7 @@
   from outside.
 - `inc`, which changes the state, is a `proc` with `effects state`. `get`, which only reads, is a `fn`. Ops inside actors follow the kind rules of
   #chref("ops") as is.
-- `var c counter be spawn actor counter .` makes one actor. Its state starts at 0.
+- `var c be counter spawn actor counter .` makes one actor. Its state starts at 0.
 - `send c inc` sends the `inc` message to `c`, waits until it is handled, and receives the result.
 
 An actor handles messages *one at a time*. So its state is never touched concurrently. That is why there is no need to take locks by hand.
@@ -272,7 +272,7 @@ The `errors insufficient .` of `withdraw` has no condition on purpose. The fourt
   [*Shape*], [*Meaning*], [*Why*],
   [`actor counter do state do value u64 . end … end`], [declare a unit of execution that encloses state], [there is no way to touch the state concurrently],
   [`proc inc … effects state .` · `fn get …`], [a message that changes state · one that only reads], [`fn`/`proc` rules unchanged --- a `fn` that writes is `E-EFFECT-PURITY`],
-  [`var c counter be spawn actor counter .`], [create one actor (state starts at 0)], [each `spawn` has its own state],
+  [`var c be counter spawn actor counter .`], [create one actor (state starts at 0)], [each `spawn` has its own state],
   [`send c inc` · `send acct deposit a`], [send and wait until processed · carry a value], [actor first --- a message is an op taking the actor as first parameter],
   [`spawn send c inc .` · `drain c .` · `schedule .`], [put in the mailbox · drain that actor's mailbox · drain all], [a person picks the delivery point --- determinism],
   [`mailbox bounded 2 .` · `try spawn send`], [mailbox size · receive overflow as a value], [overflow stops, or becomes a `result`],

@@ -39,11 +39,11 @@ newtype kv_bench_keys u8 .
 
 rem ── ① budget — 핸들 한 낱말에 slot·shard·gen 이 들어가는가 ────────────
 proc handles output u64 . effects none . do
-  let p budget.plan be budget.default64 .
+  let p be budget.plan budget.default64 .
   guard eq (field p slot_bits) 32 . else return 91 .
-  let ho option u64 . be budget.pack 32 8 24 7 1 3 .
+  let ho be option u64 budget.pack 32 8 24 7 1 3 .
   guard is_some ho . else return 92 .
-  let h u64 be some_value ho .
+  let h be u64 some_value ho .
   guard eq (budget.slot_of 32 h) 7 . else return 93 .
   guard eq (budget.shard_of 32 8 h) 1 . else return 94 .
   guard eq (budget.gen_of 32 8 h) 3 . else return 95 .
@@ -54,13 +54,13 @@ rem ── ② pool — 레코드 슬래브: 넷을 얻고 하나를 돌려준 �
 proc records input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
   effects none .
 do
-  let po option (pool.block_pool kv_rec) . be pool.init kv_rec mem gens 16 .
+  let po be option (pool.block_pool kv_rec) pool.init kv_rec mem gens 16 .
   guard is_some po . else return 91 .
-  var p pool.block_pool kv_rec . be some_value po .
-  var got u64 be 0 .
-  var i u64 be 0 .
+  var p be (pool.block_pool kv_rec) some_value po .
+  var got be u64 0 .
+  var i be u64 0 .
   while lt i 4 . do
-    let h option (pool.handle kv_rec) . be pool.take kv_rec p .
+    let h be option (pool.handle kv_rec) pool.take kv_rec p .
     if is_some h . do set got (add got 1) . end
     set i (add i 1) .
   end
@@ -85,24 +85,24 @@ end
 
 rem ── ④ pagecache — 색인 페이지: 읽는 동안 고정하고, 놓은 뒤에야 축출된다 ────
 proc index_read output u64 . effects none . do
-  var c owned pagecache.cache kv_page . be pagecache.open kv_page 16 .
-  var pin pagecache.pin kv_page . be pagecache.acquire kv_page c 42 .
+  var c be (owned pagecache.cache kv_page) pagecache.open kv_page 16 .
+  var pin be (pagecache.pin kv_page) pagecache.acquire kv_page c 42 .
   guard eq (pagecache.depth_of kv_page pin) 1 . else return 91 .
   rem 안쪽 페이지 하나를 더 집는다 — 고정은 **쌓이고** LIFO 로 풀린다.
-  var pin2 pagecache.pin2 kv_page . be pagecache.acquire_more kv_page pin 43 .
+  var pin2 be (pagecache.pin2 kv_page) pagecache.acquire_more kv_page pin 43 .
   guard eq (pagecache.depth2_of kv_page pin2) 2 . else return 92 .
-  var back owned pagecache.pin kv_page . be pagecache.release_more kv_page pin2 .
-  var c2 owned pagecache.cache kv_page . be pagecache.release kv_page back .
-  var c3 owned pagecache.cache kv_page . be pagecache.evict kv_page c2 .
+  var back be (owned pagecache.pin kv_page) pagecache.release_more kv_page pin2 .
+  var c2 be (owned pagecache.cache kv_page) pagecache.release kv_page back .
+  var c3 be (owned pagecache.cache kv_page) pagecache.evict kv_page c2 .
   guard eq (pagecache.epoch_of kv_page c3) 1 . else return 93 .
   return 4 .
 end
 
 rem ── ⑤ segarena — 값 바이트를 분절로 키운다(분절당 directory load 1회) ────
 proc values input dir mut slice u64 . . input cap0 u64 . output u64 . effects none . do
-  var a segarena.arena kv_bytes . be segarena.open kv_bytes 2 .
-  let b0 option u64 . be segarena.grow kv_bytes a dir cap0 .
-  let b1 option u64 . be segarena.grow kv_bytes a dir cap0 .
+  var a be (segarena.arena kv_bytes) segarena.open kv_bytes 2 .
+  let b0 be option u64 segarena.grow kv_bytes a dir cap0 .
+  let b1 be option u64 segarena.grow kv_bytes a dir cap0 .
   guard is_some b0 . else return 91 .
   guard is_some b1 . else return 92 .
   guard eq (some_value b0) 0 . else return 93 .
@@ -114,27 +114,27 @@ end
 
 rem ── ⑥ segview — 분절 둘에 걸친 값을 **한 값으로** 읽는다 ────────────────
 proc spanning input al cap allocator . output u64 . effects alloc . do
-  let mb option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let mb be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some mb . else return 91 .
-  let md option mut slice u8 . . be alloc_bytes al capacity 32 .
+  let md be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some md . else return 92 .
-  let mo option mut slice u8 . . be alloc_bytes al capacity 16 .
+  let mo be option mut slice u8 alloc_bytes al capacity 16 .
   guard is_some mo . else return 93 .
-  var back mut slice u8 . be some_value mb .
+  var back be mut slice u8 some_value mb .
   set (index back 0) 7 . set (index back 1) 8 .
   set (index back 8) 9 . set (index back 9) 10 .
-  var d mut slice u64 . be view_array u64 (some_value md) .
+  var d be mut slice u64 view_array u64 (some_value md) .
   rem (자리, 길이) 짝 둘 — 값이 분절 경계를 넘는다.
   set (index d 0) 0 . set (index d 1) 2 .
   set (index d 2) 8 . set (index d 3) 2 .
-  var out mut slice u8 . be some_value mo .
-  let ss be view_segments back d .
+  var out be mut slice u8 some_value mo .
+  let ss be segments u8 view_segments back d .
   guard eq (segs ss) 2 . else return 94 .
   guard eq (segview.total_len ss) 4 . else return 95 .
-  let bo option u8 . be segview.byte_at ss 2 .
+  let bo be option u8 segview.byte_at ss 2 .
   guard is_some bo . else return 96 .
   guard eq (some_value bo) 9 . else return 97 .
-  let no option u64 . be segview.coalesce ss out .
+  let no be option u64 segview.coalesce ss out .
   guard is_some no . else return 98 .
   guard eq (some_value no) 4 . else return 99 .
   return 6 .
@@ -142,14 +142,14 @@ end
 
 rem ── ⑦ shard — 두 일꾼이 겹치지 않는 키 구역을 쓴다(락·원자 없음) ────────
 proc workers input mem mut slice u64 . . output u64 . effects none . do
-  var r owned shard.token kv_keys . be shard.open kv_keys 8 .
-  var h shard.halves kv_keys . be shard.split_at kv_keys r 4 .
-  let lo shard.token kv_keys . be (field h low) .
-  let hi shard.token kv_keys . be (field h high) .
+  var r be (owned shard.token kv_keys) shard.open kv_keys 8 .
+  var h be (shard.halves kv_keys) shard.split_at kv_keys r 4 .
+  let lo be (shard.token kv_keys) (field h low) .
+  let hi be (shard.token kv_keys) (field h high) .
   guard shard.write kv_keys lo mem 0 100 . else return 91 .
   guard eq (shard.write kv_keys lo mem 4 999) false . else return 92 .
   guard shard.write kv_keys hi mem 4 104 . else return 93 .
-  let a option u64 . be shard.read kv_keys hi mem 4 .
+  let a be option u64 shard.read kv_keys hi mem 4 .
   guard is_some a . else return 94 .
   guard eq (some_value a) 104 . else return 95 .
   return 7 .
@@ -158,12 +158,12 @@ end
 rem ── ⑧ lifemode — 공유되는 값의 근거리 수명(단일 스레드 refcount) ────────
 proc sharing input c mut slice u64 . . output u64 . effects none . do
   guard lifemode.near_open c 0 . else return 91 .
-  let a option u64 . be lifemode.near_share c 0 .
+  let a be option u64 lifemode.near_share c 0 .
   guard is_some a . else return 92 .
   guard eq (some_value a) 2 . else return 93 .
-  let b option u64 . be lifemode.near_drop c 0 .
+  let b be option u64 lifemode.near_drop c 0 .
   guard is_some b . else return 94 .
-  let z option u64 . be lifemode.near_drop c 0 .
+  let z be option u64 lifemode.near_drop c 0 .
   guard is_some z . else return 95 .
   guard eq (some_value z) 0 . else return 96 .
   return 8 .
@@ -181,8 +181,8 @@ rem 고리 목록 — 넣고(nl_after) 세고(nl_count) 끊는다(nl_walk_cut).
 proc bench_list input nx mut slice u64 . . input pv mut slice u64 . . input reps u64 . output u64 .
   effects none .
 do
-  var acc u64 be 0 .
-  var r u64 be 0 .
+  var acc be u64 0 .
+  var r be u64 0 .
   while lt r reps . do
     guard nodelist.nl_solo nx pv 0 . else return 0 .
     guard nodelist.nl_after nx pv 0 1 . else return 0 .
@@ -199,13 +199,13 @@ rem 슬래브 — 넷을 얻고 넷을 돌려준다(재사용 경로).
 proc bench_pool input mem mut slice u8 . . input gens mut slice u64 . . input reps u64 . output u64 .
   effects none .
 do
-  let po option (pool.block_pool kv_bench_rec) . be pool.init kv_bench_rec mem gens 16 .
+  let po be option (pool.block_pool kv_bench_rec) pool.init kv_bench_rec mem gens 16 .
   guard is_some po . else return 0 .
-  var p pool.block_pool kv_bench_rec . be some_value po .
-  var acc u64 be 0 .
-  var r u64 be 0 .
+  var p be (pool.block_pool kv_bench_rec) some_value po .
+  var acc be u64 0 .
+  var r be u64 0 .
   while lt r reps . do
-    let h option (pool.handle kv_bench_rec) . be pool.take kv_bench_rec p .
+    let h be option (pool.handle kv_bench_rec) pool.take kv_bench_rec p .
     if is_some h . do
       set acc (add acc 1) .
       if pool.release kv_bench_rec p (some_value h) . do set acc (add acc 1) . end
@@ -217,12 +217,12 @@ end
 
 rem 샤드 — 겹치지 않는 구역에 쓴다(steady state 에 락·원자가 없어야 한다).
 proc bench_shard input mem mut slice u64 . . input reps u64 . output u64 . effects none . do
-  var t owned shard.token kv_bench_keys . be shard.open kv_bench_keys 8 .
-  var acc u64 be 0 .
-  var r u64 be 0 .
+  var t be (owned shard.token kv_bench_keys) shard.open kv_bench_keys 8 .
+  var acc be u64 0 .
+  var r be u64 0 .
   while lt r reps . do
     if shard.write kv_bench_keys t mem 3 r . do set acc (add acc 1) . end
-    let v option u64 . be shard.read kv_bench_keys t mem 3 .
+    let v be option u64 shard.read kv_bench_keys t mem 3 .
     if is_some v . do set acc (add acc 1) . end
     set r (add r 1) .
   end
@@ -235,11 +235,11 @@ proc bench_seg input back mut slice u8 . . input d mut slice u64 . . input reps 
 do
   set (index d 0) 0 . set (index d 1) 2 .
   set (index d 2) 8 . set (index d 3) 2 .
-  let ss be view_segments back d .
-  var acc u64 be 0 .
-  var r u64 be 0 .
+  let ss be segments u8 view_segments back d .
+  var acc be u64 0 .
+  var r be u64 0 .
   while lt r reps . do
-    let b option u8 . be segview.byte_at ss (mod r 4) .
+    let b be option u8 segview.byte_at ss (mod r 4) .
     if is_some b . do set acc (add acc 1) . end
     set r (add r 1) .
   end
@@ -252,25 +252,25 @@ export proc bench input k cap clock . input al cap allocator . input which u64 .
   output u64 . effects alloc .
 do
   guard gt reps 0 . else return 0 .
-  let ab option mut slice u8 . . be alloc_bytes al capacity 512 .
+  let ab be option mut slice u8 alloc_bytes al capacity 512 .
   guard is_some ab . else return 0 .
-  let bb option mut slice u8 . . be alloc_bytes al capacity 512 .
+  let bb be option mut slice u8 alloc_bytes al capacity 512 .
   guard is_some bb . else return 0 .
-  var m8 mut slice u8 . be some_value ab .
-  var m64 mut slice u64 . be view_array u64 (some_value bb) .
+  var m8 be mut slice u8 some_value ab .
+  var m64 be mut slice u64 view_array u64 (some_value bb) .
 
-  let t0 u64 be clock.now_ns k .
-  var work u64 be 0 .
+  let t0 be u64 clock.now_ns k .
+  var work be u64 0 .
   if eq which 0 . do
-    let cb option mut slice u8 . . be alloc_bytes al capacity 512 .
+    let cb be option mut slice u8 alloc_bytes al capacity 512 .
     guard is_some cb . else return 0 .
-    var pv mut slice u64 . be view_array u64 (some_value cb) .
+    var pv be mut slice u64 view_array u64 (some_value cb) .
     set work (bench_list m64 pv reps) .
   end
   if eq which 1 . do set work (bench_pool m8 m64 reps) . end
   if eq which 2 . do set work (bench_shard m64 reps) . end
   if eq which 3 . do set work (bench_seg m8 m64 reps) . end
-  let dt u64 be clock.since_ns k t0 .
+  let dt be u64 clock.since_ns k t0 .
   guard gt work 0 . else return 0 .
   return div dt reps .
 end
@@ -285,39 +285,39 @@ rem             lowentc --emit-c … && ./bin bench 0 0 <which> <reps>   → ns/
 export proc stands input al cap allocator . output u8 . effects alloc . do
   guard eq handles 1 . else return 1 .
 
-  let mb option mut slice u8 . . be alloc_bytes al capacity 256 .
+  let mb be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some mb . else return 89 .
-  let gb option mut slice u8 . . be alloc_bytes al capacity 128 .
+  let gb be option mut slice u8 alloc_bytes al capacity 128 .
   guard is_some gb . else return 88 .
-  var mem mut slice u8 . be some_value mb .
-  var gens mut slice u64 . be view_array u64 (some_value gb) .
+  var mem be mut slice u8 some_value mb .
+  var gens be mut slice u64 view_array u64 (some_value gb) .
   guard eq (records mem gens) 2 . else return 2 .
 
-  let nb option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let nb be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some nb . else return 87 .
-  let pb option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let pb be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some pb . else return 86 .
-  var nx mut slice u64 . be view_array u64 (some_value nb) .
-  var pv mut slice u64 . be view_array u64 (some_value pb) .
+  var nx be mut slice u64 view_array u64 (some_value nb) .
+  var pv be mut slice u64 view_array u64 (some_value pb) .
   guard eq (lru nx pv) 3 . else return 3 .
 
   guard eq index_read 4 . else return 4 .
 
-  let db option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let db be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some db . else return 85 .
-  var dir mut slice u64 . be view_array u64 (some_value db) .
+  var dir be mut slice u64 view_array u64 (some_value db) .
   guard eq (values dir 8) 5 . else return 5 .
 
   guard eq (spanning al) 6 . else return 6 .
 
-  let kb option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let kb be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some kb . else return 84 .
-  var keys mut slice u64 . be view_array u64 (some_value kb) .
+  var keys be mut slice u64 view_array u64 (some_value kb) .
   guard eq (workers keys) 7 . else return 7 .
 
-  let cb option mut slice u8 . . be alloc_bytes al capacity 32 .
+  let cb be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some cb . else return 83 .
-  var rc mut slice u64 . be view_array u64 (some_value cb) .
+  var rc be mut slice u64 view_array u64 (some_value cb) .
   guard eq (sharing rc) 8 . else return 8 .
 
   return 0 .

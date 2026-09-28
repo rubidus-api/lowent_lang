@@ -23,18 +23,18 @@ rem          buf: 16진을 푸는 자리 0..48 · r 64..112 · s 112..160 · e 1
 proc prep input buf mut slice u8 . input wu mut slice u64 . output u64 . effects none . do
   guard ge (len wu) 1580 . else return 0 .
   guard ge (len buf) 304 . else return 0 .
-  let _u0 result u64 verify.verify_error . be verify.curve384 (subslice wu 0 96) (subslice buf 0 48) .
+  let _u0 be result u64 verify.verify_error verify.curve384 (subslice wu 0 96) (subslice buf 0 48) .
   guard is_ok _u0 . else return 0 .
   guard eq (ok_value _u0) 1 . else return 0 .
-  let dr option u64 . be codec.hex_dec "6ae4768089f6801184a788b4df81f008c71b7f652d0ac0cf20143a84c4dfa6e352eb9194879159892d04ff27d133d4e6" (subslice buf 64 112) .
+  let dr be option u64 codec.hex_dec "6ae4768089f6801184a788b4df81f008c71b7f652d0ac0cf20143a84c4dfa6e352eb9194879159892d04ff27d133d4e6" (subslice buf 64 112) .
   guard is_some dr . else return 0 .
-  let ds option u64 . be codec.hex_dec "95daf82a122a9cbe5dc29d099b27251c1780dc94eb9d7142efa9087b25aa8c78b7897404b7e3473caf18ec227619c2d9" (subslice buf 112 160) .
+  let ds be option u64 codec.hex_dec "95daf82a122a9cbe5dc29d099b27251c1780dc94eb9d7142efa9087b25aa8c78b7897404b7e3473caf18ec227619c2d9" (subslice buf 112 160) .
   guard is_some ds . else return 0 .
-  let de option u64 . be codec.hex_dec "ba5f97c70250696c963d22d00d6cb64979953edf06a80af0c258a25f18f029c0f76e10af1bbf8b3014f64fbd320f4c91" (subslice buf 160 208) .
+  let de be option u64 codec.hex_dec "ba5f97c70250696c963d22d00d6cb64979953edf06a80af0c258a25f18f029c0f76e10af1bbf8b3014f64fbd320f4c91" (subslice buf 160 208) .
   guard is_some de . else return 0 .
-  let dx option u64 . be codec.hex_dec "e376542c785dafe78338bb6afbb0f744f7c1ad99ca32bb5eacaba8d5e4a7e139bf0555020a8ed6614e6fed595d9aa1a7" (subslice buf 208 256) .
+  let dx be option u64 codec.hex_dec "e376542c785dafe78338bb6afbb0f744f7c1ad99ca32bb5eacaba8d5e4a7e139bf0555020a8ed6614e6fed595d9aa1a7" (subslice buf 208 256) .
   guard is_some dx . else return 0 .
-  let dy option u64 . be codec.hex_dec "e28eb6f7bde42f610829f8c42bfdfe666cd29ba93cf2cb06ad97a253a4e47ce8ce4ce5b916e69113a79eea43c0df7c34" (subslice buf 256 304) .
+  let dy be option u64 codec.hex_dec "e28eb6f7bde42f610829f8c42bfdfe666cd29ba93cf2cb06ad97a253a4e47ce8ce4ce5b916e69113a79eea43c0df7c34" (subslice buf 256 304) .
   guard is_some dy . else return 0 .
   return 1 .
 end
@@ -51,7 +51,7 @@ end
 
 rem ★ 「자리가 모자라다」는 **9** 로 따로 답한다 — 「서명이 틀렸다」(0)와 섞지 않는다(X-0035).
 proc judge input wu mut slice u64 . output u64 . effects none . do
-  let jr result u64 p384.p384_error . be p384.ecdsa_ok (subslice wu 96 120) (subslice wu 120 144) (subslice wu 144 168)
+  let jr be result u64 p384.p384_error p384.ecdsa_ok (subslice wu 96 120) (subslice wu 120 144) (subslice wu 144 168)
                            (subslice wu 168 216)
                            (subslice wu 0 24) (subslice wu 24 48)
                            (subslice wu 48 72) (subslice wu 72 96)
@@ -65,10 +65,10 @@ rem   낸 값: 0 = 네 가지 모두 바라던 대로 · 1 참을 거절했다 �
 rem          3 고친 해시를 받았다 · 4 s=0 을 받았다 · 9 준비하다 실패했다.
 
 proc main input al cap allocator . output u8 . effects alloc . do
-  let g option mut slice u8 . . be alloc_bytes al capacity 32768 .
+  let g be option mut slice u8 alloc_bytes al capacity 32768 .
   guard is_some g . else return 9 .
-  let buf mut slice u8 . be some_value g .
-  let wu mut slice u64 . be view_array u64 (subslice buf 8192 24192) .
+  let buf be mut slice u8 some_value g .
+  let wu be mut slice u64 view_array u64 (subslice buf 8192 24192) .
 
   rem ✔ 참인 서명은 받는다.
   guard eq (prep buf wu) 1 . else return 9 .
@@ -89,7 +89,7 @@ proc main input al cap allocator . output u8 . effects alloc . do
 
   rem ✘ s = 0 은 **점 연산 이전에** 걸려야 한다. 이 갈래를 빠뜨린 검증기는 아무 서명이나 받는다.
   guard eq (prep buf wu) 1 . else return 9 .
-  var i u64 be 112 .
+  var i be u64 112 .
   while lt i 160 . do  set (index buf i) 0 .  set i (add i 1) .  end
   guard eq (fill buf wu) 1 . else return 9 .
   guard eq (judge wu) 0 . else return 4 .

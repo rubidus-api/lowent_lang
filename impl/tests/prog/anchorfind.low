@@ -10,19 +10,19 @@ use x509 from "../../../lib/x509.low" .
 proc find input k cap io . input fs cap file_system . input al cap allocator . input path slice u8 .
      output u8 . effects alloc io .
 do
-  let g option mut slice u8 . . be alloc_bytes al capacity 65536 .
+  let g be option mut slice u8 alloc_bytes al capacity 65536 .
   guard is_some g . else return 9 .
-  let buf mut slice u8 . be some_value g .
-  let rn option u64 . be read_in k 0 buf .
+  let buf be mut slice u8 some_value g .
+  let rn be option u64 read_in k 0 buf .
   guard is_some rn . else return 9 .
-  let n u64 be some_value rn .
+  let n be u64 some_value rn .
   guard gt n 0 . else return 9 .
-  let c slice u8 be subslice buf 0 n .
-  let io_ u64 be x509.issuer_off c .
+  let c be slice u8 subslice buf 0 n .
+  let io_ be u64 x509.issuer_off c .
   guard gt io_ 0 . else return 9 .
 
-  let dn mut slice u64 . be view_array u64 (subslice buf 60000 60008) .
-  let fr result u64 trust.trust_error . be trust.find_anchor fs path c io_ (subslice buf 20000 40000) (subslice buf 40000 50000) (subslice buf 50000 58000) dn .
+  let dn be mut slice u64 view_array u64 (subslice buf 60000 60008) .
+  let fr be result u64 trust.trust_error trust.find_anchor fs path c io_ (subslice buf 20000 40000) (subslice buf 40000 50000) (subslice buf 50000 58000) dn .
   rem ★ 2 = **재지 못했다**(자리가 모자라다). 1 = 재고 나서 «없다». 그 둘은 다른 답이다.
   guard is_ok fr . else return 2 .
   if gt (ok_value fr) 0 . do  return 0 . end

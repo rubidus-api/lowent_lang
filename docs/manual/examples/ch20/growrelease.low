@@ -5,28 +5,28 @@ use allocs .
 
 proc regrow input buf mut slice u8 . output u64 . effects state .
 do
-  var b allocs.bump_bytes be spawn actor allocs.bump_bytes .
-  let c u64 be send b init buf .
-  let p option mut slice u8 be send b reserve 4 .
+  var b be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let c be u64 send b init buf .
+  let p be option mut slice u8 send b reserve 4 .
   guard is_some p . else return 91 .
-  let pv mut slice u8 be some_value p .
+  let pv be mut slice u8 some_value p .
   rem ko: 방금 받은 조각을 4 에서 6 바이트로 제자리에서 늘린다 /// en: grow the piece just received from 4 to 6 bytes in place
-  let g option mut slice u8 be send b grow pv 6 .
+  let g be option mut slice u8 send b grow pv 6 .
   guard is_some g . else return 92 .
-  let gv mut slice u8 be some_value g .
-  let q option mut slice u8 be send b reserve 2 .
+  let gv be mut slice u8 some_value g .
+  let q be option mut slice u8 send b reserve 2 .
   guard is_some q . else return 93 .
-  let qv mut slice u8 be some_value q .
+  let qv be mut slice u8 some_value q .
   rem ko: gv 는 마지막 조각이 아니다(뒤에 qv 가 있다) — 돌려받지 않는다 /// en: gv is not the last piece (qv comes after it), so it is not taken back
-  let back1 bool be send b release gv .
+  let back1 be bool send b release gv .
   rem ko: qv 는 마지막 조각이다 — 돌려받는다 /// en: qv is the last piece, so it is taken back
-  let back2 bool be send b release qv .
-  let u u64 be send b used .
-  var d1 u64 be 0 .
+  let back2 be bool send b release qv .
+  let u be u64 send b used .
+  var d1 be u64 0 .
   if back1 . do
     set d1 1 .
   end
-  var d2 u64 be 0 .
+  var d2 be u64 0 .
   if back2 . do
     set d2 1 .
   end

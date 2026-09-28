@@ -93,7 +93,7 @@ export proc nl_after input nx mut slice u64 . . input pv mut slice u64 . . input
 do
   guard lt at (len nx) . else return false .
   guard lt i (len nx) . else return false .
-  let n u64 be index nx at .
+  let n be u64 index nx at .
   set (index nx at) i .
   set (index pv i) at .
   set (index nx i) n .
@@ -106,8 +106,8 @@ export proc nl_cut input nx mut slice u64 . . input pv mut slice u64 . . input i
   output bool . effects none .
 do
   guard lt i (len nx) . else return false .
-  let p u64 be index pv i .
-  let n u64 be index nx i .
+  let p be u64 index pv i .
+  let n be u64 index nx i .
   set (index nx p) n .
   set (index pv n) p .
   set (index nx i) i .
@@ -126,11 +126,11 @@ export proc nl_walk_cut input nx mut slice u64 . . input pv mut slice u64 . . in
   input cut_at u64 . output u64 . effects none .
 do
   guard lt head (len nx) . else return 0 .
-  var start u64 be head .
-  var seen u64 be 0 .
+  var start be u64 head .
+  var seen be u64 0 .
   if eq cut_at head . do
-    let n0 u64 be index nx head .
-    let p0 u64 be index pv head .
+    let n0 be u64 index nx head .
+    let p0 be u64 index pv head .
     set (index nx p0) n0 .
     set (index pv n0) p0 .
     set (index nx head) head .
@@ -139,14 +139,14 @@ do
     if eq n0 head . do return 1 . end        rem 혼자였다 — 바퀴가 곧 끝이다
     set start n0 .
   end
-  var i u64 be start .
-  var steps u64 be 0 .
+  var i be u64 start .
+  var steps be u64 0 .
   while le steps (len nx) . do
     rem ★ **다음을 먼저 읽는다** — 지금 노드를 빼면 그 `next` 가 자기 자신이 되기 때문이다.
-    let nxt u64 be index nx i .
+    let nxt be u64 index nx i .
     if eq i cut_at . do
-      let p u64 be index pv i .
-      let n u64 be index nx i .
+      let p be u64 index pv i .
+      let n be u64 index nx i .
       set (index nx p) n .
       set (index pv n) p .
       set (index nx i) i .
@@ -165,9 +165,9 @@ end
 rem 고리 한 바퀴의 길이를 센다 — 훑기만 한다. 머리로 돌아오면 끝이다.
 export fn nl_count input nx slice u64 . input head u64 . output u64 . do
   guard lt head (len nx) . else return 0 .
-  var i u64 be head .
-  var seen u64 be 0 .
-  var steps u64 be 0 .
+  var i be u64 head .
+  var seen be u64 0 .
+  var steps be u64 0 .
   while le steps (len nx) . do
     set seen (add seen 1) .
     set i (index nx i) .

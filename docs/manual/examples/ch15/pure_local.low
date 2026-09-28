@@ -5,8 +5,8 @@ rem ko: `var` 와 `set` 을 써도 순수하다 --- 바뀌는 것이 이 op 안�
 fn sum_to input n u64 . output u64 .
   requires le n 1000 .
 do
-  var s u64 be 0 .
-  var i u64 be 0 .
+  var s be u64 0 .
+  var i be u64 0 .
   while le i n do
     set s (add s i) .
     set i (add i 1) .

@@ -10,10 +10,10 @@
 
 ```lowent
 newtype pa u8 .
-let po option (pool.block_pool pa) . be pool.init pa mem gens 4096 .
+let po be option (pool.block_pool pa) pool.init pa mem gens 4096 .
 guard is_some po . else return 1 .
-var p pool.block_pool pa . be some_value po .
-let h option (pool.handle pa) . be pool.take pa p .
+var p be (pool.block_pool pa) some_value po .
+let h be option (pool.handle pa) pool.take pa p .
 ```
 
 #aside[무엇을 막아 주고, 무엇을 안 막아 주나][
@@ -57,22 +57,22 @@ newtype demo_brand u8 .
 
 proc demo input mem mut slice u8 . . input gens mut slice u64 . . output u64 . effects none .
 do
-  let po option (pool.block_pool demo_brand) . be pool.init demo_brand mem gens 16 .
+  let po be option (pool.block_pool demo_brand) pool.init demo_brand mem gens 16 .
   guard is_some po . else return 89 .
-  var p pool.block_pool demo_brand . be some_value po .
-  let h option (pool.handle demo_brand) . be pool.take demo_brand p .
+  var p be (pool.block_pool demo_brand) some_value po .
+  let h be option (pool.handle demo_brand) pool.take demo_brand p .
   guard is_some h . else return 91 .
-  let hh pool.handle demo_brand . be some_value h .
+  let hh be (pool.handle demo_brand) some_value h .
   guard pool.alive demo_brand p hh . else return 92 .
-  var total u64 be 0 .
+  var total be u64 0 .
   borrow v be some_value (pool.bytes demo_brand p hh) do
     set (index v 8) 3 .
     set (index v 9) 4 .
     set total (add (narrow u64 (index v 8)) (narrow u64 (index v 9))) .
   end
-  let rel bool be pool.release demo_brand p hh .
+  let rel be bool pool.release demo_brand p hh .
   guard eq rel true . else return 94 .
-  let dead option mut slice u8 . . be pool.bytes demo_brand p hh .
+  let dead be option mut slice u8 pool.bytes demo_brand p hh .
   guard eq (is_some dead) false . else return 95 .
   return total .
 end
@@ -98,7 +98,7 @@ end
 ]
 
 #antipattern[해제한 뒤 옛 뷰를 쓴다][
-  `pool.release` 는 `invalidates p .` 를 밝힌다. 그래서 `let bv … be some_value (pool.bytes b p h) .` 로 묶어 둔 뷰를 해제 *뒤에* 쓰면
+  `pool.release` 는 `invalidates p .` 를 밝힌다. 그래서 `let bv be … some_value (pool.bytes b p h) .` 로 묶어 둔 뷰를 해제 *뒤에* 쓰면
   컴파일 에러 `E-VIEW-INVALIDATED` 다 --- 처리기가 `bv` 가 `p` 에서 왔다는 것을 따라간다. 해제 뒤에 다시 닿으려면 `bytes` 로 새로 묻는다
   (세대가 `none` 으로 답한다).
 ]

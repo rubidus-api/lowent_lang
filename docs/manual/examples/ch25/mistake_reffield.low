@@ -13,6 +13,6 @@ end
 
 proc peek_it output u64 . effects state .
 do
-  var h holder be spawn actor holder .
+  var h be holder spawn actor holder .
   return send h peek .
 end

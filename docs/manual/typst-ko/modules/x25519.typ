@@ -15,7 +15,7 @@
 
 ```lowent
 rem w 는 u64 175 원소 이상 --- 작업 공간을 하나로 받는다
-let n u64 be x25519.agree shared mysecret theirpub zbuf w .
+let n be u64 x25519.agree shared mysecret theirpub zbuf w .
 guard eq n 32 . else return 1 .
 ```
 

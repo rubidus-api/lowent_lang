@@ -664,7 +664,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <a class="skip" href="#content">본문으로 건너뛰기</a>
 <div class="bar"><strong><a href="index.html">Lowent 매뉴얼</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">7장 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch06.html" title="이전" aria-label="이전">←</a><a href="index.html" title="목차로" aria-label="목차로">↑</a><a href="ch08.html" title="다음" aria-label="다음">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ 설정</button><a class="tool" href="toc.html">▤ 상세 차례</a><a class="tool" href="../html-en/ch07.html">En</a><a class="tool" href="../pdf-ko/lowent-manual-ko.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="이 책의 GitHub 저장소">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- 공개된 모든 프로젝트">⌂ 전체 사이트</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- 모든 저장소">≡ 저장소 목록</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>가로폭 제한</span></label><div class="setrow"><span class="setlbl">테마</span><span class="seg"><button type="button" class="segb" data-theme="auto">시스템</button><button type="button" class="segb" data-theme="light">밝게</button><button type="button" class="segb" data-theme="dark">어둡게</button></span></div><div class="setrow"><span class="setlbl">색</span><label class="col"><span>글자</span><input type="color" id="s-fg"></label><label class="col"><span>배경</span><input type="color" id="s-bg"></label><label class="col"><span>링크</span><input type="color" id="s-link"></label></div><p class="setnote">설정은 이 브라우저에만 저장된다.</p></div><div class="here-head"><strong>이 장의 차례</strong></div><div class="here-body"><a class="lv3" href="#s7-1"><span class="tf-no">7.1</span>조건과 되풀이</a><a class="lv3" href="#s7-2"><span class="tf-no">7.2</span>guard — 조건을 사실로 바꾼다</a><a class="lv3" href="#s7-3"><span class="tf-no">7.3</span>모든 길이 값을 돌려준다</a><a class="lv3" href="#s7-4"><span class="tf-no">7.4</span>match — 경우를 빠짐없이</a><a class="lv3" href="#s7-5"><span class="tf-no">7.5</span>panic 은 효과다</a><a class="lv3" href="#s7-6"><span class="tf-no">7.6</span>흔한 실수</a><a class="lv3" href="#s7-7"><span class="tf-no">7.7</span>이 장의 문법을 한눈에</a></div></div>
 <main id="content"><div class="wrap">
-<h2>7 흐름 — 갈래, 되풀이, 빠져나가기</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>4장 수 · 참거짓은 수가 아니다</div><div>6장 지역 · <code>if</code> 는 값을 내지 않는 문장이다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>6장에서 <code>let x u64 be if gt a 1 . 5 else 6 .</code> 은 왜 거절되었고, 갈래마다 값을 정하려면 어떻게 적는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> <code>if</code> 는 값을 내지 않는 문장이라서 식의 자리에 둘 수 없다(<code>E-IF-VALUE</code>). 갈래마다 값을 정하려면 <code>var</code> 를 기본값으로 짓고 갈래 안에서 <code>set</code> 하거나, 갈래마다 <code>return</code> 한다. 이 장은 그 갈래 자체와, 되풀이와 빠져나가기의 규칙을 다룬다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">흐름의 문장은 어느 언어에나 있어서 새로 배울 것이 없어 보인다. 그러나 Lowent 의 흐름 문장에는 <strong>검사</strong>가 붙어 있다. 조건은 참거짓이어야 하고, <code>guard</code> 의 <code>else</code> 는 반드시 떠나야 하며, 값을 돌려주는 op 은 모든 길에서 돌려주어야 하고, <code>match</code> 는 모든 경우를 덮어야 한다. 이 검사들은 “어떤 길로 가면 값이 없다” 는 결함을 번역할 때 없앤다. 데이터(제3부)로 넘어가기 전에 흐름의 약속을 먼저 세운다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body"><code>if … else</code>, <code>while</code>, <code>for</code>, <code>break</code>·<code>continue</code> 를 쓰는 법을 익힌다. <code>guard</code> 가 조건을 <strong>그 아래 코드에 대한 사실</strong>로 바꾸는 방식과, <code>else</code> 가 떠나지 않으면 왜 거절되는지 알게 된다. 모든 길이 값을 돌려주어야 한다는 규칙, 수와 범위를 가르는 <code>match</code> 와 그 망라 검사, 그리고 <code>panic</code> 이 효과라는 것도 보게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li><code>for</code> 로 0 부터 <code>n</code> 까지 세는 반복은 어떻게 적는가?</li><li><code>match</code> 가 <code>if</code> 사슬보다 나은 점은 망라 검사 말고 무엇인가?</li></ol></div></div><div></div><h3 id="s7-1">7.1 조건과 되풀이<a class="plink" href="#s7-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>if</code> 는 조건이 참일 때 블록을 실행하고, <code>else</code> 로 거짓일 때의 블록을 적는다. <code>while</code> 은 조건이 참인 동안 되풀이하고, <code>for</code> 는 슬라이스의 원소를 차례로 훑는다. 조건은 모두 <code>bool</code> 이어야 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/loops.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loops .
+<h2>7 흐름 — 갈래, 되풀이, 빠져나가기</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>4장 수 · 참거짓은 수가 아니다</div><div>6장 지역 · <code>if</code> 는 값을 내지 않는 문장이다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>6장에서 <code>let x be u64 if gt a 1 . 5 else 6 .</code> 은 왜 거절되었고, 갈래마다 값을 정하려면 어떻게 적는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> <code>if</code> 는 값을 내지 않는 문장이라서 식의 자리에 둘 수 없다(<code>E-IF-VALUE</code>). 갈래마다 값을 정하려면 <code>var</code> 를 기본값으로 짓고 갈래 안에서 <code>set</code> 하거나, 갈래마다 <code>return</code> 한다. 이 장은 그 갈래 자체와, 되풀이와 빠져나가기의 규칙을 다룬다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">흐름의 문장은 어느 언어에나 있어서 새로 배울 것이 없어 보인다. 그러나 Lowent 의 흐름 문장에는 <strong>검사</strong>가 붙어 있다. 조건은 참거짓이어야 하고, <code>guard</code> 의 <code>else</code> 는 반드시 떠나야 하며, 값을 돌려주는 op 은 모든 길에서 돌려주어야 하고, <code>match</code> 는 모든 경우를 덮어야 한다. 이 검사들은 “어떤 길로 가면 값이 없다” 는 결함을 번역할 때 없앤다. 데이터(제3부)로 넘어가기 전에 흐름의 약속을 먼저 세운다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body"><code>if … else</code>, <code>while</code>, <code>for</code>, <code>break</code>·<code>continue</code> 를 쓰는 법을 익힌다. <code>guard</code> 가 조건을 <strong>그 아래 코드에 대한 사실</strong>로 바꾸는 방식과, <code>else</code> 가 떠나지 않으면 왜 거절되는지 알게 된다. 모든 길이 값을 돌려주어야 한다는 규칙, 수와 범위를 가르는 <code>match</code> 와 그 망라 검사, 그리고 <code>panic</code> 이 효과라는 것도 보게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li><code>for</code> 로 0 부터 <code>n</code> 까지 세는 반복은 어떻게 적는가?</li><li><code>match</code> 가 <code>if</code> 사슬보다 나은 점은 망라 검사 말고 무엇인가?</li></ol></div></div><div></div><h3 id="s7-1">7.1 조건과 되풀이<a class="plink" href="#s7-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>if</code> 는 조건이 참일 때 블록을 실행하고, <code>else</code> 로 거짓일 때의 블록을 적는다. <code>while</code> 은 조건이 참인 동안 되풀이하고, <code>for</code> 는 슬라이스의 원소를 차례로 훑는다. 조건은 모두 <code>bool</code> 이어야 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/loops.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loops .
 <em><span class="tok-c">rem run: count_big 10</span></em>
 <em><span class="tok-c">rem run: first_zero [5,3,0,9]</span></em>
 <em><span class="tok-c">rem run: first_zero [5,3]</span></em>
@@ -673,8 +673,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">fn</span></strong> count_big <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> total <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> gt i <span class="tok-n">5</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> total (add total <span class="tok-n">1</span>) .
@@ -686,7 +686,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">fn</span></strong> first_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len xs) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> eq (index xs i) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">break</span></strong> .
@@ -698,7 +698,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">fn</span></strong> odd_sum <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> eq (mod x <span class="tok-n">2</span>) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">continue</span></strong> .
@@ -758,7 +758,7 @@ grade(42) = 70
 <strong><span class="tok-k">fn</span></strong> clamp5 <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> le n <span class="tok-n">5</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> capped <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">5</span> .
+    <strong><span class="tok-k">let</span></strong> capped <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> <span class="tok-n">5</span> .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> n .
 <strong><span class="tok-k">end</span></strong>
@@ -849,7 +849,7 @@ $ lowentc --run checked panics.low 0
 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <em><span class="tok-c">rem ✘ `in` 을 적었다 --- `for` 는 `for &lt;이름> &lt;슬라이스> do` 다</span></em>
   <strong><span class="tok-k">for</span></strong> x in xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (add t (widen <strong><span class="tok-t">u64</span></strong> x)) .
@@ -900,7 +900,7 @@ grade(95) = 2
 
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">5</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> r <span class="tok-n">1</span> .
   <em><span class="tok-c">rem ✘ C 처럼 블록 안에 `else` 를 한 줄로 두었다 --- `end else do` 로 앞 블록을 닫아야 한다</span></em>
@@ -916,7 +916,7 @@ mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C 
 
 <strong><span class="tok-k">fn</span></strong> upto <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <em><span class="tok-c">rem ✘ `&lt;` 는 이 언어의 기호가 아니다 --- 비교는 `lt i n` 이다</span></em>
   <strong><span class="tok-k">while</span></strong> i &lt; n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -928,8 +928,8 @@ mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C 
 8:11 E-FORM-UNEXPECTED: unexpected token in form
 </code></pre></div></div><p>비교는 낱말이다 — <code>lt</code>(작다)·<code>le</code>(작거나 같다)·<code>gt</code>·<code>ge</code>·<code>eq</code>·<code>ne</code>. <code>&lt;</code> 는 이 언어가 모르는 글자라 <code>E-CHAR</code> 가 난다. 기호의 우선순위를 외우지 않아도 되게 하려는 선택이고, 긴 산술에는 <code>expr</code> 섬이 있다(8장). 고치는 법: <code>while lt i n . do</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>continue</code> 가 증가를 건너뛴다</p><div class="dev-body"><p><code>while</code> 로 세면서 몸 가운데서 <code>continue</code> 하면, 그 아래에 둔 <code>set i (add i 1) .</code> 도 함께 건너뛴다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">fn</span></strong> odd_count <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len xs) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">if</span></strong> eq (mod (index xs i) <span class="tok-n">2</span>) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">continue</span></strong> .
@@ -970,7 +970,7 @@ band(99) = 99
 
 <strong><span class="tok-k">fn</span></strong> label <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> score <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> score <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">match</span></strong> c <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem 맞은 갈래 하나만 실행된다 --- 다음 갈래로 흘러가지 않으므로 `break` 가 필요 없다</span></em>
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">set</span></strong> score (add score <span class="tok-n">10</span>) .

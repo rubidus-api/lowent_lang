@@ -97,7 +97,7 @@ Writing the failure check by hand every time makes code long, and long code skip
 the value; on failure it *returns that error as is and leaves the op*. `halve_plus_one` in `halve.low` has that shape.
 
 ```lowent
-let v u8 be try halve a .
+let v be u8 try halve a .
 return ok (add v 1) .
 ```
 
@@ -127,7 +127,7 @@ Sometimes the calling op and the called op use different channels. A tail on `tr
 )
 
 A `try` with a tail also changes the type. The type of `try (halve a) else_none` is `option u8`, not `u8`. That is why `maybe_half` returns it
-as is, and why putting it into a value type, as in `let v u8 be try … else_error …`, is rejected.
+as is, and why putting it into a value type, as in `let v be u8 try … else_error …`, is rejected.
 
 `else_none` is a choice that throws information away. It is convenient, so it easily becomes a habit, but from that moment the caller can no
 longer ask "why". Throw it away only where it is worth throwing away.

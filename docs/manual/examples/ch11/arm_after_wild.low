@@ -7,7 +7,7 @@ enum light do
 end
 
 fn name input k u8 . output u8 . do
-  let s light be lit .
+  let s be light lit .
   match s do
     case _ . do return 0 . end
     case lit . do return 1 . end

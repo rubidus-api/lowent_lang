@@ -18,30 +18,30 @@ do
   guard eq (poly.setup key b) 1 . else return 0 .
 
   rem 낱말 — 열여섯의 배수가 아니면 꼬리를 0 으로 채운다.
-  let n u64 be call_builtin poly1305 a data .
+  let n be u64 call_builtin poly1305 a data .
   guard eq n (len data) . else return 0 .
 
   rem 정의 — `lib/aead.low` 의 `feed` 가 하던 그 되풀이다.
-  var off u64 be 0 .
+  var off be u64 0 .
   while le (add off 16) (len data) . do
-    let z u64 be poly.block b (subslice data off (add off 16)) 1 .
+    let z be u64 poly.block b (subslice data off (add off 16)) 1 .
     set off (add off 16) .
   end
   if lt off (len data) . do
-    var i u64 be 0 .
+    var i be u64 0 .
     while lt i 16 . do
       set (index pad i) 0 .
       set i (add i 1) .
     end
-    var j u64 be 0 .
+    var j be u64 0 .
     while lt (add off j) (len data) . do
       set (index pad j) (index data (add off j)) .
       set j (add j 1) .
     end
-    let z2 u64 be poly.block b (subslice pad 0 16) 1 .
+    let z2 be u64 poly.block b (subslice pad 0 16) 1 .
   end
 
-  var k u64 be 0 .
+  var k be u64 0 .
   while lt k 5 . do
     guard eq (index a k) (index b k) . else return 0 .
     set k (add k 1) .

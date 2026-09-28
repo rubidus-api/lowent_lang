@@ -41,13 +41,13 @@ rem   (W-EFFECT-OVER). 선언한 효과는 **부르는 쪽이 치러야 하는 �
 proc switch input e cap env . input s u64 . input name slice u8 . input n u64 .
   output u64 . effects none .
 do
-  let v option slice u8 . be env_get e name .
+  let v be option slice u8 env_get e name .
   guard is_some v . else return s .
   return flags.with s n .
 end
 
 proc main input e cap env . output u8 . effects none . do
-  var s u64 be flags.empty .
+  var s be u64 flags.empty .
 
   rem ⓑ 환경이 켜는 자리들 — 기본값과 무관하게 «사용자가 켠 것» 을 모은다.
   set s (switch e s "SET_SOUND"  (f_sound)) .
@@ -57,15 +57,15 @@ proc main input e cap env . output u8 . effects none . do
 
   rem ⓒ 정책: `SET_LOCK` 이 있으면 **소리·음악 두 자리는 기본값이 이긴다**.
   rem   `overlay base over m` = m 자리는 over 에서, 나머지는 base 에서. 읽고-고쳐-쓰기가 한 번이다.
-  let lock option slice u8 . be env_get e "SET_LOCK" .
-  var eff u64 be s .
+  let lock be option slice u8 env_get e "SET_LOCK" .
+  var eff be u64 s .
   if is_some lock . do
     set eff (flags.overlay s (defaults) (m_audio)) .
   end
 
   rem ⓓ 기본값과 다른 자리만 — 그리고 그중 소리·음악에서 바뀐 자리만.
-  let diff u64 be flags.from_default eff (defaults) .
-  let audio u64 be flags.changes_in eff (defaults) (m_audio) .
+  let diff be u64 flags.from_default eff (defaults) .
+  let audio be u64 flags.changes_in eff (defaults) (m_audio) .
 
   return (narrow u8 (add (mul (flags.ones diff) 10) (flags.ones audio))) .
 end

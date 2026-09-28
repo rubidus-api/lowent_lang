@@ -5,6 +5,6 @@ use allocs .
 
 proc sneaky output u64 . effects heap state .
 do
-  var hb allocs.heap_bytes be spawn actor allocs.heap_bytes .
+  var hb be allocs.heap_bytes spawn actor allocs.heap_bytes .
   return send hb used .
 end

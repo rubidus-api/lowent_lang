@@ -10,7 +10,7 @@ fn clamp_elem input s bytes . output u8 .
   requires static ge (len s) 1 .
   requires elem_lt s 50 .
 do
-  let x u8 be index s 0 . .
+  let x be u8 index s 0 . .
   return add x 10 .
 end
 

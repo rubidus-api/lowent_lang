@@ -26,10 +26,10 @@ end
 
 rem 성질 ② — **배타합에 대해 분배한다**: a·(b ⊕ c) = a·b ⊕ a·c.
 export proc distrib input a u64 . input b u64 . input c u64 . output u64 . effects none . do
-  let l1 u64 be call_builtin clmul_lo a (bit_xor b c) .
-  let l2 u64 be bit_xor (call_builtin clmul_lo a b) (call_builtin clmul_lo a c) .
-  let h1 u64 be call_builtin clmul_hi a (bit_xor b c) .
-  let h2 u64 be bit_xor (call_builtin clmul_hi a b) (call_builtin clmul_hi a c) .
+  let l1 be u64 call_builtin clmul_lo a (bit_xor b c) .
+  let l2 be u64 bit_xor (call_builtin clmul_lo a b) (call_builtin clmul_lo a c) .
+  let h1 be u64 call_builtin clmul_hi a (bit_xor b c) .
+  let h2 be u64 bit_xor (call_builtin clmul_hi a b) (call_builtin clmul_hi a c) .
   if ne l1 l2 . do  return 0 .  end
   if ne h1 h2 . do  return 0 .  end
   return 1 .
@@ -77,7 +77,7 @@ end
 rem 같은 일을 **잎 둘로** — 증인은 이 둘의 답이 같다는 것이다.
 export proc gcmpair input key slice u8 . input c mut slice u8 . input h slice u8 . input z mut slice u8 .
   input s slice u8 . input d mut slice u8 . output u64 . effects none . do
-  let n u64 be call_builtin aes_ctr key c s d .
+  let n be u64 call_builtin aes_ctr key c s d .
   guard eq n (len s) . else return 0 .
   return call_builtin ghash h z d .
 end

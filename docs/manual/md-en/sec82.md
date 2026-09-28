@@ -20,7 +20,7 @@ From my secret scalar and the peer’s public point, makes **32 bytes only the t
 
 ```lowent
 rem w has at least 175 u64 elements --- one workspace
-let n u64 be x25519.agree shared mysecret theirpub zbuf w .
+let n be u64 x25519.agree shared mysecret theirpub zbuf w .
 guard eq n 32 . else return 1 .
 ```
 

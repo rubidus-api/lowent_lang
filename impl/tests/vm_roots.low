@@ -15,13 +15,13 @@ module vm_roots .
 
 export proc grow_heap output u64 . effects heap .
 do
-  var got u64 be 0 .
+  var got be u64 0 .
   region h heap do
-    var i u64 be 0 .
+    var i be u64 0 .
     while lt i 8 . do
-      let g option mut slice u8 . . be alloc_bytes h capacity 32768 .
+      let g be option mut slice u8 alloc_bytes h capacity 32768 .
       if is_some g . do
-        let b mut slice u8 . be some_value g .
+        let b be mut slice u8 some_value g .
         set (index b 32767) 9 .
         if eq (index b 32767) 9 . do set got (add got 1) . end
       end
@@ -33,11 +33,11 @@ end
 
 export proc grow_fixed output u64 . effects alloc .
 do
-  var got u64 be 0 .
+  var got be u64 0 .
   region r arena do
-    var i u64 be 0 .
+    var i be u64 0 .
     while lt i 8 . do
-      let g option mut slice u8 . . be alloc_bytes r capacity 32768 .
+      let g be option mut slice u8 alloc_bytes r capacity 32768 .
       if is_some g . do set got (add got 1) . end
       set i (add i 1) .
     end
@@ -47,22 +47,22 @@ end
 
 export proc both output u64 . effects alloc heap .
 do
-  var keep u64 be 0 .
+  var keep be u64 0 .
   region f arena do
-    let a option mut slice u8 . . be alloc_bytes f capacity 16 .
+    let a be option mut slice u8 alloc_bytes f capacity 16 .
     if is_some a . do
-      let av mut slice u8 . be some_value a .
+      let av be mut slice u8 some_value a .
       set (index av 3) 77 .
       region h heap do
-        let b option mut slice u8 . . be alloc_bytes h capacity 200000 .
+        let b be option mut slice u8 alloc_bytes h capacity 200000 .
         if is_some b . do
-          let bv mut slice u8 . be some_value b .
+          let bv be mut slice u8 some_value b .
           set (index bv 3) 55 .
         end
       end
-      let c option mut slice u8 . . be alloc_bytes f capacity 16 .
+      let c be option mut slice u8 alloc_bytes f capacity 16 .
       if is_some c . do
-        let cv mut slice u8 . be some_value c .
+        let cv be mut slice u8 some_value c .
         set (index cv 3) 11 .
       end
       set keep (add (mul (narrow u64 (index av 3)) 100) 1) .

@@ -10,18 +10,18 @@ proc two_from
   effects state via a .
   requires allocs.byte_allocator a .
 do
-  let p option mut slice u8 be send al reserve 3 .
+  let p be option mut slice u8 send al reserve 3 .
   guard is_some p . else return 91 .
   return send al used .
 end
 
 proc with_two input small mut slice u8 . input big mut slice u8 . output u64 . effects state .
 do
-  var s allocs.bump_bytes be spawn actor allocs.bump_bytes .
-  var g allocs.bump_bytes be spawn actor allocs.bump_bytes .
-  let x u64 be send s init small .
-  let y u64 be send g init big .
+  var s be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  var g be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let x be u64 send s init small .
+  let y be u64 send g init big .
   rem ko: ✘ 맞는 타입의 할당기가 둘인데 어느 것인지 적지 않았다 /// en: ✘ two allocators of a fitting type are in scope, and the call does not say which
-  let n u64 be two_from .
+  let n be u64 two_from .
   return n .
 end

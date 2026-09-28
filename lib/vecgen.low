@@ -4,8 +4,8 @@ rem ★★★ **`growvec` 과 무엇이 다른가: 원소 타입이다.** `growv
 rem   `u32` 벡터가 필요하면 그 파일을 통째로 복사해 `u8`→`u32` 로 고친 파일을 하나 더 만들어야
 rem   했다. **원소 종류마다 컨테이너 하나씩**이었다. 여기서는 하나의 틀에서 나온다:
 rem
-rem       let a option (vec u32 allocs.bump_bytes) . using al be open u32 16 .   rem u32 벡터
-rem       let b option (vec u8 allocs.bump_bytes) .  using al be open u8 16 .    rem 바이트 벡터 — 같은 틀
+rem       let a using al be option (vec u32 allocs.bump_bytes) open u32 16 .   rem u32 벡터
+rem       let b using al be option (vec u8 allocs.bump_bytes) open u8 16 .    rem 바이트 벡터 — 같은 틀
 rem     (2026-09-13 RFC-0112 D8 부터 얼로케이터는 인자가 아니라 `using` 으로 건넨다.)
 rem
 rem ★★ **단형화다 — 런타임 다형이 아니다.** `vec u32` 는 컴파일 시각에 `vec#u32` 라는 **구체
@@ -78,11 +78,11 @@ rem   전엔 `effects state` 만 적어서, 뿌리를 딛는 얼로케이터가 
 rem ★ 빈 벡터를 연다. `cap0` 는 **원소 개수**다(바이트가 아니다 — 세는 단위를 섞지 않는다).
 rem   들 수 없이 큰 개수는 **none** 이다 — 얼로케이터에 묻기도 전에 곱셈에서 죽지 않는다.
 export proc open input comptime t type . input comptime a type . using al a . input cap0 u64 . output option (vec t a) . effects state via a . requires allocs.byte_allocator a . do
-  let want0 option u64 . be chk_mul cap0 (size_of t) .
+  let want0 be option u64 chk_mul cap0 (size_of t) .
   guard is_some want0 . else return none .
-  let b option mut slice u8 . be send al reserve (some_value want0) .
+  let b be option mut slice u8 send al reserve (some_value want0) .
   guard is_some b . else return none .
-  let mark u64 be send al used .
+  let mark be u64 send al used .
   return some (make vec t a do al al . store (some_value b) . n 0 . tail mark . end) .
 end
 
@@ -102,37 +102,37 @@ end
 rem ★ 원소를 하나 민다. 자리가 모자라면 **스스로** 더 받아 옮긴다(두 배 + 8 원소).
 rem   못 받으면 false — 트랩이 아니라 값이다(OOM 은 값이다, RFC-0043 D5).
 export proc append input comptime t type . input comptime a type . input g mut vec t a . input x t . output bool . effects state via a . invalidates g . requires allocs.byte_allocator a . do
-  let room u64 be div (len (field g store)) (size_of t) .
+  let room be u64 div (len (field g store)) (size_of t) .
   if lt (field g n) room . do
-    var cur mut slice u8 . be (field g store) .
-    var cells mut slice t . be view_array t cur .
+    var cur be mut slice u8 (field g store) .
+    var cells be mut slice t view_array t cur .
     set (index cells (field g n)) x .
     set (field g n) (add (field g n) 1) .
     return true .
   end
-  let want u64 be add (mul room 2) 8 .
+  let want be u64 add (mul room 2) 8 .
   rem ★★★★★ **먼저 제자리에서 늘려 본다** (2026-08-18). 범프는 되돌리지 않으므로 자랄 때마다
   rem   옛 버퍼가 아레나에 **버려진 채 남는다** — 실측 고수위가 요청의 약 4배였다.
   rem   마지막 할당이 우리 버퍼면 그 자리를 늘리면 되고, 그러면 **세대가 하나뿐**이다.
   rem ★ 실패는 값(none)이고, 그때는 **아래 옛 길 그대로** 새로 받아 복사한다.
   rem   즉 이것은 최적화이지 계약이 아니다 — 있으나 없으나 **답이 같아야 한다**.
-  let ip option mut slice u8 . be try_grow t a g (mul want (size_of t)) .
+  let ip be option mut slice u8 try_grow t a g (mul want (size_of t)) .
   if is_some ip . do
     set (field g store) (some_value ip) .
     set (field g tail) (send (field g al) used) .
-    var cells2 mut slice t . be view_array t (field g store) .
+    var cells2 be mut slice t view_array t (field g store) .
     set (index cells2 (field g n)) x .
     set (field g n) (add (field g n) 1) .
     return true .
   end
-  let nb option mut slice u8 . be send (field g al) reserve (mul want (size_of t)) .
+  let nb be option mut slice u8 send (field g al) reserve (mul want (size_of t)) .
   guard is_some nb . else return false .
   set (field g tail) (send (field g al) used) .
-  var fresh mut slice u8 . be some_value nb .
-  var old mut slice u8 . be (field g store) .
-  var dst mut slice t . be view_array t fresh .
-  var src mut slice t . be view_array t old .
-  var i u64 be 0 .
+  var fresh be mut slice u8 some_value nb .
+  var old be mut slice u8 (field g store) .
+  var dst be mut slice t view_array t fresh .
+  var src be mut slice t view_array t old .
+  var i be u64 0 .
   while lt i (field g n) . do
     set (index dst i) (index src i) .
     set i (add i 1) .
@@ -146,16 +146,16 @@ end
 rem ★ i 번째 원소. 범위 밖이면 none — **값으로 답한다**(트랩이 아니다).
 export proc at input comptime t type . input comptime a type . input g vec t a . input i u64 . output option t . effects none . requires allocs.byte_allocator a . do
   guard lt i (field g n) . else return none .
-  var cur mut slice u8 . be (field g store) .
-  var cells mut slice t . be view_array t cur .
+  var cur be mut slice u8 (field g store) .
+  var cells be mut slice t view_array t cur .
   return some (index cells i) .
 end
 
 rem ★ i 번째 원소를 고친다. 범위 밖이면 false — 조용히 늘리지 않는다.
 export proc set_at input comptime t type . input comptime a type . input g mut vec t a . input i u64 . input x t . output bool . effects none . requires allocs.byte_allocator a . do
   guard lt i (field g n) . else return false .
-  var cur mut slice u8 . be (field g store) .
-  var cells mut slice t . be view_array t cur .
+  var cur be mut slice u8 (field g store) .
+  var cells be mut slice t view_array t cur .
   set (index cells i) x .
   return true .
 end
@@ -165,30 +165,30 @@ rem   도중에 실패하지 않는다 — "전량 아니면 무" 를 원하면 
 export proc reserve_more input comptime t type . input comptime a type . input g mut vec t a . input more u64 . output bool . effects state via a . invalidates g . requires allocs.byte_allocator a . do
   rem ★ `n + more` 도, 그 바이트 수도 넘칠 수 있다 — 둘 다 **묻고** 못 하면 false 다(2026-09-04).
   rem   호출자가 준 수에 트랩하지 않는다: 자리를 못 잡는 것은 실패지 사고가 아니다.
-  let need0 option u64 . be chk_add (field g n) more .
+  let need0 be option u64 chk_add (field g n) more .
   guard is_some need0 . else return false .
-  let need u64 be some_value need0 .
-  let room u64 be div (len (field g store)) (size_of t) .
+  let need be u64 some_value need0 .
+  let room be u64 div (len (field g store)) (size_of t) .
   if le need room . do return true . end
-  let nbytes0 option u64 . be chk_mul need (size_of t) .
+  let nbytes0 be option u64 chk_mul need (size_of t) .
   guard is_some nbytes0 . else return false .
-  let nbytes u64 be some_value nbytes0 .
+  let nbytes be u64 some_value nbytes0 .
   rem ★ 여기도 먼저 제자리에서 — `reserve_more` 는 성장 사슬을 없애려고 부르는 것이니
   rem   그 자신이 사슬을 만들면 앞뒤가 안 맞는다.
-  let ip2 option mut slice u8 . be try_grow t a g nbytes .
+  let ip2 be option mut slice u8 try_grow t a g nbytes .
   if is_some ip2 . do
     set (field g store) (some_value ip2) .
     set (field g tail) (send (field g al) used) .
     return true .
   end
-  let nb option mut slice u8 . be send (field g al) reserve nbytes .
+  let nb be option mut slice u8 send (field g al) reserve nbytes .
   guard is_some nb . else return false .
   set (field g tail) (send (field g al) used) .
-  var fresh mut slice u8 . be some_value nb .
-  var old mut slice u8 . be (field g store) .
-  var dst mut slice t . be view_array t fresh .
-  var src mut slice t . be view_array t old .
-  var i u64 be 0 .
+  var fresh be mut slice u8 some_value nb .
+  var old be mut slice u8 (field g store) .
+  var dst be mut slice t view_array t fresh .
+  var src be mut slice t view_array t old .
+  var i be u64 0 .
   while lt i (field g n) . do
     set (index dst i) (index src i) .
     set i (add i 1) .
@@ -199,7 +199,7 @@ end
 
 rem ★ 담긴 원소만 보는 뷰. 저장소 전체가 아니라 **쓴 만큼**이다(뒤는 쓰레기다).
 export proc view_of input comptime t type . input comptime a type . input g vec t a . output slice t . effects none . requires allocs.byte_allocator a . do
-  var cur mut slice u8 . be (field g store) .
-  var cells mut slice t . be view_array t cur .
+  var cur be mut slice u8 (field g store) .
+  var cells be mut slice t view_array t cur .
   return subslice cells 0 (field g n) .
 end

@@ -55,7 +55,7 @@ rem   `machine.cache_line` 은 comptime 상수라 이 수도 컴파일타임에 
 rem   ☞ pin 하나를 8 바이트(페이지 id 한 칸)로 센다: 상한이 세는 것은 **추적 비용**이지
 rem     구조체 전체 크기가 아니다 — PostgreSQL 의 그 배열도 id 만 들고 있다.
 export fn pin_limit output u64 . do
-  let line u64 be machine.cache_line .
+  let line be u64 machine.cache_line .
   if lt line 8 . do return 1 . end
   return div line 8 .
 end
@@ -78,15 +78,15 @@ end
 rem 놓는다 — 캐시 토큰을 돌려준다.
 rem ☞ 부분 이동은 언어가 막으므로(`E-OWN-PARTIAL`) 토큰을 **다시 만든다**. 값은 그대로다.
 export fn release input comptime b type . input p owned pin b . output owned cache b . do
-  let h cache b . be (field p held) .
+  let h be (cache b) (field p held) .
   return make cache b do pages (field h pages) . epoch (field h epoch) . end .
 end
 
 rem 겹친 것을 놓는다 — 바깥부터. 순서를 어길 길이 **없다**(안쪽은 바깥 안에 있다).
 export fn release_more input comptime b type . input p owned pin2 b . output owned pin b . do
-  let u pin b . be (field p under) .
-  let h cache b . be (field u held) .
-  let c cache b . be make cache b do pages (field h pages) . epoch (field h epoch) . end .
+  let u be (pin b) (field p under) .
+  let h be (cache b) (field u held) .
+  let c be (cache b) make cache b do pages (field h pages) . epoch (field h epoch) . end .
   return make pin b do id (field u id) . depth (field u depth) . held c . end .
 end
 
@@ -110,9 +110,9 @@ rem   축출 한 번 뒤 그 덧셈이 넘쳐 트랩이었다(2026-09-04 보안 
 rem   이고, 두 나머지의 합도 p 가 2^63 을 넘으면 넘칠 수 있으므로 **빼서** 접는다: 덧셈이 하나도 없다.
 export fn slot_of input comptime b type . input c cache b . input id u64 . output option u64 . do
   guard ge (field c pages) 1 . else return none .
-  let p u64 be (field c pages) .
-  let a u64 be mod id p .
-  let e u64 be mod (field c epoch) p .
+  let p be u64 (field c pages) .
+  let a be u64 mod id p .
+  let e be u64 mod (field c epoch) p .
   rem a + e ≥ p ⇔ a ≥ p − e (둘 다 p 미만이므로 p − e 는 안 감긴다)
   if ge a (sub p e) . do return some (sub a (sub p e)) . end
   return some (add a e) .

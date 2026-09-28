@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  What happened to `let x u8 be 300 .` in #chref("surface")? How does C handle the same thing?
+  What happened to `let x be u8 300 .` in #chref("surface")? How does C handle the same thing?
 ][
   It was rejected with `E-TYPE-WIDTH`, because 300 is outside the `u8` range 0 … 255. C silently truncates it to 44, so the value in
   the source and the actual value differ. This chapter looks at how the same principle applies when a *computed result*, not a

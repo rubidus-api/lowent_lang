@@ -33,19 +33,19 @@ use allocs  from "../../../lib/alloc.low" .
 rem ★ 줄을 센다 — **순수하다.** 파일도 출력도 모른다. 그래서 따로 시험할 수 있고,
 rem   실제로 `lib/io.low` 의 mem_reader 위에서 이미 검증된 프레이밍을 그대로 쓴다.
 proc count_lines input src slice u8 . output u64 . effects state . do
-  var r io.mem_reader be spawn actor io.mem_reader . .
-  let z u64 be send r attach src .
-  var lines u64 be 0 .
-  var going bool be true .
+  var r be io.mem_reader spawn actor io.mem_reader . .
+  let z be u64 send r attach src .
+  var lines be u64 0 .
+  var going be bool true .
   while going . do
-    let l option slice u8 . be send r take_line 4096 .
+    let l be option slice u8 send r take_line 4096 .
     rem ★ `guard` 는 **반드시 나가야** 한다(E-GUARD-FALLTHROUGH) — 루프를 한 번 더 돌지
     rem   말지 고르는 자리는 `guard` 가 아니라 `if` 다. 언어가 이 구별을 강제한다.
     if is_some l . do set lines (add lines 1) . end
     if eq (is_some l) false . do set going false . end
   end
   rem 마지막 개행 뒤에 남은 바이트가 있으면 그것도 한 줄이다(개행 없이 끝난 파일).
-  let rest u64 be send r remaining .
+  let rest be u64 send r remaining .
   if gt rest 0 . do set lines (add lines 1) . end
   return lines .
 end
@@ -59,34 +59,34 @@ proc main .
   effects alloc io state .
 do
   rem 경로는 인자로 받는다 — 하드코딩된 경로는 숨은 의존이다.
-  let given option slice u8 . be arg a 0 .
+  let given be option slice u8 arg a 0 .
   guard is_some given . else return 64 .
 
-  let g option mut slice u8 . . be alloc_bytes al capacity 8192 .
+  let g be option mut slice u8 alloc_bytes al capacity 8192 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
+  let buf be mut slice u8 some_value g .
 
   rem ★ 못 열어도, 버퍼보다 커도 **none** — 죽지 않는다. 답을 종료 코드로 구별한다.
-  let n result u64 files.file_error . be files.slurp fs (some_value given) buf .
+  let n be result u64 files.file_error files.slurp fs (some_value given) buf .
   guard is_ok n . else return 66 .
 
-  let lines u64 be count_lines (subslice buf 0 (ok_value n)) .
+  let lines be u64 count_lines (subslice buf 0 (ok_value n)) .
 
   rem 조립은 순수하고(lib/fmt.low), 출력은 한 번이다.
-  let line option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let line be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some line . else return 71 .
-  let ob mut slice u8 . be some_value line .
-  let p1 option u64 . be fmt.put_u64 ob 0 lines .
+  let ob be mut slice u8 some_value line .
+  let p1 be option u64 fmt.put_u64 ob 0 lines .
   guard is_some p1 . else return 72 .
-  let p2 option u64 . be fmt.put_str ob (some_value p1) " lines, " .
+  let p2 be option u64 fmt.put_str ob (some_value p1) " lines, " .
   guard is_some p2 . else return 73 .
-  let p3 option u64 . be fmt.put_u64 ob (some_value p2) (ok_value n) .
+  let p3 be option u64 fmt.put_u64 ob (some_value p2) (ok_value n) .
   guard is_some p3 . else return 74 .
-  let p4 option u64 . be fmt.put_str ob (some_value p3) " bytes" .
+  let p4 be option u64 fmt.put_str ob (some_value p3) " bytes" .
   guard is_some p4 . else return 75 .
-  let p5 option u64 . be fmt.put_nl ob (some_value p4) .
+  let p5 be option u64 fmt.put_nl ob (some_value p4) .
   guard is_some p5 . else return 76 .
 
-  let w u64 be write_out out 1 (subslice ob 0 (some_value p5)) .
+  let w be u64 write_out out 1 (subslice ob 0 (some_value p5)) .
   return (narrow u8 lines) .
 end

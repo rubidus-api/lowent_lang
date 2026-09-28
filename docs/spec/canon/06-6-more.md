@@ -236,7 +236,7 @@ module ex_comptime .
 
 fn f input a u8 . output u8 .
 do
-  let b u8 be comptime a .    rem `a` 는 실행할 때에야 정해진다
+  let b be u8 comptime a .    rem `a` 는 실행할 때에야 정해진다
   return b .
 end
 ```

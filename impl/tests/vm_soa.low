@@ -34,9 +34,9 @@ do
   set (index vxs 0) 10 .
   set (index vxs 1) 20 .
   set (index vxs 2) 30 .
-  let n1 u64 be soa.step_x xs vxs 3 .
+  let n1 be u64 soa.step_x xs vxs 3 .
   guard eq n1 3 . else return 90 .
-  let s1 u64 be soa.sum_field (subslice xs 0 3) .
+  let s1 be u64 soa.sum_field (subslice xs 0 3) .
 
   rem ── AoS 판: 한 배열에 {x, vx} 를 보폭 2 로 섞는다 ──
   set (index rows 0) 1 .
@@ -45,9 +45,9 @@ do
   set (index rows 3) 20 .
   set (index rows 4) 3 .
   set (index rows 5) 30 .
-  let n2 u64 be soa.step_x_aos rows 2 0 1 3 .
+  let n2 be u64 soa.step_x_aos rows 2 0 1 3 .
   guard eq n2 3 . else return 91 .
-  var s2 u64 be 0 .
+  var s2 be u64 0 .
   set s2 (add s2 (index rows 0)) .
   set s2 (add s2 (index rows 2)) .
   set s2 (add s2 (index rows 4)) .
@@ -75,7 +75,7 @@ do
   set (index ys 0) 2 .
   set (index vxs 0) 10 .
   set (index vys 0) 20 .
-  let m u64 be soa.step_all xs ys vxs vys 1 .
+  let m be u64 soa.step_all xs ys vxs vys 1 .
   guard eq m 1 . else return 90 .
   return add (index xs 0) (index ys 0) .          rem 11 + 22 = 33
 end

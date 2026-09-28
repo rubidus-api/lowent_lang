@@ -31,13 +31,13 @@ end
 
 proc recover output u64 . effects state panic .
 do
-  var c recov be spawn actor recov .
-  let x u64 be send c step .
+  var c be recov spawn actor recov .
+  let x be u64 send c step .
   return send c step .
 end
 
 proc escalate output u64 . effects state panic .
 do
-  var c doomed be spawn actor doomed .
+  var c be doomed spawn actor doomed .
   return send c boom .
 end

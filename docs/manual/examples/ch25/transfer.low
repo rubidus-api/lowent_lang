@@ -38,11 +38,11 @@ rem ko: 두 액터 사이의 이체 --- 빼기가 성공했을 때만 넣는다 
 proc move input amount u64 . output u64 . effects state .
   requires le amount 1000 .
 do
-  var src account be spawn actor account .
-  var dst account be spawn actor account .
-  let seed u64 be send src deposit 50 .
-  let r result u64 bank_error be send src withdraw amount .
+  var src be account spawn actor account .
+  var dst be account spawn actor account .
+  let seed be u64 send src deposit 50 .
+  let r be result u64 bank_error send src withdraw amount .
   guard not (is_error r) . else return add (mul (send src peek_balance) 1000) (send dst peek_balance) .
-  let t u64 be send dst deposit amount .
+  let t be u64 send dst deposit amount .
   return add (mul (send src peek_balance) 1000) (send dst peek_balance) .
 end

@@ -21,21 +21,27 @@
       몸통이 그 이름을 `set` 한 뒤에도 계약이 말하는 것은 들어올 때의 값 그대로다.
     ]
     #para("3")[
-      이름을 지을 때 타입을 함께 적을 수 있다. 적으면 그 타입이 되고, 값이 그 타입에 맞지
-      않으면 번역이 거부된다.
+      이름을 짓는 문장은 `let <이름> be <타입> <값> .`(`var` 도 같다)이다 — **타입은 `be` 뒤, 값 앞에 선다.**
+      값이 그 타입에 맞지 않으면 번역이 거부된다. 타입은 추측하지 아니한다: `let x be u64 300 .` 이지
+      `let x be 300 .` 이 아니다(`E-LET-NOTYPE`). 추측한 타입은 맨 리터럴이 폭 검사를 빠져나가게 했다.
     ]
     #para("3a")[
-      타입을 **생략할 수 있다.** 생략하면 값이 타입을 정한다. 값에서 타입을 정할 수 없으면
-      번역이 거부되며, 그때는 적어야 한다.
+      타입을 이름 뒤에 적는 옛 모양 `let <이름> <타입> be <값> .` 은 거부된다(`E-LET-OLDFORM`).
+    ]
+    #para("3b")[
+      `be` 뒤의 타입은 타입 문법의 인자 수로 끝난다(`u64` · `slice u8` · `result u64 perr` · `array u8 4`).
+      인자 수가 정해지지 않은 형태(오류 타입을 적지 않은 `result u64` 따위)나 인자를 받는 사용자 타입은
+      괄호로 싼다 — `let r be (result u64) ok k .`. 얼로케이터 절은 `be` 앞에 둔다 —
+      `var v using al be option (vec u32 allocs.bump_bytes) vecgen.new al 8 .`.
     ]
     #para("4")[
       `be` 뒤에는 **값이 있어야 한다.** 값 없이 닫으면 번역이 거부된다(`E-LET-NOVALUE`).
       이름을 짓되 값을 나중에 주는 길은 이 언어에 없다.
     ]
     #caution("")[
-      이 규칙이 잡는 것은 빈칸을 적는 실수만이 아니다. `let x f64 be .5 .` 이라고 적으면
+      이 규칙이 잡는 것은 빈칸을 적는 실수만이 아니다. `let x be f64 .5 .` 이라고 적으면
       `.5` 는 부동소수 리터럴이 아니므로(#cref("6.1.4") (6)) 그 점이 폼을 닫고, `be` 뒤에는
-      **아무것도 남지 않는다.** 사람은 값을 적었다고 믿는데 처리기는 값을 못 본 자리이며,
+      **타입만 남는다.** 사람은 값을 적었다고 믿는데 처리기는 값을 못 본 자리이며,
       그래서 진단이 그 함정을 이름으로 짚는다.
     ]
     #note[
@@ -47,9 +53,23 @@
 
 fn f output u8 .
 do
-  let a u8 be .        rem 조용히 0 을 넣지 아니한다
+  let a be u8 .        rem 조용히 0 을 넣지 아니한다
   return a .
 end", "E-LET-NOVALUE")
+    #rejected("타입을 추측하지 않는다", "module ex_let_notype .
+
+fn f output u8 .
+do
+  let x be 300 .
+  return x .
+end", "E-LET-NOTYPE")
+    #rejected("타입은 `be` 뒤에 선다", "module ex_let_oldform .
+
+fn f output u64 .
+do
+  let x u64 be 7 .
+  return x .
+end", "E-LET-OLDFORM")
   ]
   #sub("6.5.2", "조건 — `if`")[
     #para("1")[
@@ -73,7 +93,7 @@ end", "E-LET-NOVALUE")
 
 fn pick input a u64 . output u64 .
 do
-  let x u64 be if gt a 1 . 5 else 6 .   rem 갈래마다 set 하거나 return 한다
+  let x be u64 if gt a 1 . 5 else 6 .   rem 갈래마다 set 하거나 return 한다
   return x .
 end", "E-IF-VALUE")
   ]
@@ -96,8 +116,8 @@ end", "E-IF-VALUE")
 export fn count_big input n u32 . output u32 .
   requires le n 100 .
 do
-  var total u32 be 0 .
-  var i u32 be 0 .
+  var total be u32 0 .
+  var i be u32 0 .
   while lt i n . do
     if gt i 5 . do
       set total (add total 1) .
@@ -121,7 +141,7 @@ end")
 
 export fn total_of input xs slice u8 . output u64 .
 do
-  var acc u64 be 0 .
+  var acc be u64 0 .
   for x xs do
     set acc (add acc (widen u64 x)) .
   end
@@ -168,12 +188,12 @@ do
   guard ge (len data) 1 . else return 0 .
   return index data 0 .
 end")
-    #ex("타입은 생략할 수 있고, `guard else` 는 블록이어도 된다", "module ex_infer_guard .
+    #ex("타입은 값 앞에 적고, `guard else` 는 블록이어도 된다", "module ex_infer_guard .
 
-rem 타입을 적지 않아도 된다 — 값이 정한다.
+rem 타입은 `be` 뒤, 값 앞에 적는다 — 추측하지 않는다.
 fn inferred output u64 .
 do
-  let a be 7 .
+  let a be u64 7 .
   return a .
 end
 
@@ -181,7 +201,7 @@ rem `else` 가 블록이어도 된다. 규칙은 \"모든 길이 빠져나가는
 fn guarded input n u8 . output u8 .
 do
   guard gt n 5 . else do
-    let x u8 be 1 .
+    let x be u8 1 .
     return x .
   end
   return 9 .
@@ -192,7 +212,7 @@ end",
 fn f input n u8 . output u8 .
 do
   guard gt n 5 . else do
-    let x u8 be 1 .
+    let x be u8 1 .
   end
   return 9 .
 end", "E-GUARD-FALLTHROUGH")
@@ -258,7 +278,7 @@ end", "E-TYPE-RETURN")
 
 proc keep input n u8 . output void . effects none .
 do
-  let x u8 be n .
+  let x be u8 n .
 end")
     #plain[
       돌려줄 값이 없으므로 **끝나는 자리가 곧 돌아가는 자리**다. 값을 돌려주는 op 이었다면
@@ -279,7 +299,7 @@ end")
 fn pick input a u64 . output u64 .
 do
   if gt a 1 . do
-    let big u64 be mul a 2 .
+    let big be u64 mul a 2 .
   end
   return big .        rem 들어가지 아니한 길에는 `big` 이 없다
 end", "E-NAME-SCOPE")
@@ -563,7 +583,7 @@ fn load_byte input c u8 . output result u8 load_error .
 errors too_long .
 do
   guard le c 200 . else return error too_long .
-  let v u8 be try digit_or_fail c .     rem `parse_error` 는 `load_byte` 의 약속에 없다
+  let v be u8 try digit_or_fail c .     rem `parse_error` 는 `load_byte` 의 약속에 없다
   return ok v .
 end", "E-ERR-UNDECLARED")
   ]

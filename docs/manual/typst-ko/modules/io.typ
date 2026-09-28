@@ -8,9 +8,9 @@
 `read(buf) → n` 이 아니라 *peek · take · toss → 뷰*다 --- 호출자 메모리를 채우는 대신 원본의 한 구간을 가리키는 빌린 뷰를 건넨다(복사 0).
 
 ```lowent
-var r io.mem_reader be spawn actor io.mem_reader . .
-let z u64 be send r attach src .
-let line option slice u8 . be send r take_line 4096 .
+var r be io.mem_reader spawn actor io.mem_reader . .
+let z be u64 send r attach src .
+let line be option slice u8 send r take_line 4096 .
 ```
 
 *왜 권한이 필요 없나.* 이 모듈은 이미 메모리에 있는 바이트를 자르기만 하고 커널에 닿지 않는다. 바이트를 실제로 채워 오는 쪽(`read_in` 은 `cap io`, `files.read` 는
@@ -47,12 +47,12 @@ let line option slice u8 . be send r take_line 4096 .
 
 ```lowent
 proc count_lines input src slice u8 . output u64 . effects state . do
-  var r io.mem_reader be spawn actor io.mem_reader . .
-  let z u64 be send r attach src .
-  var lines u64 be 0 .
-  var going bool be true .
+  var r be io.mem_reader spawn actor io.mem_reader . .
+  let z be u64 send r attach src .
+  var lines be u64 0 .
+  var going be bool true .
   while going . do
-    let l option slice u8 . be send r take_line 4096 .
+    let l be option slice u8 send r take_line 4096 .
     if is_some l . do set lines (add lines 1) . end
     if eq (is_some l) false . do set going false . end
   end

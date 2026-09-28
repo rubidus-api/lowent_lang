@@ -60,10 +60,10 @@ rem   돌아왔다** — 버퍼를 거치지 않고 한 조각을 끝까지 내�
 export proc write_all input out cap io . input d u64 . input b slice u8 . output option u64 . effects io .
 do
   if eq (len b) 0 . do  return some 0 . end
-  var wrote u64 be 0 .
-  var spin u64 be 0 .
+  var wrote be u64 0 .
+  var spin be u64 0 .
   while lt wrote (len b) . do
-    let n u64 be write_out out d (subslice b wrote (len b)) .
+    let n be u64 write_out out d (subslice b wrote (len b)) .
     rem 0 은 «더는 못 쓴다» 다 — 무한히 되돌지 않는다.
     guard gt n 0 . else return none .
     set wrote (add wrote n) .
@@ -87,14 +87,14 @@ export proc buf_flush input out cap io . input p owned pending . input buf mut s
   output result (owned pending) io_error . effects io .
 errors write_failed .
 do
-  let d u64 be field p fd .
+  let d be u64 field p fd .
   rem ★ 쌓인 수가 버퍼보다 클 수 없다 — 다른(더 작은) 버퍼를 들고 오면 subslice 가 트랩한다. 실패는 값이다.
   guard le (field p pos) (len buf) . else do
     drop p .
     return error write_failed .
   end
   if gt (field p pos) 0 . do
-    let n option u64 . be write_all out d (subslice buf 0 (field p pos)) .
+    let n be option u64 write_all out d (subslice buf 0 (field p pos)) .
     guard is_some n . else do
       drop p .
       return error write_failed .
@@ -111,11 +111,11 @@ export proc buf_write input out cap io . input p owned pending . input buf mut s
   output result (owned pending) io_error . effects io .
 errors write_failed .
 do
-  var cur owned pending be p .
-  var i u64 be 0 .
+  var cur be owned pending p .
+  var i be u64 0 .
   while lt i (len s) . do
     if ge (field cur pos) (len buf) . do
-      let r result (owned pending) io_error . be buf_flush out cur buf .
+      let r be result (owned pending) io_error buf_flush out cur buf .
       guard is_ok r . else return error write_failed .
       set cur (ok_value r) .
     end
@@ -145,7 +145,7 @@ do
   rem   ☞ 2026-09-20 에 이 자리가 드러났다 — `buf_flush` 만 고치고 여기를 빠뜨렸더니
   rem     주입 시험이 «끝에서 실패» 로 갈렸다. **같은 일을 두 자리에 적으면 둘이 갈린다.**
   if gt (field p pos) 0 . do
-    let n option u64 . be write_all out (field p fd) (subslice buf 0 (field p pos)) .
+    let n be option u64 write_all out (field p fd) (subslice buf 0 (field p pos)) .
     guard is_some n . else do
       drop p .
       return error write_failed .

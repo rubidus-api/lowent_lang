@@ -12,8 +12,8 @@ end
 fn both input h owned buffer . output u8 .
 do
   rem ko: ✘ 다른 이름에 담으면 사본이 생긴다고 믿었다 --- 소유는 `h2` 로 옮겨 갔다 /// en: ✘ believed a second name makes a copy --- ownership moved to `h2`
-  var h2 owned buffer be h .
-  let a u8 be consume h2 .
-  let b u8 be consume h .
+  var h2 be owned buffer h .
+  let a be u8 consume h2 .
+  let b be u8 consume h .
   return 0 .
 end

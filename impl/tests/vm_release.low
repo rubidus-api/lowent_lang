@@ -15,24 +15,24 @@ use allocs from "../../lib/alloc.low" .
 export proc lifo input buf mut slice u8 . . output u64 . effects state .
 do
   guard ge (len buf) 32 . else return 9 .
-  var a allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  let c u64 be send a init buf .
-  let po option mut slice u8 . . be send a reserve 8 .
+  var a be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  let c be u64 send a init buf .
+  let po be option mut slice u8 send a reserve 8 .
   guard is_some po . else return 91 .
-  let p mut slice u8 . be some_value po .
-  let qo option mut slice u8 . . be send a reserve 8 .
+  let p be mut slice u8 some_value po .
+  let qo be option mut slice u8 send a reserve 8 .
   guard is_some qo . else return 92 .
-  let q mut slice u8 . be some_value qo .
-  var r u64 be 0 .
+  let q be mut slice u8 some_value qo .
+  var r be u64 0 .
   if eq (send a release p) false . do set r (add r 100000) . end
   if send a release q . do set r (add r 10000) . end
-  let so option mut slice u8 . . be send a reserve 8 .
+  let so be option mut slice u8 send a reserve 8 .
   guard is_some so . else return 93 .
-  let s mut slice u8 . be some_value so .
+  let s be mut slice u8 some_value so .
   if same_slice s q . do set r (add r 1000) . end
-  let g1 option mut slice u8 . . be send a grow p 16 .
+  let g1 be option mut slice u8 send a grow p 16 .
   if eq (is_some g1) false . do set r (add r 100) . end
-  let g2 option mut slice u8 . . be send a grow s 16 .
+  let g2 be option mut slice u8 send a grow s 16 .
   if is_some g2 . do set r (add r 10) . end
   if and (same_slice p (subslice buf 0 8)) (eq (same_slice p (subslice buf 0 7)) false) . do set r (add r 1) . end
   return r .

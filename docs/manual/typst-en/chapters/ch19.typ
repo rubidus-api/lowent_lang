@@ -40,7 +40,7 @@
 
 #demo("examples/ch19/sink.low")
 
-`consume` takes an `owned buffer` and disposes of it with `drop h .`. `use_once` makes an owned value with `var h owned buffer be v .` and passes it to
+`consume` takes an `owned buffer` and disposes of it with `drop h .`. `use_once` makes an owned value with `var h be owned buffer v .` and passes it to
 `consume`. At that moment ownership *moves*. Now `consume` is responsible for disposing of `h`, and `use_once` can no longer use `h`.
 
 ```text
@@ -182,7 +182,7 @@ is proven. What is proven, and what gap lies between the proofs and the compiler
 #antipattern[Moving a value while thinking you only read it][
   #demo("examples/ch19/mistake_readmove.low")
 
-  `let v u8 be h .` does not look at `h`; it *moves* it into `v`. A value with ownership moves the moment it is stored under a name, so
+  `let v be u8 h .` does not look at `h`; it *moves* it into `v`. A value with ownership moves the moment it is stored under a name, so
   the later `drop h` tries to destroy a moved value. To only look, borrow it with `ref h` inside the same op. As the diagnostic notes,
   borrows across an op boundary are not lowered yet in this edition.
 ]
@@ -191,7 +191,7 @@ is proven. What is proven, and what gap lies between the proofs and the compiler
   #demo("examples/ch19/mistake_twonames.low")
 
   A value like `u64` is copied when stored under another name. A value with ownership is not copied; it moves. With two copies nobody
-  could say who destroys it, and destroying both would destroy it twice. After `var h2 owned buffer be h .`, `h2` is the only owner.
+  could say who destroys it, and destroying both would destroy it twice. After `var h2 be owned buffer h .`, `h2` is the only owner.
 ]
 
 #misconception[Leaving out `drop` leaks the value][
@@ -210,7 +210,7 @@ is proven. What is proven, and what gap lies between the proofs and the compiler
   id: "ownership-glance",
   caption: [Ownership syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`input h owned buffer .` · `var h owned buffer be v .`], [a value with ownership], [one name is responsible for destroying it],
+  [`input h owned buffer .` · `var h be owned buffer v .`], [a value with ownership], [one name is responsible for destroying it],
   [`consume h`], [passing moves ownership], [no use after the move --- `E-OWN-MOVED`],
   [`drop h .`], [say it is destroyed now], [destroying twice is rejected],
   [`set h v .` (after a move)], [refill the moved place], [a loop body ends in the same shape],

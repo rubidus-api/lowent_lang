@@ -6,8 +6,8 @@ fn mean input s slice f64 . output f64 .
   rem ko: ✘ 부동소수의 덧셈은 묶는 차례에 따라 답이 달라진다 /// en: ✘ the result of float addition depends on how it is grouped
   reduce acc add .
 do
-  var acc f64 be 0.0 .
-  var i u64 be 0 .
+  var acc be f64 0.0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set acc (add acc (index s i)) .
     set i (add i 1) .

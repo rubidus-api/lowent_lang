@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  In #chref("locals"), why was `let x u64 be if gt a 1 . 5 else 6 .` rejected, and how do you set a value per branch?
+  In #chref("locals"), why was `let x be u64 if gt a 1 . 5 else 6 .` rejected, and how do you set a value per branch?
 ][
   `if` is a statement that yields no value, so it cannot stand in an expression position (`E-IF-VALUE`). To set a value per branch, make
   a `var` with a default and `set` it in the branches, or `return` from each branch. This chapter covers the branches themselves, loops,
@@ -177,8 +177,8 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
   ```lowent
   fn odd_count input xs slice u8 . output u64 .
   do
-    var n u64 be 0 .
-    var i u64 be 0 .
+    var n be u64 0 .
+    var i be u64 0 .
     while lt i (len xs) . do
       if eq (mod (index xs i) 2) 0 . do
         continue .

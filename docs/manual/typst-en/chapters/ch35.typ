@@ -158,7 +158,7 @@ one word is the job of `flags`.
   [`pool.init objects mem gens 16`], [a pool carving the caller's bytes into blocks (sealed in)], [later ops do not take `mem`/`gens` again],
   [`pool.take` · `pool.release` · `pool.alive`], [borrow (generation handle) · return (bump generation) · ask], [use-after-free and double free surface as values],
   [`pool.bytes objects p h` → `option mut slice u8`], [the only door to a block's bytes], [`none` when the generation differs],
-  [`var r owned shard.token grid be shard.open grid 8 .`], [an owned token for a non-overlapping piece], [after splitting, the old token is `E-OWN-MOVED`],
+  [`var r be (owned shard.token grid) shard.open grid 8 .`], [an owned token for a non-overlapping piece], [after splitting, the old token is `E-OWN-MOVED`],
   [`budget.pack …`], [check a bit budget by contract], [a misfit is `E-CONTRACT-IMPOSSIBLE` at translation],
   [`wire.pick mask w` · `wire.merge mask w v` · `wire.fits`], [read · replace · check a bit field with one mask], [position and width come from one number --- `put` truncates],
 )

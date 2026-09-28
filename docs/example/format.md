@@ -42,7 +42,7 @@ proc write_str
   access s sequential .
   errors overflow .
 do
-  var p u64 be pos .
+  var p be u64 pos .
   for c s do
     set p try write_byte buf p c . .        rem overflow 자동 전파
   end
@@ -58,11 +58,11 @@ proc reverse_bytes
   effects none .
 do
   guard lt lo hi . else return .
-  var i u64 be lo .
-  var j u64 be sub hi 1 . .
+  var i be u64 lo .
+  var j be u64 sub hi 1 . .
   while lt i j . do
     guard lt j (len buf) . else return .
-    let t u8 be index buf i . .
+    let t be u8 index buf i . .
     set (index buf i) (index buf j) .
     set (index buf j) t .
     set i add i 1 . .
@@ -79,11 +79,11 @@ proc write_u32
   effects none .
   errors overflow .
 do
-  let start u64 be pos .
-  var p u64 be pos .
-  var v u32 be n .
+  let start be u64 pos .
+  var p be u64 pos .
+  var v be u32 n .
   while true . do
-    let d u32 be mod v 10 . .
+    let d be u32 mod v 10 . .
     set p try write_byte buf p (narrow u8 (add d 48)) . .   rem '0' = 48, d≤9 → 안전 narrow
     set v div v 10 . .
     guard gt v 0 . else break .
@@ -107,7 +107,7 @@ proc format_point
   effects none .
   errors overflow .
 do
-  var at u64 be 0 .
+  var at be u64 0 .
   set at try write_byte buf at 40 . .            rem '('
   set at try write_u32 buf at field p x . . .
   set at try write_str buf at ", " . .
@@ -126,11 +126,11 @@ proc print_point
   effects io alloc .
   errors overflow .
 do
-  let g option mut slice u8 . . be alloc_bytes temp capacity 64 .
+  let g be option mut slice u8 alloc_bytes temp capacity 64 .
   guard is_some g . else return error overflow . . .
-  let buf mut slice u8 . be some_value g .
-  let n u64 be try format_point buf p . .
-  let w u64 be write_out sink 1 (subslice buf 0 n) .     rem cap 경유 출력(1 = stdout)
+  let buf be mut slice u8 some_value g .
+  let n be u64 try format_point buf p . .
+  let w be u64 write_out sink 1 (subslice buf 0 n) .     rem cap 경유 출력(1 = stdout)
   return ok .
 end
 ```

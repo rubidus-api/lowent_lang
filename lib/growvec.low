@@ -48,7 +48,7 @@ end
 rem ★ 바이트열을 통째로 민다. 하나라도 못 넣으면 false — 다만 **앞부분은 이미 들어가 있다**
 rem   (전량-아니면-무를 약속하지 않는다. 원하면 `reserve_more` 를 먼저 부른다).
 export proc add_all input g mut gvec . input s slice u8 . output bool . effects state . invalidates g . do
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     guard vecgen.append u8 allocs.bump_bytes g (index s i) . else return false .
     set i (add i 1) .

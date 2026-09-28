@@ -40,8 +40,8 @@ Lowent expressions use *prefix notation*. The name of the operation comes first 
 `b`, and a form inside a form is wrapped in parentheses.
 
 ```lowent
-let total u64 be add 1 2 .
-let mixed u64 be add 1 (mul 2 3) .
+let total be u64 add 1 2 .
+let mixed be u64 add 1 (mul 2 3) .
 ```
 
 Prefix notation has no precedence. Someone reading `1 + 2 * 3` knows that multiplication comes first because they *memorised* it,
@@ -99,8 +99,8 @@ end
 
 fn sum_to input n u64 . output u64 .
 do
-  var total u64 be 0 .
-  var i u64 be 1 .
+  var total be u64 0 .
+  var i be u64 1 .
   while le i n . do
     set total (add total i) .
     set i (add i 1) .
@@ -115,7 +115,7 @@ rules to know.
 - *A construct that owns a block as its body* ends at `end`: op declarations, `struct`·`enum`, `if`·`while`·`for`·`match`.
   As in the example above, no full stop follows the `end` --- one there closes nothing and is rejected with `E-DOT-STRAY`.
 - *A statement that uses a block as a value* ends with its own full stop, like any statement. Building a struct value with `make`
-  and binding it with `let` is the usual case: `let p point be make point do x 1 . y 2 . end .` --- the last stop belongs to the
+  and binding it with `let` is the usual case: `let p be point make point do x 1 . y 2 . end .` --- the last stop belongs to the
   `let`. Leaving it out is `E-DOT-MISSING`.
 
 In C terms: no `;` after `if (c) { … }`, but one after `p = (struct point){ 1, 2 };`.
@@ -124,7 +124,7 @@ In C terms: no `;` after `if (c) { … }`, but one after `p = (struct point){ 1,
 while le i n . do  …  end                  block as body: the while statement ends at end
 └─── while statement ───┘
 
-let p point be make point do x 1 . end .   block as value: the block is make's, the statement ends with its own .
+let p be point make point do x 1 . end .   block as value: the block is make's, the statement ends with its own .
                └──── make value ─────┘ │
 └─────────── let statement ────────────┘
 ```

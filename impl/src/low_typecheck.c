@@ -739,7 +739,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             // ★ `view_array <스칼라> <byteslice>` — 바이트 슬라이스를 **타입 배열**로 재해석한다.
             //   원소 타입을 슬라이스 ty_t 에 실어(ebits/eflt/esign) index·subslice·for-in·map 등
             //   **모든 소비 자리**가 float/부호를 되살린다. 구조체·미상 원소는 종전대로 무타입으로
-            //   흘려보낸다 — SIMD 의 `var xs slice <T> be view_array …` load 핸들은 이 타입을 받는다.
+            //   흘려보낸다 — SIMD 의 `var xs be slice <T> view_array …` load 핸들은 이 타입을 받는다.
             if (veq(h2, "view_array") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM) {
                 ty_t e = ty_of_word(k[start + 1]->tok.lex);
                 for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
@@ -754,7 +754,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             }
             // ★★★★★ **잎 낱말의 결과 타입** (2026-09-10, REQ-0014 · WO-0195).
             //   이 언어로 프로그램을 처음 짜 보던 사람이 이렇게 적었다:
-            //       let e option u64 . be write_out k 1 ln .     rem write_out 은 option 을 안 낸다
+            //       let e be option u64 write_out k 1 ln .     rem write_out 은 option 을 안 낸다
             //   `--check` 는 **초록**이었고 프로그램은 **돌다가 죽었다**. 까닭은 여기다: 검사기가
             //   잎 낱말의 결과 타입을 모르면 `TK_UNKNOWN` 이 되고, 모르는 것은 **무엇과도 호환**이다.
             //   코퍼스를 돌연변이로 재니 선언 **829 자리 중 246 이 검사되지 않았다**
@@ -790,7 +790,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     { "clmul_lo", 3 }, { "clmul_hi", 3 },   // ★ 캐리 없는 곱셈 (RFC-0119) — 폭은 피연산자가 말한다
                     // ★★ 암호 잎 — **낸 값은 처리한 바이트 수**다(option 도 참거짓도 아니다).
                     //   근거는 구현 자신이다: VM 의 이 자리들이 전부 `vmv_int` 를 쌓고, C 뒤끝은
-                    //   `lw_int(...)` 로 싣는다. 표에 없어서 `let n u64 be aes_ctr …` 같은 선언이
+                    //   `lw_int(...)` 로 싣는다. 표에 없어서 `let n be u64 aes_ctr …` 같은 선언이
                     //   **비틀어도 초록**이었다(돌연변이 측정 `check-decl-types`). RFC-0122 로 낱말이
                     //   둘 늘면서 그 자리가 하나 더 늘길래, 늘리는 대신 **줄였다**.
                     { "aes_ctr", 3 }, { "ghash", 3 },
@@ -1069,7 +1069,7 @@ static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, prov
         if (f) return t;
         // ★★★ **인자 없는 호출도 타입이 있다** (X-0010 · 2026-08-15). `be dist .` 처럼 인자가
         //   하나도 없는 op 호출은 그냥 ATOM 이라, 환경에 없으면 **TK_UNKNOWN** 으로 떨어졌다 —
-        //   즉 0인자 op 의 **반환 타입이 통째로 사라졌다**. 그래서 `var t seconds be dist .`
+        //   즉 0인자 op 의 **반환 타입이 통째로 사라졌다**. 그래서 `var t be seconds dist .`
         //   (dist 는 meters 를 돌려준다)가 검사기의 눈에 *"모르는 것"* 이었다.
         //   ★ 환경이 **먼저**다: 같은 이름의 지역이 있으면 그것이 이 자리의 뜻이다.
         {
@@ -1156,7 +1156,7 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         //   `option (handle pa)` 와 `option (handle pb)` 는 지금까지 **둘 다 그냥 TK_WRAPPED**
         //   였다. 그래서 `some_value ha` 를 **인라인으로** 쓰면 알맹이의 타입이 통째로 사라졌고
         //   (TK_UNKNOWN), 모르는 것은 안 무는 규율에 따라 **풀 A 의 핸들이 풀 B 로** 흘렀다.
-        //   ☆ 바인딩을 거치면(`let hh handle pa . be some_value ha .`) 물었다 — 검사가 없던 것이
+        //   ☆ 바인딩을 거치면(`let hh be (handle pa) some_value ha .`) 물었다 — 검사가 없던 것이
         //     아니라 **타입이 거기까지 안 갔다.**
         //
         //   ★★ 괄호 안의 모양을 **있는 그대로** 읽어야 한다(실측 2026-08-28): 단형화는
@@ -1441,7 +1441,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
         low_kw_t kw = f->kids[0]->tok.kw;
         tc_walk_makes(c, f, env, *nenv);      // ★ 이 문장 안의 make 리터럴을 검사한다
         // ★ `let` 은 타입체크를 **통째로 빠져나가고 있었다.** `var` 만 검사됐다.
-        //   `let v u8 be <i32>` 도, `let v bool be <u8>` 조차도 조용히 통과했다.
+        //   `let v be u8 <i32>` 도, `let v be bool <u8>` 조차도 조용히 통과했다.
         //   같은 선언인데 한쪽만 검사한 것은 그냥 빠뜨린 것이다. 같은 규칙을 건다.
         if ((kw == LOW_KW_VAR || kw == LOW_KW_LET) && f->nkids >= 3) {
             proven_size_t be = kw_index(f, LOW_KW_BE);
@@ -1451,7 +1451,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             ty_t actual = (be + 1 < f->nkids)
                             ? tc_infer_run(c, f->kids, be + 1, f->nkids - be - 1, env, *nenv)
                             : tk(TK_UNKNOWN);
-            // ★★ **split binding** — `var v vec u32 4 . be <expr> .` 에서 타입의 닫는 `.` 가
+            // ★★ **split binding** — `var v be vec u32 4 <expr> .` 에서 타입의 닫는 `.` 가
             //   var 폼을 **먼저 닫아 버려서**, `be <expr> .` 이 **별개의 문장**이 된다.
             //   IR 은 이것을 알고 처리한다(low_ir.c: "split binding: 타입은 f 에 있다").
             //   그런데 **타입체커는 몰랐다** — 그래서 그런 선언의 **초기화식이 아예 검사되지
@@ -1616,7 +1616,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             // ★★★ 2026-09-25 — **guard 의 else 는 BLOCK 이 아니라 FORM 이다**(머리가 `else`, low_cst.c ①).
             //   위 줄은 BLOCK 자식만 내려가서 guard 의 else 가 **통째로 검사 밖**이었다:
             //   `result` op 의 `guard … else return 0 .` 이 `--check` 초록이고 실행하면 죽었고
-            //   (known-defects/bare-return-under-result.md), `else do let z u8 be 300 . … end` 조차 통과했다.
+            //   (known-defects/bare-return-under-result.md), `else do let z be u8 300 . … end` 조차 통과했다.
             //   IR(ir_guard)이 읽는 두 모양을 그대로 본다: 마지막이 BLOCK 이면 블록, 아니면 `else return …` 한 줄.
             if (kw == LOW_KW_GUARD && f->nkids >= 2) {
                 const low_cst_t *ef = f->kids[f->nkids - 1];
@@ -1865,7 +1865,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
             f->kids[2]->tok.kw == LOW_KW_BE)
             tc_emit(&c, "E-TYPE-DECL",
                    "a type alias is `type N T .` and a newtype is `newtype N T .` — without `be`. `be` binds a VALUE "
-                   "(`let x u8 be 1 .`); a type declaration names a TYPE. One meaning, one spelling",
+                   "(`let x be u8 1 .`); a type declaration names a TYPE. One meaning, one spelling",
                    f->kids[0]->tok.line);
     }
 
@@ -2199,7 +2199,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
     }
 
     // pass 3: ★ 2026-09-27 (X-0071 실측) — **`test` 블록의 몸은 타입 검사를 한 번도 받지 않았다.** 위 두 패스가
-    //   `fn`/`proc` 만 돌아서, 시험 안의 `let x u8 be 300 .` 도 `expect 1 .` 도 `check: ok` 였다. 시험은 입력이 없는
+    //   `fn`/`proc` 만 돌아서, 시험 안의 `let x be u8 300 .` 도 `expect 1 .` 도 `check: ok` 였다. 시험은 입력이 없는
     //   몸이므로 빈 환경에서 같은 규칙으로 걷는다.
     {
         proven_u8str_view_t tmod = { 0 };
@@ -2220,7 +2220,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
 
     // ── pass 2b: **actor 핸들러의 몸** (WO-0219 · WO-0213 spill) ──
     //   ★★★ 핸들러 몸은 **타입검사를 한 번도 받지 않았다.** pass 1·2 가 최상위 `fn`/`proc` 만 돌았기 때문이다 —
-    //   `let v bool be add n 1 .` 이 actor 안에서는 초록이었다(check-decl-types 가 lib/alloc.low 의 핸들러 자리를
+    //   `let v be bool add n 1 .` 이 actor 안에서는 초록이었다(check-decl-types 가 lib/alloc.low 의 핸들러 자리를
     //   «비틀어도 초록» 으로 세던 까닭). 얼로케이터가 전부 actor 가 된 뒤로(RFC-0112 D6) 이 구멍은 모든 할당의 자리다.
     //   ⇒ 상태 칸과 입력을 환경에 묶고 같은 몸 검사를 돌린다. 핸들러는 시그니처 표에 넣지 않는다 — `send` 로만
     //     불리므로, 넣으면 같은 이름의 모듈 op 을 가린다.

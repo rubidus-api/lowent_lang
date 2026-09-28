@@ -22,8 +22,8 @@ use x25519 from "../../lib/x25519.low" .
 
 rem 결과 앞 8 바이트를 하나의 수로 — 골든이 한 줄로 대조할 수 있게.
 fn head8 input d slice u8 . output u64 . do
-  var acc u64 be 0 .
-  var i u64 be 0 .
+  var acc be u64 0 .
+  var i be u64 0 .
   while lt i 8 . do
     set acc (add (shl acc 8) (cast u64 (index d i))) .
     set i (add i 1) .
@@ -33,7 +33,7 @@ end
 
 rem RFC 4231 case 1 — key 20×0x0b, msg "Hi There".
 proc t_hmac input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . output u64 . effects none . do
-  let _u6 result u64 hmac.hmac_error . be hmac.mac key msg scratch out .
+  let _u6 be result u64 hmac.hmac_error hmac.mac key msg scratch out .
   guard is_ok _u6 . else return 0 .
   guard eq (ok_value _u6) 32 . else return 0 .
   return head8 out .
@@ -41,7 +41,7 @@ end
 
 rem RFC 5869 case 1 — PRK = HKDF-Extract(salt, IKM).
 proc t_hkdf input salt slice u8 . input ikm slice u8 . input scratch mut slice u8 . input prk mut slice u8 . output u64 . effects none . do
-  let _u5 result u64 hmac.hmac_error . be hmac.extract salt ikm scratch prk .
+  let _u5 be result u64 hmac.hmac_error hmac.extract salt ikm scratch prk .
   guard is_ok _u5 . else return 0 .
   guard eq (ok_value _u5) 32 . else return 0 .
   return head8 prk .
@@ -50,7 +50,7 @@ end
 rem RFC 8439 §2.3.2 — ChaCha20 블록 함수. 첫 워드를 낸다.
 proc t_chacha input key slice u8 . input nonce slice u8 . input st mut slice u64 . input work mut slice u64 . output u64 . effects none . do
   guard eq (chacha.prep key nonce 1 st) 16 . else return 0 .
-  let _u4 result u64 chacha.chacha_error . be chacha.rounds st work .
+  let _u4 be result u64 chacha.chacha_error chacha.rounds st work .
   guard is_ok _u4 . else return 0 .
   guard eq (ok_value _u4) 16 . else return 0 .
   return index work 0 .
@@ -59,21 +59,21 @@ end
 rem RFC 8439 §2.5.2 — Poly1305 태그.
 proc t_poly input key slice u8 . input msg slice u8 . input st mut slice u64 . input pad mut slice u8 . input tag mut slice u8 . output u64 . effects none . do
   guard eq (poly.setup key st) 1 . else return 0 .
-  var off u64 be 0 .
+  var off be u64 0 .
   while le (add off 16) (len msg) . do
-    let z u64 be poly.block st (subslice msg off (add off 16)) 1 .
+    let z be u64 poly.block st (subslice msg off (add off 16)) 1 .
     set off (add off 16) .
   end
   if lt off (len msg) . do
-    var i u64 be 0 .
+    var i be u64 0 .
     while lt i 16 . do  set (index pad i) 0 .  set i (add i 1) .  end
-    var j u64 be 0 .
+    var j be u64 0 .
     while lt (add off j) (len msg) . do
       set (index pad j) (index msg (add off j)) .
       set j (add j 1) .
     end
     set (index pad j) 1 .
-    let z2 u64 be poly.block st pad 0 .
+    let z2 be u64 poly.block st pad 0 .
   end
   guard eq (poly.emit st key tag) 16 . else return 0 .
   return head8 tag .
@@ -84,7 +84,7 @@ proc t_seal input key slice u8 . input nonce slice u8 . input aad slice u8 . inp
      input ct mut slice u8 . input tag mut slice u8 . input otk mut slice u8 . input pst mut slice u64 .
      input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 .
      output u64 . effects none . do
-  let _u3 result u64 aead.aead_error . be aead.seal key nonce aad msg ct tag otk pst st work ks pad .
+  let _u3 be result u64 aead.aead_error aead.seal key nonce aad msg ct tag otk pst st work ks pad .
   guard is_ok _u3 . else return 0 .
   guard eq (ok_value _u3) 16 . else return 0 .
   return head8 ct .
@@ -95,14 +95,14 @@ proc t_tamper input key slice u8 . input nonce slice u8 . input aad slice u8 . i
      input ct mut slice u8 . input tag mut slice u8 . input outp mut slice u8 . input otk mut slice u8 .
      input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 .
      input pad mut slice u8 . input want mut slice u8 . output u64 . effects none . do
-  let _u0 result u64 aead.aead_error . be aead.seal key nonce aad msg ct tag otk pst st work ks pad .
+  let _u0 be result u64 aead.aead_error aead.seal key nonce aad msg ct tag otk pst st work ks pad .
   guard is_ok _u0 . else return 90 .
   guard eq (ok_value _u0) 16 . else return 90 .
-  let _u1 result u64 aead.aead_error . be aead.unseal key nonce aad ct tag outp otk pst st work ks pad want .
+  let _u1 be result u64 aead.aead_error aead.unseal key nonce aad ct tag outp otk pst st work ks pad want .
   guard is_ok _u1 . else return 91 .
   guard eq (ok_value _u1) 1 . else return 91 .
   set (index ct 0) (cast u8 (bit_xor (cast u64 (index ct 0)) 1)) .
-  let _u2 result u64 aead.aead_error . be aead.unseal key nonce aad ct tag outp otk pst st work ks pad want .
+  let _u2 be result u64 aead.aead_error aead.unseal key nonce aad ct tag outp otk pst st work ks pad want .
   guard is_ok _u2 . else return 92 .
   guard eq (ok_value _u2) 0 . else return 92 .
   return 1 .

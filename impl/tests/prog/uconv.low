@@ -22,44 +22,44 @@ rem 리터럴이 오라클이다 — "…" 과 u"…" 은 같은 원문에서 �
 
 fn f output u64 . do
   rem ASCII
-  let a8 slice u8 be "A" .
-  let a16 slice u16 be u"A" .
-  let c8 option u64 . be utf8.decode a8 0 .
-  let c16 option u64 . be utf16.decode a16 0 .
+  let a8 be slice u8 "A" .
+  let a16 be slice u16 u"A" .
+  let c8 be option u64 utf8.decode a8 0 .
+  let c16 be option u64 utf16.decode a16 0 .
   guard is_some c8 . else return 90 .
   guard is_some c16 . else return 91 .
   guard eq (some_value c8) (some_value c16) . else return 92 .
   guard eq (some_value c8) 65 . else return 93 .
 
   rem 한글 — UTF-8 3 바이트 · UTF-16 1 유닛
-  let k8 slice u8 be "한" .
-  let k16 slice u16 be u"한" .
+  let k8 be slice u8 "한" .
+  let k16 be slice u16 u"한" .
   guard eq (len k8) 3 . else return 94 .
   guard eq (len k16) 1 . else return 95 .
-  let d8 option u64 . be utf8.decode k8 0 .
-  let d16 option u64 . be utf16.decode k16 0 .
+  let d8 be option u64 utf8.decode k8 0 .
+  let d16 be option u64 utf16.decode k16 0 .
   guard is_some d8 . else return 96 .
   guard is_some d16 . else return 97 .
   guard eq (some_value d8) (some_value d16) . else return 98 .
   guard eq (some_value d8) 54620 . else return 99 .
 
   rem 비-BMP — UTF-8 4 바이트 · UTF-16 **서러게이트 쌍** 2 유닛
-  let e8 slice u8 be "😀" .
-  let e16 slice u16 be u"😀" .
+  let e8 be slice u8 "😀" .
+  let e16 be slice u16 u"😀" .
   guard eq (len e8) 4 . else return 100 .
   guard eq (len e16) 2 . else return 101 .
-  let g8 option u64 . be utf8.decode e8 0 .
-  let g16 option u64 . be utf16.decode e16 0 .
+  let g8 be option u64 utf8.decode e8 0 .
+  let g16 be option u64 utf16.decode e16 0 .
   guard is_some g8 . else return 102 .
   guard is_some g16 . else return 103 .
   guard eq (some_value g8) (some_value g16) . else return 104 .
   guard eq (some_value g8) 128512 . else return 105 .
 
   rem 글자 수는 표현이 달라도 같아야 한다 — 이것이 두 모듈을 함께 쓰는 이유다.
-  let m8 slice u8 be "A한😀" .
-  let m16 slice u16 be u"A한😀" .
-  let n8 option u64 . be utf8.count_chars m8 .
-  let n16 option u64 . be utf16.count_chars m16 .
+  let m8 be slice u8 "A한😀" .
+  let m16 be slice u16 u"A한😀" .
+  let n8 be option u64 utf8.count_chars m8 .
+  let n16 be option u64 utf16.count_chars m16 .
   guard is_some n8 . else return 106 .
   guard is_some n16 . else return 107 .
   guard eq (some_value n8) (some_value n16) . else return 108 .

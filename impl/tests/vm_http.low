@@ -16,7 +16,7 @@ export fn ok_post output u64 . do
 end
 export fn ok_target output u64 . do
   rem 대상은 "/api/x" — 자리 4, 길이 6.
-  let b slice u8 . be "GET /api/x HTTP/1.1\r\nHost: y\r\n\r\n" .
+  let b be slice u8 "GET /api/x HTTP/1.1\r\nHost: y\r\n\r\n" .
   return add (mul (http.target_off b) 100) (http.target_len b) .
 end
 export fn ok_version output bool . do
@@ -27,17 +27,17 @@ export fn ok_body output u64 . do
   return http.body_off "GET / HTTP/1.1\r\nHost: x\r\n\r\nBODY" .
 end
 export fn ok_find output u64 . do
-  let b slice u8 . be "GET / HTTP/1.1\r\nHost: example\r\n\r\n" .
+  let b be slice u8 "GET / HTTP/1.1\r\nHost: example\r\n\r\n" .
   return add (mul (http.header_find b "host") 100) (http.header_find_len b "host") .
 end
 export proc ok_clen output u64 . effects none . do
-  let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 42\r\n\r\n" .
+  let c be option u64 http.content_length "POST / HTTP/1.1\r\nContent-Length: 42\r\n\r\n" .
   guard is_some c . else return 999 .
   return some_value c .
 end
 export proc ok_noclen output u64 . effects none . do
   rem 없으면 `some 0` — *"없다"* 는 정상이다.
-  let c option u64 . be http.content_length "GET / HTTP/1.1\r\nHost: x\r\n\r\n" .
+  let c be option u64 http.content_length "GET / HTTP/1.1\r\nHost: x\r\n\r\n" .
   guard is_some c . else return 999 .
   return some_value c .
 end
@@ -53,18 +53,18 @@ export fn no_space_before_colon output u64 . do
 end
 rem ✘ `Content-Length` 가 둘 — 값이 같아도 거절한다.
 export proc no_dup_clen output u64 . effects none . do
-  let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 5\r\nContent-Length: 5\r\n\r\n" .
+  let c be option u64 http.content_length "POST / HTTP/1.1\r\nContent-Length: 5\r\nContent-Length: 5\r\n\r\n" .
   if is_some c . do return 1 . end
   return 0 .
 end
 rem ✘ 숫자가 아닌 길이(`5, 5` · `+5` · 빈 값).
 export proc no_list_clen output u64 . effects none . do
-  let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 5, 5\r\n\r\n" .
+  let c be option u64 http.content_length "POST / HTTP/1.1\r\nContent-Length: 5, 5\r\n\r\n" .
   if is_some c . do return 1 . end
   return 0 .
 end
 export proc no_plus_clen output u64 . effects none . do
-  let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: +5\r\n\r\n" .
+  let c be option u64 http.content_length "POST / HTTP/1.1\r\nContent-Length: +5\r\n\r\n" .
   if is_some c . do return 1 . end
   return 0 .
 end
@@ -95,19 +95,19 @@ rem   헤더 끝」으로 읽으면 `body_off` 가 거절한 블록에서 값을
 rem   전부 1 이어야 한다(= 거절했다). 9x 는 틀린 갈래를 말한다.
 rem ✘ 헤더가 안 끝났는데 Content-Length 를 답하면 안 된다.
 export proc t_clen_unterminated output u64 . effects none . do
-  let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 5\r\nX-Fo" .
+  let c be option u64 http.content_length "POST / HTTP/1.1\r\nContent-Length: 5\r\nX-Fo" .
   if is_some c . do return 91 . end
   return 1 .
 end
 rem ✘ 헤더 안의 맨 LF — 앞단은 줄 둘로 읽는다.
 export proc t_clen_bare_lf output u64 . effects none . do
-  let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length: 5\r\nX: a\nb\r\n\r\nhello" .
+  let c be option u64 http.content_length "POST / HTTP/1.1\r\nContent-Length: 5\r\nX: a\nb\r\n\r\nhello" .
   if is_some c . do return 92 . end
   return 1 .
 end
 rem ✘ 콜론 앞 공백 — 건너뛰고 `some 0` 을 내면 관대한 앞단(5)과 갈린다.
 export proc t_clen_space_colon output u64 . effects none . do
-  let c option u64 . be http.content_length "POST / HTTP/1.1\r\nContent-Length : 5\r\n\r\nhello" .
+  let c be option u64 http.content_length "POST / HTTP/1.1\r\nContent-Length : 5\r\n\r\nhello" .
   if is_some c . do return 93 . end
   return 1 .
 end

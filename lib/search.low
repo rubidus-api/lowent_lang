@@ -15,11 +15,11 @@ module searchlib .
 
 rem ★ 정확한 조회 — target 의 **인덱스** 또는 none(중복이 있으면 그중 하나).
 export fn bsearch input s slice u64 . input target u64 . output option u64 . do
-  var lo u64 be 0 .
-  var hi u64 be len s .
+  var lo be u64 0 .
+  var hi be u64 len s .
   while lt lo hi . do
-    let mid u64 be add lo (div (sub hi lo) 2) .
-    let v u64 be index s mid .
+    let mid be u64 add lo (div (sub hi lo) 2) .
+    let v be u64 index s mid .
     if eq v target . do return (some mid) . end
     if lt v target . do set lo (add mid 1) . end
     if gt v target . do set hi mid . end
@@ -30,10 +30,10 @@ end
 rem ★ 하한(lower bound) — **target 이상인 첫 인덱스**(모두 작으면 len). **삽입점**이자 범위의 시작.
 rem   이것이 있으면 contains(bsearch)·정렬 유지 삽입·범위 [lo,hi) 질의가 다 선다.
 export fn lower_bound input s slice u64 . input target u64 . output u64 . do
-  var lo u64 be 0 .
-  var hi u64 be len s .
+  var lo be u64 0 .
+  var hi be u64 len s .
   while lt lo hi . do
-    let mid u64 be add lo (div (sub hi lo) 2) .
+    let mid be u64 add lo (div (sub hi lo) 2) .
     if lt (index s mid) target . do set lo (add mid 1) . end
     if ge (index s mid) target . do set hi mid . end
   end

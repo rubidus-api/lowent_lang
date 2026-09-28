@@ -6,18 +6,18 @@ use searchlib .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let g option mut slice u8 be alloc_bytes al capacity 40 .
+  let g be option mut slice u8 alloc_bytes al capacity 40 .
   guard is_some g . else return 255 .
-  var xs mut slice u64 be view_array u64 (some_value g) .
+  var xs be mut slice u64 view_array u64 (some_value g) .
   set (index xs 0) 42 .
   set (index xs 1) 7 .
   set (index xs 2) 19 .
   set (index xs 3) 3 .
   set (index xs 4) 25 .
   sortlib.sort xs .
-  let at option u64 be searchlib.bsearch xs 19 .
+  let at be option u64 searchlib.bsearch xs 19 .
   guard is_some at . else return 254 .
-  let missing option u64 be searchlib.bsearch xs 20 .
+  let missing be option u64 searchlib.bsearch xs 20 .
   guard not (is_some missing) . else return 253 .
   return narrow u8 (add (mul (index xs 0) 10) (some_value at)) .
 end

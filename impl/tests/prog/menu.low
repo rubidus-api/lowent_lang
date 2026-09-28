@@ -54,31 +54,31 @@ rem   `pos` 에서 시작해 새 pos 를 돌려준다(모자라면 none — 자�
 proc render input buf mut slice u8 . . input pos0 u64 . input cur u64 .
   output option u64 . effects none .
 do
-  let c0 option u64 . be term.clear buf pos0 .
+  let c0 be option u64 term.clear buf pos0 .
   guard is_some c0 . else return none .
-  var pos u64 be some_value c0 .
+  var pos be u64 some_value c0 .
 
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 4 . do
-    let g option u64 . be term.goto buf pos i 0 .
+    let g be option u64 term.goto buf pos i 0 .
     guard is_some g . else return none .
     set pos (some_value g) .
 
     rem 고른 줄만 반전 — 그리고 **반드시 되돌린다**(안 되돌리면 뒤가 다 반전된다).
     if eq i cur . do
-      let s option u64 . be term.sgr buf pos 7 .
+      let s be option u64 term.sgr buf pos 7 .
       guard is_some s . else return none .
       set pos (some_value s) .
     end
 
-    let t1 option u64 . be fmt.put_str buf pos "item " .
+    let t1 be option u64 fmt.put_str buf pos "item " .
     guard is_some t1 . else return none .
-    let t2 option u64 . be fmt.put_u64 buf (some_value t1) i .
+    let t2 be option u64 fmt.put_u64 buf (some_value t1) i .
     guard is_some t2 . else return none .
     set pos (some_value t2) .
 
     if eq i cur . do
-      let s2 option u64 . be term.sgr buf pos 0 .
+      let s2 be option u64 term.sgr buf pos 0 .
       guard is_some s2 . else return none .
       set pos (some_value s2) .
     end
@@ -95,34 +95,34 @@ proc main .
 do
   rem ① 키 바이트를 통째로 받는다. 터미널이면 이것이 raw 모드의 산물이고,
   rem    파일/파이프면 **같은 바이트**다 — 그래서 시험이 된다.
-  let ing option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  let ing be option mut slice u8 alloc_bytes al capacity 4096 .
   guard is_some ing . else return 70 .
-  let inbuf mut slice u8 . be some_value ing .
-  let rn option u64 . be read_in in_c 0 inbuf .
+  let inbuf be mut slice u8 some_value ing .
+  let rn be option u64 read_in in_c 0 inbuf .
   guard is_some rn . else return 71 .
-  let n u64 be some_value rn .
+  let n be u64 some_value rn .
 
-  let outg option mut slice u8 . . be alloc_bytes al capacity 8192 .
+  let outg be option mut slice u8 alloc_bytes al capacity 8192 .
   guard is_some outg . else return 70 .
-  let outbuf mut slice u8 . be some_value outg .
+  let outbuf be mut slice u8 some_value outg .
 
   rem ② 키를 하나씩 먹으며 상태를 옮긴다. 확정 키를 만나면 거기서 끝이다.
-  var cur u64 be 0 .
-  var at u64 be 0 .
-  var done bool be false .
-  var going bool be true .
+  var cur be u64 0 .
+  var at be u64 0 .
+  var done be bool false .
+  var going be bool true .
   while going . do
     if ge at n . do set going false . end
     if going . do
-      let p option u64 . be tty.parse_key (subslice inbuf 0 n) at .
+      let p be option u64 tty.parse_key (subslice inbuf 0 n) at .
       if eq (is_some p) false . do
         rem ★ 못 읽는 바이트는 **한 칸 건너뛴다**(멈추지 않는다 — 잘린 이스케이프가 흔하다).
         set at (add at 1) .
       end
       if is_some p . do
-        let packed u64 be some_value p .
-        let k u64 be tty.key_of packed .
-        let used u64 be tty.len_of packed .
+        let packed be u64 some_value p .
+        let k be u64 tty.key_of packed .
+        let used be u64 tty.len_of packed .
         if is_commit k . do
           set done true .
           set going false .
@@ -136,9 +136,9 @@ do
   end
 
   rem ③ 마지막 화면을 한 번에 낸다(그리는 동안엔 한 바이트도 안 나갔다).
-  let e option u64 . be render outbuf 0 cur .
+  let e be option u64 render outbuf 0 cur .
   guard is_some e . else return 72 .
-  let w u64 be write_out in_c 1 (subslice outbuf 0 (some_value e)) .
+  let w be u64 write_out in_c 1 (subslice outbuf 0 (some_value e)) .
 
   if done . do return narrow u8 cur . end
   return 4 .

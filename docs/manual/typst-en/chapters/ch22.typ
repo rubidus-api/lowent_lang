@@ -190,7 +190,7 @@ multiple keys are also a matter of writing `less` that way. Instead of mode argu
   [`input comptime t type .`], [receive a type at translation time (first in the head)], [later types use its name],
   [`input comptime n u8 .`], [receive a value at translation time], [folded as a constant; checks disappear],
   [`bytes_for u64 100` · `add_const 7 10`], [write types and constants as leading arguments], [no angle brackets, no inference --- what is built is visible],
-  [`let step u8 be 7 .` (module level)], [a named constant allowed in a `comptime` position], [a `let` inside an op is a run-time name],
+  [`let step be u8 7 .` (module level)], [a named constant allowed in a `comptime` position], [a `let` inside an op is a run-time name],
   [`size_of t`], [the size of a type at translation time], [the size is fixed as a constant],
   [`requires ordered t .`], [type condition --- the type must adopt the trait], [otherwise `E-BOUND-UNSAT` at the call],
   [`method a less b`], [call the op the condition promises], [monomorphised into a direct call],

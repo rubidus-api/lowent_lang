@@ -670,15 +670,15 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">proc</span></strong> fill_count <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> work arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity n .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes work capacity n .
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-    <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> some_value g .
-    <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+    <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
+    <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">while</span></strong> lt i (len buf) . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> (index buf i) <span class="tok-n">7</span> .
       <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
     <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+    <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">for</span></strong> b buf <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> b)) .
     <strong><span class="tok-k">end</span></strong>
@@ -700,9 +700,9 @@ main() = 70
 <em><span class="tok-c">rem 종류 낱말은 이 영역이 무엇을 위한 자리인지 말한다. 이 판에서는 heap 만 자라는 뿌리에서, 나머지는 고정 창에서 깎는다</span></em>
 <strong><span class="tok-k">proc</span></strong> carve_stack <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">region</span></strong> r stack <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes r capacity <span class="tok-n">32</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
     <strong><span class="tok-k">end</span></strong>
@@ -712,9 +712,9 @@ main() = 70
 
 <strong><span class="tok-k">proc</span></strong> carve_static <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">region</span></strong> r static <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes r capacity <span class="tok-n">64</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> n (len (some_value g)) .
     <strong><span class="tok-k">end</span></strong>
@@ -738,11 +738,11 @@ end 에 닿으면:
 <strong><span class="tok-k">proc</span></strong> sum_squares <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes temp capacity n .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes temp capacity n .
   <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> some_value g .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (mul i i)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -753,7 +753,7 @@ end 에 닿으면:
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> sum_squares r <span class="tok-n">5</span> .
+    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> sum_squares r <span class="tok-n">5</span> .
     <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> v .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
@@ -765,9 +765,9 @@ main() = 30
 
 <strong><span class="tok-k">proc</span></strong> leak <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> keep <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> subslice <span class="tok-s">"</span><span class="tok-s">abcd</span><span class="tok-s">"</span> <span class="tok-n">0</span> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> keep <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> subslice <span class="tok-s">"</span><span class="tok-s">abcd</span><span class="tok-s">"</span> <span class="tok-n">0</span> <span class="tok-n">0</span> .
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">16</span> .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes r capacity <span class="tok-n">16</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> keep (some_value g) .
     <strong><span class="tok-k">end</span></strong>
@@ -783,7 +783,7 @@ escape.low:10:0 E-REGION-ESCAPE: this value was allocated inside a `region` bloc
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> outer arena <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">region</span></strong> inner arena <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes outer capacity <span class="tok-n">8</span> .
+      <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes outer capacity <span class="tok-n">8</span> .
     <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
@@ -800,8 +800,8 @@ nested.low:8:0 E-ALLOC-NESTED: this allocation names an OUTER source while a reg
 <strong><span class="tok-k">proc</span></strong> grow_twice <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> heap .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> big heap <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes big capacity <span class="tok-n">4096</span> .
-    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes big capacity <span class="tok-n">4096</span> .
+    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes big capacity <span class="tok-n">4096</span> .
+    <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes big capacity <span class="tok-n">4096</span> .
     <strong><span class="tok-k">guard</span></strong> is_some a . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">guard</span></strong> is_some b . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">return</span></strong> add (len (some_value a)) (len (some_value b)) .
@@ -811,7 +811,7 @@ nested.low:8:0 E-ALLOC-NESTED: this allocation names an OUTER source while a reg
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">cap</span></strong> heap . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> heap .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> grow_twice .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> grow_twice .
   <strong><span class="tok-k">guard</span></strong> eq n <span class="tok-n">8192</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
@@ -823,7 +823,7 @@ main() = 0
 
 <strong><span class="tok-k">proc</span></strong> grow <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">cap</span></strong> heap . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> heap .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes h capacity <span class="tok-n">4096</span> .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes h capacity <span class="tok-n">4096</span> .
   <strong><span class="tok-k">guard</span></strong> is_some a . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> len (some_value a) .
 <strong><span class="tok-k">end</span></strong>
@@ -838,14 +838,14 @@ heap_mcu.low:5:0 E-HEAP-NOHOST: this op asks for the GROWING root — the `heap`
 <strong><span class="tok-k">proc</span></strong> reverse_digits <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> work stack <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> stack_new temp capacity <span class="tok-n">8</span> .
-  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> n .
+  <strong><span class="tok-k">let</span></strong> work <strong><span class="tok-k">be</span></strong> stack <strong><span class="tok-t">u64</span></strong> stack_new temp capacity <span class="tok-n">8</span> .
+  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> n .
   <strong><span class="tok-k">while</span></strong> gt v <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
     push work (mod v <span class="tok-n">10</span>) .
     <strong><span class="tok-k">set</span></strong> v (div v <span class="tok-n">10</span>) .
   <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">var</span></strong> out <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> place <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">1</span> .
+  <strong><span class="tok-k">var</span></strong> out <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> place <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">while</span></strong> pop work into d . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> out (add out (mul d place)) .
     <strong><span class="tok-k">set</span></strong> place (mul place <span class="tok-n">10</span>) .
@@ -862,7 +862,7 @@ heap_mcu.low:5:0 E-HEAP-NOHOST: this op asks for the GROWING root — the `heap`
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run main stack.low
 main() = 74
-</code></pre></div></div><ul><li><code>let work stack u64 be stack_new temp capacity 8 .</code> 이 스택을 만든다. 영역에서 자리를 얻으므로 <code>effects alloc</code> 이다.</li><li><code>push work x .</code> 는 넣는다.</li><li><code>while pop work into d . do … end</code> 는 꺼낼 것이 있는 동안 하나씩 꺼내 <code>d</code> 에 묶는다. 비면 되풀이가 끝난다 — 빈 스택에서 꺼내다 멈추는 길이 문법에 없다.</li></ul><p>47 의 자릿수 7·4 를 넣으면 4·7 차례로 나와 74 가 된다. 스택도 영역과 함께 걷히므로 따로 돌려주는 코드가 없다.</p><h3 id="s18-8">18.8 흔한 실수<a class="plink" href="#s18-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 자리를 얻었는지 묻지 않고 <code>some_value</code> 로 꺼낸다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_nocheck.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nocheck .
+</code></pre></div></div><ul><li><code>let work be stack u64 stack_new temp capacity 8 .</code> 이 스택을 만든다. 영역에서 자리를 얻으므로 <code>effects alloc</code> 이다.</li><li><code>push work x .</code> 는 넣는다.</li><li><code>while pop work into d . do … end</code> 는 꺼낼 것이 있는 동안 하나씩 꺼내 <code>d</code> 에 묶는다. 비면 되풀이가 끝난다 — 빈 스택에서 꺼내다 멈추는 길이 문법에 없다.</li></ul><p>47 의 자릿수 7·4 를 넣으면 4·7 차례로 나와 74 가 된다. 스택도 영역과 함께 걷히므로 따로 돌려주는 코드가 없다.</p><h3 id="s18-8">18.8 흔한 실수<a class="plink" href="#s18-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 자리를 얻었는지 묻지 않고 <code>some_value</code> 로 꺼낸다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/mistake_nocheck.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_nocheck .
 <em><span class="tok-c">rem run: buf_len 16</span></em>
 <em><span class="tok-c">rem trap: buf_len 1000000</span></em>
 
@@ -870,7 +870,7 @@ main() = 74
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> work arena <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ 자리를 얻었는지 묻지 않고 꺼낸다 --- 창이 모자라면 `none` 을 꺼내다 멈춘다</span></em>
-    <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> some_value (alloc_bytes work capacity n) .
+    <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value (alloc_bytes work capacity n) .
     <strong><span class="tok-k">return</span></strong> len buf .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
@@ -886,7 +886,7 @@ $ lowentc --run buf_len mistake_nocheck.low 1000000
 <strong><span class="tok-k">proc</span></strong> make_buf <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> work arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity n .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes work capacity n .
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> subslice <span class="tok-s">"</span><span class="tok-s">"</span> <span class="tok-n">0</span> <span class="tok-n">0</span> .
     <em><span class="tok-c">rem ✘ 이 블록이 끝나면 걷힐 바이트를 돌려준다</span></em>
     <strong><span class="tok-k">return</span></strong> some_value g .
@@ -905,10 +905,10 @@ mistake_returnbuf.low:12:0 E-TYPE-RETMUT: this op declares a MUTABLE output (`mu
 <strong><span class="tok-k">proc</span></strong> filled_sum <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes temp capacity n .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes temp capacity n .
   <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> some_value g .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> b buf <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> b)) .
   <strong><span class="tok-k">end</span></strong>
@@ -918,7 +918,7 @@ mistake_returnbuf.low:12:0 E-TYPE-RETMUT: this op declares a MUTABLE output (`mu
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> filled_sum r <span class="tok-n">5</span> .
+    <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> filled_sum r <span class="tok-n">5</span> .
     <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> v .
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
@@ -932,7 +932,7 @@ main() = 5
 <strong><span class="tok-k">fn</span></strong> scratch_len <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">region</span></strong> work arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity n .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes work capacity n .
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">return</span></strong> len (some_value g) .
   <strong><span class="tok-k">end</span></strong>
@@ -947,12 +947,12 @@ mistake_fnregion.low:6:1 E-EFFECT-CALC: this fn is declared pure but performs `a
 
 <strong><span class="tok-k">proc</span></strong> carve_inside <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> a allocs.bump_bytes <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">16</span> .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes r capacity <span class="tok-n">16</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <em><span class="tok-c">rem ✘ 영역 밖에서 태어난 액터에게 영역의 바이트를 건넨다</span></em>
-      <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a init (some_value g) .
+      <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a init (some_value g) .
     <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
@@ -966,14 +966,14 @@ mistake_outlives.low:13:0 E-ALLOC-OUTLIVES: this hands bytes from a `region` blo
 
 <strong><span class="tok-k">proc</span></strong> carve_inside <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">region</span></strong> r arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> alloc_bytes r capacity <span class="tok-n">16</span> .
+    <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes r capacity <span class="tok-n">16</span> .
     <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong>
       <em><span class="tok-c">rem 액터도 영역 안에서 태어난다 — 둘이 함께 사라진다</span></em>
-      <strong><span class="tok-k">var</span></strong> a allocs.bump_bytes <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
-      <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a init (some_value g) .
-      <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">10</span> .
+      <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+      <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a init (some_value g) .
+      <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">10</span> .
       <strong><span class="tok-k">if</span></strong> is_some p . <strong><span class="tok-k">do</span></strong>
         <strong><span class="tok-k">set</span></strong> n (<strong><span class="tok-k">send</span></strong> a used) .
       <strong><span class="tok-k">end</span></strong>
@@ -990,11 +990,11 @@ carve_inside() = 10
 <em><span class="tok-c">rem 영역이 반복 바깥에 있다 --- 바퀴마다 얻은 4096 바이트가 블록 끝까지 쌓인다</span></em>
 <strong><span class="tok-k">proc</span></strong> count_outer <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> got <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> got <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">region</span></strong> work arena <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+    <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity <span class="tok-n">4096</span> .
+      <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes work capacity <span class="tok-n">4096</span> .
       <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong>
       <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
     <strong><span class="tok-k">end</span></strong>
@@ -1005,11 +1005,11 @@ carve_inside() = 10
 <em><span class="tok-c">rem 영역을 반복 안에서 연다 --- 바퀴가 끝날 때마다 되감긴다</span></em>
 <strong><span class="tok-k">proc</span></strong> count_inner <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> got <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> got <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">region</span></strong> work arena <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes work capacity <span class="tok-n">4096</span> .
+      <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes work capacity <span class="tok-n">4096</span> .
       <strong><span class="tok-k">if</span></strong> is_some g . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> got (add got <span class="tok-n">1</span>) . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .

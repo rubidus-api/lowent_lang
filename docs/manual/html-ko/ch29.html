@@ -734,7 +734,7 @@ fftype.low:4:0 E-FFI-TYPE: this signature carries a type the C ABI cannot expres
 
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> sum_bytes <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> x)) .
   <strong><span class="tok-k">end</span></strong>
@@ -864,7 +864,7 @@ mistake_callerunsafe.low:14:0 E-UNSAFE-UNDECLARED: this op declares the `unsafe`
 <strong><span class="tok-k">unsafe</span></strong> <strong><span class="tok-k">proc</span></strong> callback_addr <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> c . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">unsafe</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 보통 op 의 주소를 C 에게 넘기려 한다 --- C 가 부를 수 있는 문이 없다</span></em>
-  <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> unsafe_fn by_value .
+  <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> unsafe_fn by_value .
   <strong><span class="tok-k">return</span></strong> f .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_cbplain.low
@@ -886,7 +886,7 @@ mistake_cbplain.low:16:0 E-FN-NOTEXPORT: `unsafe_fn &lt;op>` needs an `export ex
 <strong><span class="tok-k">unsafe</span></strong> <strong><span class="tok-k">proc</span></strong> callback_addr <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-k">cap</span></strong> c . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">unsafe</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ C 가 되부를 때 건넬 권한이 없다</span></em>
-  <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> unsafe_fn cmp_logged .
+  <strong><span class="tok-k">let</span></strong> f <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> unsafe_fn cmp_logged .
   <strong><span class="tok-k">return</span></strong> f .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_cbcap.low

@@ -14,10 +14,10 @@ build profile freestanding .
 
 rem 고정 크기 링 버퍼의 합 — 임베디드가 실제로 하는 모양(호출자 버퍼·할당 0).
 export fn ring_sum input buf slice u8 . input from u64 . input n u64 . output u64 . do
-  var acc u64 be 0 .
-  var i u64 be 0 .
+  var acc be u64 0 .
+  var i be u64 0 .
   while lt i n . do
-    let at u64 be mod (add from i) (len buf) .
+    let at be u64 mod (add from i) (len buf) .
     set acc (add acc (index buf at)) .
     set i (add i 1) .
   end
@@ -26,7 +26,7 @@ end
 
 rem 진입점도 순수하다 — 이 층에는 종료 상태를 받아 줄 OS 도 없지만, 값은 계산된다.
 proc main output u8 . effects none . do
-  let g slice u8 be "\x01\x02\x03\x04\x05\x06\x07\x08" .
+  let g be slice u8 "\x01\x02\x03\x04\x05\x06\x07\x08" .
   rem 끝을 넘어 감아 돈다: 6 번째부터 넷 = 7+8+1+2 = 18
   return narrow u8 (ring_sum g 6 4) .
 end

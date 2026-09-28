@@ -7,7 +7,7 @@ use fmt .
 proc greet input buf mut slice u8 . output u64 . effects none .
 do
   rem ko: ✘ 앞의 쓰기가 성공했다고 믿고 `some_value` 로 곧장 이어 쓴다 /// en: ✘ trusts that the previous write succeeded and chains on with `some_value`
-  let p u64 be some_value (fmt.put_str buf 0 "hello") .
-  let q u64 be some_value (fmt.put_byte buf p 32) .
+  let p be u64 some_value (fmt.put_str buf 0 "hello") .
+  let q be u64 some_value (fmt.put_byte buf p 32) .
   return some_value (fmt.put_u64 buf q 42) .
 end

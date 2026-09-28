@@ -23,7 +23,7 @@ end
 
 rem 순서 무관: inc 는 교환법칙 → 어떤 배달 순서든 get=2. 오라클이 4 interleaving 전부에서 확인한다.
 test counter_order_independent schedule explore_interleavings . do
-  var c counter be spawn actor counter . .
+  var c be counter spawn actor counter . .
   spawn send c inc .
   spawn send c inc .
   schedule .
@@ -32,8 +32,8 @@ end
 
 rem 두 actor 로 교차 배달 — 각자 독립이므로 어떤 interleaving 이든 a=1, b=1. 교차 순서가 진짜로 바뀌어도 불변.
 test two_actors_independent schedule explore_interleavings . do
-  var a counter be spawn actor counter . .
-  var b counter be spawn actor counter . .
+  var a be counter spawn actor counter . .
+  var b be counter spawn actor counter . .
   spawn send a inc .
   spawn send b inc .
   spawn send a inc .
@@ -44,7 +44,7 @@ end
 
 rem `schedule` 문 자체 — 전역 quiescence 배달(FIFO). 셋을 넣고 비우면 get=3. VM≡네이티브(차등 스윕).
 proc run_sched output u64 . effects state . do
-  var c counter be spawn actor counter . .
+  var c be counter spawn actor counter . .
   spawn send c inc .
   spawn send c inc .
   spawn send c inc .

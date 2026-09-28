@@ -29,17 +29,17 @@ newtype sg u8 .
 
 rem ── vecgen: 같은 길이의 두 벡터가 한 범프 위에서 자라도 **겹치지 않는다** (A1/B1 후보 1) ──
 proc t_vec input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 . . be alloc_bytes al capacity 256 .
+  let memo be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some memo . else return 89 .
-  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  var c u64 be send bump init (some_value memo) .
-  let ga option (vecgen.vec u8 allocs.bump_bytes) . using bump be vecgen.open u8 4 .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c be u64 send bump init (some_value memo) .
+  let ga using bump be option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8 4 .
   guard is_some ga . else return 90 .
-  var a vecgen.vec u8 allocs.bump_bytes . be some_value ga .
-  let gb option (vecgen.vec u8 allocs.bump_bytes) . using bump be vecgen.open u8 4 .
+  var a be (vecgen.vec u8 allocs.bump_bytes) some_value ga .
+  let gb using bump be option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8 4 .
   guard is_some gb . else return 91 .
-  var b vecgen.vec u8 allocs.bump_bytes . be some_value gb .
-  var i u64 be 0 .
+  var b be (vecgen.vec u8 allocs.bump_bytes) some_value gb .
+  var i be u64 0 .
   while lt i 4 . do
     guard vecgen.append u8 allocs.bump_bytes a (narrow u8 (add 10 i)) . else return 92 .
     guard vecgen.append u8 allocs.bump_bytes b (narrow u8 (add 200 i)) . else return 93 .
@@ -47,17 +47,17 @@ proc t_vec input al cap allocator . output u64 . effects state alloc . do
   end
   rem ★ A 의 다섯째 — B 가 마지막 할당(길이가 같은 4)이라, 옛 `grow` 는 B 의 자리를 A 에 줬다
   guard vecgen.append u8 allocs.bump_bytes a 14 . else return 94 .
-  let a0 option u8 . be vecgen.at u8 allocs.bump_bytes a 0 .
+  let a0 be option u8 vecgen.at u8 allocs.bump_bytes a 0 .
   guard is_some a0 . else return 95 .
   guard eq (some_value a0) 10 . else return 96 .             rem 200 이었다
-  let a4 option u8 . be vecgen.at u8 allocs.bump_bytes a 4 .
+  let a4 be option u8 vecgen.at u8 allocs.bump_bytes a 4 .
   guard is_some a4 . else return 97 .
   guard eq (some_value a4) 14 . else return 98 .
   guard vecgen.set_at u8 allocs.bump_bytes b 1 77 . else return 99 .
-  let a1 option u8 . be vecgen.at u8 allocs.bump_bytes a 1 .
+  let a1 be option u8 vecgen.at u8 allocs.bump_bytes a 1 .
   guard is_some a1 . else return 80 .
   guard eq (some_value a1) 11 . else return 81 .             rem 77 이었다 — 겹침
-  let b0 option u8 . be vecgen.at u8 allocs.bump_bytes b 0 .
+  let b0 be option u8 vecgen.at u8 allocs.bump_bytes b 0 .
   guard is_some b0 . else return 82 .
   guard eq (some_value b0) 200 . else return 83 .
   rem ★ 자격이 있으면 제자리 성장은 **여전히 산다**: B 를 마지막 할당으로 만들고 꽉 채워 자라게 한다.
@@ -65,17 +65,17 @@ proc t_vec input al cap allocator . output u64 . effects state alloc . do
   rem   커서가 24 + 40 = 64 에 서야 한다(새로 받았다면 40 + 40 = 80 이다).
   guard vecgen.append u8 allocs.bump_bytes b 204 . else return 84 .
   guard eq (send bump used) 40 . else return 85 .
-  var j u64 be 5 .
+  var j be u64 5 .
   while lt j 16 . do
     guard vecgen.append u8 allocs.bump_bytes b (narrow u8 j) . else return 86 .
     set j (add j 1) .
   end
   guard vecgen.append u8 allocs.bump_bytes b 16 . else return 87 .
   guard eq (send bump used) 64 . else return 88 .
-  let b16 option u8 . be vecgen.at u8 allocs.bump_bytes b 16 .
+  let b16 be option u8 vecgen.at u8 allocs.bump_bytes b 16 .
   guard is_some b16 . else return 79 .
   guard eq (some_value b16) 16 . else return 78 .
-  let b1 option u8 . be vecgen.at u8 allocs.bump_bytes b 1 .
+  let b1 be option u8 vecgen.at u8 allocs.bump_bytes b 1 .
   guard is_some b1 . else return 77 .
   guard eq (some_value b1) 77 . else return 76 .
   return 9 .
@@ -83,30 +83,30 @@ end
 
 rem ── mapgen: 더러운 바닥(전부 1) 위에서도 빈 맵은 비어 있고, 다시 뿌리기도 끝난다 ──
 proc t_mapgen input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  let memo be option mut slice u8 alloc_bytes al capacity 4096 .
   guard is_some memo . else return 89 .
-  var dirty mut slice u8 . be some_value memo .
-  var i u64 be 0 .
+  var dirty be mut slice u8 some_value memo .
+  var i be u64 0 .
   while lt i (len dirty) . do
     set (index dirty i) 1 .
     set i (add i 1) .
   end
-  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  var c u64 be send bump init dirty .
-  let mo option (mapgen.table u32 u64) . using bump be mapgen.open u32 u64 2 .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c be u64 send bump init dirty .
+  let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 2 .
   guard is_some mo . else return 90 .
-  var m mapgen.table u32 u64 . be some_value mo .
+  var m be (mapgen.table u32 u64) some_value mo .
   guard eq (mapgen.count_of u32 u64 m) 0 . else return 91 .
   guard eq (is_some (mapgen.lookup u32 u64 m 7)) false . else return 92 .     rem 유령 없음
   guard eq (is_some (mapgen.next_used u32 u64 m 0)) false . else return 93 .
   guard mapgen.insert u32 u64 m 7 900 . else return 94 .       rem 전부 1 인 자리였으면 false 였다
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j 30 . do          rem 여러 번 다시 뿌린다 — 새 상태 배열도 더러운 바이트 위에 온다
     guard mapgen.insert u32 u64 m (narrow u32 (add 100 j)) j . else return add 200 j .
     set j (add j 1) .
   end
   guard eq (mapgen.count_of u32 u64 m) 31 . else return 95 .
-  let v option u64 . be mapgen.lookup u32 u64 m 7 .
+  let v be option u64 mapgen.lookup u32 u64 m 7 .
   guard is_some v . else return 96 .
   guard eq (some_value v) 900 . else return 97 .
   guard eq (is_some (mapgen.lookup u32 u64 m 8)) false . else return 98 .
@@ -115,42 +115,42 @@ end
 
 rem ── vecgen · mapgen: 호출자가 준 개수가 커도 산술이 트랩하지 않는다 — none/false 다 ──
 proc t_vecsize input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let memo be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some memo . else return 89 .
-  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  var c u64 be send bump init (some_value memo) .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c be u64 send bump init (some_value memo) .
   rem 2^62 개의 u64 — 바이트 수가 2^65 라 곱셈이 넘쳤다. 지금은 none.
-  let huge option (vecgen.vec u64 allocs.bump_bytes) . using bump be vecgen.open u64 4611686018427387904 .
+  let huge using bump be option (vecgen.vec u64 allocs.bump_bytes) vecgen.open u64 4611686018427387904 .
   guard eq (is_some huge) false . else return 91 .
-  let go option (vecgen.vec u64 allocs.bump_bytes) . using bump be vecgen.open u64 1 .
+  let go using bump be option (vecgen.vec u64 allocs.bump_bytes) vecgen.open u64 1 .
   guard is_some go . else return 92 .
-  var g vecgen.vec u64 allocs.bump_bytes . be some_value go .
+  var g be (vecgen.vec u64 allocs.bump_bytes) some_value go .
   guard vecgen.append u64 allocs.bump_bytes g 7 . else return 93 .
-  let big u64 be bit_not 0 .
+  let big be u64 bit_not 0 .
   rem n + more 가 넘친다 → false (트랩 아님)
   guard eq (vecgen.reserve_more u64 allocs.bump_bytes g big) false . else return 94 .
   rem need 는 들어가지만 need × 8 이 넘친다 → false
   guard eq (vecgen.reserve_more u64 allocs.bump_bytes g 4611686018427387904) false . else return 95 .
   rem 그리고 벡터는 멀쩡하다
-  let x option u64 . be vecgen.at u64 allocs.bump_bytes g 0 .
+  let x be option u64 vecgen.at u64 allocs.bump_bytes g 0 .
   guard is_some x . else return 96 .
   guard eq (some_value x) 7 . else return 97 .
   rem mapgen: 쌍의 수가 커도 `(want + 1) × 2` · `slots × size_of` 가 트랩하지 않는다
-  let mo option (mapgen.table u32 u64) . using bump be mapgen.open u32 u64 big .
+  let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 big .
   guard eq (is_some mo) false . else return 98 .
-  let m2 option (mapgen.table u32 u64) . using bump be mapgen.open u32 u64 4611686018427387903 .
+  let m2 using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 4611686018427387903 .
   guard eq (is_some m2) false . else return 99 .
   return 13 .
 end
 
 rem ── lifeatom: 이미 0 인 칸을 놓으면 "거둬라"(0)가 아니다 ──
 proc t_rc input al cap allocator . input k cap atomic . output u64 . effects alloc atomic . do
-  let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
+  let mb be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some mb . else return 89 .
-  var c mut slice u64 . be view_array u64 (some_value mb) .
+  var c be mut slice u64 view_array u64 (some_value mb) .
   guard eq (lifeatom.rc_open k c) 1 . else return 91 .
   guard eq (lifeatom.rc_release k c) 0 . else return 92 .           rem 마지막 — 거둔다
-  let again u64 be lifeatom.rc_release k c .
+  let again be u64 lifeatom.rc_release k c .
   guard ne again 0 . else return 93 .                               rem ★ 두 번째는 거두라는 신호가 아니다
   guard eq again (lifemode.ceiling) . else return 94 .
   guard eq (index c 0) 0 . else return 95 .                         rem 칸은 안 건드렸다
@@ -159,13 +159,13 @@ end
 
 rem cap 은 CLI 로 못 넘긴다 — 엔트리가 받아서 넘긴다. 42 면 셋 다 맞았다.
 proc main input al cap allocator . input k cap atomic . output u8 . effects state alloc atomic . do
-  let a u64 be t_vec al .
+  let a be u64 t_vec al .
   guard eq a 9 . else return narrow u8 a .
-  let b u64 be t_mapgen al .
+  let b be u64 t_mapgen al .
   guard eq b 6 . else return narrow u8 b .
-  let c u64 be t_rc al k .
+  let c be u64 t_rc al k .
   guard eq c 12 . else return narrow u8 c .
-  let d u64 be t_vecsize al .
+  let d be u64 t_vecsize al .
   guard eq d 13 . else return narrow u8 d .
   return 42 .
 end

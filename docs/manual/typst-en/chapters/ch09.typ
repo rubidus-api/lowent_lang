@@ -117,7 +117,7 @@ the end.
 #misconception[Putting `len` in a loop condition recounts every time][
   `len s` is neither a call nor a memory read. It just takes the length field out of the slice value `{start, length}`. Writing elements
   does not change the length; the only way the length changes is putting a different slice into the name. In fact, storing the length ahead
-  as `let m u64 be len xs .` and then replacing `xs` with a shorter slice leaves `m` as a *stale length* that can go out of range.
+  as `let m be u64 len xs .` and then replacing `xs` with a shorter slice leaves `m` as a *stale length* that can go out of range.
   Storing it ahead is a choice of meaning, not an optimisation.
 ]
 

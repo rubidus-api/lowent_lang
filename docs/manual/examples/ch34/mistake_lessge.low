@@ -29,9 +29,9 @@ end
 
 proc order_strict input al cap allocator . output u64 . effects alloc .
 do
-  let g option mut slice u8 be alloc_bytes al capacity 48 .
+  let g be option mut slice u8 alloc_bytes al capacity 48 .
   guard is_some g . else return 255 .
-  var rs mut slice strict_score be view_array strict_score (some_value g) .
+  var rs be mut slice strict_score view_array strict_score (some_value g) .
   set (index rs 0) (make strict_score do points 70 . id 1 . end) .
   set (index rs 1) (make strict_score do points 70 . id 2 . end) .
   set (index rs 2) (make strict_score do points 70 . id 3 . end) .
@@ -41,9 +41,9 @@ end
 
 proc order_loose input al cap allocator . output u64 . effects alloc .
 do
-  let g option mut slice u8 be alloc_bytes al capacity 48 .
+  let g be option mut slice u8 alloc_bytes al capacity 48 .
   guard is_some g . else return 255 .
-  var rs mut slice loose_score be view_array loose_score (some_value g) .
+  var rs be mut slice loose_score view_array loose_score (some_value g) .
   set (index rs 0) (make loose_score do points 70 . id 1 . end) .
   set (index rs 1) (make loose_score do points 70 . id 2 . end) .
   set (index rs 2) (make loose_score do points 70 . id 3 . end) .

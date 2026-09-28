@@ -12,7 +12,7 @@ module vm_rel2 .
 rem ① **안 터진 뺄셈은 증언이다.** 첫 `sub b a` 가 이 자리를 지나갔다면 그 순간 a ≤ b 였다 —
 rem    아니었으면 트랩했다. 그러니 두 번째 뺄셈은 근거가 있다.
 export fn learn input a u64 . input b u64 . output u64 . do
-    let g u64 be sub b a .
+    let g be u64 sub b a .
     return add g (sub b a) .
 end
 
@@ -37,7 +37,7 @@ end
 
 rem ⑤ **덧셈의 짝** — `i + 1 ≤ hi` 를 알면 `add i 1` 은 넘칠 수 없다(상한을 안 본다).
 export fn bump input i u64 . input hi u64 . output u64 . do
-    let g u64 be sub hi (add i 1) .
+    let g be u64 sub hi (add i 1) .
     return add (add i 1) g .
 end
 
@@ -57,8 +57,8 @@ rem    고 적어 두었는데(2026-07-29 부터 열린 항목), **곱을 계산
 rem    `o ≥ 1` 이면 `f ≤ f·o` 이므로 `f·o < n ⟹ f < n` 으로 끝난다. 제곱이면 `f = 0` 도 안전하다.
 rem    ⇒ 아래 `add i 1` 의 검사가 사라진다.
 export fn sq input n u64 . output u64 . do
-    var i u64 be 2 .
-    var c u64 be 0 .
+    var i be u64 2 .
+    var c be u64 0 .
     while lt (mul i i) n . do
         set i (add i 1) .
         set c i .

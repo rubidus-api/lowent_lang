@@ -32,6 +32,6 @@ rem ★★★ **`make` 로 지은 구조체도 값으로 넘어간다.** Lowent 
 rem   `*(struct*).p` 가 널을 역참조해 **segfault** 했다(조합 테스트가 잡음). 이제 필드에서 struct 를
 rem   실체화한다(lw_sty_N_of — 레코드면 필드 모아 짓고, 바이트 뷰면 그대로 읽는다).
 unsafe proc area_made input k cap c . output i64 . effects unsafe . do
-  var p pt . be make pt do x 6 . y 7 . end .
+  var p be pt make pt do x 6 . y 7 . end .
   return c_area k p .
 end

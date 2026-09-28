@@ -169,7 +169,7 @@ certificates are received from outside. The principle of not pretending to have 
   id: "lib-io-net-glance",
   caption: [Shapes of the I/O, network and crypto modules --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`var p owned outbuf.pending be outbuf.buf_open 1 .`], [pending output for standard output], [forgetting it: `E-OWN-INCOMPLETE`],
+  [`var p be owned outbuf.pending outbuf.buf_open 1 .`], [pending output for standard output], [forgetting it: `E-OWN-INCOMPLETE`],
   [`outbuf.buf_write out p buf s` → `result (owned pending) …`], [gather, flush when full, return a new pending value], [one value knows --- the old one is `E-OWN-MOVED`],
   [`outbuf.buf_finish out p buf`], [flush the rest and finish], [completion --- it can fail],
   [`net.pair_of k` · `net.send_all` · `net.recv_once` · `net.shut_pair`], [connected pair · send all · receive once · close], [`cap net` first --- a receive takes at most the buffer],

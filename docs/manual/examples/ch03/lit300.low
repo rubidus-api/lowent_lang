@@ -3,6 +3,6 @@ rem expect: E-TYPE-WIDTH
 
 fn f output u8 .
 do
-  let x u8 be 300 .
+  let x be u8 300 .
   return x .
 end

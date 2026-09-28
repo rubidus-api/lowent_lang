@@ -16,9 +16,9 @@ end
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let g option mut slice u8 be alloc_bytes al capacity 48 .
+  let g be option mut slice u8 alloc_bytes al capacity 48 .
   guard is_some g . else return 255 .
-  var rs mut slice score be view_array score (some_value g) .
+  var rs be mut slice score view_array score (some_value g) .
   set (index rs 0) (make score do points 70 . id 1 . end) .
   set (index rs 1) (make score do points 95 . id 2 . end) .
   set (index rs 2) (make score do points 80 . id 3 . end) .

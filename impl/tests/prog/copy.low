@@ -25,35 +25,35 @@ proc main .
   effects alloc io .
 do
   rem 입력 경로는 인자로 받는다 — 하드코딩된 경로는 숨은 의존이다.
-  let src option slice u8 . be arg a 0 .
+  let src be option slice u8 arg a 0 .
   guard is_some src . else return 64 .
-  let dst option slice u8 . be arg a 1 .
+  let dst be option slice u8 arg a 1 .
   guard is_some dst . else return 64 .
 
   rem ★ 일부러 **작은** 버퍼다 — 조각으로 오간다는 것이 실제로 드러나야 한다.
-  let g option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let g be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
+  let buf be mut slice u8 some_value g .
 
-  let ri result files.handle files.file_error . be files.open fs (some_value src) 0 .
+  let ri be result files.handle files.file_error files.open fs (some_value src) 0 .
   guard is_ok ri . else return 71 .
-  var rh owned files.handle be ok_value ri .
+  var rh be owned files.handle ok_value ri .
 
-  let wi result files.handle files.file_error . be files.open fs (some_value dst) 1 .
+  let wi be result files.handle files.file_error files.open fs (some_value dst) 1 .
   guard is_ok wi . else return 72 .
-  var wh owned files.handle be ok_value wi .
+  var wh be owned files.handle ok_value wi .
 
-  var total u64 be 0 .
-  var going bool be true .
+  var total be u64 0 .
+  var going be bool true .
   while going . do
     rem ★ 세 자리다(2026-08-15): 실패는 `error`, **끝은 `ok none`** — 둘을 갈라 다룬다.
-    let n result (option u64) files.file_error . be files.read fs rh buf .
+    let n be result (option u64) files.file_error files.read fs rh buf .
     if eq (is_ok n) false . do set going false . end
     if is_ok n . do
-      let v option u64 . be ok_value n .
+      let v be option u64 ok_value n .
       if eq (is_some v) false . do set going false . end
       if is_some v . do
-        let w result u64 files.file_error . be files.write fs wh (subslice buf 0 (some_value v)) .
+        let w be result u64 files.file_error files.write fs wh (subslice buf 0 (some_value v)) .
         if eq (is_ok w) false . do set going false . end
         set total (add total (some_value v)) .
       end
@@ -61,8 +61,8 @@ do
   end
 
   rem ★★★ 둘 다 닫는다. 하나라도 빼면 **컴파일이 안 된다**.
-  let c1 result void files.file_error . be files.close fs rh .
-  let c2 result void files.file_error . be files.close fs wh .
+  let c1 be result void files.file_error files.close fs rh .
+  let c2 be result void files.file_error files.close fs wh .
   guard is_ok c1 . else return 73 .
   guard is_ok c2 . else return 74 .
   return (narrow u8 (mod total 251)) .

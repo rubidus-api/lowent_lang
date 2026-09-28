@@ -5,14 +5,14 @@ use hashmap .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let g option mut slice u8 be alloc_bytes al capacity 160 .
+  let g be option mut slice u8 alloc_bytes al capacity 160 .
   guard is_some g . else return 255 .
-  var slots mut slice u64 be view_array u64 (some_value g) .
+  var slots be mut slice u64 view_array u64 (some_value g) .
   rem ko: 가장 큰 키 둘은 빈칸·묘비 표시에 쓰이므로 넣을 수 없다 /// en: the two largest keys are used to mark empty slots and tombstones, so they cannot be stored
-  let a bool be hashmap.put slots 18446744073709551615 40 .
-  let b bool be hashmap.put slots 18446744073709551614 50 .
-  let c bool be hashmap.put slots 18446744073709551613 60 .
-  var r u8 be 0 .
+  let a be bool hashmap.put slots 18446744073709551615 40 .
+  let b be bool hashmap.put slots 18446744073709551614 50 .
+  let c be bool hashmap.put slots 18446744073709551613 60 .
+  var r be u8 0 .
   if a . do set r (add r 1) . end
   if b . do set r (add r 2) . end
   if c . do set r (add r 4) . end

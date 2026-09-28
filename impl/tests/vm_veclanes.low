@@ -14,13 +14,13 @@ module vm_veclanes .
 
 rem ① 성립 — 폭을 **한 번만** 적는다. 두 뒤끝이 같은 답을 낸다.
 export fn dot input a slice u32 . input b slice u32 . output u32 . do
-  let L u64 be native_lanes u32 .
-  var acc vec u32 L . be splat 0 .
-  var i u64 be 0 .
-  let n u64 be len a .
+  let L be u64 native_lanes u32 .
+  var acc be vec u32 L splat 0 .
+  var i be u64 0 .
+  let n be u64 len a .
   while le (add i L) n . do
-    var x vec u32 L . be load a i .
-    var y vec u32 L . be load b i .
+    var x be vec u32 L load a i .
+    var y be vec u32 L load b i .
     set acc (add acc (mul x y)) .
     set i (add i L) .
   end
@@ -29,12 +29,12 @@ end
 
 rem ② 성립 — 같은 커널을 **리터럴 폭**으로 적으면 같은 답이다(이름이 뜻을 안 바꾼다).
 export fn dot4 input a slice u32 . input b slice u32 . output u32 . do
-  var acc vec u32 4 . be splat 0 .
-  var i u64 be 0 .
-  let n u64 be len a .
+  var acc be vec u32 4 splat 0 .
+  var i be u64 0 .
+  let n be u64 len a .
   while le (add i 4) n . do
-    var x vec u32 4 . be load a i .
-    var y vec u32 4 . be load b i .
+    var x be vec u32 4 load a i .
+    var y be vec u32 4 load b i .
     set acc (add acc (mul x y)) .
     set i (add i 4) .
   end
@@ -48,13 +48,13 @@ rem   여기서는 **폭이 맞는** 모양을 증인으로 둔다: 양쪽 다 `
 rem ★ 마스크 적재의 존재 이유는 **꺼진 레인은 안 읽는다**는 것이다 — 그래서 경계 검사도
 rem   **켜진 레인마다** 한다. 꺼진 레인이 경계 밖이어도 트랩하지 않아야 맞다.
 export fn masked input b slice u8 . input o mut slice u8 . output u32 . do
-  var xs slice u32 . be view_array u32 b .
-  var ys mut slice u32 . be view_array u32 o .
-  var v vec u32 4 . be load xs 0 .
-  var lim vec u32 4 . be splat 2 .
-  var m mask 4 . be gt v lim .
-  var pass vec u32 4 . be splat 100 .
-  var r vec u32 4 . be load_masked xs 0 m pass .
+  var xs be slice u32 view_array u32 b .
+  var ys be mut slice u32 view_array u32 o .
+  var v be vec u32 4 load xs 0 .
+  var lim be vec u32 4 splat 2 .
+  var m be mask 4 gt v lim .
+  var pass be vec u32 4 splat 100 .
+  var r be vec u32 4 load_masked xs 0 m pass .
   store_masked ys 0 r m .
   return reduce_add r .
 end

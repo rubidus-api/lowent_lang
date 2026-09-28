@@ -7,7 +7,7 @@ do
 end
 proc race output u64 . effects state .
 do
-  var n u64 be 0 .
+  var n be u64 0 .
   task_group do
     rem ko: ✘ 두 흐름에 같은 변수를 쓰기로 빌려준다 /// en: ✘ the same variable is lent for writing to two flows
     spawn bump (mut_ref n) .

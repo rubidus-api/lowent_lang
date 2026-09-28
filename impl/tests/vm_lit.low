@@ -65,7 +65,7 @@ rem ── ② heredoc ───────────────────
 
 fn t_heredoc_one output u64 . do
   rem ★ 한 줄이면 **개행이 없다** — TERM 직전 개행 하나를 렉서가 떨어낸다.
-  let s slice u8 be text END
+  let s be slice u8 text END
 abc
 END .
   return len s .
@@ -73,7 +73,7 @@ end
 
 fn t_heredoc_multi output u64 . do
   rem "aa\nb" — 4 바이트, 인덱스 2 가 LF(10).
-  let s slice u8 be text END
+  let s be slice u8 text END
 aa
 b
 END .
@@ -84,7 +84,7 @@ end
 
 fn t_heredoc_trail output u64 . do
   rem ★ 개행을 **남기고 싶으면 빈 줄 하나** — "ab\n" 3 바이트.
-  let s slice u8 be text END
+  let s be slice u8 text END
 ab
 
 END .
@@ -116,16 +116,16 @@ fn t_prefix_u8 output u64 . do
 end
 
 fn t_prefix_u16 output u64 . do
-  let a slice u16 be u"AB" .
+  let a be slice u16 u"AB" .
   guard eq (len a) 2 . else return 90 .
   guard eq (index a 0) 65 . else return 91 .
   guard eq (index a 1) 66 . else return 92 .
   rem 한글 두 글자 = 코드 유닛 둘(BMP 안).
-  let k slice u16 be u"한글" .
+  let k be slice u16 u"한글" .
   guard eq (len k) 2 . else return 93 .
   guard eq (index k 0) 54620 . else return 94 .
   rem ★ 비-BMP 는 **서러게이트 쌍**이다 — UTF-16 이 원래 그렇게 생겼고, 조용히 자르지 않는다.
-  let e slice u16 be u"😀" .
+  let e be slice u16 u"😀" .
   guard eq (len e) 2 . else return 95 .
   guard eq (index e 0) 55357 . else return 96 .
   guard eq (index e 1) 56832 . else return 97 .
@@ -133,14 +133,14 @@ fn t_prefix_u16 output u64 . do
 end
 
 fn t_prefix_u32 output u64 . do
-  let a slice u32 be U"AB" .
+  let a be slice u32 U"AB" .
   guard eq (len a) 2 . else return 90 .
   guard eq (index a 1) 66 . else return 91 .
   rem 코드포인트이므로 비-BMP 도 **하나**다 — u"…" 과 갈리는 자리가 여기다.
-  let e slice u32 be U"😀" .
+  let e be slice u32 U"😀" .
   guard eq (len e) 1 . else return 92 .
   guard eq (index e 0) 128512 . else return 93 .
-  let k slice u32 be U"한글" .
+  let k be slice u32 U"한글" .
   guard eq (len k) 2 . else return 94 .
   guard eq (index k 0) 54620 . else return 95 .
   return 1 .
@@ -148,7 +148,7 @@ end
 
 fn t_prefix_heredoc output u64 . do
   rem ★ **두 표면이 같은 어휘를 쓴다** — 인라인 접두사와 heredoc 태그가 같은 낱말이다.
-  let a slice u16 be text u END
+  let a be slice u16 text u END
 AB
 END .
   guard eq (len a) 2 . else return 90 .

@@ -34,12 +34,12 @@ rem     흘려보내고, 세 번째는 **아무것도 안 바뀌는 것을 확�
 rem     한 번 더 도는 값이 싸다.
 export proc fcar input o mut slice u64 . output u64 . effects none . do
   guard ge (len o) 16 . else return 0 .
-  var pass u64 be 0 .
+  var pass be u64 0 .
   while lt pass 3 . do
-    var c u64 be 0 .
-    var i u64 be 0 .
+    var c be u64 0 .
+    var i be u64 0 .
     while lt i 16 . do
-      let v u64 be add (index o i) c .
+      let v be u64 add (index o i) c .
       set (index o i) (bit_and v 65535) .
       set c (shr v 16) .
       set i (add i 1) .
@@ -52,7 +52,7 @@ end
 
 export proc fzero input o mut slice u64 . output u64 . effects none . do
   guard ge (len o) 16 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 16 . do  set (index o i) 0 .  set i (add i 1) .  end
   return 1 .
 end
@@ -66,7 +66,7 @@ end
 export proc fcopy input o mut slice u64 . input a slice u64 . output u64 . effects none . do
   guard ge (len o) 16 . else return 0 .
   guard ge (len a) 16 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 16 . do  set (index o i) (index a i) .  set i (add i 1) .  end
   return 1 .
 end
@@ -76,7 +76,7 @@ export proc fadd input o mut slice u64 . input a slice u64 . input b slice u64 .
   guard ge (len o) 16 . else return 0 .
   guard ge (len a) 16 . else return 0 .
   guard ge (len b) 16 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 16 . do
     set (index o i) (add (index a i) (index b i)) .
     set i (add i 1) .
@@ -93,9 +93,9 @@ export proc fsub input o mut slice u64 . input a slice u64 . input b slice u64 .
   guard ge (len b) 16 . else return 0 .
   rem ★ 첫 원소의 상수(130996)도 반복 안에서 고른다 — 원소마다 «읽고 같은 색인에 쓴다» 한 모양이어야
   rem   `inplace o a`·`inplace o b` 가 같은 구간에서 옳음을 처리기가 보인다(RFC-0116 B2). 뜻은 그대로다.
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 16 . do
-    var lim u64 be 131070 .
+    var lim be u64 131070 .
     if eq i 0 . do set lim 130996 . end
     guard le (index b i) lim . else return 0 .
     set (index o i) (sub (add (index a i) lim) (index b i)) .
@@ -110,11 +110,11 @@ export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 .
   guard ge (len a) 16 . else return 0 .
   guard ge (len b) 16 . else return 0 .
   guard ge (len t) 31 . else return 0 .
-  var k u64 be 0 .
+  var k be u64 0 .
   while lt k 31 . do  set (index t k) 0 .  set k (add k 1) .  end
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 16 . do
-    var j u64 be 0 .
+    var j be u64 0 .
     while lt j 16 . do
       set (index t (add i j)) (add (index t (add i j)) (mul (index a i) (index b j))) .
       set j (add j 1) .
@@ -122,12 +122,12 @@ export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 .
     set i (add i 1) .
   end
   rem 2^256 ≡ 38 — 위쪽 15 조각을 38 배로 접어 내린다.
-  var m u64 be 0 .
+  var m be u64 0 .
   while lt m 15 . do
     set (index t m) (add (index t m) (mul 38 (index t (add m 16)))) .
     set m (add m 1) .
   end
-  var q u64 be 0 .
+  var q be u64 0 .
   while lt q 16 . do  set (index o q) (index t q) .  set q (add q 1) .  end
   return fcar o .
 end
@@ -140,7 +140,7 @@ rem o = a · 121665  (몽고메리 곡선 상수 (A−2)/4)
 export proc fmul121665 input o mut slice u64 . input a slice u64 . output u64 . effects none . do
   guard ge (len o) 16 . else return 0 .
   guard ge (len a) 16 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 16 . do
     set (index o i) (mul (index a i) 121665) .
     set i (add i 1) .
@@ -154,10 +154,10 @@ export proc fsel input p mut slice u64 . input q mut slice u64 . input bit u64 .
   guard ge (len p) 16 . else return 0 .
   guard ge (len q) 16 . else return 0 .
   guard le bit 1 . else return 0 .
-  let mask u64 be wrap_sub 0 bit .
-  var i u64 be 0 .
+  let mask be u64 wrap_sub 0 bit .
+  var i be u64 0 .
   while lt i 16 . do
-    let d u64 be bit_and mask (bit_xor (index p i) (index q i)) .
+    let d be u64 bit_and mask (bit_xor (index p i) (index q i)) .
     set (index p i) (bit_xor (index p i) d) .
     set (index q i) (bit_xor (index q i) d) .
     set i (add i 1) .
@@ -169,7 +169,7 @@ rem 32 바이트(리틀엔디언) → 조각 16 개. 최상위 비트는 버린�
 export proc funpack input o mut slice u64 . input s slice u8 . output u64 . effects none . do
   guard ge (len o) 16 . else return 0 .
   guard ge (len s) 32 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 16 . do
     set (index o i) (bit_or (cast u64 (index s (mul i 2)))
                             (shl (cast u64 (index s (add (mul i 2) 1))) 8)) .
@@ -188,10 +188,10 @@ export proc fpack input out mut slice u8 . input a mut slice u64 . input m mut s
   guard ge (len a) 16 . else return 0 .
   guard ge (len m) 16 . else return 0 .
   guard eq (fcar a) 1 . else return 0 .
-  var trim u64 be 0 .
+  var trim be u64 0 .
   while lt trim 2 . do
     set (index m 0) (wrap_sub (index a 0) 65517) .
-    var i u64 be 1 .
+    var i be u64 1 .
     while lt i 15 . do
       set (index m i) (wrap_sub (wrap_sub (index a i) 65535)
                                 (bit_and (shr (index m (sub i 1)) 16) 1)) .
@@ -200,14 +200,14 @@ export proc fpack input out mut slice u8 . input a mut slice u64 . input m mut s
     end
     set (index m 15) (wrap_sub (wrap_sub (index a 15) 32767)
                                (bit_and (shr (index m 14) 16) 1)) .
-    let borrow u64 be bit_and (shr (index m 15) 16) 1 .
+    let borrow be u64 bit_and (shr (index m 15) 16) 1 .
     set (index m 14) (bit_and (index m 14) 65535) .
     set (index m 15) (bit_and (index m 15) 65535) .
-    let pick u64 be sub 1 borrow .
-    let z u64 be fsel a m pick .
+    let pick be u64 sub 1 borrow .
+    let z be u64 fsel a m pick .
     set trim (add trim 1) .
   end
-  var k u64 be 0 .
+  var k be u64 0 .
   while lt k 16 . do
     set (index out (mul k 2)) (cast u8 (bit_and (index a k) 255)) .
     set (index out (add (mul k 2) 1)) (cast u8 (bit_and (shr (index a k) 8) 255)) .
@@ -222,13 +222,13 @@ rem     언제나 254 번 제곱하고 252 번 곱한다 — 비밀에 따라 �
 rem   `c`·`t` 는 작업 공간(c 는 16, t 는 31).
 export proc finv input o mut slice u64 . input a slice u64 . input c mut slice u64 . input t mut slice u64 . output u64 . effects none . do
   guard eq (fcopy c a) 1 . else return 0 .
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j 254 . do
-    let i u64 be sub 253 j .
-    let z1 u64 be fsq c c t .
+    let i be u64 sub 253 j .
+    let z1 be u64 fsq c c t .
     if ne i 2 . do
       if ne i 4 . do
-        let z2 u64 be fmul c c a t .
+        let z2 be u64 fmul c c a t .
       end
     end
     set j (add j 1) .
@@ -251,7 +251,7 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
   guard ge (len z) 32 . else return 0 .
 
   rem ★ 스칼라 다듬기(clamp, RFC 7748 §5): 하위 3 비트를 끄고, 최상위 비트를 끄고 그 아래를 켠다.
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 32 . do  set (index z i) (index n i) .  set i (add i 1) .  end
   set (index z 0) (cast u8 (bit_and (cast u64 (index z 0)) 248)) .
   set (index z 31) (cast u8 (bit_or (bit_and (cast u64 (index z 31)) 127) 64)) .
@@ -266,11 +266,11 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
   rem   선언하고 처리기가 몸으로 그것을 보인다(RFC-0116 B2). 전에는 곁 자리 `fs` 에 쓰고 `fcopy` 로
   rem   되옮겼다(한 걸음에 열 번). 버리는 답은 `sk` 하나에 받는다 — 받이마다 지역을 두면 지역이
   rem   32 를 넘어 이 op 이 통째로 태그 경로로 떨어졌다(`--why-slow`: `store.local`).
-  var sk u64 be 0 .
-  var j u64 be 0 .
+  var sk be u64 0 .
+  var j be u64 0 .
   while lt j 255 . do
-    let bi u64 be sub 254 j .
-    let r u64 be bit_and (shr (cast u64 (index z (shr bi 3))) (bit_and bi 7)) 1 .
+    let bi be u64 sub 254 j .
+    let r be u64 bit_and (shr (cast u64 (index z (shr bi 3))) (bit_and bi 7)) 1 .
     set sk (fsel fa fb r) .
     set sk (fsel fc fd r) .
     set sk (fadd fe fa fc) .
@@ -299,7 +299,7 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
   rem q = a / c  — 사영 좌표를 되돌린다.
   guard eq (finv fg fc fs t) 1 . else return 0 .
   guard eq (fmul fs fa fg t) 1 . else return 0 .
-  let np u64 be fpack q fs fg .
+  let np be u64 fpack q fs fg .
   guard eq np 32 . else return 0 .
 
   rem ★★★ **전부 0 인 공유 비밀은 실패다** (RFC 7748 §6.1 · RFC 8446 §7.4.2 는 MUST, 2026-09-04).
@@ -307,8 +307,8 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
   rem   무관하게 0 이 된다 — 즉 **상대가 공유 비밀을 미리 안다**. 그것으로 키를 뽑으면 핸드셰이크는
   rem   "성공" 하지만 아무것도 지키지 못한다. 조용히 이기는 것보다 **거절**이 낫다.
   rem   ☞ 여기서 막는 까닭: 이 답을 쓰는 모든 길(agree · 그리고 그 위의 TLS)이 한 자리를 지나기 때문이다.
-  var zsum u64 be 0 .
-  var zi u64 be 0 .
+  var zsum be u64 0 .
+  var zi be u64 0 .
   while lt zi 32 . do
     set zsum (bit_or zsum (cast u64 (index q zi))) .
     set zi (add zi 1) .

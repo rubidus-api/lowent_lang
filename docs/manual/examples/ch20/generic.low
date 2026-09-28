@@ -11,25 +11,25 @@ proc two_from
   effects state via a .
   requires allocs.byte_allocator a .
 do
-  let p option mut slice u8 be send al reserve 3 .
+  let p be option mut slice u8 send al reserve 3 .
   guard is_some p . else return 91 .
-  let q option mut slice u8 be send al reserve 5 .
+  let q be option mut slice u8 send al reserve 5 .
   guard is_some q . else return 92 .
   return send al used .
 end
 
 proc with_bump input buf mut slice u8 . output u64 . effects state .
 do
-  var b allocs.bump_bytes be spawn actor allocs.bump_bytes .
-  let c u64 be send b init buf .
-  let n u64 using b be two_from .
+  var b be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let c be u64 send b init buf .
+  let n using b be u64 two_from .
   return n .
 end
 
 proc with_aligned input buf mut slice u8 . output u64 . effects state .
 do
-  var b allocs.bump_aligned be spawn actor allocs.bump_aligned .
-  let c u64 be send b init buf .
-  let n u64 using b be two_from .
+  var b be allocs.bump_aligned spawn actor allocs.bump_aligned .
+  let c be u64 send b init buf .
+  let n using b be u64 two_from .
   return n .
 end

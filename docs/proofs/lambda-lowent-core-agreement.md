@@ -24,7 +24,7 @@ op 본문 = **문장열** `st_1; …; st_n` (reader 재조합 후). 차용 관�
              | loop [ ev* ]         while/for 본문 (중첩 가능; 유한 전개 의미)
 ```
 
-- `create`는 var-바인딩(`var a … be mut_ref x .`)과 일시 차용(호출 인자)을 통칭한다.
+- `create`는 var-바인딩(`var a be … mut_ref x .`)과 일시 차용(호출 인자)을 통칭한다.
   일시 차용은 같은 이벤트 위치에서 create 직후 use로 모델링.
 - `deref r` = use(τ_r, rd); `set r v`(write-through) = use(τ_r, wr);
   `set x v` = own(x, wr); 식에서의 `x` 언급 = own(x, rd).
@@ -130,14 +130,14 @@ S2(정확 구간)로는 놓친다 — S2L이 span 포함(c<ls≤l)만으로 거�
 ## 6. 발견된 설계 결함 기록 (V2 산출물)
 
 - **D1 (수정됨) reader-split 바인딩 누락.** 순수 reader가
-  `var a mut_ref u64 . be mut_ref x .`를 형제 form으로 쪼개 정적 EXCL이 차용
+  `var a be mut_ref u64 mut_ref x .`를 형제 form으로 쪼개 정적 EXCL이 차용
   등록을 통째로 놓쳤다. *동적 검증기(borrow-stack)가 가동 당일 발견* —
   two_mut가 --check 통과 후 ⚡. 수정: 블록 레벨 재조합. (커밋 3b3447e)
 - **D2 (수정됨) 렉시컬 EXCL의 소유자 접근 미추적.** own(x,·) 이벤트가 판정에
   없어 owner_read 부류가 정적 green/동적 trap. 수정: interval liveness v2
   (§2의 S2). (커밋 237c2cf)
 - **D3 (수정됨, 거짓음성) op 경계 — 차용 세탁.** 차용을 op에 넘겨 *참조를
-  돌려받으면*(`var t mut_ref u32 . be pass r .`) caller의 정적 판정이 별칭을
+  돌려받으면*(`var t be mut_ref u32 pass r .`) caller의 정적 판정이 별칭을
   잃어 t가 x를 차용한다는 사실을 놓쳤다 — `--check` green인데 VM은 ⚡
   (launder 픽스처). **수정의 근거가 곧 ESC-INV 접합**: E-ESCAPE가 "callee 지역을
   가리키는 참조는 반환 불가"를 보장하므로, 반환된 참조는 **반드시 인자에서

@@ -14,10 +14,10 @@ Takes request bytes and answers *where each field starts and how many bytes it i
 ]
 
 ```lowent
-let t u64 be http.target_off b .
-let n u64 be http.target_len b .
+let t be u64 http.target_off b .
+let n be u64 http.target_len b .
 guard gt n 0 . else return 0 .
-let target slice u8 . be subslice b t (add t n) .
+let target be slice u8 subslice b t (add t n) .
 ```
 
 #dtable(

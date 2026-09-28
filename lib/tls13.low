@@ -53,7 +53,7 @@ export proc build_label input label slice u8 . input ctx slice u8 . input outlen
   guard le (len label) 32 . else return 0 .
   guard le (len ctx) 32 . else return 0 .
   guard le outlen 32 . else return 0 .
-  let total u64 be add (add 10 (len label)) (len ctx) .
+  let total be u64 add (add 10 (len label)) (len ctx) .
   guard ge (len info) total . else return 0 .
   set (index info 0) (cast u8 (bit_and (shr outlen 8) 255)) .
   set (index info 1) (cast u8 (bit_and outlen 255)) .
@@ -65,13 +65,13 @@ export proc build_label input label slice u8 . input ctx slice u8 . input outlen
   set (index info 6) 49 .
   set (index info 7) 51 .
   set (index info 8) 32 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len label) . do
     set (index info (add 9 i)) (index label i) .
     set i (add i 1) .
   end
   set (index info (add 9 (len label))) (cast u8 (len ctx)) .
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j (len ctx) . do
     set (index info (add (add 10 (len label)) j)) (index ctx j) .
     set j (add j 1) .
@@ -83,9 +83,9 @@ rem ★ HKDF-Expand-Label. `out` 은 32 바이트를 받고, 쓸 만큼은 호�
 rem   ☞ 32 바이트 한 블록만 낸다 — TLS 1.3 의 라벨은 전부 32 이하다(키·IV·finished).
 export proc expand_label input secret slice u8 . input label slice u8 . input ctx slice u8 . input outlen u64 . input info mut slice u8 . input scratch mut slice u8 . input out mut slice u8 . output result u64 tls13_error . effects none .
 errors short_workspace . do
-  let n u64 be build_label label ctx outlen info .
+  let n be u64 build_label label ctx outlen info .
   guard gt n 0 . else return ok 0 .
-  let _u7 result u64 hmac.hmac_error . be hmac.expand1 secret (subslice info 0 n) scratch out .
+  let _u7 be result u64 hmac.hmac_error hmac.expand1 secret (subslice info 0 n) scratch out .
   guard is_ok _u7 . else return error short_workspace .
   guard eq (ok_value _u7) 32 . else return ok 0 .
   return ok outlen .
@@ -105,7 +105,7 @@ export proc advance input prev slice u8 . input ikm slice u8 . input empty_hash 
 errors short_workspace . do
   rem "derived" — 일곱 바이트.
   guard ge (len scratch) 512 . else return error short_workspace .
-  var lbl u64 be 0 .
+  var lbl be u64 0 .
   set (index scratch 400) 100 .
   set (index scratch 401) 101 .
   set (index scratch 402) 114 .
@@ -115,7 +115,7 @@ errors short_workspace . do
   set (index scratch 406) 100 .
   rem ★ 라벨이 `scratch[400..]` 에 산다 — 작업 칸은 **그 앞까지만** 넘긴다(겹치면 E-EXCL-INPLACE, RFC-0116 D2).
   rem   `hmac.expand1` 은 작업 칸을 130 + len(info) ≤ 190 바이트만 쓴다.
-  let _u6 result u64 tls13_error . be derive_secret prev (subslice scratch 400 407) empty_hash info (subslice scratch 0 400) derived .
+  let _u6 be result u64 tls13_error derive_secret prev (subslice scratch 400 407) empty_hash info (subslice scratch 0 400) derived .
   guard is_ok _u6 . else return error short_workspace .
   guard eq (ok_value _u6) 32 . else return ok 0 .
   return hmac.extract derived ikm scratch out .
@@ -179,14 +179,14 @@ rem     무너진다 — 그 책임을 라이브러리가 몰래 지지 않고, 
 export proc record_nonce input iv slice u8 . input seq u64 . input out mut slice u8 . output u64 . effects none . do
   guard ge (len iv) 12 . else return 0 .
   guard ge (len out) 12 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 12 . do
     set (index out i) (index iv i) .
     set i (add i 1) .
   end
-  var b u64 be 0 .
+  var b be u64 0 .
   while lt b 8 . do
-    let pos u64 be sub 11 b .
+    let pos be u64 sub 11 b .
     set (index out pos) (cast u8 (bit_xor (cast u64 (index out pos)) (bit_and (shr seq (mul b 8)) 255))) .
     set b (add b 1) .
   end
@@ -231,20 +231,20 @@ export proc record_seal input suite u64 . input key slice u8 . input iv slice u8
 errors short_workspace . do
   guard ge (len w) 460 . else return error short_workspace .
   guard ge (len u) 42 . else return ok 0 .
-  let total u64 be add (len inner) 16 .
+  let total be u64 add (len inner) 16 .
   guard ge (len rec) (add 5 total) . else return ok 0 .
   guard eq (record_header total rec) 5 . else return ok 0 .
   guard eq (record_nonce iv seq (subslice w 0 12)) 12 . else return ok 0 .
   rem ★ AAD 는 방금 쓴 헤더 다섯 바이트 **그대로**다.
-  let ctp slice u8 be subslice rec 5 (add 5 (len inner)) .
+  let ctp be slice u8 subslice rec 5 (add 5 (len inner)) .
   if eq suite 1 . do
-    let _u4 result u64 gcm.gcm_error . be gcm.encrypt key (subslice w 0 12) (subslice rec 0 5) inner (subslice rec 5 (add 5 (len inner))) (subslice rec (add 5 (len inner)) (add 5 total)) (subslice w 140 460) .
+    let _u4 be result u64 gcm.gcm_error gcm.encrypt key (subslice w 0 12) (subslice rec 0 5) inner (subslice rec 5 (add 5 (len inner))) (subslice rec (add 5 (len inner)) (add 5 total)) (subslice w 140 460) .
     guard is_ok _u4 . else return error short_workspace .
     guard eq (ok_value _u4) 16 . else return ok 0 .
     return ok (add 5 total) .
   end
   if eq suite 2 . do
-    let _u5 result u64 aead.aead_error . be aead.seal key (subslice w 0 12) (subslice rec 0 5) inner (subslice rec 5 (add 5 (len inner))) (subslice rec (add 5 (len inner)) (add 5 total)) (subslice w 12 44) (subslice u 0 10) (subslice u 10 26) (subslice u 26 42) (subslice w 44 108) (subslice w 108 124) .
+    let _u5 be result u64 aead.aead_error aead.seal key (subslice w 0 12) (subslice rec 0 5) inner (subslice rec 5 (add 5 (len inner))) (subslice rec (add 5 (len inner)) (add 5 total)) (subslice w 12 44) (subslice u 0 10) (subslice u 10 26) (subslice u 26 42) (subslice w 44 108) (subslice w 108 124) .
     guard is_ok _u5 . else return error short_workspace .
     guard eq (ok_value _u5) 16 . else return ok 0 .
     return ok (add 5 total) .
@@ -263,20 +263,20 @@ errors short_workspace . do
   guard ge (len u) 42 . else return ok 0 .
   guard ge (len rec) 21 . else return ok 0 .
   guard eq (index rec 0) 23 . else return ok 0 .
-  let n u64 be add (shl (cast u64 (index rec 3)) 8) (cast u64 (index rec 4)) .
+  let n be u64 add (shl (cast u64 (index rec 3)) 8) (cast u64 (index rec 4)) .
   guard eq (add 5 n) (len rec) . else return ok 0 .
   guard ge n 16 . else return ok 0 .
-  let plen u64 be sub n 16 .
+  let plen be u64 sub n 16 .
   guard ge (len inner) plen . else return ok 0 .
   guard eq (record_nonce iv seq (subslice w 0 12)) 12 . else return ok 0 .
   if eq suite 1 . do
-    let _u2 result u64 gcm.gcm_error . be gcm.decrypt key (subslice w 0 12) (subslice rec 0 5) (subslice rec 5 (add 5 plen)) (subslice rec (add 5 plen) (add 5 n)) (subslice inner 0 plen) (subslice w 124 140) (subslice w 140 460) .
+    let _u2 be result u64 gcm.gcm_error gcm.decrypt key (subslice w 0 12) (subslice rec 0 5) (subslice rec 5 (add 5 plen)) (subslice rec (add 5 plen) (add 5 n)) (subslice inner 0 plen) (subslice w 124 140) (subslice w 140 460) .
     guard is_ok _u2 . else return error short_workspace .
     guard eq (ok_value _u2) 1 . else return ok 0 .
     return ok plen .
   end
   if eq suite 2 . do
-    let _u3 result u64 aead.aead_error . be aead.unseal key (subslice w 0 12) (subslice rec 0 5) (subslice rec 5 (add 5 plen)) (subslice rec (add 5 plen) (add 5 n)) (subslice inner 0 plen) (subslice w 12 44) (subslice u 0 10) (subslice u 10 26) (subslice u 26 42) (subslice w 44 108) (subslice w 108 124) (subslice w 124 140) .
+    let _u3 be result u64 aead.aead_error aead.unseal key (subslice w 0 12) (subslice rec 0 5) (subslice rec 5 (add 5 plen)) (subslice rec (add 5 plen) (add 5 n)) (subslice inner 0 plen) (subslice w 12 44) (subslice u 0 10) (subslice u 10 26) (subslice u 26 42) (subslice w 44 108) (subslice w 108 124) (subslice w 124 140) .
     guard is_ok _u3 . else return error short_workspace .
     guard eq (ok_value _u3) 1 . else return ok 0 .
     return ok plen .
@@ -289,9 +289,9 @@ rem   ☞ 패딩이 전부 0 인지도 본다: 0 이 아닌 것이 섞였는데 
 rem     **말하지 않은 바이트**를 받아들이는 것이다. RFC 8446 §5.4 가 거절하라고 한다.
 export proc inner_type input inner slice u8 . output u64 . effects none . do
   guard gt (len inner) 0 . else return 256 .
-  var i u64 be sub (len inner) 1 .
-  var found u64 be 256 .
-  var done u64 be 0 .
+  var i be u64 sub (len inner) 1 .
+  var found be u64 256 .
+  var done be u64 0 .
   while eq done 0 . do
     if ne (index inner i) 0 . do
       set found (cast u64 (index inner i)) .
@@ -332,7 +332,7 @@ end
 rem 메시지 전체 길이(머리 4 포함). 버퍼를 넘으면 0 — **넘는 길이를 믿지 않는다**.
 export fn hs_size input buf slice u8 . input off u64 . output u64 . do
   guard le (add off 4) (len buf) . else return 0 .
-  let n u64 be add (add (shl (cast u64 (index buf (add off 1))) 16) (shl (cast u64 (index buf (add off 2))) 8)) (cast u64 (index buf (add off 3))) .
+  let n be u64 add (add (shl (cast u64 (index buf (add off 1))) 16) (shl (cast u64 (index buf (add off 2))) 8)) (cast u64 (index buf (add off 3))) .
   guard le (add (add off 4) n) (len buf) . else return 0 .
   return add 4 n .
 end
@@ -341,11 +341,11 @@ rem ★★ 버퍼에 온전히 담긴 메시지가 몇 개인가. 길이가 버�
 rem   ☞ 길이 필드는 **상대가 쓴 것**이다. 그것을 믿고 읽으면 상대가 우리 메모리를 읽는다.
 rem     이 언어는 경계 검사로 그것을 막지만, **막힌 뒤 무엇을 할지**는 여기서 정한다: 센다.
 export fn hs_count input buf slice u8 . output u64 . do
-  var off u64 be 0 .
-  var n u64 be 0 .
-  var done u64 be 0 .
+  var off be u64 0 .
+  var n be u64 0 .
+  var done be u64 0 .
   while eq done 0 . do
-    let sz u64 be hs_size buf off .
+    let sz be u64 hs_size buf off .
     if eq sz 0 . do  set done 1 .  end
     if eq done 0 . do
       set off (add off sz) .
@@ -368,15 +368,15 @@ errors short_workspace . do
   rem   전에는 `ge` 라서 더 긴 것을 받고 **앞 32 바이트만** 견줬다 — 뒤에 무엇이 붙어도 통과했다.
   rem   길이가 다르면 decode_error 다: 고쳐 읽지 않고 거절한다.
   guard eq (len got) 32 . else return ok 0 .
-  let _u0 result u64 tls13_error . be finished_key secret info (subslice w 64 576) (subslice w 0 32) .
+  let _u0 be result u64 tls13_error finished_key secret info (subslice w 64 576) (subslice w 0 32) .
   guard is_ok _u0 . else return error short_workspace .
   guard eq (ok_value _u0) 32 . else return ok 0 .
-  let _u1 result u64 tls13_error . be verify_data (subslice w 0 32) thash (subslice w 64 576) (subslice w 32 64) .
+  let _u1 be result u64 tls13_error verify_data (subslice w 0 32) thash (subslice w 64 576) (subslice w 32 64) .
   guard is_ok _u1 . else return error short_workspace .
   guard eq (ok_value _u1) 32 . else return ok 0 .
   rem 비교는 XOR 누적 — 조기 반환이 없다.
-  var diff u64 be 0 .
-  var i u64 be 0 .
+  var diff be u64 0 .
+  var i be u64 0 .
   while lt i 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index w (add 32 i))) (cast u64 (index got i)))) .
     set i (add i 1) .

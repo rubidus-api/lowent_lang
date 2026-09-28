@@ -2,7 +2,7 @@
 //
 // A kind-level checker over MVP `fn`/`proc` signatures (input/output clauses):
 // infers expression types (bool / integer / float / slice / named) and flags clear
-// mismatches at `var N type be e`, `return e`, `set N e`, and call arguments.
+// mismatches at `var N be type e`, `return e`, `set N e`, and call arguments.
 // Integer width/signedness: literal range vs declared width, implicit narrowing,
 // and signed/unsigned mixing are rejected (E-TYPE-WIDTH / E-TYPE-SIGN); `cast` is
 // the explicit escape hatch. Conservative — UNKNOWN/NAMED types never flag.

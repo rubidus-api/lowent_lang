@@ -2,7 +2,7 @@ module module_const .
 rem run: seventeen
 
 rem ko: 모듈 수준의 `let` 은 번역 시점 상수다 /// en: a module-level `let` is a compile-time constant
-let step u8 be 7 .
+let step be u8 7 .
 
 fn add_const input comptime n u8 . input a u8 . output u8 .
   requires le a 200 .

@@ -11,7 +11,7 @@ module vm_wire .
 
 use wire from "../../lib/wire.low" .
 
-let m_month u64 be 15 .          rem 0x0f — 폭 4, 자리 0(아래 shl 로 옮겨 쓴다)
+let m_month be u64 15 .          rem 0x0f — 폭 4, 자리 0(아래 shl 로 옮겨 쓴다)
 
 rem ── ① 답이 같은가 ────────────────────────────────────────────────────────
 

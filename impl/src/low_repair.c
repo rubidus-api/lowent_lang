@@ -334,6 +334,8 @@ static const low_repair_row_t REPAIR[] = {
     { "E-IR-LOCALS",           "R-SPLIT-OP" },
     { "E-PARSE-LIMIT",         "R-SPLIT-OP" },     // ★ 2026-09-27 — 노드 아레나가 찼다: 단위를 나눈다
     { "E-EXPECT-PLACE",        "R-USE-CONTRACT" }, // ★ X-0072 — 시험 밖 expect: requires/ensures 로(또는 panic)
+    { "E-LET-NOTYPE",          "R-WRITE-TYPE" },   // ★ RFC-0132 T1 — `let x be u64 300 .`
+    { "E-LET-OLDFORM",         "R-MOVE-TYPE" },    // ★ RFC-0132 T1 — 타입을 `be` 뒤로
     { "E-IR-UNSUP",            "R-SHORTEN-LITERAL" },
     { "E-IR-EXTRA",            "R-DROP-OPERANDS" },
     { "E-VOCAB-REMOVED",       "R-USE-REPLACEMENT" },
@@ -386,6 +388,30 @@ static const low_repair_row_t REPAIR[] = {
     { "E-VM-CONTRACT",         "R-FIX-ARGUMENT" },
     { "E-VM-OVERFLOW",         "R-WIDEN-SIGNED" },
     { "E-VM-SCHED-LOOP",       "R-STOP-RESENDING" },
+    // ★ 2026-09-16 ~ 09-27 에 생긴 코드 — 2026-09-28 t4 게이트가 «분류 안 됨» 41 개로 잡았다(그 사이 t4 가 이 검사까지 못 갔다).
+    //   고침이 하나로 정해지는 것만 여기에 둔다. 나머지는 NOREPAIR 에 이유와 함께.
+    { "E-ABSORB-NOCONTRACT",   "R-ADD-REQUIRES" },       // 흡수 op 의 문에 `requires` 하나 이상
+    { "E-ABSORB-NOREF",        "R-ADD-REFERENCE" },      // `reference <op> .` — 순수 Lowent 기준 구현
+    { "E-ABSORB-NOWHY",        "R-ADD-WHY" },            // `why "…" .` — 비지 않은 이유
+    { "E-ACTOR-FIELD",         "R-READ-BY-MESSAGE" },    // 상태를 돌려주는 op 을 actor 에 두고 메시지로 읽는다
+    { "E-ACTOR-UNINIT",        "R-SEND-INIT-FIRST" },    // 그 칸을 `set` 하는 메시지를 먼저 보낸다
+    { "E-BUILTIN-BARE",        "R-USE-CALL-BUILTIN" },   // `call_builtin <이름> …`
+    { "E-BUILTIN-NAME",        "R-USE-KNOWN-BUILTIN" },  // 닫힌 집합의 이름을 첫 피연산자로
+    { "E-CAP-LOCAL",           "R-PASS-CAP-PARAM" },     // 지역 이름 대신 받은 매개변수를 잎에 건넨다
+    { "E-FFI-LINK",            "R-ADD-LINK" },           // `link "<C 이름>" .`
+    { "E-FOLD-ORDER",          "R-MATCH-TYPE" },         // 첫 입력을 출력과 같은 타입으로
+    { "E-INPLACE-FORM",        "R-USE-INPLACE-FORM" },   // `inplace <쓰는 mut 입력> <읽는 입력> .`
+    { "E-INVALIDATES-FORM",    "R-USE-INVALIDATES-FORM" }, // `invalidates <입력 하나> .`
+    { "E-MMIO-PLAIN",          "R-USE-VOLATILE" },       // `read_volatile` / `write_volatile`
+    { "E-MONO-NOTYPE",         "R-ADD-TYPE-ARG" },       // 부르는 자리에 타입을 먼저 적는다
+    { "E-NAME-SCOPE",          "R-DECLARE-BEFORE-BLOCK" }, // 블록 앞에서 선언하고 안에서 `set`
+    { "E-PAR-IDENTITY",        "R-START-FROM-IDENTITY" },  // 항등원에서 시작하고 치우침은 루프 뒤에 한 번
+    { "E-PIPE-PRED",           "R-USE-COMPARISON" },     // 물음을 비교로 적는다(`ne x 0`)
+    { "E-STMT-ELSE",           "R-MOVE-ELSE-INSIDE" },   // `if c . do … else … end`
+    { "E-TYPE-REFVAL",         "R-DEREF" },              // `deref <이름>` 으로 읽는다
+    { "E-USE-ALIASED",         "R-USE-ALIAS-NAME" },     // `as` 로 붙인 이름으로 적는다
+    { "E-VEC-SPLAT",           "R-BIND-OPERAND" },       // 레인 수를 적은 바인딩으로 먼저 묶는다
+    { "E-VIEW-INVALIDATED",    "R-RETAKE-VIEW" },        // 그 호출 뒤에 뷰를 다시 얻는다
 };
 
 // ── **수리가 없다** — 그리고 왜 없는지 (게이트가 이 목록도 읽는다) ──────────────
@@ -441,6 +467,26 @@ static const low_repair_row_t NOREPAIR[] = {
     { "N-MONO-SITE",       "**결함이 아니다** — 단형화가 어디서 일어났는지 알리는 주석이다" },
     { "W-NOT-YET",         "도구가 아직 안 하는 일이다 — 프로그램에 고칠 것이 없다" },
     { "W-RFC-PENDING",     "설계가 아직 RFC 단계다 — 프로그램에 고칠 것이 없다" },
+    // ★ 2026-09-28 — 위 REPAIR 의 같은 묶음. 고칠 길이 여럿이거나 사람이 정할 일이다.
+    { "E-ABSORB-IMPURE",    "길이 둘이다 — 효과가 있는 부분을 다른 op 으로 떼어 내거나, 흡수를 그만두고 `unsafe` 를 호출자에게 보인다" },
+    { "E-ABSORB-PLACE",     "누가 보증할 수 있는지는 사람이 정한다 — pkg.low 의 `build absorb` 줄과 흡수 장부의 서명은 도구가 대신 적을 것이 아니다" },
+    { "E-ABSORB-SCOPE",     "경우가 둘이다 — 모양이 틀렸으면 `absorbs machine <이름> .` 으로, 세상에 닿는 권한이면 흡수 대신 권한 입력으로 받는다" },
+    { "E-ACTOR-STATE-REF",  "길이 둘이다 — 값을 복사해 상태에 두거나, actor 가 받아 수명 내내 가진 슬라이스를 둔다" },
+    { "E-BORROW-FIELD",     "길이 둘이다 — 필드를 지역으로 복사해 그것을 빌리거나, 값 전체를 `mut` 로 건넨다" },
+    { "E-COLLECT-FULL",     "길이 둘이다 — 자리를 키우거나 넣는 원소를 줄인다. 어느 쪽 길이가 뜻인지는 저자가 안다" },
+    { "E-CONTRACT-UNSAT",   "두 전제 가운데 어느 것이 뜻한 것인지는 쓴 사람만 안다" },
+    { "E-ERRORS-STATE",     "조건을 어떤 입력으로 다시 쓸지는 op 의 뜻에 달렸다 — 바뀌는 것은 몸 안의 guard 로 옮긴다" },
+    { "E-EXCL-INPLACE",     "겹치지 않게 저장소를 나누는 방법은 호출자의 배치에 달렸다" },
+    { "E-INPLACE-UNPROVEN", "길이 둘이다 — 몸을 증명되는 두 모양 가운데 하나로 바꾸거나, `inplace` 선언을 지운다" },
+    { "E-LOOP-OUTSIDE",     "뜻이 둘이다 — 루프가 빠졌거나 `return` 을 뜻했다. 어느 쪽인지는 쓴 사람만 안다" },
+    { "E-NUM-EMPTY",        "빠진 숫자가 무엇인지는 쓴 사람만 안다(0 이면 `0x0`)" },
+    { "E-NUM-SUFFIX",       "원인이 셋이다 — 접미사, 8진, 밑 밖의 숫자. 경우마다 고침이 다르다" },
+    { "E-TRY-NORESULT",     "길이 둘이다 — 출력을 `result` 로 바꾸거나, 실패를 그 자리에서 처리한다" },
+    { "E-TYPE-COLLECT",     "길이 둘이다 — 앞에 좁히는 `map`(어떤 좁힘인지 골라야 한다)을 두거나, 받는 버퍼를 넓힌다" },
+    { "W-CONFIG-DEPENDS",   "길이 셋이다 — 그 코드를 의존 옵션으로 감싸거나, 설정 줄을 지우거나, `depends` 를 지운다" },
+    { "W-ERRORS-UNRAISED",  "뜻이 둘이다 — 쓸데없는 절이면 지우고, 몸이 그 실패를 내야 했다면 몸을 고친다" },
+    { "W-EXPORT-HIDDEN",    "길이 둘이다 — 타입도 내보내거나, 밖에서 이름할 수 있는 타입으로 서명을 바꾼다" },
+    { "W-RESULT-DISCARD",   "길이 셋이다 — 묶어서 살피거나, `try` 로 넘기거나, 버리는 이유를 코드에 적는다" },
 };
 
 const char *low_repair_for(const char *code) {

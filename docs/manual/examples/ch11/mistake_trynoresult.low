@@ -15,6 +15,6 @@ end
 rem ko: ✘ `try` 를 썼는데 이 op 은 `result` 를 돌려주지 않고 `errors` 절도 없다 /// en: ✘ uses `try`, but this op neither returns a `result` nor has an `errors` clause
 fn plus input a u8 . output u8 .
 do
-  let v u8 be try halve a .
+  let v be u8 try halve a .
   return add v 1 .
 end

@@ -9,7 +9,7 @@
  *   · **받는 쪽** — op 머리의 `using <이름> <타입> .` 절. 그 op 이 깎아 쓰는 얼로케이터다. arity 에 **들지
  *     않는다**(부르는 쪽은 그 인자를 위치로 적지 않는다 — 한 개념 한 철자). `<타입>` 이 comptime 타입
  *     매개변수면 그 매개변수도 부르는 쪽이 적지 않는다(얼로케이터의 타입에서 온다).
- *   · **부르는 쪽** — 바인딩의 `using <출처>`(`let v T using hb be vecgen.open u32 16 .`), 아니면 기본값.
+ *   · **부르는 쪽** — 바인딩의 `using <출처>`(`let v using hb be T vecgen.open u32 16 .`), 아니면 기본값.
  *
  * 기본값 격자 — 위에서 처음 맞는 것(D8(4)):
  *   1. 바인딩의 `using <출처>`
@@ -561,4 +561,210 @@ void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_all
     }
     // ③ 받는 쪽 머리를 바꿔 적는다
     for (proven_size_t i = 0; i < c->ncal; i++) us_rewrite_header(c, &c->cal[i]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// ★★★ **선언의 타입은 값 앞에 선다** — `var <이름> be <타입> <값> .` (RFC-0132 T1 · TV3 · 2026-09-28).
+//   옛 모양 `var <이름> <타입> be <값> .` 의 타입을 소비자 모두가 이름 바로 뒤에서 읽는다. 그래서 새 모양은 여기서
+//   **타입만 `be` 앞으로 옮겨** 옛 안쪽 모양으로 바꾼다 — 뒤의 모든 소비자(검사·타입·하강·서식 대조)는 바뀌지 않는다.
+//   타입의 끝은 **타입 문법의 인자 수**로 안다: 내장 낱말은 정해진 수, 괄호 묶음은 하나, 사용자 타입은
+//   선언이 받는 `input comptime <x> type` 의 수(제네릭·브랜드). 그래서 이 패스는 **링크 뒤·묶기 전**, 모든
+//   파일의 타입 선언이 보일 때 돈다(`--flat` 과 나무 모드 둘 다).
+//   strict 이면 옛 모양은 `E-LET-OLDFORM`, 타입 없는 묶기는 `E-LET-NOTYPE`(X-0074 — `let x be 300 .` 이 폭 검사를
+//   빠져나갔다).
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+typedef struct { proven_u8str_view_t name, mod; proven_size_t arity; } dt_tname_t;
+typedef struct {
+    low_parser_t p;
+    dt_tname_t *tn; proven_size_t ntn, ctn;
+    proven_u8str_view_t tp[32]; proven_size_t ntp;     // 지금 걷는 op/구조체의 comptime 타입 매개변수
+    bool strict;
+    proven_u8str_view_t curmod;                         // 지금 걷는 폼의 모듈
+    struct { proven_u8str_view_t mod, alias, target; } al[512]; proven_size_t nal;   // `use <t> … as <a>`
+} dt_ctx_t;
+
+static bool dt_in(proven_u8str_view_t v, const char *const *set) {
+    for (proven_size_t i = 0; set[i]; i++) if (us_eq(v, set[i])) return true;
+    return false;
+}
+static const char *const DT_ZERO[] = { "bool","u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","f32","f64",
+                                       "void","self","str","string","char","byte","bytes_view", NULL };
+static const char *const DT_PRE1[] = { "slice","mut","owned","ref","mut_ref","option","segments","stack","set","unsafe_ptr","nonzero",
+                                       "atomic","lock","rwlock","shared_read","view", NULL };
+// ★ 이름은 **모듈과 함께** 맞춘다(check-lib-pairs 가 잡았다: `trust` 의 `files.handle` 이 `pool` 의 브랜드 타입 `handle`
+//   (인자 하나)로 읽혀 다음 낱말을 삼켰다). `m.t` 는 모듈 m 의 t 만, 맨 `t` 는 자기 모듈 것을 먼저, 없으면 아무 모듈의 것.
+static bool dt_tname(dt_ctx_t *c, proven_u8str_view_t v, proven_size_t *arity) {
+    proven_u8str_view_t b = us_bare(v), q = us_qual(v);
+    for (proven_size_t i = 0; !q.size && i < c->ntp; i++) if (proven_u8str_view_eq(c->tp[i], b)) { *arity = 0; return true; }
+    if (q.size) {
+        proven_u8str_view_t qb = us_bare(q);                         // `a.b.t` 면 마지막 모듈 마디
+        for (proven_size_t i = 0; i < c->nal; i++)                   // 가져오기 별칭(`use geom … as g`)을 푼다
+            if (proven_u8str_view_eq(c->al[i].mod, c->curmod) && proven_u8str_view_eq(c->al[i].alias, qb)) { qb = c->al[i].target; break; }
+        for (proven_size_t i = 0; i < c->ntn; i++)
+            if (proven_u8str_view_eq(c->tn[i].name, b) && proven_u8str_view_eq(c->tn[i].mod, qb)) { *arity = c->tn[i].arity; return true; }
+        return false;
+    }
+    for (proven_size_t i = 0; i < c->ntn; i++)
+        if (proven_u8str_view_eq(c->tn[i].name, b) && proven_u8str_view_eq(c->tn[i].mod, c->curmod)) { *arity = c->tn[i].arity; return true; }
+    for (proven_size_t i = 0; i < c->ntn; i++) if (proven_u8str_view_eq(c->tn[i].name, b)) { *arity = c->tn[i].arity; return true; }
+    return false;
+}
+// kids[i..end) 에서 타입 하나가 끝나는 자리. 타입이 아니면 (proven_size_t)-1.
+// head: 머리 자리(`be` 바로 뒤)면 아는 타입 이름만 타입이다. 타입 인자 자리(`result u64 <여기>`)에서는 모르는 이름도
+//   타입으로 받는다 — 거기에는 타입밖에 올 수 없다(내장 오류 타입 `mailbox_full` 같은 것).
+static proven_size_t dt_type_end_h(dt_ctx_t *c, low_cst_t *const *k, proven_size_t i, proven_size_t end, bool head);
+static proven_size_t dt_type_end(dt_ctx_t *c, low_cst_t *const *k, proven_size_t i, proven_size_t end) {
+    return dt_type_end_h(c, k, i, end, false);
+}
+static proven_size_t dt_type_end_h(dt_ctx_t *c, low_cst_t *const *k, proven_size_t i, proven_size_t end, bool head) {
+    const proven_size_t NO = (proven_size_t)-1;
+    if (i >= end) return NO;
+    const low_cst_t *t = k[i];
+    if (t->kind == LOW_CST_GROUP) return i + 1;                      // 괄호로 싼 타입(TV4)
+    if (!us_atom(t) || t->tok.kind != LOW_TOK_IDENT) return NO;
+    proven_u8str_view_t w = t->tok.lex; proven_size_t a = 0;
+    if (dt_in(w, DT_ZERO)) return i + 1;
+    if (dt_in(w, DT_PRE1)) return dt_type_end(c, k, i + 1, end);
+    if (us_eq(w, "result")) { proven_size_t j = dt_type_end(c, k, i + 1, end); return j == NO ? NO : dt_type_end(c, k, j, end); }
+    if (us_eq(w, "array")) {                                         // array <타입> <길이>(C12)
+        proven_size_t j = dt_type_end(c, k, i + 1, end);
+        return (j != NO && j < end && us_is_int_lit(k[j])) ? j + 1 : NO;
+    }
+    if (us_eq(w, "vec")) {                                           // vec <타입> <레인 수 | scalable 같은 낱말>
+        proven_size_t j = dt_type_end(c, k, i + 1, end);
+        return (j != NO && j < end && us_atom(k[j])) ? j + 1 : NO;
+    }
+    if (us_eq(w, "bitset") || us_eq(w, "mask"))                     // 크기는 정수 리터럴일 때만(없이 쓰는 곳이 있다)
+        return (i + 1 < end && us_is_int_lit(k[i + 1])) ? i + 2 : i + 1;
+    if (us_eq(w, "cap"))
+        return (i + 1 < end && us_atom(k[i + 1])) ? i + 2 : NO;
+    if (dt_tname(c, w, &a)) {
+        proven_size_t j = i + 1;
+        for (proven_size_t q = 0; q < a; q++) { j = dt_type_end(c, k, j, end); if (j == NO) return NO; }
+        return j;
+    }
+    return head ? NO : i + 1;
+}
+static void dt_collect(dt_ctx_t *c, const low_cst_t *f) {
+    if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !us_atom(f->kids[0]) || !us_atom(f->kids[1])) return;
+    low_kw_t kw = f->kids[0]->tok.kw;
+    if (kw != LOW_KW_STRUCT && kw != LOW_KW_ENUM && kw != LOW_KW_TYPE && kw != LOW_KW_NEWTYPE && kw != LOW_KW_ACTOR) return;
+    proven_size_t ar = 0;
+    const low_cst_t *blk = f->kids[f->nkids - 1];
+    if (kw == LOW_KW_STRUCT && blk->kind == LOW_CST_BLOCK)
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *m = blk->kids[j];
+            for (proven_size_t q = 0; m->kind == LOW_CST_FORM && q + 2 < m->nkids; q++)
+                if (us_atom(m->kids[q]) && us_eq(m->kids[q]->tok.lex, "comptime") && us_atom(m->kids[q + 2]) &&
+                    us_eq(m->kids[q + 2]->tok.lex, "type")) ar++;
+        }
+    if (c->ntn == c->ctn) {
+        proven_size_t nc = c->ctn ? c->ctn * 2 : 256;
+        dt_tname_t *nt = (dt_tname_t *)c->p.work.alloc_fn(c->p.work.ctx, sizeof(dt_tname_t) * nc, alignof(dt_tname_t)).value.ptr;
+        if (!nt) return;
+        if (c->ntn) memcpy(nt, c->tn, sizeof(dt_tname_t) * c->ntn);
+        c->tn = nt; c->ctn = nc;
+    }
+    c->tn[c->ntn].name = us_bare(f->kids[1]->tok.lex); c->tn[c->ntn].mod = c->curmod; c->tn[c->ntn].arity = ar; c->ntn++;
+}
+static void dt_diag(dt_ctx_t *c, const low_cst_t *at, const char *code, const char *msg) {
+    low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = at->tok.line, .col = at->tok.col, .file = at->file };
+    (void)proven_array_push(&c->p.out->diags, &d);
+    c->p.out->ok = false;
+}
+static void dt_decl(dt_ctx_t *c, low_cst_t *f) {
+    proven_size_t b = 0;
+    for (proven_size_t i = 2; i < f->nkids; i++) if (us_atom(f->kids[i]) && f->kids[i]->tok.kw == LOW_KW_BE) { b = i; break; }
+    if (!b) return;
+    // 이름과 `be` 사이: 비었거나 `using <이름>` 뿐이면 새 모양(또는 타입 없음), 타입이 있으면 옛 모양
+    bool typeless_mid = (b == 2) ||
+        (b == 4 && us_atom(f->kids[2]) && us_eq(f->kids[2]->tok.lex, "using"));
+    if (!typeless_mid) {
+        if (c->strict)
+            dt_diag(c, f->kids[1], "E-LET-OLDFORM",
+                      "a binding writes its type AFTER `be`, in front of the value: `var i be u64 0 .` "
+                      "(RFC-0132). The type between the name and `be` is the old form — move it: "
+                      "`var <name> be <type> <value> .`");
+        return;
+    }
+    proven_size_t te = dt_type_end_h(c, f->kids, b + 1, f->nkids, true);
+    if (te == (proven_size_t)-1) {
+        if (c->strict)
+            dt_diag(c, f->kids[1], "E-LET-NOTYPE",
+                      "a binding must show its type in front of the value — `let x be u64 300 .`, not "
+                      "`let x be 300 .`. The type is never guessed (RFC-0132): a guessed type let a bare "
+                      "literal skip the width check (X-0074)");
+        return;
+    }
+    // 옮긴다: [kw, name, 타입…, (using x), be, 값…]
+    proven_size_t n = f->nkids;
+    low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * n, alignof(low_cst_t *)).value.ptr;
+    if (!nk) return;
+    proven_size_t m = 0;
+    nk[m++] = f->kids[0]; nk[m++] = f->kids[1];
+    // ★ 괄호로 싼 머리 타입(`be (owned shard.token grid) …` · `be (result u64) …`)은 **풀어서** 옛 안쪽 모양으로 넘긴다.
+    //   소비자들은 이름 뒤 낱말들에서 `owned`·`mut` 같은 한정어를 읽는다 — 묶음째 넘기면 그것을 못 보고 소유 검사가
+    //   빠졌다(실측: E-OWN-MOVED 가 사라졌다). 안쪽 묶음(`option (pool.block_pool pf)`)은 원래대로 둔다.
+    const low_cst_t *g0 = f->kids[b + 1];
+    if (te == b + 2 && g0->kind == LOW_CST_GROUP && g0->nkids == 1 && g0->kids[0]->kind == LOW_CST_FORM) {
+        const low_cst_t *in = g0->kids[0];
+        low_cst_t **nk2 = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (n + in->nkids),
+                                                           alignof(low_cst_t *)).value.ptr;
+        if (!nk2) return;
+        nk = nk2;
+        m = 0; nk[m++] = f->kids[0]; nk[m++] = f->kids[1];
+        for (proven_size_t i = 0; i < in->nkids; i++) nk[m++] = in->kids[i];
+    } else
+    for (proven_size_t i = b + 1; i < te; i++) nk[m++] = f->kids[i];
+    for (proven_size_t i = 2; i <= b; i++) nk[m++] = f->kids[i];
+    for (proven_size_t i = te; i < n; i++) nk[m++] = f->kids[i];
+    (void)low_refit(&c->p, f, nk, m);
+}
+static void dt_walk(dt_ctx_t *c, low_cst_t *nd) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && us_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR)) dt_decl(c, nd);
+    proven_size_t save = c->ntp;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && us_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_FN || nd->kids[0]->tok.kw == LOW_KW_PROC || nd->kids[0]->tok.kw == LOW_KW_STRUCT))
+        for (proven_size_t q = 0; q + 2 < nd->nkids && c->ntp < 32; q++)
+            if (us_atom(nd->kids[q]) && us_eq(nd->kids[q]->tok.lex, "comptime") && us_atom(nd->kids[q + 1]) &&
+                us_atom(nd->kids[q + 2]) && us_eq(nd->kids[q + 2]->tok.lex, "type"))
+                c->tp[c->ntp++] = nd->kids[q + 1]->tok.lex;
+    for (proven_size_t i = 0; i < nd->nkids; i++) dt_walk(c, nd->kids[i]);
+    c->ntp = save;
+}
+void low_decl_order(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict) {
+    dt_ctx_t *c = (dt_ctx_t *)work.alloc_fn(work.ctx, sizeof(dt_ctx_t), alignof(dt_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    c->strict = strict;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE &&
+            us_atom(f->kids[1])) c->curmod = f->kids[1]->tok.lex;
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 4 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_USE &&
+            us_atom(f->kids[1]) && c->nal < 512) {
+            for (proven_size_t q = 2; q + 1 < f->nkids; q++)
+                if (us_atom(f->kids[q]) && us_eq(f->kids[q]->tok.lex, "as") && us_atom(f->kids[q + 1])) {
+                    c->al[c->nal].mod = c->curmod; c->al[c->nal].alias = f->kids[q + 1]->tok.lex;
+                    c->al[c->nal].target = us_bare(f->kids[1]->tok.lex); c->nal++;
+                    break;
+                }
+        }
+        dt_collect(c, f);
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 3 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_ACTOR &&
+            f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) {
+            const low_cst_t *blk = f->kids[f->nkids - 1];
+            for (proven_size_t j = 0; j < blk->nkids; j++) dt_collect(c, blk->kids[j]);
+        }
+    }
+    c->curmod = (proven_u8str_view_t){ 0 };
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE &&
+            us_atom(f->kids[1])) c->curmod = f->kids[1]->tok.lex;
+        dt_walk(c, pr->forms[i]);
+    }
 }

@@ -41,25 +41,25 @@ rem ★★★ `at` 에서 코드포인트 하나를 **디코드**한다. 유효�
 rem   반환은 코드포인트 값 — 길이는 `seq_len` 으로 다시 얻거나 `next_start` 를 쓴다.
 export fn decode input s slice u8 . input at u64 . output option u64 . link "utf8_decode" . do
   guard lt at (len s) . else return none .
-  let b0 u8 be index s at .
-  let n u64 be seq_len b0 .
+  let b0 be u8 index s at .
+  let n be u64 seq_len b0 .
   guard gt n 0 . else return none .                      rem 이어지는 바이트가 선두에 왔다
   guard le (add at n) (len s) . else return none .        rem 잘린 시퀀스
   if eq n 1 . do return (some (narrow u64 b0)) . end
 
   rem 이어지는 바이트들이 전부 10xxxxxx 여야 한다.
-  var i u64 be 1 .
+  var i be u64 1 .
   while lt i n . do
     guard is_cont (index s (add at i)) . else return none .
     set i (add i 1) .
   end
 
   rem 선두 바이트의 남은 비트 + 이어지는 바이트마다 6 비트.
-  var cp u64 be 0 .
+  var cp be u64 0 .
   if eq n 2 . do set cp (narrow u64 (bit_and b0 31)) . end
   if eq n 3 . do set cp (narrow u64 (bit_and b0 15)) . end
   if eq n 4 . do set cp (narrow u64 (bit_and b0 7)) . end
-  var j u64 be 1 .
+  var j be u64 1 .
   while lt j n . do
     set cp (add (mul cp 64) (narrow u64 (bit_and (index s (add at j)) 63))) .
     set j (add j 1) .
@@ -90,12 +90,12 @@ end
 rem ★★ 코드포인트 개수. 유효하지 않은 바이트를 만나면 `none` — **부분 답을 주지 않는다**
 rem   (`lib/fmt.low` 의 전량-아니면-무와 같은 규율: 반쯤 맞는 답이 가장 나쁘다).
 export fn count_chars input s slice u8 . output option u64 . link "utf8_count_chars" . do
-  var i u64 be 0 .
-  var n u64 be 0 .
+  var i be u64 0 .
+  var n be u64 0 .
   while lt i (len s) . do
-    let d option u64 . be decode s i .
+    let d be option u64 decode s i .
     guard is_some d . else return none .
-    let nx option u64 . be next_start s i .
+    let nx be option u64 next_start s i .
     guard is_some nx . else return none .
     set i (some_value nx) .
     set n (add n 1) .

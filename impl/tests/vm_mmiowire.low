@@ -39,7 +39,7 @@ fn f_parity output u64 . do return 1 . end        rem 1 번 자리
 
 rem 제어 낱말을 **짓는다** — 순수 계산이다. 권한이 필요 없다(그래서 시험하기 쉽다).
 fn control input baud u64 . input parity bool . output u64 . do
-  var w u64 be flags.with (flags.empty) (f_enable) .
+  var w be u64 flags.with (flags.empty) (f_enable) .
   if parity . do set w (flags.with w (f_parity)) . end
   return wire.merge (m_baud) w baud .
 end
@@ -51,7 +51,7 @@ unsafe proc drive .
   output u32 .
   effects device unsafe .
 do
-  var u uart . be view uart regs .
+  var u be uart view uart regs .
 
   rem ★ 칸에 안 들어가는 값이면 **아무것도 안 쓰고** 1 을 답한다. 조용히 자르는 대신
   rem   물어볼 수 있다는 것이 이 라이브러리가 C 보다 나은 자리다.
@@ -62,10 +62,10 @@ do
 
   rem ③ 그리고 자리 둘을 바꿀 때는 **값이 아니라 짝**을 보낸다:
   rem   지금 걸려 있다고 아는 값이 `now`, 가고 싶은 값이 `want` 다.
-  let now u64 be control baud true .
-  let want u64 be flags.without now (f_parity) .
-  let s u64 be wire.to_set now want .
-  let c u64 be wire.to_clear now want .
+  let now be u64 control baud true .
+  let want be u64 flags.without now (f_parity) .
+  let s be u64 wire.to_set now want .
+  let c be u64 wire.to_clear now want .
   write_volatile u bsrr (narrow u32 (bit_or s (shl c 16))) .
 
   return (narrow u32 (control baud true)) .

@@ -42,8 +42,8 @@ Lowent 의 식은 *전위 표기*다. 연산의 이름이 먼저 오고 인자�
 를 더하고, 폼 안에 폼이 오면 괄호로 감싼다.
 
 ```lowent
-let total u64 be add 1 2 .
-let mixed u64 be add 1 (mul 2 3) .
+let total be u64 add 1 2 .
+let mixed be u64 add 1 (mul 2 3) .
 ```
 
 전위 표기에는 우선순위가 없다. `1 + 2 * 3` 을 읽는 사람은 곱셈이 먼저라는 규칙을 *외워서* 알지만,
@@ -102,8 +102,8 @@ end
 
 fn sum_to input n u64 . output u64 .
 do
-  var total u64 be 0 .
-  var i u64 be 1 .
+  var total be u64 0 .
+  var i be u64 1 .
   while le i n . do
     set total (add total i) .
     set i (add i 1) .
@@ -118,7 +118,7 @@ end
 - *블록을 몸으로 갖는 구문*은 `end` 에서 끝난다. op 선언, `struct`·`enum`, `if`·`while`·`for`·`match` 가 그렇다.
   위의 예처럼 `end` 뒤에 마침표를 찍지 않는다 --- 찍으면 닫을 것이 없어 `E-DOT-STRAY` 로 거절된다.
 - *블록을 값으로 쓰는 문장*은 여느 문장처럼 자기 마침표로 끝난다. `make` 로 구조체 값을 만들어 `let` 에 넣는 경우가 대표적이다:
-  `let p point be make point do x 1 . y 2 . end .` --- 마지막 마침표는 `let` 의 것이다. 빠뜨리면 `E-DOT-MISSING`.
+  `let p be point make point do x 1 . y 2 . end .` --- 마지막 마침표는 `let` 의 것이다. 빠뜨리면 `E-DOT-MISSING`.
 
 C 에 견주면 `if (c) { … }` 뒤에는 `;` 가 없고 `p = (struct point){ 1, 2 };` 뒤에는 있는 것과 같다.
 
@@ -126,7 +126,7 @@ C 에 견주면 `if (c) { … }` 뒤에는 `;` 가 없고 `p = (struct point){ 1
 while le i n . do  …  end                  몸-블록: while 문이 end 에서 끝난다
 └────── while 문 ───────┘
 
-let p point be make point do x 1 . end .   값-블록: 블록은 make 의 것, 문장은 자기 . 으로 끝난다
+let p be point make point do x 1 . end .   값-블록: 블록은 make 의 것, 문장은 자기 . 으로 끝난다
                └────── make 값 ──────┘ │
 └─────────────── let 문 ───────────────┘
 ```

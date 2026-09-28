@@ -684,7 +684,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> acc <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> acc (add acc (widen <strong><span class="tok-t">u64</span></strong> x)) .
   <strong><span class="tok-k">end</span></strong>
@@ -724,7 +724,7 @@ array_order.low:4:0 E-TYPE-ARRAY: `array` is written `array &lt;type> &lt;count>
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> (index xs <span class="tok-n">0</span>) <span class="tok-n">10</span> .
   <strong><span class="tok-k">set</span></strong> (index xs <span class="tok-n">1</span>) <span class="tok-n">20</span> .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x xs <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> x)) .
   <strong><span class="tok-k">end</span></strong>
@@ -750,8 +750,8 @@ readonly.low:6:0 E-TYPE-MUT: writing an element of a slice that is not declared 
 <strong><span class="tok-k">fn</span></strong> middle_sum <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge (len xs) <span class="tok-n">3</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> mid <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> subslice xs <span class="tok-n">1</span> (sub (len xs) <span class="tok-n">1</span>) .
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> mid <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> subslice xs <span class="tok-n">1</span> (sub (len xs) <span class="tok-n">1</span>) .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> x mid <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> x)) .
   <strong><span class="tok-k">end</span></strong>
@@ -798,8 +798,8 @@ prefix_chain(4) = 47
 <strong><span class="tok-k">fn</span></strong> sum_first <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le n (len a) .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> (index a i))) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -809,15 +809,15 @@ prefix_chain(4) = 47
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run sum_first bounds.low [3,4,5,6] 3
 sum_first([3,4,5,6], 3) = 12
   arg0 (written) = [3,4,5,6]
-</code></pre></div></div><p>With <code>requires le n (len a) .</code>, <code>i</code> inside <code>while lt i n .</code> is always less than <code>len a</code>. The compiler’s interval analysis works that out and removes the check in <code>index a i</code>. The rules behind this reasoning are proven in Coq, and an independent checker re-verifies the arithmetic evidence the compiler leaves at every removed check (chapter 41).</p><p>One thing to watch: a count <code>n</code> uses <code>le</code>, but an <strong>index</strong> itself uses <code>lt</code>. <code>requires le i (len a) .</code> allows <code>i = len a</code>, which is one past the end.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Putting <code>len</code> in a loop condition recounts every time</strong></p><div class="dev-body"><code>len s</code> is neither a call nor a memory read. It just takes the length field out of the slice value <code>{start, length}</code>. Writing elements does not change the length; the only way the length changes is putting a different slice into the name. In fact, storing the length ahead as <code>let m u64 be len xs .</code> and then replacing <code>xs</code> with a shorter slice leaves <code>m</code> as a <strong>stale length</strong> that can go out of range. Storing it ahead is a choice of meaning, not an optimisation.</div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/stale_len.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stale_len .
+</code></pre></div></div><p>With <code>requires le n (len a) .</code>, <code>i</code> inside <code>while lt i n .</code> is always less than <code>len a</code>. The compiler’s interval analysis works that out and removes the check in <code>index a i</code>. The rules behind this reasoning are proven in Coq, and an independent checker re-verifies the arithmetic evidence the compiler leaves at every removed check (chapter 41).</p><p>One thing to watch: a count <code>n</code> uses <code>le</code>, but an <strong>index</strong> itself uses <code>lt</code>. <code>requires le i (len a) .</code> allows <code>i = len a</code>, which is one past the end.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Putting <code>len</code> in a loop condition recounts every time</strong></p><div class="dev-body"><code>len s</code> is neither a call nor a memory read. It just takes the length field out of the slice value <code>{start, length}</code>. Writing elements does not change the length; the only way the length changes is putting a different slice into the name. In fact, storing the length ahead as <code>let m be u64 len xs .</code> and then replacing <code>xs</code> with a shorter slice leaves <code>m</code> as a <strong>stale length</strong> that can go out of range. Storing it ahead is a choice of meaning, not an optimisation.</div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/stale_len.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stale_len .
 <em><span class="tok-c">rem run: fresh [1,2,3,4]</span></em>
 <em><span class="tok-c">rem trap: stale [1,2,3,4]</span></em>
 
 <em><span class="tok-c">rem len stays in the condition --- each round reads the current length</span></em>
 <strong><span class="tok-k">fn</span></strong> fresh <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> xs .
-  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> xs .
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> s (subslice s <span class="tok-n">0</span> <span class="tok-n">2</span>) .
@@ -828,10 +828,10 @@ sum_first([3,4,5,6], 3) = 12
 
 <em><span class="tok-c">rem the length was stored ahead --- m stays even when s gets shorter</span></em>
 <strong><span class="tok-k">fn</span></strong> stale <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> xs .
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> len s .
-  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> xs .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> len s .
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i m . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (wrap_add t (widen <strong><span class="tok-t">u64</span></strong> (index s i))) .
     <strong><span class="tok-k">set</span></strong> s (subslice s <span class="tok-n">0</span> <span class="tok-n">2</span>) .
@@ -850,8 +850,8 @@ $ lowentc --run stale stale_len.low [1,2,3,4]
 
 <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <em><span class="tok-c">rem ✘ with `le` it also runs when i is 3 --- a slice of length 3 has indexes 0, 1, 2 only</span></em>
   <strong><span class="tok-k">while</span></strong> le i (len xs) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> t (add t (widen <strong><span class="tok-t">u64</span></strong> (index xs i))) .
@@ -928,7 +928,7 @@ middle([10,20,30,40,50]) = 2
 
 <em><span class="tok-c">rem ✘ taking a string literal as mut slice and changing it; a literal is read-only bytes baked into the program</span></em>
 <strong><span class="tok-k">fn</span></strong> poke <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">be</span></strong> <span class="tok-s">"</span><span class="tok-s">abc</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-s">"</span><span class="tok-s">abc</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">set</span></strong> (index buf <span class="tok-n">0</span>) <span class="tok-n">65</span> .
   <strong><span class="tok-k">return</span></strong> index buf <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>

@@ -28,31 +28,31 @@ proc main .
   output u8 .
   effects alloc io .
 do
-  let g option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  let g be option mut slice u8 alloc_bytes al capacity 4096 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
+  let buf be mut slice u8 some_value g .
 
-  let rn option u64 . be read_in k 0 buf .
+  let rn be option u64 read_in k 0 buf .
   guard is_some rn . else return 71 .
-  let got u64 be some_value rn .
+  let got be u64 some_value rn .
   guard ne got 0 . else return 46 .
-  let src slice u8 be subslice buf 0 got .
+  let src be slice u8 subslice buf 0 got .
 
   rem ── 호출자가 드는 자리 둘 — 이것이 이 라이브러리의 비용 전부다 ──
-  let gs option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  let gs be option mut slice u8 alloc_bytes al capacity 4096 .
   guard is_some gs . else return 70 .
-  let scratch mut slice u8 . be some_value gs .
+  let scratch be mut slice u8 some_value gs .
 
-  let go option mut slice u8 . . be alloc_bytes al capacity 4096 .
+  let go be option mut slice u8 alloc_bytes al capacity 4096 .
   guard is_some go . else return 70 .
-  let out mut slice u8 . be some_value go .
+  let out be mut slice u8 some_value go .
 
   rem ── 벗기기: 실패가 **값으로** 돌아온다 ──
-  let d_r result (option u64) pem.pem_error . be pem.unwrap src "CERTIFICATE" scratch out .
+  let d_r be result (option u64) pem.pem_error pem.unwrap src "CERTIFICATE" scratch out .
   guard is_ok d_r . else return 0 .
-  let d option u64 . be ok_value d_r .
+  let d be option u64 ok_value d_r .
   guard is_some d . else return 45 .
 
-  let n u64 be some_value d .
+  let n be u64 some_value d .
   return narrow_wrap u8 n .
 end

@@ -86,7 +86,7 @@ errors no_room .
 do
   rem ★ 내용 + 널 1 바이트가 들어가야 한다(D2 봉인). len + |s| + 1 ≤ len(buf).
   guard le (add (add (field b len) (len s)) 1) (len buf) . else return error no_room .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set (index buf (add (field b len) i)) (index s i) .
     set i (add i 1) .
@@ -107,10 +107,10 @@ do
   rem   없으므로 봉인도 안 한다. 전에는 밑으로 감긴 `avail` 로 경계 밖에 썼다(2026-09-04).
   guard lt (field b len) (len buf) . else return 0 .
   rem ★ 내용 용량 = len(buf) − 1 (널 봉인 자리 예약, D2).
-  var avail u64 be sub (sub (len buf) 1) (field b len) .
-  var n u64 be len s .
+  var avail be u64 sub (sub (len buf) 1) (field b len) .
+  var n be u64 len s .
   if gt n avail . do set n avail . end
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i n . do
     set (index buf (add (field b len) i)) (index s i) .
     set i (add i 1) .
@@ -135,13 +135,13 @@ do
   rem ★ 새 자리에 내용 + 널 1 바이트가 들어가야 한다(D2 봉인).
   guard le (add (add (field b len) (len s)) 1) (len new_buf) . else return error no_room .
   rem 옛 내용을 새 자리로 옮긴다
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (field b len) . do
     set (index new_buf i) (index old i) .
     set i (add i 1) .
   end
   rem 그 뒤에 새 바이트를 잇는다
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j (len s) . do
     set (index new_buf (add (field b len) j)) (index s j) .
     set j (add j 1) .

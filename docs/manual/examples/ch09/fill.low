@@ -6,7 +6,7 @@ proc fill_two input xs mut slice u8 . output u64 . effects state .
 do
   set (index xs 0) 10 .
   set (index xs 1) 20 .
-  var s u64 be 0 .
+  var s be u64 0 .
   for x xs do
     set s (add s (widen u64 x)) .
   end

@@ -48,18 +48,18 @@ do
   rem   둘째부터 맞아떨어져 문제가 안 보였다. **가장 작은 입력이 가장 늦게 시험된다.**
   rem   ⇒ 2026-09-20(X-0036): 그 op 이 이제 `option` 을 답한다. 「없다」가 **타입**이 됐으므로
   rem     이 자리에서 규약을 외울 일이 없다.
-  let bo option u64 . be pem.find_from win "-----BEGIN CERTIFICATE-----" from .
+  let bo be option u64 pem.find_from win "-----BEGIN CERTIFICATE-----" from .
   guard is_some bo . else return 0 .
-  let b u64 be some_value bo .
-  let eo option u64 . be pem.find_from win "-----END CERTIFICATE-----" b .
+  let b be u64 some_value bo .
+  let eo be option u64 pem.find_from win "-----END CERTIFICATE-----" b .
   guard is_some eo . else return 0 .
-  let e u64 be some_value eo .
-  let stop u64 be add e 25 .
+  let e be u64 some_value eo .
+  let stop be u64 add e 25 .
   guard le stop (len win) . else return 0 .
   rem ★ `pem.unwrap` 도 이제 «자리가 모자라다» 를 실패로 말한다 — 그 말을 삼키지 않는다.
-  let gr result (option u64) pem.pem_error . be pem.unwrap (subslice win b stop) "CERTIFICATE" scratch out .
+  let gr be result (option u64) pem.pem_error pem.unwrap (subslice win b stop) "CERTIFICATE" scratch out .
   guard is_ok gr . else return 0 .
-  let got option u64 . be ok_value gr .
+  let got be option u64 ok_value gr .
   guard is_some got . else return stop .
   set (index dn 0) (some_value got) .
   return stop .
@@ -83,22 +83,22 @@ errors unreadable .
 do
   guard ge (len win) 16384 . else return error short_workspace .
   guard ge (len dn) 1 . else return error short_workspace .
-  let ho result files.handle files.file_error . be files.open fs path 0 .
+  let ho be result files.handle files.file_error files.open fs path 0 .
   guard is_ok ho . else return error unreadable .
-  var h owned files.handle be ok_value ho .
+  var h be owned files.handle ok_value ho .
 
-  var keep u64 be 0 .
-  var found u64 be 0 .
-  var done u64 be 0 .
-  var rounds u64 be 0 .
-  var failed u64 be 0 .
-  var cut u64 be 0 .
+  var keep be u64 0 .
+  var found be u64 0 .
+  var done be u64 0 .
+  var rounds be u64 0 .
+  var failed be u64 0 .
+  var cut be u64 0 .
   while eq done 0 . do
-    let rr result (option u64) files.file_error . be files.read fs h (subslice win keep (len win)) .
-    var got u64 be 0 .
-    var bad u64 be 0 .
+    let rr be result (option u64) files.file_error files.read fs h (subslice win keep (len win)) .
+    var got be u64 0 .
+    var bad be u64 0 .
     if is_ok rr . do
-      let mo option u64 . be ok_value rr .
+      let mo be option u64 ok_value rr .
       if is_some mo . do  set got (some_value mo) . end
     end
     if eq (is_ok rr) false . do  set bad 1 . end
@@ -108,16 +108,16 @@ do
     end
 
     if eq done 0 . do
-      let have u64 be add keep got .
-      var at u64 be 0 .
-      var scanning u64 be 1 .
+      let have be u64 add keep got .
+      var at be u64 0 .
+      var scanning be u64 1 .
       while eq scanning 1 . do
-        let stop u64 be one (subslice win 0 have) at scratch out dn .
+        let stop be u64 one (subslice win 0 have) at scratch out dn .
         if eq stop 0 . do  set scanning 0 . end
         if eq scanning 1 . do
           set at stop .
           if gt (index dn 0) 0 . do
-            let cand slice u8 be subslice out 0 (index dn 0) .
+            let cand be slice u8 subslice out 0 (index dn 0) .
             if verify.dn_eq cand (x509.subject_off cand) want wo . do
               set found (index dn 0) .
               set scanning 0 .
@@ -129,7 +129,7 @@ do
       if eq got 0 . do  set done 1 . end
       if eq done 0 . do
         rem 남은 꼬리를 앞으로 당긴다.
-        var i u64 be 0 .
+        var i be u64 0 .
         while lt i (sub have at) . do
           set (index win i) (index win (add at i)) .
           set i (add i 1) .
@@ -148,7 +148,7 @@ do
       set done 1 .
     end
   end
-  let c2 result void files.file_error . be files.close fs h .
+  let c2 be result void files.file_error files.close fs h .
   drop c2 .
   rem 찾았으면 찾은 것이다. 못 찾았는데 끝까지 읽지 못했으면 «없다» 가 아니라 «재지 못했다» 다.
   if gt found 0 . do  return ok found . end

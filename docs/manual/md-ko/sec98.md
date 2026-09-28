@@ -19,10 +19,10 @@ L0 — 순수 계산
 > > 서버 쪽 요청 파싱만 한다(응답 파싱 없음). 전송이 없다 — 바이트열은 부르는 쪽이 모아 온다. **청크 전송(`Transfer-Encoding: chunked`)을 짓지 않았다** — 그 헤더를 찾아 주기만 하므로 부르는 쪽이 거절해야 한다. 트레일러 · 여러 줄 헤더(obs-fold) · URL 퍼센트 해체 · HTTP/2 가 없다. HTTP/1.0 을 받지 않는다 — 지속 연결 규칙이 다르고 그것을 짓지 않았다.
 
 ```lowent
-let t u64 be http.target_off b .
-let n u64 be http.target_len b .
+let t be u64 http.target_off b .
+let n be u64 http.target_len b .
 guard gt n 0 . else return 0 .
-let target slice u8 . be subslice b t (add t n) .
+let target be slice u8 subslice b t (add t n) .
 ```
 
 | **op** | **하는 일** |

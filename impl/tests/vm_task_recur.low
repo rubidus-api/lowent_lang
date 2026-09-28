@@ -25,7 +25,7 @@ end
 
 rem spawn → await.  재귀가 힙 프레임 체인에서 자라므로 태스크도 100 을 판다(창 없음).
 proc drive output u64 . effects state . do
-  var h u64 be 0 .
+  var h be u64 0 .
   task_group do
     set h spawn task .
   end

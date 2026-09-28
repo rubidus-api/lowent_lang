@@ -9,7 +9,7 @@
 안다. 정수 fd 를 그대로 들면 닫기를 잊어도 아무도 모르므로, 이 모듈이 *잊을 수 없는 값*(`owned handle`)으로 감싼다.
 
 ```lowent
-let n result u64 files.file_error . be files.slurp fs "data.txt" buf .
+let n be result u64 files.file_error files.slurp fs "data.txt" buf .
 ```
 
 #dtable(
@@ -50,26 +50,26 @@ let n result u64 files.file_error . be files.slurp fs "data.txt" buf .
 
 ```lowent
 proc main input fs cap file_system . input al cap allocator . input a cap args . output u8 . effects alloc io . do
-  let dpath option slice u8 . be arg a 0 .
+  let dpath be option slice u8 arg a 0 .
   guard is_some dpath . else return 64 .
-  let g option mut slice u8 . . be alloc_bytes al capacity 256 .
+  let g be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
-  let di result files.dir_handle files.file_error . be files.open_dir fs (some_value dpath) .
+  let buf be mut slice u8 some_value g .
+  let di be result files.dir_handle files.file_error files.open_dir fs (some_value dpath) .
   guard is_ok di . else return 71 .
-  var dh owned files.dir_handle be ok_value di .
-  var total u64 be 0 .
-  var going bool be true .
+  var dh be owned files.dir_handle ok_value di .
+  var total be u64 0 .
+  var going be bool true .
   while going . do
-    let n result (option u64) files.file_error . be files.read_dir fs dh buf .
+    let n be result (option u64) files.file_error files.read_dir fs dh buf .
     if eq (is_ok n) false . do set going false . end
     if is_ok n . do
-      let nvo option u64 . be ok_value n .
+      let nvo be option u64 ok_value n .
       if eq (is_some nvo) false . do set going false . end
       if is_some nvo . do set total (add total (some_value nvo)) . end
     end
   end
-  let c result void files.file_error . be files.close_dir fs dh .
+  let c be result void files.file_error files.close_dir fs dh .
   guard is_ok c . else return 72 .
   return (narrow u8 total) .
 end

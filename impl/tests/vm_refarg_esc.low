@@ -29,12 +29,12 @@ rem   `make_ref` 가 돌려준 참조는 그 op 의 프레임을 가리키는데
 rem ★ 이 op 은 **일부러 탈출한다** — 정적 검사가 E-ESCAPE 로 잡는 것이 옳고, 아래는
 rem   그것을 통과했다 치고 **동적 검사도 잡는지** 보는 자리다(두 겹으로 지킨다).
 fn make_ref output ref pt . do
-  var inner pt be make pt do x 1 . end .
+  var inner be pt make pt do x 1 . end .
   return ref inner .
 end
 
 proc dangling output u64 . effects none . do
-  let r ref pt . be make_ref .
+  let r be ref pt make_ref .
   return peek r .
 end
 
@@ -42,7 +42,7 @@ rem ── 음성: 안전 성질이 살아 있다는 증거 (VM 에서만 트랩
 
 rem ★★★ 공유 참조(`ref`)로 **쓰려 하면** 거절된다. 생 포인터였다면 조용히 성공했을 자리다.
 proc write_via_shared output u64 . effects none . do
-  var q pt be make pt do x 5 . end .
-  let v u64 be bump (ref q) .
+  var q be pt make pt do x 5 . end .
+  let v be u64 bump (ref q) .
   return v .
 end

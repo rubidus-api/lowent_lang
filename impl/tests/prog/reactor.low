@@ -115,7 +115,7 @@ proc on_systick .
   output void .
   effects device state .
 do
-  var q tickq . be view tickq .        rem ★ 줄 사람이 없어도 열린다 — 벡터가 권한이다
+  var q be tickq view tickq .        rem ★ 줄 사람이 없어도 열린다 — 벡터가 권한이다
   post q .                             rem ★ 그리고 **라이브러리에 넘어간다**
   return .
 end
@@ -128,14 +128,14 @@ unsafe proc reset .
   effects device unsafe state .
 do
   rem ① 클럭 → ② LED 핀 출력 → ③ SysTick 1kHz
-  var c rcc . be view rcc .
+  var c be rcc view rcc .
   write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
-  var g gpioa . be view gpioa .
-  var m u32 . be read_volatile g moder .
+  var g be gpioa view gpioa .
+  var m be u32 read_volatile g moder .
   set m (bit_and m (bit_not (shl 3 10))) .
   set m (bit_or m (shl 1 10)) .
   write_volatile g moder m .
-  var s systick . be view systick .
+  var s be systick view systick .
   write_volatile s load 15999 .
   write_volatile s val 0 .
   write_volatile s ctrl 7 .
@@ -144,10 +144,10 @@ do
   rem   ISR 이 올린 눈금을 루프가 내려 받는다. 한쪽만 쓰는 칸이 각각 하나이므로(SPSC)
   rem   단일 코어에서 원자 명령이 필요 없다 — 그것이 T1 프로파일이 atomic 을 금지하고도
   rem   ISR→잡 이 설 수 있는 이유다(RFC-0039 §116 vs §8-4 의 긴장).
-  var q tickq . be view tickq .
+  var q be tickq view tickq .
   while true . do
     if (gt (pending q) 0) . do
-      var cur u32 . be read_volatile g odr .
+      var cur be u32 read_volatile g odr .
       write_volatile g odr (bit_xor cur led_bit) .
       take q .
     end

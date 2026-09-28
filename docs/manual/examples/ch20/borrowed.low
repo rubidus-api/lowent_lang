@@ -5,13 +5,13 @@ use allocs .
 
 proc carve input buf mut slice u8 . output u64 . effects state .
 do
-  var a allocs.bump_bytes be spawn actor allocs.bump_bytes .
-  let room u64 be send a init buf .
-  let p option mut slice u8 be send a reserve 3 .
+  var a be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let room be u64 send a init buf .
+  let p be option mut slice u8 send a reserve 3 .
   guard is_some p . else return 91 .
-  let pv mut slice u8 be some_value p .
+  let pv be mut slice u8 some_value p .
   set (index pv 0) 65 .
-  let q option mut slice u8 be send a reserve 99 .
+  let q be option mut slice u8 send a reserve 99 .
   guard not (is_some q) . else return 92 .
   return send a used .
 end

@@ -68,7 +68,7 @@ Searches headings and index terms --- not the full text
 [6 Locals — let and var](ch06.md)
 
 - [6.1 The word says whether it changes](ch06.md#s6-1)
-- [6.2 Write the type, or leave it to the value](ch06.md#s6-2)
+- [6.2 The type goes in front of the value](ch06.md#s6-2)
 - [6.3 No name without a value](ch06.md#s6-3)
 - [6.4 How long a local lives](ch06.md#s6-4)
 - [6.5 if yields no value](ch06.md#s6-5)

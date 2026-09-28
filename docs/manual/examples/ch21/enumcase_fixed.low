@@ -5,7 +5,7 @@ rem run: describe 500
 use sizes from "sizes.low" .
 
 fn describe input n u64 . output u64 . do
-  let k sizes.kind be sizes.classify n .
+  let k be sizes.kind sizes.classify n .
   match k do
     rem ko: 갈래 이름만 적는다 — 타입(sizes.kind)이 어느 갈래인지 정한다 /// en: write only the variant name; the type (sizes.kind) decides which variant it is
     case small do

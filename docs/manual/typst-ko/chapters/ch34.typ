@@ -167,7 +167,7 @@
   [`struct score do satisfies sortgen.ordered . … end` + `fn score.less`], [타입이 정렬 기준을 들고 온다], [모드 인자 대신 타입 --- `less` 는 엄격하게],
   [`sortgen.sort_by score rs` · `sort_fast`], [안정 삽입정렬 · 큰 배열용 quicksort], [고르는 기준이 이름에 있다],
   [`hashmap.put slots k v` · `lookup` · `del`], [호출자 슬라이스 위의 `u64 → u64` 맵], [가득 차면 `false` --- 삭제는 묘비],
-  [`let vo … using hb be vecgen.open u32 4 .`], [할당기를 받아 자라는 벡터를 연다], [`using` 은 처음 받는 자리에만],
+  [`let vo using hb be … vecgen.open u32 4 .`], [할당기를 받아 자라는 벡터를 연다], [`using` 은 처음 받는 자리에만],
   [`vecgen.append u32 allocs.heap_bytes v x`], [자라며 넣는다 --- 실패하면 `false`], [효과가 할당기 타입을 따라간다(`state via a`)],
   [`spsc`], [락 없는 단일 생산자·단일 소비자 링 버퍼], [원자 연산 --- 증명을 빌렸다],
 )

@@ -2,14 +2,14 @@ fn good .
   input x u32 . input y u32 .
   output u32 .
 do
-  var z u32 be add x y .
+  var z be u32 add x y .
   return z .
 end
 
 fn bad_var .
   output u32 .
 do
-  var i u32 be true .
+  var i be u32 true .
   return i .
 end
 

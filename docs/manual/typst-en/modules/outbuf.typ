@@ -9,11 +9,11 @@ buffer and flushes only when full, reducing system calls from the number of byte
 what was gathered" *at compile time*.
 
 ```lowent
-var p owned outbuf.pending be outbuf.buf_open 1 .
-let w result (owned outbuf.pending) outbuf.io_error . be outbuf.buf_write out p buf "hi\n" .
+var p be owned outbuf.pending outbuf.buf_open 1 .
+let w be result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out p buf "hi\n" .
 guard is_ok w . else return 1 .
 set p (ok_value w) .
-let r result void outbuf.io_error . be outbuf.buf_finish out p buf .
+let r be result void outbuf.io_error outbuf.buf_finish out p buf .
 ```
 
 *What is owned is not the buffer but the bytes not yet sent.* The buffer stays the caller's (the same discipline as #modref("fmt")[`fmt`]), and `owned` guards the unflushed
@@ -49,28 +49,28 @@ use fmt .
 use outbuf .
 
 proc main input out cap io . input al cap allocator . output u8 . effects alloc io . do
-  let g option mut slice u8 . . be alloc_bytes al capacity 16 .
+  let g be option mut slice u8 alloc_bytes al capacity 16 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
-  let ng option mut slice u8 . . be alloc_bytes al capacity 32 .
+  let buf be mut slice u8 some_value g .
+  let ng be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some ng . else return 71 .
-  let nb mut slice u8 . be some_value ng .
-  var p owned outbuf.pending be outbuf.buf_open 1 .
-  var i u64 be 1 .
+  let nb be mut slice u8 some_value ng .
+  var p be owned outbuf.pending outbuf.buf_open 1 .
+  var i be u64 1 .
   while le i 5 . do
-    let a option u64 . be fmt.put_str nb 0 "line " .
+    let a be option u64 fmt.put_str nb 0 "line " .
     guard is_some a . else return 72 .
-    let b option u64 . be fmt.put_u64 nb (some_value a) i .
+    let b be option u64 fmt.put_u64 nb (some_value a) i .
     guard is_some b . else return 73 .
-    let c option u64 . be fmt.put_nl nb (some_value b) .
+    let c be option u64 fmt.put_nl nb (some_value b) .
     guard is_some c . else return 74 .
-    let w result (owned outbuf.pending) outbuf.io_error .
-      be outbuf.buf_write out p buf (subslice nb 0 (some_value c)) .
+    let w be result (owned outbuf.pending) outbuf.io_error
+      outbuf.buf_write out p buf (subslice nb 0 (some_value c)) .
     guard is_ok w . else return 75 .
     set p (ok_value w) .
     set i (add i 1) .
   end
-  let f result void outbuf.io_error . be outbuf.buf_finish out p buf .
+  let f be result void outbuf.io_error outbuf.buf_finish out p buf .
   guard is_ok f . else return 76 .
   return 0 .
 end

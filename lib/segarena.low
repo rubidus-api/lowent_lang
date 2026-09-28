@@ -69,8 +69,8 @@ export proc grow input comptime b type . input a mut arena b . input dir mut sli
 do
   guard le (field a kbits) 20 . else return none .
   guard lt (field a nseg) (len dir) . else return none .
-  let width u64 be shl 1 (field a kbits) .
-  let base u64 be mul (field a nseg) width .
+  let width be u64 shl 1 (field a kbits) .
+  let base be u64 mul (field a nseg) width .
   guard le (add base width) cap0 . else return none .
   set (index dir (field a nseg)) base .
   set (field a nseg) (add (field a nseg) 1) .
@@ -84,10 +84,10 @@ export proc at input comptime b type . input a arena b . input dir slice u64 . .
   input mem slice u64 . . input i u64 . output option u64 . effects none .
 do
   guard le (field a kbits) 20 . else return none .
-  let s u64 be shr i (field a kbits) .
+  let s be u64 shr i (field a kbits) .
   guard lt s (field a nseg) . else return none .
   guard lt s (len dir) . else return none .
-  let at0 u64 be add (index dir s) (bit_and i (sub (shl 1 (field a kbits)) 1)) .
+  let at0 be u64 add (index dir s) (bit_and i (sub (shl 1 (field a kbits)) 1)) .
   guard lt at0 (len mem) . else return none .
   return some (index mem at0) .
 end
@@ -107,14 +107,14 @@ export proc sum_seg input comptime b type . input a arena b . input dir slice u6
   input mem slice u64 . . input s u64 . output u64 . effects none .
 do
   guard le (field a kbits) 20 . else return 0 .
-  let bo option u64 . be walk_base b a dir s .
+  let bo be option u64 walk_base b a dir s .
   guard is_some bo . else return 0 .
-  let base u64 be some_value bo .
-  let width u64 be shl 1 (field a kbits) .
-  var acc u64 be 0 .
-  var k u64 be 0 .
+  let base be u64 some_value bo .
+  let width be u64 shl 1 (field a kbits) .
+  var acc be u64 0 .
+  var k be u64 0 .
   while lt k width . do
-    let at0 u64 be add base k .
+    let at0 be u64 add base k .
     if lt at0 (len mem) . do
       set acc (wrap_add acc (index mem at0)) .
     end
@@ -132,12 +132,12 @@ do
   rem   그 전에 `mul s width` 에서 넘쳐 트랩이었다(2026-09-04 보안 검토). `nseg ≤ len dir` 이고 조각의
   rem   시작 자리는 `grow` 가 `cap0` 안에 두었으므로, 이 검사를 지난 곱셈은 넘치지 않는다.
   guard lt s (field a nseg) . else return 0 .
-  let width u64 be shl 1 (field a kbits) .
-  var acc u64 be 0 .
-  var k u64 be 0 .
+  let width be u64 shl 1 (field a kbits) .
+  var acc be u64 0 .
+  var k be u64 0 .
   while lt k width . do
-    let i u64 be add (mul s width) k .
-    let v option u64 . be at b a dir mem i .
+    let i be u64 add (mul s width) k .
+    let v be option u64 at b a dir mem i .
     if is_some v . do set acc (wrap_add acc (some_value v)) . end
     set k (add k 1) .
   end

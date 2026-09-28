@@ -128,9 +128,9 @@ end
 ```
 
 ```lowent 예제: 넓히기와 좁히기
-let small u8 be 200 .
-let wide u64 be widen u64 small .
-let back u8 be narrow u8 wide .
+let small be u8 200 .
+let wide be u64 widen u64 small .
+let back be u8 narrow u8 wide .
 ```
 
 > [!주의] 음수를 부호 없는 타입으로 넓힐 수 없다
@@ -362,7 +362,7 @@ end
 rem 받는 쪽 ① — 묻고 꺼낸다.
 fn use_ask input k u8 . output u8 .
 do
-  let r option u8 . be lookup k .
+  let r be option u8 lookup k .
   guard is_some r . else return 255 .
   return some_value r .
 end
@@ -397,7 +397,7 @@ end
 rem 받는 쪽 ① — 묻고 꺼낸다.
 fn use_ask input a u8 . output u8 .
 do
-  let r result u8 io_error . . be halve a .
+  let r be result u8 io_error halve a .
   guard not (is_error r) . else return 0 .
   return ok_value r .
 end
@@ -406,7 +406,7 @@ rem 받는 쪽 ② — try 는 실패를 그대로 위로 넘긴다.
 fn use_try input a u8 . output result u8 io_error .
   errors too_big gt a 200 .
 do
-  let v u8 be try halve a .
+  let v be u8 try halve a .
   return ok (add v 1) .
 end
 ```
@@ -627,7 +627,7 @@ struct wire_header do
 end
 
 fn hdr_kind input b bytes . output u64 . do
-  var v view wire_header . be view wire_header b .
+  var v be view wire_header view wire_header b .
   return widen u64 (field v kind) .
 end
 

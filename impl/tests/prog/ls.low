@@ -21,32 +21,32 @@ proc main .
   output u8 .
   effects alloc io .
 do
-  let dpath option slice u8 . be arg a 0 .
+  let dpath be option slice u8 arg a 0 .
   guard is_some dpath . else return 64 .
 
-  let g option mut slice u8 . . be alloc_bytes al capacity 256 .
+  let g be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
+  let buf be mut slice u8 some_value g .
 
-  let di result files.dir_handle files.file_error . be files.open_dir fs (some_value dpath) .
+  let di be result files.dir_handle files.file_error files.open_dir fs (some_value dpath) .
   guard is_ok di . else return 71 .
-  var dh owned files.dir_handle be ok_value di .
+  var dh be owned files.dir_handle ok_value di .
 
-  var total u64 be 0 .
-  var going bool be true .
+  var total be u64 0 .
+  var going be bool true .
   while going . do
     rem ★ 세 자리다(2026-08-15): 실패는 `error`, **끝은 `ok none`**.
-    let n result (option u64) files.file_error . be files.read_dir fs dh buf .
+    let n be result (option u64) files.file_error files.read_dir fs dh buf .
     if eq (is_ok n) false . do set going false . end
     if is_ok n . do
-      let nvo option u64 . be ok_value n .
+      let nvo be option u64 ok_value n .
       if eq (is_some nvo) false . do set going false . end
-      var nl u64 be 0 .
+      var nl be u64 0 .
       if is_some nvo . do set nl (some_value nvo) . end
       if eq nl 0 . do set going false . end          rem 끝 . .
       if gt nl 0 . do
         rem `.`(길이 1) 와 `..`(길이 2) 를 거른다 — readdir 이 낸 것이니 프로그램이 판단한다
-        var is_dot bool be false .
+        var is_dot be bool false .
         if eq nl 1 . do
           if eq (index buf 0) 46 . do set is_dot true . end
         end
@@ -60,7 +60,7 @@ do
     end
   end
 
-  let c result void files.file_error . be files.close_dir fs dh .
+  let c be result void files.file_error files.close_dir fs dh .
   guard is_ok c . else return 72 .
   return (narrow u8 total) .                          rem dirfix = 14
 end

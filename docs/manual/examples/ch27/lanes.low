@@ -8,11 +8,11 @@ rem ko: 네 레인을 한 값으로 읽고, 5 보다 큰 레인은 5 로 눌러 
 proc capped_sum input b slice u8 . output u32 . effects none .
   requires ge (len b) 16 .
 do
-  var xs slice u32 be view_array u32 b .
-  var v vec u32 4 be load xs 0 .
-  var lim vec u32 4 be splat 5 .
-  var over mask 4 be gt v lim .
-  var capped vec u32 4 be select over lim v .
+  var xs be slice u32 view_array u32 b .
+  var v be vec u32 4 load xs 0 .
+  var lim be vec u32 4 splat 5 .
+  var over be mask 4 gt v lim .
+  var capped be vec u32 4 select over lim v .
   return reduce_add capped .
 end
 
@@ -20,8 +20,8 @@ rem ko: 레인을 가로질러 가장 큰 것 · 가장 작은 것 · 모두 곱
 proc extremes input b slice u8 . output u32 . effects none .
   requires ge (len b) 16 .
 do
-  var xs slice u32 be view_array u32 b .
-  var v vec u32 4 be load xs 0 .
+  var xs be slice u32 view_array u32 b .
+  var v be vec u32 4 load xs 0 .
   return add (mul (reduce_max v) 1000) (add (mul (reduce_min v) 100) (reduce_mul v)) .
 end
 
@@ -30,11 +30,11 @@ proc turned input b slice u8 . input out mut slice u8 . output u32 . effects non
   requires ge (len b) 16 .
   requires ge (len out) 16 .
 do
-  var xs slice u32 be view_array u32 b .
-  var ys mut slice u32 be view_array u32 out .
-  var v vec u32 4 be load xs 0 .
-  var r vec u32 4 be reverse v .
-  var t vec u32 4 be rotate r 1 .
+  var xs be slice u32 view_array u32 b .
+  var ys be mut slice u32 view_array u32 out .
+  var v be vec u32 4 load xs 0 .
+  var r be vec u32 4 reverse v .
+  var t be vec u32 4 rotate r 1 .
   store ys 0 t .
   return reduce_add t .
 end

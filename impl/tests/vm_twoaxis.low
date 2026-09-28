@@ -34,7 +34,7 @@ export proc open .
   effects state .
   requires allocs.byte_allocator a .
 do
-  let b option mut slice u8 . be send al reserve (mul cap0 (size_of t)) .
+  let b be option mut slice u8 send al reserve (mul cap0 (size_of t)) .
   guard is_some b . else return none .
   return some (make gv t a do al al . store (some_value b) . n 0 . end) .
 end
@@ -49,10 +49,10 @@ export proc add_one .
   effects none .
   requires allocs.byte_allocator a .
 do
-  let room u64 be div (len (field g store)) (size_of t) .
+  let room be u64 div (len (field g store)) (size_of t) .
   guard lt (field g n) room . else return false .
-  var cur mut slice u8 . be (field g store) .
-  var cells mut slice t . be view_array t cur .
+  var cur be mut slice u8 (field g store) .
+  var cells be mut slice t view_array t cur .
   set (index cells (field g n)) x .
   set (field g n) (add (field g n) 1) .
   return true .
@@ -67,8 +67,8 @@ export fn get .
   requires allocs.byte_allocator a .
 do
   guard lt i (field g n) . else return none .
-  var cur mut slice u8 . be (field g store) .
-  var cells mut slice t . be view_array t cur .
+  var cur be mut slice u8 (field g store) .
+  var cells be mut slice t view_array t cur .
   return some (index cells i) .
 end
 
@@ -81,22 +81,22 @@ end
 
 rem ── 원소 축: 같은 틀에서 u32 컨테이너 ────────────────────────────────────────
 proc part_axis_t input al cap allocator . output u8 . effects alloc state . do
-  let mo option mut slice u8 . be alloc_bytes al capacity 256 .
+  let mo be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some mo . else return 1 .
-  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  var c u64 be send bump init (some_value mo) .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c be u64 send bump init (some_value mo) .
 
-  let go option (gv u32 allocs.bump_bytes) . using bump be open u32 4 .
+  let go using bump be option (gv u32 allocs.bump_bytes) open u32 4 .
   guard is_some go . else return 2 .
-  var g gv u32 allocs.bump_bytes be some_value go .
+  var g be (gv u32 allocs.bump_bytes) some_value go .
   guard add_one u32 allocs.bump_bytes g 258 . else return 3 .
   guard add_one u32 allocs.bump_bytes g 3 . else return 4 .
   guard eq (count_of u32 allocs.bump_bytes g) 2 . else return 5 .
 
-  let e0 option u32 . be get u32 allocs.bump_bytes g 0 .
+  let e0 be option u32 get u32 allocs.bump_bytes g 0 .
   guard is_some e0 . else return 6 .
   guard eq (some_value e0) 258 . else return 7 .
-  let e1 option u32 . be get u32 allocs.bump_bytes g 1 .
+  let e1 be option u32 get u32 allocs.bump_bytes g 1 .
   guard is_some e1 . else return 8 .
   guard eq (some_value e1) 3 . else return 9 .
 
@@ -110,19 +110,19 @@ end
 
 rem ── 같은 틀·다른 원소폭. 원소 축이 실제로 도는지. ────────────────────────────
 proc part_u16 input al cap allocator . output u8 . effects alloc state . do
-  let mo option mut slice u8 . be alloc_bytes al capacity 256 .
+  let mo be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some mo . else return 1 .
-  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  var c u64 be send bump init (some_value mo) .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c be u64 send bump init (some_value mo) .
 
-  let go option (gv u16 allocs.bump_bytes) . using bump be open u16 3 .
+  let go using bump be option (gv u16 allocs.bump_bytes) open u16 3 .
   guard is_some go . else return 2 .
-  var g gv u16 allocs.bump_bytes be some_value go .
+  var g be (gv u16 allocs.bump_bytes) some_value go .
   guard add_one u16 allocs.bump_bytes g 1000 . else return 3 .
   guard add_one u16 allocs.bump_bytes g 2000 . else return 4 .
   guard add_one u16 allocs.bump_bytes g 3000 . else return 5 .
   guard eq (add_one u16 allocs.bump_bytes g 4000) false . else return 6 .
-  let e2 option u16 . be get u16 allocs.bump_bytes g 2 .
+  let e2 be option u16 get u16 allocs.bump_bytes g 2 .
   guard is_some e2 . else return 7 .
   guard eq (some_value e2) 3000 . else return 8 .
   return 43 .
@@ -147,9 +147,9 @@ export actor pair_bytes do
 
   rem ★ 한 번에 **두 배**를 떼어 준다 — bump 와 **다른 정책**이라 타입이 달라야 할 이유가 된다.
   proc reserve input n u64 . output option mut slice u8 . . effects state . do
-    let want u64 be mul n 2 .
+    let want be u64 mul n 2 .
     guard le (add off want) (len mem) . else return none .
-    let v mut slice u8 . be subslice mem off (add off want) .
+    let v be mut slice u8 subslice mem off (add off want) .
     set last off .
     set off (add off want) .
     return (some v) .
@@ -176,15 +176,15 @@ export actor pair_bytes do
 end
 
 proc part_pair input al cap allocator . output u8 . effects alloc state . do
-  let mo option mut slice u8 . be alloc_bytes al capacity 256 .
+  let mo be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some mo . else return 1 .
-  var pp pair_bytes be spawn actor pair_bytes . .
-  var c u64 be send pp init (some_value mo) .
+  var pp be pair_bytes spawn actor pair_bytes . .
+  var c be u64 send pp init (some_value mo) .
 
   rem 같은 `open`·`add_one`·`get` — 얼로케이터 타입만 다르다.
-  let go option (gv u32 pair_bytes) . using pp be open u32 2 .
+  let go using pp be option (gv u32 pair_bytes) open u32 2 .
   guard is_some go . else return 2 .
-  var g gv u32 pair_bytes be some_value go .
+  var g be (gv u32 pair_bytes) some_value go .
   rem ★ 두 배를 떼어 줬으므로 방은 2 가 아니라 **4** 다 — 정책이 컨테이너 밖에 있다는 증거.
   guard add_one u32 pair_bytes g 5 . else return 3 .
   guard add_one u32 pair_bytes g 6 . else return 4 .
@@ -192,7 +192,7 @@ proc part_pair input al cap allocator . output u8 . effects alloc state . do
   guard add_one u32 pair_bytes g 8 . else return 6 .
   guard eq (add_one u32 pair_bytes g 9) false . else return 7 .
   guard eq (count_of u32 pair_bytes g) 4 . else return 8 .
-  let e3 option u32 . be get u32 pair_bytes g 3 .
+  let e3 be option u32 get u32 pair_bytes g 3 .
   guard is_some e3 . else return 9 .
   guard eq (some_value e3) 8 . else return 10 .
   return 44 .

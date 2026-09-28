@@ -28,7 +28,7 @@ rem   루프는 `outbuf.write_all` 이 진다(X-0037) — 여기는 그것을 �
 rem   받는 모양)에 맞추는 여섯 줄이다.
 proc emit input out cap io . input d u64 . input s slice u8 . output u64 . effects io .
 do
-  let r option u64 . be outbuf.write_all out d s .
+  let r be option u64 outbuf.write_all out d s .
   guard is_some r . else return 0 .
   return some_value r .
 end
@@ -48,8 +48,8 @@ fn chunk_size  output u64 . do return 65536 . end
 rem 바이트 사전순: a < b 인가.
 fn less input a slice u8 . input b slice u8 . output bool .
 do
-  var i u64 be 0 .
-  var ans u64 be 2 .
+  var i be u64 0 .
+  var ans be u64 2 .
   while lt i (len a) . do
     if lt i (len b) . do
       if eq ans 2 . do
@@ -70,8 +70,8 @@ rem 같은 바이트열인가.
 fn same_bytes input a slice u8 . input b slice u8 . output bool .
 do
   guard eq (len a) (len b) . else return false .
-  var i u64 be 0 .
-  var verd bool be true .
+  var i be u64 0 .
+  var verd be bool true .
   while lt i (len a) . do
     if ne (index a i) (index b i) . do set verd false . end
     set i (add i 1) .
@@ -95,26 +95,26 @@ proc list_dir .
   effects io .
 do
   set (index st 0) 0 .
-  let di result files.dir_handle files.file_error . be files.open_dir fs path .
+  let di be result files.dir_handle files.file_error files.open_dir fs path .
   if eq (is_ok di) false . do set (index st 0) 71 . end
   guard is_ok di . else return 0 .
-  var dh owned files.dir_handle be ok_value di .
+  var dh be owned files.dir_handle ok_value di .
 
-  var n u64 be 0 .
-  var used u64 be 0 .
-  var going bool be true .
+  var n be u64 0 .
+  var used be u64 0 .
+  var going be bool true .
   while going . do
-    let r result (option u64) files.file_error . be files.read_dir fs dh namebuf .
+    let r be result (option u64) files.file_error files.read_dir fs dh namebuf .
     if eq (is_ok r) false . do set going false . set (index st 0) 71 . end
     if is_ok r . do
-      let nv option u64 . be ok_value r .
+      let nv be option u64 ok_value r .
       if eq (is_some nv) false . do set going false . end
-      var nl u64 be 0 .
+      var nl be u64 0 .
       if is_some nv . do set nl (some_value nv) . end
       if eq nl 0 . do set going false . end
       if gt nl 0 . do
         rem `.` 과 `..` 은 건너뛴다
-        var skip bool be false .
+        var skip be bool false .
         if eq nl 1 . do
           if eq (index namebuf 0) 46 . do set skip true . end
         end
@@ -130,7 +130,7 @@ do
             if le (add used nl) (max_names) . do
               set (index offs n) used .
               set (index lens n) nl .
-              var k u64 be 0 .
+              var k be u64 0 .
               while lt k nl . do
                 set (index arena (add used k)) (index namebuf k) .
                 set k (add k 1) .
@@ -143,7 +143,7 @@ do
       end
     end
   end
-  let c result void files.file_error . be files.close_dir fs dh .
+  let c be result void files.file_error files.close_dir fs dh .
   if eq (is_ok c) false . do set (index st 0) 72 . end
 
   rem ★★★★ **병합 정렬** — 색인만 옮긴다(X-0042, 소유자 선택 ⓐ 2026-09-20).
@@ -158,24 +158,24 @@ do
   rem   이 언어에서 할당은 호출자의 몫이고, 그래서 이 op 은 여전히 자리를 안 잡는다.
   rem ★ **같은 값은 순서를 지킨다**(안정 정렬): 왼쪽이 «작지 않을 때만» 오른쪽을 집는다.
   rem   출력 순서가 이 도구의 계약이라 그 성질이 필요하다.
-  var width u64 be 1 .
+  var width be u64 1 .
   while lt width n . do
-    var lo u64 be 0 .
+    var lo be u64 0 .
     while lt lo n . do
-      var mid u64 be add lo width .
+      var mid be u64 add lo width .
       if gt mid n . do  set mid n . end
-      var hi u64 be add lo (mul width 2) .
+      var hi be u64 add lo (mul width 2) .
       if gt hi n . do  set hi n . end
-      var ia u64 be lo .
-      var ib u64 be mid .
-      var k u64 be lo .
+      var ia be u64 lo .
+      var ib be u64 mid .
+      var k be u64 lo .
       while lt k hi . do
-        var from_a bool be false .
+        var from_a be bool false .
         if ge ib hi . do  set from_a true . end
         if lt ib hi . do
           if lt ia mid . do
-            let ra slice u8 be subslice arena (index offs ia) (add (index offs ia) (index lens ia)) .
-            let rb slice u8 be subslice arena (index offs ib) (add (index offs ib) (index lens ib)) .
+            let ra be slice u8 subslice arena (index offs ia) (add (index offs ia) (index lens ia)) .
+            let rb be slice u8 subslice arena (index offs ib) (add (index offs ib) (index lens ib)) .
             rem 오른쪽이 **더 작을 때만** 오른쪽을 집는다 ⇒ 같으면 왼쪽(안정).
             if eq (less rb ra) false . do  set from_a true . end
           end
@@ -193,7 +193,7 @@ do
         set k (add k 1) .
       end
       rem 합친 자리를 제자리로 되돌린다.
-      var mc u64 be lo .
+      var mc be u64 lo .
       while lt mc hi . do
         set (index offs mc) (index soffs mc) .
         set (index lens mc) (index slens mc) .
@@ -216,33 +216,33 @@ proc same_file .
   output u64 .
   effects io .
 do
-  let ha result files.handle files.file_error . be files.open fs pa 0 .
+  let ha be result files.handle files.file_error files.open fs pa 0 .
   guard is_ok ha . else return 2 .
-  var fa owned files.handle be ok_value ha .
-  let hb result files.handle files.file_error . be files.open fs pb 0 .
+  var fa be owned files.handle ok_value ha .
+  let hb be result files.handle files.file_error files.open fs pb 0 .
   if eq (is_ok hb) false . do
     rem ★ 여기서 **바로 돌아온다** — 닫고 나서 합류하면 `fa` 의 소유 상태가 갈래마다 달라진다
     rem   (E-OWN-JOIN: 한쪽에서만 소비된 owned 는 합류점에서 정적으로 일치해야 한다).
-    let ca result void files.file_error . be files.close fs fa .
+    let ca be result void files.file_error files.close fs fa .
     drop ca .
     return 2 .
   end
-  var fb owned files.handle be ok_value hb .
+  var fb be owned files.handle ok_value hb .
 
-  var verdict u64 be 0 .
-  var going bool be true .
+  var verdict be u64 0 .
+  var going be bool true .
   while going . do
     rem ★ `files.read` 는 **세 자리**를 돌려준다: `error` = 못 읽었다 · `ok none` = 파일 끝 ·
     rem   `ok (some n)` = n 바이트. 끝과 실패를 한 자리로 뭉개면 «읽다 만 파일» 이 «같다» 가 된다.
-    let ra result (option u64) files.file_error . be files.read fs fa ba .
-    let rb result (option u64) files.file_error . be files.read fs fb bb .
+    let ra be result (option u64) files.file_error files.read fs fa ba .
+    let rb be result (option u64) files.file_error files.read fs fb bb .
     if eq (is_ok ra) false . do set verdict 2 . set going false . end
     if eq (is_ok rb) false . do set verdict 2 . set going false . end
     if going . do
-      var na u64 be 0 .
-      var nb u64 be 0 .
-      let oa option u64 . be ok_value ra .
-      let ob option u64 . be ok_value rb .
+      var na be u64 0 .
+      var nb be u64 0 .
+      let oa be option u64 ok_value ra .
+      let ob be option u64 ok_value rb .
       if is_some oa . do set na (some_value oa) . end
       if is_some ob . do set nb (some_value ob) . end
       if ne na nb . do set verdict 1 . set going false . end
@@ -255,8 +255,8 @@ do
     end
   end
 
-  let ca2 result void files.file_error . be files.close fs fa .
-  let cb2 result void files.file_error . be files.close fs fb .
+  let ca2 be result void files.file_error files.close fs fa .
+  let cb2 be result void files.file_error files.close fs fb .
   if eq (is_ok ca2) false . do set verdict 2 . end
   if eq (is_ok cb2) false . do set verdict 2 . end
   return verdict .
@@ -273,10 +273,10 @@ proc link_pair .
   output u64 .
   effects io .
 do
-  var sa bool be false .
-  var sb bool be false .
-  let la option u64 . be files.link_type_of fs pa .
-  let lb option u64 . be files.link_type_of fs pb .
+  var sa be bool false .
+  var sb be bool false .
+  let la be option u64 files.link_type_of fs pa .
+  let lb be option u64 files.link_type_of fs pb .
   if is_some la . do if eq (some_value la) 3 . do set sa true . end end
   if is_some lb . do if eq (some_value lb) 3 . do set sb true . end end
   if ne sa sb . do return 2 . end
@@ -293,14 +293,14 @@ proc join_path .
   output bool .
   effects none .
 do
-  var b strbuf.str_buf be strbuf.new .
+  var b be strbuf.str_buf strbuf.new .
   if gt (len base) 0 . do
-    let r1 result void strbuf.sb_error . be strbuf.append b buf base .
+    let r1 be result void strbuf.sb_error strbuf.append b buf base .
     guard is_ok r1 . else return false .
-    let r2 result void strbuf.sb_error . be strbuf.append b buf "/" .
+    let r2 be result void strbuf.sb_error strbuf.append b buf "/" .
     guard is_ok r2 . else return false .
   end
-  let r3 result void strbuf.sb_error . be strbuf.append b buf name .
+  let r3 be result void strbuf.sb_error strbuf.append b buf name .
   guard is_ok r3 . else return false .
   set (index outlen 0) (len (strbuf.as_str b buf)) .
   return true .
@@ -314,9 +314,9 @@ proc main .
   output u8 .
   effects heap io .
 do
-  var w u64 be 0 .
-  let a0 option slice u8 . be arg a 0 .
-  let a1 option slice u8 . be arg a 1 .
+  var w be u64 0 .
+  let a0 be option slice u8 arg a 0 .
+  let a1 be option slice u8 arg a 1 .
   if eq (is_some a0) false . do
     set w (emit out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
   end
@@ -325,8 +325,8 @@ do
     set w (emit out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
   end
   guard is_some a1 . else return 2 .
-  let rootA slice u8 be some_value a0 .
-  let rootB slice u8 be some_value a1 .
+  let rootA be slice u8 some_value a0 .
+  let rootB be slice u8 some_value a1 .
 
   rem ── 버퍼는 **한 덩어리로 한 번** 잡고 `subslice` 로 나눠 쓴다.
   rem    ☞ 처음엔 열여섯 번 따로 잡았는데 `main` 의 지역이 언어 한도(64)를 넘었다
@@ -342,55 +342,55 @@ do
   rem      scratch 1104K..1104K+64 · sortO 1104K+64..1136K · sortL 1136K..1168K
   rem    ★ sortO/sortL 은 **병합 정렬의 임시 자리**다(X-0042). A 와 B 를 차례로 읽으므로
   rem      한 벌이면 족하다 — 자리를 두 배로 쓰지 않는다.
-  let gm option mut slice u8 . . be alloc_bytes hp capacity 1196096 .
+  let gm be option mut slice u8 alloc_bytes hp capacity 1196096 .
   guard is_some gm . else return 70 .
-  let mem mut slice u8 . be some_value gm .
-  let namebuf mut slice u8 . be subslice mem 0 4096 .
-  let arenaA mut slice u8 . be subslice mem 4096 266240 .
-  let arenaB mut slice u8 . be subslice mem 266240 528384 .
-  let offsA mut slice u64 . be view_array u64 (subslice mem 528384 561152) .
-  let lensA mut slice u64 . be view_array u64 (subslice mem 561152 593920) .
-  let offsB mut slice u64 . be view_array u64 (subslice mem 593920 626688) .
-  let lensB mut slice u64 . be view_array u64 (subslice mem 626688 659456) .
-  let pend mut slice u8 . be subslice mem 659456 921600 .
-  let poffs mut slice u64 . be view_array u64 (subslice mem 921600 954368) .
-  let plens mut slice u64 . be view_array u64 (subslice mem 954368 987136) .
-  let relbuf mut slice u8 . be subslice mem 987136 991232 .
-  let pathA mut slice u8 . be subslice mem 991232 995328 .
-  let pathB mut slice u8 . be subslice mem 995328 999424 .
-  let chunkA mut slice u8 . be subslice mem 999424 1064960 .
-  let chunkB mut slice u8 . be subslice mem 1064960 1130496 .
-  let scratch mut slice u64 . be view_array u64 (subslice mem 1130496 1130560) .
-  let sortO mut slice u64 . be view_array u64 (subslice mem 1130560 1163328) .
-  let sortL mut slice u64 . be view_array u64 (subslice mem 1163328 1196096) .
+  let mem be mut slice u8 some_value gm .
+  let namebuf be mut slice u8 subslice mem 0 4096 .
+  let arenaA be mut slice u8 subslice mem 4096 266240 .
+  let arenaB be mut slice u8 subslice mem 266240 528384 .
+  let offsA be mut slice u64 view_array u64 (subslice mem 528384 561152) .
+  let lensA be mut slice u64 view_array u64 (subslice mem 561152 593920) .
+  let offsB be mut slice u64 view_array u64 (subslice mem 593920 626688) .
+  let lensB be mut slice u64 view_array u64 (subslice mem 626688 659456) .
+  let pend be mut slice u8 subslice mem 659456 921600 .
+  let poffs be mut slice u64 view_array u64 (subslice mem 921600 954368) .
+  let plens be mut slice u64 view_array u64 (subslice mem 954368 987136) .
+  let relbuf be mut slice u8 subslice mem 987136 991232 .
+  let pathA be mut slice u8 subslice mem 991232 995328 .
+  let pathB be mut slice u8 subslice mem 995328 999424 .
+  let chunkA be mut slice u8 subslice mem 999424 1064960 .
+  let chunkB be mut slice u8 subslice mem 1064960 1130496 .
+  let scratch be mut slice u64 view_array u64 (subslice mem 1130496 1130560) .
+  let sortO be mut slice u64 view_array u64 (subslice mem 1130560 1163328) .
+  let sortL be mut slice u64 view_array u64 (subslice mem 1163328 1196096) .
 
   rem 대기 목록: 아직 안 본 **상대 경로**들. 시작은 뿌리(빈 문자열) 하나.
-  var np u64 be 1 .
-  var pused u64 be 0 .
+  var np be u64 1 .
+  var pused be u64 0 .
   set (index poffs 0) 0 .
   set (index plens 0) 0 .
 
-  var diffs u64 be 0 .
-  var limit_hit bool be false .
-  var io_bad bool be false .
+  var diffs be u64 0 .
+  var limit_hit be bool false .
+  var io_bad be bool false .
 
   while gt np 0 . do
     rem 스택처럼 **뒤에서** 꺼낸다 — 넣을 때 역순으로 넣어 오름차순으로 나온다.
     set np (sub np 1) .
-    let ro u64 be index poffs np .
-    let rl u64 be index plens np .
-    let rel slice u8 be subslice pend ro (add ro rl) .
+    let ro be u64 index poffs np .
+    let rl be u64 index plens np .
+    let rel be slice u8 subslice pend ro (add ro rl) .
     set pused ro .
 
     rem 이 상대 경로의 양쪽 실제 경로
     rem ★ 판정 하나를 **변수 하나**로 받는다 — `main` 의 지역이 언어 한도(64)에 닿아 있다.
     if eq (join_path rootA rel pathA scratch) false . do set limit_hit true . end
-    let la u64 be index scratch 0 .
+    let la be u64 index scratch 0 .
     if eq (join_path rootB rel pathB scratch) false . do set limit_hit true . end
-    let lb u64 be index scratch 0 .
+    let lb be u64 index scratch 0 .
 
-    var nA u64 be 0 .
-    var nB u64 be 0 .
+    var nA be u64 0 .
+    var nB be u64 0 .
     if eq limit_hit false . do
       set nA (list_dir fs (subslice pathA 0 la) namebuf arenaA offsA lensA sortO sortL scratch) .
       if eq (index scratch 0) 3 . do set limit_hit true . end
@@ -401,16 +401,16 @@ do
     end
 
     rem ── 두 정렬 목록을 합친다.
-    var ia u64 be 0 .
-    var ib u64 be 0 .
-    var merging bool be true .
+    var ia be u64 0 .
+    var ib be u64 0 .
+    var merging be bool true .
     if limit_hit . do set merging false . end
     while merging . do
       if ge ia nA . do
         if ge ib nB . do set merging false . end
       end
       if merging . do
-        var side u64 be 0 .   rem 0 = 양쪽 · 1 = A 만(지워짐) · 2 = B 만(더해짐)
+        var side be u64 0 .   rem 0 = 양쪽 · 1 = A 만(지워짐) · 2 = B 만(더해짐)
         if ge ia nA . do set side 2 . end
         if ge ib nB . do set side 1 . end
         if lt ia nA . do
@@ -423,25 +423,25 @@ do
         end
 
         rem 이름 하나를 고르고, 그 상대 경로를 만든다
-        var nmo u64 be 0 .
-        var nml u64 be 0 .
-        var from_a bool be true .
+        var nmo be u64 0 .
+        var nml be u64 0 .
+        var from_a be bool true .
         if eq side 2 . do set from_a false . end
         if from_a . do set nmo (index offsA ia) . set nml (index lensA ia) . end
         if eq from_a false . do set nmo (index offsB ib) . set nml (index lensB ib) . end
-        var nm slice u8 be subslice arenaA nmo (add nmo nml) .
+        var nm be slice u8 subslice arenaA nmo (add nmo nml) .
         if eq from_a false . do set nm (subslice arenaB nmo (add nmo nml)) . end
 
-        let okr bool be join_path rel nm relbuf scratch .
-        let rl2 u64 be index scratch 0 .
+        let okr be bool join_path rel nm relbuf scratch .
+        let rl2 be u64 index scratch 0 .
         if eq okr false . do set limit_hit true . set merging false . end
 
         if merging . do
-          let childrel slice u8 be subslice relbuf 0 rl2 .
+          let childrel be slice u8 subslice relbuf 0 rl2 .
           if eq (join_path rootA childrel pathA scratch) false . do set limit_hit true . end
-          let pla u64 be index scratch 0 .
+          let pla be u64 index scratch 0 .
           if eq (join_path rootB childrel pathB scratch) false . do set limit_hit true . end
-          let plb u64 be index scratch 0 .
+          let plb be u64 index scratch 0 .
 
           if eq side 1 . do
             set w (emit out 1 "deleted ") .
@@ -464,8 +464,8 @@ do
             rem   ☞ 규율 셋: 양쪽 다 링크면 **견주지 않고 그렇게 말한다**(차이로 세지 않는다 —
             rem     안 그러면 같은 트리를 자기 자신과 견줄 때도 차이가 난다) · 한쪽만 링크면
             rem     그것은 **차이다**(종류가 다르다) · 링크가 가리키는 곳까지는 1 차판이 안 본다.
-            let lp u64 be link_pair fs (subslice pathA 0 pla) (subslice pathB 0 plb) .
-            var skip_pair bool be false .
+            let lp be u64 link_pair fs (subslice pathA 0 pla) (subslice pathB 0 plb) .
+            var skip_pair be bool false .
             if eq lp 1 . do
               set w (emit out 1 "symlink ") .
               set w (emit out 1 childrel) .
@@ -479,10 +479,10 @@ do
               set diffs (add diffs 1) .
               set skip_pair true .
             end
-            let ta option u64 . be files.type_of fs (subslice pathA 0 pla) .
-            let tb option u64 . be files.type_of fs (subslice pathB 0 plb) .
-            var ka u64 be 9 .
-            var kb u64 be 9 .
+            let ta be option u64 files.type_of fs (subslice pathA 0 pla) .
+            let tb be option u64 files.type_of fs (subslice pathB 0 plb) .
+            var ka be u64 9 .
+            var kb be u64 9 .
             if is_some ta . do set ka (some_value ta) . end
             if is_some tb . do set kb (some_value tb) . end
             if skip_pair . do set ka 7 . set kb 7 . end
@@ -501,7 +501,7 @@ do
                   if le (add pused rl2) (max_pendbuf) . do
                     set (index poffs np) pused .
                     set (index plens np) rl2 .
-                    var z u64 be 0 .
+                    var z be u64 0 .
                     while lt z rl2 . do
                       set (index pend (add pused z)) (index relbuf z) .
                       set z (add z 1) .
@@ -512,7 +512,7 @@ do
                 end
               end
               if eq ka 0 . do
-                let v u64 be same_file fs (subslice pathA 0 pla) (subslice pathB 0 plb) chunkA chunkB .
+                let v be u64 same_file fs (subslice pathA 0 pla) (subslice pathB 0 plb) chunkA chunkB .
                 if eq v 1 . do
                   set w (emit out 1 "changed ") .
                   set w (emit out 1 childrel) .

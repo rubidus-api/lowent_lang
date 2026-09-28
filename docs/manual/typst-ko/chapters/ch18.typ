@@ -180,7 +180,7 @@ end 에 닿으면:
 
 #demo("examples/ch18/stack.low")
 
-- `let work stack u64 be stack_new temp capacity 8 .` 이 스택을 만든다. 영역에서 자리를 얻으므로 `effects alloc` 이다.
+- `let work be stack u64 stack_new temp capacity 8 .` 이 스택을 만든다. 영역에서 자리를 얻으므로 `effects alloc` 이다.
 - `push work x .` 는 넣는다.
 - `while pop work into d . do … end` 는 꺼낼 것이 있는 동안 하나씩 꺼내 `d` 에 묶는다. 비면 되풀이가 끝난다 --- 빈 스택에서 꺼내다 멈추는 길이 문법에
   없다.

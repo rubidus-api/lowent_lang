@@ -20,9 +20,9 @@ rem ✔ 셋 다 필요하다: 길이 상계 → n → 반복 수 → cnt. 하나
 export proc ones_count input s slice u8 . . output u64 . effects none .
   requires le (len s) 65536 .
 do
-  let n u64 be len s .
-  var cnt u64 be 0 .
-  var k u64 be 0 .
+  let n be u64 len s .
+  var cnt be u64 0 .
+  var k be u64 0 .
   while lt k n . do
     if eq (index s k) 1 . do
       set cnt (add cnt 1) .
@@ -40,8 +40,8 @@ rem   ⇒ 이제 상한을 **유계가 아닌 스칼라 매개변수** `n` 에�
 rem   없으므로 반복 수가 여전히 미지다 — 대조군이 다시 뜻을 갖는다.
 rem   *대조군이 통과하기 시작하면 먼저 "무엇이 세졌나" 를 묻고, 근거를 옮긴다.*
 export proc ones_count_nobound input s slice u8 . . input n u64 . output u64 . effects none . do
-  var cnt u64 be 0 .
-  var k u64 be 0 .
+  var cnt be u64 0 .
+  var k be u64 0 .
   while lt k n . do
     set cnt (add cnt 1) .
     set k (add k 1) .
@@ -54,12 +54,12 @@ export proc count_pairs input a slice u8 . . input b slice u8 . . output u64 . e
   requires le (len a) 256 .
   requires le (len b) 64 .
 do
-  let na u64 be len a .
-  let nb u64 be len b .
-  var hits u64 be 0 .
-  var i u64 be 0 .
+  let na be u64 len a .
+  let nb be u64 len b .
+  var hits be u64 0 .
+  var i be u64 0 .
   while lt i na . do
-    var j u64 be 0 .
+    var j be u64 0 .
     while lt j nb . do
       if eq (index a i) (index b j) . do
         set hits (add hits 1) .
@@ -77,8 +77,8 @@ rem   잘림 방향이 부호에 달려 있고 그 차이가 이 저장소가 �
 export fn split6 input x u64 . output u64 .
   requires le x 6000 .
 do
-  let q u64 be div x 6 .
-  let r u64 be mod x 6 .
+  let q be u64 div x 6 .
+  let r be u64 mod x 6 .
   return add (mul q 6) (mul r 100) .
 end
 
@@ -91,7 +91,7 @@ rem   ☞ 이 사슬이 `bench_lru` 의 마지막 두 검사였다: `key = x −
 export fn modident input x u64 . output u64 .
   requires le x 6000 .
 do
-  let q u64 be div x 6 .
-  let key u64 be sub x (mul q 6) .
+  let q be u64 div x 6 .
+  let key be u64 sub x (mul q 6) .
   return mul key 100 .
 end

@@ -3,8 +3,8 @@ rem trap: main
 
 proc main input out cap io . output u8 . effects io .
 do
-  var n u64 be 0 .
-  var i u64 be 0 .
+  var n be u64 0 .
+  var i be u64 0 .
   while lt i 8 . do
     set n (add n (write_out out 1 "32 bytes of text on every line.\n")) .
     set i (add i 1) .

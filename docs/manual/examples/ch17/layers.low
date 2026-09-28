@@ -24,17 +24,17 @@ end
 fn pick_slot input port u16 . output result u64 config_error .
   errors port_zero eq port 0 .
 do
-  let p u16 be try check_port port .
+  let p be u16 try check_port port .
   return ok (slot_of p 16) .
 end
 
 proc main input out cap io . output u8 . effects io .
 do
-  let r result u64 config_error be pick_slot 8080 .
+  let r be result u64 config_error pick_slot 8080 .
   guard not (is_error r) . else do
-    let n u64 be write_out out 1 "bad port\n" .
+    let n be u64 write_out out 1 "bad port\n" .
     return 1 .
   end
-  let m u64 be write_out out 1 "slot ok\n" .
+  let m be u64 write_out out 1 "slot ok\n" .
   return narrow u8 (ok_value r) .
 end

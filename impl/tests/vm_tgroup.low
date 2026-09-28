@@ -25,7 +25,7 @@ end
 
 rem 순서 무관: 두 태스크가 각자 inc → 어떤 실행 순서든 get=2. 오라클이 전 interleaving 확인.
 test tg_independent schedule explore_interleavings . do
-  var c counter be spawn actor counter . .
+  var c be counter spawn actor counter . .
   task_group do
     spawn worker c .
     spawn worker c .
@@ -35,7 +35,7 @@ end
 
 rem 셋도 마찬가지 — 그룹이 셋을 join, 순서 무관하게 get=3.
 test tg_three schedule explore_interleavings . do
-  var c counter be spawn actor counter . .
+  var c be counter spawn actor counter . .
   task_group do
     spawn worker c .
     spawn worker c .
@@ -46,7 +46,7 @@ end
 
 rem `task_group` 문 + join, 스칼라 반환 — VM≡네이티브(차등 스윕).
 proc drive output u64 . effects state . do
-  var c counter be spawn actor counter . .
+  var c be counter spawn actor counter . .
   task_group do
     spawn worker c .
     spawn worker c .

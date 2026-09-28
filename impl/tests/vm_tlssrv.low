@@ -22,7 +22,7 @@ fn sh_hex output slice u8 . . do
 end
 
 proc ch_bytes input out mut slice u8 . . output u64 . effects none . do
-  let d option u64 . be codec.hex_dec (ch_hex) out .
+  let d be option u64 codec.hex_dec (ch_hex) out .
   guard is_some d . else return 0 .
   return some_value d .
 end
@@ -37,15 +37,15 @@ end
 rem 정본의 session_id 는 **비었다**(0) · suites 는 6 바이트(세 개).
 export proc ch_shape input w mut slice u8 . . output u64 . effects none . do
   guard eq (ch_bytes (subslice w 0 196)) 196 . else return 0 .
-  let b slice u8 . be subslice w 0 196 .
+  let b be slice u8 subslice w 0 196 .
   return add (mul (tlssrv.ch_sid_len b) 1000) (tlssrv.ch_suites_len b) .
 end
 
 rem ✔ AES-128-GCM(0x1301)·ChaCha20(0x1303) 둘 다 있다 · 없는 것(0x9999)은 없다.
 export proc ch_suites input w mut slice u8 . . output u64 . effects none . do
   guard eq (ch_bytes (subslice w 0 196)) 196 . else return 0 .
-  let b slice u8 . be subslice w 0 196 .
-  var acc u64 be 0 .
+  let b be slice u8 subslice w 0 196 .
+  var acc be u64 0 .
   if tlssrv.ch_has_suite b 4865 . do  set acc (add acc 100) . end
   if tlssrv.ch_has_suite b 4867 . do  set acc (add acc 10) . end
   if tlssrv.ch_has_suite b 39321 . do  set acc (add acc 1) . end
@@ -55,11 +55,11 @@ end
 rem ✔ x25519 공개키 자리 — 정본에서 그 32 바이트의 첫 4 바이트는 0x99381de5 다.
 export proc ch_keyshare input w mut slice u8 . . output u64 . effects none . do
   guard eq (ch_bytes (subslice w 0 196)) 196 . else return 0 .
-  let b slice u8 . be subslice w 0 196 .
-  let o u64 be tlssrv.ch_x25519_off b .
+  let b be slice u8 subslice w 0 196 .
+  let o be u64 tlssrv.ch_x25519_off b .
   guard gt o 0 . else return 0 .
-  var acc u64 be 0 .
-  var i u64 be 0 .
+  var acc be u64 0 .
+  var i be u64 0 .
   while lt i 4 . do
     set acc (bit_or (shl acc 8) (cast u64 (index b (add o i)))) .
     set i (add i 1) .
@@ -70,8 +70,8 @@ end
 rem ✔ SNI(0)·supported_versions(43) 는 있고, ALPN(16) 은 이 정본에 없다.
 export proc ch_exts input w mut slice u8 . . output u64 . effects none . do
   guard eq (ch_bytes (subslice w 0 196)) 196 . else return 0 .
-  let b slice u8 . be subslice w 0 196 .
-  var acc u64 be 0 .
+  let b be slice u8 subslice w 0 196 .
+  var acc be u64 0 .
   if gt (tlssrv.ch_ext_find b 0) 0 . do  set acc (add acc 100) . end
   if gt (tlssrv.ch_ext_find b 43) 0 . do  set acc (add acc 10) . end
   if gt (tlssrv.ch_ext_find b 16) 0 . do  set acc (add acc 1) . end
@@ -82,15 +82,15 @@ rem ── ★★★ ServerHello 를 지어 정본과 맞댄다 ─────�
 rem   같으면 90(길이), 다르면 그 **첫 다른 자리 + 1000** 을 낸다 — 어디서 갈렸는지 말한다.
 export proc sh_build input w mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 512 . else return 0 .
-  let dr option u64 . be codec.hex_dec "a6af06a4121860dc5e6e60249cd34c95930c8ac5cb1434dac155772ed3e26928" (subslice w 0 32) .
+  let dr be option u64 codec.hex_dec "a6af06a4121860dc5e6e60249cd34c95930c8ac5cb1434dac155772ed3e26928" (subslice w 0 32) .
   guard is_some dr . else return 0 .
-  let dk option u64 . be codec.hex_dec "c9828876112095fe66762bdbf7c672e156d6cc253b833df1dd69b1b04e751f0f" (subslice w 32 64) .
+  let dk be option u64 codec.hex_dec "c9828876112095fe66762bdbf7c672e156d6cc253b833df1dd69b1b04e751f0f" (subslice w 32 64) .
   guard is_some dk . else return 0 .
-  let n u64 be tlssrv.build_sh (subslice w 0 32) (subslice w 64 64) 4865 (subslice w 32 64) (subslice w 128 320) .
+  let n be u64 tlssrv.build_sh (subslice w 0 32) (subslice w 64 64) 4865 (subslice w 32 64) (subslice w 128 320) .
   guard eq n 90 . else return 0 .
-  let dw option u64 . be codec.hex_dec (sh_hex) (subslice w 320 410) .
+  let dw be option u64 codec.hex_dec (sh_hex) (subslice w 320 410) .
   guard is_some dw . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 90 . do
     if ne (index w (add 128 i)) (index w (add 320 i)) . do  return add 1000 i . end
     set i (add i 1) .
@@ -101,7 +101,7 @@ end
 rem ── 상태 ─────────────────────────────────────────────────────────────────
 rem ✔ START 에서 ClientHello 만 받는다 · WAIT_FINISHED 에서 Finished 만 받는다.
 export fn state_ok output u64 . do
-  var acc u64 be 0 .
+  var acc be u64 0 .
   if tlssrv.next_ok 0 1 . do  set acc (add acc 1000) . end     rem START ← CH  ✔ . .
   if tlssrv.next_ok 0 20 . do  set acc (add acc 100) . end      rem START ← Finished ✘ . .
   if tlssrv.next_ok 4 20 . do  set acc (add acc 10) . end       rem WAIT ← Finished ✔ . .
@@ -117,10 +117,10 @@ rem ── 나머지 세 메시지와 Finished — 정본과 **바이트로** �
 rem   같으면 길이, 다르면 **첫 다른 자리 + 10000** 을 낸다(어디서 갈렸는지 말한다).
 proc cmp_hex input got slice u8 . input n u64 . input want_hex slice u8 . input w mut slice u8 . . output u64 . effects none . do
   guard ge (len w) n . else return 1 .
-  let d option u64 . be codec.hex_dec want_hex (subslice w 0 n) .
+  let d be option u64 codec.hex_dec want_hex (subslice w 0 n) .
   guard is_some d . else return 2 .
   guard eq (some_value d) n . else return 3 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i n . do
     if ne (index got i) (index w i) . do  return add 10000 i . end
     set i (add i 1) .
@@ -131,9 +131,9 @@ end
 rem ✔ EncryptedExtensions — 정본의 확장 블록(34 B)을 감싸면 40 B 가 나온다.
 export proc ee_build input w mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 512 . else return 0 .
-  let d option u64 . be codec.hex_dec "000a00140012001d00170018001901000101010201030104001c0002400100000000" (subslice w 0 34) .
+  let d be option u64 codec.hex_dec "000a00140012001d00170018001901000101010201030104001c0002400100000000" (subslice w 0 34) .
   guard is_some d . else return 0 .
-  let n u64 be tlssrv.build_ee (subslice w 0 34) (subslice w 64 128) .
+  let n be u64 tlssrv.build_ee (subslice w 0 34) (subslice w 64 128) .
   guard eq n 40 . else return add 20000 n .
   return cmp_hex (subslice w 64 128) 40 "080000240022000a00140012001d00170018001901000101010201030104001c0002400100000000" (subslice w 192 448) .
 end
@@ -141,9 +141,9 @@ end
 rem ✔ Certificate — 정본의 DER(432 B)을 감싸면 445 B.
 export proc cert_build input w mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 1400 . else return 0 .
-  let d option u64 . be codec.hex_dec "308201ac30820115a003020102020102300d06092a864886f70d01010b0500300e310c300a06035504031303727361301e170d3136303733303031323335395a170d3236303733303031323335395a300e310c300a0603550403130372736130819f300d06092a864886f70d010101050003818d0030818902818100b4bb498f8279303d980836399b36c6988c0c68de55e1bdb826d3901a2461eafd2de49a91d015abbc9a95137ace6c1af19eaa6af98c7ced43120998e187a80ee0ccb0524b1b018c3e0b63264d449a6d38e22a5fda430846748030530ef0461c8ca9d9efbfae8ea6d1d03e2bd193eff0ab9a8002c47428a6d35a8d88d79f7f1e3f0203010001a31a301830090603551d1304023000300b0603551d0f0404030205a0300d06092a864886f70d01010b05000381810085aad2a0e5b9276b908c65f73a7267170618a54c5f8a7b337d2df7a594365417f2eae8f8a58c8f8172f9319cf36b7fd6c55b80f21a03015156726096fd335e5e67f2dbf102702e608ccae6bec1fc63a42a99be5c3eb7107c3c54e9b9eb2bd5203b1c3b84e0a8b2f759409ba3eac9d91d402dcc0cc8f8961229ac9187b42b4de1" (subslice w 0 432) .
+  let d be option u64 codec.hex_dec "308201ac30820115a003020102020102300d06092a864886f70d01010b0500300e310c300a06035504031303727361301e170d3136303733303031323335395a170d3236303733303031323335395a300e310c300a0603550403130372736130819f300d06092a864886f70d010101050003818d0030818902818100b4bb498f8279303d980836399b36c6988c0c68de55e1bdb826d3901a2461eafd2de49a91d015abbc9a95137ace6c1af19eaa6af98c7ced43120998e187a80ee0ccb0524b1b018c3e0b63264d449a6d38e22a5fda430846748030530ef0461c8ca9d9efbfae8ea6d1d03e2bd193eff0ab9a8002c47428a6d35a8d88d79f7f1e3f0203010001a31a301830090603551d1304023000300b0603551d0f0404030205a0300d06092a864886f70d01010b05000381810085aad2a0e5b9276b908c65f73a7267170618a54c5f8a7b337d2df7a594365417f2eae8f8a58c8f8172f9319cf36b7fd6c55b80f21a03015156726096fd335e5e67f2dbf102702e608ccae6bec1fc63a42a99be5c3eb7107c3c54e9b9eb2bd5203b1c3b84e0a8b2f759409ba3eac9d91d402dcc0cc8f8961229ac9187b42b4de1" (subslice w 0 432) .
   guard is_some d . else return 0 .
-  let n u64 be tlssrv.build_cert (subslice w 0 432) (subslice w 448 896) .
+  let n be u64 tlssrv.build_cert (subslice w 0 432) (subslice w 448 896) .
   guard eq n 445 . else return add 20000 n .
   return cmp_hex (subslice w 448 896) 445 "0b0001b9000001b50001b0308201ac30820115a003020102020102300d06092a864886f70d01010b0500300e310c300a06035504031303727361301e170d3136303733303031323335395a170d3236303733303031323335395a300e310c300a0603550403130372736130819f300d06092a864886f70d010101050003818d0030818902818100b4bb498f8279303d980836399b36c6988c0c68de55e1bdb826d3901a2461eafd2de49a91d015abbc9a95137ace6c1af19eaa6af98c7ced43120998e187a80ee0ccb0524b1b018c3e0b63264d449a6d38e22a5fda430846748030530ef0461c8ca9d9efbfae8ea6d1d03e2bd193eff0ab9a8002c47428a6d35a8d88d79f7f1e3f0203010001a31a301830090603551d1304023000300b0603551d0f0404030205a0300d06092a864886f70d01010b05000381810085aad2a0e5b9276b908c65f73a7267170618a54c5f8a7b337d2df7a594365417f2eae8f8a58c8f8172f9319cf36b7fd6c55b80f21a03015156726096fd335e5e67f2dbf102702e608ccae6bec1fc63a42a99be5c3eb7107c3c54e9b9eb2bd5203b1c3b84e0a8b2f759409ba3eac9d91d402dcc0cc8f8961229ac9187b42b4de10000" (subslice w 900 1400) .
 end
@@ -152,9 +152,9 @@ rem ✔ CertificateVerify — 정본은 RSA-PSS(0x0804) 다. 알고리즘과 서
 rem   ☞ 우리 서명기는 ECDSA(0x0403)이지만 **틀은 같다** — 여기서 재는 것은 틀이다.
 export proc cv_build input w mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 512 . else return 0 .
-  let d option u64 . be codec.hex_dec "5a747c5d88fa9bd2e55ab085a61015b7211f824cd484145ab3ff52f1fda8477b0b7abc90db78e2d33a5c141a078653fa6bef780c5ea248eeaaa785c4f394cab6d30bbe8d4859ee511f602957b15411ac027671459e46445c9ea58c181e818e95b8c3fb0bf3278409d3be152a3da5043e063dda65cdf5aea20d53dfacd42f74f3" (subslice w 0 128) .
+  let d be option u64 codec.hex_dec "5a747c5d88fa9bd2e55ab085a61015b7211f824cd484145ab3ff52f1fda8477b0b7abc90db78e2d33a5c141a078653fa6bef780c5ea248eeaaa785c4f394cab6d30bbe8d4859ee511f602957b15411ac027671459e46445c9ea58c181e818e95b8c3fb0bf3278409d3be152a3da5043e063dda65cdf5aea20d53dfacd42f74f3" (subslice w 0 128) .
   guard is_some d . else return 0 .
-  let n u64 be tlssrv.build_cv 2052 (subslice w 0 128) (subslice w 128 300) .
+  let n be u64 tlssrv.build_cv 2052 (subslice w 0 128) (subslice w 128 300) .
   guard eq n 136 . else return add 20000 n .
   return cmp_hex (subslice w 128 300) 136 "0f000084080400805a747c5d88fa9bd2e55ab085a61015b7211f824cd484145ab3ff52f1fda8477b0b7abc90db78e2d33a5c141a078653fa6bef780c5ea248eeaaa785c4f394cab6d30bbe8d4859ee511f602957b15411ac027671459e46445c9ea58c181e818e95b8c3fb0bf3278409d3be152a3da5043e063dda65cdf5aea20d53dfacd42f74f3" (subslice w 300 500) .
 end
@@ -162,9 +162,9 @@ end
 rem ✔ Finished — verify_data 32 B 를 감싸면 36 B.
 export proc fin_build input w mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 256 . else return 0 .
-  let d option u64 . be codec.hex_dec "9b9b141d906337fbd2cbdce71df4deda4ab42c309572cb7fffee5454b78f0718" (subslice w 0 32) .
+  let d be option u64 codec.hex_dec "9b9b141d906337fbd2cbdce71df4deda4ab42c309572cb7fffee5454b78f0718" (subslice w 0 32) .
   guard is_some d . else return 0 .
-  let n u64 be tlssrv.build_fin (subslice w 0 32) (subslice w 64 128) .
+  let n be u64 tlssrv.build_fin (subslice w 0 32) (subslice w 64 128) .
   guard eq n 36 . else return add 20000 n .
   return cmp_hex (subslice w 64 128) 36 "140000209b9b141d906337fbd2cbdce71df4deda4ab42c309572cb7fffee5454b78f0718" (subslice w 128 256) .
 end
@@ -174,14 +174,14 @@ rem   앞 64 바이트가 전부 0x20 이고, 65 번째부터 문맥 문자열, 
 rem   ☞ 그 공백과 문맥 문자열이 없으면 이 서명이 **다른 문맥으로 재활용**될 수 있다.
 export proc cv_content_shape input w mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 256 . else return 0 .
-  var z u64 be 0 .
+  var z be u64 0 .
   while lt z 32 . do  set (index w z) (narrow u8 z) .  set z (add z 1) . end
-  let n u64 be tlssrv.cv_content (subslice w 0 32) (subslice w 64 200) .
+  let n be u64 tlssrv.cv_content (subslice w 0 32) (subslice w 64 200) .
   guard eq n 130 . else return 0 .
-  var acc u64 be 0 .
+  var acc be u64 0 .
   rem ① 앞 64 가 전부 0x20 인가
-  var sp u64 be 1 .
-  var i u64 be 0 .
+  var sp be u64 1 .
+  var i be u64 0 .
   while lt i 64 . do
     if ne (index w (add 64 i)) 32 . do  set sp 0 . end
     set i (add i 1) .
@@ -202,15 +202,15 @@ rem   ☞ 이 한 수가 **전사 자르는 자리 · 키 스케줄 · finished_
 export proc flight input w mut slice u8 . . input v mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 2048 . else return 0 .
   guard ge (len v) 2048 . else return 0 .
-  let de option u64 . be codec.hex_dec "8bd4054fb55b9d63fdfbacf9f04b9f0d35e6d63f537563efd46272900f89492d" (subslice v 0 32) .
+  let de be option u64 codec.hex_dec "8bd4054fb55b9d63fdfbacf9f04b9f0d35e6d63f537563efd46272900f89492d" (subslice v 0 32) .
   guard is_some de . else return 0 .
-  let d1 option u64 . be codec.hex_dec "010000c00303cb34ecb1e78163ba1c38c6dacb196a6dffa21a8d9912ec18a2ef6283024dece7000006130113031302010000910000000b0009000006736572766572ff01000100000a00140012001d0017001800190100010101020103010400230000003300260024001d002099381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c002b0003020304000d0020001e040305030603020308040805080604010501060102010402050206020202002d00020101001c00024001020000560303a6af06a4121860dc5e6e60249cd34c95930c8ac5cb1434dac155772ed3e2692800130100002e00330024001d0020c9828876112095fe66762bdbf7c672e156d6cc253b833df1dd69b1b04e751f0f002b00020304" (subslice v 32 318) .
+  let d1 be option u64 codec.hex_dec "010000c00303cb34ecb1e78163ba1c38c6dacb196a6dffa21a8d9912ec18a2ef6283024dece7000006130113031302010000910000000b0009000006736572766572ff01000100000a00140012001d0017001800190100010101020103010400230000003300260024001d002099381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c002b0003020304000d0020001e040305030603020308040805080604010501060102010402050206020202002d00020101001c00024001020000560303a6af06a4121860dc5e6e60249cd34c95930c8ac5cb1434dac155772ed3e2692800130100002e00330024001d0020c9828876112095fe66762bdbf7c672e156d6cc253b833df1dd69b1b04e751f0f002b00020304" (subslice v 32 318) .
   guard is_some d1 . else return 0 .
-  let d2 option u64 . be codec.hex_dec "010000c00303cb34ecb1e78163ba1c38c6dacb196a6dffa21a8d9912ec18a2ef6283024dece7000006130113031302010000910000000b0009000006736572766572ff01000100000a00140012001d0017001800190100010101020103010400230000003300260024001d002099381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c002b0003020304000d0020001e040305030603020308040805080604010501060102010402050206020202002d00020101001c00024001020000560303a6af06a4121860dc5e6e60249cd34c95930c8ac5cb1434dac155772ed3e2692800130100002e00330024001d0020c9828876112095fe66762bdbf7c672e156d6cc253b833df1dd69b1b04e751f0f002b00020304080000240022000a00140012001d00170018001901000101010201030104001c00024001000000000b0001b9000001b50001b0308201ac30820115a003020102020102300d06092a864886f70d01010b0500300e310c300a06035504031303727361301e170d3136303733303031323335395a170d3236303733303031323335395a300e310c300a0603550403130372736130819f300d06092a864886f70d010101050003818d0030818902818100b4bb498f8279303d980836399b36c6988c0c68de55e1bdb826d3901a2461eafd2de49a91d015abbc9a95137ace6c1af19eaa6af98c7ced43120998e187a80ee0ccb0524b1b018c3e0b63264d449a6d38e22a5fda430846748030530ef0461c8ca9d9efbfae8ea6d1d03e2bd193eff0ab9a8002c47428a6d35a8d88d79f7f1e3f0203010001a31a301830090603551d1304023000300b0603551d0f0404030205a0300d06092a864886f70d01010b05000381810085aad2a0e5b9276b908c65f73a7267170618a54c5f8a7b337d2df7a594365417f2eae8f8a58c8f8172f9319cf36b7fd6c55b80f21a03015156726096fd335e5e67f2dbf102702e608ccae6bec1fc63a42a99be5c3eb7107c3c54e9b9eb2bd5203b1c3b84e0a8b2f759409ba3eac9d91d402dcc0cc8f8961229ac9187b42b4de100000f000084080400805a747c5d88fa9bd2e55ab085a61015b7211f824cd484145ab3ff52f1fda8477b0b7abc90db78e2d33a5c141a078653fa6bef780c5ea248eeaaa785c4f394cab6d30bbe8d4859ee511f602957b15411ac027671459e46445c9ea58c181e818e95b8c3fb0bf3278409d3be152a3da5043e063dda65cdf5aea20d53dfacd42f74f3" (subslice v 318 1225) .
+  let d2 be option u64 codec.hex_dec "010000c00303cb34ecb1e78163ba1c38c6dacb196a6dffa21a8d9912ec18a2ef6283024dece7000006130113031302010000910000000b0009000006736572766572ff01000100000a00140012001d0017001800190100010101020103010400230000003300260024001d002099381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c002b0003020304000d0020001e040305030603020308040805080604010501060102010402050206020202002d00020101001c00024001020000560303a6af06a4121860dc5e6e60249cd34c95930c8ac5cb1434dac155772ed3e2692800130100002e00330024001d0020c9828876112095fe66762bdbf7c672e156d6cc253b833df1dd69b1b04e751f0f002b00020304080000240022000a00140012001d00170018001901000101010201030104001c00024001000000000b0001b9000001b50001b0308201ac30820115a003020102020102300d06092a864886f70d01010b0500300e310c300a06035504031303727361301e170d3136303733303031323335395a170d3236303733303031323335395a300e310c300a0603550403130372736130819f300d06092a864886f70d010101050003818d0030818902818100b4bb498f8279303d980836399b36c6988c0c68de55e1bdb826d3901a2461eafd2de49a91d015abbc9a95137ace6c1af19eaa6af98c7ced43120998e187a80ee0ccb0524b1b018c3e0b63264d449a6d38e22a5fda430846748030530ef0461c8ca9d9efbfae8ea6d1d03e2bd193eff0ab9a8002c47428a6d35a8d88d79f7f1e3f0203010001a31a301830090603551d1304023000300b0603551d0f0404030205a0300d06092a864886f70d01010b05000381810085aad2a0e5b9276b908c65f73a7267170618a54c5f8a7b337d2df7a594365417f2eae8f8a58c8f8172f9319cf36b7fd6c55b80f21a03015156726096fd335e5e67f2dbf102702e608ccae6bec1fc63a42a99be5c3eb7107c3c54e9b9eb2bd5203b1c3b84e0a8b2f759409ba3eac9d91d402dcc0cc8f8961229ac9187b42b4de100000f000084080400805a747c5d88fa9bd2e55ab085a61015b7211f824cd484145ab3ff52f1fda8477b0b7abc90db78e2d33a5c141a078653fa6bef780c5ea248eeaaa785c4f394cab6d30bbe8d4859ee511f602957b15411ac027671459e46445c9ea58c181e818e95b8c3fb0bf3278409d3be152a3da5043e063dda65cdf5aea20d53dfacd42f74f3" (subslice v 318 1225) .
   guard is_some d2 . else return 0 .
-  let n_r result u64 tlssrv.tlssrv_error . be tlssrv.server_finished (subslice v 0 32) (subslice v 32 318) (subslice v 318 1225) (subslice v 1225 1261) w .
+  let n_r be result u64 tlssrv.tlssrv_error tlssrv.server_finished (subslice v 0 32) (subslice v 32 318) (subslice v 318 1225) (subslice v 1225 1261) w .
   guard is_ok n_r . else return 0 .
-  let n u64 be ok_value n_r .
+  let n be u64 ok_value n_r .
   guard eq n 36 . else return add 20000 n .
   return cmp_hex (subslice v 1225 1261) 36 "140000209b9b141d906337fbd2cbdce71df4deda4ab42c309572cb7fffee5454b78f0718" (subslice v 1269 1333) .
 end
@@ -221,11 +221,11 @@ rem   처음에 바이트 슬라이스를 넘겨 0 을 받았다. 같은 이름(
 export proc ecdhe_ok input wu mut slice u64 . input v mut slice u8 . . output u64 . effects none . do
   guard ge (len v) 512 . else return 0 .
   guard ge (len wu) 175 . else return 0 .
-  let dp option u64 . be codec.hex_dec "b1580eeadf6dd589b8ef4f2d5652578cc810e9980191ec8d058308cea216a21e" (subslice v 0 32) .
+  let dp be option u64 codec.hex_dec "b1580eeadf6dd589b8ef4f2d5652578cc810e9980191ec8d058308cea216a21e" (subslice v 0 32) .
   guard is_some dp . else return 0 .
-  let dc option u64 . be codec.hex_dec "99381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c" (subslice v 32 64) .
+  let dc be option u64 codec.hex_dec "99381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c" (subslice v 32 64) .
   guard is_some dc . else return 0 .
-  let _u2 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  let _u2 be result u64 x25519.x25519_error x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
   guard is_ok _u2 . else return 0 .
   guard eq (ok_value _u2) 32 . else return 0 .
   return cmp_hex (subslice v 64 96) 32 "8bd4054fb55b9d63fdfbacf9f04b9f0d35e6d63f537563efd46272900f89492d" (subslice v 128 256) .
@@ -244,7 +244,7 @@ proc lay_msgs input v mut slice u8 . . output u64 . effects none . do
   rem   ☞ 퍼저가 닿는 것은 덤이고, 이 줄은 **원래 있어야 했다** — 이 파일의 다른 op 은 전부
   rem     길이를 먼저 본다. *못 재는 op 은 아무도 검증하지 않는다.*
   guard ge (len v) 1171 . else return 0 .
-  let d3 option u64 . be codec.hex_dec "010000c00303cb34ecb1e78163ba1c38c6dacb196a6dffa21a8d9912ec18a2ef6283024dece7000006130113031302010000910000000b0009000006736572766572ff01000100000a00140012001d0017001800190100010101020103010400230000003300260024001d002099381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c002b0003020304000d0020001e040305030603020308040805080604010501060102010402050206020202002d00020101001c00024001020000560303a6af06a4121860dc5e6e60249cd34c95930c8ac5cb1434dac155772ed3e2692800130100002e00330024001d0020c9828876112095fe66762bdbf7c672e156d6cc253b833df1dd69b1b04e751f0f002b00020304080000240022000a00140012001d00170018001901000101010201030104001c00024001000000000b0001b9000001b50001b0308201ac30820115a003020102020102300d06092a864886f70d01010b0500300e310c300a06035504031303727361301e170d3136303733303031323335395a170d3236303733303031323335395a300e310c300a0603550403130372736130819f300d06092a864886f70d010101050003818d0030818902818100b4bb498f8279303d980836399b36c6988c0c68de55e1bdb826d3901a2461eafd2de49a91d015abbc9a95137ace6c1af19eaa6af98c7ced43120998e187a80ee0ccb0524b1b018c3e0b63264d449a6d38e22a5fda430846748030530ef0461c8ca9d9efbfae8ea6d1d03e2bd193eff0ab9a8002c47428a6d35a8d88d79f7f1e3f0203010001a31a301830090603551d1304023000300b0603551d0f0404030205a0300d06092a864886f70d01010b05000381810085aad2a0e5b9276b908c65f73a7267170618a54c5f8a7b337d2df7a594365417f2eae8f8a58c8f8172f9319cf36b7fd6c55b80f21a03015156726096fd335e5e67f2dbf102702e608ccae6bec1fc63a42a99be5c3eb7107c3c54e9b9eb2bd5203b1c3b84e0a8b2f759409ba3eac9d91d402dcc0cc8f8961229ac9187b42b4de100000f000084080400805a747c5d88fa9bd2e55ab085a61015b7211f824cd484145ab3ff52f1fda8477b0b7abc90db78e2d33a5c141a078653fa6bef780c5ea248eeaaa785c4f394cab6d30bbe8d4859ee511f602957b15411ac027671459e46445c9ea58c181e818e95b8c3fb0bf3278409d3be152a3da5043e063dda65cdf5aea20d53dfacd42f74f3140000209b9b141d906337fbd2cbdce71df4deda4ab42c309572cb7fffee5454b78f0718" (subslice v 0 943) .
+  let d3 be option u64 codec.hex_dec "010000c00303cb34ecb1e78163ba1c38c6dacb196a6dffa21a8d9912ec18a2ef6283024dece7000006130113031302010000910000000b0009000006736572766572ff01000100000a00140012001d0017001800190100010101020103010400230000003300260024001d002099381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c002b0003020304000d0020001e040305030603020308040805080604010501060102010402050206020202002d00020101001c00024001020000560303a6af06a4121860dc5e6e60249cd34c95930c8ac5cb1434dac155772ed3e2692800130100002e00330024001d0020c9828876112095fe66762bdbf7c672e156d6cc253b833df1dd69b1b04e751f0f002b00020304080000240022000a00140012001d00170018001901000101010201030104001c00024001000000000b0001b9000001b50001b0308201ac30820115a003020102020102300d06092a864886f70d01010b0500300e310c300a06035504031303727361301e170d3136303733303031323335395a170d3236303733303031323335395a300e310c300a0603550403130372736130819f300d06092a864886f70d010101050003818d0030818902818100b4bb498f8279303d980836399b36c6988c0c68de55e1bdb826d3901a2461eafd2de49a91d015abbc9a95137ace6c1af19eaa6af98c7ced43120998e187a80ee0ccb0524b1b018c3e0b63264d449a6d38e22a5fda430846748030530ef0461c8ca9d9efbfae8ea6d1d03e2bd193eff0ab9a8002c47428a6d35a8d88d79f7f1e3f0203010001a31a301830090603551d1304023000300b0603551d0f0404030205a0300d06092a864886f70d01010b05000381810085aad2a0e5b9276b908c65f73a7267170618a54c5f8a7b337d2df7a594365417f2eae8f8a58c8f8172f9319cf36b7fd6c55b80f21a03015156726096fd335e5e67f2dbf102702e608ccae6bec1fc63a42a99be5c3eb7107c3c54e9b9eb2bd5203b1c3b84e0a8b2f759409ba3eac9d91d402dcc0cc8f8961229ac9187b42b4de100000f000084080400805a747c5d88fa9bd2e55ab085a61015b7211f824cd484145ab3ff52f1fda8477b0b7abc90db78e2d33a5c141a078653fa6bef780c5ea248eeaaa785c4f394cab6d30bbe8d4859ee511f602957b15411ac027671459e46445c9ea58c181e818e95b8c3fb0bf3278409d3be152a3da5043e063dda65cdf5aea20d53dfacd42f74f3140000209b9b141d906337fbd2cbdce71df4deda4ab42c309572cb7fffee5454b78f0718" (subslice v 0 943) .
   guard is_some d3 . else return 0 .
   return 1 .
 end
@@ -254,20 +254,20 @@ export proc ap_secrets input w mut slice u8 . . input v mut slice u8 . . output 
   guard ge (len v) 2048 . else return 0 .
   guard ge (len w) 1024 . else return 0 .
   guard eq (lay_msgs v) 1 . else return 0 .
-  let dh option u64 . be codec.hex_dec "1dc826e93606aa6fdc0aadc12f741b01046aa6b99f691ed221a9f0ca043fbeac" (subslice v 1107 1171) .
+  let dh be option u64 codec.hex_dec "1dc826e93606aa6fdc0aadc12f741b01046aa6b99f691ed221a9f0ca043fbeac" (subslice v 1107 1171) .
   guard is_some dh . else return 0 .
-  let _u1 result u64 tlssrv.tlssrv_error . be tlssrv.app_secrets (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 943 1007) w .
+  let _u1 be result u64 tlssrv.tlssrv_error tlssrv.app_secrets (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 943 1007) w .
   guard is_ok _u1 . else return 0 .
   guard eq (ok_value _u1) 64 . else return 0 .
   rem 두 비밀의 첫 4 바이트를 한 수로 접는다(클라 전부 · 서버는 하위 4비트만 — u64 안에 들게).
-  var a u64 be 0 .
-  var i u64 be 0 .
+  var a be u64 0 .
+  var i be u64 0 .
   while lt i 4 . do
     set a (bit_or (shl a 8) (cast u64 (index v (add 943 i)))) .
     set i (add i 1) .
   end
-  var b u64 be 0 .
-  var j u64 be 0 .
+  var b be u64 0 .
+  var j be u64 0 .
   while lt j 4 . do
     set b (bit_or (shl b 8) (cast u64 (index v (add 975 j)))) .
     set j (add j 1) .
@@ -280,11 +280,11 @@ export proc client_fin_ok input w mut slice u8 . . input v mut slice u8 . . outp
   guard ge (len v) 2048 . else return 0 .
   guard ge (len w) 1024 . else return 0 .
   guard eq (lay_msgs v) 1 . else return 0 .
-  let dc option u64 . be codec.hex_dec "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21" (subslice v 1107 (add 1107 32)) .
+  let dc be option u64 codec.hex_dec "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21" (subslice v 1107 (add 1107 32)) .
   guard is_some dc . else return 0 .
-  let df option u64 . be codec.hex_dec "14000020a8ec436d677634ae525ac1fcebe11a039ec17694fac6e98527b642f2edd5ce61" (subslice v 1007 1043) .
+  let df be option u64 codec.hex_dec "14000020a8ec436d677634ae525ac1fcebe11a039ec17694fac6e98527b642f2edd5ce61" (subslice v 1007 1043) .
   guard is_some df . else return 0 .
-  let _rr result u64 tlssrv.tlssrv_error . be tlssrv.check_client_finished (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 1007 1043) w .
+  let _rr be result u64 tlssrv.tlssrv_error tlssrv.check_client_finished (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 1007 1043) w .
   guard is_ok _rr . else return 0 .
   return ok_value _rr .
 end
@@ -293,12 +293,12 @@ rem ✘ **한 비트만 바꾸면 거절돼야 한다** — 성립만 보면 "�
 export proc client_fin_bad input w mut slice u8 . . input v mut slice u8 . . output u64 . effects none . do
   guard ge (len v) 2048 . else return 0 .
   guard eq (lay_msgs v) 1 . else return 0 .
-  let dc option u64 . be codec.hex_dec "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21" (subslice v 1107 (add 1107 32)) .
+  let dc be option u64 codec.hex_dec "b3eddb126e067f35a780b3abf45e2d8f3b1a950738f52e9600746a0e27a55a21" (subslice v 1107 (add 1107 32)) .
   guard is_some dc . else return 0 .
-  let df option u64 . be codec.hex_dec "14000020a8ec436d677634ae525ac1fcebe11a039ec17694fac6e98527b642f2edd5ce61" (subslice v 1007 1043) .
+  let df be option u64 codec.hex_dec "14000020a8ec436d677634ae525ac1fcebe11a039ec17694fac6e98527b642f2edd5ce61" (subslice v 1007 1043) .
   guard is_some df . else return 0 .
   set (index v (add 1007 35)) (cast u8 (bit_xor (cast u64 (index v (add 1007 35))) 1)) .
-  let _rr result u64 tlssrv.tlssrv_error . be tlssrv.check_client_finished (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 1007 1043) w .
+  let _rr be result u64 tlssrv.tlssrv_error tlssrv.check_client_finished (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 1007 1043) w .
   guard is_ok _rr . else return 0 .
   return ok_value _rr .
 end
@@ -311,9 +311,9 @@ rem ✔ 키뭉치 — 서버 쓰기(s ap traffic) → 키 16 ‖ IV 12. 정본�
 export proc app_keys input w mut slice u8 . . input v mut slice u8 . . output u64 . effects none . do
   guard ge (len v) 512 . else return 0 .
   guard ge (len w) 1024 . else return 0 .
-  let ds option u64 . be codec.hex_dec "a11af9f05531f856ad47116b45a950328204b4f44bfb6b3a4b4f1f3fcb631643" (subslice v 0 32) .
+  let ds be option u64 codec.hex_dec "a11af9f05531f856ad47116b45a950328204b4f44bfb6b3a4b4f1f3fcb631643" (subslice v 0 32) .
   guard is_some ds . else return 0 .
-  let _u0 result u64 tlssrv.tlssrv_error . be tlssrv.traffic_keys (subslice v 0 32) 16 (subslice v 32 60) w .
+  let _u0 be result u64 tlssrv.tlssrv_error tlssrv.traffic_keys (subslice v 0 32) 16 (subslice v 32 60) w .
   guard is_ok _u0 . else return 0 .
   guard eq (ok_value _u0) 28 . else return 0 .
   return cmp_hex (subslice v 32 60) 28 "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 64 256) .
@@ -323,13 +323,13 @@ rem ✔ 봉인 — 정본의 평문 50 B 를 시퀀스 0 으로 봉하면 **72 B
 export proc app_seal input w mut slice u8 . . input v mut slice u8 . . input u mut slice u64 . output u64 . effects none . do
   guard ge (len v) 1024 . else return 0 .
   guard ge (len w) 2048 . else return 0 .
-  let dk option u64 . be codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
+  let dk be option u64 codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
   guard is_some dk . else return 0 .
-  let dp option u64 . be codec.hex_dec "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031" (subslice v 32 82) .
+  let dp be option u64 codec.hex_dec "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f3031" (subslice v 32 82) .
   guard is_some dp . else return 0 .
-  let n_r result u64 tlssrv.tlssrv_error . be tlssrv.seal_app 1 (subslice v 0 28) 16 1 (subslice v 32 82) (subslice v 128 256) w u .
+  let n_r be result u64 tlssrv.tlssrv_error tlssrv.seal_app 1 (subslice v 0 28) 16 1 (subslice v 32 82) (subslice v 128 256) w u .
   guard is_ok n_r . else return 0 .
-  let n u64 be ok_value n_r .
+  let n be u64 ok_value n_r .
   guard eq n 72 . else return add 20000 n .
   return cmp_hex (subslice v 128 256) 72 "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 256 512) .
 end
@@ -338,16 +338,16 @@ rem ✔ 개봉 — 정본의 레코드를 열면 속 평문 51 B(평문 50 + 타
 export proc app_open input w mut slice u8 . . input v mut slice u8 . . input u mut slice u64 . output u64 . effects none . do
   guard ge (len v) 1024 . else return 0 .
   guard ge (len w) 2048 . else return 0 .
-  let dk option u64 . be codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
+  let dk be option u64 codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
   guard is_some dk . else return 0 .
-  let dr option u64 . be codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
+  let dr be option u64 codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
   guard is_some dr . else return 0 .
-  let nr result u64 tlssrv.tlssrv_error . be tlssrv.open_app 1 (subslice v 0 28) 16 1 (subslice v 32 104) (subslice v 128 256) w u .
+  let nr be result u64 tlssrv.tlssrv_error tlssrv.open_app 1 (subslice v 0 28) 16 1 (subslice v 32 104) (subslice v 128 256) w u .
   guard is_ok nr . else return 0 .
-  let n u64 be ok_value nr .
+  let n be u64 ok_value nr .
   guard eq n 51 . else return add 20000 n .
   rem 속 타입이 23(application_data) 인가 · 평문 첫 4 바이트가 00 01 02 03 인가
-  var acc u64 be 0 .
+  var acc be u64 0 .
   if eq (tls13.inner_type (subslice v 128 179)) 23 . do  set acc (add acc 100) . end
   if eq (cast u64 (index v 128)) 0 . do
     if eq (cast u64 (index v 131)) 3 . do  set acc (add acc 10) . end
@@ -360,12 +360,12 @@ rem ✘ **한 비트만 바꾸면 열리면 안 된다** — AEAD 의 태그가 
 export proc app_open_bad input w mut slice u8 . . input v mut slice u8 . . input u mut slice u64 . output u64 . effects none . do
   guard ge (len v) 1024 . else return 0 .
   guard ge (len w) 2048 . else return 0 .
-  let dk option u64 . be codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
+  let dk be option u64 codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
   guard is_some dk . else return 0 .
-  let dr option u64 . be codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
+  let dr be option u64 codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
   guard is_some dr . else return 0 .
   set (index v 40) (cast u8 (bit_xor (cast u64 (index v 40)) 1)) .
-  let _rr result u64 tlssrv.tlssrv_error . be tlssrv.open_app 1 (subslice v 0 28) 16 1 (subslice v 32 104) (subslice v 128 256) w u .
+  let _rr be result u64 tlssrv.tlssrv_error tlssrv.open_app 1 (subslice v 0 28) 16 1 (subslice v 32 104) (subslice v 128 256) w u .
   guard is_ok _rr . else return 0 .
   return ok_value _rr .
 end
@@ -375,11 +375,11 @@ rem   ☞ 이것이 재전송·재배열을 막는 자리다.
 export proc app_open_seq input w mut slice u8 . . input v mut slice u8 . . input u mut slice u64 . output u64 . effects none . do
   guard ge (len v) 1024 . else return 0 .
   guard ge (len w) 2048 . else return 0 .
-  let dk option u64 . be codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
+  let dk be option u64 codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
   guard is_some dk . else return 0 .
-  let dr option u64 . be codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
+  let dr be option u64 codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
   guard is_some dr . else return 0 .
-  let _rr result u64 tlssrv.tlssrv_error . be tlssrv.open_app 1 (subslice v 0 28) 16 0 (subslice v 32 104) (subslice v 128 256) w u .
+  let _rr be result u64 tlssrv.tlssrv_error tlssrv.open_app 1 (subslice v 0 28) 16 0 (subslice v 32 104) (subslice v 128 256) w u .
   guard is_ok _rr . else return 0 .
   return ok_value _rr .
 end
@@ -390,16 +390,16 @@ rem     **속 타입을 안 보면 경보를 데이터로 읽는다.**
 export proc alert_open input w mut slice u8 . . input v mut slice u8 . . input u mut slice u64 . output u64 . effects none . do
   guard ge (len v) 1024 . else return 0 .
   guard ge (len w) 2048 . else return 0 .
-  let dk option u64 . be codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
+  let dk be option u64 codec.hex_dec "9f02283b6c9c07efc26bb9f2ac92e356cf782b88dd83549aadf1e984" (subslice v 0 28) .
   guard is_some dk . else return 0 .
-  let dr option u64 . be codec.hex_dec "1703030013b58fd67166ebf599d24720cfbe7efa7a8864a9" (subslice v 32 56) .
+  let dr be option u64 codec.hex_dec "1703030013b58fd67166ebf599d24720cfbe7efa7a8864a9" (subslice v 32 56) .
   guard is_some dr . else return 0 .
   rem ★ 정본의 서버 응용 키 시퀀스: **NewSessionTicket 0 · 응용 데이터 1 · 경보 2**.
   rem   ☞ 처음에 0·1 로 적었다가 안 열렸다 — 시퀀스는 **레코드마다** 오르고, 핸드셰이크 뒤
   rem     첫 응용-키 레코드는 티켓이다. *세는 것은 레코드이지 "내가 보낸 데이터" 가 아니다.*
-  let nr2 result u64 tlssrv.tlssrv_error . be tlssrv.open_app 1 (subslice v 0 28) 16 2 (subslice v 32 56) (subslice v 128 256) w u .
+  let nr2 be result u64 tlssrv.tlssrv_error tlssrv.open_app 1 (subslice v 0 28) 16 2 (subslice v 32 56) (subslice v 128 256) w u .
   guard is_ok nr2 . else return 0 .
-  let n u64 be ok_value nr2 .
+  let n be u64 ok_value nr2 .
   guard eq n 3 . else return add 20000 n .
   return add (mul (tls13.inner_type (subslice v 128 131)) 100) (cast u64 (index v 128)) .
 end
@@ -415,25 +415,25 @@ rem   셋을 거절하고, 정본의 클라이언트 공개키와는 여전히 3
 export proc t_x25519_smallorder input v mut slice u8 . . input wu mut slice u64 . output u64 . effects none . do
   guard ge (len v) 512 . else return 0 .
   guard ge (len wu) 175 . else return 0 .
-  let dp option u64 . be codec.hex_dec "b1580eeadf6dd589b8ef4f2d5652578cc810e9980191ec8d058308cea216a21e" (subslice v 0 32) .
+  let dp be option u64 codec.hex_dec "b1580eeadf6dd589b8ef4f2d5652578cc810e9980191ec8d058308cea216a21e" (subslice v 0 32) .
   guard is_some dp . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 32 . do  set (index v (add 32 i)) 0 .  set i (add i 1) .  end
-  let _ag0 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  let _ag0 be result u64 x25519.x25519_error x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
   guard is_ok _ag0 . else return 0 .
   if ne (ok_value _ag0) 0 . do  return 91 . end
   set (index v 32) 1 .
-  let _ag1 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  let _ag1 be result u64 x25519.x25519_error x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
   guard is_ok _ag1 . else return 0 .
   if ne (ok_value _ag1) 0 . do  return 92 . end
-  let d8 option u64 . be codec.hex_dec "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800" (subslice v 32 64) .
+  let d8 be option u64 codec.hex_dec "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800" (subslice v 32 64) .
   guard is_some d8 . else return 0 .
-  let _ag2 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  let _ag2 be result u64 x25519.x25519_error x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
   guard is_ok _ag2 . else return 0 .
   if ne (ok_value _ag2) 0 . do  return 93 . end
-  let dc option u64 . be codec.hex_dec "99381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c" (subslice v 32 64) .
+  let dc be option u64 codec.hex_dec "99381de560e4bd43d23d8e435a7dbafeb3c06e51c13cae4d5413691e529aaf2c" (subslice v 32 64) .
   guard is_some dc . else return 0 .
-  let _ag3 result u64 x25519.x25519_error . be x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
+  let _ag3 be result u64 x25519.x25519_error x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
   guard is_ok _ag3 . else return 0 .
   if ne (ok_value _ag3) 32 . do  return 94 . end
   return 1 .
@@ -444,12 +444,12 @@ rem   호출자(다른 그룹·다른 구현)가 줄 수도 있는 값이다. 1 
 export proc t_sf_zero_ecdhe input w mut slice u8 . . input v mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 1024 . else return 0 .
   guard ge (len v) 2048 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 32 . do  set (index v i) 0 .  set i (add i 1) .  end
   guard eq (ch_bytes (subslice v 32 228)) 196 . else return 0 .
-  let ds option u64 . be codec.hex_dec (sh_hex) (subslice v 228 318) .
+  let ds be option u64 codec.hex_dec (sh_hex) (subslice v 228 318) .
   guard is_some ds . else return 0 .
-  let _sf4 result u64 tlssrv.tlssrv_error . be tlssrv.server_finished (subslice v 0 32) (subslice v 32 318) (subslice v 32 318) (subslice v 1225 1261) w .
+  let _sf4 be result u64 tlssrv.tlssrv_error tlssrv.server_finished (subslice v 0 32) (subslice v 32 318) (subslice v 32 318) (subslice v 1225 1261) w .
   guard is_ok _sf4 . else return 0 .
   if ne (ok_value _sf4) 0 . do  return 95 . end
   return 1 .

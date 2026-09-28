@@ -23,28 +23,28 @@ rem 위치는 x = 100·200·300·400, 속도는 1·2·3·4 — 한 스텝 뒤 10
 
 proc main input al cap allocator . output u8 . effects state alloc . do
   rem ── ① soa — 필드별 배열을 세우고 한 스텝 전진 ──────────────────────
-  let xso option mut slice u8 . . be alloc_bytes al capacity 32 .
+  let xso be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some xso . else return 90 .
-  var xs mut slice u64 . be view_array u64 (some_value xso) .
+  var xs be mut slice u64 view_array u64 (some_value xso) .
   set (index xs 0) 100 . set (index xs 1) 200 .
   set (index xs 2) 300 . set (index xs 3) 400 .
 
-  let vso option mut slice u8 . . be alloc_bytes al capacity 32 .
+  let vso be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some vso . else return 91 .
-  var vxs mut slice u64 . be view_array u64 (some_value vso) .
+  var vxs be mut slice u64 view_array u64 (some_value vso) .
   set (index vxs 0) 1 . set (index vxs 1) 2 .
   set (index vxs 2) 3 . set (index vxs 3) 4 .
 
-  let moved u64 be soa.step_x xs vxs 4 .
+  let moved be u64 soa.step_x xs vxs 4 .
   guard eq moved 4 . else return 1 .
   guard eq (soa.get_x xs 0) 101 . else return 2 .
   guard eq (soa.get_x xs 3) 404 . else return 3 .
 
   rem ── ② hashmap — id → 자리 (통은 호출자가 준다: 슬롯 8 = u64 16 칸) ──
-  let bko option mut slice u8 . . be alloc_bytes al capacity 128 .
+  let bko be option mut slice u8 alloc_bytes al capacity 128 .
   guard is_some bko . else return 92 .
-  var bk mut slice u64 . be view_array u64 (some_value bko) .
-  var s u64 be 0 .
+  var bk be mut slice u64 view_array u64 (some_value bko) .
+  var s be u64 0 .
   while lt s (len bk) . do
     set (index bk s) 0 .
     set s (add s 1) .
@@ -57,8 +57,8 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   rem   `occupied_at` 로 훑어 센다. 처음 이 프로그램을 쓸 때 `size` 를 개수로 읽어 틀렸다 —
   rem   해시맵에서 `size` 는 대개 개수를 뜻하므로, 이름이 독자를 그쪽으로 민다.
   guard eq (hashmap.size bk) 8 . else return 8 .
-  var occ u64 be 0 .
-  var sl u64 be 0 .
+  var occ be u64 0 .
+  var sl be u64 0 .
   while lt sl (hashmap.size bk) . do
     if hashmap.occupied_at bk sl . do set occ (add occ 1) . end
     set sl (add sl 1) .
@@ -66,26 +66,26 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   guard eq occ 4 . else return 22 .
 
   rem 색인이 실제로 자리를 짚는가 — 없는 id 는 none 이어야 한다.
-  let i20 option u64 . be hashmap.lookup bk 20 .
+  let i20 be option u64 hashmap.lookup bk 20 .
   guard is_some i20 . else return 9 .
   guard eq (soa.get_x xs (some_value i20)) 202 . else return 10 .
-  let miss option u64 . be hashmap.lookup bk 99 .
+  let miss be option u64 hashmap.lookup bk 99 .
   guard not (is_some miss) . else return 11 .
 
   rem ── ③ growvec — 리포트를 스스로 자라는 벡터에 쌓는다 ────────────────
-  let memo option mut slice u8 . . be alloc_bytes al capacity 512 .
+  let memo be option mut slice u8 alloc_bytes al capacity 512 .
   guard is_some memo . else return 93 .
-  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  var c u64 be send bump init (some_value memo) .
-  let go option growvec.gvec . using bump be growvec.open 2 .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c be u64 send bump init (some_value memo) .
+  let go using bump be option growvec.gvec growvec.open 2 .
   guard is_some go . else return 12 .
-  var g growvec.gvec . be some_value go .
+  var g be growvec.gvec some_value go .
 
   rem 개체마다 한 바이트 — 자리 순서대로 x 의 하위 바이트. 용량 2 로 열었으니 **자라야** 한다.
-  var k u64 be 0 .
+  var k be u64 0 .
   while lt k 4 . do
-    let ido u64 be add 10 (mul k 10) .
-    let po option u64 . be hashmap.lookup bk ido .
+    let ido be u64 add 10 (mul k 10) .
+    let po be option u64 hashmap.lookup bk ido .
     guard is_some po . else return 13 .
     guard growvec.add_byte g (narrow u8 (mod (soa.get_x xs (some_value po)) 256)) . else return 14 .
     set k (add k 1) .
@@ -94,7 +94,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   guard gt (growvec.cap_of g) 2 . else return 16 .
 
   rem 101·202·303·404 의 하위 바이트 = 101·202·47·148.
-  let v slice u8 be growvec.view_of g .
+  let v be slice u8 growvec.view_of g .
   guard eq (len v) 4 . else return 17 .
   guard eq (index v 0) 101 . else return 18 .
   guard eq (index v 1) 202 . else return 19 .

@@ -100,7 +100,7 @@ export actor bump_bytes do
   rem   한다(2026-09-04 보안 검토). `off ≤ len mem` 은 불변이라 뺄셈은 안 감긴다.
   proc reserve input n u64 . output option mut slice u8 . . effects state . do
     guard le n (sub (len mem) off) . else return none .
-    let v mut slice u8 . be subslice mem off (add off n) .
+    let v be mut slice u8 subslice mem off (add off n) .
     set last off .
     set off (add off n) .
     return (some v) .
@@ -155,12 +155,12 @@ export actor bump_aligned do
 
   rem 시작점을 8 의 배수로 올린 뒤 자른다. 패딩은 버려진다(범프니까 되돌릴 수 없다).
   proc reserve input n u64 . output option mut slice u8 . . effects state . do
-    var pad u64 be mod (sub 8 (mod off 8)) 8 .
-    var at u64 be add off pad .
+    var pad be u64 mod (sub 8 (mod off 8)) 8 .
+    var at be u64 add off pad .
     rem ★ 패딩이 끝을 넘을 수 있으므로 먼저 `at` 을 재고, 그다음 남은 자리와 뺄셈으로 잰다(2026-09-04).
     guard le at (len mem) . else return none .
     guard le n (sub (len mem) at) . else return none .
-    let v mut slice u8 . be subslice mem at (add at n) .
+    let v be mut slice u8 subslice mem at (add at n) .
     set last at .
     set off (add at n) .
     return (some v) .
@@ -209,7 +209,7 @@ export actor fixed_bytes do
   end
 
   proc reserve input n u64 . output option mut slice u8 . . effects alloc state . do
-    let g option mut slice u8 . . be alloc_bytes root capacity n .
+    let g be option mut slice u8 alloc_bytes root capacity n .
     guard is_some g . else return none .
     set got (add got n) .
     return g .
@@ -233,7 +233,7 @@ export actor heap_bytes do
   end
 
   proc reserve input n u64 . output option mut slice u8 . . effects heap state . do
-    let g option mut slice u8 . . be alloc_bytes root capacity n .
+    let g be option mut slice u8 alloc_bytes root capacity n .
     guard is_some g . else return none .
     set got (add got n) .
     return g .

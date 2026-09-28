@@ -3,8 +3,8 @@ rem trap: total [1,2,3]
 
 fn total input xs slice u8 . output u64 .
 do
-  var t u64 be 0 .
-  var i u64 be 0 .
+  var t be u64 0 .
+  var i be u64 0 .
   rem ko: ✘ `le` 라서 i 가 3 일 때도 돈다 --- 길이 3 인 줄의 번호는 0, 1, 2 뿐이다 /// en: ✘ with `le` it also runs when i is 3 --- a slice of length 3 has indexes 0, 1, 2 only
   while le i (len xs) . do
     set t (add t (widen u64 (index xs i))) .

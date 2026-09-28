@@ -24,15 +24,15 @@ do
 end
 proc consumer input ch u64 . input s first_seen . output u64 . effects state concurrent .
 do
-  let x u64 be chrecv ch .
-  let y u64 be chrecv ch .
-  let a u64 be send s put (min x 1000) .
+  let x be u64 chrecv ch .
+  let y be u64 chrecv ch .
+  let a be u64 send s put (min x 1000) .
   return send s put (min y 1000) .
 end
 proc drive output u64 . effects state .
 do
-  var ch u64 be channel u64 .
-  var s first_seen be spawn actor first_seen .
+  var ch be u64 channel u64 .
+  var s be first_seen spawn actor first_seen .
   task_group do
     spawn consumer ch s .
     spawn producer ch 10 .
@@ -42,8 +42,8 @@ do
 end
 test first_is_ten schedule explore_interleavings .
 do
-  var ch u64 be channel u64 .
-  var s first_seen be spawn actor first_seen .
+  var ch be u64 channel u64 .
+  var s be first_seen spawn actor first_seen .
   task_group do
     spawn consumer ch s .
     spawn producer ch 10 .

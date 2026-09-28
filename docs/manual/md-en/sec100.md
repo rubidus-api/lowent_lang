@@ -36,16 +36,16 @@ do
   set (index xs 1) 2 .
   set (index vxs 0) 10 .
   set (index vxs 1) 20 .
-  let n1 u64 be soa.step_x xs vxs 2 .
+  let n1 be u64 soa.step_x xs vxs 2 .
   guard eq n1 2 . else return 90 .
-  let s1 u64 be soa.sum_field (subslice xs 0 2) .
+  let s1 be u64 soa.sum_field (subslice xs 0 2) .
   set (index rows 0) 1 .
   set (index rows 1) 10 .
   set (index rows 2) 2 .
   set (index rows 3) 20 .
-  let n2 u64 be soa.step_x_aos rows 2 0 1 2 .
+  let n2 be u64 soa.step_x_aos rows 2 0 1 2 .
   guard eq n2 2 . else return 91 .
-  var s2 u64 be add (index rows 0) (index rows 2) .
+  var s2 be u64 add (index rows 0) (index rows 2) .
   guard eq s1 s2 . else return 92 .
   return s1 .
 end

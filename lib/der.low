@@ -48,7 +48,7 @@ fn long_ok input b slice u8 . input off u64 . input n u64 . output u64 . do
   guard gt n 0 . else return 0 .
   guard le n 4 . else return 0 .
   guard le (add (add off 2) n) (len b) . else return 0 .
-  let b0 u64 be cast u64 (index b (add off 2)) .
+  let b0 be u64 cast u64 (index b (add off 2)) .
   guard gt b0 0 . else return 0 .
   if eq n 1 . do
     if lt b0 128 . do  return 0 .  end
@@ -59,9 +59,9 @@ end
 rem 값이 시작하는 자리(= 머리 길이 뒤). 실패면 0.
 export fn value_off input b slice u8 . input off u64 . output u64 . do
   guard lt (add off 1) (len b) . else return 0 .
-  let l0 u64 be cast u64 (index b (add off 1)) .
+  let l0 be u64 cast u64 (index b (add off 1)) .
   if lt l0 128 . do  return add off 2 .  end
-  let n u64 be sub l0 128 .
+  let n be u64 sub l0 128 .
   guard eq (long_ok b off n) 1 . else return 0 .
   return add (add off 2) n .
 end
@@ -71,15 +71,15 @@ rem ★ **값이 버퍼를 넘으면 0** — 상대가 쓴 길이는 버퍼 안�
 rem   이 한 줄이 `alg_oid_len`·`spki_key_len`·`rsa_n_len`·`p8_inner_len`·`ec_priv_len` 을 전부 지킨다.
 export fn value_len input b slice u8 . input off u64 . output u64 . do
   guard lt (add off 1) (len b) . else return 0 .
-  let l0 u64 be cast u64 (index b (add off 1)) .
+  let l0 be u64 cast u64 (index b (add off 1)) .
   if lt l0 128 . do
     guard le (add (add off 2) l0) (len b) . else return 0 .
     return l0 .
   end
-  let n u64 be sub l0 128 .
+  let n be u64 sub l0 128 .
   guard eq (long_ok b off n) 1 . else return 0 .
-  var v u64 be 0 .
-  var i u64 be 0 .
+  var v be u64 0 .
+  var i be u64 0 .
   while lt i n . do
     set v (add (shl v 8) (cast u64 (index b (add (add off 2) i)))) .
     set i (add i 1) .
@@ -91,10 +91,10 @@ end
 
 rem ★ 요소 하나를 통째로 건너뛴 다음 자리. **버퍼를 넘으면 0** — 길이를 믿지 않는다.
 export fn next_off input b slice u8 . input off u64 . output u64 . do
-  let vo u64 be value_off b off .
+  let vo be u64 value_off b off .
   guard gt vo 0 . else return 0 .
-  let vl u64 be value_len b off .
-  let e u64 be add vo vl .
+  let vl be u64 value_len b off .
+  let e be u64 add vo vl .
   guard le e (len b) . else return 0 .
   return e .
 end
@@ -110,15 +110,15 @@ rem   그것이 SPKI 다.
 rem 요소가 SPKI 모양인가.
 export fn is_spki input b slice u8 . input off u64 . output u64 . do
   guard eq (tag_at b off) 48 . else return 0 .
-  let vo u64 be value_off b off .
+  let vo be u64 value_off b off .
   guard gt vo 0 . else return 0 .
   rem 첫 자식이 SEQUENCE 이고 그 첫 자식이 OID(6) 인가
   guard eq (tag_at b vo) 48 . else return 0 .
-  let ao u64 be value_off b vo .
+  let ao be u64 value_off b vo .
   guard gt ao 0 . else return 0 .
   guard eq (tag_at b ao) 6 . else return 0 .
   rem 둘째 자식이 BIT STRING(3) 인가
-  let n2 u64 be next_off b vo .
+  let n2 be u64 next_off b vo .
   guard gt n2 0 . else return 0 .
   guard eq (tag_at b n2) 3 . else return 0 .
   return 1 .
@@ -128,17 +128,17 @@ rem ★★ 인증서(DER)에서 SPKI 의 자리를 찾는다. 못 찾으면 0.
 rem   Certificate ::= SEQUENCE { tbsCertificate, … } 이므로 tbs 의 자식들을 훑는다.
 export fn find_spki input b slice u8 . output u64 . do
   guard eq (tag_at b 0) 48 . else return 0 .
-  let co u64 be value_off b 0 .
+  let co be u64 value_off b 0 .
   guard gt co 0 . else return 0 .
   rem 첫 자식 = tbsCertificate
   guard eq (tag_at b co) 48 . else return 0 .
-  let tbo u64 be value_off b co .
+  let tbo be u64 value_off b co .
   guard gt tbo 0 . else return 0 .
-  let tend u64 be add tbo (value_len b co) .
+  let tend be u64 add tbo (value_len b co) .
   guard le tend (len b) . else return 0 .
-  var p u64 be tbo .
-  var found u64 be 0 .
-  var done u64 be 0 .
+  var p be u64 tbo .
+  var found be u64 0 .
+  var done be u64 0 .
   while eq done 0 . do
     if ge p tend . do  set done 1 .  end
     if eq done 0 . do
@@ -147,7 +147,7 @@ export fn find_spki input b slice u8 . output u64 . do
         set done 1 .
       end
       if eq done 0 . do
-        let nx u64 be next_off b p .
+        let nx be u64 next_off b p .
         if eq nx 0 . do  set done 1 .  end
         if gt nx 0 . do  set p nx .  end
       end
@@ -158,15 +158,15 @@ end
 
 rem ★ SPKI 안의 알고리즘 OID 자리(값 시작)와 길이.
 export fn alg_oid_off input b slice u8 . input spki u64 . output u64 . do
-  let vo u64 be value_off b spki .
+  let vo be u64 value_off b spki .
   guard gt vo 0 . else return 0 .
-  let ao u64 be value_off b vo .
+  let ao be u64 value_off b vo .
   guard gt ao 0 . else return 0 .
   return ao .
 end
 
 export fn alg_oid_len input b slice u8 . input spki u64 . output u64 . do
-  let vo u64 be value_off b spki .
+  let vo be u64 value_off b spki .
   guard gt vo 0 . else return 0 .
   return value_len b vo .
 end
@@ -181,12 +181,12 @@ rem   말하지 않아서 둘을 바꿔 넣었고 — 도구는 수를 수로 �
 rem   **진짜 ECDSA 인증서가 전부 거절됐다**(2026-09-18). 증상은 「서명이 틀렸다」 하나뿐이라
 rem   틀린 자리를 가리키지 않는다. ⇒ 접두사가 그 물음에 답한다: `spki_…` 와 `rsa_…`.
 export fn spki_key_off input b slice u8 . input spki u64 . output u64 . do
-  let vo u64 be value_off b spki .
+  let vo be u64 value_off b spki .
   guard gt vo 0 . else return 0 .
-  let bs u64 be next_off b vo .
+  let bs be u64 next_off b vo .
   guard gt bs 0 . else return 0 .
   guard eq (tag_at b bs) 3 . else return 0 .
-  let ko u64 be value_off b bs .
+  let ko be u64 value_off b bs .
   guard gt ko 0 . else return 0 .
   guard lt ko (len b) . else return 0 .
   guard eq (cast u64 (index b ko)) 0 . else return 0 .
@@ -194,11 +194,11 @@ export fn spki_key_off input b slice u8 . input spki u64 . output u64 . do
 end
 
 export fn spki_key_len input b slice u8 . input spki u64 . output u64 . do
-  let vo u64 be value_off b spki .
+  let vo be u64 value_off b spki .
   guard gt vo 0 . else return 0 .
-  let bs u64 be next_off b vo .
+  let bs be u64 next_off b vo .
   guard gt bs 0 . else return 0 .
-  let n u64 be value_len b bs .
+  let n be u64 value_len b bs .
   guard gt n 0 . else return 0 .
   return sub n 1 .
 end
@@ -208,10 +208,10 @@ rem   modulus 의 자리·길이를 낸다. INTEGER 는 앞에 0x00 이 붙을 �
 rem   ☞ 그 0 을 안 벗기면 계수가 한 바이트 길어져 **모듈러 산술이 통째로 어긋난다**.
 export fn rsa_n_off input b slice u8 . input ko u64 . output u64 . do
   guard eq (tag_at b ko) 48 . else return 0 .
-  let so u64 be value_off b ko .
+  let so be u64 value_off b ko .
   guard gt so 0 . else return 0 .
   guard eq (tag_at b so) 2 . else return 0 .
-  let no u64 be value_off b so .
+  let no be u64 value_off b so .
   guard gt no 0 . else return 0 .
   guard lt no (len b) . else return 0 .
   if eq (cast u64 (index b no)) 0 . do  return add no 1 .  end
@@ -220,12 +220,12 @@ end
 
 export fn rsa_n_len input b slice u8 . input ko u64 . output u64 . do
   guard eq (tag_at b ko) 48 . else return 0 .
-  let so u64 be value_off b ko .
+  let so be u64 value_off b ko .
   guard gt so 0 . else return 0 .
   guard eq (tag_at b so) 2 . else return 0 .
-  let nl u64 be value_len b so .
+  let nl be u64 value_len b so .
   guard gt nl 0 . else return 0 .
-  let no u64 be value_off b so .
+  let no be u64 value_off b so .
   guard gt no 0 . else return 0 .
   rem ★ `rsa_n_off` 와 같은 가드 — 이것이 빠져서 값 없는 INTEGER 머리가 버퍼 끝에 오면
   rem   `index b no` 가 트랩했다(2026-09-04 검토 A2). 형제가 가진 가드는 형제도 가져야 한다.
@@ -237,18 +237,18 @@ end
 rem ★ RSA 공개 지수(작은 수이므로 u64 로 낸다). 65537 이 거의 전부다.
 export fn rsa_e input b slice u8 . input ko u64 . output u64 . do
   guard eq (tag_at b ko) 48 . else return 0 .
-  let so u64 be value_off b ko .
+  let so be u64 value_off b ko .
   guard gt so 0 . else return 0 .
-  let eo u64 be next_off b so .
+  let eo be u64 next_off b so .
   guard gt eo 0 . else return 0 .
   guard eq (tag_at b eo) 2 . else return 0 .
-  let vo u64 be value_off b eo .
+  let vo be u64 value_off b eo .
   guard gt vo 0 . else return 0 .
-  let vl u64 be value_len b eo .
+  let vl be u64 value_len b eo .
   guard le vl 8 . else return 0 .
   guard le (add vo vl) (len b) . else return 0 .
-  var v u64 be 0 .
-  var i u64 be 0 .
+  var v be u64 0 .
+  var i be u64 0 .
   while lt i vl . do
     set v (add (shl v 8) (cast u64 (index b (add vo i)))) .
     set i (add i 1) .
@@ -278,10 +278,10 @@ rem   위협 모델이 다르다 — 그렇다고 검사를 빼지는 않는다.
 rem 알고리즘 SEQUENCE 의 자리. 0 = 성하지 않다.
 export fn p8_alg_off input b slice u8 . . output u64 . do
   if ne (tag_at b 0) 48 . do return 0 . end
-  let v u64 be value_off b 0 .
+  let v be u64 value_off b 0 .
   if eq v 0 . do return 0 . end
   if ne (tag_at b v) 2 . do return 0 . end        rem version INTEGER . .
-  let a u64 be next_off b v .
+  let a be u64 next_off b v .
   if eq a 0 . do return 0 . end
   if ne (tag_at b a) 48 . do return 0 . end
   return a .
@@ -289,9 +289,9 @@ end
 
 rem `privateKey` OCTET STRING 의 **내용** 자리. 0 = 성하지 않다.
 export fn p8_inner_off input b slice u8 . . output u64 . do
-  let a u64 be p8_alg_off b .
+  let a be u64 p8_alg_off b .
   if eq a 0 . do return 0 . end
-  let k u64 be next_off b a .
+  let k be u64 next_off b a .
   if eq k 0 . do return 0 . end
   if ne (tag_at b k) 4 . do return 0 . end        rem OCTET STRING . .
   return value_off b k .
@@ -299,9 +299,9 @@ end
 
 rem 그 내용의 길이.
 export fn p8_inner_len input b slice u8 . . output u64 . do
-  let a u64 be p8_alg_off b .
+  let a be u64 p8_alg_off b .
   if eq a 0 . do return 0 . end
-  let k u64 be next_off b a .
+  let k be u64 next_off b a .
   if eq k 0 . do return 0 . end
   if ne (tag_at b k) 4 . do return 0 . end
   return value_len b k .
@@ -311,10 +311,10 @@ rem ★★★★ **ECPrivateKey 안의 32 바이트 스칼라** 자리. 0 = 성�
 rem   `off` 는 ECPrivateKey SEQUENCE 가 시작하는 자리다(= `p8_inner_off` 가 낸 값).
 export fn ec_priv_off input b slice u8 . . input off u64 . output u64 . do
   if ne (tag_at b off) 48 . do return 0 . end
-  let v u64 be value_off b off .
+  let v be u64 value_off b off .
   if eq v 0 . do return 0 . end
   if ne (tag_at b v) 2 . do return 0 . end        rem version INTEGER (1) . .
-  let s u64 be next_off b v .
+  let s be u64 next_off b v .
   if eq s 0 . do return 0 . end
   if ne (tag_at b s) 4 . do return 0 . end        rem OCTET STRING . .
   return value_off b s .
@@ -324,9 +324,9 @@ rem 그 스칼라의 길이. **P-256 이면 32 여야 한다** — 부르는 쪽
 rem ☞ 여기서 32 를 강제하지 않는 이유: 이 파서는 곡선을 모른다. 곡선을 아는 쪽이 판단한다.
 export fn ec_priv_len input b slice u8 . . input off u64 . output u64 . do
   if ne (tag_at b off) 48 . do return 0 . end
-  let v u64 be value_off b off .
+  let v be u64 value_off b off .
   if eq v 0 . do return 0 . end
-  let s u64 be next_off b v .
+  let s be u64 next_off b v .
   if eq s 0 . do return 0 . end
   if ne (tag_at b s) 4 . do return 0 . end
   return value_len b s .

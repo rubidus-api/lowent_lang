@@ -707,8 +707,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">requires</span></strong> ge dy -<span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le dy <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a geom.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> b geom.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> geom.point <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> geom.point <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> geom.manhattan a b .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run distance app.low 3 4
@@ -736,8 +736,8 @@ hidden.low:8:0 E-VISIBILITY: this name belongs to ANOTHER module and is not `exp
   <strong><span class="tok-k">requires</span></strong> ge dy -<span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le dy <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a g.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> g.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> b g.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> g.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> g.point <strong><span class="tok-k">make</span></strong> g.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> g.point <strong><span class="tok-k">make</span></strong> g.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> g.manhattan a b .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run distance alias.low 3 4
@@ -750,11 +750,11 @@ distance(3, 4) = 7
 <strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 별칭을 적어 놓고 원래 이름으로 부른다 --- 같은 모듈을 두 철자로 부르는 코드가 된다</span></em>
-  <strong><span class="tok-k">let</span></strong> p geom.point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> geom.point <strong><span class="tok-k">make</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_aliasold.low
-mistake_aliasold.low:9:9 E-USE-ALIASED: this unit renamed that module with `as`, so its name here is `g` — the original name no longer stands. One thing, one spelling: if both names worked, a reader would have to check that they mean the same module. Write the member under `g.`
+mistake_aliasold.low:9:12 E-USE-ALIASED: this unit renamed that module with `as`, so its name here is `g` — the original name no longer stands. One thing, one spelling: if both names worked, a reader would have to check that they mean the same module. Write the member under `g.`
 mistake_aliasold.low:9:28 E-USE-ALIASED: this unit renamed that module with `as`, so its name here is `g` — the original name no longer stands. One thing, one spelling: if both names worked, a reader would have to check that they mean the same module. Write the member under `g.`
 </code></pre></div></div><p><code>as g</code> 를 적은 순간 이 파일에서 그 모듈의 이름은 <code>g</code> 하나다. <code>geom.point</code> 는 <code>E-USE-ALIASED</code> 로 거절된다. 두 철자가 다 서면 한쪽만 고친 코드가 생기고, 읽는 사람은 둘이 같은 모듈인지 매번 확인해야 한다. 원래 이름을 적는 자리는 <code>use</code> 줄 하나뿐이다.</p></div></div><h3 id="s21-4">21.4 검색 경로가 없다<a class="plink" href="#s21-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>많은 언어는 이름만 적으면 도구가 어딘가의 검색 경로에서 모듈을 찾아온다. 그러면 이 프로그램이 무엇에 기대는지가 소스 밖의 지식이 되고, 같은 소스가 기계에 따라 다른 파일을 가져올 수 있다. Lowent 의 들여오기는 셋 가운데 하나다.</p><ul><li>자리를 적는다: <code>use geom from "geom.low" .</code></li><li>같은 번역 단위로 함께 넘긴다: <code>lowentc --check app.low geom.low</code></li><li>표준 라이브러리의 예약된 이름을 쓴다: <code>use allocs .</code></li></ul><p>패키지 매니페스트(<code>pkg.low</code>)로 외부 의존을 적을 때도 원칙은 같다. 의존은 <strong>내용 해시와 함께</strong> 고정되고, 바이트가 바뀌면 빌드가 거절된다(31장).</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>모듈 이름은 파일 이름에서 온다</strong></p><div class="dev-body">표준 라이브러리에서 이 오해가 자주 걸린다. <code>use</code> 가 찾는 것은 파일 안의 <code>module</code> 선언이다. <code>lib/alloc.low</code> 의 모듈 이름은 <code>allocs</code> 이고, <code>lib/str.low</code> 는 <code>strings</code>, <code>lib/vec.low</code> 는 <code>vecs</code> 다. 이름이 다른 모듈의 목록은 표준 라이브러리 부(32장)의 첫 표에 있다.</div></div><h3 id="s21-5">21.5 이름이 부딪히면<a class="plink" href="#s21-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>한 모듈 안에서 같은 이름을 두 번 선언할 수 없다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/dup.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dup .
 <em><span class="tok-c">rem expect: E-NAME-DUP</span></em>
@@ -792,7 +792,7 @@ is_even(7) = 0
 <strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 들여온 이름을 모듈 이름 없이 불렀다</span></em>
-  <strong><span class="tok-k">let</span></strong> a point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> field a x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_bare.low
@@ -864,7 +864,7 @@ secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names 
 <strong><span class="tok-k">fn</span></strong> peek <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 받은 값을 담을 타입 이름이 감춰져 있다</span></em>
-  <strong><span class="tok-k">let</span></strong> s secretbox.secret <strong><span class="tok-k">be</span></strong> secretbox.make_secret .
+  <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">be</span></strong> secretbox.secret secretbox.make_secret .
   <strong><span class="tok-k">return</span></strong> field s v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_privtype.low
@@ -893,7 +893,7 @@ secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names 
 <strong><span class="tok-k">use</span></strong> sizes from <span class="tok-s">"</span><span class="tok-s">sizes.low</span><span class="tok-s">"</span> .
 
 <strong><span class="tok-k">fn</span></strong> describe <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> k sizes.kind <strong><span class="tok-k">be</span></strong> sizes.classify n .
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> sizes.kind sizes.classify n .
   <strong><span class="tok-k">match</span></strong> k <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ 모듈 이름을 붙인 갈래 — 이 판에서는 어떤 값에나 맞는다</span></em>
     <strong><span class="tok-k">case</span></strong> sizes.small <strong><span class="tok-k">do</span></strong>
@@ -915,7 +915,7 @@ describe(500) = 2
 <strong><span class="tok-k">use</span></strong> sizes from <span class="tok-s">"</span><span class="tok-s">sizes.low</span><span class="tok-s">"</span> .
 
 <strong><span class="tok-k">fn</span></strong> describe <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> k sizes.kind <strong><span class="tok-k">be</span></strong> sizes.classify n .
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> sizes.kind sizes.classify n .
   <strong><span class="tok-k">match</span></strong> k <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem 갈래 이름만 적는다 — 타입(sizes.kind)이 어느 갈래인지 정한다</span></em>
     <strong><span class="tok-k">case</span></strong> small <strong><span class="tok-k">do</span></strong>

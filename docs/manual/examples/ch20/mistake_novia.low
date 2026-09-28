@@ -11,14 +11,14 @@ proc one_from
   effects state .
   requires allocs.byte_allocator a .
 do
-  let p option mut slice u8 be send al reserve 3 .
+  let p be option mut slice u8 send al reserve 3 .
   guard is_some p . else return 91 .
   return send al used .
 end
 
 proc with_fixed input al cap allocator . output u64 . effects alloc state .
 do
-  var fb allocs.fixed_bytes be spawn actor allocs.fixed_bytes .
-  let n u64 using fb be one_from .
+  var fb be allocs.fixed_bytes spawn actor allocs.fixed_bytes .
+  let n using fb be u64 one_from .
   return n .
 end

@@ -40,41 +40,41 @@ rem   답은 조립된 바이트 수. 안 들어가면 none — 전량-아니면
 proc number_lines input src slice u8 . input dst mut slice u8 . . output option u64 .
   effects state .
 do
-  var r io.mem_reader be spawn actor io.mem_reader . .
-  let z u64 be send r attach src .
-  var pos u64 be 0 .
-  var n u64 be 0 .
-  var going bool be true .
+  var r be io.mem_reader spawn actor io.mem_reader . .
+  let z be u64 send r attach src .
+  var pos be u64 0 .
+  var n be u64 0 .
+  var going be bool true .
   while going . do
-    let l option slice u8 . be send r take_line 65536 .
+    let l be option slice u8 send r take_line 65536 .
     if eq (is_some l) false . do set going false . end
     if is_some l . do
       set n (add n 1) .
-      let a option u64 . be fmt.put_u64 dst pos n .
+      let a be option u64 fmt.put_u64 dst pos n .
       guard is_some a . else return none .
-      let b option u64 . be fmt.put_str dst (some_value a) "  " .
+      let b be option u64 fmt.put_str dst (some_value a) "  " .
       guard is_some b . else return none .
-      let c option u64 . be fmt.put_str dst (some_value b) (some_value l) .
+      let c be option u64 fmt.put_str dst (some_value b) (some_value l) .
       guard is_some c . else return none .
-      let d option u64 . be fmt.put_nl dst (some_value c) .
+      let d be option u64 fmt.put_nl dst (some_value c) .
       guard is_some d . else return none .
       set pos (some_value d) .
     end
   end
   rem 개행 없이 끝난 마지막 조각도 한 줄이다.
-  let rest u64 be send r remaining .
+  let rest be u64 send r remaining .
   if gt rest 0 . do
     rem ★ `take_rest` 는 option 이 아니라 **slice** 를 낸다 — 이미 끝이면 **빈 뷰**다.
     rem   "끝났다" 와 "0 바이트 읽었다" 는 다르고 여기선 후자다(lib/io.low 의 규약).
-    let tail slice u8 be send r take_rest .
+    let tail be slice u8 send r take_rest .
     set n (add n 1) .
-    let a option u64 . be fmt.put_u64 dst pos n .
+    let a be option u64 fmt.put_u64 dst pos n .
     guard is_some a . else return none .
-    let b option u64 . be fmt.put_str dst (some_value a) "  " .
+    let b be option u64 fmt.put_str dst (some_value a) "  " .
     guard is_some b . else return none .
-    let c option u64 . be fmt.put_str dst (some_value b) tail .
+    let c be option u64 fmt.put_str dst (some_value b) tail .
     guard is_some c . else return none .
-    let d option u64 . be fmt.put_nl dst (some_value c) .
+    let d be option u64 fmt.put_nl dst (some_value c) .
     guard is_some d . else return none .
     set pos (some_value d) .
   end
@@ -88,20 +88,20 @@ proc main .
   effects alloc io state .
 do
   rem ① 커널 → 입력 버퍼. **채우기**.
-  let ing option mut slice u8 . . be alloc_bytes al capacity 16384 .
+  let ing be option mut slice u8 alloc_bytes al capacity 16384 .
   guard is_some ing . else return 70 .
-  let inbuf mut slice u8 . be some_value ing .
-  let n option u64 . be read_in out 0 inbuf .
+  let inbuf be mut slice u8 some_value ing .
+  let n be option u64 read_in out 0 inbuf .
   guard is_some n . else return 71 .
 
   rem ② 출력 버퍼에 조립. 아직 **한 바이트도 밖으로 안 나갔다**.
-  let outg option mut slice u8 . . be alloc_bytes al capacity 32768 .
+  let outg be option mut slice u8 alloc_bytes al capacity 32768 .
   guard is_some outg . else return 72 .
-  let outbuf mut slice u8 . be some_value outg .
-  let w option u64 . be number_lines (subslice inbuf 0 (some_value n)) outbuf .
+  let outbuf be mut slice u8 some_value outg .
+  let w be option u64 number_lines (subslice inbuf 0 (some_value n)) outbuf .
   guard is_some w . else return 73 .
 
   rem ③ **한 번 비운다.** 줄마다 불렀다면 줄마다 flush 였다.
-  let put u64 be write_out out 1 (subslice outbuf 0 (some_value w)) .
+  let put be u64 write_out out 1 (subslice outbuf 0 (some_value w)) .
   return 0 .
 end

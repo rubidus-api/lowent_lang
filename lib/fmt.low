@@ -33,7 +33,7 @@ export proc put_str input buf mut slice u8 . . input pos u64 . input s slice u8 
   output option u64 . effects none .
 do
   guard le (add pos (len s)) (len buf) . else return none .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set (index buf (add pos i)) (index s i) .
     set i (add i 1) .
@@ -45,8 +45,8 @@ rem ── 수 ─────────────────────�
 
 rem 10 진수 자릿수 — 미리 세어야 **전량 아니면 무**를 지킬 수 있다(뒤집기 없이 앞에서 쓴다).
 export fn dec_width input n u64 . output u64 . do
-  var w u64 be 1 .
-  var v u64 be n .
+  var w be u64 1 .
+  var v be u64 n .
   while ge v 10 . do
     set v (div v 10) .
     set w (add w 1) .
@@ -59,10 +59,10 @@ rem   필요 없다 — 그리고 그래야 **자리가 모자랄 때 버퍼를 
 export proc put_u64 input buf mut slice u8 . . input pos u64 . input n u64 .
   output option u64 . effects none .
 do
-  let w u64 be dec_width n .
+  let w be u64 dec_width n .
   guard le (add pos w) (len buf) . else return none .
-  var v u64 be n .
-  var i u64 be w .
+  var v be u64 n .
+  var i be u64 w .
   while gt i 0 . do
     set i (sub i 1) .
     set (index buf (add pos i)) (narrow u8 (add 48 (mod v 10))) .
@@ -82,17 +82,17 @@ export proc put_i64 input buf mut slice u8 . . input pos u64 . input n i64 .
   output option u64 . effects none .
 do
   guard lt n 0 . else return (put_u64 buf pos (cast u64 n)) .
-  let mag u64 be wrap_sub 0 (cast u64 n) .
+  let mag be u64 wrap_sub 0 (cast u64 n) .
   guard le (add pos (add (dec_width mag) 1)) (len buf) . else return none .
-  let m option u64 . be put_byte buf pos 45 .          rem '-'
+  let m be option u64 put_byte buf pos 45 .          rem '-'
   guard is_some m . else return none .
   return (put_u64 buf (some_value m) mag) .
 end
 
 rem 16 진수(소문자, 접두 없음). 폭을 먼저 세는 것은 10 진과 같은 이유다.
 export fn hex_width input n u64 . output u64 . do
-  var w u64 be 1 .
-  var v u64 be n .
+  var w be u64 1 .
+  var v be u64 n .
   while ge v 16 . do
     set v (div v 16) .
     set w (add w 1) .
@@ -103,14 +103,14 @@ end
 export proc put_hex input buf mut slice u8 . . input pos u64 . input n u64 .
   output option u64 . effects none .
 do
-  let w u64 be hex_width n .
+  let w be u64 hex_width n .
   guard le (add pos w) (len buf) . else return none .
-  var v u64 be n .
-  var i u64 be w .
+  var v be u64 n .
+  var i be u64 w .
   while gt i 0 . do
     set i (sub i 1) .
-    let d u64 be mod v 16 .
-    var c u64 be add 48 d .
+    let d be u64 mod v 16 .
+    var c be u64 add 48 d .
     if ge d 10 . do set c (add 87 d) . end            rem 'a' = 97 = 87 + 10 . .
     set (index buf (add pos i)) (narrow u8 c) .
     set v (div v 16) .

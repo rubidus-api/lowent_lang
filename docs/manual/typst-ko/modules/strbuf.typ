@@ -10,8 +10,8 @@
 ```lowent
 use strbuf .
 
-var b strbuf.str_buf be strbuf.new .
-let r result void strbuf.sb_error . be strbuf.append b buf "hello" .
+var b be strbuf.str_buf strbuf.new .
+let r be result void strbuf.sb_error strbuf.append b buf "hello" .
 guard is_ok r . else return 1 .
 ```
 
@@ -86,18 +86,18 @@ module demo .
 use strbuf .
 
 proc build input buf mut slice u8 . . output u64 . do
-  var b strbuf.str_buf be strbuf.new .
-  let r1 result void strbuf.sb_error . be strbuf.append b buf "ab" .
+  var b be strbuf.str_buf strbuf.new .
+  let r1 be result void strbuf.sb_error strbuf.append b buf "ab" .
   guard is_ok r1 . else return 90 .
   guard eq (field b len) 2 . else return 91 .
   rem 봉인 확인 --- len 자리(buf[2])에 널이 있다
   guard eq (index buf 2) 0 . else return 92 .
   rem 버퍼 5 = 내용 4 + 널 1 --- 2 + 3 + 1 > 5 이므로 거절되고 버퍼가 더럽혀지지 않는다
-  let r2 result void strbuf.sb_error . be strbuf.append b (subslice buf 0 5) "xyz" .
+  let r2 be result void strbuf.sb_error strbuf.append b (subslice buf 0 5) "xyz" .
   guard is_error r2 . else return 93 .
   guard eq (field b len) 2 . else return 94 .
   rem 같은 상황에서 trunc 는 되는 만큼(2) 쓰고 2 를 돌려준다
-  let n u64 be strbuf.append_trunc b (subslice buf 0 5) "xyz" .
+  let n be u64 strbuf.append_trunc b (subslice buf 0 5) "xyz" .
   guard eq n 2 . else return 95 .
   return field b len .
 end
@@ -107,13 +107,13 @@ end
 
 ```lowent
 proc grow input small mut slice u8 . . input big mut slice u8 . . output u64 . effects none . do
-  var b strbuf.str_buf be strbuf.new .
-  let r1 result void strbuf.sb_error . be strbuf.append b small "ab" .
+  var b be strbuf.str_buf strbuf.new .
+  let r1 be result void strbuf.sb_error strbuf.append b small "ab" .
   guard is_ok r1 . else return 90 .
-  let r2 result void strbuf.sb_error . be strbuf.append b small "xyz" .
+  let r2 be result void strbuf.sb_error strbuf.append b small "xyz" .
   guard is_error r2 . else return 91 .
   rem 더 큰 자리를 내가 마련해 넘긴다 --- 라이브러리는 할당하지 않는다
-  let r3 result void strbuf.sb_error . be strbuf.append_grow b small big "xyz" .
+  let r3 be result void strbuf.sb_error strbuf.append_grow b small big "xyz" .
   guard is_ok r3 . else return 92 .
   guard eq (index big 0) 97 . else return 93 .
   guard eq (index big 2) 120 . else return 94 .
@@ -129,7 +129,7 @@ end
 #antipattern[순수 코드에서 `as_cstr` 를 부른다][
   ```lowent
   fn f input b strbuf.str_buf . input buf mut slice u8 . . output u64 . do
-    let p strbuf.cstr be strbuf.as_cstr b buf .   rem ✗ unsafe proc 을 fn 에서 부른다
+    let p be strbuf.cstr strbuf.as_cstr b buf .   rem ✗ unsafe proc 을 fn 에서 부른다
     return 0 .
   end
   ```
@@ -144,8 +144,8 @@ end
 
 #antipattern[`result` 를 보지 않고 버퍼를 읽는다][
   ```lowent
-  let r result void strbuf.sb_error . be strbuf.append b buf "hello" .
-  let v slice u8 be strbuf.as_str b buf .   rem ✗ r 을 보지 않았다
+  let r be result void strbuf.sb_error strbuf.append b buf "hello" .
+  let v be slice u8 strbuf.as_str b buf .   rem ✗ r 을 보지 않았다
   ```
   멈춤도 오류도 없다. 버퍼가 깨진 것도 아니다 --- 거절은 버퍼를 건드리지 않는다. 다만 *기대한 것이 안 들어간 짧은 문자열*이 나온다. `guard is_ok r . else …`
   가 먼저다.
@@ -153,8 +153,8 @@ end
 
 #antipattern[상태와 버퍼를 섞어 넘긴다][
   ```lowent
-  let r result void strbuf.sb_error . be strbuf.append b buf1 "ab" .
-  let v slice u8 be strbuf.as_str b buf2 .   rem ✗ 길이는 buf1 의 것, 바이트는 buf2 의 것
+  let r be result void strbuf.sb_error strbuf.append b buf1 "ab" .
+  let v be slice u8 strbuf.as_str b buf2 .   rem ✗ 길이는 buf1 의 것, 바이트는 buf2 의 것
   ```
   오류 없이 엉뚱한 바이트의 뷰가 나온다. 하나의 `str_buf` 에는 하나의 버퍼(또는 `append_grow` 로 옮긴 그 후계)만 짝지어 쓴다.
 ]

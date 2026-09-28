@@ -93,7 +93,7 @@ Code that uses an allocator need not know which implementation it is. It takes t
 - `input comptime a type .` is the allocator's type, fixed to a concrete type at translation (#chref("generics")).
 #idx("using")
 - `using al a .` receives the allocator value of that type under the name `al`. `using` is not an input. The caller does not write it in an argument position but
-  in the binding, as `let n u64 using b be two_from .`.
+  in the binding, as `let n using b be u64 two_from .`.
 - `requires allocs.byte_allocator a .` is the condition that `a` satisfies the trait (#chref("traits")).
 - `effects state via a .` means the effects of the allocator's `reserve` are this op's effects.
 
@@ -298,12 +298,12 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   id: "fixed-memory-glance",
   caption: [Allocator syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`var a allocs.bump_bytes be spawn actor allocs.bump_bytes .`], [spawn an allocator (its state)], [state is an actor value --- there is no global allocator],
+  [`var a be allocs.bump_bytes spawn actor allocs.bump_bytes .`], [spawn an allocator (its state)], [state is an actor value --- there is no global allocator],
   [`send a init buf`], [attach the bytes to hand out], [an allocator never creates memory behind your back],
   [`send a reserve 3` · `send a used`], [request a piece (`option`) · amount used], [shortage is a value, not a trap],
   [`input comptime a type .`], [receive the allocator's type (policy) at translation time], [swapping costs nothing at run time],
   [`using al a .`], [receive an allocator value of that type --- not an input], [it does not sit among the call's arguments],
-  [`let n u64 using g be two_from .`], [say which allocator this call carves from], [with two or more, nothing is guessed],
+  [`let n using g be u64 two_from .`], [say which allocator this call carves from], [with two or more, nothing is guessed],
   [`effects state via a .` · `requires allocs.byte_allocator a .`], [inherit the type's effects · trait condition], [exact effects per instance],
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [default allocators carving straight from a root], [only an op holding that kind of capability may spawn one --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [grows the last piece · takes it back], [checks identity with `same_slice`, not size],

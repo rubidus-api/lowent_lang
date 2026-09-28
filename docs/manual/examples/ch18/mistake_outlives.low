@@ -5,12 +5,12 @@ use allocs .
 
 proc carve_inside output u64 . effects alloc state .
 do
-  var a allocs.bump_bytes be spawn actor allocs.bump_bytes .
+  var a be allocs.bump_bytes spawn actor allocs.bump_bytes .
   region r arena do
-    let g option mut slice u8 . . be alloc_bytes r capacity 16 .
+    let g be option mut slice u8 alloc_bytes r capacity 16 .
     if is_some g . do
       rem ko: ✘ 영역 밖에서 태어난 액터에게 영역의 바이트를 건넨다 /// en: ✘ handing region bytes to an actor born outside the region
-      let c u64 be send a init (some_value g) .
+      let c be u64 send a init (some_value g) .
     end
   end
   return 0 .

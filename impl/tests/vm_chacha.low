@@ -24,12 +24,12 @@ export proc same input key slice u8 . input c mut slice u8 . input n slice u8 . 
 do
   guard eq (len d1) (len s) . else return 0 .
   guard eq (len d2) (len s) . else return 0 .
-  let a u64 be call_builtin chacha20 key c s d1 .
+  let a be u64 call_builtin chacha20 key c s d1 .
   guard eq a (len s) . else return 0 .
-  let r result u64 chacha.chacha_error . be chacha.stream key n cnt s d2 st work ks .
+  let r be result u64 chacha.chacha_error chacha.stream key n cnt s d2 st work ks .
   guard is_ok r . else return 0 .
   guard eq (ok_value r) (len s) . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     guard eq (cast u64 (index d1 i)) (cast u64 (index d2 i)) . else return 0 .
     set i (add i 1) .
@@ -40,7 +40,7 @@ end
 rem 정의 쪽만 — 시험이 왜 0 인지 가르는 자리.
 export proc onlylib input key slice u8 . input n slice u8 . input s slice u8 . input d2 mut slice u8 .
   input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . output u64 . effects none . do
-  let r result u64 chacha.chacha_error . be chacha.stream key n 1 s d2 st work ks .
+  let r be result u64 chacha.chacha_error chacha.stream key n 1 s d2 st work ks .
   guard is_ok r . else return 111 .
   return ok_value r .
 end
@@ -57,7 +57,7 @@ end
 rem 같은 일을 **잎 둘로** — 증인은 이 둘의 답이 같다는 것이다.
 export proc cppair input key slice u8 . input c mut slice u8 . input st mut slice u64 .
   input s slice u8 . input d mut slice u8 . output u64 . effects none . do
-  let n u64 be call_builtin chacha20 key c s d .
+  let n be u64 call_builtin chacha20 key c s d .
   guard eq n (len s) . else return 0 .
   return call_builtin poly1305 st d .
 end

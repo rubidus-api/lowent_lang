@@ -57,17 +57,19 @@ them says nothing. Today `let` *promises* immutability and the compiler checks t
   immutability of the bytes it points to are different questions.
 ]
 
-== Write the type, or leave it to the value
+== The type goes in front of the value
 
-A local's type may be written or left out. When left out, the value decides the type.
+A binding is `let <name> be <type> <value> .`. The type stands after `be` and before the value, and it is *always written* --- the
+processor never guesses a type.
 
 #demo("examples/ch06/infer.low")
 
-In `let b be add a 1 .`, `a` is a `u8`, so `b` is a `u8` too. That is why adding 1 to 255 overflows `u8` and stops. If the type cannot be
-determined from the value, it is rejected and must be written.
+In `let b be u8 add a 1 .`, `b` is a `u8`, so adding 1 to 255 overflows `u8` and stops. The width is the boundary of overflow
+(#chref("numbers")), so when the type is visible in the source, the places that can stop are visible with it.
 
-This book usually writes the type. The width is the boundary of overflow (#chref("numbers")), so when the type is visible in the source,
-the places that can stop are visible with it. Types are left out only for short intermediate values or where the type is obvious.
+Leaving the type out --- `let x be 300 .` --- is rejected with `E-LET-NOTYPE`. When guessing was allowed, that bare literal slipped past the
+width check and an op returning `u8` answered 300. The old form with the type after the name, `let x u8 be 4 .`, is `E-LET-OLDFORM`. A long
+type gets a name with `def type`.
 
 == No name without a value
 
@@ -76,7 +78,7 @@ There must be a value after `be`. There is no way to make a name first and give 
 #demo("examples/ch06/novalue.low")
 
 This is not a blank left by mistake. The author believes they wrote the value `.5`. But `.5` is not a floating-point literal --- the
-free-standing full stop closes the form, and nothing is left after `be`. The old tool quietly put 0 there, and a value that appears nowhere
+free-standing full stop closes the form, and only the type is left after `be`. The old tool quietly put 0 there, and a value that appears nowhere
 in the source got into the program. Now it is rejected, and the diagnostic names the trap. A floating-point half is written `0.5`.
 
 #misconception[An uninitialised variable is zero][
@@ -162,8 +164,8 @@ from each branch. When the value is one of several cases over and over, `match` 
   id: "locals-glance",
   caption: [Local syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`let x T be e .`], [a name that never changes], [immutable by default --- only changing values stand out],
-  [`var x T be e .`], [a name that may change], [say that it will change at the moment you declare it],
+  [`let x be T e .`], [a name that never changes], [immutable by default --- only changing values stand out],
+  [`var x be T e .`], [a name that may change], [say that it will change at the moment you declare it],
   [`set x e .`], [put a new value into a `var`], [declaring and changing are different words --- a typo never becomes a new variable],
   [`let x be e .`], [let the value decide the type], [only for short intermediate values --- the width is the overflow boundary],
   [the value after `be`], [always required], [there is no such thing as an uninitialised variable],

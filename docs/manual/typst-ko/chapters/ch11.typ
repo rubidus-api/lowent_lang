@@ -99,7 +99,7 @@
 모양이다.
 
 ```lowent
-let v u8 be try halve a .
+let v be u8 try halve a .
 return ok (add v 1) .
 ```
 
@@ -129,7 +129,7 @@ return ok (add v 1) .
 )
 
 꼬리를 붙인 `try` 는 타입도 바꾼다. `try (halve a) else_none` 의 타입은 `option u8` 이지 `u8` 이 아니다.
-그래서 `maybe_half` 는 그것을 그대로 돌려주고, `let v u8 be try … else_error …` 처럼 값 타입에 담으려 하면
+그래서 `maybe_half` 는 그것을 그대로 돌려주고, `let v be u8 try … else_error …` 처럼 값 타입에 담으려 하면
 거절된다.
 
 `else_none` 은 정보를 버리는 선택이다. 편해서 습관이 되기 쉬운데, 그 순간부터 호출자는 "왜" 를 물을 수

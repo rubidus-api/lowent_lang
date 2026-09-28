@@ -75,7 +75,7 @@ type scratch u64 . .
 
 proc build input temp region scratch . . output u64 . effects alloc .
 do
-  let s stack u64 . be stack_new temp capacity 4 . .
+  let s be stack u64 stack_new temp capacity 4 . .
   push s 10 .
   push s 20 .
   return 2 .
@@ -108,11 +108,11 @@ module ex_region_field .
 struct holder do store mut slice u8 . . end
 
 proc f output u64 . effects alloc . do
-  var h holder be make holder do store (subslice "abcd" 0 0) . end
+  var h be holder make holder do store (subslice "abcd" 0 0) . end
   region r arena do
-    let g option mut slice u8 . . be alloc_bytes r capacity 16 .
+    let g be option mut slice u8 alloc_bytes r capacity 16 .
     if is_some g . do
-      let b mut slice u8 . be some_value g .
+      let b be mut slice u8 some_value g .
       set (field h store) b .
     end
   end
@@ -143,7 +143,7 @@ module ex_region_nested .
 proc f output u64 . effects alloc . do
   region outer arena do
     region inner arena do
-      let g option mut slice u8 . . be alloc_bytes outer capacity 8 .
+      let g be option mut slice u8 alloc_bytes outer capacity 8 .
     end
   end
   return 0 .
@@ -263,7 +263,7 @@ module ex_escape .
 
 export fn leak output ref u32 .
 do
-  let here u32 be 42 .
+  let here be u32 42 .
   return ref here .     rem `here` 는 이 op 이 끝나면 사라진다
 end
 ```
@@ -291,7 +291,7 @@ end
       버리는 것도 번역 시점에 거부된다.
 
 ```도해: 소유는 옮겨 다닌다 — 없앨 책임은 언제나 한 자리에
- var h owned buffer be v .      h ──▶ [ 버퍼 ]            책임: 여기
+ var h be owned buffer v .      h ──▶ [ 버퍼 ]            책임: 여기
  consume h .                    h (빈 이름)  ──옮김──▶ consume 의 h ──▶ [ 버퍼 ]   책임: consume
  drop h .   (consume 안에서)                               [ 버퍼 ] 없어짐        책임: 끝
  h 를 다시 쓰면                  E-OWN-MOVED               (옮긴 뒤 사용)
@@ -666,8 +666,8 @@ end
 
 proc f input b mut buf . output u64 . effects none .
 do
-  let v slice u8 be view_of b .
-  let r u64 be grow b .
+  let v be slice u8 view_of b .
+  let r be u64 grow b .
   return len v .       rem `grow` 가 `b` 의 뷰를 무효로 만들었다 — 뷰를 다시 받는다
 end
 ```
@@ -687,7 +687,7 @@ module ex_immutable .
 
 fn f output u8 .
 do
-  let a u8 be 1 .
+  let a be u8 1 .
   set a 2 .            rem 고치려면 `var` 로 묶어야 한다
   return a .
 end
@@ -741,14 +741,14 @@ actor grower do
     root cap heap .
   end
   proc take input n u64 . output u64 . effects heap . do
-    let g option mut slice u8 . . be alloc_bytes root capacity n .
+    let g be option mut slice u8 alloc_bytes root capacity n .
     if is_some g . do return n . end
     return 0 .
   end
 end
 
 proc f output u64 . effects heap state . do
-  var g grower be spawn actor grower . .     rem `input h cap heap .` 가 없다
+  var g be grower spawn actor grower . .     rem `input h cap heap .` 가 없다
   return send g take 8 .
 end
 ```
@@ -838,10 +838,10 @@ proc take input comptime a type . using al a . input n u64 . output u64 . effect
 end
 
 proc main output u8 . effects state . do
-  var e exact be spawn actor exact . .
-  var d doubled be spawn actor doubled . .
-  let x u64 using e be take 3 .      rem 3
-  let y u64 using d be take 3 .      rem 6
+  var e be exact spawn actor exact . .
+  var d be doubled spawn actor doubled . .
+  let x using e be u64 take 3 .      rem 3
+  let y using d be u64 take 3 .      rem 6
   return narrow u8 (add x y) .
 end
 ```
@@ -869,9 +869,9 @@ proc take input comptime a type . using al a . input n u64 . output u64 . effect
 end
 
 proc main output u8 . effects state . do
-  var e exact be spawn actor exact . .
-  var f exact be spawn actor exact . .
-  let x u64 be take 3 .              rem e 인가 f 인가 — 짐작하지 않는다
+  var e be exact spawn actor exact . .
+  var f be exact spawn actor exact . .
+  let x be u64 take 3 .              rem e 인가 f 인가 — 짐작하지 않는다
   return narrow u8 x .
 end
 ```

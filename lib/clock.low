@@ -35,7 +35,7 @@ end
 rem ★ **경과 시간** — 시계의 가장 흔한 쓰임이다. 시작을 받아 지금까지의 나노초를 낸다.
 rem   단조 시계라 뒤로 가지 않으므로 뺄셈이 안전하다(벽시계였다면 음수가 났을 것이다).
 export proc since_ns input k cap clock . input start u64 . output u64 . effects none . do
-  let n u64 be time_now k .
+  let n be u64 time_now k .
   guard ge n start . else return 0 .
   return sub n start .
 end
@@ -70,7 +70,7 @@ end
 
 rem 마감까지 남은 밀리초(지났으면 0). 논블로킹 대기의 인자로 쓴다(RFC-0090 N4).
 export proc left_ms input k cap clock . input deadline u64 . output u64 . effects none . do
-  let n u64 be time_now k .
+  let n be u64 time_now k .
   guard lt n deadline . else return 0 .
   return div (sub deadline n) 1000000 .
 end

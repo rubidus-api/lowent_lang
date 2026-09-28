@@ -71,7 +71,7 @@ typedef struct {
     // ★★★★★ **지역 참조를 담은 지역** (2026-08-27). `walk_escape` 는 *반환식의 생김새*만
     //   봤다 — `return`/`give` 하위나무에서 `ref`/`mut_ref`/`addr` 낱말을 찾는 식이다.
     //   그래서 참조를 지역에 **한 번 담았다가** 돌려주면 통째로 빠져나갔다:
-    //       let r ref u64 be ref l .  return r .      ← 정적 초록, VM 은 트랩, 네이티브는 0
+    //       let r be ref u64 ref l .  return r .      ← 정적 초록, VM 은 트랩, 네이티브는 0
     //   그리고 그것이 **VM ≡ native 를 깼다**(이 저장소가 가장 강하게 지키는 대조).
     //   ⇒ 이름이 무엇을 **담고 있는지**를 따라간다. 고정점까지 넓힌다(두 홉·세 홉).
     //   ☞ RFC-0093(2026-08-10)의 다음 층이다: 그때는 `let` 이 목록에 없어서 같은 갈림이
@@ -151,7 +151,7 @@ static bool is_refholder(const rg_ctx_t *c, proven_u8str_view_t v) {
 //     · `make box do . p (ref l) . end` → 필드에 담아 **나른다**(구조체가 참조를 안고 간다).
 //
 //   ☞ 두 번의 수정이 여기로 수렴했다. WO-0124 는 처음에 "부분나무 어디든 참조가 나오면"
-//     으로 넓게 썼다가 `var x u8 be deref r .` 에 걸려 **좁혔고**, 그 좁은 규칙은 구조체
+//     으로 넓게 썼다가 `var x be u8 deref r .` 에 걸려 **좁혔고**, 그 좁은 규칙은 구조체
 //     필드를 놓쳤다(WO-0125 사냥: 네이티브가 죽은 칸에서 4242 를 읽어 **맞아 보이는 답**을
 //     냈다 — 0 을 내는 것보다 나쁘다). 답은 넓게도 좁게도 아니고 **`deref` 를 건너뛰는 것**
 //     이었다. *경계를 잘못 그으면 양쪽에서 틀린다.*
@@ -180,7 +180,7 @@ static bool carries_local_ref(const rg_ctx_t *c, const low_cst_t *nd) {
 }
 
 // **펴진 꼬리가 참조를 나르는가** — `nd->kids[from..]` 를 한 식처럼 본다.
-//   ★ 평평 경로에서는 `let r ref u64 be ref l` 이 `[let,r,ref,u64,be,ref,l]` 로 펴져
+//   ★ 평평 경로에서는 `let r be ref u64 ref l` 이 `[let,r,ref,u64,be,ref,l]` 로 펴져
 //     `ref l` 이 **짝으로 안 보인다**(FORM 이 아니라 형제 원자 둘이다). 나무 경로만
 //     보고 고쳤다가 골든의 flat/tree 대조에 두 번 걸렸다. *같은 규칙을 두 경로에.*
 static bool range_carries(const rg_ctx_t *c, const low_cst_t *nd, proven_size_t from) {
@@ -200,7 +200,7 @@ static bool range_carries(const rg_ctx_t *c, const low_cst_t *nd, proven_size_t 
     return false;
 }
 
-// `let/var NAME … be <식>` 에서 <식> 이 지역 참조를 낳으면 NAME 을 ref-holder 로 올린다.
+// `let/var NAME be … <식>` 에서 <식> 이 지역 참조를 낳으면 NAME 을 ref-holder 로 올린다.
 static bool collect_refholders_once(rg_ctx_t *c, const low_cst_t *nd) {
     bool grew = false;
     if (!nd) return false;
@@ -269,8 +269,8 @@ static rg_bor_t *bor_find(rg_ctx_t *c, proven_u8str_view_t name) {
 // ★★★★★ **`let` 은 이 검사기에 보이지 않았다** (RFC-0093, 2026-08-10).
 //   여기서 `var` 만 모았다. 그런데 지역이 지역인 것은 **바뀌느냐가 아니라 언제 죽느냐**다 —
 //   `let` 도 op 이 끝나면 함께 죽는다. 그래서:
-//       var l u64 be 5 . return ref l .   →  E-ESCAPE  (잡힌다)
-//       let l u64 be 5 . return ref l .   →  check: ok (샌다)
+//       var l be u64 5 . return ref l .   →  E-ESCAPE  (잡힌다)
+//       let l be u64 5 . return ref l .   →  check: ok (샌다)
 //   그리고 그 프로그램을 실제로 돌리면 **두 뒤끝이 갈렸다**:
 //   VM 은 `E-VM-DANGLING` 으로 트랩하고, **네이티브는 스택 주소를 값으로 돌려줬다**
 //   (실측 140733983170928). 이 저장소가 가장 강하게 지키는 VM ≡ native 가 깨지는 자리다.
@@ -320,7 +320,7 @@ static void walk_escape(rg_ctx_t *c, const low_cst_t *nd, bool in_return) {
         //   대해 하는 일을 붙박이 낱말에도 해 준다. (안 하면 `return deref r .` 이 거짓
         //   거절이 된다 — 실측: vm_tgroup_ref.low 36 행.)
         //   *"참조를 읽는 것" 과 "참조를 나르는 것" 은 다르다* — 이 파일에서 두 번째로
-        //   같은 구분을 놓쳤다(앞은 `var x u8 be deref r .`).
+        //   같은 구분을 놓쳤다(앞은 `var x be u8 deref r .`).
         if (veq(nd->kids[0]->tok.lex, "deref")) ret = false;
     }
     if (ret && nd->kind == LOW_CST_FORM)
@@ -328,7 +328,7 @@ static void walk_escape(rg_ctx_t *c, const low_cst_t *nd, bool in_return) {
             if (is_atom(nd->kids[j]) && is_ref_head(nd->kids[j]->tok.lex) &&
                 is_atom(nd->kids[j + 1]) && is_local(c, nd->kids[j + 1]->tok.lex))
                 rg_escape(c, nd->kids[j]->line);
-    // ★ 그리고 **이름이 담고 있는 것**도 본다 — `let r ref u64 be ref l . return r .`
+    // ★ 그리고 **이름이 담고 있는 것**도 본다 — `let r be ref u64 ref l . return r .`
     //   여기서 반환식은 그냥 `r` 이라 위의 생김새 검사가 아무것도 못 봤다.
     if (ret && nd->kind == LOW_CST_ATOM && is_refholder(c, nd->tok.lex))
         rg_escape(c, nd->line);
@@ -346,8 +346,8 @@ static void walk_escape(rg_ctx_t *c, const low_cst_t *nd, bool in_return) {
 //   아래 두 walker 는 중첩 블록을 **통째로 건너뛰었다** — 제어 블록(if/while/for/…)의 본문을
 //   두 번 세지 않으려는 것이었다. 그런데 `make` 의 블록은 **값 블록**이다: 그 안의 읽기는
 //   지금 이 문장의 읽기다. 건너뛰니 **보이지 않았다.**
-//     var r0 mut_ref u64 . be mut_ref v0 .          rem v0 을 빌린다
-//     var q s . be make s do  b add v0 23 .  end    rem ★ v0 을 **읽는다** — 안 보였다
+//     var r0 be mut_ref u64 mut_ref v0 .          rem v0 을 빌린다
+//     var q be s make s do  b add v0 23 .  end    rem ★ v0 을 **읽는다** — 안 보였다
 //     set r0 49 .                                    rem 그리고 빌린 곳에 쓴다 → EXCL 위반
 //   **정적으로 초록불이었고 런타임에 트랩했다**(E-VM-EXCL). 퍼저가 찾았다 —
 //   그리고 퍼저가 그걸 찾을 수 있었던 것은, 그 직전에 **파서가 삼키던 문장들을 되살렸기**
@@ -442,7 +442,7 @@ static void excl2_borrows(rg_ctx_t *c, const low_cst_t *nd, proven_u8str_view_t 
 
 static void excl2_if(rg_ctx_t *c, const low_cst_t *f, proven_size_t ls);
 
-// does the binding's declared type spell a reference? (`var t mut_ref u32 . be …`)
+// does the binding's declared type spell a reference? (`var t be mut_ref u32 …`)
 static bool rg_decl_is_ref(const low_cst_t *f, proven_size_t start, proven_size_t end) {
     for (proven_size_t i = start; i < end && i < f->nkids; i++)
         if (is_atom(f->kids[i]) && is_ref_head(f->kids[i]->tok.lex)) return true;
@@ -507,7 +507,7 @@ static void excl2_block(rg_ctx_t *c, const low_cst_t *blk, proven_size_t ls) {
             // `view T s` / `try_view T s` / `view_array T s` with a local s
             //
             // ★★★★ **저자의 괄호까지 펴서 본다** (2026-09-05). 위의 얕은 창은 정규화가 만든
-            //   괄호만 편다. 그래서 `var h T . be (view T s) .` — 저자가 괄호를 친 것 — 에서
+            //   괄호만 편다. 그래서 `var h be T (view T s) .` — 저자가 괄호를 친 것 — 에서
             //   빌림을 **못 봤고, 검사가 조용히 안 돌았다.** 그리고 `--fmt` 은 호출을 언제나
             //   괄호로 찍으므로 **서식을 한 번 돌리면 E-EXCL 이 사라졌다**(`vm_stale.low` 가
             //   거절되던 픽스처인데 서식 뒤 초록이 됐다 — 서식이 뜻을 바꾼 것이다).
@@ -535,7 +535,7 @@ static void excl2_block(rg_ctx_t *c, const low_cst_t *blk, proven_size_t ls) {
             proven_size_t uses_before = c->nuses;
             excl2_mentions(c, vf, ls, (proven_u8str_view_t){ 0 }, f->kids[1]);
 
-            // D3 — a borrow LAUNDERED through an op: `var t mut_ref T . be f r .`
+            // D3 — a borrow LAUNDERED through an op: `var t be mut_ref T f r .`
             // E-ESCAPE guarantees a returned reference can only derive from an
             // argument (it may not point at a callee local), so binding a
             // reference-typed result makes `t` an ALIAS of every borrow the call

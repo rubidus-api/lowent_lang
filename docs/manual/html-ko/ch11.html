@@ -689,7 +689,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">fn</span></strong> find_asked <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> find k .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> find k .
   <strong><span class="tok-k">guard</span></strong> is_some r . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> .
   <strong><span class="tok-k">return</span></strong> some_value r .
 <strong><span class="tok-k">end</span></strong>
@@ -745,13 +745,13 @@ $ lowentc --run find_raw lookup.low 7
   <strong><span class="tok-k">errors</span></strong> too_big gt a <span class="tok-n">200</span> .
   <strong><span class="tok-k">errors</span></strong> odd ne (mod a <span class="tok-n">2</span>) <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
   <strong><span class="tok-k">return</span></strong> ok (add v <span class="tok-n">1</span>) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> halve_or_zero <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> io_error <strong><span class="tok-k">be</span></strong> halve a .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> io_error halve a .
   <strong><span class="tok-k">guard</span></strong> not (is_error r) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> ok_value r .
 <strong><span class="tok-k">end</span></strong>
@@ -784,7 +784,7 @@ halve_or_zero(250) = 0
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check undeclared.low
 undeclared.low:13:0 E-ERR-UNDECLARED: op returns an error not in its errors clause
-</code></pre></div></div><p><code>too_long</code> 은 <code>parse_error</code> 의 갈래이지만 <code>first_byte</code> 의 <code>errors</code> 절에는 없다. 부르는 쪽은 머리만 보고 <code>empty</code> 만 다루면 된다고 믿을 것이다. 적은 것과 내는 것이 어긋나면 한쪽은 못 본 실패를, 다른 쪽은 오지 않을 실패를 다루게 된다.</p><h3 id="s11-3">11.3 <code>try</code> — 실패를 위로 넘긴다<a class="plink" href="#s11-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-25"></span><p>실패를 확인하는 코드를 매번 손으로 쓰면 길어지고, 길어지면 빼먹는다. <code>try</code> 는 <code>result</code> 를 받아 성공이면 값을 꺼내고, 실패면 <strong>그 오류를 그대로 돌려주며 op 을 떠난다.</strong> <code>halve.low</code> 의 <code>halve_plus_one</code> 이 그 모양이다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
+</code></pre></div></div><p><code>too_long</code> 은 <code>parse_error</code> 의 갈래이지만 <code>first_byte</code> 의 <code>errors</code> 절에는 없다. 부르는 쪽은 머리만 보고 <code>empty</code> 만 다루면 된다고 믿을 것이다. 적은 것과 내는 것이 어긋나면 한쪽은 못 본 실패를, 다른 쪽은 오지 않을 실패를 다루게 된다.</p><h3 id="s11-3">11.3 <code>try</code> — 실패를 위로 넘긴다<a class="plink" href="#s11-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-25"></span><p>실패를 확인하는 코드를 매번 손으로 쓰면 길어지고, 길어지면 빼먹는다. <code>try</code> 는 <code>result</code> 를 받아 성공이면 값을 꺼내고, 실패면 <strong>그 오류를 그대로 돌려주며 op 을 떠난다.</strong> <code>halve.low</code> 의 <code>halve_plus_one</code> 이 그 모양이다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
 <strong><span class="tok-k">return</span></strong> ok (add v <span class="tok-n">1</span>) .</code></pre><p><code>halve_plus_one</code> 이 자기 머리에도 <code>errors</code> 를 적은 것에 주목한다. <code>try</code> 로 오류를 넘기려면 자기도 그 오류를 돌려줄 수 있어야 하고, 그 사실을 계약에 적어야 한다. 실패가 조용히 사라지는 길이 없다. 실패를 위로 넘기지 않고 이 자리에서 다루려면 <code>halve_or_zero</code> 처럼 <code>is_error</code> 로 묻고 <code>ok_value</code> 로 꺼낸다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>try</code> 는 예외 처리의 <code>try</code> 다</strong></p><div class="dev-body">Java 나 C++ 의 <code>try</code> 는 블록 안 어디서든 던져진 예외를 잡는 자리다. Lowent 의 <code>try</code> 는 <strong>식 하나</strong>에 붙어서 그 식의 실패를 <strong>위로 넘기는</strong> 표시이고, Rust 의 <code>?</code> 에 가깝다. 던지고 잡는 제어 흐름은 없다. 실패는 언제나 값으로 돌아오고, 어느 식에서 넘어갈 수 있는지가 소스에 적혀 있다.</div></div><h3 id="s11-4">11.4 두 채널 사이를 건넌다<a class="plink" href="#s11-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>부르는 op 과 불리는 op 의 채널이 다를 때가 있다. <code>try</code> 뒤에 꼬리를 붙이면 담는 그릇을 바꾼다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/tails.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> tails .
 <em><span class="tok-c">rem run: maybe_half 100</span></em>
 <em><span class="tok-c">rem run: maybe_half 250</span></em>
@@ -827,7 +827,7 @@ $ lowentc --run must_find tails.low 2
 must_find(2) = ok 20
 $ lowentc --run must_find tails.low 9
 must_find(9) = err not_found
-</code></pre></div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>방향</strong></th><th><strong>무엇을 잃거나 얻나</strong></th></tr><tr><td><code>try &lt;식> else_none</code></td><td><code>result</code> → <code>option</code></td><td>오류를 <strong>버린다</strong>. 왜 실패했는지 더는 말하지 않는다</td></tr><tr><td><code>try &lt;식> else_error &lt;갈래></code></td><td><code>option</code> → <code>result</code></td><td>없음에 <strong>이름을 붙인다</strong></td></tr></table></div><p class="float-caption">표 11.1 — <code>try</code> 의 꼬리로 채널을 바꾼다</p></figure><p>꼬리를 붙인 <code>try</code> 는 타입도 바꾼다. <code>try (halve a) else_none</code> 의 타입은 <code>option u8</code> 이지 <code>u8</code> 이 아니다. 그래서 <code>maybe_half</code> 는 그것을 그대로 돌려주고, <code>let v u8 be try … else_error …</code> 처럼 값 타입에 담으려 하면 거절된다.</p><p><code>else_none</code> 은 정보를 버리는 선택이다. 편해서 습관이 되기 쉬운데, 그 순간부터 호출자는 “왜” 를 물을 수 없다. 버릴 만한 자리에서만 버린다.</p><h3 id="s11-5">11.5 실패를 말하는 세 길<a class="plink" href="#s11-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>무엇</strong></th><th><strong>무엇을 말하나</strong></th><th><strong>부르는 쪽이 하는 일</strong></th></tr><tr><td><code>result t e</code></td><td>고칠 수 있는 실패</td><td>어느 쪽인지 묻고 다룬다. 안 다루면 위로 넘긴다</td></tr><tr><td><code>option t</code></td><td>값이 없음</td><td>있는지 묻고 꺼내거나, 대신 쓸 값을 준다</td></tr><tr><td><code>panic</code> · 계약 위반</td><td>약속이 깨졌다</td><td>다룰 수 없다. 프로그램이 멈춘다</td></tr></table></div><p class="float-caption">표 11.2 — 실패를 말하는 세 길</p></figure><p>셋을 가르는 물음은 “부르는 쪽이 무엇을 할 수 있는가” 다. 파일이 없으면 다른 파일을 열어 볼 수 있으니 <code>result</code> 다. 찾는 것이 목록에 없으면 그냥 없는 것이니 <code>option</code> 이다. 부르는 쪽이 계약을 어겼다면 이미 약속이 깨진 것이라 고칠 수 있는 일이 아니고, 그래서 멈춘다. <code>panic</code> 은 되돌아 풀리지 않는다. 중간에 잡아 이어 가는 길은 없다. 이 기준으로 op 의 실패를 설계하는 법은 17장에서 다시 다룬다.</p><h3 id="s11-6">11.6 패턴을 묶고 겹친다<a class="plink" href="#s11-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>option</code>·<code>result</code>·<code>enum</code> 을 모두 보았으니 <code>match</code> 의 패턴을 더 넓게 쓸 수 있다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/patterns.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> patterns .
+</code></pre></div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>방향</strong></th><th><strong>무엇을 잃거나 얻나</strong></th></tr><tr><td><code>try &lt;식> else_none</code></td><td><code>result</code> → <code>option</code></td><td>오류를 <strong>버린다</strong>. 왜 실패했는지 더는 말하지 않는다</td></tr><tr><td><code>try &lt;식> else_error &lt;갈래></code></td><td><code>option</code> → <code>result</code></td><td>없음에 <strong>이름을 붙인다</strong></td></tr></table></div><p class="float-caption">표 11.1 — <code>try</code> 의 꼬리로 채널을 바꾼다</p></figure><p>꼬리를 붙인 <code>try</code> 는 타입도 바꾼다. <code>try (halve a) else_none</code> 의 타입은 <code>option u8</code> 이지 <code>u8</code> 이 아니다. 그래서 <code>maybe_half</code> 는 그것을 그대로 돌려주고, <code>let v be u8 try … else_error …</code> 처럼 값 타입에 담으려 하면 거절된다.</p><p><code>else_none</code> 은 정보를 버리는 선택이다. 편해서 습관이 되기 쉬운데, 그 순간부터 호출자는 “왜” 를 물을 수 없다. 버릴 만한 자리에서만 버린다.</p><h3 id="s11-5">11.5 실패를 말하는 세 길<a class="plink" href="#s11-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>무엇</strong></th><th><strong>무엇을 말하나</strong></th><th><strong>부르는 쪽이 하는 일</strong></th></tr><tr><td><code>result t e</code></td><td>고칠 수 있는 실패</td><td>어느 쪽인지 묻고 다룬다. 안 다루면 위로 넘긴다</td></tr><tr><td><code>option t</code></td><td>값이 없음</td><td>있는지 묻고 꺼내거나, 대신 쓸 값을 준다</td></tr><tr><td><code>panic</code> · 계약 위반</td><td>약속이 깨졌다</td><td>다룰 수 없다. 프로그램이 멈춘다</td></tr></table></div><p class="float-caption">표 11.2 — 실패를 말하는 세 길</p></figure><p>셋을 가르는 물음은 “부르는 쪽이 무엇을 할 수 있는가” 다. 파일이 없으면 다른 파일을 열어 볼 수 있으니 <code>result</code> 다. 찾는 것이 목록에 없으면 그냥 없는 것이니 <code>option</code> 이다. 부르는 쪽이 계약을 어겼다면 이미 약속이 깨진 것이라 고칠 수 있는 일이 아니고, 그래서 멈춘다. <code>panic</code> 은 되돌아 풀리지 않는다. 중간에 잡아 이어 가는 길은 없다. 이 기준으로 op 의 실패를 설계하는 법은 17장에서 다시 다룬다.</p><h3 id="s11-6">11.6 패턴을 묶고 겹친다<a class="plink" href="#s11-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>option</code>·<code>result</code>·<code>enum</code> 을 모두 보았으니 <code>match</code> 의 패턴을 더 넓게 쓸 수 있다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/patterns.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> patterns .
 <em><span class="tok-c">rem run: warm 1</span></em>
 <em><span class="tok-c">rem run: combine 1</span></em>
 <em><span class="tok-c">rem run: pick 1</span></em>
@@ -848,7 +848,7 @@ must_find(9) = err not_found
 
 <em><span class="tok-c">rem 어느 하나라도 맞으면 그 갈래 --- red·green·blue 를 모두 덮으므로 _ 가 필요 없다</span></em>
 <strong><span class="tok-k">fn</span></strong> warm <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> c color <strong><span class="tok-k">be</span></strong> green .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> color green .
   <strong><span class="tok-k">match</span></strong> c <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> red or green . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> blue . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
@@ -857,7 +857,7 @@ must_find(9) = err not_found
 
 <em><span class="tok-c">rem or 로 묶은 갈래는 같은 이름을 묶어야 한다</span></em>
 <strong><span class="tok-k">fn</span></strong> combine <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> e node <strong><span class="tok-k">be</span></strong> node.times <span class="tok-n">6</span> <span class="tok-n">7</span> .
+  <strong><span class="tok-k">let</span></strong> e <strong><span class="tok-k">be</span></strong> node node.times <span class="tok-n">6</span> <span class="tok-n">7</span> .
   <strong><span class="tok-k">match</span></strong> e <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> plus l r or times l r . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add l r . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> lit v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong>
@@ -866,7 +866,7 @@ must_find(9) = err not_found
 
 <em><span class="tok-c">rem result 안의 option 을 한 번에 가른다</span></em>
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">result</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u32</span></strong> color <strong><span class="tok-k">be</span></strong> ok (some <span class="tok-n">42</span>) .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u32</span></strong> color ok (some <span class="tok-n">42</span>) .
   <strong><span class="tok-k">match</span></strong> r <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> ok (some x) . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> x . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
@@ -909,7 +909,7 @@ half(200) = 1
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> name <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> s light <strong><span class="tok-k">be</span></strong> lit .
+  <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">be</span></strong> light lit .
   <strong><span class="tok-k">match</span></strong> s <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> lit . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
@@ -961,7 +961,7 @@ mistake_nosome.low:8:0 E-TYPE-RETURN: the returned value does not match the op's
 <em><span class="tok-c">rem ✘ `try` 를 썼는데 이 op 은 `result` 를 돌려주지 않고 `errors` 절도 없다</span></em>
 <strong><span class="tok-k">fn</span></strong> plus <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
   <strong><span class="tok-k">return</span></strong> add v <span class="tok-n">1</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_trynoresult.low
@@ -985,7 +985,7 @@ mistake_trynoresult.low:18:0 E-TRY-NORESULT: `try` may only be used in an op tha
 <strong><span class="tok-k">fn</span></strong> plus <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> half_error .
 <strong><span class="tok-k">errors</span></strong> too_big gt a <span class="tok-n">200</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">try</span></strong> halve a .
   <strong><span class="tok-k">return</span></strong> ok (add v <span class="tok-n">1</span>) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run plus trynoresult_fixed.low 10

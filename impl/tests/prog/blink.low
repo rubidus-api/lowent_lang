@@ -67,7 +67,7 @@ unsafe proc clock_on .
   output void .
   effects device unsafe .
 do
-  var c rcc . be view rcc .
+  var c be rcc view rcc .
   rem ★ 읽고-고치고-쓴다. 통째로 쓰면 **남의 주변장치 클럭을 꺼 버린다**.
   write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
   return .
@@ -88,9 +88,9 @@ unsafe proc led_init .
   output void .
   effects device unsafe .
 do
-  var g gpioa . be view gpioa .          rem ★ §8-2 — 바이트를 안 준다. 타입이 주소를 안다
+  var g be gpioa view gpioa .          rem ★ §8-2 — 바이트를 안 준다. 타입이 주소를 안다
   rem moder 의 핀5 자리(비트 10~11)를 01(범용 출력)로.
-  var m u32 . be read_volatile g moder .
+  var m be u32 read_volatile g moder .
   set m (bit_and m (bit_not (shl 3 10))) .
   set m (bit_or m (shl 1 10)) .
   write_volatile g moder m .
@@ -108,8 +108,8 @@ unsafe proc on_systick .
   output void .
   effects device unsafe .
 do
-  var g gpioa . be view gpioa .          rem ★ 줄 사람이 없어도 열린다
-  var cur u32 . be read_volatile g odr .
+  var g be gpioa view gpioa .          rem ★ 줄 사람이 없어도 열린다
+  var cur be u32 read_volatile g odr .
   write_volatile g odr (bit_xor cur led_bit) .
   return .
 end
@@ -129,7 +129,7 @@ unsafe proc tick_init .
   output void .
   effects device unsafe .
 do
-  var s systick . be view systick .
+  var s be systick view systick .
   write_volatile s load 15999 .    rem 16MHz / 16000 = 1kHz
   write_volatile s val 0 .
   write_volatile s ctrl 7 .        rem enable | tickint | clksource
@@ -173,16 +173,16 @@ unsafe proc reset .
   effects device unsafe .
 do
   rem ① 클럭이 먼저다 — 없으면 아래 쓰기가 전부 허공에 떨어진다.
-  var c rcc . be view rcc .
+  var c be rcc view rcc .
   write_volatile c ahb1enr (bit_or (read_volatile c ahb1enr) 1) .
   rem ② LED 핀을 범용 출력으로.
-  var g gpioa . be view gpioa .
-  var m u32 . be read_volatile g moder .
+  var g be gpioa view gpioa .
+  var m be u32 read_volatile g moder .
   set m (bit_and m (bit_not (shl 3 10))) .
   set m (bit_or m (shl 1 10)) .
   write_volatile g moder m .
   rem ③ SysTick 을 켠다 — 이제 on_systick 이 1kHz 로 불린다.
-  var s systick . be view systick .
+  var s be systick view systick .
   write_volatile s load 15999 .
   write_volatile s val 0 .
   write_volatile s ctrl 7 .

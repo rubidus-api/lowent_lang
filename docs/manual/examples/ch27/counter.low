@@ -6,7 +6,7 @@ proc count_par input k cap atomic . input data slice u8 . input counter mut slic
   effects atomic .
   parallel data split .
 do
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len data) . do
     atomic_add counter 0 1 .
     set i (add i 1) .
@@ -16,9 +16,9 @@ end
 
 proc main input k cap atomic . input al cap allocator . output u8 . effects atomic alloc .
 do
-  let g option mut slice u8 be alloc_bytes al capacity 8 .
+  let g be option mut slice u8 alloc_bytes al capacity 8 .
   guard is_some g . else return 1 .
-  var cells mut slice u64 be view_array u64 (some_value g) .
+  var cells be mut slice u64 view_array u64 (some_value g) .
   atomic_store cells 0 0 .
   count_par k "abcdefghij" cells .
   return narrow u8 (atomic_load cells 0) .

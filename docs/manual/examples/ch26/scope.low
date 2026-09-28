@@ -9,6 +9,6 @@ end
 
 proc loose output u64 . effects state .
 do
-  var h u64 be spawn square 5 .
+  var h be u64 spawn square 5 .
   return await h .
 end

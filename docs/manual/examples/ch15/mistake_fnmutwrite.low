@@ -4,7 +4,7 @@ rem expect: E-EFFECT-PURITY
 rem ko: ✘ `fn` 이 `mut` 로 받은 호출자의 줄에 쓴다 /// en: ✘ a `fn` writes into the caller's slice received as `mut`
 fn clear input xs mut slice u8 . output void .
 do
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len xs) do
     set (index xs i) 0 .
     set i (add i 1) .

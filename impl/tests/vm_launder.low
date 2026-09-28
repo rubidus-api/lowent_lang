@@ -12,9 +12,9 @@ end
 fn launder .
   output u32 .
 do
-  var x u32 be 1 .
-  var r mut_ref u32 . be mut_ref x .
-  var t mut_ref u32 . be pass r .
+  var x be u32 1 .
+  var r be mut_ref u32 mut_ref x .
+  var t be mut_ref u32 pass r .
   set x 9 .
   set t 5 .
   return x .
@@ -23,9 +23,9 @@ end
 fn ok1 .
   output u32 .
 do
-  var x u32 be 1 .
-  var r mut_ref u32 . be mut_ref x .
-  var t mut_ref u32 . be pass r .
+  var x be u32 1 .
+  var r be mut_ref u32 mut_ref x .
+  var t be mut_ref u32 pass r .
   set t 5 .
   return x .
 end

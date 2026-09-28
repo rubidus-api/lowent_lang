@@ -214,7 +214,7 @@
 
   `splat` 은 한 값을 모든 레인에 채우는데, *레인이 몇인지*는 선언된 타입만이 말한다. 식 안에는 그것을 말해 줄 자리가 없어 값이 스칼라로
   읽히고, 감싼 비교가 `mask` 타입과 어긋난다. `E-VEC-SPLAT` 으로 거절하며, 고치는 길은 레인 수를 적은 이름에 먼저 담는 것이다 ---
-  `var lim vec u32 4 be splat 5 .` 뒤에 `gt v lim` 이다.
+  `var lim be vec u32 4 splat 5 .` 뒤에 `gt v lim` 이다.
 ]
 
 == 자리를 어떻게 쓰는지 적는다 --- `access`
@@ -292,7 +292,7 @@
   [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [기억 차례 --- 적지 않으면 `seq_cst`], [가장 추론하기 쉬운 것이 기본],
   [읽기에 `order release` 따위], [거절(`E-ATOMIC-ORDER`)], [뜻 없는 조합을 정의되지 않은 동작으로 두지 않는다],
   [`view_array u64 bytes`], [바이트를 베끼지 않고 `u64` 슬라이스로 본다], [원자 칸을 할당받은 창 위에 둔다],
-  [`var v vec u32 4 be load xs 0 .` · `reduce_add v`], [레인 넷을 한 값으로 읽기 · 레인 모으기], [한 흐름 안의 SIMD --- 레인 수는 타입의 일부],
+  [`var v be vec u32 4 load xs 0 .` · `reduce_add v`], [레인 넷을 한 값으로 읽기 · 레인 모으기], [한 흐름 안의 SIMD --- 레인 수는 타입의 일부],
   [`access data shared_read .` · `access out write_only .`], [읽기만 · 쓰기만 한다는 약속 --- 몸을 검사한다], [읽기만이면 여러 태스크가 함께 쥔다 · 어기면 `E-ACCESS-MODE`],
 )
 

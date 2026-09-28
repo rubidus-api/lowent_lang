@@ -11,7 +11,7 @@ a *view* over the original --- a window pointing at someone else's bytes --- and
 use strings .
 
 if strings.starts_with line "GET " . do
-  let rest slice u8 be strings.remove_prefix line "GET " .
+  let rest be slice u8 strings.remove_prefix line "GET " .
 end
 ```
 
@@ -103,16 +103,16 @@ module demo .
 use strings .
 
 fn t_find output u64 . do
-  let r option u64 . be strings.find "hello world" "world" 0 .
+  let r be option u64 strings.find "hello world" "world" 0 .
   guard is_some r . else return 99 .
   return some_value r .
 end
 
 fn t_split output u64 . do
   rem "aa,b,,cc" split on ',' (byte 44): "aa", "b", "", "cc" --- four pieces
-  var pos u64 be 0 .
-  var pieces u64 be 0 .
-  var r option slice u8 . be strings.split_next "aa,b,,cc" 44 pos .
+  var pos be u64 0 .
+  var pieces be u64 0 .
+  var r be option slice u8 strings.split_next "aa,b,,cc" 44 pos .
   while is_some r . do
     set pieces (add pieces 1) .
     set pos (add pos (add (len (some_value r)) 1)) .
@@ -126,10 +126,10 @@ end
 
 ```lowent
 proc t_splitter output u64 . effects state . do
-  var sp strings.str_splitter . be spawn actor strings.str_splitter .
-  let d u64 be send sp init "one,two,three" 44 .
-  var pieces u64 be 0 .
-  var r option slice u8 . be send sp next .
+  var sp be strings.str_splitter spawn actor strings.str_splitter .
+  let d be u64 send sp init "one,two,three" 44 .
+  var pieces be u64 0 .
+  var r be option slice u8 send sp next .
   while is_some r . do
     set pieces (add pieces 1) .
     set r (send sp next) .
@@ -152,7 +152,7 @@ loop just pulls to the end, the actor version is shorter.
 
 #antipattern[Not advancing the cursor in a split loop][
   ```lowent
-  var r option slice u8 . be strings.split_next src 44 pos .
+  var r be option slice u8 strings.split_next src 44 pos .
   while is_some r . do
     set r (strings.split_next src 44 pos) .   rem ✗ pos stays the same
   end
@@ -162,7 +162,7 @@ loop just pulls to the end, the actor version is shorter.
 
 #antipattern[Using an `option` as a value][
   ```lowent
-  let r option u64 . be strings.find "abc" "zz" 0 .
+  let r be option u64 strings.find "abc" "zz" 0 .
   return some_value r .                         rem ✗ no none check
   ```
   It translates, and stops at run time with `E-VM-NONE` the moment nothing is found. Testing only with inputs that are found never reveals it. `guard is_some r . else …` comes first (#chref("option-result")).
@@ -170,7 +170,7 @@ loop just pulls to the end, the actor version is shorter.
 
 #antipattern[Changing the original a view points at, later][
   ```lowent
-  let piece slice u8 be strings.remove_prefix line "GET " .
+  let piece be slice u8 strings.remove_prefix line "GET " .
   set (index line 4) 88 .                                     rem ✗ the original was changed
   ```
   With no error, the content of `piece` silently changes --- because it is a window, not a copy. To hold on to the content, copy it with #modref("strbuf")[`strbuf`].

@@ -151,7 +151,7 @@ fixed, and the `index` that follows a position still gets its bounds check. The 
 #antipattern[Believing that putting a value under another name makes a copy][
   #demo("examples/ch10/mistake_alias.low")
 
-  `var q point be p .` builds *a new value with `p`'s fields copied*. So changing `q`'s field to 99 leaves `p` at 1. A value without
+  `var q be point p .` builds *a new value with `p`'s fields copied*. So changing `q`'s field to 99 leaves `p` at 1. A value without
   ownership is copied; a value with ownership is moved (#chref("ownership")). Until 2026-09-16 the tool made an alias to the same place, and
   `p` changed too --- the `let` promise broke there. Lowering now copies the fields.
 

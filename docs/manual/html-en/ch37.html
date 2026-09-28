@@ -673,16 +673,16 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">proc</span></strong> paint <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem move the cursor to row 2, column 5 counted from 0; the terminal counts from 1, so ESC [ 3 ; 6 H</span></em>
-  <strong><span class="tok-k">let</span></strong> p1 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.goto buf <span class="tok-n">0</span> <span class="tok-n">2</span> <span class="tok-n">5</span> .
+  <strong><span class="tok-k">let</span></strong> p1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.goto buf <span class="tok-n">0</span> <span class="tok-n">2</span> <span class="tok-n">5</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p1 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <em><span class="tok-c">rem bold (1): ESC [ 1 m, continuing from the position the previous op returned</span></em>
-  <strong><span class="tok-k">let</span></strong> p2 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.sgr buf (some_value p1) <span class="tok-n">1</span> .
+  <strong><span class="tok-k">let</span></strong> p2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.sgr buf (some_value p1) <span class="tok-n">1</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p2 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> some_value p2 .
+  <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> some_value p2 .
   <strong><span class="tok-k">set</span></strong> (index buf at) <span class="tok-n">104</span> .
   <strong><span class="tok-k">set</span></strong> (index buf (add at <span class="tok-n">1</span>)) <span class="tok-n">105</span> .
   <em><span class="tok-c">rem reset attributes (0): ESC [ 0 m</span></em>
-  <strong><span class="tok-k">let</span></strong> p3 <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.sgr buf (add at <span class="tok-n">2</span>) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> p3 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.sgr buf (add at <span class="tok-n">2</span>) <span class="tok-n">0</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p3 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> some_value p3 .
 <strong><span class="tok-k">end</span></strong>
@@ -696,12 +696,12 @@ paint([27,91,51,59,54,72,27,91,49,109,104,105,27,91,48,109,0,0,0,0,0,0,0,0]) = 1
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes al capacity <span class="tok-n">64</span> .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">64</span> .
   <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">255</span> .
-  <strong><span class="tok-k">let</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> some_value g .
-  <strong><span class="tok-k">let</span></strong> same <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.diff <span class="tok-s">"</span><span class="tok-s">hello   </span><span class="tok-s">"</span> <span class="tok-s">"</span><span class="tok-s">hello   </span><span class="tok-s">"</span> <span class="tok-n">8</span> out <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> out <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
+  <strong><span class="tok-k">let</span></strong> same <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.diff <span class="tok-s">"</span><span class="tok-s">hello   </span><span class="tok-s">"</span> <span class="tok-s">"</span><span class="tok-s">hello   </span><span class="tok-s">"</span> <span class="tok-n">8</span> out <span class="tok-n">0</span> .
   <strong><span class="tok-k">guard</span></strong> is_some same . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">254</span> .
-  <strong><span class="tok-k">let</span></strong> changed <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.diff <span class="tok-s">"</span><span class="tok-s">hello   </span><span class="tok-s">"</span> <span class="tok-s">"</span><span class="tok-s">help!   </span><span class="tok-s">"</span> <span class="tok-n">8</span> out <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> changed <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.diff <span class="tok-s">"</span><span class="tok-s">hello   </span><span class="tok-s">"</span> <span class="tok-s">"</span><span class="tok-s">help!   </span><span class="tok-s">"</span> <span class="tok-n">8</span> out <span class="tok-n">0</span> .
   <strong><span class="tok-k">guard</span></strong> is_some changed . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (add (mul (some_value same) <span class="tok-n">100</span>) (some_value changed)) .
 <strong><span class="tok-k">end</span></strong>
@@ -717,7 +717,7 @@ main() = 8
 
 <strong><span class="tok-k">proc</span></strong> columns <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.row_width row .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.row_width row .
   <strong><span class="tok-k">guard</span></strong> is_some w . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> some_value w .
 <strong><span class="tok-k">end</span></strong>
@@ -729,7 +729,7 @@ main() = 8
 
 <strong><span class="tok-k">proc</span></strong> clusters <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.row_clusters row .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.row_clusters row .
   <strong><span class="tok-k">guard</span></strong> is_some n . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> some_value n .
 <strong><span class="tok-k">end</span></strong>
@@ -752,9 +752,9 @@ clusters([101,204,129,120]) = 2
 
 <strong><span class="tok-k">proc</span></strong> first_key <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty.parse_key buf <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> tty.parse_key buf <span class="tok-n">0</span> .
   <strong><span class="tok-k">guard</span></strong> is_some k . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> code <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty.key_of (some_value k) .
+  <strong><span class="tok-k">let</span></strong> code <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> tty.key_of (some_value k) .
   <strong><span class="tok-k">if</span></strong> eq code (tty.key_up) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">end</span></strong>
@@ -775,19 +775,19 @@ first_key([113]) = 2
 
 <strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> t <strong><span class="tok-k">cap</span></strong> tty . <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes al capacity <span class="tok-n">32</span> .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">32</span> .
   <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> some_value g .
+  <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
   <strong><span class="tok-k">guard</span></strong> tty_raw t <span class="tok-n">true</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
-  <strong><span class="tok-k">var</span></strong> going <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">true</span> .
-  <strong><span class="tok-k">var</span></strong> last <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> going <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> <span class="tok-n">true</span> .
+  <strong><span class="tok-k">var</span></strong> last <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> going . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty_read t buf .
+    <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> tty_read t buf .
     <strong><span class="tok-k">guard</span></strong> is_some n . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> going <span class="tok-n">false</span> .
       <strong><span class="tok-k">continue</span></strong> .
     <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty.parse_key (subslice buf <span class="tok-n">0</span> (some_value n)) <span class="tok-n">0</span> .
+    <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> tty.parse_key (subslice buf <span class="tok-n">0</span> (some_value n)) <span class="tok-n">0</span> .
     <strong><span class="tok-k">if</span></strong> is_some p . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">set</span></strong> last (tty.key_of (some_value p)) .
       <strong><span class="tok-k">if</span></strong> eq last <span class="tok-n">113</span> . <strong><span class="tok-k">do</span></strong>
@@ -795,7 +795,7 @@ first_key([113]) = 2
       <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
-  <strong><span class="tok-k">let</span></strong> restored <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">be</span></strong> tty_raw t <span class="tok-n">false</span> .
+  <strong><span class="tok-k">let</span></strong> restored <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> tty_raw t <span class="tok-n">false</span> .
   <strong><span class="tok-k">return</span></strong> narrow_sat <strong><span class="tok-t">u8</span></strong> last .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check rawmode.low
@@ -808,10 +808,10 @@ first_key([113]) = 2
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> tty_raw t <span class="tok-n">true</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <em><span class="tok-c">rem ✘ allocates *after* entering raw mode, and leaves without restoring if that fails</span></em>
-  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">be</span></strong> alloc_bytes al capacity <span class="tok-n">32</span> .
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes al capacity <span class="tok-n">32</span> .
   <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty_read t (some_value g) .
-  <strong><span class="tok-k">let</span></strong> restored <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">be</span></strong> tty_raw t <span class="tok-n">false</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> tty_read t (some_value g) .
+  <strong><span class="tok-k">let</span></strong> restored <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> tty_raw t <span class="tok-n">false</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_rawleak.low
@@ -826,7 +826,7 @@ first_key([113]) = 2
 <strong><span class="tok-k">proc</span></strong> cut_bytes <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len row) <span class="tok-n">5</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.row_width (subslice row <span class="tok-n">0</span> <span class="tok-n">5</span>) .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.row_width (subslice row <span class="tok-n">0</span> <span class="tok-n">5</span>) .
   <strong><span class="tok-k">guard</span></strong> is_some w . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> some_value w .
 <strong><span class="tok-k">end</span></strong>
@@ -834,7 +834,7 @@ first_key([113]) = 2
 <em><span class="tok-c">rem ask where to cut by columns --- the longest prefix fitting three columns is the 3 bytes of "안"</span></em>
 <strong><span class="tok-k">proc</span></strong> cut_columns <strong><span class="tok-k">input</span></strong> row <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> term.fit_width row <span class="tok-n">3</span> .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.fit_width row <span class="tok-n">3</span> .
   <strong><span class="tok-k">guard</span></strong> is_some n . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
   <strong><span class="tok-k">return</span></strong> some_value n .
 <strong><span class="tok-k">end</span></strong>
@@ -853,9 +853,9 @@ cut_columns([236,149,136,235,133,149]) = 3
 <em><span class="tok-c">rem there is no guarantee that one read holds a whole key</span></em>
 <strong><span class="tok-k">proc</span></strong> first_key <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty.parse_key buf <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> tty.parse_key buf <span class="tok-n">0</span> .
   <strong><span class="tok-k">guard</span></strong> is_some k . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> code <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> tty.key_of (some_value k) .
+  <strong><span class="tok-k">let</span></strong> code <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> tty.key_of (some_value k) .
   <strong><span class="tok-k">if</span></strong> eq code (tty.key_up) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">end</span></strong>

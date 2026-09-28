@@ -15,9 +15,9 @@ proc fill input dst mut slice u8 . . input at u64 . input v u64 . output u64 . e
 end
 
 proc main input al cap allocator . output u8 . effects alloc state . do
-  let g option mut slice u8 . . be alloc_bytes al capacity 4 .
+  let g be option mut slice u8 alloc_bytes al capacity 4 .
   guard is_some g . else return 70 .
-  var dst mut slice u8 . be some_value g .
+  var dst be mut slice u8 some_value g .
   task_group do
     spawn fill dst 0 10 .
     spawn fill dst 1 20 .

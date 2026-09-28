@@ -93,14 +93,14 @@ rem     그러지 않으면 서로를 부른다.
 
 rem 확장 블록에서 그 종류가 몇 번 나오는가(중복 판정용).
 fn ext_count input b slice u8 . . input eo u64 . input stop u64 . input want u64 . output u64 . do
-  var at u64 be eo .
-  var c u64 be 0 .
-  var steps u64 be 0 .
+  var at be u64 eo .
+  var c be u64 0 .
+  var steps be u64 0 .
   while lt steps (len b) . do
     if ge at stop . do  return c . end
     if gt (add at 4) stop . do  return c . end
-    let t u64 be be16 b at .
-    let l u64 be be16 b (add at 2) .
+    let t be u64 be16 b at .
+    let l be u64 be16 b (add at 2) .
     if gt (add (add at 4) l) stop . do  return c . end
     if eq t want . do  set c (add c 1) . end
     set at (add (add at 4) l) .
@@ -114,10 +114,10 @@ rem ★ 이것이 없으면 상대는 TLS 1.3 을 청한 적이 없다. legacy_v
 rem   낱말이라 그것만으로는 아무것도 못 가른다(RFC 8446 §4.2.1: 없으면 1.2 이하로 협상하거나 거절).
 fn sv_offers_13 input b slice u8 . . input vo u64 . input vl u64 . output bool . do
   if lt vl 3 . do  return false . end
-  let ll u64 be cast u64 (index b vo) .
+  let ll be u64 cast u64 (index b vo) .
   if ne (add ll 1) vl . do  return false . end
   if eq (mod ll 2) 1 . do  return false . end
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i ll . do
     if eq (be16 b (add (add vo 1) i)) 772 . do  return true . end   rem 0x0304 . .
     set i (add i 2) .
@@ -128,15 +128,15 @@ end
 rem key_share 목록에서 그 group 이 몇 번 나오는가.
 fn ks_count input b slice u8 . . input vo u64 . input vl u64 . input want u64 . output u64 . do
   if lt vl 2 . do  return 0 . end
-  let stop u64 be add vo vl .
-  var at u64 be add vo 2 .
-  var c u64 be 0 .
-  var steps u64 be 0 .
+  let stop be u64 add vo vl .
+  var at be u64 add vo 2 .
+  var c be u64 0 .
+  var steps be u64 0 .
   while lt steps (len b) . do
     if ge at stop . do  return c . end
     if gt (add at 4) stop . do  return c . end
-    let g u64 be be16 b at .
-    let kl u64 be be16 b (add at 2) .
+    let g be u64 be16 b at .
+    let kl be u64 be16 b (add at 2) .
     if gt (add (add at 4) kl) stop . do  return c . end
     if eq g want . do  set c (add c 1) . end
     set at (add (add at 4) kl) .
@@ -148,19 +148,19 @@ end
 rem key_share(51): 목록 길이가 맞고 **같은 group 이 둘이 아니다**(RFC 8446 §4.2.8).
 fn ks_ok input b slice u8 . . input vo u64 . input vl u64 . output bool . do
   if lt vl 2 . do  return false . end
-  let ll u64 be be16 b vo .
+  let ll be u64 be16 b vo .
   if ne (add ll 2) vl . do  return false . end
-  let stop u64 be add vo vl .
-  var at u64 be add vo 2 .
-  var steps u64 be 0 .
+  let stop be u64 add vo vl .
+  var at be u64 add vo 2 .
+  var steps be u64 0 .
   while lt steps (len b) . do
     if ge at stop . do
       if ne at stop . do  return false . end
       return true .
     end
     if gt (add at 4) stop . do  return false . end
-    let g u64 be be16 b at .
-    let kl u64 be be16 b (add at 2) .
+    let g be u64 be16 b at .
+    let kl be u64 be16 b (add at 2) .
     if gt (add (add at 4) kl) stop . do  return false . end
     if gt (ks_count b vo vl g) 1 . do  return false . end
     set at (add (add at 4) kl) .
@@ -173,52 +173,52 @@ rem 이 바이트열이 성한 ClientHello 인가 — 머리부터 확장 끝까
 export fn ch_ok input b slice u8 . . output bool . do
   if lt (len b) 39 . do  return false . end
   if ne (index b 0) 1 . do  return false . end
-  let n u64 be bit_or (shl (cast u64 (index b 1)) 16) (be16 b 2) .
+  let n be u64 bit_or (shl (cast u64 (index b 1)) 16) (be16 b 2) .
   if ne (add n 4) (len b) . do  return false . end   rem 길이는 **정확히** 맞아야 한다 . .
   if ne (index b 4) 3 . do  return false . end
   if ne (index b 5) 3 . do  return false . end
 
   rem ① legacy_session_id — 32 를 넘을 수 없고 버퍼 안에 든다.
-  let sl u64 be cast u64 (index b 38) .
+  let sl be u64 cast u64 (index b 38) .
   if gt sl 32 . do  return false . end
-  let sp u64 be add 39 sl .
+  let sp be u64 add 39 sl .
   if gt (add sp 2) (len b) . do  return false . end
 
   rem ② cipher_suites — 비지 않고 둘씩 짝이며 버퍼 안에 든다.
-  let cn u64 be be16 b sp .
+  let cn be u64 be16 b sp .
   if eq cn 0 . do  return false . end
   if eq (mod cn 2) 1 . do  return false . end
-  let cp u64 be add (add sp 2) cn .
+  let cp be u64 add (add sp 2) cn .
   if ge cp (len b) . do  return false . end
 
   rem ③ legacy_compression_methods — TLS 1.3 은 **정확히 [0]** 이다(RFC 8446 §4.1.2).
-  let cl u64 be cast u64 (index b cp) .
+  let cl be u64 cast u64 (index b cp) .
   if ne cl 1 . do  return false . end
   if ge (add cp 1) (len b) . do  return false . end
   if ne (index b (add cp 1)) 0 . do  return false . end
 
   rem ④ 확장 블록은 **버퍼 끝에서 정확히** 끝난다.
-  let ep u64 be add cp 2 .
+  let ep be u64 add cp 2 .
   if gt (add ep 2) (len b) . do  return false . end
-  let el u64 be be16 b ep .
-  let eo u64 be add ep 2 .
+  let el be u64 be16 b ep .
+  let eo be u64 add ep 2 .
   if ne (add eo el) (len b) . do  return false . end
 
   rem ⑤ 확장을 걸으며: 각자 제 자리에 들고 · **같은 종류가 둘이면 안 되고**(§4.2)
   rem    · supported_versions 가 0x0304 를 내놓아야 하고 · key_share 의 group 이 안 겹친다.
-  var at u64 be eo .
-  let stop u64 be add eo el .
-  var sawsv bool be false .
-  var steps u64 be 0 .
+  var at be u64 eo .
+  let stop be u64 add eo el .
+  var sawsv be bool false .
+  var steps be u64 0 .
   while lt steps (len b) . do
     if ge at stop . do
       if ne at stop . do  return false . end
       return sawsv .
     end
     if gt (add at 4) stop . do  return false . end
-    let t u64 be be16 b at .
-    let l u64 be be16 b (add at 2) .
-    let vo u64 be add at 4 .
+    let t be u64 be16 b at .
+    let l be u64 be16 b (add at 2) .
+    let vo be u64 add at 4 .
     if gt (add vo l) stop . do  return false . end
     if gt (ext_count b eo stop t) 1 . do  return false . end
     if eq t 43 . do
@@ -247,7 +247,7 @@ export fn ch_sid_off input b slice u8 . . output u64 . do
 end
 export fn ch_sid_len input b slice u8 . . output u64 . do
   if eq (ch_ok b) false . do  return 0 . end
-  let n u64 be cast u64 (index b 38) .
+  let n be u64 cast u64 (index b 38) .
   if gt (add 39 n) (len b) . do  return 0 . end
   if gt n 32 . do  return 0 . end                    rem 규격 상한 . .
   return n .
@@ -256,14 +256,14 @@ end
 rem cipher_suites 목록의 자리와 길이(바이트).
 export fn ch_suites_off input b slice u8 . . output u64 . do
   if eq (ch_ok b) false . do  return 0 . end
-  let s u64 be add 39 (ch_sid_len b) .
+  let s be u64 add 39 (ch_sid_len b) .
   if gt (add s 2) (len b) . do  return 0 . end
   return add s 2 .
 end
 export fn ch_suites_len input b slice u8 . . output u64 . do
-  let o u64 be ch_suites_off b .
+  let o be u64 ch_suites_off b .
   if eq o 0 . do  return 0 . end
-  let n u64 be be16 b (sub o 2) .
+  let n be u64 be16 b (sub o 2) .
   if gt (add o n) (len b) . do  return 0 . end
   if eq (mod n 2) 1 . do  return 0 . end             rem 쌍이 아니면 성하지 않다 . .
   return n .
@@ -271,10 +271,10 @@ end
 
 rem 그 목록에 이 스위트가 있는가(1301 = AES-128-GCM · 1303 = ChaCha20-Poly1305).
 export fn ch_has_suite input b slice u8 . . input suite u64 . output bool . do
-  let o u64 be ch_suites_off b .
-  let n u64 be ch_suites_len b .
+  let o be u64 ch_suites_off b .
+  let n be u64 ch_suites_len b .
   if eq n 0 . do  return false . end
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i n . do
     if eq (be16 b (add o i)) suite . do  return true . end
     set i (add i 2) .
@@ -284,20 +284,20 @@ end
 
 rem 확장 블록의 자리와 길이.
 export fn ch_ext_off input b slice u8 . . output u64 . do
-  let o u64 be ch_suites_off b .
-  let n u64 be ch_suites_len b .
+  let o be u64 ch_suites_off b .
+  let n be u64 ch_suites_len b .
   if eq o 0 . do  return 0 . end
-  let c u64 be add o n .
+  let c be u64 add o n .
   if ge c (len b) . do  return 0 . end
-  let cl u64 be cast u64 (index b c) .
-  let e u64 be add (add c 1) cl .
+  let cl be u64 cast u64 (index b c) .
+  let e be u64 add (add c 1) cl .
   if gt (add e 2) (len b) . do  return 0 . end
   return add e 2 .
 end
 export fn ch_ext_len input b slice u8 . . output u64 . do
-  let o u64 be ch_ext_off b .
+  let o be u64 ch_ext_off b .
   if eq o 0 . do  return 0 . end
-  let n u64 be be16 b (sub o 2) .
+  let n be u64 be16 b (sub o 2) .
   if ne (add o n) (len b) . do  return 0 . end       rem 확장이 **끝까지** 맞아야 한다 . .
   return n .
 end
@@ -305,16 +305,16 @@ end
 rem ★ 확장 하나를 종류로 찾는다 — **값의 자리**를 낸다(0 = 없다).
 rem   ☞ 걸음 수를 버퍼로 묶는다. 길이 0 짜리 확장이 이어지면 안 묶은 루프는 안 끝난다.
 export fn ch_ext_find input b slice u8 . . input want u64 . output u64 . do
-  let o u64 be ch_ext_off b .
-  let n u64 be ch_ext_len b .
+  let o be u64 ch_ext_off b .
+  let n be u64 ch_ext_len b .
   if eq n 0 . do  return 0 . end
-  var at u64 be o .
-  let stop u64 be add o n .
-  var steps u64 be 0 .
+  var at be u64 o .
+  let stop be u64 add o n .
+  var steps be u64 0 .
   while lt steps (len b) . do
     if ge (add at 4) (add stop 1) . do  return 0 . end
-    let t u64 be be16 b at .
-    let l u64 be be16 b (add at 2) .
+    let t be u64 be16 b at .
+    let l be u64 be16 b (add at 2) .
     if gt (add (add at 4) l) stop . do  return 0 . end
     if eq t want . do  return add at 4 . end
     set at (add (add at 4) l) .
@@ -324,7 +324,7 @@ export fn ch_ext_find input b slice u8 . . input want u64 . output u64 . do
   return 0 .
 end
 export fn ch_ext_find_len input b slice u8 . . input want u64 . output u64 . do
-  let v u64 be ch_ext_find b want .
+  let v be u64 ch_ext_find b want .
   if eq v 0 . do  return 0 . end
   return be16 b (sub v 2) .
 end
@@ -332,19 +332,19 @@ end
 rem ★★★ **x25519 공개키를 꺼낸다** — key_share(0x0033) 안에서 group 0x001d 를 찾는다.
 rem   key_share = <목록 길이 2> { <group 2> <길이 2> <키> }*
 export fn ch_x25519_off input b slice u8 . . output u64 . do
-  let v u64 be ch_ext_find b 51 .
-  let vl u64 be ch_ext_find_len b 51 .
+  let v be u64 ch_ext_find b 51 .
+  let vl be u64 ch_ext_find_len b 51 .
   if eq v 0 . do  return 0 . end
   if lt vl 2 . do  return 0 . end
-  let ll u64 be be16 b v .
+  let ll be u64 be16 b v .
   if ne (add ll 2) vl . do  return 0 . end
-  var at u64 be add v 2 .
-  let stop u64 be add v vl .
-  var steps u64 be 0 .
+  var at be u64 add v 2 .
+  let stop be u64 add v vl .
+  var steps be u64 0 .
   while lt steps (len b) . do
     if gt (add at 4) stop . do  return 0 . end
-    let g u64 be be16 b at .
-    let kl u64 be be16 b (add at 2) .
+    let g be u64 be16 b at .
+    let kl be u64 be16 b (add at 2) .
     if gt (add (add at 4) kl) stop . do  return 0 . end
     if eq g 29 . do
       if ne kl 32 . do  return 0 . end               rem x25519 는 32 바이트뿐이다 . .
@@ -373,9 +373,9 @@ do
   guard eq (len rnd) 32 . else return 0 .
   guard eq (len key) 32 . else return 0 .
   guard le (len sid) 32 . else return 0 .
-  let extlen u64 be 46 .                             rem key_share 40 + supported_versions 6
+  let extlen be u64 46 .                             rem key_share 40 + supported_versions 6
   rem 본문 = 버전 2 + 랜덤 32 + sid_len 1 + sid + 스위트 2 + 압축 1 + 확장길이 2 + 확장
-  let body u64 be add (add 35 (len sid)) (add 5 extlen) .
+  let body be u64 add (add 35 (len sid)) (add 5 extlen) .
   guard le (add body 4) (len out) . else return 0 .
 
   set (index out 0) 2 .
@@ -384,18 +384,18 @@ do
   set (index out 3) (narrow u8 (bit_and body 255)) .
   set (index out 4) 3 .
   set (index out 5) 3 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 32 . do
     set (index out (add 6 i)) (index rnd i) .
     set i (add i 1) .
   end
   set (index out 38) (narrow u8 (len sid)) .
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j (len sid) . do
     set (index out (add 39 j)) (index sid j) .
     set j (add j 1) .
   end
-  var at u64 be add 39 (len sid) .
+  var at be u64 add 39 (len sid) .
   set (index out at) (narrow u8 (shr suite 8)) .
   set (index out (add at 1)) (narrow u8 (bit_and suite 255)) .
   set (index out (add at 2)) 0 .                     rem legacy_compression_method
@@ -408,7 +408,7 @@ do
   set (index out (add at 2)) 0 .   set (index out (add at 3)) 36 .
   set (index out (add at 4)) 0 .   set (index out (add at 5)) 29 .
   set (index out (add at 6)) 0 .   set (index out (add at 7)) 32 .
-  var k u64 be 0 .
+  var k be u64 0 .
   while lt k 32 . do
     set (index out (add (add at 8) k)) (index key k) .
     set k (add k 1) .
@@ -436,7 +436,7 @@ end
 
 proc put_bytes input src slice u8 . input at u64 . input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) (add at (len src)) . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len src) . do
     set (index out (add at i)) (index src i) .
     set i (add i 1) .
@@ -452,7 +452,7 @@ export proc build_ee input exts slice u8 . input out mut slice u8 . output u64 .
   rem   `narrow` 해서 65536 바이트부터 **트랩**이었다 — 이 모듈의 약속은 "0 = 못 지었다" 이지
   rem   사고가 아니다. 아래 `build_cv` 는 이미 마스크를 쓰고 있었다(같은 자리, 다른 손버릇).
   guard le (len exts) 65535 . else return 0 .
-  let body u64 be add 2 (len exts) .
+  let body be u64 add 2 (len exts) .
   guard eq (put_hdr 8 body out) (add body 4) . else return 0 .
   set (index out 4) (narrow u8 (bit_and (shr (len exts) 8) 255)) .
   set (index out 5) (narrow u8 (bit_and (len exts) 255)) .
@@ -465,8 +465,8 @@ rem     <ctx_len 1 = 0> <list_len 3> { <cert_len 3> <DER> <ext_len 2 = 0> }
 rem   ☞ 체인이 여럿이면 이 op 으로는 안 된다 — **그때 지으라고 적어 둔다.**
 rem     지금 안 지은 이유: 정본(RFC 8448 §3)이 하나이고, 시험할 수 없는 코드를 안 짓는다.
 export proc build_cert input der slice u8 . input out mut slice u8 . output u64 . effects none . do
-  let one u64 be add (add 3 (len der)) 2 .
-  let body u64 be add (add 1 3) one .
+  let one be u64 add (add 3 (len der)) 2 .
+  let body be u64 add (add 1 3) one .
   guard eq (put_hdr 11 body out) (add body 4) . else return 0 .
   set (index out 4) 0 .                                rem certificate_request_context 없음
   set (index out 5) (narrow u8 (bit_and (shr one 16) 255)) .
@@ -492,7 +492,7 @@ rem   ☞☞ `0x00` 구분자도 마찬가지다: 문자열과 해시가 붙으�
 export proc cv_content input thash slice u8 . input out mut slice u8 . output u64 . effects none . do
   guard eq (len thash) 32 . else return 0 .
   guard ge (len out) 130 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 64 . do
     set (index out i) 32 .
     set i (add i 1) .
@@ -508,7 +508,7 @@ rem   `alg` 는 SignatureScheme(0x0403 = ecdsa_secp256r1_sha256 · 0x0804 = rsa_
 export proc build_cv input alg u64 . input sig slice u8 . input out mut slice u8 . output u64 . effects none . do
   rem ★ 서명도 16 비트 자리에 들어야 한다 — 안 들면 거절(2026-09-04).
   guard le (len sig) 65535 . else return 0 .
-  let body u64 be add 4 (len sig) .
+  let body be u64 add 4 (len sig) .
   guard eq (put_hdr 15 body out) (add body 4) . else return 0 .
   set (index out 4) (narrow u8 (bit_and (shr alg 8) 255)) .
   set (index out 5) (narrow u8 (bit_and alg 255)) .
@@ -558,8 +558,8 @@ do
   rem   **상대가 아는 값**에서 나온다. `x25519.agree` 도 이제 그것을 거절하지만, 여기서 한 번 더
   rem   본다: 이 op 은 x25519 를 안 거친 값도 받을 수 있다(다른 그룹·다른 구현·시험 코드).
   rem   ☞ 두 자리에서 같은 것을 보는 것은 중복이 아니다 — **경계마다 자기 입력을 본다**.
-  var esum u64 be 0 .
-  var ei u64 be 0 .
+  var esum be u64 0 .
+  var ei be u64 0 .
   while lt ei 32 . do
     set esum (bit_or esum (cast u64 (index ecdhe ei))) .
     set ei (add ei 1) .
@@ -570,35 +570,35 @@ do
   guard eq (call_builtin sha256 (subslice w 0 0) (subslice w 0 32)) 32 . else return ok 0 .
 
   rem ② early secret = HKDF-Extract(0, 0)  — salt 도 IKM 도 0×32.
-  var z u64 be 0 .
+  var z be u64 0 .
   while lt z 32 . do
     set (index w (add 32 z)) 0 .
     set (index w (add 64 z)) 0 .
     set z (add z 1) .
   end
-  let _u2 result u64 hmac.hmac_error . be hmac.extract (subslice w 32 64) (subslice w 64 96) (subslice w 512 1024) (subslice w 96 128) .
+  let _u2 be result u64 hmac.hmac_error hmac.extract (subslice w 32 64) (subslice w 64 96) (subslice w 512 1024) (subslice w 96 128) .
   guard is_ok _u2 . else return error short_workspace .
   guard eq (ok_value _u2) 32 . else return ok 0 .
 
   rem ③ handshake secret = advance(early, ECDHE) — "derived" 한 칸을 건너뛴다.
-  let _u3 result u64 tls13.tls13_error . be tls13.advance (subslice w 96 128) ecdhe (subslice w 0 32) (subslice w 128 160) (subslice w 160 288) (subslice w 512 1024) (subslice w 288 320) .
+  let _u3 be result u64 tls13.tls13_error tls13.advance (subslice w 96 128) ecdhe (subslice w 0 32) (subslice w 128 160) (subslice w 160 288) (subslice w 512 1024) (subslice w 288 320) .
   guard is_ok _u3 . else return error short_workspace .
   guard eq (ok_value _u3) 32 . else return ok 0 .
 
   rem ④ s hs traffic = Derive-Secret(handshake, "s hs traffic", H(CH‖SH))
   guard eq (tls13.transcript msgs1 (len msgs1) (subslice w 320 352)) 32 . else return ok 0 .
-  let _u4 result u64 tls13.tls13_error . be tls13.derive_secret (subslice w 288 320) "s hs traffic" (subslice w 320 352) (subslice w 160 288) (subslice w 512 1024) (subslice w 352 384) .
+  let _u4 be result u64 tls13.tls13_error tls13.derive_secret (subslice w 288 320) "s hs traffic" (subslice w 320 352) (subslice w 160 288) (subslice w 512 1024) (subslice w 352 384) .
   guard is_ok _u4 . else return error short_workspace .
   guard eq (ok_value _u4) 32 . else return ok 0 .
 
   rem ⑤ finished_key = Expand-Label(s hs traffic, "finished", "", 32)
-  let _u5 result u64 tls13.tls13_error . be tls13.finished_key (subslice w 352 384) (subslice w 160 288) (subslice w 512 1024) (subslice w 384 416) .
+  let _u5 be result u64 tls13.tls13_error tls13.finished_key (subslice w 352 384) (subslice w 160 288) (subslice w 512 1024) (subslice w 384 416) .
   guard is_ok _u5 . else return error short_workspace .
   guard eq (ok_value _u5) 32 . else return ok 0 .
 
   rem ⑥ verify_data = HMAC(finished_key, H(CH‖SH‖EE‖Cert‖CV))  ← **다른 전사**다
   guard eq (tls13.transcript msgs2 (len msgs2) (subslice w 416 448)) 32 . else return ok 0 .
-  let _u6 result u64 tls13.tls13_error . be tls13.verify_data (subslice w 384 416) (subslice w 416 448) (subslice w 512 1024) (subslice w 448 480) .
+  let _u6 be result u64 tls13.tls13_error tls13.verify_data (subslice w 384 416) (subslice w 416 448) (subslice w 512 1024) (subslice w 448 480) .
   guard is_ok _u6 . else return error short_workspace .
   guard eq (ok_value _u6) 32 . else return ok 0 .
 
@@ -636,20 +636,20 @@ do
 
   rem 빈 해시 · 0×32 (master 의 IKM 은 0 이다)
   guard eq (call_builtin sha256 (subslice w 0 0) (subslice w 0 32)) 32 . else return ok 0 .
-  var z u64 be 0 .
+  var z be u64 0 .
   while lt z 32 . do  set (index w (add 32 z)) 0 .  set z (add z 1) . end
 
   rem master = advance(handshake, 0) — "derived" 한 칸을 건너뛴다.
-  let _u0 result u64 tls13.tls13_error . be tls13.advance hs (subslice w 32 64) (subslice w 0 32) (subslice w 64 96) (subslice w 96 224) (subslice w 512 1024) (subslice w 224 256) .
+  let _u0 be result u64 tls13.tls13_error tls13.advance hs (subslice w 32 64) (subslice w 0 32) (subslice w 64 96) (subslice w 96 224) (subslice w 512 1024) (subslice w 224 256) .
   guard is_ok _u0 . else return error short_workspace .
   guard eq (ok_value _u0) 32 . else return ok 0 .
 
   rem 전사(서버 Finished 까지) 한 번만 재고 둘이 나눠 쓴다.
   guard eq (tls13.transcript msgs (len msgs) (subslice w 256 288)) 32 . else return ok 0 .
-  let _u1 result u64 tls13.tls13_error . be tls13.derive_secret (subslice w 224 256) "c ap traffic" (subslice w 256 288) (subslice w 96 224) (subslice w 512 1024) (subslice out 0 32) .
+  let _u1 be result u64 tls13.tls13_error tls13.derive_secret (subslice w 224 256) "c ap traffic" (subslice w 256 288) (subslice w 96 224) (subslice w 512 1024) (subslice out 0 32) .
   guard is_ok _u1 . else return error short_workspace .
   guard eq (ok_value _u1) 32 . else return ok 0 .
-  let _u2 result u64 tls13.tls13_error . be tls13.derive_secret (subslice w 224 256) "s ap traffic" (subslice w 256 288) (subslice w 96 224) (subslice w 512 1024) (subslice out 32 64) .
+  let _u2 be result u64 tls13.tls13_error tls13.derive_secret (subslice w 224 256) "s ap traffic" (subslice w 256 288) (subslice w 96 224) (subslice w 512 1024) (subslice out 32 64) .
   guard is_ok _u2 . else return error short_workspace .
   guard eq (ok_value _u2) 32 . else return ok 0 .
   return ok 64 .
@@ -703,18 +703,18 @@ errors short_workspace . do
   rem   낸 값(`outlen`)만 16 일 뿐이다. 16 바이트 버퍼를 주면 그 자리에서 실패한다.
   rem   ☞ 실제로 그렇게 썼다가 `traffic_key` 가 0 을 냈다 — **반환 길이와 쓰는 길이가 다르다.**
   rem   ⇒ 임시 자리(w 640..704)에 받아 필요한 만큼만 옮긴다.
-  let _u0 result u64 tls13.tls13_error . be tls13.traffic_key secret klen (subslice w 0 128) (subslice w 128 640) (subslice w 640 672) .
+  let _u0 be result u64 tls13.tls13_error tls13.traffic_key secret klen (subslice w 0 128) (subslice w 128 640) (subslice w 640 672) .
   guard is_ok _u0 . else return error short_workspace .
   guard eq (ok_value _u0) klen . else return ok 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i klen . do
     set (index out i) (index w (add 640 i)) .
     set i (add i 1) .
   end
-  let _u1 result u64 tls13.tls13_error . be tls13.traffic_iv secret (subslice w 0 128) (subslice w 128 640) (subslice w 672 704) .
+  let _u1 be result u64 tls13.tls13_error tls13.traffic_iv secret (subslice w 0 128) (subslice w 128 640) (subslice w 672 704) .
   guard is_ok _u1 . else return error short_workspace .
   guard eq (ok_value _u1) 12 . else return ok 0 .
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j 12 . do
     set (index out (add klen j)) (index w (add 672 j)) .
     set j (add j 1) .
@@ -732,9 +732,9 @@ errors short_workspace .
 do
   guard ge (len keys) (add klen 12) . else return ok 0 .
   guard ge (len w) 1024 . else return ok 0 .
-  let n u64 be add (len data) 1 .
+  let n be u64 add (len data) 1 .
   guard ge (len w) (add 640 n) . else return ok 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len data) . do
     set (index w (add 640 i)) (index data i) .
     set i (add i 1) .
@@ -754,7 +754,7 @@ do
   guard ge (len w) 640 . else return error short_workspace .
   rem ★ 남의 실패 타입을 **내 것인 양 흘려보내지 않는다**. 도구는 그것을 안 잡지만
   rem   (결함 bare-return-under-result 의 형제 증상), 적힌 약속은 부르는 쪽이 읽는다.
-  let ro result u64 tls13.tls13_error . be tls13.record_open suite (subslice keys 0 klen) (subslice keys klen (add klen 12)) seq rec inner (subslice w 0 640) u .
+  let ro be result u64 tls13.tls13_error tls13.record_open suite (subslice keys 0 klen) (subslice keys klen (add klen 12)) seq rec inner (subslice w 0 640) u .
   guard is_ok ro . else return error short_workspace .
   return ok (ok_value ro) .
 end

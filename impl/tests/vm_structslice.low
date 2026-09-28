@@ -24,15 +24,15 @@ fn n_pts input s slice pt . output u64 . do
 end
 
 fn nth_x input s slice pt . input i u64 . output u8 . do
-  let p be index s i . .
+  let p be pt index s i . .
   return field p x .                rem 원소는 **구조체 뷰**다
 end
 
 fn sum_y input s slice pt . output u64 . do
-  var t u64 be 0 .
-  var i u64 be 0 .
+  var t be u64 0 .
+  var i be u64 0 .
   while lt i (len s) . do
-    let p be index s i . .
+    let p be pt index s i . .
     set t expr t + (field p y) . .
     set i expr i + 1 . .
   end

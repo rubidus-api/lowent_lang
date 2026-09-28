@@ -20,16 +20,16 @@ export proc mark input edges slice u64 . input marks mut slice u64 . . input roo
 do
   guard lt root (len marks) . else return 0 .
   set (index marks root) 1 .
-  var changed u64 be 1 .
-  var rounds u64 be 0 .
+  var changed be u64 1 .
+  var rounds be u64 0 .
   while gt changed 0 . do
     set changed 0 .
-    var i u64 be 0 .
+    var i be u64 0 .
     while lt i (len marks) . do
       if eq (index marks i) 1 . do
-        let a u64 be index edges (mul i 2) .
-        let b u64 be add (mul i 2) 1 .
-        let c u64 be index edges b .
+        let a be u64 index edges (mul i 2) .
+        let b be u64 add (mul i 2) 1 .
+        let c be u64 index edges b .
         if lt a (len marks) . do
           if eq (index marks a) 0 . do
             set (index marks a) 1 .
@@ -48,8 +48,8 @@ do
     set rounds (add rounds 1) .
     guard le rounds (len marks) . else return 0 .
   end
-  var live u64 be 0 .
-  var k u64 be 0 .
+  var live be u64 0 .
+  var k be u64 0 .
   while lt k (len marks) . do
     set live (add live (index marks k)) .
     set k (add k 1) .
@@ -60,12 +60,12 @@ end
 rem ★ 그래프: 0→{1,2} · 1→{3} · 2→자기 · 3→자기 · 4=고아.
 rem   root 0 에서 살아 있는 것은 넷이고, 4 는 **순환도 아닌 그냥 쓰레기**다.
 proc reaches input al cap allocator . output u64 . effects alloc . do
-  let me option mut slice u8 . . be alloc_bytes al capacity 80 .
+  let me be option mut slice u8 alloc_bytes al capacity 80 .
   guard is_some me . else return 89 .
-  let mm option mut slice u8 . . be alloc_bytes al capacity 40 .
+  let mm be option mut slice u8 alloc_bytes al capacity 40 .
   guard is_some mm . else return 88 .
-  var e mut slice u64 . be view_array u64 (some_value me) .
-  var m mut slice u64 . be view_array u64 (some_value mm) .
+  var e be mut slice u64 view_array u64 (some_value me) .
+  var m be mut slice u64 view_array u64 (some_value mm) .
   set (index e 0) 1 .  set (index e 1) 2 .
   set (index e 2) 3 .  set (index e 3) 3 .
   set (index e 4) 2 .  set (index e 5) 2 .
@@ -80,12 +80,12 @@ end
 rem ★★ **순환도 끝난다** — 0→1→0 은 서로를 가리키지만 고정점이 그것을 멈춘다.
 rem   ☞ 그리고 이것이 RFC-0105 §5 의 요점이다: 순환이 문제인 것은 **수명이 다를 때**뿐이다.
 proc cycles input al cap allocator . output u64 . effects alloc . do
-  let me option mut slice u8 . . be alloc_bytes al capacity 48 .
+  let me be option mut slice u8 alloc_bytes al capacity 48 .
   guard is_some me . else return 89 .
-  let mm option mut slice u8 . . be alloc_bytes al capacity 24 .
+  let mm be option mut slice u8 alloc_bytes al capacity 24 .
   guard is_some mm . else return 88 .
-  var e mut slice u64 . be view_array u64 (some_value me) .
-  var m mut slice u64 . be view_array u64 (some_value mm) .
+  var e be mut slice u64 view_array u64 (some_value me) .
+  var m be mut slice u64 view_array u64 (some_value mm) .
   set (index e 0) 1 .  set (index e 1) 1 .
   set (index e 2) 0 .  set (index e 3) 0 .
   set (index e 4) 2 .  set (index e 5) 2 .
@@ -96,9 +96,9 @@ end
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
-  let a u64 be reaches al .
+  let a be u64 reaches al .
   guard eq a 42 . else return narrow u8 a .
-  let b u64 be cycles al .
+  let b be u64 cycles al .
   guard eq b 42 . else return narrow u8 b .
   return 42 .
 end

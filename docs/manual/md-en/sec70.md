@@ -19,7 +19,7 @@ use searchlib .
 use sortlib .
 
 sortlib.sort s .
-let i option u64 . be searchlib.bsearch s 42 .
+let i be option u64 searchlib.bsearch s 42 .
 ```
 
 > **Sortedness is not checked**
@@ -39,8 +39,8 @@ The implementation runs on the half-open range `[lo, hi)` with midpoint `lo + (h
 
 ```lowent
 fn count_in input s slice u64 . input a u64 . input b u64 . output u64 . do
-  let i u64 be searchlib.lower_bound s a .
-  let j u64 be searchlib.lower_bound s b .
+  let i be u64 searchlib.lower_bound s a .
+  let j be u64 searchlib.lower_bound s b .
   guard lt i j . else return 0 .
   return sub j i .
 end

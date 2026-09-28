@@ -697,7 +697,7 @@ static unsigned walk_effects_in(const low_cst_t *nd, const low_opinfo_t *tab, pr
     //   `if (FORM) e |= builtin_effect(kids[0])` — 즉 **문장의 머리일 때만.**
     //   그래서 식 **안에 중첩된** 효과 있는 빌트인은 **보이지 않았다**:
     //
-    //       let work stack node_id . be stack_new temp capacity n . . .
+    //       let work be stack node_id stack_new temp capacity n . . .
     //       effects none .                    ← **거짓말이었다.** stack_new 은 alloc 이다.
     //
     //   그리고 `--check` 는 **초록불**이었다. 효과 계약이 **강제되지 않는 자리**가 있었다.
@@ -971,7 +971,7 @@ static void ck_no_shadow(low_check_result_t *out, const low_cst_t *nd,
             proven_u8str_view_t nm = nd->kids[1]->tok.lex;
             ck_plain_name(out, nm, "local", nd->kids[1]->tok.line);   // ★ 지역도 맨 이름이다
             // ★★★ **지역이 빌트인을 가리는 것은 아무도 안 막고 있었다.**
-            //   `E-NAME-BUILTIN` 은 **최상위 선언만** 지켰다. 그래서 `var len u8 be 3 .` 이
+            //   `E-NAME-BUILTIN` 은 **최상위 선언만** 지켰다. 그래서 `var len be u8 3 .` 이
             //   `== check: ok ==` 였다. 그런데 이것이 바로 RFC-0046 이 **P1(무음 재괄호)** 로
             //   지목한 그 자리다:
             //       f len data      ← len 이 프렐류드(arity 1) 냐 지역(arity 0) 이냐로
@@ -1188,7 +1188,7 @@ static bool ck_stmt_returns(const low_cst_t *f) {
         return f->nkids && ck_stmt_returns(f->kids[f->nkids - 1]);
     // ★★★★ **합성된 머리가 저자의 점을 먹으면 뒤 문장이 자식으로 들어간다** (2026-08-25).
     //   `.f`(머리 표시)와 `recv..m`(메서드)은 파서가 만든 폼이고, **저자가 찍은 점을 그
-    //   머리의 것으로 가져간다**. 그러면 `let u u64 be .g 3 .` 다음의 `return u .` 이
+    //   머리의 것으로 가져간다**. 그러면 `let u be u64 .g 3 .` 다음의 `return u .` 이
     //   형제가 아니라 **`let` 폼의 자식**이 된다 — 그리고 이 검사가 그것을 못 보고
     //   *"값을 안 내는 길이 있다"* 고 **오진했다**(2026-08-25 실측: `.f` 와 `..` 둘 다).
     //
@@ -2258,7 +2258,7 @@ typedef struct {
 // ★★★★★ **이 검사기는 지역 바인딩을 몰랐다** (RFC-0093 후속, 2026-08-11).
 //   6 줄로 재현된다 — 남의 모듈이 `slot` 을 export 하기만 하면:
 //       use m1 from "…" .          rem m1 이 slot 을 export 한다
-//       fn f … do  var slot u64 be 7 .  return slot .  end   → **E-VISIBILITY**
+//       fn f … do  var slot be u64 7 .  return slot .  end   → **E-VISIBILITY**
 //   `use` 를 빼면 초록이다. 즉 **내 지역 변수의 합법성이 남의 모듈에 달려 있었다.**
 //   SPEC-002 는 해상 순서를 **지역 → 모듈 → import** 라고 **이미 적어 뒀다**(§4단 중첩).
 //   틀린 것은 명세가 아니라 이 검사기다 — 이 자리는 자기 모듈 우선까지는 배웠는데
@@ -3121,7 +3121,7 @@ static const low_cst_t *cd_find_chan_decl(const low_cst_t *nd, proven_u8str_view
         for (proven_size_t i = 2; i + 1 < nd->nkids; i++)
             if (nd->kids[i]->kind == LOW_CST_ATOM && nd->kids[i]->tok.kw == LOW_KW_BE &&
                 nd->kids[i + 1]->kind == LOW_CST_ATOM && veq(nd->kids[i + 1]->tok.lex, "channel"))
-                return nd;   // `var/let NAME … be channel …` — 지역 채널 생성
+                return nd;   // `var/let NAME be … channel …` — 지역 채널 생성
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         const low_cst_t *r = cd_find_chan_decl(nd->kids[i], name);
@@ -3715,9 +3715,9 @@ static bool ck_is_type_word(const low_parse_result_t *pr, proven_u8str_view_t w)
     return false;
 }
 // ★★ **`splat` 은 레인 수를 문맥에서 받는다** (결함 노트 #73, 2026-09-16).
-//   `var m mask 4 be gt v (splat 5) .` 처럼 식 **안**에 바로 쓰면 몇 레인짜리를 지어야 하는지
+//   `var m be mask 4 gt v (splat 5) .` 처럼 식 **안**에 바로 쓰면 몇 레인짜리를 지어야 하는지
 //   알 자리가 없어 스칼라로 읽히고, 진단은 `E-TYPE-VAR: expected mask, found bool` 이라
-//   **원인을 말하지 않았다**. 쓸 수 있는 자리는 하나다: `var lim vec u32 4 be splat 5 .`
+//   **원인을 말하지 않았다**. 쓸 수 있는 자리는 하나다: `var lim be vec u32 4 splat 5 .`
 //   — 선언된 벡터 타입이 레인 수를 말해 주는 자리.
 static void ck_splat_walk(low_check_result_t *out, const low_cst_t *nd,
                           const low_cst_t *parent, proven_size_t idx) {
@@ -3739,7 +3739,7 @@ static void ck_splat_walk(low_check_result_t *out, const low_cst_t *nd,
                  "`splat` fills every lane of a vector, and how many lanes there are comes from the "
                  "declared type — inside an expression there is nothing to say it, so the value is "
                  "read as a plain scalar and the surrounding comparison stops matching its `mask` "
-                 "type. Bind it first, with the lane count written down: `var lim vec u32 4 be splat "
+                 "type. Bind it first, with the lane count written down: `var lim be vec u32 4 splat "
                  "5 .`, then use `lim`",
                  nd->line);
     }
@@ -5282,7 +5282,7 @@ static bool ck_uses_machine(const low_cst_t *nd) {
 typedef struct { proven_u8str_view_t name; int consumed; proven_u32 line; } own_t;
 
 static bool ck_is_owned_decl(const low_cst_t *f) {
-    // `var h owned T be …` / `let h owned T be …`
+    // `var h be owned T …` / `let h be owned T …`
     if (f->kind != LOW_CST_FORM || f->nkids < 3 || f->kids[0]->kind != LOW_CST_ATOM) return false;
     low_kw_t kw = f->kids[0]->tok.kw;
     if (kw != LOW_KW_VAR && kw != LOW_KW_LET) return false;
@@ -5349,7 +5349,7 @@ static bool ck_own_consumes(const low_cst_t *nd, proven_u8str_view_t name, prove
     bool ret = in_return;
     if (nd->nkids && nd->kids[0]->kind == LOW_CST_ATOM) {
         low_kw_t kw = nd->kids[0]->tok.kw;
-        // (4) ★ **다른 이름에 묶는 것도 이동이다** — `var x T be h .` / `set x h .`
+        // (4) ★ **다른 이름에 묶는 것도 이동이다** — `var x be T h .` / `set x h .`
         //     가장 흔한 이동 형태인데 첫 판본이 놓쳤다. `check-live` 게이트가 잡았다:
         //     owned 를 두 번 묶는 프로그램이 owned 아닌 판과 **출력이 똑같았다** —
         //     즉 `owned` 가 그 자리에서 **아무것도 바꾸지 않고 있었다.**
@@ -5372,7 +5372,7 @@ static bool ck_own_consumes(const low_cst_t *nd, proven_u8str_view_t name, prove
         //     이제 메시지가 인자를 싣는다(DECISION-0011) ⇒ 그 인자는 **떠난다.**
         //     ★ 이것이 LowentDRF.v 가 증명한 격리(소유 이전이 **메시지로만** 일어난다)를
         //       도구가 실제로 주는 유일한 길이다. **증명해 놓고 강제하지 않으면 그것도 거짓말이다.**
-        //     ★ `send` 는 form 의 **머리에 오지 않는다** — `var r u64 be send take h to x .` 에서
+        //     ★ `send` 는 form 의 **머리에 오지 않는다** — `var r be u64 send take h to x .` 에서
         //       머리는 `var` 다. 이 문법은 호출을 괄호로 싸지 않는다: `send`·`take` 는 **형제**다.
         //       **호출 전파·효과 전파·소유 이동에서 이미 세 번 넘어진 그 함정이다.** 형제를 훑는다.
         {
@@ -5606,7 +5606,7 @@ static void ck_borrow_walk_in(low_check_result_t *out, const low_cst_t *nd,
 // ★★★★ RFC-0112 D4·D5 (WO-0212) — 영역 검사를 **오염(taint)** 으로 다시 세운다.
 //
 //   전엔 «블록 안에서 선언된 이름» 이면 무엇이든 영역의 자리를 든 것으로 쳤다. 그래서
-//     ① `let n u64 be 5 . set keep n .` 이 **거짓 양성**이었다(스칼라는 자리를 안 든다 — 실측) 이고
+//     ① `let n be u64 5 . set keep n .` 이 **거짓 양성**이었다(스칼라는 자리를 안 든다 — 실측) 이고
 //     ② `set (field h store) b .` 는 대상이 이름이 아니라 폼이라 **아예 안 봤다**(F5 — VM 55 / 네이티브 77).
 //   이제 이름은 **그 값이 영역의 바이트를 들고 있을 때만** 오염된다: 타입이 스칼라가 아니고, 초기식이
 //   `alloc_bytes`·`stack_new` 이거나 이미 오염된 이름을 싣는다(스칼라를 내는 머리 — `len`·`index`·… —
@@ -6011,7 +6011,7 @@ static ck_own_state_t ck_own_flow(low_check_result_t *out, const low_parse_resul
         //   **새 값을 넣는 것**은 use-after-move 가 아니라 그 자리를 다시 살리는 것이다
         //   (Rust 도 `x = new` 를 재초기화로 본다 — 이동은 *값* 이 떠난 것이지 *자리* 가 죽은 게 아니다).
         //   ⇒ 그래서 **소유값을 루프로 이어받는 모양이 아예 표현 불가능**했다:
-        //       `let r ... be step p .`  `set p (ok_value r) .`   ← 여기서 거짓 거절
+        //       `let r be ... step p .`  `set p (ok_value r) .`   ← 여기서 거짓 거절
         //     그리고 그것이 버퍼링 라이터의 모양이다(RFC-0069 §3) — 핸들을 여러 번 쓰고 끝낸다.
         //   ★ **자기참조 재대입은 여전히 사용이다**: `set p (f p)` 는 오른쪽이 p 를 읽으므로 거절된다.
         //   ★ **필드 대입은 재초기화가 아니다**: `set (field p x) 0` 은 자리가 아니라 *그 안* 을
@@ -6179,8 +6179,8 @@ static proven_size_t ck_struct_owned_field_types(const low_parse_result_t *pr, p
 // ★★★ **빌린 뒤 옮기면 그 빌림은 죽는다** (RFC-0005 EXCL · RFC-0044 EXCL-F, 2026-07-23).
 //   `ref x` **식 빌림**은 여태 이동에 대해 **전혀 추적되지 않았다**: 아래가 정적·런타임 모두
 //   통과했다 — 옮겨간 자리를 빌림이 계속 읽는다.
-//       let r ref h be ref p .
-//       let z h be p .            ← p 가 떠났다
+//       let r be ref h ref p .
+//       let z be h p .            ← p 가 떠났다
 //       return field r fd .       ← 그런데 r 로 계속 읽는다
 //   ck_borrow_walk 는 `borrow …do…end` **블록**만 봐서 이 모양을 못 봤다.
 //   ⇒ 이 이름을 빌린 **별칭**들을 모으고, 이름이 **소비된 뒤** 별칭이 언급되면 거절한다.
@@ -6353,7 +6353,7 @@ static void ck_ownership(low_check_result_t *out, const low_parse_result_t *pr, 
         const low_cst_t *d = body->kids[i];
         // ★★★★ **낱말을 빼면 책임도 빠진다** (2026-08-15, 소유자 결정 ①A).
         //   여기까지 규율은 *"자원은 완결해야 한다"* 가 아니라 *"자원이라고 **적은** 것은 완결해야
-        //   한다"* 였다: `var f files.handle be …` 는 `owned` 한 낱말이 없다는 이유로 아무 말도
+        //   한다"* 였다: `var f be files.handle …` 는 `owned` 한 낱말이 없다는 이유로 아무 말도
         //   듣지 않았고, 파일은 조용히 샜다. **잊기 가장 쉬운 낱말이 곧 안전장치**였던 셈이다.
         //   ⇒ 완결필요 타입을 맨 이름으로 묶으면 **적으라고 요구한다**. 추론해서 숨기지 않는 이유:
         //     소유는 비용이고, 이 언어가 파는 것은 **비용이 보이는 것**이다(P2).
@@ -7286,7 +7286,7 @@ static void ck_removed_words(low_check_result_t *out, const low_parse_result_t *
     for (proven_size_t i = 0; i < pr->nforms; i++) ck_removed_walk(out, pr->forms[i]);
 }
 
-// ★★ **`let` 은 불변이다.** 그전엔 `let x u8 be 5 . set x 7 .` 이 **그냥 통과했다** —
+// ★★ **`let` 은 불변이다.** 그전엔 `let x be u8 5 . set x 7 .` 이 **그냥 통과했다** —
 //   즉 `let` 과 `var` 는 **완전한 동의어**였고, SPEC-002 §2.5 는 동의어를 금지한다.
 //   두 낱말이 하나의 뜻을 가지면 어휘만 늘고 뜻은 안 는다. 이제 **두 낱말이 두 뜻을 갖는다.**
 //   (그리고 이건 공짜가 아니다: 불변 바인딩은 재대입이 없으므로 **구간 분석이 사실을 잃지 않는다.**)
@@ -7662,7 +7662,7 @@ static void ck_capkind_walk(low_check_result_t *out, const low_cst_t *nd, const 
 //   정본 §8.12(6) 은 같은 **저장소**를 `mut` 자리 둘에 넘기는 것을 거절한다. 전엔 같은 **이름**만
 //   봐서 `var x be buf` 뒤 `two buf x`, `two (subslice buf 0 4) (subslice buf 0 4)` 가 통과했다 —
 //   뒤 쓰기가 앞 쓰기를 조용히 덮었다. 이제 인자마다 **저장소 열쇠**(밑동 이름 + 구간)를 낸다:
-//     · 이름 — 이 op 안의 별칭(`let/var x … be <이름>` · `be subslice <이름> a b`)을 따라 밑동으로
+//     · 이름 — 이 op 안의 별칭(`let/var x be … <이름>` · `be subslice <이름> a b`)을 따라 밑동으로
 //     · `subslice E a b` — a·b 가 **수 리터럴**이면 구간을 안다(별칭의 구간과 합친다)
 //   겹침 판정: 밑동이 같고, 한쪽이 전체이거나 두 상수 구간이 겹치면 `E-EXCL`.
 //   ☞ 구간이 **상수가 아니면** 가르지 않는다(거절하지 않는다) — 그것은 RFC-0116 D2(동적 범위)의 몫이다.
@@ -8439,7 +8439,7 @@ static bool ck_b2_mentions(const low_cst_t *nd, const proven_u8str_view_t *v, pr
     for (proven_size_t i = 0; i < nd->nkids; i++) if (ck_b2_mentions(nd->kids[i], v, n)) return true;
     return false;
 }
-// 별칭 모으기: `let/var x … be <식>` 의 식이 r(w) 이름을 쓰고 x 가 뷰 타입이면 x 도 r(w) 다
+// 별칭 모으기: `let/var x be … <식>` 의 식이 r(w) 이름을 쓰고 x 가 뷰 타입이면 x 도 r(w) 다
 static void ck_b2_aliases(const low_cst_t *nd, ck_b2_t *b) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
@@ -8969,7 +8969,7 @@ static bool ck_is_arith_word(proven_u8str_view_t w) {
            veq(w, "lt") || veq(w, "le") || veq(w, "gt") || veq(w, "ge") ||
            veq(w, "eq") || veq(w, "ne");
 }
-// 지역 이름의 **선언된 타입 낱말**(`let p point be …` → `point`). 없으면 빈 것.
+// 지역 이름의 **선언된 타입 낱말**(`let p be point …` → `point`). 없으면 빈 것.
 static proven_u8str_view_t ck_local_type_word(const low_cst_t *body, proven_u8str_view_t nm) {
     if (!body) return (proven_u8str_view_t){ 0 };
     if (body->kind == LOW_CST_FORM && body->nkids >= 4 && ck_atom(body->kids[0]) &&
@@ -9414,9 +9414,9 @@ static void ck_result_discard_walk(low_check_result_t *out, const low_cst_t *bod
                 warn(out, "W-RESULT-DISCARD",
                      "this op returns a `result` — it says failure is a VALUE — and the value is "
                      "dropped here, so a failure leaves no trace at all. Bind it and look at it "
-                     "(`let r … be …` then `is_error`), forward it (`try`), or say in the code why "
+                     "(`let r be … …` then `is_error`), forward it (`try`), or say in the code why "
                      "the failure does not matter", s->kids[0]->tok.line ? s->kids[0]->tok.line : s->line);
-            // ② `let r … be <result 를 내는 부름>` 인데 r 을 한 번도 안 읽는다.
+            // ② `let r be … <result 를 내는 부름>` 인데 r 을 한 번도 안 읽는다.
             //   ★★★ 이 갈래는 한 번 뺐다가 되돌렸다 (RFC-0115 §8-25, 2026-09-17). 뺐던 까닭은
             //     «나는 이 실패를 일부러 넘긴다» 를 적는 철자가 없어서였다 — 물어도 없앨 방법이
             //     없는 경고는 길을 닫는다(결함 노트 #75). 소유자가 그 철자를 **`drop`** 으로 골랐고,
@@ -9552,7 +9552,7 @@ static void ck_actor_lend_walk(low_check_result_t *out, const low_cst_t *nd,
         ck_actor_lend_walk(out, nd->kids[i], binds, nb, seen, ns, cap);
 }
 // ★★★★ **리터럴은 고칠 수 없다 — 묶는 자리에서도** (정본 §6.1.4(12) · 결함 노트 #84, 2026-09-16).
-//   `let buf mut slice u8 . be "abc" .` 뒤의 `set (index buf 0) 65` 가 통과했다. 리터럴은 프로그램에
+//   `let buf be mut slice u8 "abc" .` 뒤의 `set (index buf 0) 65` 가 통과했다. 리터럴은 프로그램에
 //   박힌 바이트이고 고칠 자리가 아니다 — VM 은 고치고 네이티브는 안 고쳤다(두 답).
 static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *nd) {
     if (!nd) return;
@@ -9568,7 +9568,7 @@ static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *n
             const low_cst_t *init = nd->kids[be + 1];
             // ★★★★★ **리터럴은 한 겹 뒤에 숨을 수 있다** (2026-09-18, X-0032).
             //   이 검사는 `be` 바로 뒤의 **원자**만 보고 있었다. 그래서
-            //   `var d mut slice u8 . be view_array u8 "  " .` 가 **그대로 통과했고**,
+            //   `var d be mut slice u8 view_array u8 "  " .` 가 **그대로 통과했고**,
             //   VM 은 그 리터럴을 고쳐 주고 네이티브는 **트랩했다** — 차등 훑기가 그것을
             //   잡았다. 검사기가 볼 수 있었던 것을 오라클이 대신 잡은 자리다.
             //   ⇒ 재해석하는 한 겹(`view_array`·`subslice`)을 지나서도 본다.
@@ -9660,7 +9660,7 @@ static void ck_launder_walk(low_check_result_t *out, const low_cst_t *nd,
 //
 //       proc leak   input s slice u8 . output mut slice u8 . effects none . do return s . end
 //       fn attack input s slice u8 . output u8 .          effects none . do
-//         let m mut slice u8 be leak s . set (index m 0) 99 . return index s 0 . end
+//         let m be mut slice u8 leak s . set (index m 0) 99 . return index s 0 . end
 //                                        ↑ m 은 s 의 별칭 — fn 이 공유 입력을 변조(실측 99)
 //
 //   `attack` 의 지역 쓰기는 **관측적 순수**(로컬 var 라 봄)로 통과하고, `leak s` 의 인자 s 는

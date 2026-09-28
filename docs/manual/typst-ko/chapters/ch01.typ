@@ -49,7 +49,7 @@ proc main input out cap io . output u8 . effects io .
   `output u64 .` 는 돌려줄 값의 타입이다. `requires le w 1000 .` 는 "`w` 는 1000 이하여야 한다" 는 약속이다. 곱이 넘치지 않게
   하려는 것이다.
 - `return mul w h .` 는 `w` 곱하기 `h` 를 돌려준다. 연산 이름이 앞에 오고 인자가 뒤에 온다. 문장은 떨어진 마침표로 끝난다.
-- `main` 은 프로그램이 시작하는 op 이다. `let a u64 be area 3 4 .` 로 12 를 얻어 `a` 에 담고, `write_out out 1 "…"` 로 표준출력(1 번)에
+- `main` 은 프로그램이 시작하는 op 이다. `let a be u64 area 3 4 .` 로 12 를 얻어 `a` 에 담고, `write_out out 1 "…"` 로 표준출력(1 번)에
   한 줄을 쓴다. 이 줄이 가능한 까닭은 머리에 `cap io` 를 받았고 `effects io` 를 적었기 때문이다. 돌려준 12 는 운영체제에 건네는
   종료 값이 된다.
 

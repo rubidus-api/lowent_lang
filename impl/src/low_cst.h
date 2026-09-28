@@ -189,6 +189,7 @@ int low_input_rank(const low_cst_t *opform, proven_size_t at, proven_size_t end)
 // ★★★★ RFC-0112 D8 — `using` 을 푼다: 부르는 자리에 얼로케이터 인자를 끼우고, 받는 쪽 절을 입력으로 바꾼다.
 //   나무(`low_nest`) **뒤**, 단형화(`low_mono`) **앞**에 한 번 돈다.
 void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
+void low_decl_order(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict);   /* RFC-0132 T1 */
 
 // ★★★ arity 단일화 — 평평한 원자 열에 괄호를 박아 **진짜 나무**를 세운다(CST → CST).
 //   파서는 무지한 채로 둔다(구조=문자열). 나무는 파스 **다음에** 선다.

@@ -22,14 +22,14 @@ use fmt    from "../../../lib/fmt.low" .
 
 rem 한 시드에서 표본 n 개를 던져 원 안에 든 수를 센다.
 fn inside input seed u64 . input n u64 . output u64 . do
-  var s u64 be seed .
-  var hits u64 be 0 .
-  var i u64 be 0 .
+  var s be u64 seed .
+  var hits be u64 0 .
+  var i be u64 0 .
   while lt i n . do
     set s (random.advance_seed s) .
-    let x f64 be div (cast f64 (bit_and s 65535)) 65535.0 .
+    let x be f64 div (cast f64 (bit_and s 65535)) 65535.0 .
     set s (random.advance_seed s) .
-    let y f64 be div (cast f64 (bit_and s 65535)) 65535.0 .
+    let y be f64 div (cast f64 (bit_and s 65535)) 65535.0 .
     guard le (add (mul x x) (mul y y)) 1.0 . else do
       set i (add i 1) .
       continue .
@@ -46,30 +46,30 @@ proc main .
   output u8 .
   effects alloc io .
 do
-  let n u64 be 100000 .
-  let h1 u64 be inside 12345 n .
+  let n be u64 100000 .
+  let h1 be u64 inside 12345 n .
   rem ★ **재현성부터 주장한다** — 같은 시드는 같은 답이다. 이것이 안 되면 아래는 뜻이 없다.
-  let h2 u64 be inside 12345 n .
+  let h2 be u64 inside 12345 n .
   guard eq h1 h2 . else return 44 .
 
   rem 원 사분면의 넓이 비율 = π/4.
-  let est f64 be mul 4.0 (div (cast f64 h1) (cast f64 n)) .
+  let est be f64 mul 4.0 (div (cast f64 h1) (cast f64 n)) .
 
-  let g option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let g be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some g . else return 70 .
-  let line mut slice u8 . be some_value g .
-  var at u64 be 0 .
-  let a1 option u64 be fmt.put_str line at "pi~" .
+  let line be mut slice u8 some_value g .
+  var at be u64 0 .
+  let a1 be option u64 fmt.put_str line at "pi~" .
   guard is_some a1 . else return 71 .
   set at (some_value a1) .
   rem 소수점 셋째 자리까지 정수로 찍는다(fmt 에 부동 출력이 아직 없다 — 안 지은 것).
-  let a2 option u64 be fmt.put_u64 line at (cast u64 (round (mul est 1000.0))) .
+  let a2 be option u64 fmt.put_u64 line at (cast u64 (round (mul est 1000.0))) .
   guard is_some a2 . else return 71 .
   set at (some_value a2) .
-  let a3 option u64 be fmt.put_str line at " /1000\n" .
+  let a3 be option u64 fmt.put_str line at " /1000\n" .
   guard is_some a3 . else return 71 .
   set at (some_value a3) .
-  let z u64 be write_out k 1 (subslice line 0 at) .
+  let z be u64 write_out k 1 (subslice line 0 at) .
 
   rem ★ 오라클: 추정값이 π 에 가까운가. `math.close` 가 허용 오차를 **인자로** 받는다.
   guard math.close est (math.pi) 0.05 . else return 43 .

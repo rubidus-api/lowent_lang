@@ -3,9 +3,9 @@ rem expect: E-REGION-ESCAPE
 
 proc leak output u64 . effects alloc .
 do
-  var keep mut slice u8 be subslice "abcd" 0 0 .
+  var keep be mut slice u8 subslice "abcd" 0 0 .
   region r arena do
-    let g option mut slice u8 be alloc_bytes r capacity 16 .
+    let g be option mut slice u8 alloc_bytes r capacity 16 .
     if is_some g . do
       set keep (some_value g) .
     end

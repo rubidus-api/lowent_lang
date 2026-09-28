@@ -28,17 +28,17 @@ end
 rem ★ 항등식 — 어느 각에서도 성립한다. 이것이 "정확한 비트" 보다 강한 주장이다:
 rem   두 함수가 **서로 맞아야** 하고, 한쪽만 틀려도 깨진다.
 fn t_ident input z f64 . output u64 . do
-  let s f64 be sin 1.0 .
-  let c f64 be cos 1.0 .
-  let d f64 be sub (add (mul s s) (mul c c)) 1.0 .
+  let s be f64 sin 1.0 .
+  let c be f64 cos 1.0 .
+  let d be f64 sub (add (mul s s) (mul c c)) 1.0 .
   guard lt (abs d) 0.000000001 . else return 90 .
   return 1 .
 end
 
 rem ★ exp 와 log 는 서로의 역이다 — 왕복이 오라클이다.
 fn t_roundtrip input z f64 . output u64 . do
-  let x f64 be 3.75 .
-  let d f64 be sub (log (exp x)) x .
+  let x be f64 3.75 .
+  let d be f64 sub (log (exp x)) x .
   guard lt (abs d) 0.000000001 . else return 90 .
   return 1 .
 end

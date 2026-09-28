@@ -24,9 +24,9 @@
       그러나 **읽는 사람은 인자 수를 외워야 한다** — (2) 가 없애려던 바로 그 외움이다.
       그러므로 괄호 생략은 적합하되, 이 문서의 예제와 표준 라이브러리는 **괄호를 적는다.**
     ]
-    #ex("전위 표기", "let a u32 be add 1 2 .
-let b u32 be add 1 (mul 2 3) .
-let c bool be lt a b .")
+    #ex("전위 표기", "let a be u32 add 1 2 .
+let b be u32 add 1 (mul 2 3) .
+let c be bool lt a b .")
     #plain[
       `1 + 2 * 3` 을 처음 보는 사람은 `*` 가 먼저인지 `+` 가 먼저인지 **외워야** 안다.
       `add 1 (mul 2 3)` 은 외울 것이 없다 — 괄호가 그대로 말해 준다. 이 언어가 전위를
@@ -419,7 +419,7 @@ fn endian input a u32 . output u32 . do return byte_swap a . end",
     ]
     #para("1a")[
       `splat` 은 레인 수를 **선언된 타입에서** 받는다. 그래서 쓸 수 있는 자리는 벡터 타입을
-      적은 바인딩의 값 자리뿐이다: `var lim vec u32 4 be splat 5 .`. 식 안에 바로 적는 것은
+      적은 바인딩의 값 자리뿐이다: `var lim be vec u32 4 splat 5 .`. 식 안에 바로 적는 것은
       적합하지 아니하다(`E-VEC-SPLAT`) — 그 자리에는 레인 수를 말해 주는 것이 없다.
     ]
     #para("2")[
@@ -450,7 +450,7 @@ type bytes slice u8 . .
 
 fn total input b bytes . output u64 .
 do
-  var xs slice f64 . be view_array f64 b .
+  var xs be slice f64 view_array f64 b .
   return sum_neumaier xs .      rem 결과는 부동소수인데 머리는 `u64` 라고 적었다
 end", "E-TYPE-RETURN")
     #para("2")[

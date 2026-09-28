@@ -10,7 +10,7 @@ takes 1 … 4 bytes --- one number is not one byte. Use it to count characters i
 ```lowent
 use utf8 .
 
-let c option u64 . be utf8.decode s 0 .
+let c be option u64 utf8.decode s 0 .
 guard is_some c . else return 1 .
 ```
 
@@ -97,38 +97,38 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let s slice u8 be "a한😀" .
+  let s be slice u8 "a한😀" .
   guard utf8.is_valid s . else return 65 .
 
-  let g option mut slice u8 . . be alloc_bytes al capacity 128 .
+  let g be option mut slice u8 alloc_bytes al capacity 128 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
-  var pos u64 be 0 .
+  let buf be mut slice u8 some_value g .
+  var pos be u64 0 .
 
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
-    let c option u64 . be utf8.decode s i .
+    let c be option u64 utf8.decode s i .
     guard is_some c . else return 66 .
-    let a option u64 . be fmt.put_str buf pos "U+" .
+    let a be option u64 fmt.put_str buf pos "U+" .
     guard is_some a . else return 71 .
-    let b option u64 . be fmt.put_hex buf (some_value a) (some_value c) .
+    let b be option u64 fmt.put_hex buf (some_value a) (some_value c) .
     guard is_some b . else return 72 .
-    let d option u64 . be fmt.put_nl buf (some_value b) .
+    let d be option u64 fmt.put_nl buf (some_value b) .
     guard is_some d . else return 73 .
     set pos (some_value d) .
-    let nx option u64 . be utf8.next_start s i .
+    let nx be option u64 utf8.next_start s i .
     guard is_some nx . else return 67 .
     set i (some_value nx) .
   end
 
-  let w u64 be write_out out 1 (subslice buf 0 pos) .
+  let w be u64 write_out out 1 (subslice buf 0 pos) .
   return 0 .
 end
 ```
 
 The output is three lines: `U+61`, `U+d55c`, `U+1f600`. In one pass `i` jumps 0 → 1 → 4 → 8, through `a` (1 byte), `한` (3 bytes) and `😀` (4 bytes). *Never
 advance with `add i 1`* --- on the second round it would point into the middle of a character. If you only need the count, it is one line:
-`let n option u64 . be utf8.count_chars s .`
+`let n be option u64 utf8.count_chars s .`
 
 == Counter-examples
 

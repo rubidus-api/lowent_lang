@@ -37,8 +37,8 @@ rem 4 = ECDSA + SHA-384 · 0 = 우리가 모른다
 rem ☞ SHA-384 은 2026-09-18 에 들어왔다(소유자 결정 — 빌트인 `sha384`). 그전에는 진짜 체인의
 rem   중간 마디를 **거절만** 했다: 안 지은 것을 지은 척하지 않는 쪽이었고, 이제 지었다.
 export fn sig_kind input c slice u8 . output u64 . do
-  let o u64 be x509.sigalg_oid_off c .
-  let n u64 be x509.sigalg_oid_len c .
+  let o be u64 x509.sigalg_oid_off c .
+  let n be u64 x509.sigalg_oid_len c .
   if eq o 0 . do  return 0 . end
   if eq n 9 . do
     rem 2a 86 48 86 f7 0d 01 01 <0b=SHA-256 · 0c=SHA-384>
@@ -71,41 +71,41 @@ export proc ecdsa_rs input sig slice u8 . input out mut slice u8 . input sz u64 
   guard ge (len out) (mul sz 2) . else return 0 .
   guard gt (len sig) 8 . else return 0 .
   guard eq (der.tag_at sig 0) 48 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (mul sz 2) . do  set (index out i) 0 .  set i (add i 1) .  end
-  let ro u64 be der.value_off sig 0 .
+  let ro be u64 der.value_off sig 0 .
   guard gt ro 0 . else return 0 .
   guard eq (der.tag_at sig ro) 2 . else return 0 .
-  let rv u64 be der.value_off sig ro .
-  let rl u64 be der.value_len sig ro .
+  let rv be u64 der.value_off sig ro .
+  let rl be u64 der.value_len sig ro .
   guard gt rv 0 . else return 0 .
-  let so u64 be der.next_off sig ro .
+  let so be u64 der.next_off sig ro .
   guard gt so 0 . else return 0 .
   guard eq (der.tag_at sig so) 2 . else return 0 .
-  let sv u64 be der.value_off sig so .
-  let sl u64 be der.value_len sig so .
+  let sv be u64 der.value_off sig so .
+  let sl be u64 der.value_len sig so .
   guard gt sv 0 . else return 0 .
   rem 앞의 0 을 떼고, 곡선 크기를 넘으면 이 곡선의 값이 아니다.
-  var rs2 u64 be rv .
-  var rn2 u64 be rl .
+  var rs2 be u64 rv .
+  var rn2 be u64 rl .
   while gt rn2 sz . do
     guard eq (index sig rs2) 0 . else return 0 .
     set rs2 (add rs2 1) .
     set rn2 (sub rn2 1) .
   end
-  var ss2 u64 be sv .
-  var sn2 u64 be sl .
+  var ss2 be u64 sv .
+  var sn2 be u64 sl .
   while gt sn2 sz . do
     guard eq (index sig ss2) 0 . else return 0 .
     set ss2 (add ss2 1) .
     set sn2 (sub sn2 1) .
   end
-  var a u64 be 0 .
+  var a be u64 0 .
   while lt a rn2 . do
     set (index out (add (sub sz rn2) a)) (index sig (add rs2 a)) .
     set a (add a 1) .
   end
-  var b u64 be 0 .
+  var b be u64 0 .
   while lt b sn2 . do
     set (index out (add (add sz (sub sz sn2)) b)) (index sig (add ss2 b)) .
     set b (add b 1) .
@@ -122,7 +122,7 @@ end
 proc limbs_of input h slice u8 . input out mut slice u64 . input w mut slice u8 . output u64 . effects none . do
   guard eq (len h) 64 . else return 0 .
   guard ge (len w) 32 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 32 . do
     set (index w i) (narrow u8 (add (mul (hexd (cast u64 (index h (mul i 2)))) 16)
                                     (hexd (cast u64 (index h (add (mul i 2) 1)))))) .
@@ -148,7 +148,7 @@ rem   p · n · Gx · Gy 를 24 조각씩(FIPS 186-4 D.1.2.4). 한 자리에만 
 proc limbs_of96 input h slice u8 . input out mut slice u64 . input w mut slice u8 . output u64 . effects none . do
   guard eq (len h) 96 . else return 0 .
   guard ge (len w) 48 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 48 . do
     set (index w i) (narrow u8 (add (mul (hexd (cast u64 (index h (mul i 2)))) 16)
                                     (hexd (cast u64 (index h (add (mul i 2) 1)))))) .
@@ -188,16 +188,16 @@ do
   guard eq (index issuer ko) 4 . else return ok 0 .
   guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 160) 48) 96 . else return ok 0 .
   rem e ← 해시를 48 바이트 자리에 오른쪽 맞춤으로.
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 48 . do  set (index wb (add 160 i)) 0 .  set i (add i 1) .  end
-  let hb u64 be hn .
+  let hb be u64 hn .
   guard le hb 48 . else return ok 0 .
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j hb . do
     set (index wb (add (add 160 (sub 48 hb)) j)) (index mh j) .
     set j (add j 1) .
   end
-  let _u1 result u64 verify_error . be curve384 (subslice wu 0 96) (subslice wb 208 256) .
+  let _u1 be result u64 verify_error curve384 (subslice wu 0 96) (subslice wb 208 256) .
   guard is_ok _u1 . else return ok 0 .
   guard eq (ok_value _u1) 1 . else return ok 0 .
   guard eq (bigint.from_bytes (subslice wb 64 112) (subslice wu 96 120) 24) 24 . else return ok 0 .
@@ -207,7 +207,7 @@ do
   guard eq (bigint.from_bytes (subslice issuer (add ko 49) (add ko 97)) (subslice wu 192 216) 24) 24 . else return ok 0 .
   rem ★ P-384 의 실패(자리 모자람)를 **그대로 이어받는다** — 여기서 0 으로 뭉개면
   rem   «서명이 틀렸다» 가 되고, 그것은 우리가 재지 못한 것을 재고 나서 하는 말로 바꾸는 일이다.
-  let pr result u64 p384.p384_error . be p384.ecdsa_ok (subslice wu 96 120) (subslice wu 120 144) (subslice wu 144 168)
+  let pr be result u64 p384.p384_error p384.ecdsa_ok (subslice wu 96 120) (subslice wu 120 144) (subslice wu 144 168)
                            (subslice wu 168 216)
                            (subslice wu 0 24) (subslice wu 24 48)
                            (subslice wu 48 72) (subslice wu 72 96)
@@ -232,15 +232,15 @@ do
   rem   ☞ **P-384 는 1600 을 따로 요구한다**(`ec384` 가 그 자리에서 막는다) — 여기서 한꺼번에
   rem     1600 을 요구하면 P-384 를 안 쓰는 부르는 쪽까지 그만큼 내놓아야 한다.
   guard ge (len wu) 1100 . else return ok 0 .
-  let kind u64 be sig_kind c .
+  let kind be u64 sig_kind c .
   guard gt kind 0 . else return ok 0 .
 
-  let tb u64 be x509.tbs_off c .
-  let te u64 be x509.tbs_end c .
+  let tb be u64 x509.tbs_off c .
+  let te be u64 x509.tbs_end c .
   guard gt tb 0 . else return ok 0 .
   guard gt te tb . else return ok 0 .
   rem ★ 해시는 서명 알고리즘이 고른다 — 그것이 OID 가 말하는 절반이다.
-  var hn u64 be 32 .
+  var hn be u64 32 .
   if lt kind 3 . do
     guard eq (call_builtin sha256 (subslice c tb te) (subslice wb 0 32)) 32 . else return ok 0 .
   end
@@ -249,21 +249,21 @@ do
     set hn 48 .
   end
 
-  let so u64 be x509.sig_off c .
-  let sl u64 be x509.sig_len c .
+  let so be u64 x509.sig_off c .
+  let sl be u64 x509.sig_len c .
   guard gt so 0 . else return ok 0 .
   guard gt sl 0 . else return ok 0 .
 
-  let sp u64 be x509.spki_off issuer .
+  let sp be u64 x509.spki_off issuer .
   guard gt sp 0 . else return ok 0 .
-  let ko u64 be der.spki_key_off issuer sp .
+  let ko be u64 der.spki_key_off issuer sp .
   guard gt ko 0 . else return ok 0 .
 
   if lt kind 3 . do  set kind kind . end
   if eq (mod kind 2) 1 . do
-    let no u64 be der.rsa_n_off issuer ko .
-    let nl u64 be der.rsa_n_len issuer ko .
-    let e  u64 be der.rsa_e issuer ko .
+    let no be u64 der.rsa_n_off issuer ko .
+    let nl be u64 der.rsa_n_len issuer ko .
+    let e be u64 der.rsa_e issuer ko .
     guard gt no 0 . else return ok 0 .
     guard gt nl 0 . else return ok 0 .
     guard gt e 0 . else return ok 0 .
@@ -273,11 +273,11 @@ do
     rem   정확히 k 를 주면 `mod_exp` 가 0 을 답하고, 그것은 «서명이 틀렸다» 와 **같은 얼굴**로
     rem   나온다. 그래서 진짜 인증서 넷이 모두 거절됐다(2026-09-18 실측). `lockbox` 가 이미
     rem   `need = k + 4` 로 쓰고 있었고, 나는 그 수를 안 보고 새로 지었다.
-    let k u64 be shr nl 1 .
-    let need u64 be add k 4 .
+    let k be u64 shr nl 1 .
+    let need be u64 add k 4 .
     guard ge (len wu) (mul need 7) . else return error short_workspace .
     rem DigestInfo 의 머리 — 해시마다 다르다.
-    var di slice u8 be "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20" .
+    var di be slice u8 "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20" .
     if eq hn 48 . do
       set di "\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x02\x05\x00\x04\x30" .
     end
@@ -293,7 +293,7 @@ do
   rem   넣었다가 모든 ECDSA 인증서를 거절했다(2026-09-18). 같은 모듈의 이웃 두 얼굴이 서로
   rem   다른 자리를 받는 것은 읽는 사람이 매번 확인해야 하는 모양이다 — [der](der) 쪽에
   rem   물어볼 자리로 적어 둔다.
-  let kl u64 be der.spki_key_len issuer sp .
+  let kl be u64 der.spki_key_len issuer sp .
   rem ★★ 곡선은 **공개키의 길이**가 말한다 — 04‖X‖Y 이므로 65 = P-256 · 97 = P-384.
   rem   ☞ 인증서는 곡선 OID 도 적어 두지만, 우리가 실제로 쓰는 것은 이 바이트들이다.
   rem     길이와 OID 가 어긋난 인증서라면 **어느 쪽을 믿어도 서명이 맞지 않는다.**
@@ -303,7 +303,7 @@ do
   guard eq kl 65 . else return ok 0 .
   guard eq (index issuer ko) 4 . else return ok 0 .
   guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 128) 32) 64 . else return ok 0 .
-  let _u0 result u64 verify_error . be curve (subslice wu 0 64) (subslice wb 128 256) .
+  let _u0 be result u64 verify_error curve (subslice wu 0 64) (subslice wb 128 256) .
   guard is_ok _u0 . else return error short_workspace .
   guard eq (ok_value _u0) 1 . else return ok 0 .
   guard eq (bigint.from_bytes (subslice wb 64 96) (subslice wu 64 80) 16) 16 . else return ok 0 .
@@ -331,14 +331,14 @@ rem     뜻이 조금씩 달라진다. 여기서는 그 물음을 아예 만들�
 export fn dn_eq input a slice u8 . input ao u64 . input b slice u8 . input bo u64 . output bool . do
   if eq ao 0 . do  return false . end
   if eq bo 0 . do  return false . end
-  let al u64 be x509.elem_len a ao .
-  let bl u64 be x509.elem_len b bo .
+  let al be u64 x509.elem_len a ao .
+  let bl be u64 x509.elem_len b bo .
   if eq al 0 . do  return false . end
   if ne al bl . do  return false . end
   if gt (add ao al) (len a) . do  return false . end
   if gt (add bo bl) (len b) . do  return false . end
-  var i u64 be 0 .
-  var diff u64 be 0 .
+  var i be u64 0 .
+  var diff be u64 0 .
   while lt i al . do
     set diff (bit_or diff (bit_xor (cast u64 (index a (add ao i))) (cast u64 (index b (add bo i))))) .
     set i (add i 1) .
@@ -348,8 +348,8 @@ end
 
 rem ★ 유효기간이 지금을 담는가. `now` 는 YYYYMMDDhhmmss 한 수다.
 export fn dates_ok input c slice u8 . input now u64 . output bool . do
-  let nb u64 be x509.not_before c .
-  let na u64 be x509.not_after c .
+  let nb be u64 x509.not_before c .
+  let na be u64 x509.not_after c .
   if eq nb 0 . do  return false . end
   if eq na 0 . do  return false . end
   if lt now nb . do  return false . end
@@ -368,7 +368,7 @@ fn lower input c u64 . output u64 . do
 end
 fn label_eq input pat slice u8 . input po u64 . input pn u64 . input h slice u8 . input ho u64 . input hn u64 . output bool . do
   if ne pn hn . do  return false . end
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i pn . do
     if ne (lower (cast u64 (index pat (add po i)))) (lower (cast u64 (index h (add ho i)))) . do  return false . end
     set i (add i 1) .
@@ -376,8 +376,8 @@ fn label_eq input pat slice u8 . input po u64 . input pn u64 . input h slice u8 
   return true .
 end
 export fn san_matches input c slice u8 . input so u64 . input host slice u8 . output bool . do
-  let vo u64 be der.value_off c so .
-  let vl u64 be der.value_len c so .
+  let vo be u64 der.value_off c so .
+  let vl be u64 der.value_len c so .
   if eq vo 0 . do  return false . end
   if eq vl 0 . do  return false . end
   if eq (len host) 0 . do  return false . end
@@ -389,8 +389,8 @@ export fn san_matches input c slice u8 . input so u64 . input host slice u8 . ou
   if lt vl 3 . do  return false . end
   if ne (index c (add vo 1)) 46 . do  return false . end
   rem 호스트의 첫 `.` 뒤가 패턴의 `.` 뒤와 같아야 하고, 첫 마디는 비어 있지 않아야 한다.
-  var d u64 be 0 .
-  var seen u64 be 0 .
+  var d be u64 0 .
+  var seen be u64 0 .
   while lt d (len host) . do
     if eq (index host d) 46 . do
       if eq seen 0 . do  set seen (add d 1) . end
@@ -402,8 +402,8 @@ export fn san_matches input c slice u8 . input so u64 . input host slice u8 . ou
   return label_eq c (add vo 2) (sub vl 2) host seen (sub (len host) seen) .
 end
 export fn host_ok input c slice u8 . input host slice u8 . output bool . do
-  var s u64 be x509.san_next c 0 .
-  var steps u64 be 0 .
+  var s be u64 x509.san_next c 0 .
+  var steps be u64 0 .
   while gt s 0 . do
     if san_matches c s host . do  return true . end
     set s (x509.san_next c s) .
@@ -424,7 +424,7 @@ do
   if eq (dates_ok child now) false . do  return 4 . end
   if eq (dates_ok parent now) false . do  return 4 . end
   rem ★ 「서명이 안 맞는다」와 「재지 못했다」를 가른다(X-0035): 못 잰 것은 **6** 이다.
-  let sb result u64 verify_error . be signed_by child parent wb wu .
+  let sb be result u64 verify_error signed_by child parent wb wu .
   guard is_ok sb . else return 6 .
   if eq (ok_value sb) 1 . do  return 1 . end
   return 5 .

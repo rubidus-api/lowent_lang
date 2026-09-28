@@ -14,10 +14,10 @@ address = directory[segment] + slot
 
 ```lowent
 newtype grid u8 .
-var a segarena.arena grid . be segarena.open grid 4 .
-let b option u64 . be segarena.grow grid a dir 1024 .
+var a be (segarena.arena grid) segarena.open grid 4 .
+let b be option u64 segarena.grow grid a dir 1024 .
 guard is_some b . else return 1 .
-let v option u64 . be segarena.at grid a dir mem 9 .
+let v be option u64 segarena.at grid a dir mem 9 .
 ```
 
 #aside[비용이 op 이름에 적혀 있다 --- 이것이 이 모듈의 요점이다][

@@ -25,11 +25,11 @@ do
   end .
 end
 
-fn geta output u64 . do var p pairr be mk2 . return field p a . end
-fn getb output u64 . do var p pairr be mk2 . return (field p b) . end
-fn getg output u64 . do var p pairr be mk2 . return (field p a) . end
-fn getin output u64 . do var p pairr be mk2 . return (field p b) . end
-fn nest output u64 . do var o outerr be mko . return expr (field o q b) + (field o q a) + (field o tag) . . end
+fn geta output u64 . do var p be pairr mk2 . return field p a . end
+fn getb output u64 . do var p be pairr mk2 . return (field p b) . end
+fn getg output u64 . do var p be pairr mk2 . return (field p a) . end
+fn getin output u64 . do var p be pairr mk2 . return (field p b) . end
+fn nest output u64 . do var o be outerr mko . return expr (field o q b) + (field o q a) + (field o tag) . . end
 
 
 rem ★ **붙임 점 인덱스** — `s.1` 은 `index s 1` 이다(식별자 뒤의 빈칸 없는 `.` 은 접근이고,

@@ -10,7 +10,7 @@ UTF-8 바이트열을 *코드포인트 단위로* 훑고 검사한다. 코드포
 ```lowent
 use utf8 .
 
-let c option u64 . be utf8.decode s 0 .
+let c be option u64 utf8.decode s 0 .
 guard is_some c . else return 1 .
 ```
 
@@ -94,37 +94,37 @@ proc main
   output u8 .
   effects alloc io .
 do
-  let s slice u8 be "a한😀" .
+  let s be slice u8 "a한😀" .
   guard utf8.is_valid s . else return 65 .
 
-  let g option mut slice u8 . . be alloc_bytes al capacity 128 .
+  let g be option mut slice u8 alloc_bytes al capacity 128 .
   guard is_some g . else return 70 .
-  let buf mut slice u8 . be some_value g .
-  var pos u64 be 0 .
+  let buf be mut slice u8 some_value g .
+  var pos be u64 0 .
 
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
-    let c option u64 . be utf8.decode s i .
+    let c be option u64 utf8.decode s i .
     guard is_some c . else return 66 .
-    let a option u64 . be fmt.put_str buf pos "U+" .
+    let a be option u64 fmt.put_str buf pos "U+" .
     guard is_some a . else return 71 .
-    let b option u64 . be fmt.put_hex buf (some_value a) (some_value c) .
+    let b be option u64 fmt.put_hex buf (some_value a) (some_value c) .
     guard is_some b . else return 72 .
-    let d option u64 . be fmt.put_nl buf (some_value b) .
+    let d be option u64 fmt.put_nl buf (some_value b) .
     guard is_some d . else return 73 .
     set pos (some_value d) .
-    let nx option u64 . be utf8.next_start s i .
+    let nx be option u64 utf8.next_start s i .
     guard is_some nx . else return 67 .
     set i (some_value nx) .
   end
 
-  let w u64 be write_out out 1 (subslice buf 0 pos) .
+  let w be u64 write_out out 1 (subslice buf 0 pos) .
   return 0 .
 end
 ```
 
 출력은 `U+61` · `U+d55c` · `U+1f600` 세 줄이다. 한 바퀴에서 `i` 는 `a`(1 바이트) → `한`(3 바이트) → `😀`(4 바이트) 를 지나며 0 → 1 → 4 → 8 로 뛴다.
-*`add i 1` 로는 전진하지 않는다* --- 둘째 바퀴에서 글자 한가운데를 가리키게 된다. 글자 수만 필요하면 `let n option u64 . be utf8.count_chars s .` 한 줄이다.
+*`add i 1` 로는 전진하지 않는다* --- 둘째 바퀴에서 글자 한가운데를 가리키게 된다. 글자 수만 필요하면 `let n be option u64 utf8.count_chars s .` 한 줄이다.
 
 == 반례
 

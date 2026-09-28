@@ -68,7 +68,7 @@ export proc open input fs cap file_system . input path slice u8 . input mode u64
   output result handle file_error . effects io .
 errors open_failed .
 do
-  let h option u64 . be file_open fs path mode .
+  let h be option u64 file_open fs path mode .
   guard is_some h . else return error open_failed .
   return ok (make handle do fd (some_value h) . end) .
 end
@@ -83,7 +83,7 @@ export proc read input fs cap file_system . input h handle . input buf mut slice
 errors read_failed .
 do
   guard gt (len buf) 0 . else return ok (some 0) .
-  let n option u64 . be file_read fs (field h fd) buf .
+  let n be option u64 file_read fs (field h fd) buf .
   guard is_some n . else return error read_failed .
   rem ★ 여기가 세 자리가 실제로 갈리는 자리다: 잎의 `some 0` 은 **끝**이지 실패가 아니다.
   guard gt (some_value n) 0 . else return ok none .
@@ -94,7 +94,7 @@ export proc write input fs cap file_system . input h handle . input bytes slice 
   output result u64 file_error . effects io .
 errors write_failed .
 do
-  let n option u64 . be file_write fs (field h fd) bytes .
+  let n be option u64 file_write fs (field h fd) bytes .
   guard is_some n . else return error write_failed .
   return ok (some_value n) .
 end
@@ -107,7 +107,7 @@ export proc seek_to input fs cap file_system . input h handle . input off u64 . 
   output result u64 file_error . effects io .
 errors seek_failed .
 do
-  let n option u64 . be file_seek fs (field h fd) off whence .
+  let n be option u64 file_seek fs (field h fd) off whence .
   guard is_some n . else return error seek_failed .
   return ok (some_value n) .
 end
@@ -119,7 +119,7 @@ export proc close input fs cap file_system . input h owned handle .
 errors close_failed .
 do
   rem ★ 변수를 `ok` 라 부르면 **결과 생성자 `ok` 와 부딪친다** — 같은 낱말 두 뜻(§2.5).
-  let closed bool be file_close fs (field h fd) .
+  let closed be bool file_close fs (field h fd) .
   drop h .
   guard eq closed true . else return error close_failed .
   return ok .
@@ -137,7 +137,7 @@ export proc open_dir input fs cap file_system . input path slice u8 .
   output result dir_handle file_error . effects io .
 errors open_failed .
 do
-  let h option u64 . be dir_open fs path .
+  let h be option u64 dir_open fs path .
   guard is_some h . else return error open_failed .
   return ok (make dir_handle do fd (some_value h) . end) .
 end
@@ -148,7 +148,7 @@ export proc read_dir input fs cap file_system . input h dir_handle . input buf m
   output result (option u64) file_error . effects io .
 errors read_failed .
 do
-  let n option u64 . be dir_read fs (field h fd) buf .
+  let n be option u64 dir_read fs (field h fd) buf .
   guard is_some n . else return error read_failed .
   rem ★ 잎의 `some 0` 은 **엔트리 끝**이지 실패가 아니다 — `read` 와 같은 규율이다.
   guard gt (some_value n) 0 . else return ok none .
@@ -159,7 +159,7 @@ export proc close_dir input fs cap file_system . input h owned dir_handle .
   output result void file_error . effects io .
 errors close_failed .
 do
-  let closed bool be dir_close fs (field h fd) .
+  let closed be bool dir_close fs (field h fd) .
   drop h .
   guard eq closed true . else return error close_failed .
   return ok .
@@ -186,21 +186,21 @@ end
 
 rem ★ 편의: 심링크인가. 없으면 false.
 export proc is_symlink input fs cap file_system . input path slice u8 . output bool . effects io . do
-  let t option u64 . be link_type fs path .
+  let t be option u64 link_type fs path .
   guard is_some t . else return false .
   return eq (some_value t) 3 .
 end
 
 rem ★ 편의: 디렉터리인가. 없으면 false(없는 것은 디렉터리가 아니다 — 정직하다).
 export proc is_dir input fs cap file_system . input path slice u8 . output bool . effects io . do
-  let t option u64 . be file_type fs path .
+  let t be option u64 file_type fs path .
   guard is_some t . else return false .
   return eq (some_value t) 1 .
 end
 
 rem ★ 편의: 보통 파일인가.
 export proc is_file input fs cap file_system . input path slice u8 . output bool . effects io . do
-  let t option u64 . be file_type fs path .
+  let t be option u64 file_type fs path .
   guard is_some t . else return false .
   return eq (some_value t) 0 .
 end
@@ -216,32 +216,32 @@ errors read_failed .
 errors buffer_too_small .
 errors close_failed .
 do
-  let ho result handle file_error . be open fs path 0 .
+  let ho be result handle file_error open fs path 0 .
   guard is_ok ho . else return error open_failed .
   rem ★ `h` 를 여러 번 **읽고**(read 의 파라미터는 비소유라 복사다) 마지막에 **닫는다**
   rem   (close 의 파라미터가 owned 라 거기서 이동한다). 파라미터의 타입이 이동을 정한다
   rem   — SPEC-004 §4.8. 이 흔한 모양이 2026-07-19 까지 표현 불가능했다(과엄격 결함).
-  var h owned handle be ok_value ho .
-  var total u64 be 0 .
-  var going bool be true .
-  var overflow bool be false .
+  var h be owned handle ok_value ho .
+  var total be u64 0 .
+  var going be bool true .
+  var overflow be bool false .
   rem ★★★ **읽기 실패는 EOF 가 아니다** (RFC-0075 S5 · 2026-08-15). 여기 있던 코드는 `none` 을
   rem   받으면 그냥 루프를 멈췄고, 그러면 **실패한 읽기가 "파일을 다 읽었다" 로 보고**됐다 —
   rem   호출자는 완독과 중도 실패를 구별할 수 없었다. 결함 주입기(`LOW_HOST_FAULT="read:err@1"`)가
   rem   그것을 실물로 보였다: `wc` 가 읽기 실패를 **"0 lines" 라는 성공**으로 냈다.
   rem   ☞ 센티널 하나가 두 뜻을 나르면 안 된다(Stage 4 Task 2). `some 0` = EOF · `none` = 실패.
-  var failed bool be false .
+  var failed be bool false .
   while going . do
     rem 남은 자리에만 읽는다. 자리가 다 찼으면 멈춘다 — 더 있는지는 **아래에서 묻는다**.
     if ge total (len buf) . do
       set going false .
     end
     if going . do
-      let n result (option u64) file_error . be read fs h (subslice buf total (len buf)) .
+      let n be result (option u64) file_error read fs h (subslice buf total (len buf)) .
       if eq (is_ok n) false . do set going false . set failed true . end
       if is_ok n . do
         rem ★ 세 자리가 여기서 값을 한다: `ok none` 은 **끝**이고, 실패는 위에서 이미 갈렸다.
-        let v option u64 . be ok_value n .
+        let v be option u64 ok_value n .
         if eq (is_some v) false . do set going false . end
         if is_some v . do set total (add total (some_value v)) . end
       end
@@ -257,15 +257,15 @@ do
   if eq failed false . do
     if eq total (len buf) . do
       if gt (len buf) 0 . do
-        let last u64 be sub (len buf) 1 .
-        let pr result (option u64) file_error . be read fs h (subslice buf last (len buf)) .
+        let last be u64 sub (len buf) 1 .
+        let pr be result (option u64) file_error read fs h (subslice buf last (len buf)) .
         if eq (is_ok pr) false . do set failed true . end
         if is_ok pr . do
           if is_some (ok_value pr) . do set overflow true . end
         end
       end
       if eq (len buf) 0 . do
-        let sz result u64 file_error . be seek_to fs h 0 2 .
+        let sz be result u64 file_error seek_to fs h 0 2 .
         if eq (is_ok sz) false . do set overflow true . end
         if is_ok sz . do
           if gt (ok_value sz) 0 . do set overflow true . end
@@ -274,7 +274,7 @@ do
     end
   end
   rem 실패했어도 **핸들은 닫는다** — 자원 반납은 답과 별개다.
-  let c result void file_error . be close fs h .
+  let c be result void file_error close fs h .
   rem ★ 읽기 실패가 **먼저**다: 닫기 실패가 그것을 가리면 호출자는 "닫기만 실패했다" 고 믿고
   rem   반쯤 읽힌 버퍼를 완독으로 안다. 나중 실패가 먼저 실패를 덮지 않는다.
   guard eq failed false . else return error read_failed .

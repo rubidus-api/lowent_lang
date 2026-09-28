@@ -12,7 +12,7 @@ use io from "../../lib/io.low" .
 rem ── 순수 프레이밍 원시연산 (커서가 값이다 — RFC-0069 §4) ──────────────
 
 fn t_scan output u64 . do
-  let a option u64 . be io.scan_until "ab,cd" 0 44 100 .
+  let a be option u64 io.scan_until "ab,cd" 0 44 100 .
   guard is_some a . else return 90 .
   guard eq (some_value a) 2 . else return 91 .
   guard eq (is_some (io.scan_until "ab,cd" 3 44 100)) false . else return 92 .
@@ -23,14 +23,14 @@ end
 rem ── 리더: peek 는 소비하지 않고, take 는 소비한다 ──────────────────────
 
 proc t_peek_take output u64 . effects state . do
-  var r io.mem_reader . be spawn actor io.mem_reader .
-  let d u64 be send r attach "abcdef" .
+  var r be io.mem_reader spawn actor io.mem_reader .
+  let d be u64 send r attach "abcdef" .
   guard eq (send r remaining) 6 . else return 90 .
-  let p1 option slice u8 . be send r peek 3 .
+  let p1 be option slice u8 send r peek 3 .
   guard is_some p1 . else return 91 .
   guard eq (len (some_value p1)) 3 . else return 92 .
   guard eq (send r remaining) 6 . else return 93 .
-  let t1 option slice u8 . be send r take 3 .
+  let t1 be option slice u8 send r take 3 .
   guard is_some t1 . else return 94 .
   guard eq (send r remaining) 3 . else return 95 .
   guard eq (is_some (send r take 99)) false . else return 96 .
@@ -41,9 +41,9 @@ end
 rem ── EOF 는 오류가 아니라 none ──────────────────────────────────────────
 
 proc t_eof output u64 . effects state . do
-  var r io.mem_reader . be spawn actor io.mem_reader .
-  let d u64 be send r attach "ab" .
-  let t1 option slice u8 . be send r take 2 .
+  var r be io.mem_reader spawn actor io.mem_reader .
+  let d be u64 send r attach "ab" .
+  let t1 be option slice u8 send r take 2 .
   guard is_some t1 . else return 90 .
   guard eq (send r remaining) 0 . else return 91 .
   guard eq (is_some (send r take 1)) false . else return 92 .
@@ -57,11 +57,11 @@ rem ★ 버퍼를 **인자로 받는다** — diff-sweep 이 이 op 을 자기 �
 rem   (한때는 **어쩔 수 없어서** 그랬다: 소스에 개행을 담을 방법이 없었다. 그 결함 둘을
 rem    2026-07-19 에 닫았으므로 — vm_lit 참조 — 이제는 **고른 것**이다. 리터럴 판은 아래 t_lines_lit.)
 proc t_lines input buf slice u8 . output u64 . effects state . do
-  var r io.mem_reader . be spawn actor io.mem_reader .
-  let d u64 be send r attach buf .
-  var lines u64 be 0 .
-  var bytes u64 be 0 .
-  var l option slice u8 . be send r take_line 100 .
+  var r be io.mem_reader spawn actor io.mem_reader .
+  let d be u64 send r attach buf .
+  var lines be u64 0 .
+  var bytes be u64 0 .
+  var l be option slice u8 send r take_line 100 .
   while is_some l . do
     set lines (add lines 1) .
     set bytes (add bytes (len (some_value l))) .
@@ -74,8 +74,8 @@ end
 rem ── 상한이 무는가 · toss ──────────────────────────────────────────────
 
 proc t_limit_toss output u64 . effects state . do
-  var r io.mem_reader . be spawn actor io.mem_reader .
-  let d u64 be send r attach "abcdefghij" .
+  var r be io.mem_reader spawn actor io.mem_reader .
+  let d be u64 send r attach "abcdefghij" .
   guard eq (is_some (send r take_until 106 3)) false . else return 90 .
   guard eq (send r remaining) 10 . else return 91 .
   guard eq (send r toss 4) 4 . else return 92 .
@@ -88,9 +88,9 @@ end
 rem ── 뷰인가 복사인가 — 원본을 가리켜야 한다 ─────────────────────────────
 
 proc t_view output u64 . effects state . do
-  var r io.mem_reader . be spawn actor io.mem_reader .
-  let d u64 be send r attach "hello world" .
-  let w option slice u8 . be send r take_until 32 100 .
+  var r be io.mem_reader spawn actor io.mem_reader .
+  let d be u64 send r attach "hello world" .
+  let w be option slice u8 send r take_until 32 100 .
   guard is_some w . else return 90 .
   guard eq (len (some_value w)) 5 . else return 91 .
   guard eq (index (some_value w) 0) 104 . else return 92 .
@@ -102,11 +102,11 @@ rem ── ★ 같은 것을 **리터럴로** — 이스케이프·heredoc 이 �
 
 proc t_lines_lit output u64 . effects state . do
   rem 이스케이프 판: "aa\nb\n\ncc" 를 한 줄로 쓴다.
-  var r io.mem_reader . be spawn actor io.mem_reader .
-  let d u64 be send r attach "aa\nb\n\ncc" .
-  var lines u64 be 0 .
-  var bytes u64 be 0 .
-  var l option slice u8 . be send r take_line 100 .
+  var r be io.mem_reader spawn actor io.mem_reader .
+  let d be u64 send r attach "aa\nb\n\ncc" .
+  var lines be u64 0 .
+  var bytes be u64 0 .
+  var l be option slice u8 send r take_line 100 .
   while is_some l . do
     set lines (add lines 1) .
     set bytes (add bytes (len (some_value l))) .
@@ -117,17 +117,17 @@ end
 
 proc t_lines_heredoc output u64 . effects state . do
   rem heredoc 판: **원문 그대로** — 같은 데이터를 이스케이프 없이 쓴다.
-  var r io.mem_reader . be spawn actor io.mem_reader .
-  let src slice u8 be text END
+  var r be io.mem_reader spawn actor io.mem_reader .
+  let src be slice u8 text END
 aa
 b
 
 cc
 END .
-  let d u64 be send r attach src .
-  var lines u64 be 0 .
-  var bytes u64 be 0 .
-  var l option slice u8 . be send r take_line 100 .
+  let d be u64 send r attach src .
+  var lines be u64 0 .
+  var bytes be u64 0 .
+  var l be option slice u8 send r take_line 100 .
   while is_some l . do
     set lines (add lines 1) .
     set bytes (add bytes (len (some_value l))) .

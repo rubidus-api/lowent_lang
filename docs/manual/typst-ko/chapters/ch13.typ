@@ -302,7 +302,7 @@
   [`layout packed .` · `magic u32 big .`], [채움 없는 배치 · 바이트 차례], [바깥과 바이트의 뜻을 맞춘다],
   [`view wire_header b`], [바이트를 베끼지 않고 그 배치로 읽는다], [길이·정렬이 어긋나면 멈춘다],
   [`try_view wire_header b` · `encode wire_header h`], [실패를 `none` 으로 주는 뷰 · 값을 그 배치의 바이트로], [경계에서는 멈추지 않는 쪽],
-  [`var a bitset 64 be bitset_new 64 .` · `add a 1 .` · `intersect a b`], [작은 수의 집합과 그 연산], [집합이지 워드의 비트가 아니다],
+  [`var a be bitset 64 bitset_new 64 .` · `add a 1 .` · `intersect a b`], [작은 수의 집합과 그 연산], [집합이지 워드의 비트가 아니다],
   [`view_segments back d` · `segs ss` · `seg ss i`], [흩어진 조각을 베끼지 않고 한 눈으로 · 조각 수 · i 번 조각], [모으는 복사를 없앤다],
   [`byte` · `lock` 같은 타입 낱말], [`W-NOT-YET` · `E-LOCK-NOTYET`], [뜻이 없으면 없다고 말한다],
 )

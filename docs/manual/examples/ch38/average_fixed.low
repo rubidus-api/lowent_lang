@@ -4,7 +4,7 @@ rem ir
 
 fn mean2 input a u32 . input b u32 . output u32 .
 do
-  let lo u32 be min a b .
-  let hi u32 be max a b .
+  let lo be u32 min a b .
+  let hi be u32 max a b .
   return add lo (div (sub hi lo) 2) .
 end

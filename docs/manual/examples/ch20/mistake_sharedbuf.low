@@ -5,17 +5,17 @@ use allocs .
 
 proc twice input buf mut slice u8 . output u8 . effects state .
 do
-  var a allocs.bump_bytes be spawn actor allocs.bump_bytes .
-  var b allocs.bump_bytes be spawn actor allocs.bump_bytes .
+  var a be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  var b be allocs.bump_bytes spawn actor allocs.bump_bytes .
   rem ko: ✘ 같은 바이트를 두 할당기에 걸었다 --- 두 할당기가 같은 자리를 나눠 준다 /// en: ✘ the same bytes are given to two allocators --- both hand out the same place
-  let c1 u64 be send a init buf .
-  let c2 u64 be send b init buf .
-  let p option mut slice u8 be send a reserve 3 .
-  let q option mut slice u8 be send b reserve 3 .
+  let c1 be u64 send a init buf .
+  let c2 be u64 send b init buf .
+  let p be option mut slice u8 send a reserve 3 .
+  let q be option mut slice u8 send b reserve 3 .
   guard is_some p . else return 91 .
   guard is_some q . else return 92 .
-  let pv mut slice u8 be some_value p .
-  let qv mut slice u8 be some_value q .
+  let pv be mut slice u8 some_value p .
+  let qv be mut slice u8 some_value q .
   set (index pv 0) 65 .
   set (index qv 0) 66 .
   rem ko: 65 를 썼는데 66 이 나온다 /// en: 65 was written, yet 66 comes back

@@ -695,9 +695,9 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             ir_vec_context(c, f, 2, (be < f->nkids) ? be : f->nkids);
             ir_bset_context(c, f, 2, (be < f->nkids) ? be : f->nkids);
             // ★★★★★ **값이 없는 `be` 가 조용히 0 을 냈다** (2026-08-25 · RFC-0100 · 소유자 결정).
-            //   `let x u8 be .` 이 통과하고 `x` 가 0 이 됐다 — **소스 어디에도 없는 값**이다.
+            //   `let x be u8 .` 이 통과하고 `x` 가 0 이 됐다 — **소스 어디에도 없는 값**이다.
             //   RFC-0098 이 op 의 끝에서 닫은 것과 **같은 병이 옆자리에 남아 있었다.**
-            //   ☞ 사람이 이 자리에 오는 가장 흔한 길은 **`let y f64 be .5 .`** 이다:
+            //   ☞ 사람이 이 자리에 오는 가장 흔한 길은 **`let y be f64 .5 .`** 이다:
             //     앞선 점은 **닫개**라(§6.1.6) `be` 뒤가 비고, 쓴 사람은 자기가 값을 적었다고
             //     믿는다. 그래서 진단이 그 함정을 **직접 짚는다** — *"값이 없다"* 만 말하면
             //     원인을 못 찾는다.
@@ -716,7 +716,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             }
             // ★★★★★ **소유가 없는 값은 베껴진다** (정본 §8.3(1) · 결함 노트 #40, 2026-09-16).
             //
-            //   `var q point be p .` 뒤의 `set (field q x) 99 .` 가 **`p` 의 칸도** 바꿨다 —
+            //   `var q be point p .` 뒤의 `set (field q x) 99 .` 가 **`p` 의 칸도** 바꿨다 —
             //   VM 은 구조체를 상자에 담고, 묶기가 그 **상자를 함께 가리켰기** 때문이다.
             //   그러면 `let p` 가 «바뀌지 않는다» 고 말해 놓고 바뀐다(§6.5.1). 정본은 옮기기와
             //   베끼기를 가른다: 소유가 있으면 옮기고, 없으면 **벤다.** 그래서 구조체 이름을
@@ -755,7 +755,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             proven_size_t code_before = c->code.len;
             if (!copied_struct) ir_run(c, f->kids, vstart, f->nkids - vstart);
             // ★★★★★ **`f32` 자리의 리터럴은 32 비트로 반올림한다** (IEEE 754 · 결함 노트 #83, 2026-09-16).
-            //   `let a f32 be 0.1 .` 의 값이 **f64 의 0.1 그대로** 남아 있었다 — 넓혀서 비교하면
+            //   `let a be f32 0.1 .` 의 값이 **f64 의 0.1 그대로** 남아 있었다 — 넓혀서 비교하면
             //   `f64` 의 0.1 과 같다고 나왔다(VM·네이티브 같음). 셈을 한 번 거친 값만 32 비트가
             //   됐으니, **같은 타입의 값 둘이 어디서 왔느냐에 따라 다른 수**였다.
             {
@@ -796,7 +796,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             proven_size_t slot = ir_local_declare(c, f->kids[1]->tok.lex, f->line);
             c->locals[slot].ty = ity_of_decl_c(c, f, 2, (be < f->nkids) ? be : f->nkids);   // S2
             // ★★★ **지역의 원소 타입도 싣는다** (2026-09-09, REQ-0013). 파라미터만 실었더니
-            //   `var v mut slice u64 . be view_array u64 buf .` 위의 `lt (index v 0) (index v 1)` 이
+            //   `var v be mut slice u64 view_array u64 buf .` 위의 `lt (index v 0) (index v 1)` 이
             //   여전히 부호 있는 비교였다 — **같은 규칙이 두 곳에 있고 한 곳만 옳은** 그 모양이다
             //   (바로 위 주석이 같은 교훈을 적어 두었다. 교훈 7).
             c->locals[slot].elem = ITY_UNK;
@@ -814,7 +814,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             c->locals[slot].bset_w = decl_bset_w;   // ★ 비트셋이면 폭(1..64), 아니면 0
 
             // ★ 선언된 타입의 **이름** — 다만 **한정자를 벗긴 알맹이**여야 한다.
-            //   `var x owned r be …` 의 타입 이름은 **`r`** 이지 `owned` 가 아니다.
+            //   `var x be owned r …` 의 타입 이름은 **`r`** 이지 `owned` 가 아니다.
             //   ★ 파라미터는 `low_op_header` 의 `core` 가 이미 벗기고 있었다. **지역만 안 벗겼다** —
             //     그래서 `x..take` 가 **`owned.take`** 를 찾다가 E-METHOD-UNDEF 를 냈다.
             //     (같은 규칙이 두 곳에 있고 **한 곳만 옳았다** — 교훈 7 의 작은 사례다.)
@@ -2244,7 +2244,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
         } } while (0)
 
     // ★★★ pass 0a: **모듈 수준 `let` = 이름 붙은 상수** (2026-07-14).
-    //   `let NAME [T] be <comptime>` — 초기값은 **컴파일타임에 알려져야** 한다.
+    //   `let NAME be [T] <comptime>` — 초기값은 **컴파일타임에 알려져야** 한다.
     //   ★ 모듈 수준 `var` 는 **아직 아니다**: RFC-0029 는 그것을 **가변 전역**으로 정의하고
     //     `state` 효과·escape-safe·concurrency-gated 를 요구한다. 그것을 강제할 준비가 되기
     //     전까지 **거절한다** — 조용히 상수처럼 굴게 두면 그것이 곧 거짓말이다.
@@ -2425,7 +2425,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                 s->f[s->nf].flt = is_atom(fld->kids[1]) && ir_is_float_ty(fld->kids[1]->tok.lex);
                 // ★★ 엔디안 표기 — `big` / `little` (2026-07-13 개명).
                 //   그전엔 `be` / `le` 였고, **둘 다 충돌했다**:
-                //     `be` = **바인딩 표시자**(`var x u8 be 5 .`)와 같은 철자. 위치로만 갈렸다.
+                //     `be` = **바인딩 표시자**(`var x be u8 5 .`)와 같은 철자. 위치로만 갈렸다.
                 //     `le` = **≤ 비교 연산자**(`requires le a b`)와 같은 철자.
                 //   그리고 `le` 는 **아무도 안 읽었다** — `magic u32 le .` 과 `magic u32 zzz .` 가
                 //   구별되지 않았다. 리틀엔디안이 **기본값**이라 "동작하는 것처럼" 보였을 뿐이다.

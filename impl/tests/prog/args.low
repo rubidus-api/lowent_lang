@@ -24,16 +24,16 @@ fn is_flag input s slice u8 . output bool . do
 end
 
 proc main input a cap args . output u8 . effects none . do
-  let n u64 be count a .
-  var flags u64 be 0 .
-  var plain u64 be 0 .
-  var firstlen u64 be 0 .
-  var seen bool be false .
-  var i u64 be 0 .
+  let n be u64 count a .
+  var flags be u64 0 .
+  var plain be u64 0 .
+  var firstlen be u64 0 .
+  var seen be bool false .
+  var i be u64 0 .
   while lt i n . do
-    let cur option slice u8 . be arg a i .
+    let cur be option slice u8 arg a i .
     guard is_some cur . else return 250 .        rem i < n 인데 none 이면 count 가 거짓말이다
-    let s slice u8 be some_value cur .
+    let s be slice u8 some_value cur .
     if is_flag s . do
       set flags (add flags 1) .
     end
@@ -47,7 +47,7 @@ proc main input a cap args . output u8 . effects none . do
     set i (add i 1) .
   end
   rem ★ 범위 밖 질의는 **none** 이다 — 트랩이 아니다. 그것을 여기서 실측한다.
-  let past option slice u8 . be arg a n .
+  let past be option slice u8 arg a n .
   guard eq (is_some past) false . else return 251 .
   rem 답: flags*100 + plain*10 + firstlen  (u8 로 좁힌다 — 종료 코드는 1 바이트다)
   return (narrow u8 (add (add (mul flags 100) (mul plain 10)) firstlen)) .

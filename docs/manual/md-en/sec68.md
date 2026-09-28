@@ -41,16 +41,16 @@ A self-verifying pattern — is it ascending **and** is the sum preserved. It ca
 
 ```lowent
 proc sort_verify input s mut slice u64 . . output u64 . effects none . do
-  var pre u64 be 0 .
-  var i u64 be 0 .
+  var pre be u64 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set pre (wrap_add pre (index s i)) .
     set i (add i 1) .
   end
   sortlib.sort s .
-  var post u64 be 0 .
-  var sorted u64 be 1 .
-  var j u64 be 0 .
+  var post be u64 0 .
+  var sorted be u64 1 .
+  var j be u64 0 .
   while lt j (len s) . do
     set post (wrap_add post (index s j)) .
     if gt j 0 . do
@@ -69,7 +69,7 @@ end
 
 > **Counter-example. Passing an immutable slice or expecting a return value**
 >
-> > Passing `input s slice u64` is a type error — in-place sorting needs `mut slice u64`. If the original must survive, sort a copy. `let r … be sortlib.sort s` is a compile error too — it is `output void`, and the result is `s` itself.
+> > Passing `input s slice u64` is a type error — in-place sorting needs `mut slice u64`. If the original must survive, sort a copy. `let r be … sortlib.sort s` is a compile error too — it is `output void`, and the result is `s` itself.
 
 **Cautions.** The input is destroyed. It is not stable (the original order of equal values is not guaranteed — unobservable with `u64` today, but that changes once key extraction exists). Time is O(n log n) on average and O(n²) worst case; extra memory is only O(log n) recursion frames. **What is checked** — sortedness and permutation (tests), VM/native agreement on arbitrary inputs (differential testing).
 

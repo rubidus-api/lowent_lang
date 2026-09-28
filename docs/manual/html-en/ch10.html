@@ -680,15 +680,15 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">fn</span></strong> manhattan <strong><span class="tok-k">input</span></strong> s segment . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> dx <strong><span class="tok-t">i64</span></strong> <strong><span class="tok-k">be</span></strong> sub (field s stop x) (field s start x) .
-  <strong><span class="tok-k">let</span></strong> dy <strong><span class="tok-t">i64</span></strong> <strong><span class="tok-k">be</span></strong> sub (field s stop y) (field s start y) .
+  <strong><span class="tok-k">let</span></strong> dx <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">i64</span></strong> sub (field s stop x) (field s start x) .
+  <strong><span class="tok-k">let</span></strong> dy <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">i64</span></strong> sub (field s stop y) (field s start y) .
   <strong><span class="tok-k">return</span></strong> add (abs dx) (abs dy) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> demo_dist <strong><span class="tok-k">input</span></strong> dx <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">input</span></strong> dy <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> a point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> b point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (add <span class="tok-n">1</span> dx) . y (add <span class="tok-n">1</span> dy) . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (add <span class="tok-n">1</span> dx) . y (add <span class="tok-n">1</span> dy) . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> manhattan (<strong><span class="tok-k">make</span></strong> segment <strong><span class="tok-k">do</span></strong> start a . stop b . <strong><span class="tok-k">end</span></strong>) .
 <strong><span class="tok-k">end</span></strong>
 
@@ -699,8 +699,8 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">fn</span></strong> demo_move <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">10</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> moved p k .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">10</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> point moved p k .
   <strong><span class="tok-k">return</span></strong> field q x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run demo_dist points.low 3 4
@@ -787,7 +787,7 @@ enum_dot.low:6:0 E-ENUM-DOT: this enum variant is not closed with `.`, so the NE
 
 <strong><span class="tok-k">fn</span></strong> eval <strong><span class="tok-k">input</span></strong> nodes <strong><span class="tok-k">slice</span></strong> node . <strong><span class="tok-k">input</span></strong> i <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> n node <strong><span class="tok-k">be</span></strong> index nodes i .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> node index nodes i .
   <strong><span class="tok-k">match</span></strong> n <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> lit v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> add l r . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add (eval nodes l) (eval nodes r) . <strong><span class="tok-k">end</span></strong>
@@ -812,7 +812,7 @@ enum_dot.low:6:0 E-ENUM-DOT: this enum variant is not closed with `.`, so the NE
 <strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ `y` is not filled in --- `make` must fill every field</span></em>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_missfield.low
@@ -859,8 +859,8 @@ pick_qualified() = 2
 
 <strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem ✘ compares two structs with `eq` --- `eq` compares numbers and booleans</span></em>
   <strong><span class="tok-k">return</span></strong> eq p q .
 <strong><span class="tok-k">end</span></strong>
@@ -882,8 +882,8 @@ mistake_eqstruct.low:14:0 E-TYPE-KIND: `eq` / `ne` compare numbers and booleans,
 
 <strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> point_eq p q .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run same eqstruct_fixed.low
@@ -898,16 +898,16 @@ same() = 1
 
 <strong><span class="tok-k">fn</span></strong> copy_then_change <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem ✘ meant to make a copy --- in this edition q refers to the same place as p</span></em>
-  <strong><span class="tok-k">var</span></strong> q point <strong><span class="tok-k">be</span></strong> p .
+  <strong><span class="tok-k">var</span></strong> q <strong><span class="tok-k">be</span></strong> point p .
   <strong><span class="tok-k">set</span></strong> (field q x) <span class="tok-n">99</span> .
   <em><span class="tok-c">rem p is a let, and yet this gives 99</span></em>
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run copy_then_change mistake_alias.low
 copy_then_change() = 1
-</code></pre></div></div><p><code>var q point be p .</code> builds <strong>a new value with <code>p</code>’s fields copied</strong>. So changing <code>q</code>’s field to 99 leaves <code>p</code> at 1. A value without ownership is copied; a value with ownership is moved (chapter 19). Until 2026-09-16 the tool made an alias to the same place, and <code>p</code> changed too — the <code>let</code> promise broke there. Lowering now copies the fields.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/alias_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> alias_fixed .
+</code></pre></div></div><p><code>var q be point p .</code> builds <strong>a new value with <code>p</code>’s fields copied</strong>. So changing <code>q</code>’s field to 99 leaves <code>p</code> at 1. A value without ownership is copied; a value with ownership is moved (chapter 19). Until 2026-09-16 the tool made an alias to the same place, and <code>p</code> changed too — the <code>let</code> promise broke there. Lowering now copies the fields.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch10/alias_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> alias_fixed .
 <em><span class="tok-c">rem run: copy_then_change</span></em>
 
 <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
@@ -917,9 +917,9 @@ copy_then_change() = 1
 
 <strong><span class="tok-k">fn</span></strong> copy_then_change <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> p point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem when you need a new value, build it with make --- copy the fields one by one</span></em>
-  <strong><span class="tok-k">var</span></strong> q point <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (field p x) . y (field p y) . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">var</span></strong> q <strong><span class="tok-k">be</span></strong> point <strong><span class="tok-k">make</span></strong> point <strong><span class="tok-k">do</span></strong> x (field p x) . y (field p y) . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">set</span></strong> (field q x) <span class="tok-n">99</span> .
   <strong><span class="tok-k">return</span></strong> field p x .
 <strong><span class="tok-k">end</span></strong>

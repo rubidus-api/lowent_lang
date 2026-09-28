@@ -16,6 +16,6 @@ fn nl_u64 output u64 . do return native_lanes u64 . end
 
 rem 값으로 쓴다 — 폭의 2배 stride 를 계산(comptime int 는 평범한 정수처럼 산술에 든다).
 fn stride2 output u64 . do
-  var w u64 . be native_lanes u32 .
+  var w be u64 native_lanes u32 .
   return add w w .
 end

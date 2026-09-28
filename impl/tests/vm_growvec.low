@@ -9,17 +9,17 @@ use allocs .
 
 rem 용량 2 로 열고 8개를 민다 — 자라야 통과한다. 내용도 살아남아야 한다.
 proc grows input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 . . be alloc_bytes al capacity 512 .
+  let memo be option mut slice u8 alloc_bytes al capacity 512 .
   guard is_some memo . else return 89 .
-  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  var c u64 be send bump init (some_value memo) .
-  let go option growvec.gvec . using bump be growvec.open 2 .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c be u64 send bump init (some_value memo) .
+  let go using bump be option growvec.gvec growvec.open 2 .
   guard is_some go . else return 1 .
-  var g growvec.gvec . be some_value go .
+  var g be growvec.gvec some_value go .
   guard eq (growvec.cap_of g) 2 . else return 2 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 8 . do
-    let okv bool be growvec.add_byte g (narrow u8 (add 65 i)) .
+    let okv be bool growvec.add_byte g (narrow u8 (add 65 i)) .
     guard okv . else return add 10 i .
     set i (add i 1) .
   end
@@ -27,7 +27,7 @@ proc grows input al cap allocator . output u64 . effects state alloc . do
   rem ★ 자랐다: 용량이 처음의 2 보다 커야 한다.
   guard gt (growvec.cap_of g) 2 . else return 4 .
   rem ★ 옮기면서 내용을 잃지 않았다: 'A'(65) … 'H'(72).
-  let v slice u8 be growvec.view_of g .
+  let v be slice u8 growvec.view_of g .
   guard eq (len v) 8 . else return 5 .
   guard eq (index v 0) 65 . else return 6 .
   guard eq (index v 7) 72 . else return 7 .
@@ -36,22 +36,22 @@ end
 
 rem 바이트열 통째로 밀기 · 미리 확보하기.
 proc bulk input al cap allocator . output u64 . effects state alloc . do
-  let memo option mut slice u8 . . be alloc_bytes al capacity 512 .
+  let memo be option mut slice u8 alloc_bytes al capacity 512 .
   guard is_some memo . else return 89 .
-  var bump allocs.bump_bytes be spawn actor allocs.bump_bytes . .
-  var c u64 be send bump init (some_value memo) .
-  let go option growvec.gvec . using bump be growvec.open 1 .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var c be u64 send bump init (some_value memo) .
+  let go using bump be option growvec.gvec growvec.open 1 .
   guard is_some go . else return 1 .
-  var g growvec.gvec . be some_value go .
+  var g be growvec.gvec some_value go .
   rem 미리 확보하면 도중에 안 죽는다("전량 아니면 무" 를 원하면 이 순서다).
-  let r bool be growvec.reserve_more g 16 .
+  let r be bool growvec.reserve_more g 16 .
   guard r . else return 2 .
-  let okv bool be growvec.add_all g "hello" .
+  let okv be bool growvec.add_all g "hello" .
   guard okv . else return 3 .
-  let ok2 bool be growvec.add_all g " world" .
+  let ok2 be bool growvec.add_all g " world" .
   guard ok2 . else return 4 .
   guard eq (growvec.count_of g) 11 . else return 5 .
-  let v slice u8 be growvec.view_of g .
+  let v be slice u8 growvec.view_of g .
   guard eq (index v 0) 104 . else return 6 .
   guard eq (index v 10) 100 . else return 7 .
   return 42 .
@@ -59,9 +59,9 @@ end
 
 rem ★ cap 은 CLI 인자로 못 넘긴다 — 엔트리가 받아서 넘긴다(vecgrow 와 같은 꼴).
 proc main input al cap allocator . output u8 . effects state alloc . do
-  let a u64 be grows al .
+  let a be u64 grows al .
   guard eq a 42 . else return narrow u8 a .
-  let b u64 be bulk al .
+  let b be u64 bulk al .
   guard eq b 42 . else return narrow u8 b .
   return 42 .
 end

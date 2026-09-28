@@ -12,11 +12,11 @@ type scratch u64 . .
 
 rem 토큰 종류 — 슬라이스로 건네려면 원소가 **바이트 레이아웃**을 가져야 해서(viewable) 종류는 u8 코드다.
 rem   (enum 칸은 레이아웃이 없다. 이름은 prelude op(add/sub/…)와 겹치지 않게 — RFC-0002 §8-12(F1).)
-let lit u8 be 0 .       rem 리터럴 push (value 사용)
-let plus u8 be 1 .
-let minus u8 be 2 .
-let times u8 be 3 .
-let divide u8 be 4 .
+let lit be u8 0 .       rem 리터럴 push (value 사용)
+let plus be u8 1 .
+let minus be u8 2 .
+let times be u8 3 .
+let divide be u8 4 .
 
 enum eval_error do
   underflow .           rem 이항 연산에 피연산자 부족
@@ -59,25 +59,25 @@ proc eval
   errors div_by_zero .
   errors bad_expr .
 do
-  let s stack i64 . be stack_new temp capacity len tokens . . .
-  var depth u64 be 0 .
+  let s be stack i64 stack_new temp capacity len tokens . . .
+  var depth be u64 0 .
   for t tokens do
-    let k u8 be field t kind . .
+    let k be u8 field t kind . .
     if eq (field t kind) lit . do
       push s field t value . .
       set depth (add depth 1) .
     end
     else do
       guard ge depth 2 . else return error underflow . . .
-      let b i64 be value_or (pop s) 0 .            rem depth≥2 보장 → none 은 오지 않는다
-      let a i64 be value_or (pop s) 0 .
-      let r i64 be try apply k a b . .              rem apply 의 div_by_zero 를 그대로 전파
+      let b be i64 value_or (pop s) 0 .            rem depth≥2 보장 → none 은 오지 않는다
+      let a be i64 value_or (pop s) 0 .
+      let r be i64 try apply k a b . .              rem apply 의 div_by_zero 를 그대로 전파
       push s r .
       set depth (sub depth 1) .
     end
   end
   guard eq depth 1 . else return error bad_expr . . .
-  let top i64 be value_or (pop s) 0 .
+  let top be i64 value_or (pop s) 0 .
   return ok top . .
 end
 ```

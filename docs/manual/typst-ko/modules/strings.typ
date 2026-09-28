@@ -11,7 +11,7 @@
 use strings .
 
 if strings.starts_with line "GET " . do
-  let rest slice u8 be strings.remove_prefix line "GET " .
+  let rest be slice u8 strings.remove_prefix line "GET " .
 end
 ```
 
@@ -102,16 +102,16 @@ module demo .
 use strings .
 
 fn t_find output u64 . do
-  let r option u64 . be strings.find "hello world" "world" 0 .
+  let r be option u64 strings.find "hello world" "world" 0 .
   guard is_some r . else return 99 .
   return some_value r .
 end
 
 fn t_split output u64 . do
   rem "aa,b,,cc" 를 ',' (바이트 44) 로: "aa"·"b"·""·"cc" --- 네 조각
-  var pos u64 be 0 .
-  var pieces u64 be 0 .
-  var r option slice u8 . be strings.split_next "aa,b,,cc" 44 pos .
+  var pos be u64 0 .
+  var pieces be u64 0 .
+  var r be option slice u8 strings.split_next "aa,b,,cc" 44 pos .
   while is_some r . do
     set pieces (add pieces 1) .
     set pos (add pos (add (len (some_value r)) 1)) .
@@ -125,10 +125,10 @@ end
 
 ```lowent
 proc t_splitter output u64 . effects state . do
-  var sp strings.str_splitter . be spawn actor strings.str_splitter .
-  let d u64 be send sp init "one,two,three" 44 .
-  var pieces u64 be 0 .
-  var r option slice u8 . be send sp next .
+  var sp be strings.str_splitter spawn actor strings.str_splitter .
+  let d be u64 send sp init "one,two,three" 44 .
+  var pieces be u64 0 .
+  var r be option slice u8 send sp next .
   while is_some r . do
     set pieces (add pieces 1) .
     set r (send sp next) .
@@ -151,7 +151,7 @@ end
 
 #antipattern[분할 반복에서 커서를 밀지 않는다][
   ```lowent
-  var r option slice u8 . be strings.split_next src 44 pos .
+  var r be option slice u8 strings.split_next src 44 pos .
   while is_some r . do
     set r (strings.split_next src 44 pos) .   rem ✗ pos 가 그대로
   end
@@ -161,7 +161,7 @@ end
 
 #antipattern[`option` 을 값처럼 쓴다][
   ```lowent
-  let r option u64 . be strings.find "abc" "zz" 0 .
+  let r be option u64 strings.find "abc" "zz" 0 .
   return some_value r .                         rem ✗ none 검사가 없다
   ```
   번역은 통과하고, 못 찾은 순간 실행 중 `E-VM-NONE` 으로 멈춘다. 찾히는 입력으로만 시험하면 드러나지 않는다. `guard is_some r . else …` 가 먼저다
@@ -170,7 +170,7 @@ end
 
 #antipattern[뷰가 가리키는 원본을 나중에 바꾼다][
   ```lowent
-  let piece slice u8 be strings.remove_prefix line "GET " .
+  let piece be slice u8 strings.remove_prefix line "GET " .
   set (index line 4) 88 .                                     rem ✗ 원본을 고쳤다
   ```
   오류 없이 `piece` 의 내용이 조용히 바뀐다 --- 복사본이 아니라 창이기 때문이다. 내용을 붙잡아 두려면 #modref("strbuf")[`strbuf`] 로 복사한다.

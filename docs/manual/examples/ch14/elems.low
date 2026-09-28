@@ -5,7 +5,7 @@ rem trap: digit_sum [1,20]
 fn digit_sum input ds slice u8 . output u64 .
   requires elem_le ds 9 .
 do
-  var s u64 be 0 .
+  var s be u64 0 .
   for d ds do
     set s (add s (widen u64 d)) .
   end

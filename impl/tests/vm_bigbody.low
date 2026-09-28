@@ -14,7 +14,7 @@ module vm_bigbody .
 
 export proc wide_body input a u64 . output u64 . effects none .
 do
-  var s u64 be a .
+  var s be u64 a .
   set s (add s 0) .
   set s (add s 1) .
   set s (add s 2) .

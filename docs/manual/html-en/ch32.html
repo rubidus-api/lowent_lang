@@ -703,8 +703,8 @@ wrong_name.low:4:0 W-USE-EXTERNAL: this module is not in the compilation unit â€
 <strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem âœ˜ trusts that the previous write succeeded and chains on with `some_value`</span></em>
-  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> some_value (fmt.put_str buf <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">hello</span><span class="tok-s">"</span>) .
-  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> some_value (fmt.put_byte buf p <span class="tok-n">32</span>) .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> some_value (fmt.put_str buf <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">hello</span><span class="tok-s">"</span>) .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> some_value (fmt.put_byte buf p <span class="tok-n">32</span>) .
   <strong><span class="tok-k">return</span></strong> some_value (fmt.put_u64 buf q <span class="tok-n">42</span>) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run greet mistake_chainnone.low [0,0,0,0,0,0,0,0,0,0,0,0]
@@ -722,11 +722,11 @@ $ lowentc --run greet mistake_chainnone.low [0,0,0,0,0,0]
 <strong><span class="tok-k">proc</span></strong> greet <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ask at every step --- when short, return 0 to report "could not write"</span></em>
-  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> fmt.put_str buf <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">hello</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_str buf <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">hello</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> fmt.put_byte buf (some_value p) <span class="tok-n">32</span> .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_byte buf (some_value p) <span class="tok-n">32</span> .
   <strong><span class="tok-k">guard</span></strong> is_some q . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> fmt.put_u64 buf (some_value q) <span class="tok-n">42</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_u64 buf (some_value q) <span class="tok-n">42</span> .
   <strong><span class="tok-k">guard</span></strong> is_some r . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> some_value r .
 <strong><span class="tok-k">end</span></strong>
@@ -744,7 +744,7 @@ greet([104,101,108,108,111,32]) = 0
 <strong><span class="tok-k">proc</span></strong> try_put <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem six bytes into four slots --- instead of writing the first four, it writes none</span></em>
-  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> fmt.put_str buf <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">Lowent</span><span class="tok-s">"</span> .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> fmt.put_str buf <span class="tok-n">0</span> <span class="tok-s">"</span><span class="tok-s">Lowent</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> .
   <strong><span class="tok-k">return</span></strong> some_value p .
 <strong><span class="tok-k">end</span></strong>

@@ -30,8 +30,8 @@ do
   guard ge (len s) 2 . else return 0 .
   set (index s 0) 11 .
   set (index s 1) 22 .
-  var h holder be make holder do xs s . n 2 . end .
-  let v mut slice u64 . be field h xs .
+  var h be holder make holder do xs s . n 2 . end .
+  let v be mut slice u64 field h xs .
   return add (index v 0) (add (index v 1) (field h n)) .   rem 11 + 22 + 2 = 35
 end
 
@@ -39,8 +39,8 @@ rem ★★ 그리고 **필드를 통해 쓴다** — 꺼낸 것이 복사가 아
 proc writes_through input s mut slice u64 . . output u64 . effects none .
 do
   guard ge (len s) 1 . else return 0 .
-  var h holder be make holder do xs s . n 0 . end .
-  let v mut slice u64 . be field h xs .
+  var h be holder make holder do xs s . n 0 . end .
+  let v be mut slice u64 field h xs .
   set (index v 0) 99 .
   return index s 0 .                                       rem 99 — 원본이 바뀌었다
 end
@@ -59,12 +59,12 @@ end
 rem ★ n 을 **가장 짧은 배열에 맞춰 줄인다** — 받아들인 입력은 전부 다룬다.
 proc step_bundled input p pset . input n u64 . output u64 . effects none .
 do
-  let xs mut slice u64 . be field p xs .
-  let vxs slice u64 be field p vxs .
-  var m u64 be n .
+  let xs be mut slice u64 field p xs .
+  let vxs be slice u64 field p vxs .
+  var m be u64 n .
   if gt m (len xs) . do set m (len xs) . end
   if gt m (len vxs) . do set m (len vxs) . end
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i m . do
     set (index xs i) (add (index xs i) (index vxs i)) .
     set i (add i 1) .
@@ -80,8 +80,8 @@ do
   guard ge (len c) 1 . else return 0 .
   set (index a 0) 1 .
   set (index c 0) 10 .
-  var p pset be make pset do xs a . ys b . vxs c . vys d . end .
-  let m u64 be step_bundled p 1 .
+  var p be pset make pset do xs a . ys b . vxs c . vys d . end .
+  let m be u64 step_bundled p 1 .
   guard eq m 1 . else return 90 .
   return index a 0 .                                       rem 1 + 10 = 11
 end
@@ -92,8 +92,8 @@ struct maybe_n do
 end
 
 proc holds_option output u64 . effects none . do
-  var m maybe_n be make maybe_n do v (some 7) . end .
-  let o option u64 . be field m v .
+  var m be maybe_n make maybe_n do v (some 7) . end .
+  let o be option u64 field m v .
   guard is_some o . else return 90 .
   return some_value o .                                    rem 7
 end

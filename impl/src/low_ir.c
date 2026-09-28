@@ -785,7 +785,7 @@ static bool ir_names_cap(const low_cst_t *def_form, proven_u8str_view_t name, co
 // ★★★ **«권한이 없다» 는 원인을 말해야 한다** (결함 노트 #50, 2026-09-16).
 //   여태 잎이 첫 피연산자에서 권한을 못 찾으면 무조건 `E-CAP-MISSING`(«entry 가 받은 값을
 //   첫 피연산자로 대라»)이었다. 그런데 실제로 흔한 두 원인은 다른 것이다:
-//     ① 받은 권한을 **지역 이름에 옮겨 담았다**(`let k cap io be out .`) — 그 이름은
+//     ① 받은 권한을 **지역 이름에 옮겨 담았다**(`let k be cap io out .`) — 그 이름은
 //        서명에 없으므로 추적이 끊긴다. 권한은 값처럼 복사해 다니는 것이 아니다.
 //     ② **다른 종류**의 권한을 댔다(`write_out` 에 `cap file_system`) — 없는 것이 아니라
 //        맞지 않는 것이다(`E-CAP-KIND`).
@@ -2294,7 +2294,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             //   `ck_narrow_qual` 이 `segv.total` 을 bare `total` 로 **제자리에서 좁히고**
             //   가리킨 모듈을 `nd->qual_mod` 에 남긴다. 그런데 여기서는 좁혀진 낱말을 그대로
             //   지역 표에 물었고, 마침 같은 이름의 지역이 있으면 **지역이 이겼다**:
-            //       let total u64 be 3 .        rem 내 모듈의 지역
+            //       let total be u64 3 .        rem 내 모듈의 지역
             //       return (segv.total a) .     rem 남의 모듈의 op 을 **한정으로** 부른다
             //   → 머리가 지역(arity 0)으로 풀려 `a` 가 남고 `E-IR-ARITY: extra operands` 가 났다.
             //   **한정으로 부른 것을 지역이라 읽고, 그 결과를 사용자의 문법 실수라 불렀다.**
@@ -2625,7 +2625,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_emit(c, IRW_VSTOREM, 0); // unit 을 민다(문장 경로가 DROP)
                 return;
             }
-            // ★ **식 자리의 파이프라인** — `var t u64 . be pipe xs do … count . end` (RFC-0010 §6.1).
+            // ★ **식 자리의 파이프라인** — `var t be u64 pipe xs do … count . end` (RFC-0010 §6.1).
             //   헤디드 블록이므로 `make` 처럼 식으로 온다. 값을 남긴다(as_value=true).
             if (veq(nd->tok.lex, "pipe")) {
                 if (*pos < end && k[*pos] && k[*pos]->kind == LOW_CST_FORM) { ir_pipe(c, k[(*pos)++], 0, true); return; }
@@ -2637,7 +2637,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             //     표(이름당 모양 하나)가 그것을 깨뜨린다. 그래서 여기 특수형으로 둔다 — 표는 모양이 하나일 때만.
             // ★★★ **`complement s`** (RFC-0010 §6.7.1) — 여집합. **폭을 immediate 로 박는다**:
             //   VM 과 네이티브가 **같은 마스크**를 써야 하고, 네이티브 빠른 경로는 비트셋을 폭 없는
-            //   워드로 낮추므로 런타임에 폭을 알 수 없다. 바인딩 타입(`var c bitset 8 . be …`)이 준다.
+            //   워드로 낮추므로 런타임에 폭을 알 수 없다. 바인딩 타입(`var c be bitset 8 …`)이 준다.
             if (veq(nd->tok.lex, "complement")) {
                 // ★ 폭은 **피연산자 s** 의 것이다(F5): `complement s` 의 여집합 폭은 결과 바인딩이
                 //   아니라 s 가 정한다. 피연산자 폭을 못 알면 바인딩 폭으로 후퇴한다(종전 동작).
@@ -4173,6 +4173,21 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
             had_cmp = true;
         }
         const low_cst_t *opk = k[(*pos)++];
+        // ★★ 섬의 `and`/`or` 도 **단락 평가**다(정본 §6.3.2 표) — 전위와 같은 모양(BRZ·BR·CONST·NOT)
+        //   으로 짓는다. 전엔 양쪽을 다 계산하는 `and` 옵코드를 내서 `expr (ne n 0) and (eq (mod x n) 0)`
+        //   이 n = 0 에서 E-VM-DIV0 으로 멈췄다(전위 `and` 는 멈추지 않는다, 2026-09-28).
+        if (is_atom(opk) && opk->tok.kind == LOW_TOK_IDENT && (veq(opk->tok.lex, "and") || veq(opk->tok.lex, "or"))) {
+            bool is_or = veq(opk->tok.lex, "or");
+            if (is_or) ir_emit(c, IRW_NOT, 0);                 // or: 왼쪽이 참이면 건너뛴다
+            proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
+            ir_island_climb(c, k, n, pos, prec + 1);          // ★ 오른쪽은 **여기서만** 계산된다
+            ir_emit(c, IRW_NOT, 0); ir_emit(c, IRW_NOT, 0);   // 0/1 정규화
+            proven_size_t brend = ir_emit(c, IRW_BR, 0);
+            ir_at(c, brz)->a = (proven_i64)c->code.len;
+            ir_emit(c, IRW_CONST, is_or ? 1 : 0);              // 단락된 답
+            ir_at(c, brend)->a = (proven_i64)c->code.len;
+            continue;
+        }
         ir_island_climb(c, k, n, pos, prec + 1);
         ir_island_binop(c, opk);
     }
@@ -4336,7 +4351,7 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
             if (nd->kind == LOW_CST_ATOM && nd->tok.kw == LOW_KW_IF) {
                 ir_fail(c, "E-IF-VALUE",
                         "`if` is a STATEMENT — it gives no value (§6.5.2 (4)). Choose the value in each branch "
-                        "instead: `var x u64 be 6 .  if c do set x 5 . end`, or `return` from each branch",
+                        "instead: `var x be u64 6 .  if c do set x 5 . end`, or `return` from each branch",
                         nd->line);
                 return;
             }
@@ -5540,7 +5555,7 @@ static bool ir_names_trait(const low_parse_result_t *pr, proven_u8str_view_t w) 
             //   *"이 상계는 진짜다"*). 그래서 이런 프로그램이 있었다:
             //
             //       fn f input s slice u8 . requires le (len s) 4 . output u8 . do
-            //         let n u8 be cast u8 (len s) . .  return mul n 60 .   rem 4*60=240 ≤ 255
+            //         let n be u8 cast u8 (len s) . .  return mul n 60 .   rem 4*60=240 ≤ 255
             //
             //   분석이 «길이 ≤ 4» 를 믿고 u8 넘침 검사를 지웠는데 **아무도 그 계약을 강제하지
             //   않았다** ⇒ 5 칸짜리를 넣으면 VM 은 `E-VM-ANALYSIS`(자기 분석이 틀렸다고 신고),

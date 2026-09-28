@@ -15,8 +15,8 @@ export proc wide10 input a u64 . input b u64 . input c u64 . input d u64 . input
   input f u64 . input g u64 . input h u64 . input i u64 . input j u64 .
   output u64 . effects none .
 do
-  let s1 u64 be add (add a b) (add c d) .
-  let s2 u64 be add (add e f) (add g h) .
+  let s1 be u64 add (add a b) (add c d) .
+  let s2 be u64 add (add e f) (add g h) .
   return add (add s1 s2) (add i j) .
 end
 
@@ -24,8 +24,8 @@ export proc par9 input s mut slice u8 . . input p1 u64 . input p2 u64 . input p3
   input p4 u64 . input p5 u64 . input p6 u64 . input p7 u64 . input p8 u64 .
   output u64 . effects none . parallel s split .
 do
-  let k u64 be add (add (add p1 p2) (add p3 p4)) (add (add p5 p6) (add p7 p8)) .
-  var i u64 be 0 .
+  let k be u64 add (add (add p1 p2) (add p3 p4)) (add (add p5 p6) (add p7 p8)) .
+  var i be u64 0 .
   while lt i (len s) . do
     set (index s i) (mod (add (index s i) k) 256) .
     set i (add i 1) .

@@ -10,6 +10,6 @@ end
 fn double input x u64 . output u64 .
   requires le x 1000 .
 do
-  let n u64 be x .
+  let n be u64 x .
   return twice (ref n) .
 end

@@ -4,13 +4,13 @@ rem run: pick 0
 
 fn pick input a u64 . output u64 .
 do
-  var result u64 be 0 .
+  var result be u64 0 .
   if gt a 1 . do
-    let doubled u64 be mul a 2 .
+    let doubled be u64 mul a 2 .
     set result doubled .
   end
   if le a 1 . do
-    let doubled u64 be 1 .
+    let doubled be u64 1 .
     set result doubled .
   end
   return result .

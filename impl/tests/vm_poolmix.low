@@ -17,17 +17,17 @@ newtype pb u8 .
 export proc mix input ma mut slice u8 . . input ga mut slice u64 . .
                  input mb mut slice u8 . . input gb mut slice u64 . .
                  output u64 . effects none . do
-  let ao option (pool.block_pool pa) . be pool.init pa ma ga 8 .
+  let ao be option (pool.block_pool pa) pool.init pa ma ga 8 .
   guard is_some ao . else return 91 .
-  var a pool.block_pool pa . be some_value ao .
-  let bo option (pool.block_pool pb) . be pool.init pb mb gb 8 .
+  var a be (pool.block_pool pa) some_value ao .
+  let bo be option (pool.block_pool pb) pool.init pb mb gb 8 .
   guard is_some bo . else return 92 .
-  var b pool.block_pool pb . be some_value bo .
+  var b be (pool.block_pool pb) some_value bo .
 
-  let ha option (pool.handle pa) . be pool.take pa a .
+  let ha be option (pool.handle pa) pool.take pa a .
   guard is_some ha . else return 93 .
   rem ★ A 에서 받은 핸들을 **풀 B** 에 묻는다 — 여기서 거절되어야 한다.
-  let liveq bool be pool.alive pb b (some_value ha) .
+  let liveq be bool pool.alive pb b (some_value ha) .
   if liveq . do return 1 . end
   return 0 .
 end

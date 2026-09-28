@@ -3,9 +3,9 @@ rem   (RFC-0107 §6.1·§6.2 · 단계 1·4 — 소유자 지시 2026-09-07)
 rem
 rem ★★ **자리를 마스크가 아니라 번호로 부르는 까닭**(RFC-0107 D3 권고안 가):
 rem
-rem       let f_sound  u64 be 0 .      rem 0 번 비트
-rem       let f_music  u64 be 1 .
-rem       let f_shadow u64 be 2 .
+rem       let f_sound be u64 0 .      rem 0 번 비트
+rem       let f_music be u64 1 .
+rem       let f_shadow be u64 2 .
 rem
 rem   ⓐ `shl 1 n` 은 상수에서 **컴파일타임에 접힌다**(단계 0 에서 쟀다 — `wire` 와 같은 사실).
 rem   ⓑ 번호는 **64 를 넘어도 그대로 산다**. 마스크는 한 낱말을 넘는 순간 뜻을 잃는다.
@@ -186,8 +186,8 @@ end
 
 rem 몇 자리가 섰나.
 export fn wide_ones input s slice u8 . output u64 . do
-  var acc u64 be 0 .
-  var i u64 be 0 .
+  var acc be u64 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set acc (add acc (count_ones (widen u64 (index s i)))) .
     set i (add i 1) .
@@ -198,15 +198,15 @@ end
 rem ★ **선 자리를 훑는 방법**(C 의 `for_each_set_bit`): `from` 부터 다음 선 자리를 답한다.
 rem   더 없으면 `wide_bits` 를 답한다 — 그것이 «끝» 이다. 그래서 순회가 이렇게 써진다:
 rem
-rem       var i u64 be flags.wide_next s 0 .
+rem       var i be u64 flags.wide_next s 0 .
 rem       while lt i (flags.wide_bits s) . do  …  set i (flags.wide_next s (add i 1)) . end .
 rem
 rem   빈 바이트는 통째로 건너뛴다 — 0 인 바이트에서 여덟 번 묻지 않는다.
 export fn wide_next input s slice u8 . input from u64 . output u64 . do
-  let bits u64 be mul (len s) 8 .
-  var i u64 be from .
+  let bits be u64 mul (len s) 8 .
+  var i be u64 from .
   while lt i bits . do
-    let b u64 be widen u64 (index s (div i 8)) .
+    let b be u64 widen u64 (index s (div i 8)) .
     if eq b 0 . do
       set i (mul (add (div i 8) 1) 8) .           rem 이 바이트는 통째로 비었다 — 다음 바이트로
     end
@@ -224,8 +224,8 @@ rem ★★★ 로그·CLI·설정 파일에는 이름이 필요하다. 그런데
 rem   임베디드에서 그것은 예산의 문제다(RFC-0038 의 하한선). 그래서 이름은 라이브러리가 들지
 rem   않는다: **부르는 쪽이 표를 주고**, 안 주면 그 바이트는 어디에도 안 생긴다.
 rem
-rem       let tab slice u8 be "sound\0music\0shadow\0vsync\0" .
-rem       let nm slice u8 be flags.label_in tab 2 .      rem → "shadow"
+rem       let tab be slice u8 "sound\0music\0shadow\0vsync\0" .
+rem       let nm be slice u8 flags.label_in tab 2 .      rem → "shadow"
 rem
 rem   ☞ *«쓰면 낸다» 가 아니라 «안 쓰면 안 낸다» 를 재야 한다.* 골든이 두 프로그램의 방출물을
 rem     견준다: 이름을 안 쓰는 쪽의 바이너리에는 그 글자들이 **없다**.
@@ -235,9 +235,9 @@ rem   없다), 자리 번호가 곧 순서다. 없는 자리를 물으면 **빈 
 
 rem n 번 자리의 이름. 표에 없으면 빈 조각.
 export fn label_in input tab slice u8 . input n u64 . output slice u8 . do
-  var i u64 be 0 .          rem 지금 보는 자리
-  var st u64 be 0 .         rem 지금 이름의 시작
-  var k u64 be 0 .
+  var i be u64 0 .          rem 지금 보는 자리
+  var st be u64 0 .         rem 지금 이름의 시작
+  var k be u64 0 .
   while lt k (len tab) . do
     if eq (index tab k) 0 . do
       if eq i n . do return subslice tab st k . end          rem subslice 는 (시작, 끝) 이다 — 길이가 아니다
@@ -251,8 +251,8 @@ end
 
 rem 표에 이름이 몇 개 있나 (설정 화면이 «전부 훑기» 를 할 때 쓴다).
 export fn label_count input tab slice u8 . output u64 . do
-  var c u64 be 0 .
-  var k u64 be 0 .
+  var c be u64 0 .
+  var k be u64 0 .
   while lt k (len tab) . do
     if eq (index tab k) 0 . do set c (add c 1) . end
     set k (add k 1) .

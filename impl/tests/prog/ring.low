@@ -16,23 +16,23 @@ use spsc from "../../../lib/spsc.low" .
 
 proc main input al cap allocator . input k cap atomic . output u8 . effects alloc atomic . do
   rem ctl 두 칸(head·tail) · buf 여덟 칸 ⇒ 용량 7(한 칸은 비워 둔다).
-  let ctlo option mut slice u8 . . be alloc_bytes al capacity 16 .
+  let ctlo be option mut slice u8 alloc_bytes al capacity 16 .
   guard is_some ctlo . else return 90 .
-  var ctl mut slice u64 . be view_array u64 (some_value ctlo) .
+  var ctl be mut slice u64 view_array u64 (some_value ctlo) .
   set (index ctl 0) 0 . set (index ctl 1) 0 .
 
-  let bufo option mut slice u8 . . be alloc_bytes al capacity 64 .
+  let bufo be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some bufo . else return 91 .
-  var buf mut slice u64 . be view_array u64 (some_value bufo) .
+  var buf be mut slice u64 view_array u64 (some_value bufo) .
   guard eq (spsc.spsc_capacity buf) 7 . else return 1 .
   guard eq (spsc.spsc_count_about k ctl buf) 0 . else return 2 .
 
-  let outo option mut slice u8 . . be alloc_bytes al capacity 8 .
+  let outo be option mut slice u8 alloc_bytes al capacity 8 .
   guard is_some outo . else return 92 .
-  var out mut slice u64 . be view_array u64 (some_value outo) .
+  var out be mut slice u64 view_array u64 (some_value outo) .
 
   rem ── ① 용량까지 채운다 — 여덟째는 거절돼야 한다(한 칸을 비워 두는 규칙) ──
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 7 . do
     guard eq (spsc.spsc_push k ctl buf (add 200 i)) 1 . else return 3 .
     set i (add i 1) .
@@ -41,7 +41,7 @@ proc main input al cap allocator . input k cap atomic . output u8 . effects allo
   guard eq (spsc.spsc_push k ctl buf 999) 0 . else return 5 .
 
   rem ── ② 전부 꺼낸다 — **넣은 순서 그대로** 나와야 한다(FIFO) ─────────────
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j 7 . do
     guard eq (spsc.spsc_pop k ctl buf out) 1 . else return 6 .
     guard eq (index out 0) (add 200 j) . else return 7 .
@@ -52,7 +52,7 @@ proc main input al cap allocator . input k cap atomic . output u8 . effects allo
   guard eq (spsc.spsc_pop k ctl buf out) 0 . else return 9 .
 
   rem ── ③ 감싸기 — 인덱스가 한 바퀴 돈 뒤에도 순서가 살아 있는가 ───────────
-  var r u64 be 0 .
+  var r be u64 0 .
   while lt r 5 . do
     guard eq (spsc.spsc_push k ctl buf (add 300 r)) 1 . else return 10 .
     guard eq (spsc.spsc_pop k ctl buf out) 1 . else return 11 .

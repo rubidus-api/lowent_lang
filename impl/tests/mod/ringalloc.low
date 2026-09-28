@@ -27,7 +27,7 @@ export actor ring_bytes do
       set off 0 .
       set laps (add laps 1) .
     end
-    let v mut slice u8 . be subslice mem off (add off n) .
+    let v be mut slice u8 subslice mem off (add off n) .
     set off (add off n) .
     return (some v) .
   end

@@ -671,8 +671,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">requires</span></strong> ge (len data) <span class="tok-n">2</span> .
   <strong><span class="tok-k">ensures</span></strong> le ret <span class="tok-n">65535</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> widen <strong><span class="tok-t">u32</span></strong> (index data <span class="tok-n">0</span>) .
-  <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-t">u32</span></strong> <strong><span class="tok-k">be</span></strong> widen <strong><span class="tok-t">u32</span></strong> (index data <span class="tok-n">1</span>) .
+  <strong><span class="tok-k">let</span></strong> hi <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> widen <strong><span class="tok-t">u32</span></strong> (index data <span class="tok-n">0</span>) .
+  <strong><span class="tok-k">let</span></strong> lo <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u32</span></strong> widen <strong><span class="tok-t">u32</span></strong> (index data <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> add (mul hi <span class="tok-n">256</span>) lo .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run read_pair pair.low [1,2,3]
@@ -738,7 +738,7 @@ $ lowentc --run clamp_to_100 blame.low 120
 <strong><span class="tok-k">fn</span></strong> digit_sum <strong><span class="tok-k">input</span></strong> ds <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> elem_le ds <span class="tok-n">9</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">be</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">for</span></strong> d ds <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">set</span></strong> s (add s (widen <strong><span class="tok-t">u64</span></strong> d)) .
   <strong><span class="tok-k">end</span></strong>

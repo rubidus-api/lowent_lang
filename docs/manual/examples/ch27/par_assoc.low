@@ -5,8 +5,8 @@ fn diff input s slice u8 . output u64 .
   parallel s split .
   reduce acc sub .
 do
-  var acc u64 be 1000 .
-  var i u64 be 0 .
+  var acc be u64 1000 .
+  var i be u64 0 .
   while lt i (len s) . do
     set acc (sub acc (widen u64 (index s i))) .
     set i (add i 1) .

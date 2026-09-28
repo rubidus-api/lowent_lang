@@ -1796,6 +1796,18 @@ int main(int argc, char **argv) {
     // ★★★ **나무가 기본이다** (2026-07-14). 파서는 여전히 arity 를 모른다(구조=문자열,
     //   RFC-0046) — 나무는 **파스 다음에** 선다. `--flat` 은 그것을 끄는 **대조 스위치**이고,
     //   골든이 매 실행마다 둘을 맞대 본다: **해시가 같고 · 진단이 같고 · 답이 같다.**
+    // ★★★ RFC-0132 T1 — `var <이름> be <타입> <값> .` 의 타입을 `be` 앞(안쪽 모양)으로 옮긴다. 링크 뒤·묶기 전이라
+    //   모든 파일의 타입 선언이 보이고, `--flat` 과 나무 모드가 같은 나무를 받는다. 서식은 원본을 찍으므로 건너뛴다.
+    if (!want_fmt) {
+        proven_size_t nd0 = pr.diags.len;
+        low_decl_order(&pr, nodes0, heap, true);   // 옛 모양·타입 생략은 거절(한 단계 전환)
+        if (pr.diags.len > nd0) {
+            proven_array_t tail = pr.diags;
+            tail.data = (char *)pr.diags.data + nd0 * sizeof(low_diag_t);
+            tail.len = pr.diags.len - nd0;
+            dump_diags("parse diagnostics", &tail);
+        }
+    }
     if (!want_flat) {
         proven_size_t nested = 0, gave_up = 0;
         low_nest_set_report_limit(nforms0);   // ★ 보고는 이 파일의 것이다

@@ -13,9 +13,9 @@
 *재현되는 쪽.* 상태(= 시드)를 받아 다음 상태를 돌려준다. 호출자가 상태를 들고 다니므로 같은 시드는 언제나 같은 열을 낸다.
 
 ```lowent
-var s u64 be 12345 .
+var s be u64 12345 .
 set s (random.advance_seed s) .
-let c bool be random.coin s .
+let c be bool random.coin s .
 ```
 
 *예측할 수 없는 쪽.* `cap random` 을 받아야 부를 수 있다. 채운 바이트 수를 답하고 *못 채우면 0* 이다 --- 0 을 받고 그대로 쓰면 초기화되지 않은 버퍼를 열쇠로 쓰는

@@ -14,10 +14,10 @@ h = (generation << (shard_bits + slot_bits)) | (shard << slot_bits) | slot
 ```
 
 ```lowent
-let ho option u64 . be budget.pack 32 8 24 7 1 0 .
+let ho be option u64 budget.pack 32 8 24 7 1 0 .
 guard is_some ho . else return 1 .
-let h u64 be some_value ho .
-let slot u64 be budget.slot_of 32 h .
+let h be u64 some_value ho .
+let slot be u64 budget.slot_of 32 h .
 ```
 
 #aside[What this module guards][
@@ -52,7 +52,7 @@ These are only defaults --- when a store writes its own numbers, those win.
 )
 
 #antipattern[Simply incrementing the generation][
-  `let g u64 be add gen 1 .` gives no error, but past the width it equals a handle from another life. Use `next_gen` and accept `none` --- it means that slot is finished.
+  `let g be u64 add gen 1 .` gives no error, but past the width it equals a handle from another life. Use `next_gen` and accept `none` --- it means that slot is finished.
 ]
 
 #antipattern[Counting a 63-bit piece][

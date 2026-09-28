@@ -10,8 +10,8 @@ Builds strings *by appending little by little*. Use it to assemble a path from a
 ```lowent
 use strbuf .
 
-var b strbuf.str_buf be strbuf.new .
-let r result void strbuf.sb_error . be strbuf.append b buf "hello" .
+var b be strbuf.str_buf strbuf.new .
+let r be result void strbuf.sb_error strbuf.append b buf "hello" .
 guard is_ok r . else return 1 .
 ```
 
@@ -88,18 +88,18 @@ module demo .
 use strbuf .
 
 proc build input buf mut slice u8 . . output u64 . do
-  var b strbuf.str_buf be strbuf.new .
-  let r1 result void strbuf.sb_error . be strbuf.append b buf "ab" .
+  var b be strbuf.str_buf strbuf.new .
+  let r1 be result void strbuf.sb_error strbuf.append b buf "ab" .
   guard is_ok r1 . else return 90 .
   guard eq (field b len) 2 . else return 91 .
   rem the seal --- a null at position len (buf[2])
   guard eq (index buf 2) 0 . else return 92 .
   rem buffer 5 = content 4 + null 1 --- 2 + 3 + 1 > 5, so refused and the buffer stays clean
-  let r2 result void strbuf.sb_error . be strbuf.append b (subslice buf 0 5) "xyz" .
+  let r2 be result void strbuf.sb_error strbuf.append b (subslice buf 0 5) "xyz" .
   guard is_error r2 . else return 93 .
   guard eq (field b len) 2 . else return 94 .
   rem in the same situation trunc writes as much as fits (2) and returns 2
-  let n u64 be strbuf.append_trunc b (subslice buf 0 5) "xyz" .
+  let n be u64 strbuf.append_trunc b (subslice buf 0 5) "xyz" .
   guard eq n 2 . else return 95 .
   return field b len .
 end
@@ -109,13 +109,13 @@ Growth is expressed by the caller giving a new place.
 
 ```lowent
 proc grow input small mut slice u8 . . input big mut slice u8 . . output u64 . effects none . do
-  var b strbuf.str_buf be strbuf.new .
-  let r1 result void strbuf.sb_error . be strbuf.append b small "ab" .
+  var b be strbuf.str_buf strbuf.new .
+  let r1 be result void strbuf.sb_error strbuf.append b small "ab" .
   guard is_ok r1 . else return 90 .
-  let r2 result void strbuf.sb_error . be strbuf.append b small "xyz" .
+  let r2 be result void strbuf.sb_error strbuf.append b small "xyz" .
   guard is_error r2 . else return 91 .
   rem I provide the larger place --- the library does not allocate
-  let r3 result void strbuf.sb_error . be strbuf.append_grow b small big "xyz" .
+  let r3 be result void strbuf.sb_error strbuf.append_grow b small big "xyz" .
   guard is_ok r3 . else return 92 .
   guard eq (index big 0) 97 . else return 93 .
   guard eq (index big 2) 120 . else return 94 .
@@ -131,7 +131,7 @@ end
 #antipattern[Calling `as_cstr` from pure code][
   ```lowent
   fn f input b strbuf.str_buf . input buf mut slice u8 . . output u64 . do
-    let p strbuf.cstr be strbuf.as_cstr b buf .   rem ✗ calling an unsafe proc from a fn
+    let p be strbuf.cstr strbuf.as_cstr b buf .   rem ✗ calling an unsafe proc from a fn
     return 0 .
   end
   ```
@@ -146,16 +146,16 @@ end
 
 #antipattern[Reading the buffer without checking the `result`][
   ```lowent
-  let r result void strbuf.sb_error . be strbuf.append b buf "hello" .
-  let v slice u8 be strbuf.as_str b buf .   rem ✗ r was not checked
+  let r be result void strbuf.sb_error strbuf.append b buf "hello" .
+  let v be slice u8 strbuf.as_str b buf .   rem ✗ r was not checked
   ```
   No stop and no error. The buffer is not broken either --- refusal does not touch it. You just get *a short string missing what you expected*. `guard is_ok r . else …` comes first.
 ]
 
 #antipattern[Mixing state and buffer][
   ```lowent
-  let r result void strbuf.sb_error . be strbuf.append b buf1 "ab" .
-  let v slice u8 be strbuf.as_str b buf2 .   rem ✗ length from buf1, bytes from buf2
+  let r be result void strbuf.sb_error strbuf.append b buf1 "ab" .
+  let v be slice u8 strbuf.as_str b buf2 .   rem ✗ length from buf1, bytes from buf2
   ```
   With no error, a view of the wrong bytes comes out. Pair one `str_buf` with one buffer only (or its successor moved by `append_grow`).
 ]

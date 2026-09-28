@@ -19,7 +19,7 @@ end
 
 fn find_asked input k u8 . output u8 .
 do
-  let r option u8 be find k .
+  let r be option u8 find k .
   guard is_some r . else return 255 .
   return some_value r .
 end

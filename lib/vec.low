@@ -43,10 +43,10 @@ do
     set (field v len) (add (field v len) 1) .
     return some buf .
   end
-  let nb option mut slice u8 . be send al reserve (next_cap (len buf)) .
+  let nb be option mut slice u8 send al reserve (next_cap (len buf)) .
   guard is_some nb . else return none .
-  let nbuf mut slice u8 . be some_value nb .
-  var i u64 be 0 .
+  let nbuf be mut slice u8 some_value nb .
+  var i be u64 0 .
   while lt i (field v len) . do
     set (index nbuf i) (index buf i) .
     set i (add i 1) .

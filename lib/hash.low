@@ -81,10 +81,10 @@ rem   여기서 **이른 반환을 하지 않는다**(첫 다른 바이트에서
 rem   비교 자체가 정보를 준다. 32 바이트를 늘 끝까지 본다.
 export fn digest_ok input data slice u8 . input out mut slice u8 . input want slice u8 . output bool . do
   guard eq (len want) 32 . else return false .
-  let n u64 be call_builtin sha256 data out .
+  let n be u64 call_builtin sha256 data out .
   guard eq n 32 . else return false .
-  var diff u64 be 0 .
-  var i u64 be 0 .
+  var diff be u64 0 .
+  var i be u64 0 .
   while lt i 32 . do
     set diff (bit_or diff (bit_xor (cast u64 (index out i)) (cast u64 (index want i)))) .
     set i (add i 1) .

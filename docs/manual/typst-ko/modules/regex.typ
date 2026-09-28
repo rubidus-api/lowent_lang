@@ -10,9 +10,9 @@
 ```lowent
 use regex as rx .
 
-let n option u64 . be rx.compile "a{2,4}b" prog st .
+let n be option u64 rx.compile "a{2,4}b" prog st .
 guard is_some n . else return 1 .
-let m option u64 . be rx.match_at prog "aaab" 0 cl nl mk .
+let m be option u64 rx.match_at prog "aaab" 0 cl nl mk .
 ```
 
 프로그램(`slice u64`)도, 컴파일러 상태도, 매처의 작업 공간도 모두 호출자의 슬라이스다. 그래서 `effects none` 이고 숨은 할당이 없으며 재진입이 공짜이고 VM·
@@ -121,26 +121,26 @@ do
   guard ge (len prog) 32 . else return 90 .
 
   rem "ab.d*" 를 "abcdddx" 에: . 이 c 를, 탐욕 d* 가 ddd 를 먹어 끝 = 6
-  let n option u64 . be rx.compile "ab.d*" prog st .
+  let n be option u64 rx.compile "ab.d*" prog st .
   guard is_some n . else return 1 .
-  let m option u64 . be rx.match_at prog "abcdddx" 0 cl nl mk .
+  let m be option u64 rx.match_at prog "abcdddx" 0 cl nl mk .
   guard is_some m . else return 2 .
   guard eq (some_value m) 6 . else return 3 .
 
   rem 정규식으로는 [a-c]+z\d --- 소스에는 "\\d"
-  let n2 option u64 . be rx.compile "[a-c]+z\\d" prog st .
+  let n2 be option u64 rx.compile "[a-c]+z\\d" prog st .
   guard is_some n2 . else return 4 .
-  let m2 option u64 . be rx.match_at prog "abz7" 0 cl nl mk .
+  let m2 be option u64 rx.match_at prog "abz7" 0 cl nl mk .
   guard is_some m2 . else return 5 .
   guard eq (some_value m2) 4 . else return 6 .
 
   rem "ab$" 는 끝에서만 --- find 가 가장 왼쪽 시작을 준다
-  let n3 option u64 . be rx.compile "ab$" prog st .
+  let n3 be option u64 rx.compile "ab$" prog st .
   guard is_some n3 . else return 7 .
-  let f option u64 . be rx.find prog "xxab" cl nl mk .
+  let f be option u64 rx.find prog "xxab" cl nl mk .
   guard is_some f . else return 8 .
   guard eq (some_value f) 2 . else return 9 .
-  let g option u64 . be rx.find prog "abx" cl nl mk .
+  let g be option u64 rx.find prog "abx" cl nl mk .
   guard eq (is_some g) false . else return 10 .
   return 42 .
 end
@@ -155,22 +155,22 @@ proc demo_search input prog mut slice u64 . . input st mut slice u64 . .
   output u64 . effects none .
 do
   guard ge (len prog) 32 . else return 90 .
-  let n option u64 . be rx.compile "b+c" prog st .
+  let n be option u64 rx.compile "b+c" prog st .
   guard is_some n . else return 1 .
-  let a option u64 . be rx.find prog "xxbbbc" cl nl mk .
+  let a be option u64 rx.find prog "xxbbbc" cl nl mk .
   guard is_some a . else return 2 .
-  let b option u64 . be rx.search prog "xxbbbc" cl nl mk cs ns .
+  let b be option u64 rx.search prog "xxbbbc" cl nl mk cs ns .
   guard is_some b . else return 3 .
   guard eq (some_value a) (some_value b) . else return 4 .
   guard eq (some_value b) 2 . else return 5 .
 
-  let n3 option u64 . be rx.compile "a{2,4}b" prog st .
+  let n3 be option u64 rx.compile "a{2,4}b" prog st .
   guard is_some n3 . else return 9 .
-  let m3 option u64 . be rx.match_at prog "aaab" 0 cl nl mk .
+  let m3 be option u64 rx.match_at prog "aaab" 0 cl nl mk .
   guard is_some m3 . else return 10 .
   guard eq (some_value m3) 4 . else return 11 .
   rem 하한 미달은 매치가 아니다
-  let f option u64 . be rx.match_at prog "ab" 0 cl nl mk .
+  let f be option u64 rx.match_at prog "ab" 0 cl nl mk .
   guard eq (is_some f) false . else return 12 .
   return 42 .
 end
@@ -182,9 +182,9 @@ end
 역추적 엔진이라면 `(a*)*b` 에 `a` 64 개를 주면 2#super[64] 갈래를 헤매지만, Pike VM 은 스레드 목록이라 선형으로 끝난다.
 
 ```lowent
-let n option u64 . be rx.compile "(a*)*b" prog st .
+let n be option u64 rx.compile "(a*)*b" prog st .
 guard is_some n . else return 1 .
-let f option u64 . be rx.match_at prog
+let f be option u64 rx.match_at prog
   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" 0 cl nl mk .
 guard eq (is_some f) false . else return 2 .
 ```

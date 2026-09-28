@@ -20,6 +20,6 @@ fn as_f32 input a u32 . output f32 . do return bit_cast f32 a . end
 
 rem 왕복 — 재해석은 정보를 잃지 않는다.
 fn round_trip input a u8 . output u8 . do
-  var s i8 be bit_cast i8 a .
+  var s be i8 bit_cast i8 a .
   return bit_cast u8 s .
 end

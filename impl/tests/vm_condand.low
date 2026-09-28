@@ -42,8 +42,8 @@ end
 
 rem ★ 루프 조건에서도 같은 갈라짐이 일어난다.
 export fn count_while input n u64 . output u64 . do
-  var i u64 be 0 .
-  var acc u64 be 0 .
+  var i be u64 0 .
+  var acc be u64 0 .
   while and (lt i n) (lt i 8) . do
     set acc (add acc i) .
     set i (add i 1) .

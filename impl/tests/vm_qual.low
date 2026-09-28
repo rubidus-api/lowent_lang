@@ -40,13 +40,13 @@ rem
 rem   검사층이 `qual_a.pick` 을 bare `pick` 으로 **제자리에서 좁히고** 가리킨 모듈을
 rem   `qual_mod` 에 남기는데, 하강이 그 표시를 안 보고 좁혀진 낱말을 **지역 표**에 먼저
 rem   물었다. 그래서 같은 이름의 지역이 있으면 **지역이 이겼다**:
-rem       let pick u64 be 3 .          rem 내 지역
+rem       let pick be u64 3 .          rem 내 지역
 rem       return (qual_a.pick) .       rem 남의 op 을 한정으로 부른다
 rem   → 머리가 지역(인자 0)으로 풀려 인자가 남고 `E-IR-ARITY: extra operands` 가 났다.
 rem   **한정으로 부른 것을 지역이라 읽고, 그 결과를 사용자의 문법 실수라 불렀다**(교훈 5).
 rem   ☞ 지역 이름과 남의 export 이름이 같은 것은 **합법이다** — 남의 이름은 언제나 한정으로만
 rem     닿으므로 맨이름 지역이 가릴 수가 없다(2026-08-11 의 범위 교정과 같은 규칙).
 fn local_shadows_export output u64 . do
-  let pick u64 be 3 .
+  let pick be u64 3 .
   return add pick (qual_a.pick) .
 end

@@ -8,7 +8,7 @@ use utf8 .
 rem ko: `len` 은 바이트 수다 --- "안녕" 은 6 바이트, 2 글자 /// en: `len` counts bytes --- "안녕" is 6 bytes, 2 characters
 fn lengths input s slice u8 . output u64 .
 do
-  let chars option u64 be utf8.count_chars s .
+  let chars be option u64 utf8.count_chars s .
   guard is_some chars . else return 0 .
   return add (mul (len s) 10) (some_value chars) .
 end
@@ -16,7 +16,7 @@ end
 rem ko: 글자는 바이트 1 에서 시작하지 않는다 --- 둘째 글자는 바이트 3 에서 시작한다 /// en: no character starts at byte 1 --- the second character starts at byte 3
 fn decode_at input s slice u8 . input at u64 . output u64 .
 do
-  let c option u64 be utf8.decode s at .
+  let c be option u64 utf8.decode s at .
   guard is_some c . else return 0 .
   return some_value c .
 end

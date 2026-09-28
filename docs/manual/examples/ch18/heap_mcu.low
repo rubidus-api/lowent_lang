@@ -4,7 +4,7 @@ rem expect: E-HEAP-NOHOST
 
 proc grow input h cap heap . output u64 . effects heap .
 do
-  let a option mut slice u8 be alloc_bytes h capacity 4096 .
+  let a be option mut slice u8 alloc_bytes h capacity 4096 .
   guard is_some a . else return 0 .
   return len (some_value a) .
 end

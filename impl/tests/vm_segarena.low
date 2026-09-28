@@ -14,12 +14,12 @@ newtype grid3 u8 .
 
 rem 조각 4 칸(kbits 2) 짜리로 세 조각을 연다 — dir 은 조각마다 시작 자리.
 proc build input dir mut slice u64 . . input cap0 u64 . output u64 . effects none . do
-  var a segarena.arena grid . be segarena.open grid 2 .
+  var a be (segarena.arena grid) segarena.open grid 2 .
   guard eq (segarena.seg_slots grid a) 4 . else return 91 .
 
-  let b0 option u64 . be segarena.grow grid a dir cap0 .
-  let b1 option u64 . be segarena.grow grid a dir cap0 .
-  let b2 option u64 . be segarena.grow grid a dir cap0 .
+  let b0 be option u64 segarena.grow grid a dir cap0 .
+  let b1 be option u64 segarena.grow grid a dir cap0 .
+  let b2 be option u64 segarena.grow grid a dir cap0 .
   guard is_some b0 . else return 92 .
   guard is_some b1 . else return 93 .
   guard is_some b2 . else return 94 .
@@ -37,16 +37,16 @@ rem ★★ 두 순회가 **같은 답**을 낸다 — 비용만 다르다.
 proc same_answer input dir mut slice u64 . . input mem slice u64 . . input cap0 u64 .
   output u64 . effects none .
 do
-  var a segarena.arena grid2 . be segarena.open grid2 2 .
-  let b0 option u64 . be segarena.grow grid2 a dir cap0 .
-  let b1 option u64 . be segarena.grow grid2 a dir cap0 .
+  var a be (segarena.arena grid2) segarena.open grid2 2 .
+  let b0 be option u64 segarena.grow grid2 a dir cap0 .
+  let b1 be option u64 segarena.grow grid2 a dir cap0 .
   guard is_some b0 . else return 91 .
   guard is_some b1 . else return 92 .
 
-  let s0 u64 be segarena.sum_seg grid2 a dir mem 0 .
-  let g0 u64 be segarena.sum_global grid2 a dir mem 0 .
-  let s1 u64 be segarena.sum_seg grid2 a dir mem 1 .
-  let g1 u64 be segarena.sum_global grid2 a dir mem 1 .
+  let s0 be u64 segarena.sum_seg grid2 a dir mem 0 .
+  let g0 be u64 segarena.sum_global grid2 a dir mem 0 .
+  let s1 be u64 segarena.sum_seg grid2 a dir mem 1 .
+  let g1 be u64 segarena.sum_global grid2 a dir mem 1 .
   guard eq s0 g0 . else return 93 .
   guard eq s1 g1 . else return 94 .
   return add s0 s1 .
@@ -56,13 +56,13 @@ rem 열지 않은 조각은 **없다고 답한다** — 트랩이 아니다.
 proc beyond input dir mut slice u64 . . input mem slice u64 . . input cap0 u64 .
   output u64 . effects none .
 do
-  var a segarena.arena grid3 . be segarena.open grid3 2 .
-  let b0 option u64 . be segarena.grow grid3 a dir cap0 .
+  var a be (segarena.arena grid3) segarena.open grid3 2 .
+  let b0 be option u64 segarena.grow grid3 a dir cap0 .
   guard is_some b0 . else return 91 .
   rem 조각 하나(4 칸)만 열었으므로 4 번 칸은 아직 없다
-  let v option u64 . be segarena.at grid3 a dir mem 4 .
+  let v be option u64 segarena.at grid3 a dir mem 4 .
   guard eq (is_some v) false . else return 92 .
-  let w option u64 . be segarena.at grid3 a dir mem 3 .
+  let w be option u64 segarena.at grid3 a dir mem 3 .
   guard is_some w . else return 93 .
   return 2 .
 end

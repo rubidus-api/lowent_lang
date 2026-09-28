@@ -21,13 +21,13 @@ rem K' 를 만든다: 64 바이트로 맞춘 키. 64 보다 길면 해시로 줄
 rem   pad 는 64 바이트 이상이어야 한다.
 export proc key_block input key slice u8 . input pad mut slice u8 . output u64 . effects none . do
   guard ge (len pad) 64 . else return 0 .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 64 . do
     set (index pad i) 0 .
     set i (add i 1) .
   end
   guard gt (len key) 64 . else do
-    var j u64 be 0 .
+    var j be u64 0 .
     while lt j (len key) . do
       set (index pad j) (index key j) .
       set j (add j 1) .
@@ -35,7 +35,7 @@ export proc key_block input key slice u8 . input pad mut slice u8 . output u64 .
     return 64 .
   end
   rem 긴 키는 해시로 줄인다 — 그 결과 32 바이트가 앞에 놓이고 나머지는 0 이다.
-  let n u64 be call_builtin sha256 key pad .
+  let n be u64 call_builtin sha256 key pad .
   guard eq n 32 . else return 0 .
   return 64 .
 end
@@ -48,7 +48,7 @@ rem   썼다(2026-09-04 검토 A2). 이제 실패는 `out` 에 손대기 전에�
 export proc mac input key slice u8 . input msg slice u8 . input scratch mut slice u8 . input out mut slice u8 . output result u64 hmac_error . effects none .
 errors short_workspace . do
   guard ge (len out) 32 . else return ok 0 .
-  var need u64 be add 64 (len msg) .
+  var need be u64 add 64 (len msg) .
   if lt need 96 . do  set need 96 .  end
   guard ge (len scratch) need . else return error short_workspace .
 
@@ -56,27 +56,27 @@ errors short_workspace . do
   guard eq (key_block key scratch) 64 . else return ok 0 .
 
   rem ② (K' xor ipad) || msg  →  scratch
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i 64 . do
     set (index scratch i) (cast u8 (bit_xor (cast u64 (index scratch i)) 54)) .
     set i (add i 1) .
   end
-  var j u64 be 0 .
+  var j be u64 0 .
   while lt j (len msg) . do
     set (index scratch (add 64 j)) (index msg j) .
     set j (add j 1) .
   end
-  let n1 u64 be call_builtin sha256 (subslice scratch 0 (add 64 (len msg))) out .
+  let n1 be u64 call_builtin sha256 (subslice scratch 0 (add 64 (len msg))) out .
   guard eq n1 32 . else return ok 0 .
 
   rem ③ (K' xor opad) || inner  →  scratch (앞 96 바이트만 쓴다 — 위의 `need` 가 보장한다)
   guard eq (key_block key scratch) 64 . else return ok 0 .
-  var m u64 be 0 .
+  var m be u64 0 .
   while lt m 64 . do
     set (index scratch m) (cast u8 (bit_xor (cast u64 (index scratch m)) 92)) .
     set m (add m 1) .
   end
-  var q u64 be 0 .
+  var q be u64 0 .
   while lt q 32 . do
     set (index scratch (add 64 q)) (index out q) .
     set q (add q 1) .
@@ -106,12 +106,12 @@ errors short_workspace . do
   rem   (조용히 틀리느니 **거절한다**.)
   guard le (len info) 60 . else return ok 0 .
   rem info || 0x01 을 scratch 뒤쪽(128 부터)에 만든다 — 앞 128 은 mac 이 쓴다.
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len info) . do
     set (index scratch (add 128 i)) (index info i) .
     set i (add i 1) .
   end
   set (index scratch (add 128 (len info))) 1 .
-  let msg slice u8 be subslice scratch 128 (add 129 (len info)) .
+  let msg be slice u8 subslice scratch 128 (add 129 (len info)) .
   return hmac.mac prk msg scratch out .
 end

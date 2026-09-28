@@ -21,16 +21,16 @@ end
 
 rem 정렬 후 (오름차순 AND 합 보존) → 1/0. 임의 입력에서 자기검증 · diff-sweep 이 임의 배열에서 돌린다.
 proc sort_verify input s mut slice u64 . . output u64 . effects none . do
-  var pre u64 be 0 .
-  var i u64 be 0 .
+  var pre be u64 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set pre (wrap_add pre (index s i)) .
     set i (add i 1) .
   end
   sortlib.sort s .
-  var post u64 be 0 .
-  var sorted u64 be 1 .
-  var j u64 be 0 .
+  var post be u64 0 .
+  var sorted be u64 1 .
+  var j be u64 0 .
   while lt j (len s) . do
     set post (wrap_add post (index s j)) .
     if gt j 0 . do

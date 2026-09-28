@@ -5,7 +5,7 @@ rem run: total [1,2,3,4,5,6]
 proc double_all input s mut slice u8 . output u64 . effects none .
   parallel s split .
 do
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set (index s i) (wrap_mul (index s i) 2) .
     set i (add i 1) .
@@ -17,8 +17,8 @@ fn total input s slice u8 . output u64 .
   parallel s split .
   reduce acc add .
 do
-  var acc u64 be 0 .
-  var i u64 be 0 .
+  var acc be u64 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set acc (add acc (widen u64 (index s i))) .
     set i (add i 1) .

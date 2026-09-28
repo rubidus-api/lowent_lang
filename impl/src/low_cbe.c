@@ -2814,7 +2814,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     ks.o[ks.n] = (signed char)rmap[in->a]; ks.k[ks.n++] = K_REF;
                 }
                 else if (lk[in->a] == K_VEC) {
-                    // ★ 벡터도 **지역에 담긴다**(`var va vec u32 4 . be load …`).
+                    // ★ 벡터도 **지역에 담긴다**(`var va be vec u32 4 load …`).
                     //   이 자리가 없어서 벡터가 **정수 스택**에서 꺼내졌다 — 조용히 틀린 레인.
                     // ★★★ **값의 실제 폭만 나른다** (RFC-0040 §9-4, 2026-08-02 실측).
                     //   칸은 가장 넓은 벡터에 맞춰 64바이트다. 통째로 대입하면 `vec u32 4`
@@ -2829,7 +2829,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     ks.n++;
                 }
                 else if (lk[in->a] == K_OPT || lk[in->a] == K_OPTSL) {
-                    // ★ option·result 도 **지역에 담긴다** — `var r result u8 e be g n .`
+                    // ★ option·result 도 **지역에 담긴다** — `var r be result u8 e g n .`
                     //   이 자리가 없어서 감싼 값이 **정수 스택**에서 꺼내졌다(스택 붕괴).
                     fprintf(out, "    ws[wsp++] = wloc[%lld];\n", (long long)in->a);
                     ks.o[ks.n] = (signed char)in->a; ks.ve[ks.n] = lez[in->a]; ks.fl[ks.n] = lfl[in->a];
@@ -2857,7 +2857,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_STORE: {
                 unsigned char kk = ks.k[--ks.n];
                 // ★★★ **지역이 원소폭을 기억해야 한다.** 이 방출기는 여태 `lez` 를 파라미터에만
-                //   채웠다 — 그래서 `let b slice u16 be u"AB" .` 처럼 **타입 있는 슬라이스를
+                //   채웠다 — 그래서 `let b be slice u16 u"AB" .` 처럼 **타입 있는 슬라이스를
                 //   지역에 담았다가 다시 꺼내면** 폭이 1 로 되돌아가고 `index` 가 바이트를 읽었다.
                 //   (실측: VM 42 · 네이티브 94 — 같은 결함 부류가 이 저장소에 이미 있었다.)
                 //   ☞ 시뮬레이터(`cbe_kind_run`)는 이 규약을 이미 지키고 있었다. **두 반쪽이

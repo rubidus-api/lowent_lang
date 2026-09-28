@@ -9,12 +9,12 @@ A *byte* array that fetches more room by itself when short. Used when you do not
 type arguments are written --- a short name is interface too.
 
 ```lowent
-let g option growvec.gvec . using bump be growvec.open 16 .
+let g using bump be option growvec.gvec growvec.open 16 .
 guard is_some g . else return 1 .
-var v growvec.gvec be some_value g .
+var v be growvec.gvec some_value g .
 guard growvec.add_all v "hello" . else return 2 .
 guard growvec.add_all v " world" . else return 3 .
-let s slice u8 be growvec.view_of v .
+let s be slice u8 growvec.view_of v .
 ```
 
 *Why it exists.* Gathering bytes with #modref("vecs")[`vecs`] means passing allocator, buffer and length on every call, and *rebinding* to the grown buffer is the call site's
@@ -56,7 +56,7 @@ end
 ]
 
 #antipattern[Copying a `gvec` and pushing to both][
-  After `var b growvec.gvec be a .`, pushing to `a` and `b` separately makes both see the same buffer while each `n` is unaware of the other's change --- they overwrite each
+  After `var b be growvec.gvec a .`, pushing to `a` and `b` separately makes both see the same buffer while each `n` is unaware of the other's change --- they overwrite each
   other. Handle one vector by one name, and pass it as `mut gvec`.
 ]
 

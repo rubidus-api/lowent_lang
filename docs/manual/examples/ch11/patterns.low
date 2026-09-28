@@ -19,7 +19,7 @@ end
 
 rem ko: 어느 하나라도 맞으면 그 갈래 --- red·green·blue 를 모두 덮으므로 _ 가 필요 없다 /// en: any one match takes the arm --- red, green and blue are all covered, so no _ is needed
 fn warm input k u8 . output u8 . do
-  let c color be green .
+  let c be color green .
   match c do
     case red or green . do return 1 . end
     case blue . do return 2 . end
@@ -28,7 +28,7 @@ end
 
 rem ko: or 로 묶은 갈래는 같은 이름을 묶어야 한다 /// en: arms joined with or must bind the same names
 fn combine input k u8 . output u32 . do
-  let e node be node.times 6 7 .
+  let e be node node.times 6 7 .
   match e do
     case plus l r or times l r . do return add l r . end
     case lit v . do return v . end
@@ -37,7 +37,7 @@ end
 
 rem ko: result 안의 option 을 한 번에 가른다 /// en: splits an option inside a result in one go
 fn pick input k u8 . output u32 . do
-  let r result option u32 color be ok (some 42) .
+  let r be result option u32 color ok (some 42) .
   match r do
     case ok (some x) . do return x . end
     case ok none . do return 0 . end

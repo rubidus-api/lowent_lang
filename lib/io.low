@@ -47,8 +47,8 @@ export fn scan_until input src slice u8 . input from u64 . input delim u8 . inpu
   output option u64 .
 do
   guard le from (len src) . else return none .
-  var j u64 be from .
-  var seen u64 be 0 .
+  var j be u64 from .
+  var seen be u64 0 .
   while lt j (len src) . do
     guard lt seen limit . else return none .
     if eq (index src j) delim . do return (some j) . end
@@ -87,7 +87,7 @@ export actor mem_reader do
   rem ★ n 바이트를 소비하고 그 **뷰**를 낸다(복사 0). 모자라면 none 이고 커서는 안 움직인다.
   proc take input n u64 . output option slice u8 . effects state . do
     guard le n (sub (len src) pos) . else return none .
-    let v slice u8 be subslice src pos (add pos n) .
+    let v be slice u8 subslice src pos (add pos n) .
     set pos (add pos n) .
     return (some v) .
   end
@@ -95,7 +95,7 @@ export actor mem_reader do
   rem 남은 전부를 소비하고 뷰를 낸다. 이미 끝이면 **빈 뷰**(none 이 아니다 —
   rem "끝났다" 와 "0 바이트 읽었다" 는 다르고, 여기선 후자다).
   proc take_rest output slice u8 . effects state . do
-    let v slice u8 be subslice src pos (len src) .
+    let v be slice u8 subslice src pos (len src) .
     set pos (len src) .
     return v .
   end
@@ -103,7 +103,7 @@ export actor mem_reader do
   rem ★ 채워진 것 중 n 바이트를 버린다 — IO 없음. 남은 것보다 많이 버리라면 끝까지만.
   proc toss input n u64 . output u64 . effects state . do
     guard le n (sub (len src) pos) . else do
-      let dropped u64 be sub (len src) pos .
+      let dropped be u64 sub (len src) pos .
       set pos (len src) .
       return dropped .
     end
@@ -117,10 +117,10 @@ export actor mem_reader do
   rem   · 이미 끝이면 none
   proc take_until input delim u8 . input limit u64 . output option slice u8 . effects state . do
     guard lt pos (len src) . else return none .
-    let at option u64 . be scan_until src pos delim limit .
+    let at be option u64 scan_until src pos delim limit .
     guard is_some at . else return none .
-    let j u64 be some_value at .
-    let v slice u8 be subslice src pos j .
+    let j be u64 some_value at .
+    let v be slice u8 subslice src pos j .
     set pos (add j 1) .
     return (some v) .
   end
@@ -131,10 +131,10 @@ export actor mem_reader do
   rem   "안 지운다" 로 닫는다: 지우는 쪽은 되돌릴 수 없고, 안 지우는 쪽은 호출자가 고를 수 있다).
   proc take_line input limit u64 . output option slice u8 . effects state . do
     guard lt pos (len src) . else return none .
-    let at option u64 . be scan_until src pos 10 limit .
+    let at be option u64 scan_until src pos 10 limit .
     guard is_some at . else return none .
-    let j u64 be some_value at .
-    let v slice u8 be subslice src pos j .
+    let j be u64 some_value at .
+    let v be slice u8 subslice src pos j .
     set pos (add j 1) .
     return (some v) .
   end

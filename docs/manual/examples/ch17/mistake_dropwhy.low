@@ -12,7 +12,7 @@ fn parse_digit input s slice u8 . output result u8 parse_error .
   errors not_digit .
 do
   guard gt (len s) 0 . else return error empty .
-  let c u8 be index s 0 .
+  let c be u8 index s 0 .
   guard and (ge c 48) (le c 57) . else return error not_digit .
   return ok (sub c 48) .
 end
@@ -26,7 +26,7 @@ end
 rem ko: 위 층은 빈 입력과 숫자 아닌 입력을 다르게 안내하고 싶지만 둘 다 0 만 본다 /// en: the upper layer wants different messages for empty and non-digit input, but sees 0 for both
 fn explain input s slice u8 . output u8 .
 do
-  let d option u8 be digit_or_none s .
+  let d be option u8 digit_or_none s .
   guard is_some d . else return 0 .
   return 9 .
 end

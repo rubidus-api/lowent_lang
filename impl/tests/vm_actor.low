@@ -20,7 +20,7 @@ rem ★★★ **액터를 만들거나 메시지를 보내는 것은 순수하�
 rem   `fn … effects none .` 로 **통과하고 있었다.** 효과 검사기가 빌트인의 효과를
 rem   **그것이 문장의 머리일 때만** 셌기 때문이다:
 rem
-rem       var c counter be spawn actor counter . .     rem ← spawn 이 **식 안에 중첩**돼 있다
+rem       var c be counter spawn actor counter . .     rem ← spawn 이 **식 안에 중첩**돼 있다
 rem       effects none .                              rem ← 그래서 **안 보였다**
 rem
 rem   arity 단일화가 나무를 세우자 `spawn` 이 자기 form 의 머리가 되면서 **드러났다.**
@@ -54,30 +54,30 @@ actor accum do
 end
 
 proc two_actors output u64 . effects state . do
-  var c counter be spawn actor counter . .
-  var d accum be spawn actor accum . .
-  var a u64 be send c inc .
-  var b u64 be send d add .
+  var c be counter spawn actor counter . .
+  var d be accum spawn actor accum . .
+  var a be u64 send c inc .
+  var b be u64 send d add .
   set a expr a + b . .
   return a .                     rem counter=1, accum=10 → 11
 end
 
 proc drive output u64 . effects state . do
-  var c counter be spawn actor counter . .
-  var a u64 be send c inc .
-  var b u64 be send c inc .
+  var c be counter spawn actor counter . .
+  var a be u64 send c inc .
+  var b be u64 send c inc .
   return send c get .
 end
 
 rem ★★ **격리** — 두 인스턴스는 상태를 공유하지 않는다. 그것이 level-2 의 전부다.
 proc isolated output u64 . effects state . do
-  var c counter be spawn actor counter . .
-  var d counter be spawn actor counter . .
-  var a u64 be send c inc .
-  var b u64 be send c inc .
-  var e u64 be send d inc .
-  var x u64 be send c get .
-  var y u64 be send d get .
+  var c be counter spawn actor counter . .
+  var d be counter spawn actor counter . .
+  var a be u64 send c inc .
+  var b be u64 send c inc .
+  var e be u64 send d inc .
+  var x be u64 send c get .
+  var y be u64 send d get .
   set x expr x * 10 . .
   set x expr x + y . .
   return x .                    rem c = 2, d = 1  →  21
@@ -130,10 +130,10 @@ actor bank do
 end
 
 proc banking output u64 . effects state . do
-  var b bank be spawn actor bank . .
-  var x u64 be send b deposit 100 .
-  var y u64 be send b deposit 50 .
-  var z u64 be send b withdraw 30 .
+  var b be bank spawn actor bank . .
+  var x be u64 send b deposit 100 .
+  var y be u64 send b deposit 50 .
+  var z be u64 send b withdraw 30 .
   return send b peek .          rem 100 + 50 − 30 = 120
 end
 
@@ -154,8 +154,8 @@ actor vault do
 end
 
 proc hand_over input a u64 . output u64 . effects state . do
-  var v vault be spawn actor vault . .
-  var h owned u64 be a .
+  var v be vault spawn actor vault . .
+  var h be owned u64 a .
   return send v stash h .      rem h 는 여기서 **떠난다**. 뒤에 쓰면 E-OWN-MOVED.
 end
 

@@ -6,7 +6,7 @@ type buffer u8 .
 fn peek input h owned buffer . output u8 .
 do
   rem ko: ✘ 값을 꺼내 담는 것도 옮기기다 --- 그 뒤의 `drop h` 는 옮긴 값을 없앤다 /// en: ✘ taking the value into a name is a move too --- the `drop h` after it destroys a moved value
-  let v u8 be h .
+  let v be u8 h .
   drop h .
   return v .
 end

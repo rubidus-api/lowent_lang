@@ -5,17 +5,17 @@ use outbuf .
 
 proc main input out cap io . input al cap allocator . output u8 . effects io alloc .
 do
-  let g option mut slice u8 be alloc_bytes al capacity 8 .
+  let g be option mut slice u8 alloc_bytes al capacity 8 .
   guard is_some g . else return 1 .
-  let buf mut slice u8 be some_value g .
-  var p owned outbuf.pending be outbuf.buf_open 1 .
-  let r1 result (owned outbuf.pending) outbuf.io_error be outbuf.buf_write out p buf "buffered " .
+  let buf be mut slice u8 some_value g .
+  var p be owned outbuf.pending outbuf.buf_open 1 .
+  let r1 be result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out p buf "buffered " .
   guard is_ok r1 . else return 2 .
-  var p2 owned outbuf.pending be ok_value r1 .
-  let r2 result (owned outbuf.pending) outbuf.io_error be outbuf.buf_write out p2 buf "output\n" .
+  var p2 be owned outbuf.pending ok_value r1 .
+  let r2 be result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out p2 buf "output\n" .
   guard is_ok r2 . else return 3 .
-  var p3 owned outbuf.pending be ok_value r2 .
-  let f result void outbuf.io_error be outbuf.buf_finish out p3 buf .
+  var p3 be owned outbuf.pending ok_value r2 .
+  let f be result void outbuf.io_error outbuf.buf_finish out p3 buf .
   guard is_ok f . else return 4 .
   return 0 .
 end

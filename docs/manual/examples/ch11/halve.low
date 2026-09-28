@@ -24,13 +24,13 @@ fn halve_plus_one input a u8 . output result u8 io_error .
   errors too_big gt a 200 .
   errors odd ne (mod a 2) 0 .
 do
-  let v u8 be try halve a .
+  let v be u8 try halve a .
   return ok (add v 1) .
 end
 
 fn halve_or_zero input a u8 . output u8 .
 do
-  let r result u8 io_error be halve a .
+  let r be result u8 io_error halve a .
   guard not (is_error r) . else return 0 .
   return ok_value r .
 end

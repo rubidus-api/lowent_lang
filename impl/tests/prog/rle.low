@@ -19,7 +19,7 @@ rem ★ 계약: 결과는 1 이상이고 255 이하다(u8 카운트에 담아야
 fn run_len input i u64 . input src bytes . output u64 .
   ensures ge ret 1 .
 do
-  var n u64 be 1 .
+  var n be u64 1 .
   while lt (add i n) (len src) . do
     if ne (index src (add i n)) (index src i) . do
       return n .
@@ -35,10 +35,10 @@ end
 rem ★ 인코딩. 출력 슬라이스에 (개수, 값) 쌍을 쓴다 — **슬라이스 원소 쓰기**.
 rem   ensures: 쓴 바이트 수는 짝수다… 는 구간으로 표현 못 하므로, 상한만 건다.
 proc rle_encode input src bytes . input dst mut bytes . . output u64 . effects none . do
-  var i u64 be 0 .
-  var o u64 be 0 .
+  var i be u64 0 .
+  var o be u64 0 .
   while lt i (len src) . do
-    let n be run_len i src . .
+    let n be u64 run_len i src . .
     if lt (add o 1) (len dst) . do
       set (index dst o) n .
       set (index dst (add o 1)) (index src i) .
@@ -51,12 +51,12 @@ end
 
 rem ★ 디코딩 — 왕복이 원본을 돌려주는가. 이것이 진짜 검증이다.
 proc rle_decode input src bytes . input dst mut bytes . . output u64 . effects none . do
-  var i u64 be 0 .
-  var o u64 be 0 .
+  var i be u64 0 .
+  var o be u64 0 .
   while lt (add i 1) (len src) . do
-    let n be index src i . .
-    let v be index src (add i 1) . .
-    var k u64 be 0 .
+    let n be u8 index src i . .
+    let v be u8 index src (add i 1) . .
+    var k be u64 0 .
     while lt k n . do
       if lt o (len dst) . do
         set (index dst o) v .

@@ -10,7 +10,7 @@ UTF-16 의 서로게이트 쌍을 코드포인트로 바꾸고 되돌린다. Win
 ```lowent
 use utf16 .
 
-let c option u64 . be utf16.decode s 0 .
+let c be option u64 utf16.decode s 0 .
 guard is_some c . else return 1 .
 ```
 
@@ -99,26 +99,26 @@ use utf16 as u .
 proc round_trip input buf mut slice u16 . . output u64 . effects none . do
   guard ge (len buf) 4 . else return 90 .
   rem '가'(U+AC00) --- BMP 라서 한 칸. put 은 다음에 쓸 위치를 돌려준다
-  let a option u64 . be u.put buf 0 44032 .
+  let a be option u64 u.put buf 0 44032 .
   guard is_some a . else return 1 .
   guard eq (some_value a) 1 . else return 2 .
 
   rem U+1F4A9 --- BMP 밖이라 두 칸(서로게이트 짝)으로 갈라진다
-  let b option u64 . be u.put buf (some_value a) 128169 .
+  let b be option u64 u.put buf (some_value a) 128169 .
   guard is_some b . else return 3 .
   guard eq (some_value b) 3 . else return 4 .
   guard eq (index buf 1) 55357 . else return 5 .
   guard eq (index buf 2) 56489 . else return 6 .
 
   rem 다시 하나로 읽는다 --- decode 가 짝을 합친다
-  let rb option u64 . be u.decode buf 1 .
+  let rb be option u64 u.decode buf 1 .
   guard is_some rb . else return 7 .
   guard eq (some_value rb) 128169 . else return 8 .
 
   rem 'A' + 이모지(짝) + '가' = 칸 넷, 문자 셋
   set (index buf 0) 65 .
   set (index buf 3) 44032 .
-  let n option u64 . be u.count_chars (subslice buf 0 4) .
+  let n be option u64 u.count_chars (subslice buf 0 4) .
   guard is_some n . else return 9 .
   guard eq (some_value n) 3 . else return 10 .
   return 42 .
@@ -128,11 +128,11 @@ end
 상위 칸 `buf[1]` 은 55357(0xD83D), 하위 칸 `buf[2]` 는 56489(0xDCA9)다. 순회는 `next_start` 로 한다.
 
 ```lowent
-var i u64 be 0 .
+var i be u64 0 .
 while lt i (len s) . do
-  let c option u64 . be u.decode s i .
+  let c be option u64 u.decode s i .
   guard is_some c . else return 80 .
-  let nx option u64 . be u.next s i .
+  let nx be option u64 u.next s i .
   guard is_some nx . else return 81 .
   set i (some_value nx) .
 end
@@ -146,7 +146,7 @@ BMP 면 +1, 짝이면 +2 --- 직접 세지 않는다. `none` 이면 멈춘다(�
   ```lowent
   set (index buf 0) 55357 .          rem ✗ 상위 0xD83D 뒤에
   set (index buf 1) 65 .             rem   하위가 아니라 'A' 가 온다
-  let a option u64 . be u.decode buf 0 .
+  let a be option u64 u.decode buf 0 .
   ```
   `none` 이다. 하위 서로게이트가 혼자 오거나(`decode buf 2`, 값 56489), 상위 서로게이트로 끝나도(`decode (subslice buf 0 4) 3`) 마찬가지다. 셋 다 `guard is_some`
   자리에서 바로 걸린다. 조용히 통과시키면 그 뒤가 모두 틀리므로 *거절이 곧 이 라이브러리의 값*이다. 온전한 짝은 여전히 통과한다.

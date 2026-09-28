@@ -15,7 +15,7 @@ end
 
 rem 원소 쓰기도 원소 단위로 인코딩된다.
 proc dbl input s mut slice u32 . . output u32 . effects none . do
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     set (index s i) expr (index s i) * 2 . .
     set i expr i + 1 . .

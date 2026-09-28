@@ -19,8 +19,8 @@ use codec from "../../../lib/codec.low" .
 
 rem 16 바이트가 같은가.
 proc same16 input a slice u8 . input b slice u8 . output u64 . effects none . do
-  var i u64 be 0 .
-  var diff u64 be 0 .
+  var i be u64 0 .
+  var diff be u64 0 .
   while lt i 16 . do
     set diff (bit_or diff (bit_xor (cast u64 (index a i)) (cast u64 (index b i)))) .
     set i (add i 1) .
@@ -33,29 +33,29 @@ rem 자리표 — 0..16 키 · 16..28 nonce · 28..28 aad(빈) · 32..48 평문 
 rem   64..80 태그 · 80..96 푼 것 · 96..112 want · 128..448 gcm 일터
 rem   480..496 카운터 · 512..528 H · 528..544 z · 544..560 v · 576..608 기대(16진에서 푼다) · 640..672 C‖길이
 proc main input al cap allocator . output u8 . effects alloc . do
-  let g option mut slice u8 . . be alloc_bytes al capacity 1024 .
+  let g be option mut slice u8 alloc_bytes al capacity 1024 .
   guard is_some g . else return 9 .
-  let b mut slice u8 . be some_value g .
-  var i u64 be 0 .
+  let b be mut slice u8 some_value g .
+  var i be u64 0 .
   while lt i 1024 . do  set (index b i) 0 .  set i (add i 1) .  end
 
   rem ── ① 잎 하나: AES-128(키 0^128, 블록 0^128) = 66e94bd4ef8a2c3b884cfa59ca342b2e ──
   guard eq (call_builtin aes_ctr (subslice b 0 16) (subslice b 480 496) (subslice b 32 48) (subslice b 512 528)) 16 . else return 9 .
-  let d1 option u64 . be codec.hex_dec "66e94bd4ef8a2c3b884cfa59ca342b2e" (subslice b 576 592) .
+  let d1 be option u64 codec.hex_dec "66e94bd4ef8a2c3b884cfa59ca342b2e" (subslice b 576 592) .
   guard is_some d1 . else return 9 .
   guard eq (same16 (subslice b 512 528) (subslice b 576 592)) 1 . else return 1 .
 
   rem ── ② 잎 둘: GHASH(H, C ‖ [len]) = f38cbb1ad69223dcc3457ae5b6b0f885 ──
-  let d2 option u64 . be codec.hex_dec "0388dace60b6a392f328c2b971b2fe7800000000000000000000000000000080" (subslice b 640 672) .
+  let d2 be option u64 codec.hex_dec "0388dace60b6a392f328c2b971b2fe7800000000000000000000000000000080" (subslice b 640 672) .
   guard is_some d2 . else return 9 .
   guard eq (call_builtin ghash (subslice b 512 528) (subslice b 528 544) (subslice b 640 672)) 32 . else return 9 .
-  let d3 option u64 . be codec.hex_dec "f38cbb1ad69223dcc3457ae5b6b0f885" (subslice b 576 592) .
+  let d3 be option u64 codec.hex_dec "f38cbb1ad69223dcc3457ae5b6b0f885" (subslice b 576 592) .
   guard is_some d3 . else return 9 .
   guard eq (same16 (subslice b 528 544) (subslice b 576 592)) 1 . else return 2 .
 
   rem ── ③ 두 정의가 서로를 증언한다: `gmul128` 과 `ghash` 가 같은 곱을 낸다 ──
   rem   z 에는 ② 가 남긴 값이 들어 있다. 그것에 H 를 한 번 더 곱한다.
-  var k u64 be 0 .
+  var k be u64 0 .
   while lt k 16 . do  set (index b (add 592 k)) (index b (add 528 k)) .  set k (add k 1) .  end
   guard eq (gcm.gmul128 (subslice b 528 544) (subslice b 512 528) (subslice b 544 560)) 1 . else return 9 .
   rem 빌트인 쪽: 0 을 16 바이트 먹이면 XOR 은 아무것도 안 바꾸고 곱만 남는다.
@@ -63,26 +63,26 @@ proc main input al cap allocator . output u8 . effects alloc . do
   guard eq (same16 (subslice b 528 544) (subslice b 592 608)) 1 . else return 3 .
 
   rem ── ④ 그 위의 모듈: gcm.encrypt 가 NIST 의 암호문과 태그를 낸다 ──
-  let e result u64 gcm.gcm_error . be gcm.encrypt (subslice b 0 16) (subslice b 16 28) (subslice b 28 28)
+  let e be result u64 gcm.gcm_error gcm.encrypt (subslice b 0 16) (subslice b 16 28) (subslice b 28 28)
         (subslice b 32 48) (subslice b 48 64) (subslice b 64 80) (subslice b 128 448) .
   guard is_ok e . else return 9 .
   guard eq (ok_value e) 16 . else return 4 .
-  let d4 option u64 . be codec.hex_dec "0388dace60b6a392f328c2b971b2fe78" (subslice b 576 592) .
+  let d4 be option u64 codec.hex_dec "0388dace60b6a392f328c2b971b2fe78" (subslice b 576 592) .
   guard is_some d4 . else return 9 .
   guard eq (same16 (subslice b 48 64) (subslice b 576 592)) 1 . else return 5 .
-  let d5 option u64 . be codec.hex_dec "ab6e47d42cec13bdf53a67b21257bddf" (subslice b 576 592) .
+  let d5 be option u64 codec.hex_dec "ab6e47d42cec13bdf53a67b21257bddf" (subslice b 576 592) .
   guard is_some d5 . else return 9 .
   guard eq (same16 (subslice b 64 80) (subslice b 576 592)) 1 . else return 6 .
 
   rem ── ⑤ 받는 쪽도 같은 말을 한다 ──
-  let v result u64 gcm.gcm_error . be gcm.decrypt (subslice b 0 16) (subslice b 16 28) (subslice b 28 28)
+  let v be result u64 gcm.gcm_error gcm.decrypt (subslice b 0 16) (subslice b 16 28) (subslice b 28 28)
         (subslice b 48 64) (subslice b 64 80) (subslice b 80 96) (subslice b 96 112) (subslice b 128 448) .
   guard is_ok v . else return 9 .
   guard eq (ok_value v) 1 . else return 7 .
 
   rem ── ⑥ 그리고 **거절이 본체다** — 태그 한 비트를 뒤집으면 열리지 않는다 ──
   set (index b 79) (cast u8 (bit_xor (cast u64 (index b 79)) 1)) .
-  let v2 result u64 gcm.gcm_error . be gcm.decrypt (subslice b 0 16) (subslice b 16 28) (subslice b 28 28)
+  let v2 be result u64 gcm.gcm_error gcm.decrypt (subslice b 0 16) (subslice b 16 28) (subslice b 28 28)
         (subslice b 48 64) (subslice b 64 80) (subslice b 80 96) (subslice b 96 112) (subslice b 128 448) .
   guard is_ok v2 . else return 9 .
   guard eq (ok_value v2) 0 . else return 8 .

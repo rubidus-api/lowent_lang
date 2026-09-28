@@ -25,8 +25,8 @@ end
 
 rem ✔ ③ 루프에서 표를 훑는다 — `bench_http` 의 실제 모양이다.
 export fn prefix_sum output u64 . do
-  var k u64 be 0 .
-  var acc u64 be 0 .
+  var k be u64 0 .
+  var acc be u64 0 .
   while lt k 11 . do
     set acc (add acc (widen u64 (index "/api/users/" k))) .
     set k (add k 1) .

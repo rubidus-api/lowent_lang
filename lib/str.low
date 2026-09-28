@@ -26,7 +26,7 @@ rem ── 비교 ────────────────────�
 rem 바이트 단위 동등 — 빌트인 `eq` 는 스칼라 전용이라(E-VM-TYPE) 슬라이스 비교는 여기 산다.
 export fn eq_str input a str . input b str . output bool . do
   guard eq (len a) (len b) . else return false .
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len a) . do
     guard eq (index a i) (index b i) . else return false .
     set i (add i 1) .
@@ -36,7 +36,7 @@ end
 
 rem 바이트 멤버십 — 빌트인 `contains` 는 bitset 전용이다. cut 집합 검사(trim)가 쓴다.
 export fn has_byte input s str . input b u8 . output bool . do
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     if eq (index s i) b . do return true . end
     set i (add i 1) .
@@ -53,7 +53,7 @@ export fn find input hay str . input needle str . input from u64 . output option
 do
   guard le from (len hay) . else return none .
   guard gt (len needle) 0 . else return (some from) .   rem 빈 needle = 그 자리(규약)
-  var i u64 be from .
+  var i be u64 from .
   while le (add i (len needle)) (len hay) . do
     if eq_str (subslice hay i (add i (len needle))) needle . do
       return (some i) .
@@ -93,7 +93,7 @@ end
 rem ── 다듬기 — cut 은 "잘라낼 바이트들의 집합" (예: " \t\n") ──────────────
 
 export fn trim_start input s str . input cut str . output str . do
-  var i u64 be 0 .
+  var i be u64 0 .
   while lt i (len s) . do
     guard has_byte cut (index s i) . else return (subslice s i (len s)) .
     set i (add i 1) .
@@ -102,7 +102,7 @@ export fn trim_start input s str . input cut str . output str . do
 end
 
 export fn trim_end input s str . input cut str . output str . do
-  var j u64 be (len s) .
+  var j be u64 (len s) .
   while gt j 0 . do
     guard has_byte cut (index s (sub j 1)) . else return (subslice s 0 j) .
     set j (sub j 1) .
@@ -119,7 +119,7 @@ rem   상태를 나눠 갖지 않으므로 같은 src 를 여러 커서가 **동
 export fn split_next input src str . input sep u8 . input pos u64 . output option str .
 do
   guard le pos (len src) . else return none .
-  var j u64 be pos .
+  var j be u64 pos .
   while lt j (len src) . do
     if eq (index src j) sep . do return (some (subslice src pos j)) . end
     set j (add j 1) .
@@ -145,16 +145,16 @@ export actor str_splitter do
   end
   proc next output option slice u8 . effects state . do
     guard eq fin false . else return none .
-    var j u64 be pos .
+    var j be u64 pos .
     while lt j (len src) . do
       if eq (index src j) sep . do
-        let piece slice u8 be subslice src pos j .
+        let piece be slice u8 subslice src pos j .
         set pos (add j 1) .
         return (some piece) .
       end
       set j (add j 1) .
     end
-    let last slice u8 be subslice src pos (len src) .
+    let last be slice u8 subslice src pos (len src) .
     set fin true .
     return (some last) .
   end

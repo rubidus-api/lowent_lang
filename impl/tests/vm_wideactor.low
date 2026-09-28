@@ -19,7 +19,7 @@ actor adder do
 end
 
 export proc wide_msg output u64 . effects state . do
-  var c adder be spawn actor adder . .
+  var c be adder spawn actor adder . .
   spawn send c take 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 .
   drain c .
   return send c get .

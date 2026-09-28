@@ -11,34 +11,34 @@ module vm_bwidth .
 
 rem 폭 8 밖(8) 을 밀면 트랩 — 전엔 조용히 받아 count=1 이었다.
 fn w8_add_oob output u64 . do
-  var a bitset 8 . be bitset_new 8 .
+  var a be bitset 8 bitset_new 8 .
   add a 8 .
   return count a .
 end
 
 rem 폭 8 안(7) 은 정상 — 과잉규제도 거짓말과 같은 부류다.
 fn w8_add_ok output u64 . do
-  var a bitset 8 . be bitset_new 8 .
+  var a be bitset 8 bitset_new 8 .
   add a 7 .
   return count a .
 end
 
 rem contains 도 폭까지 — 폭 밖(20) 질의는 트랩.
 fn w8_contains_oob output u64 . do
-  var a bitset 8 . be bitset_new 8 .
+  var a be bitset 8 bitset_new 8 .
   return narrow u64 (contains a 20) .
 end
 
 rem remove 도 대칭 — 폭 밖(20) 제거는 트랩.
 fn w8_remove_oob output u64 . do
-  var a bitset 8 . be bitset_new 8 .
+  var a be bitset 8 bitset_new 8 .
   remove a 20 .
   return count a .
 end
 
 rem 정상 경로: 폭 8 안에서 3 을 넣고 질의 → 1.
 fn w8_within output u64 . do
-  var a bitset 8 . be bitset_new 8 .
+  var a be bitset 8 bitset_new 8 .
   add a 3 .
   return narrow u64 (contains a 3) .
 end
@@ -56,10 +56,10 @@ fn p_add_ok input s bitset 8 . input k u64 . output u64 . do
 end
 rem 위 둘을 호출해 실행 가능한 진입점(폭 밖 20 은 트랩, 폭 안 5 는 1).
 fn p_drive_oob output u64 . do
-  var a bitset 8 . be bitset_new 8 .
+  var a be bitset 8 bitset_new 8 .
   return p_add_oob a 20 .
 end
 fn p_drive_ok output u64 . do
-  var a bitset 8 . be bitset_new 8 .
+  var a be bitset 8 bitset_new 8 .
   return p_add_ok a 5 .
 end

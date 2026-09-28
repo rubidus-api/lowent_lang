@@ -3,9 +3,9 @@ rem expect: E-NAME-SHADOW
 
 fn f input a u64 . output u64 .
 do
-  let t u64 be 1 .
+  let t be u64 1 .
   if gt a 1 . do
-    let t u64 be 2 .
+    let t be u64 2 .
     return t .
   end
   return t .

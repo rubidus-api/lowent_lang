@@ -183,7 +183,7 @@ typedef struct {
     proven_size_t        tsp;
     bool                 tstk_bad;          // 스택이 어긋나면 추적을 포기한다(보수적)
     proven_u8            vec_lanes, vec_esz;   // comptime vector context (binding type)
-    // ★ **비트셋 폭 컨텍스트** — `var c bitset 8 . be complement a .` 의 8. 여집합은 폭이 있어야
+    // ★ **비트셋 폭 컨텍스트** — `var c be bitset 8 complement a .` 의 8. 여집합은 폭이 있어야
     //   옳다(bitset 8 의 여집합이 상위 56 비트를 켜면 안 된다). 폭을 **하강 시점에 박아** 두 백엔드가
     //   같은 마스크를 쓰게 한다 — 그러지 않으면 VM(폭을 든다)과 네이티브(폭 없는 워드)가 갈린다.
     proven_u8            bset_w;
@@ -293,7 +293,7 @@ typedef struct {
     //     사실은 길이가 아니라 **지역 사이의** 차분(`i + 4 ≤ n`)이다. 그래서 여백이 둘 다 필요하다.
     proven_i64 leoff[IR_MAXLOCALS];
     // ★★★ **레인 수도 지역을 건너야 한다** (2026-08-17, SIMD-0001).
-    //   스택 값에만 실었더니 `var v vec u32 4 . be load a i .` 한 줄에서 사라졌다 —
+    //   스택 값에만 실었더니 `var v be vec u32 4 load a i .` 한 줄에서 사라졌다 —
     //   그 문장은 STORE 로 지역에 넣고 나중에 LOAD 로 꺼내므로, 값에만 붙은 것은 죽는다.
     //   실측으로 그 자리를 봤다(디버그: 저장 시점 L=0). `lenofloc` 이 `lenof` 에 대해
     //   하는 일과 **똑같다** — 흔한 관용구가 사실을 죽이면 그 사실은 없는 것과 같다.

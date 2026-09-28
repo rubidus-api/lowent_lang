@@ -9,13 +9,13 @@
 (#chref("generics"), #chref("lib-containers")).
 
 ```lowent
-let g option (vecgen.vec u32 allocs.bump_bytes) . using bump be vecgen.open u32 2 .
+let g using bump be option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32 2 .
 guard is_some g . else return 1 .
-var v vecgen.vec u32 allocs.bump_bytes . be some_value g .
+var v be (vecgen.vec u32 allocs.bump_bytes) some_value g .
 guard vecgen.append u32 allocs.bump_bytes v 100 . else return 2 .
 guard vecgen.append u32 allocs.bump_bytes v 101 . else return 3 .
 guard vecgen.append u32 allocs.bump_bytes v 102 . else return 4 .
-let x option u32 . be vecgen.at u32 allocs.bump_bytes v 0 .
+let x be option u32 vecgen.at u32 allocs.bump_bytes v 0 .
 ```
 
 *타입을 매번 적는다.* 추론이 없어서가 아니라 일부러 넣지 않았다 --- 어떤 인스턴스가 생겼는지(바이너리에 코드가 몇 벌 생기는지) 소스에 보이고, 읽는 사람이 `v` 의
@@ -49,7 +49,7 @@ let x option u32 . be vecgen.at u32 allocs.bump_bytes v 0 .
 
 ```lowent
 guard vecgen.reserve_more u16 allocs.bump_bytes v (len src) . else return false .
-var i u64 be 0 .
+var i be u64 0 .
 while lt i (len src) . do
   guard vecgen.append u16 allocs.bump_bytes v (index src i) . else return false .
   set i (add i 1) .

@@ -48,7 +48,7 @@ Let us look at a small program that actually runs.
   so the product cannot overflow.
 - `return mul w h .` returns `w` times `h`. The operation name comes first and the arguments follow. A statement ends with a detached
   period.
-- `main` is the op where the program starts. `let a u64 be area 3 4 .` gets 12 into `a`, and `write_out out 1 "…"` writes a line to
+- `main` is the op where the program starts. `let a be u64 area 3 4 .` gets 12 into `a`, and `write_out out 1 "…"` writes a line to
   standard output (number 1). That line is possible because the head receives `cap io` and declares `effects io`. The 12 it returns
   becomes the exit value handed to the operating system.
 

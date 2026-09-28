@@ -9,8 +9,8 @@ use budget from "../../lib/budget.low" .
 
 rem ★ 권고 기본값이 실제로 그 수인가 — 문서가 아니라 **도구가** 답한다.
 proc defaults output u64 . effects none . do
-  let p64 budget.plan be budget.default64 .
-  let p32 budget.plan be budget.default32 .
+  let p64 be budget.plan budget.default64 .
+  let p32 be budget.plan budget.default32 .
   guard eq (field p64 slot_bits) 32 . else return 91 .
   guard eq (field p64 shard_bits) 8 . else return 92 .
   guard eq (field p64 gen_bits) 24 . else return 93 .
@@ -25,9 +25,9 @@ end
 
 rem ★★ **넣고 되꺼내면 그대로 나온다** — 64 비트 배분에서.
 proc roundtrip output u64 . effects none . do
-  let ho option u64 . be budget.pack 32 8 24 1234567 200 99 .
+  let ho be option u64 budget.pack 32 8 24 1234567 200 99 .
   guard is_some ho . else return 90 .
-  let h u64 be some_value ho .
+  let h be u64 some_value ho .
   guard eq (budget.slot_of 32 h) 1234567 . else return 91 .
   guard eq (budget.shard_of 32 8 h) 200 . else return 92 .
   guard eq (budget.gen_of 32 8 h) 99 . else return 93 .
@@ -36,14 +36,14 @@ end
 
 rem ★★ 32 비트 배분에서도 같다.
 proc roundtrip32 output u64 . effects none . do
-  let ho option u64 . be budget.pack 16 4 12 65535 15 4000 .
+  let ho be option u64 budget.pack 16 4 12 65535 15 4000 .
   guard is_some ho . else return 90 .
-  let h u64 be some_value ho .
+  let h be u64 some_value ho .
   guard eq (budget.slot_of 16 h) 65535 . else return 91 .
   guard eq (budget.shard_of 16 4 h) 15 . else return 92 .
   guard eq (budget.gen_of 16 4 h) 4000 . else return 93 .
   rem ★ 자기 칸에 안 들어가는 값은 **조용히 잘리지 않는다** — none 이다.
-  let over option u64 . be budget.pack 16 4 12 65536 0 0 .
+  let over be option u64 budget.pack 16 4 12 65536 0 0 .
   guard eq (is_some over) false . else return 94 .
   return 3 .
 end
@@ -55,22 +55,22 @@ proc wrap_retires output u64 . effects none . do
   guard eq (budget.retired 4 15) true . else return 92 .
 
   rem 마지막 직전에는 다음 세대가 있다
-  let n1 option u64 . be budget.next_gen 4 14 .
+  let n1 be option u64 budget.next_gen 4 14 .
   guard is_some n1 . else return 93 .
   guard eq (some_value n1) 15 . else return 94 .
 
   rem ★ 마지막에 닿으면 **없다** — 트랩이 아니라 값이다(RFC-0043 D5 와 같은 규율).
-  let n2 option u64 . be budget.next_gen 4 15 .
+  let n2 be option u64 budget.next_gen 4 15 .
   guard eq (is_some n2) false . else return 95 .
   return 4 .
 end
 
 rem 담을 수 있는 수 — 비용표의 그 수다.
 proc capacities output u64 . effects none . do
-  let p budget.plan be budget.default64 .
-  let s option u64 . be budget.slots p .
-  let h option u64 . be budget.shards p .
-  let g option u64 . be budget.lives p .
+  let p be budget.plan budget.default64 .
+  let s be option u64 budget.slots p .
+  let h be option u64 budget.shards p .
+  let g be option u64 budget.lives p .
   guard is_some s . else return 91 .
   guard is_some h . else return 92 .
   guard is_some g . else return 93 .
@@ -78,8 +78,8 @@ proc capacities output u64 . effects none . do
   guard eq (some_value h) 256 . else return 95 .
   guard eq (some_value g) 16777216 . else return 96 .
   rem ★ 셀 수 없는 폭은 **값으로** 거절된다 — 조용히 음수를 내지 않는다.
-  let wide budget.plan be make budget.plan do slot_bits 63 . shard_bits 0 . gen_bits 0 . end .
-  let w option u64 . be budget.slots wide .
+  let wide be budget.plan make budget.plan do slot_bits 63 . shard_bits 0 . gen_bits 0 . end .
+  let w be option u64 budget.slots wide .
   guard eq (is_some w) false . else return 97 .
   return 5 .
 end

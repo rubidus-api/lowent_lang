@@ -37,7 +37,7 @@ unsafe proc drive .
   output u32 .
   effects device unsafe .    rem ★ volatile 접근은 **부작용**이다 — 시그니처에 보인다
 do
-  var g gpio . be view gpio regs .
+  var g be gpio view gpio regs .
   write_volatile g moder 2 .        rem rw — 쓴다
   write_volatile g bsrr 1 .         rem wo — 쓴다
   return read_volatile g idr .      rem ro — 읽는다

@@ -27,15 +27,15 @@ proc producer input ch u64 . output u64 . effects concurrent . do
   return chsend ch 41 .
 end
 proc consumer input ch u64 . input s sink . output u64 . effects state concurrent . do
-  var x u64 be chrecv ch .
+  var x be u64 chrecv ch .
   return send s put x .
 end
 
 rem rendezvous: consumer 가 빈 채널에서 블록 → producer 가 41 을 보내면 재개 → sink=41. 어떤
 rem   인터리빙이든(consumer 먼저·producer 먼저) 41 — 오라클이 전 interleaving 확인.
 test ch_rendezvous schedule explore_interleavings . do
-  var ch u64 be channel u64 . .
-  var s sink be spawn actor sink . .
+  var ch be u64 channel u64 . .
+  var s be sink spawn actor sink . .
   task_group do
     spawn consumer ch s .
     spawn producer ch .
@@ -48,10 +48,10 @@ proc p10 input ch u64 . output u64 . effects concurrent . do return chsend ch 10
 proc p20 input ch u64 . output u64 . effects concurrent . do return chsend ch 20 . end
 proc p30 input ch u64 . output u64 . effects concurrent . do return chsend ch 30 . end
 proc p40 input ch u64 . output u64 . effects concurrent . do return chsend ch 40 . end
-proc csum input ch u64 . input s sink . output u64 . effects state concurrent . do var x u64 be chrecv ch . return send s put x . end
+proc csum input ch u64 . input s sink . output u64 . effects state concurrent . do var x be u64 chrecv ch . return send s put x . end
 test ch_many schedule explore_interleavings limit 200 . do
-  var ch u64 be channel u64 . .
-  var s sink be spawn actor sink . .
+  var ch be u64 channel u64 . .
+  var s be sink spawn actor sink . .
   task_group do
     spawn p10 ch .
     spawn p20 ch .
@@ -67,8 +67,8 @@ end
 
 rem `chsend`/`chrecv` + 블로킹 — VM(코루틴 인터리빙)≡네이티브(코루틴, round-robin). 차등 스윕.
 proc drive output u64 . effects state . do
-  var ch u64 be channel u64 . .
-  var s sink be spawn actor sink . .
+  var ch be u64 channel u64 . .
+  var s be sink spawn actor sink . .
   task_group do
     spawn consumer ch s .
     spawn producer ch .

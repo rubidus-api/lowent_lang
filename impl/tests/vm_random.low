@@ -29,9 +29,9 @@ end
 
 rem 열은 이어진다: 상태를 물려 세 번 돌리면 처음과 다르다.
 fn t_stream input z u64 . output u64 . do
-  let a u64 be call_builtin rng_next 0 .
-  let b u64 be call_builtin rng_next a .
-  let c u64 be call_builtin rng_next b .
+  let a be u64 call_builtin rng_next 0 .
+  let b be u64 call_builtin rng_next a .
+  let c be u64 call_builtin rng_next b .
   guard ne a b . else return 90 .
   guard ne b c . else return 91 .
   guard ne a c . else return 92 .

@@ -41,17 +41,17 @@ proc main .
   output u8 .
   effects alloc atomic state .
 do
-  let mb option mut slice u8 . . be alloc_bytes al capacity 32 .
+  let mb be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some mb . else return 89 .
-  var c mut slice u64 . be view_array u64 (some_value mb) .
+  var c be mut slice u64 view_array u64 (some_value mb) .
 
   guard eq (lifeatom.rc_open k c) 1 . else return 43 .
 
   rem ── 흐름 넷이 저마다 나눠 갖는다 ──
-  var h0 u64 be 0 .
-  var h1 u64 be 0 .
-  var h2 u64 be 0 .
-  var h3 u64 be 0 .
+  var h0 be u64 0 .
+  var h1 be u64 0 .
+  var h2 be u64 0 .
+  var h3 be u64 0 .
   task_group do
     set h0 spawn share_one k c .
     set h1 spawn share_one k c .

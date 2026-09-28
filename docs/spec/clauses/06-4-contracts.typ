@@ -240,8 +240,8 @@ export fn read_pair input data slice u8 . . output u32 .
   requires ge (len data) 2 .
   ensures le ret 65535 .
 do
-  let hi u32 be widen u32 (index data 0) .
-  let lo u32 be widen u32 (index data 1) .
+  let hi be u32 widen u32 (index data 0) .
+  let lo be u32 widen u32 (index data 1) .
   return add (mul hi 256) lo .
 end")
     #plain[
@@ -369,35 +369,35 @@ fn f output u8 . do return 1 . end", "E-BUILD-MODE")
     ]
     #rejected("모듈 이름을 가릴 수 없다", "module ex_shadow .
 
-let g u32 be 7 .
+let g be u32 7 .
 
 proc p output u32 . effects none .
 do
-  let g u32 be 1 .     rem 모듈의 `g` 를 가린다
+  let g be u32 1 .     rem 모듈의 `g` 를 가린다
   return g .
 end", "E-NAME-SHADOW")
     #rejected("매개변수를 가릴 수 없다", "module ex_shadow_param .
 
 proc p input n u32 . output u32 . effects none .
 do
-  let n u32 be 1 .     rem 매개변수 `n` 을 가린다
+  let n be u32 1 .     rem 매개변수 `n` 을 가린다
   return n .
 end", "E-NAME-SHADOW")
     #rejected("같은 블록에서 같은 이름을 두 번 선언할 수 없다", "module ex_shadow_twice .
 
 proc p output u32 . effects none .
 do
-  let a u32 be 1 .
-  let a u32 be 2 .     rem 첫 번째를 대신하지 않는다
+  let a be u32 1 .
+  let a be u32 2 .     rem 첫 번째를 대신하지 않는다
   return a .
 end", "E-NAME-SHADOW")
     #rejected("안쪽 블록이 바깥 이름을 가릴 수 없다", "module ex_shadow_inner .
 
 proc p input n u32 . output u32 . effects none .
 do
-  let a u32 be 1 .
+  let a be u32 1 .
   guard gt n 0 . else do
-    let a u32 be 2 .   rem 바깥 `a` 가 아직 살아 있다
+    let a be u32 2 .   rem 바깥 `a` 가 아직 살아 있다
     return a .
   end
   return a .
@@ -607,7 +607,7 @@ end", "E-CONTRACT-IMPOSSIBLE")
     #para("1")[
       시험 블록은 모듈의 최상위에 온다. 머리에는 이름과, 있으면 `schedule` 절(#cref("6.4.1") (3d))이 오고, 몸에는
       op 의 몸에 오는 폼이 온다. 몸은 op 의 몸과 **같은 타입 규칙**으로 검사된다 — 시험 안이라고
-      `let x u8 be 300 .` 이 통과하지 아니한다.
+      `let x be u8 300 .` 이 통과하지 아니한다.
     ]
     #para("1a")[
       시험의 이름은 op · 타입 · 모듈의 이름과 **같은 이름 공간**에 든다. 한 모듈 안에서 시험끼리, 또는 시험과

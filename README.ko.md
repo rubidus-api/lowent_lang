@@ -1,10 +1,10 @@
+**한국어** | [English](README.md) — **Lowent v1.3.0** — [릴리스 노트](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.3.0) · [PDF 매뉴얼(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF 매뉴얼(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF 명세(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+
 # Lowent (로우엔트)
 
 > [!WARNING]
 > **Lowent 는 아직 개발 중이며, 언어 설계도 계속 바뀌고 있습니다.**
 > 문법, 표준 라이브러리, 진단 코드, 명령줄 옵션이 예고 없이 바뀔 수 있습니다. 아직 호환성을 약속하지 않으며, 실제 서비스에 쓸 단계가 아닙니다.
-
-[English](README.md)
 
 **매뉴얼:** [웹에서 읽기](https://rubidus-api.github.io/lowent_lang/manual/html-ko/index.html) · [PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [English web](https://rubidus-api.github.io/lowent_lang/manual/html-en/index.html) · [English PDF](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf)  
 **명세:** [웹](https://rubidus-api.github.io/lowent_lang/spec/html/) · [PDF](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)

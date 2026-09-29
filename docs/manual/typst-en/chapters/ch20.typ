@@ -181,6 +181,21 @@ A bump allocator only moves forward. Even so, *the piece it handed out last* is 
 Both ops are *an optimisation, not a promise*. If a piece cannot grow, the caller receives a new one and copies, and the answer must be the same. For
 `fixed_bytes` and `heap_bytes`, which carve straight from a root, `grow` is always `none`. A root does not know whose piece came last.
 
+== Taking a list from an allocator
+
+A list written out as values (#chref("slices")) normally sits in the op's frame. When it is large, or must outlive the op,
+take its bytes from an allocator you choose: write `using <allocator>` on the binding and `option` in the type position.
+
+#demo("examples/ch20/litalloc.low")
+
+- `var xo using bb be option lit array u64 4 … .` asks `bb` for 32 bytes and, if it gets them, fills them like any list and
+  gives `some`. If the allocator cannot give the bytes, the value is `none`. Whatever can fail is an `option`, so check it with
+  `guard is_some` before use.
+- Filling works as for a frame list: list the elements, or fill chosen cells with `do … end`.
+- The bytes belong to the allocator, so their lifetime follows it. Bytes from the heap may be returned out of the block; bytes
+  from a bump allocator backed by a frame array cannot leave that array's block (`E-LIT-ESCAPE`).
+- Leaving out `option`, or writing `using` on a `lit vec`, is `E-LIT-USING`.
+
 == Where the three layers sit in the standard library
 
 #dtable(
@@ -308,6 +323,7 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [default allocators carving straight from a root], [only an op holding that kind of capability may spawn one --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [grows the last piece · takes it back], [checks identity with `same_slice`, not size],
   [no source · an unused `using`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [no global allocator, and no empty choice],
+  [`var xo using bb be option lit array u64 4 … .`], [takes a list from the allocator you choose], [`none` if it runs out --- the type is `option`],
   [`bit_cast u32 x`], [keep the bits, change only how they are read], [never read as `bool` or `enum`],
 )
 

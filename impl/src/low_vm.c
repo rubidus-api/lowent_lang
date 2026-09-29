@@ -1996,6 +1996,16 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 stack[sp++] = (vmv_t){ .tag = VMV_SLICE, .p = a->lbuf + off, .n = len };
                 break;
             }
+            case IRW_BFILL: {   // ★ §13.7 — 받은 바이트를 나열의 본으로 채운다
+                if (sp < 1) return false;
+                proven_size_t len = (proven_size_t)((proven_u64)in->a >> 32), si1 = (proven_size_t)((proven_u64)in->a & 0xffffffffu);
+                vmv_t s = stack[sp - 1];
+                if (s.tag != VMV_SLICE || s.n < len) { vm_diag(vm->diags, "E-VM-TYPE", "the allocator gave fewer bytes than the list needs"); return false; }
+                proven_u8 *p = (proven_u8 *)(void *)s.p;
+                if (si1) memcpy(p, vm->ir->strs[si1 - 1].ptr, len); else memset(p, 0, len);
+                stack[sp - 1] = (vmv_t){ .tag = VMV_SLICE, .p = s.p, .n = len };
+                break;
+            }
             case IRW_LBUFC: {   // ★ T2b-3 — 틀 안 자리를 상수 본으로 채운다
                 proven_size_t off = (proven_size_t)((proven_u64)in->a & 0xffffffffu);
                 proven_u8str_view_t tv = vm->ir->strs[(proven_u64)in->a >> 32];

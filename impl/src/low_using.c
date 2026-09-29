@@ -29,6 +29,8 @@
 #include "low_cst_priv.h"
 #include "low_cst.h"
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define US_MAXOPS   4096
 #define US_MAXSCOPE 256
@@ -411,6 +413,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
             if (us_atom(nd->kids[i]) && us_eq(nd->kids[i]->tok.lex, "using")) us = i;
         }
         const low_cst_t *explicit_src = NULL;
+        bool explicit_src_told = false;                   // 이미 E-LIT-USING 으로 말했다
         if (us < be) {
             if (us + 2 != be || !us_atom(nd->kids[us + 1])) {
                 low_pdiag(&c->p, "E-USING-FORM",
@@ -447,7 +450,67 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                 } else u = NULL;
             }
         }
-        if (explicit_src && !u) {
+        // ★★ RFC-0132 §13.7 — 나열을 고른 할당자에서 받는다. 값을 [using, (send <출처> reserve <바이트>), <나열>] 로
+        //   바꾼다(정규화가 만든 폼 — `synth`). 뒤의 모든 검사(효과 · send 대조)는 평범한 `send` 를 본다.
+        {
+            const low_cst_t *lg = init;
+            while (lg && lg->kind == LOW_CST_GROUP && lg->nkids == 1) lg = lg->kids[0];
+            bool is_list = lg && lg->kind == LOW_CST_FORM && lg->nkids >= 3 && us_atom(lg->kids[0]) && lg->kids[0]->tok.kw == LOW_KW_LIT &&
+                           us_atom(lg->kids[1]) && us_atom(lg->kids[2]) &&
+                           (us_eq(lg->kids[1]->tok.lex, "array") || us_eq(lg->kids[1]->tok.lex, "slice") ||
+                            (us_eq(lg->kids[1]->tok.lex, "vec") && lg->kids[lg->nkids - 1]->kind != LOW_CST_BLOCK));
+            if (explicit_src && is_list) {
+                bool opt = be > 2 && us_atom(nd->kids[2]) && us_eq(nd->kids[2]->tok.lex, "option");
+                if (us_eq(lg->kids[1]->tok.lex, "vec") || !opt) {
+                    explicit_src_told = true;
+                    low_pdiag(&c->p, "E-LIT-USING", us_eq(lg->kids[1]->tok.lex, "vec")
+                              ? "a SIMD value lives in lanes, not in bytes an allocator hands out — `using` does not apply to `lit vec`"
+                              : "a list built from an allocator can fail to get its bytes, so its type is `option`: "
+                                "`var buf using al be option lit array u8 16 _ . .` — then `guard is_some buf . else …` (RFC-0132 §13.7)",
+                              explicit_src->tok.line, explicit_src->tok.col);
+                } else {
+                    proven_u8str_view_t ty = lg->kids[2]->tok.lex;
+                    unsigned esz = us_eq(ty, "u16") || us_eq(ty, "i16") ? 2 : us_eq(ty, "u32") || us_eq(ty, "i32") || us_eq(ty, "f32") ? 4 :
+                                   us_eq(ty, "u64") || us_eq(ty, "i64") || us_eq(ty, "f64") || us_eq(ty, "usize") || us_eq(ty, "isize") ? 8 : 1;
+                    unsigned long long cnt = 0;
+                    if (us_eq(lg->kids[1]->tok.lex, "array")) {
+                        if (lg->nkids > 3 && us_atom(lg->kids[3])) cnt = strtoull((const char *)lg->kids[3]->tok.lex.ptr, NULL, 0);
+                    } else for (proven_size_t q = 3; q < lg->nkids; q++) if (!(us_atom(lg->kids[q]) && us_eq(lg->kids[q]->tok.lex, "_"))) cnt++;
+                    char *num = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, 24, 1).value.ptr;
+                    low_cst_t **sk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 4, alignof(low_cst_t *)).value.ptr;
+                    low_cst_t **uk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 3, alignof(low_cst_t *)).value.ptr;
+                    low_cst_t **gk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *), alignof(low_cst_t *)).value.ptr;
+                    low_cst_t *sf = low_node(&c->p, LOW_CST_FORM, explicit_src->tok), *sg = low_node(&c->p, LOW_CST_GROUP, explicit_src->tok);
+                    low_cst_t *uf = low_node(&c->p, LOW_CST_FORM, explicit_src->tok);
+                    if (num && sk && uk && gk && sf && sg && uf) {
+                        snprintf(num, 24, "%llu", cnt * esz);
+                        sk[0] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"send", .size = 4 });
+                        sk[1] = (low_cst_t *)explicit_src;
+                        sk[2] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"reserve", .size = 7 });
+                        sk[3] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)num, .size = strlen(num) });
+                        if (sk[0] && sk[2] && sk[3]) {
+                            sk[3]->tok.kind = LOW_TOK_NUMBER;
+                            sk[0]->tok.kw = LOW_KW_SEND;          // 파서가 `send` 에 붙이는 예약어 표시 그대로
+                            (void)low_refit(&c->p, sf, sk, 4); sf->synth = true;
+                            gk[0] = sf; (void)low_refit(&c->p, sg, gk, 1); sg->synth = true;
+                            uk[0] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"using", .size = 5 });
+                            if (uk[0]) {
+                                uk[0]->synth = true;
+                                uk[1] = sg; uk[2] = init;
+                                (void)low_refit(&c->p, uf, uk, 3); uf->synth = true;
+                                us_walk(c, init);
+                                nd->kids[be + 1] = uf;
+                                us_push_bind(c, nd->kids[1]->tok.lex, us_type_word(nd, 2), false);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (be + 1 < nd->nkids && us_atom(nd->kids[be + 1]) && us_eq(nd->kids[be + 1]->tok.lex, "option"))
+            explicit_src_told = true;                     // `be option lit …` 을 선언 패스가 이미 말했다(E-LIT-USING)
+        if (explicit_src && !u && !explicit_src_told) {
             low_pdiag(&c->p, "E-ALLOC-USING-UNUSED",
                       "this binding says which allocator to use, but the call it initialises does not draw from one "
                       "(no `using` clause on that op). An object that already carries its allocator — like "
@@ -751,6 +814,43 @@ static void dt_decl(dt_ctx_t *c, low_cst_t *f) {
     //   선언 타입으로 복사해 넣는다(`let p be lit pt do … end .` → [let, p, pt, be, lit, pt do … end]).
     //   `lit pt do … end` 는 파서가 `pt do … end` 를 머리 붙은 블록 폼 하나로 이미 묶어 둔다.
     // `--fmt` 는 값을 괄호로 싸서 찍는다 — `be (lit pt do … end)` 도 같다.
+    // ★★ RFC-0132 §13.7 (2026-09-30, 소유자 «넣습니다») — **고른 할당자에서 받는 나열**: `var bo using al be option
+    //   lit array T N … .`. 값은 할당자가 준 바이트에 지은 나열이고, 할당이 실패할 수 있으므로 타입은 `option` 이다.
+    //   안쪽 모양의 선언 타입은 `option mut slice T`. 값(나열)은 그대로 두고, using 패스가 할당과 채우기로 바꾼다.
+    if (b + 3 == f->nkids && us_atom(f->kids[b + 1]) && us_eq(f->kids[b + 1]->tok.lex, "option") &&
+        f->kids[b + 2]->kind == LOW_CST_GROUP && f->kids[b + 2]->nkids == 1 && f->kids[b + 2]->kids[0]->kind == LOW_CST_FORM) {
+        const low_cst_t *lf = f->kids[b + 2]->kids[0];
+        if (lf->nkids >= 3 && us_atom(lf->kids[0]) && lf->kids[0]->tok.kw == LOW_KW_LIT && us_atom(lf->kids[1]) && us_atom(lf->kids[2]) &&
+            us_eq(lf->kids[1]->tok.lex, "vec") && lf->kids[lf->nkids - 1]->kind != LOW_CST_BLOCK) {
+            dt_diag(c, f->kids[1], "E-LIT-USING", "a SIMD value lives in lanes, not in bytes an allocator hands out — "
+                    "`option lit vec …` has no meaning (RFC-0132 §13.7)");
+            return;
+        }
+        if (lf->nkids >= 3 && us_atom(lf->kids[0]) && lf->kids[0]->tok.kw == LOW_KW_LIT && us_atom(lf->kids[1]) && us_atom(lf->kids[2]) &&
+            (us_eq(lf->kids[1]->tok.lex, "array") || us_eq(lf->kids[1]->tok.lex, "slice"))) {
+            if (b != 4) {
+                dt_diag(c, f->kids[1], "E-LIT-USING", "`option lit …` is a list built in bytes from an allocator — name the "
+                        "allocator before `be`: `var buf using al be option lit array u8 16 _ . .` (RFC-0132 §13.7)");
+                return;
+            }
+            if (c->migrate) return;
+            low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 10, alignof(low_cst_t *)).value.ptr;
+            if (!nk) return;
+            const char *w[3] = { "option", "mut", "slice" };
+            proven_size_t m = 0;
+            nk[m++] = f->kids[0]; nk[m++] = f->kids[1];
+            for (int q = 0; q < 4; q++) {
+                low_cst_t *cp = (low_cst_t *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, sizeof(low_cst_t), alignof(low_cst_t)).value.ptr;
+                if (!cp) return;
+                *cp = *lf->kids[2];
+                if (q < 3) { cp->tok.lex = (proven_u8str_view_t){ .ptr = (const proven_u8 *)w[q], .size = strlen(w[q]) }; cp->tok.kw = LOW_KW_NONE; }
+                nk[m++] = cp;
+            }
+            nk[m++] = f->kids[2]; nk[m++] = f->kids[3]; nk[m++] = f->kids[b]; nk[m++] = f->kids[b + 2];
+            (void)low_refit(&c->p, f, nk, m);
+            return;
+        }
+    }
     low_cst_t *const *vk = NULL; proven_size_t vn = 0;
     if (b + 2 < f->nkids && us_atom(f->kids[b + 1]) && f->kids[b + 1]->tok.kw == LOW_KW_LIT) {
         vk = f->kids + b + 2; vn = f->nkids - (b + 2);

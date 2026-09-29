@@ -1,0 +1,36 @@
+module vm_litalloc .
+rem ★★ RFC-0132 §13.7 — 고른 할당자에서 받는 나열 `var bo using al be option lit array T N … .`: 받으면 본으로 채워 `some`,
+rem   못 받으면 `none`. 뒤받침이 틀 안 배열인 범프 할당자 · 힙. VM 과 네이티브가 같은 답인가를 잰다.
+use allocs .
+
+fn sum input s slice u64 . output u64 . do
+  var t be u64 0 .
+  for x s do
+    set t (add t x) .
+  end
+  return t .
+end
+
+export proc heap_list input h cap heap . input a u64 . output u64 . effects heap state . do
+  var hb be allocs.heap_bytes spawn actor allocs.heap_bytes .
+  var bo using hb be option lit array u64 8 do 0 a . 7 (mul a 3) . _ 1 . end .
+  guard is_some bo . else return 0 .
+  var b be mut slice u64 some_value bo .
+  set (index b 1) 100 .
+  return sum b .
+end
+
+export proc bump_list input a u64 . output u64 . effects state . do
+  var back be lit array u8 64 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var x1 using bb be option lit array u32 4 1 2 3 (narrow u32 a) . .
+  var x2 using bb be option lit slice u64 5 6 . .
+  var x3 using bb be option lit array u64 8 _ . .
+  guard is_some x1 . else return 1 .
+  guard is_some x2 . else return 2 .
+  guard is_none x3 . else return 3 .
+  var s1 be mut slice u32 some_value x1 .
+  var s2 be mut slice u64 some_value x2 .
+  return add (add (widen u64 (index s1 3)) (index s2 1)) (len s2) .
+end

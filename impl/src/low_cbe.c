@@ -6633,6 +6633,14 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                             off, len, off, len);
                     break;
                 }
+                case IRW_BFILL: {  // ★ §13.7 — 받은 바이트를 나열의 본으로 채운다
+                    unsigned long long len = (unsigned long long)in->a >> 32, si1 = (unsigned long long)in->a & 0xffffffffull;
+                    fprintf(out, "    { lowv s_ = st[sp-1]; if (s_.n < %lluULL) lw_upanic(\"the allocator gave fewer bytes than the list needs\"); ", len);
+                    if (si1) fprintf(out, "memcpy((void *)s_.p, lw_strs[%llu].p, %llu); ", si1 - 1, len);
+                    else fprintf(out, "memset((void *)s_.p, 0, %llu); ", len);
+                    fprintf(out, "s_.n = %llu; st[sp-1] = s_; }\n", len);
+                    break;
+                }
                 case IRW_LBUFC: {  // ★ T2b-3 — 틀 안 자리를 상수 본으로 채운다(풀의 바이트를 베낀다)
                     unsigned long long off = (unsigned long long)in->a & 0xffffffffull, si = (unsigned long long)in->a >> 32;
                     fprintf(out, "    { lowv lv_ = {0}; memcpy(lw_lb + %llu, lw_strs[%llu].p, %llu); lv_.tag = LWV_SLICE; lv_.p = lw_lb + %llu; lv_.n = %llu; st[sp++] = lv_; }\n",

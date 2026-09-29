@@ -1938,7 +1938,7 @@ static void ir_cell_value(ir_ctx_t *c, const low_cst_t *cf) {
 //   실행 중 값인 칸을 **적은 차례로** 쓴다. `_` 의 값이 실행 중 값이면 **한 번** 계산해 이름 붙은 칸을 뺀 칸마다
 //   쓴다(이름 붙은 칸은 상수 가림 줄로 건너뛴다).
 static void ir_lit_fill(ir_ctx_t *c, const low_cst_t *blk, proven_size_t n, proven_u8 esz, bool flt, bool typed,
-                        proven_i64 vmeta, bool want_frame, proven_u32 line) {
+                        proven_i64 vmeta, bool want_frame, bool into, proven_u32 line) {
     const low_cst_t **cell = n ? calloc(n, sizeof *cell) : NULL;
     proven_u8 *tbuf = n ? calloc(n, esz) : NULL;
     proven_u8 *mask = n ? calloc(n, 1) : NULL;
@@ -1965,23 +1965,28 @@ static void ir_lit_fill(ir_ctx_t *c, const low_cst_t *blk, proven_size_t n, prov
                 if (!cell[m]) for (proven_u8 b = 0; b < esz; b++) tbuf[m * esz + b] = (proven_u8)(rbits >> (8 * b));
         for (proven_size_t m = 0; m < n; m++) if (!cell[m] && !rest) { ir_fail(c, "E-LIT-COUNT", "unfilled cell and no `_ <value> .`", line); goto done; }
         proven_size_t bytes = n * esz, si;
-        if (all_const && !want_frame) {                                   // ⓑ 읽기 전용 자리
+        if (all_const && !want_frame && !into) {                          // ⓑ 읽기 전용 자리
             if (!ir_intern_bytes(c, tbuf, bytes, &si, line)) goto done;
             ir_emit(c, IRW_STR, (proven_i64)si);
             if (typed) ir_emit(c, IRW_VARRAY, vmeta);
             goto done;
         }
-        proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
-        if (off + bytes > LOW_LBUF_MAX) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); goto done; }
-        c->lbuf_off = off + bytes;
-        proven_size_t tl = ir_hidden_local(c, line);
-        if (tl == (proven_size_t)-1) goto done;
         bool zero = true;
         for (proven_size_t b = 0; b < bytes; b++) if (tbuf[b]) { zero = false; break; }
-        if (zero) ir_emit(c, IRW_LBUF, (proven_i64)((proven_u64)off | ((proven_u64)bytes << 32)));
-        else {
-            if (!ir_intern_bytes(c, tbuf, bytes, &si, line)) goto done;
-            ir_emit(c, IRW_LBUFC, (proven_i64)((proven_u64)off | ((proven_u64)si << 32)));
+        if (!zero && !ir_intern_bytes(c, tbuf, bytes, &si, line)) goto done;
+        proven_size_t tl;
+        if (into) {                                                       // §13.7 — 할당자가 준 바이트(이미 스택에)
+            tl = ir_hidden_local(c, line);
+            if (tl == (proven_size_t)-1) goto done;
+            ir_emit(c, IRW_BFILL, (proven_i64)(((proven_u64)bytes << 32) | (zero ? 0u : (proven_u64)si + 1u)));
+        } else {
+            proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
+            if (off + bytes > LOW_LBUF_MAX) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); goto done; }
+            c->lbuf_off = off + bytes;
+            tl = ir_hidden_local(c, line);
+            if (tl == (proven_size_t)-1) goto done;
+            if (zero) ir_emit(c, IRW_LBUF, (proven_i64)((proven_u64)off | ((proven_u64)bytes << 32)));
+            else ir_emit(c, IRW_LBUFC, (proven_i64)((proven_u64)off | ((proven_u64)si << 32)));
         }
         if (typed) ir_emit(c, IRW_VARRAY, vmeta);
         ir_emit(c, IRW_STORE, (proven_i64)tl);
@@ -2047,6 +2052,8 @@ static void ir_lit_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, pr
 }
 static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line, bool as_array) {
     bool want_frame = c->lit_frame; c->lit_frame = false;   // ★ 부르는 쪽의 요구는 이 나열 하나에만
+    bool into = c->lit_into; c->lit_into = false;            // ★ §13.7 — 채울 바이트가 이미 스택에 있다
+    if (into) want_frame = true;
     if (*pos + 1 >= end || !is_atom(k[*pos]) || !is_atom(k[*pos + 1])) { ir_fail(c, "E-LIT-UNBUILT", "malformed list literal", line); return; }
     bool is_array = as_array || veq(k[*pos]->tok.lex, "array"), is_slice = veq(k[*pos]->tok.lex, "slice");
     if (!is_array && !is_slice) { ir_fail(c, "E-LIT-UNBUILT", "unknown list literal", line); return; }
@@ -2064,7 +2071,7 @@ static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos,
         if (*pos < end && k[end - 1]->kind == LOW_CST_BLOCK) {   // 칸 골라 채우기(T2b-3)
             const low_cst_t *blk = k[end - 1];
             *pos = end;
-            ir_lit_fill(c, blk, (proven_size_t)n, esz, flt, typed, vmeta, want_frame, line);
+            ir_lit_fill(c, blk, (proven_size_t)n, esz, flt, typed, vmeta, want_frame, into, line);
             return;
         }
     }
@@ -2083,13 +2090,16 @@ static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos,
     //   0 으로 채운 쓸 수 있는 슬라이스를 얻은 뒤 원소를 하나씩 쓴다(0 인 상수 원소는 이미 0 이라 건너뛴다).
     if (!all_const || want_frame) {
         proven_size_t bytes = cap_elems * esz;
-        proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
-        if (off + bytes > LOW_LBUF_MAX) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); return; }
-        c->lbuf_off = off + bytes;
         if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "list literal: too many locals", line); return; }
+        if (into) ir_emit(c, IRW_BFILL, (proven_i64)((proven_u64)bytes << 32));   // §13.7 — 받은 바이트를 0 으로
+        else {
+            proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
+            if (off + bytes > LOW_LBUF_MAX) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); return; }
+            c->lbuf_off = off + bytes;
+            ir_emit(c, IRW_LBUF, (proven_i64)((proven_u64)off | ((proven_u64)bytes << 32)));
+        }
         proven_size_t tl = c->nlocals++;
         c->locals[tl].name = (proven_u8str_view_t){ 0 };
-        ir_emit(c, IRW_LBUF, (proven_i64)((proven_u64)off | ((proven_u64)bytes << 32)));
         if (typed) ir_emit(c, IRW_VARRAY, vmeta);
         ir_emit(c, IRW_STORE, (proven_i64)tl);
         proven_size_t m = 0;
@@ -2381,6 +2391,26 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
     const low_cst_t *nd = k[(*pos)++];
     // ★ METHOD 원자(`..name`)도 **이름 원자**다 — 이 블록이 IDENT 만 열려 있어서 통째로
     //   건너뛰고 fallthrough 에서 "unsupported atom" 이 났다. (그 진단은 **오진**이었다.)
+    // ★★ RFC-0132 §13.7 — using 패스가 만든 [using, (send <출처> reserve <바이트>), <나열>]: 받으면 채워 `some`, 못 받으면 `none`.
+    if (is_atom(nd) && nd->synth && veq(nd->tok.lex, "using") && *pos + 2 <= end) {
+        const low_cst_t *snd = k[(*pos)++], *lst = k[(*pos)++];
+        ir_node(c, snd);
+        proven_size_t ov = ir_hidden_local(c, nd->line);
+        if (c->failed) return;
+        ir_emit(c, IRW_STORE, (proven_i64)ov);
+        ir_emit(c, IRW_LOAD, (proven_i64)ov); ir_emit(c, IRW_HASVAL, 0);
+        proven_size_t to_none = ir_emit(c, IRW_BRZ, 0);
+        ir_emit(c, IRW_LOAD, (proven_i64)ov); ir_emit(c, IRW_SOMEVAL, 0);
+        c->lit_into = true;
+        ir_node(c, lst);
+        c->lit_into = false;
+        ir_emit(c, IRW_WRAP_SOME, 0);
+        proven_size_t to_end = ir_emit(c, IRW_BR, 0);
+        ir_at(c, to_none)->a = (proven_i64)c->code.len;
+        ir_emit(c, IRW_WRAP_NONE, 0);
+        ir_at(c, to_end)->a = (proven_i64)c->code.len;
+        return;
+    }
     if (is_atom(nd) && (nd->tok.kind == LOW_TOK_IDENT || nd->tok.kind == LOW_TOK_METHOD)) {
         // ★★★ **`comptime <expr>`** — 순수 정수식을 컴파일 시점에 접어 상수로 박는다
         //   (RFC-0015 §6.1 CTFE). 값 위치의 `comptime` 은 파라미터 한정자(`input comptime …`,
@@ -4981,6 +5011,7 @@ static void enc_operand(const low_ir_t *ir, low_irw_t w, proven_i64 a, hbuf_t *h
         case IRW_FIELD:    hput_view(h, ir->fields[a]); break;   // field names are structural
         case IRW_STR:      hput_view(h, ir->strs[a]); break;     // literal bytes are structural
         case IRW_LBUFC:    hput_u32(h, (proven_u32)((proven_u64)a & 0xffffffffu)); hput_view(h, ir->strs[(proven_u64)a >> 32]); break;
+        case IRW_BFILL:    hput_u32(h, (proven_u32)((proven_u64)a >> 32)); if ((proven_u64)a & 0xffffffffu) hput_view(h, ir->strs[((proven_u64)a & 0xffffffffu) - 1]); break;
         case IRW_RESBLK: {
             // ★ 이 낱말의 정체는 **어느 타입의 칸인가**다 — 주소는 링커가 나중에 준다.
             const low_ir_struct_t *rs = &ir->structs[a];
@@ -5137,6 +5168,7 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
         case IRW_MAKE: return (int)ir->makes[a].nfields;
         case IRW_LBUF: return 0;                               // ★ T2b-2 — 피연산자 0, 슬라이스 push
         case IRW_LBUFC: return 0;                              // ★ T2b-3 — 피연산자 0, 슬라이스 push
+        case IRW_BFILL: return 1;                              // ★ §13.7 — 슬라이스 → 채운 슬라이스
         default:
             return -1;   // statements (STORE/DROP/RET/BR/BRZ) handled separately
     }
@@ -5376,7 +5408,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_AESGCM:   return "crypto.aes_gcm";
         case IRW_CHAPOLY:  return "crypto.chacha_poly";
         case IRW_WRAP_OK: return "wrap.ok"; case IRW_WRAP_SOME: return "wrap.some"; case IRW_WRAP_NONE: return "wrap.none"; case IRW_WRAP_ERR: return "wrap.err";
-        case IRW_LBUF: return "frame.bytes"; case IRW_LBUFC: return "frame.bytes.from"; case IRW_TRY: return "try"; case IRW_MAKE: return "make";
+        case IRW_LBUF: return "frame.bytes"; case IRW_LBUFC: return "frame.bytes.from"; case IRW_BFILL: return "bytes.fill"; case IRW_TRY: return "try"; case IRW_MAKE: return "make";
         case IRW_SNEW: return "stack.new"; case IRW_SPUSH: return "stack.push";
         case IRW_SPOP_INTO: return "stack.pop"; case IRW_BNEW: return "bitset.new";
         case IRW_CONTAINS: return "contains"; case IRW_COUNT: return "count";

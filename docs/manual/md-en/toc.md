@@ -228,11 +228,12 @@ Searches headings and index terms --- not the full text
 - [20.3 Swapping allocators](ch20.md#s20-3)
 - [20.4 Default allocators that carve straight from a root](ch20.md#s20-4)
 - [20.5 Growing and returning a piece — grow and release](ch20.md#s20-5)
-- [20.6 Where the three layers sit in the standard library](ch20.md#s20-6)
-- [20.7 Who sets the size of the fixed window?](ch20.md#s20-7)
-- [20.8 Same bits, different reading](ch20.md#s20-8)
-- [20.9 Common mistakes](ch20.md#s20-9)
-- [20.10 This chapter’s syntax at a glance](ch20.md#s20-10)
+- [20.6 Taking a list from an allocator](ch20.md#s20-6)
+- [20.7 Where the three layers sit in the standard library](ch20.md#s20-7)
+- [20.8 Who sets the size of the fixed window?](ch20.md#s20-8)
+- [20.9 Same bits, different reading](ch20.md#s20-9)
+- [20.10 Common mistakes](ch20.md#s20-10)
+- [20.11 This chapter’s syntax at a glance](ch20.md#s20-11)
 
 ### Part VI — Abstraction
 

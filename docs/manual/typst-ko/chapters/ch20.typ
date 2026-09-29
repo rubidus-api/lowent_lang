@@ -185,6 +185,20 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
 두 op 모두 *최적화이지 약속이 아니다*. 못 늘리면 부르는 쪽이 새로 받아 복사하면 되고, 답은 같아야 한다. 뿌리에서 곧장 깎는
 `fixed_bytes`·`heap_bytes` 의 `grow` 는 언제나 `none` 이다. 뿌리는 마지막 조각이 누구 것인지 모른다.
 
+== 나열을 할당기에서 받는다
+
+값을 바로 적은 나열(#chref("slices"))은 보통 op 의 틀 안에 놓인다. 크기가 크거나 op 보다 오래 살아야 하면 바이트를
+고른 할당기에서 받는다. 바인딩에 `using <할당기>` 를 적고, 타입 자리에 `option` 을 적는다.
+
+#demo("examples/ch20/litalloc.low")
+
+- `var xo using bb be option lit array u64 4 … .` 는 `bb` 에게 32 바이트를 청하고, 받으면 그 바이트를 나열처럼 채워 `some` 으로
+  준다. 할당기가 바이트를 못 주면 `none` 이다. 실패할 수 있는 것은 언제나 `option` 이라서, 쓰기 전에 `guard is_some` 으로 확인한다.
+- 채우는 법은 틀 안 나열과 같다. 원소를 늘어놓거나, `do … end` 로 칸을 골라 채운다.
+- 받은 바이트는 할당기의 것이다. 그래서 수명도 할당기를 따른다. 힙에서 받았으면 블록 밖으로 돌려줘도 되고, 틀 안 배열을
+  뒤받침으로 쓰는 범프 할당기에서 받았으면 그 배열의 블록을 벗어날 수 없다(`E-LIT-ESCAPE`).
+- `option` 을 빼거나 `lit vec` 에 `using` 을 적으면 `E-LIT-USING` 이다.
+
 == 표준 라이브러리에서 셋은 어디에 있나
 
 #dtable(
@@ -308,6 +322,7 @@ $ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [뿌리에서 곧장 깎는 기본 할당기], [같은 종류의 권한을 쥔 op 만 띄운다 --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [마지막 조각을 늘린다 · 돌려받는다], [크기가 아니라 `same_slice` 로 정체를 확인한다],
   [출처 없음 · 쓰이지 않는 `using`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [전역 할당기도, 헛된 선택도 없다],
+  [`var xo using bb be option lit array u64 4 … .`], [나열을 고른 할당기에서 받는다], [못 받으면 `none` --- 타입이 `option` 이다],
   [`bit_cast u32 x`], [비트는 그대로 두고 읽는 법만 바꾼다], [`bool`·`enum` 으로는 읽지 않는다],
 )
 

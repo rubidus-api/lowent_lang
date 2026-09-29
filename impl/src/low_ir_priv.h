@@ -231,6 +231,7 @@ typedef struct {
     //   (쓸 수 있는 `var` 에 묶거나 `mut` 매개변수로 넘길 때 부르는 쪽이 켠다).
     proven_size_t        lbuf_off;
     bool                 lit_frame;
+    bool                 lit_into;   // ★ RFC-0132 §13.7 — 채울 바이트 슬라이스가 이미 스택에 있다(할당자에서 받음)
 } ir_ctx_t;
 
 typedef struct {

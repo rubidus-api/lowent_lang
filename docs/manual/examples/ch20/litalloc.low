@@ -1,0 +1,19 @@
+module litalloc .
+rem run: fill 9
+
+use allocs .
+
+rem ko: 나열을 고른 할당기에서 받는다 --- 받으면 `some`, 바이트가 모자라면 `none` /// en: take a list from the allocator you choose --- `some` if it got the bytes, `none` if it ran out
+export proc fill input a u64 . output u64 . effects state .
+do
+  var back be lit array u8 48 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var xo using bb be option lit array u64 4 do 0 a . _ 1 . end .
+  guard is_some xo . else return 0 .
+  var xs be mut slice u64 some_value xo .
+  set (index xs 3) 100 .
+  var big using bb be option lit array u64 8 _ . .
+  guard is_none big . else return 1 .
+  return add (index xs 0) (index xs 3) .
+end

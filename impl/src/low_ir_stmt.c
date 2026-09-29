@@ -692,6 +692,14 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             for (proven_size_t i = 0; i < f->nkids; i++)
                 if (is_atom(f->kids[i]) && f->kids[i]->tok.kw == LOW_KW_BE) { be = i; break; }
             proven_size_t vstart = (be < f->nkids) ? be + 1 : 2;
+            // ★ `using <출처>` 가 남아 있으면 using 패스(나무 모드)를 거치지 않은 것이다(`--flat`) — 할당자를 채우지 못한
+            //   채 값을 묶으면 타입과 값이 어긋난다(RFC-0132 §13.7 에서 드러남). 정직하게 거절한다.
+            for (proven_size_t i = 2; i < be && i < f->nkids; i++)
+                if (is_atom(f->kids[i]) && veq(f->kids[i]->tok.lex, "using") && !f->kids[i]->synth) {
+                    ir_fail(c, "E-IR-UNSUP", "a binding that names its allocator (`using`) is resolved by the tree pass — "
+                            "`--flat` does not run it (RFC-0112 D8(6))", f->line);
+                    return;
+                }
             ir_vec_context(c, f, 2, (be < f->nkids) ? be : f->nkids);
             ir_bset_context(c, f, 2, (be < f->nkids) ? be : f->nkids);
             // ★★★★★ **값이 없는 `be` 가 조용히 0 을 냈다** (2026-08-25 · RFC-0100 · 소유자 결정).

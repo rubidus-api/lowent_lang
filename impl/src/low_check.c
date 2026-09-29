@@ -7386,8 +7386,12 @@ static void lc_set_taint(lc_t *x, proven_u8str_view_t n, int depth) {
 }
 static int lc_call(const lc_t *x, low_cst_t *const *k, proven_size_t n);
 // 이 값이 보는 틀 자리의 가장 깊은 블록(0 = 없음 · LC_INF = 문장 임시)
+static bool lc_is_into(const low_cst_t *nd) {             // §13.7 — [using, (send …), <나열>]: 바이트는 할당자의 것
+    return nd && nd->kind == LOW_CST_FORM && nd->nkids == 3 && ck_atom(nd->kids[0]) && nd->kids[0]->synth && veq(nd->kids[0]->tok.lex, "using");
+}
 static int lc_carry(const lc_t *x, const low_cst_t *nd) {
     if (!nd) return 0;
+    if (lc_is_into(nd)) return lc_carry(x, nd->kids[1]);         // 받은 바이트는 할당자의 것 — 할당자가 틀을 보면 그것도 본다
     if (nd->kind == LOW_CST_ATOM) return nd->tok.kind == LOW_TOK_IDENT ? lc_taint(x, nd->tok.lex) : 0;
     const low_cst_t *l = lc_list(nd);
     if (l) return lc_const(l) ? 0 : LC_INF;                     // 실행 중 원소가 든 나열 = 문장 임시(ⓒ)
@@ -7507,10 +7511,17 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
             int dv = lc_tail(x, nd, 1);
             if (dv > 0) lc_escape(out, x, nd->kids[0]->tok.line, dv >= LC_INF);
         }
-        for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {   // actor 에게 건넨다 — actor 는 이 블록보다 오래 산다
+        for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {   // actor 에게 건넨다 — actor 가 그 자리보다 오래 살 수 있다
             if (!ck_atom(nd->kids[j]) || !veq(nd->kids[j]->tok.lex, "send")) continue;
-            for (proven_size_t q = j + 2; q < nd->nkids; q++)
-                if (lc_carry(x, nd->kids[q]) > 0) { lc_escape(out, x, nd->kids[j]->tok.line, false); break; }
+            // ★ 받는 actor 가 **같은 블록이나 더 안쪽**에 선언된 지역이면 나열보다 오래 살지 못한다 — 건네도 된다
+            //   (틀 안 배열을 뒤받침으로 준 범프 할당자 `send bb init buf`). 매개변수 · 칸 · 모듈 이름은 깊이 0 이다.
+            const low_cst_t *tg = nd->kids[j + 1];
+            int ad = ck_atom(tg) && tg->tok.kind == LOW_TOK_IDENT ? lc_decl(x, tg->tok.lex, NULL) : 0;
+            for (proven_size_t q = j + 2; q < nd->nkids; q++) {
+                int dq = lc_carry(x, nd->kids[q]);
+                if (dq > 0 && (dq >= LC_INF || ad < dq)) { lc_escape(out, x, nd->kids[j]->tok.line, false); break; }
+                if (dq > 0 && ck_atom(tg)) lc_set_taint(x, tg->tok.lex, dq);   // 이제 그 actor 가 주는 것도 이 틀을 본다
+            }
         }
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) lc_walk(out, x, nd->kids[i], depth);
@@ -7518,6 +7529,12 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
 // 틀 안 나열 바이트를 센다 — `var` 에 묶은 것 · 실행 중 원소가 든 것 · `mut` 매개변수로 넘긴 것(IR 과 같은 가름).
 static void lc_count(lc_t *x, const low_cst_t *nd, bool forced) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (lc_is_into(nd)) {                                        // 틀을 쓰지 않는다 — 원소 속만 센다
+        lc_count(x, nd->kids[1], false);
+        const low_cst_t *l = lc_list(nd->kids[2]);
+        if (l) for (proven_size_t q = 3; q < l->nkids; q++) lc_count(x, l->kids[q], false);
+        return;
+    }
     const low_cst_t *l = lc_list(nd);
     if (l) {
         if (forced || !lc_const(l)) x->bytes += lc_bytes(l);

@@ -5805,6 +5805,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs("    if (++lw_depth > 128) lw_panic(\"call depth limit exceeded\");\n", out);
         fprintf(out, "    lowv loc[%zu]; memset(loc, 0, sizeof loc);\n",
                 (size_t)(d->nlocals ? d->nlocals : 1));
+        // ★ RFC-0132 T2b-2 — 틀 안 나열 자리(§13.2 ⓐ·ⓒ): 이 op 의 C 틀에 바이트 줄 하나(부를 때마다 새것 — 재귀도 안전).
+        if (d->lbuf_size) fprintf(out, "    unsigned char lw_lb[%zu] __attribute__((aligned(16)));\n", (size_t)d->lbuf_size);
         fprintf(out, "    for (int i = 0; i < %zu; i++) loc[i] = a[i];\n", (size_t)d->nparams);
         // ★★★★★ **태그 스택도 쓰는 만큼만** (2026-08-17, MEM-0003 — 프레임 래칫이 찾았다).
         //   `lowv st[256]` 은 이 파일 머리가 2026-07 에 이미 *"함수마다 12KB 스택 프레임"* 이라
@@ -6625,6 +6627,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_ELSE_NONE: fputs("    st[sp-1] = lw_else_none(st[sp-1]);\n", out); break;
                 case IRW_ELSE_ERR:  fprintf(out, "    st[sp-1] = lw_else_err(st[sp-1], %lld);\n", (long long)in->a); break;
                 case IRW_STR:      fprintf(out, "    st[sp++] = lw_strv(%lld);\n", (long long)in->a); break;
+                case IRW_LBUF: {   // ★ T2b-2 — 틀 안 나열 자리: 0 으로 채운 쓸 수 있는 바이트 슬라이스
+                    unsigned long long off = (unsigned long long)in->a & 0xffffffffull, len = (unsigned long long)in->a >> 32;
+                    fprintf(out, "    { lowv lv_ = {0}; memset(lw_lb + %llu, 0, %llu); lv_.tag = LWV_SLICE; lv_.p = lw_lb + %llu; lv_.n = %llu; st[sp++] = lv_; }\n",
+                            off, len, off, len);
+                    break;
+                }
                 case IRW_RESBLK:   fprintf(out, "    st[sp++] = lw_mmioblk((unsigned long long)(uintptr_t)lw_res_%zu, %uu);\n",
                                             (size_t)in->a, (unsigned)ir->structs[in->a].total); break;
                 case IRW_MMIOBLK:  fprintf(out, "    st[sp++] = lw_mmioblk(%lluULL, %uu);\n",

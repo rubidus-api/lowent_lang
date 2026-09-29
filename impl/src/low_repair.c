@@ -409,6 +409,7 @@ static const low_repair_row_t REPAIR[] = {
     { "E-PIPE-PRED",           "R-USE-COMPARISON" },     // 물음을 비교로 적는다(`ne x 0`)
     { "E-STMT-ELSE",           "R-MOVE-ELSE-INSIDE" },   // `if c . do … else … end`
     { "E-TYPE-REFVAL",         "R-DEREF" },              // `deref <이름>` 으로 읽는다
+    { "E-ARRAY-SET",           "R-USE-INDEX" },          // 배열은 다시 묶지 않는다 — `set (index buf i) v`
     { "E-USE-ALIASED",         "R-USE-ALIAS-NAME" },     // `as` 로 붙인 이름으로 적는다
     { "E-VEC-SPLAT",           "R-BIND-OPERAND" },       // 레인 수를 적은 바인딩으로 먼저 묶는다
     { "E-VIEW-INVALIDATED",    "R-RETAKE-VIEW" },        // 그 호출 뒤에 뷰를 다시 얻는다
@@ -489,8 +490,11 @@ static const low_repair_row_t NOREPAIR[] = {
     { "W-RESULT-DISCARD",   "길이 셋이다 — 묶어서 살피거나, `try` 로 넘기거나, 버리는 이유를 코드에 적는다" },
     // ★ RFC-0132 T2b-1 (2026-09-29)
     { "E-LIT-COUNT",        "길이 셋이다 — 원소를 더하거나 빼거나, 모자란 칸이 0 이어도 되면 끝에 `_` 를 적는다. 어느 것이 뜻인지는 저자가 안다" },
+    { "E-LIT-ESCAPE",       "길이 둘이다 — 필요한 것을 블록보다 오래 사는 저장소로 복사하거나, 나열을 더 바깥 블록에서 선언한다. 어느 쪽인지는 값의 수명이 정한다" },
+    { "E-FRAME-SIZE",       "길이 둘이다 — 큰 표는 상수 `let`(읽기 전용, 틀을 안 쓴다)로 두거나, 영역(region)에서 받는다" },
+    { "W-FRAME-RECURSIVE",  "**결함이 아니다** — 재귀 깊이만큼 틀이 곱해진다는 알림이다. 얕게 두거나 나열을 재귀 밖으로 옮긴다" },
     { "E-LINK-NAME",        "길이 둘이다 — `link` 이름을 C 가 받을 수 있는 이름으로 바꾸거나, `link` 를 지워 기본 이름(`lw_<길이>…`)을 쓴다" },
-    { "E-LIT-UNBUILT",      "도구가 아직 짓지 않은 모양이다(RFC-0132 T2b-2 · T2b-3) — 프로그램에 고칠 것이 아니라 다른 모양으로 적거나 기다린다" },
+    { "E-LIT-UNBUILT",      "도구가 아직 짓지 않은 모양이다(RFC-0132 T2b-3) — 프로그램에 고칠 것이 아니라 다른 모양으로 적거나 기다린다" },
 };
 
 const char *low_repair_for(const char *code) {

@@ -163,6 +163,10 @@ typedef struct {
 //   8 → 16 → 32. 32 가 천장인 이유는 파라미터 종류표가 32 비트 마스크이기 때문이다(low_ir.h 참조).
 #define LOW_HDR_MAXP 32
 
+// ★★ RFC-0132 T2b-2 — **한 op 의 틀 안 나열 자리의 한도**(바이트, 구현 정의 — §5.3 «틀 크기 한도»). 넘으면 거부한다
+//   (`E-FRAME-SIZE`) — 조용히 힙으로 옮기지 않는다. 검사층(`ck_lit_walk`)과 IR 이 **이 수 하나**를 본다.
+#define LOW_LBUF_MAX 65536u
+
 typedef struct {
     const low_cst_t    *form;      // op form 자신
     proven_u8str_view_t name;      // op 이름

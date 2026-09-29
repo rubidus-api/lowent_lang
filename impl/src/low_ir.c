@@ -1890,53 +1890,103 @@ static void ir_make(ir_ctx_t *c, const low_cst_t *arg, proven_u32 line) {
 //   u8 이면 바이트 슬라이스 그대로, 그 밖이면 `view_array` 와 같은 타입 보기(IRW_VARRAY)를 씌운다.
 //   원소 검증(개수 · 폭 · 상수인가)은 검사층(low_check `ck_lit_walk`)이 먼저 한다 — 여기는 믿되 막는다.
 static void ir_lit_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line) {
+    bool want_frame = c->lit_frame; c->lit_frame = false;   // ★ 부르는 쪽의 요구는 이 나열 하나에만
     if (*pos + 1 >= end || !is_atom(k[*pos]) || !is_atom(k[*pos + 1])) { ir_fail(c, "E-LIT-UNBUILT", "malformed list literal", line); return; }
     bool is_array = veq(k[*pos]->tok.lex, "array"), is_slice = veq(k[*pos]->tok.lex, "slice");
     if (!is_array && !is_slice) { ir_fail(c, "E-LIT-UNBUILT", "`lit vec …` is not built yet (RFC-0132 T2b-3)", line); return; }
     proven_u8str_view_t ty = k[*pos + 1]->tok.lex;
     proven_u8 esz = ir_field_size(ty);
-    if (!esz) { ir_fail(c, "E-LIT-UNBUILT", "a list literal's element type must be a sized scalar here (RFC-0132 T2b-1)", line); return; }
+    if (!esz) { ir_fail(c, "E-LIT-UNBUILT", "a list literal's element type must be a sized scalar here (RFC-0132 T2b-3)", line); return; }
     bool flt = ir_is_float_ty(ty), sgn = ity_of_word(ty).sign;
+    proven_i64 vmeta = (proven_i64)esz | (flt ? IR_FLT_BIT : 0) | (sgn ? IR_SGN_BIT : 0);
+    bool typed = esz > 1 || sgn || flt || veq(ty, "bool");
     *pos += 2;
     proven_i64 n = -1;
     if (is_array) {
         if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array T N …` needs its length N as a literal", line); return; }
         (*pos)++;
     }
+    proven_size_t e0 = *pos, cnt = 0;
+    bool all_const = true;
+    for (proven_size_t q = e0; q < end; q++) {
+        const low_cst_t *e = k[q];
+        if (is_atom(e) && e->tok.kind == LOW_TOK_IDENT && veq(e->tok.lex, "_")) continue;
+        cnt++;
+        if (!(is_atom(e) && (e->tok.kind == LOW_TOK_NUMBER || e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE))) all_const = false;
+    }
+    proven_size_t cap_elems = is_array ? (proven_size_t)n : cnt;
+    if (cnt > cap_elems) { ir_fail(c, "E-LIT-COUNT", "more elements than the length", line); return; }
+    // ★★ RFC-0132 T2b-2 — **틀 안 자리(§13.2 ⓐ·ⓒ)**: 실행 중 값이 섞였거나, 부르는 쪽이 쓸 수 있는 자리를 요구할 때
+    //   (`var` 에 묶기 · `mut` 매개변수로 넘기기). op 의 틀에 선언 자리마다 한 칸을 잡고(8 바이트로 맞춤), 그 칸을
+    //   0 으로 채운 쓸 수 있는 슬라이스를 얻은 뒤 원소를 하나씩 쓴다(0 인 상수 원소는 이미 0 이라 건너뛴다).
+    if (!all_const || want_frame) {
+        proven_size_t bytes = cap_elems * esz;
+        proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
+        if (off + bytes > LOW_LBUF_MAX) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); return; }
+        c->lbuf_off = off + bytes;
+        if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "list literal: too many locals", line); return; }
+        proven_size_t tl = c->nlocals++;
+        c->locals[tl].name = (proven_u8str_view_t){ 0 };
+        ir_emit(c, IRW_LBUF, (proven_i64)((proven_u64)off | ((proven_u64)bytes << 32)));
+        if (typed) ir_emit(c, IRW_VARRAY, vmeta);
+        ir_emit(c, IRW_STORE, (proven_i64)tl);
+        proven_size_t m = 0;
+        for (*pos = e0; *pos < end && !c->failed; (*pos)++) {
+            const low_cst_t *e = k[*pos];
+            if (is_atom(e) && e->tok.kind == LOW_TOK_IDENT && veq(e->tok.lex, "_")) continue;
+            bool zero = false;
+            if (is_atom(e) && e->tok.kw == LOW_KW_FALSE) zero = true;
+            else if (is_atom(e) && e->tok.kind == LOW_TOK_NUMBER) {
+                proven_i64 v; zero = !flt && ir_int_lit(e->tok.lex, &v) && v == 0;
+                if (flt) zero = low_num_to_double(e->tok.lex) == 0.0 && e->tok.lex.ptr[0] != '-';
+            }
+            if (!zero) {
+                ir_emit(c, IRW_LOAD, (proven_i64)tl);
+                ir_emit(c, IRW_CONST, (proven_i64)m);
+                if (is_atom(e) && e->tok.kind == LOW_TOK_NUMBER && flt) {
+                    double dv = low_num_to_double(e->tok.lex); proven_i64 bits; memcpy(&bits, &dv, 8);
+                    ir_emit(c, IRW_FCONST, bits);
+                } else if (is_atom(e) && e->tok.kw == LOW_KW_TRUE) ir_emit(c, IRW_CONST, 1);
+                else ir_node(c, e);
+                ir_emit(c, IRW_ISTORE, 0);
+            }
+            m++;
+        }
+        ir_emit(c, IRW_LOAD, (proven_i64)tl);
+        return;
+    }
+    // ★★ ⓑ — **읽기 전용 상수**(T2b-1): 원소를 T 의 폭으로 작은 끝에 싸서 문자열 상수 풀에 넣는다 — 같은 바이트면
+    //   한 자리(L4: 합치는 곳은 이 풀 한 곳이고 VM 과 C 뒤끝이 같이 쓴다).
     low_ir_t *ir = c->out;
-    proven_size_t cnt = end - *pos, cap_elems = is_array ? (proven_size_t)n : cnt;
     if (ir->strbuf_len + cap_elems * esz > ir->strbuf_cap) { ir_fail(c, "E-IR-UNSUP", "too many bytes of literal data in one unit", line); return; }
     proven_u8 *dst = ir->strbuf + ir->strbuf_len;
     proven_size_t m = 0;
-    for (; *pos < end; (*pos)++) {
+    for (*pos = e0; *pos < end; (*pos)++) {
         const low_cst_t *e = k[*pos];
         if (is_atom(e) && e->tok.kind == LOW_TOK_IDENT && veq(e->tok.lex, "_")) {   // 나머지 칸은 0
             while (m < cap_elems) { memset(dst + m * esz, 0, esz); m++; }
             continue;
         }
         proven_u64 bits = 0;
-        if (is_atom(e) && e->tok.kw == LOW_KW_TRUE) bits = 1;
-        else if (is_atom(e) && e->tok.kw == LOW_KW_FALSE) bits = 0;
-        else if (is_atom(e) && e->tok.kind == LOW_TOK_NUMBER) {
-            if (flt) {
-                double dv = low_num_to_double(e->tok.lex);
-                if (esz == 4) { float fv = (float)dv; proven_u32 b32; memcpy(&b32, &fv, 4); bits = b32; }
-                else memcpy(&bits, &dv, 8);
-            } else {
-                proven_i64 v;
-                if (!ir_int_lit(e->tok.lex, &v)) { ir_fail(c, "E-LIT-UNBUILT", "list literal element is not an integer literal", line); return; }
-                bits = (proven_u64)v;
-            }
-        } else { ir_fail(c, "E-LIT-UNBUILT", "a list literal element must be a constant here (RFC-0132 T2b-1)", line); return; }
-        if (m >= cap_elems) { ir_fail(c, "E-LIT-COUNT", "more elements than the length", line); return; }
+        if (e->tok.kw == LOW_KW_TRUE) bits = 1;
+        else if (e->tok.kw == LOW_KW_FALSE) bits = 0;
+        else if (flt) {
+            double dv = low_num_to_double(e->tok.lex);
+            if (esz == 4) { float fv = (float)dv; proven_u32 b32; memcpy(&b32, &fv, 4); bits = b32; }
+            else memcpy(&bits, &dv, 8);
+        } else {
+            proven_i64 v;
+            if (!ir_int_lit(e->tok.lex, &v)) { ir_fail(c, "E-LIT-UNBUILT", "list literal element is not an integer literal", line); return; }
+            bits = (proven_u64)v;
+        }
         for (proven_u8 b = 0; b < esz; b++) dst[m * esz + b] = (proven_u8)(bits >> (8 * b));
         m++;
     }
     if (m != cap_elems) { ir_fail(c, "E-LIT-COUNT", "fewer elements than the length and no trailing `_`", line); return; }
     proven_u8str_view_t val = { .ptr = dst, .size = m * esz };
     proven_size_t si = ir->nstrs;
-    for (proven_size_t i = 0; i < ir->nstrs; i++)
-        if (ir->strew[i] == 1 && proven_u8str_view_eq(ir->strs[i], val)) { si = i; break; }
+    for (proven_size_t i2 = 0; i2 < ir->nstrs; i2++)
+        if (ir->strew[i2] == 1 && proven_u8str_view_eq(ir->strs[i2], val)) { si = i2; break; }
     if (si == ir->nstrs) {
         if (ir->nstrs >= IR_MAXSTRS) { ir_fail(c, "E-IR-UNSUP", "too many string literals", line); return; }
         ir->strbuf_len += val.size;
@@ -1944,8 +1994,7 @@ static void ir_lit_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, pr
         ir->strs[ir->nstrs++] = val;
     }
     ir_emit(c, IRW_STR, (proven_i64)si);
-    if (esz > 1 || sgn || flt || veq(ty, "bool"))
-        ir_emit(c, IRW_VARRAY, (proven_i64)esz | (flt ? IR_FLT_BIT : 0) | (sgn ? IR_SGN_BIT : 0));
+    if (typed) ir_emit(c, IRW_VARRAY, vmeta);
 }
 
 // ★★★ **send 하강** — 값 `send`(동기, IRW_CALL)와 `spawn send`(async, IRW_ASEND)가 공유한다.
@@ -4107,8 +4156,14 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         if (a2 && (a2->kind == LOW_CST_ATOM || a2->kind == LOW_CST_FORM)) hl = a2->tok.lex;
                         if (hl.size && (veq(hl, "ref") || veq(hl, "mut_ref") || veq(hl, "addr")))
                             c->out->defs[di].takes_ref_arg = true;
+                        // ★ RFC-0132 T2b-2 — 쓸 수 있는 매개변수(`mut`·`owned`·`mut_ref`)에 넘기는 나열 리터럴은
+                        //   읽기 전용 상수(ⓑ)가 아니라 **틀 안 임시(ⓒ)** 다(§13.2) — 받는 쪽이 쓸 수 있어야 한다.
+                        if (a2 && a2->kind == LOW_CST_FORM && a2->nkids >= 2 && is_atom(a2->kids[0]) &&
+                            a2->kids[0]->tok.kw == LOW_KW_LIT && i < 32 && ((c->out->defs[di].param_mutw >> i) & 1u))
+                            c->lit_frame = true;
                     }
                     ir_value(c, k, pos, end);
+                    c->lit_frame = false;
                 }
                 ir_emit(c, IRW_CALL, (proven_i64)di);
                 return;
@@ -5156,7 +5211,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_AESGCM:   return "crypto.aes_gcm";
         case IRW_CHAPOLY:  return "crypto.chacha_poly";
         case IRW_WRAP_OK: return "wrap.ok"; case IRW_WRAP_SOME: return "wrap.some"; case IRW_WRAP_NONE: return "wrap.none"; case IRW_WRAP_ERR: return "wrap.err";
-        case IRW_TRY: return "try"; case IRW_MAKE: return "make";
+        case IRW_LBUF: return "frame.bytes"; case IRW_TRY: return "try"; case IRW_MAKE: return "make";
         case IRW_SNEW: return "stack.new"; case IRW_SPUSH: return "stack.push";
         case IRW_SPOP_INTO: return "stack.pop"; case IRW_BNEW: return "bitset.new";
         case IRW_CONTAINS: return "contains"; case IRW_COUNT: return "count";

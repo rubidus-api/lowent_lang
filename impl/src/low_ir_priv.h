@@ -227,6 +227,10 @@ typedef struct {
     // ★ 지금 낮추고 있는 form — **수리 id 를 원인별로 고르려고** 든다(2026-08-26).
     //   `in_tgroup`·`cur_cancel` 과 같은 자리다: 문맥은 여기 담는다.
     const low_cst_t     *cur_form;
+    // ★ RFC-0132 T2b-2 — 틀 안 나열 자리(§13.2 ⓐ·ⓒ): 이 op 이 지금까지 쓴 틀 바이트, 그리고 «다음 나열은 틀 안에»
+    //   (쓸 수 있는 `var` 에 묶거나 `mut` 매개변수로 넘길 때 부르는 쪽이 켠다).
+    proven_size_t        lbuf_off;
+    bool                 lit_frame;
 } ir_ctx_t;
 
 typedef struct {

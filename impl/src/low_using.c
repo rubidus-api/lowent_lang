@@ -779,20 +779,31 @@ static void dt_decl(dt_ctx_t *c, low_cst_t *f) {
         if (c->migrate) return;                        // 새 모양 그대로 찍는다
         if (ln) {
             proven_size_t n = f->nkids;
-            low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (n + ln), alignof(low_cst_t *)).value.ptr;
+            low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (n + ln + 1), alignof(low_cst_t *)).value.ptr;
             if (!nk) return;
             proven_size_t m = 0;
             nk[m++] = f->kids[0]; nk[m++] = f->kids[1];
             // ★ RFC-0132 T2b-1 — `let` 에 묶은 상수 배열 리터럴은 읽기 전용 자리를 **보는 슬라이스**다(§13.2 ⓑ):
             //   선언 타입 `array T N` 을 `slice T` 로 적는다(입력 자리의 `array` 를 using 패스가 `slice` 로 적는 것과 같다 —
-            //   길이는 리터럴 자신이 정한다). `var` 배열은 틀 안 자리(ⓐ)라 T2b-2 까지 E-TYPE-ARRAY 로 남는다.
+            //   길이는 리터럴 자신이 정한다). `var` 배열은 아래 T2b-2 의 틀 안 자리(ⓐ)다.
             bool as_slice = f->kids[0]->tok.kw == LOW_KW_LET && ln == 3 && us_atom(lk[0]) && us_eq(lk[0]->tok.lex, "array");
+            // ★ RFC-0132 T2b-2 — `var` 에 묶은 나열(배열이든 슬라이스든)은 **쓸 수 있는 틀 안 자리**(§13.2 ⓐ)다:
+            //   선언 타입을 `mut slice T` 로 적는다(`set (index buf i) v` 가 선다). 길이는 나열이 정한다.
+            bool as_mslice = f->kids[0]->tok.kw == LOW_KW_VAR && us_atom(lk[0]) &&
+                             ((ln == 3 && us_eq(lk[0]->tok.lex, "array")) || (ln == 2 && us_eq(lk[0]->tok.lex, "slice")));
             if (as_slice) ln = 2;
+            if (as_mslice) {
+                low_cst_t *mt = (low_cst_t *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, sizeof(low_cst_t), alignof(low_cst_t)).value.ptr;
+                if (!mt) return;
+                *mt = *lk[0]; mt->tok.lex = (proven_u8str_view_t){ .ptr = (const proven_u8 *)"mut", .size = 3 };
+                nk[m++] = mt;
+                ln = 2;
+            }
             for (proven_size_t i = 0; i < ln; i++) {          // 타입 낱말은 **복사본**으로 — 나무에서 한 노드가 두 자리에 서지 않게
                 low_cst_t *cp = (low_cst_t *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, sizeof(low_cst_t), alignof(low_cst_t)).value.ptr;
                 if (!cp) return;
                 *cp = *lk[i];
-                if (as_slice && i == 0) cp->tok.lex = (proven_u8str_view_t){ .ptr = (const proven_u8 *)"slice", .size = 5 };
+                if ((as_slice || as_mslice) && i == 0) cp->tok.lex = (proven_u8str_view_t){ .ptr = (const proven_u8 *)"slice", .size = 5 };
                 nk[m++] = cp;
             }
             for (proven_size_t i = 2; i < n; i++) nk[m++] = f->kids[i];

@@ -470,6 +470,11 @@ typedef struct vm_act {
     proven_size_t       vec_base;   // ★ 이 프레임의 **벡터 풀 바닥**(RFC-0089 B) — 루프와 반환이 여기로 되감는다
     // ★ 그리고 나머지 풀의 바닥(F1) — 박스·레코드·스택·비트셋도 같은 규율로 되감긴다.
     proven_size_t       bx_base, rec_base, sk_base, bs_base;
+    // ★ RFC-0132 T2b-2 — 틀 안 나열 자리(§13.2 ⓐ·ⓒ)의 바이트. 활성 레코드와 함께 자유 리스트로 되쓰이므로
+    //   부를 때마다 malloc 하지 않는다(모자랄 때만 늘린다). 프레임이 살아 있는 동안만 쓰인다 — 밖으로 나가는 것은
+    //   검사층이 막는다(E-LIT-ESCAPE).
+    proven_u8          *lbuf;
+    proven_size_t       lbuf_cap;
     vmv_t               locals[VM_LOCALS];   // 지역 — 프레임에 인라인(힙 프레임이 호출을 넘어 산다)
     vmv_t               stack[VM_STACK];      // 피연산자 스택
 } vm_act;
@@ -490,8 +495,17 @@ static void slot_free(proven_size_t s);
 static vm_act *g_act_free;   // 자유 리스트(parent 로 잇는다) — 단일 스레드라 잠금 없음
 static vm_act *act_alloc(void) {
     vm_act *a = g_act_free;
-    if (a) g_act_free = a->parent; else a = malloc(sizeof *a);
+    if (a) g_act_free = a->parent;
+    else { a = malloc(sizeof *a); if (a) { a->lbuf = NULL; a->lbuf_cap = 0; } }
     return a;
+}
+// ★ T2b-2 — 이 op 의 틀 안 나열 자리를 담을 만큼 버퍼를 늘린다(줄이지 않는다 — 다음 호출이 되쓴다).
+static bool act_lbuf(vm_act *a, const low_ir_def_t *d) {
+    if (d->lbuf_size <= a->lbuf_cap) return true;
+    proven_u8 *nb = realloc(a->lbuf, d->lbuf_size);
+    if (!nb) return false;
+    a->lbuf = nb; a->lbuf_cap = d->lbuf_size;
+    return true;
 }
 static void act_free(vm_act *a) { a->parent = g_act_free; g_act_free = a; }
 // ★★★ **살아 있는 사슬은 하나가 아니다** (RFC-0089 후속 F1, 2026-08-04).
@@ -679,6 +693,7 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
                                   else if (chain_slot != (proven_size_t)-1) g_chain[chain_slot] = NULL; } while (0)
     proven_size_t s0 = slot_alloc(vm);
     if (s0 == (proven_size_t)-1) { act_free(top); { VM_CHAIN_LEAVE(); return false; } }
+    if (!act_lbuf(top, d)) { vm_diag(vm->diags, "E-VM-OOM", "out of memory for the frame's list literals"); act_free(top); { VM_CHAIN_LEAVE(); return false; } }
     top->parent = NULL; top->d = d; top->pc = 0; top->depth = depth; top->sp = 0; top->slot = s0;
     top->vec_base = vm->nvec; top->bx_base = vm->nbox; top->rec_base = vm->nrecs;
     top->sk_base = vm->nstk; top->bs_base = vm->nbset;
@@ -702,6 +717,13 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
             else if (!fc || sc == (proven_size_t)-1) vm_diag(vm->diags, "E-VM-OOM", "out of memory growing the call stack");
             if (!fc || sc == (proven_size_t)-1) {   // 깊이 초과(값) 또는 OOM — 체인을 걷고 실패
                 if (fc) act_free(fc);
+                while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
+                              vm_act *p = top->parent; act_free(top); top = p; }
+                { VM_CHAIN_LEAVE(); return false; }
+            }
+            if (!act_lbuf(fc, callee)) {
+                vm_diag(vm->diags, "E-VM-OOM", "out of memory for the frame's list literals");
+                act_free(fc); slot_free(sc);
                 while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
                               vm_act *p = top->parent; act_free(top); top = p; }
                 { VM_CHAIN_LEAVE(); return false; }
@@ -1963,6 +1985,15 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                     ? (IR_STRUCT_BIT | (((in->a >> 20) & 0xff) << 20))
                                     : ((eflt ? IR_FLT_BIT : 0) | (in->a & IR_SGN_BIT));
                 stack[sp++] = (vmv_t){ .tag = VMV_VARRAY, .i = etag, .p = b.p, .n = b.n / esz, .box = (proven_i32)esz };
+                break;
+            }
+            case IRW_LBUF: {   // ★ T2b-2 — 틀 안 나열 자리: 0 으로 채우고 쓸 수 있는 바이트 슬라이스를 민다
+                proven_size_t off = (proven_size_t)((proven_u64)in->a & 0xffffffffu);
+                proven_size_t len = (proven_size_t)((proven_u64)in->a >> 32);
+                if (!a->lbuf || off + len > a->lbuf_cap) { vm_diag(vm->diags, "E-VM-TYPE", "frame list slot outside the frame (compiler bug)"); return false; }
+                memset(a->lbuf + off, 0, len);
+                if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
+                stack[sp++] = (vmv_t){ .tag = VMV_SLICE, .p = a->lbuf + off, .n = len };
                 break;
             }
             case IRW_STR: {

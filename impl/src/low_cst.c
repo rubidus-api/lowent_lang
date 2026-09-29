@@ -168,11 +168,13 @@ static low_cst_t *low_parse_primary(low_parser_t *p, bool headed_ok) {
             (void)PROVEN_ARRAY_PUSH(&kids, low_cst_t *, o);
             if (o->kind == LOW_CST_BLOCK) break;
         }
+        bool by_block = kids.len && ((low_cst_t **)kids.data)[kids.len - 1]->kind == LOW_CST_BLOCK;
         low_cst_t *f = low_node(p, LOW_CST_FORM, lt);
         low_cst_t *g = low_node(p, LOW_CST_GROUP, lt);
         if (!f || !g) { proven_array_destroy(&kids); return NULL; }
         f->closer = LOW_TOK_EOF;
-        if (low_curk(p) == LOW_TOK_DOT) { low_adv(p); }  // ★ 이 점은 **이 나열**의 것이다
+        // ★ 이 점은 **이 나열**의 것이다 — 단 칸 골라 채우기(`… do 2 5 . end`)는 구조체 값처럼 블록이 닫는다(§13.1)
+        if (!by_block && low_curk(p) == LOW_TOK_DOT) { low_adv(p); }
         low_take_kids(p, f, &kids);
         f->synth = g->synth = true;
         proven_array_t one = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 1).value;
@@ -321,6 +323,9 @@ static bool low_read_run(low_parser_t *p, proven_array_t *ops, bool headed_ok) {
         //   드러난다 — **서식기가 한 줄로 찍자 서식 보존 게이트가 즉시 잡았다.**
         if (op && op->kind == LOW_CST_FORM && op->nkids &&
             op->kids[op->nkids - 1]->kind == LOW_CST_BLOCK) return true;
+        // 칸 골라 채우는 나열(`lit array u8 8 do 2 5 . end`)은 한 겹 GROUP 에 싸여 온다 — 구조체 값과 같이 블록이 닫는다
+        if (op && op->kind == LOW_CST_GROUP && op->nkids == 1 && op->kids[0]->kind == LOW_CST_FORM && op->kids[0]->nkids &&
+            op->kids[0]->kids[op->kids[0]->nkids - 1]->kind == LOW_CST_BLOCK) return true;
     }
     return false;
 }

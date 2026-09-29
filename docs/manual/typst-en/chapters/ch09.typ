@@ -111,10 +111,26 @@ closes the list and the next argument follows.
 #demo("examples/ch09/listlit.low")
 
 If there are fewer elements than the length, end the list with `_` to say "the remaining cells are zero". Without
-it the list is `E-LIT-COUNT` --- cells are never filled silently. Each element must fit its type (`E-TYPE-WIDTH`),
-and in this version every element must be a constant. A constant list is read-only bytes baked into the program,
-so passing it to a `mut` position is refused. Elements computed at run time and writable local arrays (`var`) do
-not exist yet; using them gives `E-LIT-UNBUILT`, which says what is not built.
+it the list is `E-LIT-COUNT` --- cells are never filled silently. Each element must fit its type (`E-TYPE-WIDTH`).
+
+A `let` list whose elements are all constants is read-only bytes baked into the program. Passing that name to a
+`mut` position is refused (`E-TYPE-ARGMUT`). When you need a sequence you can change, bind it with `var`. A list
+bound with `var`, and a list with elements computed at run time, live *in this op's frame* --- like a local array
+in C. Write a cell with `set (index buf i) v .`.
+
+#demo("examples/ch09/framelist.low")
+
+A frame slot lives until the end of *the block that declares it*. When the declaration runs again (the next pass
+of a loop), the slot is filled afresh. So a slice that sees the slot may not leave that block --- returning it,
+storing it in a name declared further out or in a parameter's cell, or sending it to an actor is refused
+(`E-LIT-ESCAPE`). Reading a cell out as a scalar is fine.
+
+#demo("examples/ch09/mistake_frameescape.low")
+
+Re-pointing the array name itself with `set buf …` is `E-ARRAY-SET` --- write the cells one by one. The frame
+lists of one op may not add up to more than 64 KiB (`E-FRAME-SIZE`), and if such an op can recurse you get
+`W-FRAME-RECURSIVE`, because the frame is repeated at every level. Filling chosen cells with `do … end` and
+`lit vec` are not built yet; using them gives `E-LIT-UNBUILT`, which says what is not built.
 
 == Contracts remove bounds checks
 
@@ -223,12 +239,13 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   [`"hello"`], [a literal of type `slice u8` --- indexable as is], [there is no separate string type],
   [`lit array u32 3 1 2 3 .`], [an array written as values --- closes with its own period], [the length is a promise --- end with `_` if short],
   [`lit slice u32 4 5 .`], [a slice written as values], [the element count is the length],
+  [`var buf be lit array u8 8 _ . .`], [a writable local array --- in the op's frame], [cannot leave its declaring block],
   [`requires le n (len xs) .`], [a length condition as a contract], [bounds checks in the body are removed],
 )
 
 #recap[
   A slice carries its start and length together. `len` takes the length field, `index` stops when out of range, and `for` walks the
-  elements. `array t n` writes the element type and then the length and is used in input positions; a sequence written out as values is listed with `lit array` or `lit slice`. Writing elements needs a `mut slice` and a `proc`.
+  elements. `array t n` writes the element type and then the length and is used in input positions; a sequence written out as values is listed with `lit array` or `lit slice`. A list bound with `var` is a local array in the frame that you may write inside its block; writing someone else's elements needs a `mut slice` and a `proc`.
   `subslice` narrows the window without copying. Writing the length condition as a contract removes bounds checks in the body, and a string
   literal is a table that can be indexed directly.
 ]

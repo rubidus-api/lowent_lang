@@ -1,0 +1,76 @@
+rem ★★ RFC-0132 T2b-2 — 틀 안 나열 자리(§13.2 ⓐ·ⓒ): `var` 배열 · 실행 중 원소 · `mut` 매개변수로 넘긴 나열.
+rem   자리는 op 의 틀에 선언 자리마다 한 칸이고(부를 때마다 새것 — 재귀도 제 칸을 갖는다), 선언이 다시 돌면 0 으로 다시
+rem   채워진다. 차등 훑기가 VM 과 네이티브가 같은 답을 내는지 잰다.
+module vm_localarr .
+
+proc bump input s mut slice u8 . output u64 . do
+  set (index s 0) (narrow_wrap u8 (add (widen u64 (index s 0)) 5)) .
+  return widen u64 (index s 0) .
+end
+
+rem `var` 배열에 반복으로 쓰고 다시 읽는다.
+export fn la_fill input n u64 . output u64 . do
+  var buf be lit array u8 8 _ . .
+  var i be u64 0 .
+  while lt i 8 . do
+    set (index buf i) (narrow_wrap u8 (mul i n)) .
+    set i (add i 1) .
+  end
+  var s be u64 0 .
+  for x buf do
+    set s (add s (widen u64 x)) .
+  end
+  return s .
+end
+
+rem 실행 중 원소가 든 `let` 나열(읽기 전용 보기).
+export fn la_runtime input a u64 . input b u64 . output u64 . do
+  let t be lit array u64 3 a b (add a b) . .
+  return add (index t 2) (len t) .
+end
+
+rem 부호 있는 원소를 고쳐 쓴다.
+export fn la_signed input i u64 . output i64 . do
+  var w be lit array i16 4 -1 2 -3 4 . .
+  set (index w 0) (narrow i16 (mul (index w 0) 100)) .
+  guard lt i 4 . else return 0 .
+  return widen i64 (index w i) .
+end
+
+rem 반복 안의 선언은 바퀴마다 다시 0 에서 시작한다(앞 바퀴의 값을 보지 않는다).
+export fn la_loop input n u64 . output u64 . do
+  var total be u64 0 .
+  var k be u64 0 .
+  while lt k n . do
+    var cell be lit array u64 2 _ . .
+    set (index cell 0) (add (index cell 0) k) .
+    set total (add total (index cell 0)) .
+    set k (add k 1) .
+  end
+  return total .
+end
+
+rem `mut` 매개변수로 넘긴 나열은 그 문장의 임시(ⓒ) — 받는 쪽이 써도 된다.
+export proc la_mutarg input a u64 . output u64 . do
+  return bump lit array u8 2 (narrow_wrap u8 a) 1 . .
+end
+
+rem 재귀하는 op 도 부를 때마다 제 칸을 갖는다.
+export fn la_rec input n u64 . output u64 . do
+  var buf be lit array u64 2 _ . .
+  set (index buf 0) n .
+  if eq n 0 . do
+    return 0 .
+  end
+  if gt n 20 . do
+    return 0 .
+  end
+  return add (index buf 0) (la_rec (sub n 1)) .
+end
+
+rem 부동 원소.
+export fn la_float input x f64 . output f64 . do
+  var v be lit array f64 3 1.5 _ . .
+  set (index v 1) (mul x 2.0) .
+  return add (index v 0) (index v 1) .
+end

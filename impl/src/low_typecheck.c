@@ -1080,6 +1080,23 @@ static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, prov
     }
     if (nd->kind == LOW_CST_GROUP) return nd->nkids ? tc_infer(c, nd->kids[0], env, nenv) : tk(TK_UNKNOWN);
     if (nd->kind == LOW_CST_ACCESS) return tk(TK_UNKNOWN);  // struct/slice element typing: future
+    // ★★ RFC-0132 T2b-2 — 나열 리터럴의 **실행 중 원소**도 원소 타입에 들어가야 한다. 상수 원소는 검사층
+    //   (`ck_lit_walk`)이 이미 폭을 잰다. 틀 안 자리에 쓰는 원소가 말없이 잘리면(`u8` 칸에 1000) X-0074 의 병이다.
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->tok.kw == LOW_KW_LIT &&
+        nd->kids[1]->kind == LOW_CST_ATOM && nd->kids[2]->kind == LOW_CST_ATOM &&
+        (veq(nd->kids[1]->tok.lex, "array") || veq(nd->kids[1]->tok.lex, "slice"))) {
+        ty_t et = ty_of_word(nd->kids[2]->tok.lex);
+        proven_size_t e0 = veq(nd->kids[1]->tok.lex, "array") ? 4 : 3;
+        for (proven_size_t q = e0; q < nd->nkids && et.k != TK_UNKNOWN; q++) {
+            const low_cst_t *e = nd->kids[q];
+            if (e->kind == LOW_CST_ATOM && (e->tok.kind == LOW_TOK_NUMBER || e->tok.kw == LOW_KW_TRUE ||
+                                             e->tok.kw == LOW_KW_FALSE || veq(e->tok.lex, "_"))) continue;
+            ty_t at = tc_infer(c, e, env, nenv);
+            tc_flag(c, compat(et, at), "E-TYPE-SET", "a list element does not match the list's element type — "
+                    "every element is checked against the type written after `lit array`/`lit slice`", e->tok.line ? e->tok.line : nd->line);
+        }
+        return tk(TK_UNKNOWN);
+    }
     if (nd->kind == LOW_CST_FORM) return tc_infer_run(c, nd->kids, 0, nd->nkids, env, nenv);
     return tk(TK_UNKNOWN);
 }

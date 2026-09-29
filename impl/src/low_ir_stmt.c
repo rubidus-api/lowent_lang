@@ -753,7 +753,17 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                 }
             }
             proven_size_t code_before = c->code.len;
+            // ★ RFC-0132 T2b-2 — `var` 에 묶는 나열 리터럴은 **쓸 수 있는 틀 안 자리**(§13.2 ⓐ)다. 값이 나열 하나면
+            //   그 나열에게 틀을 요구한다(`ir_lit_list` 가 한 번 쓰고 끈다).
+            if (!copied_struct && f->kids[0]->tok.kw == LOW_KW_VAR && vstart + 1 == f->nkids) {
+                const low_cst_t *lv = f->kids[vstart];
+                while (lv && lv->kind == LOW_CST_GROUP && lv->nkids == 1) lv = lv->kids[0];
+                if (lv && lv->kind == LOW_CST_FORM && lv->nkids >= 2 && is_atom(lv->kids[0]) && lv->kids[0]->tok.kw == LOW_KW_LIT &&
+                    is_atom(lv->kids[1]) && (veq(lv->kids[1]->tok.lex, "array") || veq(lv->kids[1]->tok.lex, "slice")))
+                    c->lit_frame = true;
+            }
             if (!copied_struct) ir_run(c, f->kids, vstart, f->nkids - vstart);
+            c->lit_frame = false;
             // ★★★★★ **`f32` 자리의 리터럴은 32 비트로 반올림한다** (IEEE 754 · 결함 노트 #83, 2026-09-16).
             //   `let a be f32 0.1 .` 의 값이 **f64 의 0.1 그대로** 남아 있었다 — 넓혀서 비교하면
             //   `f64` 의 0.1 과 같다고 나왔다(VM·네이티브 같음). 셈을 한 번 거친 값만 32 비트가
@@ -2834,6 +2844,12 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                 (void)proven_array_push(&ir.diags, &hd);
                 ir.ok = false;
             }
+            for (proven_size_t q = 0; q < h.np && q < LOW_MAX_PARAMS; q++) {   // ★ T2b-2: 쓸 수 있는 매개변수
+                bool mw = h.p[q].is_mut || h.p[q].is_owned;
+                for (proven_size_t z = h.p[q].ts; z < h.p[q].te && !mw; z++)
+                    if (is_atom(f->kids[z]) && veq(f->kids[z]->tok.lex, "mut_ref")) mw = true;
+                if (mw) d->param_mutw |= 1u << (d->nparams + q);
+            }
             for (proven_size_t q = 0; q < h.np; q++) {
                 proven_size_t tw = h.p[q].core;   // ★ 타입의 **알맹이** — `mut`/`owned` 도 벗긴 자리
                 if (tw < h.p[q].te && is_atom(f->kids[tw])) {
@@ -2979,6 +2995,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
         low_ir_def_t *d = &ir.defs[di++];
         ir_ctx_t c = mod;   // inherit module tables; fresh per-def state
         c.nlocals = 0; c.nloops = 0; c.failed = false; c.ncint = 0;
+        c.lbuf_off = 0; c.lit_frame = false;   // ★ T2b-2 — 틀 안 나열 자리는 op 마다 0 에서
         g_nrg = 0;   // ★ 앞 op 이 영역 안에서 실패했어도 이 op 은 빈 영역 쌓기에서 시작한다
         if (opf[i].sidx >= 0) {          // ★ actor 핸들러: 슬롯 0 = 인스턴스, 상태 필드를 싣는다
             // ★ 전에는 여기서 슬롯 0 을 선언하고 **바로 다음 줄이 nlocals 를 0 으로 지웠다.**
@@ -3459,6 +3476,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
             d->code = (low_ir_ins_t *)(void *)c.code.data;
             d->ncode = c.code.len;
             d->nlocals = c.nlocals;
+            d->lbuf_size = c.lbuf_off;   // ★ T2b-2 — 이 op 의 틀 안 나열 바이트
             d->lowered = true;
             {   // RFC-0053 — 파일 합계와 **def 몫**을 같이 센다(§8-9: 계수의 가중 교정)
                 proven_size_t p0 = ir.checks_proven, t0 = ir.checks_total;

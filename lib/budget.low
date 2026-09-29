@@ -34,12 +34,12 @@ end
 
 rem ★ 64 비트 기계의 권고 기본값.
 export fn default64 output plan . do
-  return make plan do slot_bits 32 . shard_bits 8 . gen_bits 24 . end .
+  return lit plan do slot_bits 32 . shard_bits 8 . gen_bits 24 . end .
 end
 
 rem ★ 32 비트 기계의 권고 기본값.
 export fn default32 output plan . do
-  return make plan do slot_bits 16 . shard_bits 4 . gen_bits 12 . end .
+  return lit plan do slot_bits 16 . shard_bits 4 . gen_bits 12 . end .
 end
 
 rem 2^n — 이 예산이 담을 수 있는 수.

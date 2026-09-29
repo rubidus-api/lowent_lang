@@ -39,7 +39,7 @@ typedef enum {
     LOW_KW_TRY, LOW_KW_FAIL, LOW_KW_EXPR, LOW_KW_FN,   // ★ RFC-0082: fn = 순수 함수 정의(전 calcop; 전 람다 fn 은 폐기)
     LOW_KW_TRUE, LOW_KW_FALSE, LOW_KW_NONEVAL, LOW_KW_UNIT,  // NONEVAL = the `none` literal (distinct from the sentinel LOW_KW_NONE=0)
     // MVP front-end (S3) — shared parser grows additively (BOOTSTRAP §3)
-    LOW_KW_PROC, LOW_KW_MAKE, LOW_KW_STRUCT, LOW_KW_ENUM,
+    LOW_KW_PROC, LOW_KW_LIT, LOW_KW_STRUCT, LOW_KW_ENUM,
     LOW_KW_MATCH, LOW_KW_CASE, LOW_KW_WHILE, LOW_KW_MODULE, LOW_KW_VAR,
     LOW_KW_TYPE, LOW_KW_NEWTYPE, LOW_KW_EXPORT, LOW_KW_BE,
     // ★ SPEC-003 §21 의 수식자. `export` 만 어휘에 있었다 — 나머지 셋은 **평평하게**

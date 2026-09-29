@@ -149,7 +149,7 @@ static void fz_stmt(fz_t *g, int nest) {
             break;
         }
         case 9:           // record literal + field read
-            fz_putf(g, "var q%d u64 . be make fzr do f0 ", g->nr, 0);
+            fz_putf(g, "var q%d u64 . be lit fzr do f0 ", g->nr, 0);
             fz_iexpr(g, 1); fz_put(g, " . f1 ");
             fz_iexpr(g, 1); fz_put(g, " . end . ");
             fz_putf(g, "var v%d u64 be q%d.f0 . ", g->nv, g->nr);
@@ -797,9 +797,9 @@ int main(void) {
         //   그래서 **괄호 안팎이 같은 나무**다. 전엔 `make` 가 블록-문장 머리 목록에 있어서
         //   괄호 안에서만 `FORM(make, point, BLOCK)` 이 됐고, IR 이 두 모양을 다 받도록
         //   **기워져** 있었다 — 뒷단의 반창고는 대개 **앞단의 병**이다.
-        low_parse_result_t p = PARSE("make point do x 1 . y 2 . end");
+        low_parse_result_t p = PARSE("lit point do x 1 . y 2 . end");
         low_cst_t *f = p.nforms ? p.forms[0] : NULL;
-        check(p.ok && f && f->nkids == 2 && f->kids[0]->tok.kw == LOW_KW_MAKE &&
+        check(p.ok && f && f->nkids == 2 && f->kids[0]->tok.kw == LOW_KW_LIT &&
               f->kids[1]->kind == LOW_CST_FORM &&
               f->kids[1]->kids[f->kids[1]->nkids - 1]->kind == LOW_CST_BLOCK,
               "MVP make aggregate parses — ONE shape, inside parens and out");
@@ -1216,7 +1216,7 @@ int main(void) {
             "guard ge n 1 . else return error neg . . "
             "return ok n . end "
             "fn mk input n u64 . output pairr .  do "
-            "return make pairr do a n . b mul n 2 . end end "
+            "return lit pairr do a n . b mul n 2 . end end "
             "fn use_try input n u64 . output u64 .  do "
             "let v u64 be try chk n . . return v . end "
             "fn first input d bytes . output u64 . do return index d 0 . end";
@@ -1384,7 +1384,7 @@ int main(void) {
     {
         const char *src =
             "struct pairr do a u64 . b u64 . end "
-            "fn mk2 output pairr .  do return make pairr do a 3 . b 9 . end end "
+            "fn mk2 output pairr .  do return lit pairr do a 3 . b 9 . end end "
             "fn geta output u64 .  do var p pairr be mk2 . return field p a . end "
             "fn getb output u64 .  do var p pairr be mk2 . return field p b . end "
             "fn getg output u64 .  do var p pairr be mk2 . return (field p a) . end "
@@ -1454,7 +1454,7 @@ int main(void) {
         const char *src =
             "struct wire_header do layout packed . magic u32 big . length u16 big . kind u8 . end "
             "fn mk_hdr output wire_header .  do "
-            "return make wire_header do magic 3735928559 . length 258 . kind 7 . end end "
+            "return lit wire_header do magic 3735928559 . length 258 . kind 7 . end end "
             "fn rt output u64 .  do "
             "var h wire_header . be view wire_header encode wire_header mk_hdr . . "
             "return expr (field h magic) + (field h length) + (field h kind) . . end "
@@ -1477,7 +1477,7 @@ int main(void) {
         const char *src =
             "struct mixed do flag u8 . big u32 . small u16 . end "
             "fn mk output mixed .  do "
-            "return make mixed do flag 1 . big 305419896 . small 4660 . end end "
+            "return lit mixed do flag 1 . big 305419896 . small 4660 . end end "
             "fn rt output u64 .  do "
             "var h mixed . be view mixed encode mixed mk . . "
             "return expr (field h flag) + (field h big) + (field h small) . . end "
@@ -1535,7 +1535,7 @@ int main(void) {
         // view-EXCL: rebinding the viewed slice while the view is live → static E-EXCL
         const char *src =
             "struct pairr do a u32 . b u32 . end "
-            "fn mkp output pairr .  do return make pairr do a 5 . b 6 . end end "
+            "fn mkp output pairr .  do return lit pairr do a 5 . b 6 . end end "
             "fn stale output u64 .  do "
             "var s u64 . be encode pairr mkp . . "
             "var h pairr . be view pairr s . "
@@ -1678,7 +1678,7 @@ int main(void) {
             "type bytes slice u8 . . "
             "struct sample do layout packed . temp f32 big . scale f64 . tag u8 . end "
             "fn mk output sample .  do "
-            "  return make sample do temp 1.5 . scale 2.25 . tag 3 . end end "
+            "  return lit sample do temp 1.5 . scale 2.25 . tag 3 . end end "
             "fn rt output f64 .  do "
             "  var h sample . be view sample encode sample mk . . "
             "  return expr (field h temp) + (field h scale) . . end "
@@ -1718,8 +1718,8 @@ int main(void) {
             "type bytes slice u8 . . "
             "struct reg do align 16 . ctrl u32 . stat u16 . end "
             "struct nat do ctrl u32 . stat u16 . end "
-            "fn mk output reg .  do return make reg do ctrl 7 . stat 2 . end . end "
-            "fn mkn output nat .  do return make nat do ctrl 7 . stat 2 . end . end "
+            "fn mk output reg .  do return lit reg do ctrl 7 . stat 2 . end . end "
+            "fn mkn output nat .  do return lit nat do ctrl 7 . stat 2 . end . end "
             "fn wide output u64 .  do return len encode reg mk . . end "
             "fn narrow output u64 .  do return len encode nat mkn . . end "
             "fn tv_at input off u64 . input b bytes . output u64 .  do "
@@ -1780,7 +1780,7 @@ int main(void) {
                 off += sizes[i];
             }
             if (!packed && off % maxal) off += maxal - off % maxal;
-            FPUT("end fn mk output s .  do return make s do ");
+            FPUT("end fn mk output s .  do return lit s do ");
             for (int i = 0; i < nf; i++) FPUT("f%d %llu . ", i, (unsigned long long)vals[i]);
             FPUT("end . end fn rt output u64 .  do "
                  "var h s . be view s encode s mk . . return ");
@@ -2719,7 +2719,7 @@ int main(void) {
         const char *src =
             "struct p do\n x u8 .\n y u8 .\nend\n"
             "fn f input v u8 . output u8 .  do "
-            "  var q p be make p do x 1 . y 2 . end . "
+            "  var q p be lit p do x 1 . y 2 . end . "
             "  set (field q x) v . "
             "  return expr (field q x) + (field q y) . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -2735,12 +2735,12 @@ int main(void) {
     }
     check(TYCK("struct p do\n x u8 .\nend\n"
                "fn f output u8 .  do "
-               "  var q p be make p do x 1 . end . set (field q ghost) 5 . "
+               "  var q p be lit p do x 1 . end . set (field q ghost) 5 . "
                "  return field q x . end") == false,
           "field write: ★ writing a field no struct declares → E-TYPE-FIELD");
     check(TYCK("struct p do\n x u8 .\nend\n"
                "fn f input a i32 . output u8 .  do "
-               "  var q p be make p do x 1 . end . set (field q x) a . "
+               "  var q p be lit p do x 1 . end . set (field q x) a . "
                "  return field q x . end") == false,
           "field write: ★ a value that does not match the field's declared type is caught "
           "(the ⊑ lattice applies here too)");
@@ -2769,22 +2769,22 @@ int main(void) {
     // ── ★ `make` 구조체 리터럴이 **아무 검사도 받지 않았다** ──
     // struct 선언이 아무것도 강제하지 않았다. 실제로 이런 것들이 조용히 통과했다:
     //   struct p  x u8 . y u8 . end
-    //   make p do x 1 . end            → {x 1}            ★ y 가 **아예 없다**
-    //   make p do x 1 . ghost 2 . end  → {x 1, ghost 2}   ★ 선언에 없는 필드가 들어간다
-    //   make p do x <i32> . y 0 . end  → {x -1, y 0}      ★ u8 인데 -1
+    //   lit p do x 1 . end            → {x 1}            ★ y 가 **아예 없다**
+    //   lit p do x 1 . ghost 2 . end  → {x 1, ghost 2}   ★ 선언에 없는 필드가 들어간다
+    //   lit p do x <i32> . y 0 . end  → {x -1, y 0}      ★ u8 인데 -1
     // 선언은 검사되지 않으면 거짓말이 된다(PRINCIPLES.md §0).
     check(TYCK("struct p do x u8 . y u8 . end "
-               "fn f output p .  do return make p do x 1 . end end") == false,
+               "fn f output p .  do return lit p do x 1 . end end") == false,
           "make: ★ a MISSING field is caught (before this it just… wasn't there)");
     check(TYCK("struct p do x u8 . end "
-               "fn f output p .  do return make p do x 1 . ghost 2 . end end") == false,
+               "fn f output p .  do return lit p do x 1 . ghost 2 . end end") == false,
           "make: ★ a field the struct does not declare is caught (before this it went straight in)");
     check(TYCK("struct p do x u8 . y u8 . end "
                "fn f input a i32 . output p .  do "
-               "  return make p do x a . y 0 . end end") == false,
+               "  return lit p do x a . y 0 . end end") == false,
           "make: ★ a field value of the wrong type is caught (a u8 field was taking an i32)");
     check(TYCK("struct p do x u8 . y u8 . end "
-               "fn f output p .  do return make p do x 1 . y 2 . end end") == true,
+               "fn f output p .  do return lit p do x 1 . y 2 . end end") == true,
           "make: a correct struct literal still passes (no false positive)");
 
     // ── ★ `let` 이 타입체크를 **통째로 빠져나가고 있었다** ──
@@ -3621,7 +3621,7 @@ int main(void) {
                 "   return ok index d 0 . . end "
                 "fn g input a range u8 0 100 . output u8 .  "
                 "  ensures le ret 200 . do return mul a 2 . end "
-                "fn h output p .  do return make p do x 1 . y 2 . end . end";
+                "fn h output p .  do return lit p do x 1 . y 2 . end . end";
             struct { const char *name; const char *from; const char *to; bool at_runtime; } muts[] = {
                 { "errors variant renamed",     "errors small lt",    "errors ghost lt",       false },
                 { "tests names a ghost op",     "tests helper .",     "tests ghost .",          false },

@@ -354,11 +354,11 @@ proc rx_atom_escape input prog mut slice u64 . . input st mut slice u64 . . inpu
     return .
   end
 
-  var lit be u64 widen u64 c .
-  if eq c 110 . do set lit 10 . end
-  if eq c 116 . do set lit 9 . end
-  if eq c 114 . do set lit 13 . end
-  rx_emit prog st 0 lit 0 .
+  var lch be u64 widen u64 c .
+  if eq c 110 . do set lch 10 . end
+  if eq c 116 . do set lch 9 . end
+  if eq c 114 . do set lch 13 . end
+  rx_emit prog st 0 lch 0 .
 end
 
 rem `[...]` 를 파싱한다. st[2] 는 `[` 다음을 가리키고 있다. 끝나면 `]` 다음으로.

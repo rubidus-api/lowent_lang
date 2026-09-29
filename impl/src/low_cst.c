@@ -160,7 +160,7 @@ static low_cst_t *low_parse_primary(low_parser_t *p, bool headed_ok) {
         bool opens = !pv || pv->kind == LOW_TOK_DOT || pv->kind == LOW_TOK_LPAREN ||
                      (pv->kind == LOW_TOK_IDENT && (pv->kw == LOW_KW_END || pv->kw == LOW_KW_DO));
         if (opens) low_pdiag(p, "E-BLOCK-NOHEAD",
-                  "a `do … end` block needs a head that owns it — `if … do`, `while … do`, `fn … do`, `make T do`, "
+                  "a `do … end` block needs a head that owns it — `if … do`, `while … do`, `fn … do`, `lit T do`, "
                   "`region … do` … A bare block is not in the grammar; it used to pass `--check` and then could not "
                   "be lowered. Put its statements where they belong, or give it its head", d->line, d->col);
         return low_parse_block(p);
@@ -315,7 +315,7 @@ static low_cst_t *low_parse_generic(low_parser_t *p) {
     low_tok_kind_t closer = LOW_TOK_EOF;  // implicit / block-end unless '.' seen
     // ★★★ X-0052 (소유자 결정 2026-09-25) — `end` 는 자기 `do` 만 닫는다. 그래서 블록을 **몸으로 갖는** 머리
     //   (`else` · `region` · `borrow`)가 아니면, 블록으로 끝났어도 이 문장은 **자기 점**으로 닫는다
-    //   (`let x be make T do … end .` · `return pipe xs do … end .`). 괄호 안이면 `)` 가 닫는다.
+    //   (`let x be lit T do … end .` · `return pipe xs do … end .`). 괄호 안이면 `)` 가 닫는다.
     //   그리고 블록이 없어도 둘러싼 `end` 가 대신 닫아 주지 않는다 — `do return a end` 는 점이 빠졌다.
     bool owner = block_tail && head.kind == LOW_TOK_IDENT &&
                  (head.kw == LOW_KW_ELSE || head.kw == LOW_KW_DO ||   // do = 머리 없는 블록(이미 E-BLOCK-NOHEAD)
@@ -333,7 +333,7 @@ static low_cst_t *low_parse_generic(low_parser_t *p) {
             const low_token_t *last = &p->toks[p->pos ? p->pos - 1 : 0];
             low_pdiag(p, "E-DOT-MISSING",
                       "this statement is not closed — `end` closes only its own `do` (it is a brace, not a "
-                      "stop), so the statement must end with its own `.`: `let x be make T do … end .`, "
+                      "stop), so the statement must end with its own `.`: `let x be lit T do … end .`, "
                       "`return a .`", last->line, last->col + (proven_u32)last->lex.size);
         }
     }
@@ -819,7 +819,7 @@ low_parse_result_t low_parse(proven_allocator_t node_alloc, proven_allocator_t w
     }
     // ★★★ X-0052 (소유자 결정 2026-09-25) — **`do … end` 는 서로 짝인 괄호다. `end` 는 자기 `do` 만 닫는다.**
     //   블록을 몸으로 갖는 구문(fn·if·while·match·struct·region·borrow·else …)은 그 블록이 끝나면 끝나므로 뒤의 점은
-    //   닫을 것이 없다. 블록을 품은 **값**을 쓰는 문장(`let x be make T do … end .`)은 자기 닫개를 스스로 찍고,
+    //   닫을 것이 없다. 블록을 품은 **값**을 쓰는 문장(`let x be lit T do … end .`)은 자기 닫개를 스스로 찍고,
     //   그 점은 파스가 `dot_ok` 에 적어 두었다. 적히지 않은 `end` 뒤 점과 `do` 뒤 점이 E-DOT-STRAY 다.
     //   ☞ 좁게 문다: 앞 낱말이 `end`·`do` 인 점만. 타입을 겹쳐 닫는 점(`slice u8 . .`)은 RFC-0113 R6 몫이다.
     {
@@ -833,7 +833,7 @@ low_parse_result_t low_parse(proven_allocator_t node_alloc, proven_allocator_t w
                 low_pdiag(&p, "E-DOT-STRAY",
                           "a stop after `end` closes nothing here — this construct owns its `do … end` block and "
                           "ends with it (like `}` in C). Delete the `.`. A statement that only USES a block value "
-                          "(`let x be make T do … end .`) does take its own stop",
+                          "(`let x be lit T do … end .`) does take its own stop",
                           tk->line, tk->col);
             else if (pv->kw == LOW_KW_DO)
                 low_pdiag(&p, "E-DOT-STRAY",
@@ -1195,7 +1195,7 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
     }
 }
 // 블록을 **몸으로 갖는** 머리인가 — 그런 구문은 자기 블록의 `end` 에서 끝난다(C 의 `if (…) { }` 처럼).
-// 블록을 품은 **값**을 쓰는 문장(`let x be make T do … end .` · `return pipe xs do … end .`)은 아니다 — 자기 점을 찍는다.
+// 블록을 품은 **값**을 쓰는 문장(`let x be lit T do … end .` · `return pipe xs do … end .`)은 아니다 — 자기 점을 찍는다.
 // (X-0052, 소유자 결정 2026-09-25: `end` 는 자기 `do` 만 닫는다.)
 static bool low_fmt_owns_block(const low_cst_t *nd) {
     if (!nd || nd->kind != LOW_CST_FORM || !nd->nkids || nd->kids[0]->kind != LOW_CST_ATOM) return false;
@@ -1534,7 +1534,9 @@ static const nest_head_t NEST_KW_SHAPE[] = {
     //   묶어 놓는다(§2.3 R2). 그래서 make 가 먹는 것은 **낱말+블록이 아니라 값 하나**다.
     //   (처음엔 "WV" 라 적었고, 낱말 슬롯이 FORM 을 만나 포기했다 — **파서가 이미 세운
     //    나무를 내가 몰랐다.**)
-    { "make", "V" },
+    // ★ `lit` 는 타입 낱말 **여럿** 뒤에 블록이 올 수 있다(제네릭 `lit handle ga do … end` — 블록은 마지막 낱말에
+    //   붙는다). 전엔 "V"(값 하나)라 `(lit handle) ga do …` 로 묶여 서식이 뜻을 바꿨다(옛 `make` 도 같았다, 2026-09-29).
+    { "lit", "L" },        // RFC-0132 L1 (전 `make`)
     { "expr", "R" },       // 중위 섬 — 나머지 전부가 이 섬이다
     // ★ 아래 넷은 **아직 안을 모른다**(가변 모양: 선택적 표식·핸들러 arity).
     //   그렇다고 **구간 전체를 버릴 이유는 없다** — 이 자리만 평평하게 남기면 된다.
@@ -1712,7 +1714,28 @@ static low_cst_t *nest_value(nest_ctx_t *c, low_cst_t *const *k, proven_size_t *
             while (*pos < end) (void)PROVEN_ARRAY_PUSH(&kids, low_cst_t *, k[(*pos)++]);
             break;
         }
-        if (shbuf[i] == 'W') {   // ★ **낱말 슬롯** — 맨 원자 하나를 그대로. 적용이 아니다.
+        if (shbuf[i] == 'L') {   // ★ **리터럴 몸** — 타입 낱말들 + 블록 붙은 폼(`handle ga do … end`). 없으면 값 하나.
+            proven_size_t j = *pos;
+            while (j < end && k[j]->kind == LOW_CST_ATOM) j++;
+            if (j > *pos && j < end && k[j]->kind == LOW_CST_FORM && k[j]->nkids >= 2 &&
+                k[j]->kids[k[j]->nkids - 1]->kind == LOW_CST_BLOCK) {
+                // 낱말들 + 블록 폼을 **값 하나**로 묶는다 — `(handle (ga do … end))` 가 아니라 `(handle ga-블록)`:
+                //   타입 인자가 제대로 잡혔을 때 V 가 세우는 나무와 같은 모양(단형화가 `handle ga` 를 인스턴스로 바꾼다).
+                // ★ 모양은 단형화가 이어 붙인 것과 **같게** — FORM[타입, 인자…, 마지막 인자, BLOCK](mono_make_fix 의 ⓐ 결과).
+                //   `synth` 표시가 «이미 이어 붙였다» 는 뜻이라 단형화가 다시 손대지 않고, 뒤에서 타입 자리만 인스턴스로 바꾼다.
+                proven_array_t in = PROVEN_ARRAY_INIT(c->p.work, low_cst_t *, j - *pos + 2).value;
+                const low_token_t t0 = k[*pos]->tok;
+                while (*pos < j) (void)PROVEN_ARRAY_PUSH(&in, low_cst_t *, k[(*pos)++]);
+                for (proven_size_t q = 0; q < k[j]->nkids; q++) (void)PROVEN_ARRAY_PUSH(&in, low_cst_t *, k[j]->kids[q]);
+                (*pos)++;
+                low_cst_t *ff = low_node(&c->p, LOW_CST_FORM, t0);
+                if (!ff) { proven_array_destroy(&in); *bad = true; proven_array_destroy(&kids); return NULL; }
+                ff->closer = LOW_TOK_EOF; ff->synth = true;
+                low_take_kids(&c->p, ff, &in);
+                arg = ff;
+            } else
+            arg = nest_value(c, k, pos, end, bad);
+        } else if (shbuf[i] == 'W') {   // ★ **낱말 슬롯** — 맨 원자 하나를 그대로. 적용이 아니다.
             if (*pos >= end || k[*pos]->kind != LOW_CST_ATOM) {
                 *bad = true;
                 nest_blame(c, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"<낱말슬롯>", .size = 14 });

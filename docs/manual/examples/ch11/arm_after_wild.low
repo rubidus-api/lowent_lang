@@ -2,14 +2,14 @@ module arm_after_wild .
 rem expect: E-MATCH-REDUNDANT
 
 enum light do
-  lit .
+  bright .
   dark .
 end
 
 fn name input k u8 . output u8 . do
-  let s be light lit .
+  let s be light bright .
   match s do
     case _ . do return 0 . end
-    case lit . do return 1 . end
+    case bright . do return 1 . end
   end
 end

@@ -2075,7 +2075,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ RFC-0106 단계 4 — 슬라이스 필드를 든 레코드도 **돌려줄 수 있다**
                 //   (경계 복원이 `cbe_emit_rec_recon` 에 실렸다).
                 if (rk >= K_REC && cbe_make_for_struct(ir, rk - K_REC) < 0) {
-                    snprintf(g_sub, sizeof g_sub, "returns a RECORD with no `make` site to rebuild it at the boundary"); return false; }
+                    snprintf(g_sub, sizeof g_sub, "returns a RECORD with no `lit` site to rebuild it at the boundary"); return false; }
                 if (*retk != 0xff && *retk != rk) {
                     snprintf(g_sub, sizeof g_sub, "two `return`s give different kinds (%u and %u)", *retk, rk); return false; } // 두 종류를 섞어 돌려주면 **안 내린다**
                 *retk = rk;

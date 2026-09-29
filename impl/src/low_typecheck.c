@@ -1385,7 +1385,7 @@ static void tc_check_make(tc_ctx_t *c, const low_cst_t *form,
     for (proven_size_t q = 0; q < st->nf; q++)
         if (!given[q])                     // ★ 빠뜨린 필드
             tc_emit(c, "E-TYPE-FIELD",
-                    "a declared field is missing from this `make` (every field must be given)",
+                    "a declared field is missing from this `lit` (every field must be given)",
                     form->line);
 }
 // 본문을 훑으며 make 리터럴을 찾는다.
@@ -1416,7 +1416,7 @@ static void tc_walk_makes(tc_ctx_t *c, const low_cst_t *nd,
                  (int)st->name.size, (const char *)st->name.ptr, (int)fnm->tok.lex.size, (const char *)fnm->tok.lex.ptr, fl);
     }
     for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {
-        if (nd->kids[j]->kind == LOW_CST_ATOM && veq(nd->kids[j]->tok.lex, "make")) {
+        if (nd->kids[j]->kind == LOW_CST_ATOM && veq(nd->kids[j]->tok.lex, "lit")) {
             const low_cst_t *arg = nd->kids[j + 1];
             if (arg->kind == LOW_CST_GROUP && arg->nkids == 1) arg = arg->kids[0];
             tc_check_make(c, arg, env, nenv);

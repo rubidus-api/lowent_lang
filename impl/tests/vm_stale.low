@@ -5,7 +5,7 @@ struct pairr do
   b u32 .
 end
 
-fn mkp output pairr . do return make pairr do a 5 . b 6 . end . end
+fn mkp output pairr . do return lit pairr do a 5 . b 6 . end . end
 
 fn stale_view .
   output u64 .

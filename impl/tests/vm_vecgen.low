@@ -108,7 +108,7 @@ proc structs input al cap allocator . output u64 . effects state alloc . do
   rem 자라야 한다: 2 자리에 5개.
   var i be u64 0 .
   while lt i 5 . do
-    guard vecgen.append pt allocs.bump_bytes g (make pt do x (narrow u32 i) . y (narrow u32 (mul i 10)) . end) . else return add 10 i .
+    guard vecgen.append pt allocs.bump_bytes g (lit pt do x (narrow u32 i) . y (narrow u32 (mul i 10)) . end) . else return add 10 i .
     set i (add i 1) .
   end
   guard eq (vecgen.count_of pt allocs.bump_bytes g) 5 . else return 3 .
@@ -135,17 +135,17 @@ struct nest do
 end
 
 proc wrap input comptime t type . input x t . output nest t . effects none . do
-  return make nest t do v x . end .
+  return lit nest t do v x . end .
 end
 
 proc nested output u64 . effects none . do
   let inner be (nest u32) wrap u32 7 .
-  let outer be (nest (nest u32)) make nest (nest u32) do v inner . end .
+  let outer be (nest (nest u32)) lit nest (nest u32) do v inner . end .
   rem 두 겹을 벗겨도 값이 그대로여야 한다.
   let back be (nest u32) (field outer v) .
   guard eq (field back v) 7 . else return 1 .
   rem 세 겹도 된다(고정점이 도니까).
-  let deep be (nest (nest (nest u32))) make nest (nest (nest u32)) do v outer . end .
+  let deep be (nest (nest (nest u32))) lit nest (nest (nest u32)) do v outer . end .
   let d1 be (nest (nest u32)) (field deep v) .
   let d2 be (nest u32) (field d1 v) .
   guard eq (field d2 v) 7 . else return 2 .

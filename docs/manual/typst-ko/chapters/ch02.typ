@@ -37,7 +37,7 @@
 == 도구 짓기
 
 컴파일러의 이름은 `lowentc` 다. 저장소를 받은 뒤 `impl/` 에서 짓는다. 필요한 것은 C23 을 아는 C
-컴파일러(gcc 나 clang)와 `make` 뿐이다.
+컴파일러(gcc 나 clang)와 `lit` 뿐이다.
 
 ```sh
 cd impl
@@ -45,7 +45,7 @@ make            # build/lowentc
 make check      # 단위 시험과 표준 라이브러리 검사
 ```
 
-`make` 가 끝나면 `impl/build/lowentc` 가 생긴다. 이 책의 명령은 그것이 경로에 있다고 치고
+`lit` 가 끝나면 `impl/build/lowentc` 가 생긴다. 이 책의 명령은 그것이 경로에 있다고 치고
 `lowentc` 로 적는다.
 
 #dtable(

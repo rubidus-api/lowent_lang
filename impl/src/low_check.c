@@ -838,6 +838,13 @@ static void emit_at(low_check_result_t *out, const char *code, const char *msg,
     low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg,
                      .line = nd ? nd->line : 0, .col = nd ? nd->col : 0,
                      .file = nd ? nd->file : NULL };
+    // ★ 같은 코드가 **같은 자리**에 바로 앞에 이미 있으면 다시 내지 않는다(2026-09-29). `be lit <T> …` 는
+    //   선언 타입으로 리터럴의 타입 노드를 **복사**해 쓰므로(RFC-0132 §13.1), 그 낱말을 보는 검사가 같은 자리를
+    //   두 번 짚었다(실측: E-USE-ALIASED 가 9:16 에 둘).
+    if (out->diags.len && nd) {
+        const low_diag_t *pv = (const low_diag_t *)out->diags.data + out->diags.len - 1;
+        if (pv->code == code && pv->line == d.line && pv->col == d.col && pv->file == d.file) { out->ok = false; return; }
+    }
     (void)proven_array_push(&out->diags, &d);
     out->ok = false;
 }
@@ -5740,7 +5747,7 @@ static unsigned long long ck_r1_expr_mask(const low_cst_t *nd, const low_op_head
 }
 static const low_cst_t *ck_r1_make_block(const low_cst_t *e) {
     while (e && e->kind == LOW_CST_GROUP && e->nkids == 1) e = e->kids[0];
-    if (!e || e->kind != LOW_CST_FORM || e->nkids < 2 || !ck_atom(e->kids[0]) || e->kids[0]->tok.kw != LOW_KW_MAKE) return NULL;
+    if (!e || e->kind != LOW_CST_FORM || e->nkids < 2 || !ck_atom(e->kids[0]) || e->kids[0]->tok.kw != LOW_KW_LIT) return NULL;
     for (proven_size_t i = 1; i < e->nkids; i++) {
         const low_cst_t *k = e->kids[i];
         if (k->kind == LOW_CST_BLOCK) return k;
@@ -7183,6 +7190,9 @@ low_op_summary_t low_op_summary(const low_parse_result_t *pr, const low_cst_t *f
 
 // ★★ 2026-07-13 에 없앤 여섯 낱말 — 그리고 **왜** 없앴는지, **무엇으로 바꿔 쓰는지.**
 static const struct { const char *word; const char *why; } CK_REMOVED[] = {
+    // ★ RFC-0132 L1 (2026-09-29, 소유자 «make 보다는 lit 가 낫겠어요»): 값 리터럴의 머리는 `lit` 하나다.
+    { "make", "`make` is now `lit` (RFC-0132): one head for every literal value — `lit point do x 1 . y 2 . end`. "
+              "Write `lit`" },
     // ★★★ `fn`/`proc` → `fn`/`proc` (RFC-0082). "op" 은 **원시 연산**(add/len, RFC-0016)을
     //   가리키던 낱말인데 정의 키워드도 "op" 이라 **한 낱말에 두 뜻**이었다(§2.5 위반). 또 proc 은
     //   함수가 아니다(효과) — `proc` 이 그것을 정직히 말한다. 순수/효과 1비트는 fn/proc 로 유지.

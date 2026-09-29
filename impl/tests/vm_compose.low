@@ -26,7 +26,7 @@ fn pass_view input s slice u8 . output u8 . do
 end
 
 fn pass_record output u8 . do
-  var q be pt make pt do x 9 . y 8 . end .
+  var q be lit pt do x 9 . y 8 . end .
   return take_view q .                  rem **레코드**를 넘긴다(뷰와 같은 자리에서 받는다)
 end
 

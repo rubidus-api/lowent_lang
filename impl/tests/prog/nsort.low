@@ -133,7 +133,7 @@ do
       if is_some v . do
         guard lt cnt (len araw) . else return 71 .
         set (index araw cnt) (some_value v) .
-        set (index braw cnt) (make keyed do k (some_value v) . end) .
+        set (index braw cnt) (lit keyed do k (some_value v) . end) .
         set cnt (add cnt 1) .
       end
       set pos (add stop 1) .

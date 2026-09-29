@@ -417,7 +417,7 @@ let mixed be u32 add 1 (mul 2 3) .")
       여는 `do` 바로 뒤의 점도 같다.
     ]
     #para("2c")[
-      블록을 품은 **값**을 쓰는 문장 — `let x be t make t do … end .` · `return pipe xs do … end .` —
+      블록을 품은 **값**을 쓰는 문장 — `let x be lit t do … end .` · `return pipe xs do … end .` —
       은 블록을 몸으로 갖지 아니하므로, 여느 문장처럼 **자기 점**으로 닫는다. 괄호 안이면
       `)` 가 닫는다.
     ]
@@ -427,8 +427,8 @@ let mixed be u32 add 1 (mul 2 3) .")
     #diagram("end 는 블록만 닫고, 마침표는 문장을 닫는다", "if eq a 0 . do return 1 . end    ← if 문: 블록을 몸으로 갖는다 --- end 에서 끝난다
 └───────────────────────────┘ if 문
 
-let p be pt make pt do x 1 . end .    ← let 문: 블록을 값으로 쓴다 --- 자기 . 으로 끝난다
-            └──────────────────┘ │   ← └┘ 는 make 의 블록, │ 는 let 의 마침표
+let p be lit pt do x 1 . end .        ← let 문: 블록을 값으로 쓴다 --- 자기 . 으로 끝난다
+         └─────────────────┘ │        ← └┘ 는 lit 의 블록, │ 는 let 의 마침표
 └────────────────────────────────┘ let 문")
     #rejected("몸으로 갖는 블록의 `end` 뒤에는 점이 없다", "module ex_dot_after_end .
 
@@ -443,7 +443,7 @@ struct pt do
 end
 
 fn f output u64 . do
-  let p be pt make pt do x 1 . end
+  let p be lit pt do x 1 . end
   return field p x .
 end", "E-DOT-MISSING")
     #rejected("머리 없는 블록", "module ex_block_nohead .
@@ -456,8 +456,8 @@ fn f input a u64 . output u64 . do
 end", "E-BLOCK-NOHEAD")
     #plain[
       왜 `end` 가 자기 `do` 만 닫는가. `end` 가 바깥 문장까지 닫으면, 한 `end` 가 무엇을 끝냈는지
-      알려면 그 블록을 **누가 품었는지**를 거슬러 올라가 봐야 한다 — `let … be make T do … end` 에서
-      그 `end` 는 `make` 의 블록과 `let` 문장을 함께 끝냈다. 이제 규칙은 둘뿐이다: **`do … end` 는
+      알려면 그 블록을 **누가 품었는지**를 거슬러 올라가 봐야 한다 — `let … be lit T do … end` 에서
+      그 `end` 는 `lit` 의 블록과 `let` 문장을 함께 끝냈다. 이제 규칙은 둘뿐이다: **`do … end` 는
       괄호처럼 짝을 이루고, 문장은 자기 점으로 끝난다.** 블록을 몸으로 갖는 구문만 C 의
       `if (…) { }` 처럼 블록에서 끝난다(2026-09-25).
     ]

@@ -10,7 +10,7 @@
 | op | `fn` `proc` `export` `unsafe` `extern` `satisfies` | 5장 |
 | 지역 | `let` `var` `set` `be` | 6장 |
 | 흐름 | `if` `else` `while` `for` `guard` `match` `case` `return` `break` `continue` `try` | 7장 |
-| 식과 값 | `expr` `make` `true` `false` `none` | 8장 |
+| 식과 값 | `expr` `lit` `true` `false` `none` | 8장 |
 | 동시성 | `spawn` `send` | 25장 |
 | 소유 | `drop` | 19장 |
 | 시험 | `test` `expect` | 31장 |

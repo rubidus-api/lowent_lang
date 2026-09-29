@@ -39,7 +39,7 @@ export fn open input comptime b type . input kbits u64 . output arena b .
 requires ge kbits 1 .
 requires le kbits 20 .
 do
-  return make arena b do kbits kbits . nseg 0 . used 0 . end .
+  return lit arena b do kbits kbits . nseg 0 . used 0 . end .
 end
 
 rem 조각 하나에 몇 칸이 들어가나.

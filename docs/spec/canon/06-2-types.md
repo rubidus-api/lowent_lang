@@ -222,7 +222,7 @@ enum color do
 end
 ```
 
-(4) struct 값은 `make` 로 만든다. 만들 때 **모든 칸을 채워야** 한다.
+(4) struct 값은 `lit` 로 만든다. 만들 때 **모든 칸을 채워야** 한다.
 
 (5) 칸을 읽을 때는 `field <값> <칸 이름>` 을 쓴다. 값 뒤에 점과 칸 이름을 붙이는 모양은 없다
       (`E-FIELD-GLUED`) — 점은 모듈 한정·갈래 이름에 이미 쓰인다.
@@ -237,7 +237,7 @@ end
 
 export fn origin output point .
 do
-  return make point do x 0 . y 0 . end .
+  return lit point do x 0 . y 0 . end .
 end
 
 export fn get_x input p point . output u32 .

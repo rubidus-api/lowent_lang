@@ -12,7 +12,7 @@ enum color do
 end
 
 enum node do
-  lit v u32 .
+  num v u32 .
   plus l u32 r u32 .
   times l u32 r u32 .
 end
@@ -31,7 +31,7 @@ fn combine input k u8 . output u32 . do
   let e be node node.times 6 7 .
   match e do
     case plus l r or times l r . do return add l r . end
-    case lit v . do return v . end
+    case num v . do return v . end
   end
 end
 

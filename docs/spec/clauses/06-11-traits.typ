@@ -58,8 +58,8 @@ end
 
 fn demo output u64 .
 do
-  let r be rect make rect do w 2 . h 3 . end .
-  let q be square make square do side 4 . end .
+  let r be lit rect do w 2 . h 3 . end .
+  let q be lit square do side 4 . end .
   return add (double_area rect r) (double_area square q) .
 end",
       out: "demo() = 44")
@@ -166,7 +166,7 @@ end
 
 fn rect.grow input s rect . input k u64 . output rect .
 do
-  return make rect do w (add (field s w) k) . h (add (field s h) k) . end .
+  return lit rect do w (add (field s w) k) . h (add (field s h) k) . end .
 end
 
 rem 효과를 적은 서명은 그 효과를 적은 `proc` 으로 갖춘다.

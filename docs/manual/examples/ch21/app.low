@@ -9,7 +9,7 @@ fn distance input dx i64 . input dy i64 . output i64 .
   requires ge dy -1000 .
   requires le dy 1000 .
 do
-  let a be geom.point make geom.point do x 0 . y 0 . end .
-  let b be geom.point make geom.point do x dx . y dy . end .
+  let a be lit geom.point do x 0 . y 0 . end .
+  let b be lit geom.point do x dx . y dy . end .
   return geom.manhattan a b .
 end

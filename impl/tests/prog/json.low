@@ -47,7 +47,7 @@ end
 
 rem 훑어서 센다. struct 필드 **쓰기**를 쓴다.
 fn scan input src bytes . output u16 . do
-  var c be counts make counts do braces 0 . quotes 0 . digits 0 . end .
+  var c be lit counts do braces 0 . quotes 0 . digits 0 . end .
   var i be u64 0 .
   while lt i (len src) . do
     let k be kind classify (index src i) . .

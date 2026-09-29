@@ -97,7 +97,7 @@ export proc open input comptime k type . input comptime v type . using al allocs
   guard is_some fb . else return none .
   var f0 be mut slice u8 some_value fb .
   let z be u64 clear f0 .
-  return some (make table k v do
+  return some (lit table k v do
     al al .
     keys (some_value kb) .
     vals (some_value vb) .

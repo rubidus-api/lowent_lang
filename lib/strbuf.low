@@ -51,7 +51,7 @@ export struct str_buf do
 end
 
 export fn new output str_buf . do
-  return make str_buf do len 0 . end .
+  return lit str_buf do len 0 . end .
 end
 
 rem 지금까지 쓴 바이트의 **뷰**. 복사가 아니다. (널은 뷰에 안 든다 — 길이가 진실이다.)

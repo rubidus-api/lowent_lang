@@ -2209,8 +2209,8 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             ir_emit(c, IRW_TRY, 0);
             return;
         }
-        if (nd->tok.kw == LOW_KW_MAKE) {   // make T do … end
-            if (*pos >= end) { ir_fail(c, "E-IR-UNSUP", "make without a literal", nd->line); return; }
+        if (nd->tok.kw == LOW_KW_LIT) {   // make T do … end
+            if (*pos >= end) { ir_fail(c, "E-IR-UNSUP", "lit without a literal", nd->line); return; }
             // ★ 이 자리에 **두 모양을 다 받는 반창고**가 있었다 — `make` 가 괄호 안에서
             //   자기가 머리가 되어 다른 나무를 만들었기 때문이다. **문법을 고치니 사라졌다**
             //   (`make` 를 블록-문장 머리 목록에서 뺐다). 뒷단의 반창고는 대개 **앞단의 병**이다.

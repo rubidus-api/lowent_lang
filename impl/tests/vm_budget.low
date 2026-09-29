@@ -78,7 +78,7 @@ proc capacities output u64 . effects none . do
   guard eq (some_value h) 256 . else return 95 .
   guard eq (some_value g) 16777216 . else return 96 .
   rem ★ 셀 수 없는 폭은 **값으로** 거절된다 — 조용히 음수를 내지 않는다.
-  let wide be budget.plan make budget.plan do slot_bits 63 . shard_bits 0 . gen_bits 0 . end .
+  let wide be lit budget.plan do slot_bits 63 . shard_bits 0 . gen_bits 0 . end .
   let w be option u64 budget.slots wide .
   guard eq (is_some w) false . else return 97 .
   return 5 .

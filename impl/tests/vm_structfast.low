@@ -28,7 +28,7 @@ fn many input n u64 . output u64 . do
     var t be u64 0 .
     var i be u64 0 .
     while lt i n . do
-        var q be pt make pt do x i . y 2 . end .
+        var q be lit pt do x i . y 2 . end .
         set t (wrap_add t (wrap_add (field q x) (field q y))) .
         set i (add i 1) .
     end

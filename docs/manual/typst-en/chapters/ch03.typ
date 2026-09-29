@@ -114,8 +114,8 @@ rules to know.
 
 - *A construct that owns a block as its body* ends at `end`: op declarations, `struct`·`enum`, `if`·`while`·`for`·`match`.
   As in the example above, no full stop follows the `end` --- one there closes nothing and is rejected with `E-DOT-STRAY`.
-- *A statement that uses a block as a value* ends with its own full stop, like any statement. Building a struct value with `make`
-  and binding it with `let` is the usual case: `let p be point make point do x 1 . y 2 . end .` --- the last stop belongs to the
+- *A statement that uses a block as a value* ends with its own full stop, like any statement. Building a struct value with `lit`
+  and binding it with `let` is the usual case: `let p be lit point do x 1 . y 2 . end .` --- the last stop belongs to the
   `let`. Leaving it out is `E-DOT-MISSING`.
 
 In C terms: no `;` after `if (c) { … }`, but one after `p = (struct point){ 1, 2 };`.
@@ -124,9 +124,9 @@ In C terms: no `;` after `if (c) { … }`, but one after `p = (struct point){ 1,
 while le i n . do  …  end                  block as body: the while statement ends at end
 └─── while statement ───┘
 
-let p be point make point do x 1 . end .   block as value: the block is make's, the statement ends with its own .
-               └──── make value ─────┘ │
-└─────────── let statement ────────────┘
+let p be lit point do x 1 . end .          block as value: the block is lit's, the statement ends with its own .
+         └───── lit value ────┘ │
+└──────── let statement ────────┘
 ```
 
 Each statement inside a block must end with its own full stop too; `end` does not close an open statement for you. A bare
@@ -201,7 +201,7 @@ A name starts with an ASCII letter or underscore and continues with letters, dig
 languages.
 
 First, *declared names contain no dots.* A place with a dot attached is a path *referring* to a name, and it has only three meanings
---- a module's name (`allocs.byte_allocator`), a variant's name (`node.lit`), and the name of a declaration attached to a type
+--- a module's name (`allocs.byte_allocator`), a variant's name (`node.num`), and the name of a declaration attached to a type
 (`rect.area`). Looking inside a value (reading a field, calling a method) is not a glued dot but a form: `field p x` · `method s area`.
 
 #idx("shadowing")
@@ -233,7 +233,7 @@ words can express gets a new one. Roughly, they fall into these groups.
   [Declarations], [`module` `use` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state`],
   [Ops], [`fn` `proc` `export` `unsafe` `extern`],
   [Locals and flow], [`let` `var` `set` `return` `if` `else` `for` `while` `guard` `match` `case` `try` `break` `continue` `expr`],
-  [Values], [`make` `true` `false` `none` `be`],
+  [Values], [`lit` `true` `false` `none` `be`],
   [Others], [`spawn` `send` `drop` `test` `expect` `satisfies` `do` `end`],
 )
 

@@ -10,7 +10,7 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | ops | `fn` `proc` `export` `unsafe` `extern` `satisfies` | chapter 5 |
 | Locals | `let` `var` `set` `be` | chapter 6 |
 | Flow | `if` `else` `while` `for` `guard` `match` `case` `return` `break` `continue` `try` | chapter 7 |
-| Expressions and values | `expr` `make` `true` `false` `none` | chapter 8 |
+| Expressions and values | `expr` `lit` `true` `false` `none` | chapter 8 |
 | Concurrency | `spawn` `send` | chapter 25 |
 | Ownership | `drop` | chapter 19 |
 | Tests | `test` `expect` | chapter 31 |

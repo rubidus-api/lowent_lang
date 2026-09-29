@@ -16,7 +16,7 @@ specification's Appendix A, and anything not in that list is not a word.
   [ops], [`fn` `proc` `export` `unsafe` `extern` `satisfies`], [#chref("ops")],
   [Locals], [`let` `var` `set` `be`], [#chref("locals")],
   [Flow], [`if` `else` `while` `for` `guard` `match` `case` `return` `break` `continue` `try`], [#chref("control")],
-  [Expressions and values], [`expr` `make` `true` `false` `none`], [#chref("expr")],
+  [Expressions and values], [`expr` `lit` `true` `false` `none`], [#chref("expr")],
   [Concurrency], [`spawn` `send`], [#chref("actors")],
   [Ownership], [`drop`], [#chref("ownership")],
   [Tests], [`test` `expect`], [#chref("build-test")],

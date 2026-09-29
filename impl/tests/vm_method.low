@@ -46,14 +46,14 @@ fn rect.scaled_area input s rect . input k u8 . output u64 . do
 end
 
 fn demo output u64 . do
-  var r be rect make rect do w 3 . h 4 . end .
-  var c be circle make circle do r 2 . end .
+  var r be lit rect do w 3 . h 4 . end .
+  var c be lit circle do r 2 . end .
   rem ★ 수신자 우선 호출 — 같은 이름 `area` 가 타입마다 다른 op 이다
   return add (method r area) (method c area) .
 end
 
 fn demo2 input k u8 . output u64 . do
-  var r be rect make rect do w 3 . h 4 . end .
+  var r be lit rect do w 3 . h 4 . end .
   return method r scaled_area k .
 end
 
@@ -65,16 +65,16 @@ struct box do
 end
 
 fn rect.grow input s rect . input k u8 . output rect . do
-  return make rect do w (add (field s w) k) . h (field s h) . end .
+  return lit rect do w (add (field s w) k) . h (field s h) . end .
 end
 
 fn shapes_field output u64 . do
-  var b be box make box do r (make rect do w 3 . h 4 . end) . end .
+  var b be lit box do r (lit rect do w 3 . h 4 . end) . end .
   return method b r area .              rem ★ ② **필드**에 메서드 — 필드의 타입은 알 수 있다
 end
 
 fn shapes_chain output u64 . do
-  var x be rect make rect do w 3 . h 4 . end .
+  var x be lit rect do w 3 . h 4 . end .
   return method (method x grow 2) area .       rem ★ ③ **사슬** — 앞 op 의 **출력 타입**이 수신자 타입이다
 end
 
@@ -82,7 +82,7 @@ test method_dispatch do
   expect eq (demo) 24 .          rem rect 3x4=12  +  circle r2=12
   expect eq (demo2 5) 60 .       rem (3*4) * 5
   rem ★ 자격 있는 전위 호출도 그대로 된다 — 같은 op 이다
-  expect eq (rect.area (make rect do w 3 . h 4 . end)) 12 .
+  expect eq (rect.area (lit rect do w 3 . h 4 . end)) 12 .
   expect eq (shapes_field) 12 .    rem 3*4
   expect eq (shapes_chain) 20 .    rem (3+2)*4
 end

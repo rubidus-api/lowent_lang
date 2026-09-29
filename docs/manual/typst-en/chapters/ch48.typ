@@ -102,7 +102,7 @@ is whitespace. Both ops give the same answer.
 A newline could also be made a closer, and that is provable too. It still is not done. If newlines closed, line breaks would carry meaning, and merely splitting a long line would
 change the program. *That a meaning can be proven the same does not mean the spelling must exist.* Theorems once attached to commas, line continuation and newline closing were all
 `Qed` too, but when those rules left the language, the theorems left with them. Today `,` and `;` are rejected with `E-VOCAB-REMOVED` --- a word that parses but has no
-effect is a silent trap. Keeping theorems modelling dead rules would make a proven document speak of rules that do not exist.
+effect is a silent trap. Keeping theorems modelling dead rules would lit a proven document speak of rules that do not exist.
 
 Every proof in this file ends by computation. The value is not in the difficulty of the proofs but in *having chosen and written the propositions*. With "closers do the same job"
 written down, the proof breaks when someone treats one specially. Syntax is a layer that quietly drifts with "it would be convenient to make an exception just here", and theorems

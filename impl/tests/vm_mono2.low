@@ -28,8 +28,8 @@ fn pair input comptime a type . input comptime b type . input p a . input q b . 
 end
 
 fn two output u32 . do
-  var u be pt make pt do x 3 . y 4 . end .
-  var v be rc make rc do w 5 . h 6 . end .
+  var u be lit pt do x 3 . y 4 . end .
+  var v be lit rc do w 5 . h 6 . end .
   return (pair pt rc u v) .
 end
 
@@ -38,6 +38,6 @@ fn ga input comptime t type . input p t . output u32 . do return (field p x) . e
 fn gb input comptime t type . input p t . output u32 . do return (field p x) . end
 
 fn dedup output u32 . do
-  var u be pt make pt do x 3 . y 0 . end .
+  var u be lit pt do x 3 . y 0 . end .
   return (add (ga pt u) (gb pt u)) .
 end

@@ -12,7 +12,7 @@ type scratch u64 . .
 
 rem 토큰 종류 — 슬라이스로 건네려면 원소가 **바이트 레이아웃**을 가져야 해서(viewable) 종류는 u8 코드다.
 rem   (enum 칸은 레이아웃이 없다. 이름은 prelude op(add/sub/…)와 겹치지 않게 — RFC-0002 §8-12(F1).)
-let lit be u8 0 .       rem 리터럴 push (value 사용)
+let k_lit be u8 0 .       rem 리터럴 push (value 사용)
 let plus be u8 1 .
 let minus be u8 2 .
 let times be u8 3 .
@@ -63,7 +63,7 @@ do
   var depth be u64 0 .
   for t tokens do
     let k be u8 field t kind . .
-    if eq (field t kind) lit . do
+    if eq (field t kind) k_lit . do
       push s field t value . .
       set depth (add depth 1) .
     end

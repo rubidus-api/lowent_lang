@@ -16,7 +16,7 @@
   [op], [`fn` `proc` `export` `unsafe` `extern` `satisfies`], [#chref("ops")],
   [지역], [`let` `var` `set` `be`], [#chref("locals")],
   [흐름], [`if` `else` `while` `for` `guard` `match` `case` `return` `break` `continue` `try`], [#chref("control")],
-  [식과 값], [`expr` `make` `true` `false` `none`], [#chref("expr")],
+  [식과 값], [`expr` `lit` `true` `false` `none`], [#chref("expr")],
   [동시성], [`spawn` `send`], [#chref("actors")],
   [소유], [`drop`], [#chref("ownership")],
   [시험], [`test` `expect`], [#chref("build-test")],

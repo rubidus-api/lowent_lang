@@ -66,7 +66,7 @@ end
 
 rem 부모 없음 — 뿌리를 만들 때 넘기는 값. 세대 0 은 어떤 슬롯과도 안 맞으므로 안전하다.
 fn no_parent input comptime b type . output handle b . do
-  return make handle b do w 0 . end .
+  return lit handle b do w 0 . end .
 end
 
 rem ★★★ **I1 — 손잡이 검사 다섯**: 브랜드(타입) · shard · slot 범위 · alive ∧ ¬pending · 세대.
@@ -119,7 +119,7 @@ do
   set (index meta 4) (add (index meta 4) 1) .
   let ho be option u64 budget.pack 32 8 24 s 0 (index gen s) .
   guard is_some ho . else return none .
-  return some (make handle b do w (some_value ho) . end) .
+  return some (lit handle b do w (some_value ho) . end) .
 end
 
 rem 부모에서 뗀다 — O(1). 형제 링크와 부모의 first/last 를 고친다.

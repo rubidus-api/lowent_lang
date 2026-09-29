@@ -34,7 +34,7 @@ export fn seek input ss segments u8 . . input pos u64 . output option segview.cu
   while lt i (segs ss) . do
     let n be u64 len (seg ss i) .
     if lt left n . do
-      return some (make cursor do piece i . at left . end) .
+      return some (lit cursor do piece i . at left . end) .
     end
     set left (sub left n) .
     set i (add i 1) .

@@ -872,7 +872,7 @@ $ lowentc --run checked panics.low 0
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_elif.low
-9:22 E-BLOCK-NOHEAD: a `do … end` block needs a head that owns it — `if … do`, `while … do`, `fn … do`, `make T do`, `region … do` … A bare block is not in the grammar; it used to pass `--check` and then could not be lowered. Put its statements where they belong, or give it its head
+9:22 E-BLOCK-NOHEAD: a `do … end` block needs a head that owns it — `if … do`, `while … do`, `fn … do`, `lit T do`, `region … do` … A bare block is not in the grammar; it used to pass `--check` and then could not be lowered. Put its statements where they belong, or give it its head
 </code></pre></div></div><p><code>elif</code>, <code>elsif</code> and <code>else if:</code> vary between languages. Lowent joins words it already has: close the previous block with <code>end</code> and add <code>else if</code>. <code>elif</code> is not a word, so <code>elif lt n 80 .</code> is read as a statement of its own, and the <code>do … end</code> after it becomes a block with no head to open it (<code>E-BLOCK-NOHEAD</code>) — a <code>do … end</code> is always opened by a head such as <code>if</code>, <code>while</code> or <code>fn</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/elseif.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> elseif .
 <em><span class="tok-c">rem run: grade 30</span></em>
 <em><span class="tok-c">rem run: grade 70</span></em>

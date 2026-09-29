@@ -738,7 +738,7 @@ rt_arg.low:12:0 E-COMPTIME-ARG: this argument sits in a `comptime` parameter, so
 
 <strong><span class="tok-k">fn</span></strong> bigger <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> y <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> score max_of score (<strong><span class="tok-k">make</span></strong> score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">make</span></strong> score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> score max_of score (lit score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (lit score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run bigger bound.low 3 9
@@ -767,7 +767,7 @@ bigger(12, 5) = 12
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> plain max_of plain (<strong><span class="tok-k">make</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">make</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> plain max_of plain (lit plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (lit plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check unsat.low
@@ -808,7 +808,7 @@ bigger(12, 5) = 12
 <strong><span class="tok-k">fn</span></strong> bigger <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> y <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem ✘ 앞자리의 타입 인자 `score` 를 빠뜨렸다 --- 추론은 없다</span></em>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> score max_of (<strong><span class="tok-k">make</span></strong> score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">make</span></strong> score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> score max_of (lit score <strong><span class="tok-k">do</span></strong> v x . <strong><span class="tok-k">end</span></strong>) (lit score <strong><span class="tok-k">do</span></strong> v y . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_notypearg.low
@@ -835,7 +835,7 @@ mistake_notypearg.low:30:0 E-MONO-NOTYPE: this op takes a TYPE as its first inpu
 
 <strong><span class="tok-k">fn</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> plain max_of plain (<strong><span class="tok-k">make</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (<strong><span class="tok-k">make</span></strong> plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> plain max_of plain (lit plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>) (lit plain <strong><span class="tok-k">do</span></strong> v <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>) .
   <strong><span class="tok-k">return</span></strong> field m v .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nobound.low

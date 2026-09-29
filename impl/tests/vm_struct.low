@@ -13,14 +13,14 @@ end
 fn mk2 .
   output pairr .
 do
-  return make pairr do a 3 . b 9 . end .
+  return lit pairr do a 3 . b 9 . end .
 end
 
 fn mko .
   output outerr .
 do
-  return make outerr do
-    q make pairr do a 1 . b 2 . end .
+  return lit outerr do
+    q lit pairr do a 1 . b 2 . end .
     tag 7 .
   end .
 end

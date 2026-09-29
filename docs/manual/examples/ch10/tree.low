@@ -1,7 +1,7 @@
 module tree .
 
 enum node do
-  lit v u32 .
+  num v u32 .
   add l u32 r u32 .
   mul l u32 r u32 .
 end
@@ -10,7 +10,7 @@ fn eval input nodes slice node . input i u32 . output u32 .
 do
   let n be node index nodes i .
   match n do
-    case lit v . do return v . end
+    case num v . do return v . end
     case add l r . do return add (eval nodes l) (eval nodes r) . end
     case mul l r . do return mul (eval nodes l) (eval nodes r) . end
   end
@@ -18,5 +18,5 @@ end
 
 fn is_leaf input n node . output bool .
 do
-  return isa n lit .
+  return isa n num .
 end

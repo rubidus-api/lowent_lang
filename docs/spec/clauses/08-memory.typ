@@ -40,7 +40,7 @@
       값이 어느 영역에 사는지는 **소스에 적혀 있다.** 처리기가 몰래 옮기지 아니한다.
     ]
     #para("3a")[
-      뿌리에서 얻는 것 말고도, `some`·`ok`·`make`·`spawn actor` 가 만드는 값은 처리기의 **유한 풀**에 산다. 이
+      뿌리에서 얻는 것 말고도, `some`·`ok`·`lit`·`spawn actor` 가 만드는 값은 처리기의 **유한 풀**에 산다. 이
       풀은 그 op 의 암묵 ⟦frame⟧ 이다 — 효과가 없고, `alloc`·`heap` 을 적지 않으며, 권한이 필요 없다. 풀은 루프를 한
       바퀴 돌 때마다 되감기고, 동시에 살아 있는 값이 풀의 크기를 넘으면 그 자리에서 **멈춘다**(값이 아니라 중단이다).
       크기는 기계가 정하며(운영체제가 없는 기계는 작다) 짓는 사람이 조절할 수 있다. 이 크기는 규범이 아니라 처리기가
@@ -109,7 +109,7 @@ end")
       **칸이나 원소에** 대입하기(`set (field h store) b .`)다. 영역의 바이트를 들지 않는 값 —
       정수·참거짓처럼 스칼라 타입으로 묶인 것, `len`·`index` 처럼 스칼라를 내는 식 — 은
       들고 나가지 아니한다. 영역의 바이트를 드는지는 **흐름을 따라** 가린다: op 부름의 결과는
-      그 op 의 몸에서 결과로 흘러드는 입력의 것만 든다. 결과가 `make` 로 지은 묶음이면 칸마다
+      그 op 의 몸에서 결과로 흘러드는 입력의 것만 든다. 결과가 `lit` 로 지은 묶음이면 칸마다
       따로 가린다 — 영역의 바이트가 든 칸을 꺼내 들고 나가면 적합하지 아니하고, 들지 않은 칸은
       상관없다. 몸이 결과를 지역에 담았다가 돌려주는 등 흐름을 가를 수 없으면 입력 모두에서
       나온 것으로 본다.
@@ -119,7 +119,7 @@ end")
 struct holder do store mut slice u8 . . end
 
 proc f output u64 . effects alloc . do
-  var h be holder make holder do store (subslice \"abcd\" 0 0) . end
+  var h be lit holder do store (subslice \"abcd\" 0 0) . end
   region r arena do
     let g be option mut slice u8 alloc_bytes r capacity 16 .
     if is_some g . do

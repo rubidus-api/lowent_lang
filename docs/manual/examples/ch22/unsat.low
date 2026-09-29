@@ -20,6 +20,6 @@ end
 
 fn caller output u64 .
 do
-  let m be plain max_of plain (make plain do v 1 . end) (make plain do v 2 . end) .
+  let m be plain max_of plain (lit plain do v 1 . end) (lit plain do v 2 . end) .
   return field m v .
 end

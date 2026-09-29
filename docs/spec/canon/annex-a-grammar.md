@@ -18,7 +18,7 @@
 actor      be         break      case       continue   contract
 do         drop       else       end        enum       expect     export
 expr       extern     false      fn         for        guard      if
-let        make       match      module     newtype    none       proc
+let        lit        match      module     newtype    none       proc
 return     satisfies  send       set        spawn      state      struct
 test       trait      true       try        type       unsafe     use
 var        while
@@ -229,7 +229,7 @@ borrow              borrow <이름> be <폼> do <폼>* end                  end
 return              return [<폼>] .           (값이 블록으로 끝나도 점)   .
 break               break .                   (라벨은 없다)             .
 continue            continue .                                         .
-make                make <타입> do <칸초기>* end  (칸초기 = <이름> <폼> .) end
+lit                 lit <타입> do <칸초기>* end  (칸초기 = <이름> <폼> .) end
 extern              extern fn/proc <이름> do <절>* end  (몸이 씨)       end
 match               match <폼> do <가지>* [else do <폼>* end] end       end
 ```
@@ -270,6 +270,7 @@ match               match <폼> do <가지>* [else do <폼>* end] end       end
 > [`on`], [`proc`], [액터 블록 안이면 이미 메시지 처리기다. 게다가 **순수/절차 비트를 우회했다**],
 > [`fail`], [`return error <갈래>`], [명세의 어휘에 아예 없었다 — 옛 해석기에만 살아 있었다],
 > [`;`], [`.`], [닫개의 **세 번째 철자**였다(⟦§6.1.6⟧)],
+> [`make`], [`lit`], [값 리터럴의 머리를 하나로 — 구조체·배열·벡터·슬라이스 값이 모두 `lit <타입> …` 로 시작한다],
 > )
 
 (2) 없앤 까닭은 대개 **같은 뜻의 두 철자**이거나 **아무것도 사지 못하는 낱말**이었기

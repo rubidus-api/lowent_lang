@@ -24,7 +24,7 @@
 ]
 
 #organizer[
-  You will learn to declare a `struct`, make one with `make` and read it with `field`, and why there is no glued dot. You will see that the
+  You will learn to declare a `struct`, make one with `lit` and read it with `field`, and why there is no glued dot. You will see that the
   variants of an `enum` can carry values, how to split them with `match` while binding those values to names, and why variants must be
   closed with full stops. You will also learn why a type that contains itself is rejected, and how to link tree structures by number.
 ]
@@ -39,7 +39,7 @@ full stop.
 
 #demo("examples/ch10/points.low")
 
-- `make point do x 1 . y 1 . end` makes a value. *Every field must be filled* when making it. No unfilled field quietly becomes 0.
+- `lit point do x 1 . y 1 . end` makes a value. *Every field must be filled* when making it. No unfilled field quietly becomes 0.
 - `field s stop x` reads the `stop` field of `s` and the `x` field inside it. With several steps, it goes down one field at a time from
   the left.
 - A field's type may be another `struct`. `segment` holds two `point`s.
@@ -77,7 +77,7 @@ However many variants there are, the `match` must cover them all. Leaving out `d
 This check is the greatest value of an `enum`. When a `triangle` variant is added later, every `match` over `shape`, `area` and `corners`
 included, stops at translation. Nobody has to remember the places to fix.
 
-To ask only which variant without a `match`, `isa n lit` gives a `bool`.
+To ask only which variant without a `match`, `isa n num` gives a `bool`.
 
 == Variants are closed with full stops
 
@@ -121,7 +121,7 @@ fixed, and the `index` that follows a position still gets its bounds check. The 
 
 == Common mistakes
 
-#antipattern[Leaving a field out of `make`][
+#antipattern[Leaving a field out of `lit`][
   #demo("examples/ch10/mistake_missfield.low")
 
   C fills missing struct fields with 0, and some languages insert a default. Lowent rejects it with `E-TYPE-FIELD`, because the source
@@ -169,7 +169,7 @@ fixed, and the `index` that follows a position still gets its bounds check. The 
   caption: [Struct and enum syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`struct point do x u64 . y u64 . end`], [a bundle of named fields], [one line per field, name and type],
-  [`make point do x 1 . y 2 . end`], [build a value --- fill every field], [no field silently becomes 0],
+  [`lit point do x 1 . y 2 . end`], [build a value --- fill every field], [no field silently becomes 0],
   [`field p x` · `field s stop x`], [read a field · walk down several levels], [no glued dot --- the meaning is fixed as you read],
   [`set (field p x) 3 .`], [write a field (of a value received `mut`)], [reading and writing are spelt the same],
   [`enum shape do dot . circle r u32 . end`], [one of several --- variants may carry values], [each variant is closed with a stop],
@@ -180,7 +180,7 @@ fixed, and the `index` that follows a position still gets its bounds check. The 
 )
 
 #recap[
-  A `struct` is made with `make`, filling every field, and read and written with `field`. There is no glued dot. The variants of an `enum`
+  A `struct` is made with `lit`, filling every field, and read and written with `field`. There is no glued dot. The variants of an `enum`
   can carry values, are made as `<type>.<variant>`, and are split with a `match` covering every variant. Variants are closed with full stops.
   A type holding itself by value has infinite size and is rejected; tree structures are linked by number.
 ]

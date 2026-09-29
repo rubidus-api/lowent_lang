@@ -33,7 +33,7 @@ static const low_kwent_t LOW_KW_TABLE[] = {
     {"try", LOW_KW_TRY},   {"expr", LOW_KW_EXPR},
     {"true", LOW_KW_TRUE}, {"false", LOW_KW_FALSE}, {"none", LOW_KW_NONEVAL},
     // MVP (S3)
-    {"fn", LOW_KW_FN}, {"proc", LOW_KW_PROC}, {"make", LOW_KW_MAKE},   // ★ RFC-0082 (전 calcop/procop)
+    {"fn", LOW_KW_FN}, {"proc", LOW_KW_PROC}, {"lit", LOW_KW_LIT},   // ★ RFC-0082 (전 calcop/procop) · RFC-0132 L1: 값 리터럴의 머리(전 `make`)
     {"struct", LOW_KW_STRUCT}, {"enum", LOW_KW_ENUM}, {"match", LOW_KW_MATCH},
     {"case", LOW_KW_CASE}, {"while", LOW_KW_WHILE}, {"module", LOW_KW_MODULE},
     {"var", LOW_KW_VAR}, {"type", LOW_KW_TYPE}, {"newtype", LOW_KW_NEWTYPE}, {"export", LOW_KW_EXPORT},

@@ -83,7 +83,7 @@ export proc open input comptime t type . input comptime a type . using al a . in
   let b be option mut slice u8 send al reserve (some_value want0) .
   guard is_some b . else return none .
   let mark be u64 send al used .
-  return some (make vec t a do al al . store (some_value b) . n 0 . tail mark . end) .
+  return some (lit vec t a do al al . store (some_value b) . n 0 . tail mark . end) .
 end
 
 rem ★ 제자리 성장을 **자격이 있을 때만** 청한다: 우리 할당 뒤 커서가 그대로일 때. 그 사이 누가 받았으면

@@ -8,7 +8,7 @@ end
 
 fn copy_then_change output u64 .
 do
-  let p be point make point do x 1 . y 2 . end .
+  let p be lit point do x 1 . y 2 . end .
   rem ko: ✘ 복사본을 만든다고 믿었다 --- 이 판에서 q 는 p 와 같은 자리를 가리킨다 /// en: ✘ meant to make a copy --- in this edition q refers to the same place as p
   var q be point p .
   set (field q x) 99 .

@@ -38,7 +38,7 @@ end
 fn mk_hdr .
   output wire_header .
 do
-  return make wire_header do
+  return lit wire_header do
     magic 3735928559 .
     length 258 .
     kind 7 .

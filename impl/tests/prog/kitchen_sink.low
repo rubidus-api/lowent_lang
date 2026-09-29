@@ -40,6 +40,6 @@ module app .
 use lib .
 
 proc main output u8 . effects none . do
-  var r be lib.rect make lib.rect do w 3 . h 4 . end .
+  var r be lit lib.rect do w 3 . h 4 . end .
   return narrow u8 (lib.twice lib.rect r) .      rem 2*12 = 24
 end

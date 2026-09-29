@@ -38,7 +38,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 ```text
   actor         be            break         case          continue      contract      do            drop          else          end
   enum          expect        export        expr          extern        false         fn            for           guard         if
-  let           make          match         module        newtype       none          proc          return        satisfies     send
+  let           lit           match         module        newtype       none          proc          return        satisfies     send
   set           spawn         state         struct        test          trait         true          try           type          unsafe
   use           var           while
 ```

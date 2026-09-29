@@ -70,7 +70,7 @@ errors open_failed .
 do
   let h be option u64 file_open fs path mode .
   guard is_some h . else return error open_failed .
-  return ok (make handle do fd (some_value h) . end) .
+  return ok (lit handle do fd (some_value h) . end) .
 end
 
 rem ★ 한 조각 읽는다 — 버퍼만큼만. **0 = EOF**(실패가 아니라 사실이다).
@@ -139,7 +139,7 @@ errors open_failed .
 do
   let h be option u64 dir_open fs path .
   guard is_some h . else return error open_failed .
-  return ok (make dir_handle do fd (some_value h) . end) .
+  return ok (lit dir_handle do fd (some_value h) . end) .
 end
 
 rem 다음 엔트리 **이름**을 호출자 버퍼로. **0 = 끝**(실패 아님, EOF 와 같은 규율). 안 맞으면 none.

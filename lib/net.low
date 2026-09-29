@@ -85,7 +85,7 @@ export proc serve input k cap net . input port u64 . output option listener . ef
     let cl be bool net_close k lfd .
     return none .
   end
-  return (some (make listener do fd lfd . port (some_value popt) . end)) .
+  return (some (lit listener do fd lfd . port (some_value popt) . end)) .
 end
 
 rem 연결한다. 실패는 값이다.
@@ -95,7 +95,7 @@ rem   주소는 **호스트 바이트 차례의 u32** 다: 127.0.0.1 = 213070643
 export proc dial input k cap net . input ip u64 . input port u64 . output option conn . effects io . do
   let c be option u64 net_connect k ip port .
   guard is_some c . else return none .
-  return (some (make conn do fd (some_value c) . end)) .
+  return (some (lit conn do fd (some_value c) . end)) .
 end
 
 rem ★ 자기 기계. 주소를 손으로 적는 자리마다 이 이름을 쓰면 그 수가 한 곳에만 산다.
@@ -114,7 +114,7 @@ rem 하나를 받아들인다.
 export proc take input k cap net . input l listener . output option conn . effects io . do
   let c be option u64 net_accept k (field l fd) .
   guard is_some c . else return none .
-  return (some (make conn do fd (some_value c) . end)) .
+  return (some (lit conn do fd (some_value c) . end)) .
 end
 
 rem 주소 없는 한 쌍(같은 프로세스 안의 두 끝).
@@ -125,8 +125,8 @@ export proc pair_of input k cap net . output option pair . effects io . do
   let p be option u64 net_pair k .
   guard is_some p . else return none .
   let packed be u64 some_value p .
-  return (some (make pair do a (make conn do fd (bit_and packed 4294967295) . end) .
-                            b (make conn do fd (shr packed 32) . end) . end)) .
+  return (some (lit pair do a (lit conn do fd (bit_and packed 4294967295) . end) .
+                            b (lit conn do fd (shr packed 32) . end) . end)) .
 end
 rem 쌍의 두 끝을 **비소유로 읽는다** — 주고받기는 소유를 옮기지 않으므로 fd 만 본다.
 export fn pair_a input p pair . output u64 . do return field (field p a) fd . end

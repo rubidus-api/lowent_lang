@@ -40,7 +40,7 @@ do
   guard eq index data 0 . 1 . else return error bad_version . . .
   let length be u16 read_u16_be subslice data 2 4 . . .
   guard le length len data . . else return error too_long . . .
-  return ok make header do
+  return ok lit header do
     version index data 0 . .
     flags index data 1 . .
     length length .

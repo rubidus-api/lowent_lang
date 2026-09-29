@@ -35,7 +35,7 @@
 == Building the tool
 
 The compiler is called `lowentc`. After getting the repository, build it in `impl/`. All you need is a C compiler that knows C23
-(gcc or clang) and `make`.
+(gcc or clang) and `lit`.
 
 ```sh
 cd impl
@@ -43,7 +43,7 @@ make            # build/lowentc
 make check      # unit tests and standard-library checks
 ```
 
-When `make` finishes there is an `impl/build/lowentc`. Commands in this book are written as `lowentc`, assuming it is on your path.
+When `lit` finishes there is an `impl/build/lowentc`. Commands in this book are written as `lowentc`, assuming it is on your path.
 
 #dtable(
   columns: 2,

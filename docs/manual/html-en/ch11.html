@@ -841,7 +841,7 @@ must_find(9) = err not_found
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">enum</span></strong> node <strong><span class="tok-k">do</span></strong>
-  lit v <strong><span class="tok-t">u32</span></strong> .
+  num v <strong><span class="tok-t">u32</span></strong> .
   plus l <strong><span class="tok-t">u32</span></strong> r <strong><span class="tok-t">u32</span></strong> .
   times l <strong><span class="tok-t">u32</span></strong> r <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">end</span></strong>
@@ -860,7 +860,7 @@ must_find(9) = err not_found
   <strong><span class="tok-k">let</span></strong> e <strong><span class="tok-k">be</span></strong> node node.times <span class="tok-n">6</span> <span class="tok-n">7</span> .
   <strong><span class="tok-k">match</span></strong> e <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> plus l r or times l r . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add l r . <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">case</span></strong> lit v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> num v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">end</span></strong>
 
@@ -904,15 +904,15 @@ half(200) = 1
 <em><span class="tok-c">rem expect: E-MATCH-REDUNDANT</span></em>
 
 <strong><span class="tok-k">enum</span></strong> light <strong><span class="tok-k">do</span></strong>
-  lit .
+  bright .
   dark .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> name <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">be</span></strong> light lit .
+  <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">be</span></strong> light bright .
   <strong><span class="tok-k">match</span></strong> s <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">case</span></strong> lit . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> bright . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check arm_after_wild.low

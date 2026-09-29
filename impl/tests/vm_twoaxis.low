@@ -36,7 +36,7 @@ export proc open .
 do
   let b be option mut slice u8 send al reserve (mul cap0 (size_of t)) .
   guard is_some b . else return none .
-  return some (make gv t a do al al . store (some_value b) . n 0 . end) .
+  return some (lit gv t a do al al . store (some_value b) . n 0 . end) .
 end
 
 rem 한 원소를 잇는다. 방이 없으면 false — 여기서는 **안 자란다**(자람은 `vecgen` 의 몫이다).

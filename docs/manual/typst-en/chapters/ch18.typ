@@ -65,7 +65,7 @@ The fixed window works even on machines without an operating system. There the w
 (#chref("fixed-memory")).
 
 #qa[
-  Where do the values made by `make point do … end` or `some 7` live? Is that allocation?
+  Where do the values made by `lit point do … end` or `some 7` live? Is that allocation?
 ][
   They live in the processor's *finite pool*. It is the op's implicit frame, so it has no effect and needs no capability. The pool is rewound on every loop
   iteration, and if more values are alive at once than the pool holds, execution stops on the spot. Its size is set by the machine and can be adjusted by

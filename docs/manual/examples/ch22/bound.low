@@ -27,6 +27,6 @@ end
 
 fn bigger input x u64 . input y u64 . output u64 .
 do
-  let m be score max_of score (make score do v x . end) (make score do v y . end) .
+  let m be score max_of score (lit score do v x . end) (lit score do v y . end) .
   return field m v .
 end

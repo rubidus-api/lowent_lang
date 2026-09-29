@@ -729,7 +729,11 @@ static void dt_decl(dt_ctx_t *c, low_cst_t *f) {
     }
     if (c->migrate) {
         // 새 모양이면 그대로 찍는다. 타입이 없으면 서식기는 타입을 알 수 없다 — 알리고 실패로 끝낸다.
-        if (dt_type_end_h(c, f->kids, b + 1, f->nkids, true) == (proven_size_t)-1)
+        const low_cst_t *h1 = b + 1 < f->nkids ? f->kids[b + 1] : NULL;
+        if (h1 && h1->kind == LOW_CST_GROUP && h1->nkids == 1 && h1->kids[0]->kind == LOW_CST_FORM && h1->kids[0]->nkids)
+            h1 = h1->kids[0]->kids[0];
+        bool lit_head = h1 && us_atom(h1) && h1->tok.kw == LOW_KW_LIT;
+        if (!lit_head && dt_type_end_h(c, f->kids, b + 1, f->nkids, true) == (proven_size_t)-1)
             dt_diag(c, f->kids[1], "E-LET-NOTYPE",
                       "a binding must show its type in front of the value — `let x be u64 300 .`. `--fmt` cannot "
                       "guess it: write the type, then format again");
@@ -742,6 +746,52 @@ static void dt_decl(dt_ctx_t *c, low_cst_t *f) {
                       "(RFC-0132). The type between the name and `be` is the old form — move it: "
                       "`var <name> be <type> <value> .`");
         return;
+    }
+    // ★ RFC-0132 L1 — `be lit <타입> …` 는 `lit` 가 타입을 보인다(§13.1): 따로 달지 않는다. 안쪽 모양에는 그 타입을
+    //   선언 타입으로 복사해 넣는다(`let p be lit pt do … end .` → [let, p, pt, be, lit, pt do … end]).
+    //   `lit pt do … end` 는 파서가 `pt do … end` 를 머리 붙은 블록 폼 하나로 이미 묶어 둔다.
+    // `--fmt` 는 값을 괄호로 싸서 찍는다 — `be (lit pt do … end)` 도 같다.
+    low_cst_t *const *vk = NULL; proven_size_t vn = 0;
+    if (b + 2 < f->nkids && us_atom(f->kids[b + 1]) && f->kids[b + 1]->tok.kw == LOW_KW_LIT) {
+        vk = f->kids + b + 2; vn = f->nkids - (b + 2);
+    } else if (b + 1 < f->nkids && f->kids[b + 1]->kind == LOW_CST_GROUP && f->kids[b + 1]->nkids == 1) {
+        const low_cst_t *in = f->kids[b + 1]->kids[0];
+        if (in->kind == LOW_CST_FORM && in->nkids >= 2 && us_atom(in->kids[0]) && in->kids[0]->tok.kw == LOW_KW_LIT) {
+            vk = in->kids + 1; vn = in->nkids - 1;
+        }
+    }
+    if (vk) {
+        low_cst_t *const *lk = NULL; proven_size_t ln = 0;
+        low_cst_t *lbuf[16];
+        // 블록은 타입의 **마지막 낱말**에 붙는다: `lit token b do … end` 는 [token, (b do … end)] 로 온다.
+        proven_size_t j = 0;
+        while (j < vn && us_atom(vk[j]) && j < 15) j++;
+        const low_cst_t *v = j < vn ? vk[j] : NULL;
+        if (v && v->kind == LOW_CST_FORM && v->nkids >= 2 && v->kids[v->nkids - 1]->kind == LOW_CST_BLOCK &&
+            j + (v->nkids - 1) <= 16) {
+            for (proven_size_t q = 0; q < j; q++) lbuf[ln++] = vk[q];
+            for (proven_size_t q = 0; q + 1 < v->nkids; q++) lbuf[ln++] = v->kids[q];
+            lk = lbuf;
+        } else {
+            proven_size_t le = dt_type_end_h(c, vk, 0, vn, true);
+            if (le != (proven_size_t)-1) { lk = vk; ln = le; }
+        }
+        if (c->migrate) return;                        // 새 모양 그대로 찍는다
+        if (ln) {
+            proven_size_t n = f->nkids;
+            low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (n + ln), alignof(low_cst_t *)).value.ptr;
+            if (!nk) return;
+            proven_size_t m = 0;
+            nk[m++] = f->kids[0]; nk[m++] = f->kids[1];
+            for (proven_size_t i = 0; i < ln; i++) {          // 타입 낱말은 **복사본**으로 — 나무에서 한 노드가 두 자리에 서지 않게
+                low_cst_t *cp = (low_cst_t *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, sizeof(low_cst_t), alignof(low_cst_t)).value.ptr;
+                if (!cp) return;
+                *cp = *lk[i]; nk[m++] = cp;
+            }
+            for (proven_size_t i = 2; i < n; i++) nk[m++] = f->kids[i];
+            (void)low_refit(&c->p, f, nk, m);
+            return;
+        }
     }
     proven_size_t te = dt_type_end_h(c, f->kids, b + 1, f->nkids, true);
     // ★ 머리의 괄호 묶음 **뒤에 아무것도 없으면** 그 묶음은 타입이 아니라 값일 수 있다 — `let x be (add a 1) .`.

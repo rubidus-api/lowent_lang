@@ -152,7 +152,7 @@ A file as a whole is skimmed, but a body is read top to bottom.
 
   Some languages let you use imported names bare, or spill them all with `import *`. Then you cannot tell by reading whether `point`
   belongs to this file or to some module, and names collide quietly as imports grow. Lowent has no spilling: a name from another module is
-  always qualified, as in `geom.point`. The diagnostic appears twice on the same line because the type position of `let` and the `make`
+  always qualified, as in `geom.point`. The diagnostic appears twice on the same line because the type position of `let` and the `lit`
   position are counted separately.
 ]
 

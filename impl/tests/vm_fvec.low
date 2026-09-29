@@ -11,7 +11,7 @@ end
 fn mk_sample .
   output sample .
 do
-  return make sample do
+  return lit sample do
     temp 1.5 .
     scale 2.25 .
     tag 3 .

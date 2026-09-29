@@ -13,7 +13,7 @@ export struct ticket do
 end
 
 export fn issue input i u64 . output owned vm_lifemode_never.ticket . do
-  return make ticket do id i . end .
+  return lit ticket do id i . end .
 end
 
 export fn finish input t owned vm_lifemode_never.ticket . output result u64 vm_lifemode_never.late . do

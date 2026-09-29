@@ -136,7 +136,7 @@ do
     set (index g i) 1 .
     set i (add i 1) .
   end
-  return some (make block_pool b do
+  return some (lit block_pool b do
     mem mem .
     gens g .
     bsize bs .
@@ -170,12 +170,12 @@ do
       set v (add (mul v 256) (index mem (add off k))) .
     end
     set (field p freehead) v .
-    return some (make handle b do blk bk . len (field p bsize) . gen (index g bk) . end) .
+    return some (lit handle b do blk bk . len (field p bsize) . gen (index g bk) . end) .
   end
   guard lt (field p freetop) (field p nblk) . else return none .
   let b2 be u64 (field p freetop) .
   set (field p freetop) (add (field p freetop) 1) .
-  return some (make handle b do blk b2 . len (field p bsize) . gen (index g b2) . end) .
+  return some (lit handle b do blk b2 . len (field p bsize) . gen (index g b2) . end) .
 end
 
 rem ★★★ **해제 — 세대를 올린다.** 그 순간 그 블록의 **모든 옛 핸들이 낡는다.**

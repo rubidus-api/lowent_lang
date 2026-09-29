@@ -14,7 +14,7 @@ end
 
 fn same output bool .
 do
-  let p be point make point do x 1 . y 2 . end .
-  let q be point make point do x 1 . y 2 . end .
+  let p be lit point do x 1 . y 2 . end .
+  let q be lit point do x 1 . y 2 . end .
   return point_eq p q .
 end

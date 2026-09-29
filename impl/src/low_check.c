@@ -7136,10 +7136,21 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
         !(veq(nd->kids[1]->tok.lex, "vec") && nd->kids[nd->nkids - 1]->kind != LOW_CST_ATOM)) {   // `lit vec t a do … end` 는 구조체 값
         proven_u32 ln = nd->kids[0]->tok.line;
         bool is_array = veq(nd->kids[1]->tok.lex, "array");
+        // ★ RFC-0132 T2b-3 — `lit vec T N v… [_] .` 은 SIMD 값이다. 원소 규칙은 배열과 같고(개수 · `_` · 폭), 더해 레인 수
+        //   N 은 1~16 의 2 의 거듭제곱, 원소는 크기 있는 수(`bool` 아님)다 — `vec T N` 타입과 같은 규칙.
         if (veq(nd->kids[1]->tok.lex, "vec")) {
-            emit(out, "E-LIT-UNBUILT", "`lit vec …` (a SIMD value literal) is not built yet — it comes with RFC-0132 T2b-3. "
-                 "Today a vector is made with `splat` or `load` from a slice", ln);
-            return;
+            const low_cst_t *vt = nd->nkids > 2 ? nd->kids[2] : NULL, *vn = nd->nkids > 3 ? nd->kids[3] : NULL;
+            bool num = vt && ck_atom(vt) && !veq(vt->tok.lex, "bool") &&
+                       (veq(vt->tok.lex, "f32") || veq(vt->tok.lex, "f64") || veq(vt->tok.lex, "u8") || veq(vt->tok.lex, "i8") ||
+                        veq(vt->tok.lex, "u16") || veq(vt->tok.lex, "i16") || veq(vt->tok.lex, "u32") || veq(vt->tok.lex, "i32") ||
+                        veq(vt->tok.lex, "u64") || veq(vt->tok.lex, "i64"));
+            long long lanes = vn && ck_atom(vn) && vn->tok.kind == LOW_TOK_NUMBER ? strtoll((const char *)vn->tok.lex.ptr, NULL, 0) : 0;
+            if (!num || lanes < 1 || lanes > 16 || (lanes & (lanes - 1))) {
+                emit(out, "E-LIT-COUNT", "`lit vec <type> <lanes> …` — the element type is a sized number and the lane count a "
+                     "power of two from 1 to 16, the same rules as the type `vec <type> <lanes>`", ln);
+                return;
+            }
+            is_array = true;                                     // 개수 · `_` · 폭은 배열과 같다
         }
         if (nd->nkids < 3 || nd->kids[2]->kind != LOW_CST_ATOM) { emit(out, "E-LIT-UNBUILT", "a list literal needs its element type: `lit array u8 4 1 2 3 4 .`", ln); return; }
         proven_u8str_view_t ty = nd->kids[2]->tok.lex;
@@ -7163,13 +7174,58 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
             i = 4;
         }
         proven_size_t cnt = 0; bool tail_fill = false;
+        // ★ RFC-0132 T2b-3 §5.3 — **칸 골라 채우기** `lit array T N do <번호> <값> . … [_ <값> .] end`. 번호는 정수
+        //   리터럴이고 길이 안이며 한 번씩만, `_ <값> .` 은 끝에서 «나머지 칸 모두». 모든 칸이 정해져야 한다 —
+        //   남는 칸이 있는데 `_` 가 없으면 거절한다(말없이 0 으로 채우지 않는다). 원소 나열과 섞지 않는다.
+        if (nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK) {
+            const low_cst_t *blk = nd->kids[nd->nkids - 1];
+            if (!is_array) { emit(out, "E-LIT-COUNT", "filling chosen cells needs a length — a slice literal has none. Write `lit array <type> <length> do … end`", ln); return; }
+            if (i != nd->nkids - 1) { emit(out, "E-LIT-COUNT", "a list literal either lists its elements or fills chosen cells (`do … end`) — not both", ln); return; }
+            if (n > (1LL << 24)) { emit(out, "E-LIT-COUNT", "this array is too long to fill cell by cell", ln); return; }
+            proven_size_t nb = ((proven_size_t)n + 7u) / 8u;
+            unsigned char *seen = nb ? calloc(nb, 1) : NULL;
+            if (nb && !seen) return;
+            long long got = 0; bool rest = false;
+            for (proven_size_t q = 0; q < blk->nkids; q++) {
+                const low_cst_t *c = blk->kids[q];
+                proven_u32 cl = c->kind == LOW_CST_FORM && c->nkids ? c->kids[0]->tok.line : ln;
+                if (c->kind != LOW_CST_FORM || c->nkids < 2 || c->kids[0]->kind != LOW_CST_ATOM) {
+                    emit(out, "E-LIT-INDEX", "each line of a cell fill is `<index> <value> .` (or `_ <value> .` for the rest)", cl); free(seen); return;
+                }
+                const low_cst_t *ix = c->kids[0];
+                if (ix->tok.kind == LOW_TOK_IDENT && veq(ix->tok.lex, "_")) {
+                    if (q + 1 != blk->nkids) { emit(out, "E-LIT-INDEX", "`_ <value> .` («every remaining cell») comes LAST in a cell fill", cl); free(seen); return; }
+                    rest = true;
+                } else {
+                    if (ix->tok.kind != LOW_TOK_NUMBER || !ck_lit_elem_fits(PROVEN_LIT("u32"), ix->tok.lex)) {
+                        emit(out, "E-LIT-INDEX", "a cell index is a plain non-negative integer literal — which cells a literal fills is "
+                             "known when the program is translated", cl); free(seen); return;
+                    }
+                    long long k = strtoll((const char *)ix->tok.lex.ptr, NULL, 0);
+                    if (k >= n) { emit(out, "E-LIT-INDEX", "this cell index is outside the array — indices run from 0 to length − 1", cl); free(seen); return; }
+                    if (seen[k / 8] & (1u << (k % 8))) { emit(out, "E-LIT-INDEX", "this cell is filled twice — each index appears once", cl); free(seen); return; }
+                    seen[k / 8] |= (unsigned char)(1u << (k % 8)); got++;
+                }
+                if (c->nkids == 2 && c->kids[1]->kind == LOW_CST_ATOM) {
+                    const low_cst_t *e = c->kids[1];
+                    bool tf = e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE;
+                    if (tf && !isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` value in a list of numbers — write the number", cl); free(seen); return; }
+                    if (e->tok.kind == LOW_TOK_NUMBER && isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` list holds `true`/`false` — a number is not a truth value", cl); free(seen); return; }
+                    if (e->tok.kind == LOW_TOK_NUMBER && !flt && !ck_lit_elem_fits(ty, e->tok.lex)) {
+                        emit(out, "E-TYPE-WIDTH", "this value does not fit the list's element type (a negative number never fits an unsigned type)", cl); free(seen); return;
+                    }
+                }
+            }
+            free(seen);
+            if (got < n && !rest)
+                emit(out, "E-LIT-COUNT", "some cells are not filled — end the fill with `_ <value> .` to say what every remaining cell "
+                     "holds; cells are never filled silently", ln);
+            if (rest && got == n)
+                emit(out, "E-LIT-COUNT", "`_ <value> .` fills no cell here — every cell is already named. Drop it", ln);
+            return;
+        }
         for (; i < nd->nkids; i++) {
             const low_cst_t *e = nd->kids[i];
-            if (e->kind == LOW_CST_BLOCK) {
-                emit(out, "E-LIT-UNBUILT", "filling chosen cells (`lit array T N do <index> <value> . _ <value> . end`) is not built yet — "
-                     "it comes with RFC-0132 T2b-3. List every element, or end the list with `_` for zeros", ln);
-                return;
-            }
             if (e->kind == LOW_CST_ATOM && e->tok.kind == LOW_TOK_IDENT && veq(e->tok.lex, "_")) {
                 if (!is_array || i + 1 != nd->nkids) {
                     emit(out, "E-LIT-COUNT", !is_array
@@ -7285,10 +7341,20 @@ static const low_cst_t *lc_list(const low_cst_t *nd) {
         return nd;
     return NULL;
 }
+static bool lc_const_atom(const low_cst_t *e) {
+    return ck_atom(e) && (e->tok.kind == LOW_TOK_NUMBER || e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE || veq(e->tok.lex, "_"));
+}
 static bool lc_const(const low_cst_t *l) {
     proven_size_t e0 = veq(l->kids[1]->tok.lex, "array") ? 4 : 3;
     for (proven_size_t q = e0; q < l->nkids; q++) {
         const low_cst_t *e = l->kids[q];
+        if (e->kind == LOW_CST_BLOCK) {                           // 칸 골라 채우기 — 값이 모두 상수여야 ⓑ
+            for (proven_size_t r = 0; r < e->nkids; r++) {
+                const low_cst_t *cf = e->kids[r];
+                if (!(cf->kind == LOW_CST_FORM && cf->nkids == 2 && lc_const_atom(cf->kids[1]))) return false;
+            }
+            continue;
+        }
         if (!(ck_atom(e) && (e->tok.kind == LOW_TOK_NUMBER || e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE ||
                              veq(e->tok.lex, "_")))) return false;
     }
@@ -7492,6 +7558,53 @@ static bool lc_reaches(const low_cst_t *nd, const low_cst_t *target, unsigned ch
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) if (lc_reaches(nd->kids[i], target, seen, depth)) return true;
     return false;
+}
+// ★★ RFC-0132 T2b-3 §13.3 (L4) — 같은 내용의 읽기 전용 리터럴(ⓑ) 둘이 **같은 자리인지는 정하지 않는다**. 그러니
+//   두 쪽이 모두 ⓑ 리터럴에서 왔다는 것이 번역 시점에 보이는 «같은 자리인가» 물음(`same_slice`)은 거절한다
+//   (`E-LIT-IDENTITY`) — 답이 처리기·최적화·뒤끝(VM/네이티브)마다 다를 수 있다. 보이는 것만 본다: 문자열
+//   리터럴 · 상수 나열 · 그런 값에 `let` 으로 묶은 이름 · 그것의 `subslice`. op 경계를 건넌 뒤는 못 본다(정본이
+//   «그 답에 기대는 프로그램은 적합하지 아니하다» 로 적는다).
+#define LI_MAX 256
+typedef struct { proven_u8str_view_t n[LI_MAX]; proven_size_t nn; } li_t;
+static bool li_ro(const li_t *x, const low_cst_t *e) {
+    while (e && e->kind == LOW_CST_GROUP && e->nkids == 1) e = e->kids[0];
+    if (!e) return false;
+    if (e->kind == LOW_CST_ATOM) {
+        if (e->tok.kind == LOW_TOK_STRING) return true;
+        if (e->tok.kind == LOW_TOK_IDENT)
+            for (proven_size_t i = 0; i < x->nn; i++) if (proven_u8str_view_eq(x->n[i], e->tok.lex)) return true;
+        return false;
+    }
+    const low_cst_t *l = lc_list(e);
+    if (l) return lc_const(l);
+    if (e->kind == LOW_CST_FORM && e->nkids >= 2 && ck_atom(e->kids[0]) && veq(e->kids[0]->tok.lex, "subslice"))
+        return li_ro(x, e->kids[1]);
+    return false;
+}
+static void li_walk(low_check_result_t *out, li_t *x, const low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_LET && ck_atom(nd->kids[1])) {
+        proven_size_t be = nd->nkids;
+        for (proven_size_t q = 2; q < nd->nkids; q++) if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
+        proven_size_t nt = nd->nkids - (be + 1);
+        bool ro = (nt == 1 && li_ro(x, nd->kids[be + 1])) ||
+                  (nt == 3 && ck_atom(nd->kids[be + 1]) && veq(nd->kids[be + 1]->tok.lex, "slice") && ck_atom(nd->kids[be + 3]) &&
+                   nd->kids[be + 3]->tok.kind == LOW_TOK_STRING);
+        if (ro && x->nn < LI_MAX) x->n[x->nn++] = nd->kids[1]->tok.lex;
+    }
+    for (proven_size_t j = 0; j + 2 < nd->nkids; j++) {
+        if (!ck_atom(nd->kids[j]) || !veq(nd->kids[j]->tok.lex, "same_slice")) continue;
+        if (li_ro(x, nd->kids[j + 1]) && li_ro(x, nd->kids[j + 2]))
+            emit(out, "E-LIT-IDENTITY", "both sides of this `same_slice` come from read-only literals — whether two equal "
+                 "literals share one place is deliberately left open (RFC-0132 §13.3), so the answer could differ between "
+                 "translators, optimisation levels and the VM and native builds. Compare the CONTENTS instead", nd->kids[j]->tok.line);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) li_walk(out, x, nd->kids[i]);
+}
+static void ck_lit_identity(low_check_result_t *out, const low_cst_t *f) {
+    static li_t x;
+    x.nn = 0;
+    li_walk(out, &x, f);
 }
 static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
     static lc_t x;
@@ -10270,6 +10383,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_ft_n = 0; ck_ft_full = false;
         ck_region_walk(&out, f, &rc, inn, &nin, tnt, &ntn, false);
         ck_lit_frames(&out, f);   // ★ RFC-0132 T2b-2 — 틀 안 나열 자리의 수명 · 한도
+        ck_lit_identity(&out, f); // ★ RFC-0132 T2b-3 — ⓑ 둘의 «같은 자리인가» 물음 거절(§13.3)
         if (ck_ft_full)
             emit(&out, "E-IR-LIMIT", "this op holds more field-level taints than the region checker's table — refused "
                  "rather than checked partly (RFC-0116 R1)", f->line);

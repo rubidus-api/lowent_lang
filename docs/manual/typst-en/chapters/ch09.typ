@@ -129,8 +129,17 @@ storing it in a name declared further out or in a parameter's cell, or sending i
 
 Re-pointing the array name itself with `set buf …` is `E-ARRAY-SET` --- write the cells one by one. The frame
 lists of one op may not add up to more than 64 KiB (`E-FRAME-SIZE`), and if such an op can recurse you get
-`W-FRAME-RECURSIVE`, because the frame is repeated at every level. Filling chosen cells with `do … end` and
-`lit vec` are not built yet; using them gives `E-LIT-UNBUILT`, which says what is not built.
+`W-FRAME-RECURSIVE`, because the frame is repeated at every level.
+
+When only a few cells of a long array differ, fill the cells you *choose*. Inside `do … end` write `<index> <value> .`,
+and a final `_ <value> .` fills every remaining cell. Every cell must be decided, so a leftover cell without `_` is
+`E-LIT-COUNT`. An index is a constant inside the length, written once (`E-LIT-INDEX`). The block closes the list, so
+the list has no period of its own.
+
+#demo("examples/ch09/cellfill.low")
+
+Values may be expressions and are computed in the order written. Lists of structs are not built yet; using one gives
+`E-LIT-UNBUILT`, which says what is not built.
 
 == Contracts remove bounds checks
 
@@ -240,6 +249,7 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   [`lit array u32 3 1 2 3 .`], [an array written as values --- closes with its own period], [the length is a promise --- end with `_` if short],
   [`lit slice u32 4 5 .`], [a slice written as values], [the element count is the length],
   [`var buf be lit array u8 8 _ . .`], [a writable local array --- in the op's frame], [cannot leave its declaring block],
+  [`lit array u8 8 do 2 5 . _ 0 . end`], [an array with chosen cells filled], [every cell must be decided --- the rest by `_`],
   [`requires le n (len xs) .`], [a length condition as a contract], [bounds checks in the body are removed],
 )
 

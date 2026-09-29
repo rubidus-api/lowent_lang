@@ -6633,6 +6633,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                             off, len, off, len);
                     break;
                 }
+                case IRW_LBUFC: {  // ★ T2b-3 — 틀 안 자리를 상수 본으로 채운다(풀의 바이트를 베낀다)
+                    unsigned long long off = (unsigned long long)in->a & 0xffffffffull, si = (unsigned long long)in->a >> 32;
+                    fprintf(out, "    { lowv lv_ = {0}; memcpy(lw_lb + %llu, lw_strs[%llu].p, %llu); lv_.tag = LWV_SLICE; lv_.p = lw_lb + %llu; lv_.n = %llu; st[sp++] = lv_; }\n",
+                            off, si, (unsigned long long)ir->strs[si].size, off, (unsigned long long)ir->strs[si].size);
+                    break;
+                }
                 case IRW_RESBLK:   fprintf(out, "    st[sp++] = lw_mmioblk((unsigned long long)(uintptr_t)lw_res_%zu, %uu);\n",
                                             (size_t)in->a, (unsigned)ir->structs[in->a].total); break;
                 case IRW_MMIOBLK:  fprintf(out, "    st[sp++] = lw_mmioblk(%lluULL, %uu);\n",

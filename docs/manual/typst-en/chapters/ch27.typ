@@ -175,6 +175,8 @@ lanes at once or one by one, the answer is the same (canon 6.2.11).
 
 - `load xs 0` reads four lanes starting at position 0 of the slice. `store ys 0 t` writes the other way.
 - `splat 5` fills every lane with 5. The lane count comes from the type of the name it is stored in (`vec u32 4`).
+- A different value per lane is written directly: `lit vec u32 4 1 10 100 1000 .`. The literal carries its own type, so it can sit in
+  the middle of an expression, and it must match the type of the name it is stored in exactly, lanes and element kind (`E-TYPE-LANES`).
 - Comparing `vec`s, as in `gt v lim`, gives a *mask* `mask 4` holding true or false per lane. `select over lim v` picks `lim` in lanes where
   the mask is on and `v` where it is off. Choosing per lane without a branch (`if`) lets the machine do it in one instruction.
 - `reduce_add`, `reduce_max`, `reduce_min` and `reduce_mul` gather the lanes into one. Pressing `[1,9,3,7]` down to 5 gives `[1,5,3,5]`, whose
@@ -182,6 +184,8 @@ lanes at once or one by one, the answer is the same (canon 6.2.11).
 - `reverse` reverses the order of the lanes, and `rotate r 1` rotates them by one. `[7,3,9,1]` rotated, `[3,9,1,7]`, was written to memory.
 - `native_lanes u32` gives, *at translation time*, how many `u32` lanes this machine handles at once. Choosing that lane count only computes
   more at once; the answer is the same.
+
+#demo("examples/ch27/litvec.low")
 
 A mask can also read or write just some of the lanes.
 

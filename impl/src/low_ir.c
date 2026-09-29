@@ -1889,11 +1889,167 @@ static void ir_make(ir_ctx_t *c, const low_cst_t *arg, proven_u32 line) {
 //   (L4: 같은 내용의 전역 리터럴은 같은 자리일 수도 있다 — 합치는 곳은 이 풀 한 곳이고, VM 과 C 뒤끝이 같이 쓴다).
 //   u8 이면 바이트 슬라이스 그대로, 그 밖이면 `view_array` 와 같은 타입 보기(IRW_VARRAY)를 씌운다.
 //   원소 검증(개수 · 폭 · 상수인가)은 검사층(low_check `ck_lit_walk`)이 먼저 한다 — 여기는 믿되 막는다.
+// ★ 상수 원소 하나를 T 의 폭 비트로(작은 끝은 부르는 쪽이 싼다). 상수가 아니면 false.
+static bool ir_lit_const_bits(const low_cst_t *e, bool flt, proven_u8 esz, proven_u64 *bits) {
+    if (!is_atom(e)) return false;
+    if (e->tok.kw == LOW_KW_TRUE) { *bits = 1; return true; }
+    if (e->tok.kw == LOW_KW_FALSE) { *bits = 0; return true; }
+    if (e->tok.kind != LOW_TOK_NUMBER) return false;
+    if (flt) {
+        double dv = low_num_to_double(e->tok.lex);
+        if (esz == 4) { float fv = (float)dv; proven_u32 b32; memcpy(&b32, &fv, 4); *bits = b32; }
+        else memcpy(bits, &dv, 8);
+        return true;
+    }
+    proven_i64 v;
+    if (!ir_int_lit(e->tok.lex, &v)) return false;
+    *bits = (proven_u64)v;
+    return true;
+}
+// ★ 바이트 줄을 상수 풀에 넣는다 — 같은 바이트면 한 자리(L4, §13.3: 합치는 곳은 이 풀 한 곳).
+static bool ir_intern_bytes(ir_ctx_t *c, const proven_u8 *src, proven_size_t len, proven_size_t *si_out, proven_u32 line) {
+    low_ir_t *ir = c->out;
+    for (proven_size_t i2 = 0; i2 < ir->nstrs; i2++)
+        if (ir->strew[i2] == 1 && ir->strs[i2].size == len && (len == 0 || memcmp(ir->strs[i2].ptr, src, len) == 0)) { *si_out = i2; return true; }
+    if (ir->strbuf_len + len > ir->strbuf_cap) { ir_fail(c, "E-IR-UNSUP", "too many bytes of literal data in one unit", line); return false; }
+    if (ir->nstrs >= IR_MAXSTRS) { ir_fail(c, "E-IR-UNSUP", "too many string literals", line); return false; }
+    proven_u8 *dst = ir->strbuf + ir->strbuf_len;
+    if (len) memmove(dst, src, len);
+    ir->strbuf_len += len;
+    ir->strew[ir->nstrs] = 1;
+    ir->strs[ir->nstrs] = (proven_u8str_view_t){ .ptr = dst, .size = len };
+    *si_out = ir->nstrs++;
+    return true;
+}
+static proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line) {
+    if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-LOCALS", "list literal: too many locals", line); return (proven_size_t)-1; }
+    proven_size_t tl = c->nlocals++;
+    c->locals[tl].name = (proven_u8str_view_t){ 0 };
+    return tl;
+}
+static void ir_cell_value(ir_ctx_t *c, const low_cst_t *cf) {
+    if (cf->nkids == 2) ir_node(c, cf->kids[1]);
+    else ir_run(c, cf->kids, 1, cf->nkids - 1);
+}
+// ★★ RFC-0132 T2b-3 §5.3 — **칸 골라 채우기** `lit array T N do <번호> <값> . … [_ <값> .] end`. 검사층
+//   (`ck_lit_walk`)이 번호(상수 · 길이 안 · 한 번씩)와 «모든 칸이 정해졌나» 를 먼저 본다 — 여기는 믿되 막는다.
+//   상수 칸과 상수 `_` 는 **본**(길이 N 의 바이트 줄) 하나로 모은다. 값이 모두 상수이고 쓸 자리를 요구받지 않았으면
+//   그 본이 곧 읽기 전용 자리(ⓑ)다. 아니면 틀 안 자리(ⓐ·ⓒ)에 본을 베끼고(`IRW_LBUFC`, 본이 모두 0 이면 `IRW_LBUF`),
+//   실행 중 값인 칸을 **적은 차례로** 쓴다. `_` 의 값이 실행 중 값이면 **한 번** 계산해 이름 붙은 칸을 뺀 칸마다
+//   쓴다(이름 붙은 칸은 상수 가림 줄로 건너뛴다).
+static void ir_lit_fill(ir_ctx_t *c, const low_cst_t *blk, proven_size_t n, proven_u8 esz, bool flt, bool typed,
+                        proven_i64 vmeta, bool want_frame, proven_u32 line) {
+    const low_cst_t **cell = n ? calloc(n, sizeof *cell) : NULL;
+    proven_u8 *tbuf = n ? calloc(n, esz) : NULL;
+    proven_u8 *mask = n ? calloc(n, 1) : NULL;
+    if (n && (!cell || !tbuf || !mask)) { free(cell); free(tbuf); free(mask); ir_fail(c, "E-IR-UNSUP", "out of memory for a cell fill", line); return; }
+    const low_cst_t *rest = NULL;
+    bool all_const = true, named = false;
+    for (proven_size_t q = 0; q < blk->nkids; q++) {
+        const low_cst_t *cf = blk->kids[q];
+        if (cf->kind != LOW_CST_FORM || cf->nkids < 2 || !is_atom(cf->kids[0])) { ir_fail(c, "E-LIT-INDEX", "malformed cell fill", line); goto done; }
+        proven_u64 bits = 0;
+        bool k_const = cf->nkids == 2 && ir_lit_const_bits(cf->kids[1], flt, esz, &bits);
+        if (!k_const) all_const = false;
+        if (veq(cf->kids[0]->tok.lex, "_")) { rest = cf; continue; }
+        proven_i64 m;
+        if (!ir_int_lit(cf->kids[0]->tok.lex, &m) || m < 0 || (proven_size_t)m >= n || cell[m]) { ir_fail(c, "E-LIT-INDEX", "bad cell index", line); goto done; }
+        cell[m] = cf; mask[m] = 1; named = true;
+        if (k_const) for (proven_u8 b = 0; b < esz; b++) tbuf[(proven_size_t)m * esz + b] = (proven_u8)(bits >> (8 * b));
+    }
+    {
+        proven_u64 rbits = 0;
+        bool rest_const = rest && rest->nkids == 2 && ir_lit_const_bits(rest->kids[1], flt, esz, &rbits);
+        if (rest_const)
+            for (proven_size_t m = 0; m < n; m++)
+                if (!cell[m]) for (proven_u8 b = 0; b < esz; b++) tbuf[m * esz + b] = (proven_u8)(rbits >> (8 * b));
+        for (proven_size_t m = 0; m < n; m++) if (!cell[m] && !rest) { ir_fail(c, "E-LIT-COUNT", "unfilled cell and no `_ <value> .`", line); goto done; }
+        proven_size_t bytes = n * esz, si;
+        if (all_const && !want_frame) {                                   // ⓑ 읽기 전용 자리
+            if (!ir_intern_bytes(c, tbuf, bytes, &si, line)) goto done;
+            ir_emit(c, IRW_STR, (proven_i64)si);
+            if (typed) ir_emit(c, IRW_VARRAY, vmeta);
+            goto done;
+        }
+        proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
+        if (off + bytes > LOW_LBUF_MAX) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); goto done; }
+        c->lbuf_off = off + bytes;
+        proven_size_t tl = ir_hidden_local(c, line);
+        if (tl == (proven_size_t)-1) goto done;
+        bool zero = true;
+        for (proven_size_t b = 0; b < bytes; b++) if (tbuf[b]) { zero = false; break; }
+        if (zero) ir_emit(c, IRW_LBUF, (proven_i64)((proven_u64)off | ((proven_u64)bytes << 32)));
+        else {
+            if (!ir_intern_bytes(c, tbuf, bytes, &si, line)) goto done;
+            ir_emit(c, IRW_LBUFC, (proven_i64)((proven_u64)off | ((proven_u64)si << 32)));
+        }
+        if (typed) ir_emit(c, IRW_VARRAY, vmeta);
+        ir_emit(c, IRW_STORE, (proven_i64)tl);
+        for (proven_size_t q = 0; q < blk->nkids && !c->failed; q++) {   // 실행 중 값인 칸 — 적은 차례로
+            const low_cst_t *cf = blk->kids[q];
+            proven_u64 bits;
+            if (cf == rest || (cf->nkids == 2 && ir_lit_const_bits(cf->kids[1], flt, esz, &bits))) continue;
+            proven_i64 m; (void)ir_int_lit(cf->kids[0]->tok.lex, &m);
+            ir_emit(c, IRW_LOAD, (proven_i64)tl);
+            ir_emit(c, IRW_CONST, m);
+            ir_cell_value(c, cf);
+            ir_emit(c, IRW_ISTORE, 0);
+        }
+        if (rest && !rest_const && !c->failed) {                          // `_ <실행 중 값> .` — 한 번 계산해 남은 칸마다
+            proven_size_t rv = ir_hidden_local(c, line), iv = ir_hidden_local(c, line);
+            if (c->failed) goto done;
+            ir_cell_value(c, rest);
+            ir_emit(c, IRW_STORE, (proven_i64)rv);
+            ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)iv);
+            proven_size_t si_m = 0;
+            if (named && !ir_intern_bytes(c, mask, n, &si_m, line)) goto done;
+            proven_size_t top = c->code.len;
+            ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_CONST, (proven_i64)n); ir_emit(c, IRW_LT, 0);
+            proven_size_t out_br = ir_emit(c, IRW_BRZ, 0);
+            proven_size_t skip_br = (proven_size_t)-1;
+            if (named) {
+                ir_emit(c, IRW_STR, (proven_i64)si_m); ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_INDEX, 0);
+                ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_NE, 0);
+                proven_size_t go = ir_emit(c, IRW_BRZ, 0);                // 가림이 0 이면 쓴다
+                skip_br = ir_emit(c, IRW_BR, 0);                          // 이름 붙은 칸 — 건너뛴다
+                ir_at(c, go)->a = (proven_i64)c->code.len;
+            }
+            ir_emit(c, IRW_LOAD, (proven_i64)tl); ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_LOAD, (proven_i64)rv);
+            ir_emit(c, IRW_ISTORE, 0);
+            if (skip_br != (proven_size_t)-1) ir_at(c, skip_br)->a = (proven_i64)c->code.len;
+            ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0); ir_emit(c, IRW_STORE, (proven_i64)iv);
+            ir_emit(c, IRW_BR, (proven_i64)top);
+            ir_at(c, out_br)->a = (proven_i64)c->code.len;
+        }
+        ir_emit(c, IRW_LOAD, (proven_i64)tl);
+    }
+done:
+    free(cell); free(tbuf); free(mask);
+}
+static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line, bool as_array);
+// ★ RFC-0132 T2b-3 — `lit vec T N v… .` 은 같은 바이트를 배열로 짓고(ⓑ 상수 풀, 실행 중 원소면 틀 안) 그 줄에서
+//   레인을 싣는다(`load` 와 같은 명령, 레인 모양은 리터럴 자신의 타입에서 — 묶는 자리의 타입을 기다리지 않는다).
 static void ir_lit_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line) {
+    bool is_vec = *pos + 2 < end && is_atom(k[*pos]) && veq(k[*pos]->tok.lex, "vec") && is_atom(k[*pos + 1]) && is_atom(k[*pos + 2]);
+    if (!is_vec) { ir_lit_list_in(c, k, pos, end, line, false); return; }
+    proven_u8str_view_t ty = k[*pos + 1]->tok.lex;
+    proven_i64 lanes = 0;
+    proven_u8 esz = ir_field_size(ty);
+    if (!esz || !ir_int_lit(k[*pos + 2]->tok.lex, &lanes) || lanes < 1 || lanes > 16 || (lanes & (lanes - 1))) {
+        ir_fail(c, "E-LIT-COUNT", "`lit vec T N` needs a sized element type and 1..16 lanes (a power of two)", line); return;
+    }
+    proven_i64 meta = (lanes << 8) | esz | (ir_is_float_ty(ty) ? IR_FLT_BIT : 0) | (ity_of_word(ty).sign ? IR_SGN_BIT : 0);
+    c->lit_frame = false;                                          // 값은 레인으로 베껴진다 — 쓸 자리가 필요 없다
+    ir_lit_list_in(c, k, pos, end, line, true);
+    if (c->failed) return;
+    ir_emit(c, IRW_CONST, 0);
+    ir_emit(c, IRW_VLOAD, meta);
+}
+static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line, bool as_array) {
     bool want_frame = c->lit_frame; c->lit_frame = false;   // ★ 부르는 쪽의 요구는 이 나열 하나에만
     if (*pos + 1 >= end || !is_atom(k[*pos]) || !is_atom(k[*pos + 1])) { ir_fail(c, "E-LIT-UNBUILT", "malformed list literal", line); return; }
-    bool is_array = veq(k[*pos]->tok.lex, "array"), is_slice = veq(k[*pos]->tok.lex, "slice");
-    if (!is_array && !is_slice) { ir_fail(c, "E-LIT-UNBUILT", "`lit vec …` is not built yet (RFC-0132 T2b-3)", line); return; }
+    bool is_array = as_array || veq(k[*pos]->tok.lex, "array"), is_slice = veq(k[*pos]->tok.lex, "slice");
+    if (!is_array && !is_slice) { ir_fail(c, "E-LIT-UNBUILT", "unknown list literal", line); return; }
     proven_u8str_view_t ty = k[*pos + 1]->tok.lex;
     proven_u8 esz = ir_field_size(ty);
     if (!esz) { ir_fail(c, "E-LIT-UNBUILT", "a list literal's element type must be a sized scalar here (RFC-0132 T2b-3)", line); return; }
@@ -1905,6 +2061,12 @@ static void ir_lit_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, pr
     if (is_array) {
         if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array T N …` needs its length N as a literal", line); return; }
         (*pos)++;
+        if (*pos < end && k[end - 1]->kind == LOW_CST_BLOCK) {   // 칸 골라 채우기(T2b-3)
+            const low_cst_t *blk = k[end - 1];
+            *pos = end;
+            ir_lit_fill(c, blk, (proven_size_t)n, esz, flt, typed, vmeta, want_frame, line);
+            return;
+        }
     }
     proven_size_t e0 = *pos, cnt = 0;
     bool all_const = true;
@@ -4818,6 +4980,7 @@ static void enc_operand(const low_ir_t *ir, low_irw_t w, proven_i64 a, hbuf_t *h
         case IRW_WRAP_ERR: hput_view(h, ir->errs[a]); break;
         case IRW_FIELD:    hput_view(h, ir->fields[a]); break;   // field names are structural
         case IRW_STR:      hput_view(h, ir->strs[a]); break;     // literal bytes are structural
+        case IRW_LBUFC:    hput_u32(h, (proven_u32)((proven_u64)a & 0xffffffffu)); hput_view(h, ir->strs[(proven_u64)a >> 32]); break;
         case IRW_RESBLK: {
             // ★ 이 낱말의 정체는 **어느 타입의 칸인가**다 — 주소는 링커가 나중에 준다.
             const low_ir_struct_t *rs = &ir->structs[a];
@@ -4972,6 +5135,8 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
         case IRW_TASEND: return (int)ir->defs[a & 0xffff].nparams;   // ★ try async send — 같은 팝(instance+args), result 를 민다
         case IRW_TSPAWN: return (int)ir->defs[a & 0xffff].nparams;   // ★ task spawn — op 파라미터 수(인스턴스 없음) 소비
         case IRW_MAKE: return (int)ir->makes[a].nfields;
+        case IRW_LBUF: return 0;                               // ★ T2b-2 — 피연산자 0, 슬라이스 push
+        case IRW_LBUFC: return 0;                              // ★ T2b-3 — 피연산자 0, 슬라이스 push
         default:
             return -1;   // statements (STORE/DROP/RET/BR/BRZ) handled separately
     }
@@ -5211,7 +5376,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_AESGCM:   return "crypto.aes_gcm";
         case IRW_CHAPOLY:  return "crypto.chacha_poly";
         case IRW_WRAP_OK: return "wrap.ok"; case IRW_WRAP_SOME: return "wrap.some"; case IRW_WRAP_NONE: return "wrap.none"; case IRW_WRAP_ERR: return "wrap.err";
-        case IRW_LBUF: return "frame.bytes"; case IRW_TRY: return "try"; case IRW_MAKE: return "make";
+        case IRW_LBUF: return "frame.bytes"; case IRW_LBUFC: return "frame.bytes.from"; case IRW_TRY: return "try"; case IRW_MAKE: return "make";
         case IRW_SNEW: return "stack.new"; case IRW_SPUSH: return "stack.push";
         case IRW_SPOP_INTO: return "stack.pop"; case IRW_BNEW: return "bitset.new";
         case IRW_CONTAINS: return "contains"; case IRW_COUNT: return "count";

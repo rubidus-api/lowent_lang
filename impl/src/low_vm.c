@@ -1996,6 +1996,15 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 stack[sp++] = (vmv_t){ .tag = VMV_SLICE, .p = a->lbuf + off, .n = len };
                 break;
             }
+            case IRW_LBUFC: {   // ★ T2b-3 — 틀 안 자리를 상수 본으로 채운다
+                proven_size_t off = (proven_size_t)((proven_u64)in->a & 0xffffffffu);
+                proven_u8str_view_t tv = vm->ir->strs[(proven_u64)in->a >> 32];
+                if (!a->lbuf || off + tv.size > a->lbuf_cap) { vm_diag(vm->diags, "E-VM-TYPE", "frame list slot outside the frame (compiler bug)"); return false; }
+                memcpy(a->lbuf + off, tv.ptr, tv.size);
+                if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
+                stack[sp++] = (vmv_t){ .tag = VMV_SLICE, .p = a->lbuf + off, .n = tv.size };
+                break;
+            }
             case IRW_STR: {
                 if (sp >= VM_STACK) { vm_diag(vm->diags, "E-VM-STACK", "operand stack overflow"); return false; }
                 proven_u8str_view_t s = vm->ir->strs[in->a];

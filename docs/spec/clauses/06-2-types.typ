@@ -205,6 +205,20 @@ end", "E-TYPE-ARRAY")
       각 원소는 `t` 에 들어가야 한다 — 부호 없는 `t` 에 음수도 들어가지 않는다(`E-TYPE-WIDTH`). `bool` 원소는
       `true`·`false` 만이다.
     ]
+    #para("6c")[
+      **칸 골라 채우기** — `lit array t n do <번호> <값> . … [_ <값> .] end` 은 번호를 적은 칸에 그 값을 넣는다. 번호는
+      0 부터 `n − 1` 까지의 정수 리터럴이고 한 번씩만 적는다. `_ <값> .` 은 끝에만 오며 «이름을 적지 않은 칸 모두»
+      를 뜻한다. 모든 칸이 정해져야 한다 — 남는 칸이 있는데 `_ <값> .` 이 없거나, `_` 가 채울 칸이 없으면 거부된다
+      (`E-LIT-COUNT`). 번호가 상수가 아니거나 길이 밖이거나 두 번 나오거나 `_` 가 끝이 아닌 자리에 있으면 거부된다
+      (`E-LIT-INDEX`). 값은 식이어도 되며 적은 차례로 계산되고, `_` 의 값은 **한 번** 계산된다. 블록이 나열을 닫으므로
+      나열 자신의 점은 없다(`let t be lit array u8 8 do 2 5 . _ 0 . end .`). 원소를 늘어놓는 모양과 섞지 않는다.
+    ]
+    #para("6d")[
+      **SIMD 값** — `lit vec t n v₁ … [_] .` 은 `vec t n` 값이다. 원소 규칙은 배열 나열과 같고, 더해 `t` 는 크기 있는
+      수(`bool` 이 아니다), `n` 은 1 부터 16 까지의 2 의 거듭제곱이다(`E-LIT-COUNT`). 값의 타입은 묶는 자리의 `vec`
+      타입과 레인 수·원소 종류·폭이 모두 같아야 한다(`E-TYPE-LANES` · `E-TYPE-WIDTH`). 레인에 값을 싣는 것으로
+      끝나므로 (7) 의 자리 규칙과 상관없다.
+    ]
     #para("7")[
       나열이 **어디에 놓이고 얼마나 사는지**는 처리기가 번역 시점에 셋 중 하나로 정한다. 저자는 고르지 않는다.
       ⓐ `var` 에 묶은 나열과, 실행 중에 계산되는 원소가 든 `let` 나열은 그 op 의 틀 안에 **선언 자리마다 한 칸**을
@@ -212,8 +226,11 @@ end", "E-TYPE-ARRAY")
       반복 안의 선언은 바퀴마다 다시 채워지고, 재귀한 부름은 저마다 제 칸을 갖는다.
       ⓑ 원소가 모두 번역 시점 상수이고 `let` 에 묶였거나 받는 자리 없이 읽기로만 쓰인 나열은 프로그램에 박힌
       **읽기 전용** 바이트다. 프로그램 끝까지 살므로 어디에 담아도 된다. 그것을 `mut` 인 이름에 묶거나 `let` 에 묶은
-      그 이름을 `mut`·`owned`·`mut_ref` 자리에 넘기면 거부된다(`E-TYPE-ARGMUT`). 내용이 같은 두 나열이 **같은
-      자리인지는 정하지 않는다** — 처리기가 한 벌로 합칠 수 있다.
+      그 이름을 `mut`·`owned`·`mut_ref` 자리에 넘기면 거부된다(`E-TYPE-ARGMUT`). 내용이 같은 두 나열(문자열 리터럴도
+      같다)이 **같은 자리인지는 정하지 않는다** — 처리기가 한 벌로 합칠 수 있다. 그러니 두 쪽이 모두 이런 리터럴에서
+      왔다는 것이 번역 시점에 보이는 `same_slice` 는 거부된다(`E-LIT-IDENTITY` — 리터럴 자신 · 그것에 `let` 으로 묶은
+      이름 · 그것의 `subslice`). 부름을 건너 보이지 않는 경우는 거부되지 않지만, 그 답에 기대는 프로그램은 적합하지
+      아니하다.
       ⓒ 받는 이름 없이 쓰인 나열 가운데 실행 중 원소가 들었거나 `mut`·`owned`·`mut_ref` 자리에 곧바로 넘긴 것은
       **그 문장이 끝날 때까지** 사는 틀 안 임시다. 받는 op 은 그 칸을 고쳐 써도 된다.
     ]
@@ -238,8 +255,7 @@ end", "E-TYPE-ARRAY")
       `let` 에 묶은 배열 나열은 그 바이트를 **보는 슬라이스**다. 길이는 나열이 정한다.
     ]
     #para("9")[
-      이 처리기가 아직 짓지 않은 나열 — 칸을 골라 채우는 블록(`lit array t n do <번호> <값> . end`), `lit vec`,
-      구조체 원소 — 은 무엇이 아직인지 말하며 거부된다(`E-LIT-UNBUILT`).
+      이 처리기가 아직 짓지 않은 나열 — 구조체 원소 — 은 무엇이 아직인지 말하며 거부된다(`E-LIT-UNBUILT`).
     ]
     #ex("원소 나열 리터럴", "module ex_list_literal .
 
@@ -268,6 +284,19 @@ export fn squares input n u64 . output u64 . do
   guard lt n 8 . else return 0 .
   return index buf n .
 end")
+    #ex("칸을 골라 채운다", "module ex_cell_fill .
+
+export fn pick input a u64 . input i u64 . output u64 . do
+  let t be lit array u64 6 do 0 100 . 5 (mul a 2) . _ 1 . end .
+  guard lt i 6 . else return 0 .
+  return index t i .
+end")
+    #rejected("칸 번호를 두 번 적었다", "module ex_cell_twice .
+
+export fn f output u64 . do
+  let t be lit array u8 4 do 1 1 . 1 2 . _ 0 . end .
+  return len t .
+end", "E-LIT-INDEX")
     #rejected("블록 안의 var 배열을 돌려준다", "module ex_frame_escape .
 
 export fn f output slice u8 . do

@@ -1084,16 +1084,35 @@ static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, prov
     //   (`ck_lit_walk`)이 이미 폭을 잰다. 틀 안 자리에 쓰는 원소가 말없이 잘리면(`u8` 칸에 1000) X-0074 의 병이다.
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->tok.kw == LOW_KW_LIT &&
         nd->kids[1]->kind == LOW_CST_ATOM && nd->kids[2]->kind == LOW_CST_ATOM &&
-        (veq(nd->kids[1]->tok.lex, "array") || veq(nd->kids[1]->tok.lex, "slice"))) {
+        (veq(nd->kids[1]->tok.lex, "array") || veq(nd->kids[1]->tok.lex, "slice") ||
+         (veq(nd->kids[1]->tok.lex, "vec") && nd->kids[nd->nkids - 1]->kind != LOW_CST_BLOCK))) {
         ty_t et = ty_of_word(nd->kids[2]->tok.lex);
-        proven_size_t e0 = veq(nd->kids[1]->tok.lex, "array") ? 4 : 3;
+        proven_size_t e0 = veq(nd->kids[1]->tok.lex, "slice") ? 3 : 4;
         for (proven_size_t q = e0; q < nd->nkids && et.k != TK_UNKNOWN; q++) {
             const low_cst_t *e = nd->kids[q];
+            if (e->kind == LOW_CST_BLOCK) {                  // 칸 골라 채우기(T2b-3) — 줄마다 `<번호> <값> .`, 값만 잰다
+                for (proven_size_t r = 0; r < e->nkids; r++) {
+                    const low_cst_t *cf = e->kids[r];
+                    if (cf->kind != LOW_CST_FORM || cf->nkids < 2) continue;
+                    if (cf->nkids == 2 && cf->kids[1]->kind == LOW_CST_ATOM && (cf->kids[1]->tok.kind == LOW_TOK_NUMBER ||
+                        cf->kids[1]->tok.kw == LOW_KW_TRUE || cf->kids[1]->tok.kw == LOW_KW_FALSE)) continue;
+                    ty_t at = cf->nkids == 2 ? tc_infer(c, cf->kids[1], env, nenv) : tc_infer_run(c, cf->kids, 1, cf->nkids - 1, env, nenv);
+                    tc_flag(c, compat(et, at), "E-TYPE-SET", "a filled cell's value does not match the list's element type — "
+                            "every value is checked against the type written after `lit array`", cf->kids[0]->tok.line);
+                }
+                continue;
+            }
             if (e->kind == LOW_CST_ATOM && (e->tok.kind == LOW_TOK_NUMBER || e->tok.kw == LOW_KW_TRUE ||
                                              e->tok.kw == LOW_KW_FALSE || veq(e->tok.lex, "_"))) continue;
             ty_t at = tc_infer(c, e, env, nenv);
             tc_flag(c, compat(et, at), "E-TYPE-SET", "a list element does not match the list's element type — "
                     "every element is checked against the type written after `lit array`/`lit slice`", e->tok.line ? e->tok.line : nd->line);
+        }
+        // ★ T2b-3 — `lit vec T N …` 의 타입은 `vec T N` 이다(레인 수·원소 종류가 타입의 일부 — 묶는 자리와 정확히 맞아야 한다)
+        if (veq(nd->kids[1]->tok.lex, "vec") && nd->nkids >= 4 && nd->kids[3]->kind == LOW_CST_ATOM && (et.k == TK_INT || et.k == TK_FLOAT)) {
+            proven_i64 ln;
+            if (tc_int_lit(nd->kids[3]->tok.lex, &ln) && ln > 0 && ln <= 64)
+                return (ty_t){ .k = TK_VEC, .bits = et.bits, .sign = et.sign, .lanes = (proven_u8)ln, .vflt = (et.k == TK_FLOAT) };
         }
         return tk(TK_UNKNOWN);
     }

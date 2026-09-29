@@ -111,6 +111,11 @@ use <가져올 모듈 이름> as <별칭> .
 
 (1) 한 모듈 안에서 같은 이름을 두 번 선언할 수 없다. 그렇게 하면 번역이 거부된다.
 
+(1a) 모듈의 최상위 이름은 **한 이름 공간**에 든다 — 모듈 · `fn`·`proc`(`extern` 포함) · `type` · `newtype` ·
+      `struct` · `enum` 과 그 갈래 · `actor` · `trait` · 모듈 `let`/`var` · `test`. 종류가 달라도 같은 이름이면
+      거부된다(`E-NAME-DUP`). 칸 · 타입에 딸린 op(`<타입>.<이름>`) · actor 의 상태와 처리기 · trait 가 요구하는 op 은
+      그 그릇 안에 들며, 그릇이 다르면 같은 이름을 쓸 수 있다.
+
 (2) 가져온 이름들이 서로 부딪히면, 부르는 자리에서 어느 것인지 밝혀 적어야 한다.
 
 ```lowent-거부: 같은 이름을 두 번 선언 · E-NAME-DUP
@@ -118,6 +123,13 @@ module ex_dup .
 
 fn f output u32 . do return 1 . end
 fn f output u32 . do return 2 . end
+```
+
+```lowent-거부: 종류가 달라도 한 이름 공간이다 — 모듈 let 과 fn · E-NAME-DUP
+module ex_dup_kinds .
+
+let limit be u64 3 .
+fn limit output u64 . do return 1 . end
 ```
 
 ## 6.10.4 선언의 차례

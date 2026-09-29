@@ -10034,6 +10034,14 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             // ★ X-0072 ②(소유자 «추천대로», 2026-09-27) — 시험 이름도 **같은 한 통**에 든다. 이름 공간이 하나이고 가리기가
             //   없는 언어에서 `fn a` 와 `test a` 가 함께 서면, `--run a` 가 어느 것을 부르는지 이름만으로는 말할 수 없다.
             else if (kw == LOW_KW_TEST)   what = "test";
+            // ★★ X-0079 (2026-09-29, 소유자 «추천대로») — actor · trait · 모듈 `let`/`var` 도 **같은 한 통**이다.
+            //   빠져 있었다: actor 둘이 같은 이름 · `actor pt` 와 `struct pt` · `trait pt` 와 `fn pt` 가 초록이었고,
+            //   모듈 `let pt` 가 둘이면 **둘째가 조용히 버려졌고**, `let pt` 와 `fn pt` 가 함께면 `pt` 가 **함수 호출로
+            //   읽혔다**(조용히 틀린 답). 정본은 처음부터 «여러 겹의 이름 공간은 없다» 였다 — 구현이 따라간다.
+            //   C 쪽 이름(RFC-0134)도 «모듈 안 이름은 하나뿐» 에 기댄다.
+            else if (kw == LOW_KW_ACTOR)  what = "actor";
+            else if (kw == LOW_KW_TRAIT)  what = "trait";
+            else if (kw == LOW_KW_LET || kw == LOW_KW_VAR) what = "module binding";
             else continue;
             if (f->kids[1]->kind != LOW_CST_ATOM) continue;
             {   // ★★★ **이름은 맨 식별자다** — 유일한 예외가 op 의 `Type.op` 이다.

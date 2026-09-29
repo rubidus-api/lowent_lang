@@ -7208,6 +7208,58 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
     for (proven_size_t j = 0; j < nd->nkids; j++) ck_lit_walk(out, nd->kids[j]);
 }
 
+// ★★ RFC-0134 N3 (2026-09-29) — **`export` 의 `link "<C 이름>"` 은 그대로 C 이름이 된다** — 그러니 C 가 받을 수 있는
+//   이름인지 번역 시점에 가린다(`E-LINK-NAME`). 기본 이름(`lw_<길이><마디>…`)은 부딪칠 수 없고, `link` 는 저자가
+//   고른 약속이다. 방출 C 가 불러오는 헤더의 이름과 부딪치는지는 여기서 보지 않는다 — 그 목록은 대상 기계마다
+//   다르고 닫혀 있지 않다(RFC-0134 N3). `extern`(C 를 부르는 쪽)의 `link` 는 남의 이름이라 가리지 않는다.
+static const char *const CK_C_RESERVED[] = {
+    // C23
+    "auto","break","case","char","const","continue","default","do","double","else","enum","extern","float","for",
+    "goto","if","inline","int","long","register","restrict","return","short","signed","sizeof","static","struct",
+    "switch","typedef","union","unsigned","void","volatile","while","alignas","alignof","bool","constexpr","false",
+    "nullptr","static_assert","thread_local","true","typeof","typeof_unqual",
+    // C++ (헤더가 `extern "C"` 로 C++ 에서도 쓰인다)
+    "and","and_eq","asm","bitand","bitor","catch","char8_t","char16_t","char32_t","class","compl","concept",
+    "const_cast","consteval","constinit","co_await","co_return","co_yield","decltype","delete","dynamic_cast",
+    "explicit","export","friend","mutable","namespace","new","noexcept","not","not_eq","operator","or","or_eq",
+    "private","protected","public","reinterpret_cast","requires","static_cast","template","this","throw","try",
+    "typeid","typename","using","virtual","wchar_t","xor","xor_eq", NULL };
+static void ck_link_names(low_check_result_t *out, const low_parse_result_t *pr) {
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (!f || f->kind != LOW_CST_FORM || !f->is_export || f->is_extern || f->nkids < 3) continue;
+        for (proven_size_t j = 2; j + 1 < f->nkids; j++) {
+            const low_cst_t *a = f->kids[j];
+            if (a->kind != LOW_CST_ATOM || !veq(a->tok.lex, "link") || f->kids[j + 1]->kind != LOW_CST_ATOM) continue;
+            proven_u8str_view_t n = f->kids[j + 1]->tok.lex;
+            const char *why = NULL;
+            bool ident = n.size > 0 && !(n.ptr[0] >= '0' && n.ptr[0] <= '9');
+            for (proven_size_t q = 0; q < n.size && ident; q++) {
+                proven_u8 c = n.ptr[q];
+                ident = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+            }
+            if (!ident) why = "a C name is ASCII letters, digits and `_`, and does not start with a digit";
+            else {
+                for (proven_size_t k = 0; CK_C_RESERVED[k] && !why; k++)
+                    if (veq(n, CK_C_RESERVED[k])) why = "that is a C or C++ keyword — the header is meant for both";
+                if (!why && n.size >= 3 && n.ptr[0] == 'l' && n.ptr[1] == 'w' && n.ptr[2] == '_')
+                    why = "`lw_` names belong to Lowent itself — the default C names (`lw_<length><name>…`) and the runtime";
+                if (!why && n.size >= 2 && n.ptr[0] == '_' && (n.ptr[1] == '_' || (n.ptr[1] >= 'A' && n.ptr[1] <= 'Z')))
+                    why = "C keeps names beginning with `__` or `_` + a capital letter for the implementation";
+            }
+            if (why) {
+                static char lbuf[8][400]; static int li = 0;
+                char *b = lbuf[li++ & 7];
+                snprintf(b, sizeof lbuf[0], "`link \"%.*s\"` cannot be a C name: %s. Without `link` the export gets the "
+                         "default name `lw_<length><module>_<length><name>` (RFC-0134), which never collides",
+                         (int)n.size, (const char *)n.ptr, why);
+                emit(out, "E-LINK-NAME", b, a->tok.line);
+            }
+            break;
+        }
+    }
+}
+
 static void ck_regions(low_check_result_t *out, const low_cst_t *f, const low_cst_t *nd) {
     if (!nd) return;
     for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {
@@ -10199,6 +10251,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
 
     for (proven_size_t i = 0; i < pr->nforms; i++) (void)ck_array_walk(&out, pr->forms[i]);
     for (proven_size_t i = 0; i < pr->nforms; i++) ck_lit_walk(&out, pr->forms[i]);   // RFC-0132 T2b-1
+    ck_link_names(&out, pr);   // RFC-0134 N3
 
     // ★★ **지역이 최상위 이름을 가릴 수 없다** — 이름공간이 **평면**이기 때문이다.
     //

@@ -51,9 +51,36 @@ static void put_view(FILE *o, proven_u8str_view_t v) { fwrite(v.ptr, 1, v.size, 
 //   ⇒ 저자가 `link "…" .` 로 정하고(RFC-0063, 이미 있던 절), 안 정했는데 겹치면 **거절**한다
 //     (E-ABI-NAME-DUP, low_cbe 의 계획 단계). 여기서는 **정해진 것을 쓸 뿐**이다.
 //   ☞ 내부 심볼(`put_sym`)은 반대다: C 저자가 볼 일이 없으니 도구가 지어도 된다.
+// ★★★★ **RFC-0134 (2026-09-29, 소유자 결정) — 이제 이름 짓는 법이 정본의 규칙이다.** 위 판단의 흠은 도구가
+//   **아무도 약속한 적 없는** 이름을 지어낸 것이었다. 규칙이 정본에 서면 그 이름이 곧 약속이다:
+//     C 이름 = `lw` + 경로의 마디마다 `_<길이><마디>` — `lw_7listlit_6inside` · `lw_6shapes_4rect_4area`.
+//   전엔 맨 이름을 그대로 내서 `inline`·`register`(C 예약어) · `printf`(방출 C 가 불러오는 헤더) · `lw_panic`
+//   (런타임)이 네이티브 빌드를 깨뜨렸다(X-0078). 길이를 적으므로 밑줄이 어디 있어도 모호하지 않고, `lw_` 다음이
+//   **숫자**라 런타임(`lw_` 다음이 글자)과 저절로 갈린다. 저자가 다른 이름을 원하면 `link "…" .`(그대로 쓴다).
+static proven_size_t cbe_export_cname(const low_ir_def_t *d, char *buf, proven_size_t cap) {
+    if (d->link_name.size) {
+        proven_size_t n = d->link_name.size < cap - 1 ? d->link_name.size : cap - 1;
+        memcpy(buf, d->link_name.ptr, n); buf[n] = 0; return n;
+    }
+    proven_size_t o = 0;
+    #define CN_PUT(...) do { int w_ = snprintf(buf + o, o < cap ? cap - o : 0, __VA_ARGS__); if (w_ > 0) o += (proven_size_t)w_; } while (0)
+    CN_PUT("lw");
+    if (d->owner_mod.size) CN_PUT("_%zu%.*s", (size_t)d->owner_mod.size, (int)d->owner_mod.size, (const char *)d->owner_mod.ptr);
+    proven_size_t s = 0;
+    for (proven_size_t i = 0; i <= d->name.size; i++)
+        if (i == d->name.size || d->name.ptr[i] == (proven_u8)'.') {   // `rect.area` — 그릇이 한 마디 더
+            CN_PUT("_%zu%.*s", (size_t)(i - s), (int)(i - s), (const char *)d->name.ptr + s);
+            s = i + 1;
+        }
+    #undef CN_PUT
+    if (o >= cap) o = cap - 1;
+    buf[o] = 0;
+    return o;
+}
 static void put_export_name(FILE *o, const low_ir_def_t *d) {
-    proven_u8str_view_t n = d->link_name.size ? d->link_name : d->name;
-    fwrite(n.ptr, 1, n.size, o);
+    char nb[512];
+    proven_size_t n = cbe_export_cname(d, nb, sizeof nb);
+    fwrite(nb, 1, n, o);
 }
 
 // ★★★★★ **`#line` 을 낸다** (2026-09-10, REQ-0015 · WO-0196).
@@ -4585,7 +4612,12 @@ void low_cbe_plan(const low_ir_t *ir) {
         if (!d->is_export || d->is_extern)   why = NULL;              // 애초에 내보내는 op 이 아니다
         else if (!pl->emittable)             why = d->lowered ? "본문이 C 백엔드에 담기엔 크다(ncode > 4096)"
                                                              : "본문이 S5 코어 밖이라 하강되지 않았다";
-        else if (!cbe_c_name_ok(d->name))    why = "이름이 C 식별자가 아니다(`rect.area` 같은 점 이름)";
+        // ★ RFC-0134: 점 이름(`rect.area`)도 경로 이름을 갖는다. 남는 것은 `link` 이름이 C 식별자가 아닌 경우와
+        //   단형화 인스턴스(`op#T` — 틀의 이름으로 내보내지 않는다)뿐이다.
+        else if (d->link_name.size && !cbe_c_name_ok(d->link_name))
+                                             why = "`link` 이름이 C 식별자가 아니다";
+        else if (memchr(d->name.ptr, '#', d->name.size))
+                                             why = "단형화 인스턴스다 — 틀의 이름으로는 C 심볼을 내지 않는다";
         // ★★★ WO-0222 — `main` 은 C 의 진입점이 이미 쓰는 이름이다. 진입 op 이 **빠른 경로로 내려가면** 그 C 심볼이
         //   `long long main(void)` 로 나가 런처의 `int main(int, char **)` 와 부딪혔다(태그 경로 main 은 심볼을 안 내서 가려져 있었다).
         //   진입 op 은 런처가 이름표로 부른다 — C 로 따로 내보낼 이유가 없다.
@@ -4607,12 +4639,14 @@ void low_cbe_plan(const low_ir_t *ir) {
     //   ☞ 조용히 지어내면 그 이름은 **아무도 약속한 적 없는 공개 이름**이 된다.
     for (proven_size_t i = 0; i < ir->ndefs && i < 512; i++) {
         if (!g_plan[i].exported_symbol) continue;
-        proven_u8str_view_t ni = ir->defs[i].link_name.size ? ir->defs[i].link_name
-                                                            : ir->defs[i].name;
+        // ★ RFC-0134: **최종 C 이름**으로 댄다. 경로 이름끼리는 한 이름 통(X-0079) 덕에 겹칠 수 없고,
+        //   겹침은 `link` 이름끼리나 `link` 이름과 경로 이름 사이에서만 난다.
+        char cbi[512]; proven_size_t li = cbe_export_cname(&ir->defs[i], cbi, sizeof cbi);
+        proven_u8str_view_t ni = { .ptr = (const proven_u8 *)cbi, .size = li };
         for (proven_size_t j = i + 1; j < ir->ndefs && j < 512; j++) {
             if (!g_plan[j].exported_symbol) continue;
-            proven_u8str_view_t nj = ir->defs[j].link_name.size ? ir->defs[j].link_name
-                                                                : ir->defs[j].name;
+            char cbj[512]; proven_size_t lj = cbe_export_cname(&ir->defs[j], cbj, sizeof cbj);
+            proven_u8str_view_t nj = { .ptr = (const proven_u8 *)cbj, .size = lj };
             if (!proven_u8str_view_eq(ni, nj)) continue;
             g_abi_dup = true;
             snprintf(g_abi_dup_msg, sizeof g_abi_dup_msg,
@@ -4654,7 +4688,19 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
           "     NOT YET:   that it will not change. The language is still in development,\n"
           "                so the surface MAY still move; it will be ANNOUNCED when it does.\n"
           "     ☞ an epoch is the ORIGIN you measure compatibility from — hence a date. */\n"
-          "#ifndef LOWENT_H\n#define LOWENT_H\n#include <stddef.h>\n#include <stdint.h>\n"
+          , out);
+    // ★ RFC-0134 N2 — 헤더 가드도 모듈마다: `LW_<길이><모듈>_H`. 전엔 모두 `LOWENT_H` 라 두 Lowent 헤더를 함께
+    //   넣으면 둘째가 통째로 사라졌다. 모듈은 내보내는 op 의 첫 모듈(없으면 첫 def 의 모듈)이다.
+    {
+        proven_u8str_view_t gm = { 0 };
+        for (proven_size_t i = 0; i < ir->ndefs && !gm.size; i++)
+            if (low_cbe_plan_of(i)->exported_symbol) gm = ir->defs[i].owner_mod;
+        for (proven_size_t i = 0; i < ir->ndefs && !gm.size; i++) gm = ir->defs[i].owner_mod;
+        if (gm.size) fprintf(out, "#ifndef LW_%zu%.*s_H\n#define LW_%zu%.*s_H\n", (size_t)gm.size, (int)gm.size,
+                             (const char *)gm.ptr, (size_t)gm.size, (int)gm.size, (const char *)gm.ptr);
+        else fputs("#ifndef LW_H\n#define LW_H\n", out);
+    }
+    fputs("#include <stddef.h>\n#include <stdint.h>\n"
           "#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n", out);
     for (proven_size_t i = 0; i < ir->ndefs; i++) {
         const low_ir_def_t *d = &ir->defs[i];
@@ -5889,7 +5935,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     //   그 심볼은 계약을 검사하는 경계 래퍼다(RFC-0066 §4). extern 호출이 (void*).p 로 넘긴다.
                     const low_ir_def_t *F = &ir->defs[in->a & 0xffff];
                     fputs("    { lowv fr = {0}; fr.p = (const unsigned char *)(void *)&", out);
-                    put_view(out, F->link_name.size ? F->link_name : F->name);
+                    put_export_name(out, F);   // ★ RFC-0134 — 헤더·정의와 **같은 이름**(경로 이름 또는 `link`)
                     fputs("; st[sp++] = fr; }\n", out);
                     break;
                 }

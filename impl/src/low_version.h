@@ -64,7 +64,10 @@
 //   (`E-BUILTIN-BARE`) — 표면이 깨지는 방향이다. 이 축의 규칙이 «키워드/빌트인이
 //   바뀌면 움직인다» 이므로 움직인다. ☞ epoch 가 아직 `provisional` 이라 이 깨짐은
 //   약속 위반이 아니다 — 「조용히 바뀌지 않는다」만 약속했고, 이렇게 적는 것이 그 약속이다.
-#define LOW_ABI_EPOCH        "2026-08-05"     /* ③ 호환성 epoch — **원점(날짜)** */
+// ★ epoch 2026-08-05 → 2026-09-29 (RFC-0134, 소유자 결정): C 로 내보내는 이름이 전부 바뀌었다 — 맨 op 이름 대신
+//   경로와 길이(`lw_7listlit_6inside`). 맨 이름은 C 예약어·표준 헤더·런타임과 부딪쳐 네이티브 빌드를 깨뜨렸다(X-0078).
+//   원점을 옮겨 알린다 — `provisional` 은 «조용히 바뀌지 않는다» 만 약속했고, 이것이 그 알림이다.
+#define LOW_ABI_EPOCH        "2026-09-29"     /* ③ 호환성 epoch — **원점(날짜)** */
 #define LOW_ABI_EPOCH_STATUS "provisional"    /*    그 눈금의 성격: 잠정 / frozen */
 #define LOW_MATURITY     "freestanding-verified"  /* ④ 성숙도(stable-core 아님) */
 

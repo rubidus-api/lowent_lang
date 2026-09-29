@@ -39,12 +39,12 @@ int main(void) {
     /* ── 나가는 쪽: 구판 헤더의 선언을 믿고 부른다 ───────────────────────────── */
     const unsigned char buf[5] = { 1, 2, 3, 4, 5 };
 
-    long long a = abi_ret_int(41);                    /* 42  */
-    double    b = abi_ret_flt(1.5);                   /* 3.0 */
-    long long c = abi_no_params();                    /* 7   */
-    long long d = abi_slice_param(buf, sizeof buf);   /* 5   */
-    double    e = abi_many(2, 0.5, buf, sizeof buf);  /* 7.5 */
-    long long f = abi_clamp255(1000);                 /* 255 */
+    long long a = lw_11abi_surface_11abi_ret_int(41);                    /* 42  */
+    double    b = lw_11abi_surface_11abi_ret_flt(1.5);                   /* 3.0 */
+    long long c = lw_11abi_surface_13abi_no_params();                    /* 7   */
+    long long d = lw_11abi_surface_15abi_slice_param(buf, sizeof buf);   /* 5   */
+    double    e = lw_11abi_surface_8abi_many(2, 0.5, buf, sizeof buf);  /* 7.5 */
+    long long f = lw_11abi_surface_12abi_clamp255(1000);                 /* 255 */
 
     /* 들어오는 쪽 정의도 한 번씩 불러 본다 — 링크가 아니라 **표현**이 맞는지 본다. */
     const int32_t w[3] = { 100, -1, -2 };

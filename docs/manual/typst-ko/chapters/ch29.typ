@@ -89,9 +89,15 @@ C 함수를 부르는 op 은 셋을 *모두* 갖춘다.
 `--emit-h` 가 헤더를 낸다. 헤더를 손으로 적으면 서명이 두 곳에 살고, 언젠가 갈린다.
 
 ```c
-long long clamp_add(long long, long long);
-long long sum_bytes(const unsigned char *, size_t);
+long long lw_8exported_9clamp_add(long long, long long);
+long long lw_8exported_9sum_bytes(const unsigned char *, size_t);
 ```
+
+C 에서 보이는 이름은 `lw` 뒤에 모듈과 op 의 이름을 *길이와 함께* 이어 붙인 것이다 --- 모듈 `exported` 는 8 글자,
+`clamp_add` 는 9 글자라 `lw_8exported_9clamp_add` 다. 타입에 딸린 op 은 마디가 하나 더 붙는다(`lw_6shapes_4rect_4area`).
+이렇게 지으면 C 예약어(`inline`) · 방출 C 가 부르는 표준 헤더(`printf`) · 다른 모듈의 같은 이름과 부딪칠 수 없다.
+정해진 C 이름이 필요하면 머리에 `link "exported_clamp_add" .` 처럼 적는다. 그 이름이 그대로 C 이름이 되고, C 가 받을 수
+없는 이름(예약어 · `lw_` 로 시작 · `__` 로 시작)이면 `E-LINK-NAME` 이다.
 
 `sum_bytes` 의 `slice u8` 이 포인터와 길이 둘로 나뉜 것을 볼 수 있다.
 
@@ -100,10 +106,10 @@ long long sum_bytes(const unsigned char *, size_t);
    input xs slice u8 .
 
  C (--emit-h 가 낸 머리)
-   sum_bytes(const unsigned char *, size_t)
-             └──────┬────────────┘ └─┬──┘
-                    │                개수 (len xs)
-                    포인터 (xs 의 첫 칸)
+   lw_8exported_9sum_bytes(const unsigned char *, size_t)
+                           └─────────┬─────────┘  └─┬──┘
+                                     │              개수 (len xs)
+                                     포인터 (xs 의 첫 칸)
 ```
 
 `--no-main` 은 `main` 과 명령 줄 디스패처 없이 내보낸
@@ -124,9 +130,9 @@ op 의 진입점만 담은 C 를 낸다. 남의 빌드에 그대로 넣으면 �
    unsafe · cap c · effects unsafe                안은 검사 밖, 사람이 책임진다
 
  들어오는 쪽 --- C 가 Lowent 를 부른다
-   host.c ── clamp_add(5000, 1) ══▶ ┃ requires le a 1000 .
-                                    ┃ 5000 은 약속을 어긴다
-                                    ┗━▶ 진입에서 멈춘다 (종료 코드 70)
+   host.c ── lw_8exported_9clamp_add(5000, 1) ══▶ ┃ requires le a 1000 .
+                                                  ┃ 5000 은 약속을 어긴다
+                                                  ┗━▶ 진입에서 멈춘다 (종료 코드 70)
 ```
 
 #misconception[FFI 경계에서는 언어의 보장이 모두 사라진다][
@@ -214,7 +220,8 @@ C 에게 Lowent 함수를 넘겨 되부르게 하려면 `export extern` op 의 �
   [`unsafe proc area_twice input k cap c . … effects unsafe .`], [C 를 부르는 op 을 부르는 op], [표시와 권리가 호출 사슬을 따라 올라간다],
   [`input xs slice u8 .`(경계)], [C 에서는 포인터와 길이 두 인자], [저절로 사상되는 것은 슬라이스뿐],
   [`option`·`result`·벡터를 경계에], [거절(`E-FFI-TYPE`)], [C ABI 에 없는 것을 있는 척하지 않는다],
-  [`export fn clamp_add …`], [C 에서 부를 수 있는 심볼], [들어오는 인자에 계약이 강제된다],
+  [`export fn clamp_add …`], [C 에서 부를 수 있는 심볼 `lw_8exported_9clamp_add`], [들어오는 인자에 계약이 강제된다 · 이름은 길이와 함께라 부딪치지 않는다],
+  [`link "exported_clamp_add" .`], [export 의 C 이름을 직접 짓는다], [C 가 받을 수 없는 이름은 `E-LINK-NAME`],
   [`lowentc --emit-h` · `--no-main`], [헤더를 낸다 · `main` 없이 라이브러리로 낸다], [서명이 한 곳에만 산다],
   [`unsafe_fn cmp`], [`export extern` op 의 주소(되부름)], [보통 op 은 `E-FN-NOTEXPORT` · 권한을 받으면 `E-FN-CAP`],
   [`input h owned τ .`(extern 에)], [없앨 책임이 C 로 넘어간다], [그 뒤의 반납은 검증되지 않는다],

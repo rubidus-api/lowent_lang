@@ -110,6 +110,7 @@ Searches headings and index terms --- not the full text
 [10 Aggregates — struct and enum](ch10.md)
 
 - [10.1 struct — a collection of named fields](ch10.md#s10-1)
+- [10.1.1 Array fields — a field that holds bytes](ch10.md#s10-1-1)
 - [10.2 enum — one of several](ch10.md#s10-2)
 - [10.3 Variants are closed with full stops](ch10.md#s10-3)
 - [10.4 Nothing may contain itself](ch10.md#s10-4)

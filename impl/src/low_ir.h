@@ -513,7 +513,11 @@ typedef struct { proven_u8str_view_t name; proven_u8 size; bool be; bool flt; bo
                  //   권한은 번역 시점 표시라 실행 중 뜻이 없다 — 하강이 `alloc_bytes <칸>` 의 뿌리를 여기서 읽는다.
                  proven_u8 capkind;
                  // ★ 칸의 **타입 낱말**(첫 낱말) — `send (field g al) m` 이 받는 actor 를 타입으로 찾는다(WO-0213).
-                 proven_u8str_view_t tyname; } low_ir_sfield_t;
+                 proven_u8str_view_t tyname;
+                 // ★★ RFC-0132 T2b-3b — **배열 칸** `body array u8 16 .`: 원소 수(0 = 배열 칸이 아니다)와 원소 폭·종류(IRW_VARRAY
+                 //   의 meta 와 같은 모양). 값은 태그 한 칸(보는 슬라이스)이지만 바이트는 **레코드의 것**이다 — 만들 때와 칸에
+                 //   쓸 때 바이트를 베낀다(값 복사). 그래서 이 칸이 있으면 구조체는 `viewable` 이 아니다(C 레이아웃은 뒤로).
+                 proven_u32 arrn; proven_u8 arresz; proven_i64 arrmeta; } low_ir_sfield_t;
 typedef struct {
     proven_u8str_view_t name;
     bool                packed;

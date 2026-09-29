@@ -705,6 +705,7 @@ static ty_t tc_infer_expr(tc_ctx_t *c, low_cst_t *const *k, proven_size_t n, con
     return have ? acc : tk(TK_UNKNOWN);
 }
 // operand run: 1 → itself; expr → island; cast → target scalar; else → call
+static const tc_struct_t *struct_find(tc_ctx_t *c, proven_u8str_view_t name);   // 아래에 정의
 static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n,
                          const tc_var_t *env, proven_size_t nenv) {
     if (n == 0) return tk(TK_UNIT);
@@ -726,6 +727,15 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             if (veq(h2, "len") || veq(h2, "count") || veq(h2, "capacity")) {
                 for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
                 return tk_int(64, false);
+            }
+            // ★ RFC-0132 T2b-3b — `field <레코드> <칸>` 이 **타입 있는 슬라이스 칸**(배열 칸 · `slice u32` 칸)이면 그 타입을 준다.
+            //   없으면 그 위의 `index` 가 원소를 u8 로 보았다(`array f64 2` 칸의 원소가 u8 로 읽혔다). 좁게: 타입 있는 슬라이스만.
+            if (veq(h2, "field") && n == 3 && k[start + 1]->kind == LOW_CST_ATOM && k[start + 2]->kind == LOW_CST_ATOM) {
+                bool fnd; ty_t rt = env_find(env, nenv, k[start + 1]->tok.lex, &fnd);
+                const tc_struct_t *st = (fnd && rt.k == TK_NAMED) ? struct_find(c, rt.nname) : NULL;
+                if (st) for (proven_size_t q = 0; q < st->nf; q++)
+                    if (proven_u8str_view_eq(st->fname[q], k[start + 2]->tok.lex) && st->fty[q].k == TK_SLICE && st->fty[q].ebits)
+                        return st->fty[q];
             }
             if (veq(h2, "index") && n >= 2) {             // ★ 원소 타입은 슬라이스가 정한다
                 ty_t sq = tc_infer(c, k[start + 1], env, nenv);

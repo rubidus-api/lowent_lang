@@ -851,6 +851,7 @@ static bool cbe_rec_ok(const low_ir_t *ir, int sidx) { return cbe_rec_ok_f(ir, s
 static bool cbe_rec_slice_ok(const low_ir_t *ir, int sidx) {
     if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return false;
     const low_ir_struct_t *S = &ir->structs[sidx];
+    for (proven_size_t q = 0; q < S->nf; q++) if (S->f[q].arrn) return false;   // ★ T2b-3b 배열 칸 — 값 복사는 태그 경로가 한다
     if (S->nf == 0 || S->nf > K_REC_MAX || S->total > K_REC_BYTES) return false;
     bool any_slice = false;
     for (proven_size_t q = 0; q < S->nf; q++) {
@@ -5264,7 +5265,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    if (r.tag != LWV_REC) lw_panic(\"set field needs a record\");\n"
           "    lowrec *rr = &lw_recs[r.box];\n"
           "    for (int i = 0; i < rr->nf; i++)\n"
-          "        if (strcmp(lw_mk_fields[rr->mk][i], lw_fnames[fi]) == 0) { rr->f[i] = v; return; }\n"
+          "        if (strcmp(lw_mk_fields[rr->mk][i], lw_fnames[fi]) == 0) { if (!lw_fstore_arr(rr, i, v)) rr->f[i] = v; return; }\n"
           "    lw_panic(\"no such field on this record\");\n"
           "}\n"
           "static int lw_aligned(lowv b, int s) {\n"
@@ -5379,6 +5380,95 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     fputs("static lowv lw_strv(int i) { lowv v = {0}; v.p = lw_strs[i].p; v.n = lw_strs[i].n;\n"
           "    if (lw_strs[i].w <= 1) { v.tag = LWV_SLICE; } else { v.tag = LWV_VARRAY; v.box = (int)lw_strs[i].w; }\n"
           "    return v; }\n", out);
+    // ★★ RFC-0132 T2b-3b — **배열 칸의 표**: (make 번호, 칸 자리, 원소 수, 원소 폭, 부동·부호). VM 의 vm_arr_* 와 같은 규칙.
+    fputs("static const struct { int mk, slot, n, esz; long long meta; } lw_arrf[] = {", out);
+    for (proven_size_t mk = 0; mk < ir->nmakes; mk++)
+        for (proven_size_t s = 0; s < ir->nstructs; s++) {
+            if (!proven_u8str_view_eq(ir->structs[s].name, ir->makes[mk].type_name)) continue;
+            for (proven_size_t q = 0; q < ir->makes[mk].nfields; q++)
+                for (proven_size_t z = 0; z < ir->structs[s].nf; z++)
+                    if (ir->structs[s].f[z].arrn && proven_u8str_view_eq(ir->structs[s].f[z].name, ir->makes[mk].fields[q]))
+                        fprintf(out, " {%zu, %zu, %u, %u, %lldLL},", (size_t)mk, (size_t)q, (unsigned)ir->structs[s].f[z].arrn,
+                                (unsigned)ir->structs[s].f[z].arresz, (long long)(ir->structs[s].f[z].arrmeta & 0x30000));
+            break;
+        }
+    // ★ 배열 칸 바이트의 최대(한 레코드) — 프리스탠딩은 힙이 없으므로 자리마다 이만큼의 정적 버퍼를 둔다.
+    size_t rbmax = 0;
+    for (proven_size_t s2 = 0; s2 < ir->nstructs; s2++) {
+        size_t t2 = 0;
+        for (proven_size_t z = 0; z < ir->structs[s2].nf; z++)
+            if (ir->structs[s2].f[z].arrn) t2 += (((size_t)ir->structs[s2].f[z].arrn * ir->structs[s2].f[z].arresz) + 7u) & ~(size_t)7u;
+        if (t2 > rbmax) rbmax = t2;
+    }
+    // ★ X-0083 — make 마다 **값 구조체**인가(안에 들면 베낀다). VM 의 vm_mk_is_value 와 같은 가름.
+    fputs(" {-1, 0, 0, 0, 0} };\nstatic const unsigned char lw_mkval[] = {", out);
+    for (proven_size_t mk = 0; mk < ir->nmakes; mk++) {
+        int val = 0;
+        for (proven_size_t s = 0; s < ir->nstructs; s++) {
+            const low_ir_struct_t *st = &ir->structs[s];
+            if (!proven_u8str_view_eq(st->name, ir->makes[mk].type_name)) continue;
+            val = !(st->is_actor_state || st->is_mmio || st->is_reserve);
+            for (proven_size_t q = 0; q < st->nf; q++) if (st->f[q].owned) val = 0;
+            break;
+        }
+        fprintf(out, "%d,", val);
+    }
+    fputs(" 0 };\n", out);
+    if (rbmax) fprintf(out, "#ifdef LW_FREESTANDING\nstatic unsigned char lw_rbuf[LW_RECPOOL][%zu] __attribute__((aligned(8)));\n#endif\n", rbmax);
+    if (!rbmax) {   // 배열 칸이 없다 — 힙에 닿는 코드를 아예 내지 않는다(프리스탠딩 프로필이 호스트 기호를 세어 거절한다)
+        fputs("static void lw_rec_arrs(lowrec *r, int mk) { (void)r; (void)mk; }\n"
+              "static lowv lw_rec_clone(lowv v, int depth) {\n"
+              "    if (v.tag != LWV_REC || !lw_mkval[lw_recs[v.box].mk]) return v;\n"
+              "    if (depth > 16) lw_panic(\"records nested too deep to copy\");\n"
+              "    if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted while copying a nested struct — raise it with -DLW_RECPOOL=N\");\n"
+              "    int me_ = lw_nrec++; lowrec *s = &lw_recs[v.box], *d = &lw_recs[me_];\n"
+              "    d->mk = s->mk; d->nf = s->nf; memcpy(d->f, s->f, sizeof(lowv) * (size_t)s->nf);\n"
+              "    for (int f = 0; f < d->nf; f++) d->f[f] = lw_rec_clone(d->f[f], depth + 1);\n"
+              "    v.box = me_; return v; }\n"
+              "static void lw_rec_arrays(lowrec *r, int mk) {\n"
+              "    for (int f = 0; f < r->nf; f++) r->f[f] = lw_rec_clone(r->f[f], 1);\n"
+              "    (void)mk; }\n"
+              "static int lw_fstore_arr(lowrec *r, int slot, lowv v) { (void)r; (void)slot; (void)v; return 0; }\n", out);
+    } else fputs(
+          "static lowv lw_arr_view(int k, unsigned char *p) { lowv v = {0}; v.p = p;\n"
+          "    if (lw_arrf[k].esz == 1 && !lw_arrf[k].meta) { v.tag = LWV_SLICE; v.n = (size_t)lw_arrf[k].n; }\n"
+          "    else { v.tag = LWV_VARRAY; v.n = (size_t)lw_arrf[k].n; v.box = lw_arrf[k].esz; v.i = lw_arrf[k].meta; }\n"
+          "    return v; }\n"
+          "static void lw_arr_copy(int k, lowv s, unsigned char *dst) { size_t need = (size_t)lw_arrf[k].n * (size_t)lw_arrf[k].esz, have = 0;\n"
+          "    if (s.tag == LWV_SLICE) have = s.n; else if (s.tag == LWV_VARRAY) have = s.n * (size_t)s.box; else lw_panic(\"an array field takes an array value\");\n"
+          "    if (have != need) lw_panic(\"an array field takes exactly its length of elements\");\n"
+          "    memmove(dst, (const void *)s.p, need); }\n"
+          "static void lw_rec_arrs(lowrec *r, int mk);\n"
+          "static lowv lw_rec_clone(lowv v, int depth) {\n"
+          "    if (v.tag != LWV_REC || !lw_mkval[lw_recs[v.box].mk]) return v;\n"
+          "    if (depth > 16) lw_panic(\"records nested too deep to copy\");\n"
+          "    if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted while copying a nested struct — raise it with -DLW_RECPOOL=N\");\n"
+          "    int me_ = lw_nrec++; lowrec *s = &lw_recs[v.box], *d = &lw_recs[me_];\n"
+          "    d->mk = s->mk; d->nf = s->nf; memcpy(d->f, s->f, sizeof(lowv) * (size_t)s->nf);\n"
+          "    for (int f = 0; f < d->nf; f++) d->f[f] = lw_rec_clone(d->f[f], depth + 1);\n"
+          "    lw_rec_arrs(d, d->mk); v.box = me_; return v; }\n"
+          "static void lw_rec_arrays(lowrec *r, int mk) {\n"
+          "    for (int f = 0; f < r->nf; f++) r->f[f] = lw_rec_clone(r->f[f], 1);\n"
+          "    lw_rec_arrs(r, mk); }\n"
+          "static void lw_rec_arrs(lowrec *r, int mk) { size_t tot = 0; int any = 0;\n"
+          "    for (int k = 0; lw_arrf[k].mk >= 0; k++) if (lw_arrf[k].mk == mk) { tot += (((size_t)lw_arrf[k].n * (size_t)lw_arrf[k].esz) + 7u) & ~(size_t)7u; any = 1; }\n"
+          "    if (!any) return;\n"
+          "    if (tot > r->rbc) {\n"
+          "#ifdef LW_FREESTANDING\n"
+          "        r->rb = lw_rbuf[r - lw_recs]; r->rbc = sizeof lw_rbuf[0];   /* 힙이 없다 — 자리마다 정적 버퍼 */\n"
+          "        if (tot > r->rbc) lw_panic(\"a struct's array fields do not fit the record buffer\");\n"
+          "#else\n"
+          "        unsigned char *nb = (unsigned char *)realloc(r->rb, tot); if (!nb) lw_panic(\"out of memory for a struct's array fields\"); r->rb = nb; r->rbc = tot;\n"
+          "#endif\n"
+          "    }\n"
+          "    size_t off = 0;\n"
+          "    for (int k = 0; lw_arrf[k].mk >= 0; k++) if (lw_arrf[k].mk == mk) {\n"
+          "        lw_arr_copy(k, r->f[lw_arrf[k].slot], r->rb + off); r->f[lw_arrf[k].slot] = lw_arr_view(k, r->rb + off);\n"
+          "        off += (((size_t)lw_arrf[k].n * (size_t)lw_arrf[k].esz) + 7u) & ~(size_t)7u; } }\n"
+          "static int lw_fstore_arr(lowrec *r, int slot, lowv v) {\n"
+          "    for (int k = 0; lw_arrf[k].mk >= 0; k++) if (lw_arrf[k].mk == r->mk && lw_arrf[k].slot == slot) {\n"
+          "        lw_arr_copy(k, v, (unsigned char *)(void *)r->f[slot].p); return 1; }\n"
+          "    return 0; }\n", out);
     // ★★★ RFC-0042 §8-2 — **레지스터 블록을 자기 기저 주소에서** (태그 경로). 주소는 컴파일 상수다.
     fputs("static lowv lw_mmioblk(unsigned long long base, unsigned n) {\n"
           "    lowv v = {0}; v.tag = LWV_SLICE; v.p = (unsigned char *)(uintptr_t)base; v.n = n; return v; }\n", out);

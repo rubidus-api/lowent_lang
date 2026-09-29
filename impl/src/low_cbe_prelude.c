@@ -1583,7 +1583,9 @@ LOW_CHAPOLY_C_SOURCE
 "    lowv r = {0}; r.tag = s.tag; r.i = s.i; r.box = s.box;\n"
 "    r.p = s.p + (size_t)a * (s.tag == LWV_VARRAY ? (size_t)s.box : 1);\n"
 "    r.n = (size_t)(b - a); return r; }\n"
-"typedef struct { int mk; int nf; lowv f[8]; } lowrec;\n"
+"typedef struct { int mk; int nf; lowv f[8]; unsigned char *rb; size_t rbc; } lowrec;\n"
+/* ★ RFC-0132 T2b-3b — 배열 칸: 자리(슬롯)마다 바이트 버퍼 하나. 만들 때·칸에 쓸 때 바이트를 베낀다(값 복사). 방출 C 가 정의한다. */
+"static void lw_rec_arrays(lowrec *r, int mk);\nstatic int lw_fstore_arr(lowrec *r, int slot, lowv v);\n"
 // ★ 태그 경로의 레코드 풀. **VM 과 같은 크기·같은 규율**이어야 한다 — 아니면 둘이 갈리고,
 //   차등 스윕이 그것을 (정당하게) 컴파일러 버그로 고발한다.
 "static lowrec lw_recs[LW_RECPOOL];\n"
@@ -2166,8 +2168,8 @@ const char LW_PRELUDE2[] =
 "    lowv r = {0}; r.tag = LWV_OK; r.box = lw_nbox++; return r; }\n"
 "static lowv lw_err(int e) { lowv r = {0}; r.tag = LWV_ERR; r.i = e; return r; }\n"
 "static lowv lw_make(int mk, int nf, const lowv *vals) { if (lw_nrec >= lw_reclim) lw_panic(\"record pool exhausted — raise it with -DLW_RECPOOL=N (docs/runtime-pools.md)\");\n"
-"    lowrec *r = &lw_recs[lw_nrec]; r->mk = mk; r->nf = nf; memcpy(r->f, vals, sizeof(lowv) * (size_t)nf);\n"
-"    lowv v = {0}; v.tag = LWV_REC; v.box = lw_nrec++; return v; }\n"
+"    int me_ = lw_nrec++; lowrec *r = &lw_recs[me_]; r->mk = mk; r->nf = nf; memcpy(r->f, vals, sizeof(lowv) * (size_t)nf); lw_rec_arrays(r, mk);\n"
+"    lowv v = {0}; v.tag = LWV_REC; v.box = me_; return v; }\n"
 "static lowv lw_snew(lowv cap) { long long c = lw_want_int(cap, \"capacity\"); if (lw_nstk >= LW_STKPOOL) lw_panic(\"stack pool exhausted — raise it with -DLW_STKPOOL=N (docs/runtime-pools.md)\");\n"
 "    if (c < 0 || c > 128) lw_panic(\"stack capacity exceeded\");   /* \xe2\x98\x85 \xec\x84\xa0\xec\x96\xb8 capacity \xeb\xa5\xbc \xed\x95\x9c\xeb\x8f\x84\xeb\xa1\x9c(VM \xea\xb3\xbc \xeb\x8c\x80\xec\xb9\xad) */\n"
 "    lw_stks[lw_nstk].n = 0; lw_stks[lw_nstk].cap = (size_t)c; lowv v = {0}; v.tag = LWV_STACK; v.box = lw_nstk++; return v; }\n"
@@ -2311,7 +2313,10 @@ const char LW_PRELUDE2[] =
 "    for (int i = bsb; i < lw_nbset; i++)   if (lw_pm_bs[i] == -2) lw_pm_bs[i] = tt++;\n"
 "    for (int i = vcb; i < lw_nvecpool; i++) if (lw_pm_vc[i] == -2) lw_pm_vc[i] = tv++;\n"
 "    for (int i = bxb; i < lw_nbox; i++)  if (lw_pm_bx[i] >= 0 && lw_pm_bx[i] != i) lw_boxes[lw_pm_bx[i]] = lw_boxes[i];\n"
-"    for (int i = rcb; i < lw_nrec; i++)  if (lw_pm_rc[i] >= 0 && lw_pm_rc[i] != i) lw_recs[lw_pm_rc[i]] = lw_recs[i];\n"
+"    for (int i = rcb; i < lw_nrec; i++)  if (lw_pm_rc[i] >= 0 && lw_pm_rc[i] != i) {\n"
+/* ★ RFC-0132 T2b-3b — 배열 칸 버퍼는 자리의 것이다: 레코드를 옮기면 버퍼를 **맞바꾼다**(VM 의 vm_pool_gc 와 같은 규칙) */
+"        unsigned char *ob_ = lw_recs[lw_pm_rc[i]].rb; size_t oc_ = lw_recs[lw_pm_rc[i]].rbc;\n"
+"        lw_recs[lw_pm_rc[i]] = lw_recs[i]; lw_recs[i].rb = ob_; lw_recs[i].rbc = oc_; }\n"
 "    for (int i = skb; i < lw_nstk; i++)  if (lw_pm_sk[i] >= 0 && lw_pm_sk[i] != i) lw_stks[lw_pm_sk[i]] = lw_stks[i];\n"
 "    for (int i = bsb; i < lw_nbset; i++) if (lw_pm_bs[i] >= 0 && lw_pm_bs[i] != i) { lw_bsets[lw_pm_bs[i]] = lw_bsets[i]; lw_bwid[lw_pm_bs[i]] = lw_bwid[i]; }\n"
 "    for (int i = vcb; i < lw_nvecpool; i++) if (lw_pm_vc[i] >= 0 && lw_pm_vc[i] != i) lw_vecs[lw_pm_vc[i]] = lw_vecs[i];\n"

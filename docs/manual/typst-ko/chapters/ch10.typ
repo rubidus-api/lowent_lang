@@ -63,6 +63,22 @@
 `field` 는 읽는 자리이면서 쓰는 자리이기도 하다. `mut` 로 받은 값의 칸은 `set (field p x) 3 .` 으로
 바꾼다. 읽기와 쓰기가 같은 철자다. 값을 빌려 바꾸는 규칙은 #chref("references")에서 다룬다.
 
+=== 배열 칸 --- 칸이 바이트를 품는다
+
+칸의 타입이 `array u8 4` 처럼 길이를 가진 배열이면, 그 바이트는 *레코드 안에* 있다. `field p body` 는 그 바이트를
+보는 슬라이스이고, `set (index (field p body) i) v .` 로 원소를 쓴다.
+
+#demo("examples/ch10/arrayfield.low")
+
+- struct 는 값이다. `var q be pkt p .` 는 배열 칸의 바이트까지 베낀다. 그래서 `q` 를 고쳐도 `p` 는 그대로다.
+  칸에 다른 struct 가 들어 있어도 같이 베껴진다.
+- `mut` 로 받은 레코드의 칸에 쓰면 부른 쪽의 레코드가 바뀐다. 값으로 받은 레코드에 쓰면 그 op 안의 복사본만 바뀐다.
+- 원소는 크기 있는 수나 `bool` 이다. 칸에 주는 나열은 칸과 원소 타입·길이가 같아야 한다(`E-TYPE-FIELD`).
+
+`let` 으로 묶은 레코드는 칸도 바뀌지 않는다. 배열 칸의 원소도 마찬가지다.
+
+#demo("examples/ch10/mistake_letfield.low")
+
 == `enum` — 여럿 중 하나
 
 #idx("enum")
@@ -178,6 +194,7 @@
   [`lit point do x 1 . y 2 . end`], [값 만들기 --- 모든 칸을 채운다], [빠진 칸이 조용히 0 이 되지 않게],
   [`field p x` · `field s stop x`], [칸 읽기 · 여러 마디 내려가기], [붙임 점 없이 --- 읽는 순간 뜻이 정해진다],
   [`set (field p x) 3 .`], [칸 쓰기(`mut` 로 받은 값)], [읽기와 쓰기가 같은 철자],
+  [`body array u8 4 .` · `set (index (field p body) 0) 1 .`], [배열 칸 --- 레코드가 바이트를 품는다], [베끼면 바이트도 베껴진다],
   [`enum shape do dot . circle r u32 . end`], [여럿 중 하나 --- 갈래는 값을 지닐 수 있다], [갈래마다 마침표로 닫는다],
   [`shape.circle 2` · `dot`], [값을 지닌 갈래 만들기 · 값이 없는 갈래], [갈래 이름이 곧 만드는 op],
   [`match s do case circle r . … end`], [갈래를 가르고 지닌 값을 묶기], [모든 갈래를 덮어야 한다],

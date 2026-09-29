@@ -59,6 +59,22 @@ module. The `field` form settles it the moment you read it.
 `field` is both a place to read and a place to write. A field of a value received as `mut` is changed with `set (field p x) 3 .` --- reading
 and writing use the same spelling. The rules for borrowing a value to change it are in #chref("references").
 
+=== Array fields --- a field that holds bytes
+
+When a field's type is an array with a length, like `array u8 4`, its bytes live *inside the record*. `field p body` is a slice that
+sees those bytes, and `set (index (field p body) i) v .` writes an element.
+
+#demo("examples/ch10/arrayfield.low")
+
+- A struct is a value. `var q be pkt p .` copies the array field's bytes too, so changing `q` leaves `p` alone. A struct held in a
+  field is copied along with it.
+- Writing a field of a record received `mut` changes the caller's record. Writing a record received by value changes only the op's own copy.
+- The elements are sized numbers or `bool`. A list given to the field must match its element type and length (`E-TYPE-FIELD`).
+
+A record bound with `let` has fields that cannot change either --- and that includes the elements of an array field.
+
+#demo("examples/ch10/mistake_letfield.low")
+
 == `enum` --- one of several
 
 #idx("enum")
@@ -172,6 +188,7 @@ fixed, and the `index` that follows a position still gets its bounds check. The 
   [`lit point do x 1 . y 2 . end`], [build a value --- fill every field], [no field silently becomes 0],
   [`field p x` · `field s stop x`], [read a field · walk down several levels], [no glued dot --- the meaning is fixed as you read],
   [`set (field p x) 3 .`], [write a field (of a value received `mut`)], [reading and writing are spelt the same],
+  [`body array u8 4 .` · `set (index (field p body) 0) 1 .`], [an array field --- the record holds the bytes], [copying copies the bytes too],
   [`enum shape do dot . circle r u32 . end`], [one of several --- variants may carry values], [each variant is closed with a stop],
   [`shape.circle 2` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
   [`match s do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],

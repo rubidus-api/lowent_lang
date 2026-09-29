@@ -7071,8 +7071,51 @@ static void ck_mref_slice(low_check_result_t *out, const low_cst_t *f) {
 //   `slice T` + `requires eq (len x) N .` 으로 바꿔 적었다(`low_using.c`). 여기까지 남은 `array` 는 둘 중 하나다:
 //   ① 차례가 틀렸다(`array 4 u64` — 정본은 `array <타입> <개수>`, RFC-0132 C12) · ② 입력이 아닌 자리(출력·지역·칸·별칭)라
 //   **길이를 지킬 곳이 없다**. 전엔 둘 다 `slice` 로 조용히 읽혔다 — 길이를 버린 채로.
+static bool ck_elem_sized(proven_u8str_view_t t) {
+    return veq(t, "u8") || veq(t, "i8") || veq(t, "u16") || veq(t, "i16") || veq(t, "u32") || veq(t, "i32") || veq(t, "u64") ||
+           veq(t, "i64") || veq(t, "usize") || veq(t, "isize") || veq(t, "f32") || veq(t, "f64") || veq(t, "bool");
+}
+static unsigned ck_elem_bytes(proven_u8str_view_t t) {
+    return veq(t, "u16") || veq(t, "i16") ? 2 : veq(t, "u32") || veq(t, "i32") || veq(t, "f32") ? 4 :
+           veq(t, "u64") || veq(t, "i64") || veq(t, "f64") || veq(t, "usize") || veq(t, "isize") ? 8 : 1;
+}
+// ★★ RFC-0132 T2b-3b (C5 · N1 · N2) — **구조체의 배열 칸** `body array u8 16 .` 은 받는다: 길이가 타입에 있으니 칸이 제
+//   바이트를 가진다(구조체를 값으로 베끼면 그 바이트도 베껴진다). 원소는 크기 있는 수·`bool`. 원소가 구조체이거나 배열인 칸은
+//   아직 짓지 않았다(`E-LIT-UNBUILT`). 한 구조체의 배열 칸 바이트 합은 틀 한도와 같은 규칙(N2 — `E-FRAME-SIZE`).
+static bool ck_struct_array_field(low_check_result_t *out, const low_cst_t *fld, unsigned long long *bytes) {
+    if (!(fld->kind == LOW_CST_FORM && fld->nkids >= 2 && ck_atom(fld->kids[0]) && ck_atom(fld->kids[1]) && veq(fld->kids[1]->tok.lex, "array")))
+        return false;
+    const low_cst_t *t = fld->nkids > 2 ? fld->kids[2] : NULL, *n = fld->nkids > 3 ? fld->kids[3] : NULL;
+    if (t && n && ck_atom(t) && ck_atom(n) && n->tok.kind == LOW_TOK_NUMBER && t->tok.kind == LOW_TOK_IDENT && !ck_elem_sized(t->tok.lex)) {
+        emit(out, "E-LIT-UNBUILT", "an array field whose elements are structs or arrays is not built yet (RFC-0132 T2b-3) — "
+             "today the elements are sized numbers or `bool`", fld->kids[1]->tok.line);
+        return true;
+    }
+    if (!(t && n && ck_atom(t) && ck_atom(n) && n->tok.kind == LOW_TOK_NUMBER)) return false;   // 모양이 틀리면 아래의 거절이 말한다
+    unsigned long long cnt = strtoull((const char *)n->tok.lex.ptr, NULL, 0);
+    if (cnt == 0) {
+        emit(out, "E-TYPE-ARRAY", "an array field holds at least one element — `array <type> 0` has nothing to keep", fld->kids[1]->tok.line);
+        return true;
+    }
+    *bytes += cnt * ck_elem_bytes(t->tok.lex);
+    return true;
+}
 static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
     if (!nd) return false;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_STRUCT &&
+        nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK) {
+        const low_cst_t *blk = nd->kids[nd->nkids - 1];
+        unsigned long long bytes = 0;
+        bool hit = false;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            if (ck_struct_array_field(out, blk->kids[j], &bytes)) continue;
+            if (blk->kids[j]->kind != LOW_CST_ATOM && ck_array_walk(out, blk->kids[j])) hit = true;
+        }
+        if (bytes > LOW_LBUF_MAX)
+            emit(out, "E-FRAME-SIZE", "this struct's array fields hold more bytes than one value may (RFC-0132 N2 — the same "
+                 "rule as a frame): copying the struct copies them all. Keep a large table outside and hold a slice to it", nd->line);
+        return hit;
+    }
     for (proven_size_t j = 0; j < nd->nkids; j++) {
         const low_cst_t *k = nd->kids[j];
         if (k->kind == LOW_CST_ATOM && k->tok.kind == LOW_TOK_IDENT && veq(k->tok.lex, "array")) {
@@ -7080,10 +7123,10 @@ static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
             bool lit_next = nx && nx->kind == LOW_CST_ATOM && nx->tok.kind == LOW_TOK_NUMBER;
             emit(out, "E-TYPE-ARRAY",
                  !lit_next
-                   ? "a fixed-length `array <type> <count>` is only accepted as an op INPUT today — there its "
-                     "length is checked at entry. In an output, a local, a struct field or an alias the length "
+                   ? "a fixed-length `array <type> <count>` is accepted as an op INPUT (its length is checked at entry) and "
+                     "as a STRUCT FIELD (the record keeps the bytes). In an output, a local type or an alias the length "
                      "would have nowhere to be kept (it used to be dropped silently). Take `slice <type>` and "
-                     "state the length in a contract (`requires eq (len x) N .`)"
+                     "state the length in a contract (`requires eq (len x) N .`), or build a local with `var buf be lit array …`"
                    : "`array` is written `array <type> <count>` — the element type first, then the length as a literal "
                      "(`array u64 4`, the same order as `vec u32 4`). The order was flipped on 2026-09-27 (RFC-0132); "
                      "`array 4 u64` is the old order",
@@ -7389,8 +7432,58 @@ static int lc_call(const lc_t *x, low_cst_t *const *k, proven_size_t n);
 static bool lc_is_into(const low_cst_t *nd) {             // §13.7 — [using, (send …), <나열>]: 바이트는 할당자의 것
     return nd && nd->kind == LOW_CST_FORM && nd->nkids == 3 && ck_atom(nd->kids[0]) && nd->kids[0]->synth && veq(nd->kids[0]->tok.lex, "using");
 }
+// 구조체 `ty` 의 칸 `fname` 이 배열 칸(`array T N`)인가 — 그 칸에 주는 값은 바이트로 **베껴진다**(T2b-3b).
+static bool ck_is_array_field(proven_u8str_view_t ty, proven_u8str_view_t fname) {
+    if (!g_ck_pr) return false;
+    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
+        const low_cst_t *f = g_ck_pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_STRUCT ||
+            !ck_atom(f->kids[1]) || !proven_u8str_view_eq(f->kids[1]->tok.lex, ty)) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        if (blk->kind != LOW_CST_BLOCK) return false;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *fl = blk->kids[j];
+            if (fl->kind == LOW_CST_FORM && fl->nkids >= 2 && ck_atom(fl->kids[0]) && ck_atom(fl->kids[1]) &&
+                proven_u8str_view_eq(fl->kids[0]->tok.lex, fname)) return veq(fl->kids[1]->tok.lex, "array");
+        }
+        return false;
+    }
+    return false;
+}
+static bool ck_struct_exists(proven_u8str_view_t ty) {
+    if (!g_ck_pr) return false;
+    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
+        const low_cst_t *f = g_ck_pr->forms[i];
+        if (f->kind == LOW_CST_FORM && f->nkids >= 3 && ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
+            ck_atom(f->kids[1]) && proven_u8str_view_eq(f->kids[1]->tok.lex, ty)) return true;
+    }
+    return false;
+}
 static int lc_carry(const lc_t *x, const low_cst_t *nd) {
     if (!nd) return 0;
+    // 구조체 값 `lit T do <칸> <값> . … end` — 배열 칸에 주는 값은 레코드의 바이트로 베껴지므로 아무것도 들고 가지 않는다
+    while (nd->kind == LOW_CST_GROUP && nd->nkids == 1 && nd->kids[0]->kind == LOW_CST_FORM && nd->kids[0]->nkids == 2 &&
+           ck_atom(nd->kids[0]->kids[0]) && nd->kids[0]->kids[0]->tok.kw == LOW_KW_LIT) nd = nd->kids[0];
+    const low_cst_t *sf = NULL;
+    if (nd->kind == LOW_CST_FORM && nd->nkids == 2 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_LIT &&
+        nd->kids[1]->kind == LOW_CST_FORM && nd->kids[1]->nkids >= 2 && ck_atom(nd->kids[1]->kids[0]) &&
+        nd->kids[1]->kids[nd->kids[1]->nkids - 1]->kind == LOW_CST_BLOCK) sf = nd->kids[1];
+    else if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_NONE &&
+             nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK && ck_struct_exists(nd->kids[0]->tok.lex)) sf = nd;   // `--flat`: [lit] [T do … end]
+    if (sf) {
+        const low_cst_t *blk = sf->kids[sf->nkids - 1];
+        int r = 0;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *fl = blk->kids[j];
+            if (fl->kind == LOW_CST_FORM && fl->nkids >= 2 && ck_atom(fl->kids[0]) &&
+                ck_is_array_field(sf->kids[0]->tok.lex, fl->kids[0]->tok.lex)) continue;
+            int d = lc_carry(x, fl);
+            if (d > r) r = d;
+        }
+        return r;
+    }
     if (lc_is_into(nd)) return lc_carry(x, nd->kids[1]);         // 받은 바이트는 할당자의 것 — 할당자가 틀을 보면 그것도 본다
     if (nd->kind == LOW_CST_ATOM) return nd->tok.kind == LOW_TOK_IDENT ? lc_taint(x, nd->tok.lex) : 0;
     const low_cst_t *l = lc_list(nd);
@@ -8090,6 +8183,150 @@ static bool ck_name_is_ro(const ck_bind_t *b, proven_size_t nb, proven_u8str_vie
     return found && !any_mut;
 }
 
+// ★★★ X-0082 (2026-09-30, RFC-0132 T2b-3b 를 짓다 드러남) — **레코드의 칸에 쓰려면 그 레코드가 쓸 수 있는 자리여야 한다.**
+//   `set x …` 는 `let` 이면 거절했는데(`E-IMMUTABLE`), `set (field r x) …` 는 **이름만 보는 검사를 비껴갔다**: `let r` 의 칸도,
+//   `mut` 아닌 매개변수의 칸도 써졌다. 레코드는 참조로 넘어가므로 순수 `fn` 이 **부른 쪽의 `let` 레코드를 바꿨다**(VM·네이티브
+//   모두 같은 틀린 답이라 차등 검사도 못 봤다). 정본의 예(`input o mut outer`)가 이미 전제한 규칙이다.
+//   · `set (field B …) v` — 칸 쓰기. · `set (index (field B … f) i) v` · `set (field B … f k) v` — f 가 **배열 칸**이면 레코드
+//     바이트 쓰기(슬라이스 칸은 남의 바이트를 가리키므로 원소 쓰기는 그 슬라이스의 `mut` 이 정한다 — 이 검사 밖).
+//   · 배열 칸을 `mut slice` 로 묶는 것도 쓰기다(`var v be mut slice u8 (field r w)`).
+//   B 가 이 op 의 `let`(타입에 `mut` 없음)이면 `E-IMMUTABLE`. `mut` 아닌 **매개변수**는 지역 복사라 거절하지 않고 하강이 진입에서
+//   베낀다(정본 §6.5.1 (2a) — 그 복사가 없어서 부른 쪽이 바뀌었다). 모르는 이름은 보지 않는다.
+typedef struct { ck_bind_t b[256]; proven_size_t nb; const low_cst_t *f; low_op_header_t h; } rw_t;
+static int rw_base_kind(const rw_t *x, proven_u8str_view_t nm) {          // 0 = 모름/가변 · 1 = let · 2 = mut 아닌 매개변수
+    bool found = false, any_mut = false;
+    for (proven_size_t z = 0; z < x->nb; z++)
+        if (proven_u8str_view_eq(x->b[z].name, nm)) { found = true; if (x->b[z].is_mut_place) any_mut = true; }
+    if (found) return any_mut ? 0 : 1;
+    // 매개변수는 거절하지 않는다 — 값으로 받은 구조체는 이 op 의 지역 복사이고(정본 §6.5.1 (2a)), 몸이 안쪽에 쓰면
+    //   하강이 진입에서 베낀다(`ir_param_written`). `mut` 매개변수는 부른 쪽의 것에 쓴다.
+    return 0;
+}
+static proven_u8str_view_t rw_base_type(const rw_t *x, proven_u8str_view_t nm) {   // 레코드의 타입 이름(첫 알맹이 낱말)
+    for (proven_size_t q = 0; q < x->h.np; q++)
+        if (proven_u8str_view_eq(x->h.p[q].name, nm) && x->h.p[q].core < x->f->nkids && ck_atom(x->f->kids[x->h.p[q].core]))
+            return x->f->kids[x->h.p[q].core]->tok.lex;
+    return (proven_u8str_view_t){ 0 };
+}
+static const low_cst_t *rw_unwrap(const low_cst_t *n) {
+    while (n && n->kind == LOW_CST_GROUP && n->nkids == 1) n = n->kids[0];
+    return n;
+}
+static proven_u8str_view_t rw_local_type(const low_cst_t *nd, proven_u8str_view_t nm) {   // 지역 `let|var nm <타입…> be` 의 알맹이
+    if (!nd || nd->kind == LOW_CST_ATOM) return (proven_u8str_view_t){ 0 };
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) && ck_atom(nd->kids[1]) &&
+        proven_u8str_view_eq(nd->kids[1]->tok.lex, nm)) {
+        for (proven_size_t z = 2; z < nd->nkids && ck_atom(nd->kids[z]) && nd->kids[z]->tok.kw != LOW_KW_BE; z++)
+            if (!veq(nd->kids[z]->tok.lex, "mut") && !veq(nd->kids[z]->tok.lex, "owned") && !veq(nd->kids[z]->tok.lex, "ref") &&
+                !veq(nd->kids[z]->tok.lex, "mut_ref")) return nd->kids[z]->tok.lex;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) { proven_u8str_view_t t = rw_local_type(nd->kids[i], nm); if (t.size) return t; }
+    return (proven_u8str_view_t){ 0 };
+}
+static bool rw_is_array_field(const rw_t *x, proven_u8str_view_t base, proven_u8str_view_t fname) {
+    proven_u8str_view_t ty = rw_base_type(x, base);
+    if (!ty.size) ty = rw_local_type(x->f, base);
+    return ty.size && ck_is_array_field(ty, fname);
+}
+static void rw_refuse(low_check_result_t *out, int kind, proven_u32 line) {
+    if (kind == 1)
+        emit(out, "E-IMMUTABLE", "this record was bound with `let`, which is IMMUTABLE — its fields (and the bytes of its array "
+             "fields) cannot be written either. Use `var` if you mean to change it", line);
+    else
+        emit(out, "E-TYPE-MUT", "writing into a record parameter that is not declared `mut` — the caller's record would change "
+             "behind its back. Declare the input `mut <type>` (and the op a `proc`), or build a new record and return it", line);
+}
+// 구조체 `ty` 의 배열 칸 `fname` 선언(`array T N`)의 T·N 낱말.
+static bool ck_array_field_decl(proven_u8str_view_t ty, proven_u8str_view_t fname, const low_cst_t **t, const low_cst_t **n) {
+    if (!g_ck_pr) return false;
+    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
+        const low_cst_t *f = g_ck_pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_STRUCT ||
+            !ck_atom(f->kids[1]) || !proven_u8str_view_eq(f->kids[1]->tok.lex, ty)) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        for (proven_size_t j = 0; blk->kind == LOW_CST_BLOCK && j < blk->nkids; j++) {
+            const low_cst_t *fl = blk->kids[j];
+            if (fl->kind == LOW_CST_FORM && fl->nkids >= 4 && ck_atom(fl->kids[0]) && ck_atom(fl->kids[1]) &&
+                proven_u8str_view_eq(fl->kids[0]->tok.lex, fname) && veq(fl->kids[1]->tok.lex, "array")) {
+                *t = fl->kids[2]; *n = fl->kids[3]; return true;
+            }
+        }
+        return false;
+    }
+    return false;
+}
+// ★ T2b-3b — 배열 칸에 주는 **나열 리터럴**은 칸의 원소 타입·길이와 같아야 한다(번역 시점에 보인다 — 실행까지 미루지 않는다).
+static void rw_field_lits(low_check_result_t *out, const low_cst_t *sf) {
+    const low_cst_t *blk = sf->kids[sf->nkids - 1];
+    for (proven_size_t j = 0; j < blk->nkids; j++) {
+        const low_cst_t *fl = blk->kids[j];
+        if (fl->kind != LOW_CST_FORM || fl->nkids != 2 || !ck_atom(fl->kids[0])) continue;
+        const low_cst_t *t = NULL, *n = NULL;
+        if (!ck_array_field_decl(sf->kids[0]->tok.lex, fl->kids[0]->tok.lex, &t, &n)) continue;
+        const low_cst_t *l = lc_list(fl->kids[1]);
+        if (!l || !ck_atom(t) || !ck_atom(n)) continue;
+        bool same_t = ck_atom(l->kids[2]) && proven_u8str_view_eq(l->kids[2]->tok.lex, t->tok.lex);
+        unsigned long long want = strtoull((const char *)n->tok.lex.ptr, NULL, 0), got = 0;
+        if (veq(l->kids[1]->tok.lex, "array")) got = l->nkids > 3 && ck_atom(l->kids[3]) ? strtoull((const char *)l->kids[3]->tok.lex.ptr, NULL, 0) : 0;
+        else if (veq(l->kids[1]->tok.lex, "slice"))
+            for (proven_size_t q = 3; q < l->nkids; q++) got++;
+        if (!same_t || got != want)
+            emit(out, "E-TYPE-FIELD", "this list does not fit the array field — the field is `array <type> <length>` and the list "
+                 "must carry the same element type and exactly that length", fl->kids[0]->tok.line);
+    }
+}
+static void rw_walk(low_check_result_t *out, const rw_t *x, const low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) && nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK &&
+        nd->kids[0]->tok.kw == LOW_KW_NONE && ck_struct_exists(nd->kids[0]->tok.lex)) rw_field_lits(out, nd);
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_SET) {
+        const low_cst_t *pl = rw_unwrap(nd->kids[1]);
+        proven_u32 ln = nd->kids[0]->tok.line;
+        if (pl && pl->kind == LOW_CST_FORM && pl->nkids >= 3 && ck_atom(pl->kids[0])) {
+            if (veq(pl->kids[0]->tok.lex, "field") && ck_atom(pl->kids[1])) {
+                int k = rw_base_kind(x, pl->kids[1]->tok.lex);
+                const low_cst_t *last = pl->kids[pl->nkids - 1];
+                bool elem = ck_atom(last) && last->tok.kind == LOW_TOK_NUMBER;
+                // 끝이 번호면 원소 쓰기 — 그 앞 칸이 배열 칸일 때만 레코드 쓰기다
+                if (k && (!elem || (pl->nkids >= 4 && ck_atom(pl->kids[pl->nkids - 2]) &&
+                                    rw_is_array_field(x, pl->kids[1]->tok.lex, pl->kids[pl->nkids - 2]->tok.lex))))
+                    rw_refuse(out, k, ln);
+            } else if (veq(pl->kids[0]->tok.lex, "index")) {
+                const low_cst_t *sv = rw_unwrap(pl->kids[1]);
+                if (sv && sv->kind == LOW_CST_FORM && sv->nkids == 3 && ck_atom(sv->kids[0]) && veq(sv->kids[0]->tok.lex, "field") &&
+                    ck_atom(sv->kids[1]) && ck_atom(sv->kids[2])) {
+                    int k = rw_base_kind(x, sv->kids[1]->tok.lex);
+                    if (k && rw_is_array_field(x, sv->kids[1]->tok.lex, sv->kids[2]->tok.lex)) rw_refuse(out, k, ln);
+                }
+            }
+        }
+    }
+    // `let|var v be mut slice T (field B f)` — 배열 칸을 쓸 수 있는 보기로 꺼낸다
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR)) {
+        proven_size_t be = nd->nkids; bool mutw = false;
+        for (proven_size_t z = 2; z < nd->nkids; z++) {
+            if (ck_atom(nd->kids[z]) && nd->kids[z]->tok.kw == LOW_KW_BE) { be = z; break; }
+            if (ck_atom(nd->kids[z]) && (veq(nd->kids[z]->tok.lex, "mut") || veq(nd->kids[z]->tok.lex, "mut_ref"))) mutw = true;
+        }
+        const low_cst_t *v = be + 2 == nd->nkids ? rw_unwrap(nd->kids[be + 1]) : NULL;
+        if (mutw && v && v->kind == LOW_CST_FORM && v->nkids == 3 && ck_atom(v->kids[0]) && veq(v->kids[0]->tok.lex, "field") &&
+            ck_atom(v->kids[1]) && ck_atom(v->kids[2])) {
+            int k = rw_base_kind(x, v->kids[1]->tok.lex);
+            if (k && rw_is_array_field(x, v->kids[1]->tok.lex, v->kids[2]->tok.lex)) rw_refuse(out, k, nd->kids[0]->tok.line);
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) rw_walk(out, x, nd->kids[i]);
+}
+static void ck_record_writes(low_check_result_t *out, const low_cst_t *f) {
+    static rw_t x;
+    memset(&x, 0, sizeof x);
+    x.f = f; x.h = low_op_header(f);
+    ck_collect_binds(f->kids[f->nkids - 1], x.b, &x.nb, 256);
+    rw_walk(out, &x, f->kids[f->nkids - 1]);
+}
 // **필드 `fname` 이 (이 파일의 어느 struct 정의에서든) 확정적으로 비-mut 인가.**
 //   ★★ **왜 필드는 subslice/index 처럼 구조체 장소로만 재귀하면 안 되는가:** 슬라이스 **필드**는
 //     `mut slice u64` 로 선언될 수 있고(2026-07-20, vm_sfield.low), 그러면 **공유 구조체에서 꺼내도**
@@ -10401,6 +10638,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_region_walk(&out, f, &rc, inn, &nin, tnt, &ntn, false);
         ck_lit_frames(&out, f);   // ★ RFC-0132 T2b-2 — 틀 안 나열 자리의 수명 · 한도
         ck_lit_identity(&out, f); // ★ RFC-0132 T2b-3 — ⓑ 둘의 «같은 자리인가» 물음 거절(§13.3)
+        ck_record_writes(&out, f); // ★ X-0082 — 쓸 수 없는 레코드의 칸·배열 칸에 쓰기 거절
         if (ck_ft_full)
             emit(&out, "E-IR-LIMIT", "this op holds more field-level taints than the region checker's table — refused "
                  "rather than checked partly (RFC-0116 R1)", f->line);

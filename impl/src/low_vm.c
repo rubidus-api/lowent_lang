@@ -113,7 +113,9 @@ typedef struct {
     proven_size_t       n;     // SLICE length
     proven_i32          box;   // REC/OK/STACK/BITSET: pool index
 } vmv_t;
-typedef struct { proven_size_t make_idx; vmv_t fields[IR_MAKE_MAXF]; proven_size_t nfields; } vmrec_t;
+// ★ RFC-0132 T2b-3b — `bytes` 는 이 **자리**(슬롯)의 배열 칸 바이트다. 자리마다 하나이고 자리와 함께 산다 — 풀이 되감기면
+//   다음 레코드가 같은 버퍼를 다시 쓰고, 압축이 레코드를 옮기면 버퍼를 **맞바꾼다**(한 버퍼는 늘 한 자리의 것).
+typedef struct { proven_size_t make_idx; vmv_t fields[IR_MAKE_MAXF]; proven_size_t nfields; proven_u8 *bytes; proven_size_t bcap; } vmrec_t;
 // ★ 스택 풀 — 레코드·비트셋과 **같은 규율**. 8칸이었다: **루프에서 아홉 번째를 만들면 죽었다.**
 #define VM_MAXSTK   256
 #define VM_STKCAP   128
@@ -150,6 +152,7 @@ typedef struct {
     proven_u64      budget, steps;
     bool            budget_hit;
     vmrec_t         recs[VM_MAXREC];  proven_size_t nrecs;
+    proven_i16     *mkarr;            // ★ T2b-3b — make 마다 배열 칸을 가진 구조체 번호(-1 없음 · -2 아직 모름)
     vmv_t           boxes[VM_MAXBOX]; proven_size_t nbox;
     vmstk_t         stks[VM_MAXSTK];  proven_size_t nstk;
     proven_u64      bsets[VM_MAXBSET]; proven_u8 bwid[VM_MAXBSET]; proven_size_t nbset;
@@ -595,6 +598,97 @@ static void vm_gc_fix(vmv_t *v, const vm_pmap_t *bx, const vm_pmap_t *rc,
         } \
     } } while (0)
 
+// ★ RFC-0132 T2b-3b — make 번호 → 배열 칸을 가진 구조체 번호(없으면 -1).
+static proven_i32 vm_mk_arr(vm_ctx_t *vm, proven_size_t mk) {
+    if (!vm->mkarr) {
+        vm->mkarr = malloc(sizeof(proven_i16) * (vm->ir->nmakes ? vm->ir->nmakes : 1));
+        if (!vm->mkarr) return -1;
+        for (proven_size_t i = 0; i < vm->ir->nmakes; i++) vm->mkarr[i] = -2;
+    }
+    if (mk >= vm->ir->nmakes) return -1;
+    if (vm->mkarr[mk] == -2) {
+        vm->mkarr[mk] = -1;
+        for (proven_size_t s = 0; s < vm->ir->nstructs; s++) {
+            if (!proven_u8str_view_eq(vm->ir->structs[s].name, vm->ir->makes[mk].type_name)) continue;
+            for (proven_size_t q = 0; q < vm->ir->structs[s].nf; q++) if (vm->ir->structs[s].f[q].arrn) vm->mkarr[mk] = (proven_i16)s;
+            break;
+        }
+    }
+    return vm->mkarr[mk];
+}
+// ★ X-0083 — make 번호 → 그 레코드가 **값 구조체**인가(안에 들면 베낀다). actor 상태(정체가 있는 것) · `owned` 칸을 가진 것
+//   (아핀 자원) · mmio/예약 블록은 값이 아니다 — 베끼지 않고 같은 것을 가리킨다.
+static bool vm_mk_is_value(const vm_ctx_t *vm, proven_size_t mk) {
+    if (mk >= vm->ir->nmakes) return false;
+    for (proven_size_t s = 0; s < vm->ir->nstructs; s++) {
+        const low_ir_struct_t *st = &vm->ir->structs[s];
+        if (!proven_u8str_view_eq(st->name, vm->ir->makes[mk].type_name)) continue;
+        if (st->is_actor_state || st->is_mmio || st->is_reserve) return false;
+        for (proven_size_t q = 0; q < st->nf; q++) if (st->f[q].owned) return false;
+        return true;
+    }
+    return false;
+}
+static bool vm_rec_arrays(vm_ctx_t *vm, vmrec_t *r);
+// 안에 든 값 레코드를 새 자리로 베낀다(그 안의 레코드·배열 칸 바이트까지). 부른 쪽의 칸 값을 새 손잡이로 바꾼다.
+static bool vm_rec_clone(vm_ctx_t *vm, vmv_t *v, int depth) {
+    if (v->tag != VMV_REC || v->box < 0 || (proven_size_t)v->box >= vm->nrecs) return true;
+    if (!vm_mk_is_value(vm, vm->recs[v->box].make_idx)) return true;
+    if (depth > 16) { vm_diag(vm->diags, "E-VM-TYPE", "records nested too deep to copy"); return false; }
+    if (vm->nrecs >= VM_MAXREC) { vm_diag(vm->diags, "E-VM-RECPOOL", "the VM's record pool is exhausted while copying a nested struct"); return false; }
+    vmrec_t *src = &vm->recs[v->box], *dst = &vm->recs[vm->nrecs];
+    dst->make_idx = src->make_idx; dst->nfields = src->nfields;
+    for (proven_size_t f = 0; f < src->nfields; f++) dst->fields[f] = src->fields[f];
+    v->box = (proven_i32)vm->nrecs++;
+    for (proven_size_t f = 0; f < dst->nfields; f++) if (!vm_rec_clone(vm, &dst->fields[f], depth + 1)) return false;
+    return vm_rec_arrays(vm, dst);
+}
+static const low_ir_sfield_t *vm_arr_field(const vm_ctx_t *vm, proven_i32 sx, proven_u8str_view_t name) {
+    if (sx < 0) return NULL;
+    const low_ir_struct_t *st = &vm->ir->structs[sx];
+    for (proven_size_t q = 0; q < st->nf; q++) if (st->f[q].arrn && proven_u8str_view_eq(st->f[q].name, name)) return &st->f[q];
+    return NULL;
+}
+// 값 v 의 바이트를 dst 에 베낀다 — 길이가 칸의 길이와 꼭 같아야 한다.
+static bool vm_arr_copy(vm_ctx_t *vm, const low_ir_sfield_t *sf, vmv_t v, proven_u8 *dst) {
+    proven_size_t need = (proven_size_t)sf->arrn * sf->arresz, have;
+    if (v.tag == VMV_SLICE) have = v.n;
+    else if (v.tag == VMV_VARRAY) have = v.n * (proven_size_t)v.box;
+    else { vm_diag(vm->diags, "E-VM-TYPE", "an array field takes an array value"); return false; }
+    if (have != need) { vm_diag(vm->diags, "E-VM-TYPE", "an array field takes exactly its length of elements"); return false; }
+    memmove(dst, v.p, need);
+    return true;
+}
+static vmv_t vm_arr_view(const low_ir_sfield_t *sf, proven_u8 *p) {
+    if (sf->arresz == 1 && !(sf->arrmeta & (IR_FLT_BIT | IR_SGN_BIT))) return (vmv_t){ .tag = VMV_SLICE, .p = p, .n = sf->arrn };
+    return (vmv_t){ .tag = VMV_VARRAY, .i = sf->arrmeta & (IR_FLT_BIT | IR_SGN_BIT), .p = p, .n = sf->arrn, .box = (proven_i32)sf->arresz };
+}
+
+static bool vm_rec_arrays(vm_ctx_t *vm, vmrec_t *r) {
+    proven_i32 asx = vm_mk_arr(vm, r->make_idx);
+    if (asx < 0) return true;
+    const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
+    proven_size_t tot = 0;
+    for (proven_size_t q = 0; q < mk->nfields; q++) {
+        const low_ir_sfield_t *sf = vm_arr_field(vm, asx, mk->fields[q]);
+        if (sf) tot += (((proven_size_t)sf->arrn * sf->arresz) + 7u) & ~(proven_size_t)7u;
+    }
+    if (tot > r->bcap) {
+        proven_u8 *nb = realloc(r->bytes, tot);
+        if (!nb) { vm_diag(vm->diags, "E-VM-OOM", "out of memory for a struct's array fields"); return false; }
+        r->bytes = nb; r->bcap = tot;
+    }
+    proven_size_t off = 0;
+    for (proven_size_t q = 0; q < mk->nfields; q++) {
+        const low_ir_sfield_t *sf = vm_arr_field(vm, asx, mk->fields[q]);
+        if (!sf) continue;
+        if (!vm_arr_copy(vm, sf, r->fields[q], r->bytes + off)) return false;
+        r->fields[q] = vm_arr_view(sf, r->bytes + off);
+        off += (((proven_size_t)sf->arrn * sf->arresz) + 7u) & ~(proven_size_t)7u;
+    }
+    return true;
+}
+
 // ★★★ **네 풀을 함께 되감는다**(F1) — 표시는 전이적이고, 압축은 프레임 바닥 위에서만 일어난다.
 //   답은 안 바뀐다: 핸들은 프로그램이 볼 수 없고, 옮겨진 뒤에도 같은 값이 같은 자리에 있다.
 static void vm_pool_gc(vm_ctx_t *vm, const vm_act *a) {
@@ -641,7 +735,11 @@ static void vm_pool_gc(vm_ctx_t *vm, const vm_act *a) {
     }
     // ③ 옮기기
     for (proven_size_t i = bx.base; i < bx.n; i++) if (mbx[i] >= 0 && (proven_size_t)mbx[i] != i) vm->boxes[mbx[i]] = vm->boxes[i];
-    for (proven_size_t i = rc.base; i < rc.n; i++) if (mrc[i] >= 0 && (proven_size_t)mrc[i] != i) vm->recs[mrc[i]]  = vm->recs[i];
+    for (proven_size_t i = rc.base; i < rc.n; i++) if (mrc[i] >= 0 && (proven_size_t)mrc[i] != i) {
+        proven_u8 *ob = vm->recs[mrc[i]].bytes; proven_size_t oc = vm->recs[mrc[i]].bcap;   // ★ 배열 칸 버퍼는 맞바꾼다
+        vm->recs[mrc[i]] = vm->recs[i];
+        vm->recs[i].bytes = ob; vm->recs[i].bcap = oc;
+    }
     for (proven_size_t i = sk.base; i < sk.n; i++) if (msk[i] >= 0 && (proven_size_t)msk[i] != i) vm->stks[msk[i]]  = vm->stks[i];
     for (proven_size_t i = bs.base; i < bs.n; i++) if (mbs[i] >= 0 && (proven_size_t)mbs[i] != i) { vm->bsets[mbs[i]] = vm->bsets[i]; vm->bwid[mbs[i]] = vm->bwid[i]; }
     for (proven_size_t i = vc.base; i < vc.n; i++) if (mvc[i] >= 0 && (proven_size_t)mvc[i] != i) vm->vecs[mvc[i]]  = vm->vecs[i];
@@ -3303,8 +3401,14 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 vmrec_t *r = &vm->recs[rv.box];
                 const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
                 bool found = false;
+                const low_ir_sfield_t *asf = vm_arr_field(vm, vm_mk_arr(vm, r->make_idx), want);
                 for (proven_size_t q = 0; q < r->nfields && !found; q++)
-                    if (proven_u8str_view_eq(mk->fields[q], want)) { r->fields[q] = vv; found = true; }
+                    if (proven_u8str_view_eq(mk->fields[q], want)) {
+                        // ★ T2b-3b — 배열 칸에 쓰면 바이트를 **제자리에** 베낀다(칸은 계속 이 레코드의 바이트를 본다)
+                        if (asf) { if (!vm_arr_copy(vm, asf, vv, (proven_u8 *)(void *)r->fields[q].p)) return false; }
+                        else r->fields[q] = vv;
+                        found = true;
+                    }
                 if (!found) { vm_diag(vm->diags, "E-VM-FIELD", "no such field on this record"); return false; }
                 break;
             }
@@ -3724,7 +3828,12 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 r->make_idx = (proven_size_t)in->a;
                 r->nfields = mk->nfields;
                 for (proven_size_t i = 0; i < mk->nfields; i++) r->fields[mk->nfields - 1 - i] = stack[--sp];
-                stack[sp++] = (vmv_t){ .tag = VMV_REC, .box = (proven_i32)vm->nrecs++ };
+                proven_size_t me = vm->nrecs++;
+                // ★ X-0083 — 안에 든 **값 구조체**는 베낀다(구조체는 값이다 — 전엔 같은 안쪽 레코드를 두 바깥이 나눠 가졌다)
+                for (proven_size_t q = 0; q < mk->nfields; q++) if (!vm_rec_clone(vm, &vm->recs[me].fields[q], 1)) return false;
+                // ★ T2b-3b — 배열 칸은 받은 값의 **바이트를 이 레코드의 것으로 베낀다**(값 복사). 칸은 그 바이트를 보는 슬라이스다.
+                if (!vm_rec_arrays(vm, &vm->recs[me])) return false;
+                stack[sp++] = (vmv_t){ .tag = VMV_REC, .box = (proven_i32)me };
                 break;
             }
             case IRW_CALL: {
@@ -4494,6 +4603,8 @@ low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
 
     static vm_ctx_t vm;   // pools are large; single-threaded CLI/test use
     vm_roots_free(&vm);   // ★ 앞 실행이 잡은 뿌리를 돌려준다(--test 는 같은 구조체로 여러 번 돈다)
+    for (proven_size_t i = 0; i < VM_MAXREC; i++) free(vm.recs[i].bytes);   // ★ T2b-3b 배열 칸 버퍼
+    free(vm.mkarr);
     memset(&vm, 0, sizeof vm);
     vm.ir = ir; vm.diags = diags;
     vm.budget = g_vm_budget; vm.steps = 0; vm.budget_hit = false;   // ★ 오라클만 0 이 아니다

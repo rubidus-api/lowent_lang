@@ -878,6 +878,16 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                     ir_emit(c, IRW_ISTORE, 0);
                     return;
                 }
+                // ★ RFC-0132 T2b-3b — `set (index (field q body) i) v .`: 슬라이스를 내는 **식**의 원소에 쓴다. 구조체의
+                //   배열 칸은 레코드가 가진 바이트를 보는 슬라이스라 여기 쓰면 그 레코드가 바뀐다(쓸 수 있는지는 검사층이 본다).
+                if (pl->kind == LOW_CST_FORM && pl->nkids == 3 && is_atom(pl->kids[0]) &&
+                    veq(pl->kids[0]->tok.lex, "index") && !is_atom(pl->kids[1])) {
+                    ir_node(c, pl->kids[1]);                   // 슬라이스
+                    ir_run(c, pl->kids, 2, 1);                 // 인덱스
+                    ir_run(c, f->kids, 2, f->nkids - 2);       // 값
+                    ir_emit(c, IRW_ISTORE, 0);
+                    return;
+                }
                 // ★ `set (field q x) v .` — 구조체 **필드 쓰기**.
                 if (pl->kind == LOW_CST_FORM && pl->nkids >= 3 && is_atom(pl->kids[0]) &&
                     veq(pl->kids[0]->tok.lex, "field") && is_atom(pl->kids[1]) &&
@@ -1852,6 +1862,43 @@ static bool ir_unit_mentions(const low_parse_result_t *pr, const char *w) {
     return false;
 }
 
+// ★ X-0082 — 몸이 이름 `nm`(구조체 값)의 **안쪽에 쓰는가**: `set (field nm …)` · `set (index (field nm f) i)` ·
+//   `let|var v be mut … (field nm f)`(쓸 수 있는 보기). 이름을 통째로 바꾸는 `set nm …` 은 안쪽 쓰기가 아니다.
+static const low_cst_t *ipw_unwrap(const low_cst_t *n) { while (n && n->kind == LOW_CST_GROUP && n->nkids == 1) n = n->kids[0]; return n; }
+static bool ipw_field_of(const low_cst_t *n, proven_u8str_view_t nm) {
+    n = ipw_unwrap(n);
+    return n && n->kind == LOW_CST_FORM && n->nkids >= 3 && is_atom(n->kids[0]) && veq(n->kids[0]->tok.lex, "field") &&
+           is_atom(n->kids[1]) && proven_u8str_view_eq(n->kids[1]->tok.lex, nm);
+}
+static bool ipw_arr(const low_ir_struct_t *sd, const low_cst_t *fname) {
+    if (!sd || !is_atom(fname)) return false;
+    for (proven_size_t z = 0; z < sd->nf; z++) if (sd->f[z].arrn && proven_u8str_view_eq(sd->f[z].name, fname->tok.lex)) return true;
+    return false;
+}
+static bool ir_param_written(const low_cst_t *nd, proven_u8str_view_t nm, const low_ir_struct_t *sd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return false;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && is_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_SET) {
+        const low_cst_t *pl = ipw_unwrap(nd->kids[1]);
+        if (ipw_field_of(pl, nm)) {                          // 칸 쓰기 — 끝이 번호면 그 앞 칸의 원소 쓰기(배열 칸일 때만 레코드 쓰기)
+            const low_cst_t *last = pl->kids[pl->nkids - 1];
+            if (!(is_atom(last) && last->tok.kind == LOW_TOK_NUMBER)) return true;
+            if (pl->nkids >= 4 && ipw_arr(sd, pl->kids[pl->nkids - 2])) return true;
+        }
+        if (pl && pl->kind == LOW_CST_FORM && pl->nkids == 3 && is_atom(pl->kids[0]) && veq(pl->kids[0]->tok.lex, "index") &&
+            ipw_field_of(pl->kids[1], nm) && ipw_arr(sd, ipw_unwrap(pl->kids[1])->kids[2])) return true;
+    }
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && is_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR)) {
+        bool mutw = false; proven_size_t be = nd->nkids;
+        for (proven_size_t z = 2; z < nd->nkids; z++) {
+            if (is_atom(nd->kids[z]) && nd->kids[z]->tok.kw == LOW_KW_BE) { be = z; break; }
+            if (is_atom(nd->kids[z]) && (veq(nd->kids[z]->tok.lex, "mut") || veq(nd->kids[z]->tok.lex, "mut_ref"))) mutw = true;
+        }
+        if (mutw && be + 2 == nd->nkids && ipw_field_of(nd->kids[be + 1], nm) && ipw_arr(sd, ipw_unwrap(nd->kids[be + 1])->kids[2])) return true;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (ir_param_written(nd->kids[i], nm, sd)) return true;
+    return false;
+}
 low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
     // ★★★ `build <mode> .` — **처리표를 켠다** (RFC-0008 §6.5).
     g_bmode = IR_BM_DEBUG; g_bdropped = 0;
@@ -2429,6 +2476,17 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                         break;
                     }
                 s->f[s->nf].sidx = -1;
+                s->f[s->nf].arrn = 0; s->f[s->nf].arresz = 0; s->f[s->nf].arrmeta = 0;
+                if (param_ty_ && is_atom(fld->kids[1]) && veq(fld->kids[1]->tok.lex, "array") && fld->nkids >= 4 &&
+                    is_atom(fld->kids[2]) && is_atom(fld->kids[3])) {             // ★ T2b-3b 배열 칸
+                    proven_i64 an = 0; proven_u8 ae = ir_field_size(fld->kids[2]->tok.lex);
+                    if (ae && ir_int_lit(fld->kids[3]->tok.lex, &an) && an > 0) {
+                        bool aflt = ir_is_float_ty(fld->kids[2]->tok.lex), asgn = fld->kids[2]->tok.lex.size && fld->kids[2]->tok.lex.ptr[0] == (proven_u8)'i';
+                        s->f[s->nf].arrn = (proven_u32)an; s->f[s->nf].arresz = ae;
+                        s->f[s->nf].arrmeta = (proven_i64)ae | (aflt ? IR_FLT_BIT : 0) | (asgn ? IR_SGN_BIT : 0);
+                        s->f[s->nf].elem = ae;
+                    }
+                }
                 s->f[s->nf].tyname = is_atom(fld->kids[1]) ? fld->kids[1]->tok.lex : (proven_u8str_view_t){0};
                 // ★ **중첩 구조체** — 필드의 타입이 이미 선언된 구조체면 그 레이아웃을 쓴다.
                 //   (앞에서 선언된 것만 — 순환 구조체는 크기가 없다.)
@@ -3124,6 +3182,37 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
             ir_emit(&c, IRW_LOAD, (proven_i64)sl);
             ir_emit(&c, IRW_VARRAY, (proven_i64)esz | (eflt ? IR_FLT_BIT : 0) | (esgn ? IR_SGN_BIT : 0) |
                                     (esidx >= 0 ? (IR_STRUCT_BIT | ((proven_i64)esidx << 20)) : 0));
+            ir_emit(&c, IRW_STORE, (proven_i64)sl);
+        }
+        // ★★★ X-0082 (2026-09-30) — **값으로 받은 구조체 매개변수는 이 op 의 지역 복사다**(정본 §6.5.1 (2a)). 그런데 레코드는
+        //   손잡이로 넘어와서, 몸이 그 칸에 쓰면(`set (field p x) …` · 배열 칸 원소 · 배열 칸의 쓸 수 있는 보기) **부른 쪽의
+        //   레코드가 바뀌었다** — 순수 `fn` 이 남의 `let` 을 바꿨다. ⇒ 몸이 그렇게 쓰는 매개변수만 진입에서 베낀다(쓰지 않으면 비용 0).
+        //   `mut`·`owned`·`mut_ref` 는 부른 쪽의 것을 쓰라는 뜻이므로 그대로 둔다. actor 인스턴스는 값이 아니다(베끼지 않는다).
+        for (proven_size_t q = 0; q < vh.np; q++) {
+            if (vh.p[q].is_mut || vh.p[q].is_owned) continue;
+            bool mref = false;
+            for (proven_size_t w = vh.p[q].ts; w < vh.p[q].te && w < f->nkids; w++)
+                if (is_atom(f->kids[w]) && veq(f->kids[w]->tok.lex, "mut_ref")) mref = true;
+            if (mref || !vh.body) continue;
+            bool sf; proven_size_t sl = ir_local_find(&c, vh.p[q].name, &sf);
+            if (!sf || !c.locals[sl].tyname.size) continue;
+            bool stf; proven_size_t si2 = ir_struct_find(&ir, c.locals[sl].tyname, &stf);
+            if (!stf) continue;
+            const low_ir_struct_t *sd = &ir.structs[si2];
+            if (!ir_param_written(vh.body, vh.p[q].name, sd)) continue;
+            bool plain = sd->nf > 0 && !sd->is_actor_state && !sd->is_mmio && !sd->is_reserve &&
+                         !(sd->f[0].name.size == 2 && sd->f[0].name.ptr[0] == (proven_u8)'$');
+            for (proven_size_t z = 0; z < sd->nf; z++) if (sd->f[z].owned) plain = false;
+            if (!plain || ir.nmakes >= IR_MAXMAKES || sd->nf > IR_MAKE_MAXF) continue;
+            proven_size_t my2 = ir.nmakes++;
+            low_ir_make_t mk2 = { .type_name = sd->name, .nfields = 0 };
+            for (proven_size_t z = 0; z < sd->nf; z++) {
+                mk2.fields[mk2.nfields++] = sd->f[z].name;
+                ir_emit(&c, IRW_LOAD, (proven_i64)sl);
+                ir_emit(&c, IRW_FIELD, (proven_i64)ir_field_intern(&c, sd->f[z].name));
+            }
+            ir.makes[my2] = mk2;
+            ir_emit(&c, IRW_MAKE, (proven_i64)my2);
             ir_emit(&c, IRW_STORE, (proven_i64)sl);
         }
 

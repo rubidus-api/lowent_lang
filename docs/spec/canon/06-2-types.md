@@ -247,7 +247,8 @@ end
 
 (8) `let` 에 묶은 배열 나열은 그 바이트를 **보는 슬라이스**다. 길이는 나열이 정한다.
 
-(9) 이 처리기가 아직 짓지 않은 나열 — 구조체 원소 — 은 무엇이 아직인지 말하며 거부된다(`E-LIT-UNBUILT`).
+(9) 이 처리기가 아직 짓지 않은 나열 — 구조체 원소 — 은 무엇이 아직인지 말하며 거부된다(`E-LIT-UNBUILT`). 구조체 안의
+      배열 칸은 ⟦§6.2.7⟧ (1a) 가 정한다.
 
 ```lowent 예제: 원소 나열 리터럴
 module ex_list_literal .
@@ -328,6 +329,13 @@ end
 
 (1) `struct` 는 이름 붙은 칸의 모음이다. 각 칸은 자기 타입을 갖는다.
 
+(1a) **배열 칸** — 칸의 타입이 `array t n` 이면 그 칸은 원소 `n` 개의 바이트를 **레코드 안에** 가진다(길이가 타입에
+      있으므로 자리가 정해진다). `t` 는 크기 있는 수나 `bool` 이다 — 구조체나 배열을 원소로 가진 칸은 이 처리기가 아직
+      짓지 않았다(`E-LIT-UNBUILT`). 한 구조체의 배열 칸 바이트 합에는 틀과 같은 한도가 있다(`E-FRAME-SIZE`, ⟦§6.2.6⟧ (7c)).
+      `field r body` 는 그 바이트를 보는 슬라이스이고, `set (index (field r body) i) v .` 가 레코드의 원소를 쓴다. 칸에 주는
+      나열 리터럴은 칸과 원소 타입·길이가 같아야 한다(`E-TYPE-FIELD`). 배열 칸이 있는 구조체는 바이트 배치를 드러내지
+      않는다(`view`·C 쪽 레이아웃은 아직 없다).
+
 (2) `enum` 은 여럿 중 하나다. 각 갈래는 이름을 가지며, 값을 함께 지닐 수 있다.
 
 (2a) 갈래는 **하나마다 `.` 으로 닫는다.** 개행은 닫개가 아니므로, 점 없이 줄마다 적은 갈래는 한 갈래로
@@ -358,6 +366,15 @@ end
 
 (4) struct 값은 `lit` 로 만든다. 만들 때 **모든 칸을 채워야** 한다.
 
+(4a) **struct 는 값이다.** 만들거나 베낄 때(`var q be point p .`) 배열 칸의 바이트와, 칸에 든 다른 struct 값까지
+      함께 베껴진다 — 베낀 쪽을 고쳐도 원본은 바뀌지 아니한다. actor 인스턴스(정체가 있는 것)와 `owned` 칸을 가진
+      struct 는 베끼지 않고 같은 것을 가리킨다.
+
+(4b) **칸에 쓰는 것은 그 레코드에 쓰는 것이다.** `set (field r x) v .` 와 배열 칸의 원소 쓰기는 `r` 이 쓸 수 있는
+      자리일 때만 받는다: `var` 이거나 `mut` 매개변수다. `let` 으로 묶은 레코드에 쓰면 거부된다(`E-IMMUTABLE`) —
+      배열 칸을 쓸 수 있는 슬라이스(`mut slice`)로 꺼내는 것도 같다. 값으로 받은 매개변수의 칸에 쓰면 그 op 의 **지역
+      복사**에 쓴다 — 부른 쪽의 레코드는 바뀌지 아니한다(⟦§6.5.1⟧ (2a)).
+
 (5) 칸을 읽을 때는 `field <값> <칸 이름>` 을 쓴다. 값 뒤에 점과 칸 이름을 붙이는 모양은 없다
       (`E-FIELD-GLUED`) — 점은 모듈 한정·갈래 이름에 이미 쓰인다.
 
@@ -377,6 +394,36 @@ end
 export fn get_x input p point . output u32 .
 do
   return (field p x) .
+end
+```
+
+```lowent 예제: 배열 칸을 가진 struct 를 베낀다
+module ex_struct_array .
+
+struct pkt do
+  len u8 .
+  body array u8 4 .
+end
+
+export fn copy_keeps input a u8 . output u64 . do
+  var p be lit pkt do len 2 . body lit array u8 4 1 a _ . . end .
+  var q be pkt p .
+  set (index (field q body) 0) 100 .
+  return add (widen u64 (index (field p body) 0)) (widen u64 (index (field q body) 0)) .
+end
+```
+
+```lowent-거부: let 으로 묶은 레코드의 배열 칸에 쓴다 · E-IMMUTABLE
+module ex_struct_array_let .
+
+struct pkt do
+  body array u8 4 .
+end
+
+export fn f output u64 . do
+  let p be lit pkt do body lit array u8 4 _ . . end .
+  set (index (field p body) 0) 1 .
+  return 0 .
 end
 ```
 

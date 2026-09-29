@@ -7090,9 +7090,122 @@ static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
                  k->tok.line ? k->tok.line : nd->line);
             return true;
         }
+        // ★ 원소 나열 리터럴(`lit array T N …`)의 `array` 는 **값의 타입**이다 — 길이를 리터럴이 쥔다(RFC-0132 T2b-1).
+        if (k->kind == LOW_CST_FORM && k->nkids && k->kids[0]->kind == LOW_CST_ATOM && k->kids[0]->tok.kw == LOW_KW_LIT) continue;
         if (k->kind != LOW_CST_ATOM && ck_array_walk(out, k)) return true;
     }
     return false;
+}
+
+// ★★ RFC-0132 T2b-1 — **원소 나열 리터럴을 번역 시점에 가린다**: `lit array T N v… [_] .` · `lit slice T v… .`.
+//   · 개수(E-LIT-COUNT): 배열은 원소 수가 N 과 같거나, 모자라면 끝이 `_`(나머지 칸 0) 여야 한다. 넘치면 거절.
+//     `_` 는 끝에만, 슬라이스에는 없다(슬라이스의 길이는 원소 수다). 길이 N 은 정수 리터럴이다.
+//   · 폭(E-TYPE-WIDTH): 원소가 T 에 들어가야 한다 — 부호 없는 T 에 음수도 안 된다(X-0074 의 교훈: 폭 검사를
+//     빠져나가는 리터럴이 없어야 한다). bool 원소는 `true`/`false` 만.
+//   · 아직 없는 것(E-LIT-UNBUILT): 상수가 아닌 원소 · 칸 골라 채우기(`do … end`) · `lit vec` · 크기 없는 원소 타입 —
+//     각각 T2b-2 · T2b-3 에서 짓는다. 정직하게 거절하고 무엇이 아직인지 말한다.
+static bool ck_lit_elem_fits(proven_u8str_view_t ty, proven_u8str_view_t num) {
+    bool neg = num.size && num.ptr[0] == '-';
+    proven_u8str_view_t mag = neg ? (proven_u8str_view_t){ .ptr = num.ptr + 1, .size = num.size - 1 } : num;
+    for (proven_size_t i = 0; i < mag.size; i++) if (mag.ptr[i] == '.' || mag.ptr[i] == 'e' || mag.ptr[i] == 'E') {
+        if (!(mag.size > 1 && mag.ptr[0] == '0' && (mag.ptr[1] == 'x' || mag.ptr[1] == 'X'))) return false;   // 소수는 정수 원소가 아니다
+    }
+    // 크기를 unsigned 128 없이 잰다: 부호 없는 64 비트로 읽고, 넘치면 맞지 않는다.
+    unsigned long long v = 0; int base = 10; proven_size_t i = 0;
+    if (mag.size > 2 && mag.ptr[0] == '0' && (mag.ptr[1] == 'x' || mag.ptr[1] == 'X')) { base = 16; i = 2; }
+    else if (mag.size > 2 && mag.ptr[0] == '0' && (mag.ptr[1] == 'b' || mag.ptr[1] == 'B')) { base = 2; i = 2; }
+    for (; i < mag.size; i++) {
+        char ch = (char)mag.ptr[i]; if (ch == '_') continue;
+        int d = (ch >= '0' && ch <= '9') ? ch - '0' : (ch >= 'a' && ch <= 'f') ? ch - 'a' + 10 : (ch >= 'A' && ch <= 'F') ? ch - 'A' + 10 : 99;
+        if (d >= base) return false;
+        if (v > (~0ull - (unsigned long long)d) / (unsigned long long)base) return false;
+        v = v * (unsigned long long)base + (unsigned long long)d;
+    }
+    int bits = veq(ty, "u8") || veq(ty, "i8") ? 8 : veq(ty, "u16") || veq(ty, "i16") ? 16 :
+               veq(ty, "u32") || veq(ty, "i32") ? 32 : 64;
+    bool sgn = ty.size && ty.ptr[0] == 'i';
+    if (!sgn) return !neg && (bits == 64 || v < (1ull << bits));
+    unsigned long long lim = 1ull << (bits - 1);                      // 음수는 lim 까지, 양수는 lim-1 까지
+    return neg ? v <= lim : v < lim;
+}
+static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
+        nd->kids[0]->tok.kw == LOW_KW_LIT && nd->kids[1]->kind == LOW_CST_ATOM &&
+        (veq(nd->kids[1]->tok.lex, "array") || veq(nd->kids[1]->tok.lex, "slice") || veq(nd->kids[1]->tok.lex, "vec")) &&
+        !(veq(nd->kids[1]->tok.lex, "vec") && nd->kids[nd->nkids - 1]->kind != LOW_CST_ATOM)) {   // `lit vec t a do … end` 는 구조체 값
+        proven_u32 ln = nd->kids[0]->tok.line;
+        bool is_array = veq(nd->kids[1]->tok.lex, "array");
+        if (veq(nd->kids[1]->tok.lex, "vec")) {
+            emit(out, "E-LIT-UNBUILT", "`lit vec …` (a SIMD value literal) is not built yet — it comes with RFC-0132 T2b-3. "
+                 "Today a vector is made with `splat` or `load` from a slice", ln);
+            return;
+        }
+        if (nd->nkids < 3 || nd->kids[2]->kind != LOW_CST_ATOM) { emit(out, "E-LIT-UNBUILT", "a list literal needs its element type: `lit array u8 4 1 2 3 4 .`", ln); return; }
+        proven_u8str_view_t ty = nd->kids[2]->tok.lex;
+        bool flt = veq(ty, "f32") || veq(ty, "f64"), isbool = veq(ty, "bool");
+        bool sized = flt || isbool || veq(ty, "u8") || veq(ty, "i8") || veq(ty, "u16") || veq(ty, "i16") || veq(ty, "u32") ||
+                     veq(ty, "i32") || veq(ty, "u64") || veq(ty, "i64") || veq(ty, "usize") || veq(ty, "isize");
+        if (!sized) {
+            emit(out, "E-LIT-UNBUILT", "the element type of a list literal must be a sized scalar today (an integer, `f32`/`f64` "
+                 "or `bool`) — arrays of structs come with RFC-0132 T2b-3", ln);
+            return;
+        }
+        proven_size_t i = 3; long long n = -1;
+        if (is_array) {
+            const low_cst_t *nn = nd->nkids > 3 ? nd->kids[3] : NULL;
+            if (!nn || nn->kind != LOW_CST_ATOM || nn->tok.kind != LOW_TOK_NUMBER || !ck_lit_elem_fits(PROVEN_LIT("u32"), nn->tok.lex)) {
+                emit(out, "E-LIT-COUNT", "`lit array <type> <length> …` — the length is a plain integer literal, the same one the "
+                     "type `array <type> <length>` would carry", ln);
+                return;
+            }
+            n = strtoll((const char *)nn->tok.lex.ptr, NULL, 0);
+            i = 4;
+        }
+        proven_size_t cnt = 0; bool tail_fill = false;
+        for (; i < nd->nkids; i++) {
+            const low_cst_t *e = nd->kids[i];
+            if (e->kind == LOW_CST_BLOCK) {
+                emit(out, "E-LIT-UNBUILT", "filling chosen cells (`lit array T N do <index> <value> . _ <value> . end`) is not built yet — "
+                     "it comes with RFC-0132 T2b-3. List every element, or end the list with `_` for zeros", ln);
+                return;
+            }
+            if (e->kind == LOW_CST_ATOM && e->tok.kind == LOW_TOK_IDENT && veq(e->tok.lex, "_")) {
+                if (!is_array || i + 1 != nd->nkids) {
+                    emit(out, "E-LIT-COUNT", !is_array
+                         ? "`_` («the rest are zero») has no meaning in a SLICE literal — its length IS the number of elements"
+                         : "`_` stands only at the END of the list — it means «the remaining cells are zero»", ln);
+                    return;
+                }
+                tail_fill = true; continue;
+            }
+            if (e->kind == LOW_CST_ATOM && (e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE)) {
+                if (!isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` element in a list of numbers — write the number", ln); return; }
+                cnt++; continue;
+            }
+            if (e->kind == LOW_CST_ATOM && e->tok.kind == LOW_TOK_NUMBER) {
+                if (isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` list holds `true`/`false` — a number is not a truth value", ln); return; }
+                if (!flt && !ck_lit_elem_fits(ty, e->tok.lex)) {
+                    emit(out, "E-TYPE-WIDTH", "this element does not fit the list's element type — every element is checked "
+                         "against the type written after `lit array`/`lit slice` (a negative number never fits an unsigned type)", ln);
+                    return;
+                }
+                cnt++; continue;
+            }
+            emit(out, "E-LIT-UNBUILT", "a list literal element must be a CONSTANT today (a number, `true` or `false`) — "
+                 "elements computed at run time need storage in the op's frame, which comes with RFC-0132 T2b-2", ln);
+            return;
+        }
+        if (is_array && ((long long)cnt > n || ((long long)cnt < n && !tail_fill))) {
+            emit(out, "E-LIT-COUNT", (long long)cnt > n
+                 ? "more elements than the array's length — the length is a promise the list must keep"
+                 : "fewer elements than the array's length — end the list with `_` to say «the rest are zero»; "
+                   "cells are never filled silently", ln);
+        }
+        if (!is_array && cnt == 0) emit(out, "E-LIT-COUNT", "an empty slice literal says nothing — a slice literal lists at least one element", ln);
+        return;
+    }
+    for (proven_size_t j = 0; j < nd->nkids; j++) ck_lit_walk(out, nd->kids[j]);
 }
 
 static void ck_regions(low_check_result_t *out, const low_cst_t *f, const low_cst_t *nd) {
@@ -7584,6 +7697,12 @@ static bool ck_arg_is_ro(const low_cst_t *arg, const ck_bind_t *binds, proven_si
         if (arg->tok.kind == LOW_TOK_STRING || arg->tok.kind == LOW_TOK_HEREDOC) return true;
         return false;                                            // 그 밖의 리터럴 — 보수적으로 통과
     }
+    // ★ RFC-0132 T2b-1 — 상수 원소 나열 리터럴(`lit array …`·`lit slice …`)도 프로그램에 박힌 **읽기 전용** 바이트다
+    //   (§13.2 ⓑ). 문자열 리터럴과 같다: 고칠 자리로 넘기면 거절한다(쓸 수 있는 틀 안 자리 ⓒ 는 T2b-2).
+    if (arg->kind == LOW_CST_FORM && arg->nkids >= 2 && arg->kids[0]->kind == LOW_CST_ATOM &&
+        arg->kids[0]->tok.kw == LOW_KW_LIT && arg->kids[1]->kind == LOW_CST_ATOM &&
+        (veq(arg->kids[1]->tok.lex, "array") || veq(arg->kids[1]->tok.lex, "slice")))
+        return true;
     if (arg->kind == LOW_CST_FORM && arg->nkids >= 1 &&
         arg->kids[0]->kind == LOW_CST_ATOM && arg->kids[0]->tok.kw == LOW_KW_NONE) {
         proven_u8str_view_t head = arg->kids[0]->tok.lex;
@@ -9594,6 +9713,14 @@ static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *n
                         (init->kids[q]->tok.kind == LOW_TOK_STRING ||
                          init->kids[q]->tok.kind == LOW_TOK_HEREDOC)) { init = init->kids[q]; break; }
             }
+            // ★ RFC-0132 T2b-1 — 상수 원소 나열 리터럴도 박힌 바이트다(§13.2 ⓑ). 쓸 수 있는 자리는 T2b-2 의 `var` 배열이다.
+            if (init && init->kind == LOW_CST_FORM && init->nkids >= 2 && ck_atom(init->kids[0]) &&
+                init->kids[0]->tok.kw == LOW_KW_LIT && ck_atom(init->kids[1]) &&
+                (veq(init->kids[1]->tok.lex, "array") || veq(init->kids[1]->tok.lex, "slice")))
+                emit(out, "E-TYPE-ARGMUT",
+                     "a list LITERAL was bound to a name declared `mut`. A constant list literal is bytes baked into the "
+                     "program (RFC-0132 §13.2 ⓑ), not a place that can be written. Bind it without `mut`, or — when "
+                     "writable local arrays land (T2b-2) — declare a `var` array", nd->kids[0]->tok.line);
             if (ck_atom(init) && (init->tok.kind == LOW_TOK_STRING || init->tok.kind == LOW_TOK_HEREDOC))
                 emit(out, "E-TYPE-ARGMUT",
                      "a string LITERAL was bound to a name declared `mut`. A literal is bytes baked "
@@ -10063,6 +10190,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     }
 
     for (proven_size_t i = 0; i < pr->nforms; i++) (void)ck_array_walk(&out, pr->forms[i]);
+    for (proven_size_t i = 0; i < pr->nforms; i++) ck_lit_walk(&out, pr->forms[i]);   // RFC-0132 T2b-1
 
     // ★★ **지역이 최상위 이름을 가릴 수 없다** — 이름공간이 **평면**이기 때문이다.
     //

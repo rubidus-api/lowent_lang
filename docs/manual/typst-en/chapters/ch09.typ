@@ -24,7 +24,7 @@
 ]
 
 #organizer[
-  You will learn the difference between `array n t` and `slice t`, how to read with `len`, `index` and `for`, and that out-of-range access
+  You will learn the difference between `array t n` and `slice t`, how to read with `len`, `index` and `for`, and that out-of-range access
   stops. You will pick up the rule that writing elements requires a `mut slice`, and how to narrow a window with `subslice`. You will also
   see the principle by which contracts remove bounds checks in the body, and that a string literal is a table that can be indexed directly.
 ]
@@ -99,6 +99,22 @@ places another, narrower window over the same bytes.
 The two ops give the same answer. Looking with `--emit-c`, `prefix_char` is one string table and one index, while `prefix_chain` is a chain of
 comparisons and `goto`s. In this edition, though, the index check in `prefix_char` remains --- the analysis does not connect the literal's length
 11 with the contract `lt k 11`.
+
+== Writing a sequence directly --- list literals
+
+When you need a sequence written out as values, list it with `lit`. `lit array u32 5 2 3 5 7 11 .` is an
+`array u32 5` value written as element type, length, then the elements; `lit slice u32 4 5 6 .` is a slice value
+with no length written (the element count is the length). A list *closes with its own period*. At the end of a
+statement the list's period and the statement's period come together (`. .`); in the middle of a call one period
+closes the list and the next argument follows.
+
+#demo("examples/ch09/listlit.low")
+
+If there are fewer elements than the length, end the list with `_` to say "the remaining cells are zero". Without
+it the list is `E-LIT-COUNT` --- cells are never filled silently. Each element must fit its type (`E-TYPE-WIDTH`),
+and in this version every element must be a constant. A constant list is read-only bytes baked into the program,
+so passing it to a `mut` position is refused. Elements computed at run time and writable local arrays (`var`) do
+not exist yet; using them gives `E-LIT-UNBUILT`, which says what is not built.
 
 == Contracts remove bounds checks
 
@@ -205,12 +221,14 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   [`for x xs do … end`], [each element in turn], [no room for index mistakes],
   [`subslice xs from to`], [a window from `from` up to, not including, `to` (no copy)], [half-open --- the length is `to − from`],
   [`"hello"`], [a literal of type `slice u8` --- indexable as is], [there is no separate string type],
+  [`lit array u32 3 1 2 3 .`], [an array written as values --- closes with its own period], [the length is a promise --- end with `_` if short],
+  [`lit slice u32 4 5 .`], [a slice written as values], [the element count is the length],
   [`requires le n (len xs) .`], [a length condition as a contract], [bounds checks in the body are removed],
 )
 
 #recap[
   A slice carries its start and length together. `len` takes the length field, `index` stops when out of range, and `for` walks the
-  elements. `array n t` writes the length first and is used in input positions. Writing elements needs a `mut slice` and a `proc`.
+  elements. `array t n` writes the element type and then the length and is used in input positions; a sequence written out as values is listed with `lit array` or `lit slice`. Writing elements needs a `mut slice` and a `proc`.
   `subslice` narrows the window without copying. Writing the length condition as a contract removes bounds checks in the body, and a string
   literal is a table that can be indexed directly.
 ]

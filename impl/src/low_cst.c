@@ -139,11 +139,60 @@ static low_cst_t *low_parse_primary(low_parser_t *p, bool headed_ok) {
         return g;
     }
 
+    // ★★ RFC-0132 §4 C13 · T2b — **원소 나열 리터럴은 제 점으로 닫는 폼이다**: `lit array u8 4 1 2 3 4 .` ·
+    //   `lit slice u8 1 2 3 .` · `lit vec u32 4 1 2 3 4 .`. 그래서 문장 끝이면 `. .`(나열의 점 + 문장의 점),
+    //   한가운데면 점 하나로 닫고 이어 간다(`f lit array u8 2 1 2 . x .`). 위의 `.name` 머리와 **같은 기제**다 —
+    //   저자가 찍은 점이 가장 안쪽 폼을 닫는다. 구조체 값(`lit point do … end`)은 블록이 닫으므로 여기 오지 않는다.
+    // ☞ `vec` 은 사용자 구조체 이름이기도 하다(`lib/vecgen.low` 의 `lit vec t a do … end`). 다음 점 전에 `do` 가
+    //   오면 그것은 구조체 값이다 — 나열로 읽지 않는다.
+    bool lit_list = false;
+    if (low_curkw(p) == LOW_KW_LIT && p->pos + 1 < p->n && p->toks[p->pos + 1].kind == LOW_TOK_IDENT) {
+        proven_u8str_view_t w1 = p->toks[p->pos + 1].lex;
+        if (proven_u8str_view_eq(w1, PROVEN_LIT("array")) || proven_u8str_view_eq(w1, PROVEN_LIT("slice"))) lit_list = true;
+        else if (proven_u8str_view_eq(w1, PROVEN_LIT("vec"))) {
+            lit_list = true;
+            for (proven_size_t q = p->pos + 2; q < p->n; q++) {
+                if (p->toks[q].kind == LOW_TOK_DOT || p->toks[q].kind == LOW_TOK_RPAREN || p->toks[q].kind == LOW_TOK_EOF) break;
+                if (p->toks[q].kw == LOW_KW_DO) { lit_list = false; break; }
+            }
+        }
+    }
+    if (lit_list) {
+        low_token_t lt = low_adv(p);
+        proven_array_t kids = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 8).value;
+        (void)PROVEN_ARRAY_PUSH(&kids, low_cst_t *, low_node(p, LOW_CST_ATOM, lt));
+        while (!low_is_form_boundary(p) && low_curk(p) != LOW_TOK_DOT &&
+               low_curk(p) != LOW_TOK_RPAREN) {
+            low_cst_t *o = low_parse_access(p, false);
+            if (!o) break;
+            (void)PROVEN_ARRAY_PUSH(&kids, low_cst_t *, o);
+            if (o->kind == LOW_CST_BLOCK) break;
+        }
+        low_cst_t *f = low_node(p, LOW_CST_FORM, lt);
+        low_cst_t *g = low_node(p, LOW_CST_GROUP, lt);
+        if (!f || !g) { proven_array_destroy(&kids); return NULL; }
+        f->closer = LOW_TOK_EOF;
+        if (low_curk(p) == LOW_TOK_DOT) { low_adv(p); }  // ★ 이 점은 **이 나열**의 것이다
+        low_take_kids(p, f, &kids);
+        f->synth = g->synth = true;
+        proven_array_t one = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 1).value;
+        (void)PROVEN_ARRAY_PUSH(&one, low_cst_t *, f);
+        low_take_kids(p, g, &one);
+        return g;
+    }
+
     if (k == LOW_TOK_LPAREN) {
         low_token_t lp = low_adv(p);
         low_cst_t *inner = low_parse_form(p);
         if (low_curk(p) == LOW_TOK_RPAREN) low_adv(p);
         else low_pdiag(p, "E-GROUP-UNCLOSED", "missing ')'", lp.line, lp.col);
+        // ★ `(lit array u8 4 1 2 3 4)` — 괄호 안이 원소 나열 리터럴 **하나뿐**이면 한 겹으로 접는다. 안 접으면
+        //   GROUP(FORM(GROUP(FORM(lit …)))) 이 되어 `lit …` 를 찾는 자리들이 못 본다(서식기가 값을 괄호로 싸서 찍는다).
+        if (inner && inner->kind == LOW_CST_FORM && inner->nkids == 1 && inner->kids[0]->kind == LOW_CST_GROUP &&
+            inner->kids[0]->nkids == 1 && inner->kids[0]->kids[0]->kind == LOW_CST_FORM &&
+            inner->kids[0]->kids[0]->nkids && inner->kids[0]->kids[0]->kids[0]->kind == LOW_CST_ATOM &&
+            inner->kids[0]->kids[0]->kids[0]->tok.kw == LOW_KW_LIT)
+            inner = inner->kids[0]->kids[0];
         low_cst_t *g = low_node(p, LOW_CST_GROUP, lp);
         if (g) { proven_array_t one = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 1).value;
                  (void)PROVEN_ARRAY_PUSH(&one, low_cst_t *, inner); low_take_kids(p, g, &one); }

@@ -102,9 +102,10 @@ Searches headings and index terms --- not the full text
 - [9.1 Start and length together](ch09.md#s9-1)
 - [9.2 Writing needs mut slice](ch09.md#s9-2)
 - [9.3 Narrowing the window](ch09.md#s9-3)
-- [9.4 Contracts remove bounds checks](ch09.md#s9-4)
-- [9.5 Common mistakes](ch09.md#s9-5)
-- [9.6 This chapter’s syntax at a glance](ch09.md#s9-6)
+- [9.4 Writing a sequence directly — list literals](ch09.md#s9-4)
+- [9.5 Contracts remove bounds checks](ch09.md#s9-5)
+- [9.6 Common mistakes](ch09.md#s9-6)
+- [9.7 This chapter’s syntax at a glance](ch09.md#s9-7)
 
 [10 Aggregates — struct and enum](ch10.md)
 

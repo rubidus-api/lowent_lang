@@ -1884,6 +1884,70 @@ static void ir_make(ir_ctx_t *c, const low_cst_t *arg, proven_u32 line) {
     ir_emit(c, IRW_MAKE, (proven_i64)my);
 }
 
+// ★★ RFC-0132 T2b-1 — **상수 배열·슬라이스 리터럴(§13.2 ⓑ)**: `lit array T N v… [_] .` · `lit slice T v… .`.
+//   원소를 T 의 폭으로 **작은 끝(little-endian)** 에 싸서 문자열 상수 풀에 넣는다 — 같은 바이트면 한 자리를 쓴다
+//   (L4: 같은 내용의 전역 리터럴은 같은 자리일 수도 있다 — 합치는 곳은 이 풀 한 곳이고, VM 과 C 뒤끝이 같이 쓴다).
+//   u8 이면 바이트 슬라이스 그대로, 그 밖이면 `view_array` 와 같은 타입 보기(IRW_VARRAY)를 씌운다.
+//   원소 검증(개수 · 폭 · 상수인가)은 검사층(low_check `ck_lit_walk`)이 먼저 한다 — 여기는 믿되 막는다.
+static void ir_lit_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line) {
+    if (*pos + 1 >= end || !is_atom(k[*pos]) || !is_atom(k[*pos + 1])) { ir_fail(c, "E-LIT-UNBUILT", "malformed list literal", line); return; }
+    bool is_array = veq(k[*pos]->tok.lex, "array"), is_slice = veq(k[*pos]->tok.lex, "slice");
+    if (!is_array && !is_slice) { ir_fail(c, "E-LIT-UNBUILT", "`lit vec …` is not built yet (RFC-0132 T2b-3)", line); return; }
+    proven_u8str_view_t ty = k[*pos + 1]->tok.lex;
+    proven_u8 esz = ir_field_size(ty);
+    if (!esz) { ir_fail(c, "E-LIT-UNBUILT", "a list literal's element type must be a sized scalar here (RFC-0132 T2b-1)", line); return; }
+    bool flt = ir_is_float_ty(ty), sgn = ity_of_word(ty).sign;
+    *pos += 2;
+    proven_i64 n = -1;
+    if (is_array) {
+        if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array T N …` needs its length N as a literal", line); return; }
+        (*pos)++;
+    }
+    low_ir_t *ir = c->out;
+    proven_size_t cnt = end - *pos, cap_elems = is_array ? (proven_size_t)n : cnt;
+    if (ir->strbuf_len + cap_elems * esz > ir->strbuf_cap) { ir_fail(c, "E-IR-UNSUP", "too many bytes of literal data in one unit", line); return; }
+    proven_u8 *dst = ir->strbuf + ir->strbuf_len;
+    proven_size_t m = 0;
+    for (; *pos < end; (*pos)++) {
+        const low_cst_t *e = k[*pos];
+        if (is_atom(e) && e->tok.kind == LOW_TOK_IDENT && veq(e->tok.lex, "_")) {   // 나머지 칸은 0
+            while (m < cap_elems) { memset(dst + m * esz, 0, esz); m++; }
+            continue;
+        }
+        proven_u64 bits = 0;
+        if (is_atom(e) && e->tok.kw == LOW_KW_TRUE) bits = 1;
+        else if (is_atom(e) && e->tok.kw == LOW_KW_FALSE) bits = 0;
+        else if (is_atom(e) && e->tok.kind == LOW_TOK_NUMBER) {
+            if (flt) {
+                double dv = low_num_to_double(e->tok.lex);
+                if (esz == 4) { float fv = (float)dv; proven_u32 b32; memcpy(&b32, &fv, 4); bits = b32; }
+                else memcpy(&bits, &dv, 8);
+            } else {
+                proven_i64 v;
+                if (!ir_int_lit(e->tok.lex, &v)) { ir_fail(c, "E-LIT-UNBUILT", "list literal element is not an integer literal", line); return; }
+                bits = (proven_u64)v;
+            }
+        } else { ir_fail(c, "E-LIT-UNBUILT", "a list literal element must be a constant here (RFC-0132 T2b-1)", line); return; }
+        if (m >= cap_elems) { ir_fail(c, "E-LIT-COUNT", "more elements than the length", line); return; }
+        for (proven_u8 b = 0; b < esz; b++) dst[m * esz + b] = (proven_u8)(bits >> (8 * b));
+        m++;
+    }
+    if (m != cap_elems) { ir_fail(c, "E-LIT-COUNT", "fewer elements than the length and no trailing `_`", line); return; }
+    proven_u8str_view_t val = { .ptr = dst, .size = m * esz };
+    proven_size_t si = ir->nstrs;
+    for (proven_size_t i = 0; i < ir->nstrs; i++)
+        if (ir->strew[i] == 1 && proven_u8str_view_eq(ir->strs[i], val)) { si = i; break; }
+    if (si == ir->nstrs) {
+        if (ir->nstrs >= IR_MAXSTRS) { ir_fail(c, "E-IR-UNSUP", "too many string literals", line); return; }
+        ir->strbuf_len += val.size;
+        ir->strew[ir->nstrs] = 1;
+        ir->strs[ir->nstrs++] = val;
+    }
+    ir_emit(c, IRW_STR, (proven_i64)si);
+    if (esz > 1 || sgn || flt || veq(ty, "bool"))
+        ir_emit(c, IRW_VARRAY, (proven_i64)esz | (flt ? IR_FLT_BIT : 0) | (sgn ? IR_SGN_BIT : 0));
+}
+
 // ★★★ **send 하강** — 값 `send`(동기, IRW_CALL)와 `spawn send`(async, IRW_ASEND)가 공유한다.
 //   핸들러는 **수신자의 선언 타입** 안에서 찾는다(맨 이름이 아니라 — 두 액터가 같은 핸들러
 //   이름을 가지면 조용히 갈리기 때문, DECISION-0011). 인스턴스가 슬롯 0, 인자가 뒤따른다.
@@ -2214,6 +2278,14 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             // ★ 이 자리에 **두 모양을 다 받는 반창고**가 있었다 — `make` 가 괄호 안에서
             //   자기가 머리가 되어 다른 나무를 만들었기 때문이다. **문법을 고치니 사라졌다**
             //   (`make` 를 블록-문장 머리 목록에서 뺐다). 뒷단의 반창고는 대개 **앞단의 병**이다.
+            // ★ RFC-0132 T2b-1: 원소 나열 리터럴은 파서가 GROUP(FORM[lit, array|slice|vec, …]) 로 닫아 둔다 —
+            //   여기서는 그 폼의 나머지 전부가 리터럴이다.
+            if (is_atom(k[*pos]) && (veq(k[*pos]->tok.lex, "array") || veq(k[*pos]->tok.lex, "slice") ||
+                                     (veq(k[*pos]->tok.lex, "vec") && is_atom(k[end - 1])))) {   // `lit vec t a do … end` 는 구조체 값
+                ir_lit_list(c, k, pos, end, nd->line);
+                *pos = end;
+                return;
+            }
             ir_make(c, k[(*pos)++], nd->line);
             return;
         }

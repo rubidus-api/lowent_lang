@@ -190,6 +190,54 @@ export fn last input xs array 4 u64 . output u64 .
 do
   return index xs 3 .
 end", "E-TYPE-ARRAY")
+    #para("6")[
+      **원소 나열 리터럴** — `lit array t n v₁ … vₖ .` 은 `array t n` 값, `lit slice t v₁ … vₖ .` 은 원소 `k` 개의
+      `slice t` 값이다. 나열은 **제 마침표로 닫히는 폼**이다: 문장의 끝에 오면 나열의 점과 문장의 점이 잇달아
+      오고(`let t be lit array u8 4 1 2 3 4 . .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
+      `lit` 가 값의 타입을 보이므로 묶는 문장은 타입을 따로 적지 않는다.
+    ]
+    #para("6a")[
+      배열의 원소 수는 `n` 과 같아야 한다. 모자라면 나열의 **끝**에 `_` 를 적어 «나머지 칸은 0» 이라고 말해야 하며,
+      넘치거나 `_` 가 끝이 아닌 자리에 있거나 슬라이스 나열에 `_` 가 있으면 거부된다(`E-LIT-COUNT`). 칸은 말없이
+      채워지지 않는다.
+    ]
+    #para("6b")[
+      각 원소는 `t` 에 들어가야 한다 — 부호 없는 `t` 에 음수도 들어가지 않는다(`E-TYPE-WIDTH`). `bool` 원소는
+      `true`·`false` 만이다.
+    ]
+    #para("7")[
+      원소가 모두 번역 시점 상수인 나열은 프로그램에 박힌 **읽기 전용** 바이트다. 그것을 `mut` 인 이름에 묶거나
+      `mut`·`owned`·`mut_ref` 자리에 넘기면 거부된다(`E-TYPE-ARGMUT`). 내용이 같은 두 나열이 **같은 자리인지는
+      정하지 않는다** — 처리기가 한 벌로 합칠 수 있다.
+    ]
+    #para("8")[
+      `let` 에 묶은 배열 나열은 그 바이트를 **보는 슬라이스**다. 길이는 나열이 정한다.
+    ]
+    #para("9")[
+      이 처리기가 아직 짓지 않은 나열 — 실행 중에 계산되는 원소, 칸을 골라 채우는 블록, `lit vec`, 구조체 원소,
+      `var` 에 묶는 배열 — 은 무엇이 아직인지 말하며 거부된다(`E-LIT-UNBUILT` · `var` 배열은 `E-TYPE-ARRAY`).
+    ]
+    #ex("원소 나열 리터럴", "module ex_list_literal .
+
+fn total input xs slice u32 . output u64 . do
+  var s be u64 0 .
+  for x xs do
+    set s (add s (widen u64 x)) .
+  end
+  return s .
+end
+
+rem 배열 나열은 제 점으로 닫힌다 — 문장의 끝이면 점이 둘이다.
+export fn f output u64 . do
+  let t be lit array u32 4 10 20 30 _ . .
+  return add (total t) (total lit slice u32 1 2 . .) .
+end")
+    #rejected("원소가 길이보다 적은데 끝에 _ 가 없다", "module ex_list_short .
+
+export fn f output u64 . do
+  let t be lit array u8 4 1 2 3 . .
+  return len t .
+end", "E-LIT-COUNT")
     #plain[
       포인터만 있는 언어에서는 *"이 포인터가 가리키는 곳에 몇 개가 있는가"* 를 사람이 따로
       알고 있어야 한다. 그 지식은 소스에 안 적혀 있어서 틀리기 쉽고, 틀리면 남의 메모리를

@@ -712,6 +712,7 @@ case some &lt;name> .  case none .  case ok &lt;pattern> .  case error .
 case &lt;name> when &lt;cond> .</code></pre><h3 id="sx5">Expressions<a class="plink" href="#sx5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><pre><code data-lang="text">&lt;op> &lt;args>…                            prefix --- no precedence, forms inside forms in parentheses
 expr &lt;a> + &lt;b> * &lt;c>                    infix island --- * / above + -, comparisons below, and above or
 lit &lt;type> do &lt;field> &lt;expr> . … end    &lt;enum>.&lt;variant> &lt;values>…
+lit array &lt;type> &lt;len> &lt;value>… [_] .   lit slice &lt;type> &lt;value>… .  (a list closes with its own .)
 field &lt;value> &lt;steps>…   index &lt;slice> &lt;n>   method &lt;value> &lt;name> &lt;args>…
 some &lt;value>   ok &lt;value>   error &lt;variant>   none
 try &lt;expr> [else_none | else_error &lt;variant>]

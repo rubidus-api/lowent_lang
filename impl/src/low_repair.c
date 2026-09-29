@@ -487,6 +487,9 @@ static const low_repair_row_t NOREPAIR[] = {
     { "W-ERRORS-UNRAISED",  "뜻이 둘이다 — 쓸데없는 절이면 지우고, 몸이 그 실패를 내야 했다면 몸을 고친다" },
     { "W-EXPORT-HIDDEN",    "길이 둘이다 — 타입도 내보내거나, 밖에서 이름할 수 있는 타입으로 서명을 바꾼다" },
     { "W-RESULT-DISCARD",   "길이 셋이다 — 묶어서 살피거나, `try` 로 넘기거나, 버리는 이유를 코드에 적는다" },
+    // ★ RFC-0132 T2b-1 (2026-09-29)
+    { "E-LIT-COUNT",        "길이 셋이다 — 원소를 더하거나 빼거나, 모자란 칸이 0 이어도 되면 끝에 `_` 를 적는다. 어느 것이 뜻인지는 저자가 안다" },
+    { "E-LIT-UNBUILT",      "도구가 아직 짓지 않은 모양이다(RFC-0132 T2b-2 · T2b-3) — 프로그램에 고칠 것이 아니라 다른 모양으로 적거나 기다린다" },
 };
 
 const char *low_repair_for(const char *code) {

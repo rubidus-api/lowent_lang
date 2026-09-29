@@ -81,6 +81,7 @@ case <name> when <cond> .
 <op> <args>…                            prefix --- no precedence, forms inside forms in parentheses
 expr <a> + <b> * <c>                    infix island --- * / above + -, comparisons below, and above or
 lit <type> do <field> <expr> . … end    <enum>.<variant> <values>…
+lit array <type> <len> <value>… [_] .   lit slice <type> <value>… .  (a list closes with its own .)
 field <value> <steps>…   index <slice> <n>   method <value> <name> <args>…
 some <value>   ok <value>   error <variant>   none
 try <expr> [else_none | else_error <variant>]

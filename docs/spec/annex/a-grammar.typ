@@ -223,6 +223,7 @@ return              return [<폼>] .           (값이 블록으로 끝나도 �
 break               break .                   (라벨은 없다)             .
 continue            continue .                                         .
 lit                 lit <타입> do <칸초기>* end  (칸초기 = <이름> <폼> .) end
+lit (나열)          lit array <타입> <길이> <값>… [_] .  ·  lit slice <타입> <값>… .     .
 extern              extern fn/proc <이름> do <절>* end  (몸이 씨)       end
 match               match <폼> do <가지>* [else do <폼>* end] end       end")
     #para("2a")[

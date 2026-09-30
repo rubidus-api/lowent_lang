@@ -1891,6 +1891,39 @@ static void ir_make(ir_ctx_t *c, const low_cst_t *arg, proven_u32 line) {
     ir_emit(c, IRW_MAKE, (proven_i64)my);
 }
 
+// ★★ RFC-0135 S2a (D9) — **할당기 바이트에 짓는 구조체** `var q using al be pt lit pt do … end . else …`. 받은 바이트가
+//   스택에 있다: 0 으로 채우고(IRW_BFILL) 배치를 얹은 뒤(IRW_VIEW — `view pt b` 와 같은 표현) 칸을 적은 차례로 쓴다.
+//   바이트 배치가 없는 구조체(슬라이스 · owned · 배열 칸)는 담을 표현이 아직 없다 — 정직하게 거절한다.
+static proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line);
+static void ir_lit_struct_into(ir_ctx_t *c, const low_cst_t *arg, proven_u32 line) {
+    const low_cst_t *form = arg;
+    while (form && form->kind == LOW_CST_GROUP && form->nkids == 1) form = form->kids[0];
+    if (!form || form->kind != LOW_CST_FORM || form->nkids != 2 || !is_atom(form->kids[0]) || form->kids[1]->kind != LOW_CST_BLOCK) {
+        ir_fail(c, "E-LIT-UNBUILT", "malformed struct literal in an allocator's bytes", line);
+        return;
+    }
+    bool sfound; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, form->kids[0]->tok.lex), &sfound);
+    if (!sfound || !c->out->structs[si].viewable) {
+        ir_fail(c, "E-LIT-UNBUILT", "only a struct with a byte layout (every field a sized scalar) can be built in an "
+                "allocator's bytes yet — a slice, `owned` or array field has no place there (RFC-0135 D9)", line);
+        return;
+    }
+    proven_size_t tl = ir_hidden_local(c, line);
+    if (tl == (proven_size_t)-1) return;
+    ir_emit(c, IRW_BFILL, (proven_i64)((proven_u64)c->out->structs[si].total << 32));
+    ir_emit(c, IRW_VIEW, (proven_i64)si);
+    ir_emit(c, IRW_STORE, (proven_i64)tl);
+    const low_cst_t *blk = form->kids[1];
+    for (proven_size_t i = 0; i < blk->nkids && !c->failed; i++) {
+        const low_cst_t *fld = blk->kids[i];
+        if (fld->kind != LOW_CST_FORM || fld->nkids < 2 || !is_atom(fld->kids[0])) { ir_fail(c, "E-IR-UNSUP", "malformed struct field", line); return; }
+        ir_emit(c, IRW_LOAD, (proven_i64)tl);
+        ir_run(c, fld->kids, 1, fld->nkids - 1);
+        ir_emit(c, IRW_FSTORE, (proven_i64)ir_field_intern(c, fld->kids[0]->tok.lex));
+    }
+    ir_emit(c, IRW_LOAD, (proven_i64)tl);
+}
+
 // ★★ RFC-0132 T2b-1 — **상수 배열·슬라이스 리터럴(§13.2 ⓑ)**: `lit array T N v… [_] .` · `lit slice T v… .`.
 //   원소를 T 의 폭으로 **작은 끝(little-endian)** 에 싸서 문자열 상수 풀에 넣는다 — 같은 바이트면 한 자리를 쓴다
 //   (L4: 같은 내용의 전역 리터럴은 같은 자리일 수도 있다 — 합치는 곳은 이 풀 한 곳이고, VM 과 C 뒤끝이 같이 쓴다).
@@ -2403,6 +2436,20 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
     if (is_atom(nd) && nd->synth && veq(nd->tok.lex, "using") && *pos + 2 <= end) {
         const low_cst_t *snd = k[(*pos)++], *lst = k[(*pos)++];
         if (*pos < end) (*pos)++;                        // ★ RFC-0135 S2 — 넷째 자식(돌려주기)은 값이 아니다(바인딩이 건다)
+        {   // RFC-0135 S2a — 구조체면 바이트 배치가 있는지 먼저 본다(없으면 `size_of` 가 먼저 엉뚱한 말을 한다)
+            const low_cst_t *lf = lst;
+            while (lf && lf->kind == LOW_CST_GROUP && lf->nkids == 1) lf = lf->kids[0];
+            const low_cst_t *sv = lf && lf->kind == LOW_CST_FORM && lf->nkids == 2 && is_atom(lf->kids[0]) && lf->kids[0]->tok.kw == LOW_KW_LIT ? lf->kids[1] : NULL;
+            while (sv && sv->kind == LOW_CST_GROUP && sv->nkids == 1) sv = sv->kids[0];
+            if (sv && sv->kind == LOW_CST_FORM && sv->nkids == 2 && is_atom(sv->kids[0]) && sv->kids[1]->kind == LOW_CST_BLOCK) {
+                bool sf; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, sv->kids[0]->tok.lex), &sf);
+                if (!sf || !c->out->structs[si].viewable) {
+                    ir_fail(c, "E-LIT-UNBUILT", "only a struct with a byte layout (every field a sized scalar) can be built in an "
+                            "allocator's bytes yet — a slice, `owned` or array field has no place there (RFC-0135 D9)", nd->line);
+                    return;
+                }
+            }
+        }
         ir_node(c, snd);
         proven_size_t ov = ir_hidden_local(c, nd->line);
         if (c->failed) return;
@@ -2537,6 +2584,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 *pos = end;
                 return;
             }
+            if (c->lit_into) { c->lit_into = false; ir_lit_struct_into(c, k[(*pos)++], nd->line); return; }   // RFC-0135 S2a
             ir_make(c, k[(*pos)++], nd->line);
             return;
         }

@@ -214,6 +214,20 @@ when the block that declared the name ends. The same happens when the block is l
   name further out) is `E-LIT-ESCAPE`.
 - Bytes from an allocator that cannot take pieces back (`fixed_bytes`, `heap_bytes`) stay with the allocator.
 
+=== Structs in an allocator too
+
+A struct value is built in an allocator's bytes with the same spelling. The binding's type is that struct.
+
+#demo("examples/ch20/structalloc.low")
+
+- `var q using bb be pt lit pt do … end . else return 0 .` asks `bb` for `size_of pt` bytes (16 here). If it gets them, it fills
+  them with zeros, lays the struct's layout over them as `view` does, and writes the fields you gave. `used` is 16 while `q` lives,
+  so the answer is 1607.
+- Fields are read and written as in any struct (`field q y`, `set (field q y) …`). The bytes are given back when the block ends, as
+  in the previous section.
+- Only a struct with a byte layout is accepted --- every field must be a sized number. A struct with a slice, `owned` or array field
+  has no representation in allocator bytes yet and is `E-LIT-UNBUILT`.
+
 == Where the three layers sit in the standard library
 
 #dtable(

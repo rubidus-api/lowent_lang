@@ -92,3 +92,44 @@ export proc kept input n u64 . output u64 . effects state . do
   end
   return send kb used .
 end
+
+rem ★★ RFC-0135 S2a (D9) — 구조체도 할당기 바이트에 짓는다: 받은 바이트를 0 으로 채우고 배치를 얹어(`view` 와 같은 표현)
+rem   칸을 쓴다. 블록 끝 돌려주기도 같다 — 40 바이트로 16 바이트 구조체를 열 번 짓는다.
+struct pt do
+  x u32 .
+  y u64 .
+end
+
+export proc sput input a u64 . output u64 . effects state . do
+  var back be lit array u8 64 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var q using bb be pt lit pt do x 7 . y a . end . else return 0 .
+  set (field q y) (add (field q y) 1) .
+  return add (widen u64 (field q x)) (field q y) .
+end
+
+export proc srounds input n u64 . output u64 . effects state . do
+  var back be lit array u8 40 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var s be u64 0 .
+  var i be u64 0 .
+  while lt i n . do
+    let p using bb be pt lit pt do x 1 . y i . end . else return 999 .
+    set s (add s (add (widen u64 (field p x)) (field p y))) .
+    set i (add i 1) .
+  end
+  return add s (mul (send bb used) 1000) .
+end
+
+rem 바이트가 모자라면 else · option 째 받으면 guard 로 본다.
+export proc sshort input k u64 . output u64 . effects state . do
+  var back be lit array u8 8 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  let qo using bb be option pt lit pt do x 1 . y k . end .
+  guard is_none qo . else return 1 .
+  let p using bb be pt lit pt do x 1 . y k . end . else return 77 .
+  return field p y .
+end

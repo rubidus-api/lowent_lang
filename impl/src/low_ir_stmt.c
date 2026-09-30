@@ -56,6 +56,23 @@ static proven_size_t form_block_index(const low_cst_t *f) {
     return f->nkids;
 }
 
+// ★★ RFC-0135 S2 (D11) — 걸린 돌려주기를 깊이 `depth` 까지 넣는다(안쪽부터 — 선언의 거꾸로). 받지 못한 것(none)은 건너뛴다.
+static void ir_release_down_to(ir_ctx_t *c, proven_size_t depth) {
+    for (proven_size_t d = g_nrel; d-- > depth; ) {
+        ir_emit(c, IRW_LOAD, (proven_i64)g_relslot[d]);
+        ir_emit(c, IRW_HASVAL, 0);
+        proven_size_t skip = ir_emit(c, IRW_BRZ, 0);
+        // 폼은 [send <출처> release (some_value <이름>)] — <이름> 자리에서 받은 그대로의 바이트(슬롯)를 읽는다
+        const low_cst_t *rg = g_relform[d]->kids[3];
+        while (rg && rg->kind == LOW_CST_GROUP && rg->nkids == 1) rg = rg->kids[0];
+        g_relsub_atom = (rg && rg->kind == LOW_CST_FORM && rg->nkids == 2) ? rg->kids[1] : nullptr;
+        g_relsub_slot = g_relslot[d];
+        ir_node(c, g_relform[d]);
+        g_relsub_atom = nullptr;
+        ir_emit(c, IRW_DROP, 0);                         // release 는 돌려받았는지(bool)를 답한다 — 여기서는 쓰지 않는다
+        ir_at(c, skip)->a = (proven_i64)c->code.len;
+    }
+}
 // guard diverge / plain terminal statements from an operand run
 static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n, proven_u32 line) {
     if (n == 0 || !is_atom(k[start])) { ir_fail(c, "E-IR-UNSUP", "unsupported guard diverge", line); return; }
@@ -117,6 +134,7 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
         // ★★★ RFC-0112 D5(5) (WO-0212) — **나가는 길마다 열린 영역을 되감는다.** 전엔 영역 안의 `return` 이
         //   되감기를 건너뛰었다 — 그 바이트는 프로그램이 끝날 때까지 돌아오지 않았다(루프라면 창이 샌다).
         //   값은 이미 스택에 있다(탈출 검사가 영역의 자리를 싣는 값을 막았다). 안쪽부터 되감는다.
+        ir_release_down_to(c, 0);                           // ★ RFC-0135 S2 — 나가기 전에 할당기 바이트를 돌려준다
         for (proven_size_t d = g_nrg; d-- > 0; ) {
             ir_emit(c, IRW_LOAD, (proven_i64)g_rgslot[d]);
             ir_emit(c, IRW_RRESET, (proven_i64)g_rgroot[d]);
@@ -128,6 +146,7 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
     if ((kw == LOW_KW_BREAK || kw == LOW_KW_CONTINUE) && n == 1 && c->nloops > 0) {
         ir_loop_t *lp = &c->loops[c->nloops - 1];
         // ★ 루프 **안에서 연** 영역만 되감는다 — 루프를 감싼 영역은 계속 산다.
+        ir_release_down_to(c, lp->reldepth);                // ★ RFC-0135 S2 — 루프 안에서 받은 것만 돌려준다
         for (proven_size_t d = g_nrg; d-- > lp->rgdepth; ) {
             ir_emit(c, IRW_LOAD, (proven_i64)g_rgslot[d]);
             ir_emit(c, IRW_RRESET, (proven_i64)g_rgroot[d]);
@@ -862,6 +881,18 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                 }
             }
             ir_emit(c, IRW_STORE, (proven_i64)slot);
+            // ★ RFC-0135 S2 (D11) — 값이 «돌려주기가 붙은» 할당기 폼이면 이 블록을 나갈 때 돌려준다
+            if (vstart + 1 == f->nkids) {
+                const low_cst_t *uv = f->kids[vstart];
+                while (uv && uv->kind == LOW_CST_GROUP && uv->nkids == 1) uv = uv->kids[0];
+                    if (uv && uv->kind == LOW_CST_FORM && uv->nkids == 4 && is_atom(uv->kids[0]) && uv->kids[0]->synth &&
+                    veq(uv->kids[0]->tok.lex, "using")) {
+                    if (g_nrel >= IR_MAXREL) { ir_fail(c, "E-IR-LIMIT", "too many allocator releases pending in one op", f->line); return; }
+                    if (g_using_ov == (proven_size_t)-1) { ir_fail(c, "E-IR-UNSUP", "allocator release without its reserved bytes", f->line); return; }
+                    g_relform[g_nrel] = uv->kids[3]; g_relslot[g_nrel] = g_using_ov; g_nrel++;   // 받은 그대로의 option 바이트
+                    g_using_ov = (proven_size_t)-1;
+                }
+            }
             return;
         }
         case LOW_KW_SET: {
@@ -1032,7 +1063,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             if (into || kw == LOW_KW_LOOP) { cbrz[0] = ir_emit(c, IRW_BRZ, 0); ncbrz = 1; }
             else ncbrz = ir_cond_brz(c, f->kids, 1, b - 1, cbrz);
             ir_loop_t *lp = &c->loops[c->nloops++];
-            lp->rgdepth = g_nrg;   // ★ RFC-0112 D5(5) — break/continue 가 되감을 영역의 경계
+            lp->rgdepth = g_nrg; lp->reldepth = g_nrel;   // ★ RFC-0112 D5(5) · RFC-0135 S2 — break/continue 가 되감을 경계
             lp->nbrk = 0; lp->ncnt = 0;
             ir_block(c, f->kids[b]);
             ir_emit(c, IRW_BR, (proven_i64)loop_start);
@@ -1067,7 +1098,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             ir_emit(c, IRW_INDEX, 0);
             ir_emit(c, IRW_STORE, (proven_i64)var);
             ir_loop_t *lp = &c->loops[c->nloops++];
-            lp->rgdepth = g_nrg;   // ★ RFC-0112 D5(5) — break/continue 가 되감을 영역의 경계
+            lp->rgdepth = g_nrg; lp->reldepth = g_nrel;   // ★ RFC-0112 D5(5) · RFC-0135 S2 — break/continue 가 되감을 경계
             lp->nbrk = 0; lp->ncnt = 0;
             ir_block(c, f->kids[b]);
             proven_size_t step = c->code.len;   // continue lands on the increment
@@ -3065,7 +3096,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
         ir_ctx_t c = mod;   // inherit module tables; fresh per-def state
         c.nlocals = 0; c.nloops = 0; c.failed = false; c.ncint = 0;
         c.lbuf_off = 0; c.lit_frame = false;   // ★ T2b-2 — 틀 안 나열 자리는 op 마다 0 에서
-        g_nrg = 0;   // ★ 앞 op 이 영역 안에서 실패했어도 이 op 은 빈 영역 쌓기에서 시작한다
+        g_nrg = 0; g_nrel = 0; g_using_ov = (proven_size_t)-1; g_relsub_atom = nullptr;   // ★ 앞 op 이 영역 안에서 실패했어도 이 op 은 빈 영역 쌓기에서 시작한다
         if (opf[i].sidx >= 0) {          // ★ actor 핸들러: 슬롯 0 = 인스턴스, 상태 필드를 싣는다
             // ★ 전에는 여기서 슬롯 0 을 선언하고 **바로 다음 줄이 nlocals 를 0 으로 지웠다.**
             //   인자가 없을 때는 우연히 굴러갔다(슬롯 0 은 호출자가 넣어 주니까). 인자가 생기면
@@ -3905,6 +3936,7 @@ static proven_size_t ir_asm_stmt(ir_ctx_t *c, const low_cst_t *blk, proven_size_
  void ir_block(ir_ctx_t *c, const low_cst_t *blk) {
     if (!blk) return;
     proven_size_t i = 0;
+    proven_size_t rel0 = g_nrel;                          // ★ RFC-0135 S2 — 이 블록에서 걸린 돌려주기는 블록 끝에서
     while (i < blk->nkids && !c->failed) {
         const low_cst_t *f = blk->kids[i];
         if (f->kind == LOW_CST_FORM && f->nkids > 0 && is_atom(f->kids[0])) {
@@ -3920,4 +3952,6 @@ static proven_size_t ir_asm_stmt(ir_ctx_t *c, const low_cst_t *blk, proven_size_
         ir_stmt(c, f);
         i++;
     }
+    if (!c->failed) ir_release_down_to(c, rel0);
+    g_nrel = rel0;
 }

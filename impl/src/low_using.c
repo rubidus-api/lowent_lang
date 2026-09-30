@@ -499,7 +499,32 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                             if (uk[0]) {
                                 uk[0]->synth = true;
                                 uk[1] = sg; uk[2] = init;
-                                (void)low_refit(&c->p, uf, uk, 3); uf->synth = true;
+                                proven_size_t nuk = 3;
+                                // ★★ RFC-0135 S2 (D11) — 낱낱이 돌려주는 할당기(`freeing_allocator`)면 **블록을 나갈 때 돌려준다**:
+                                //   [send <출처> release (some_value <이름>)] 를 넷째 자식으로 붙인다. 하강이 그 바인딩의 블록 끝 ·
+                                //   `return` · `break`/`continue` 에 넣는다(받지 못했으면 건너뛴다). 수명 검사는 그 바이트를 블록에 묶는다.
+                                proven_u8str_view_t aty = us_bind_type(c, explicit_src->tok.lex);
+                                if (aty.size && us_type_satisfies(c, aty, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"freeing_allocator", .size = 17 })) {
+                                    low_cst_t **rk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 4, alignof(low_cst_t *)).value.ptr;
+                                    low_cst_t **vk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 2, alignof(low_cst_t *)).value.ptr;
+                                    low_cst_t **gk2 = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *), alignof(low_cst_t *)).value.ptr;
+                                    low_cst_t *rf = low_node(&c->p, LOW_CST_FORM, explicit_src->tok), *vf = low_node(&c->p, LOW_CST_FORM, explicit_src->tok);
+                                    low_cst_t *vg = low_node(&c->p, LOW_CST_GROUP, explicit_src->tok);
+                                    low_cst_t *s0 = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"send", .size = 4 });
+                                    low_cst_t *s1 = us_atom_like(c, explicit_src, explicit_src->tok.lex);
+                                    low_cst_t *s2 = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"release", .size = 7 });
+                                    low_cst_t *v0 = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"some_value", .size = 10 });
+                                    low_cst_t *v1 = us_atom_like(c, nd->kids[1], nd->kids[1]->tok.lex);
+                                    if (rk && vk && gk2 && rf && vf && vg && s0 && s1 && s2 && v0 && v1) {
+                                        s0->tok.kw = LOW_KW_SEND;
+                                        vk[0] = v0; vk[1] = v1; (void)low_refit(&c->p, vf, vk, 2); vf->synth = true;
+                                        gk2[0] = vf; (void)low_refit(&c->p, vg, gk2, 1); vg->synth = true;
+                                        rk[0] = s0; rk[1] = s1; rk[2] = s2; rk[3] = vg; (void)low_refit(&c->p, rf, rk, 4); rf->synth = true;
+                                        low_cst_t **uk4 = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 4, alignof(low_cst_t *)).value.ptr;
+                                        if (uk4) { uk4[0] = uk[0]; uk4[1] = uk[1]; uk4[2] = uk[2]; uk4[3] = rf; uk = uk4; nuk = 4; }
+                                    }
+                                }
+                                (void)low_refit(&c->p, uf, uk, nuk); uf->synth = true;
                                 us_walk(c, init);
                                 nd->kids[be + 1] = uf;
                                 us_push_bind(c, nd->kids[1]->tok.lex, us_type_word(nd, 2), false);

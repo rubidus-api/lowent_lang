@@ -1,0 +1,94 @@
+module vm_autorel .
+rem ★★ RFC-0135 S2 (D11) — 블록 끝 자동 돌려주기: `var t using bb be … lit … . else … .` 의 바이트는
+rem   할당기가 낱낱이 돌려받을 수 있으면(`freeing_allocator`) 그 바인딩의 블록을 나갈 때 돌려준다 —
+rem   블록 끝 · `return` · `break` · `continue` 모두. 받지 못했으면(none) 돌려줄 것이 없다.
+rem   64 바이트 뒷받침에서 32 바이트를 열 번 받는 루프가 서는 것이 증거다(돌려주지 않으면 셋째에 모자란다).
+use allocs .
+
+rem 돌려받지 않는 할당기 — `byte_allocator` 만 만족한다. 이것으로 받은 바이트는 블록 끝에 그대로 남는다.
+actor keep_bytes do
+  satisfies allocs.byte_allocator .
+  state do
+    mem mut slice u8 . .
+    off u64 .
+  end
+  proc init input m mut slice u8 . . output u64 . effects state . do
+    set mem m .
+    set off 0 .
+    return len m .
+  end
+  proc reserve input n u64 . output option mut slice u8 . . effects state . do
+    guard le n (sub (len mem) off) . else return none .
+    let s be mut slice u8 subslice mem off (add off n) .
+    set off (add off n) .
+    return some s .
+  end
+  proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects none . do
+    return none .
+  end
+  proc used output u64 . effects none . do
+    return off .
+  end
+end
+
+proc take input bb mut allocs.bump_bytes . input k u64 . output u64 . effects state . do
+  var t using bb be mut slice u64 lit array u64 2 k _ . . else return 500 .
+  if gt k 5 . do
+    return 7 .
+  end
+  return index t 0 .
+end
+
+rem 루프 열 번 · 도움 op 의 이른 return · 그 뒤 used 가 0 인가.
+export proc cycle input n u64 . output u64 . effects state . do
+  var back be lit array u8 64 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var s be u64 0 .
+  var i be u64 0 .
+  while lt i n . do
+    var t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
+    set s (add s (index t 0)) .
+    set i (add i 1) .
+  end
+  let a be u64 take bb 3 .
+  let b be u64 take bb 9 .
+  return add (add s (mul (send bb used) 1000)) (add (mul a 100000) (mul b 10000000)) .
+end
+
+rem break · continue 도 그 블록에서 받은 것을 돌려준다(if 블록 안에서 받고 continue · 루프 몸에서 받고 break).
+rem   범프 할당기는 마지막 것 하나만 돌려받으므로 한 번에 하나만 쥔다 — 백 번 돌아도 64 바이트로 선다.
+export proc jumps input n u64 . output u64 . effects state . do
+  var back be lit array u8 64 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var s be u64 0 .
+  var i be u64 0 .
+  while lt i 100 . do
+    set i (add i 1) .
+    if lt i 50 . do
+      var u using bb be mut slice u64 lit array u64 4 1 _ . . else return 888 .
+      set s (add s (index u 0)) .
+      continue .
+    end
+    var t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
+    if eq (index t 0) n . do
+      break .
+    end
+    set s (add s 10) .
+  end
+  return add s (mul (send bb used) 100000) .
+end
+
+rem 돌려받지 않는 할당기: 블록을 나가도 바이트가 남는다 — 64 바이트에서 32 씩 두 번이면 셋째는 else.
+export proc kept input n u64 . output u64 . effects state . do
+  var back be lit array u8 64 _ . .
+  var kb be keep_bytes spawn actor keep_bytes .
+  let got be u64 send kb init back .
+  var i be u64 0 .
+  while lt i n . do
+    var t using kb be mut slice u64 lit array u64 4 i _ . . else return add 900 i .
+    set i (add i 1) .
+  end
+  return send kb used .
+end

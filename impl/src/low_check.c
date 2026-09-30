@@ -7376,6 +7376,8 @@ typedef struct {
     proven_u8str_view_t arr[LC_MAX]; proven_size_t narr;                                  // `var` 배열 이름
     proven_size_t bytes;                                                                  // 이 op 의 틀 안 나열 바이트
     bool told, over;                                                                      // over = 표가 찼다(부분 검사 대신 거절)
+    bool autorel;                                                                         // 블록 끝에 돌려줄 할당기 바이트가 있다(RFC-0135 S2)
+    bool scalar_out;                                                                      // op 의 출력이 스칼라 한 낱말 — `return` 이 자리를 싣지 못한다
 } lc_t;
 static const low_cst_t *lc_list(const low_cst_t *nd) {
     while (nd && nd->kind == LOW_CST_GROUP && nd->nkids == 1) nd = nd->kids[0];
@@ -7430,7 +7432,8 @@ static void lc_set_taint(lc_t *x, proven_u8str_view_t n, int depth) {
 static int lc_call(const lc_t *x, low_cst_t *const *k, proven_size_t n);
 // 이 값이 보는 틀 자리의 가장 깊은 블록(0 = 없음 · LC_INF = 문장 임시)
 static bool lc_is_into(const low_cst_t *nd) {             // §13.7 — [using, (send …), <나열>]: 바이트는 할당자의 것
-    return nd && nd->kind == LOW_CST_FORM && nd->nkids == 3 && ck_atom(nd->kids[0]) && nd->kids[0]->synth && veq(nd->kids[0]->tok.lex, "using");
+    return nd && nd->kind == LOW_CST_FORM && (nd->nkids == 3 || nd->nkids == 4) && ck_atom(nd->kids[0]) && nd->kids[0]->synth &&
+           veq(nd->kids[0]->tok.lex, "using");   // 넷째 자식 = 블록 끝의 돌려주기(RFC-0135 S2)
 }
 // 구조체 `ty` 의 칸 `fname` 이 배열 칸(`array T N`)인가 — 그 칸에 주는 값은 바이트로 **베껴진다**(T2b-3b).
 static bool ck_is_array_field(proven_u8str_view_t ty, proven_u8str_view_t fname) {
@@ -7541,13 +7544,17 @@ static void lc_escape(low_check_result_t *out, lc_t *x, proven_u32 line, bool te
     emit(out, "E-LIT-ESCAPE", temp
          ? "a list literal with no receiving place lives only until the end of its statement (RFC-0132 §13.2 ⓒ) — here "
            "its bytes are being kept in a name. Bind the list itself (`var buf be lit array … .`) and use that name"
-         : "this carries a view of a list literal's frame storage OUT of the block that declared it (a `return`, a name "
+         : "this carries a view of a list literal's frame storage — or of bytes an allocator gets back at the end of the block (RFC-0135 D11) — OUT of the block that declared it (a `return`, a name "
            "declared further out, a parameter's field or element, or an actor). That storage belongs to the declaring "
            "block (RFC-0132 §13.2 ⓐ): after the block — or on the next pass of a loop — the bytes are something else. "
            "Copy what you need into storage that outlives the block, or declare the list further out", line);
 }
 static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int depth) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (lc_is_into(nd) && nd->nkids == 4) {                    // ★ RFC-0135 S2 — 넷째 자식(블록 끝의 돌려주기)은 처리기가 넣은 것이다
+        for (proven_size_t i = 0; i < 3; i++) lc_walk(out, x, nd->kids[i], depth);
+        return;
+    }
     if (nd->kind == LOW_CST_BLOCK) {
         proven_size_t nt0 = x->nt, nd0 = x->nd, na0 = x->narr;
         for (proven_size_t i = 0; i < nd->nkids; i++) lc_walk(out, x, nd->kids[i], depth + 1);
@@ -7570,6 +7577,10 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
                     if (lc_carry(x, l->kids[q]) >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, true);
                 }
             } else if (!scalar) {
+                // ★ RFC-0135 S2 (D11) — 블록 끝에서 돌려줄 할당기 바이트는 이 블록의 것이다(밖으로 나가면 돌려준 뒤를 본다)
+                const low_cst_t *uv = be + 2 == nd->nkids ? nd->kids[be + 1] : NULL;
+                while (uv && uv->kind == LOW_CST_GROUP && uv->nkids == 1) uv = uv->kids[0];
+                if (lc_is_into(uv) && uv->nkids == 4) lc_set_taint(x, nd->kids[1]->tok.lex, depth);
                 int dv = lc_tail(x, nd, be + 1);
                 if (dv >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, true);
                 else if (dv > 0) lc_set_taint(x, nd->kids[1]->tok.lex, dv);
@@ -7600,7 +7611,7 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
                     else if (dv > 0 && bare) lc_set_taint(x, base, dv);
                 }
             }
-        } else if (kw == LOW_KW_RETURN) {
+        } else if (kw == LOW_KW_RETURN && !x->scalar_out) {   // 스칼라를 돌려주면 바이트 자리는 따라 나가지 못한다(X-0086)
             int dv = lc_tail(x, nd, 1);
             if (dv > 0) lc_escape(out, x, nd->kids[0]->tok.line, dv >= LC_INF);
         }
@@ -7623,6 +7634,7 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
 static void lc_count(lc_t *x, const low_cst_t *nd, bool forced) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     if (lc_is_into(nd)) {                                        // 틀을 쓰지 않는다 — 원소 속만 센다
+        if (nd->nkids == 4) x->autorel = true;                   // 그래도 그 바이트의 수명은 본다(블록 끝에 돌려준다)
         lc_count(x, nd->kids[1], false);
         const low_cst_t *l = lc_list(nd->kids[2]);
         if (l) for (proven_size_t q = 3; q < l->nkids; q++) lc_count(x, l->kids[q], false);
@@ -7720,7 +7732,14 @@ static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
     static lc_t x;
     memset(&x, 0, sizeof x);
     lc_count(&x, f, false);
-    if (!x.bytes) return;                                        // 틀 안 나열이 없으면 볼 수명이 없다
+    if (!x.bytes && !x.autorel) return;                          // 틀 안 나열도 돌려줄 바이트도 없으면 볼 수명이 없다
+    {
+        low_op_header_t h = low_op_header(f);
+        proven_size_t nw = 0; proven_u8str_view_t w0 = { 0 };
+        for (proven_size_t j = h.out_s; j < h.out_e; j++)
+            if (ck_atom(f->kids[j]) && !veq(f->kids[j]->tok.lex, "output")) { if (nw == 0) w0 = f->kids[j]->tok.lex; nw++; }
+        x.scalar_out = nw == 1 && ck_type_word_scalar(w0);
+    }
     lc_walk(out, &x, f, 0);
     if (x.over)
         emit(out, "E-IR-LIMIT", "too many names in this op for the list-literal lifetime checker's table — refused rather "

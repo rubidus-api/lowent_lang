@@ -231,6 +231,7 @@ Searches headings and index terms --- not the full text
 - [20.4 Default allocators that carve straight from a root](ch20.md#s20-4)
 - [20.5 Growing and returning a piece — grow and release](ch20.md#s20-5)
 - [20.6 Taking a list from an allocator](ch20.md#s20-6)
+- [20.6.1 Given back when the block ends](ch20.md#s20-6-1)
 - [20.7 Where the three layers sit in the standard library](ch20.md#s20-7)
 - [20.8 Who sets the size of the fixed window?](ch20.md#s20-8)
 - [20.9 Same bits, different reading](ch20.md#s20-9)

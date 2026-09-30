@@ -1091,7 +1091,7 @@ static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, prov
     if (nd->kind == LOW_CST_GROUP) return nd->nkids ? tc_infer(c, nd->kids[0], env, nenv) : tk(TK_UNKNOWN);
     if (nd->kind == LOW_CST_ACCESS) return tk(TK_UNKNOWN);  // struct/slice element typing: future
     // ★★ RFC-0132 §13.7 — using 패스가 만든 [using, (send …), <나열>]: send 와 나열 원소를 재고, 값의 타입은 선언이 말한다.
-    if (nd->kind == LOW_CST_FORM && nd->nkids == 3 && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->synth &&
+    if (nd->kind == LOW_CST_FORM && (nd->nkids == 3 || nd->nkids == 4) && nd->kids[0]->kind == LOW_CST_ATOM && nd->kids[0]->synth &&
         veq(nd->kids[0]->tok.lex, "using")) {
         (void)tc_infer(c, nd->kids[1], env, nenv);
         (void)tc_infer(c, nd->kids[2], env, nenv);

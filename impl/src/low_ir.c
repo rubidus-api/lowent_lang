@@ -676,6 +676,12 @@ typedef struct ir_ctx_s ir_ctx_t_fwd;
  proven_size_t       g_nrg;
  proven_u8           g_rgroot[IR_MAXREGION];
  proven_size_t       g_rgslot[IR_MAXREGION];
+const low_cst_t     *g_relform[IR_MAXREL];     // ★ RFC-0135 S2
+proven_size_t        g_relslot[IR_MAXREL];
+proven_size_t        g_nrel;
+proven_size_t        g_using_ov = (proven_size_t)-1;
+const low_cst_t     *g_relsub_atom;
+proven_size_t        g_relsub_slot;
 static bool ir_is_region_name(ir_ctx_t *c, proven_u8str_view_t n) {
     (void)c;
     for (proven_size_t i = 0; i < g_nrg; i++)
@@ -2390,15 +2396,18 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
  void ir_value(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end) {
     if (*pos >= end || c->failed) { ir_emit(c, IRW_CONST, 0); return; }
     const low_cst_t *nd = k[(*pos)++];
+    if (g_relsub_atom && nd == g_relsub_atom) { ir_emit(c, IRW_LOAD, (proven_i64)g_relsub_slot); return; }   // ★ RFC-0135 S2
     // ★ METHOD 원자(`..name`)도 **이름 원자**다 — 이 블록이 IDENT 만 열려 있어서 통째로
     //   건너뛰고 fallthrough 에서 "unsupported atom" 이 났다. (그 진단은 **오진**이었다.)
     // ★★ RFC-0132 §13.7 — using 패스가 만든 [using, (send <출처> reserve <바이트>), <나열>]: 받으면 채워 `some`, 못 받으면 `none`.
     if (is_atom(nd) && nd->synth && veq(nd->tok.lex, "using") && *pos + 2 <= end) {
         const low_cst_t *snd = k[(*pos)++], *lst = k[(*pos)++];
+        if (*pos < end) (*pos)++;                        // ★ RFC-0135 S2 — 넷째 자식(돌려주기)은 값이 아니다(바인딩이 건다)
         ir_node(c, snd);
         proven_size_t ov = ir_hidden_local(c, nd->line);
         if (c->failed) return;
         ir_emit(c, IRW_STORE, (proven_i64)ov);
+        g_using_ov = ov;                                   // ★ RFC-0135 S2 — 돌려줄 바이트는 이 슬롯에 있다
         ir_emit(c, IRW_LOAD, (proven_i64)ov); ir_emit(c, IRW_HASVAL, 0);
         proven_size_t to_none = ir_emit(c, IRW_BRZ, 0);
         ir_emit(c, IRW_LOAD, (proven_i64)ov); ir_emit(c, IRW_SOMEVAL, 0);

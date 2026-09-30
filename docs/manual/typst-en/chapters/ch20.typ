@@ -194,9 +194,25 @@ take its bytes from an allocator you choose: write `using <allocator>` on the bi
 - To carry the failure along as an `option`, write the whole type: `let big using bb be option mut slice u64 lit … .` --- then check it
   later with `guard` or `match`.
 - Filling works as for a frame list: list the elements, or fill chosen cells with `do … end`.
-- The bytes belong to the allocator, so their lifetime follows it. Bytes from the heap may be returned out of the block; bytes
+- The bytes belong to the allocator, so their lifetime follows it. Bytes from the heap may be passed out of the block; bytes
   from a bump allocator backed by a frame array cannot leave that array's block (`E-LIT-ESCAPE`).
 - Writing `using` with neither `else` nor `option`, or on a `lit vec`, is `E-LIT-USING`.
+
+=== Given back when the block ends
+
+When the allocator can take pieces back one by one (`freeing_allocator`), bytes taken with `using` are given back automatically
+when the block that declared the name ends. The same happens when the block is left by `return`, or by `break` or `continue` in a loop.
+
+#demo("examples/ch20/autorel.low")
+
+- Each time the loop body runs, `t` takes 32 bytes, and they are given back when the body ends. So the loop runs ten times on 64
+  backing bytes and `used` is 0 afterwards. Without the give-back, the third round would run out of bytes and go to `else`. The
+  answer 45 is the sum of 0 to 9.
+- Giving back is `send <allocator> release <piece>`. Whether the bytes are taken back is the allocator's policy --- `bump_bytes`
+  takes back only the piece it gave last. So when one block takes two, the inner (later) one is given back first.
+- After they are given back, the bytes belong to something else. Carrying them out of the block (`return t`, or storing them in a
+  name further out) is `E-LIT-ESCAPE`.
+- Bytes from an allocator that cannot take pieces back (`fixed_bytes`, `heap_bytes`) stay with the allocator.
 
 == Where the three layers sit in the standard library
 

@@ -110,6 +110,7 @@ typedef struct {
     proven_size_t brk[IR_MAXPATCH]; proven_size_t nbrk;   // break → loop end
     proven_size_t cnt[IR_MAXPATCH]; proven_size_t ncnt;   // continue → cond (while) / step (for)
     proven_size_t rgdepth;                                 // ★ 루프에 들어설 때 열려 있던 영역 수(RFC-0112 D5(5))
+    proven_size_t reldepth;                                // ★ 루프에 들어설 때 걸려 있던 돌려주기 수(RFC-0135 S2)
 } ir_loop_t;
 
 typedef struct {
@@ -476,6 +477,16 @@ extern proven_u8str_view_t g_rgnames[IR_MAXREGION];
 // ★ RFC-0112 D3 — 그 영역이 **어느 뿌리**에서 깎는가(1 = 힙, 0 = 고정 창). 이름과 같은 자리.
 extern proven_u8 g_rgroot[IR_MAXREGION];
 extern proven_size_t g_rgslot[IR_MAXREGION];   // 그 깊이의 표식이 사는 지역 슬롯
+// ★★ RFC-0135 S2 (D11) — 블록을 나갈 때 돌려줄 할당기 바이트(바인딩 슬롯 + `send <출처> release (some_value <이름>)`)
+#define IR_MAXREL 64
+extern const low_cst_t *g_relform[IR_MAXREL];
+extern proven_size_t    g_relslot[IR_MAXREL];
+extern proven_size_t    g_nrel;
+// 돌려줄 것은 **받은 그대로의 바이트**(reserve 의 답)다 — 바인딩의 타입 붙은 보기가 아니다(길이가 원소 수라 release 가 거절한다).
+//   값 하강이 그 답을 담은 숨은 슬롯을 g_using_ov 에 남기고, 돌려주기를 넣는 동안 g_relsub_atom(폼 안의 이름 원자)을 그 슬롯으로 읽는다.
+extern proven_size_t    g_using_ov;
+extern const low_cst_t *g_relsub_atom;
+extern proven_size_t    g_relsub_slot;
 
 
 /* (WO-0165) 진짜 결합 — 문 하강이 **식 하강·맥락**에 기대는 자리 */

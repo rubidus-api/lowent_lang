@@ -507,6 +507,34 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                         sk[1] = (low_cst_t *)explicit_src;
                         sk[2] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"reserve", .size = 7 });
                         sk[3] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)num, .size = strlen(num) });
+                        // ★ RFC-0132 T2b-3d — 원소가 구조체인 나열: 바이트 수는 (mul <개수> (size_of <구조체>))
+                        bool elem_struct = is_list && !(us_eq(ty, "u8") || us_eq(ty, "i8") || us_eq(ty, "u16") || us_eq(ty, "i16") ||
+                                           us_eq(ty, "u32") || us_eq(ty, "i32") || us_eq(ty, "u64") || us_eq(ty, "i64") || us_eq(ty, "f32") ||
+                                           us_eq(ty, "f64") || us_eq(ty, "usize") || us_eq(ty, "isize") || us_eq(ty, "bool"));
+                        if (elem_struct && sk[3]) {
+                            char *cn = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, 24, 1).value.ptr;
+                            low_cst_t **mk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 3, alignof(low_cst_t *)).value.ptr;
+                            low_cst_t **zk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 2, alignof(low_cst_t *)).value.ptr;
+                            low_cst_t **g1 = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *), alignof(low_cst_t *)).value.ptr;
+                            low_cst_t **g2 = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *), alignof(low_cst_t *)).value.ptr;
+                            low_cst_t *mf = low_node(&c->p, LOW_CST_FORM, explicit_src->tok), *mg = low_node(&c->p, LOW_CST_GROUP, explicit_src->tok);
+                            low_cst_t *zf = low_node(&c->p, LOW_CST_FORM, explicit_src->tok), *zg = low_node(&c->p, LOW_CST_GROUP, explicit_src->tok);
+                            low_cst_t *m0 = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"mul", .size = 3 });
+                            low_cst_t *z0 = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"size_of", .size = 7 });
+                            low_cst_t *z1 = us_atom_like(c, lg->kids[2], ty);
+                            if (cn && mk && zk && g1 && g2 && mf && mg && zf && zg && m0 && z0 && z1) {
+                                snprintf(cn, 24, "%llu", cnt);
+                                low_cst_t *m1 = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)cn, .size = strlen(cn) });
+                                if (m1) {
+                                    m1->tok.kind = LOW_TOK_NUMBER;
+                                    zk[0] = z0; zk[1] = z1; (void)low_refit(&c->p, zf, zk, 2); zf->synth = true;
+                                    g1[0] = zf; (void)low_refit(&c->p, zg, g1, 1); zg->synth = true;
+                                    mk[0] = m0; mk[1] = m1; mk[2] = zg; (void)low_refit(&c->p, mf, mk, 3); mf->synth = true;
+                                    g2[0] = mf; (void)low_refit(&c->p, mg, g2, 1); mg->synth = true;
+                                    sk[3] = mg;
+                                }
+                            }
+                        }
                         if (sl && sk[3]) {                      // (size_of <구조체>)
                             low_cst_t **zk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 2, alignof(low_cst_t *)).value.ptr;
                             low_cst_t **zg = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *), alignof(low_cst_t *)).value.ptr;
@@ -520,7 +548,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                             } else sk[3] = NULL;
                         }
                         if (sk[0] && sk[2] && sk[3]) {
-                            if (!sl) sk[3]->tok.kind = LOW_TOK_NUMBER;
+                            if (!sl && sk[3]->kind == LOW_CST_ATOM) sk[3]->tok.kind = LOW_TOK_NUMBER;
                             sk[0]->tok.kw = LOW_KW_SEND;          // 파서가 `send` 에 붙이는 예약어 표시 그대로
                             (void)low_refit(&c->p, sf, sk, 4); sf->synth = true;
                             gk[0] = sf; (void)low_refit(&c->p, sg, gk, 1); sg->synth = true;

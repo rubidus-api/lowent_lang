@@ -900,7 +900,29 @@ mistake_frameescape.low:7:0 E-LIT-ESCAPE: this carries a view of a list literal'
 table(3, 5) = 6
 $ lowentc --run table cellfill.low 3 1
 table(3, 1) = 1
-</code></pre></div></div><p>Values may be expressions and are computed in the order written. Lists of structs are not built yet; using one gives <code>E-LIT-UNBUILT</code>, which says what is not built.</p><h3 id="s9-5">9.5 Contracts remove bounds checks<a class="plink" href="#s9-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>An <code>index</code> bounds check remains only where it is not proven. Write the length condition as <code>requires</code>, and the check happens <strong>once</strong> on entry to the op while the index checks in the body disappear.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/bounds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bounds .
+</code></pre></div></div><p>Values may be expressions and are computed in the order written.</p><p>The elements may be structs too, as long as the struct has a byte layout — every field a sized number.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/structlist.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> structlist .
+<em><span class="tok-c">rem run: total 7</span></em>
+
+<strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u32</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong>
+
+<em><span class="tok-c">rem a list whose elements are structs --- each element is a copy of its value, and a field is written with `(field ps 1 y)`</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> pt lit pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y a . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">var</span></strong> ps <strong><span class="tok-k">be</span></strong> lit <strong><span class="tok-k">array</span></strong> pt <span class="tok-n">3</span> p (lit pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">2</span> . y <span class="tok-n">20</span> . <strong><span class="tok-k">end</span></strong>) _ . .
+  <strong><span class="tok-k">set</span></strong> (field ps <span class="tok-n">2</span> y) <span class="tok-n">100</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">for</span></strong> q ps <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> s (add s (add (widen <strong><span class="tok-t">u64</span></strong> (field q x)) (field q y))) .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> s .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run total structlist.low 7
+total(7) = 130
+</code></pre></div></div><ul><li>Each element is a <strong>copy</strong> of the value given. Changing a field in the list after putting <code>p</code> in it leaves <code>p</code> as it was.</li><li>An element’s field is written as <code>set (field ps 2 y) 100 .</code> — the list’s name, the position, then the field.</li><li>Cell fills (<code>do &lt;index> &lt;value> . _ &lt;value> . end</code>) and <code>lit slice pt …</code> work the same way. A <code>let</code> list of only <code>_</code> is read-only zeros.</li><li>A struct with a slice, <code>owned</code> or array field cannot be an element yet (<code>E-LIT-UNBUILT</code>). A number where a struct goes is <code>E-TYPE-FIELD</code>, and a different struct is <code>E-TYPE-STRUCT</code>.</li></ul><h3 id="s9-5">9.5 Contracts remove bounds checks<a class="plink" href="#s9-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>An <code>index</code> bounds check remains only where it is not proven. Write the length condition as <code>requires</code>, and the check happens <strong>once</strong> on entry to the op while the index checks in the body disappear.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/bounds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bounds .
 <em><span class="tok-c">rem run: sum_first [3,4,5,6] 3</span></em>
 
 <strong><span class="tok-k">fn</span></strong> sum_first <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .

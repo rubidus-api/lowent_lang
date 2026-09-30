@@ -1132,6 +1132,7 @@ static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, prov
         (veq(nd->kids[1]->tok.lex, "array") || veq(nd->kids[1]->tok.lex, "slice") ||
          (veq(nd->kids[1]->tok.lex, "vec") && nd->kids[nd->nkids - 1]->kind != LOW_CST_BLOCK))) {
         ty_t et = ty_of_word(nd->kids[2]->tok.lex);
+        if (et.k == TK_NAMED) et.nname = nd->kids[2]->tok.lex;   // T2b-3d — 구조체 원소는 이름으로 맞댄다(E-TYPE-STRUCT)
         proven_size_t e0 = veq(nd->kids[1]->tok.lex, "slice") ? 3 : 4;
         for (proven_size_t q = e0; q < nd->nkids && et.k != TK_UNKNOWN; q++) {
             const low_cst_t *e = nd->kids[q];

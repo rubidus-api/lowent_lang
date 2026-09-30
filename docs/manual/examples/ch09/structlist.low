@@ -1,0 +1,20 @@
+module structlist .
+rem run: total 7
+
+struct pt do
+  x u32 .
+  y u64 .
+end
+
+rem ko: 원소가 구조체인 나열 --- 원소는 값의 사본이고, 칸은 `(field ps 1 y)` 로 쓴다 /// en: a list whose elements are structs --- each element is a copy of its value, and a field is written with `(field ps 1 y)`
+export fn total input a u64 . output u64 .
+do
+  let p be pt lit pt do x 1 . y a . end .
+  var ps be lit array pt 3 p (lit pt do x 2 . y 20 . end) _ . .
+  set (field ps 2 y) 100 .
+  var s be u64 0 .
+  for q ps do
+    set s (add s (add (widen u64 (field q x)) (field q y))) .
+  end
+  return s .
+end

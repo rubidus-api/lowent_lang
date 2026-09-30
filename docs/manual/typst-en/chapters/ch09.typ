@@ -142,8 +142,17 @@ the list has no period of its own.
 
 #demo("examples/ch09/cellfill.low")
 
-Values may be expressions and are computed in the order written. Lists of structs are not built yet; using one gives
-`E-LIT-UNBUILT`, which says what is not built.
+Values may be expressions and are computed in the order written.
+
+The elements may be structs too, as long as the struct has a byte layout --- every field a sized number.
+
+#demo("examples/ch09/structlist.low")
+
+- Each element is a *copy* of the value given. Changing a field in the list after putting `p` in it leaves `p` as it was.
+- An element's field is written as `set (field ps 2 y) 100 .` --- the list's name, the position, then the field.
+- Cell fills (`do <index> <value> . _ <value> . end`) and `lit slice pt …` work the same way. A `let` list of only `_` is read-only zeros.
+- A struct with a slice, `owned` or array field cannot be an element yet (`E-LIT-UNBUILT`). A number where a struct goes is
+  `E-TYPE-FIELD`, and a different struct is `E-TYPE-STRUCT`.
 
 == Contracts remove bounds checks
 

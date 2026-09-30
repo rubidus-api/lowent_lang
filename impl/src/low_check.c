@@ -7181,6 +7181,8 @@ static bool ck_lit_elem_fits(proven_u8str_view_t ty, proven_u8str_view_t num) {
     unsigned long long lim = 1ull << (bits - 1);                      // 음수는 lim 까지, 양수는 lim-1 까지
     return neg ? v <= lim : v < lim;
 }
+static bool ck_struct_layout(proven_u8str_view_t ty, unsigned *bytes, unsigned *align, int depth);
+static bool ck_struct_exists(proven_u8str_view_t ty);
 static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
     if (!nd) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
@@ -7210,9 +7212,14 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
         bool flt = veq(ty, "f32") || veq(ty, "f64"), isbool = veq(ty, "bool");
         bool sized = flt || isbool || veq(ty, "u8") || veq(ty, "i8") || veq(ty, "u16") || veq(ty, "i16") || veq(ty, "u32") ||
                      veq(ty, "i32") || veq(ty, "u64") || veq(ty, "i64") || veq(ty, "usize") || veq(ty, "isize");
-        if (!sized) {
-            emit(out, "E-LIT-UNBUILT", "the element type of a list literal must be a sized scalar today (an integer, `f32`/`f64` "
-                 "or `bool`) — arrays of structs come with RFC-0132 T2b-3", ln);
+        unsigned sbytes = 0, salign = 0;
+        bool is_struct = !sized && !veq(nd->kids[1]->tok.lex, "vec") && ck_struct_layout(ty, &sbytes, &salign, 0);
+        if (!sized && !is_struct) {
+            emit(out, "E-LIT-UNBUILT", ck_struct_exists(ty)
+                 ? "the elements of a list literal must have a byte layout — this struct has a slice, `owned` or array field, so it "
+                   "cannot be laid out in a list yet (RFC-0132 T2b-3d)"
+                 : "the element type of a list literal must be a sized scalar (an integer, `f32`/`f64` or `bool`) or a struct "
+                   "whose fields all are (RFC-0132 T2b-3d)", ln);
             return;
         }
         proven_size_t i = 3; long long n = -1;
@@ -7259,7 +7266,11 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                     if (seen[k / 8] & (1u << (k % 8))) { emit(out, "E-LIT-INDEX", "this cell is filled twice — each index appears once", cl); free(seen); return; }
                     seen[k / 8] |= (unsigned char)(1u << (k % 8)); got++;
                 }
-                if (c->nkids == 2 && c->kids[1]->kind == LOW_CST_ATOM) {
+                if (is_struct && c->nkids == 2 && c->kids[1]->kind == LOW_CST_ATOM &&
+                    (c->kids[1]->tok.kind == LOW_TOK_NUMBER || c->kids[1]->tok.kw == LOW_KW_TRUE || c->kids[1]->tok.kw == LOW_KW_FALSE)) {
+                    emit(out, "E-TYPE-FIELD", "a list of structs holds struct values — write `lit <struct> do … end` or a name", cl); free(seen); return;
+                }
+                if (!is_struct && c->nkids == 2 && c->kids[1]->kind == LOW_CST_ATOM) {
                     const low_cst_t *e = c->kids[1];
                     bool tf = e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE;
                     if (tf && !isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` value in a list of numbers — write the number", cl); free(seen); return; }
@@ -7287,6 +7298,10 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                     return;
                 }
                 tail_fill = true; continue;
+            }
+            if (is_struct && e->kind == LOW_CST_ATOM && (e->tok.kind == LOW_TOK_NUMBER || e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE)) {
+                emit(out, "E-TYPE-FIELD", "a list of structs holds struct values — write `lit <struct> do … end` or a name", ln);
+                return;
             }
             if (e->kind == LOW_CST_ATOM && (e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE)) {
                 if (!isbool) { emit(out, "E-TYPE-WIDTH", "a `bool` element in a list of numbers — write the number", ln); return; }
@@ -7420,6 +7435,7 @@ static proven_size_t lc_bytes(const low_cst_t *l) {
                         veq(l->kids[2]->tok.lex, "u32") || veq(l->kids[2]->tok.lex, "i32") || veq(l->kids[2]->tok.lex, "f32") ? 4 :
                         veq(l->kids[2]->tok.lex, "u64") || veq(l->kids[2]->tok.lex, "i64") || veq(l->kids[2]->tok.lex, "f64") ||
                         veq(l->kids[2]->tok.lex, "usize") || veq(l->kids[2]->tok.lex, "isize") ? 8 : 1) : 1;
+    { unsigned sb, sa; if (ck_atom(l->kids[2]) && !ck_elem_sized(l->kids[2]->tok.lex) && ck_struct_layout(l->kids[2]->tok.lex, &sb, &sa, 0)) esz = sb; }
     proven_size_t n = 0;
     if (veq(l->kids[1]->tok.lex, "array") && l->nkids > 3 && ck_atom(l->kids[3]) && l->kids[3]->tok.kind == LOW_TOK_NUMBER)
         n = (proven_size_t)strtoull((const char *)l->kids[3]->tok.lex.ptr, NULL, 0);
@@ -7461,6 +7477,41 @@ static bool ck_is_array_field(proven_u8str_view_t ty, proven_u8str_view_t fname)
                 proven_u8str_view_eq(fl->kids[0]->tok.lex, fname)) return veq(fl->kids[1]->tok.lex, "array");
         }
         return false;
+    }
+    return false;
+}
+// ★ RFC-0132 T2b-3d — 구조체의 **바이트 배치**(처리기 ir_struct_layout 과 같은 셈): 칸이 모두 크기 있는 수(또는 그런 구조체)면
+//   참이고 크기를 준다 — 자연 정렬 · `layout packed` · `align n`. 슬라이스 · owned · 배열 칸 · 모르는 타입이면 거짓.
+static bool ck_struct_layout(proven_u8str_view_t ty, unsigned *bytes, unsigned *align, int depth) {
+    if (!g_ck_pr || depth > 8) return false;
+    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
+        const low_cst_t *f = g_ck_pr->forms[i];
+        if (!(f->kind == LOW_CST_FORM && f->nkids >= 3 && ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
+              ck_atom(f->kids[1]) && proven_u8str_view_eq(f->kids[1]->tok.lex, ty))) continue;
+        const low_cst_t *blk = f->kids[f->nkids - 1];
+        if (blk->kind != LOW_CST_BLOCK) return false;
+        unsigned off = 0, maxal = 1, decl_al = 0, nf = 0; bool packed = false;
+        for (proven_size_t j = 0; j < blk->nkids; j++) {
+            const low_cst_t *fl = blk->kids[j];
+            if (fl->kind != LOW_CST_FORM || fl->nkids < 2 || !ck_atom(fl->kids[0]) || !ck_atom(fl->kids[1])) return false;
+            proven_u8str_view_t w0 = fl->kids[0]->tok.lex, w1 = fl->kids[1]->tok.lex;
+            if (veq(w0, "layout")) { packed = veq(w1, "packed"); continue; }
+            if (veq(w0, "align")) { decl_al = (unsigned)strtoul((const char *)w1.ptr, NULL, 0); continue; }
+            if (veq(w0, "mmio") || veq(w0, "storage") || veq(w0, "input")) return false;
+            unsigned sz, al;
+            if (ck_elem_sized(w1)) { sz = ck_elem_bytes(w1); al = sz; }
+            else if (!ck_struct_layout(w1, &sz, &al, depth + 1)) return false;
+            if (fl->nkids > 2 && ck_atom(fl->kids[2]) && fl->kids[2]->tok.kind == LOW_TOK_NUMBER) return false;   // 배열 칸
+            if (!packed) { if (al && off % al) off += al - off % al; if (al > maxal) maxal = al; }
+            off += sz; nf++;
+        }
+        if (!nf) return false;
+        if (decl_al > maxal) maxal = decl_al;
+        if (packed) maxal = decl_al ? decl_al : 1;
+        if (maxal > 1 && off % maxal) off += maxal - off % maxal;
+        *bytes = off; *align = maxal;
+        return true;
     }
     return false;
 }

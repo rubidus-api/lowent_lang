@@ -900,7 +900,29 @@ mistake_frameescape.low:7:0 E-LIT-ESCAPE: this carries a view of a list literal'
 table(3, 5) = 6
 $ lowentc --run table cellfill.low 3 1
 table(3, 1) = 1
-</code></pre></div></div><p>값은 식이어도 되고 적은 차례로 계산된다. 원소가 구조체인 나열은 아직 없고, 쓰면 <code>E-LIT-UNBUILT</code> 가 무엇이 아직인지 말한다.</p><h3 id="s9-5">9.5 계약이 경계 검사를 지운다<a class="plink" href="#s9-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>index</code> 의 경계 검사는 증명되지 않은 자리에만 남는다. 길이 조건을 <code>requires</code> 로 적으면 검사는 op 진입에서 <strong>한 번</strong>만 일어나고, 본문의 색인 검사는 사라진다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/bounds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bounds .
+</code></pre></div></div><p>값은 식이어도 되고 적은 차례로 계산된다.</p><p>원소가 구조체여도 된다. 다만 바이트 배치가 있는 구조체여야 한다 — 칸이 모두 크기 있는 수인 구조체다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/structlist.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> structlist .
+<em><span class="tok-c">rem run: total 7</span></em>
+
+<strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u32</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong>
+
+<em><span class="tok-c">rem 원소가 구조체인 나열 --- 원소는 값의 사본이고, 칸은 `(field ps 1 y)` 로 쓴다</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> pt lit pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">1</span> . y a . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">var</span></strong> ps <strong><span class="tok-k">be</span></strong> lit <strong><span class="tok-k">array</span></strong> pt <span class="tok-n">3</span> p (lit pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">2</span> . y <span class="tok-n">20</span> . <strong><span class="tok-k">end</span></strong>) _ . .
+  <strong><span class="tok-k">set</span></strong> (field ps <span class="tok-n">2</span> y) <span class="tok-n">100</span> .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">for</span></strong> q ps <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> s (add s (add (widen <strong><span class="tok-t">u64</span></strong> (field q x)) (field q y))) .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> s .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run total structlist.low 7
+total(7) = 130
+</code></pre></div></div><ul><li>원소는 준 값의 <strong>사본</strong>이다. <code>p</code> 를 나열에 넣은 뒤 나열의 칸을 바꿔도 <code>p</code> 는 그대로다.</li><li>원소의 칸은 <code>set (field ps 2 y) 100 .</code> 처럼 쓴다. 나열 이름 · 자리 번호 · 칸 이름 차례다.</li><li>칸 골라 채우기(<code>do &lt;번호> &lt;값> . _ &lt;값> . end</code>)와 <code>lit slice pt …</code> 도 같다. 모두 <code>_</code> 인 <code>let</code> 나열은 읽기 전용 0 이다.</li><li>슬라이스 · <code>owned</code> · 배열 칸이 있는 구조체는 아직 원소가 될 수 없다(<code>E-LIT-UNBUILT</code>). 원소 자리에 수를 적으면 <code>E-TYPE-FIELD</code>, 다른 구조체를 적으면 <code>E-TYPE-STRUCT</code> 다.</li></ul><h3 id="s9-5">9.5 계약이 경계 검사를 지운다<a class="plink" href="#s9-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>index</code> 의 경계 검사는 증명되지 않은 자리에만 남는다. 길이 조건을 <code>requires</code> 로 적으면 검사는 op 진입에서 <strong>한 번</strong>만 일어나고, 본문의 색인 검사는 사라진다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/bounds.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bounds .
 <em><span class="tok-c">rem run: sum_first [3,4,5,6] 3</span></em>
 
 <strong><span class="tok-k">fn</span></strong> sum_first <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .

@@ -2091,6 +2091,100 @@ static void ir_lit_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, pr
     ir_emit(c, IRW_CONST, 0);
     ir_emit(c, IRW_VLOAD, meta);
 }
+// ★★ RFC-0132 T2b-3d (N1) — **구조체 원소 나열** `lit array pt N <값>… [_] .` · `lit array pt N do <번호> <값> . _ <값> . end` ·
+//   `lit slice pt <값>… .`. 원소는 바이트 배치가 있는 구조체(칸이 모두 크기 있는 수)이고, 자리는 스칼라 나열과 같다(틀 · 할당기 ·
+//   모두 `_` 면 읽기 전용 0). 바이트 위에 `view_array pt` 와 같은 보기(IRW_VARRAY + 구조체 표시)를 얹고, 원소마다 값을 한 번
+//   계산해 칸을 베껴 쓴다(구조체는 값이다 — 원소는 그 값의 사본이다).
+static void ir_lit_struct_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line,
+                               proven_size_t si, bool is_array, bool want_frame, bool into) {
+    const low_ir_struct_t *st = &c->out->structs[si];
+    if (!st->viewable || !st->total || st->total > 255) {
+        ir_fail(c, "E-LIT-UNBUILT", "the elements of a list literal must have a byte layout — a struct with a slice, `owned` or "
+                "array field (or larger than 255 bytes) cannot be laid out in a list yet (RFC-0132 T2b-3d)", line);
+        return;
+    }
+    for (proven_size_t q = 0; q < st->nf; q++)
+        if (st->f[q].sidx >= 0) { ir_fail(c, "E-LIT-UNBUILT", "a struct element whose field is itself a struct is not laid out in a list yet (RFC-0132 T2b-3d)", line); return; }
+    proven_size_t esz = st->total;
+    proven_i64 vmeta = (proven_i64)esz | IR_STRUCT_BIT | ((proven_i64)si << 20);
+    proven_i64 n = -1;
+    if (is_array) {
+        if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array T N …` needs its length N as a literal", line); return; }
+        (*pos)++;
+    }
+    const low_cst_t *blk = (*pos < end && k[end - 1]->kind == LOW_CST_BLOCK) ? k[end - 1] : NULL;
+    proven_size_t e0 = *pos, cnt = 0;
+    bool any_value = blk != NULL;
+    if (!blk)
+        for (proven_size_t q = e0; q < end; q++) {
+            if (is_atom(k[q]) && k[q]->tok.kind == LOW_TOK_IDENT && veq(k[q]->tok.lex, "_")) continue;
+            cnt++; any_value = true;
+        }
+    proven_size_t cap_elems = is_array ? (proven_size_t)n : cnt;
+    if (cnt > cap_elems) { ir_fail(c, "E-LIT-COUNT", "more elements than the length", line); return; }
+    proven_size_t bytes = cap_elems * esz;
+    *pos = end;
+    if (!any_value && !want_frame && !into) {                      // ⓑ 모두 `_` — 읽기 전용 0 바이트
+        proven_u8 *z = bytes ? calloc(bytes, 1) : NULL;
+        if (bytes && !z) { ir_fail(c, "E-IR-UNSUP", "out of memory for a list literal", line); return; }
+        proven_size_t sidx;
+        bool ok = ir_intern_bytes(c, z, bytes, &sidx, line);
+        free(z);
+        if (!ok) return;
+        ir_emit(c, IRW_STR, (proven_i64)sidx);
+        ir_emit(c, IRW_VARRAY, vmeta);
+        return;
+    }
+    if (into) ir_emit(c, IRW_BFILL, (proven_i64)((proven_u64)bytes << 32));
+    else {
+        proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
+        if (off + bytes > low_lbuf_max()) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); return; }
+        c->lbuf_off = off + bytes;
+        ir_emit(c, IRW_LBUF, (proven_i64)((proven_u64)off | ((proven_u64)bytes << 32)));
+    }
+    ir_emit(c, IRW_VARRAY, vmeta);
+    proven_size_t tl = ir_hidden_local(c, line), tv = ir_hidden_local(c, line);
+    if (c->failed) return;
+    ir_emit(c, IRW_STORE, (proven_i64)tl);
+    #define LSL_PUT(cell) do { for (proven_size_t q_ = 0; q_ < st->nf && !c->failed; q_++) { \
+            proven_size_t fid_ = ir_field_intern(c, st->f[q_].name); \
+            ir_emit(c, IRW_LOAD, (proven_i64)tl); ir_emit(c, IRW_CONST, (proven_i64)(cell)); ir_emit(c, IRW_INDEX, 0); \
+            ir_emit(c, IRW_LOAD, (proven_i64)tv); ir_emit(c, IRW_FIELD, (proven_i64)fid_); ir_emit(c, IRW_FSTORE, (proven_i64)fid_); } } while (0)
+    if (blk) {                                                     // 칸 골라 채우기 — 검사층이 번호 · 모든 칸을 먼저 본다
+        unsigned char *named = cap_elems ? calloc(cap_elems, 1) : NULL;
+        if (cap_elems && !named) { ir_fail(c, "E-IR-UNSUP", "out of memory for a cell fill", line); return; }
+        const low_cst_t *rest = NULL;
+        for (proven_size_t q = 0; q < blk->nkids && !c->failed; q++) {
+            const low_cst_t *cf = blk->kids[q];
+            if (cf->kind != LOW_CST_FORM || cf->nkids < 2 || !is_atom(cf->kids[0])) { ir_fail(c, "E-LIT-INDEX", "malformed cell fill", line); break; }
+            if (veq(cf->kids[0]->tok.lex, "_")) { rest = cf; continue; }
+            proven_i64 m;
+            if (!ir_int_lit(cf->kids[0]->tok.lex, &m) || m < 0 || (proven_size_t)m >= cap_elems || named[m]) { ir_fail(c, "E-LIT-INDEX", "bad cell index", line); break; }
+            named[m] = 1;
+            ir_cell_value(c, cf);
+            ir_emit(c, IRW_STORE, (proven_i64)tv);
+            LSL_PUT(m);
+        }
+        if (rest && !c->failed) {
+            ir_cell_value(c, rest);
+            ir_emit(c, IRW_STORE, (proven_i64)tv);
+            for (proven_size_t m = 0; m < cap_elems && !c->failed; m++) if (!named[m]) LSL_PUT(m);
+        }
+        free(named);
+    } else {
+        proven_size_t m = 0;
+        for (proven_size_t q = e0; q < end && !c->failed; q++) {
+            const low_cst_t *e = k[q];
+            if (is_atom(e) && e->tok.kind == LOW_TOK_IDENT && veq(e->tok.lex, "_")) continue;
+            ir_node(c, e);
+            ir_emit(c, IRW_STORE, (proven_i64)tv);
+            LSL_PUT(m);
+            m++;
+        }
+    }
+    #undef LSL_PUT
+    ir_emit(c, IRW_LOAD, (proven_i64)tl);
+}
 static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line, bool as_array) {
     bool want_frame = c->lit_frame; c->lit_frame = false;   // ★ 부르는 쪽의 요구는 이 나열 하나에만
     bool into = c->lit_into; c->lit_into = false;            // ★ §13.7 — 채울 바이트가 이미 스택에 있다
@@ -2100,7 +2194,12 @@ static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos,
     if (!is_array && !is_slice) { ir_fail(c, "E-LIT-UNBUILT", "unknown list literal", line); return; }
     proven_u8str_view_t ty = k[*pos + 1]->tok.lex;
     proven_u8 esz = ir_field_size(ty);
-    if (!esz) { ir_fail(c, "E-LIT-UNBUILT", "a list literal's element type must be a sized scalar here (RFC-0132 T2b-3)", line); return; }
+    if (!esz) {
+        bool sf; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, ty), &sf);
+        if (sf) { *pos += 2; ir_lit_struct_list(c, k, pos, end, line, si, is_array, want_frame, into); return; }
+        ir_fail(c, "E-LIT-UNBUILT", "a list literal's element type must be a sized scalar or a struct with a byte layout (RFC-0132 T2b-3d)", line);
+        return;
+    }
     bool flt = ir_is_float_ty(ty), sgn = ity_of_word(ty).sign;
     proven_i64 vmeta = (proven_i64)esz | (flt ? IR_FLT_BIT : 0) | (sgn ? IR_SGN_BIT : 0);
     bool typed = esz > 1 || sgn || flt || veq(ty, "bool");

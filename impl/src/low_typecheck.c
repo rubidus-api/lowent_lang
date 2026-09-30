@@ -560,6 +560,15 @@ static const tc_sig_t *sig_find(tc_ctx_t *c, proven_u8str_view_t name) {
     for (proven_size_t i = 0; i < c->nsigs; i++) if (proven_u8str_view_eq(c->sigs[i].name, name)) return &c->sigs[i];
     return NULL;
 }
+// ★ X-0076 — 자격 붙은 부름(`files.open`)은 좁혀진 뒤 맨이름(`open`)이지만 가리킨 모듈을 `qual_mod` 에 남긴다. 그 모듈의
+//   시그니처를 **먼저** 본다 — 안 그러면 같은 단위의 다른 모듈이 내보낸 `open` 을 집었다(growvec+trust).
+static const tc_sig_t *sig_find_at(tc_ctx_t *c, const low_cst_t *at) {
+    if (at && at->qual_mod.size)
+        for (proven_size_t i = 0; i < c->nsigs; i++)
+            if (proven_u8str_view_eq(c->sigs[i].name, at->tok.lex) && c->sigs[i].mod.size &&
+                proven_u8str_view_eq(c->sigs[i].mod, at->qual_mod)) return &c->sigs[i];
+    return at ? sig_find(c, at->tok.lex) : NULL;
+}
 static ty_t env_find(const tc_var_t *env, proven_size_t n, proven_u8str_view_t name, bool *found) {
     for (proven_size_t i = n; i-- > 0; ) if (proven_u8str_view_eq(env[i].name, name)) { *found = true; return env[i].ty; }
     *found = false; return tk(TK_UNKNOWN);
@@ -966,7 +975,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
         //     둘 다 **소스에 적히므로** 읽는 사람이 값이 변할 수 있는 자리를 본다(P5).
         //   ☞ *«번역할 때 거부한다» 고 적어 놓고 실행할 때 트랩하면, 그 규범은 반만 참이다.*
         if (veq(k[start]->tok.lex, "widen") && n >= 3 && k[start + 1]->kind == LOW_CST_ATOM
-            && !sig_find(c, k[start]->tok.lex)) {
+            && !sig_find_at(c, k[start])) {
             ty_t tgt = ty_of_word(k[start + 1]->tok.lex);
             ty_t src = tc_infer(c, k[start + 2], env, nenv);
             for (proven_size_t i = 3; i < n; i++) (void)tc_infer(c, k[start + i], env, nenv);
@@ -1072,7 +1081,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             }
         }
         // call: head + args
-        const tc_sig_t *s = sig_find(c, k[start]->tok.lex);
+        const tc_sig_t *s = sig_find_at(c, k[start]);
         if (s) {
             for (proven_size_t i = 0; i + 1 < n && i < s->nparams; i++) {
                 ty_t at = tc_infer(c, k[start + 1 + i], env, nenv);
@@ -1102,7 +1111,7 @@ static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, prov
         //   (dist 는 meters 를 돌려준다)가 검사기의 눈에 *"모르는 것"* 이었다.
         //   ★ 환경이 **먼저**다: 같은 이름의 지역이 있으면 그것이 이 자리의 뜻이다.
         {
-            const tc_sig_t *s0 = sig_find(c, nd->tok.lex);
+            const tc_sig_t *s0 = sig_find_at(c, nd);
             if (s0 && s0->nparams == 0) return s0->ret;
         }
         return tk(TK_UNKNOWN);

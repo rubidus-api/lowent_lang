@@ -72,9 +72,18 @@ typedef struct {
 //   ★ 그래서 파일 핸들처럼 *"여러 번 읽고 마지막에 닫는다"* 는 가장 흔한 모양이
 //     표현 불가능했다 — A6 에서 라이터가 겪은 것과 **같은 벽**이다.
 //   ⇒ 피호출자의 그 파라미터가 `owned`(또는 `mut`/`mut_ref` — 배타 접근)일 때만 이동이다.
+static proven_u8str_view_t g_ck_own_mod;   // 소유 검사가 지금 보는 op 의 모듈(그 고리 안에서만 선다)
 static bool ck_param_moves(const low_opinfo_t *tab, proven_size_t nt,
-                           proven_u8str_view_t opname, proven_size_t argi) {
-    for (proven_size_t i = 0; i < nt; i++) {
+                           const low_cst_t *at, proven_size_t argi) {
+    proven_u8str_view_t opname = at->tok.lex;
+    // ★ X-0076 — 좁혀진 자격 부름은 그 모듈의 op 을, 맨이름은 **부르는 쪽 모듈**의 op 을 먼저 본다(맨이름은 늘 제
+    //   모듈을 가리킨다 — 남의 것은 자격을 붙여야 닿는다). 같은 이름의 남의 op 은 소유를 안 옮길 수 있다(math.close).
+    proven_u8str_view_t want = at->qual_mod.size ? at->qual_mod : g_ck_own_mod;
+    proven_size_t first = 0;
+    if (want.size)
+        for (proven_size_t i = 0; i < nt; i++)
+            if (proven_u8str_view_eq(tab[i].name, opname) && proven_u8str_view_eq(tab[i].mod, want)) { first = i; break; }
+    for (proven_size_t i = first; i < nt; i++) {
         if (!proven_u8str_view_eq(tab[i].name, opname)) continue;
         if (!tab[i].form) return true;              // 모르면 **보수적으로** 이동이라 본다
         low_op_header_t h = low_op_header(tab[i].form);
@@ -5416,7 +5425,7 @@ static bool ck_own_consumes(const low_cst_t *nd, proven_u8str_view_t name, prove
             if (nd->kids[j]->kind != LOW_CST_ATOM) break;
             if (ck_is_op(tab, nt, nd->kids[j]->tok.lex)) {
                 // ★ 그 op 의 **몇 번째 인자**인지 세어(op 이름 바로 뒤부터) 파라미터 타입을 본다.
-                if (ck_param_moves(tab, nt, nd->kids[j]->tok.lex, i - j - 1)) return true;
+                if (ck_param_moves(tab, nt, nd->kids[j], i - j - 1)) return true;
                 break;                              // 복사다 — 이 언급은 이동이 아니다
             }
         }
@@ -5641,6 +5650,7 @@ static bool ck_name_in(const proven_u8str_view_t *v, proven_size_t n, proven_u8s
 //   이름 `r` 을 통째로 쓰면 칸 하나라도 오염됐으면 오염이다(보수적).
 struct ck_r1_sum_s; static const low_opinfo_t *ck_r1_tab; static proven_size_t ck_r1_nt;
 static const low_opinfo_t *ck_find_callee(const low_opinfo_t *tab, proven_size_t nt, proven_u8str_view_t callee);
+static const low_opinfo_t *ck_find_callee_at(const low_opinfo_t *tab, proven_size_t nt, const low_cst_t *at);
 static bool ck_r1_flow_mask(const low_opinfo_t *op, unsigned long long *all);
 #define CK_FT_MAX 64
 static proven_u8str_view_t ck_ft_name[CK_FT_MAX], ck_ft_fld[CK_FT_MAX]; static proven_size_t ck_ft_n; static bool ck_ft_full;
@@ -5668,7 +5678,7 @@ static bool ck_carries_taint(const low_cst_t *nd, const proven_u8str_view_t *t, 
     // ★ 후속 ③ R1 — 요약을 아는 op 의 부름은 **결과로 흐르는 인자만** 오염을 옮긴다(`pick_first a <영역 바이트>` 는 `a` 만).
     if (ck_r1_tab && nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_NONE &&
         !ck_scalar_head(nd->kids[0]->tok.lex)) {
-        const low_opinfo_t *op = ck_find_callee(ck_r1_tab, ck_r1_nt, nd->kids[0]->tok.lex);
+        const low_opinfo_t *op = ck_find_callee_at(ck_r1_tab, ck_r1_nt, nd->kids[0]);
         unsigned long long all = 0;
         if (op && ck_r1_flow_mask(op, &all)) {
             for (proven_size_t q = 1; q < nd->nkids && q - 1 < 64; q++)
@@ -5850,7 +5860,7 @@ static void ck_region_walk(low_check_result_t *out, const low_cst_t *nd, ck_rgct
                 while (call && call->kind == LOW_CST_GROUP && call->nkids == 1) call = call->kids[0];
                 if (call && call->kind == LOW_CST_FORM && call->nkids >= 2 && ck_atom(call->kids[0]) &&
                     call->kids[0]->tok.kw == LOW_KW_NONE && !ck_has_fresh_bytes(call)) {
-                    const low_opinfo_t *op = ck_find_callee(ck_r1_tab, ck_r1_nt, call->kids[0]->tok.lex);
+                    const low_opinfo_t *op = ck_find_callee_at(ck_r1_tab, ck_r1_nt, call->kids[0]);
                     ck_r1_sum_t sm;
                     if (op && ck_r1_summary(op, &sm)) {
                         unsigned long long targ = 0;
@@ -7506,7 +7516,7 @@ static int lc_carry(const lc_t *x, const low_cst_t *nd) {
 static int lc_call(const lc_t *x, low_cst_t *const *k, proven_size_t n) {
     {
         if (ck_scalar_head(k[0]->tok.lex)) return 0;
-        const low_opinfo_t *op = ck_r1_tab ? ck_find_callee(ck_r1_tab, ck_r1_nt, k[0]->tok.lex) : NULL;
+        const low_opinfo_t *op = ck_r1_tab ? ck_find_callee_at(ck_r1_tab, ck_r1_nt, k[0]) : NULL;
         if (op) {
             low_op_header_t hc = op->form ? low_op_header(op->form) : (low_op_header_t){ 0 };
             // 스칼라를 돌려주는 op 은 바이트를 들고 나갈 수 없다(영역 검사와 같은 가름)
@@ -7657,7 +7667,7 @@ static void lc_count(lc_t *x, const low_cst_t *nd, bool forced) {
     if (nd->kind == LOW_CST_FORM && ck_r1_tab)
         for (proven_size_t j = 0; j + 1 < nd->nkids && !op; j++)
             if (ck_atom(nd->kids[j]) && nd->kids[j]->tok.kind == LOW_TOK_IDENT && nd->kids[j]->tok.kw == LOW_KW_NONE) {
-                op = ck_find_callee(ck_r1_tab, ck_r1_nt, nd->kids[j]->tok.lex);
+                op = ck_find_callee_at(ck_r1_tab, ck_r1_nt, nd->kids[j]);
                 h0 = j;
                 if (op && op->form) hc = low_op_header(op->form);
                 if (!op) break;
@@ -7670,7 +7680,7 @@ static bool lc_reaches(const low_cst_t *nd, const low_cst_t *target, unsigned ch
     if (!nd || depth > 64) return false;
     if (nd->kind == LOW_CST_ATOM) {
         if (nd->tok.kind != LOW_TOK_IDENT || nd->tok.kw != LOW_KW_NONE || !ck_r1_tab) return false;
-        const low_opinfo_t *op = ck_find_callee(ck_r1_tab, ck_r1_nt, nd->tok.lex);
+        const low_opinfo_t *op = ck_find_callee_at(ck_r1_tab, ck_r1_nt, nd);
         if (!op || !op->form) return false;
         if (op->form == target) return true;
         proven_size_t oi = (proven_size_t)(op - ck_r1_tab);
@@ -7839,7 +7849,7 @@ static void sb_callees(const low_cst_t *nd, proven_size_t *out, proven_size_t *n
     if (!nd) return;
     if (nd->kind == LOW_CST_ATOM) {
         if (nd->tok.kind != LOW_TOK_IDENT || nd->tok.kw != LOW_KW_NONE || !ck_r1_tab) return;
-        const low_opinfo_t *op = ck_find_callee(ck_r1_tab, ck_r1_nt, nd->tok.lex);
+        const low_opinfo_t *op = ck_find_callee_at(ck_r1_tab, ck_r1_nt, nd);
         if (!op) return;
         proven_size_t oi = (proven_size_t)(op - ck_r1_tab);
         for (proven_size_t i = 0; i < *n; i++) if (out[i] == oi) return;
@@ -7871,7 +7881,7 @@ static void sb_spawned(const low_cst_t *nd, unsigned char *gt) {
         if (ck_atom(b) && b->tok.kw == LOW_KW_SEND) m = j + 3 < nd->nkids ? nd->kids[j + 3] : NULL;
         else if (ck_atom(b) && b->tok.kw != LOW_KW_ACTOR) m = b;
         if (m && ck_atom(m)) {
-            const low_opinfo_t *op = ck_find_callee(ck_r1_tab, ck_r1_nt, m->tok.lex);
+            const low_opinfo_t *op = ck_find_callee_at(ck_r1_tab, ck_r1_nt, m);
             if (op) gt[op - ck_r1_tab] = 1;
         }
     }
@@ -8781,6 +8791,16 @@ static bool ck_sk_overlap(ck_skey_t x, ck_skey_t y) {
     return lo < hi;
 }
 // 한정 호출(`m.f`)은 그 모듈의 op 을, 맨이름은 이름으로 찾는다(op_declared_q 와 같은 규율)
+// ★ X-0076 — 좁혀진 자격 부름(`files.close` → `close` + qual_mod `files`)은 **그 모듈의** op 을 먼저 찾는다.
+//   맨이름만 보면 같은 단위의 다른 모듈이 내보낸 `close` 를 집어, 소유를 옮기는 부름을 못 알아봤다(math+trust).
+static const low_opinfo_t *ck_find_callee_at(const low_opinfo_t *tab, proven_size_t nt, const low_cst_t *at) {
+    if (!at) return NULL;
+    if (at->qual_mod.size)
+        for (proven_size_t t = 0; t < nt; t++)
+            if (tab[t].form && proven_u8str_view_eq(tab[t].name, at->tok.lex) && proven_u8str_view_eq(tab[t].mod, at->qual_mod))
+                return &tab[t];
+    return ck_find_callee(tab, nt, at->tok.lex);
+}
 static const low_opinfo_t *ck_find_callee(const low_opinfo_t *tab, proven_size_t nt, proven_u8str_view_t callee) {
     proven_size_t dot = callee.size;
     for (proven_size_t i = 0; i < callee.size; i++) if (callee.ptr[i] == '.') { dot = i; break; }
@@ -8816,7 +8836,7 @@ static void ck_excl_args_walk2(low_check_result_t *out, const low_cst_t *nd,
         // ★★ **쓰는 자리 둘에 같은 저장소** — §8.12 는 «쓰는 쪽 하나, 아니면 읽는 쪽 여럿» 이다.
         //   ☞ **쓰는 자리 하나 + 읽는 자리**(`mont_mul acc acc r2 …`)는 여기서 안 문다 — 정본 §8.12(7) ·
         //     RFC-0115 §8-15 ⓒ(작성자 의무) · RFC-0116 D2(현행 유지, 2026-09-21 소유자 결정).
-        const low_opinfo_t *op = ck_find_callee(tab, nt, nd->kids[0]->tok.lex);
+        const low_opinfo_t *op = ck_find_callee_at(tab, nt, nd->kids[0]);
         if (op) {
             low_op_header_t h = low_op_header(op->form);
             bool hit = false;
@@ -9000,7 +9020,7 @@ static void ck_borrow_lend_walk(low_check_result_t *out, const low_cst_t *nd,
         }
         // ⓐ-2 빌려준 저장소를 부름의 `mut` 자리에 넘긴다(`pool.release pa p hh` — 반환이 빌린 뷰를 무효로 만든다)
         if (nd->kids[0]->tok.kw == LOW_KW_NONE) {
-            const low_opinfo_t *op = ck_find_callee(tab, nt, nd->kids[0]->tok.lex);
+            const low_opinfo_t *op = ck_find_callee_at(tab, nt, nd->kids[0]);
             if (op) {
                 low_op_header_t h = low_op_header(op->form);
                 for (proven_size_t q = 1; q < nd->nkids; q++) {
@@ -9156,7 +9176,7 @@ static void ck_inv_scan(const low_cst_t *nd, const low_op_header_t *mine, unsign
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_inv_scan(nd->kids[i], mine, mask);
     if (nd->kind != LOW_CST_FORM || nd->nkids < 2 || !ck_atom(nd->kids[0]) || nd->kids[0]->tok.kw != LOW_KW_NONE) return;
-    const low_opinfo_t *callee = ck_find_callee(ck_inv_tab, ck_inv_nt, nd->kids[0]->tok.lex);
+    const low_opinfo_t *callee = ck_find_callee_at(ck_inv_tab, ck_inv_nt, nd->kids[0]);
     if (!callee) return;
     unsigned long long cm = ck_inv_params(callee);
     if (!cm) return;
@@ -9207,7 +9227,7 @@ static void ck_vt_invalidate(ck_vstate_t *s, const low_cst_t *nd, const low_opin
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_vt_invalidate(s, nd->kids[i], tab, nt);
     if (nd->kind != LOW_CST_FORM || nd->nkids < 2 || !ck_atom(nd->kids[0]) || nd->kids[0]->tok.kw != LOW_KW_NONE) return;
-    const low_opinfo_t *op = ck_find_callee(tab, nt, nd->kids[0]->tok.lex);
+    const low_opinfo_t *op = ck_find_callee_at(tab, nt, nd->kids[0]);
     if (!op) return;
     unsigned long long cm = ck_inv_params(op);                          // 선언 + 추론(후속 ②)
     for (proven_size_t q = 0; q < 64 && q + 1 < nd->nkids; q++) {
@@ -9237,7 +9257,7 @@ static bool ck_vt_key(ck_view_t *d, const low_cst_t *const *k, proven_size_t fro
         break;
     }
     if (to - from < 2 || !ck_atom(k[from]) || to - from > CK_VT_KEY) return false;
-    const low_opinfo_t *op = ck_find_callee(tab, nt, k[from]->tok.lex);
+    const low_opinfo_t *op = ck_find_callee_at(tab, nt, k[from]);
     if (!op || op->declared != 0) return false;                       // 효과 없는 접근자만
     for (proven_size_t i = from + 1; i < to; i++) if (!ck_atom(k[i])) return false;
     d->nk = 0;
@@ -9477,7 +9497,7 @@ static void ck_b2_writes(const low_cst_t *nd, const ck_b2_t *b, const low_opinfo
                 else if (!proven_u8str_view_eq(*var, tg->kids[2]->tok.lex)) *bad = true;
             }
         } else if (kw == LOW_KW_NONE) {
-            const low_opinfo_t *op = ck_find_callee(tab, nt, nd->kids[0]->tok.lex);
+            const low_opinfo_t *op = ck_find_callee_at(tab, nt, nd->kids[0]);
             if (op) {
                 low_op_header_t h = low_op_header(op->form);
                 for (proven_size_t q = 0; q + 1 < nd->nkids && q < h.np; q++) {
@@ -11651,14 +11671,17 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
     // ★★★ RFC-0058 — 선형 소유권. 명세가 요구하고 있었고, 아무도 강제하지 않았다.
     {
         const low_opinfo_t *tab0 = (const low_opinfo_t *)ops.data;
+        g_ck_own_mod = (proven_u8str_view_t){ 0 };
         for (proven_size_t i = 0; i < pr->nforms; i++) {
             const low_cst_t *f = pr->forms[i]; ck_cur_form = f;
             if (f->kind != LOW_CST_FORM || f->nkids < 2 ||
                 f->kids[0]->kind != LOW_CST_ATOM) continue;
             low_kw_t kw = f->kids[0]->tok.kw;
+            if (kw == LOW_KW_MODULE && ck_atom(f->kids[1])) { g_ck_own_mod = f->kids[1]->tok.lex; continue; }
             if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
             ck_ownership(&out, pr, f, tab0, ops.len);
         }
+        g_ck_own_mod = (proven_u8str_view_t){ 0 };
     }
 
     // pass 2: each op's actual effects must be ⊆ declared

@@ -1058,6 +1058,7 @@ static void print_usage(const char *argv0) {
         "    verify F               4층을 분리해 답한다: 무결(해시·핀) · 진본(서명·신뢰 키) · 전송 · 접근\n"
         "\n  무엇을 하나 (하나 고른다 — 기본 모드는 없다)\n"
         "    --check              검사만 한다 (계약·효과·소유·가시성·계층·능력)\n"
+        "    --stack-report       검사하고, 진입 op·태스크마다 스택에 한꺼번에 사는 나열 바이트와 예산을 찍는다\n"
         "    --run OP [args…]     VM 으로 그 op 을 돌린다 (슬라이스 인자는 [a,b,c])\n"
         "    --emit-c             C 를 찍는다 — **네이티브 빌드**(volatile·인라인 asm 이 여기서 진짜가 된다)\n"
         "    --test               `test` 블록을 돌린다\n"
@@ -1161,6 +1162,7 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--cst") == 0) want_cst = true;
         else if (strcmp(argv[i], "--fmt") == 0) want_fmt = true;
         else if (strcmp(argv[i], "--check") == 0) want_check = true;
+        else if (strcmp(argv[i], "--stack-report") == 0) { want_check = true; low_check_set_stack_report(true); }   // RFC-0135 S3
         else if (strcmp(argv[i], "--diag-json") == 0) g_diag_json = true;
         else if (strcmp(argv[i], "--doc") == 0) want_doc = true;
         else if (strcmp(argv[i], "--doc-out") == 0 && i + 1 < argc) { want_doc = true; doc_out = argv[++i]; }

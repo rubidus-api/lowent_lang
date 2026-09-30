@@ -7859,28 +7859,66 @@ static unsigned long long sb_path(proven_size_t oi, unsigned long long *memo, un
     memo[oi] = own[oi] + best; state[oi] = 2;
     return memo[oi];
 }
+static bool g_stack_report;
+void low_check_set_stack_report(bool on) { g_stack_report = on; }
+// 그린스레드에서 도는 op — `spawn <op>`(태스크) · `spawn send <actor> <메시지>`(비동기 처리기). 그 길은 그린스레드 예산을 받는다.
+static void sb_spawned(const low_cst_t *nd, unsigned char *gt) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    for (proven_size_t j = 0; j + 1 < nd->nkids; j++) {
+        const low_cst_t *a = nd->kids[j];
+        if (!ck_atom(a) || a->tok.kw != LOW_KW_SPAWN) continue;
+        const low_cst_t *b = nd->kids[j + 1], *m = NULL;
+        if (ck_atom(b) && b->tok.kw == LOW_KW_SEND) m = j + 3 < nd->nkids ? nd->kids[j + 3] : NULL;
+        else if (ck_atom(b) && b->tok.kw != LOW_KW_ACTOR) m = b;
+        if (m && ck_atom(m)) {
+            const low_opinfo_t *op = ck_find_callee(ck_r1_tab, ck_r1_nt, m->tok.lex);
+            if (op) gt[op - ck_r1_tab] = 1;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) sb_spawned(nd->kids[i], gt);
+}
 static void ck_stack_bound(low_check_result_t *out) {
     if (!ck_r1_tab || !ck_r1_nt) return;
     proven_size_t n = ck_r1_nt;
     unsigned long long *memo = calloc(n, sizeof *memo);
-    unsigned char *state = calloc(n, 1), *called = calloc(n, 1);
+    unsigned char *state = calloc(n, 1), *called = calloc(n, 1), *gt = calloc(n, 1);
     proven_size_t *own = calloc(n, sizeof *own);
-    if (!memo || !state || !called || !own) { free(memo); free(state); free(called); free(own); return; }
+    if (!memo || !state || !called || !own || !gt) { free(memo); free(state); free(called); free(own); free(gt); return; }
     bool any = false;
     for (proven_size_t i = 0; i < n; i++) {
         own[i] = ck_r1_tab[i].form ? ck_op_lbytes(ck_r1_tab[i].form) : 0;
         if (own[i]) any = true;
     }
-    if (any) {
+    if (any || g_stack_report) {
+        for (proven_size_t i = 0; i < n; i++) sb_spawned(ck_r1_tab[i].body, gt);
         for (proven_size_t i = 0; i < n; i++) {
             proven_size_t local[256]; proven_size_t nl = 0;
             sb_callees(ck_r1_tab[i].body, local, &nl, 256);
             for (proven_size_t k = 0; k < nl; k++) if (local[k] != i) called[local[k]] = 1;
         }
         long budget = low_ir_target()->no_heap ? LOW_SBUDGET_FREE : LOW_SBUDGET_HOST;
+        if (g_stack_report) printf("stack-report: op · deepest path's list-literal bytes / budget (RFC-0135 S3)\n");
         for (proven_size_t i = 0; i < n; i++) {
-            if (called[i] || !ck_r1_tab[i].form) continue;          // 진입(아무도 부르지 않는 op)만 — 길은 거기서 시작한다
+            if (!ck_r1_tab[i].form) continue;
+            // ★ 그린스레드에서 도는 op(태스크 · 비동기 처리기)은 부르는 쪽이 있어도 제 길을 그린스레드 예산으로 잰다
+            if (gt[i] && !low_ir_target()->no_heap) {
+                unsigned long long p = sb_path(i, memo, state, own, 0);
+                if (g_stack_report)
+                    printf("  %-32.*s %8llu / %ld  task%s\n", (int)ck_r1_tab[i].name.size, (const char *)ck_r1_tab[i].name.ptr,
+                           p, (long)LOW_SBUDGET_GT, p > (unsigned long long)LOW_SBUDGET_GT ? "  ★ over" : "");
+                if (p > (unsigned long long)LOW_SBUDGET_GT) {
+                    static char gbuf[360];
+                    snprintf(gbuf, sizeof gbuf, "this op runs as a task (a green thread, `spawn`), and the deepest call path from it "
+                             "keeps %llu bytes of list literals on the stack at once — more than a green thread's stack budget (%ld). "
+                             "Take the big lists from an allocator (`using`), or split the path (RFC-0135 S3)", p, (long)LOW_SBUDGET_GT);
+                    emit(out, "E-STACK-BUDGET", gbuf, ck_r1_tab[i].form->line);
+                }
+            }
+            if (called[i]) continue;                                // 진입(아무도 부르지 않는 op)만 — 길은 거기서 시작한다
             unsigned long long p = sb_path(i, memo, state, own, 0);
+            if (g_stack_report)
+                printf("  %-32.*s %8llu / %ld  entry%s\n", (int)ck_r1_tab[i].name.size, (const char *)ck_r1_tab[i].name.ptr,
+                       p, budget, p > (unsigned long long)budget ? "  ★ over" : "");
             if (p > (unsigned long long)budget) {
                 static char sbuf[360];
                 snprintf(sbuf, sizeof sbuf, "the deepest call path from this op keeps %llu bytes of list literals on the stack at "
@@ -7890,7 +7928,7 @@ static void ck_stack_bound(low_check_result_t *out) {
             }
         }
     }
-    free(memo); free(state); free(called); free(own);
+    free(memo); free(state); free(called); free(own); free(gt);
 }
 
 static void ck_regions(low_check_result_t *out, const low_cst_t *f, const low_cst_t *nd) {

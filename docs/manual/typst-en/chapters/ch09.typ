@@ -131,7 +131,9 @@ Re-pointing the array name itself with `set buf …` is `E-ARRAY-SET` --- write 
 lists of one op may not add up to more than 64 KiB (4 KiB on a small bare-metal machine) (`E-FRAME-SIZE`). An op holding frame lists
 may not recurse (`E-FRAME-RECURSIVE`) --- the frame would repeat at every level, and the depth is not known at translation. If you need a
 buffer inside a recursion, take it from an allocator (#chref("fixed-memory")). And if the lists alive on the stack at once along a call
-path exceed the budget (4 MiB), that is `E-STACK-BUDGET`. Running out of stack is ruled out before the program runs.
+path exceed the budget (4 MiB), that is `E-STACK-BUDGET`. An op that runs as a task (`spawn`) runs on a small stack, so its budget
+is 64 KiB. Running out of stack is ruled out before the program runs. `lowentc --stack-report <file>` prints, for every entry op and
+task, the list bytes on its deepest path and its budget.
 
 When only a few cells of a long array differ, fill the cells you *choose*. Inside `do … end` write `<index> <value> .`,
 and a final `_ <value> .` fills every remaining cell. Every cell must be decided, so a leftover cell without `_` is

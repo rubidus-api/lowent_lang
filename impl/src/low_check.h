@@ -44,6 +44,8 @@ const char *low_effect_bit_name(unsigned bit);
 //   기본값은 **허락 없음**: 아무것도 주지 않으면 어느 모듈도 `absorbs` 를 쓰지 못한다.
 //   ☞ 「누가 보증해도 되는가」는 소스가 아니라 프로젝트의 정체 파일이 정한다.
 void low_check_set_absorb_allow(const char *const *names, int n);
+// RFC-0135 S3 — `--stack-report`: 진입 op · 태스크마다 가장 깊은 길의 틀 안 나열 바이트와 예산을 찍는다.
+void low_check_set_stack_report(bool on);
 
 [[nodiscard]] low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *pr);
 

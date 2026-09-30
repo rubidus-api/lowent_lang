@@ -1379,6 +1379,56 @@ static bool br_payload_ok(br_words_t w, int kind, low_cst_t *const *t, proven_si
     return true;
 }
 typedef struct { proven_u8str_view_t name; int kind; } br_tmp_t;   // kind 1 = option · 2 = result
+// ★ 바인딩 else 가 옮겨 적는 오류 타입 낱말은 **부른 op 의 모듈**에서 온다. 그 모듈이 부르는 쪽과 다르면 맨이름으로 옮기면
+//   부르는 쪽이 남의 이름을 맨이름으로 쓰는 꼴이 된다(E-VISIBILITY — 벤치 탐침 crypto_probe 가 드러냈다). 선언한 모듈을 찾아
+//   `<모듈>.<이름>` 으로 적는다 — 사람이 적을 철자와 같다.
+static proven_u8str_view_t g_br_curmod;
+static bool br_holds(const low_cst_t *f, const low_cst_t *x) {   // 머리(몸 밖)에 그 노드가 있나 · actor 면 처리기 머리까지
+    if (!f) return false;
+    if (f == x) return true;
+    if (f->kind == LOW_CST_ATOM) return false;
+    for (proven_size_t i = 0; i < f->nkids; i++) {
+        const low_cst_t *k = f->kids[i];
+        if (k->kind == LOW_CST_BLOCK && i + 1 == f->nkids && f->kind == LOW_CST_FORM && us_atom(f->kids[0]) &&
+            f->kids[0]->tok.kw != LOW_KW_ACTOR) continue;                 // op 몸은 보지 않는다
+        if (br_holds(k, x)) return true;
+    }
+    return false;
+}
+static const low_cst_t *br_qualify(us_ctx_t *c, const low_cst_t *err) {
+    if (!us_atom(err)) return err;
+    proven_u8str_view_t w = err->tok.lex;
+    for (proven_size_t i = 0; i < w.size; i++) if (w.ptr[i] == '.') return err;
+    proven_u8str_view_t mod = { 0 }, decl = { 0 };
+    // ① 이 낱말은 부른 op 의 머리(출력 절)에서 온 노드다 — 그 폼의 모듈이 곧 답이다
+    for (proven_size_t i = 0; i < c->p.out->nforms; i++) {
+        const low_cst_t *f = c->p.out->forms[i];
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !us_atom(f->kids[0])) continue;
+        if (f->kids[0]->tok.kw == LOW_KW_MODULE && us_atom(f->kids[1])) { mod = f->kids[1]->tok.lex; continue; }
+        if (br_holds(f, err)) {
+            if (!mod.size || proven_u8str_view_eq(mod, g_br_curmod)) return err;
+            decl = mod;
+            goto qualify;
+        }
+    }
+    // ② 못 찾으면 그 이름을 선언한 모듈(제 모듈에 있으면 맨이름 그대로)
+    mod = (proven_u8str_view_t){ 0 };
+    for (proven_size_t i = 0; i < c->p.out->nforms; i++) {
+        const low_cst_t *f = c->p.out->forms[i];
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 2 || !us_atom(f->kids[0]) || !us_atom(f->kids[1])) continue;
+        low_kw_t k = f->kids[0]->tok.kw;
+        if (k == LOW_KW_MODULE) { mod = f->kids[1]->tok.lex; continue; }
+        if ((k == LOW_KW_ENUM || k == LOW_KW_STRUCT || us_eq(f->kids[0]->tok.lex, "type") || us_eq(f->kids[0]->tok.lex, "newtype")) &&
+            proven_u8str_view_eq(f->kids[1]->tok.lex, w)) { decl = mod; if (proven_u8str_view_eq(mod, g_br_curmod)) return err; }
+    }
+    if (!decl.size || proven_u8str_view_eq(decl, g_br_curmod)) return err;
+qualify:;
+    char *q = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, decl.size + w.size + 2, 1).value.ptr;
+    if (!q) return err;
+    memcpy(q, decl.ptr, decl.size); q[decl.size] = '.'; memcpy(q + decl.size + 1, w.ptr, w.size); q[decl.size + w.size + 1] = 0;
+    low_cst_t *a = us_atom_like(c, err, (proven_u8str_view_t){ .ptr = (const proven_u8 *)q, .size = decl.size + w.size + 1 });
+    return a ? a : err;
+}
 static void br_walk(us_ctx_t *c, const low_cst_t *op, low_cst_t *body, low_cst_t *nd, br_tmp_t *t, proven_size_t *nt) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && us_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_LET &&
@@ -1407,6 +1457,7 @@ static void br_walk(us_ctx_t *c, const low_cst_t *op, low_cst_t *body, low_cst_t
             }
             nd->kids[2]->tok.lex = kind == 2 ? (proven_u8str_view_t){ .ptr = (const proven_u8 *)"result", .size = 6 }
                                              : (proven_u8str_view_t){ .ptr = (const proven_u8 *)"option", .size = 6 };
+            if (kind == 2 && err) err = br_qualify(c, err);              // ★ 남의 모듈의 오류 타입이면 `<모듈>.<이름>` 으로 적는다
             if (kind == 2 && err) {                                      // 오류 타입 낱말을 T 뒤(using/be 앞)에 끼운다
                 proven_size_t at = 3;
                 while (at < nd->nkids && !(us_atom(nd->kids[at]) && (nd->kids[at]->tok.kw == LOW_KW_BE || us_eq(nd->kids[at]->tok.lex, "using")))) at++;
@@ -1439,8 +1490,11 @@ void low_bind_else(low_parse_result_t *pr, proven_allocator_t node_alloc, proven
     memset(c, 0, sizeof *c);
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
     static br_tmp_t t[256];
+    g_br_curmod = (proven_u8str_view_t){ 0 };
     for (proven_size_t i = 0; i < pr->nforms; i++) {
         low_cst_t *f = pr->forms[i];
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE &&
+            us_atom(f->kids[1])) { g_br_curmod = f->kids[1]->tok.lex; continue; }
         if (!f || f->kind != LOW_CST_FORM || f->nkids < 3 || !us_atom(f->kids[0])) continue;
         low_kw_t k = f->kids[0]->tok.kw;
         if (k == LOW_KW_FN || k == LOW_KW_PROC) {

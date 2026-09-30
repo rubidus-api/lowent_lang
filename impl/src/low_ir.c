@@ -679,6 +679,7 @@ typedef struct ir_ctx_s ir_ctx_t_fwd;
 const low_cst_t     *g_relform[IR_MAXREL];     // ★ RFC-0135 S2
 proven_size_t        g_relslot[IR_MAXREL];
 proven_size_t        g_nrel;
+proven_u8str_view_t  g_relname[IR_MAXREL];
 proven_size_t        g_using_ov = (proven_size_t)-1;
 const low_cst_t     *g_relsub_atom;
 proven_size_t        g_relsub_slot;

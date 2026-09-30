@@ -57,6 +57,9 @@ struct low_cst {
     bool           is_unsafe;   // `unsafe <op>` 였는가 (unsafe 효과를 쓸 자격)
     // ★★★ **`extern` = 몸이 C 에 있다** (RFC-0063). 본문이 있으면 오류다 — 몸이 둘일 수는 없다.
     bool           is_extern;
+    // ★ RFC-0135 D12 — 바인딩의 `using <할당기> keep` : 블록 끝에 돌려주지 않는다. 펼치기 패스가 `keep` 낱말을 빼고
+    //   `using` 원자에 이 표시를 남긴다(뒤의 소비자는 늘 `using <이름> be` 두 낱말만 본다).
+    bool           is_keep;
     // ★★★ **`unsafe target <iset>`** (RFC-0040 D5) — target 전용 intrinsic 격리 블록. iset 이 비어 있지
     //   않으면 이 op 은 target-게이트다: 그 명령셋을 주는 target 에서만 컴파일된다(아니면 E-TARGET-INTRIN).
     //   `target` 은 **문맥 낱말**(task_group 처럼 — 어휘 0 증가). intrinsic 몸통은 아직 없다(스캐폴드·격리만).
@@ -196,6 +199,8 @@ int low_input_rank(const low_cst_t *opform, proven_size_t at, proven_size_t end)
 // ★★★★ RFC-0112 D8 — `using` 을 푼다: 부르는 자리에 얼로케이터 인자를 끼우고, 받는 쪽 절을 입력으로 바꾼다.
 //   나무(`low_nest`) **뒤**, 단형화(`low_mono`) **앞**에 한 번 돈다.
 void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
+// RFC-0135 D12 — `using <할당기> keep` 의 `keep` 을 빼고 `using` 원자에 표시한다(선언 차례 패스 앞).
+void low_bind_keep_strip(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);
 void low_bind_else_expand(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   /* RFC-0135 S1 */
 void low_bind_else(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);          /* RFC-0135 S1 */
 void low_decl_order(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict);   /* RFC-0132 T1 */

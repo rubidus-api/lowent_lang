@@ -217,7 +217,7 @@ parallel            parallel <이름> <모드> .                           .
 requires / ensures  requires <조건-폼>* .                              .
 errors              errors <갈래> [<조건-폼>] .  (한 절에 오류 하나)     .
 tests               tests <이름>* .                                    .
-let / var           let <이름> [using <이름>] be <타입> <폼> .         .
+let / var           let <이름> [using <이름> [keep]] be <타입> <폼> .  .
 set                 set <자리-폼> <폼> .                               .
 into                pop <스택> into <이름> .   (프렐류드 문형)           .
 if (문)             if <폼> do <폼>* end [else (if문 | do <폼>* end)]   end

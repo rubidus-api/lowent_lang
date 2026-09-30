@@ -213,6 +213,20 @@ when the block that declared the name ends. The same happens when the block is l
 - After they are given back, the bytes belong to something else. Carrying them out of the block (`return t`, or storing them in a
   name further out) is `E-LIT-ESCAPE`.
 - Bytes from an allocator that cannot take pieces back (`fixed_bytes`, `heap_bytes`) stay with the allocator.
+- To give the bytes back before the block ends, write `drop t .`. The block end then does not give them back again. Using `t` after
+  the `drop` is `E-OWN-MOVED`, and a `drop` in an inner block (one side of an `if`, say) is `E-OWN-JOIN`.
+- Nothing is given back when the program stops with `panic`.
+
+To use the bytes longer than the block, write `keep` after `using`. Then nothing is given back at the end of the block, and the
+bytes live as long as the allocator. A helper can hand the buffer it built to its caller.
+
+#demo("examples/ch20/keepbuf.low")
+
+- The `s` that `make_buf` returns is `bb`'s bytes. It can be used while `bb` lives; using it longer is refused at translation.
+- Giving the bytes back is up to you: `send bb release …` gives a piece back, or everything goes back when the allocator ends.
+  `used` is 16, so the answer is 1608.
+- `keep` goes right after `using <allocator>`, on a binding that takes a list or struct literal. Anywhere else it is
+  `E-USING-FORM`.
 
 === Structs in an allocator too
 

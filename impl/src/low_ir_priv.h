@@ -482,6 +482,7 @@ extern proven_size_t g_rgslot[IR_MAXREGION];   // 그 깊이의 표식이 사는
 extern const low_cst_t *g_relform[IR_MAXREL];
 extern proven_size_t    g_relslot[IR_MAXREL];
 extern proven_size_t    g_nrel;
+extern proven_u8str_view_t g_relname[IR_MAXREL];   // 숨은 임시의 이름(`$t`) — `drop t` 가 찾는다
 // 돌려줄 것은 **받은 그대로의 바이트**(reserve 의 답)다 — 바인딩의 타입 붙은 보기가 아니다(길이가 원소 수라 release 가 거절한다).
 //   값 하강이 그 답을 담은 숨은 슬롯을 g_using_ov 에 남기고, 돌려주기를 넣는 동안 g_relsub_atom(폼 안의 이름 원자)을 그 슬롯으로 읽는다.
 extern proven_size_t    g_using_ov;

@@ -133,3 +133,37 @@ export proc sshort input k u64 . output u64 . effects state . do
   let p using bb be pt lit pt do x 1 . y k . end . else return 77 .
   return field p y .
 end
+
+rem ★★ RFC-0135 D12 — `keep`: 블록 끝에 돌려주지 않는다. 그래서 op 밖으로 내보낼 수 있고(할당기가 살아 있는 동안),
+rem   돌려주는 일은 저자가 한다(`send bb release …`) — 아니면 할당기가 끝날 때 한꺼번에.
+proc kmake input bb mut allocs.bump_bytes . input d mut slice u64 . . output mut slice u64 . . effects state . do
+  var t using bb keep be mut slice u64 lit array u64 2 7 8 . . else return d .
+  return t .
+end
+
+proc kpt input bb mut allocs.bump_bytes . input d pt . output pt . effects state . do
+  var q using bb keep be pt lit pt do x 3 . y 4 . end . else return d .
+  return q .
+end
+
+export proc kept_out output u64 . effects state . do
+  var back be lit array u8 64 _ . .
+  var d be lit array u64 1 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  let s be mut slice u64 kmake bb d .
+  let p be pt kpt bb lit pt do x 0 . y 0 . end .
+  return add (add (index s 1) (field p y)) (mul (send bb used) 100) .
+end
+
+rem ★ 일찍 돌려주기 — `drop t .` 가 그 자리에서 돌려주고 블록 끝에서는 다시 넣지 않는다. 그래서 같은 블록에서 다음 것을 받는다.
+export proc early input a u64 . output u64 . effects state . do
+  var back be lit array u8 40 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var t using bb be mut slice u64 lit array u64 4 a _ . . else return 900 .
+  let x be u64 index t 0 .
+  drop t .
+  var u using bb be mut slice u64 lit array u64 4 x _ . . else return 901 .
+  return add (index u 0) (mul (send bb used) 100) .
+end

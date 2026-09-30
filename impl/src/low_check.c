@@ -7728,6 +7728,64 @@ static void ck_lit_identity(low_check_result_t *out, const low_cst_t *f) {
     x.nn = 0;
     li_walk(out, &x, f);
 }
+// ★★ RFC-0135 S2 — 블록 끝에 돌려줄 할당기 바이트를 **일찍** `drop t .` 으로 돌려준다. 하강은 그 자리에서 `release` 를 넣고
+//   블록 끝에서는 넣지 않는다. 그 뒤로 t 를 쓰면 돌려준 바이트를 보는 것이다(`E-OWN-MOVED`). 선언한 블록이 아닌 안쪽
+//   블록에서 `drop` 하면 갈래마다 돌려줬는지가 달라진다(`E-OWN-JOIN`) — 선언한 블록에서만 받는다.
+//   바인딩 else 펼치기가 만든 숨은 임시 `$t` 의 값이 돌려주기가 붙은 할당기 폼이면 t 가 그런 이름이다.
+static bool ar_mentions(const low_cst_t *nd, proven_u8str_view_t n) {
+    if (!nd) return false;
+    if (nd->kind == LOW_CST_ATOM) return nd->tok.kind == LOW_TOK_IDENT && proven_u8str_view_eq(nd->tok.lex, n);
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (ar_mentions(nd->kids[i], n)) return true;
+    return false;
+}
+static bool ar_temp_of(const low_cst_t *st, proven_u8str_view_t *name) {   // [let, $n, …, be, (using … 4 kids)]
+    if (st->kind != LOW_CST_FORM || st->nkids < 4 || !ck_atom(st->kids[0]) || st->kids[0]->tok.kw != LOW_KW_LET ||
+        !ck_atom(st->kids[1]) || st->kids[1]->tok.lex.size < 2 || st->kids[1]->tok.lex.ptr[0] != '$') return false;
+    const low_cst_t *v = st->kids[st->nkids - 1];
+    while (v && v->kind == LOW_CST_GROUP && v->nkids == 1) v = v->kids[0];
+    if (!lc_is_into(v) || v->nkids != 4) return false;
+    *name = (proven_u8str_view_t){ .ptr = st->kids[1]->tok.lex.ptr + 1, .size = st->kids[1]->tok.lex.size - 1 };
+    return true;
+}
+static void ar_walk(low_check_result_t *out, const low_cst_t *nd, const proven_u8str_view_t *outer, proven_size_t nouter) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind != LOW_CST_BLOCK) { for (proven_size_t i = 0; i < nd->nkids; i++) ar_walk(out, nd->kids[i], outer, nouter); return; }
+    enum { AR_MAX = 128 };
+    proven_u8str_view_t mine[AR_MAX]; proven_size_t nm = 0;
+    proven_u8str_view_t all[AR_MAX]; proven_size_t na = 0;
+    if (nouter > AR_MAX) nouter = AR_MAX;                        // 바깥에서 이미 넘침을 말했다(아래)
+    for (proven_size_t i = 0; i < nouter; i++) all[na++] = outer[i];
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *st = nd->kids[i];
+        proven_u8str_view_t tn;
+        if (ar_temp_of(st, &tn)) {
+            if (nm >= AR_MAX || na >= AR_MAX) {
+                emit(out, "E-IR-LIMIT", "too many allocator bindings in nested blocks for the early-`drop` checker's table — "
+                     "refused rather than checked partly. Split the op", st->line);
+                return;
+            }
+            mine[nm++] = tn; all[na++] = tn;
+        }
+        if (st->kind == LOW_CST_FORM && st->nkids == 2 && ck_atom(st->kids[0]) && st->kids[0]->tok.kw == LOW_KW_DROP && ck_atom(st->kids[1])) {
+            proven_u8str_view_t dn = st->kids[1]->tok.lex;
+            bool here = false, outside = false;
+            for (proven_size_t q = 0; q < nm; q++) if (proven_u8str_view_eq(mine[q], dn)) here = true;
+            if (!here) for (proven_size_t q = 0; q < nouter; q++) if (proven_u8str_view_eq(outer[q], dn)) outside = true;
+            if (outside)
+                emit(out, "E-OWN-JOIN", "these bytes are given back at the end of the block that declared them — a `drop` in an "
+                     "inner block gives them back on one path only, and the name is still there on the others. `drop` them in "
+                     "the block that declared them (RFC-0135 S2)", st->kids[0]->tok.line);
+            if (here)
+                for (proven_size_t j = i + 1; j < nd->nkids; j++)
+                    if (ar_mentions(nd->kids[j], dn)) {
+                        emit(out, "E-OWN-MOVED", "this name's bytes were given back to their allocator by the `drop` above — "
+                             "after that they belong to whatever the allocator hands out next (RFC-0135 S2)", nd->kids[j]->line);
+                        break;
+                    }
+        }
+        ar_walk(out, st, all, na);
+    }
+}
 static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
     static lc_t x;
     memset(&x, 0, sizeof x);
@@ -10732,6 +10790,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_ft_n = 0; ck_ft_full = false;
         ck_region_walk(&out, f, &rc, inn, &nin, tnt, &ntn, false);
         ck_lit_frames(&out, f);   // ★ RFC-0132 T2b-2 — 틀 안 나열 자리의 수명 · 한도
+        ar_walk(&out, f, NULL, 0);   // ★ RFC-0135 S2 — 블록 끝 돌려주기의 이른 `drop`
         ck_lit_identity(&out, f); // ★ RFC-0132 T2b-3 — ⓑ 둘의 «같은 자리인가» 물음 거절(§13.3)
         ck_record_writes(&out, f); // ★ X-0082 — 쓸 수 없는 레코드의 칸·배열 칸에 쓰기 거절
         if (ck_ft_full)

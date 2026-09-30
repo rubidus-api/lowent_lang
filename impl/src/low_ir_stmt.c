@@ -57,21 +57,23 @@ static proven_size_t form_block_index(const low_cst_t *f) {
 }
 
 // ★★ RFC-0135 S2 (D11) — 걸린 돌려주기를 깊이 `depth` 까지 넣는다(안쪽부터 — 선언의 거꾸로). 받지 못한 것(none)은 건너뛴다.
+static void ir_release_one(ir_ctx_t *c, proven_size_t d);
 static void ir_release_down_to(ir_ctx_t *c, proven_size_t depth) {
-    for (proven_size_t d = g_nrel; d-- > depth; ) {
-        ir_emit(c, IRW_LOAD, (proven_i64)g_relslot[d]);
-        ir_emit(c, IRW_HASVAL, 0);
-        proven_size_t skip = ir_emit(c, IRW_BRZ, 0);
-        // 폼은 [send <출처> release (some_value <이름>)] — <이름> 자리에서 받은 그대로의 바이트(슬롯)를 읽는다
-        const low_cst_t *rg = g_relform[d]->kids[3];
-        while (rg && rg->kind == LOW_CST_GROUP && rg->nkids == 1) rg = rg->kids[0];
-        g_relsub_atom = (rg && rg->kind == LOW_CST_FORM && rg->nkids == 2) ? rg->kids[1] : nullptr;
-        g_relsub_slot = g_relslot[d];
-        ir_node(c, g_relform[d]);
-        g_relsub_atom = nullptr;
-        ir_emit(c, IRW_DROP, 0);                         // release 는 돌려받았는지(bool)를 답한다 — 여기서는 쓰지 않는다
-        ir_at(c, skip)->a = (proven_i64)c->code.len;
-    }
+    for (proven_size_t d = g_nrel; d-- > depth; ) ir_release_one(c, d);
+}
+static void ir_release_one(ir_ctx_t *c, proven_size_t d) {
+    ir_emit(c, IRW_LOAD, (proven_i64)g_relslot[d]);
+    ir_emit(c, IRW_HASVAL, 0);
+    proven_size_t skip = ir_emit(c, IRW_BRZ, 0);
+    // 폼은 [send <출처> release (some_value <이름>)] — <이름> 자리에서 받은 그대로의 바이트(슬롯)를 읽는다
+    const low_cst_t *rg = g_relform[d]->kids[3];
+    while (rg && rg->kind == LOW_CST_GROUP && rg->nkids == 1) rg = rg->kids[0];
+    g_relsub_atom = (rg && rg->kind == LOW_CST_FORM && rg->nkids == 2) ? rg->kids[1] : nullptr;
+    g_relsub_slot = g_relslot[d];
+    ir_node(c, g_relform[d]);
+    g_relsub_atom = nullptr;
+    ir_emit(c, IRW_DROP, 0);                         // release 는 돌려받았는지(bool)를 답한다 — 여기서는 쓰지 않는다
+    ir_at(c, skip)->a = (proven_i64)c->code.len;
 }
 // guard diverge / plain terminal statements from an operand run
 static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n, proven_u32 line) {
@@ -704,6 +706,17 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
         //   소멸자가 생기면 여기가 그 자리다. 그 전까지 이 코드는 자기가 확인한 것만 주장한다.
         case LOW_KW_DROP: {
             if (f->nkids < 2) { ir_fail(c, "E-IR-UNSUP", "drop needs a value", f->line); return; }
+            // ★ RFC-0135 S2 — 블록 끝에 돌려줄 할당기 바이트면 지금 돌려주고, 받은 자리를 비워 블록 끝에서는 건너뛰게 한다
+            if (f->nkids == 2 && is_atom(f->kids[1])) {
+                proven_u8str_view_t dn = f->kids[1]->tok.lex;
+                for (proven_size_t d = g_nrel; d-- > 0; )
+                    if (g_relname[d].size == dn.size + 1 && g_relname[d].ptr[0] == '$' && memcmp(g_relname[d].ptr + 1, dn.ptr, dn.size) == 0) {
+                        ir_release_one(c, d);
+                        ir_emit(c, IRW_WRAP_NONE, 0);
+                        ir_emit(c, IRW_STORE, (proven_i64)g_relslot[d]);
+                        return;
+                    }
+            }
             ir_run(c, f->kids, 1, f->nkids - 1);
             ir_emit(c, IRW_DROP, 0);
             return;
@@ -889,7 +902,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                     veq(uv->kids[0]->tok.lex, "using")) {
                     if (g_nrel >= IR_MAXREL) { ir_fail(c, "E-IR-LIMIT", "too many allocator releases pending in one op", f->line); return; }
                     if (g_using_ov == (proven_size_t)-1) { ir_fail(c, "E-IR-UNSUP", "allocator release without its reserved bytes", f->line); return; }
-                    g_relform[g_nrel] = uv->kids[3]; g_relslot[g_nrel] = g_using_ov; g_nrel++;   // 받은 그대로의 option 바이트
+                    g_relform[g_nrel] = uv->kids[3]; g_relslot[g_nrel] = g_using_ov; g_relname[g_nrel] = f->kids[1]->tok.lex; g_nrel++;   // 받은 그대로의 option 바이트
                     g_using_ov = (proven_size_t)-1;
                 }
             }

@@ -415,6 +415,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
         }
         const low_cst_t *explicit_src = NULL;
         bool explicit_src_told = false;                   // 이미 E-LIT-USING 으로 말했다
+        bool keep = us < be && nd->kids[us]->is_keep;     // RFC-0135 D12 — 블록 끝에 돌려주지 않는다
         if (us < be) {
             if (us + 2 != be || !us_atom(nd->kids[us + 1])) {
                 low_pdiag(&c->p, "E-USING-FORM",
@@ -467,6 +468,11 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                 while (sl && sl->kind == LOW_CST_GROUP && sl->nkids == 1) sl = sl->kids[0];
                 if (!(sl && sl->kind == LOW_CST_FORM && sl->nkids == 2 && us_atom(sl->kids[0]) && sl->kids[1]->kind == LOW_CST_BLOCK)) sl = NULL;
             }
+            if (keep && !(is_list || sl))
+                low_pdiag(&c->p, "E-USING-FORM", "`keep` says bytes built from an allocator are not given back at the end of the "
+                          "block — it goes on a list or struct literal: `var t using al keep be mut slice u8 lit … . else … .` "
+                          "(RFC-0135 D12)", explicit_src ? explicit_src->tok.line : nd->kids[0]->tok.line,
+                          explicit_src ? explicit_src->tok.col : nd->kids[0]->tok.col);
             if (explicit_src && (is_list || sl)) {
                 bool opt = be > 2 && us_atom(nd->kids[2]) && us_eq(nd->kids[2]->tok.lex, "option");
                 if ((is_list && us_eq(lg->kids[1]->tok.lex, "vec")) || !opt) {
@@ -527,7 +533,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                                 //   [send <출처> release (some_value <이름>)] 를 넷째 자식으로 붙인다. 하강이 그 바인딩의 블록 끝 ·
                                 //   `return` · `break`/`continue` 에 넣는다(받지 못했으면 건너뛴다). 수명 검사는 그 바이트를 블록에 묶는다.
                                 proven_u8str_view_t aty = us_bind_type(c, explicit_src->tok.lex);
-                                if (aty.size && us_type_satisfies(c, aty, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"freeing_allocator", .size = 17 })) {
+                                if (!keep && aty.size && us_type_satisfies(c, aty, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"freeing_allocator", .size = 17 })) {
                                     low_cst_t **rk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 4, alignof(low_cst_t *)).value.ptr;
                                     low_cst_t **vk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 2, alignof(low_cst_t *)).value.ptr;
                                     low_cst_t **gk2 = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *), alignof(low_cst_t *)).value.ptr;
@@ -821,15 +827,20 @@ static void dt_decl_core(dt_ctx_t *c, low_cst_t *f) {
     if (!b) return;
     // 이름과 `be` 사이: 비었거나 `using <이름>` 뿐이면 새 모양(또는 타입 없음), 타입이 있으면 옛 모양
     bool typeless_mid = (b == 2) ||
-        (b == 4 && us_atom(f->kids[2]) && us_eq(f->kids[2]->tok.lex, "using"));
+        (b == 4 && us_atom(f->kids[2]) && us_eq(f->kids[2]->tok.lex, "using")) ||
+        (b == 5 && us_atom(f->kids[2]) && us_eq(f->kids[2]->tok.lex, "using") && us_atom(f->kids[4]) && us_eq(f->kids[4]->tok.lex, "keep"));   // RFC-0135 D12
     if (!typeless_mid && c->migrate) {
         // ★ `--fmt` 옮김(2026-09-28, 코드 검토): `var i u64 be 0 .` → `var i be u64 0 .`. 타입 뒤 점과 `using <x>` 는
         //   떼어 `be` 앞에 둔다. 타입의 끝이 문법으로 딱 떨어지지 않으면 괄호로 싼다(TV4 — migrate-decl-order.py 와 같다).
-        low_cst_t *ty[64]; proven_size_t nty = 0; low_cst_t *us = NULL, *ux = NULL;
+        low_cst_t *ty[64]; proven_size_t nty = 0; low_cst_t *us = NULL, *ux = NULL, *kp = NULL;
         for (proven_size_t i = 2; i < b; i++) {
             low_cst_t *k = f->kids[i];
             if (us_atom(k) && k->tok.kind == LOW_TOK_DOT) continue;
-            if (us_atom(k) && us_eq(k->tok.lex, "using") && i + 1 < b) { us = k; ux = f->kids[++i]; continue; }
+            if (us_atom(k) && us_eq(k->tok.lex, "using") && i + 1 < b) {
+                us = k; ux = f->kids[++i];
+                if (i + 1 < b && us_atom(f->kids[i + 1]) && us_eq(f->kids[i + 1]->tok.lex, "keep")) kp = f->kids[++i];   // RFC-0135 D12
+                continue;
+            }
             if (nty < 64) ty[nty++] = k;
         }
         if (!nty || nty == 64) return;
@@ -850,7 +861,7 @@ static void dt_decl_core(dt_ctx_t *c, low_cst_t *f) {
         if (!nk) return;
         proven_size_t m = 0;
         nk[m++] = f->kids[0]; nk[m++] = f->kids[1];
-        if (us) { nk[m++] = us; nk[m++] = ux; }
+        if (us) { nk[m++] = us; nk[m++] = ux; if (kp) nk[m++] = kp; }
         nk[m++] = f->kids[b];
         if (tnode) nk[m++] = tnode; else for (proven_size_t i = 0; i < nty; i++) nk[m++] = ty[i];
         for (proven_size_t i = b + 1; i < n; i++) nk[m++] = f->kids[i];
@@ -1208,6 +1219,36 @@ static void be_expand_any(us_ctx_t *c, low_cst_t *nd) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
     if (nd->kind == LOW_CST_BLOCK) { be_expand_block(c, nd); return; }
     for (proven_size_t i = 0; i < nd->nkids; i++) be_expand_any(c, nd->kids[i]);
+}
+// ★ RFC-0135 D12 — `let|var <이름> … using <할당기> keep be …` 에서 `keep` 을 빼고 `using` 원자에 표시한다.
+//   `keep` 은 `using <할당기>` 바로 뒤에만 뜻이 있다 — 다른 자리면 말한다.
+static void be_strip_keep(us_ctx_t *c, low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && us_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR)) {
+        proven_size_t be = nd->nkids;
+        for (proven_size_t q = 2; q < nd->nkids; q++) if (us_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
+        for (proven_size_t q = 2; q < be; q++) {
+            if (!us_atom(nd->kids[q]) || !us_eq(nd->kids[q]->tok.lex, "keep")) continue;
+            if (q >= 4 && us_atom(nd->kids[q - 2]) && us_eq(nd->kids[q - 2]->tok.lex, "using") && q + 1 == be)
+                nd->kids[q - 2]->is_keep = true;
+            else
+                low_pdiag(&c->p, "E-USING-FORM", "`keep` goes right after the allocator, before `be`: "
+                          "`var t using al keep be mut slice u8 lit … . else … .` (RFC-0135 D12)",
+                          nd->kids[q]->tok.line, nd->kids[q]->tok.col);
+            for (proven_size_t z = q; z + 1 < nd->nkids; z++) nd->kids[z] = nd->kids[z + 1];   // 뒤의 패스는 `keep` 을 보지 않는다
+            nd->nkids--;
+            break;
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) be_strip_keep(c, nd->kids[i]);
+}
+void low_bind_keep_strip(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    for (proven_size_t i = 0; i < pr->nforms; i++) be_strip_keep(c, pr->forms[i]);
 }
 void low_bind_else_expand(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
     us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;

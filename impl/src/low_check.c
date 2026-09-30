@@ -8054,7 +8054,12 @@ static void ck_guard_block(low_check_result_t *out, const low_cst_t *blk) {
         const low_cst_t *eb = (st->nkids >= 2) ? st->kids[st->nkids - 1] : NULL;
         if (eb && !(eb->kind == LOW_CST_FORM && eb->nkids && eb->kids[0]->kind == LOW_CST_ATOM &&
                     eb->kids[0]->tok.kw == LOW_KW_ELSE)) eb = NULL;
-        if (!ck_leaves(eb))
+        if (!ck_leaves(eb) && st->kids[0]->synth)          // RFC-0135 S1 — 바인딩 `else` 에서 온 guard
+            emit(out, "E-GUARD-FALLTHROUGH",
+                 "this binding's `else` FALLS THROUGH — it must LEAVE (`return` / `break` / `continue` / `panic`). "
+                 "After the binding the name holds the value taken out of the option/result; if `else` came back "
+                 "down there would be nothing to hold (RFC-0135 §4.2)", eb ? eb->kids[0]->tok.line : st->kids[0]->tok.line);
+        else if (!ck_leaves(eb))
             emit(out, "E-GUARD-FALLTHROUGH",
                  "this `guard`'s `else` FALLS THROUGH — it must LEAVE (`return` / `break` / "
                  "`continue` / `panic`). If it falls through, the code AFTER the guard wrongly "
@@ -10365,13 +10370,14 @@ static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *n
     if (!nd) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) &&
         (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR)) {
-        bool has_mut = false; proven_size_t be = nd->nkids;
+        bool has_mut = false, via_alloc = false; proven_size_t be = nd->nkids;
         for (proven_size_t z = 2; z < nd->nkids; z++) {
             if (!ck_atom(nd->kids[z])) continue;
             if (nd->kids[z]->tok.kw == LOW_KW_BE) { be = z; break; }
             if (veq(nd->kids[z]->tok.lex, "mut") || veq(nd->kids[z]->tok.lex, "mut_ref")) has_mut = true;
+            if (veq(nd->kids[z]->tok.lex, "using")) via_alloc = true;   // 할당기가 준 바이트 — 박힌 리터럴이 아니다(RFC-0132 §13.7)
         }
-        if (has_mut && be + 1 < nd->nkids) {
+        if (has_mut && !via_alloc && be + 1 < nd->nkids) {
             const low_cst_t *init = nd->kids[be + 1];
             // ★★★★★ **리터럴은 한 겹 뒤에 숨을 수 있다** (2026-09-18, X-0032).
             //   이 검사는 `be` 바로 뒤의 **원자**만 보고 있었다. 그래서

@@ -699,7 +699,7 @@ digits_loop([97,49,50,98,51]) = 3
 $ lowentc --run digits_pipe digits.low [97,49,50,98,51]
 digits_pipe([97,49,50,98,51]) = 3
   arg0 (written) = [97,49,50,98,51]
-</code></pre></div></div><p>두 op 은 같은 답을 낸다. <code>digits_loop</code> 는 카운터 <code>n</code>, 색인 <code>i</code>, 끝 조건, 증가를 사람이 맞춘다. <code>digits_pipe</code> 는 두 줄이다.</p><span id="idx-entry-55"></span><ul><li><code>filter is_digit .</code> — <code>is_digit</code> 이 참인 원소만 남긴다.</li><li><code>count .</code> — 남은 원소를 센다. 흐름을 끝내는 낱말(<strong>종결자</strong>)은 정확히 하나다.</li></ul><p><code>pipe</code> 는 문장이지만 값을 내는 종결자(<code>count</code>·<code>fold</code>·<code>any</code>·<code>all</code>)로 끝나면 식처럼 <code>return pipe s do … end .</code> 로 쓸 수 있다 — 끝의 점은 <code>return</code> 문장의 것이다(<code>end</code> 는 <code>pipe</code> 블록만 닫는다).</p><p>원소가 줄지어 흘러가는 관으로 그리면 이렇다.</p><pre><code data-lang="text"> s = "a1b22"
+</code></pre></div></div><p>두 op 은 같은 답을 낸다. <code>digits_loop</code> 는 카운터 <code>n</code>, 색인 <code>i</code>, 끝 조건, 증가를 사람이 맞춘다. <code>digits_pipe</code> 는 두 줄이다.</p><span id="idx-entry-56"></span><ul><li><code>filter is_digit .</code> — <code>is_digit</code> 이 참인 원소만 남긴다.</li><li><code>count .</code> — 남은 원소를 센다. 흐름을 끝내는 낱말(<strong>종결자</strong>)은 정확히 하나다.</li></ul><p><code>pipe</code> 는 문장이지만 값을 내는 종결자(<code>count</code>·<code>fold</code>·<code>any</code>·<code>all</code>)로 끝나면 식처럼 <code>return pipe s do … end .</code> 로 쓸 수 있다 — 끝의 점은 <code>return</code> 문장의 것이다(<code>end</code> 는 <code>pipe</code> 블록만 닫는다).</p><p>원소가 줄지어 흘러가는 관으로 그리면 이렇다.</p><pre><code data-lang="text"> s = "a1b22"
                ┌─────────────────┐            ┌───────┐
   a 1 b 2 2 ─▶ │ filter is_digit │ ─▶ 1 2 2 ─▶ │ count │ ─▶ 3
                └─────────────────┘            └───────┘

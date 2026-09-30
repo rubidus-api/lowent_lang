@@ -184,17 +184,19 @@ Both ops are *an optimisation, not a promise*. If a piece cannot grow, the calle
 == Taking a list from an allocator
 
 A list written out as values (#chref("slices")) normally sits in the op's frame. When it is large, or must outlive the op,
-take its bytes from an allocator you choose: write `using <allocator>` on the binding and `option` in the type position.
+take its bytes from an allocator you choose: write `using <allocator>` on the binding, and say with `else` what happens when the bytes do not come.
 
 #demo("examples/ch20/litalloc.low")
 
-- `var xo using bb be option lit array u64 4 … .` asks `bb` for 32 bytes and, if it gets them, fills them like any list and
-  gives `some`. If the allocator cannot give the bytes, the value is `none`. Whatever can fail is an `option`, so check it with
-  `guard is_some` before use.
+- `var xs using bb be mut slice u64 lit array u64 4 … . else return 0 .` asks `bb` for 32 bytes and, if it gets them, fills them like
+  any list and binds them to `xs`. If the allocator cannot give the bytes, control goes to `else`, which must leave (binding `else` is
+  covered in #chref("option-result")).
+- To carry the failure along as an `option`, write the whole type: `let big using bb be option mut slice u64 lit … .` --- then check it
+  later with `guard` or `match`.
 - Filling works as for a frame list: list the elements, or fill chosen cells with `do … end`.
 - The bytes belong to the allocator, so their lifetime follows it. Bytes from the heap may be returned out of the block; bytes
   from a bump allocator backed by a frame array cannot leave that array's block (`E-LIT-ESCAPE`).
-- Leaving out `option`, or writing `using` on a `lit vec`, is `E-LIT-USING`.
+- Writing `using` with neither `else` nor `option`, or on a `lit vec`, is `E-LIT-USING`.
 
 == Where the three layers sit in the standard library
 
@@ -323,7 +325,7 @@ Reading the `u8` value 2 as a `bool` would give a value that is neither true nor
   [`allocs.fixed_bytes` · `allocs.heap_bytes`], [default allocators carving straight from a root], [only an op holding that kind of capability may spawn one --- `E-CAP-FORGE`],
   [`send b grow pv 6` · `send b release qv`], [grows the last piece · takes it back], [checks identity with `same_slice`, not size],
   [no source · an unused `using`], [`E-ALLOC-NOSOURCE` · `E-ALLOC-USING-UNUSED`], [no global allocator, and no empty choice],
-  [`var xo using bb be option lit array u64 4 … .`], [takes a list from the allocator you choose], [`none` if it runs out --- the type is `option`],
+  [`var xs using bb be mut slice u64 lit array u64 4 … . else …`], [takes a list from the allocator you choose], [goes to `else` if it runs out --- which must leave],
   [`bit_cast u32 x`], [keep the bits, change only how they are read], [never read as `bool` or `enum`],
 )
 

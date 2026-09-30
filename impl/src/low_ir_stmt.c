@@ -136,6 +136,9 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
         else if (lp->nbrk < IR_MAXPATCH) lp->brk[lp->nbrk++] = ir_emit(c, IRW_BR, 0);
         return;
     }
+    // ★ RFC-0135 S1 (D3) — `… . else panic "…" .`: 멈춤도 벗어나는 길이다(검사층의 E-GUARD-FALLTHROUGH 가 이미 받는다).
+    //   전엔 하강이 몰라 `guard c . else panic "…" .` 가 `E-IR-UNSUP` 였다 — 검사는 초록인데 돌지 않았다.
+    if (is_atom(k[start]) && veq(k[start]->tok.lex, "panic")) { ir_run(c, k, start, n); return; }
     ir_fail(c, "E-IR-UNSUP", "unsupported guard diverge (fail is outside the S5 core)", line);
 }
 

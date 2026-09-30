@@ -28,6 +28,7 @@
  */
 #include "low_cst_priv.h"
 #include "low_cst.h"
+#include "low_ir.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -465,8 +466,9 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                     explicit_src_told = true;
                     low_pdiag(&c->p, "E-LIT-USING", us_eq(lg->kids[1]->tok.lex, "vec")
                               ? "a SIMD value lives in lanes, not in bytes an allocator hands out — `using` does not apply to `lit vec`"
-                              : "a list built from an allocator can fail to get its bytes, so its type is `option`: "
-                                "`var buf using al be option lit array u8 16 _ . .` — then `guard is_some buf . else …` (RFC-0132 §13.7)",
+                              : "a list built from an allocator can fail to get its bytes — say what happens then: "
+                                "`var buf using al be mut slice u8 lit array u8 16 _ . . else return … .`, or keep the option: "
+                                "`let bo using al be option mut slice u8 lit array u8 16 _ . .` (RFC-0135 §4.2)",
                               explicit_src->tok.line, explicit_src->tok.col);
                 } else {
                     proven_u8str_view_t ty = lg->kids[2]->tok.lex;
@@ -748,7 +750,24 @@ static void dt_diag(dt_ctx_t *c, const low_cst_t *at, const char *code, const ch
     (void)proven_array_push(&c->p.out->diags, &d);
     c->p.out->ok = false;
 }
+static void dt_decl_core(dt_ctx_t *c, low_cst_t *f);
+// ★ RFC-0135 S1 — 끝 자식이 바인딩 `else` 면 떼어 두고 타입·값을 가른 뒤 다시 붙인다(값의 꼬리로 읽히지 않게).
 static void dt_decl(dt_ctx_t *c, low_cst_t *f) {
+    low_cst_t *els = NULL;
+    if (f->nkids >= 3 && f->kids[f->nkids - 1]->kind == LOW_CST_FORM && f->kids[f->nkids - 1]->nkids &&
+        us_atom(f->kids[f->nkids - 1]->kids[0]) && f->kids[f->nkids - 1]->kids[0]->tok.kw == LOW_KW_ELSE) {
+        els = f->kids[f->nkids - 1];
+        f->nkids--;
+    }
+    dt_decl_core(c, f);
+    if (!els) return;
+    low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (f->nkids + 1), alignof(low_cst_t *)).value.ptr;
+    if (!nk) return;
+    for (proven_size_t i = 0; i < f->nkids; i++) nk[i] = f->kids[i];
+    nk[f->nkids] = els;
+    (void)low_refit(&c->p, f, nk, f->nkids + 1);
+}
+static void dt_decl_core(dt_ctx_t *c, low_cst_t *f) {
     proven_size_t b = 0;
     for (proven_size_t i = 2; i < f->nkids; i++) if (us_atom(f->kids[i]) && f->kids[i]->tok.kw == LOW_KW_BE) { b = i; break; }
     if (!b) return;
@@ -828,26 +847,10 @@ static void dt_decl(dt_ctx_t *c, low_cst_t *f) {
         }
         if (lf->nkids >= 3 && us_atom(lf->kids[0]) && lf->kids[0]->tok.kw == LOW_KW_LIT && us_atom(lf->kids[1]) && us_atom(lf->kids[2]) &&
             (us_eq(lf->kids[1]->tok.lex, "array") || us_eq(lf->kids[1]->tok.lex, "slice"))) {
-            if (b != 4) {
-                dt_diag(c, f->kids[1], "E-LIT-USING", "`option lit …` is a list built in bytes from an allocator — name the "
-                        "allocator before `be`: `var buf using al be option lit array u8 16 _ . .` (RFC-0132 §13.7)");
-                return;
-            }
-            if (c->migrate) return;
-            low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 10, alignof(low_cst_t *)).value.ptr;
-            if (!nk) return;
-            const char *w[3] = { "option", "mut", "slice" };
-            proven_size_t m = 0;
-            nk[m++] = f->kids[0]; nk[m++] = f->kids[1];
-            for (int q = 0; q < 4; q++) {
-                low_cst_t *cp = (low_cst_t *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, sizeof(low_cst_t), alignof(low_cst_t)).value.ptr;
-                if (!cp) return;
-                *cp = *lf->kids[2];
-                if (q < 3) { cp->tok.lex = (proven_u8str_view_t){ .ptr = (const proven_u8 *)w[q], .size = strlen(w[q]) }; cp->tok.kw = LOW_KW_NONE; }
-                nk[m++] = cp;
-            }
-            nk[m++] = f->kids[2]; nk[m++] = f->kids[3]; nk[m++] = f->kids[b]; nk[m++] = f->kids[b + 2];
-            (void)low_refit(&c->p, f, nk, m);
+            // ★ RFC-0135 D6 — 이 철자(`be option lit …`)는 §4.1·§4.2 의 모양과 같은 일을 하는 둘째 철자라 없앴다.
+            dt_diag(c, f->kids[1], "E-LIT-USING", "`be option lit …` is gone (RFC-0135 D6) — take the list from the allocator with "
+                    "`var buf using al be mut slice T lit array T N … . else return … .`, or keep the option with its whole type: "
+                    "`let bo using al be option mut slice T lit array T N … .`");
             return;
         }
     }
@@ -1013,5 +1016,338 @@ static void dt_run(low_parse_result_t *pr, proven_allocator_t node_alloc, proven
         if (f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_MODULE &&
             us_atom(f->kids[1])) c->curmod = f->kids[1]->tok.lex;
         dt_walk(c, pr->forms[i]);
+    }
+}
+
+
+/* ══ RFC-0135 S1 — 바인딩 `else` ══════════════════════════════════════════════════════════════════════════
+ * `let n be T v . else S` 는 값 v 가 option/result 일 때 알맹이를 꺼내 n 에 묶고, 비었으면 S(반드시 벗어난다)로 간다.
+ * 모든 뒤따르는 소비자(검사 · 타입 · 하강 · 두 뒤끝)가 이미 아는 모양으로 **펼친다**:
+ *     let $n [using a] be <$wrapof|option> T v .        ← 숨은 임시(타입은 아래 풀이가 채운다)
+ *     guard $has $n . else S                             ← guard 의 규칙(E-GUARD-FALLTHROUGH)을 그대로 받는다
+ *     let|var n be T $take $n .                          ← 알맹이
+ * 풀이(`low_bind_else`, 단형화 뒤)가 v 의 타입(부르는 op 의 출력 · 지역·매개변수의 선언 · send 처리기 · `alloc_bytes`)을 보고
+ * `$wrapof` → option|result(+오류 타입), `$has` → is_some|is_ok, `$take` → some_value|ok_value 로 바꾼다. 알 수 없으면 거절한다.
+ * 할당기 나열(`using` + `lit`)은 펼칠 때 곧바로 `option` 이다(RFC-0132 §13.7 · RFC-0135 §4.3). */
+static bool be_is_else(const low_cst_t *n) {
+    return n && n->kind == LOW_CST_FORM && n->nkids && us_atom(n->kids[0]) && n->kids[0]->tok.kw == LOW_KW_ELSE;
+}
+static low_cst_t *be_copy(us_ctx_t *c, const low_cst_t *m) {
+    low_cst_t *cp = (low_cst_t *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, sizeof(low_cst_t), alignof(low_cst_t)).value.ptr;
+    if (cp) *cp = *m;
+    return cp;
+}
+static low_cst_t *be_word(us_ctx_t *c, const low_cst_t *model, const char *w, low_kw_t kw) {
+    low_cst_t *a = us_atom_like(c, model, (proven_u8str_view_t){ .ptr = (const proven_u8 *)w, .size = strlen(w) });
+    if (a) { a->tok.kw = kw; a->synth = true; }
+    return a;
+}
+static low_cst_t *be_form(us_ctx_t *c, const low_cst_t *model, low_cst_t **k, proven_size_t n) {
+    low_cst_t *f = low_node(&c->p, LOW_CST_FORM, model->tok);
+    if (!f) return NULL;
+    low_cst_t **kk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (n ? n : 1), alignof(low_cst_t *)).value.ptr;
+    if (!kk) return NULL;
+    for (proven_size_t i = 0; i < n; i++) kk[i] = k[i];
+    (void)low_refit(&c->p, f, kk, n);
+    f->synth = true; f->closer = model->closer;
+    return f;
+}
+static void be_expand_block(us_ctx_t *c, low_cst_t *blk) {
+    bool any = false;
+    for (proven_size_t i = 0; i < blk->nkids; i++) {
+        const low_cst_t *f = blk->kids[i];
+        if (f->kind == LOW_CST_FORM && f->nkids >= 4 && us_atom(f->kids[0]) &&
+            (f->kids[0]->tok.kw == LOW_KW_LET || f->kids[0]->tok.kw == LOW_KW_VAR) && be_is_else(f->kids[f->nkids - 1])) any = true;
+    }
+    if (any) {
+        proven_size_t cap = blk->nkids * 3;
+        low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * cap, alignof(low_cst_t *)).value.ptr;
+        if (!nk) return;
+        proven_size_t m = 0;
+        for (proven_size_t i = 0; i < blk->nkids; i++) {
+            low_cst_t *f = blk->kids[i];
+            bool is_bind = f->kind == LOW_CST_FORM && f->nkids >= 4 && us_atom(f->kids[0]) &&
+                           (f->kids[0]->tok.kw == LOW_KW_LET || f->kids[0]->tok.kw == LOW_KW_VAR) && us_atom(f->kids[1]) &&
+                           be_is_else(f->kids[f->nkids - 1]);
+            proven_size_t be = 0, us = 0;
+            if (is_bind) for (proven_size_t q = 2; q + 1 < f->nkids; q++) {
+                if (us_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
+                if (us_atom(f->kids[q]) && us_eq(f->kids[q]->tok.lex, "using")) us = q;
+            }
+            proven_size_t tend = us ? us : be;
+            if (!is_bind || !be || tend <= 2 || be + 1 >= f->nkids - 1) {
+                if (is_bind) low_pdiag(&c->p, "E-BIND-ELSE", "a binding with `else` needs a type and a value: `let n be u64 find xs 3 . else return 0 .` "
+                                       "(RFC-0135 §4.2)", f->kids[0]->tok.line, f->kids[0]->tok.col);
+                nk[m++] = f; continue;
+            }
+            low_cst_t *els = f->kids[f->nkids - 1];
+            const low_cst_t *nm = f->kids[1];
+            char *tn = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, nm->tok.lex.size + 2, 1).value.ptr;
+            if (!tn) { nk[m++] = f; continue; }
+            tn[0] = '$'; memcpy(tn + 1, nm->tok.lex.ptr, nm->tok.lex.size); tn[nm->tok.lex.size + 1] = 0;
+            // 할당기 나열이면 임시의 타입은 곧바로 option(using 패스가 `option` 을 보고 할당 · 채우기로 바꾼다)
+            bool using_lit = false;
+            if (us && be + 2 == f->nkids - 1) {
+                const low_cst_t *v = f->kids[be + 1];
+                while (v && v->kind == LOW_CST_GROUP && v->nkids == 1) v = v->kids[0];
+                using_lit = v && v->kind == LOW_CST_FORM && v->nkids >= 3 && us_atom(v->kids[0]) && v->kids[0]->tok.kw == LOW_KW_LIT &&
+                            us_atom(v->kids[1]) && (us_eq(v->kids[1]->tok.lex, "array") || us_eq(v->kids[1]->tok.lex, "slice"));
+            }
+            if (using_lit) {                            // 바인딩 타입은 `[mut] slice <나열의 원소 타입>` 이어야 한다
+                const low_cst_t *v = f->kids[be + 1];
+                while (v && v->kind == LOW_CST_GROUP && v->nkids == 1) v = v->kids[0];
+                proven_size_t q = 2;
+                while (q < tend && us_atom(f->kids[q]) && us_eq(f->kids[q]->tok.lex, "mut")) q++;
+                bool ok = tend - q == 2 && us_atom(f->kids[q]) && us_eq(f->kids[q]->tok.lex, "slice") && us_atom(f->kids[q + 1]) &&
+                          proven_u8str_view_eq(f->kids[q + 1]->tok.lex, v->kids[2]->tok.lex);
+                if (!ok) low_pdiag(&c->p, "E-BIND-ELSE", "a list taken from an allocator is a slice of its element type — write "
+                                   "`be mut slice <element type> lit array <element type> … . else …` (RFC-0135 §4.2)",
+                                   f->kids[0]->tok.line, f->kids[0]->tok.col);
+            }
+            low_cst_t *tk[256]; proven_size_t tnk = 0;
+            if (f->nkids + 4 > 256) { nk[m++] = f; continue; }
+            // ① 임시: [let, $n, $wrapof|option, T…, (using x), be, v…]
+            tk[tnk++] = be_word(c, f->kids[0], "let", LOW_KW_LET);
+            tk[tnk++] = be_word(c, nm, tn, LOW_KW_NONE);
+            tk[tnk++] = be_word(c, nm, using_lit ? "option" : "$wrapof", LOW_KW_NONE);
+            for (proven_size_t q = 2; q < tend; q++) tk[tnk++] = be_copy(c, f->kids[q]);
+            for (proven_size_t q = tend; q + 1 < f->nkids; q++) tk[tnk++] = f->kids[q];   // using x · be · 값(옮긴다 — 한 자리에만)
+            low_cst_t *tmp = be_form(c, f, tk, tnk);
+            // ② guard $has $n . else S
+            low_cst_t *gk[4] = { be_word(c, f->kids[0], "guard", LOW_KW_GUARD), be_word(c, nm, "$has", LOW_KW_NONE),
+                                 be_word(c, nm, tn, LOW_KW_NONE), els };
+            low_cst_t *gd = be_form(c, f, gk, 4);
+            // ③ [kw, n, T…, be, $take, $n]
+            low_cst_t *fk[256]; proven_size_t fnk = 0;
+            fk[fnk++] = f->kids[0]; fk[fnk++] = f->kids[1];
+            for (proven_size_t q = 2; q < tend; q++) fk[fnk++] = f->kids[q];
+            fk[fnk++] = be_copy(c, f->kids[be]);
+            fk[fnk++] = be_word(c, nm, "$take", LOW_KW_NONE);
+            fk[fnk++] = be_word(c, nm, tn, LOW_KW_NONE);
+            low_cst_t *fin = be_form(c, f, fk, fnk);
+            if (!tmp || !gd || !fin) { nk[m++] = f; continue; }
+            fin->synth = false;          // 저자가 쓴 이름의 바인딩 — 검사는 보통 바인딩처럼 한다
+            nk[m++] = tmp; nk[m++] = gd; nk[m++] = fin;
+        }
+        (void)low_refit(&c->p, blk, nk, m);
+    }
+    for (proven_size_t i = 0; i < blk->nkids; i++) {
+        low_cst_t *k = blk->kids[i];
+        for (proven_size_t j = 0; j < k->nkids; j++) if (k->kids[j]->kind == LOW_CST_BLOCK) be_expand_block(c, k->kids[j]);
+            else if (k->kids[j]->kind == LOW_CST_FORM)
+                for (proven_size_t z = 0; z < k->kids[j]->nkids; z++) if (k->kids[j]->kids[z]->kind == LOW_CST_BLOCK) be_expand_block(c, k->kids[j]->kids[z]);
+    }
+}
+static void be_expand_any(us_ctx_t *c, low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_BLOCK) { be_expand_block(c, nd); return; }
+    for (proven_size_t i = 0; i < nd->nkids; i++) be_expand_any(c, nd->kids[i]);
+}
+void low_bind_else_expand(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    for (proven_size_t i = 0; i < pr->nforms; i++) be_expand_any(c, pr->forms[i]);
+}
+
+/* 풀이: v 의 타입의 첫 낱말(option/result)과 result 의 오류 타입 낱말. */
+static const low_cst_t *br_op_form(const low_parse_result_t *pr, proven_u8str_view_t name) {
+    proven_u8str_view_t bare = us_bare(name);
+    const low_cst_t *hit = NULL;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 3 || !us_atom(f->kids[0]) || !us_atom(f->kids[1])) continue;
+        low_kw_t k = f->kids[0]->tok.kw;
+        if (k != LOW_KW_FN && k != LOW_KW_PROC) continue;
+        if (proven_u8str_view_eq(f->kids[1]->tok.lex, name)) return f;
+        if (!hit && proven_u8str_view_eq(us_bare(f->kids[1]->tok.lex), bare)) hit = f;
+    }
+    return hit;
+}
+typedef struct { low_cst_t *const *w; proven_size_t n; } br_words_t;
+static br_words_t br_out_words(const low_cst_t *opf) {
+    low_op_header_t h = low_op_header(opf);
+    br_words_t r = { 0 };
+    if (h.out_e > h.out_s) { r.w = opf->kids + h.out_s; r.n = h.out_e - h.out_s; }
+    return r;
+}
+static br_words_t br_local_words(const low_cst_t *op, const low_cst_t *body, proven_u8str_view_t nm) {
+    br_words_t r = { 0 };
+    low_op_header_t h = low_op_header(op);
+    for (proven_size_t q = 0; q < h.np; q++)
+        if (proven_u8str_view_eq(h.p[q].name, nm)) { r.w = op->kids + h.p[q].core; r.n = h.p[q].te - h.p[q].core; return r; }
+    // 몸의 바인딩(안쪽 모양: [kw, 이름, 타입…, (using x), be, …])
+    const low_cst_t *stack[256]; proven_size_t sp = 0;
+    if (body) stack[sp++] = body;
+    while (sp) {
+        const low_cst_t *n = stack[--sp];
+        if (n->kind == LOW_CST_FORM && n->nkids >= 3 && us_atom(n->kids[0]) &&
+            (n->kids[0]->tok.kw == LOW_KW_LET || n->kids[0]->tok.kw == LOW_KW_VAR) && us_atom(n->kids[1]) &&
+            proven_u8str_view_eq(n->kids[1]->tok.lex, nm)) {
+            proven_size_t e = 2;
+            while (e < n->nkids && !(us_atom(n->kids[e]) && (n->kids[e]->tok.kw == LOW_KW_BE || us_eq(n->kids[e]->tok.lex, "using")))) e++;
+            proven_size_t s = 2;
+            while (s < e && us_atom(n->kids[s]) && (us_eq(n->kids[s]->tok.lex, "mut") || us_eq(n->kids[s]->tok.lex, "owned"))) s++;
+            r.w = n->kids + s; r.n = e - s; return r;
+        }
+        for (proven_size_t i = 0; i < n->nkids && sp < 256; i++) if (n->kids[i]->kind != LOW_CST_ATOM) stack[sp++] = n->kids[i];
+    }
+    return r;
+}
+// 타입 낱말 줄의 종류: 1 = option · 2 = result(오류 타입 낱말을 *err 에) · -1 = 둘 다 아님 · 0 = 모른다
+static int br_words_kind(br_words_t w, const low_cst_t **err) {
+    if (!w.n) return 0;
+    const low_cst_t *w0 = w.w[0];
+    while (w0 && w0->kind == LOW_CST_GROUP && w0->nkids) w0 = w0->kids[0];
+    if (w0 && w0->kind == LOW_CST_FORM && w0->nkids) {                  // `(result u64 e)` 처럼 괄호로 싼 타입
+        if (us_atom(w0->kids[0]) && us_eq(w0->kids[0]->tok.lex, "result") && w0->nkids >= 3) { *err = w0->kids[w0->nkids - 1]; return 2; }
+        w0 = w0->kids[0];
+    }
+    if (!w0 || !us_atom(w0)) return 0;
+    if (us_eq(w0->tok.lex, "option")) return 1;
+    if (us_eq(w0->tok.lex, "result")) { *err = w.w[w.n - 1]; return 2; }
+    return -1;
+}
+static int br_value_kind(const low_parse_result_t *pr, const low_cst_t *op, const low_cst_t *body,
+                         low_cst_t *const *v, proven_size_t nv, const low_cst_t **err, br_words_t *wout) {
+    if (!nv) return 0;
+    const low_cst_t *h = v[0];
+    low_cst_t *const *args = v + 1; proven_size_t na = nv - 1;
+    while (nv == 1 && h && h->kind == LOW_CST_GROUP && h->nkids == 1) h = h->kids[0];
+    if (nv == 1 && h && h->kind == LOW_CST_FORM && h->nkids) { args = h->kids + 1; na = h->nkids - 1; h = h->kids[0]; }
+    if (!h || !us_atom(h)) return 0;
+    if (na == 0 && h->tok.kind == LOW_TOK_IDENT) {                       // 이름 하나 — 매개변수·지역의 선언
+        br_words_t lw = br_local_words(op, body, h->tok.lex);
+        int k = br_words_kind(lw, err);
+        if (k) { *wout = lw; return k; }
+    }
+    if (h->tok.kind == LOW_TOK_NUMBER || h->tok.kind == LOW_TOK_STRING) return -1;
+    if (us_eq(h->tok.lex, "alloc_bytes")) return 1;                      // option mut slice u8
+    if (us_eq(h->tok.lex, "send") && na >= 2 && us_atom(args[0]) && us_atom(args[1])) {   // send <actor> <처리기> …
+        br_words_t at = br_local_words(op, body, args[0]->tok.lex);
+        if (!at.n || !us_atom(at.w[0])) return 0;
+        proven_u8str_view_t an = us_bare(at.w[0]->tok.lex);
+        for (proven_size_t i = 0; i < pr->nforms; i++) {
+            const low_cst_t *f = pr->forms[i];
+            if (f->kind != LOW_CST_FORM || f->nkids < 3 || !us_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_ACTOR ||
+                !us_atom(f->kids[1]) || !proven_u8str_view_eq(us_bare(f->kids[1]->tok.lex), an)) continue;
+            const low_cst_t *blk = f->kids[f->nkids - 1];
+            for (proven_size_t j = 0; blk->kind == LOW_CST_BLOCK && j < blk->nkids; j++) {
+                const low_cst_t *hf = blk->kids[j];
+                if (hf->kind == LOW_CST_FORM && hf->nkids >= 3 && us_atom(hf->kids[1]) &&
+                    proven_u8str_view_eq(hf->kids[1]->tok.lex, args[1]->tok.lex)) { *wout = br_out_words(hf); return br_words_kind(*wout, err); }
+            }
+        }
+        return 0;
+    }
+    const low_cst_t *opf = br_op_form(pr, h->tok.lex);
+    if (opf) { *wout = br_out_words(opf); return br_words_kind(*wout, err); }
+    // 내장 op 가운데 비어 있을 수 있는 값을 내는 것은 위의 것뿐이다 — 나머지 내장은 option/result 가 아니다
+    if (low_ir_is_builtin_name(h->tok.lex) && !us_eq(h->tok.lex, "try_view") && !us_eq(h->tok.lex, "pop")) return -1;
+    return 0;
+}
+// 타입 낱말 줄을 펼쳐 낱말 목록으로(괄호 한 겹은 벗긴다 · 앞의 `mut` 는 뺀다 — `mut slice` 를 `slice` 로 받아도 된다)
+static proven_size_t br_flat(low_cst_t *const *w, proven_size_t n, proven_u8str_view_t *out, proven_size_t cap) {
+    proven_size_t m = 0;
+    for (proven_size_t i = 0; i < n && m < cap; i++) {
+        const low_cst_t *x = w[i];
+        if (x->kind == LOW_CST_GROUP || x->kind == LOW_CST_FORM) { m += br_flat(x->kids, x->nkids, out + m, cap - m); continue; }
+        if (us_atom(x)) out[m++] = us_bare(x->tok.lex);
+    }
+    return m;
+}
+// 값 타입 W(option P / result P E)의 알맹이 P 와 바인딩 타입 T 가 같은가. 모르면 참(묻지 않는다).
+static bool br_payload_ok(br_words_t w, int kind, low_cst_t *const *t, proven_size_t nt) {
+    if (!w.n) return true;
+    proven_u8str_view_t a[64], b[64];
+    proven_size_t na = br_flat(w.w, w.n, a, 64), nb = br_flat(t, nt, b, 64);
+    if (na < 2) return true;
+    proven_size_t s0 = 1, e0 = kind == 2 ? na - 1 : na;               // [option|result] P… [E]
+    while (s0 < e0 && low_view_eq_cstr(a[s0], "mut")) s0++;
+    proven_size_t s1 = 0;
+    while (s1 < nb && low_view_eq_cstr(b[s1], "mut")) s1++;
+    if (e0 - s0 != nb - s1) return false;
+    for (proven_size_t i = 0; i < e0 - s0; i++) if (!proven_u8str_view_eq(a[s0 + i], b[s1 + i])) return false;
+    return true;
+}
+typedef struct { proven_u8str_view_t name; int kind; } br_tmp_t;   // kind 1 = option · 2 = result
+static void br_walk(us_ctx_t *c, const low_cst_t *op, low_cst_t *body, low_cst_t *nd, br_tmp_t *t, proven_size_t *nt) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && us_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_LET &&
+        us_atom(nd->kids[1]) && nd->kids[1]->tok.lex.size > 1 && nd->kids[1]->tok.lex.ptr[0] == '$' && us_atom(nd->kids[2])) {
+        int kind = 0;
+        if (us_eq(nd->kids[2]->tok.lex, "option")) kind = 1;
+        else if (us_eq(nd->kids[2]->tok.lex, "$wrapof")) {
+            proven_size_t be = 0;
+            for (proven_size_t q = 3; q < nd->nkids; q++) if (us_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_BE) { be = q; break; }
+            const low_cst_t *err = NULL; br_words_t vw = { 0 };
+            kind = be ? br_value_kind(c->p.out, op, body, nd->kids + be + 1, nd->nkids - be - 1, &err, &vw) : 0;
+            proven_size_t tend = 3;
+            while (tend < nd->nkids && !(us_atom(nd->kids[tend]) && (nd->kids[tend]->tok.kw == LOW_KW_BE || us_eq(nd->kids[tend]->tok.lex, "using")))) tend++;
+            if (kind > 0 && !br_payload_ok(vw, kind, nd->kids + 3, tend - 3))
+                low_pdiag(&c->p, "E-BIND-ELSE", "the value holds a different type than this binding takes — the type written after `be` "
+                          "is what comes OUT of the option/result, and it must be that content's type (RFC-0135 §4.2)",
+                          nd->kids[0]->tok.line, nd->kids[0]->tok.col);
+            if (kind <= 0) {
+                low_pdiag(&c->p, "E-BIND-ELSE", kind < 0
+                    ? "`else` on a binding takes a value that can be empty — an `option` or a `result`. This value is neither: "
+                      "bind it plainly, without `else` (RFC-0135 §4.2)"
+                    : "cannot tell here whether this value is an `option` or a `result` — `else` works on calls, names and "
+                      "`send`; bind the value with its type first (`let r be option u64 … .`) and `guard` it (RFC-0135 §4.2)",
+                    nd->kids[0]->tok.line, nd->kids[0]->tok.col);
+                kind = 1;
+            }
+            nd->kids[2]->tok.lex = kind == 2 ? (proven_u8str_view_t){ .ptr = (const proven_u8 *)"result", .size = 6 }
+                                             : (proven_u8str_view_t){ .ptr = (const proven_u8 *)"option", .size = 6 };
+            if (kind == 2 && err) {                                      // 오류 타입 낱말을 T 뒤(using/be 앞)에 끼운다
+                proven_size_t at = 3;
+                while (at < nd->nkids && !(us_atom(nd->kids[at]) && (nd->kids[at]->tok.kw == LOW_KW_BE || us_eq(nd->kids[at]->tok.lex, "using")))) at++;
+                low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (nd->nkids + 1), alignof(low_cst_t *)).value.ptr;
+                if (nk) {
+                    proven_size_t m = 0;
+                    for (proven_size_t q = 0; q < nd->nkids; q++) { if (q == at) nk[m++] = be_copy(c, err); nk[m++] = nd->kids[q]; }
+                    (void)low_refit(&c->p, nd, nk, m);
+                }
+            }
+        }
+        if (kind && *nt < 256) { t[*nt].name = nd->kids[1]->tok.lex; t[*nt].kind = kind; (*nt)++; }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        low_cst_t *k = nd->kids[i];
+        if (us_atom(k) && (us_eq(k->tok.lex, "$has") || us_eq(k->tok.lex, "$take")) && i + 1 < nd->nkids && us_atom(nd->kids[i + 1])) {
+            int kind = 1;
+            for (proven_size_t z = *nt; z-- > 0; ) if (proven_u8str_view_eq(t[z].name, nd->kids[i + 1]->tok.lex)) { kind = t[z].kind; break; }
+            bool has = us_eq(k->tok.lex, "$has");
+            const char *w = has ? (kind == 2 ? "is_ok" : "is_some") : (kind == 2 ? "ok_value" : "some_value");
+            k->tok.lex = (proven_u8str_view_t){ .ptr = (const proven_u8 *)w, .size = strlen(w) };
+            continue;
+        }
+        br_walk(c, op, body, k, t, nt);
+    }
+}
+void low_bind_else(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    static br_tmp_t t[256];
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        low_cst_t *f = pr->forms[i];
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 3 || !us_atom(f->kids[0])) continue;
+        low_kw_t k = f->kids[0]->tok.kw;
+        if (k == LOW_KW_FN || k == LOW_KW_PROC) {
+            proven_size_t nt = 0;
+            low_cst_t *body = f->kids[f->nkids - 1];
+            if (body->kind == LOW_CST_BLOCK) br_walk(c, f, body, body, t, &nt);
+        } else if (k == LOW_KW_ACTOR && f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK) {
+            low_cst_t *blk = f->kids[f->nkids - 1];
+            for (proven_size_t j = 0; j < blk->nkids; j++) {
+                low_cst_t *hf = blk->kids[j];
+                if (hf->kind == LOW_CST_FORM && hf->nkids >= 3 && hf->kids[hf->nkids - 1]->kind == LOW_CST_BLOCK) {
+                    proven_size_t nt = 0; br_walk(c, hf, hf->kids[hf->nkids - 1], hf->kids[hf->nkids - 1], t, &nt);
+                }
+            }
+        }
     }
 }

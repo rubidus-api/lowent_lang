@@ -760,6 +760,24 @@ static const low_cst_t *low_peel(const low_cst_t *f) {
 //   가 통째로 사라졌고, **오류 하나 없었다.** 이 프로젝트가 이미 다섯 군데서 고친 그 유형이다
 //   (prng[8] · f[8] · enumv[64] · ops[256] · VM_DEPTH). **내가 여섯 번째를 만들었다.**
 //   임의의 상한은 **반드시** 넘긴다. 동적으로 잡는다 — 상한이 없으면 잘릴 것도 없다.
+// ★★ RFC-0135 S1 — **바인딩 `else`**: `let n be T v . else <벗어남> .` — 점이 바인딩을 닫으므로 `else` 는 형제로 온다.
+//   guard 처럼 **마지막 자식**으로 끌어들인다. 뜻(숨은 임시 · guard · 꺼내기)은 T1 패스 뒤의 펼치기(`low_bind_else_expand`)가
+//   짓는다 — 여기서는 타입과 값의 경계를 모르기 때문이다. 서식기는 이 모양 그대로 찍는다.
+static void low_bind_attach_else(low_parser_t *p, low_cst_t *blk, proven_size_t *i, proven_array_t *out) {
+    if (*i + 1 >= blk->nkids || !out->len) return;
+    const low_cst_t *nx = low_peel(blk->kids[*i + 1]);
+    if (!nx || nx->kind != LOW_CST_FORM || !nx->nkids || !low_head_is(nx, LOW_KW_ELSE)) return;
+    low_cst_t *bf = ((low_cst_t **)out->data)[out->len - 1];
+    bool has_be = false;
+    for (proven_size_t x = 0; x < bf->nkids; x++) if (bf->kids[x]->kind == LOW_CST_ATOM && bf->kids[x]->tok.kw == LOW_KW_BE) has_be = true;
+    if (!has_be) return;
+    proven_array_t k2 = PROVEN_ARRAY_INIT(p->work, low_cst_t *, bf->nkids + 1).value;
+    for (proven_size_t x = 0; x < bf->nkids; x++) (void)PROVEN_ARRAY_PUSH(&k2, low_cst_t *, bf->kids[x]);
+    (void)PROVEN_ARRAY_PUSH(&k2, low_cst_t *, (low_cst_t *)nx);
+    ((low_cst_t **)out->data)[out->len - 1] = low_refit(p, bf, (low_cst_t **)k2.data, k2.len);
+    proven_array_destroy(&k2);
+    (*i)++;
+}
 static void low_norm_seq(low_parser_t *p, low_cst_t *blk) {
     proven_array_t out = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 16).value;
     proven_array_t buf = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 16).value;
@@ -836,11 +854,12 @@ static void low_norm_seq(low_parser_t *p, low_cst_t *blk) {
                 if (fused) {
                     (void)PROVEN_ARRAY_PUSH(&out, low_cst_t *,
                                             low_refit(p, f, (low_cst_t **)buf.data, buf.len));
-                    i = j; continue;
+                    i = j; low_bind_attach_else(p, blk, &i, &out); continue;
                 }
             }
         }
         (void)PROVEN_ARRAY_PUSH(&out, low_cst_t *, f);
+        if (hk == LOW_KW_VAR || hk == LOW_KW_LET) low_bind_attach_else(p, blk, &i, &out);
     }
     low_refit(p, blk, (low_cst_t **)out.data, out.len);
     proven_array_destroy(&out); proven_array_destroy(&buf);
@@ -1148,7 +1167,7 @@ static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
         //   그러지 않으면 `guard c else …` 로 찍히고, 다시 읽으면 `else` 가 **조건의 원자**로
         //   빨려 들어간다 — **서식기가 자기가 낸 것을 자기가 못 읽는다.**
         //   서식 보존 게이트가 즉시 잡았다(73 중 7 깨짐).
-        if (hk == LOW_KW_GUARD && low_is_else_form(nd->kids[i])) fputs(". ", stdout);
+        if ((hk == LOW_KW_GUARD || hk == LOW_KW_LET || hk == LOW_KW_VAR) && low_is_else_form(nd->kids[i])) fputs(". ", stdout);
         if (hk == LOW_KW_IF && after_then) fputs("else ", stdout);  // re-insert dropped 'else'
         if (hk == LOW_KW_IF && after_then && nd->kids[i]->kind == LOW_CST_FORM)
             low_fmt_inner(nd->kids[i]);            // else-if: emit as statement, no parens
@@ -1862,6 +1881,9 @@ static bool nest_region_of(const low_cst_t *f, proven_size_t *vs, proven_size_t 
     if (f->kind != LOW_CST_FORM || !f->nkids || f->kids[0]->kind != LOW_CST_ATOM) return false;
     proven_size_t n = f->nkids;
     while (n > 0 && f->kids[n-1]->kind == LOW_CST_BLOCK) n--;     // 본문 블록은 값이 아니다
+    // ★ RFC-0135 S1 — 끝에 붙은 `else` 폼(guard · 바인딩 else)도 값이 아니다 — 값의 인자로 삼키면 안 된다
+    if (n > 1 && f->kids[n-1]->kind == LOW_CST_FORM && f->kids[n-1]->nkids && f->kids[n-1]->kids[0]->kind == LOW_CST_ATOM &&
+        f->kids[n-1]->kids[0]->tok.kw == LOW_KW_ELSE) n--;
     switch (f->kids[0]->tok.kw) {
         case LOW_KW_RETURN: case LOW_KW_IF: case LOW_KW_WHILE: case LOW_KW_GUARD:
             *vs = 1; *ve = n; return n > 1;

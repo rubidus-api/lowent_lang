@@ -1518,7 +1518,12 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             if (declared.rk == 0)   // ref initializers are conservative (value = a borrow)
                 tc_flag_types(c, compat(declared, actual),
                         (kw == LOW_KW_LET) ? "E-TYPE-LET" : "E-TYPE-VAR",
-                        "the initializer's type does not match the declared type", declared, actual, f->line);
+                        // ★ RFC-0135 D3 — 값이 option/result 인데 알맹이 타입으로 묶었다: 고칠 길을 말한다
+                        (actual.k == TK_WRAPPED && declared.k != TK_WRAPPED && declared.k != TK_UNKNOWN)
+                          ? "the value can be empty (an option/result) but the binding takes its content — say what happens when "
+                            "it is empty: add `. else return … .` (or `. else panic \"…\" .`), or declare the binding `option …`/`result …` "
+                            "and check it later (RFC-0135 §4.2)"
+                          : "the initializer's type does not match the declared type", declared, actual, f->line);
             if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = declared; }
         } else if (kw == LOW_KW_RETURN) {
             tc_check_return(c, f->kids, 1, f->nkids - 1, env, *nenv, ret, f->line);

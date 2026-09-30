@@ -1803,7 +1803,8 @@ int main(int argc, char **argv) {
         // ★ `--fmt` 는 옛 모양을 새 모양으로 **옮겨** 찍는다(2026-09-28, 코드 검토 — 전엔 그대로 찍고 rc=0 이라
         //   공개 저장소의 사용자가 옮길 길이 없었다). 타입 없는 묶기는 알리고 실패로 끝난다.
         if (want_fmt) low_decl_migrate(&pr, nodes0, heap);
-        else low_decl_order(&pr, nodes0, heap, true);   // 옛 모양·타입 생략은 거절(한 단계 전환)
+        else { low_decl_order(&pr, nodes0, heap, true);   // 옛 모양·타입 생략은 거절(한 단계 전환)
+               low_bind_else_expand(&pr, nodes0, heap); }   // ★ RFC-0135 S1 — 바인딩 `else` 를 숨은 임시 · guard · 꺼내기로
         if (pr.diags.len > nd0) {
             proven_array_t tail = pr.diags;
             tail.data = (char *)pr.diags.data + nd0 * sizeof(low_diag_t);
@@ -1846,6 +1847,19 @@ int main(int argc, char **argv) {
             fprintf(stderr, "nest: %zu form(s) bracketed, %zu region(s) left flat"
                             "%s%s\n  (a wrong tree is worse than no tree — this list shrinking IS the progress)\n",
                     (size_t)nested, (size_t)gave_up, why[0] ? " — blame: " : "", why);
+        }
+    }
+
+    // ★ RFC-0135 S1 — 바인딩 `else` 의 숨은 임시에 타입(option/result)을 채운다. 단형화 뒤라 부르는 op 의 출력이 구체다.
+    //   `--flat` 도 여기를 지난다(나무 · 단형화는 건너뛰어도 이 풀이는 필요하다).
+    if (!want_fmt) {
+        proven_size_t nd_be = pr.diags.len;
+        low_bind_else(&pr, nodes0, heap);
+        if (pr.diags.len > nd_be) {
+            proven_array_t tail = pr.diags;
+            tail.data = (char *)pr.diags.data + nd_be * sizeof(low_diag_t);
+            tail.len = pr.diags.len - nd_be;
+            dump_diags("unit diagnostics", &tail);
         }
     }
 

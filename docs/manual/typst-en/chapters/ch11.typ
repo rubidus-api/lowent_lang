@@ -111,6 +111,24 @@ up, ask with `is_error` and take out with `ok_value`, as `halve_or_zero` does.
   back as values, and where they can be passed on is written in the source.
 ]
 
+== Binding `else` --- take the content, or leave
+
+#idx("else")
+When you handle a failure *right here* instead of passing it up, the check-then-take-out pair of lines can be one line. Write the
+binding's type as the content's type and attach what to do when it is empty with `else`.
+
+#demo("examples/ch11/bindelse.low")
+
+- `let at be u64 find xs k . else return 99 .` --- `find` returns an `option u64`. If there is a value, that `u64` is bound to `at`;
+  if not, control goes to `else`. A `result` works the same way --- an error goes to `else`.
+- `else` *must leave* (`return` · `break` · `continue` · `panic`). So on the lines that use `at` the value has already been taken out,
+  and using it unchecked cannot happen.
+- Where stopping is acceptable, write `. else panic "…" .`. The place that may stop is visible once in the source, and in a pure `fn`
+  the effect rules refuse it.
+- Binding an `option` as its content without `else` is refused --- the diagnostic tells you to add `else` or to declare the binding
+  `option …`. Forgetting that something can fail is caught at translation.
+- To pass the error up unchanged, use `try`. Use `else` when you want to handle it differently *here*.
+
 == Crossing between the two channels
 
 Sometimes the calling op and the called op use different channels. A tail on `try` changes the container.
@@ -235,6 +253,7 @@ refused with `E-MATCH-INEXHAUSTIVE` --- better than a `_` that covers nothing. A
   [`is_error r` · `ok_value r`], [ask whether failed · take out the success value], [same reason],
   [`value_or r 99`], [a stand-in when absent], [one line, but it covers absence],
   [`try <expr>`], [on failure, leave returning that error], [so checks are never forgotten --- like Rust's `?`],
+  [`let n be u64 find xs k . else return 0 .`], [take the content, or leave through `else`], [no unchecked use],
   [`try <expr> else_none` · `else_error e`], [`result` → `option` · `option` → `result`], [changing channel shows what is lost],
   [`case ok (some x) .` · `case a or b .`], [nested pattern · several variants at once], [split in one go, still covering every case],
 )

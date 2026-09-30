@@ -241,10 +241,11 @@ end
       **멈춘다** — 스택이 넘쳐 조용히 망가지지 않는다. 이 처리기의 예산은 운영체제가 있는 기계 4 MiB · 그린스레드 64 KiB ·
       운영체제가 없는 기계 16 KiB 이고, 모든 뒤끝이 같은 수로 세어 같은 자리에서 멈춘다.
 
-(7d) **할당기에서 받는 나열** — `var <이름> using <할당기> be option lit array t n … .`(`lit slice` 도 같다)은 그 할당기에
-      나열의 바이트 수를 청하고(`send <할당기> reserve <바이트>`), 받으면 그 바이트를 (6)~(6c) 대로 채워 `some` 으로,
-      못 받으면 `none` 으로 묶는다. 타입은 `option mut slice t` 다 — 할당은 실패할 수 있으므로 `option` 을 적어야 하며,
-      `option` 이 없거나 `using` 이 없거나 `lit vec` 이면 거부된다(`E-LIT-USING`). 바이트는 할당기의 것이라 (7a) 의
+(7d) **할당기에서 받는 나열** — `var <이름> using <할당기> be mut slice t lit array t n … . else <문장>`(`lit slice` 도 같다)은
+      그 할당기에 나열의 바이트 수를 청하고(`send <할당기> reserve <바이트>`), 받으면 그 바이트를 (6)~(6c) 대로 채워 이름에
+      묶고, 못 받으면 `else` 로 간다(⟦§6.5.1⟧ (5)). 실패를 `option` 째 들고 가려면 타입을 통째로 적는다 —
+      `let <이름> using <할당기> be option mut slice t lit … .`. `else` 도 `option` 도 없거나, `lit vec` 이면 거부된다
+      (`E-LIT-USING`). 바인딩 타입의 원소가 나열의 원소 타입과 다르면 거부된다(`E-BIND-ELSE`). 바이트는 할당기의 것이라 (7a) 의
       선언 블록 수명을 받지 않고 할당기의 수명을 따른다: 할당기가 ⓐ 칸을 뒤받침으로 받았다면(`send <할당기> init buf`)
       그 할당기가 주는 바이트도 그 칸의 수명을 받는다.
 

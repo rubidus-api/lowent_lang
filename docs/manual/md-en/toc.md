@@ -122,11 +122,12 @@ Searches headings and index terms --- not the full text
 - [11.1 option — a value, or none](ch11.md#s11-1)
 - [11.2 result and the errors clause](ch11.md#s11-2)
 - [11.3 try — passing failure upwards](ch11.md#s11-3)
-- [11.4 Crossing between the two channels](ch11.md#s11-4)
-- [11.5 Three ways to report failure](ch11.md#s11-5)
-- [11.6 Combining and nesting patterns](ch11.md#s11-6)
-- [11.7 Common mistakes](ch11.md#s11-7)
-- [11.8 This chapter’s syntax at a glance](ch11.md#s11-8)
+- [11.4 Binding else — take the content, or leave](ch11.md#s11-4)
+- [11.5 Crossing between the two channels](ch11.md#s11-5)
+- [11.6 Three ways to report failure](ch11.md#s11-6)
+- [11.7 Combining and nesting patterns](ch11.md#s11-7)
+- [11.8 Common mistakes](ch11.md#s11-8)
+- [11.9 This chapter’s syntax at a glance](ch11.md#s11-9)
 
 [12 Borrowing — ref and mut_ref](ch12.md)
 

@@ -55,17 +55,18 @@ export proc la_mutarg input a u64 . output u64 . do
   return bump lit array u8 2 (narrow_wrap u8 a) 1 . .
 end
 
-rem 재귀하는 op 도 부를 때마다 제 칸을 갖는다.
+rem 부르는 op 마다 제 칸을 갖는다 — 부른 쪽의 칸을 덮지 않는다(재귀하는 op 은 틀 안 나열을 가질 수 없다, RFC-0135 D7).
+fn la_inner input n u64 . output u64 . do
+  var buf be lit array u64 2 _ . .
+  set (index buf 0) (mul n 3) .
+  return index buf 0 .
+end
+
 export fn la_rec input n u64 . output u64 . do
   var buf be lit array u64 2 _ . .
   set (index buf 0) n .
-  if eq n 0 . do
-    return 0 .
-  end
-  if gt n 20 . do
-    return 0 .
-  end
-  return add (index buf 0) (la_rec (sub n 1)) .
+  let inner be u64 la_inner (add n 1) .
+  return add (index buf 0) inner .
 end
 
 rem 부동 원소.

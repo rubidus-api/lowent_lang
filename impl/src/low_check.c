@@ -7111,7 +7111,7 @@ static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
             if (ck_struct_array_field(out, blk->kids[j], &bytes)) continue;
             if (blk->kids[j]->kind != LOW_CST_ATOM && ck_array_walk(out, blk->kids[j])) hit = true;
         }
-        if (bytes > LOW_LBUF_MAX)
+        if (bytes > low_lbuf_max())
             emit(out, "E-FRAME-SIZE", "this struct's array fields hold more bytes than one value may (RFC-0132 N2 — the same "
                  "rule as a frame): copying the struct copies them all. Keep a large table outside and hold a slice to it", nd->line);
         return hit;
@@ -7725,25 +7725,95 @@ static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
     if (x.over)
         emit(out, "E-IR-LIMIT", "too many names in this op for the list-literal lifetime checker's table — refused rather "
              "than checked partly. Split the op", f->line);
-    if (x.bytes > LOW_LBUF_MAX) {
-        static char fb[256];
-        snprintf(fb, sizeof fb, "this op's list literals need %zu bytes of frame storage — more than one op may hold (%u). "
-                 "A frame this large is a stack overflow waiting for a deep call; keep big tables constant (`let`, read-only) "
-                 "or put them in a region (RFC-0132 §5.3)", (size_t)x.bytes, (unsigned)LOW_LBUF_MAX);
+    if (x.bytes > low_lbuf_max()) {
+        static char fb[320];
+        snprintf(fb, sizeof fb, "this op's list literals need %zu bytes of frame storage — more than one op may hold on this "
+                 "machine (%u). A frame this large is a stack overflow waiting for a deep call; keep big tables constant (`let`, "
+                 "read-only) or take them from an allocator (`using`, RFC-0135)", (size_t)x.bytes, low_lbuf_max());
         emit(out, "E-FRAME-SIZE", fb, f->line);
     } else if (x.bytes && ck_r1_tab) {
-        // ★ 리뷰 9 — 틀 하나의 한도로는 모자란다: 재귀하면 깊이만큼 곱해진다. 정적 깊이는 모르므로 **알린다**.
+        // ★★ RFC-0135 S3 (D7) — 재귀는 깊이만큼 틀을 곱하고, 그 깊이는 번역 시점에 모른다. 그러면 스택이 넘치지 않음을
+        //   빌드가 보일 수 없다 — 알림이 아니라 **거절**이다(전엔 W-FRAME-RECURSIVE; X-0084 가 실제로 넘쳤다).
         static unsigned char seen[4096];
         memset(seen, 0, sizeof seen);
         const low_cst_t *body = f->kids[f->nkids - 1];
         if (body && body->kind == LOW_CST_BLOCK && lc_reaches(body, f, seen, 0)) {
-            static char wb[320];
+            static char wb[360];
             snprintf(wb, sizeof wb, "this op holds %zu bytes of list-literal frame storage and can call ITSELF (directly or "
-                     "through other ops) — every level of the recursion holds its own copy, so the stack grows with the depth. "
-                     "Keep the recursion shallow, or move the list out of the recursive op (RFC-0132 §5.3)", (size_t)x.bytes);
-            warn(out, "W-FRAME-RECURSIVE", wb, f->line);
+                     "through other ops) — every level of the recursion holds its own copy and the depth is not known when "
+                     "the program is translated, so the build cannot show the stack is enough. Take the list from an "
+                     "allocator inside the recursion (`var buf using al be … . else …`), or make the op not recursive "
+                     "(RFC-0135 D7)", (size_t)x.bytes);
+            emit(out, "E-FRAME-RECURSIVE", wb, f->line);
         }
     }
+}
+
+// ★★ RFC-0135 S3 — **진입 op 마다 스택의 틀 안 나열 최대**. 부르는 관계를 따라 가장 깊은 길의 틀 안 나열 바이트 합을
+//   재어, 실행 중 예산(S0 · LOW_SBUDGET_*)을 넘으면 **번역 시점에** 거절한다 — 재귀하는 op 은 틀 안 나열을 가질 수 없으므로
+//   (E-FRAME-RECURSIVE) 순환이 있어도 그 길의 합은 정해진다. 실행 중 검사(S0)는 그대로 둔다(그린스레드 · 검사 밖 경로의 안전망).
+static proven_size_t ck_op_lbytes(const low_cst_t *f) {
+    static lc_t x;
+    memset(&x, 0, sizeof x);
+    lc_count(&x, f, false);
+    return x.bytes;
+}
+static void sb_callees(const low_cst_t *nd, proven_size_t *out, proven_size_t *n, proven_size_t cap) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_ATOM) {
+        if (nd->tok.kind != LOW_TOK_IDENT || nd->tok.kw != LOW_KW_NONE || !ck_r1_tab) return;
+        const low_opinfo_t *op = ck_find_callee(ck_r1_tab, ck_r1_nt, nd->tok.lex);
+        if (!op) return;
+        proven_size_t oi = (proven_size_t)(op - ck_r1_tab);
+        for (proven_size_t i = 0; i < *n; i++) if (out[i] == oi) return;
+        if (*n < cap) out[(*n)++] = oi;
+        return;
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) sb_callees(nd->kids[i], out, n, cap);
+}
+static unsigned long long sb_path(proven_size_t oi, unsigned long long *memo, unsigned char *state, const proven_size_t *own, int depth) {
+    if (state[oi] == 2) return memo[oi];
+    if (state[oi] == 1 || depth > 256) return 0;               // 순환 — 재귀하는 op 은 틀 안 나열이 없다(E-FRAME-RECURSIVE)
+    state[oi] = 1;
+    proven_size_t local[256]; proven_size_t nl = 0;
+    sb_callees(ck_r1_tab[oi].body, local, &nl, 256);
+    unsigned long long best = 0;
+    for (proven_size_t i = 0; i < nl; i++) { unsigned long long p = sb_path(local[i], memo, state, own, depth + 1); if (p > best) best = p; }
+    memo[oi] = own[oi] + best; state[oi] = 2;
+    return memo[oi];
+}
+static void ck_stack_bound(low_check_result_t *out) {
+    if (!ck_r1_tab || !ck_r1_nt) return;
+    proven_size_t n = ck_r1_nt;
+    unsigned long long *memo = calloc(n, sizeof *memo);
+    unsigned char *state = calloc(n, 1), *called = calloc(n, 1);
+    proven_size_t *own = calloc(n, sizeof *own);
+    if (!memo || !state || !called || !own) { free(memo); free(state); free(called); free(own); return; }
+    bool any = false;
+    for (proven_size_t i = 0; i < n; i++) {
+        own[i] = ck_r1_tab[i].form ? ck_op_lbytes(ck_r1_tab[i].form) : 0;
+        if (own[i]) any = true;
+    }
+    if (any) {
+        for (proven_size_t i = 0; i < n; i++) {
+            proven_size_t local[256]; proven_size_t nl = 0;
+            sb_callees(ck_r1_tab[i].body, local, &nl, 256);
+            for (proven_size_t k = 0; k < nl; k++) if (local[k] != i) called[local[k]] = 1;
+        }
+        long budget = low_ir_target()->no_heap ? LOW_SBUDGET_FREE : LOW_SBUDGET_HOST;
+        for (proven_size_t i = 0; i < n; i++) {
+            if (called[i] || !ck_r1_tab[i].form) continue;          // 진입(아무도 부르지 않는 op)만 — 길은 거기서 시작한다
+            unsigned long long p = sb_path(i, memo, state, own, 0);
+            if (p > (unsigned long long)budget) {
+                static char sbuf[360];
+                snprintf(sbuf, sizeof sbuf, "the deepest call path from this op keeps %llu bytes of list literals on the stack at "
+                         "once — more than the stack budget on this machine (%ld). The program would stop there at run time; "
+                         "take the big lists from an allocator (`using`), or split the path (RFC-0135 S3)", p, budget);
+                emit(out, "E-STACK-BUDGET", sbuf, ck_r1_tab[i].form->line);
+            }
+        }
+    }
+    free(memo); free(state); free(called); free(own);
 }
 
 static void ck_regions(low_check_result_t *out, const low_cst_t *f, const low_cst_t *nd) {
@@ -10652,6 +10722,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         proven_u8str_view_t z = { 0 };
         ck_borrow_walk(&out, f, z, z, false, false);
     }
+    ck_stack_bound(&out);   // ★ RFC-0135 S3 — 진입 op 마다 스택의 틀 안 나열 최대
     ck_r1_tab = NULL; ck_r1_nt = 0;
 
     // ★ 액터 상태 칸에 빌림을 두는 것 (§8.4.1 · 결함 노트 #74) · 상태를 읽는 오류 조건 (#62)

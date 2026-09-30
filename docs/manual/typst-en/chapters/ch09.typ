@@ -128,8 +128,10 @@ storing it in a name declared further out or in a parameter's cell, or sending i
 #demo("examples/ch09/mistake_frameescape.low")
 
 Re-pointing the array name itself with `set buf …` is `E-ARRAY-SET` --- write the cells one by one. The frame
-lists of one op may not add up to more than 64 KiB (`E-FRAME-SIZE`), and if such an op can recurse you get
-`W-FRAME-RECURSIVE`, because the frame is repeated at every level.
+lists of one op may not add up to more than 64 KiB (4 KiB on a small bare-metal machine) (`E-FRAME-SIZE`). An op holding frame lists
+may not recurse (`E-FRAME-RECURSIVE`) --- the frame would repeat at every level, and the depth is not known at translation. If you need a
+buffer inside a recursion, take it from an allocator (#chref("fixed-memory")). And if the lists alive on the stack at once along a call
+path exceed the budget (4 MiB), that is `E-STACK-BUDGET`. Running out of stack is ruled out before the program runs.
 
 When only a few cells of a long array differ, fill the cells you *choose*. Inside `do … end` write `<index> <value> .`,
 and a final `_ <value> .` fills every remaining cell. Every cell must be decided, so a leftover cell without `_` is

@@ -291,6 +291,7 @@ void low_ir_set_target(const char *name) {
     for (proven_size_t i = 0; i < sizeof IR_TARGETS / sizeof IR_TARGETS[0]; i++)
         if (strcmp(IR_TARGETS[i].name, name) == 0) { ir_tgt = &IR_TARGETS[i]; return; }
 }
+unsigned low_lbuf_max(void) { return low_ir_target()->no_heap ? LOW_LBUF_MAX_FREE : LOW_LBUF_MAX; }   // RFC-0135 S3
 const low_target_t *low_ir_target(void) { return ir_tgt; }
 static proven_size_t g_fixed_bytes;   // 0 = 타깃이 정한다
 void low_ir_set_fixed_bytes(proven_size_t n) { g_fixed_bytes = n; }
@@ -1981,7 +1982,7 @@ static void ir_lit_fill(ir_ctx_t *c, const low_cst_t *blk, proven_size_t n, prov
             ir_emit(c, IRW_BFILL, (proven_i64)(((proven_u64)bytes << 32) | (zero ? 0u : (proven_u64)si + 1u)));
         } else {
             proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
-            if (off + bytes > LOW_LBUF_MAX) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); goto done; }
+            if (off + bytes > low_lbuf_max()) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); goto done; }
             c->lbuf_off = off + bytes;
             tl = ir_hidden_local(c, line);
             if (tl == (proven_size_t)-1) goto done;
@@ -2094,7 +2095,7 @@ static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos,
         if (into) ir_emit(c, IRW_BFILL, (proven_i64)((proven_u64)bytes << 32));   // §13.7 — 받은 바이트를 0 으로
         else {
             proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
-            if (off + bytes > LOW_LBUF_MAX) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); return; }
+            if (off + bytes > low_lbuf_max()) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); return; }
             c->lbuf_off = off + bytes;
             ir_emit(c, IRW_LBUF, (proven_i64)((proven_u64)off | ((proven_u64)bytes << 32)));
         }

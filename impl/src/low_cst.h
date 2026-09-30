@@ -166,6 +166,9 @@ typedef struct {
 // ★★ RFC-0132 T2b-2 — **한 op 의 틀 안 나열 자리의 한도**(바이트, 구현 정의 — §5.3 «틀 크기 한도»). 넘으면 거부한다
 //   (`E-FRAME-SIZE`) — 조용히 힙으로 옮기지 않는다. 검사층(`ck_lit_walk`)과 IR 이 **이 수 하나**를 본다.
 #define LOW_LBUF_MAX 65536u
+// ★ RFC-0135 S3 (D5) — 대상 기계마다 다른 한도: 운영체제가 없는 기계는 스택이 작다. 검사층과 IR 이 이 함수 하나를 본다.
+#define LOW_LBUF_MAX_FREE 4096u
+unsigned low_lbuf_max(void);
 
 typedef struct {
     const low_cst_t    *form;      // op form 자신

@@ -42,3 +42,27 @@ export proc onheap input a u64 . output u64 . effects state . do
   var ps using bb be mut slice pt lit array pt 2 do 0 lit pt do x 1 . y a . end . _ lit pt do x 0 . y 0 . end . end . else return 999 .
   return add (sum ps) (mul (send bb used) 100) .
 end
+
+rem 원소는 값의 **사본**이다 — 나열의 칸을 바꿔도 넣은 이름은 그대로다(정본 §6.2.6 (9) · 매뉴얼 9장이 말하는 것).
+export fn copied input a u64 . output u64 . do
+  let p be pt lit pt do x 1 . y a . end .
+  var ps be lit array pt 2 p _ . .
+  set (field ps 0 y) 500 .
+  return add (field p y) (mul (field ps 0 y) 1000) .
+end
+
+rem ★ T2b-3d ⓒ — 배열 칸을 가진 구조체가 다른 구조체의 칸이어도 값으로 베껴진다(안쪽 바이트까지 — X-0083 의 길).
+struct pkt do
+  len u8 .
+  body array u8 4 .
+end
+struct outer do
+  tag u64 .
+  inner pkt .
+end
+export fn nested input a u8 . output u64 . do
+  var o be outer lit outer do tag 9 . inner lit pkt do len 2 . body lit array u8 4 1 a _ . . end . end .
+  let c be outer o .
+  set (index (field o inner body) 0) 50 .
+  return add (widen u64 (index (field c inner body) 1)) (add (widen u64 (index (field o inner body) 0)) (mul (widen u64 (index (field c inner body) 0)) 1000)) .
+end

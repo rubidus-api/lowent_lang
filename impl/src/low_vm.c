@@ -1926,6 +1926,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 // ★★★ **aggregate 슬라이스 저장** (RFC-0080 — AST 아레나): 원소가 구조체(또는
                 //   페이로드 enum 레이아웃)면 슬롯은 스칼라가 아니라 **레코드**를 받는다. 레코드의
                 //   필드를 구조체 레이아웃의 오프셋에 인코딩한다(뷰 읽기의 역연산).
+                if (sv.tag == VMV_VARRAY && (sv.i & IR_ROW_BIT)) {   // §13.10 — 줄은 칸마다 쓰거나 copy 로 바꾼다
+                    vm_diag(vm->diags, "E-VM-TYPE", "a whole row is not stored with `set (index …)` — write its cells, or `copy` a row into it");
+                    return false;
+                }
                 bool is_structarr = (sv.tag == VMV_VARRAY) && (sv.i & IR_STRUCT_BIT);
                 // ★★★ **읽은 것을 다시 쓸 수 있어야 한다** (2026-07-26). 구조체 슬라이스의 원소를
                 //   읽으면 **VIEW**(바이트를 가리키는 창)가 나오는데, 저장은 **REC**(만들어진
@@ -2018,6 +2022,17 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     return false;
                 }
                 if (sv.tag == VMV_SLICE) { stack[sp++] = vmv_int((proven_i64)sv.p[iv.i]); break; }
+                // ★ §13.10 — 줄의 배열의 원소는 **그 줄을 보는 슬라이스**다(무복사)
+                if (sv.i & IR_ROW_BIT) {
+                    proven_u8 ie = (proven_u8)(sv.i & 0xff);
+                    proven_u8 *rp = sv.p + (proven_size_t)iv.i * (proven_size_t)sv.box;
+                    if (ie <= 1 && !(sv.i & (IR_FLT_BIT | IR_SGN_BIT)))
+                        stack[sp++] = (vmv_t){ .tag = VMV_SLICE, .p = rp, .n = (proven_size_t)sv.box };
+                    else
+                        stack[sp++] = (vmv_t){ .tag = VMV_VARRAY, .i = sv.i & (IR_FLT_BIT | IR_SGN_BIT), .p = rp,
+                                               .n = (proven_size_t)sv.box / (ie ? ie : 1), .box = (proven_i32)(ie ? ie : 1) };
+                    break;
+                }
                 // ★ 구조체 배열의 원소는 **구조체 뷰**다(무복사). `field` 가 바로 먹는다.
                 if (sv.i & IR_STRUCT_BIT) {
                     proven_i32 si = (proven_i32)((sv.i >> 20) & 0xff);
@@ -2095,6 +2110,13 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 //   (세 번째 진짜 프로그램이 찾았다. `match` 함정도 그랬다.)
                 if (b.tag == VMV_VARRAY) { stack[sp++] = b; break; }   // 이미 감싸여 있다
                 if (b.tag != VMV_SLICE) { vm_diag(vm->diags, "E-VM-TYPE", "view_array needs a byte slice"); return false; }
+                if (in->a & IR_ROW_BIT) {                            // ★ §13.10 — 줄의 배열: .box = 줄 바이트
+                    proven_size_t rb = (proven_size_t)(((proven_u64)in->a >> 32) & 0xffffffu);
+                    if (!rb || b.n % rb) { vm_diag(vm->diags, "E-VM-VIEW", "an array of rows needs a whole number of rows (panic)"); return false; }
+                    stack[sp++] = (vmv_t){ .tag = VMV_VARRAY, .i = IR_ROW_BIT | (in->a & (0xff | IR_FLT_BIT | IR_SGN_BIT)),
+                                           .p = b.p, .n = b.n / rb, .box = (proven_i32)rb };
+                    break;
+                }
                 if (b.n % esz) { vm_diag(vm->diags, "E-VM-VIEW", "view_array: slice length is not a multiple of the element size (panic)"); return false; }
                 // ★ 원소가 **구조체**면 그 사실을 나른다 — 그러면 `index` 가 정수가 아니라
                 //   **구조체 뷰**를 준다(무복사). 구조체 배열은 시스템 프로그래밍의 기본 모양이다.

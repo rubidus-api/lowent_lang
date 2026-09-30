@@ -458,7 +458,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
             const low_cst_t *lg = init;
             while (lg && lg->kind == LOW_CST_GROUP && lg->nkids == 1) lg = lg->kids[0];
             bool is_list = lg && lg->kind == LOW_CST_FORM && lg->nkids >= 3 && us_atom(lg->kids[0]) && lg->kids[0]->tok.kw == LOW_KW_LIT &&
-                           us_atom(lg->kids[1]) && us_atom(lg->kids[2]) &&
+                           us_atom(lg->kids[1]) && (us_atom(lg->kids[2]) || us_eq(lg->kids[1]->tok.lex, "array") || us_eq(lg->kids[1]->tok.lex, "slice")) &&
                            (us_eq(lg->kids[1]->tok.lex, "array") || us_eq(lg->kids[1]->tok.lex, "slice") ||
                             (us_eq(lg->kids[1]->tok.lex, "vec") && lg->kids[lg->nkids - 1]->kind != LOW_CST_BLOCK));
             // ★ RFC-0135 S2a — `lit <구조체> do … end` 도 받는다: 바이트 수는 `size_of <구조체>`(번역 시점에 접힌다)
@@ -487,8 +487,21 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                                 "`let bo using al be option mut slice u8 lit array u8 16 _ . .` (RFC-0135 §4.2)",
                               explicit_src->tok.line, explicit_src->tok.col);
                 } else {
-                    proven_u8str_view_t ty = is_list ? lg->kids[2]->tok.lex : (proven_u8str_view_t){ 0 };
-                    unsigned esz = us_eq(ty, "u16") || us_eq(ty, "i16") ? 2 : us_eq(ty, "u32") || us_eq(ty, "i32") || us_eq(ty, "f32") ? 4 :
+                    bool row = is_list && !us_atom(lg->kids[2]);      // §13.10 — 줄의 나열: 원소 크기 = m × |T|
+                    unsigned long long rowb = 0;
+                    if (row) {
+                        const low_cst_t *rt = lg->kids[2];
+                        while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+                        if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && us_atom(rt->kids[1]) && us_atom(rt->kids[2])) {
+                            proven_u8str_view_t it = rt->kids[1]->tok.lex;
+                            unsigned ie = us_eq(it, "u16") || us_eq(it, "i16") ? 2 : us_eq(it, "u32") || us_eq(it, "i32") || us_eq(it, "f32") ? 4 :
+                                          us_eq(it, "u64") || us_eq(it, "i64") || us_eq(it, "f64") || us_eq(it, "usize") || us_eq(it, "isize") ? 8 : 1;
+                            rowb = (unsigned long long)ie * strtoull((const char *)rt->kids[2]->tok.lex.ptr, NULL, 0);
+                        }
+                    }
+                    proven_u8str_view_t ty = is_list && !row ? lg->kids[2]->tok.lex : (proven_u8str_view_t){ .ptr = (const proven_u8 *)"u8", .size = 2 };
+                    unsigned esz = row ? (unsigned)rowb :
+                                   us_eq(ty, "u16") || us_eq(ty, "i16") ? 2 : us_eq(ty, "u32") || us_eq(ty, "i32") || us_eq(ty, "f32") ? 4 :
                                    us_eq(ty, "u64") || us_eq(ty, "i64") || us_eq(ty, "f64") || us_eq(ty, "usize") || us_eq(ty, "isize") ? 8 : 1;
                     unsigned long long cnt = 0;
                     if (!is_list) cnt = 0;
@@ -508,7 +521,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                         sk[2] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"reserve", .size = 7 });
                         sk[3] = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)num, .size = strlen(num) });
                         // ★ RFC-0132 T2b-3d — 원소가 구조체인 나열: 바이트 수는 (mul <개수> (size_of <구조체>))
-                        bool elem_struct = is_list && !(us_eq(ty, "u8") || us_eq(ty, "i8") || us_eq(ty, "u16") || us_eq(ty, "i16") ||
+                        bool elem_struct = is_list && !row && !(us_eq(ty, "u8") || us_eq(ty, "i8") || us_eq(ty, "u16") || us_eq(ty, "i16") ||
                                            us_eq(ty, "u32") || us_eq(ty, "i32") || us_eq(ty, "u64") || us_eq(ty, "i64") || us_eq(ty, "f32") ||
                                            us_eq(ty, "f64") || us_eq(ty, "usize") || us_eq(ty, "isize") || us_eq(ty, "bool"));
                         if (elem_struct && sk[3]) {
@@ -1173,12 +1186,13 @@ static void be_expand_block(us_ctx_t *c, low_cst_t *blk) {
             if (!tn) { nk[m++] = f; continue; }
             tn[0] = '$'; memcpy(tn + 1, nm->tok.lex.ptr, nm->tok.lex.size); tn[nm->tok.lex.size + 1] = 0;
             // 할당기 나열이면 임시의 타입은 곧바로 option(using 패스가 `option` 을 보고 할당 · 채우기로 바꾼다)
-            bool using_lit = false;
+            bool using_lit = false, using_row = false;
             if (us && be + 2 == f->nkids - 1) {
                 const low_cst_t *v = f->kids[be + 1];
                 while (v && v->kind == LOW_CST_GROUP && v->nkids == 1) v = v->kids[0];
                 using_lit = v && v->kind == LOW_CST_FORM && v->nkids >= 3 && us_atom(v->kids[0]) && v->kids[0]->tok.kw == LOW_KW_LIT &&
                             us_atom(v->kids[1]) && (us_eq(v->kids[1]->tok.lex, "array") || us_eq(v->kids[1]->tok.lex, "slice"));
+                using_row = using_lit && !us_atom(v->kids[2]);   // §13.10 — 줄의 나열: 바인딩 타입은 `[mut] slice (array T M)`
             }
             // ★ RFC-0135 S2a (D9) — 구조체도 할당기 바이트에 짓는다: `var q using al be pt lit pt do … end . else …`
             bool using_struct = false;
@@ -1198,7 +1212,7 @@ static void be_expand_block(us_ctx_t *c, low_cst_t *blk) {
                                        f->kids[0]->tok.line, f->kids[0]->tok.col);
                 }
             }
-            if (using_lit && !using_struct) {           // 바인딩 타입은 `[mut] slice <나열의 원소 타입>` 이어야 한다
+            if (using_lit && !using_struct && !using_row) {   // 바인딩 타입은 `[mut] slice <나열의 원소 타입>` 이어야 한다
                 const low_cst_t *v = f->kids[be + 1];
                 while (v && v->kind == LOW_CST_GROUP && v->nkids == 1) v = v->kids[0];
                 proven_size_t q = 2;

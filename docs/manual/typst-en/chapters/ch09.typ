@@ -154,6 +154,17 @@ The elements may be structs too, as long as the struct has a byte layout --- eve
 - A struct with a slice, `owned` or array field cannot be an element yet (`E-LIT-UNBUILT`). A number where a struct goes is
   `E-TYPE-FIELD`, and a different struct is `E-TYPE-STRUCT`.
 
+When the elements are fixed-length arrays, the list is a *list of rows*. Its type is `slice (array u8 4)`.
+
+#demo("examples/ch09/rows.low")
+
+- `len g` counts rows (3), and `index g 1` is a `slice u8` that *views* the second row. It is not a copy, so writing to
+  `row` changes `g`.
+- A cell is written through its row: `set (index (index g 2) 3) 9 .`. Replacing a whole row with `set (index g 1) …` is
+  `E-TYPE-SET`.
+- A row value must have the same shape (`lit array u8 4 …`). A row of a frame list views the frame's bytes, so returning
+  it is `E-LIT-ESCAPE`.
+
 == Contracts remove bounds checks
 
 An `index` bounds check remains only where it is not proven. Write the length condition as `requires`, and the check happens *once* on

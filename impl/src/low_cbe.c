@@ -1476,6 +1476,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_VARRAY: {
                 // ★★★ **바이트 슬라이스 → 타입 배열.** 원소 폭은 **이 슬롯의 것**이 된다.
                 if (st.n < 1) return false;
+                // ★ RFC-0132 §13.10 — 줄의 배열(0x80000)은 빠른 경로가 모른다: 원소 폭(ve)이 줄 바이트여야 하는데 슬롯은 한 바이트
+                //   폭만 싣는다. 안쪽 `index` 가 잘못 늘어나지 않게 태그 경로로 내려보낸다.
+                if (in->a & 0x80000) return false;
                 // ★ RFC-0109 단계 1 — **이미 그 모양이면 항등이다**(파라미터가 원소 단위로 들어온 자리).
                 if (!g_no_elemsl && (in->a & 0x40000) && st.k[st.n-1] == (unsigned char)(K_SVIEW + ((in->a >> 20) & 0xff))) break;
                 if (!g_no_elemsl && !(in->a & 0x40000) && st.k[st.n-1] == K_SL && st.ve[st.n-1] > 1 &&

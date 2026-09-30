@@ -149,6 +149,14 @@ VM 이 보여 주는 `fill_two([10,20,5])` 는 op 이 끝난 뒤 인자의 모�
 - 슬라이스 · `owned` · 배열 칸이 있는 구조체는 아직 원소가 될 수 없다(`E-LIT-UNBUILT`). 원소 자리에 수를 적으면
   `E-TYPE-FIELD`, 다른 구조체를 적으면 `E-TYPE-STRUCT` 다.
 
+원소가 고정 길이 배열이면 *줄의 나열*이다. 타입은 `slice (array u8 4)` 이다.
+
+#demo("examples/ch09/rows.low")
+
+- `len g` 는 줄 수(3)이고 `index g 1` 은 둘째 줄을 *보는* `slice u8` 이다. 복사가 아니므로 `row` 에 쓰면 `g` 가 바뀐다.
+- 칸은 `set (index (index g 2) 3) 9 .` 처럼 줄을 거쳐 쓴다. 한 줄을 통째로 바꾸는 `set (index g 1) …` 은 `E-TYPE-SET` 이다.
+- 줄 값은 모양이 같아야 한다(`lit array u8 4 …`). 틀 안 나열의 줄은 틀의 바이트를 보므로 돌려주면 `E-LIT-ESCAPE` 다.
+
 == 계약이 경계 검사를 지운다
 
 `index` 의 경계 검사는 증명되지 않은 자리에만 남는다. 길이 조건을 `requires` 로 적으면 검사는 op 진입에서

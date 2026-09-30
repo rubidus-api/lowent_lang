@@ -1,0 +1,44 @@
+module vm_rowlist .
+rem ★★ RFC-0132 §13.10 (소유자 결정 «줄 보기») — 줄의 나열 `lit array (array T M) N …`: 타입 `slice (array T M)`,
+rem   `index g r` 는 그 줄을 보는 슬라이스(복사 없음), `len g` 는 줄 수. 칸 쓰기 · 매개변수 · 할당기 · 읽기 전용 0.
+use allocs .
+fn rsum input g slice (array u32 3) . output u64 . do
+  var s be u64 0 .
+  for r g do
+    for x r do
+      set s (add s (widen u64 x)) .
+    end
+  end
+  return s .
+end
+export fn typed input a u32 . output u64 . do
+  var g be lit array (array u32 3) 2 (lit array u32 3 1 2 a .) (lit array u32 3 10 20 30 .) . .
+  set (index (index g 0) 1) 100 .
+  set (field g 1 2) 7 .
+  return add (rsum g) (mul (len (index g 1)) 1000) .
+end
+export fn ro output u64 . do
+  let g be lit array (array u32 3) 4 _ . .
+  return add (rsum g) (len g) .
+end
+export proc heaprows input a u32 . output u64 . effects state . do
+  var back be lit array u8 64 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var g using bb be mut slice (array u32 3) lit array (array u32 3) 2 (lit array u32 3 a a a .) _ . . else return 999 .
+  return add (rsum g) (mul (send bb used) 100) .
+end
+
+export fn bytes input a u8 . output u64 . do
+  var g be lit array (array u8 4) 3 (lit array u8 4 1 2 3 4 .) _ . .
+  let row be mut slice u8 index g 1 .
+  set (index row 2) a .
+  set (index (index g 2) 3) 9 .
+  var s be u64 0 .
+  for r g do
+    for x r do
+      set s (add s (widen u64 x)) .
+    end
+  end
+  return add (mul s 100) (add (len g) (mul (len (index g 0)) 10)) .
+end

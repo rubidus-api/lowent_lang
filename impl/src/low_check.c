@@ -7145,6 +7145,15 @@ static bool ck_array_walk(low_check_result_t *out, const low_cst_t *nd) {
         }
         // ★ 원소 나열 리터럴(`lit array T N …`)의 `array` 는 **값의 타입**이다 — 길이를 리터럴이 쥔다(RFC-0132 T2b-1).
         if (k->kind == LOW_CST_FORM && k->nkids && k->kids[0]->kind == LOW_CST_ATOM && k->kids[0]->tok.kw == LOW_KW_LIT) continue;
+        // ★ RFC-0132 §13.10 — `slice (array T M)` 는 줄의 슬라이스다(줄 길이를 타입이 쥔다 — 소유자 결정 «줄 보기»).
+        if (k->kind == LOW_CST_ATOM && veq(k->tok.lex, "slice") && j + 1 < nd->nkids && nd->kids[j + 1]->kind != LOW_CST_ATOM) {
+            const low_cst_t *rt = nd->kids[j + 1];
+            while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+            if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && ck_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
+                ck_atom(rt->kids[1]) && ck_elem_sized(rt->kids[1]->tok.lex) && ck_atom(rt->kids[2]) && rt->kids[2]->tok.kind == LOW_TOK_NUMBER) {
+                j++; continue;
+            }
+        }
         if (k->kind != LOW_CST_ATOM && ck_array_walk(out, k)) return true;
     }
     return false;
@@ -7206,6 +7215,52 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
                 return;
             }
             is_array = true;                                     // 개수 · `_` · 폭은 배열과 같다
+        }
+        if (nd->nkids >= 3 && nd->kids[2]->kind != LOW_CST_ATOM) {   // ★ §13.10 — 원소가 줄 `(array T M)`
+            const low_cst_t *rt = nd->kids[2];
+            while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+            if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && ck_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
+                ck_atom(rt->kids[1]) && ck_elem_sized(rt->kids[1]->tok.lex) && ck_atom(rt->kids[2]) && rt->kids[2]->tok.kind == LOW_TOK_NUMBER &&
+                ck_lit_elem_fits(PROVEN_LIT("u32"), rt->kids[2]->tok.lex) && strtoll((const char *)rt->kids[2]->tok.lex.ptr, NULL, 0) > 0) {
+                bool ra = veq(nd->kids[1]->tok.lex, "array");
+                if (veq(nd->kids[1]->tok.lex, "vec")) { emit(out, "E-LIT-UNBUILT", "a SIMD value holds numbers, not rows", ln); return; }
+                if (nd->kids[nd->nkids - 1]->kind == LOW_CST_BLOCK) { emit(out, "E-LIT-UNBUILT", "filling chosen rows (`do … end`) is not built yet — list the rows (RFC-0132 §13.10)", ln); return; }
+                long long rn = -1; proven_size_t e0 = 3;
+                if (ra) {
+                    const low_cst_t *nn = nd->nkids > 3 ? nd->kids[3] : NULL;
+                    if (!nn || !ck_atom(nn) || nn->tok.kind != LOW_TOK_NUMBER || !ck_lit_elem_fits(PROVEN_LIT("u32"), nn->tok.lex)) {
+                        emit(out, "E-LIT-COUNT", "`lit array (array <type> <m>) <rows> …` — the number of rows is a plain integer literal", ln); return;
+                    }
+                    rn = strtoll((const char *)nn->tok.lex.ptr, NULL, 0); e0 = 4;
+                }
+                long long got = 0; bool tail = false;
+                for (proven_size_t q = e0; q < nd->nkids; q++) {
+                    const low_cst_t *e = nd->kids[q];
+                    if (ck_atom(e) && veq(e->tok.lex, "_")) {
+                        if (!ra || q + 1 != nd->nkids) { emit(out, "E-LIT-COUNT", "`_` stands only at the END of a list of rows — «the remaining rows are zero»", ln); return; }
+                        tail = true; continue;
+                    }
+                    if (ck_atom(e) && (e->tok.kind == LOW_TOK_NUMBER || e->tok.kw == LOW_KW_TRUE || e->tok.kw == LOW_KW_FALSE)) {
+                        emit(out, "E-TYPE-WIDTH", "a list of rows holds rows — write `lit array <type> <m> … .` or a name, not a number", ln); return;
+                    }
+                    {   // 줄 리터럴이면 길이와 원소 타입이 줄과 같아야 한다
+                        const low_cst_t *rl = e;
+                        while (rl->kind == LOW_CST_GROUP && rl->nkids == 1) rl = rl->kids[0];
+                        if (rl->kind == LOW_CST_FORM && rl->nkids >= 4 && ck_atom(rl->kids[0]) && rl->kids[0]->tok.kw == LOW_KW_LIT &&
+                            ck_atom(rl->kids[1]) && veq(rl->kids[1]->tok.lex, "array") && ck_atom(rl->kids[2]) && ck_atom(rl->kids[3]) &&
+                            (!proven_u8str_view_eq(rl->kids[2]->tok.lex, rt->kids[1]->tok.lex) ||
+                             !proven_u8str_view_eq(rl->kids[3]->tok.lex, rt->kids[2]->tok.lex))) {
+                            emit(out, "E-LIT-COUNT", "this row is not the rows' shape — each row is `array <type> <m>` exactly as the list's element type says", ln);
+                            return;
+                        }
+                    }
+                    got++;
+                }
+                if (ra && got > rn) { emit(out, "E-LIT-COUNT", "more rows than the length", ln); return; }
+                if (ra && got < rn && !tail) { emit(out, "E-LIT-COUNT", "fewer rows than the length — end with `_` for rows of zeros", ln); return; }
+                for (proven_size_t q = e0; q < nd->nkids; q++) ck_lit_walk(out, nd->kids[q]);
+                return;
+            }
         }
         if (nd->nkids < 3 || nd->kids[2]->kind != LOW_CST_ATOM) { emit(out, "E-LIT-UNBUILT", "a list literal needs its element type: `lit array u8 4 1 2 3 4 .`", ln); return; }
         proven_u8str_view_t ty = nd->kids[2]->tok.lex;
@@ -7399,6 +7454,7 @@ typedef struct {
     struct { proven_u8str_view_t name; int depth; } t[LC_MAX]; proven_size_t nt;        // 이름 → 그것이 보는 틀 자리의 블록 깊이
     struct { proven_u8str_view_t name; int depth; bool scalar; } d[LC_MAX]; proven_size_t nd;  // 선언된 이름 → 블록 깊이
     proven_u8str_view_t arr[LC_MAX]; proven_size_t narr;                                  // `var` 배열 이름
+    proven_u8str_view_t vel[LC_MAX]; proven_size_t nvel;                                  // 원소가 **보기**인 나열 이름(줄 · 구조체) — `index` 가 자리를 싣는다
     proven_size_t bytes;                                                                  // 이 op 의 틀 안 나열 바이트
     bool told, over;                                                                      // over = 표가 찼다(부분 검사 대신 거절)
     bool autorel;                                                                         // 블록 끝에 돌려줄 할당기 바이트가 있다(RFC-0135 S2)
@@ -7436,6 +7492,12 @@ static proven_size_t lc_bytes(const low_cst_t *l) {
                         veq(l->kids[2]->tok.lex, "u64") || veq(l->kids[2]->tok.lex, "i64") || veq(l->kids[2]->tok.lex, "f64") ||
                         veq(l->kids[2]->tok.lex, "usize") || veq(l->kids[2]->tok.lex, "isize") ? 8 : 1) : 1;
     { unsigned sb, sa; if (ck_atom(l->kids[2]) && !ck_elem_sized(l->kids[2]->tok.lex) && ck_struct_layout(l->kids[2]->tok.lex, &sb, &sa, 0)) esz = sb; }
+    if (!ck_atom(l->kids[2])) {                                  // §13.10 — 줄: 원소 크기 = m × |T|
+        const low_cst_t *rt = l->kids[2];
+        while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+        if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && ck_atom(rt->kids[1]) && ck_atom(rt->kids[2]))
+            esz = (proven_size_t)ck_elem_bytes(rt->kids[1]->tok.lex) * (proven_size_t)strtoull((const char *)rt->kids[2]->tok.lex.ptr, NULL, 0);
+    }
     proven_size_t n = 0;
     if (veq(l->kids[1]->tok.lex, "array") && l->nkids > 3 && ck_atom(l->kids[3]) && l->kids[3]->tok.kind == LOW_TOK_NUMBER)
         n = (proven_size_t)strtoull((const char *)l->kids[3]->tok.lex.ptr, NULL, 0);
@@ -7564,8 +7626,16 @@ static int lc_carry(const lc_t *x, const low_cst_t *nd) {
     return r;
 }
 // 머리 + 인자 줄(중첩된 FORM 이든, `--flat` 의 납작한 문장 꼬리든 같은 가름).
+static bool lc_is_vel(const lc_t *x, proven_u8str_view_t n) {
+    for (proven_size_t i = x->nvel; i-- > 0; ) if (proven_u8str_view_eq(x->vel[i], n)) return true;
+    return false;
+}
 static int lc_call(const lc_t *x, low_cst_t *const *k, proven_size_t n) {
     {
+        // ★ RFC-0132 T2b-3d · §13.10 — 원소가 줄이나 구조체인 틀 안 나열의 `index` 는 수가 아니라 **그 바이트를 보는 보기**다
+        if (veq(k[0]->tok.lex, "index") && n >= 2 && ck_atom(k[1]) && lc_is_vel(x, k[1]->tok.lex)) return lc_taint(x, k[1]->tok.lex);
+        if (veq(k[0]->tok.lex, "field") && n >= 4 && ck_atom(k[1]) && lc_is_vel(x, k[1]->tok.lex) && ck_atom(k[2]) &&
+            k[2]->tok.kind == LOW_TOK_NUMBER && n == 3) return lc_taint(x, k[1]->tok.lex);
         if (ck_scalar_head(k[0]->tok.lex)) return 0;
         const low_opinfo_t *op = ck_r1_tab ? ck_find_callee_at(ck_r1_tab, ck_r1_nt, k[0]) : NULL;
         if (op) {
@@ -7617,9 +7687,9 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
         return;
     }
     if (nd->kind == LOW_CST_BLOCK) {
-        proven_size_t nt0 = x->nt, nd0 = x->nd, na0 = x->narr;
+        proven_size_t nt0 = x->nt, nd0 = x->nd, na0 = x->narr, nv0 = x->nvel;
         for (proven_size_t i = 0; i < nd->nkids; i++) lc_walk(out, x, nd->kids[i], depth + 1);
-        x->nt = nt0; x->nd = nd0; x->narr = na0;                // 블록을 나가면 그 안의 이름은 없다
+        x->nt = nt0; x->nd = nd0; x->narr = na0; x->nvel = nv0;  // 블록을 나가면 그 안의 이름은 없다
         return;
     }
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0])) {
@@ -7630,11 +7700,16 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
             bool scalar = be == 3 && ck_atom(nd->kids[2]) && ck_type_word_scalar(nd->kids[2]->tok.lex);
             const low_cst_t *l = (be + 2 == nd->nkids) ? lc_list(nd->kids[be + 1]) : NULL;
             if (l) {
+                if (!ck_atom(l->kids[2]) || !ck_elem_sized(l->kids[2]->tok.lex)) {   // 원소가 줄·구조체 — `index` 가 보기를 낸다
+                    if (x->nvel < LC_MAX) x->vel[x->nvel++] = nd->kids[1]->tok.lex; else x->over = true;
+                }
                 if (kw == LOW_KW_VAR || !lc_const(l)) {         // ⓐ 이 블록의 틀 안 자리
                     lc_set_taint(x, nd->kids[1]->tok.lex, depth);
                     if (kw == LOW_KW_VAR) { if (x->narr < LC_MAX) x->arr[x->narr++] = nd->kids[1]->tok.lex; else x->over = true; }
                 }
+                bool rows = !ck_atom(l->kids[2]);                  // §13.10 — 줄의 나열: 줄 값(나열)은 칸마다 **베껴진다**
                 for (proven_size_t q = 3; q < l->nkids; q++) {   // 원소 속의 흐름(원소는 칸에 복사된다 — 원소 자체가 나열이면 안 된다)
+                    if (rows && lc_list(l->kids[q])) continue;
                     if (lc_carry(x, l->kids[q]) >= LC_INF) lc_escape(out, x, nd->kids[0]->tok.line, true);
                 }
             } else if (!scalar) {

@@ -42,6 +42,7 @@ typedef struct {
     proven_u8   ebits;  // TK_SLICE: 원소 폭(비트). 0 = 미상
     bool        esign;  // TK_SLICE: 원소 부호
     bool        eflt;   // TK_SLICE: 원소가 부동인가
+    bool        erow;   // TK_SLICE: 원소가 **줄**(`slice (array T M)`, RFC-0132 §13.10) — ebits 등은 줄 안 원소의 것
     // ★★★ **틀 인자는 타입의 일부다** (X-0009 · 2026-08-15). `gv u32 …` 와 `gv u8 …` 은
     //   지금까지 **둘 다 그냥 TK_NAMED** 였다 — 머리 이름도, 인자도 안 실려서 바인딩에서
     //   서로 통과했고, 같은 저장소를 다른 원소폭으로 읽으며 **조용히 틀린 값**을 냈다.
@@ -757,6 +758,10 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
             if (veq(h2, "index") && n >= 2) {             // ★ 원소 타입은 슬라이스가 정한다
                 ty_t sq = tc_infer(c, k[start + 1], env, nenv);
                 for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
+                if (sq.k == TK_SLICE && sq.erow) {           // §13.10 — 줄의 배열의 원소는 그 줄을 보는 슬라이스
+                    ty_t rv = sq; rv.erow = false;
+                    return rv;
+                }
                 if (sq.k == TK_SLICE && sq.ebits) {
                     if (sq.eflt) return (ty_t){ .k = TK_FLOAT, .bits = sq.ebits };
                     return tk_int(sq.ebits, sq.esign);
@@ -1181,6 +1186,21 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         if (veq(w, "mut_ref")) { t.rk = 2; continue; }
         // ★ `slice <T>` — **원소 타입이 타입의 일부다.**
         //   이것을 안 실어서 `index s i` 가 언제나 u8 이었다. slice u32 의 원소는 u32 다.
+        // ★ 머리의 절 범위(`low_op_header`)는 첫 괄호 앞에서 끝난다 — 줄 타입 `(array T M)` 은 범위 바로 뒤에 있을 수 있다
+        if (veq(w, "slice") && i + 1 <= end && i + 1 < f->nkids && f->kids[i + 1]->kind != LOW_CST_ATOM) {   // §13.10 줄의 슬라이스
+            const low_cst_t *rt = f->kids[i + 1];
+            while (rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+            if (rt->kind == LOW_CST_FORM && rt->nkids == 3 && rt->kids[0]->kind == LOW_CST_ATOM && veq(rt->kids[0]->tok.lex, "array") &&
+                rt->kids[1]->kind == LOW_CST_ATOM) {
+                ty_t e = ty_of_word(rt->kids[1]->tok.lex);
+                if (e.k == TK_INT || e.k == TK_FLOAT) {
+                    ty_t sl = tk(TK_SLICE);
+                    sl.ebits = e.bits; sl.esign = e.sign; sl.eflt = (e.k == TK_FLOAT); sl.erow = true;
+                    sl.rk = t.rk; sl.is_mut = mut_seen;
+                    return sl;
+                }
+            }
+        }
         if ((veq(w, "slice") || veq(w, "array")) && i + 1 < end && i + 1 < f->nkids &&
             f->kids[i + 1]->kind == LOW_CST_ATOM) {
             ty_t e = ty_of_word(f->kids[i + 1]->tok.lex);
@@ -1582,7 +1602,8 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 // ★ 루프 변수는 **슬라이스의 원소 타입**을 갖는다.
                 //   (u8 고정이었다 — `slice T` 가 원소 타입을 나르게 되면서 고칠 수 있게 됐다.)
                 ty_t ev = tk_int(8, false);
-                if (seq.k == TK_SLICE && seq.ebits)
+                if (seq.k == TK_SLICE && seq.erow) { ev = seq; ev.erow = false; }   // §13.10 — 줄마다 도는 변수는 줄 슬라이스
+                else if (seq.k == TK_SLICE && seq.ebits)
                     ev = seq.eflt ? (ty_t){ .k = TK_FLOAT, .bits = seq.ebits }
                                   : tk_int(seq.ebits, seq.esign);
                 env[*nenv].name = f->kids[1]->tok.lex;
@@ -1604,6 +1625,12 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     tc_emit(c, "E-TYPE-MUT",
                             "writing an element of a slice that is not declared `mut` "
                             "(a shared slice is read-only)", f->line);
+                // ★ RFC-0132 §13.10 — 줄의 배열에서 한 줄을 통째로 바꾸는 `set (index g r) <줄>` 은 없다(소유자 결정 «줄 보기»):
+                //   칸을 하나씩 쓰거나 `copy` 로 줄을 베낀다. 실행 중에 멈추는 대신 여기서 말한다.
+                if (fnd && st2.k == TK_SLICE && st2.erow)
+                    tc_emit(c, "E-TYPE-SET",
+                            "a whole row is not replaced with `set (index … )` — write its cells (`set (index (index g r) c) v .`), "
+                            "or copy a row into it with `copy` (RFC-0132 §13.10)", f->line);
             }
             // ★ `set (field q x) v .` — 필드가 존재해야 하고, 값의 타입이 맞아야 한다.
             if (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids == 3 &&

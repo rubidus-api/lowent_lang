@@ -460,6 +460,10 @@ typedef struct {
 //   (2바이트 구조체 2개짜리 슬라이스의 len 이 4). `slice u32` 에서 고쳤던 그 병인데
 //   **구조체 원소는 손대지 않았다.** 컴파일되고, 실행되고, 틀린다.
 #define IR_STRUCT_BIT 0x40000   // VARRAY 의 원소가 구조체다 — (meta >> 20) = 구조체 인덱스
+// ★ RFC-0132 §13.10 (소유자 결정 «줄 보기») — VARRAY 의 원소가 **줄**(고정 길이 배열)이다. 메타의 낮은 8 비트 · FLT · SGN 은
+//   **줄 안 원소**의 것이고, 줄의 바이트 수는 (meta >> 32) 에 싣는다. 값의 .box = 줄 바이트 · .n = 줄 수.
+//   `index` 는 그 줄을 보는 슬라이스(복사 없음)를 낸다 — u8 이면 바이트 슬라이스, 아니면 타입 있는 배열.
+#define IR_ROW_BIT 0x80000
 // RFC-0052 S2 — the operand type carried by arithmetic/compare words:
 //   bits 0..7 = declared width · IR_TY_SIGNED = declared signedness · IR_TY_KNOWN = tracked
 // A word with IR_TY_KNOWN unset falls back to the old (signed, 64-bit) behavior.

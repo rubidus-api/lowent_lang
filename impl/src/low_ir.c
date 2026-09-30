@@ -2185,10 +2185,84 @@ static void ir_lit_struct_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *
     #undef LSL_PUT
     ir_emit(c, IRW_LOAD, (proven_i64)tl);
 }
+// ★★ RFC-0132 §13.10 (소유자 «줄 보기») — **줄의 나열** `lit array (array T M) N <줄>… [_] .`. 바이트는 N×M×|T| 한 덩어리이고
+//   위에 줄의 배열 보기(IRW_VARRAY + IR_ROW_BIT)를 얹는다 — `index g r` 가 그 줄을 보는 슬라이스다. 줄 값(`lit array T M …` ·
+//   이름)은 칸마다 베낀다(줄은 값의 사본). `_` 줄은 0. 칸 베끼기는 펼쳐 적으므로 한 나열에 1024 칸까지만 받는다.
+static void ir_lit_row_list(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line,
+                            proven_u8str_view_t ity, proven_size_t m, bool is_array, bool want_frame, bool into) {
+    proven_u8 ie = ir_field_size(ity);
+    if (!ie) { ir_fail(c, "E-LIT-UNBUILT", "a row's element type must be a sized number or `bool` here (RFC-0132 §13.10)", line); return; }
+    bool flt = ir_is_float_ty(ity), sgn = ity_of_word(ity).sign;
+    proven_size_t rb = m * ie;
+    if (rb > 0xffffffu) { ir_fail(c, "E-LIT-UNBUILT", "a row this long cannot be laid out in a list", line); return; }
+    proven_i64 n = -1;
+    if (is_array) {
+        if (*pos >= end || !is_atom(k[*pos]) || !ir_int_lit(k[*pos]->tok.lex, &n) || n < 0) { ir_fail(c, "E-LIT-COUNT", "`lit array (array T M) N …` needs its length N as a literal", line); return; }
+        (*pos)++;
+    }
+    if (*pos < end && k[end - 1]->kind == LOW_CST_BLOCK) { ir_fail(c, "E-LIT-UNBUILT", "filling chosen rows (`do … end`) is not built yet — list the rows (RFC-0132 §13.10)", line); return; }
+    proven_size_t e0 = *pos, cnt = 0, stores = 0;
+    for (proven_size_t q = e0; q < end; q++) if (!(is_atom(k[q]) && veq(k[q]->tok.lex, "_"))) cnt++;
+    proven_size_t rows = is_array ? (proven_size_t)n : cnt;
+    if (cnt > rows) { ir_fail(c, "E-LIT-COUNT", "more rows than the length", line); return; }
+    stores = cnt * m;
+    if (stores > 1024) { ir_fail(c, "E-LIT-UNBUILT", "a list of rows copies at most 1024 cells from its row values — build the big rows with `_` and fill the cells (RFC-0132 §13.10)", line); return; }
+    proven_size_t bytes = rows * rb;
+    proven_i64 vmeta = IR_ROW_BIT | (proven_i64)ie | (flt ? IR_FLT_BIT : 0) | (sgn ? IR_SGN_BIT : 0) | (proven_i64)((proven_u64)rb << 32);
+    *pos = end;
+    if (!cnt && !want_frame && !into) {                            // ⓑ 모두 `_` — 읽기 전용 0
+        proven_u8 *z = bytes ? calloc(bytes, 1) : NULL;
+        if (bytes && !z) { ir_fail(c, "E-IR-UNSUP", "out of memory for a list literal", line); return; }
+        proven_size_t sidx; bool ok = ir_intern_bytes(c, z, bytes, &sidx, line); free(z);
+        if (!ok) return;
+        ir_emit(c, IRW_STR, (proven_i64)sidx);
+        ir_emit(c, IRW_VARRAY, vmeta);
+        return;
+    }
+    if (into) ir_emit(c, IRW_BFILL, (proven_i64)((proven_u64)bytes << 32));
+    else {
+        proven_size_t off = (c->lbuf_off + 7u) & ~(proven_size_t)7u;
+        if (off + bytes > low_lbuf_max()) { ir_fail(c, "E-FRAME-SIZE", "list literals need more frame bytes than one op may hold", line); return; }
+        c->lbuf_off = off + bytes;
+        ir_emit(c, IRW_LBUF, (proven_i64)((proven_u64)off | ((proven_u64)bytes << 32)));
+    }
+    ir_emit(c, IRW_VARRAY, vmeta);
+    proven_size_t tl = ir_hidden_local(c, line), tv = ir_hidden_local(c, line);
+    if (c->failed) return;
+    ir_emit(c, IRW_STORE, (proven_i64)tl);
+    proven_size_t r = 0;
+    for (proven_size_t q = e0; q < end && !c->failed; q++) {
+        const low_cst_t *e = k[q];
+        if (is_atom(e) && veq(e->tok.lex, "_")) continue;
+        ir_node(c, e);
+        ir_emit(c, IRW_STORE, (proven_i64)tv);
+        for (proven_size_t j = 0; j < m && !c->failed; j++) {       // 줄 r 의 칸 j ← 값의 칸 j
+            ir_emit(c, IRW_LOAD, (proven_i64)tl); ir_emit(c, IRW_CONST, (proven_i64)r); ir_emit(c, IRW_INDEX, 0);
+            ir_emit(c, IRW_CONST, (proven_i64)j);
+            ir_emit(c, IRW_LOAD, (proven_i64)tv); ir_emit(c, IRW_CONST, (proven_i64)j); ir_emit(c, IRW_INDEX, 0);
+            ir_emit(c, IRW_ISTORE, 0);
+        }
+        r++;
+    }
+    ir_emit(c, IRW_LOAD, (proven_i64)tl);
+}
 static void ir_lit_list_in(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven_size_t end, proven_u32 line, bool as_array) {
     bool want_frame = c->lit_frame; c->lit_frame = false;   // ★ 부르는 쪽의 요구는 이 나열 하나에만
     bool into = c->lit_into; c->lit_into = false;            // ★ §13.7 — 채울 바이트가 이미 스택에 있다
     if (into) want_frame = true;
+    // ★ RFC-0132 §13.10 — 원소가 줄(`(array T M)`)인 나열
+    if (*pos + 1 < end && is_atom(k[*pos]) && !is_atom(k[*pos + 1])) {
+        const low_cst_t *rt = k[*pos + 1];
+        while (rt && rt->kind == LOW_CST_GROUP && rt->nkids == 1) rt = rt->kids[0];
+        proven_i64 rm;
+        if (rt && rt->kind == LOW_CST_FORM && rt->nkids == 3 && is_atom(rt->kids[0]) && veq(rt->kids[0]->tok.lex, "array") &&
+            is_atom(rt->kids[1]) && is_atom(rt->kids[2]) && ir_int_lit(rt->kids[2]->tok.lex, &rm) && rm > 0) {
+            bool ra = as_array || veq(k[*pos]->tok.lex, "array");
+            *pos += 2;
+            ir_lit_row_list(c, k, pos, end, line, rt->kids[1]->tok.lex, (proven_size_t)rm, ra, want_frame, into);
+            return;
+        }
+    }
     if (*pos + 1 >= end || !is_atom(k[*pos]) || !is_atom(k[*pos + 1])) { ir_fail(c, "E-LIT-UNBUILT", "malformed list literal", line); return; }
     bool is_array = as_array || veq(k[*pos]->tok.lex, "array"), is_slice = veq(k[*pos]->tok.lex, "slice");
     if (!is_array && !is_slice) { ir_fail(c, "E-LIT-UNBUILT", "unknown list literal", line); return; }

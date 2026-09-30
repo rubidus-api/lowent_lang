@@ -56,6 +56,9 @@ typedef struct {
     //   ★ 0(미상)은 늘 호환이다: 추론이 payload 를 아직 안 나르는 자리가 많고,
     //     모르면 안 무는 쪽이 옳다(거짓음성 < 거짓양성).
     proven_u8   wrap;
+    // ★ X-0085 — 감싸개의 **알맹이 종류**(tk_t: 정수·부동·bool·슬라이스만, 0 = 미상). `option u64` 자리에 `option slice u8`
+    //   이 들어가도 말이 없었다. 좁게 싣는다: 선언에 한 낱말로 적힌 알맹이만. 둘 다 알 때만 문다.
+    proven_u8   pk;
     proven_u8str_view_t nname;  // TK_NAMED: 머리 타입 이름
     proven_u32  targ;           // TK_NAMED: 틀 인자 낱말들의 해시(0 = 인자 없음/미상)
 } ty_t;
@@ -362,7 +365,7 @@ static ty_t ty_join(ty_t t, ty_t u) { return ty_sub(t, u) ? u : t; }
 // conservative: never flag when either side is unknown/named; then kind, then
 // (integers/floats) literal fit / ⊑ 확대 판정 (D2: 암묵 변환은 ⊑ 를 따를 때만).
 typedef enum { TC_OK, TC_KIND, TC_WIDTH, TC_SIGN, TC_NOMINAL, TC_RANGE, TC_LANES,
-               TC_INSTANCE, TC_STRUCT, TC_WRAP } tc_reason_t;   // TC_WRAP: option ↔ result   // TC_STRUCT: 서로 다른 명명 타입(X-0010)   // ★ TC_INSTANCE: 같은 틀의 **다른 인스턴스**(X-0009)
+               TC_INSTANCE, TC_STRUCT, TC_WRAP, TC_PAYLOAD } tc_reason_t;   // TC_WRAP: option ↔ result   // TC_STRUCT: 서로 다른 명명 타입(X-0010)   // ★ TC_INSTANCE: 같은 틀의 **다른 인스턴스**(X-0009)
 // RFC-0055 D7: 리터럴은 선언된 **범위**에 들어야 한다 — 폭이 아니라 범위가 계약이다.
 static bool lit_in_rng(ty_t lit, ty_t decl) {
     if (!decl.has_rng || !lit.lit) return true;
@@ -433,6 +436,8 @@ static tc_reason_t compat(ty_t decl, ty_t actual) {
     // ★★★★★ **`option` 자리에 `result` 를 넣지 않는다**(그 반대도). 둘 다 종류를 아는 때만 문다.
     if (decl.k == TK_WRAPPED && actual.k == TK_WRAPPED &&
         decl.wrap && actual.wrap && decl.wrap != actual.wrap) return TC_WRAP;
+    if (decl.k == TK_WRAPPED && actual.k == TK_WRAPPED && decl.wrap == actual.wrap &&
+        decl.pk && actual.pk && decl.pk != actual.pk) return TC_PAYLOAD;
     if (decl.k == TK_UNKNOWN || actual.k == TK_UNKNOWN || decl.k == TK_NAMED || actual.k == TK_NAMED) return TC_OK;
     if (decl.k != actual.k) return TC_KIND;
     if (decl.k == TK_INT) {
@@ -530,6 +535,9 @@ static void tc_flag(tc_ctx_t *c, tc_reason_t r, const char *code, const char *ms
     else if (r == TC_RANGE)   tc_emit(c, "E-TYPE-RANGE", "the value is outside the declared range (no value can satisfy it — this is a lie, not a check)", line);
     else if (r == TC_INSTANCE) tc_emit(c, "E-TYPE-INSTANCE", "two instances of the same generic template are DIFFERENT concrete types — a container opened for one element type cannot be bound to a variable declared for another. Monomorphization makes each instance a distinct struct (visible as `name#arg` in `--ir`), and their layouts differ; binding across them reads the same storage at the wrong element width and yields a wrong value with no error at all. Declare the variable with the SAME instance, or convert explicitly (RFC-0021 · RFC-0084)", line);
     else if (r == TC_WRAP) tc_emit(c, "E-TYPE-WRAP", "`option` and `result` are not the same shape — one says a value may be ABSENT, the other says producing it may FAIL, and code that reads the wrong one silently treats a failure as an absence (or the reverse). That confusion is exactly what the three-place answer exists to prevent, so the checker must not paper over it here. Unwrap what you were given, or change the declaration to match", line);
+    else if (r == TC_PAYLOAD) tc_emit(c, "E-TYPE-WRAP", "the option/result holds a different kind of value than the declaration says — "
+                                      "an integer, a float, a bool and a slice are not interchangeable inside it either, and taking the "
+                                      "content out would read one as the other (X-0085). Declare the content type the value really has", line);
     else if (r == TC_STRUCT) tc_emit(c, "E-TYPE-STRUCT", "these are two DIFFERENT named types — the same field layout does not make them the same type. `meters` and `seconds` may both hold one u64 and still mean different things, and a checker that only compares representation lets that confusion through silently. Transparent `type` aliases are expanded before this comparison, so an alias and its target remain interchangeable exactly as the spec says (SPEC-004 §89); what is rejected here is a genuinely different name. Use the declared type, or convert explicitly", line);
     else if (r == TC_LANES)   tc_emit(c, "E-TYPE-LANES", "vector lane counts differ — two vectors of different width are different types (there is no implicit widening between them)", line);
     else                      tc_emit(c, code, msg, line);
@@ -844,6 +852,17 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                             "`any`/`all` need a mask (the result of a lanewise comparison) — "
                             "this value is not a mask", k[start]->line);
                 return tk(TK_BOOL);
+            }
+            // ★ X-0081 — `reduce_add|mul|min|max <벡터>` 는 원소 하나를 낸다. 인자를 **추론해야** 그 안의 벡터 식
+            //   (`reduce_add (add v w)`)의 레인 대조가 돈다 — 모르는 머리로 넘기면 안쪽을 아무도 보지 않았다.
+            if ((veq(h2, "reduce_add") || veq(h2, "reduce_mul") || veq(h2, "reduce_min") || veq(h2, "reduce_max")) && n >= 2) {
+                ty_t v = tc_infer_run(c, k, start + 1, n - 1, env, nenv);
+                if (v.k == TK_VEC) {
+                    ty_t e = tk(v.vflt ? TK_FLOAT : TK_INT);
+                    e.bits = v.bits; e.sign = v.sign;
+                    return e;
+                }
+                return tk(TK_UNKNOWN);
             }
             // ★ `select <mask> <a> <b>` — 첫 인자는 마스크여야 하고, 레인 수가 맞아야 한다.
             if (veq(h2, "select") && n >= 4) {
@@ -1218,6 +1237,14 @@ static ty_t ty_of_decl_r(const low_cst_t *f, proven_size_t start, proven_size_t 
         //     돈 결과다). 그래서 *머리 이름 + 인자 해시* 로 읽으면 같은 타입이 두 철자를 갖고
         //     멀쩡한 프로그램이 빨개진다. **접힌 이름이 있으면 그것이 곧 그 타입의 이름이다.**
         if (core.k == TK_WRAPPED && i + 1 < end && i + 1 < f->nkids) {
+            {   // X-0085 — 알맹이의 종류(한 낱말 · 앞의 mut 는 건너뛴다)
+                proven_size_t q = i + 1;
+                while (q < end && q < f->nkids && f->kids[q]->kind == LOW_CST_ATOM && veq(f->kids[q]->tok.lex, "mut")) q++;
+                if (q < end && q < f->nkids && f->kids[q]->kind == LOW_CST_ATOM) {
+                    ty_t pt = ty_of_word(f->kids[q]->tok.lex);
+                    if (pt.k == TK_INT || pt.k == TK_FLOAT || pt.k == TK_BOOL || pt.k == TK_SLICE) core.pk = (proven_u8)pt.k;
+                }
+            }
             const low_cst_t *pl = f->kids[i + 1];
             if (pl->kind == LOW_CST_GROUP && pl->nkids) pl = pl->kids[0];
             proven_u8str_view_t phead = { 0 };

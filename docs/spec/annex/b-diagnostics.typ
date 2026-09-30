@@ -13,7 +13,7 @@
   ]
 
   #sub("B.1", "실행 중 트랩 (E-VM-…)")[
-    #para("1")[프로그램이 도는 중에 조건이 깨져 즉시 멈춘 것. 모두 50 가지다.]
+    #para("1")[프로그램이 도는 중에 조건이 깨져 즉시 멈춘 것. 모두 51 가지다.]
     #shape("실행 중 트랩 식별자", "E-VM-ALIGN  E-VM-ANALYSIS  E-VM-ARITY
 E-VM-ASM  E-VM-AWAIT  E-VM-BOUNDS
 E-VM-BOXPOOL  E-VM-BSETPOOL  E-VM-BUDGET
@@ -29,8 +29,8 @@ E-VM-OOM  E-VM-OVERFLOW  E-VM-PANIC
 E-VM-REACTOR  E-VM-READONLY  E-VM-RECPOOL
 E-VM-RESERVE  E-VM-SCHED-LOOP  E-VM-SHANDLE
 E-VM-SHIFT  E-VM-SOCKPOOL  E-VM-STACK
-E-VM-STKPOOL  E-VM-TYPE  E-VM-UNDEF
-E-VM-UNSUP  E-VM-VIEW")
+E-VM-STACK-BUDGET  E-VM-STKPOOL  E-VM-TYPE
+E-VM-UNDEF  E-VM-UNSUP  E-VM-VIEW")
   ]
 
   #sub("B.2", "경고 (W-…)")[

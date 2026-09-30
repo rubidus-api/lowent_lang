@@ -190,11 +190,13 @@ typedef struct {
                     proven_u8 state;   // 0=빈 · 1=새로 · 2=중단(runnable) · 3=실행 · 4=완료 · 5=채널블록 · 6=await블록
                     proven_i32 blk_chan; proven_u8 blk_recv; proven_i32 job, blk_job;   // 채널·job 블록 정보
                     unsigned base;     // ★ 이 그린스레드의 프레임 창 시작(sched_base + slot*GT_DEPTH) — 메인과 안 겹침
+                    long sb;           // ★ RFC-0135 S0 — 이 그린스레드의 스택 예산 사용량(네이티브 lw_gthr[].sb 와 같다)
                     vmv_t args[LOW_MAX_PARAMS]; } *gthr;   // ★ 동적: 동시 그린스레드 수만큼 성장(E-Alloc P3)
     proven_size_t   ngthr;
     ucontext_t      sched_ctx;    // 스케줄러 컨텍스트(yield/완료가 여기로 swap)
     proven_size_t   cur_gthr;     // 지금 도는 gthread
     bool            in_gsched;    // 코루틴 스케줄러 안인가(yield 가 의미 있는지)
+    long            sbytes, sbudget;   // ★ RFC-0135 S0 · X-0084 — 틀 안 나열의 스택 예산(네이티브 lw_sbytes 와 같은 수)
     unsigned        cur_ceiling;  // ★ 지금 도는 호출 사슬의 깊이 트랩(메인=VM_MAXCALL · 그린스레드=base+GT_DEPTH)
     unsigned        sched_base;   // ★ 그린스레드 창이 시작하는 절대깊이(메인깊이+1) — E-Alloc P1
     // ★★★ **channel** (RFC-0009 3/3) — bounded FIFO 통신 채널. chrecv 는 empty 에서, chsend 는 full 에서
@@ -478,6 +480,7 @@ typedef struct vm_act {
     //   검사층이 막는다(E-LIT-ESCAPE).
     proven_u8          *lbuf;
     proven_size_t       lbuf_cap;
+    long                sb_saved;   // ★ RFC-0135 S0 — 이 프레임에 들어오기 전의 스택 예산 사용량
     vmv_t               locals[VM_LOCALS];   // 지역 — 프레임에 인라인(힙 프레임이 호출을 넘어 산다)
     vmv_t               stack[VM_STACK];      // 피연산자 스택
 } vm_act;
@@ -792,6 +795,13 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
     proven_size_t s0 = slot_alloc(vm);
     if (s0 == (proven_size_t)-1) { act_free(top); { VM_CHAIN_LEAVE(); return false; } }
     if (!act_lbuf(top, d)) { vm_diag(vm->diags, "E-VM-OOM", "out of memory for the frame's list literals"); act_free(top); { VM_CHAIN_LEAVE(); return false; } }
+    // ★ RFC-0135 S0 · X-0084 — 틀 안 나열의 스택 예산(네이티브와 같은 수 · 같은 문구)
+    long sb_entry = vm->sbytes;
+    #define VM_SB_FAIL() do { vm_diag(vm->diags, "E-VM-STACK-BUDGET", "the list literals living on this call chain need more than the stack budget " \
+                                      "(RFC-0135) — keep a recursion with local lists shallow, or take the list from an allocator"); } while (0)
+    top->sb_saved = vm->sbytes;
+    if (d->lbuf_size && (vm->sbytes += (long)d->lbuf_size) > vm->sbudget) {
+        VM_SB_FAIL(); vm->sbytes = sb_entry; slot_free(s0); act_free(top); { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; } }
     top->parent = NULL; top->d = d; top->pc = 0; top->depth = depth; top->sp = 0; top->slot = s0;
     top->vec_base = vm->nvec; top->bx_base = vm->nbox; top->rec_base = vm->nrecs;
     top->sk_base = vm->nstk; top->bs_base = vm->nbset;
@@ -805,7 +815,7 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
         if (!ok) {   // 에러 — 이 드라이버의 체인을 전부 걷고 실패 전파
             while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
                           vm_act *p = top->parent; act_free(top); top = p; }
-            { VM_CHAIN_LEAVE(); return false; }
+            { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; }
         }
         if (outcome == VMOUT_CALL) {
             unsigned nd = top->depth + 1;
@@ -817,14 +827,14 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
                 if (fc) act_free(fc);
                 while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
                               vm_act *p = top->parent; act_free(top); top = p; }
-                { VM_CHAIN_LEAVE(); return false; }
+                { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; }
             }
             if (!act_lbuf(fc, callee)) {
                 vm_diag(vm->diags, "E-VM-OOM", "out of memory for the frame's list literals");
                 act_free(fc); slot_free(sc);
                 while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
                               vm_act *p = top->parent; act_free(top); top = p; }
-                { VM_CHAIN_LEAVE(); return false; }
+                { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; }
             }
             fc->parent = top; fc->d = callee; fc->pc = 0; fc->depth = nd; fc->sp = 0; fc->slot = sc;
             fc->vec_base = vm->nvec; fc->bx_base = vm->nbox; fc->rec_base = vm->nrecs;
@@ -832,12 +842,20 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
             memset(fc->locals, 0, sizeof fc->locals);
             for (proven_size_t i = 0; i < callee->nparams; i++) fc->locals[i] = cargs[i];
             vm->frames[sc].locs = fc->locals; vm->frames[sc].gen = ++vm->gcount; vm->frames[sc].nbstk = 0;
+            fc->sb_saved = vm->sbytes;
+            if (callee->lbuf_size && (vm->sbytes += (long)callee->lbuf_size) > vm->sbudget) {
+                VM_SB_FAIL(); vm->frames[sc].locs = NULL; vm->frames[sc].gen = 0; slot_free(sc); act_free(fc);
+                while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
+                              vm_act *p = top->parent; act_free(top); top = p; }
+                { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; }
+            }
             top = fc;   // 호출자는 자기 호출 pc 에 멈춰 있다 — 콜리가 DONE 이면 값 얹고 재개
         } else {   // VMOUT_DONE — 이 프레임 완료
             vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
             vm_act *done = top; top = top->parent;
+            if (top) vm->sbytes = done->sb_saved;   // ★ RFC-0135 S0 — 이 프레임의 틀 안 나열을 예산에서 뺀다
             vm_vec_ret(vm, done->vec_base, &rv);   // ★ 벡터 풀 되감기(RFC-0089 B) — 콜리의 벡터는 콜리와 함께 죽는다
-            if (!top) { *ret = rv; act_free(done); { VM_CHAIN_LEAVE(); return true; } }   // 진입 프레임이 끝났다
+            if (!top) { *ret = rv; vm->sbytes = done->sb_saved; act_free(done); { VM_CHAIN_LEAVE(); return true; } }   // 진입 프레임이 끝났다
             // 스칼라 반환이면 콜리가 만든 레코드/박스 풀을 회수(호출 때 저장한 워터마크로).
             if (rv.tag == VMV_INT || rv.tag == VMV_FLT) {
                 vm->nrecs = top->rec_wm; vm->nbset = top->bs_wm; vm->nstk = top->sk_wm; vm->nbox = top->bx_wm;
@@ -846,7 +864,7 @@ static bool vm_exec(vm_ctx_t *vm, const low_ir_def_t *d,
                 act_free(done);
                 while (top) { vm->frames[top->slot].locs = NULL; vm->frames[top->slot].gen = 0; slot_free(top->slot);
                               vm_act *p = top->parent; act_free(top); top = p; }
-                { VM_CHAIN_LEAVE(); return false; } }
+                { vm->sbytes = sb_entry; VM_CHAIN_LEAVE(); return false; } }
             top->stack[top->sp++] = rv;
             top->pc++;   // 호출 명령 다음으로 재개
             act_free(done);
@@ -1053,7 +1071,9 @@ static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
         // ★ 이 그린스레드를 돌리기 전에 ceiling 을 그 창으로 맞춘다(재개든 새로든 매번 — 사이에 다른
         //   그린스레드가 자기 ceiling 을 세워놨을 수 있다). 창을 넘으면 형제 프레임을 덮는다.
         vm->cur_ceiling = VM_MAXCALL;   // ★ 그린스레드도 메인과 같은 한계(창 없음 — D3 슬롯 참조)
+        long sch_sb_ = vm->sbytes;      // ★ RFC-0135 S0 — 그린스레드마다 제 예산 사용량(네이티브와 같다)
         if (g->state == 1) {                       // 새로 시작 — makecontext
+            g->sb = vm->sbudget - LOW_SBUDGET_GT;
             getcontext(&g->ctx);
             g->ctx.uc_stack.ss_sp = g_gt_stk[gi];
             g->ctx.uc_stack.ss_size = GT_STK;
@@ -1061,11 +1081,12 @@ static bool vm_gsched(vm_ctx_t *vm, unsigned base_depth) {
             g->state = 3;
             g_gt_vm = vm; g_gt_idx = gi;
             makecontext(&g->ctx, gthr_trampoline, 0);
-            swapcontext(&vm->sched_ctx, &g->ctx);
+            vm->sbytes = g->sb; swapcontext(&vm->sched_ctx, &g->ctx); g->sb = vm->sbytes;
         } else {                                    // state==2 중단 → 재개
             g->state = 3;
-            swapcontext(&vm->sched_ctx, &g->ctx);
+            vm->sbytes = g->sb; swapcontext(&vm->sched_ctx, &g->ctx); g->sb = vm->sbytes;
         }
+        vm->sbytes = sch_sb_;
         if (g_gt_err) { vm->ngthr = 0; vm->in_gsched = prev; vm->cur_ceiling = prev_ceiling; return false; }
     }
     vm->ngthr = 0; vm->in_gsched = prev; vm->cur_ceiling = prev_ceiling;
@@ -4612,6 +4633,7 @@ low_ir_run_result_t low_ir_run_argv(const low_ir_t *ir, proven_u8str_view_t op,
     g_sched_step = 0;   // ★ 이 실행의 스케줄 단계 카운터 리셋(계획은 오라클이 세운 그대로 둔다)
     vmv_t rv = vmv_int(0);
     vm.cur_ceiling = VM_MAXCALL;   // ★ 메인 사슬의 깊이 트랩(그린스레드는 자기 창으로 갈아낀다)
+    vm.sbudget = low_ir_target()->no_heap ? LOW_SBUDGET_FREE : LOW_SBUDGET_HOST; vm.sbytes = 0;
     g_slot_hw = 0; g_slot_free_n = 0;   // ★ D3: 참조 슬롯 풀을 이 실행 기준으로 리셋(--test 재실행 대비)
     if (!vm_conc_ensure(&vm, VM_GTHR)) { out.ok = false; return out; }   // ★ 동적 그린스레드 백킹 연결(E-Alloc P3)
     out.ok = vm_exec(&vm, d, vargs, &rv, 0);

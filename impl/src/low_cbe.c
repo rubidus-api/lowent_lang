@@ -5896,7 +5896,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fprintf(out, "    lowv loc[%zu]; memset(loc, 0, sizeof loc);\n",
                 (size_t)(d->nlocals ? d->nlocals : 1));
         // ★ RFC-0132 T2b-2 — 틀 안 나열 자리(§13.2 ⓐ·ⓒ): 이 op 의 C 틀에 바이트 줄 하나(부를 때마다 새것 — 재귀도 안전).
-        if (d->lbuf_size) fprintf(out, "    unsigned char lw_lb[%zu] __attribute__((aligned(16)));\n", (size_t)d->lbuf_size);
+        if (d->lbuf_size) {
+            fprintf(out, "    unsigned char lw_lb[%zu] __attribute__((aligned(16)));\n", (size_t)d->lbuf_size);
+            // ★ RFC-0135 S0 · X-0084 — 틀 안 나열의 스택 예산. 반환하면 cleanup 이 되돌린다(VM 은 같은 수로 센다).
+            fprintf(out, "    long lw_sbg_ __attribute__((cleanup(lw_sb_restore))) = lw_sbytes;\n"
+                         "    if (LW_UNLIKELY((lw_sbytes += %zuL) > LW_SBUDGET)) lw_panic(\"the list literals living on this call chain need more than the stack budget "
+                         "(RFC-0135) — keep a recursion with local lists shallow, or take the list from an allocator\");\n", (size_t)d->lbuf_size);
+        }
         fprintf(out, "    for (int i = 0; i < %zu; i++) loc[i] = a[i];\n", (size_t)d->nparams);
         // ★★★★★ **태그 스택도 쓰는 만큼만** (2026-08-17, MEM-0003 — 프레임 래칫이 찾았다).
         //   `lowv st[256]` 은 이 파일 머리가 2026-07 에 이미 *"함수마다 12KB 스택 프레임"* 이라

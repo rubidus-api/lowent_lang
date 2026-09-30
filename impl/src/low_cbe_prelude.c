@@ -114,6 +114,11 @@ const char LW_PRELUDE[] =
 "struct lowv { int tag; long long i; const unsigned char *p; size_t n; int box; lowv *q; };\n"
 "enum { LWV_INT, LWV_SLICE, LWV_REC, LWV_OK, LWV_ERR, LWV_STACK, LWV_BITSET, LWV_VIEW, LWV_SOME, LWV_NONE, LWV_VARRAY, LWV_REF, LWV_VEC, LWV_MASK, LWV_FLT };\n"
 "#define LW_REF_MUT (1ll << 62)\n"
+/* ★ RFC-0135 S0 · X-0084 — 틀 안 나열의 스택 예산(바이트). VM 과 같은 수(low_ir.h LOW_SBUDGET_*). */
+"#ifndef LW_SBUDGET\n#ifdef LW_FREESTANDING\n#define LW_SBUDGET 16384L\n#else\n#define LW_SBUDGET 4194304L\n#endif\n#endif\n"
+"#ifndef LW_GT_SBUDGET\n#define LW_GT_SBUDGET 65536L\n#endif\n"
+"static _Thread_local long lw_sbytes;\n"
+"static inline void lw_sb_restore(long *p) { lw_sbytes = *p; }\n"
 // ★ 벡터 풀을 **나눠 쓰는 흐름**인가(워커 스레드·그린스레드) — 그러면 되감지 않는다(RFC-0089 B).
 "static _Thread_local int lw_vec_shared;\n"
 // ★★★ **증명한 것을 말한다.**
@@ -1599,11 +1604,12 @@ LOW_CHAPOLY_C_SOURCE
 //   box < 0(진짜 인스턴스가 아님)이면 초기화 대상이 없어 즉시 escalate — VM 과 같은 규율.
 "static lowv lw_restart_call(lowv (*fn)(const lowv *restrict), const lowv *args, int box, int maxr) {\n"
 "    int fb = lw_nfault; if (fb >= 64) return fn(args);   /* 경계 소진 — 그냥 부른다 */\n"
+"    long sb0_ = lw_sbytes;   /* longjmp 는 cleanup 을 건너뛴다 — 스택 예산을 손으로 되돌린다 */\n"
 "    int att = 0;\n"
 "    for (;;) {\n"
 "        lw_nfault = fb + 1;\n"
 "        if (setjmp(lw_fault[fb]) != 0) {                  /* 핸들러가 panic 해서 되돌아왔다 */\n"
-"            lw_nfault = fb;\n"
+"            lw_nfault = fb; lw_sbytes = sb0_;\n"
 "            if (box >= 0 && att < maxr) { att++;\n"
 "                lowrec *r = &lw_recs[box]; for (int i = 0; i < r->nf; i++) { lowv z = {0}; r->f[i] = z; }\n"
 "                continue; }\n"
@@ -1739,7 +1745,7 @@ const char LW_CONC[] =
 //   ☞ 스택은 코루틴의 실행 스택(C 스택과 같은 범주) — pthread 가 이미 워커 OS 스택을 잡는 것과
 //     같은 종류의 할당이지, 언어가 세는 데이터 힙이 아니다(RFC-0043 위반 아님).
 "static struct { ucontext_t ctx; int box; lowv (*fn)(const lowv *restrict); unsigned char nargs;\n"
-"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
+"                lowv args[LW_MAXP]; int state; int blk_chan; int blk_recv; int job; int blk_job; int blk_fd; int blk_aio; int peer; long sb; } _Thread_local *lw_gthr; static _Thread_local int lw_ngthr, lw_gthr_cap;\n"
 "static _Thread_local char **lw_gt_stk; static _Thread_local int *lw_ready;\n"
 "static int lw_gthr_ensure(int need) {\n"
 "    if (need <= lw_gthr_cap) return 1;\n"
@@ -1875,8 +1881,9 @@ const char LW_CONC[] =
 "            lw_gthr[gi].ctx.uc_link = &lw_sched_ctx;\n"
 "            lw_gthr[gi].state = 3;\n"
 "            makecontext(&lw_gthr[gi].ctx, lw_gt_tramp, 0);\n"
-"            swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx);\n"
-"        } else { lw_gthr[gi].state = 3; swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); }\n"
+"            lw_gthr[gi].sb = LW_SBUDGET - LW_GT_SBUDGET;   /* 그린스레드의 스택은 작다 — 예산을 미리 깎아 둔다 */\n"
+"            { long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
+"        } else { lw_gthr[gi].state = 3; long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
 "    }\n"
 "    lw_ngthr = 0;\n"
 "    return (void *)0;\n"
@@ -1963,8 +1970,9 @@ const char LW_CONC[] =
 "            lw_gthr[gi].ctx.uc_link = &lw_sched_ctx;\n"
 "            lw_gthr[gi].state = 3;\n"
 "            makecontext(&lw_gthr[gi].ctx, lw_gt_tramp, 0);\n"
-"            swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx);\n"
-"        } else { lw_gthr[gi].state = 3; swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); }\n"
+"            lw_gthr[gi].sb = LW_SBUDGET - LW_GT_SBUDGET;   /* 그린스레드의 스택은 작다 — 예산을 미리 깎아 둔다 */\n"
+"            { long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
+"        } else { lw_gthr[gi].state = 3; long sch_sb_ = lw_sbytes; lw_sbytes = lw_gthr[gi].sb; swapcontext(&lw_sched_ctx, &lw_gthr[gi].ctx); lw_gthr[gi].sb = lw_sbytes; lw_sbytes = sch_sb_; }\n"
 "    }\n"
 "    lw_ngthr = base; lw_sched_ctx = lw_saved_ctx; lw_cur_gthr = lw_saved_cur; lw_in_gsched = prev; lw_vec_shared = vprev_;\n"
 "}\n"

@@ -358,6 +358,7 @@ static const low_repair_row_t REPAIR[] = {
     { "E-VM-ERR",              "R-MATCH-BEFORE-UNWRAP" },
     { "E-VM-READONLY",         "R-DECLARE-MUTREF" },
     { "E-VM-DEPTH",            "R-REDUCE-RECURSION" },
+    { "E-VM-STACK-BUDGET",     "R-REDUCE-RECURSION" },
     { "E-VM-OOM",              "R-REDUCE-RECURSION" },
     { "E-VM-STACK",            "R-REDUCE-RECURSION" },
     { "E-VM-ASM",              "R-RUN-NATIVE" },

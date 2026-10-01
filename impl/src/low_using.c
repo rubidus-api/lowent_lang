@@ -1292,11 +1292,105 @@ void low_bind_keep_strip(low_parse_result_t *pr, proven_allocator_t node_alloc, 
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
     for (proven_size_t i = 0; i < pr->nforms; i++) be_strip_keep(c, pr->forms[i]);
 }
+// ★★ RFC-0132 P3 (§5 · Q3 · MK4) — 구조체 값의 **나머지** `lit T do <칸> <값> . … _ <값> . end`: `_ <값> .` 을 선언에 있고 적지 않은
+//   칸마다 `<칸> <값> .` 으로 펼친다(값을 칸마다 다시 적는 것과 같다 — 그래서 값은 이름 하나 또는 리터럴 하나만 받는다). 넣을 수
+//   없는 칸(수 리터럴인데 칸이 수가 아니다)이 남으면 그 칸 이름을 대며 거절한다. 남은 칸이 없으면 `_` 가 채우는 것이 없다고 말한다.
+static const low_cst_t *lr_struct_block(us_ctx_t *c, proven_u8str_view_t ty) {
+    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    for (proven_size_t i = 0; i < c->p.out->nforms; i++) {
+        const low_cst_t *f = c->p.out->forms[i];
+        if (f && f->kind == LOW_CST_FORM && f->nkids >= 3 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
+            us_atom(f->kids[1]) && proven_u8str_view_eq(f->kids[1]->tok.lex, ty) && f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK)
+            return f->kids[f->nkids - 1];
+    }
+    return NULL;
+}
+static bool lr_scalar_word(proven_u8str_view_t w) {
+    static const char *S[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","f32","f64","bool" };
+    for (proven_size_t i = 0; i < sizeof S / sizeof S[0]; i++) if (us_eq(w, S[i])) return true;
+    return false;
+}
+static void lr_drop(us_ctx_t *c, low_cst_t *blk, proven_size_t at) {   // 거절한 `_ <값> .` 줄은 빼 둔다(뒤 검사가 «없는 칸» 을 덧붙이지 않게)
+    low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (blk->nkids ? blk->nkids : 1), alignof(low_cst_t *)).value.ptr;
+    if (!nk) return;
+    proven_size_t m = 0;
+    for (proven_size_t i = 0; i < blk->nkids; i++) if (i != at) nk[m++] = blk->kids[i];
+    (void)low_refit(&c->p, blk, nk, m);
+}
+static void lr_fill(us_ctx_t *c, low_cst_t *sf) {                 // sf = FORM[T, BLOCK]
+    low_cst_t *blk = sf->kids[sf->nkids - 1];
+    proven_size_t ri = blk->nkids;
+    for (proven_size_t i = 0; i < blk->nkids; i++) {
+        const low_cst_t *fl = blk->kids[i];
+        if (fl->kind == LOW_CST_FORM && fl->nkids >= 2 && us_atom(fl->kids[0]) && us_eq(fl->kids[0]->tok.lex, "_")) { ri = i; break; }
+    }
+    if (ri == blk->nkids) return;
+    low_cst_t *rf = blk->kids[ri];
+    if (ri + 1 != blk->nkids) { low_pdiag(&c->p, "E-LIT-INDEX", "`_ <value> .` («every remaining field») comes LAST in a struct value (RFC-0132 §5)", rf->kids[0]->tok.line, rf->kids[0]->tok.col); lr_drop(c, blk, ri); return; }
+    if (rf->nkids != 2 || !us_atom(rf->kids[1])) {
+        low_pdiag(&c->p, "E-LIT-INDEX", "the value after `_` fills every remaining field, so it is written once as a name or a literal — "
+                  "bind an expression to a name first (RFC-0132 §5)", rf->kids[0]->tok.line, rf->kids[0]->tok.col);
+        lr_drop(c, blk, ri);
+        return;
+    }
+    const low_cst_t *decl = us_atom(sf->kids[0]) ? lr_struct_block(c, sf->kids[0]->tok.lex) : NULL;
+    if (!decl) return;                                             // 모르는 타입 — 뒤의 검사가 말한다
+    const low_cst_t *v = rf->kids[1];
+    bool vnum = v->tok.kind == LOW_TOK_NUMBER || v->tok.kw == LOW_KW_TRUE || v->tok.kw == LOW_KW_FALSE;
+    low_cst_t *nk[128]; proven_size_t m = 0;
+    for (proven_size_t i = 0; i < ri && m < 128; i++) nk[m++] = blk->kids[i];
+    proven_size_t added = 0;
+    for (proven_size_t j = 0; j < decl->nkids && m < 128; j++) {
+        const low_cst_t *df = decl->kids[j];
+        if (df->kind != LOW_CST_FORM || df->nkids < 2 || !us_atom(df->kids[0])) continue;
+        proven_u8str_view_t fn = df->kids[0]->tok.lex;
+        if (us_eq(fn, "layout") || us_eq(fn, "align") || us_eq(fn, "mmio") || us_eq(fn, "storage") || us_eq(fn, "input") || us_eq(fn, "satisfies")) continue;
+        bool listed = false;
+        for (proven_size_t i = 0; i < ri; i++) {
+            const low_cst_t *fl = blk->kids[i];
+            if (fl->kind == LOW_CST_FORM && fl->nkids >= 1 && us_atom(fl->kids[0]) && proven_u8str_view_eq(fl->kids[0]->tok.lex, fn)) listed = true;
+        }
+        if (listed) continue;
+        if (vnum && !(us_atom(df->kids[1]) && lr_scalar_word(df->kids[1]->tok.lex))) {
+            char msg[200];
+            snprintf(msg, sizeof msg, "`_ <value> .` cannot fill the field `%.*s` — the value is a number and that field is not "
+                     "(RFC-0132 §5). Write that field yourself", (int)fn.size, (const char *)fn.ptr);
+            char *keep = (char *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, strlen(msg) + 1, 1).value.ptr;
+            if (keep) { memcpy(keep, msg, strlen(msg) + 1); low_pdiag(&c->p, "E-TYPE-FIELD", keep, rf->kids[0]->tok.line, rf->kids[0]->tok.col); }
+            lr_drop(c, blk, ri);
+            return;
+        }
+        low_cst_t **fk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * 2, alignof(low_cst_t *)).value.ptr;
+        low_cst_t *ff = low_node(&c->p, LOW_CST_FORM, rf->tok);
+        low_cst_t *a0 = us_atom_like(c, rf->kids[0], fn), *a1 = be_copy(c, v);
+        if (!fk || !ff || !a0 || !a1) return;
+        fk[0] = a0; fk[1] = a1; (void)low_refit(&c->p, ff, fk, 2); ff->closer = rf->closer;
+        nk[m++] = ff; added++;
+    }
+    if (!added) { low_pdiag(&c->p, "E-LIT-COUNT", "`_ <value> .` fills no field here — every field is already written. Drop it (RFC-0132 §5)", rf->kids[0]->tok.line, rf->kids[0]->tok.col); lr_drop(c, blk, ri); return; }
+    low_cst_t **keep = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * m, alignof(low_cst_t *)).value.ptr;
+    if (!keep) return;
+    for (proven_size_t i = 0; i < m; i++) keep[i] = nk[i];
+    (void)low_refit(&c->p, blk, keep, m);
+}
+static void lr_walk(us_ctx_t *c, low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    for (proven_size_t i = 0; i + 1 < nd->nkids; i++) {
+        if (!us_atom(nd->kids[i]) || nd->kids[i]->tok.kw != LOW_KW_LIT) continue;
+        low_cst_t *sf = nd->kids[i + 1];
+        while (sf->kind == LOW_CST_GROUP && sf->nkids == 1) sf = sf->kids[0];
+        if (sf->kind == LOW_CST_FORM && sf->nkids == 2 && us_atom(sf->kids[0]) && sf->kids[1]->kind == LOW_CST_BLOCK &&
+            !us_eq(sf->kids[0]->tok.lex, "array") && !us_eq(sf->kids[0]->tok.lex, "slice") && !us_eq(sf->kids[0]->tok.lex, "vec"))
+            lr_fill(c, sf);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) lr_walk(c, nd->kids[i]);
+}
 void low_bind_else_expand(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
     us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
     if (!c) return;
     memset(c, 0, sizeof *c);
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    for (proven_size_t i = 0; i < pr->nforms; i++) lr_walk(c, pr->forms[i]);        // ★ RFC-0132 P3 — 구조체 값의 나머지
     for (proven_size_t i = 0; i < pr->nforms; i++) be_expand_any(c, pr->forms[i]);
 }
 

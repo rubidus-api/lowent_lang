@@ -408,7 +408,9 @@ enum color do
   green .
 end")
     #para("4")[
-      struct 값은 `lit` 로 만든다. 만들 때 **모든 칸을 채워야** 한다.
+      struct 값은 `lit` 로 만든다. 만들 때 **모든 칸을 채워야** 한다. 마지막 줄의 `_ <값> .` 은 적지 않은 칸 모두에 그 값을
+      넣는다(`lit pt do y a . _ 0 . end`) — 값은 이름이나 리터럴 하나이고(`E-LIT-INDEX`), 그 값이 들어갈 수 없는 칸이 남으면
+      그 칸 이름을 대며 거부되며(`E-TYPE-FIELD`), 채울 칸이 없으면 거부된다(`E-LIT-COUNT`).
     ]
     #para("4a")[
       **struct 는 값이다.** 만들거나 베낄 때(`var q be point p .`) 배열 칸의 바이트와, 칸에 든 다른 struct 값까지

@@ -1385,6 +1385,13 @@ static bool ck_writes_place(const low_cst_t *nd, proven_u8str_view_t name) {
         veq(nd->kids[0]->tok.lex, "collect") && nd->kids[1]->kind == LOW_CST_ATOM &&
         veq(nd->kids[1]->tok.lex, "into") && nd->kids[2]->kind == LOW_CST_ATOM &&
         proven_u8str_view_eq(nd->kids[2]->tok.lex, name)) return true;
+    // ★ RFC-0132 P3 — `copy <받는 쪽> <주는 쪽> .` 도 받는 쪽(이름 또는 `(subslice <이름> …)`)에 **쓴다**
+    if (nd->kind == LOW_CST_FORM && nd->nkids == 3 && nd->kids[0]->kind == LOW_CST_ATOM && veq(nd->kids[0]->tok.lex, "copy")) {
+        const low_cst_t *d = nd->kids[1];
+        while (d->kind == LOW_CST_GROUP && d->nkids == 1) d = d->kids[0];
+        if (d->kind == LOW_CST_FORM && d->nkids >= 2 && ck_atom(d->kids[0]) && veq(d->kids[0]->tok.lex, "subslice")) d = d->kids[1];
+        if (ck_atom(d) && proven_u8str_view_eq(d->tok.lex, name)) return true;
+    }
     // ★ `store <dst> <idx> <vec>`·`store_masked <dst> <idx> <vec> <mask>` (RFC-0040) 도 dst(첫 인자)에 **쓴다**
     //   — 관측적 순수성이 봐야 한다(fn 금지). masked store 는 켜진 lane 만 쓰지만 여전히 메모리 쓰기다.
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
@@ -7741,7 +7748,7 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
                 if (bare) for (proven_size_t i = 0; i < x->narr; i++)
                     if (proven_u8str_view_eq(x->arr[i], base)) {
                         emit(out, "E-ARRAY-SET", "an array's storage cannot be re-pointed: `set <array> …` would leave its cells "
-                             "behind. Write the cells — `set (index buf i) v .` (RFC-0132 §6)", nd->kids[0]->tok.line);
+                             "behind. Write the cells — `set (index buf i) v .` — or copy a whole list in with `copy buf <other> .` (RFC-0132 §6)", nd->kids[0]->tok.line);
                         break;
                     }
                 bool bscalar = false; int bd = lc_decl(x, base, &bscalar);
@@ -7992,6 +7999,30 @@ static void fh_walk(low_check_result_t *out, const low_cst_t *nd) {
         }
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) fh_walk(out, nd->kids[i]);
+}
+// ★ RFC-0132 P3 — `copy` 의 두 길이가 번역 시점에 알려져 있으면(둘 다 이 op 의 `lit array T N` 이름) 같아야 한다(E-COPY-LEN).
+typedef struct { proven_u8str_view_t n; long long len; } cl_ent_t;
+static void cl_walk(low_check_result_t *out, const low_cst_t *nd, cl_ent_t *t, proven_size_t *nt) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) && (nd->kids[0]->tok.kw == LOW_KW_VAR || nd->kids[0]->tok.kw == LOW_KW_LET) &&
+        ck_atom(nd->kids[1])) {
+        const low_cst_t *l = lc_list(nd->kids[nd->nkids - 1]);
+        if (l && veq(l->kids[1]->tok.lex, "array") && l->nkids > 3 && ck_atom(l->kids[3]) && l->kids[3]->tok.kind == LOW_TOK_NUMBER && *nt < 64) {
+            t[*nt].n = nd->kids[1]->tok.lex; t[*nt].len = strtoll((const char *)l->kids[3]->tok.lex.ptr, NULL, 0); (*nt)++;
+        }
+    }
+    if (nd->kind == LOW_CST_FORM && nd->nkids == 3 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "copy") &&
+        ck_atom(nd->kids[1]) && ck_atom(nd->kids[2])) {
+        long long a = -1, b = -1;
+        for (proven_size_t q = *nt; q-- > 0; ) {
+            if (a < 0 && proven_u8str_view_eq(t[q].n, nd->kids[1]->tok.lex)) a = t[q].len;
+            if (b < 0 && proven_u8str_view_eq(t[q].n, nd->kids[2]->tok.lex)) b = t[q].len;
+        }
+        if (a >= 0 && b >= 0 && a != b)
+            emit(out, "E-COPY-LEN", "`copy` needs the two slices to have the same length — these two lists are declared with "
+                 "different lengths, so the copy could never succeed (RFC-0132 §6)", nd->kids[0]->tok.line);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) cl_walk(out, nd->kids[i], t, nt);
 }
 static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
     static lc_t x;
@@ -11047,6 +11078,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_lit_frames(&out, f);   // ★ RFC-0132 T2b-2 — 틀 안 나열 자리의 수명 · 한도
         ar_walk(&out, f, NULL, 0);   // ★ RFC-0135 S2 — 블록 끝 돌려주기의 이른 `drop`
         fh_walk(&out, f);            // ★ RFC-0132 P1 — `for` 머리가 읽은 것은 얼린다
+        { static cl_ent_t clt[64]; proven_size_t cln = 0; cl_walk(&out, f, clt, &cln); }   // ★ RFC-0132 P3 — copy 길이
         ck_lit_identity(&out, f); // ★ RFC-0132 T2b-3 — ⓑ 둘의 «같은 자리인가» 물음 거절(§13.3)
         ck_record_writes(&out, f); // ★ X-0082 — 쓸 수 없는 레코드의 칸·배열 칸에 쓰기 거절
         if (ck_ft_full)

@@ -6769,6 +6769,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                             off, len, off, len);
                     break;
                 }
+                case IRW_SCOPY:    fprintf(out, "    lw_scopy(st[sp-2], st[sp-1]); sp -= 2; st[sp++] = lw_int(0);\n"); break;
                 case IRW_BFILL: {  // ★ §13.7 — 받은 바이트를 나열의 본으로 채운다
                     unsigned long long len = (unsigned long long)in->a >> 32, si1 = (unsigned long long)in->a & 0xffffffffull;
                     fprintf(out, "    { lowv s_ = st[sp-1]; if (s_.n < %lluULL) lw_upanic(\"the allocator gave fewer bytes than the list needs\"); ", len);

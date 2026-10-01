@@ -1330,6 +1330,16 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             return;
         }
         default:
+            // ★★ RFC-0132 P3 (§6) — `copy <받는 쪽> <주는 쪽> .` (문맥 낱말 — 같은 이름의 op 이 있으면 그 부름이다)
+            if (kw == LOW_KW_NONE && is_atom(f->kids[0]) && veq(f->kids[0]->tok.lex, "copy") && !f->kids[0]->qual_mod.size) {
+                bool uf; (void)ir_def_find_in(c, f->kids[0]->tok.lex, &uf);
+                if (!uf) {
+                    if (f->nkids != 3) { ir_fail(c, "E-IR-UNSUP", "`copy <to> <from> .` takes the receiving slice and the source — one term each (wrap an expression in parentheses)", f->line); return; }
+                    ir_node(c, f->kids[1]); ir_node(c, f->kids[2]);
+                    ir_emit(c, IRW_SCOPY, 0); ir_emit(c, IRW_DROP, 0);
+                    return;
+                }
+            }
             // ★ `spawn send …` · `send …` 는 **문장으로도** 온다(효과를 위해 부른다 — 값을 버린다).
             //   spawn/send 는 값 컨텍스트(ir_value)에서 처리되므로 표현식-문장 경로로 보낸다.
             if (kw != LOW_KW_NONE && kw != LOW_KW_EXPR && kw != LOW_KW_SPAWN && kw != LOW_KW_SEND) {

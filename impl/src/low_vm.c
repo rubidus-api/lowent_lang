@@ -2141,6 +2141,23 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 stack[sp++] = (vmv_t){ .tag = VMV_SLICE, .p = a->lbuf + off, .n = len };
                 break;
             }
+            case IRW_SCOPY: {   // ★ RFC-0132 P3 — 내용 복사(겹쳐도 옳게)
+                if (sp < 2) return false;
+                vmv_t sv = stack[--sp];
+                bool thr_; vmv_t dv = vm_through(vm, stack[--sp], true, &thr_);
+                if (!thr_) return false;
+                bool tf_; sv = vm_through(vm, sv, false, &tf_);
+                if (!tf_) return false;
+                if ((dv.tag != VMV_SLICE && dv.tag != VMV_VARRAY) || (sv.tag != VMV_SLICE && sv.tag != VMV_VARRAY)) {
+                    vm_diag(vm->diags, "E-VM-TYPE", "copy needs two slices"); return false;
+                }
+                proven_size_t db = dv.tag == VMV_SLICE ? dv.n : dv.n * (proven_size_t)dv.box;
+                proven_size_t sb = sv.tag == VMV_SLICE ? sv.n : sv.n * (proven_size_t)sv.box;
+                if (db != sb) { vm_diag(vm->diags, "E-VM-COPY", "copy: the two slices are not the same length (panic)"); return false; }
+                memmove((void *)dv.p, sv.p, db);
+                stack[sp++] = vmv_int(0);
+                break;
+            }
             case IRW_BFILL: {   // ★ §13.7 — 받은 바이트를 나열의 본으로 채운다
                 if (sp < 1) return false;
                 proven_size_t len = (proven_size_t)((proven_u64)in->a >> 32), si1 = (proven_size_t)((proven_u64)in->a & 0xffffffffu);

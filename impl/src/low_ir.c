@@ -5422,6 +5422,7 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
         case IRW_LBUF: return 0;                               // ★ T2b-2 — 피연산자 0, 슬라이스 push
         case IRW_LBUFC: return 0;                              // ★ T2b-3 — 피연산자 0, 슬라이스 push
         case IRW_BFILL: return 1;                              // ★ §13.7 — 슬라이스 → 채운 슬라이스
+        case IRW_SCOPY: return 2;                              // ★ RFC-0132 P3 — (받는 쪽, 주는 쪽) → 0
         default:
             return -1;   // statements (STORE/DROP/RET/BR/BRZ) handled separately
     }
@@ -5661,7 +5662,7 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_AESGCM:   return "crypto.aes_gcm";
         case IRW_CHAPOLY:  return "crypto.chacha_poly";
         case IRW_WRAP_OK: return "wrap.ok"; case IRW_WRAP_SOME: return "wrap.some"; case IRW_WRAP_NONE: return "wrap.none"; case IRW_WRAP_ERR: return "wrap.err";
-        case IRW_LBUF: return "frame.bytes"; case IRW_LBUFC: return "frame.bytes.from"; case IRW_BFILL: return "bytes.fill"; case IRW_TRY: return "try"; case IRW_MAKE: return "make";
+        case IRW_LBUF: return "frame.bytes"; case IRW_LBUFC: return "frame.bytes.from"; case IRW_BFILL: return "bytes.fill"; case IRW_TRY: return "try"; case IRW_MAKE: return "make"; case IRW_SCOPY: return "slice.copy";
         case IRW_SNEW: return "stack.new"; case IRW_SPUSH: return "stack.push";
         case IRW_SPOP_INTO: return "stack.pop"; case IRW_BNEW: return "bitset.new";
         case IRW_CONTAINS: return "contains"; case IRW_COUNT: return "count";

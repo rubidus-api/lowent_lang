@@ -922,7 +922,26 @@ table(3, 1) = 1
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run total structlist.low 7
 total(7) = 130
-</code></pre></div></div><ul><li>원소는 준 값의 <strong>사본</strong>이다. <code>p</code> 를 나열에 넣은 뒤 나열의 칸을 바꿔도 <code>p</code> 는 그대로다.</li><li>원소의 칸은 <code>set (field ps 2 y) 100 .</code> 처럼 쓴다. 나열 이름 · 자리 번호 · 칸 이름 차례다.</li><li>칸 골라 채우기(<code>do &lt;번호> &lt;값> . _ &lt;값> . end</code>)와 <code>lit slice pt …</code> 도 같다. 모두 <code>_</code> 인 <code>let</code> 나열은 읽기 전용 0 이다.</li><li>슬라이스 · <code>owned</code> · 배열 칸이 있는 구조체는 아직 원소가 될 수 없다(<code>E-LIT-UNBUILT</code>). 원소 자리에 수를 적으면 <code>E-TYPE-FIELD</code>, 다른 구조체를 적으면 <code>E-TYPE-STRUCT</code> 다.</li></ul><p>원소가 고정 길이 배열이면 <strong>줄의 나열</strong>이다. 타입은 <code>slice (array u8 4)</code> 이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/rows.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> rows .
+</code></pre></div></div><ul><li>원소는 준 값의 <strong>사본</strong>이다. <code>p</code> 를 나열에 넣은 뒤 나열의 칸을 바꿔도 <code>p</code> 는 그대로다.</li><li>원소의 칸은 <code>set (field ps 2 y) 100 .</code> 처럼 쓴다. 나열 이름 · 자리 번호 · 칸 이름 차례다.</li><li>칸 골라 채우기(<code>do &lt;번호> &lt;값> . _ &lt;값> . end</code>)와 <code>lit slice pt …</code> 도 같다. 모두 <code>_</code> 인 <code>let</code> 나열은 읽기 전용 0 이다.</li><li>슬라이스 · <code>owned</code> · 배열 칸이 있는 구조체는 아직 원소가 될 수 없다(<code>E-LIT-UNBUILT</code>). 원소 자리에 수를 적으면 <code>E-TYPE-FIELD</code>, 다른 구조체를 적으면 <code>E-TYPE-STRUCT</code> 다.</li></ul><p>한 조각의 내용을 다른 조각에 베끼려면 <code>copy &lt;받는 쪽> &lt;주는 쪽> .</code> 이라 적는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/copying.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> copying .
+<em><span class="tok-c">rem run: shift 9</span></em>
+
+<em><span class="tok-c">rem `copy` 는 한 조각의 내용을 다른 조각에 베낀다 --- 겹쳐도 옳다</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> shift <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> buf <strong><span class="tok-k">be</span></strong> lit <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">6</span> <span class="tok-n">1</span> <span class="tok-n">2</span> <span class="tok-n">3</span> <span class="tok-n">4</span> <span class="tok-n">5</span> <span class="tok-n">6</span> . .
+  <strong><span class="tok-k">var</span></strong> dst <strong><span class="tok-k">be</span></strong> lit <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">3</span> _ . .
+  copy dst (subslice buf <span class="tok-n">0</span> <span class="tok-n">3</span>) .
+  copy (subslice buf <span class="tok-n">1</span> <span class="tok-n">6</span>) (subslice buf <span class="tok-n">0</span> <span class="tok-n">5</span>) .
+  <strong><span class="tok-k">set</span></strong> (index dst <span class="tok-n">0</span>) a .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">for</span></strong> x buf <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> s (add (mul s <span class="tok-n">10</span>) (widen <strong><span class="tok-t">u64</span></strong> x)) .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> add (mul s <span class="tok-n">1000</span>) (add (mul (widen <strong><span class="tok-t">u64</span></strong> (index dst <span class="tok-n">0</span>)) <span class="tok-n">100</span>) (widen <strong><span class="tok-t">u64</span></strong> (index dst <span class="tok-n">2</span>))) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run shift copying.low 9
+shift(9) = 112345903
+</code></pre></div></div><ul><li>두 조각은 길이가 같아야 한다. 다르다고 번역할 때 알면 <code>E-COPY-LEN</code>, 실행 중에 다르면 멈춘다.</li><li>같은 배열의 겹치는 두 조각도 옳게 베낀다 — <code>1 2 3 4 5 6</code> 이 <code>1 1 2 3 4 5</code> 가 된다.</li><li>받는 쪽은 쓸 수 있어야 하고(<code>E-TYPE-MUT</code>), <code>var</code> 배열의 이름을 다른 저장소로 바꾸는 <code>set buf …</code> 대신 이것을 쓴다.</li></ul><p>원소가 고정 길이 배열이면 <strong>줄의 나열</strong>이다. 타입은 <code>slice (array u8 4)</code> 이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch09/rows.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> rows .
 <em><span class="tok-c">rem run: grid 5</span></em>
 
 <em><span class="tok-c">rem 줄의 나열 --- `index g 1` 은 그 줄을 보는 슬라이스다(복사 없음)</span></em>

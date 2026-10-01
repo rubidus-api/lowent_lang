@@ -154,6 +154,15 @@ The elements may be structs too, as long as the struct has a byte layout --- eve
 - A struct with a slice, `owned` or array field cannot be an element yet (`E-LIT-UNBUILT`). A number where a struct goes is
   `E-TYPE-FIELD`, and a different struct is `E-TYPE-STRUCT`.
 
+To copy one slice's contents into another, write `copy <to> <from> .`.
+
+#demo("examples/ch09/copying.low")
+
+- The two slices must have the same length. If they are known to differ at translation it is `E-COPY-LEN`; if they differ at run
+  time the program stops.
+- Two overlapping parts of one array are copied correctly --- `1 2 3 4 5 6` becomes `1 1 2 3 4 5`.
+- The receiver must be writable (`E-TYPE-MUT`). Use this instead of `set buf …`, which would re-point a `var` array's name.
+
 When the elements are fixed-length arrays, the list is a *list of rows*. Its type is `slice (array u8 4)`.
 
 #demo("examples/ch09/rows.low")

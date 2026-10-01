@@ -1671,6 +1671,21 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             for (proven_size_t j = 0; j < f->nkids; j++)
                 if (f->kids[j]->kind == LOW_CST_BLOCK) tc_check_body(c, f->kids[j], env, nenv, ret);
             for_done:;
+        } else if (kw == LOW_KW_NONE && f->nkids == 3 && f->kids[0]->kind == LOW_CST_ATOM && veq(f->kids[0]->tok.lex, "copy") &&
+                   !sig_find_at(c, f->kids[0])) {
+            // ★ RFC-0132 P3 — `copy <받는 쪽> <주는 쪽> .`: 둘 다 슬라이스, 원소 타입이 같고, 받는 쪽은 `mut` 이어야 한다
+            ty_t dt = tc_infer(c, f->kids[1], env, *nenv), st3 = tc_infer(c, f->kids[2], env, *nenv);
+            if ((dt.k != TK_UNKNOWN && dt.k != TK_SLICE && dt.k != TK_NAMED) || (st3.k != TK_UNKNOWN && st3.k != TK_SLICE && st3.k != TK_NAMED))
+                tc_emit(c, "E-TYPE-SET", "`copy` copies a slice's contents into another slice — both sides are slices", f->line);
+            else if (dt.k == TK_SLICE && st3.k == TK_SLICE && dt.ebits && st3.ebits &&
+                     (dt.ebits != st3.ebits || dt.eflt != st3.eflt || dt.esign != st3.esign))
+                tc_emit(c, "E-TYPE-SET", "`copy` needs two slices of the same element type", f->line);
+            if (f->kids[1]->kind == LOW_CST_ATOM) {
+                bool fnd; ty_t d0 = env_find(env, *nenv, f->kids[1]->tok.lex, &fnd);
+                if (fnd && d0.k == TK_SLICE && !d0.is_mut)
+                    tc_emit(c, "E-TYPE-MUT", "`copy` writes the receiving slice — it must be declared `mut` (a `let` list, a string or a "
+                            "shared parameter is read-only)", f->line);
+            }
         } else if (kw == LOW_KW_SET && f->nkids >= 3 && f->kids[1]->kind == LOW_CST_GROUP) {
             // ★ `set (index s i) v .` — s 는 **mut** 로 선언돼 있어야 한다.
             //   가변성은 정적으로 강제된다(런타임 슬라이스 값에는 mut 표시가 없다 — 포인터가 const 다).

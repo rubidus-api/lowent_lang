@@ -62,8 +62,9 @@ Searches headings and index terms --- not the full text
 - [5.5 Parameters and return](ch05.md#s5-5)
 - [5.6 Only neg is unary](ch05.md#s5-6)
 - [5.7 Modifiers](ch05.md#s5-7)
-- [5.8 Common mistakes](ch05.md#s5-8)
-- [5.9 This chapter’s syntax at a glance](ch05.md#s5-9)
+- [5.8 An op inside an op](ch05.md#s5-8)
+- [5.9 Common mistakes](ch05.md#s5-9)
+- [5.10 This chapter’s syntax at a glance](ch05.md#s5-10)
 
 [6 Locals — let and var](ch06.md)
 
@@ -276,6 +277,7 @@ Searches headings and index terms --- not the full text
 
 - [24.1 The same work, two shapes](ch24.md#s24-1)
 - [24.2 Stages and terminals](ch24.md#s24-2)
+- [24.2.1 Context — with](ch24.md#s24-2-1)
 - [24.3 Walking once is the definition](ch24.md#s24-3)
 - [24.4 Reading only as much as needed](ch24.md#s24-4)
 - [24.5 The built-in map · filter with the same names](ch24.md#s24-5)

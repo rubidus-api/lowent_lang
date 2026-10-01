@@ -145,4 +145,68 @@ fn limit output u64 . do return 1 . end", "E-NAME-DUP")
       되돌아가야 한다.
     ]
   ]
+  #sub("6.10.5", "op 안의 op — 로컬 op")[
+    #para("1")[
+      op 본문의 **바로 아래**(본문 `do … end` 의 문장 자리)에 `fn`·`proc` 선언을 둘 수 있다. 이것을
+      #t("로컬 op", "local op") 이라 한다. `if`·반복·블록 안이나 다른 로컬 op 안에 두는 것, 본문 안에 타입·actor·
+      trait·`test`·모듈을 선언하는 것은 적합하지 아니하다(`E-LOCAL-PLACE`).
+    ]
+    #para("2")[
+      로컬 op 의 이름은 **그 op 의 본문 안에서만** 보인다. 그 안에서는 최상위 선언처럼 차례와 무관하다 —
+      선언 앞에서 부를 수 있고, 같은 op 의 로컬 op 끼리 서로 부르고 되돌아 부를 수 있다(#cref("6.10.4") (1)).
+      다른 op 은 그 이름을 보지 못한다. 서로 다른 op 이 같은 로컬 이름을 쓸 수 있다.
+    ]
+    #para("3")[
+      로컬 op 은 바깥 op 의 매개변수·지역·region·빌림·능력을 **보지 않는다.** 그런 이름을 쓰는 것은 적합하지
+      아니하다(`E-LOCAL-CAPTURE`). 필요한 값은 매개변수로 건넨다. 로컬 op 은 보통 op 과 같은 머리(절)와 몸을
+      가지며, 효과·계약·오류·소유의 규칙도 같다. 로컬 `proc` 의 효과는 그것을 부르는 자리의 효과다(#cref("7")).
+    ]
+    #para("4")[
+      로컬 op 의 이름은 바깥 op 의 이름, 그 매개변수·지역, 모듈이 이미 가진 이름을 가리지 아니한다
+      (`E-NAME-SHADOW`). 한 op 의 로컬 op 끼리 이름이 같을 수 없고(`E-NAME-DUP`), 내장 연산의 이름을 쓸 수
+      없다(`E-NAME-BUILTIN`).
+    ]
+    #para("5")[
+      로컬 op 은 `export`·`extern`·`unsafe` 를 달 수 없다(`E-LOCAL-EXPORT`) — 밖에서 쓰려면 최상위에 선언한다.
+    ]
+    #ex("쓰는 자리 가까이에 둔 보조 op", "module ex_local .
+
+export fn count_selected input xs slice u8 . input mask u8 . output u64 .
+do
+  fn has_bits input x u8 . input bits u8 . output bool .
+  do
+    return eq (bit_and x bits) bits .
+  end
+  return pipe xs do
+    filter has_bits with mask .
+    count .
+  end .
+end")
+    #rejected("로컬 op 은 바깥의 이름을 보지 않는다", "module ex_local_capture .
+
+export fn f input n u64 . output u64 .
+do
+  fn g input k u64 . output u64 .
+  do
+    return add k n .
+  end
+  return g 1 .
+end", "E-LOCAL-CAPTURE")
+    #rejected("로컬 op 은 본문 바로 아래에만 둔다", "module ex_local_place .
+
+export fn f input n u64 . output u64 .
+do
+  if gt n 1 . do
+    fn g input k u64 . output u64 .
+    do
+      return k .
+    end
+  end
+  return n .
+end", "E-LOCAL-PLACE")
+    #note[
+      로컬 op 은 클로저가 아니다. 이름이 보이는 범위만 좁을 뿐, 바깥에서 무엇도 몰래 가져오지 않으므로
+      처리기는 그것을 보통 op 처럼 다룬다 — 실행 중에 만들어지는 객체도, 숨은 인자도 없다.
+    ]
+  ]
 ]

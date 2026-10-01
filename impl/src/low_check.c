@@ -10369,7 +10369,8 @@ static void ck_predbool_walk(low_check_result_t *out, const low_cst_t *nd,
     const low_cst_t *opa = NULL;
     if (nd->kind == LOW_CST_FORM && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_NONE) {
         proven_u8str_view_t w = nd->kids[0]->tok.lex;
-        if (nd->nkids == 2 && (veq(w, "filter") || veq(w, "any") || veq(w, "all"))) opa = nd->kids[1];
+        bool wth = nd->nkids >= 4 && ck_atom(nd->kids[2]) && veq(nd->kids[2]->tok.lex, "with");   // RFC-0121 — `filter op with <식>`
+        if ((nd->nkids == 2 || wth) && (veq(w, "filter") || veq(w, "any") || veq(w, "all"))) opa = nd->kids[1];
         else if (nd->nkids == 4 && veq(w, "filter")) opa = nd->kids[2];
     }
     if (opa && ck_atom(opa) && opa->tok.kw == LOW_KW_NONE) {
@@ -10392,6 +10393,104 @@ static void ck_predbool_walk(low_check_result_t *out, const low_cst_t *nd,
         }
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) ck_predbool_walk(out, nd->kids[i], tab, nt);
+}
+
+// ★★ RFC-0121 §6.2 — `with` 문맥은 **참조 없는 복사값**이다(ContextCopy). 단계 op 의 마지막 매개변수(문맥 자리)의 타입을
+//   재귀로 본다: 구조체 칸 · enum 갈래의 알맹이(쓰이지 않는 갈래도) · 별칭 · newtype · 인라인 배열의 원소 · option/result 의 알맹이.
+//   슬라이스 · 참조 · 포인터 · 권한 · region · owned · actor 는 받지 않는다 — 주소만 복사해 바깥 저장소를 계속 보게 되기 때문이다.
+//   모르는 이름(타입 매개변수 등)은 말하지 않는다(거짓 거절보다 말 안 하는 쪽).
+static const low_cst_t *ck_ctx_decl(proven_u8str_view_t nm, low_kw_t *kw) {
+    for (proven_size_t i = 0; g_ck_pr && i < g_ck_pr->nforms; i++) {
+        const low_cst_t *f = g_ck_pr->forms[i];
+        if (f->kind != LOW_CST_FORM || f->nkids < 2 || !ck_atom(f->kids[0]) || !ck_atom(f->kids[1])) continue;
+        low_kw_t k = f->kids[0]->tok.kw;
+        bool isact = k == LOW_KW_ACTOR;
+        if (!(k == LOW_KW_STRUCT || k == LOW_KW_ENUM || k == LOW_KW_TYPE || k == LOW_KW_NEWTYPE || isact)) continue;
+        if (!proven_u8str_view_eq(f->kids[1]->tok.lex, nm)) continue;
+        *kw = k; return f;
+    }
+    return NULL;
+}
+static const char *ck_ctx_bad(low_cst_t *const *k, proven_size_t s, proven_size_t e, int depth);
+static const char *ck_ctx_bad_node(const low_cst_t *n, int depth) {
+    if (!n) return NULL;
+    if (n->kind != LOW_CST_ATOM) return ck_ctx_bad(n->kids, 0, n->nkids, depth + 1);
+    return ck_ctx_bad((low_cst_t *const *)&n, 0, 1, depth);
+}
+static const char *ck_ctx_bad(low_cst_t *const *k, proven_size_t s, proven_size_t e, int depth) {
+    if (s >= e || depth > 12) return NULL;
+    const low_cst_t *h = k[s];
+    if (!ck_atom(h)) return ck_ctx_bad_node(h, depth);
+    proven_u8str_view_t w = h->tok.lex;
+    static const char *const BAD[][2] = {
+        { "slice", "a slice (it carries an address — the context would keep watching storage outside the pipe)" },
+        { "ref", "a reference (`ref`)" }, { "mut_ref", "a reference (`mut_ref`)" }, { "mut", "a `mut` place" },
+        { "owned", "an `owned` value (a resource with a lifetime, not a setting you can copy)" },
+        { "unsafe_ptr", "a raw pointer (`unsafe_ptr`)" }, { "unsafe_fn", "a function pointer (`unsafe_fn`)" },
+        { "cstr", "a C string pointer (`cstr`)" }, { "cap", "a capability (`cap`) — authority is passed as an input, never inside a value" },
+        { "region", "a region" }, { "stack", "a stack (it lives in a region)" }, { "bitset", "a bitset (it lives in a region)" },
+        { "str", "a string view (`str` is a slice)" },
+    };
+    for (proven_size_t i = 0; i < sizeof BAD / sizeof BAD[0]; i++) if (veq(w, BAD[i][0])) return BAD[i][1];
+    if (veq(w, "array") || veq(w, "option") || veq(w, "vec")) {   // 원소 · 알맹이 — 첫 타입 낱말(괄호면 그 안)
+        return s + 1 < e ? ck_ctx_bad_node(k[s + 1], depth + 1) : NULL;
+    }
+    if (veq(w, "result")) {
+        for (proven_size_t i = s + 1; i < e; i++) { const char *r = ck_ctx_bad_node(k[i], depth + 1); if (r) return r; }
+        return NULL;
+    }
+    low_kw_t dk = LOW_KW_NONE; const low_cst_t *d = ck_ctx_decl(w, &dk);
+    if (!d) return NULL;
+    if (dk == LOW_KW_ACTOR) return "an actor (it is a running thing with its own state, not a value to copy)";
+    if (dk == LOW_KW_TYPE || dk == LOW_KW_NEWTYPE) return ck_ctx_bad(d->kids, 2, d->nkids, depth + 1);
+    const low_cst_t *blk = d->kids[d->nkids - 1];
+    if (!blk || blk->kind != LOW_CST_BLOCK) return NULL;
+    for (proven_size_t i = 0; i < blk->nkids; i++) {
+        const low_cst_t *ln = blk->kids[i];
+        if (!ln || ln->kind != LOW_CST_FORM || ln->nkids < 2 || !ck_atom(ln->kids[0])) continue;
+        proven_u8str_view_t fw = ln->kids[0]->tok.lex;
+        if (veq(fw, "layout") || veq(fw, "satisfies") || veq(fw, "align") || veq(fw, "mmio")) continue;
+        if (dk == LOW_KW_STRUCT) { const char *r = ck_ctx_bad(ln->kids, 1, ln->nkids, depth + 1); if (r) return r; }
+        else for (proven_size_t q = 2; q < ln->nkids; q += 2) {      // enum: <갈래> (<칸> <타입>)*
+            const char *r = ck_ctx_bad_node(ln->kids[q], depth + 1); if (r) return r;
+        }
+    }
+    return NULL;
+}
+static void ck_ctxcopy_walk(low_check_result_t *out, const low_cst_t *nd, const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0])) {
+        proven_u8str_view_t w = nd->kids[0]->tok.lex;
+        proven_size_t opk = (veq(w, "filter") || veq(w, "map") || veq(w, "any") || veq(w, "all") || veq(w, "enumerate")) ? 1 :
+                            (veq(w, "scan") || veq(w, "fold") || veq(w, "zip")) ? 2 : 0;
+        if (opk && opk + 2 < nd->nkids && ck_atom(nd->kids[opk + 1]) && veq(nd->kids[opk + 1]->tok.lex, "with") && ck_atom(nd->kids[opk])) {
+            for (proven_size_t i = 0; i < nt; i++) {
+                if (!proven_u8str_view_eq(tab[i].name, nd->kids[opk]->tok.lex) || !tab[i].form) continue;
+                const low_cst_t *g = tab[i].form;
+                low_op_header_t gh = low_op_header(g);
+                if (!gh.np) break;
+                const low_param_t *pp = &gh.p[gh.np - 1];
+                if (pp->is_mut || pp->is_owned)
+                    emit(out, "E-PIPE-CONTEXT-ARG",
+                         "the context is handed to the stage op as a COPY, so its parameter cannot be `mut` or `owned` — every call "
+                         "gets the same kept value, and a write would have nowhere to go. Take it as a plain value (RFC-0121 §6.1)",
+                         nd->kids[0]->tok.line);
+                else {
+                    const char *r = ck_ctx_bad(g->kids, pp->core, pp->te, 0);
+                    if (r) {
+                        static char msg[8][420]; static unsigned slot;
+                        char *m = msg[slot++ % 8];
+                        snprintf(m, 420, "a `with` context is a value without references (RFC-0121 §6.2) — this op's context "
+                                 "parameter `%.*s` holds %s. Put the settings into a struct of numbers, bools and enums, or call the "
+                                 "op in an explicit loop", (int)pp->name.size, (const char *)pp->name.ptr, r);
+                        emit(out, "E-PIPE-CONTEXT-TYPE", m, nd->kids[0]->tok.line);
+                    }
+                }
+                break;
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ck_ctxcopy_walk(out, nd->kids[i], tab, nt);
 }
 
 // ★ X-0072 ①(소유자 «추천대로», 2026-09-27) — **`expect` 는 시험의 단언이다.** op 의 몸에 적으면 받아 주고, 거짓이면
@@ -11885,6 +11984,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                 ck_cmpwidth_walk(&out, h.body, f, &hh, h.body); }   // ★ 자리에 안 들어가는 리터럴과의 비교 (#32)
             ck_foldorder_walk(&out, h.body, tab0, ops.len);        // ★ fold 단계 op 의 누산 차례 (#60)
             ck_predbool_walk(&out, h.body, tab0, ops.len);         // ★ 판정 op 은 bool (X-0061; 별칭도 X-0065)
+            ck_ctxcopy_walk(&out, h.body, tab0, ops.len);          // ★ `with` 문맥은 참조 없는 복사값 (RFC-0121 §6.2)
             {   low_op_header_t hh = low_op_header(f);
                 ck_collectfull_walk(&out, h.body, f, &hh); }        // ★ 받는 자리가 모자란 것을 알면 거절 (X-0062)
             ck_scope_escape(&out, h.body);                   // ★ 블록 안 이름을 밖에서 (#33)

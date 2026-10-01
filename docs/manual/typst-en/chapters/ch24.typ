@@ -113,6 +113,22 @@ Without tuples, how are positions or pairs handled? The pair is *not built but p
 the shorter one ends the whole flow ends, so pairs always match. `scan 0 addb` passes the running sum on as the element. Since pairs are never built and
 immediately taken apart, there is no hidden allocation.
 
+=== Context --- `with`
+
+To hand a stage op a value *decided at run time*, such as a threshold, write `with <expr>` after the op name. The expression is computed
+*once, before the pass*, and its value goes to every call as the *last argument*.
+
+#demo("examples/ch24/context.low")
+
+- The op of `filter`·`map`·`any`·`all` takes (element, context), `fold`·`scan` take (accumulator, element, context), `zip` takes
+  (element, partner, context), and `enumerate` takes (position, element, context). `take`·`skip`·`count`·`collect` call no op, so they
+  take no context.
+- A context is a *value without references* --- numbers, `bool`, enums, and structs made only of those. A slice or a reference is refused,
+  which closes the path of copying just an address and watching outside storage for the whole pass. Even with an empty source the
+  context expression runs once.
+
+#demo("examples/ch24/mistake_context.low")
+
 #qa[
   An op that uses `collect into` has `effects none` in its head. It changes the caller's buffer --- is that not an effect?
 ][
@@ -230,6 +246,7 @@ the element a scalar (`E-MAP-ELEM`). The word is the same, but inside `pipe` it 
   [`take 2 .` · `skip 1 .`], [only the first few · drop the first few], [read only as much as needed],
   [`enumerate idxadd .` · `zip ys addb .`], [pass the index or partner as op arguments], [no tuples are built],
   [`scan 0 addb .` · `fold 0 addu .`], [emit running values · accumulate into one value], [the op takes the accumulator first, then the element],
+  [`filter above with limit .`], [context --- computed once before the pass, the op's last argument], [a run-time value without a lambda --- values without references only],
   [`count .` · `any is_zero .` · `all under10 .`], [terminators that produce a value], [usable as `return pipe … end`],
   [`collect into out .`], [store into the caller's buffer], [a `pipe` never allocates --- a buffer too short is refused or stops the run],
   [exactly one terminator, at the end], [a stage after it is `E-PIPE-NO-TERMINAL`], [the end of the flow is in one place],

@@ -3195,6 +3195,12 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             //   헤디드 블록이므로 `make` 처럼 식으로 온다. 값을 남긴다(as_value=true).
             if (veq(nd->tok.lex, "pipe")) {
                 if (*pos < end && k[*pos] && k[*pos]->kind == LOW_CST_FORM) { ir_pipe(c, k[(*pos)++], 0, true); return; }
+                // ★ 2026-10-01 — 원천이 괄호 식이면(`pipe (pick xs) do … end`) 파서가 괄호와 블록을 따로 둔다. 둘을 한 폼처럼
+                //   건넨다 — 전엔 `--check` 는 초록인데 «낮출 수 없다» 로 떨어졌다(RFC-0121 §6.3 의 준비 차례 시험이 드러냈다).
+                if (*pos + 1 < end && k[*pos] && k[*pos]->kind == LOW_CST_GROUP && k[*pos + 1] && k[*pos + 1]->kind == LOW_CST_BLOCK) {
+                    low_cst_t tmp = { .kind = LOW_CST_FORM, .kids = (low_cst_t **)&k[*pos], .nkids = 2, .line = k[*pos]->line };
+                    *pos += 2; ir_pipe(c, &tmp, 0, true); return;
+                }
                 if (nd->kind == LOW_CST_FORM) { ir_pipe(c, nd, 1, true); return; }
                 ir_fail(c, "E-IR-UNSUP", "`pipe` needs a source and a `do … end` block", nd->line); return;
             }

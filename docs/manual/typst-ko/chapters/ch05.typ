@@ -187,6 +187,25 @@ unsafe extern proc c_area do
 end
 ```
 
+== op 안의 op
+
+한 곳에서만 쓰는 작은 op 은 쓰는 자리 가까이에 둘 수 있다. op 본문 *바로 아래*에 `fn`·`proc` 을 선언하면 그 op 안에서만
+보이는 *로컬 op* 이 된다. 이름이 짧아도 다른 op 과 부딪치지 않는다.
+
+#demo("examples/ch05/localop.low")
+
+- 로컬 op 은 보통 op 과 같다 --- 머리 절, 몸, 효과, 계약 규칙이 모두 같다. 선언 앞에서 불러도 되고, 같은 op 의 로컬끼리
+  서로 불러도 된다(`is_even` 과 `is_odd`).
+- 다른 op 은 그 이름을 보지 못한다. 서로 다른 op 이 같은 로컬 이름을 따로 쓸 수 있다.
+- 로컬 op 은 바깥 op 의 매개변수나 지역을 *보지 않는다*. 필요한 값은 매개변수로 건넨다. 그래서 클로저가 아니고, 실행
+  중에 만들어지는 것도 숨은 인자도 없다.
+- `if`·반복 안이나 다른 로컬 op 안에는 둘 수 없고(`E-LOCAL-PLACE`), `export` 를 달 수 없다(`E-LOCAL-EXPORT`).
+
+#demo("examples/ch05/mistake_capture.low")
+
+바깥의 `limit` 을 쓰고 싶으면 `over` 에 `input limit u8 .` 을 더하고 `pipe` 에서 `filter over with limit .` 로 건넨다
+(#chref("pipe")).
+
 == 흔한 실수
 
 처음 op 을 쓸 때 누구나 한 번쯤 밟는 자리들이다. 모두 번역할 때 걸리므로, 진단 코드를 보고 이 절로 돌아오면 된다.
@@ -250,6 +269,7 @@ end
   [`effects state .`], [호출자의 저장소를 고친다], [`mut` 매개변수로 쓰는 op 의 머리],
   [`neg a`], [부호 뒤집기(유일한 단항 산술)], [빼기와 뒤섞이지 않게 이름으로],
   [`export` · `extern` · `unsafe`], [내보내기 · 몸이 C 에 · 검사 못 하는 일], [할 수 있는 일이 머리 앞에 보이게],
+  [`do` 바로 아래의 `fn g … end`], [로컬 op --- 그 op 안에서만 보인다], [바깥 이름을 보지 않는다 --- 클로저가 아니다],
 )
 
 #recap[

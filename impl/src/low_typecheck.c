@@ -1535,6 +1535,29 @@ static void tc_walk_makes(tc_ctx_t *c, const low_cst_t *nd,
     for (proven_size_t j = 0; j < nd->nkids; j++) tc_walk_makes(c, nd->kids[j], env, nenv);
 }
 
+// ★★ RFC-0121 §6.1 — `with` 문맥의 타입은 단계 op 의 **마지막 매개변수** 타입과 맞아야 한다. 문맥은 값으로 건너가므로
+//   맞지 않으면 바이트가 다른 자리로 읽힌다 — 호출 인자와 같은 규칙(compat)을 건다.
+static void tc_walk_pipes(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, proven_size_t nenv) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && nd->kids[0]->kind == LOW_CST_ATOM) {
+        proven_u8str_view_t w = nd->kids[0]->tok.lex;
+        proven_size_t opk = (veq(w, "filter") || veq(w, "map") || veq(w, "any") || veq(w, "all") || veq(w, "enumerate")) ? 1 :
+                            (veq(w, "scan") || veq(w, "fold") || veq(w, "zip")) ? 2 : 0;
+        if (opk && opk + 2 < nd->nkids && nd->kids[opk]->kind == LOW_CST_ATOM && nd->kids[opk + 1]->kind == LOW_CST_ATOM &&
+            veq(nd->kids[opk + 1]->tok.lex, "with")) {
+            const tc_sig_t *s = sig_find(c, nd->kids[opk]->tok.lex);
+            if (s && s->nparams) {
+                ty_t want = s->params[s->nparams - 1];
+                ty_t got = tc_infer_run(c, nd->kids, opk + 2, nd->nkids - opk - 2, env, nenv);
+                tc_flag_types(c, compat(want, got), "E-PIPE-CONTEXT-ARG",
+                              "the `with` context does not match the type of the stage op's last parameter (the context's place, "
+                              "RFC-0121 §6.1)", want, got, nd->kids[0]->tok.line);
+            }
+        }
+    }
+    for (proven_size_t j = 0; j < nd->nkids; j++) tc_walk_pipes(c, nd->kids[j], env, nenv);
+}
+
 // `return <값>` 의 값을 op 의 `output` 에 맞댄다 — 문장 `return` 과 guard 의 `else return` 이 같은 규칙을 쓴다.
 static void tc_check_return(tc_ctx_t *c, low_cst_t *const *kids, proven_size_t from, proven_size_t n,
                             const tc_var_t *env, proven_size_t nenv, ty_t ret, proven_u32 line) {
@@ -1550,6 +1573,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
         if (f->kind != LOW_CST_FORM || f->nkids == 0 || f->kids[0]->kind != LOW_CST_ATOM) continue;
         low_kw_t kw = f->kids[0]->tok.kw;
         tc_walk_makes(c, f, env, *nenv);      // ★ 이 문장 안의 make 리터럴을 검사한다
+        tc_walk_pipes(c, f, env, *nenv);      // ★ RFC-0121 — `with` 문맥의 타입
         // ★ `let` 은 타입체크를 **통째로 빠져나가고 있었다.** `var` 만 검사됐다.
         //   `let v be u8 <i32>` 도, `let v be bool <u8>` 조차도 조용히 통과했다.
         //   같은 선언인데 한쪽만 검사한 것은 그냥 빠뜨린 것이다. 같은 규칙을 건다.

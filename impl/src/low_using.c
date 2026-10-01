@@ -1669,3 +1669,207 @@ void low_bind_else(low_parse_result_t *pr, proven_allocator_t node_alloc, proven
         }
     }
 }
+
+// ══ RFC-0121 P3·P4 — 캡처 없는 **로컬 op** ═══════════════════════════════════════════════════════════
+//   op 의 몸 바로 아래에 적은 `fn`/`proc` 선언은 그 op 안에서만 보이는 op 이다. 바깥의 인자·지역·region·빌림·cap 을
+//   **몰래 읽지 않는다** — 그래서 실행 캡처가 없고, 모듈 자리로 끌어올려도 뜻이 같다. 이 패스가 그 끌어올림이다:
+//   이름을 `<바깥>::<로컬>` 로 바꾸고(밖에서는 적을 수 없는 이름 — `:` 는 이름 글자가 아니다), 바깥 op 의 몸과 형제 로컬의
+//   몸에서 그 이름을 가리키는 낱말을 함께 바꾼 뒤, 선언을 바깥 op **바로 뒤** 최상위 폼으로 옮긴다(자리가 곧 모듈 소속).
+//   뒤의 모든 층(이름 찾기 · 효과 · 계약 · 단형화 · IR · VM · C)은 보통 op 으로 본다 — 지역 정의 목록이 하나다(§6.7).
+typedef struct { proven_u8str_view_t v[256]; proven_size_t n; } ll_names_t;
+static void ll_add(ll_names_t *s, proven_u8str_view_t v) { if (v.size && s->n < 256) s->v[s->n++] = v; }
+static bool ll_has(const ll_names_t *s, proven_u8str_view_t v) {
+    for (proven_size_t i = 0; i < s->n; i++) if (proven_u8str_view_eq(s->v[i], v)) return true;
+    return false;
+}
+static bool ll_is_opdecl(const low_cst_t *f) {
+    return f && f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) &&
+           (f->kids[0]->tok.kw == LOW_KW_FN || f->kids[0]->tok.kw == LOW_KW_PROC);
+}
+// 이 나무가 묶는 이름 — let/var · for 의 이름 · region · borrow (로컬 선언의 몸은 건너뛴다: 그 이름은 그 op 의 것이다)
+static void ll_binds(const low_cst_t *nd, ll_names_t *s, bool skip_locals) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (skip_locals && ll_is_opdecl(nd)) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && us_atom(nd->kids[0]) && us_atom(nd->kids[1])) {
+        low_kw_t k = nd->kids[0]->tok.kw;
+        if (k == LOW_KW_LET || k == LOW_KW_VAR || k == LOW_KW_FOR ||
+            (k == LOW_KW_NONE && (us_eq(nd->kids[0]->tok.lex, "region") || us_eq(nd->kids[0]->tok.lex, "borrow"))))
+            ll_add(s, nd->kids[1]->tok.lex);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ll_binds(nd->kids[i], s, skip_locals);
+}
+static void ll_params(const low_cst_t *opf, ll_names_t *s) {
+    low_op_header_t h = low_op_header(opf);
+    for (proven_size_t i = 0; i < h.np; i++) ll_add(s, h.p[i].name);
+}
+// 칸 이름 자리인가 — `field <값> <칸>…` 의 칸들, `lit T do <칸> <값> . … end` 의 칸 이름. 이름 바꾸기·캡처 검사가 건너뛴다.
+static void ll_walk_names(us_ctx_t *c, low_cst_t *nd, proven_u8str_view_t from, proven_u8str_view_t to,
+                          const ll_names_t *outer, const ll_names_t *own, bool rename, bool lit_block) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_ATOM) {
+        if (nd->tok.kind != LOW_TOK_IDENT || nd->tok.kw != LOW_KW_NONE) return;
+        if (rename) { if (proven_u8str_view_eq(nd->tok.lex, from)) nd->tok.lex = to; return; }
+        if (ll_has(outer, nd->tok.lex) && !ll_has(own, nd->tok.lex)) {
+            low_pdiag(&c->p, "E-LOCAL-CAPTURE",
+                      "a local op does not see the enclosing op's parameters, locals, regions or borrows — it is an ordinary op "
+                      "declared close to its use, with no hidden capture. Pass the value in as an input (RFC-0121 §6.6)",
+                      nd->tok.line, nd->tok.col);
+        }
+        return;
+    }
+    bool fieldf = nd->kind == LOW_CST_FORM && nd->nkids >= 1 && us_atom(nd->kids[0]) && us_eq(nd->kids[0]->tok.lex, "field");
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        low_cst_t *k = nd->kids[i];
+        if (fieldf && i >= 2) continue;                                   // 칸 이름
+        if (lit_block && nd->kind == LOW_CST_FORM && i == 0) continue;    // `lit T do <칸> <값> . end` 의 칸
+        bool next_lit = k && k->kind == LOW_CST_BLOCK && i >= 2 && us_atom(nd->kids[i - 2]) && nd->kids[i - 2]->tok.kw == LOW_KW_LIT;
+        if (next_lit) { for (proven_size_t q = 0; q < k->nkids; q++) ll_walk_names(c, k->kids[q], from, to, outer, own, rename, true); continue; }
+        ll_walk_names(c, k, from, to, outer, own, rename, false);
+    }
+}
+// 몸 안의 자리 아닌 선언 — if/while/블록 안 · 로컬 op 안 · fn/proc 이 아닌 선언
+static void ll_misplaced(us_ctx_t *c, const low_cst_t *nd, bool top) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids && us_atom(nd->kids[0])) {
+        low_kw_t k = nd->kids[0]->tok.kw;
+        if ((k == LOW_KW_FN || k == LOW_KW_PROC) && !top)
+            low_pdiag(&c->p, "E-LOCAL-PLACE", "a local op is declared DIRECTLY in its owner's body — not inside an `if`, a loop, "
+                      "a block, or another local op (RFC-0121 §6.5)", nd->kids[0]->tok.line, nd->kids[0]->tok.col);
+        else if (k == LOW_KW_STRUCT || k == LOW_KW_ENUM || k == LOW_KW_TYPE || k == LOW_KW_NEWTYPE || k == LOW_KW_ACTOR ||
+                 k == LOW_KW_TRAIT || k == LOW_KW_TEST || k == LOW_KW_MODULE || k == LOW_KW_CONTRACT)
+            low_pdiag(&c->p, "E-LOCAL-PLACE", "only `fn` and `proc` may be declared inside an op's body — types, actors, traits, "
+                      "tests and modules are declared at the top level (RFC-0121 §6.6)", nd->kids[0]->tok.line, nd->kids[0]->tok.col);
+        else if ((k == LOW_KW_EXPORT || k == LOW_KW_UNSAFE || k == LOW_KW_EXTERN) && nd->nkids >= 2 && ll_is_opdecl(nd->kids[1]))
+            low_pdiag(&c->p, "E-LOCAL-EXPORT", "a local op is never exported, `extern` or `unsafe` — it is visible only inside its "
+                      "owner. Declare it at the top level to share it (RFC-0121 §6.6)", nd->kids[0]->tok.line, nd->kids[0]->tok.col);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ll_misplaced(c, nd->kids[i], false);
+}
+// 한 op 의 로컬을 끌어올린다. out 에 끌어올린 폼을 쌓는다.
+static void ll_lift_op(us_ctx_t *c, low_cst_t *opf, proven_u8str_view_t owner, const ll_names_t *modnames,
+                       low_cst_t **out, proven_size_t *nout, proven_size_t cap) {
+    if (!opf || opf->kind != LOW_CST_FORM || opf->nkids < 3) return;
+    low_cst_t *blk = opf->kids[opf->nkids - 1];
+    if (!blk || blk->kind != LOW_CST_BLOCK) return;
+    bool any = false;
+    for (proven_size_t i = 0; i < blk->nkids; i++) if (ll_is_opdecl(blk->kids[i])) any = true;
+    if (!any) return;
+    ll_names_t outer = { .n = 0 };
+    ll_params(opf, &outer);
+    ll_binds(blk, &outer, true);
+    ll_names_t locs = { .n = 0 };
+    for (proven_size_t i = 0; i < blk->nkids; i++) {
+        low_cst_t *lf = blk->kids[i];
+        if (!ll_is_opdecl(lf) || !us_atom(lf->kids[1])) continue;
+        proven_u8str_view_t nm = lf->kids[1]->tok.lex;
+        proven_u32 ln = lf->kids[1]->tok.line, col = lf->kids[1]->tok.col;
+        if (ll_has(&locs, nm))
+            low_pdiag(&c->p, "E-NAME-DUP", "two local ops of one owner share a name (RFC-0121 §6.5)", ln, col);
+        else if (proven_u8str_view_eq(nm, owner) || ll_has(&outer, nm) || ll_has(modnames, nm))
+            low_pdiag(&c->p, "E-NAME-SHADOW", "a local op's name may not hide its owner, the owner's parameters or locals, or a "
+                      "name the module already has (RFC-0121 §6.5 — the first edition refuses every shadowing)", ln, col);
+        else if (low_ir_is_builtin_name(nm))
+            low_pdiag(&c->p, "E-NAME-BUILTIN", "a local op may not take the name of a builtin op — every use of that word in the "
+                      "owner would change meaning", ln, col);
+        ll_add(&locs, nm);
+        // 캡처: 로컬의 머리 절과 몸에서 바깥 이름을 보는가(자기 매개변수·지역은 제외)
+        ll_names_t own = { .n = 0 };
+        ll_params(lf, &own);
+        ll_binds(lf, &own, false);
+        for (proven_size_t q = 2; q < lf->nkids; q++) ll_walk_names(c, lf->kids[q], nm, nm, &outer, &own, false, false);
+    }
+    // 이름 바꾸기: `<바깥>::<로컬>` — 바깥 몸 전체(형제 로컬의 몸 포함)
+    for (proven_size_t li = 0; li < locs.n; li++) {
+        proven_u8str_view_t nm = locs.v[li];
+        proven_size_t sz = owner.size + 2 + nm.size;
+        proven_u8 *buf = (proven_u8 *)c->p.node_alloc.alloc_fn(c->p.node_alloc.ctx, sz, 1).value.ptr;
+        if (!buf) return;
+        memcpy(buf, owner.ptr, owner.size); buf[owner.size] = ':'; buf[owner.size + 1] = ':'; memcpy(buf + owner.size + 2, nm.ptr, nm.size);
+        proven_u8str_view_t to = { .ptr = buf, .size = sz };
+        for (proven_size_t i = 0; i < blk->nkids; i++) {
+            low_cst_t *s = blk->kids[i];
+            if (ll_is_opdecl(s) && us_atom(s->kids[1]) && proven_u8str_view_eq(s->kids[1]->tok.lex, nm)) { s->kids[1]->tok.lex = to; }
+            ll_walk_names(c, s, nm, to, NULL, NULL, true, false);
+        }
+    }
+    // 옮기기: 몸에서 빼고 out 에 쌓는다
+    proven_size_t m = 0;
+    for (proven_size_t i = 0; i < blk->nkids; i++) {
+        low_cst_t *s = blk->kids[i];
+        if (ll_is_opdecl(s) && *nout < cap) { s->col = 1; out[(*nout)++] = s; continue; }   // 최상위 자리 — W-COL0 이 보는 열
+        blk->kids[m++] = s;
+    }
+    blk->nkids = m;
+}
+void low_local_lift(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, proven_size_t *nforms0) {
+    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    // ★ 자리 아닌 선언은 로컬이 하나도 없는 op 에서도 말한다(if 안의 fn · 몸 안의 타입 선언).
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        const low_cst_t *ops[256]; proven_size_t no = 0;
+        if (ll_is_opdecl(f)) ops[no++] = f;
+        else if (f->kind == LOW_CST_FORM && f->nkids >= 3 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_ACTOR) {
+            const low_cst_t *ab = f->kids[f->nkids - 1];
+            for (proven_size_t q = 0; ab && ab->kind == LOW_CST_BLOCK && q < ab->nkids && no < 256; q++) if (ll_is_opdecl(ab->kids[q])) ops[no++] = ab->kids[q];
+        }
+        for (proven_size_t o = 0; o < no; o++) {
+            const low_cst_t *blk = ops[o]->kids[ops[o]->nkids - 1];
+            if (!blk || blk->kind != LOW_CST_BLOCK) continue;
+            for (proven_size_t q = 0; q < blk->nkids; q++) {
+                const low_cst_t *s = blk->kids[q];
+                if (ll_is_opdecl(s)) { const low_cst_t *lb = s->kids[s->nkids - 1];
+                    if (lb && lb->kind == LOW_CST_BLOCK) for (proven_size_t z = 0; z < lb->nkids; z++) ll_misplaced(c, lb->kids[z], false); }
+                else ll_misplaced(c, s, true);
+            }
+        }
+    }
+    bool any = false;
+    for (proven_size_t i = 0; i < pr->nforms && !any; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (!ll_is_opdecl(f) && !(f->kind == LOW_CST_FORM && f->nkids >= 3 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_ACTOR)) continue;
+        const low_cst_t *b = f->kids[f->nkids - 1];
+        if (!b || b->kind != LOW_CST_BLOCK) continue;
+        for (proven_size_t q = 0; q < b->nkids && !any; q++) {
+            const low_cst_t *s = b->kids[q];
+            if (ll_is_opdecl(f)) { if (ll_is_opdecl(s) || (s->kind == LOW_CST_FORM && s->nkids && us_atom(s->kids[0]) &&
+                                   (s->kids[0]->tok.kw == LOW_KW_EXPORT || s->kids[0]->tok.kw == LOW_KW_UNSAFE || s->kids[0]->tok.kw == LOW_KW_EXTERN))) any = true; }
+            else if (ll_is_opdecl(s)) { const low_cst_t *hb = s->kids[s->nkids - 1];
+                for (proven_size_t z = 0; hb && hb->kind == LOW_CST_BLOCK && z < hb->nkids; z++) if (ll_is_opdecl(hb->kids[z])) any = true; }
+        }
+    }
+    if (!any) return;   // ★ 로컬이 없으면 폼 배열을 건드리지 않는다(옛 프로그램의 바이트가 그대로)
+    ll_names_t modn = { .n = 0 };
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        const low_cst_t *f = pr->forms[i];
+        if (f->kind == LOW_CST_FORM && f->nkids >= 2 && us_atom(f->kids[0]) && us_atom(f->kids[1]) && f->kids[0]->tok.kw != LOW_KW_MODULE &&
+            f->kids[0]->tok.kw != LOW_KW_USE) ll_add(&modn, f->kids[1]->tok.lex);
+    }
+    proven_array_t nf = PROVEN_ARRAY_INIT(work, low_cst_t *, pr->nforms + 16).value;
+    proven_size_t n0 = nforms0 ? *nforms0 : 0, add0 = 0;
+    for (proven_size_t i = 0; i < pr->nforms; i++) {
+        low_cst_t *f = pr->forms[i];
+        (void)PROVEN_ARRAY_PUSH(&nf, low_cst_t *, f);
+        low_cst_t *lifted[64]; proven_size_t nl = 0;
+        if (ll_is_opdecl(f) && us_atom(f->kids[1])) ll_lift_op(c, f, f->kids[1]->tok.lex, &modn, lifted, &nl, 64);
+        else if (f->kind == LOW_CST_FORM && f->nkids >= 3 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_ACTOR && us_atom(f->kids[1])) {
+            const low_cst_t *ab = f->kids[f->nkids - 1];
+            for (proven_size_t q = 0; ab && ab->kind == LOW_CST_BLOCK && q < ab->nkids; q++) {
+                low_cst_t *hf = ab->kids[q];
+                if (!ll_is_opdecl(hf) || !us_atom(hf->kids[1])) continue;
+                // 핸들러 이름은 액터마다 겹칠 수 있다 — `<액터>:<핸들러>` 를 주인 이름으로
+                proven_u8str_view_t an = f->kids[1]->tok.lex, hn = hf->kids[1]->tok.lex;
+                proven_u8 *b2 = (proven_u8 *)node_alloc.alloc_fn(node_alloc.ctx, an.size + 1 + hn.size, 1).value.ptr;
+                if (!b2) continue;
+                memcpy(b2, an.ptr, an.size); b2[an.size] = ':'; memcpy(b2 + an.size + 1, hn.ptr, hn.size);
+                ll_lift_op(c, hf, (proven_u8str_view_t){ .ptr = b2, .size = an.size + 1 + hn.size }, &modn, lifted, &nl, 64);
+            }
+        }
+        for (proven_size_t q = 0; q < nl; q++) { (void)PROVEN_ARRAY_PUSH(&nf, low_cst_t *, lifted[q]); if (i < n0) add0++; }
+    }
+    pr->forms = (low_cst_t **)nf.data;
+    pr->nforms = nf.len;
+    if (nforms0) *nforms0 += add0;
+}

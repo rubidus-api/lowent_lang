@@ -207,6 +207,7 @@ void low_bind_keep_strip(low_parse_result_t *pr, proven_allocator_t node_alloc, 
 void low_bind_else_expand(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   /* RFC-0135 S1 */
 void low_bind_else(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);          /* RFC-0135 S1 */
 void low_decl_order(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict);   /* RFC-0132 T1 */
+void low_local_lift(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, proven_size_t *nforms0);  /* RFC-0121: 로컬 op 끌어올리기 */
 void low_def_require(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);             /* RFC-0132 §5.2: `def` 없는 타입 선언 거절 */
 void low_decl_migrate(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);            /* --fmt: 옛 선언 → 새 모양 */
 

@@ -1807,6 +1807,7 @@ int main(int argc, char **argv) {
         if (want_fmt) low_decl_migrate(&pr, nodes0, heap);
         else { low_bind_keep_strip(&pr, nodes0, heap);      // ★ RFC-0135 D12 — `keep` 은 타입 낱말이 아니다
                low_def_require(&pr, nodes0, heap);         // ★ RFC-0132 §5.2 — 타입 선언은 `def` 로 시작한다
+               low_local_lift(&pr, nodes0, heap, &nforms0);  // ★ RFC-0121 — 몸 안의 fn/proc 을 `<바깥>::<로컬>` 로 끌어올린다
                low_decl_order(&pr, nodes0, heap, true);   // 옛 모양·타입 생략은 거절(한 단계 전환)
                low_bind_else_expand(&pr, nodes0, heap); }   // ★ RFC-0135 S1 — 바인딩 `else` 를 숨은 임시 · guard · 꺼내기로
         if (pr.diags.len > nd0) {

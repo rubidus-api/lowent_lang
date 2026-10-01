@@ -119,8 +119,8 @@ static void put_sym(FILE *o, const low_ir_def_t *d) {
     for (proven_size_t i = 0; i < d->name.size; i++)
         // ★ `.`(이름공간) 과 `#`(단형화 인스턴스, RFC-0021) 둘 다 C 식별자에 못 온다.
         //   해시가 뒤에 붙으므로 정제로 잃은 단사성은 **회복된다**.
-        fputc((d->name.ptr[i] == (proven_u8)'.' || d->name.ptr[i] == (proven_u8)'#')
-              ? '_' : (int)d->name.ptr[i], o);
+        fputc((d->name.ptr[i] == (proven_u8)'.' || d->name.ptr[i] == (proven_u8)'#' || d->name.ptr[i] == (proven_u8)':')
+              ? '_' : (int)d->name.ptr[i], o);   // ★ `:` — 로컬 op 의 `<바깥>::<로컬>`(RFC-0121)
     // ★★★ **액터 핸들러의 이름은 이름만으로 유일하지 않다.**
     //   IR 은 이미 그걸 안다 — `send` 는 핸들러를 **수신자의 타입 안에서** 찾는다(그게 아니면
     //   두 액터가 같은 이름의 핸들러를 조용히 공유한다). 그런데 **뒤끝은 그걸 몰랐다**:

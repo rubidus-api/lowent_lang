@@ -357,6 +357,26 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
     //
     //   스테이지는 **이름 op 참조**만 받는다(§6.2 — 람다 없음 ⇒ closure 가 생길 곳이 없다).
     //   첫 슬라이스(D-C)는 stage {filter,map} × terminal {collect into, fold} 넷이다.
+// ★★ RFC-0121 §6.1 — 단계의 **문맥** `with <식>`. 단계 op 이름(kids[opk]) 바로 뒤에 `with` 가 오면 그 뒤 전부가 식 하나다.
+//   `with` 는 이 자리에서만 표지다(전역 낱말이 아니다). 있으면 *wfrom 에 식의 첫 자리를 주고 true. 이름 뒤에 다른 낱말이
+//   남거나 `with` 뒤가 비면 E-PIPE-WITH.
+static bool ir_pipe_with(ir_ctx_t *c, const low_cst_t *ln, proven_size_t opk, proven_size_t *wfrom, proven_u32 line) {
+    if (ln->nkids <= opk + 1) return false;
+    const low_cst_t *w = ln->kids[opk + 1];
+    if (!is_atom(w) || !veq(w->tok.lex, "with")) {
+        ir_fail(c, "E-PIPE-WITH", "a `pipe` stage ends after its op name — the only thing that may follow is `with <expr>`, "
+                "the stage's context (RFC-0121 §6.1)", line);
+        return false;
+    }
+    if (ln->nkids <= opk + 2) { ir_fail(c, "E-PIPE-WITH", "`with` needs an expression: `filter above with limit .` (RFC-0121 §6.1)", line); return false; }
+    *wfrom = opk + 2;
+    return true;
+}
+// 단계 줄 어디에든 `with` 가 있는가 — 처리 op 이 없는 단계(`take`·`skip`·`count`·`collect`)는 문맥을 받지 않는다.
+static bool ir_pipe_has_with(const low_cst_t *ln) {
+    for (proven_size_t q = 1; q < ln->nkids; q++) if (is_atom(ln->kids[q]) && veq(ln->kids[q]->tok.lex, "with")) return true;
+    return false;
+}
  void ir_pipe(ir_ctx_t *c, const low_cst_t *f, proven_size_t first, bool as_value) {
         proven_size_t b = form_block_index(f);
         if (b == f->nkids || b <= first) { ir_fail(c, "E-IR-UNSUP", "`pipe` needs a source and a `do … end` block", f->line); return; }
@@ -391,9 +411,15 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
         const low_cst_t *blk = f->kids[b];
         // ★ 스테이지: filter/map 은 op 이름을, take/skip 은 **comptime 개수**를 든다.
         enum { ST_FILTER, ST_MAP, ST_TAKE, ST_SKIP, ST_ENUM, ST_ZIP, ST_SCAN };
-        struct { int kind; proven_size_t op; proven_i64 n; proven_size_t ctr; proven_size_t oth; } st[8]; proven_size_t nst = 0;
+        struct { int kind; proven_size_t op; proven_i64 n; proven_size_t ctr; proven_size_t oth; bool hasctx; proven_size_t ctx; } st[8]; proven_size_t nst = 0;
         int term = -1; proven_size_t term_op = 0; const low_cst_t *term_arg = NULL; proven_u32 tline = f->line;
-        const low_cst_t *zip_src[8]; proven_size_t zip_slot[8], nzip = 0;
+        bool term_hasctx = false; proven_size_t term_ctx = 0;
+        // ★★ RFC-0121 §6.3 — 루프 **전에** 한 번 평가하는 것들(zip 의 짝 · scan/fold 의 초깃값 · collect 의 받는 자리 · `with` 식).
+        //   절 차례대로 모은다. `with` 가 없는 pipe 는 옛 차례(끝 단계의 것 먼저)를 그대로 지킨다 — 이 RFC 로 소급해 바꾸지 않는다.
+        //   slot == (size_t)-1 은 collect 의 받는 자리(그 지역은 평가 직전에 연다 — 옛 지역 번호를 그대로 두려고).
+        struct { const low_cst_t *const *kids; proven_size_t from, to, slot; bool term, isctx; proven_u32 line; } prep[24]; proven_size_t nprep = 0;
+        bool any_with = false;
+        size_t nzip = 0;
         for (proven_size_t z = 0; z < blk->nkids; z++) {
             const low_cst_t *ln = blk->kids[z];
             if (!ln || ln->kind != LOW_CST_FORM || !ln->nkids || !is_atom(ln->kids[0])) continue;
@@ -407,6 +433,7 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
             bool ist = veq(h, "take"), isk = veq(h, "skip");
             if (ist || isk) {
                 if (term >= 0) { ir_fail(c, "E-PIPE-NO-TERMINAL", "a `pipe` stage may not come AFTER the terminal (RFC-0010 G1)", tline); return; }
+                if (ir_pipe_has_with(ln)) { ir_fail(c, "E-PIPE-WITH", "`take`/`skip` call no op, so they take no context (RFC-0121 §6.1)", tline); return; }
                 proven_i64 nn = 0;
                 if (nst >= 8 || ln->nkids < 2 || !is_atom(ln->kids[1]) || !ir_int_lit(ln->kids[1]->tok.lex, &nn) || nn < 0) {
                     ir_fail(c, "E-PIPE-STAGE", "`take`/`skip` needs a COMPTIME non-negative count: `take <n> .` (RFC-0010 §8-2)", tline); return;
@@ -436,11 +463,16 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
                 if (nst >= 8 || ln->nkids < 3 || !is_atom(ln->kids[2])) { ir_fail(c, "E-FOLD-OP", "`scan` needs `<init> <op>` — the op is a NAME (RFC-0010 §6.2)", tline); return; }
                 bool of; proven_size_t oi = ir_def_find_in(c, ln->kids[2]->tok.lex, &of);
                 if (!of) { ir_fail(c, "E-FOLD-OP", "scan's op names an op that does not exist", tline); return; }
-                if (c->out->defs[oi].nparams != 2 || c->out->defs[oi].param_cap) { ir_fail(c, "E-FOLD-OP", "scan's op takes exactly TWO arguments (the accumulator, the element)", tline); return; }
-                if (c->nlocals >= IR_MAXLOCALS || nzip >= 8) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
-                st[nst].kind = ST_SCAN; st[nst].op = oi; st[nst].oth = 0;
+                proven_size_t wf = 0; bool hw = ir_pipe_with(c, ln, 2, &wf, tline); if (c->failed) return;
+                if (c->out->defs[oi].nparams != (hw ? 3u : 2u) || c->out->defs[oi].param_cap) {
+                    ir_fail(c, hw ? "E-PIPE-CONTEXT-ARG" : "E-FOLD-OP", hw ? "with a context, scan's op takes exactly THREE arguments (the accumulator, the element, the context) and no capability (RFC-0121 §6.1)"
+                                                                       : "scan's op takes exactly TWO arguments (the accumulator, the element)", tline); return; }
+                if (c->nlocals + 2 > IR_MAXLOCALS || nzip >= 8 || nprep + 2 > 24) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
+                st[nst].kind = ST_SCAN; st[nst].op = oi; st[nst].oth = 0; st[nst].hasctx = false;
                 st[nst].ctr = c->nlocals++; c->locals[st[nst].ctr].name = (proven_u8str_view_t){ 0 };
-                zip_src[nzip] = ln->kids[1]; zip_slot[nzip] = st[nst].ctr; nzip++;   // init 은 루프 **밖**에서 한 번
+                prep[nprep++] = (typeof(prep[0])){ (const low_cst_t *const *)ln->kids, 1, 2, st[nst].ctr, false, false, tline }; nzip++;   // init 은 루프 **밖**에서 한 번
+                if (hw) { st[nst].hasctx = true; st[nst].ctx = c->nlocals++; c->locals[st[nst].ctx].name = (proven_u8str_view_t){ 0 };
+                          prep[nprep++] = (typeof(prep[0])){ (const low_cst_t *const *)ln->kids, wf, ln->nkids, st[nst].ctx, false, true, tline }; any_with = true; }
                 nst++;
                 continue;
             }
@@ -454,18 +486,23 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
                 }
                 bool of; proven_size_t oi = ir_def_find_in(c, ln->kids[need - 1]->tok.lex, &of);
                 if (!of) { ir_fail(c, "E-FOLD-OP", "this `pipe` stage names an op that does not exist", tline); return; }
-                if (c->out->defs[oi].nparams != 2 || c->out->defs[oi].param_cap) {
+                proven_size_t wf = 0; bool hw = ir_pipe_with(c, ln, need - 1, &wf, tline); if (c->failed) return;
+                if (c->out->defs[oi].nparams != (hw ? 3u : 2u) || c->out->defs[oi].param_cap) {
+                    if (hw) { ir_fail(c, "E-PIPE-CONTEXT-ARG", isz ? "with a context, zip's op takes exactly THREE arguments (the element, the other element, the context) and no capability (RFC-0121 §6.1)"
+                                                                   : "with a context, enumerate's op takes exactly THREE arguments (the index, the element, the context) and no capability (RFC-0121 §6.1)", tline); return; }
                     ir_fail(c, "E-FOLD-OP", isz ? "zip's op takes exactly TWO arguments (the element, the other element)"
                                                 : "enumerate's op takes exactly TWO arguments (the index, the element)", tline); return;
                 }
-                if (c->nlocals + 2 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
-                st[nst].kind = ise ? ST_ENUM : ST_ZIP; st[nst].op = oi;
+                if (c->nlocals + 3 > IR_MAXLOCALS || nprep + 2 > 24) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
+                st[nst].kind = ise ? ST_ENUM : ST_ZIP; st[nst].op = oi; st[nst].hasctx = false;
                 st[nst].ctr = c->nlocals++; c->locals[st[nst].ctr].name = (proven_u8str_view_t){ 0 };
                 st[nst].oth = 0;
                 if (isz) {
                     st[nst].oth = c->nlocals++; c->locals[st[nst].oth].name = (proven_u8str_view_t){ 0 };
-                    zip_src[nzip] = ln->kids[1]; zip_slot[nzip] = st[nst].oth; nzip++;   // 루프 **밖**에서 평가한다
+                    prep[nprep++] = (typeof(prep[0])){ (const low_cst_t *const *)ln->kids, 1, 2, st[nst].oth, false, false, tline }; nzip++;   // 루프 **밖**에서 평가한다
                 }
+                if (hw) { st[nst].hasctx = true; st[nst].ctx = c->nlocals++; c->locals[st[nst].ctx].name = (proven_u8str_view_t){ 0 };
+                          prep[nprep++] = (typeof(prep[0])){ (const low_cst_t *const *)ln->kids, wf, ln->nkids, st[nst].ctx, false, true, tline }; any_with = true; }
                 nst++;
                 continue;
             }
@@ -475,25 +512,50 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
                 if (nst >= 8 || ln->nkids < 2 || !is_atom(ln->kids[1])) { ir_fail(c, "E-FOLD-OP", "`filter`/`map` needs an op NAME (RFC-0010 §6.2 — no lambdas)", tline); return; }
                 bool of; proven_size_t oi = ir_def_find_in(c, ln->kids[1]->tok.lex, &of);
                 if (!of) { ir_fail(c, "E-FOLD-OP", "this `pipe` stage names an op that does not exist", tline); return; }
-                if (c->out->defs[oi].nparams != 1 || c->out->defs[oi].param_cap) { ir_fail(c, "E-FOLD-OP", "a `pipe` stage op takes exactly ONE argument (the element) and no capability", tline); return; }
-                st[nst].kind = isf ? ST_FILTER : ST_MAP; st[nst].op = oi; nst++;
+                proven_size_t wf = 0; bool hw = ir_pipe_with(c, ln, 1, &wf, tline); if (c->failed) return;
+                if (c->out->defs[oi].nparams != (hw ? 2u : 1u) || c->out->defs[oi].param_cap) {
+                    ir_fail(c, hw ? "E-PIPE-CONTEXT-ARG" : "E-FOLD-OP", hw ? "with a context, a `pipe` stage op takes exactly TWO arguments (the element, the context) and no capability (RFC-0121 §6.1)"
+                                                                       : "a `pipe` stage op takes exactly ONE argument (the element) and no capability", tline); return; }
+                st[nst].kind = isf ? ST_FILTER : ST_MAP; st[nst].op = oi; st[nst].hasctx = false;
+                if (hw) { if (c->nlocals + 1 > IR_MAXLOCALS || nprep + 1 > 24) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
+                          st[nst].hasctx = true; st[nst].ctx = c->nlocals++; c->locals[st[nst].ctx].name = (proven_u8str_view_t){ 0 };
+                          prep[nprep++] = (typeof(prep[0])){ (const low_cst_t *const *)ln->kids, wf, ln->nkids, st[nst].ctx, false, true, tline }; any_with = true; }
+                nst++;
             } else if (veq(h, "collect")) {
                 if (ln->nkids < 3 || !is_atom(ln->kids[1]) || !veq(ln->kids[1]->tok.lex, "into")) { ir_fail(c, "E-IR-UNSUP", "the collect terminal is `collect into <mut slice>` (RFC-0010 §6.5)", tline); return; }
+                if (ir_pipe_has_with(ln)) { ir_fail(c, "E-PIPE-WITH", "`collect into` calls no op, so it takes no context — `with` belongs to `filter`·`map`·`any`·`all`·`scan`·`fold`·`zip`·`enumerate` (RFC-0121 §6.1)", tline); return; }
                 term = 0; term_arg = ln->kids[2];
+                if (nprep + 1 > 24) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
+                prep[nprep++] = (typeof(prep[0])){ (const low_cst_t *const *)ln->kids, 2, 3, (proven_size_t)-1, true, false, tline };
             } else if (veq(h, "count")) {
+                if (ir_pipe_has_with(ln)) { ir_fail(c, "E-PIPE-WITH", "`count` calls no op, so it takes no context (RFC-0121 §6.1)", tline); return; }
                 term = 2;
             } else if (veq(h, "any") || veq(h, "all")) {
                 if (ln->nkids < 2 || !is_atom(ln->kids[1])) { ir_fail(c, "E-FOLD-OP", "`any`/`all` needs a predicate op NAME (RFC-0010 §6.2)", tline); return; }
                 bool of; proven_size_t oi = ir_def_find_in(c, ln->kids[1]->tok.lex, &of);
                 if (!of) { ir_fail(c, "E-FOLD-OP", "any/all names an op that does not exist", tline); return; }
-                if (c->out->defs[oi].nparams != 1 || c->out->defs[oi].param_cap) { ir_fail(c, "E-FOLD-OP", "any/all's predicate takes exactly ONE argument (the element)", tline); return; }
+                proven_size_t wf = 0; bool hw = ir_pipe_with(c, ln, 1, &wf, tline); if (c->failed) return;
+                if (c->out->defs[oi].nparams != (hw ? 2u : 1u) || c->out->defs[oi].param_cap) {
+                    ir_fail(c, hw ? "E-PIPE-CONTEXT-ARG" : "E-FOLD-OP", hw ? "with a context, any/all's predicate takes exactly TWO arguments (the element, the context) (RFC-0121 §6.1)"
+                                                                       : "any/all's predicate takes exactly ONE argument (the element)", tline); return; }
                 term = veq(h, "any") ? 3 : 4; term_op = oi;
+                if (hw) { if (c->nlocals + 1 > IR_MAXLOCALS || nprep + 1 > 24) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
+                          term_hasctx = true; term_ctx = c->nlocals++; c->locals[term_ctx].name = (proven_u8str_view_t){ 0 };
+                          prep[nprep++] = (typeof(prep[0])){ (const low_cst_t *const *)ln->kids, wf, ln->nkids, term_ctx, true, true, tline }; any_with = true; }
             } else if (veq(h, "fold")) {
                 if (ln->nkids < 3 || !is_atom(ln->kids[2])) { ir_fail(c, "E-FOLD-OP", "the fold terminal is `fold <init> <op>` — the op is a NAME (RFC-0010 §6.2)", tline); return; }
                 bool of; proven_size_t oi = ir_def_find_in(c, ln->kids[2]->tok.lex, &of);
                 if (!of) { ir_fail(c, "E-FOLD-OP", "fold's op names an op that does not exist", tline); return; }
-                if (c->out->defs[oi].nparams != 2 || c->out->defs[oi].param_cap) { ir_fail(c, "E-FOLD-OP", "fold's op takes exactly TWO arguments (acc, element)", tline); return; }
+                proven_size_t wf = 0; bool hw = ir_pipe_with(c, ln, 2, &wf, tline); if (c->failed) return;
+                if (c->out->defs[oi].nparams != (hw ? 3u : 2u) || c->out->defs[oi].param_cap) {
+                    ir_fail(c, hw ? "E-PIPE-CONTEXT-ARG" : "E-FOLD-OP", hw ? "with a context, fold's op takes exactly THREE arguments (acc, element, context) (RFC-0121 §6.1)"
+                                                                       : "fold's op takes exactly TWO arguments (acc, element)", tline); return; }
                 term = 1; term_op = oi; term_arg = ln->kids[1];
+                if (nprep + 2 > 24) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
+                prep[nprep++] = (typeof(prep[0])){ (const low_cst_t *const *)ln->kids, 1, 2, acc, true, false, tline };
+                if (hw) { if (c->nlocals + 1 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
+                          term_hasctx = true; term_ctx = c->nlocals++; c->locals[term_ctx].name = (proven_u8str_view_t){ 0 };
+                          prep[nprep++] = (typeof(prep[0])){ (const low_cst_t *const *)ln->kids, wf, ln->nkids, term_ctx, true, true, tline }; any_with = true; }
             } else {
                 // ★ G5 — 닫힌 스테이지 어휘. 모르는 낱말이 스테이지 자리에 오면 **거절**한다. 이것이
                 //   융합 보장의 문법적 근거다: 융합 못 할 것은 애초에 **쓸 수 없다**(절벽이 생기지 않는다).
@@ -539,16 +601,26 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
         if (term == 0 || term == 2) { ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)j); }
         else if (term == 3) { ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)acc); }   // any: 기본 false
         else if (term == 4) { ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_STORE, (proven_i64)acc); }   // all: 기본 true
-        else { proven_size_t ap = 0; low_cst_t *one[1] = { (low_cst_t *)term_arg };
-               ir_value(c, one, &ap, 1); ir_emit(c, IRW_STORE, (proven_i64)acc); }
         proven_size_t ou = 0;
-        if (term == 0) { ou = c->nlocals++; c->locals[ou].name = (proven_u8str_view_t){ 0 };
-                         proven_size_t ap = 0; low_cst_t *one[1] = { (low_cst_t *)term_arg };
-                         ir_value(c, one, &ap, 1); ir_emit(c, IRW_STORE, (proven_i64)ou); }
-        for (proven_size_t z = 0; z < nzip; z++) {   // ★ zip 의 짝 소스는 **루프 밖에서 한 번** 평가한다
-            proven_size_t ap = 0; low_cst_t *one[1] = { (low_cst_t *)zip_src[z] };
-            ir_value(c, one, &ap, 1); ir_emit(c, IRW_STORE, (proven_i64)zip_slot[z]);
-        }
+        if (term == 0) { if (c->nlocals >= IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", tline); return; }
+                         ou = c->nlocals++; c->locals[ou].name = (proven_u8str_view_t){ 0 }; }
+        // ★ 루프 밖에서 **한 번** 평가하는 것들(fold 초깃값 · collect 받는 자리 · zip 짝 · scan 초깃값 · `with` 식).
+        //   `with` 가 없으면 옛 차례(끝 단계의 것 먼저, 그다음 단계 차례) — 있으면 절 차례 그대로(RFC-0121 §6.3).
+        //   준비 중 하나가 실패(`try` · panic)하면 뒤 준비도 순회도 없다 — 차례대로 흐르는 코드라 저절로 그렇다.
+        (void)nzip;
+        for (int pass = 0; pass < 2; pass++)
+            for (proven_size_t q = 0; q < nprep; q++) {
+                if (any_with ? pass == 1 : ((pass == 0) != prep[q].term)) continue;
+                proven_size_t ap = prep[q].from;
+                ir_value(c, (low_cst_t **)prep[q].kids, &ap, prep[q].to);
+                if (c->failed) return;
+                if (ap != prep[q].to) {
+                    ir_fail(c, "E-PIPE-WITH", "the context after `with` is ONE expression and it ends at the stage's `.` — here words are left "
+                            "over. Several settings go into one value without references (a struct) (RFC-0121 §6.1)", prep[q].line);
+                    return;
+                }
+                ir_emit(c, IRW_STORE, (proven_i64)(prep[q].slot == (proven_size_t)-1 ? ou : prep[q].slot));
+            }
         for (proven_size_t z = 0; z < nst; z++)
             if (st[z].kind == ST_TAKE || st[z].kind == ST_SKIP || st[z].kind == ST_ENUM || st[z].kind == ST_ZIP)
                 { ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)st[z].ctr); }   // ★ scan 은 제외 — init 을 든다
@@ -598,7 +670,9 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
         ir_emit(c, IRW_STORE, (proven_i64)xv);
         for (proven_size_t z = 0; z < nst; z++) {
             if (st[z].kind == ST_FILTER) {
-                ir_emit(c, IRW_LOAD, (proven_i64)xv); ir_emit(c, IRW_CALL, (proven_i64)st[z].op);
+                ir_emit(c, IRW_LOAD, (proven_i64)xv);
+                if (st[z].hasctx) ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctx);   // ★ 문맥은 늘 마지막 인자(RFC-0121 §6.1)
+                ir_emit(c, IRW_CALL, (proven_i64)st[z].op);
                 skips[nskip++] = ir_emit(c, IRW_BRZ, 0);          // 통과 못하면 이 원소는 버린다
             } else if (st[z].kind == ST_TAKE) {
                 // 이미 n 개를 통과시켰으면 **루프를 곧장 빠져나온다**(상류 중지).
@@ -613,11 +687,13 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
             } else if (st[z].kind == ST_SCAN) {
                 // acc = op(acc, x) ; 흘려보내는 값 = acc (원소 수는 그대로 1:1)
                 ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_LOAD, (proven_i64)xv);
+                if (st[z].hasctx) ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctx);
                 ir_emit(c, IRW_CALL, (proven_i64)st[z].op); ir_emit(c, IRW_STORE, (proven_i64)st[z].ctr);
                 ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_STORE, (proven_i64)xv);
             } else if (st[z].kind == ST_ENUM) {
                 // x = f(i, x) — 인덱스는 **이 스테이지에 도달한 순번**이다(앞선 filter 를 반영한다)
                 ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_LOAD, (proven_i64)xv);
+                if (st[z].hasctx) ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctx);
                 ir_emit(c, IRW_CALL, (proven_i64)st[z].op); ir_emit(c, IRW_STORE, (proven_i64)xv);
                 ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0);
                 ir_emit(c, IRW_STORE, (proven_i64)st[z].ctr);
@@ -628,6 +704,7 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
                 proven_size_t go2 = ir_emit(c, IRW_BRZ, 0);
                 ir_emit(c, IRW_LOAD, (proven_i64)xv);
                 ir_emit(c, IRW_LOAD, (proven_i64)st[z].oth); ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_INDEX, 0);
+                if (st[z].hasctx) ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctx);
                 ir_emit(c, IRW_CALL, (proven_i64)st[z].op); ir_emit(c, IRW_STORE, (proven_i64)xv);
                 ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0);
                 ir_emit(c, IRW_STORE, (proven_i64)st[z].ctr);
@@ -644,7 +721,9 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
                 skips[nskip++] = ir_emit(c, IRW_BR, 0);           // 이 원소는 버린다 → i++ 로
                 ir_at(c, keep)->a = (proven_i64)c->code.len;
             } else {
-                ir_emit(c, IRW_LOAD, (proven_i64)xv); ir_emit(c, IRW_CALL, (proven_i64)st[z].op);
+                ir_emit(c, IRW_LOAD, (proven_i64)xv);
+                if (st[z].hasctx) ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctx);
+                ir_emit(c, IRW_CALL, (proven_i64)st[z].op);
                 ir_emit(c, IRW_STORE, (proven_i64)xv);            // 원소 재바인딩(SSA)
             }
         }
@@ -660,7 +739,9 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
         } else if (term == 3 || term == 4) {
             // ★ 단락 종료(§6.3): any 는 첫 참에서, all 은 첫 거짓에서 **루프를 곧장 빠져나온다**.
             //   그래서 무한이 아닌 소스에서도 필요한 만큼만 읽는다 — 이것이 §8-8 pull 소스의 전제이기도 하다.
-            ir_emit(c, IRW_LOAD, (proven_i64)xv); ir_emit(c, IRW_CALL, (proven_i64)term_op);
+            ir_emit(c, IRW_LOAD, (proven_i64)xv);
+            if (term_hasctx) ir_emit(c, IRW_LOAD, (proven_i64)term_ctx);
+            ir_emit(c, IRW_CALL, (proven_i64)term_op);
             if (term == 4) ir_emit(c, IRW_NOT, 0);            // all: 술어가 거짓일 때 빠져나온다
             proven_size_t cont = ir_emit(c, IRW_BRZ, 0);      // 조건이 0 이면 계속
             ir_emit(c, IRW_CONST, term == 3 ? 1 : 0); ir_emit(c, IRW_STORE, (proven_i64)acc);
@@ -668,6 +749,7 @@ static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, pr
             ir_at(c, cont)->a = (proven_i64)c->code.len;
         } else {
             ir_emit(c, IRW_LOAD, (proven_i64)acc); ir_emit(c, IRW_LOAD, (proven_i64)xv);
+            if (term_hasctx) ir_emit(c, IRW_LOAD, (proven_i64)term_ctx);
             ir_emit(c, IRW_CALL, (proven_i64)term_op); ir_emit(c, IRW_STORE, (proven_i64)acc);
         }
         for (proven_size_t z = 0; z < nskip; z++) ir_at(c, skips[z])->a = (proven_i64)c->code.len;   // 버린 원소도 i++ 로

@@ -108,7 +108,8 @@ end", "E-PIPE-PRED")
   ]
   #para("5")[
     스테이지 op 은 원소 하나만 받는다 — 매개변수가 정확히 하나이고 능력(capability)을 받지
-      아니한다. 그렇지 않은 op 을 스테이지로 쓰는 것은 적합하지 아니하다(`E-FOLD-OP`).
+      아니한다. 그렇지 않은 op 을 스테이지로 쓰는 것은 적합하지 아니하다(`E-FOLD-OP`). 문맥(7)을
+      적으면 매개변수가 하나 더 있다.
   ]
   #para("5a")[
     `fold` 와 `scan` 의 op 은 매개변수가 둘이며, **첫째가 누산값이고 둘째가 원소**다.
@@ -118,6 +119,78 @@ end", "E-PIPE-PRED")
   #para("6")[
     `take` 와 `skip` 의 개수는 번역 시점에 정해진 음이 아닌 값이어야 한다(#cref("6.8")).
       실행 시점에야 알 수 있는 값을 주는 것은 적합하지 아니하다.
+  ]
+  #para("7")[
+    op 을 부르는 스테이지와 종결자 — `filter`·`map`·`any`·`all`·`scan`·`fold`·`zip`·`enumerate` — 는
+      op 이름 뒤에 #t("문맥", "context") `with <식>` 을 둘 수 있다. 문맥은 op 의 **마지막 인자**로 건너간다:
+      `filter`·`map`·`any`·`all` 은 (원소, 문맥), `fold`·`scan` 은 (누산값, 원소, 문맥), `zip` 은 (원소,
+      짝 원소, 문맥), `enumerate` 는 (번호, 원소, 문맥)을 받는다. 매개변수 수나 문맥의 타입이 맞지 않거나
+      문맥 매개변수가 `mut`·`owned` 이면 적합하지 아니하다(`E-PIPE-CONTEXT-ARG`). op 을 부르지 않는
+      `take`·`skip`·`count`·`collect` 에 문맥을 적거나, op 이름 뒤에 `with` 아닌 낱말이 오거나, `with`
+      뒤가 식 하나가 아니면 적합하지 아니하다(`E-PIPE-WITH`). `with` 는 이 자리의 표지일 뿐 낱말(부록 A.1)이
+      아니다.
+  ]
+  #para("7a")[
+    문맥은 **참조 없는 복사값**이다. 문맥 매개변수의 타입은 — 구조체의 칸, 열거의 모든 갈래 알맹이
+      (쓰이지 않는 갈래도), 별칭·newtype 의 밑 타입, 배열의 원소, option·result 의 알맹이까지 — 슬라이스,
+      참조(`ref`·`mut_ref`), 포인터, 능력(`cap`), region, `owned` 값, actor 를 품지 아니하여야 한다
+      (`E-PIPE-CONTEXT-TYPE`). 능력을 쓰는 식이 문맥을 **만들** 수는 있으나, 능력을 문맥 **안에** 넣어 건넬
+      수는 없다.
+  ]
+  #para("7b")[
+    문맥 식은 훑기 **전에 한 번** 평가되고, 그 값이 매 호출에 같은 값으로 건너간다. op 이 제 사본을
+      고쳐도 다음 호출은 보관된 값을 받는다. 원천이 비어도 평가한다. 문맥이 있는 `pipe` 는 원천을 평가한 뒤
+      절 차례대로 각 절의 피연산자(`zip` 의 짝, `scan`·`fold` 의 초깃값, `with` 의 식, `collect into` 의 받는
+      자리)를 왼쪽부터 평가한다. 준비 중에 실패하면 뒤의 준비와 훑기는 일어나지 아니한다. 문맥 식의 효과는
+      바깥 op 의 효과다(#cref("7")). 문맥이 없는 `pipe` 의 차례는 전과 같다 — 원천, 종결자의 피연산자, 스테이지
+      차례.
+  ]
+  #ex("실행 중에 정해지는 문턱을 문맥으로", "module ex_with .
+
+fn above input x u8 . input limit u8 . output bool .
+do
+  return gt x limit .
+end
+
+export fn count_above input xs slice u8 . input base u8 . output u64 .
+do
+  return pipe xs do
+    filter above with wrap_add base 1 .
+    count .
+  end .
+end")
+  #rejected("문맥은 참조 없는 값이다", "module ex_with_slice .
+
+fn over input x u8 . input s slice u8 . output bool .
+do
+  return gt x (idx s 0) .
+end
+
+export fn f input xs slice u8 . output u64 .
+do
+  return pipe xs do
+    filter over with xs .
+    count .
+  end .
+end", "E-PIPE-CONTEXT-TYPE")
+  #rejected("op 을 부르지 않는 종결자는 문맥을 받지 않는다", "module ex_with_count .
+
+fn above input x u8 . input limit u8 . output bool .
+do
+  return gt x limit .
+end
+
+export fn f input xs slice u8 . output u64 .
+do
+  return pipe xs do
+    filter above with 3 .
+    count with 1 .
+  end .
+end", "E-PIPE-WITH")
+  #note[
+    문맥은 람다가 아니다. 스테이지 op 은 여전히 이름 있는 op 이고, 바깥의 이름을 몰래 읽지 않는다 —
+    문맥으로 건너간 값만 본다. 참조를 막는 까닭은 주소만 복사해 바깥 저장소를 훑기 내내 지켜보는 길을
+    닫기 위해서다. 큰 표를 건네야 하면 일반 반복문이나 op 호출로 적는다.
   ]
   #sub("6.12.1", "융합은 최적화가 아니라 의미다")[
     #para("1")[

@@ -314,6 +314,12 @@ static const low_repair_row_t REPAIR[] = {
     { "E-PIPE-NO-TERMINAL",    "R-MOVE-BEFORE-TERMINAL" },
     { "E-PIPE-STAGE",          "R-USE-COMPTIME-COUNT" },
     { "E-FOLD-OP",             "R-NAME-OP" },
+    { "E-PIPE-WITH",           "R-DROP-OPERANDS" },      // RFC-0121 — op 이름 뒤에는 `with <식>` 하나만
+    { "E-PIPE-CONTEXT-ARG",    "R-MATCH-TYPE" },         // 문맥 자리의 매개변수 수·타입을 맞춘다
+    { "E-PIPE-CONTEXT-TYPE",   "R-MATCH-TYPE" },         // 참조 없는 값(수·bool·열거의 구조체)으로 문맥을 적는다
+    { "E-LOCAL-CAPTURE",       "R-PASS-AS-INPUT" },      // RFC-0121 — 바깥 값은 매개변수로 건넨다
+    { "E-LOCAL-PLACE",         "R-MOVE-TO-TOP" },        // 본문 바로 아래로, 아니면 최상위로
+    { "E-LOCAL-EXPORT",        "R-MOVE-TO-TOP" },        // 밖에서 쓰려면 최상위 선언
     { "E-MAP-SINK",            "R-USE-MUT-SINK" },
     { "E-MAP-ELEM",            "R-USE-SCALAR-ELEM" },
 

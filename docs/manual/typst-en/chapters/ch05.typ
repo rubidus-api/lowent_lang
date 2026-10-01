@@ -182,6 +182,25 @@ unsafe extern proc c_area do
 end
 ```
 
+== An op inside an op
+
+A small op used in one place can live next to its use. Declare a `fn` or `proc` *directly* in an op's body and it becomes a *local op*,
+visible only inside that op. A short name will not collide with other ops.
+
+#demo("examples/ch05/localop.low")
+
+- A local op is an ordinary op --- the same head clauses, body, effects and contract rules. It may be called before its declaration,
+  and the local ops of one owner may call each other (`is_even` and `is_odd`).
+- Other ops do not see its name. Two ops may each use the same local name.
+- A local op does *not* see the outer op's parameters or locals. Pass what it needs as a parameter. So it is not a closure: nothing is
+  created at run time and there is no hidden argument.
+- It may not sit inside an `if`, a loop or another local op (`E-LOCAL-PLACE`), and it may not be `export`ed (`E-LOCAL-EXPORT`).
+
+#demo("examples/ch05/mistake_capture.low")
+
+To use the outer `limit`, add `input limit u8 .` to `over` and hand it over in the `pipe` with `filter over with limit .`
+(#chref("pipe")).
+
 == Common mistakes
 
 Almost everyone hits these when writing their first ops. All of them are caught at compile time, so when you see one of these codes you
@@ -247,6 +266,7 @@ can come back to this section.
   [`effects state .`], [writes to the caller's storage], [the head of an op that writes through `mut` parameters],
   [`neg a`], [flip the sign (the only unary arithmetic)], [a name, so it never gets confused with subtraction],
   [`export` · `extern` · `unsafe`], [exported · body in C · does unchecked things], [what an op may do is visible before its name],
+  [`fn g … end` right under `do`], [local op --- visible only inside that op], [sees no outer name --- not a closure],
 )
 
 #recap[

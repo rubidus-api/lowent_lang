@@ -7271,8 +7271,8 @@ static void ck_lit_walk(low_check_result_t *out, const low_cst_t *nd) {
         bool is_struct = !sized && !veq(nd->kids[1]->tok.lex, "vec") && ck_struct_layout(ty, &sbytes, &salign, 0);
         if (!sized && !is_struct) {
             emit(out, "E-LIT-UNBUILT", ck_struct_exists(ty)
-                 ? "the elements of a list literal must have a byte layout — this struct has a slice, `owned` or array field, so it "
-                   "cannot be laid out in a list yet (RFC-0132 T2b-3d)"
+                 ? "the elements of a list literal must have a byte layout — this struct has a slice or `owned` field, so it "
+                   "cannot be laid out in a list (RFC-0132 T2b-3d)"
                  : "the element type of a list literal must be a sized scalar (an integer, `f32`/`f64` or `bool`) or a struct "
                    "whose fields all are (RFC-0132 T2b-3d)", ln);
             return;
@@ -7562,9 +7562,14 @@ static bool ck_struct_layout(proven_u8str_view_t ty, unsigned *bytes, unsigned *
             if (veq(w0, "align")) { decl_al = (unsigned)strtoul((const char *)w1.ptr, NULL, 0); continue; }
             if (veq(w0, "mmio") || veq(w0, "storage") || veq(w0, "input")) return false;
             unsigned sz, al;
-            if (ck_elem_sized(w1)) { sz = ck_elem_bytes(w1); al = sz; }
+            if (veq(w1, "array") && fl->nkids >= 4 && ck_atom(fl->kids[2]) && ck_elem_sized(fl->kids[2]->tok.lex) &&
+                ck_atom(fl->kids[3]) && fl->kids[3]->tok.kind == LOW_TOK_NUMBER) {   // ★ T2b-3d ⓓ — 배열 칸은 바이트 안에(C 와 같이)
+                al = ck_elem_bytes(fl->kids[2]->tok.lex);
+                sz = al * (unsigned)strtoul((const char *)fl->kids[3]->tok.lex.ptr, NULL, 0);
+            }
+            else if (ck_elem_sized(w1)) { sz = ck_elem_bytes(w1); al = sz; }
             else if (!ck_struct_layout(w1, &sz, &al, depth + 1)) return false;
-            if (fl->nkids > 2 && ck_atom(fl->kids[2]) && fl->kids[2]->tok.kind == LOW_TOK_NUMBER) return false;   // 배열 칸
+            else if (fl->nkids > 2 && ck_atom(fl->kids[2]) && fl->kids[2]->tok.kind == LOW_TOK_NUMBER) return false;
             if (!packed) { if (al && off % al) off += al - off % al; if (al > maxal) maxal = al; }
             off += sz; nf++;
         }

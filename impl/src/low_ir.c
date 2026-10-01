@@ -1408,6 +1408,20 @@ proven_u64 ir_f_to_bits(double d, proven_u8 size) {
     proven_u16 off = 0, maxal = 1;
     s->viewable = s->nf > 0;
     for (proven_size_t i = 0; i < s->nf; i++) {
+        // ★ RFC-0132 T2b-3d ⓓ (소유자 «C 와 같은 인라인 배치») — 배열 칸은 바이트 안에 그대로 놓인다(`uint8_t body[16]`):
+        //   크기 = 원소 수 × 원소 폭, 정렬 = 원소 폭. 레코드에서는 여전히 보는 슬라이스(태그 한 칸)이고 바이트는 레코드 버퍼에
+        //   있다 — 이 오프셋을 읽는 것은 view·encode·C 헤더뿐이다(빠른 경로는 배열 칸 구조체를 받지 않는다).
+        if (s->f[i].arrn) {
+            proven_u32 asz = s->f[i].arrn * s->f[i].arresz, aal = s->f[i].arresz ? s->f[i].arresz : 1;
+            if (!s->packed) {
+                if (off % aal) off = (proven_u16)(off + aal - off % aal);
+                if (aal > maxal) maxal = (proven_u16)aal;
+            }
+            s->f[i].off = off;
+            if ((proven_u32)off + asz > 0xffffu) { s->viewable = false; return; }
+            off = (proven_u16)(off + asz);
+            continue;
+        }
         proven_u8 sz = s->f[i].size;
         if (!sz) { s->viewable = false; return; }
         // ★★★ 태그 값 필드는 **바이트 레이아웃이 없다** — 크기가 8 이라 스칼라처럼 보이지만

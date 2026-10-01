@@ -4792,10 +4792,13 @@ int low_cbe_emit_header(const low_ir_t *ir, FILE *out) {
         if (!used) continue;
         fprintf(out, "struct lw_sty_%zu { ", s);
         for (proven_size_t i = 0; i < ir->structs[s].nf; i++) {
-            proven_u8 sz = ir->structs[s].f[i].size;
-            const char *ct = ir->structs[s].f[i].flt ? (sz == 4 ? "float" : "double")
+            const low_ir_sfield_t *fi_ = &ir->structs[s].f[i];
+            proven_u8 sz = fi_->arrn ? fi_->arresz : fi_->size;   // ★ T2b-3d ⓓ — 배열 칸은 C 배열(`int8_t f1[4];`)
+            bool fl_ = fi_->arrn ? (fi_->arrmeta & IR_FLT_BIT) != 0 : fi_->flt;
+            const char *ct = fl_ ? (sz == 4 ? "float" : "double")
                            : sz == 1 ? "int8_t" : sz == 2 ? "int16_t" : sz == 4 ? "int32_t" : "int64_t";
-            fprintf(out, "%s f%zu; ", ct, i);
+            if (fi_->arrn) fprintf(out, "%s f%zu[%u]; ", ct, i, (unsigned)fi_->arrn);
+            else fprintf(out, "%s f%zu; ", ct, i);
         }
         fputs("};\n", out);
     }
@@ -5105,10 +5108,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         if (!ir->structs[s].viewable) continue;
         fprintf(out, "struct lw_sty_%zu { ", s);
         for (proven_size_t i = 0; i < ir->structs[s].nf; i++) {
-            proven_u8 sz = ir->structs[s].f[i].size;
-            const char *ct = ir->structs[s].f[i].flt ? (sz == 4 ? "float" : "double")
+            const low_ir_sfield_t *fi_ = &ir->structs[s].f[i];
+            proven_u8 sz = fi_->arrn ? fi_->arresz : fi_->size;   // ★ T2b-3d ⓓ — 배열 칸은 C 배열(`int8_t f1[4];`)
+            bool fl_ = fi_->arrn ? (fi_->arrmeta & IR_FLT_BIT) != 0 : fi_->flt;
+            const char *ct = fl_ ? (sz == 4 ? "float" : "double")
                            : sz == 1 ? "int8_t" : sz == 2 ? "int16_t" : sz == 4 ? "int32_t" : "int64_t";
-            fprintf(out, "%s f%zu; ", ct, i);
+            if (fi_->arrn) fprintf(out, "%s f%zu[%u]; ", ct, i, (unsigned)fi_->arrn);
+            else fprintf(out, "%s f%zu; ", ct, i);
         }
         fputs("};\n", out);
         // ★★★ **레코드 → struct 값 실체화.** Lowent 에서 `make` 로 지은 구조체는 **레코드**다(풀에
@@ -5118,7 +5124,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fprintf(out, "static struct lw_sty_%zu lw_sty_%zu_of(lowv v) {\n", s, s);
         fprintf(out, "    if (v.tag == LWV_REC) { lowrec *r_ = &lw_recs[v.box]; struct lw_sty_%zu s_ = {0};\n", s);
         for (proven_size_t i = 0; i < ir->structs[s].nf; i++) {
-            if (ir->structs[s].f[i].flt)
+            if (ir->structs[s].f[i].arrn)                    // ★ T2b-3d ⓓ — 레코드의 배열 칸 바이트를 그대로
+                fprintf(out, "        memcpy(s_.f%zu, r_->f[%zu].p, sizeof s_.f%zu);\n", i, i, i);
+            else if (ir->structs[s].f[i].flt)
                 fprintf(out, "        s_.f%zu = lw_fval(r_->f[%zu]);\n", i, i);
             else
                 fprintf(out, "        s_.f%zu = r_->f[%zu].i;\n", i, i);
@@ -5136,9 +5144,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs(" }", out);
     }
     fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
-    for (int t = 0; t < 5; t++) {
+    for (int t = 0; t < 7; t++) {
         const char *nm = t == 0 ? "lw_st_fsize" : t == 1 ? "lw_st_foff" : t == 2 ? "lw_st_fbe"
-                       : t == 3 ? "lw_st_fflt" : "lw_st_fsidx";   // ★ 중첩 구조체 필드의 인덱스(-1=스칼라)
+                       : t == 3 ? "lw_st_fflt" : t == 4 ? "lw_st_fsidx"   // ★ 중첩 구조체 필드의 인덱스(-1=스칼라)
+                       : t == 5 ? "lw_st_farrn" : "lw_st_farrm";          // ★ T2b-3d ⓓ 배열 칸: 원소 수 · 원소 메타(0=배열 칸 아님)
         fprintf(out, "static const int %s[][16] = {", nm);
         for (proven_size_t s = 0; s < ir->nstructs; s++) {
             fputs(s ? ", {" : " {", out);
@@ -5148,7 +5157,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         t == 1 ? (int)ir->structs[s].f[i].off :
                         t == 2 ? (int)(ir->structs[s].f[i].be ? 1 : 0) :
                         t == 3 ? (int)(ir->structs[s].f[i].flt ? 1 : 0) :
-                                 (int)ir->structs[s].f[i].sidx);
+                        t == 4 ? (int)ir->structs[s].f[i].sidx :
+                        t == 5 ? (int)ir->structs[s].f[i].arrn :
+                                 (int)ir->structs[s].f[i].arrmeta);
             fputs(" }", out);
         }
         fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
@@ -5206,6 +5217,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    for (int fi = 0; fi < lw_st_nf[sidx]; fi++)\n"
           "        for (int q = 0; q < rr->nf; q++)\n"
           "            if (strcmp(lw_mk_fields[rr->mk][q], lw_st_fname[sidx][fi]) == 0) {\n"
+          "                if (lw_st_farrn[sidx][fi]) { /* T2b-3d: an array field — its bytes go in place */\n"
+          "                    size_t need = (size_t)lw_st_farrn[sidx][fi] * (size_t)(lw_st_farrm[sidx][fi] & 0xff); lowv fv = rr->f[q];\n"
+          "                    size_t have = fv.tag == LWV_SLICE ? fv.n : fv.tag == LWV_VARRAY ? fv.n * (size_t)fv.box : 0;\n"
+          "                    if (have != need) lw_panic(\"an array field takes exactly its length of elements\");\n"
+          "                    memmove(base + lw_st_foff[sidx][fi], fv.p, need); break; }\n"
           "                unsigned long long x = (rr->f[q].tag == LWV_FLT)\n"
           "                    ? lw_f2b(lw_b2f((unsigned long long)rr->f[q].i, 8), lw_st_fsize[sidx][fi])\n"
           "                    : (unsigned long long)rr->f[q].i;\n"
@@ -5228,6 +5244,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    if (r.tag == LWV_VIEW) {\n"
           "        for (int i = 0; i < lw_st_nf[r.box]; i++)\n"
           "            if (strcmp(lw_st_fname[r.box][i], lw_fnames[fi]) == 0) {\n"
+          "                /* T2b-3d: an ARRAY field lies inline — hand back a view of its bytes (zero-copy) */\n"
+          "                if (lw_st_farrn[r.box][i]) { lowv v = {0}; int m_ = lw_st_farrm[r.box][i], e_ = m_ & 0xff;\n"
+          "                    v.p = r.p + lw_st_foff[r.box][i];\n"
+          "                    if (e_ == 1 && !(m_ & 0x30000)) { v.tag = LWV_SLICE; v.n = (size_t)lw_st_farrn[r.box][i]; }\n"
+          "                    else { v.tag = LWV_VARRAY; v.i = m_ & 0x30000; v.box = e_; v.n = (size_t)lw_st_farrn[r.box][i]; }\n"
+          "                    return v; }\n"
           "                /* a NESTED struct field: hand back the inner VIEW (zero-copy) */\n"
           "                if (lw_st_fsidx[r.box][i] >= 0) { lowv v = {0}; v.tag = LWV_VIEW;\n"
           "                    v.p = r.p + lw_st_foff[r.box][i]; v.n = (size_t)lw_st_fsize[r.box][i];\n"
@@ -5255,6 +5277,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        for (int i = 0; i < lw_st_nf[r.box]; i++)\n"
           "            if (strcmp(lw_st_fname[r.box][i], lw_fnames[fi]) == 0) {\n"
           "                volatile unsigned char *p = (volatile unsigned char *)(void *)(r.p + lw_st_foff[r.box][i]);\n"
+          "                if (lw_st_farrn[r.box][i]) { size_t need_ = (size_t)lw_st_farrn[r.box][i] * (size_t)(lw_st_farrm[r.box][i] & 0xff), have_;\n"
+          "                    if (v.tag == LWV_SLICE) have_ = v.n; else if (v.tag == LWV_VARRAY) have_ = v.n * (size_t)v.box; else lw_panic(\"an array field takes an array value\");\n"
+          "                    if (have_ != need_) lw_panic(\"an array field takes exactly its length of elements\");\n"
+          "                    memmove((void *)p, v.p, need_); return; }\n"
           "                unsigned long long x = (unsigned long long)v.i;\n"
           "                int sz = lw_st_fsize[r.box][i];\n"
           /* ★ 디바이스면 폭이 맞는 단일 volatile 저장 — 바이트 네 번은 한 번과 다른 일이다. */
@@ -5322,6 +5348,17 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "    memset(ob, 0, (size_t)lw_st_total[s]);\n"
           "    for (int i = 0; i < lw_st_nf[s]; i++) {\n"
           "        unsigned long long x = 0; int found = 0;\n"
+          "        if (lw_st_farrn[s][i]) { /* T2b-3d: an array field — copy its bytes into place */\n"
+          "            size_t need = (size_t)lw_st_farrn[s][i] * (size_t)(lw_st_farrm[s][i] & 0xff); const unsigned char *src = 0;\n"
+          "            if (v.tag == LWV_REC) { lowrec *rr = &lw_recs[v.box];\n"
+          "                for (int j = 0; j < rr->nf && !src; j++) if (strcmp(lw_mk_fields[rr->mk][j], lw_st_fname[s][i]) == 0) {\n"
+          "                    lowv fv = rr->f[j]; size_t have = fv.tag == LWV_SLICE ? fv.n : fv.tag == LWV_VARRAY ? fv.n * (size_t)fv.box : 0;\n"
+          "                    if (have != need) lw_panic(\"encode: an array field holds the wrong length\"); src = fv.p; } }\n"
+          "            else if (v.tag == LWV_VIEW) { for (int j = 0; j < lw_st_nf[v.box] && !src; j++)\n"
+          "                if (strcmp(lw_st_fname[v.box][j], lw_st_fname[s][i]) == 0 && (size_t)lw_st_farrn[v.box][j] * (size_t)(lw_st_farrm[v.box][j] & 0xff) == need)\n"
+          "                    src = v.p + lw_st_foff[v.box][j]; }\n"
+          "            if (!src) lw_panic(\"encode: value lacks an array field of that length\");\n"
+          "            memmove(ob + lw_st_foff[s][i], src, need); continue; }\n"
           "        if (v.tag == LWV_REC) {\n"
           "            lowrec *rr = &lw_recs[v.box];\n"
           "            for (int j = 0; j < rr->nf && !found; j++)\n"

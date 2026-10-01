@@ -1972,6 +1972,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     for (proven_size_t fi = 0; fi < st->nf; fi++) {   // 레이아웃 필드마다 레코드에서 찾아 인코딩
                         for (proven_size_t q = 0; q < r->nfields; q++) {
                             if (!proven_u8str_view_eq(mk->fields[q], st->f[fi].name)) continue;
+                            if (st->f[fi].arrn) {                // ★ T2b-3d ⓓ — 배열 칸은 바이트를 그 자리에
+                                if (!vm_arr_copy(vm, &st->f[fi], r->fields[q], base + st->f[fi].off)) return false;
+                                break;
+                            }
                             proven_u64 x = (r->fields[q].tag == VMV_FLT)
                                              ? ir_f_to_bits(ir_bits_to_f((proven_u64)r->fields[q].i, 8), st->f[fi].size)
                                              : (proven_u64)r->fields[q].i;
@@ -3424,6 +3428,10 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                     bool f2 = false;
                     for (proven_size_t q = 0; q < s2->nf && !f2; q++) {
                         if (!proven_u8str_view_eq(s2->f[q].name, w2)) continue;
+                        if (s2->f[q].arrn) {                     // ★ T2b-3d ⓓ — 배열 칸: 그 자리에 바이트를 베낀다
+                            if (!vm_arr_copy(vm, &s2->f[q], vv, (proven_u8 *)(void *)(rv.p + s2->f[q].off))) return false;
+                            f2 = true; break;
+                        }
                         proven_u64 x = (proven_u64)vv.i;
                         proven_u8 *p2 = (proven_u8 *)(void *)(rv.p + s2->f[q].off);
                         if (s2->f[q].be)
@@ -3473,6 +3481,11 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         if (proven_u8str_view_eq(s->f[i].name, want)) {
                             // ★ **중첩 구조체 필드** — 값이 아니라 **안쪽 뷰**를 준다(무복사).
                             //   그래야 `field (field v i) a` 가 이어진다.
+                            if (s->f[i].arrn) {                  // ★ T2b-3d ⓓ — 배열 칸: 그 바이트를 보는 슬라이스(무복사)
+                                stack[sp++] = vm_arr_view(&s->f[i], (proven_u8 *)(void *)(v.p + s->f[i].off));
+                                found = true;
+                                break;
+                            }
                             if (s->f[i].sidx >= 0) {
                                 stack[sp++] = (vmv_t){ .tag = VMV_VIEW, .p = v.p + s->f[i].off,
                                                        .n = s->f[i].size,
@@ -3530,6 +3543,29 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 memset(outb, 0, s->total);
                 for (proven_size_t i = 0; i < s->nf; i++) {
                     proven_u64 x = 0;
+                    if (s->f[i].arrn) {                          // ★ T2b-3d ⓓ — 배열 칸은 그 바이트를 그 자리에 베낀다
+                        proven_size_t need = (proven_size_t)s->f[i].arrn * s->f[i].arresz;
+                        const proven_u8 *src = NULL;
+                        if (v.tag == VMV_REC) {
+                            const vmrec_t *r = &vm->recs[v.box];
+                            const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];
+                            for (proven_size_t j = 0; j < r->nfields && !src; j++)
+                                if (proven_u8str_view_eq(mk->fields[j], s->f[i].name)) {
+                                    vmv_t fv = r->fields[j];
+                                    proven_size_t have = fv.tag == VMV_SLICE ? fv.n : fv.tag == VMV_VARRAY ? fv.n * (proven_size_t)fv.box : 0;
+                                    if (have != need) { vm_diag(vm->diags, "E-VM-TYPE", "encode: an array field holds the wrong length"); return false; }
+                                    src = fv.p;
+                                }
+                        } else if (v.tag == VMV_VIEW) {
+                            const low_ir_struct_t *vs = &vm->ir->structs[v.box];
+                            for (proven_size_t j = 0; j < vs->nf && !src; j++)
+                                if (proven_u8str_view_eq(vs->f[j].name, s->f[i].name) && (proven_size_t)vs->f[j].arrn * vs->f[j].arresz == need)
+                                    src = v.p + vs->f[j].off;
+                        }
+                        if (!src) { vm_diag(vm->diags, "E-VM-FIELD", "encode: value lacks an array field of that length"); return false; }
+                        memmove(outb + s->f[i].off, src, need);
+                        continue;
+                    }
                     if (v.tag == VMV_REC) {
                         const vmrec_t *r = &vm->recs[v.box];
                         const low_ir_make_t *mk = &vm->ir->makes[r->make_idx];

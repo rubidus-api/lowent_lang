@@ -70,6 +70,8 @@ sees those bytes, and `set (index (field p body) i) v .` writes an element.
   field is copied along with it.
 - Writing a field of a record received `mut` changes the caller's record. Writing a record received by value changes only the op's own copy.
 - The elements are sized numbers or `bool`. A list given to the field must match its element type and length (`E-TYPE-FIELD`).
+- Seen as bytes (`view`, `encode`, `size_of`) it is laid out as in C: the array field sits inside the struct's bytes, aligned
+  to its element. `len u8 . body array u8 4 . tail u16 .` is 8 bytes (`body` starts at byte 1, `tail` at byte 6).
 
 A record bound with `let` has fields that cannot change either --- and that includes the elements of an array field.
 

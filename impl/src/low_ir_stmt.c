@@ -75,6 +75,143 @@ static void ir_release_one(ir_ctx_t *c, proven_size_t d) {
     ir_emit(c, IRW_DROP, 0);                         // release 는 돌려받았는지(bool)를 답한다 — 여기서는 쓰지 않는다
     ir_at(c, skip)->a = (proven_i64)c->code.len;
 }
+// ★★ RFC-0132 P1 (§8.1 · §8.2) — `for` 머리의 새 원천. 머리가 읽는 것(끝 · step · 원천 슬라이스)은 들어갈 때 한 번 계산해 숨은
+//   지역에 얼린다. `range` 는 넘침 없는 내림(§8.2): 거리 = st>0 ? hi−i : i−lo(감싸는 64 비트 뺄셈), 거리 < |st|(부호 없는
+//   비교)면 끝, 아니면 i += st. `count τ n` 은 [0, n) — i < n 을 τ 의 비교로. `for x mut buf` 는 x 를 buf 의 칸으로 바꿔 읽는다.
+static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
+    proven_u8str_view_t kind = f->kids[2]->tok.lex;
+    if (c->nloops >= IR_MAXLOOP || c->nlocals + 9 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "loop nesting too deep", f->line); return; }
+    #define HID(v_) proven_size_t v_ = c->nlocals++; c->locals[v_].name = (proven_u8str_view_t){ 0 }
+    const proven_i64 W64 = (proven_i64)(IR_TY_KNOWN | 64 | IR_POL_WRAP), S64 = (proven_i64)(IR_TY_KNOWN | IR_TY_SIGNED | 64), U64 = (proven_i64)(IR_TY_KNOWN | 64);
+    if (veq(kind, "mut")) {                                        // for x mut buf
+        HID(it); HID(idx);
+        ir_run(c, f->kids, 3, b - 3);
+        ir_emit(c, IRW_STORE, (proven_i64)it);
+        ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)idx);
+        proven_size_t cond = c->code.len;
+        ir_emit(c, IRW_LOAD, (proven_i64)idx); ir_emit(c, IRW_LOAD, (proven_i64)it); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, U64);
+        proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
+        if (c->nmel >= 8) { ir_fail(c, "E-IR-LIMIT", "too many nested `for x mut` loops", f->line); return; }
+        c->mel_name[c->nmel] = f->kids[1]->tok.lex; c->mel_buf[c->nmel] = it; c->mel_idx[c->nmel] = idx; c->nmel++;
+        ir_loop_t *lp = &c->loops[c->nloops++];
+        lp->rgdepth = g_nrg; lp->reldepth = g_nrel; lp->nbrk = 0; lp->ncnt = 0;
+        ir_block(c, f->kids[b]);
+        c->nmel--;
+        proven_size_t step = c->code.len;
+        ir_emit(c, IRW_LOAD, (proven_i64)idx); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, W64); ir_emit(c, IRW_STORE, (proven_i64)idx);
+        ir_emit(c, IRW_BR, (proven_i64)cond);
+        proven_size_t end = c->code.len;
+        ir_at(c, brz)->a = (proven_i64)end;
+        for (proven_size_t i = 0; i < lp->nbrk; i++) ir_at(c, lp->brk[i])->a = (proven_i64)end;
+        for (proven_size_t i = 0; i < lp->ncnt; i++) ir_at(c, lp->cnt[i])->a = (proven_i64)step;
+        c->nloops--;
+        return;
+    }
+    if (b < 5 || !is_atom(f->kids[3])) { ir_fail(c, "E-IR-UNSUP", "malformed `for` head", f->line); return; }
+    ityp_t ty = ity_of_decl_c(c, f, 3, 4);
+    proven_i64 TM = (proven_i64)(IR_TY_KNOWN | (ty.sign ? IR_TY_SIGNED : 0) | (ty.bits ? ty.bits : 64));
+    proven_size_t var = ir_local_declare(c, f->kids[1]->tok.lex, f->line);
+    c->locals[var].ty = ty;
+    if (veq(kind, "count")) {                                      // for i count τ n .
+        HID(endv); HID(iv);
+        ir_run(c, f->kids, 4, b - 4);
+        ir_emit(c, IRW_STORE, (proven_i64)endv);
+        ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)iv);
+        proven_size_t cond = c->code.len;
+        ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_LOAD, (proven_i64)endv); ir_emit(c, IRW_LT, TM);
+        proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
+        ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_STORE, (proven_i64)var);
+        ir_loop_t *lp = &c->loops[c->nloops++];
+        lp->rgdepth = g_nrg; lp->reldepth = g_nrel; lp->nbrk = 0; lp->ncnt = 0;
+        ir_block(c, f->kids[b]);
+        proven_size_t step = c->code.len;
+        ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, W64); ir_emit(c, IRW_STORE, (proven_i64)iv);
+        ir_emit(c, IRW_BR, (proven_i64)cond);
+        proven_size_t end = c->code.len;
+        ir_at(c, brz)->a = (proven_i64)end;
+        for (proven_size_t i = 0; i < lp->nbrk; i++) ir_at(c, lp->brk[i])->a = (proven_i64)end;
+        for (proven_size_t i = 0; i < lp->ncnt; i++) ir_at(c, lp->cnt[i])->a = (proven_i64)step;
+        c->nloops--;
+        return;
+    }
+    // range τ a b [step k] — 머리 낱말: kids[4..b) = a b [step k] (a · b · k 는 각각 한 마디)
+    proven_size_t sp_ = b;
+    for (proven_size_t q = 4; q < b; q++) if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "step")) { sp_ = q; break; }
+    if (sp_ - 4 != 2 || (sp_ < b && sp_ + 2 != b)) { ir_fail(c, "E-IR-UNSUP", "`range τ a b [step k]` — a, b and k are one term each (wrap an expression in parentheses)", f->line); return; }
+    HID(av); HID(bv); HID(lo); HID(hi); HID(st); HID(iv); HID(dv); HID(ab);
+    ir_node(c, f->kids[4]); ir_emit(c, IRW_STORE, (proven_i64)av);
+    ir_node(c, f->kids[5]); ir_emit(c, IRW_STORE, (proven_i64)bv);
+    // lo, hi
+    ir_emit(c, IRW_LOAD, (proven_i64)av); ir_emit(c, IRW_LOAD, (proven_i64)bv); ir_emit(c, IRW_LE, TM);
+    proven_size_t j1 = ir_emit(c, IRW_BRZ, 0);
+    ir_emit(c, IRW_LOAD, (proven_i64)av); ir_emit(c, IRW_STORE, (proven_i64)lo); ir_emit(c, IRW_LOAD, (proven_i64)bv); ir_emit(c, IRW_STORE, (proven_i64)hi);
+    proven_size_t j2 = ir_emit(c, IRW_BR, 0);
+    ir_at(c, j1)->a = (proven_i64)c->code.len;
+    ir_emit(c, IRW_LOAD, (proven_i64)bv); ir_emit(c, IRW_STORE, (proven_i64)lo); ir_emit(c, IRW_LOAD, (proven_i64)av); ir_emit(c, IRW_STORE, (proven_i64)hi);
+    ir_at(c, j2)->a = (proven_i64)c->code.len;
+    proven_size_t skips[4]; proven_size_t nsk = 0;
+    if (sp_ < b) {                                                 // step 을 적었다 — 방향은 step 이 정한다(규칙 5)
+        ir_node(c, f->kids[sp_ + 1]); ir_emit(c, IRW_STORE, (proven_i64)st);
+        ir_emit(c, IRW_LOAD, (proven_i64)st); ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_EQ, S64);
+        proven_size_t nz = ir_emit(c, IRW_BRZ, 0);
+        {   // step 0 — 멈춘다(번역 시점 상수면 검사층이 먼저 거절)
+            proven_size_t si = c->out->nstrs; static const char msg[] = "`range … step 0` never moves (RFC-0132 §8.2)";
+            proven_u8str_view_t mv = { .ptr = (const proven_u8 *)msg, .size = sizeof msg - 1 };
+            for (proven_size_t i = 0; i < c->out->nstrs; i++) if (proven_u8str_view_eq(c->out->strs[i], mv)) { si = i; break; }
+            if (si == c->out->nstrs) { if (c->out->nstrs >= IR_MAXSTRS) { ir_fail(c, "E-IR-UNSUP", "too many string literals", f->line); return; } c->out->strs[c->out->nstrs++] = mv; }
+            ir_emit(c, IRW_PANIC, (proven_i64)si);
+        }
+        ir_at(c, nz)->a = (proven_i64)c->code.len;
+        ir_emit(c, IRW_LOAD, (proven_i64)st); ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_GT, S64);
+        proven_size_t neg = ir_emit(c, IRW_BRZ, 0);
+        ir_emit(c, IRW_LOAD, (proven_i64)av); ir_emit(c, IRW_LOAD, (proven_i64)bv); ir_emit(c, IRW_GT, TM);
+        proven_size_t ok1 = ir_emit(c, IRW_BRZ, 0);
+        skips[nsk++] = ir_emit(c, IRW_BR, 0);                      // st>0 이고 a>b → 0 번
+        ir_at(c, neg)->a = (proven_i64)c->code.len;
+        ir_emit(c, IRW_LOAD, (proven_i64)av); ir_emit(c, IRW_LOAD, (proven_i64)bv); ir_emit(c, IRW_LT, TM);
+        proven_size_t ok2 = ir_emit(c, IRW_BRZ, 0);
+        skips[nsk++] = ir_emit(c, IRW_BR, 0);                      // st<0 이고 a<b → 0 번
+        ir_at(c, ok1)->a = (proven_i64)c->code.len; ir_at(c, ok2)->a = (proven_i64)c->code.len;
+    } else {                                                       // step 이 없다 — 두 끝이 방향을 정한다
+        ir_emit(c, IRW_LOAD, (proven_i64)av); ir_emit(c, IRW_LOAD, (proven_i64)bv); ir_emit(c, IRW_LE, TM);
+        proven_size_t m1 = ir_emit(c, IRW_BRZ, 0);
+        ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_STORE, (proven_i64)st);
+        proven_size_t m2 = ir_emit(c, IRW_BR, 0);
+        ir_at(c, m1)->a = (proven_i64)c->code.len;
+        ir_emit(c, IRW_CONST, -1); ir_emit(c, IRW_STORE, (proven_i64)st);
+        ir_at(c, m2)->a = (proven_i64)c->code.len;
+    }
+    ir_emit(c, IRW_LOAD, (proven_i64)av); ir_emit(c, IRW_STORE, (proven_i64)iv);
+    proven_size_t top = c->code.len;
+    ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_STORE, (proven_i64)var);
+    ir_loop_t *lp = &c->loops[c->nloops++];
+    lp->rgdepth = g_nrg; lp->reldepth = g_nrel; lp->nbrk = 0; lp->ncnt = 0;
+    ir_block(c, f->kids[b]);
+    proven_size_t cont = c->code.len;
+    // 거리 = st>0 ? hi−i : i−lo
+    ir_emit(c, IRW_LOAD, (proven_i64)st); ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_GT, S64);
+    proven_size_t d1 = ir_emit(c, IRW_BRZ, 0);
+    ir_emit(c, IRW_LOAD, (proven_i64)hi); ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_SUB, W64); ir_emit(c, IRW_STORE, (proven_i64)dv);
+    ir_emit(c, IRW_LOAD, (proven_i64)st); ir_emit(c, IRW_STORE, (proven_i64)ab);
+    proven_size_t d2 = ir_emit(c, IRW_BR, 0);
+    ir_at(c, d1)->a = (proven_i64)c->code.len;
+    ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_LOAD, (proven_i64)lo); ir_emit(c, IRW_SUB, W64); ir_emit(c, IRW_STORE, (proven_i64)dv);
+    ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_LOAD, (proven_i64)st); ir_emit(c, IRW_SUB, W64); ir_emit(c, IRW_STORE, (proven_i64)ab);
+    ir_at(c, d2)->a = (proven_i64)c->code.len;
+    ir_emit(c, IRW_LOAD, (proven_i64)dv); ir_emit(c, IRW_LOAD, (proven_i64)ab); ir_emit(c, IRW_LT, U64);
+    proven_size_t go = ir_emit(c, IRW_BRZ, 0);
+    proven_size_t out1 = ir_emit(c, IRW_BR, 0);                    // 거리 < |st| → 끝
+    ir_at(c, go)->a = (proven_i64)c->code.len;
+    ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_LOAD, (proven_i64)st); ir_emit(c, IRW_ADD, W64); ir_emit(c, IRW_STORE, (proven_i64)iv);
+    ir_emit(c, IRW_BR, (proven_i64)top);
+    proven_size_t end = c->code.len;
+    ir_at(c, out1)->a = (proven_i64)end;
+    for (proven_size_t i = 0; i < nsk; i++) ir_at(c, skips[i])->a = (proven_i64)end;
+    for (proven_size_t i = 0; i < lp->nbrk; i++) ir_at(c, lp->brk[i])->a = (proven_i64)end;
+    for (proven_size_t i = 0; i < lp->ncnt; i++) ir_at(c, lp->cnt[i])->a = (proven_i64)cont;
+    c->nloops--;
+    #undef HID
+}
 // guard diverge / plain terminal statements from an operand run
 static void ir_diverge(ir_ctx_t *c, low_cst_t *const *k, proven_size_t start, proven_size_t n, proven_u32 line) {
     if (n == 0 || !is_atom(k[start])) { ir_fail(c, "E-IR-UNSUP", "unsupported guard diverge", line); return; }
@@ -1006,6 +1143,13 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                 ir_emit(c, IRW_FSTORE, (proven_i64)fi);
                 return;
             }
+            for (proven_size_t q = c->nmel; q-- > 0; )            // ★ RFC-0132 P1 — `set x v` 가 buf 의 그 칸에 쓴다
+                if (proven_u8str_view_eq(c->mel_name[q], f->kids[1]->tok.lex)) {
+                    ir_emit(c, IRW_LOAD, (proven_i64)c->mel_buf[q]); ir_emit(c, IRW_LOAD, (proven_i64)c->mel_idx[q]);
+                    ir_run(c, f->kids, 2, f->nkids - 2);
+                    ir_emit(c, IRW_ISTORE, 0);
+                    return;
+                }
             bool found; proven_size_t slot = ir_local_find(c, f->kids[1]->tok.lex, &found);
             if (!found) { ir_fail(c, "E-IR-UNDEF", "set of an undeclared name", f->line); return; }
             ir_run(c, f->kids, 2, f->nkids - 2);
@@ -1091,6 +1235,12 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             // for VAR in ITER do … end — ITER is a slice value; iterate its elements
             proven_size_t b = form_block_index(f);
             if (b == f->nkids || b < 3 || !is_atom(f->kids[1])) { ir_fail(c, "E-IR-UNSUP", "malformed for", f->line); return; }
+            // ★★ RFC-0132 P1 — `for i count τ n .` · `for i range τ a b [step k] .` · `for x mut buf`
+            if (is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_NONE &&
+                (veq(f->kids[2]->tok.lex, "count") || veq(f->kids[2]->tok.lex, "range") || veq(f->kids[2]->tok.lex, "mut"))) {
+                ir_for_p1(c, f, b);
+                return;
+            }
             if (c->nloops >= IR_MAXLOOP || c->nlocals + 3 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "loop nesting too deep", f->line); return; }
             proven_size_t it = c->nlocals++, idx = c->nlocals++;   // anonymous slots
             c->locals[it].name = (proven_u8str_view_t){ 0 };

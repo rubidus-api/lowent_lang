@@ -1594,7 +1594,37 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             proven_size_t bi = f->nkids;
             for (proven_size_t j = 2; j < f->nkids; j++)
                 if (f->kids[j]->kind == LOW_CST_BLOCK) { bi = j; break; }
-            ty_t seq = (bi > 2) ? tc_infer_run(c, f->kids, 2, bi - 2, env, *nenv) : tk(TK_UNKNOWN);
+            // ★★ RFC-0132 P1 — `count τ n .` · `range τ a b [step k] .` : 셈의 타입 τ 는 늘 적고(N5), 끝은 τ 에 들어가야 한다(넓히기만).
+            if (bi > 3 && f->kids[2]->kind == LOW_CST_ATOM && f->kids[2]->tok.kw == LOW_KW_NONE &&
+                (veq(f->kids[2]->tok.lex, "count") || veq(f->kids[2]->tok.lex, "range")) && f->kids[3]->kind == LOW_CST_ATOM) {
+                ty_t tau = ty_of_word(f->kids[3]->tok.lex);
+                if (tau.k != TK_INT) {
+                    tc_emit(c, "E-FOR-STEP", tau.k == TK_FLOAT
+                            ? "a counted loop counts in an integer type — a float has no next value to step to (RFC-0132 §8.2)"
+                            : "`count`/`range` need the counting type first: `for i count u64 n .` · `for i range u64 3 10 .` (RFC-0132 §8.2)", f->line);
+                } else {
+                    for (proven_size_t q = 4; q < bi; q++) {
+                        if (f->kids[q]->kind == LOW_CST_ATOM && veq(f->kids[q]->tok.lex, "step")) {
+                            if (q + 1 < bi && f->kids[q + 1]->kind == LOW_CST_ATOM && f->kids[q + 1]->tok.kind == LOW_TOK_NUMBER) {
+                                proven_i64 sv; if (tc_int_lit(f->kids[q + 1]->tok.lex, &sv) && sv == 0)
+                                    tc_emit(c, "E-FOR-STEP", "`step 0` never moves — the loop would not end (RFC-0132 §8.2)", f->line);
+                            }
+                            break;                                   // step 은 셈의 타입과 따로(부호 있는 64 비트 거리)
+                        }
+                        ty_t et = tc_infer(c, f->kids[q], env, *nenv);
+                        tc_flag(c, compat(tau, et), "E-TYPE-WIDTH", "a loop bound does not fit the counting type", f->line);
+                    }
+                }
+                if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = tau.k == TK_INT ? tau : tk_int(64, false); }
+                for (proven_size_t j = 0; j < f->nkids; j++)
+                    if (f->kids[j]->kind == LOW_CST_BLOCK) tc_check_body(c, f->kids[j], env, nenv, ret);
+                goto for_done;
+            }
+            bool mut_src = bi > 3 && f->kids[2]->kind == LOW_CST_ATOM && veq(f->kids[2]->tok.lex, "mut");   // for x mut buf
+            ty_t seq = (bi > 2) ? tc_infer_run(c, f->kids, mut_src ? 3 : 2, bi - (mut_src ? 3 : 2), env, *nenv) : tk(TK_UNKNOWN);
+            if (mut_src && seq.k == TK_SLICE && !seq.is_mut && f->kids[3]->kind == LOW_CST_ATOM)
+                tc_emit(c, "E-TYPE-MUT", "`for x mut <slice>` writes the slice's elements — the slice must be declared `mut` "
+                        "(a `let` list, a string or a shared parameter is read-only)", f->line);
             if (seq.k != TK_UNKNOWN && seq.k != TK_NAMED && seq.k != TK_SLICE)
                 tc_emit(c, "E-TYPE-ITER",
                         "`for … in` needs a slice — this value cannot be iterated", f->line);
@@ -1611,6 +1641,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             }
             for (proven_size_t j = 0; j < f->nkids; j++)
                 if (f->kids[j]->kind == LOW_CST_BLOCK) tc_check_body(c, f->kids[j], env, nenv, ret);
+            for_done:;
         } else if (kw == LOW_KW_SET && f->nkids >= 3 && f->kids[1]->kind == LOW_CST_GROUP) {
             // ★ `set (index s i) v .` — s 는 **mut** 로 선언돼 있어야 한다.
             //   가변성은 정적으로 강제된다(런타임 슬라이스 값에는 mut 표시가 없다 — 포인터가 const 다).

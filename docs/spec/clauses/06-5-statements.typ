@@ -151,6 +151,33 @@ end")
     #para("6")[
       `break` 와 `continue` 는 `for` 안에서도 `while` 에서와 같이 쓴다.
     ]
+    #para("7")[
+      **수를 세는 머리** — `for i count τ n .` 는 `0, 1, …, n−1` 을 돈다(`n = 0` 이면 0 번). `for i range τ a b .` 는 `a` 에서
+      `b` 까지 두 끝을 넣어 돌고, 방향은 두 끝이 정한다(`range u64 10 3` 은 `10 … 3`). `step k` 를 적으면 다음 값은 `지금 + k`
+      이고 방향은 `k` 가 정한다 — 시작이 이미 그 방향으로 끝을 넘었으면 0 번 돈다. 셈의 타입 `τ` 는 늘 적는 정수 타입이고
+      (아니면 `E-FOR-STEP`), 끝은 `τ` 에 들어가야 한다(`E-TYPE-WIDTH`). 셈은 넘치지 않는다 — `range u8 0 255` 는 255 에서 끝난다.
+      `step 0` 은 거부되고(`E-FOR-STEP`), 실행 중에 0 이 되면 멈춘다. 낱말로 시작하는 이 절은 제 점으로 닫는다.
+    ]
+    #para("8")[
+      **머리가 읽은 것은 루프 동안 얼린다** — 끝 · `step` · 원천은 들어갈 때 한 번 계산한다. `count`·`range` 의 셈 이름과
+      머리가 읽은 이름은 몸 안에서 `set` 할 수 없다(`E-FOR-HEAD`) — 칸의 내용을 바꾸는 것은 된다.
+    ]
+    #para("9")[
+      **원소 자리** — `for x mut buf do … end` 의 `x` 는 `buf` 의 그 칸이다: 읽으면 칸의 값이고, `set x v .` 는 그 칸에 쓴다.
+      `buf` 는 `mut` 이어야 하고(`E-TYPE-MUT`), 루프 동안 `buf` 전체를 빌리므로 몸 안에서 `buf` 를 읽거나 쓰면 거부된다
+      (`E-FOR-HEAD`) — 원소는 `x` 로만 만진다.
+    ]
+    #ex("수를 세는 머리", "module ex_for_count .
+
+export fn evens output u64 .
+do
+  var acc be u64 0 .
+  for i range u64 10 1 step -2 . do
+    set acc (add acc i) .
+  end
+  return acc .
+end",
+      out: "1 부터 10 까지 짝수의 합")
     #ex("슬라이스를 훑기", "module ex_for .
 
 export fn total_of input xs slice u8 . output u64 .

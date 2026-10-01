@@ -47,13 +47,18 @@
 
 Writing `for x in xs` is rejected with `E-VOCAB-REMOVED`. The thing to walk comes right after the name.
 
-#qa[
-  How do you write a loop counting from 0 to `n` with `for`?
-][
-  `for` is a tool for walking slices and does not take a numeric range directly. Counting loops are written with `while` and `var`.
-  Having one shape for counting loops makes the range of the counter easy for the compiler to see and keeps the analysis that removes
-  bounds checks simple. Filtering, counting and collecting over a slice are `pipe`'s job (#chref("pipe")).
-]
+Counting loops are written with `for` too. `for i count u64 n .` runs from 0 up to (not including) `n`, and `for i range u64 a b .`
+runs from `a` to `b`, both ends included. The counting type (`u64`) is always written, and the clause closes with its own full stop.
+
+#demo("examples/ch07/counting.low")
+
+- `count u64 n` runs 0, 1, 2, 3 when `n = 4`. If `n` is 0 it does not run at all.
+- `range u64 10 1 step -3` is 10, 7, 4, 1. Without `step` the two ends decide the direction (`range u64 10 3` counts down from 10 to
+  3). Counting never overflows --- `range u8 0 255` ends at 255.
+- What the head reads (the ends, `step`) is computed once on entry. Setting the counting name `i` or a name the head read (`n`) in
+  the body is `E-FOR-HEAD`. `step 0` or a floating counting type is `E-FOR-STEP`.
+- `for x mut buf do set x 0 . end` walks the element places --- `set x` writes that cell of `buf`. Inside the body, touch the
+  elements only through `x`, not through `buf` (`E-FOR-HEAD`).
 
 == `guard` --- turning a condition into a fact
 

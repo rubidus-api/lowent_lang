@@ -1,0 +1,59 @@
+module vm_forcount .
+rem ★★ RFC-0132 P1 — `for` 머리: `count τ n .` (끝 제외) · `range τ a b [step k] .` (두 끝 포함 · 넘침 없는 내림) · `for x mut buf` (원소 자리).
+export fn cnt input n u64 . output u64 . do
+  var s be u64 0 .
+  for i count u64 n . do
+    set s (add (mul s 10) i) .
+  end
+  return s .
+end
+export fn rng input a u64 . input b u64 . output u64 . do
+  var s be u64 0 .
+  for i range u64 a b . do
+    set s (add (mul s 100) i) .
+  end
+  return s .
+end
+export fn stp output u64 . do
+  var s be u64 0 .
+  for i range u64 10 3 step -2 . do
+    set s (add (mul s 100) i) .
+  end
+  return s .
+end
+export fn edge output u64 . do
+  var c be u64 0 .
+  for i range u8 250 255 . do
+    set c (add c 1) .
+  end
+  for j range u64 3 10 step -1 . do
+    set c (add c 1000) .
+  end
+  return c .
+end
+export fn sgn output i64 . do
+  var s be i64 0 .
+  for i range i64 2 -2 . do
+    set s (add (mul s 10) i) .
+  end
+  return s .
+end
+export fn mutl input b mut slice u8 . output u64 . do
+  for x mut b do
+    set x (add x 1) .
+  end
+  return 0 .
+end
+export fn brk output u64 . do
+  var s be u64 0 .
+  for i count u64 100 . do
+    if eq i 5 . do
+      break .
+    end
+    if eq (mod i 2) 0 . do
+      continue .
+    end
+    set s (add s i) .
+  end
+  return s .
+end

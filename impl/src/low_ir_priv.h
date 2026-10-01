@@ -233,6 +233,10 @@ typedef struct {
     proven_size_t        lbuf_off;
     bool                 lit_frame;
     bool                 lit_into;   // ★ RFC-0132 §13.7 — 채울 바이트 슬라이스가 이미 스택에 있다(할당자에서 받음)
+    // ★ RFC-0132 P1 — `for x mut buf`: 몸 안의 `x` 는 `buf` 의 그 칸이다(읽기 = INDEX, `set x` = ISTORE). 중첩되므로 쌓는다.
+    proven_u8str_view_t  mel_name[8];
+    proven_size_t        mel_buf[8], mel_idx[8];
+    proven_size_t        nmel;
 } ir_ctx_t;
 
 typedef struct {

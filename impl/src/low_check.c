@@ -7927,6 +7927,68 @@ static void ar_walk(low_check_result_t *out, const low_cst_t *nd, const proven_u
         ar_walk(out, st, all, na);
     }
 }
+// ★★ RFC-0132 P1 (§8.1) — `for` 머리가 읽은 것은 루프 동안 얼린다. 그래서 몸 안에서
+//   · 셈의 이름(`for i count …` · `for i range …` 의 i)과 머리가 읽은 이름(`n` · `a` · `b` · `step` 의 값)을 `set` 하면 거절 —
+//     `for i count u64 (len xs) .` 안에서 `set xs …` 로 줄이면 몸이 얻은 «i < len xs» 가 거짓이 된다(칸 내용 쓰기는 된다).
+//   · `for x mut buf` 는 루프 동안 `buf` 전체의 배타적 빌림이다 — 몸이 `buf` 를 읽거나 쓰면 같은 칸에 두 번째 길이 열린다.
+//   기존 원천(`for x xs`)은 이 규칙을 받지 않는다(옛 코드를 바꾸지 않는다).
+typedef struct { proven_u8str_view_t nm[32]; proven_size_t nn; bool over; } fh_names_t;
+static void fh_collect(fh_names_t *h, const low_cst_t *e) {   // 머리 낱말 안의 이름(타입 낱말 · `step` · 수 · 내장 머리는 빼고)
+    if (!e) return;
+    if (e->kind == LOW_CST_ATOM) {
+        if (e->tok.kind == LOW_TOK_IDENT && e->tok.kw == LOW_KW_NONE && !veq(e->tok.lex, "step") && !ck_scalar_head(e->tok.lex) &&
+            !low_ir_is_builtin_name(e->tok.lex)) {
+            if (h->nn < 32) h->nm[h->nn++] = e->tok.lex; else h->over = true;
+        }
+        return;
+    }
+    for (proven_size_t q = 0; q < e->nkids; q++) fh_collect(h, e->kids[q]);
+}
+static const low_cst_t *fh_set_of(const low_cst_t *e, const fh_names_t *h, proven_size_t *which) {   // 몸 안에서 그 이름을 `set` 하는 자리
+    if (!e || e->kind == LOW_CST_ATOM) return NULL;
+    if (e->kind == LOW_CST_FORM && e->nkids >= 2 && ck_atom(e->kids[0]) && e->kids[0]->tok.kw == LOW_KW_SET && ck_atom(e->kids[1]))
+        for (proven_size_t q = 0; q < h->nn; q++)
+            if (proven_u8str_view_eq(e->kids[1]->tok.lex, h->nm[q])) { *which = q; return e; }
+    for (proven_size_t q = 0; q < e->nkids; q++) { const low_cst_t *r = fh_set_of(e->kids[q], h, which); if (r) return r; }
+    return NULL;
+}
+static void fh_walk(low_check_result_t *out, const low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_FOR && ck_atom(nd->kids[1]) &&
+        ck_atom(nd->kids[2]) && nd->kids[2]->tok.kw == LOW_KW_NONE &&
+        (veq(nd->kids[2]->tok.lex, "count") || veq(nd->kids[2]->tok.lex, "range") || veq(nd->kids[2]->tok.lex, "mut"))) {
+        proven_size_t b = nd->nkids;
+        for (proven_size_t q = 3; q < nd->nkids; q++) if (nd->kids[q]->kind == LOW_CST_BLOCK) { b = q; break; }
+        bool is_mut = veq(nd->kids[2]->tok.lex, "mut");
+        static fh_names_t h;
+        h.nn = 0; h.over = false;
+        if (!is_mut) h.nm[h.nn++] = nd->kids[1]->tok.lex;
+        for (proven_size_t q = is_mut ? 3 : 4; q < b; q++) fh_collect(&h, nd->kids[q]);
+        if (h.over)
+            emit(out, "E-IR-LIMIT", "this loop head names too many things for the frozen-head checker's table — refused rather "
+                 "than checked partly. Bind the bounds to a few names first", nd->kids[0]->tok.line);
+        const low_cst_t *body = b < nd->nkids ? nd->kids[b] : NULL;
+        if (body && is_mut) {
+            for (proven_size_t q = 0; q < h.nn; q++)
+                if (ar_mentions(body, h.nm[q])) {
+                    emit(out, "E-FOR-HEAD", "`for x mut <slice>` borrows the whole slice for the loop — inside the body touch the "
+                         "elements only through the loop name; reading or writing the slice itself opens a second path to the same "
+                         "cell (RFC-0132 §8.1)", nd->kids[0]->tok.line);
+                    break;
+                }
+        } else if (body) {
+            proven_size_t which = 0;
+            const low_cst_t *hit = fh_set_of(body, &h, &which);
+            if (hit)
+                emit(out, "E-FOR-HEAD", which == 0
+                     ? "the loop's counting name is set by the loop itself — it cannot be changed inside the body (RFC-0132 §8.1)"
+                     : "a name the loop head read is frozen for the loop — changing it inside the body would make the head's "
+                       "facts (like «i < len xs») false. Change the cells' contents if you must, not the name (RFC-0132 §8.1)",
+                     hit->kids[0]->tok.line);
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) fh_walk(out, nd->kids[i]);
+}
 static void ck_lit_frames(low_check_result_t *out, const low_cst_t *f) {
     static lc_t x;
     memset(&x, 0, sizeof x);
@@ -10980,6 +11042,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_region_walk(&out, f, &rc, inn, &nin, tnt, &ntn, false);
         ck_lit_frames(&out, f);   // ★ RFC-0132 T2b-2 — 틀 안 나열 자리의 수명 · 한도
         ar_walk(&out, f, NULL, 0);   // ★ RFC-0135 S2 — 블록 끝 돌려주기의 이른 `drop`
+        fh_walk(&out, f);            // ★ RFC-0132 P1 — `for` 머리가 읽은 것은 얼린다
         ck_lit_identity(&out, f); // ★ RFC-0132 T2b-3 — ⓑ 둘의 «같은 자리인가» 물음 거절(§13.3)
         ck_record_writes(&out, f); // ★ X-0082 — 쓸 수 없는 레코드의 칸·배열 칸에 쓰기 거절
         if (ck_ft_full)

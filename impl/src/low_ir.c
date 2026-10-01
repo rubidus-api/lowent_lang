@@ -2859,6 +2859,13 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             //   **한정으로 부른 것을 지역이라 읽고, 그 결과를 사용자의 문법 실수라 불렀다.**
             //   ☞ *한정 이름은 정의상 지역일 수 없다 — 좁히는 쪽이 남긴 표시를 읽는 쪽도 봐야 한다.*
             //   (같은 뿌리의 앞선 사례: `qualifier-erased-flat-lookup`, 2026-08-14.)
+            if (!nd->qual_mod.size)                                   // ★ RFC-0132 P1 — `for x mut buf` 의 x = buf 의 그 칸
+                for (proven_size_t q = c->nmel; q-- > 0; )
+                    if (proven_u8str_view_eq(c->mel_name[q], nd->tok.lex)) {
+                        ir_emit(c, IRW_LOAD, (proven_i64)c->mel_buf[q]); ir_emit(c, IRW_LOAD, (proven_i64)c->mel_idx[q]);
+                        ir_emit(c, IRW_INDEX, 0);
+                        return;
+                    }
             bool isloc; proven_size_t slot = ir_local_find(c, nd->tok.lex, &isloc);
             if (isloc && nd->qual_mod.size) isloc = false;
             if (isloc) { ir_emit(c, IRW_LOAD, (proven_i64)slot); return; }

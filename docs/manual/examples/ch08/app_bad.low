@@ -7,7 +7,7 @@ do
   return mul a 2 .
 end
 
-fn use input a u32 . output u32 .
+fn bump input a u32 . output u32 .
   requires le a 100 .
 do
   return expr twice a + 1 .

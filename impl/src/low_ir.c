@@ -1439,6 +1439,7 @@ proven_u64 ir_f_to_bits(double d, proven_u8 size) {
         // ★ 중첩 구조체 필드의 **정렬은 안쪽 구조체의 정렬**이다 — 그 **크기**가 아니다.
         //   (3바이트 구조체를 3으로 정렬하려 들면 아무것도 맞지 않는다.)
         proven_u16 al = sz;
+        if (s->is_shadow && s->f[i].slmeta) al = 8;   // ★ RFC-0135 D13 — (주소, 길이) 두 낱말: 8 바이트 정렬
         if (s->f[i].sidx >= 0 && ir && (proven_size_t)s->f[i].sidx < ir->nstructs)
             al = ir->structs[s->f[i].sidx].align ? ir->structs[s->f[i].sidx].align : 1;
         if (!s->packed) {
@@ -1910,6 +1911,32 @@ static void ir_make(ir_ctx_t *c, const low_cst_t *arg, proven_u32 line) {
 //   스택에 있다: 0 으로 채우고(IRW_BFILL) 배치를 얹은 뒤(IRW_VIEW — `view pt b` 와 같은 표현) 칸을 적은 차례로 쓴다.
 //   바이트 배치가 없는 구조체(슬라이스 · owned · 배열 칸)는 담을 표현이 아직 없다 — 정직하게 거절한다.
 static proven_size_t ir_hidden_local(ir_ctx_t *c, proven_u32 line);
+// ★★ RFC-0135 D13 (소유자 «슬라이스 칸만 연다») — 슬라이스 칸을 가진 구조체의 **할당기 배치**. 칸마다 원래 배치 규칙을 따르고,
+//   슬라이스 칸만 (주소, 길이) 16 바이트(정렬 8)다 — C 의 `struct { const T *p; size_t n; }`. `owned`·actor·cap 칸, 원소를
+//   모르는 슬라이스(구조체의 슬라이스), 배치 없는 안쪽 구조체가 있으면 짓지 못한다(-1). 한 구조체에 그림자 하나.
+proven_i32 ir_alloc_shadow(low_ir_t *ir, proven_size_t si) {
+    low_ir_struct_t *s = &ir->structs[si];
+    if (s->viewable) return (proven_i32)si;
+    if (s->ashadow1) return (proven_i32)s->ashadow1 - 1;
+    if (s->packed || s->is_mmio || s->is_reserve || s->is_actor_state || !s->nf) return -1;
+    for (proven_size_t q = 0; q < s->nf; q++) {
+        const low_ir_sfield_t *f = &s->f[q];
+        if (f->owned || f->capkind) return -1;
+        if (f->arrn || f->slmeta || f->sidx >= 0) continue;
+        if (f->boxed || !f->size) return -1;
+    }
+    if (ir->nstructs >= 32) return -1;            // ★ 구조체 표는 32 칸이다(low_ir_build 의 잡은 수)
+    proven_size_t ni = ir->nstructs++;
+    ir->structs[ni] = *s;
+    low_ir_struct_t *g = &ir->structs[ni];
+    g->is_shadow = true; g->ashadow1 = 0; g->align = 0;
+    for (proven_size_t q = 0; q < g->nf; q++)
+        if (g->f[q].slmeta) { g->f[q].boxed = false; g->f[q].size = 16; }
+    ir_struct_layout(ir, g);
+    if (!g->viewable) { ir->nstructs--; return -1; }
+    ir->structs[si].ashadow1 = (proven_u16)(ni + 1);
+    return (proven_i32)ni;
+}
 static void ir_lit_struct_into(ir_ctx_t *c, const low_cst_t *arg, proven_u32 line) {
     const low_cst_t *form = arg;
     while (form && form->kind == LOW_CST_GROUP && form->nkids == 1) form = form->kids[0];
@@ -1918,11 +1945,14 @@ static void ir_lit_struct_into(ir_ctx_t *c, const low_cst_t *arg, proven_u32 lin
         return;
     }
     bool sfound; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, form->kids[0]->tok.lex), &sfound);
-    if (!sfound || !c->out->structs[si].viewable) {
-        ir_fail(c, "E-LIT-UNBUILT", "only a struct with a byte layout (every field a sized scalar) can be built in an "
-                "allocator's bytes yet — a slice, `owned` or array field has no place there (RFC-0135 D9)", line);
+    proven_i32 gi = sfound ? ir_alloc_shadow(c->out, si) : -1;
+    if (gi < 0) {
+        ir_fail(c, "E-LIT-UNBUILT", "a struct built in an allocator's bytes holds sized numbers, bools, arrays, structs with a byte "
+                "layout and slices of numbers (each slice as an address and a length) — an `owned`, actor or capability field "
+                "has no place there, because the bytes would have to be finished with it (RFC-0135 D9 · D13)", line);
         return;
     }
+    si = (proven_size_t)gi;
     proven_size_t tl = ir_hidden_local(c, line);
     if (tl == (proven_size_t)-1) return;
     ir_emit(c, IRW_BFILL, (proven_i64)((proven_u64)c->out->structs[si].total << 32));
@@ -2631,9 +2661,10 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             while (sv && sv->kind == LOW_CST_GROUP && sv->nkids == 1) sv = sv->kids[0];
             if (sv && sv->kind == LOW_CST_FORM && sv->nkids == 2 && is_atom(sv->kids[0]) && sv->kids[1]->kind == LOW_CST_BLOCK) {
                 bool sf; proven_size_t si = ir_struct_find(c->out, ir_strip_mod(c, sv->kids[0]->tok.lex), &sf);
-                if (!sf || !c->out->structs[si].viewable) {
-                    ir_fail(c, "E-LIT-UNBUILT", "only a struct with a byte layout (every field a sized scalar) can be built in an "
-                            "allocator's bytes yet — a slice, `owned` or array field has no place there (RFC-0135 D9)", nd->line);
+                if (!sf || ir_alloc_shadow(c->out, si) < 0) {   // ★ RFC-0135 D13 — 슬라이스 칸은 (주소, 길이) 로 담는다
+                    ir_fail(c, "E-LIT-UNBUILT", "a struct built in an allocator's bytes holds sized numbers, bools, arrays, structs with a "
+                            "byte layout and slices of numbers (each slice as an address and a length) — an `owned`, actor or capability "
+                            "field has no place there, because the bytes would have to be finished with it (RFC-0135 D9 · D13)", nd->line);
                     return;
                 }
             }
@@ -3297,6 +3328,12 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                     if (sf && c->out->structs[si].viewable && c->out->structs[si].total &&
                         c->out->structs[si].total <= 255)
                         sz = (proven_u8)c->out->structs[si].total;
+                    // ★ RFC-0135 D13 — 펼치기가 지은 `(size_of T)`(할당기에 받을 바이트 수)만 그림자 배치의 크기를 묻는다.
+                    //   사람이 적은 `size_of` 는 여전히 바이트 배치가 있는 타입에만 답한다.
+                    if (!sz && sf && nd->synth) {
+                        proven_i32 gi = ir_alloc_shadow(c->out, si);
+                        if (gi >= 0 && c->out->structs[gi].total <= 255) sz = (proven_u8)c->out->structs[gi].total;
+                    }
                 }
                 if (!sz) { ir_fail(c, "E-IR-UNDEF", "size_of needs a SIZED type (a scalar, or a VIEWABLE struct the unit declares) — it does not answer for slices or views, whose size is not a property of the type", nd->line); return; }
                 (*pos)++;

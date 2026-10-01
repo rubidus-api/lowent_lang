@@ -2808,12 +2808,19 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                 //     없다"* 만 말했고 **무엇의 슬라이스인지**는 안 말했다. 표현을 옮기려면
                 //     스트라이드를 알아야 한다.
                 s->f[s->nf].elem = 0;
+                s->f[s->nf].slmeta = 0;
                 if (param_ty_)
                     for (proven_size_t z = 1; z < tw_; z++) {
                         const low_cst_t *w_ = fld->kids[z];
                         if (!is_atom(w_) || !veq(w_->tok.lex, "slice")) continue;
-                        if (z + 1 < fld->nkids && is_atom(fld->kids[z + 1]))
-                            s->f[s->nf].elem = ir_field_size(fld->kids[z + 1]->tok.lex);
+                        if (z + 1 < fld->nkids && is_atom(fld->kids[z + 1])) {
+                            proven_u8str_view_t et_ = fld->kids[z + 1]->tok.lex;
+                            s->f[s->nf].elem = ir_field_size(et_);
+                            // ★ RFC-0135 D13 — 원소가 크기 있는 수·bool 이면 (주소, 길이) 로 바이트에 담을 수 있다
+                            proven_u8 es_ = veq(et_, "bool") ? 1 : s->f[s->nf].elem;
+                            if (es_) s->f[s->nf].slmeta = (proven_i64)es_ | (ir_is_float_ty(et_) ? IR_FLT_BIT : 0) |
+                                                          (et_.size && et_.ptr[0] == (proven_u8)'i' ? IR_SGN_BIT : 0);
+                        }
                         break;
                     }
                 s->f[s->nf].sidx = -1;

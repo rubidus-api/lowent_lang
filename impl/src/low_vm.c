@@ -3449,6 +3449,12 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             if (!vm_arr_copy(vm, &s2->f[q], vv, (proven_u8 *)(void *)(rv.p + s2->f[q].off))) return false;
                             f2 = true; break;
                         }
+                        if (s2->is_shadow && s2->f[q].slmeta) {  // ★ RFC-0135 D13 — 슬라이스 칸: (주소, 길이) 두 낱말을 적는다
+                            if (vv.tag != VMV_SLICE && vv.tag != VMV_VARRAY) { vm_diag(vm->diags, "E-VM-TYPE", "a slice field takes a slice"); return false; }
+                            proven_u64 pa = (proven_u64)(uintptr_t)(const void *)vv.p, pn = (proven_u64)vv.n;
+                            memcpy((void *)(rv.p + s2->f[q].off), &pa, 8); memcpy((void *)(rv.p + s2->f[q].off + 8), &pn, 8);
+                            f2 = true; break;
+                        }
                         proven_u64 x = (proven_u64)vv.i;
                         proven_u8 *p2 = (proven_u8 *)(void *)(rv.p + s2->f[q].off);
                         if (s2->f[q].be)
@@ -3500,6 +3506,16 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                             //   그래야 `field (field v i) a` 가 이어진다.
                             if (s->f[i].arrn) {                  // ★ T2b-3d ⓓ — 배열 칸: 그 바이트를 보는 슬라이스(무복사)
                                 stack[sp++] = vm_arr_view(&s->f[i], (proven_u8 *)(void *)(v.p + s->f[i].off));
+                                found = true;
+                                break;
+                            }
+                            if (s->is_shadow && s->f[i].slmeta) {   // ★ RFC-0135 D13 — 슬라이스 칸: (주소, 길이) 에서 슬라이스를 되살린다
+                                proven_u64 pa = 0, pn = 0;
+                                memcpy(&pa, v.p + s->f[i].off, 8); memcpy(&pn, v.p + s->f[i].off + 8, 8);
+                                proven_u8 es = (proven_u8)(s->f[i].slmeta & 0xff); proven_i64 mt = s->f[i].slmeta & (IR_FLT_BIT | IR_SGN_BIT);
+                                const proven_u8 *pp = (const proven_u8 *)(uintptr_t)pa;
+                                stack[sp++] = (es <= 1 && !mt) ? (vmv_t){ .tag = VMV_SLICE, .p = pp, .n = (proven_size_t)pn }
+                                                               : (vmv_t){ .tag = VMV_VARRAY, .i = mt, .p = pp, .n = (proven_size_t)pn, .box = (proven_i32)es };
                                 found = true;
                                 break;
                             }

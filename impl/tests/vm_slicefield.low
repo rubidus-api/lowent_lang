@@ -1,0 +1,67 @@
+module vm_slicefield .
+rem ★★ RFC-0135 D13 (소유자 «슬라이스 칸만 연다», 2026-10-01) — 슬라이스 칸을 가진 구조체도 할당기 바이트에 짓는다. 슬라이스 칸은
+rem   바이트 안에 (주소, 길이) 두 낱말이다(C 의 `struct { const T *p; size_t n; }`). 가리키는 바이트의 수명은 지금의 수명 검사가 본다.
+use allocs .
+def struct packet do
+  tag u8 .
+  body slice u8 .
+  nums slice u64 .
+end
+
+export proc build input a u8 . output u64 . effects state . do
+  var back be lit array u8 128 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var payload be lit array u8 4 1 2 3 a . .
+  var ws be lit array u64 3 10 20 30 . .
+  var m using bb be packet lit packet do tag 7 . body payload . nums ws . end . else return 999 .
+  let b be slice u8 field m body .
+  let n be slice u64 field m nums .
+  return add (add (widen u64 (field m tag)) (widen u64 (idx b 3))) (add (idx n 2) (mul (len b) 1000)) .
+end
+
+def struct msg do
+  tag u8 .
+  body slice u8 .
+end
+
+def struct sv do
+  v slice i16 .
+end
+
+export proc rewrite input a u8 . output u64 . effects state . do
+  var back be lit array u8 64 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var one be lit array u8 2 1 2 . .
+  var two be lit array u8 3 7 8 a . .
+  var m using bb be msg lit msg do tag 1 . body one . end . else return 999 .
+  set (field m body) two .
+  let b be slice u8 field m body .
+  return add (mul (len b) 100) (widen u64 (idx b 2)) .
+end
+
+export proc signed output i64 . effects state . do
+  var back be lit array u8 64 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var xs be lit array i16 3 -5 7 -300 . .
+  var q using bb be sv lit sv do v xs . end . else return 0 .
+  let s be slice i16 field q v .
+  return add (widen i64 (idx s 0)) (widen i64 (idx s 2)) .
+end
+
+export proc rounds input n u64 . output u64 . effects state . do
+  var back be lit array u8 40 _ . .
+  var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let got be u64 send bb init back .
+  var data be lit array u8 3 4 5 6 . .
+  var s be u64 0 .
+  var i be u64 0 .
+  while lt i n . do
+    var m using bb be msg lit msg do tag 1 . body data . end . else return 999 .
+    set s (add s (widen u64 (idx (field m body) 1))) .
+    set i (add i 1) .
+  end
+  return add s (mul (send bb used) 1000) .
+end

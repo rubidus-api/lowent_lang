@@ -186,7 +186,7 @@ end
 (5) 쓰인 조합마다 실물이 만들어지므로, 조합의 수가 곧 만들어지는 코드의 양이다. 이 비용은
       부르는 자리에서 셀 수 있다.
 
-```lowent 예제: 번역 시점 값을 받는다 · 결과: use() = 7
+```lowent 예제: 번역 시점 값을 받는다 · 결과: call_it() = 7
 module ex_comptime .
 
 fn twice input comptime n u8 . input a u8 . output u8 .
@@ -194,7 +194,7 @@ do
   return add a n .
 end
 
-fn use output u8 .
+fn call_it output u8 .
 do
   return twice 3 4 .
 end
@@ -208,7 +208,7 @@ do
   return add a n .
 end
 
-fn use input k u8 . output u8 .
+fn call_it input k u8 . output u8 .
 do
   return twice k 4 .
 end

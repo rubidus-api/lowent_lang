@@ -947,7 +947,7 @@ static bool cbe_rec_nest_ok(const low_ir_t *ir, int sidx) {
 static bool cbe_view_ok(const low_ir_t *ir, int sidx) {
     if (sidx < 0 || (proven_size_t)sidx >= ir->nstructs) return false;
     const low_ir_struct_t *S = &ir->structs[sidx];
-    if (S->nf == 0 || !S->viewable) return false;
+    if (S->nf == 0 || !S->viewable || S->is_shadow) return false;   // ★ RFC-0135 D13 — 그림자(슬라이스 칸)는 태그 경로만
     for (proven_size_t q = 0; q < S->nf; q++) {
         if (S->f[q].sidx >= 0) {                              // 중첩 구조체 필드 → 재귀로 뷰 가능해야
             if (!cbe_view_ok(ir, (int)S->f[q].sidx)) return false;
@@ -5105,7 +5105,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     //   레지스터로, 큰 건 숨은 포인터로) — 우리가 분류기를 쓸 필요가 없다. Lowent 의 비-packed
     //   레이아웃은 C-natural(필드를 폭으로 정렬)이라 **바이트 레이아웃이 C 와 맞는다**.
     for (proven_size_t s = 0; s < ir->nstructs; s++) {
-        if (!ir->structs[s].viewable) continue;
+        if (!ir->structs[s].viewable || ir->structs[s].is_shadow) continue;   // ★ RFC-0135 D13 — 그림자는 C 타입으로 안 나간다
         fprintf(out, "struct lw_sty_%zu { ", s);
         for (proven_size_t i = 0; i < ir->structs[s].nf; i++) {
             const low_ir_sfield_t *fi_ = &ir->structs[s].f[i];
@@ -5144,10 +5144,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         fputs(" }", out);
     }
     fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
-    for (int t = 0; t < 7; t++) {
+    for (int t = 0; t < 8; t++) {
         const char *nm = t == 0 ? "lw_st_fsize" : t == 1 ? "lw_st_foff" : t == 2 ? "lw_st_fbe"
                        : t == 3 ? "lw_st_fflt" : t == 4 ? "lw_st_fsidx"   // ★ 중첩 구조체 필드의 인덱스(-1=스칼라)
-                       : t == 5 ? "lw_st_farrn" : "lw_st_farrm";          // ★ T2b-3d ⓓ 배열 칸: 원소 수 · 원소 메타(0=배열 칸 아님)
+                       : t == 5 ? "lw_st_farrn" : t == 6 ? "lw_st_farrm"  // ★ T2b-3d ⓓ 배열 칸: 원소 수 · 원소 메타(0=배열 칸 아님)
+                       : "lw_st_fslm";                                     // ★ RFC-0135 D13 슬라이스 칸(그림자): 원소 메타(0=아님)
         fprintf(out, "static const int %s[][16] = {", nm);
         for (proven_size_t s = 0; s < ir->nstructs; s++) {
             fputs(s ? ", {" : " {", out);
@@ -5159,7 +5160,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         t == 3 ? (int)(ir->structs[s].f[i].flt ? 1 : 0) :
                         t == 4 ? (int)ir->structs[s].f[i].sidx :
                         t == 5 ? (int)ir->structs[s].f[i].arrn :
-                                 (int)ir->structs[s].f[i].arrmeta);
+                        t == 6 ? (int)ir->structs[s].f[i].arrmeta :
+                                 (int)(ir->structs[s].is_shadow ? ir->structs[s].f[i].slmeta : 0));
             fputs(" }", out);
         }
         fputs(ir->nstructs ? " };\n" : " { 0 } };\n", out);
@@ -5250,6 +5252,12 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    if (e_ == 1 && !(m_ & 0x30000)) { v.tag = LWV_SLICE; v.n = (size_t)lw_st_farrn[r.box][i]; }\n"
           "                    else { v.tag = LWV_VARRAY; v.i = m_ & 0x30000; v.box = e_; v.n = (size_t)lw_st_farrn[r.box][i]; }\n"
           "                    return v; }\n"
+          "                /* RFC-0135 D13: a SLICE field of a struct built in allocator bytes — (address, length) */\n"
+          "                if (lw_st_fslm[r.box][i]) { lowv v = {0}; int m_ = lw_st_fslm[r.box][i], e_ = m_ & 0xff;\n"
+          "                    unsigned long long pa_, pn_; memcpy(&pa_, r.p + lw_st_foff[r.box][i], 8); memcpy(&pn_, r.p + lw_st_foff[r.box][i] + 8, 8);\n"
+          "                    v.p = (const unsigned char *)(uintptr_t)pa_; v.n = (size_t)pn_;\n"
+          "                    if (e_ == 1 && !(m_ & 0x30000)) v.tag = LWV_SLICE; else { v.tag = LWV_VARRAY; v.i = m_ & 0x30000; v.box = e_; }\n"
+          "                    return v; }\n"
           "                /* a NESTED struct field: hand back the inner VIEW (zero-copy) */\n"
           "                if (lw_st_fsidx[r.box][i] >= 0) { lowv v = {0}; v.tag = LWV_VIEW;\n"
           "                    v.p = r.p + lw_st_foff[r.box][i]; v.n = (size_t)lw_st_fsize[r.box][i];\n"
@@ -5281,6 +5289,10 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    if (v.tag == LWV_SLICE) have_ = v.n; else if (v.tag == LWV_VARRAY) have_ = v.n * (size_t)v.box; else lw_panic(\"an array field takes an array value\");\n"
           "                    if (have_ != need_) lw_panic(\"an array field takes exactly its length of elements\");\n"
           "                    memmove((void *)p, v.p, need_); return; }\n"
+          "                if (lw_st_fslm[r.box][i]) { /* RFC-0135 D13: a slice field holds (address, length) */\n"
+          "                    if (v.tag != LWV_SLICE && v.tag != LWV_VARRAY) lw_panic(\"a slice field takes a slice\");\n"
+          "                    unsigned long long pa_ = (unsigned long long)(uintptr_t)(const void *)v.p, pn_ = (unsigned long long)v.n;\n"
+          "                    memcpy((void *)p, &pa_, 8); memcpy((void *)(p + 8), &pn_, 8); return; }\n"
           "                unsigned long long x = (unsigned long long)v.i;\n"
           "                int sz = lw_st_fsize[r.box][i];\n"
           /* ★ 디바이스면 폭이 맞는 단일 volatile 저장 — 바이트 네 번은 한 번과 다른 일이다. */

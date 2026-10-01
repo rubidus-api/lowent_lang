@@ -202,11 +202,11 @@ do
   return add a n .
 end
 
-fn use output u8 .
+fn call_it output u8 .
 do
   return twice 3 4 .
 end",
-      out: "use() = 7")
+      out: "call_it() = 7")
     #rejected("번역 시점에 알 수 없는 값은 줄 수 없다", "module ex_comptime_rt .
 
 fn twice input comptime n u8 . input a u8 . output u8 .
@@ -214,7 +214,7 @@ do
   return add a n .
 end
 
-fn use input k u8 . output u8 .
+fn call_it input k u8 . output u8 .
 do
   return twice k 4 .
 end", "E-COMPTIME-ARG")

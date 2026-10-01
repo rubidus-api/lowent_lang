@@ -7622,7 +7622,15 @@ static int lc_carry(const lc_t *x, const low_cst_t *nd) {
         }
         return r;
     }
-    if (lc_is_into(nd)) return lc_carry(x, nd->kids[1]);         // 받은 바이트는 할당자의 것 — 할당자가 틀을 보면 그것도 본다
+    if (lc_is_into(nd)) {                                       // 받은 바이트는 할당자의 것 — 할당자가 틀을 보면 그것도 본다
+        int r = lc_carry(x, nd->kids[1]);
+        // ★ RFC-0135 D13 — 구조체를 지으면 슬라이스 칸은 (주소, 길이) 로 바이트에 남는다: 그 칸에 준 값이 보는 틀 자리를 함께 든다.
+        //   나열(`lit array …`)의 원소는 바이트로 베껴지므로 아무것도 들고 가지 않는다(배열 칸도 위 가름으로 빠진다).
+        const low_cst_t *lt = nd->kids[2];
+        while (lt && lt->kind == LOW_CST_GROUP && lt->nkids == 1) lt = lt->kids[0];
+        if (lt && !lc_list(lt)) { int d = lc_carry(x, lt); if (d > r && d < LC_INF) r = d; }
+        return r;
+    }
     if (nd->kind == LOW_CST_ATOM) return nd->tok.kind == LOW_TOK_IDENT ? lc_taint(x, nd->tok.lex) : 0;
     const low_cst_t *l = lc_list(nd);
     if (l) return lc_const(l) ? 0 : LC_INF;                     // 실행 중 원소가 든 나열 = 문장 임시(ⓒ)
@@ -11315,6 +11323,13 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                      "this name is a BUILTIN — the resolver always picks the builtin, so your "
                      "declaration can never be called: it exists and does not exist. The namespace "
                      "is FLAT (no shadowing). Rename it",
+                     f->kids[1]->tok.line);
+            // ★ X-0087 (2026-10-01) — **낱말도 선언 이름이 될 수 없다**(정본 §6.1.2 (1)). 지역·매개변수만 보고 있어서
+            //   `fn lit …` · `fn def …` · `fn guard …` 가 초록이었다 — 부르는 자리마다 그 낱말의 문법이 먼저 잡힌다.
+            if (f->kids[1]->tok.kw != LOW_KW_NONE)
+                emit(&out, "E-NAME-KEYWORD",
+                     "a KEYWORD is used as a declaration name — the reserved words (annex A.1) are not identifiers, "
+                     "so every call would be read as that word's own grammar first. Rename it",
                      f->kids[1]->tok.line);
             decls[nd].name = f->kids[1]->tok.lex; decls[nd].what = what; decls[nd].mod = dcur;
             decls[nd].at = f->kids[1]; nd++;

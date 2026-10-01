@@ -533,7 +533,10 @@ typedef struct { proven_u8str_view_t name; proven_u8 size; bool be; bool flt; bo
                  // ★★ RFC-0132 T2b-3b — **배열 칸** `body array u8 16 .`: 원소 수(0 = 배열 칸이 아니다)와 원소 폭·종류(IRW_VARRAY
                  //   의 meta 와 같은 모양). 값은 태그 한 칸(보는 슬라이스)이지만 바이트는 **레코드의 것**이다 — 만들 때와 칸에
                  //   쓸 때 바이트를 베낀다(값 복사). 그래서 이 칸이 있으면 구조체는 `viewable` 이 아니다(C 레이아웃은 뒤로).
-                 proven_u32 arrn; proven_u8 arresz; proven_i64 arrmeta; } low_ir_sfield_t;
+                 proven_u32 arrn; proven_u8 arresz; proven_i64 arrmeta;
+                 // ★★ RFC-0135 D13 — **슬라이스 칸**의 원소 폭·종류(IRW_VARRAY meta 와 같은 모양, 0 = 슬라이스 칸이 아니거나 원소를
+                 //   모른다). 할당기 바이트에 짓는 그림자 구조체(`is_shadow`)에서는 이 칸이 (주소, 길이) 16 바이트다.
+                 proven_i64 slmeta; } low_ir_sfield_t;
 typedef struct {
     proven_u8str_view_t name;
     bool                packed;
@@ -542,6 +545,11 @@ typedef struct {
     // ★ 그 정렬이 **타깃 질의에서 왔는가**(`align machine.cache_line .`) — RFC-0104 §8-7.
     //   왔다면 이 구조체의 레이아웃은 **타깃마다 다르다**. 공개 ABI 표면에서는 거절한다.
     bool                align_from_target;
+    // ★★ RFC-0135 D13 — 슬라이스 칸을 가진 구조체를 **할당기 바이트에** 지을 때 쓰는 그림자 배치. 원래 구조체에는 그림자의
+    //   번호 + 1(0 = 아직 없음), 그림자에는 `is_shadow`. 그림자는 그 구조체를 짓는 하강만 가리킨다 — `view` 로 남의 바이트에
+    //   얹을 수 없다(바이트가 주소가 되면 안 된다). 헤더·ABI 는 그림자를 내보내지 않는다.
+    proven_u16          ashadow1;
+    bool                is_shadow;
     low_ir_sfield_t     f[IR_MAKE_MAXF];
     proven_size_t       nf;
     proven_u16          total;      // layout size in bytes
@@ -937,6 +945,7 @@ bool low_ir_target_known(proven_u8str_view_t name);
 [[nodiscard]] low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr);
 // ★ 이름이 빌트인과 겹치면 그 선언은 **영원히 호출되지 않는다**(해석기가 빌트인을 고른다).
 bool low_ir_is_builtin_name(proven_u8str_view_t name);
+proven_i32 ir_alloc_shadow(low_ir_t *ir, proven_size_t si);   /* RFC-0135 D13 — 슬라이스 칸 구조체의 할당기 배치 */
 void low_ir_dump(const low_ir_t *ir);
 // ★★★ **`.lowdb` 사이드파일** (RFC-0012) — 내용주소 해시를 **밖으로 낸다**.
 //   해시는 여태 계산만 되고 **버려졌다**: 다음 실행이 이전 실행과 대조할 방법이 없었으므로

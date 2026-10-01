@@ -74,7 +74,7 @@ end
 rem ★★★ **논리 `and`/`or` 은 단락 평가한다** (D5).
 rem   전엔 **양쪽을 다 계산했다** ⇒ 이 가드가 성립하지 않았다: n=0 이면 오른쪽이 **0으로 나눈다**.
 rem   부수효과가 없는 언어라 **값**은 같지만 **트랩이 다르다** — 그리고 트랩도 의미다.
-fn guard input x u64 . input n u64 . output u64 . do
+fn guarded_mod input x u64 . input n u64 . output u64 . do
     if and (ne n 0) (eq (mod x n) 0) . do return 1 . end
     return 0 .
 end

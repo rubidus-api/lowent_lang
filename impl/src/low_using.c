@@ -554,6 +554,7 @@ static void us_walk(us_ctx_t *c, low_cst_t *nd) {
                             low_cst_t *zf = low_node(&c->p, LOW_CST_FORM, explicit_src->tok), *zgr = low_node(&c->p, LOW_CST_GROUP, explicit_src->tok);
                             low_cst_t *z0 = us_atom_like(c, explicit_src, (proven_u8str_view_t){ .ptr = (const proven_u8 *)"size_of", .size = 7 });
                             low_cst_t *z1 = us_atom_like(c, sl->kids[0], sl->kids[0]->tok.lex);
+                            if (z0) z0->synth = true;   // ★ RFC-0135 D13 — 하강이 그림자 배치의 크기를 답하는 표시
                             if (zk && zg && zf && zgr && z0 && z1) {
                                 zk[0] = z0; zk[1] = z1; (void)low_refit(&c->p, zf, zk, 2); zf->synth = true;
                                 zg[0] = zf; (void)low_refit(&c->p, zgr, zg, 1); zgr->synth = true;

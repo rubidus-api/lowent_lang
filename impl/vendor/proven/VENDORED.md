@@ -1,8 +1,20 @@
 # Vendored: proven_c_lib
 
 - Upstream: `../../../../proven_c_lib`
-- Version: `proven_c_lib-v0.1.1` (git `22f964e` — 태그 `v0.1.1`)
-- Vendored: 2026-09-22 전체 재벤더 (was v0.1.0 / `e30a517` / 2026-09-12 · 그전 v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+- Version: `proven_c_lib-v0.6.0` (git `e62cee2` — 태그 `v0.6.0`)
+- Vendored: 2026-10-02 전체 재벤더 (was v0.1.1 / `22f964e` / 2026-09-22 · 그전 v0.1.0 / `e30a517` / 2026-09-12 · v26.07.23d / `c0e4d09` / 2026-07-24 · v26.07.13m+두파일 혼합 / v26.06.24b / 1d64286)
+
+> **2026-10-02 재벤더 (v0.1.1 → v0.6.0, 상류 83 커밋).** 태그를 `git archive v0.6.0` 으로 꺼내 `include/`·`src/`·`platform/`·
+> `LICENSE`·`THIRD_PARTY_NOTICES.md` 를 통째로 바꿨다. 바뀐 파일 83, 새 파일 다섯(`include/proven/{alloc_check,utf}.h` ·
+> `src/proven/{alloc_check,utf}.c` · `src/proven/proven_internal_console.h`), 지워진 파일 없음. 상류는 0.2~0.6 에서 공개 API 를
+> 지우지 않았다(MINOR 판들).
+> ★ `PROVEN_SRC` 가 짓는 열넷이 모두 바뀌었다 — 그런데 새 파일은 하나도 짓지 않아도 링크된다(`PROVEN_SRC` 는 그대로).
+>   lowentc 가 쓰는 proven 함수는 36 개이고, 상류의 동작 변경(맵 정수 열쇠 해시 · 플랫폼 글자 엄격 · 배타 생성의
+>   `PROVEN_ERR_EXISTS` · `find_last` · 리더 칸 추가)은 lowentc 가 부르지 않는 자리다. 부동소수 해석은 빨라졌고 답은 같다고
+>   상류가 적었다 — 여기서도 코퍼스로 확인했다.
+> ★ 확인: 옛 처리기(HEAD, v0.1.1)와 새 처리기(v0.6.0)의 방출 C·검사 결과가 929 파일에서 바이트까지 같다(실행마다 흔들리는
+>   5 파일 제외) · `make test` · arch-dev clang 시험 초록(벤더 경고 0) · gcc 벤더 경고 0. `--version` 출력이
+>   `proven_c_lib-v0.6.0` 으로 바뀐다(그 문자열을 기대하는 자리는 없다).
 
 > **2026-09-22 재벤더 (v0.1.0 → v0.1.1).** 바뀐 파일 여덟: `include/proven/version.h` 와
 > `platform/proven_sys_{env,io,math,mem,random,thread,time}.c`. PAL 소스 앞머리에 `_DEFAULT_SOURCE`·

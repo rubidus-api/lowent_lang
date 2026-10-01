@@ -2038,6 +2038,17 @@ void low_nest(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allo
             nest_collect_locals(&c, f, curmod);      // ★ 이 op 이 만든 지역 이름들
             low_op_header_t h = low_op_header(f);
             if (h.name.size && c.nop < NEST_MAXOPS) { c.op[c.nop] = h.name; c.opmod[c.nop] = curmod; c.var[c.nop] = h.is_variadic; c.ar[c.nop++] = h.np_call; }
+            // ★ RFC-0121 — 몸 바로 아래의 **로컬 op** 도 arity 를 알린다. 보통 경로에서는 이미 끌어올려져(`low_local_lift`) 몸에
+            //   없고, `--fmt` 경로만 끌어올리지 않는다 — 그때 이것이 없으면 로컬 op 부름을 괄호로 묶지 못해 서식본이 «구조가
+            //   글자에 없는» 꼴이 됐다(골든 순차 실행의 fmt 대조가 vm_localop 에서 4 를 셌다).
+            if (h.body && h.body->kind == LOW_CST_BLOCK)
+                for (proven_size_t q = 0; q < h.body->nkids; q++) {
+                    const low_cst_t *lf = h.body->kids[q];
+                    if (lf->kind != LOW_CST_FORM || lf->nkids < 2 || lf->kids[0]->kind != LOW_CST_ATOM) continue;
+                    if (lf->kids[0]->tok.kw != LOW_KW_FN && lf->kids[0]->tok.kw != LOW_KW_PROC) continue;
+                    low_op_header_t lh = low_op_header(lf);
+                    if (lh.name.size && c.nop < NEST_MAXOPS) { c.op[c.nop] = lh.name; c.opmod[c.nop] = curmod; c.var[c.nop] = lh.is_variadic; c.ar[c.nop++] = lh.np_call; }
+                }
         } else if (kw == LOW_KW_ACTOR) {       // 액터 핸들러도 op 이다 — 슬롯 0 = 인스턴스
             // ★★★★★ **액터 핸들러의 지역 이름도 모은다** (2026-08-30, WO-0149).
             //   여태 위의 `fn`/`proc` 만 모았다 — 그래서 `alloc.low` 의 액터 안 `var at u64`

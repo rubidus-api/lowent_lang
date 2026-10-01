@@ -57,7 +57,7 @@ proc main input a cap args . input e cap env . output u8 . effects state . do
   let first be option slice u8 arg a 0 .
   if is_some first . do
     let s be slice u8 some_value first .
-    if gt (len s) 0 . do set sep (index s 0) . end
+    if gt (len s) 0 . do set sep (idx s 0) . end
   end
 
   rem ── 환경: 다듬기 스위치. 있으면 켠다(값은 안 본다 — 존재가 곧 스위치다).

@@ -744,7 +744,7 @@ unary_bad.low:6:0 E-EXPR-UNARY: an `expr` island has INFIX operators only — th
 
 <strong><span class="tok-k">fn</span></strong> safe_first_is_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (gt (len xs) <span class="tok-n">0</span>) (eq (index xs <span class="tok-n">0</span>) <span class="tok-n">0</span>) .
+  <strong><span class="tok-k">return</span></strong> and (gt (len xs) <span class="tok-n">0</span>) (eq (idx xs <span class="tok-n">0</span>) <span class="tok-n">0</span>) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> ratio_ok <strong><span class="tok-k">input</span></strong> num <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> den <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
@@ -761,7 +761,7 @@ $ lowentc --run ratio_ok shortcircuit.low 0 0
 ratio_ok(0, 0) = 0
 $ lowentc --run ratio_ok shortcircuit.low 10 5
 ratio_ok(10, 5) = 1
-</code></pre></div></div><p><code>safe_first_is_zero</code> 는 빈 슬라이스에서 <code>index xs 0</code> 을 계산하지 않는다. 앞쪽 <code>gt (len xs) 0</code> 이 거짓이면 거기서 답이 거짓으로 정해지기 때문이다. <code>ratio_ok</code> 도 분모가 0 이면 나눗셈을 하지 않는다. 이 모양은 <code>guard</code> 를 쓰기엔 작은 조건에 알맞다. 조건이 op 전체에 대한 사실이라면 <code>guard</code> 가 낫다 (7장).</p><h3 id="s8-5">8.5 번역할 때 계산되는 식<a class="plink" href="#s8-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>어떤 식은 실행하기 전에 값이 정해진다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt .
+</code></pre></div></div><p><code>safe_first_is_zero</code> 는 빈 슬라이스에서 <code>idx xs 0</code> 을 계산하지 않는다. 앞쪽 <code>gt (len xs) 0</code> 이 거짓이면 거기서 답이 거짓으로 정해지기 때문이다. <code>ratio_ok</code> 도 분모가 0 이면 나눗셈을 하지 않는다. 이 모양은 <code>guard</code> 를 쓰기엔 작은 조건에 알맞다. 조건이 op 전체에 대한 사실이라면 <code>guard</code> 가 낫다 (7장).</p><h3 id="s8-5">8.5 번역할 때 계산되는 식<a class="plink" href="#s8-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>어떤 식은 실행하기 전에 값이 정해진다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt .
 <em><span class="tok-c">rem run: table_size</span></em>
 <em><span class="tok-c">rem run: pick</span></em>
 

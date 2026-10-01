@@ -50,33 +50,33 @@ export fn method_code input b slice u8 . . output u64 . do
   var n be u64 len b .
   if gt n 8 . do set n 8 . end
   while lt i n . do
-    if eq (index b i) 32 . do
+    if eq (idx b i) 32 . do
       if eq i 3 . do
-        if eq (index b 0) 71 . do
-          if eq (index b 1) 69 . do if eq (index b 2) 84 . do return 1 . end end
+        if eq (idx b 0) 71 . do
+          if eq (idx b 1) 69 . do if eq (idx b 2) 84 . do return 1 . end end
         end
-        if eq (index b 0) 80 . do
-          if eq (index b 1) 85 . do if eq (index b 2) 84 . do return 4 . end end
+        if eq (idx b 0) 80 . do
+          if eq (idx b 1) 85 . do if eq (idx b 2) 84 . do return 4 . end end
         end
       end
       if eq i 4 . do
-        if eq (index b 0) 72 . do
-          if eq (index b 1) 69 . do
-            if eq (index b 2) 65 . do if eq (index b 3) 68 . do return 2 . end end
+        if eq (idx b 0) 72 . do
+          if eq (idx b 1) 69 . do
+            if eq (idx b 2) 65 . do if eq (idx b 3) 68 . do return 2 . end end
           end
         end
-        if eq (index b 0) 80 . do
-          if eq (index b 1) 79 . do
-            if eq (index b 2) 83 . do if eq (index b 3) 84 . do return 3 . end end
+        if eq (idx b 0) 80 . do
+          if eq (idx b 1) 79 . do
+            if eq (idx b 2) 83 . do if eq (idx b 3) 84 . do return 3 . end end
           end
         end
       end
       if eq i 6 . do
-        if eq (index b 0) 68 . do
-          if eq (index b 1) 69 . do
-            if eq (index b 2) 76 . do
-              if eq (index b 3) 69 . do
-                if eq (index b 4) 84 . do if eq (index b 5) 69 . do return 5 . end end
+        if eq (idx b 0) 68 . do
+          if eq (idx b 1) 69 . do
+            if eq (idx b 2) 76 . do
+              if eq (idx b 3) 69 . do
+                if eq (idx b 4) 84 . do if eq (idx b 5) 69 . do return 5 . end end
               end
             end
           end
@@ -96,11 +96,11 @@ export fn line_next input b slice u8 . . input off u64 . output u64 . do
   if ge off (len b) . do return 0 . end
   var i be u64 off .
   while lt (add i 1) (len b) . do
-    if eq (index b i) 13 . do
-      if eq (index b (add i 1)) 10 . do return add i 2 . end
+    if eq (idx b i) 13 . do
+      if eq (idx b (add i 1)) 10 . do return add i 2 . end
       return 0 .                    rem CR 뒤가 LF 가 아니면 줄이 아니다
     end
-    if eq (index b i) 10 . do return 0 . end     rem 맨 LF 는 줄 끝이 아니다 . .
+    if eq (idx b i) 10 . do return 0 . end     rem 맨 LF 는 줄 끝이 아니다 . .
     set i (add i 1) .
   end
   return 0 .
@@ -120,7 +120,7 @@ export fn target_off input b slice u8 . . output u64 . do
   var i be u64 0 .
   let end0 be u64 line_len b 0 .
   while lt i end0 . do
-    if eq (index b i) 32 . do
+    if eq (idx b i) 32 . do
       if eq (add i 1) end0 . do return 0 . end      rem 메서드 뒤가 비었다 . .
       return add i 1 .
     end
@@ -136,7 +136,7 @@ export fn target_len input b slice u8 . . output u64 . do
   let end0 be u64 line_len b 0 .
   var i be u64 t .
   while lt i end0 . do
-    if eq (index b i) 32 . do
+    if eq (idx b i) 32 . do
       if eq i t . do return 0 . end                 rem 빈 대상 . .
       return sub i t .
     end
@@ -154,14 +154,14 @@ export fn version_ok input b slice u8 . . output bool . do
   let v be u64 add (add t tl) 1 .
   let end0 be u64 line_len b 0 .
   if ne (sub end0 v) 8 . do return false . end
-  if ne (index b v) 72 . do return false . end
-  if ne (index b (add v 1)) 84 . do return false . end
-  if ne (index b (add v 2)) 84 . do return false . end
-  if ne (index b (add v 3)) 80 . do return false . end
-  if ne (index b (add v 4)) 47 . do return false . end
-  if ne (index b (add v 5)) 49 . do return false . end
-  if ne (index b (add v 6)) 46 . do return false . end
-  if ne (index b (add v 7)) 49 . do return false . end
+  if ne (idx b v) 72 . do return false . end
+  if ne (idx b (add v 1)) 84 . do return false . end
+  if ne (idx b (add v 2)) 84 . do return false . end
+  if ne (idx b (add v 3)) 80 . do return false . end
+  if ne (idx b (add v 4)) 47 . do return false . end
+  if ne (idx b (add v 5)) 49 . do return false . end
+  if ne (idx b (add v 6)) 46 . do return false . end
+  if ne (idx b (add v 7)) 49 . do return false . end
   return true .
 end
 
@@ -186,7 +186,7 @@ export fn name_len input b slice u8 . . input off u64 . output u64 . do
   if eq ll 0 . do return 0 . end
   var i be u64 0 .
   while lt i ll . do
-    let c be u8 index b (add off i) .
+    let c be u8 idx b (add off i) .
     if eq c 58 . do
       if eq i 0 . do return 0 . end                 rem 이름이 비었다 . .
       return i .
@@ -205,7 +205,7 @@ export fn value_off input b slice u8 . . input off u64 . output u64 . do
   let ll be u64 line_len b off .
   var i be u64 add nl 1 .
   while lt i ll . do
-    let c be u8 index b (add off i) .
+    let c be u8 idx b (add off i) .
     if ne c 32 . do
       if ne c 9 . do return add off i . end
     end
@@ -221,7 +221,7 @@ export fn value_len input b slice u8 . . input off u64 . output u64 . do
   let ll be u64 line_len b off .
   var e be u64 add off ll .
   while gt e v . do
-    let c be u8 index b (sub e 1) .
+    let c be u8 idx b (sub e 1) .
     if ne c 32 . do
       if ne c 9 . do return sub e v . end
     end
@@ -260,8 +260,8 @@ export fn name_eq input b slice u8 . . input off u64 . input want slice u8 . . o
   if ne nl (len want) . do return false . end
   var i be u64 0 .
   while lt i nl . do
-    var a be u64 cast u64 (index b (add off i)) .
-    var w be u64 cast u64 (index want i) .
+    var a be u64 cast u64 (idx b (add off i)) .
+    var w be u64 cast u64 (idx want i) .
     if ge a 65 . do if le a 90 . do set a (add a 32) . end end
     if ge w 65 . do if le w 90 . do set w (add w 32) . end end
     if ne a w . do return false . end
@@ -364,7 +364,7 @@ export proc content_length input b slice u8 . . output option u64 . effects none
       var acc be u64 0 .
       var i be u64 0 .
       while lt i vl . do
-        let c be u64 cast u64 (index b (add v i)) .
+        let c be u64 cast u64 (idx b (add v i)) .
         if lt c 48 . do return none . end
         if gt c 57 . do return none . end
         set acc (add (mul acc 10) (sub c 48)) .

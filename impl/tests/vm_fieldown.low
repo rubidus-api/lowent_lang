@@ -12,11 +12,11 @@ rem ★ **JOIN 은 공짜로 따라왔다** — 흐름 분석이 이름/필드 �
 rem   필드 단위에서도 그대로 운다.
 module m .
 
-struct h do
+def struct h do
   fd u64 .
 end
 
-struct pair do
+def struct pair do
   a owned h .
   b owned h .
 end

@@ -3,7 +3,7 @@ rem expect: E-BRAND-REUSED
 
 use pool .
 
-newtype objects u8 .
+def newtype objects u8 .
 
 proc two_pools input al cap allocator . output u8 . effects alloc .
 do

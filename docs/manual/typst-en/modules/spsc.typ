@@ -31,7 +31,7 @@ short.
 atomically. Why `count_about` says `about` --- it may already have changed by the time it is read. If the name does not say so, users trust the value.
 
 *What holds this code up.* Two proofs. First, wrapping an index with `mod … (len buf)` always lands in range --- `lowentc --emit-proof lib/spsc.low` records that the checks
-on both ring buffer accesses (`index`, `index.store`) and on the two index-advancing additions were removed by proof (#chref("proofs-bounds")). Second, write data → publish
+on both ring buffer accesses (`idx`, `index.store`) and on the two index-advancing additions were removed by proof (#chref("proofs-bounds")). Second, write data → publish
 index → observe index → read data carries the data under the weak memory model (RC11) --- and the correctness of the algorithm itself (on success the resource moves into the
 buffer, on failure it comes back) borrows an existing proof (gpfsl's `circ_buff`). The correspondence that our `spsc_push` matches that proof's code line by line was checked
 by a person reading it, not by machine (#chref("proofs-locks")).

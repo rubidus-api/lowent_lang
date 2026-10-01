@@ -109,7 +109,7 @@ proc peer_key_from_cert input cert slice u8 . input nb mut slice u8 . output u64
   guard gt nl 0 . else return 0 .
   guard ge (len nb) nl . else return 0 .
   var i be u64 0 .
-  while lt i nl . do  set (index nb i) (index cert (add no i)) .  set i (add i 1) .  end
+  while lt i nl . do  set (idx nb i) (idx cert (add no i)) .  set i (add i 1) .  end
   return nl .
 end
 
@@ -120,7 +120,7 @@ proc derive input so u64 . input label slice u8 . input b mut slice u8 . output 
 
   rem 사다리가 요구하는 두 상수를 **여기서 만들어 넘긴다** — 라이브러리가 몰래 만들지 않는다.
   var i be u64 0 .
-  while lt i 32 . do  set (index b (add 572 i)) 0 .  set i (add i 1) .  end
+  while lt i 32 . do  set (idx b (add 572 i)) 0 .  set i (add i 1) .  end
   guard eq (call_builtin sha256 (subslice b 0 0) (subslice b 288 320)) 32 . else return 0 .
 
   rem Early Secret = HKDF-Extract(0, 0)
@@ -161,8 +161,8 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
 
   rem ① 기저점 9 를 세우고 공개키 둘을 낸다.
   var i be u64 0 .
-  while lt i 32 . do  set (index b (add 64 i)) 0 .  set i (add i 1) .  end
-  set (index b 64) 9 .
+  while lt i 32 . do  set (idx b (add 64 i)) 0 .  set i (add i 1) .  end
+  set (idx b 64) 9 .
   let _u0 be result u64 x25519.x25519_error x25519.agree (subslice b 0 32) ska (subslice b 64 96) (subslice b 396 428) w .
   guard is_ok _u0 . else return 91 .
   guard eq (ok_value _u0) 32 . else return 91 .
@@ -179,7 +179,7 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
   guard eq (ok_value _u3) 32 . else return 94 .
   var j be u64 0 .
   while lt j 32 . do
-    guard eq (index b (add 96 j)) (index b (add 128 j)) . else return 95 .
+    guard eq (idx b (add 96 j)) (idx b (add 128 j)) . else return 95 .
     set j (add j 1) .
   end
 
@@ -199,7 +199,7 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
   end
 
   if eq flip 1 . do
-    set (index ct 0) (cast u8 (bit_xor (cast u64 (index ct 0)) 1)) .
+    set (idx ct 0) (cast u8 (bit_xor (cast u64 (idx ct 0)) 1)) .
   end
 
   rem ⑤ 받는 쪽이 **자기** 비밀에서 같은 사다리를 타고 개봉한다.
@@ -223,7 +223,7 @@ proc round_trip input suite u64 . input ska slice u8 . input skb slice u8 . inpu
   guard eq verdict 1 . else return 100 .
   var q be u64 0 .
   while lt q (len msg) . do
-    guard eq (index out q) (index msg q) . else return 101 .
+    guard eq (idx out q) (idx msg q) . else return 101 .
     set q (add q 1) .
   end
   return 1 .

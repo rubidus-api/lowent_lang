@@ -94,7 +94,7 @@ fold	누산기에 차례로 접는다
 ge	앞이 크거나 같은가
 gt	앞이 큰가
 hash_bytes	바이트열의 해시
-index	그 자리의 원소
+idx	그 자리의 원소
 intersect	교집합
 into	같은 뜻의 다른 타입으로 옮긴다
 is_empty	비었는가

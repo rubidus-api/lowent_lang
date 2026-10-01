@@ -17,12 +17,12 @@ rem       고친 척하지 않는다. (여기서 닫은 것은 `newtype` 이 한
 
 module vm_ntstruct .
 
-struct pt do
+def struct pt do
   x u32 .
   y u32 .
 end
 
-newtype spot pt .
+def newtype spot pt .
 
 fn read_x input p spot . output u32 . do return (field p x) . end
 

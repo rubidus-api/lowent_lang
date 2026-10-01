@@ -16,5 +16,5 @@ end
 fn prefix_char input k u64 . output u8 .
   requires lt k 11 .
 do
-  return index "/api/users/" k .
+  return idx "/api/users/" k .
 end

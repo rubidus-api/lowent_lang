@@ -11,7 +11,7 @@ rem       (`init pa … → option (block_pool pa)` 는 그렇고, `take pa p` �
 module brandreuse .
 use pool from "../../lib/pool.low" .
 
-newtype pa u8 .
+def newtype pa u8 .
 
 export proc two input m1 mut slice u8 . . input g1 mut slice u64 . .
                 input m2 mut slice u8 . . input g2 mut slice u64 . .

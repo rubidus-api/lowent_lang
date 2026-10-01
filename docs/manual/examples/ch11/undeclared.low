@@ -1,7 +1,7 @@
 module undeclared .
 rem expect: E-ERR-UNDECLARED
 
-enum parse_error do
+def enum parse_error do
   empty .
   too_long .
 end
@@ -11,5 +11,5 @@ fn first_byte input s slice u8 . output result u8 parse_error .
 do
   guard gt (len s) 0 . else return error empty .
   guard le (len s) 16 . else return error too_long .
-  return ok (index s 0) .
+  return ok (idx s 0) .
 end

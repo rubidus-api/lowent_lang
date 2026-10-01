@@ -21,9 +21,9 @@ rem ★ 빌려서 쓰고, **값을 뽑아** 나온다 — 안전하고 통과해
 proc read_through input s mut slice u8 . . output u64 . effects none . do
   var t be u64 0 .
   borrow b be (subslice s 0 2) do
-    set (index b 0) 9 .
+    set (idx b 0) 9 .
     rem ★ `index` 는 **바이트**를 낸다 — 빌림을 들고 나가는 게 아니다.
-    set t (narrow u64 (index b 0)) .
+    set t (narrow u64 (idx b 0)) .
   end
   return t .
 end

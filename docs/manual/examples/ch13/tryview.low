@@ -2,7 +2,7 @@ module tryview .
 rem run: kind_or_zero [1,2,3,4,0,5,9]
 rem run: kind_or_zero [1,2,3]
 
-struct wire_header do
+def struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .

@@ -50,7 +50,7 @@ export proc k_head input rs mut slice u8 . input wb mut slice u8 . input wu mut 
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 4 . do
-    set acc (bit_or (shl acc 8) (cast u64 (index rs i))) .
+    set acc (bit_or (shl acc 8) (cast u64 (idx rs i))) .
     set i (add i 1) .
   end
   return acc .
@@ -79,7 +79,7 @@ proc head4 input b slice u8 . input at u64 . output u64 . effects none . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 4 . do
-    set acc (bit_or (shl acc 8) (cast u64 (index b (add at i)))) .
+    set acc (bit_or (shl acc 8) (cast u64 (idx b (add at i)))) .
     set i (add i 1) .
   end
   return acc .
@@ -118,7 +118,7 @@ rem ✘ **한 비트만 바꾸면 거절돼야 한다.** 왕복만 보이면 "�
 export proc tampered input rs mut slice u8 . input wb mut slice u8 . input wu mut slice u64 . input vw mut slice u64 . output u64 . effects none . do
   guard ge (len vw) 924 . else return 0 .
   guard eq (sign_sample rs wb wu) 64 . else return 0 .
-  set (index rs 63) (cast u8 (bit_xor (cast u64 (index rs 63)) 1)) .
+  set (idx rs 63) (cast u8 (bit_xor (cast u64 (idx rs 63)) 1)) .
   guard eq (bigint.from_bytes (subslice rs 0 32) (subslice wu 64 80) 16) 16 . else return 0 .
   guard eq (bigint.from_bytes (subslice rs 32 64) (subslice wu 80 96) 16) 16 . else return 0 .
   let hh be option u64 codec.hex_dec "af2bdbe1aa9b6ec1e2ade1d694f41fc71a831d0268e9891562113d8a62add1bf" (subslice wb 0 32) .

@@ -1,9 +1,9 @@
 module incomplete .
 rem expect: E-OWN-INCOMPLETE
 
-type journal u64 .
+def type journal u64 .
 
-enum flush_error do
+def enum flush_error do
   disk_full .
 end
 

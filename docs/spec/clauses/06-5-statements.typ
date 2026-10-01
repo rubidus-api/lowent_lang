@@ -233,7 +233,7 @@ end", "E-GUARD-FALLTHROUGH")
 export fn safe_head input data slice u8 . . output u8 .
 do
   guard ge (len data) 1 . else return 0 .
-  return index data 0 .
+  return idx data 0 .
 end")
     #ex("타입은 값 앞에 적고, `guard else` 는 블록이어도 된다", "module ex_infer_guard .
 
@@ -277,7 +277,7 @@ end", "E-GUARD-FALLTHROUGH")
     ]
     #rejected("`result` 자리에 맨값을 돌려준다", "module ex_bare_under_result .
 
-enum short do
+def enum short do
   too_short .
 end
 
@@ -285,7 +285,7 @@ fn head input b slice u8 . . output result u8 short .
 errors too_short .
 do
   guard ge (len b) 2 . else return 0 .   rem `ok 0` 도 `error too_short` 도 아니다
-  return ok (index b 0) .
+  return ok (idx b 0) .
 end", "E-TYPE-RETURN")
     #plain[
       이 자리는 한동안 **검사 밖**이었다(2026-09-25 까지) — `guard` 의 `else` 는 문장 목록이 아니라
@@ -378,7 +378,7 @@ end", "E-NAME-SCOPE")
     ]
     #ex("세 채널이 각기 다른 모양으로 답한다", "module ex_channels .
 
-enum io_error do
+def enum io_error do
   too_big .
 end
 
@@ -573,7 +573,7 @@ end                      rem `a` 가 5 이하인 길에는 값이 없다", "E-RE
     ]
     #rejected("적지 않은 오류를 낸다", "module ex_err_undeclared .
 
-enum e do
+def enum e do
   bad .
 end
 
@@ -583,11 +583,11 @@ do
 end", "E-ERR-UNDECLARED")
     #rejected("남의 실패를 `return` 으로 넘긴다", "module ex_err_handed_on .
 
-enum parse_error do
+def enum parse_error do
   bad_digit .
 end
 
-enum load_error do
+def enum load_error do
   too_long .
 end
 
@@ -606,11 +606,11 @@ do
 end", "E-ERR-UNDECLARED")
     #rejected("절 없는 op 이 넘겨받은 실패를 다시 넘긴다", "module ex_err_clauseless .
 
-enum parse_error do
+def enum parse_error do
   bad_digit .
 end
 
-enum load_error do
+def enum load_error do
   too_long .
 end
 

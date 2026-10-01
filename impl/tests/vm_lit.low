@@ -21,15 +21,15 @@ rem ── ① 이스케이프 ────────────────�
 fn t_escape output u64 . do
   rem 따옴표: 3 바이트이고 가운데가 34 여야 한다(전엔 4 바이트에 92 였다).
   guard eq (len "a\"b") 3 . else return 90 .
-  guard eq (index "a\"b" 1) 34 . else return 91 .
+  guard eq (idx "a\"b" 1) 34 . else return 91 .
   rem 백슬래시 하나.
   guard eq (len "a\\b") 3 . else return 92 .
-  guard eq (index "a\\b" 1) 92 . else return 93 .
+  guard eq (idx "a\\b" 1) 92 . else return 93 .
   rem 제어 바이트.
-  guard eq (index "a\nb" 1) 10 . else return 94 .
-  guard eq (index "a\tb" 1) 9 . else return 95 .
-  guard eq (index "a\rb" 1) 13 . else return 96 .
-  guard eq (index "a\0b" 1) 0 . else return 97 .
+  guard eq (idx "a\nb" 1) 10 . else return 94 .
+  guard eq (idx "a\tb" 1) 9 . else return 95 .
+  guard eq (idx "a\rb" 1) 13 . else return 96 .
+  guard eq (idx "a\0b" 1) 0 . else return 97 .
   rem 이스케이프 없는 문자열은 그대로다.
   guard eq (len "plain") 5 . else return 98 .
   return 1 .
@@ -45,16 +45,16 @@ rem   닫았고(가변인 것은 중괄호를 쓰는 `\u{…}` 뿐), 여기도 �
 rem ☞ Rust 의 `str` 은 UTF-8 이라 `\x` 를 0x7F 까지 막지만 여기 문자열은 `slice u8` 이라
 rem   그 제한이 필요 없다(Zig 와 같은 자리) — 0x00~0xFF 를 전부 적는다.
 fn t_hex output u64 . do
-  guard eq (index "A\x41B" 1) 65 . else return 90 .
+  guard eq (idx "A\x41B" 1) 65 . else return 90 .
   guard eq (len "A\x41B") 3 . else return 91 .
   rem ★ **이어 붙여도 안 먹는다** — "\x41e" 는 A 다음이 'e'(101)이지 한 바이트가 아니다.
   guard eq (len "\x41e") 2 . else return 92 .
-  guard eq (index "\x41e" 1) 101 . else return 93 .
+  guard eq (idx "\x41e" 1) 101 . else return 93 .
   rem 대소문자 둘 다 · 0xff · NUL · ESC.
-  guard eq (index "\xff" 0) 255 . else return 94 .
-  guard eq (index "\xFF" 0) 255 . else return 95 .
-  guard eq (index "\x00" 0) 0 . else return 96 .
-  guard eq (index "\x1b[2J" 0) 27 . else return 97 .
+  guard eq (idx "\xff" 0) 255 . else return 94 .
+  guard eq (idx "\xFF" 0) 255 . else return 95 .
+  guard eq (idx "\x00" 0) 0 . else return 96 .
+  guard eq (idx "\x1b[2J" 0) 27 . else return 97 .
   guard eq (len "\x1b[2J") 4 . else return 98 .
   rem 한 리터럴에 셋이 같이 있어도 된다.
   guard eq (len "\xff\x00\x1bA") 4 . else return 99 .
@@ -78,7 +78,7 @@ aa
 b
 END .
   guard eq (len s) 4 . else return 90 .
-  guard eq (index s 2) 10 . else return 91 .
+  guard eq (idx s 2) 10 . else return 91 .
   return 1 .
 end
 
@@ -89,7 +89,7 @@ ab
 
 END .
   guard eq (len s) 3 . else return 90 .
-  guard eq (index s 2) 10 . else return 91 .
+  guard eq (idx s 2) 10 . else return 91 .
   return 1 .
 end
 
@@ -109,7 +109,7 @@ rem     리틀엔디언으로 담기고 VM·네이티브가 **같은 방식으�
 fn t_prefix_u8 output u64 . do
   rem "…" 은 접두사 없는 것과 같은 것을 낸다 — 새 능력이 아니라 **C 에서 온 눈을 위한 이름**이다.
   guard eq (len "AB") 2 . else return 90 .
-  guard eq (index "AB" 0) 65 . else return 91 .
+  guard eq (idx "AB" 0) 65 . else return 91 .
   rem 한글은 UTF-8 로 세 바이트 — 바이트 슬라이스이므로 6.
   guard eq (len "한글") 6 . else return 92 .
   return 1 .
@@ -118,31 +118,31 @@ end
 fn t_prefix_u16 output u64 . do
   let a be slice u16 u"AB" .
   guard eq (len a) 2 . else return 90 .
-  guard eq (index a 0) 65 . else return 91 .
-  guard eq (index a 1) 66 . else return 92 .
+  guard eq (idx a 0) 65 . else return 91 .
+  guard eq (idx a 1) 66 . else return 92 .
   rem 한글 두 글자 = 코드 유닛 둘(BMP 안).
   let k be slice u16 u"한글" .
   guard eq (len k) 2 . else return 93 .
-  guard eq (index k 0) 54620 . else return 94 .
+  guard eq (idx k 0) 54620 . else return 94 .
   rem ★ 비-BMP 는 **서러게이트 쌍**이다 — UTF-16 이 원래 그렇게 생겼고, 조용히 자르지 않는다.
   let e be slice u16 u"😀" .
   guard eq (len e) 2 . else return 95 .
-  guard eq (index e 0) 55357 . else return 96 .
-  guard eq (index e 1) 56832 . else return 97 .
+  guard eq (idx e 0) 55357 . else return 96 .
+  guard eq (idx e 1) 56832 . else return 97 .
   return 1 .
 end
 
 fn t_prefix_u32 output u64 . do
   let a be slice u32 U"AB" .
   guard eq (len a) 2 . else return 90 .
-  guard eq (index a 1) 66 . else return 91 .
+  guard eq (idx a 1) 66 . else return 91 .
   rem 코드포인트이므로 비-BMP 도 **하나**다 — u"…" 과 갈리는 자리가 여기다.
   let e be slice u32 U"😀" .
   guard eq (len e) 1 . else return 92 .
-  guard eq (index e 0) 128512 . else return 93 .
+  guard eq (idx e 0) 128512 . else return 93 .
   let k be slice u32 U"한글" .
   guard eq (len k) 2 . else return 94 .
-  guard eq (index k 0) 54620 . else return 95 .
+  guard eq (idx k 0) 54620 . else return 95 .
   return 1 .
 end
 
@@ -152,7 +152,7 @@ fn t_prefix_heredoc output u64 . do
 AB
 END .
   guard eq (len a) 2 . else return 90 .
-  guard eq (index a 1) 66 . else return 91 .
+  guard eq (idx a 1) 66 . else return 91 .
   return 1 .
 end
 

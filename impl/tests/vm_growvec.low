@@ -29,8 +29,8 @@ proc grows input al cap allocator . output u64 . effects state alloc . do
   rem ★ 옮기면서 내용을 잃지 않았다: 'A'(65) … 'H'(72).
   let v be slice u8 growvec.view_of g .
   guard eq (len v) 8 . else return 5 .
-  guard eq (index v 0) 65 . else return 6 .
-  guard eq (index v 7) 72 . else return 7 .
+  guard eq (idx v 0) 65 . else return 6 .
+  guard eq (idx v 7) 72 . else return 7 .
   return 42 .
 end
 
@@ -52,8 +52,8 @@ proc bulk input al cap allocator . output u64 . effects state alloc . do
   guard ok2 . else return 4 .
   guard eq (growvec.count_of g) 11 . else return 5 .
   let v be slice u8 growvec.view_of g .
-  guard eq (index v 0) 104 . else return 6 .
-  guard eq (index v 10) 100 . else return 7 .
+  guard eq (idx v 0) 104 . else return 6 .
+  guard eq (idx v 10) 100 . else return 7 .
   return 42 .
 end
 

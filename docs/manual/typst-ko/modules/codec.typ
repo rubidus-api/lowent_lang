@@ -19,7 +19,7 @@ guard is_some n . else return 1 .
 `dst` 는 이 모듈이 만드는 것이 아니라 *호출자가 미리 잡아 두는 출력 자리*다(여기서는 6 바이트 이상). `n` 은 *실제로 쓴 바이트 수*이고 결과는 `dst[0..n)` 이다.
 
 포장은 비밀을 지키지 않는다 --- 누구나 되돌린다. 비밀이 필요하면 봉인하는 #modref("aead")[`aead`] 를 쓴다(#chref("lib-text")). 이 모듈은 바이트에서 바이트로 가는
-순수 계산이라 `index`·`set`·`shl`·`shr`·`bit_and`·`bit_or`·`guard`·`while` 만 쓰고, 내장 연산은 하나도 늘지 않았다.
+순수 계산이라 `idx`·`set`·`shl`·`shr`·`bit_and`·`bit_or`·`guard`·`while` 만 쓰고, 내장 연산은 하나도 늘지 않았다.
 
 == 설계와 경계
 
@@ -102,11 +102,11 @@ proc hex_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output 
   let dn be option u64 c.hex_dec (subslice enc 0 6) dec .
   guard is_some dn . else return 3 .
   guard eq (some_value dn) 3 . else return 4 .
-  guard eq (index dec 0) 97 . else return 5 .
+  guard eq (idx dec 0) 97 . else return 5 .
   rem 대문자도 받는다: "4A" → 74
   let up be option u64 c.hex_dec "4A" dec .
   guard is_some up . else return 6 .
-  guard eq (index dec 0) 74 . else return 7 .
+  guard eq (idx dec 0) 74 . else return 7 .
   return 42 .
 end
 

@@ -25,7 +25,7 @@ fn head8 input d slice u8 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 8 . do
-    set acc (add (shl acc 8) (cast u64 (index d i))) .
+    set acc (add (shl acc 8) (cast u64 (idx d i))) .
     set i (add i 1) .
   end
   return acc .
@@ -53,7 +53,7 @@ proc t_chacha input key slice u8 . input nonce slice u8 . input st mut slice u64
   let _u4 be result u64 chacha.chacha_error chacha.rounds st work .
   guard is_ok _u4 . else return 0 .
   guard eq (ok_value _u4) 16 . else return 0 .
-  return index work 0 .
+  return idx work 0 .
 end
 
 rem RFC 8439 §2.5.2 — Poly1305 태그.
@@ -66,13 +66,13 @@ proc t_poly input key slice u8 . input msg slice u8 . input st mut slice u64 . i
   end
   if lt off (len msg) . do
     var i be u64 0 .
-    while lt i 16 . do  set (index pad i) 0 .  set i (add i 1) .  end
+    while lt i 16 . do  set (idx pad i) 0 .  set i (add i 1) .  end
     var j be u64 0 .
     while lt (add off j) (len msg) . do
-      set (index pad j) (index msg (add off j)) .
+      set (idx pad j) (idx msg (add off j)) .
       set j (add j 1) .
     end
-    set (index pad j) 1 .
+    set (idx pad j) 1 .
     let z2 be u64 poly.block st pad 0 .
   end
   guard eq (poly.emit st key tag) 16 . else return 0 .
@@ -101,7 +101,7 @@ proc t_tamper input key slice u8 . input nonce slice u8 . input aad slice u8 . i
   let _u1 be result u64 aead.aead_error aead.unseal key nonce aad ct tag outp otk pst st work ks pad want .
   guard is_ok _u1 . else return 91 .
   guard eq (ok_value _u1) 1 . else return 91 .
-  set (index ct 0) (cast u8 (bit_xor (cast u64 (index ct 0)) 1)) .
+  set (idx ct 0) (cast u8 (bit_xor (cast u64 (idx ct 0)) 1)) .
   let _u2 be result u64 aead.aead_error aead.unseal key nonce aad ct tag outp otk pst st work ks pad want .
   guard is_ok _u2 . else return 92 .
   guard eq (ok_value _u2) 0 . else return 92 .

@@ -18,7 +18,7 @@ rem   게이트**가 한다(tests/lib_ffi.c 를 링크해 진짜로 돌려 답�
 
 module m .
 
-newtype cstr unsafe_ptr u8 .
+def newtype cstr unsafe_ptr u8 .
 
 rem ── C1: extern 이 cstr 를 돌려준다 ────────────────────────────────────────────
 unsafe extern proc c_greeting do
@@ -43,7 +43,7 @@ end
 
 rem str 은 slice u8 의 투명 별칭(D1′) ⇒ index 가 그대로 작동한다. 첫 바이트 'h' = 104.
 unsafe proc greeting_byte0 input k cap c . output u8 . effects unsafe . do
-  return index (str_from_cstr (c_greeting k)) 0 .
+  return idx (str_from_cstr (c_greeting k)) 0 .
 end
 
 rem 빈 문자열도 정직하게 — strlen 0 → len 0 (자르지 않는다, none 도 아니다).

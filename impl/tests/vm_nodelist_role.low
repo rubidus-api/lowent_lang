@@ -6,7 +6,7 @@ module vm_nodelist_role .
 
 use shard .
 
-newtype roleset u32 .
+def newtype roleset u32 .
 
 rem ✗ 여기가 거절돼야 한다.
 proc reuse_role output u64 . effects none . do

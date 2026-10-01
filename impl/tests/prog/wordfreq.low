@@ -52,10 +52,10 @@ do
   rem whitespace 정규화: 개행(10)·탭(9)·CR(13) → 공백(32). 그래야 한 구분자로 쪼갤 수 있다.
   var q be u64 0 .
   while lt q n . do
-    let ch be u8 index tbuf q .
-    if eq ch 10 . do set (index tbuf q) 32 . end
-    if eq ch 9 . do set (index tbuf q) 32 . end
-    if eq ch 13 . do set (index tbuf q) 32 . end
+    let ch be u8 idx tbuf q .
+    if eq ch 10 . do set (idx tbuf q) 32 . end
+    if eq ch 9 . do set (idx tbuf q) 32 . end
+    if eq ch 13 . do set (idx tbuf q) 32 . end
     set q (add q 1) .
   end
 

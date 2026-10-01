@@ -15,7 +15,7 @@ if strings.starts_with line "GET " . do
 end
 ```
 
-`rest` points directly at part of `line`. This module was built only from what the language already has (`len`, `index`, `subslice`, `eq`, `option`,
+`rest` points directly at part of `line`. This module was built only from what the language already has (`len`, `idx`, `subslice`, `eq`, `option`,
 `guard`, `while`, `actor`) and adds no builtin. Most string operations need no ownership --- cutting, searching and comparing only produce views. Work that
 needs a writable buffer, such as appending, belongs to #modref("strbuf")[`strbuf`].
 
@@ -28,7 +28,7 @@ needs a writable buffer, such as appending, belongs to #modref("strbuf")[`strbuf
   names.
 - *No sentinel values.* Conventions like "−1 means not found" are not used. Not found is `none` of an `option`.
 
-`type str slice u8 .` is a *transparent alias*. It is not a `newtype`, so string literals, `slice u8` values and `subslice` results all fit a `str` position
+`def type str slice u8 .` is a *transparent alias*. It is not a `newtype`, so string literals, `slice u8` values and `subslice` results all fit a `str` position
 as they are. Only the `str_splitter` actor holds state --- the original `src`, the separator byte `sep`, the cursor `pos` and the exhausted flag `fin`.
 
 == Ops at a glance
@@ -171,7 +171,7 @@ loop just pulls to the end, the actor version is shorter.
 #antipattern[Changing the original a view points at, later][
   ```lowent
   let piece be slice u8 strings.remove_prefix line "GET " .
-  set (index line 4) 88 .                                     rem ✗ the original was changed
+  set (idx line 4) 88 .                                     rem ✗ the original was changed
   ```
   With no error, the content of `piece` silently changes --- because it is a window, not a copy. To hold on to the content, copy it with #modref("strbuf")[`strbuf`].
 ]

@@ -14,13 +14,13 @@ module vm_u64cmp .
 
 fn direct input s slice u64 . output bool . do
   guard ge (len s) 2 . else return false .
-  return lt (index s 0) (index s 1) .
+  return lt (idx s 0) (idx s 1) .
 end
 
 fn named input s slice u64 . output bool . do
   guard ge (len s) 2 . else return false .
-  let lhs be u64 index s 0 .
-  let rhs be u64 index s 1 .
+  let lhs be u64 idx s 0 .
+  let rhs be u64 idx s 1 .
   return lt lhs rhs .
 end
 
@@ -36,9 +36,9 @@ rem   case 2 : 0 < 2^63              → 1   (부호 있는 비교면 0 이 된�
 proc probe input buf mut slice u8 . input which u64 . output u64 . effects none . do
   guard ge (len buf) 16 . else return 90 .
   var v be mut slice u64 view_array u64 buf .
-  if eq which 0 . do set (index v 0) 1 .           set (index v 1) 2 .        end
-  if eq which 1 . do set (index v 0) (u64_max) .   set (index v 1) 0 .        end
-  if eq which 2 . do set (index v 0) 0 .           set (index v 1) (bit63) .  end
+  if eq which 0 . do set (idx v 0) 1 .           set (idx v 1) 2 .        end
+  if eq which 1 . do set (idx v 0) (u64_max) .   set (idx v 1) 0 .        end
+  if eq which 2 . do set (idx v 0) 0 .           set (idx v 1) (bit63) .  end
   guard eq (direct v) (named v) . else return 91 .        rem 두 길이 갈리면 그것이 결함이다
   if direct v . do return 1 . end
   return 0 .
@@ -50,11 +50,11 @@ rem   답: 0 = 둘 다 «거짓»(옳다) · 1 = 바로 꺼낸 쪽만 참(옛 �
 proc probe_local input buf mut slice u8 . output u64 . effects none . do
   guard ge (len buf) 16 . else return 90 .
   var v be mut slice u64 view_array u64 buf .
-  set (index v 0) (u64_max) .
-  set (index v 1) 0 .
-  let lhs be u64 index v 0 .
-  let rhs be u64 index v 1 .
-  if lt (index v 0) (index v 1) . do
+  set (idx v 0) (u64_max) .
+  set (idx v 1) 0 .
+  let lhs be u64 idx v 0 .
+  let rhs be u64 idx v 1 .
+  if lt (idx v 0) (idx v 1) . do
     if lt lhs rhs . do return 3 . end
     return 1 .
   end

@@ -1,7 +1,7 @@
 module join .
 rem expect: E-OWN-JOIN
 
-type buffer u8 .
+def type buffer u8 .
 
 fn maybe input h owned buffer . input c bool . output u8 .
 do

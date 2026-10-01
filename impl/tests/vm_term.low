@@ -12,12 +12,12 @@ proc goto_seq input buf mut slice u8 . . output u64 . effects none . do
   let p be option u64 t.goto buf 0 2 4 .
   guard is_some p . else return 1 .
   guard eq (some_value p) 6 . else return 2 .
-  guard eq (index buf 0) 27 . else return 3 .
-  guard eq (index buf 1) 91 . else return 4 .
-  guard eq (index buf 2) 51 . else return 5 .
-  guard eq (index buf 3) 59 . else return 6 .
-  guard eq (index buf 4) 53 . else return 7 .
-  guard eq (index buf 5) 72 . else return 8 .
+  guard eq (idx buf 0) 27 . else return 3 .
+  guard eq (idx buf 1) 91 . else return 4 .
+  guard eq (idx buf 2) 51 . else return 5 .
+  guard eq (idx buf 3) 59 . else return 6 .
+  guard eq (idx buf 4) 53 . else return 7 .
+  guard eq (idx buf 5) 72 . else return 8 .
   rem 전량-아니면-무: 5칸 버퍼엔 아예 안 쓴다.
   var tiny be mut slice u8 subslice buf 0 5 .
   let f be option u64 t.goto tiny 0 2 4 .
@@ -31,15 +31,15 @@ proc style_seq input buf mut slice u8 . . output u64 . effects none . do
   let p be option u64 t.sgr buf 0 0 .
   guard is_some p . else return 1 .
   guard eq (some_value p) 4 . else return 2 .
-  guard eq (index buf 2) 48 . else return 3 .
-  guard eq (index buf 3) 109 . else return 4 .
+  guard eq (idx buf 2) 48 . else return 3 .
+  guard eq (idx buf 3) 109 . else return 4 .
   let q be option u64 t.color256 buf 0 196 false .
   guard is_some q . else return 5 .
   guard eq (some_value q) 11 . else return 6 .
-  guard eq (index buf 2) 51 . else return 7 .
-  guard eq (index buf 3) 56 . else return 8 .
-  guard eq (index buf 7) 49 . else return 9 .
-  guard eq (index buf 10) 109 . else return 10 .
+  guard eq (idx buf 2) 51 . else return 7 .
+  guard eq (idx buf 3) 56 . else return 8 .
+  guard eq (idx buf 7) 49 . else return 9 .
+  guard eq (idx buf 10) 109 . else return 10 .
   return 42 .
 end
 
@@ -52,12 +52,12 @@ proc diff_run input out mut slice u8 . . output u64 . effects none . do
   guard is_some p . else return 1 .
   rem ESC[2;2H = 27 91 50 59 50 72, 그리고 'x' 'y'.
   guard eq (some_value p) 8 . else return 2 .
-  guard eq (index out 0) 27 . else return 3 .
-  guard eq (index out 2) 50 . else return 4 .
-  guard eq (index out 4) 50 . else return 5 .
-  guard eq (index out 5) 72 . else return 6 .
-  guard eq (index out 6) 120 . else return 7 .
-  guard eq (index out 7) 121 . else return 8 .
+  guard eq (idx out 0) 27 . else return 3 .
+  guard eq (idx out 2) 50 . else return 4 .
+  guard eq (idx out 4) 50 . else return 5 .
+  guard eq (idx out 5) 72 . else return 6 .
+  guard eq (idx out 6) 120 . else return 7 .
+  guard eq (idx out 7) 121 . else return 8 .
   return 42 .
 end
 
@@ -75,8 +75,8 @@ proc diff_edges input out mut slice u8 . . output u64 . effects none . do
   guard is_some q . else return 3 .
   rem goto(0,1)+X = 6+1, goto(1,0)+Y = 6+1 → 14 바이트.
   guard eq (some_value q) 14 . else return 4 .
-  guard eq (index out 6) 88 . else return 5 .
-  guard eq (index out 13) 89 . else return 6 .
+  guard eq (idx out 6) 88 . else return 5 .
+  guard eq (idx out 13) 89 . else return 6 .
   rem 길이 불일치·폭 0 은 값으로 거절.
   let bad be option u64 t.diff "ab" "abc" 2 out 0 .
   guard is_some bad . else do
@@ -114,10 +114,10 @@ proc utf8_diff input out mut slice u8 . . output u64 . effects none . do
   guard is_some d . else return 3 .
   guard eq (some_value d) 9 . else return 4 .
   rem ESC[1;2H = 27 91 49 59 50 72 그리고 '라' 의 첫 바이트(0xEB=235).
-  guard eq (index out 0) 27 . else return 5 .
-  guard eq (index out 4) 50 . else return 6 .
-  guard eq (index out 5) 72 . else return 7 .
-  guard eq (index out 6) 235 . else return 8 .
+  guard eq (idx out 0) 27 . else return 5 .
+  guard eq (idx out 4) 50 . else return 6 .
+  guard eq (idx out 5) 72 . else return 7 .
+  guard eq (idx out 6) 235 . else return 8 .
   return 42 .
 end
 

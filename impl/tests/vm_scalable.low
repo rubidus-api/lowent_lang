@@ -17,7 +17,7 @@ rem     은 못 만들었다** — 도구가 만들 수 없는 폭을 알려주�
 
 module vm_scalable .
 
-type bytes slice u8 . .
+def type bytes slice u8 . .
 
 rem u8 레인을 2배 — 폭은 target 이 정한다(x86_64=16, cortex_m=1).
 proc dbl input a bytes . input out mut slice u8 . output u64 . effects none . do

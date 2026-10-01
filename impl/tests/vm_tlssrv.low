@@ -61,7 +61,7 @@ export proc ch_keyshare input w mut slice u8 . . output u64 . effects none . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 4 . do
-    set acc (bit_or (shl acc 8) (cast u64 (index b (add o i)))) .
+    set acc (bit_or (shl acc 8) (cast u64 (idx b (add o i)))) .
     set i (add i 1) .
   end
   return acc .
@@ -92,7 +92,7 @@ export proc sh_build input w mut slice u8 . . output u64 . effects none . do
   guard is_some dw . else return 0 .
   var i be u64 0 .
   while lt i 90 . do
-    if ne (index w (add 128 i)) (index w (add 320 i)) . do  return add 1000 i . end
+    if ne (idx w (add 128 i)) (idx w (add 320 i)) . do  return add 1000 i . end
     set i (add i 1) .
   end
   return n .
@@ -122,7 +122,7 @@ proc cmp_hex input got slice u8 . input n u64 . input want_hex slice u8 . input 
   guard eq (some_value d) n . else return 3 .
   var i be u64 0 .
   while lt i n . do
-    if ne (index got i) (index w i) . do  return add 10000 i . end
+    if ne (idx got i) (idx w i) . do  return add 10000 i . end
     set i (add i 1) .
   end
   return n .
@@ -175,7 +175,7 @@ rem   ☞ 그 공백과 문맥 문자열이 없으면 이 서명이 **다른 문
 export proc cv_content_shape input w mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 256 . else return 0 .
   var z be u64 0 .
-  while lt z 32 . do  set (index w z) (narrow u8 z) .  set z (add z 1) . end
+  while lt z 32 . do  set (idx w z) (narrow u8 z) .  set z (add z 1) . end
   let n be u64 tlssrv.cv_content (subslice w 0 32) (subslice w 64 200) .
   guard eq n 130 . else return 0 .
   var acc be u64 0 .
@@ -183,15 +183,15 @@ export proc cv_content_shape input w mut slice u8 . . output u64 . effects none 
   var sp be u64 1 .
   var i be u64 0 .
   while lt i 64 . do
-    if ne (index w (add 64 i)) 32 . do  set sp 0 . end
+    if ne (idx w (add 64 i)) 32 . do  set sp 0 . end
     set i (add i 1) .
   end
   if eq sp 1 . do  set acc (add acc 1000) . end
   rem ② 문맥 문자열의 첫 글자가 'T'(84) 이고 ③ 97 번째가 0x00 인가 ④ 그 뒤가 전사해시인가
-  if eq (index w (add 64 64)) 84 . do  set acc (add acc 100) . end
-  if eq (index w (add 64 97)) 0 . do  set acc (add acc 10) . end
-  if eq (index w (add 64 98)) 0 . do
-    if eq (index w (add 64 99)) 1 . do  set acc (add acc 1) . end
+  if eq (idx w (add 64 64)) 84 . do  set acc (add acc 100) . end
+  if eq (idx w (add 64 97)) 0 . do  set acc (add acc 10) . end
+  if eq (idx w (add 64 98)) 0 . do
+    if eq (idx w (add 64 99)) 1 . do  set acc (add acc 1) . end
   end
   return acc .
 end
@@ -263,13 +263,13 @@ export proc ap_secrets input w mut slice u8 . . input v mut slice u8 . . output 
   var a be u64 0 .
   var i be u64 0 .
   while lt i 4 . do
-    set a (bit_or (shl a 8) (cast u64 (index v (add 943 i)))) .
+    set a (bit_or (shl a 8) (cast u64 (idx v (add 943 i)))) .
     set i (add i 1) .
   end
   var b be u64 0 .
   var j be u64 0 .
   while lt j 4 . do
-    set b (bit_or (shl b 8) (cast u64 (index v (add 975 j)))) .
+    set b (bit_or (shl b 8) (cast u64 (idx v (add 975 j)))) .
     set j (add j 1) .
   end
   return add (mul a 10) (bit_and b 15) .
@@ -297,7 +297,7 @@ export proc client_fin_bad input w mut slice u8 . . input v mut slice u8 . . out
   guard is_some dc . else return 0 .
   let df be option u64 codec.hex_dec "14000020a8ec436d677634ae525ac1fcebe11a039ec17694fac6e98527b642f2edd5ce61" (subslice v 1007 1043) .
   guard is_some df . else return 0 .
-  set (index v (add 1007 35)) (cast u8 (bit_xor (cast u64 (index v (add 1007 35))) 1)) .
+  set (idx v (add 1007 35)) (cast u8 (bit_xor (cast u64 (idx v (add 1007 35))) 1)) .
   let _rr be result u64 tlssrv.tlssrv_error tlssrv.check_client_finished (subslice v 1107 (add 1107 32)) (subslice v 0 943) (subslice v 1007 1043) w .
   guard is_ok _rr . else return 0 .
   return ok_value _rr .
@@ -349,10 +349,10 @@ export proc app_open input w mut slice u8 . . input v mut slice u8 . . input u m
   rem 속 타입이 23(application_data) 인가 · 평문 첫 4 바이트가 00 01 02 03 인가
   var acc be u64 0 .
   if eq (tls13.inner_type (subslice v 128 179)) 23 . do  set acc (add acc 100) . end
-  if eq (cast u64 (index v 128)) 0 . do
-    if eq (cast u64 (index v 131)) 3 . do  set acc (add acc 10) . end
+  if eq (cast u64 (idx v 128)) 0 . do
+    if eq (cast u64 (idx v 131)) 3 . do  set acc (add acc 10) . end
   end
-  if eq (cast u64 (index v 177)) 49 . do  set acc (add acc 1) . end   rem 평문 마지막 = 0x31 . .
+  if eq (cast u64 (idx v 177)) 49 . do  set acc (add acc 1) . end   rem 평문 마지막 = 0x31 . .
   return acc .
 end
 
@@ -364,7 +364,7 @@ export proc app_open_bad input w mut slice u8 . . input v mut slice u8 . . input
   guard is_some dk . else return 0 .
   let dr be option u64 codec.hex_dec "17030300432e937e11ef4ac740e538ad36005fc4a46932fc3225d05f82aa1b36e30efaf97d90e6dffc602dcb501a59a8fcc49c4bf2e5f0a21c0047c2abf332540dd032e167c2955d" (subslice v 32 104) .
   guard is_some dr . else return 0 .
-  set (index v 40) (cast u8 (bit_xor (cast u64 (index v 40)) 1)) .
+  set (idx v 40) (cast u8 (bit_xor (cast u64 (idx v 40)) 1)) .
   let _rr be result u64 tlssrv.tlssrv_error tlssrv.open_app 1 (subslice v 0 28) 16 1 (subslice v 32 104) (subslice v 128 256) w u .
   guard is_ok _rr . else return 0 .
   return ok_value _rr .
@@ -401,7 +401,7 @@ export proc alert_open input w mut slice u8 . . input v mut slice u8 . . input u
   guard is_ok nr2 . else return 0 .
   let n be u64 ok_value nr2 .
   guard eq n 3 . else return add 20000 n .
-  return add (mul (tls13.inner_type (subslice v 128 131)) 100) (cast u64 (index v 128)) .
+  return add (mul (tls13.inner_type (subslice v 128 131)) 100) (cast u64 (idx v 128)) .
 end
 
 proc main output u8 . effects none . do
@@ -418,11 +418,11 @@ export proc t_x25519_smallorder input v mut slice u8 . . input wu mut slice u64 
   let dp be option u64 codec.hex_dec "b1580eeadf6dd589b8ef4f2d5652578cc810e9980191ec8d058308cea216a21e" (subslice v 0 32) .
   guard is_some dp . else return 0 .
   var i be u64 0 .
-  while lt i 32 . do  set (index v (add 32 i)) 0 .  set i (add i 1) .  end
+  while lt i 32 . do  set (idx v (add 32 i)) 0 .  set i (add i 1) .  end
   let _ag0 be result u64 x25519.x25519_error x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
   guard is_ok _ag0 . else return 0 .
   if ne (ok_value _ag0) 0 . do  return 91 . end
-  set (index v 32) 1 .
+  set (idx v 32) 1 .
   let _ag1 be result u64 x25519.x25519_error x25519.agree (subslice v 64 96) (subslice v 0 32) (subslice v 32 64) (subslice v 96 128) (subslice wu 0 175) .
   guard is_ok _ag1 . else return 0 .
   if ne (ok_value _ag1) 0 . do  return 92 . end
@@ -445,7 +445,7 @@ export proc t_sf_zero_ecdhe input w mut slice u8 . . input v mut slice u8 . . ou
   guard ge (len w) 1024 . else return 0 .
   guard ge (len v) 2048 . else return 0 .
   var i be u64 0 .
-  while lt i 32 . do  set (index v i) 0 .  set i (add i 1) .  end
+  while lt i 32 . do  set (idx v i) 0 .  set i (add i 1) .  end
   guard eq (ch_bytes (subslice v 32 228)) 196 . else return 0 .
   let ds be option u64 codec.hex_dec (sh_hex) (subslice v 228 318) .
   guard is_some ds . else return 0 .
@@ -464,20 +464,20 @@ export proc t_ch_bad input w mut slice u8 . . output u64 . effects none . do
   guard ge (len w) 256 . else return 0 .
   guard eq (ch_bytes (subslice w 0 196)) 196 . else return 0 .
   if eq (tlssrv.ch_ok (subslice w 0 196)) false . do  return 90 . end
-  set (index w 38) 255 .
+  set (idx w 38) 255 .
   if tlssrv.ch_ok (subslice w 0 196) . do  return 91 . end
-  set (index w 38) 33 .
+  set (idx w 38) 33 .
   if tlssrv.ch_ok (subslice w 0 196) . do  return 92 . end
-  set (index w 38) 0 .
-  set (index w 40) 7 .
+  set (idx w 38) 0 .
+  set (idx w 40) 7 .
   if tlssrv.ch_ok (subslice w 0 196) . do  return 93 . end
-  set (index w 40) 6 .
-  set (index w 48) 1 .
+  set (idx w 40) 6 .
+  set (idx w 48) 1 .
   if tlssrv.ch_ok (subslice w 0 196) . do  return 94 . end
-  set (index w 48) 0 .
-  set (index w 47) 0 .
+  set (idx w 48) 0 .
+  set (idx w 47) 0 .
   if tlssrv.ch_ok (subslice w 0 196) . do  return 95 . end
-  set (index w 47) 1 .
+  set (idx w 47) 1 .
   rem ★ 아래 자리 수는 **재서 얻은 것**이다(RFC 8448 hello 를 걸어 본 값):
   rem   supported_versions(002b) 값 145 → 종류 두 바이트는 141·142 · signature_algorithms(000d)
   rem   값 152 → 종류 낮은 바이트 149 · key_share 의 x25519 키 109 → 길이 낮은 바이트 108.
@@ -485,19 +485,19 @@ export proc t_ch_bad input w mut slice u8 . . output u64 . effects none . do
   rem     어긋나 있었다) — 그래서 그 자리를 op 에게 되물어 `guard` 로 **못 박는다**.
   rem 종류를 0x7a7a 로 바꾼다(길이는 그대로) → supported_versions 가 없는 hello 가 된다.
   guard eq (tlssrv.ch_ext_find (subslice w 0 196) 43) 145 . else return 0 .
-  set (index w 141) 122 .   set (index w 142) 122 .
+  set (idx w 141) 122 .   set (idx w 142) 122 .
   if tlssrv.ch_ok (subslice w 0 196) . do  return 96 . end
-  set (index w 141) 0 .   set (index w 142) 43 .
+  set (idx w 141) 0 .   set (idx w 142) 43 .
   rem signature_algorithms(000d) 의 종류를 SNI(0000) 로 → 같은 확장이 둘.
   guard eq (tlssrv.ch_ext_find (subslice w 0 196) 13) 152 . else return 0 .
-  set (index w 149) 0 .
+  set (idx w 149) 0 .
   if tlssrv.ch_ok (subslice w 0 196) . do  return 97 . end
-  set (index w 149) 13 .
+  set (idx w 149) 13 .
   rem key_share 본문: 0024 001d 0020 <32> → 0024 001d 000e <14> 001d 000e <14> (같은 group 둘).
   guard eq (tlssrv.ch_x25519_off (subslice w 0 196)) 109 . else return 0 .
-  set (index w 108) 14 .
-  set (index w 123) 0 .   set (index w 124) 29 .
-  set (index w 125) 0 .   set (index w 126) 14 .
+  set (idx w 108) 14 .
+  set (idx w 123) 0 .   set (idx w 124) 29 .
+  set (idx w 125) 0 .   set (idx w 126) 14 .
   if tlssrv.ch_ok (subslice w 0 196) . do  return 98 . end
   return 1 .
 end

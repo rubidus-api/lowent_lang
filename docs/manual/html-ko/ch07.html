@@ -688,7 +688,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len xs) . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> eq (index xs i) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq (idx xs i) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">break</span></strong> .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -744,7 +744,7 @@ tally(4) = 610070401
 <strong><span class="tok-k">fn</span></strong> head_or_zero <strong><span class="tok-k">input</span></strong> data <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> ge (len data) <span class="tok-n">1</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">return</span></strong> index data <span class="tok-n">0</span> .
+  <strong><span class="tok-k">return</span></strong> idx data <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> grade <strong><span class="tok-k">input</span></strong> score <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
@@ -769,7 +769,7 @@ $ lowentc --run grade guards.low 95
 grade(95) = 65
 $ lowentc --run grade guards.low 42
 grade(42) = 70
-</code></pre></div></div><p><code>head_or_zero</code> 의 <code>guard</code> 를 지난 코드는 슬라이스가 비지 않은 세계에서만 산다. 그래서 <code>index data 0</code> 이 안전하다. <code>grade</code> 는 <code>guard</code> 로 범위 밖을 먼저 걸러 내고, 그 아래에서 <code>if … end else do … end</code> 로 갈래를 나눈다.</p><p><code>guard</code> 가 <code>if not</code> 의 다른 이름이 아닌 까닭은 <code>else</code> 가 반드시 떠나야 한다는 데 있다. 떠나지 않으면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/fallthrough.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> fallthrough .
+</code></pre></div></div><p><code>head_or_zero</code> 의 <code>guard</code> 를 지난 코드는 슬라이스가 비지 않은 세계에서만 산다. 그래서 <code>idx data 0</code> 이 안전하다. <code>grade</code> 는 <code>guard</code> 로 범위 밖을 먼저 걸러 내고, 그 아래에서 <code>if … end else do … end</code> 로 갈래를 나눈다.</p><p><code>guard</code> 가 <code>if not</code> 의 다른 이름이 아닌 까닭은 <code>else</code> 가 반드시 떠나야 한다는 데 있다. 떠나지 않으면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/fallthrough.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> fallthrough .
 <em><span class="tok-c">rem expect: E-GUARD-FALLTHROUGH</span></em>
 
 <strong><span class="tok-k">fn</span></strong> clamp5 <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
@@ -874,7 +874,7 @@ $ lowentc --run checked panics.low 0
   <strong><span class="tok-k">return</span></strong> t .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_forin.low
-8:0 E-VOCAB-REMOVED: `in` is gone. In a loop write `for &lt;name> &lt;slice> do` — the slice follows the name and `do` marks the body, so `in` carried nothing. As access, `b in a` was a reverse spelling of `field a b`: write `field a b` / `index a i` (the glued dot `a.b` is refused too, `E-FIELD-GLUED`)
+8:0 E-VOCAB-REMOVED: `in` is gone. In a loop write `for &lt;name> &lt;slice> do` — the slice follows the name and `do` marks the body, so `in` carried nothing. As access, `b in a` was a reverse spelling of `field a b`: write `field a b` / `idx a i` (the glued dot `a.b` is refused too, `E-FIELD-GLUED`)
 </code></pre></div></div><p><code>for</code> 는 <code>for &lt;이름> &lt;슬라이스> do</code> 다. 훑을 대상이 이름 바로 뒤에 오고, 몸의 시작은 <code>do</code> 가 알리므로 <code>in</code> 이 전할 것이 없다. 같은 뜻에 표시를 하나 더 두지 않으려고 없앴다. 고치는 법: <code>for x xs do</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>elif</code> 로 갈래를 잇는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_elif.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_elif .
 <em><span class="tok-c">rem expect: E-BLOCK-NOHEAD</span></em>
 
@@ -948,7 +948,7 @@ mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C 
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len xs) . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> eq (mod (index xs i) <span class="tok-n">2</span>) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq (mod (idx xs i) <span class="tok-n">2</span>) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">continue</span></strong> .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> n (add n <span class="tok-n">1</span>) .

@@ -206,7 +206,7 @@ end
 
 ## 6.4.4 계약을 쓰는 법
 
-(1) 조건은 전위 표기로 적는다. 비교와 논리 연산, 산술, `len`, `index` 를 쓸 수 있다.
+(1) 조건은 전위 표기로 적는다. 비교와 논리 연산, 산술, `len`, `idx` 를 쓸 수 있다.
 
 (2) `requires` 가 여럿이면 **모두** 참이어야 한다.
 
@@ -224,8 +224,8 @@ export fn read_pair input data slice u8 . . output u32 .
   requires ge (len data) 2 .
   ensures le ret 65535 .
 do
-  let hi be u32 widen u32 (index data 0) .
-  let lo be u32 widen u32 (index data 1) .
+  let hi be u32 widen u32 (idx data 0) .
+  let lo be u32 widen u32 (idx data 1) .
   return add (mul hi 256) lo .
 end
 ```

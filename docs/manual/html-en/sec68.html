@@ -670,7 +670,7 @@ sortlib.sort s .</code></pre><div class="dev device"><p class="dev-label">Maturi
   <strong><span class="tok-k">var</span></strong> pre <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len s) . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> pre (wrap_add pre (index s i)) .
+    <strong><span class="tok-k">set</span></strong> pre (wrap_add pre (idx s i)) .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>
   sortlib.sort s .
@@ -678,9 +678,9 @@ sortlib.sort s .</code></pre><div class="dev device"><p class="dev-label">Maturi
   <strong><span class="tok-k">var</span></strong> sorted <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
   <strong><span class="tok-k">var</span></strong> j <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt j (len s) . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> post (wrap_add post (index s j)) .
+    <strong><span class="tok-k">set</span></strong> post (wrap_add post (idx s j)) .
     <strong><span class="tok-k">if</span></strong> gt j <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">if</span></strong> gt (index s (sub j <span class="tok-n">1</span>)) (index s j) . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> sorted <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+      <strong><span class="tok-k">if</span></strong> gt (idx s (sub j <span class="tok-n">1</span>)) (idx s j) . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">set</span></strong> sorted <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> j (add j <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>

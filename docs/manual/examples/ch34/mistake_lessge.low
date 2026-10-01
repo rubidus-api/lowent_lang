@@ -4,13 +4,13 @@ rem run: order_loose 0
 
 use sortgen .
 
-struct strict_score do
+def struct strict_score do
   satisfies sortgen.ordered .
   points u64 .
   id u64 .
 end
 
-struct loose_score do
+def struct loose_score do
   satisfies sortgen.ordered .
   points u64 .
   id u64 .
@@ -32,11 +32,11 @@ do
   let g be option mut slice u8 alloc_bytes al capacity 48 .
   guard is_some g . else return 255 .
   var rs be mut slice strict_score view_array strict_score (some_value g) .
-  set (index rs 0) (lit strict_score do points 70 . id 1 . end) .
-  set (index rs 1) (lit strict_score do points 70 . id 2 . end) .
-  set (index rs 2) (lit strict_score do points 70 . id 3 . end) .
+  set (idx rs 0) (lit strict_score do points 70 . id 1 . end) .
+  set (idx rs 1) (lit strict_score do points 70 . id 2 . end) .
+  set (idx rs 2) (lit strict_score do points 70 . id 3 . end) .
   sortgen.sort_by strict_score rs .
-  return add (mul (field (index rs 0) id) 100) (add (mul (field (index rs 1) id) 10) (field (index rs 2) id)) .
+  return add (mul (field (idx rs 0) id) 100) (add (mul (field (idx rs 1) id) 10) (field (idx rs 2) id)) .
 end
 
 proc order_loose input al cap allocator . output u64 . effects alloc .
@@ -44,9 +44,9 @@ do
   let g be option mut slice u8 alloc_bytes al capacity 48 .
   guard is_some g . else return 255 .
   var rs be mut slice loose_score view_array loose_score (some_value g) .
-  set (index rs 0) (lit loose_score do points 70 . id 1 . end) .
-  set (index rs 1) (lit loose_score do points 70 . id 2 . end) .
-  set (index rs 2) (lit loose_score do points 70 . id 3 . end) .
+  set (idx rs 0) (lit loose_score do points 70 . id 1 . end) .
+  set (idx rs 1) (lit loose_score do points 70 . id 2 . end) .
+  set (idx rs 2) (lit loose_score do points 70 . id 3 . end) .
   sortgen.sort_by loose_score rs .
-  return add (mul (field (index rs 0) id) 100) (add (mul (field (index rs 1) id) 10) (field (index rs 2) id)) .
+  return add (mul (field (idx rs 0) id) 100) (add (mul (field (idx rs 1) id) 10) (field (idx rs 2) id)) .
 end

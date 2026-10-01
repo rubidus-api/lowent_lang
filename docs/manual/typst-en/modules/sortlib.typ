@@ -46,7 +46,7 @@ proc sort_verify input s mut slice u64 . . output u64 . effects none . do
   var pre be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    set pre (wrap_add pre (index s i)) .
+    set pre (wrap_add pre (idx s i)) .
     set i (add i 1) .
   end
   sortlib.sort s .
@@ -54,9 +54,9 @@ proc sort_verify input s mut slice u64 . . output u64 . effects none . do
   var sorted be u64 1 .
   var j be u64 0 .
   while lt j (len s) . do
-    set post (wrap_add post (index s j)) .
+    set post (wrap_add post (idx s j)) .
     if gt j 0 . do
-      if gt (index s (sub j 1)) (index s j) . do set sorted 0 . end
+      if gt (idx s (sub j 1)) (idx s j) . do set sorted 0 . end
     end
     set j (add j 1) .
   end

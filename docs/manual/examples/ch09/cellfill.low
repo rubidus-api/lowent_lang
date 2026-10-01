@@ -7,5 +7,5 @@ export fn table input a u64 . input i u64 . output u64 .
 do
   let t be lit array u64 6 do 0 100 . 5 (mul a 2) . _ 1 . end .
   guard lt i 6 . else return 0 .
-  return index t i .
+  return idx t i .
 end

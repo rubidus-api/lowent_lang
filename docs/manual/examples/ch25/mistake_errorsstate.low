@@ -1,7 +1,7 @@
 module mistake_errorsstate .
 rem expect: E-ERRORS-STATE
 
-enum bank_error do
+def enum bank_error do
   insufficient .
 end
 

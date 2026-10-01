@@ -7,7 +7,7 @@ proc double_all input s mut slice u8 . output u64 . effects none .
 do
   var i be u64 0 .
   while lt i (len s) . do
-    set (index s i) (wrap_mul (index s i) 2) .
+    set (idx s i) (wrap_mul (idx s i) 2) .
     set i (add i 1) .
   end
   return len s .
@@ -20,7 +20,7 @@ do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    set acc (add acc (widen u64 (index s i))) .
+    set acc (add acc (widen u64 (idx s i))) .
     set i (add i 1) .
   end
   return acc .

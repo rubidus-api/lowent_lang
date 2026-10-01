@@ -11,7 +11,7 @@ rem     (교훈 6 — 픽스처의 모양이 감사의 시야다. 이 파일이 
 
 module vm_errloop .
 
-enum e do
+def enum e do
   bad .
 end
 

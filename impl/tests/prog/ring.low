@@ -19,7 +19,7 @@ proc main input al cap allocator . input k cap atomic . output u8 . effects allo
   let ctlo be option mut slice u8 alloc_bytes al capacity 16 .
   guard is_some ctlo . else return 90 .
   var ctl be mut slice u64 view_array u64 (some_value ctlo) .
-  set (index ctl 0) 0 . set (index ctl 1) 0 .
+  set (idx ctl 0) 0 . set (idx ctl 1) 0 .
 
   let bufo be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some bufo . else return 91 .
@@ -44,7 +44,7 @@ proc main input al cap allocator . input k cap atomic . output u8 . effects allo
   var j be u64 0 .
   while lt j 7 . do
     guard eq (spsc.spsc_pop k ctl buf out) 1 . else return 6 .
-    guard eq (index out 0) (add 200 j) . else return 7 .
+    guard eq (idx out 0) (add 200 j) . else return 7 .
     set j (add j 1) .
   end
   guard eq (spsc.spsc_count_about k ctl buf) 0 . else return 8 .
@@ -56,7 +56,7 @@ proc main input al cap allocator . input k cap atomic . output u8 . effects allo
   while lt r 5 . do
     guard eq (spsc.spsc_push k ctl buf (add 300 r)) 1 . else return 10 .
     guard eq (spsc.spsc_pop k ctl buf out) 1 . else return 11 .
-    guard eq (index out 0) (add 300 r) . else return 12 .
+    guard eq (idx out 0) (add 300 r) . else return 12 .
     set r (add r 1) .
   end
   guard eq (spsc.spsc_count_about k ctl buf) 0 . else return 13 .

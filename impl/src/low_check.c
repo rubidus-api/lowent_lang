@@ -1045,7 +1045,7 @@ static void ck_name_decl(low_check_result_t *out, const low_cst_t *na,
     proven_u8str_view_t nm = na->tok.lex;
     if (na->tok.kw != LOW_KW_NONE) {
         emit(out, "E-NAME-KEYWORD",
-             "a KEYWORD is used as a name. The 43 reserved words are not identifiers: they are "
+             "a KEYWORD is used as a name. The reserved words (annex A.1) are not identifiers: they are "
              "how the reader tells structure from data at a glance. Declaring `let match … .` "
              "used to be accepted here and to fail only where the name was USED, with a message "
              "that never said why. Rename the binding",
@@ -1265,7 +1265,7 @@ static void ck_op_names(low_check_result_t *out, const low_cst_t *f,
             if (!ck_atom(f->kids[k])) continue;
             if (f->kids[k]->tok.kw != LOW_KW_NONE)
                 emit(out, "E-NAME-KEYWORD",
-                     "a KEYWORD is used as a PARAMETER name. The 43 reserved words are not "
+                     "a KEYWORD is used as a PARAMETER name. The reserved words (annex A.1) are not "
                      "identifiers — rename the parameter",
                      f->kids[k]->tok.line);
             else if (np < LOW_MAX_PARAMS) { ps[np++] = f->kids[k]->tok.lex; LOW_HWM("check:params", np, LOW_MAX_PARAMS); }
@@ -1369,7 +1369,7 @@ static bool ck_writes_place(const low_cst_t *nd, proven_u8str_view_t name) {
         const low_cst_t *pl = nd->kids[1]->kids[0];
         if (pl->kind == LOW_CST_FORM && pl->nkids >= 2 && pl->kids[0]->kind == LOW_CST_ATOM &&
             pl->kids[1]->kind == LOW_CST_ATOM &&
-            (veq(pl->kids[0]->tok.lex, "index") || veq(pl->kids[0]->tok.lex, "field")) &&
+            (veq(pl->kids[0]->tok.lex, "idx") || veq(pl->kids[0]->tok.lex, "field")) &&
             proven_u8str_view_eq(pl->kids[1]->tok.lex, name)) return true;
     }
     // ★ `map <out> …` · `filter <out> …` 도 out(첫 인자)에 **쓴다** — 관측적 순수성(RFC-0057)이
@@ -1674,7 +1674,7 @@ static bool ck_atom_is(const low_cst_t *n, const char *s2) {
 static bool ck_bad_read(const low_cst_t *nd, proven_u8str_view_t s2, proven_u8str_view_t iv) {
     if (!nd) return false;
     for (proven_size_t j = 0; j + 2 < nd->nkids; j++) {
-        if (!ck_atom_is(nd->kids[j], "index")) continue;
+        if (!ck_atom_is(nd->kids[j], "idx")) continue;
         if (nd->kids[j + 1]->kind != LOW_CST_ATOM ||
             !proven_u8str_view_eq(nd->kids[j + 1]->tok.lex, s2)) continue;
         const low_cst_t *ix = nd->kids[j + 2];
@@ -1745,7 +1745,7 @@ static void ck_par_body(low_check_result_t *out, const low_cst_t *blk,
             // `set (index s X) v .` — X 는 루프변수여야 하고, s 는 지목된 슬라이스여야 한다
             const low_cst_t *g = f->kids[1];
             if (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids == 3 &&
-                ck_atom_is(g->kids[0]->kids[0], "index")) {
+                ck_atom_is(g->kids[0]->kids[0], "idx")) {
                 const low_cst_t *sn = g->kids[0]->kids[1], *ix = g->kids[0]->kids[2];
                 bool same_s = sn->kind == LOW_CST_ATOM && proven_u8str_view_eq(sn->tok.lex, s2);
                 bool same_i = ix->kind == LOW_CST_ATOM && proven_u8str_view_eq(ix->tok.lex, iv);
@@ -5448,7 +5448,7 @@ static bool ck_own_consumes(const low_cst_t *nd, proven_u8str_view_t name, prove
 //   ⇒ 스칼라를 내는 머리 아래로는 provenance 가 **끊긴다**. 그 밖의 머리는 **보수적으로 잇는다**
 //     (모르는 것은 잇는 쪽이 안전하다 — 놓치면 use-after-free 이고, 과하면 거절일 뿐이다).
 static bool ck_scalar_head(proven_u8str_view_t w) {
-    static const char *S[] = { "index","len","count","is_some","is_none","is_ok","is_error",
+    static const char *S[] = { "idx","len","count","is_some","is_none","is_ok","is_error",
                                "eq","ne","lt","le","gt","ge","add","sub","mul","div","mod",
                                "narrow","cast","bit_cast","and","or","not","neg" };
     for (proven_size_t i = 0; i < sizeof S / sizeof S[0]; i++) if (veq(w, S[i])) return true;
@@ -7645,7 +7645,7 @@ static bool lc_is_vel(const lc_t *x, proven_u8str_view_t n) {
 static int lc_call(const lc_t *x, low_cst_t *const *k, proven_size_t n) {
     {
         // ★ RFC-0132 T2b-3d · §13.10 — 원소가 줄이나 구조체인 틀 안 나열의 `index` 는 수가 아니라 **그 바이트를 보는 보기**다
-        if (veq(k[0]->tok.lex, "index") && n >= 2 && ck_atom(k[1]) && lc_is_vel(x, k[1]->tok.lex)) return lc_taint(x, k[1]->tok.lex);
+        if (veq(k[0]->tok.lex, "idx") && n >= 2 && ck_atom(k[1]) && lc_is_vel(x, k[1]->tok.lex)) return lc_taint(x, k[1]->tok.lex);
         if (veq(k[0]->tok.lex, "field") && n >= 4 && ck_atom(k[1]) && lc_is_vel(x, k[1]->tok.lex) && ck_atom(k[2]) &&
             k[2]->tok.kind == LOW_TOK_NUMBER && n == 3) return lc_taint(x, k[1]->tok.lex);
         if (ck_scalar_head(k[0]->tok.lex)) return 0;
@@ -7748,7 +7748,7 @@ static void lc_walk(low_check_result_t *out, lc_t *x, const low_cst_t *nd, int d
                 if (bare) for (proven_size_t i = 0; i < x->narr; i++)
                     if (proven_u8str_view_eq(x->arr[i], base)) {
                         emit(out, "E-ARRAY-SET", "an array's storage cannot be re-pointed: `set <array> …` would leave its cells "
-                             "behind. Write the cells — `set (index buf i) v .` — or copy a whole list in with `copy buf <other> .` (RFC-0132 §6)", nd->kids[0]->tok.line);
+                             "behind. Write the cells — `set (idx buf i) v .` — or copy a whole list in with `copy buf <other> .` (RFC-0132 §6)", nd->kids[0]->tok.line);
                         break;
                     }
                 bool bscalar = false; int bd = lc_decl(x, base, &bscalar);
@@ -8265,6 +8265,8 @@ low_op_summary_t low_op_summary(const low_parse_result_t *pr, const low_cst_t *f
 // ★★ 2026-07-13 에 없앤 여섯 낱말 — 그리고 **왜** 없앴는지, **무엇으로 바꿔 쓰는지.**
 static const struct { const char *word; const char *why; } CK_REMOVED[] = {
     // ★ RFC-0132 L1 (2026-09-29, 소유자 «make 보다는 lit 가 낫겠어요»): 값 리터럴의 머리는 `lit` 하나다.
+    { "index", "`index` is now `idx` (RFC-0132 §6): read `idx a 3`, write `set (idx a 3) v .`. Copying the contents "
+              "of one slice into another is `copy <to> <from> .` — `lowentc --fmt` rewrites the old spelling" },
     { "make", "`make` is now `lit` (RFC-0132): one head for every literal value — `lit point do x 1 . y 2 . end`. "
               "Write `lit`" },
     // ★★★ `fn`/`proc` → `fn`/`proc` (RFC-0082). "op" 은 **원시 연산**(add/len, RFC-0016)을
@@ -8297,13 +8299,13 @@ static const struct { const char *word; const char *why; } CK_REMOVED[] = {
     // ★★ 2026-07-13 (2차)
     { "to",   "infix access is gone. `a to b` meant EXACTLY what `field a b` means — access had "
               "FOUR spellings for one meaning (prefix · `to` · `in` · the glued dot), and they had "
-              "already DIVERGED: the glued dot could not index. Write `field a b` / `index a i` — the glued "
+              "already DIVERGED: the glued dot could not index. Write `field a b` / `idx a i` — the glued "
               "dot (`a.b`) is refused too (`E-FIELD-GLUED`). (`send` now reads `send <actor> <message> [args…]` — "
               "the actor comes FIRST, because a message IS an op call and the instance IS its first "
               "parameter)" },
     { "in",   "`in` is gone. In a loop write `for <name> <slice> do` — the slice follows the name and "
               "`do` marks the body, so `in` carried nothing. As access, `b in a` was a reverse spelling "
-              "of `field a b`: write `field a b` / `index a i` (the glued dot `a.b` is refused too, "
+              "of `field a b`: write `field a b` / `idx a i` (the glued dot `a.b` is refused too, "
               "`E-FIELD-GLUED`)" },
     { "loop", "`loop` was an exact SYNONYM of `while true .` — SPEC-002 §2.5 forbids synonyms. "
               "Write `while true . do … end`" },
@@ -8721,7 +8723,7 @@ static void rw_walk(low_check_result_t *out, const rw_t *x, const low_cst_t *nd)
                 if (k && (!elem || (pl->nkids >= 4 && ck_atom(pl->kids[pl->nkids - 2]) &&
                                     rw_is_array_field(x, pl->kids[1]->tok.lex, pl->kids[pl->nkids - 2]->tok.lex))))
                     rw_refuse(out, k, ln);
-            } else if (veq(pl->kids[0]->tok.lex, "index")) {
+            } else if (veq(pl->kids[0]->tok.lex, "idx")) {
                 const low_cst_t *sv = rw_unwrap(pl->kids[1]);
                 if (sv && sv->kind == LOW_CST_FORM && sv->nkids == 3 && ck_atom(sv->kids[0]) && veq(sv->kids[0]->tok.lex, "field") &&
                     ck_atom(sv->kids[1]) && ck_atom(sv->kids[2])) {
@@ -8814,7 +8816,7 @@ static bool ck_arg_is_ro(const low_cst_t *arg, const ck_bind_t *binds, proven_si
         proven_u8str_view_t head = arg->kids[0]->tok.lex;
         if (veq(head, "mut_ref")) return false;                  // 가변 장소
         if (veq(head, "ref"))     return true;                   // 공유 참조 — 읽기 전용, 거절
-        if (veq(head, "subslice") || veq(head, "index"))         // 슬라이스 X 의 가변성으로 재귀
+        if (veq(head, "subslice") || veq(head, "idx"))         // 슬라이스 X 의 가변성으로 재귀
             return arg->nkids >= 2 ? ck_arg_is_ro(arg->kids[1], binds, nb, pr) : false;
         if (veq(head, "field")) {                                // `field X F` — 별칭 접근
             if (arg->nkids < 3 || arg->kids[2]->kind != LOW_CST_ATOM) return false;
@@ -9165,7 +9167,7 @@ static proven_u8str_view_t ck_arg_root(const low_cst_t *nd, int depth) {
     if (nd->kind == LOW_CST_ATOM) return nd->tok.kind == LOW_TOK_IDENT ? nd->tok.lex : z;
     if ((nd->kind == LOW_CST_FORM || nd->kind == LOW_CST_GROUP) && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
         (veq(nd->kids[0]->tok.lex, "subslice") || veq(nd->kids[0]->tok.lex, "field") ||
-         veq(nd->kids[0]->tok.lex, "index")))
+         veq(nd->kids[0]->tok.lex, "idx")))
         return ck_arg_root(nd->kids[1], depth + 1);
     return z;
 }
@@ -9719,7 +9721,7 @@ static void ck_b2_writes(const low_cst_t *nd, const ck_b2_t *b, const low_opinfo
             if (root.size && ck_b2_in(b->w, b->nw, root)) {
                 *any = true;
                 bool idx_ok = tg && tg->kind == LOW_CST_FORM && tg->nkids == 3 && ck_atom(tg->kids[0]) &&
-                              veq(tg->kids[0]->tok.lex, "index") && ck_atom(tg->kids[1]) && ck_atom(tg->kids[2]);
+                              veq(tg->kids[0]->tok.lex, "idx") && ck_atom(tg->kids[1]) && ck_atom(tg->kids[2]);
                 if (!idx_ok) *bad = true;
                 else if (!var->size) *var = tg->kids[2]->tok.lex;
                 else if (!proven_u8str_view_eq(*var, tg->kids[2]->tok.lex)) *bad = true;
@@ -9755,7 +9757,7 @@ static void ck_b2_writes(const low_cst_t *nd, const ck_b2_t *b, const low_opinfo
 static bool ck_b2_reads_indexed(const low_cst_t *nd, const ck_b2_t *b, proven_u8str_view_t var) {
     if (!nd) return true;
     if (nd->kind == LOW_CST_ATOM) return !(nd->tok.kind == LOW_TOK_IDENT && ck_b2_in(b->r, b->nr, nd->tok.lex));
-    if (nd->kind == LOW_CST_FORM && nd->nkids == 3 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "index") &&
+    if (nd->kind == LOW_CST_FORM && nd->nkids == 3 && ck_atom(nd->kids[0]) && veq(nd->kids[0]->tok.lex, "idx") &&
         ck_atom(nd->kids[1]) && ck_b2_in(b->r, b->nr, nd->kids[1]->tok.lex))
         return ck_atom(nd->kids[2]) && (!var.size || proven_u8str_view_eq(var, nd->kids[2]->tok.lex));
     // `set (index w V) …` 의 대상 자리는 읽기가 아니다
@@ -10898,7 +10900,7 @@ static void ck_launder_walk(low_check_result_t *out, const low_cst_t *nd,
                          "`mut`, a `ref X` shared reference, or a subslice/index of one). The callee "
                          "could write through it, mutating storage the caller only holds read-only — "
                          "laundering the shared-slice / fn-purity guarantee that the DIRECT "
-                         "`set (index s …)` already forbids. Pass a mutable place — a `var` local, a "
+                         "`set (idx s …)` already forbids. Pass a mutable place — a `var` local, a "
                          "`mut`/`owned`/`mut_ref` binding, or `mut_ref X` — or declare this parameter `mut`",
                          arg->tok.line);
             }
@@ -10955,6 +10957,9 @@ static void ck_retlaunder_walk(low_check_result_t *out, const low_cst_t *nd,
 
 low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *pr) {
     g_ck_pr = pr;   // ★ RFC-0112 D6·D7 — `via` 와 권한 칸이 단위를 찾는다
+    // ★ 2026-10-01 — 지난 실행의 폼을 가리킨 채 남아 있으면 `emit()` 이 풀린 노드를 따라간다(단위 시험의 퍼저가 아레나를 비운 뒤
+    //   이 낱말 검사가 맨 앞 폼보다 먼저 말해 터졌다). 실행마다 비운다.
+    ck_cur_form = NULL;
     low_check_result_t out = { .ok = true };
     proven_result_array_t da = PROVEN_ARRAY_INIT(work, low_diag_t, 8);
     proven_result_array_t oa = PROVEN_ARRAY_INIT(work, low_opinfo_t, 16);

@@ -23,7 +23,7 @@ rem   양 백엔드에 주장하면 그것이 거짓말이 된다.
 
 module vm_refarg .
 
-struct pt do
+def struct pt do
   x u64 .
 end
 
@@ -73,8 +73,8 @@ proc slen input s mut slice u8 . . output u64 . effects none . do
 end
 
 proc spoke input s mut slice u8 . . output u64 . effects none . do
-  set (index s 0) 65 .
-  return index s 0 .
+  set (idx s 0) 65 .
+  return idx s 0 .
 end
 
 rem 참조로 길이를 읽는다 — 원본 3 바이트.
@@ -96,5 +96,5 @@ proc slice_write input buf mut slice u8 . . output u64 . effects none . do
     set t (spoke (mut_ref buf)) .
     set i (add i 1) .
   end
-  return add t (index buf 0) .
+  return add t (idx buf 0) .
 end

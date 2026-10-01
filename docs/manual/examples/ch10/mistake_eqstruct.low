@@ -1,7 +1,7 @@
 module mistake_eqstruct .
 rem expect: E-TYPE-KIND
 
-struct point do
+def struct point do
   x u64 .
   y u64 .
 end

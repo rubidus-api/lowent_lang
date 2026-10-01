@@ -445,7 +445,7 @@ end")
 
 build tier t1 .
 
-struct gpio do
+def struct gpio do
   mmio 0x40020000 .
   moder u32 rw .
 end

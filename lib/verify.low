@@ -19,7 +19,7 @@ module verify .
 rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
 rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
-export enum verify_error do
+export def enum verify_error do
   short_workspace .
 end
 
@@ -42,19 +42,19 @@ export fn sig_kind input c slice u8 . output u64 . do
   if eq o 0 . do  return 0 . end
   if eq n 9 . do
     rem 2a 86 48 86 f7 0d 01 01 <0b=SHA-256 · 0c=SHA-384>
-    if eq (index c o) 42 . do
-      if eq (index c (add o 3)) 134 . do
-        if eq (index c (add o 8)) 11 . do  return 1 . end
-        if eq (index c (add o 8)) 12 . do  return 3 . end
+    if eq (idx c o) 42 . do
+      if eq (idx c (add o 3)) 134 . do
+        if eq (idx c (add o 8)) 11 . do  return 1 . end
+        if eq (idx c (add o 8)) 12 . do  return 3 . end
       end
     end
   end
   if eq n 8 . do
     rem 2a 86 48 ce 3d 04 03 <02=SHA-256 · 03=SHA-384>
-    if eq (index c o) 42 . do
-      if eq (index c (add o 3)) 206 . do
-        if eq (index c (add o 7)) 2 . do  return 2 . end
-        if eq (index c (add o 7)) 3 . do  return 4 . end
+    if eq (idx c o) 42 . do
+      if eq (idx c (add o 3)) 206 . do
+        if eq (idx c (add o 7)) 2 . do  return 2 . end
+        if eq (idx c (add o 7)) 3 . do  return 4 . end
       end
     end
   end
@@ -72,7 +72,7 @@ export proc ecdsa_rs input sig slice u8 . input out mut slice u8 . input sz u64 
   guard gt (len sig) 8 . else return 0 .
   guard eq (der.tag_at sig 0) 48 . else return 0 .
   var i be u64 0 .
-  while lt i (mul sz 2) . do  set (index out i) 0 .  set i (add i 1) .  end
+  while lt i (mul sz 2) . do  set (idx out i) 0 .  set i (add i 1) .  end
   let ro be u64 der.value_off sig 0 .
   guard gt ro 0 . else return 0 .
   guard eq (der.tag_at sig ro) 2 . else return 0 .
@@ -89,25 +89,25 @@ export proc ecdsa_rs input sig slice u8 . input out mut slice u8 . input sz u64 
   var rs2 be u64 rv .
   var rn2 be u64 rl .
   while gt rn2 sz . do
-    guard eq (index sig rs2) 0 . else return 0 .
+    guard eq (idx sig rs2) 0 . else return 0 .
     set rs2 (add rs2 1) .
     set rn2 (sub rn2 1) .
   end
   var ss2 be u64 sv .
   var sn2 be u64 sl .
   while gt sn2 sz . do
-    guard eq (index sig ss2) 0 . else return 0 .
+    guard eq (idx sig ss2) 0 . else return 0 .
     set ss2 (add ss2 1) .
     set sn2 (sub sn2 1) .
   end
   var a be u64 0 .
   while lt a rn2 . do
-    set (index out (add (sub sz rn2) a)) (index sig (add rs2 a)) .
+    set (idx out (add (sub sz rn2) a)) (idx sig (add rs2 a)) .
     set a (add a 1) .
   end
   var b be u64 0 .
   while lt b sn2 . do
-    set (index out (add (add sz (sub sz sn2)) b)) (index sig (add ss2 b)) .
+    set (idx out (add (add sz (sub sz sn2)) b)) (idx sig (add ss2 b)) .
     set b (add b 1) .
   end
   return mul sz 2 .
@@ -124,8 +124,8 @@ proc limbs_of input h slice u8 . input out mut slice u64 . input w mut slice u8 
   guard ge (len w) 32 . else return 0 .
   var i be u64 0 .
   while lt i 32 . do
-    set (index w i) (narrow u8 (add (mul (hexd (cast u64 (index h (mul i 2)))) 16)
-                                    (hexd (cast u64 (index h (add (mul i 2) 1)))))) .
+    set (idx w i) (narrow u8 (add (mul (hexd (cast u64 (idx h (mul i 2)))) 16)
+                                    (hexd (cast u64 (idx h (add (mul i 2) 1)))))) .
     set i (add i 1) .
   end
   return bigint.from_bytes (subslice w 0 32) out 16 .
@@ -150,8 +150,8 @@ proc limbs_of96 input h slice u8 . input out mut slice u64 . input w mut slice u
   guard ge (len w) 48 . else return 0 .
   var i be u64 0 .
   while lt i 48 . do
-    set (index w i) (narrow u8 (add (mul (hexd (cast u64 (index h (mul i 2)))) 16)
-                                    (hexd (cast u64 (index h (add (mul i 2) 1)))))) .
+    set (idx w i) (narrow u8 (add (mul (hexd (cast u64 (idx h (mul i 2)))) 16)
+                                    (hexd (cast u64 (idx h (add (mul i 2) 1)))))) .
     set i (add i 1) .
   end
   return bigint.from_bytes (subslice w 0 48) out 24 .
@@ -185,16 +185,16 @@ errors short_workspace .
 do
   guard ge (len wu) 1600 . else return error short_workspace .
   guard ge (len wb) 256 . else return error short_workspace .
-  guard eq (index issuer ko) 4 . else return ok 0 .
+  guard eq (idx issuer ko) 4 . else return ok 0 .
   guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 160) 48) 96 . else return ok 0 .
   rem e ← 해시를 48 바이트 자리에 오른쪽 맞춤으로.
   var i be u64 0 .
-  while lt i 48 . do  set (index wb (add 160 i)) 0 .  set i (add i 1) .  end
+  while lt i 48 . do  set (idx wb (add 160 i)) 0 .  set i (add i 1) .  end
   let hb be u64 hn .
   guard le hb 48 . else return ok 0 .
   var j be u64 0 .
   while lt j hb . do
-    set (index wb (add (add 160 (sub 48 hb)) j)) (index mh j) .
+    set (idx wb (add (add 160 (sub 48 hb)) j)) (idx mh j) .
     set j (add j 1) .
   end
   let _u1 be result u64 verify_error curve384 (subslice wu 0 96) (subslice wb 208 256) .
@@ -301,7 +301,7 @@ do
     return ec384 c so sl issuer ko (subslice wb 0 hn) hn wb wu .
   end
   guard eq kl 65 . else return ok 0 .
-  guard eq (index issuer ko) 4 . else return ok 0 .
+  guard eq (idx issuer ko) 4 . else return ok 0 .
   guard eq (ecdsa_rs (subslice c so (add so sl)) (subslice wb 64 128) 32) 64 . else return ok 0 .
   let _u0 be result u64 verify_error curve (subslice wu 0 64) (subslice wb 128 256) .
   guard is_ok _u0 . else return error short_workspace .
@@ -340,7 +340,7 @@ export fn dn_eq input a slice u8 . input ao u64 . input b slice u8 . input bo u6
   var i be u64 0 .
   var diff be u64 0 .
   while lt i al . do
-    set diff (bit_or diff (bit_xor (cast u64 (index a (add ao i))) (cast u64 (index b (add bo i))))) .
+    set diff (bit_or diff (bit_xor (cast u64 (idx a (add ao i))) (cast u64 (idx b (add bo i))))) .
     set i (add i 1) .
   end
   return eq diff 0 .
@@ -370,7 +370,7 @@ fn label_eq input pat slice u8 . input po u64 . input pn u64 . input h slice u8 
   if ne pn hn . do  return false . end
   var i be u64 0 .
   while lt i pn . do
-    if ne (lower (cast u64 (index pat (add po i)))) (lower (cast u64 (index h (add ho i)))) . do  return false . end
+    if ne (lower (cast u64 (idx pat (add po i)))) (lower (cast u64 (idx h (add ho i)))) . do  return false . end
     set i (add i 1) .
   end
   return true .
@@ -382,17 +382,17 @@ export fn san_matches input c slice u8 . input so u64 . input host slice u8 . ou
   if eq vl 0 . do  return false . end
   if eq (len host) 0 . do  return false . end
   rem 와일드카드가 아니면 통째로 견준다.
-  if ne (index c vo) 42 . do
+  if ne (idx c vo) 42 . do
     return label_eq c vo vl host 0 (len host) .
   end
   rem `*` 다음은 반드시 `.` 이어야 한다.
   if lt vl 3 . do  return false . end
-  if ne (index c (add vo 1)) 46 . do  return false . end
+  if ne (idx c (add vo 1)) 46 . do  return false . end
   rem 호스트의 첫 `.` 뒤가 패턴의 `.` 뒤와 같아야 하고, 첫 마디는 비어 있지 않아야 한다.
   var d be u64 0 .
   var seen be u64 0 .
   while lt d (len host) . do
-    if eq (index host d) 46 . do
+    if eq (idx host d) 46 . do
       if eq seen 0 . do  set seen (add d 1) . end
     end
     set d (add d 1) .

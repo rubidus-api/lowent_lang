@@ -23,14 +23,14 @@ rem   순서 자유 release(자원 소유자 모형) · 실제 축출 정책(LRU
 module pagecache .
 
 rem 캐시 한 자리. **토큰이다** — 값이 아니라 권한이다.
-export struct cache do
+export def struct cache do
   input comptime b type .
   pages u64 .      rem 담을 수 있는 페이지 수
   epoch u64 .      rem reset·eviction 이 올린다 — 옛 id 는 그때 낡는다
 end
 
 rem 페이지 하나에 대한 고정. 앞선 권한을 **자기 안에** 든다.
-export struct pin do
+export def struct pin do
   input comptime b type .
   id u64 .
   depth u64 .
@@ -38,7 +38,7 @@ export struct pin do
 end
 
 rem 겹친 고정 — 앞선 pin 을 삼킨다. 이 중첩이 곧 LIFO 다.
-export struct pin2 do
+export def struct pin2 do
   input comptime b type .
   id u64 .
   depth u64 .

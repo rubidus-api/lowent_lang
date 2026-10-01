@@ -30,20 +30,20 @@ by side. For a computation scanning only x, SoA reads just the needed values con
 proc demo input xs mut slice u64 . . input vxs mut slice u64 . .
   input rows mut slice u64 . . output u64 .
 do
-  set (index xs 0) 1 .
-  set (index xs 1) 2 .
-  set (index vxs 0) 10 .
-  set (index vxs 1) 20 .
+  set (idx xs 0) 1 .
+  set (idx xs 1) 2 .
+  set (idx vxs 0) 10 .
+  set (idx vxs 1) 20 .
   let n1 be u64 soa.step_x xs vxs 2 .
   guard eq n1 2 . else return 90 .
   let s1 be u64 soa.sum_field (subslice xs 0 2) .
-  set (index rows 0) 1 .
-  set (index rows 1) 10 .
-  set (index rows 2) 2 .
-  set (index rows 3) 20 .
+  set (idx rows 0) 1 .
+  set (idx rows 1) 10 .
+  set (idx rows 2) 2 .
+  set (idx rows 3) 20 .
   let n2 be u64 soa.step_x_aos rows 2 0 1 2 .
   guard eq n2 2 . else return 91 .
-  var s2 be u64 add (index rows 0) (index rows 2) .
+  var s2 be u64 add (idx rows 0) (idx rows 2) .
   guard eq s1 s2 . else return 92 .
   return s1 .
 end
@@ -63,5 +63,5 @@ where the compiler cannot help.
 ]
 
 *Cautions.* Keeping parallel arrays the same length is the caller's responsibility --- ops shrink to the shorter one without telling. `get_x`'s failure value 0 cannot be told
-from a normal value. A bare `index` does not shrink the range and stops with `E-VM-BOUNDS`. Splitting a long `let` or `set` across lines lets the newline close the form --- end
+from a normal value. A bare `idx` does not shrink the range and stops with `E-VM-BOUNDS`. Splitting a long `let` or `set` across lines lets the newline close the form --- end
 the line with `,` to continue.

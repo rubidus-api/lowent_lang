@@ -92,7 +92,7 @@ Every place that groups statements opens with `do` and closes with `end`: an op 
 `match`, and the bodies of declarations such as `struct`, `enum`, `trait` and `actor`.
 
 ```lowent
-struct point do
+def struct point do
   x u64 .
   y u64 .
 end

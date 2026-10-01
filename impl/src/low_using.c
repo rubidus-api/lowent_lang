@@ -1292,6 +1292,27 @@ void low_bind_keep_strip(low_parse_result_t *pr, proven_allocator_t node_alloc, 
     c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
     for (proven_size_t i = 0; i < pr->nforms; i++) be_strip_keep(c, pr->forms[i]);
 }
+// ★★ RFC-0132 §5.2 (옮김 창) — 타입 선언은 `def` 로 시작한다. 파서가 `def` 를 먹고 `has_def` 를 남기므로, 여기서는 표시 없는
+//   `struct`·`enum`·`type`·`newtype` 머리를 옛 모양으로 거절한다(`--fmt` 는 이 패스를 지나지 않고 `def` 를 붙여 찍는다).
+#define DR_MSG(w) "a type declaration now starts with `def` — write `def " w " …` (RFC-0132 §5.2: one word builds a type; " \
+                  "`fn`/`proc`/`actor`/`trait`/`test`/`module` stay as they are). `lowentc --fmt` rewrites the old form"
+static void dr_walk(us_ctx_t *c, const low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && us_atom(nd->kids[0]) && !nd->has_def) {
+        low_kw_t k = nd->kids[0]->tok.kw;
+        const char *msg = k == LOW_KW_STRUCT ? DR_MSG("struct") : k == LOW_KW_ENUM ? DR_MSG("enum") :
+                          k == LOW_KW_TYPE ? DR_MSG("type") : k == LOW_KW_NEWTYPE ? DR_MSG("newtype") : NULL;
+        if (msg) low_pdiag(&c->p, "E-VOCAB-REMOVED", msg, nd->kids[0]->tok.line, nd->kids[0]->tok.col);
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) dr_walk(c, nd->kids[i]);
+}
+void low_def_require(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    for (proven_size_t i = 0; i < pr->nforms; i++) dr_walk(c, pr->forms[i]);
+}
 // ★★ RFC-0132 P3 (§5 · Q3 · MK4) — 구조체 값의 **나머지** `lit T do <칸> <값> . … _ <값> . end`: `_ <값> .` 을 선언에 있고 적지 않은
 //   칸마다 `<칸> <값> .` 으로 펼친다(값을 칸마다 다시 적는 것과 같다 — 그래서 값은 이름 하나 또는 리터럴 하나만 받는다). 넣을 수
 //   없는 칸(수 리터럴인데 칸이 수가 아니다)이 남으면 그 칸 이름을 대며 거절한다. 남은 칸이 없으면 `_` 가 채우는 것이 없다고 말한다.

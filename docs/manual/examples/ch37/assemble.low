@@ -13,8 +13,8 @@ do
   let p2 be option u64 term.sgr buf (some_value p1) 1 .
   guard is_some p2 . else return 0 .
   let at be u64 some_value p2 .
-  set (index buf at) 104 .
-  set (index buf (add at 1)) 105 .
+  set (idx buf at) 104 .
+  set (idx buf (add at 1)) 105 .
   rem ko: 속성을 되돌린다(0) — ESC [ 0 m /// en: reset attributes (0): ESC [ 0 m
   let p3 be option u64 term.sgr buf (add at 2) 0 .
   guard is_some p3 . else return 0 .

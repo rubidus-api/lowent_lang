@@ -50,7 +50,7 @@ export fn priv_head input b slice u8 . . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 4 . do
-    set acc (bit_or (shl acc 8) (cast u64 (index b (add s i)))) .
+    set acc (bit_or (shl acc 8) (cast u64 (idx b (add s i)))) .
     set i (add i 1) .
   end
   return acc .

@@ -224,7 +224,7 @@ module ex_guard .
 export fn safe_head input data slice u8 . . output u8 .
 do
   guard ge (len data) 1 . else return 0 .
-  return index data 0 .
+  return idx data 0 .
 end
 ```
 
@@ -274,7 +274,7 @@ end
 ```lowent-거부: `result` 자리에 맨값을 돌려준다 · E-TYPE-RETURN
 module ex_bare_under_result .
 
-enum short do
+def enum short do
   too_short .
 end
 
@@ -282,7 +282,7 @@ fn head input b slice u8 . . output result u8 short .
 errors too_short .
 do
   guard ge (len b) 2 . else return 0 .   rem `ok 0` 도 `error too_short` 도 아니다
-  return ok (index b 0) .
+  return ok (idx b 0) .
 end
 ```
 
@@ -373,7 +373,7 @@ end
 ```lowent 예제: 세 채널이 각기 다른 모양으로 답한다 · 결과: halve(100) = ok 50 · halve(250) = err too_big · lookup(2) = some 20 · lookup(7) = none · strict(10) = 11 · strict(250) → 트랩
 module ex_channels .
 
-enum io_error do
+def enum io_error do
   too_big .
 end
 
@@ -551,7 +551,7 @@ end                      rem `a` 가 5 이하인 길에는 값이 없다
 ```lowent-거부: 적지 않은 오류를 낸다 · E-ERR-UNDECLARED
 module ex_err_undeclared .
 
-enum e do
+def enum e do
   bad .
 end
 
@@ -564,11 +564,11 @@ end
 ```lowent-거부: 남의 실패를 `return` 으로 넘긴다 · E-ERR-UNDECLARED
 module ex_err_handed_on .
 
-enum parse_error do
+def enum parse_error do
   bad_digit .
 end
 
-enum load_error do
+def enum load_error do
   too_long .
 end
 
@@ -590,11 +590,11 @@ end
 ```lowent-거부: 절 없는 op 이 넘겨받은 실패를 다시 넘긴다 · E-ERR-UNDECLARED
 module ex_err_clauseless .
 
-enum parse_error do
+def enum parse_error do
   bad_digit .
 end
 
-enum load_error do
+def enum load_error do
   too_long .
 end
 

@@ -2,11 +2,11 @@
 
 The text is where words are **explained**. This appendix gathers only tables to skim when you get stuck reading code. The word list is the same as the specification’s Appendix A, and anything not in that list is not a word.
 
-## <a id="sx1"></a>The forty-three words
+## <a id="sx1"></a>The forty-four words
 
 | **Kind** | **Words** | **Chapter** |
 |---|---|---|
-| Declarations | `module` `use` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state` | chapters 21 and 13 |
+| Declarations | `module` `use` `def` `type` `newtype` `struct` `enum` `trait` `contract` `actor` `state` | chapters 21 and 13 |
 | ops | `fn` `proc` `export` `unsafe` `extern` `satisfies` | chapter 5 |
 | Locals | `let` `var` `set` `be` | chapter 6 |
 | Flow | `if` `else` `while` `for` `guard` `match` `case` `return` `break` `continue` `try` | chapter 7 |
@@ -29,10 +29,13 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | `unit` | `void` |
 | `calcop` · `procop` | `fn` · `proc` |
 | `is` · `as` (in declarations) · `local` | Not written |
-| `to` · `in` (field access) | `field a b` · `index a i` |
+| `to` · `in` (field access) | `field a b` · `idx a i` |
 | `on` | `proc` inside an actor |
 | `fail` | `return error <variant>` |
 | `;` · `,` | `.` |
+| `make` | `lit` |
+| `index` | `idx` |
+| a `struct`·`enum`·`type`·`newtype` declaration without `def` | `def struct` · `def enum` · `def type` · `def newtype` |
 
 *Table 50.2 — Removed words and what to use instead (`E-VOCAB-REMOVED`)*
 
@@ -47,7 +50,7 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | Changing width | `widen` `narrow` `narrow_wrap` `narrow_sat` `narrow_try` `cast` `bit_cast` |
 | Comparison and logic | `eq` `ne` `lt` `le` `gt` `ge` `and` `or` `not` |
 | Bits | `bit_and` `bit_or` `bit_xor` `bit_not` `shl` `shr` `rotl` `rotr` `wrap_shl` `wrap_shr` `count_ones` `leading_zeros` `trailing_zeros` `byte_swap` `clmul_lo` `clmul_hi` |
-| Sequences | `len` `index` `subslice` `view` `view_array` `same_slice` |
+| Sequences | `len` `idx` `subslice` `view` `view_array` `same_slice` |
 | Groupings | `field` `method` `isa` `get` |
 | Answer-carrying types | `some` `ok` `error` `is_some` `is_none` `is_ok` `is_error` `some_value` `ok_value` `error_value` `value_or` |
 | Translation time | `size_of` `comptime` `config` |

@@ -45,10 +45,10 @@ do
   let nv be option u64 ok_value n .
   guard is_some nv . else return 74 .
   guard eq (some_value nv) 4 . else return 75 .
-  guard eq (index buf 0) 98 . else return 80 .           rem 'b'
-  guard eq (index buf 1) 101 . else return 81 .          rem 'e'
-  guard eq (index buf 2) 116 . else return 82 .          rem 't'
-  guard eq (index buf 3) 97 . else return 83 .           rem 'a'
+  guard eq (idx buf 0) 98 . else return 80 .           rem 'b'
+  guard eq (idx buf 1) 101 . else return 81 .          rem 'e'
+  guard eq (idx buf 2) 116 . else return 82 .          rem 't'
+  guard eq (idx buf 3) 97 . else return 83 .           rem 'a'
 
   rem ★ 끝으로 건너뛰어 파일 크기를 얻는다(offset 0, whence 2 = end)
   let sz be result u64 files.file_error files.seek_to fs rh 0 2 .

@@ -69,7 +69,7 @@
     ]
     #ex("라이브러리도 같은 규칙을 지킨다", "module ex_lib .
 
-enum parse_error do
+def enum parse_error do
   too_short .
 end
 
@@ -78,7 +78,7 @@ export fn first_byte input data slice u8 . . output result u8 parse_error . .
   errors too_short lt (len data) 1 .
 do
   guard ge (len data) 1 . else return error too_short .
-  return ok (index data 0) .
+  return ok (idx data 0) .
 end")
     #plain[
       이 넷은 새 규칙이 아니라 **이미 정한 규칙을 라이브러리도 지킨다**는 말이다.
@@ -121,7 +121,7 @@ end")
  leaf      file_open, file_read, file_close      from the processor, needs cap file_system
     |
  OS        open, read, close                     the kernel
- language  add, len, index, narrow ...           fixed words (6.3.3), used at every layer")
+ language  add, len, idx, narrow ...           fixed words (6.3.3), used at every layer")
     #plain[
       예를 들어 「파일을 열어 정수 핸들을 받는 것」은 커널에 닿으므로 리프다. 그 핸들을
       **잊을 수 없는 값**으로 감싸는 것은 로우엔트로 쓸 수 있으므로 라이브러리다.

@@ -14,7 +14,7 @@ end
 export proc heap_list input h cap heap . input a u64 . output u64 . effects heap state . do
   var hb be allocs.heap_bytes spawn actor allocs.heap_bytes .
   var b using hb be mut slice u64 lit array u64 8 do 0 a . 7 (mul a 3) . _ 1 . end . else return 0 .
-  set (index b 1) 100 .
+  set (idx b 1) 100 .
   return sum b .
 end
 
@@ -26,5 +26,5 @@ export proc bump_list input a u64 . output u64 . effects state . do
   var s2 using bb be mut slice u64 lit slice u64 5 6 . . else return 2 .
   let x3 using bb be option mut slice u64 lit array u64 8 _ . .
   guard is_none x3 . else return 3 .
-  return add (add (widen u64 (index s1 3)) (index s2 1)) (len s2) .
+  return add (add (widen u64 (idx s1 3)) (idx s2 1)) (len s2) .
 end

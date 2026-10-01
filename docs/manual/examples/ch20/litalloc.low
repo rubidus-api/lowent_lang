@@ -10,8 +10,8 @@ do
   var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let got be u64 send bb init back .
   var xs using bb be mut slice u64 lit array u64 4 do 0 a . _ 1 . end . else return 0 .
-  set (index xs 3) 100 .
+  set (idx xs 3) 100 .
   let big using bb be option mut slice u64 lit array u64 8 _ . .
   guard is_none big . else return 1 .
-  return add (index xs 0) (index xs 3) .
+  return add (idx xs 0) (idx xs 3) .
 end

@@ -28,9 +28,9 @@ proc use_it output u64 . effects alloc . do
     let g be option mut slice u8 alloc_bytes r capacity 32 .
     if is_some g . do
       let b be mut slice u8 some_value g .
-      set (index b 0) 7 .
+      set (idx b 0) 7 .
       rem ★ `index` 는 **바이트**를 낸다 — 자리를 안 들고 나간다.
-      set t (narrow u64 (index b 0)) .
+      set t (narrow u64 (idx b 0)) .
     end
   end
   return t .
@@ -46,8 +46,8 @@ proc reuse output u64 . effects alloc . do
     let g be option mut slice u8 alloc_bytes a capacity 32 .
     if is_some g . do
       let b be mut slice u8 some_value g .
-      set (index b 0) 99 .
-      set first (narrow u64 (index b 0)) .
+      set (idx b 0) 99 .
+      set first (narrow u64 (idx b 0)) .
     end
   end
   region c arena do
@@ -55,7 +55,7 @@ proc reuse output u64 . effects alloc . do
     if is_some g2 . do
       let b2 be mut slice u8 some_value g2 .
       rem ★ 같은 자리를 받았다면 여기서 99 가 아니라 **0** 이 보인다.
-      set second (narrow u64 (index b2 0)) .
+      set second (narrow u64 (idx b2 0)) .
     end
   end
   return add (mul first 1000) second .           rem 99000

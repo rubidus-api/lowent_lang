@@ -9,7 +9,7 @@ rem     view_array …`(옛 `u64` 핸들 관용구는 이주됨 — load 는 타
 rem   ★ 이 fixture 는 index 전용 vm_fslice.low 와 분리한다 — for-in/subslice 는 태그 경로라 그쪽의
 rem     `why-slow: 0` 단언을 깨기 때문(정확성은 cbe_diff 가 VM≡native 로 지킨다).
 module m .
-type bytes slice u8 .
+def type bytes slice u8 .
 
 rem len of float 타입배열 = 원소 수. 두 f32 → 2.
 fn flen input b bytes . output u64 . do return len (view_array f32 b) . end
@@ -22,7 +22,7 @@ fn fsum input b bytes . output f64 . do
 end
 
 rem subslice 가 원소 타입을 물려줘 index 가 float 를 되살린다: sub[1..2] 원소0 = 2.5.
-fn fsub input b bytes . output f64 . do return index (subslice (view_array f32 b) 1 2) 0 . end
+fn fsub input b bytes . output f64 . do return idx (subslice (view_array f32 b) 1 2) 0 . end
 
 rem for-in 합 over **부호형** 슬라이스: i16 [-1,-2] → -3 (부호확장).
 fn ssum input b bytes . output i64 . do

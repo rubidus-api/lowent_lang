@@ -6,7 +6,7 @@ rem run: ratio_ok 10 5
 
 fn safe_first_is_zero input xs slice u8 . output bool .
 do
-  return and (gt (len xs) 0) (eq (index xs 0) 0) .
+  return and (gt (len xs) 0) (eq (idx xs 0) 0) .
 end
 
 fn ratio_ok input num u32 . input den u32 . output bool .

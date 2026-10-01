@@ -25,7 +25,7 @@ proc t_spki input cert slice u8 . input out mut slice u8 . output u64 . effects 
   guard gt nl 0 . else return 0 .
   guard ge (len out) nl . else return 0 .
   var i be u64 0 .
-  while lt i nl . do  set (index out i) (index cert (add no i)) .  set i (add i 1) .  end
+  while lt i nl . do  set (idx out i) (idx cert (add no i)) .  set i (add i 1) .  end
   return der.rsa_e cert ko .
 end
 

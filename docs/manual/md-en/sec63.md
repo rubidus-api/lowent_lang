@@ -99,8 +99,8 @@ proc round_trip input buf mut slice u16 . . output u64 . effects none . do
   let b be option u64 u.put buf (some_value a) 128169 .
   guard is_some b . else return 3 .
   guard eq (some_value b) 3 . else return 4 .
-  guard eq (index buf 1) 55357 . else return 5 .
-  guard eq (index buf 2) 56489 . else return 6 .
+  guard eq (idx buf 1) 55357 . else return 5 .
+  guard eq (idx buf 2) 56489 . else return 6 .
 
   rem read it back as one --- decode joins the pair
   let rb be option u64 u.decode buf 1 .
@@ -108,8 +108,8 @@ proc round_trip input buf mut slice u16 . . output u64 . effects none . do
   guard eq (some_value rb) 128169 . else return 8 .
 
   rem 'A' + emoji (pair) + '가' = four units, three characters
-  set (index buf 0) 65 .
-  set (index buf 3) 44032 .
+  set (idx buf 0) 65 .
+  set (idx buf 3) 44032 .
   let n be option u64 u.count_chars (subslice buf 0 4) .
   guard is_some n . else return 9 .
   guard eq (some_value n) 3 . else return 10 .
@@ -137,8 +137,8 @@ end
 > **Counter-example. Trying to pass unpaired input through `decode`**
 >
 > > ```lowent
-> > set (index buf 0) 55357 .          rem ✗ after the high 0xD83D
-> > set (index buf 1) 65 .             rem   comes 'A', not a low
+> > set (idx buf 0) 55357 .          rem ✗ after the high 0xD83D
+> > set (idx buf 1) 65 .             rem   comes 'A', not a low
 > > let a be option u64 u.decode buf 0 .
 > > ```
 > >

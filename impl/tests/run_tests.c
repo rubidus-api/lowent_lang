@@ -142,7 +142,7 @@ static void fz_stmt(fz_t *g, int nest) {
             char s[12]; fz_str(g, s, 3);
             if (fz_rnd(2)) { fz_putf(g, "var v%d u64 be len \"", g->nv, 0); fz_put(g, s); fz_put(g, "\" . "); }
             else {
-                fz_putf(g, "var v%d u64 be index \"", g->nv, 0); fz_put(g, s);
+                fz_putf(g, "var v%d u64 be idx \"", g->nv, 0); fz_put(g, s);
                 fz_putf(g, "\" %d . ", (int)fz_rnd((proven_u32)strlen(s)), 0);
             }
             g->nv++;
@@ -188,8 +188,8 @@ static void fz_stmts(fz_t *g, int budget, int nest) {
 static void fz_gen(fz_t *g, proven_u64 seed) {
     memset(g, 0, sizeof *g);
     fz_state = seed * 2654435761u + 12345u;
-    fz_put(g, "struct fzr do f0 u64 . f1 u64 . end ");
-    fz_put(g, "struct fzw do layout packed . f0 u32 big . f1 u16 . end ");
+    fz_put(g, "def struct fzr do f0 u64 . f1 u64 . end ");
+    fz_put(g, "def struct fzw do layout packed . f0 u32 big . f1 u16 . end ");
     fz_put(g, "fn fzpass input a mut_ref u64 . . output mut_ref u64 . . "
               " do return a . end ");
     fz_put(g, "fn fmain output u64 .  do ");
@@ -814,14 +814,14 @@ int main(void) {
     }
     {
         // normative struct/enum: `do … end` (2026-09-15 owner decision — a block declaration opens with `do`)
-        low_parse_result_t p = PARSE("struct header do version u8 . flags u8 . end");
+        low_parse_result_t p = PARSE("def struct header do version u8 . flags u8 . end");
         low_cst_t *f = p.nforms ? p.forms[0] : NULL;
         check(p.ok && f && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
               f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK, "MVP struct `do … end` parses (normative)");
         proven_array_destroy(&p.diags); if (p.forms) heap.free_fn(heap.ctx, p.forms);
     }
     {
-        low_parse_result_t p = PARSE("enum parse_error do too_short . bad_version . end");
+        low_parse_result_t p = PARSE("def enum parse_error do too_short . bad_version . end");
         low_cst_t *f = p.nforms ? p.forms[0] : NULL;
         check(p.ok && f && f->kids[0]->tok.kw == LOW_KW_ENUM &&
               f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK, "MVP enum `do … end` parses (normative)");
@@ -851,7 +851,7 @@ int main(void) {
         proven_array_destroy(&p.diags); if (p.forms) heap.free_fn(heap.ctx, p.forms);
     }
     {
-        low_parse_result_t p = PARSE("struct pt do x i32 . y i32 . end");
+        low_parse_result_t p = PARSE("def struct pt do x i32 . y i32 . end");
         check(p.ok && p.nforms == 1 && p.forms[0]->kids[0]->tok.kw == LOW_KW_STRUCT, "MVP struct parses do");
         proven_array_destroy(&p.diags); if (p.forms) heap.free_fn(heap.ctx, p.forms);
     }
@@ -1209,9 +1209,9 @@ int main(void) {
     // ── S5b: values — guard/error/ok/try/make/slice on the VM ──
     {
         const char *src =
-            "type bytes slice u8 . . "
-            "enum e2 do neg end "
-            "struct pairr do a u64 . b u64 . end "
+            "def type bytes slice u8 . . "
+            "def enum e2 do neg end "
+            "def struct pairr do a u64 . b u64 . end "
             "fn chk input n u64 . output result u64 e2 .  do "
             "guard ge n 1 . else return error neg . . "
             "return ok n . end "
@@ -1219,7 +1219,7 @@ int main(void) {
             "return lit pairr do a n . b mul n 2 . end end "
             "fn use_try input n u64 . output u64 .  do "
             "let v u64 be try chk n . . return v . end "
-            "fn first input d bytes . output u64 . do return index d 0 . end";
+            "fn first input d bytes . output u64 . do return idx d 0 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -1237,7 +1237,7 @@ int main(void) {
         check(r.ok && r.value == 7, "S5b VM: try unwraps ok payload");
         proven_i64 bytes2[2] = { 7, 9 };
         r = low_ir_run(&ir, proven_u8str_view_from_cstr("first"), bytes2, 2, heap, &ir.diags);
-        check(r.ok && r.value == 7, "S5b VM: CLI ints → byte slice param; index works");
+        check(r.ok && r.value == 7, "S5b VM: CLI ints → byte slice param; idx works");
         low_ir_free(heap, &ir);
         if (p.forms) heap.free_fn(heap.ctx, p.forms);
         proven_array_destroy(&p.diags); proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
@@ -1246,7 +1246,7 @@ int main(void) {
     // ── S5c: containers — stack (pop-into), bitset (poly add/contains/count), for ──
     {
         const char *src =
-            "type bytes slice u8 . . "
+            "def type bytes slice u8 . . "
             "proc drain input n u64 . output u64 . effects none . do "
             "var work stack u64 . be stack_new r capacity 8 . . "
             "var i u64 be 0 . "
@@ -1383,7 +1383,7 @@ int main(void) {
     // ── structs first-class: access surfaces + hash invariance ──
     {
         const char *src =
-            "struct pairr do a u64 . b u64 . end "
+            "def struct pairr do a u64 . b u64 . end "
             "fn mk2 output pairr .  do return lit pairr do a 3 . b 9 . end end "
             "fn geta output u64 .  do var p pairr be mk2 . return field p a . end "
             "fn getb output u64 .  do var p pairr be mk2 . return field p b . end "
@@ -1420,8 +1420,8 @@ int main(void) {
     // ── view/try_view (RFC-0025 §6.6): packed layout + be fields, zero-copy ──
     {
         const char *src =
-            "type bytes slice u8 . . "
-            "struct wire_header do layout packed . magic u32 big . length u16 big . kind u8 . end "
+            "def type bytes slice u8 . . "
+            "def struct wire_header do layout packed . magic u32 big . length u16 big . kind u8 . end "
             "fn hdr_kind input b bytes . output u64 .  do "
             "var o wire_header . be try_view wire_header b . . "
             "guard is_some o . else return 999 . . "
@@ -1452,7 +1452,7 @@ int main(void) {
     {
         // encode (RFC-0025 §6.7 왕복): make → wire bytes → view → same fields
         const char *src =
-            "struct wire_header do layout packed . magic u32 big . length u16 big . kind u8 . end "
+            "def struct wire_header do layout packed . magic u32 big . length u16 big . kind u8 . end "
             "fn mk_hdr output wire_header .  do "
             "return lit wire_header do magic 3735928559 . length 258 . kind 7 . end end "
             "fn rt output u64 .  do "
@@ -1475,7 +1475,7 @@ int main(void) {
     // ── native (non-packed) layout: aligned offsets + tail padding ──
     {
         const char *src =
-            "struct mixed do flag u8 . big u32 . small u16 . end "
+            "def struct mixed do flag u8 . big u32 . small u16 . end "
             "fn mk output mixed .  do "
             "return lit mixed do flag 1 . big 305419896 . small 4660 . end end "
             "fn rt output u64 .  do "
@@ -1502,11 +1502,11 @@ int main(void) {
     // ── view_array + strings + view-EXCL ──
     {
         const char *src =
-            "type bytes slice u8 . . "
+            "def type bytes slice u8 . . "
             "fn va_sum input b bytes . output u64 .  do "
             "var t u64 be 0 . for x view_array u16 b . do set t expr t + x . . end return t . end "
             "fn va_at input b bytes . output u64 .  do "
-            "return index (view_array u32 b) 1 . end "
+            "return idx (view_array u32 b) 1 . end "
             "fn slen output u64 .  do return len \"hello\" . end "
             "fn ssum output u64 .  do "
             "var t u64 be 0 . for ch \"abc\" do set t expr t + ch . . end return t . end";
@@ -1519,7 +1519,7 @@ int main(void) {
         check(r.ok && r.value == 6, "view_array: u16 le elements iterate via for-in (sum 6)");
         proven_i64 w8[8] = { 1, 0, 0, 0, 42, 0, 0, 0 };
         r = low_ir_run(&ir, proven_u8str_view_from_cstr("va_at"), w8, 8, heap, &ir.diags);
-        check(r.ok && r.value == 42, "view_array: u32 index decodes one element");
+        check(r.ok && r.value == 42, "view_array: u32 idx decodes one element");
         proven_i64 w5[5] = { 1, 2, 3, 4, 5 };
         r = low_ir_run(&ir, proven_u8str_view_from_cstr("va_sum"), w5, 5, heap, &ir.diags);
         check(!r.ok && HASDIAG(ir.diags, "E-VM-VIEW"), "view_array: non-multiple length panics");
@@ -1534,7 +1534,7 @@ int main(void) {
     {
         // view-EXCL: rebinding the viewed slice while the view is live → static E-EXCL
         const char *src =
-            "struct pairr do a u32 . b u32 . end "
+            "def struct pairr do a u32 . b u32 . end "
             "fn mkp output pairr .  do return lit pairr do a 5 . b 6 . end end "
             "fn stale output u64 .  do "
             "var s u64 . be encode pairr mkp . . "
@@ -1567,7 +1567,7 @@ int main(void) {
     // ── portable SIMD (RFC-0040): comptime lanes, arith/compare lift, reductions ──
     {
         const char *src =
-            "type bytes slice u8 . . "
+            "def type bytes slice u8 . . "
             "fn dot4 input b bytes . output u64 .  do "
             "var xs u64 . be view_array u32 b . "
             "var va vec u32 4 . be load xs 0 . "
@@ -1675,8 +1675,8 @@ int main(void) {
     // ── float layouts + float SIMD lanes (RFC-0025 §6.6 / RFC-0040) ──
     {
         const char *src =
-            "type bytes slice u8 . . "
-            "struct sample do layout packed . temp f32 big . scale f64 . tag u8 . end "
+            "def type bytes slice u8 . . "
+            "def struct sample do layout packed . temp f32 big . scale f64 . tag u8 . end "
             "fn mk output sample .  do "
             "  return lit sample do temp 1.5 . scale 2.25 . tag 3 . end end "
             "fn rt output f64 .  do "
@@ -1715,9 +1715,9 @@ int main(void) {
     // ── `align n` — alignment contract, enforced at the view boundary (RFC-0051 §5.1) ──
     {
         const char *src =
-            "type bytes slice u8 . . "
-            "struct reg do align 16 . ctrl u32 . stat u16 . end "
-            "struct nat do ctrl u32 . stat u16 . end "
+            "def type bytes slice u8 . . "
+            "def struct reg do align 16 . ctrl u32 . stat u16 . end "
+            "def struct nat do ctrl u32 . stat u16 . end "
             "fn mk output reg .  do return lit reg do ctrl 7 . stat 2 . end . end "
             "fn mkn output nat .  do return lit nat do ctrl 7 . stat 2 . end . end "
             "fn wide output u64 .  do return len encode reg mk . . end "
@@ -1757,7 +1757,7 @@ int main(void) {
             int nf = 1 + (int)fz_rnd(8);
             bool packed = fz_rnd(2);
             proven_u8 sizes[8]; bool bes[8], flts[8]; proven_u64 vals[8];
-            FPUT("struct s do ");
+            FPUT("def struct s do ");
             if (packed) FPUT("layout packed . ");
             proven_u64 expect_sum = 0;
             unsigned off = 0, maxal = 1;
@@ -2000,28 +2000,28 @@ int main(void) {
     //   나중에 붙여도 의미가 바뀌지 않는다. 증명이 사 준 자유다.
     check(CHECK("proc dbl input s mut slice u8 . . output u64 . effects none . parallel s split . do "
                 "  var i u64 be 0 . "
-                "  while lt i (len s) . do set (index s i) expr (index s i) * 2 . . "
+                "  while lt i (len s) . do set (idx s i) expr (idx s i) * 2 . . "
                 "    set i expr i + 1 . . end "
                 "  return len s . end") == true,
           "parallel: ★ an independent loop passes the Bernstein check (each iteration touches only "
           "its OWN element) — the compiler reports W-PAR-OK and cites the Coq theorem");
     check(CHECK("proc blur input s mut slice u8 . . output u64 . effects none . parallel s split . do "
                 "  var i u64 be 1 . "
-                "  while lt i (len s) . do set (index s i) expr (index s i) + (index s 0) . . "
+                "  while lt i (len s) . do set (idx s i) expr (idx s i) + (idx s 0) . . "
                 "    set i expr i + 1 . . end "
                 "  return len s . end") == false,
           "parallel: ★ reading ANOTHER index → E-PAR-READ (rd ∩ wr ≠ ∅ — a cross-iteration "
           "dependence; DET-1's premise fails and the parallel result would NOT match sequential)");
     check(CHECK("proc sum input s mut slice u8 . . output u64 . effects none . parallel s split . do "
                 "  var acc u64 be 0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc + (index s i) . . "
+                "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end "
                 "  return acc . end") == false,
           "parallel: ★ writing an accumulator that lives across iterations → E-PAR-CARRY "
           "(a loop-carried dependence — a reduction must be declared, and its tree fixed: DET-3)");
     check(CHECK("proc f input s mut slice u8 . . output u64 . effects none . do "
                 "  var acc u64 be 0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc + (index s i) . . "
+                "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end "
                 "  return acc . end") == true,
           "parallel: without the `parallel` clause the same loop is fine — the check only bites "
@@ -2035,14 +2035,14 @@ int main(void) {
     check(CHECK("proc isum input s mut slice u8 . . output u64 . effects none . "
                 " parallel s split . reduce acc add . do "
                 "  var acc u64 be 0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc + (index s i) . . "
+                "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end return acc . end") == true,
           "reduce: ★ an INTEGER `add` reduction may be split — add is associative, so the tree "
           "shape cannot change the answer (assoc_shape_free, Qed)");
     check(CHECK("proc fsum input s mut slice u8 . . output f64 . effects none . "
                 " parallel s split . reduce acc add . do "
                 "  var acc f64 be 0.0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc + (index s i) . . "
+                "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end return acc . end") == false,
           "reduce: ★★ a FLOAT reduction is REJECTED → E-PAR-FLOAT. Float addition is not "
           "associative, so splitting changes the tree and the answer would depend on the SCHEDULE "
@@ -2050,7 +2050,7 @@ int main(void) {
     check(CHECK("proc bad input s mut slice u8 . . output u64 . effects none . "
                 " parallel s split . reduce acc sub . do "
                 "  var acc u64 be 0 . var i u64 be 0 . "
-                "  while lt i (len s) . do set acc expr acc - (index s i) . . "
+                "  while lt i (len s) . do set acc expr acc - (idx s i) . . "
                 "    set i expr i + 1 . . end return acc . end") == false,
           "reduce: ★ a NON-ASSOCIATIVE operator (`sub`) is rejected → E-PAR-ASSOC (the theorem "
           "names exactly this: the tree shape decides the answer)");
@@ -2064,17 +2064,17 @@ int main(void) {
             "proc dbl input s mut slice u8 . . output u64 . effects none . do "
             "  var i u64 be 0 . "
             "  while lt i (len s) . do "
-            "    set (index s i) expr (index s i) * 2 . . "
+            "    set (idx s i) expr (idx s i) * 2 . . "
             "    set i expr i + 1 . . end "
             "  var acc u64 be 0 . var j u64 be 0 . "
-            "  while lt j (len s) . do set acc expr acc + (index s j) . . set j expr j + 1 . . end "
+            "  while lt j (len s) . do set acc expr acc + (idx s j) . . set j expr j + 1 . . end "
             "  return acc . end "
             "fn poke input i u64 . input s mut slice u8 . . output u64 .  do "
-            "  set (index s i) 9 . return len s . end";
+            "  set (idx s i) 9 . return len s . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
-        check(ir.ok, "slice write: `set (index s i) v .` lowers (the S5 core had no place form)");
+        check(ir.ok, "slice write: `set (idx s i) v .` lowers (the S5 core had no place form)");
         proven_i64 a3[3] = { 1, 2, 3 };
         low_ir_run_result_t r = low_ir_run(&ir, proven_u8str_view_from_cstr("dbl"), a3, 3, heap, &ir.diags);
         check(r.ok && r.value == 12,
@@ -2105,11 +2105,11 @@ int main(void) {
     }
     // ★ 가변성은 **정적으로** 강제된다 — 런타임 슬라이스 값에는 mut 표시가 없다(포인터가 const).
     check(TYCK("fn f input s slice u8 . output u64 .  do "
-               "  set (index s 0) 9 . return len s . end") == false,
+               "  set (idx s 0) 9 . return len s . end") == false,
           "slice write: ★ writing an element of a NON-mut slice → E-TYPE-MUT (a shared slice is "
           "read-only; mutability is enforced statically because the runtime value has no mut flag)");
     check(TYCK("proc f input s mut slice u8 . . output u64 . effects none . do "
-               "  set (index s 0) 9 . return len s . end") == true,
+               "  set (idx s 0) 9 . return len s . end") == true,
           "slice write: a `mut` slice accepts the write");
 
     // ── ★ effect 어휘는 **닫혀 있다** — 오타가 op 을 조용히 순수로 만든다 ──
@@ -2128,11 +2128,11 @@ int main(void) {
     // ── ★ `errors` 절이 거는 이름은 선언된 enum 변형이어야 한다 ──
     // 지금까지 **본문 쪽만** 봤다(선언 안 한 오류를 반환하면 E-ERR-UNDECLARED).
     // 절 자체는 안 봤다 — enum 에 없는 이름을 걸어도 조용히 통과했다.
-    check(CTCK("enum e do a end "
+    check(CTCK("def enum e do a end "
                "fn f output result u8 e . .  errors ghost . "
                "do return ok 1 . end") == false,
           "errors clause: ★ a name the declared error enum does not contain → E-ERR-UNDEF");
-    check(CTCK("enum e do a end "
+    check(CTCK("def enum e do a end "
                "fn f output result u8 e . .  errors a . "
                "do return ok 1 . end") == true,
           "errors clause: a real variant passes");
@@ -2149,7 +2149,7 @@ int main(void) {
     //   그 검사가 없으면 match 는 그냥 if 사슬이고, 새 변형이 조용히 빠진다.
     {
         const char *src =
-            "enum color do\n red .\n green .\n blue .\nend\n"
+            "def enum color do\n red .\n green .\n blue .\nend\n"
             "fn code input c color . output u8 .  do "
             "  match c do "
             "    case red . do return 10 . end "
@@ -2178,18 +2178,18 @@ int main(void) {
         proven_array_destroy(&p.diags); proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }
     // ★★ 완전성 — 이것이 match 의 값어치다.
-    check(CHECK("enum e do\n a .\n b .\nend\n"
+    check(CHECK("def enum e do\n a .\n b .\nend\n"
                 "fn f input c e . output u8 .  do "
                 "  match c do case a . do return 1 . end end end end") == false,
           "match: ★★ a missing variant → E-MATCH-INEXHAUSTIVE. THIS is what a `match` buys over an "
           "if-chain: add a variant to the enum later and the compiler finds every place that must "
           "change");
-    check(CHECK("enum e do\n a .\n b .\nend\n"
+    check(CHECK("def enum e do\n a .\n b .\nend\n"
                 "fn f input c e . output u8 .  do "
                 "  match c do case a . do return 1 . end case ghost . do return 2 . end "
                 "  case b . do return 3 . end end end end") == false,
           "match: ★ a `case` naming a variant the enum does not contain → E-MATCH-UNDEF");
-    check(CHECK("enum e do\n a .\n b .\nend\n"
+    check(CHECK("def enum e do\n a .\n b .\nend\n"
                 "fn f input c e . output u8 .  do "
                 "  match c do case a . do return 1 . end case b . do return 2 . end end end end") == true,
           "match: an exhaustive match passes (no false positive)");
@@ -2204,12 +2204,12 @@ int main(void) {
         const char *src =
             "fn count input s slice u32 . output u64 .  do return len s . end "
             "fn at input i u64 . input s slice u32 . output u32 .  do "
-            "  return index s i . end "
+            "  return idx s i . end "
             "proc dbl input s mut slice u32 . . output u32 . effects none . do "
             "  var i u64 be 0 . "
-            "  while lt i (len s) . do set (index s i) expr (index s i) * 2 . . "
+            "  while lt i (len s) . do set (idx s i) expr (idx s i) * 2 . . "
             "    set i expr i + 1 . . end "
-            "  return index s 1 . end";
+            "  return idx s 1 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -2222,7 +2222,7 @@ int main(void) {
         proven_i64 a1[17] = { 1, 1,0,0,0, 2,0,0,0, 3,0,0,0, 4,0,0,0 };
         r = low_ir_run(&ir, proven_u8str_view_from_cstr("at"), a1, 17, heap, &ir.diags);
         check(r.ok && r.value == 2,
-              "slice T: ★ `index s 1` reads ELEMENT 1 (=2), not byte 1 (=0)");
+              "slice T: ★ `idx s 1` reads ELEMENT 1 (=2), not byte 1 (=0)");
         r = low_ir_run(&ir, proven_u8str_view_from_cstr("dbl"), b, 16, heap, &ir.diags);
         check(r.ok && r.value == 4,
               "slice T: ★ writing an element ENCODES it at the right width (element 1: 2*2 = 4)");
@@ -2232,25 +2232,25 @@ int main(void) {
     }
     // ★ 그리고 타입체커가 원소 타입을 안다 — `index` 의 결과는 슬라이스가 정한다.
     check(TYCK("fn f input s slice u32 . output u8 .  do "
-               "  var x u8 be index s 0 . . return x . end") == false,
+               "  var x u8 be idx s 0 . . return x . end") == false,
           "slice T: ★ a u32 element into a u8 is a narrowing → E-TYPE-WIDTH (before this, `index` "
           "was ALWAYS u8 no matter what the slice held)");
     check(TYCK("fn f input s slice u32 . output u32 .  do "
-               "  var x u32 be index s 0 . . return x . end") == true,
+               "  var x u32 be idx s 0 . . return x . end") == true,
           "slice T: the element type flows out of the slice type");
 
     // ── ★ 마스크는 **진짜 타입**이다 — bool 도 정수도 아니다 (레인마다 하나씩) ──
     // 벡터 비교의 결과가 마스크인데, 지금까지 마스크는 **아무 타입도 아니었다.**
     // vm_vec 픽스처가 실제로 `var m u64 . be gt v lim .` 라고 적어 놨다 — **마스크를 정수로**.
     // 그래서 select 에 아무거나 넘겨도·any 에 정수를 넘겨도 통과했다.
-    check(TYCK("type bytes slice u8 . . "
+    check(TYCK("def type bytes slice u8 . . "
                "fn f input b bytes . output bool .  do "
                "  var n u64 be 5 . return any n . end") == false,
           "mask: ★ `any` on an integer → E-TYPE-MASK (a mask is the result of a lanewise compare, "
           "not a number)");
     // ★ 2026-07-24: `var xs u64 . be view_array u32 b .` 였다 — 초기식은 **슬라이스**인데 선언은
     //   스칼라라 이제 E-TYPE-VAR 다(타입검사가 자랐고 픽스처가 안 따라가 유닛 게이트가 빨간불이었다).
-    check(TYCK("type bytes slice u8 . . "
+    check(TYCK("def type bytes slice u8 . . "
                "fn f input b bytes . output bool .  do "
                "  var xs slice u32 . be view_array u32 b . "
                "  var v vec u32 4 . be load xs 0 . "
@@ -2261,7 +2261,7 @@ int main(void) {
           "way — it used to say `u64`)");
     // ★ 여기도 `xs` 를 고친다 — 안 고치면 E-TYPE-VAR 로 거부돼 **정작 재려던 E-TYPE-MASK 를
     //   안 재고도 통과한다**(맞는 답, 틀린 이유 — 이 프로젝트가 가장 싫어하는 초록불이다).
-    check(TYCK("type bytes slice u8 . . "
+    check(TYCK("def type bytes slice u8 . . "
                "fn f input b bytes . output u64 .  do "
                "  var xs slice u32 . be view_array u32 b . "
                "  var v vec u32 4 . be load xs 0 . "
@@ -2296,22 +2296,22 @@ int main(void) {
 
     // ★★ 문법에 없는 철자 — 구조체는 `struct N … end` 로만 선언된다(SPEC-002 §211-213).
     //   `type N is struct …` 이 조용히 통과하면서 **레이아웃 없는 두 번째 구조체**를 만들었다.
-    check(TYCK("type pt struct . field x u8 . field y u8 . . "
+    check(TYCK("def type pt struct . field x u8 . field y u8 . . "
                "fn f output u8 .  do return 0 . end") == false,
           "type: ★ `type N is struct …` is NOT the grammar — a struct is `struct N do … end`. "
           "The bad spelling built a layout-less thing that cannot be viewed and cannot cross "
           "the boundary; this language has no such type (E-TYPE-DECL)");
-    check(TYCK("type c enum . variant red . "
+    check(TYCK("def type c enum . variant red . "
                "fn f output u8 .  do return 0 . end") == false,
           "type: an enum is `enum N do … end`, not `type N is enum …`");
-    check(TYCK("type pct be u8 . fn f output u8 . do return 0 . end") == false &&
-          TYCK("newtype pid be u32 . fn f output u8 . do return 0 . end") == false &&
-          TYCK("type pct u8 . newtype pid u32 . fn f output u8 . do return 0 . end") == true,
+    check(TYCK("def type pct be u8 . fn f output u8 . do return 0 . end") == false &&
+          TYCK("def newtype pid be u32 . fn f output u8 . do return 0 . end") == false &&
+          TYCK("def type pct u8 . def newtype pid u32 . fn f output u8 . do return 0 . end") == true,
           "type: ★ `type N be T` / `newtype N be T` is REFUSED (E-TYPE-DECL) — `be` binds a value; one meaning, one spelling");
     check(CHECK("proc f output u64 . effects atomic . do return 0 . end") == false &&
           CHECK("proc f input k cap atomic . output u64 . effects atomic . do return 0 . end") == true,
           "effects: ★ `effects atomic` needs `cap atomic` (E-ATOMIC-NOCAP) — the same pair as io/alloc/heap");
-    check(TYCK("struct pt do x u8 . y u8 . end type p2 pt . "
+    check(TYCK("def struct pt do x u8 . y u8 . end type p2 pt . "
                "fn f input q p2 . output u8 .  do return field q x . end") == true,
           "type: a TRANSPARENT alias to a struct is still that struct (SPEC-004 §89)");
 
@@ -2378,23 +2378,23 @@ int main(void) {
           "trait: ★★★ an OP does not satisfy a trait — a TYPE does (E-TRAIT-RECV). This used to "
           "pass with a W-NOT-YET confession; a confession is not a fix");
     check(CHECK("trait shape do area input s self . output u64 . effects none . end "
-                "struct rect do satisfies shape . w u8 . end "
+                "def struct rect do satisfies shape . w u8 . end "
                 "fn rect.area input s rect . output u64 .  "
                 " do return widen u64 (field s w) . end") == true,
           "trait: ★★★ a TYPE satisfies a trait, and do the satisfaction is CHECKED against the "
           "required signature (RFC-0026 §9)");
     check(CHECK("trait shape do area input s self . output u64 . effects none . end "
-                "struct rect do satisfies shape . w u8 . end "
+                "def struct rect do satisfies shape . w u8 . end "
                 "fn g output u8 .  do return 1 . end") == false,
           "trait: ★ a type that claims a trait but LACKS the required op is an error "
           "(E-TRAIT-MISSING) — a bound that carries no contract guarantees nothing");
     check(CHECK("trait shape do area input s self . output u64 . effects none . end "
-                "struct rect do satisfies shape . w u8 . end "
+                "def struct rect do satisfies shape . w u8 . end "
                 "fn rect.area input s rect . output u8 .  "
                 " do return (field s w) . end") == false,
           "trait: ★ and a MISMATCHED signature is an error (E-TRAIT-SIG) — the output must match");
     check(CHECK("trait shape do area input s self . output u64 . effects none . end "
-                "struct rect do satisfies shape . w u8 . end "
+                "def struct rect do satisfies shape . w u8 . end "
                 "proc rect.area input s rect . output u64 . effects io . "
                 " do return widen u64 (field s w) . end") == false,
           "trait: ★★ and an implementation with an EFFECT the trait does not declare is an error "
@@ -2430,15 +2430,15 @@ int main(void) {
     // ★ `access` 의 두 모드는 **읽기/쓰기 규율**이다 — 스케줄 힌트와 한 덩어리로 묶여
     //   "아직 미구현" 이었다. 그러면 **잡을 수 있는 거짓말을 놓친다.**
     check(CHECK("proc f input s mut slice u8 . . output u8 . effects none . access s shared_read . "
-                " do set (index s 0) 9 . return index s 0 . end") == false,
+                " do set (idx s 0) 9 . return idx s 0 . end") == false,
           "access: ★ `shared_read` + a WRITE — that promise is exactly what lets several tasks "
           "hold the place at once (LowentDRF.v: no write ⇒ no race); a write breaks it");
     check(CHECK("fn f input s slice u8 . output u8 .  access s write_only . "
-                " do return index s 0 . end") == false,
+                " do return idx s 0 . end") == false,
           "access: ★ `write_only` + a READ — a write_only place may be uninitialised, and the "
           "declaration is what told the caller it was safe");
     check(CHECK("fn f input s slice u8 . output u8 .  access s shared_read . "
-                " do return index s 0 . end") == true,
+                " do return idx s 0 . end") == true,
           "access: `shared_read` reading only is fine");
 
     // ★ SPEC-002 의 제어 어휘에 있는데 구현이 없던 셋 — 그리고 `panic` 은 **오진**당했다.
@@ -2459,7 +2459,7 @@ int main(void) {
           "rejected as undefined. The name is accepted now; the level-3 discipline is W-NOT-YET");
 
     // ★ SPEC-007 §28 채널 전환 — 명세의 형태가 E-IR-ARITY 로 거절됐다(오진 5번째).
-    check(TYCK("enum e do bad end "
+    check(TYCK("def enum e do bad end "
                "fn g input a u8 . output result u8 e .  do return ok a . end "
                "fn f input a u8 . output option u8 .  "
                " do return try (g a) else_none . end") == true,
@@ -2489,7 +2489,7 @@ int main(void) {
           "names: a name of its own is fine");
 
     // ★★ 임의의 배열 크기가 **조용히 자른다** — 이번 세션 두 번째(prng[8] 에 이어 f[8]).
-    check(TYCK("struct big do f1 u8 . f2 u8 . f3 u8 . f4 u8 . f5 u8 . f6 u8 . f7 u8 . f8 u8 . "
+    check(TYCK("def struct big do f1 u8 . f2 u8 . f3 u8 . f4 u8 . f5 u8 . f6 u8 . f7 u8 . f8 u8 . "
                "f9 u8 . f10 u8 . f11 u8 . f12 u8 . f13 u8 . f14 u8 . f15 u8 . f16 u8 . f17 u8 . end "
                "fn f output u8 .  do return 1 . end") == false,
           "fields: ★ past the limit the tool REFUSES (E-TYPE-LIMIT) — the extra fields used to be "
@@ -2537,22 +2537,22 @@ int main(void) {
           "stay green)");
 
     // ── ★ 선언의 **내용**도 뜻이 있어야 한다: 순환 별칭 · layout · align ──
-    check(TYCK("type a b . . type b a . . "
+    check(TYCK("def type a b . . def type b a . . "
                "fn f input x a . output u8 .  do return 1 . end") == false,
           "declarations: ★ a `type` alias that resolves back to itself → E-TYPE-CYCLE "
           "(resolving it would not terminate; the declaration names nothing)");
-    check(TYCK("type a u8 . . type b a . . "
+    check(TYCK("def type a u8 . . def type b a . . "
                "fn f input x b . output u8 .  do return x . end") == true,
           "declarations: a chain of aliases that ends at a builtin is fine");
-    check(TYCK("struct s do layout nonsense . x u8 . end "
+    check(TYCK("def struct s do layout nonsense . x u8 . end "
                "fn f output u8 .  do return 1 . end") == false,
           "declarations: ★ an unknown struct layout → E-TYPE-LAYOUT (the vocabulary is closed: "
           "packed | native)");
-    check(TYCK("struct s do align 3 . x u8 . end "
+    check(TYCK("def struct s do align 3 . x u8 . end "
                "fn f output u8 .  do return 1 . end") == false,
           "declarations: ★ `align 3` → E-TYPE-ALIGN (alignment must be a power of two — no "
           "hardware can honour anything else)");
-    check(TYCK("struct s do layout packed . align 4 . x u8 . end "
+    check(TYCK("def struct s do layout packed . align 4 . x u8 . end "
                "fn f output u8 .  do return 1 . end") == true,
           "declarations: a real layout and a power-of-two align pass (no false positive)");
 
@@ -2562,10 +2562,10 @@ int main(void) {
     check(TYCK("fn f input a no_such_type . output u8 .  do return 1 . end") == false,
           "type names: ★ an undeclared type name → E-TYPE-UNDEF (before this, a type name could "
           "point at nothing at all)");
-    check(TYCK("type mytype u8 . . "
+    check(TYCK("def type mytype u8 . . "
                "fn f input a mytype . output u8 .  do return a . end") == true,
           "type names: a declared `type` alias resolves");
-    check(TYCK("struct s do x u8 . end "
+    check(TYCK("def struct s do x u8 . end "
                "fn f input a s . output u8 .  do return 1 . end") == true,
           "type names: a `struct` name do resolves");
     check(TYCK("fn f input a u8 . output u8 .  requires le a 200 . "
@@ -2576,13 +2576,13 @@ int main(void) {
     // ── ★ `stack_new <region>` 의 region 이름 — **지운다고 검사 안 해도 되는 건 아니다** ──
     // IR 은 region 이름을 **지운다**(VM 풀이 아레나를 대신한다). 그래서 그 이름이
     // 아무것도 안 가리켜도 **조용히 통과했다.** 선언된 이름인데 아무도 확인하지 않았다.
-    check(CHECK("type frame u64 . . "
+    check(CHECK("def type frame u64 . . "
                 "proc f input r region frame . . output u64 . effects alloc . do "
                 "  let s be stack_new nosuch capacity 4 . . push s 1 . return count s . end") == false,
           "region: ★ `stack_new` naming something that is not a `region` parameter → "
           "E-REGION-UNDEF (the lowering ERASES this name — that does not mean it need not be "
           "checked)");
-    check(CHECK("type frame u64 . . "
+    check(CHECK("def type frame u64 . . "
                 "proc f input r region frame . . output u64 . effects alloc . do "
                 "  let s be stack_new r capacity 4 . . push s 1 . return count s . end") == true,
           "region: a real region parameter passes (no over-rejection)");
@@ -2613,8 +2613,8 @@ int main(void) {
           "the CALLER'S OWN — module b's `g` calls b's `f`. This used to be refused, and the "
           "reason given was that `g` silently called module a's `f`: that was a RESOLUTION-ORDER "
           "defect, not a naming one (declaration order changed the answer)");
-    check(CHECK("module a .\ntype t u8 . .\n"
-                "module b .\ntype t u32 . .\n"
+    check(CHECK("module a .\ndef type t u8 . .\n"
+                "module b .\ndef type t u32 . .\n"
                 "fn h input x t . output u32 .  do return x . end") == true,
           "self-name: ★★ and the same for TYPE names — `h` lives in module b, so its `t` is b's "
           "`t` (u32). Nobody has to say which one it got: being inside the module IS saying it");
@@ -2650,7 +2650,7 @@ int main(void) {
     //   문법이 열려 있으면 파서가 **조용히 다른 뜻으로 읽는다.** 닫힌 문법이 그것을 막는다.
     {
         const char *src =
-            "enum k do\n a .\n b .\nend\n"
+            "def enum k do\n a .\n b .\nend\n"
             "fn f input s slice u8 . output u64 .  do "
             "  var n u64 be 0 . var i u64 be 0 . "
             "  while lt i (len s) . do "
@@ -2717,7 +2717,7 @@ int main(void) {
     // (슬라이스 원소 쓰기 `set (index s i) v .` 와 같은 자리다.)
     {
         const char *src =
-            "struct p do\n x u8 .\n y u8 .\nend\n"
+            "def struct p do\n x u8 .\n y u8 .\nend\n"
             "fn f input v u8 . output u8 .  do "
             "  var q p be lit p do x 1 . y 2 . end . "
             "  set (field q x) v . "
@@ -2733,12 +2733,12 @@ int main(void) {
         if (p.forms) heap.free_fn(heap.ctx, p.forms);
         proven_array_destroy(&p.diags); proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }
-    check(TYCK("struct p do\n x u8 .\nend\n"
+    check(TYCK("def struct p do\n x u8 .\nend\n"
                "fn f output u8 .  do "
                "  var q p be lit p do x 1 . end . set (field q ghost) 5 . "
                "  return field q x . end") == false,
           "field write: ★ writing a field no struct declares → E-TYPE-FIELD");
-    check(TYCK("struct p do\n x u8 .\nend\n"
+    check(TYCK("def struct p do\n x u8 .\nend\n"
                "fn f input a i32 . output u8 .  do "
                "  var q p be lit p do x 1 . end . set (field q x) a . "
                "  return field q x . end") == false,
@@ -2773,17 +2773,17 @@ int main(void) {
     //   lit p do x 1 . ghost 2 . end  → {x 1, ghost 2}   ★ 선언에 없는 필드가 들어간다
     //   lit p do x <i32> . y 0 . end  → {x -1, y 0}      ★ u8 인데 -1
     // 선언은 검사되지 않으면 거짓말이 된다(PRINCIPLES.md §0).
-    check(TYCK("struct p do x u8 . y u8 . end "
+    check(TYCK("def struct p do x u8 . y u8 . end "
                "fn f output p .  do return lit p do x 1 . end end") == false,
           "make: ★ a MISSING field is caught (before this it just… wasn't there)");
-    check(TYCK("struct p do x u8 . end "
+    check(TYCK("def struct p do x u8 . end "
                "fn f output p .  do return lit p do x 1 . ghost 2 . end end") == false,
           "make: ★ a field the struct does not declare is caught (before this it went straight in)");
-    check(TYCK("struct p do x u8 . y u8 . end "
+    check(TYCK("def struct p do x u8 . y u8 . end "
                "fn f input a i32 . output p .  do "
                "  return lit p do x a . y 0 . end end") == false,
           "make: ★ a field value of the wrong type is caught (a u8 field was taking an i32)");
-    check(TYCK("struct p do x u8 . y u8 . end "
+    check(TYCK("def struct p do x u8 . y u8 . end "
                "fn f output p .  do return lit p do x 1 . y 2 . end end") == true,
           "make: a correct struct literal still passes (no false positive)");
 
@@ -2846,17 +2846,17 @@ int main(void) {
     // ★ 그리고 정직한 선언은 **공짜다** — 술어 기억이 guard 의 조건과 when 을 같은 식으로 알아본다.
     {
         const char *src =
-            "module t . type bytes slice u8 . . enum e do small end "
+            "module t . def type bytes slice u8 . . def enum e do small end "
             // ① 정직 — guard 의 조건과 when 이 같은 식 ⇒ **증명되어 검사가 사라진다**
             "fn honest input data bytes . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
             " do guard ge len data . 4 . else return error small . . . "
-            "   return ok index data 0 . . end "
+            "   return ok idx data 0 . . end "
             // ② 거짓말 — 선언은 len<2, 본문은 len<9 ⇒ 증명 실패 ⇒ 검사 유지
             "fn liar input data bytes . output result u8 e . .  "
             "  errors small lt len data . 2 . . "
             " do guard ge len data . 9 . else return error small . . . "
-            "   return ok index data 0 . . end "
+            "   return ok idx data 0 . . end "
             // ③ ★★ 가장 미묘한 거짓말 — **같은 식, 반대 극성**.
             //    선언: len ≥ 4 일 때 small.  본문: len < 4 일 때 small.
             //    지문이 같으므로 술어 기억이 그 식을 알아본다. **극성을 안 보면**
@@ -2865,7 +2865,7 @@ int main(void) {
             "fn inverted input data bytes . output result u8 e . .  "
             "  errors small ge len data . 4 . . "
             " do guard ge len data . 4 . else return error small . . . "
-            "   return ok index data 0 . . end";
+            "   return ok idx data 0 . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -3001,17 +3001,17 @@ int main(void) {
     //   자기 선언을 어기지 않는다. 어기면 E-VM-CONTRACT 가 나오고, 그것이 곧 실패다.
     {
         const char *src =
-            "module t . type bytes slice u8 . . enum e do small end "
+            "module t . def type bytes slice u8 . . def enum e do small end "
             // 정직 — 선언과 본문이 같은 경계(4)
             "fn honest input data bytes . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
             " do guard ge len data . 4 . else return error small . . . "
-            "   return ok index data 0 . . end "
+            "   return ok idx data 0 . . end "
             // 거짓말 — 선언은 2, 본문은 9
             "fn liar input data bytes . output result u8 e . .  "
             "  errors small lt len data . 2 . . "
             " do guard ge len data . 9 . else return error small . . . "
-            "   return ok index data 0 . . end";
+            "   return ok idx data 0 . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -3030,11 +3030,11 @@ int main(void) {
     // 그리고 **정직한 op 은 통과한다** — 과잉 고발이 아니다.
     {
         const char *src =
-            "module t . type bytes slice u8 . . enum e do small end "
+            "module t . def type bytes slice u8 . . def enum e do small end "
             "fn honest input data bytes . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
             " do guard ge len data . 4 . else return error small . . . "
-            "   return ok index data 0 . . end";
+            "   return ok idx data 0 . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -3137,21 +3137,21 @@ int main(void) {
         const char *src =
             // ① 가드가 사실을 만든다
             "fn at_guarded input i u64 . input g slice u8 . output u64 .  do "
-            "  if lt i (len g) . do return index g i . end return 0 . end "
+            "  if lt i (len g) . do return idx g i . end return 0 . end "
             // ② 루프 — 사실이 매 반복의 조건에서 다시 세워진다
             "fn sum_all input g slice u8 . output u64 .  do "
             "  var acc u64 be 0 . var i u64 be 0 . "
-            "  while lt i (len g) . do set acc expr acc + (index g i) . set i expr i + 1 . . end "
+            "  while lt i (len g) . do set acc expr acc + (idx g i) . set i expr i + 1 . . end "
             "  return acc . end "
             // ③ mod 이디엄 — ★ mod_is_a_safe_index (Qed) 가 그대로 근거다
             "fn wrapped input i u64 . input g slice u8 . output u64 .  do "
-            "  return index g (mod i (len g)) . end "
+            "  return idx g (mod i (len g)) . end "
             // ④ 가드 없음 — 검사가 **남아야** 한다
             "fn unguarded input i u64 . input g slice u8 . output u64 .  do "
-            "  return index g i . end "
+            "  return idx g i . end "
             // ⑤ 다른 슬라이스 — len(g) 를 안다고 h 를 인덱싱할 수는 없다
             "fn crossed input i u64 . input h slice u8 . input g slice u8 . output u64 .  do "
-            "  if lt i (len g) . do return index h i . end return 0 . end";
+            "  if lt i (len g) . do return idx h i . end return 0 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -3165,7 +3165,7 @@ int main(void) {
         //     성질을 재는 검사가 여기 나란히 있는 이유다.
         check(ir.checks_proven == 4,
               "bounds: the provable checks are discharged and the unprovable ones are not — "
-              "3 index checks (guarded, loop, mod) plus the loop counter's `i + 1`, which became "
+              "3 idx checks (guarded, loop, mod) plus the loop counter's `i + 1`, which became "
               "provable when 64-bit arithmetic stopped being refused outright (PERF-0003). "
               "The unguarded and cross-slice indexes keep theirs");
 
@@ -3191,7 +3191,7 @@ int main(void) {
         if (HASDIAG(ir.diags, "E-VM-ANALYSIS")) accused++;   // 격자 전체에서 단 한 번이라도 나오면 실패
         printf("  (bounds model check: %d runs over len 0..8 × i 0..20 — %d self-accusations)\n", ran, accused);
         check(accused == 0,
-              "bounds: NO false elimination across the whole grid — every discharged index check "
+              "bounds: NO false elimination across the whole grid — every discharged idx check "
               "really was in bounds (a wrong removal would fire E-VM-ANALYSIS, and in native code "
               "it would be an out-of-bounds read)");
         // 그리고 제거되지 **않은** 검사는 여전히 잡는다(건전성의 반대쪽: 과잉 제거가 없다).
@@ -3199,7 +3199,7 @@ int main(void) {
             proven_i64 args[4] = { 99, 10, 20, 30 };
             low_ir_run_result_t r = low_ir_run(&ir, proven_u8str_view_from_cstr("unguarded"), args, 4, heap, &ir.diags);
             check(!r.ok && HASDIAG(ir.diags, "E-VM-BOUNDS"),
-                  "bounds: the unguarded index still traps out of bounds (the check was kept)");
+                  "bounds: the unguarded idx still traps out of bounds (the check was kept)");
         }
         low_ir_free(heap, &ir);
         if (p.forms) heap.free_fn(heap.ctx, p.forms);
@@ -3314,7 +3314,7 @@ int main(void) {
     // ── RFC-0053 E5 (P2′ 오차 가시): sum_neumaier(보정) vs sum_seq(축차) — 오차가 이름에 있다 ──
     {
         const char *src =
-            "type bytes slice u8 . . "
+            "def type bytes slice u8 . . "
             "fn s_good input b bytes . output f64 .  do "
             "  var xs u64 . be view_array f64 b . return sum_neumaier xs . end "
             "fn s_fast input b bytes . output f64 .  do "
@@ -3473,11 +3473,11 @@ int main(void) {
         low_ir_t ir = low_ir_build(heap, &p);
         low_ir_run_result_t r = low_ir_run(&ir, proven_u8str_view_from_cstr("second"), NULL, 0, heap, &ir.diags);
         check(r.ok && r.value == 1,
-              "type tracking per-def: f32 precision holds in the SECOND op too");
+              "def type tracking per-def: f32 precision holds in the SECOND op too");
         proven_i64 v255 = 255;
         r = low_ir_run(&ir, proven_u8str_view_from_cstr("third"), &v255, 1, heap, &ir.diags);
         check(!r.ok && HASDIAG(ir.diags, "E-VM-OVERFLOW"),
-              "type tracking per-def: the u8 overflow trap holds in the THIRD op too");
+              "def type tracking per-def: the u8 overflow trap holds in the THIRD op too");
         low_ir_free(heap, &ir);
         if (p.forms) heap.free_fn(heap.ctx, p.forms);
         proven_array_destroy(&p.diags); proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
@@ -3612,13 +3612,13 @@ int main(void) {
         //   섞으면 지표가 거짓말을 한다 — 도구가 검사한 것만 주장해야 하듯이.
         {
             const char *base =
-                "module m . type bytes slice u8 . . enum e do small . end "
-                "struct p do x u8 . y u8 . end "
+                "module m . def type bytes slice u8 . . def enum e do small . end "
+                "def struct p do x u8 . y u8 . end "
                 "fn helper input a u8 . output u8 .  do return a . end "
                 "fn f input d bytes . output result u8 e . .  "
                 "  errors small lt len d . 4 . . tests helper . "
                 " do guard ge len d . 4 . else return error small . . . "
-                "   return ok index d 0 . . end "
+                "   return ok idx d 0 . . end "
                 "fn g input a range u8 0 100 . output u8 .  "
                 "  ensures le ret 200 . do return mul a 2 . end "
                 "fn h output p .  do return lit p do x 1 . y 2 . end . end";
@@ -3628,9 +3628,9 @@ int main(void) {
                 { "range widened past its type","range u8 0 100",     "range u8 0 300",         false },
                 { "make: a field dropped",      "do x 1 . y 2 . end", "do x 1 . end",           false },
                 { "make: a ghost field added",  "do x 1 . y 2 . end", "do x 1 . y 2 . z 3 . end", false },
-                { "type name unbound",          "input d bytes",      "input d nosuch",         false },
+                { "def type name unbound",          "input d bytes",      "input d nosuch",         false },
                 { "effect word typo'd",         "effects none . do return a", "effects nne . do return a", false },
-                { "`try` on a non-result",      "return ok index d 0", "return ok try index d 0 . ", false },
+                { "`try` on a non-result",      "return ok idx d 0", "return ok try idx d 0 . ", false },
                 // ★ 이 둘은 **런타임 계약**이다 — 그 경로를 밟아야 드러난다. 정적 지표가 못 잡는 것이
                 //   정상이고, 그것을 **거짓말이라고 부르지 않는다.** 아래에서 실행으로 확인한다.
                 { "errors condition flipped",   "errors small lt len d . 4", "errors small ge len d . 4", true  },

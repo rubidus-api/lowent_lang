@@ -16,8 +16,8 @@ do
   guard is_some q . else return 92 .
   let pv be mut slice u8 some_value p .
   let qv be mut slice u8 some_value q .
-  set (index pv 0) 65 .
-  set (index qv 0) 66 .
+  set (idx pv 0) 65 .
+  set (idx qv 0) 66 .
   rem ko: 65 를 썼는데 66 이 나온다 /// en: 65 was written, yet 66 comes back
-  return index pv 0 .
+  return idx pv 0 .
 end

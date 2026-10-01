@@ -49,7 +49,7 @@ ratio constant).
 proc hm_sum input b mut slice u64 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   guard ge (div (len b) 2) 4 . else return 0 .

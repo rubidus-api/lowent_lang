@@ -1806,6 +1806,7 @@ int main(int argc, char **argv) {
         //   공개 저장소의 사용자가 옮길 길이 없었다). 타입 없는 묶기는 알리고 실패로 끝난다.
         if (want_fmt) low_decl_migrate(&pr, nodes0, heap);
         else { low_bind_keep_strip(&pr, nodes0, heap);      // ★ RFC-0135 D12 — `keep` 은 타입 낱말이 아니다
+               low_def_require(&pr, nodes0, heap);         // ★ RFC-0132 §5.2 — 타입 선언은 `def` 로 시작한다
                low_decl_order(&pr, nodes0, heap, true);   // 옛 모양·타입 생략은 거절(한 단계 전환)
                low_bind_else_expand(&pr, nodes0, heap); }   // ★ RFC-0135 S1 — 바인딩 `else` 를 숨은 임시 · guard · 꺼내기로
         if (pr.diags.len > nd0) {

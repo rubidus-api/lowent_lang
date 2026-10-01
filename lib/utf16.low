@@ -93,13 +93,13 @@ do
   let h be option u64 unit_hi c .
   guard is_some h . else return none .
   if eq n 1 . do
-    set (index dst at) (some_value h) .
+    set (idx dst at) (some_value h) .
     return (some (add at 1)) .
   end
   let l be option u64 unit_lo c .
   guard is_some l . else return none .
-  set (index dst at) (some_value h) .
-  set (index dst (add at 1)) (some_value l) .
+  set (idx dst at) (some_value h) .
+  set (idx dst (add at 1)) (some_value l) .
   return (some (add at 2)) .
 end
 
@@ -109,11 +109,11 @@ rem ★★★ **짝이 안 맞으면 거절한다.** 여기가 이 파일이 실
 rem   짝 없는 서로게이트를 조용히 통과시키면 그 뒤의 모든 것이 틀린다.
 export fn decode input s slice u16 . input at u64 . output option u64 . link "utf16_decode" . do
   guard lt at (len s) . else return none .
-  let u be u64 index s at .
+  let u be u64 idx s at .
   if is_low u . do return none . end             rem 하위가 혼자 왔다 — 짝 없는 꼬리 . .
   if is_high u . do
     guard lt (add at 1) (len s) . else return none .   rem 잘렸다
-    let v be u64 index s (add at 1) .
+    let v be u64 idx s (add at 1) .
     guard is_low v . else return none .          rem 상위 뒤에 하위가 안 왔다
     return (some (add 65536 (add (mul (sub u 55296) 1024) (sub v 56320)))) .
   end
@@ -125,7 +125,7 @@ export fn next_start input s slice u16 . input at u64 . output option u64 . link
   guard lt at (len s) . else return none .
   let c be option u64 decode s at .
   guard is_some c . else return none .
-  let u be u64 index s at .
+  let u be u64 idx s at .
   if is_high u . do return (some (add at 2)) . end
   return (some (add at 1)) .
 end

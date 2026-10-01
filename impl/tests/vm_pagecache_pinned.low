@@ -9,7 +9,7 @@ rem   같은 규칙이 새 규약을 공짜로 만든다.
 module vm_pagecache_pinned .
 use pagecache from "../../lib/pagecache.low" .
 
-newtype db u8 .
+def newtype db u8 .
 
 export proc evict_while_pinned output u64 . effects none . do
   var c be (owned pagecache.cache db) pagecache.open db 16 .

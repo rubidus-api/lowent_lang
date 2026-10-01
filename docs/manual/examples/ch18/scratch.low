@@ -9,7 +9,7 @@ do
     let buf be mut slice u8 some_value g .
     var i be u64 0 .
     while lt i (len buf) . do
-      set (index buf i) 7 .
+      set (idx buf i) 7 .
       set i (add i 1) .
     end
     var s be u64 0 .

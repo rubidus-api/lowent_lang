@@ -6,7 +6,7 @@ rem   ⇒ access-unit 이 새 규칙이 아니라 **이미 있던 규칙(선형 
 module vm_shardroot .
 use shard from "../../lib/shard.low" .
 
-newtype grid u8 .
+def newtype grid u8 .
 
 export proc after_split input mem mut slice u64 . . output u64 . effects none . do
   var r be (owned shard.token grid) shard.open grid 8 .

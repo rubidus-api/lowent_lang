@@ -51,7 +51,7 @@ do
   let tl be u64 http.target_len req .
   guard eq tl 1 . else return 43 .
   let at be u64 http.target_off req .   rem ★ `to` 는 버린 낱말이라 이름으로 못 쓴다(E-VOCAB-REMOVED).
-  guard eq (index req at) 47 . else return 43 .
+  guard eq (idx req at) 47 . else return 43 .
 
   return 42 .
 end

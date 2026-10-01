@@ -91,16 +91,16 @@ export proc expand_key input key slice u8 . input rk mut slice u8 . output u64 .
   guard ge (len rk) 176 . else return 0 .
   var i be u64 0 .
   while lt i 16 . do
-    set (index rk i) (index key i) .
+    set (idx rk i) (idx key i) .
     set i (add i 1) .
   end
   var rcon be u64 1 .
   var w be u64 16 .
   while lt w 176 . do
-    var t0 be u64 cast u64 (index rk (sub w 4)) .
-    var t1 be u64 cast u64 (index rk (sub w 3)) .
-    var t2 be u64 cast u64 (index rk (sub w 2)) .
-    var t3 be u64 cast u64 (index rk (sub w 1)) .
+    var t0 be u64 cast u64 (idx rk (sub w 4)) .
+    var t1 be u64 cast u64 (idx rk (sub w 3)) .
+    var t2 be u64 cast u64 (idx rk (sub w 2)) .
+    var t3 be u64 cast u64 (idx rk (sub w 1)) .
     if eq (bit_and w 15) 0 . do
       rem RotWord + SubWord + Rcon
       let a0 be u64 t0 .
@@ -110,10 +110,10 @@ export proc expand_key input key slice u8 . input rk mut slice u8 . output u64 .
       set t3 (sbox a0) .
       set rcon (gmul rcon 2) .
     end
-    set (index rk w) (cast u8 (bit_xor (cast u64 (index rk (sub w 16))) t0)) .
-    set (index rk (add w 1)) (cast u8 (bit_xor (cast u64 (index rk (sub (add w 1) 16))) t1)) .
-    set (index rk (add w 2)) (cast u8 (bit_xor (cast u64 (index rk (sub (add w 2) 16))) t2)) .
-    set (index rk (add w 3)) (cast u8 (bit_xor (cast u64 (index rk (sub (add w 3) 16))) t3)) .
+    set (idx rk w) (cast u8 (bit_xor (cast u64 (idx rk (sub w 16))) t0)) .
+    set (idx rk (add w 1)) (cast u8 (bit_xor (cast u64 (idx rk (sub (add w 1) 16))) t1)) .
+    set (idx rk (add w 2)) (cast u8 (bit_xor (cast u64 (idx rk (sub (add w 2) 16))) t2)) .
+    set (idx rk (add w 3)) (cast u8 (bit_xor (cast u64 (idx rk (sub (add w 3) 16))) t3)) .
     set w (add w 4) .
   end
   return 176 .
@@ -123,7 +123,7 @@ rem 라운드 키를 더한다(XOR).
 proc add_round_key input st mut slice u8 . input rk slice u8 . input r u64 . output u64 . effects none . do
   var i be u64 0 .
   while lt i 16 . do
-    set (index st i) (cast u8 (bit_xor (cast u64 (index st i)) (cast u64 (index rk (add (mul r 16) i))))) .
+    set (idx st i) (cast u8 (bit_xor (cast u64 (idx st i)) (cast u64 (idx rk (add (mul r 16) i))))) .
     set i (add i 1) .
   end
   return 1 .

@@ -29,7 +29,7 @@ module tlscli .
 rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
 rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
-export enum tlscli_error do
+export def enum tlscli_error do
   short_workspace .
 end
 
@@ -108,21 +108,21 @@ do
   let body be u64 add 77 extlen .
   guard le (add body 4) (len out) . else return 0 .
 
-  set (index out 0) 1 .
-  set (index out 1) 0 .
-  set (index out 2) (narrow u8 (shr body 8)) .
-  set (index out 3) (narrow u8 (bit_and body 255)) .
-  set (index out 4) 3 .
-  set (index out 5) 3 .
+  set (idx out 0) 1 .
+  set (idx out 1) 0 .
+  set (idx out 2) (narrow u8 (shr body 8)) .
+  set (idx out 3) (narrow u8 (bit_and body 255)) .
+  set (idx out 4) 3 .
+  set (idx out 5) 3 .
   var i be u64 0 .
   while lt i 32 . do
-    set (index out (add 6 i)) (index rnd i) .
+    set (idx out (add 6 i)) (idx rnd i) .
     set i (add i 1) .
   end
-  set (index out 38) 32 .
+  set (idx out 38) 32 .
   var j be u64 0 .
   while lt j 32 . do
-    set (index out (add 39 j)) (index sid j) .
+    set (idx out (add 39 j)) (idx sid j) .
     set j (add j 1) .
   end
   rem ★★★★ cipher_suites: 0004 **1301 1303** — AES-128-GCM 과 ChaCha20-Poly1305 **둘**을 제안한다.
@@ -137,67 +137,67 @@ do
   rem   **그래서 순서는 그대로다.**
   rem   ★ 그래서 우리는 **ChaCha 를 먼저 적는다**: 서버가 순서를 존중하면 빠른 쪽을 고른다.
   rem     레코드 층은 이미 둘 다 안다([tls13](tls13) 의 suite 1·2) — 막혀 있던 것은 이 제안뿐이었다.
-  set (index out 71) 0 .   set (index out 72) 4 .
-  set (index out 73) 19 .  set (index out 74) 3 .
-  set (index out 75) 19 .  set (index out 76) 1 .
+  set (idx out 71) 0 .   set (idx out 72) 4 .
+  set (idx out 73) 19 .  set (idx out 74) 3 .
+  set (idx out 75) 19 .  set (idx out 76) 1 .
   rem legacy_compression_methods: 01 00
-  set (index out 77) 1 .   set (index out 78) 0 .
-  set (index out 79) (narrow u8 (shr extlen 8)) .
-  set (index out 80) (narrow u8 (bit_and extlen 255)) .
+  set (idx out 77) 1 .   set (idx out 78) 0 .
+  set (idx out 79) (narrow u8 (shr extlen 8)) .
+  set (idx out 80) (narrow u8 (bit_and extlen 255)) .
   var at be u64 81 .
 
   rem ① server_name — 이름은 **바이트 그대로** 싣는다(A-라벨은 부르는 쪽이 만든다).
   let n1 be u64 add 5 (len host) .
   let n2 be u64 add 3 (len host) .
-  set (index out at) 0 .              set (index out (add at 1)) 0 .
-  set (index out (add at 2)) (narrow u8 (shr n1 8)) .
-  set (index out (add at 3)) (narrow u8 (bit_and n1 255)) .
-  set (index out (add at 4)) (narrow u8 (shr n2 8)) .
-  set (index out (add at 5)) (narrow u8 (bit_and n2 255)) .
-  set (index out (add at 6)) 0 .
-  set (index out (add at 7)) (narrow u8 (shr (len host) 8)) .
-  set (index out (add at 8)) (narrow u8 (bit_and (len host) 255)) .
+  set (idx out at) 0 .              set (idx out (add at 1)) 0 .
+  set (idx out (add at 2)) (narrow u8 (shr n1 8)) .
+  set (idx out (add at 3)) (narrow u8 (bit_and n1 255)) .
+  set (idx out (add at 4)) (narrow u8 (shr n2 8)) .
+  set (idx out (add at 5)) (narrow u8 (bit_and n2 255)) .
+  set (idx out (add at 6)) 0 .
+  set (idx out (add at 7)) (narrow u8 (shr (len host) 8)) .
+  set (idx out (add at 8)) (narrow u8 (bit_and (len host) 255)) .
   var h be u64 0 .
   while lt h (len host) . do
-    set (index out (add (add at 9) h)) (index host h) .
+    set (idx out (add (add at 9) h)) (idx host h) .
     set h (add h 1) .
   end
   set at (add at e_sni) .
 
   rem ② supported_groups: 000a 0004 0002 001d — x25519 하나만 댄다.
-  set (index out at) 0 .           set (index out (add at 1)) 10 .
-  set (index out (add at 2)) 0 .   set (index out (add at 3)) 4 .
-  set (index out (add at 4)) 0 .   set (index out (add at 5)) 2 .
-  set (index out (add at 6)) 0 .   set (index out (add at 7)) 29 .
+  set (idx out at) 0 .           set (idx out (add at 1)) 10 .
+  set (idx out (add at 2)) 0 .   set (idx out (add at 3)) 4 .
+  set (idx out (add at 4)) 0 .   set (idx out (add at 5)) 2 .
+  set (idx out (add at 6)) 0 .   set (idx out (add at 7)) 29 .
   set at (add at e_grp) .
 
   rem ③ signature_algorithms: 000d 0006 0004 0804 0403
   rem    rsa_pss_rsae_sha256(0804) · ecdsa_secp256r1_sha256(0403) — **우리가 검증할 수 있는 둘**.
   rem    ☞ 못 검증하는 알고리즘을 여기 적으면 서버가 그것을 골라 올 수 있고, 그러면 우리는
   rem      «확인했다» 고 말할 수 없는 서명을 받게 된다. 댈 수 있는 것만 댄다.
-  set (index out at) 0 .           set (index out (add at 1)) 13 .
-  set (index out (add at 2)) 0 .   set (index out (add at 3)) 6 .
-  set (index out (add at 4)) 0 .   set (index out (add at 5)) 4 .
-  set (index out (add at 6)) 8 .   set (index out (add at 7)) 4 .
-  set (index out (add at 8)) 4 .   set (index out (add at 9)) 3 .
+  set (idx out at) 0 .           set (idx out (add at 1)) 13 .
+  set (idx out (add at 2)) 0 .   set (idx out (add at 3)) 6 .
+  set (idx out (add at 4)) 0 .   set (idx out (add at 5)) 4 .
+  set (idx out (add at 6)) 8 .   set (idx out (add at 7)) 4 .
+  set (idx out (add at 8)) 4 .   set (idx out (add at 9)) 3 .
   set at (add at e_sig) .
 
   rem ④ supported_versions: 002b 0003 02 0304 — **이것이 TLS 1.3 을 고른다**(위의 0303 이 아니라).
-  set (index out at) 0 .           set (index out (add at 1)) 43 .
-  set (index out (add at 2)) 0 .   set (index out (add at 3)) 3 .
-  set (index out (add at 4)) 2 .
-  set (index out (add at 5)) 3 .   set (index out (add at 6)) 4 .
+  set (idx out at) 0 .           set (idx out (add at 1)) 43 .
+  set (idx out (add at 2)) 0 .   set (idx out (add at 3)) 3 .
+  set (idx out (add at 4)) 2 .
+  set (idx out (add at 5)) 3 .   set (idx out (add at 6)) 4 .
   set at (add at e_ver) .
 
   rem ⑤ key_share: 0033 0026 0024 001d 0020 <공개키 32>
-  set (index out at) 0 .           set (index out (add at 1)) 51 .
-  set (index out (add at 2)) 0 .   set (index out (add at 3)) 38 .
-  set (index out (add at 4)) 0 .   set (index out (add at 5)) 36 .
-  set (index out (add at 6)) 0 .   set (index out (add at 7)) 29 .
-  set (index out (add at 8)) 0 .   set (index out (add at 9)) 32 .
+  set (idx out at) 0 .           set (idx out (add at 1)) 51 .
+  set (idx out (add at 2)) 0 .   set (idx out (add at 3)) 38 .
+  set (idx out (add at 4)) 0 .   set (idx out (add at 5)) 36 .
+  set (idx out (add at 6)) 0 .   set (idx out (add at 7)) 29 .
+  set (idx out (add at 8)) 0 .   set (idx out (add at 9)) 32 .
   var k be u64 0 .
   while lt k 32 . do
-    set (index out (add (add at 10) k)) (index key k) .
+    set (idx out (add (add at 10) k)) (idx key k) .
     set k (add k 1) .
   end
   return add body 4 .
@@ -210,12 +210,12 @@ rem
 rem ★ 모든 자리가 **상대가 쓴 길이**를 타고 간다. 한 걸음마다 버퍼 안인지 본다.
 export fn sh_ok input b slice u8 . output bool . do
   if lt (len b) 44 . do  return false . end
-  if ne (cast u64 (index b 0)) 2 . do  return false . end
-  let body be u64 add (mul (cast u64 (index b 1)) 65536) (tlssrv.be16 b 2) .
+  if ne (cast u64 (idx b 0)) 2 . do  return false . end
+  let body be u64 add (mul (cast u64 (idx b 1)) 65536) (tlssrv.be16 b 2) .
   if ne (add body 4) (len b) . do  return false . end
-  if ne (cast u64 (index b 4)) 3 . do  return false . end
-  if ne (cast u64 (index b 5)) 3 . do  return false . end
-  let sl be u64 cast u64 (index b 38) .
+  if ne (cast u64 (idx b 4)) 3 . do  return false . end
+  if ne (cast u64 (idx b 5)) 3 . do  return false . end
+  let sl be u64 cast u64 (idx b 38) .
   if gt sl 32 . do  return false . end
   let at be u64 add 39 sl .
   if gt (add at 5) (len b) . do  return false . end
@@ -232,31 +232,31 @@ rem   모르고 지나가는 것과 알고 거절하는 것은 다르다.
 export fn sh_is_hrr input b slice u8 . output bool . do
   if lt (len b) 38 . do  return false . end
   rem CF 21 AD 74 E5 9A 61 11 BE 1D 8C 02 1E 65 B8 91 C2 A2 11 16 7A BB 8C 5E 07 9E 09 E2 C8 A8 33 9C
-  if ne (cast u64 (index b 6)) 207 . do  return false . end
-  if ne (cast u64 (index b 7)) 33 . do  return false . end
-  if ne (cast u64 (index b 8)) 173 . do  return false . end
-  if ne (cast u64 (index b 9)) 116 . do  return false . end
-  if ne (cast u64 (index b 36)) 51 . do  return false . end
-  if ne (cast u64 (index b 37)) 156 . do  return false . end
+  if ne (cast u64 (idx b 6)) 207 . do  return false . end
+  if ne (cast u64 (idx b 7)) 33 . do  return false . end
+  if ne (cast u64 (idx b 8)) 173 . do  return false . end
+  if ne (cast u64 (idx b 9)) 116 . do  return false . end
+  if ne (cast u64 (idx b 36)) 51 . do  return false . end
+  if ne (cast u64 (idx b 37)) 156 . do  return false . end
   return true .
 end
 
 rem 고른 스위트. `sh_ok` 를 통과한 뒤에만 뜻이 있다.
 export fn sh_suite input b slice u8 . output u64 . do
   if eq (sh_ok b) false . do  return 0 . end
-  let sl be u64 cast u64 (index b 38) .
+  let sl be u64 cast u64 (idx b 38) .
   return tlssrv.be16 b (add 39 sl) .
 end
 
 rem 확장 묶음의 시작과 길이.
 export fn sh_ext_off input b slice u8 . output u64 . do
   if eq (sh_ok b) false . do  return 0 . end
-  let sl be u64 cast u64 (index b 38) .
+  let sl be u64 cast u64 (idx b 38) .
   return add (add 39 sl) 5 .
 end
 export fn sh_ext_len input b slice u8 . output u64 . do
   if eq (sh_ok b) false . do  return 0 . end
-  let sl be u64 cast u64 (index b 38) .
+  let sl be u64 cast u64 (idx b 38) .
   return tlssrv.be16 b (add (add 39 sl) 3) .
 end
 
@@ -346,7 +346,7 @@ do
   var esum be u64 0 .
   var ei be u64 0 .
   while lt ei 32 . do
-    set esum (bit_or esum (cast u64 (index ecdhe ei))) .
+    set esum (bit_or esum (cast u64 (idx ecdhe ei))) .
     set ei (add ei 1) .
   end
   guard gt esum 0 . else return ok 0 .
@@ -357,8 +357,8 @@ do
   rem ② early secret = HKDF-Extract(0, 0)
   var z be u64 0 .
   while lt z 32 . do
-    set (index w (add 32 z)) 0 .
-    set (index w (add 64 z)) 0 .
+    set (idx w (add 32 z)) 0 .
+    set (idx w (add 64 z)) 0 .
     set z (add z 1) .
   end
   let _u0 be result u64 hmac.hmac_error hmac.extract (subslice w 32 64) (subslice w 64 96) (subslice w 512 1024) (subslice w 96 128) .
@@ -383,7 +383,7 @@ do
   guard ge (len out) 96 . else return ok 64 .
   var m be u64 0 .
   while lt m 32 . do
-    set (index out (add 64 m)) (index w (add 288 m)) .
+    set (idx out (add 64 m)) (idx w (add 288 m)) .
     set m (add m 1) .
   end
   return ok 96 .
@@ -415,8 +415,8 @@ export proc check_server_fin input s_hs slice u8 . input msgs2 slice u8 . input 
 errors short_workspace .
 do
   guard eq (len fin) 36 . else return ok false .
-  guard eq (cast u64 (index fin 0)) 20 . else return ok false .
-  guard eq (cast u64 (index fin 1)) 0 . else return ok false .
+  guard eq (cast u64 (idx fin 0)) 20 . else return ok false .
+  guard eq (cast u64 (idx fin 1)) 0 . else return ok false .
   guard eq (tlssrv.be16 fin 2) 32 . else return ok false .
   guard ge (len w) 1216 . else return ok false .
   let _u1 be result u64 tlscli_error finished_vd s_hs msgs2 (subslice w 1024 1056) (subslice w 0 1024) .
@@ -425,7 +425,7 @@ do
   var diff be u64 0 .
   var i be u64 0 .
   while lt i 32 . do
-    set diff (bit_or diff (bit_xor (cast u64 (index fin (add 4 i))) (cast u64 (index w (add 1024 i))))) .
+    set diff (bit_or diff (bit_xor (cast u64 (idx fin (add 4 i))) (cast u64 (idx w (add 1024 i))))) .
     set i (add i 1) .
   end
   return ok (eq diff 0) .
@@ -460,10 +460,10 @@ do
   guard ge (len w) (add 640 n) . else return ok 0 .
   var i be u64 0 .
   while lt i (len data) . do
-    set (index w (add 640 i)) (index data i) .
+    set (idx w (add 640 i)) (idx data i) .
     set i (add i 1) .
   end
-  set (index w (add 640 (len data))) (narrow u8 inner_t) .
+  set (idx w (add 640 (len data))) (narrow u8 inner_t) .
   return tls13.record_seal suite (subslice keys 0 klen) (subslice keys klen (add klen 12)) seq (subslice w 640 (add 640 n)) rec (subslice w 0 640) u .
 end
 
@@ -473,11 +473,11 @@ rem     까닭은 중간 상자들이 낯선 수를 보면 끊기 때문이다. 
 export proc plain_hdr input n u64 . input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 5 . else return 0 .
   guard le n 16384 . else return 0 .
-  set (index out 0) 22 .
-  set (index out 1) 3 .
-  set (index out 2) 1 .
-  set (index out 3) (narrow u8 (shr n 8)) .
-  set (index out 4) (narrow u8 (bit_and n 255)) .
+  set (idx out 0) 22 .
+  set (idx out 1) 3 .
+  set (idx out 2) 1 .
+  set (idx out 3) (narrow u8 (shr n 8)) .
+  set (idx out 4) (narrow u8 (bit_and n 255)) .
   return 5 .
 end
 
@@ -485,14 +485,14 @@ rem ★ 받은 레코드의 머리를 읽는다. 길이만 낸다(0 = 성하지 
 rem   ☞ 16384 + 256 을 넘는 레코드는 규격 위반이다 — 고쳐 읽지 않고 거절한다.
 export fn rec_len input h slice u8 . output u64 . do
   if lt (len h) 5 . do  return 0 . end
-  let n be u64 add (mul (cast u64 (index h 3)) 256) (cast u64 (index h 4)) .
+  let n be u64 add (mul (cast u64 (idx h 3)) 256) (cast u64 (idx h 4)) .
   if gt n 16640 . do  return 0 . end
   if eq n 0 . do  return 0 . end
   return n .
 end
 export fn rec_type input h slice u8 . output u64 . do
   if lt (len h) 5 . do  return 0 . end
-  return cast u64 (index h 0) .
+  return cast u64 (idx h 0) .
 end
 
 rem ── Certificate 메시지에서 인증서를 꺼낸다 ──────────────────────────────
@@ -503,29 +503,29 @@ rem ★ 첫째가 **잎**이고 그 뒤가 중간자다(RFC 8446 §4.4.2). 차�
 rem ☞ 길이는 전부 상대가 쓴 것이다 — 한 걸음마다 버퍼 안인지 본다.
 export fn cert_at input b slice u8 . input off u64 . input n u64 . output u64 . do
   if ge (add off 8) (len b) . do  return 0 . end
-  if ne (cast u64 (index b off)) 11 . do  return 0 . end
-  let ctx be u64 cast u64 (index b (add off 4)) .
+  if ne (cast u64 (idx b off)) 11 . do  return 0 . end
+  let ctx be u64 cast u64 (idx b (add off 4)) .
   var at be u64 add (add off 5) ctx .
   if ge (add at 3) (len b) . do  return 0 . end
-  let listn be u64 add (add (mul (cast u64 (index b at)) 65536) (mul (cast u64 (index b (add at 1))) 256))
-                       (cast u64 (index b (add at 2))) .
+  let listn be u64 add (add (mul (cast u64 (idx b at)) 65536) (mul (cast u64 (idx b (add at 1))) 256))
+                       (cast u64 (idx b (add at 2))) .
   let endo be u64 add (add at 3) listn .
   if gt endo (len b) . do  return 0 . end
   set at (add at 3) .
   var i be u64 0 .
   while lt i n . do
     if ge (add at 3) endo . do  return 0 . end
-    let cl be u64 add (add (mul (cast u64 (index b at)) 65536) (mul (cast u64 (index b (add at 1))) 256))
-                      (cast u64 (index b (add at 2))) .
+    let cl be u64 add (add (mul (cast u64 (idx b at)) 65536) (mul (cast u64 (idx b (add at 1))) 256))
+                      (cast u64 (idx b (add at 2))) .
     let nx be u64 add (add at 3) cl .
     if gt (add nx 2) endo . do  return 0 . end
-    let el be u64 add (mul (cast u64 (index b nx)) 256) (cast u64 (index b (add nx 1))) .
+    let el be u64 add (mul (cast u64 (idx b nx)) 256) (cast u64 (idx b (add nx 1))) .
     set at (add (add nx 2) el) .
     set i (add i 1) .
   end
   if ge (add at 3) endo . do  return 0 . end
-  let cl2 be u64 add (add (mul (cast u64 (index b at)) 65536) (mul (cast u64 (index b (add at 1))) 256))
-                     (cast u64 (index b (add at 2))) .
+  let cl2 be u64 add (add (mul (cast u64 (idx b at)) 65536) (mul (cast u64 (idx b (add at 1))) 256))
+                     (cast u64 (idx b (add at 2))) .
   if eq cl2 0 . do  return 0 . end
   if gt (add (add at 3) cl2) endo . do  return 0 . end
   return add at 3 .
@@ -533,6 +533,6 @@ end
 export fn cert_len input b slice u8 . input off u64 . input n u64 . output u64 . do
   let a be u64 cert_at b off n .
   if eq a 0 . do  return 0 . end
-  return add (add (mul (cast u64 (index b (sub a 3))) 65536) (mul (cast u64 (index b (sub a 2))) 256))
-             (cast u64 (index b (sub a 1))) .
+  return add (add (mul (cast u64 (idx b (sub a 3))) 65536) (mul (cast u64 (idx b (sub a 2))) 256))
+             (cast u64 (idx b (sub a 1))) .
 end

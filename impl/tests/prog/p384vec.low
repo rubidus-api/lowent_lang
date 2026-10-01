@@ -77,20 +77,20 @@ proc main input al cap allocator . output u8 . effects alloc . do
 
   rem ✘ s 의 한 비트를 뒤집으면 거절되어야 한다.
   guard eq (prep buf wu) 1 . else return 9 .
-  set (index buf 159) (narrow u8 (bit_xor (cast u64 (index buf 159)) 1)) .
+  set (idx buf 159) (narrow u8 (bit_xor (cast u64 (idx buf 159)) 1)) .
   guard eq (fill buf wu) 1 . else return 9 .
   guard eq (judge wu) 0 . else return 2 .
 
   rem ✘ 해시의 한 비트를 뒤집어도 거절되어야 한다 — **이 메시지의 서명인가**를 묻는다.
   guard eq (prep buf wu) 1 . else return 9 .
-  set (index buf 207) (narrow u8 (bit_xor (cast u64 (index buf 207)) 1)) .
+  set (idx buf 207) (narrow u8 (bit_xor (cast u64 (idx buf 207)) 1)) .
   guard eq (fill buf wu) 1 . else return 9 .
   guard eq (judge wu) 0 . else return 3 .
 
   rem ✘ s = 0 은 **점 연산 이전에** 걸려야 한다. 이 갈래를 빠뜨린 검증기는 아무 서명이나 받는다.
   guard eq (prep buf wu) 1 . else return 9 .
   var i be u64 112 .
-  while lt i 160 . do  set (index buf i) 0 .  set i (add i 1) .  end
+  while lt i 160 . do  set (idx buf i) 0 .  set i (add i 1) .  end
   guard eq (fill buf wu) 1 . else return 9 .
   guard eq (judge wu) 0 . else return 4 .
 

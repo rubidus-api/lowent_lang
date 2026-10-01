@@ -3,7 +3,7 @@ rem expect: E-OWN-MOVED
 
 use shard .
 
-newtype grid u8 .
+def newtype grid u8 .
 
 fn halves_then_root output u64 .
 do

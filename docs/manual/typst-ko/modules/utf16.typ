@@ -107,8 +107,8 @@ proc round_trip input buf mut slice u16 . . output u64 . effects none . do
   let b be option u64 u.put buf (some_value a) 128169 .
   guard is_some b . else return 3 .
   guard eq (some_value b) 3 . else return 4 .
-  guard eq (index buf 1) 55357 . else return 5 .
-  guard eq (index buf 2) 56489 . else return 6 .
+  guard eq (idx buf 1) 55357 . else return 5 .
+  guard eq (idx buf 2) 56489 . else return 6 .
 
   rem 다시 하나로 읽는다 --- decode 가 짝을 합친다
   let rb be option u64 u.decode buf 1 .
@@ -116,8 +116,8 @@ proc round_trip input buf mut slice u16 . . output u64 . effects none . do
   guard eq (some_value rb) 128169 . else return 8 .
 
   rem 'A' + 이모지(짝) + '가' = 칸 넷, 문자 셋
-  set (index buf 0) 65 .
-  set (index buf 3) 44032 .
+  set (idx buf 0) 65 .
+  set (idx buf 3) 44032 .
   let n be option u64 u.count_chars (subslice buf 0 4) .
   guard is_some n . else return 9 .
   guard eq (some_value n) 3 . else return 10 .
@@ -144,8 +144,8 @@ BMP 면 +1, 짝이면 +2 --- 직접 세지 않는다. `none` 이면 멈춘다(�
 
 #antipattern[짝이 맞지 않는 입력을 `decode` 로 통과시키려 한다][
   ```lowent
-  set (index buf 0) 55357 .          rem ✗ 상위 0xD83D 뒤에
-  set (index buf 1) 65 .             rem   하위가 아니라 'A' 가 온다
+  set (idx buf 0) 55357 .          rem ✗ 상위 0xD83D 뒤에
+  set (idx buf 1) 65 .             rem   하위가 아니라 'A' 가 온다
   let a be option u64 u.decode buf 0 .
   ```
   `none` 이다. 하위 서로게이트가 혼자 오거나(`decode buf 2`, 값 56489), 상위 서로게이트로 끝나도(`decode (subslice buf 0 4) 3`) 마찬가지다. 셋 다 `guard is_some`

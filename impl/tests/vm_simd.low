@@ -1,6 +1,6 @@
 module vm_simd .
 
-type bytes slice u8 . .
+def type bytes slice u8 . .
 
 rem ★★★ **여백(margin) 증인** — WO-0056 P1·P2 (2026-08-16).
 rem
@@ -116,7 +116,7 @@ fn run_w input b bytes . output u64 . do
   var s be u64 0 .
   var k be u64 0 .
   while lt k (len xs) . do
-    set s (add s (index xs k)) .
+    set s (add s (idx xs k)) .
     set k (add k 1) .
   end
   return add s z .

@@ -3,7 +3,7 @@ rem ★★ RFC-0135 S1 — 바인딩 `else`: `let n be T v . else <벗어남> .`
 rem   op 부름(option · result) · 이름 · var · 할당기 나열 · send reserve. VM 과 네이티브가 같은 답인가를 잰다.
 use allocs .
 
-enum perr do
+def enum perr do
   bad .
 end
 
@@ -48,8 +48,8 @@ export proc f_alloc input a u64 . output u64 . effects state . do
   var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let got be u64 send bb init back .
   var buf using bb be mut slice u64 lit array u64 4 do 0 a . _ 1 . end . else return 0 .
-  set (index buf 3) 10 .
+  set (idx buf 3) 10 .
   let r be mut slice u8 send bb reserve 8 . else return 1 .
-  var big using bb be mut slice u64 lit array u64 64 _ . . else return add (index buf 0) (index buf 3) .
+  var big using bb be mut slice u64 lit array u64 64 _ . . else return add (idx buf 0) (idx buf 3) .
   return 1000 .
 end

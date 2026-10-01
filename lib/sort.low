@@ -29,25 +29,25 @@ proc qsort input s mut slice u64 . input lo0 u64 . input hi0 u64 . output void .
   rem 구간 크기가 2 미만이면(0·1 원소) 이미 정렬됨. 그 위만 돈다.
   while gt (sub hi lo) 1 . do
     rem ── 분할: 피벗 = s[hi-1]. i 는 "피벗 이하" 구간의 경계 ──
-    let pivot be u64 index s (sub hi 1) .
+    let pivot be u64 idx s (sub hi 1) .
     var i be u64 lo .
     var j be u64 lo .
     while lt j (sub hi 1) . do
-      if le (index s j) pivot . do
+      if le (idx s j) pivot . do
         rem s[i] 와 s[j] 를 교환
-        let ti be u64 index s i .
-        let tj be u64 index s j .
-        set (index s i) tj .
-        set (index s j) ti .
+        let ti be u64 idx s i .
+        let tj be u64 idx s j .
+        set (idx s i) tj .
+        set (idx s j) ti .
         set i (add i 1) .
       end
       set j (add j 1) .
     end
     rem 피벗을 제자리(i)로 — 이제 s[i] 가 확정된 자리다
-    let ti be u64 index s i .
-    let tp be u64 index s (sub hi 1) .
-    set (index s i) tp .
-    set (index s (sub hi 1)) ti .
+    let ti be u64 idx s i .
+    let tp be u64 idx s (sub hi 1) .
+    set (idx s i) tp .
+    set (idx s (sub hi 1)) ti .
     rem ── 작은 쪽 재귀, 큰 쪽 루프(깊이를 log n 으로 묶는다) ──
     let leftlen be u64 sub i lo .              rem [lo, i)
     let rightlen be u64 sub hi (add i 1) .     rem [i+1, hi)

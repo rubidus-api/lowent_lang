@@ -12,7 +12,7 @@ do
   while lt i n . do
     var k be u64 0 .
     while lt k n . do
-      set t (wrap_add t (widen u64 (index a (wrap_add (wrap_mul i n) k)))) .
+      set t (wrap_add t (widen u64 (idx a (wrap_add (wrap_mul i n) k)))) .
       set k (add k 1) .
     end
     set i (add i 1) .

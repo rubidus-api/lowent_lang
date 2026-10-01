@@ -12,7 +12,7 @@
   caption: [겉모습에서 걸리는 실수],
   [*실수*], [*진단*], [*고치는 법*],
   [`output` 을 `input` 앞에 적는다], [`E-CLAUSE-ORDER`], [절 차례표를 따른다. 입력 밖의 절은 `--fmt` 가 옮긴다(#chref("surface"))],
-  [`struct p .` 처럼 블록을 점이나 줄바꿈으로 연다], [`E-STMT-NODO`], [`struct p do … end` (`--fmt` 가 고친다)],
+  [`def struct p .` 처럼 블록을 점이나 줄바꿈으로 연다], [`E-STMT-NODO`], [`def struct p do … end` (`--fmt` 가 고친다)],
   [`;` 나 `,` 로 닫는다], [`E-VOCAB-REMOVED`], [떨어진 마침표 `.`],
   [`p.x` 로 칸을 읽는다], [`E-FIELD-GLUED`], [`field p x`],
   [`for x in xs`], [`E-VOCAB-REMOVED`], [`for x xs do … end`],
@@ -21,7 +21,7 @@
   [`count`·`text`·`len` 같은 이름을 쓴다], [`E-NAME-BUILTIN` 따위], [내장 연산·이음글 낱말은 이름이 될 수 없다],
   [모듈 이름과 op 이름이 같다], [`E-NAME-DUP`], [모듈 이름을 바꾼다],
   [`expr a lt b and b lt c`], [`E-TYPE-LOGICAL`], [`expr (a lt b) and (b lt c)`(#chref("expr"))],
-  [`type pct be u8 .`], [`E-TYPE-DECL`], [`type pct u8 .`],
+  [`def type pct be u8 .`], [`E-TYPE-DECL`], [`def type pct u8 .`],
 )
 
 == 값과 흐름

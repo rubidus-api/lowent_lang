@@ -19,7 +19,7 @@ rem   작동하고, 같은 뜻의 두 이름은 §2.5(동의어 금지)가 거�
 
 module strings .
 
-type str slice u8 . .
+def type str slice u8 . .
 
 rem ── 비교 ──────────────────────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ export fn eq_str input a str . input b str . output bool . do
   guard eq (len a) (len b) . else return false .
   var i be u64 0 .
   while lt i (len a) . do
-    guard eq (index a i) (index b i) . else return false .
+    guard eq (idx a i) (idx b i) . else return false .
     set i (add i 1) .
   end
   return true .
@@ -38,7 +38,7 @@ rem 바이트 멤버십 — 빌트인 `contains` 는 bitset 전용이다. cut �
 export fn has_byte input s str . input b u8 . output bool . do
   var i be u64 0 .
   while lt i (len s) . do
-    if eq (index s i) b . do return true . end
+    if eq (idx s i) b . do return true . end
     set i (add i 1) .
   end
   return false .
@@ -95,7 +95,7 @@ rem ── 다듬기 — cut 은 "잘라낼 바이트들의 집합" (예: " \t\n
 export fn trim_start input s str . input cut str . output str . do
   var i be u64 0 .
   while lt i (len s) . do
-    guard has_byte cut (index s i) . else return (subslice s i (len s)) .
+    guard has_byte cut (idx s i) . else return (subslice s i (len s)) .
     set i (add i 1) .
   end
   return (subslice s (len s) (len s)) .                 rem 전부 잘림 → 빈 뷰
@@ -104,7 +104,7 @@ end
 export fn trim_end input s str . input cut str . output str . do
   var j be u64 (len s) .
   while gt j 0 . do
-    guard has_byte cut (index s (sub j 1)) . else return (subslice s 0 j) .
+    guard has_byte cut (idx s (sub j 1)) . else return (subslice s 0 j) .
     set j (sub j 1) .
   end
   return (subslice s 0 0) .
@@ -121,7 +121,7 @@ do
   guard le pos (len src) . else return none .
   var j be u64 pos .
   while lt j (len src) . do
-    if eq (index src j) sep . do return (some (subslice src pos j)) . end
+    if eq (idx src j) sep . do return (some (subslice src pos j)) . end
     set j (add j 1) .
   end
   return (some (subslice src pos (len src))) .          rem 마지막 조각(sep 없음)
@@ -147,7 +147,7 @@ export actor str_splitter do
     guard eq fin false . else return none .
     var j be u64 pos .
     while lt j (len src) . do
-      if eq (index src j) sep . do
+      if eq (idx src j) sep . do
         let piece be slice u8 subslice src pos j .
         set pos (add j 1) .
         return (some piece) .

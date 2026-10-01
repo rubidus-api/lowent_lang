@@ -157,7 +157,7 @@ end
 (4) 논리 연산은 `and` `or` `not` 이며 피연산자와 결과가 모두 `bool` 이다. `and` 와 `or` 는
       ⟦단락 평가|short-circuit⟧ 한다 — 앞쪽만으로 결과가 정해지면 뒤쪽을 계산하지 않는다.
 
-(5) 슬라이스 연산은 `len` `index` 이다(⟦§6.2.6⟧).
+(5) 슬라이스 연산은 `len` `idx` 이다(⟦§6.2.6⟧).
 
 (6) 변환 연산은 `widen` `narrow` 이다(⟦§6.2.5⟧).
 
@@ -425,7 +425,7 @@ fn endian input a u32 . output u32 . do return byte_swap a . end
 ```lowent-거부: 부동소수 합을 정수 자리에 돌려준다 · E-TYPE-RETURN
 module ex_slice_sum .
 
-type bytes slice u8 . .
+def type bytes slice u8 . .
 
 fn total input b bytes . output u64 .
 do

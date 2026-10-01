@@ -71,7 +71,7 @@
 
 #demo("examples/ch07/guards.low")
 
-`head_or_zero` 의 `guard` 를 지난 코드는 슬라이스가 비지 않은 세계에서만 산다. 그래서 `index data 0`
+`head_or_zero` 의 `guard` 를 지난 코드는 슬라이스가 비지 않은 세계에서만 산다. 그래서 `idx data 0`
 이 안전하다. `grade` 는 `guard` 로 범위 밖을 먼저 걸러 내고, 그 아래에서 `if … end else do … end` 로
 갈래를 나눈다.
 
@@ -191,7 +191,7 @@ VM 은 `E-VM-PANIC` 을 내며, 이것이 *계약 위반이 아니라는* 것을
     var n be u64 0 .
     var i be u64 0 .
     while lt i (len xs) . do
-      if eq (mod (index xs i) 2) 0 . do
+      if eq (mod (idx xs i) 2) 0 . do
         continue .
       end
       set n (add n 1) .

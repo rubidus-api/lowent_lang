@@ -128,7 +128,7 @@ end
 rem ── cstr — 널종단 `const char *` 단일 포인터(길이 없음, RFC-0068 S4)
 rem   ☞ `cstr` 은 빌트인이 아니라 **모듈이 선언하는 newtype** 이다. 그 사실도 표면의 일부다:
 rem     이 줄이 없으면 반환은 조용히 `long long` 으로 나간다(그리고 `--check` 가 E-TYPE-UNDEF 로 운다).
-newtype cstr unsafe_ptr u8 .
+def newtype cstr unsafe_ptr u8 .
 unsafe extern proc abi_c_cstr do
   input k cap c .
   output cstr .
@@ -137,7 +137,7 @@ unsafe extern proc abi_c_cstr do
 end
 
 rem ── struct by-value — viewable 구조체는 **진짜 C struct** 로 나간다(struct lw_sty_N)
-struct abi_pt do
+def struct abi_pt do
   x i64 .
   y i64 .
 end

@@ -5,7 +5,7 @@ trait ordered do
   less input a self . input b self . output bool .
 end
 
-struct plain do
+def struct plain do
   v u64 .
 end
 

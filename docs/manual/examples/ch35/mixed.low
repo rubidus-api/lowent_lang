@@ -3,8 +3,8 @@ rem expect: E-TYPE-INSTANCE
 
 use pool .
 
-newtype meshes u8 .
-newtype sounds u8 .
+def newtype meshes u8 .
+def newtype sounds u8 .
 
 proc wrong input m mut pool.block_pool meshes . input h pool.handle sounds . output bool . effects none .
 do

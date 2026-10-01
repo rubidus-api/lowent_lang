@@ -8,7 +8,7 @@ rem   적고, 타깃 표는 그 수만 알려 준다.
 module vm_align_target .
 
 rem 스레드마다 바뀌는 카운터를 캐시라인으로 **격리**한다 — 거짓 공유를 피하는 그 관용구.
-struct counter do
+def struct counter do
   align machine.cache_line .
   hits u32 .
   miss u16 .

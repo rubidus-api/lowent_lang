@@ -3,7 +3,7 @@ rem run: drive 0 [0,0,0,0,7,0,0,0,0,0,0,0]
 
 build tier t1 .
 
-struct gpio do
+def struct gpio do
   mmio 0x40020000 .
   moder u32 rw .
   idr u32 ro .

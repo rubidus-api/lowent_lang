@@ -83,14 +83,14 @@ proc reserved input al cap allocator . output u64 . effects state alloc . do
   rem 담긴 만큼만 보는 뷰.
   let v be slice u16 vecgen.view_of u16 allocs.bump_bytes g .
   guard eq (len v) 10 . else return 8 .
-  guard eq (index v 9) 27 . else return 9 .
+  guard eq (idx v 9) 27 . else return 9 .
   return 42 .
 end
 
 rem ★★★ **구조체 원소** (2026-07-26) — 제네릭 컨테이너가 스칼라에 갇혀 있던 자리.
 rem   기계장치(IR_STRUCT_BIT)는 이미 있었다: `index` 가 정수 대신 **구조체 뷰**를 준다.
 rem   표면만 안 이어져 있었고, 그래서 `vec point` 가 못 섰다.
-struct pt do
+def struct pt do
   x u32 .
   y u32 .
 end
@@ -129,7 +129,7 @@ end
 rem ★★ **중첩** (2026-07-26) — 타입 인자는 낱말 하나가 아니어도 된다: 괄호로 싸면 그것도 인자다.
 rem   `nest (nest u32)` 는 접고 나면 `nest#nest#u32` 라는 **평범한 구체 struct** 다.
 rem   ☞ 괄호 없는 `nest nest u32` 는 **일부러 안 받는다** — 인자가 몇 개인지 눈으로 못 센다.
-struct nest do
+def struct nest do
   input comptime t type .
   v t .
 end

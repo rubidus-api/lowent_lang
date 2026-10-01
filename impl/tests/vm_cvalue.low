@@ -17,7 +17,7 @@ rem   ★ 폭이 comptime 이라 **VM·C 가 같은 값을 굽는다** ⇒ diff-
 
 module vm_cvalue .
 
-type bytes slice u8 . .
+def type bytes slice u8 . .
 
 rem 레인 수를 comptime 값으로 받는다 — 같은 소스가 호출마다 다른 폭으로 선다.
 proc wide input comptime n u64 . input a bytes . input out mut slice u8 . output u64 . effects none . do

@@ -10,7 +10,7 @@ rem   경계라고 봐주지 않는다. 봐주면 그 다음에 오는 모든 �
 
 module vm_structarg .
 
-struct pt do
+def struct pt do
   x u8 .
   y u8 .
 end

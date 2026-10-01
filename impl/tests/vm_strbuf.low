@@ -21,9 +21,9 @@ proc fits input buf mut slice u8 . . output u64 . effects none . do
   guard eq (field b len) 2 . else return 91 .
   let v be slice u8 strbuf.as_str b buf .
   guard eq (len v) 2 . else return 92 .
-  guard eq (index v 0) 97 . else return 93 .            rem 'a'
+  guard eq (idx v 0) 97 . else return 93 .            rem 'a'
   rem ★★★ **F3=(a) 봉인**: len 자리에 널이 봉인돼 있다 — cstr 수출이 O(1)인 이유(D2).
-  guard eq (index buf 2) 0 . else return 94 .           rem buf[len] == 0 (봉인)
+  guard eq (idx buf 2) 0 . else return 94 .           rem buf[len] == 0 (봉인)
   return 1 .
 end
 
@@ -39,8 +39,8 @@ proc atomic_refuses input buf mut slice u8 . . output u64 . effects none . do
   guard is_error r2 . else return 91 .
   rem ★ 길이도 안 늘고, 그 뒤 바이트도 안 건드려졌다
   guard eq (field b len) 2 . else return 92 .
-  guard eq (index buf 2) 0 . else return 93 .
-  guard eq (index buf 3) 0 . else return 94 .
+  guard eq (idx buf 2) 0 . else return 93 .
+  guard eq (idx buf 3) 0 . else return 94 .
   return 1 .
 end
 
@@ -53,8 +53,8 @@ proc trunc_writes_part input buf mut slice u8 . . output u64 . effects none . do
   let n be u64 strbuf.append_trunc b (subslice buf 0 5) "xyz" .
   guard eq n 2 . else return 91 .                       rem 3 을 달랬는데 2 를 썼다(내용 4 − 2 = 2) — 값으로 안다
   guard eq (field b len) 4 . else return 92 .
-  guard eq (index buf 2) 120 . else return 93 .          rem 'x'
-  guard eq (index buf 3) 121 . else return 94 .          rem 'y'
+  guard eq (idx buf 2) 120 . else return 93 .          rem 'x'
+  guard eq (idx buf 3) 121 . else return 94 .          rem 'y'
   return 1 .
 end
 
@@ -73,10 +73,10 @@ do
   let r3 be result void strbuf.sb_error strbuf.append_grow b small big "xyz" .
   guard is_ok r3 . else return 92 .
   guard eq (field b len) 5 . else return 93 .
-  guard eq (index big 0) 97 . else return 94 .           rem 'a' — 옮겨졌다
-  guard eq (index big 1) 98 . else return 95 .           rem 'b'
-  guard eq (index big 2) 120 . else return 96 .          rem 'x' — 이어졌다
-  guard eq (index big 4) 122 . else return 97 .          rem 'z'
+  guard eq (idx big 0) 97 . else return 94 .           rem 'a' — 옮겨졌다
+  guard eq (idx big 1) 98 . else return 95 .           rem 'b'
+  guard eq (idx big 2) 120 . else return 96 .          rem 'x' — 이어졌다
+  guard eq (idx big 4) 122 . else return 97 .          rem 'z'
   return 1 .
 end
 
@@ -91,6 +91,6 @@ do
   let r2 be result void strbuf.sb_error strbuf.append_grow b small (subslice big 0 3) "xyz" .
   guard is_error r2 . else return 91 .
   guard eq (field b len) 2 . else return 92 .            rem 길이 불변
-  guard eq (index big 0) 0 . else return 93 .            rem 새 자리도 안 건드려졌다
+  guard eq (idx big 0) 0 . else return 93 .            rem 새 자리도 안 건드려졌다
   return 1 .
 end

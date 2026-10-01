@@ -6,7 +6,7 @@ fn clear input xs mut slice u8 . output void .
 do
   var i be u64 0 .
   while lt i (len xs) do
-    set (index xs i) 0 .
+    set (idx xs i) 0 .
     set i (add i 1) .
   end
 end

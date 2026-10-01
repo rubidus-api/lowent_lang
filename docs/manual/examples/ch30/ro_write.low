@@ -1,7 +1,7 @@
 module ro_write .
 rem expect: E-MMIO-PERM
 
-struct gpio do
+def struct gpio do
   mmio 0x40020000 .
   moder u32 rw .
   idr u32 ro .

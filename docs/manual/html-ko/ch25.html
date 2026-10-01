@@ -744,7 +744,7 @@ tally(5, 7) = 12
 </code></pre></div></div><p><code>send acct deposit a</code> 는 <code>deposit</code> 의 <code>amount</code> 에 <code>a</code> 를 싣는다. 메시지 op 에도 계약을 적을 수 있다.</p><p>소유를 가진 값을 보내면 소유가 넘어간다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/handoff.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> handoff .
 <em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
 
-<strong><span class="tok-k">type</span></strong> job <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> job <strong><span class="tok-t">u64</span></strong> .
 
 <strong><span class="tok-k">actor</span></strong> worker <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
@@ -886,7 +886,7 @@ build profile embedded .
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes root capacity <span class="tok-n">16</span> .
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">false</span> .
     <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
-    <strong><span class="tok-k">set</span></strong> (index v <span class="tok-n">0</span>) code .
+    <strong><span class="tok-k">set</span></strong> (idx v <span class="tok-n">0</span>) code .
     <strong><span class="tok-k">set</span></strong> entries (add entries <span class="tok-n">1</span>) .
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> .
   <strong><span class="tok-k">end</span></strong>
@@ -933,7 +933,7 @@ mistake_capfield.low:20:0 E-CAP-FORGE: this spawns an actor whose state HOLDS a 
 <em><span class="tok-c">rem run: move 30</span></em>
 <em><span class="tok-c">rem run: move 80</span></em>
 
-<strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
   insufficient .
 <strong><span class="tok-k">end</span></strong>
 
@@ -1096,7 +1096,7 @@ mistake_peekstate.low:20:0 E-ACTOR-FIELD: this reads a STATE FIELD of an actor f
 </code></pre></div></div><p>이 장의 첫 약속은 “상태는 액터 안에만 있고 바깥에서 직접 건드릴 수 없다” 였다. <code>field c value</code> 는 그 문을 돌아가려는 시도이고, <code>E-ACTOR-FIELD</code> 로 거절된다. 상태가 바깥에서 읽히면 메시지를 한 번에 하나씩 처리한다는 전제가 소용없어진다 — 읽는 쪽이 메시지 사이의 값을 보기 때문이다. 상태가 필요하면 <code>get</code> 같은 읽기 메시지를 두고 <code>send c get</code> 으로 묻는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 메시지 op 의 오류 조건에 상태 칸을 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_errorsstate.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_errorsstate .
 <em><span class="tok-c">rem expect: E-ERRORS-STATE</span></em>
 
-<strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
   insufficient .
 <strong><span class="tok-k">end</span></strong>
 

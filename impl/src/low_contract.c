@@ -14,7 +14,7 @@ static bool veq(proven_u8str_view_t v, const char *s) { return proven_u8str_view
 static bool is_clause_kw(proven_u8str_view_t v) { return low_is_clause_word(v); }  // ★ 하나의 어휘
 // names known in a requires condition beyond params/declared ops
 static bool is_known_pred(proven_u8str_view_t v) {
-    static const char *k[] = { "ge","le","lt","gt","eq","ne","and","or","not","len","index",
+    static const char *k[] = { "ge","le","lt","gt","eq","ne","and","or","not","len","idx",
                                "add","sub","mul","div","mod","true","false","expr","deref",
                                // ★ 배열 내용 술어 (R5) — `requires elem_lt s N` (모든 원소 cmp N)
                                "elem_lt","elem_le","elem_gt","elem_ge",

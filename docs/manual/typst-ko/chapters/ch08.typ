@@ -111,7 +111,7 @@
 
 #demo("examples/ch08/shortcircuit.low")
 
-`safe_first_is_zero` 는 빈 슬라이스에서 `index xs 0` 을 계산하지 않는다. 앞쪽 `gt (len xs) 0` 이
+`safe_first_is_zero` 는 빈 슬라이스에서 `idx xs 0` 을 계산하지 않는다. 앞쪽 `gt (len xs) 0` 이
 거짓이면 거기서 답이 거짓으로 정해지기 때문이다. `ratio_ok` 도 분모가 0 이면 나눗셈을 하지 않는다.
 이 모양은 `guard` 를 쓰기엔 작은 조건에 알맞다. 조건이 op 전체에 대한 사실이라면 `guard` 가 낫다
 (#chref("control")).

@@ -2,7 +2,7 @@ module vm_structlist .
 rem ★★ RFC-0132 T2b-3d (N1) — 구조체 원소 나열: `lit array pt N …` · 칸 골라 채우기 · `lit slice pt …` · 모두 `_` 인 읽기 전용 0 ·
 rem   칸 쓰기 `set (field ps 1 y) v` · 할당기 바이트(`using`). 원소는 바이트 배치가 있는 구조체 — 값의 사본이다.
 use allocs .
-struct pt do
+def struct pt do
   x u32 .
   y u64 .
 end
@@ -52,17 +52,17 @@ export fn copied input a u64 . output u64 . do
 end
 
 rem ★ T2b-3d ⓒ — 배열 칸을 가진 구조체가 다른 구조체의 칸이어도 값으로 베껴진다(안쪽 바이트까지 — X-0083 의 길).
-struct pkt do
+def struct pkt do
   len u8 .
   body array u8 4 .
 end
-struct outer do
+def struct outer do
   tag u64 .
   inner pkt .
 end
 export fn nested input a u8 . output u64 . do
   var o be outer lit outer do tag 9 . inner lit pkt do len 2 . body lit array u8 4 1 a _ . . end . end .
   let c be outer o .
-  set (index (field o inner body) 0) 50 .
-  return add (widen u64 (index (field c inner body) 1)) (add (widen u64 (index (field o inner body) 0)) (mul (widen u64 (index (field c inner body) 0)) 1000)) .
+  set (idx (field o inner body) 0) 50 .
+  return add (widen u64 (idx (field c inner body) 1)) (add (widen u64 (idx (field o inner body) 0)) (mul (widen u64 (idx (field c inner body) 0)) 1000)) .
 end

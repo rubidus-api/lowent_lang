@@ -16,7 +16,7 @@ module vecs .
 
 use allocs from "alloc.low" .
 
-export struct vec_u8 do
+export def struct vec_u8 do
   len u64 .
 end
 
@@ -39,7 +39,7 @@ export proc push_byte .
   requires allocs.byte_allocator a .
 do
   guard ge (field v len) (len buf) . else do
-    set (index buf (field v len)) x .
+    set (idx buf (field v len)) x .
     set (field v len) (add (field v len) 1) .
     return some buf .
   end
@@ -48,10 +48,10 @@ do
   let nbuf be mut slice u8 some_value nb .
   var i be u64 0 .
   while lt i (field v len) . do
-    set (index nbuf i) (index buf i) .
+    set (idx nbuf i) (idx buf i) .
     set i (add i 1) .
   end
-  set (index nbuf (field v len)) x .
+  set (idx nbuf (field v len)) x .
   set (field v len) (add (field v len) 1) .
   return some nbuf .
 end

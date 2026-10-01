@@ -60,6 +60,9 @@ struct low_cst {
     // ★ RFC-0135 D12 — 바인딩의 `using <할당기> keep` : 블록 끝에 돌려주지 않는다. 펼치기 패스가 `keep` 낱말을 빼고
     //   `using` 원자에 이 표시를 남긴다(뒤의 소비자는 늘 `using <이름> be` 두 낱말만 본다).
     bool           is_keep;
+    // ★ RFC-0132 §5.2 — 타입 선언 앞에 `def` 를 적었는가. 파서가 `def` 낱말을 먹고 여기 남긴다(뒤의 소비자는 늘
+    //   `struct`·`enum`·`type`·`newtype` 머리만 본다). 적지 않은 옛 선언은 `low_def_require` 가 거절한다.
+    bool           has_def;
     // ★★★ **`unsafe target <iset>`** (RFC-0040 D5) — target 전용 intrinsic 격리 블록. iset 이 비어 있지
     //   않으면 이 op 은 target-게이트다: 그 명령셋을 주는 target 에서만 컴파일된다(아니면 E-TARGET-INTRIN).
     //   `target` 은 **문맥 낱말**(task_group 처럼 — 어휘 0 증가). intrinsic 몸통은 아직 없다(스캐폴드·격리만).
@@ -204,6 +207,7 @@ void low_bind_keep_strip(low_parse_result_t *pr, proven_allocator_t node_alloc, 
 void low_bind_else_expand(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);   /* RFC-0135 S1 */
 void low_bind_else(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);          /* RFC-0135 S1 */
 void low_decl_order(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work, bool strict);   /* RFC-0132 T1 */
+void low_def_require(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);             /* RFC-0132 §5.2: `def` 없는 타입 선언 거절 */
 void low_decl_migrate(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work);            /* --fmt: 옛 선언 → 새 모양 */
 
 // ★★★ arity 단일화 — 평평한 원자 열에 괄호를 박아 **진짜 나무**를 세운다(CST → CST).

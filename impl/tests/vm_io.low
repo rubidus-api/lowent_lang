@@ -93,7 +93,7 @@ proc t_view output u64 . effects state . do
   let w be option slice u8 send r take_until 32 100 .
   guard is_some w . else return 90 .
   guard eq (len (some_value w)) 5 . else return 91 .
-  guard eq (index (some_value w) 0) 104 . else return 92 .
+  guard eq (idx (some_value w) 0) 104 . else return 92 .
   guard eq (send r remaining) 5 . else return 93 .
   return 1 .
 end

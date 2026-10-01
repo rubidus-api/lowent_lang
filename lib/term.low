@@ -103,7 +103,7 @@ export proc diff input prev slice u8 . input nxt slice u8 . input w u64 . input 
   var p be u64 pos .
   var i be u64 0 .
   while lt i (len nxt) . do
-    guard ne (index prev i) (index nxt i) . else do
+    guard ne (idx prev i) (idx nxt i) . else do
       set i (add i 1) .
       continue .
     end
@@ -117,7 +117,7 @@ export proc diff input prev slice u8 . input nxt slice u8 . input w u64 . input 
         set scanning 0 .
       end
       if eq scanning 1 . do
-        if eq (index prev j) (index nxt j) . do
+        if eq (idx prev j) (idx nxt j) . do
           set scanning 0 .
         end
         if eq scanning 1 . do
@@ -131,7 +131,7 @@ export proc diff input prev slice u8 . input nxt slice u8 . input w u64 . input 
     var q be u64 i .
     while lt q j . do
       guard lt p (len out) . else return none .
-      set (index out p) (index nxt q) .
+      set (idx out p) (idx nxt q) .
       set p (add p 1) .
       set q (add q 1) .
     end
@@ -155,7 +155,7 @@ rem   않으면 none" 을 약속하고도 `E2 41 42` 를 셀 하나로 셌다 �
 rem   그 틈에서 `col_off` 는 터미널이 동의하지 않는 열을 냈다. 잣대는 하나여야 한다.
 proc t_cp_len input s slice u8 . input at u64 . output option u64 . effects none . do
   guard is_some (utf8.decode s at) . else return none .
-  return some (utf8.seq_len (index s at)) .
+  return some (utf8.seq_len (idx s at)) .
 end
 
 rem 한 행(개행 없는 UTF-8 바이트열)에서 **코드포인트 c 번째의 바이트 오프셋**. 모자라면 none.
@@ -230,7 +230,7 @@ export proc diff_row_utf8 input prev slice u8 . input nxt slice u8 . input row u
         if eq differ 0 . do
           var b be u64 0 .
           while lt b pn . do
-            if ne (index prev (add po b)) (index nxt (add no b)) . do set differ 1 . end
+            if ne (idx prev (add po b)) (idx nxt (add no b)) . do set differ 1 . end
             set b (add b 1) .
           end
         end
@@ -293,7 +293,7 @@ proc t_flush_run input nxt slice u8 . input lo u64 . input hi u64 . input col u6
   var q be u64 lo .
   while lt q hi . do
     guard lt p (len out) . else return none .
-    set (index out p) (index nxt q) .
+    set (idx out p) (idx nxt q) .
     set p (add p 1) .
     set q (add q 1) .
   end
@@ -345,7 +345,7 @@ export proc row_width input row_bytes slice u8 . output option u64 . effects non
   while lt off (len row_bytes) . do
     let c be option u64 utf8.decode row_bytes off .
     guard is_some c . else return none .
-    let n be u64 utf8.seq_len (index row_bytes off) .
+    let n be u64 utf8.seq_len (idx row_bytes off) .
     guard gt n 0 . else return none .
     guard le (add off n) (len row_bytes) . else return none .
     set w (add w (cp_width (some_value c))) .
@@ -362,7 +362,7 @@ export proc fit_width input row_bytes slice u8 . input cols u64 . output option 
   while lt off (len row_bytes) . do
     let c be option u64 utf8.decode row_bytes off .
     guard is_some c . else return none .
-    let n be u64 utf8.seq_len (index row_bytes off) .
+    let n be u64 utf8.seq_len (idx row_bytes off) .
     guard gt n 0 . else return none .
     guard le (add off n) (len row_bytes) . else return none .
     let cw be u64 cp_width (some_value c) .
@@ -396,7 +396,7 @@ export proc cluster_len input s slice u8 . input at u64 . output option u64 . ef
       let c be option u64 utf8.decode s off .
       guard is_some c . else return none .
       if unicode.is_zerowidth (some_value c) . do
-        let n be u64 utf8.seq_len (index s off) .
+        let n be u64 utf8.seq_len (idx s off) .
         guard gt n 0 . else return none .
         guard le (add off n) (len s) . else return none .
         set off (add off n) .

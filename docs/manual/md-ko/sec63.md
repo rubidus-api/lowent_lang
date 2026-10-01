@@ -90,7 +90,7 @@ export proc count_words input s slice u8 . output option u64 . do
   while lt off (len s) . do
     let cp be option u64 utf8.decode s off .
     guard is_some cp . else return none .
-    let n be u64 utf8.seq_len (index s off) .
+    let n be u64 utf8.seq_len (idx s off) .
     guard gt n 0 . else return none .
     if unicode.is_alnum (some_value cp) . do
       if eq inword false . do set words (add words 1) . end
@@ -113,7 +113,7 @@ end
 >
 > > ```lowent
 > > rem ✘ index 는 바이트를 준다. '한' 의 첫 바이트는 0xED 다
-> > if unicode.is_letter (widen u64 (index s 0)) . do … end
+> > if unicode.is_letter (widen u64 (idx s 0)) . do … end
 > > ```
 > >
 > > 0xED(237)는 코드포인트 U+00ED(í)다 — 우연히 문자로 판정되지만 **묻고 있던 글자가 아니다**. UTF-8 을 다루면 반드시 `utf8.decode` 를 거친다.

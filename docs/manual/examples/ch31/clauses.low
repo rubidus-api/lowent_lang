@@ -2,7 +2,7 @@ module clauses .
 rem run: first_two [65,66]
 rem test
 
-enum parse_error do
+def enum parse_error do
   too_short .
 end
 
@@ -16,7 +16,7 @@ fn first_two
   tests first_two_ok first_two_short .
 do
   guard ge (len data) 2 . else return error too_short .
-  return ok (add (widen u64 (index data 0)) (widen u64 (index data 1))) .
+  return ok (add (widen u64 (idx data 0)) (widen u64 (idx data 1))) .
 end
 
 fn first_two_ok output bool . do

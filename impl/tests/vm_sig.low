@@ -28,7 +28,7 @@ rem r 또는 s 가 0 인 ECDSA 서명은 **거절돼야** 한다.
 proc t_ec_zero input v mut slice u64 . input w mut slice u64 . output u64 . effects none . do
   guard ge (len v) 144 . else return 0 .
   var i be u64 0 .
-  while lt i 144 . do  set (index v i) 0 .  set i (add i 1) .  end
+  while lt i 144 . do  set (idx v i) 0 .  set i (add i 1) .  end
   rem 전부 0 이면 r = 0 이고 n = 0 이다 — 어느 쪽이든 거절이 옳다.
   let _u5 be result u64 p256.p256_error p256.ecdsa_verify (subslice v 0 16) (subslice v 16 32) (subslice v 32 48) (subslice v 48 80) (subslice v 80 96) (subslice v 96 112) (subslice v 112 128) (subslice v 128 144) w .
   guard is_ok _u5 . else return 0 .
@@ -44,7 +44,7 @@ proc t_mgf_extends input seed slice u8 . input out mut slice u8 . input w mut sl
   var diff be u64 0 .
   var i be u64 0 .
   while lt i 32 . do
-    set diff (bit_or diff (bit_xor (cast u64 (index out i)) (cast u64 (index out (add 32 i))))) .
+    set diff (bit_or diff (bit_xor (cast u64 (idx out i)) (cast u64 (idx out (add 32 i))))) .
     set i (add i 1) .
   end
   if eq diff 0 . do  return 0 .  end
@@ -68,10 +68,10 @@ proc t_order input out mut slice u8 . input bb mut slice u8 . input w mut slice 
   let _u3 be result u64 ed25519.ed25519_error ed25519.compress out (subslice w 768 832) (subslice w 832 960) (subslice bb 192 256) .
   guard is_ok _u3 . else return 0 .
   guard eq (ok_value _u3) 32 . else return 0 .
-  guard eq (cast u64 (index out 0)) 1 . else return 0 .
+  guard eq (cast u64 (idx out 0)) 1 . else return 0 .
   var i be u64 1 .
   while lt i 32 . do
-    guard eq (cast u64 (index out i)) 0 . else return 0 .
+    guard eq (cast u64 (idx out i)) 0 . else return 0 .
     set i (add i 1) .
   end
   return 1 .

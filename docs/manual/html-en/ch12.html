@@ -668,7 +668,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <em><span class="tok-c">rem run: use_sum 7</span></em>
 <em><span class="tok-c">rem run: use_bump 7</span></em>
 
-<strong><span class="tok-k">struct</span></strong> big <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> big <strong><span class="tok-k">do</span></strong>
   a <strong><span class="tok-t">u64</span></strong> .
   b <strong><span class="tok-t">u64</span></strong> .
   c <strong><span class="tok-t">u64</span></strong> .
@@ -687,7 +687,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">fn</span></strong> use_sum <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> le x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> lit big <strong><span class="tok-k">do</span></strong> a x . b <span class="tok-n">2</span> . c <span class="tok-n">3</span> . d <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> big <strong><span class="tok-k">do</span></strong> a x . b <span class="tok-n">2</span> . c <span class="tok-n">3</span> . d <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> add (total (<strong><span class="tok-k">ref</span></strong> v)) (total (<strong><span class="tok-k">ref</span></strong> v)) .
 <strong><span class="tok-k">end</span></strong>
 

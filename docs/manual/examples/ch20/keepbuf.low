@@ -17,5 +17,5 @@ do
   var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let got be u64 send bb init back .
   let s be mut slice u64 make_buf bb d .
-  return add (index s 1) (mul (send bb used) 100) .
+  return add (idx s 1) (mul (send bb used) 100) .
 end

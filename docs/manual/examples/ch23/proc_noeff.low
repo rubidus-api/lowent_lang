@@ -5,7 +5,7 @@ trait shape do
   area input s self . output u64 .
 end
 
-struct rect do
+def struct rect do
   satisfies shape .
   w u64 .
   h u64 .

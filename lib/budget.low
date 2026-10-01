@@ -26,7 +26,7 @@ rem   샤드마다 다른 slot 폭. 전부 *"필요하면 그때 적는다"* 쪽
 module budget .
 
 rem 예산 하나. **세 수가 곧 계약이다.**
-export struct plan do
+export def struct plan do
   slot_bits u64 .
   shard_bits u64 .
   gen_bits u64 .

@@ -22,7 +22,7 @@ if strings.starts_with line "GET " . do
 end
 ```
 
-`rest` 는 `line` 의 일부를 그대로 가리킨다. 이 모듈은 언어가 이미 가진 것(`len`·`index`·`subslice`·`eq`·`option`·`guard`·`while`·`actor`)만으로 지어졌고 내장 연산을 하나도 늘리지 않았다. 문자열 연산의 대부분은 소유가 필요 없다 — 자르기·찾기·비교는 뷰를 낼 뿐이다. 이어 붙이기처럼 쓰기 가능한 버퍼가 필요한 일은 [`strbuf`](sec59.md#mod-strbuf) 가 맡는다.
+`rest` 는 `line` 의 일부를 그대로 가리킨다. 이 모듈은 언어가 이미 가진 것(`len`·`idx`·`subslice`·`eq`·`option`·`guard`·`while`·`actor`)만으로 지어졌고 내장 연산을 하나도 늘리지 않았다. 문자열 연산의 대부분은 소유가 필요 없다 — 자르기·찾기·비교는 뷰를 낼 뿐이다. 이어 붙이기처럼 쓰기 가능한 버퍼가 필요한 일은 [`strbuf`](sec59.md#mod-strbuf) 가 맡는다.
 
 ## <a id="sx1"></a>설계와 경계
 
@@ -32,7 +32,7 @@ end
 - **`str_len`·`str_sub` 는 없다.** `str` 은 `slice u8` 의 별칭이므로 내장 `len`·`subslice` 가 그대로 돈다. 같은 뜻에 두 이름을 두지 않는다.
 - **자리표 값이 없다.** “−1 이면 못 찾음” 같은 관례를 쓰지 않는다. 못 찾음은 `option` 의 `none` 이다.
 
-`type str slice u8 .` 은 **투명 별칭**이다. `newtype` 이 아니므로 문자열 리터럴, `slice u8` 값, `subslice` 결과가 모두 그대로 `str` 자리에 들어간다. 상태를 드는 것은 `str_splitter` 액터 하나뿐이다 — 원본 `src`, 구분 바이트 `sep`, 커서 `pos`, 소진 여부 `fin`.
+`def type str slice u8 .` 은 **투명 별칭**이다. `newtype` 이 아니므로 문자열 리터럴, `slice u8` 값, `subslice` 결과가 모두 그대로 `str` 자리에 들어간다. 상태를 드는 것은 `str_splitter` 액터 하나뿐이다 — 원본 `src`, 구분 바이트 `sep`, 커서 `pos`, 소진 여부 `fin`.
 
 ## <a id="sx2"></a>op 한눈에
 
@@ -166,7 +166,7 @@ end
 >
 > > ```lowent
 > > let piece be slice u8 strings.remove_prefix line "GET " .
-> > set (index line 4) 88 .                                     rem ✗ 원본을 고쳤다
+> > set (idx line 4) 88 .                                     rem ✗ 원본을 고쳤다
 > > ```
 > >
 > > 오류 없이 `piece` 의 내용이 조용히 바뀐다 — 복사본이 아니라 창이기 때문이다. 내용을 붙잡아 두려면 [`strbuf`](sec59.md#mod-strbuf) 로 복사한다.

@@ -13,7 +13,7 @@ end
 
 fn pick16 input xs slice i16 . input i u64 . output i64 . do
   guard lt i (len xs) . else return 0 .
-  return widen i64 (index xs i) .
+  return widen i64 (idx xs i) .
 end
 
 rem 배열 리터럴을 `let` 에 묶는다 — 선언 타입은 리터럴이 보인다(`lit` 뒤의 타입).
@@ -36,19 +36,19 @@ rem 끝의 `_` = 나머지 칸은 0.
 export fn lit_fill input i u64 . output u64 . do
   let z be lit array u8 6 1 2 _ . .
   guard lt i (len z) . else return 99 .
-  return widen u64 (index z i) .
+  return widen u64 (idx z i) .
 end
 
 rem 64 비트 끝값.
 export fn lit_u64max input i u64 . output u64 . do
   let t be lit array u64 2 18446744073709551615 3 . .
   guard lt i (len t) . else return 0 .
-  return index t i .
+  return idx t i .
 end
 
 rem 부동 원소.
 export fn lit_f64 input i u64 . output f64 . do
   let t be lit array f64 3 1.5 2.25 -3.0 . .
   guard lt i (len t) . else return 0.0 .
-  return index t i .
+  return idx t i .
 end

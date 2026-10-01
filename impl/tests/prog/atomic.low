@@ -89,8 +89,8 @@ do
   let c2 be result void files.file_error files.close fs rh .
   guard is_ok c2 . else return 20 .
   guard eq (some_value nv) 5 . else return 21 .
-  guard eq (index rbuf 0) 104 . else return 22 .          rem 'h'
-  guard eq (index rbuf 4) 111 . else return 23 .          rem 'o'
+  guard eq (idx rbuf 0) 104 . else return 22 .          rem 'h'
+  guard eq (idx rbuf 4) 111 . else return 23 .          rem 'o'
 
   rem 5. 정리한다 — 스스로 되돌린다(재실행 가능)
   guard eq (path_remove fs (strbuf.as_str bf pfin)) true . else return 24 .

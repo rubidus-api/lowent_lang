@@ -1,8 +1,8 @@
 module type_units .
 rem run: total 100 100
 
-type meters u64 .
-type feet u64 .
+def type meters u64 .
+def type feet u64 .
 
 rem ko: 미터와 피트를 더했는데 아무도 막지 않는다 --- `type` 은 다른 이름일 뿐이다 /// en: meters and feet are added and nothing stops it --- `type` is only another name
 fn total input m meters . input f feet . output meters .

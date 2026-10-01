@@ -11,7 +11,7 @@ fn head8 input d slice u8 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 8 . do
-    set acc (add (shl acc 8) (cast u64 (index d i))) .
+    set acc (add (shl acc 8) (cast u64 (idx d i))) .
     set i (add i 1) .
   end
   return acc .
@@ -65,7 +65,7 @@ proc t_nonce input iv slice u8 . input seq u64 . input out mut slice u8 . output
   var acc be u64 0 .
   var i be u64 4 .
   while lt i 12 . do
-    set acc (add (shl acc 8) (cast u64 (index out i))) .
+    set acc (add (shl acc 8) (cast u64 (idx out i))) .
     set i (add i 1) .
   end
   return acc .
@@ -102,7 +102,7 @@ proc t_record input suite u64 . input key slice u8 . input iv slice u8 . input s
   guard eq m (len inner) . else return 91 .
   var i be u64 0 .
   while lt i (len inner) . do
-    guard eq (index back i) (index inner i) . else return 92 .
+    guard eq (idx back i) (idx inner i) . else return 92 .
     set i (add i 1) .
   end
   return 1 .
@@ -165,7 +165,7 @@ proc t_fin_exact input secret slice u8 . input thash slice u8 . input info mut s
   guard is_ok _u1 . else return 0 .
   guard eq (ok_value _u1) 32 . else return 0 .
   var i be u64 32 .
-  while lt i 40 . do  set (index got i) 255 .  set i (add i 1) .  end
+  while lt i 40 . do  set (idx got i) 255 .  set i (add i 1) .  end
   let _u2 be result u64 tls13.tls13_error tls13.check_finished secret thash (subslice got 0 32) info (subslice w 0 576) .
   guard is_ok _u2 . else return 91 .
   guard eq (ok_value _u2) 1 . else return 91 .

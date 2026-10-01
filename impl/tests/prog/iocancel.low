@@ -20,7 +20,7 @@ rem   poll/epoll 은 커널이 우리 버퍼를 들고 있지 않으므로 **그
 rem   ⇒ 그 절반은 completion 백엔드가 생길 때 답한다(RFC-0071 §10).
 
 module iocancel .
-enum oops do
+def enum oops do
   bad .
 end
 rem 태스크 A: 데이터가 안 오는 fd 를 읽는다 — io 로 막힌다.

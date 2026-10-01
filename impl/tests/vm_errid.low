@@ -15,12 +15,12 @@ rem ⇒ 두 표를 **하나의 번호로** 묶는다: 변형 이름들을 변형
 
 module vm_errid .
 
-enum e1 do
+def enum e1 do
   alpha .
   beta .
 end
 
-enum e2 do
+def enum e2 do
   gamma .
   delta .
 end

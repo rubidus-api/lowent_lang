@@ -85,7 +85,7 @@ proc build input buf mut slice u8 . . output u64 . do
   guard is_ok r1 . else return 90 .
   guard eq (field b len) 2 . else return 91 .
   rem the seal --- a null at position len (buf[2])
-  guard eq (index buf 2) 0 . else return 92 .
+  guard eq (idx buf 2) 0 . else return 92 .
   rem buffer 5 = content 4 + null 1 --- 2 + 3 + 1 > 5, so refused and the buffer stays clean
   let r2 be result void strbuf.sb_error strbuf.append b (subslice buf 0 5) "xyz" .
   guard is_error r2 . else return 93 .
@@ -109,8 +109,8 @@ proc grow input small mut slice u8 . . input big mut slice u8 . . output u64 . e
   rem I provide the larger place --- the library does not allocate
   let r3 be result void strbuf.sb_error strbuf.append_grow b small big "xyz" .
   guard is_ok r3 . else return 92 .
-  guard eq (index big 0) 97 . else return 93 .
-  guard eq (index big 2) 120 . else return 94 .
+  guard eq (idx big 0) 97 . else return 93 .
+  guard eq (idx big 2) 120 . else return 94 .
   return field b len .
 end
 ```

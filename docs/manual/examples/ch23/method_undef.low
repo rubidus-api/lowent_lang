@@ -1,7 +1,7 @@
 module method_undef .
 rem expect: E-METHOD-UNDEF
 
-struct point do
+def struct point do
   x u8 .
 end
 

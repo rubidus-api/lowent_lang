@@ -34,10 +34,10 @@ An `extern` op whose body is in C holds the same clauses, in the same order, *in
 ```text
 module <name> .
 use <module> [from "<place>"] .
-type <name> <type> .
-newtype <name> <type> .
-struct <name> do [satisfies <trait> .] [layout packed .] [mmio <address> .] <field> <type> [big|little] [rw|ro|wo] . … end
-enum <name> do <variant> [<field> <type>]… . … end
+def type <name> <type> .
+def newtype <name> <type> .
+def struct <name> do [satisfies <trait> .] [layout packed .] [mmio <address> .] <field> <type> [big|little] [rw|ro|wo] . … end
+def enum <name> do <variant> [<field> <type>]… . … end
 trait <name> do <op name> <clauses…> . … end
 contract <name> do requires <cond> . … end
 actor <name> do [satisfies …] state do <field> <type> . … end [failure restart max <n> .] [mailbox bounded <n> .] <op>… end

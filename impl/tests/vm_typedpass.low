@@ -16,7 +16,7 @@ rem ⇒ 진입 래핑은 **멱등**이어야 한다: 이미 감싸여 있으면 
 
 module vm_typedpass .
 
-struct pt do
+def struct pt do
   x u8 .
   y u8 .
 end
@@ -31,7 +31,7 @@ fn outer_len input s slice u32 . output u64 . do
 end
 
 fn inner_first_x input s slice pt . output u8 . do
-  let p be pt index s 0 . .
+  let p be pt idx s 0 . .
   return field p x .
 end
 

@@ -1,7 +1,7 @@
 module handoff .
 rem expect: E-OWN-MOVED
 
-type job u64 .
+def type job u64 .
 
 actor worker do
   state do

@@ -13,11 +13,11 @@ rem ★ 이 파일이 재는 것: 필드 · 인덱스 · **중첩**(`o.i.a`), �
 rem   같은 답을 내는가** — 한 뜻에 두 표기이므로 갈리면 그것이 §2.5 위반이다.
 
 module vm_dotplace .
-struct inner do
+def struct inner do
   a u64 .
   b u64 .
 end
-struct outer do
+def struct outer do
   i inner .
   n u64 .
 end
@@ -29,7 +29,7 @@ end
 proc index_place input s mut slice u64 . . output u64 . effects none . do
   set (field s 0) 11 .
   set (field s 1) 22 .
-  return add (field s 0) (add (field s 1) (index s 0)) .  rem 11 + 22 + 11 = 44
+  return add (field s 0) (add (field s 1) (idx s 0)) .  rem 11 + 22 + 11 = 44
 end
 proc nested_place output u64 . effects none . do
   var o be lit outer do i (lit inner do a 1 . b 2 . end) . n 5 . end .

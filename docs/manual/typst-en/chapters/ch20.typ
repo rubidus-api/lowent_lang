@@ -68,7 +68,7 @@ asking reserve 4: only 3 bytes are left → none (running short is a value too)
 
 - `spawn actor allocs.bump_bytes` makes the allocator, and `send a init buf` hands it the bytes to cut. This allocator cannot make memory by itself --- the
   discipline of never allocating secretly.
-- `send a reserve 3` cuts off 3 bytes. What comes back is not a copy but a slice pointing at part of the original, so `set (index pv 0) 65 .` changes the first
+- `send a reserve 3` cuts off 3 bytes. What comes back is not a copy but a slice pointing at part of the original, so `set (idx pv 0) 65 .` changes the first
   byte of the caller's `buf`. The argument `[65,0,…]` the VM shows is the trace.
 - `send a reserve 99` gives `none` because there is not enough space. Not a trap. *Running out of memory is a value*, and the caller checks it.
 

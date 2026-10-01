@@ -432,7 +432,7 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
         else {
             low_pdiag(p, "E-STMT-NODO",
                       "a block declaration (struct/enum/trait/actor/contract/state) opens its body with `do` and closes "
-                      "it with `end`: `struct rect do w u64 . end` — not `struct rect .` and not a bare line break "
+                      "it with `end`: `def struct rect do w u64 . end` — not `def struct rect .` and not a bare line break "
                       "(a newline closes nothing). `--fmt` writes it for you", head.line, head.col);
             (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block_body(p, *low_cur(p)));
         }
@@ -702,6 +702,22 @@ static low_cst_t *low_parse_export(low_parser_t *p) {
             return low_parse_export(p);
         case LOW_KW_MODULE: // module NAME do … end (namespace) OR bare `module NAME .` (MVP)
             return low_parse_module(p);
+        // ★★ RFC-0132 §5.2 (옮김 창) — `def` 는 **타입을 짓는다**: `def struct` · `def enum` · `def type` · `def newtype`.
+        //   낱말을 먹고 뒤의 선언을 그대로 읽은 뒤 표시만 남긴다 — 뒤의 소비자는 전처럼 `struct`… 머리를 본다.
+        //   `export def struct …` 는 `export` 가 안쪽 폼을 이 함수로 읽으므로 저절로 선다.
+        case LOW_KW_DEF: {
+            low_token_t d = low_adv(p);
+            low_kw_t nk = (low_curk(p) == LOW_TOK_IDENT) ? low_curkw(p) : LOW_KW_NONE;
+            bool ok = nk == LOW_KW_STRUCT || nk == LOW_KW_ENUM || nk == LOW_KW_TYPE || nk == LOW_KW_NEWTYPE;
+            if (!ok)
+                low_pdiag(p, "E-DEF-HEAD",
+                          "`def` declares a TYPE and must be followed by `struct`, `enum`, `type` or `newtype` — "
+                          "`def struct point do x u32 . end`. Ops (`fn`/`proc`), `actor`, `trait`, `test` and `module` "
+                          "are written without it (RFC-0132 §5.2)", d.line, d.col);
+            low_cst_t *f = low_parse_form(p);
+            if (f && ok) { f->has_def = true; f->line = d.line; f->col = d.col; }   // 선언은 `def` 자리에서 시작한다(W-COL0)
+            return f;
+        }
         case LOW_KW_FOR:
             return low_parse_for(p);
         case LOW_KW_IF:
@@ -1173,6 +1189,8 @@ static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
     if (hk == LOW_KW_FOR)
         for (proven_size_t i = 2; i < nd->nkids; i++)
             if (nd->kids[i]->kind == LOW_CST_ATOM && nd->kids[i]->tok.kw == LOW_KW_NONE && low_view_eq_cstr(nd->kids[i]->tok.lex, "where")) fwhere = true;
+    // ★ RFC-0132 §5.2 (옮김 창) — 타입 선언은 `def` 로 찍는다. 옛 파일(`struct p do … end`)도 새 모양으로 옮겨 찍는다.
+    if (hk == LOW_KW_STRUCT || hk == LOW_KW_ENUM || hk == LOW_KW_TYPE || hk == LOW_KW_NEWTYPE) fputs("def ", stdout);
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         if (i) putchar(' ');
         if (hk == LOW_KW_FOR && i >= 3) {
@@ -1231,6 +1249,8 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
                 if (nd->tok.aux.size) { low_pv(nd->tok.aux); putchar(' '); }
                 fputs("HEND\n", stdout); low_pv(nd->tok.lex); fputs("\nHEND", stdout);
             }
+            // ★ RFC-0132 §6 (옮김 창) — 옛 `index` 는 `idx` 로 옮겨 찍는다(이름으로 쓴 `index` 는 없다 — E-VOCAB-REMOVED).
+            else if (nd->tok.kind == LOW_TOK_IDENT && low_view_eq_cstr(nd->tok.lex, "index")) fputs("idx", stdout);
             else low_pv(nd->tok.lex);
             break;
         case LOW_CST_ACCESS: break;   // ★ 더는 만들어지지 않는다 — 중위 `to`/`in` 을 없앴다

@@ -24,7 +24,7 @@ export proc walk_hinted input xs slice u64 . output u64 . effects none . do
   var s be u64 0 .
   while lt i (len xs) . do
     prefetch xs (add i 8) .
-    set s (add s (index xs i)) .
+    set s (add s (idx xs i)) .
     set i (add i 1) .
   end
   return s .
@@ -35,7 +35,7 @@ export proc walk_plain input xs slice u64 . output u64 . effects none . do
   var i be u64 0 .
   var s be u64 0 .
   while lt i (len xs) . do
-    set s (add s (index xs i)) .
+    set s (add s (idx xs i)) .
     set i (add i 1) .
   end
   return s .
@@ -49,7 +49,7 @@ proc same input al cap allocator . output u64 . effects alloc . do
   var xs be mut slice u64 view_array u64 (some_value mb) .
   var i be u64 0 .
   while lt i (len xs) . do
-    set (index xs i) (add i 1) .
+    set (idx xs i) (add i 1) .
     set i (add i 1) .
   end
   rem 1..8 의 합 = 36. 힌트를 줘도 안 줘도 같아야 한다.

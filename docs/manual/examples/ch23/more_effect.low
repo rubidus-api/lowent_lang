@@ -5,7 +5,7 @@ trait shape do
   checked_area input s self . output u64 . effects panic .
 end
 
-struct rect do
+def struct rect do
   satisfies shape .
   w u64 .
   h u64 .

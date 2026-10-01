@@ -9,15 +9,15 @@ do
   let g be option mut slice u8 alloc_bytes al capacity 40 .
   guard is_some g . else return 255 .
   var xs be mut slice u64 view_array u64 (some_value g) .
-  set (index xs 0) 42 .
-  set (index xs 1) 7 .
-  set (index xs 2) 19 .
-  set (index xs 3) 3 .
-  set (index xs 4) 25 .
+  set (idx xs 0) 42 .
+  set (idx xs 1) 7 .
+  set (idx xs 2) 19 .
+  set (idx xs 3) 3 .
+  set (idx xs 4) 25 .
   sortlib.sort xs .
   let at be option u64 searchlib.bsearch xs 19 .
   guard is_some at . else return 254 .
   let missing be option u64 searchlib.bsearch xs 20 .
   guard not (is_some missing) . else return 253 .
-  return narrow u8 (add (mul (index xs 0) 10) (some_value at)) .
+  return narrow u8 (add (mul (idx xs 0) 10) (some_value at)) .
 end

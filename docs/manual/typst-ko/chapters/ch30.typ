@@ -38,7 +38,7 @@
 #demo("examples/ch30/gpio.low")
 
 #idx("mmio")
-- `struct gpio do mmio 0x40020000 . … end` 는 장치의 *지도*다. `mmio` 뒤의 수가 시작 주소이고, 칸들이 차례로 레지스터가
+- `def struct gpio do mmio 0x40020000 . … end` 는 장치의 *지도*다. `mmio` 뒤의 수가 시작 주소이고, 칸들이 차례로 레지스터가
   된다. 새 낱말은 없다. 구조체에 절 하나가 붙었을 뿐이다.
 - 칸 뒤의 `rw`·`ro`·`wo` 가 닿는 법이다.
 - `read_volatile`·`write_volatile` 이 레지스터에 닿는다. 처리기는 이 접근을 *합치거나 없애거나 차례를 바꾸지 않는다.* 장치
@@ -279,7 +279,7 @@ absorbs: 1 op(s) stop `unsafe` here
   id: "hardware-glance",
   caption: [하드웨어의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`struct gpio do mmio 0x40020000 . moder u32 rw . … end`], [장치의 레지스터 지도], [새 낱말 없이 구조체에 절 하나],
+  [`def struct gpio do mmio 0x40020000 . moder u32 rw . … end`], [장치의 레지스터 지도], [새 낱말 없이 구조체에 절 하나],
   [`rw` · `ro` · `wo`], [닿는 법 --- 번역에서 강제], [어기면 `E-MMIO-PERM`],
   [`read_volatile g idr` · `write_volatile g moder 2`], [합치거나 지우지 않는 접근], [읽는 행위 자체가 일이다],
   [`input dev cap mmio .` + `effects device`], [장치 권한과 효과], [권한 없는 하드웨어 접근이 없다],

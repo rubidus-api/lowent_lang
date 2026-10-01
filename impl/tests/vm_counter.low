@@ -24,7 +24,7 @@ do
   var cnt be u64 0 .
   var k be u64 0 .
   while lt k n . do
-    if eq (index s k) 1 . do
+    if eq (idx s k) 1 . do
       set cnt (add cnt 1) .
     end
     set k (add k 1) .
@@ -61,7 +61,7 @@ do
   while lt i na . do
     var j be u64 0 .
     while lt j nb . do
-      if eq (index a i) (index b j) . do
+      if eq (idx a i) (idx b j) . do
         set hits (add hits 1) .
       end
       set j (add j 1) .

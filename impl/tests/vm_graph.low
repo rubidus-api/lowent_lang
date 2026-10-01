@@ -5,18 +5,18 @@ rem ★ 모듈 이름이 op 이름과 같았다(`module reach` + `fn reach`) —
 rem   자격 있는 경로가 생기면 `reach.x` 가 **두 뜻**이 된다. 이름공간이 하나면 유일해야 한다.
 module reachability .
 
-type bytes slice u8 . .
-type graph slice u8 . .
+def type bytes slice u8 . .
+def type graph slice u8 . .
 rem ★ 이 셋도 선언 없이 쓰이고 있었다 — 이름이 아무것도 가리키지 않았다(E-TYPE-UNDEF 가 잡았다).
-type node_id u64 . .
-type node_count u64 . .
-type frame u64 . .
+def type node_id u64 . .
+def type node_count u64 . .
+def type frame u64 . .
 
 fn node_count_of .
   input g graph .
   output u64 .
 do
-  return index g 0 .
+  return idx g 0 .
 end
 
 fn children_of .
@@ -27,10 +27,10 @@ do
   var at be u64 1 .
   var i be u64 0 .
   while lt i node . do
-    set at expr at + (index g at) + 1 . .
+    set at expr at + (idx g at) + 1 . .
     set i expr i + 1 . .
   end
-  return subslice g (add at 1) (add (add at 1) (index g at)) .
+  return subslice g (add at 1) (add (add at 1) (idx g at)) .
 end
 
 proc graph_reachable .

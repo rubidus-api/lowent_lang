@@ -6,7 +6,7 @@ rem   인자가 **상수**이므로 그 판정은 **부르는 자리에서** 난
 module vm_segarena_bad .
 use segarena from "../../lib/segarena.low" .
 
-newtype g u8 .
+def newtype g u8 .
 
 export proc tiny output u64 . effects none . do
   var a be (segarena.arena g) segarena.open g 0 .

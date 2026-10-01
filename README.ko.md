@@ -194,7 +194,7 @@ Lowent 는 몇 가지를 일부러 포기했습니다. 고르시기 전에 아�
 ```lowent
 module shapes .
 
-enum shape do
+def enum shape do
   circle r u32 .
   rect w u32 h u32 .
   dot .
@@ -219,7 +219,7 @@ trait shape do
   area input s self . output u64 .
 end
 
-struct rect do
+def struct rect do
   satisfies shape .
   w u64 .
   h u64 .

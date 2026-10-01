@@ -98,13 +98,13 @@ instruction position, operation, rule used, and the ranges the rule used.
 
 #demo("examples/ch41/bound_stages.low")
 
-- *1 · Direct.* In `direct` the loop condition looks at `len s` directly. `index` was removed by `R-IDX-LENLT`.
+- *1 · Direct.* In `direct` the loop condition looks at `len s` directly. `idx` was removed by `R-IDX-LENLT`.
 - *2 · Length stored in a local.* `stored` puts the length in a local with `let n be len s`. It is a very common idiom. At one time the fact "this value is
   `len s`" was a property of a stack value that vanished the moment it was stored in a local, and this loop's check stayed. Since the fact is now carried by
   locals too, it is removed just like stage 1. This was a performance fix, not a safety fix --- the check was there, so it was safe all along.
 - *3 · Capacity from a contract.* In `capacity` the array size and loop bound are different variables. `j < cap` (loop condition) and `len s ≥ cap`
   (contract), so `j < len s`.
-- *4 · Row-major address.* `grid` uses a *computed* index, `index a (add (mul i n) k)`. Neither intervals nor one-slot relations handle products, yet it was
+- *4 · Row-major address.* `grid` uses a *computed* index, `idx a (add (mul i n) k)`. Neither intervals nor one-slot relations handle products, yet it was
   removed by `R-IDX-ROWMAJOR`. The product and sum of the address were proven along with it, by `R-MUL-CAP` and `R-ROW-CAP`.
 
 The additions incrementing `i` and `j` vanished too, via `R-ADD-LENLT` and `R-ADD-LEREL`, thanks to the same relations. If `i < n` then `i + 1 ≤ n`, so it does
@@ -135,7 +135,7 @@ The last line is the subtlest.
 
 #demo("examples/ch41/grid_wrap.low")
 
-Same formula, but there is no `index` line. `wrap_mul` silently wraps on overflow. A wrapped value can get smaller, so the step i·q ≤ (p − 1)·q breaks. In this
+Same formula, but there is no `idx` line. `wrap_mul` silently wraps on overflow. A wrapped value can get smaller, so the step i·q ≤ (p − 1)·q breaks. In this
 example `n ≤ 1000` so it never actually wraps, but the rule holds only "for stopping multiplication". *If the operation does not stop, it is not a fact.*
 
 Then what if the contract's product `p·q` itself overflows? The contract's product is a stopping product, and contract checks are never removed, so if the body
@@ -143,7 +143,7 @@ was reached it did not overflow. Where bounds checks were removed, the contract 
 modes nor optimisation.
 
 In the development repository's measurements, this rule cut the bounds checks of a matrix multiplication benchmark from 6 to 1 (the remaining one is
-`index c 0`, where `n ≥ 1` is missing from the contract), and those of an LRU benchmark whose contract states capacity from 10 to 4.
+`idx c 0`, where `n ≥ 1` is missing from the contract), and those of an LRU benchmark whose contract states capacity from 10 to 4.
 
 #misconception[Fewer checks mean proportionally faster][
   The number of checks is not a proxy for cost. A check that never fires and is always branch-predicted correctly is practically free, and one benchmark cut
@@ -193,9 +193,9 @@ Some checks do not go away even with contracts. These are the places measured.
   id: "bounds-remain",
   caption: [Checks that remain, and why],
   [*Remaining place*], [*Why it cannot be removed*],
-  [`index c 0` in matrix multiplication], [`n ≥ 1` is missing from the contract (adding it closes it)],
-  [`index keys lru_idx` in LRU], [It merges `0` and `j`, so the relational fact dies at the merge],
-  [`index s i` in the sieve (`while lt (mul i i) n`)], [`i·i < n ⟹ i < n` is another nonlinear shape, rare in real code, so no rule was made],
+  [`idx c 0` in matrix multiplication], [`n ≥ 1` is missing from the contract (adding it closes it)],
+  [`idx keys lru_idx` in LRU], [It merges `0` and `j`, so the relational fact dies at the merge],
+  [`idx s i` in the sieve (`while lt (mul i i) n`)], [`i·i < n ⟹ i < n` is another nonlinear shape, rare in real code, so no rule was made],
   [Partition indices in sorting], [There is nowhere to carry `hi ≤ len s` non-strictly (relations are strict only for now)],
 )
 

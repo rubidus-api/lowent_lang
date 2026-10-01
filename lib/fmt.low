@@ -23,7 +23,7 @@ export proc put_byte input buf mut slice u8 . . input pos u64 . input b u8 .
   output option u64 . effects none .
 do
   guard lt pos (len buf) . else return none .
-  set (index buf pos) b .
+  set (idx buf pos) b .
   return (some (add pos 1)) .
 end
 
@@ -35,7 +35,7 @@ do
   guard le (add pos (len s)) (len buf) . else return none .
   var i be u64 0 .
   while lt i (len s) . do
-    set (index buf (add pos i)) (index s i) .
+    set (idx buf (add pos i)) (idx s i) .
     set i (add i 1) .
   end
   return (some (add pos (len s))) .
@@ -65,7 +65,7 @@ do
   var i be u64 w .
   while gt i 0 . do
     set i (sub i 1) .
-    set (index buf (add pos i)) (narrow u8 (add 48 (mod v 10))) .
+    set (idx buf (add pos i)) (narrow u8 (add 48 (mod v 10))) .
     set v (div v 10) .
   end
   return (some (add pos w)) .
@@ -112,7 +112,7 @@ do
     let d be u64 mod v 16 .
     var c be u64 add 48 d .
     if ge d 10 . do set c (add 87 d) . end            rem 'a' = 97 = 87 + 10 . .
-    set (index buf (add pos i)) (narrow u8 c) .
+    set (idx buf (add pos i)) (narrow u8 c) .
     set v (div v 16) .
   end
   return (some (add pos w)) .

@@ -58,7 +58,7 @@ Use-after-free and double free come out *as values* at run time.
 == Brands --- no mixing pools
 
 #idx("brand")
-Pools and handles carry a *brand* as a translation-time type parameter. One `newtype objects u8 .` declaration is one store.
+Pools and handles carry a *brand* as a translation-time type parameter. One `def newtype objects u8 .` declaration is one store.
 
 #demo("examples/ch35/mixed.low")
 
@@ -154,7 +154,7 @@ one word is the job of `flags`.
   id: "lib-alloc-glance",
   caption: [Shapes of stores and handles --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`newtype objects u8 .`], [the brand of one store], [cost-free distinction --- mixing: `E-TYPE-INSTANCE`, opening twice: `E-BRAND-REUSED`],
+  [`def newtype objects u8 .`], [the brand of one store], [cost-free distinction --- mixing: `E-TYPE-INSTANCE`, opening twice: `E-BRAND-REUSED`],
   [`pool.init objects mem gens 16`], [a pool carving the caller's bytes into blocks (sealed in)], [later ops do not take `mem`/`gens` again],
   [`pool.take` · `pool.release` · `pool.alive`], [borrow (generation handle) · return (bump generation) · ask], [use-after-free and double free surface as values],
   [`pool.bytes objects p h` → `option mut slice u8`], [the only door to a block's bytes], [`none` when the generation differs],

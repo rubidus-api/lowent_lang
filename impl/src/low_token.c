@@ -51,6 +51,7 @@ static const low_kwent_t LOW_KW_TABLE[] = {
     {"actor", LOW_KW_ACTOR}, {"state", LOW_KW_STATE},
     {"spawn", LOW_KW_SPAWN}, {"send", LOW_KW_SEND},   // `to` 는 이미 어휘에 있다
     {"be", LOW_KW_BE},
+    {"def", LOW_KW_DEF},   // ★ RFC-0132 §5.2 — 타입을 짓는 낱말 하나(옮김 창)
 };
 
 low_kw_t low_kw_lookup(proven_u8str_view_t word) {

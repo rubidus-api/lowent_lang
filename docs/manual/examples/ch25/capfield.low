@@ -12,7 +12,7 @@ actor logbook do
     let g be option mut slice u8 alloc_bytes root capacity 16 .
     guard is_some g . else return false .
     let v be mut slice u8 some_value g .
-    set (index v 0) code .
+    set (idx v 0) code .
     set entries (add entries 1) .
     return true .
   end

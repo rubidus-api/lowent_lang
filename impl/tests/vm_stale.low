@@ -1,6 +1,6 @@
 rem view-EXCL twin — rebinding the source slice while a view is live is
 rem rejected statically (E-EXCL): a view is a shared borrow (RFC-0025 §6.6).
-struct pairr do
+def struct pairr do
   a u32 .
   b u32 .
 end

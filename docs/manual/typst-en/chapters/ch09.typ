@@ -10,7 +10,7 @@
 )
 
 #deepqa[
-  In #chref("control")'s `head_or_zero`, why was `index data 0` safe?
+  In #chref("control")'s `head_or_zero`, why was `idx data 0` safe?
 ][
   Because the `guard ge (len data) 1 . else return 0 .` right before it handed the code below the fact that the slice was not empty. Code
   after a `guard` lives only in a world where the condition is true. This chapter covers what that slice is, and when bounds checks remain
@@ -24,7 +24,7 @@
 ]
 
 #organizer[
-  You will learn the difference between `array t n` and `slice t`, how to read with `len`, `index` and `for`, and that out-of-range access
+  You will learn the difference between `array t n` and `slice t`, how to read with `len`, `idx` and `for`, and that out-of-range access
   stops. You will pick up the rule that writing elements requires a `mut slice`, and how to narrow a window with `subslice`. You will also
   see the principle by which contracts remove bounds checks in the body, and that a string literal is a table that can be indexed directly.
 ]
@@ -39,7 +39,7 @@ remember separately "how many are here".
 
 #demo("examples/ch09/basics.low")
 
-- `len data` is the number of elements, and `index data 0` is the first element. Numbering starts at 0.
+- `len data` is the number of elements, and `idx data 0` is the first element. Numbering starts at 0.
 #idx("array")
 - `array u8 4` in `last4` is a sequence of exactly 4. An `array` in an input position means it receives a slice of length 4, and that length
   is checked on entry, like `requires eq (len xs) 4 .`.
@@ -116,7 +116,7 @@ it the list is `E-LIT-COUNT` --- cells are never filled silently. Each element m
 A `let` list whose elements are all constants is read-only bytes baked into the program. Passing that name to a
 `mut` position is refused (`E-TYPE-ARGMUT`). When you need a sequence you can change, bind it with `var`. A list
 bound with `var`, and a list with elements computed at run time, live *in this op's frame* --- like a local array
-in C. Write a cell with `set (index buf i) v .`.
+in C. Write a cell with `set (idx buf i) v .`.
 
 #demo("examples/ch09/framelist.low")
 
@@ -135,7 +135,7 @@ path exceed the budget (4 MiB), that is `E-STACK-BUDGET`. An op that runs as a t
 is 64 KiB. Running out of stack is ruled out before the program runs. `lowentc --stack-report <file>` prints, for every entry op and
 task, the list bytes on its deepest path and its budget.
 
-When only a few cells of a long array differ, fill the cells you *choose*. Inside `do … end` write `<index> <value> .`,
+When only a few cells of a long array differ, fill the cells you *choose*. Inside `do … end` write `<idx> <value> .`,
 and a final `_ <value> .` fills every remaining cell. Every cell must be decided, so a leftover cell without `_` is
 `E-LIT-COUNT`. An index is a constant inside the length, written once (`E-LIT-INDEX`). The block closes the list, so
 the list has no period of its own.
@@ -150,7 +150,7 @@ The elements may be structs too, as long as the struct has a byte layout --- eve
 
 - Each element is a *copy* of the value given. Changing a field in the list after putting `p` in it leaves `p` as it was.
 - An element's field is written as `set (field ps 2 y) 100 .` --- the list's name, the position, then the field.
-- Cell fills (`do <index> <value> . _ <value> . end`) and `lit slice pt …` work the same way. A `let` list of only `_` is read-only zeros.
+- Cell fills (`do <idx> <value> . _ <value> . end`) and `lit slice pt …` work the same way. A `let` list of only `_` is read-only zeros.
 - A struct with a slice, `owned` or array field cannot be an element yet (`E-LIT-UNBUILT`). A number where a struct goes is
   `E-TYPE-FIELD`, and a different struct is `E-TYPE-STRUCT`.
 
@@ -167,22 +167,22 @@ When the elements are fixed-length arrays, the list is a *list of rows*. Its typ
 
 #demo("examples/ch09/rows.low")
 
-- `len g` counts rows (3), and `index g 1` is a `slice u8` that *views* the second row. It is not a copy, so writing to
+- `len g` counts rows (3), and `idx g 1` is a `slice u8` that *views* the second row. It is not a copy, so writing to
   `row` changes `g`.
-- A cell is written through its row: `set (index (index g 2) 3) 9 .`. Replacing a whole row with `set (index g 1) …` is
+- A cell is written through its row: `set (idx (idx g 2) 3) 9 .`. Replacing a whole row with `set (idx g 1) …` is
   `E-TYPE-SET`.
 - A row value must have the same shape (`lit array u8 4 …`). A row of a frame list views the frame's bytes, so returning
   it is `E-LIT-ESCAPE`.
 
 == Contracts remove bounds checks
 
-An `index` bounds check remains only where it is not proven. Write the length condition as `requires`, and the check happens *once* on
+An `idx` bounds check remains only where it is not proven. Write the length condition as `requires`, and the check happens *once* on
 entry to the op while the index checks in the body disappear.
 
 #demo("examples/ch09/bounds.low")
 
 With `requires le n (len a) .`, `i` inside `while lt i n .` is always less than `len a`. The compiler's interval analysis works that out and
-removes the check in `index a i`. The rules behind this reasoning are proven in Coq, and an independent checker re-verifies the arithmetic
+removes the check in `idx a i`. The rules behind this reasoning are proven in Coq, and an independent checker re-verifies the arithmetic
 evidence the compiler leaves at every removed check (#chref("proofs-bounds")).
 
 One thing to watch: a count `n` uses `le`, but an *index* itself uses `lt`. `requires le i (len a) .` allows `i = len a`, which is one past
@@ -224,7 +224,7 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
 #antipattern[Reading with brackets, as in `xs[0]`][
   #demo("examples/ch09/mistake_cindex.low")
 
-  There is no bracket indexing. Reading an element is `index xs 0`, writing it is `set (index xs 0) v .`. Using names instead of symbols
+  There is no bracket indexing. Reading an element is `idx xs 0`, writing it is `set (idx xs 0) v .`. Using names instead of symbols
   makes reading, writing and the out-of-range stop all the same shape of form, with fewer symbols to remember.
 ]
 
@@ -235,7 +235,7 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
 
   #demo("examples/ch09/empty_fixed.low")
 
-  Below the `guard`, "not empty" is a fact, so `index xs 0` is safe --- and the compiler uses the same fact to remove the bounds check
+  Below the `guard`, "not empty" is a fact, so `idx xs 0` is safe --- and the compiler uses the same fact to remove the bounds check
   (#chref("control")).
 ]
 
@@ -274,8 +274,8 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
   [`mut slice u8`], [a run whose elements may be written], [writability is visible in the type],
   [`input xs array u8 4 .`], [take a run of exactly 4 (input position only)], [element type, then length --- checked at entry],
   [`len xs`], [number of elements], [just reads the length field; no cost],
-  [`index xs i`], [element `i` (from 0)], [stops when out of range --- never reads someone else's memory],
-  [`set (index xs i) v .`], [write element `i`], [needs a `mut slice` and a `proc`],
+  [`idx xs i`], [element `i` (from 0)], [stops when out of range --- never reads someone else's memory],
+  [`set (idx xs i) v .`], [write element `i`], [needs a `mut slice` and a `proc`],
   [`for x xs do … end`], [each element in turn], [no room for index mistakes],
   [`subslice xs from to`], [a window from `from` up to, not including, `to` (no copy)], [half-open --- the length is `to − from`],
   [`"hello"`], [a literal of type `slice u8` --- indexable as is], [there is no separate string type],
@@ -287,7 +287,7 @@ Almost every slice mistake comes down to *being off by one*. Where C would read 
 )
 
 #recap[
-  A slice carries its start and length together. `len` takes the length field, `index` stops when out of range, and `for` walks the
+  A slice carries its start and length together. `len` takes the length field, `idx` stops when out of range, and `for` walks the
   elements. `array t n` writes the element type and then the length and is used in input positions; a sequence written out as values is listed with `lit array` or `lit slice`. A list bound with `var` is a local array in the frame that you may write inside its block; writing someone else's elements needs a `mut slice` and a `proc`.
   `subslice` narrows the window without copying. Writing the length condition as a contract removes bounds checks in the body, and a string
   literal is a table that can be indexed directly.

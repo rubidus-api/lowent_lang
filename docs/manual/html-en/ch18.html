@@ -675,7 +675,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
     <strong><span class="tok-k">let</span></strong> buf <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
     <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">while</span></strong> lt i (len buf) . <strong><span class="tok-k">do</span></strong>
-      <strong><span class="tok-k">set</span></strong> (index buf i) <span class="tok-n">7</span> .
+      <strong><span class="tok-k">set</span></strong> (idx buf i) <span class="tok-n">7</span> .
       <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
@@ -733,7 +733,7 @@ on reaching end:
     ▲ the cursor rewinds to where the region opened --- a · b · c vanish at once</code></pre><p>This picture is why nothing leaks even though no value is given back one by one: giving back is moving one cursor.</p><h3 id="s18-3">18.3 Receiving a region<a class="plink" href="#s18-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A region can also be passed as an argument. It is received as <code>input &lt;name> region &lt;type> .</code>, and the type is the name by which that region is called.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/param.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> param .
 <em><span class="tok-c">rem run: main</span></em>
 
-<strong><span class="tok-k">type</span></strong> scratch <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> scratch <strong><span class="tok-t">u64</span></strong> .
 
 <strong><span class="tok-k">proc</span></strong> sum_squares <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
@@ -832,7 +832,7 @@ heap_mcu.low:5:0 E-HEAP-NOHOST: this op asks for the GROWING root — the `heap`
 </code></pre></div></div><p><code>--target cortex_m</code> is a microcontroller without an operating system. The <code>heap</code> effect, <code>cap heap</code> inputs and <code>region … heap</code> blocks are all rejected. On the same machine, <code>alloc</code> carving from the fixed window is still available. Which root code stands on is written in its head, so whether a library runs on a machine without an operating system is answered by translation.</p><h3 id="s18-7">18.7 A stack on a region<a class="plink" href="#s18-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A region hands out more than bytes. <code>stack_new &lt;region> capacity &lt;n></code> makes a stack of <code>n</code> elements in that region. Use it for “take out what went in last first”, as when walking a tree or graph with a loop.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/stack.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stack_demo .
 <em><span class="tok-c">rem run: main</span></em>
 
-<strong><span class="tok-k">type</span></strong> scratch <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> scratch <strong><span class="tok-t">u64</span></strong> .
 
 <em><span class="tok-c">rem take a stack from the region and pile up the digits --- the last one in comes out first</span></em>
 <strong><span class="tok-k">proc</span></strong> reverse_digits <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .
@@ -899,7 +899,7 @@ mistake_returnbuf.low:12:0 E-TYPE-RETMUT: this op declares a MUTABLE output (`mu
 </code></pre></div></div><p>The bytes <code>make_buf</code> returns are rewound at <code>end</code>, so the moment the caller receives them the next allocation may hand that space to someone else. It has the same shape as returning the address of a local array in C, and it is rejected with <code>E-REGION-ESCAPE</code>. As the diagnostic says, move the block outward: the caller opens the region and passes it, and the receiving op carves from it.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch18/returnbuf_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> returnbuf_fixed .
 <em><span class="tok-c">rem run: main</span></em>
 
-<strong><span class="tok-k">type</span></strong> scratch <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> scratch <strong><span class="tok-t">u64</span></strong> .
 
 <em><span class="tok-c">rem the op that receives the region carves from it --- the caller's block decides how long the buffer lives</span></em>
 <strong><span class="tok-k">proc</span></strong> filled_sum <strong><span class="tok-k">input</span></strong> temp <strong><span class="tok-k">region</span></strong> scratch . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc .

@@ -18,7 +18,7 @@ rem   ★ 짝(rotl/rotr · shl/shr · add/mul)에서 **한쪽만** 덮여 있었
 rem     결함이 나오는 자리는 "아무도 안 쓰는 기능" 이 아니라 **짝의 안 쓰이는 쪽**이다.
 
 rem `bytes` 는 이 저장소의 관용 별칭이다 — 픽스처가 자기 타입을 스스로 선언한다.
-type bytes slice u8 . .
+def type bytes slice u8 . .
 
 export fn cov_orpat input a u64 . output u64 . do
   match a do

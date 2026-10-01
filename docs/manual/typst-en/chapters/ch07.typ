@@ -71,7 +71,7 @@ runs from `a` to `b`, both ends included. The counting type (`u64`) is always wr
 
 #demo("examples/ch07/guards.low")
 
-The code below the `guard` in `head_or_zero` lives only in a world where the slice is not empty. That is why `index data 0` is safe.
+The code below the `guard` in `head_or_zero` lives only in a world where the slice is not empty. That is why `idx data 0` is safe.
 `grade` filters out out-of-range scores first with `guard`, and splits the rest with `if … end else do … end` below it.
 
 `guard` is not another name for `if not`, because its `else` must leave. If it does not, the code is rejected.
@@ -188,7 +188,7 @@ Use `panic` only for situations that cannot be recovered from. Failures a caller
     var n be u64 0 .
     var i be u64 0 .
     while lt i (len xs) . do
-      if eq (mod (index xs i) 2) 0 . do
+      if eq (mod (idx xs i) 2) 0 . do
         continue .
       end
       set n (add n 1) .

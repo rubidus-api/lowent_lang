@@ -27,8 +27,8 @@ proc wide_roundtrip input buf mut slice u8 . output u64 . effects none . do
   guard not (flags.wide_has buf 63) . else return 92 .
 
   rem 손으로 본 것과 같은가 — 64 번 자리는 8 번 바이트의 0 번 비트다
-  guard eq (widen u64 (index buf 8)) 3 . else return 93 .        rem 64·65 → 0b11
-  guard eq (widen u64 (index buf 31)) 128 . else return 93 .     rem 255 → 맨 위 비트
+  guard eq (widen u64 (idx buf 8)) 3 . else return 93 .        rem 64·65 → 0b11
+  guard eq (widen u64 (idx buf 31)) 128 . else return 93 .     rem 255 → 맨 위 비트
 
   rem ② 범위 밖은 값으로
   guard not (flags.wide_has buf 256) . else return 94 .

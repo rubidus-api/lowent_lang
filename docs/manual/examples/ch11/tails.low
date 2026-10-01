@@ -4,7 +4,7 @@ rem run: maybe_half 250
 rem run: must_find 2
 rem run: must_find 9
 
-enum lookup_error do
+def enum lookup_error do
   too_big .
   not_found .
 end

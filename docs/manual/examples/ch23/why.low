@@ -5,13 +5,13 @@ trait shape do
   area input s self . output u64 .
 end
 
-struct rect do
+def struct rect do
   satisfies shape .
   w u64 .
   h u64 .
 end
 
-struct square do
+def struct square do
   satisfies shape .
   side u64 .
 end

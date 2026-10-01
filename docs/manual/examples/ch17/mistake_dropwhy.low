@@ -2,7 +2,7 @@ module mistake_dropwhy .
 rem run: explain []
 rem run: explain [120]
 
-enum parse_error do
+def enum parse_error do
   empty .
   not_digit .
 end
@@ -12,7 +12,7 @@ fn parse_digit input s slice u8 . output result u8 parse_error .
   errors not_digit .
 do
   guard gt (len s) 0 . else return error empty .
-  let c be u8 index s 0 .
+  let c be u8 idx s 0 .
   guard and (ge c 48) (le c 57) . else return error not_digit .
   return ok (sub c 48) .
 end

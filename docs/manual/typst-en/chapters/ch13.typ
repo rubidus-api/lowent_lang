@@ -34,12 +34,12 @@
 
 == `type` is an alias, `newtype` a new type
 
-`type <name> <type> .` gives an existing type another name. The two names are the same type and interchangeable.
+`def type <name> <type> .` gives an existing type another name. The two names are the same type and interchangeable.
 
 #demo("examples/ch13/aliases.low")
 
 `meters` is just another name for `u64`, so the result of `mul w h` can be returned as a `u64`. Aliases shorten long types
-(`type bytes slice u8 .`) or leave meaning in the source. `pct` is an alias for a type with a range attached, and every place that takes this
+(`def type bytes slice u8 .`) or leave meaning in the source. `pct` is an alias for a type with a range attached, and every place that takes this
 name inherits the range (covered below).
 
 A type declaration has no `be`.
@@ -49,7 +49,7 @@ A type declaration has no `be`.
 `be` is the word with which `let` and `var` bind *values*. What is bound here is a type. One meaning, one spelling.
 
 #idx("newtype")
-`newtype <name> <type> .` makes a *different type* with the same representation as an existing one.
+`def newtype <name> <type> .` makes a *different type* with the same representation as an existing one.
 
 #demo("examples/ch13/ids.low")
 
@@ -105,7 +105,7 @@ Who measures the range, and where, in one picture (the literal `101` was measure
 ```
 
 The same could be written as `requires le a 100 .`. The difference is *where it is written*. `range` becomes the shape of the parameter, so
-the caller sees it from the signature alone, and it can be carried into several ops through an alias (`type pct range 0 100 .`).
+the caller sees it from the signature alone, and it can be carried into several ops through an alias (`def type pct range 0 100 .`).
 
 == `cast` --- where a value may change
 
@@ -130,7 +130,7 @@ value-losing conversion happens implicitly (#chref("numbers")), because the auth
 
 == `bits` --- from 1 to 64 bits
 
-`type <name> bits <count> .` makes an integer type with that many bits. The width need not be a power of two.
+`def type <name> bits <count> .` makes an integer type with that many bits. The width need not be a power of two.
 
 #demo("examples/ch13/tiny.low")
 
@@ -293,13 +293,13 @@ without a word. It is recorded as a defect in the development repository.
   id: "named-types-glance",
   caption: [Named type syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`type meters u64 .`], [another name for the same type], [shortens a type and records meaning --- does not stop mixing],
-  [`newtype user_id u64 .`], [a new type with the same representation], [translation stops ids from mixing --- no run-time cost],
+  [`def type meters u64 .`], [another name for the same type], [shortens a type and records meaning --- does not stop mixing],
+  [`def newtype user_id u64 .`], [a new type with the same representation], [translation stops ids from mixing --- no run-time cost],
   [`cast user_id n` · `cast u64 u`], [cross between the new type and the original], [crossings gather in one place in the code],
   [`input a range 0 100 .`], [accept only values in the range, both ends included], [the contract becomes the shape of the signature],
-  [`type pct range 0 100 .`], [put a range on an alias], [many ops inherit the same range],
+  [`def type pct range 0 100 .`], [put a range on an alias], [many ops inherit the same range],
   [`cast i32 x`], [a conversion that may change the value --- stops if it does not fit], [a mark that says "I know the value may change here"],
-  [`type ten_bits bits 10 .`], [an integer of 1 … 64 bits], [the width is the contract],
+  [`def type ten_bits bits 10 .`], [an integer of 1 … 64 bits], [the width is the contract],
   [`layout packed .` · `magic u32 big .`], [layout without padding · byte order], [make bytes mean the same outside],
   [`view wire_header b`], [read bytes in that layout without copying], [stops if length or alignment is off],
   [`try_view wire_header b` · `encode wire_header h`], [a view that gives `none` on failure · a value into bytes of that layout], [at a boundary, the non-stopping one],

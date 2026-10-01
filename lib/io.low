@@ -51,7 +51,7 @@ do
   var seen be u64 0 .
   while lt j (len src) . do
     guard lt seen limit . else return none .
-    if eq (index src j) delim . do return (some j) . end
+    if eq (idx src j) delim . do return (some j) . end
     set j (add j 1) .
     set seen (add seen 1) .
   end

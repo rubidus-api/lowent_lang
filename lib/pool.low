@@ -99,7 +99,7 @@ rem   로 아무 값이든 지어 낼 수 있다. 그래서 `bytes` 는 뷰 길�
 rem   `bsize`** 로 재고(부풀린 `len` 이 이웃 블록을 덮었다), `release`·`bytes`·`alive` 는 **한 번도
 rem   안 나간 블록**(`blk ≥ freetop`, 세대 1 그대로)을 거절한다 — 전에는 그런 핸들을 "놓아" 자유
 rem   목록에 넣고 같은 블록을 두 번 내줬다. `len` 은 정보로만 남는다(= bsize).
-export struct handle do
+export def struct handle do
   input comptime b type .
   blk u64 .
   len u64 .
@@ -109,7 +109,7 @@ end
 rem ★ 풀 하나. 뒷받침 바이트와 세대 배열을 **자기가 든다**(봉인). 호출자가 준 것을 `init` 이 봉한다.
 rem   두 배열은 여전히 **호출자가 마련한다**(라이브러리는 할당하지 않는다 — lib/alloc.low 규율).
 rem   바뀐 것은 *누가 그것을 들고 다니느냐* 다: 이제 풀이 든다.
-export struct block_pool do
+export def struct block_pool do
   input comptime b type .
   mem mut slice u8 . .
   gens mut slice u64 . .
@@ -133,7 +133,7 @@ do
   rem 세대는 1 부터 — 0 은 "한 번도 안 준 블록" 으로 남겨 둔다.
   var i be u64 0 .
   while lt i n . do
-    set (index g i) 1 .
+    set (idx g i) 1 .
     set i (add i 1) .
   end
   return some (lit block_pool b do
@@ -167,15 +167,15 @@ do
     var k be u64 8 .
     while gt k 0 . do
       set k (sub k 1) .
-      set v (add (mul v 256) (index mem (add off k))) .
+      set v (add (mul v 256) (idx mem (add off k))) .
     end
     set (field p freehead) v .
-    return some (lit handle b do blk bk . len (field p bsize) . gen (index g bk) . end) .
+    return some (lit handle b do blk bk . len (field p bsize) . gen (idx g bk) . end) .
   end
   guard lt (field p freetop) (field p nblk) . else return none .
   let b2 be u64 (field p freetop) .
   set (field p freetop) (add (field p freetop) 1) .
-  return some (lit handle b do blk b2 . len (field p bsize) . gen (index g b2) . end) .
+  return some (lit handle b do blk b2 . len (field p bsize) . gen (idx g b2) . end) .
 end
 
 rem ★★★ **해제 — 세대를 올린다.** 그 순간 그 블록의 **모든 옛 핸들이 낡는다.**
@@ -190,14 +190,14 @@ do
   rem ★ 순차 커서 앞의 블록만 밖에 나가 있을 수 있다(`freetop ≤ nblk`). 그 뒤는 세대 1 이 그대로라
   rem   지어 낸 핸들과 구별이 안 되므로 **자리로** 거절한다.
   guard lt (field h blk) (field p freetop) . else return false .
-  guard eq (index g (field h blk)) (field h gen) . else return false .   rem 이미 낡았다 (이중 해제도 여기서 걸린다)
-  set (index g (field h blk)) (add (field h gen) 1) .
+  guard eq (idx g (field h blk)) (field h gen) . else return false .   rem 이미 낡았다 (이중 해제도 여기서 걸린다)
+  set (idx g (field h blk)) (add (field h gen) 1) .
   rem 옛 머리를 이 블록 안에 적고, 이 블록이 새 머리가 된다
   let off be u64 mul (field h blk) (field p bsize) .
   var v be u64 (field p freehead) .
   var k be u64 0 .
   while lt k 8 . do
-    set (index mem (add off k)) (mod v 256) .
+    set (idx mem (add off k)) (mod v 256) .
     set v (div v 256) .
     set k (add k 1) .
   end
@@ -214,7 +214,7 @@ do
   var mem be mut slice u8 (field p mem) .
   var g be mut slice u64 (field p gens) .
   guard lt (field h blk) (field p freetop) . else return none .
-  guard eq (index g (field h blk)) (field h gen) . else return none .
+  guard eq (idx g (field h blk)) (field h gen) . else return none .
   let off be u64 mul (field h blk) (field p bsize) .
   rem ★ 뷰의 길이는 **풀이** 안다 — 핸들의 `len` 은 호출자가 지어 낼 수 있는 값이다.
   return some (subslice mem off (add off (field p bsize))) .
@@ -226,7 +226,7 @@ export proc alive input comptime b type . input p block_pool b . input h handle 
 do
   var g be mut slice u64 (field p gens) .
   guard lt (field h blk) (field p freetop) . else return false .
-  return eq (index g (field h blk)) (field h gen) .
+  return eq (idx g (field h blk)) (field h gen) .
 end
 
 rem ★ 순차로 **꺼내 본** 블록 수. 자유 목록에 돌아온 것은 여기서 안 준다 — `outstanding` 을 보라.
@@ -254,7 +254,7 @@ export proc outstanding input comptime b type . input p block_pool b . output u6
     var k be u64 8 .
     while gt k 0 . do
       set k (sub k 1) .
-      set v (add (mul v 256) (index mem (add off k))) .
+      set v (add (mul v 256) (idx mem (add off k))) .
     end
     set cur v .
   end

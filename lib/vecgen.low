@@ -53,7 +53,7 @@ rem
 rem ☞ 그리고 `vecs`(lib/vec.low)는 **접지 않았다**. 그쪽은 버퍼를 **호출자가 들고** 성장하면 새
 rem   자리를 **값으로 돌려주는** 모델이다 — 소유 모델이 다르다(Stage 3 Task 4 가 둘을 API·테스트
 rem   에서 가르라고 못박은 그 경계). 축이 겹친다고 **계약까지** 접으면 축소가 아니라 뭉갬이다.
-export struct vec do input comptime t type . input comptime a type .
+export def struct vec do input comptime t type . input comptime a type .
   al a .
   store mut slice u8 . .     rem 얼로케이터가 준 **바이트** — 소유하는 저장소
   n u64 .                  rem 담긴 **원소** 개수(바이트가 아니다)
@@ -106,7 +106,7 @@ export proc append input comptime t type . input comptime a type . input g mut v
   if lt (field g n) room . do
     var cur be mut slice u8 (field g store) .
     var cells be mut slice t view_array t cur .
-    set (index cells (field g n)) x .
+    set (idx cells (field g n)) x .
     set (field g n) (add (field g n) 1) .
     return true .
   end
@@ -121,7 +121,7 @@ export proc append input comptime t type . input comptime a type . input g mut v
     set (field g store) (some_value ip) .
     set (field g tail) (send (field g al) used) .
     var cells2 be mut slice t view_array t (field g store) .
-    set (index cells2 (field g n)) x .
+    set (idx cells2 (field g n)) x .
     set (field g n) (add (field g n) 1) .
     return true .
   end
@@ -134,10 +134,10 @@ export proc append input comptime t type . input comptime a type . input g mut v
   var src be mut slice t view_array t old .
   var i be u64 0 .
   while lt i (field g n) . do
-    set (index dst i) (index src i) .
+    set (idx dst i) (idx src i) .
     set i (add i 1) .
   end
-  set (index dst (field g n)) x .
+  set (idx dst (field g n)) x .
   set (field g store) fresh .
   set (field g n) (add (field g n) 1) .
   return true .
@@ -148,7 +148,7 @@ export proc at input comptime t type . input comptime a type . input g vec t a .
   guard lt i (field g n) . else return none .
   var cur be mut slice u8 (field g store) .
   var cells be mut slice t view_array t cur .
-  return some (index cells i) .
+  return some (idx cells i) .
 end
 
 rem ★ i 번째 원소를 고친다. 범위 밖이면 false — 조용히 늘리지 않는다.
@@ -156,7 +156,7 @@ export proc set_at input comptime t type . input comptime a type . input g mut v
   guard lt i (field g n) . else return false .
   var cur be mut slice u8 (field g store) .
   var cells be mut slice t view_array t cur .
-  set (index cells i) x .
+  set (idx cells i) x .
   return true .
 end
 
@@ -190,7 +190,7 @@ export proc reserve_more input comptime t type . input comptime a type . input g
   var src be mut slice t view_array t old .
   var i be u64 0 .
   while lt i (field g n) . do
-    set (index dst i) (index src i) .
+    set (idx dst i) (idx src i) .
     set i (add i 1) .
   end
   set (field g store) fresh .

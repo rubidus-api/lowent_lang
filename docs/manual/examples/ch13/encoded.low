@@ -1,7 +1,7 @@
 module encoded .
 rem run: header_bytes 9
 
-struct wire_header do
+def struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .
@@ -13,5 +13,5 @@ fn header_bytes input k u8 . output u64 .
 do
   let h be lit wire_header do magic 1 . length 2 . kind k . end .
   let bytes be slice u8 encode wire_header h .
-  return add (mul (len bytes) 1000) (widen u64 (index bytes 6)) .
+  return add (mul (len bytes) 1000) (widen u64 (idx bytes 6)) .
 end

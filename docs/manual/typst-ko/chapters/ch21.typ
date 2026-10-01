@@ -216,7 +216,7 @@
   caption: [모듈의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`module geom .`], [이 파일이 모듈 `geom` 이다(첫 줄)], [모듈 이름은 파일 이름과 따로 --- `use` 는 이 이름을 찾는다],
-  [`export fn manhattan …` · `export struct point …`], [밖에서 보이게 한다], [감춘 것이 기본 --- 보이는 것은 약속],
+  [`export fn manhattan …` · `export def struct point …`], [밖에서 보이게 한다], [감춘 것이 기본 --- 보이는 것은 약속],
   [`use geom from "geom.low" .`], [선언한 파일 기준의 자리에서 들여온다], [검색 경로가 없다 --- 무엇에 기대는지 소스에 보인다],
   [`use allocs .`], [같은 번역 단위나 표준 라이브러리에서 들여온다], [없으면 `W-USE-EXTERNAL`],
   [`geom.point` · `geom.manhattan a b`], [들여온 이름은 모듈 이름으로 한정한다], [풀어놓기가 없다],

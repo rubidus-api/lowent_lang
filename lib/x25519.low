@@ -23,7 +23,7 @@ module x25519 .
 rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
 rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
-export enum x25519_error do
+export def enum x25519_error do
   short_workspace .
 end
 
@@ -39,12 +39,12 @@ export proc fcar input o mut slice u64 . output u64 . effects none . do
     var c be u64 0 .
     var i be u64 0 .
     while lt i 16 . do
-      let v be u64 add (index o i) c .
-      set (index o i) (bit_and v 65535) .
+      let v be u64 add (idx o i) c .
+      set (idx o i) (bit_and v 65535) .
       set c (shr v 16) .
       set i (add i 1) .
     end
-    set (index o 0) (add (index o 0) (mul c 38)) .
+    set (idx o 0) (add (idx o 0) (mul c 38)) .
     set pass (add pass 1) .
   end
   return 1 .
@@ -53,13 +53,13 @@ end
 export proc fzero input o mut slice u64 . output u64 . effects none . do
   guard ge (len o) 16 . else return 0 .
   var i be u64 0 .
-  while lt i 16 . do  set (index o i) 0 .  set i (add i 1) .  end
+  while lt i 16 . do  set (idx o i) 0 .  set i (add i 1) .  end
   return 1 .
 end
 
 export proc fone input o mut slice u64 . output u64 . effects none . do
   guard eq (fzero o) 1 . else return 0 .
-  set (index o 0) 1 .
+  set (idx o 0) 1 .
   return 1 .
 end
 
@@ -67,7 +67,7 @@ export proc fcopy input o mut slice u64 . input a slice u64 . output u64 . effec
   guard ge (len o) 16 . else return 0 .
   guard ge (len a) 16 . else return 0 .
   var i be u64 0 .
-  while lt i 16 . do  set (index o i) (index a i) .  set i (add i 1) .  end
+  while lt i 16 . do  set (idx o i) (idx a i) .  set i (add i 1) .  end
   return 1 .
 end
 
@@ -78,7 +78,7 @@ export proc fadd input o mut slice u64 . input a slice u64 . input b slice u64 .
   guard ge (len b) 16 . else return 0 .
   var i be u64 0 .
   while lt i 16 . do
-    set (index o i) (add (index a i) (index b i)) .
+    set (idx o i) (add (idx a i) (idx b i)) .
     set i (add i 1) .
   end
   return fcar o .
@@ -97,8 +97,8 @@ export proc fsub input o mut slice u64 . input a slice u64 . input b slice u64 .
   while lt i 16 . do
     var lim be u64 131070 .
     if eq i 0 . do set lim 130996 . end
-    guard le (index b i) lim . else return 0 .
-    set (index o i) (sub (add (index a i) lim) (index b i)) .
+    guard le (idx b i) lim . else return 0 .
+    set (idx o i) (sub (add (idx a i) lim) (idx b i)) .
     set i (add i 1) .
   end
   return fcar o .
@@ -111,12 +111,12 @@ export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 .
   guard ge (len b) 16 . else return 0 .
   guard ge (len t) 31 . else return 0 .
   var k be u64 0 .
-  while lt k 31 . do  set (index t k) 0 .  set k (add k 1) .  end
+  while lt k 31 . do  set (idx t k) 0 .  set k (add k 1) .  end
   var i be u64 0 .
   while lt i 16 . do
     var j be u64 0 .
     while lt j 16 . do
-      set (index t (add i j)) (add (index t (add i j)) (mul (index a i) (index b j))) .
+      set (idx t (add i j)) (add (idx t (add i j)) (mul (idx a i) (idx b j))) .
       set j (add j 1) .
     end
     set i (add i 1) .
@@ -124,11 +124,11 @@ export proc fmul input o mut slice u64 . input a slice u64 . input b slice u64 .
   rem 2^256 ≡ 38 — 위쪽 15 조각을 38 배로 접어 내린다.
   var m be u64 0 .
   while lt m 15 . do
-    set (index t m) (add (index t m) (mul 38 (index t (add m 16)))) .
+    set (idx t m) (add (idx t m) (mul 38 (idx t (add m 16)))) .
     set m (add m 1) .
   end
   var q be u64 0 .
-  while lt q 16 . do  set (index o q) (index t q) .  set q (add q 1) .  end
+  while lt q 16 . do  set (idx o q) (idx t q) .  set q (add q 1) .  end
   return fcar o .
 end
 
@@ -142,7 +142,7 @@ export proc fmul121665 input o mut slice u64 . input a slice u64 . output u64 . 
   guard ge (len a) 16 . else return 0 .
   var i be u64 0 .
   while lt i 16 . do
-    set (index o i) (mul (index a i) 121665) .
+    set (idx o i) (mul (idx a i) 121665) .
     set i (add i 1) .
   end
   return fcar o .
@@ -157,9 +157,9 @@ export proc fsel input p mut slice u64 . input q mut slice u64 . input bit u64 .
   let mask be u64 wrap_sub 0 bit .
   var i be u64 0 .
   while lt i 16 . do
-    let d be u64 bit_and mask (bit_xor (index p i) (index q i)) .
-    set (index p i) (bit_xor (index p i) d) .
-    set (index q i) (bit_xor (index q i) d) .
+    let d be u64 bit_and mask (bit_xor (idx p i) (idx q i)) .
+    set (idx p i) (bit_xor (idx p i) d) .
+    set (idx q i) (bit_xor (idx q i) d) .
     set i (add i 1) .
   end
   return 1 .
@@ -171,11 +171,11 @@ export proc funpack input o mut slice u64 . input s slice u8 . output u64 . effe
   guard ge (len s) 32 . else return 0 .
   var i be u64 0 .
   while lt i 16 . do
-    set (index o i) (bit_or (cast u64 (index s (mul i 2)))
-                            (shl (cast u64 (index s (add (mul i 2) 1))) 8)) .
+    set (idx o i) (bit_or (cast u64 (idx s (mul i 2)))
+                            (shl (cast u64 (idx s (add (mul i 2) 1))) 8)) .
     set i (add i 1) .
   end
-  set (index o 15) (bit_and (index o 15) 32767) .
+  set (idx o 15) (bit_and (idx o 15) 32767) .
   return 1 .
 end
 
@@ -190,27 +190,27 @@ export proc fpack input out mut slice u8 . input a mut slice u64 . input m mut s
   guard eq (fcar a) 1 . else return 0 .
   var trim be u64 0 .
   while lt trim 2 . do
-    set (index m 0) (wrap_sub (index a 0) 65517) .
+    set (idx m 0) (wrap_sub (idx a 0) 65517) .
     var i be u64 1 .
     while lt i 15 . do
-      set (index m i) (wrap_sub (wrap_sub (index a i) 65535)
-                                (bit_and (shr (index m (sub i 1)) 16) 1)) .
-      set (index m (sub i 1)) (bit_and (index m (sub i 1)) 65535) .
+      set (idx m i) (wrap_sub (wrap_sub (idx a i) 65535)
+                                (bit_and (shr (idx m (sub i 1)) 16) 1)) .
+      set (idx m (sub i 1)) (bit_and (idx m (sub i 1)) 65535) .
       set i (add i 1) .
     end
-    set (index m 15) (wrap_sub (wrap_sub (index a 15) 32767)
-                               (bit_and (shr (index m 14) 16) 1)) .
-    let borrow be u64 bit_and (shr (index m 15) 16) 1 .
-    set (index m 14) (bit_and (index m 14) 65535) .
-    set (index m 15) (bit_and (index m 15) 65535) .
+    set (idx m 15) (wrap_sub (wrap_sub (idx a 15) 32767)
+                               (bit_and (shr (idx m 14) 16) 1)) .
+    let borrow be u64 bit_and (shr (idx m 15) 16) 1 .
+    set (idx m 14) (bit_and (idx m 14) 65535) .
+    set (idx m 15) (bit_and (idx m 15) 65535) .
     let pick be u64 sub 1 borrow .
     let z be u64 fsel a m pick .
     set trim (add trim 1) .
   end
   var k be u64 0 .
   while lt k 16 . do
-    set (index out (mul k 2)) (cast u8 (bit_and (index a k) 255)) .
-    set (index out (add (mul k 2) 1)) (cast u8 (bit_and (shr (index a k) 8) 255)) .
+    set (idx out (mul k 2)) (cast u8 (bit_and (idx a k) 255)) .
+    set (idx out (add (mul k 2) 1)) (cast u8 (bit_and (shr (idx a k) 8) 255)) .
     set k (add k 1) .
   end
   return 32 .
@@ -252,9 +252,9 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
 
   rem ★ 스칼라 다듬기(clamp, RFC 7748 §5): 하위 3 비트를 끄고, 최상위 비트를 끄고 그 아래를 켠다.
   var i be u64 0 .
-  while lt i 32 . do  set (index z i) (index n i) .  set i (add i 1) .  end
-  set (index z 0) (cast u8 (bit_and (cast u64 (index z 0)) 248)) .
-  set (index z 31) (cast u8 (bit_or (bit_and (cast u64 (index z 31)) 127) 64)) .
+  while lt i 32 . do  set (idx z i) (idx n i) .  set i (add i 1) .  end
+  set (idx z 0) (cast u8 (bit_and (cast u64 (idx z 0)) 248)) .
+  set (idx z 31) (cast u8 (bit_or (bit_and (cast u64 (idx z 31)) 127) 64)) .
 
   guard eq (funpack fx pt) 1 . else return 0 .
   guard eq (fone fa) 1 . else return 0 .
@@ -270,7 +270,7 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
   var j be u64 0 .
   while lt j 255 . do
     let bi be u64 sub 254 j .
-    let r be u64 bit_and (shr (cast u64 (index z (shr bi 3))) (bit_and bi 7)) 1 .
+    let r be u64 bit_and (shr (cast u64 (idx z (shr bi 3))) (bit_and bi 7)) 1 .
     set sk (fsel fa fb r) .
     set sk (fsel fc fd r) .
     set sk (fadd fe fa fc) .
@@ -310,7 +310,7 @@ export proc scalarmult input q mut slice u8 . input n slice u8 . input pt slice 
   var zsum be u64 0 .
   var zi be u64 0 .
   while lt zi 32 . do
-    set zsum (bit_or zsum (cast u64 (index q zi))) .
+    set zsum (bit_or zsum (cast u64 (idx q zi))) .
     set zi (add zi 1) .
   end
   guard gt zsum 0 . else return 0 .

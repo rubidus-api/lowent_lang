@@ -15,7 +15,7 @@ rem   못 넣거나(꽉 참·MAX 키) 못 찾으면 큰 센티널(값과 안 겹
 proc hm_roundtrip input b mut slice u64 . . input k u64 . input v u64 . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   let ok_put be bool hashmap.put b k v .
@@ -30,7 +30,7 @@ rem   백킹이 4 슬롯 미만이면 0(검사 불가). diff-sweep 이 임의 �
 proc hm_check input b mut slice u64 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   guard ge (div (len b) 2) 4 . else return 0 .
@@ -60,7 +60,7 @@ rem   `bit_not 0` 으로 진짜 MAX 를 op 안에서 만든다. → put 이 fals
 proc hm_maxkey input b mut slice u64 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   guard gt (div (len b) 2) 0 . else return 0 .
@@ -81,7 +81,7 @@ rem 꽉 찬 맵에 새 키를 넣으면 false. 2 슬롯짜리 백킹에 서로 �
 proc hm_full input b mut slice u64 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   guard eq (div (len b) 2) 2 . else return 0 .           rem 정확히 2 슬롯일 때만 의미
@@ -100,7 +100,7 @@ rem   누산 변수는 `total`·`mx`(빌트인 `sum`·`max` 와 안 겹치게).
 proc hm_sum_vals input b mut slice u64 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   guard eq (hashmap.put b 10 100) true . else return 999 .
@@ -121,7 +121,7 @@ rem 디코드된 키의 합 → 10+20+30 = 60 (hm_key_at 이 key+1 을 −1 로 
 proc hm_sum_keys input b mut slice u64 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   guard eq (hashmap.put b 10 100) true . else return 999 .
@@ -144,7 +144,7 @@ rem   순회 카운트가 묘비를 안 세는가. 백킹이 4 슬롯 미만이�
 proc hm_del_check input b mut slice u64 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   guard ge (div (len b) 2) 4 . else return 0 .
@@ -190,12 +190,12 @@ rem   ob 는 정확히 2 슬롯(4 u64) · nb 는 4+ 슬롯. diff-sweep 이 임�
 proc hm_rehash_check input ob mut slice u64 . . input nb mut slice u64 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len ob) . do
-    set (index ob i) 0 .
+    set (idx ob i) 0 .
     set i (add i 1) .
   end
   var j be u64 0 .
   while lt j (len nb) . do
-    set (index nb j) 0 .
+    set (idx nb j) 0 .
     set j (add j 1) .
   end
   guard eq (div (len ob) 2) 2 . else return 0 .          rem ob = 정확히 2 슬롯
@@ -235,7 +235,7 @@ rem 최대 값 → 300.
 proc hm_maxval input b mut slice u64 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   guard eq (hashmap.put b 10 100) true . else return 999 .

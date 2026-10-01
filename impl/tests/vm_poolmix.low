@@ -11,8 +11,8 @@ rem        엉뚱한 배열을 들고 오는 길이 **표면에서 사라졌다*
 module pool_mix .
 use pool from "../../lib/pool.low" .
 
-newtype pa u8 .
-newtype pb u8 .
+def newtype pa u8 .
+def newtype pb u8 .
 
 export proc mix input ma mut slice u8 . . input ga mut slice u64 . .
                  input mb mut slice u8 . . input gb mut slice u64 . .

@@ -18,7 +18,7 @@ module twoax .
 
 use allocs .
 
-export struct gv do input comptime t type . input comptime a type .
+export def struct gv do input comptime t type . input comptime a type .
   al a .
   store mut slice u8 . .     rem 얼로케이터가 준 **바이트** — 소유하는 저장소
   n u64 .                    rem 담긴 **원소** 개수
@@ -53,7 +53,7 @@ do
   guard lt (field g n) room . else return false .
   var cur be mut slice u8 (field g store) .
   var cells be mut slice t view_array t cur .
-  set (index cells (field g n)) x .
+  set (idx cells (field g n)) x .
   set (field g n) (add (field g n) 1) .
   return true .
 end
@@ -69,7 +69,7 @@ do
   guard lt i (field g n) . else return none .
   var cur be mut slice u8 (field g store) .
   var cells be mut slice t view_array t cur .
-  return some (index cells i) .
+  return some (idx cells i) .
 end
 
 export fn count_of .

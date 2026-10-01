@@ -2,7 +2,7 @@ module vm_structarr .
 rem ★★ RFC-0132 T2b-3b — 구조체의 배열 칸 `body array u8 8 .`: 칸의 바이트는 레코드의 것이다 — 만들 때·베낄 때·칸에 쓸 때
 rem   바이트를 베낀다(값 복사). `mut` 매개변수로 넘긴 레코드의 배열 칸에 쓰면 부른 쪽이 바뀐다. VM 과 네이티브가 같은가를 잰다.
 
-struct pkt do
+def struct pkt do
   len u8 .
   body array u8 8 .
 end
@@ -18,11 +18,11 @@ end
 export fn copy_is_value input a u64 . output u64 . do
   var p be lit pkt do len 3 . body lit array u8 8 1 2 (narrow_wrap u8 a) _ . . end .
   var q be pkt p .
-  set (index (field q body) 0) 100 .
+  set (idx (field q body) 0) 100 .
   return add (mul (total p) 1000) (total q) .
 end
 
-struct rec do
+def struct rec do
   tag u8 .
   w array i16 3 .
   f array f64 2 .
@@ -34,7 +34,7 @@ fn mk input a u64 . output rec . do
 end
 
 proc bump input r mut rec . output u64 . do
-  set (index (field r w) 2) 40 .
+  set (idx (field r w) 2) 40 .
   return 0 .
 end
 
@@ -43,7 +43,7 @@ export proc run input a u64 . output i64 . do
   let z be u64 bump r .
   var s be rec r .
   set (field s w) lit array i16 3 5 5 5 . .
-  set (index (field s f) 1) 2.25 .
+  set (idx (field s f) 1) 2.25 .
   var t be i64 0 .
   for x (field r w) do
     set t (add t (widen i64 x)) .
@@ -51,7 +51,7 @@ export proc run input a u64 . output i64 . do
   for y (field s w) do
     set t (add t (mul (widen i64 y) 100)) .
   end
-  if eq (index (field r b) 0) true . do
+  if eq (idx (field r b) 0) true . do
     set t (add t 10000) .
   end
   return t .
@@ -60,12 +60,12 @@ end
 export fn fsum input a u64 . output f64 . do
   var r be rec mk a .
   var s be rec r .
-  set (index (field s f) 1) 2.25 .
-  return add (add (index (field r f) 0) (index (field r f) 1)) (index (field s f) 1) .
+  set (idx (field s f) 1) 2.25 .
+  return add (add (idx (field r f) 0) (idx (field r f) 1)) (idx (field s f) 1) .
 end
 
 rem 레코드 풀이 되감기고 압축될 때 배열 칸 버퍼가 자리와 함께 옮는가(맞바꿈) — 같은 틀에서 레코드를 계속 만든다.
-struct cell do
+def struct cell do
   k u64 .
   v array u64 4 .
 end
@@ -78,8 +78,8 @@ fn churn input i u64 . output u64 . do
   var a be cell mkcell i .
   var b be cell mkcell (add i 100) .
   var c be cell a .
-  set (index (field c v) 0) 7 .
-  return add (add (index (field a v) 0) (index (field b v) 3)) (index (field c v) 0) .
+  set (idx (field c v) 0) 7 .
+  return add (add (idx (field a v) 0) (idx (field b v) 3)) (idx (field c v) 0) .
 end
 
 export fn stress input n u64 . output u64 . do
@@ -91,7 +91,7 @@ export fn stress input n u64 . output u64 . do
     set s (add s (churn i)) .
     set i (add i 1) .
   end
-  return add s (index (field keep v) 2) .
+  return add s (idx (field keep v) 2) .
 end
 
 export fn stress2 input n u64 . output u64 . do
@@ -103,9 +103,9 @@ export fn stress2 input n u64 . output u64 . do
   while lt i n . do
     set old keep .
     set keep (mkcell i) .
-    set (index (field keep v) 1) (add (index (field old v) 1) 1) .
-    set s (add s (index (field keep v) 1)) .
+    set (idx (field keep v) 1) (add (idx (field old v) 1) 1) .
+    set s (add s (idx (field keep v) 1)) .
     set i (add i 1) .
   end
-  return add s (index (field keep v) 3) .
+  return add s (idx (field keep v) 3) .
 end

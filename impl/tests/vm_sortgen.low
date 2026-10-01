@@ -15,7 +15,7 @@ use sortgen from "../../lib/sortgen.low" .
 rem ── 제네릭 정렬(2026-07-26): 비교는 **타입이 들고 온다**(comptime 타입 + trait 경계) ──
 rem   레코드 하나로 감싼 u64 를 정렬한다 — 정렬 대상이 스칼라가 아니어도 같은 op 이 돈다.
 
-struct keyed do
+def struct keyed do
   satisfies sortgen.ordered .
   k u64 .
 end
@@ -25,9 +25,9 @@ rem [3,1,2] → 123. 자릿수로 순서를 통째로 확인한다(첫 원소만
 proc generic_sorted input s mut slice keyed . . output u64 . effects none . do
   guard ge (len s) 3 . else return 90 .
   sortgen.sort_by keyed s .
-  let f0 be keyed index s 0 .
-  let f1 be keyed index s 1 .
-  let f2 be keyed index s 2 .
+  let f0 be keyed idx s 0 .
+  let f1 be keyed idx s 1 .
+  let f2 be keyed idx s 2 .
   return add (mul 100 (field f0 k)) (add (mul 10 (field f1 k)) (field f2 k)) .
 end
 
@@ -35,7 +35,7 @@ rem ★ `swap` 은 원소 타입을 몰라도 된다 — u64 슬라이스에서�
 proc swap_scalar input s mut slice u64 . . output u64 . effects none . do
   guard ge (len s) 2 . else return 90 .
   swap s 0 1 .
-  return add (mul 10 (index s 0)) (index s 1) .
+  return add (mul 10 (idx s 0)) (idx s 1) .
 end
 
 rem ★★★ **부분 정렬을 잡는 픽스처** — 3원소·단일 키로는 한 번의 스왑으로도 답이 맞아
@@ -43,7 +43,7 @@ rem   버그가 숨는다(실제로 숨었다). 여기서는 ① 원소를 여�
 rem   다중 키가 중요한 이유: 같은 1차 키가 여럿이면 2차 키로 **여러 칸을 내려가야** 하는데,
 rem   비교를 두 번 하는 구현은 한 칸만 내려가고 멈춘다.
 
-struct score do
+def struct score do
   satisfies sortgen.ordered .
   grade u64 .
   point u64 .
@@ -58,9 +58,9 @@ rem 입력 (1,5) (1,2) (0,9) → 정렬 (0,9) (1,2) (1,5) → point 자릿수 92
 proc multikey input s mut slice score . . output u64 . effects none . do
   guard ge (len s) 3 . else return 90 .
   sortgen.sort_by score s .
-  let a be score index s 0 .
-  let b be score index s 1 .
-  let c be score index s 2 .
+  let a be score idx s 0 .
+  let b be score idx s 1 .
+  let c be score idx s 2 .
   return add (mul 100 (field a point)) (add (mul 10 (field b point)) (field c point)) .
 end
 
@@ -71,7 +71,7 @@ proc six_reversed input s mut slice keyed . . output u64 . effects none . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 6 . do
-    let e be keyed index s i .
+    let e be keyed idx s i .
     set acc (add (mul acc 10) (field e k)) .
     set i (add i 1) .
   end
@@ -85,7 +85,7 @@ proc fast_six input s mut slice keyed . . output u64 . effects none . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 6 . do
-    let e be keyed index s i .
+    let e be keyed idx s i .
     set acc (add (mul acc 10) (field e k)) .
     set i (add i 1) .
   end
@@ -97,7 +97,7 @@ proc fast_verify input s mut slice keyed . . output u64 . effects none . do
   var before be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    let e be keyed index s i .
+    let e be keyed idx s i .
     set before (add before (field e k)) .
     set i (add i 1) .
   end
@@ -106,10 +106,10 @@ proc fast_verify input s mut slice keyed . . output u64 . effects none . do
   var sorted_ok be bool true .
   set i 0 .
   while lt i (len s) . do
-    let e be keyed index s i .
+    let e be keyed idx s i .
     set after (add after (field e k)) .
     if gt i 0 . do
-      let prev be keyed index s (sub i 1) .
+      let prev be keyed idx s (sub i 1) .
       if gt (field prev k) (field e k) . do set sorted_ok false . end
     end
     set i (add i 1) .

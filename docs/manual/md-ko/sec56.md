@@ -32,10 +32,10 @@ end
 ```text
 module <이름> .
 use <모듈> [from "<자리>"] .
-type <이름> <타입> .
-newtype <이름> <타입> .
-struct <이름> do [satisfies <트레이트> .] [layout packed .] [mmio <주소> .] <칸 이름> <타입> [big|little] [rw|ro|wo] . … end
-enum <이름> do <갈래> [<칸> <타입>]… . … end
+def type <이름> <타입> .
+def newtype <이름> <타입> .
+def struct <이름> do [satisfies <트레이트> .] [layout packed .] [mmio <주소> .] <칸 이름> <타입> [big|little] [rw|ro|wo] . … end
+def enum <이름> do <갈래> [<칸> <타입>]… . … end
 trait <이름> do <op 이름> <절…> . … end
 contract <이름> do requires <조건> . … end
 actor <이름> do [satisfies …] state do <칸> <타입> . … end [failure restart max <수> .] [mailbox bounded <수> .] <op>… end

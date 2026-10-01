@@ -53,7 +53,7 @@ proc hex6_at input tab slice u8 . input off u64 . output option u64 . effects no
   var v be u64 0 .
   var k be u64 0 .
   while lt k 6 . do
-    let d be option u64 codec.hex_val (index tab (add off k)) .
+    let d be option u64 codec.hex_val (idx tab (add off k)) .
     guard is_some d . else return none .
     set v (add (mul v 16) (some_value d)) .
     set k (add k 1) .

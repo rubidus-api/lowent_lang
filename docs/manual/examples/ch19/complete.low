@@ -1,9 +1,9 @@
 module complete .
 rem run: session 3
 
-type journal u64 .
+def type journal u64 .
 
-enum flush_error do
+def enum flush_error do
   disk_full .
 end
 

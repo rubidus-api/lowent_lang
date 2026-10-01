@@ -15,7 +15,7 @@ rem   (지역 변이는 여전히 순수하다: 저장소가 op 안에 갇혀 �
 
 module vm_control .
 
-enum e do
+def enum e do
   too_big .
 end
 

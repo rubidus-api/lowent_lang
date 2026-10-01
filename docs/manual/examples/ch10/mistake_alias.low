@@ -1,7 +1,7 @@
 module mistake_alias .
 rem run: copy_then_change
 
-struct point do
+def struct point do
   x u64 .
   y u64 .
 end

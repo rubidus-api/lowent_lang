@@ -8,7 +8,7 @@ module rpn .
 rem 정수 RPN(역폴란드) 계산기.
 rem "3 4 + 5 *" = [lit 3][lit 4][plus][lit 5][times] → (3+4)*5 = 35.
 
-type scratch u64 . .
+def type scratch u64 . .
 
 rem 토큰 종류 — 슬라이스로 건네려면 원소가 **바이트 레이아웃**을 가져야 해서(viewable) 종류는 u8 코드다.
 rem   (enum 칸은 레이아웃이 없다. 이름은 prelude op(add/sub/…)와 겹치지 않게 — RFC-0002 §8-12(F1).)
@@ -18,13 +18,13 @@ let minus be u8 2 .
 let times be u8 3 .
 let divide be u8 4 .
 
-enum eval_error do
+def enum eval_error do
   underflow .           rem 이항 연산에 피연산자 부족
   div_by_zero .
   bad_expr .            rem 평가 후 스택에 정확히 1개가 안 남음
 end
 
-struct token do
+def struct token do
   kind  u8 .
   value i64 .
 end

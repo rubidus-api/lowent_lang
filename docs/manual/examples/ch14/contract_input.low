@@ -3,7 +3,7 @@ rem run: check_age 30
 rem trap: age_strict 200
 rem run: age_checked 200
 
-enum age_error do
+def enum age_error do
   too_old .
 end
 

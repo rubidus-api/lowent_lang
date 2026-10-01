@@ -2,15 +2,15 @@ rem SPEC-MVP §8 gate — example A: slice-based parser (fn + contracts).
 rem Source: SPEC-015 §17.1 (normative point-closure form). --check must be clean.
 module packet .
 
-type bytes slice u8 . .
+def type bytes slice u8 . .
 
-struct header do
+def struct header do
   version u8 .
   flags u8 .
   length u16 .
 end
 
-enum parse_error do
+def enum parse_error do
   too_short .
   bad_version .
   too_long .
@@ -24,7 +24,7 @@ fn read_u16_be .
   input d bytes .
   output u16 .
 do
-  return expr ((index d 0) * 256) + (index d 1) . .
+  return expr ((idx d 0) * 256) + (idx d 1) . .
 end
 
 fn parse_header .
@@ -32,17 +32,17 @@ fn parse_header .
   output result header parse_error . .
   access data sequential .
   errors too_short lt (len data) 4 .
-  errors bad_version ne (index data 0) 1 .
+  errors bad_version ne (idx data 0) 1 .
   errors too_long gt (read_u16_be (subslice data 2 4)) (len data) .
   tests parse_header_short parse_header_bad_version parse_header_ok .
 do
   guard ge len data . 4 . else return error too_short . . .
-  guard eq index data 0 . 1 . else return error bad_version . . .
+  guard eq idx data 0 . 1 . else return error bad_version . . .
   let length be u16 read_u16_be subslice data 2 4 . . .
   guard le length len data . . else return error too_long . . .
   return ok lit header do
-    version index data 0 . .
-    flags index data 1 . .
+    version idx data 0 . .
+    flags idx data 1 . .
     length length .
   end .
 end

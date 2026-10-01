@@ -13,7 +13,7 @@ rem   ★ 둘 다 순수한 값 규칙이라 VM 과 C 가 **같은 답**을 낸�
 
 module vm_total .
 
-type frame u64 . .
+def type frame u64 . .
 
 rem value_or — some 이면 그 값, none 이면 기본값.
 fn pick input k u64 . output u64 . do

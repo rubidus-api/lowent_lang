@@ -2,7 +2,7 @@ module mistake_unitvariant .
 rem run: pick_bare
 rem run: pick_qualified
 
-enum light do
+def enum light do
   red .
   green .
 end

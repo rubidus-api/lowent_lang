@@ -15,7 +15,7 @@ trait sized do
   area input s self . output u64 . effects none .
 end
 
-export struct rect do
+export def struct rect do
   satisfies sized .
   w u8 .
   h u8 .

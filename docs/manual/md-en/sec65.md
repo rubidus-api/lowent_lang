@@ -23,7 +23,7 @@ guard is_some n . else return 1 .
 
 `dst` is not made by this module but is **an output place the caller sets aside in advance** (at least 6 bytes here). `n` is **the number of bytes actually written**, and the result is `dst[0..n)`.
 
-A wrapping keeps no secrets — anyone can undo it. If secrecy is needed, use [`aead`](sec81.md#mod-aead), which seals (chapter 33). This module is pure computation from bytes to bytes, using only `index`, `set`, `shl`, `shr`, `bit_and`, `bit_or`, `guard` and `while`, and no builtin was added.
+A wrapping keeps no secrets — anyone can undo it. If secrecy is needed, use [`aead`](sec81.md#mod-aead), which seals (chapter 33). This module is pure computation from bytes to bytes, using only `idx`, `set`, `shl`, `shr`, `bit_and`, `bit_or`, `guard` and `while`, and no builtin was added.
 
 ## <a id="sx1"></a>Design and boundaries
 
@@ -93,11 +93,11 @@ proc hex_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output 
   let dn be option u64 c.hex_dec (subslice enc 0 6) dec .
   guard is_some dn . else return 3 .
   guard eq (some_value dn) 3 . else return 4 .
-  guard eq (index dec 0) 97 . else return 5 .
+  guard eq (idx dec 0) 97 . else return 5 .
   rem uppercase is accepted too: "4A" → 74
   let up be option u64 c.hex_dec "4A" dec .
   guard is_some up . else return 6 .
-  guard eq (index dec 0) 74 . else return 7 .
+  guard eq (idx dec 0) 74 . else return 7 .
   return 42 .
 end
 

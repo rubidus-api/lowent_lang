@@ -25,8 +25,8 @@ proc counts input al cap allocator . output u64 . effects alloc . do
   guard is_some md . else return 88 .
   var back be slice u8 some_value mb .
   var d be mut slice u64 view_array u64 (some_value md) .
-  set (index d 0) 0 .  set (index d 1) 4 .
-  set (index d 2) 8 .  set (index d 3) 4 .
+  set (idx d 0) 0 .  set (idx d 1) 4 .
+  set (idx d 2) 8 .  set (idx d 3) 4 .
   let ss be segments u8 view_segments back d .
   guard eq (segs ss) 2 . else return 1 .
   return 42 .
@@ -40,13 +40,13 @@ proc reads input al cap allocator . output u64 . effects alloc . do
   guard is_some md . else return 88 .
   var back be mut slice u8 some_value mb .
   var d be mut slice u64 view_array u64 (some_value md) .
-  set (index d 0) 0 .  set (index d 1) 4 .
-  set (index d 2) 8 .  set (index d 3) 4 .
-  set (index back 9) 77 .
+  set (idx d 0) 0 .  set (idx d 1) 4 .
+  set (idx d 2) 8 .  set (idx d 3) 4 .
+  set (idx back 9) 77 .
   let ss be segments u8 view_segments back d .
   let p be slice u8 seg ss 1 .
   guard eq (len p) 4 . else return 1 .
-  guard eq (widen u64 (index p 1)) 77 . else return 2 .
+  guard eq (widen u64 (idx p 1)) 77 . else return 2 .
   return 42 .
 end
 
@@ -58,8 +58,8 @@ proc totals input al cap allocator . output u64 . effects alloc . do
   guard is_some md . else return 88 .
   var back be slice u8 some_value mb .
   var d be mut slice u64 view_array u64 (some_value md) .
-  set (index d 0) 0 .  set (index d 1) 4 .
-  set (index d 2) 8 .  set (index d 3) 6 .
+  set (idx d 0) 0 .  set (idx d 1) 4 .
+  set (idx d 2) 8 .  set (idx d 3) 6 .
   let ss be segments u8 view_segments back d .
   var i be u64 0 .
   var acc be u64 0 .
@@ -84,10 +84,10 @@ proc library input al cap allocator . output u64 . effects alloc . do
   var back be mut slice u8 some_value mb .
   var d be mut slice u64 view_array u64 (some_value md) .
   var out be mut slice u8 some_value mo .
-  set (index d 0) 0 .  set (index d 1) 4 .
-  set (index d 2) 8 .  set (index d 3) 4 .
-  set (index back 1) 11 .
-  set (index back 9) 77 .
+  set (idx d 0) 0 .  set (idx d 1) 4 .
+  set (idx d 2) 8 .  set (idx d 3) 4 .
+  set (idx back 1) 11 .
+  set (idx back 9) 77 .
   let ss be segments u8 view_segments back d .
   guard eq (segview.total_len ss) 8 . else return 1 .
   rem 평평한 자리 5 = 둘째 조각의 1 번 = back[9] — **커서가 경계를 넘어 센다**.
@@ -100,8 +100,8 @@ proc library input al cap allocator . output u64 . effects alloc . do
   let wo be option u64 segview.coalesce ss out .
   guard is_some wo . else return 5 .
   guard eq (some_value wo) 8 . else return 6 .
-  guard eq (widen u64 (index out 1)) 11 . else return 7 .
-  guard eq (widen u64 (index out 5)) 77 . else return 8 .
+  guard eq (widen u64 (idx out 1)) 11 . else return 7 .
+  guard eq (widen u64 (idx out 5)) 77 . else return 8 .
   return 42 .
 end
 

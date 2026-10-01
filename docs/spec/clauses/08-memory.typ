@@ -84,7 +84,7 @@
     ]
     #ex("영역을 받아 자리를 얻는다", "module ex_region .
 
-type scratch u64 . .
+def type scratch u64 . .
 
 proc build input temp region scratch . . output u64 . effects alloc .
 do
@@ -108,7 +108,7 @@ end")
       (`E-REGION-ESCAPE`). 영역이 닫히면 그 값은 없으므로, 밖에 남은 이름은 없는 것을
       가리킨다. 들고 나가는 자리는 `return`, 영역 밖 이름에 대입하기, 그리고 영역 밖 이름의
       **칸이나 원소에** 대입하기(`set (field h store) b .`)다. 영역의 바이트를 들지 않는 값 —
-      정수·참거짓처럼 스칼라 타입으로 묶인 것, `len`·`index` 처럼 스칼라를 내는 식 — 은
+      정수·참거짓처럼 스칼라 타입으로 묶인 것, `len`·`idx` 처럼 스칼라를 내는 식 — 은
       들고 나가지 아니한다. 영역의 바이트를 드는지는 **흐름을 따라** 가린다: op 부름의 결과는
       그 op 의 몸에서 결과로 흘러드는 입력의 것만 든다. 결과가 `lit` 로 지은 묶음이면 칸마다
       따로 가린다 — 영역의 바이트가 든 칸을 꺼내 들고 나가면 적합하지 아니하고, 들지 않은 칸은
@@ -117,7 +117,7 @@ end")
     ]
     #rejected("영역의 슬라이스를 바깥 묶음의 칸에 넣는다", "module ex_region_field .
 
-struct holder do store mut slice u8 . . end
+def struct holder do store mut slice u8 . . end
 
 proc f output u64 . effects alloc . do
   var h be lit holder do store (subslice \"abcd\" 0 0) . end
@@ -354,7 +354,7 @@ end", "E-ESCAPE: reference to a local escapes the op (dangling)")
     ]
     #ex("해제 — 실패할 수 없으므로 `drop` 이면 된다", "module ex_own .
 
-type buffer u8 . .
+def type buffer u8 . .
 
 fn sink input h owned buffer . output u8 .
 do
@@ -363,7 +363,7 @@ do
 end")
     #rejected("두 번 없앨 수 없다", "module ex_own_bad .
 
-type buffer u8 . .
+def type buffer u8 . .
 
 fn twice input h owned buffer . output u8 .
 do
@@ -607,7 +607,7 @@ end", "E-PAREN-ESCAPE")
       `inplace` 절은 이름 **둘**을 적는다: 앞의 것은 그 op 의 `mut` 입력, 뒤의 것은 그 op 의 다른 입력이다. 짝 하나에 절
       하나를 적는다. 모양이 어긋나면 `E-INPLACE-FORM` 이다. 그 선언이 **참인지** — 몸이 같은 구간에서 옳게 도는지 — 는 몸의
       모양 둘 가운데 하나로 보여야 한다: ⓐ 읽기 입력을 읽는 마지막 문장까지 쓰기 입력에 쓰지 아니하거나, ⓑ 그 마지막 문장
-      안에서 쓰기는 `set (index <쓰기> V)` 하나의 첨자 V 로만, 읽기는 `(index <읽기> V)` 같은 첨자로만 하고, 반복 안이면
+      안에서 쓰기는 `set (idx <쓰기> V)` 하나의 첨자 V 로만, 읽기는 `(idx <읽기> V)` 같은 첨자로만 하고, 반복 안이면
       같은 바퀴에서 쓴 뒤에 읽지 아니한다(원소마다 제자리). 같은 짝을 `inplace` 로 밝힌 op 에 넘기는 것은 그 op 의 선언에
       맡긴다. 어느 모양으로도 보이지 않으면 `E-INPLACE-UNPROVEN` 이다. 이 검사는 보수적이다 — 옳은 몸을 거절할 수는 있어도
       틀린 몸을 들이지 아니하며, 거절된 몸은 ⓐ 나 ⓑ 로 다시 쓴다.
@@ -624,7 +624,7 @@ end", "E-PAREN-ESCAPE")
     #rejected("선언하지 않은 op 에 같은 저장소를 쓰기·읽기로 함께 넘긴다", "module ex_inplace_undeclared .
 
 proc scale input o mut slice u64 . input a slice u64 . output u64 . effects none . do
-  set (index o 0) (mul (index a 0) 2) .
+  set (idx o 0) (mul (idx a 0) 2) .
   return 1 .
 end
 
@@ -634,7 +634,7 @@ end", "E-EXCL-INPLACE")
     #ex("같은 구간을 허락한 op 의 제자리 부름", "module ex_inplace_ok .
 
 proc scale input o mut slice u64 . input a slice u64 . output u64 . effects none . inplace o a . do
-  set (index o 0) (mul (index a 0) 2) .
+  set (idx o 0) (mul (idx a 0) 2) .
   return 1 .
 end
 
@@ -644,8 +644,8 @@ end")
     #rejected("같은 구간이면 쓴 뒤에 읽는 몸에 inplace 를 적는다", "module ex_inplace_unproven .
 
 proc late_read input o mut slice u64 . input a slice u64 . output u64 . effects none . inplace o a . do
-  set (index o 0) 1 .
-  return index a 0 .
+  set (idx o 0) 1 .
+  return idx a 0 .
 end", "E-INPLACE-UNPROVEN")
     #para("8")[
       op 은 머리에 `invalidates <입력> .` 절(#cref("6.4.1") (3a))을 적어, 그 입력의 저장소에서 **나온 뷰를 무효로 만든다**고 밝힐 수 있다 —
@@ -673,7 +673,7 @@ end", "E-INPLACE-UNPROVEN")
     ]
     #rejected("자라며 옮기는 op 뒤에 옛 뷰를 쓴다", "module ex_view_invalidated .
 
-struct buf do
+def struct buf do
   data mut slice u8 .
   n u64 .
 end

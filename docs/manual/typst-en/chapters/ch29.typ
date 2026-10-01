@@ -155,7 +155,7 @@ opposite direction (C calling our variadics) does not exist.
 
 #demo("examples/ch29/variadic.low")
 
-- `newtype cstr unsafe_ptr u8 .` turns C's `char*` into a named type. `unsafe_ptr` is not a type used on its own but a qualifier placed before a
+- `def newtype cstr unsafe_ptr u8 .` turns C's `char*` into a named type. `unsafe_ptr` is not a type used on its own but a qualifier placed before a
   type.
 - The `variadic .` clause says "takes more after the fixed arguments", and `link printf .` writes the C name. The `42` at the call site follows the
   fixed arguments, so neither type checks nor contracts reach it. The classic C defect of a format not matching its arguments is not stopped here,
@@ -229,7 +229,7 @@ opposite direction (C calling our variadics) does not exist.
   [`unsafe_fn cmp`], [address of an `export extern` op (callback)], [ordinary op: `E-FN-NOTEXPORT` · with a capability: `E-FN-CAP`],
   [`input h owned τ .` (to an extern)], [responsibility for destroying passes to C], [what C does with it afterwards is not verified],
   [`variadic .`], [call a C variadic function], [contracts do not reach variadic arguments],
-  [`newtype cstr unsafe_ptr u8 .` · `cstr_of "…\0"`], [C pointer qualifier · view as a zero-terminated C string], [pointers are handled only through named types],
+  [`def newtype cstr unsafe_ptr u8 .` · `cstr_of "…\0"`], [C pointer qualifier · view as a zero-terminated C string], [pointers are handled only through named types],
 )
 
 #recap[

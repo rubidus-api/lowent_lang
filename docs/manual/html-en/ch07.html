@@ -688,7 +688,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len xs) . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> eq (index xs i) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq (idx xs i) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">break</span></strong> .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
@@ -744,7 +744,7 @@ tally(4) = 610070401
 <strong><span class="tok-k">fn</span></strong> head_or_zero <strong><span class="tok-k">input</span></strong> data <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> ge (len data) <span class="tok-n">1</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
-  <strong><span class="tok-k">return</span></strong> index data <span class="tok-n">0</span> .
+  <strong><span class="tok-k">return</span></strong> idx data <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> grade <strong><span class="tok-k">input</span></strong> score <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
@@ -769,7 +769,7 @@ $ lowentc --run grade guards.low 95
 grade(95) = 65
 $ lowentc --run grade guards.low 42
 grade(42) = 70
-</code></pre></div></div><p>The code below the <code>guard</code> in <code>head_or_zero</code> lives only in a world where the slice is not empty. That is why <code>index data 0</code> is safe. <code>grade</code> filters out out-of-range scores first with <code>guard</code>, and splits the rest with <code>if … end else do … end</code> below it.</p><p><code>guard</code> is not another name for <code>if not</code>, because its <code>else</code> must leave. If it does not, the code is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/fallthrough.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> fallthrough .
+</code></pre></div></div><p>The code below the <code>guard</code> in <code>head_or_zero</code> lives only in a world where the slice is not empty. That is why <code>idx data 0</code> is safe. <code>grade</code> filters out out-of-range scores first with <code>guard</code>, and splits the rest with <code>if … end else do … end</code> below it.</p><p><code>guard</code> is not another name for <code>if not</code>, because its <code>else</code> must leave. If it does not, the code is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/fallthrough.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> fallthrough .
 <em><span class="tok-c">rem expect: E-GUARD-FALLTHROUGH</span></em>
 
 <strong><span class="tok-k">fn</span></strong> clamp5 <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
@@ -874,7 +874,7 @@ $ lowentc --run checked panics.low 0
   <strong><span class="tok-k">return</span></strong> t .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_forin.low
-8:0 E-VOCAB-REMOVED: `in` is gone. In a loop write `for &lt;name> &lt;slice> do` — the slice follows the name and `do` marks the body, so `in` carried nothing. As access, `b in a` was a reverse spelling of `field a b`: write `field a b` / `index a i` (the glued dot `a.b` is refused too, `E-FIELD-GLUED`)
+8:0 E-VOCAB-REMOVED: `in` is gone. In a loop write `for &lt;name> &lt;slice> do` — the slice follows the name and `do` marks the body, so `in` carried nothing. As access, `b in a` was a reverse spelling of `field a b`: write `field a b` / `idx a i` (the glued dot `a.b` is refused too, `E-FIELD-GLUED`)
 </code></pre></div></div><p><code>for</code> is <code>for &lt;name> &lt;slice> do</code>. The thing to walk comes right after the name, and <code>do</code> already marks where the body starts, so <code>in</code> would carry nothing. It was removed so that one meaning has one spelling. The fix: <code>for x xs do</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Chaining branches with <code>elif</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch07/mistake_elif.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_elif .
 <em><span class="tok-c">rem expect: E-BLOCK-NOHEAD</span></em>
 
@@ -948,7 +948,7 @@ mistake_innerelse.low:10:0 E-STMT-ELSE: `else` sits INSIDE the block, the way C 
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len xs) . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">if</span></strong> eq (mod (index xs i) <span class="tok-n">2</span>) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">if</span></strong> eq (mod (idx xs i) <span class="tok-n">2</span>) <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">continue</span></strong> .
     <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">set</span></strong> n (add n <span class="tok-n">1</span>) .

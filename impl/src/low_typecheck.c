@@ -755,7 +755,7 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     if (proven_u8str_view_eq(st->fname[q], k[start + 2]->tok.lex) && st->fty[q].k == TK_SLICE && st->fty[q].ebits)
                         return st->fty[q];
             }
-            if (veq(h2, "index") && n >= 2) {             // ★ 원소 타입은 슬라이스가 정한다
+            if (veq(h2, "idx") && n >= 2) {             // ★ 원소 타입은 슬라이스가 정한다
                 ty_t sq = tc_infer(c, k[start + 1], env, nenv);
                 for (proven_size_t q = 2; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
                 if (sq.k == TK_SLICE && sq.erow) {           // §13.10 — 줄의 배열의 원소는 그 줄을 보는 슬라이스
@@ -1368,7 +1368,7 @@ static void tc_check_tnames(tc_ctx_t *c, const low_cst_t *f, proven_size_t from,
                         "this type NAME is accepted but carries NO MEANING yet: lowering cannot "
                         "read it, so every op in its signature falls to the interpreter (~80x). "
                         "The answer stays right, so no oracle will ever see this. Declare it "
-                        "(`type str slice u8 .`) or write the underlying type",
+                        "(`def type str slice u8 .`) or write the underlying type",
                         t->line ? t->line : f->line);
             continue;
         }
@@ -1692,7 +1692,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             const low_cst_t *g = f->kids[1];
             if (g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids == 3 &&
                 g->kids[0]->kids[0]->kind == LOW_CST_ATOM &&
-                veq(g->kids[0]->kids[0]->tok.lex, "index") &&
+                veq(g->kids[0]->kids[0]->tok.lex, "idx") &&
                 g->kids[0]->kids[1]->kind == LOW_CST_ATOM) {
                 proven_u8str_view_t sn = g->kids[0]->kids[1]->tok.lex;
                 bool fnd; ty_t st2 = env_find(env, *nenv, sn, &fnd);
@@ -1704,7 +1704,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 //   칸을 하나씩 쓰거나 `copy` 로 줄을 베낀다. 실행 중에 멈추는 대신 여기서 말한다.
                 if (fnd && st2.k == TK_SLICE && st2.erow)
                     tc_emit(c, "E-TYPE-SET",
-                            "a whole row is not replaced with `set (index … )` — write its cells (`set (index (index g r) c) v .`), "
+                            "a whole row is not replaced with `set (idx … )` — write its cells (`set (idx (idx g r) c) v .`), "
                             "or copy a row into it with `copy` (RFC-0132 §13.10)", f->line);
             }
             // ★ `set (field q x) v .` — 필드가 존재해야 하고, 값의 타입이 맞아야 한다.
@@ -2300,7 +2300,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                     "problem is not layout but LIFETIME: nothing here says what keeps that reference "
                     "alive. Lowent has no managed pointer graph yet, so an unowned back-edge cannot "
                     "be accepted. Build the graph with INDICES into a slice (an arena) the way "
-                    "`hashmap`/`pool`/`vec` do, and name the index with `newtype node_id u32 .` "
+                    "`hashmap`/`pool`/`vec` do, and name the index with `def newtype node_id u32 .` "
                     "(RFC-0104 §5.1: a value cycle is a layout error and can never work; an "
                     "indirect cycle is a policy question and may be answered later)",
                     c.strs[si].name.size ? pr->forms[0]->line : 0);
@@ -2310,7 +2310,7 @@ low_typecheck_result_t low_typecheck(proven_allocator_t work, const low_parse_re
                     "is not finite — the declaration cannot describe any layout. There are no "
                     "pointer trees in this language: build trees with INDICES into a slice (an "
                     "arena), the way `hashmap`/`pool`/`vec` already do, and give the index a name "
-                    "with `newtype node_id u32 .`",
+                    "with `def newtype node_id u32 .`",
                     c.strs[si].name.size ? pr->forms[0]->line : 0);
     }
 

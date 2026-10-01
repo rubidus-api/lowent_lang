@@ -15,13 +15,13 @@ rem   치환한다. 뒷단(검사·타입·IR)은 **제네릭을 아예 모른�
 
 module gen .
 
-struct rect do
+def struct rect do
   satisfies area_of .
   w u8 .
   h u8 .
 end
 
-struct square do
+def struct square do
   satisfies area_of .
   side u8 .
 end

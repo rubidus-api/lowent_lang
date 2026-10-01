@@ -37,7 +37,7 @@
 #demo("examples/ch30/gpio.low")
 
 #idx("mmio")
-- `struct gpio do mmio 0x40020000 . … end` is the device's *map*. The number after `mmio` is the start address, and the fields become registers in order. There is no
+- `def struct gpio do mmio 0x40020000 . … end` is the device's *map*. The number after `mmio` is the start address, and the fields become registers in order. There is no
   new word; a struct just gained a clause.
 - `rw`, `ro` and `wo` after a field are its access.
 - `read_volatile` and `write_volatile` reach a register. The processor *does not merge, delete or reorder* these accesses. Reading a device register is itself work
@@ -277,7 +277,7 @@ What is carried is not only an instruction that replaces a computation. What `ss
   id: "hardware-glance",
   caption: [Hardware syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
-  [`struct gpio do mmio 0x40020000 . moder u32 rw . … end`], [a device's register map], [one clause on a struct, no new words],
+  [`def struct gpio do mmio 0x40020000 . moder u32 rw . … end`], [a device's register map], [one clause on a struct, no new words],
   [`rw` · `ro` · `wo`], [access modes --- enforced at translation], [violations: `E-MMIO-PERM`],
   [`read_volatile g idr` · `write_volatile g moder 2`], [access that is never merged or removed], [reading is itself an action],
   [`input dev cap mmio .` + `effects device`], [device capability and effect], [no hardware access without authority],

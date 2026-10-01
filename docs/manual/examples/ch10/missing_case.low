@@ -1,7 +1,7 @@
 module missing_case .
 rem expect: E-MATCH-INEXHAUSTIVE
 
-enum shape do
+def enum shape do
   circle r u32 .
   rect w u32 h u32 .
   dot .

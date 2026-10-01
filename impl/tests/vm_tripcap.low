@@ -19,8 +19,8 @@ do
   var i be u64 0 .
   while lt i n . do
     if lt i (len a) . do
-      let v be u32 index a i .
-      set (index a i) (add v 1) .
+      let v be u32 idx a i .
+      set (idx a i) (add v 1) .
     end
     set i (add i 1) .
   end
@@ -37,8 +37,8 @@ do
   var i be u64 0 .
   while lt i n . do
     if lt i (len a) . do
-      let v be u32 index a i .
-      set (index a i) (mul v 3) .
+      let v be u32 idx a i .
+      set (idx a i) (mul v 3) .
     end
     set i (add i 1) .
   end

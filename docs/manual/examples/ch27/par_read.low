@@ -6,7 +6,7 @@ proc relative input s mut slice u8 . output u64 . effects none .
 do
   var i be u64 0 .
   while lt i (len s) . do
-    set (index s i) (wrap_sub (index s i) (index s 0)) .
+    set (idx s i) (wrap_sub (idx s i) (idx s 0)) .
     set i (add i 1) .
   end
   return len s .

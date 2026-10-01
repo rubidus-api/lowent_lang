@@ -193,7 +193,7 @@
   [*모양*], [*뜻*], [*왜 이렇게*],
   [경계의 op `output result t e .` + `errors`], [바깥 값의 실패를 값으로 돌려준다], [부르는 층이 무엇을 할지 고른다],
   [안쪽의 op `requires` · `range` · `newtype`], [이미 걸러진 값의 불변식], [검사가 경계에 한 번 남고 안쪽에서는 지워진다],
-  [`enum parse_error do empty . not_digit . end`], [부르는 쪽이 다르게 행동할 경우마다 갈래 하나], [갈래가 많을수록 다루는 짐이 는다],
+  [`def enum parse_error do empty . not_digit . end`], [부르는 쪽이 다르게 행동할 경우마다 갈래 하나], [갈래가 많을수록 다루는 짐이 는다],
   [`let v be u16 try check_port port .`], [다룰 수 없으면 위로 넘긴다], [넘긴 사실이 `errors` 절에 남는다],
   [`case error e . do match e do … end end`], [오류 값을 묶고 갈래를 한 번 더 가른다], [`case error <이름>` 의 이름이 선언된 갈래가 아니면 새 묶음이다],
   [`try … else_none` · `value_or`], [이유를 버린다], [버리는 것은 가능한 한 위 층에서],

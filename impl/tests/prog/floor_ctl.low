@@ -50,10 +50,10 @@ export proc filter_step .
   effects none .
   requires ge (len st) 3 .
 do
-  let y be u32 index st 0 .
+  let y be u32 idx st 0 .
   guard gt x y . else return step_down st y x .
-  set (index st 0) (rise y x) .
-  return index st 0 .
+  set (idx st 0) (rise y x) .
+  return idx st 0 .
 end
 
 proc step_down .
@@ -65,15 +65,15 @@ proc step_down .
   requires ge (len st) 3 .
   requires ge y x .
 do
-  set (index st 0) (fall y x) .
-  return index st 0 .
+  set (idx st 0) (fall y x) .
+  return idx st 0 .
 end
 
 rem 출력 자리에 값을 박고 그 값을 돌려준다.
 proc put_out input st mut slice u32 . . input v u32 . output u32 . effects none .
   requires ge (len st) 3 .
 do
-  set (index st 1) v .
+  set (idx st 1) v .
   return v .
 end
 
@@ -93,7 +93,7 @@ do
   guard lt y hi . else return put_out st 1 .
   guard gt y lo . else return put_out st 0 .
   rem 사이 — 직전 출력을 **그대로** 둔다.
-  return index st 1 .
+  return idx st 1 .
 end
 
 rem ★ 주 루프 한 바퀴: 표본 하나를 먹고, 처리 수를 센다.
@@ -105,7 +105,7 @@ export proc tick .
   requires ge (len st) 3 .
 do
   let out be u32 control_step st x 40 60 .
-  set (index st 2) (wrap_add (index st 2) 1) .
+  set (idx st 2) (wrap_add (idx st 2) 1) .
   return out .
 end
 
@@ -122,7 +122,7 @@ do
   var out be u32 0 .
   while true . do
     guard lt i (len xs) . else break .
-    set out (tick st (index xs i)) .
+    set out (tick st (idx xs i)) .
     set i (add i 1) .
   end
   return out .

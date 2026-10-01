@@ -797,7 +797,7 @@ $ lowentc --run nonzero_strict fnpanic_fixed.low 0
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">while</span></strong> lt i (len xs) <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> (index xs i) <span class="tok-n">0</span> .
+    <strong><span class="tok-k">set</span></strong> (idx xs i) <span class="tok-n">0</span> .
     <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
   <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">end</span></strong>
@@ -838,7 +838,7 @@ sum_to(10) = 55
 <em><span class="tok-c">rem 순수한 `fn` 이지만 빈 줄을 받으면 멈춘다 --- 경계 검사의 멈춤은 op 이 낸 효과가 아니다</span></em>
 <strong><span class="tok-k">fn</span></strong> first <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> index xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">return</span></strong> idx xs <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run first fn_can_stop.low [7,8]
 first([7,8]) = 7

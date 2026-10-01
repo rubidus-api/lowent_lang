@@ -4,9 +4,9 @@ rem   ⇒ *"completion 정확히 1 회"* 의 **한 번 넘게 못 한다** 쪽�
 
 module vm_lifemode_twice .
 
-export enum late do too_late . end
+export def enum late do too_late . end
 
-export struct ticket do
+export def struct ticket do
   id u64 .
 end
 

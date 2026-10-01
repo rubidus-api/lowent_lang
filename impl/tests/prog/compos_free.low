@@ -18,7 +18,7 @@ export fn ring_sum input buf slice u8 . input from u64 . input n u64 . output u6
   var i be u64 0 .
   while lt i n . do
     let at be u64 mod (add from i) (len buf) .
-    set acc (add acc (index buf at)) .
+    set acc (add acc (idx buf at)) .
     set i (add i 1) .
   end
   return acc .

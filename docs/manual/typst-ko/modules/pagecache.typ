@@ -9,7 +9,7 @@ SQLite 의 페이지 캐시가 그 모양이다. 페이지는 옮겨진다(축�
 캐시는 쓸 수 없다.
 
 ```lowent
-newtype db u8 .
+def newtype db u8 .
 var c be (owned pagecache.cache db) pagecache.open db 16 .
 var p be (pagecache.pin db) pagecache.acquire db c 42 .
 rem 이 사이에는 evict 를 부를 수 없다 --- 컴파일되지 않는다

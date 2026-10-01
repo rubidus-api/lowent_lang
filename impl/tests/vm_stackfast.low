@@ -9,7 +9,7 @@ rem   그래서 **집(홈 지역)** 을 알아야 한다. 모르면 안 내린�
 
 module vm_stackfast .
 
-type frame u64 . .
+def type frame u64 . .
 
 rem 밀어 넣고 다시 꺼내며 합을 낸다 — LIFO 라 역순으로 나온다.
 proc drain input temp region frame . . input n u64 . output u64 . effects alloc .

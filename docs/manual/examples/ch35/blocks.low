@@ -3,7 +3,7 @@ rem run: main
 
 use pool .
 
-newtype objects u8 .
+def newtype objects u8 .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do

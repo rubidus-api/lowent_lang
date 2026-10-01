@@ -156,7 +156,7 @@ C 에게 Lowent 함수를 넘겨 되부르게 하려면 `export extern` op 의 �
 
 #demo("examples/ch29/variadic.low")
 
-- `newtype cstr unsafe_ptr u8 .` 는 C 의 `char*` 를 이름 붙인 타입으로 만든다. `unsafe_ptr` 는 홀로 쓰는 타입이 아니라 타입 앞에 붙는 한정자다.
+- `def newtype cstr unsafe_ptr u8 .` 는 C 의 `char*` 를 이름 붙인 타입으로 만든다. `unsafe_ptr` 는 홀로 쓰는 타입이 아니라 타입 앞에 붙는 한정자다.
 - `variadic .` 절이 "고정 인자 뒤에 더 받는다" 를 적고, `link printf .` 가 C 이름을 적는다. 부르는 자리의 `42` 는 고정 인자 뒤에 붙는 값이라 타입
   검사도 계약도 닿지 않는다. 서식과 인자가 어긋나는 C 의 고전적 결함이 여기서는 막히지 않는다는 뜻이다. 그래서 `unsafe` 가 붙는다.
 - `cstr_of "…\0"` 은 끝에 영 바이트를 둔 문자열 리터럴을 C 문자열로 본다. VM 은 C 를 부를 수 없으므로 이 예제는 검사만 하고, 네이티브로 지으면
@@ -226,7 +226,7 @@ C 에게 Lowent 함수를 넘겨 되부르게 하려면 `export extern` op 의 �
   [`unsafe_fn cmp`], [`export extern` op 의 주소(되부름)], [보통 op 은 `E-FN-NOTEXPORT` · 권한을 받으면 `E-FN-CAP`],
   [`input h owned τ .`(extern 에)], [없앨 책임이 C 로 넘어간다], [그 뒤의 반납은 검증되지 않는다],
   [`variadic .`], [C 의 가변 인자 함수를 부른다], [가변 인자에는 계약이 닿지 않는다],
-  [`newtype cstr unsafe_ptr u8 .` · `cstr_of "…\0"`], [C 포인터 한정자 · 영 바이트로 끝나는 C 문자열로 보기], [포인터는 이름 붙인 타입으로만 다룬다],
+  [`def newtype cstr unsafe_ptr u8 .` · `cstr_of "…\0"`], [C 포인터 한정자 · 영 바이트로 끝나는 C 문자열로 보기], [포인터는 이름 붙인 타입으로만 다룬다],
 )
 
 #recap[

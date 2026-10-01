@@ -85,7 +85,7 @@ proc build input buf mut slice u8 . . output u64 . do
   guard is_ok r1 . else return 90 .
   guard eq (field b len) 2 . else return 91 .
   rem 봉인 확인 --- len 자리(buf[2])에 널이 있다
-  guard eq (index buf 2) 0 . else return 92 .
+  guard eq (idx buf 2) 0 . else return 92 .
   rem 버퍼 5 = 내용 4 + 널 1 --- 2 + 3 + 1 > 5 이므로 거절되고 버퍼가 더럽혀지지 않는다
   let r2 be result void strbuf.sb_error strbuf.append b (subslice buf 0 5) "xyz" .
   guard is_error r2 . else return 93 .
@@ -109,8 +109,8 @@ proc grow input small mut slice u8 . . input big mut slice u8 . . output u64 . e
   rem 더 큰 자리를 내가 마련해 넘긴다 --- 라이브러리는 할당하지 않는다
   let r3 be result void strbuf.sb_error strbuf.append_grow b small big "xyz" .
   guard is_ok r3 . else return 92 .
-  guard eq (index big 0) 97 . else return 93 .
-  guard eq (index big 2) 120 . else return 94 .
+  guard eq (idx big 0) 97 . else return 93 .
+  guard eq (idx big 2) 120 . else return 94 .
   return field b len .
 end
 ```

@@ -10,29 +10,29 @@ export proc both input h slice u8 . input blk slice u8 . input w mut slice u64 .
   guard ge (len w) 8 . else return 0 .
   guard ge (len z) 16 . else return 0 .
   var i be u64 0 .
-  while lt i 16 . do  set (index z i) 0 .  set i (add i 1) .  end
+  while lt i 16 . do  set (idx z i) 0 .  set i (add i 1) .  end
   let g be u64 call_builtin ghash h z blk .
   rem 조각으로 읽어 crypto_hw 로 같은 곱을 한다
   var j be u64 0 .
   var xh be u64 0 .  var xl be u64 0 .  var hh be u64 0 .  var hl be u64 0 .
   while lt j 8 . do
-    set xh (bit_or (wrap_shl xh 8) (cast u64 (index blk j))) .
-    set xl (bit_or (wrap_shl xl 8) (cast u64 (index blk (add j 8)))) .
-    set hh (bit_or (wrap_shl hh 8) (cast u64 (index h j))) .
-    set hl (bit_or (wrap_shl hl 8) (cast u64 (index h (add j 8)))) .
+    set xh (bit_or (wrap_shl xh 8) (cast u64 (idx blk j))) .
+    set xl (bit_or (wrap_shl xl 8) (cast u64 (idx blk (add j 8)))) .
+    set hh (bit_or (wrap_shl hh 8) (cast u64 (idx h j))) .
+    set hl (bit_or (wrap_shl hl 8) (cast u64 (idx h (add j 8)))) .
     set j (add j 1) .
   end
-  set (index w 0) xh .  set (index w 1) xl .
-  set (index w 2) hh .  set (index w 3) hl .
+  set (idx w 0) xh .  set (idx w 1) xl .
+  set (idx w 2) hh .  set (idx w 3) hl .
   let r be u64 hw.gf128_mul (subslice w 4 6) (subslice w 0 2) (subslice w 2 4) .
   rem 내장이 낸 z 를 낱말 둘로 읽어 견준다
   var k be u64 0 .  var zh be u64 0 .  var zl be u64 0 .
   while lt k 8 . do
-    set zh (bit_or (wrap_shl zh 8) (cast u64 (index z k))) .
-    set zl (bit_or (wrap_shl zl 8) (cast u64 (index z (add k 8)))) .
+    set zh (bit_or (wrap_shl zh 8) (cast u64 (idx z k))) .
+    set zl (bit_or (wrap_shl zl 8) (cast u64 (idx z (add k 8)))) .
     set k (add k 1) .
   end
-  if ne zh (index w 4) . do  return 0 .  end
-  if ne zl (index w 5) . do  return 0 .  end
+  if ne zh (idx w 4) . do  return 0 .  end
+  if ne zl (idx w 5) . do  return 0 .  end
   return 1 .
 end

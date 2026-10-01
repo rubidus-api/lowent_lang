@@ -15,7 +15,7 @@ export proc by_contract input a slice u8 . . input hi u64 . input j u64 .
   requires lt hi (len a) .
   requires le j hi .
 do
-  return index a j .
+  return idx a j .
 end
 
 rem ✔ ② 같은 사실을 본문에서 — 이쪽은 처음부터 됐다(대조군: 두 경로가 같은 답을 내야 한다).
@@ -24,7 +24,7 @@ export proc by_guard input a slice u8 . . input hi u64 . input j u64 .
   requires lt hi (len a) .
 do
   guard le j hi . else return 0 .
-  return index a j .
+  return idx a j .
 end
 
 rem ✘ ③ **증명되면 안 된다** — 사슬의 끝이 열려 있다(길이 사실이 없다).
@@ -32,7 +32,7 @@ export proc open_end input a slice u8 . . input hi u64 . input j u64 .
   output u8 . effects none .
   requires le j hi .
 do
-  return index a j .
+  return idx a j .
 end
 
 rem ✘ ④ **증명되면 안 된다** — `≤` 는 색인에 못 쓴다: `hi = len a` 이면 `j = len a` 가 된다.
@@ -42,7 +42,7 @@ export proc loose_end input a slice u8 . . input hi u64 . input j u64 .
   requires le hi (len a) .
   requires le j hi .
 do
-  return index a j .
+  return idx a j .
 end
 
 proc main output u8 . effects none .

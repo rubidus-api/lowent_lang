@@ -1,7 +1,7 @@
 module ids_ok .
 rem run: roundtrip 42
 
-newtype user_id u64 .
+def newtype user_id u64 .
 
 fn user_of input n u64 . output user_id .
 do

@@ -52,11 +52,11 @@ do
     var d be u64 0 .
     while lt d 8 . do
       let sh be u64 mul (sub 7 d) 4 .
-      set (index line d) (hexit (bit_and (shr off sh) 15)) .
+      set (idx line d) (hexit (bit_and (shr off sh) 15)) .
       set d (add d 1) .
     end
-    set (index line 8) 32 .
-    set (index line 9) 32 .
+    set (idx line 8) 32 .
+    set (idx line 9) 32 .
 
     var col be u64 0 .
     while lt col 16 . do
@@ -64,20 +64,20 @@ do
       let ax be u64 add 59 col .
       let at be u64 add off col .
       if lt at got . do
-        let b be u64 cast u64 (index buf at) .
-        set (index line hx) (hexit (div b 16)) .
-        set (index line (add hx 1)) (hexit (mod b 16)) .
-        set (index line ax) (printable b) .
+        let b be u64 cast u64 (idx buf at) .
+        set (idx line hx) (hexit (div b 16)) .
+        set (idx line (add hx 1)) (hexit (mod b 16)) .
+        set (idx line ax) (printable b) .
       end else do
-        set (index line hx) 32 .
-        set (index line (add hx 1)) 32 .
-        set (index line ax) 32 .
+        set (idx line hx) 32 .
+        set (idx line (add hx 1)) 32 .
+        set (idx line ax) 32 .
       end
-      set (index line (add hx 2)) 32 .
+      set (idx line (add hx 2)) 32 .
       set col (add col 1) .
     end
-    set (index line 58) 32 .
-    set (index line 75) 10 .
+    set (idx line 58) 32 .
+    set (idx line 75) 10 .
 
     let ln be slice u8 subslice line 0 76 .
     let wrote be u64 write_out k 1 ln .

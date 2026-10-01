@@ -107,7 +107,7 @@ export proc count_words input s slice u8 . output option u64 . do
   while lt off (len s) . do
     let cp be option u64 utf8.decode s off .
     guard is_some cp . else return none .
-    let n be u64 utf8.seq_len (index s off) .
+    let n be u64 utf8.seq_len (idx s off) .
     guard gt n 0 . else return none .
     if unicode.is_alnum (some_value cp) . do
       if eq inword false . do set words (add words 1) . end
@@ -130,7 +130,7 @@ regular expression is enough, use it; where only one code point needs asking, ca
 #antipattern[Passing a byte as is][
   ```lowent
   rem ✘ index gives a byte. The first byte of '한' is 0xED
-  if unicode.is_letter (widen u64 (index s 0)) . do … end
+  if unicode.is_letter (widen u64 (idx s 0)) . do … end
   ```
   0xED (237) is the code point U+00ED (í) --- judged a letter by chance, but *not the character being asked about*. When handling UTF-8, always go through `utf8.decode`.
 ]

@@ -28,7 +28,7 @@ module mapgen .
 use allocs .
 
 rem ★ 틀. 타입 파라미터 **둘** — 블록 맨 앞에 연달아 온다.
-export struct table do
+export def struct table do
   input comptime k type .
   input comptime v type .
   al allocs.bump_bytes .
@@ -72,7 +72,7 @@ rem   를 내고 `regrow` 의 자리 찾기가 **영영 돈다**. 키·값 배�
 proc clear input f mut slice u8 . . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len f) . do
-    set (index f i) 0 .
+    set (idx f i) 0 .
     set i (add i 1) .
   end
   return i .
@@ -118,13 +118,13 @@ proc probe input comptime k type . input comptime v type . input m table k v . i
   var first be u64 len fc .
   var steps be u64 0 .
   while lt steps (len fc) . do
-    let f be u8 index fc i .
+    let f be u8 idx fc i .
     if eq f 0 . do
       if eq first (len fc) . do set first i . end
       return mul first 2 .
     end
     if eq f 1 . do
-      if eq (index kcells i) key . do return add (mul i 2) 1 . end
+      if eq (idx kcells i) key . do return add (mul i 2) 1 . end
     end
     if eq f 2 . do
       if eq first (len fc) . do set first i . end
@@ -141,7 +141,7 @@ export proc lookup input comptime k type . input comptime v type . input m table
   guard eq (mod p 2) 1 . else return none .
   var vc be mut slice u8 (field m vals) .
   var vcells be mut slice v view_array v vc .
-  return some (index vcells (div p 2)) .
+  return some (idx vcells (div p 2)) .
 end
 
 export proc has input comptime k type . input comptime v type . input m table k v . input key k . output bool . effects none . do
@@ -171,19 +171,19 @@ proc regrow input comptime k type . input comptime v type . input m mut table k 
   let mask be u64 sub s2 1 .
   var i be u64 0 .
   while lt i (len pf) . do
-    if eq (index pf i) 1 . do
+    if eq (idx pf i) 1 . do
       rem 새 표에 다시 뿌린다 — 새 표에는 무덤이 없으므로 빈칸만 찾으면 된다.
-      var j be u64 bit_and (mix (widen u64 (index okc i))) mask .
+      var j be u64 bit_and (mix (widen u64 (idx okc i))) mask .
       var placing be bool true .
       var tries be u64 0 .
       while placing . do
         rem ★ 한 바퀴를 다 돌고도 빈칸이 없으면 **값으로 거절한다** — 0 을 깔았으니 올 리 없지만,
         rem   온다면 옛 표를 그대로 두고 false 다. 끝나지 않는 고리는 두지 않는다.
         guard lt tries s2 . else return false .
-        if eq (index nf j) 0 . do
-          set (index nkc j) (index okc i) .
-          set (index nvc j) (index ovc i) .
-          set (index nf j) 1 .
+        if eq (idx nf j) 0 . do
+          set (idx nkc j) (idx okc i) .
+          set (idx nvc j) (idx ovc i) .
+          set (idx nf j) 1 .
           set placing false .
         end
         if placing . do set j (bit_and (add j 1) mask) . end
@@ -212,10 +212,10 @@ export proc insert input comptime k type . input comptime v type . input m mut t
   var fc be mut slice u8 (field m flags) .
   var kcells be mut slice k view_array k kc .
   var vcells be mut slice v view_array v vc .
-  set (index kcells at) key .
-  set (index vcells at) val .
-  if ne (index fc at) 1 . do
-    set (index fc at) 1 .
+  set (idx kcells at) key .
+  set (idx vcells at) val .
+  if ne (idx fc at) 1 . do
+    set (idx fc at) 1 .
     set (field m n) (add (field m n) 1) .
   end
   return true .
@@ -227,7 +227,7 @@ export proc erase input comptime k type . input comptime v type . input m mut ta
   let p be u64 probe k v m key .
   guard eq (mod p 2) 1 . else return false .
   var fc be mut slice u8 (field m flags) .
-  set (index fc (div p 2)) 2 .
+  set (idx fc (div p 2)) 2 .
   set (field m n) (sub (field m n) 1) .
   return true .
 end
@@ -250,7 +250,7 @@ export proc next_used input comptime k type . input comptime v type . input m ta
   var fc be mut slice u8 (field m flags) .
   var i be u64 from .
   while lt i (len fc) . do
-    if eq (index fc i) 1 . do return some i . end
+    if eq (idx fc i) 1 . do return some i . end
     set i (add i 1) .
   end
   return none .
@@ -260,17 +260,17 @@ rem ★ 그 자리의 키 · 값. 찬 자리가 아니면 none — **자리 번�
 export proc key_at input comptime k type . input comptime v type . input m table k v . input at u64 . output option k . effects none . do
   var fc be mut slice u8 (field m flags) .
   guard lt at (len fc) . else return none .
-  guard eq (index fc at) 1 . else return none .
+  guard eq (idx fc at) 1 . else return none .
   var kc be mut slice u8 (field m keys) .
   var kcells be mut slice k view_array k kc .
-  return some (index kcells at) .
+  return some (idx kcells at) .
 end
 
 export proc val_at input comptime k type . input comptime v type . input m table k v . input at u64 . output option v . effects none . do
   var fc be mut slice u8 (field m flags) .
   guard lt at (len fc) . else return none .
-  guard eq (index fc at) 1 . else return none .
+  guard eq (idx fc at) 1 . else return none .
   var vc be mut slice u8 (field m vals) .
   var vcells be mut slice v view_array v vc .
-  return some (index vcells at) .
+  return some (idx vcells at) .
 end

@@ -679,8 +679,8 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">let</span></strong> p2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.sgr buf (some_value p1) <span class="tok-n">1</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p2 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> some_value p2 .
-  <strong><span class="tok-k">set</span></strong> (index buf at) <span class="tok-n">104</span> .
-  <strong><span class="tok-k">set</span></strong> (index buf (add at <span class="tok-n">1</span>)) <span class="tok-n">105</span> .
+  <strong><span class="tok-k">set</span></strong> (idx buf at) <span class="tok-n">104</span> .
+  <strong><span class="tok-k">set</span></strong> (idx buf (add at <span class="tok-n">1</span>)) <span class="tok-n">105</span> .
   <em><span class="tok-c">rem reset attributes (0): ESC [ 0 m</span></em>
   <strong><span class="tok-k">let</span></strong> p3 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.sgr buf (add at <span class="tok-n">2</span>) <span class="tok-n">0</span> .
   <strong><span class="tok-k">guard</span></strong> is_some p3 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .

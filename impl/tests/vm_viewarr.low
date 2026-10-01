@@ -2,7 +2,7 @@ module vm_viewarr .
 rem ★★ RFC-0132 T2b-3d ⓓ (소유자 «C 와 같은 인라인 배치») — 배열 칸을 가진 구조체도 바이트 배치가 있다: 배열 칸은 구조체
 rem   바이트 안에 그대로 놓이고(C 의 `uint8_t body[4];`) 정렬은 원소의 것이다. `view` 의 칸은 그 바이트를 보는 슬라이스,
 rem   칸에 쓰면 그 자리에 베낀다 · `encode` · 구조체 원소 나열 · 원소에 통째로 쓰기 · `size_of` 가 같은 배치를 쓴다.
-struct pkt do
+def struct pkt do
   len u8 .
   body array u8 4 .
   tail u16 .
@@ -11,9 +11,9 @@ end
 export fn viewed input b mut slice u8 . output u64 . do
   var v be pkt view pkt b .
   let bd be slice u8 field v body .
-  set (index (field v body) 3) 77 .
+  set (idx (field v body) 3) 77 .
   set (field v tail) 513 .
-  return add (add (widen u64 (index bd 0)) (mul (widen u64 (field v len)) 100)) (mul (size_of pkt) 10000) .
+  return add (add (widen u64 (idx bd 0)) (mul (widen u64 (field v len)) 100)) (mul (size_of pkt) 10000) .
 end
 
 export fn encoded input a u8 . output u64 . do
@@ -24,14 +24,14 @@ export fn encoded input a u8 . output u64 . do
     set s (add (mul s 3) (widen u64 x)) .
   end
   let v be pkt view pkt b .
-  return add s (mul (widen u64 (index (field v body) 1)) 1000000000) .
+  return add s (mul (widen u64 (idx (field v body) 1)) 1000000000) .
 end
 
 export fn listed input a u8 . output u64 . do
   let r be pkt lit pkt do len 3 . body lit array u8 4 1 a 3 4 . . tail 7 . end .
   var ps be lit array pkt 2 _ . .
-  set (index ps 1) r .
+  set (idx ps 1) r .
   var qs be lit array pkt 2 r _ . .
-  let q be pkt index ps 1 .
-  return add (add (widen u64 (index (field q body) 1)) (mul (widen u64 (field q len)) 100)) (mul (widen u64 (index (field qs 0 body) 3)) 10000) .
+  let q be pkt idx ps 1 .
+  return add (add (widen u64 (idx (field q body) 1)) (mul (widen u64 (field q len)) 100)) (mul (widen u64 (idx (field qs 0 body) 3)) 10000) .
 end

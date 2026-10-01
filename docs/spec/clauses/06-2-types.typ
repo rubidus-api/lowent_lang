@@ -166,7 +166,7 @@ let back be u8 narrow u8 wide .")
       슬라이스의 길이는 `len` 으로 읽는다. `len s` 는 `s` 의 원소 개수다.
     ]
     #para("4")[
-      `index s i` 는 `s` 의 `i` 번째 원소다. 첫 원소의 번호는 0 이다.
+      `idx s i` 는 `s` 의 `i` 번째 원소다. 첫 원소의 번호는 0 이다.
     ]
     #para("5")[
       `i` 가 `len s` 보다 작지 않으면 **트랩한다**. 처리기가 그 조건이 언제나 참임을
@@ -175,20 +175,20 @@ let back be u8 narrow u8 wide .")
     #diagram("슬라이스는 시작과 길이를 함께 든다", " memory   [ 10 ][ 20 ][ 30 ][ 40 ][ 50 ]
                   ^
  s = { start ─────┘ , len 3 }
- index s 0 = 20 · index s 2 = 40 · index s 3 → trap (len s = 3)")
+ idx s 0 = 20 · idx s 2 = 40 · idx s 3 → trap (len s = 3)")
     #ex("슬라이스", "module ex_slice .
 
 rem 슬라이스는 시작과 길이를 함께 갖는다.
 export fn head input data slice u8 . . output u8 .
   requires ge (len data) 1 .
 do
-  return index data 0 .
+  return idx data 0 .
 end")
     #rejected("길이를 타입 앞에 적었다", "module ex_array_order .
 
 export fn last input xs array 4 u64 . output u64 .
 do
-  return index xs 3 .
+  return idx xs 3 .
 end", "E-TYPE-ARRAY")
     #para("6")[
       **원소 나열 리터럴** — `lit array t n v₁ … vₖ .` 은 `array t n` 값, `lit slice t v₁ … vₖ .` 은 원소 `k` 개의
@@ -243,7 +243,7 @@ end", "E-TYPE-ARRAY")
       가름이다).
     ]
     #para("7b")[
-      `var` 에 묶은 나열은 **쓸 수 있는** 슬라이스다 — 칸은 `set (index buf i) v .` 로 쓴다. 그 이름을 다른 저장소로
+      `var` 에 묶은 나열은 **쓸 수 있는** 슬라이스다 — 칸은 `set (idx buf i) v .` 로 쓴다. 그 이름을 다른 저장소로
       다시 묶는 `set buf …` 은 거부된다(`E-ARRAY-SET`). 각 원소는 (6b) 의 폭 규칙을 따르고, 실행 중 원소는 원소
       타입과 맞아야 한다(`E-TYPE-SET` · `E-TYPE-WIDTH`).
     ]
@@ -301,9 +301,9 @@ end", "E-TYPE-ARRAY")
     ]
     #para("9a")[
       **줄의 나열** — 원소가 고정 길이 배열 `(array t m)` 인 나열 `lit array (array t m) n <줄>… [_] .` 의 타입은
-      `slice (array t m)` 이다. `len` 은 줄 수이고, `index g r` 는 줄 r 의 바이트를 **보는** `slice t`(길이 m, 복사 없음)다 —
+      `slice (array t m)` 이다. `len` 은 줄 수이고, `idx g r` 는 줄 r 의 바이트를 **보는** `slice t`(길이 m, 복사 없음)다 —
       바깥이 `mut` 이면 그 줄의 칸도 쓸 수 있다. 줄 값은 칸마다 베껴지고, 줄 리터럴의 모양이 `array t m` 과 다르면
-      거부된다(`E-LIT-COUNT`). 한 줄을 통째로 바꾸는 `set (index g r) <줄>` 은 없다(`E-TYPE-SET`) — 칸을 쓰거나 `copy` 로
+      거부된다(`E-LIT-COUNT`). 한 줄을 통째로 바꾸는 `set (idx g r) <줄>` 은 없다(`E-TYPE-SET`) — 칸을 쓰거나 `copy` 로
       베낀다. 틀 안 나열의 줄(과 구조체 원소)은 그 틀의 바이트를 보므로 블록 밖으로 나르면 `E-LIT-ESCAPE` 다.
     ]
     #ex("원소 나열 리터럴", "module ex_list_literal .
@@ -327,18 +327,18 @@ export fn squares input n u64 . output u64 . do
   var buf be lit array u64 8 _ . .
   var i be u64 0 .
   while lt i 8 . do
-    set (index buf i) (mul i i) .
+    set (idx buf i) (mul i i) .
     set i (add i 1) .
   end
   guard lt n 8 . else return 0 .
-  return index buf n .
+  return idx buf n .
 end")
     #ex("칸을 골라 채운다", "module ex_cell_fill .
 
 export fn pick input a u64 . input i u64 . output u64 . do
   let t be lit array u64 6 do 0 100 . 5 (mul a 2) . _ 1 . end .
   guard lt i 6 . else return 0 .
-  return index t i .
+  return idx t i .
 end")
     #rejected("칸 번호를 두 번 적었다", "module ex_cell_twice .
 
@@ -372,7 +372,7 @@ end", "E-LIT-COUNT")
       **배열 칸** — 칸의 타입이 `array t n` 이면 그 칸은 원소 `n` 개의 바이트를 **레코드 안에** 가진다(길이가 타입에
       있으므로 자리가 정해진다). `t` 는 크기 있는 수나 `bool` 이다 — 구조체나 배열을 원소로 가진 칸은 이 처리기가 아직
       짓지 않았다(`E-LIT-UNBUILT`). 한 구조체의 배열 칸 바이트 합에는 틀과 같은 한도가 있다(`E-FRAME-SIZE`, #cref("6.2.6") (7c)).
-      `field r body` 는 그 바이트를 보는 슬라이스이고, `set (index (field r body) i) v .` 가 레코드의 원소를 쓴다. 칸에 주는
+      `field r body` 는 그 바이트를 보는 슬라이스이고, `set (idx (field r body) i) v .` 가 레코드의 원소를 쓴다. 칸에 주는
       나열 리터럴은 칸과 원소 타입·길이가 같아야 한다(`E-TYPE-FIELD`). 바이트 배치(`view` · `encode` · `size_of` · C 쪽
       레이아웃)에서 배열 칸은 C 와 같이 **구조체 바이트 안에 그대로** 놓인다 — 크기는 `n × |t|`, 정렬은 `t` 의 것이다
       (`len u8 . body array u8 4 . tail u16 .` 은 8 바이트 — `len` 은 0 번째 · `body` 는 1 번째 · `tail` 은 6 번째 바이트부터). 뷰의 배열 칸은 그 바이트를 보는
@@ -398,12 +398,12 @@ end", "E-LIT-COUNT")
     ]
     #ex("struct 와 enum", "module ex_shape .
 
-struct point do
+def struct point do
   x u32 .
   y u32 .
 end
 
-enum color do
+def enum color do
   red .
   green .
 end")
@@ -429,7 +429,7 @@ end")
     ]
     #ex("struct 를 만들고 읽는다", "module ex_make .
 
-struct point do
+def struct point do
   x u32 .
   y u32 .
 end
@@ -445,7 +445,7 @@ do
 end")
     #ex("배열 칸을 가진 struct 를 베낀다", "module ex_struct_array .
 
-struct pkt do
+def struct pkt do
   len u8 .
   body array u8 4 .
 end
@@ -453,23 +453,23 @@ end
 export fn copy_keeps input a u8 . output u64 . do
   var p be lit pkt do len 2 . body lit array u8 4 1 a _ . . end .
   var q be pkt p .
-  set (index (field q body) 0) 100 .
-  return add (widen u64 (index (field p body) 0)) (widen u64 (index (field q body) 0)) .
+  set (idx (field q body) 0) 100 .
+  return add (widen u64 (idx (field p body) 0)) (widen u64 (idx (field q body) 0)) .
 end")
     #rejected("let 으로 묶은 레코드의 배열 칸에 쓴다", "module ex_struct_array_let .
 
-struct pkt do
+def struct pkt do
   body array u8 4 .
 end
 
 export fn f output u64 . do
   let p be lit pkt do body lit array u8 4 _ . . end .
-  set (index (field p body) 0) 1 .
+  set (idx (field p body) 0) 1 .
   return 0 .
 end", "E-IMMUTABLE")
     #rejected("갈래를 점으로 닫지 않았다", "module ex_enum_dot .
 
-enum color do
+def enum color do
   red
   green
 end", "E-ENUM-DOT")
@@ -496,7 +496,7 @@ end", "E-ENUM-DOT")
     ]
     #ex("result 로 실패를 돌려준다", "module ex_result .
 
-enum err do
+def enum err do
   too_small .
 end
 
@@ -599,7 +599,7 @@ end",
     ]
     #ex("result — 묻고 꺼내기, 그리고 `try` 로 넘기기", "module ex_result_use .
 
-enum io_error do
+def enum io_error do
   too_big .
 end
 
@@ -641,13 +641,13 @@ end",
       `newtype` 은 기존 타입과 같은 표현을 갖되 **다른 타입**을 만든다. 서로 바꿔 쓸 수 없다.
     ]
     #para("2a")[
-      모양은 `type <이름> <타입> .` 과 `newtype <이름> <타입> .` 이다. 이름과 타입 사이에 `be` 를 끼우지
+      모양은 `def type <이름> <타입> .` 과 `def newtype <이름> <타입> .` 이다. 이름과 타입 사이에 `be` 를 끼우지
       아니한다 — `be` 는 `let`·`var` 가 **값**을 묶는 낱말이고, 여기서 묶는 것은 타입이다. `be` 를 끼운 꼴은
       거부된다(`E-TYPE-DECL`).
     ]
     #rejected("타입 선언에 be 를 끼운다", "module ex_type_be .
 
-type pct be u8 .
+def type pct be u8 .
 
 fn f output pct . do
   return 1 .
@@ -685,11 +685,11 @@ end", "E-TYPE-DECL")
     ]
     #ex("다단 필드 읽기와 쓰기", "module ex_field .
 
-struct inner do
+def struct inner do
   a u64 .
 end
 
-struct outer do
+def struct outer do
   i inner .
 end
 
@@ -852,9 +852,9 @@ end", "E-TYPE-WIDTH")
     ]
     #ex("선으로 나가는 머리 — 채움 없이, 큰끝으로", "module ex_layout .
 
-type bytes slice u8 .
+def type bytes slice u8 .
 
-struct wire_header do
+def struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .
@@ -936,12 +936,12 @@ end
     ]
     #para("3")[
       이름에 뜻을 주는 길은 둘이다. **바탕이 되는 타입을 직접 적거나**, 그 이름을 선언하는
-      것이다(`type str slice u8 .`). 선언한 뒤에는 뜻이 있으므로 경고하지 아니한다.
+      것이다(`def type str slice u8 .`). 선언한 뒤에는 뜻이 있으므로 경고하지 아니한다.
     ]
     #ex("뜻 없는 이름은 경고를 받되 거절되지는 않는다", "module ex_name_only .
 
 rem `str` 은 내장이 아니다 — 뜻을 주지 않으면 W-NOT-YET 을 받는다.
-type str slice u8 .
+def type str slice u8 .
 
 fn f input s str . output u8 . do return 1 . end",
       out: "f() = 1")
@@ -1052,7 +1052,7 @@ fn f input s str . output u8 . do return 1 . end",
       )
     ]
     #para("2")[
-      묶음과 열거는 `struct <이름> do … end` · `enum <이름> do … end` 로 선언한다. 다른 모양으로
+      묶음과 열거는 `def struct <이름> do … end` · `def enum <이름> do … end` 로 선언한다. 다른 모양으로
       선언하려 하면 거부된다(`E-TYPE-DECL`).
     ]
     #para("3")[
@@ -1079,7 +1079,7 @@ fn f input s str . output u8 . do return 1 . end",
     ]
     #rejected("칸은 이름 다음에 타입이다", "module ex_field_form .
 
-struct p do
+def struct p do
   x .              rem 타입이 없다
 end
 
@@ -1087,7 +1087,7 @@ fn f output u8 . do return 1 . end", "E-FIELD-FORM")
   ]
   #sub("6.2.24", "임의 폭 정수 — `bits`")[
     #para("1")[
-      `type <이름> bits <수> .` 은 그 수만큼의 비트를 가진 정수 타입을 만든다. 폭은
+      `def type <이름> bits <수> .` 은 그 수만큼의 비트를 가진 정수 타입을 만든다. 폭은
       **1 부터 64 까지**다.
     ]
     #para("2")[

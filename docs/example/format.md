@@ -12,9 +12,9 @@ errors 절 없이 본문 `return error`. (라이브러리=MVP, print=post-MVP)
 ```
 module fmt .
 
-type scratch u64 . .
+def type scratch u64 . .
 
-enum write_error do
+def enum write_error do
   overflow .         rem 버퍼 부족 — 실행-유도 오류(조건 없이 errors 절에 이름만)
 end
 
@@ -29,7 +29,7 @@ proc write_byte
   errors overflow .
 do
   guard lt pos len buf . . else return error overflow . . .
-  set (index buf pos) b .
+  set (idx buf pos) b .
   return ok add pos 1 . . .
 end
 
@@ -62,9 +62,9 @@ do
   var j be u64 sub hi 1 . .
   while lt i j . do
     guard lt j (len buf) . else return .
-    let t be u8 index buf i . .
-    set (index buf i) (index buf j) .
-    set (index buf j) t .
+    let t be u8 idx buf i . .
+    set (idx buf i) (idx buf j) .
+    set (idx buf j) t .
     set i add i 1 . .
     set j sub j 1 . .
   end
@@ -94,7 +94,7 @@ end
 
 rem ── 고수준: 라이터들을 합성 ──
 
-struct point do
+def struct point do
   x u32 .
   y u32 .
 end

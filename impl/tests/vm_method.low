@@ -19,12 +19,12 @@ rem     `rect.area` 의 첫 마디는 **언제나 타입**이다. Γ 가 흔들�
 
 module shapes .
 
-struct rect do
+def struct rect do
   w u8 .
   h u8 .
 end
 
-struct circle do
+def struct circle do
   r u8 .
 end
 
@@ -60,7 +60,7 @@ end
 
 rem ★★★ 수신자의 타입을 **세 가지 모양**에서 찾는다. 전엔 **맨 이름만** 봤고,
 rem   나머지 둘은 *"타입을 모른다"* 고 했다 — **사실이 아니었다. 도구는 알고 있었다.**
-struct box do
+def struct box do
   r rect .
 end
 

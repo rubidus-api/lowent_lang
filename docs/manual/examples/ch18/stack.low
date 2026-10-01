@@ -1,7 +1,7 @@
 module stack_demo .
 rem run: main
 
-type scratch u64 .
+def type scratch u64 .
 
 rem ko: 영역에서 스택 하나를 얻어 자릿수를 거꾸로 쌓는다 --- 나중에 넣은 것이 먼저 나온다 /// en: take a stack from the region and pile up the digits --- the last one in comes out first
 proc reverse_digits input temp region scratch . input n u64 . output u64 . effects alloc .

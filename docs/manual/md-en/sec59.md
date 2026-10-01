@@ -22,7 +22,7 @@ if strings.starts_with line "GET " . do
 end
 ```
 
-`rest` points directly at part of `line`. This module was built only from what the language already has (`len`, `index`, `subslice`, `eq`, `option`, `guard`, `while`, `actor`) and adds no builtin. Most string operations need no ownership — cutting, searching and comparing only produce views. Work that needs a writable buffer, such as appending, belongs to [`strbuf`](sec60.md#mod-strbuf).
+`rest` points directly at part of `line`. This module was built only from what the language already has (`len`, `idx`, `subslice`, `eq`, `option`, `guard`, `while`, `actor`) and adds no builtin. Most string operations need no ownership — cutting, searching and comparing only produce views. Work that needs a writable buffer, such as appending, belongs to [`strbuf`](sec60.md#mod-strbuf).
 
 ## <a id="sx1"></a>Design and boundaries
 
@@ -32,7 +32,7 @@ end
 - **There is no `str_len` or `str_sub`.** `str` is an alias of `slice u8`, so the builtins `len` and `subslice` work as they are. One meaning does not get two names.
 - **No sentinel values.** Conventions like “−1 means not found” are not used. Not found is `none` of an `option`.
 
-`type str slice u8 .` is a **transparent alias**. It is not a `newtype`, so string literals, `slice u8` values and `subslice` results all fit a `str` position as they are. Only the `str_splitter` actor holds state — the original `src`, the separator byte `sep`, the cursor `pos` and the exhausted flag `fin`.
+`def type str slice u8 .` is a **transparent alias**. It is not a `newtype`, so string literals, `slice u8` values and `subslice` results all fit a `str` position as they are. Only the `str_splitter` actor holds state — the original `src`, the separator byte `sep`, the cursor `pos` and the exhausted flag `fin`.
 
 ## <a id="sx2"></a>Ops at a glance
 
@@ -166,7 +166,7 @@ The only difference between the two is who holds the cursor. If the same origina
 >
 > > ```lowent
 > > let piece be slice u8 strings.remove_prefix line "GET " .
-> > set (index line 4) 88 .                                     rem ✗ the original was changed
+> > set (idx line 4) 88 .                                     rem ✗ the original was changed
 > > ```
 > >
 > > With no error, the content of `piece` silently changes — because it is a window, not a copy. To hold on to the content, copy it with [`strbuf`](sec60.md#mod-strbuf).

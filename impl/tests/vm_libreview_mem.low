@@ -23,9 +23,9 @@ use segarena  from "../../lib/segarena.low" .
 use lifeatom  from "../../lib/lifeatom.low" .
 use lifemode  from "../../lib/lifemode.low" .
 
-newtype pf u8 .
-newtype pc u8 .
-newtype sg u8 .
+def newtype pf u8 .
+def newtype pc u8 .
+def newtype sg u8 .
 
 rem ── strbuf: 빈 버퍼 · 꽉 찬 str_buf 에서 `append_trunc`/`room` 은 0 이다 (전에는 밑으로 감겨 경계 밖 쓰기) ──
 proc t_sb input buf mut slice u8 . . output u64 . effects none . do
@@ -44,7 +44,7 @@ proc t_sb input buf mut slice u8 . . output u64 . effects none . do
   guard eq (field b len) 3 . else return 97 .
   rem 정상 경로는 그대로다: 4 바이트 버퍼(내용 3 + 널)에 len 3 → 자리 0, 봉인은 산다
   guard eq (strbuf.room b (subslice buf 0 4)) 0 . else return 98 .
-  guard eq (index buf 3) 0 . else return 99 .
+  guard eq (idx buf 3) 0 . else return 99 .
   return 1 .
 end
 
@@ -74,7 +74,7 @@ proc t_nl input nx mut slice u64 . . input pv mut slice u64 . . output u64 . eff
   rem ★ 머리(0)를 자르며 돈다 — 넷을 훑고 셋이 남는다
   guard eq (nodelist.nl_walk_cut nx pv 0 0) 4 . else return 96 .
   guard eq (nodelist.nl_count nx 1) 3 . else return 97 .
-  guard eq (index nx 0) 0 . else return 98 .
+  guard eq (idx nx 0) 0 . else return 98 .
   rem 혼자인 머리를 자르면 1
   guard nodelist.nl_solo nx pv 5 . else return 81 .
   guard eq (nodelist.nl_walk_cut nx pv 5 5) 1 . else return 82 .
@@ -87,12 +87,12 @@ end
 rem ── soa: `xoff > voff` 인 기하에서 경계 밖 대신 멈춘 자리 i 를 답한다 ──
 proc t_soa input rows mut slice u64 . . output u64 . effects none . do
   guard eq (len rows) 3 . else return 90 .
-  set (index rows 0) 1 .
-  set (index rows 1) 10 .
-  set (index rows 2) 2 .
+  set (idx rows 0) 1 .
+  set (idx rows 1) 10 .
+  set (idx rows 2) 2 .
   rem 보폭 2 · xoff 1 · voff 0: 둘째 줄의 x 자리(3)가 경계 밖 — 1 에서 멈춘다
   guard eq (soa.step_x_aos rows 2 1 0 2) 1 . else return 91 .
-  guard eq (index rows 1) 11 . else return 92 .        rem 첫 줄은 처리됐다: x(10) += v(1)
+  guard eq (idx rows 1) 11 . else return 92 .        rem 첫 줄은 처리됐다: x(10) += v(1)
   return 4 .
 end
 
@@ -135,7 +135,7 @@ proc t_hm input b mut slice u64 . . output u64 . effects none . do
   guard ge (len b) 8 . else return 90 .
   var i be u64 0 .
   while lt i (len b) . do
-    set (index b i) 0 .
+    set (idx b i) 0 .
     set i (add i 1) .
   end
   guard eq (hashmap.key_at b 0) 0 . else return 91 .

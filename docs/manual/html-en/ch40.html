@@ -724,7 +724,7 @@ $ lowentc --run quot division.low -128 -1
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> table <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
   <strong><span class="tok-k">requires</span></strong> gt (len table) <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> index table (mod h (len table)) .
+  <strong><span class="tok-k">return</span></strong> idx table (mod h (len table)) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run pick modslot.low [5,6,7,8] 1000003
 pick([5,6,7,8], 1000003) = 8

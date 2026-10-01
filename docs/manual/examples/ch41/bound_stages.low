@@ -10,7 +10,7 @@ fn direct input s slice u8 . output u64 . do
   var t be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    set t (wrap_add t (widen u64 (index s i))) .
+    set t (wrap_add t (widen u64 (idx s i))) .
     set i (add i 1) .
   end
   return t .
@@ -22,7 +22,7 @@ fn stored input s slice u8 . output u64 . do
   var t be u64 0 .
   var i be u64 0 .
   while lt i n . do
-    set t (wrap_add t (widen u64 (index s i))) .
+    set t (wrap_add t (widen u64 (idx s i))) .
     set i (add i 1) .
   end
   return t .
@@ -35,7 +35,7 @@ do
   var t be u64 0 .
   var j be u64 0 .
   while lt j cap . do
-    set t (wrap_add t (widen u64 (index s j))) .
+    set t (wrap_add t (widen u64 (idx s j))) .
     set j (add j 1) .
   end
   return t .
@@ -51,7 +51,7 @@ do
   while lt i n . do
     var k be u64 0 .
     while lt k n . do
-      set t (wrap_add t (widen u64 (index a (add (mul i n) k)))) .
+      set t (wrap_add t (widen u64 (idx a (add (mul i n) k)))) .
       set k (add k 1) .
     end
     set i (add i 1) .

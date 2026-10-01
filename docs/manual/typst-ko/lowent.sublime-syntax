@@ -15,7 +15,7 @@ contexts:
       scope: constant.character.lowent
     - match: '\b(0x[0-9a-fA-F_]+|0b[01_]+|[0-9][0-9_]*(\.[0-9]+)?([eE][-+]?[0-9]+)?)\b'
       scope: constant.numeric.lowent
-    - match: '\b(use|let|set|do|end|if|else|for|guard|return|break|continue|try|expr|fn|proc|make|struct|enum|match|case|while|module|var|type|newtype|export|unsafe|extern|trait|satisfies|contract|drop|test|expect|actor|state|spawn|send|be|region|using|pipe|task_group|await)\b'
+    - match: '\b(use|let|set|do|end|if|else|for|guard|return|break|continue|try|expr|fn|proc|lit|def|struct|enum|match|case|while|module|var|type|newtype|export|unsafe|extern|trait|satisfies|contract|drop|test|expect|actor|state|spawn|send|be|region|using|pipe|task_group|await)\b'
       scope: keyword.control.lowent
     - match: '\b(input|output|effects|requires|ensures|errors|tests|access|parallel|reduce|lowdoc|vector|priority|asm|link|variadic|schedule|via|comptime|mut|owned|ref|mut_ref|cap|slice|array|option|result|range)\b'
       scope: storage.modifier.lowent

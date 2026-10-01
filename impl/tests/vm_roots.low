@@ -22,8 +22,8 @@ do
       let g be option mut slice u8 alloc_bytes h capacity 32768 .
       if is_some g . do
         let b be mut slice u8 some_value g .
-        set (index b 32767) 9 .
-        if eq (index b 32767) 9 . do set got (add got 1) . end
+        set (idx b 32767) 9 .
+        if eq (idx b 32767) 9 . do set got (add got 1) . end
       end
       set i (add i 1) .
     end
@@ -52,20 +52,20 @@ do
     let a be option mut slice u8 alloc_bytes f capacity 16 .
     if is_some a . do
       let av be mut slice u8 some_value a .
-      set (index av 3) 77 .
+      set (idx av 3) 77 .
       region h heap do
         let b be option mut slice u8 alloc_bytes h capacity 200000 .
         if is_some b . do
           let bv be mut slice u8 some_value b .
-          set (index bv 3) 55 .
+          set (idx bv 3) 55 .
         end
       end
       let c be option mut slice u8 alloc_bytes f capacity 16 .
       if is_some c . do
         let cv be mut slice u8 some_value c .
-        set (index cv 3) 11 .
+        set (idx cv 3) 11 .
       end
-      set keep (add (mul (narrow u64 (index av 3)) 100) 1) .
+      set keep (add (mul (narrow u64 (idx av 3)) 100) 1) .
     end
   end
   return keep .

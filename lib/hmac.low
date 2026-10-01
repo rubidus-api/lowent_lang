@@ -12,7 +12,7 @@ module hmac .
 rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
 rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
-export enum hmac_error do
+export def enum hmac_error do
   short_workspace .
 end
 
@@ -23,13 +23,13 @@ export proc key_block input key slice u8 . input pad mut slice u8 . output u64 .
   guard ge (len pad) 64 . else return 0 .
   var i be u64 0 .
   while lt i 64 . do
-    set (index pad i) 0 .
+    set (idx pad i) 0 .
     set i (add i 1) .
   end
   guard gt (len key) 64 . else do
     var j be u64 0 .
     while lt j (len key) . do
-      set (index pad j) (index key j) .
+      set (idx pad j) (idx key j) .
       set j (add j 1) .
     end
     return 64 .
@@ -58,12 +58,12 @@ errors short_workspace . do
   rem ② (K' xor ipad) || msg  →  scratch
   var i be u64 0 .
   while lt i 64 . do
-    set (index scratch i) (cast u8 (bit_xor (cast u64 (index scratch i)) 54)) .
+    set (idx scratch i) (cast u8 (bit_xor (cast u64 (idx scratch i)) 54)) .
     set i (add i 1) .
   end
   var j be u64 0 .
   while lt j (len msg) . do
-    set (index scratch (add 64 j)) (index msg j) .
+    set (idx scratch (add 64 j)) (idx msg j) .
     set j (add j 1) .
   end
   let n1 be u64 call_builtin sha256 (subslice scratch 0 (add 64 (len msg))) out .
@@ -73,12 +73,12 @@ errors short_workspace . do
   guard eq (key_block key scratch) 64 . else return ok 0 .
   var m be u64 0 .
   while lt m 64 . do
-    set (index scratch m) (cast u8 (bit_xor (cast u64 (index scratch m)) 92)) .
+    set (idx scratch m) (cast u8 (bit_xor (cast u64 (idx scratch m)) 92)) .
     set m (add m 1) .
   end
   var q be u64 0 .
   while lt q 32 . do
-    set (index scratch (add 64 q)) (index out q) .
+    set (idx scratch (add 64 q)) (idx out q) .
     set q (add q 1) .
   end
   return ok (call_builtin sha256 (subslice scratch 0 96) out) .
@@ -108,10 +108,10 @@ errors short_workspace . do
   rem info || 0x01 을 scratch 뒤쪽(128 부터)에 만든다 — 앞 128 은 mac 이 쓴다.
   var i be u64 0 .
   while lt i (len info) . do
-    set (index scratch (add 128 i)) (index info i) .
+    set (idx scratch (add 128 i)) (idx info i) .
     set i (add i 1) .
   end
-  set (index scratch (add 128 (len info))) 1 .
+  set (idx scratch (add 128 (len info))) 1 .
   let msg be slice u8 subslice scratch 128 (add 129 (len info)) .
   return hmac.mac prk msg scratch out .
 end

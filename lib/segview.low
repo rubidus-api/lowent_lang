@@ -23,7 +23,7 @@ end
 
 rem 커서 — 평평한 위치를 (조각, 자리) 로 나눈다.
 rem   ★ 이 값 하나가 조각 경계를 넘는 순회를 **상태 없이** 쓰게 한다.
-export struct cursor do
+export def struct cursor do
   piece u64 .
   at u64 .
 end
@@ -48,7 +48,7 @@ export fn byte_at input ss segments u8 . . input pos u64 . output option u8 . do
   let co be option segview.cursor segview.seek ss pos .
   guard is_some co . else return none .
   let c be segview.cursor some_value co .
-  return some (index (seg ss (field c piece)) (field c at)) .
+  return some (idx (seg ss (field c piece)) (field c at)) .
 end
 
 rem ★ `coalesce` — 한 덩어리로 편다. **여기서만 복사가 일어난다**, 그리고 부른 자리에 보인다.
@@ -62,7 +62,7 @@ export proc coalesce input ss segments u8 . . input out mut slice u8 . . output 
     let p be slice u8 seg ss i .
     var j be u64 0 .
     while lt j (len p) . do
-      set (index out w) (index p j) .
+      set (idx out w) (idx p j) .
       set w (add w 1) .
       set j (add j 1) .
     end

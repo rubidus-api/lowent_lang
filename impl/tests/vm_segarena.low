@@ -8,9 +8,9 @@ module vm_segarena .
 use segarena from "../../lib/segarena.low" .
 
 rem ★ 브랜드는 **저장소마다 하나**다(§8-2) — 프로시저 셋이 각자 아레나를 여니 셋이다.
-newtype grid u8 .
-newtype grid2 u8 .
-newtype grid3 u8 .
+def newtype grid u8 .
+def newtype grid2 u8 .
+def newtype grid3 u8 .
 
 rem 조각 4 칸(kbits 2) 짜리로 세 조각을 연다 — dir 은 조각마다 시작 자리.
 proc build input dir mut slice u64 . . input cap0 u64 . output u64 . effects none . do

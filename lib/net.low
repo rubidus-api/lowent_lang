@@ -36,19 +36,19 @@ rem
 rem ☞ 쌍은 **쌍으로 살고 쌍으로 죽는다**: `pair` 를 자원으로 두고 `shut_pair` 하나로 닫는다.
 rem   개별 fd 는 정수로 꺼내 쓴다 — 구조체 **필드**의 `owned` 는 아직 강제되지 않기 때문이고
 rem   (실측), 그 구멍은 별도 티켓이다. 여기서 약속하는 것은 *"쌍을 통째로 잊을 수 없다"* 다.
-export enum net_error do
+export def enum net_error do
   close_failed .
 end
 
 rem 연결 하나. 닫는 op 이 result 를 내므로 **이 타입은 잊을 수 없다**.
-export struct conn do
+export def struct conn do
   fd u64 .
 end
 
 rem 듣는 소켓 — fd 와 **실제 포트**를 함께 든다.
 rem ★ 전에는 이 둘을 `fd << 16 | port` 로 **한 u64 에 패킹**했다. 패킹은 라이브러리가 없을 때
 rem   치르던 값이고, 타입이 생긴 지금은 필드 둘이 그 자리다(푸는 짝 `fd_of`/`port_of` 도 사라진다).
-export struct listener do
+export def struct listener do
   fd u64 .
   port u64 .
 end
@@ -59,7 +59,7 @@ rem   두고 쌍만 자원으로 삼았다 — 구조체 **필드**의 `owned` �
 rem   안전을 못 샀기 때문이다. 그 뒤 두 규칙이 들어왔다: 자원을 품은 것은 그 자체가 자원이고,
 rem   **모든 owned 필드를 옮겨 내면 집합은 완결된 것**이다. ⇒ 이제 담을 수 있고, 담으면
 rem   **개별 소켓까지** 지켜진다(하나만 닫고 잊으면 컴파일이 안 된다).
-export struct pair do
+export def struct pair do
   a owned conn .
   b owned conn .
 end

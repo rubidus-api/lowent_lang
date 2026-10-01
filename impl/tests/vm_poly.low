@@ -30,12 +30,12 @@ do
   if lt off (len data) . do
     var i be u64 0 .
     while lt i 16 . do
-      set (index pad i) 0 .
+      set (idx pad i) 0 .
       set i (add i 1) .
     end
     var j be u64 0 .
     while lt (add off j) (len data) . do
-      set (index pad j) (index data (add off j)) .
+      set (idx pad j) (idx data (add off j)) .
       set j (add j 1) .
     end
     let z2 be u64 poly.block b (subslice pad 0 16) 1 .
@@ -43,7 +43,7 @@ do
 
   var k be u64 0 .
   while lt k 5 . do
-    guard eq (index a k) (index b k) . else return 0 .
+    guard eq (idx a k) (idx b k) . else return 0 .
     set k (add k 1) .
   end
   return 1 .

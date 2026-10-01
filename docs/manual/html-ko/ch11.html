@@ -727,7 +727,7 @@ $ lowentc --run find_raw lookup.low 7
 <em><span class="tok-c">rem run: halve_plus_one 250</span></em>
 <em><span class="tok-c">rem run: halve_or_zero 250</span></em>
 
-<strong><span class="tok-k">enum</span></strong> io_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> io_error <strong><span class="tok-k">do</span></strong>
   too_big .
   odd .
 <strong><span class="tok-k">end</span></strong>
@@ -770,7 +770,7 @@ halve_or_zero(250) = 0
 </code></pre></div></div><p><code>halve</code> 의 머리에는 오류가 둘 적혀 있다. <code>errors too_big gt a 200 .</code> 은 “<code>a</code> 가 200 보다 크면 <code>too_big</code> 을 낸다” 는 약속이다. 이 절은 <strong>나가는 쪽의 계약</strong>이다. 조건이 참인데 op 이 정상으로 돌아오거나, 적지 않은 오류를 돌려주면 계약 위반이다. 적지 않은 오류를 돌려주는 코드는 번역에서 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/undeclared.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> undeclared .
 <em><span class="tok-c">rem expect: E-ERR-UNDECLARED</span></em>
 
-<strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> parse_error <strong><span class="tok-k">do</span></strong>
   empty .
   too_long .
 <strong><span class="tok-k">end</span></strong>
@@ -780,7 +780,7 @@ halve_or_zero(250) = 0
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">guard</span></strong> gt (len s) <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error empty .
   <strong><span class="tok-k">guard</span></strong> le (len s) <span class="tok-n">16</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> error too_long .
-  <strong><span class="tok-k">return</span></strong> ok (index s <span class="tok-n">0</span>) .
+  <strong><span class="tok-k">return</span></strong> ok (idx s <span class="tok-n">0</span>) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check undeclared.low
 undeclared.low:13:0 E-ERR-UNDECLARED: op returns an error not in its errors clause
@@ -791,7 +791,7 @@ undeclared.low:13:0 E-ERR-UNDECLARED: op returns an error not in its errors clau
 <em><span class="tok-c">rem run: doubled 30</span></em>
 <em><span class="tok-c">rem run: doubled 300</span></em>
 
-<strong><span class="tok-k">enum</span></strong> perr <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> perr <strong><span class="tok-k">do</span></strong>
   too_big .
 <strong><span class="tok-k">end</span></strong>
 
@@ -816,7 +816,7 @@ undeclared.low:13:0 E-ERR-UNDECLARED: op returns an error not in its errors clau
 <em><span class="tok-c">rem option 에서 알맹이를 꺼내 묶는다 --- 비었으면 else 로 떠난다</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> lookup <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> lit <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">5</span> <span class="tok-n">6</span> <span class="tok-n">7</span> . .
+  <strong><span class="tok-k">let</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">5</span> <span class="tok-n">6</span> <span class="tok-n">7</span> . .
   <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> find xs k . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> .
   <strong><span class="tok-k">return</span></strong> add at <span class="tok-n">100</span> .
 <strong><span class="tok-k">end</span></strong>
@@ -841,7 +841,7 @@ doubled(300) = 0
 <em><span class="tok-c">rem run: must_find 2</span></em>
 <em><span class="tok-c">rem run: must_find 9</span></em>
 
-<strong><span class="tok-k">enum</span></strong> lookup_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> lookup_error <strong><span class="tok-k">do</span></strong>
   too_big .
   not_found .
 <strong><span class="tok-k">end</span></strong>
@@ -884,13 +884,13 @@ must_find(9) = err not_found
 <em><span class="tok-c">rem run: choose</span></em>
 <em><span class="tok-c">rem run: half 200</span></em>
 
-<strong><span class="tok-k">enum</span></strong> color <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> color <strong><span class="tok-k">do</span></strong>
   red .
   green .
   blue .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">enum</span></strong> node <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> node <strong><span class="tok-k">do</span></strong>
   num v <strong><span class="tok-t">u32</span></strong> .
   plus l <strong><span class="tok-t">u32</span></strong> r <strong><span class="tok-t">u32</span></strong> .
   times l <strong><span class="tok-t">u32</span></strong> r <strong><span class="tok-t">u32</span></strong> .
@@ -953,7 +953,7 @@ half(200) = 1
 </code></pre></div></div><span id="idx-entry-27"></span><ul><li><strong>or 패턴.</strong> <code>case red or green .</code> 은 어느 하나라도 맞으면 그 갈래다. 갈래마다 망라에 기여하므로 <code>blue</code> 까지 다루면 <code>_</code> 가 필요 없다. 값을 지닌 갈래를 or 로 묶을 때는 <strong>모든 가지가 같은 이름을 묶어야</strong> 한다 — <code>combine</code> 은 <code>plus</code> 든 <code>times</code> 든 <code>l</code>·<code>r</code> 을 꺼내 쓴다. 이름이 어긋나면 <code>E-MATCH-ORBIND</code> 다.</li><li><strong>겹친 패턴.</strong> <code>case ok (some x) .</code> 는 <code>result</code> 안의 <code>option</code> 을 한 번에 가른다. 겹친 패턴은 단락 평가라서 <code>ok</code> 가 아니면 안쪽을 아예 보지 않는다. 그래서 <code>error</code> 에서 값을 잘못 꺼내 멈추는 일이 없다.</li><li><strong>번역 시점에 접힌다.</strong> 가르는 값이 번역 시점 상수 — 리터럴, <code>comptime &lt;식></code>, <code>config &lt;이름></code> — 이면 <code>match</code> 는 맞는 갈래 하나로 접혀 실행 중 비교가 없다. 죽은 갈래도 타입 검사는 받는다. C 의 <code>#ifdef</code> 와 다른 점이다(31장).</li><li><strong>범위가 타입을 덮는다.</strong> <code>half</code> 의 두 범위는 <code>u8</code> 의 0 … 255 를 빈틈 없이 덮으므로 <code>_</code> 가 없어도 망라다. 빈틈이 있으면 <code>E-MATCH-INEXHAUSTIVE</code>, 범위가 겹치면 <code>E-MATCH-REDUNDANT</code> 다.</li></ul><p><code>_</code> 뒤에 갈래를 두면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/arm_after_wild.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> arm_after_wild .
 <em><span class="tok-c">rem expect: E-MATCH-REDUNDANT</span></em>
 
-<strong><span class="tok-k">enum</span></strong> light <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> light <strong><span class="tok-k">do</span></strong>
   bright .
   dark .
 <strong><span class="tok-k">end</span></strong>
@@ -997,7 +997,7 @@ mistake_nosome.low:8:0 E-TYPE-RETURN: the returned value does not match the op's
 </code></pre></div></div><p>머리에 <code>output option u64</code> 라고 적었으면 돌려주는 값도 상자여야 한다. <code>none</code> 은 상자이지만 <code>mul k 10</code> 은 맨 수라서 <code>E-TYPE-RETURN</code> 이다. 몇몇 언어는 값을 알아서 감싸 주지만 Lowent 는 감싸지 않는다. <code>return some (mul k 10) .</code> 처럼 “있다” 를 적어야 읽는 사람이 두 갈래를 모두 본다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>result</code> 를 돌려주지 않는 op 에서 <code>try</code> 를 쓴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/mistake_trynoresult.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_trynoresult .
 <em><span class="tok-c">rem expect: E-TRY-NORESULT</span></em>
 
-<strong><span class="tok-k">enum</span></strong> half_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> half_error <strong><span class="tok-k">do</span></strong>
   too_big .
 <strong><span class="tok-k">end</span></strong>
 
@@ -1020,7 +1020,7 @@ mistake_trynoresult.low:18:0 E-TRY-NORESULT: `try` may only be used in an op tha
 <em><span class="tok-c">rem run: plus 10</span></em>
 <em><span class="tok-c">rem run: plus 250</span></em>
 
-<strong><span class="tok-k">enum</span></strong> half_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> half_error <strong><span class="tok-k">do</span></strong>
   too_big .
 <strong><span class="tok-k">end</span></strong>
 
@@ -1045,7 +1045,7 @@ plus(250) = err too_big
 </code></pre></div></div></div></div><p>겹친 패턴도 망라에 센다. 바깥 꼬리표는 <strong>안쪽이 스스로 빠짐없을 때</strong> 덮인 것으로 세어진다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch11/nestedwild.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nestedwild .
 <em><span class="tok-c">rem run: via_match</span></em>
 
-<strong><span class="tok-k">enum</span></strong> read_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> read_error <strong><span class="tok-k">do</span></strong>
   broken .
 <strong><span class="tok-k">end</span></strong>
 

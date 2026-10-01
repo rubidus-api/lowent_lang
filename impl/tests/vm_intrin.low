@@ -10,7 +10,7 @@ rem     그 울타리를 걷었다 — 막고 있던 것이 있지도 않은 기
 
 module vm_intrin .
 
-type bytes slice u8 . .
+def type bytes slice u8 . .
 
 proc av input a bytes . input b bytes . input out mut slice u8 . output u64 . effects none . do
   var xa be slice u8 view_array u8 a .

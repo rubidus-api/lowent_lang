@@ -683,10 +683,10 @@ do
   &lt;문장들>
 end</code></pre><p>몸이 C 에 있는 <code>extern</code> op 은 절을 같은 차례로 <code>do … end</code> <strong>안에</strong> 담는다 — <code>unsafe extern proc &lt;이름> do &lt;절>* end</code>. 블록에는 절만 온다.</p><h3 id="sx2">선언<a class="plink" href="#sx2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><pre><code data-lang="text">module &lt;이름> .
 use &lt;모듈> [from "&lt;자리>"] .
-type &lt;이름> &lt;타입> .
-newtype &lt;이름> &lt;타입> .
-struct &lt;이름> do [satisfies &lt;트레이트> .] [layout packed .] [mmio &lt;주소> .] &lt;칸 이름> &lt;타입> [big|little] [rw|ro|wo] . … end
-enum &lt;이름> do &lt;갈래> [&lt;칸> &lt;타입>]… . … end
+def type &lt;이름> &lt;타입> .
+def newtype &lt;이름> &lt;타입> .
+def struct &lt;이름> do [satisfies &lt;트레이트> .] [layout packed .] [mmio &lt;주소> .] &lt;칸 이름> &lt;타입> [big|little] [rw|ro|wo] . … end
+def enum &lt;이름> do &lt;갈래> [&lt;칸> &lt;타입>]… . … end
 trait &lt;이름> do &lt;op 이름> &lt;절…> . … end
 contract &lt;이름> do requires &lt;조건> . … end
 actor &lt;이름> do [satisfies …] state do &lt;칸> &lt;타입> . … end [failure restart max &lt;수> .] [mailbox bounded &lt;수> .] &lt;op>… end

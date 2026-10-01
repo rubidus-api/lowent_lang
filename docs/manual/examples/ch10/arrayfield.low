@@ -2,7 +2,7 @@ module arrayfield .
 rem run: copy_keeps 7
 rem run: fill_in 3
 
-struct pkt do
+def struct pkt do
   len u8 .
   body array u8 4 .
 end
@@ -12,13 +12,13 @@ export fn copy_keeps input a u8 . output u64 .
 do
   var p be lit pkt do len 2 . body lit array u8 4 1 a _ . . end .
   var q be pkt p .
-  set (index (field q body) 0) 100 .
-  return add (widen u64 (index (field p body) 0)) (widen u64 (index (field q body) 0)) .
+  set (idx (field q body) 0) 100 .
+  return add (widen u64 (idx (field p body) 0)) (widen u64 (idx (field q body) 0)) .
 end
 
 proc stamp input p mut pkt . input v u8 . output u64 .
 do
-  set (index (field p body) 3) v .
+  set (idx (field p body) 3) v .
   set (field p len) 4 .
   return 0 .
 end
@@ -28,5 +28,5 @@ export proc fill_in input v u8 . output u64 .
 do
   var p be lit pkt do len 0 . body lit array u8 4 _ . . end .
   let z be u64 stamp p v .
-  return add (widen u64 (field p len)) (widen u64 (index (field p body) 3)) .
+  return add (widen u64 (field p len)) (widen u64 (idx (field p body) 3)) .
 end

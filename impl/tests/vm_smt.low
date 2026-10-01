@@ -18,7 +18,7 @@ export proc chain_two_hops input s slice u8 . . input i u64 . input j u64 . inpu
   requires lt j cap .
   requires ge (len s) cap .
 do
-  return index s i .
+  return idx s i .
 end
 
 rem ✔ ② **구간과 계약을 섞는다**: i ≤ 7(계약이 준 구간) · len(s) ≥ n · n ≥ 8.
@@ -30,7 +30,7 @@ export proc mixed_interval_contract input s slice u8 . . input i u64 . input n u
   requires ge n 8 .
   requires ge (len s) n .
 do
-  return index s i .
+  return idx s i .
 end
 
 rem ✔ ③ 같은 엮기를 **쓰기** 쪽에서도 (istore) — 읽기만 지우고 쓰기를 놓치면 절반짜리다.
@@ -40,7 +40,7 @@ export proc write_two_hops input s mut slice u8 . . input i u64 . input j u64 . 
   requires lt j cap .
   requires ge (len s) cap .
 do
-  set (index s i) 9 .
+  set (idx s i) 9 .
 end
 
 rem ✘ ④ **증명되면 안 된다** — 반례가 있다. `le i n`(비엄격) + `len(s) ≥ n` 은
@@ -51,7 +51,7 @@ export proc must_not_prove input s slice u8 . . input i u64 . input n u64 .
   requires le i n .
   requires ge (len s) n .
 do
-  return index s i .
+  return idx s i .
 end
 
 rem ★ 진입점 — `export` 로 내면 방출된 C 의 `main` 과 **이름이 부딪힌다**(실측: conflicting

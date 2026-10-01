@@ -1,8 +1,8 @@
 module ids .
 rem expect: E-TYPE-NOMINAL
 
-newtype user_id u64 .
-newtype order_id u64 .
+def newtype user_id u64 .
+def newtype order_id u64 .
 
 fn load_order input id order_id . output u64 .
 do

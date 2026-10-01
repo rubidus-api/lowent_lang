@@ -60,6 +60,8 @@ typedef enum {
     LOW_KW_CONTRACT,
     // ★ SPEC-004 §4.8 은 `drop` 을 규정해 두고도 **어휘에 없었다** — `E-IR-UNDEF`(오진).
     LOW_KW_DROP,
+    // ★ RFC-0132 §5.2 (옮김 창) — `def` 가 타입을 짓는다: `def struct` · `def enum` · `def type` · `def newtype`.
+    LOW_KW_DEF,
 } low_kw_t;
 
 typedef struct {

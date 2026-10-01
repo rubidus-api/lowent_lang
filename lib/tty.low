@@ -44,16 +44,16 @@ rem   완전하지만 모르는 시퀀스는 `key_unknown` + 먹은 길이다(no
 rem   ☞ 이것이 순수한 이유: 터미널이 보낸 것은 그냥 바이트열이고, 그것을 키로 읽는 것은 계산이다.
 export proc parse_key input buf slice u8 . input at u64 . output option u64 . effects none . do
   guard lt at (len buf) . else return none .
-  let b0 be u8 index buf at .
+  let b0 be u8 idx buf at .
   rem ESC 가 아니면 그 바이트가 곧 키다(제어문자 포함 — Ctrl-C 는 3 이다).
   guard eq b0 27 . else return some (add (mul (widen u64 b0) 16) 1) .
   rem ESC 하나만 왔으면 그것은 **ESC 키**다(뒤가 없으면 기다릴 수 없다 — 지금 답한다).
   guard lt (add at 1) (len buf) . else return some (add (mul 1010 16) 1) .
-  let b1 be u8 index buf (add at 1) .
+  let b1 be u8 idx buf (add at 1) .
   rem ESC O x — 응용 커서 모드(일부 터미널의 방향키).
   if eq b1 79 . do
     guard lt (add at 2) (len buf) . else return none .
-    let c be u8 index buf (add at 2) .
+    let c be u8 idx buf (add at 2) .
     if eq c 65 . do return some (add (mul 1001 16) 3) . end
     if eq c 66 . do return some (add (mul 1002 16) 3) . end
     if eq c 67 . do return some (add (mul 1003 16) 3) . end
@@ -74,7 +74,7 @@ export proc parse_key input buf slice u8 . input at u64 . output option u64 . ef
   while going . do
     guard lt i (len buf) . else return none .
     guard lt (sub i at) 15 . else return some (add (mul 1011 16) 15) .
-    let c be u8 index buf i .
+    let c be u8 idx buf i .
     if lt c 48 . do set going false . end
     if gt c 63 . do set going false . end
     if going . do
@@ -89,7 +89,7 @@ export proc parse_key input buf slice u8 . input at u64 . output option u64 . ef
   while going . do
     guard lt i (len buf) . else return none .
     guard lt (sub i at) 15 . else return some (add (mul 1011 16) 15) .
-    let c be u8 index buf i .
+    let c be u8 idx buf i .
     if lt c 32 . do set going false . end
     if gt c 47 . do set going false . end
     if going . do
@@ -98,7 +98,7 @@ export proc parse_key input buf slice u8 . input at u64 . output option u64 . ef
     end
   end
   guard lt i (len buf) . else return none .
-  let f be u8 index buf i .
+  let f be u8 idx buf i .
   rem 마침 바이트가 아닌 것(제어문자·0x7F 이상)이 오면 시퀀스는 거기서 **깨진 것**이다 — 그 앞까지를
   rem   unknown 으로 먹고 그 바이트는 남긴다(ESC 면 새 시퀀스의 머리다. 먹어 버리면 다음 키가 사라진다).
   guard ge f 64 . else return some (add (mul 1011 16) (sub i at)) .

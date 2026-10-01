@@ -162,7 +162,7 @@ in a weak-memory model. Multi-producer multi-consumer queues and seqlocks have n
   caption: [Shapes of containers and sorting --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`sortlib.sort xs` · `searchlib.bsearch xs k`], [sort `u64` in place · search sorted input (`option`)], [no allocation --- search trusts the order],
-  [`struct score do satisfies sortgen.ordered . … end` + `fn score.less`], [the type brings the sort order], [a type instead of a mode argument --- `less` must be strict],
+  [`def struct score do satisfies sortgen.ordered . … end` + `fn score.less`], [the type brings the sort order], [a type instead of a mode argument --- `less` must be strict],
   [`sortgen.sort_by score rs` · `sort_fast`], [stable insertion sort · quicksort for large arrays], [the choice is in the name],
   [`hashmap.put slots k v` · `lookup` · `del`], [a `u64 → u64` map on the caller's slice], [`false` when full --- deletion leaves a tombstone],
   [`let vo using hb be … vecgen.open u32 4 .`], [open a growing vector with an allocator], [`using` only where it is first received],

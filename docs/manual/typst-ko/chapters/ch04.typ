@@ -125,7 +125,7 @@ C 의 `int` 는 기계마다 크기가 다를 수 있지만, Lowent 의 `u32` �
 #demo("examples/ch04/divide.low")
 
 `quot -7 2` 는 −3 이고 `modulo -7 2` 는 1 이다. 나머지가 나누는 수의 부호를 따르므로, 양수 `n` 으로
-나눈 `mod h n` 은 언제나 0 이상 `n` 미만이다. 해시 테이블이 슬롯을 고를 때 `index slots (mod h n)` 의
+나눈 `mod h n` 은 언제나 0 이상 `n` 미만이다. 해시 테이블이 슬롯을 고를 때 `idx slots (mod h n)` 의
 경계 검사가 지워지는 근거가 이 성질이고, 이 성질은 Coq 로 증명되어 있다(#chref("proofs-numbers")).
 
 부호 있는 나눗셈이 넘치는 경우는 `MIN / −1` 하나뿐이고, 이것도 멈춘다. C 에서는 미정의 동작이다.

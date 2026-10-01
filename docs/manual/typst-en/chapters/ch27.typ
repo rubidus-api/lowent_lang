@@ -39,7 +39,7 @@
 
 #idx("parallel")
 - `double_all`'s head has `parallel s split .` --- a declaration that "this loop may be split into pieces of `s` run by several together". Each step reads and
-  writes only `index s i`, its own element.
+  writes only `idx s i`, its own element.
 - `total` accumulates a sum. The accumulator `acc` lives across steps, so as is it cannot be split. `reduce acc add .` states "accumulate per piece, then combine
   with `add`".
 
@@ -78,7 +78,7 @@ that theorem.
 
 #demo("examples/ch27/par_read.low")
 
-This loop subtracts the first element from every element. If the first piece changes `index s 0` first, the first element other pieces read has already changed.
+This loop subtracts the first element from every element. If the first piece changes `idx s 0` first, the first element other pieces read has already changed.
 Even run sequentially, the loop has the defect of subtracting 0 after the first step, and splitting makes that defect depend on ordering.
 
 #demo("examples/ch27/par_carry.low")
@@ -239,7 +239,7 @@ kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT
 #antipattern[Pieces of a split loop incrementing a shared counter with ordinary arithmetic][
   #demo("examples/ch27/mistake_sharedwrite.low")
 
-  Every piece reads `index counter 0`, adds 1 and writes it back. When two threads read the same value and each writes its sum, one
+  Every piece reads `idx counter 0`, adds 1 and writes it back. When two threads read the same value and each writes its sum, one
   increment is lost. That is a write to a place outside the piece's own share, so it is rejected with `E-PAR-WRITE`. If a shared place
   really must be updated together, take `cap atomic` and use `atomic_add counter 0 1` (this chapter's `counter.low`). Usually, though,
   gathering per-piece counts with `reduce` is faster.
@@ -267,7 +267,7 @@ kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT
 
   The processor recognises only loops of the shape `while lt i (len s) . do … end` as candidates for splitting. `while lt (add i 1) (len s)`
   is not that shape, so this is `E-PAR-NOLOOP`. As the diagnostic says, the `parallel` clause is a *claim*, and with no loop to split,
-  nothing is verified and only the claim remains. This loop also reads the neighbouring element `index s (add i 1)`; even with the shape
+  nothing is verified and only the claim remains. This loop also reads the neighbouring element `idx s (add i 1)`; even with the shape
   fixed it would be rejected with `E-PAR-READ`. Write neighbour-reading computations (smoothing and the like) as a sequential loop that
   writes its results into another slice.
 ]
@@ -297,7 +297,7 @@ kernel scheduling hints that constrain nothing yet, and writing one makes `W-NOT
   [*Shape*], [*Meaning*], [*Why*],
   [`parallel s split .` (op head)], [declares that `s` may be split and processed by many], [a claim that is checked, not trusted --- `W-PAR-OK` when it holds],
   [`while lt i (len s) . do … end`], [the shape of a splittable loop], [any other shape is `E-PAR-NOLOOP`],
-  [reading and writing only `index s i`], [only its own share], [others' places: `E-PAR-READ` · `E-PAR-WRITE`],
+  [reading and writing only `idx s i`], [only its own share], [others' places: `E-PAR-READ` · `E-PAR-WRITE`],
   [`reduce acc add .`], [accumulate per piece, then combine with the operation], [start at the identity --- the operation must be associative (`E-PAR-ASSOC`)],
   [`atomic_add counter 0 1` · `atomic_load cells 0`], [atomically on a place named by slice and index], [`effects atomic` + `cap atomic`],
   [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [memory ordering --- `seq_cst` if unwritten], [the easiest to reason about is the default],

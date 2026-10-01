@@ -161,26 +161,26 @@ export fn wide_bits input s slice u8 . output u64 . do return mul (len s) 8 . en
 rem 그 자리가 섰나. 범위 밖이면 **거짓**이다(없는 자리는 서 있지 않다).
 export fn wide_has input s slice u8 . input n u64 . output bool . do
   guard lt (div n 8) (len s) . else return false .
-  return ne (bit_and (index s (div n 8)) (shl 1 (mod n 8))) 0 .
+  return ne (bit_and (idx s (div n 8)) (shl 1 (mod n 8))) 0 .
 end
 
 rem 켜기 · 끄기 · 뒤집기 — 부르는 쪽의 배열을 **제자리에서** 고친다.
 rem 답은 1(했다) 또는 0(범위 밖이라 아무것도 안 했다)이다.
 export proc wide_with input s mut slice u8 . input n u64 . output u64 . effects none . do
   guard lt (div n 8) (len s) . else return 0 .
-  set (index s (div n 8)) (bit_or (index s (div n 8)) (narrow u8 (shl 1 (mod n 8)))) .
+  set (idx s (div n 8)) (bit_or (idx s (div n 8)) (narrow u8 (shl 1 (mod n 8)))) .
   return 1 .
 end
 
 export proc wide_without input s mut slice u8 . input n u64 . output u64 . effects none . do
   guard lt (div n 8) (len s) . else return 0 .
-  set (index s (div n 8)) (bit_and (index s (div n 8)) (narrow u8 (bit_xor 255 (shl 1 (mod n 8))))) .
+  set (idx s (div n 8)) (bit_and (idx s (div n 8)) (narrow u8 (bit_xor 255 (shl 1 (mod n 8))))) .
   return 1 .
 end
 
 export proc wide_toggle input s mut slice u8 . input n u64 . output u64 . effects none . do
   guard lt (div n 8) (len s) . else return 0 .
-  set (index s (div n 8)) (bit_xor (index s (div n 8)) (narrow u8 (shl 1 (mod n 8)))) .
+  set (idx s (div n 8)) (bit_xor (idx s (div n 8)) (narrow u8 (shl 1 (mod n 8)))) .
   return 1 .
 end
 
@@ -189,7 +189,7 @@ export fn wide_ones input s slice u8 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    set acc (add acc (count_ones (widen u64 (index s i)))) .
+    set acc (add acc (count_ones (widen u64 (idx s i)))) .
     set i (add i 1) .
   end
   return acc .
@@ -206,7 +206,7 @@ export fn wide_next input s slice u8 . input from u64 . output u64 . do
   let bits be u64 mul (len s) 8 .
   var i be u64 from .
   while lt i bits . do
-    let b be u64 widen u64 (index s (div i 8)) .
+    let b be u64 widen u64 (idx s (div i 8)) .
     if eq b 0 . do
       set i (mul (add (div i 8) 1) 8) .           rem 이 바이트는 통째로 비었다 — 다음 바이트로
     end
@@ -239,7 +239,7 @@ export fn label_in input tab slice u8 . input n u64 . output slice u8 . do
   var st be u64 0 .         rem 지금 이름의 시작
   var k be u64 0 .
   while lt k (len tab) . do
-    if eq (index tab k) 0 . do
+    if eq (idx tab k) 0 . do
       if eq i n . do return subslice tab st k . end          rem subslice 는 (시작, 끝) 이다 — 길이가 아니다
       set i (add i 1) .
       set st (add k 1) .
@@ -254,7 +254,7 @@ export fn label_count input tab slice u8 . output u64 . do
   var c be u64 0 .
   var k be u64 0 .
   while lt k (len tab) . do
-    if eq (index tab k) 0 . do set c (add c 1) . end
+    if eq (idx tab k) 0 . do set c (add c 1) . end
     set k (add k 1) .
   end
   return c .

@@ -20,13 +20,13 @@ use budget from "../../lib/budget.low" .
 
 rem ★ 브랜드 — **저장소 하나에 `newtype` 하나**(`E-BRAND-REUSED`, RFC-0104 §5.11). 시험마다 저장소를
 rem   따로 여니 시험마다 브랜드가 따로다 — `vm_pool.low` 가 여섯을 둔 것과 같은 이유다.
-newtype g_tree u8 .
-newtype g_stale u8 .
-newtype g_self u8 .
-newtype g_churn u8 .
+def newtype g_tree u8 .
+def newtype g_stale u8 .
+def newtype g_self u8 .
+def newtype g_churn u8 .
 
 rem ★ 공개 손잡이 — **word 하나**. 브랜드는 타입 인자로만 든다(§5.4 "brand 0 byte").
-export struct handle do
+export def struct handle do
   input comptime b type .
   w u64 .
 end
@@ -35,11 +35,11 @@ rem hot 레코드의 칸 번호 — 8 칸 × u32.
 rem   0 parent · 1 first_child · 2 last_child · 3 prev_sibling · 4 next_sibling · 5 kind · 6 flags · 7 state
 rem   링크는 **슬롯 + 1** 이고 0 은 「없음」이다. flags: bit0 = alive · bit1 = destroy_pending.
 fn rd input hot slice u32 . input i u64 . input f u64 . output u64 . do
-  return widen u64 (index hot (add (mul i 8) f)) .
+  return widen u64 (idx hot (add (mul i 8) f)) .
 end
 
 proc wr input hot mut slice u32 . . input i u64 . input f u64 . input v u64 . output void . effects none . do
-  set (index hot (add (mul i 8) f)) (narrow u32 v) .
+  set (idx hot (add (mul i 8) f)) (narrow u32 v) .
 end
 
 rem ★ 저장소를 연다: 세대는 1 부터(0 = 한 번도 안 준 슬롯), 자유 목록은 `next` 칸에 **intrusive** 로.
@@ -50,17 +50,17 @@ do
   if gt n (len gen) . do set n (len gen) . end
   var i be u64 0 .
   while lt i n . do
-    set (index gen i) 1 .
+    set (idx gen i) 1 .
     wr hot i 6 0 .
     wr hot i 4 (add i 2) .          rem 다음 자유 슬롯 = i+1 → (+1 인코딩) i+2
     set i (add i 1) .
   end
   if gt n 0 . do wr hot (sub n 1) 4 0 . end
-  set (index meta 0) 1 .            rem 머리 = 슬롯 0
-  set (index meta 1) n .
-  set (index meta 2) 0 .
-  set (index meta 3) 0 .
-  set (index meta 4) 0 .
+  set (idx meta 0) 1 .            rem 머리 = 슬롯 0
+  set (idx meta 1) n .
+  set (idx meta 2) 0 .
+  set (idx meta 3) 0 .
+  set (idx meta 4) 0 .
   return n .
 end
 
@@ -77,10 +77,10 @@ do
   let w be u64 field h w .
   let s be u64 budget.slot_of 32 w .
   guard eq (budget.shard_of 32 8 w) 0 . else return none .
-  guard lt s (index meta 1) . else return none .
+  guard lt s (idx meta 1) . else return none .
   let fl be u64 rd hot s 6 .
   guard eq (bit_and fl 3) 1 . else return none .            rem alive 이고 pending 아님
-  guard eq (index gen s) (budget.gen_of 32 8 w) . else return none .
+  guard eq (idx gen s) (budget.gen_of 32 8 w) . else return none .
   return some s .
 end
 
@@ -96,10 +96,10 @@ do
     guard is_some po . else return none .
     set p (add (some_value po) 1) .
   end
-  let fh be u64 index meta 0 .
+  let fh be u64 idx meta 0 .
   guard gt fh 0 . else return none .                         rem capacity_nodes
   let s be u64 sub fh 1 .
-  set (index meta 0) (rd hot s 4) .                          rem 자유 목록 pop
+  set (idx meta 0) (rd hot s 4) .                          rem 자유 목록 pop
   wr hot s 0 p .
   wr hot s 1 0 .
   wr hot s 2 0 .
@@ -116,8 +116,8 @@ do
     if eq (rd hot ps 1) 0 . do wr hot ps 1 (add s 1) . end
     wr hot ps 2 (add s 1) .
   end
-  set (index meta 4) (add (index meta 4) 1) .
-  let ho be option u64 budget.pack 32 8 24 s 0 (index gen s) .
+  set (idx meta 4) (add (idx meta 4) 1) .
+  let ho be option u64 budget.pack 32 8 24 s 0 (idx gen s) .
   guard is_some ho . else return none .
   return some (lit handle b do w (some_value ho) . end) .
 end
@@ -151,20 +151,20 @@ do
   let root be u64 some_value so .
   unlink hot root .
   var top be u64 0 .
-  set (index stk 0) (narrow u32 root) .
+  set (idx stk 0) (narrow u32 root) .
   set top 1 .
   var marked be u64 0 .
   while gt top 0 . do
     set top (sub top 1) .
-    let x be u64 widen u64 (index stk top) .
+    let x be u64 widen u64 (idx stk top) .
     wr hot x 6 3 .                                           rem alive | pending
-    let pc be u64 index meta 2 .
-    set (index pend pc) (narrow u32 x) .
-    set (index meta 2) (add pc 1) .
+    let pc be u64 idx meta 2 .
+    set (idx pend pc) (narrow u32 x) .
+    set (idx meta 2) (add pc 1) .
     set marked (add marked 1) .
     var c be u64 rd hot x 1 .
     while gt c 0 . do
-      set (index stk top) (narrow u32 (sub c 1)) .
+      set (idx stk top) (narrow u32 (sub c 1)) .
       set top (add top 1) .
       set c (rd hot (sub c 1) 4) .
     end
@@ -179,25 +179,25 @@ proc reclaim input hot mut slice u32 . . input gen mut slice u64 . . input meta 
   input pend mut slice u32 . . output u64 . effects none .
 do
   var freed be u64 0 .
-  while gt (index meta 2) 0 . do
-    let pc be u64 sub (index meta 2) 1 .
-    set (index meta 2) pc .
-    let s be u64 widen u64 (index pend pc) .
+  while gt (idx meta 2) 0 . do
+    let pc be u64 sub (idx meta 2) 1 .
+    set (idx meta 2) pc .
+    let s be u64 widen u64 (idx pend pc) .
     wr hot s 6 0 .
     wr hot s 0 0 .
     wr hot s 1 0 .
     wr hot s 2 0 .
     wr hot s 3 0 .
-    set (index meta 4) (sub (index meta 4) 1) .
-    let ng be option u64 budget.next_gen 24 (index gen s) .
+    set (idx meta 4) (sub (idx meta 4) 1) .
+    let ng be option u64 budget.next_gen 24 (idx gen s) .
     if is_some ng . do
-      set (index gen s) (some_value ng) .
-      wr hot s 4 (index meta 0) .
-      set (index meta 0) (add s 1) .
+      set (idx gen s) (some_value ng) .
+      wr hot s 4 (idx meta 0) .
+      set (idx meta 0) (add s 1) .
       set freed (add freed 1) .
     end
     if is_none ng . do
-      set (index meta 3) (add (index meta 3) 1) .
+      set (idx meta 3) (add (idx meta 3) 1) .
     end
   end
   return freed .
@@ -251,7 +251,7 @@ do
   guard eq (rd hot ci 3) (add bi 1) . else return 98 .     rem prev(c) = b
   guard eq (rd hot di 0) (add ai 1) . else return 99 .     rem parent(d) = a
   guard eq (child_count hot ri) 3 . else return 100 .
-  guard eq (index meta 4) 5 . else return 101 .
+  guard eq (idx meta 4) 5 . else return 101 .
   return 1 .
 end
 
@@ -272,7 +272,7 @@ do
   guard eq (mark_destroy g_stale hot gen meta stk pend a) 1 . else return 94 .
   rem 표시만 됐는데 이미 안 보인다(I5) — 슬롯은 아직 돌아오지 않았다.
   guard is_none (resolve g_stale hot gen meta a) . else return 95 .
-  guard eq (index meta 2) 1 . else return 96 .
+  guard eq (idx meta 2) 1 . else return 96 .
   guard eq (reclaim hot gen meta pend) 1 . else return 97 .
   guard is_none (resolve g_stale hot gen meta a) . else return 98 .
   rem 같은 슬롯이 돌아온다 — 세대만 다르다.
@@ -281,9 +281,9 @@ do
   let a2s be option u64 resolve g_stale hot gen meta (some_value a2o) .
   guard is_some a2s . else return 100 .
   guard eq (some_value a2s) ai . else return 101 .          rem 슬롯 재사용
-  guard eq (index gen ai) 2 . else return 102 .             rem 세대 1 → 2
+  guard eq (idx gen ai) 2 . else return 102 .             rem 세대 1 → 2
   guard is_none (resolve g_stale hot gen meta a) . else return 103 .   rem 옛 손잡이는 여전히 죽어 있다
-  guard eq (index meta 4) 2 . else return 104 .
+  guard eq (idx meta 4) 2 . else return 104 .
   return 2 .
 end
 
@@ -331,7 +331,7 @@ do
   guard is_none (resolve g_self hot gen meta nb) . else return 98 .              rem 자손도 안 보인다
   guard eq (rd hot ri 1) 0 . else return 99 .                                   rem root 에서 떨어졌다
   guard eq (reclaim hot gen meta pend) 2 . else return 100 .
-  guard eq (index meta 4) 1 . else return 101 .
+  guard eq (idx meta 4) 1 . else return 101 .
   rem 두 슬롯이 다 돌아왔다: 둘을 다시 만들 수 있고, 셋째는 용량대로 답한다.
   let x be option (handle g_self) create g_self hot gen meta root 2 .
   let y be option (handle g_self) create g_self hot gen meta root 2 .
@@ -360,9 +360,9 @@ do
     guard eq (reclaim hot gen meta pend) 1 . else return 94 .
     set i (add i 1) .
   end
-  guard eq (index meta 4) 1 . else return 95 .
-  guard eq (index meta 3) 0 . else return 96 .
-  guard eq (index gen slot) (add n 1) . else return 97 .
+  guard eq (idx meta 4) 1 . else return 95 .
+  guard eq (idx meta 3) 0 . else return 96 .
+  guard eq (idx gen slot) (add n 1) . else return 97 .
   return 4 .
 end
 

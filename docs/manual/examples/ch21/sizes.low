@@ -1,7 +1,7 @@
 module sizes .
 
 rem ko: 다른 모듈이 쓸 열거형 — 갈래는 값을 지니지 않는다 /// en: an enum for other modules to use; its variants carry no value
-export enum kind do
+export def enum kind do
   small .
   big .
 end

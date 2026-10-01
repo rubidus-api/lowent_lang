@@ -158,7 +158,7 @@ rem   루프를 접을 수 없다).
 export fn is_identity input tab slice u8 . output bool . do
   var i be u64 0 .
   while lt i (len tab) . do
-    if ne (widen u64 (index tab i)) i . do return false . end
+    if ne (widen u64 (idx tab i)) i . do return false . end
     set i (add i 1) .
   end
   return true .
@@ -169,7 +169,7 @@ export fn permute input v u64 . input tab slice u8 . output u64 . do
   var i be u64 0 .
   while lt i (len tab) . do
     if ne (bit_and v (shl 1 i)) 0 . do
-      let dst be u64 widen u64 (index tab i) .    rem 이름이 `to` 가 아닌 까닭: `to` 는 **없앤 낱말**이다
+      let dst be u64 widen u64 (idx tab i) .    rem 이름이 `to` 가 아닌 까닭: `to` 는 **없앤 낱말**이다
       if lt dst 64 . do set r (bit_or r (shl 1 dst)) . end
     end
     set i (add i 1) .

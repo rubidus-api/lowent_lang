@@ -9,7 +9,7 @@ rem ☞ 그럼 어떻게 쓰나: 경계 타입은 **리터럴 `align N .`**, 캐
 rem   **내부 타입**으로 두고 경계에서 변환한다.
 module vm_abialign .
 
-export struct pub do
+export def struct pub do
   align machine.cache_line .
   a u64 .
 end

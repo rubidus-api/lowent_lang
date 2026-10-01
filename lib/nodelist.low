@@ -31,12 +31,12 @@ module nodelist .
 rem ── 이동권과 링크됨 ─────────────────────────────────────────────
 rem   둘 다 브랜드를 받는다 — 남의 목록의 자리를 이 목록에 넣지 못하게(§8-2).
 
-export struct site do
+export def struct site do
   input comptime b type .
   slot u64 .
 end
 
-export struct held do
+export def struct held do
   input comptime b type .
   slot u64 .
 end
@@ -82,8 +82,8 @@ export proc nl_solo input nx mut slice u64 . . input pv mut slice u64 . . input 
 do
   guard lt i (len nx) . else return false .
   guard lt i (len pv) . else return false .
-  set (index nx i) i .
-  set (index pv i) i .
+  set (idx nx i) i .
+  set (idx pv i) i .
   return true .
 end
 
@@ -93,11 +93,11 @@ export proc nl_after input nx mut slice u64 . . input pv mut slice u64 . . input
 do
   guard lt at (len nx) . else return false .
   guard lt i (len nx) . else return false .
-  let n be u64 index nx at .
-  set (index nx at) i .
-  set (index pv i) at .
-  set (index nx i) n .
-  set (index pv n) i .
+  let n be u64 idx nx at .
+  set (idx nx at) i .
+  set (idx pv i) at .
+  set (idx nx i) n .
+  set (idx pv n) i .
   return true .
 end
 
@@ -106,12 +106,12 @@ export proc nl_cut input nx mut slice u64 . . input pv mut slice u64 . . input i
   output bool . effects none .
 do
   guard lt i (len nx) . else return false .
-  let p be u64 index pv i .
-  let n be u64 index nx i .
-  set (index nx p) n .
-  set (index pv n) p .
-  set (index nx i) i .
-  set (index pv i) i .
+  let p be u64 idx pv i .
+  let n be u64 idx nx i .
+  set (idx nx p) n .
+  set (idx pv n) p .
+  set (idx nx i) i .
+  set (idx pv i) i .
   return true .
 end
 
@@ -129,12 +129,12 @@ do
   var start be u64 head .
   var seen be u64 0 .
   if eq cut_at head . do
-    let n0 be u64 index nx head .
-    let p0 be u64 index pv head .
-    set (index nx p0) n0 .
-    set (index pv n0) p0 .
-    set (index nx head) head .
-    set (index pv head) head .
+    let n0 be u64 idx nx head .
+    let p0 be u64 idx pv head .
+    set (idx nx p0) n0 .
+    set (idx pv n0) p0 .
+    set (idx nx head) head .
+    set (idx pv head) head .
     set seen 1 .
     if eq n0 head . do return 1 . end        rem 혼자였다 — 바퀴가 곧 끝이다
     set start n0 .
@@ -143,14 +143,14 @@ do
   var steps be u64 0 .
   while le steps (len nx) . do
     rem ★ **다음을 먼저 읽는다** — 지금 노드를 빼면 그 `next` 가 자기 자신이 되기 때문이다.
-    let nxt be u64 index nx i .
+    let nxt be u64 idx nx i .
     if eq i cut_at . do
-      let p be u64 index pv i .
-      let n be u64 index nx i .
-      set (index nx p) n .
-      set (index pv n) p .
-      set (index nx i) i .
-      set (index pv i) i .
+      let p be u64 idx pv i .
+      let n be u64 idx nx i .
+      set (idx nx p) n .
+      set (idx pv n) p .
+      set (idx nx i) i .
+      set (idx pv i) i .
     end
     set seen (add seen 1) .
     set i nxt .
@@ -170,7 +170,7 @@ export fn nl_count input nx slice u64 . input head u64 . output u64 . do
   var steps be u64 0 .
   while le steps (len nx) . do
     set seen (add seen 1) .
-    set i (index nx i) .
+    set i (idx nx i) .
     if eq i head . do
       return seen .
     end

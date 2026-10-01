@@ -21,7 +21,7 @@ module ed25519 .
 rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
 rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
-export enum ed25519_error do
+export def enum ed25519_error do
   short_workspace .
 end
 
@@ -42,9 +42,9 @@ errors short_workspace . do
   guard ge (len w) 128 . else return error short_workspace .
   rem num ← −121665,  den ← 121666
   guard eq (x25519.fzero (subslice w 0 16)) 1 . else return ok 0 .
-  set (index w 0) 121665 .
+  set (idx w 0) 121665 .
   guard eq (x25519.fzero (subslice w 16 32)) 1 . else return ok 0 .
-  set (index w 16) 121666 .
+  set (idx w 16) 121666 .
   guard eq (x25519.fzero (subslice w 32 48)) 1 . else return ok 0 .
   rem num = 0 − 121665
   guard eq (x25519.fsub (subslice w 48 64) (subslice w 32 48) (subslice w 0 16)) 1 . else return ok 0 .
@@ -83,7 +83,7 @@ errors short_workspace . do
   guard eq (x25519.fmul (subslice w 32 48) (subslice w 112 128) (subslice w 128 144) (subslice w 160 191)) 1 . else return ok 0 .
   guard eq (x25519.fmul (subslice w 48 64) (subslice w 96 112) (subslice w 144 160) (subslice w 160 191)) 1 . else return ok 0 .
   var i be u64 0 .
-  while lt i 64 . do  set (index o i) (index w i) .  set i (add i 1) .  end
+  while lt i 64 . do  set (idx o i) (idx w i) .  set i (add i 1) .  end
   return ok 1 .
 end
 
@@ -105,14 +105,14 @@ errors short_workspace . do
     guard is_ok _u12 . else return error short_workspace .
     guard eq (ok_value _u12) 1 . else return ok 0 .
     var c be u64 0 .
-    while lt c 64 . do  set (index acc c) (index w c) .  set c (add c 1) .  end
-    let byte be u64 cast u64 (index k (shr bi 3)) .
+    while lt c 64 . do  set (idx acc c) (idx w c) .  set c (add c 1) .  end
+    let byte be u64 cast u64 (idx k (shr bi 3)) .
     if eq (bit_and (shr byte (bit_and bi 7)) 1) 1 . do
       let _u13 be result u64 ed25519_error eadd (subslice w 64 128) acc pt d (subslice w 128 328) .
       guard is_ok _u13 . else return error short_workspace .
       guard eq (ok_value _u13) 1 . else return ok 0 .
       var c2 be u64 0 .
-      while lt c2 64 . do  set (index acc c2) (index w (add 64 c2)) .  set c2 (add c2 1) .  end
+      while lt c2 64 . do  set (idx acc c2) (idx w (add 64 c2)) .  set c2 (add c2 1) .  end
     end
     if eq bi 0 . do  set done 1 .  end
   end
@@ -135,7 +135,7 @@ errors short_workspace . do
   guard ge (len enc) 32 . else return ok 0 .
 
   guard eq (x25519.funpack (subslice w 0 16) enc) 1 . else return ok 0 .
-  let sign be u64 bit_and (shr (cast u64 (index enc 31)) 7) 1 .
+  let sign be u64 bit_and (shr (cast u64 (idx enc 31)) 7) 1 .
 
   rem u = y² − 1 ,  v = d·y² + 1
   guard eq (x25519.fmul (subslice w 16 32) (subslice w 0 16) (subslice w 0 16) (subslice w 384 415)) 1 . else return ok 0 .
@@ -168,7 +168,7 @@ errors short_workspace . do
   if eq okx 0 . do
     rem √(−1) = 2^((p−1)/4),  (p−1)/4 = 2^253 − 5
     guard eq (x25519.fzero (subslice w 224 240)) 1 . else return ok 0 .
-    set (index w 224) 2 .
+    set (idx w 224) 2 .
     guard eq (pow2_minus (subslice bb 32 64) 253 5) 32 . else return ok 0 .
     let _u11 be result u64 ed25519_error fpow (subslice w 208 224) (subslice w 224 240) (subslice bb 32 64) (subslice w 240 320) .
     guard is_ok _u11 . else return error short_workspace .
@@ -194,8 +194,8 @@ errors short_workspace . do
   rem (X, Y, Z=1, T=X·Y)
   var i be u64 0 .
   while lt i 16 . do
-    set (index o i) (index w (add 176 i)) .
-    set (index o (add 16 i)) (index w i) .
+    set (idx o i) (idx w (add 176 i)) .
+    set (idx o (add 16 i)) (idx w i) .
     set i (add i 1) .
   end
   guard eq (x25519.fone (subslice o 32 48)) 1 . else return ok 0 .
@@ -213,20 +213,20 @@ export proc pow2_minus input out mut slice u8 . input n u64 . input k u64 . outp
   guard lt n 256 . else return 0 .
   guard le k 255 . else return 0 .
   var i be u64 0 .
-  while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end
-  set (index out (shr n 3)) (cast u8 (shl 1 (bit_and n 7))) .
+  while lt i 32 . do  set (idx out i) 0 .  set i (add i 1) .  end
+  set (idx out (shr n 3)) (cast u8 (shl 1 (bit_and n 7))) .
   rem − k : 빌림을 바이트로 흘린다.
   var borrow be u64 k .
   var j be u64 0 .
   while lt j 32 . do
-    let cur be u64 cast u64 (index out j) .
+    let cur be u64 cast u64 (idx out j) .
     if ge cur borrow . do
-      set (index out j) (cast u8 (sub cur borrow)) .
+      set (idx out j) (cast u8 (sub cur borrow)) .
       set borrow 0 .
       set j 32 .
     end
     if lt j 32 . do
-      set (index out j) (cast u8 (sub (add cur 256) borrow)) .
+      set (idx out j) (cast u8 (sub (add cur 256) borrow)) .
       set borrow 1 .
       set j (add j 1) .
     end
@@ -246,7 +246,7 @@ errors short_workspace . do
     set bi (sub bi 1) .
     rem ★ 자리에서 제곱·곱한다(X-0050) — `fsq`·`fmul` 의 `inplace` 가 선 뒤 곁 자리와 되옮기기가 필요 없다.
     guard eq (x25519.fsq (subslice w 0 16) (subslice w 0 16) (subslice w 48 79)) 1 . else return ok 0 .
-    if eq (bit_and (shr (cast u64 (index e (shr bi 3))) (bit_and bi 7)) 1) 1 . do
+    if eq (bit_and (shr (cast u64 (idx e (shr bi 3))) (bit_and bi 7)) 1) 1 . do
       guard eq (x25519.fmul (subslice w 0 16) (subslice w 0 16) a (subslice w 48 79)) 1 . else return ok 0 .
     end
     if eq bi 0 . do  set done 1 .  end
@@ -268,7 +268,7 @@ errors short_workspace . do
   var diff be u64 0 .
   var i be u64 0 .
   while lt i 32 . do
-    set diff (bit_or diff (bit_xor (cast u64 (index bb i)) (cast u64 (index bb (add 32 i))))) .
+    set diff (bit_or diff (bit_xor (cast u64 (idx bb i)) (cast u64 (idx bb (add 32 i))))) .
     set i (add i 1) .
   end
   if eq diff 0 . do  return ok (1) .  end
@@ -282,7 +282,7 @@ errors short_workspace . do
   guard ge (len bb) 32 . else return ok 0 .
   guard eq (x25519.fcopy (subslice w 0 16) a) 1 . else return ok 0 .
   guard eq (x25519.fpack (subslice bb 0 32) (subslice w 0 16) (subslice w 16 32)) 32 . else return ok 0 .
-  return ok (bit_and (cast u64 (index bb 0)) 1) .
+  return ok (bit_and (cast u64 (idx bb 0)) 1) .
 end
 
 rem ── 위수 L 과 기저점 B ────────────────────────────────────────────────────
@@ -294,12 +294,12 @@ rem   게이트가 본다. 틀리게 적으면 그 검사가 깨진다: 옮겨 �
 export proc make_l input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 0 .
   var i be u64 0 .
-  while lt i 32 . do  set (index out i) 0 .  set i (add i 1) .  end
-  set (index out 0) 237 .   set (index out 1) 211 .  set (index out 2) 245 .  set (index out 3) 92 .
-  set (index out 4) 26 .    set (index out 5) 99 .   set (index out 6) 18 .   set (index out 7) 88 .
-  set (index out 8) 214 .   set (index out 9) 156 .  set (index out 10) 247 . set (index out 11) 162 .
-  set (index out 12) 222 .  set (index out 13) 249 . set (index out 14) 222 . set (index out 15) 20 .
-  set (index out 31) 16 .
+  while lt i 32 . do  set (idx out i) 0 .  set i (add i 1) .  end
+  set (idx out 0) 237 .   set (idx out 1) 211 .  set (idx out 2) 245 .  set (idx out 3) 92 .
+  set (idx out 4) 26 .    set (idx out 5) 99 .   set (idx out 6) 18 .   set (idx out 7) 88 .
+  set (idx out 8) 214 .   set (idx out 9) 156 .  set (idx out 10) 247 . set (idx out 11) 162 .
+  set (idx out 12) 222 .  set (idx out 13) 249 . set (idx out 14) 222 . set (idx out 15) 20 .
+  set (idx out 31) 16 .
   return 32 .
 end
 
@@ -310,13 +310,13 @@ errors short_workspace . do
   guard ge (len w) 560 . else return error short_workspace .
   guard ge (len bb) 160 . else return ok 0 .
   guard eq (x25519.fzero (subslice w 0 16)) 1 . else return ok 0 .
-  set (index w 0) 4 .
+  set (idx w 0) 4 .
   guard eq (x25519.fzero (subslice w 16 32)) 1 . else return ok 0 .
-  set (index w 16) 5 .
+  set (idx w 16) 5 .
   guard eq (x25519.finv (subslice w 32 48) (subslice w 16 32) (subslice w 48 64) (subslice w 64 95)) 1 . else return ok 0 .
   guard eq (x25519.fmul (subslice w 96 112) (subslice w 0 16) (subslice w 32 48) (subslice w 64 95)) 1 . else return ok 0 .
   guard eq (x25519.fpack (subslice bb 0 32) (subslice w 96 112) (subslice w 112 128)) 32 . else return ok 0 .
-  set (index bb 31) (cast u8 (bit_and (cast u64 (index bb 31)) 127)) .
+  set (idx bb 31) (cast u8 (bit_and (cast u64 (idx bb 31)) 127)) .
   return decompress o (subslice bb 0 32) d (subslice w 128 548) (subslice bb 32 160) .
 end
 
@@ -334,7 +334,7 @@ errors short_workspace . do
   let xb_r be result u64 ed25519_error fbit0 (subslice w 64 80) (subslice w 96 128) bb .
   guard is_ok xb_r . else return error short_workspace .
   let xb be u64 ok_value xb_r .
-  set (index out 31) (cast u8 (bit_or (bit_and (cast u64 (index out 31)) 127) (shl xb 7))) .
+  set (idx out 31) (cast u8 (bit_or (bit_and (cast u64 (idx out 31)) 127) (shl xb 7))) .
   return ok 32 .
 end
 
@@ -357,7 +357,7 @@ errors short_workspace . do
     end
     rem + byte (mod L) — 한 조각에 더하고 자리올림을 흘린 뒤 필요하면 L 을 한 번 뺀다.
     guard eq (bigint.zero (subslice w 16 32) 16) 1 . else return ok 0 .
-    set (index w 16) (cast u64 (index h i)) .
+    set (idx w 16) (cast u64 (idx h i)) .
     guard eq (addmod_l (subslice w 0 16) (subslice w 16 32) lw) 1 . else return ok 0 .
     if eq i 0 . do  set done 1 .  end
   end
@@ -369,8 +369,8 @@ proc addmod_l input a mut slice u64 . input b slice u64 . input lw slice u64 . o
   var carry be u64 0 .
   var i be u64 0 .
   while lt i 16 . do
-    let s be u64 add (add (index a i) (index b i)) carry .
-    set (index a i) (bit_and s 65535) .
+    let s be u64 add (add (idx a i) (idx b i)) carry .
+    set (idx a i) (bit_and s 65535) .
     set carry (shr s 16) .
     set i (add i 1) .
   end
@@ -378,8 +378,8 @@ proc addmod_l input a mut slice u64 . input b slice u64 . input lw slice u64 . o
     var borrow be u64 0 .
     var j be u64 0 .
     while lt j 16 . do
-      let dd be u64 wrap_sub (wrap_sub (index a j) (index lw j)) borrow .
-      set (index a j) (bit_and dd 65535) .
+      let dd be u64 wrap_sub (wrap_sub (idx a j) (idx lw j)) borrow .
+      set (idx a j) (bit_and dd 65535) .
       set borrow (bit_and (shr dd 63) 1) .
       set j (add j 1) .
     end
@@ -437,12 +437,12 @@ errors short_workspace . do
   rem ④ k = SHA-512(R ‖ A ‖ M) mod L
   var i be u64 0 .
   while lt i 32 . do
-    set (index sc i) (index sig i) .
-    set (index sc (add 32 i)) (index pub i) .
+    set (idx sc i) (idx sig i) .
+    set (idx sc (add 32 i)) (idx pub i) .
     set i (add i 1) .
   end
   var j be u64 0 .
-  while lt j (len msg) . do  set (index sc (add 64 j)) (index msg j) .  set j (add j 1) .  end
+  while lt j (len msg) . do  set (idx sc (add 64 j)) (idx msg j) .  set j (add j 1) .  end
   guard eq (call_builtin sha512 (subslice sc 0 (add 64 (len msg))) (subslice bb 192 256)) 64 . else return ok 0 .
   let _u4 be result u64 ed25519_error reduce_l (subslice bb 256 288) (subslice bb 192 256) (subslice w 16 32) (subslice w 432 472) .
   guard is_ok _u4 . else return error short_workspace .
@@ -470,7 +470,7 @@ errors short_workspace . do
   var diff be u64 0 .
   var q be u64 0 .
   while lt q 32 . do
-    set diff (bit_or diff (bit_xor (cast u64 (index bb (add 288 q))) (cast u64 (index bb q)))) .
+    set diff (bit_or diff (bit_xor (cast u64 (idx bb (add 288 q))) (cast u64 (idx bb q)))) .
     set q (add q 1) .
   end
   guard eq diff 0 . else return ok 0 .

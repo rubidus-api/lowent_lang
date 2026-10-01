@@ -28,14 +28,14 @@ use allocs    from "../../../lib/alloc.low" .
 use clock     from "../../../lib/clock.low" .
 
 rem 브랜드 — **선언마다 하나**(§8-2: 브랜드는 값이 아니라 타입이다).
-newtype kv_rec u8 .
-newtype kv_page u8 .
-newtype kv_bytes u8 .
-newtype kv_keys u8 .
-newtype kv_lru u32 .
+def newtype kv_rec u8 .
+def newtype kv_page u8 .
+def newtype kv_bytes u8 .
+def newtype kv_keys u8 .
+def newtype kv_lru u32 .
 rem 측정 하네스는 **제 저장소를 따로 연다** — 브랜드는 저장소 하나에 하나다(§8-2).
-newtype kv_bench_rec u8 .
-newtype kv_bench_keys u8 .
+def newtype kv_bench_rec u8 .
+def newtype kv_bench_keys u8 .
 
 rem ── ① budget — 핸들 한 낱말에 slot·shard·gen 이 들어가는가 ────────────
 proc handles output u64 . effects none . do
@@ -121,12 +121,12 @@ proc spanning input al cap allocator . output u64 . effects alloc . do
   let mo be option mut slice u8 alloc_bytes al capacity 16 .
   guard is_some mo . else return 93 .
   var back be mut slice u8 some_value mb .
-  set (index back 0) 7 . set (index back 1) 8 .
-  set (index back 8) 9 . set (index back 9) 10 .
+  set (idx back 0) 7 . set (idx back 1) 8 .
+  set (idx back 8) 9 . set (idx back 9) 10 .
   var d be mut slice u64 view_array u64 (some_value md) .
   rem (자리, 길이) 짝 둘 — 값이 분절 경계를 넘는다.
-  set (index d 0) 0 . set (index d 1) 2 .
-  set (index d 2) 8 . set (index d 3) 2 .
+  set (idx d 0) 0 . set (idx d 1) 2 .
+  set (idx d 2) 8 . set (idx d 3) 2 .
   var out be mut slice u8 some_value mo .
   let ss be segments u8 view_segments back d .
   guard eq (segs ss) 2 . else return 94 .
@@ -233,8 +233,8 @@ rem 조각 사슬 — 경계를 넘는 바이트를 읽는다(원소마다 디�
 proc bench_seg input back mut slice u8 . . input d mut slice u64 . . input reps u64 . output u64 .
   effects none .
 do
-  set (index d 0) 0 . set (index d 1) 2 .
-  set (index d 2) 8 . set (index d 3) 2 .
+  set (idx d 0) 0 . set (idx d 1) 2 .
+  set (idx d 2) 8 . set (idx d 3) 2 .
   let ss be segments u8 view_segments back d .
   var acc be u64 0 .
   var r be u64 0 .

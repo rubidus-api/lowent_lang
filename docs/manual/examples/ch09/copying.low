@@ -8,10 +8,10 @@ do
   var dst be lit array u8 3 _ . .
   copy dst (subslice buf 0 3) .
   copy (subslice buf 1 6) (subslice buf 0 5) .
-  set (index dst 0) a .
+  set (idx dst 0) a .
   var s be u64 0 .
   for x buf do
     set s (add (mul s 10) (widen u64 x)) .
   end
-  return add (mul s 1000) (add (mul (widen u64 (index dst 0)) 100) (widen u64 (index dst 2))) .
+  return add (mul s 1000) (add (mul (widen u64 (idx dst 0)) 100) (widen u64 (idx dst 2))) .
 end

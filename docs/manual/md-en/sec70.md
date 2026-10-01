@@ -56,7 +56,7 @@ end
 
 > **Counter-example. Indexing directly with `lower_bound`’s result**
 >
-> > If not found, `i` is `len s`, a position that does not exist — `index s i` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table’s maximum, so it tends to hit with real data. Put `guard lt i (len s) .` first.
+> > If not found, `i` is `len s`, a position that does not exist — `idx s i` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table’s maximum, so it tends to hit with real data. Put `guard lt i (len s) .` first.
 
 **Cautions.** It cannot be used as is on descending data (there is no place to swap in a comparator). **Sort once, search many times** — calling `sort` before each search loses the whole gain. After sorting, changing one element with `set` requires sorting again. Keep the order when subtracting two lower bounds — `sub` underflows. As pure ops, the same slice can be searched from many places at once (while nobody writes). Other element types are `lower_by` and `find_by` of [`sortgen`](sec69.md#mod-sortgen).
 

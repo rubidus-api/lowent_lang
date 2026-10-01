@@ -38,15 +38,15 @@ module strbuf .
 
 rem ★★★ **cstr 의 정본 선언** (RFC-0068 D4) — `newtype cstr unsafe_ptr u8`. 널종단 char* 를
 rem   가리키는 생 포인터. FFI 경계 전용이다. str_buf 를 쓰는 프로그램은 이것을 가져다 쓴다.
-export newtype cstr unsafe_ptr u8 .
+export def newtype cstr unsafe_ptr u8 .
 
-export enum sb_error do
+export def enum sb_error do
   no_room .
 end
 
 rem ★ 상태만. 바이트는 호출자가 든다.
 rem   `cap` 은 **호출자가 준 버퍼의 길이**를 그대로 적는다 — 두 곳에 적으면 어긋난다(§0).
-export struct str_buf do
+export def struct str_buf do
   len u64 .
 end
 
@@ -72,7 +72,7 @@ rem   base 포인터를 cstr 로 낸다. `cstr_of` 가 `effects unsafe` 라 이 
 rem   D4 의 규율이다: cstr 를 만드는 것은 언제나 널종단 보증이고, 봉인하는 유일한 안전 경로가 str_buf 다.
 rem   ☞ 버퍼는 `len + 1 ≤ len(buf)` 여야 한다(append 가 예약해 뒀다). 아니면 널 쓰기가 경계 밖 → 트랩.
 export unsafe proc as_cstr input b str_buf . input buf mut slice u8 . . output cstr . effects unsafe . do
-  set (index buf (field b len)) 0 .
+  set (idx buf (field b len)) 0 .
   return cstr_of buf .
 end
 
@@ -88,11 +88,11 @@ do
   guard le (add (add (field b len) (len s)) 1) (len buf) . else return error no_room .
   var i be u64 0 .
   while lt i (len s) . do
-    set (index buf (add (field b len) i)) (index s i) .
+    set (idx buf (add (field b len) i)) (idx s i) .
     set i (add i 1) .
   end
   set (field b len) (add (field b len) (len s)) .
-  set (index buf (field b len)) 0 .              rem ★ 봉인 — len 자리에 널(cstr 수출이 O(1))
+  set (idx buf (field b len)) 0 .              rem ★ 봉인 — len 자리에 널(cstr 수출이 O(1))
   return ok .
 end
 
@@ -112,11 +112,11 @@ do
   if gt n avail . do set n avail . end
   var i be u64 0 .
   while lt i n . do
-    set (index buf (add (field b len) i)) (index s i) .
+    set (idx buf (add (field b len) i)) (idx s i) .
     set i (add i 1) .
   end
   set (field b len) (add (field b len) n) .
-  set (index buf (field b len)) 0 .              rem ★ 봉인
+  set (idx buf (field b len)) 0 .              rem ★ 봉인
   return n .
 end
 
@@ -137,16 +137,16 @@ do
   rem 옛 내용을 새 자리로 옮긴다
   var i be u64 0 .
   while lt i (field b len) . do
-    set (index new_buf i) (index old i) .
+    set (idx new_buf i) (idx old i) .
     set i (add i 1) .
   end
   rem 그 뒤에 새 바이트를 잇는다
   var j be u64 0 .
   while lt j (len s) . do
-    set (index new_buf (add (field b len) j)) (index s j) .
+    set (idx new_buf (add (field b len) j)) (idx s j) .
     set j (add j 1) .
   end
   set (field b len) (add (field b len) (len s)) .
-  set (index new_buf (field b len)) 0 .          rem ★ 봉인
+  set (idx new_buf (field b len)) 0 .          rem ★ 봉인
   return ok .
 end

@@ -5,7 +5,7 @@ trait shape do
   area input s self . output u64 .
 end
 rem ko: ✘ `rect.area` 는 있지만 `satisfies shape .` 를 적지 않았다 /// en: ✘ `rect.area` exists, but `satisfies shape .` is not written
-struct rect do
+def struct rect do
   w u64 .
   h u64 .
 end

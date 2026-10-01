@@ -8,7 +8,7 @@
 그것을 여러 스레드에 태우든 순차로 돌든, 겹치지 않는다는 사실 자체가 값이다.
 
 ```lowent
-newtype grid u8 .
+def newtype grid u8 .
 var r be (owned shard.token grid) shard.open grid 8 .
 var h be (shard.halves grid) shard.split_at grid r 4 .
 var lo be (owned shard.token grid) (field h low) .

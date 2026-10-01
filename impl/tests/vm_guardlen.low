@@ -19,7 +19,7 @@ do
   var s be u64 0 .
   var k be u64 0 .
   while le k m . do
-    set s (add (mod s 1000003) (add (mod (index a k) 1000) (mod (index c k) 1000))) .
+    set s (add (mod s 1000003) (add (mod (idx a k) 1000) (mod (idx c k) 1000))) .
     set k (add k 1) .
   end
   return s .
@@ -34,7 +34,7 @@ do
   var s be u64 0 .
   var k be u64 0 .
   while le k m . do
-    set s (add (mod s 1000003) (add (mod (index a k) 1000) (mod (index c k) 1000))) .
+    set s (add (mod s 1000003) (add (mod (idx a k) 1000) (mod (idx c k) 1000))) .
     set k (add k 1) .
   end
   return s .
@@ -50,7 +50,7 @@ do
   var s be u64 0 .
   var k be u64 0 .
   while le k m . do
-    set s (add (mod s 1000003) (mod (index a k) 1000)) .
+    set s (add (mod s 1000003) (mod (idx a k) 1000)) .
     set k (add k 1) .
   end
   return s .
@@ -66,7 +66,7 @@ do
   var s be u64 0 .
   var k be u64 0 .
   while le k m . do
-    set s (add (mod s 1000003) (mod (index t k) 1000)) .
+    set s (add (mod s 1000003) (mod (idx t k) 1000)) .
     set k (add k 1) .
   end
   return s .

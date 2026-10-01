@@ -13,14 +13,14 @@ rem 양성 — dp 의 `cur` 모양(u64).
 export proc c_pos input a mut slice u64 . . input m u64 . output u64 . effects none .
 do
   if gt (add m 1) (len a) . do return 0 . end
-  set (index a 0) 7 .
+  set (idx a 0) 7 .
   var k be u64 1 .
   while le k m . do
-    let x be u64 add (index a (sub k 1)) k .
-    set (index a k) x .
+    let x be u64 add (idx a (sub k 1)) k .
+    set (idx a k) x .
     set k (add k 1) .
   end
-  return (index a m) .
+  return (idx a m) .
 end
 
 rem 양성 — 경계를 넘는 루프: 저장이 `len a` 에서 멈춘다. 두 쪽이 같은 자리에서 멈춰야 한다.
@@ -28,8 +28,8 @@ export proc c_oob input a mut slice u64 . . input m u64 . output u64 . effects n
 do
   var k be u64 1 .
   while le k m . do
-    let x be u64 add (index a (sub k 1)) 1 .
-    set (index a k) x .
+    let x be u64 add (idx a (sub k 1)) 1 .
+    set (idx a k) x .
     set k (add k 1) .
   end
   return k .
@@ -41,12 +41,12 @@ do
   if gt (add m 1) (len a) . do return 0 . end
   var k be u64 1 .
   while le k m . do
-    let x be u64 add (index a (sub k 1)) k .
-    set (index a k) x .
-    set (index a 0) k .
+    let x be u64 add (idx a (sub k 1)) k .
+    set (idx a k) x .
+    set (idx a 0) k .
     set k (add k 1) .
   end
-  return (index a m) .
+  return (idx a m) .
 end
 
 rem 반례 2 — 저장이 조건 안(어떤 바퀴는 안 쓴다 → 들고 온 값이 옛 값).
@@ -55,11 +55,11 @@ do
   if gt (add m 1) (len a) . do return 0 . end
   var k be u64 1 .
   while le k m . do
-    let x be u64 add (index a (sub k 1)) k .
-    if ne (mod k 3) 0 . do set (index a k) x . end
+    let x be u64 add (idx a (sub k 1)) k .
+    if ne (mod k 3) 0 . do set (idx a k) x . end
     set k (add k 1) .
   end
-  return (index a m) .
+  return (idx a m) .
 end
 
 rem 반례 3 — `continue`(머리로 오는 둘째 길).
@@ -72,11 +72,11 @@ do
       set k (add k 1) .
       continue .
     end
-    let x be u64 add (index a (sub k 1)) k .
-    set (index a k) x .
+    let x be u64 add (idx a (sub k 1)) k .
+    set (idx a k) x .
     set k (add k 1) .
   end
-  return (index a m) .
+  return (idx a m) .
 end
 
 rem 반례 4 — 걸음이 2(다음 바퀴의 `s[k-1]` 은 방금 쓴 칸이 아니다).
@@ -85,11 +85,11 @@ do
   if gt (add m 1) (len a) . do return 0 . end
   var k be u64 1 .
   while le k m . do
-    let x be u64 add (index a (sub k 1)) k .
-    set (index a k) x .
+    let x be u64 add (idx a (sub k 1)) k .
+    set (idx a k) x .
     set k (add k 2) .
   end
-  return (index a m) .
+  return (idx a m) .
 end
 
 rem 반례 5 — `s[k-2]` 를 읽는다.
@@ -98,11 +98,11 @@ do
   if gt (add m 1) (len a) . do return 0 . end
   var k be u64 2 .
   while le k m . do
-    let x be u64 add (index a (sub k 2)) k .
-    set (index a k) x .
+    let x be u64 add (idx a (sub k 2)) k .
+    set (idx a k) x .
     set k (add k 1) .
   end
-  return (index a m) .
+  return (idx a m) .
 end
 
 rem 반례 6 — 루프 안 호출(무엇을 쓰는지 모른다).
@@ -112,11 +112,11 @@ do
   if gt (add m 1) (len a) . do return 0 . end
   var k be u64 1 .
   while le k m . do
-    let x be u64 bump (index a (sub k 1)) .
-    set (index a k) x .
+    let x be u64 bump (idx a (sub k 1)) .
+    set (idx a k) x .
     set k (add k 1) .
   end
-  return (index a m) .
+  return (idx a m) .
 end
 
 rem 반례 7 — 읽기가 저장 **뒤**(같은 바퀴의 `s[k-1]` — 들고 온 값은 `s[k]` 가 된다).
@@ -127,8 +127,8 @@ do
   var k be u64 1 .
   while le k m . do
     let x be u64 add k 1 .
-    set (index a k) x .
-    set acc (add acc (index a (sub k 1))) .
+    set (idx a k) x .
+    set acc (add acc (idx a (sub k 1))) .
     set k (add k 1) .
   end
   return acc .
@@ -142,10 +142,10 @@ do
   var s be mut slice u64 a .
   var k be u64 1 .
   while le k m . do
-    let x be u64 add (index s (sub k 1)) k .
-    set (index s k) x .
+    let x be u64 add (idx s (sub k 1)) k .
+    set (idx s k) x .
     if eq k 3 . do set s b . end
     set k (add k 1) .
   end
-  return (add (index a m) (index b m)) .
+  return (add (idx a m) (idx b m)) .
 end

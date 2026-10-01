@@ -27,7 +27,7 @@ do
   rem 넣기 성공(1) · 꺼내기 성공(1) · 값이 7 이면 → 7 을 돌려준다.
   guard eq a 1 . else return 90 .
   guard eq b 1 . else return 91 .
-  return index out 0 .
+  return idx out 0 .
 end
 
 rem 빈 것에서 꺼내면 0.
@@ -87,7 +87,7 @@ do
     guard eq q 1 . else return 91 .
     rem 넣은 것이 그대로 나와야 한다(SPSC 는 FIFO 다).
     rem ★ `guard … else` 는 **반드시 떠나야** 한다(E-GUARD-FALLTHROUGH) — 세기만 할 때는 `if`.
-    if ne (index out 0) i . do set bad (add bad 1) . end
+    if ne (idx out 0) i . do set bad (add bad 1) . end
     set i (add i 1) .
   end
   return bad .

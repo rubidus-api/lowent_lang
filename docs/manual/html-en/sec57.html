@@ -683,10 +683,10 @@ do
   &lt;statements>
 end</code></pre><p>An <code>extern</code> op whose body is in C holds the same clauses, in the same order, <strong>inside</strong> <code>do … end</code> — <code>unsafe extern proc &lt;name> do &lt;clause>* end</code>. Only clauses go in that block.</p><h3 id="sx2">Declarations<a class="plink" href="#sx2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><pre><code data-lang="text">module &lt;name> .
 use &lt;module> [from "&lt;place>"] .
-type &lt;name> &lt;type> .
-newtype &lt;name> &lt;type> .
-struct &lt;name> do [satisfies &lt;trait> .] [layout packed .] [mmio &lt;address> .] &lt;field> &lt;type> [big|little] [rw|ro|wo] . … end
-enum &lt;name> do &lt;variant> [&lt;field> &lt;type>]… . … end
+def type &lt;name> &lt;type> .
+def newtype &lt;name> &lt;type> .
+def struct &lt;name> do [satisfies &lt;trait> .] [layout packed .] [mmio &lt;address> .] &lt;field> &lt;type> [big|little] [rw|ro|wo] . … end
+def enum &lt;name> do &lt;variant> [&lt;field> &lt;type>]… . … end
 trait &lt;name> do &lt;op name> &lt;clauses…> . … end
 contract &lt;name> do requires &lt;cond> . … end
 actor &lt;name> do [satisfies …] state do &lt;field> &lt;type> . … end [failure restart max &lt;n> .] [mailbox bounded &lt;n> .] &lt;op>… end

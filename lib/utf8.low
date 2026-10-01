@@ -41,7 +41,7 @@ rem ★★★ `at` 에서 코드포인트 하나를 **디코드**한다. 유효�
 rem   반환은 코드포인트 값 — 길이는 `seq_len` 으로 다시 얻거나 `next_start` 를 쓴다.
 export fn decode input s slice u8 . input at u64 . output option u64 . link "utf8_decode" . do
   guard lt at (len s) . else return none .
-  let b0 be u8 index s at .
+  let b0 be u8 idx s at .
   let n be u64 seq_len b0 .
   guard gt n 0 . else return none .                      rem 이어지는 바이트가 선두에 왔다
   guard le (add at n) (len s) . else return none .        rem 잘린 시퀀스
@@ -50,7 +50,7 @@ export fn decode input s slice u8 . input at u64 . output option u64 . link "utf
   rem 이어지는 바이트들이 전부 10xxxxxx 여야 한다.
   var i be u64 1 .
   while lt i n . do
-    guard is_cont (index s (add at i)) . else return none .
+    guard is_cont (idx s (add at i)) . else return none .
     set i (add i 1) .
   end
 
@@ -61,7 +61,7 @@ export fn decode input s slice u8 . input at u64 . output option u64 . link "utf
   if eq n 4 . do set cp (narrow u64 (bit_and b0 7)) . end
   var j be u64 1 .
   while lt j n . do
-    set cp (add (mul cp 64) (narrow u64 (bit_and (index s (add at j)) 63))) .
+    set cp (add (mul cp 64) (narrow u64 (bit_and (idx s (add at j)) 63))) .
     set j (add j 1) .
   end
 
@@ -84,7 +84,7 @@ rem   전엔 선두 바이트와 잘림만 봤다 — `C3 41` 을 `next_start` �
 rem   두 답이 있었다. 두 op 이 다른 잣대를 들면 위층(term 의 셀 셈)이 그 틈에서 어긋난다.
 export fn next_start input s slice u8 . input at u64 . output option u64 . link "utf8_next" . do
   guard is_some (decode s at) . else return none .
-  return (some (add at (seq_len (index s at)))) .
+  return (some (add at (seq_len (idx s at)))) .
 end
 
 rem ★★ 코드포인트 개수. 유효하지 않은 바이트를 만나면 `none` — **부분 답을 주지 않는다**

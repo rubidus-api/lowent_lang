@@ -1,7 +1,7 @@
 module layers .
 rem run: main
 
-enum config_error do
+def enum config_error do
   bad_port .
   port_zero .
 end

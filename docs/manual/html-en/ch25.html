@@ -744,7 +744,7 @@ tally(5, 7) = 12
 </code></pre></div></div><p><code>send acct deposit a</code> puts <code>a</code> into <code>deposit</code>’s <code>amount</code>. Message ops can have contracts too.</p><p>Sending a value with ownership hands the ownership over.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/handoff.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> handoff .
 <em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
 
-<strong><span class="tok-k">type</span></strong> job <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> job <strong><span class="tok-t">u64</span></strong> .
 
 <strong><span class="tok-k">actor</span></strong> worker <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">do</span></strong>
@@ -886,7 +886,7 @@ build profile embedded .
     <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> alloc_bytes root capacity <span class="tok-n">16</span> .
     <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">false</span> .
     <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
-    <strong><span class="tok-k">set</span></strong> (index v <span class="tok-n">0</span>) code .
+    <strong><span class="tok-k">set</span></strong> (idx v <span class="tok-n">0</span>) code .
     <strong><span class="tok-k">set</span></strong> entries (add entries <span class="tok-n">1</span>) .
     <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> .
   <strong><span class="tok-k">end</span></strong>
@@ -933,7 +933,7 @@ mistake_capfield.low:20:0 E-CAP-FORGE: this spawns an actor whose state HOLDS a 
 <em><span class="tok-c">rem run: move 30</span></em>
 <em><span class="tok-c">rem run: move 80</span></em>
 
-<strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
   insufficient .
 <strong><span class="tok-k">end</span></strong>
 
@@ -1096,7 +1096,7 @@ mistake_peekstate.low:20:0 E-ACTOR-FIELD: this reads a STATE FIELD of an actor f
 </code></pre></div></div><p>The first promise of this chapter was “the state lives only inside the actor and cannot be touched directly from outside”. <code>field c value</code> tries to go around that door and is refused with <code>E-ACTOR-FIELD</code>. If state were readable from outside, handling one message at a time would buy nothing — the reader would see a value between two messages. If you need the state, give the actor a read message such as <code>get</code> and ask with <code>send c get</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a state field in the error condition of a message op</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch25/mistake_errorsstate.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_errorsstate .
 <em><span class="tok-c">rem expect: E-ERRORS-STATE</span></em>
 
-<strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> bank_error <strong><span class="tok-k">do</span></strong>
   insufficient .
 <strong><span class="tok-k">end</span></strong>
 

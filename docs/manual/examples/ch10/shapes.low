@@ -3,7 +3,7 @@ rem run: demo_area 0
 rem run: demo_area 1
 rem run: demo_area 2
 
-enum shape do
+def enum shape do
   circle r u32 .
   rect w u32 h u32 .
   dot .

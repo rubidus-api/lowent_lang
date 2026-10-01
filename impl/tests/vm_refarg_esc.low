@@ -11,7 +11,7 @@ rem   믿는다 — 그래서 골든은 이 주장을 VM 에만 건다.
 
 module vm_refarg_esc .
 
-struct pt do
+def struct pt do
   x u64 .
 end
 

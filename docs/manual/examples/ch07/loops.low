@@ -22,7 +22,7 @@ fn first_zero input xs slice u8 . output u64 .
 do
   var i be u64 0 .
   while lt i (len xs) . do
-    if eq (index xs i) 0 . do
+    if eq (idx xs i) 0 . do
       break .
     end
     set i (add i 1) .

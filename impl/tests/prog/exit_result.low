@@ -9,7 +9,7 @@ rem   수동 `exit()` 는 필요 없다 — 출력이 곧 종료 상태다.
 
 module exit_result .
 
-enum run_error do
+def enum run_error do
   bad_config .
   no_input .
 end

@@ -121,7 +121,7 @@ Dividing an integer by zero stops. Signed division truncates towards zero, and t
 #demo("examples/ch04/divide.low")
 
 `quot -7 2` is −3 and `modulo -7 2` is 1. Because the remainder follows the divisor's sign, `mod h n` for a positive `n` is always at
-least 0 and less than `n`. That property is why the bounds check in `index slots (mod h n)` disappears when a hash table picks a slot,
+least 0 and less than `n`. That property is why the bounds check in `idx slots (mod h n)` disappears when a hash table picks a slot,
 and it is proven in Coq (#chref("proofs-numbers")).
 
 The only case where signed division overflows is `MIN / −1`, and that stops too. In C it is undefined behaviour.

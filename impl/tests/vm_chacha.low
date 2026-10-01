@@ -31,7 +31,7 @@ do
   guard eq (ok_value r) (len s) . else return 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    guard eq (cast u64 (index d1 i)) (cast u64 (index d2 i)) . else return 0 .
+    guard eq (cast u64 (idx d1 i)) (cast u64 (idx d2 i)) . else return 0 .
     set i (add i 1) .
   end
   return 1 .

@@ -110,7 +110,7 @@ condition that makes the right-hand side safe on the left.
 
 #demo("examples/ch08/shortcircuit.low")
 
-`safe_first_is_zero` does not compute `index xs 0` on an empty slice, because if `gt (len xs) 0` on the left is false, the answer is
+`safe_first_is_zero` does not compute `idx xs 0` on an empty slice, because if `gt (len xs) 0` on the left is false, the answer is
 already false. `ratio_ok` likewise skips the division when the denominator is 0. This shape suits conditions too small for a `guard`. If
 the condition is a fact about the whole op, `guard` is better (#chref("control")).
 

@@ -702,7 +702,7 @@ fact(10) = 3628800
 
 <strong><span class="tok-k">fn</span></strong> zero_first <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">set</span></strong> (index xs <span class="tok-n">0</span>) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">set</span></strong> (idx xs <span class="tok-n">0</span>) <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mutparam.low
@@ -713,7 +713,7 @@ mutparam.low:4:0 E-EFFECT-PURITY: a `fn` WRITES through a `mut` parameter — th
 <strong><span class="tok-k">proc</span></strong> zero_first <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
   <strong><span class="tok-k">requires</span></strong> gt (len xs) <span class="tok-n">0</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">set</span></strong> (index xs <span class="tok-n">0</span>) <span class="tok-n">0</span> .
+  <strong><span class="tok-k">set</span></strong> (idx xs <span class="tok-n">0</span>) <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> len xs .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run zero_first mutproc.low [7,8,9]

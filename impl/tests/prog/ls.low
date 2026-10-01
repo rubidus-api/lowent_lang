@@ -48,11 +48,11 @@ do
         rem `.`(길이 1) 와 `..`(길이 2) 를 거른다 — readdir 이 낸 것이니 프로그램이 판단한다
         var is_dot be bool false .
         if eq nl 1 . do
-          if eq (index buf 0) 46 . do set is_dot true . end
+          if eq (idx buf 0) 46 . do set is_dot true . end
         end
         if eq nl 2 . do
-          if eq (index buf 0) 46 . do
-            if eq (index buf 1) 46 . do set is_dot true . end
+          if eq (idx buf 0) 46 . do
+            if eq (idx buf 1) 46 . do set is_dot true . end
           end
         end
         if eq is_dot false . do set total (add total nl) . end

@@ -30,12 +30,12 @@ proc borrowed input buf mut slice u8 . . output u64 . effects state . do
   guard is_some q . else return 92 .
   rem 자른 조각에 쓰면 **원본 버퍼가 바뀐다** — 뷰지 복사가 아니다.
   let pv be mut slice u8 some_value p .
-  set (index pv 0) 65 .
-  guard eq (index buf 0) 65 . else return 93 .
+  set (idx pv 0) 65 .
+  guard eq (idx buf 0) 65 . else return 93 .
   rem 두 번째 조각은 첫 조각 **뒤**에서 시작한다(범프).
   let qv be mut slice u8 some_value q .
-  set (index qv 0) 66 .
-  guard eq (index buf 3) 66 . else return 94 .
+  set (idx qv 0) 66 .
+  guard eq (idx buf 3) 66 . else return 94 .
   return send a used .                                   rem 3 + 5 = 8
 end
 
@@ -49,8 +49,8 @@ proc borrowed_aligned input buf mut slice u8 . . output u64 . effects state . do
   let q be option mut slice u8 send a reserve 1 .
   guard is_some q . else return 92 .
   let qv be mut slice u8 some_value q .
-  set (index qv 0) 67 .
-  guard eq (index buf 8) 67 . else return 93 .           rem ★ 3 이 아니라 8 — 정렬이 실제로 있다
+  set (idx qv 0) 67 .
+  guard eq (idx buf 8) 67 . else return 93 .           rem ★ 3 이 아니라 8 — 정렬이 실제로 있다
   return send a used .                                   rem 8 + 1 = 9
 end
 

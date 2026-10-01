@@ -53,8 +53,8 @@ do
   while lt i (len a) . do
     if lt i (len b) . do
       if eq ans 2 . do
-        if lt (index a i) (index b i) . do set ans 1 . end
-        if gt (index a i) (index b i) . do set ans 0 . end
+        if lt (idx a i) (idx b i) . do set ans 1 . end
+        if gt (idx a i) (idx b i) . do set ans 0 . end
       end
     end
     set i (add i 1) .
@@ -73,7 +73,7 @@ do
   var i be u64 0 .
   var verd be bool true .
   while lt i (len a) . do
-    if ne (index a i) (index b i) . do set verd false . end
+    if ne (idx a i) (idx b i) . do set verd false . end
     set i (add i 1) .
   end
   return verd .
@@ -94,9 +94,9 @@ proc list_dir .
   output u64 .
   effects io .
 do
-  set (index st 0) 0 .
+  set (idx st 0) 0 .
   let di be result files.dir_handle files.file_error files.open_dir fs path .
-  if eq (is_ok di) false . do set (index st 0) 71 . end
+  if eq (is_ok di) false . do set (idx st 0) 71 . end
   guard is_ok di . else return 0 .
   var dh be owned files.dir_handle ok_value di .
 
@@ -105,7 +105,7 @@ do
   var going be bool true .
   while going . do
     let r be result (option u64) files.file_error files.read_dir fs dh namebuf .
-    if eq (is_ok r) false . do set going false . set (index st 0) 71 . end
+    if eq (is_ok r) false . do set going false . set (idx st 0) 71 . end
     if is_ok r . do
       let nv be option u64 ok_value r .
       if eq (is_some nv) false . do set going false . end
@@ -116,23 +116,23 @@ do
         rem `.` 과 `..` 은 건너뛴다
         var skip be bool false .
         if eq nl 1 . do
-          if eq (index namebuf 0) 46 . do set skip true . end
+          if eq (idx namebuf 0) 46 . do set skip true . end
         end
         if eq nl 2 . do
-          if eq (index namebuf 0) 46 . do
-            if eq (index namebuf 1) 46 . do set skip true . end
+          if eq (idx namebuf 0) 46 . do
+            if eq (idx namebuf 1) 46 . do set skip true . end
           end
         end
         if eq skip false . do
-          if ge n (max_entries) . do set (index st 0) 3 . set going false . end
+          if ge n (max_entries) . do set (idx st 0) 3 . set going false . end
           if lt n (max_entries) . do
-            if gt (add used nl) (max_names) . do set (index st 0) 3 . set going false . end
+            if gt (add used nl) (max_names) . do set (idx st 0) 3 . set going false . end
             if le (add used nl) (max_names) . do
-              set (index offs n) used .
-              set (index lens n) nl .
+              set (idx offs n) used .
+              set (idx lens n) nl .
               var k be u64 0 .
               while lt k nl . do
-                set (index arena (add used k)) (index namebuf k) .
+                set (idx arena (add used k)) (idx namebuf k) .
                 set k (add k 1) .
               end
               set used (add used nl) .
@@ -144,7 +144,7 @@ do
     end
   end
   let c be result void files.file_error files.close_dir fs dh .
-  if eq (is_ok c) false . do set (index st 0) 72 . end
+  if eq (is_ok c) false . do set (idx st 0) 72 . end
 
   rem ★★★★ **병합 정렬** — 색인만 옮긴다(X-0042, 소유자 선택 ⓐ 2026-09-20).
   rem
@@ -174,20 +174,20 @@ do
         if ge ib hi . do  set from_a true . end
         if lt ib hi . do
           if lt ia mid . do
-            let ra be slice u8 subslice arena (index offs ia) (add (index offs ia) (index lens ia)) .
-            let rb be slice u8 subslice arena (index offs ib) (add (index offs ib) (index lens ib)) .
+            let ra be slice u8 subslice arena (idx offs ia) (add (idx offs ia) (idx lens ia)) .
+            let rb be slice u8 subslice arena (idx offs ib) (add (idx offs ib) (idx lens ib)) .
             rem 오른쪽이 **더 작을 때만** 오른쪽을 집는다 ⇒ 같으면 왼쪽(안정).
             if eq (less rb ra) false . do  set from_a true . end
           end
         end
         if from_a . do
-          set (index soffs k) (index offs ia) .
-          set (index slens k) (index lens ia) .
+          set (idx soffs k) (idx offs ia) .
+          set (idx slens k) (idx lens ia) .
           set ia (add ia 1) .
         end
         if eq from_a false . do
-          set (index soffs k) (index offs ib) .
-          set (index slens k) (index lens ib) .
+          set (idx soffs k) (idx offs ib) .
+          set (idx slens k) (idx lens ib) .
           set ib (add ib 1) .
         end
         set k (add k 1) .
@@ -195,8 +195,8 @@ do
       rem 합친 자리를 제자리로 되돌린다.
       var mc be u64 lo .
       while lt mc hi . do
-        set (index offs mc) (index soffs mc) .
-        set (index lens mc) (index slens mc) .
+        set (idx offs mc) (idx soffs mc) .
+        set (idx lens mc) (idx slens mc) .
         set mc (add mc 1) .
       end
       set lo hi .
@@ -302,7 +302,7 @@ do
   end
   let r3 be result void strbuf.sb_error strbuf.append b buf name .
   guard is_ok r3 . else return false .
-  set (index outlen 0) (len (strbuf.as_str b buf)) .
+  set (idx outlen 0) (len (strbuf.as_str b buf)) .
   return true .
 end
 
@@ -367,8 +367,8 @@ do
   rem 대기 목록: 아직 안 본 **상대 경로**들. 시작은 뿌리(빈 문자열) 하나.
   var np be u64 1 .
   var pused be u64 0 .
-  set (index poffs 0) 0 .
-  set (index plens 0) 0 .
+  set (idx poffs 0) 0 .
+  set (idx plens 0) 0 .
 
   var diffs be u64 0 .
   var limit_hit be bool false .
@@ -377,27 +377,27 @@ do
   while gt np 0 . do
     rem 스택처럼 **뒤에서** 꺼낸다 — 넣을 때 역순으로 넣어 오름차순으로 나온다.
     set np (sub np 1) .
-    let ro be u64 index poffs np .
-    let rl be u64 index plens np .
+    let ro be u64 idx poffs np .
+    let rl be u64 idx plens np .
     let rel be slice u8 subslice pend ro (add ro rl) .
     set pused ro .
 
     rem 이 상대 경로의 양쪽 실제 경로
     rem ★ 판정 하나를 **변수 하나**로 받는다 — `main` 의 지역이 언어 한도(64)에 닿아 있다.
     if eq (join_path rootA rel pathA scratch) false . do set limit_hit true . end
-    let la be u64 index scratch 0 .
+    let la be u64 idx scratch 0 .
     if eq (join_path rootB rel pathB scratch) false . do set limit_hit true . end
-    let lb be u64 index scratch 0 .
+    let lb be u64 idx scratch 0 .
 
     var nA be u64 0 .
     var nB be u64 0 .
     if eq limit_hit false . do
       set nA (list_dir fs (subslice pathA 0 la) namebuf arenaA offsA lensA sortO sortL scratch) .
-      if eq (index scratch 0) 3 . do set limit_hit true . end
-      if gt (index scratch 0) 3 . do set io_bad true . end
+      if eq (idx scratch 0) 3 . do set limit_hit true . end
+      if gt (idx scratch 0) 3 . do set io_bad true . end
       set nB (list_dir fs (subslice pathB 0 lb) namebuf arenaB offsB lensB sortO sortL scratch) .
-      if eq (index scratch 0) 3 . do set limit_hit true . end
-      if gt (index scratch 0) 3 . do set io_bad true . end
+      if eq (idx scratch 0) 3 . do set limit_hit true . end
+      if gt (idx scratch 0) 3 . do set io_bad true . end
     end
 
     rem ── 두 정렬 목록을 합친다.
@@ -415,10 +415,10 @@ do
         if ge ib nB . do set side 1 . end
         if lt ia nA . do
           if lt ib nB . do
-            if less (subslice arenaA (index offsA ia) (add (index offsA ia) (index lensA ia)))
-                    (subslice arenaB (index offsB ib) (add (index offsB ib) (index lensB ib))) . do set side 1 . end
-            if less (subslice arenaB (index offsB ib) (add (index offsB ib) (index lensB ib)))
-                    (subslice arenaA (index offsA ia) (add (index offsA ia) (index lensA ia))) . do set side 2 . end
+            if less (subslice arenaA (idx offsA ia) (add (idx offsA ia) (idx lensA ia)))
+                    (subslice arenaB (idx offsB ib) (add (idx offsB ib) (idx lensB ib))) . do set side 1 . end
+            if less (subslice arenaB (idx offsB ib) (add (idx offsB ib) (idx lensB ib)))
+                    (subslice arenaA (idx offsA ia) (add (idx offsA ia) (idx lensA ia))) . do set side 2 . end
           end
         end
 
@@ -427,21 +427,21 @@ do
         var nml be u64 0 .
         var from_a be bool true .
         if eq side 2 . do set from_a false . end
-        if from_a . do set nmo (index offsA ia) . set nml (index lensA ia) . end
-        if eq from_a false . do set nmo (index offsB ib) . set nml (index lensB ib) . end
+        if from_a . do set nmo (idx offsA ia) . set nml (idx lensA ia) . end
+        if eq from_a false . do set nmo (idx offsB ib) . set nml (idx lensB ib) . end
         var nm be slice u8 subslice arenaA nmo (add nmo nml) .
         if eq from_a false . do set nm (subslice arenaB nmo (add nmo nml)) . end
 
         let okr be bool join_path rel nm relbuf scratch .
-        let rl2 be u64 index scratch 0 .
+        let rl2 be u64 idx scratch 0 .
         if eq okr false . do set limit_hit true . set merging false . end
 
         if merging . do
           let childrel be slice u8 subslice relbuf 0 rl2 .
           if eq (join_path rootA childrel pathA scratch) false . do set limit_hit true . end
-          let pla be u64 index scratch 0 .
+          let pla be u64 idx scratch 0 .
           if eq (join_path rootB childrel pathB scratch) false . do set limit_hit true . end
-          let plb be u64 index scratch 0 .
+          let plb be u64 idx scratch 0 .
 
           if eq side 1 . do
             set w (emit out 1 "deleted ") .
@@ -499,11 +499,11 @@ do
                 if lt np (max_pend) . do
                   if gt (add pused rl2) (max_pendbuf) . do set limit_hit true . end
                   if le (add pused rl2) (max_pendbuf) . do
-                    set (index poffs np) pused .
-                    set (index plens np) rl2 .
+                    set (idx poffs np) pused .
+                    set (idx plens np) rl2 .
                     var z be u64 0 .
                     while lt z rl2 . do
-                      set (index pend (add pused z)) (index relbuf z) .
+                      set (idx pend (add pused z)) (idx relbuf z) .
                       set z (add z 1) .
                     end
                     set pused (add pused rl2) .

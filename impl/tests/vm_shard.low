@@ -9,9 +9,9 @@ use shard from "../../lib/shard.low" .
 
 rem ★ 브랜드는 **저장소마다 하나**다(§8-2). 프로시저 셋이 각자 저장소를 열므로 셋이다 —
 rem   하나로 쓰면 `E-BRAND-REUSED` 가 문다(이 픽스처를 쓰다 실제로 물렸다).
-newtype grid u8 .
-newtype grid2 u8 .
-newtype grid3 u8 .
+def newtype grid u8 .
+def newtype grid2 u8 .
+def newtype grid3 u8 .
 
 rem ★ 쪼개고, 각 조각이 **자기 범위만** 만지는지 잰다.
 proc disjoint input mem mut slice u64 . . output u64 . effects none . do

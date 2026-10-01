@@ -20,7 +20,7 @@ rem ★ 쪼갤 수 있다 — 각 반복이 **제 원소만** 읽고 쓴다.
 proc dbl input s mut slice u8 . . output u64 . effects none . parallel s split . do
   var i be u64 0 .
   while lt i (len s) . do
-    set (index s i) expr (index s i) * 2 . .
+    set (idx s i) expr (idx s i) * 2 . .
     set i expr i + 1 . .
   end
   return len s .
@@ -38,7 +38,7 @@ do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    set acc expr acc + (index s i) . .
+    set acc expr acc + (idx s i) . .
     set i expr i + 1 . .
   end
   return acc .

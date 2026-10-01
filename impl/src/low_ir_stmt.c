@@ -1102,7 +1102,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             if (f->nkids >= 3 && f->kids[1]->kind == LOW_CST_GROUP && f->kids[1]->nkids == 1) {
                 const low_cst_t *pl = f->kids[1]->kids[0];
                 if (pl->kind == LOW_CST_FORM && pl->nkids == 3 && is_atom(pl->kids[0]) &&
-                    veq(pl->kids[0]->tok.lex, "index") && is_atom(pl->kids[1])) {
+                    veq(pl->kids[0]->tok.lex, "idx") && is_atom(pl->kids[1])) {
                     bool sf; proven_size_t sslot = ir_local_find(c, pl->kids[1]->tok.lex, &sf);
                     if (!sf) { ir_fail(c, "E-IR-UNDEF", "set index of an undeclared name", f->line); return; }
                     ir_emit(c, IRW_LOAD, (proven_i64)sslot);   // 슬라이스
@@ -1114,7 +1114,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                 // ★ RFC-0132 T2b-3b — `set (index (field q body) i) v .`: 슬라이스를 내는 **식**의 원소에 쓴다. 구조체의
                 //   배열 칸은 레코드가 가진 바이트를 보는 슬라이스라 여기 쓰면 그 레코드가 바뀐다(쓸 수 있는지는 검사층이 본다).
                 if (pl->kind == LOW_CST_FORM && pl->nkids == 3 && is_atom(pl->kids[0]) &&
-                    veq(pl->kids[0]->tok.lex, "index") && !is_atom(pl->kids[1])) {
+                    veq(pl->kids[0]->tok.lex, "idx") && !is_atom(pl->kids[1])) {
                     ir_node(c, pl->kids[1]);                   // 슬라이스
                     ir_run(c, pl->kids, 2, 1);                 // 인덱스
                     ir_run(c, f->kids, 2, f->nkids - 2);       // 값
@@ -2143,7 +2143,7 @@ static bool ir_param_written(const low_cst_t *nd, proven_u8str_view_t nm, const 
             if (!(is_atom(last) && last->tok.kind == LOW_TOK_NUMBER)) return true;
             if (pl->nkids >= 4 && ipw_arr(sd, pl->kids[pl->nkids - 2])) return true;
         }
-        if (pl && pl->kind == LOW_CST_FORM && pl->nkids == 3 && is_atom(pl->kids[0]) && veq(pl->kids[0]->tok.lex, "index") &&
+        if (pl && pl->kind == LOW_CST_FORM && pl->nkids == 3 && is_atom(pl->kids[0]) && veq(pl->kids[0]->tok.lex, "idx") &&
             ipw_field_of(pl->kids[1], nm) && ipw_arr(sd, ipw_unwrap(pl->kids[1])->kids[2])) return true;
     }
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && is_atom(nd->kids[0]) &&

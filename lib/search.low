@@ -19,7 +19,7 @@ export fn bsearch input s slice u64 . input target u64 . output option u64 . do
   var hi be u64 len s .
   while lt lo hi . do
     let mid be u64 add lo (div (sub hi lo) 2) .
-    let v be u64 index s mid .
+    let v be u64 idx s mid .
     if eq v target . do return (some mid) . end
     if lt v target . do set lo (add mid 1) . end
     if gt v target . do set hi mid . end
@@ -34,8 +34,8 @@ export fn lower_bound input s slice u64 . input target u64 . output u64 . do
   var hi be u64 len s .
   while lt lo hi . do
     let mid be u64 add lo (div (sub hi lo) 2) .
-    if lt (index s mid) target . do set lo (add mid 1) . end
-    if ge (index s mid) target . do set hi mid . end
+    if lt (idx s mid) target . do set lo (add mid 1) . end
+    if ge (idx s mid) target . do set hi mid . end
   end
   return lo .
 end

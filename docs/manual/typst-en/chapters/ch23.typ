@@ -239,7 +239,7 @@ fixed window for every ticket.
   [`method r area` · `rect.area r`], [call by the value's type · call directly by name], [fixed at translation time --- no virtual table],
   [`trait shape do area input s self . output u64 . end`], [the list of ops a type must have], [`self` is the adopting type itself],
   [signature line: name · inputs · output · effects], [same order as an op head; no `fn`/`proc`], [the effects line caps the implementer],
-  [`struct rect do satisfies shape . … end`], [declare that this type keeps the promise], [the declaration triggers the full check],
+  [`def struct rect do satisfies shape . … end`], [declare that this type keeps the promise], [the declaration triggers the full check],
   [`requires shape t .`], [type condition of a generic op], [a type that does not adopt it: `E-BOUND-UNSAT`],
   [`effects state via self .` (signature)], [only allocation effects may be added], [allocators differ in effects],
   [`E-TRAIT-MISSING` · `-SIG` · `-EFFECT` · `-RECV` · `-UNDEF`], [one diagnostic per way of falling short], [`satisfies` is not a comment],

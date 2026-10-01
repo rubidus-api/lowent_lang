@@ -9,7 +9,7 @@ rem   · `down`     — 영역 블록의 이름을 인자로 건네고, 받은 �
 
 module vm_regionexit .
 
-type scratch u64 . .
+def type scratch u64 . .
 
 export proc guarded output u64 . effects alloc .
 do

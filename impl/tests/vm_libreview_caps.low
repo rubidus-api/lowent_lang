@@ -23,9 +23,9 @@ use pagecache from "../../lib/pagecache.low" .
 use segarena  from "../../lib/segarena.low" .
 use lifeatom  from "../../lib/lifeatom.low" .
 use lifemode  from "../../lib/lifemode.low" .
-newtype pf u8 .
-newtype pc u8 .
-newtype sg u8 .
+def newtype pf u8 .
+def newtype pc u8 .
+def newtype sg u8 .
 
 rem ── vecgen: 같은 길이의 두 벡터가 한 범프 위에서 자라도 **겹치지 않는다** (A1/B1 후보 1) ──
 proc t_vec input al cap allocator . output u64 . effects state alloc . do
@@ -88,7 +88,7 @@ proc t_mapgen input al cap allocator . output u64 . effects state alloc . do
   var dirty be mut slice u8 some_value memo .
   var i be u64 0 .
   while lt i (len dirty) . do
-    set (index dirty i) 1 .
+    set (idx dirty i) 1 .
     set i (add i 1) .
   end
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
@@ -153,7 +153,7 @@ proc t_rc input al cap allocator . input k cap atomic . output u64 . effects all
   let again be u64 lifeatom.rc_release k c .
   guard ne again 0 . else return 93 .                               rem ★ 두 번째는 거두라는 신호가 아니다
   guard eq again (lifemode.ceiling) . else return 94 .
-  guard eq (index c 0) 0 . else return 95 .                         rem 칸은 안 건드렸다
+  guard eq (idx c 0) 0 . else return 95 .                         rem 칸은 안 건드렸다
   return 12 .
 end
 

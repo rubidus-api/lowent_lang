@@ -37,8 +37,8 @@ export proc sort_by input comptime t type . input s mut slice t . . output void 
     while going . do
       if eq j 0 . do set going false . end
       if going . do
-        let a be t index s j .
-        let b be t index s (sub j 1) .
+        let a be t idx s j .
+        let b be t idx s (sub j 1) .
         rem ★★★ **판정은 한 번만 한다.** `a`·`b` 는 그 자리를 가리키는 **뷰**라서, 맞바꾸고 나면
         rem   같은 이름이 **다른 값**을 가리킨다. 비교를 두 번 하면 두 번째는 이미 바뀐 것을
         rem   보고 "정렬됐다" 고 답해 **한 칸만 내려가고 멈춘다** — 부분 정렬된 배열이 나온다.
@@ -81,8 +81,8 @@ proc qsort_by input comptime t type . input s mut slice t . . input lo0 u64 . in
     var j be u64 lo .
     while lt j p . do
       rem ★ 매 걸음 **다시 읽는다** — 뷰는 맞바꾼 뒤 다른 값을 가리키기 때문이다.
-      let a be t index s j .
-      let b be t index s p .
+      let a be t idx s j .
+      let b be t idx s p .
       rem `less b a` 가 거짓 = a ≤ b — 피벗 이하를 왼쪽으로 모은다.
       if eq (method b less a) false . do
         swap s i j .
@@ -124,7 +124,7 @@ export proc lower_by input comptime t type . input s slice t . input key t . out
   var hi be u64 len s .
   while lt lo hi . do
     let mid be u64 add lo (div (sub hi lo) 2) .
-    let m be t index s mid .
+    let m be t idx s mid .
     rem m < key 면 답은 오른쪽에 있다.
     if (method m less key) . do
       set lo (add mid 1) .
@@ -140,7 +140,7 @@ rem ★ 있으면 그 자리를, 없으면 none. 중복이 있으면 **가장 �
 export proc find_by input comptime t type . input s slice t . input key t . output option u64 . effects none . requires ordered t . do
   let at be u64 lower_by t s key .
   guard lt at (len s) . else return none .
-  let m be t index s at .
+  let m be t idx s at .
   rem 같음 = 어느 쪽도 상대보다 작지 않다(등호 op 을 따로 요구하지 않는 이유다).
   guard eq (method m less key) false . else return none .
   guard eq (method key less m) false . else return none .

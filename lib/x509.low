@@ -67,7 +67,7 @@ export fn sig_off input b slice u8 . output u64 . do
   let vo be u64 der.value_off b a .
   if eq vo 0 . do  return 0 . end
   if ge vo (len b) . do  return 0 . end
-  if ne (index b vo) 0 . do  return 0 . end
+  if ne (idx b vo) 0 . do  return 0 . end
   return add vo 1 .
 end
 export fn sig_len input b slice u8 . output u64 . do
@@ -132,8 +132,8 @@ rem ★ 견줄 수 있는 **한 수**로 편다: YYYYMMDDhhmmss. 시간대는 Z 
 rem   그것을 더하고 빼는 자리가 생기고, 그 자리가 곧 틀릴 자리다.
 fn digit2 input b slice u8 . input o u64 . output u64 . do
   if ge (add o 1) (len b) . do  return 100 . end
-  let d0 be u64 cast u64 (index b o) .
-  let d1 be u64 cast u64 (index b (add o 1)) .
+  let d0 be u64 cast u64 (idx b o) .
+  let d1 be u64 cast u64 (idx b (add o 1)) .
   if lt d0 48 . do  return 100 . end
   if gt d0 57 . do  return 100 . end
   if lt d1 48 . do  return 100 . end
@@ -166,7 +166,7 @@ fn time_at input b slice u8 . input o u64 . output u64 . do
     set base (add vo 4) .
   end
   if eq yr 0 . do  return 0 . end
-  if ne (index b (add base 10)) 90 . do  return 0 . end     rem 끝은 'Z' 여야 한다
+  if ne (idx b (add base 10)) 90 . do  return 0 . end     rem 끝은 'Z' 여야 한다
   let mo be u64 digit2 b base .
   let dy be u64 digit2 b (add base 2) .
   let hh be u64 digit2 b (add base 4) .
@@ -232,9 +232,9 @@ export fn ext_value_off input b slice u8 . input last u64 . output u64 . do
     if eq oo 0 . do  return 0 . end
     var hit be u64 0 .
     if eq ol 3 . do
-      if eq (index b oo) 85 . do
-        if eq (index b (add oo 1)) 29 . do
-          if eq (cast u64 (index b (add oo 2))) last . do  set hit 1 . end
+      if eq (idx b oo) 85 . do
+        if eq (idx b (add oo 1)) 29 . do
+          if eq (cast u64 (idx b (add oo 2))) last . do  set hit 1 . end
         end
       end
     end
@@ -272,7 +272,7 @@ export fn is_ca input b slice u8 . output bool . do
   let bo be u64 der.value_off b f .
   if eq bo 0 . do  return false . end
   if ge bo (len b) . do  return false . end
-  return ne (index b bo) 0 .
+  return ne (idx b bo) 0 .
 end
 
 rem ★★ 주체 대체 이름(SAN)의 **dNSName** 을 하나씩 준다.

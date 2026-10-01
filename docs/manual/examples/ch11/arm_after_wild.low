@@ -1,7 +1,7 @@
 module arm_after_wild .
 rem expect: E-MATCH-REDUNDANT
 
-enum light do
+def enum light do
   bright .
   dark .
 end

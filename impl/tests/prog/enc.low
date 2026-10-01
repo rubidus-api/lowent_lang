@@ -42,7 +42,7 @@ fn same_bytes input a slice u8 . input b slice u8 . output bool . do
   if ne (len a) (len b) . do return false . end
   var i be u64 0 .
   while lt i (len a) . do
-    if ne (index a i) (index b i) . do return false . end
+    if ne (idx a i) (idx b i) . do return false . end
     set i (add i 1) .
   end
   return true .
@@ -123,7 +123,7 @@ do
 
   rem ── hex ─────────────────────────────────────────────────────────────────
   if eq (len mode) 3 . do
-    if eq (index mode 0) 104 . do
+    if eq (idx mode 0) 104 . do
       let e be option u64 codec.hex_enc src encbuf .
       guard is_some e . else return 71 .
       let enc be slice u8 subslice encbuf 0 (some_value e) .
@@ -134,7 +134,7 @@ do
       let w be u64 write_out out 1 enc .
       return 0 .
     end
-    if eq (index mode 0) 98 . do
+    if eq (idx mode 0) 98 . do
       rem ★ 이름을 갈라 준다 — 이름공간이 평평해서 같은 이름을 두 가지에 못 쓴다(E-NAME-DUP).
       let e6 be option u64 codec.b64_enc src encbuf .
       guard is_some e6 . else return 71 .
@@ -149,7 +149,7 @@ do
 
   rem ── 글자 종류 세기 ──────────────────────────────────────────────────────
   if eq (len mode) 4 . do
-    if eq (index mode 0) 115 . do
+    if eq (idx mode 0) 115 . do
       guard utf8.is_valid src . else return 65 .
       let e be option u64 scan_kinds src encbuf 0 .
       guard is_some e . else return 72 .
@@ -165,7 +165,7 @@ do
   rem   왕복을 **코드포인트 축**으로 돈다: utf8 로 풀고 → utf16 으로 쓰고 → utf16 으로 다시 풀어
   rem   **원래 코드포인트와 대조**한다. 하나라도 다르면 그 변환은 거짓말이다.
   if eq (len mode) 3 . do
-    if eq (index mode 0) 117 . do
+    if eq (idx mode 0) 117 . do
       guard utf8.is_valid src . else return 65 .
       var u16buf be mut slice u16 view_array u16 encbuf .
       var rpos be u64 0 .

@@ -9,15 +9,15 @@ rem   모듈 `let` 은 **컴파일타임 상수**이고 값이 **그 자리에 �
 let HEADER_LEN be u8 4 .
 let VERSION be u8 1 .
 
-type bytes slice u8 . .
+def type bytes slice u8 . .
 
-struct header do
+def struct header do
   version u8 .
   flags u8 .
   length u16 .
 end
 
-enum parse_error do
+def enum parse_error do
   too_short .
   bad_version .
   too_long .
@@ -27,7 +27,7 @@ fn read_u16_be .
   input d bytes .
   output u16 .
 do
-  return expr ((index d 0) * 256) + (index d 1) . .
+  return expr ((idx d 0) * 256) + (idx d 1) . .
 end
 
 fn parse_header .
@@ -35,17 +35,17 @@ fn parse_header .
   output result header parse_error . .
   access data sequential .
   errors too_short lt (len data) HEADER_LEN .
-  errors bad_version ne (index data 0) VERSION .
+  errors bad_version ne (idx data 0) VERSION .
   errors too_long gt (read_u16_be (subslice data 2 4)) (len data) .
   tests parse_header_short parse_header_bad_version parse_header_ok .
 do
   guard ge (len data) HEADER_LEN . else return error too_short .
-  guard eq (index data 0) VERSION . else return error bad_version .
+  guard eq (idx data 0) VERSION . else return error bad_version .
   let length be u16 read_u16_be subslice data 2 4 . . .
   guard le length len data . . else return error too_long . . .
   return ok lit header do
-    version index data 0 . .
-    flags index data 1 . .
+    version idx data 0 . .
+    flags idx data 1 . .
     length length .
   end .
 end

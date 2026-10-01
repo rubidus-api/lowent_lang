@@ -7,9 +7,9 @@ module vm_pagecache .
 
 use pagecache from "../../lib/pagecache.low" .
 
-newtype db u8 .
-newtype db2 u8 .
-newtype db3 u8 .
+def newtype db u8 .
+def newtype db2 u8 .
+def newtype db3 u8 .
 
 rem ★ 놓은 뒤에는 축출이 된다 — 그리고 epoch 가 오른다.
 proc release_then_evict output u64 . effects none . do

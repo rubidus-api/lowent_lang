@@ -164,7 +164,7 @@
   caption: [그릇과 정렬의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`sortlib.sort xs` · `searchlib.bsearch xs k`], [`u64` 제자리 정렬 · 정렬된 입력에서 탐색(`option`)], [할당하지 않는다 --- 탐색은 정렬을 믿는다],
-  [`struct score do satisfies sortgen.ordered . … end` + `fn score.less`], [타입이 정렬 기준을 들고 온다], [모드 인자 대신 타입 --- `less` 는 엄격하게],
+  [`def struct score do satisfies sortgen.ordered . … end` + `fn score.less`], [타입이 정렬 기준을 들고 온다], [모드 인자 대신 타입 --- `less` 는 엄격하게],
   [`sortgen.sort_by score rs` · `sort_fast`], [안정 삽입정렬 · 큰 배열용 quicksort], [고르는 기준이 이름에 있다],
   [`hashmap.put slots k v` · `lookup` · `del`], [호출자 슬라이스 위의 `u64 → u64` 맵], [가득 차면 `false` --- 삭제는 묘비],
   [`let vo using hb be … vecgen.open u32 4 .`], [할당기를 받아 자라는 벡터를 연다], [`using` 은 처음 받는 자리에만],

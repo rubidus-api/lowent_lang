@@ -33,7 +33,7 @@ module pem .
 rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
 rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
-export enum pem_error do
+export def enum pem_error do
   short_workspace .
 end
 
@@ -57,7 +57,7 @@ export fn find_from input hay slice u8 . . input needle slice u8 . . input from 
     var j be u64 0 .
     var same be bool true .
     while lt j n . do
-      if ne (index hay (add i j)) (index needle j) . do
+      if ne (idx hay (add i j)) (idx needle j) . do
         set same false .
         set j n .
       end
@@ -79,17 +79,17 @@ errors short_workspace . do
   guard ge (len scratch) need . else return error short_workspace .
   var k be u64 0 .
   while lt k 11 . do
-    set (index scratch k) (index "-----BEGIN " k) .
+    set (idx scratch k) (idx "-----BEGIN " k) .
     set k (add k 1) .
   end
   var j be u64 0 .
   while lt j (len label) . do
-    set (index scratch (add 11 j)) (index label j) .
+    set (idx scratch (add 11 j)) (idx label j) .
     set j (add j 1) .
   end
   var m be u64 0 .
   while lt m 5 . do
-    set (index scratch (add (add 11 (len label)) m)) 45 .
+    set (idx scratch (add (add 11 (len label)) m)) 45 .
     set m (add m 1) .
   end
   let ao be option u64 find_from src (subslice scratch 0 need) 0 .
@@ -98,7 +98,7 @@ errors short_workspace . do
   rem 그 줄의 끝(LF)까지 건너뛴다.
   var i be u64 add at need .
   while lt i (len src) . do
-    if eq (index src i) 10 . do return ok (add i 1) . end
+    if eq (idx src i) 10 . do return ok (add i 1) . end
     set i (add i 1) .
   end
   return ok 0 .
@@ -111,17 +111,17 @@ errors short_workspace . do
   guard ge (len scratch) need . else return error short_workspace .
   var k be u64 0 .
   while lt k 9 . do
-    set (index scratch k) (index "-----END " k) .
+    set (idx scratch k) (idx "-----END " k) .
     set k (add k 1) .
   end
   var j be u64 0 .
   while lt j (len label) . do
-    set (index scratch (add 9 j)) (index label j) .
+    set (idx scratch (add 9 j)) (idx label j) .
     set j (add j 1) .
   end
   var m be u64 0 .
   while lt m 5 . do
-    set (index scratch (add (add 9 (len label)) m)) 45 .
+    set (idx scratch (add (add 9 (len label)) m)) 45 .
     set m (add m 1) .
   end
   let ao be option u64 find_from src (subslice scratch 0 need) from .
@@ -157,12 +157,12 @@ errors short_workspace . do
   var w be u64 need .
   var i be u64 b .
   while lt i e . do
-    let c be u8 index src i .
+    let c be u8 idx src i .
     if ne c 10 . do
       if ne c 13 . do
         if ne c 32 . do
           if ne c 9 . do
-            set (index scratch w) c .
+            set (idx scratch w) c .
             set w (add w 1) .
           end
         end

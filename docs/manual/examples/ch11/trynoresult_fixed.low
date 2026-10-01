@@ -2,7 +2,7 @@ module trynoresult_fixed .
 rem run: plus 10
 rem run: plus 250
 
-enum half_error do
+def enum half_error do
   too_big .
 end
 

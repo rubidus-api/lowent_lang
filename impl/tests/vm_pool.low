@@ -18,12 +18,12 @@ use pool from "../../lib/pool.low" .
 rem ★★★ **브랜드 — RFC-0104 §8-2**(소유자 서명 2026-08-28, §5.11). 새 낱말이 아니라
 rem   이미 있는 `newtype` 이다. 풀마다 **다른 브랜드**를 준다: 그래야 한 풀의 핸들을
 rem   다른 풀에 넣는 것을 **타입검사가** 거절한다(§6.1 S1). 런타임 칸은 안 는다.
-newtype p_many u8 .
-newtype p_stale u8 .
-newtype p_copy u8 .
-newtype p_reuse u8 .
-newtype p_lifo u8 .
-newtype p_borrow u8 .
+def newtype p_many u8 .
+def newtype p_stale u8 .
+def newtype p_copy u8 .
+def newtype p_reuse u8 .
+def newtype p_lifo u8 .
+def newtype p_borrow u8 .
 
 rem ★ 뭉텡이를 여럿 받아 쓴다 — 부족하면 더 받는 그 모양.
 proc take_many input mem mut slice u8 . . input gens mut slice u64 . . output u64 .
@@ -63,7 +63,7 @@ do
   let b1 be option mut slice u8 pool.bytes p_stale p hh .
   guard is_some b1 . else return 91 .
   let bb be mut slice u8 some_value b1 .
-  set (index bb 8) 77 .    rem ★ 앞 8 바이트는 해제 뒤 **자유 목록 링크**가 된다 — 그래서 뒤쪽에 쓴다
+  set (idx bb 8) 77 .    rem ★ 앞 8 바이트는 해제 뒤 **자유 목록 링크**가 된다 — 그래서 뒤쪽에 쓴다
 
   rem ② 해제한다 — 이 순간 hh 가 낡는다
   rem ★ 변수를 `ok` 라 부르면 **결과 생성자 `ok` 와 부딪친다** — 같은 낱말 두 뜻(§2.5).
@@ -81,7 +81,7 @@ do
   rem   **자유 목록 링크**가 된다. 안전한 이유는 하나뿐이고 그것으로 충분하다 —
   rem   세대가 이미 올라가 **아무도 그 블록에 못 닿는다**(바로 위 ③ 이 그것을 쟀다).
   rem   ⇒ 장부가 공짜다: 배열을 하나 더 요구하지 않는다.
-  guard eq (index mem 8) 77 . else return 95 .
+  guard eq (idx mem 8) 77 . else return 95 .
 
   rem ⑤ 두 번 해제는 거부된다(이미 낡은 핸들이므로)
   let twice be bool pool.release p_stale p hh .
@@ -111,7 +111,7 @@ do
   let ba be option mut slice u8 pool.bytes p_copy p a .
   guard is_some ba . else return 93 .
   let av be mut slice u8 some_value ba .
-  set (index av 8) 55 .
+  set (idx av 8) 55 .
 
   rem 새 블록으로 **복사**한다
   let bb be option mut slice u8 pool.bytes p_copy p b .
@@ -120,7 +120,7 @@ do
   let src be option mut slice u8 pool.bytes p_copy p a .
   guard is_some src . else return 95 .
   let sv be mut slice u8 some_value src .
-  set (index bv 8) (index sv 8) .
+  set (idx bv 8) (idx sv 8) .
 
   rem 옛 것을 **해제**한다 — 옛 핸들은 죽고, 새 핸들은 산다
   let rel be bool pool.release p_copy p a .
@@ -130,7 +130,7 @@ do
   let live be option mut slice u8 pool.bytes p_copy p b .
   guard is_some live . else return 98 .
   let lv be mut slice u8 some_value live .
-  return narrow u64 (index lv 8) .    rem 55 — 복사가 살아남았다
+  return narrow u64 (idx lv 8) .    rem 55 — 복사가 살아남았다
 end
 
 rem ★★★ **자유 목록 — 놓은 것이 돌아온다** (2026-07-20).
@@ -156,7 +156,7 @@ do
     let b be option mut slice u8 pool.bytes p_reuse p hh .
     guard is_some b . else return 92 .
     let bv be mut slice u8 some_value b .
-    set (index bv 8) 42 .
+    set (idx bv 8) 42 .
     let rel be bool pool.release p_reuse p hh .
     guard eq rel true . else return 93 .
     set i (add i 1) .
@@ -233,9 +233,9 @@ do
   var total be u64 0 .
   rem ★★ 빌림 안에서는 **평범한 슬라이스**다 — `len`·`index` 가 수정 0 으로 먹는다.
   borrow v be bv do
-    set (index v 8) 3 .
-    set (index v 9) 4 .
-    set total (add (narrow u64 (index v 8)) (narrow u64 (index v 9))) .
+    set (idx v 8) 3 .
+    set (idx v 9) 4 .
+    set total (add (narrow u64 (idx v 8)) (narrow u64 (idx v 9))) .
   end
   guard eq total 7 . else return 93 .
 

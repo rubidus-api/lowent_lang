@@ -194,7 +194,7 @@ Here is what replaces inheritance in practice. First, an `enum` that carries dat
 ```lowent
 module shapes .
 
-enum shape do
+def enum shape do
   circle r u32 .
   rect w u32 h u32 .
   dot .
@@ -219,7 +219,7 @@ trait shape do
   area input s self . output u64 .
 end
 
-struct rect do
+def struct rect do
   satisfies shape .
   w u64 .
   h u64 .

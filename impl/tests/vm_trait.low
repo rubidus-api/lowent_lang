@@ -18,13 +18,13 @@ trait shape do
   scaled input s self . input k u8 . output u64 . effects none .
 end
 
-struct rect do
+def struct rect do
   satisfies shape .          rem ★ 검사된다: 아래 두 op 이 **정확히** 그 시그니처여야 한다
   w u8 .
   h u8 .
 end
 
-struct square do
+def struct square do
   satisfies shape .
   side u8 .
 end

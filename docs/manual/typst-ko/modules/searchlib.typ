@@ -54,8 +54,8 @@ end
   `[5,5,5]` 에서 `bsearch s 5` 는 0 · 1 · 2 중 어느 것이든 낼 수 있다. "첫 5 의 자리" 가 필요하면 `lower_bound s 5` 다.
 ]
 
-#antipattern[`lower_bound` 결과로 곧장 `index` 한다][
-  못 찾으면 `i` 가 `len s` 이고 그 자리는 없는 자리다 --- `index s i` 가 `E-VM-BOUNDS` 로 멈춘다. 값이 표의 최댓값보다 클 때만 터지므로 실제 데이터에서 걸리기 쉽다.
+#antipattern[`lower_bound` 결과로 곧장 `idx` 한다][
+  못 찾으면 `i` 가 `len s` 이고 그 자리는 없는 자리다 --- `idx s i` 가 `E-VM-BOUNDS` 로 멈춘다. 값이 표의 최댓값보다 클 때만 터지므로 실제 데이터에서 걸리기 쉽다.
   `guard lt i (len s) .` 를 먼저 둔다.
 ]
 

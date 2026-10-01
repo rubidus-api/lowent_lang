@@ -8,7 +8,7 @@ rem   ⇒ vec 에 `sign` 을 실어(load/splat/load_masked 가 `vec iN` 문맥�
 rem     생성·파생(avg/select/reverse/rotate/shuffle/레인산술)에 전파하고, **접기와 비교에서
 rem     부호확장 후 부호로** 계산한다. 레인 산술(add/sub/mul)은 두 보수라 값이 같아 태그만 물려받는다.
 module m .
-type bytes slice u8 .
+def type bytes slice u8 .
 
 rem i16 레인 {-3, 5, -100, 200} — LE 바이트.
 rem reduce_add = 102 (무부호면 131174)

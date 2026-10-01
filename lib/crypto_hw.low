@@ -29,8 +29,8 @@ rem   이 op 은 **한 곱셈**이 필요한 자리(CRC · 시험 · 다른 모�
 rem 캐리 없는 곱셈 한 번 — 128 비트 결과를 낱말 둘로 낸다. `out` 은 조각 2 이상.
 export proc clmul128 input out mut slice u64 . input a u64 . input b u64 . output u64 . effects none . do
   guard ge (len out) 2 . else return 0 .
-  set (index out 0) (call_builtin clmul_hi a b) .
-  set (index out 1) (call_builtin clmul_lo a b) .
+  set (idx out 0) (call_builtin clmul_hi a b) .
+  set (idx out 1) (call_builtin clmul_lo a b) .
   return 2 .
 end
 
@@ -40,10 +40,10 @@ export proc gf128_mul input out mut slice u64 . input x slice u64 . input h slic
   guard ge (len out) 2 . else return 0 .
   guard ge (len x) 2 . else return 0 .
   guard ge (len h) 2 . else return 0 .
-  let x0 be u64 index x 0 .
-  let x1 be u64 index x 1 .
-  let h0 be u64 index h 0 .
-  let h1 be u64 index h 1 .
+  let x0 be u64 idx x 0 .
+  let x1 be u64 idx x 1 .
+  let h0 be u64 idx h 0 .
+  let h1 be u64 idx h 1 .
 
   rem 아래 낱말끼리 · 위 낱말끼리 · 가운데 항(카라추바)
   let a_lo be u64 call_builtin clmul_lo x1 h1 .
@@ -94,7 +94,7 @@ export proc gf128_mul input out mut slice u64 . input x slice u64 . input h slic
   set p3 (bit_xor p3 th) .
   set p2 (bit_xor p2 tl) .
 
-  set (index out 0) p3 .
-  set (index out 1) p2 .
+  set (idx out 0) p3 .
+  set (idx out 1) p2 .
   return 2 .
 end

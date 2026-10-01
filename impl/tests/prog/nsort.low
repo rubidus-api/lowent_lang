@@ -39,7 +39,7 @@ fn parse_u64 input s slice u8 . output option u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    let c be u8 index s i .
+    let c be u8 idx s i .
     if lt c 48 . do return none . end
     if gt c 57 . do return none . end
     rem ★ 넘침은 **트랩이 아니라 거절**이다 — 파일이 준 수가 크다고 죽을 이유가 없다.
@@ -55,7 +55,7 @@ rem   데려오면 그 모듈의 effects 까지 딸려 온다.)
 fn find_nl input s slice u8 . input from u64 . output option u64 . do
   var i be u64 from .
   while lt i (len s) . do
-    if eq (index s i) 10 . do return some i . end
+    if eq (idx s i) 10 . do return some i . end
     set i (add i 1) .
   end
   return none .
@@ -63,7 +63,7 @@ end
 
 rem ★ 제네릭 정렬은 **타입이 비교를 들고 온다** — 스칼라 u64 는 trait 을 못 만족하므로
 rem   레코드로 감싼다. 이것이 그 API 의 실제 사용감이다(픽스처가 이미 같은 모양을 쓴다).
-struct keyed do
+def struct keyed do
   satisfies sortgen.ordered .
   k u64 .
 end
@@ -74,8 +74,8 @@ fn same_keyed input a slice u64 . input b slice keyed . output bool . do
   if ne (len a) (len b) . do return false . end
   var i be u64 0 .
   while lt i (len a) . do
-    let e be keyed index b i .
-    if ne (index a i) (field e k) . do return false . end
+    let e be keyed idx b i .
+    if ne (idx a i) (field e k) . do return false . end
     set i (add i 1) .
   end
   return true .
@@ -132,8 +132,8 @@ do
       let v be option u64 parse_u64 piece .
       if is_some v . do
         guard lt cnt (len araw) . else return 71 .
-        set (index araw cnt) (some_value v) .
-        set (index braw cnt) (lit keyed do k (some_value v) . end) .
+        set (idx araw cnt) (some_value v) .
+        set (idx braw cnt) (lit keyed do k (some_value v) . end) .
         set cnt (add cnt 1) .
       end
       set pos (add stop 1) .

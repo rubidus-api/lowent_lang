@@ -2,8 +2,8 @@ rem RFC-0008 — `errors … when <조건>` 은 **한 번도 평가되지 않았
 rem 오류 이름만 검사됐다. 조건을 본문과 정반대로 적어도 통과했다 — 순수 장식이었다.
 rem 이제 오류를 낼 때 **그 자리에서** 조건이 참인지 검사한다(ensures 와 같은 규칙).
 module t .
-type bytes slice u8 . .
-enum e do
+def type bytes slice u8 . .
+def enum e do
   small .
 end
 
@@ -13,7 +13,7 @@ fn honest input data bytes . output result u8 e . .
   errors small lt len data . 4 . .
 do
   guard ge len data . 4 . else return error small . . .
-  return ok index data 0 . .
+  return ok idx data 0 . .
 end
 
 rem ② 거짓말이다 — "len < 2 일 때만 small" 이라 선언하고, 본문은 len < 9 일 때 낸다.
@@ -22,7 +22,7 @@ fn liar input data bytes . output result u8 e . .
   errors small lt len data . 2 . .
 do
   guard ge len data . 9 . else return error small . . .
-  return ok index data 0 . .
+  return ok idx data 0 . .
 end
 
 rem ③ ★★ 가장 미묘한 거짓말 — **같은 식, 반대 극성.**
@@ -41,5 +41,5 @@ fn inverted input data bytes . output result u8 e . .
   errors small ge len data . 4 . .
 do
   guard ge len data . 4 . else return error small . . .
-  return ok index data 0 . .
+  return ok idx data 0 . .
 end

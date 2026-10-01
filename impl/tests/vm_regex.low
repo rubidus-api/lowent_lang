@@ -172,20 +172,20 @@ proc captures input prog mut slice u64 . . input st mut slice u64 . . input cl m
   guard is_some m . else return 2 .
   guard eq (some_value m) 5 . else return 3 .
   rem 그룹 1 = [0,2) "aa" · 그룹 2 = [2,5) "bbb" — 여는 괄호 순서가 그룹 번호다.
-  guard eq (index out 0) 0 . else return 4 .
-  guard eq (index out 1) 2 . else return 5 .
-  guard eq (index out 2) 2 . else return 6 .
-  guard eq (index out 3) 5 . else return 7 .
+  guard eq (idx out 0) 0 . else return 4 .
+  guard eq (idx out 1) 2 . else return 5 .
+  guard eq (idx out 2) 2 . else return 6 .
+  guard eq (idx out 3) 5 . else return 7 .
   rem 안 잡힌 그룹은 MAX 로 남는다 — 0 으로 두면 "위치 0" 과 구별이 안 된다.
-  guard eq (index out 4) (bit_not 0) . else return 8 .
+  guard eq (idx out 4) (bit_not 0) . else return 8 .
   rem 갈래에서 안 고른 쪽은 안 잡힌다: "(x)|(a)" 를 "a" 에 → 그룹1 미포획, 그룹2 = [0,1)
   let n2 be option u64 rx.compile "(x)|(a)" prog st .
   guard is_some n2 . else return 9 .
   let m2 be option u64 rx.match_caps prog "a" 0 cl nl mk cs ns tmp out .
   guard is_some m2 . else return 10 .
-  guard eq (index out 0) (bit_not 0) . else return 11 .
-  guard eq (index out 2) 0 . else return 12 .
-  guard eq (index out 3) 1 . else return 13 .
+  guard eq (idx out 0) (bit_not 0) . else return 11 .
+  guard eq (idx out 2) 0 . else return 12 .
+  guard eq (idx out 3) 1 . else return 13 .
   return 42 .
 end
 

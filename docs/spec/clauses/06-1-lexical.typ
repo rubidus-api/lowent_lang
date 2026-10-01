@@ -57,6 +57,23 @@ fn f output u8 . do return 1 . end",
       낱말은 **예산**이다. 새 낱말을 더하는 것은 언어가 커지는 일이므로, 기존 낱말로
       표현할 수 있는 것에는 새 낱말을 주지 아니한다.
     ]
+    #para("3")[
+      **타입을 짓는 낱말은 `def` 하나다.** 타입 선언은 `def struct` · `def enum` · `def type` · `def newtype` 으로
+      시작한다. `def` 뒤에 다른 것이 오면 거부된다(`E-DEF-HEAD`) — `fn`·`proc`·`actor`·`trait`·`test`·`module` 은
+      `def` 없이 적는다. `def` 없이 네 낱말로 시작하는 옛 선언은 거부된다(`E-VOCAB-REMOVED`, 부록 A.8 (2a)).
+      `export` 는 `def` 앞에 온다: `export def struct rect do … end`.
+    ]
+    #rejected("타입 선언은 `def` 로 시작한다", "module ex_nodef .
+
+struct pt do
+  x u32 .
+end", "E-VOCAB-REMOVED")
+    #rejected("`def` 는 타입만 짓는다", "module ex_defop .
+
+def fn f output u8 .
+do
+  return 1 .
+end", "E-DEF-HEAD")
     #plain[
       「예산」이라는 말이 낯설 수 있다. 뜻은 이렇다 — 낱말 수를 세어서 관리하고, 하나
       늘릴 때마다 그만한 값어치가 있는지 따진다는 것이다. 이 언어의 낱말 수는 사람이 한
@@ -438,7 +455,7 @@ fn f input a u64 . output u64 . do
 end", "E-DOT-STRAY")
     #rejected("블록을 값으로 쓰는 문장은 자기 점으로 닫는다", "module ex_dot_missing .
 
-struct pt do
+def struct pt do
   x u64 .
 end
 

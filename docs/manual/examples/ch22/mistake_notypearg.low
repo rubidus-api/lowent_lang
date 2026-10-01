@@ -5,7 +5,7 @@ trait ordered do
   less input a self . input b self . output bool .
 end
 
-struct score do
+def struct score do
   satisfies ordered .
   v u64 .
 end

@@ -671,13 +671,13 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">struct</span></strong> square <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> square <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   side <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
@@ -700,8 +700,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 
 <strong><span class="tok-k">fn</span></strong> demo <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> lit rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
-  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> lit square <strong><span class="tok-k">do</span></strong> side <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> square <strong><span class="tok-k">do</span></strong> side <span class="tok-n">4</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> add (double_area rect r) (double_area square q) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run demo why.low
@@ -719,7 +719,7 @@ demo() = 44
    double_area square q  →  method s area  =  square.area</code></pre><p><code>double_area rect r</code> 과 <code>double_area square q</code> 는 각각 전용 실물로 단형화되므로(22장), <code>method</code> 는 실행 중에 찾는 것이 아니라 번역할 때 정해진다. 가상 함수 표가 없다.</p><h3 id="s23-2">23.2 타입에 붙은 op 과 <code>method</code><a class="plink" href="#s23-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>트레이트와 상관없이도 op 을 타입에 붙일 수 있다. 이름 앞에 타입 이름과 점을 붙이면 되고, 첫 입력은 그 타입의 값이다. <span id="idx-entry-55"></span><code>method &lt;값> &lt;이름> &lt;인자…></code> 가 그 op 을 부른다. 수신자가 다른 폼의 결과여도 된다 — <code>method (method r grow 1) area</code>. 붙은 op 이 없으면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/method_undef.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> method_undef .
 <em><span class="tok-c">rem expect: E-METHOD-UNDEF</span></em>
 
-<strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
   x <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
@@ -740,7 +740,7 @@ method_undef.low:10:0 E-METHOD-UNDEF: no op of that name is associated with the 
   checked_area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
@@ -758,7 +758,7 @@ method_undef.low:10:0 E-METHOD-UNDEF: no op of that name is associated with the 
 
 <strong><span class="tok-k">fn</span></strong> rect.grow <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> rect .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> lit rect <strong><span class="tok-k">do</span></strong> w (add (field s w) k) . h (add (field s h) k) . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">lit</span></strong> rect <strong><span class="tok-k">do</span></strong> w (add (field s w) k) . h (add (field s h) k) . <strong><span class="tok-k">end</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> rect.checked_area <strong><span class="tok-k">input</span></strong> s rect . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
@@ -773,14 +773,14 @@ method_undef.low:10:0 E-METHOD-UNDEF: no op of that name is associated with the 
   <strong><span class="tok-k">requires</span></strong> le w <span class="tok-n">1000</span> .
   <strong><span class="tok-k">requires</span></strong> le h <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> lit rect <strong><span class="tok-k">do</span></strong> w w . h h . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> rect <strong><span class="tok-k">do</span></strong> w w . h h . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">let</span></strong> big <strong><span class="tok-k">be</span></strong> rect method r grow <span class="tok-n">1</span> .
   <strong><span class="tok-k">return</span></strong> add (method big perimeter) (method big checked_area) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> demo_empty <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> lit rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">0</span> . h <span class="tok-n">5</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">0</span> . h <span class="tok-n">5</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> method r checked_area .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run demo many.low 3 4
@@ -803,7 +803,7 @@ $ lowentc --run demo_empty many.low
   area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
@@ -822,7 +822,7 @@ $ lowentc --run demo_empty many.low
   checked_area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> panic .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
@@ -846,7 +846,7 @@ more_effect.low:15:1 W-EFFECT-OVER: this op DECLARES `wait` but never PERFORMS i
   perimeter <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
@@ -923,7 +923,7 @@ main() = 33
 </code></pre></div></div><ul><li><code>issue input s self . output u64 . effects state via self .</code> 이 서명이다. <code>counter</code> 는 <code>effects state .</code> 로, <code>carver</code> 는 <code>effects alloc state .</code> 로 갖춘다. <code>alloc</code> 은 할당 계열이라 <code>via self</code> 가 허락한다.</li><li><code>issue_two</code> 는 <code>effects state via t .</code> 라고 적었다. <code>counter</code> 로 단형화한 인스턴스의 효과는 <code>state</code> 이고, <code>carver</code> 로 단형화한 인스턴스의 효과는 <code>alloc state</code> 다. 효과가 <strong>인스턴스마다</strong> 정확하다.</li><li>그래서 <code>main</code> 은 <code>cap allocator</code> 를 받고 <code>alloc</code> 을 적어야 한다. <code>carver</code> 로 부르는 줄이 없다면 <code>main</code> 에 <code>alloc</code> 이 필요 없다.</li><li>답 33 은 <code>counter</code> 의 1 + 2 와 <code>carver</code> 의 10 + 20 이다.</li></ul><p><code>carver</code> 의 상태에는 <code>root cap allocator .</code> 라는 <strong>권한 칸</strong>이 있다. 그 칸의 규칙은 25장에서 다룬다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>트레이트를 갖추면 그 트레이트의 무언가를 물려받는다</strong></p><div class="dev-body">물려받는 것은 없다. 트레이트를 갖췄다는 것은 “그 op 들을 갖고 있다” 는 <strong>사실</strong>일 뿐이고, 타입 사이에 위아래가 생기지 않는다. <code>rect</code> 와 <code>square</code> 는 <code>shape</code> 를 갖춘 뒤에도 서로 아무 관계가 없다. 이 언어에는 상속이 없다.</div></div><h3 id="s23-7">23.7 흔한 실수<a class="plink" href="#s23-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. <code>method</code> 뒤에 이름을 먼저 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/mistake_methodorder.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_methodorder .
 <em><span class="tok-c">rem expect: E-METHOD-UNDEF</span></em>
 
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
@@ -933,7 +933,7 @@ main() = 33
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> lit rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem ✘ `method` 뒤에는 값이 먼저, 이름이 다음이다</span></em>
   <strong><span class="tok-k">return</span></strong> method area r .
 <strong><span class="tok-k">end</span></strong>
@@ -945,7 +945,7 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 <strong><span class="tok-k">trait</span></strong> shape <strong><span class="tok-k">do</span></strong>
   area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">satisfies</span></strong> shape .
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
@@ -964,7 +964,7 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
   area <strong><span class="tok-k">input</span></strong> s <span class="tok-n">self</span> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 <em><span class="tok-c">rem ✘ `rect.area` 는 있지만 `satisfies shape .` 를 적지 않았다</span></em>
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
@@ -979,7 +979,7 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> lit rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> double_area rect r .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_nosatisfies.low
@@ -987,7 +987,7 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 </code></pre></div></div><p><code>rect.area</code> 가 있으니 “넓이를 알려 주는 타입” 인 것은 맞다. 그래도 <code>satisfies shape .</code> 를 적지 않으면 <code>double_area rect r</code> 은 <code>E-BOUND-UNSAT</code> 이다. 모양만 맞으면 통과시키는 방식(덕 타이핑)에서는 우연히 이름이 같은 op 이 약속을 갖춘 것으로 잘못 읽힌다. <code>satisfies</code> 는 “나는 이 계약을 지키겠다” 는 선언이고, 그 선언이 있어야 처리기가 목록 전체를 검사한다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 수신자를 첫 입력이 아닌 자리에 둔다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/mistake_recvlast.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_recvlast .
 <em><span class="tok-c">rem expect: E-METHOD-RECV</span></em>
 
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
@@ -999,7 +999,7 @@ mistake_methodorder.low:16:0 E-METHOD-UNDEF: no op of that name is associated wi
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> lit rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">return</span></strong> method r scaled <span class="tok-n">5</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_recvlast.low
@@ -1007,7 +1007,7 @@ mistake_recvlast.low:9:0 E-METHOD-RECV: an op attached to a type takes that type
 </code></pre></div></div><p>붙은 op 의 첫 입력은 수신자다. <code>method r scaled 5</code> 는 <code>r</code> 을 첫 자리에, 5 를 둘째 자리에 넣는다. <code>scaled</code> 는 첫 자리를 <code>k</code>, 둘째를 <code>s</code> 로 받았으므로 구조체에 곱셈을 하려다 멈춘다. 그런 머리는 <code>E-METHOD-RECV</code> 로 번역 때 거절한다. 붙은 op 은 <code>input s rect .</code> 를 언제나 맨 앞에 둔다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>타입에 붙은 op 은 <code>method</code> 로만 부를 수 있다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch23/direct_call.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> direct_call .
 <em><span class="tok-c">rem run: f</span></em>
 
-<strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> rect <strong><span class="tok-k">do</span></strong>
   w <strong><span class="tok-t">u64</span></strong> .
   h <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
@@ -1017,13 +1017,13 @@ mistake_recvlast.low:9:0 E-METHOD-RECV: an op attached to a type takes that type
 <strong><span class="tok-k">end</span></strong>
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> lit rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> rect <strong><span class="tok-k">do</span></strong> w <span class="tok-n">2</span> . h <span class="tok-n">3</span> . <strong><span class="tok-k">end</span></strong> .
   <em><span class="tok-c">rem 같은 op 을 두 길로 부른다 --- 이름으로 곧장, 그리고 `method` 로</span></em>
   <strong><span class="tok-k">return</span></strong> add (rect.area r) (method r area) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run f direct_call.low
 f() = 12
-</code></pre></div></div><p><code>rect.area r</code> 은 이름으로 곧장 부르고, <code>method r area</code> 는 값의 타입을 보고 같은 op 을 찾아 부른다. 둘은 같은 op 이고 결과도 6 과 6 이다. <code>method</code> 가 쓸모 있는 곳은 타입이 제네릭 매개변수여서 이름을 적을 수 없는 자리(<code>double_area</code> 의 <code>method s area</code>)다. 타입을 아는 자리에서는 직접 부르는 편이 효과도 올바르게 번진다(위의 결함 사례).</p></div></div><h3 id="s23-8">23.8 이 장의 문법을 한눈에<a class="plink" href="#s23-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>fn rect.area input s rect . …</code></td><td>타입에 op 을 붙인다 — 첫 입력이 수신자</td><td>이름 칸을 나누는 장치이지 상속이 아니다</td></tr><tr><td><code>method r area</code> · <code>rect.area r</code></td><td>값의 타입으로 찾아 부른다 · 이름으로 곧장 부른다</td><td>번역 때 정해진다 — 가상 함수 표가 없다</td></tr><tr><td><code>trait shape do area input s self . output u64 . end</code></td><td>타입이 갖출 op 의 목록</td><td><code>self</code> 는 갖출 타입 자신</td></tr><tr><td>서명 줄: 이름 · 입력 · 출력 · 효과</td><td>op 머리와 같은 차례, <code>fn</code>·<code>proc</code> 은 적지 않는다</td><td>효과 줄이 갖추는 쪽의 상한</td></tr><tr><td><code>struct rect do satisfies shape . … end</code></td><td>이 타입이 약속을 갖춘다고 선언</td><td>선언이 있어야 목록 전체를 검사한다</td></tr><tr><td><code>requires shape t .</code></td><td>제네릭 op 의 타입 조건</td><td>갖추지 못한 타입은 <code>E-BOUND-UNSAT</code></td></tr><tr><td><code>effects state via self .</code>(서명)</td><td>할당 계열 효과만 더 적어도 된다</td><td>할당기마다 효과가 다르다</td></tr><tr><td><code>E-TRAIT-MISSING</code> · <code>-SIG</code> · <code>-EFFECT</code> · <code>-RECV</code> · <code>-UNDEF</code></td><td>갖추지 못한 자리마다의 진단</td><td><code>satisfies</code> 는 주석이 아니다</td></tr><tr><td><code>effects state via t .</code>(제네릭 op)</td><td>단형화한 타입이 <code>via self</code> 로 더 적은 효과를 물려받는다</td><td><code>counter</code> 로는 <code>state</code>, <code>carver</code> 로는 <code>alloc state</code></td></tr></table></div><p class="float-caption">표 23.3 — 트레이트의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>fn &lt;타입>.&lt;이름></code> 은 타입에 op 을 붙이고 <code>method</code> 가 부른다. 트레이트는 타입이 갖출 op 의 목록이고, 타입은 몸 안의 <code>satisfies</code> 로 갖추겠다고 선언한다. 서명은 이름으로 시작해 입력·출력·효과 차례로 적고, <code>fn</code>·<code>proc</code> 은 적지 않는다. 서명의 <code>effects</code> 가 갖추는 쪽의 효과 상한이다. 어긋나면 <code>E-TRAIT-*</code> 로 거절되고, <code>via self</code> 는 할당 계열 효과만 더 적게 허락한다. 트레이트는 상속이 아니다.</div></div>
+</code></pre></div></div><p><code>rect.area r</code> 은 이름으로 곧장 부르고, <code>method r area</code> 는 값의 타입을 보고 같은 op 을 찾아 부른다. 둘은 같은 op 이고 결과도 6 과 6 이다. <code>method</code> 가 쓸모 있는 곳은 타입이 제네릭 매개변수여서 이름을 적을 수 없는 자리(<code>double_area</code> 의 <code>method s area</code>)다. 타입을 아는 자리에서는 직접 부르는 편이 효과도 올바르게 번진다(위의 결함 사례).</p></div></div><h3 id="s23-8">23.8 이 장의 문법을 한눈에<a class="plink" href="#s23-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>fn rect.area input s rect . …</code></td><td>타입에 op 을 붙인다 — 첫 입력이 수신자</td><td>이름 칸을 나누는 장치이지 상속이 아니다</td></tr><tr><td><code>method r area</code> · <code>rect.area r</code></td><td>값의 타입으로 찾아 부른다 · 이름으로 곧장 부른다</td><td>번역 때 정해진다 — 가상 함수 표가 없다</td></tr><tr><td><code>trait shape do area input s self . output u64 . end</code></td><td>타입이 갖출 op 의 목록</td><td><code>self</code> 는 갖출 타입 자신</td></tr><tr><td>서명 줄: 이름 · 입력 · 출력 · 효과</td><td>op 머리와 같은 차례, <code>fn</code>·<code>proc</code> 은 적지 않는다</td><td>효과 줄이 갖추는 쪽의 상한</td></tr><tr><td><code>def struct rect do satisfies shape . … end</code></td><td>이 타입이 약속을 갖춘다고 선언</td><td>선언이 있어야 목록 전체를 검사한다</td></tr><tr><td><code>requires shape t .</code></td><td>제네릭 op 의 타입 조건</td><td>갖추지 못한 타입은 <code>E-BOUND-UNSAT</code></td></tr><tr><td><code>effects state via self .</code>(서명)</td><td>할당 계열 효과만 더 적어도 된다</td><td>할당기마다 효과가 다르다</td></tr><tr><td><code>E-TRAIT-MISSING</code> · <code>-SIG</code> · <code>-EFFECT</code> · <code>-RECV</code> · <code>-UNDEF</code></td><td>갖추지 못한 자리마다의 진단</td><td><code>satisfies</code> 는 주석이 아니다</td></tr><tr><td><code>effects state via t .</code>(제네릭 op)</td><td>단형화한 타입이 <code>via self</code> 로 더 적은 효과를 물려받는다</td><td><code>counter</code> 로는 <code>state</code>, <code>carver</code> 로는 <code>alloc state</code></td></tr></table></div><p class="float-caption">표 23.3 — 트레이트의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>fn &lt;타입>.&lt;이름></code> 은 타입에 op 을 붙이고 <code>method</code> 가 부른다. 트레이트는 타입이 갖출 op 의 목록이고, 타입은 몸 안의 <code>satisfies</code> 로 갖추겠다고 선언한다. 서명은 이름으로 시작해 입력·출력·효과 차례로 적고, <code>fn</code>·<code>proc</code> 은 적지 않는다. 서명의 <code>effects</code> 가 갖추는 쪽의 효과 상한이다. 어긋나면 <code>E-TRAIT-*</code> 로 거절되고, <code>via self</code> 는 할당 계열 효과만 더 적게 허락한다. 트레이트는 상속이 아니다.</div></div>
 <div class="nav"><a href="ch22.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch24.html">다음 →</a></div>
 </div></main>
 <script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>

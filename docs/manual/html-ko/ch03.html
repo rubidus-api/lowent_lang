@@ -704,7 +704,7 @@ poly_expr(5, 4) = 22
 <strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> mul a <span class="tok-n">2</span> . ; <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check semi.low
 4:57 E-VOCAB-REMOVED: `;` was a THIRD spelling of the closer `.` (the lexer literally emitted a DOT for it) — one meaning, three spellings, and SPEC-002 §2.5 forbids synonyms. It only survived inside the old interpreter's second language. Write `.`
-</code></pre></div></div><h3 id="s3-3">3.3 블록은 언제나 <code>do … end</code><a class="plink" href="#s3-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>여러 문장을 묶는 자리는 모두 <code>do</code> 로 열고 <code>end</code> 로 닫는다. op 의 본문, <code>if</code>·<code>while</code>·<code>for</code> 의 몸, <code>match</code> 의 갈래, 그리고 <code>struct</code>·<code>enum</code>·<code>trait</code>·<code>actor</code> 같은 선언의 몸이 모두 그렇다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
+</code></pre></div></div><h3 id="s3-3">3.3 블록은 언제나 <code>do … end</code><a class="plink" href="#s3-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>여러 문장을 묶는 자리는 모두 <code>do</code> 로 열고 <code>end</code> 로 닫는다. op 의 본문, <code>if</code>·<code>while</code>·<code>for</code> 의 몸, <code>match</code> 의 갈래, 그리고 <code>struct</code>·<code>enum</code>·<code>trait</code>·<code>actor</code> 같은 선언의 몸이 모두 그렇다.</p><pre><code data-lang="lowent"><strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
   x <strong><span class="tok-t">u64</span></strong> .
   y <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>
@@ -829,7 +829,7 @@ mistake_slash.low:7:0 E-VOCAB-REMOVED: `//` is not a comment here — this langu
 </code></pre></div></div><p>이 언어의 주석은 <code>rem</code>(줄 주석)과 <code>note WHY … WHY</code>(여러 줄)뿐이다. <code>//</code> 는 주석이 아니어서 컴파일러는 그것을 폼의 시작으로 읽고, 폼은 <strong>마침표가 나올 때까지</strong> 이어진다. 그래서 <code>// double it</code> 과 다음 줄의 <code>return mul a 2</code> 가 마침표 하나로 끝나는 폼 하나가 되고, <code>return</code> 이 그 속에 삼켜진다. 진단은 “돌려주지 않는 길이 있다” 고 말하지만 원인은 주석이다. 주석을 낱말로 여는 까닭은 기호를 줄이려는 것이다 — <code>//</code> · <code>#</code> · <code>--</code> 가 언어마다 다르니, 낱말 하나로 정했다. 고치는 법: <code>rem double it</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 붙임 점으로 필드를 읽는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch03/mistake_glued.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_glued .
 <em><span class="tok-c">rem expect: E-FIELD-GLUED</span></em>
 
-<strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
   x <strong><span class="tok-t">u64</span></strong> .
   y <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">end</span></strong>

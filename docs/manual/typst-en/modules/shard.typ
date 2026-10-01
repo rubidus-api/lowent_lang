@@ -8,7 +8,7 @@ Splits one block of storage into *non-overlapping pieces* so each can be changed
 mine". Whether pieces then ride on several threads or run sequentially, the fact that they do not overlap is itself the value.
 
 ```lowent
-newtype grid u8 .
+def newtype grid u8 .
 var r be (owned shard.token grid) shard.open grid 8 .
 var h be (shard.halves grid) shard.split_at grid r 4 .
 var lo be (owned shard.token grid) (field h low) .

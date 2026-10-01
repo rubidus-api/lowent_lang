@@ -9,7 +9,7 @@ do
   var acc be f64 0.0 .
   var i be u64 0 .
   while lt i (len s) . do
-    set acc (add acc (index s i)) .
+    set acc (add acc (idx s i)) .
     set i (add i 1) .
   end
   return acc .

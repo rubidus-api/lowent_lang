@@ -48,13 +48,13 @@ export proc put input b mut slice u64 . . input k u64 . input v u64 . output boo
   var tomb_slot be u64 0 .
   while lt tries n . do
     let ks be u64 mul slot 2 .
-    let stored be u64 index b ks .
+    let stored be u64 idx b ks .
     if eq stored 0 . do
       rem 빈칸 — 키는 이 뒤에 없다(삽입이 빈칸을 넘지 않으므로). 묘비를 봤으면 거기 재사용.
       var ws be u64 ks .
       if have_tomb . do set ws (mul tomb_slot 2) . end
-      set (index b ws) (add k 1) .
-      set (index b (add ws 1)) v .
+      set (idx b ws) (add k 1) .
+      set (idx b (add ws 1)) v .
       return true .
     end
     if eq stored 18446744073709551615 . do
@@ -66,7 +66,7 @@ export proc put input b mut slice u64 . . input k u64 . input v u64 . output boo
     end
     if eq stored (add k 1) . do
       rem 같은 키 — 값만 갱신한다(제자리, 묘비로 안 옮긴다)
-      set (index b (add ks 1)) v .
+      set (idx b (add ks 1)) v .
       return true .
     end
     rem 선형 프로빙 — 다음 슬롯(감아 돈다)
@@ -76,8 +76,8 @@ export proc put input b mut slice u64 . . input k u64 . input v u64 . output boo
   rem 한 바퀴 다 돌았다(빈칸 없음). 묘비가 있으면 거기 넣는다.
   if have_tomb . do
     let ts be u64 mul tomb_slot 2 .
-    set (index b ts) (add k 1) .
-    set (index b (add ts 1)) v .
+    set (idx b ts) (add k 1) .
+    set (idx b (add ts 1)) v .
     return true .
   end
   return false .
@@ -93,11 +93,11 @@ export proc del input b mut slice u64 . . input k u64 . output bool . effects no
   var tries be u64 0 .
   while lt tries n . do
     let ks be u64 mul slot 2 .
-    let stored be u64 index b ks .
+    let stored be u64 idx b ks .
     if eq stored 0 . do return false . end          rem 빈칸에 닿았다 — 없다 . .
     if eq stored (add k 1) . do
-      set (index b ks) 18446744073709551615 .        rem 묘비 표식(빈칸 아님!)
-      set (index b (add ks 1)) 0 .
+      set (idx b ks) 18446744073709551615 .        rem 묘비 표식(빈칸 아님!)
+      set (idx b (add ks 1)) 0 .
       return true .
     end
     set slot (mod (add slot 1) n) .                   rem 묘비도 건너뛴다(≠k+1·≠0)
@@ -117,7 +117,7 @@ end
 rem 슬롯이 살아 있나(빈칸도 묘비도 아니다). 순회의 occupancy 판별.
 export fn occupied_at input b slice u64 . input slot u64 . output bool . do
   guard lt slot (size b) . else return false .
-  let stored be u64 index b (mul slot 2) .
+  let stored be u64 idx b (mul slot 2) .
   if eq stored 0 . do return false . end                     rem 빈칸 . .
   if eq stored 18446744073709551615 . do return false . end  rem 묘비 . .
   return true .
@@ -128,7 +128,7 @@ rem ★ 빈칸(저장값 0)은 **0** 이다 — `sub 0 1` 을 하지 않는다(2
 rem   접근자는 트랩하지 않고, 범위 밖과 같은 값(0)으로 답한다. 뜻은 `occupied_at` 이 정한다.
 export fn key_at input b slice u64 . input slot u64 . output u64 . do
   guard lt slot (size b) . else return 0 .
-  let stored be u64 index b (mul slot 2) .
+  let stored be u64 idx b (mul slot 2) .
   guard gt stored 0 . else return 0 .
   return sub stored 1 .
 end
@@ -136,7 +136,7 @@ end
 rem 슬롯의 value. occupied 일 때만 뜻이 있다.
 export fn val_at input b slice u64 . input slot u64 . output u64 . do
   guard lt slot (size b) . else return 0 .
-  return index b (add (mul slot 2) 1) .
+  return idx b (add (mul slot 2) 1) .
 end
 
 rem ★★★ **성장(rehash)** — 꽉 찬(또는 묘비 많은) 맵을 더 큰 백킹으로 옮긴다. 맵은 스스로 할당 못
@@ -167,9 +167,9 @@ export proc lookup input b slice u64 . input k u64 . output option u64 . effects
   var tries be u64 0 .
   while lt tries n . do
     let ks be u64 mul slot 2 .
-    let stored be u64 index b ks .
+    let stored be u64 idx b ks .
     if eq stored 0 . do return none . end          rem 빈칸에 닿았다 — 없다(그 뒤로도 없다) . .
-    if eq stored (add k 1) . do return (some (index b (add ks 1))) . end
+    if eq stored (add k 1) . do return (some (idx b (add ks 1))) . end
     set slot (mod (add slot 1) n) .
     set tries (add tries 1) .
   end

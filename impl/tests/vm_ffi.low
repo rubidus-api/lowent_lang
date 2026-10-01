@@ -74,7 +74,7 @@ end
 rem ★★★ **구조체 by-pointer** — `unsafe_ptr pt` 는 pt 의 바이트에 대한 **단일 생 포인터**를 C 에
 rem   `void *` 로 넘긴다(길이 없음). C 가 자기 struct 로 캐스팅해 읽고 쓴다. 레이아웃 일치는
 rem   unsafe — 이름이 그렇게 말한다(RFC-0066 가족). viewable 구조체만.
-struct pt do
+def struct pt do
   x i64 .
   y i64 .
 end

@@ -1,4 +1,4 @@
 module type_be .
 rem expect: E-TYPE-DECL
 
-type pct be u8 .
+def type pct be u8 .

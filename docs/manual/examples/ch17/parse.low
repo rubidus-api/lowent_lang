@@ -6,7 +6,7 @@ rem run: parse_u16 [55,48,48,48,48]
 rem run: port_or_default [56,48]
 rem run: port_or_default [120]
 
-enum parse_error do
+def enum parse_error do
   empty .
   not_digit .
   too_big .

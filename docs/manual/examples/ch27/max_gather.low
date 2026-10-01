@@ -8,7 +8,7 @@ do
   var best be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    set best (max best (widen u64 (index s i))) .
+    set best (max best (widen u64 (idx s i))) .
     set i (add i 1) .
   end
   return best .

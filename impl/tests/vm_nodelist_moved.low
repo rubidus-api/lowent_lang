@@ -6,7 +6,7 @@ module vm_nodelist_moved .
 
 use nodelist .
 
-newtype lru u32 .
+def newtype lru u32 .
 
 rem ✗ 여기가 거절돼야 한다.
 proc move_while_linked output u64 . effects none . do

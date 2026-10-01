@@ -33,14 +33,14 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
 
 ☞ 새 기능의 시금석: *"이게 이 원칙들의 귀결인가, 새 축인가?"* 새 축이면 뺀다.
 
-## 2. 어휘 — 하드 키워드 **43**  ·  *출처: 정본 §6.1 · 부록 A*
+## 2. 어휘 — 하드 키워드 **44**  ·  *출처: 정본 §6.1 · 부록 A*
 
 ```text
-  actor         be            break         case          continue      contract      do            drop          else          end
-  enum          expect        export        expr          extern        false         fn            for           guard         if
-  let           lit           match         module        newtype       none          proc          return        satisfies     send
-  set           spawn         state         struct        test          trait         true          try           type          unsafe
-  use           var           while
+  actor         be            break         case          continue      contract      def           do            drop          else
+  end           enum          expect        export        expr          extern        false         fn            for           guard
+  if            let           lit           match         module        newtype       none          proc          return        satisfies
+  send          set           spawn         state         struct        test          trait         true          try           type
+  unsafe        use           var           while
 ```
 
 ## 3. 빌트인 op **201**  ·  *출처: `impl/src/low_arity.h` · 부록 D*
@@ -58,7 +58,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   div             div_nz          encode          enumerate       env_get         eq              error           error_value
   exp             expect          field           file_close      file_open       file_read       file_seek       file_type
   file_write      filter          floor           fmod            fold            ge              ghash           gt
-  hash_bytes      index           intersect       into            is_empty        is_error        is_none         is_ok
+  hash_bytes      idx             intersect       into            is_empty        is_error        is_none         is_ok
   is_some         is_subset       le              leading_zeros   len             link_type       load            load_masked
   log             lt              map             max             min             mod             mul             mut_ref
   narrow          narrow_sat      narrow_try      narrow_wrap     native_lanes    ne              neg             net_accept
@@ -93,7 +93,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   프로파일  freestanding  embedded  native  server
 ```
 
-## 6. 오류 코드 — 계열 **112**  ·  *출처: `impl/src/*.c`*
+## 6. 오류 코드 — 계열 **113**  ·  *출처: `impl/src/*.c`*
 
 **전부 적지 않는다**(수백 개다). 어느 계열이 얼마나 굵은지만 — 굵은 계열이 곧 이 언어가
 가장 자주 거절하는 자리다.
@@ -102,7 +102,7 @@ runtime은 opt in이다.    test와 metadata는 바이너리에서 분리한다.
   E-VM(52)  E-TYPE(36)  E-NAME(12)  E-ASM(11)  E-ALLOC(10)
   E-MMIO(9)  E-ENUM(9)  E-EFFECT(8)  E-PKG(8)  E-PAR(7)
   E-FFI(7)  E-LIT(7)  E-ABSORB(6)  E-IR(6)
-  … 그 밖 98 계열
+  … 그 밖 99 계열
 ```
 
 ## 7. 지금의 수  ·  *가리키기만 한다*

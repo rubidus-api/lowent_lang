@@ -1,7 +1,7 @@
 module eqstruct_fixed .
 rem run: same
 
-struct point do
+def struct point do
   x u64 .
   y u64 .
 end

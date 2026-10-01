@@ -3,7 +3,7 @@ rem trap: main
 
 use pool .
 
-newtype objects u8 .
+def newtype objects u8 .
 
 proc main input al cap allocator . output u8 . effects alloc .
 do
@@ -21,6 +21,6 @@ do
   let done be bool pool.release objects p h .
   rem ko: ✘ 돌려준 블록의 바이트를 묻지 않고 꺼낸다 --- 세대가 달라 `none` 이다 /// en: ✘ takes out the bytes of a returned block without asking --- the generation differs, so it is `none`
   var b be mut slice u8 some_value (pool.bytes objects p h) .
-  set (index b 0) 7 .
-  return index b 0 .
+  set (idx b 0) 7 .
+  return idx b 0 .
 end

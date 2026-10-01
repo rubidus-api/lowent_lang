@@ -1,7 +1,7 @@
 module mistake_dropresult .
 rem expect: W-RESULT-DISCARD
 
-enum config_error do
+def enum config_error do
   port_zero .
 end
 

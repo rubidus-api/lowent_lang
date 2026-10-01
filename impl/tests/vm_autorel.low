@@ -36,7 +36,7 @@ proc take input bb mut allocs.bump_bytes . input k u64 . output u64 . effects st
   if gt k 5 . do
     return 7 .
   end
-  return index t 0 .
+  return idx t 0 .
 end
 
 rem 루프 열 번 · 도움 op 의 이른 return · 그 뒤 used 가 0 인가.
@@ -48,7 +48,7 @@ export proc cycle input n u64 . output u64 . effects state . do
   var i be u64 0 .
   while lt i n . do
     var t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
-    set s (add s (index t 0)) .
+    set s (add s (idx t 0)) .
     set i (add i 1) .
   end
   let a be u64 take bb 3 .
@@ -68,11 +68,11 @@ export proc jumps input n u64 . output u64 . effects state . do
     set i (add i 1) .
     if lt i 50 . do
       var u using bb be mut slice u64 lit array u64 4 1 _ . . else return 888 .
-      set s (add s (index u 0)) .
+      set s (add s (idx u 0)) .
       continue .
     end
     var t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
-    if eq (index t 0) n . do
+    if eq (idx t 0) n . do
       break .
     end
     set s (add s 10) .
@@ -95,7 +95,7 @@ end
 
 rem ★★ RFC-0135 S2a (D9) — 구조체도 할당기 바이트에 짓는다: 받은 바이트를 0 으로 채우고 배치를 얹어(`view` 와 같은 표현)
 rem   칸을 쓴다. 블록 끝 돌려주기도 같다 — 40 바이트로 16 바이트 구조체를 열 번 짓는다.
-struct pt do
+def struct pt do
   x u32 .
   y u64 .
 end
@@ -153,7 +153,7 @@ export proc kept_out output u64 . effects state . do
   let got be u64 send bb init back .
   let s be mut slice u64 kmake bb d .
   let p be pt kpt bb lit pt do x 0 . y 0 . end .
-  return add (add (index s 1) (field p y)) (mul (send bb used) 100) .
+  return add (add (idx s 1) (field p y)) (mul (send bb used) 100) .
 end
 
 rem ★ 일찍 돌려주기 — `drop t .` 가 그 자리에서 돌려주고 블록 끝에서는 다시 넣지 않는다. 그래서 같은 블록에서 다음 것을 받는다.
@@ -162,8 +162,8 @@ export proc early input a u64 . output u64 . effects state . do
   var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let got be u64 send bb init back .
   var t using bb be mut slice u64 lit array u64 4 a _ . . else return 900 .
-  let x be u64 index t 0 .
+  let x be u64 idx t 0 .
   drop t .
   var u using bb be mut slice u64 lit array u64 4 x _ . . else return 901 .
-  return add (index u 0) (mul (send bb used) 100) .
+  return add (idx u 0) (mul (send bb used) 100) .
 end

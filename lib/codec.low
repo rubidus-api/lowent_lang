@@ -40,9 +40,9 @@ export proc hex_enc input src slice u8 . input dst mut slice u8 . . output optio
   guard le need (len dst) . else return none .
   var i be u64 0 .
   while lt i (len src) . do
-    let b be u64 widen u64 (index src i) .
-    set (index dst (mul 2 i)) (hex_digit (shr b 4)) .
-    set (index dst (add (mul 2 i) 1)) (hex_digit (bit_and b 15)) .
+    let b be u64 widen u64 (idx src i) .
+    set (idx dst (mul 2 i)) (hex_digit (shr b 4)) .
+    set (idx dst (add (mul 2 i) 1)) (hex_digit (bit_and b 15)) .
     set i (add i 1) .
   end
   return some need .
@@ -55,11 +55,11 @@ export proc hex_dec input src slice u8 . input dst mut slice u8 . . output optio
   guard le need (len dst) . else return none .
   var i be u64 0 .
   while lt i need . do
-    let hv be option u64 hex_val (index src (mul 2 i)) .
+    let hv be option u64 hex_val (idx src (mul 2 i)) .
     guard is_some hv . else return none .
-    let lv be option u64 hex_val (index src (add (mul 2 i) 1)) .
+    let lv be option u64 hex_val (idx src (add (mul 2 i) 1)) .
     guard is_some lv . else return none .
-    set (index dst i) (narrow u8 (bit_or (shl (some_value hv) 4) (some_value lv))) .
+    set (idx dst i) (narrow u8 (bit_or (shl (some_value hv) 4) (some_value lv))) .
     set i (add i 1) .
   end
   return some need .
@@ -95,27 +95,27 @@ export proc b64_enc input src slice u8 . input dst mut slice u8 . . output optio
   var i be u64 0 .
   var o be u64 0 .
   while lt i (mul 3 full) . do
-    let w be u64 bit_or (shl (widen u64 (index src i)) 16) (bit_or (shl (widen u64 (index src (add i 1))) 8) (widen u64 (index src (add i 2)))) .
-    set (index dst o) (b64_digit (shr w 18)) .
-    set (index dst (add o 1)) (b64_digit (bit_and (shr w 12) 63)) .
-    set (index dst (add o 2)) (b64_digit (bit_and (shr w 6) 63)) .
-    set (index dst (add o 3)) (b64_digit (bit_and w 63)) .
+    let w be u64 bit_or (shl (widen u64 (idx src i)) 16) (bit_or (shl (widen u64 (idx src (add i 1))) 8) (widen u64 (idx src (add i 2)))) .
+    set (idx dst o) (b64_digit (shr w 18)) .
+    set (idx dst (add o 1)) (b64_digit (bit_and (shr w 12) 63)) .
+    set (idx dst (add o 2)) (b64_digit (bit_and (shr w 6) 63)) .
+    set (idx dst (add o 3)) (b64_digit (bit_and w 63)) .
     set i (add i 3) .
     set o (add o 4) .
   end
   if eq tail 1 . do
-    let w be u64 shl (widen u64 (index src i)) 16 .
-    set (index dst o) (b64_digit (shr w 18)) .
-    set (index dst (add o 1)) (b64_digit (bit_and (shr w 12) 63)) .
-    set (index dst (add o 2)) 61 .
-    set (index dst (add o 3)) 61 .
+    let w be u64 shl (widen u64 (idx src i)) 16 .
+    set (idx dst o) (b64_digit (shr w 18)) .
+    set (idx dst (add o 1)) (b64_digit (bit_and (shr w 12) 63)) .
+    set (idx dst (add o 2)) 61 .
+    set (idx dst (add o 3)) 61 .
   end
   if eq tail 2 . do
-    let w be u64 bit_or (shl (widen u64 (index src i)) 16) (shl (widen u64 (index src (add i 1))) 8) .
-    set (index dst o) (b64_digit (shr w 18)) .
-    set (index dst (add o 1)) (b64_digit (bit_and (shr w 12) 63)) .
-    set (index dst (add o 2)) (b64_digit (bit_and (shr w 6) 63)) .
-    set (index dst (add o 3)) 61 .
+    let w be u64 bit_or (shl (widen u64 (idx src i)) 16) (shl (widen u64 (idx src (add i 1))) 8) .
+    set (idx dst o) (b64_digit (shr w 18)) .
+    set (idx dst (add o 1)) (b64_digit (bit_and (shr w 12) 63)) .
+    set (idx dst (add o 2)) (b64_digit (bit_and (shr w 6) 63)) .
+    set (idx dst (add o 3)) 61 .
   end
   return some need .
 end
@@ -130,8 +130,8 @@ export proc b64_dec input src slice u8 . input dst mut slice u8 . . output optio
   guard eq (mod (len src) 4) 0 . else return none .
   guard gt (len src) 0 . else return some 0 .
   var pad be u64 0 .
-  if eq (index src (sub (len src) 1)) 61 . do set pad 1 .
-    if eq (index src (sub (len src) 2)) 61 . do set pad 2 . end
+  if eq (idx src (sub (len src) 1)) 61 . do set pad 1 .
+    if eq (idx src (sub (len src) 2)) 61 . do set pad 2 . end
   end
   let need be u64 sub (mul 3 (div (len src) 4)) pad .
   guard le need (len dst) . else return none .
@@ -139,14 +139,14 @@ export proc b64_dec input src slice u8 . input dst mut slice u8 . . output optio
   var o be u64 0 .
   while lt i (len src) . do
     let last be bool eq (add i 4) (len src) .
-    let v0 be option u64 b64_val (index src i) .
+    let v0 be option u64 b64_val (idx src i) .
     guard is_some v0 . else return none .
-    let v1 be option u64 b64_val (index src (add i 1)) .
+    let v1 be option u64 b64_val (idx src (add i 1)) .
     guard is_some v1 . else return none .
     var w be u64 bit_or (shl (some_value v0) 18) (shl (some_value v1) 12) .
     var nb be u64 3 .
-    let c2 be u8 index src (add i 2) .
-    let c3 be u8 index src (add i 3) .
+    let c2 be u8 idx src (add i 2) .
+    let c3 be u8 idx src (add i 3) .
     if eq c2 61 . do
       rem `==` 은 마지막 그룹에서만, 그리고 c3 도 `=` 여야 한다.
       guard last . else return none .
@@ -171,9 +171,9 @@ export proc b64_dec input src slice u8 . input dst mut slice u8 . . output optio
         set w (bit_or w (some_value v3)) .
       end
     end
-    set (index dst o) (narrow u8 (shr w 16)) .
-    if ge nb 2 . do set (index dst (add o 1)) (narrow u8 (bit_and (shr w 8) 255)) . end
-    if ge nb 3 . do set (index dst (add o 2)) (narrow u8 (bit_and w 255)) . end
+    set (idx dst o) (narrow u8 (shr w 16)) .
+    if ge nb 2 . do set (idx dst (add o 1)) (narrow u8 (bit_and (shr w 8) 255)) . end
+    if ge nb 3 . do set (idx dst (add o 2)) (narrow u8 (bit_and w 255)) . end
     set i (add i 4) .
     set o (add o nb) .
   end

@@ -42,7 +42,7 @@
     X(atomic_cas, IRW_ACAS, 4)     X(atomic_fence, IRW_AFENCE, 0)                  \
     X(eq, IRW_EQ, 2)     X(ne, IRW_NE, 2)     X(lt, IRW_LT, 2)                 \
     X(le, IRW_LE, 2)     X(gt, IRW_GT, 2)     X(ge, IRW_GE, 2)                 \
-    X(len, IRW_LEN, 1)   X(index, IRW_INDEX, 2)  X(subslice, IRW_SUBSLICE, 3)  \
+    X(len, IRW_LEN, 1)   X(idx, IRW_INDEX, 2)    X(subslice, IRW_SUBSLICE, 3)  \
     /* ★★★ **해시 둘** (RFC-0090 N3, 2026-08-11) — 권한이 **없다**: 바이트를 읽어 수를    \
        내는 순수 계산이고 세상에 안 닿는다. 리프인 이유는 표현이 아니라 **비용**이다      \
        (Lowent 로 쓸 수 있지만 바이트마다 op 호출이 붙는다 — 리프 규칙 RFC-0075).         \

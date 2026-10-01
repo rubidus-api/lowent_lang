@@ -1,7 +1,7 @@
 module direct_call .
 rem run: f
 
-struct rect do
+def struct rect do
   w u64 .
   h u64 .
 end

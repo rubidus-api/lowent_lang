@@ -8,12 +8,12 @@ fn head input data slice u8 .
   output u8 .
   requires ge (len data) 1 .
 do
-  return index data 0 .
+  return idx data 0 .
 end
 
 fn last4 input xs array u8 4 . output u8 .
 do
-  return index xs 3 .
+  return idx xs 3 .
 end
 
 fn total input xs slice u8 . output u64 .
@@ -27,5 +27,5 @@ end
 
 fn at input xs slice u8 . input i u64 . output u8 .
 do
-  return index xs i .
+  return idx xs i .
 end

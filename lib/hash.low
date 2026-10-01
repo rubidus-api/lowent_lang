@@ -86,7 +86,7 @@ export fn digest_ok input data slice u8 . input out mut slice u8 . input want sl
   var diff be u64 0 .
   var i be u64 0 .
   while lt i 32 . do
-    set diff (bit_or diff (bit_xor (cast u64 (index out i)) (cast u64 (index want i)))) .
+    set diff (bit_or diff (bit_xor (cast u64 (idx out i)) (cast u64 (idx want i)))) .
     set i (add i 1) .
   end
   return eq diff 0 .

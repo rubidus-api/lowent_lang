@@ -1,7 +1,7 @@
 module sink .
 rem run: use_once 5
 
-type buffer u8 .
+def type buffer u8 .
 
 fn consume input h owned buffer . output u8 .
 do

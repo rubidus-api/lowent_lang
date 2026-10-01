@@ -20,7 +20,7 @@ module aead .
 rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
 rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
-export enum aead_error do
+export def enum aead_error do
   short_workspace .
 end
 
@@ -53,8 +53,8 @@ rem ★ 길이 블록: le64(|AAD|) ‖ le64(|CT|) — 꽉 찬 16 바이트 한 �
 proc feed_lens input pst mut slice u64 . input alen u64 . input clen u64 . input pad mut slice u8 . output u64 . effects none . do
   var b be u64 0 .
   while lt b 8 . do
-    set (index pad b) (cast u8 (bit_and (shr alen (mul b 8)) 255)) .
-    set (index pad (add 8 b)) (cast u8 (bit_and (shr clen (mul b 8)) 255)) .
+    set (idx pad b) (cast u8 (bit_and (shr alen (mul b 8)) 255)) .
+    set (idx pad (add 8 b)) (cast u8 (bit_and (shr clen (mul b 8)) 255)) .
     set b (add b 1) .
   end
   return poly.block pst (subslice pad 0 16) 1 .
@@ -76,11 +76,11 @@ errors short_workspace . do
   rem   ☞ 그래서 여기서는 낱말을 부르고, 정의는 골든이 맞대는 자리에 남는다.
   rem 카운터 블록: 앞 4 = 블록 번호 0(리틀엔디언) · 뒤 12 = nonce. `ks` 의 앞 16 을 빌린다.
   var b be u64 0 .
-  while lt b 16 . do  set (index ks b) 0 .  set b (add b 1) .  end
+  while lt b 16 . do  set (idx ks b) 0 .  set b (add b 1) .  end
   var j be u64 0 .
-  while lt j 12 . do  set (index ks (add 4 j)) (index nonce j) .  set j (add j 1) .  end
+  while lt j 12 . do  set (idx ks (add 4 j)) (idx nonce j) .  set j (add j 1) .  end
   var z be u64 0 .
-  while lt z 32 . do  set (index otk z) 0 .  set z (add z 1) .  end
+  while lt z 32 . do  set (idx otk z) 0 .  set z (add z 1) .  end
   let n be u64 call_builtin chacha20 key (subslice ks 0 16) (subslice otk 0 32) (subslice otk 0 32) .
   guard eq n 32 . else return ok 0 .
   return ok 32 .
@@ -108,10 +108,10 @@ errors short_workspace . do
   let a1 be u64 feed pst aad pad .
   rem 카운터 블록: 앞 4 = 블록 번호 1(리틀엔디언) · 뒤 12 = nonce. `ks` 앞 16 을 빌려 쓴다.
   var cb be u64 0 .
-  while lt cb 16 . do  set (index ks cb) 0 .  set cb (add cb 1) .  end
-  set (index ks 0) 1 .
+  while lt cb 16 . do  set (idx ks cb) 0 .  set cb (add cb 1) .  end
+  set (idx ks 0) 1 .
   var cn be u64 0 .
-  while lt cn 12 . do  set (index ks (add 4 cn)) (index nonce cn) .  set cn (add cn 1) .  end
+  while lt cn 12 . do  set (idx ks (add 4 cn)) (idx nonce cn) .  set cn (add cn 1) .  end
   let n be u64 call_builtin chacha_poly key (subslice ks 0 16) pst msg ct .
   guard eq n (len msg) . else return ok 0 .
   let a3 be u64 feed_lens pst (len aad) (len msg) pad .
@@ -140,7 +140,7 @@ errors short_workspace . do
   var diff be u64 0 .
   var i be u64 0 .
   while lt i 16 . do
-    set diff (bit_or diff (bit_xor (cast u64 (index want i)) (cast u64 (index tag i)))) .
+    set diff (bit_or diff (bit_xor (cast u64 (idx want i)) (cast u64 (idx tag i)))) .
     set i (add i 1) .
   end
   guard eq diff 0 . else return ok 0 .

@@ -20,7 +20,7 @@ module rsa .
 rem ★★★★ **「자리가 모자라다」와 「답이 아니다」는 다른 사실이다** (X-0035, 소유자 결정 2026-09-20).
 rem   그전에는 둘 다 0 이었다 — 재지 못한 것과 재고 나서 «아니다» 하는 것이 **같은 값**이었고,
 rem   그래서 작업 공간을 잘못 준 판이 «답이 틀렸다» 로 보였다. 이제 모자람은 값이 아니라 **실패**다.
-export enum rsa_error do
+export def enum rsa_error do
   short_workspace .
 end
 
@@ -35,20 +35,20 @@ errors short_workspace . do
   let sl be u64 len seed .
   guard ge (len w) (add (add sl 4) 32) . else return error short_workspace .
   var i be u64 0 .
-  while lt i sl . do  set (index w i) (index seed i) .  set i (add i 1) .  end
+  while lt i sl . do  set (idx w i) (idx seed i) .  set i (add i 1) .  end
   var counter be u64 0 .
   var off be u64 0 .
   while lt off n . do
     rem 카운터는 **4 바이트 빅엔디언**이다.
-    set (index w sl) (cast u8 (bit_and (shr counter 24) 255)) .
-    set (index w (add sl 1)) (cast u8 (bit_and (shr counter 16) 255)) .
-    set (index w (add sl 2)) (cast u8 (bit_and (shr counter 8) 255)) .
-    set (index w (add sl 3)) (cast u8 (bit_and counter 255)) .
+    set (idx w sl) (cast u8 (bit_and (shr counter 24) 255)) .
+    set (idx w (add sl 1)) (cast u8 (bit_and (shr counter 16) 255)) .
+    set (idx w (add sl 2)) (cast u8 (bit_and (shr counter 8) 255)) .
+    set (idx w (add sl 3)) (cast u8 (bit_and counter 255)) .
     guard eq (call_builtin sha256 (subslice w 0 (add sl 4)) (subslice w (add sl 4) (add (add sl 4) 32))) 32 . else return ok 0 .
     var j be u64 0 .
     while lt j 32 . do
       if lt (add off j) n . do
-        set (index out (add off j)) (index w (add (add sl 4) j)) .
+        set (idx out (add off j)) (idx w (add (add sl 4) j)) .
       end
       set j (add j 1) .
     end
@@ -69,14 +69,14 @@ errors short_workspace . do
   guard ge (len w) (add emlen 128) . else return error short_workspace .
 
   rem ① 마지막 바이트는 0xbc 여야 한다.
-  guard eq (cast u64 (index em (sub emlen 1))) 188 . else return ok 0 .
+  guard eq (cast u64 (idx em (sub emlen 1))) 188 . else return ok 0 .
 
   let hlen be u64 32 .
   let dblen be u64 sub (sub emlen hlen) 1 .
 
   rem ② maskedDB 의 **왼쪽 여분 비트는 0** 이어야 한다. emBits = 8·emLen − 1 이므로
   rem   최상위 한 비트가 남는다. 이것을 안 보면 서명이 **여러 모양**을 가질 수 있다.
-  guard eq (bit_and (cast u64 (index em 0)) 128) 0 . else return ok 0 .
+  guard eq (bit_and (cast u64 (idx em 0)) 128) 0 . else return ok 0 .
 
   rem ③ dbMask = MGF1(H, dblen),  DB = maskedDB xor dbMask
   let _u0 be result u64 rsa_error mgf1 (subslice em dblen (add dblen hlen)) dblen (subslice w 0 dblen) (subslice w emlen (add emlen 128)) .
@@ -84,28 +84,28 @@ errors short_workspace . do
   guard eq (ok_value _u0) dblen . else return ok 0 .
   var i be u64 0 .
   while lt i dblen . do
-    set (index w i) (cast u8 (bit_xor (cast u64 (index w i)) (cast u64 (index em i)))) .
+    set (idx w i) (cast u8 (bit_xor (cast u64 (idx w i)) (cast u64 (idx em i)))) .
     set i (add i 1) .
   end
-  set (index w 0) (cast u8 (bit_and (cast u64 (index w 0)) 127)) .
+  set (idx w 0) (cast u8 (bit_and (cast u64 (idx w 0)) 127)) .
 
   rem ④ DB 는 0x00 … 0x00 ‖ 0x01 ‖ salt 여야 한다.
   var p be u64 0 .
   while lt p (sub (sub dblen slen) 1) . do
-    guard eq (cast u64 (index w p)) 0 . else return ok 0 .
+    guard eq (cast u64 (idx w p)) 0 . else return ok 0 .
     set p (add p 1) .
   end
-  guard eq (cast u64 (index w (sub (sub dblen slen) 1))) 1 . else return ok 0 .
+  guard eq (cast u64 (idx w (sub (sub dblen slen) 1))) 1 . else return ok 0 .
 
   rem ⑤ M' = 0x00×8 ‖ mHash ‖ salt,  H' = SHA-256(M') 가 EM 안의 H 와 같은가
   let mp be u64 add emlen 0 .
   var q be u64 0 .
-  while lt q 8 . do  set (index w (add mp q)) 0 .  set q (add q 1) .  end
+  while lt q 8 . do  set (idx w (add mp q)) 0 .  set q (add q 1) .  end
   var r be u64 0 .
-  while lt r 32 . do  set (index w (add (add mp 8) r)) (index mhash r) .  set r (add r 1) .  end
+  while lt r 32 . do  set (idx w (add (add mp 8) r)) (idx mhash r) .  set r (add r 1) .  end
   var t be u64 0 .
   while lt t slen . do
-    set (index w (add (add mp 40) t)) (index w (add (sub dblen slen) t)) .
+    set (idx w (add (add mp 40) t)) (idx w (add (sub dblen slen) t)) .
     set t (add t 1) .
   end
   guard eq (call_builtin sha256 (subslice w mp (add (add mp 40) slen)) (subslice w (add (add mp 40) slen) (add (add (add mp 40) slen) 32))) 32 . else return ok 0 .
@@ -113,7 +113,7 @@ errors short_workspace . do
   var diff be u64 0 .
   var z be u64 0 .
   while lt z 32 . do
-    set diff (bit_or diff (bit_xor (cast u64 (index w (add (add (add mp 40) slen) z))) (cast u64 (index em (add dblen z))))) .
+    set diff (bit_or diff (bit_xor (cast u64 (idx w (add (add (add mp 40) slen) z))) (cast u64 (idx em (add dblen z))))) .
     set z (add z 1) .
   end
   guard eq diff 0 . else return ok 0 .
@@ -163,8 +163,8 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
   guard le (len mhash) 64 . else return 0 .
   rem 0x00 0x01 + 채움 여덟 이상 + 0x00 + DigestInfo(19 + 해시)
   guard ge (len em) (add 30 (add 19 (len mhash))) . else return 0 .
-  guard eq (index em 0) 0 . else return 0 .
-  guard eq (index em 1) 1 . else return 0 .
+  guard eq (idx em 0) 0 . else return 0 .
+  guard eq (idx em 1) 1 . else return 0 .
 
   rem ① 0xFF 가 몇 개인지 센다 — 여덟 미만이면 거절(RFC 8017 §9.2).
   var i be u64 2 .
@@ -172,7 +172,7 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
   while eq run 1 . do
     if ge i (len em) . do  set run 0 . end
     if eq run 1 . do
-      if ne (index em i) 255 . do  set run 0 . end
+      if ne (idx em i) 255 . do  set run 0 . end
       if eq run 1 . do  set i (add i 1) . end
     end
   end
@@ -180,7 +180,7 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
 
   rem ② 채움 뒤는 0x00 하나.
   guard lt i (len em) . else return 0 .
-  guard eq (index em i) 0 . else return 0 .
+  guard eq (idx em i) 0 . else return 0 .
   set i (add i 1) .
 
   rem ③ 남은 것이 **정확히** DigestInfo 51 바이트여야 한다. 남으면 거절 — 뒤에 무엇이든
@@ -188,7 +188,7 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
   guard eq (sub (len em) i) (add 19 (len mhash)) . else return 0 .
   var j be u64 0 .
   while lt j 19 . do
-    if ne (index em (add i j)) (index di j) . do  return 0 . end
+    if ne (idx em (add i j)) (idx di j) . do  return 0 . end
     set j (add j 1) .
   end
 
@@ -196,7 +196,7 @@ export proc pkcs1_verify input em slice u8 . input mhash slice u8 . input di sli
   var diff be u64 0 .
   var m be u64 0 .
   while lt m (len mhash) . do
-    set diff (bit_or diff (bit_xor (cast u64 (index em (add (add i 19) m))) (cast u64 (index mhash m)))) .
+    set diff (bit_or diff (bit_xor (cast u64 (idx em (add (add i 19) m))) (cast u64 (idx mhash m)))) .
     set m (add m 1) .
   end
   if eq diff 0 . do  return 1 . end

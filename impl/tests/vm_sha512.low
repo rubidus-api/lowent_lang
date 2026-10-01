@@ -14,7 +14,7 @@ fn head8 input d slice u8 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 8 . do
-    set acc (add (shl acc 8) (cast u64 (index d i))) .
+    set acc (add (shl acc 8) (cast u64 (idx d i))) .
     set i (add i 1) .
   end
   return acc .
@@ -31,7 +31,7 @@ proc t_short input src slice u8 . input dst mut slice u8 . output u64 . effects 
   guard eq (call_builtin sha512 src dst) 0 . else return 0 .
   var i be u64 0 .
   while lt i (len dst) . do
-    guard eq (index dst i) 0 . else return 0 .
+    guard eq (idx dst i) 0 . else return 0 .
     set i (add i 1) .
   end
   return 1 .

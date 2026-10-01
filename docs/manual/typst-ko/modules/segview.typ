@@ -13,8 +13,8 @@
 
 ```lowent
 rem 서술자는 평평한 slice u64 에 (at, n) 쌍 --- 새 구조체 타입은 없다
-set (index d 0) 0 .  set (index d 1) 4 .
-set (index d 2) 8 .  set (index d 3) 4 .
+set (idx d 0) 0 .  set (idx d 1) 4 .
+set (idx d 2) 8 .  set (idx d 3) 4 .
 let ss be segments u8 view_segments back d .
 let n be u64 segview.total_len ss .
 let w be option u64 segview.coalesce ss out .

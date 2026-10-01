@@ -4,7 +4,7 @@ rem   sum_seq(축차) → 0   |   sum_neumaier(보정) → 1
 rem ☞ 2026-09-17: 이름을 `sum`·`sum_fast` 에서 바꿨다(결함 노트 #71). 한 이름이 «레인을 더한다»
 rem   (정본 §6.3.7)와 «부동 슬라이스를 보정해 더한다»(도구) 둘을 뜻하고 있었다. 이름이 **어떻게
 rem   더하는지**를 말하게 했다.
-type bytes slice u8 . .
+def type bytes slice u8 . .
 fn s_good input b bytes . output f64 . do
   var xs be slice f64 view_array f64 b .
   return sum_neumaier xs .

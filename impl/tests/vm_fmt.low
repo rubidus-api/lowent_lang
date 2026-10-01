@@ -14,13 +14,13 @@ proc t_u64 input buf mut slice u8 . . output u64 . effects none . do
   let a be option u64 fmt.put_u64 buf 0 0 .
   guard is_some a . else return 90 .
   guard eq (some_value a) 1 . else return 91 .
-  guard eq (index buf 0) 48 . else return 92 .
+  guard eq (idx buf 0) 48 . else return 92 .
   rem 12345 → "12345", pos 6 (앞의 '0' 하나 뒤부터)
   let b be option u64 fmt.put_u64 buf 1 12345 .
   guard is_some b . else return 93 .
   guard eq (some_value b) 6 . else return 94 .
-  guard eq (index buf 1) 49 . else return 95 .
-  guard eq (index buf 5) 53 . else return 96 .
+  guard eq (idx buf 1) 49 . else return 95 .
+  guard eq (idx buf 5) 53 . else return 96 .
   return 1 .
 end
 
@@ -29,13 +29,13 @@ proc t_i64 input buf mut slice u8 . . output u64 . effects none . do
   let a be option u64 fmt.put_i64 buf 0 (sub 0 42) .
   guard is_some a . else return 90 .
   guard eq (some_value a) 3 . else return 91 .            rem "-42"
-  guard eq (index buf 0) 45 . else return 92 .            rem '-'
-  guard eq (index buf 1) 52 . else return 93 .            rem '4'
+  guard eq (idx buf 0) 45 . else return 92 .            rem '-'
+  guard eq (idx buf 1) 52 . else return 93 .            rem '4'
   rem 양수는 부호 없이.
   let b be option u64 fmt.put_i64 buf 3 7 .
   guard is_some b . else return 94 .
   guard eq (some_value b) 4 . else return 95 .
-  guard eq (index buf 3) 55 . else return 96 .            rem '7'
+  guard eq (idx buf 3) 55 . else return 96 .            rem '7'
   return 1 .
 end
 
@@ -44,14 +44,14 @@ proc t_hex input buf mut slice u8 . . output u64 . effects none . do
   let a be option u64 fmt.put_hex buf 0 255 .
   guard is_some a . else return 90 .
   guard eq (some_value a) 2 . else return 91 .
-  guard eq (index buf 0) 102 . else return 92 .           rem 'f'
-  guard eq (index buf 1) 102 . else return 93 .
+  guard eq (idx buf 0) 102 . else return 92 .           rem 'f'
+  guard eq (idx buf 1) 102 . else return 93 .
   rem 16 → "10"
   let b be option u64 fmt.put_hex buf 2 16 .
   guard is_some b . else return 94 .
   guard eq (some_value b) 4 . else return 95 .
-  guard eq (index buf 2) 49 . else return 96 .            rem '1'
-  guard eq (index buf 3) 48 . else return 97 .            rem '0'
+  guard eq (idx buf 2) 49 . else return 96 .            rem '1'
+  guard eq (idx buf 3) 48 . else return 97 .            rem '0'
   return 1 .
 end
 
@@ -61,13 +61,13 @@ proc t_str input buf mut slice u8 . . output u64 . effects none . do
   let a be option u64 fmt.put_str buf 0 "hi" .
   guard is_some a . else return 90 .
   guard eq (some_value a) 2 . else return 91 .
-  guard eq (index buf 0) 104 . else return 92 .
+  guard eq (idx buf 0) 104 . else return 92 .
   let b be option u64 fmt.put_bool buf 2 true .
   guard is_some b . else return 93 .
   guard eq (some_value b) 6 . else return 94 .            rem "true"
   let c be option u64 fmt.put_nl buf 6 .
   guard is_some c . else return 95 .
-  guard eq (index buf 6) 10 . else return 96 .            rem LF
+  guard eq (idx buf 6) 10 . else return 96 .            rem LF
   return 1 .
 end
 
@@ -77,10 +77,10 @@ proc t_overflow input buf mut slice u8 . . output u64 . effects none . do
   rem 버퍼 끝 직전에서 여러 자리 수를 쓰려 하면 none 이고 **아무것도 안 쓴다**.
   let last be u64 sub (len buf) 1 .
   guard eq (is_some (fmt.put_u64 buf last 12345)) false . else return 90 .
-  guard eq (index buf last) 0 . else return 91 .          rem ★ 부분 기록이 없다
+  guard eq (idx buf last) 0 . else return 91 .          rem ★ 부분 기록이 없다
   rem 문자열도 전량 아니면 무.
   guard eq (is_some (fmt.put_str buf last "abc")) false . else return 92 .
-  guard eq (index buf last) 0 . else return 93 .
+  guard eq (idx buf last) 0 . else return 93 .
   rem 딱 맞으면 성공한다(경계는 정확하다).
   let fit be option u64 fmt.put_byte buf last 65 .
   guard is_some fit . else return 94 .

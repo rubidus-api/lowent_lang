@@ -23,7 +23,7 @@ fn sm_hash input k slice u8 . input n u64 . output u64 . do
   var h be u64 14695981039346656037 .
   var i be u64 0 .
   while lt i (len k) . do
-    set h (wrap_mul (bit_xor h (index k i)) 1099511628211) .
+    set h (wrap_mul (bit_xor h (idx k i)) 1099511628211) .
     set i (add i 1) .
   end
   return mod h n .
@@ -35,7 +35,7 @@ fn sm_keq input keys slice u8 . input off u64 . input klen u64 . input k slice u
   var i be u64 0 .
   var same be bool true .
   while lt i klen . do
-    if ne (index keys (add off i)) (index k i) . do set same false . end
+    if ne (idx keys (add off i)) (idx k i) . do set same false . end
     set i (add i 1) .
   end
   return same .
@@ -45,17 +45,17 @@ rem 내부 — base 슬롯에 새 키를 arena 에 복사하고 [keyoff,keylen,v
 rem   빈칸이든 묘비든 재사용 슬롯이든 **쓰기는 같다**(묘비의 옛 keyoff 는 덮어쓴다 — 옛 키 바이트는
 rem   arena 에 남지만 bump 아레나는 회수 안 한다, 문서화된 한계).
 proc sm_write input slots mut slice u64 . . input keys mut slice u8 . . input base u64 . input k slice u8 . input v u64 . output bool . effects none . do
-  let cursor be u64 index slots 0 .
+  let cursor be u64 idx slots 0 .
   guard le (add cursor (len k)) (len keys) . else return false .
   var j be u64 0 .
   while lt j (len k) . do
-    set (index keys (add cursor j)) (index k j) .
+    set (idx keys (add cursor j)) (idx k j) .
     set j (add j 1) .
   end
-  set (index slots base) cursor .
-  set (index slots (add base 1)) (len k) .
-  set (index slots (add base 2)) v .
-  set (index slots 0) (add cursor (len k)) .
+  set (idx slots base) cursor .
+  set (idx slots (add base 1)) (len k) .
+  set (idx slots (add base 2)) v .
+  set (idx slots 0) (add cursor (len k)) .
   return true .
 end
 
@@ -75,7 +75,7 @@ do
   var tomb_base be u64 0 .
   while lt tries n . do
     let base be u64 add 1 (mul slot 3) .
-    let klen be u64 index slots (add base 1) .
+    let klen be u64 idx slots (add base 1) .
     if eq klen 0 . do
       rem 빈칸 — 키는 이 뒤에 없다. 묘비를 봤으면 거기 재사용, 아니면 여기.
       var wb be u64 base .
@@ -91,9 +91,9 @@ do
     end
     if ne klen 18446744073709551615 . do
       rem 살아있는 슬롯 — 같은 키면 값 갱신(제자리)
-      let off be u64 index slots base .
+      let off be u64 idx slots base .
       if eq (sm_keq keys off klen k) true . do
-        set (index slots (add base 2)) v .
+        set (idx slots (add base 2)) v .
         return true .
       end
     end
@@ -120,13 +120,13 @@ export proc del input slots mut slice u64 . . input keys slice u8 . input k slic
   var tries be u64 0 .
   while lt tries n . do
     let base be u64 add 1 (mul slot 3) .
-    let klen be u64 index slots (add base 1) .
+    let klen be u64 idx slots (add base 1) .
     if eq klen 0 . do return false . end          rem 빈칸에 닿았다 — 없다 . .
     if ne klen 18446744073709551615 . do          rem 묘비가 아닌 살아있는 슬롯만 키 비교
-      let off be u64 index slots base .
+      let off be u64 idx slots base .
       if eq (sm_keq keys off klen k) true . do
-        set (index slots (add base 1)) 18446744073709551615 .   rem 묘비 표식
-        set (index slots (add base 2)) 0 .
+        set (idx slots (add base 1)) 18446744073709551615 .   rem 묘비 표식
+        set (idx slots (add base 2)) 0 .
         return true .
       end
     end
@@ -151,7 +151,7 @@ rem 슬롯의 keylen. **0 = 빈칸** · **MAX = 묘비**. 원시 접근자다.
 export fn keylen_at input slots slice u64 . input slot u64 . output u64 . do
   guard lt slot (size slots) . else return 0 .
   let base be u64 add 1 (mul slot 3) .
-  return index slots (add base 1) .
+  return idx slots (add base 1) .
 end
 
 rem 슬롯이 살아 있나(빈칸도 묘비도 아니다). 삭제 도입 후 순회의 occupancy 판별(hm_occupied_at 대칭).
@@ -167,14 +167,14 @@ end
 rem 슬롯의 keyoff(arena 내 키 시작). keylen 과 함께 키 바이트를 가리킨다.
 export fn keyoff_at input slots slice u64 . input slot u64 . output u64 . do
   guard lt slot (size slots) . else return 0 .
-  return index slots (add 1 (mul slot 3)) .
+  return idx slots (add 1 (mul slot 3)) .
 end
 
 rem 슬롯의 value. occupied(keylen>0)일 때만 뜻이 있다.
 export fn val_at input slots slice u64 . input slot u64 . output u64 . do
   guard lt slot (size slots) . else return 0 .
   let base be u64 add 1 (mul slot 3) .
-  return index slots (add base 2) .
+  return idx slots (add base 2) .
 end
 
 rem ★★★ **성장(rehash)** — hm_rehash 와 대칭. 호출자가 더 큰 두 버퍼(ns 슬롯·na 아레나)를 마련하고
@@ -207,10 +207,10 @@ export proc lookup input slots slice u64 . input keys slice u8 . input k slice u
   var tries be u64 0 .
   while lt tries n . do
     let base be u64 add 1 (mul slot 3) .
-    let klen be u64 index slots (add base 1) .
+    let klen be u64 idx slots (add base 1) .
     if eq klen 0 . do return none . end
-    let off be u64 index slots base .
-    if eq (sm_keq keys off klen k) true . do return (some (index slots (add base 2))) . end
+    let off be u64 idx slots base .
+    if eq (sm_keq keys off klen k) true . do return (some (idx slots (add base 2))) . end
     set slot (mod (add slot 1) n) .
     set tries (add tries 1) .
   end

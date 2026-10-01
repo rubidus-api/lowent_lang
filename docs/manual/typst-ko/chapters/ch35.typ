@@ -58,7 +58,7 @@
 == 브랜드 --- 풀을 섞지 못하게
 
 #idx("브랜드")
-풀과 핸들은 번역 시점 타입 매개변수로 *브랜드*를 든다. `newtype objects u8 .` 선언 하나가 곧 저장소 하나다.
+풀과 핸들은 번역 시점 타입 매개변수로 *브랜드*를 든다. `def newtype objects u8 .` 선언 하나가 곧 저장소 하나다.
 
 #demo("examples/ch35/mixed.low")
 
@@ -153,7 +153,7 @@
   id: "lib-alloc-glance",
   caption: [저장소와 핸들의 모양 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`newtype objects u8 .`], [저장소 하나의 브랜드], [비용 없는 구별 --- 섞으면 `E-TYPE-INSTANCE`, 두 번 열면 `E-BRAND-REUSED`],
+  [`def newtype objects u8 .`], [저장소 하나의 브랜드], [비용 없는 구별 --- 섞으면 `E-TYPE-INSTANCE`, 두 번 열면 `E-BRAND-REUSED`],
   [`pool.init objects mem gens 16`], [호출자 바이트를 블록으로 나눈 풀(봉해 든다)], [뒤의 op 은 `mem`·`gens` 를 따로 받지 않는다],
   [`pool.take` · `pool.release` · `pool.alive`], [빌리기(세대 핸들) · 돌려주기(세대 올림) · 묻기], [지운 뒤 사용·두 번 해제가 값으로 드러난다],
   [`pool.bytes objects p h` → `option mut slice u8`], [블록 바이트에 닿는 유일한 문], [세대가 다르면 `none`],

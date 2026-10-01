@@ -667,7 +667,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <h2>19 소유 — 없앨 책임은 하나에게</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>12장 빌리기 · 읽기 여럿 또는 쓰기 하나</div><div>18장 영역 · 영역은 끝날 때 한꺼번에 걷힌다</div><div>17장 실패를 설계하기 · 실패는 누군가 받아야 한다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>18장의 영역은 값들을 한꺼번에 걷는다. 그런데 파일 핸들처럼 <strong>하나씩</strong>, 그리고 <strong>닫다가 실패할 수 있는</strong> 자원은 영역만으로 다룰 수 있는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> 영역은 바이트를 한꺼번에 되감을 뿐이라서, 파일을 닫거나 버퍼를 비우는 일은 하지 못한다. 그리고 닫기가 실패하면 그 실패를 받을 자리가 영역의 <code>end</code> 에는 없다. 그런 자원에는 값마다 없앨 책임을 지는 <strong>소유</strong>가 필요하다. 이 장이 그것을 다룬다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">메모리 결함의 오래된 두 이름은 <strong>두 번 해제</strong>와 <strong>해제 누락</strong>이고, 요즘 이름은 <strong>옮긴 뒤 사용</strong>이다. 셋은 모두 “이 값을 없앨 책임이 지금 누구에게 있는가” 에 답이 하나가 아닐 때 생긴다. Lowent 는 그 답이 언제나 하나이도록 번역에서 검사한다. 여기에 한 가지를 더한다 — 없애는 일이 <strong>실패할 수 있으면</strong> 조용히 없애지 않는다. 영역(18장)이 함께 죽는 값을 다뤘다면, 이 장은 따로 죽는 값을 다룬다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body"><code>owned t</code> 가 무엇이고 <code>drop</code> 이 무엇을 하는지 알게 된다. 옮긴 값을 다시 쓰거나 두 번 없애면 거절되고, 갈래마다 소유 상태가 다르면 거절되는 이유를 익힌다. 없애기가 <strong>해제</strong>(실패 없음)와 <strong>완결</strong>(실패할 수 있음) 두 갈래라는 것, 완결이 필요한 값을 자동으로 버리면 왜 거절되는지 보게 된다. 이 언어의 메모리 안전이 어느 강도로 보장되는지도 정리한다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li>소유가 없는 값은 넘길 때 어떻게 되는가?</li></ol></div></div><div></div><h3 id="s19-1">19.1 <code>owned</code> 와 <code>drop</code><a class="plink" href="#s19-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-44"></span><p><code>owned t</code> 는 소유를 가진 값이다. 소유를 가진 값은 <strong>정확히 한 번</strong> 없애져야 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/sink.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sink .
 <em><span class="tok-c">rem run: use_once 5</span></em>
 
-<strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -690,7 +690,7 @@ use_once(5) = 0
   (다시 쓰면 E-OWN-MOVED)</code></pre><p>열쇠 하나짜리 사물함에 빗대면 쉽다. 열쇠를 건네면 내 손에는 열쇠가 없다. 사물함을 비울(없앨) 사람은 언제나 열쇠를 쥔 한 사람뿐이다. 그래서 «두 사람이 비운다»(두 번 해제)도, «아무도 안 비운다»(해제 누락)도, «건넨 열쇠로 또 연다» (옮긴 뒤 사용)도 생길 수 없다.</p><p>옮긴 값을 다시 쓰면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/moved.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> moved .
 <em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
 
-<strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -709,7 +709,7 @@ moved.low:15:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — 
 </code></pre></div></div><p>두 번 없애도 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/twice.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> twice_drop .
 <em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
 
-<strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -722,7 +722,7 @@ twice.low:9:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — u
 </code></pre></div></div><p>진단은 이것이 명세가 늘 오류라고 불러 온 자리이고 한때는 아무것도 강제하지 않았다고 적는다. 지금은 번역이 막는다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 소유가 없는 값은 넘길 때 어떻게 되는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 베껴진다. <code>u64</code> 나 <code>point</code> 같은 값은 넘기면 복사되고 원래 이름도 계속 쓸 수 있다. 소유가 있는 값만 옮겨진다. 베끼기의 비용이 걱정되는 큰 값은 <code>ref</code> 로 빌려 넘긴다(12장). 그리고 값을 만드는 식이 놓일 자리가 비어 있고, 도중에 실패하지 않으며, 그 자리가 그 값만의 것이면 값은 목적지에 곧바로 만들어진다. 중간 임시값도, 옮기는 복사도 없다. 이 세 조건은 소스만 보고 셀 수 있다.</p></div></div><h3 id="s19-2">19.2 갈래가 만나는 자리<a class="plink" href="#s19-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>if</code> 로 갈라졌다가 다시 만나는 자리에서, 소유 상태는 모든 길에서 같아야 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/join.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> join .
 <em><span class="tok-c">rem expect: E-OWN-JOIN</span></em>
 
-<strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> maybe <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -741,9 +741,9 @@ join.low:8:0 E-OWN-JOIN: this `owned` value is CONSUMED on one path of this bran
          두 길이 만나는 자리 --- h 는 있나, 없나?  → 한 가지로 말할 수 없으니 거절</code></pre><p>어떤 언어는 이 자리에 숨은 “없앴는지 표시하는 깃발” 을 두지만, Lowent 는 소유 상태가 <strong>정적으로</strong> 한 가지이기를 요구한다. 두 길 모두에서 없애거나, 두 길 모두에서 넘기면 된다.</p><p>같은 원리로, 묶음의 <code>owned</code> 칸 하나를 옮긴 뒤 묶음 전체를 다시 옮기면 거절된다(<code>E-OWN-PARTIAL</code>). 받는 쪽은 온전한 묶음을 받았다고 여기는데 그 안의 한 칸은 이미 남의 것이다.</p><h3 id="s19-3">19.3 해제와 완결<a class="plink" href="#s19-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>없애는 일은 두 갈래다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>갈래</strong></th><th><strong>예</strong></th><th><strong>다루는 법</strong></th></tr><tr><td>해제</td><td>메모리를 돌려준다</td><td>실패가 없으므로 수명이 끝나는 자리에서 조용히 일어나도 된다</td></tr><tr><td>완결</td><td>파일을 닫는다, 버퍼를 비운다, 거래를 커밋한다</td><td>실패할 수 있으므로 저자가 적어서 불러야 한다</td></tr></table></div><p class="float-caption">표 19.1 — 없애는 일의 두 갈래</p></figure><p>해제는 삼킬 실패가 없다. 완결은 조용히 일어나면 그 실패를 건네줄 자리가 없다. 기준은 하나다 — <strong>끝내는 일이 실패할 수 있는가.</strong></p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>값의 종류</strong></th><th><strong>넘기면</strong></th><th><strong>끝나면</strong></th></tr><tr><td>소유가 없는 값(<code>u64</code> · <code>point</code> …)</td><td>베껴진다. 원래 이름도 계속 쓴다</td><td>할 일이 없다</td></tr><tr><td><code>owned</code>, 해제만 필요</td><td>옮겨진다. 원래 이름은 빈다</td><td>수명이 끝나는 자리에서 조용히 해제된다</td></tr><tr><td><code>owned</code>, 완결이 필요</td><td>옮겨진다. 원래 이름은 빈다</td><td>저자가 완결 op 을 적어서 불러야 한다(아니면 <code>E-OWN-INCOMPLETE</code>)</td></tr></table></div><p class="float-caption">표 19.2 — 값이 넘겨질 때와 끝날 때 — 한눈에</p></figure><span id="idx-entry-45"></span><p>어떤 타입이 완결을 요구하는지는 프로그램 자신이 선언한다. 그 타입을 <code>owned</code> 로 받아 <code>result</code> 를 돌려주는 op 이 있으면, 그것이 “이것을 끝내는 일은 실패할 수 있다” 는 선언이다. 새 낱말은 없다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/complete.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> complete .
 <em><span class="tok-c">rem run: session 3</span></em>
 
-<strong><span class="tok-k">type</span></strong> journal <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> journal <strong><span class="tok-t">u64</span></strong> .
 
-<strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
   disk_full .
 <strong><span class="tok-k">end</span></strong>
 
@@ -770,9 +770,9 @@ session(3) = ok 0
 </code></pre></div></div><p><code>finish</code> 가 <code>owned journal</code> 을 받아 <code>result</code> 를 돌려주므로 <code>journal</code> 은 완결이 필요한 타입이 된다. <code>session</code> 은 <code>finish j</code> 를 불러 끝내고, 그 결과(실패할 수도 있는)를 자기 결과로 돌려준다. 완결을 부르지 않고 범위를 벗어나게 두면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/incomplete.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> incomplete .
 <em><span class="tok-c">rem expect: E-OWN-INCOMPLETE</span></em>
 
-<strong><span class="tok-k">type</span></strong> journal <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> journal <strong><span class="tok-t">u64</span></strong> .
 
-<strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
   disk_full .
 <strong><span class="tok-k">end</span></strong>
 
@@ -793,7 +793,7 @@ incomplete.low:11:0 W-ERRORS-UNRAISED: this `errors` clause names a failure the 
 </code></pre></div></div><p>진단의 말대로, 자동으로 없애는 것은 해제이고 해제에는 실패를 돌려줄 곳이 없으므로 그 실패를 <strong>삼키게</strong> 된다. 플러시·커밋·닫기 같은 실패할 수 있는 끝내기는 저자가 적어서 불러야 한다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>소멸자(destructor)가 알아서 파일을 닫아 주면 편하다</strong></p><div class="dev-body">C++ 의 소멸자나 Rust 의 <code>Drop</code> 은 범위를 벗어날 때 자원을 닫는다. 닫기가 실패하면? 소멸자는 값을 돌려줄 수 없으므로 실패를 무시하거나 프로그램을 멈춘다. 디스크가 가득 차서 마지막 버퍼를 쓰지 못한 사실이 조용히 사라지는 자리다. Lowent 는 이 편의를 해제에만 허락하고, 완결은 적게 한다. 정말로 값과 그 실패를 함께 버리려면 <code>drop</code> 으로 <strong>버린다고 말한다</strong> — 진단도 그렇게 안내한다. 조용히 사라지는 것과 저자가 버리기로 적은 것은 다른 일이다.</div></div><h3 id="s19-4">19.4 운영체제가 치워 주기를 기대하지 않는다<a class="plink" href="#s19-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>많은 프로그램이 “어차피 프로세스가 끝나면 운영체제가 치운다” 에 기댄다. Lowent 는 그 기대를 하지 않는다. 없애기를 잊은 것을 번역에서 잡으므로, 운영체제가 없는 환경 — 프로세스가 끝나지 않는 펌웨어 — 에서도 같은 코드가 성립한다.</p><h3 id="s19-5">19.5 메모리 안전은 어느 강도로 보장되나<a class="plink" href="#s19-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>“메모리 안전” 이라는 말은 무엇이 어떻게 안전한지 밝혀야 뜻이 있다. 이 언어는 강도를 갈라 적는다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>규칙</strong></th><th><strong>강도</strong></th><th><strong>뜻</strong></th></tr><tr><td>차용의 배타 · 참조 탈출 금지</td><td>정적 + 증명됨</td><td>번역이 막고, 규칙의 건전성은 Coq 로 증명되었다(순차 모델)</td></tr><tr><td>소유의 한 번 없애기 · 영역 탈출 금지</td><td>정적</td><td>번역이 막는다</td></tr><tr><td>슬라이스 경계 · 계약</td><td>동적</td><td>실행 중 검사하고, 증명되면 검사가 사라진다</td></tr><tr><td>세대 핸들의 늘어진 참조</td><td>동적</td><td>실행 중 세대를 비교한다(34장)</td></tr></table></div><p class="float-caption">표 19.3 — 메모리 규칙과 그 강도</p></figure><p>그러니 이 언어를 “전면 정적 안전” 이라고 부르면 틀린다. 정적으로 막는 것, 실행 중에 막는 것, 증명된 것을 섞은 설계다. 무엇이 증명되었고 증명과 컴파일러 사이에 어떤 틈이 있는지는 42·50장이 다룬다.</p><h3 id="s19-6">19.6 흔한 실수<a class="plink" href="#s19-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 반복 안에서 소유 값을 넘긴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_loopmove.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_loopmove .
 <em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
 
-<strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -817,7 +817,7 @@ mistake_loopmove.low:16:0 E-OWN-MOVED: this `owned` value is CONSUMED inside a L
 </code></pre></div></div><p>첫 바퀴에서 <code>consume h</code> 가 소유를 가져가면 둘째 바퀴의 <code>h</code> 는 이미 남의 것이다. 번역은 바퀴를 하나씩 따라가지 않고도 “바퀴 몸이 시작할 때와 다른 모양으로 끝난다” 를 보고 <code>E-OWN-MOVED</code> 로 거절한다. 고치는 길은 둘이다. 넘기기를 반복 밖으로 빼거나, 넘긴 자리를 <code>set</code> 으로 새 값으로 다시 채워 바퀴가 같은 모양으로 끝나게 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/loopmove_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loopmove_fixed .
 <em><span class="tok-c">rem run: three_times 5</span></em>
 
-<strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -844,7 +844,7 @@ three_times(5) = 3
 </code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">반례. 읽기만 했다고 생각하고 옮긴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_readmove.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_readmove .
 <em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
 
-<strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> peek <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -858,7 +858,7 @@ mistake_readmove.low:10:0 E-OWN-MOVED: this `owned` value was already MOVED (con
 </code></pre></div></div><p><code>let v be u8 h .</code> 는 <code>h</code> 를 들여다보는 것이 아니라 <code>v</code> 로 <strong>옮기는</strong> 것이다. 소유가 있는 값은 이름에 담는 순간 옮겨 가므로 뒤의 <code>drop h</code> 는 옮긴 값을 없애려는 셈이다. 들여다보기만 하려면 같은 op 안에서 <code>ref h</code> 로 빌린다. 진단이 적은 대로 op 경계를 넘는 빌림은 이 판에서 아직 낮춰지지 않는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 다른 이름에 담으면 사본이 생긴다고 믿는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_twonames.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_twonames .
 <em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
 
-<strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
@@ -880,7 +880,7 @@ mistake_twonames.low:17:0 E-OWN-MOVED: this `owned` value was already MOVED (con
 <em><span class="tok-c">rem run: keep_or_drop 5 1</span></em>
 <em><span class="tok-c">rem run: keep_or_drop 5 0</span></em>
 
-<strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
 
 <em><span class="tok-c">rem `c` 가 거짓인 길은 `drop` 없이 떠난다 --- 해제는 실패가 없으므로 수명이 끝나는 자리에서 조용히 일어난다</span></em>
 <strong><span class="tok-k">fn</span></strong> keep_or_drop <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .

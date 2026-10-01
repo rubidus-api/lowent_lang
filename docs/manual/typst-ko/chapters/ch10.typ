@@ -36,8 +36,9 @@
 == `struct` — 이름 붙은 칸의 모음
 
 #idx("struct")
-`struct` 는 이름 붙은 칸들의 모음이고, 칸마다 자기 타입이 있다. 선언의 몸은 `do … end` 이고 칸마다
-마침표로 닫는다.
+`struct` 는 이름 붙은 칸들의 모음이고, 칸마다 자기 타입이 있다. 선언은 `def struct <이름>` 으로 시작한다 ---
+타입을 짓는 선언(`def struct` · `def enum` · `def type` · `def newtype`)은 모두 `def` 로 시작하고, `fn`·`proc` 은
+`def` 없이 적는다. 선언의 몸은 `do … end` 이고 칸마다 마침표로 닫는다.
 
 #demo("examples/ch10/points.low")
 
@@ -66,7 +67,7 @@
 === 배열 칸 --- 칸이 바이트를 품는다
 
 칸의 타입이 `array u8 4` 처럼 길이를 가진 배열이면, 그 바이트는 *레코드 안에* 있다. `field p body` 는 그 바이트를
-보는 슬라이스이고, `set (index (field p body) i) v .` 로 원소를 쓴다.
+보는 슬라이스이고, `set (idx (field p body) i) v .` 로 원소를 쓴다.
 
 #demo("examples/ch10/arrayfield.low")
 
@@ -132,7 +133,7 @@
 #demo("examples/ch10/tree.low")
 
 `add l u32 r u32 .` 의 `l`·`r` 은 노드 자체가 아니라 `nodes` 안의 번호다. `eval` 은 번호로 자식을 찾아
-재귀한다. 크기가 정해지고, 번호를 따라가는 `index` 는 경계 검사를 그대로 받는다. 이런 노드 슬라이스를
+재귀한다. 크기가 정해지고, 번호를 따라가는 `idx` 는 경계 검사를 그대로 받는다. 이런 노드 슬라이스를
 만드는 저장소 --- 영역 --- 는 #chref("regions")에서 다룬다.
 
 #qa[
@@ -192,12 +193,12 @@
   id: "structs-glance",
   caption: [묶음의 문법 --- 모양 · 뜻 · 왜 이렇게 생겼나],
   [*모양*], [*뜻*], [*왜 이렇게*],
-  [`struct point do x u64 . y u64 . end`], [이름 붙은 칸의 모음], [칸마다 이름과 타입이 한 줄씩],
+  [`def struct point do x u64 . y u64 . end`], [이름 붙은 칸의 모음], [칸마다 이름과 타입이 한 줄씩],
   [`lit point do x 1 . y 2 . end`], [값 만들기 --- 모든 칸을 채운다], [빠진 칸이 조용히 0 이 되지 않게],
   [`field p x` · `field s stop x`], [칸 읽기 · 여러 마디 내려가기], [붙임 점 없이 --- 읽는 순간 뜻이 정해진다],
   [`set (field p x) 3 .`], [칸 쓰기(`mut` 로 받은 값)], [읽기와 쓰기가 같은 철자],
-  [`body array u8 4 .` · `set (index (field p body) 0) 1 .`], [배열 칸 --- 레코드가 바이트를 품는다], [베끼면 바이트도 베껴진다],
-  [`enum shape do dot . circle r u32 . end`], [여럿 중 하나 --- 갈래는 값을 지닐 수 있다], [갈래마다 마침표로 닫는다],
+  [`body array u8 4 .` · `set (idx (field p body) 0) 1 .`], [배열 칸 --- 레코드가 바이트를 품는다], [베끼면 바이트도 베껴진다],
+  [`def enum shape do dot . circle r u32 . end`], [여럿 중 하나 --- 갈래는 값을 지닐 수 있다], [갈래마다 마침표로 닫는다],
   [`shape.circle 2` · `dot`], [값을 지닌 갈래 만들기 · 값이 없는 갈래], [갈래 이름이 곧 만드는 op],
   [`match s do case circle r . … end`], [갈래를 가르고 지닌 값을 묶기], [모든 갈래를 덮어야 한다],
   [`isa s circle`], [그 갈래인가(`bool`)], [값을 꺼내지 않고 묻기만 할 때],

@@ -19,7 +19,7 @@ fn head8 input src slice u8 . input dst mut slice u8 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 8 . do
-    set acc (add (shl acc 8) (cast u64 (index dst i))) .
+    set acc (add (shl acc 8) (cast u64 (idx dst i))) .
     set i (add i 1) .
   end
   return acc .

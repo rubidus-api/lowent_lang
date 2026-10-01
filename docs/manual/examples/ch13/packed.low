@@ -1,8 +1,8 @@
 module packed .
 
-type bytes slice u8 .
+def type bytes slice u8 .
 
-struct wire_header do
+def struct wire_header do
   layout packed .
   magic u32 big .
   length u16 big .

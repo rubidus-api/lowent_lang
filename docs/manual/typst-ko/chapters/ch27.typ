@@ -40,7 +40,7 @@
 
 #idx("parallel")
 - `double_all` 의 머리에 `parallel s split .` 이 있다. "이 되풀이는 `s` 를 조각으로 나누어 여럿이 함께 돌아도 된다" 는
-  선언이다. 각 걸음은 `index s i` --- 자기 원소 --- 만 읽고 쓴다.
+  선언이다. 각 걸음은 `idx s i` --- 자기 원소 --- 만 읽고 쓴다.
 - `total` 은 합을 누적한다. 누적 변수 `acc` 는 걸음을 넘어 살기 때문에 그대로는 나눌 수 없다. `reduce acc add .` 로
   "조각마다 따로 누적한 뒤 `add` 로 합친다" 고 밝힌다.
 
@@ -79,7 +79,7 @@
 
 #demo("examples/ch27/par_read.low")
 
-모든 원소에서 첫 원소를 빼는 되풀이다. 첫 조각이 `index s 0` 을 먼저 바꾸면, 다른 조각이 읽는 첫 원소는 이미 바뀐 값이다.
+모든 원소에서 첫 원소를 빼는 되풀이다. 첫 조각이 `idx s 0` 을 먼저 바꾸면, 다른 조각이 읽는 첫 원소는 이미 바뀐 값이다.
 순차로 돌려도 첫 걸음 이후에는 0 을 빼게 되는 결함이 있는데, 나누면 그 결함이 차례에 따라 달라진다.
 
 #demo("examples/ch27/par_carry.low")
@@ -236,7 +236,7 @@
 #antipattern[나누어 도는 조각들이 공유 카운터를 보통 연산으로 올린다][
   #demo("examples/ch27/mistake_sharedwrite.low")
 
-  조각마다 `index counter 0` 을 읽고 1 을 더해 쓴다. 두 스레드가 같은 값을 읽고 각자 더해 쓰면 하나가 사라진다. 이것은 자기 몫이 아닌
+  조각마다 `idx counter 0` 을 읽고 1 을 더해 쓴다. 두 스레드가 같은 값을 읽고 각자 더해 쓰면 하나가 사라진다. 이것은 자기 몫이 아닌
   자리에 쓰는 것이라 `E-PAR-WRITE` 로 거절된다. 공유 자리를 함께 갱신해야 하면 `cap atomic` 을 받고 `atomic_add counter 0 1` 을 쓴다(이 장의
   `counter.low`). 대개는 그보다 조각마다 센 값을 `reduce` 로 모으는 편이 빠르다.
 ]
@@ -262,7 +262,7 @@
 
   처리기는 `while lt i (len s) . do … end` 모양의 되풀이만 나눌 대상으로 알아본다. `while lt (add i 1) (len s)` 는 그 모양이 아니라서
   `E-PAR-NOLOOP` 다. 진단의 말대로 `parallel` 절은 *주장*이고, 나눌 되풀이를 찾지 못하면 아무것도 확인하지 못한 채 주장만 남는다. 게다가
-  이 되풀이는 이웃 원소 `index s (add i 1)` 을 읽는다. 모양을 고쳐도 `E-PAR-READ` 로 거절될 것이다 --- 이웃을 읽는 계산(평활화 따위)은
+  이 되풀이는 이웃 원소 `idx s (add i 1)` 을 읽는다. 모양을 고쳐도 `E-PAR-READ` 로 거절될 것이다 --- 이웃을 읽는 계산(평활화 따위)은
   결과를 다른 슬라이스에 쓰는 순차 되풀이로 적는다.
 ]
 
@@ -290,7 +290,7 @@
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`parallel s split .`(op 머리)], [`s` 를 조각으로 나누어 여럿이 돌아도 된다는 선언], [주장을 믿지 않고 확인한다 --- 확인되면 `W-PAR-OK`],
   [`while lt i (len s) . do … end`], [나눌 수 있는 되풀이의 모양], [다른 모양이면 `E-PAR-NOLOOP`],
-  [`index s i` 만 읽고 쓰기], [자기 몫만], [남의 자리는 `E-PAR-READ` · `E-PAR-WRITE`],
+  [`idx s i` 만 읽고 쓰기], [자기 몫만], [남의 자리는 `E-PAR-READ` · `E-PAR-WRITE`],
   [`reduce acc add .`], [조각마다 누적한 뒤 연산으로 합친다], [시작값은 항등원 --- 연산은 결합적(`E-PAR-ASSOC`)],
   [`atomic_add counter 0 1` · `atomic_load cells 0`], [슬라이스와 색인으로 가리킨 자리를 원자적으로], [`effects atomic` + `cap atomic`],
   [`… order seq_cst` · `acq_rel` · `acquire` · `release` · `relaxed`], [기억 차례 --- 적지 않으면 `seq_cst`], [가장 추론하기 쉬운 것이 기본],

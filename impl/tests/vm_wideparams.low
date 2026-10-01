@@ -27,7 +27,7 @@ do
   let k be u64 add (add (add p1 p2) (add p3 p4)) (add (add p5 p6) (add p7 p8)) .
   var i be u64 0 .
   while lt i (len s) . do
-    set (index s i) (mod (add (index s i) k) 256) .
+    set (idx s i) (mod (add (idx s i) k) 256) .
     set i (add i 1) .
   end
   return len s .

@@ -9,7 +9,7 @@ use tty .
 rem 평범한 글자는 그 바이트가 곧 키다. 'a'(97) 한 바이트.
 proc plain input buf mut slice u8 . . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
-  set (index buf 0) 97 .
+  set (idx buf 0) 97 .
   let p be option u64 tty.parse_key (subslice buf 0 1) 0 .
   guard is_some p . else return 1 .
   guard eq (tty.key_of (some_value p)) 97 . else return 2 .
@@ -21,9 +21,9 @@ end
 rem 방향키 ESC [ A = 위쪽(1001), 세 바이트를 먹는다.
 proc arrow input buf mut slice u8 . . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
-  set (index buf 0) 27 .
-  set (index buf 1) 91 .
-  set (index buf 2) 65 .
+  set (idx buf 0) 27 .
+  set (idx buf 1) 91 .
+  set (idx buf 2) 65 .
   let p be option u64 tty.parse_key (subslice buf 0 3) 0 .
   guard is_some p . else return 1 .
   guard eq (tty.key_of (some_value p)) 1001 . else return 2 .
@@ -36,10 +36,10 @@ end
 rem 숫자꼴 ESC [ 3 ~ = Delete(1007), 네 바이트.
 proc del_key input buf mut slice u8 . . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
-  set (index buf 0) 27 .
-  set (index buf 1) 91 .
-  set (index buf 2) 51 .
-  set (index buf 3) 126 .
+  set (idx buf 0) 27 .
+  set (idx buf 1) 91 .
+  set (idx buf 2) 51 .
+  set (idx buf 3) 126 .
   let p be option u64 tty.parse_key (subslice buf 0 4) 0 .
   guard is_some p . else return 1 .
   guard eq (tty.key_of (some_value p)) 1007 . else return 2 .
@@ -51,8 +51,8 @@ rem ★ **불완전한 시퀀스는 지어내지 않는다** — ESC [ 만 왔�
 rem   그런데 ESC 하나만 왔으면 그것은 ESC 키다(뒤가 없으면 기다릴 수 없다).
 proc partial input buf mut slice u8 . . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
-  set (index buf 0) 27 .
-  set (index buf 1) 91 .
+  set (idx buf 0) 27 .
+  set (idx buf 1) 91 .
   let p be option u64 tty.parse_key (subslice buf 0 2) 0 .
   guard is_some p . else do
     let q be option u64 tty.parse_key (subslice buf 0 1) 0 .

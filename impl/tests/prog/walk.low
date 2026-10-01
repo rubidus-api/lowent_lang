@@ -51,11 +51,11 @@ do
       if gt nl 0 . do
         var is_dot be bool false .
         if eq nl 1 . do
-          if eq (index namebuf 0) 46 . do set is_dot true . end
+          if eq (idx namebuf 0) 46 . do set is_dot true . end
         end
         if eq nl 2 . do
-          if eq (index namebuf 0) 46 . do
-            if eq (index namebuf 1) 46 . do set is_dot true . end
+          if eq (idx namebuf 0) 46 . do
+            if eq (idx namebuf 1) 46 . do set is_dot true . end
           end
         end
         if eq is_dot false . do

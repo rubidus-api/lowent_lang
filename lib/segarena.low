@@ -26,7 +26,7 @@ rem   `segments T` 뷰와 커서(§8-8 이 맡는다).
 module segarena .
 
 rem 아레나 하나. `kbits` 가 조각 크기를 정한다(조각당 `2^kbits` 칸).
-export struct arena do
+export def struct arena do
   input comptime b type .
   kbits u64 .
   nseg u64 .      rem 지금까지 연 조각 수
@@ -72,7 +72,7 @@ do
   let width be u64 shl 1 (field a kbits) .
   let base be u64 mul (field a nseg) width .
   guard le (add base width) cap0 . else return none .
-  set (index dir (field a nseg)) base .
+  set (idx dir (field a nseg)) base .
   set (field a nseg) (add (field a nseg) 1) .
   set (field a used) 0 .
   return some base .
@@ -87,9 +87,9 @@ do
   let s be u64 shr i (field a kbits) .
   guard lt s (field a nseg) . else return none .
   guard lt s (len dir) . else return none .
-  let at0 be u64 add (index dir s) (bit_and i (sub (shl 1 (field a kbits)) 1)) .
+  let at0 be u64 add (idx dir s) (bit_and i (sub (shl 1 (field a kbits)) 1)) .
   guard lt at0 (len mem) . else return none .
-  return some (index mem at0) .
+  return some (idx mem at0) .
 end
 
 rem ★★★ **조각을 한 번 빌린다** — 그 뒤 순회는 directory 를 **안 본다**.
@@ -99,7 +99,7 @@ export proc walk_base input comptime b type . input a arena b . input dir slice 
 do
   guard lt s (field a nseg) . else return none .
   guard lt s (len dir) . else return none .
-  return some (index dir s) .
+  return some (idx dir s) .
 end
 
 rem 조각 하나를 더한다 — 빌린 base 로 도는 합. **루프 안에 directory 가 없다.**
@@ -116,7 +116,7 @@ do
   while lt k width . do
     let at0 be u64 add base k .
     if lt at0 (len mem) . do
-      set acc (wrap_add acc (index mem at0)) .
+      set acc (wrap_add acc (idx mem at0)) .
     end
     set k (add k 1) .
   end

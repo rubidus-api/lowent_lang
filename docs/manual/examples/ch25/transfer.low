@@ -2,7 +2,7 @@ module transfer .
 rem run: move 30
 rem run: move 80
 
-enum bank_error do
+def enum bank_error do
   insufficient .
 end
 

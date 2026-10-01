@@ -20,7 +20,7 @@ do
   while lt i n . do
     var k be u64 0 .
     while lt k n . do
-      set acc (wrap_add acc (index a (add (mul i n) k))) .
+      set acc (wrap_add acc (idx a (add (mul i n) k))) .
       set k (add k 1) .
     end
     set i (add i 1) .
@@ -35,7 +35,7 @@ export proc rowsum_nocontract input a slice u64 . . input n u64 . output u64 . e
   while lt i n . do
     var k be u64 0 .
     while lt k n . do
-      set acc (wrap_add acc (index a (add (mul i n) k))) .
+      set acc (wrap_add acc (idx a (add (mul i n) k))) .
       set k (add k 1) .
     end
     set i (add i 1) .
@@ -53,7 +53,7 @@ do
   while lt i m . do
     var k be u64 0 .
     while lt k n . do
-      set acc (wrap_add acc (index a (add (mul i n) k))) .
+      set acc (wrap_add acc (idx a (add (mul i n) k))) .
       set k (add k 1) .
     end
     set i (add i 1) .
@@ -71,7 +71,7 @@ do
   while lt i n . do
     var k be u64 0 .
     while lt k n . do
-      set acc (wrap_add acc (index a (wrap_add (wrap_mul i n) k))) .
+      set acc (wrap_add acc (idx a (wrap_add (wrap_mul i n) k))) .
       set k (add k 1) .
     end
     set i (add i 1) .
@@ -102,7 +102,7 @@ do
   while lt i n . do
     var k be u64 0 .
     while lt k n . do
-      set acc (wrap_add acc (index a (add (mul i n) k))) .
+      set acc (wrap_add acc (idx a (add (mul i n) k))) .
       set k (add k 1) .
     end
     set i (add i 1) .

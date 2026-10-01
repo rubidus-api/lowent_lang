@@ -6,7 +6,7 @@ rem run: halve_plus_one 100
 rem run: halve_plus_one 250
 rem run: halve_or_zero 250
 
-enum io_error do
+def enum io_error do
   too_big .
   odd .
 end

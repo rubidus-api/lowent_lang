@@ -13,7 +13,7 @@
 #deepqa[
   What did the single line `requires le n (len a) .` do in #chref("slices")'s `sum_first`? And why must an index itself not use `le`?
 ][
-  It gathered the check into one check on entry and let the be (bounds check on `index a i` inside the loop) removed. With `le` on an index,
+  It gathered the check into one check on entry and let the be (bounds check on `idx a i` inside the loop) removed. With `le` on an index,
   `i = len a` would be allowed, and that is one past the end, so indices use `lt`. This chapter covers all of it: what that contract is, who
   keeps it, and when it is checked and when it disappears.
 ]
@@ -239,7 +239,7 @@ boundary, where *a person promises* the contracts are true. It is one reason the
   #demo("examples/ch14/mistake_leindex.low")
 
   The slots of a slice of length 3 are 0, 1 and 2. `requires le i (len xs)` also allows `i = 3`, so the contract passes and the
-  following `index` stops with `E-VM-BOUNDS` trying to read one slot past the end. When a contract is wrong, the stop moves from the
+  following `idx` stops with `E-VM-BOUNDS` trying to read one slot past the end. When a contract is wrong, the stop moves from the
   contract into the body, and the diagnostic says "out of bounds" instead of "the caller's fault". Use `lt` for indexes; `le` is
   right for counts ("read `n` items").
 ]

@@ -8,10 +8,10 @@ use nodelist .
 use shard .
 use allocs .
 
-newtype lru u32 .
+def newtype lru u32 .
 rem ★ role 토큰은 **다른 저장소**다 — 브랜드 하나는 저장소 하나를 이름한다(§8-2).
 rem   같은 브랜드를 쓰면 `E-BRAND-REUSED` 가 문다. 컴파일러가 이 픽스처에서 실제로 잡았다.
-newtype roleset u32 .
+def newtype roleset u32 .
 
 rem ── ③ mutable iterator — 순회하면서 뺀다 ──────────────────────────
 proc walks input al cap allocator . output u64 . effects alloc . do
@@ -31,7 +31,7 @@ proc walks input al cap allocator . output u64 . effects alloc . do
   guard eq (nodelist.nl_walk_cut nx pv 0 2) 4 . else return 6 .
   guard eq (nodelist.nl_count nx 0) 3 . else return 7 .
   rem 뺀 노드는 혼자다.
-  guard eq (index nx 2) 2 . else return 8 .
+  guard eq (idx nx 2) 2 . else return 8 .
   guard eq (nodelist.nl_count nx 2) 1 . else return 9 .
   return 42 .
 end

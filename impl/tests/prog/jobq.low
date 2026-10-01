@@ -20,7 +20,7 @@ module jobq .
 use pool   from "../../../lib/pool.low" .
 
 rem ★ 브랜드 — RFC-0104 §8-2. 이 프로그램의 풀 하나에 이름 하나(§5.11).
-newtype jobs u8 .
+def newtype jobs u8 .
 use mapgen from "../../../lib/mapgen.low" .
 use vecgen from "../../../lib/vecgen.low" .
 use allocs from "../../../lib/alloc.low" .
@@ -59,7 +59,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   rem ── ④ 생산: 작업 id 다섯을 민다 ──────────────────────────────────────
   var i be u64 0 .
   while lt i 5 . do
-    set (index buf i) (add 100 i) .
+    set (idx buf i) (add 100 i) .
     set qn (add qn 1) .
     set i (add i 1) .
   end
@@ -68,7 +68,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   rem ── ⑤ 소비: 꺼내면서 블록을 빌리고, 결과를 색인하고, 순서를 남긴다 ────
   var done be u64 0 .
   while lt done 5 . do
-    let id be u64 index buf done .
+    let id be u64 idx buf done .
     rem 블록을 빌린다 — 작업 하나가 쓰는 자리다.
     let ho be option (pool.handle jobs) pool.take jobs pl .
     guard is_some ho . else return 8 .

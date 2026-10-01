@@ -1,7 +1,7 @@
 module param .
 rem run: main
 
-type scratch u64 .
+def type scratch u64 .
 
 proc sum_squares input temp region scratch . input n u64 . output u64 . effects alloc .
   requires le n 100 .

@@ -219,7 +219,7 @@ A file as a whole is skimmed, but a body is read top to bottom.
   caption: [Module syntax --- shape · meaning · why it looks this way],
   [*Shape*], [*Meaning*], [*Why*],
   [`module geom .`], [this file is module `geom` (first line)], [the module name is separate from the file name --- `use` looks for it],
-  [`export fn manhattan …` · `export struct point …`], [make it visible outside], [hidden by default --- what is visible is a promise],
+  [`export fn manhattan …` · `export def struct point …`], [make it visible outside], [hidden by default --- what is visible is a promise],
   [`use geom from "geom.low" .`], [import from a place relative to the declaring file], [no search path --- dependencies are in the source],
   [`use allocs .`], [import from the same unit or the standard library], [otherwise `W-USE-EXTERNAL`],
   [`geom.point` · `geom.manhattan a b`], [qualify imported names with the module name], [no spilling],

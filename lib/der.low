@@ -33,7 +33,7 @@ rem   긴 형식(0x80|n 다음 n 바이트 빅엔디언)이다.
 rem 요소의 tag. 버퍼 밖이면 256.
 export fn tag_at input b slice u8 . input off u64 . output u64 . do
   guard lt off (len b) . else return 256 .
-  return cast u64 (index b off) .
+  return cast u64 (idx b off) .
 end
 
 rem ★★ 긴 형식 길이(0x80|n 뒤 n 바이트)가 **DER 로 적법한가**. 1 = 적법, 0 = 거절.
@@ -48,7 +48,7 @@ fn long_ok input b slice u8 . input off u64 . input n u64 . output u64 . do
   guard gt n 0 . else return 0 .
   guard le n 4 . else return 0 .
   guard le (add (add off 2) n) (len b) . else return 0 .
-  let b0 be u64 cast u64 (index b (add off 2)) .
+  let b0 be u64 cast u64 (idx b (add off 2)) .
   guard gt b0 0 . else return 0 .
   if eq n 1 . do
     if lt b0 128 . do  return 0 .  end
@@ -59,7 +59,7 @@ end
 rem 값이 시작하는 자리(= 머리 길이 뒤). 실패면 0.
 export fn value_off input b slice u8 . input off u64 . output u64 . do
   guard lt (add off 1) (len b) . else return 0 .
-  let l0 be u64 cast u64 (index b (add off 1)) .
+  let l0 be u64 cast u64 (idx b (add off 1)) .
   if lt l0 128 . do  return add off 2 .  end
   let n be u64 sub l0 128 .
   guard eq (long_ok b off n) 1 . else return 0 .
@@ -71,7 +71,7 @@ rem ★ **값이 버퍼를 넘으면 0** — 상대가 쓴 길이는 버퍼 안�
 rem   이 한 줄이 `alg_oid_len`·`spki_key_len`·`rsa_n_len`·`p8_inner_len`·`ec_priv_len` 을 전부 지킨다.
 export fn value_len input b slice u8 . input off u64 . output u64 . do
   guard lt (add off 1) (len b) . else return 0 .
-  let l0 be u64 cast u64 (index b (add off 1)) .
+  let l0 be u64 cast u64 (idx b (add off 1)) .
   if lt l0 128 . do
     guard le (add (add off 2) l0) (len b) . else return 0 .
     return l0 .
@@ -81,7 +81,7 @@ export fn value_len input b slice u8 . input off u64 . output u64 . do
   var v be u64 0 .
   var i be u64 0 .
   while lt i n . do
-    set v (add (shl v 8) (cast u64 (index b (add (add off 2) i)))) .
+    set v (add (shl v 8) (cast u64 (idx b (add (add off 2) i)))) .
     set i (add i 1) .
   end
   rem n ≤ 4 이므로 v < 2^32 — 이 덧셈은 넘치지 않는다.
@@ -189,7 +189,7 @@ export fn spki_key_off input b slice u8 . input spki u64 . output u64 . do
   let ko be u64 value_off b bs .
   guard gt ko 0 . else return 0 .
   guard lt ko (len b) . else return 0 .
-  guard eq (cast u64 (index b ko)) 0 . else return 0 .
+  guard eq (cast u64 (idx b ko)) 0 . else return 0 .
   return add ko 1 .
 end
 
@@ -214,7 +214,7 @@ export fn rsa_n_off input b slice u8 . input ko u64 . output u64 . do
   let no be u64 value_off b so .
   guard gt no 0 . else return 0 .
   guard lt no (len b) . else return 0 .
-  if eq (cast u64 (index b no)) 0 . do  return add no 1 .  end
+  if eq (cast u64 (idx b no)) 0 . do  return add no 1 .  end
   return no .
 end
 
@@ -230,7 +230,7 @@ export fn rsa_n_len input b slice u8 . input ko u64 . output u64 . do
   rem ★ `rsa_n_off` 와 같은 가드 — 이것이 빠져서 값 없는 INTEGER 머리가 버퍼 끝에 오면
   rem   `index b no` 가 트랩했다(2026-09-04 검토 A2). 형제가 가진 가드는 형제도 가져야 한다.
   guard lt no (len b) . else return 0 .
-  if eq (cast u64 (index b no)) 0 . do  return sub nl 1 .  end
+  if eq (cast u64 (idx b no)) 0 . do  return sub nl 1 .  end
   return nl .
 end
 
@@ -250,7 +250,7 @@ export fn rsa_e input b slice u8 . input ko u64 . output u64 . do
   var v be u64 0 .
   var i be u64 0 .
   while lt i vl . do
-    set v (add (shl v 8) (cast u64 (index b (add vo i)))) .
+    set v (add (shl v 8) (cast u64 (idx b (add vo i)))) .
     set i (add i 1) .
   end
   return v .

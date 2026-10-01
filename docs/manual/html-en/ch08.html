@@ -744,7 +744,7 @@ unary_bad.low:6:0 E-EXPR-UNARY: an `expr` island has INFIX operators only — th
 
 <strong><span class="tok-k">fn</span></strong> safe_first_is_zero <strong><span class="tok-k">input</span></strong> xs <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">return</span></strong> and (gt (len xs) <span class="tok-n">0</span>) (eq (index xs <span class="tok-n">0</span>) <span class="tok-n">0</span>) .
+  <strong><span class="tok-k">return</span></strong> and (gt (len xs) <span class="tok-n">0</span>) (eq (idx xs <span class="tok-n">0</span>) <span class="tok-n">0</span>) .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">fn</span></strong> ratio_ok <strong><span class="tok-k">input</span></strong> num <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> den <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
@@ -761,7 +761,7 @@ $ lowentc --run ratio_ok shortcircuit.low 0 0
 ratio_ok(0, 0) = 0
 $ lowentc --run ratio_ok shortcircuit.low 10 5
 ratio_ok(10, 5) = 1
-</code></pre></div></div><p><code>safe_first_is_zero</code> does not compute <code>index xs 0</code> on an empty slice, because if <code>gt (len xs) 0</code> on the left is false, the answer is already false. <code>ratio_ok</code> likewise skips the division when the denominator is 0. This shape suits conditions too small for a <code>guard</code>. If the condition is a fact about the whole op, <code>guard</code> is better (chapter 7).</p><h3 id="s8-5">8.5 Expressions computed at translation time<a class="plink" href="#s8-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Some expressions have values before the program runs.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt .
+</code></pre></div></div><p><code>safe_first_is_zero</code> does not compute <code>idx xs 0</code> on an empty slice, because if <code>gt (len xs) 0</code> on the left is false, the answer is already false. <code>ratio_ok</code> likewise skips the division when the denominator is 0. This shape suits conditions too small for a <code>guard</code>. If the condition is a fact about the whole op, <code>guard</code> is better (chapter 7).</p><h3 id="s8-5">8.5 Expressions computed at translation time<a class="plink" href="#s8-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Some expressions have values before the program runs.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch08/compt.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> compt .
 <em><span class="tok-c">rem run: table_size</span></em>
 <em><span class="tok-c">rem run: pick</span></em>
 

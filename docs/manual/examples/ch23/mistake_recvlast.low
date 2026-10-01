@@ -1,7 +1,7 @@
 module mistake_recvlast .
 rem expect: E-METHOD-RECV
 
-struct rect do
+def struct rect do
   w u64 .
   h u64 .
 end

@@ -55,7 +55,7 @@ end
 ]
 
 #antipattern[Indexing directly with `lower_bound`'s result][
-  If not found, `i` is `len s`, a position that does not exist --- `index s i` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table's maximum, so it tends
+  If not found, `i` is `len s`, a position that does not exist --- `idx s i` stops with `E-VM-BOUNDS`. It only fires when the value exceeds the table's maximum, so it tends
   to hit with real data. Put `guard lt i (len s) .` first.
 ]
 

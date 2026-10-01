@@ -6,7 +6,7 @@ rem ko: 문자열 리터럴은 slice u8 이고 그대로 색인된다 /// en: a 
 fn prefix_char input k u64 . output u8 .
   requires lt k 11 .
 do
-  return index "/api/users/" k .
+  return idx "/api/users/" k .
 end
 
 rem ko: 같은 일을 if 사슬로 쓰면 글자마다 비교와 분기가 하나씩 생긴다 /// en: the same job as an if chain costs one comparison and one branch per character

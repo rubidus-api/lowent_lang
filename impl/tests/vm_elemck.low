@@ -18,7 +18,7 @@ export proc lookup input s slice u8 . . input t slice u64 . . input i u64 . .
   requires elem_le s 200 .
   requires lt i (len s) . requires ge (len t) 201 .
 do
-  return (index t (index s i)) .
+  return (idx t (idx s i)) .
 end
 
 export proc run input al cap allocator . output u64 . effects alloc . do
@@ -28,8 +28,8 @@ export proc run input al cap allocator . output u64 . effects alloc . do
   guard is_some mt . else return 88 .
   var a be mut slice u8 some_value ms .
   var b be mut slice u64 view_array u64 (some_value mt) .
-  set (index a 0) 3 .
-  set (index b 3) 42 .
+  set (idx a 0) 3 .
+  set (idx b 3) 42 .
   return (lookup a b 0) .
 end
 

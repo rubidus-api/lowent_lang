@@ -97,7 +97,7 @@
         [`ghash`], [GHASH — GF(2^128) 누산. h 16 · z 16 을 제자리에서 고친다. 낸 값은 먹인 바이트 수],
         [`gt`], [앞이 큰가],
         [`hash_bytes`], [바이트열의 해시],
-        [`index`], [그 자리의 원소],
+        [`idx`], [그 자리의 원소],
         [`intersect`], [교집합],
         [`into`], [같은 뜻의 다른 타입으로 옮긴다],
         [`is_empty`], [비었는가],
@@ -253,7 +253,7 @@ exp                   expect                field                 file_close
 file_open             file_read             file_seek             file_type
 file_write            filter                floor                 fmod
 fold                  ge                    ghash                 gt
-hash_bytes            index                 intersect             into
+hash_bytes            idx                   intersect             into
 is_empty              is_error              is_none               is_ok
 is_some               is_subset             le                    leading_zeros
 len                   link_type             load                  load_masked

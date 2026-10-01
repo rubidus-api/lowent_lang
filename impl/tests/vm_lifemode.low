@@ -36,12 +36,12 @@ proc near_top input al cap allocator . output u64 . effects alloc . do
   let mb be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some mb . else return 89 .
   var c be mut slice u64 view_array u64 (some_value mb) .
-  set (index c 0) (lifemode.ceiling) .
+  set (idx c 0) (lifemode.ceiling) .
   let a be option u64 lifemode.near_share c 0 .
   guard is_some a . else return 1 .
   rem 감겼다면 여기가 0 이었을 것이다. 포화하므로 상한 그대로다.
   guard eq (some_value a) (lifemode.ceiling) . else return 2 .
-  guard eq (index c 0) (lifemode.ceiling) . else return 3 .
+  guard eq (idx c 0) (lifemode.ceiling) . else return 3 .
   return 42 .
 end
 
@@ -78,9 +78,9 @@ rem ── ④ 외부 완료 — 완료권이 값이다 ────────
 rem   끝내는 것이 남이므로, 이쪽이 드는 것은 **완료권**뿐이다. 그것을 `owned` 로 만들면
 rem   두 번 완료는 컴파일이 거절하고(E-OWN-MOVED), 완료가 실패할 수 있으면 안 하는 것도
 rem   거절한다(E-OWN-INCOMPLETE). ⇒ **정확히 1 회**가 언어에서 나온다.
-export enum late do too_late . end
+export def enum late do too_late . end
 
-export struct ticket do
+export def struct ticket do
   id u64 .
 end
 

@@ -8,7 +8,7 @@ fn fresh input xs slice u8 . output u64 . do
   var t be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    set t (wrap_add t (widen u64 (index s i))) .
+    set t (wrap_add t (widen u64 (idx s i))) .
     set s (subslice s 0 2) .
     set i (add i 1) .
   end
@@ -22,7 +22,7 @@ fn stale input xs slice u8 . output u64 . do
   var t be u64 0 .
   var i be u64 0 .
   while lt i m . do
-    set t (wrap_add t (widen u64 (index s i))) .
+    set t (wrap_add t (widen u64 (idx s i))) .
     set s (subslice s 0 2) .
     set i (add i 1) .
   end

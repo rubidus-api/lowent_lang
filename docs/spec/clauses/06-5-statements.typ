@@ -167,6 +167,12 @@ end")
       `buf` 는 `mut` 이어야 하고(`E-TYPE-MUT`), 루프 동안 `buf` 전체를 빌리므로 몸 안에서 `buf` 를 읽거나 쓰면 거부된다
       (`E-FOR-HEAD`) — 원소는 `x` 로만 만진다.
     ]
+    #para("9a")[
+      **거르기 · 점화식** — 머리 끝의 `where c .` 는 몸 첫머리의 `if not c . do continue . end` 와 같은 뜻이다(조건은 바퀴마다
+      잰다). `for i be τ v . while c . next e . do … end` 는 `i = v` 에서 시작해 `c` 가 참인 동안 돌고, 바퀴마다 `i = e` 로
+      나아간다(`c` 는 `bool`, 아니면 `E-TYPE-COND` · `v`·`e` 는 `τ` 에 들어가야 한다). 점화식의 이름은 몸 안에서 `set` 할 수
+      없다(`E-FOR-HEAD`). 나열 리터럴도 원천이다(`for x lit slice u16 10 20 30 . . do`).
+    ]
     #ex("수를 세는 머리", "module ex_for_count .
 
 export fn evens output u64 .

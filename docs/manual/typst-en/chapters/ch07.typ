@@ -59,6 +59,9 @@ runs from `a` to `b`, both ends included. The counting type (`u64`) is always wr
   the body is `E-FOR-HEAD`. `step 0` or a floating counting type is `E-FOR-STEP`.
 - `for x mut buf do set x 0 . end` walks the element places --- `set x` writes that cell of `buf`. Inside the body, touch the
   elements only through `x`, not through `buf` (`E-FOR-HEAD`).
+- Add `where <condition> .` at the end of the head to run the body only for values where it holds:
+  `for i range u64 1 20 . where eq (mod i 3) 0 . do`.
+- A recurrence is written `for j be u64 1 . while le j 100 . next mul j 2 . do` --- it runs 1, 2, 4 … 64.
 
 == `guard` --- turning a condition into a fact
 

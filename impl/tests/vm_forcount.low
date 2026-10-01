@@ -57,3 +57,33 @@ export fn brk output u64 . do
   end
   return s .
 end
+
+rem ★★ RFC-0132 P2 — `where c .` (거짓이면 다음 바퀴) · 점화식 `be τ v . while c . next e .` · 리터럴 원천.
+export fn wh output u64 . do
+  var s be u64 0 .
+  for i range u64 1 20 . where eq (mod i 3) 0 . do
+    set s (add s i) .
+  end
+  return s .
+end
+export fn rec output u64 . do
+  var s be u64 0 .
+  for j be u64 1 . while le j 100 . next mul j 2 . do
+    set s (add (mul s 1000) j) .
+  end
+  return s .
+end
+export fn swh input xs slice u8 . output u64 . do
+  var s be u64 0 .
+  for x xs . where gt x 2 . do
+    set s (add s (widen u64 x)) .
+  end
+  return s .
+end
+export fn litsrc output u64 . do
+  var s be u64 0 .
+  for x lit slice u16 10 20 30 . . do
+    set s (add s (widen u64 x)) .
+  end
+  return s .
+end

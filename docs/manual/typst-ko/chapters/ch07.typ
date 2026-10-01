@@ -60,6 +60,8 @@
   `E-FOR-HEAD` 다. `step 0` 이나 부동소수 셈 타입은 `E-FOR-STEP` 이다.
 - `for x mut buf do set x 0 . end` 는 원소 자리를 돈다 --- `set x` 가 `buf` 의 그 칸에 쓴다. 몸 안에서는 `buf` 를 직접
   만지지 않고 `x` 로만 만진다(`E-FOR-HEAD`).
+- 머리 끝에 `where <조건> .` 을 붙이면 조건이 참인 값만 몸을 돈다: `for i range u64 1 20 . where eq (mod i 3) 0 . do`.
+- 점화식은 `for j be u64 1 . while le j 100 . next mul j 2 . do` 처럼 적는다 --- 1 · 2 · 4 … 64 를 돈다.
 
 == `guard` — 조건을 사실로 바꾼다
 

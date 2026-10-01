@@ -78,25 +78,48 @@ static void ir_release_one(ir_ctx_t *c, proven_size_t d) {
 // ★★ RFC-0132 P1 (§8.1 · §8.2) — `for` 머리의 새 원천. 머리가 읽는 것(끝 · step · 원천 슬라이스)은 들어갈 때 한 번 계산해 숨은
 //   지역에 얼린다. `range` 는 넘침 없는 내림(§8.2): 거리 = st>0 ? hi−i : i−lo(감싸는 64 비트 뺄셈), 거리 < |st|(부호 없는
 //   비교)면 끝, 아니면 i += st. `count τ n` 은 [0, n) — i < n 을 τ 의 비교로. `for x mut buf` 는 x 를 buf 의 칸으로 바꿔 읽는다.
+// 몸 — `where c .` 가 있으면 몸 첫머리에서 거짓이면 다음 바퀴로(continue 와 같은 자리)
+static void ir_for_body(ir_ctx_t *c, const low_cst_t *f, proven_size_t b, proven_size_t wi, ir_loop_t *lp) {
+    if (wi < b) {
+        ir_run(c, f->kids, wi + 1, b - wi - 1);
+        proven_size_t br = ir_emit(c, IRW_BRZ, 0);
+        if (lp->ncnt >= IR_MAXPATCH) { ir_fail(c, "E-IR-LIMIT", "too many `continue` sites in one loop", f->line); return; }
+        lp->cnt[lp->ncnt++] = br;
+    }
+    ir_block(c, f->kids[b]);
+}
 static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
     proven_u8str_view_t kind = f->kids[2]->tok.lex;
+    proven_size_t wi = b;                                          // `where` 의 자리(없으면 b)
+    for (proven_size_t q = 2; q < b; q++) if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "where")) { wi = q; break; }
+    bool counted = is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_NONE && (veq(kind, "count") || veq(kind, "range"));
+    bool recur = is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_BE;
+    bool mutk = is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_NONE && veq(kind, "mut");
     if (c->nloops >= IR_MAXLOOP || c->nlocals + 9 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "loop nesting too deep", f->line); return; }
     #define HID(v_) proven_size_t v_ = c->nlocals++; c->locals[v_].name = (proven_u8str_view_t){ 0 }
     const proven_i64 W64 = (proven_i64)(IR_TY_KNOWN | 64 | IR_POL_WRAP), S64 = (proven_i64)(IR_TY_KNOWN | IR_TY_SIGNED | 64), U64 = (proven_i64)(IR_TY_KNOWN | 64);
-    if (veq(kind, "mut")) {                                        // for x mut buf
+    if (!counted && !recur) {                                      // for x mut buf · for x xs (where 가 붙은 이름·식 원천)
         HID(it); HID(idx);
-        ir_run(c, f->kids, 3, b - 3);
+        proven_size_t s0 = mutk ? 3 : 2;
+        proven_size_t var0 = (proven_size_t)-1;
+        if (!mutk) { var0 = ir_local_declare(c, f->kids[1]->tok.lex, f->line); }
+        ir_run(c, f->kids, s0, wi - s0);
         ir_emit(c, IRW_STORE, (proven_i64)it);
         ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)idx);
         proven_size_t cond = c->code.len;
         ir_emit(c, IRW_LOAD, (proven_i64)idx); ir_emit(c, IRW_LOAD, (proven_i64)it); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, U64);
         proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
-        if (c->nmel >= 8) { ir_fail(c, "E-IR-LIMIT", "too many nested `for x mut` loops", f->line); return; }
-        c->mel_name[c->nmel] = f->kids[1]->tok.lex; c->mel_buf[c->nmel] = it; c->mel_idx[c->nmel] = idx; c->nmel++;
+        if (mutk) {
+            if (c->nmel >= 8) { ir_fail(c, "E-IR-LIMIT", "too many nested `for x mut` loops", f->line); return; }
+            c->mel_name[c->nmel] = f->kids[1]->tok.lex; c->mel_buf[c->nmel] = it; c->mel_idx[c->nmel] = idx; c->nmel++;
+        } else {
+            ir_emit(c, IRW_LOAD, (proven_i64)it); ir_emit(c, IRW_LOAD, (proven_i64)idx); ir_emit(c, IRW_INDEX, 0);
+            ir_emit(c, IRW_STORE, (proven_i64)var0);
+        }
         ir_loop_t *lp = &c->loops[c->nloops++];
         lp->rgdepth = g_nrg; lp->reldepth = g_nrel; lp->nbrk = 0; lp->ncnt = 0;
-        ir_block(c, f->kids[b]);
-        c->nmel--;
+        ir_for_body(c, f, b, wi, lp);
+        if (mutk) c->nmel--;
         proven_size_t step = c->code.len;
         ir_emit(c, IRW_LOAD, (proven_i64)idx); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, W64); ir_emit(c, IRW_STORE, (proven_i64)idx);
         ir_emit(c, IRW_BR, (proven_i64)cond);
@@ -107,14 +130,40 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
         c->nloops--;
         return;
     }
-    if (b < 5 || !is_atom(f->kids[3])) { ir_fail(c, "E-IR-UNSUP", "malformed `for` head", f->line); return; }
+    if (wi < 5 || !is_atom(f->kids[3])) { ir_fail(c, "E-IR-UNSUP", "malformed `for` head", f->line); return; }
     ityp_t ty = ity_of_decl_c(c, f, 3, 4);
     proven_i64 TM = (proven_i64)(IR_TY_KNOWN | (ty.sign ? IR_TY_SIGNED : 0) | (ty.bits ? ty.bits : 64));
     proven_size_t var = ir_local_declare(c, f->kids[1]->tok.lex, f->line);
     c->locals[var].ty = ty;
+    if (recur) {                                                   // for i be τ v . while c . next e .
+        proven_size_t wh = wi, nx = wi;
+        for (proven_size_t q = 4; q < wi; q++) {
+            if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_WHILE && wh == wi) wh = q;
+            else if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "next") && wh < wi) { nx = q; break; }
+        }
+        if (wh == wi || nx == wi || wh == 4 || nx == wh + 1 || nx + 1 >= wi) {
+            ir_fail(c, "E-IR-UNSUP", "a recurrence head is `for i be <type> <start> . while <condition> . next <step> .` (RFC-0132 §8.1)", f->line); return;
+        }
+        ir_run(c, f->kids, 4, wh - 4); ir_emit(c, IRW_STORE, (proven_i64)var);
+        proven_size_t top = c->code.len;
+        ir_run(c, f->kids, wh + 1, nx - wh - 1);
+        proven_size_t ex = ir_emit(c, IRW_BRZ, 0);
+        ir_loop_t *lp = &c->loops[c->nloops++];
+        lp->rgdepth = g_nrg; lp->reldepth = g_nrel; lp->nbrk = 0; lp->ncnt = 0;
+        ir_for_body(c, f, b, wi, lp);
+        proven_size_t cont = c->code.len;
+        ir_run(c, f->kids, nx + 1, wi - nx - 1); ir_emit(c, IRW_STORE, (proven_i64)var);
+        ir_emit(c, IRW_BR, (proven_i64)top);
+        proven_size_t end = c->code.len;
+        ir_at(c, ex)->a = (proven_i64)end;
+        for (proven_size_t i = 0; i < lp->nbrk; i++) ir_at(c, lp->brk[i])->a = (proven_i64)end;
+        for (proven_size_t i = 0; i < lp->ncnt; i++) ir_at(c, lp->cnt[i])->a = (proven_i64)cont;
+        c->nloops--;
+        return;
+    }
     if (veq(kind, "count")) {                                      // for i count τ n .
         HID(endv); HID(iv);
-        ir_run(c, f->kids, 4, b - 4);
+        ir_run(c, f->kids, 4, wi - 4);
         ir_emit(c, IRW_STORE, (proven_i64)endv);
         ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)iv);
         proven_size_t cond = c->code.len;
@@ -123,7 +172,7 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
         ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_STORE, (proven_i64)var);
         ir_loop_t *lp = &c->loops[c->nloops++];
         lp->rgdepth = g_nrg; lp->reldepth = g_nrel; lp->nbrk = 0; lp->ncnt = 0;
-        ir_block(c, f->kids[b]);
+        ir_for_body(c, f, b, wi, lp);
         proven_size_t step = c->code.len;
         ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, W64); ir_emit(c, IRW_STORE, (proven_i64)iv);
         ir_emit(c, IRW_BR, (proven_i64)cond);
@@ -135,9 +184,9 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
         return;
     }
     // range τ a b [step k] — 머리 낱말: kids[4..b) = a b [step k] (a · b · k 는 각각 한 마디)
-    proven_size_t sp_ = b;
-    for (proven_size_t q = 4; q < b; q++) if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "step")) { sp_ = q; break; }
-    if (sp_ - 4 != 2 || (sp_ < b && sp_ + 2 != b)) { ir_fail(c, "E-IR-UNSUP", "`range τ a b [step k]` — a, b and k are one term each (wrap an expression in parentheses)", f->line); return; }
+    proven_size_t sp_ = wi;
+    for (proven_size_t q = 4; q < wi; q++) if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "step")) { sp_ = q; break; }
+    if (sp_ - 4 != 2 || (sp_ < wi && sp_ + 2 != wi)) { ir_fail(c, "E-IR-UNSUP", "`range τ a b [step k]` — a, b and k are one term each (wrap an expression in parentheses)", f->line); return; }
     HID(av); HID(bv); HID(lo); HID(hi); HID(st); HID(iv); HID(dv); HID(ab);
     ir_node(c, f->kids[4]); ir_emit(c, IRW_STORE, (proven_i64)av);
     ir_node(c, f->kids[5]); ir_emit(c, IRW_STORE, (proven_i64)bv);
@@ -150,7 +199,7 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
     ir_emit(c, IRW_LOAD, (proven_i64)bv); ir_emit(c, IRW_STORE, (proven_i64)lo); ir_emit(c, IRW_LOAD, (proven_i64)av); ir_emit(c, IRW_STORE, (proven_i64)hi);
     ir_at(c, j2)->a = (proven_i64)c->code.len;
     proven_size_t skips[4]; proven_size_t nsk = 0;
-    if (sp_ < b) {                                                 // step 을 적었다 — 방향은 step 이 정한다(규칙 5)
+    if (sp_ < wi) {                                                // step 을 적었다 — 방향은 step 이 정한다(규칙 5)
         ir_node(c, f->kids[sp_ + 1]); ir_emit(c, IRW_STORE, (proven_i64)st);
         ir_emit(c, IRW_LOAD, (proven_i64)st); ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_EQ, S64);
         proven_size_t nz = ir_emit(c, IRW_BRZ, 0);
@@ -186,7 +235,7 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
     ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_STORE, (proven_i64)var);
     ir_loop_t *lp = &c->loops[c->nloops++];
     lp->rgdepth = g_nrg; lp->reldepth = g_nrel; lp->nbrk = 0; lp->ncnt = 0;
-    ir_block(c, f->kids[b]);
+    ir_for_body(c, f, b, wi, lp);
     proven_size_t cont = c->code.len;
     // 거리 = st>0 ? hi−i : i−lo
     ir_emit(c, IRW_LOAD, (proven_i64)st); ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_GT, S64);
@@ -1236,8 +1285,11 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             proven_size_t b = form_block_index(f);
             if (b == f->nkids || b < 3 || !is_atom(f->kids[1])) { ir_fail(c, "E-IR-UNSUP", "malformed for", f->line); return; }
             // ★★ RFC-0132 P1 — `for i count τ n .` · `for i range τ a b [step k] .` · `for x mut buf`
-            if (is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_NONE &&
-                (veq(f->kids[2]->tok.lex, "count") || veq(f->kids[2]->tok.lex, "range") || veq(f->kids[2]->tok.lex, "mut"))) {
+            bool has_where = false;
+            for (proven_size_t q = 2; q < b; q++) if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "where")) has_where = true;
+            if (has_where || (is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_BE) ||
+                (is_atom(f->kids[2]) && f->kids[2]->tok.kw == LOW_KW_NONE &&
+                 (veq(f->kids[2]->tok.lex, "count") || veq(f->kids[2]->tok.lex, "range") || veq(f->kids[2]->tok.lex, "mut")))) {
                 ir_for_p1(c, f, b);
                 return;
             }

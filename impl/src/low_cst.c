@@ -597,7 +597,17 @@ static low_cst_t *low_parse_for(low_parser_t *p) {
     // ★ `for` 도 **제어 머리**다: 첫 닫개가 iterable 을 닫는다. 그리고 본체는 `do…end` 이거나
     //   **form 하나**다(S ≡ do S end).
     while (low_curkw(p) != LOW_KW_DO && !low_is_form_boundary(p)) {
-        if (low_curk(p) == LOW_TOK_DOT) { low_adv(p); break; }
+        if (low_curk(p) == LOW_TOK_DOT) {
+            low_adv(p);
+            // ★ RFC-0132 P2 (§8.1 점 규칙) — `for` 머리는 절의 열이다: `range … . where … . do` · `be τ v . while c . next e . do`.
+            //   점 뒤에 이 절 낱말이 오면 머리가 이어진다 — 절 낱말은 원자로 넣는다(`while` 은 예약어라 문장으로 읽히면 안 된다).
+            if (low_curkw(p) == LOW_KW_WHILE ||
+                (low_curk(p) == LOW_TOK_IDENT && (low_view_eq_cstr(low_cur(p)->lex, "where") || low_view_eq_cstr(low_cur(p)->lex, "next")))) {
+                (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_node(p, LOW_CST_ATOM, low_adv(p)));
+                continue;
+            }
+            break;
+        }
         (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_access(p, false));
     }
     if (low_curkw(p) == LOW_KW_DO) (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block(p));
@@ -1154,8 +1164,23 @@ static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
     // ★ X-0059 — 안에 놓인 선언(actor 몸의 `proc` 따위)도 머리 절마다 점을 찍는다. 파서가 머리의 점을 버리므로
     //   여기서 되살린다: 열린 절은 다음 절 낱말이나 몸 블록 앞에서 닫는다. (맨 위 선언은 low_fmt_decl 이 줄마다 찍는다.)
     bool decl = (hk == LOW_KW_FN || hk == LOW_KW_PROC || hk == LOW_KW_TEST), dopen = false;
+    // ★ RFC-0132 P1·P2 (§8.1 점 규칙) — `for` 머리의 낱말 절(`count`·`range`·`be`·`where`·`while`·`next`)은 제 점으로 닫는다.
+    //   파서가 그 점을 버리므로 여기서 되살린다: 다음 절 낱말과 몸 블록 앞에.
+    bool fword = hk == LOW_KW_FOR && nd->nkids > 3 && nd->kids[2]->kind == LOW_CST_ATOM &&
+                 (nd->kids[2]->tok.kw == LOW_KW_BE ||
+                  (nd->kids[2]->tok.kw == LOW_KW_NONE && (low_view_eq_cstr(nd->kids[2]->tok.lex, "count") || low_view_eq_cstr(nd->kids[2]->tok.lex, "range"))));
+    bool fwhere = false;
+    if (hk == LOW_KW_FOR)
+        for (proven_size_t i = 2; i < nd->nkids; i++)
+            if (nd->kids[i]->kind == LOW_CST_ATOM && nd->kids[i]->tok.kw == LOW_KW_NONE && low_view_eq_cstr(nd->kids[i]->tok.lex, "where")) fwhere = true;
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         if (i) putchar(' ');
+        if (hk == LOW_KW_FOR && i >= 3) {
+            const low_cst_t *k = nd->kids[i];
+            bool cl = k->kind == LOW_CST_ATOM && (k->tok.kw == LOW_KW_WHILE ||
+                      (k->tok.kw == LOW_KW_NONE && (low_view_eq_cstr(k->tok.lex, "where") || low_view_eq_cstr(k->tok.lex, "next"))));
+            if (cl || (k->kind == LOW_CST_BLOCK && (fword || fwhere))) fputs(". ", stdout);
+        }
         if (decl && i >= 2) {
             const low_cst_t *k = nd->kids[i];
             bool cw = k->kind == LOW_CST_ATOM && low_is_clause_word(k->tok.lex);

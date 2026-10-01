@@ -1594,6 +1594,33 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
             proven_size_t bi = f->nkids;
             for (proven_size_t j = 2; j < f->nkids; j++)
                 if (f->kids[j]->kind == LOW_CST_BLOCK) { bi = j; break; }
+            // ★ RFC-0132 P2 — `where c .` 는 머리의 끝 절이다(조건은 몸 첫머리에서, 셈 이름이 보인 채로 잰다)
+            proven_size_t wi = bi;
+            for (proven_size_t j = 2; j < bi; j++)
+                if (f->kids[j]->kind == LOW_CST_ATOM && f->kids[j]->tok.kw == LOW_KW_NONE && veq(f->kids[j]->tok.lex, "where")) { wi = j; break; }
+            // ★★ RFC-0132 P2 — 점화식 `be τ v . while c . next e .`: 이름의 타입은 τ, 시작과 다음 값은 τ 에 들어가야 한다
+            if (wi > 4 && f->kids[2]->kind == LOW_CST_ATOM && f->kids[2]->tok.kw == LOW_KW_BE && f->kids[3]->kind == LOW_CST_ATOM) {
+                ty_t tau = ty_of_word(f->kids[3]->tok.lex);
+                proven_size_t wh = wi, nx = wi;
+                for (proven_size_t j = 4; j < wi; j++) {
+                    if (f->kids[j]->kind == LOW_CST_ATOM && f->kids[j]->tok.kw == LOW_KW_WHILE && wh == wi) wh = j;
+                    else if (f->kids[j]->kind == LOW_CST_ATOM && veq(f->kids[j]->tok.lex, "next") && wh < wi) { nx = j; break; }
+                }
+                if (wh < wi && nx < wi && wh > 4) {
+                    ty_t sv = tc_infer_run(c, f->kids, 4, wh - 4, env, *nenv);
+                    tc_flag(c, compat(tau, sv), "E-TYPE-WIDTH", "a recurrence's start does not fit its declared type", f->line);
+                    if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = tau; }
+                    ty_t cv = tc_infer_run(c, f->kids, wh + 1, nx - wh - 1, env, *nenv);
+                    if (cv.k != TK_UNKNOWN && cv.k != TK_BOOL && cv.k != TK_NAMED)
+                        tc_emit(c, "E-TYPE-COND", "the `while` of a recurrence is a condition (`bool`)", f->line);
+                    ty_t nv = tc_infer_run(c, f->kids, nx + 1, wi - nx - 1, env, *nenv);
+                    tc_flag(c, compat(tau, nv), "E-TYPE-WIDTH", "a recurrence's next value does not fit its declared type", f->line);
+                }
+                if (wi < bi) (void)tc_infer_run(c, f->kids, wi + 1, bi - wi - 1, env, *nenv);
+                for (proven_size_t j = 0; j < f->nkids; j++)
+                    if (f->kids[j]->kind == LOW_CST_BLOCK) tc_check_body(c, f->kids[j], env, nenv, ret);
+                goto for_done;
+            }
             // ★★ RFC-0132 P1 — `count τ n .` · `range τ a b [step k] .` : 셈의 타입 τ 는 늘 적고(N5), 끝은 τ 에 들어가야 한다(넓히기만).
             if (bi > 3 && f->kids[2]->kind == LOW_CST_ATOM && f->kids[2]->tok.kw == LOW_KW_NONE &&
                 (veq(f->kids[2]->tok.lex, "count") || veq(f->kids[2]->tok.lex, "range")) && f->kids[3]->kind == LOW_CST_ATOM) {
@@ -1603,7 +1630,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                             ? "a counted loop counts in an integer type — a float has no next value to step to (RFC-0132 §8.2)"
                             : "`count`/`range` need the counting type first: `for i count u64 n .` · `for i range u64 3 10 .` (RFC-0132 §8.2)", f->line);
                 } else {
-                    for (proven_size_t q = 4; q < bi; q++) {
+                    for (proven_size_t q = 4; q < wi; q++) {
                         if (f->kids[q]->kind == LOW_CST_ATOM && veq(f->kids[q]->tok.lex, "step")) {
                             if (q + 1 < bi && f->kids[q + 1]->kind == LOW_CST_ATOM && f->kids[q + 1]->tok.kind == LOW_TOK_NUMBER) {
                                 proven_i64 sv; if (tc_int_lit(f->kids[q + 1]->tok.lex, &sv) && sv == 0)
@@ -1616,12 +1643,13 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                     }
                 }
                 if (*nenv < TC_MAXENV) { env[*nenv].name = f->kids[1]->tok.lex; env[(*nenv)++].ty = tau.k == TK_INT ? tau : tk_int(64, false); }
+                if (wi < bi) (void)tc_infer_run(c, f->kids, wi + 1, bi - wi - 1, env, *nenv);
                 for (proven_size_t j = 0; j < f->nkids; j++)
                     if (f->kids[j]->kind == LOW_CST_BLOCK) tc_check_body(c, f->kids[j], env, nenv, ret);
                 goto for_done;
             }
             bool mut_src = bi > 3 && f->kids[2]->kind == LOW_CST_ATOM && veq(f->kids[2]->tok.lex, "mut");   // for x mut buf
-            ty_t seq = (bi > 2) ? tc_infer_run(c, f->kids, mut_src ? 3 : 2, bi - (mut_src ? 3 : 2), env, *nenv) : tk(TK_UNKNOWN);
+            ty_t seq = (wi > 2) ? tc_infer_run(c, f->kids, mut_src ? 3 : 2, wi - (mut_src ? 3 : 2), env, *nenv) : tk(TK_UNKNOWN);
             if (mut_src && seq.k == TK_SLICE && !seq.is_mut && f->kids[3]->kind == LOW_CST_ATOM)
                 tc_emit(c, "E-TYPE-MUT", "`for x mut <slice>` writes the slice's elements — the slice must be declared `mut` "
                         "(a `let` list, a string or a shared parameter is read-only)", f->line);
@@ -1639,6 +1667,7 @@ static void tc_check_body(tc_ctx_t *c, const low_cst_t *blk, tc_var_t *env, prov
                 env[*nenv].name = f->kids[1]->tok.lex;
                 env[(*nenv)++].ty = ev;
             }
+            if (wi < bi) (void)tc_infer_run(c, f->kids, wi + 1, bi - wi - 1, env, *nenv);   // `where` 조건
             for (proven_size_t j = 0; j < f->nkids; j++)
                 if (f->kids[j]->kind == LOW_CST_BLOCK) tc_check_body(c, f->kids[j], env, nenv, ret);
             for_done:;

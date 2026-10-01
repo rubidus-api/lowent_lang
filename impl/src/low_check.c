@@ -7954,16 +7954,20 @@ static const low_cst_t *fh_set_of(const low_cst_t *e, const fh_names_t *h, prove
 }
 static void fh_walk(low_check_result_t *out, const low_cst_t *nd) {
     if (!nd || nd->kind == LOW_CST_ATOM) return;
+    bool recur_ = nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_FOR &&
+                  ck_atom(nd->kids[1]) && ck_atom(nd->kids[2]) && nd->kids[2]->tok.kw == LOW_KW_BE;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_FOR && ck_atom(nd->kids[1]) &&
-        ck_atom(nd->kids[2]) && nd->kids[2]->tok.kw == LOW_KW_NONE &&
-        (veq(nd->kids[2]->tok.lex, "count") || veq(nd->kids[2]->tok.lex, "range") || veq(nd->kids[2]->tok.lex, "mut"))) {
+        ck_atom(nd->kids[2]) && (recur_ || (nd->kids[2]->tok.kw == LOW_KW_NONE &&
+        (veq(nd->kids[2]->tok.lex, "count") || veq(nd->kids[2]->tok.lex, "range") || veq(nd->kids[2]->tok.lex, "mut"))))) {
         proven_size_t b = nd->nkids;
         for (proven_size_t q = 3; q < nd->nkids; q++) if (nd->kids[q]->kind == LOW_CST_BLOCK) { b = q; break; }
-        bool is_mut = veq(nd->kids[2]->tok.lex, "mut");
+        proven_size_t wi = b;                                       // `where` 의 조건은 바퀴마다 다시 잰다 — 얼리지 않는다
+        for (proven_size_t q = 3; q < b; q++) if (ck_atom(nd->kids[q]) && nd->kids[q]->tok.kw == LOW_KW_NONE && veq(nd->kids[q]->tok.lex, "where")) { wi = q; break; }
+        bool is_mut = !recur_ && veq(nd->kids[2]->tok.lex, "mut");
         static fh_names_t h;
         h.nn = 0; h.over = false;
         if (!is_mut) h.nm[h.nn++] = nd->kids[1]->tok.lex;
-        for (proven_size_t q = is_mut ? 3 : 4; q < b; q++) fh_collect(&h, nd->kids[q]);
+        if (!recur_) for (proven_size_t q = is_mut ? 3 : 4; q < wi; q++) fh_collect(&h, nd->kids[q]);   // 점화식은 셈 이름만 지킨다
         if (h.over)
             emit(out, "E-IR-LIMIT", "this loop head names too many things for the frozen-head checker's table — refused rather "
                  "than checked partly. Bind the bounds to a few names first", nd->kids[0]->tok.line);

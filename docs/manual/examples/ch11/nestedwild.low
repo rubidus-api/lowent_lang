@@ -8,7 +8,7 @@ end
 fn pick input r result (option u64) read_error . output u64 .
 do
   rem ko: 겹친 패턴 셋이 모든 경우다 --- `_` 를 따로 두지 않는다 /// en: three nested patterns are every case --- no separate `_`
-  match r do
+  match r . do
     case ok (some x) . return x .
     case ok none . return 0 .
     case error e . return 1 .

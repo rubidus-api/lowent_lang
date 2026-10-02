@@ -83,7 +83,7 @@ believe an unreliable fact, translation is refused. If you do not mean to leave,
 
 #misconception[`guard` is syntactic sugar for shorter code][
   Being shorter is a side effect. The real point of `guard` is *handing a fact to the compiler and the reader*. After a `guard` the
-  compiler knows the condition is true and uses it to remove bounds checks. You can write the same meaning with `if … do return … end`
+  compiler knows the condition is true and uses it to remove bounds checks. You can write the same meaning with `if … . do return … end`
   and get the same behaviour, but leaving is not guaranteed by the grammar.
 ]
 
@@ -232,7 +232,7 @@ Nothing may follow an `else` --- it has already taken everything, so a later arm
   [`break .` · `continue .`], [leave the loop · go to the next round], [statements that change the flow],
   [`guard c . else return … .`], [leave unless the condition holds --- afterwards it is a fact], [`else` must always leave],
   [`return e .`], [return a value and finish], [on every path of an op that produces a value],
-  [`match v do case … . statement … end`], [split by cases], [complete and non-overlapping --- no fall-through],
+  [`match v . do case … . statement … end`], [split by cases], [complete and non-overlapping --- no fall-through],
   [`case 1 to 9 .` · `case _ .` · `case y when c .`], [a range · everything else · a guarded arm], [integers have many cases, so `_` is often needed],
   [`panic "…" .`], [an irreversible stop (an effect)], [only in a `proc` that declares `effects panic`],
 )

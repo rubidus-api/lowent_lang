@@ -54,7 +54,7 @@ if <cond> . do … end [else do … end] .
 while <cond> . do … end
 for <name> <slice> do … end
 guard <cond> . else <leaving statement> .
-match <value> do case <pattern> [when <cond>] . do … end … end
+match <value> . do case <pattern> [when <cond>] . do … end … end
 return [<expr>] .    break .    continue .    panic "<text>" .
 drop <name> .
 region <name> stack|frame|arena|static|heap|mmap|disk|device do … end

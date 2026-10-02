@@ -36,7 +36,7 @@ end
 
 rem ★ match — 모든 변형을 다뤄야 한다(완전성). 변형을 하나 추가하면 컴파일러가 여기를 찾아 준다.
 fn weight input k kind . output u8 . do
-  match k do
+  match k . do
     case lbrace . do return 1 . end
     case rbrace . do return 1 . end
     case quote  . do return 2 . end
@@ -51,7 +51,7 @@ fn scan input src bytes . output u16 . do
   var i be u64 0 .
   while lt i (len src) . do
     let k be kind classify (idx src i) . .
-    match k do
+    match k . do
       case lbrace . do set (field c braces) expr (field c braces) + 1 . . end
       case rbrace . do set (field c braces) expr (field c braces) + 1 . . end
       case quote  . do set (field c quotes) expr (field c quotes) + 1 . . end

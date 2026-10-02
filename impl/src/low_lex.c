@@ -624,6 +624,12 @@ low_lex_result_t low_lex(proven_allocator_t alloc, proven_u8str_view_t src) {
                     proven_size_t s0 = l.pos;
                     while (low_is_ident(low_peek(&l))) low_adv(&l);
                     proven_u8str_view_t nm = { .ptr = l.src.ptr + s0, .size = l.pos - s0 };
+                    // ★★★ RFC-0113 R3 (소유자 2026-10-02 «없앤다») — `.name` 은 셋째 철자였다(맨 전위 · 괄호가 같은 나무를 세운다).
+                    //   띄어쓰기 한 칸이 닫개를 머리로 바꿨다(`add a b .g a` → `.g` 가 머리). 거절하되 나무는 그대로 세워 뒤 진단이 이어지게 한다.
+                    low_diag(&l, "E-VOCAB-REMOVED",
+                             "`.name` (a dot glued to a name opens a head) is gone — write the op name plainly or in "
+                             "parentheses: `return add a (mul b 2) .` (RFC-0113 R3). A glued dot after a space was too easy "
+                             "to type by accident: `add a b .g a` turned the closer into a head", line, col);
                     low_emit(&l, LOW_TOK_HEAD, low_kw_lookup(nm), nm, LOW_EMPTY_VIEW, line, col);
                 }
                 else {

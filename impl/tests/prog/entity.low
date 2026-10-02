@@ -70,7 +70,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   guard is_some i20 . else return 9 .
   guard eq (soa.get_x xs (some_value i20)) 202 . else return 10 .
   let miss be option u64 hashmap.lookup bk 99 .
-  guard not (is_some miss) . else return 11 .
+  guard is_none miss . else return 11 .
 
   rem ── ③ growvec — 리포트를 스스로 자라는 벡터에 쌓는다 ────────────────
   let memo be option mut slice u8 alloc_bytes al capacity 512 .

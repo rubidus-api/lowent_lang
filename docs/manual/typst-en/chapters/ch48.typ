@@ -47,8 +47,9 @@ and confirm equations by computation.
 
 #demo("examples/ch48/oneform.low")
 
-`bare` writes one statement directly as the body of `if`, and `blocked` wraps it in `do … end`. The answers are the same, and the canonical form printed by `--fmt` does not
-differ by a single character.
+`bare` writes one statement directly as the body of a `case` arm, and `blocked` wraps it in `do … end`. The answers are the same, and the canonical form printed by `--fmt` does not
+differ by a single character. The bodies of `if`, `while` and `for` take only `do … end` --- if the stop after a condition is forgotten, the condition swallows the next statement, so the
+grammar no longer accepts that mistake (RFC-0113 R4). A one-statement body remains in `case` arms and in `guard … else`.
 
 #mathbox[Theorem G1 (`one_form_is_a_block` in `LowentBlock.v`)][
   `forall s, denote (wrap s) = denote s.` Wrapping one statement in a block does not change its meaning. Here "same meaning" means that the function `denote`, sending each tree to
@@ -65,8 +66,8 @@ separate them.
              x = x + 10;
              y = 0;          ← indented as if inside the if, but the grammar puts it outside
 
- Lowent  if gt a 1 . set x (add x 10) .        one statement = a one-statement block (G1)
-         if gt a 1 . do
+ Lowent  case 1 . set x (add x 10) .           an arm's one statement = a one-statement block (G1)
+         if gt a 1 . do                        an if body is always do … end (RFC-0113 R4)
            set x (add x 10) .
            set y 0 .
          end                                   a longer body is ended by end

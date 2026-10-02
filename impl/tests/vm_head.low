@@ -1,19 +1,10 @@
-rem ★★★ **머리 표시 `.head`** (RFC-0061) — 사용자 제안.
+rem ★★★ **머리를 적는 두 표기** — 평평하게(arity 가 괄호를 친다)와 괄호로.
 rem
-rem   `.name` = **머리를 연다**(이 이름은 적용이다). 점이 이름에 **붙어** 있고 왼쪽은 공백이다.
-rem   `.`(고립) = **가장 안쪽의 열린 머리**를 닫는다. 열린 머리가 없으면 **문장**을 닫는다.
-rem   **개행** = 남은 것을 **다 닫는다**.
+rem   옛 셋째 표기 `.name`(점을 이름에 붙여 머리를 연다, RFC-0061)은 RFC-0113 R3 으로 없앴다(2026-10-02, 소유자 «없앤다»).
+rem   띄어쓰기 한 칸이 닫개를 머리로 바꾸는 실수(`add a b .g a`)를 낳았고, 아래 두 표기가 같은 나무를 이미 세운다.
 rem
-rem   ⇒ 점 셋의 뜻이 **인접성으로** 결정적으로 갈린다:
-rem        x . y   닫개      (양쪽 공백)
-rem        s.x     접근      (양쪽 붙음)
-rem        .f      머리 열기 (오른쪽만 붙음)
-rem
-rem ★ 이것이 사 주는 것: **머리/원자 비트가 문자열 안에 있다.** 선언을 몰라도 무엇이 호출인지
-rem   보인다. 그리고 **핸드폰에서 치기 쉽다**(괄호 두 개 대신 점 하나).
-rem
-rem ★★ 그리고 **표기는 둘, 나무는 하나다**: 아래 세 op 은 **글자 그대로 같은 나무**로 서고
-rem    **def 해시가 같다**(RFC-0012 가 오라클이다). `--fmt` 은 셋 다 **한 정규형**으로 찍는다.
+rem ★★ **표기는 둘, 나무는 하나다**: 두 op 은 **글자 그대로 같은 나무**로 서고 **def 해시가 같다**(RFC-0012 가 오라클이다).
+rem    `--fmt` 은 둘 다 **한 정규형**으로 찍는다.
 
 module vm_head .
 
@@ -27,26 +18,19 @@ fn parens input a u8 . input b u8 . output u8 . do
   return add a (mul b 2) .
 end
 
-rem ③ 머리 표시로 — 구조가 문자열에 있고, **점이 하나도 없다**(개행이 다 닫는다)
-fn marked input a u8 . input b u8 . output u8 . do
-  return .add a .mul b 2 . . .
-end
-
-rem ④ **점 하나가 안쪽 머리를 닫는다** — 그다음 것은 바깥 머리의 인자다.
-rem    `.add (mul b 2) a`  와 같다.
+rem ③ 안쪽이 앞에 — 괄호가 닫고 그다음 것이 바깥 op 의 인자다
 fn early_close input a u8 . input b u8 . output u8 . do
-  return .add .mul b 2 . a . .
+  return add (mul b 2) a .
 end
 
-rem ⑤ 중첩 — 세 겹
+rem ④ 중첩 — 세 겹
 fn deep input a u8 . output u8 . do
-  return .add 1 .add 2 .add 3 a . . . .
+  return add 1 (add 2 (add 3 a)) .
 end
 
 test head_agrees do
   expect eq (flat 3 4) 11 .
   expect eq (parens 3 4) 11 .
-  expect eq (marked 3 4) 11 .
   expect eq (early_close 3 4) 11 .
   expect eq (deep 4) 10 .
 end

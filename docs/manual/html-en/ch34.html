@@ -684,7 +684,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">let</span></strong> at <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> searchlib.bsearch xs <span class="tok-n">19</span> .
   <strong><span class="tok-k">guard</span></strong> is_some at . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">254</span> .
   <strong><span class="tok-k">let</span></strong> missing <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> searchlib.bsearch xs <span class="tok-n">20</span> .
-  <strong><span class="tok-k">guard</span></strong> not (is_some missing) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> .
+  <strong><span class="tok-k">guard</span></strong> is_none missing . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (add (mul (idx xs <span class="tok-n">0</span>) <span class="tok-n">10</span>) (some_value at)) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main sorted.low
@@ -735,7 +735,7 @@ main() = 231
   <strong><span class="tok-k">guard</span></strong> is_some v . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">254</span> .
   <strong><span class="tok-k">let</span></strong> gone <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> hashmap.del slots <span class="tok-n">9</span> .
   <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> hashmap.lookup slots <span class="tok-n">9</span> .
-  <strong><span class="tok-k">guard</span></strong> not (is_some w) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> .
+  <strong><span class="tok-k">guard</span></strong> is_none w . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">253</span> .
   <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (add (mul (div (some_value v) <span class="tok-n">100</span>) <span class="tok-n">10</span>) (hashmap.size slots)) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main table.low

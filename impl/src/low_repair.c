@@ -305,6 +305,9 @@ static const low_repair_row_t REPAIR[] = {
     { "E-LEX-UTF8",            "R-FIX-UTF8" },
     { "E-TOPLEVEL",            "R-USE-DECL-HEAD" },
     { "E-STMT-NODO",           "R-ADD-DO-END" },
+    { "E-CTRL-NODO",           "R-ADD-DO-END" },   // RFC-0113 R4 — 한 폼 몸을 `do … end` 로 감싼다
+    { "E-CTRL-NODOT",          "R-ADD-DOT" },      // RFC-0113 R4 — `do` 앞에 점(`--fmt` 이 찍는다)
+    { "E-NOT-IS-SOME",         "R-USE-IS-NONE" },  // RFC-0113 O5 — `not is_some x` → `is_none x`
     { "E-HEAD-NOT-AN-OP",      "R-DROP-DOT-HEAD" },
     { "E-METHOD-RECV",         "R-ADD-RECEIVER" },
     { "E-FIELD-FORM",          "R-USE-FIELD-FORM" },

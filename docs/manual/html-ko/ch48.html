@@ -673,7 +673,10 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> a .
-  <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">1</span> . <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
+  <strong><span class="tok-k">match</span></strong> a . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">set</span></strong> x <span class="tok-n">1</span> .
+    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
+  <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
 <strong><span class="tok-k">end</span></strong>
 
@@ -681,8 +684,13 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">requires</span></strong> le a <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> a .
-  <strong><span class="tok-k">if</span></strong> gt a <span class="tok-n">1</span> . <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
+  <strong><span class="tok-k">match</span></strong> a . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> x <span class="tok-n">1</span> .
+    <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">set</span></strong> x (add x <span class="tok-n">10</span>) .
+    <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">return</span></strong> x .
 <strong><span class="tok-k">end</span></strong>
@@ -698,7 +706,7 @@ fn bare .
   requires le a 1000 .
 do
   var x be u64 a .
-  if (gt a 1) do set x (add x 10) . end
+  match a . do case 0 . do set x 1 . end case _ . do set x (add x 10) . end end
   return x .
 end
 fn blocked .
@@ -707,15 +715,15 @@ fn blocked .
   requires le a 1000 .
 do
   var x be u64 a .
-  if (gt a 1) do set x (add x 10) . end
+  match a . do case 0 . do set x 1 . end case _ . do set x (add x 10) . end end
   return x .
 end
-</code></pre></div></div><p><code>bare</code> 는 <code>if</code> 의 몸에 문장 하나를 그대로 적었고, <code>blocked</code> 는 <code>do … end</code> 로 감쌌다. 답이 같고, <code>--fmt</code> 가 찍는 정규형도 한 글자 다르지 않다.</p><div class="dev mathbox"><p class="dev-label">수학. 정리 G1(<code>LowentBlock.v</code> 의 <code>one_form_is_a_block</code>)</p><div class="dev-body"><code>forall s, denote (wrap s) = denote s.</code> 문장 하나를 블록으로 감싸도 뜻이 같다. 여기서 “뜻이 같다” 는 각 나무를 평평한 문장 나열로 보내는 함수 <code>denote</code> 의 결과가 같다는 뜻이다. “같다” 의 뜻을 함수로 정하고 등식을 계산으로 확인하는 것이 이 장의 유일한 기술이다. 따름정리 <code>body_is_one_thing</code> 은 몸 자리에 문장을 쓰든 블록을 쓰든 같다고 말한다.</div></div><p>이 정리는 설계 결정 하나를 정당화한다. C 는 문장과 복합문을 다른 종류로 갈라 놓았다. <code>if (c) x = 1;</code> 과 <code>if (c) { x = 1; }</code> 가 문법적으로 다른 것이고, 유명한 <code>goto fail;</code> 함정이 그 틈에서 나왔다 — 들여쓰기는 두 줄이 <code>if</code> 에 속한 것처럼 보였지만 문법은 한 줄만 속하게 했다. Lowent 는 가르지 않는다.</p><pre><code data-lang="text"> C       if (c)
+</code></pre></div></div><p><code>bare</code> 는 <code>case</code> 갈래의 몸에 문장 하나를 그대로 적었고, <code>blocked</code> 는 <code>do … end</code> 로 감쌌다. 답이 같고, <code>--fmt</code> 가 찍는 정규형도 한 글자 다르지 않다. <code>if</code> · <code>while</code> · <code>for</code> 의 몸은 <code>do … end</code> 만 받는다 — 조건 뒤의 점 하나를 빠뜨리면 조건이 다음 문장을 삼키므로, 그 실수를 문법이 받아 주지 않게 했다(RFC-0113 R4). 한 문장 몸이 남은 자리는 <code>case</code> 갈래와 <code>guard … else</code> 다.</p><div class="dev mathbox"><p class="dev-label">수학. 정리 G1(<code>LowentBlock.v</code> 의 <code>one_form_is_a_block</code>)</p><div class="dev-body"><code>forall s, denote (wrap s) = denote s.</code> 문장 하나를 블록으로 감싸도 뜻이 같다. 여기서 “뜻이 같다” 는 각 나무를 평평한 문장 나열로 보내는 함수 <code>denote</code> 의 결과가 같다는 뜻이다. “같다” 의 뜻을 함수로 정하고 등식을 계산으로 확인하는 것이 이 장의 유일한 기술이다. 따름정리 <code>body_is_one_thing</code> 은 몸 자리에 문장을 쓰든 블록을 쓰든 같다고 말한다.</div></div><p>이 정리는 설계 결정 하나를 정당화한다. C 는 문장과 복합문을 다른 종류로 갈라 놓았다. <code>if (c) x = 1;</code> 과 <code>if (c) { x = 1; }</code> 가 문법적으로 다른 것이고, 유명한 <code>goto fail;</code> 함정이 그 틈에서 나왔다 — 들여쓰기는 두 줄이 <code>if</code> 에 속한 것처럼 보였지만 문법은 한 줄만 속하게 했다. Lowent 는 가르지 않는다.</p><pre><code data-lang="text"> C       if (c)
              x = x + 10;
              y = 0;          ← 들여쓰기는 if 안처럼 보이지만 문법은 if 밖이다
 
- Lowent  if gt a 1 . set x (add x 10) .        문장 하나 = 문장 하나짜리 블록 (G1)
-         if gt a 1 . do
+ Lowent  case 1 . set x (add x 10) .           갈래의 문장 하나 = 문장 하나짜리 블록 (G1)
+         if gt a 1 . do                        if 의 몸은 언제나 do … end (RFC-0113 R4)
            set x (add x 10) .
            set y 0 .
          end                                   몸이 길면 end 가 끝을 적는다</code></pre><h3 id="s48-3">48.3 닫개는 같은 일을 한다<a class="plink" href="#s48-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev mathbox"><p class="dev-label">수학. 정리 G2(<code>closers_agree</code>)</p><div class="dev-body"><code>forall c1 c2 h ops, close c1 h ops = close c2 h ops.</code> <code>.</code> 과 <code>)</code> 가운데 어느 것으로 닫아도 같은 나무가 나온다. 둘 다 “열려 있는 가장 안쪽 폼을 닫는다” 를 한다. <code>end</code> 는 이 목록에 없다 — <code>do … end</code> 는 짝인 괄호라서 <code>end</code> 는 자기 <code>do</code> 만 닫고, 안에 열린 폼이 남아 있으면 대신 닫지 않고 거절한다(<code>E-DOT-MISSING</code>). 블록은 결합적이어서 블록 안의 블록은 자기 자리에서 펼쳐진다(<code>block_assoc</code>·<code>nested_block_flattens</code>).</div></div><p>예제로 보면 이렇다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch48/closers.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> closers .

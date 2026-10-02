@@ -202,7 +202,7 @@ end
 
 fn area input s shape . output u32 .
 do
-  match s do
+  match s . do
     case circle r . do return mul 3 (mul r r) . end
     case rect w h . do return mul w h . end
     case dot . do return 0 . end

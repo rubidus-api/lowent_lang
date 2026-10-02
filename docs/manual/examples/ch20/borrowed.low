@@ -12,6 +12,6 @@ do
   let pv be mut slice u8 some_value p .
   set (idx pv 0) 65 .
   let q be option mut slice u8 send a reserve 99 .
-  guard not (is_some q) . else return 92 .
+  guard is_none q . else return 92 .
   return send a used .
 end

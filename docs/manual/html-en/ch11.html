@@ -696,7 +696,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">fn</span></strong> find_match <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">match</span></strong> find k <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> find k . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> some v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -899,7 +899,7 @@ must_find(9) = err not_found
 <em><span class="tok-c">rem any one match takes the arm --- red, green and blue are all covered, so no _ is needed</span></em>
 <strong><span class="tok-k">fn</span></strong> warm <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> color green .
-  <strong><span class="tok-k">match</span></strong> c <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> c . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> red or green . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> blue . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -908,7 +908,7 @@ must_find(9) = err not_found
 <em><span class="tok-c">rem arms joined with or must bind the same names</span></em>
 <strong><span class="tok-k">fn</span></strong> combine <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> e <strong><span class="tok-k">be</span></strong> node node.times <span class="tok-n">6</span> <span class="tok-n">7</span> .
-  <strong><span class="tok-k">match</span></strong> e <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> e . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> plus l r or times l r . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> add l r . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> num v . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> v . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -917,7 +917,7 @@ must_find(9) = err not_found
 <em><span class="tok-c">rem splits an option inside a result in one go</span></em>
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u32</span></strong> color ok (some <span class="tok-n">42</span>) .
-  <strong><span class="tok-k">match</span></strong> r <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> r . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> ok (some x) . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> x . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> error . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">99</span> . <strong><span class="tok-k">end</span></strong>
@@ -926,7 +926,7 @@ must_find(9) = err not_found
 
 <em><span class="tok-c">rem if the value being split is a compile-time constant, it folds to the one matching arm</span></em>
 <strong><span class="tok-k">fn</span></strong> choose <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">match</span></strong> <strong><span class="tok-k">comptime</span></strong> (add <span class="tok-n">2</span> <span class="tok-n">3</span>) <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> <strong><span class="tok-k">comptime</span></strong> (add <span class="tok-n">2</span> <span class="tok-n">3</span>) . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">100</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">5</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">500</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> . <strong><span class="tok-k">end</span></strong>
@@ -935,7 +935,7 @@ must_find(9) = err not_found
 
 <em><span class="tok-c">rem the two ranges cover all of u8 without gaps, so no _ is needed</span></em>
 <strong><span class="tok-k">fn</span></strong> half <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">match</span></strong> b <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> b . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">0</span> to <span class="tok-n">127</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> <span class="tok-n">128</span> to <span class="tok-n">255</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -960,7 +960,7 @@ half(200) = 1
 
 <strong><span class="tok-k">fn</span></strong> name <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">be</span></strong> light bright .
-  <strong><span class="tok-k">match</span></strong> s <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> s . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> _ . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
     <strong><span class="tok-k">case</span></strong> bright . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -1052,7 +1052,7 @@ plus(250) = err too_big
 <strong><span class="tok-k">fn</span></strong> pick <strong><span class="tok-k">input</span></strong> r <strong><span class="tok-k">result</span></strong> (<strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong>) read_error . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem three nested patterns are every case --- no separate `_`</span></em>
-  <strong><span class="tok-k">match</span></strong> r <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> r . <strong><span class="tok-k">do</span></strong>
     <strong><span class="tok-k">case</span></strong> ok (some x) . <strong><span class="tok-k">return</span></strong> x .
     <strong><span class="tok-k">case</span></strong> ok <span class="tok-n">none</span> . <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
     <strong><span class="tok-k">case</span></strong> error e . <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .

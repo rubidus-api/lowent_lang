@@ -195,7 +195,7 @@ fixed, and the `idx` that follows a position still gets its bounds check. The st
   [`body array u8 4 .` · `set (idx (field p body) 0) 1 .`], [an array field --- the record holds the bytes], [copying copies the bytes too],
   [`def enum shape do dot . circle r u32 . end`], [one of several --- variants may carry values], [each variant is closed with a stop],
   [`shape.circle 2` · `dot`], [build a variant that carries a value · one that carries none], [the variant name is the constructor],
-  [`match s do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],
+  [`match s . do case circle r . … end`], [split on variants and bind their values], [every variant must be covered],
   [`isa s circle`], [is it that variant (`bool`)], [for asking without taking values out],
   [trees linked by index (`l u32` · `r u32`)], [slice indexes instead of containing itself], [the size is fixed and indexes are bounds-checked],
 )

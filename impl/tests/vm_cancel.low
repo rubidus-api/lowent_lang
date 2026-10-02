@@ -42,7 +42,7 @@ test coe_error_propagates schedule explore_interleavings . do
   task_group cancel_on_error do
     var h1 be u64 spawn mk 1 .
     var h2 be u64 spawn mk 0 .
-    if is_error (await h1) do set got 1 . . end
+    if is_error (await h1) . do set got 1 . . end
   end
   expect eq got 1 .
 end

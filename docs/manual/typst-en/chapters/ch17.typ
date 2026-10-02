@@ -192,7 +192,7 @@ forgot; bind a name instead and that single arm takes every error, so there is n
   [inner op `requires` · `range` · `newtype`], [invariants of already-filtered values], [one check stays at the boundary; inside it is removed],
   [`def enum parse_error do empty . not_digit . end`], [one variant per different caller action], [more variants, more handling work],
   [`let v be u16 try check_port port .`], [pass it upward when you cannot handle it], [the passing stays visible in `errors`],
-  [`case error e . do match e do … end end`], [bind the error value, then split its variants], [the name in `case error <name>` is a new binding unless it names a declared variant],
+  [`case error e . do match e . do … end end`], [bind the error value, then split its variants], [the name in `case error <name>` is a new binding unless it names a declared variant],
   [`try … else_none` · `value_or`], [discard the reason], [discard as high up as possible],
   [`proc … effects panic .` + `panic "…"`], [stop in a state no layer can handle], [not for bad input or missing files],
   [entry point `output u8 .`], [the outermost layer --- handle failure and report by exit code], [there is nowhere further to pass it],

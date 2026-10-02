@@ -85,7 +85,7 @@
 
 fn band input a u8 . output u8 .
 do
-  match a do
+  match a . do
     case 0 to 9 . do return 1 . end
     case 10 to 255 . do return 2 . end
   end
@@ -95,7 +95,7 @@ end",
 
 fn band input a u8 . output u8 .
 do
-  match a do
+  match a . do
     case 0 to 9 . do return 1 . end
   end
 end", "E-MATCH-INEXHAUSTIVE")
@@ -113,7 +113,7 @@ end
 
 export fn code input c color . output u32 .
 do
-  match c do
+  match c . do
     case red . do return 1 . end
     case green . do return 2 . end
   end
@@ -127,7 +127,7 @@ end
 
 export fn code input c color . output u32 .
 do
-  match c do
+  match c . do
     case red . do return 1 . end
     rem `green` 을 안 다뤘다
   end

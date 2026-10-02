@@ -473,6 +473,7 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
         //   (X-0052: `end` 는 자기 `do` 만 닫는다). 뒤 단계가 보는 나무는 **그대로다**: 블록 안의 절을 머리의 평평한 원자 열로 편다.
         bool cblock = p->in_extern && !p->in_export && decl;
         bool in_blk = false;
+        bool dotted = false;   // RFC-0113 R4 — 제어 머리의 식을 점이 닫았나
         low_token_t blk_at = head;
         while (cblock || (low_curkw(p) != LOW_KW_DO && !low_is_form_boundary(p))) {
             if (cblock) {
@@ -504,7 +505,7 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
             }
             if (low_curk(p) == LOW_TOK_DOT) {
                 low_adv(p);
-                if (ctrl) break;          // ★ 제어 머리에서 `.` 은 **식을 닫는다**
+                if (ctrl) { dotted = true; break; }   // ★ 제어 머리에서 `.` 은 **식을 닫는다**
                 open = false;
                 continue;                 //   선언 머리에서 `.` 은 **절을 나눈다**
             }
@@ -522,6 +523,14 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
             if (op) (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, op);
         }
         if (decl && open && p->pos) low_head_dot_missing(p, &p->toks[p->pos - 1]);
+        // ★★★ RFC-0113 R4 (소유자 2026-10-02 «if·while 필수, match 도 `match a . do`») — 제어 머리는 `<머리> <식> . do … end`
+        //   하나다. 점이 없으면 조건이 다음 낱말을 삼킬 수 있고(`if gt a 3 return 1 .` → 조건이 `return 1` 까지 먹는다),
+        //   한 폼 몸은 그 실수를 문법으로 받아 주었다. `for <이름> <슬라이스> do` 는 정본 §6.5 (4) 의 모양이라 그대로다.
+        if (ctrl && hkw != LOW_KW_FOR && !dotted && low_curkw(p) == LOW_KW_DO)
+            low_pdiag(p, "E-CTRL-NODOT",
+                      "a control head closes its expression with `.` before `do` — `if gt a 3 . do … end`, "
+                      "`while lt i n . do … end`, `match m . do … end`, `case red . do … end` (RFC-0113 R4). "
+                      "`--fmt` writes it for you", head.line, head.col);
         if (cblock) {   // 몸 없는 선언으로 닫는다 — 아래의 `do`/`E-STMT-NODO` 가지를 타지 않는다
             low_cst_t *xf = low_node(p, LOW_CST_FORM, head);
             if (xf) { xf->closer = LOW_TOK_EOF; low_take_kids(p, xf, &ops); }
@@ -533,6 +542,13 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
         (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block(p));
     } else if (hkw == LOW_KW_IF || hkw == LOW_KW_WHILE || hkw == LOW_KW_FOR ||
                hkw == LOW_KW_CASE || hkw == LOW_KW_MATCH) {
+        // ★★★ RFC-0113 R4 (2026-10-02) — 한 폼 몸은 **거절한다**(`for` 는 아래 `low_parse_for` 가 따로 본다). 나무는 그대로 세워
+        //   뒤 진단이 이어지게 한다.
+        if (hkw == LOW_KW_IF || hkw == LOW_KW_WHILE)   // `case <패턴> . <한 폼>` 갈래는 결정 밖이라 그대로 받는다
+            low_pdiag(p, "E-CTRL-NODO",
+                      "a control head takes a `do … end` body — `if c . do return 1 . end`, not `if c . return 1 .` "
+                      "(RFC-0113 R4: a one-form body let a missing `.` swallow the next statement into the condition)",
+                      head.line, head.col);
         // ★★★ **한 문장은 곧 한 문장짜리 블록이다.**  S  ≡  do S end
         //   C 는 문장과 블록을 **다른 종류**로 갈라 놓았다. 우리는 가르지 않는다.
         //   파서가 여기서 **탈설탕**한다: 맨 form 하나를 `do … end` 로 감싼다.
@@ -567,6 +583,9 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
         if (low_curkw(p) == LOW_KW_IF) (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block_stmt(p));
         else if (low_curkw(p) == LOW_KW_DO) (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block(p));
         else {
+            low_pdiag(p, "E-CTRL-NODO",
+                      "`else` takes a `do … end` body or another `if` — `else do return 0 . end` (RFC-0113 R4)",
+                      head.line, head.col);
             // ★ `else` 도 같은 규칙이다: **한 문장은 한 문장짜리 블록이다.**
             //   `guard` 의 else 는 이미 그랬는데 `if` 의 else 는 아니었다 — **같은 자리, 다른 규칙.**
             low_cst_t *one = low_parse_form(p);
@@ -612,6 +631,8 @@ static low_cst_t *low_parse_for(low_parser_t *p) {
     }
     if (low_curkw(p) == LOW_KW_DO) (void)PROVEN_ARRAY_PUSH(&ops, low_cst_t *, low_parse_block(p));
     else {
+        low_pdiag(p, "E-CTRL-NODO",
+                  "`for` takes a `do … end` body — `for x xs do … end` (RFC-0113 R4: no one-form body)", head.line, head.col);
         low_cst_t *one = low_parse_form(p);
         low_cst_t *blk = low_node(p, LOW_CST_BLOCK, head);
         if (blk && one) { proven_array_t bk = PROVEN_ARRAY_INIT(p->work, low_cst_t *, 1).value;
@@ -1191,8 +1212,11 @@ static void low_fmt_inner(const low_cst_t *nd) {  // emit a FORM's operands
             if (nd->kids[i]->kind == LOW_CST_ATOM && nd->kids[i]->tok.kw == LOW_KW_NONE && low_view_eq_cstr(nd->kids[i]->tok.lex, "where")) fwhere = true;
     // ★ RFC-0132 §5.2 (옮김 창) — 타입 선언은 `def` 로 찍는다. 옛 파일(`struct p do … end`)도 새 모양으로 옮겨 찍는다.
     if (hk == LOW_KW_STRUCT || hk == LOW_KW_ENUM || hk == LOW_KW_TYPE || hk == LOW_KW_NEWTYPE) fputs("def ", stdout);
+    // ★ RFC-0113 R4 — 제어 머리의 식은 몸 블록 앞에서 점으로 닫는다(`if c . do` · `match m . do` · `case red . do`).
+    bool ctl = hk == LOW_KW_IF || hk == LOW_KW_WHILE || hk == LOW_KW_MATCH || hk == LOW_KW_CASE, ctl_done = false;
     for (proven_size_t i = 0; i < nd->nkids; i++) {
         if (i) putchar(' ');
+        if (ctl && !ctl_done && i >= 2 && nd->kids[i]->kind == LOW_CST_BLOCK) { fputs(". ", stdout); ctl_done = true; }
         if (hk == LOW_KW_FOR && i >= 3) {
             const low_cst_t *k = nd->kids[i];
             bool cl = k->kind == LOW_CST_ATOM && (k->tok.kw == LOW_KW_WHILE ||

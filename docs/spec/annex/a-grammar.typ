@@ -79,7 +79,7 @@ break .
 continue .")
   ]
   #sub("A.4", "갈래·시험·액터")[
-    #shape("갈래를 가르기 · 시험 · 액터", "match <값> do
+    #shape("갈래를 가르기 · 시험 · 액터", "match <값> . do
   case <갈래> . do <문장들> end
   case <갈래> . do <문장들> end
 end
@@ -213,9 +213,9 @@ tests               tests <이름>* .                                    .
 let / var           let <이름> [using <이름> [keep]] be <타입> <폼> .  .
 set                 set <자리-폼> <폼> .                               .
 into                pop <스택> into <이름> .   (프렐류드 문형)           .
-if (문)             if <폼> do <폼>* end [else (if문 | do <폼>* end)]   end
+if (문)             if <폼> . do <폼>* end [else (if문 | do <폼>* end)]   end
 guard               guard <폼> else <나가는-폼> .                       .
-while               while <폼> do <폼>* end                            end
+while               while <폼> . do <폼>* end                            end
 for                 for <이름> <슬라이스> do <폼>* end                  end
 region              region <이름> <종류> do <폼>* end                   end
 borrow              borrow <이름> be <폼> do <폼>* end                  end
@@ -227,7 +227,7 @@ lit (나열)          lit array <타입> <길이> <값>… [_] .  ·  lit slice 
 lit (칸 채우기)     lit array <타입> <길이> do <번호> <값> . … [_ <값> .] end            블록이 닫는다
 lit (SIMD)          lit vec <타입> <레인> <값>… [_] .                                 .
 extern              extern fn/proc <이름> do <절>* end  (몸이 씨)       end
-match               match <폼> do <가지>* [else do <폼>* end] end       end")
+match               match <폼> . do <가지>* [else do <폼>* end] end       end")
     #para("2a")[
       `fn`/`proc` 머리의 `<절>*` 은 #cref("6.4.1") (3a) 의 한 차례를 따른다: `satisfies`·`lowdoc` · `vector`·`priority` ·
       comptime 입력 · 권한·영역 입력 · `using` · 데이터 입력 · `output` · `effects` · `link`·`variadic` · `asm` ·
@@ -271,6 +271,9 @@ match               match <폼> do <가지>* [else do <폼>* end] end       end"
       [`;`], [`.`], [닫개의 **세 번째 철자**였다(⟦§6.1.6⟧)],
       [`make`], [`lit`], [값 리터럴의 머리를 하나로 — 구조체·배열·벡터·슬라이스 값이 모두 `lit <타입> …` 로 시작한다],
       [`index`], [`idx`], [자주 쓰는 낱말을 짧게 — 읽기 `idx a 3` · 쓰기 `set (idx a 3) v .`],
+      [`.이름` (머리 표시)], [맨 전위 · 괄호], [머리를 여는 셋째 철자였다 — 띄어쓰기 한 칸이 닫개를 머리로 바꿨다],
+      [`not is_some x`], [`is_none x`], [같은 뜻의 두 철자였다(`E-NOT-IS-SOME`)],
+      [`union` · `select` · `any` … (비트셋·레인)], [`bitset_union` · `lane_select` · `lane_any` …], [짧은 낱말을 저자에게 남긴다(⟦§6.3.3⟧ (1e))],
       )
     ]
     #para("2")[

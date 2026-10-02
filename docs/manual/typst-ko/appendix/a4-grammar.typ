@@ -56,7 +56,7 @@ if <조건> . do … end [else do … end] .
 while <조건> . do … end
 for <이름> <슬라이스> do … end
 guard <조건> . else <떠나는 문장> .
-match <값> do case <패턴> [when <조건>] . do … end … end
+match <값> . do case <패턴> [when <조건>] . do … end … end
 return [<식>] .    break .    continue .    panic "<글>" .
 drop <이름> .
 region <이름> stack|frame|arena|static|heap|mmap|disk|device do … end

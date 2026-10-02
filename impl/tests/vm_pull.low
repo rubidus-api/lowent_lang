@@ -46,6 +46,6 @@ proc found input dummy u64 . output u64 . effects state . do
   var t be bool pipe it do
     any over3 .
   end .
-  if t do return 1 . end
+  if t . do return 1 . end
   return 0 .
 end

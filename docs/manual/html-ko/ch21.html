@@ -893,12 +893,12 @@ secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names 
 
 <strong><span class="tok-k">fn</span></strong> describe <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> sizes.kind sizes.classify n .
-  <strong><span class="tok-k">match</span></strong> k <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> k . <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem ✘ 모듈 이름을 붙인 갈래 — 이 판에서는 어떤 값에나 맞는다</span></em>
-    <strong><span class="tok-k">case</span></strong> sizes.small <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> sizes.small . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
     <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">case</span></strong> sizes.big <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> sizes.big . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
     <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>
@@ -915,12 +915,12 @@ describe(500) = 2
 
 <strong><span class="tok-k">fn</span></strong> describe <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> sizes.kind sizes.classify n .
-  <strong><span class="tok-k">match</span></strong> k <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">match</span></strong> k . <strong><span class="tok-k">do</span></strong>
     <em><span class="tok-c">rem 갈래 이름만 적는다 — 타입(sizes.kind)이 어느 갈래인지 정한다</span></em>
-    <strong><span class="tok-k">case</span></strong> small <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> small . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
     <strong><span class="tok-k">end</span></strong>
-    <strong><span class="tok-k">case</span></strong> big <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">case</span></strong> big . <strong><span class="tok-k">do</span></strong>
       <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
     <strong><span class="tok-k">end</span></strong>
   <strong><span class="tok-k">end</span></strong>

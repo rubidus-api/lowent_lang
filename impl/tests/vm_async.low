@@ -72,11 +72,11 @@ proc try_ok_err output u64 . effects state . do
   var c be bnd spawn actor bnd . .
   var n be u64 0 .
   var r1 be result u64 mailbox_full try spawn send c inc .
-  if is_ok r1 do set n expr n + 1 . . end
+  if is_ok r1 . do set n expr n + 1 . . end
   var r2 be result u64 mailbox_full try spawn send c inc .
-  if is_ok r2 do set n expr n + 1 . . end
+  if is_ok r2 . do set n expr n + 1 . . end
   var r3 be result u64 mailbox_full try spawn send c inc .
-  if is_error r3 do set n expr n + 100 . . end
+  if is_error r3 . do set n expr n + 100 . . end
   return n .
 end
 
@@ -87,9 +87,9 @@ proc try_recover output u64 . effects state . do
   var r be u64 0 .
   spawn send c inc .
   spawn send c inc .
-  if is_error (try spawn send c inc) do set r expr r + 100 . . end
+  if is_error (try spawn send c inc) . do set r expr r + 100 . . end
   drain c .
-  if is_ok (try spawn send c inc) do set r expr r + 1 . . end
+  if is_ok (try spawn send c inc) . do set r expr r + 1 . . end
   drain c .
   var g be u64 send c get .
   return expr r + g .

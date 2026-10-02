@@ -21,7 +21,7 @@ rem `bytes` 는 이 저장소의 관용 별칭이다 — 픽스처가 자기 타
 def type bytes slice u8 . .
 
 export fn cov_orpat input a u64 . output u64 . do
-  match a do
+  match a . do
     case 1 or 2 or 3 . do return 7 . end
     case 9 or 10 . do return 8 . end
     case _ . do return 0 . end
@@ -30,7 +30,7 @@ end
 
 rem ★ 여섯 가지 + 촘촘(0..5) ⇒ IRW_SWITCH 로 낮아진다. 다섯 가지면 선형으로 남는다.
 export fn cov_switch input a u64 . output u64 . do
-  match a do
+  match a . do
     case 0 . do return 10 . end
     case 1 . do return 11 . end
     case 2 . do return 12 . end
@@ -62,7 +62,7 @@ rem ★ `and` 옵코드가 실제로 나오는 자리는 **match 의 범위 패�
 rem   섬의 `and` 는 전위처럼 단락 평가로 낮아지므로 옵코드를 내지 않는다(2026-09-28). 범위 패턴을 쓰는
 rem   픽스처가 스윕 안에 없어서 `and` 가 «아무 픽스처에도 없는» 옵코드로 남아 있었다.
 export fn cov_range_pat input a u64 . output u64 . do
-  match a do
+  match a . do
     case 0 to 9 . do return 1 . end
     case 10 to 255 . do return 2 . end
     case _ . do return 0 . end

@@ -9,7 +9,7 @@ end
 
 fn corners input s shape . output u32 .
 do
-  match s do
+  match s . do
     case circle r . do return 0 . end
     case rect w h . do return 4 . end
   end

@@ -8,7 +8,7 @@ end
 
 fn name input k u8 . output u8 . do
   let s be light bright .
-  match s do
+  match s . do
     case _ . do return 0 . end
     case bright . do return 1 . end
   end

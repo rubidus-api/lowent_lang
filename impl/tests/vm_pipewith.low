@@ -43,7 +43,7 @@ export proc clamp_all input xs slice u8 . input out mut slice u8 . input lo u8 .
 end
 
 fn picks input x u8 . input m mode . output bool . do
-  match m do
+  match m . do
     case keep_small . do return lt x 10 . end
     case keep_big . do return ge x 10 . end
   end

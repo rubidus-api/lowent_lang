@@ -15,7 +15,7 @@ end
 
 
 fn code input c color . output u8 . do
-  match c do
+  match c . do
     case red . do return 10 . end
     case green . do return 20 . end
     case blue . do return 30 . end

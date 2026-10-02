@@ -684,7 +684,7 @@ reserve 4 를 청하면 남은 것은 3 바이트뿐 → none (모자람도 값�
   <strong><span class="tok-k">let</span></strong> pv <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value p .
   <strong><span class="tok-k">set</span></strong> (idx pv <span class="tok-n">0</span>) <span class="tok-n">65</span> .
   <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">99</span> .
-  <strong><span class="tok-k">guard</span></strong> not (is_some q) . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> .
+  <strong><span class="tok-k">guard</span></strong> is_none q . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> a used .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run carve borrowed.low [0,0,0,0,0,0,0,0]

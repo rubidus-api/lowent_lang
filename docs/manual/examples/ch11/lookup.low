@@ -26,7 +26,7 @@ end
 
 fn find_match input k u8 . output u8 .
 do
-  match find k do
+  match find k . do
     case some v . do return v . end
     case none . do return 0 . end
   end

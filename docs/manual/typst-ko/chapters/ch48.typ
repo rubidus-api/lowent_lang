@@ -44,7 +44,7 @@
 
 #demo("examples/ch48/oneform.low")
 
-`bare` 는 `if` 의 몸에 문장 하나를 그대로 적었고, `blocked` 는 `do … end` 로 감쌌다. 답이 같고, `--fmt` 가 찍는 정규형도 한 글자 다르지 않다.
+`bare` 는 `case` 갈래의 몸에 문장 하나를 그대로 적었고, `blocked` 는 `do … end` 로 감쌌다. 답이 같고, `--fmt` 가 찍는 정규형도 한 글자 다르지 않다. `if` · `while` · `for` 의 몸은 `do … end` 만 받는다 --- 조건 뒤의 점 하나를 빠뜨리면 조건이 다음 문장을 삼키므로, 그 실수를 문법이 받아 주지 않게 했다(RFC-0113 R4). 한 문장 몸이 남은 자리는 `case` 갈래와 `guard … else` 다.
 
 #mathbox[정리 G1(`LowentBlock.v` 의 `one_form_is_a_block`)][
   `forall s, denote (wrap s) = denote s.` 문장 하나를 블록으로 감싸도 뜻이 같다. 여기서 "뜻이 같다" 는 각 나무를 평평한 문장 나열로 보내는 함수
@@ -61,8 +61,8 @@
              x = x + 10;
              y = 0;          ← 들여쓰기는 if 안처럼 보이지만 문법은 if 밖이다
 
- Lowent  if gt a 1 . set x (add x 10) .        문장 하나 = 문장 하나짜리 블록 (G1)
-         if gt a 1 . do
+ Lowent  case 1 . set x (add x 10) .           갈래의 문장 하나 = 문장 하나짜리 블록 (G1)
+         if gt a 1 . do                        if 의 몸은 언제나 do … end (RFC-0113 R4)
            set x (add x 10) .
            set y 0 .
          end                                   몸이 길면 end 가 끝을 적는다

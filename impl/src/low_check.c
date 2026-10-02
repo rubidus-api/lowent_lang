@@ -8367,6 +8367,15 @@ static void ck_removed_walk(low_check_result_t *out, const low_cst_t *nd) {
         //   면제한다(가드 식 `c` 안의 다른 제거 낱말은 그대로 검사된다 — 구분자 원자 하나만 건너뛴다).
         if (in_case && nd->kids[i]->kind == LOW_CST_ATOM && veq(nd->kids[i]->tok.lex, "when"))
             continue;
+        // ★★ RFC-0113 O5 (소유자 2026-10-02) — `not is_some x` 와 `is_none x` 는 한 뜻 두 철자였다. `is_none` 하나로.
+        if (nd->kids[i]->kind == LOW_CST_ATOM && veq(nd->kids[i]->tok.lex, "not") && i + 1 < nd->nkids) {
+            const low_cst_t *q = nd->kids[i + 1];
+            while (q && q->kind == LOW_CST_GROUP && q->nkids == 1) q = q->kids[0];
+            if (q && q->kind == LOW_CST_FORM && q->nkids >= 1) q = q->kids[0];
+            if (q && q->kind == LOW_CST_ATOM && veq(q->tok.lex, "is_some"))
+                emit(out, "E-NOT-IS-SOME", "`not is_some x` is spelled `is_none x` — one meaning, one spelling (RFC-0113 O5)",
+                     nd->kids[i]->tok.line);
+        }
         ck_removed_walk(out, nd->kids[i]);
     }
 }

@@ -24,7 +24,7 @@ end
 
 fn check_age input a u8 . output u8 .
 do
-  match age_checked a do
+  match age_checked a . do
     case ok v . return age_strict v .
     case error e . return 0 .
   end

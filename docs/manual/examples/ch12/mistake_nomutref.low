@@ -1,13 +1,14 @@
 module mistake_nomutref .
 rem expect: E-TYPE-ARG
 
-proc bump input p mut_ref u64 . output u64 .
+proc bump input p mut_ref u64 . output u64 . effects none .
 do
   set p (add (deref p) 1) .
   return deref p .
 end
 
 proc use_bump input start u64 . output u64 .
+  effects none .
   requires lt start 1000 .
 do
   var n be u64 start .

@@ -2,12 +2,14 @@ module seqborrow .
 rem run: use_twice 7
 
 proc bump input p mut_ref u64 . output void .
+  effects none .
   requires lt (deref p) 1000 .
 do
   set p (add (deref p) 1) .
 end
 
 proc use_twice input start u64 . output u64 .
+  effects none .
   requires lt start 900 .
 do
   var n be u64 start .

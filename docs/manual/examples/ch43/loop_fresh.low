@@ -1,13 +1,14 @@
 module loop_fresh .
 rem run: drift 5
 
-proc bump input p mut_ref u64 . output u64 .
+proc bump input p mut_ref u64 . output u64 . effects none .
 do
   set p (add (deref p) 1) .
   return deref p .
 end
 
 proc drift input n u64 . output u64 .
+  effects none .
   requires le n 100 .
 do
   var x be u64 1 .

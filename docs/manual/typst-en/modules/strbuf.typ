@@ -87,7 +87,7 @@ module demo .
 
 use strbuf .
 
-proc build input buf mut slice u8 . . output u64 . do
+proc build input buf mut slice u8 . . output u64 . effects none . do
   var b be strbuf.str_buf strbuf.new .
   let r1 be result void strbuf.sb_error strbuf.append b buf "ab" .
   guard is_ok r1 . else return 90 .

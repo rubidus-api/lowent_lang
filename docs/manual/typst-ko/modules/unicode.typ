@@ -97,7 +97,7 @@ module wordcount .
 use unicode .
 use utf8 .
 
-export proc count_words input s slice u8 . output option u64 . do
+export proc count_words input s slice u8 . output option u64 . effects none . do
   var off be u64 0 .
   var words be u64 0 .
   var inword be bool false .

@@ -174,7 +174,7 @@ forgot; bind a name instead and that single arm takes every error, so there is n
 #antipattern[Calling an op that returns a `result` as a statement][
   #demo("examples/ch17/mistake_dropresult.low")
 
-  `check_port 0 .` returned an error, but nobody received it: the port is 0, yet "started" would be printed and the exit code would be 0. The
+  `check_port out 0 .` returned an error, but nobody received it: the port is 0, yet "started" would be printed and the exit code would be 0. The
   design of returning failure as a value only holds when the caller *looks at* that value, so the tool reports it as `W-RESULT-DISCARD`.
   Receive the `result` of such an op with `let` and ask, pass it on with `try`, or split it with `match`. Binding it and never reading it gets
   the same warning --- the failure vanishes just the same. Where there genuinely is nothing to do with it (closing a handle on an error path),

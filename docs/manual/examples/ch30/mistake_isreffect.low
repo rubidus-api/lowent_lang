@@ -5,7 +5,7 @@ rem expect: E-ISR-EFFECT
 rem ko: ✘ 할 일이 아직 없어 효과 줄을 비웠다 /// en: ✘ the effects line is left out because there is nothing to do yet
 proc on_exti
   vector 6 .
-  output void .
+  output void . effects none .
 do
   return .
 end

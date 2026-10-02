@@ -111,8 +111,8 @@ What the op may do is decided by the signature's `effects` line.
   [present, e.g. `effects panic`], [a `proc` declaring those effects or fewer; a `fn` if it uses none],
 )
 
-A `proc` *without* an `effects` line is not narrowed and reads as able to do anything (#chref("ops")). So implementing an effect-free signature with such a
-`proc` is rejected.
+A `proc` always carries an `effects` line (#chref("ops")). One *without* it is rejected on its own, before any signature is matched --- an effect-free
+signature is implemented by a `proc` that says `effects none .`, or by a `fn`.
 
 #demo("examples/ch23/proc_noeff.low")
 

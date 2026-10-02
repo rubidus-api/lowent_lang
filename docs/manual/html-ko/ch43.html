@@ -668,6 +668,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <em><span class="tok-c">rem expect: E-EXCL</span></em>
 
 <strong><span class="tok-k">proc</span></strong> drift <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
@@ -682,18 +683,19 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
   <strong><span class="tok-k">return</span></strong> seen .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check loop_stale.low
-12:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
-12:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
+13:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
+13:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
 </code></pre></div></div><p>반복 밖에서 만든 읽기 빌림 <code>r</code> 을 반복 안에서 쓰면서, 같은 반복 안에서 소유자가 <code>x</code> 에 쓴다. 1 회차는 문제가 없어 보인다. 그러나 그 쓰기가 <code>r</code> 을 죽이고, 2 회차의 <code>deref r</code> 이 죽은 빌림을 쓴다. 한 번 돌 때는 멀쩡하고 두 번째에 터지는 모양이다. 처리기는 이것을 번역에서 거절한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch43/loop_fresh.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loop_fresh .
 <em><span class="tok-c">rem run: drift 5</span></em>
 
-<strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> deref p .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> drift <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
@@ -715,7 +717,7 @@ drift(5) = 6
   → i+1 회차의 use(τ) 가 위반을 낸다.</code></pre><p>정적 규칙 하나가 정확히 그 짝 — 반복을 넘어 사는 빌림 × 몸의 소유자 접근 — 을 거절하고, 정리 B 의 증명은 “그 하나로 충분하다” 를 보인다. 다른 위험은 없다. 이것이 증명의 <strong>실용적 산출물</strong>이다. 규칙이 모자라면 결함이 새고, 넘치면 정상 코드가 막히는데, 몇 개가 맞는지를 논증이 정했다.</p><h3 id="s43-4">43.4 신선한 토큰 — 이름 문제를 없애는 한 수<a class="plink" href="#s43-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>반복의 진짜 골치는 <strong>이름 충돌</strong>이다. 1 회차의 <code>r</code> 과 2 회차의 <code>r</code> 은 소스에서 같은 이름인데 실행에서는 다른 빌림이다. 보통 이것을 다루려면 “태그 재명명” 이라는 장치를 만든다.</p><p>이 증명은 그 장치를 만들지 않았다. 대신 모델이 <strong>실행할 때마다 새 토큰을 발행한다</strong>. 정적 태그 <code>t</code> 는 환경을 거쳐 “지금의 토큰” 을 가리키고, 그 토큰은 회차마다 새 번호다. 그러면 지난 회차의 토큰은 아무도 가리키지 않으므로 저절로 무효가 된다. 이것은 억지가 아니다 — <strong>구현이 실제로 신선한 태그를 발행한다.</strong> 모델이 구현을 따라간 덕에 증명이 짧아졌다. 증명이 어려우면 모델을 다시 보라. 어려움의 절반은 잘못된 표현에서 온다.</p><p>증명에는 42장의 INV·SINV 에 불변식이 하나 더 붙는다.</p><ul><li><strong>FRESH</strong> — 발행된 토큰은 모두 <code>next</code> 보다 작다.</li></ul><p>이것이 없으면 새 토큰이 옛 토큰과 같은 번호를 받을 수 있고, 그러면 죽은 빌림이 <strong>되살아난다</strong>. 증명에서 가장 무서운 종류의 구멍이다 — 안전 쪽이 아니라 위험 쪽으로 틀린다.</p><h3 id="s43-5">43.5 중첩 반복 — 함수를 관계로<a class="plink" href="#s43-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch43/nested.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nested .
 <em><span class="tok-c">rem run: tri 4</span></em>
 
-<strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> deref p .
@@ -723,6 +725,7 @@ drift(5) = 6
 
 <em><span class="tok-c">rem 안쪽 반복은 바깥 회차마다 다른 횟수로 돈다(0, 1, 2, 3 번)</span></em>
 <strong><span class="tok-k">proc</span></strong> tri <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .

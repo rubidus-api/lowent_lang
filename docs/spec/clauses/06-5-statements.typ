@@ -4,6 +4,20 @@
   #para("1")[
     #t("문장", "statement") 은 실행되는 것이다. 식은 값을 만들고, 문장은 일을 한다.
   ]
+  #para("1a")[
+    그러므로 **값만 내고 아무것도 바꾸지 않는** 폼 — 순수한 셈(`add s 100 .` · `eq s 7 .`)이나 `fn` 부름 — 을
+      문장으로 쓰는 것은 적합하지 아니하다(`E-VALUE-DISCARDED`). 그 값은 아무 데도 가지 않는다. 대개 뜻한 것은
+      `set s (add s 100) .` 이다. `proc` 부름은 효과가 일이므로 문장이 된다.
+  ]
+  #rejected("값만 내는 폼을 문장으로 쓸 수 없다", "module ex_discard .
+
+fn bump input a u64 . output u64 .
+  requires lt a 100 .
+do
+  var s be u64 a .
+  add s 100 .   rem 뜻한 것은 set s (add s 100) . 이다
+  return s .
+end", "E-VALUE-DISCARDED")
   #sub("6.5.1", "이름을 짓는 문장")[
     #para("1")[
       `let` 은 **바뀌지 않는** 이름을 짓는다. 한 번 정해진 값은 바뀌지 아니한다.

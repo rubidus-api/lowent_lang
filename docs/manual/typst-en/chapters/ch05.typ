@@ -82,8 +82,8 @@ A `fn`'s effects are already `none`. So adding `effects none .` is rejected.
 #demo("examples/ch05/redundant.low")
 
 Not because it is wrong, but because it would be *two spellings of one meaning*. On a `proc` things are different. A `proc`'s `effects`
-clause *narrows*. A `proc` without the clause reads as not narrowed --- it is assumed able to do input/output, allocation and state. So a
-`proc` should carry the clause; doing more than it lists is rejected, and effects it lists but never performs are reported.
+clause *narrows*, so a `proc` *must* carry it --- without it the head is `E-EFFECT-MISSING`, and a `proc` with no effects says `effects none .`.
+`lowentc --doc` reports what the body actually performs (`inferred:`). Doing more than it lists is rejected, and effects it lists but never performs are reported.
 
 #qa[
   What happens if a `proc` actually performs no effect?
@@ -244,7 +244,8 @@ can come back to this section.
 
   #demo("examples/ch05/discard.low")
 
-  The first `twice 5 .` computes a value and leaves no trace. The answer is `10` only because the second line binds the result to `t`.
+  The first `twice 5 .` computes a value and throws it away --- a statement that does nothing, so the compiler refuses it with
+  `E-VALUE-DISCARDED` (RFC-0113 R5). To use the result, bind it to a name as the second line does.
   If a call is meant to *do* something (print, write), it has to be a `proc`, and then its effects are written in its head.
 ]
 

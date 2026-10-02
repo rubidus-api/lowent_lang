@@ -5,9 +5,10 @@ def enum config_error do
   port_zero .
 end
 
-fn check_port input port u16 . output result u16 config_error .
+proc check_port input out cap io . input port u16 . output result u16 config_error . effects io .
   errors port_zero eq port 0 .
 do
+  let w be u64 write_out out 1 "checking\n" .
   guard ne port 0 . else return error port_zero .
   return ok port .
 end
@@ -15,7 +16,7 @@ end
 proc main input out cap io . output u8 . effects io .
 do
   rem ko: ✘ 검사의 결과를 문장으로 버렸다 --- 포트가 0 인데 "started" 가 나온다 /// en: ✘ the result of the check is dropped as a statement --- the port is 0, yet "started" is printed
-  check_port 0 .
+  check_port out 0 .
   let n be u64 write_out out 1 "started\n" .
   return 0 .
 end

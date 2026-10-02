@@ -3,7 +3,7 @@ rem   자리는 op 의 틀에 선언 자리마다 한 칸이고(부를 때마다
 rem   채워진다. 차등 훑기가 VM 과 네이티브가 같은 답을 내는지 잰다.
 module vm_localarr .
 
-proc bump input s mut slice u8 . output u64 . do
+proc bump input s mut slice u8 . output u64 . effects none . do
   set (idx s 0) (narrow_wrap u8 (add (widen u64 (idx s 0)) 5)) .
   return widen u64 (idx s 0) .
 end
@@ -51,7 +51,7 @@ export fn la_loop input n u64 . output u64 . do
 end
 
 rem `mut` 매개변수로 넘긴 나열은 그 문장의 임시(ⓒ) — 받는 쪽이 써도 된다.
-export proc la_mutarg input a u64 . output u64 . do
+export proc la_mutarg input a u64 . output u64 . effects none . do
   return bump lit array u8 2 (narrow_wrap u8 a) 1 . .
 end
 

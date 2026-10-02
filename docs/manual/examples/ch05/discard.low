@@ -1,5 +1,5 @@
 module discard .
-rem run: caller
+rem expect: E-VALUE-DISCARDED
 
 fn twice input a u64 . output u64 .
 do
@@ -8,7 +8,7 @@ end
 
 fn caller output u64 .
 do
-  rem ko: 결과를 받지 않은 fn 호출 --- 순수하므로 아무 흔적도 남기지 않는다 /// en: a fn call whose result is not kept --- being pure, it leaves no trace
+  rem ko: ✘ 결과를 받지 않은 fn 호출 --- 순수하므로 아무 일도 안 한다. 그래서 거절된다 /// en: ✘ a fn call whose result is not kept --- being pure, it does nothing, so it is refused
   twice 5 .
   rem ko: 결과를 쓰려면 이름에 묶는다 /// en: to use the result, bind it to a name
   let t be u64 twice 5 .

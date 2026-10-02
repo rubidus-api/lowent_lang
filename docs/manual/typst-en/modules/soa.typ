@@ -28,7 +28,7 @@ by side. For a computation scanning only x, SoA reads just the needed values con
 
 ```lowent
 proc demo input xs mut slice u64 . . input vxs mut slice u64 . .
-  input rows mut slice u64 . . output u64 .
+  input rows mut slice u64 . . output u64 . effects none .
 do
   set (idx xs 0) 1 .
   set (idx xs 1) 2 .

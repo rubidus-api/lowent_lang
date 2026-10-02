@@ -725,7 +725,7 @@ demo_move(5) = 15
   <strong><span class="tok-k">return</span></strong> add (widen <strong><span class="tok-t">u64</span></strong> (idx (field p body) <span class="tok-n">0</span>)) (widen <strong><span class="tok-t">u64</span></strong> (idx (field q body) <span class="tok-n">0</span>)) .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">proc</span></strong> stamp <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut</span></strong> pkt . <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">proc</span></strong> stamp <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut</span></strong> pkt . <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> (idx (field p body) <span class="tok-n">3</span>) v .
   <strong><span class="tok-k">set</span></strong> (field p len) <span class="tok-n">4</span> .
@@ -733,7 +733,7 @@ demo_move(5) = 15
 <strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem writing the array field of a record received `mut` changes the caller's record</span></em>
-<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> fill_in <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> fill_in <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> pkt <strong><span class="tok-k">do</span></strong> len <span class="tok-n">0</span> . body <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">4</span> _ . . <strong><span class="tok-k">end</span></strong> .
   <strong><span class="tok-k">let</span></strong> z <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> stamp p v .

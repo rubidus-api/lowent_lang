@@ -113,8 +113,8 @@ op 에 들어올 수 있다.
   [`effects panic` 처럼 있음], [그 효과나 그보다 적은 효과를 적은 `proc`. 효과를 안 쓰면 `fn` 도 된다],
 )
 
-`effects` 줄이 *없는* `proc` 은 좁히지 않은 것이라 무엇이든 할 수 있다고 읽힌다(#chref("ops")). 그래서 효과 없는 서명을
-그런 `proc` 으로 갖추면 거절된다.
+`proc` 은 `effects` 줄을 언제나 적는다(#chref("ops")). 줄이 *없는* `proc` 은 서명을 갖추기 전에 그 자체로 거절된다 ---
+효과 없는 서명은 `effects none .` 을 적은 `proc` 이나 `fn` 으로 갖춘다.
 
 #demo("examples/ch23/proc_noeff.low")
 

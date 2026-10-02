@@ -7,7 +7,7 @@ do
 end
 
 rem ko: ✘ 권한을 하나도 받지 않았는데, 권한 자리에 수 0 을 넘겨 출력한다 /// en: ✘ receives no capability at all, yet prints by passing the number 0 where a capability belongs
-proc start output u8 .
+proc start output u8 . effects io .
 do
   let n be u64 say 0 .
   return 0 .

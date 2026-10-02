@@ -2,7 +2,7 @@ module vm_litfill .
 rem ★★ RFC-0132 T2b-3 — 칸 골라 채우기 `lit array T N do <번호> <값> . … _ <값> . end`: 상수 본(ⓑ) · 틀 안 자리에 본을 베낀 뒤
 rem   실행 중 값인 칸 · `_` 가 실행 중 값이면 한 번 계산해 남은 칸마다 · `var` 는 반복마다 본으로 다시. VM 과 네이티브가 같은가를 잰다.
 
-proc touch input s mut slice i16 . output i64 . do
+proc touch input s mut slice i16 . output i64 . effects none . do
   set (idx s 1) (narrow i16 (add (widen i64 (idx s 1)) 1)) .
   return widen i64 (idx s 1) .
 end
@@ -47,7 +47,7 @@ export fn f_float input x f64 . output f64 . do
   let t be lit array f64 3 do 1 x . _ 0.5 . end .
   return add (idx t 0) (idx t 1) .
 end
-export proc f_mut input a u64 . output i64 . do
+export proc f_mut input a u64 . output i64 . effects none . do
   return touch (lit array i16 3 do 1 -5 . _ (narrow i16 (widen i64 a)) . end) .
 end
 export fn f_bool input i u64 . output u64 . do

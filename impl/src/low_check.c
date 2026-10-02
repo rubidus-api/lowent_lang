@@ -10758,6 +10758,63 @@ static proven_size_t ck_name_count(const low_cst_t *nd, proven_u8str_view_t nm) 
     for (proven_size_t i = 0; i < nd->nkids; i++) n += ck_name_count(nd->kids[i], nm);
     return n;
 }
+// ★★★ RFC-0113 R5 (소유자 2026-10-02) — **값을 버리는 문장**. 문장 자리에 순수한 셈(`add s 100 .` · `eq s 7 .`)이나 `fn` 부름이
+//   오면 그 값은 아무 데도 안 간다 — 저자가 뜻한 것은 대개 `set s (add s 100) .` 이다. 이 낱말들은 값만 내고 아무것도 바꾸지
+//   않으므로 문장으로 쓸 까닭이 없다. (비트셋 넣기가 `add` 를 같이 쓰던 동안에는 이 규칙에 예외가 필요했다 — `bitset_insert`
+//   로 갈라서 예외 없이 선다.) `proc` 부름은 대상이 아니다 — 효과가 일이다.
+static bool ck_pure_value_word(proven_u8str_view_t w) {
+    static const char *P[] = {
+        "add","sub","mul","div","mod","neg","eq","ne","lt","le","gt","ge","and","or","not",
+        "bit_and","bit_or","bit_xor","bit_not","shl","shr","rotl","rotr",
+        "wrap_add","wrap_sub","wrap_mul","sat_add","sat_sub","sat_mul","chk_add","chk_sub","chk_mul","div_nz",
+        "widen","narrow","narrow_wrap","narrow_sat","narrow_try","cast","len","idx","field","subslice",
+        "min","max","abs","sqrt","floor","ceil","sin","cos","exp","log","round","pow","fmod",
+        "count_ones","leading_zeros","trailing_zeros","byte_swap",
+        "is_some","is_none","is_ok","is_error","some_value","value_or","ok_value","error_value",
+        "bitset_contains","bitset_union","bitset_intersect","bitset_difference","bitset_complement",
+        "bitset_is_empty","bitset_is_subset",
+        "lane_select","lane_any","lane_all","lane_reverse","lane_rotate","lane_avg",
+        "reduce_add","reduce_mul","reduce_min","reduce_max","splat","expr",
+    };
+    for (proven_size_t i = 0; i < sizeof P / sizeof P[0]; i++) if (veq(w, P[i])) return true;
+    return false;
+}
+static bool ck_op_is_fn(const low_opinfo_t *tab, proven_size_t nt, proven_u8str_view_t name) {
+    for (proven_size_t i = 0; i < nt; i++)
+        if (proven_u8str_view_eq(tab[i].name, name)) return tab[i].is_calc;
+    return false;
+}
+// 문장 블록만 본다 — 값 리터럴(`lit T do <칸> <값> . end`)의 칸 줄은 문장이 아니다(칸 이름이 `len` 이어도).
+static void ck_value_discard_walk(low_check_result_t *out, const low_cst_t *nd, const low_opinfo_t *tab, proven_size_t nt) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_FORM && nd->nkids && ck_atom(nd->kids[0])) {
+        low_kw_t hk = nd->kids[0]->tok.kw;
+        if (hk == LOW_KW_LIT || hk == LOW_KW_STRUCT || hk == LOW_KW_ENUM || hk == LOW_KW_TRAIT) return;
+    }
+    if (nd->kind == LOW_CST_BLOCK) {
+        for (proven_size_t i = 0; i < nd->nkids; i++) {
+            const low_cst_t *s = nd->kids[i];
+            if (!s || s->kind != LOW_CST_FORM || !s->nkids || !ck_atom(s->kids[0])) continue;
+            if (s->kids[0]->tok.kw != LOW_KW_NONE) continue;
+            if (ck_pure_value_word(s->kids[0]->tok.lex) || ck_op_is_fn(tab, nt, s->kids[0]->tok.lex))
+                emit(out, "E-VALUE-DISCARDED",
+                     "this statement computes a value and drops it — nothing changes. Did you mean "
+                     "`set <name> (…) .`? (A pure op or a `fn` call has no effect to be a statement for — "
+                     "RFC-0113 R5; to put a number into a bitset write `bitset_insert`)",
+                     s->kids[0]->tok.line ? s->kids[0]->tok.line : s->line);
+        }
+    }
+    // ★ 평평한 나무(`--flat`)에서는 `lit T do … end` 가 FORM 으로 안 묶이므로 `lit` 원자 뒤의 블록을 건너뛴다.
+    bool after_lit = false;
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *k = nd->kids[i];
+        if (ck_atom(k) && k->tok.kw == LOW_KW_LIT) after_lit = true;
+        if (after_lit && k && (k->kind == LOW_CST_BLOCK || k->kind == LOW_CST_FORM)) {   // `T do … end` 은 머리 붙은 블록 FORM 이다
+            after_lit = false; continue;
+        }
+        ck_value_discard_walk(out, k, tab, nt);
+    }
+}
 static void ck_result_discard_walk(low_check_result_t *out, const low_cst_t *body,
                                    const low_cst_t *nd, const low_opinfo_t *tab, proven_size_t nt) {
     if (!nd) return;
@@ -11165,6 +11222,16 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                  "(SPEC-002 §2.5). (Keep writing `effects` on `proc`: there it NARROWS, and "
                  "omitting it means unrestricted.)",
                  "R-DROP-EFFECT",
+                 f->line);
+        // ★★★★★ RFC-0113 R1 (소유자 2026-10-02 «필수로») — `proc` 는 `effects` 절을 **꼭** 적는다. 절이 없을 때의 뜻이 세 곳에서
+        //   달랐다: `--doc` 은 «다섯 효과 전부», 이 검사기는 아래 기본값(io·alloc·state — panic 은 빠진다), 정본 §7.1 (7) 은
+        //   «좁히지 않은 것». 한 뜻에 세 해석이면 반드시 갈린다(교훈 7). 수리는 몸에서 추론한 집합을 넣는 것이다(`--doc` 의 inferred).
+        if (!is_calc && !found)
+            emit_r(&out, "E-EFFECT-MISSING",
+                 "a `proc` states its effects — add `effects <atoms> .` (or `effects none .`) to the head. Omitting it "
+                 "used to mean three different things (the checker, `--doc` and the spec disagreed). `lowentc --doc` "
+                 "prints the effects the body actually performs (`inferred:`) — that is the clause to write (RFC-0113 R1)",
+                 "R-INSERT-INFERRED-EFFECTS",
                  f->line);
         unsigned declared = is_calc ? EFF_NONE
                                     : (found ? de : (EFF_IO | EFF_ALLOC | EFF_STATE));
@@ -11991,6 +12058,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
             ck_method_receiver(&out, f);                     // ★ 수신자는 첫 입력 (#58)
             ck_sum_return(&out, h.body, f, &h);              // ★ sum 은 부동소수 합 (#72)
             ck_result_discard_walk(&out, h.body, h.body, tab0, ops.len);  // ★ 버려지는 실패 (#51)
+            ck_value_discard_walk(&out, h.body, tab0, ops.len);           // ★ 버려지는 값 (RFC-0113 R5)
             ck_errors_unraised(&out, f, h.body, tab0, ops.len);  // ★ 한 번도 내지 않는 오류 갈래 (#51)
             ck_slashslash_walk(&out, h.body);                // ★ `//` 는 주석이 아니다 (#28)
             ck_loopword_walk(&out, h.body, false);           // ★ 반복 밖의 break (#35)

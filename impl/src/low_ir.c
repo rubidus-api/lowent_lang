@@ -4236,6 +4236,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 return;
             }
             const ir_builtin_t *b = ir_builtin(nd->tok.lex);
+            if (!b && veq(nd->tok.lex, "bitset_insert")) b = ir_builtin((proven_u8str_view_t){ .ptr = (const proven_byte_t *)"add", .size = 3 });   // RFC-0113 R5
             // ★★★★★ **`call_builtin <이름> …`** (RFC-0125) — 계산 잎의 이름을 **자리에** 가둔다.
             //   전역에 느는 이름은 `call_builtin` 하나뿐이고, 꾸러미(RFC-0126)가 잎을 더해도 안 는다.
             //   ☞ 머리가 `call_builtin` 이면 **다음 원자가 이름**이다. 아는 이름이면 그것으로 내리고,
@@ -4339,6 +4340,15 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 //   소비하기 전에 노드를 잡아 두고, 방출 뒤 **선언 폭**을 immediate 에 굽는다.
                 const low_cst_t *bset_op0 = (b->w == IRW_CONTAINS || b->w == IRW_BREMOVE || b->w == IRW_ADD)
                                           ? (*pos < end ? k[*pos] : NULL) : NULL;
+                // ★★★ RFC-0113 R5 (소유자 2026-10-02 «bitset_insert + 거절») — `add` 는 수의 덧셈 하나만 뜻한다. 비트셋에 넣는 것은
+                //   `bitset_insert` 다. 한 낱말이 두 일을 하면 «값을 버린 `add s 100 .`» 을 막는 규칙을 예외 없이 세울 수 없었다.
+                //   (비트셋인지는 선언 폭을 아는 지역으로 판정한다 — 폭을 모르는 자리는 하강이 런타임 태그로 가르던 그대로다.)
+                if (b->w == IRW_ADD && bset_op0 && ir_operand_bset_w(c, bset_op0) && veq(nd->tok.lex, "add")) {
+                    ir_fail(c, "E-BITSET-ADD",
+                            "`add` on a bitset is spelled `bitset_insert <set> <n> .` — `add` means numeric addition only "
+                            "(RFC-0113 R5), pairing with `bitset_remove`", nd->line);
+                    return;
+                }
                 for (proven_size_t i = 0; i < b->arity; i++) ir_value(c, k, pos, end);
                 // ★★★ **atomic ordering** (RFC-0018 §6.1) — 선택 절 `order <name>`(어휘 안 늘림).
                 //   하위 3비트에 인코딩(0=relaxed 1=acquire 2=release 3=acq_rel 4=seq_cst). 생략=seq_cst.

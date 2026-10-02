@@ -822,12 +822,13 @@ mistake_fscapout.low:7:0 E-CAP-KIND: this leaf needs a `cap io`, and `fs` is a `
 <strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem ✘ 권한을 하나도 받지 않았는데, 권한 자리에 수 0 을 넘겨 출력한다</span></em>
-<strong><span class="tok-k">proc</span></strong> start <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">proc</span></strong> start <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> io .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> say <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_capforge.low
+mistake_capforge.low:10:0 E-EFFECT-NO-CAP: this op declares the `io` effect but receives NO capability that authorizes it. `io` is a cap-effect (RFC-0007 §6.7): I/O is a RIGHT you are HANDED, not an ambient power — `input fs cap file_system .` (or another `cap …` input). An effect you declare but hold no capability for is a claim the signature cannot back
 mistake_capforge.low:12:0 E-CAP-FORGE: a LITERAL was passed where a capability is taken. A capability is handed over, never conjured: it can only be a name you were given (an `input … cap …`) or an actor's capability field (RFC-0030 D2). Passing a number here would let an op that received NO right reach the outside, and then the entry point no longer tells what the program can touch. The placeholder `0` means something only at the tool's door (`--run`)
 </code></pre></div></div><p><code>start</code> 는 권한을 하나도 받지 않았다. 그러니 출력할 수 없어야 한다. <code>say</code> 의 <code>cap io</code> 자리에 수 0 을 넘기는 것이 그 규칙을 피해 가는 길처럼 보이지만, <code>E-CAP-FORGE</code> 로 거절된다. 권한 자리에 올 수 있는 것은 <strong>건네받은 이름</strong>(<code>input … cap …</code>)이나 액터의 권한 칸뿐이다. 이것이 막히지 않으면 “시작점만 보면 닿을 수 있는 바깥을 안다” 는 이 장의 약속이 한 줄로 무너진다. <code>--run</code> 이 쓰는 자리표 <code>0</code> 은 도구의 입구에서만 뜻이 있다(31장).</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>나중에 쓸지도 모르니 권한과 효과를 미리 받아 두면 편하다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch16/capjustincase.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> capjustincase .
 <em><span class="tok-c">rem expect: W-EFFECT-OVER</span></em>

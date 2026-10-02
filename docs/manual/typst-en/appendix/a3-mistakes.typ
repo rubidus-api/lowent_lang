@@ -77,7 +77,7 @@ explanations are in the chapters named in the tables.
   caption: [Mistakes with abstraction and concurrency],
   [*Mistake*], [*Diagnostic*], [*Fix*],
   [Writing `fn` or `proc` in a trait signature], [`E-TRAIT-SIG`], [`area input s self . output u64 .`],
-  [Satisfying a pure signature with a `proc` without an effects line], [`E-TRAIT-EFFECT`], [Use `fn`, or write `effects`],
+  [Leaving the effects line off a `proc`], [`E-EFFECT-MISSING`], [Write `effects <atoms> .` --- `effects none .` when there are none (`--doc` prints `inferred:`)],
   [A type argument not satisfying the trait], [`E-BOUND-UNSAT`], [Add `satisfies` and the op],
   [Giving a run-time value where `comptime` is required], [`E-COMPTIME-ARG`], [A literal or module constant],
   [`spawn <op>` outside a `task_group`], [`E-SPAWN-SCOPE`], [Wrap it in `task_group do … end`],

@@ -672,7 +672,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 
 <strong><span class="tok-k">use</span></strong> strbuf .
 
-<strong><span class="tok-k">proc</span></strong> build <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">proc</span></strong> build <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-k">be</span></strong> strbuf.str_buf strbuf.new .
   <strong><span class="tok-k">let</span></strong> r1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">result</span></strong> <span class="tok-n">void</span> strbuf.sb_error strbuf.append b buf <span class="tok-s">"</span><span class="tok-s">ab</span><span class="tok-s">"</span> .
   <strong><span class="tok-k">guard</span></strong> is_ok r1 . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">90</span> .

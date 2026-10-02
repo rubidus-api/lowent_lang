@@ -674,7 +674,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">use</span></strong> unicode .
 <strong><span class="tok-k">use</span></strong> utf8 .
 
-<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> count_words <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> count_words <strong><span class="tok-k">input</span></strong> s <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> . <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> off <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> words <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">var</span></strong> inword <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> <span class="tok-n">false</span> .

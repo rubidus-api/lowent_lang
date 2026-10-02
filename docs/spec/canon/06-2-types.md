@@ -744,6 +744,21 @@ end
 (3) `bitset` 은 **집합**이지 워드의 비트가 아니다. 워드의 비트를 다루는 것은 비트 연산이며
       (⟦§6.3⟧), 둘은 서로 다른 것이다.
 
+(4) 원소를 넣는 것은 `bitset_insert <집합> <값> .`, 지우는 것은 `bitset_remove <집합> <값> .` 이다 — 둘 다 그 자리에서
+      집합을 바꾼다. `add` 는 수의 덧셈만 뜻하므로 집합에 쓰는 것은 적합하지 아니하다(`E-BITSET-ADD`).
+
+```lowent 예제: 집합에 넣고 지운다 · 결과: members() = 1
+module ex_bitset .
+
+fn members output u64 . do
+  var s be bitset 8 bitset_new 8 .
+  bitset_insert s 3 .
+  bitset_insert s 5 .
+  bitset_remove s 3 .
+  return count s .
+end
+```
+
 ## 6.2.13 바이트 위에 얹는 눈 — 뷰
 
 (1) 바이트 슬라이스를 **복사 없이** 다른 타입의 배열처럼 읽을 수 있다. 이것을 뷰(view)라

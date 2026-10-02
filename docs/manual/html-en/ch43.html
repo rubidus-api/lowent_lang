@@ -668,6 +668,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <em><span class="tok-c">rem expect: E-EXCL</span></em>
 
 <strong><span class="tok-k">proc</span></strong> drift <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
@@ -682,18 +683,19 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
   <strong><span class="tok-k">return</span></strong> seen .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check loop_stale.low
-12:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
-12:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
+13:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
+13:0 E-EXCL: exclusivity violation: overlapping borrow/owner access (readers-XOR-writer)
 </code></pre></div></div><p>A read borrow <code>r</code> created outside the loop is used inside it, while inside the same loop the owner writes to <code>x</code>. Round 1 looks fine. But that write kills <code>r</code>, and round 2′s <code>deref r</code> uses a dead borrow. It is fine when run once and blows up the second time. The processor rejects it at translation.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch43/loop_fresh.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loop_fresh .
 <em><span class="tok-c">rem run: drift 5</span></em>
 
-<strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> deref p .
 <strong><span class="tok-k">end</span></strong>
 
 <strong><span class="tok-k">proc</span></strong> drift <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> .
@@ -715,7 +717,7 @@ Therefore it is safe however many times it runs.                 ∀k</code></pr
   → use(τ) in round i+1 is a violation.</code></pre><p>One static rule rejects exactly that pair — a borrow living across the loop × owner access in the body — and the proof of Theorem B shows “that one is enough”. There is no other danger. This is the proof’s <strong>practical output</strong>. Too few rules leak defects and too many block normal code, and the argument decided how many is right.</p><h3 id="s43-4">43.4 Fresh tokens — one move that removes the naming problem<a class="plink" href="#s43-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>The real headache in loops is <strong>name clashes</strong>. The <code>r</code> of round 1 and the <code>r</code> of round 2 are the same name in the source but different borrows at run time. Handling that usually means building a “tag renaming” device.</p><p>This proof built no such device. Instead the model <strong>issues a new token every time it runs</strong>. A static tag <code>t</code> points through an environment to “the current token”, and that token gets a new number each round. Then last round’s token is pointed to by no one and becomes invalid by itself. This is no trick — <strong>the implementation really issues fresh tags.</strong> Because the model followed the implementation, the proof got shorter. If a proof is hard, look at the model again. Half the difficulty comes from a wrong representation.</p><p>The proof adds one invariant to chapter 42′s INV and SINV.</p><ul><li><strong>FRESH</strong> — every issued token is smaller than <code>next</code>.</li></ul><p>Without it a new token could receive the same number as an old one, and a dead borrow would <strong>come back to life</strong>. It is the scariest kind of hole in a proof — wrong on the dangerous side, not the safe side.</p><h3 id="s43-5">43.5 Nested loops — from function to relation<a class="plink" href="#s43-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="demo demo-src"><p class="demo-head"><code>examples/ch43/nested.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nested .
 <em><span class="tok-c">rem run: tri 4</span></em>
 
-<strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">proc</span></strong> bump <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">mut_ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p (add (deref p) <span class="tok-n">1</span>) .
   <strong><span class="tok-k">return</span></strong> deref p .
@@ -723,6 +725,7 @@ Therefore it is safe however many times it runs.                 ∀k</code></pr
 
 <em><span class="tok-c">rem the inner loop runs a different number of times each outer round (0, 1, 2, 3)</span></em>
 <strong><span class="tok-k">proc</span></strong> tri <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
   <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">100</span> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .

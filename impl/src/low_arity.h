@@ -191,6 +191,8 @@
     X(view_array, "WV")  X(bit_cast, "WV")                                     \
     /* ★ 조각 뷰 (RFC-0104 §8-8) — 백업 슬라이스 + (at,n) 서술자 슬라이스.        */\
     X(view_segments, "VV")   X(segs, "V")   X(seg, "VV")                       \
+    /* ★ RFC-0113 R5 — 비트셋에 넣기(옛 `add <비트셋> x`). 하강은 `add` 의 집합 갈래 그대로 쓴다(IR 낱말을 새로 안 만든다). */\
+    X(bitset_insert, "VV")                                                     \
     /* 트랩 */                                                                 \
     X(panic, "V")                                                              \
     /* ★ 캐시 힌트 (RFC-0104 §8-14) — 유일하게 승격된 특례. 결과를 안 바꾼다.   */\

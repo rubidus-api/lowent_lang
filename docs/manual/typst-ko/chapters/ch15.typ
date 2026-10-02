@@ -233,7 +233,7 @@ export proc append
   [*모양*], [*뜻*], [*왜 이렇게*],
   [`fn …`], [효과 없음 --- `effects` 절을 적지 않는다], [순수함이 낱말 하나로 보인다],
   [`proc … effects io panic .`], [이 op 이 낼 수 있는 효과의 집합], [머리만 읽고 무엇을 하는지 안다],
-  [`proc …` (절 없음)], [좁히지 않았다 --- 무엇이든 낼 수 있다], [좁히는 것은 저자의 선택],
+  [`proc …` (절 없음)], [거절된다(`E-EFFECT-MISSING`)], [`proc` 은 절을 꼭 적는다 --- 효과가 없으면 `effects none .`],
   [효과 원자 `io`·`alloc`·`heap`·`state`·`panic`·…], [언어가 정한 닫힌 목록], [오타가 조용히 "순수" 가 되지 않게],
   [`effects panic panic .` · `none panic`], [거절(`E-EFFECT-DUP` · `E-EFFECT-NONE-MIX`)], [집합이라 겹침과 모순이 없다],
   [적은 것보다 많이 함 · 적고 안 함], [오류(`E-EFFECT`) · 경고(`W-EFFECT-OVER`)], [증명의 전제 · 부르는 쪽의 거짓 비용],

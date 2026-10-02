@@ -308,6 +308,8 @@ static const low_repair_row_t REPAIR[] = {
     { "E-CTRL-NODO",           "R-ADD-DO-END" },   // RFC-0113 R4 — 한 폼 몸을 `do … end` 로 감싼다
     { "E-CTRL-NODOT",          "R-ADD-DOT" },      // RFC-0113 R4 — `do` 앞에 점(`--fmt` 이 찍는다)
     { "E-NOT-IS-SOME",         "R-USE-IS-NONE" },  // RFC-0113 O5 — `not is_some x` → `is_none x`
+    { "E-EFFECT-MISSING",      "R-INSERT-INFERRED-EFFECTS" },   // RFC-0113 R1 — `--doc` 의 inferred 를 절로
+    { "E-BITSET-ADD",          "R-ADD-TO-INSERT" },   // RFC-0113 R5 — `add s n` → `bitset_insert s n`
     { "E-HEAD-NOT-AN-OP",      "R-DROP-DOT-HEAD" },
     { "E-METHOD-RECV",         "R-ADD-RECEIVER" },
     { "E-FIELD-FORM",          "R-USE-FIELD-FORM" },
@@ -429,6 +431,7 @@ static const low_repair_row_t REPAIR[] = {
 // ── **수리가 없다** — 그리고 왜 없는지 (게이트가 이 목록도 읽는다) ──────────────
 // ☞ 이 목록에 있는 것은 *"아직 안 적었다"* 가 아니라 *"코드만으로는 정할 수 없다"* 이다.
 static const low_repair_row_t NOREPAIR[] = {
+    { "E-VALUE-DISCARDED",  "길이 둘이다 — 값을 이름에 `set` 하려던 것인지, 문장을 지우려던 것인지는 저자의 뜻이다(RFC-0113 R5)" },
     // ★ RFC-0112 (WO-0211–0222) 에서 생긴 코드 — 고칠 길이 여럿이고 어느 쪽인지는 저자의 뜻이다
     { "E-ALLOC-NOROOT",     "어느 뿌리에서 깎을지는 저자의 뜻이다 — 권한 입력(`cap allocator`·`cap heap`)을 받을 수도, 영역 매개변수를 받을 수도, 영역 블록을 열어 그 안에서 생략형을 쓸 수도 있다" },
     { "E-ALLOC-NESTED",     "길이 둘이다 — 할당을 안쪽 영역의 이름으로 옮기거나, 안쪽 영역을 할당 뒤로 옮긴다. 어느 쪽이 뜻인지는 값의 수명이 정한다" },

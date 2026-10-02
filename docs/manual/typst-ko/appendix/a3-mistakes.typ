@@ -76,7 +76,7 @@
   caption: [추상과 동시성에서 걸리는 실수],
   [*실수*], [*진단*], [*고치는 법*],
   [트레이트 서명에 `fn`·`proc` 을 적는다], [`E-TRAIT-SIG`], [`area input s self . output u64 .`],
-  [효과 줄 없는 `proc` 으로 순수 서명을 갖춘다], [`E-TRAIT-EFFECT`], [`fn` 으로, 또는 `effects` 를 적는다],
+  [`proc` 에 효과 줄을 안 적는다], [`E-EFFECT-MISSING`], [`effects <원자> .` 를 적는다 --- 없으면 `effects none .`(`--doc` 의 `inferred:` 가 답이다)],
   [타입 인자가 트레이트를 갖추지 않았다], [`E-BOUND-UNSAT`], [`satisfies` 와 op 을 더한다],
   [`comptime` 자리에 실행 값을 준다], [`E-COMPTIME-ARG`], [리터럴이나 모듈 상수],
   [`task_group` 밖에서 `spawn <op>`], [`E-SPAWN-SCOPE`], [`task_group do … end` 로 감싼다],

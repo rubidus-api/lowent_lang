@@ -14,7 +14,7 @@ fn popcnt input n u64 . output u64 . do
     var b be bitset 64 bitset_new 64 .
     var i be u64 0 .
     while lt i n . do
-        add b i .
+        bitset_insert b i .
         set i (add i 2) .
     end
     return count b .
@@ -26,8 +26,8 @@ fn many input k u64 . output u64 . do
     var j be u64 0 .
     while lt j k . do
         var b be bitset 64 bitset_new 64 .
-        add b 1 .
-        add b 3 .
+        bitset_insert b 1 .
+        bitset_insert b 3 .
         set t (add t (count b)) .
         set j (add j 1) .
     end

@@ -47,7 +47,7 @@ do
     if bitset_contains out node . do
       continue .
     end
-    add out node .
+    bitset_insert out node .
     for child children_of g node . do
       push work child .
     end

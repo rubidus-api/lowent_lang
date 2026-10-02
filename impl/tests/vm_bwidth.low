@@ -12,14 +12,14 @@ module vm_bwidth .
 rem 폭 8 밖(8) 을 밀면 트랩 — 전엔 조용히 받아 count=1 이었다.
 fn w8_add_oob output u64 . do
   var a be bitset 8 bitset_new 8 .
-  add a 8 .
+  bitset_insert a 8 .
   return count a .
 end
 
 rem 폭 8 안(7) 은 정상 — 과잉규제도 거짓말과 같은 부류다.
 fn w8_add_ok output u64 . do
   var a be bitset 8 bitset_new 8 .
-  add a 7 .
+  bitset_insert a 7 .
   return count a .
 end
 
@@ -39,19 +39,19 @@ end
 rem 정상 경로: 폭 8 안에서 3 을 넣고 질의 → 1.
 fn w8_within output u64 . do
   var a be bitset 8 bitset_new 8 .
-  add a 3 .
+  bitset_insert a 3 .
   return narrow u64 (bitset_contains a 3) .
 end
 
 rem ★ **비트셋 파라미터도 선언 폭을 실어야** — 지역만 실으면 파라미터에 add/contains 가 64 로
 rem   후퇴해 태그 경로(박스별 폭)와 어긋난다. 파라미터 s(bitset 8) 에 폭 밖(20) → 트랩.
 fn p_add_oob input s bitset 8 . input k u64 . output u64 . do
-  add s k .
+  bitset_insert s k .
   return count s .
 end
 rem 파라미터 s 에 폭 안(5) 은 정상 — count=1.
 fn p_add_ok input s bitset 8 . input k u64 . output u64 . do
-  add s k .
+  bitset_insert s k .
   return count s .
 end
 rem 위 둘을 호출해 실행 가능한 진입점(폭 밖 20 은 트랩, 폭 안 5 는 1).

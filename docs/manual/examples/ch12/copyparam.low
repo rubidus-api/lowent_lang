@@ -2,6 +2,7 @@ module copyparam .
 rem run: use_inc 7
 
 proc inc input x u64 . output u64 .
+  effects none .
   requires lt x 1000 .
 do
   rem ko: `x` 는 호출자가 넘긴 값의 사본이다 --- 여기서 무엇을 해도 호출자의 변수에 닿지 않는다 /// en: `x` is a copy of the caller's value --- nothing done here reaches the caller's variable
@@ -11,6 +12,7 @@ do
 end
 
 proc use_inc input start u64 . output u64 .
+  effects none .
   requires lt start 1000 .
 do
   var n be u64 start .

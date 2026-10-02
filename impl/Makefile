@@ -36,6 +36,9 @@ PROVEN_SRC := \
   $(PROVEN)/src/proven/scan.c \
   $(PROVEN)/src/proven/float_parse.c \
   $(PROVEN)/src/proven/float_decimal.c \
+  $(PROVEN)/src/proven/utf.c \
+  $(PROVEN)/src/proven/u16str.c \
+  $(PROVEN)/src/proven/alloc_check.c \
   $(PROVEN)/platform/proven_sys_mem.c \
   $(PROVEN)/platform/proven_sys_time.c \
   $(PROVEN)/platform/proven_sys_random.c
@@ -45,6 +48,9 @@ PROVEN_SRC := \
 #   arena/array/heap 만 include 한다). 그래서 map.c 를 컴파일 대상에서 뺐다(전엔 죽은 코드로
 #   들어와 있었다). 새 map 이 끌어오던 hash/random/thread(SipHash HashDoS 방어)도 함께 빠져
 #   컴파일 집합이 **실제 쓰는 것만** 남는다 — POSIX feature 매크로도 이제 불필요.
+# ★ v0.6.0 재벤더 뒤(2026-10-02): utf.c — 소스 검증·`u"…"` 리터럴의 UTF-8 해독을 proven 의 `proven_utf8_decode_next` 가 한다
+#   (손으로 짠 해독기 둘을 걷어냈다). u16str.c 는 utf.c 가 부르는 덧붙이기 하나 때문에 따라온다. alloc_check.c —
+#   `make alloccheck` 가 힙을 블록을 아는 할당기로 감싸 남의 블록 해제·두 번 해제를 그 자리에서 잡는다(보통 빌드는 감싸지 않는다).
 # scan.c (+ float_parse.c/float_decimal.c) added: the `scan` builtin uses proven's
 # cursor tokenizer to auto-type input fields (int/float/string).
 
@@ -55,7 +61,7 @@ PROVEN_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(PROVEN_SRC))
 BIN  := $(BUILD)/lowentc
 TESTBIN := $(BUILD)/lowtest
 
-.PHONY: check all clean asan run test
+.PHONY: check all clean asan alloccheck run test
 all: $(BIN)
 
 $(BIN): $(PROVEN_OBJ) $(LOW_OBJ) $(BUILD)/src/main.o
@@ -83,6 +89,14 @@ asan: OPT := -g -O0 -fsanitize=address,undefined
 asan: clean all
 	@find $(BUILD) -name '*.o' -delete
 	@echo "asan: 다음 \`make\` 가 섞이지 않도록 .o 를 지웠다(바이너리는 남았다)"
+
+# make alloccheck — 힙을 proven 의 블록을 아는 할당기(`alloc_check.h`)로 감싼 처리기를 build-ac/ 에 따로 짓고, 시험 픽스처마다
+#   `--check` 를 돌린다. 남의 블록 해제 · 두 번 해제 · 크기가 틀린 realloc 은 그 자리에서 멈춘다(보통 build/ 는 안 건드린다).
+alloccheck:
+	$(MAKE) BUILD=build-ac OPT='-g -O0 -DPROVEN_ALLOC_CHECK' build-ac/lowentc
+	@n=0; for f in tests/*.low; do n=$$((n+1)); build-ac/lowentc --check "$$f" >/dev/null 2>&1; rc=$$?; \
+	  if [ $$rc -ge 128 ]; then echo "alloccheck: $$f 에서 멈췄다(rc $$rc) — gdb --args build-ac/lowentc --check $$f"; exit 1; fi; done; \
+	  echo "alloccheck: ok — 픽스처 $$n 개, 할당기 짝이 틀린 해제 0"
 
 # release dist: **정적 링크** 실행파일 + 표준 라이브러리를 한 폴더에 (glibc 버전 비의존)
 #   레이아웃 = 도구가 스스로 읽는 <install> 관례 그대로: bin/lowentc 가 ../std 를 본다.

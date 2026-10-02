@@ -23,6 +23,23 @@
 #include <stdlib.h>
 
 #include "proven/heap.h"
+#include "proven/alloc_check.h"
+// ★ 2026-10-02 (proven v0.6.0 `alloc_check.h`) — 이 처리기의 힙은 모두 여기서 받는다. `make alloccheck` 빌드
+//   (`-DPROVEN_ALLOC_CHECK`)에서는 블록을 아는 할당기로 감싸 **남의 블록 해제 · 두 번 해제 · 크기가 틀린 realloc** 을
+//   그 자리에서 멈춘다(proven_panic). 보통 빌드에서는 `proven_alloc_checked` 가 힙을 그대로 돌려준다 — 비용 0.
+#ifdef PROVEN_ALLOC_CHECK
+#define LW_AC_CAP (1u << 21)
+static proven_alloc_check_entry_t g_ac_rec[LW_AC_CAP];
+#else
+#define LW_AC_CAP 0u
+static proven_alloc_check_entry_t *g_ac_rec;
+#endif
+static proven_alloc_check_t g_ac;
+static proven_allocator_t lw_heap(void) {
+    static bool made; static proven_allocator_t a;
+    if (!made) { a = proven_alloc_checked(&g_ac, proven_heap_allocator(), g_ac_rec, LW_AC_CAP); made = true; }
+    return a;
+}
 #include "proven/arena.h"
 #include "proven/version.h"
 #include "low_lex.h"
@@ -456,7 +473,7 @@ static void feed_absorb_allow(const char *src)
     low_pkg_t pk = { 0 };
     const char *allow[16]; int n = 0;
     if (low_pkg_find(dir, &pk)) {
-        proven_allocator_t heap2 = proven_heap_allocator();
+        proven_allocator_t heap2 = lw_heap();
         char perr[512];
         if (low_pkg_load(heap2, &pk, perr))
             for (int i = 0; i < pk.nabsorb && n < 16; i++) allow[n++] = pk.absorb[i];
@@ -468,7 +485,7 @@ static void feed_absorb_allow(const char *src)
 static bool resolve_entry(const char *arg, low_pkg_t *pkg, char out[600], char err[256]) {
     if (arg) { snprintf(out, 600, "%s", arg); return true; }
     if (low_pkg_find(".", pkg)) {
-        proven_allocator_t heap = proven_heap_allocator();
+        proven_allocator_t heap = lw_heap();
         char perr[512];
         if (!low_pkg_load(heap, pkg, perr)) { snprintf(err, 256, "%s", perr); return false; }
         if (pkg->entry[0]) {
@@ -631,7 +648,7 @@ static int cmd_add(const char *name, const char *source) {
                         "Create pkg.low first (package name/version)\n");
         return 2;
     }
-    proven_allocator_t heap = proven_heap_allocator();
+    proven_allocator_t heap = lw_heap();
     char perr[512];
     if (!low_pkg_load(heap, &pkg, perr)) { fprintf(stderr, "%s\n", perr); return 1; }
     if (low_pkg_dep_find(&pkg, name)) {
@@ -810,7 +827,7 @@ static int cmd_verify(int n, char **a) {
     low_pkg_t pkg = { 0 };
     bool pinned = false;
     if (low_pkg_find(".", &pkg)) {
-        proven_allocator_t heap = proven_heap_allocator();
+        proven_allocator_t heap = lw_heap();
         char perr[512];
         if (low_pkg_load(heap, &pkg, perr)) {
             for (int i = 0; i < pkg.ndeps; i++)
@@ -917,7 +934,7 @@ static bool cache_fetch(const char *name, const char *url, const char *pin, char
 static int cmd_fetch(void) {
     low_pkg_t pkg = { 0 };
     if (!low_pkg_find(".", &pkg)) { fprintf(stderr, "lowentc fetch: no pkg.low found\n"); return 2; }
-    proven_allocator_t heap = proven_heap_allocator();
+    proven_allocator_t heap = lw_heap();
     char perr[512];
     if (!low_pkg_load(heap, &pkg, perr)) { fprintf(stderr, "%s\n", perr); return 1; }
     int nurl = 0, bad = 0;
@@ -1015,7 +1032,7 @@ static int cmd_install(int nargs, char **args) {
     char hex[65]; hash_hex(b, n, hex);
     printf("installed %s → %s (%.12s…)\n", mod, to, hex);
     // 전이: 이 파일의 from-상대 의존
-    proven_allocator_t heap = proven_heap_allocator();
+    proven_allocator_t heap = lw_heap();
     static char dn[MAX_DEPS_PER_FILE][64], dpp[MAX_DEPS_PER_FILE][256];
     int dtotal = 0;
     int nd = deps_of(heap, b, n, dn, dpp, MAX_DEPS_PER_FILE, &dtotal);
@@ -1463,7 +1480,7 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    proven_allocator_t heap = proven_heap_allocator();
+    proven_allocator_t heap = lw_heap();
     proven_byte_t *bufs[MAX_FILES] = { 0 };
     proven_size_t lens[MAX_FILES] = { 0 };
     proven_size_t total = 0;
@@ -1748,7 +1765,10 @@ int main(int argc, char **argv) {
     low_parse_result_t pr = { 0 };
     proven_size_t nforms0 = 0;   // 첫 파일의 폼 수
     {
-        low_cst_t **all = (low_cst_t **)malloc(sizeof(low_cst_t *) * 4096);
+        // ★ 2026-10-02 — 끝에서 `heap.free_fn` 으로 푸는 배열이므로 **같은 할당기에서** 받는다(전엔 malloc — 힙이 malloc 이라
+        //   우연히 맞았다. `make alloccheck` 의 블록 검사가 «남의 블록 해제» 로 잡았다).
+        low_cst_t **all = (low_cst_t **)heap.alloc_fn(heap.ctx, sizeof(low_cst_t *) * 4096, alignof(low_cst_t *)).value.ptr;
+        if (!all) { fprintf(stderr, "lowentc: out of memory\n"); return 1; }
         proven_size_t nall = 0;
         bool ok = true;
         proven_result_array_t da = PROVEN_ARRAY_INIT(heap, low_diag_t, 8);

@@ -701,7 +701,7 @@ void low_mono(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allo
             for (proven_size_t q = 0; q < c.ni; q++) {
                 proven_u8str_view_t in = c.iname[q];
                 if (in.size <= tname.size) continue;
-                if (memcmp(in.ptr, tname.ptr, tname.size) != 0) continue;
+                if (!proven_u8str_view_starts_with(in, tname)) continue;   // ★ proven 뷰 어휘(2026-10-02)
                 if (in.ptr[tname.size] != (proven_u8)'#') continue;
                 (void)PROVEN_ARRAY_PUSH(&nf, low_cst_t *, c.iform[q]);
             }

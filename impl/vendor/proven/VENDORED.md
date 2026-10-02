@@ -8,7 +8,8 @@
 > `LICENSE`·`THIRD_PARTY_NOTICES.md` 를 통째로 바꿨다. 바뀐 파일 83, 새 파일 다섯(`include/proven/{alloc_check,utf}.h` ·
 > `src/proven/{alloc_check,utf}.c` · `src/proven/proven_internal_console.h`), 지워진 파일 없음. 상류는 0.2~0.6 에서 공개 API 를
 > 지우지 않았다(MINOR 판들).
-> ★ `PROVEN_SRC` 가 짓는 열넷이 모두 바뀌었다 — 그런데 새 파일은 하나도 짓지 않아도 링크된다(`PROVEN_SRC` 는 그대로).
+> ★ `PROVEN_SRC` 가 짓는 열넷이 모두 바뀌었다 — 새 파일은 하나도 짓지 않아도 링크됐다. 같은 날 뒤이어 새 기능을 쓰려고
+>   `utf`·`u16str`·`alloc_check` 셋을 짓는 목록에 더했다(아래 «What is compiled»).
 >   lowentc 가 쓰는 proven 함수는 36 개이고, 상류의 동작 변경(맵 정수 열쇠 해시 · 플랫폼 글자 엄격 · 배타 생성의
 >   `PROVEN_ERR_EXISTS` · `find_last` · 리더 칸 추가)은 lowentc 가 부르지 않는 자리다. 부동소수 해석은 빨라졌고 답은 같다고
 >   상류가 적었다 — 여기서도 코퍼스로 확인했다.
@@ -67,8 +68,9 @@ is exactly proven's region allocator. We reuse proven for: arena/allocator (memo
 *"짓는 것은 한 줄도 안 바뀌었다"* 는 잘못된 안심이 세 곳에 퍼졌다(실제로는 `proven_sys_random.c` 가 바뀌었다).
 ☞ *같은 목록을 두 곳에 두면 한 곳만 낡고, 낡은 쪽이 인용된다*(교훈 7).
 
-오늘(2026-09-12) `PROVEN_SRC` 가 짓는 것: `arena · memory · buffer · u8str · array · panic · heap ·
-pool · scan · float_parse · float_decimal`(11) + `platform/proven_sys_{mem,time,random}.c`(3).
+오늘(2026-10-02) `PROVEN_SRC` 가 짓는 것: `arena · memory · buffer · u8str · array · panic · heap ·
+pool · scan · float_parse · float_decimal · utf · u16str · alloc_check`(14) + `platform/proven_sys_{mem,time,random}.c`(3).
+(`utf` 는 소스 검증과 `u"…"` 리터럴의 해독 · `u16str` 은 `utf` 가 부르는 덧붙이기 하나 · `alloc_check` 은 `make alloccheck` 용 — 2026-10-02 에 더했다.)
 Warning-clean under `-std=c23 -Wall -Wextra`(벤더 경고 0 — 남아 있던 둘은 우리 쪽 `PROVEN_ARRAY_GET`
 오용이었고 `GET_MUT` 으로 고쳤다).
 

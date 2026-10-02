@@ -482,11 +482,7 @@ static const low_cst_t *ck_region_kind_of(const low_cst_t *nd, proven_u8str_view
 }
 // ★ `root` 는 `alloc_bytes` 바로 뒤의 피연산자다 — 평평한 CST 에서도, 나무에서도 같은 자리.
 // ★★★★ RFC-0112 D6 — actor 와 그 상태의 권한 칸.
-static proven_u8str_view_t ck_bare_name(proven_u8str_view_t v) {
-    for (proven_size_t i = v.size; i-- > 0; )
-        if (v.ptr[i] == (proven_u8)'.') return (proven_u8str_view_t){ .ptr = v.ptr + i + 1, .size = v.size - i - 1 };
-    return v;
-}
+static proven_u8str_view_t ck_bare_name(proven_u8str_view_t v) { return low_view_after_last(v, '.'); }
 static const low_cst_t *ck_actor_named(proven_u8str_view_t name) {
     if (!g_ck_pr) return NULL;
     proven_u8str_view_t b = ck_bare_name(name);
@@ -676,9 +672,8 @@ static unsigned walk_effects_in(const low_cst_t *nd, const low_opinfo_t *tab, pr
             proven_size_t hit = n, nhit = 0;
             for (proven_size_t i = 0; i < n; i++) {
                 proven_u8str_view_t tn = tab[i].name;
-                proven_size_t dot = tn.size;
-                for (proven_size_t z = tn.size; z-- > 0; ) if (tn.ptr[z] == (proven_byte_t)'.') { dot = z; break; }
-                if (dot >= tn.size) continue;
+                proven_size_t dot = low_view_last(tn, '.');
+                if (dot == PROVEN_INDEX_NOT_FOUND) continue;
                 proven_u8str_view_t suf = { .ptr = tn.ptr + dot + 1, .size = tn.size - dot - 1 };
                 if (!proven_u8str_view_eq(suf, mn)) continue;
                 hit = i; nhit++;
@@ -4084,8 +4079,7 @@ static void ck_actor_caps(low_check_result_t *out, const low_parse_result_t *pr)
 static void ck_mark_actor_kind(proven_u8str_view_t tw, bool *fixed, bool *heap) {
     const low_cst_t *a = ck_actor_named(tw);
     if (!a) {                                     // `vec#u32#allocs.heap_bytes` — 마지막 `#` 뒤
-        for (proven_size_t i = tw.size; i-- > 0; )
-            if (tw.ptr[i] == (proven_u8)'#') { a = ck_actor_named((proven_u8str_view_t){ .ptr = tw.ptr + i + 1, .size = tw.size - i - 1 }); break; }
+        if (low_view_last(tw, '#') != PROVEN_INDEX_NOT_FOUND) a = ck_actor_named(low_view_after_last(tw, '#'));
     }
     if (!a) return;
     if (ck_actor_has_capkind(a, "allocator")) *fixed = true;
@@ -7533,7 +7527,7 @@ static bool lc_is_into(const low_cst_t *nd) {             // §13.7 — [using, 
 // 구조체 `ty` 의 칸 `fname` 이 배열 칸(`array T N`)인가 — 그 칸에 주는 값은 바이트로 **베껴진다**(T2b-3b).
 static bool ck_is_array_field(proven_u8str_view_t ty, proven_u8str_view_t fname) {
     if (!g_ck_pr) return false;
-    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    ty = low_view_after_last(ty, '.');
     for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
         const low_cst_t *f = g_ck_pr->forms[i];
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_STRUCT ||
@@ -7553,7 +7547,7 @@ static bool ck_is_array_field(proven_u8str_view_t ty, proven_u8str_view_t fname)
 //   참이고 크기를 준다 — 자연 정렬 · `layout packed` · `align n`. 슬라이스 · owned · 배열 칸 · 모르는 타입이면 거짓.
 static bool ck_struct_layout(proven_u8str_view_t ty, unsigned *bytes, unsigned *align, int depth) {
     if (!g_ck_pr || depth > 8) return false;
-    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    ty = low_view_after_last(ty, '.');
     for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
         const low_cst_t *f = g_ck_pr->forms[i];
         if (!(f->kind == LOW_CST_FORM && f->nkids >= 3 && ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
@@ -7591,7 +7585,7 @@ static bool ck_struct_layout(proven_u8str_view_t ty, unsigned *bytes, unsigned *
 }
 static bool ck_struct_exists(proven_u8str_view_t ty) {
     if (!g_ck_pr) return false;
-    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    ty = low_view_after_last(ty, '.');
     for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
         const low_cst_t *f = g_ck_pr->forms[i];
         if (f->kind == LOW_CST_FORM && f->nkids >= 3 && ck_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT &&
@@ -8678,7 +8672,7 @@ static void rw_refuse(low_check_result_t *out, int kind, proven_u32 line) {
 // 구조체 `ty` 의 배열 칸 `fname` 선언(`array T N`)의 T·N 낱말.
 static bool ck_array_field_decl(proven_u8str_view_t ty, proven_u8str_view_t fname, const low_cst_t **t, const low_cst_t **n) {
     if (!g_ck_pr) return false;
-    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    ty = low_view_after_last(ty, '.');
     for (proven_size_t i = 0; i < g_ck_pr->nforms; i++) {
         const low_cst_t *f = g_ck_pr->forms[i];
         if (f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0]) || f->kids[0]->tok.kw != LOW_KW_STRUCT ||

@@ -60,6 +60,8 @@
 # build output
 build/
 build-archdev-*/
+# `make alloccheck` 가 따로 짓는 처리기
+build-ac/
 dist/
 __pycache__/
 *.pyc

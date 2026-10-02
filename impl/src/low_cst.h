@@ -23,8 +23,19 @@
 
 #include "proven/types.h"
 #include "proven/array.h"
+#include "proven/u8str.h"
 #include "low_token.h"
 #include "low_diag.h"
+
+// ★ 2026-10-02 (proven v0.6.0) — 이름의 **마지막 `sep` 자리**(없으면 PROVEN_INDEX_NOT_FOUND)와 그 뒤 꼬리(없으면 통째).
+//   `m.x` 의 `x`, `vec#u32#allocs.heap_bytes` 의 마지막 `#` 뒤 — 같은 거꾸로 훑기가 열두 군데에 따로 적혀 있던 것을 모았다.
+static inline proven_size_t low_view_last(proven_u8str_view_t v, char sep) {
+    return proven_u8str_view_find_last(v, (proven_u8str_view_t){ .ptr = (const proven_byte_t *)&sep, .size = 1 });
+}
+static inline proven_u8str_view_t low_view_after_last(proven_u8str_view_t v, char sep) {
+    proven_size_t i = low_view_last(v, sep);
+    return i == PROVEN_INDEX_NOT_FOUND ? v : (proven_u8str_view_t){ .ptr = v.ptr + i + 1, .size = v.size - i - 1 };
+}
 
 typedef enum {
     LOW_CST_ATOM,    // leaf: .tok is the atom token

@@ -61,15 +61,10 @@ typedef struct {
 
 static bool us_eq(proven_u8str_view_t a, const char *s) { return low_view_eq_cstr(a, s); }
 static bool us_atom(const low_cst_t *n) { return n && n->kind == LOW_CST_ATOM; }
-static proven_u8str_view_t us_bare(proven_u8str_view_t v) {
-    for (proven_size_t i = v.size; i-- > 0; )
-        if (v.ptr[i] == (proven_u8)'.') return (proven_u8str_view_t){ .ptr = v.ptr + i + 1, .size = v.size - i - 1 };
-    return v;
-}
+static proven_u8str_view_t us_bare(proven_u8str_view_t v) { return low_view_after_last(v, '.'); }
 static proven_u8str_view_t us_qual(proven_u8str_view_t v) {
-    for (proven_size_t i = v.size; i-- > 0; )
-        if (v.ptr[i] == (proven_u8)'.') return (proven_u8str_view_t){ .ptr = v.ptr, .size = i };
-    return (proven_u8str_view_t){ 0 };
+    proven_size_t i = low_view_last(v, '.');
+    return i == PROVEN_INDEX_NOT_FOUND ? (proven_u8str_view_t){ 0 } : (proven_u8str_view_t){ .ptr = v.ptr, .size = i };
 }
 static low_cst_t *us_atom_like(us_ctx_t *c, const low_cst_t *model, proven_u8str_view_t lex) {
     low_token_t t = model->tok;
@@ -1318,7 +1313,7 @@ void low_def_require(low_parse_result_t *pr, proven_allocator_t node_alloc, prov
 //   칸마다 `<칸> <값> .` 으로 펼친다(값을 칸마다 다시 적는 것과 같다 — 그래서 값은 이름 하나 또는 리터럴 하나만 받는다). 넣을 수
 //   없는 칸(수 리터럴인데 칸이 수가 아니다)이 남으면 그 칸 이름을 대며 거절한다. 남은 칸이 없으면 `_` 가 채우는 것이 없다고 말한다.
 static const low_cst_t *lr_struct_block(us_ctx_t *c, proven_u8str_view_t ty) {
-    for (proven_size_t i = ty.size; i-- > 0; ) if (ty.ptr[i] == '.') { ty.ptr += i + 1; ty.size -= i + 1; break; }
+    ty = low_view_after_last(ty, '.');
     for (proven_size_t i = 0; i < c->p.out->nforms; i++) {
         const low_cst_t *f = c->p.out->forms[i];
         if (f && f->kind == LOW_CST_FORM && f->nkids >= 3 && us_atom(f->kids[0]) && f->kids[0]->tok.kw == LOW_KW_STRUCT &&

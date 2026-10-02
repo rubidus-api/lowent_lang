@@ -10,6 +10,7 @@
 //   * text [proc] TERM \n … \n TERM is a raw heredoc.
 //
 // Lexeme views borrow the source buffer (zero-copy); tokens live in an arena array.
+#include "proven/utf.h"
 #include "low_lex.h"
 
 typedef struct {
@@ -466,23 +467,13 @@ static void low_scan_heredoc(low_lexer_t *l, proven_u32 line, proven_u32 col) {
 // ★★★ **소스는 well-formed UTF-8 이어야 한다** (RFC-0035). 잘못된 바이트열의 첫 오프셋을 준다(없으면 -1).
 //   표준 UTF-8 검증: 선두 바이트 길이 · continuation(10xxxxxx) · overlong · surrogate · 범위(≤0x10FFFF).
 static proven_size_t low_utf8_bad(const proven_byte_t *p, proven_size_t n) {
+    // ★ 2026-10-02 — 손으로 짠 해독기(선두 길이·continuation·overlong·surrogate·범위)를 proven v0.6.0 의
+    //   `proven_utf8_decode_next` 로 바꿨다. 같은 엄격한 규칙이고, 끝에서 잘린 글자(NEED_MORE)도 잘못된 것으로 본다.
+    proven_u8str_view_t s = { .ptr = p, .size = n };
     for (proven_size_t i = 0; i < n; ) {
-        proven_byte_t b = p[i];
-        if (b < 0x80) { i++; continue; }
-        proven_size_t len;
-        if ((b & 0xE0) == 0xC0) len = 2;
-        else if ((b & 0xF0) == 0xE0) len = 3;
-        else if ((b & 0xF8) == 0xF0) len = 4;
-        else return i;                                  // 잘못된 선두(고아 continuation·0xF8+)
-        if (i + len > n) return i;                      // 잘림
-        for (proven_size_t k = 1; k < len; k++)
-            if ((p[i + k] & 0xC0) != 0x80) return i;     // 나쁜 continuation
-        proven_u32 cp = len == 2 ? (proven_u32)(((b & 0x1F) << 6) | (p[i+1] & 0x3F))
-                      : len == 3 ? (proven_u32)(((b & 0x0F) << 12) | ((p[i+1] & 0x3F) << 6) | (p[i+2] & 0x3F))
-                      :            (proven_u32)(((b & 0x07) << 18) | ((p[i+1] & 0x3F) << 12) | ((p[i+2] & 0x3F) << 6) | (p[i+3] & 0x3F));
-        if ((len == 2 && cp < 0x80) || (len == 3 && cp < 0x800) || (len == 4 && cp < 0x10000)) return i;  // overlong
-        if ((cp >= 0xD800 && cp <= 0xDFFF) || cp > 0x10FFFF) return i;   // surrogate·범위 밖
-        i += len;
+        proven_utf8_char_t c = proven_utf8_decode_next(s, i);
+        if (c.err != PROVEN_OK) return i;
+        i += c.len;
     }
     return (proven_size_t)-1;
 }

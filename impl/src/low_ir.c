@@ -1,4 +1,5 @@
 // low_ir.c — S5b: MVP core (+slices/records/result) → stack IR + SCC Merkle hashing.
+#include "proven/utf.h"
 #include "low_hwm.h"
 #include "low_ir.h"
 proven_u64 low_oracle_budget(void);
@@ -1044,37 +1045,29 @@ static bool ir_widen_units(ir_ctx_t *c, proven_u8str_view_t utf8, proven_i32 w,
     proven_u8 *dst = ir->strbuf + ir->strbuf_len;
     proven_size_t n = 0;
     for (proven_size_t i = 0; i < utf8.size; ) {
-        proven_u8 b0 = utf8.ptr[i];
-        proven_u32 cp; proven_size_t need;
-        if (b0 < 0x80)              { cp = b0;          need = 1; }
-        else if ((b0 & 0xe0) == 0xc0) { cp = b0 & 0x1fu; need = 2; }
-        else if ((b0 & 0xf0) == 0xe0) { cp = b0 & 0x0fu; need = 3; }
-        else if ((b0 & 0xf8) == 0xf0) { cp = b0 & 0x07u; need = 4; }
-        else {
-            // ★ 소스는 이미 well-formed UTF-8 이다(E-LEX-UTF8). 여기 닿는 유일한 길은
-            //   `\xNN` 이 0x7F 위의 **생바이트**를 넣은 것이다 — 그 바이트는 문자가 아니다.
-            ir_fail(c, "E-STR-ESCAPE",
-                    "`\\xNN` above \\x7f has no meaning inside a `u\"…\"` or `U\"…\"` literal: "
-                    "those literals hold CHARACTERS (code units), and a lone byte above ASCII is "
-                    "not a character. Write the character itself (the source is UTF-8), or use a "
-                    "plain \"…\"/u8\"…\" literal where \\xNN names a BYTE", line);
-            return false;
-        }
-        if (i + need > utf8.size) {
+        // ★ 2026-10-02 — 한 글자 풀기는 proven v0.6.0 의 `proven_utf8_decode_next`(엄격: overlong·surrogate·범위도 본다).
+        //   전엔 손으로 풀어 `\xC0\x80` 같은 overlong 을 글자 0 으로 받아 주었다.
+        proven_utf8_char_t uc = proven_utf8_decode_next(utf8, i);
+        if (uc.err == PROVEN_ERR_NEED_MORE) {
             ir_fail(c, "E-STR-ESCAPE", "a multi-byte character is cut short in this literal", line);
             return false;
         }
-        for (proven_size_t k = 1; k < need; k++) {
-            proven_u8 bk = utf8.ptr[i + k];
-            if ((bk & 0xc0) != 0x80) {
-                ir_fail(c, "E-STR-ESCAPE",
-                        "`\\xNN` above \\x7f has no meaning inside a `u\"…\"` or `U\"…\"` literal "
-                        "(it cut a character in half). Write the character itself, or use a plain "
-                        "\"…\"/u8\"…\" literal where \\xNN names a BYTE", line);
-                return false;
-            }
-            cp = (cp << 6) | (proven_u32)(bk & 0x3fu);
+        if (uc.err != PROVEN_OK) {
+            // ★ 소스는 이미 well-formed UTF-8 이다(E-LEX-UTF8). 여기 닿는 유일한 길은
+            //   `\xNN` 이 0x7F 위의 **생바이트**를 넣은 것이다 — 그 바이트는 문자가 아니다.
+            proven_u8 b0 = utf8.ptr[i];
+            bool lone = (b0 & 0xc0) == 0x80 || b0 == 0xc0 || b0 == 0xc1 || b0 >= 0xf5;   // 어떤 글자의 첫 바이트도 될 수 없다
+            ir_fail(c, "E-STR-ESCAPE", lone
+                    ? "`\\xNN` above \\x7f has no meaning inside a `u\"…\"` or `U\"…\"` literal: "
+                      "those literals hold CHARACTERS (code units), and a lone byte above ASCII is "
+                      "not a character. Write the character itself (the source is UTF-8), or use a "
+                      "plain \"…\"/u8\"…\" literal where \\xNN names a BYTE"
+                    : "`\\xNN` above \\x7f has no meaning inside a `u\"…\"` or `U\"…\"` literal "
+                      "(it cut a character in half). Write the character itself, or use a plain "
+                      "\"…\"/u8\"…\" literal where \\xNN names a BYTE", line);
+            return false;
         }
+        proven_u32 cp = uc.cp; proven_size_t need = uc.len;
         i += need;
         if (w == 4) {
             for (proven_size_t k = 0; k < 4; k++) dst[n + k] = (proven_u8)((cp >> (8 * k)) & 0xff);
@@ -1275,10 +1268,10 @@ static bool ir_bare_is_ambiguous(ir_ctx_t *c, proven_u8str_view_t name,
 //     제 코드(`E-ENUM-NOVARIANT`)로, 그 enum 의 갈래 목록과 함께.
 static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
     proven_u8str_view_t lex = nd->tok.lex, head = nd->qual_mod, tail = lex;
-    if (!head.size)
-        for (proven_size_t i = lex.size; i-- > 0; )
-            if (lex.ptr[i] == (proven_u8)'.') { head = (proven_u8str_view_t){ .ptr = lex.ptr, .size = i };
-                                                tail = (proven_u8str_view_t){ .ptr = lex.ptr + i + 1, .size = lex.size - i - 1 }; break; }
+    if (!head.size) {
+        proven_size_t i = low_view_last(lex, '.');
+        if (i != PROVEN_INDEX_NOT_FOUND) { head = (proven_u8str_view_t){ .ptr = lex.ptr, .size = i }; tail = low_view_after_last(lex, '.'); }
+    }
     char buf[256];
     if (head.size) {
         char vl[160]; size_t vn = 0; vl[0] = 0; int nv = 0;
@@ -2462,8 +2455,7 @@ static void ir_send(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, proven
                         if (st->f[z].sidx >= 0) { asx = (proven_size_t)st->f[z].sidx; break; }
                         if (st->f[z].tyname.size) {
                             proven_u8str_view_t tn = st->f[z].tyname;
-                            for (proven_size_t b = tn.size; b-- > 0; )
-                                if (tn.ptr[b] == (proven_u8)'.') { tn = (proven_u8str_view_t){ .ptr = tn.ptr + b + 1, .size = tn.size - b - 1 }; break; }
+                            tn = low_view_after_last(tn, '.');
                             bool sf3; proven_size_t si3 = ir_struct_find(c->out, tn, &sf3);
                             if (sf3 && c->out->structs[si3].is_actor_state) asx = si3;
                         }

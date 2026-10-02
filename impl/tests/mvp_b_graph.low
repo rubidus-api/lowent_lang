@@ -43,7 +43,7 @@ do
   let work be stack node_id stack_new temp capacity node_count_of g . . .
   push work root .
   while pop work into node . do
-    if contains out node . do
+    if bitset_contains out node . do
       continue .
     end
     add out node .

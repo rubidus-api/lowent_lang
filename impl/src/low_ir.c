@@ -1266,6 +1266,12 @@ static bool ir_bare_is_ambiguous(ir_ctx_t *c, proven_u8str_view_t name,
 //   한 줄이라, 처음 쓰는 사람은 **무엇이** 없는지 몰랐다(`strings.count_byte` 처럼 모듈에 없는 op 을 부른 흔한 실수).
 //   ⇒ 이름을 대고, 한정된 이름이면 앞마디가 무엇인지(모듈·enum)에 따라 갈라 말한다. enum 에 없는 갈래는
 //     제 코드(`E-ENUM-NOVARIANT`)로, 그 enum 의 갈래 목록과 함께.
+static const char *low_renamed_word(proven_u8str_view_t w) {   // RFC-0127 — 옛 철자 → 새 철자(진단에만 쓴다)
+#define X(o, n) if (veq(w, #o)) return #n;
+    LOW_RENAMED(X)
+#undef X
+    return NULL;
+}
 static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
     proven_u8str_view_t lex = nd->tok.lex, head = nd->qual_mod, tail = lex;
     if (!head.size) {
@@ -1298,7 +1304,12 @@ static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
             snprintf(buf, sizeof buf, "undefined name `%.*s` — `%.*s` is not a module used by this unit (`use %.*s .`) "
                      "nor an enum", (int)lex.size, (const char *)lex.ptr, (int)head.size, (const char *)head.ptr,
                      (int)head.size, (const char *)head.ptr);
-    } else
+    } else if (low_renamed_word(lex))
+        snprintf(buf, sizeof buf, "undefined name `%.*s` — this builtin is now spelled `%s` (RFC-0127: the bitset and "
+                 "lane ops carry a prefix, so these short words are free for your own ops)%s",
+                 (int)lex.size, (const char *)lex.ptr, low_renamed_word(lex),
+                 (veq(lex, "any") || veq(lex, "all")) ? ". Inside `pipe … do … end` the terminal stays `any`/`all`" : "");
+    else
         snprintf(buf, sizeof buf, "undefined name `%.*s` — not a local, an input, an op, a constant or an enum "
                  "variant in scope here", (int)lex.size, (const char *)lex.ptr);
     ir_fail_buf(c, "E-IR-UNDEF", buf, nd->line);
@@ -3233,16 +3244,16 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             // ★★★ **`complement s`** (RFC-0010 §6.7.1) — 여집합. **폭을 immediate 로 박는다**:
             //   VM 과 네이티브가 **같은 마스크**를 써야 하고, 네이티브 빠른 경로는 비트셋을 폭 없는
             //   워드로 낮추므로 런타임에 폭을 알 수 없다. 바인딩 타입(`var c be bitset 8 …`)이 준다.
-            if (veq(nd->tok.lex, "complement")) {
+            if (veq(nd->tok.lex, "bitset_complement")) {
                 // ★ 폭은 **피연산자 s** 의 것이다(F5): `complement s` 의 여집합 폭은 결과 바인딩이
                 //   아니라 s 가 정한다. 피연산자 폭을 못 알면 바인딩 폭으로 후퇴한다(종전 동작).
                 proven_u8 op_w = (*pos < end) ? ir_operand_bset_w(c, k[*pos]) : 0;
                 proven_u8 comp_w = op_w ? op_w : c->bset_w;
                 if (!comp_w) {
                     ir_fail(c, "E-IR-UNSUP",
-                            "`complement` needs to know the set's WIDTH, and it reads that from the "
+                            "`bitset_complement` needs to know the set's WIDTH, and it reads that from the "
                             "operand's (or the binding's) declared type — write `var <name> bitset <n> . "
-                            "be complement <s> .` (the complement of a `bitset 8` must not light the upper "
+                            "be bitset_complement <s> .` (the complement of a `bitset 8` must not light the upper "
                             "56 bits, so the width is part of the answer, not a detail; RFC-0010 §6.7.1)", nd->line);
                     return;
                 }
@@ -3259,23 +3270,23 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             //   (a+b+1)>>1. x86 pavgb/pavgw · ARM vrhadd 의 의미. **widening 이라 portable 합성 불가**
             //   (u8 레인에서 a+b 가 넘친다) — 그래서 특수 명령이고 D5 대상이다. 격리: `unsafe target <iset>`
             //   안에서만(ck_target_intrin 이 강제). 비트-정확 ⇒ VM·C 가 같은 값 ⇒ diff-sweep 로 검증된다.
-            if (veq(nd->tok.lex, "avg")) {
+            if (veq(nd->tok.lex, "lane_avg")) {
                 ir_value(c, k, pos, end);
                 ir_value(c, k, pos, end);
                 ir_emit(c, IRW_VAVG, 0);
                 return;
             }
             // ★★★ **레인 재배열** (RFC-0040) — 모두 **새 벡터를 낸다**(복사, 값 의미). 레인수는 vec 이 실어 온다.
-            if (veq(nd->tok.lex, "reverse")) {          // reverse <vec> — 레인 역순
+            if (veq(nd->tok.lex, "lane_reverse")) {     // lane_reverse <vec> — 레인 역순
                 ir_value(c, k, pos, end);
                 ir_emit(c, IRW_VREVERSE, 0);
                 return;
             }
-            if (veq(nd->tok.lex, "rotate")) {           // rotate <vec> <n> — n칸 회전(comptime)
+            if (veq(nd->tok.lex, "lane_rotate")) {      // lane_rotate <vec> <n> — n칸 회전(comptime)
                 ir_value(c, k, pos, end);
                 proven_i64 rn = 0;
                 if (*pos < end && is_atom(k[*pos]) && ir_int_lit(k[*pos]->tok.lex, &rn)) (*pos)++;
-                else { ir_fail(c, "E-IR-UNSUP", "rotate needs a compile-time lane count: `rotate <vec> <n>`", nd->line); return; }
+                else { ir_fail(c, "E-IR-UNSUP", "lane_rotate needs a compile-time lane count: `lane_rotate <vec> <n>`", nd->line); return; }
                 ir_emit(c, IRW_VROTATE, rn);
                 return;
             }
@@ -4666,7 +4677,11 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             //    사용자는 오타를 찾으러 간다. 없는 오타를.)
             if (ir_is_postmvp_word(nd->tok.lex)) {
                 ir_fail(c, "E-IR-UNSUP",
-                        "this word IS in the spec — the tool does not implement it yet. "
+                        veq(nd->tok.lex, "select")
+                            ? "`select` (choosing among channels) IS in the spec — the tool does not implement it yet. "
+                              "That is the TOOL's gap, not an error in your program (§4.7). The lanewise blend "
+                              "`select <mask> <a> <b>` is now spelled `lane_select` (RFC-0127)"
+                            : "this word IS in the spec — the tool does not implement it yet. "
                         "That is the TOOL's gap, not an error in your program "
                         "(the standard names this case: §4.7)", nd->line);
                 return;
@@ -4924,7 +4939,11 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
                 if (isdef && c->out->defs[di].nparams == 0) { ir_emit(c, IRW_CALL, (proven_i64)di); return; }
                 if (ir_is_postmvp_word(nd->tok.lex)) {
                     ir_fail(c, "E-IR-UNSUP",
-                            "this word IS in the spec — the tool does not implement it yet. "
+                            veq(nd->tok.lex, "select")
+                                ? "`select` (choosing among channels) IS in the spec — the tool does not implement it yet. "
+                                  "That is the TOOL's gap, not an error in your program (§4.7). The lanewise blend "
+                                  "`select <mask> <a> <b>` is now spelled `lane_select` (RFC-0127)"
+                                : "this word IS in the spec — the tool does not implement it yet. "
                             "That is the TOOL's gap, not an error in your program "
                             "(the standard names this case: §4.7)", nd->line);
                     return;

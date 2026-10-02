@@ -61,9 +61,9 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | Concurrency | `await` `drain` `channel` `chsend` `chrecv` `yield` `spawn` `send` |
 | Atomic (bits) | `atomic_and` `atomic_or` `atomic_xor` |
 | Floating-point maths — chapter 4 | `sqrt` `sin` `cos` `exp` `log` `pow` `floor` `ceil` `round` `fmod` `sum_neumaier` `sum_seq` |
-| Pipe stages — chapter 24 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `reverse` `collect` `count` `all` `any` `into` |
-| Lanes (SIMD) — chapter 27 | `splat` `load` `store` `load_masked` `store_masked` `select` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `avg` `native_lanes` `rotate` `prefetch` |
-| Small-number sets — chapter 13 | `bitset_new` `union` `intersect` `difference` `complement` `contains` `is_subset` `is_empty` `remove` |
+| Pipe stages — chapter 24 | `pipe` `map` `filter` `fold` `scan` `take` `skip` `zip` `enumerate` `collect` `count` `all` `any` `into` |
+| Lanes (SIMD) — chapter 27 | `splat` `load` `store` `load_masked` `store_masked` `lane_select` `lane_any` `lane_all` `reduce_add` `reduce_mul` `reduce_min` `reduce_max` `lane_avg` `native_lanes` `lane_reverse` `lane_rotate` `prefetch` |
+| Small-number sets — chapter 13 | `bitset_new` `bitset_union` `bitset_intersect` `bitset_difference` `bitset_complement` `bitset_contains` `bitset_is_subset` `bitset_is_empty` `bitset_remove` |
 | Layouts and views — chapter 13 | `encode` `try_view` `view_segments` `seg` `segs` `capacity` |
 | Borrows and regions — chapter 12 · chapter 18 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap` |
 | Contracts and errors — chapter 14 | `range` `ret` `expect` `panic` |

@@ -22,9 +22,9 @@ fn ops output u64 . do
   add b 2 .
   add b 3 .
   add b 4 .
-  var u be bitset 8 union a b .
-  var i be bitset 8 intersect a b .
-  var d be bitset 8 difference a b .
+  var u be bitset 8 bitset_union a b .
+  var i be bitset 8 bitset_intersect a b .
+  var d be bitset 8 bitset_difference a b .
   rem union 은 원소 4 개, intersect 는 2 개, difference 는 1 개 — 합쳐 421 을 만든다.
   return (add (mul (count u) 100) (add (mul (count i) 10) (count d))) .
 end
@@ -36,8 +36,8 @@ fn subs output u64 . do
   add b 1 .
   add b 2 .
   var e be bitset 8 bitset_new 8 .
-  if is_subset a b . do
-    if is_empty e . do return 11 . end
+  if bitset_is_subset a b . do
+    if bitset_is_empty e . do return 11 . end
   end
   return 0 .
 end
@@ -47,7 +47,7 @@ fn rem1 output u64 . do
   var a be bitset 8 bitset_new 8 .
   add a 1 .
   add a 2 .
-  remove a 1 .
+  bitset_remove a 1 .
   return count a .
 end
 
@@ -63,7 +63,7 @@ fn comp output u64 . do
   add a 1 .
   add a 2 .
   add a 3 .
-  var c be bitset 8 complement a .
+  var c be bitset 8 bitset_complement a .
   rem 8 비트 중 셋을 뺀 나머지 = 5
   return count c .
 end

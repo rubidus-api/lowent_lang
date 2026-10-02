@@ -83,23 +83,23 @@
        코드가 남의 구조체를 복사할 방법이 없기 때문이다(필드 이름을 모른다). 그래서 이것은  \
        리프다: 언어로 못 쓰는 것이고, 할당 0 이며, 원소 타입을 몰라도 된다. */              \
     X(swap, IRW_SWAP, 3)                                                       \
-    X(push, IRW_SPUSH, 2)  X(contains, IRW_CONTAINS, 2)  X(count, IRW_COUNT, 1)\
+    X(push, IRW_SPUSH, 2)  X(bitset_contains, IRW_CONTAINS, 2)  X(count, IRW_COUNT, 1)\
     X(bitset_new, IRW_BNEW, 1)                                                 \
     /* ★ 집합 연산 (RFC-0010 §6.7.1) — 닫힌 어휘. 전부 워드별 bitwise, 할당 0 */    \
-    X(remove, IRW_BREMOVE, 2)   X(union, IRW_BUNION, 2)                        \
-    X(intersect, IRW_BINTER, 2) X(difference, IRW_BDIFF, 2)                    \
-    X(complement, IRW_BCOMPL, 1) X(is_empty, IRW_BEMPTY, 1)                    \
-    X(is_subset, IRW_BSUBSET, 2)                                               \
+    X(bitset_remove, IRW_BREMOVE, 2)   X(bitset_union, IRW_BUNION, 2)          \
+    X(bitset_intersect, IRW_BINTER, 2) X(bitset_difference, IRW_BDIFF, 2)     \
+    X(bitset_complement, IRW_BCOMPL, 1) X(bitset_is_empty, IRW_BEMPTY, 1)     \
+    X(bitset_is_subset, IRW_BSUBSET, 2)                                        \
     X(deref, IRW_DEREF, 1)                                                     \
     X(is_some, IRW_ISSOME, 1)   X(some_value, IRW_SOMEVAL, 1)                  \
     X(is_ok, IRW_ISOK, 1)       X(is_error, IRW_ISERR, 1)                      \
     /* ★ RFC-0016 — 부분 op 을 **총체형**으로 만드는 소비자 (panic 대신 기본값/none) */\
     X(value_or, IRW_VALOR, 2)                                                  \
     X(ok_value, IRW_OKVAL, 1)   X(error_value, IRW_ERRVAL, 1)                  \
-    X(select, IRW_SELECT, 3)                                                   \
+    X(lane_select, IRW_SELECT, 3)                                              \
     X(reduce_add, IRW_RADD, 1)  X(reduce_mul, IRW_RMUL, 1)                     \
     X(reduce_min, IRW_RMIN, 1)  X(reduce_max, IRW_RMAX, 1)                     \
-    X(any, IRW_MANY, 1)         X(all, IRW_MALL, 1)                          \
+    X(lane_any, IRW_MANY, 1)    X(lane_all, IRW_MALL, 1)                     \
     /* ★★★ **cstr → str** (RFC-0068 S4) — 널종단 C 문자열을 스캔해 `str`(slice u8)로. 길이를    \
        몰라 O(n)(strlen) — 이름이 비용을 말한다. **FFI 경계 전용**(VM 은 못 함) · `effects unsafe`  \
        (생 포인터를 읽는다 — cstr 를 얻으려면 이미 `cap c` 를 거쳤다). 리프 규칙: ① 세상에 닿음   \
@@ -148,6 +148,16 @@
 // ★ 합집합 — 표는 하나다(위 주석).
 #define LOW_BUILTINS(X)  LOW_BUILTINS_CORE(X) LOW_CALL_BUILTIN(X)
 
+// ★★★ **접두사로 가둔 이름** (RFC-0127 ⓐⓑ, 2026-10-02 · 소유자 «bitset_ · lane_»). 비트셋 여덟과 레인 여섯은
+//   사용자가 제 op 에 붙일 만한 짧은 낱말(`union`·`remove`·`select`·`any` …)이라 접두사를 붙였다. 옛 철자는 **동의어로
+//   남기지 않는다**(§2.5) — 이 표는 «없는 이름» 진단이 새 철자를 대게 할 뿐이고, 옛 낱말은 사용자 이름으로 비어 있다.
+#define LOW_RENAMED(R)                                                         \
+    R(remove, bitset_remove)  R(union, bitset_union)  R(intersect, bitset_intersect) \
+    R(difference, bitset_difference)  R(complement, bitset_complement)         \
+    R(is_empty, bitset_is_empty)  R(is_subset, bitset_is_subset)  R(contains, bitset_contains) \
+    R(select, lane_select)  R(any, lane_any)  R(all, lane_all)                 \
+    R(reverse, lane_reverse)  R(rotate, lane_rotate)  R(avg, lane_avg)
+
 #define LOW_SHAPES(X)                                                          \
     /* 접근·생성 */                                                            \
     X(field, "VR")      X(ok, "V")          X(error, "W")                      \
@@ -168,14 +178,14 @@
     X(fmod, "VV") X(min, "VV") X(max, "VV")   X(pow, "VV")                     \
     /* SIMD */                                                                 \
     X(splat, "V")       X(load, "VV")       X(store, "VVV")                    \
-    X(reverse, "V")     X(rotate, "VW")                                        \
+    X(lane_reverse, "V") X(lane_rotate, "VW")                                  \
     X(load_masked, "VVVV")   X(store_masked, "VVVV")                           \
     X(native_lanes, "W")     /* comptime: target 네이티브 벡터 폭 질의 */      \
     /* ★ 원소 크기 질의 (RFC-0084) — comptime. 제네릭 컨테이너가 **바이트 수를 셀 때** 쓴다:
        `size_of t` 를 못 물으면 제네릭 코드는 최대 폭(8)으로 잡아 u8 벡터가 8배를 쓴다.
        native_lanes 와 **같은 기계**다(타입 낱말 하나 → 정수 상수). */\
     X(size_of, "W")                                                            \
-    X(avg, "VV")             /* D5 target intrinsic: 라운딩 평균 (pavgb/vrhadd) */   \
+    X(lane_avg, "VV")        /* D5 target intrinsic: 라운딩 평균 (pavgb/vrhadd) */   \
     /* 뷰·퍼닝 — 첫 슬롯은 **타입 낱말** */                                    \
     X(view, "WV")  X(try_view, "WV")  X(encode, "WV")                          \
     X(view_array, "WV")  X(bit_cast, "WV")                                     \
@@ -245,6 +255,7 @@
     X(call_builtin)                                                            \
     X(pop)  X(range)  X(into)  X(is_none)  X(capacity)  X(ret)                 \
     X(pipe)  X(take)  X(skip)  X(enumerate)  X(zip)  X(scan)  X(collect)         \
+    X(any)  X(all)   /* RFC-0127 — pipe 종결자. 레인 판정은 `lane_any`·`lane_all` 로 갈라졌다 */ \
     X(region)  X(borrow)
 
 #endif

@@ -17,7 +17,7 @@ proc av input a bytes . input b bytes . input out mut slice u8 . output u64 . ef
   var xb be slice u8 view_array u8 b .
   var va be vec u8 4 load xa 0 .
   var vb be vec u8 4 load xb 0 .
-  var r be vec u8 4 avg va vb .
+  var r be vec u8 4 lane_avg va vb .
   store out 0 r .
   return 0 .
 end

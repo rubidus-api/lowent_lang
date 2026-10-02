@@ -20,7 +20,7 @@ do
   var v be vec u32 4 load xs 0 .
   var lim be vec u32 4 splat 10 .
   var m be mask 4 gt v lim .        rem ★ 마스크는 정수가 아니다(레인마다 하나씩)
-  var cc be vec u32 4 select m lim v .
+  var cc be vec u32 4 lane_select m lim v .
   return reduce_add cc .
 end
 
@@ -31,7 +31,7 @@ do
   var xs be slice u32 view_array u32 b .
   var v be vec u32 4 load xs 0 .
   var lim be vec u32 4 splat 10 .
-  return any gt v lim . .
+  return lane_any gt v lim . .
 end
 
 fn vmax .

@@ -24,7 +24,7 @@ fn sall input b bytes . output u64 . do
   var v be vec i16 4 load xs 0 .
   var z be vec i16 4 splat 0 .
   var m be mask 4 gt v z .
-  guard all m . else return 0 .
+  guard lane_all m . else return 0 .
   return 1 .
 end
 

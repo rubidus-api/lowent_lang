@@ -144,7 +144,7 @@ op 본문에서 값을 담아 두는 이름이 *지역*이다. 두 가지뿐이�
 #antipattern[흔한 영어 낱말로 지역 이름을 짓는다][
   #demo("examples/ch06/mistake_localname.low")
 
-  `count`·`len`·`min`·`max`·`ok`·`avg` 같은 이름은 이미 내장 op 이다. 이름 공간이 평평하므로 지역이 그 이름을 가져가면
+  `count`·`len`·`min`·`max`·`ok`·`sqrt` 같은 이름은 이미 내장 op 이다. 이름 공간이 평평하므로 지역이 그 이름을 가져가면
   `f count data` 가 "count 를 부른 값" 인지 "지역 count" 인지에 따라 문장이 다르게 묶인다. 같은 글자가 다른 나무가 되는 자리라서
   `E-NAME-BUILTIN` 으로 막는다. `n`·`total`·`size` 처럼 짓는다.
 ]

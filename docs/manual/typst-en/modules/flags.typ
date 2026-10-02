@@ -59,4 +59,4 @@ registers use `to_set` and `to_clear` of #modref("wire")[`wire`].
 
 *Cautions.* Fields wider than one bit are `wire`'s job. Bit numbers are not managed automatically --- people write them, and a check in the development repository catches
 two names using the same position. Why the ops are not `set`, `union`, `count` or `first` --- they are syntax words, existing operations, or were used as local names in
-other files. Exporting `first` broke `lib/regex.low`, and the combination check caught it.
+other files (`union` was a builtin then; it is `bitset_union` now). Exporting `first` broke `lib/regex.low`, and the combination check caught it.

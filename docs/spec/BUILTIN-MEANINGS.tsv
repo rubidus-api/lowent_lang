@@ -21,9 +21,11 @@ chacha_poly	ChaCha20-Poly1305 한 덩이 — 흐름과 누산을 한 바퀴에. 
 call_builtin	계산 잎을 부르는 머리 — 다음 원자가 잎의 이름이다(닫힌 집합). 그 이름은 전역 어휘가 아니라 이 자리에만 산다. 낸 값은 그 잎이 내는 값
 aes_gcm	AES-128-GCM 한 덩이 — 흐름(aes_ctr)과 누산(ghash)을 한 바퀴에. 뜻은 그 둘을 차례로 부른 것과 같다. 낸 값은 흐른 바이트 수
 all	모두 참인가 — 첫 거짓에서 멈춘다
+lane_all	가림막의 레인이 모두 켜졌나 (레인 판정 — pipe 종결자 `all` 과 다른 낱말)
 alloc_bytes	영역에서 바이트 자리를 얻는다
 and	논리 곱 — 앞이 거짓이면 뒤를 **안 본다**
 any	참이 하나라도 있나 — 첫 참에서 멈춘다
+lane_any	가림막의 레인이 하나라도 켜졌나 (레인 판정 — pipe 종결자 `any` 와 다른 낱말)
 arg	그 자리의 명령줄 인자
 atomic_add	원자적으로 더한다
 atomic_and	원자적 비트 곱
@@ -35,7 +37,7 @@ atomic_store	원자적으로 쓴다
 atomic_sub	원자적으로 뺀다
 atomic_swap	원자적으로 바꿔 끼우고 옛 값을 낸다
 atomic_xor	원자적 비트 배타합
-avg	두 수의 평균 — 중간값을 넘침 없이 낸다
+lane_avg	두 수의 평균 — 중간값을 넘침 없이 낸다
 bit_and	비트 곱
 bit_cast	비트를 그대로 두고 타입만 바꾼다
 bit_not	비트 뒤집기 — **폭 안에서** 뒤집는다(C 처럼 int 로 승격하지 아니한다)
@@ -51,9 +53,9 @@ chk_add	더하기 — 넘쳤는지 **답과 함께** 돌려준다
 chk_mul	곱하기 — 넘쳤는지 답과 함께 돌려준다
 chk_sub	빼기 — 넘쳤는지 답과 함께 돌려준다
 collect	파이프라인의 결과를 자리에 담는다
-complement	여집합
+bitset_complement	여집합
 config	번역 시점의 설정 값
-contains	그 원소가 들어 있나
+bitset_contains	그 원소가 들어 있나
 cos	코사인
 count	원소의 수를 센다
 clmul_hi	캐리 없는 곱셈의 **윗말** — 64×64 비트 곱의 위쪽 64 비트. 덧셈이 배타합인 셈이다
@@ -62,7 +64,7 @@ count_ones	선 비트의 수
 crc32	CRC-32 검사값
 cstr_of	C 문자열로 본다
 deref	참조가 가리키는 값
-difference	차집합
+bitset_difference	차집합
 dir_close	디렉터리를 닫는다
 dir_make	디렉터리를 만든다
 dir_open	디렉터리를 연다
@@ -95,14 +97,14 @@ ge	앞이 크거나 같은가
 gt	앞이 큰가
 hash_bytes	바이트열의 해시
 idx	그 자리의 원소
-intersect	교집합
+bitset_intersect	교집합
 into	같은 뜻의 다른 타입으로 옮긴다
-is_empty	비었는가
+bitset_is_empty	비었는가
 is_error	오류인가
 is_none	값이 없나
 is_ok	성공인가
 is_some	값이 있나
-is_subset	앞이 뒤에 다 들어 있나
+bitset_is_subset	앞이 뒤에 다 들어 있나
 le	앞이 작거나 같은가
 leading_zeros	맨 앞의 0 비트 수
 len	길이 — **원소의 수**다(바이트 수가 아니다)
@@ -157,11 +159,11 @@ reduce_min	레인 중 가장 작은 것
 reduce_mul	레인을 모두 곱한다
 ref	읽기 참조를 만든다
 region	영역을 연다 — 수명이 곧 스코프다
-remove	집합에서 그 원소를 지운다 — **제자리에서** 바꾼다
+bitset_remove	집합에서 그 원소를 지운다 — **제자리에서** 바꾼다
 ret	오류를 위로 넘긴다
-reverse	차례를 뒤집는다
+lane_reverse	차례를 뒤집는다
 rng_next	난수를 낸다
-rotate	주어진 방향으로 돌린다
+lane_rotate	주어진 방향으로 돌린다
 rotl	왼쪽으로 돌린다
 rotr	오른쪽으로 돌린다
 round	반올림 — 0 에서 먼 쪽으로
@@ -172,7 +174,7 @@ sat_sub	빼되 넘치면 끝값에서 멈춘다
 scan	접으며 중간값을 낸다
 seg	조각 사슬의 한 조각
 segs	조각 사슬의 조각들
-select	가림막에 따라 두 값 중 하나를 레인마다 고른다
+lane_select	가림막에 따라 두 값 중 하나를 레인마다 고른다
 send	액터에 메시지를 보낸다
 sha256	SHA-256
 sha384	SHA-384 — SHA-512 의 다른 시작값이고 앞 48 바이트다
@@ -198,7 +200,7 @@ swap	두 자리를 맞바꾼다
 take	앞에서 n 개
 trailing_zeros	맨 뒤의 0 비트 수
 try_view	`view` 와 같되 계약이 깨지면 `none` 을 낸다
-union	합집합
+bitset_union	합집합
 value_or	값이 있으면 그것, 없으면 기본값 — 기본값은 **성공 시 평가되지 아니한다**
 view	바이트를 구조체로 본다 — 복사 없음. 정렬·길이 계약을 확인한다
 view_array	바이트를 그 타입의 배열로 본다 — 복사 없음

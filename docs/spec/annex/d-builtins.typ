@@ -11,7 +11,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 201 개다.]
+  #para("2")[모두 203 개다.]
 
   #tbl("내장 연산과 그 뜻")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
@@ -37,13 +37,20 @@
         [`atomic_sub`], [원자적으로 뺀다],
         [`atomic_swap`], [원자적으로 바꿔 끼우고 옛 값을 낸다],
         [`atomic_xor`], [원자적 비트 배타합],
-        [`avg`], [두 수의 평균 — 중간값을 넘침 없이 낸다],
         [`bit_and`], [비트 곱],
         [`bit_cast`], [비트를 그대로 두고 타입만 바꾼다],
         [`bit_not`], [비트 뒤집기 — **폭 안에서** 뒤집는다(C 처럼 int 로 승격하지 아니한다)],
         [`bit_or`], [비트 합],
         [`bit_xor`], [비트 배타합],
+        [`bitset_complement`], [여집합],
+        [`bitset_contains`], [그 원소가 들어 있나],
+        [`bitset_difference`], [차집합],
+        [`bitset_intersect`], [교집합],
+        [`bitset_is_empty`], [비었는가],
+        [`bitset_is_subset`], [앞이 뒤에 다 들어 있나],
         [`bitset_new`], [빈 비트 집합],
+        [`bitset_remove`], [집합에서 그 원소를 지운다 — **제자리에서** 바꾼다],
+        [`bitset_union`], [합집합],
         [`borrow`], [빌린 것의 수명을 스코프로 못 박는다],
         [`byte_swap`], [바이트 순서를 뒤집는다],
         [`call_builtin`], [계산 잎을 부르는 머리 — 다음 원자가 잎의 이름이다(닫힌 집합). 그 이름은 전역 어휘가 아니라 이 자리에만 산다. 낸 값은 그 잎이 내는 값],
@@ -58,16 +65,13 @@
         [`clmul_hi`], [캐리 없는 곱셈의 **윗말** — 64×64 비트 곱의 위쪽 64 비트. 덧셈이 배타합인 셈이다],
         [`clmul_lo`], [캐리 없는 곱셈의 **아랫말** — 64×64 비트 곱의 아래쪽 64 비트. 기계에 명령이 있으면 그것으로, 없으면 같은 답을 내는 셈으로],
         [`collect`], [파이프라인의 결과를 자리에 담는다],
-        [`complement`], [여집합],
         [`config`], [번역 시점의 설정 값],
-        [`contains`], [그 원소가 들어 있나],
         [`cos`], [코사인],
         [`count`], [원소의 수를 센다],
         [`count_ones`], [선 비트의 수],
         [`crc32`], [CRC-32 검사값],
         [`cstr_of`], [C 문자열로 본다],
         [`deref`], [참조가 가리키는 값],
-        [`difference`], [차집합],
         [`dir_close`], [디렉터리를 닫는다],
         [`dir_make`], [디렉터리를 만든다],
         [`dir_open`], [디렉터리를 연다],
@@ -98,14 +102,17 @@
         [`gt`], [앞이 큰가],
         [`hash_bytes`], [바이트열의 해시],
         [`idx`], [그 자리의 원소],
-        [`intersect`], [교집합],
         [`into`], [같은 뜻의 다른 타입으로 옮긴다],
-        [`is_empty`], [비었는가],
         [`is_error`], [오류인가],
         [`is_none`], [값이 없나],
         [`is_ok`], [성공인가],
         [`is_some`], [값이 있나],
-        [`is_subset`], [앞이 뒤에 다 들어 있나],
+        [`lane_all`], [가림막의 레인이 모두 켜졌나 (레인 판정 — pipe 종결자 `all` 과 다른 낱말)],
+        [`lane_any`], [가림막의 레인이 하나라도 켜졌나 (레인 판정 — pipe 종결자 `any` 와 다른 낱말)],
+        [`lane_avg`], [두 수의 평균 — 중간값을 넘침 없이 낸다],
+        [`lane_reverse`], [차례를 뒤집는다],
+        [`lane_rotate`], [주어진 방향으로 돌린다],
+        [`lane_select`], [가림막에 따라 두 값 중 하나를 레인마다 고른다],
         [`le`], [앞이 작거나 같은가],
         [`leading_zeros`], [맨 앞의 0 비트 수],
         [`len`], [길이 — **원소의 수**다(바이트 수가 아니다)],
@@ -162,11 +169,8 @@
         [`reduce_mul`], [레인을 모두 곱한다],
         [`ref`], [읽기 참조를 만든다],
         [`region`], [영역을 연다 — 수명이 곧 스코프다],
-        [`remove`], [집합에서 그 원소를 지운다 — **제자리에서** 바꾼다],
         [`ret`], [오류를 위로 넘긴다],
-        [`reverse`], [차례를 뒤집는다],
         [`rng_next`], [난수를 낸다],
-        [`rotate`], [주어진 방향으로 돌린다],
         [`rotl`], [왼쪽으로 돌린다],
         [`rotr`], [오른쪽으로 돌린다],
         [`round`], [반올림 — 0 에서 먼 쪽으로],
@@ -177,7 +181,6 @@
         [`scan`], [접으며 중간값을 낸다],
         [`seg`], [조각 사슬의 한 조각],
         [`segs`], [조각 사슬의 조각들],
-        [`select`], [가림막에 따라 두 값 중 하나를 레인마다 고른다],
         [`send`], [액터에 메시지를 보낸다],
         [`sha256`], [SHA-256],
         [`sha384`], [SHA-384 — SHA-512 의 다른 시작값이고 앞 48 바이트다],
@@ -203,7 +206,6 @@
         [`take`], [앞에서 n 개],
         [`trailing_zeros`], [맨 뒤의 0 비트 수],
         [`try_view`], [`view` 와 같되 계약이 깨지면 `none` 을 낸다],
-        [`union`], [합집합],
         [`value_or`], [값이 있으면 그것, 없으면 기본값 — 기본값은 **성공 시 평가되지 아니한다**],
         [`view`], [바이트를 구조체로 본다 — 복사 없음. 정렬·길이 계약을 확인한다],
         [`view_array`], [바이트를 그 타입의 배열로 본다 — 복사 없음],
@@ -227,8 +229,8 @@
   ]
 
   #note[
-    실측(2026-08-25): 201 개 가운데 지역 이름 선언이 막히는 것은 **185 개**,
-    쓸 수 있는 것은 **16 개**다 — `borrow` · `call_builtin` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `range` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
+    실측(2026-08-25): 203 개 가운데 지역 이름 선언이 막히는 것은 **185 개**,
+    쓸 수 있는 것은 **18 개**다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `range` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 **이름 충돌 규칙을 틀리게 말하기**
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
   ]
@@ -238,14 +240,15 @@ aes_round             aes_round_last        all                   alloc_bytes
 and                   any                   arg                   atomic_add
 atomic_and            atomic_cas            atomic_fence          atomic_load
 atomic_or             atomic_store          atomic_sub            atomic_swap
-atomic_xor            avg                   bit_and               bit_cast
-bit_not               bit_or                bit_xor               bitset_new
-borrow                byte_swap             call_builtin          capacity
-cast                  ceil                  chacha20              chacha_poly
-chk_add               chk_mul               chk_sub               clmul_hi
-clmul_lo              collect               complement            config
-contains              cos                   count                 count_ones
-crc32                 cstr_of               deref                 difference
+atomic_xor            bit_and               bit_cast              bit_not
+bit_or                bit_xor               bitset_complement     bitset_contains
+bitset_difference     bitset_intersect      bitset_is_empty       bitset_is_subset
+bitset_new            bitset_remove         bitset_union          borrow
+byte_swap             call_builtin          capacity              cast
+ceil                  chacha20              chacha_poly           chk_add
+chk_mul               chk_sub               clmul_hi              clmul_lo
+collect               config                cos                   count
+count_ones            crc32                 cstr_of               deref
 dir_close             dir_make              dir_open              dir_read
 div                   div_nz                encode                enumerate
 env_get               eq                    error                 error_value
@@ -253,35 +256,34 @@ exp                   expect                field                 file_close
 file_open             file_read             file_seek             file_type
 file_write            filter                floor                 fmod
 fold                  ge                    ghash                 gt
-hash_bytes            idx                   intersect             into
-is_empty              is_error              is_none               is_ok
-is_some               is_subset             le                    leading_zeros
-len                   link_type             load                  load_masked
-log                   lt                    map                   max
-min                   mod                   mul                   mut_ref
-narrow                narrow_sat            narrow_try            narrow_wrap
-native_lanes          ne                    neg                   net_accept
-net_close             net_connect           net_listen            net_pair
-net_port              net_recv              net_resolve           net_send
-nonzero_of            not                   ok                    ok_value
-or                    panic                 path_remove           path_rename
-pipe                  poly1305              pop                   pow
-prefetch              push                  r_read                r_write
-range                 reactor_new           read_in               read_volatile
-reduce_add            reduce_max            reduce_min            reduce_mul
-ref                   region                remove                ret
-reverse               rng_next              rotate                rotl
+hash_bytes            idx                   into                  is_error
+is_none               is_ok                 is_some               lane_all
+lane_any              lane_avg              lane_reverse          lane_rotate
+lane_select           le                    leading_zeros         len
+link_type             load                  load_masked           log
+lt                    map                   max                   min
+mod                   mul                   mut_ref               narrow
+narrow_sat            narrow_try            narrow_wrap           native_lanes
+ne                    neg                   net_accept            net_close
+net_connect           net_listen            net_pair              net_port
+net_recv              net_resolve           net_send              nonzero_of
+not                   ok                    ok_value              or
+panic                 path_remove           path_rename           pipe
+poly1305              pop                   pow                   prefetch
+push                  r_read                r_write               range
+reactor_new           read_in               read_volatile         reduce_add
+reduce_max            reduce_min            reduce_mul            ref
+region                ret                   rng_next              rotl
 rotr                  round                 same_slice            sat_add
 sat_mul               sat_sub               scan                  seg
-segs                  select                send                  sha256
-sha384                sha512                shl                   shr
-sin                   size_of               skip                  some_value
-spawn                 splat                 sqrt                  stack_new
-store                 store_masked          str_from_cstr         sub
-subslice              sum_neumaier          sum_seq               swap
-take                  trailing_zeros        try_view              union
-value_or              view                  view_array            view_segments
-widen                 wrap_add              wrap_mul              wrap_shl
-wrap_shr              wrap_sub              write_out             write_volatile
-zip")
+segs                  send                  sha256                sha384
+sha512                shl                   shr                   sin
+size_of               skip                  some_value            spawn
+splat                 sqrt                  stack_new             store
+store_masked          str_from_cstr         sub                   subslice
+sum_neumaier          sum_seq               swap                  take
+trailing_zeros        try_view              value_or              view
+view_array            view_segments         widen                 wrap_add
+wrap_mul              wrap_shl              wrap_shr              wrap_sub
+write_out             write_volatile        zip")
 ]

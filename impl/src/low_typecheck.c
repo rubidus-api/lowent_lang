@@ -854,16 +854,16 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 }
             }
             if (veq(h2, "is_ok") || veq(h2, "is_error") || veq(h2, "is_some") ||
-                veq(h2, "is_none") || veq(h2, "contains")) {
+                veq(h2, "is_none") || veq(h2, "bitset_contains")) {
                 for (proven_size_t q = 1; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
                 return tk(TK_BOOL);
             }
             // ★ `any <mask>` / `all <mask>` — 마스크를 요구한다(정수도 벡터도 아니다).
-            if ((veq(h2, "any") || veq(h2, "all")) && n >= 2) {
+            if ((veq(h2, "lane_any") || veq(h2, "lane_all")) && n >= 2) {
                 ty_t m = tc_infer_run(c, k, start + 1, n - 1, env, nenv);
                 if (m.k != TK_UNKNOWN && m.k != TK_NAMED && m.k != TK_MASK)
                     tc_emit(c, "E-TYPE-MASK",
-                            "`any`/`all` need a mask (the result of a lanewise comparison) — "
+                            "`lane_any`/`lane_all` need a mask (the result of a lanewise comparison) — "
                             "this value is not a mask", k[start]->line);
                 return tk(TK_BOOL);
             }
@@ -879,20 +879,20 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 return tk(TK_UNKNOWN);
             }
             // ★ `select <mask> <a> <b>` — 첫 인자는 마스크여야 하고, 레인 수가 맞아야 한다.
-            if (veq(h2, "select") && n >= 4) {
+            if (veq(h2, "lane_select") && n >= 4) {
                 ty_t m = tc_infer(c, k[start + 1], env, nenv);
                 ty_t va = tc_infer(c, k[start + 2], env, nenv);
                 ty_t vb = tc_infer(c, k[start + 3], env, nenv);
                 if (m.k != TK_UNKNOWN && m.k != TK_NAMED && m.k != TK_MASK)
                     tc_emit(c, "E-TYPE-MASK",
-                            "`select` needs a mask as its first argument (the result of a lanewise "
+                            "`lane_select` needs a mask as its first argument (the result of a lanewise "
                             "comparison)", k[start]->line);
                 else if (m.k == TK_MASK && va.k == TK_VEC && m.lanes != va.lanes)
                     tc_emit(c, "E-TYPE-LANES",
                             "the mask and the vectors have different lane counts", k[start]->line);
                 if (va.k == TK_VEC && vb.k == TK_VEC && va.lanes != vb.lanes)
                     tc_emit(c, "E-TYPE-LANES",
-                            "`select` needs the two vectors to have the same lane count",
+                            "`lane_select` needs the two vectors to have the same lane count",
                             k[start]->line);
                 return va;
             }

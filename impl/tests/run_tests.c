@@ -1257,7 +1257,7 @@ int main(void) {
             "proc bset input a u64 . input b u64 . output u64 . effects none . do "
             "var s bitset be bitset_new 64 . . "
             "add s a . add s b . add s a . "
-            "guard contains s a . else return 99 . . "
+            "guard bitset_contains s a . else return 99 . . "
             "return count s . end "
             "fn sum_bytes input xs bytes . output u64 .  do "
             "var t u64 be 0 . "
@@ -1578,13 +1578,13 @@ int main(void) {
             "var v vec u32 4 . be load xs 0 . "
             "var lim vec u32 4 . be splat 10 . "
             "var m u64 . be gt v lim . "
-            "var cc vec u32 4 . be select m lim v . "
+            "var cc vec u32 4 . be lane_select m lim v . "
             "return reduce_add cc . end "
             "fn over input b bytes . output u64 .  do "
             "var xs u64 . be view_array u32 b . "
             "var v vec u32 4 . be load xs 0 . "
             "var lim vec u32 4 . be splat 10 . "
-            "return any gt v lim . . end";
+            "return lane_any gt v lim . . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
         low_ir_t ir = low_ir_build(heap, &p);
@@ -2245,7 +2245,7 @@ int main(void) {
     // 그래서 select 에 아무거나 넘겨도·any 에 정수를 넘겨도 통과했다.
     check(TYCK("def type bytes slice u8 . . "
                "fn f input b bytes . output bool .  do "
-               "  var n u64 be 5 . return any n . end") == false,
+               "  var n u64 be 5 . return lane_any n . end") == false,
           "mask: ★ `any` on an integer → E-TYPE-MASK (a mask is the result of a lanewise compare, "
           "not a number)");
     // ★ 2026-07-24: `var xs u64 . be view_array u32 b .` 였다 — 초기식은 **슬라이스**인데 선언은
@@ -2256,7 +2256,7 @@ int main(void) {
                "  var v vec u32 4 . be load xs 0 . "
                "  var lim vec u32 4 . be splat 10 . "
                "  var m mask 4 . be gt v lim . "
-               "  return any m . end") == true,
+               "  return lane_any m . end") == true,
           "mask: a real `mask 4` from a lanewise compare passes (and vm_vec now declares it that "
           "way — it used to say `u64`)");
     // ★ 여기도 `xs` 를 고친다 — 안 고치면 E-TYPE-VAR 로 거부돼 **정작 재려던 E-TYPE-MASK 를
@@ -2266,7 +2266,7 @@ int main(void) {
                "  var xs slice u32 . be view_array u32 b . "
                "  var v vec u32 4 . be load xs 0 . "
                "  var lim vec u32 4 . be splat 10 . "
-               "  var cc vec u32 4 . be select v lim v . "
+               "  var cc vec u32 4 . be lane_select v lim v . "
                "  return reduce_add cc . end") == false,
           "mask: ★ `select` whose first argument is a VECTOR, not a mask → E-TYPE-MASK");
 

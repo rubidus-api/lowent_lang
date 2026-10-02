@@ -15,5 +15,5 @@ do
   var xs be slice u32 view_array u32 b .
   var v be vec u32 4 load xs 0 .
   var over be mask 4 gt v lit vec u32 4 5 5 5 5 . .
-  return reduce_add (select over lit vec u32 4 5 5 5 5 . v) .
+  return reduce_add (lane_select over lit vec u32 4 5 5 5 5 . v) .
 end

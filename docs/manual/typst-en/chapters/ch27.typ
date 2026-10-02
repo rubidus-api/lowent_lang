@@ -177,11 +177,11 @@ lanes at once or one by one, the answer is the same (canon 6.2.11).
 - `splat 5` fills every lane with 5. The lane count comes from the type of the name it is stored in (`vec u32 4`).
 - A different value per lane is written directly: `lit vec u32 4 1 10 100 1000 .`. The literal carries its own type, so it can sit in
   the middle of an expression, and it must match the type of the name it is stored in exactly, lanes and element kind (`E-TYPE-LANES`).
-- Comparing `vec`s, as in `gt v lim`, gives a *mask* `mask 4` holding true or false per lane. `select over lim v` picks `lim` in lanes where
+- Comparing `vec`s, as in `gt v lim`, gives a *mask* `mask 4` holding true or false per lane. `lane_select over lim v` picks `lim` in lanes where
   the mask is on and `v` where it is off. Choosing per lane without a branch (`if`) lets the machine do it in one instruction.
 - `reduce_add`, `reduce_max`, `reduce_min` and `reduce_mul` gather the lanes into one. Pressing `[1,9,3,7]` down to 5 gives `[1,5,3,5]`, whose
   sum is 14.
-- `reverse` reverses the order of the lanes, and `rotate r 1` rotates them by one. `[7,3,9,1]` rotated, `[3,9,1,7]`, was written to memory.
+- `lane_reverse` reverses the order of the lanes, and `lane_rotate r 1` rotates them by one. `[7,3,9,1]` rotated, `[3,9,1,7]`, was written to memory.
 - `native_lanes u32` gives, *at translation time*, how many `u32` lanes this machine handles at once. Choosing that lane count only computes
   more at once; the answer is the same.
 
@@ -201,12 +201,12 @@ four slots remain at the end of a slice.
   caption: [Builtin ops for lanes and arrays],
   [*Op*], [*What it does*], [*Note*],
   [`load` · `store` · `load_masked` · `store_masked`], [read and write between memory and lanes], [masked forms touch only lanes that are on],
-  [`splat` · `select`], [one value into every lane · choose per lane by mask], [`splat` needs a type context (below)],
+  [`splat` · `lane_select`], [one value into every lane · choose per lane by mask], [`splat` needs a type context (below)],
   [`reduce_add` · `reduce_max` · `reduce_min` · `reduce_mul`], [gather the lanes into one], [the result has the element type],
-  [`reverse` · `rotate`], [reverse · rotate the lanes], [the count is a translation-time constant],
+  [`lane_reverse` · `lane_rotate`], [reverse · rotate the lanes], [the count is a translation-time constant],
   [`native_lanes`], [this machine's lane count (translation time)], [does not change answers],
   [`sum_neumaier` · `sum_seq`], [add up a float slice seen through `view_array`], [not lane ops --- the name says how they add (compensated · front to back)],
-  [`avg`], [rounding average per lane], [its value is fixed at `(a+b+1)>>1` — the sum is widened so a lane cannot overflow],
+  [`lane_avg`], [rounding average per lane], [its value is fixed at `(a+b+1)>>1` — the sum is widened so a lane cannot overflow],
   [`prefetch xs i`], [pull a place about to be used into cache], [a performance hint that does not change meaning],
 )
 

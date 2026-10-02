@@ -179,7 +179,7 @@ The only difference between the two is who holds the cursor. If the same origina
 - **`find` is a naive search.** Its cost is O(`len hay` × `len needle`). Account for it where very long strings are scanned repeatedly.
 - **Cursor version and actor version.** `split_next` shares no state, so several cursors may read at once. `str_splitter` holds state, so whoever spawned it is responsible until it is exhausted.
 - **There is no direct path to a null-terminated string.** A view cannot promise a trailing 0 byte. Go through `as_cstr` of [`strbuf`](sec60.md#mod-strbuf).
-- **Names clashing with builtins.** `eq` and `contains` are builtins, so this module named its ops `eq_str` and `has_byte`. Avoid builtin names for your own variables too.
+- **Names clashing with builtins.** `eq` is a builtin, so this module named its op `eq_str`. `has_byte` was named while the bitset `contains` was a builtin (it is `bitset_contains` now). Avoid builtin names for your own variables too.
 
 ---
 

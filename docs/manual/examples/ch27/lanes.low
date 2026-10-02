@@ -12,7 +12,7 @@ do
   var v be vec u32 4 load xs 0 .
   var lim be vec u32 4 splat 5 .
   var over be mask 4 gt v lim .
-  var capped be vec u32 4 select over lim v .
+  var capped be vec u32 4 lane_select over lim v .
   return reduce_add capped .
 end
 
@@ -33,8 +33,8 @@ do
   var xs be slice u32 view_array u32 b .
   var ys be mut slice u32 view_array u32 out .
   var v be vec u32 4 load xs 0 .
-  var r be vec u32 4 reverse v .
-  var t be vec u32 4 rotate r 1 .
+  var r be vec u32 4 lane_reverse v .
+  var t be vec u32 4 lane_rotate r 1 .
   store ys 0 t .
   return reduce_add t .
 end

@@ -26,13 +26,13 @@ end
 rem contains 도 폭까지 — 폭 밖(20) 질의는 트랩.
 fn w8_contains_oob output u64 . do
   var a be bitset 8 bitset_new 8 .
-  return narrow u64 (contains a 20) .
+  return narrow u64 (bitset_contains a 20) .
 end
 
 rem remove 도 대칭 — 폭 밖(20) 제거는 트랩.
 fn w8_remove_oob output u64 . do
   var a be bitset 8 bitset_new 8 .
-  remove a 20 .
+  bitset_remove a 20 .
   return count a .
 end
 
@@ -40,7 +40,7 @@ rem 정상 경로: 폭 8 안에서 3 을 넣고 질의 → 1.
 fn w8_within output u64 . do
   var a be bitset 8 bitset_new 8 .
   add a 3 .
-  return narrow u64 (contains a 3) .
+  return narrow u64 (bitset_contains a 3) .
 end
 
 rem ★ **비트셋 파라미터도 선언 폭을 실어야** — 지역만 실으면 파라미터에 add/contains 가 64 로

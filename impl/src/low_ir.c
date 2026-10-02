@@ -4254,7 +4254,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                             "this is not a computation leaf. The names that stand after `call_builtin` "
                             "are a closed set (clmul_lo, clmul_hi, aes_round, aes_round_last, aes_ctr, "
                             "ghash, chacha20, poly1305, aes_gcm, sha256, sha384, sha512, crc32, "
-                            "hash_bytes, rng_next).", nd->line);
+                            "hash_bytes, rng_next, chacha_poly — and the host leaves file_*, dir_*, path_remove, path_rename, link_type, net_*).", nd->line);
                     return;
                 }
                 (*pos)++;

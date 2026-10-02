@@ -69,11 +69,12 @@
 | 계약과 오류 — 14장 | `range` `ret` `expect` `panic` |
 | 계산 잎 — `call_builtin` 뒤에서만 선다 | `clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
 | C 문자열 — 29장 | `cstr_of` `str_from_cstr` |
-| 호스트 잎 — 32장 | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` `env_get` `reactor_new` `r_read` `r_write` |
+| 파일·그물 잎 — `call_builtin` 뒤에서만 선다 | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` |
+| 호스트 잎 — 32장 | `env_get` `reactor_new` `r_read` `r_write` |
 
 *표 50.3 — 내장 연산의 갈래*
 
-★ **계산 잎 열다섯은 전역 어휘가 아니다.** `call_builtin sha256 msg out` 처럼 그 자리에서만 선다 — 맨몸으로 부르면 `E-BUILTIN-BARE`, 모르는 이름을 대면 `E-BUILTIN-NAME` 이다. 까닭은 하나다: 프로그램이 한 번 쓰는 낱말로 전역 어휘가 늘면 읽는 사람이 외울 것이 는다. 같은 규율이 `pipe` 안의 단계 이름과 `cast u8 x` 의 타입 자리에도 이미 있다.
+★ **계산 잎과 파일·그물 잎은 전역 어휘가 아니다.** `call_builtin sha256 msg out` 처럼 그 자리에서만 선다 — 맨몸으로 부르면 `E-BUILTIN-BARE`, 모르는 이름을 대면 `E-BUILTIN-NAME` 이다. 까닭은 하나다: 프로그램이 한 번 쓰는 낱말로 전역 어휘가 늘면 읽는 사람이 외울 것이 는다. 같은 규율이 `pipe` 안의 단계 이름과 `cast u8 x` 의 타입 자리에도 이미 있다.
 
 이 표는 정본의 내장 연산을 빠짐없이 무리로 나눈 것이다. 무리 이름 옆의 장이 그 무리를 예제와 함께 설명한다. 한 줄씩의 뜻은 저장소의 `docs/spec/BUILTIN-MEANINGS.tsv` 가 정본이다.
 

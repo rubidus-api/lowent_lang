@@ -237,6 +237,16 @@
 #define LOW_SPECIAL(X)                                                         \
     X(spawn)  X(send)  X(expect)  X(arg)  X(env_get)  X(write_out)  X(alloc_bytes)         \
     X(read_in)  X(reactor_new)  X(r_read)  X(r_write)                        \
+    LOW_CALL_HOST(X)
+
+// ★★★★★ **권한 잎도 `call_builtin` 뒤에서만 선다** (RFC-0127 ⓒ, 2026-10-02 · 소유자 «ⓐⓑⓒ 까지 진행»).
+//   RFC-0125 는 «권한 잎은 매일 쓴다» 며 이들을 전역에 두었는데, 재 보니 `lib/file.low`·`lib/net.low` 의 감싸개와
+//   시험 한 파일만 부른다(28 자리). 그래서 계산 잎과 같은 자리에 가둔다: `call_builtin net_send k fd b`.
+//   ★ 계산 잎과 달리 이들은 IR 표(`LOW_BUILTINS`)가 아니라 특수형이다 — 검사기·타입·하강이 머리 이름으로 읽는다.
+//     그래서 하강에서 이름을 풀지 않고, **파스 직후 한 번** `call_builtin` 을 벗긴다(`low_call_host_strip`, low_using.c).
+//     뒤의 소비자는 옛 나무를 그대로 받으므로 한 줄도 안 바뀐다(방출 C 바이트 동일로 확인). 맨몸은 `E-BUILTIN-BARE`.
+//   ★ 이름은 여전히 예약이다(E-NAME-BUILTIN) — RFC-0125 의 계산 잎과 같다.
+#define LOW_CALL_HOST(X)                                                       \
     X(file_open)  X(file_read)  X(file_write)  X(file_close)  X(file_seek)         \
     X(dir_open)  X(dir_read)  X(dir_close)  X(file_type)  X(link_type)          \
     X(dir_make)  X(path_remove)  X(path_rename)         \

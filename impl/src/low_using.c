@@ -29,6 +29,7 @@
 #include "low_cst_priv.h"
 #include "low_cst.h"
 #include "low_ir.h"
+#include "low_arity.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1301,6 +1302,54 @@ static void dr_walk(us_ctx_t *c, const low_cst_t *nd) {
         if (msg) low_pdiag(&c->p, "E-VOCAB-REMOVED", msg, nd->kids[0]->tok.line, nd->kids[0]->tok.col);
     }
     for (proven_size_t i = 0; i < nd->nkids; i++) dr_walk(c, nd->kids[i]);
+}
+// ★★★★★ RFC-0127 ⓒ — 권한 잎(`file_*`·`dir_*`·`path_*`·`link_type`·`net_*`)은 `call_builtin <이름> …` 뒤에서만 선다.
+//   검사기·타입·하강이 이 잎들을 **머리 이름**으로 알아보므로, 여기서 `call_builtin` 원자를 한 번 벗겨 옛 나무를 넘긴다
+//   (계산 잎은 하강이 이름을 푼다 — 그쪽은 IR 표에 있어 그럴 수 있다). 맨몸으로 온 이름은 `E-BUILTIN-BARE`.
+//   묶기(`low_nest`) 앞이라 `--flat` 과 나무 모드가 같은 나무를 받는다. `--fmt` 은 이 길을 안 지나므로 원문을 그대로 찍는다.
+static bool ch_host(const low_cst_t *n) {
+    if (!us_atom(n) || n->tok.kind != LOW_TOK_IDENT) return false;
+#define X(w) if (us_eq(n->tok.lex, #w)) return true;
+    LOW_CALL_HOST(X)
+#undef X
+    return false;
+}
+static void ch_walk(us_ctx_t *c, low_cst_t *nd) {
+    if (!nd || nd->kind == LOW_CST_ATOM) return;
+    proven_size_t drop = 0;
+    for (proven_size_t i = 0; i < nd->nkids; i++) {
+        const low_cst_t *k = nd->kids[i];
+        if (!ch_host(k)) continue;
+        const low_cst_t *pv = i ? nd->kids[i - 1] : NULL;
+        if (pv && us_atom(pv) && us_eq(pv->tok.lex, "call_builtin")) { drop++; continue; }
+        if (pv && us_atom(pv) && (pv->tok.kw == LOW_KW_FN || pv->tok.kw == LOW_KW_PROC)) continue;   // 선언 이름은 E-NAME-BUILTIN 몫
+        low_pdiag(&c->p, "E-BUILTIN-BARE",
+                  "this host leaf stands only after `call_builtin` — write `call_builtin <name> <cap> …` "
+                  "(RFC-0127). The file and network leaves are called from a few wrappers (`lib/file.low`, "
+                  "`lib/net.low`), so their names are scoped to that position instead of the global vocabulary",
+                  k->tok.line, k->tok.col);
+    }
+    if (drop) {
+        low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * nd->nkids, alignof(low_cst_t *)).value.ptr;
+        if (nk) {
+            proven_size_t m = 0;
+            for (proven_size_t i = 0; i < nd->nkids; i++) {
+                if (i + 1 < nd->nkids && ch_host(nd->kids[i + 1]) && us_atom(nd->kids[i]) && us_eq(nd->kids[i]->tok.lex, "call_builtin"))
+                    continue;
+                nk[m++] = nd->kids[i];
+            }
+            (void)low_refit(&c->p, nd, nk, m);
+            if (nd->kind == LOW_CST_FORM && m) nd->tok = nd->kids[0]->tok;   // 머리 토큰도 옛 나무와 같게
+        }
+    }
+    for (proven_size_t i = 0; i < nd->nkids; i++) ch_walk(c, nd->kids[i]);
+}
+void low_call_host_strip(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
+    us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;
+    if (!c) return;
+    memset(c, 0, sizeof *c);
+    c->p = (low_parser_t){ .node_alloc = node_alloc, .work = work, .out = pr };
+    for (proven_size_t i = 0; i < pr->nforms; i++) ch_walk(c, pr->forms[i]);
 }
 void low_def_require(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_allocator_t work) {
     us_ctx_t *c = (us_ctx_t *)work.alloc_fn(work.ctx, sizeof(us_ctx_t), alignof(us_ctx_t)).value.ptr;

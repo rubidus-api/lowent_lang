@@ -38,7 +38,7 @@ def newtype kv_bench_rec u8 .
 def newtype kv_bench_keys u8 .
 
 rem ── ① budget — 핸들 한 낱말에 slot·shard·gen 이 들어가는가 ────────────
-proc handles output u64 . effects none . do
+fn handles output u64 . do
   let p be budget.plan budget.default64 .
   guard eq (field p slot_bits) 32 . else return 91 .
   let ho be option u64 budget.pack 32 8 24 7 1 3 .
@@ -84,7 +84,7 @@ proc lru input nx mut slice u64 . . input pv mut slice u64 . . output u64 . effe
 end
 
 rem ── ④ pagecache — 색인 페이지: 읽는 동안 고정하고, 놓은 뒤에야 축출된다 ────
-proc index_read output u64 . effects none . do
+fn index_read output u64 . do
   var c be (owned pagecache.cache kv_page) pagecache.open kv_page 16 .
   var pin be (pagecache.pin kv_page) pagecache.acquire kv_page c 42 .
   guard eq (pagecache.depth_of kv_page pin) 1 . else return 91 .
@@ -93,7 +93,7 @@ proc index_read output u64 . effects none . do
   guard eq (pagecache.depth2_of kv_page pin2) 2 . else return 92 .
   var back be (owned pagecache.pin kv_page) pagecache.release_more kv_page pin2 .
   var c2 be (owned pagecache.cache kv_page) pagecache.release kv_page back .
-  var c3 be (owned pagecache.cache kv_page) pagecache.evict kv_page c2 .
+  let c3 be (owned pagecache.cache kv_page) pagecache.evict kv_page c2 .
   guard eq (pagecache.epoch_of kv_page c3) 1 . else return 93 .
   return 4 .
 end
@@ -143,7 +143,7 @@ end
 rem ── ⑦ shard — 두 일꾼이 겹치지 않는 키 구역을 쓴다(락·원자 없음) ────────
 proc workers input mem mut slice u64 . . output u64 . effects none . do
   var r be (owned shard.token kv_keys) shard.open kv_keys 8 .
-  var h be (shard.halves kv_keys) shard.split_at kv_keys r 4 .
+  let h be (shard.halves kv_keys) shard.split_at kv_keys r 4 .
   let lo be (shard.token kv_keys) (field h low) .
   let hi be (shard.token kv_keys) (field h high) .
   guard shard.write kv_keys lo mem 0 100 . else return 91 .

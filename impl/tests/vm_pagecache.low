@@ -12,7 +12,7 @@ def newtype db2 u8 .
 def newtype db3 u8 .
 
 rem ★ 놓은 뒤에는 축출이 된다 — 그리고 epoch 가 오른다.
-proc release_then_evict output u64 . effects none . do
+fn release_then_evict output u64 . do
   var c be (owned pagecache.cache db) pagecache.open db 16 .
   var p be (pagecache.pin db) pagecache.acquire db c 42 .
   guard eq (pagecache.depth_of db p) 1 . else return 91 .
@@ -22,13 +22,13 @@ proc release_then_evict output u64 . effects none . do
   guard eq (pagecache.epoch_of db c3) 1 . else return 92 .
 
   rem 비우면 또 오른다 — 옛 자리를 가리키던 것은 전부 낡는다
-  var c4 be (owned pagecache.cache db) pagecache.reset db c3 .
+  let c4 be (owned pagecache.cache db) pagecache.reset db c3 .
   guard eq (pagecache.epoch_of db c4) 2 . else return 93 .
   return 1 .
 end
 
 rem ★★ **겹치면 LIFO 다** — 바깥을 놓아야 안쪽에 닿는다. 깊이가 타입에 보인다.
-proc stack_is_lifo output u64 . effects none . do
+fn stack_is_lifo output u64 . do
   var c be (owned pagecache.cache db2) pagecache.open db2 16 .
   var a be (pagecache.pin db2) pagecache.acquire db2 c 7 .
   var b be (pagecache.pin2 db2) pagecache.acquire_more db2 a 9 .
@@ -37,13 +37,13 @@ proc stack_is_lifo output u64 . effects none . do
   rem 바깥을 먼저 놓는다 — 다른 길이 없다
   var back be (owned pagecache.pin db2) pagecache.release_more db2 b .
   guard eq (pagecache.depth_of db2 back) 1 . else return 92 .
-  var c2 be (owned pagecache.cache db2) pagecache.release db2 back .
+  let c2 be (owned pagecache.cache db2) pagecache.release db2 back .
   guard eq (pagecache.epoch_of db2 c2) 0 . else return 93 .
   return 2 .
 end
 
 rem ★★★ **상한이 시험에 드러난다** — 이 기계의 캐시라인이 정한다.
-proc limit_shows output u64 . effects none . do
+fn limit_shows output u64 . do
   let lim be u64 pagecache.pin_limit .
   rem 한 캐시라인에 8 바이트 짜리가 몇 개 들어가나 — x86_64·arm64 는 8
   guard ge lim 1 . else return 91 .
@@ -58,12 +58,12 @@ fn within_ok input lim u64 . output bool . do
 end
 
 rem ★ **id 는 이동을 견딘다** — 자리는 epoch 로 바뀌지만 id 는 그대로다.
-proc id_survives_move output u64 . effects none . do
+fn id_survives_move output u64 . do
   var c be (owned pagecache.cache db3) pagecache.open db3 16 .
   let bo be option u64 pagecache.slot_of db3 c 42 .
   guard is_some bo . else return 90 .
   let before be u64 some_value bo .
-  var c2 be (owned pagecache.cache db3) pagecache.evict db3 c .
+  let c2 be (owned pagecache.cache db3) pagecache.evict db3 c .
   let ao be option u64 pagecache.slot_of db3 c2 42 .
   guard is_some ao . else return 90 .
   let after be u64 some_value ao .

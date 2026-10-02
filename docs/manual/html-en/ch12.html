@@ -712,7 +712,7 @@ use_bump(7) = 16
 </code></pre></div></div><ul><li><code>total</code> borrows the four-field <code>big</code> with <code>ref big</code> to read it without copying. <code>field v a</code> reads a field through the reference.</li><li><code>use_sum</code> borrows the same value twice with <code>ref v</code>. Read borrows may be many.</li><li><code>bump</code> takes a <code>mut_ref u64</code> and changes the caller’s value with <code>set p …</code>. The value a reference points to is read with <code>deref p</code>.</li><li><code>use_bump</code> lends <code>var n</code> as <code>mut_ref n</code>. After <code>bump</code> returns, <code>n</code> is 8.</li></ul><p>What matters is that the borrower <strong>writes <code>ref x</code> or <code>mut_ref n</code> at the call site</strong>. Someone reading the call sees from that place alone that this call can change <code>n</code>.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> How do you make a null reference?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> You cannot. A reference always points to a live value. To express “points to nothing”, use an <code>option</code> (chapter 11). Then the code that checks before taking out shows in the source, and taking out without checking stops.</p></div></div><h3 id="s12-2">12.2 Write permission only narrows<a class="plink" href="#s12-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Writing through a read borrow is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/ref_write.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ref_write .
 <em><span class="tok-c">rem expect: E-TYPE-REF</span></em>
 
-<strong><span class="tok-k">proc</span></strong> reset <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">fn</span></strong> reset <strong><span class="tok-k">input</span></strong> p <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">set</span></strong> p <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
@@ -739,7 +739,7 @@ ref_write.low:6:0 E-TYPE-REF: write through a shared ref (declare mut_ref)
 </code></pre></div></div><p>The body of <code>set_both</code> believes <code>a</code> and <code>b</code> are different values. Lending the same <code>n</code> twice breaks that belief, and whether 1 or 2 remains depends on the order of writes. Overlapping read and write is rejected too.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/stale.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> stale .
 <em><span class="tok-c">rem expect: E-EXCL</span></em>
 
-<strong><span class="tok-k">proc</span></strong> look_then_write <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">fn</span></strong> look_then_write <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">ref</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">ref</span></strong> n .
@@ -852,8 +852,7 @@ mistake_letmutref.low:15:0 E-TYPE-ARGMUT: a WRITE borrow (`mut_ref`) was taken o
 </code></pre></div></div><p><code>let</code> promises “the value of this name does not change”. Lending such a name with <code>mut_ref</code> breaks that promise, so it is refused with <code>E-TYPE-ARGMUT</code>. A borrow changes the value invisibly at the call site, which is exactly what would cost <code>let</code> its worth: that checking the name once is enough. Make a value that must change a <code>var</code> from the start, so the reader learns from the declaration that it changes somewhere.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>A variable passed as <code>input</code> can be changed by the op it is passed to</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch12/copyparam.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> copyparam .
 <em><span class="tok-c">rem run: use_inc 7</span></em>
 
-<strong><span class="tok-k">proc</span></strong> inc <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">fn</span></strong> inc <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt x <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem `x` is a copy of the caller's value --- nothing done here reaches the caller's variable</span></em>
@@ -862,11 +861,10 @@ mistake_letmutref.low:15:0 E-TYPE-ARGMUT: a WRITE borrow (`mut_ref`) was taken o
   <strong><span class="tok-k">return</span></strong> y .
 <strong><span class="tok-k">end</span></strong>
 
-<strong><span class="tok-k">proc</span></strong> use_inc <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
-  <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">fn</span></strong> use_inc <strong><span class="tok-k">input</span></strong> start <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
   <strong><span class="tok-k">requires</span></strong> lt start <span class="tok-n">1000</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> start .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> start .
   <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> inc n .
   <em><span class="tok-c">rem `n` is still 7 --- lend it with `mut_ref n` to let it change</span></em>
   <strong><span class="tok-k">return</span></strong> n .

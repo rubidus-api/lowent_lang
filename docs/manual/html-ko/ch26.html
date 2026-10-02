@@ -678,8 +678,8 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">var</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
-    <strong><span class="tok-k">var</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">6</span> .
+    <strong><span class="tok-k">let</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
+    <strong><span class="tok-k">let</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">6</span> .
     <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
     <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
     <strong><span class="tok-k">set</span></strong> r (add a b) .
@@ -721,7 +721,7 @@ $ lowentc --test await.low
 
 <strong><span class="tok-k">proc</span></strong> loose <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
+  <strong><span class="tok-k">let</span></strong> h <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> square <span class="tok-n">5</span> .
   <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">await</span></strong> h .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check scope.low
@@ -909,8 +909,8 @@ deadlock.low:12:0 E-CONC-DEADLOCK: this `task_group`'s tasks wait to RECEIVE (`c
   <em><span class="tok-c">rem 버퍼를 겹치지 않는 두 조각으로 나눠 태스크마다 하나씩 준다</span></em>
   <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">var</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> user (subslice buf <span class="tok-n">0</span> <span class="tok-n">8</span>) .
-    <strong><span class="tok-k">var</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> user (subslice buf <span class="tok-n">8</span> <span class="tok-n">16</span>) .
+    <strong><span class="tok-k">let</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> user (subslice buf <span class="tok-n">0</span> <span class="tok-n">8</span>) .
+    <strong><span class="tok-k">let</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> user (subslice buf <span class="tok-n">8</span> <span class="tok-n">16</span>) .
     <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
     <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
     <strong><span class="tok-k">set</span></strong> r (add a b) .
@@ -984,8 +984,8 @@ lock.low:5:0 W-NOT-YET: this type NAME is accepted but carries NO MEANING yet: l
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
   <strong><span class="tok-k">task_group</span></strong> <strong><span class="tok-k">do</span></strong>
-    <strong><span class="tok-k">var</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> one .
-    <strong><span class="tok-k">var</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> one .
+    <strong><span class="tok-k">let</span></strong> h1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> one .
+    <strong><span class="tok-k">let</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">spawn</span></strong> one .
     <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h1 .
     <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">await</span></strong> h2 .
     <strong><span class="tok-k">set</span></strong> n (add a b) .

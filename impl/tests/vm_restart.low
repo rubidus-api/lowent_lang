@@ -26,7 +26,7 @@ end
 rem 첫 step 은 OK(bad→1). 둘째 step 은 panic(bad=1) → 슈퍼바이저가 bad→0 초기화 → 재시도 → 42.
 proc recover output u64 . effects state . do
   var c be recov spawn actor recov . .
-  var x be u64 send c step .
+  let x be u64 send c step .
   return send c step .
 end
 

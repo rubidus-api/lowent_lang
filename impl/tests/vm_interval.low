@@ -18,7 +18,7 @@ do return narrow u8 x . end
 
 rem ⑤ narrow_try: 실패를 값으로
 fn ntry input x u32 . output u64 . do
-  var r be u64 narrow_try u8 x .
+  let r be u64 narrow_try u8 x .
   guard is_some r . else return 999 . .
   return some_value r .
 end

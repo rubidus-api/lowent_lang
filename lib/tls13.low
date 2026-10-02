@@ -105,7 +105,7 @@ export proc advance input prev slice u8 . input ikm slice u8 . input empty_hash 
 errors short_workspace . do
   rem "derived" — 일곱 바이트.
   guard ge (len scratch) 512 . else return error short_workspace .
-  var lbl be u64 0 .
+  let lbl be u64 0 .
   set (idx scratch 400) 100 .
   set (idx scratch 401) 101 .
   set (idx scratch 402) 114 .

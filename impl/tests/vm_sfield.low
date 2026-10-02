@@ -30,7 +30,7 @@ do
   guard ge (len s) 2 . else return 0 .
   set (idx s 0) 11 .
   set (idx s 1) 22 .
-  var h be lit holder do xs s . n 2 . end .
+  let h be lit holder do xs s . n 2 . end .
   let v be mut slice u64 field h xs .
   return add (idx v 0) (add (idx v 1) (field h n)) .   rem 11 + 22 + 2 = 35
 end
@@ -39,7 +39,7 @@ rem ★★ 그리고 **필드를 통해 쓴다** — 꺼낸 것이 복사가 아
 proc writes_through input s mut slice u64 . . output u64 . effects none .
 do
   guard ge (len s) 1 . else return 0 .
-  var h be lit holder do xs s . n 0 . end .
+  let h be lit holder do xs s . n 0 . end .
   let v be mut slice u64 field h xs .
   set (idx v 0) 99 .
   return idx s 0 .                                       rem 99 — 원본이 바뀌었다
@@ -57,7 +57,7 @@ def struct pset do
 end
 
 rem ★ n 을 **가장 짧은 배열에 맞춰 줄인다** — 받아들인 입력은 전부 다룬다.
-proc step_bundled input p pset . input n u64 . output u64 . effects none .
+fn step_bundled input p pset . input n u64 . output u64 .
 do
   let xs be mut slice u64 field p xs .
   let vxs be slice u64 field p vxs .
@@ -80,7 +80,7 @@ do
   guard ge (len c) 1 . else return 0 .
   set (idx a 0) 1 .
   set (idx c 0) 10 .
-  var p be lit pset do xs a . ys b . vxs c . vys d . end .
+  let p be lit pset do xs a . ys b . vxs c . vys d . end .
   let m be u64 step_bundled p 1 .
   guard eq m 1 . else return 90 .
   return idx a 0 .                                       rem 1 + 10 = 11
@@ -91,8 +91,8 @@ def struct maybe_n do
   v option u64 .
 end
 
-proc holds_option output u64 . effects none . do
-  var m be lit maybe_n do v (some 7) . end .
+fn holds_option output u64 . do
+  let m be lit maybe_n do v (some 7) . end .
   let o be option u64 field m v .
   guard is_some o . else return 90 .
   return some_value o .                                    rem 7

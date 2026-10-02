@@ -9,7 +9,7 @@ use shard .
 def newtype roleset u32 .
 
 rem ✗ 여기가 거절돼야 한다.
-proc reuse_role output u64 . effects none . do
+fn reuse_role output u64 . do
   var root be (owned shard.token roleset) shard.open roleset 2 .
   let hs be (shard.halves roleset) shard.split_at roleset root 1 .
   var r0 be (owned shard.token roleset) field hs low .

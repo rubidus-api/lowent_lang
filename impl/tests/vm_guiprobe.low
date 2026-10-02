@@ -307,9 +307,9 @@ do
   let ai be u64 some_value (resolve g_self hot gen meta a) .
   let bi be u64 some_value (resolve g_self hot gen meta nb) .
   rem 경로를 frame scratch 에 복사한다(§5.7): target 에서 root 까지.
-  var route0 be u64 bi .
-  var route1 be u64 ai .
-  var route2 be u64 ri .
+  let route0 be u64 bi .
+  let route1 be u64 ai .
+  let route2 be u64 ri .
   var visited be u64 0 .
   var queued be u64 0 .                                     rem 「명령 큐」— 요청은 값이다
   var i be u64 0 .

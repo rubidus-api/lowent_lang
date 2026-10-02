@@ -19,7 +19,7 @@ end
 
 rem 소비자: 하나 받고 **카운터를 올린다**(완료를 셀 수 있게). 받기 전까지 chrecv 로 막힌다.
 proc cons input c u64 . input k counter . output u64 . effects state concurrent . do
-  var x be u64 chrecv c .
+  let x be u64 chrecv c .
   spawn send k inc .
   return x .
 end
@@ -37,12 +37,12 @@ proc grew output u64 . effects state . do
   task_group do
     var i be u64 0 .
     while lt i 40 . do
-      var h be u64 spawn cons c k .
+      let h be u64 spawn cons c k .
       set i (add i 1) .
     end
     var j be u64 0 .
     while lt j 40 . do
-      var p be u64 spawn prod c .
+      let p be u64 spawn prod c .
       set j (add j 1) .
     end
   end

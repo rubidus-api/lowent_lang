@@ -42,7 +42,8 @@ op 본문에서 값을 담아 두는 이름이 *지역*이다. 두 가지뿐이�
 #demo("examples/ch06/sumto.low")
 
 `total` 과 `i` 는 반복하며 바뀌므로 `var` 다. 바뀔 값만 `var` 로 짓고, 나머지는 `let` 으로 짓는 것이
-기본이다. `let` 에 `set` 을 하면 거절된다.
+기본이다. `let` 에 `set` 을 하면 거절된다. 거꾸로 한 번도 안 바뀌는 `var` 는 처리기가 `W-VAR-NEVER-SET` 으로
+알려 준다 --- `let` 으로 적으라는 뜻이다(RFC-0113 O4).
 
 #demo("examples/ch06/immutable.low")
 

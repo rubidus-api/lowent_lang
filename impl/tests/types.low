@@ -2,7 +2,7 @@ fn good .
   input x u32 . input y u32 .
   output u32 .
 do
-  var z be u32 add x y .
+  let z be u32 add x y .
   return z .
 end
 

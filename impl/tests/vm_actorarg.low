@@ -13,7 +13,7 @@ end
 
 rem 액터 인스턴스를 인자로 받아 send 로 변형한다 — 자신에는 FSTORE 가 없다.
 proc bump input x rec . output u64 . effects state . do return send x put 7 . end
-proc noop output u64 . effects none . do return 0 . end
+fn noop output u64 . do return 0 . end
 
 rem 직접 호출 경로 — 동시성 없이도 재현된다.
 proc drive output u64 . effects state . do

@@ -2,7 +2,7 @@
 
 호출자가 준 region 의 스택으로 토큰 slice 를 평가한다. **region·stack·EXCL·계약·result·전파**를 자연스럽게 사용하는 적정 규모 모듈. (MVP 문법)
 
-```
+```lowent
 module rpn .
 
 rem 정수 RPN(역폴란드) 계산기.

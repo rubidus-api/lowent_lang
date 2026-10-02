@@ -33,6 +33,6 @@ end
 rem 재진입 깊이를 인자로 받아 바운드의 경계를 양쪽에서 친다(계약 오라클과 같은 정신).
 proc drive input n u64 . output u64 . effects state . do
   var c be pinger spawn actor pinger . .
-  var x be u64 send c setme c .
+  let x be u64 send c setme c .
   return send c go n .
 end

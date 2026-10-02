@@ -32,7 +32,7 @@ end
 
 rem take 가 무한을 끝낸다 → [1,2,3,4]
 proc first4 input out mut slice u8 . output u64 . effects state . do
-  var it be counter spawn actor counter .
+  let it be counter spawn actor counter .
   pipe it do
     take 4 .
     collect into out .
@@ -42,8 +42,8 @@ end
 
 rem any 도 단락이라 무한을 끝낸다 — 첫 참(>3, 즉 4)에서 멈춘다.
 proc found input dummy u64 . output u64 . effects state . do
-  var it be counter spawn actor counter .
-  var t be bool pipe it do
+  let it be counter spawn actor counter .
+  let t be bool pipe it do
     any over3 .
   end .
   if t . do return 1 . end

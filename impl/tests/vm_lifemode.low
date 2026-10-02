@@ -93,7 +93,7 @@ export fn finish input t owned vm_lifemode.ticket . output result u64 vm_lifemod
   return ok (field t id) .
 end
 
-proc once output u64 . effects none . do
+fn once output u64 . do
   var t be owned vm_lifemode.ticket vm_lifemode.issue 7 .
   let r be result u64 vm_lifemode.late vm_lifemode.finish t .
   guard is_ok r . else return 0 .

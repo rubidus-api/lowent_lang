@@ -841,6 +841,7 @@ absorbs: 1 op(s) stop `unsafe` here</code></pre><p><strong>타이밍은 적어 �
   <strong><span class="tok-k">return</span></strong> read_volatile g bsrr .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_woread.low
+mistake_woread.low:13:0 W-VAR-NEVER-SET: this `var` is never changed — write `let` (a `let` cannot be reassigned, which is what this name already does, and the interval analysis keeps its facts) — RFC-0113 O4
 mistake_woread.low:15:0 E-MMIO-PERM: this register is WRITE-ONLY (`wo`) — reading it is a compile error. A wo register often reads as garbage (or has a read side effect), so the read is not merely useless: it is wrong
 </code></pre></div></div><p>보통 변수라면 쓰고 읽어 확인하는 것이 좋은 습관이지만, 쓰기 전용 레지스터를 읽으면 쓰레기가 나오거나 읽는 행위가 장치를 움직인다. 그래서 <code>E-MMIO-PERM</code> 이다. 방금 쓴 값이 필요하면 쓰기 전에 지역 변수에 남겨 두고, 장치의 실제 상태는 데이터시트가 정한 읽기 레지스터 (여기서는 <code>idr</code>)로 확인한다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 인터럽트 처리기에 매개변수를 둔다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch30/mistake_isrparams.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_isrparams .
 <em><span class="tok-c">rem flags: --target cortex_m</span></em>
@@ -869,6 +870,7 @@ mistake_isrparams.low:6:0 E-ISR-PARAMS: an interrupt handler takes NO parameters
   <strong><span class="tok-k">return</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check --target cortex_m mistake_isreffect.low
+mistake_isreffect.low:6:0 W-PROC-PURE: this `proc` declares `effects none`, takes no `mut` input and calls no `proc` — it can be a `fn` (then callers know it is pure, and the C back end may treat it so) — RFC-0113 O3
 mistake_isreffect.low:6:0 E-ISR-EFFECT: an interrupt handler must declare `effects device` — it exists because the device asked for it
 </code></pre></div></div><p>할 일이 아직 없어도 인터럽트 처리기는 장치 때문에 있는 자리다. <code>effects device .</code> 를 적어야 이 op 이 장치 쪽 코드라는 것이 머리에 남고, 등급(<code>build tier</code>)과 권한 검사가 그 사실을 따라간다. 적지 않으면 <code>E-ISR-EFFECT</code> 다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>asm</code> 의 기계 이름을 다른 도구의 철자로 적는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch30/mistake_asmtarget.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_asmtarget .
 <em><span class="tok-c">rem expect: E-ASM-TARGET-UNKNOWN</span></em>

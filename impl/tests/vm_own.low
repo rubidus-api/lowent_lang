@@ -31,13 +31,13 @@ end
 rem --- 자동 해제: 아무것도 안 해도 된다. 스코프 끝에서 조용히 풀린다.
 rem     이게 옳은 이유는 하나뿐이다: **해제는 실패하지 않는다.**
 fn automatic input a buffer . output u8 . do
-    var h be owned buffer a .
+    let h be owned buffer a .
     return 1 .
 end
 
 rem --- 명시적 해제
 fn released input a buffer . output u8 . do
-    var h be owned buffer a .
+    let h be owned buffer a .
     drop h .
     return 2 .
 end
@@ -69,10 +69,10 @@ end
 
 rem --- 빌림은 이동이 아니다: 빌려서 두 번 읽어도 소비는 여전히 정확히 한 번.
 fn peeked input a buffer . output u8 . do
-    var h be owned buffer a .
-    var r be ref buffer ref h .
-    var x be u8 deref r .
-    var y be u8 deref r .
+    let h be owned buffer a .
+    let r be ref buffer ref h .
+    let x be u8 deref r .
+    let y be u8 deref r .
     drop h .
     return expr x + y . .
 end

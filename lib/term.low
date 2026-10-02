@@ -153,7 +153,7 @@ rem ★ `at` 의 코드포인트 **바이트 길이 — 검증하고** 낸다: `
 rem   과길이·서로게이트·상한). 전엔 이 파일의 셀 셈이 선두 바이트와 잘림만 봐서, `row_cells` 가 "유효하지
 rem   않으면 none" 을 약속하고도 `E2 41 42` 를 셀 하나로 셌다 — 같은 바이트에 `row_width` 와 다른 답이었고,
 rem   그 틈에서 `col_off` 는 터미널이 동의하지 않는 열을 냈다. 잣대는 하나여야 한다.
-proc t_cp_len input s slice u8 . input at u64 . output option u64 . effects none . do
+fn t_cp_len input s slice u8 . input at u64 . output option u64 . do
   guard is_some (utf8.decode s at) . else return none .
   return some (utf8.seq_len (idx s at)) .
 end

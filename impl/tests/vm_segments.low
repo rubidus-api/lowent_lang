@@ -23,7 +23,7 @@ proc counts input al cap allocator . output u64 . effects alloc . do
   guard is_some mb . else return 89 .
   let md be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some md . else return 88 .
-  var back be slice u8 some_value mb .
+  let back be slice u8 some_value mb .
   var d be mut slice u64 view_array u64 (some_value md) .
   set (idx d 0) 0 .  set (idx d 1) 4 .
   set (idx d 2) 8 .  set (idx d 3) 4 .
@@ -56,7 +56,7 @@ proc totals input al cap allocator . output u64 . effects alloc . do
   guard is_some mb . else return 89 .
   let md be option mut slice u8 alloc_bytes al capacity 32 .
   guard is_some md . else return 88 .
-  var back be slice u8 some_value mb .
+  let back be slice u8 some_value mb .
   var d be mut slice u64 view_array u64 (some_value md) .
   set (idx d 0) 0 .  set (idx d 1) 4 .
   set (idx d 2) 8 .  set (idx d 3) 6 .
@@ -108,8 +108,8 @@ end
 rem ✔ 범위 밖 조각은 **기존 안전망이 잡는다** — 새 진단을 만들지 않았다.
 rem   서술자 슬라이스의 색인이 그대로 범위 검사를 받으므로 `seg ss 9` 는 실행 중 죽는다.
 rem   ★ 이 op 만 CLI 로 부를 수 있게 저장을 밖에서 받는다(cap 은 인자로 못 넘긴다).
-proc beyond input back slice u8 . . input d slice u64 . . input i u64 .
-  output u64 . effects none .
+fn beyond input back slice u8 . . input d slice u64 . . input i u64 .
+  output u64 .
 do
   let ss be segments u8 view_segments back d .
   return len (seg ss i) .

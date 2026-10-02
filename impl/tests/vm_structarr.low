@@ -16,7 +16,7 @@ fn total input p pkt . output u64 . do
 end
 
 export fn copy_is_value input a u64 . output u64 . do
-  var p be lit pkt do len 3 . body lit array u8 8 1 2 (narrow_wrap u8 a) _ . . end .
+  let p be lit pkt do len 3 . body lit array u8 8 1 2 (narrow_wrap u8 a) _ . . end .
   var q be pkt p .
   set (idx (field q body) 0) 100 .
   return add (mul (total p) 1000) (total q) .
@@ -58,7 +58,7 @@ export proc run input a u64 . output i64 . effects none . do
 end
 
 export fn fsum input a u64 . output f64 . do
-  var r be rec mk a .
+  let r be rec mk a .
   var s be rec r .
   set (idx (field s f) 1) 2.25 .
   return add (add (idx (field r f) 0) (idx (field r f) 1)) (idx (field s f) 1) .
@@ -75,8 +75,8 @@ fn mkcell input i u64 . output cell . do
 end
 
 fn churn input i u64 . output u64 . do
-  var a be cell mkcell i .
-  var b be cell mkcell (add i 100) .
+  let a be cell mkcell i .
+  let b be cell mkcell (add i 100) .
   var c be cell a .
   set (idx (field c v) 0) 7 .
   return add (add (idx (field a v) 0) (idx (field b v) 3)) (idx (field c v) 0) .
@@ -84,7 +84,7 @@ end
 
 export fn stress input n u64 . output u64 . do
   guard le n 5000 . else return 0 .
-  var keep be cell mkcell 1000 .
+  let keep be cell mkcell 1000 .
   var s be u64 0 .
   var i be u64 0 .
   while lt i n . do

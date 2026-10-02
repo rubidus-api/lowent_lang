@@ -28,6 +28,6 @@ fn read_x input p spot . output u32 . do return (field p x) . end
 
 rem 올바른 사용 — spot 을 spot 자리에. 런타임 표현은 pt 와 같다(명목 구별은 컴파일 시에만).
 fn ok1 output u32 . do
-  var q be spot lit pt do x 7 . y 4 . end .
+  let q be spot lit pt do x 7 . y 4 . end .
   return (read_x q) .
 end

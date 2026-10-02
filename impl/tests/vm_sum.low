@@ -6,10 +6,10 @@ rem   (정본 §6.3.7)와 «부동 슬라이스를 보정해 더한다»(도구)
 rem   더하는지**를 말하게 했다.
 def type bytes slice u8 . .
 fn s_good input b bytes . output f64 . do
-  var xs be slice f64 view_array f64 b .
+  let xs be slice f64 view_array f64 b .
   return sum_neumaier xs .
 end
 fn s_fast input b bytes . output f64 . do
-  var xs be slice f64 view_array f64 b .
+  let xs be slice f64 view_array f64 b .
   return sum_seq xs .
 end

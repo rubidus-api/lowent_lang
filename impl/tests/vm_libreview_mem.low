@@ -49,7 +49,7 @@ proc t_sb input buf mut slice u8 . . output u64 . effects none . do
 end
 
 rem ── budget: gen_bits = 64(slot 0 · shard 0)는 계약을 통과하는 구성이다 — `shl 1 64` 트랩이 아니라 값 ──
-proc t_budget output u64 . effects none . do
+fn t_budget output u64 . do
   let a be option u64 budget.pack 0 0 64 0 0 5 .
   guard is_some a . else return 91 .
   guard eq (some_value a) 5 . else return 92 .
@@ -188,9 +188,9 @@ proc t_alloc input buf mut slice u8 . . output u64 . effects state . do
 end
 
 rem ── pagecache: 2^64 근처의 id 도 `slot_of` 가 값으로 답한다 (전에는 `add id epoch` 가 넘쳐 트랩) ──
-proc t_page output u64 . effects none . do
+fn t_page output u64 . do
   var c be (owned pagecache.cache pc) pagecache.open pc 16 .
-  var c2 be (owned pagecache.cache pc) pagecache.evict pc c .
+  let c2 be (owned pagecache.cache pc) pagecache.evict pc c .
   let big be u64 bit_not 0 .
   let s be option u64 pagecache.slot_of pc c2 big .        rem (2^64−1 + 1) mod 16 = 0
   guard is_some s . else return 91 .

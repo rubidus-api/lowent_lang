@@ -12,7 +12,7 @@ do
   var s be u64 0 .
   var i be u64 0 .
   while lt i n . do
-    var t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
+    let t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
     set s (add s (idx t 0)) .
     set i (add i 1) .
   end

@@ -11,9 +11,9 @@ def type bytes slice u8 . .
 
 rem 각 u32 레인을 2배로 만들어 out 에 되쓴다.
 proc scale2 input b bytes . input out mut slice u8 . output u64 . effects none . do
-  var xs be slice u32 view_array u32 b .
-  var v be vec u32 4 load xs 0 .
-  var two be vec u32 4 splat 2 .
+  let xs be slice u32 view_array u32 b .
+  let v be vec u32 4 load xs 0 .
+  let two be vec u32 4 splat 2 .
   var r be vec u32 4 mul v two .
   store out 0 r .
   return 0 .
@@ -21,10 +21,10 @@ end
 
 rem 레인별 덧셈 후 되쓰기 — 두 입력을 더해 out 에.
 proc add_lanes input a bytes . input b bytes . input out mut slice u8 . output u64 . effects none . do
-  var xa be slice u32 view_array u32 a .
-  var xb be slice u32 view_array u32 b .
-  var va be vec u32 4 load xa 0 .
-  var vb be vec u32 4 load xb 0 .
+  let xa be slice u32 view_array u32 a .
+  let xb be slice u32 view_array u32 b .
+  let va be vec u32 4 load xa 0 .
+  let vb be vec u32 4 load xb 0 .
   var s be vec u32 4 add va vb .
   store out 0 s .
   return 0 .

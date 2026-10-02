@@ -12,7 +12,7 @@ proc basic input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 2048 .
   guard is_some memo . else return 89 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value memo) .
+  let c be u64 send bump init (some_value memo) .
   let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
   guard is_some mo . else return 1 .
   var m be (mapgen.table u32 u64) some_value mo .
@@ -50,7 +50,7 @@ proc regrows input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 32768 .
   guard is_some memo . else return 89 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value memo) .
+  let c be u64 send bump init (some_value memo) .
   let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
   guard is_some mo . else return 1 .
   var m be (mapgen.table u32 u64) some_value mo .
@@ -76,7 +76,7 @@ proc other_pair input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 2048 .
   guard is_some memo . else return 89 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value memo) .
+  let c be u64 send bump init (some_value memo) .
   let mo using bump be option (mapgen.table u8 u16) mapgen.open u8 u16 3 .
   guard is_some mo . else return 1 .
   var m be (mapgen.table u8 u16) some_value mo .
@@ -96,7 +96,7 @@ proc walking input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 2048 .
   guard is_some memo . else return 89 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value memo) .
+  let c be u64 send bump init (some_value memo) .
   let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 8 .
   guard is_some mo . else return 1 .
   var m be (mapgen.table u32 u64) some_value mo .

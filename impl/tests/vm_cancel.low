@@ -51,9 +51,9 @@ rem 취소 메커니즘(결정적 --run): erra(h1) 먼저 오류 → okb(h2) 취
 proc drive_cancel output u64 . effects state . do
   var x be cnt spawn actor cnt . .
   task_group cancel_on_error do
-    var h1 be u64 spawn mk 1 .
-    var h2 be u64 spawn okb x .
-    var r be u64 await h1 .
+    let h1 be u64 spawn mk 1 .
+    let h2 be u64 spawn okb x .
+    let r be u64 await h1 .
   end
   return send x get .
 end
@@ -61,9 +61,9 @@ rem 취소 없이(대조): erra 오류(효과 없음) + okb 실행(inc) → get=
 proc drive_plain output u64 . effects state . do
   var x be cnt spawn actor cnt . .
   task_group do
-    var h1 be u64 spawn mk 1 .
-    var h2 be u64 spawn okb x .
-    var r be u64 await h1 .
+    let h1 be u64 spawn mk 1 .
+    let h2 be u64 spawn okb x .
+    let r be u64 await h1 .
   end
   return send x get .
 end
@@ -74,9 +74,9 @@ proc drive_nested output u64 . effects state . do
   var x be cnt spawn actor cnt . .
   task_group cancel_on_error do
     task_group do
-      var h1 be u64 spawn mk 1 .
-      var h2 be u64 spawn okb x .
-      var r be u64 await h1 .
+      let h1 be u64 spawn mk 1 .
+      let h2 be u64 spawn okb x .
+      let r be u64 await h1 .
     end
   end
   return send x get .
@@ -88,12 +88,12 @@ proc drive_restore output u64 . effects state . do
   var x be cnt spawn actor cnt . .
   task_group cancel_on_error do
     task_group do
-      var hp be u64 spawn mk 0 .
-      var rp be u64 await hp .
+      let hp be u64 spawn mk 0 .
+      let rp be u64 await hp .
     end
-    var h1 be u64 spawn mk 1 .
-    var h2 be u64 spawn okb x .
-    var r be u64 await h1 .
+    let h1 be u64 spawn mk 1 .
+    let h2 be u64 spawn okb x .
+    let r be u64 await h1 .
   end
   return send x get .
 end

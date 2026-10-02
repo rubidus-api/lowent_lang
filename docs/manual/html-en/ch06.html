@@ -682,7 +682,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 sum_to(10) = 55
 $ lowentc --run sum_to sumto.low 100
 sum_to(100) = 5050
-</code></pre></div></div><p><code>total</code> and <code>i</code> change as the loop runs, so they are <code>var</code>s. Only values that change are made with <code>var</code>; the rest are <code>let</code> by default. Using <code>set</code> on a <code>let</code> is rejected.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/immutable.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> immutable .
+</code></pre></div></div><p><code>total</code> and <code>i</code> change as the loop runs, so they are <code>var</code>s. Only values that change are made with <code>var</code>; the rest are <code>let</code> by default. Using <code>set</code> on a <code>let</code> is rejected. The other way round, a <code>var</code> that never changes gets <code>W-VAR-NEVER-SET</code> — write it as a <code>let</code> (RFC-0113 O4).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/immutable.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> immutable .
 <em><span class="tok-c">rem expect: E-IMMUTABLE</span></em>
 
 <strong><span class="tok-k">fn</span></strong> f <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
@@ -774,6 +774,7 @@ ifvalue.low:6:0 E-IF-VALUE: `if` is a STATEMENT — it gives no value (§6.5.2 (
   <strong><span class="tok-k">return</span></strong> total .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_typo.low
+mistake_typo.low:6:0 W-VAR-NEVER-SET: this `var` is never changed — write `let` (a `let` cannot be reassigned, which is what this name already does, and the interval analysis keeps its facts) — RFC-0113 O4
 mistake_typo.low:8:0 E-IR-UNDEF: set of an undeclared name
 </code></pre></div></div><p><code>set</code> only puts a new value into a <code>var</code> that <strong>already exists</strong>. Some languages quietly create a new variable when you assign to an unknown name; here it is rejected with <code>E-IR-UNDEF</code>. If a typo became a new variable, the real one would never change and the program would silently compute the wrong answer. That is why declaring (<code>var</code>) and changing (<code>set</code>) are different words.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Assigning with <code>=</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/mistake_equals.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_equals .
 <em><span class="tok-c">rem expect: E-CHAR</span></em>
@@ -788,6 +789,7 @@ mistake_typo.low:8:0 E-IR-UNDEF: set of an undeclared name
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_equals.low
 8:9 E-CHAR: unexpected character
 8:9 E-FORM-UNEXPECTED: unexpected token in form
+mistake_equals.low:6:0 W-VAR-NEVER-SET: this `var` is never changed — write `let` (a `let` cannot be reassigned, which is what this name already does, and the interval analysis keeps its facts) — RFC-0113 O4
 </code></pre></div></div><p>In most languages <code>=</code> means assignment, while in mathematics it means equality. One symbol switching between two meanings has produced bugs like <code>if (x = 0)</code>. Lowent uses no symbol for either: declaring is <code>let</code>/<code>var … be</code>, changing is <code>set</code>, and asking whether two values are equal is <code>eq</code>. <code>=</code> is not a character the language knows at all, hence <code>E-CHAR</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Naming a local after a common English word</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch06/mistake_localname.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_localname .
 <em><span class="tok-c">rem expect: E-NAME-BUILTIN</span></em>
 

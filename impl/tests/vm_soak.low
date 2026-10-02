@@ -21,11 +21,11 @@ fn mk4 input b bytes . output slice u32 . do return view_array u32 b . end
 
 rem ── ① 벡터 풀 · **빠른 경로** — 풀이 아예 없다(값이 프레임에 산다). 300만 번도 돈다.
 fn vec_fast input a bytes . input n u64 . output u64 . do
-  var xa be slice u32 view_array u32 a .
+  let xa be slice u32 view_array u32 a .
   var acc be u64 0 .
   var i be u64 0 .
   while (lt i n) . do
-    var v be vec u32 4 load xa 0 .
+    let v be vec u32 4 load xa 0 .
     set acc (add acc (widen u64 (reduce_add v))) .
     set i (add i 1) .
   end
@@ -39,7 +39,7 @@ fn vec_tag input a bytes . input n u64 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while (lt i n) . do
-    var v be vec u32 4 load (mk4 a) 0 .
+    let v be vec u32 4 load (mk4 a) 0 .
     set acc (add acc (widen u64 (reduce_add v))) .
     set i (add i 1) .
   end
@@ -49,14 +49,14 @@ end
 rem ── ③ 벡터를 **돌려주는** op 을 루프에서 부른다 — 반환 하나만 콜리의 바닥으로 내려온다.
 rem   되감기가 반환을 안 챙기면 여기서 죽거나(풀 고갈) 레인이 어긋난다(잘못된 답).
 fn vmake input a bytes . output vec u32 4 . do
-  var v be vec u32 4 load (mk4 a) 0 .
+  let v be vec u32 4 load (mk4 a) 0 .
   return v .
 end
 fn vec_ret input a bytes . input n u64 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while (lt i n) . do
-    var v be vec u32 4 vmake a .
+    let v be vec u32 4 vmake a .
     set acc (add acc (widen u64 (reduce_add v))) .
     set i (add i 1) .
   end
@@ -69,7 +69,7 @@ fn box_pool input n u64 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while (lt i n) . do
-    var o be option u64 some i .
+    let o be option u64 some i .
     set acc (add acc (some_value o)) .
     set i (add i 1) .
   end
@@ -92,8 +92,8 @@ do
 end
 
 fn vtry input a bytes . input k u64 . output result u64 e . do
-  var v be vec u32 4 load (mk4 a) 0 .
-  var x be u64 try (fails k) .
+  let v be vec u32 4 load (mk4 a) 0 .
+  let x be u64 try (fails k) .
   return ok (add x (widen u64 (reduce_add v))) .
 end
 
@@ -101,7 +101,7 @@ fn vec_try input a bytes . input n u64 . output u64 . do
   var c be u64 0 .
   var i be u64 0 .
   while (lt i n) . do
-    var r be result u64 e vtry a 1 .
+    let r be result u64 e vtry a 1 .
     if is_error r . do set c (add c 1) . end
     set i (add i 1) .
   end
@@ -120,7 +120,7 @@ fn rec_pool input n u64 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while (lt i n) . do
-    var p be lit pt do x i . y 1 . end .
+    let p be lit pt do x i . y 1 . end .
     set acc (add acc (field p x)) .
     set i (add i 1) .
   end
@@ -158,7 +158,7 @@ fn box_tag input a bytes . input n u64 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while (lt i n) . do
-    var o be option u64 some (widen u64 (len (mk4 a))) .
+    let o be option u64 some (widen u64 (len (mk4 a))) .
     set acc (add acc (some_value o)) .
     set i (add i 1) .
   end

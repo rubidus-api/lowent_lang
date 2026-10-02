@@ -32,7 +32,7 @@ actor keep_bytes do
 end
 
 proc take input bb mut allocs.bump_bytes . input k u64 . output u64 . effects state . do
-  var t using bb be mut slice u64 lit array u64 2 k _ . . else return 500 .
+  let t using bb be mut slice u64 lit array u64 2 k _ . . else return 500 .
   if gt k 5 . do
     return 7 .
   end
@@ -47,7 +47,7 @@ export proc cycle input n u64 . output u64 . effects state . do
   var s be u64 0 .
   var i be u64 0 .
   while lt i n . do
-    var t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
+    let t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
     set s (add s (idx t 0)) .
     set i (add i 1) .
   end
@@ -67,11 +67,11 @@ export proc jumps input n u64 . output u64 . effects state . do
   while lt i 100 . do
     set i (add i 1) .
     if lt i 50 . do
-      var u using bb be mut slice u64 lit array u64 4 1 _ . . else return 888 .
+      let u using bb be mut slice u64 lit array u64 4 1 _ . . else return 888 .
       set s (add s (idx u 0)) .
       continue .
     end
-    var t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
+    let t using bb be mut slice u64 lit array u64 4 i _ . . else return 999 .
     if eq (idx t 0) n . do
       break .
     end
@@ -87,7 +87,7 @@ export proc kept input n u64 . output u64 . effects state . do
   let got be u64 send kb init back .
   var i be u64 0 .
   while lt i n . do
-    var t using kb be mut slice u64 lit array u64 4 i _ . . else return add 900 i .
+    let t using kb be mut slice u64 lit array u64 4 i _ . . else return add 900 i .
     set i (add i 1) .
   end
   return send kb used .
@@ -137,12 +137,12 @@ end
 rem ★★ RFC-0135 D12 — `keep`: 블록 끝에 돌려주지 않는다. 그래서 op 밖으로 내보낼 수 있고(할당기가 살아 있는 동안),
 rem   돌려주는 일은 저자가 한다(`send bb release …`) — 아니면 할당기가 끝날 때 한꺼번에.
 proc kmake input bb mut allocs.bump_bytes . input d mut slice u64 . . output mut slice u64 . . effects state . do
-  var t using bb keep be mut slice u64 lit array u64 2 7 8 . . else return d .
+  let t using bb keep be mut slice u64 lit array u64 2 7 8 . . else return d .
   return t .
 end
 
 proc kpt input bb mut allocs.bump_bytes . input d pt . output pt . effects state . do
-  var q using bb keep be pt lit pt do x 3 . y 4 . end . else return d .
+  let q using bb keep be pt lit pt do x 3 . y 4 . end . else return d .
   return q .
 end
 
@@ -161,9 +161,9 @@ export proc early input a u64 . output u64 . effects state . do
   var back be lit array u8 40 _ . .
   var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let got be u64 send bb init back .
-  var t using bb be mut slice u64 lit array u64 4 a _ . . else return 900 .
+  let t using bb be mut slice u64 lit array u64 4 a _ . . else return 900 .
   let x be u64 idx t 0 .
   drop t .
-  var u using bb be mut slice u64 lit array u64 4 x _ . . else return 901 .
+  let u using bb be mut slice u64 lit array u64 4 x _ . . else return 901 .
   return add (idx u 0) (mul (send bb used) 100) .
 end

@@ -106,7 +106,7 @@ do
 end
 
 rem 반례 6 — 루프 안 호출(무엇을 쓰는지 모른다).
-proc bump input v u64 . output u64 . effects none . do return (add v 1) . end
+fn bump input v u64 . output u64 . do return (add v 1) . end
 export proc n_call input a mut slice u64 . . input m u64 . output u64 . effects none .
 do
   if gt (add m 1) (len a) . do return 0 . end

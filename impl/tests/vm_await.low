@@ -28,10 +28,10 @@ rem `spawn`+`await` 스칼라 반환 — VM≡네이티브(차등 스윕).
 proc drive output u64 . effects state . do
   var r be u64 0 .
   task_group do
-    var h1 be u64 spawn square 5 .
-    var h2 be u64 spawn square 6 .
-    var a be u64 await h1 .
-    var b be u64 await h2 .
+    let h1 be u64 spawn square 5 .
+    let h2 be u64 spawn square 6 .
+    let a be u64 await h1 .
+    let b be u64 await h2 .
     set r expr a + b .
   end
   return r .

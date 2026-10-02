@@ -841,6 +841,7 @@ absorbs: 1 op(s) stop `unsafe` here</code></pre><p><strong>Timing is written dow
   <strong><span class="tok-k">return</span></strong> read_volatile g bsrr .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_woread.low
+mistake_woread.low:13:0 W-VAR-NEVER-SET: this `var` is never changed — write `let` (a `let` cannot be reassigned, which is what this name already does, and the interval analysis keeps its facts) — RFC-0113 O4
 mistake_woread.low:15:0 E-MMIO-PERM: this register is WRITE-ONLY (`wo`) — reading it is a compile error. A wo register often reads as garbage (or has a read side effect), so the read is not merely useless: it is wrong
 </code></pre></div></div><p>For an ordinary variable, writing and reading back is a good habit, but reading a write-only register yields garbage or makes the device do something. Hence <code>E-MMIO-PERM</code>. If you need the value you just wrote, keep it in a local before writing, and check the device’s real state through the read register the datasheet defines (here, <code>idr</code>).</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Giving an interrupt handler parameters</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch30/mistake_isrparams.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_isrparams .
 <em><span class="tok-c">rem flags: --target cortex_m</span></em>
@@ -869,6 +870,7 @@ mistake_isrparams.low:6:0 E-ISR-PARAMS: an interrupt handler takes NO parameters
   <strong><span class="tok-k">return</span></strong> .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check --target cortex_m mistake_isreffect.low
+mistake_isreffect.low:6:0 W-PROC-PURE: this `proc` declares `effects none`, takes no `mut` input and calls no `proc` — it can be a `fn` (then callers know it is pure, and the C back end may treat it so) — RFC-0113 O3
 mistake_isreffect.low:6:0 E-ISR-EFFECT: an interrupt handler must declare `effects device` — it exists because the device asked for it
 </code></pre></div></div><p>Even with nothing to do yet, an interrupt handler exists because of a device. Writing <code>effects device .</code> keeps in the head the fact that this op is device-side code, and the tier (<code>build tier</code>) and capability checks follow that fact. Without it, <code>E-ISR-EFFECT</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Spelling the <code>asm</code> machine name the way another toolchain does</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch30/mistake_asmtarget.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_asmtarget .
 <em><span class="tok-c">rem expect: E-ASM-TARGET-UNKNOWN</span></em>

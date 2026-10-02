@@ -823,23 +823,23 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
 <em><span class="tok-c">rem run: lanes_here</span></em>
 
 <em><span class="tok-c">rem read four lanes as one value, press lanes above 5 down to 5, and add them all</span></em>
-<strong><span class="tok-k">proc</span></strong> capped_sum <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">fn</span></strong> capped_sum <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> lim <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">5</span> .
-  <strong><span class="tok-k">var</span></strong> over <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v lim .
-  <strong><span class="tok-k">var</span></strong> capped <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> lane_select over lim v .
+  <strong><span class="tok-k">let</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> lim <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">5</span> .
+  <strong><span class="tok-k">let</span></strong> over <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v lim .
+  <strong><span class="tok-k">let</span></strong> capped <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> lane_select over lim v .
   <strong><span class="tok-k">return</span></strong> reduce_add capped .
 <strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem across the lanes: the largest, the smallest, and the product of all</span></em>
-<strong><span class="tok-k">proc</span></strong> extremes <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">fn</span></strong> extremes <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
   <strong><span class="tok-k">return</span></strong> add (mul (reduce_max v) <span class="tok-n">1000</span>) (add (mul (reduce_min v) <span class="tok-n">100</span>) (reduce_mul v)) .
 <strong><span class="tok-k">end</span></strong>
 
@@ -848,10 +848,10 @@ order_bad.low:6:0 E-ATOMIC-ORDER: this memory ordering is not valid for this ato
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len out) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">let</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
   <strong><span class="tok-k">var</span></strong> ys <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> out .
-  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> lane_reverse v .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> lane_reverse v .
   <strong><span class="tok-k">var</span></strong> t <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> lane_rotate r <span class="tok-n">1</span> .
   store ys <span class="tok-n">0</span> t .
   <strong><span class="tok-k">return</span></strong> reduce_add t .
@@ -880,17 +880,17 @@ lanes_here() = 4
 
 <em><span class="tok-c">rem write a different value in each lane --- `lit vec &lt;element type> &lt;lanes> values… .`</span></em>
 <strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> weighted <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> d <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> a b c d . .
-  <strong><span class="tok-k">var</span></strong> w <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <span class="tok-n">1</span> <span class="tok-n">10</span> <span class="tok-n">100</span> <span class="tok-n">1000</span> . .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> a b c d . .
+  <strong><span class="tok-k">let</span></strong> w <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <span class="tok-n">1</span> <span class="tok-n">10</span> <span class="tok-n">100</span> <span class="tok-n">1000</span> . .
   <strong><span class="tok-k">return</span></strong> reduce_add (mul x w) .
 <strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem a literal carries its own type, so it can sit in the middle of an expression --- unlike `splat`</span></em>
 <strong><span class="tok-k">fn</span></strong> capped <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> over <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v <strong><span class="tok-k">lit</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <span class="tok-n">5</span> <span class="tok-n">5</span> <span class="tok-n">5</span> <span class="tok-n">5</span> . .
+  <strong><span class="tok-k">let</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> over <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v <strong><span class="tok-k">lit</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <span class="tok-n">5</span> <span class="tok-n">5</span> <span class="tok-n">5</span> <span class="tok-n">5</span> . .
   <strong><span class="tok-k">return</span></strong> reduce_add (lane_select over <strong><span class="tok-k">lit</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> <span class="tok-n">5</span> <span class="tok-n">5</span> <span class="tok-n">5</span> <span class="tok-n">5</span> . v) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run weighted litvec.low 1 2 3 4
@@ -907,24 +907,24 @@ capped([1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]) = 14
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
   <strong><span class="tok-k">requires</span></strong> ge (len out) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">let</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
   <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> lim <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">5</span> .
+  <strong><span class="tok-k">let</span></strong> lim <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">5</span> .
   <strong><span class="tok-k">var</span></strong> m <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v lim .
   store_masked out <span class="tok-n">0</span> v m .
   <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
 <strong><span class="tok-k">end</span></strong>
 
 <em><span class="tok-c">rem read only the lanes that are on, and put the default 100 in the others</span></em>
-<strong><span class="tok-k">proc</span></strong> read_big <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">effects</span></strong> <span class="tok-n">none</span> .
+<strong><span class="tok-k">fn</span></strong> read_big <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
   <strong><span class="tok-k">requires</span></strong> ge (len b) <span class="tok-n">16</span> .
 <strong><span class="tok-k">do</span></strong>
-  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
-  <strong><span class="tok-k">var</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
-  <strong><span class="tok-k">var</span></strong> lim <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">5</span> .
-  <strong><span class="tok-k">var</span></strong> m <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v lim .
-  <strong><span class="tok-k">var</span></strong> fallback <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">100</span> .
-  <strong><span class="tok-k">var</span></strong> r <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load_masked xs <span class="tok-n">0</span> m fallback .
+  <strong><span class="tok-k">let</span></strong> xs <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u32</span></strong> view_array <strong><span class="tok-t">u32</span></strong> b .
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load xs <span class="tok-n">0</span> .
+  <strong><span class="tok-k">let</span></strong> lim <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">5</span> .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> mask <span class="tok-n">4</span> gt v lim .
+  <strong><span class="tok-k">let</span></strong> fallback <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> splat <span class="tok-n">100</span> .
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> vec <strong><span class="tok-t">u32</span></strong> <span class="tok-n">4</span> load_masked xs <span class="tok-n">0</span> m fallback .
   <strong><span class="tok-k">return</span></strong> reduce_add r .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run keep_big masked.low [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0] [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
@@ -946,8 +946,9 @@ read_big([1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]) = 216
   <strong><span class="tok-k">return</span></strong> reduce_add (lane_select over v v) .
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_splatinline.low
-mistake_splatinline.low:9:0 E-VEC-SPLAT: `splat` fills every lane of a vector, and how many lanes there are comes from the declared type — inside an expression there is nothing to say it, so the value is read as a plain scalar and the surrounding comparison stops matching its `mask` type. Bind it first, with the lane count written down: `var lim be vec u32 4 splat 5 .`, then use `lim`
-mistake_splatinline.low:9:0 E-TYPE-VAR: the initializer's type does not match the declared type — expected `mask`, found `bool`
+mistake_splatinline.low:6:0 W-VAR-NEVER-SET: this `var` is never changed — write `let` (a `let` cannot be reassigned, which is what this name already does, and the interval analysis keeps its facts) — RFC-0113 O4
+mistake_splatinline.low:7:0 W-VAR-NEVER-SET: this `var` is never changed — write `let` (a `let` cannot be reassigned, which is what this name already does, and the interval analysis keeps its facts) — RFC-0113 O4
+mistake_splatinline.low:9:0 W-VAR-NEVER-SET: this `var` is never changed — write `let` (a `let` cannot be reassigned, which is what this name already does, and the interval analysis keeps its facts) — RFC-0113 O4
 </code></pre></div></div><p><code>splat</code> fills every lane with one value, and only the declared type says <strong>how many lanes there are</strong>. Inside an expression there is nothing to say it, so the value is read as a scalar and the surrounding comparison stops matching its <code>mask</code> type. It is rejected with <code>E-VEC-SPLAT</code>; store it first under a name that writes the lane count down — <code>var lim be vec u32 4 splat 5 .</code>, then <code>gt v lim</code>.</p></div></div><h3 id="s27-7">27.7 Saying how a place is used — <code>access</code><a class="plink" href="#s27-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>The <code>access &lt;name> &lt;mode> .</code> clause writes in the head whether the op only <strong>reads</strong> an input place or only <strong>writes</strong> it. Callers and the scheduler rely on that promise.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch27/access.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> <strong><span class="tok-k">access</span></strong> .
 <em><span class="tok-c">rem run: peek [9,8,7]</span></em>
 

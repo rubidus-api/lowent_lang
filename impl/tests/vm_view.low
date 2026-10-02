@@ -13,9 +13,9 @@ fn hdr_kind .
   input b bytes .
   output u64 .
 do
-  var o be wire_header try_view wire_header b . .
+  let o be wire_header try_view wire_header b . .
   guard is_some o . else return 999 . .
-  var h be wire_header some_value o .
+  let h be wire_header some_value o .
   return field h kind .
 end
 
@@ -23,7 +23,7 @@ fn hdr_summary .
   input b bytes .
   output u64 .
 do
-  var h be wire_header view wire_header b . .
+  let h be wire_header view wire_header b . .
   return expr (field h length) * 1000 + ((field h kind)) . .
 end
 
@@ -31,7 +31,7 @@ fn hdr_magic .
   input b bytes .
   output u64 .
 do
-  var h be wire_header view wire_header b . .
+  let h be wire_header view wire_header b . .
   return field h magic .
 end
 
@@ -54,6 +54,6 @@ end
 fn hdr_roundtrip .
   output u64 .
 do
-  var h be wire_header view wire_header encode wire_header mk_hdr . .
+  let h be wire_header view wire_header encode wire_header mk_hdr . .
   return field h magic .
 end

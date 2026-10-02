@@ -81,7 +81,7 @@ proc rejects input prog mut slice u64 . . input st mut slice u64 . . input cl mu
   guard is_some a . else do
     let b be option u64 rx.compile "*a" prog st .
     guard is_some b . else do
-      var tiny be mut slice u64 subslice prog 0 8 .
+      let tiny be mut slice u64 subslice prog 0 8 .
       let c be option u64 rx.compile "abcdefghij" tiny st .
       guard is_some c . else return 42 .
       return 3 .

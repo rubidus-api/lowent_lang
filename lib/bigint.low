@@ -182,7 +182,7 @@ end
 
 rem ★ n0inv = −n[0]^-1 mod 2^16 — 뉴턴 반복 네 번이면 16 비트가 찬다.
 export fn n0inv16 input n0 u64 . output u64 . do
-  var x be u64 bit_and n0 65535 .
+  let x be u64 bit_and n0 65535 .
   var inv be u64 1 .
   var i be u64 0 .
   while lt i 5 . do

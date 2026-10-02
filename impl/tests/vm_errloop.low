@@ -24,7 +24,7 @@ end
 
 rem `try` 가 오류를 **전파한다** — 조기 반환이다.
 fn propagate input n u64 . output result u64 e . do
-  var v be u64 try (fails n) .
+  let v be u64 try (fails n) .
   return ok v .
 end
 
@@ -33,7 +33,7 @@ fn loop200 input n u64 . output u64 . do
   var i be u64 0 .
   var c be u64 0 .
   while lt i 200 . do
-    var r be result u64 e propagate n .
+    let r be result u64 e propagate n .
     if is_error r . do set c (add c 1) . end
     set i (add i 1) .
   end

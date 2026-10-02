@@ -90,7 +90,8 @@ clause *narrows*, so a `proc` *must* carry it --- without it the head is `E-EFFE
 ][
   Writing `effects none .` on a `proc` is allowed. Older code sometimes keeps an op as a `proc` to emphasise local mutable state or
   loops. But if no effect is observable, writing it as a `fn` is the shape this language recommends. Purity has to show in the head for
-  callers and the compiler to use it.
+  callers and the compiler to use it. A non-exported `proc` with `effects none`, no `mut` input and no call to another `proc` gets
+  `W-PROC-PURE` (RFC-0113 O3).
 ]
 
 == Effects spread to the caller

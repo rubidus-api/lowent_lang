@@ -32,8 +32,8 @@ rem ★ 그리고 **효과는 호출 사슬을 타고 전파된다**: `u` 가 un
 rem   순수(`fn`)로는 부를 수 없다 — 그것이 효과 체계의 전부다.
 unsafe proc total output u8 . effects unsafe . do
   var a be u8 e .
-  var b be u8 u .
-  var c be u8 l .
+  let b be u8 u .
+  let c be u8 l .
   set a expr a + b . .
   set a expr a + c . .
   return a .

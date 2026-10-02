@@ -13,7 +13,7 @@ fn launder .
   output u32 .
 do
   var x be u32 1 .
-  var r be mut_ref u32 mut_ref x .
+  let r be mut_ref u32 mut_ref x .
   var t be mut_ref u32 pass r .
   set x 9 .
   set t 5 .
@@ -24,7 +24,7 @@ fn ok1 .
   output u32 .
 do
   var x be u32 1 .
-  var r be mut_ref u32 mut_ref x .
+  let r be mut_ref u32 mut_ref x .
   var t be mut_ref u32 pass r .
   set t 5 .
   return x .

@@ -7,23 +7,23 @@ proc keep_big input b slice u8 . input out mut slice u8 . output u64 . effects n
   requires ge (len b) 16 .
   requires ge (len out) 16 .
 do
-  var xs be slice u32 view_array u32 b .
+  let xs be slice u32 view_array u32 b .
   var v be vec u32 4 load xs 0 .
-  var lim be vec u32 4 splat 5 .
+  let lim be vec u32 4 splat 5 .
   var m be mask 4 gt v lim .
   store_masked out 0 v m .
   return 0 .
 end
 
 rem ko: 켜진 레인만 읽고 나머지 레인에는 기본값 100 을 둔다 /// en: read only the lanes that are on, and put the default 100 in the others
-proc read_big input b slice u8 . output u32 . effects none .
+fn read_big input b slice u8 . output u32 .
   requires ge (len b) 16 .
 do
-  var xs be slice u32 view_array u32 b .
-  var v be vec u32 4 load xs 0 .
-  var lim be vec u32 4 splat 5 .
-  var m be mask 4 gt v lim .
-  var fallback be vec u32 4 splat 100 .
-  var r be vec u32 4 load_masked xs 0 m fallback .
+  let xs be slice u32 view_array u32 b .
+  let v be vec u32 4 load xs 0 .
+  let lim be vec u32 4 splat 5 .
+  let m be mask 4 gt v lim .
+  let fallback be vec u32 4 splat 100 .
+  let r be vec u32 4 load_masked xs 0 m fallback .
   return reduce_add r .
 end

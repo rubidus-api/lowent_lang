@@ -12,7 +12,7 @@ proc grows_u32 input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 1024 .
   guard is_some memo . else return 89 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value memo) .
+  let c be u64 send bump init (some_value memo) .
   let go using bump be option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32 2 .
   guard is_some go . else return 1 .
   var g be (vecgen.vec u32 allocs.bump_bytes) some_value go .
@@ -43,7 +43,7 @@ proc bytes_fit input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some memo . else return 89 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value memo) .
+  let c be u64 send bump init (some_value memo) .
   let g8 using bump be option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8 4 .
   guard is_some g8 . else return 1 .
   var a be (vecgen.vec u8 allocs.bump_bytes) some_value g8 .
@@ -63,7 +63,7 @@ proc reserved input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 512 .
   guard is_some memo . else return 89 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value memo) .
+  let c be u64 send bump init (some_value memo) .
   let go using bump be option (vecgen.vec u16 allocs.bump_bytes) vecgen.open u16 1 .
   guard is_some go . else return 1 .
   var g be (vecgen.vec u16 allocs.bump_bytes) some_value go .
@@ -99,7 +99,7 @@ proc structs input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 1024 .
   guard is_some memo . else return 89 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value memo) .
+  let c be u64 send bump init (some_value memo) .
   rem 원소 하나가 8바이트다 — 자리 계산이 스칼라와 같은 식으로 나온다.
   let go using bump be option (vecgen.vec pt allocs.bump_bytes) vecgen.open pt 2 .
   guard is_some go . else return 1 .
@@ -134,11 +134,11 @@ def struct nest do
   v t .
 end
 
-proc wrap input comptime t type . input x t . output nest t . effects none . do
+fn wrap input comptime t type . input x t . output nest t . do
   return lit nest t do v x . end .
 end
 
-proc nested output u64 . effects none . do
+fn nested output u64 . do
   let inner be (nest u32) wrap u32 7 .
   let outer be (nest (nest u32)) lit nest (nest u32) do v inner . end .
   rem 두 겹을 벗겨도 값이 그대로여야 한다.
@@ -162,7 +162,7 @@ proc aligned_axis input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 1024 .
   guard is_some memo . else return 89 .
   var ba be allocs.bump_aligned spawn actor allocs.bump_aligned . .
-  var c be u64 send ba init (some_value memo) .
+  let c be u64 send ba init (some_value memo) .
   let go using ba be option (vecgen.vec u32 allocs.bump_aligned) vecgen.open u32 2 .
   guard is_some go . else return 1 .
   var g be (vecgen.vec u32 allocs.bump_aligned) some_value go .

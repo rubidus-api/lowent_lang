@@ -42,7 +42,8 @@ A name that holds a value in an op body is a *local*. There are only two kinds.
 #demo("examples/ch06/sumto.low")
 
 `total` and `i` change as the loop runs, so they are `var`s. Only values that change are made with `var`; the rest are `let` by default.
-Using `set` on a `let` is rejected.
+Using `set` on a `let` is rejected. The other way round, a `var` that never changes gets `W-VAR-NEVER-SET` --- write it as a `let`
+(RFC-0113 O4).
 
 #demo("examples/ch06/immutable.low")
 

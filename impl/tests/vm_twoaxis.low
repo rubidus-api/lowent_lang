@@ -51,7 +51,7 @@ export proc add_one .
 do
   let room be u64 div (len (field g store)) (size_of t) .
   guard lt (field g n) room . else return false .
-  var cur be mut slice u8 (field g store) .
+  let cur be mut slice u8 (field g store) .
   var cells be mut slice t view_array t cur .
   set (idx cells (field g n)) x .
   set (field g n) (add (field g n) 1) .
@@ -67,8 +67,8 @@ export fn get .
   requires allocs.byte_allocator a .
 do
   guard lt i (field g n) . else return none .
-  var cur be mut slice u8 (field g store) .
-  var cells be mut slice t view_array t cur .
+  let cur be mut slice u8 (field g store) .
+  let cells be mut slice t view_array t cur .
   return some (idx cells i) .
 end
 
@@ -84,7 +84,7 @@ proc part_axis_t input al cap allocator . output u8 . effects alloc state . do
   let mo be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some mo . else return 1 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value mo) .
+  let c be u64 send bump init (some_value mo) .
 
   let go using bump be option (gv u32 allocs.bump_bytes) open u32 4 .
   guard is_some go . else return 2 .
@@ -113,7 +113,7 @@ proc part_u16 input al cap allocator . output u8 . effects alloc state . do
   let mo be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some mo . else return 1 .
   var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
-  var c be u64 send bump init (some_value mo) .
+  let c be u64 send bump init (some_value mo) .
 
   let go using bump be option (gv u16 allocs.bump_bytes) open u16 3 .
   guard is_some go . else return 2 .
@@ -179,7 +179,7 @@ proc part_pair input al cap allocator . output u8 . effects alloc state . do
   let mo be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some mo . else return 1 .
   var pp be pair_bytes spawn actor pair_bytes . .
-  var c be u64 send pp init (some_value mo) .
+  let c be u64 send pp init (some_value mo) .
 
   rem 같은 `open`·`add_one`·`get` — 얼로케이터 타입만 다르다.
   let go using pp be option (gv u32 pair_bytes) open u32 2 .

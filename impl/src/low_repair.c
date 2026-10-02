@@ -310,6 +310,8 @@ static const low_repair_row_t REPAIR[] = {
     { "E-NOT-IS-SOME",         "R-USE-IS-NONE" },  // RFC-0113 O5 — `not is_some x` → `is_none x`
     { "E-EFFECT-MISSING",      "R-INSERT-INFERRED-EFFECTS" },   // RFC-0113 R1 — `--doc` 의 inferred 를 절로
     { "E-BITSET-ADD",          "R-ADD-TO-INSERT" },   // RFC-0113 R5 — `add s n` → `bitset_insert s n`
+    { "W-PROC-PURE",           "R-PROC-TO-FN" },      // RFC-0113 O3 — `proc … effects none .` → `fn …`
+    { "W-VAR-NEVER-SET",       "R-VAR-TO-LET" },      // RFC-0113 O4 — 안 바뀌는 `var` → `let`
     { "E-HEAD-NOT-AN-OP",      "R-DROP-DOT-HEAD" },
     { "E-METHOD-RECV",         "R-ADD-RECEIVER" },
     { "E-FIELD-FORM",          "R-USE-FIELD-FORM" },

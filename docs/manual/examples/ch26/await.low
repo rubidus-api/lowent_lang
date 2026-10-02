@@ -12,8 +12,8 @@ proc drive output u64 . effects state .
 do
   var r be u64 0 .
   task_group do
-    var h1 be u64 spawn square 5 .
-    var h2 be u64 spawn square 6 .
+    let h1 be u64 spawn square 5 .
+    let h2 be u64 spawn square 6 .
     let a be u64 await h1 .
     let b be u64 await h2 .
     set r (add a b) .

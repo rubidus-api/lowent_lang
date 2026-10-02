@@ -75,7 +75,7 @@ proc sign_sample input rs mut slice u8 . input wb mut slice u8 . input wu mut sl
   return ok_value _rr .
 end
 
-proc head4 input b slice u8 . input at u64 . output u64 . effects none . do
+fn head4 input b slice u8 . input at u64 . output u64 . do
   var acc be u64 0 .
   var i be u64 0 .
   while lt i 4 . do

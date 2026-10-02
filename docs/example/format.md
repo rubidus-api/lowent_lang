@@ -9,7 +9,7 @@ errors 절 없이 본문 `return error`. (라이브러리=MVP, print=post-MVP)
 > 실행-유도 오류도 errors 절에 이름을 적는다, 권한 입력이 데이터보다 먼저, 뿌리 할당은 `alloc_bytes`). 이 설계를 실제로 쌓은
 > 표준 라이브러리는 [`lib/fmt.low`](../manual/md-ko/) (매뉴얼 부록 E 의 `fmt` 쪽) 다.
 
-```
+```lowent
 module fmt .
 
 def type scratch u64 . .

@@ -95,7 +95,7 @@ proc count_stream input s slice sample . output u64 . effects state . do
   var t be tally spawn actor tally . .
   var i be u64 0 .
   while lt i (len s) . do
-    var one be u64 send t bump .
+    let one be u64 send t bump .
     set i expr i + 1 . .
   end
   return send t total .

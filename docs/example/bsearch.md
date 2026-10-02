@@ -3,7 +3,7 @@
 RPN(stateful·region·alloc)과 대비되는 **순수 알고리즘**: region/스택/effect 없음, `option` 반환,
 **계약이 사용자 술어 op 를 참조**(`requires sorted xs`)하는 패턴을 보여준다. O(log n)·`effects none`. (MVP 문법)
 
-```
+```lowent
 module sorted_search .
 
 rem 오름차순 정렬 여부 — 계약용 술어 op(순수).

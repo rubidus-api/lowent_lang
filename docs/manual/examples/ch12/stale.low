@@ -1,7 +1,7 @@
 module stale .
 rem expect: E-EXCL
 
-proc look_then_write output u64 . effects none .
+fn look_then_write output u64 .
 do
   var n be u64 0 .
   let r be ref u64 ref n .

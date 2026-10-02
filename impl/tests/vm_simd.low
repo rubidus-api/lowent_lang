@@ -25,10 +25,10 @@ do
   var acc be vec u32 4 splat 0 .
   var i be u64 0 .
   while le (add i 4) n . do
-    var va be vec u32 4 load a i .
-    var vb be vec u32 4 load b i .
-    var vp be vec u32 4 mul va vb .
-    var vs be vec u32 4 add acc vp .
+    let va be vec u32 4 load a i .
+    let vb be vec u32 4 load b i .
+    let vp be vec u32 4 mul va vb .
+    let vs be vec u32 4 add acc vp .
     set acc vs .
     set i (add i 4) .
   end
@@ -47,10 +47,10 @@ do
   var acc be vec u32 4 splat 0 .
   var i be u64 0 .
   while le (add i 4) n . do
-    var va be vec u32 4 load a i .
-    var vb be vec u32 4 load b i .
-    var vp be vec u32 4 mul va vb .
-    var vs be vec u32 4 add acc vp .
+    let va be vec u32 4 load a i .
+    let vb be vec u32 4 load b i .
+    let vp be vec u32 4 mul va vb .
+    let vs be vec u32 4 add acc vp .
     set acc vs .
     set i (add i 4) .
   end
@@ -85,7 +85,7 @@ export proc dbl_c .
 do
   var i be u64 0 .
   while le (add i 4) n . do
-    var v be vec u32 4 load a i .
+    let v be vec u32 4 load a i .
     var t be vec u32 4 add v v .
     store a i t .
     set i (add i 4) .
@@ -101,7 +101,7 @@ export proc dbl_u .
 do
   var i be u64 0 .
   while le (add i 4) n . do
-    var v be vec u32 4 load a i .
+    let v be vec u32 4 load a i .
     var t be vec u32 4 add v v .
     store a i t .
     set i (add i 4) .

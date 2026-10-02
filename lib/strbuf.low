@@ -107,7 +107,7 @@ do
   rem   없으므로 봉인도 안 한다. 전에는 밑으로 감긴 `avail` 로 경계 밖에 썼다(2026-09-04).
   guard lt (field b len) (len buf) . else return 0 .
   rem ★ 내용 용량 = len(buf) − 1 (널 봉인 자리 예약, D2).
-  var avail be u64 sub (sub (len buf) 1) (field b len) .
+  let avail be u64 sub (sub (len buf) 1) (field b len) .
   var n be u64 len s .
   if gt n avail . do set n avail . end
   var i be u64 0 .

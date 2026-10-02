@@ -8,7 +8,7 @@ end
 fn dangling .
   output ref u32 .
 do
-  var local be u32 5 .
+  let local be u32 5 .
   return ref local .
 end
 

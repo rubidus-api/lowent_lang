@@ -31,7 +31,7 @@ export fn listed input a u8 . output u64 . do
   let r be pkt lit pkt do len 3 . body lit array u8 4 1 a 3 4 . . tail 7 . end .
   var ps be lit array pkt 2 _ . .
   set (idx ps 1) r .
-  var qs be lit array pkt 2 r _ . .
+  let qs be lit array pkt 2 r _ . .
   let q be pkt idx ps 1 .
   return add (add (widen u64 (idx (field q body) 1)) (mul (widen u64 (field q len)) 100)) (mul (widen u64 (idx (field qs 0 body) 3)) 10000) .
 end

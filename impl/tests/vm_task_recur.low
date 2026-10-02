@@ -19,7 +19,7 @@ fn ds input n u64 . output u64 . do
 end
 
 rem 태스크: 깊이 100 재귀(옛 창 상한 8 을 한참 넘는다).
-proc task output u64 . effects none . do
+fn task output u64 . do
   return ds 100 .
 end
 

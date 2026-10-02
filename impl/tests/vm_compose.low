@@ -26,7 +26,7 @@ fn pass_view input s slice u8 . output u8 . do
 end
 
 fn pass_record output u8 . do
-  var q be lit pt do x 9 . y 8 . end .
+  let q be lit pt do x 9 . y 8 . end .
   return take_view q .                  rem **레코드**를 넘긴다(뷰와 같은 자리에서 받는다)
 end
 
@@ -43,7 +43,7 @@ end
 
 fn take_vec input v vec u32 4 . . output u32 . do return reduce_add v . end
 fn pass_vec input xs slice u32 . output u32 . do
-  var v be vec u32 4 load xs 0 .
+  let v be vec u32 4 load xs 0 .
   return take_vec v .                   rem **vec** 를 넘긴다
 end
 

@@ -19,7 +19,7 @@ proc goto_seq input buf mut slice u8 . . output u64 . effects none . do
   guard eq (idx buf 4) 53 . else return 7 .
   guard eq (idx buf 5) 72 . else return 8 .
   rem 전량-아니면-무: 5칸 버퍼엔 아예 안 쓴다.
-  var tiny be mut slice u8 subslice buf 0 5 .
+  let tiny be mut slice u8 subslice buf 0 5 .
   let f be option u64 t.goto tiny 0 2 4 .
   guard is_some f . else return 42 .
   return 9 .
@@ -160,7 +160,7 @@ proc fitting input out mut slice u8 . . output u64 . effects none . do
 end
 
 rem ★★ 사람이 세는 "한 글자" = grapheme cluster. 코드포인트 수와 다르다.
-proc clusters output u64 . effects none . do
+fn clusters output u64 . do
   rem "e" + U+0301 = 코드포인트 2, 뭉치 1, 칸 1.
   let c be option u64 t.row_cells "é" .
   guard is_some c . else return 1 .

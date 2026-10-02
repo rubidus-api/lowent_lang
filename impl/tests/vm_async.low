@@ -71,11 +71,11 @@ rem   중첩 파싱 경로를 탄다. 괄호 형태(try_recover 의 `if is_error
 proc try_ok_err output u64 . effects state . do
   var c be bnd spawn actor bnd . .
   var n be u64 0 .
-  var r1 be result u64 mailbox_full try spawn send c inc .
+  let r1 be result u64 mailbox_full try spawn send c inc .
   if is_ok r1 . do set n expr n + 1 . . end
-  var r2 be result u64 mailbox_full try spawn send c inc .
+  let r2 be result u64 mailbox_full try spawn send c inc .
   if is_ok r2 . do set n expr n + 1 . . end
-  var r3 be result u64 mailbox_full try spawn send c inc .
+  let r3 be result u64 mailbox_full try spawn send c inc .
   if is_error r3 . do set n expr n + 100 . . end
   return n .
 end
@@ -91,6 +91,6 @@ proc try_recover output u64 . effects state . do
   drain c .
   if is_ok (try spawn send c inc) . do set r expr r + 1 . . end
   drain c .
-  var g be u64 send c get .
+  let g be u64 send c get .
   return expr r + g .
 end

@@ -27,7 +27,7 @@ rem ★ 재현 가능한 `rng_next` 는 권한이 없다. 권한이 필요한 �
 export proc entropy input al cap allocator . input k cap random . output u64 . effects alloc . do
   let g be option mut slice u8 alloc_bytes al capacity 8 .
   guard is_some g . else return 0 .
-  var buf be mut slice u8 some_value g .
+  let buf be mut slice u8 some_value g .
   return random_bytes k buf .
 end
 

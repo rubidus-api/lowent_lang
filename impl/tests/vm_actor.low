@@ -57,15 +57,15 @@ proc two_actors output u64 . effects state . do
   var c be counter spawn actor counter . .
   var d be accum spawn actor accum . .
   var a be u64 send c inc .
-  var b be u64 send d add .
+  let b be u64 send d add .
   set a expr a + b . .
   return a .                     rem counter=1, accum=10 → 11
 end
 
 proc drive output u64 . effects state . do
   var c be counter spawn actor counter . .
-  var a be u64 send c inc .
-  var b be u64 send c inc .
+  let a be u64 send c inc .
+  let b be u64 send c inc .
   return send c get .
 end
 
@@ -73,11 +73,11 @@ rem ★★ **격리** — 두 인스턴스는 상태를 공유하지 않는다. 
 proc isolated output u64 . effects state . do
   var c be counter spawn actor counter . .
   var d be counter spawn actor counter . .
-  var a be u64 send c inc .
-  var b be u64 send c inc .
-  var e be u64 send d inc .
+  let a be u64 send c inc .
+  let b be u64 send c inc .
+  let e be u64 send d inc .
   var x be u64 send c get .
-  var y be u64 send d get .
+  let y be u64 send d get .
   set x expr x * 10 . .
   set x expr x + y . .
   return x .                    rem c = 2, d = 1  →  21
@@ -131,9 +131,9 @@ end
 
 proc banking output u64 . effects state . do
   var b be bank spawn actor bank . .
-  var x be u64 send b deposit 100 .
-  var y be u64 send b deposit 50 .
-  var z be u64 send b withdraw 30 .
+  let x be u64 send b deposit 100 .
+  let y be u64 send b deposit 50 .
+  let z be u64 send b withdraw 30 .
   return send b peek .          rem 100 + 50 − 30 = 120
 end
 

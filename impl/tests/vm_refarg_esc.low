@@ -15,7 +15,7 @@ def struct pt do
   x u64 .
 end
 
-proc peek input p ref pt . output u64 . effects none . do
+fn peek input p ref pt . output u64 . do
   return field p x .
 end
 
@@ -29,11 +29,11 @@ rem   `make_ref` 가 돌려준 참조는 그 op 의 프레임을 가리키는데
 rem ★ 이 op 은 **일부러 탈출한다** — 정적 검사가 E-ESCAPE 로 잡는 것이 옳고, 아래는
 rem   그것을 통과했다 치고 **동적 검사도 잡는지** 보는 자리다(두 겹으로 지킨다).
 fn make_ref output ref pt . do
-  var inner be lit pt do x 1 . end .
+  let inner be lit pt do x 1 . end .
   return ref inner .
 end
 
-proc dangling output u64 . effects none . do
+fn dangling output u64 . do
   let r be ref pt make_ref .
   return peek r .
 end

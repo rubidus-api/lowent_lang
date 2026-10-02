@@ -18,7 +18,7 @@ use gcm from "../../../lib/gcm.low" .
 use codec from "../../../lib/codec.low" .
 
 rem 16 바이트가 같은가.
-proc same16 input a slice u8 . input b slice u8 . output u64 . effects none . do
+fn same16 input a slice u8 . input b slice u8 . output u64 . do
   var i be u64 0 .
   var diff be u64 0 .
   while lt i 16 . do

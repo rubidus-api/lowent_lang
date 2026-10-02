@@ -96,9 +96,9 @@ proc two_takes .
   effects state .
   requires allocator a .        rem ★ 경계는 **타입 파라미터**를 가리킨다
 do
-  var c be u64 send al init 64 .
-  var x be option u64 send al reserve 3 .
-  var y be option u64 send al reserve 5 .
+  let c be u64 send al init 64 .
+  let x be option u64 send al reserve 3 .
+  let y be option u64 send al reserve 5 .
   return send al used .
 end
 
@@ -113,8 +113,8 @@ end
 rem ★★★ **OOM 은 값이다**(D5) — panic 이 아니다. 임베디드는 **반드시 처리**한다.
 proc oom output bool . effects state . do
   var b be bump spawn actor bump . .
-  var c be u64 send b init 4 .
-  var x be option u64 send b reserve 99 .      rem 4 바이트 버퍼에 99 를 달라고 한다
+  let c be u64 send b init 4 .
+  let x be option u64 send b reserve 99 .      rem 4 바이트 버퍼에 99 를 달라고 한다
   return is_some x .                        rem → **false**. 트랩이 아니라 **none**.
 end
 

@@ -25,7 +25,7 @@ export proc heaprows input a u32 . output u64 . effects state . do
   var back be lit array u8 64 _ . .
   var bb be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let got be u64 send bb init back .
-  var g using bb be mut slice (array u32 3) lit array (array u32 3) 2 (lit array u32 3 a a a .) _ . . else return 999 .
+  let g using bb be mut slice (array u32 3) lit array (array u32 3) 2 (lit array u32 3 a a a .) _ . . else return 999 .
   return add (rsum g) (mul (send bb used) 100) .
 end
 

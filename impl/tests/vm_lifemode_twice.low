@@ -19,7 +19,7 @@ export fn finish input t owned vm_lifemode_twice.ticket . output result u64 vm_l
 end
 
 rem ✗ 여기가 거절돼야 한다 — E-OWN-MOVED.
-proc twice output u64 . effects none . do
+fn twice output u64 . do
   var t be owned vm_lifemode_twice.ticket vm_lifemode_twice.issue 7 .
   let a be result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t .
   let b be result u64 vm_lifemode_twice.late vm_lifemode_twice.finish t .

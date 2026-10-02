@@ -21,9 +21,9 @@ def type bytes slice u8 . .
 
 rem u8 레인을 2배 — 폭은 target 이 정한다(x86_64=16, cortex_m=1).
 proc dbl input a bytes . input out mut slice u8 . output u64 . effects none . do
-  var xa be slice u8 view_array u8 a .
-  var v be vec u8 scalable load xa 0 .
-  var two be vec u8 scalable splat 2 .
+  let xa be slice u8 view_array u8 a .
+  let v be vec u8 scalable load xa 0 .
+  let two be vec u8 scalable splat 2 .
   var r be vec u8 scalable mul v two .
   store out 0 r .
   return 0 .
@@ -31,9 +31,9 @@ end
 
 rem 같은 방식, u32 원소 — 같은 simd_bytes 에서 폭이 4 로 선다(16/4).
 proc tri input a bytes . input out mut slice u8 . output u64 . effects none . do
-  var xa be slice u32 view_array u32 a .
-  var v be vec u32 scalable load xa 0 .
-  var three be vec u32 scalable splat 3 .
+  let xa be slice u32 view_array u32 a .
+  let v be vec u32 scalable load xa 0 .
+  let three be vec u32 scalable splat 3 .
   var r be vec u32 scalable mul v three .
   store out 0 r .
   return 0 .

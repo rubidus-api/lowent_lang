@@ -890,7 +890,7 @@ end
 rem ★ 방금 먹은 코드포인트를 **뒤로 돌아** 읽는다 — UTF-8 은 자기동기적이라 이어지기
 rem   바이트(10xxxxxx)를 거슬러 올라가면 선두 바이트가 나온다. pos 는 그 코드포인트의 **끝**이다.
 rem   못 읽으면 none(표를 물을 수 없다 ⇒ 그 스레드는 죽는다 — 지어내지 않는다).
-proc rx_cp_before input s slice u8 . input pos u64 . output option u64 . effects none . do
+fn rx_cp_before input s slice u8 . input pos u64 . output option u64 . do
   guard gt pos 0 . else return none .
   var back be u64 1 .
   var going be bool true .

@@ -20,14 +20,14 @@ proc main .
 do
   let b0 be option mut slice u8 alloc_bytes al capacity 4096 .
   guard is_some b0 . else return 69 .
-  var buf be mut slice u8 some_value b0 .
+  let buf be mut slice u8 some_value b0 .
   rem ★★★ **reactor 의 뒷받침은 읽기 목적지와 달라야 한다**(RFC-0022 D-B, 2026-07-20 실측).
   rem   completion 백엔드는 **그 자리에** 읽고 나서 목적지로 옮긴다 — 같은 자리면 덮어쓴다.
   rem   ☞ 처음엔 `buf` 하나를 둘 다에 줬고 readiness 에선 무해했다. AIO 를 끼우자 **내용이
   rem     망가졌다** — 그래서 이제 도구가 **모든 백엔드에서** 그것을 거절한다.
   let b1 be option mut slice u8 alloc_bytes al capacity 4096 .
   guard is_some b1 . else return 68 .
-  var rmem be mut slice u8 some_value b1 .
+  let rmem be mut slice u8 some_value b1 .
   rem ★ reactor 를 만든다. 자리가 모자라면 **none** — 트랩이 아니다(OOM 은 값이다).
   let r be option u64 reactor_new k rmem 1 .
   guard is_some r . else return 70 .

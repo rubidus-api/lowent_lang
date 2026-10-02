@@ -1,7 +1,7 @@
 module ref_write .
 rem expect: E-TYPE-REF
 
-proc reset input p ref u64 . output u64 . effects none .
+fn reset input p ref u64 . output u64 .
 do
   set p 0 .
   return 0 .

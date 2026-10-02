@@ -48,7 +48,7 @@ end
 rem ── 조회 ──
 
 rem 표에서 6자리 16진수 하나를 읽는다(구간 i 의 시작 = 12i, 끝 = 12i+6).
-proc hex6_at input tab slice u8 . input off u64 . output option u64 . effects none . do
+fn hex6_at input tab slice u8 . input off u64 . output option u64 . do
   guard le (add off 6) (len tab) . else return none .
   var v be u64 0 .
   var k be u64 0 .
@@ -193,7 +193,7 @@ export fn tab_casespecial output slice u8 . do
 end
 
 rem 짝 표에서 앞자리(from)로 찾아 뒷자리(to)를 준다. 없으면 none.
-proc map_cp input tab slice u8 . input cp u64 . output option u64 . effects none . do
+fn map_cp input tab slice u8 . input cp u64 . output option u64 . do
   var lo be u64 0 .
   var hi be u64 range_count tab .
   while lt lo hi . do

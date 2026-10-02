@@ -3,13 +3,13 @@ rem --run traps the same defect dynamically (E-VM-DANGLING) — static≡dynamic
 fn bad .
   output ref u64 . .
 do
-  var l be u64 5 .
+  let l be u64 5 .
   return ref l .
 end
 
 fn use_bad .
   output u64 .
 do
-  var r be ref u64 bad .
+  let r be ref u64 bad .
   return deref r .
 end

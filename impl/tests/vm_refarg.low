@@ -34,7 +34,7 @@ proc bump input p mut pt . output u64 . effects none . do
   return field p x .
 end
 
-proc peek input p ref pt . output u64 . effects none . do
+fn peek input p ref pt . output u64 . do
   return field p x .
 end
 
@@ -57,8 +57,8 @@ rem   ⇒ 이제 **피호출자의 반환 타입을 본다**: `peek` 이 u64 를
 rem     끝나므로 안 잡고, 참조를 돌려주는 op(`output ref …`)이면 **진짜 탈출**이라 잡는다.
 rem   ☞ `ok`/`some` 같은 감싸개는 사용자 op 이 아니라 이 완화가 안 닿는다 —
 rem     `return ok (mut_ref tmp)`(region.low)는 **여전히 잡힌다.** 완화는 구멍만큼만 넓다.
-proc read_only output u64 . effects none . do
-  var q be lit pt do x 5 . end .
+fn read_only output u64 . do
+  let q be lit pt do x 5 . end .
   return peek (ref q) .
 end
 

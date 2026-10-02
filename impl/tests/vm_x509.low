@@ -29,7 +29,7 @@ proc t_spki input cert slice u8 . input out mut slice u8 . output u64 . effects 
   return der.rsa_e cert ko .
 end
 
-proc t_nlen input cert slice u8 . output u64 . effects none . do
+fn t_nlen input cert slice u8 . output u64 . do
   let sp be u64 der.find_spki cert .
   guard gt sp 0 . else return 0 .
   let ko be u64 der.spki_key_off cert sp .
@@ -54,7 +54,7 @@ end
 
 rem ★★ **길이는 상대가 쓴 것이다.** 잘린 버퍼에서 파서는 **0 을 답해야** 한다 —
 rem   길이 필드를 믿고 넘어가면 상대가 우리 메모리를 읽는다.
-proc t_truncated input cert slice u8 . output u64 . effects none . do
+fn t_truncated input cert slice u8 . output u64 . do
   guard eq (der.find_spki cert) 0 . else return 0 .
   return 1 .
 end

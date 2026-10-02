@@ -1,8 +1,7 @@
 module loop_stale .
 rem expect: E-EXCL
 
-proc drift input n u64 . output u64 .
-  effects none .
+fn drift input n u64 . output u64 .
   requires le n 100 .
 do
   var x be u64 1 .

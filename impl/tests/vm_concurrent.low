@@ -18,7 +18,7 @@ rem   그 검사가 이것이고, 그래서 지금 등재됐다(효과 평면 at
 module vm_concurrent .
 
 proc consumer input ch u64 . output u64 . effects concurrent . do
-  var x be u64 chrecv ch .
+  let x be u64 chrecv ch .
   return x .
 end
 

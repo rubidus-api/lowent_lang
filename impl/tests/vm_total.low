@@ -17,18 +17,18 @@ def type frame u64 . .
 
 rem value_or — some 이면 그 값, none 이면 기본값.
 fn pick input k u64 . output u64 . do
-  var o be option u64 some k .
+  let o be option u64 some k .
   return (value_or o 99) .
 end
 
 fn miss output u64 . do
-  var o be option u64 (none) .
+  let o be option u64 (none) .
   return (value_or o 99) .
 end
 
 rem value_or 는 result 도 같은 낱말로 소비한다 (ok → payload, err → 기본값).
 fn from_ok input k u64 . output u64 . do
-  var r be (result u64) ok k .
+  let r be (result u64) ok k .
   return (value_or r 55) .
 end
 
@@ -37,8 +37,8 @@ proc lifo input temp region frame . . input a u64 . input b u64 . output u64 . e
   let s be stack u64 stack_new temp capacity 4 . .
   push s a .
   push s b .
-  var t be u64 (value_or (pop s) 0) .
-  var u be u64 (value_or (pop s) 0) .
-  var e be u64 (value_or (pop s) 111) .
+  let t be u64 (value_or (pop s) 0) .
+  let u be u64 (value_or (pop s) 0) .
+  let e be u64 (value_or (pop s) 111) .
   return (add (mul t 100) (add (mul u 10) e)) .
 end

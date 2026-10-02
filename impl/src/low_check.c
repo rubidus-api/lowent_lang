@@ -10815,6 +10815,141 @@ static void ck_value_discard_walk(low_check_result_t *out, const low_cst_t *nd, 
         ck_value_discard_walk(out, k, tab, nt);
     }
 }
+
+// ═══ RFC-0113 O3 · O4 (소유자 2026-10-02) — 더 좁게 적을 수 있는 선언을 **알린다**(경고) ═══
+//   O3 `W-PROC-PURE`: `effects none` 이고 `mut` 입력이 없고 다른 `proc` 을 안 부르는 **내보내지 않은** `proc` 은 `fn` 으로 적을 수 있다.
+//   O4 `W-VAR-NEVER-SET`: 한 번도 안 바뀌는 `var` 는 `let` 으로 적을 수 있다. 어디서 쓰이는지는 **원자 차례**로 본다 —
+//     묶기(`low_nest`)는 괄호만 더하고 원자 차례를 안 바꾸므로 `--flat` 과 나무 모드가 같은 답을 낸다. 판정은 보수적이다:
+//     쓸 수도 있는 자리(아래)에 한 번이라도 서면 «바뀐다» 로 본다 — 틀린 경고를 내느니 경고를 놓친다.
+static void o4_atoms(const low_cst_t *nd, const low_cst_t **buf, proven_size_t *n, proven_size_t cap) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_ATOM) { if (*n < cap) buf[(*n)++] = nd; return; }
+    if (nd->kind == LOW_CST_BLOCK) return;          // 안의 문장은 따로 본다
+    for (proven_size_t i = 0; i < nd->nkids; i++) o4_atoms(nd->kids[i], buf, n, cap);
+}
+static bool o4_mutating_word(proven_u8str_view_t w) {
+    static const char *M[] = { "bitset_insert", "bitset_remove", "push", "pop", "swap", "store", "store_masked",
+                               "copy", "map", "filter", "write_volatile", "call_builtin", "collect", "send", "spawn" };
+    for (proven_size_t i = 0; i < sizeof M / sizeof M[0]; i++) if (veq(w, M[i])) return true;
+    return w.size > 7 && memcmp(w.ptr, "atomic_", 7) == 0;
+}
+static bool o4_is_proc(const low_opinfo_t *tab, proven_size_t nt, proven_u8str_view_t w) {
+    for (proven_size_t i = 0; i < nt; i++) if (proven_u8str_view_eq(tab[i].name, w)) return !tab[i].is_calc;
+    return false;
+}
+// 이 문장(블록 안쪽 제외)에서 이름 x 가 쓰일 수도 있는가
+static bool o4_stmt_writes(const low_cst_t *st, proven_u8str_view_t x, const low_opinfo_t *tab, proven_size_t nt) {
+    const low_cst_t *a[512]; proven_size_t n = 0;
+    o4_atoms(st, a, &n, 512);
+    if (n >= 512) return true;                       // 다 못 봤으면 «바뀐다» 쪽으로
+    bool caller = false;
+    for (proven_size_t i = 0; i < n; i++) {
+        proven_u8str_view_t w = a[i]->tok.lex;
+        if (a[i]->tok.kind == LOW_TOK_IDENT && proven_u8str_view_eq(w, x)) {
+            if (caller) return true;
+            if (i) {
+                proven_u8str_view_t pv = a[i - 1]->tok.lex;
+                if (veq(pv, "mut_ref") || veq(pv, "mut") || veq(pv, "into") || veq(pv, "using")) return true;
+            }
+            proven_size_t j = i;
+            while (j && (veq(a[j - 1]->tok.lex, "idx") || veq(a[j - 1]->tok.lex, "field"))) j--;
+            if (j && a[j - 1]->tok.kw == LOW_KW_SET) return true;
+        }
+        if (o4_mutating_word(w) || o4_is_proc(tab, nt, w)) caller = true;
+    }
+    return false;
+}
+static void o4_collect(const low_cst_t *nd, const low_cst_t **sts, proven_size_t *ns, proven_size_t cap) {
+    if (!nd) return;
+    if (nd->kind == LOW_CST_BLOCK)
+        for (proven_size_t i = 0; i < nd->nkids; i++) if (*ns < cap) sts[(*ns)++] = nd->kids[i];
+    for (proven_size_t i = 0; i < nd->nkids; i++) o4_collect(nd->kids[i], sts, ns, cap);
+}
+static void ck_narrower_decls(low_check_result_t *out, const low_parse_result_t *pr, const low_opinfo_t *tab, proven_size_t nt) {
+    for (proven_size_t fi = 0; fi < pr->nforms; fi++) {
+        const low_cst_t *f = pr->forms[fi]; ck_cur_form = f;
+        if (!f || f->kind != LOW_CST_FORM || f->nkids < 3 || !ck_atom(f->kids[0])) continue;
+        low_kw_t kw = f->kids[0]->tok.kw;
+        if (kw != LOW_KW_FN && kw != LOW_KW_PROC) continue;
+        const low_cst_t *body = f->kids[f->nkids - 1];
+        if (!body || body->kind != LOW_CST_BLOCK) continue;
+        // ★ 제네릭 op 은 건너뛴다 — `--flat` 은 틀(`comptime` 입력)을, 나무 모드는 단형화된 사본(`이름#타입`)을 보므로 세는 수가
+        //   갈린다(한 경고가 사본마다 난다). 둘 다 건너뛰어야 두 모드가 같은 답을 낸다.
+        if (low_view_last(f->kids[1]->tok.lex, '#') != PROVEN_INDEX_NOT_FOUND) continue;
+        {
+            bool generic = false;
+            for (proven_size_t i = 1; i + 1 < f->nkids; i++)
+                if (ck_atom(f->kids[i]) && veq(f->kids[i]->tok.lex, "comptime")) { generic = true; break; }
+            if (generic) continue;
+        }
+        static const low_cst_t *sts[4096]; proven_size_t ns = 0;
+        o4_collect(body, sts, &ns, 4096);
+        if (ns >= 4096) continue;
+        // O4
+        for (proven_size_t s = 0; s < ns; s++) {
+            const low_cst_t *d = sts[s];
+            if (!d || d->kind != LOW_CST_FORM || d->nkids < 3 || !ck_atom(d->kids[0]) || d->kids[0]->tok.kw != LOW_KW_VAR ||
+                !ck_atom(d->kids[1])) continue;
+            proven_u8str_view_t x = d->kids[1]->tok.lex;
+            // ★ 소유 값(`owned …`)과 모듈이 정한 타입(`pagecache.pin …` — 상태가 타입에 실린다)은 건너뛴다: 넘기는 것이 곧
+            //   옮기는 것이라 «바뀐다» 와 같다(시험 옮김에서 그 자리 전부가 `let` 으로는 안 섰다).
+            {
+                const low_cst_t *da[64]; proven_size_t dn = 0; o4_atoms(d, da, &dn, 64);
+                bool skip = false, before_be = true;
+                for (proven_size_t q = 2; q < dn; q++) {
+                    if (da[q]->tok.kw == LOW_KW_BE) before_be = false;
+                    (void)before_be;
+                    if (veq(da[q]->tok.lex, "owned")) skip = true;
+                    // 모듈 이름이 붙은 낱말(타입이든 부름이든)이 있으면 건너뛴다 — 묶기 앞뒤로 한정이 `qual_mod` 로 옮겨 가므로 둘 다 본다
+                    if (da[q]->qual_mod.size || low_view_last(da[q]->tok.lex, '.') != PROVEN_INDEX_NOT_FOUND ||
+                        low_view_last(da[q]->tok.lex, '#') != PROVEN_INDEX_NOT_FOUND) skip = true;   // `#` = 단형화된 이름
+                }
+                if (skip) continue;
+            }
+            bool w = false;
+            for (proven_size_t q = 0; q < ns && !w; q++) if (q != s && o4_stmt_writes(sts[q], x, tab, nt)) w = true;
+            if (!w) {
+                // 선언 문장 안에서도(`var x using a be …` 는 다른 이름) — x 자신이 뒤에 쓰기 자리로 서면 바뀐다
+                if (o4_stmt_writes(d, x, tab, nt)) w = true;
+            }
+            if (!w)
+                warn(out, "W-VAR-NEVER-SET",
+                     "this `var` is never changed — write `let` (a `let` cannot be reassigned, which is what this name already "
+                     "does, and the interval analysis keeps its facts) — RFC-0113 O4", d->kids[0]->tok.line);
+        }
+        // O3
+        if (kw != LOW_KW_PROC || veq(f->kids[1]->tok.lex, "main")) continue;
+        if (f->is_extern || f->is_export) continue;   // 내보낸 op 의 proc/fn 은 API 의 선택이다(표면 고정 모듈도 있다)
+        bool found = false; unsigned de = decl_effect(f, &found);
+        if (!found || de != EFF_NONE) continue;
+        {   // `effects none .` 그대로인가 — 모르는 낱말(`effects crash`)도 0 으로 읽히므로 따로 본다
+            bool only_none = false;
+            for (proven_size_t i = 1; i + 1 < f->nkids; i++)
+                if (ck_atom(f->kids[i]) && veq(f->kids[i]->tok.lex, "effects"))
+                    only_none = ck_atom(f->kids[i + 1]) && veq(f->kids[i + 1]->tok.lex, "none");
+            if (!only_none) continue;
+        }
+        bool mutin = false;
+        for (proven_size_t i = 1; i + 1 < f->nkids; i++)
+            if (ck_atom(f->kids[i]) && (veq(f->kids[i]->tok.lex, "mut") || veq(f->kids[i]->tok.lex, "mut_ref") ||
+                                        veq(f->kids[i]->tok.lex, "cap"))) mutin = true;
+        if (mutin) continue;
+        bool calls = false;
+        for (proven_size_t s = 0; s < ns && !calls; s++) {
+            const low_cst_t *a[512]; proven_size_t n = 0; o4_atoms(sts[s], a, &n, 512);
+            if (n >= 512) { calls = true; break; }
+            for (proven_size_t i = 0; i < n; i++)
+                if (o4_is_proc(tab, nt, a[i]->tok.lex) || veq(a[i]->tok.lex, "call_builtin") ||
+                    veq(a[i]->tok.lex, "send") || veq(a[i]->tok.lex, "spawn") || veq(a[i]->tok.lex, "chsend") ||
+                    veq(a[i]->tok.lex, "chrecv") || veq(a[i]->tok.lex, "await") || veq(a[i]->tok.lex, "yield") ||
+                    veq(a[i]->tok.lex, "drain") || veq(a[i]->tok.lex, "channel")) { calls = true; break; }
+        }
+        if (!calls)
+            warn(out, "W-PROC-PURE",
+                 "this `proc` declares `effects none`, takes no `mut` input and calls no `proc` — it can be a `fn` "
+                 "(then callers know it is pure, and the C back end may treat it so) — RFC-0113 O3", f->line);
+    }
+}
 static void ck_result_discard_walk(low_check_result_t *out, const low_cst_t *body,
                                    const low_cst_t *nd, const low_opinfo_t *tab, proven_size_t nt) {
     if (!nd) return;
@@ -11271,6 +11406,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
         ck_borrow_walk(&out, f, z, z, false, false);
     }
     ck_stack_bound(&out);   // ★ RFC-0135 S3 — 진입 op 마다 스택의 틀 안 나열 최대
+    ck_narrower_decls(&out, pr, (const low_opinfo_t *)ops.data, ops.len);   // ★ RFC-0113 O3 · O4 — 더 좁게 적을 수 있다
     ck_r1_tab = NULL; ck_r1_nt = 0;
 
     // ★ 액터 상태 칸에 빌림을 두는 것 (§8.4.1 · 결함 노트 #74) · 상태를 읽는 오류 조건 (#62)

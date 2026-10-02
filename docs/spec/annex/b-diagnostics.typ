@@ -35,12 +35,13 @@ E-VM-VIEW")
   ]
 
   #sub("B.2", "경고 (W-…)")[
-    #para("1")[번역은 되지만 저자가 봐야 하는 것. 모두 15 가지다.]
+    #para("1")[번역은 되지만 저자가 봐야 하는 것. 모두 17 가지다.]
     #shape("경고 식별자", "W-CBE-SLOW  W-COL0  W-CONFIG-DEPENDS
 W-CONTRACT-IGNORED  W-EFFECT-OVER  W-ERRORS-UNRAISED
 W-EXPORT-HIDDEN  W-EXPORT-NOSYM  W-NOT-YET
-W-PAR-OK  W-RESULT-DISCARD  W-RFC-PENDING
-W-TEST-NOT-RUN  W-UNBOUND  W-USE-EXTERNAL")
+W-PAR-OK  W-PROC-PURE  W-RESULT-DISCARD
+W-RFC-PENDING  W-TEST-NOT-RUN  W-UNBOUND
+W-USE-EXTERNAL  W-VAR-NEVER-SET")
   ]
 
   #sub("B.3", "번역 잘못 (E-…)")[

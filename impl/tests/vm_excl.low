@@ -17,7 +17,7 @@ fn owner_read .
 do
   var x be u64 7 .
   var r be mut_ref u64 mut_ref x .
-  var y be u64 x .
+  let y be u64 x .
   set r 5 .
   return x .
 end

@@ -418,7 +418,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
         case IRW_NPAIR: case IRW_NLISTEN: case IRW_NCONNECT:
         case IRW_NSEND: case IRW_NRECV: case IRW_NCLOSE: case IRW_NPORT:
         case IRW_TTYSIZE: case IRW_TTYRAW: case IRW_TTYREAD:
-        case IRW_TIMENOW: case IRW_TIMELOCAL: case IRW_TIMESLEEP: case IRW_RANDBYTES:
+        case IRW_TIMENOW: case IRW_TIMELOCAL: case IRW_RANDBYTES:   // ★ time_sleep 는 Windows 에도 있다(RFC-0136, Sleep)
             return true;
         default: return false;
     }
@@ -755,6 +755,8 @@ const char *low_ir_leaf_cap_kind(proven_u8str_view_t name) {
         { "net_pair", "net" }, { "net_send", "net" }, { "net_recv", "net" }, { "net_close", "net" },
         { "net_listen", "net" }, { "net_port", "net" }, { "net_connect", "net" }, { "net_accept", "net" },
         { "net_resolve", "net" },
+        { "proc_spawn", "process" }, { "proc_read", "process" }, { "proc_poll", "process" },
+        { "proc_wait", "process" }, { "proc_kill", "process" },
         { "random_bytes", "random" },
         { "env_get", "env" },
         { "alloc_bytes", "allocator" },
@@ -4188,6 +4190,32 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         ir_emit(c, NOPS[ni].k, 0); return;
                     }
                 }
+                // ★★★ **프로세스 잎** (RFC-0136, 2026-10-03) — 소켓 잎과 같은 규율: 첫 피연산자는 `cap process` 다.
+                {
+                    static const struct { const char *w; low_irw_t k; int n; } POPS[] = {
+                        { "proc_spawn", IRW_PSPAWN, 1 },   // (argv)   → option u64
+                        { "proc_read",  IRW_PREAD,  2 },   // (h, dst) → option u64
+                        { "proc_poll",  IRW_PPOLL,  1 },   // (h)      → option u64
+                        { "proc_wait",  IRW_PWAIT,  1 },   // (h)      → option u64
+                        { "proc_kill",  IRW_PKILL,  1 },   // (h)      → bool
+                    };
+                    for (size_t pi = 0; pi < sizeof POPS / sizeof POPS[0]; pi++) {
+                        if (!veq(nd->tok.lex, POPS[pi].w)) continue;
+                        proven_u8str_view_t pc = ir_capname_of(c->def_form, "process");
+                        if (!(pc.size && *pos < end && is_atom(k[*pos]) &&
+                              ir_names_cap(c->def_form, k[*pos]->tok.lex, "process"))) {
+                            if (ir_cap_cause(c, "process", k, pos, end, nd->line)) return;
+                            ir_fail(c, "E-CAP-MISSING",
+                                    "this process op starts or watches another program and needs the "
+                                    "`cap process` value as its FIRST operand — running programs is a RIGHT "
+                                    "you are handed (RFC-0011 · RFC-0136), never ambient", nd->line);
+                            return;
+                        }
+                        (*pos)++;
+                        for (int q = 0; q < POPS[pi].n; q++) ir_value(c, k, pos, end);
+                        ir_emit(c, POPS[pi].k, 0); return;
+                    }
+                }
                 if (veq(nd->tok.lex, "env_get")) {
                     proven_u8str_view_t ec = ir_capname_of(c->def_form, "env");
                     if (!(ec.size && *pos < end && is_atom(k[*pos]) &&
@@ -5440,7 +5468,13 @@ typedef struct { proven_u8 w; proven_i64 a; proven_u16 kid[TR_MAXKID]; proven_u8
         case IRW_NCLOSE: return 1;                             // ★ 소켓 (fd)
         case IRW_NLISTEN: return 1;                            // ★ 네트워크 (port)/(fd)
         case IRW_NPORT: return 1;
-        case IRW_NCONNECT: return 1;                           // ★ (port)/(fd)
+        case IRW_NCONNECT: return 2;                           // ★ (addr, port) — 2026-10-03: 1 로 남아 있었다(X-0032 에서 주소를 더할 때 이 줄만 안 고쳤다) — 구간 분석의 스택 셈이 한 칸 어긋났다
+        case IRW_NRESOLVE: return 1;                           // ★ (name)
+        case IRW_PSPAWN: return 1;                             // ★ RFC-0136 — (argv)
+        case IRW_PREAD: return 2;                              // ★ (h, dst)
+        case IRW_PPOLL: return 1;
+        case IRW_PWAIT: return 1;
+        case IRW_PKILL: return 1;
         case IRW_NACCEPT: return 1;
         case IRW_WRAP_OK: return 1;
         case IRW_WRAP_SOME: return 1;
@@ -5745,6 +5779,8 @@ const char *low_irw_name(low_irw_t w) {
         case IRW_FWRITE: return "file.write"; case IRW_FCLOSE: return "file.close";
         case IRW_NPAIR: return "net.pair"; case IRW_NSEND: return "net.send"; case IRW_NRECV: return "net.recv"; case IRW_NCLOSE: return "net.close";
         case IRW_NLISTEN: return "net.listen"; case IRW_NPORT: return "net.port"; case IRW_NCONNECT: return "net.connect"; case IRW_NACCEPT: return "net.accept";
+        case IRW_NRESOLVE: return "net.resolve";
+        case IRW_PSPAWN: return "proc.spawn"; case IRW_PREAD: return "proc.read"; case IRW_PPOLL: return "proc.poll"; case IRW_PWAIT: return "proc.wait"; case IRW_PKILL: return "proc.kill";
         case IRW_RMARK: return "region.mark"; case IRW_RRESET: return "region.reset"; case IRW_RDIN: return "io.read"; case IRW_RNEW: return "io.reactor"; case IRW_RREAD: return "io.rread"; case IRW_RWRITE: return "io.rwrite";
         case IRW_VIEW: return "view"; case IRW_TRYVIEW: return "try.view";
         case IRW_HASVAL: return "has.value";
@@ -6537,6 +6573,7 @@ static bool ct_irw_touches_world(low_irw_t w) {
     case IRW_DMAKE: case IRW_PREMOVE: case IRW_PRENAME:
     case IRW_NPAIR: case IRW_NSEND: case IRW_NRECV: case IRW_NCLOSE: case IRW_NLISTEN:
     case IRW_NPORT: case IRW_NCONNECT: case IRW_NACCEPT: case IRW_NRESOLVE:
+    case IRW_PSPAWN: case IRW_PREAD: case IRW_PPOLL: case IRW_PWAIT: case IRW_PKILL:   // ★ 프로그램을 띄운다(RFC-0136)
         return true;
     default:
         return false;

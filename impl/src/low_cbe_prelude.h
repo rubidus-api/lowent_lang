@@ -10,6 +10,7 @@ extern const char LW_CONC[];
 /* ★ 프리스탠딩(no_heap) 타깃의 동시성 — 힙·스레드·ucontext 없이 도는 협력 floor (RFC-0039 T0) */
 extern const char LW_CONC_T0[];
 extern const char LW_PRELUDE2[];
+extern const char LW_PROC_RT[];   /* RFC-0136 — 프로세스 잎(쓰는 단위에만) */
 extern const char LW_RENDER[];
 extern const char LW_DISPATCH[];
 

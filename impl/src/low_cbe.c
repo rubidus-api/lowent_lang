@@ -4843,6 +4843,14 @@ static bool cbe_needs_peer(const low_ir_t *ir, proven_size_t d, int depth) {
     return false;
 }
 
+static bool cbe_uses_proc(const low_ir_t *ir) {   // ★ RFC-0136 — 프로세스 잎을 쓰는가
+    for (proven_size_t d = 0; d < ir->ndefs; d++)
+        for (proven_size_t i = 0; i < ir->defs[d].ncode; i++) {
+            low_irw_t w = ir->defs[d].code[i].w;
+            if (w == IRW_PSPAWN || w == IRW_PREAD || w == IRW_PPOLL || w == IRW_PWAIT || w == IRW_PKILL) return true;
+        }
+    return false;
+}
 static bool cbe_uses_reactor(const low_ir_t *ir) {
     for (proven_size_t d = 0; d < ir->ndefs; d++)
         for (proven_size_t i = 0; i < ir->defs[d].ncode; i++)
@@ -5021,6 +5029,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
     fprintf(out, "#define LW_HW_ASM %d\n", g_hw_asm);
     fprintf(out, "#define LW_HW_VAES %d\n", g_hw_vaes);
     fputs(LW_PRELUDE, out);
+    if (cbe_uses_proc(ir)) fputs(LW_PROC_RT, out);   // ★ RFC-0136 — 쓰는 단위에만
     // ★★★ 동시성 런타임은 **쓸 때만** (pay-as-you-go) — 그리고 **reactor 를 쓸 때도** 낸다.
     //   ☞ 처음엔 reactor 를 별도 블록으로 떼었는데, 스케줄러가 `lw_io_poll_once` 를 부르고
     //     reactor 가 `lw_gthr` 를 보므로 **서로를 참조한다.** 쪼개면 순서가 안 나온다.
@@ -6607,6 +6616,33 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                           "            if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
                           "            lw_boxes[lw_nbox] = lw_int((long long)a_);\n"
                           "            st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } } } }\n", out);
+                    break;
+                // ★★★ RFC-0136 — 프로세스 잎. 런타임은 LW_PROC_RT(쓰는 단위에만 나온다).
+                case IRW_PSPAWN:
+                    fputs("    { lowv av = st[--sp];\n"
+                          "      long long h_ = lw_proc_spawn((const unsigned char *)(const void *)(uintptr_t)av.p, (size_t)av.n);\n"
+                          "      if (h_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
+                          "      else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "             lw_boxes[lw_nbox] = lw_int(h_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                    break;
+                case IRW_PREAD:
+                    fputs("    { lowv dv = st[--sp]; lowv hv = st[--sp];\n"
+                          "      long long r_ = lw_proc_read(hv.i, (unsigned char *)(void *)(uintptr_t)dv.p, (size_t)dv.n);\n"
+                          "      if (r_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
+                          "      else { if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                          "             lw_boxes[lw_nbox] = lw_int(r_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n", out);
+                    break;
+                case IRW_PPOLL: case IRW_PWAIT:
+                    fprintf(out, "    { lowv hv = st[--sp]; unsigned long long s_ = 0;\n"
+                                 "      int r_ = %s(hv.i, &s_);\n"
+                                 "      if (r_ < 0) { st[sp++] = (lowv){ .tag = LWV_NONE }; }\n"
+                                 "      else { if (r_ == 0) s_ = 0xFFFFFFFFFFFFFFFFull;\n"
+                                 "             if (lw_nbox >= lw_boxlim) lw_panic(\"box pool\");\n"
+                                 "             lw_boxes[lw_nbox] = lw_int((long long)s_); st[sp++] = (lowv){ .tag = LWV_SOME, .box = lw_nbox++ }; } }\n",
+                            in->w == IRW_PPOLL ? "lw_proc_poll" : "lw_proc_wait");
+                    break;
+                case IRW_PKILL:
+                    fputs("    { lowv hv = st[--sp]; st[sp++] = lw_int(lw_proc_kill(hv.i) ? 1 : 0); }\n", out);
                     break;
                 case IRW_NACCEPT:
                     fputs("    { lowv hv = st[--sp];\n"

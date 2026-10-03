@@ -194,7 +194,9 @@ static unsigned builtin_effect(proven_u8str_view_t v) {
         veq(v, "net_recv") || veq(v, "net_close") ||
         veq(v, "net_listen") || veq(v, "net_port") ||                      // ★ 네트워크 면
         veq(v, "net_connect") || veq(v, "net_accept") ||
-        veq(v, "net_resolve"))   // ★ 이름 해석도 바깥에 닿는다 (X-0032)
+        veq(v, "net_resolve") ||  // ★ 이름 해석도 바깥에 닿는다 (X-0032)
+        veq(v, "proc_spawn") || veq(v, "proc_read") || veq(v, "proc_poll") ||   // ★ 프로세스 (RFC-0136)
+        veq(v, "proc_wait") || veq(v, "proc_kill"))
         return EFF_IO;
     // ★ RFC-0057 — 원시어가 있는 효과는 **전부** 추론한다. 안 하면 선언이 장식이다.
     if (veq(v, "stack_new") || veq(v, "alloc_bytes"))     return EFF_ALLOC;   // ★ A3 — 바이트를 얻는다
@@ -2697,6 +2699,7 @@ static void ck_entry(low_check_result_t *out, const low_parse_result_t *pr) {
                           veq(kd, "heap") ||
                           veq(kd, "file_system") ||  // ★ A4 — RFC-0069 §6 의 파일 권한
                           veq(kd, "net") ||          // ★ 소켓 — cap net (socketpair loopback)
+                          veq(kd, "process") ||      // ★ 프로그램 띄우기 — cap process (RFC-0136)
                           veq(kd, "tty") ||          // ★ 터미널 — cap tty (raw·키·크기)
                           // ★★★★★ **원자 연산 — cap atomic** (2026-08-07, 소유자 결정).
                           //   이것이 없어서 `lib/spsc.low` 을 **어떤 실물 프로그램도 부를 수
@@ -2726,7 +2729,7 @@ static void ck_entry(low_check_result_t *out, const low_parse_result_t *pr) {
             if (!givable)
                 emit(out, "E-ENTRY-CAP",
                      "the entry asked for a capability the runtime cannot hand it yet — only "
-                     "`cap args`, `cap env`, `cap io`, `cap allocator`, `cap file_system`, `cap net`, `cap tty`, `cap atomic`, `cap random` and `cap clock` are provided "
+                     "`cap args`, `cap env`, `cap io`, `cap allocator`, `cap file_system`, `cap net`, `cap process`, `cap tty`, `cap atomic`, `cap random` and `cap clock` are provided "
                      "(RFC-0030 D2\u2032). Declaring a right "
                      "nobody can grant would be decoration, and decoration is a lie",
                      f->kids[1]->tok.line);
@@ -4441,7 +4444,7 @@ static void ck_alloc_cap(low_check_result_t *out, const low_parse_result_t *pr) 
         //   ⇒ 남기는 것: `cap machine`·`cap device`(하드웨어는 거기 있다) · `cap c`(C 호출은
         //     베어메탈에서도 뜻이 있다) · `cap allocator`(alloc 효과는 위에서 이미 막힌다).
         if (low_ir_target()->no_heap) {
-            static const char *hostcaps[] = { "io", "file_system", "net", "tty", "args", "env", "clock", "random" };
+            static const char *hostcaps[] = { "io", "file_system", "net", "process", "tty", "args", "env", "clock", "random" };
             for (proven_size_t q = 0; q < h.np; q++)
                 for (proven_size_t z = h.p[q].ts; z + 1 < h.p[q].te; z++) {
                     if (!ck_atom(f->kids[z]) || !veq(f->kids[z]->tok.lex, "cap")) continue;
@@ -4615,6 +4618,7 @@ static void ck_io_cap(low_check_result_t *out, const low_parse_result_t *pr) {
                     (veq(f->kids[z + 1]->tok.lex, "io") ||
                      veq(f->kids[z + 1]->tok.lex, "file_system") ||
                      veq(f->kids[z + 1]->tok.lex, "net") ||
+                     veq(f->kids[z + 1]->tok.lex, "process") ||   // ★ RFC-0136 — 프로그램을 띄우는 것도 바깥과의 대화다
                      veq(f->kids[z + 1]->tok.lex, "tty") ||
                      // ★ 시계도 io 를 인가한다 (RFC-0090 N1) — 시계를 읽는 것은 **바깥을 보는
                      //   일**이다. 값을 만들지 않고 관찰만 하지만, 그 관찰이 결정성을 깬다.

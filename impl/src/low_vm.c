@@ -44,6 +44,82 @@ LOW_CHAPOLY_BODY            // ★ ChaCha20-Poly1305 한 덩이 — 잎 둘을 �
 #include <sys/stat.h>   // ★ 파일 타입 질의 (RFC-0069 §6 — stat/S_ISDIR/S_ISREG)
 #include <errno.h>      // ★ readdir 의 끝(NULL·errno==0) vs 오류(NULL·errno!=0) 를 가른다
 #include <termios.h>    // ★ cap tty — raw 모드(에코·행버퍼 끄기)
+#include <spawn.h>      // ★ RFC-0136 — 프로세스 잎(posix_spawnp)
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <signal.h>
+extern char **environ;
+// ★★★ RFC-0136 — 프로세스 표. 방출 C 의 LW_PROC_RT 와 **같은 뜻**이다(두 판이 같은 상태 수를 낸다).
+#define VM_MAXPROC 32
+static struct { int used; pid_t pid; int fd; int done; unsigned long long status; } vm_procs[VM_MAXPROC];
+static unsigned long long vm_proc_status_of(int st) {
+    if (WIFEXITED(st)) return (unsigned long long)WEXITSTATUS(st);
+    if (WIFSIGNALED(st)) return (1ull << 32) | (unsigned long long)WTERMSIG(st);
+    return 1ull << 32;
+}
+static long long vm_proc_spawn(const unsigned char *p, size_t n) {
+    if (n == 0 || p[0] == 0) return -1;
+    int slot = 0; while (slot < VM_MAXPROC && vm_procs[slot].used) slot++;
+    if (slot >= VM_MAXPROC) return -1;
+    char *buf = (char *)malloc(n + 1); if (!buf) return -1;
+    memcpy(buf, p, n); buf[n] = 0;
+    char *argv[257]; int ac = 0; size_t s = 0;
+    for (size_t i = 0; i <= n; i++)
+        if (i == n || buf[i] == 0) { if (i == n && s == n) break; if (ac >= 256) { free(buf); return -1; } argv[ac++] = buf + s; s = i + 1; }
+    argv[ac] = 0;
+    int fds[2]; if (pipe(fds) != 0) { free(buf); return -1; }
+    posix_spawn_file_actions_t fa; posix_spawn_file_actions_init(&fa);
+    posix_spawn_file_actions_addopen(&fa, 0, "/dev/null", O_RDONLY, 0);
+    posix_spawn_file_actions_adddup2(&fa, fds[1], 1);
+    posix_spawn_file_actions_adddup2(&fa, fds[1], 2);
+    posix_spawn_file_actions_addclose(&fa, fds[0]);
+    posix_spawn_file_actions_addclose(&fa, fds[1]);
+    pid_t pid = 0;
+    int rc = posix_spawnp(&pid, argv[0], &fa, NULL, argv, environ);
+    posix_spawn_file_actions_destroy(&fa); free(buf); close(fds[1]);
+    if (rc != 0) { close(fds[0]); return -1; }
+    fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL) | O_NONBLOCK);
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    vm_procs[slot].used = 1; vm_procs[slot].pid = pid; vm_procs[slot].fd = fds[0];
+    vm_procs[slot].done = 0; vm_procs[slot].status = 0;
+    return slot;
+}
+static int vm_proc_ok(long long h) { return h >= 0 && h < VM_MAXPROC && vm_procs[h].used; }
+static long long vm_proc_read(long long h, unsigned char *dst, size_t n) {
+    if (!vm_proc_ok(h) || vm_procs[h].fd < 0) return -1;
+    if (n == 0) return 0;
+    ssize_t r = read(vm_procs[h].fd, dst, n);
+    if (r > 0) return (long long)r;
+    if (r < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)) return 0;
+    return -1;
+}
+static int vm_proc_poll(long long h, unsigned long long *out) {
+    if (!vm_proc_ok(h)) return -1;
+    if (!vm_procs[h].done) {
+        int st = 0; pid_t r = waitpid(vm_procs[h].pid, &st, WNOHANG);
+        if (r == 0) return 0;
+        vm_procs[h].done = 1; vm_procs[h].status = (r < 0) ? (1ull << 32) : vm_proc_status_of(st);
+    }
+    *out = vm_procs[h].status; return 1;
+}
+static int vm_proc_wait(long long h, unsigned long long *out) {
+    if (!vm_proc_ok(h)) return -1;
+    if (!vm_procs[h].done) {
+        int st = 0; pid_t r;
+        do { r = waitpid(vm_procs[h].pid, &st, 0); } while (r < 0 && errno == EINTR);
+        vm_procs[h].status = (r < 0) ? (1ull << 32) : vm_proc_status_of(st);
+        vm_procs[h].done = 1;
+    }
+    *out = vm_procs[h].status;
+    if (vm_procs[h].fd >= 0) close(vm_procs[h].fd);
+    vm_procs[h].used = 0; vm_procs[h].fd = -1;
+    return 1;
+}
+static int vm_proc_kill(long long h) {
+    if (!vm_proc_ok(h)) return 0;
+    if (vm_procs[h].done) return 1;
+    return kill(vm_procs[h].pid, SIGKILL) == 0 || errno == ESRCH;
+}
 #include <sys/ioctl.h>  // ★ cap tty — 화면 크기(TIOCGWINSZ)
 #include <ucontext.h>   // ★★★ green thread — 태스크 중단(yield)을 위한 코루틴(VM 오라클 전용)
 #include "low_token.h"
@@ -2709,6 +2785,49 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted"); return false; }
                 vm->boxes[vm->nbox] = vmv_int((proven_i64)a_);
                 stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
+                break;
+            }
+            // ★★★ RFC-0136 — 프로세스 잎(뜻은 방출 C 의 LW_PROC_RT 와 같다).
+            case IRW_PSPAWN: {
+                if (sp < 1) return false;
+                vmv_t av = stack[--sp];
+                if (av.tag != VMV_SLICE && av.tag != VMV_VARRAY) { vm_diag(vm->diags, "E-VM-TYPE", "proc_spawn needs the argument list as bytes"); return false; }
+                long long h_ = vm_proc_spawn((const unsigned char *)av.p, (size_t)av.n);
+                if (h_ < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted"); return false; }
+                vm->boxes[vm->nbox] = vmv_int((proven_i64)h_);
+                stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
+                break;
+            }
+            case IRW_PREAD: {
+                if (sp < 2) return false;
+                vmv_t dv = stack[--sp], hv = stack[--sp];
+                if (hv.tag != VMV_INT || (dv.tag != VMV_SLICE && dv.tag != VMV_VARRAY)) { vm_diag(vm->diags, "E-VM-TYPE", "proc_read needs (handle, bytes)"); return false; }
+                long long r_ = vm_proc_read((long long)hv.i, (unsigned char *)dv.p, (size_t)dv.n);
+                if (r_ < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted"); return false; }
+                vm->boxes[vm->nbox] = vmv_int((proven_i64)r_);
+                stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
+                break;
+            }
+            case IRW_PPOLL: case IRW_PWAIT: {
+                if (sp < 1) return false;
+                vmv_t hv = stack[--sp];
+                if (hv.tag != VMV_INT) { vm_diag(vm->diags, "E-VM-TYPE", "proc_poll/proc_wait needs a handle"); return false; }
+                unsigned long long s_ = 0;
+                int r_ = (in->w == IRW_PPOLL) ? vm_proc_poll((long long)hv.i, &s_) : vm_proc_wait((long long)hv.i, &s_);
+                if (r_ < 0) { stack[sp++] = (vmv_t){ .tag = VMV_NONE }; break; }
+                if (r_ == 0) s_ = 0xFFFFFFFFFFFFFFFFull;
+                if (vm->nbox >= VM_MAXBOX) { vm_diag(vm->diags, "E-VM-BOXPOOL", "the VM's box pool is exhausted"); return false; }
+                vm->boxes[vm->nbox] = vmv_int((proven_i64)s_);
+                stack[sp++] = (vmv_t){ .tag = VMV_SOME, .box = (proven_i32)vm->nbox++ };
+                break;
+            }
+            case IRW_PKILL: {
+                if (sp < 1) return false;
+                vmv_t hv = stack[--sp];
+                if (hv.tag != VMV_INT) { vm_diag(vm->diags, "E-VM-TYPE", "proc_kill needs a handle"); return false; }
+                stack[sp++] = vmv_int(vm_proc_kill((long long)hv.i) ? 1 : 0);
                 break;
             }
             case IRW_NACCEPT: {

@@ -12,6 +12,7 @@
 | [`lowpack`](lowpack/) | 비압축 ustar 묶음을 만들고 · 목록을 내고 · 안전하게 푼다 | GNU `tar` | experimental |
 | [`lowindex`](lowindex/) | 폴더의 텍스트로 낱말 색인을 짓고 모든 낱말을 가진 파일을 찾는다 | 같은 규칙의 파이썬 구현 | experimental |
 | [`lowserve`](lowserve/) | 폴더를 127.0.0.1 에서 읽기 전용 HTTP 로 내준다 | 파이썬 `http.server` · `curl` | experimental |
+| [`lowtasks`](lowtasks/) | 의존이 있는 작업들을 정해진 수까지 나란히 돌린다(Linux · Windows) | 독립 검사기(차례 · 동시 상한 · 한 번씩) · `make -j` | experimental |
 
 ## 이 서랍의 규율 셋
 

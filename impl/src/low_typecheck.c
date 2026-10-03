@@ -808,8 +808,10 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     { "net_pair", 1 }, { "net_send", 1 }, { "net_recv", 1 },
                     { "net_listen", 1 }, { "net_port", 1 }, { "net_connect", 1 },
                     { "net_accept", 1 },
+                    { "proc_spawn", 1 }, { "proc_read", 1 }, { "proc_poll", 1 }, { "proc_wait", 1 },   // ★ RFC-0136
                     // ── 참거짓을 낸다 (닫기·파일시스템 변경은 됐나 안 됐나뿐이다)
                     { "file_close", 2 }, { "dir_close", 2 }, { "net_close", 2 }, { "same_slice", 2 },
+                    { "proc_kill", 2 },
                     { "dir_make", 2 }, { "path_remove", 2 }, { "path_rename", 2 },
                     // ── 정수를 낸다 (쓴 길이 · 해시 · 시계 · 난수 · 비트)
                     { "write_out", 3 }, { "crc32", 3 }, { "hash64", 3 },
@@ -1338,7 +1340,7 @@ static bool ty_is_name_only(proven_u8str_view_t v) {
         //   홀로 타입 자리에 서도 아무 말이 없었다. `rng` 만 말하고 다섯은 조용한 것이 가장 나쁘다 —
         //   읽는 사람이 그 차이에 뜻이 있다고 여긴다. 위의 after_cap 이 `cap <종류>` 를 빼 주므로
         //   여기 걸리는 것은 **홀로 선 것**뿐이다.
-        "clock", "device", "file_system", "net", "tty",
+        "clock", "device", "file_system", "net", "tty", "process",
     };
     for (proven_size_t i = 0; i < sizeof k / sizeof k[0]; i++) if (veq(v, k[i])) return true;
     return false;
@@ -1434,6 +1436,7 @@ static bool ty_is_builtin_word(proven_u8str_view_t v) {
         //   `file_system` 을 타입으로 읽어 "E-TYPE-UNDEF: 없는 타입" 이라 했다 — 오진.
         "file_system","net","clock","rng","device",
         "tty",   // ★ 터미널 (2026-07-26) — raw 모드·키 입력·화면 크기
+        "process",   // ★ 프로그램 띄우기 (RFC-0136)
     };
     for (proven_size_t i = 0; i < sizeof k / sizeof k[0]; i++) if (veq(v, k[i])) return true;
     return false;

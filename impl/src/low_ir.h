@@ -209,6 +209,13 @@ typedef enum {
     //   ★★★ 2026-09-18 (X-0032): 주소를 **받는다**. 그전에는 127.0.0.1 이 박혀 있어
     //     이 언어는 자기 기계 밖으로 나갈 수 없었다. 주소는 호스트 바이트 차례의 u32 다.
     IRW_NRESOLVE, // ★ cap net — (이름 slice) → option u32 (IPv4 주소) · DNS
+    // ★★★ RFC-0136 — 프로세스 잎 (cap process). 핸들은 런타임 표의 칸 번호. 상태 수: 낮은 32 비트 = 종료 코드 ·
+    //   비트 32 = 신호로 끝났다 · UINT64_MAX = 아직 돈다(poll). 두 판이 같은 뜻을 낸다(VM 은 POSIX 만).
+    IRW_PSPAWN,   // ★ cap process — (argv: NUL 로 이은 바이트) → option u64 (핸들)
+    IRW_PREAD,    // ★ cap process — (h, dst) → option u64 (막지 않음: n · 0 = 지금은 없다 · none = 끝)
+    IRW_PPOLL,    // ★ cap process — (h) → option u64 (UINT64_MAX = 돈다 · 상태)
+    IRW_PWAIT,    // ★ cap process — (h) → option u64 (막는다 · 상태 · 핸들을 닫는다)
+    IRW_PKILL,    // ★ cap process — (h) → bool
     //   ★ 이름을 주소로 바꾸는 일도 **바깥에 닿는 일**이라 `cap net` 이고 `effects io` 다.
     //     connect 와 **가른 까닭**: 주소만 가진 프로그램이 DNS 에 닿지 않게 하고, 골든이
     //     주소를 손으로 주어 **망 없이** 연결을 잴 수 있게 하기 위해서다.

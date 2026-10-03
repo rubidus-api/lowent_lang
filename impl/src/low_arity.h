@@ -253,7 +253,8 @@
     X(dir_open)  X(dir_read)  X(dir_close)  X(file_type)  X(link_type)          \
     X(dir_make)  X(path_remove)  X(path_rename)         \
     X(net_pair)  X(net_send)  X(net_recv)  X(net_close)         \
-    X(net_listen)  X(net_port)  X(net_connect)  X(net_accept)  X(net_resolve)
+    X(net_listen)  X(net_port)  X(net_connect)  X(net_accept)  X(net_resolve)  \
+    X(proc_spawn)  X(proc_read)  X(proc_poll)  X(proc_wait)  X(proc_kill)
 
 // ★ **어휘이지만 예약어는 아닌 것** — 자리가 정해져 있어 사용자 이름과 안 부딪친다.
 //   · 절 표식: `into`(pop 의 두 번째 모양) · `capacity`(stack_new) · `ret`(ensures 반환 바인딩)

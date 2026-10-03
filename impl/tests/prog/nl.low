@@ -37,10 +37,10 @@ use allocs  from "../../../lib/alloc.low" .
 rem ★ 번호를 붙여 출력 버퍼에 조립한다 — **순수하다**(effects state 는 리더 커서 때문이고,
 rem   io 도 alloc 도 없다). 그래서 파일이든 stdin 이든 같은 코드가 먹는다.
 rem   답은 조립된 바이트 수. 안 들어가면 none — 전량-아니면-무(fmt 와 같은 규율).
-proc number_lines input src slice u8 . input dst mut slice u8 . . output option u64 .
+proc number_lines input src slice u8 . input dst mut slice u8 . output option u64 .
   effects state .
 do
-  var r be io.mem_reader spawn actor io.mem_reader . .
+  var r be io.mem_reader spawn actor io.mem_reader .
   let z be u64 send r attach src .
   var pos be u64 0 .
   var n be u64 0 .
@@ -81,7 +81,7 @@ do
   return (some pos) .
 end
 
-proc main .
+proc main
   input out cap io .
   input al  cap allocator .
   output u8 .

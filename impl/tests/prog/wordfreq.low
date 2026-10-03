@@ -18,7 +18,7 @@ use files  from "../../../lib/file.low" .
 use strmap from "../../../lib/strmap.low" .
 use strings from "../../../lib/str.low" .
 
-proc main .
+proc main
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .

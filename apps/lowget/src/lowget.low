@@ -938,7 +938,7 @@ rem ★★★★★ **도구의 얼굴.**
 rem   `lowget <url> [-i] [-L] [--insecure] [--cafile <path>]`
 rem   ☞ 인증서는 **확인한다**. 건너뛰려면 `--insecure` 라고 적어야 하고, 그러면 도구가
 rem     stderr 에 그 사실을 한 줄로 말한다.
-proc main .
+proc main
   input k  cap net .
   input fs cap file_system .
   input ck cap clock .

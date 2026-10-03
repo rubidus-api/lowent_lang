@@ -12,9 +12,9 @@ rem   ★ 폭이 컴파일 시 고정이라 VM 과 C 가 **같은 마스크**를
 
 module vm_bits .
 
-def type t3     bits 3 . .
-def type tenbit bits 10 . .
-def type t12    bits 12 . .
+def type t3     bits 3 .
+def type tenbit bits 10 .
+def type t12    bits 12 .
 
 rem 10비트: 1023 + 1 은 **0** 으로 감긴다 (mod 1024).
 fn inc10 input a tenbit . output tenbit . do return (wrap_add a 1) . end

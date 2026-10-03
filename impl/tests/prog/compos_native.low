@@ -8,7 +8,7 @@ module compos_native .
 
 build profile native .
 
-proc fill input dst mut slice u8 . . input at u64 . input v u64 . output u64 . effects none . do
+proc fill input dst mut slice u8 . input at u64 . input v u64 . output u64 . effects none . do
   guard lt at (len dst) . else return 0 .
   set (idx dst at) (narrow u8 v) .
   return 1 .

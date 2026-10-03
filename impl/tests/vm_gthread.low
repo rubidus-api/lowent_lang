@@ -15,7 +15,7 @@ module vm_gthread .
 
 actor counter do
   state do v u64 . end
-  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end
+  proc inc output u64 . effects state . do set v expr v + 1 . return v . end
   fn get output u64 . do return v . end
 end
 
@@ -32,7 +32,7 @@ proc tb input c counter . output u64 . effects state . do
   return send c inc .
 end
 test gthread_yield schedule explore_interleavings . do
-  var c be counter spawn actor counter . .
+  var c be counter spawn actor counter .
   task_group do
     spawn ta c .
     spawn tb c .
@@ -42,7 +42,7 @@ end
 
 rem `yield` 를 쓴 task_group + 스칼라 반환 — VM(코루틴 인터리빙)≡네이티브(yield no-op, 완주). 차등 스윕.
 proc drive output u64 . effects state . do
-  var c be counter spawn actor counter . .
+  var c be counter spawn actor counter .
   task_group do
     spawn ta c .
     spawn tb c .

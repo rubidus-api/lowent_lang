@@ -16,7 +16,7 @@ rem      그것이 *"A 가 정말로 그 fd 를 기다리고 있었다"* 는 증
 rem   ☞ `sleep` 으로 재지 않는다. 흔들리는 시험은 검사가 아니다.
 
 module starve .
-proc reader input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+proc reader input k cap io . input buf mut slice u8 . output u64 . effects io . do
   rem ★ reactor 뒷받침은 **읽기 목적지와 달라야 한다**(RFC-0022 D-B) — completion 백엔드는
   rem   그 자리에 읽고 나서 목적지로 옮기므로 겹치면 덮어쓴다. 도구가 모든 백엔드에서 거절한다.
   rem ★ 앞 절반은 reactor 것, 뒤 절반이 읽기 자리 — **겹치지 않는 두 구간**이다.

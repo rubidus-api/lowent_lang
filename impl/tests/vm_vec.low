@@ -1,8 +1,8 @@
 rem RFC-0040 portable SIMD fixture — lanes are comptime (from `vec t n` binding
 rem types); arith/compare lift lanewise (compare → mask); dot product & clamp.
-def type bytes slice u8 . .
+def type bytes slice u8 .
 
-fn dot4 .
+fn dot4
   input b bytes .
   output u64 .
 do
@@ -12,7 +12,7 @@ do
   return reduce_add mul va vb .
 end
 
-fn clamp_sum .
+fn clamp_sum
   input b bytes .
   output u64 .
 do
@@ -24,17 +24,17 @@ do
   return reduce_add cc .
 end
 
-fn over .
+fn over
   input b bytes .
   output bool .
 do
   let xs be slice u32 view_array u32 b .
   let v be vec u32 4 load xs 0 .
   let lim be vec u32 4 splat 10 .
-  return lane_any gt v lim . .
+  return lane_any gt v lim .
 end
 
-fn vmax .
+fn vmax
   input b bytes .
   output u64 .
 do

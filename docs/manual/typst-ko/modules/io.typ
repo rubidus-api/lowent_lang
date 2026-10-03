@@ -8,7 +8,7 @@
 `read(buf) → n` 이 아니라 *peek · take · toss → 뷰*다 --- 호출자 메모리를 채우는 대신 원본의 한 구간을 가리키는 빌린 뷰를 건넨다(복사 0).
 
 ```lowent
-var r be io.mem_reader spawn actor io.mem_reader . .
+var r be io.mem_reader spawn actor io.mem_reader .
 let z be u64 send r attach src .
 let line be option slice u8 send r take_line 4096 .
 ```
@@ -47,7 +47,7 @@ let line be option slice u8 send r take_line 4096 .
 
 ```lowent
 proc count_lines input src slice u8 . output u64 . effects state . do
-  var r be io.mem_reader spawn actor io.mem_reader . .
+  var r be io.mem_reader spawn actor io.mem_reader .
   let z be u64 send r attach src .
   var lines be u64 0 .
   var going be bool true .

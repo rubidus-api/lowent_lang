@@ -71,7 +71,7 @@ export fn transit input st u64 . input msg u64 . output u64 . do
 end
 
 rem ── 큰 수 읽기 (빅엔디언) ─────────────────────────────────────────────────
-export fn be16 input b slice u8 . . input at u64 . output u64 . do
+export fn be16 input b slice u8 . input at u64 . output u64 . do
   if ge (add at 1) (len b) . do  return 0 . end
   return bit_or (shl (cast u64 (idx b at)) 8) (cast u64 (idx b (add at 1))) .
 end
@@ -92,7 +92,7 @@ rem   ☞ 접근자를 부르지 않고 **날바이트에서** 검사한다 — 
 rem     그러지 않으면 서로를 부른다.
 
 rem 확장 블록에서 그 종류가 몇 번 나오는가(중복 판정용).
-fn ext_count input b slice u8 . . input eo u64 . input stop u64 . input want u64 . output u64 . do
+fn ext_count input b slice u8 . input eo u64 . input stop u64 . input want u64 . output u64 . do
   var at be u64 eo .
   var c be u64 0 .
   var steps be u64 0 .
@@ -112,7 +112,7 @@ end
 rem supported_versions(43) 의 값 = <목록 길이 1> { <버전 2> }* — **0x0304 를 내놓는가**.
 rem ★ 이것이 없으면 상대는 TLS 1.3 을 청한 적이 없다. legacy_version 0x0303 은 1.2 도 적는
 rem   낱말이라 그것만으로는 아무것도 못 가른다(RFC 8446 §4.2.1: 없으면 1.2 이하로 협상하거나 거절).
-fn sv_offers_13 input b slice u8 . . input vo u64 . input vl u64 . output bool . do
+fn sv_offers_13 input b slice u8 . input vo u64 . input vl u64 . output bool . do
   if lt vl 3 . do  return false . end
   let ll be u64 cast u64 (idx b vo) .
   if ne (add ll 1) vl . do  return false . end
@@ -126,7 +126,7 @@ fn sv_offers_13 input b slice u8 . . input vo u64 . input vl u64 . output bool .
 end
 
 rem key_share 목록에서 그 group 이 몇 번 나오는가.
-fn ks_count input b slice u8 . . input vo u64 . input vl u64 . input want u64 . output u64 . do
+fn ks_count input b slice u8 . input vo u64 . input vl u64 . input want u64 . output u64 . do
   if lt vl 2 . do  return 0 . end
   let stop be u64 add vo vl .
   var at be u64 add vo 2 .
@@ -146,7 +146,7 @@ fn ks_count input b slice u8 . . input vo u64 . input vl u64 . input want u64 . 
 end
 
 rem key_share(51): 목록 길이가 맞고 **같은 group 이 둘이 아니다**(RFC 8446 §4.2.8).
-fn ks_ok input b slice u8 . . input vo u64 . input vl u64 . output bool . do
+fn ks_ok input b slice u8 . input vo u64 . input vl u64 . output bool . do
   if lt vl 2 . do  return false . end
   let ll be u64 be16 b vo .
   if ne (add ll 2) vl . do  return false . end
@@ -170,7 +170,7 @@ fn ks_ok input b slice u8 . . input vo u64 . input vl u64 . output bool . do
 end
 
 rem 이 바이트열이 성한 ClientHello 인가 — 머리부터 확장 끝까지.
-export fn ch_ok input b slice u8 . . output bool . do
+export fn ch_ok input b slice u8 . output bool . do
   if lt (len b) 39 . do  return false . end
   if ne (idx b 0) 1 . do  return false . end
   let n be u64 bit_or (shl (cast u64 (idx b 1)) 16) (be16 b 2) .
@@ -235,17 +235,17 @@ export fn ch_ok input b slice u8 . . output bool . do
 end
 
 rem 랜덤 32 바이트의 자리(언제나 6). 성하지 않으면 0.
-export fn ch_random_off input b slice u8 . . output u64 . do
+export fn ch_random_off input b slice u8 . output u64 . do
   if ch_ok b . do  return 6 . end
   return 0 .
 end
 
 rem legacy_session_id 의 자리와 길이.
-export fn ch_sid_off input b slice u8 . . output u64 . do
+export fn ch_sid_off input b slice u8 . output u64 . do
   if eq (ch_ok b) false . do  return 0 . end
   return 39 .
 end
-export fn ch_sid_len input b slice u8 . . output u64 . do
+export fn ch_sid_len input b slice u8 . output u64 . do
   if eq (ch_ok b) false . do  return 0 . end
   let n be u64 cast u64 (idx b 38) .
   if gt (add 39 n) (len b) . do  return 0 . end
@@ -254,13 +254,13 @@ export fn ch_sid_len input b slice u8 . . output u64 . do
 end
 
 rem cipher_suites 목록의 자리와 길이(바이트).
-export fn ch_suites_off input b slice u8 . . output u64 . do
+export fn ch_suites_off input b slice u8 . output u64 . do
   if eq (ch_ok b) false . do  return 0 . end
   let s be u64 add 39 (ch_sid_len b) .
   if gt (add s 2) (len b) . do  return 0 . end
   return add s 2 .
 end
-export fn ch_suites_len input b slice u8 . . output u64 . do
+export fn ch_suites_len input b slice u8 . output u64 . do
   let o be u64 ch_suites_off b .
   if eq o 0 . do  return 0 . end
   let n be u64 be16 b (sub o 2) .
@@ -270,7 +270,7 @@ export fn ch_suites_len input b slice u8 . . output u64 . do
 end
 
 rem 그 목록에 이 스위트가 있는가(1301 = AES-128-GCM · 1303 = ChaCha20-Poly1305).
-export fn ch_has_suite input b slice u8 . . input suite u64 . output bool . do
+export fn ch_has_suite input b slice u8 . input suite u64 . output bool . do
   let o be u64 ch_suites_off b .
   let n be u64 ch_suites_len b .
   if eq n 0 . do  return false . end
@@ -283,7 +283,7 @@ export fn ch_has_suite input b slice u8 . . input suite u64 . output bool . do
 end
 
 rem 확장 블록의 자리와 길이.
-export fn ch_ext_off input b slice u8 . . output u64 . do
+export fn ch_ext_off input b slice u8 . output u64 . do
   let o be u64 ch_suites_off b .
   let n be u64 ch_suites_len b .
   if eq o 0 . do  return 0 . end
@@ -294,7 +294,7 @@ export fn ch_ext_off input b slice u8 . . output u64 . do
   if gt (add e 2) (len b) . do  return 0 . end
   return add e 2 .
 end
-export fn ch_ext_len input b slice u8 . . output u64 . do
+export fn ch_ext_len input b slice u8 . output u64 . do
   let o be u64 ch_ext_off b .
   if eq o 0 . do  return 0 . end
   let n be u64 be16 b (sub o 2) .
@@ -304,7 +304,7 @@ end
 
 rem ★ 확장 하나를 종류로 찾는다 — **값의 자리**를 낸다(0 = 없다).
 rem   ☞ 걸음 수를 버퍼로 묶는다. 길이 0 짜리 확장이 이어지면 안 묶은 루프는 안 끝난다.
-export fn ch_ext_find input b slice u8 . . input want u64 . output u64 . do
+export fn ch_ext_find input b slice u8 . input want u64 . output u64 . do
   let o be u64 ch_ext_off b .
   let n be u64 ch_ext_len b .
   if eq n 0 . do  return 0 . end
@@ -323,7 +323,7 @@ export fn ch_ext_find input b slice u8 . . input want u64 . output u64 . do
   end
   return 0 .
 end
-export fn ch_ext_find_len input b slice u8 . . input want u64 . output u64 . do
+export fn ch_ext_find_len input b slice u8 . input want u64 . output u64 . do
   let v be u64 ch_ext_find b want .
   if eq v 0 . do  return 0 . end
   return be16 b (sub v 2) .
@@ -331,7 +331,7 @@ end
 
 rem ★★★ **x25519 공개키를 꺼낸다** — key_share(0x0033) 안에서 group 0x001d 를 찾는다.
 rem   key_share = <목록 길이 2> { <group 2> <길이 2> <키> }*
-export fn ch_x25519_off input b slice u8 . . output u64 . do
+export fn ch_x25519_off input b slice u8 . output u64 . do
   let v be u64 ch_ext_find b 51 .
   let vl be u64 ch_ext_find_len b 51 .
   if eq v 0 . do  return 0 . end

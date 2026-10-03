@@ -21,8 +21,8 @@ rem     선언이다. 그런 값이 조용히 drop 되면 **그 실패를 삼킨
 
 module vm_own .
 
-def type buffer u8 . .        rem 해제만 필요한 값 — 끝내는 데 실패가 없다
-def type conn u8 . .          rem 완결이 필요한 값 — 아래 `close` 가 그렇게 선언한다
+def type buffer u8 . rem 해제만 필요한 값 — 끝내는 데 실패가 없다
+def type conn u8 . rem 완결이 필요한 값 — 아래 `close` 가 그렇게 선언한다
 
 def enum close_error do
   device_lost .
@@ -74,5 +74,5 @@ fn peeked input a buffer . output u8 . do
     let x be u8 deref r .
     let y be u8 deref r .
     drop h .
-    return expr x + y . .
+    return expr x + y .
 end

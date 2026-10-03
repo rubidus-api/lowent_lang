@@ -1,18 +1,18 @@
-fn safe .
+fn safe
   input p ref u32 .
   output ref u32 .
 do
   return ref p .
 end
 
-fn dangling .
+fn dangling
   output ref u32 .
 do
   let local be u32 5 .
   return ref local .
 end
 
-fn nested_escape .
+fn nested_escape
   output ref u32 .
 do
   var tmp be u32 1 .

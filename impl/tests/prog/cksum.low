@@ -22,7 +22,7 @@ module cksum .
 use hash from "../../../lib/hash.low" .
 use fmt  from "../../../lib/fmt.low" .
 
-proc main .
+proc main
   input al  cap allocator .
   input k   cap io .
   output u8 .

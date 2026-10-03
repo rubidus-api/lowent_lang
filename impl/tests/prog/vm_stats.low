@@ -49,16 +49,16 @@ fn sum_values input s slice sample . output u64 . do
   var t be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do
-    let p be sample idx s i . .
-    set t expr t + (field p value) . .
-    set i expr i + 1 . .
+    let p be sample idx s i .
+    set t expr t + (field p value) .
+    set i expr i + 1 .
   end
   return t .
 end
 
 rem ★ 채널 전환 — 빈 스트림은 **오류**이고, 그것을 **없음**으로 옮길 수 있다.
 fn mean input s slice sample . output result u64 stat_err .
-  errors empty_stream eq len s . 0 . .
+  errors empty_stream eq len s 0 .
 do
   guard gt len s . 0 . else do return error empty_stream . end
   return ok (div (sum_values s) (len s)) .
@@ -70,8 +70,8 @@ end
 
 rem ★ 헤더 읽기 — 중첩 필드.
 fn header_major input b slice u8 . output u8 . do
-  let h be header view header b . .
-  let v be version field h ver . .
+  let h be header view header b .
+  let v be version field h ver .
   return field v major .
 end
 
@@ -82,7 +82,7 @@ actor tally do
   end
   proc bump output u64 . effects state .
   do
-    set seen expr seen + 1 . .
+    set seen expr seen + 1 .
     return seen .
   end
   fn total output u64 .
@@ -92,11 +92,11 @@ end
 rem ★ 액터를 만들고 메시지를 보낸다 — **순수하지 않다.** 전엔 `fn … effects none` 이었고
 rem   효과 검사기가 빌트인 효과를 **머리 자리에서만** 세어서 통과했다(spawn/send 가 식 안에 중첩).
 proc count_stream input s slice sample . output u64 . effects state . do
-  var t be tally spawn actor tally . .
+  var t be tally spawn actor tally .
   var i be u64 0 .
   while lt i (len s) . do
     let one be u64 send t bump .
-    set i expr i + 1 . .
+    set i expr i + 1 .
   end
   return send t total .
 end

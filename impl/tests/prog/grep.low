@@ -32,15 +32,15 @@ use allocs from "../../../lib/alloc.low" .
 rem ★ 한 줄이 패턴에 맞는가 — **순수하다**(파일도 출력도 모른다). 그래서 따로 시험할 수 있고,
 rem   차등 스윕이 VM 과 네이티브를 같은 입력으로 비교할 수 있다.
 proc line_hits input prog slice u64 . input line slice u8 .
-  input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . .
-  input cs mut slice u64 . . input ns mut slice u64 . .
+  input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 .
+  input cs mut slice u64 . input ns mut slice u64 .
   output bool . effects none .
 do
   let h be option u64 regex.search prog line cl nl mk cs ns .
   return is_some h .
 end
 
-proc main .
+proc main
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .
@@ -112,7 +112,7 @@ do
   guard is_some go . else return 70 .
   let ob be mut slice u8 some_value go .
 
-  var r be io.mem_reader spawn actor io.mem_reader . .
+  var r be io.mem_reader spawn actor io.mem_reader .
   let z be u64 send r attach (subslice txt 0 n) .
 
   var lineno be u64 0 .

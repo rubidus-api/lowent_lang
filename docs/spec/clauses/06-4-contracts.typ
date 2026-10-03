@@ -236,7 +236,7 @@ end", "E-DOT-MISSING")
     #ex("계약", "module ex_contract .
 
 rem 이 op 은 슬라이스에서 두 바이트를 읽어 큰 수 하나를 만든다.
-export fn read_pair input data slice u8 . . output u32 .
+export fn read_pair input data slice u8 . output u32 .
   requires ge (len data) 2 .
   ensures le ret 65535 .
 do

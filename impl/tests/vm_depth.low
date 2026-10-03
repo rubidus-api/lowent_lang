@@ -16,7 +16,7 @@ module vm_depth .
 
 fn deep input n u64 . output u64 . do
   if eq n 0 . do return 0 . end
-  return expr 1 + (deep (expr n - 1 .)) . .
+  return expr 1 + (deep (expr n - 1 .)) .
 end
 
 rem ★ 경계는 **정확히** 같아야 한다. VM 은 129 프레임을 허용하고 네이티브는 128 에서 멈췄다 —

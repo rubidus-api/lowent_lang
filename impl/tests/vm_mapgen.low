@@ -11,7 +11,7 @@ rem 넣고·찾고·덮어쓰고·지운다. 그리고 **키 0** 이 담긴다(�
 proc basic input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 2048 .
   guard is_some memo . else return 89 .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init (some_value memo) .
   let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
   guard is_some mo . else return 1 .
@@ -49,7 +49,7 @@ rem ★★ 스스로 다시 뿌린다: 4개 자리로 열고 40개를 넣는다 
 proc regrows input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 32768 .
   guard is_some memo . else return 89 .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init (some_value memo) .
   let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
   guard is_some mo . else return 1 .
@@ -75,7 +75,7 @@ rem ★ 인스턴스가 **다르면 산술도 다르다**: u8→u16 맵은 같�
 proc other_pair input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 2048 .
   guard is_some memo . else return 89 .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init (some_value memo) .
   let mo using bump be option (mapgen.table u8 u16) mapgen.open u8 u16 3 .
   guard is_some mo . else return 1 .
@@ -95,7 +95,7 @@ rem   키·값을 꺼낸다. 순서는 약속하지 않으므로 **합계**로 �
 proc walking input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 2048 .
   guard is_some memo . else return 89 .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init (some_value memo) .
   let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 8 .
   guard is_some mo . else return 1 .

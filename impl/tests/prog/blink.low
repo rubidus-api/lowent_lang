@@ -62,7 +62,7 @@ def struct rcc do
   ahb1enr   u32 rw .         rem 0x30 — 비트0 = GPIOAEN
 end
 
-unsafe proc clock_on .
+unsafe proc clock_on
   input dev cap mmio .
   output void .
   effects device unsafe .
@@ -83,7 +83,7 @@ end
 rem ── 초기화: LED 핀을 출력 모드로 ────────────────────────────────────────
 rem ★ **보통 op 은 여전히 권한을 받아야 한다.** ISR 의 면제는 정확히 문 하나 폭이다(D5-b) —
 rem   여기서 `cap mmio` 를 빼면 `E-MMIO-NOCAP` 이다. 골든이 그 대칭을 검사한다.
-unsafe proc led_init .
+unsafe proc led_init
   input dev cap mmio .
   output void .
   effects device unsafe .
@@ -102,7 +102,7 @@ rem ★★★ 이것이 이 축의 **주장**이다: 인자 없는 함수가 장
 rem   · `cap mmio` 파라미터가 **없다** — 가질 수 없다(E-ISR-PARAMS).
 rem   · 그런데 몸이 `return 0` 이 아니다. **레지스터를 진짜로 만진다.**
 rem   · 권한은 `vector 15 .` 이다 — 하드웨어가 불렀다는 사실이 그 권한이다(D5-b).
-unsafe proc on_systick .
+unsafe proc on_systick
   vector 15 .                rem SysTick — Cortex-M 의 고정 예외 번호
   priority 3 .
   output void .
@@ -124,7 +124,7 @@ def struct systick do
   val  u32 rw .              rem 현재 값 — 쓰면 0 으로 지워진다
 end
 
-unsafe proc tick_init .
+unsafe proc tick_init
   input dev cap mmio .
   output void .
   effects device unsafe .
@@ -145,7 +145,7 @@ rem ☞ 이 절이 쓸 수 있게 된 것이 이번 증분이다. 그전까지 �
 rem   문자열 "x86_64" 를 **하드코딩**하고 있어서, 프리스탠딩 타깃에서 인라인 asm 이
 rem   **거절되고**(진단은 "this build targets x86_64" 라고 거짓을 말했다) 반대로 x86 명령은
 rem   ARM 빌드에 **실렸다**. 대표 프로그램이 그 벽을 찾아냈다.
-unsafe proc wait_irq .
+unsafe proc wait_irq
   input k cap machine .
   output void .
   effects unsafe .
@@ -167,7 +167,7 @@ rem   **초기화 경로를 아무도 못 불렀다** — ISR 은 자기 존재 
 rem
 rem ★ 그리고 **권한은 넘겨줄 수 없다** — 그것이 새지 않는 이유다. 그래서 초기화를 여기서
 rem   **직접** 한다(`led_init dev .` 처럼 부를 수 없다: 건넬 cap 이 없다). 규율의 값이자 대가다.
-unsafe proc reset .
+unsafe proc reset
   vector 1 .
   output void .
   effects device unsafe .
@@ -207,7 +207,7 @@ end
 rem ── 주 루프 ─────────────────────────────────────────────────────────────
 rem ★ 베어메탈의 main 은 **돌아오지 않는다**. 초기화한 뒤 인터럽트를 기다리며 잔다 —
 rem   바쁜 대기(busy loop)가 아니라 `wfi` 다: 배터리가 있는 기계에서 그 차이가 전부다.
-export unsafe proc start .
+export unsafe proc start
   input dev cap mmio .
   input k cap machine .
   output void .

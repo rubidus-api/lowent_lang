@@ -24,7 +24,7 @@ module httpreq .
 
 use http from "../../../lib/http.low" .
 
-proc main .
+proc main
   input al  cap allocator .
   input k   cap io .
   output u8 .

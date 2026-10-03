@@ -1,7 +1,7 @@
 rem 단계 U ③ 의 증인 ②/③ — 같은 이름을 export 하는 두 모듈 중 **둘째**.
 module qual_b .
 
-export fn pick .
+export fn pick
   output u64 .
   link "qb_pick" .
 do

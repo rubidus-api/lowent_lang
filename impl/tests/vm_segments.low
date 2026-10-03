@@ -108,7 +108,7 @@ end
 rem ✔ 범위 밖 조각은 **기존 안전망이 잡는다** — 새 진단을 만들지 않았다.
 rem   서술자 슬라이스의 색인이 그대로 범위 검사를 받으므로 `seg ss 9` 는 실행 중 죽는다.
 rem   ★ 이 op 만 CLI 로 부를 수 있게 저장을 밖에서 받는다(cap 은 인자로 못 넘긴다).
-fn beyond input back slice u8 . . input d slice u64 . . input i u64 .
+fn beyond input back slice u8 . input d slice u64 . input i u64 .
   output u64 .
 do
   let ss be segments u8 view_segments back d .

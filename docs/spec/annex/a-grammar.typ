@@ -188,10 +188,10 @@ escape  = ? ⟦§6.1.4⟧ 의 «이스케이프 — 닫힌 집합 열넷» 표�
     ]
     #shape("머리 · 모양 · 닫개", "머리                모양                                              닫개
 ──────────────────  ────────────────────────────────────────────────  ──────
-module              module <이름> .                                    .
-use                 use <이름> from \"<경로>\" [as <별칭>] .              .
-def type            def type <이름> <타입> .                           .
-def newtype         def newtype <이름> <타입> .                        .
+module              module <이름> .
+use                 use <이름> from \"<경로>\" [as <별칭>] .
+def type            def type <이름> <타입> .
+def newtype         def newtype <이름> <타입> .
 def struct          def struct <이름> do <칸>* end  (칸 = <이름> <타입> .) end
 def enum            def enum <이름> do <갈래>* end  (갈래 = <이름> [<칸>*] .) end
 trait               trait <이름> do <서명>* end (서명 = <이름> <절>*)     end
@@ -201,27 +201,27 @@ contract            contract <이름> do <절>* end                        end
 fn / proc           [꾸밈]* fn <이름> <절>* do <폼>* end                end
 test                test <이름> [schedule <절>] do <폼>* end           end
 expect              expect <조건> .           (시험 블록의 단언)         .
-input               input [comptime] <이름> <타입> .                   .
+input               input [comptime] <이름> <타입> .
 using               using <이름> <타입> .     (op 이 깎아 쓰는 얼로케이터) .
-output              output <타입> .                                    .
-effects             effects <원자>* .                                  .
-access              access <이름> <모드> .                             .
-parallel            parallel <이름> <모드> .                           .
-requires / ensures  requires <조건-폼>* .                              .
+output              output <타입> .
+effects             effects <원자>* .
+access              access <이름> <모드> .
+parallel            parallel <이름> <모드> .
+requires / ensures  requires <조건-폼>* .
 errors              errors <갈래> [<조건-폼>] .  (한 절에 오류 하나)     .
-tests               tests <이름>* .                                    .
-let / var           let <이름> [using <이름> [keep]] be <타입> <폼> .  .
-set                 set <자리-폼> <폼> .                               .
+tests               tests <이름>* .
+let / var           let <이름> [using <이름> [keep]] be <타입> <폼> .
+set                 set <자리-폼> <폼> .
 into                pop <스택> into <이름> .   (프렐류드 문형)           .
 if (문)             if <폼> . do <폼>* end [else (if문 | do <폼>* end)]   end
-guard               guard <폼> else <나가는-폼> .                       .
+guard               guard <폼> else <나가는-폼> .
 while               while <폼> . do <폼>* end                            end
 for                 for <이름> <슬라이스> do <폼>* end                  end
 region              region <이름> <종류> do <폼>* end                   end
 borrow              borrow <이름> be <폼> do <폼>* end                  end
 return              return [<폼>] .           (값이 블록으로 끝나도 점)   .
 break               break .                   (라벨은 없다)             .
-continue            continue .                                         .
+continue            continue .
 lit                 lit <타입> do <칸초기>* end  (칸초기 = <이름> <폼> .) end
 lit (나열)          lit array <타입> <길이> <값>… [_] .  ·  lit slice <타입> <값>… .     .
 lit (칸 채우기)     lit array <타입> <길이> do <번호> <값> . … [_ <값> .] end            블록이 닫는다

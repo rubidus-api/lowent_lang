@@ -29,7 +29,7 @@ end
 
 rem ★ 약속을 쓴다 → 검사가 사라진다.
 fn chain input a u8 . output u8 . do
-  let v be u8 bounded a . .
+  let v be u8 bounded a .
   return needs_small v .
 end
 

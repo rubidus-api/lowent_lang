@@ -12,12 +12,12 @@ module vm_mboxfull .
 
 actor counter do
   state do v u64 . end
-  proc inc output u64 . effects state . do set v expr v + 1 . . return v . end
+  proc inc output u64 . effects state . do set v expr v + 1 . return v . end
   fn get output u64 . do return v . end
 end
 
 export proc many output u64 . effects state . do
-  var c be counter spawn actor counter . .
+  var c be counter spawn actor counter .
   var i be u64 0 .
   while lt i 40 . do
     spawn send c inc .

@@ -10,8 +10,8 @@ def struct pt do
   y i32 .
 end
 
-fn sorted .
-  input xs slice u32 . .
+fn sorted
+  input xs slice u32 .
   output bool .
 do
   let i be usize 1 .

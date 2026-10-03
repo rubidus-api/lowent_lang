@@ -9,17 +9,17 @@ rem
 rem   ★ `stack_new` 은 **region 파라미터**를 받는다(할당 권한). --run 에선 그 자리에 `0` 을 준다.
 module vm_scap .
 
-def type frame u64 . .
+def type frame u64 .
 
 rem 물리 상한 초과 선언 — 양쪽 다 거부해야(생성 시점).
-proc over_decl input temp region frame . . output u64 . effects alloc . do
-  let s be stack u64 stack_new temp capacity 129 . .
+proc over_decl input temp region frame . output u64 . effects alloc . do
+  let s be stack u64 stack_new temp capacity 129 .
   return 0 .
 end
 
 rem 선언 용량 2 인데 세 번 민다 — 세 번째에서 양쪽 다 트랩.
-proc over_push input temp region frame . . output u64 . effects alloc . do
-  let s be stack u64 stack_new temp capacity 2 . .
+proc over_push input temp region frame . output u64 . effects alloc . do
+  let s be stack u64 stack_new temp capacity 2 .
   push s 10 .
   push s 20 .
   push s 30 .
@@ -27,9 +27,9 @@ proc over_push input temp region frame . . output u64 . effects alloc . do
 end
 
 rem 용량 4 안에서 셋 밀고 LIFO 로 합 → 60. 정상은 통과해야(선언이 거짓말이 아니듯 과잉규제도 아니다).
-proc within input temp region frame . . output u64 . effects alloc . do
+proc within input temp region frame . output u64 . effects alloc . do
   var t be u64 0 .
-  let s be stack u64 stack_new temp capacity 4 . .
+  let s be stack u64 stack_new temp capacity 4 .
   push s 10 .
   push s 20 .
   push s 30 .

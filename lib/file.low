@@ -78,7 +78,7 @@ rem   그래서 **버퍼보다 큰 파일도 읽는다**: 이것이 `read_file` 
 rem ★ 길이 0 버퍼는 `ok (some 0)` 이다 — 끝이 아니다. 잎은 자리가 없어도 0 을 답하는데, 그것을 EOF 로
 rem   읽으면 조각 읽기가 남은 꼬리를 빈 슬라이스로 건넨 순간 **파일이 조용히 잘린다**(거짓 EOF).
 rem   "0 바이트 읽었다" 와 "끝났다" 는 다른 사실이고, 여기선 전자다(`io.take_rest` 와 같은 판단).
-export proc read input fs cap file_system . input h handle . input buf mut slice u8 . .
+export proc read input fs cap file_system . input h handle . input buf mut slice u8 .
   output result (option u64) file_error . effects io .
 errors read_failed .
 do
@@ -144,7 +144,7 @@ end
 
 rem 다음 엔트리 **이름**을 호출자 버퍼로. **0 = 끝**(실패 아님, EOF 와 같은 규율). 안 맞으면 none.
 rem   ☞ readdir 그대로라 `.`·`..` 도 낸다 — 거르는 것은 프로그램의 몫(raw 를 숨기지 않는다).
-export proc read_dir input fs cap file_system . input h dir_handle . input buf mut slice u8 . .
+export proc read_dir input fs cap file_system . input h dir_handle . input buf mut slice u8 .
   output result (option u64) file_error . effects io .
 errors read_failed .
 do
@@ -208,7 +208,7 @@ end
 rem ★★ **`read_file` 을 Lowent 로 다시 쓴다** — 부채 상환의 실물.
 rem   파일 전체를 호출자 버퍼로. 안 들어가면 `none`(빌트인과 같은 규율, 자르지 않는다).
 rem   ☞ 빌트인 `read_file` 은 이제 **이것과 같은 뜻**이다 ⇒ §2.5 동의어 금지에 걸린다.
-export proc slurp input fs cap file_system . input path slice u8 . input buf mut slice u8 . .
+export proc slurp input fs cap file_system . input path slice u8 . input buf mut slice u8 .
   output result u64 file_error . effects io .
 rem ★ `errors` 는 **이름 하나**를 받는다(뒤는 조건 자리다) — 그래서 줄을 나눈다.
 errors open_failed .

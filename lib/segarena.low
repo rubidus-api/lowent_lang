@@ -64,7 +64,7 @@ end
 
 rem ★★ **조각을 하나 더 연다.** `dir` 에 그 조각의 시작 자리를 적는다.
 rem   더 열 자리가 없으면 `none` — 실패는 값이다(RFC-0043 D5).
-export proc grow input comptime b type . input a mut arena b . input dir mut slice u64 . .
+export proc grow input comptime b type . input a mut arena b . input dir mut slice u64 .
   input cap0 u64 . output option u64 . effects none .
 do
   guard le (field a kbits) 20 . else return none .
@@ -80,8 +80,8 @@ end
 
 rem ★ **전역 색인 하나로 읽는다** — 편하지만 directory 를 **매번** 본다.
 rem   뜨거운 순회에는 아래 `walk_base` 를 써라. 이름이 비용을 말한다.
-export proc at input comptime b type . input a arena b . input dir slice u64 . .
-  input mem slice u64 . . input i u64 . output option u64 . effects none .
+export proc at input comptime b type . input a arena b . input dir slice u64 .
+  input mem slice u64 . input i u64 . output option u64 . effects none .
 do
   guard le (field a kbits) 20 . else return none .
   let s be u64 shr i (field a kbits) .
@@ -94,7 +94,7 @@ end
 
 rem ★★★ **조각을 한 번 빌린다** — 그 뒤 순회는 directory 를 **안 본다**.
 rem   이 op 이 있는 이유가 종료 조건 그 자체다(세그먼트당 directory load 1회).
-export proc walk_base input comptime b type . input a arena b . input dir slice u64 . .
+export proc walk_base input comptime b type . input a arena b . input dir slice u64 .
   input s u64 . output option u64 . effects none .
 do
   guard lt s (field a nseg) . else return none .
@@ -103,8 +103,8 @@ do
 end
 
 rem 조각 하나를 더한다 — 빌린 base 로 도는 합. **루프 안에 directory 가 없다.**
-export proc sum_seg input comptime b type . input a arena b . input dir slice u64 . .
-  input mem slice u64 . . input s u64 . output u64 . effects none .
+export proc sum_seg input comptime b type . input a arena b . input dir slice u64 .
+  input mem slice u64 . input s u64 . output u64 . effects none .
 do
   guard le (field a kbits) 20 . else return 0 .
   let bo be option u64 walk_base b a dir s .
@@ -124,8 +124,8 @@ do
 end
 
 rem 같은 합을 **전역 색인으로** 낸다 — 답은 같고 비용은 다르다(골든이 그 차이를 잰다).
-export proc sum_global input comptime b type . input a arena b . input dir slice u64 . .
-  input mem slice u64 . . input s u64 . output u64 . effects none .
+export proc sum_global input comptime b type . input a arena b . input dir slice u64 .
+  input mem slice u64 . input s u64 . output u64 . effects none .
 do
   guard le (field a kbits) 20 . else return 0 .
   rem ★ 안 연 조각은 `sum_seg` 와 같은 답(0)이다 — `at` 이 어차피 전부 none 을 냈을 것이지만, 큰 `s` 는

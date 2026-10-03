@@ -45,7 +45,7 @@ export fn method_put     output u64 . do  return 4 . end
 export fn method_delete  output u64 . do  return 5 . end
 
 rem 요청 줄의 메서드. 첫 SP 까지를 본다. 0 = 모름(또는 SP 가 없다).
-export fn method_code input b slice u8 . . output u64 . do
+export fn method_code input b slice u8 . output u64 . do
   var i be u64 0 .
   var n be u64 len b .
   if gt n 8 . do set n 8 . end
@@ -92,7 +92,7 @@ end
 rem ── 줄 걷기 ───────────────────────────────────────────────────────────────
 rem ★★ **CRLF 만 줄 끝이다.** `off` 에서 시작하는 줄의 **다음 줄 자리**를 낸다(0 = 없다).
 rem   맨 CR 이나 맨 LF 는 줄 끝이 아니다 — 그것을 줄 끝으로 받으면 앞단과 다르게 읽는다.
-export fn line_next input b slice u8 . . input off u64 . output u64 . do
+export fn line_next input b slice u8 . input off u64 . output u64 . do
   if ge off (len b) . do return 0 . end
   var i be u64 off .
   while lt (add i 1) (len b) . do
@@ -107,7 +107,7 @@ export fn line_next input b slice u8 . . input off u64 . output u64 . do
 end
 
 rem 그 줄의 **내용** 길이(CRLF 제외). `line_next` 가 0 이면 0 이다.
-export fn line_len input b slice u8 . . input off u64 . output u64 . do
+export fn line_len input b slice u8 . input off u64 . output u64 . do
   let nxt be u64 line_next b off .
   if eq nxt 0 . do return 0 . end
   return sub (sub nxt off) 2 .
@@ -115,7 +115,7 @@ end
 
 rem ── 요청 줄 ───────────────────────────────────────────────────────────────
 rem 대상(target)이 시작하는 자리. 0 = 요청 줄이 성하지 않다.
-export fn target_off input b slice u8 . . output u64 . do
+export fn target_off input b slice u8 . output u64 . do
   if eq (line_next b 0) 0 . do return 0 . end
   var i be u64 0 .
   let end0 be u64 line_len b 0 .
@@ -130,7 +130,7 @@ export fn target_off input b slice u8 . . output u64 . do
 end
 
 rem 대상의 길이. 0 = 없다.
-export fn target_len input b slice u8 . . output u64 . do
+export fn target_len input b slice u8 . output u64 . do
   let t be u64 target_off b .
   if eq t 0 . do return 0 . end
   let end0 be u64 line_len b 0 .
@@ -147,7 +147,7 @@ end
 
 rem ★ 버전은 **`HTTP/1.1` 뿐**이다. 1.0 은 지속 연결 규칙이 다르고, 그것을 안 지었으므로
 rem   받는 척하지 않는다. 0.9 는 요청 줄 모양 자체가 다르다.
-export fn version_ok input b slice u8 . . output bool . do
+export fn version_ok input b slice u8 . output bool . do
   let t be u64 target_off b .
   let tl be u64 target_len b .
   if eq tl 0 . do return false . end
@@ -167,21 +167,21 @@ end
 
 rem ── 헤더 ──────────────────────────────────────────────────────────────────
 rem 첫 헤더가 시작하는 자리. 0 = 요청 줄이 성하지 않다.
-export fn headers_off input b slice u8 . . output u64 . do
+export fn headers_off input b slice u8 . output u64 . do
   if eq (version_ok b) false . do return 0 . end
   return line_next b 0 .
 end
 
 rem ★ 다음 헤더 자리. **빈 줄(헤더 끝)이면 0** 을 낸다 — 끝과 실패를 같은 값으로 두는 것은
 rem   이 파서의 규약이다(둘 다 *"더 걸을 수 없다"* 이고, 몸통 자리는 `body_off` 가 따로 답한다).
-export fn header_next input b slice u8 . . input off u64 . output u64 . do
+export fn header_next input b slice u8 . input off u64 . output u64 . do
   if eq (line_len b off) 0 . do return 0 . end
   return line_next b off .
 end
 
 rem 헤더 이름의 길이(콜론 앞까지). 0 = 성하지 않다.
 rem ★★ 이름과 콜론 사이의 **공백을 허용하지 않는다**(RFC 9112 §5.1) — 밀반입 자리다.
-export fn name_len input b slice u8 . . input off u64 . output u64 . do
+export fn name_len input b slice u8 . input off u64 . output u64 . do
   let ll be u64 line_len b off .
   if eq ll 0 . do return 0 . end
   var i be u64 0 .
@@ -199,7 +199,7 @@ export fn name_len input b slice u8 . . input off u64 . output u64 . do
 end
 
 rem 값이 시작하는 자리(앞 공백을 건너뛴다). 0 = 성하지 않다.
-export fn value_off input b slice u8 . . input off u64 . output u64 . do
+export fn value_off input b slice u8 . input off u64 . output u64 . do
   let nl be u64 name_len b off .
   if eq nl 0 . do return 0 . end
   let ll be u64 line_len b off .
@@ -215,7 +215,7 @@ export fn value_off input b slice u8 . . input off u64 . output u64 . do
 end
 
 rem 값의 길이(뒤 공백을 뺀다).
-export fn value_len input b slice u8 . . input off u64 . output u64 . do
+export fn value_len input b slice u8 . input off u64 . output u64 . do
   let v be u64 value_off b off .
   if eq v 0 . do return 0 . end
   let ll be u64 line_len b off .
@@ -232,7 +232,7 @@ end
 
 rem ── 몸통 ──────────────────────────────────────────────────────────────────
 rem 몸통이 시작하는 자리. 0 = 헤더가 안 끝났다(빈 줄을 못 찾았다).
-export fn body_off input b slice u8 . . output u64 . do
+export fn body_off input b slice u8 . output u64 . do
   var off be u64 headers_off b .
   if eq off 0 . do return 0 . end
   var guard_n be u64 0 .
@@ -254,7 +254,7 @@ end
 
 rem ── 찾기 ──────────────────────────────────────────────────────────────────
 rem ★ 헤더 이름은 **대소문자를 안 가린다**(RFC 9110 §5.1). 값은 가린다.
-export fn name_eq input b slice u8 . . input off u64 . input want slice u8 . . output bool . do
+export fn name_eq input b slice u8 . input off u64 . input want slice u8 . output bool . do
   let nl be u64 name_len b off .
   if eq nl 0 . do return false . end
   if ne nl (len want) . do return false . end
@@ -274,7 +274,7 @@ rem 그 이름의 **값 자리**를 낸다(0 = 없다). 같은 이름이 **둘 �
 rem ☞ 여기서 거절하는 것이 규격보다 엄하다는 것을 안다. 목록 헤더(예: `Accept`)는 합칠 수
 rem   있지만, **합쳐도 되는지는 헤더마다 다르고** 그 표를 안 지었다. 표 없이 합치면
 rem   `Content-Length` 를 합치는 코드가 된다 — 그래서 **모르면 거절한다.**
-export fn header_find input b slice u8 . . input want slice u8 . . output u64 . do
+export fn header_find input b slice u8 . input want slice u8 . output u64 . do
   var off be u64 headers_off b .
   if eq off 0 . do return 0 . end
   var found be u64 0 .
@@ -306,7 +306,7 @@ export fn header_find input b slice u8 . . input want slice u8 . . output u64 . 
 end
 
 rem 그 이름의 값 **길이**. `header_find` 와 짝이다.
-export fn header_find_len input b slice u8 . . input want slice u8 . . output u64 . do
+export fn header_find_len input b slice u8 . input want slice u8 . output u64 . do
   var off be u64 headers_off b .
   if eq off 0 . do return 0 . end
   var flen be u64 0 .
@@ -338,7 +338,7 @@ rem ★★★ **`Content-Length`** — 없으면 `some 0`, 성하지 않으면 `
 rem   ☞ *"없다"* 와 *"틀렸다"* 를 가른다: 없는 것은 몸통이 없는 것(정상)이고, 틀린 것은
 rem     **연결을 끊어야 할 일**이다. 한 값으로 두면 그 둘이 섞인다.
 rem   ☞ 숫자만 받는다. 앞의 `+`·공백·여러 값(`5, 5`)을 전부 거절한다 — 그 관용이 밀반입이다.
-export proc content_length input b slice u8 . . output option u64 . effects none . do
+export proc content_length input b slice u8 . output option u64 . effects none . do
   let hoff be u64 headers_off b .
   if eq hoff 0 . do return none . end
   var off be u64 hoff .

@@ -13,7 +13,7 @@ rem   ★ 둘 다 순수한 값 규칙이라 VM 과 C 가 **같은 답**을 낸�
 
 module vm_total .
 
-def type frame u64 . .
+def type frame u64 .
 
 rem value_or — some 이면 그 값, none 이면 기본값.
 fn pick input k u64 . output u64 . do
@@ -33,8 +33,8 @@ fn from_ok input k u64 . output u64 . do
 end
 
 rem ★ pop(총체형) + value_or 를 이어 붙인다. LIFO 로 두 번 꺼내고, 빈 스택은 기본값이 받는다.
-proc lifo input temp region frame . . input a u64 . input b u64 . output u64 . effects alloc . do
-  let s be stack u64 stack_new temp capacity 4 . .
+proc lifo input temp region frame . input a u64 . input b u64 . output u64 . effects alloc . do
+  let s be stack u64 stack_new temp capacity 4 .
   push s a .
   push s b .
   let t be u64 (value_or (pop s) 0) .

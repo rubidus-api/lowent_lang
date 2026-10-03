@@ -34,7 +34,7 @@ unsafe proc total output u8 . effects unsafe . do
   var a be u8 e .
   let b be u8 u .
   let c be u8 l .
-  set a expr a + b . .
-  set a expr a + c . .
+  set a expr a + b .
+  set a expr a + c .
   return a .
 end

@@ -79,7 +79,7 @@ module demo .
 
 use strbuf .
 
-proc build input buf mut slice u8 . . output u64 . effects none . do
+proc build input buf mut slice u8 . output u64 . effects none . do
   var b be strbuf.str_buf strbuf.new .
   let r1 be result void strbuf.sb_error strbuf.append b buf "ab" .
   guard is_ok r1 . else return 90 .
@@ -100,7 +100,7 @@ end
 Growth is expressed by the caller giving a new place.
 
 ```lowent
-proc grow input small mut slice u8 . . input big mut slice u8 . . output u64 . effects none . do
+proc grow input small mut slice u8 . input big mut slice u8 . output u64 . effects none . do
   var b be strbuf.str_buf strbuf.new .
   let r1 be result void strbuf.sb_error strbuf.append b small "ab" .
   guard is_ok r1 . else return 90 .
@@ -122,7 +122,7 @@ end
 > **Counter-example. Calling `as_cstr` from pure code**
 >
 > > ```lowent
-> > fn f input b strbuf.str_buf . input buf mut slice u8 . . output u64 . do
+> > fn f input b strbuf.str_buf . input buf mut slice u8 . output u64 . do
 > >   let p be strbuf.cstr strbuf.as_cstr b buf .   rem ✗ calling an unsafe proc from a fn
 > >   return 0 .
 > > end

@@ -10,5 +10,5 @@ end
 fn f input v u8 . output u8 . do
   var q be lit p do x 1 . y 2 . end .
   set (field q x) v .
-  return expr (field q x) + (field q y) . .
+  return expr (field q x) + (field q y) .
 end

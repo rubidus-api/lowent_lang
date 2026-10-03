@@ -29,7 +29,7 @@ end
 
 rem 제네릭 삽입정렬 — 제자리·안정. 작은 배열과 거의 정렬된 배열에 좋다.
 rem   ★ 큰 배열의 quicksort 제네릭판은 다음 슬라이스다(분할이 원소 복사를 요구한다).
-export proc sort_by input comptime t type . input s mut slice t . . output void . effects none . requires ordered t . do
+export proc sort_by input comptime t type . input s mut slice t . output void . effects none . requires ordered t . do
   var i be u64 1 .
   while lt i (len s) . do
     var j be u64 i .
@@ -68,7 +68,7 @@ rem
 rem ★ 깊이 상한: **작은 쪽만 재귀하고 큰 쪽은 루프로** 돈다(sortlib 과 같은 규율). 그래야
 rem   역순·이미정렬 같은 적대적 입력에서도 깊이가 O(log n) 이다(RFC-0073 의 네이티브 깊이 천장).
 
-proc qsort_by input comptime t type . input s mut slice t . . input lo0 u64 . input hi0 u64 . output void . effects none . requires ordered t . do
+proc qsort_by input comptime t type . input s mut slice t . input lo0 u64 . input hi0 u64 . output void . effects none . requires ordered t . do
   rem 방어: 뒤집힌·범위 밖 구간이면 **경계 밖을 안 만진다**(VM·네이티브가 같은 무동작을 낸다).
   if gt hi0 (len s) . do return . end
   if ge lo0 hi0 . do return . end
@@ -107,7 +107,7 @@ proc qsort_by input comptime t type . input s mut slice t . . input lo0 u64 . in
 end
 
 rem ★ 공개 진입 — 큰 배열용. 작은 배열이나 거의 정렬된 입력엔 `sort_by`(삽입)가 낫다.
-export proc sort_fast input comptime t type . input s mut slice t . . output void . effects none . requires ordered t . do
+export proc sort_fast input comptime t type . input s mut slice t . output void . effects none . requires ordered t . do
   qsort_by t s 0 (len s) .
   return .
 end

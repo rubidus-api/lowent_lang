@@ -16,7 +16,7 @@ rem   *도구에게 물으면 한 줄로 답한다.*
 module vm_subslice .
 
 rem ✔ u64 슬라이스의 부분 슬라이스 — 원소 단위로 자르고 원소 단위로 읽는다.
-export proc sum_mid input a slice u64 . . output u64 . effects none . do
+export proc sum_mid input a slice u64 . output u64 . effects none . do
   guard ge (len a) 4 . else return 0 .
   let m be slice u64 subslice a 1 3 .
   var acc be u64 0 .
@@ -29,7 +29,7 @@ export proc sum_mid input a slice u64 . . output u64 . effects none . do
 end
 
 rem ✔ 바이트 슬라이스도 그대로 — 폭 1 이면 곱이 사라진다(전과 같은 코드).
-export proc sum_mid_u8 input a slice u8 . . output u64 . effects none . do
+export proc sum_mid_u8 input a slice u8 . output u64 . effects none . do
   guard ge (len a) 4 . else return 0 .
   let m be slice u8 subslice a 1 3 .
   var acc be u64 0 .
@@ -42,7 +42,7 @@ export proc sum_mid_u8 input a slice u8 . . output u64 . effects none . do
 end
 
 rem ✔ 겹쳐 자르기 — 부분 슬라이스의 부분 슬라이스도 원소 좌표계를 지킨다.
-export proc nested input a slice u64 . . output u64 . effects none . do
+export proc nested input a slice u64 . output u64 . effects none . do
   guard ge (len a) 5 . else return 0 .
   let m be slice u64 subslice a 1 5 .
   let q be slice u64 subslice m 1 3 .

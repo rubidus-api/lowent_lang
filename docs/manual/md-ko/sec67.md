@@ -40,7 +40,7 @@ sortlib.sort s .
 정렬 결과를 스스로 검증하는 모양 — 오름차순인가 **그리고** 합이 보존됐는가. 순서 결함과 원소 소실 · 복제 결함을 함께 잡는다.
 
 ```lowent
-proc sort_verify input s mut slice u64 . . output u64 . effects none . do
+proc sort_verify input s mut slice u64 . output u64 . effects none . do
   var pre be u64 0 .
   var i be u64 0 .
   while lt i (len s) . do

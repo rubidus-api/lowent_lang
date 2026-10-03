@@ -1,6 +1,6 @@
 rem ★ doc 픽스처도 bytes·path 를 선언 없이 썼다.
-def type bytes slice u8 . .
-def type path slice u8 . .
+def type bytes slice u8 .
+def type path slice u8 .
 
 rem ★ errors 절이 거는 변형들이 **선언돼 있지 않았다**(E-ERR-UNDEF 가 잡았다).
 def enum parse_error do
@@ -14,7 +14,7 @@ end
 
 module sorted_search .
 
-fn parse_header .
+fn parse_header
   lowdoc text DOC
 Parse the 4-byte header, returning version and length.
 Fails if the input is shorter than the header.
@@ -26,10 +26,10 @@ DOC .
   errors bad_version .
   tests parse_header_ok parse_header_short .
 do
-  return ok true . .
+  return ok true .
 end
 
-proc load_file .
+proc load_file
   lowdoc "Read a file into a byte slice." .
   input a cap allocator .      rem ★ **할당 = 명시 권한**(RFC-0043 D1) — ambient 힙은 없다
   input fs cap file_system .   rem ★ **읽기도 권한이다** — 2026-07-20 까지 이 줄이 없었고,
@@ -43,12 +43,12 @@ proc load_file .
   errors read_failed .
   tests load_file_ok load_file_missing .
 do
-  return ok true . .
+  return ok true .
 end
 
 rem Compare two keys for ordering.
 rem Returns negative, zero, or positive.
-fn compare .
+fn compare
   input a i32 .
   input b i32 .
   output i32 .

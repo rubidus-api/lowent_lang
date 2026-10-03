@@ -16,7 +16,7 @@ end
 
 rem 한 칸의 크기 = 정렬로 올림된 크기. x86_64·arm64 는 64, cortex_m 은 4 다.
 fn cell_size output u64 . do
-  return len encode counter mk . .
+  return len encode counter mk .
 end
 
 fn mk output counter . do

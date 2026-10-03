@@ -19,7 +19,7 @@ rem   작동하고, 같은 뜻의 두 이름은 §2.5(동의어 금지)가 거�
 
 module strings .
 
-def type str slice u8 . .
+def type str slice u8 .
 
 rem ── 비교 ──────────────────────────────────────────────────────────────
 

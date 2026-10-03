@@ -12,7 +12,7 @@ rem   **같은 코드로** 선다 — static 배열을 주면 된다.
 
 module rcat .
 
-proc main .
+proc main
   input k  cap io .
   input al cap allocator .
   output u8 .

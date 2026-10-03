@@ -33,7 +33,7 @@ use allocs  from "../../../lib/alloc.low" .
 rem ★ 줄을 센다 — **순수하다.** 파일도 출력도 모른다. 그래서 따로 시험할 수 있고,
 rem   실제로 `lib/io.low` 의 mem_reader 위에서 이미 검증된 프레이밍을 그대로 쓴다.
 proc count_lines input src slice u8 . output u64 . effects state . do
-  var r be io.mem_reader spawn actor io.mem_reader . .
+  var r be io.mem_reader spawn actor io.mem_reader .
   let z be u64 send r attach src .
   var lines be u64 0 .
   var going be bool true .
@@ -50,7 +50,7 @@ proc count_lines input src slice u8 . output u64 . effects state . do
   return lines .
 end
 
-proc main .
+proc main
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .

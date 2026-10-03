@@ -27,7 +27,7 @@ rem ★★★★ 별칭이 이제 **두 축을 마저 적용한다**(RFC-0075 S3
 rem   **이 파일의 공개 표면은 한 글자도 안 바뀌었다** — 바이트만 쓰는 코드는 타입 인자를 하나도
 rem   안 적고, `entity.low` 같은 소비자는 수정 **0** 이다.
 rem   *완전적용 별칭이 축소의 값을 회수하는 자리다* — 넓힌 대가(타입 인자 한 낱말)를 여기서 문다.
-export def type gvec vecgen.vec u8 allocs.bump_bytes . .
+export def type gvec vecgen.vec u8 allocs.bump_bytes .
 
 rem ★ 빈 벡터를 연다. `al` 은 **이미 초기화된** 범프 얼로케이터다(누가 만들었는지가 권한의 자리다).
 rem   첫 자리를 못 받으면 none — 값으로 답한다.

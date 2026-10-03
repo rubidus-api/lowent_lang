@@ -3,7 +3,7 @@ module qual_a .
 
 rem ★ `link` 이 **C 가 부를 이름**을 정한다 (RFC-0063 — 이미 있던 절, 이제 export 에도).
 rem   Lowent 안에서는 여전히 `qual_a.pick` 이다: link 는 **C 경계에만** 산다.
-export fn pick .
+export fn pick
   output u64 .
   link "qa_pick" .
 do

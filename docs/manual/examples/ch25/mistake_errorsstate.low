@@ -39,7 +39,7 @@ end
 var fee be u64 5 .
 
 rem ko: ✘ 액터 밖에서도 같다 --- 모듈 `var` 와 `mut` 자리의 인자도 몸통이 바꿀 수 있으므로 오류 조건에 서지 못한다 /// en: ✘ the same holds outside an actor --- a module `var` and a `mut` argument can both be changed by the body, so neither may stand in an error condition
-proc charge input amount u64 . input log mut slice u8 . . output result u64 bank_error . effects state .
+proc charge input amount u64 . input log mut slice u8 . output result u64 bank_error . effects state .
   errors insufficient lt amount fee .
 do
   set fee 0 .

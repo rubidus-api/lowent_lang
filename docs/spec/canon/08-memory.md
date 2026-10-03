@@ -72,11 +72,11 @@
 ```lowent 예제: 영역을 받아 자리를 얻는다
 module ex_region .
 
-def type scratch u64 . .
+def type scratch u64 .
 
-proc build input temp region scratch . . output u64 . effects alloc .
+proc build input temp region scratch . output u64 . effects alloc .
 do
-  let s be stack u64 stack_new temp capacity 4 . .
+  let s be stack u64 stack_new temp capacity 4 .
   push s 10 .
   push s 20 .
   return 2 .
@@ -106,7 +106,7 @@ end
 ```lowent-거부: 영역의 슬라이스를 바깥 묶음의 칸에 넣는다 · E-REGION-ESCAPE
 module ex_region_field .
 
-def struct holder do store mut slice u8 . . end
+def struct holder do store mut slice u8 . end
 
 proc f output u64 . effects alloc . do
   var h be lit holder do store (subslice "abcd" 0 0) . end
@@ -337,7 +337,7 @@ end
 ```lowent 예제: 해제 — 실패할 수 없으므로 `drop` 이면 된다
 module ex_own .
 
-def type buffer u8 . .
+def type buffer u8 .
 
 fn sink input h owned buffer . output u8 .
 do
@@ -349,7 +349,7 @@ end
 ```lowent-거부: 두 번 없앨 수 없다 · E-OWN-MOVED
 module ex_own_bad .
 
-def type buffer u8 . .
+def type buffer u8 .
 
 fn twice input h owned buffer . output u8 .
 do
@@ -749,7 +749,7 @@ actor grower do
 end
 
 proc f output u64 . effects heap state . do
-  var g be grower spawn actor grower . .     rem `input h cap heap .` 가 없다
+  var g be grower spawn actor grower . rem `input h cap heap .` 가 없다
   return send g take 8 .
 end
 ```
@@ -839,8 +839,8 @@ proc take input comptime a type . using al a . input n u64 . output u64 . effect
 end
 
 proc main output u8 . effects state . do
-  var e be exact spawn actor exact . .
-  var d be doubled spawn actor doubled . .
+  var e be exact spawn actor exact .
+  var d be doubled spawn actor doubled .
   let x using e be u64 take 3 .      rem 3
   let y using d be u64 take 3 .      rem 6
   return narrow u8 (add x y) .
@@ -870,8 +870,8 @@ proc take input comptime a type . using al a . input n u64 . output u64 . effect
 end
 
 proc main output u8 . effects state . do
-  var e be exact spawn actor exact . .
-  var f be exact spawn actor exact . .
+  var e be exact spawn actor exact .
+  var f be exact spawn actor exact .
   let x be u64 take 3 .              rem e 인가 f 인가 — 짐작하지 않는다
   return narrow u8 x .
 end

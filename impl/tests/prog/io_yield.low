@@ -12,7 +12,7 @@ rem ★★ 채널·await 태스크는 peer=1 이라 워커로 안 온다(불변�
 rem   wake 는 구조적으로 불가능하다. 워커가 도는 것은 IO 로만 막히는 태스크뿐이다.
 
 module io_yield .
-proc reader input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+proc reader input k cap io . input buf mut slice u8 . output u64 . effects io . do
   let r be option u64 reactor_new k (subslice buf 0 32) 1 .
   guard is_some r . else return 90 .
   let n be option u64 r_read k (some_value r) 0 (subslice buf 32 64) .

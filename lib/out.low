@@ -83,7 +83,7 @@ rem   ★ 실측: 파이프로 내보내면 `write_out` 이 **정상적으로** 
 rem     응답의 마지막 한 바이트를 잃었다 — `curl` 과 맞대 보고서야 보였다). 그러니 옛 규율대로면
 rem     **아무 잘못 없는 상황에서 `write_failed`** 가 났다. 이제 `write_all` 이 끝까지 쓰고,
 rem     실패는 «더는 못 쓴다» 일 때만 난다 — 약속은 그대로고, 지키는 방법이 옳아졌다.
-export proc buf_flush input out cap io . input p owned pending . input buf mut slice u8 . .
+export proc buf_flush input out cap io . input p owned pending . input buf mut slice u8 .
   output result (owned pending) io_error . effects io .
 errors write_failed .
 do
@@ -106,7 +106,7 @@ end
 
 rem ★★ 바이트를 **버퍼에 쌓는다.** 가득 차면 그때 비운다 — 그것이 버퍼링의 전부다.
 rem   `write_out` 은 호출마다 fflush 하므로, 이것이 syscall 수를 바이트 수에서 **버퍼 수**로 줄인다.
-export proc buf_write input out cap io . input p owned pending . input buf mut slice u8 . .
+export proc buf_write input out cap io . input p owned pending . input buf mut slice u8 .
   input s slice u8 .
   output result (owned pending) io_error . effects io .
 errors write_failed .
@@ -133,7 +133,7 @@ end
 
 rem ★★★ **완결.** owned 를 소비하고 result 를 낸다 — 이 선언 하나가 `pending` 을
 rem   *"완결이 필요한 타입"* 으로 만들고, 그래서 이것을 **안 부르면 컴파일이 안 된다**.
-export proc buf_finish input out cap io . input p owned pending . input buf mut slice u8 . .
+export proc buf_finish input out cap io . input p owned pending . input buf mut slice u8 .
   output result void io_error . effects io .
 errors write_failed .
 do

@@ -22,7 +22,7 @@ rem     *못 재는 것을 재는 척하지 않는다.*
 module vm_rwrite .
 
 rem ✔ stdout 에 쓴다 — 낸 수가 **보낸 바이트 수**여야 한다.
-export proc write_out_bytes input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+export proc write_out_bytes input k cap io . input buf mut slice u8 . output u64 . effects io . do
   let r be option u64 reactor_new k (subslice buf 0 32) 1 .
   guard is_some r . else return 90 .
   let n be option u64 r_write k (some_value r) 1 "abcdefghij" .
@@ -33,7 +33,7 @@ end
 rem ✔ 빈 버퍼를 쓰면 **0** 이다 — 실패가 아니다.
 rem   ☞ *"아무것도 안 갔다"* 와 *"못 썼다"* 는 다른 답이고, 그 둘을 섞으면 호출자가
 rem     빈 쓰기마다 재시도한다.
-export proc empty_write input k cap io . input buf mut slice u8 . . output u64 . effects io . do
+export proc empty_write input k cap io . input buf mut slice u8 . output u64 . effects io . do
   let r be option u64 reactor_new k (subslice buf 0 32) 1 .
   guard is_some r . else return 90 .
   let n be option u64 r_write k (some_value r) 2 (subslice buf 0 0) .

@@ -893,7 +893,7 @@ deadlock.low:12:0 E-CONC-DEADLOCK: this `task_group`'s tasks wait to RECEIVE (`c
 <strong><span class="tok-k">use</span></strong> allocs .
 
 <em><span class="tok-c">rem the task receives bytes, not an allocator; the allocator is created inside the task</span></em>
-<strong><span class="tok-k">proc</span></strong> user <strong><span class="tok-k">input</span></strong> piece <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">proc</span></strong> user <strong><span class="tok-k">input</span></strong> piece <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
   <strong><span class="tok-k">let</span></strong> room <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a init piece .

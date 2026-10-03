@@ -89,7 +89,7 @@ end
 
 rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계가 인터페이스를 보장한다.
 rem ★★★ **호출 코드는 어느 allocator 인지 모른다** — 경계(trait bound)가 인터페이스를 보장한다.
-proc two_takes .
+proc two_takes
   input comptime a type .
   using al a .
   output u64 .
@@ -103,8 +103,8 @@ do
 end
 
 proc demo output u64 . effects state . do
-  var b be bump spawn actor bump . .
-  var g be aligned spawn actor aligned . .
+  var b be bump spawn actor bump .
+  var g be aligned spawn actor aligned .
   let p using b be u64 two_takes .
   let q using g be u64 two_takes .
   return add p q .   rem 8 + 13 = 21
@@ -112,7 +112,7 @@ end
 
 rem ★★★ **OOM 은 값이다**(D5) — panic 이 아니다. 임베디드는 **반드시 처리**한다.
 proc oom output bool . effects state . do
-  var b be bump spawn actor bump . .
+  var b be bump spawn actor bump .
   let c be u64 send b init 4 .
   let x be option u64 send b reserve 99 .      rem 4 바이트 버퍼에 99 를 달라고 한다
   return is_some x .                        rem → **false**. 트랩이 아니라 **none**.

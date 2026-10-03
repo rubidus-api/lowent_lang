@@ -12,7 +12,7 @@ rem              ② 절을 **어기면 진입에서 죽는다**(강제되지 �
 
 module lenrel .
 
-export proc copy_at input a slice u8 . . input b mut slice u8 . . input i u64 . .
+export proc copy_at input a slice u8 . input b mut slice u8 . input i u64 .
   output u64 .
   effects none .
   requires le (len a) (len b) . requires lt i (len a) .
@@ -22,7 +22,7 @@ do
 end
 
 rem 「긴 쪽은 비어 있을 수 없다」 — 엄격 관계가 주는 하한(상수 색인이 이 한 줄로 닫힌다).
-export proc head input a slice u8 . . input b mut slice u8 . .
+export proc head input a slice u8 . input b mut slice u8 .
   output u64 .
   effects none . requires lt (len a) (len b) .
 do

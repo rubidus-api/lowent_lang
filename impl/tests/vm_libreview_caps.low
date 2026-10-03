@@ -31,7 +31,7 @@ rem ── vecgen: 같은 길이의 두 벡터가 한 범프 위에서 자라도
 proc t_vec input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some memo . else return 89 .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init (some_value memo) .
   let ga using bump be option (vecgen.vec u8 allocs.bump_bytes) vecgen.open u8 4 .
   guard is_some ga . else return 90 .
@@ -91,7 +91,7 @@ proc t_mapgen input al cap allocator . output u64 . effects state alloc . do
     set (idx dirty i) 1 .
     set i (add i 1) .
   end
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init dirty .
   let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 2 .
   guard is_some mo . else return 90 .
@@ -117,7 +117,7 @@ rem ── vecgen · mapgen: 호출자가 준 개수가 커도 산술이 트랩�
 proc t_vecsize input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some memo . else return 89 .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init (some_value memo) .
   rem 2^62 개의 u64 — 바이트 수가 2^65 라 곱셈이 넘쳤다. 지금은 none.
   let huge using bump be option (vecgen.vec u64 allocs.bump_bytes) vecgen.open u64 4611686018427387904 .

@@ -670,7 +670,7 @@ pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,mo
 <strong><span class="tok-k">use</span></strong> term .
 
 <em><span class="tok-c">rem writes nothing to the screen; it appends control bytes to buf and returns how many bytes were written</span></em>
-<strong><span class="tok-k">proc</span></strong> paint <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">proc</span></strong> paint <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem move the cursor to row 2, column 5 counted from 0; the terminal counts from 1, so ESC [ 3 ; 6 H</span></em>
   <strong><span class="tok-k">let</span></strong> p1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.goto buf <span class="tok-n">0</span> <span class="tok-n">2</span> <span class="tok-n">5</span> .

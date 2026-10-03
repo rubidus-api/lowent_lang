@@ -70,13 +70,13 @@ actor ctr do
   end
   proc bump input n u64 . output u64 . effects state .
   do
-    set v expr v + n . .
+    set v expr v + n .
     return v .
   end
 end
 
 proc actor_trait output u64 . effects state . do
-  var a be ctr spawn actor ctr . .
+  var a be ctr spawn actor ctr .
   return send a bump 4 .
 end
 

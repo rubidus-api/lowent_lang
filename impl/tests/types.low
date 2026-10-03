@@ -1,4 +1,4 @@
-fn good .
+fn good
   input x u32 . input y u32 .
   output u32 .
 do
@@ -6,21 +6,21 @@ do
   return z .
 end
 
-fn bad_var .
+fn bad_var
   output u32 .
 do
   var i be u32 true .
   return i .
 end
 
-fn bad_return .
+fn bad_return
   input x u32 .
   output bool .
 do
   return x .
 end
 
-fn bad_arg .
+fn bad_arg
   input p bool .
   output bool .
 do

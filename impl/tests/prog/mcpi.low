@@ -40,7 +40,7 @@ fn inside input seed u64 . input n u64 . output u64 . do
   return hits .
 end
 
-proc main .
+proc main
   input al cap allocator .
   input k  cap io .
   output u8 .

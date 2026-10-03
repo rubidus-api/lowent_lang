@@ -40,7 +40,7 @@ end
 rem ★ **줄 하나를 버퍼에 조립한다** — `effects none` 이다. 이 op 은 출력도 할당도 하지 않고,
 rem   **호출자가 준 버퍼**에만 쓴다. 안 들어가면 `none` — 잘린 줄을 내보내지 않는다(전량-아니면-무).
 rem     "hello, <name>! (<n> args, <len> bytes)\n"
-proc compose input buf mut slice u8 . . input name slice u8 . input nargs u64 .
+proc compose input buf mut slice u8 . input name slice u8 . input nargs u64 .
   output option u64 . effects none .
 do
   let a be option u64 fmt.put_str buf 0 "hello, " .
@@ -62,7 +62,7 @@ end
 
 rem ── 엔트리 — 여기서만 권한이 들어온다 ─────────────────────────────────
 
-proc main .
+proc main
   input al  cap allocator .
   input out cap io .
   input a   cap args .
@@ -75,7 +75,7 @@ do
 
   rem ② 그 바닥 위에 **사용자 얼로케이터**를 세운다. 이 actor 는 바이트가 어디서 왔는지 모른다 —
   rem    빌린 버퍼를 줬어도 똑같이 돈다(vm_allocbytes.low 가 정확히 그렇게 시험한다).
-  var mem be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var mem be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let cap0 be u64 send mem init (some_value root) .
   guard ge cap0 128 . else return 71 .
 

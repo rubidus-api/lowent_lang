@@ -51,7 +51,7 @@ end
 
 rem ── 화면 한 장을 **바이트로** 만든다. 순수하다: 아무 데도 안 쓴다.
 rem   `pos` 에서 시작해 새 pos 를 돌려준다(모자라면 none — 자르지 않는다).
-proc render input buf mut slice u8 . . input pos0 u64 . input cur u64 .
+proc render input buf mut slice u8 . input pos0 u64 . input cur u64 .
   output option u64 . effects none .
 do
   let c0 be option u64 term.clear buf pos0 .
@@ -87,7 +87,7 @@ do
   return some pos .
 end
 
-proc main .
+proc main
   input in_c cap io .
   input al   cap allocator .
   output u8 .

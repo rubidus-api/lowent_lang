@@ -22,7 +22,7 @@ use fmt    from "../../../lib/fmt.low" .
 use outbuf from "../../../lib/out.low" .
 use allocs from "../../../lib/alloc.low" .
 
-proc main .
+proc main
   input out cap io .
   input al  cap allocator .
   output u8 .

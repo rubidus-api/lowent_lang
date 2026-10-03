@@ -56,7 +56,7 @@ guard is_some p . else return 1 .
 **넷을 헷갈리면 커서가 엉뚱한 데 선다.** 바이트 수 ≠ 코드포인트 수(`row_cells`) ≠ 칸 수(`row_width`) ≠ 글자 수(`row_clusters`). `"한글"` 은 6 바이트 · 2 코드포인트 · **4 칸** · 2 글자이고, `"e"` + U+0301 은 3 바이트 · 2 코드포인트 · **1 칸** · **1 글자**다. `cp_width` 는 결합 표시 · 서식 문자([`unicode`](sec63.md#mod-unicode) 의 `is_zerowidth`)에 0, 한글 · CJK · 전각 기호에 2, 나머지에 1 이다. 폭은 못 맞혀도 1 이 쓸 만한 기본값이라 실패가 없다 — 속성 판정과 다른 점이다. 글자 덩어리는 선두 코드포인트 하나 + 뒤따르는 폭 0 코드포인트 전부다 — 백스페이스와 커서 이동을 이 단위로 해야 악센트만 지워지거나 커서가 글자 가운데 서지 않는다.
 
 ```lowent
-proc diff_frame input out mut slice u8 . . output u64 . effects none . do
+proc diff_frame input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 90 .
   let prev be slice u8 "aaaaaaaaaa" .
   let nxt be slice u8 "aaaaaaxyaa" .

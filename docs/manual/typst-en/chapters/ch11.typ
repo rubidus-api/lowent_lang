@@ -119,7 +119,7 @@ binding's type as the content's type and attach what to do when it is empty with
 
 #demo("examples/ch11/bindelse.low")
 
-- `let at be u64 find xs k . else return 99 .` --- `find` returns an `option u64`. If there is a value, that `u64` is bound to `at`;
+- `let at be u64 find xs k else return 99 .` --- `find` returns an `option u64`. If there is a value, that `u64` is bound to `at`;
   if not, control goes to `else`. A `result` works the same way --- an error goes to `else`.
 - `else` *must leave* (`return` · `break` · `continue` · `panic`). So on the lines that use `at` the value has already been taken out,
   and using it unchecked cannot happen.
@@ -264,3 +264,4 @@ refused with `E-MATCH-INEXHAUSTIVE` --- better than a `_` that covers nothing. A
   stops. An op returning a `result` promises its errors in an `errors` clause, `try` passes failures up, and the `else_none` and `else_error`
   tails change channel and type. Patterns can be or-ed (binding the same names) and nested, and a `match` on a constant folds at translation.
 ]
+

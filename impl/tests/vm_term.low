@@ -7,7 +7,7 @@ module vm_term .
 use term as t .
 
 rem t_goto (0-기준→1-기준): (2,4) → ESC[3;5H = 27 91 51 59 53 72.
-proc goto_seq input buf mut slice u8 . . output u64 . effects none . do
+proc goto_seq input buf mut slice u8 . output u64 . effects none . do
   guard ge (len buf) 16 . else return 90 .
   let p be option u64 t.goto buf 0 2 4 .
   guard is_some p . else return 1 .
@@ -26,7 +26,7 @@ proc goto_seq input buf mut slice u8 . . output u64 . effects none . do
 end
 
 rem 스타일: t_sgr 0 → ESC[0m · t_color256 196 전경 → ESC[38;5;196m (11 바이트).
-proc style_seq input buf mut slice u8 . . output u64 . effects none . do
+proc style_seq input buf mut slice u8 . output u64 . effects none . do
   guard ge (len buf) 16 . else return 90 .
   let p be option u64 t.sgr buf 0 0 .
   guard is_some p . else return 1 .
@@ -44,7 +44,7 @@ proc style_seq input buf mut slice u8 . . output u64 . effects none . do
 end
 
 rem ★ diff: 폭 5·두 행에서 둘째 행의 연속 두 셀만 바뀜 → goto(1,1) + 두 바이트 = 8 바이트.
-proc diff_run input out mut slice u8 . . output u64 . effects none . do
+proc diff_run input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 90 .
   let prev be slice u8 "aaaaaaaaaa" .
   let nxt be slice u8 "aaaaaaxyaa" .
@@ -62,7 +62,7 @@ proc diff_run input out mut slice u8 . . output u64 . effects none . do
 end
 
 rem diff 무변경 = 0 바이트("화면 건드리지 마라"가 값이다) · 행 경계는 구간을 가른다.
-proc diff_edges input out mut slice u8 . . output u64 . effects none . do
+proc diff_edges input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 48 . else return 90 .
   let same be slice u8 "abcabc" .
   let p be option u64 t.diff same same 3 out 0 .
@@ -88,7 +88,7 @@ proc diff_edges input out mut slice u8 . . output u64 . effects none . do
 end
 
 rem ★★ UTF-8 셀(슬라이스 5): 열은 **바이트가 아니라 코드포인트 번째**다 — 터미널 커서가 그렇게 센다.
-proc utf8_cells input out mut slice u8 . . output u64 . effects none . do
+proc utf8_cells input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 90 .
   rem "한글" = 6바이트지만 2셀.
   let c be option u64 t.row_cells "한글" .
@@ -105,7 +105,7 @@ proc utf8_cells input out mut slice u8 . . output u64 . effects none . do
 end
 
 rem ★ UTF-8 행 diff: 같으면 0바이트 · 둘째 셀만 바뀌면 goto(0,1)+3바이트 = 9바이트.
-proc utf8_diff input out mut slice u8 . . output u64 . effects none . do
+proc utf8_diff input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 90 .
   let z be option u64 t.diff_row_utf8 "가나다" "가나다" 0 out 0 .
   guard is_some z . else return 1 .
@@ -122,7 +122,7 @@ proc utf8_diff input out mut slice u8 . . output u64 . effects none . do
 end
 
 rem ★★ 표시 폭(슬라이스 9): 셀 하나가 늘 한 칸은 아니다 — 한글·CJK 는 **두 칸**을 먹는다.
-proc widths input out mut slice u8 . . output u64 . effects none . do
+proc widths input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 90 .
   rem "한글" = 2글자지만 **4칸**이다. 코드포인트 수와 칸 수는 다른 값이다.
   let c be option u64 t.row_cells "한글" .
@@ -143,7 +143,7 @@ proc widths input out mut slice u8 . . output u64 . effects none . do
 end
 
 rem ★ 칸 수로 자를 때 **글자 한가운데를 자르지 않는다** — 자르면 뒤 바이트가 쓰레기가 된다.
-proc fitting input out mut slice u8 . . output u64 . effects none . do
+proc fitting input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 90 .
   rem "한글" 을 3칸에 맞추면 "한"(2칸)까지 = 3바이트. 4칸이면 둘 다 = 6바이트.
   let f3 be option u64 t.fit_width "한글" 3 .

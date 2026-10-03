@@ -92,7 +92,7 @@ module ex_codec .
 
 use codec as c .
 
-proc hex_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output u64 . effects none . do
+proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
   guard ge (len enc) 6 . else return 90 .
   guard ge (len dec) 3 . else return 91 .
   let en be option u64 c.hex_enc "abc" enc .
@@ -110,7 +110,7 @@ proc hex_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output 
   return 42 .
 end
 
-proc b64_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output u64 . effects none . do
+proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
   rem 2 바이트는 한 묶음(4 글자)이 되고 끝에 = 하나가 붙는다: "aGk="
   guard ge (len enc) 4 . else return 90 .
   guard ge (len dec) 2 . else return 91 .

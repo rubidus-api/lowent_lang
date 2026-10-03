@@ -96,7 +96,7 @@ module ex_utf16 .
 
 use utf16 as u .
 
-proc round_trip input buf mut slice u16 . . output u64 . effects none . do
+proc round_trip input buf mut slice u16 . output u64 . effects none . do
   guard ge (len buf) 4 . else return 90 .
   rem '가'(U+AC00) --- BMP 라서 한 칸. put 은 다음에 쓸 위치를 돌려준다
   let a be option u64 u.put buf 0 44032 .

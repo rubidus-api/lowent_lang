@@ -44,7 +44,7 @@ fn control input baud u64 . input parity bool . output u64 . do
   return wire.merge (m_baud) w baud .
 end
 
-unsafe proc drive .
+unsafe proc drive
   input dev cap mmio .
   input regs mut slice u8 .
   input baud u64 .

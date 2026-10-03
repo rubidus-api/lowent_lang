@@ -81,7 +81,7 @@ fn same_keyed input a slice u64 . input b slice keyed . output bool . do
   return true .
 end
 
-proc main .
+proc main
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .

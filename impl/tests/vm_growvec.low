@@ -11,7 +11,7 @@ rem 용량 2 로 열고 8개를 민다 — 자라야 통과한다. 내용도 살
 proc grows input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 512 .
   guard is_some memo . else return 89 .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init (some_value memo) .
   let go using bump be option growvec.gvec growvec.open 2 .
   guard is_some go . else return 1 .
@@ -38,7 +38,7 @@ rem 바이트열 통째로 밀기 · 미리 확보하기.
 proc bulk input al cap allocator . output u64 . effects state alloc . do
   let memo be option mut slice u8 alloc_bytes al capacity 512 .
   guard is_some memo . else return 89 .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init (some_value memo) .
   let go using bump be option growvec.gvec growvec.open 1 .
   guard is_some go . else return 1 .

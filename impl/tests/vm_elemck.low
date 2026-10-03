@@ -12,7 +12,7 @@ rem   **색인 검사를 지워야** 한다(`--ir` 의 제거 수가 그것을 �
 module elemck .
 
 rem 원소가 전부 한도 아래면 그 사실로 색인이 안전해진다 — 표 조회의 표준형이다.
-export proc lookup input s slice u8 . . input t slice u64 . . input i u64 . .
+export proc lookup input s slice u8 . input t slice u64 . input i u64 .
   output u64 .
   effects none .
   requires elem_le s 200 .

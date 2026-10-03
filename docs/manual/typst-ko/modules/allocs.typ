@@ -8,7 +8,7 @@
 때는 한꺼번에" 인 자료(파서의 임시 노드, 한 처리 동안만 사는 문자열)에 맞는다(#chref("lib-alloc")).
 
 ```lowent
-var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
 var c be u64 send bump init mem .
 let b be option mut slice u8 send bump reserve 64 .
 ```
@@ -20,13 +20,13 @@ let b be option mut slice u8 send bump reserve 64 .
 
 ```lowent
 export trait byte_allocator do
-  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
-  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
+  reserve input s self . input n u64 . output option mut slice u8 . effects state via self .
+  grow    input s self . input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state via self .
   used    input s self . output u64 . effects state .
 end
 ```
 
-`freeing_allocator` 는 같은 셋에 `release input s self . input v mut slice u8 . . output bool .` 을 더한다. `via self` 는 "이 op 의 효과는 구현이 적은 효과다" 라는 뜻이다
+`freeing_allocator` 는 같은 셋에 `release input s self . input v mut slice u8 . output bool .` 을 더한다. `via self` 는 "이 op 의 효과는 구현이 적은 효과다" 라는 뜻이다
 --- 범프의 `reserve` 는 `state` 뿐이고 `heap_bytes` 의 `reserve` 는 `heap state` 다. 그래서 그 얼로케이터로 단형화한 컨테이너 op 의 서명에 `heap` 이 선다.
 
 #dtable(
@@ -65,7 +65,7 @@ end
 `let x be (… using <출처>) …` 로 건네고, 그 op 안에 출처가 하나뿐이면 적지 않아도 기본값이 된다. 단형화되므로 vtable 도 간접 호출도 없다.
 
 ```lowent
-proc two_from .
+proc two_from
   input comptime a type .
   using al a .
   output u64 .
@@ -80,8 +80,8 @@ do
   return send al used .
 end
 
-proc borrowed2 input buf mut slice u8 . . output u64 . effects state . do
-  var b be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+proc borrowed2 input buf mut slice u8 . output u64 . effects state . do
+  var b be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send b init buf .
   let n using b be u64 two_from .
   return n .

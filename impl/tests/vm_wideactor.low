@@ -12,14 +12,14 @@ module vm_wideactor .
 actor adder do
   state do v u64 . end
   proc take input a u64 . input b u64 . input c u64 . input d u64 . input e u64 . input f u64 . input g u64 . input h u64 . input i u64 . input j u64 . input k u64 . input l u64 . input m u64 . input n u64 . input o u64 . input p u64 . input q u64 . input r u64 . input s u64 . input t u64 . output u64 . effects state . do
-    set v expr v + (add add add add add add add add add add add add add add add add add add add a b c d e f g h i j k l m n o p q r s t) . .
+    set v expr v + (add add add add add add add add add add add add add add add add add add add a b c d e f g h i j k l m n o p q r s t) .
     return v .
   end
   fn get output u64 . do return v . end
 end
 
 export proc wide_msg output u64 . effects state . do
-  var c be adder spawn actor adder . .
+  var c be adder spawn actor adder .
   spawn send c take 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 .
   drain c .
   return send c get .

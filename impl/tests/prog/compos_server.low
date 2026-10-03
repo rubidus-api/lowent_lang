@@ -23,7 +23,7 @@ export actor tally do
 end
 
 proc main output u8 . effects state . do
-  var t be tally spawn actor tally . .
+  var t be tally spawn actor tally .
   let a be u64 send t add 5 .
   let b be u64 send t add 7 .
   rem 상태는 메시지 사이에서 살아 있다 — 그것이 actor 가 하는 일의 전부다.

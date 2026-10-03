@@ -40,7 +40,7 @@ trait <이름> do <op 이름> <절…> . … end
 contract <이름> do requires <조건> . … end
 actor <이름> do [satisfies …] state do <칸> <타입> . … end [failure restart max <수> .] [mailbox bounded <수> .] <op>… end
 build profile <이름> .        build tier t0|t1|t2|t3 .        build <모드> .
-build option <이름> bool|int|choice … default <값> .
+build option <이름> bool|int|choice … default <값>
 test <이름> [schedule explore_interleavings [limit <수>] .] do expect <조건> . … end
 ```
 

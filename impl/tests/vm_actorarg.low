@@ -7,7 +7,7 @@ module vm_actorarg .
 
 actor rec do
   state do v u64 . end
-  proc put input n u64 . output u64 . effects state . do set v expr v + n . . return v . end
+  proc put input n u64 . output u64 . effects state . do set v expr v + n . return v . end
   fn get output u64 . do return v . end
 end
 
@@ -17,14 +17,14 @@ fn noop output u64 . do return 0 . end
 
 rem 직접 호출 경로 — 동시성 없이도 재현된다.
 proc drive output u64 . effects state . do
-  var i be rec spawn actor rec . .
+  var i be rec spawn actor rec .
   let d be u64 bump i .
   return send i get .
 end
 
 rem 관용적 경로 — task_group 이 `spawn bump i` 로 인스턴스를 태스크에 인자로 넘긴다.
 proc drive_task output u64 . effects state . do
-  var i be rec spawn actor rec . .
+  var i be rec spawn actor rec .
   task_group do
     spawn bump i .
     spawn noop .

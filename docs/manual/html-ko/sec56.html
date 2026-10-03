@@ -691,7 +691,7 @@ trait &lt;이름> do &lt;op 이름> &lt;절…> . … end
 contract &lt;이름> do requires &lt;조건> . … end
 actor &lt;이름> do [satisfies …] state do &lt;칸> &lt;타입> . … end [failure restart max &lt;수> .] [mailbox bounded &lt;수> .] &lt;op>… end
 build profile &lt;이름> .        build tier t0|t1|t2|t3 .        build &lt;모드> .
-build option &lt;이름> bool|int|choice … default &lt;값> .
+build option &lt;이름> bool|int|choice … default &lt;값>
 test &lt;이름> [schedule explore_interleavings [limit &lt;수>] .] do expect &lt;조건> . … end</code></pre><h3 id="sx3">문장<a class="plink" href="#sx3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><pre><code data-lang="text">let &lt;이름> [&lt;타입>] [using &lt;출처>] be &lt;식> .
 var &lt;이름> [&lt;타입>] be &lt;식> .
 set &lt;자리> &lt;식> .                         (자리 = 이름 · field … · index …)

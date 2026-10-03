@@ -3,14 +3,14 @@ rem   "모든 원소 < N" 을 어떤 requires 로도 못 닫았다(도구가 그
 rem   `requires elem_lt s N` 이 **원소 구간**을 심고, `index s i` 가 ⊤ 대신 그 구간을 낸다.
 rem   진입에서 슬라이스를 훑어 계약을 강제한다(elem.check) — 심은 사실이 검증된다.
 module m .
-def type bytes slice u8 . .
+def type bytes slice u8 .
 
 rem 원소 < 50 이면 index 값 ≤ 49 → x+10 ≤ 59 → u8 오버플로 검사가 **없어진다**.
 fn clamp_elem input s bytes . output u8 .
   requires static ge (len s) 1 .
   requires elem_lt s 50 .
 do
-  let x be u8 idx s 0 . .
+  let x be u8 idx s 0 .
   return add x 10 .
 end
 

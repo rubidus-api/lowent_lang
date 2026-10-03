@@ -330,6 +330,22 @@ static bool low_read_run(low_parser_t *p, proven_array_t *ops, bool headed_ok) {
     return false;
 }
 
+// ★★★ RFC-0113 R6 — **빈 폼은 아무것도 안 닫은 점이다.** 겹친 점(`def type b slice u8 . .`)의 둘째가 그렇다. 파서는 빈 폼을
+//   조용히 버려 왔다 — 장식이 문법이 되면 «점을 몇 개 찍어도 같다» 가 되고, 점이 닫개라는 말이 거짓이 된다.
+//   `end`·`do` 뒤의 점은 X-0052 의 `E-DOT-STRAY` 가 따로 말하므로 여기서는 뺀다.
+static void low_empty_form_dot(low_parser_t *p, const low_cst_t *f) {
+    if (!f || f->nkids || p->pos < 1) return;
+    const low_token_t *dt = &p->toks[p->pos - 1];
+    if (dt->kind != LOW_TOK_DOT) return;
+    if (p->pos >= 2) {
+        const low_token_t *pv = &p->toks[p->pos - 2];
+        if (pv->kind == LOW_TOK_IDENT && (pv->kw == LOW_KW_END || pv->kw == LOW_KW_DO)) return;
+    }
+    low_pdiag(p, "E-CLOSER-EXTRA",
+              "this stop closes nothing — the form before it was already closed. A form ends with ONE `.`; "
+              "a type takes no stop of its own (`def type bytes slice u8 .`, not `slice u8 . .`). Delete it (RFC-0113 R6)",
+              dt->line, dt->col);
+}
 // block body: form* "end" — shared by `do…end` blocks and the headless
 // struct/enum field list (`struct N 필드* end`, SPEC-002 schema — no `do`)
 static low_cst_t *low_parse_block_body(low_parser_t *p, low_token_t at) {
@@ -339,6 +355,7 @@ static low_cst_t *low_parse_block_body(low_parser_t *p, low_token_t at) {
         proven_size_t before = p->pos;
         low_cst_t *f = low_parse_form(p);
         if (f && f->nkids > 0) (void)PROVEN_ARRAY_PUSH(&kids, low_cst_t *, f);  // skip empty (stray closer)
+        else low_empty_form_dot(p, f);
         if (p->pos == before) low_adv(p);
     }
     if (low_curkw(p) == LOW_KW_END) low_adv(p);
@@ -468,6 +485,8 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
         //   이름 다음부터는 절 낱말이 절을 열고, 열린 절은 다음 절 낱말이나 `do` 앞에서 이미 점으로 닫혀 있어야 한다.
         bool decl = (hkw == LOW_KW_FN || hkw == LOW_KW_PROC || hkw == LOW_KW_TEST);
         bool named = false, open = false;
+        bool after_dot = false;   // RFC-0113 R6 — 방금 점이 절을 닫았나(다음 낱말은 절 낱말이거나 `do` 여야 한다)
+        bool in_asm = false;      // `asm` 절은 제 안의 항목(`reg a .` · `clobber flags .`)을 점으로 나눈다 — 그 점은 절을 안 닫는다
         // ★★★ X-0058 (소유자 결정 Ⓑ, 2026-09-25) — **몸이 C 에 있는 extern 은 블록 선언이다**: `extern proc f do <절>* end`.
         //   struct 가 칸을 `do … end` 에 담듯 절을 담는다. 전엔 `extern proc f <절>* end` 였다 — 짝 없는 `end` 가 이 한 자리뿐이었다
         //   (X-0052: `end` 는 자기 `do` 만 닫는다). 뒤 단계가 보는 나무는 **그대로다**: 블록 안의 절을 머리의 평평한 원자 열로 편다.
@@ -504,9 +523,17 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
                 }
             }
             if (low_curk(p) == LOW_TOK_DOT) {
-                low_adv(p);
+                low_token_t dt = low_adv(p);
                 if (ctrl) { dotted = true; break; }   // ★ 제어 머리에서 `.` 은 **식을 닫는다**
+                // ★★★ RFC-0113 R6 (소유자 2026-10-02 «1–3 모두») — **절은 점 하나로 닫힌다.** 열린 절이 없는데 온 점
+                //   (op 이름 바로 뒤 `fn f .`, 겹친 점 `slice u8 . .`)은 아무것도 안 닫는다. 장식이었고, 파서가 건너뛰어 왔다.
+                if (decl && named && !open && !in_blk && !in_asm)
+                    low_pdiag(p, "E-CLOSER-EXTRA",
+                              "this stop closes nothing — a header clause ends with ONE `.`, and the op name takes none "
+                              "(`fn f input a u64 . output u64 . do`, `input b slice u8 .`). Delete it (RFC-0113 R6)",
+                              dt.line, dt.col);
                 open = false;
+                after_dot = decl && named;
                 continue;                 //   선언 머리에서 `.` 은 **절을 나눈다**
             }
             // ★ **쉼표는 form 을 닫지 않는다**(R3). 처음엔 여기서 `.` 과 함께 닫게 했다 —
@@ -516,6 +543,24 @@ static low_cst_t *low_parse_block_stmt(low_parser_t *p) {
             if (decl && op) {
                 // 첫 낱말은 이름이다 — 이름이 절 낱말과 같아도(`proc link input …`) 절을 열지 않는다.
                 bool cw = named && op->kind == LOW_CST_ATOM && low_is_clause_word(op->tok.lex);
+                // ★ RFC-0113 R6 (p3) — `input <이름>` 의 이름 자리에 절 낱말이 오면(`input vector u64 .`) 그것은 이름이다.
+                //   절 낱말은 절 머리에서만 절 낱말이라 이름으로 쓸 수 없다 — 절이 끊긴 것처럼 엉뚱한 진단(인터럽트 처리기 …)이
+                //   나던 자리를 한 줄로 바로 말한다.
+                if (cw && at && p->toks[at - 1].kind == LOW_TOK_IDENT && low_view_eq_cstr(p->toks[at - 1].lex, "input")) {
+                    low_pdiag(p, "E-NAME-CLAUSE",
+                              "a clause word (`vector`, `priority`, `output`, `effects`, `link` …) cannot name an input — "
+                              "it would open a new clause. Pick another name (RFC-0113 R6)", op->tok.line, op->tok.col);
+                    cw = false;
+                }
+                // ★ RFC-0113 R6 — 점이 절을 닫았으면 다음은 절 낱말이다. 아니면 그 점이 절 가운데 있었다(`input a . u64`).
+                if (cw) in_asm = low_view_eq_cstr(op->tok.lex, "asm");
+                if (after_dot && !cw && !in_blk && !in_asm)
+                    low_pdiag(p, "E-CLOSER-EXTRA",
+                              "a stop in the middle of a clause — after a clause's `.` the next word opens a clause "
+                              "(`input`, `output`, `effects` …) or the body (`do`). Delete the stop before this word (RFC-0113 R6)",
+                              op->tok.line, op->tok.col);
+                if (after_dot && !cw && !in_blk) open = true;   // 그 절은 이어진다 — 제 닫개는 뒤에 온다(asm 항목도 그렇다)
+                after_dot = false;
                 if (cw && open && at) low_head_dot_missing(p, &p->toks[at - 1]);
                 if (cw) open = true;
                 named = true;
@@ -935,6 +980,7 @@ low_parse_result_t low_parse(proven_allocator_t node_alloc, proven_allocator_t w
         proven_size_t before = p.pos;
         low_cst_t *f = low_parse_form(&p);
         if (f && f->nkids > 0) (void)PROVEN_ARRAY_PUSH(&forms, low_cst_t *, f);  // skip empty
+        else low_empty_form_dot(&p, f);
         if (p.pos == before) low_adv(&p);  // guarantee progress
     }
     // ★★★ X-0052 (소유자 결정 2026-09-25) — **`do … end` 는 서로 짝인 괄호다. `end` 는 자기 `do` 만 닫는다.**
@@ -1445,7 +1491,7 @@ static void low_fmt_decl_head(const low_cst_t *f, proven_size_t to, bool doblk) 
     putchar(' ');
     low_fmt_node(f->kids[1], false);                 // 이름
     // RFC-0103 ⓐ — 머리를 개행이 닫고 있었다. X-0058 — 몸이 C 에 있는 extern 은 절을 `do … end` 에 담는다.
-    fputs(doblk ? " do\n" : " .\n", stdout);
+    fputs(doblk ? " do\n" : "\n", stdout);   // RFC-0113 R6 (3) — op 이름 뒤에는 점이 없다
     bool open_clause = false;
     proven_size_t ord[f->nkids];
     proven_size_t nord = low_fmt_hdr_order(f, 2, to, ord);

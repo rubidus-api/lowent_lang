@@ -14,7 +14,7 @@ module nettcp .
 
 use net from "../../../lib/net.low" .
 
-proc main .
+proc main
   input k  cap net .
   input al cap allocator .
   input out cap io .

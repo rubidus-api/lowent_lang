@@ -127,12 +127,12 @@ fn rec_pool input n u64 . output u64 . do
   return acc .
 end
 
-def type slot u64 . .
-proc stk_pool input temp region slot . . input n u64 . output u64 . effects alloc . do
+def type slot u64 .
+proc stk_pool input temp region slot . input n u64 . output u64 . effects alloc . do
   var acc be u64 0 .
   var i be u64 0 .
   while (lt i n) . do
-    let s be stack u64 stack_new temp capacity 4 . .
+    let s be stack u64 stack_new temp capacity 4 .
     push s i .
     set acc (add acc (count s)) .
     set i (add i 1) .

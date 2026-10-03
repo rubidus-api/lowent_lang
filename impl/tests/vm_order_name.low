@@ -53,7 +53,7 @@ end
 
 rem ★ 그 다섯 이름을 순서 자리에 쓴다. 이 op 은 `atomic` 만 선언한다 —
 rem   순서 낱말이 호출로 세어지면 state 가 새어 E-EFFECT 가 난다.
-proc ring input k cap atomic . input ctl mut slice u64 . .
+proc ring input k cap atomic . input ctl mut slice u64 .
   output u64 . effects atomic .
   requires ge (len ctl) 4 .
 do

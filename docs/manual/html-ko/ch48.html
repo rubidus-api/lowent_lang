@@ -700,7 +700,7 @@ $ lowentc --run blocked oneform.low 3
 blocked(3) = 13
 $ lowentc --fmt oneform.low
 module oneform .
-fn bare .
+fn bare
   input a u64 .
   output u64 .
   requires le a 1000 .
@@ -709,7 +709,7 @@ do
   match a . do case 0 . do set x 1 . end case _ . do set x (add x 10) . end end
   return x .
 end
-fn blocked .
+fn blocked
   input a u64 .
   output u64 .
   requires le a 1000 .

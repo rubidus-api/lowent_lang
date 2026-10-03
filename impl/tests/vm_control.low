@@ -38,7 +38,7 @@ rem loop — 무조건. 나가는 길은 `break` 뿐이다.
 fn count_to_three output u8 . do
   var i be u8 0 .
   while true . do
-    set i expr i + 1 . .
+    set i expr i + 1 .
     if ge i 3 . do break . end
   end
   return i .

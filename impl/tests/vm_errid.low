@@ -33,7 +33,7 @@ end
 
 rem 오류를 **자기 이름과 비교한다.** 1 이어야 한다.
 fn names_match input a u8 . output u8 . do
-  let r be result u8 e2 g a . .
+  let r be result u8 e2 g a .
   if is_error r . do
     if eq (error_value r) delta . do return 1 . end
     return 0 .

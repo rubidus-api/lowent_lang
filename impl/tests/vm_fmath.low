@@ -1,11 +1,11 @@
 rem numeric builtins — sqrt/abs/floor/ceil (unary), fmod/min/max (binary).
 rem Tag-dispatched: abs/min/max stay integral on ints; sqrt always lifts to float.
-fn hyp .
+fn hyp
   input a u64 .
   input b u64 .
   output f64 .
 do
-  return sqrt expr ((cast f64 a) * (cast f64 a)) + ((cast f64 b) * (cast f64 b)) . .
+  return sqrt expr ((cast f64 a) * (cast f64 a)) + ((cast f64 b) * (cast f64 b)) .
 end
 
 fn iclamp input x u64 . output u64 . do return min (max x 3) 9 . end

@@ -130,21 +130,21 @@ end
 
 rem ★ 준비 차례(§6.3) — 원천 · 그다음 절 차례대로(zip 의 짝 → with → 끝 단계의 받는 자리). 빈 원천이어도 준비는 한다.
 rem   `rec` 의 첫 칸이 쓴 개수, 그 뒤가 기록이다.
-proc mark input rec mut slice u8 . . input tag u8 . input v u8 . output u8 . effects state . do
+proc mark input rec mut slice u8 . input tag u8 . input v u8 . output u8 . effects state . do
   let n be u64 widen u64 (idx rec 0) .
   set (idx rec (add n 1)) tag .
   set (idx rec 0) (narrow_wrap u8 (add n 1)) .
   return v .
 end
 
-proc mark_s input rec mut slice u8 . . input tag u8 . input s slice u8 . output slice u8 . effects state . do
+proc mark_s input rec mut slice u8 . input tag u8 . input s slice u8 . output slice u8 . effects state . do
   let n be u64 widen u64 (idx rec 0) .
   set (idx rec (add n 1)) tag .
   set (idx rec 0) (narrow_wrap u8 (add n 1)) .
   return s .
 end
 
-export proc order input xs slice u8 . input ys slice u8 . input rec mut slice u8 . . output u64 . effects state . do
+export proc order input xs slice u8 . input ys slice u8 . input rec mut slice u8 . output u64 . effects state . do
   var buf be lit array u8 8 _ . .
   let got be u64 pipe (mark_s rec 1 xs) do
     zip (mark_s rec 2 ys) pairsum with mark rec 3 1 .
@@ -155,7 +155,7 @@ export proc order input xs slice u8 . input ys slice u8 . input rec mut slice u8
 end
 
 rem 빈 원천 — 문맥 식은 그래도 한 번 돈다(바깥 효과가 남는다).
-export proc empty_still input xs slice u8 . input rec mut slice u8 . . output u64 . effects state . do
+export proc empty_still input xs slice u8 . input rec mut slice u8 . output u64 . effects state . do
   let none_here be slice u8 subslice xs 0 0 .
   let got be u64 pipe none_here do
     filter above with mark rec 7 0 .

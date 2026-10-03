@@ -13,7 +13,7 @@ module walk .
 use files from "../../../lib/file.low" .
 use strbuf from "../../../lib/strbuf.low" .
 
-proc main .
+proc main
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .

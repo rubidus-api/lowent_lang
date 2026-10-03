@@ -121,7 +121,7 @@ return ok (add v 1) .
 
 #demo("examples/ch11/bindelse.low")
 
-- `let at be u64 find xs k . else return 99 .` --- `find` 는 `option u64` 를 돌려준다. 값이 있으면 그 `u64` 가 `at` 에 묶이고,
+- `let at be u64 find xs k else return 99 .` --- `find` 는 `option u64` 를 돌려준다. 값이 있으면 그 `u64` 가 `at` 에 묶이고,
   없으면 `else` 로 간다. `result` 도 같다 --- 오류면 `else` 로 간다.
 - `else` 는 *반드시 떠나야 한다*(`return` · `break` · `continue` · `panic`). 그래서 `at` 을 쓰는 줄에서는 값이 이미 꺼내져 있고,
   확인 없이 쓰는 실수가 생길 수 없다.
@@ -267,3 +267,4 @@ return ok (add v 1) .
   넘기며, `else_none`·`else_error` 꼬리는 채널과 타입을 바꾼다. 패턴은 or 로 묶고(같은 이름을 묶는다) 겹쳐 쓸 수 있으며, 상수를 가르는
   `match` 는 번역에서 접힌다.
 ]
+

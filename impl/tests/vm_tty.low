@@ -7,7 +7,7 @@ module vm_tty .
 use tty .
 
 rem 평범한 글자는 그 바이트가 곧 키다. 'a'(97) 한 바이트.
-proc plain input buf mut slice u8 . . output u64 . effects none . do
+proc plain input buf mut slice u8 . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
   set (idx buf 0) 97 .
   let p be option u64 tty.parse_key (subslice buf 0 1) 0 .
@@ -19,7 +19,7 @@ proc plain input buf mut slice u8 . . output u64 . effects none . do
 end
 
 rem 방향키 ESC [ A = 위쪽(1001), 세 바이트를 먹는다.
-proc arrow input buf mut slice u8 . . output u64 . effects none . do
+proc arrow input buf mut slice u8 . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
   set (idx buf 0) 27 .
   set (idx buf 1) 91 .
@@ -34,7 +34,7 @@ proc arrow input buf mut slice u8 . . output u64 . effects none . do
 end
 
 rem 숫자꼴 ESC [ 3 ~ = Delete(1007), 네 바이트.
-proc del_key input buf mut slice u8 . . output u64 . effects none . do
+proc del_key input buf mut slice u8 . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
   set (idx buf 0) 27 .
   set (idx buf 1) 91 .
@@ -49,7 +49,7 @@ end
 
 rem ★ **불완전한 시퀀스는 지어내지 않는다** — ESC [ 만 왔으면 none(더 기다리라는 답이다).
 rem   그런데 ESC 하나만 왔으면 그것은 ESC 키다(뒤가 없으면 기다릴 수 없다).
-proc partial input buf mut slice u8 . . output u64 . effects none . do
+proc partial input buf mut slice u8 . output u64 . effects none . do
   guard ge (len buf) 8 . else return 90 .
   set (idx buf 0) 27 .
   set (idx buf 1) 91 .

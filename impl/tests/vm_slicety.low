@@ -14,11 +14,11 @@ fn at input i u64 . input s slice u32 . output u32 . do
 end
 
 rem 원소 쓰기도 원소 단위로 인코딩된다.
-proc dbl input s mut slice u32 . . output u32 . effects none . do
+proc dbl input s mut slice u32 . output u32 . effects none . do
   var i be u64 0 .
   while lt i (len s) . do
-    set (idx s i) expr (idx s i) * 2 . .
-    set i expr i + 1 . .
+    set (idx s i) expr (idx s i) * 2 .
+    set i expr i + 1 .
   end
   return idx s 1 .
 end

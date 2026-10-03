@@ -93,7 +93,7 @@ module ex_codec .
 
 use codec as c .
 
-proc hex_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output u64 . effects none . do
+proc hex_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
   guard ge (len enc) 6 . else return 90 .
   guard ge (len dec) 3 . else return 91 .
   let en be option u64 c.hex_enc "abc" enc .
@@ -111,7 +111,7 @@ proc hex_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output 
   return 42 .
 end
 
-proc b64_roundtrip input enc mut slice u8 . . input dec mut slice u8 . . output u64 . effects none . do
+proc b64_roundtrip input enc mut slice u8 . input dec mut slice u8 . output u64 . effects none . do
   rem 2 bytes make one group (4 characters) with one = at the end: "aGk="
   guard ge (len enc) 4 . else return 90 .
   guard ge (len dec) 2 . else return 91 .

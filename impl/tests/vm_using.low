@@ -41,11 +41,11 @@ end
 rem 한 op 에서 셋을 번갈아 — 종료 코드: 힙 벡터 1000(→10) + 고정 창 70000 은 안 들어간다(0) + 7 + 돌림 used 1040(→10) = 27
 export proc main input h cap heap . input al cap allocator . output u8 . effects heap alloc state .
 do
-  var hb be allocs.heap_bytes spawn actor allocs.heap_bytes . .
-  var fb be allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  var hb be allocs.heap_bytes spawn actor allocs.heap_bytes .
+  var fb be allocs.fixed_bytes spawn actor allocs.fixed_bytes .
   let back be option mut slice u8 alloc_bytes al capacity 64 .
   guard is_some back . else return 200 .
-  var rb be ringalloc.ring_bytes spawn actor ringalloc.ring_bytes . .
+  var rb be ringalloc.ring_bytes spawn actor ringalloc.ring_bytes .
   let z be u64 send rb init (some_value back) .
   let x using hb be u64 filled 1000 .
   let y using fb be u64 take 70000 .

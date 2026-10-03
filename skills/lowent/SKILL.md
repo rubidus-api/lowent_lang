@@ -97,7 +97,7 @@ module sorted_search .
 rem  line comment. block comment is:  note END ... END
 
 fn sorted                         rem  fn = pure (never write `effects`). proc = effectful.
-  input xs slice u8 . .
+  input xs slice u8 .
   output bool .
   requires ge (len xs) 1 .        rem  contract flows into the caller
 do
@@ -121,10 +121,10 @@ Shape rules you will hit immediately:
 - **Clauses have one order**: `satisfies` right after the name, then `comptime` inputs,
   capability/region inputs, data inputs, then `output`, `effects`, `link`, then `requires`,
   `ensures`, `errors`, `tests` (`E-CLAUSE-ORDER`; `--fmt` moves the non-input clauses).
-  `proc save input fs cap file_system . input name slice u8 . output u64 . effects io . do … end`.
+  `proc save input fs cap file_system input name slice u8 output u64 effects io do … end`.
 - **Every body is `do … end`**: op bodies, control blocks AND block declarations —
-  `def struct p do x u8 . end`, `def enum e do a . end`, `trait t do area input s self . output u64 . end`,
-  `actor c do state do v u64 . end … end` (`def struct p .` / a bare line break → `E-STMT-NODO`).
+  `def struct p do x u8 end`, `def enum e do a end`, `trait t do area input s self output u64 end`,
+  `actor c do state do v u64 end … end` (`def struct p .` / a bare line break → `E-STMT-NODO`).
   A trait signature has no `fn`/`proc`; its `effects` line says what the op may do.
 - **Capabilities are named at the use site**: a host leaf takes its capability as the first
   operand (`write_out out 1 s`, `alloc_bytes al capacity n`); holding it is not enough
@@ -150,3 +150,4 @@ Shape rules you will hit immediately:
 - Don't expect a default mode.
 - Don't treat this skill as normative. If it drifts from the canon, the canon is right —
   say so.
+

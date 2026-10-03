@@ -71,7 +71,7 @@ actor queue do
 end
 
 rem ★★★ **호출 코드는 런타임을 모른다** — 경계가 그것을 보장한다.
-proc run .
+proc run
   input comptime e type .
   input x e .
   output u64 .
@@ -84,8 +84,8 @@ do
 end
 
 proc both output u64 . effects state . do
-  var c be coop spawn actor coop . .
-  var q be queue spawn actor queue . .
+  var c be coop spawn actor coop .
+  var q be queue spawn actor queue .
   return add (run coop c) (run queue q) .    rem 7 + 14 = 21
 end
 

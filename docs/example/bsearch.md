@@ -8,7 +8,7 @@ module sorted_search .
 
 rem 오름차순 정렬 여부 — 계약용 술어 op(순수).
 fn sorted
-  input xs slice u32 . .
+  input xs slice u32 .
   output bool .
   access xs sequential .
 do
@@ -17,7 +17,7 @@ do
     if gt (idx xs (sub i 1)) (idx xs i) . do
       return false .
     end
-    set i add i 1 . .
+    set i add i 1 .
   end
   return true .
 end
@@ -25,20 +25,20 @@ end
 rem 정렬된 slice 에서 target 의 인덱스(없으면 none). O(log n)·무할당.
 rem 비용 가시: effects none(순수) · access random(이진 탐색은 비순차 접근).
 fn bsearch
-  input xs slice u32 . .
+  input xs slice u32 .
   input target u32 .
-  output option u64 . .
+  output option u64 .
   access xs random .
-  requires sorted xs . .         rem ★ 술어 op 를 계약으로 — debug 검사 / release assume(RFC-0008 등급)
+  requires sorted xs . rem ★ 술어 op 를 계약으로 — debug 검사 / release assume(RFC-0008 등급)
 do
   var lo be u64 0 .
-  var hi be u64 len xs . .       rem 반개구간 [lo, hi)  (슬라이스 규약과 동일, G4)
+  var hi be u64 len xs . rem 반개구간 [lo, hi)  (슬라이스 규약과 동일, G4)
   while lt lo hi . do
-    let mid be u64 add lo div sub hi lo . 2 . . .    rem overflow-안전 중점
-    let v be u32 idx xs mid . .
-    if eq v target . do return some mid . . end
+    let mid be u64 add lo div sub hi lo . 2 . rem overflow-안전 중점
+    let v be u32 idx xs mid .
+    if eq v target . do return some mid . end
     if lt v target . do
-      set lo add mid 1 . .
+      set lo add mid 1 .
     end
     else do
       set hi mid .

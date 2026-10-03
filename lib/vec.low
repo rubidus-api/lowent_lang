@@ -28,13 +28,13 @@ end
 
 rem 한 바이트를 잇는다. 자리가 있으면 그대로 쓰고, 꽉 찼으면 **두 배를 받아 옮긴다**.
 rem   돌려주는 슬라이스가 **앞으로 쓸 자리**다 — 성장했으면 새 자리, 아니면 그대로.
-export proc push_byte .
+export proc push_byte
   input comptime a type .
   using al a .
   input v mut vec_u8 .
-  input buf mut slice u8 . .
+  input buf mut slice u8 .
   input x u8 .
-  output option mut slice u8 . .
+  output option mut slice u8 .
   effects state via a .
   requires allocs.byte_allocator a .
 do

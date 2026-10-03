@@ -77,7 +77,7 @@ rem   순수 자료다. 위의 토큰이 **누가 이 일을 할 자격이 있�
 rem   아래 op 들이 **그 일을 한다**. 둘을 갈라 놓는 것이 요점이다.
 
 rem 혼자인 노드로 만든다 — 고리 하나다.
-export proc nl_solo input nx mut slice u64 . . input pv mut slice u64 . . input i u64 .
+export proc nl_solo input nx mut slice u64 . input pv mut slice u64 . input i u64 .
   output bool . effects none .
 do
   guard lt i (len nx) . else return false .
@@ -88,7 +88,7 @@ do
 end
 
 rem `i` 를 `at` 뒤에 끼운다.
-export proc nl_after input nx mut slice u64 . . input pv mut slice u64 . . input at u64 . input i u64 .
+export proc nl_after input nx mut slice u64 . input pv mut slice u64 . input at u64 . input i u64 .
   output bool . effects none .
 do
   guard lt at (len nx) . else return false .
@@ -102,7 +102,7 @@ do
 end
 
 rem `i` 를 뺀다 — 이웃을 서로 잇고, 자신은 혼자가 된다.
-export proc nl_cut input nx mut slice u64 . . input pv mut slice u64 . . input i u64 .
+export proc nl_cut input nx mut slice u64 . input pv mut slice u64 . input i u64 .
   output bool . effects none .
 do
   guard lt i (len nx) . else return false .
@@ -122,7 +122,7 @@ rem   ☞ 셈은 훑은 노드 수다. `cut_at` 이 목록 안에 있으면 그�
 rem ★ **머리를 자르는 경우** (2026-09-04 보안 검토): 머리를 고리에서 빼면 *"머리로 돌아오면 한 바퀴"*
 rem   가 **자기 변이로 깨진다** — 머리는 영영 안 돌아오고, 걸음 상한까지 돌아 `len nx + 1` 을 답했다.
 rem   그래서 머리는 고리에 들기 전에 따로 자르고, 바퀴는 머리의 **옛 다음 노드**에서 닫는다.
-export proc nl_walk_cut input nx mut slice u64 . . input pv mut slice u64 . . input head u64 .
+export proc nl_walk_cut input nx mut slice u64 . input pv mut slice u64 . input head u64 .
   input cut_at u64 . output u64 . effects none .
 do
   guard lt head (len nx) . else return 0 .

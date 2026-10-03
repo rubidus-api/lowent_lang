@@ -691,7 +691,7 @@ trait &lt;name> do &lt;op name> &lt;clauses…> . … end
 contract &lt;name> do requires &lt;cond> . … end
 actor &lt;name> do [satisfies …] state do &lt;field> &lt;type> . … end [failure restart max &lt;n> .] [mailbox bounded &lt;n> .] &lt;op>… end
 build profile &lt;name> .        build tier t0|t1|t2|t3 .        build &lt;mode> .
-build option &lt;name> bool|int|choice … default &lt;value> .
+build option &lt;name> bool|int|choice … default &lt;value>
 test &lt;name> [schedule explore_interleavings [limit &lt;n>] .] do expect &lt;cond> . … end</code></pre><h3 id="sx3">Statements<a class="plink" href="#sx3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><pre><code data-lang="text">let &lt;name> [&lt;type>] [using &lt;source>] be &lt;expr> .
 var &lt;name> [&lt;type>] be &lt;expr> .
 set &lt;place> &lt;expr> .                      (place = name · field … · index …)

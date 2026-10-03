@@ -11,7 +11,7 @@ rem   입력 b 는 u32 레인 4개. mask = (레인 > 5). 예: b=[3,7,2,9] → m=
 
 module vm_vmask .
 
-def type bytes slice u8 . .
+def type bytes slice u8 .
 
 rem masked store — v>5 인 lane 만 out 에 쓴다. 나머지 out 자리는 **그대로**(호출자가 준 값 보존).
 proc mstore input b bytes . input out mut slice u8 . output u64 . effects none . do

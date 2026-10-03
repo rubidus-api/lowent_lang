@@ -46,7 +46,7 @@ ratio constant).
   #modref("sortlib")[`sortlib`].
 
 ```lowent
-proc hm_sum input b mut slice u64 . . output u64 . effects none . do
+proc hm_sum input b mut slice u64 . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
     set (idx b i) 0 .

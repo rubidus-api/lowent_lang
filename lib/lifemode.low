@@ -50,14 +50,14 @@ export fn ceiling output u64 . do
 end
 
 rem 국한 refcount 를 연다 — 주인이 하나인 상태(1)로 시작한다.
-export proc near_open input c mut slice u64 . . input at u64 . output bool . effects none . do
+export proc near_open input c mut slice u64 . input at u64 . output bool . effects none . do
   guard lt at (len c) . else return false .
   set (idx c at) 1 .
   return true .
 end
 
 rem 하나 더 센다. **포화한다** — 상한에서는 늘리지 않고 그대로 둔다.
-export proc near_share input c mut slice u64 . . input at u64 . output option u64 . effects none . do
+export proc near_share input c mut slice u64 . input at u64 . output option u64 . effects none . do
   guard lt at (len c) . else return none .
   let cur be u64 idx c at .
   guard lt cur (lifemode.ceiling) . else return some cur .
@@ -67,7 +67,7 @@ end
 
 rem 하나 놓는다. **0 을 답하면 마지막이었다** — 그때 부른 쪽이 저장을 거둔다.
 rem   ★ 포화한 칸은 안 줄인다: 한 번 포화하면 그 객체는 영원히 산다(그것이 정한 값이다).
-export proc near_drop input c mut slice u64 . . input at u64 . output option u64 . effects none . do
+export proc near_drop input c mut slice u64 . input at u64 . output option u64 . effects none . do
   guard lt at (len c) . else return none .
   let cur be u64 idx c at .
   guard gt cur 0 . else return none .

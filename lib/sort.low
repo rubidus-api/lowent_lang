@@ -64,7 +64,7 @@ proc qsort input s mut slice u64 . input lo0 u64 . input hi0 u64 . output void .
 end
 
 rem ★ 공개 진입 — `mut slice u64` 를 **제자리** 오름차순 정렬한다.
-export proc sort input s mut slice u64 . . output void . effects none . do
+export proc sort input s mut slice u64 . output void . effects none . do
   qsort s 0 (len s) .
   return .
 end

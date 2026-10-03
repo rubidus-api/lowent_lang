@@ -670,7 +670,7 @@ pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Men
 <strong><span class="tok-k">use</span></strong> term .
 
 <em><span class="tok-c">rem 화면에 쓰지 않는다 — buf 에 제어 바이트를 이어 붙이고, 쓴 바이트 수를 돌려준다</span></em>
-<strong><span class="tok-k">proc</span></strong> paint <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">proc</span></strong> paint <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
 <strong><span class="tok-k">do</span></strong>
   <em><span class="tok-c">rem 0 부터 센 2 행 5 열로 커서를 옮긴다 — 터미널은 1 부터 세므로 ESC [ 3 ; 6 H</span></em>
   <strong><span class="tok-k">let</span></strong> p1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u64</span></strong> term.goto buf <span class="tok-n">0</span> <span class="tok-n">2</span> <span class="tok-n">5</span> .

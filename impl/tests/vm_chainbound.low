@@ -14,7 +14,7 @@ module vm_chainbound .
 
 rem ✔ ① 두 홉 사슬 — `k` 는 이름조차 상계가 없다. 사슬만이 `add start k` 를 지운다.
 rem   (남는 하나는 누산기 `acc` 다 — 상계가 **없는 값**이라 계약이 없으면 아무 규칙도 못 넘는다.)
-export proc chain_add input src slice u8 . . input start u64 . input finish u64 .
+export proc chain_add input src slice u8 . input start u64 . input finish u64 .
   output u64 . effects none .
   requires le start finish .
   requires le finish (len src) .

@@ -43,7 +43,7 @@ let v be option u64 hashmap.lookup b 7 .
 - Traversal scans `0 .. size` and handles only `occupied_at` slots. Order is hash order — for sorted enumeration, extract the keys and sort them with [`sortlib`](sec68.md#mod-sortlib).
 
 ```lowent
-proc hm_sum input b mut slice u64 . . output u64 . effects none . do
+proc hm_sum input b mut slice u64 . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len b) . do
     set (idx b i) 0 .

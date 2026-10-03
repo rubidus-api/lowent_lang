@@ -31,7 +31,7 @@ trait area_of do
   area input s self . output u64 . effects none .
 end
 
-fn twice .
+fn twice
   input comptime t type .
   input a t .
   output u64 .
@@ -54,7 +54,7 @@ rem   이것이 **깨져 있었다**(E-IR-UNDEF): 인스턴스를 만든 뒤 **�
 rem   안 훑었다.** `h` 안의 `g t a` 는 **인스턴스 안**에 있으므로 한 번도 안 훑겼고,
 rem   `g` 가 제네릭 이름인 채로 남아 **틀이 제거된 IR 이 그것을 못 찾았다.**
 rem   ⇒ 단형화의 고전적 **작업목록(worklist)** 을 넣었다: 새 인스턴스가 안 나올 때까지 되풀이.
-fn thrice .
+fn thrice
   input comptime t type .
   input a t .
   output u64 .
@@ -71,7 +71,7 @@ end
 rem ★★★ **타입 파라미터는 여럿일 수 있다.** v1 은 **하나만** 치환했고, 나머지는 남아서
 rem   `E-TYPE-UNDEF: 타입 u 가 선언되지 않았다` 라는 **오진**을 냈다 — 진짜 이유는
 rem   *"단형화가 아직 하나만 지원한다"* 였다. **못 하는 것을 프로그램의 죄로 돌렸다**(교훈 5).
-fn pair .
+fn pair
   input comptime t type .
   input comptime u type .
   input p t .

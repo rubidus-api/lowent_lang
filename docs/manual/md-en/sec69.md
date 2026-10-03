@@ -26,7 +26,7 @@ fn keyed.less input a keyed . input b keyed . output bool . do
   return lt (field a k) (field b k) .
 end
 
-proc sorted3 input s mut slice keyed . . output u64 . effects none . do
+proc sorted3 input s mut slice keyed . output u64 . effects none . do
   guard ge (len s) 3 . else return 90 .
   sortgen.sort_by keyed s .
   let f0 be keyed idx s 0 .

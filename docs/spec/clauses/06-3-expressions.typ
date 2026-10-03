@@ -459,7 +459,7 @@ fn endian input a u32 . output u32 . do return byte_swap a . end",
     ]
     #rejected("부동소수 합을 정수 자리에 돌려준다", "module ex_slice_sum .
 
-def type bytes slice u8 . .
+def type bytes slice u8 .
 
 fn total input b bytes . output u64 .
 do

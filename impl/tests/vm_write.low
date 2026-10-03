@@ -4,23 +4,23 @@ rem 장소는 괄호로 감싼 form 이다: `set (index s i) v .`
 
 rem ① 모든 원소를 2배로 — 커널의 원형. 그리고 **경계 검사가 사라진다**:
 rem    루프 조건 `lt i (len s)` 가 관계 사실을 세우고, 그것이 **쓰기에도** 걸린다.
-proc dbl input s mut slice u8 . . output u64 . effects none . do
+proc dbl input s mut slice u8 . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len s) . do
-    set (idx s i) expr (idx s i) * 2 . .
-    set i expr i + 1 . .
+    set (idx s i) expr (idx s i) * 2 .
+    set i expr i + 1 .
   end
   var acc be u64 0 .
   var j be u64 0 .
   while lt j (len s) . do
-    set acc expr acc + (idx s j) . .
-    set j expr j + 1 . .
+    set acc expr acc + (idx s j) .
+    set j expr j + 1 .
   end
   return acc .
 end
 
 rem ② 가드 없는 쓰기 — 검사가 남고, 경계 밖이면 트랩한다.
-proc poke input i u64 . input s mut slice u8 . . output u64 . effects none . do
+proc poke input i u64 . input s mut slice u8 . output u64 . effects none . do
   set (idx s i) 9 .
   return len s .
 end

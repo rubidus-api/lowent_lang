@@ -16,7 +16,7 @@ rem     씨가 부를 주소가 없다. 콜백은 씨에 void* 로 넘어간다(
 module vm_ffi_cb .
 
 rem 콜백이 될 Lowent op — export extern 이라 씨가 부를 수 있다(경계 계약 검사 포함).
-export extern fn dbl input a i64 . output i64 . . do return mul a 2 . end
+export extern fn dbl input a i64 . output i64 . do return mul a 2 . end
 
 rem lw_c_apply(long long (*f)(long long), long long x) = f(x) + 1 — 씨가 콜백 f 를 부른다.
 unsafe extern proc c_apply do
@@ -52,7 +52,7 @@ end
 rem ★★★ **콜백 진입이 우리 문** — 계약을 가진 콜백. 씨가 위반 값으로 부르면 **진입에서 트랩**한다.
 rem   pos2 는 `requires ge a 0`. 씨의 apply(f, x) 가 f(-3) 을 부르면, 우리 문(export 래퍼)에서
 rem   계약이 검사돼 트랩한다 — 씨는 unsafe 지만, 우리 콜백에 들어오는 순간 우리 불변식이 성립한다.
-export extern fn pos2 input a i64 . output i64 . . requires ge a 0 . do return mul a 2 . end
+export extern fn pos2 input a i64 . output i64 . requires ge a 0 . do return mul a 2 . end
 
 unsafe proc apply_checked input k cap c . input x i64 . output i64 . effects unsafe . do
   return c_apply k (unsafe_fn pos2) x .

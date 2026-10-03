@@ -65,7 +65,7 @@ tests. A character cluster is one leading code point plus all following zero-wid
 deleted or the cursor stops inside a character.
 
 ```lowent
-proc diff_frame input out mut slice u8 . . output u64 . effects none . do
+proc diff_frame input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 90 .
   let prev be slice u8 "aaaaaaaaaa" .
   let nxt be slice u8 "aaaaaaxyaa" .

@@ -56,7 +56,7 @@ guard is_some p . else return 1 .
 **Confusing these four puts the cursor in the wrong place.** Bytes ≠ code points (`row_cells`) ≠ cells (`row_width`) ≠ characters (`row_clusters`). `"한글"` is 6 bytes, 2 code points, **4 cells** and 2 characters; `"e"` + U+0301 is 3 bytes, 2 code points, **1 cell** and **1 character**. `cp_width` is 0 for combining marks and format characters (`is_zerowidth` of [`unicode`](sec64.md#mod-unicode)), 2 for Korean, CJK and fullwidth symbols, and 1 otherwise. Even a wrong width guess of 1 is a usable default, so it never fails — unlike property tests. A character cluster is one leading code point plus all following zero-width code points — backspace and cursor movement must use this unit, or only the accent gets deleted or the cursor stops inside a character.
 
 ```lowent
-proc diff_frame input out mut slice u8 . . output u64 . effects none . do
+proc diff_frame input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 90 .
   let prev be slice u8 "aaaaaaaaaa" .
   let nxt be slice u8 "aaaaaaxyaa" .

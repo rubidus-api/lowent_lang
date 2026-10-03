@@ -43,8 +43,8 @@ do
 end
 
 rem ★ 1차 IIR 한 걸음. 나눗셈도, 부동소수도 없다 — 시프트 하나뿐이다.
-export proc filter_step .
-  input st mut slice u32 . .
+export proc filter_step
+  input st mut slice u32 .
   input x u32 .
   output u32 .
   effects none .
@@ -56,8 +56,8 @@ do
   return idx st 0 .
 end
 
-proc step_down .
-  input st mut slice u32 . .
+proc step_down
+  input st mut slice u32 .
   input y u32 .
   input x u32 .
   output u32 .
@@ -70,7 +70,7 @@ do
 end
 
 rem 출력 자리에 값을 박고 그 값을 돌려준다.
-proc put_out input st mut slice u32 . . input v u32 . output u32 . effects none .
+proc put_out input st mut slice u32 . input v u32 . output u32 . effects none .
   requires ge (len st) 3 .
 do
   set (idx st 1) v .
@@ -79,8 +79,8 @@ end
 
 rem ★★ 히스테리시스: 두 문턱 **사이**에서는 아무것도 바꾸지 않는다.
 rem   문턱이 하나면 값이 그 근처에서 떨 때 출력이 초당 수천 번 뒤집힌다(릴레이가 죽는다).
-export proc control_step .
-  input st mut slice u32 . .
+export proc control_step
+  input st mut slice u32 .
   input x u32 .
   input lo u32 .
   input hi u32 .
@@ -97,8 +97,8 @@ do
 end
 
 rem ★ 주 루프 한 바퀴: 표본 하나를 먹고, 처리 수를 센다.
-export proc tick .
-  input st mut slice u32 . .
+export proc tick
+  input st mut slice u32 .
   input x u32 .
   output u32 .
   effects none .
@@ -111,8 +111,8 @@ end
 
 rem ★★ 시연용 진입점 — 표본 열을 통째로 먹여 **마지막 출력**을 낸다.
 rem   호스트에서 돌려 볼 수 있고(VM·네이티브), floor 타깃에서는 이 op 을 안 쓰면 그만이다.
-export proc run .
-  input st mut slice u32 . .
+export proc run
+  input st mut slice u32 .
   input xs slice u32 .
   output u32 .
   effects none .

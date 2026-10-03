@@ -25,7 +25,7 @@ rem ★★ **짧은 슬라이스를 막는다 — 계약이 아니라 방어로.
 rem   적었는데, 오라클이 **더 많은 경우를 뽑아** 실패가 3 → 6 으로 늘었다: 구조체 안의
 rem   슬라이스 길이는 계약 한 줄로 못 묶는다(`len (field p xs) >= n` 을 쓸 자리가 없다).
 rem   ⇒ `lib/soa.low` 의 `step_x` 와 같은 모양으로 간다 — **모든 입력을 실제로 다룬다.**
-proc holds_a_slice input s mut slice u64 . . output u64 . effects none .
+proc holds_a_slice input s mut slice u64 . output u64 . effects none .
 do
   guard ge (len s) 2 . else return 0 .
   set (idx s 0) 11 .
@@ -36,7 +36,7 @@ do
 end
 
 rem ★★ 그리고 **필드를 통해 쓴다** — 꺼낸 것이 복사가 아니라 같은 바이트다.
-proc writes_through input s mut slice u64 . . output u64 . effects none .
+proc writes_through input s mut slice u64 . output u64 . effects none .
 do
   guard ge (len s) 1 . else return 0 .
   let h be lit holder do xs s . n 0 . end .
@@ -73,8 +73,8 @@ do
 end
 
 rem ★ 호출자는 **인자 넷이 아니라 값 하나**를 넘긴다.
-proc bundle_of_four input a mut slice u64 . . input b mut slice u64 . .
-  input c mut slice u64 . . input d mut slice u64 . . output u64 . effects none .
+proc bundle_of_four input a mut slice u64 . input b mut slice u64 .
+  input c mut slice u64 . input d mut slice u64 . output u64 . effects none .
 do
   guard ge (len a) 1 . else return 0 .
   guard ge (len c) 1 . else return 0 .

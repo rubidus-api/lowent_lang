@@ -28,7 +28,7 @@ fn printable input b u64 . output u8 . do
   return (cast u8 b) .
 end
 
-proc main .
+proc main
   input al cap allocator .
   input k  cap io .
   output u8 .

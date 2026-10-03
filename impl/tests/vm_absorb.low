@@ -12,7 +12,7 @@ rem ☞ 흡수 절을 빼면 같은 코드가 `E-EFFECT` 로 거절된다 — �
 module vm_absorb .
 
 rem 어셈블리 잎 — 처리기가 그 안을 못 본다. 그래서 `unsafe` 다.
-unsafe proc asm_add2 .
+unsafe proc asm_add2
   input k cap machine .
   input a u64 .
   input b u64 .

@@ -8,7 +8,7 @@ rem   ★ VM(레인 시뮬)·C(lw_vperm)가 **같은 순열** ⇒ diff-sweep 로
 
 module vm_vshuffle .
 
-def type bytes slice u8 . .
+def type bytes slice u8 .
 
 proc rev input b bytes . input out mut slice u8 . output u64 . effects none . do
   let xs be slice u32 view_array u32 b .

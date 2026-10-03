@@ -8,7 +8,7 @@ Reads bytes already in memory *like a stream*, a little at a time. Used to scan 
 `read(buf) → n` but *peek · take · toss → views* --- instead of filling caller memory, it hands out borrowed views pointing into the original (zero copies).
 
 ```lowent
-var r be io.mem_reader spawn actor io.mem_reader . .
+var r be io.mem_reader spawn actor io.mem_reader .
 let z be u64 send r attach src .
 let line be option slice u8 send r take_line 4096 .
 ```
@@ -47,7 +47,7 @@ knows how long a line may legitimately be. *No partial consumption* --- on `none
 
 ```lowent
 proc count_lines input src slice u8 . output u64 . effects state . do
-  var r be io.mem_reader spawn actor io.mem_reader . .
+  var r be io.mem_reader spawn actor io.mem_reader .
   let z be u64 send r attach src .
   var lines be u64 0 .
   var going be bool true .

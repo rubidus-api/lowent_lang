@@ -9,21 +9,21 @@ rem 돌려받지 않는 할당기 — `byte_allocator` 만 만족한다. 이것�
 actor keep_bytes do
   satisfies allocs.byte_allocator .
   state do
-    mem mut slice u8 . .
+    mem mut slice u8 .
     off u64 .
   end
-  proc init input m mut slice u8 . . output u64 . effects state . do
+  proc init input m mut slice u8 . output u64 . effects state . do
     set mem m .
     set off 0 .
     return len m .
   end
-  proc reserve input n u64 . output option mut slice u8 . . effects state . do
+  proc reserve input n u64 . output option mut slice u8 . effects state . do
     guard le n (sub (len mem) off) . else return none .
     let s be mut slice u8 subslice mem off (add off n) .
     set off (add off n) .
     return some s .
   end
-  proc grow input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects none . do
+  proc grow input old mut slice u8 . input newn u64 . output option mut slice u8 . effects none . do
     return none .
   end
   proc used output u64 . effects none . do
@@ -136,7 +136,7 @@ end
 
 rem ★★ RFC-0135 D12 — `keep`: 블록 끝에 돌려주지 않는다. 그래서 op 밖으로 내보낼 수 있고(할당기가 살아 있는 동안),
 rem   돌려주는 일은 저자가 한다(`send bb release …`) — 아니면 할당기가 끝날 때 한꺼번에.
-proc kmake input bb mut allocs.bump_bytes . input d mut slice u64 . . output mut slice u64 . . effects state . do
+proc kmake input bb mut allocs.bump_bytes . input d mut slice u64 . output mut slice u64 . effects state . do
   let t using bb keep be mut slice u64 lit array u64 2 7 8 . . else return d .
   return t .
 end

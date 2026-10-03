@@ -8,7 +8,7 @@ The allocator *interface* (two traits) and four actors satisfying it. The most c
 to data "made in many pieces, discarded all at once" (a parser's temporary nodes, strings living for one pass) (#chref("lib-alloc")).
 
 ```lowent
-var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
 var c be u64 send bump init mem .
 let b be option mut slice u8 send bump reserve 64 .
 ```
@@ -21,13 +21,13 @@ subslices only, so it is a library, not a builtin.
 
 ```lowent
 export trait byte_allocator do
-  reserve input s self . input n u64 . output option mut slice u8 . . effects state via self .
-  grow    input s self . input old mut slice u8 . . input newn u64 . output option mut slice u8 . . effects state via self .
+  reserve input s self . input n u64 . output option mut slice u8 . effects state via self .
+  grow    input s self . input old mut slice u8 . input newn u64 . output option mut slice u8 . effects state via self .
   used    input s self . output u64 . effects state .
 end
 ```
 
-`freeing_allocator` adds `release input s self . input v mut slice u8 . . output bool .` to the same three. `via self` means "this op's effect is the effect the implementation
+`freeing_allocator` adds `release input s self . input v mut slice u8 . output bool .` to the same three. `via self` means "this op's effect is the effect the implementation
 declares" --- a bump's `reserve` is just `state`, while `heap_bytes`'s `reserve` is `heap state`. So `heap` appears in the signature of container ops monomorphised with that
 allocator.
 
@@ -69,7 +69,7 @@ argument but with `let x be (… using <source>) …`, and if the op has only on
 calls.
 
 ```lowent
-proc two_from .
+proc two_from
   input comptime a type .
   using al a .
   output u64 .
@@ -84,8 +84,8 @@ do
   return send al used .
 end
 
-proc borrowed2 input buf mut slice u8 . . output u64 . effects state . do
-  var b be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+proc borrowed2 input buf mut slice u8 . output u64 . effects state . do
+  var b be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send b init buf .
   let n using b be u64 two_from .
   return n .

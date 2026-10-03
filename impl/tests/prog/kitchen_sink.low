@@ -26,7 +26,7 @@ export fn rect.area input s rect . output u64 . do
 end
 
 rem ★ 제네릭 + trait 경계 + export
-export fn twice .
+export fn twice
   input comptime t type .
   input a t .
   output u64 .

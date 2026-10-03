@@ -312,6 +312,8 @@ static const low_repair_row_t REPAIR[] = {
     { "E-BITSET-ADD",          "R-ADD-TO-INSERT" },   // RFC-0113 R5 — `add s n` → `bitset_insert s n`
     { "W-PROC-PURE",           "R-PROC-TO-FN" },      // RFC-0113 O3 — `proc … effects none .` → `fn …`
     { "W-VAR-NEVER-SET",       "R-VAR-TO-LET" },      // RFC-0113 O4 — 안 바뀌는 `var` → `let`
+    { "E-CLOSER-EXTRA",        "R-DROP-DOT" },        // RFC-0113 R6 — 아무것도 안 닫는 점을 지운다
+    { "E-NAME-CLAUSE",         "R-RENAME" },          // RFC-0113 R6 — 절 낱말을 입력 이름으로
     { "E-HEAD-NOT-AN-OP",      "R-DROP-DOT-HEAD" },
     { "E-METHOD-RECV",         "R-ADD-RECEIVER" },
     { "E-FIELD-FORM",          "R-USE-FIELD-FORM" },

@@ -94,8 +94,8 @@ module ex_regex .
 
 use regex as rx .
 
-proc demo input prog mut slice u64 . . input st mut slice u64 . .
-  input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . .
+proc demo input prog mut slice u64 . input st mut slice u64 .
+  input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 .
   output u64 . effects none .
 do
   guard ge (len prog) 32 . else return 90 .
@@ -129,9 +129,9 @@ end
 `search` and counted repetition have the same shape.
 
 ```lowent
-proc demo_search input prog mut slice u64 . . input st mut slice u64 . .
-  input cl mut slice u64 . . input nl mut slice u64 . . input mk mut slice u64 . .
-  input cs mut slice u64 . . input ns mut slice u64 . .
+proc demo_search input prog mut slice u64 . input st mut slice u64 .
+  input cl mut slice u64 . input nl mut slice u64 . input mk mut slice u64 .
+  input cs mut slice u64 . input ns mut slice u64 .
   output u64 . effects none .
 do
   guard ge (len prog) 32 . else return 90 .

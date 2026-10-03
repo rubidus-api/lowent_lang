@@ -243,7 +243,7 @@ end
 ```lowent 예제: guard
 module ex_guard .
 
-export fn safe_head input data slice u8 . . output u8 .
+export fn safe_head input data slice u8 . output u8 .
 do
   guard ge (len data) 1 . else return 0 .
   return idx data 0 .
@@ -300,7 +300,7 @@ def enum short do
   too_short .
 end
 
-fn head input b slice u8 . . output result u8 short .
+fn head input b slice u8 . output result u8 short .
 errors too_short .
 do
   guard ge (len b) 2 . else return 0 .   rem `ok 0` 도 `error too_short` 도 아니다
@@ -408,7 +408,7 @@ do
 end
 
 rem ② 값이 없음 — option.
-fn lookup input k u8 . output option u8 . .
+fn lookup input k u8 . output option u8 .
 do
   guard lt k 3 . else return none .
   return some (mul k 10) .

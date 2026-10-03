@@ -55,7 +55,7 @@ rem   자리를 **값으로 돌려주는** 모델이다 — 소유 모델이 다
 rem   에서 가르라고 못박은 그 경계). 축이 겹친다고 **계약까지** 접으면 축소가 아니라 뭉갬이다.
 export def struct vec do input comptime t type . input comptime a type .
   al a .
-  store mut slice u8 . .     rem 얼로케이터가 준 **바이트** — 소유하는 저장소
+  store mut slice u8 . rem 얼로케이터가 준 **바이트** — 소유하는 저장소
   n u64 .                  rem 담긴 **원소** 개수(바이트가 아니다)
   rem ★★★ **우리 마지막 할당 직후의 커서**(`send al used`) — `grow` 를 부를 자격의 근거(2026-09-04).
   rem   `grow` 는 마지막 할당을 **길이로만** 알아보므로, 같은 길이의 남의 버퍼도 "마지막" 으로 통과한다
@@ -88,7 +88,7 @@ end
 
 rem ★ 제자리 성장을 **자격이 있을 때만** 청한다: 우리 할당 뒤 커서가 그대로일 때. 그 사이 누가 받았으면
 rem   `grow` 가 성공하더라도 그 자리는 **남의 것**이므로 부르지 않는다 — none 으로 옛 길(새로 받아 복사)로 간다.
-proc try_grow input comptime t type . input comptime a type . input g mut vec t a . input newn u64 . output option mut slice u8 . . effects state via a . requires allocs.byte_allocator a . do
+proc try_grow input comptime t type . input comptime a type . input g mut vec t a . input newn u64 . output option mut slice u8 . effects state via a . requires allocs.byte_allocator a . do
   guard eq (send (field g al) used) (field g tail) . else return none .
   return send (field g al) grow (field g store) newn .
 end

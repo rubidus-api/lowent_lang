@@ -6,7 +6,7 @@ proc main input al cap allocator . input out cap io . output u8 . effects io all
   let memopt be option mut slice u8 alloc_bytes al capacity 256 .
   guard is_some memopt . else return 1 .
   let mem be mut slice u8 some_value memopt .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send bump init mem .
   let b0 be option mut slice u8 send bump reserve 2 .
   guard is_some b0 . else return 2 .

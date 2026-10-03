@@ -135,7 +135,7 @@ static void fz_stmt(fz_t *g, int nest) {
             fz_putf(g, "var v%d u64 be 0 . while lt v%d ", c, c);
             fz_putf(g, "%d . do ", 2 + (int)fz_rnd(3), 0);
             fz_stmts(g, 1 + (int)fz_rnd(2), nest + 1);
-            fz_putf(g, "set v%d expr v%d + 1 . . end ", c, c);
+            fz_putf(g, "set v%d expr v%d + 1 . end ", c, c);
             break;
         }
         case 8: {         // string literal: len / in-bounds index
@@ -190,7 +190,7 @@ static void fz_gen(fz_t *g, proven_u64 seed) {
     fz_state = seed * 2654435761u + 12345u;
     fz_put(g, "def struct fzr do f0 u64 . f1 u64 . end ");
     fz_put(g, "def struct fzw do layout packed . f0 u32 big . f1 u16 . end ");
-    fz_put(g, "fn fzpass input a mut_ref u64 . . output mut_ref u64 . . "
+    fz_put(g, "fn fzpass input a mut_ref u64 . output mut_ref u64 . "
               " do return a . end ");
     fz_put(g, "fn fmain output u64 .  do ");
     fz_put(g, "var v0 u64 be 3 . ");
@@ -785,7 +785,7 @@ int main(void) {
 
     // ── S3: MVP front-end grows additively (same parser, +schema rows) ──
     {
-        low_parse_result_t p = PARSE("fn f input x u32 . . output bool . do return true . end");
+        low_parse_result_t p = PARSE("fn f input x u32 . output bool . do return true . end");
         low_cst_t *f = p.nforms ? p.forms[0] : NULL;
         check(p.ok && f && f->kids[0]->tok.kw == LOW_KW_FN, "MVP fn parses, no errors");
         check(f && f->kids[f->nkids - 1]->kind == LOW_CST_BLOCK, "fn body binds to fn (not last clause)");
@@ -1049,19 +1049,19 @@ int main(void) {
           "two shared-ref args to one call: ok");
 
     // op-boundary borrows (D3): a reference-typed result aliases the argument borrow
-    check(RGCK("fn pass input a mut_ref u32 . . output mut_ref u32 . . do return a . end "
+    check(RGCK("fn pass input a mut_ref u32 . output mut_ref u32 . do return a . end "
                "fn f output u32 . do var x u32 be 1 . "
                "var r mut_ref u32 . be mut_ref x . "
                "var t mut_ref u32 . be pass r . "
                "set x 9 . set t 5 . return x . end") == false,
           "laundered borrow: owner write while the call result is live → E-EXCL (D3 fixed)");
-    check(RGCK("fn pass input a mut_ref u32 . . output mut_ref u32 . . do return a . end "
+    check(RGCK("fn pass input a mut_ref u32 . output mut_ref u32 . do return a . end "
                "fn f output u32 . do var x u32 be 1 . "
                "var r mut_ref u32 . be mut_ref x . "
                "var t mut_ref u32 . be pass r . "
                "set t 5 . return x . end") == true,
           "laundered borrow used correctly (no owner access while live): ok");
-    check(RGCK("fn pass input a mut_ref u32 . . output mut_ref u32 . . do return a . end "
+    check(RGCK("fn pass input a mut_ref u32 . output mut_ref u32 . do return a . end "
                "fn f output u32 . do var x u32 be 1 . "
                "var v u32 be pass 5 . set x 9 . return v . end") == true,
           "non-reference bindings are unaffected by the alias rule");
@@ -1209,7 +1209,7 @@ int main(void) {
     // ── S5b: values — guard/error/ok/try/make/slice on the VM ──
     {
         const char *src =
-            "def type bytes slice u8 . . "
+            "def type bytes slice u8 . "
             "def enum e2 do neg end "
             "def struct pairr do a u64 . b u64 . end "
             "fn chk input n u64 . output result u64 e2 .  do "
@@ -1246,7 +1246,7 @@ int main(void) {
     // ── S5c: containers — stack (pop-into), bitset (poly add/contains/count), for ──
     {
         const char *src =
-            "def type bytes slice u8 . . "
+            "def type bytes slice u8 . "
             "proc drain input n u64 . output u64 . effects none . do "
             "var work stack u64 . be stack_new r capacity 8 . . "
             "var i u64 be 0 . "
@@ -1291,7 +1291,7 @@ int main(void) {
                 if (strcmp(PROVEN_ARRAY_GET(&(diags), low_diag_t, _i)->code, (wanted)) == 0) _found = true; \
             _found; })
         const char *src =
-            "fn bump input p mut_ref u32 . . output u32 .  do "
+            "fn bump input p mut_ref u32 . output u32 .  do "
             "set p expr (deref p) + 1 . . return deref p . end "
             "fn bump42 input n u64 . output u64 .  do "
             "var x u64 be n . "
@@ -1302,7 +1302,7 @@ int main(void) {
             "var x u64 be n . "
             "var s ref u64 . be ref x . "
             "set s 9 . return x . end "
-            "fn bad output ref u64 . .  do "
+            "fn bad output ref u64 .  do "
             "var l u64 be 5 . return ref l . end "
             "fn use_bad output u64 .  do "
             "var r ref u64 . be bad . return deref r . end";
@@ -1420,7 +1420,7 @@ int main(void) {
     // ── view/try_view (RFC-0025 §6.6): packed layout + be fields, zero-copy ──
     {
         const char *src =
-            "def type bytes slice u8 . . "
+            "def type bytes slice u8 . "
             "def struct wire_header do layout packed . magic u32 big . length u16 big . kind u8 . end "
             "fn hdr_kind input b bytes . output u64 .  do "
             "var o wire_header . be try_view wire_header b . . "
@@ -1502,7 +1502,7 @@ int main(void) {
     // ── view_array + strings + view-EXCL ──
     {
         const char *src =
-            "def type bytes slice u8 . . "
+            "def type bytes slice u8 . "
             "fn va_sum input b bytes . output u64 .  do "
             "var t u64 be 0 . for x view_array u16 b . do set t expr t + x . . end return t . end "
             "fn va_at input b bytes . output u64 .  do "
@@ -1567,7 +1567,7 @@ int main(void) {
     // ── portable SIMD (RFC-0040): comptime lanes, arith/compare lift, reductions ──
     {
         const char *src =
-            "def type bytes slice u8 . . "
+            "def type bytes slice u8 . "
             "fn dot4 input b bytes . output u64 .  do "
             "var xs u64 . be view_array u32 b . "
             "var va vec u32 4 . be load xs 0 . "
@@ -1675,7 +1675,7 @@ int main(void) {
     // ── float layouts + float SIMD lanes (RFC-0025 §6.6 / RFC-0040) ──
     {
         const char *src =
-            "def type bytes slice u8 . . "
+            "def type bytes slice u8 . "
             "def struct sample do layout packed . temp f32 big . scale f64 . tag u8 . end "
             "fn mk output sample .  do "
             "  return lit sample do temp 1.5 . scale 2.25 . tag 3 . end end "
@@ -1715,7 +1715,7 @@ int main(void) {
     // ── `align n` — alignment contract, enforced at the view boundary (RFC-0051 §5.1) ──
     {
         const char *src =
-            "def type bytes slice u8 . . "
+            "def type bytes slice u8 . "
             "def struct reg do align 16 . ctrl u32 . stat u16 . end "
             "def struct nat do ctrl u32 . stat u16 . end "
             "fn mk output reg .  do return lit reg do ctrl 7 . stat 2 . end . end "
@@ -1783,13 +1783,13 @@ int main(void) {
             FPUT("end fn mk output s .  do return lit s do ");
             for (int i = 0; i < nf; i++) FPUT("f%d %llu . ", i, (unsigned long long)vals[i]);
             FPUT("end . end fn rt output u64 .  do "
-                 "var h s . be view s encode s mk . . return ");
+                 "var h s . be view s encode s mk . return ");
             #define FTERM(i) do { if (flts[i]) FPUT("(cast u64 (field h f%d))", i); else FPUT("(field h f%d)", i); } while (0)
             for (int i = 0; i < nf - 1; i++) { FPUT("add "); FTERM(i); FPUT(" ("); }
             FTERM(nf - 1);
             for (int i = 0; i < nf - 1; i++) FPUT(")");
             #undef FTERM
-            FPUT(" . end fn blen output u64 .  do return len encode s mk . . end");
+            FPUT(" . end fn blen output u64 .  do return len encode s mk . end");
             #undef FPUT
 
             low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
@@ -1998,28 +1998,28 @@ int main(void) {
     // ⇒ 컴파일러가 할 일은 하나다: **그 조건이 성립하는지 검사하는 것.**
     // ★ 그리고 DET-1 덕분에 **순차 실행이 곧 올바른 구현**이다 — 검사부터 넣고 실행은
     //   나중에 붙여도 의미가 바뀌지 않는다. 증명이 사 준 자유다.
-    check(CHECK("proc dbl input s mut slice u8 . . output u64 . effects none . parallel s split . do "
+    check(CHECK("proc dbl input s mut slice u8 . output u64 . effects none . parallel s split . do "
                 "  var i u64 be 0 . "
                 "  while lt i (len s) . do set (idx s i) expr (idx s i) * 2 . . "
                 "    set i expr i + 1 . . end "
                 "  return len s . end") == true,
           "parallel: ★ an independent loop passes the Bernstein check (each iteration touches only "
           "its OWN element) — the compiler reports W-PAR-OK and cites the Coq theorem");
-    check(CHECK("proc blur input s mut slice u8 . . output u64 . effects none . parallel s split . do "
+    check(CHECK("proc blur input s mut slice u8 . output u64 . effects none . parallel s split . do "
                 "  var i u64 be 1 . "
                 "  while lt i (len s) . do set (idx s i) expr (idx s i) + (idx s 0) . . "
                 "    set i expr i + 1 . . end "
                 "  return len s . end") == false,
           "parallel: ★ reading ANOTHER index → E-PAR-READ (rd ∩ wr ≠ ∅ — a cross-iteration "
           "dependence; DET-1's premise fails and the parallel result would NOT match sequential)");
-    check(CHECK("proc sum input s mut slice u8 . . output u64 . effects none . parallel s split . do "
+    check(CHECK("proc sum input s mut slice u8 . output u64 . effects none . parallel s split . do "
                 "  var acc u64 be 0 . var i u64 be 0 . "
                 "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end "
                 "  return acc . end") == false,
           "parallel: ★ writing an accumulator that lives across iterations → E-PAR-CARRY "
           "(a loop-carried dependence — a reduction must be declared, and its tree fixed: DET-3)");
-    check(CHECK("proc f input s mut slice u8 . . output u64 . effects none . do "
+    check(CHECK("proc f input s mut slice u8 . output u64 . effects none . do "
                 "  var acc u64 be 0 . var i u64 be 0 . "
                 "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end "
@@ -2032,14 +2032,14 @@ int main(void) {
     // ★ nonassoc_shape_matters (Qed) 결합적이지 않으면 모양이 결과를 **바꾼다** → 쪼갤 수 없다
     // E-PAR-CARRY 가 "reduction 을 선언하라" 고 말했는데 **그 문법이 없었다.**
     // 도구가 있지도 않은 것을 시키고 있었다. 만들었다 — 그리고 DET-3 을 그 위에 걸었다.
-    check(CHECK("proc isum input s mut slice u8 . . output u64 . effects none . "
+    check(CHECK("proc isum input s mut slice u8 . output u64 . effects none . "
                 " parallel s split . reduce acc add . do "
                 "  var acc u64 be 0 . var i u64 be 0 . "
                 "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
                 "    set i expr i + 1 . . end return acc . end") == true,
           "reduce: ★ an INTEGER `add` reduction may be split — add is associative, so the tree "
           "shape cannot change the answer (assoc_shape_free, Qed)");
-    check(CHECK("proc fsum input s mut slice u8 . . output f64 . effects none . "
+    check(CHECK("proc fsum input s mut slice u8 . output f64 . effects none . "
                 " parallel s split . reduce acc add . do "
                 "  var acc f64 be 0.0 . var i u64 be 0 . "
                 "  while lt i (len s) . do set acc expr acc + (idx s i) . . "
@@ -2047,7 +2047,7 @@ int main(void) {
           "reduce: ★★ a FLOAT reduction is REJECTED → E-PAR-FLOAT. Float addition is not "
           "associative, so splitting changes the tree and the answer would depend on the SCHEDULE "
           "(nonassoc_shape_matters, Qed). Determinism is part of the meaning, not a detail");
-    check(CHECK("proc bad input s mut slice u8 . . output u64 . effects none . "
+    check(CHECK("proc bad input s mut slice u8 . output u64 . effects none . "
                 " parallel s split . reduce acc sub . do "
                 "  var acc u64 be 0 . var i u64 be 0 . "
                 "  while lt i (len s) . do set acc expr acc - (idx s i) . . "
@@ -2061,7 +2061,7 @@ int main(void) {
     // 장소는 괄호로 감싼 form 이다: `set (index s i) v .` (점-클로저에서 중첩은 괄호가 만든다).
     {
         const char *src =
-            "proc dbl input s mut slice u8 . . output u64 . effects none . do "
+            "proc dbl input s mut slice u8 . output u64 . effects none . do "
             "  var i u64 be 0 . "
             "  while lt i (len s) . do "
             "    set (idx s i) expr (idx s i) * 2 . . "
@@ -2069,7 +2069,7 @@ int main(void) {
             "  var acc u64 be 0 . var j u64 be 0 . "
             "  while lt j (len s) . do set acc expr acc + (idx s j) . . set j expr j + 1 . . end "
             "  return acc . end "
-            "fn poke input i u64 . input s mut slice u8 . . output u64 .  do "
+            "fn poke input i u64 . input s mut slice u8 . output u64 .  do "
             "  set (idx s i) 9 . return len s . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);
@@ -2108,7 +2108,7 @@ int main(void) {
                "  set (idx s 0) 9 . return len s . end") == false,
           "slice write: ★ writing an element of a NON-mut slice → E-TYPE-MUT (a shared slice is "
           "read-only; mutability is enforced statically because the runtime value has no mut flag)");
-    check(TYCK("proc f input s mut slice u8 . . output u64 . effects none . do "
+    check(TYCK("proc f input s mut slice u8 . output u64 . effects none . do "
                "  set (idx s 0) 9 . return len s . end") == true,
           "slice write: a `mut` slice accepts the write");
 
@@ -2129,11 +2129,11 @@ int main(void) {
     // 지금까지 **본문 쪽만** 봤다(선언 안 한 오류를 반환하면 E-ERR-UNDECLARED).
     // 절 자체는 안 봤다 — enum 에 없는 이름을 걸어도 조용히 통과했다.
     check(CTCK("def enum e do a end "
-               "fn f output result u8 e . .  errors ghost . "
+               "fn f output result u8 e .  errors ghost . "
                "do return ok 1 . end") == false,
           "errors clause: ★ a name the declared error enum does not contain → E-ERR-UNDEF");
     check(CTCK("def enum e do a end "
-               "fn f output result u8 e . .  errors a . "
+               "fn f output result u8 e .  errors a . "
                "do return ok 1 . end") == true,
           "errors clause: a real variant passes");
     check(CTCK("fn f input d slice u8 . errors bare_name . "
@@ -2205,7 +2205,7 @@ int main(void) {
             "fn count input s slice u32 . output u64 .  do return len s . end "
             "fn at input i u64 . input s slice u32 . output u32 .  do "
             "  return idx s i . end "
-            "proc dbl input s mut slice u32 . . output u32 . effects none . do "
+            "proc dbl input s mut slice u32 . output u32 . effects none . do "
             "  var i u64 be 0 . "
             "  while lt i (len s) . do set (idx s i) expr (idx s i) * 2 . . "
             "    set i expr i + 1 . . end "
@@ -2243,14 +2243,14 @@ int main(void) {
     // 벡터 비교의 결과가 마스크인데, 지금까지 마스크는 **아무 타입도 아니었다.**
     // vm_vec 픽스처가 실제로 `var m u64 . be gt v lim .` 라고 적어 놨다 — **마스크를 정수로**.
     // 그래서 select 에 아무거나 넘겨도·any 에 정수를 넘겨도 통과했다.
-    check(TYCK("def type bytes slice u8 . . "
+    check(TYCK("def type bytes slice u8 . "
                "fn f input b bytes . output bool .  do "
                "  var n u64 be 5 . return lane_any n . end") == false,
           "mask: ★ `any` on an integer → E-TYPE-MASK (a mask is the result of a lanewise compare, "
           "not a number)");
     // ★ 2026-07-24: `var xs u64 . be view_array u32 b .` 였다 — 초기식은 **슬라이스**인데 선언은
     //   스칼라라 이제 E-TYPE-VAR 다(타입검사가 자랐고 픽스처가 안 따라가 유닛 게이트가 빨간불이었다).
-    check(TYCK("def type bytes slice u8 . . "
+    check(TYCK("def type bytes slice u8 . "
                "fn f input b bytes . output bool .  do "
                "  var xs slice u32 . be view_array u32 b . "
                "  var v vec u32 4 . be load xs 0 . "
@@ -2261,7 +2261,7 @@ int main(void) {
           "way — it used to say `u64`)");
     // ★ 여기도 `xs` 를 고친다 — 안 고치면 E-TYPE-VAR 로 거부돼 **정작 재려던 E-TYPE-MASK 를
     //   안 재고도 통과한다**(맞는 답, 틀린 이유 — 이 프로젝트가 가장 싫어하는 초록불이다).
-    check(TYCK("def type bytes slice u8 . . "
+    check(TYCK("def type bytes slice u8 . "
                "fn f input b bytes . output u64 .  do "
                "  var xs slice u32 . be view_array u32 b . "
                "  var v vec u32 4 . be load xs 0 . "
@@ -2429,7 +2429,7 @@ int main(void) {
 
     // ★ `access` 의 두 모드는 **읽기/쓰기 규율**이다 — 스케줄 힌트와 한 덩어리로 묶여
     //   "아직 미구현" 이었다. 그러면 **잡을 수 있는 거짓말을 놓친다.**
-    check(CHECK("proc f input s mut slice u8 . . output u8 . effects none . access s shared_read . "
+    check(CHECK("proc f input s mut slice u8 . output u8 . effects none . access s shared_read . "
                 " do set (idx s 0) 9 . return idx s 0 . end") == false,
           "access: ★ `shared_read` + a WRITE — that promise is exactly what lets several tasks "
           "hold the place at once (LowentDRF.v: no write ⇒ no race); a write breaks it");
@@ -2537,11 +2537,11 @@ int main(void) {
           "stay green)");
 
     // ── ★ 선언의 **내용**도 뜻이 있어야 한다: 순환 별칭 · layout · align ──
-    check(TYCK("def type a b . . def type b a . . "
+    check(TYCK("def type a b . def type b a . "
                "fn f input x a . output u8 .  do return 1 . end") == false,
           "declarations: ★ a `type` alias that resolves back to itself → E-TYPE-CYCLE "
           "(resolving it would not terminate; the declaration names nothing)");
-    check(TYCK("def type a u8 . . def type b a . . "
+    check(TYCK("def type a u8 . def type b a . "
                "fn f input x b . output u8 .  do return x . end") == true,
           "declarations: a chain of aliases that ends at a builtin is fine");
     check(TYCK("def struct s do layout nonsense . x u8 . end "
@@ -2562,7 +2562,7 @@ int main(void) {
     check(TYCK("fn f input a no_such_type . output u8 .  do return 1 . end") == false,
           "type names: ★ an undeclared type name → E-TYPE-UNDEF (before this, a type name could "
           "point at nothing at all)");
-    check(TYCK("def type mytype u8 . . "
+    check(TYCK("def type mytype u8 . "
                "fn f input a mytype . output u8 .  do return a . end") == true,
           "type names: a declared `type` alias resolves");
     check(TYCK("def struct s do x u8 . end "
@@ -2576,14 +2576,14 @@ int main(void) {
     // ── ★ `stack_new <region>` 의 region 이름 — **지운다고 검사 안 해도 되는 건 아니다** ──
     // IR 은 region 이름을 **지운다**(VM 풀이 아레나를 대신한다). 그래서 그 이름이
     // 아무것도 안 가리켜도 **조용히 통과했다.** 선언된 이름인데 아무도 확인하지 않았다.
-    check(CHECK("def type frame u64 . . "
-                "proc f input r region frame . . output u64 . effects alloc . do "
+    check(CHECK("def type frame u64 . "
+                "proc f input r region frame . output u64 . effects alloc . do "
                 "  let s be stack_new nosuch capacity 4 . . push s 1 . return count s . end") == false,
           "region: ★ `stack_new` naming something that is not a `region` parameter → "
           "E-REGION-UNDEF (the lowering ERASES this name — that does not mean it need not be "
           "checked)");
-    check(CHECK("def type frame u64 . . "
-                "proc f input r region frame . . output u64 . effects alloc . do "
+    check(CHECK("def type frame u64 . "
+                "proc f input r region frame . output u64 . effects alloc . do "
                 "  let s be stack_new r capacity 4 . . push s 1 . return count s . end") == true,
           "region: a real region parameter passes (no over-rejection)");
 
@@ -2613,8 +2613,8 @@ int main(void) {
           "the CALLER'S OWN — module b's `g` calls b's `f`. This used to be refused, and the "
           "reason given was that `g` silently called module a's `f`: that was a RESOLUTION-ORDER "
           "defect, not a naming one (declaration order changed the answer)");
-    check(CHECK("module a .\ndef type t u8 . .\n"
-                "module b .\ndef type t u32 . .\n"
+    check(CHECK("module a .\ndef type t u8 .\n"
+                "module b .\ndef type t u32 .\n"
                 "fn h input x t . output u32 .  do return x . end") == true,
           "self-name: ★★ and the same for TYPE names — `h` lives in module b, so its `t` is b's "
           "`t` (u32). Nobody has to say which one it got: being inside the module IS saying it");
@@ -2846,7 +2846,7 @@ int main(void) {
     // ★ 그리고 정직한 선언은 **공짜다** — 술어 기억이 guard 의 조건과 when 을 같은 식으로 알아본다.
     {
         const char *src =
-            "module t . def type bytes slice u8 . . def enum e do small end "
+            "module t . def type bytes slice u8 . def enum e do small end "
             // ① 정직 — guard 의 조건과 when 이 같은 식 ⇒ **증명되어 검사가 사라진다**
             "fn honest input data bytes . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
@@ -2929,19 +2929,19 @@ int main(void) {
     //   변할 수 **있으면**(volatile · atomic · shared · mut_ref) 진입 검사가 사용 시점을 못 덮는다
     //   ⇒ 둘 다 정당하다. 중복이 아니다. 이것이 언어가 두 기제를 모두 갖는 이유를 가른다.
     check(CTCK("fn g input a u8 . output result u8 small .  "
-                " requires ge a 4 . errors small lt a 4 . . do return ok a . end") == false,
+                " requires ge a 4 . errors small lt a 4 . do return ok a . end") == false,
           "dead error: an immutable input — `requires ge a 4` makes `small when lt a 4` unreachable");
     check(CTCK("fn g input a u8 . output result u8 small .  "
-                " requires ge a 4 . errors small lt a 2 . . do return ok a . end") == true,
+                " requires ge a 4 . errors small lt a 2 . do return ok a . end") == true,
           "dead error: a DIFFERENT condition is not dead (no false positive)");
     check(CTCK("fn g input a u8 . output result u8 small .  "
-                " errors small lt a 4 . . do return ok a . end") == true,
+                " errors small lt a 4 . do return ok a . end") == true,
           "dead error: `errors` alone is fine — the op handles the case and returns a value");
     check(CTCK("fn g input a u8 . output u8 .  "
                " requires ge a 4 . do return a . end") == true,
           "dead error: `requires` alone is fine — the caller must guarantee it");
     // ★★ 그리고 값이 **변할 수 있으면** 둘 다 정당하다 — volatile/atomic 이 설 자리다.
-    check(CTCK("fn f input p mut_ref u32 . . output result u32 underrun .  "
+    check(CTCK("fn f input p mut_ref u32 . output result u32 underrun .  "
                " requires ge deref p . 4 . errors underrun lt deref p . 4 . . "
                " do return ok deref p . . end") == true,
           "dead error: ★ a MUTABLE input — the entry check does not cover the use site, so "
@@ -3001,7 +3001,7 @@ int main(void) {
     //   자기 선언을 어기지 않는다. 어기면 E-VM-CONTRACT 가 나오고, 그것이 곧 실패다.
     {
         const char *src =
-            "module t . def type bytes slice u8 . . def enum e do small end "
+            "module t . def type bytes slice u8 . def enum e do small end "
             // 정직 — 선언과 본문이 같은 경계(4)
             "fn honest input data bytes . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
@@ -3030,7 +3030,7 @@ int main(void) {
     // 그리고 **정직한 op 은 통과한다** — 과잉 고발이 아니다.
     {
         const char *src =
-            "module t . def type bytes slice u8 . . def enum e do small end "
+            "module t . def type bytes slice u8 . def enum e do small end "
             "fn honest input data bytes . output result u8 e . .  "
             "  errors small lt len data . 4 . . "
             " do guard ge len data . 4 . else return error small . . . "
@@ -3314,7 +3314,7 @@ int main(void) {
     // ── RFC-0053 E5 (P2′ 오차 가시): sum_neumaier(보정) vs sum_seq(축차) — 오차가 이름에 있다 ──
     {
         const char *src =
-            "def type bytes slice u8 . . "
+            "def type bytes slice u8 . "
             "fn s_good input b bytes . output f64 .  do "
             "  var xs u64 . be view_array f64 b . return sum_neumaier xs . end "
             "fn s_fast input b bytes . output f64 .  do "
@@ -3612,13 +3612,13 @@ int main(void) {
         //   섞으면 지표가 거짓말을 한다 — 도구가 검사한 것만 주장해야 하듯이.
         {
             const char *base =
-                "module m . def type bytes slice u8 . . def enum e do small . end "
+                "module m . def type bytes slice u8 . def enum e do small . end "
                 "def struct p do x u8 . y u8 . end "
                 "fn helper input a u8 . output u8 .  do return a . end "
-                "fn f input d bytes . output result u8 e . .  "
-                "  errors small lt len d . 4 . . tests helper . "
-                " do guard ge len d . 4 . else return error small . . . "
-                "   return ok idx d 0 . . end "
+                "fn f input d bytes . output result u8 e .  "
+                "  errors small lt len d 4 . tests helper . "
+                " do guard ge (len d) 4 . else return error small . "
+                "   return ok idx d 0 . end "
                 "fn g input a range u8 0 100 . output u8 .  "
                 "  ensures le ret 200 . do return mul a 2 . end "
                 "fn h output p .  do return lit p do x 1 . y 2 . end . end";
@@ -3630,10 +3630,10 @@ int main(void) {
                 { "make: a ghost field added",  "do x 1 . y 2 . end", "do x 1 . y 2 . z 3 . end", false },
                 { "def type name unbound",          "input d bytes",      "input d nosuch",         false },
                 { "effect word typo'd",         "effects none . do return a", "effects nne . do return a", false },
-                { "`try` on a non-result",      "return ok idx d 0", "return ok try idx d 0 . ", false },
+                { "`try` on a non-result",      "return ok idx d 0", "return ok try idx d 0", false },
                 // ★ 이 둘은 **런타임 계약**이다 — 그 경로를 밟아야 드러난다. 정적 지표가 못 잡는 것이
                 //   정상이고, 그것을 **거짓말이라고 부르지 않는다.** 아래에서 실행으로 확인한다.
-                { "errors condition flipped",   "errors small lt len d . 4", "errors small ge len d . 4", true  },
+                { "errors condition flipped",   "errors small lt len d 4", "errors small ge len d 4", true  },
                 { "ensures bound tightened",    "ensures le ret 200", "ensures le ret 100",     true  },
             };
             int n = (int)(sizeof muts / sizeof muts[0]);

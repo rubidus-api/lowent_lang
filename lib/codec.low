@@ -35,7 +35,7 @@ export fn hex_val input c u8 . output option u64 . do
 end
 
 rem ★ src 를 소문자 hex 로 dst 에 쓴다. 성공 = some (2×len src). dst 가 모자라면 none.
-export proc hex_enc input src slice u8 . input dst mut slice u8 . . output option u64 . effects none . do
+export proc hex_enc input src slice u8 . input dst mut slice u8 . output option u64 . effects none . do
   let need be u64 mul 2 (len src) .
   guard le need (len dst) . else return none .
   var i be u64 0 .
@@ -49,7 +49,7 @@ export proc hex_enc input src slice u8 . input dst mut slice u8 . . output optio
 end
 
 rem ★ hex 를 바이트로. 홀수 길이·hex 아닌 글자·모자란 dst = none. 성공 = some (len src / 2).
-export proc hex_dec input src slice u8 . input dst mut slice u8 . . output option u64 . effects none . do
+export proc hex_dec input src slice u8 . input dst mut slice u8 . output option u64 . effects none . do
   guard eq (mod (len src) 2) 0 . else return none .
   let need be u64 div (len src) 2 .
   guard le need (len dst) . else return none .
@@ -85,7 +85,7 @@ export fn b64_val input c u8 . output option u64 . do
 end
 
 rem ★ src 를 base64 로 dst 에 쓴다(`=` 패딩 포함). 성공 = some (4×⌈len/3⌉). dst 모자라면 none.
-export proc b64_enc input src slice u8 . input dst mut slice u8 . . output option u64 . effects none . do
+export proc b64_enc input src slice u8 . input dst mut slice u8 . output option u64 . effects none . do
   let full be u64 div (len src) 3 .
   let tail be u64 mod (len src) 3 .
   var groups be u64 full .
@@ -126,7 +126,7 @@ rem ★ 마지막 그룹의 **남는 비트는 0 이어야 한다**(RFC 4648 §3
 rem   바이트를 내지만 정규 인코딩이 아니므로 none 이다. 받아 주면 같은 바이트열에 인코딩이
 rem   여럿이 되어, 인코딩된 문자열을 맞대는 자리(PEM 본문 고정·중복 제거)가 속는다
 rem   (2026-09-04 검토 A2). 이 모듈의 다른 어긋남과 같이 **값으로** 거절한다.
-export proc b64_dec input src slice u8 . input dst mut slice u8 . . output option u64 . effects none . do
+export proc b64_dec input src slice u8 . input dst mut slice u8 . output option u64 . effects none . do
   guard eq (mod (len src) 4) 0 . else return none .
   guard gt (len src) 0 . else return some 0 .
   var pad be u64 0 .

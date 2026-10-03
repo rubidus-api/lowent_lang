@@ -14,7 +14,7 @@ rem   하나가 되살아난 것이다.
 module elemfact .
 
 rem 원소가 [0, 200] 이면 「원소 + 1」 은 u64 에서 넘칠 수 없다 — 계약이 그 사실을 준다.
-export proc bump input a slice u64 . . input i u64 . .
+export proc bump input a slice u64 . input i u64 .
   output u64 .
   effects none .
   requires elem_ge a 0 .

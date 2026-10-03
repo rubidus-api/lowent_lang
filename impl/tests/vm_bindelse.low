@@ -18,7 +18,7 @@ fn find input xs slice u64 . input k u64 . output option u64 . do
   return none .
 end
 
-fn parse input a u64 . output result u64 perr . .
+fn parse input a u64 . output result u64 perr .
   errors bad ge a 100 .
 do
   guard lt a 100 . else return error bad .

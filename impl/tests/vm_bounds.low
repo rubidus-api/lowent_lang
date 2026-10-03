@@ -16,7 +16,7 @@ fn sum_all input g slice u8 . output u64 . do
   var i be u64 0 .
   while lt i (len g) . do
     set acc expr acc + (idx g i) .    rem ★ 검사 제거
-    set i expr i + 1 . .
+    set i expr i + 1 .
   end
   return acc .
 end

@@ -1,5 +1,5 @@
 rem float struct fields (f32/f64 layout, be) + float SIMD lanes (RFC-0040 f32).
-def type bytes slice u8 . .
+def type bytes slice u8 .
 
 def struct sample do
   layout packed .
@@ -8,7 +8,7 @@ def struct sample do
   tag u8 .
 end
 
-fn mk_sample .
+fn mk_sample
   output sample .
 do
   return lit sample do
@@ -18,16 +18,16 @@ do
   end .
 end
 
-fn f_roundtrip .
+fn f_roundtrip
   output f64 .
 do
-  let h be sample view sample encode sample mk_sample . .
-  return expr ((field h temp)) + ((field h scale)) . .
+  let h be sample view sample encode sample mk_sample .
+  return expr ((field h temp)) + ((field h scale)) .
 end
 
-fn f_len output u64 . do return len encode sample mk_sample . . end
+fn f_len output u64 . do return len encode sample mk_sample . end
 
-fn fdot .
+fn fdot
   input b bytes .
   output f64 .
 do
@@ -37,7 +37,7 @@ do
   return reduce_add mul va vb .
 end
 
-fn fmax .
+fn fmax
   input b bytes .
   output f64 .
 do

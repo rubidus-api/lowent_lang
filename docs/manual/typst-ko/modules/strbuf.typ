@@ -85,7 +85,7 @@ module demo .
 
 use strbuf .
 
-proc build input buf mut slice u8 . . output u64 . effects none . do
+proc build input buf mut slice u8 . output u64 . effects none . do
   var b be strbuf.str_buf strbuf.new .
   let r1 be result void strbuf.sb_error strbuf.append b buf "ab" .
   guard is_ok r1 . else return 90 .
@@ -106,7 +106,7 @@ end
 성장은 새 자리를 호출자가 주는 것으로 표현된다.
 
 ```lowent
-proc grow input small mut slice u8 . . input big mut slice u8 . . output u64 . effects none . do
+proc grow input small mut slice u8 . input big mut slice u8 . output u64 . effects none . do
   var b be strbuf.str_buf strbuf.new .
   let r1 be result void strbuf.sb_error strbuf.append b small "ab" .
   guard is_ok r1 . else return 90 .
@@ -128,7 +128,7 @@ end
 
 #antipattern[순수 코드에서 `as_cstr` 를 부른다][
   ```lowent
-  fn f input b strbuf.str_buf . input buf mut slice u8 . . output u64 . do
+  fn f input b strbuf.str_buf . input buf mut slice u8 . output u64 . do
     let p be strbuf.cstr strbuf.as_cstr b buf .   rem ✗ unsafe proc 을 fn 에서 부른다
     return 0 .
   end

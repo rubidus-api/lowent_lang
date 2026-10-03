@@ -16,7 +16,7 @@ module seek .
 
 use files from "../../../lib/file.low" .
 
-proc main .
+proc main
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .

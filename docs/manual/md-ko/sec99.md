@@ -29,8 +29,8 @@ L0 — 순수 계산
 *표 50.1 — `soa` 의 op — 모두 `effects none`*
 
 ```lowent
-proc demo input xs mut slice u64 . . input vxs mut slice u64 . .
-  input rows mut slice u64 . . output u64 . effects none .
+proc demo input xs mut slice u64 . input vxs mut slice u64 .
+  input rows mut slice u64 . output u64 . effects none .
 do
   set (idx xs 0) 1 .
   set (idx xs 1) 2 .

@@ -44,7 +44,7 @@ end
 rem 내부 — base 슬롯에 새 키를 arena 에 복사하고 [keyoff,keylen,value] 를 쓴다. arena 부족이면 false.
 rem   빈칸이든 묘비든 재사용 슬롯이든 **쓰기는 같다**(묘비의 옛 keyoff 는 덮어쓴다 — 옛 키 바이트는
 rem   arena 에 남지만 bump 아레나는 회수 안 한다, 문서화된 한계).
-proc sm_write input slots mut slice u64 . . input keys mut slice u8 . . input base u64 . input k slice u8 . input v u64 . output bool . effects none . do
+proc sm_write input slots mut slice u64 . input keys mut slice u8 . input base u64 . input k slice u8 . input v u64 . output bool . effects none . do
   let cursor be u64 idx slots 0 .
   guard le (add cursor (len k)) (len keys) . else return false .
   var j be u64 0 .
@@ -62,7 +62,7 @@ end
 rem ★ 넣거나 갱신한다. true=성공 · false=꽉 참·arena 부족·빈 키.
 rem   ★ **묘비 재사용**: 프로브 중 처음 만난 묘비(keylen=MAX)를 기억해 두고, 키가 이 뒤에 없음이
 rem     확인되면(빈칸에 닿거나 한 바퀴) 거기에 넣는다 — 삭제로 생긴 구멍을 도로 메운다.
-export proc put input slots mut slice u64 . . input keys mut slice u8 . . input k slice u8 . input v u64 .
+export proc put input slots mut slice u64 . input keys mut slice u8 . input k slice u8 . input v u64 .
   output bool . effects none .
 do
   guard gt (len k) 0 . else return false .
@@ -111,7 +111,7 @@ rem ★★★ **삭제** — 키를 지운다. true=지웠다 · false=없던 �
 rem   덮어 프로브 체인을 보존한다(빈칸으로 되돌리면 그 뒤 키를 못 찾는다). value 는 0 으로 지운다.
 rem   ★ keylen 은 키 **길이**라 아레나 크기 이하 — MAX 일 수가 없으니 예약 없이 그대로 묘비값이 된다
 rem     (u64 키맵과 달리 값 전 범위가 안 찼다). ★ arena 는 회수 안 한다(옛 키 바이트는 남는다).
-export proc del input slots mut slice u64 . . input keys slice u8 . input k slice u8 . output bool . effects none . do
+export proc del input slots mut slice u64 . input keys slice u8 . input k slice u8 . output bool . effects none . do
   guard gt (len k) 0 . else return false .
   guard ge (len slots) 4 . else return false .
   let n be u64 div (sub (len slots) 1) 3 .
@@ -182,7 +182,7 @@ rem   이걸 부른다: old 의 **살아있는 항목만** new 에 넣는다(키
 rem   처음에 0(빈 맵)이어야 한다. true=전부 옮겼다 · false=new 슬롯/아레나가 작아 도중 실패.
 rem   ★ occupied_at 이 묘비를 거르므로 **압축도 한다**(묘비·옛 아레나 빈틈이 사라진다). ★ 옛 키는
 rem   `subslice oa off (add off klen)` 로 아레나에서 되읽는다. old 는 안 바꾸므로 비소유.
-export proc rehash input ns mut slice u64 . . input na mut slice u8 . . input os slice u64 . input oa slice u8 . output bool . effects none . do
+export proc rehash input ns mut slice u64 . input na mut slice u8 . input os slice u64 . input oa slice u8 . output bool . effects none . do
   var slot be u64 0 .
   while lt slot (size os) . do
     if occupied_at os slot . do

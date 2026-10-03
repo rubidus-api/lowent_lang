@@ -12,10 +12,10 @@ module vm_release .
 
 use allocs from "../../lib/alloc.low" .
 
-export proc lifo input buf mut slice u8 . . output u64 . effects state .
+export proc lifo input buf mut slice u8 . output u64 . effects state .
 do
   guard ge (len buf) 32 . else return 9 .
-  var a be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var a be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c be u64 send a init buf .
   let po be option mut slice u8 send a reserve 8 .
   guard is_some po . else return 91 .

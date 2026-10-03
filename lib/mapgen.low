@@ -32,9 +32,9 @@ export def struct table do
   input comptime k type .
   input comptime v type .
   al allocs.bump_bytes .
-  keys mut slice u8 . .    rem 키 배열의 바이트
-  vals mut slice u8 . .    rem 값 배열의 바이트
-  flags mut slice u8 . .   rem 0 빈칸 · 1 참 · 2 무덤
+  keys mut slice u8 . rem 키 배열의 바이트
+  vals mut slice u8 . rem 값 배열의 바이트
+  flags mut slice u8 . rem 0 빈칸 · 1 참 · 2 무덤
   n u64 .                  rem 담긴 쌍의 수
 end
 
@@ -69,7 +69,7 @@ rem ★★ **상태 배열은 우리가 0 으로 깐다** (2026-09-04 보안 검
 rem   않는다 — 다시 `init` 한 범프 · 정적 버퍼 · 스택은 옛 바이트를 그대로 준다. 그 위에서는 빈 맵이
 rem   **옛 쌍을 되살리고**(count 0 인데 lookup 이 some), 전부 1 인 자리에서는 `insert` 가 빈 맵에 false
 rem   를 내고 `regrow` 의 자리 찾기가 **영영 돈다**. 키·값 배열은 상태가 0 인 칸에서 안 읽으므로 안 깐다.
-proc clear input f mut slice u8 . . output u64 . effects none . do
+proc clear input f mut slice u8 . output u64 . effects none . do
   var i be u64 0 .
   while lt i (len f) . do
     set (idx f i) 0 .

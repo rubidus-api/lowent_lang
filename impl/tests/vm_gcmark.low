@@ -15,7 +15,7 @@ use allocs .
 
 rem 고정점까지 도는 표시 — 더 이상 새로 표시할 것이 없을 때 멈춘다.
 rem   ★ 이 반복이 곧 ephemeron 의 고정점이다(RFC-0105 §3.3). 라운드 상한은 객체 수다.
-export proc mark input edges slice u64 . input marks mut slice u64 . . input root u64 .
+export proc mark input edges slice u64 . input marks mut slice u64 . input root u64 .
   output u64 . effects none .
 do
   guard lt root (len marks) . else return 0 .

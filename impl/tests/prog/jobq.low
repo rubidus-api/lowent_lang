@@ -47,7 +47,7 @@ proc main input al cap allocator . output u8 . effects state alloc . do
   rem ── ③ mapgen: id → 결과 · vecgen: 처리 순서 ──────────────────────────
   let amo be option mut slice u8 alloc_bytes al capacity 1024 .
   guard is_some amo . else return 94 .
-  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes . .
+  var bump be allocs.bump_bytes spawn actor allocs.bump_bytes .
   let c0 be u64 send bump init (some_value amo) .
   let tbo using bump be option (mapgen.table u64 u64) mapgen.open u64 u64 8 .
   guard is_some tbo . else return 3 .

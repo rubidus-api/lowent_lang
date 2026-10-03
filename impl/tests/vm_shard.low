@@ -14,7 +14,7 @@ def newtype grid2 u8 .
 def newtype grid3 u8 .
 
 rem ★ 쪼개고, 각 조각이 **자기 범위만** 만지는지 잰다.
-proc disjoint input mem mut slice u64 . . output u64 . effects none . do
+proc disjoint input mem mut slice u64 . output u64 . effects none . do
   var r be (owned shard.token grid) shard.open grid 8 .
   let h be (shard.halves grid) shard.split_at grid r 4 .
   let lo be (shard.token grid) (field h low) .

@@ -16,8 +16,8 @@ use vecgen from "../../lib/vecgen.low" .
 
 export proc main input h cap heap . input al cap allocator . output u8 . effects heap alloc state .
 do
-  var hb be allocs.heap_bytes spawn actor allocs.heap_bytes . .
-  var fb be allocs.fixed_bytes spawn actor allocs.fixed_bytes . .
+  var hb be allocs.heap_bytes spawn actor allocs.heap_bytes .
+  var fb be allocs.fixed_bytes spawn actor allocs.fixed_bytes .
   let vo using hb be option (vecgen.vec u32 allocs.heap_bytes) vecgen.open u32 16 .
   guard is_some vo . else return 1 .
   var v be (vecgen.vec u32 allocs.heap_bytes) some_value vo .

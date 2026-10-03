@@ -7,7 +7,7 @@ rem   ★ VM(레인 시뮬)과 C(벡터) 가 **같은 바이트**를 쓴다 ⇒ 
 
 module vm_vstore .
 
-def type bytes slice u8 . .
+def type bytes slice u8 .
 
 rem 각 u32 레인을 2배로 만들어 out 에 되쓴다.
 proc scale2 input b bytes . input out mut slice u8 . output u64 . effects none . do

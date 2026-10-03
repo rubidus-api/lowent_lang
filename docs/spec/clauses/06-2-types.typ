@@ -179,7 +179,7 @@ let back be u8 narrow u8 wide .")
     #ex("슬라이스", "module ex_slice .
 
 rem 슬라이스는 시작과 길이를 함께 갖는다.
-export fn head input data slice u8 . . output u8 .
+export fn head input data slice u8 . output u8 .
   requires ge (len data) 1 .
 do
   return idx data 0 .
@@ -193,7 +193,7 @@ end", "E-TYPE-ARRAY")
     #para("6")[
       **원소 나열 리터럴** — `lit array t n v₁ … vₖ .` 은 `array t n` 값, `lit slice t v₁ … vₖ .` 은 원소 `k` 개의
       `slice t` 값이다. 나열은 **제 마침표로 닫히는 폼**이다: 문장의 끝에 오면 나열의 점과 문장의 점이 잇달아
-      오고(`let t be lit array u8 4 1 2 3 4 . .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
+      오고(`let t be lit array u8 4 1 2 3 4 .`), 한가운데 오면 점 하나로 닫고 다음 피연산자가 이어진다.
       `lit` 가 값의 타입을 보이므로 묶는 문장은 타입을 따로 적지 않는다.
     ]
     #para("6a")[
@@ -206,12 +206,12 @@ end", "E-TYPE-ARRAY")
       `true`·`false` 만이다.
     ]
     #para("6c")[
-      **칸 골라 채우기** — `lit array t n do <번호> <값> . … [_ <값> .] end` 은 번호를 적은 칸에 그 값을 넣는다. 번호는
+      **칸 골라 채우기** — `lit array t n do <번호> <값> … [_ <값> .] end` 은 번호를 적은 칸에 그 값을 넣는다. 번호는
       0 부터 `n − 1` 까지의 정수 리터럴이고 한 번씩만 적는다. `_ <값> .` 은 끝에만 오며 «이름을 적지 않은 칸 모두»
       를 뜻한다. 모든 칸이 정해져야 한다 — 남는 칸이 있는데 `_ <값> .` 이 없거나, `_` 가 채울 칸이 없으면 거부된다
       (`E-LIT-COUNT`). 번호가 상수가 아니거나 길이 밖이거나 두 번 나오거나 `_` 가 끝이 아닌 자리에 있으면 거부된다
       (`E-LIT-INDEX`). 값은 식이어도 되며 적은 차례로 계산되고, `_` 의 값은 **한 번** 계산된다. 블록이 나열을 닫으므로
-      나열 자신의 점은 없다(`let t be lit array u8 8 do 2 5 . _ 0 . end .`). 원소를 늘어놓는 모양과 섞지 않는다.
+      나열 자신의 점은 없다(`let t be lit array u8 8 do 2 5 _ 0 end .`). 원소를 늘어놓는 모양과 섞지 않는다
     ]
     #para("6d")[
       **SIMD 값** — `lit vec t n v₁ … [_] .` 은 `vec t n` 값이다. 원소 규칙은 배열 나열과 같고, 더해 `t` 는 크기 있는
@@ -260,14 +260,14 @@ end", "E-TYPE-ARRAY")
       운영체제가 없는 기계 16 KiB 이고, 모든 뒤끝이 같은 수로 세어 같은 자리에서 멈춘다.
     ]
     #para("7d")[
-      **할당기에서 받는 나열** — `var <이름> using <할당기> be mut slice t lit array t n … . else <문장>`(`lit slice` 도 같다)은
+      **할당기에서 받는 나열** — `var <이름> using <할당기> be mut slice t lit array t n … else <문장>`(`lit slice` 도 같다)은
       그 할당기에 나열의 바이트 수를 청하고(`send <할당기> reserve <바이트>`), 받으면 그 바이트를 (6)~(6c) 대로 채워 이름에
       묶고, 못 받으면 `else` 로 간다(#cref("6.5.1") (5)). 실패를 `option` 째 들고 가려면 타입을 통째로 적는다 —
       `let <이름> using <할당기> be option mut slice t lit … .`. `else` 도 `option` 도 없거나, `lit vec` 이면 거부된다
       (`E-LIT-USING`). 바인딩 타입의 원소가 나열의 원소 타입과 다르면 거부된다(`E-BIND-ELSE`). 바이트는 할당기의 것이라 (7e) 가
       아니면 (7a) 의 선언 블록 수명을 받지 않고 할당기의 수명을 따른다: 할당기가 ⓐ 칸을 뒤받침으로 받았다면
       (`send <할당기> init buf`) 그 할당기가 주는 바이트도 그 칸의 수명을 받는다.
-      구조체 값도 같은 철자로 할당기 바이트에 짓는다: `var <이름> using <할당기> be s lit s do … end . else <문장>` 은
+      구조체 값도 같은 철자로 할당기 바이트에 짓는다: `var <이름> using <할당기> be s lit s do … end else <문장>` 은
       `size_of s` 바이트를 청해, 받으면 0 으로 채우고 s 의 배치를 얹은 뒤(#cref("8.7.2") 의 `view` 와 같은 표현) 적은 칸을 쓴다.
       바인딩 타입은 s 여야 한다(`E-BIND-ELSE`). **수의 슬라이스 칸**은 할당기 바이트 안에 (주소, 길이) 두 낱말로 놓인다 —
       C 의 `struct { const T *p; size_t n; }` 와 같고, 자리는 8 바이트에 맞춘다. 이 배치는 할당기에 짓는 구조체에만 있다:
@@ -287,7 +287,7 @@ end", "E-TYPE-ARRAY")
       선언한 블록에서만 받고(안쪽 블록이면 `E-OWN-JOIN`), 그 뒤로 이름을 쓰면 거부된다(`E-OWN-MOVED`).
     ]
     #para("7f")[
-      **남긴다** — `var <이름> using <할당기> keep be … . else <문장>` 의 `keep` 은 (7e) 를 끈다: 블록을 나가도 돌려주지
+      **남긴다** — `var <이름> using <할당기> keep be … else <문장>` 의 `keep` 은 (7e) 를 끈다: 블록을 나가도 돌려주지
       않으므로 바이트는 할당기의 수명을 따르고(#cref("6.2.6") (7d)), 블록 밖으로 — `return` 으로도 — 나를 수 있다. 돌려주는 일은
       저자가 한다(`send <할당기> release <조각>`). 아니면 할당기가 끝날 때 한꺼번에 돌아간다. `keep` 은 `using <할당기>`
       바로 뒤, 나열이나 구조체 리터럴을 받는 바인딩에만 쓴다(`E-USING-FORM`).
@@ -413,7 +413,7 @@ def enum color do
 end")
     #para("4")[
       struct 값은 `lit` 로 만든다. 만들 때 **모든 칸을 채워야** 한다. 마지막 줄의 `_ <값> .` 은 적지 않은 칸 모두에 그 값을
-      넣는다(`lit pt do y a . _ 0 . end`) — 값은 이름이나 리터럴 하나이고(`E-LIT-INDEX`), 그 값이 들어갈 수 없는 칸이 남으면
+      넣는다(`lit pt do y a _ 0 end`) — 값은 이름이나 리터럴 하나이고(`E-LIT-INDEX`), 그 값이 들어갈 수 없는 칸이 남으면
       그 칸 이름을 대며 거부되며(`E-TYPE-FIELD`), 채울 칸이 없으면 거부된다(`E-LIT-COUNT`).
     ]
     #para("4a")[
@@ -505,7 +505,7 @@ def enum err do
 end
 
 rem 2 보다 작으면 반으로 나눌 수 없다고 알린다.
-export fn half input n u32 . output result u32 err . .
+export fn half input n u32 . output result u32 err .
   errors too_small lt n 2 .
 do
   guard ge n 2 . else return error too_small .
@@ -556,7 +556,7 @@ end")
     ]
     #ex("확인하지 않고 꺼내면 실행 중에 멈춘다", "module ex_partial .
 
-fn mk input k u8 . output option u8 . .
+fn mk input k u8 . output option u8 .
 do
   guard lt k 3 . else return none .
   return some (mul k 10) .
@@ -576,7 +576,7 @@ end",
     #ex("option — 만드는 쪽과 받는 쪽", "module ex_option .
 
 rem 만드는 쪽 — 값이 있으면 some, 없으면 none.
-fn lookup input k u8 . output option u8 . .
+fn lookup input k u8 . output option u8 .
 do
   guard lt k 3 . else return none .
   return some (mul k 10) .
@@ -597,9 +597,8 @@ do
 end",
       out: "use_ask(2) = 20 · use_ask(7) = 255 · use_or(2) = 20 · use_or(7) = 99")
     #plain[
-      `option u8 .` 뒤의 점에 주의한다 — `option` 은 타입을 하나 받는 폼이므로 그 폼도
-      닫아야 한다. 그래서 `output option u8 . .` 처럼 점이 둘 나온다: 앞의 것은 `option` 을,
-      뒤의 것은 `output` 절을 닫는다.
+      `output option u8 .` 의 점은 하나다 — `option` 은 타입을 **하나** 받으므로 그 인자 수에서 끝나고,
+      점은 `output` 절을 닫는다. 타입마다 점을 겹쳐 적던 옛 모양(`option u8 . .`)은 거부된다(#cref("6.1.6") (2e)).
     ]
     #ex("result — 묻고 꺼내기, 그리고 `try` 로 넘기기", "module ex_result_use .
 
@@ -702,7 +701,7 @@ do
   return (field o i a) .
 end
 
-export proc bump_deep input o mut outer . .
+export proc bump_deep input o mut outer .
   effects state .
 do
   set (field o i a) 1 .
@@ -991,7 +990,7 @@ fn f input s str . output u8 . do return 1 . end",
     ]
     #para("5")[
       갈래가 여럿인 열거에서 `get` 은 **먼저 그 갈래임이 좁혀진 뒤에만** 쓸 수 있다
-      (`E-ENUM-UNCHECKED`). 좁히는 것은 `isa` 이며, 보통 `guard isa <값> <갈래> . else …`
+      (`E-ENUM-UNCHECKED`). 좁히는 것은 `isa` 이며, 보통 `guard isa <값> <갈래> else …`
       로 적는다.
     ]
     #para("5a")[

@@ -35,7 +35,7 @@ rem ── 필드마다 배열 하나. 보폭이 없다 — 한 필드를 훑으
 
 rem ★ 위치를 속도만큼 전진시킨다. **x 와 vx 두 배열만** 만진다 — y·vy 는 캐시에 안 올라온다.
 rem   이것이 SoA 가 이기는 자리다(사전 조사 §5.1 의 useful_ratio ≈ U/R).
-export proc step_x input xs mut slice u64 . . input vxs slice u64 . input n u64 .
+export proc step_x input xs mut slice u64 . input vxs slice u64 . input n u64 .
   output u64 . effects none .
 do
   var i be u64 0 .
@@ -70,7 +70,7 @@ end
 rem ☞ **막히는 자리 ②**: 필드 수만큼 인자가 는다. 넷이면 넷, 여덟이면 여덟.
 rem   구조체로 묶으려면 필드가 `mut slice` 여야 하는데 **그게 안 된다** — 이것이 이 시범이
 rem   찾아낸 **가장 싼 언어 작업**이다(그 하나가 풀리면 SoA 컨테이너를 값으로 묶을 수 있다).
-export proc step_all input xs mut slice u64 . . input ys mut slice u64 . .
+export proc step_all input xs mut slice u64 . input ys mut slice u64 .
   input vxs slice u64 . input vys slice u64 . input n u64 .
   output u64 . effects none .
 do
@@ -87,7 +87,7 @@ rem   사전 조사의 `store[T, L]` 은 이것을 타입 하나로 묶으려는
 rem   다만 그 대가가 키워드 15~20·op 20+ 이라 RFC-0070 이 보류했다.
 rem   ★ 지금 여기서 잰 것: **두 판을 나란히 쓰는 것 자체는 된다.** 고를 수 있다는 뜻이고,
 rem     그것이 사전 조사 §1.2(*"SoA 가 항상 빠르지 않다"*)가 요구하는 최소한이다.
-export proc step_x_aos input rows mut slice u64 . . input stride u64 . input xoff u64 .
+export proc step_x_aos input rows mut slice u64 . input stride u64 . input xoff u64 .
   input voff u64 . input n u64 .
   output u64 . effects none .
 do

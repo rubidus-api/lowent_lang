@@ -117,7 +117,7 @@ actor counter do
   rem 상태를 고치므로 `proc` 이고 `effects state` 다.
   proc inc output u64 . effects state .
   do
-    set value expr value + 1 . .
+    set value expr value + 1 .
     return value .
   end
 
@@ -136,7 +136,7 @@ actor counter do
 
   fn inc output u64 .
   do
-    set value expr value + 1 . .    rem 상태를 고치는데 `fn` 이다
+    set value expr value + 1 . rem 상태를 고치는데 `fn` 이다
     return value .
   end
 end", "E-EFFECT-PURITY")
@@ -191,7 +191,7 @@ actor counter do
 
   proc inc output u64 . effects state .
   do
-    set value expr value + 1 . .
+    set value expr value + 1 .
     return value .
   end
 end
@@ -199,7 +199,7 @@ end
 rem 액터를 만들고(`spawn`) 메시지를 보낸다(`send`).
 export proc use_counter output u64 . effects state .
 do
-  var c be counter spawn actor counter . .
+  var c be counter spawn actor counter .
   return send c inc .
 end")
     #plain[

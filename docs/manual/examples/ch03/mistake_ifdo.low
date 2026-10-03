@@ -7,5 +7,5 @@ do
   if gt a 3 .
     return 1 .
   end
-  return 0 .
+  return 0
 end

@@ -5,21 +5,21 @@ rem ★ 모듈 이름이 op 이름과 같았다(`module reach` + `fn reach`) —
 rem   자격 있는 경로가 생기면 `reach.x` 가 **두 뜻**이 된다. 이름공간이 하나면 유일해야 한다.
 module reachability .
 
-def type bytes slice u8 . .
-def type graph slice u8 . .
+def type bytes slice u8 .
+def type graph slice u8 .
 rem ★ 이 셋도 선언 없이 쓰이고 있었다 — 이름이 아무것도 가리키지 않았다(E-TYPE-UNDEF 가 잡았다).
-def type node_id u64 . .
-def type node_count u64 . .
-def type frame u64 . .
+def type node_id u64 .
+def type node_count u64 .
+def type frame u64 .
 
-fn node_count_of .
+fn node_count_of
   input g graph .
   output u64 .
 do
   return idx g 0 .
 end
 
-fn children_of .
+fn children_of
   input g graph .
   input node u64 .
   output bytes .
@@ -27,21 +27,21 @@ do
   var at be u64 1 .
   var i be u64 0 .
   while lt i node . do
-    set at expr at + (idx g at) + 1 . .
-    set i expr i + 1 . .
+    set at expr at + (idx g at) + 1 .
+    set i expr i + 1 .
   end
   return subslice g (add at 1) (add (add at 1) (idx g at)) .
 end
 
-proc graph_reachable .
-  input temp region frame . .
+proc graph_reachable
+  input temp region frame .
   input g graph .
   input root node_id .
-  input out mut bitset node_count . .
+  input out mut bitset node_count .
   output void .
   effects alloc .   rem ★ `stack_new` 은 alloc 이다 — 중첩돼 있어서 안 보였다
 do
-  let work be stack node_id stack_new temp capacity node_count_of g . . .
+  let work be stack node_id stack_new temp capacity node_count_of g .
   push work root .
   while pop work into node . do
     if bitset_contains out node . do
@@ -57,14 +57,14 @@ end
 rem ★★★ **할당 = 명시 권한** (RFC-0043 D1). 이 op 은 할당한다(`bitset_new`) — 그러면
 rem   **어디서 할당하는지**를 건네받아야 한다. 전엔 아무것도 안 받고 할당했다: **ambient 힙**.
 rem   그것이 정확히 이 모델이 없애는 **숨은 의존**이다.
-proc reach .
-  input temp region frame . .      rem ★ 할당 권한 — region 은 arena allocator 다(D7)
+proc reach
+  input temp region frame . rem ★ 할당 권한 — region 은 arena allocator 다(D7)
   input root u64 .
   input g graph .
   output u64 .
   effects alloc .   rem ★ alloc 이 **호출 사슬을 타고 전파된다** — graph_reachable 이 alloc 이다
 do
-  var out be bitset bitset_new 64 . .
+  var out be bitset bitset_new 64 .
   graph_reachable temp g root out .
   return count out .
 end

@@ -20,7 +20,7 @@ do
   return add (add s1 s2) (add i j) .
 end
 
-export proc par9 input s mut slice u8 . . input p1 u64 . input p2 u64 . input p3 u64 .
+export proc par9 input s mut slice u8 . input p1 u64 . input p2 u64 . input p3 u64 .
   input p4 u64 . input p5 u64 . input p6 u64 . input p7 u64 . input p8 u64 .
   output u64 . effects none . parallel s split .
 do

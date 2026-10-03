@@ -49,7 +49,7 @@ fn same_bytes input a slice u8 . input b slice u8 . output bool . do
 end
 
 rem ★ 글자 종류를 센다 — `unicode` 의 표가 실제로 쓰이는 자리.
-proc scan_kinds input src slice u8 . input dst mut slice u8 . . input pos0 u64 .
+proc scan_kinds input src slice u8 . input dst mut slice u8 . input pos0 u64 .
   output option u64 . effects none .
 do
   var at be u64 0 .
@@ -91,7 +91,7 @@ do
   return some (some_value sk8) .
 end
 
-proc main .
+proc main
   input fs cap file_system .
   input al cap allocator .
   input a  cap args .

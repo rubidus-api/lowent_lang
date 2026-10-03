@@ -55,7 +55,7 @@ struct 다(actor state 는 슬라이스를 들 수 없다).
 ```lowent
 def newtype demo_brand u8 .
 
-proc demo input mem mut slice u8 . . input gens mut slice u64 . . output u64 . effects none .
+proc demo input mem mut slice u8 . input gens mut slice u64 . output u64 . effects none .
 do
   let po be option (pool.block_pool demo_brand) pool.init demo_brand mem gens 16 .
   guard is_some po . else return 89 .

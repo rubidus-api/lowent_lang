@@ -441,6 +441,20 @@ let mixed be u32 add 1 (mul 2 3) .")
     #para("2d")[
       블록은 그것을 여는 머리 없이 홀로 설 수 없다(`E-BLOCK-NOHEAD`).
     ]
+    #para("2e")[
+      **점은 하나다.** 아무것도 닫지 않는 점 — 이미 닫힌 폼 뒤에 겹친 점(`def type bytes slice u8 . .`), op 머리의 이름 바로
+      뒤의 점(`fn f . input …`), 머리 절 가운데의 점(`input a . u64 .`) — 은 적합하지 아니하다(`E-CLOSER-EXTRA`).
+      타입은 제 문법의 인자 수로 끝나므로 점을 갖지 아니한다(`input b slice u8 .` 의 점은 절을 닫는다).
+      머리 절은 점 하나로 닫히고, 점 뒤의 낱말은 다음 절의 낱말이거나 `do` 다. `asm` 절은 제 항목(`reg a .`)을
+      점으로 나눈다. 절 낱말(`vector` · `output` · `effects` …)은 입력의 이름이 될 수 없다(`E-NAME-CLAUSE`).
+    ]
+    #rejected("아무것도 닫지 않는 점", "module ex_extra_dot .
+
+fn head input data slice u8 . . output u8 .
+  requires ge (len data) 1 .
+do
+  return idx data 0 .
+end", "E-CLOSER-EXTRA")
     #diagram("end 는 블록만 닫고, 마침표는 문장을 닫는다", "if eq a 0 . do return 1 . end    ← if 문: 블록을 몸으로 갖는다 --- end 에서 끝난다
 └───────────────────────────┘ if 문
 

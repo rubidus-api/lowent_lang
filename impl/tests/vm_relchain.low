@@ -10,7 +10,7 @@ rem   ⇒ 폐포에 **관계 ∘ 길이관계** 합성을 넣어 두 경로를 �
 module vm_relchain .
 
 rem ✔ ① 계약만으로 — 이 자리가 **0 / 1 이었다**.
-export proc by_contract input a slice u8 . . input hi u64 . input j u64 .
+export proc by_contract input a slice u8 . input hi u64 . input j u64 .
   output u8 . effects none .
   requires lt hi (len a) .
   requires le j hi .
@@ -19,7 +19,7 @@ do
 end
 
 rem ✔ ② 같은 사실을 본문에서 — 이쪽은 처음부터 됐다(대조군: 두 경로가 같은 답을 내야 한다).
-export proc by_guard input a slice u8 . . input hi u64 . input j u64 .
+export proc by_guard input a slice u8 . input hi u64 . input j u64 .
   output u8 . effects none .
   requires lt hi (len a) .
 do
@@ -28,7 +28,7 @@ do
 end
 
 rem ✘ ③ **증명되면 안 된다** — 사슬의 끝이 열려 있다(길이 사실이 없다).
-export proc open_end input a slice u8 . . input hi u64 . input j u64 .
+export proc open_end input a slice u8 . input hi u64 . input j u64 .
   output u8 . effects none .
   requires le j hi .
 do
@@ -37,7 +37,7 @@ end
 
 rem ✘ ④ **증명되면 안 된다** — `≤` 는 색인에 못 쓴다: `hi = len a` 이면 `j = len a` 가 된다.
 rem    (엄격 비트가 여백 안에 제대로 들어가는지를 이 자리가 지킨다)
-export proc loose_end input a slice u8 . . input hi u64 . input j u64 .
+export proc loose_end input a slice u8 . input hi u64 . input j u64 .
   output u8 . effects none .
   requires le hi (len a) .
   requires le j hi .

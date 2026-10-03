@@ -111,8 +111,8 @@ rem   두 배열은 여전히 **호출자가 마련한다**(라이브러리는 �
 rem   바뀐 것은 *누가 그것을 들고 다니느냐* 다: 이제 풀이 든다.
 export def struct block_pool do
   input comptime b type .
-  mem mut slice u8 . .
-  gens mut slice u64 . .
+  mem mut slice u8 .
+  gens mut slice u64 .
   bsize u64 .
   nblk u64 .
   freetop u64 .
@@ -123,7 +123,7 @@ end
 rem 뒷받침을 걸고 **봉한다**. `bs` = 블록 크기(예: 4096). 블록 수는 두 배열 중 작은 쪽이 정한다.
 rem ★ 전에는 블록 수를 돌려줬다. 이제는 **풀을 돌려준다** — 못 열면 `none` 이다(트랩 아님).
 rem   블록 수는 `blocks` 로 묻는다.
-export proc init input comptime b type . input mem mut slice u8 . . input g mut slice u64 . .
+export proc init input comptime b type . input mem mut slice u8 . input g mut slice u64 .
   input bs u64 . output option (block_pool b) . effects none .
 do
   rem ★ 링크 한 칸이 u64 다 — 블록이 그보다 작으면 자유 목록을 못 든다. 거절한다(§0).
@@ -209,7 +209,7 @@ rem ★★★ **바이트에 닿는 유일한 문.** 세대가 안 맞으면 `no
 rem   ★ 검사 비용이 **이 문을 지나는 코드에만** 붙는다. 평범한 slice 는 아무것도 안 낸다.
 rem   ★★ 그리고 이제 **어느 backing 인지 묻지 않는다** — 풀이 자기 것을 안다(봉인).
 export proc bytes input comptime b type . input p block_pool b . input h handle b .
-  output option mut slice u8 . . effects none .
+  output option mut slice u8 . effects none .
 do
   var mem be mut slice u8 (field p mem) .
   var g be mut slice u64 (field p gens) .

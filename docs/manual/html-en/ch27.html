@@ -1036,7 +1036,7 @@ mistake_noloop.low:4:0 E-PAR-NOLOOP: the `parallel` clause names a slice, but no
 <em><span class="tok-c">rem expect: E-ACCESS-MODE</span></em>
 
 <em><span class="tok-c">rem ✘ declared write_only yet it reads; the place may not be filled yet</span></em>
-<strong><span class="tok-k">proc</span></strong> bad_fill <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">proc</span></strong> bad_fill <strong><span class="tok-k">input</span></strong> out <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
   <strong><span class="tok-k">access</span></strong> out write_only .
 <strong><span class="tok-k">do</span></strong>
   <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> idx out <span class="tok-n">0</span> .

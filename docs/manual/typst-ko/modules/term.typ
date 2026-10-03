@@ -64,7 +64,7 @@ CJK · 전각 기호에 2, 나머지에 1 이다. 폭은 못 맞혀도 1 이 쓸
 0 코드포인트 전부다 --- 백스페이스와 커서 이동을 이 단위로 해야 악센트만 지워지거나 커서가 글자 가운데 서지 않는다.
 
 ```lowent
-proc diff_frame input out mut slice u8 . . output u64 . effects none . do
+proc diff_frame input out mut slice u8 . output u64 . effects none . do
   guard ge (len out) 32 . else return 90 .
   let prev be slice u8 "aaaaaaaaaa" .
   let nxt be slice u8 "aaaaaaxyaa" .

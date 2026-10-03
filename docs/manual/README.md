@@ -12,13 +12,13 @@ one set of examples.
 | 폴더 · folder | 무엇 · what |
 |---|---|
 | [`typst-ko/`](typst-ko/) · [`typst-en/`](typst-en/) | 원고(Typst) --- 이것이 원본이다 · the manuscript, the single source |
-| [`pdf-ko/`](pdf-ko/) · [`pdf-en/`](pdf-en/) | PDF 판 · PDF editions |
+| `pdf-ko/` · `pdf-en/` | PDF 판 — 저장소에는 없고 짓고 나서 Pages 에 올린다 · PDF editions — built locally, published on Pages, not kept in the repository |
 | [`html-ko/`](html-ko/) · [`html-en/`](html-en/) | 웹 판 · web editions |
 | [`md-ko/`](md-ko/) · [`md-en/`](md-en/) | Markdown 판(GitHub 에서 바로 읽는다) · Markdown editions for reading on GitHub |
 | [`examples/`](examples/) | 책에 실린 `.low` 예제 · the examples printed in the book |
 | [`scripts/`](scripts/) · [`styles/`](styles/) | 짓기 도구와 조판 모양 · build tools and styles |
 
-`pdf-*` · `html-*` · `md-*` 는 원고에서 만든 **생성물**이다. 고칠 때는 `typst-*` 를 고치고 다시 짓는다.
+`pdf-*` · `html-*` · `md-*` 는 원고에서 만든 **생성물**이다(PDF 는 커밋하지 않는다). 고칠 때는 `typst-*` 를 고치고 다시 짓는다.
 `pdf-*`, `html-*` and `md-*` are generated from the manuscript. Edit `typst-*` and rebuild.
 
 ## 예제는 실제로 돌린 것이다 · Every example is run
@@ -45,9 +45,10 @@ sh scripts/quick.sh ko      # 원고만 빠르게 조판해 오류를 본다 · 
 
 ## 발행 · Publishing
 
-- **웹 · GitHub Pages**: 저장소 main 가지의 `docs/` 폴더를 내보낸다(`docs/index.html` · `docs/.nojekyll`). 매뉴얼은 `docs/manual/html-ko/` ·
-  `html-en/` 이다. 원고를 고치면 `build-all.sh` 로 생성물을 다시 만들어 함께 커밋하고, 푸시한 뒤 `scripts/pages-build.sh` 로 발행을 확인한다.
-  Pages serves `docs/` on `main`; the manual is under `docs/manual/html-*`. Rebuild, commit, push, then check with `pages-build.sh`.
+- **웹 · GitHub Pages**: `gh-pages` 가지를 내보낸다. 그 가지는 main 의 `docs/` 한 벌에 PDF 셋을 더한 **커밋 하나**이고, 낼 때마다 갈아 끼운다 —
+  PDF(한 벌 약 14 MB)가 main 의 기록에 쌓이지 않게 하려는 것이다(2026-10-03). 원고를 고치면 `build-all.sh` 로 짓고 html·md 를 커밋·푸시한 뒤
+  Pages 가지를 다시 낸다. Pages serves the `gh-pages` branch: one commit holding `docs/` plus the three PDFs, replaced on every publish so the
+  PDFs do not pile up in the history of `main`. Rebuild, commit and push the html/md, then republish the Pages branch.
 
 ## 라이선스 · License
 

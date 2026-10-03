@@ -43,8 +43,13 @@
 /docs/example/build-manifest.md
 /docs/example/build-scale.md
 
-# manual build products (pdf-*/ html-*/ md-*/ are committed; build/ is scratch)
+# manual build products (html-*/ md-*/ are committed; build/ is scratch)
 /docs/manual/build/
+# PDFs are built locally and published on the gh-pages branch only (it is replaced by one commit each time),
+# so they no longer pile up in the history of main.
+/docs/manual/pdf-ko/*.pdf
+/docs/manual/pdf-en/*.pdf
+/docs/spec/pdf/*.pdf
 
 # Coq build products (the .v sources, Makefile and notes are public)
 /docs/proofs/**/*.vo

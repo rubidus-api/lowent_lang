@@ -8,6 +8,10 @@
 |---|---|---|---|
 | [`lowdiff`](lowdiff/) | 두 폴더를 **내용으로** 비교한다 | `diff -rq` | experimental |
 | [`lowget`](lowget/) | `https://…` 에 붙어 본문을 받는다 — 인증서를 확인하면서 | `curl` · `openssl s_server` | experimental |
+| [`lowstat`](lowstat/) | CSV 를 한 번 훑으며 거르고 · 세고 · 더하고 · 묶는다 | 파이썬 `csv` | experimental |
+| [`lowpack`](lowpack/) | 비압축 ustar 묶음을 만들고 · 목록을 내고 · 안전하게 푼다 | GNU `tar` | experimental |
+| [`lowindex`](lowindex/) | 폴더의 텍스트로 낱말 색인을 짓고 모든 낱말을 가진 파일을 찾는다 | 같은 규칙의 파이썬 구현 | experimental |
+| [`lowserve`](lowserve/) | 폴더를 127.0.0.1 에서 읽기 전용 HTTP 로 내준다 | 파이썬 `http.server` · `curl` | experimental |
 
 ## 이 서랍의 규율 셋
 

@@ -1,0 +1,7 @@
+rem `lowindex` 의 매니페스트 (RFC-0031 §6.1). 의존은 소스의 `use files .` 처럼 이름으로 부르고, 도구가 표준 모듈로 해소한다.
+
+package name "lowindex" .
+package version "0.1.0" .
+package description "Build a word index of a folder and find the files that contain every word" .
+package license "MIT" .
+build entry "src/lowindex.low" .

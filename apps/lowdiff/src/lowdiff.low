@@ -1,309 +1,284 @@
-rem ★★★ **lowdiff — 두 폴더를 «이름이 아니라 내용으로» 비교한다** (백로그 X-0030 · WO-0209).
+rem lowdiff — 두 폴더를 이름·크기·시각이 아니라 **내용으로** 비교한다 (X-0030 · 2026-10-03 새로 씀).
 rem
-rem   이 저장소의 첫 «실물 도구»다. 작업 폴더와 백업(또는 배포) 폴더가 정말 같은지 묻는 일은
-rem   흔하고, 그 답을 크기·수정시각으로 때우면 **조용히 틀린다**. 그래서 내용을 읽어 견준다.
+rem   걷는 법: 경로를 다 모으지 않는다. 디렉터리 **쌍** 하나씩 — 양쪽 엔트리 이름을 읽어 정렬하고 합치며,
+rem   둘 다 디렉터리인 것은 대기 목록에 넣는다. 그래서 메모리가 나무의 파일 수를 따라가지 않는다.
+rem   파일 내용은 64 KiB 청크로 견준다 — 큰 파일도 버퍼는 그대로다.
 rem
-rem   ★ 왜 경로를 다 모으지 않는가: 이 언어의 힙 아레나는 **64 KiB**(`LOW_ROOTMEM_BYTES`,
-rem     VM·네이티브 같은 수)다. 트리 전체의 경로 목록은 거기 안 들어간다. 그래서 **디렉터리
-rem     쌍 단위로 나란히 걷는다** — 한 디렉터리의 엔트리만 양쪽에서 읽어 정렬·합치고, 공통
-rem     하위 디렉터리는 대기 목록에 넣는다. 메모리가 **파일 총수와 무관**해진다.
-rem   ★ 파일 내용도 **청크로** 읽는다(4 KiB씩) — 50 MB 파일도 버퍼는 그대로다.
-rem
-rem   종료 코드: 0 = 같다 · 1 = 차이가 있다 · 2 = 사용법 · 3 = 내부 한도 초과(조용히 자르지 않는다).
-rem   출력 한 줄 = 하나의 발견: `added ` · `deleted ` · `changed ` · `unreadable ` · `skipped `.
-rem   ☞ **읽지 못한 것은 «같다» 도 «없다» 도 아니다** — 따로 말하고, 실행을 멈추지 않는다.
-rem
-rem   ★ 오늘의 한계(정직하게): `file_type` 이 `stat` 이라 **심링크를 구분하지 못한다** — 심링크는
-rem     그것이 가리키는 것으로 보인다. 「따라가지 않고 제외 보고」 하려면 `lstat` 자리가 필요하다.
+rem   한 줄 = 한 발견: added · deleted · changed · unreadable · skipped · symlink.
+rem   읽지 못한 것은 «같다» 도 «없다» 도 아니다 — 따로 말하고, 멈추지 않는다.
+rem   심링크는 따라가지 않는다: 한쪽만 링크면 차이, 양쪽 다 링크면 견주지 않고 `symlink` 로 말한다.
+rem   종료 코드: 0 같다 · 1 차이 · 2 사용법 · 3 내부 한도(조용히 자르지 않는다) · 70 메모리.
 
 module lowdiff .
 
 use files .
-use strbuf .
 use outbuf .
 
-rem ★★★ **끝까지 쓴다.** 잎(`write_out`)은 **짧게 쓴다** — 파이프가 차면 아홉 바이트짜리
-rem   줄도 잘린다. 그러면 이 도구의 답(발견 한 줄)이 **조용히 반 줄이 된다**.
-rem   루프는 `outbuf.write_all` 이 진다(X-0037) — 여기는 그것을 이 파일의 관용구(쓴 수를 u64 로
-rem   받는 모양)에 맞추는 여섯 줄이다.
-proc emit input out cap io . input d u64 . input s slice u8 . output u64 . effects io .
-do
-  let r be option u64 outbuf.write_all out d s .
-  guard is_some r . else return 0 .
-  return some_value r .
+rem ── 한도: «기계가 못 해서» 가 아니라 «여기까지는 본다». 넘치면 말하고 3 으로 끝난다.
+fn max_entries output u64 . do
+  return 4096 .
 end
 
-rem ── 한도. 넘치면 **말하고 멈춘다**(3번 종료 코드). 조용히 자르는 것이 이 저장소가 가장
-rem    무서워하는 일이다.
-rem ★★ 이 수들은 **호스티드를 가정한다** (X-0031 · WO-0211, 소유자 지시). 1 차판은 뿌리 아레나가
-rem   정적 64 KiB 였고, 그래서 한 디렉터리에 256 개까지만 받았다 — 실제 폴더에는 그보다 많은
-rem   엔트리가 흔하다. 이제 호스티드에서는 아레나가 청크로 자라므로 그 천장에 맞출 이유가 없다.
-rem   ☞ *한도는 여전히 있다. 그러나 그 수는 «기계가 못 해서» 가 아니라 «여기까지는 본다» 여야 한다.*
-fn max_entries output u64 . do return 4096 . end
-fn max_names   output u64 . do return 262144 . end
-fn max_pend    output u64 . do return 4096 . end
-fn max_pendbuf output u64 . do return 262144 . end
-fn chunk_size  output u64 . do return 65536 . end
-
-rem 바이트 사전순: a < b 인가.
-fn less input a slice u8 . input b slice u8 . output bool .
-do
-  var i be u64 0 .
-  var ans be u64 2 .
-  while lt i (len a) . do
-    if lt i (len b) . do
-      if eq ans 2 . do
-        if lt (idx a i) (idx b i) . do set ans 1 . end
-        if gt (idx a i) (idx b i) . do set ans 0 . end
-      end
-    end
-    set i (add i 1) .
-  end
-  if eq ans 2 . do
-    if lt (len a) (len b) . do set ans 1 . end
-    if eq ans 2 . do set ans 0 . end
-  end
-  return eq ans 1 .
+fn max_names output u64 . do
+  return 262144 .
 end
 
-rem 같은 바이트열인가.
-fn same_bytes input a slice u8 . input b slice u8 . output bool .
-do
-  guard eq (len a) (len b) . else return false .
-  var i be u64 0 .
-  var verd be bool true .
-  while lt i (len a) . do
-    if ne (idx a i) (idx b i) . do set verd false . end
-    set i (add i 1) .
-  end
-  return verd .
+fn max_pend output u64 . do
+  return 4096 .
 end
 
-rem ── 한 디렉터리의 엔트리 이름을 모은다(`.`/`..` 은 뺀다). 색인만 정렬한다.
-rem    돌려주는 수: 엔트리 개수. 실패·한도 초과는 `err` 에 적는다(0=ok · 71=열기 · 72=닫기 · 3=한도).
-proc list_dir
-  input fs cap file_system .
-  input path slice u8 .
-  input namebuf mut slice u8 .
-  input arena mut slice u8 .
-  input offs mut slice u64 .
-  input lens mut slice u64 .
-  input soffs mut slice u64 .
-  input slens mut slice u64 .
-  input st mut slice u64 .
-  output u64 .
-  effects io .
-do
-  set (idx st 0) 0 .
-  let di be result files.dir_handle files.file_error files.open_dir fs path .
-  if eq (is_ok di) false . do set (idx st 0) 71 . end
-  guard is_ok di . else return 0 .
-  var dh be owned files.dir_handle ok_value di .
+rem 발견 한 줄을 끝까지 쓴다(잎은 짧게 쓸 수 있다 — outbuf.write_all 이 되풀이한다).
+proc say input out cap io . input kind slice u8 . input rel slice u8 . output void . effects io . do
+  let w1 be option u64 outbuf.write_all out 1 kind .
+  let w2 be option u64 outbuf.write_all out 1 " " .
+  let w3 be option u64 outbuf.write_all out 1 rel .
+  let w4 be option u64 outbuf.write_all out 1 "\n" .
+  return .
+end
 
-  var n be u64 0 .
-  var used be u64 0 .
-  var going be bool true .
-  while going . do
-    let r be result (option u64) files.file_error files.read_dir fs dh namebuf .
-    if eq (is_ok r) false . do set going false . set (idx st 0) 71 . end
-    if is_ok r . do
-      let nv be option u64 ok_value r .
-      if eq (is_some nv) false . do set going false . end
-      var nl be u64 0 .
-      if is_some nv . do set nl (some_value nv) . end
-      if eq nl 0 . do set going false . end
-      if gt nl 0 . do
-        rem `.` 과 `..` 은 건너뛴다
-        var skip be bool false .
-        if eq nl 1 . do
-          if eq (idx namebuf 0) 46 . do set skip true . end
-        end
-        if eq nl 2 . do
-          if eq (idx namebuf 0) 46 . do
-            if eq (idx namebuf 1) 46 . do set skip true . end
-          end
-        end
-        if eq skip false . do
-          if ge n (max_entries) . do set (idx st 0) 3 . set going false . end
-          if lt n (max_entries) . do
-            if gt (add used nl) (max_names) . do set (idx st 0) 3 . set going false . end
-            if le (add used nl) (max_names) . do
-              set (idx offs n) used .
-              set (idx lens n) nl .
-              var k be u64 0 .
-              while lt k nl . do
-                set (idx arena (add used k)) (idx namebuf k) .
-                set k (add k 1) .
-              end
-              set used (add used nl) .
-              set n (add n 1) .
-            end
-          end
-        end
-      end
+rem 바이트 사전순으로 a < b 인가.
+fn less input a slice u8 . input b slice u8 . output bool . do
+  for i count u64 (min (len a) (len b)) . do
+    if ne (idx a i) (idx b i) . do
+      return lt (idx a i) (idx b i) .
     end
   end
-  let c be result void files.file_error files.close_dir fs dh .
-  if eq (is_ok c) false . do set (idx st 0) 72 . end
+  return lt (len a) (len b) .
+end
 
-  rem ★★★★ **병합 정렬** — 색인만 옮긴다(X-0042, 소유자 선택 ⓐ 2026-09-20).
-  rem
-  rem ☞ 여기 있던 삽입 정렬의 주석은 *"엔트리 수가 작아(한 디렉터리) 이것으로 충분하다"* 였다.
-  rem   그 가정은 **한 번도 측정되지 않았고**, 재 보니 틀렸다: 한 폴더의 파일을 두 배로 하면
-  rem   시간이 **네 배**가 됐다(실측 500→93 ms · 1000→334 ms · 2000→1205 ms · 4000→4522 ms.
-  rem   같은 입력에 `diff -rq` 는 15·29·62·115 ms — 선형이다).
-  rem   ★ `node_modules`·빌드 산출물·메일 상자처럼 한 폴더에 수천 개가 있는 자리는 흔하다.
-  rem
-  rem   아래에서 위로 합친다(재귀가 없다). `soffs`/`slens` 는 부르는 쪽이 준 같은 크기의 자리다 —
-  rem   이 언어에서 할당은 호출자의 몫이고, 그래서 이 op 은 여전히 자리를 안 잡는다.
-  rem ★ **같은 값은 순서를 지킨다**(안정 정렬): 왼쪽이 «작지 않을 때만» 오른쪽을 집는다.
-  rem   출력 순서가 이 도구의 계약이라 그 성질이 필요하다.
-  var width be u64 1 .
-  while lt width n . do
-    var lo be u64 0 .
-    while lt lo n . do
-      var mid be u64 add lo width .
-      if gt mid n . do  set mid n . end
-      var hi be u64 add lo (mul width 2) .
-      if gt hi n . do  set hi n . end
+rem arena 안의 i 번째 이름.
+fn name_of input arena slice u8 . input offs slice u64 . input lens slice u64 . input i u64 . output slice u8 . do
+  return subslice arena (idx offs i) (add (idx offs i) (idx lens i)) .
+end
+
+rem 이름 색인을 바닥에서 위로 합쳐 정렬한다(안정 — 같으면 왼쪽). tmpo · tmpl 은 같은 크기의 임시 자리.
+proc sort_names input arena slice u8 . input offs mut slice u64 . input lens mut slice u64 . input tmpo mut slice u64 . input tmpl mut slice u64 . input n u64 . output void . effects none .
+  requires le n (len offs) .
+  requires le n (len lens) .
+  requires le n (len tmpo) .
+  requires le n (len tmpl) .
+do
+  for w be u64 1 . while lt w n . next mul w 2 . do
+    for lo be u64 0 . while lt lo n . next add lo (mul w 2) . do
+      let mid be u64 min (add lo w) n .
+      let hi be u64 min (add lo (mul w 2)) n .
       var ia be u64 lo .
       var ib be u64 mid .
-      var k be u64 lo .
-      while lt k hi . do
-        var from_a be bool false .
-        if ge ib hi . do  set from_a true . end
-        if lt ib hi . do
-          if lt ia mid . do
-            let ra be slice u8 subslice arena (idx offs ia) (add (idx offs ia) (idx lens ia)) .
-            let rb be slice u8 subslice arena (idx offs ib) (add (idx offs ib) (idx lens ib)) .
-            rem 오른쪽이 **더 작을 때만** 오른쪽을 집는다 ⇒ 같으면 왼쪽(안정).
-            if eq (less rb ra) false . do  set from_a true . end
-          end
+      for k be u64 lo . while lt k hi . next add k 1 . do
+        var take_b be bool false .
+        if and (lt ib hi) (lt ia mid) . do
+          set take_b (less (name_of arena offs lens ib) (name_of arena offs lens ia)) .
+        end else if ge ia mid . do
+          set take_b true .
         end
-        if from_a . do
-          set (idx soffs k) (idx offs ia) .
-          set (idx slens k) (idx lens ia) .
+        if take_b . do
+          set (idx tmpo k) (idx offs ib) .
+          set (idx tmpl k) (idx lens ib) .
+          set ib (add ib 1) .
+        end else do
+          set (idx tmpo k) (idx offs ia) .
+          set (idx tmpl k) (idx lens ia) .
           set ia (add ia 1) .
         end
-        if eq from_a false . do
-          set (idx soffs k) (idx offs ib) .
-          set (idx slens k) (idx lens ib) .
-          set ib (add ib 1) .
-        end
-        set k (add k 1) .
       end
-      rem 합친 자리를 제자리로 되돌린다.
-      var mc be u64 lo .
-      while lt mc hi . do
-        set (idx offs mc) (idx soffs mc) .
-        set (idx lens mc) (idx slens mc) .
-        set mc (add mc 1) .
+      for m be u64 lo . while lt m hi . next add m 1 . do
+        set (idx offs m) (idx tmpo m) .
+        set (idx lens m) (idx tmpl m) .
       end
-      set lo hi .
     end
-    set width (mul width 2) .
   end
+  return .
+end
+
+fn is_dot_name input nm slice u8 . output bool . do
+  guard eq (idx nm 0) '.' . else return false .
+  return or (eq (len nm) 1) (and (eq (len nm) 2) (eq (idx nm 1) '.')) .
+end
+
+rem 한 디렉터리의 이름을 모아 정렬한다(`.`·`..` 은 뺀다). 개수를 내고, 상태를 st[0] 에 적는다:
+rem 0 = 됐다 · 3 = 한도 · 71 = 열기·읽기 실패 · 72 = 닫기 실패.
+proc list_dir input fs cap file_system . input path slice u8 . input namebuf mut slice u8 . input arena mut slice u8 . input offs mut slice u64 . input lens mut slice u64 . input tmpo mut slice u64 . input tmpl mut slice u64 . input st mut slice u64 . output u64 . effects io .
+  requires ge (len st) 1 .
+do
+  set (idx st 0) 0 .
+  let opened be result files.dir_handle files.file_error files.open_dir fs path .
+  guard is_ok opened . else do
+    set (idx st 0) 71 .
+    return 0 .
+  end
+  var dh be owned files.dir_handle ok_value opened .
+  var n be u64 0 .
+  var used be u64 0 .
+  while true . do
+    let r be result (option u64) files.file_error files.read_dir fs dh namebuf .
+    guard is_ok r . else do
+      set (idx st 0) 71 .
+      break .
+    end
+    let got be option u64 ok_value r .
+    guard is_some got . else break .
+    let nl be u64 some_value got .
+    guard and (gt nl 0) (le nl (len namebuf)) . else break .
+    if is_dot_name (subslice namebuf 0 nl) . do
+      continue .
+    end
+    guard and (lt n (max_entries)) (le (add used nl) (max_names)) . else do
+      set (idx st 0) 3 .
+      break .
+    end
+    guard and (lt n (len offs)) (and (lt n (len lens)) (le (add used nl) (len arena))) . else do
+      set (idx st 0) 3 .
+      break .
+    end
+    set (idx offs n) used .
+    set (idx lens n) nl .
+    for c count u64 nl . do
+      set (idx arena (add used c)) (idx namebuf c) .
+    end
+    set used (add used nl) .
+    set n (add n 1) .
+  end
+  let closed be result void files.file_error files.close_dir fs dh .
+  if not (is_ok closed) . do
+    set (idx st 0) 72 .
+  end
+  guard and (le n (len offs)) (and (le n (len lens)) (and (le n (len tmpo)) (le n (len tmpl)))) . else return n .
+  sort_names arena offs lens tmpo tmpl n .
   return n .
 end
 
-rem ── 두 파일을 **청크로** 견준다. 0 = 같다 · 1 = 다르다 · 2 = 읽지 못했다.
-proc same_file
-  input fs cap file_system .
-  input pa slice u8 .
-  input pb slice u8 .
-  input ba mut slice u8 .
-  input bb mut slice u8 .
-  output u64 .
-  effects io .
-do
+rem 같은 바이트열인가. ★ 순수 fn 으로 따로 둔다: 파일 잎을 부르는 proc 은 꼬리표 붙은 느린 길에 남으므로(`--why-slow`),
+rem   바이트마다 도는 고리를 그 안에 두면 바이트마다 느린 길을 탄다 — 이 고리를 same_file 안에 두었던 첫 새 판이
+rem   3,042 개 파일(110 MB)에서 56 초 걸렸다(옛 판 0.6 초, 2026-10-03 실측).
+fn same_bytes input a slice u8 . input b slice u8 . output bool . do
+  guard eq (len a) (len b) . else return false .
+  for i count u64 (len a) . do
+    guard eq (idx a i) (idx b i) . else return false .
+  end
+  return true .
+end
+
+rem 두 파일을 청크로 견준다: 0 = 같다 · 1 = 다르다 · 2 = 읽지 못했다.
+rem files.read 는 셋을 가른다 — 오류 · 끝(none) · n 바이트. 끝과 실패를 뭉개면 «읽다 만 파일» 이 «같다» 가 된다.
+proc same_file input fs cap file_system . input pa slice u8 . input pb slice u8 . input ba mut slice u8 . input bb mut slice u8 . output u64 . effects io . do
   let ha be result files.handle files.file_error files.open fs pa 0 .
   guard is_ok ha . else return 2 .
   var fa be owned files.handle ok_value ha .
   let hb be result files.handle files.file_error files.open fs pb 0 .
-  if eq (is_ok hb) false . do
-    rem ★ 여기서 **바로 돌아온다** — 닫고 나서 합류하면 `fa` 의 소유 상태가 갈래마다 달라진다
-    rem   (E-OWN-JOIN: 한쪽에서만 소비된 owned 는 합류점에서 정적으로 일치해야 한다).
+  if not (is_ok hb) . do
     let ca be result void files.file_error files.close fs fa .
     drop ca .
     return 2 .
   end
   var fb be owned files.handle ok_value hb .
-
   var verdict be u64 0 .
-  var going be bool true .
-  while going . do
-    rem ★ `files.read` 는 **세 자리**를 돌려준다: `error` = 못 읽었다 · `ok none` = 파일 끝 ·
-    rem   `ok (some n)` = n 바이트. 끝과 실패를 한 자리로 뭉개면 «읽다 만 파일» 이 «같다» 가 된다.
+  while true . do
     let ra be result (option u64) files.file_error files.read fs fa ba .
     let rb be result (option u64) files.file_error files.read fs fb bb .
-    if eq (is_ok ra) false . do set verdict 2 . set going false . end
-    if eq (is_ok rb) false . do set verdict 2 . set going false . end
-    if going . do
-      var na be u64 0 .
-      var nb be u64 0 .
-      let oa be option u64 ok_value ra .
-      let ob be option u64 ok_value rb .
-      if is_some oa . do set na (some_value oa) . end
-      if is_some ob . do set nb (some_value ob) . end
-      if ne na nb . do set verdict 1 . set going false . end
-      if eq na 0 . do set going false . end
-      if going . do
-        if eq (same_bytes (subslice ba 0 na) (subslice bb 0 nb)) false . do
-          set verdict 1 . set going false .
-        end
-      end
+    guard and (is_ok ra) (is_ok rb) . else do
+      set verdict 2 .
+      break .
+    end
+    var na be u64 0 .
+    var nb be u64 0 .
+    let oa be option u64 ok_value ra .
+    let ob be option u64 ok_value rb .
+    if is_some oa . do
+      set na (some_value oa) .
+    end
+    if is_some ob . do
+      set nb (some_value ob) .
+    end
+    guard eq na nb . else do
+      set verdict 1 .
+      break .
+    end
+    guard gt na 0 . else break .
+    guard and (le na (len ba)) (le na (len bb)) . else do
+      set verdict 2 .
+      break .
+    end
+    guard same_bytes (subslice ba 0 na) (subslice bb 0 nb) . else do
+      set verdict 1 .
+      break .
     end
   end
-
   let ca2 be result void files.file_error files.close fs fa .
   let cb2 be result void files.file_error files.close fs fb .
-  if eq (is_ok ca2) false . do set verdict 2 . end
-  if eq (is_ok cb2) false . do set verdict 2 . end
+  guard and (is_ok ca2) (is_ok cb2) . else return 2 .
   return verdict .
 end
 
-rem ── 두 경로가 **심링크인가**를 한 번에 묻는다. 0 = 둘 다 아니다 · 1 = 둘 다 링크다 ·
-rem    2 = 한쪽만 링크다. `link_type` 은 링크를 **따라가지 않는다**(3 = 심링크).
-rem    ☞ 이것을 따로 뺀 이유는 `main` 의 지역이 언어 한도(64)에 닿았기 때문이다 — 그리고
-rem      빼고 나니 규칙이 한자리에 모여 읽기도 낫다.
-proc link_pair
-  input fs cap file_system .
-  input pa slice u8 .
-  input pb slice u8 .
-  output u64 .
-  effects io .
-do
-  var sa be bool false .
-  var sb be bool false .
+rem 심링크 짝: 0 = 둘 다 아니다 · 1 = 둘 다 링크 · 2 = 한쪽만 링크. link_type 은 링크를 따라가지 않는다(3 = 링크).
+proc link_pair input fs cap file_system . input pa slice u8 . input pb slice u8 . output u64 . effects io . do
   let la be option u64 files.link_type_of fs pa .
   let lb be option u64 files.link_type_of fs pb .
-  if is_some la . do if eq (some_value la) 3 . do set sa true . end end
-  if is_some lb . do if eq (some_value lb) 3 . do set sb true . end end
-  if ne sa sb . do return 2 . end
-  if sa . do return 1 . end
+  let sa be bool and (is_some la) (eq (value_or la 0) 3) .
+  let sb be bool and (is_some lb) (eq (value_or lb 0) 3) .
+  guard eq sa sb . else return 2 .
+  guard not sa . else return 1 .
   return 0 .
 end
 
-rem ── 경로 조립: base + "/" + name (base 가 비었으면 name 만). 실패하면 false.
-proc join_path
-  input base slice u8 .
-  input name slice u8 .
-  input buf mut slice u8 .
-  input outlen mut slice u64 .
-  output bool .
-  effects none .
+rem base + "/" + name 을 buf 에 짓는다(base 가 비었으면 name 만). 길이를 st[0] 에 적고, 자리가 모자라면 거짓.
+proc join_path input base slice u8 . input name slice u8 . input buf mut slice u8 . input st mut slice u64 . output bool . effects none .
+  requires ge (len st) 1 .
 do
-  var b be strbuf.str_buf strbuf.new .
+  var head be u64 0 .
   if gt (len base) 0 . do
-    let r1 be result void strbuf.sb_error strbuf.append b buf base .
-    guard is_ok r1 . else return false .
-    let r2 be result void strbuf.sb_error strbuf.append b buf "/" .
-    guard is_ok r2 . else return false .
+    set head (add (len base) 1) .
   end
-  let r3 be result void strbuf.sb_error strbuf.append b buf name .
-  guard is_ok r3 . else return false .
-  set (idx outlen 0) (len (strbuf.as_str b buf)) .
+  let total be u64 add head (len name) .
+  guard le total (len buf) . else return false .
+  for bi count u64 (len base) . do
+    set (idx buf bi) (idx base bi) .
+  end
+  if gt head 0 . do
+    set (idx buf (len base)) '/' .
+  end
+  for ni count u64 (len name) . do
+    set (idx buf (add head ni)) (idx name ni) .
+  end
+  set (idx st 0) total .
   return true .
+end
+
+rem 양쪽에 다 있는 이름 하나를 본다. 내는 수: 0 = 말할 것 없음 · 1 = 차이 · 2 = 읽기 실패(차이로도 센다) ·
+rem 4 = 둘 다 디렉터리(부르는 쪽이 대기 목록에 넣는다).
+proc visit_both input fs cap file_system . input out cap io . input pa slice u8 . input pb slice u8 . input rel slice u8 . input ca mut slice u8 . input cb mut slice u8 . output u64 . effects io . do
+  let lp be u64 link_pair fs pa pb .
+  if eq lp 1 . do
+    say out "symlink" rel .
+    return 0 .
+  end
+  if eq lp 2 . do
+    say out "changed" rel .
+    return 1 .
+  end
+  let ka be u64 value_or (files.type_of fs pa) 9 .
+  let kb be u64 value_or (files.type_of fs pb) 9 .
+  if ne ka kb . do
+    say out "changed" rel .
+    return 1 .
+  end
+  if eq ka 1 . do
+    return 4 .
+  end
+  if eq ka 0 . do
+    let v be u64 same_file fs pa pb ca cb .
+    if eq v 1 . do
+      say out "changed" rel .
+      return 1 .
+    end
+    if eq v 2 . do
+      say out "unreadable" rel .
+      return 2 .
+    end
+    return 0 .
+  end
+  rem 보통 파일도 디렉터리도 아닌 것(장치·파이프) — 견주지 않고 말한다.
+  say out "skipped" rel .
+  return 0 .
 end
 
 proc main
@@ -314,243 +289,150 @@ proc main
   output u8 .
   effects heap io .
 do
-  var w be u64 0 .
+  let usage be slice u8 "usage: lowdiff <before-dir> <after-dir>\n" .
   let a0 be option slice u8 arg a 0 .
   let a1 be option slice u8 arg a 1 .
-  if eq (is_some a0) false . do
-    set w (emit out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
+  guard and (is_some a0) (is_some a1) . else do
+    let wu be option u64 outbuf.write_all out 2 usage .
+    return 2 .
   end
-  guard is_some a0 . else return 2 .
-  if eq (is_some a1) false . do
-    set w (emit out 2 "usage: lowdiff <before-dir> <after-dir>\n") .
-  end
-  guard is_some a1 . else return 2 .
-  let rootA be slice u8 some_value a0 .
-  let rootB be slice u8 some_value a1 .
+  let root_a be slice u8 some_value a0 .
+  let root_b be slice u8 some_value a1 .
 
-  rem ── 버퍼는 **한 덩어리로 한 번** 잡고 `subslice` 로 나눠 쓴다.
-  rem    ☞ 처음엔 열여섯 번 따로 잡았는데 `main` 의 지역이 언어 한도(64)를 넘었다
-  rem      (`E-IR-LOCALS`). 한 번 잡아 나누면 이름도 줄고 아레나 안에서 자리도 명확하다.
-  rem    ★ 크기는 호스티드 기준이다 — 합쳐 **약 1.2 MiB**. 그래서 **자라는 뿌리**(`cap heap` ·
-  rem      `effects heap`, RFC-0112 D2)에서 받는다: 고정 창(64 KiB)에는 안 들어가고, 이 도구는 운영체제
-  rem      위에서만 뜻이 있다. 서명이 그렇게 말하므로 `--target cortex_m --check` 는 **선언만 보고**
-  rem      거절한다(E-HEAP-NOHOST) — 본문을 열지 않아도 이 도구가 호스티드 전용임을 안다.
-  rem    자리표(바이트): name 0..4K · arenaA 4K..260K · arenaB 260K..516K ·
-  rem      offsA 516K..549K · lensA 549K..582K · offsB 582K..614K · lensB 614K..647K ·
-  rem      pend 647K..909K · poffs 909K..942K · plens 942K..975K · rel 975K..979K ·
-  rem      pathA 979K..983K · pathB 983K..987K · chunkA 987K..1052K · chunkB 1052K..1118K ·
-  rem      scratch 1104K..1104K+64 · sortO 1104K+64..1136K · sortL 1136K..1168K
-  rem    ★ sortO/sortL 은 **병합 정렬의 임시 자리**다(X-0042). A 와 B 를 차례로 읽으므로
-  rem      한 벌이면 족하다 — 자리를 두 배로 쓰지 않는다.
-  let gm be option mut slice u8 alloc_bytes hp capacity 1196096 .
-  guard is_some gm . else return 70 .
-  let mem be mut slice u8 some_value gm .
+  rem 버퍼는 한 덩어리(약 1.2 MiB)를 자라는 뿌리에서 한 번 받아 나눠 쓴다. 고정 창(64 KiB)에는 안 들어가고
+  rem 이 도구는 운영체제 위에서만 뜻이 있다 — 서명(cap heap · effects heap)이 그렇게 말하므로
+  rem `--target cortex_m --check` 는 본문을 열기 전에 거절한다(E-HEAP-NOHOST).
+  let got be option mut slice u8 alloc_bytes hp capacity 1196096 .
+  guard is_some got . else return 70 .
+  let mem be mut slice u8 some_value got .
   let namebuf be mut slice u8 subslice mem 0 4096 .
-  let arenaA be mut slice u8 subslice mem 4096 266240 .
-  let arenaB be mut slice u8 subslice mem 266240 528384 .
-  let offsA be mut slice u64 view_array u64 (subslice mem 528384 561152) .
-  let lensA be mut slice u64 view_array u64 (subslice mem 561152 593920) .
-  let offsB be mut slice u64 view_array u64 (subslice mem 593920 626688) .
-  let lensB be mut slice u64 view_array u64 (subslice mem 626688 659456) .
+  let arena_a be mut slice u8 subslice mem 4096 266240 .
+  let arena_b be mut slice u8 subslice mem 266240 528384 .
+  let offs_a be mut slice u64 view_array u64 (subslice mem 528384 561152) .
+  let lens_a be mut slice u64 view_array u64 (subslice mem 561152 593920) .
+  let offs_b be mut slice u64 view_array u64 (subslice mem 593920 626688) .
+  let lens_b be mut slice u64 view_array u64 (subslice mem 626688 659456) .
   let pend be mut slice u8 subslice mem 659456 921600 .
   let poffs be mut slice u64 view_array u64 (subslice mem 921600 954368) .
   let plens be mut slice u64 view_array u64 (subslice mem 954368 987136) .
   let relbuf be mut slice u8 subslice mem 987136 991232 .
-  let pathA be mut slice u8 subslice mem 991232 995328 .
-  let pathB be mut slice u8 subslice mem 995328 999424 .
-  let chunkA be mut slice u8 subslice mem 999424 1064960 .
-  let chunkB be mut slice u8 subslice mem 1064960 1130496 .
-  let scratch be mut slice u64 view_array u64 (subslice mem 1130496 1130560) .
-  let sortO be mut slice u64 view_array u64 (subslice mem 1130560 1163328) .
-  let sortL be mut slice u64 view_array u64 (subslice mem 1163328 1196096) .
+  let path_a be mut slice u8 subslice mem 991232 995328 .
+  let path_b be mut slice u8 subslice mem 995328 999424 .
+  let chunk_a be mut slice u8 subslice mem 999424 1064960 .
+  let chunk_b be mut slice u8 subslice mem 1064960 1130496 .
+  let st be mut slice u64 view_array u64 (subslice mem 1130496 1130560) .
+  let tmpo be mut slice u64 view_array u64 (subslice mem 1130560 1163328) .
+  let tmpl be mut slice u64 view_array u64 (subslice mem 1163328 1196096) .
 
-  rem 대기 목록: 아직 안 본 **상대 경로**들. 시작은 뿌리(빈 문자열) 하나.
+  rem 대기 목록 = 아직 안 본 상대 경로. 뒤에서 꺼낸다. 시작은 뿌리(빈 경로) 하나.
   var np be u64 1 .
-  var pused be u64 0 .
   set (idx poffs 0) 0 .
   set (idx plens 0) 0 .
-
   var diffs be u64 0 .
   var limit_hit be bool false .
-  var io_bad be bool false .
 
-  while gt np 0 . do
-    rem 스택처럼 **뒤에서** 꺼낸다 — 넣을 때 역순으로 넣어 오름차순으로 나온다.
+  while and (gt np 0) (not limit_hit) . do
     set np (sub np 1) .
     let ro be u64 idx poffs np .
-    let rl be u64 idx plens np .
-    let rel be slice u8 subslice pend ro (add ro rl) .
-    set pused ro .
-
-    rem 이 상대 경로의 양쪽 실제 경로
-    rem ★ 판정 하나를 **변수 하나**로 받는다 — `main` 의 지역이 언어 한도(64)에 닿아 있다.
-    if eq (join_path rootA rel pathA scratch) false . do set limit_hit true . end
-    let la be u64 idx scratch 0 .
-    if eq (join_path rootB rel pathB scratch) false . do set limit_hit true . end
-    let lb be u64 idx scratch 0 .
-
-    var nA be u64 0 .
-    var nB be u64 0 .
-    if eq limit_hit false . do
-      set nA (list_dir fs (subslice pathA 0 la) namebuf arenaA offsA lensA sortO sortL scratch) .
-      if eq (idx scratch 0) 3 . do set limit_hit true . end
-      if gt (idx scratch 0) 3 . do set io_bad true . end
-      set nB (list_dir fs (subslice pathB 0 lb) namebuf arenaB offsB lensB sortO sortL scratch) .
-      if eq (idx scratch 0) 3 . do set limit_hit true . end
-      if gt (idx scratch 0) 3 . do set io_bad true . end
+    let rel be slice u8 subslice pend ro (add ro (idx plens np)) .
+    var pused be u64 ro .
+    guard join_path root_a rel path_a st . else do
+      set limit_hit true .
+      break .
+    end
+    let la be u64 idx st 0 .
+    guard join_path root_b rel path_b st . else do
+      set limit_hit true .
+      break .
+    end
+    let lb be u64 idx st 0 .
+    let n_a be u64 list_dir fs (subslice path_a 0 la) namebuf arena_a offs_a lens_a tmpo tmpl st .
+    let st_a be u64 idx st 0 .
+    let n_b be u64 list_dir fs (subslice path_b 0 lb) namebuf arena_b offs_b lens_b tmpo tmpl st .
+    let st_b be u64 idx st 0 .
+    if or (eq st_a 3) (eq st_b 3) . do
+      set limit_hit true .
+      break .
+    end
+    if or (gt st_a 3) (gt st_b 3) . do
+      set diffs (add diffs 1) .
     end
 
-    rem ── 두 정렬 목록을 합친다.
+    rem 두 정렬 목록을 합친다. 하위 디렉터리는 대기 목록 끝에 쌓는다 — 꺼낸 경로의 바이트 자리부터 덮어쓰므로
+    rem (자식 경로는 부모 경로로 시작해 앞부분이 그대로다) 대기 목록은 늘 «마지막에 넣은 것을 먼저» 꺼내야 한다.
     var ia be u64 0 .
     var ib be u64 0 .
-    var merging be bool true .
-    if limit_hit . do set merging false . end
-    while merging . do
-      if ge ia nA . do
-        if ge ib nB . do set merging false . end
+    while or (lt ia n_a) (lt ib n_b) . do
+      var side be u64 0 .
+      if ge ia n_a . do
+        set side 2 .
+      end else if ge ib n_b . do
+        set side 1 .
+      end else if less (name_of arena_a offs_a lens_a ia) (name_of arena_b offs_b lens_b ib) . do
+        set side 1 .
+      end else if less (name_of arena_b offs_b lens_b ib) (name_of arena_a offs_a lens_a ia) . do
+        set side 2 .
       end
-      if merging . do
-        var side be u64 0 .   rem 0 = 양쪽 · 1 = A 만(지워짐) · 2 = B 만(더해짐)
-        if ge ia nA . do set side 2 . end
-        if ge ib nB . do set side 1 . end
-        if lt ia nA . do
-          if lt ib nB . do
-            if less (subslice arenaA (idx offsA ia) (add (idx offsA ia) (idx lensA ia)))
-                    (subslice arenaB (idx offsB ib) (add (idx offsB ib) (idx lensB ib))) . do set side 1 . end
-            if less (subslice arenaB (idx offsB ib) (add (idx offsB ib) (idx lensB ib)))
-                    (subslice arenaA (idx offsA ia) (add (idx offsA ia) (idx lensA ia))) . do set side 2 . end
-          end
+      var nm be slice u8 "" .
+      if eq side 2 . do
+        set nm (name_of arena_b offs_b lens_b ib) .
+      end else do
+        set nm (name_of arena_a offs_a lens_a ia) .
+      end
+      guard join_path rel nm relbuf st . else do
+        set limit_hit true .
+        break .
+      end
+      let child be slice u8 subslice relbuf 0 (idx st 0) .
+      if eq side 1 . do
+        say out "deleted" child .
+        set diffs (add diffs 1) .
+        set ia (add ia 1) .
+        continue .
+      end
+      if eq side 2 . do
+        say out "added" child .
+        set diffs (add diffs 1) .
+        set ib (add ib 1) .
+        continue .
+      end
+      set ia (add ia 1) .
+      set ib (add ib 1) .
+      guard join_path root_a child path_a st . else do
+        set limit_hit true .
+        break .
+      end
+      let pa_len be u64 idx st 0 .
+      guard join_path root_b child path_b st . else do
+        set limit_hit true .
+        break .
+      end
+      let pb_len be u64 idx st 0 .
+      let v be u64 visit_both fs out (subslice path_a 0 pa_len) (subslice path_b 0 pb_len) child chunk_a chunk_b .
+      if or (eq v 1) (eq v 2) . do
+        set diffs (add diffs 1) .
+      end
+      if eq v 4 . do
+        let cl be u64 len child .
+        guard and (lt np (max_pend)) (le (add pused cl) (len pend)) . else do
+          set limit_hit true .
+          break .
         end
-
-        rem 이름 하나를 고르고, 그 상대 경로를 만든다
-        var nmo be u64 0 .
-        var nml be u64 0 .
-        var from_a be bool true .
-        if eq side 2 . do set from_a false . end
-        if from_a . do set nmo (idx offsA ia) . set nml (idx lensA ia) . end
-        if eq from_a false . do set nmo (idx offsB ib) . set nml (idx lensB ib) . end
-        var nm be slice u8 subslice arenaA nmo (add nmo nml) .
-        if eq from_a false . do set nm (subslice arenaB nmo (add nmo nml)) . end
-
-        let okr be bool join_path rel nm relbuf scratch .
-        let rl2 be u64 idx scratch 0 .
-        if eq okr false . do set limit_hit true . set merging false . end
-
-        if merging . do
-          let childrel be slice u8 subslice relbuf 0 rl2 .
-          if eq (join_path rootA childrel pathA scratch) false . do set limit_hit true . end
-          let pla be u64 idx scratch 0 .
-          if eq (join_path rootB childrel pathB scratch) false . do set limit_hit true . end
-          let plb be u64 idx scratch 0 .
-
-          if eq side 1 . do
-            set w (emit out 1 "deleted ") .
-            set w (emit out 1 childrel) .
-            set w (emit out 1 "\n") .
-            set diffs (add diffs 1) .
-            set ia (add ia 1) .
-          end
-          if eq side 2 . do
-            set w (emit out 1 "added ") .
-            set w (emit out 1 childrel) .
-            set w (emit out 1 "\n") .
-            set diffs (add diffs 1) .
-            set ib (add ib 1) .
-          end
-          if eq side 0 . do
-            rem ★★★ **심링크는 따라가지 않는다** (X-0030 ⓐ · WO-0210). `link_type` 은 링크 자신을
-            rem   본다(3 = 심링크). 전에는 `file_type`(stat)만 있어서 링크가 **가리키는 대상**으로
-            rem   보였고, 한쪽이 링크이고 다른 쪽이 같은 내용의 진짜 파일이면 «같다» 고 답했다.
-            rem   ☞ 규율 셋: 양쪽 다 링크면 **견주지 않고 그렇게 말한다**(차이로 세지 않는다 —
-            rem     안 그러면 같은 트리를 자기 자신과 견줄 때도 차이가 난다) · 한쪽만 링크면
-            rem     그것은 **차이다**(종류가 다르다) · 링크가 가리키는 곳까지는 1 차판이 안 본다.
-            let lp be u64 link_pair fs (subslice pathA 0 pla) (subslice pathB 0 plb) .
-            var skip_pair be bool false .
-            if eq lp 1 . do
-              set w (emit out 1 "symlink ") .
-              set w (emit out 1 childrel) .
-              set w (emit out 1 "\n") .
-              set skip_pair true .
-            end
-            if eq lp 2 . do
-              set w (emit out 1 "changed ") .
-              set w (emit out 1 childrel) .
-              set w (emit out 1 "\n") .
-              set diffs (add diffs 1) .
-              set skip_pair true .
-            end
-            let ta be option u64 files.type_of fs (subslice pathA 0 pla) .
-            let tb be option u64 files.type_of fs (subslice pathB 0 plb) .
-            var ka be u64 9 .
-            var kb be u64 9 .
-            if is_some ta . do set ka (some_value ta) . end
-            if is_some tb . do set kb (some_value tb) . end
-            if skip_pair . do set ka 7 . set kb 7 . end
-            if ne ka kb . do
-              set w (emit out 1 "changed ") .
-              set w (emit out 1 childrel) .
-              set w (emit out 1 "\n") .
-              set diffs (add diffs 1) .
-            end
-            if eq ka kb . do
-              if eq ka 1 . do
-                rem 둘 다 디렉터리 — 대기 목록에 넣는다
-                if ge np (max_pend) . do set limit_hit true . end
-                if lt np (max_pend) . do
-                  if gt (add pused rl2) (max_pendbuf) . do set limit_hit true . end
-                  if le (add pused rl2) (max_pendbuf) . do
-                    set (idx poffs np) pused .
-                    set (idx plens np) rl2 .
-                    var z be u64 0 .
-                    while lt z rl2 . do
-                      set (idx pend (add pused z)) (idx relbuf z) .
-                      set z (add z 1) .
-                    end
-                    set pused (add pused rl2) .
-                    set np (add np 1) .
-                  end
-                end
-              end
-              if eq ka 0 . do
-                let v be u64 same_file fs (subslice pathA 0 pla) (subslice pathB 0 plb) chunkA chunkB .
-                if eq v 1 . do
-                  set w (emit out 1 "changed ") .
-                  set w (emit out 1 childrel) .
-                  set w (emit out 1 "\n") .
-                  set diffs (add diffs 1) .
-                end
-                if eq v 2 . do
-                  set w (emit out 1 "unreadable ") .
-                  set w (emit out 1 childrel) .
-                  set w (emit out 1 "\n") .
-                  set diffs (add diffs 1) .
-                  set io_bad true .
-                end
-              end
-              if eq ka 7 . do
-                rem ★ 심링크 자리 — 위에서 이미 말했다. 여기서 또 말하지 않는다.
-                set ka ka .
-              end
-              if eq ka 2 . do
-                rem 보통 파일도 디렉터리도 아닌 것(장치·파이프 등) — 견주지 않고 **말한다**
-                set w (emit out 1 "skipped ") .
-                set w (emit out 1 childrel) .
-                set w (emit out 1 "\n") .
-              end
-            end
-            set ia (add ia 1) .
-            set ib (add ib 1) .
-          end
+        set (idx poffs np) pused .
+        set (idx plens np) cl .
+        for z count u64 cl . do
+          set (idx pend (add pused z)) (idx child z) .
         end
+        set pused (add pused cl) .
+        set np (add np 1) .
       end
     end
   end
 
   if limit_hit . do
-    set w (emit out 2 "lowdiff: an internal limit was reached (entries per directory, path length, or pending directories) — the comparison is INCOMPLETE\n") .
+    let wl be option u64 outbuf.write_all out 2 "lowdiff: an internal limit was reached (entries per directory, path length, or pending directories) - the comparison is INCOMPLETE\n" .
     return 3 .
   end
-  if gt diffs 0 . do return 1 . end
-  if io_bad . do return 1 . end
+  guard eq diffs 0 . else return 1 .
   return 0 .
 end

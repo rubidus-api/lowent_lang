@@ -1,0 +1,7 @@
+rem `lowserve` 의 매니페스트 (RFC-0031 §6.1). 의존은 소스의 `use net .` 처럼 이름으로 부르고, 도구가 표준 모듈로 해소한다.
+
+package name "lowserve" .
+package version "0.1.0" .
+package description "Serve a folder read-only over HTTP on the loopback interface" .
+package license "MIT" .
+build entry "src/lowserve.low" .

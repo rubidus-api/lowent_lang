@@ -1,0 +1,7 @@
+rem `lowpack` 의 매니페스트 (RFC-0031 §6.1). 의존은 소스의 `use files .` 처럼 이름으로 부르고, 도구가 표준 모듈로 해소한다.
+
+package name "lowpack" .
+package version "0.1.0" .
+package description "Create, list, check and safely extract uncompressed ustar archives" .
+package license "MIT" .
+build entry "src/lowpack.low" .

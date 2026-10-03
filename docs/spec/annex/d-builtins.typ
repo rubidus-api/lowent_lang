@@ -11,7 +11,7 @@
     늘고, 손으로 적은 목록은 곧 낡는다.
   ]
 
-  #para("2")[모두 204 개다.]
+  #para("2")[모두 209 개다.]
 
   #tbl("내장 연산과 그 뜻")[
     #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 5pt,
@@ -157,6 +157,11 @@
         [`pop`], [뒤에서 하나 뺀다],
         [`pow`], [거듭제곱],
         [`prefetch`], [곧 쓸 자리를 미리 끌어 온다],
+        [`proc_kill`], [띄운 프로그램을 강제로 끝낸다 — POSIX SIGKILL · Windows TerminateProcess. 손자는 끄지 않는다(RFC-0136)],
+        [`proc_poll`], [안 막고 확인한다 — 끝났으면 종료 상태(낮은 32 비트 = 코드 · 비트 32 = 신호), 아직이면 UINT64_MAX],
+        [`proc_read`], [띄운 프로그램의 출력(표준 출력 + 오류)을 안 막고 읽는다 — n 바이트 · 0 = 지금은 없다 · none = 끝],
+        [`proc_spawn`], [NUL 로 이은 인자 목록으로 프로그램을 띄운다 — 표준 입력은 비고 출력은 파이프로 모인다(RFC-0136)],
+        [`proc_wait`], [띄운 프로그램이 끝날 때까지 기다리고 핸들을 닫는다 — 종료 상태],
         [`push`], [뒤에 붙인다],
         [`r_read`], [reactor 로 읽는다],
         [`r_write`], [reactor 로 쓴다],
@@ -230,7 +235,7 @@
   ]
 
   #note[
-    실측(2026-08-25): 204 개 가운데 지역 이름 선언이 막히는 것은 **186 개**,
+    실측(2026-08-25): 209 개 가운데 지역 이름 선언이 막히는 것은 **191 개**,
     쓸 수 있는 것은 **18 개**다 — `all` · `any` · `borrow` · `call_builtin` · `capacity` · `collect` · `enumerate` · `into` · `is_none` · `pipe` · `pop` · `range` · `region` · `ret` · `scan` · `skip` · `take` · `zip`.
     ★ 이 수를 여기 적는 까닭은, 하나로 뭉뚱그리면 **이름 충돌 규칙을 틀리게 말하기**
     때문이다(RFC-0101 F-19). 뭉뚱그린 목록은 수가 맞아도 규칙이 틀린다.
@@ -271,20 +276,22 @@ net_port              net_recv              net_resolve           net_send
 nonzero_of            not                   ok                    ok_value
 or                    panic                 path_remove           path_rename
 pipe                  poly1305              pop                   pow
-prefetch              push                  r_read                r_write
-range                 reactor_new           read_in               read_volatile
-reduce_add            reduce_max            reduce_min            reduce_mul
-ref                   region                ret                   rng_next
-rotl                  rotr                  round                 same_slice
-sat_add               sat_mul               sat_sub               scan
-seg                   segs                  send                  sha256
-sha384                sha512                shl                   shr
-sin                   size_of               skip                  some_value
-spawn                 splat                 sqrt                  stack_new
-store                 store_masked          str_from_cstr         sub
-subslice              sum_neumaier          sum_seq               swap
-take                  trailing_zeros        try_view              value_or
-view                  view_array            view_segments         widen
-wrap_add              wrap_mul              wrap_shl              wrap_shr
-wrap_sub              write_out             write_volatile        zip")
+prefetch              proc_kill             proc_poll             proc_read
+proc_spawn            proc_wait             push                  r_read
+r_write               range                 reactor_new           read_in
+read_volatile         reduce_add            reduce_max            reduce_min
+reduce_mul            ref                   region                ret
+rng_next              rotl                  rotr                  round
+same_slice            sat_add               sat_mul               sat_sub
+scan                  seg                   segs                  send
+sha256                sha384                sha512                shl
+shr                   sin                   size_of               skip
+some_value            spawn                 splat                 sqrt
+stack_new             store                 store_masked          str_from_cstr
+sub                   subslice              sum_neumaier          sum_seq
+swap                  take                  trailing_zeros        try_view
+value_or              view                  view_array            view_segments
+widen                 wrap_add              wrap_mul              wrap_shl
+wrap_shr              wrap_sub              write_out             write_volatile
+zip")
 ]

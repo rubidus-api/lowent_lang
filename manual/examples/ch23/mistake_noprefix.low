@@ -1,0 +1,16 @@
+module mistake_noprefix .
+rem expect: E-TRAIT-MISSING
+
+trait shape do
+  area input s self . output u64 .
+end
+def struct rect do
+  satisfies shape .
+  w u64 .
+  h u64 .
+end
+rem ko: ✘ 이름에 `rect.` 이 없다 --- 타입에 붙지 않은 보통 op 이다 /// en: ✘ no `rect.` in the name --- an ordinary op, not attached to the type
+fn area input s rect . output u64 .
+do
+  return mul (field s w) (field s h) .
+end

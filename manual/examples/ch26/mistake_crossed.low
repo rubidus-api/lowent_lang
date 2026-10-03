@@ -1,0 +1,19 @@
+module mistake_crossed .
+rem trap: crossed
+
+proc relay input inbox u64 . input outbox u64 . output u64 . effects concurrent .
+do
+  let x be u64 chrecv inbox .
+  return chsend outbox x .
+end
+proc crossed output u64 . effects state .
+do
+  var a be u64 channel u64 .
+  var b be u64 channel u64 .
+  task_group do
+    rem ko: ✘ 둘 다 받기부터 한다 --- 첫 값을 넣어 줄 흐름이 없다 /// en: ✘ both start by receiving --- no flow puts in the first value
+    spawn relay a b .
+    spawn relay b a .
+  end
+  return 0 .
+end

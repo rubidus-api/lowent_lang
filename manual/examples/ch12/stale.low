@@ -1,0 +1,10 @@
+module stale .
+rem expect: E-EXCL
+
+fn look_then_write output u64 .
+do
+  var n be u64 0 .
+  let r be ref u64 ref n .
+  set n 5 .
+  return deref r .
+end

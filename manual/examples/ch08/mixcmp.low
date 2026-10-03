@@ -1,0 +1,9 @@
+module mixcmp .
+rem run: in_range 3 1 5
+rem run: in_range 9 1 5
+
+fn in_range input x u64 . input lo u64 . input hi u64 . output bool .
+do
+  rem ko: 비교가 `and` 보다 강하므로 괄호 없이 섞어도 뜻이 하나다 /// en: comparison binds tighter than `and`, so mixing without parentheses has one meaning
+  return expr lo le x and x le hi .
+end

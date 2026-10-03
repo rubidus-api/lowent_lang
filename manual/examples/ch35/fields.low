@@ -1,0 +1,17 @@
+module fields .
+rem run: mode_of 1234
+rem run: with_mode 1234 5
+
+use wire .
+
+fn mode_of input w u64 . output u64 .
+do
+  return wire.pick 3840 w .
+end
+
+fn with_mode input w u64 . input m u64 .
+  output u64 .
+  requires le m 15 .
+do
+  return wire.merge 3840 w m .
+end

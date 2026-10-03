@@ -1,0 +1,14 @@
+module mistake_sharedwrite .
+rem expect: E-PAR-WRITE
+
+proc count_par input data slice u8 . input counter mut slice u64 . output void . effects none .
+  parallel data split .
+do
+  var i be u64 0 .
+  while lt i (len data) . do
+    rem ko: ✘ 모든 조각이 같은 자리 `index counter 0` 에 읽고 더해 쓴다 /// en: ✘ every piece reads, adds to and writes the same place `index counter 0`
+    set (idx counter 0) (wrap_add (idx counter 0) 1) .
+    set i (add i 1) .
+  end
+  return .
+end

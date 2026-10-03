@@ -1,0 +1,1158 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>20 Allocators and fixed memory — Lowent Manual</title><style>/* ── 웹 판의 조판 (RFC-0027, 저자 지시 2026-08-10) ────────────────
+ *
+ * 전에는 이 CSS 가 scripts/wrap-html.py 안의 문자열이었다. 디자인을 한 줄
+ * 고치려면 파이썬 파일을 열어야 했고, 무엇이 디자인이고 무엇이 생성 논리인지
+ * 섞여 있었다. 이제 갈라 둔다 --- 디자인은 여기, 생성은 거기.
+ *
+ * ★ 고치는 절차
+ *   1. 이 파일만 고친다.
+ *   2. scripts/style-preview.sh --- build/style-preview.html 을 본다(몇 초).
+ *   3. 괜찮으면 그때 scripts/build-html.sh 로 전체를 만든다.
+ *
+ * ★ 규율 하나: 장치는 *왼쪽 세로선*으로 영역을 말하고, 제목은 *가로 밑줄*로
+ *   경계를 말한다. 소스 코드와 실행 결과(.demo)만 네 변 상자를 쓴다.
+ */
+
+/* ── 글꼴을 직접 싣는다 (RFC-0026 D2, 저자 지시 2026-08-10) ────────
+   전에는 @font-face 가 하나도 없어, CSS 가 적어 둔 이름이 방문자 기계에 없으면
+   대체 글꼴로 떨어졌다 --- 세리프 본문이 고딕으로 보이는 일이 흔했다.
+   이 책이 쓰는 갈래는 셋뿐이다: serif(본문) · sans-serif(제목·UI) · monospace(코드).
+   파일은 scripts/make-webfonts.sh 가 *이 책에 쓰인 글자만* 남겨 만든다.
+   font-display:swap --- 글꼴을 기다리느라 글이 안 보이는 일이 없게 한다. */
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-italic.woff2") format("woff2");
+  font-weight:400; font-style:italic; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+/* ── 색은 세 가지 상태를 모두 적어야 한다 (저자 지적 2026-08-11) ───────
+ * ★ 예전에는 어두운 팔레트가 `@media (prefers-color-scheme: dark)` *안에만*
+ *   있었다. 그래서 「어둡게」 단추가 `data-theme` 를 붙여도 응답할 규칙이 없어
+ *   아무 일도 일어나지 않았고, 「밝게」도 시스템이 어두우면 소용없었다.
+ *   이제 세 자리에 적는다:
+ *     ① 바탕(:root)                          --- 밝은 팔레트
+ *     ② 시스템이 어두울 때, 단 밝게를 고르지 않았으면  --- 어두운 팔레트
+ *     ③ 어둡게를 골랐을 때                      --- 어두운 팔레트
+ *   ②③ 은 같은 값이라 되풀이되지만, CSS 에서 변수 묶음을 이름으로 나눠 쓸
+ *   방법이 없다. 고칠 때는 *둘 다* 고쳐야 한다.
+ */
+:root { color-scheme: light dark; --fg:#141414; --bg:#ffffff; --muted:#5c5c5c;
+  --rule:#c9c9c9; --box-bg:#f6f6f6; --box-rule:#c4c4c4; --code-bg:#f2f2f2; --link:#1a4f8a;
+  --tok-c:#3f5b4a; --tok-k:#123c87; --tok-t:#0f5b63; --tok-s:#7a3b0a;
+  --tok-n:#8a2222; --tok-p:#6b2d8a; --tok-x:#555555; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+    --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+    --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+    --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; } }
+:root[data-theme="dark"] { color-scheme: dark; --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+  --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+  --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+  --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; }
+:root[data-theme="light"] { color-scheme: light; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); line-height:1.75;
+       font-family:"PCB Serif","Noto Serif CJK KR","Noto Serif KR",Georgia,serif; }
+/* ── 상세 차례와 「이 장의 차례」 패널 (저자 지시 2026-08-10) ── */
+.here-btn { margin-left:.7rem; font:inherit; font-size:.92rem; cursor:pointer;
+  background:none; border:1px solid var(--rule,#bbb); border-radius:.25rem;
+  padding:.1rem .5rem; color:inherit; }
+.here-btn:hover { background:rgba(127,127,127,.14); }
+.here-at { margin-left:.7rem; font-size:.92rem; color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:70vh; overflow:auto;
+  border:1px solid var(--rule,#bbb); border-top:none; background:var(--bg,#fff);
+  padding:.6rem .9rem 1rem; box-shadow:0 6px 18px rgba(0,0,0,.12); }
+.here-head { display:flex; align-items:center; gap:.8rem; padding:.2rem 0 .5rem;
+  border-bottom:1px solid var(--rule,#ddd); margin-bottom:.5rem; }
+.here-head .sp { flex:1; }
+.here-all { margin-left:auto; font-size:.9rem; }
+.here-x { font:inherit; font-size:.9rem; cursor:pointer; background:none;
+  border:1px solid var(--rule,#bbb); border-radius:.25rem; padding:.05rem .45rem;
+  color:inherit; }
+.here-body a, .tf-secs a { display:block; text-decoration:none; padding:.12rem 0;
+  line-height:1.45; }
+.here-body a:hover, .tf-secs a:hover { text-decoration:underline; }
+.here-body a.lv4, .tf-secs a.lv4 { padding-left:1.6rem; font-size:.94rem;
+  color:var(--muted,#555); }
+.tf-no { display:inline-block; min-width:3.2rem; color:var(--muted,#666);
+  font-variant-numeric:tabular-nums; }
+.toc-full .tf-ch { margin:.9rem 0 .15rem; font-weight:700; }
+.toc-full .tf-secs { margin:0 0 .5rem .2rem; border-left:2px solid var(--rule,#e2e2e2);
+  padding-left:.7rem; }
+.toc-full h4.toc-part { margin-top:1.8rem; }
+.toc a.toc-detail { font-weight:700; }
+@media print { .here-btn, .here-panel { display:none; } }
+/* 왼쪽부터 죽 이어 쓰고, 좁으면 개행한다 (저자 지시 2026-08-10).
+   전에는 가운데 여백(.sp)이 뒤쪽 항목을 오른쪽 끝으로 밀어 두 덩이로
+   갈라져 있었다. 좁은 화면에서는 그 사이가 벌어져 읽기 나빴다. */
+.bar { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; gap:.35rem .8rem; align-items:center;
+       padding:.55rem clamp(.8rem,3vw,2.5rem); background:var(--bg);
+       border-bottom:1px solid var(--rule); font-size:.86rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.bar a { color:var(--link); text-decoration:none; } .bar a:hover { text-decoration:underline; }
+.bar .sp { display:none; }        /* 더 쓰지 않는다 --- 왼쪽 정렬로 이어 쓴다 */
+main { width:100%; padding:1.6rem clamp(.9rem,3vw,2.5rem) 5rem; }
+/* 폭을 가두지 않는다 — 보통의 웹 문서처럼 화면 가로를 그대로 쓴다.
+   (2026-08-10: 40rem 으로 가둬 봤으나 저자가 「모양이 깨졌다」며 되돌리라고
+   했다. 줄 길이 문제는 D4 의 *독자가 고르는 폭*으로 푼다.) */
+.wrap { width:100%; max-width:none; margin:0; }
+h1,h2,h3,h4 { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; line-height:1.35;
+  padding-bottom:.18rem; border-bottom:1px solid var(--rule); }
+h1 { font-size:clamp(1.5rem,3.4vw,2.1rem); margin:.2rem 0 .9rem; }
+h2 { font-size:clamp(1.35rem,3vw,1.8rem); margin:0 0 .7rem; padding-bottom:.35rem;
+     border-bottom:2px solid var(--fg); }
+h3 { font-size:clamp(1.05rem,2.2vw,1.25rem); margin:1.5rem 0 .5rem;
+     padding-bottom:.22rem; border-bottom:1.5px solid var(--fg); }
+p { margin:.9rem 0; } a { color:var(--link); }
+/* 본문 문단은 첫 줄을 한 글자만큼 들여쓴다 — PDF 와 같은 규칙
+   (저자 지시 2026-08-06). 구조적인 자리(표지·차례·표제·캡션·목록)는 뺀다. */
+main p { text-indent: 1em; }
+.cover p, .note p, .toc p, .float-caption, .metalist p, .memrow p,
+.colophon-meta p, li p, td p, th p, figure p, blockquote p,
+.demo-src p, .demo-out p, pre, pre p,
+.dev-label, p.dev-label { text-indent: 0; }
+/* 출처 주석 — PDF 의 각주에 해당한다(lib.typ 의 note). Typst 의 HTML 내보내기가
+   각주 본문을 버리므로 lib.typ 이 본문에 펴 두고, wrap-html.py 의 collect_notes 가
+   번호를 매겨 장 끝의 「주」로 옮긴다. 아래 .src-note 는 혹시 옮겨지지 않은 것이
+   있을 때의 대비책이다. */
+.src-note { font-size: .86em; color: var(--muted, #666); }
+.src-note code { font-size: .95em; }
+sup.fnref { font-size: .72em; line-height: 0; vertical-align: super; }
+sup.fnref a { text-decoration: none; padding: 0 .1em; }
+sup.fnref a::before { content: "["; }
+sup.fnref a::after  { content: "]"; }
+.chapter-notes { margin: 3rem 0 1rem; padding-top: .9rem;
+                 border-top: 2px solid var(--rule, #333); }
+.chapter-notes h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
+.chapter-notes ol { margin: 0; padding-left: 1.6em; }
+.chapter-notes li { font-size: .92em; margin: .35em 0; text-indent: 0; }
+.chapter-notes a.fnback { text-decoration: none; }
+/* 상자 안에서는 표제 줄에 붙는 첫 문단만 들여쓰지 않는다(PDF 의 all:false) */
+.dev p { text-indent: 0; }
+.dev p + p { text-indent: 1em; }
+/* 표지(문./답.)가 들어간 첫 문단은 절대 들여쓰지 않는다 */
+.dev p:has(> span.dev-label:first-child) { text-indent: 0; }
+.chapter-head p { text-indent: 0; }
+pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Menlo,monospace; }
+code { background:none; padding:0; font-size:.95em; }
+pre { background:none; border:1px solid var(--fg); border-radius:0;
+      padding:.95rem 1.05rem; overflow-x:auto; line-height:1.6; font-size:.95rem;
+      margin:1.2rem 0; }
+.tok-c { color:var(--tok-c); font-style:italic; }
+.tok-k { color:var(--tok-k); font-weight:700; }
+.tok-s { color:var(--tok-s); }
+.tok-n { color:var(--tok-n); }
+.tok-t { color:var(--tok-t); font-weight:700; }
+.tok-x { color:var(--tok-x); }
+.tok-p { color:var(--tok-p); }
+pre code { background:none; padding:0; }
+/* 표: 바깥은 굵게, 안은 가늘게, 머리행은 굵은 글씨에 옅은 음영
+   (저자 지시 2026-08-06). */
+/* 표는 내용에 필요한 만큼만 폭을 쓰고 가운데에 선다. 100% 폭으로 늘리면
+   셀 오른쪽에 빈 칸이 생겨 테두리와 내용이 어긋나 보인다
+   (저자 지적 2026-08-06). 넘칠 때는 감싼 .tblwrap 이 가로로 스크롤한다. */
+.tblwrap { overflow-x:auto; text-align:center; }
+/* inline-table 은 언제나 내용만큼만 넓어진다(shrink-to-fit). flex 로 가운데를
+   맞추면 브라우저에 따라 늘어나거나 왼쪽이 잘리는 일이 있어 이 방식을 쓴다. */
+.tblwrap > table { display:inline-table; width:auto; max-width:none; margin:1.1rem 0; }
+table { border-collapse:collapse; margin:1.1rem auto; font-size:.95rem;
+        width:auto; max-width:100%; border:2px solid var(--fg);
+        table-layout:auto; }
+th, td { white-space:normal; }
+th,td { border:1px solid var(--rule); padding:.42rem .6rem; text-align:left; vertical-align:top; }
+/* 머리행 — 옅은 음영으로 포인트를 준다(PDF 와 같은 처리). 색이 아니라
+   반투명 회색이라 밝은·어두운 테마 양쪽에서 자연스럽다. */
+th { background:rgba(128,128,128,.16); font-weight:700;
+     border-bottom:2px solid var(--fg);
+     font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+table tr:first-child th, table tr:first-child td { border-bottom:1px solid var(--fg); }
+ul,ol { padding-left:1.4rem; } li { margin:.3rem 0; }
+/* 표·그림 목록은 훑어보는 것이라 촘촘해야 한다 (저자 지시 2026-08-31) */
+.float-list { list-style:none; padding-left:0; }
+.float-list li { margin:.12rem 0; }
+/* 메모리 사물함 도해 — 칸과 그 아래 주소. 표 서식과 섞이지 않게 따로 둔다. */
+.memrow { overflow-x:auto; text-align:center; margin:1.1rem 0 .2rem; }
+.memrow table.mem { display:inline-table; border-collapse:collapse;
+  border:none; margin:0; width:auto; }
+.memrow td.cell { border:1px solid var(--fg); padding:.3rem .5rem;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.9rem;
+  text-align:center; background:none; }
+.memrow td.cell.hi { border-width:2px; }
+.memrow td.addr { border:none; padding:.15rem .5rem 0; text-align:center;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.82rem;
+  color:var(--muted); }
+/* 시연 — 소스와 실행 결과는 선명한 검은 테두리로 묶는다 */
+/* 시연 상자 — 문답과 같은 1×2 모양. 위 칸은 표제(파일 경로는 고정폭,
+   "실행 결과"는 산세리프 굵은 글씨), 가로선 아래 칸이 내용이다
+   (저자 지시 2026-08-06). */
+.demo { border:1px solid var(--fg); margin:1.15rem 0; }
+.demo > .demo-head { margin:0; padding:.5rem .9rem; text-indent:0;
+  border-bottom:1px solid var(--fg); font-weight:700; font-size:.92rem; }
+.demo-src > .demo-head { font-family:"PCB Mono","D2Coding",ui-monospace,monospace; }
+.demo-in > .demo-head, .demo-out > .demo-head {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.demo > .demo-body { padding:0; }
+.demo > .demo-body pre { border:none; border-radius:0; margin:0;
+  padding:.6rem .9rem; }
+
+/* ── 왼쪽 세로선 규율 (저자 지시 2026-08-10) ─────────────────
+   네 변 상자는 좌우 안쪽 여백이 양쪽에서 폭을 갉는다. 왼쪽 세로선 하나로
+   영역만 표시하고 오른쪽은 열어 둔다. 제목 쪽 선이 내용 쪽보다 굵고, 둘은
+   서로 붙지 않는다(사이에 여백). 제목(heading)은 반대로 *가로* 밑줄이다 ---
+   영역과 경계는 하는 일이 다르므로 표시도 갈라 둔다. */
+.dev { margin:1.15rem 0; padding:0; background:none; border:none; border-radius:0; }
+/* 표지 줄 --- 굵은 왼쪽 선 */
+.dev > .dev-label { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0 0 .34rem; }
+/* 본문 --- 가는 왼쪽 선 *하나*로 끝까지 이어진다.
+   ★ 자식마다 선을 그으면 문단 사이에서 끊기고, 한 문단짜리 본문(맨 글)은
+   선을 아예 받지 못한다. 그래서 본문을 한 겹으로 감싸고 그 칸에만 긋는다. */
+.dev > .dev-body { border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem .35rem .8rem; margin:0; }
+.dev > .dev-body > *:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child { margin-bottom:0; }
+/* 표·그림 캡션 — 대상 아래 가운데, 산세리프 */
+.float-caption { text-align:center; font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; color:var(--muted); margin:.35rem 0 1.2rem; }
+figure { margin:1.2rem 0; }
+figure.tbl table { margin-bottom:.2rem; }
+figure.tbl { text-align:center; }
+.dev > p:first-child { margin-top:0; } .dev > p:last-child { margin-bottom:0; }
+.dev-label { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+             font-size:.92rem; color:var(--muted); margin-bottom:.4rem; }
+/* 장 서두 — 넷을 각각 하나의 상자로 둔다. 표제 줄과 내용을 가로선으로
+   가르는 모양은 문답·복습 정리와 같다 (저자 지시 2026-08-06).
+   ★ 좌우 여백은 *상자*가 준다. 자식 요소에 주면, 본문이 요소로 감싸이지 않은
+     칸(「이 장이 끝나면」)은 여백이 0 이 되고 문단이 여럿인 칸(질문 목록)은
+     여백이 겹쳐 들쭉날쭉해진다. */
+.dev.open { border:none; border-radius:0; background:none;
+  padding:0; margin:.75rem 0; }
+.dev.open > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.98rem; color:var(--fg); text-transform:none; letter-spacing:0; }
+/* 서두 본문은 한 겹(.open-body) 안에 있다 — 위·아래 여백을 여기서 한 번만 준다 */
+.dev.open > .open-body { margin:0; padding:.35rem .8rem;
+  border-left:2px solid var(--box-rule); }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open > .open-body > * { margin:.4rem 0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+/* 질문 목록 — 번호를 보이게 하고 항목 간격은 촘촘히 */
+.dev.open .open-body > ol.qlist { margin:0; padding-left:1.35rem; }
+.dev.open ol.qlist li { margin:.18rem 0; padding-left:.15rem; }
+.dev.open ol.qlist li::marker { color:var(--muted); font-weight:700; }
+/* 돌아보기 안의 답 — 왼쪽 가는 선으로 구분 */
+.dev.open .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.06rem 0 .06rem .7rem; margin:.32rem 0 0; }
+/* 서두 표지: 굵고 선명한 검은 산세리프, 본문보다 약간 크게
+   (저자 지시 2026-08-06). 대문자 변형과 자간 늘리기는 쓰지 않는다. */
+.prereq .dev-label, .deepqa .dev-label, .why .dev-label,
+.organizer .dev-label, .questions .dev-label {
+  text-transform:none; letter-spacing:0; font-size:1.12rem; font-weight:700;
+  color:var(--fg); margin-bottom:.45rem; }
+/* 돌아보기 안의 답 — 왼쪽 세로선을 또렷하게 */
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+
+/* 문답 — 질문 쪽 선이 굵고, 답 쪽이 가늘고, 둘 사이가 떨어져 있다 */
+.qa-box { border:none; margin:1.15rem 0; }
+.qa-box .dev { margin:0; border:none; border-radius:0; padding:0; background:none; }
+.qa-box .qa-q { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0; }
+.qa-box .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem; margin:.34rem 0 0; }
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:0; }
+/* 복습 정리도 문답과 같은 상자 — 표제 줄과 본문을 가로선으로 가른다 */
+.dev.recap { border:none; background:none; padding:0; margin:1.15rem 0; }
+.dev.recap > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+.dev.recap > .dev-body > p, .dev.recap > .dev-body > div:not(.demo),
+.dev.recap > .dev-body > figure { margin:.3rem 0; padding:0; }
+
+/* ★ 장치 안에 든 시연 상자 --- 소스와 실행 결과는 중첩되어도 상자 그대로다
+   (저자 지시 2026-08-10). 바깥의 세로선 안쪽에서 조금 좁혀 놓는다. */
+.dev > .dev-body > .demo { margin:.7rem 0; }
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+/* 문./답. 은 줄을 바꾸지 않고 질문·답 첫 문단과 같은 줄에 이어 붙는다
+   (저자 지시 2026-08-06). 답의 둘째 문단부터는 그대로 문단으로 흐른다. */
+.qa-q .dev-label, .qa-a .dev-label, .deepqa .qa-a .dev-label {
+  display:inline; margin-bottom:0; }
+.qa-q .dev-label + p, .qa-a .dev-label + p { display:inline; }
+.qa-q .dev-label, .qa-q .dev-label + p {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  color:var(--fg); font-size:1rem; }
+.qa-a .dev-label { color:var(--muted); }
+.qa-a .dev-label + p { font-family:inherit; font-weight:400; }
+span.dev-label { display:inline; font-size:1rem; margin:0; }
+/* 상자형 장치 공통 — 문답 상자와 같은 모양: 표제 줄과 본문을 가로선으로
+   가르고, 좌우 여백은 상자가 준다 (저자 지시 2026-08-06).
+   ★ 예전의 2단 구조(.misconception + div) 규칙이 남아 뒤따르는 문답 상자를
+     오해 상자의 아랫칸처럼 그리던 문제를 여기서 없앤다. */
+/* 같은 꼴을 쓰는 상자들 --- 네 변을 걷고 왼쪽 세로선만 남긴다
+   (저자 지시 2026-08-10). 소스 코드와 실행 결과(.demo)는 그대로 상자다. */
+.dev.misconception, .dev.realcase, .dev.antipattern, .dev.mathbox,
+.dev.platform, .dev.recap {
+  border:none; border-radius:0; background:none; padding:0; margin:1.15rem 0; }
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem; text-indent:0;
+  border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+/* ★ 본문 칸(.dev-body)은 건드리지 않는다 --- 전에는 `> div` 가 그것까지 잡아
+   padding:0 으로 덮어, 실제 사례·반례·흔한 오해의 글이 왼쪽 선에 바짝 붙었다
+   (저자 지적 2026-08-10). 안쪽 문단의 간격만 손본다. */
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure, .dev > .open-body > p {
+  margin:.35rem 0; padding:0; }
+/* 상자 안의 문단 간격은 한 줄 사이 정도로 — 본문 문단 간격(.9rem)을 그대로
+   쓰면 상자 안이 헐렁해 보인다 (저자 지시 2026-08-06). */
+/* 고정 바: 제목은 왼쪽 끝, 장 이동 화살표·언어·GitHub 는 오른쪽 끝
+   (저자 지시 2026-08-06) */
+.bar > strong { flex:0 0 auto; }
+.bar .bar-nav { display:flex; gap:.55rem; align-items:center; margin-right:.35rem; }
+.bar .bar-nav a, .bar .bar-nav .off {
+  display:inline-block; min-width:1.35rem; text-align:center;
+  font-size:1.15rem; line-height:1.1; text-decoration:none; }
+.bar .bar-nav a:hover { text-decoration:none; color:var(--fg); }
+.bar .bar-nav .off { color:var(--muted); opacity:.35; }
+.dev p, .dev div, .dev ul, .dev ol, .qa-box p, .qa-box div {
+  margin-top:.4rem; margin-bottom:.4rem; }
+.dev > *:first-child, .qa-box .dev > *:first-child { margin-top:0; }
+.dev > *:last-child, .qa-box .dev > *:last-child { margin-bottom:0; }
+.dev ul, .dev ol { padding-left:1.3rem; }
+.dev li { margin:.15rem 0; }
+/* ★ 반례의 세로선도 실선이다(저자 지시 2026-08-10). 예전에는 점선으로 갈래를
+   구별했는데, 왼쪽 세로선 체계로 바꾼 뒤로는 그것만 따로 놀았다 --- 갈래는
+   선 모양이 아니라 표지 글(「반례.」)이 말한다. */
+.dev.antipattern > .dev-label { border-left-style:solid; }
+
+.dev.mathbox { font-size:.95rem; }
+.note { border:1px solid var(--rule); background:none; padding:.65rem .9rem;
+        margin:0 0 1.6rem; font-size:.9rem; }
+/* ★ 표지에는 가로줄을 두지 않는다(저자 지시 2026-08-10) --- 제목 밑의 옅은 줄은
+   *일반 제목의 밑줄 규칙*이 표지 제목까지 잡은 것이었고, 소개글 밑의 줄은 표지
+   블록 자신의 아래 테두리였다. 표지는 경계를 말할 자리가 아니다. */
+.cover { text-align:center; margin:1.4rem 0 2rem; padding-bottom:1.2rem; }
+.cover h1 { font-size:clamp(1.9rem,5vw,2.9rem); margin:0; letter-spacing:.01em;
+            padding-bottom:0; border-bottom:none; }
+.cover p { margin:.45rem 0; }
+.cover-sub { font-size:clamp(1rem,2.2vw,1.2rem); color:var(--fg); }
+.badge { display:inline-block; margin-top:.5rem; padding:.16rem .6rem;
+         border:1px solid var(--fg); font-size:.8rem; font-weight:700;
+         font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-meta { color:var(--muted); font-size:.9rem;
+              font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-author { margin-top:1.1rem; font-size:1.05rem; }
+.cover-links { font-size:.87rem; }
+.cover-links a { margin:0 .6rem; }
+.cover-blurb { max-width:44rem; margin:1.7rem auto 0; font-size:.95rem; color:var(--muted); }
+.cover-blurb p { margin:.5rem 0; }
+.metalist { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+  margin:.6rem 0 1rem; }
+.metalist dt { color:var(--muted); font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; }
+.metalist dd { margin:0; }
+.colophon-meta { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+                 margin:1.2rem 0 1.8rem; font-size:.93rem; }
+.colophon-meta dt { color:var(--muted);
+                    font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-size:.88rem; }
+.colophon-meta dd { margin:0; }
+.colophon { font-size:.93rem; }
+.colophon > div { margin:.9rem 0; padding-left:.9rem; border-left:1px solid var(--rule); }
+/* 개념도 — 흑백 선화라 다크 모드에서는 반전해 준다 */
+figure.fig { margin:1.6rem 0; text-align:center; }
+figure.fig img { max-width:100%; height:auto; }
+figure.fig figcaption { margin-top:.5rem; font-size:.92rem; color:var(--muted); }
+@media (prefers-color-scheme: dark) { figure.fig img { filter:invert(1) hue-rotate(180deg); } }
+:root[data-theme="dark"] figure.fig img { filter:invert(1) hue-rotate(180deg); }
+:root[data-theme="light"] figure.fig img { filter:none; }
+.toc { columns:24rem; column-gap:2.4rem; }
+.toc-part { break-inside:avoid; margin:1.1rem 0 .3rem; font-size:.95rem; letter-spacing:.02em;
+            font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.toc-part:first-child { margin-top:0; }
+.toc-front { margin-bottom:.4rem; }
+/* 차례도 선 없이 --- 왼쪽 세로줄과 장마다의 밑줄을 걷어 낸다(저자 지시 2026-08-10).
+   여기는 장치가 아니라 목록이라 선이 뜻하는 바가 없다. */
+.toc-group { break-inside:avoid; padding-left:.85rem; }
+.toc a { display:block; padding:.28rem 0; text-decoration:none; }
+.toc a:hover { text-decoration:underline; }
+.nav { display:flex; gap:1rem; align-items:center; margin-top:3rem; padding-top:1rem;
+       border-top:1px solid var(--rule); font-size:.9rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.nav .sp { flex:1 1 auto; }
+
+/* ── 서식 예시의 이름표 ─────────────────────────────────────────
+   조판 견본(style-specimen)에서만 나온다. 「이 모양을 뭐라고 부르는가」를
+   그 자리에 붙여 둔다 --- 본문에는 쓰지 않는다. */
+code.style-name { font-family:"PCB Mono","D2Coding",ui-monospace,monospace;
+  font-size:.72em; color:var(--muted); background:var(--rule);
+  padding:.05em .35em; border-radius:3px; white-space:nowrap;
+  font-weight:400; letter-spacing:0; }
+
+/* ── 조판 값 --- 견본에서 시험해 채택한 것들 (저자 지시 2026-08-10) ─────
+ *
+ * 아래는 견본(style-specimen)에서 눈으로 확인한 뒤 책에 들인 값이다.
+ * 여백은 일반적인 책의 숨에 맞추고, 선은 색 하나(#d5d5d5)로 모았다
+ * --- 표만 예외다(격자는 옅으면 칸이 안 읽힌다).
+ */
+
+/* 서두 다섯 칸 --- 표지 줄이 선에 눌려 있었다 */
+.dev.open > .dev-label { padding-top:.42rem; padding-bottom:.42rem; }
+.dev.open > .open-body { padding-top:.4rem; padding-bottom:.4rem; }
+.dev.open > .open-body > p { margin:.6rem 0; }
+
+/* 장치 안의 글도 조금 넉넉하게 */
+.dev > .dev-body { padding-top:.5rem; padding-bottom:.5rem; }
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure { margin:.55rem 0; }
+
+/* 본문 --- 줄 사이와 문단 사이 */
+main { line-height:1.85; }
+p { margin:1.15rem 0; }
+h2 { margin-top:2.4rem; }
+h3 { margin-top:2rem; }
+li { margin:.3rem 0; }
+
+/* 제목 밑줄 --- 시험 중: 검정 대신 흐린 회색(저자 지시 2026-08-10).
+   경계를 말하되 글자보다 앞서지 않게. */
+/* 제목 밑줄도 팔레트를 따른다 --- 고정색이면 어두운 테마에서 홀로 밝다 */
+h1, h2, h3, h4 { border-bottom-color:var(--box-rule) !important; }
+
+/* 차례 --- 본문의 넉넉한 행간을 그대로 받아 헐거웠다. 목록은 촘촘해야 훑힌다.
+   (저자 지시 2026-08-10, 웹판 견본) */
+.toc { line-height:1.45; }
+.toc a { padding:.16rem 0; }
+.toc-part { margin:.85rem 0 .2rem; }
+
+/* 저작권·연락처 --- 두 칸짜리 표는 줄 사이가 벌어질수록 짝이 흩어진다 */
+.metalist { line-height:1.45; gap:.2rem 1.2rem; }
+.metalist dt, .metalist dd { margin:0; }
+
+/* 시연 상자(소스 코드·실행 결과) --- 시험 중: 테두리를 연한 회색으로
+   (저자 지시 2026-08-10). 코드가 이미 검은 덩어리다. */
+.demo { border-color:var(--box-rule); }
+.demo > .demo-head { border-bottom-color:var(--box-rule); }
+
+/* ── 왼쪽 세로선 --- 시험 중: 검정에서 연한 회색으로 (저자 지시 2026-08-10)
+ * 색은 팔레트(--box-rule)를 따른다 --- 테마가 바뀌면 선도 함께 바뀐다.
+ * 굵기(4px 대 2px)가 층위를 말하므로 색까지 세게 말할 까닭이 없다. */
+.dev > .dev-label,
+.dev.open > .dev-label,
+.qa-box .qa-q,
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  border-left-color:var(--box-rule); }
+
+.dev > .dev-body,
+.dev > .open-body,
+.dev.open .qa-a,
+.qa-box .qa-a,
+.deepqa .qa-a { border-left-color:var(--box-rule); }
+
+/* ★ 선의 색은 하나다(저자 지시 2026-08-10) --- 표(.tbl)만 예외로 제 색을 쓴다.
+   여기 한 줄로 못 박아, 뒤에 무엇이 오든 같은 회색이 되게 한다. */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div {
+  border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* ★ 특이도(specificity) 함정 --- `.dev.open > .open-body` 는 클래스가 셋이라
+   위의 `.dev *`(하나) 나 `.dev > .open-body`(둘) 보다 세다. 그래서 서두 칸의
+   *내용* 세로선만 var(--box-rule)=#9a9a9a 로 남아 혼자 진했다(저자 지적).
+   같은 자리를 같은 힘으로 눌러 준다. */
+.dev.open > .open-body,
+.dev.open > .qa-a,
+.dev.open .qa-a,
+.dev.deepqa .qa-a,
+.qa-box > .qa-a,
+.qa-box > .qa-q { border-left-color:var(--box-rule); }
+
+/* 상단 바의 차례 그림글자 --- 글자 크기를 조금 키워 다른 이름들과 눈높이를 맞춘다 */
+.bar .bar-toc { font-size:1.15em; line-height:1; text-decoration:none; }
+
+/* ── 통일 (저자 지시 2026-08-11) ─────────────────────────────────────
+ * ★ 「글 전체의 통일성이 중요하다」 --- 장치 안의 글도, 장 안의 차례도, 본문과
+ *   같은 크기·행간·문단 간격을 쓴다. 예전에는 자리마다 값이 조금씩 달라
+ *   상자를 지날 때마다 리듬이 흔들렸다.
+ */
+.dev, .dev-body, .open-body, .qa-box, .qa-q, .qa-a, .dev-label,
+.toc-full, .toc-full .tf-secs { line-height:inherit; font-size:1rem; }
+.dev > .dev-body > p, .dev > .open-body > p,
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:1.15rem 0; }
+.dev > .dev-body > *:first-child, .dev > .open-body > *:first-child,
+.qa-box .qa-q > p:first-child, .qa-box .qa-a > p:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child, .dev > .open-body > *:last-child,
+.qa-box .qa-q > p:last-child, .qa-box .qa-a > p:last-child { margin-bottom:0; }
+/* 표지 줄만은 제 크기를 지킨다 --- 이름이지 본문이 아니다 */
+.dev > .dev-label, .dev.open > .dev-label { font-size:.98rem; line-height:1.4; }
+
+/* 제목: 글자와 밑줄 사이를 넉넉히, 그만큼 밑줄 아래도 넉넉히 */
+h1,h2,h3,h4 { padding-bottom:.34rem; }
+h1 { margin:.2rem 0 1.3rem; }
+h2 { padding-bottom:.42rem; margin-bottom:1.15rem; }
+h3 { padding-bottom:.36rem; margin-bottom:.95rem; }
+
+/* ── 장 서두 칸의 목록과 문단 (저자 지시 2026-08-11) ──────────────────
+ * ★ 항목 사이에 여백을 또 주면 *행간이 두 번 붙은 것처럼* 보인다. 서두 칸은
+ *   짧은 줄이 여럿 늘어서는 자리라 그 겹침이 특히 크게 보였다. 항목 사이
+ *   간격은 행간이 대신하게 두고, 여백은 문단 사이에만 최소로 준다.
+ *   행간 자체는 본문과 같다(main 에서 물려받는다) --- 값을 따로 두지 않는다.
+ */
+.dev.open > .open-body > * { margin:.3rem 0; }
+.dev.open > .open-body > p { margin:.5rem 0; }
+.dev.open > .open-body > div { margin:.15rem 0; }   /* 「먼저 알아야 할 것」의 한 줄들 */
+.dev.open ul, .dev.open ol { margin:.3rem 0; }
+.dev.open li, .dev.open ol.qlist li { margin:0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open .qa-a > p { margin:.35rem 0; }
+
+/* ── 웹판만의 조정 (저자 승인 2026-08-11) ─────────────────────────────
+ * ★ 선의 색을 종이와 화면이 나눠 쓴다. 종이는 잉크가 실제로 얹혀 #d5d5d5 도
+ *   보이지만, 화면에서는 흰 배경 대비 **1.47:1** 이라 밝기를 낮추거나 값싼
+ *   패널에서는 사실상 사라진다 --- 「영역을 한눈에」라는 목적이 화면에서만
+ *   무너진다. 그래서 웹만 한 단계 진하게 둔다(#c4c4c4, 대비 1.75:1).
+ */
+/* 선의 색은 팔레트의 --box-rule 을 따른다 --- 테마가 바뀌면 함께 바뀐다 */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div { border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* 키보드로 다닐 때 지금 어디인지 보여야 한다 --- 없으면 링크를 세며 다녀야 한다 */
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline:2px solid var(--link); outline-offset:2px; border-radius:2px; }
+
+/* 고정 바 아래로 제목이 숨지 않게 --- 차례에서 절을 누르면 바에 가렸다 */
+:target, h1, h2, h3, h4, [id] { scroll-margin-top:4.2rem; }
+
+/* 본문 건너뛰기 --- 상단 바의 링크를 매 쪽마다 지나지 않아도 되게 */
+.skip { position:absolute; left:-9999px; top:0; z-index:30;
+        background:var(--bg); color:var(--fg); border:1px solid var(--fg);
+        padding:.5rem .8rem; font-size:.9rem; text-decoration:none; }
+.skip:focus { left:.5rem; top:.5rem; }
+
+/* ── 상단 바의 펼침 패널과 읽기 설정 (저자 지시 2026-08-11) ────────────
+ * 바에는 넷만 둔다. 나머지는 여기로 접었다 --- 늘 보이던 것을 접어 두면
+ * 읽는 자리가 넓어지고, 필요할 때는 한 번의 누름으로 전부 나온다.
+ */
+.here-btn { font:inherit; color:inherit; background:none; border:1px solid transparent;
+  border-radius:4px; padding:.1rem .45rem; cursor:pointer; }
+.here-btn .caret { color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:78vh; overflow:auto;
+  background:var(--bg); border-bottom:1px solid var(--rule);
+  padding:.6rem clamp(.8rem,3vw,2.5rem) .9rem; }
+
+/* 도구 줄 --- 인라인으로 죽 늘어서다 좁으면 다음 줄로 넘어간다 */
+.here-panel .tools { display:flex; flex-wrap:wrap; gap:.3rem .5rem; align-items:center;
+  margin-bottom:.5rem; }
+.tool { font:inherit; font-size:.86rem; color:inherit; background:none;
+  border:1px solid var(--rule); border-radius:4px; padding:.2rem .55rem;
+  text-decoration:none; cursor:pointer; white-space:nowrap;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+
+/* ★ 누를 수 있다는 것을 바탕색으로 말한다(저자 지시) --- 글자만 바뀌면
+   손이 닿기 전에는 알 수 없다. */
+.tool:hover, .here-btn:hover, .bar a:hover, .nav a:hover,
+.here-panel .here-body a:hover { background:var(--box-bg); }
+.tool:hover { border-color:var(--box-rule); }
+.here-btn:hover { border-color:var(--rule); }
+.bar a, .nav a { border-radius:4px; padding:.1rem .35rem; }
+.tool:active, .here-btn:active, .bar a:active { transform:translateY(1px); }
+.segb[aria-pressed="true"] { background:var(--box-bg); border-color:var(--fg); font-weight:700; }
+
+/* 본문 링크 --- 밑줄로 있음을 말하고, 손이 닿으면 바탕으로 답한다 */
+main a { text-decoration:underline; text-decoration-color:var(--box-rule);
+  text-underline-offset:2px; border-radius:3px; }
+main a:hover { background:var(--box-bg); text-decoration-color:var(--link); }
+main .toc a, main .toc-full a, main .here-body a { text-decoration:none; }
+main .toc a:hover, main .toc-full a:hover { background:var(--box-bg); text-decoration:underline; }
+
+/* 읽기 설정 상자 */
+.setbox { border:1px solid var(--rule); border-radius:5px; padding:.6rem .7rem;
+  margin:0 0 .6rem; font-size:.88rem;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.setrow { display:flex; flex-wrap:wrap; gap:.4rem .7rem; align-items:center;
+  margin:.35rem 0; }
+.setlbl { color:var(--muted); min-width:3.2rem; }
+.seg { display:inline-flex; gap:.25rem; }
+.segb { font:inherit; color:inherit; background:none; border:1px solid var(--rule);
+  border-radius:4px; padding:.15rem .5rem; cursor:pointer; }
+.col { display:inline-flex; align-items:center; gap:.3rem; }
+.col input[type=color] { width:2rem; height:1.4rem; padding:0; border:1px solid var(--rule);
+  border-radius:3px; background:none; cursor:pointer; }
+.setnote { margin:.5rem 0 0; color:var(--muted); font-size:.82rem; }
+
+/* 가로폭 제한 --- 기본은 제한 없음(설계 의도). 독자가 켤 때만 걸린다. */
+:root[data-measure="on"] main .wrap { max-width:46rem; margin-inline:auto; }
+
+/* 펼침 패널 맨 왼쪽의 판 번호 --- 도구가 아니라 표시다(누를 것이 없다) */
+.here-panel .ver { font-size:.82rem; color:var(--muted); padding:.2rem .45rem .2rem 0;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; white-space:nowrap; }
+
+/* ── 코드와 실행 결과의 줄바꿈 (저자 지시 2026-08-11) ─────────────────
+ * ★ 가로로 흘러 넘치게 두면 긴 줄은 *가로 스크롤 안에 숨는다.* 종이에서는
+ *   글자 단위로 접어 넣고 있으니(lib.typ 의 _hardwrap), 화면에서도 같은
+ *   약속을 지킨다 --- 넘치는 대신 접는다. 들여쓰기는 그대로 살린다.
+ */
+.demo pre, .demo pre code {
+  white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
+.demo > .demo-body { overflow-x:visible; }
+
+/* ── 절의 주소(permalink) ─────────────────────────────────────────
+   종이 책에는 쪽수가 있지만 웹 판에는 없어서, 남에게 「거기」를 알려 줄
+   방법이 없었다. 절마다 닻을 두되 *읽기를 방해하지 않게* --- 평소에는
+   보이지 않다가 제목에 닿거나 키보드 초점이 오면 드러난다. */
+.plink {
+  margin-left: .4em; font-weight: 400; text-decoration: none;
+  color: var(--muted, #888); opacity: 0; transition: opacity .12s;
+}
+h3:hover > .plink, h4:hover > .plink,
+h3 > .plink:focus, h4 > .plink:focus { opacity: 1; }
+@media (hover: none) { .plink { opacity: .45; } }
+
+/* ── 검색 ─────────────────────────────────────────────────────────
+   *제목과 색인 표제어*만 찾는다. 본문 전체 색인은 판마다 수 MB 라
+   내려받게 하는 값이 얻는 것보다 크다. 무엇을 찾는지 화면에 적어 둔다. */
+.searchbox { margin:.6em 0 0; }
+.searchbox input[type=search] {
+  width: 100%; padding: .45em .6em; font: inherit;
+  border: 1px solid var(--rule, #ccc); border-radius: 4px;
+  background: var(--bg, #fff); color: var(--fg, #111);
+}
+.search-hint { color: var(--muted, #777); font-size: .85em; margin:.3em 0 0; }
+.search-results { list-style: none; padding: 0; margin: .5em 0 0; }
+.search-results li { margin: .15em 0; }
+.search-results .where { color: var(--muted, #777); font-size: .85em; margin-left: .4em; }
+
+body { font-family:"PCB Serif","Noto Serif",Georgia,"Noto Serif CJK KR",serif; }
+h1,h2,h3,h4,.bar,.dev-label,.toc-part,.cover-meta,.badge,
+.colophon-meta dt { font-family:"Noto Sans",system-ui,"Noto Sans CJK KR",sans-serif; }
+pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,monospace; }
+</style>
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('pcb-read')||'{}');var r=document.documentElement;if(s.theme&&s.theme!=='auto')r.setAttribute('data-theme',s.theme);if(s.fg)r.style.setProperty('--fg',s.fg);if(s.bg)r.style.setProperty('--bg',s.bg);if(s.link)r.style.setProperty('--link',s.link);if(s.width)r.setAttribute('data-measure','on');}catch(e){}})();</script></head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="bar"><strong><a href="index.html">Lowent Manual</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">ch. 20 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch19.html" title="Prev" aria-label="Prev">←</a><a href="index.html" title="Contents" aria-label="Contents">↑</a><a href="ch21.html" title="Next" aria-label="Next">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ Settings</button><a class="tool" href="toc.html">▤ Detailed contents</a><a class="tool" href="../html-ko/ch20.html">Ko</a><a class="tool" href="../pdf-en/lowent-manual-en.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="This book on GitHub">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- every published project">⌂ All projects</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- every repository">≡ All repos</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>Limit line width</span></label><div class="setrow"><span class="setlbl">Theme</span><span class="seg"><button type="button" class="segb" data-theme="auto">System</button><button type="button" class="segb" data-theme="light">Light</button><button type="button" class="segb" data-theme="dark">Dark</button></span></div><div class="setrow"><span class="setlbl">Colours</span><label class="col"><span>Text</span><input type="color" id="s-fg"></label><label class="col"><span>Background</span><input type="color" id="s-bg"></label><label class="col"><span>Link</span><input type="color" id="s-link"></label></div><p class="setnote">Settings are kept in this browser only.</p></div><div class="here-head"><strong>Contents of this chapter</strong></div><div class="here-body"><a class="lv3" href="#s20-1"><span class="tf-no">20.1</span>The three parts of an allocator</a><a class="lv3" href="#s20-2"><span class="tf-no">20.2</span>Cutting borrowed bytes</a><a class="lv3" href="#s20-3"><span class="tf-no">20.3</span>Swapping allocators</a><a class="lv3" href="#s20-4"><span class="tf-no">20.4</span>Default allocators that carve straight from a root</a><a class="lv3" href="#s20-5"><span class="tf-no">20.5</span>Growing and returning a piece — grow and release</a><a class="lv3" href="#s20-6"><span class="tf-no">20.6</span>Taking a list from an allocator</a><a class="lv4" href="#s20-6-1"><span class="tf-no">20.6.1</span>Given back when the block ends</a><a class="lv4" href="#s20-6-2"><span class="tf-no">20.6.2</span>Structs in an allocator too</a><a class="lv3" href="#s20-7"><span class="tf-no">20.7</span>Where the three layers sit in the standard library</a><a class="lv3" href="#s20-8"><span class="tf-no">20.8</span>Who sets the size of the fixed window?</a><a class="lv3" href="#s20-9"><span class="tf-no">20.9</span>Same bits, different reading</a><a class="lv3" href="#s20-10"><span class="tf-no">20.10</span>Common mistakes</a><a class="lv3" href="#s20-11"><span class="tf-no">20.11</span>This chapter’s syntax at a glance</a></div></div>
+<main id="content"><div class="wrap">
+<h2>20 Allocators and fixed memory</h2><div></div><div class="dev open prereq"><p class="dev-label">What to know first</p><div class="open-body"><div>chapter 18, Regions · the fixed window and the heap, the two roots</div><div>chapter 16, Capabilities · capabilities authorise by kind and cost nothing at run time</div><div>chapter 15, Effects · <code>via</code> lets a type argument decide allocation effects</div></div></div><div class="dev open deepqa"><p class="dev-label">Looking back</p><div class="open-body"><p>In chapter 18, what was rejected when building for a machine without an operating system, and what could still be used?</p><div class="qa-a"><p><span class="dev-label">A.</span> The <code>heap</code> effect, <code>cap heap</code> inputs and <code>region … heap</code> blocks were all rejected with <code>E-HEAP-NOHOST</code>. <code>alloc</code>, which carves from the fixed window that does not grow, could still be used. This chapter covers the <strong>allocators</strong> that hand out space on top of that fixed window, and on top of bytes someone else lent.</p></div></div></div><div class="dev open why"><p class="dev-label">The need for this chapter, and its context</p><div class="open-body">A region is a single policy: “all at once when the block ends”. Real programs want more policies. They want to take one big buffer and cut it from the front, to cut with alignment, to run the same code on the heap and on the fixed window. In Lowent an allocator is not a special language device but <strong>an actor that satisfies a trait</strong>. So user-made allocators and standard ones fit the same slot. As the last chapter of Part V on memory, it lays out the path of fixed memory all the way to machines without an operating system.</div></div><div class="dev open organizer"><p class="dev-label">By the end of this chapter</p><div class="open-body">You will learn that an allocator is made of three parts: a capability, a policy and state. You will use a bump allocator that cuts borrowed bytes, and confirm that running out of memory is a value. You will pick up how to take an allocator as a type parameter and hand it over with <code>using</code>, and the default allocators that carve straight from a root, with the rule for capability fields. You will also see how the linker sets the size of the fixed window on machines without an operating system, and <code>bit_cast</code>, which keeps the bits and changes only how they are read.</div></div><div class="dev open questions"><p class="dev-label">The questions this chapter answers</p><div class="open-body"><ol class="qlist"><li>Can a bump allocator take back one piece?</li></ol></div></div><div></div><h3 id="s20-1">20.1 The three parts of an allocator<a class="plink" href="#s20-1" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-46"></span><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Layer</strong></th><th><strong>When it exists</strong></th><th><strong>What it is</strong></th></tr><tr><td>Capability</td><td>only at translation</td><td>May it touch the root? — <code>cap allocator</code> · <code>cap heap</code></td></tr><tr><td>Policy</td><td>at translation (a type)</td><td>By what rule does it carve? — a <strong>type</strong> satisfying the <code>byte_allocator</code> trait</td></tr><tr><td>State</td><td>at run time</td><td>The cursor and backing bytes — a <strong>value</strong> of that type (an actor)</td></tr></table></div><p class="float-caption">Table 20.1 — The three parts of an allocator</p></figure><p>The <code>byte_allocator</code> trait of the standard library’s <code>allocs</code> requires three ops. <code>reserve n</code> cuts off <code>n</code> bytes and gives an <code>option</code>, <code>grow</code> enlarges the last piece in place, and <code>used</code> answers how much has been used. An actor (chapter 25) is an object that holds its own state and is spoken to only with <code>send</code>. Here it is enough to know that it is made with <code>spawn actor</code> and called with <code>send a reserve 3</code>.</p><h3 id="s20-2">20.2 Cutting borrowed bytes<a class="plink" href="#s20-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>The simplest allocator is a <strong>bump</strong> allocator. It keeps one cursor, cuts off as much as requested, and pushes the cursor forward.</p><pre><code data-lang="text">    buf (8 bytes)
+    [ a  a  a │ b  b │ ·  ·  · ]
+      └ the piece reserve 3 gave
+                └ the piece reserve 2 gave
+                       ▲ cursor (used = 5) --- the next reserve cuts from here
+
+asking reserve 4: only 3 bytes are left → none (running short is a value too)</code></pre><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/borrowed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> borrowed .
+<em><span class="tok-c">rem run: carve [0,0,0,0,0,0,0,0]</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> carve <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> room <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a init buf .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">3</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
+  <strong><span class="tok-k">let</span></strong> pv <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value p .
+  <strong><span class="tok-k">set</span></strong> (idx pv <span class="tok-n">0</span>) <span class="tok-n">65</span> .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">99</span> .
+  <strong><span class="tok-k">guard</span></strong> is_none q . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> a used .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run carve borrowed.low [0,0,0,0,0,0,0,0]
+carve([65,0,0,0,0,0,0,0]) = 3
+  arg0 (written) = [65,0,0,0,0,0,0,0]
+</code></pre></div></div><ul><li><code>spawn actor allocs.bump_bytes</code> makes the allocator, and <code>send a init buf</code> hands it the bytes to cut. This allocator cannot make memory by itself — the discipline of never allocating secretly.</li><li><code>send a reserve 3</code> cuts off 3 bytes. What comes back is not a copy but a slice pointing at part of the original, so <code>set (idx pv 0) 65 .</code> changes the first byte of the caller’s <code>buf</code>. The argument <code>[65,0,…]</code> the VM shows is the trace.</li><li><code>send a reserve 99</code> gives <code>none</code> because there is not enough space. Not a trap. <strong>Running out of memory is a value</strong>, and the caller checks it.</li></ul><p>This op’s head has neither <code>cap allocator</code> nor <code>alloc</code>; its effect is only <code>state</code>. The caller lent the bytes, and the allocator merely hands them out. The capability draws the line — code without an allocation capability can still allocate fully on bytes someone gave it.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> Can a bump allocator take back one piece?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> It takes back only the last piece (<code>release</code>, trait <code>freeing_allocator</code>). For any other piece it answers <code>false</code> and changes nothing. Pretending to accept an unknown piece would let a double return erase someone else’s space. If the shape is taking and releasing over and over, <code>pool</code> with generational handles is the right tool (chapter 35).</p></div></div><h3 id="s20-3">20.3 Swapping allocators<a class="plink" href="#s20-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Code that uses an allocator need not know which implementation it is. It takes the allocator’s <strong>type</strong> as a translation-time parameter and its <strong>value</strong> with a <code>using</code> clause.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/generic.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> generic .
+<em><span class="tok-c">rem run: with_bump [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]</span></em>
+<em><span class="tok-c">rem run: with_aligned [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> two_from
+  <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> a <strong><span class="tok-k">type</span></strong> .
+  <strong><span class="tok-k">using</span></strong> al a .
+  <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">via</span></strong> a .
+  <strong><span class="tok-k">requires</span></strong> allocs.byte_allocator a .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">3</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">5</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some q . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">proc</span></strong> with_bump <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b init buf .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">using</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> two_from .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">proc</span></strong> with_aligned <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-k">be</span></strong> allocs.bump_aligned <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_aligned .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b init buf .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">using</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> two_from .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run with_bump generic.low [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+with_bump([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) = 8
+  arg0 (written) = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+$ lowentc --run with_aligned generic.low [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+with_aligned([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) = 13
+  arg0 (written) = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+</code></pre></div></div><ul><li><code>input comptime a type .</code> is the allocator’s type, fixed to a concrete type at translation (chapter 22).</li><li><code>using al a .</code> receives the allocator value of that type under the name <code>al</code>. <code>using</code> is not an input. The caller does not write it in an argument position but in the binding, as <code>let n using b be u64 two_from .</code>.</li><li><code>requires allocs.byte_allocator a .</code> is the condition that <code>a</code> satisfies the trait (chapter 23).</li><li><code>effects state via a .</code> means the effects of the allocator’s <code>reserve</code> are this op’s effects.</li></ul><span id="idx-entry-47"></span><p>Given <code>bump_bytes</code>, the same <code>two_from</code> uses 3 + 5 = 8; given <code>bump_aligned</code>, which aligns start positions to multiples of 8, the second piece starts at 8 and it uses 13. Because the type is fixed at translation, there is no virtual function table and no indirect call. Swapping costs nothing at run time.</p><p>If no source is written, a default is chosen: the binding’s <code>using</code>, the op’s own <code>using</code> name, and otherwise the input or binding of matching type if there is <strong>only one</strong>. With two or more it does not guess and asks you to write it with <code>E-ALLOC-AMBIGUOUS</code>. Defaults do not cross op boundaries — an allocator from the caller never flows in on its own, so <strong>there is no global allocator</strong>.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Order</strong></th><th><strong>Source</strong></th><th><strong>Why here</strong></th></tr><tr><td>1</td><td><code>using &lt;name></code> written on the binding</td><td>what you write always wins</td></tr><tr><td>2</td><td>the <strong>only</strong> name of fitting type among this op’s <code>using</code> clauses</td><td>the allocator the op said it takes</td></tr><tr><td>3</td><td>the <strong>only</strong> input or binding of fitting type in this op</td><td>one visible value leaves nothing to confuse</td></tr><tr><td>none</td><td><code>E-ALLOC-NOSOURCE</code></td><td>no global allocator fills the gap</td></tr><tr><td>two or more</td><td><code>E-ALLOC-AMBIGUOUS</code></td><td>no guessing; every candidate is named</td></tr></table></div><p class="float-caption">Table 20.2 — The order that picks an allocator source — the first match from the top</p></figure><p>Fields are not counted. If an allocator hidden inside a struct were used silently, reading the code would not tell you which buffer shrinks.</p><p>With no source at all, the call is refused.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/nosource.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> nosource .
+<em><span class="tok-c">rem expect: E-ALLOC-NOSOURCE</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> one_from
+  <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> a <strong><span class="tok-k">type</span></strong> .
+  <strong><span class="tok-k">using</span></strong> al a .
+  <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">via</span></strong> a .
+  <strong><span class="tok-k">requires</span></strong> allocs.byte_allocator a .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">3</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">proc</span></strong> caller <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ there is no allocator at all in this op to draw from</span></em>
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> one_from .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check nosource.low
+21:16 E-ALLOC-NOSOURCE: this call draws from an allocator, but NO value of a fitting type is visible in this op — no input, no binding, no `using` clause. There is no global allocator: take one as an input, create one here, or declare `using &lt;name> &lt;type> .` on this op (RFC-0112 D8(4))
+nosource.low:19:1 W-EFFECT-OVER: this op DECLARES `state` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
+</code></pre></div></div><p><code>caller</code> has no input, no spawned actor and no <code>using</code> clause. In another language a global heap would quietly step in here. Lowent asks you to take an allocator as an input, create one here, or write a <code>using</code> clause. Because the call is refused, <code>caller</code> never really uses <code>state</code> either, so <code>W-EFFECT-OVER</code> comes along. It goes away once the first error is fixed.</p><p>The other way round, writing <code>using</code> on a call that draws from no allocator is refused too.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/usingunused.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> usingunused .
+<em><span class="tok-c">rem expect: E-ALLOC-USING-UNUSED</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> mul x <span class="tok-n">2</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">proc</span></strong> caller <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b init buf .
+  <em><span class="tok-c">rem ✘ twice draws from no allocator, yet the binding picks one with using</span></em>
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">using</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> twice <span class="tok-n">4</span> .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check usingunused.low
+15:15 E-ALLOC-USING-UNUSED: this binding says which allocator to use, but the call it initialises does not draw from one (no `using` clause on that op). An object that already carries its allocator — like `vecgen.append` on a vector — does not take the caller's choice (RFC-0112 D8(5))
+</code></pre></div></div><p><code>twice</code> only doubles a number and takes no allocator. A choice that will never be used misleads the reader into thinking <code>twice</code> uses memory. So whatever you write must be used.</p><h3 id="s20-4">20.4 Default allocators that carve straight from a root<a class="plink" href="#s20-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p><code>allocs</code> also provides two allocators that carve straight from a root, under the same trait.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Actor</strong></th><th><strong>State</strong></th><th><strong>Effect of <code>reserve</code></strong></th></tr><tr><td><code>fixed_bytes</code></td><td><code>root cap allocator .</code> · amount used</td><td><code>alloc state</code> — anywhere</td></tr><tr><td><code>heap_bytes</code></td><td><code>root cap heap .</code> · amount used</td><td><code>heap state</code> — only with an operating system</td></tr></table></div><p class="float-caption">Table 20.3 — Default allocators</p></figure><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> fixed .
+<em><span class="tok-c">rem run: main</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> fb <strong><span class="tok-k">be</span></strong> allocs.fixed_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.fixed_bytes .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> fb reserve <span class="tok-n">64</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some a . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> fb reserve <span class="tok-n">64</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some b . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (<strong><span class="tok-k">send</span></strong> fb used) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main fixed.low
+main() = 128
+</code></pre></div></div><p><code>fixed_bytes</code>’s state has a <strong>capability field</strong>. A capability is not a run-time value, so the field has no size. Instead a rule comes with it: an actor with a capability field can be spawned only <strong>from an op that holds a capability of the same kind</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/forge.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> forge .
+<em><span class="tok-c">rem expect: E-CAP-FORGE</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> sneaky <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> heap <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> hb <strong><span class="tok-k">be</span></strong> allocs.heap_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.heap_bytes .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> hb used .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check forge.low
+forge.low:8:0 E-CAP-FORGE: this spawns an actor whose state HOLDS a capability (`cap allocator` / `cap heap`), but the op spawning it holds no capability of that kind. A capability field means nothing at run time — it is only real because the place that creates the actor already had the right. Without that, one `spawn` would forge authority out of thin air (RFC-0112 D6). Take the capability as an input of this op
+forge.low:7:1 W-EFFECT-OVER: this op DECLARES `heap` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
+</code></pre></div></div><p><code>sneaky</code> tried to spawn <code>heap_bytes</code> without receiving <code>cap heap</code>. If that were allowed, a heap could be conjured in one line where there is no capability. Capabilities are handed over, not picked up.</p><p>Receive the capability and the same thing works.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/heapbytes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> heapbytes .
+<em><span class="tok-c">rem run: main</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">cap</span></strong> heap . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> heap <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> hb <strong><span class="tok-k">be</span></strong> allocs.heap_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.heap_bytes .
+  <em><span class="tok-c">rem the heap hands out 100000 bytes, more than the fixed window (64 KiB by default) holds</span></em>
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> hb reserve <span class="tok-n">100000</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some a . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+  <em><span class="tok-c">rem return 2 if the amount used is not 100000, and 0 if it is</span></em>
+  <strong><span class="tok-k">guard</span></strong> eq (<strong><span class="tok-k">send</span></strong> hb used) <span class="tok-n">100000</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main heapbytes.low
+main() = 0
+</code></pre></div></div><p><code>main</code> receives <code>cap heap</code> and writes <code>heap</code> in its effects line. So it may spawn <code>heap_bytes</code>, and it gets 100000 bytes, more than the fixed window holds. When the heap runs short it chains another chunk. Built for a machine without an operating system, this file is refused with <code>E-HEAP-NOHOST</code> (chapter 18).</p><h3 id="s20-5">20.5 Growing and returning a piece — <code>grow</code> and <code>release</code><a class="plink" href="#s20-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A bump allocator only moves forward. Even so, <strong>the piece it handed out last</strong> is safe to take back, because nobody has received a place after it. <code>grow</code> enlarges that piece in place, and <code>release</code> (trait <code>freeing_allocator</code>) takes it back.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/growrelease.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> growrelease .
+<em><span class="tok-c">rem run: regrow [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> regrow <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b init buf .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> b reserve <span class="tok-n">4</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
+  <strong><span class="tok-k">let</span></strong> pv <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value p .
+  <em><span class="tok-c">rem grow the piece just received from 4 to 6 bytes in place</span></em>
+  <strong><span class="tok-k">let</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> b grow pv <span class="tok-n">6</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some g . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> .
+  <strong><span class="tok-k">let</span></strong> gv <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value g .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> b reserve <span class="tok-n">2</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some q . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">93</span> .
+  <strong><span class="tok-k">let</span></strong> qv <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value q .
+  <em><span class="tok-c">rem gv is not the last piece (qv comes after it), so it is not taken back</span></em>
+  <strong><span class="tok-k">let</span></strong> back1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> b release gv .
+  <em><span class="tok-c">rem qv is the last piece, so it is taken back</span></em>
+  <strong><span class="tok-k">let</span></strong> back2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">bool</span></strong> <strong><span class="tok-k">send</span></strong> b release qv .
+  <strong><span class="tok-k">let</span></strong> u <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b used .
+  <strong><span class="tok-k">var</span></strong> d1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">if</span></strong> back1 . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> d1 <span class="tok-n">1</span> .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">var</span></strong> d2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">if</span></strong> back2 . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> d2 <span class="tok-n">1</span> .
+  <strong><span class="tok-k">end</span></strong>
+  <em><span class="tok-c">rem pack the amount used, the first answer and the second answer into one three-digit number</span></em>
+  <strong><span class="tok-k">return</span></strong> add (mul u <span class="tok-n">100</span>) (add (mul d1 <span class="tok-n">10</span>) d2) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run regrow growrelease.low [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+regrow([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]) = 601
+  arg0 (written) = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+</code></pre></div></div><span id="idx-entry-48"></span><ul><li><code>send b grow pv 6</code> grows <code>pv</code> from 4 bytes to 6. What it grows is <strong>the piece itself</strong>, not a size. The implementation checks with the builtin <code>same_slice a b</code> (same start address and same length?) that <code>pv</code> is exactly the bytes it just handed out. Pass someone else’s buffer of the same length and the answer is <code>none</code>. Recognising a piece by size alone would let two containers overlap without a sound.</li><li>After <code>qv</code> is handed out, <code>gv</code> is no longer the last piece. So <code>release gv</code> is <code>false</code> and changes nothing.</li><li><code>release qv</code> is <code>true</code>. The cursor goes back to 6, so <code>used</code> is 6. The answer 601 reads “used 6 · first answer false · second answer true”.</li></ul><p>Both ops are <strong>an optimisation, not a promise</strong>. If a piece cannot grow, the caller receives a new one and copies, and the answer must be the same. For <code>fixed_bytes</code> and <code>heap_bytes</code>, which carve straight from a root, <code>grow</code> is always <code>none</code>. A root does not know whose piece came last.</p><h3 id="s20-6">20.6 Taking a list from an allocator<a class="plink" href="#s20-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A list written out as values (chapter 9) normally sits in the op’s frame. When it is large, or must outlive the op, take its bytes from an allocator you choose: write <code>using &lt;allocator></code> on the binding, and say with <code>else</code> what happens when the bytes do not come.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/litalloc.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> litalloc .
+<em><span class="tok-c">rem run: fill 9</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<em><span class="tok-c">rem take a list from the allocator you choose --- bind it if the bytes came, go to `else` if they ran out</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> fill <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> back <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">48</span> _ . .
+  <strong><span class="tok-k">var</span></strong> bb <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb init back .
+  <strong><span class="tok-k">var</span></strong> xs <strong><span class="tok-k">using</span></strong> bb <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">4</span> <strong><span class="tok-k">do</span></strong> <span class="tok-n">0</span> a . _ <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">set</span></strong> (idx xs <span class="tok-n">3</span>) <span class="tok-n">100</span> .
+  <strong><span class="tok-k">let</span></strong> big <strong><span class="tok-k">using</span></strong> bb <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">8</span> _ . .
+  <strong><span class="tok-k">guard</span></strong> is_none big . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+  <strong><span class="tok-k">return</span></strong> add (idx xs <span class="tok-n">0</span>) (idx xs <span class="tok-n">3</span>) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run fill litalloc.low 9
+fill(9) = 109
+</code></pre></div></div><ul><li><code>var xs using bb be mut slice u64 lit array u64 4 … . else return 0 .</code> asks <code>bb</code> for 32 bytes and, if it gets them, fills them like any list and binds them to <code>xs</code>. If the allocator cannot give the bytes, control goes to <code>else</code>, which must leave (binding <code>else</code> is covered in chapter 11).</li><li>To carry the failure along as an <code>option</code>, write the whole type: <code>let big using bb be option mut slice u64 lit … .</code> — then check it later with <code>guard</code> or <code>match</code>.</li><li>Filling works as for a frame list: list the elements, or fill chosen cells with <code>do … end</code>.</li><li>The bytes belong to the allocator, so their lifetime follows it. Bytes from the heap may be passed out of the block; bytes from a bump allocator backed by a frame array cannot leave that array’s block (<code>E-LIT-ESCAPE</code>).</li><li>Writing <code>using</code> with neither <code>else</code> nor <code>option</code>, or on a <code>lit vec</code>, is <code>E-LIT-USING</code>.</li></ul><h4 id="s20-6-1">20.6.1 Given back when the block ends<a class="plink" href="#s20-6-1" aria-label="Link to this section" title="Link to this section">#</a></h4><div></div><p>When the allocator can take pieces back one by one (<code>freeing_allocator</code>), bytes taken with <code>using</code> are given back automatically when the block that declared the name ends. The same happens when the block is left by <code>return</code>, or by <code>break</code> or <code>continue</code> in a loop.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/autorel.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> autorel .
+<em><span class="tok-c">rem run: rounds 10</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<em><span class="tok-c">rem bytes taken in a block are given back when the block ends --- 32 bytes ten times out of 64</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> rounds <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> back <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">64</span> _ . .
+  <strong><span class="tok-k">var</span></strong> bb <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb init back .
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i n . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-k">using</span></strong> bb <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">4</span> i _ . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
+    <strong><span class="tok-k">set</span></strong> s (add s (idx t <span class="tok-n">0</span>)) .
+    <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> add s (mul (<strong><span class="tok-k">send</span></strong> bb used) <span class="tok-n">1000</span>) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run rounds autorel.low 10
+rounds(10) = 45
+</code></pre></div></div><ul><li>Each time the loop body runs, <code>t</code> takes 32 bytes, and they are given back when the body ends. So the loop runs ten times on 64 backing bytes and <code>used</code> is 0 afterwards. Without the give-back, the third round would run out of bytes and go to <code>else</code>. The answer 45 is the sum of 0 to 9.</li><li>Giving back is <code>send &lt;allocator> release &lt;piece></code>. Whether the bytes are taken back is the allocator’s policy — <code>bump_bytes</code> takes back only the piece it gave last. So when one block takes two, the inner (later) one is given back first.</li><li>After they are given back, the bytes belong to something else. Carrying them out of the block (<code>return t</code>, or storing them in a name further out) is <code>E-LIT-ESCAPE</code>.</li><li>Bytes from an allocator that cannot take pieces back (<code>fixed_bytes</code>, <code>heap_bytes</code>) stay with the allocator.</li><li>To give the bytes back before the block ends, write <code>drop t .</code>. The block end then does not give them back again. Using <code>t</code> after the <code>drop</code> is <code>E-OWN-MOVED</code>, and a <code>drop</code> in an inner block (one side of an <code>if</code>, say) is <code>E-OWN-JOIN</code>.</li><li>Nothing is given back when the program stops with <code>panic</code>.</li></ul><p>To use the bytes longer than the block, write <code>keep</code> after <code>using</code>. Then nothing is given back at the end of the block, and the bytes live as long as the allocator. A helper can hand the buffer it built to its caller.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/keepbuf.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> keepbuf .
+<em><span class="tok-c">rem run: handoff</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<em><span class="tok-c">rem with `keep` nothing is given back at the end of the block --- the caller receives the buffer a helper built</span></em>
+<strong><span class="tok-k">proc</span></strong> make_buf <strong><span class="tok-k">input</span></strong> bb <strong><span class="tok-k">mut</span></strong> allocs.bump_bytes . <strong><span class="tok-k">input</span></strong> d <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> t <strong><span class="tok-k">using</span></strong> bb keep <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">2</span> <span class="tok-n">7</span> <span class="tok-n">8</span> . . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> d .
+  <strong><span class="tok-k">return</span></strong> t .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> handoff <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> back <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">64</span> _ . .
+  <strong><span class="tok-k">var</span></strong> d <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">1</span> _ . .
+  <strong><span class="tok-k">var</span></strong> bb <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb init back .
+  <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u64</span></strong> make_buf bb d .
+  <strong><span class="tok-k">return</span></strong> add (idx s <span class="tok-n">1</span>) (mul (<strong><span class="tok-k">send</span></strong> bb used) <span class="tok-n">100</span>) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run handoff keepbuf.low
+handoff() = 1608
+</code></pre></div></div><ul><li>The <code>s</code> that <code>make_buf</code> returns is <code>bb</code>’s bytes. It can be used while <code>bb</code> lives; using it longer is refused at translation.</li><li>Giving the bytes back is up to you: <code>send bb release …</code> gives a piece back, or everything goes back when the allocator ends. <code>used</code> is 16, so the answer is 1608.</li><li><code>keep</code> goes right after <code>using &lt;allocator></code>, on a binding that takes a list or struct literal. Anywhere else it is <code>E-USING-FORM</code>.</li></ul><h4 id="s20-6-2">20.6.2 Structs in an allocator too<a class="plink" href="#s20-6-2" aria-label="Link to this section" title="Link to this section">#</a></h4><div></div><p>A struct value is built in an allocator’s bytes with the same spelling. The binding’s type is that struct.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/structalloc.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> structalloc .
+<em><span class="tok-c">rem run: place 5</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> pt <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">u32</span></strong> .
+  y <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong>
+
+<em><span class="tok-c">rem a struct can be built in an allocator's bytes too --- only a struct with a byte layout</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">proc</span></strong> place <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> back <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> <strong><span class="tok-k">array</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">64</span> _ . .
+  <strong><span class="tok-k">var</span></strong> bb <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> got <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> bb init back .
+  <strong><span class="tok-k">var</span></strong> q <strong><span class="tok-k">using</span></strong> bb <strong><span class="tok-k">be</span></strong> pt <strong><span class="tok-k">lit</span></strong> pt <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y a . <strong><span class="tok-k">end</span></strong> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">set</span></strong> (field q y) (add (field q y) <span class="tok-n">1</span>) .
+  <strong><span class="tok-k">return</span></strong> add (widen <strong><span class="tok-t">u64</span></strong> (field q x)) (mul (<strong><span class="tok-k">send</span></strong> bb used) <span class="tok-n">100</span>) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run place structalloc.low 5
+place(5) = 1607
+</code></pre></div></div><ul><li><code>var q using bb be pt lit pt do … end . else return 0 .</code> asks <code>bb</code> for <code>size_of pt</code> bytes (16 here). If it gets them, it fills them with zeros, lays the struct’s layout over them as <code>view</code> does, and writes the fields you gave. <code>used</code> is 16 while <code>q</code> lives, so the answer is 1607.</li><li>Fields are read and written as in any struct (<code>field q y</code>, <code>set (field q y) …</code>). The bytes are given back when the block ends, as in the previous section.</li><li>Only a struct with a byte layout is accepted — every field must be a sized number. A struct with a slice, <code>owned</code> or array field has no representation in allocator bytes yet and is <code>E-LIT-UNBUILT</code>.</li></ul><h3 id="s20-7">20.7 Where the three layers sit in the standard library<a class="plink" href="#s20-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Module · name</strong></th><th><strong>Capability</strong></th><th><strong>Policy (type)</strong></th><th><strong>State (value)</strong></th></tr><tr><td><code>allocs.bump_bytes</code> · <code>bump_aligned</code></td><td>none — borrowed bytes</td><td>an actor with <code>byte_allocator</code> · <code>freeing_allocator</code></td><td>backing bytes · cursor</td></tr><tr><td><code>allocs.fixed_bytes</code> · <code>heap_bytes</code></td><td>capability field <code>cap allocator</code> · <code>cap heap</code></td><td><code>byte_allocator</code></td><td>amount used</td></tr><tr><td><code>vecgen.vec t a</code></td><td>none</td><td>takes the allocator type <code>a</code> as a parameter</td><td>element count · buffer — <code>open</code> takes the allocator with <code>using</code></td></tr><tr><td><code>growvec.gvec</code></td><td>none</td><td>a name fixed to <code>vecgen.vec u8 allocs.bump_bytes</code></td><td>same as <code>vecgen</code></td></tr><tr><td><code>pool.block_pool b</code></td><td>none — borrowed bytes</td><td>not an allocator — a struct that takes blocks back one by one through generation handles</td><td>blocks · generation array</td></tr></table></div><p class="float-caption">Table 20.4 — Allocation-related modules — which of capability, policy and state each one carries</p></figure><p>Only the two actors that reach a root hold a capability. Everything else works on bytes someone handed over. So library code that received no capability can still build and grow containers, and to find the code that brings new memory into the program you only look at the ops that received a capability.</p><h3 id="s20-8">20.8 Who sets the size of the fixed window?<a class="plink" href="#s20-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>On a machine without an operating system, the fixed window is the memory between two symbols set by the linker. Its size is not baked into the executable. The compiler emits a linker-script fragment, and only the size in that fragment changes per board.</p><pre><code data-lang="text">$ lowentc --emit-ldscript --fixed-bytes 4096 fixed.low
+.lw_fixed (NOLOAD) : ALIGN(8)
+{
+    __lw_fixed_start = .;
+    . = . + 4096;
+    __lw_fixed_end = .;
+}</code></pre><p>To imitate another board on the host, give the VM a window size. <code>fixed.low</code> asks for 64 bytes twice, so shrinking the window to 100 bytes with <code>lowentc --fixed-bytes 100 --run main fixed.low</code> makes the second <code>reserve</code> return <code>none</code> and prints <code>main() = 2</code>. You can see on your development machine where a small machine runs out of memory.</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Embedded code does not allocate dynamically, so it needs no allocator</strong></p><div class="dev-body">The real meaning of “no dynamic allocation” is not to use <strong>a growing heap</strong> and <strong>allocation that hides its failures</strong>. Carving from a window fixed once at boot, returning shortage as a value, and rewinding all at once do not conflict with that discipline. Lowent’s fixed window has its size written by the linker, shortage is <code>none</code>, and the heap effect is blocked at translation. The grammar keeps the rule.</div></div><h3 id="s20-9">20.9 Same bits, different reading<a class="plink" href="#s20-9" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-49"></span><p>Reading the same bytes as a different type comes in two kinds. <code>view</code>, which lays a struct layout over a byte slice, was seen in chapter 13. Keeping the bit pattern between two scalars of the same width and changing only how it is read is <code>bit_cast</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/bitcast.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bitcast .
+<em><span class="tok-c">rem run: reinterpret -1</span></em>
+<em><span class="tok-c">rem run: float_bits 1.0</span></em>
+
+<strong><span class="tok-k">fn</span></strong> reinterpret <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> bit_cast <strong><span class="tok-t">u32</span></strong> x .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> float_bits <strong><span class="tok-k">input</span></strong> f <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> bit_cast <strong><span class="tok-t">u64</span></strong> f .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run reinterpret bitcast.low -1
+reinterpret(-1) = 4294967295
+$ lowentc --run float_bits bitcast.low 1.0
+float_bits(1.0) = 4607182418800017408
+</code></pre></div></div><p>The −1 of an <code>i32</code> has every bit set, so read as a <code>u32</code> it is 4294967295. Reading the <code>f64</code> 1.0 as a <code>u64</code> shows its IEEE 754 representation as is. Unlike <code>cast</code>, it does not move the value, so it never stops.</p><p>The target type must be one where <strong>every bit pattern is a valid value</strong>. <code>bool</code> and <code>enum</code> are not.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/bitcast_bool.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bitcast_bool .
+<em><span class="tok-c">rem expect: E-TYPE-BITCAST</span></em>
+
+<strong><span class="tok-k">fn</span></strong> truthy <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> bit_cast <strong><span class="tok-t">bool</span></strong> a .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check bitcast_bool.low
+bitcast_bool.low:6:0 E-TYPE-BITCAST: bit_cast's target must be a `plain` scalar type — every bit pattern valid, no padding (SPEC-004 §190). bool/enum have trap representations and are NOT plain, so they are outside safe punning
+</code></pre></div></div><p>Reading the <code>u8</code> value 2 as a <code>bool</code> would give a value that is neither true nor false. The path that creates such values is closed.</p><h3 id="s20-10">20.10 Common mistakes<a class="plink" href="#s20-10" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Forgetting <code>init</code> on a bump allocator</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_noinit.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noinit .
+<em><span class="tok-c">rem expect: E-ACTOR-UNINIT</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> carve <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <em><span class="tok-c">rem ✘ `send a init buf` is missing --- asks an allocator that has no bytes to hand out</span></em>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">3</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> a used .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noinit.low
+mistake_noinit.low:10:0 E-ACTOR-UNINIT: this is the FIRST message sent to an actor that was just spawned, and the handler READS a state field that holds a slice without setting it. A fresh actor's state is all zeroes, and zero is not a slice: the VM stops (`len needs a slice`) while native quietly answers `none` — the two back ends disagree, which means one of them is lying. Send the message that sets it up first (the one whose handler `set`s that field, typically `init`)
+</code></pre></div></div><p><code>bump_bytes</code> does not create memory by itself. Until bytes are attached with <code>send a init buf</code>, it has nothing to hand out. A just-spawned actor’s state fields are all zeroes, and zero is not a slice — reading that field makes the VM and the native build run differently. So translation refuses it (<code>E-ACTOR-UNINIT</code>). Put the <code>init</code> on the line right after spawning the allocator.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Attaching the same bytes to two allocators</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_sharedbuf.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_sharedbuf .
+<em><span class="tok-c">rem expect: E-EXCL</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> twice <strong><span class="tok-k">input</span></strong> buf <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> a <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">var</span></strong> b <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <em><span class="tok-c">rem ✘ the same bytes are given to two allocators --- both hand out the same place</span></em>
+  <strong><span class="tok-k">let</span></strong> c1 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> a init buf .
+  <strong><span class="tok-k">let</span></strong> c2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> b init buf .
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> a reserve <span class="tok-n">3</span> .
+  <strong><span class="tok-k">let</span></strong> q <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> b reserve <span class="tok-n">3</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some q . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">92</span> .
+  <strong><span class="tok-k">let</span></strong> pv <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value p .
+  <strong><span class="tok-k">let</span></strong> qv <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> some_value q .
+  <strong><span class="tok-k">set</span></strong> (idx pv <span class="tok-n">0</span>) <span class="tok-n">65</span> .
+  <strong><span class="tok-k">set</span></strong> (idx qv <span class="tok-n">0</span>) <span class="tok-n">66</span> .
+  <em><span class="tok-c">rem 65 was written, yet 66 comes back</span></em>
+  <strong><span class="tok-k">return</span></strong> idx pv <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_sharedbuf.low
+mistake_sharedbuf.low:12:0 E-EXCL: the same WRITABLE place was handed to a SECOND actor. A write borrow is exclusive (§8.4): two actors holding the same bytes both hand them out, so two containers silently overlap and a write through one is read through the other (measured: 65 written, 66 read back). Give each actor its own bytes — `subslice` the buffer into pieces that do not overlap
+</code></pre></div></div><p>The two allocators know nothing of each other. Both cut from the front of <code>buf</code>, so <code>pv</code> and <code>qv</code> become the same place: write 65 and then 66, and reading <code>pv</code> gives 66. The rule that there is only one write borrow (chapter 12) must hold across the actor boundary too, so this is refused with <code>E-EXCL</code> (until 2026-09-16 it passed). Attach separate bytes to each allocator; if one buffer must be shared out, cut two non-overlapping pieces with <code>subslice</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Leaving out <code>using</code> when two allocators fit</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_ambiguous.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_ambiguous .
+<em><span class="tok-c">rem expect: E-ALLOC-AMBIGUOUS</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> two_from
+  <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> a <strong><span class="tok-k">type</span></strong> .
+  <strong><span class="tok-k">using</span></strong> al a .
+  <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">via</span></strong> a .
+  <strong><span class="tok-k">requires</span></strong> allocs.byte_allocator a .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">3</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">proc</span></strong> with_two <strong><span class="tok-k">input</span></strong> small <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> big <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">var</span></strong> g <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> s init small .
+  <strong><span class="tok-k">let</span></strong> y <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> g init big .
+  <em><span class="tok-c">rem ✘ two allocators of a fitting type are in scope, and the call does not say which</span></em>
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> two_from .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_ambiguous.low
+25:16 E-ALLOC-AMBIGUOUS: this call draws from an allocator, and MORE THAN ONE value of a fitting type is in scope — the tool will not guess which one you meant. Say it on the binding: `let &lt;name> &lt;type> using &lt;allocator> be …` (RFC-0112 D8(4))
+</code></pre></div></div><p><code>s</code> and <code>g</code> are both <code>bump_bytes</code>, so the tool cannot guess. A guess might carve from the big buffer what should come from the small one, or the other way round, and such a bug stays hidden on a development machine with plenty of memory. So it stops with <code>E-ALLOC-AMBIGUOUS</code> and asks you to say which.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/ambiguous_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> ambiguous_fixed .
+<em><span class="tok-c">rem run: with_two [0,0,0,0] [0,0,0,0,0,0,0,0]</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> two_from
+  <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> a <strong><span class="tok-k">type</span></strong> .
+  <strong><span class="tok-k">using</span></strong> al a .
+  <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> <strong><span class="tok-k">via</span></strong> a .
+  <strong><span class="tok-k">requires</span></strong> allocs.byte_allocator a .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">3</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">proc</span></strong> with_two <strong><span class="tok-k">input</span></strong> small <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> big <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> s <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">var</span></strong> g <strong><span class="tok-k">be</span></strong> allocs.bump_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.bump_bytes .
+  <strong><span class="tok-k">let</span></strong> x <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> s init small .
+  <strong><span class="tok-k">let</span></strong> y <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <strong><span class="tok-k">send</span></strong> g init big .
+  <em><span class="tok-c">rem name the source on the binding with `using`</span></em>
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">using</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> two_from .
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">using</span></strong> g <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> two_from .
+  <strong><span class="tok-k">return</span></strong> m .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run with_two ambiguous_fixed.low [0,0,0,0] [0,0,0,0,0,0,0,0]
+with_two([0,0,0,0], [0,0,0,0,0,0,0,0]) = 6
+  arg0 (written) = [0,0,0,0]
+  arg1 (written) = [0,0,0,0,0,0,0,0]
+</code></pre></div></div><p>The two calls to <code>two_from</code> each carved 3 bytes from the same <code>g</code>, so <code>used</code> is 6. With the source written on every call, you can read which buffer shrinks.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Leaving out <code>via a</code> in a generic op</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/mistake_novia.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_novia .
+<em><span class="tok-c">rem expect: E-EFFECT</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> one_from
+  <strong><span class="tok-k">input</span></strong> <strong><span class="tok-k">comptime</span></strong> a <strong><span class="tok-k">type</span></strong> .
+  <strong><span class="tok-k">using</span></strong> al a .
+  <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <em><span class="tok-c">rem ✘ no `via a` --- the `alloc` the allocator performs is not part of this op's declaration</span></em>
+  <strong><span class="tok-k">effects</span></strong> <strong><span class="tok-k">state</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> allocs.byte_allocator a .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> al reserve <span class="tok-n">3</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some p . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">91</span> .
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">send</span></strong> al used .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">proc</span></strong> with_fixed <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> fb <strong><span class="tok-k">be</span></strong> allocs.fixed_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.fixed_bytes .
+  <strong><span class="tok-k">let</span></strong> n <strong><span class="tok-k">using</span></strong> fb <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> one_from .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_novia.low
+mistake_novia.low:13:1 E-EFFECT: this op performs `alloc`, which its `effects` clause does not declare — add it to `effects …`, or stop calling what needs it
+mistake_novia.low:20:1 W-EFFECT-OVER: this op DECLARES `alloc` but never PERFORMS it. A declared effect is a cost the caller must budget for (a pure caller cannot call an `io` op). Drop it, or — if a future version will perform it — say so (RFC-0007)
+</code></pre></div></div><p><code>one_from</code> declares only <code>effects state .</code>, but when instantiated with <code>fixed_bytes</code>, <code>reserve</code> performs <code>alloc</code>. <code>via a</code> is what makes “the allocation effects of type <code>a</code> are part of my declaration” true, so each instance gets exact effects. Without it you get <code>E-EFFECT</code>, and since the effect does not reach the caller, <code>with_fixed</code> oddly gets a <code>W-EFFECT-OVER</code> as well. Fixing the first error removes the second.</p></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Spawning another allocator gives you another window</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch20/shared_window.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> shared_window .
+<em><span class="tok-c">rem run: main</span></em>
+
+<strong><span class="tok-k">use</span></strong> allocs .
+
+<strong><span class="tok-k">proc</span></strong> main <strong><span class="tok-k">input</span></strong> al <strong><span class="tok-k">cap</span></strong> allocator . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">effects</span></strong> alloc <strong><span class="tok-k">state</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem two allocators, but only one fixed window</span></em>
+  <strong><span class="tok-k">var</span></strong> f1 <strong><span class="tok-k">be</span></strong> allocs.fixed_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.fixed_bytes .
+  <strong><span class="tok-k">var</span></strong> f2 <strong><span class="tok-k">be</span></strong> allocs.fixed_bytes <strong><span class="tok-k">spawn</span></strong> <strong><span class="tok-k">actor</span></strong> allocs.fixed_bytes .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> f1 reserve <span class="tok-n">40000</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some a . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+  <em><span class="tok-c">rem `f2` has used nothing yet, but the window has too little room left</span></em>
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-k">mut</span></strong> <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> <strong><span class="tok-k">send</span></strong> f2 reserve <span class="tok-n">40000</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some b . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run main shared_window.low
+main() = 2
+</code></pre></div></div><p><code>fixed_bytes</code> carves from the <strong>root</strong>. There is one root and one cursor (chapter 18). Once <code>f1</code> takes 40000 bytes, <code>f2</code> gets <code>none</code> even though it has used nothing yet, because the default window (65536 bytes) has too little room left. An allocator’s <code>used</code> is the amount <strong>that allocator</strong> has used, not what is left in the whole window. If you need separate budgets, take one large piece from the window and attach non-overlapping parts of it to several <code>bump_bytes</code>.</p></div></div><h3 id="s20-11">20.11 This chapter’s syntax at a glance<a class="plink" href="#s20-11" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>var a be allocs.bump_bytes spawn actor allocs.bump_bytes .</code></td><td>spawn an allocator (its state)</td><td>state is an actor value — there is no global allocator</td></tr><tr><td><code>send a init buf</code></td><td>attach the bytes to hand out</td><td>an allocator never creates memory behind your back</td></tr><tr><td><code>send a reserve 3</code> · <code>send a used</code></td><td>request a piece (<code>option</code>) · amount used</td><td>shortage is a value, not a trap</td></tr><tr><td><code>input comptime a type .</code></td><td>receive the allocator’s type (policy) at translation time</td><td>swapping costs nothing at run time</td></tr><tr><td><code>using al a .</code></td><td>receive an allocator value of that type — not an input</td><td>it does not sit among the call’s arguments</td></tr><tr><td><code>let n using g be u64 two_from .</code></td><td>say which allocator this call carves from</td><td>with two or more, nothing is guessed</td></tr><tr><td><code>effects state via a .</code> · <code>requires allocs.byte_allocator a .</code></td><td>inherit the type’s effects · trait condition</td><td>exact effects per instance</td></tr><tr><td><code>allocs.fixed_bytes</code> · <code>allocs.heap_bytes</code></td><td>default allocators carving straight from a root</td><td>only an op holding that kind of capability may spawn one — <code>E-CAP-FORGE</code></td></tr><tr><td><code>send b grow pv 6</code> · <code>send b release qv</code></td><td>grows the last piece · takes it back</td><td>checks identity with <code>same_slice</code>, not size</td></tr><tr><td>no source · an unused <code>using</code></td><td><code>E-ALLOC-NOSOURCE</code> · <code>E-ALLOC-USING-UNUSED</code></td><td>no global allocator, and no empty choice</td></tr><tr><td><code>var xs using bb be mut slice u64 lit array u64 4 … . else …</code></td><td>takes a list from the allocator you choose</td><td>goes to <code>else</code> if it runs out — which must leave</td></tr><tr><td><code>bit_cast u32 x</code></td><td>keep the bits, change only how they are read</td><td>never read as <code>bool</code> or <code>enum</code></td></tr></table></div><p class="float-caption">Table 20.5 — Allocator syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">An allocator is a capability, a policy (a type satisfying a trait) and state (an actor value). A bump allocator cuts borrowed bytes and reports shortage as <code>none</code>. Allocators are received with <code>input comptime a type .</code> and <code>using al a .</code>, swapped at no run-time cost, and there is no global allocator. <code>fixed_bytes</code> and <code>heap_bytes</code> are default allocators with capability fields and can be spawned only from ops holding the same kind of capability. The linker sets the size of the fixed window. <code>bit_cast</code> keeps the bits and never reads them as <code>bool</code> or <code>enum</code>.</div></div>
+<div class="nav"><a href="ch19.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch21.html">Next →</a></div>
+</div></main>
+<script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>
+(function(){
+  var q=document.getElementById('q'), out=document.getElementById('qr');
+  if(!q||!out) return;
+  var data=null, NONE="Nothing found";
+  function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+  function run(){
+    var v=q.value.trim().toLowerCase();
+    out.innerHTML='';
+    if(!v||!data) return;
+    var hits=[];
+    for(var i=0;i<data.length && hits.length<40;i++){
+      if(data[i][0].toLowerCase().indexOf(v)>=0) hits.push(data[i]);
+    }
+    if(!hits.length){ out.innerHTML='<li>'+NONE+'</li>'; return; }
+    out.innerHTML=hits.map(function(h){
+      return '<li><a href="'+h[1]+'">'+esc(h[0])+'</a>'+
+             (h[2]?'<span class="where">'+esc(h[2])+'</span>':'')+'</li>';
+    }).join('');
+  }
+  q.addEventListener('input',function(){
+    if(data){ run(); return; }
+    fetch('search-index.json').then(function(r){return r.json();})
+      .then(function(j){ data=j; run(); })
+      .catch(function(){ out.innerHTML='<li>'+NONE+'</li>'; });
+  });
+})();
+</script></body></html>

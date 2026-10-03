@@ -1,0 +1,9 @@
+module mutproc .
+rem run: zero_first [7,8,9]
+
+proc zero_first input xs mut slice u8 . output u64 . effects state .
+  requires gt (len xs) 0 .
+do
+  set (idx xs 0) 0 .
+  return len xs .
+end

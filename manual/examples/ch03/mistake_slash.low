@@ -1,0 +1,9 @@
+module mistake_slash .
+rem expect: E-RETURN-PARTIAL
+
+fn twice input a u64 . output u64 .
+do
+  rem ko: ✘ `//` 는 주석 표시가 아니다 --- 이 줄과 아랫줄이 마침표 하나로 끝나는 폼 하나가 된다 /// en: ✘ `//` is not a comment marker --- this line and the next become one form ending at a single stop
+  // double it
+  return mul a 2 .
+end

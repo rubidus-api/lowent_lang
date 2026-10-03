@@ -1,0 +1,8 @@
+module widening .
+rem run: wider 200 60000
+rem trap: wider 255 65535
+
+rem ko: u8 과 u16 을 더하면 둘을 다 담는 가장 작은 타입(u16)에서 계산된다 /// en: adding u8 and u16 computes in the smallest type holding both (u16)
+fn wider input a u8 . input b u16 . output u32 . do
+  return add a b .
+end

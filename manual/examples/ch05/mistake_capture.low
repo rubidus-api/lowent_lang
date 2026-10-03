@@ -1,0 +1,15 @@
+module mistake_capture .
+rem expect: E-LOCAL-CAPTURE
+
+rem ko: ✘ 로컬 op 은 바깥의 `limit` 을 보지 않는다 --- 매개변수로 건넨다 /// en: ✘ a local op does not see the outer `limit` --- pass it in as a parameter
+export fn count_over input xs slice u8 . input limit u8 . output u64 .
+do
+  fn over input x u8 . output bool .
+  do
+    return gt x limit .
+  end
+  return pipe xs do
+    filter over .
+    count .
+  end .
+end

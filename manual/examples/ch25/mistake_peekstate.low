@@ -1,0 +1,21 @@
+module mistake_peekstate .
+rem expect: E-ACTOR-FIELD
+
+actor counter do
+  state do
+    value u64 .
+  end
+  proc inc output u64 . effects state .
+  do
+    set value (add value 1) .
+    return value .
+  end
+end
+
+proc peek output u64 . effects state .
+do
+  var c be counter spawn actor counter .
+  let a be u64 send c inc .
+  rem ko: ✘ 액터의 상태 칸을 바깥에서 읽는다 --- 막혀야 할 자리가 이 판에서는 통과한다 /// en: ✘ reads the actor's state field from outside --- this should be blocked, but passes in this edition
+  return field c value .
+end

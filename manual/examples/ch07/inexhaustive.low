@@ -1,0 +1,10 @@
+module inexhaustive .
+rem expect: E-MATCH-INEXHAUSTIVE
+
+fn band input x u8 . output u8 .
+do
+  match x . do
+    case 0 to 9 . do return 1 . end
+    case 11 to 255 . do return 2 . end
+  end
+end

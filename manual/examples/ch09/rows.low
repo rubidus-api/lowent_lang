@@ -1,0 +1,18 @@
+module rows .
+rem run: grid 5
+
+rem ko: 줄의 나열 --- `index g 1` 은 그 줄을 보는 슬라이스다(복사 없음) /// en: a list of rows --- `index g 1` is a view of that row (no copy)
+export fn grid input a u8 . output u64 .
+do
+  var g be lit array (array u8 4) 3 (lit array u8 4 1 2 3 4 .) _ . .
+  let row be mut slice u8 idx g 1 .
+  set (idx row 2) a .
+  set (idx (idx g 2) 3) 9 .
+  var s be u64 0 .
+  for r g do
+    for x r do
+      set s (add s (widen u64 x)) .
+    end
+  end
+  return add (mul s 100) (add (len g) (mul (len (idx g 0)) 10)) .
+end

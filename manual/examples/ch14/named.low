@@ -1,0 +1,17 @@
+module named .
+rem run: half 10
+rem run: third 10
+
+contract positive do
+  requires ge a 1 .
+end
+
+fn half satisfies positive . input a u8 . output u8 .
+do
+  return div a 2 .
+end
+
+fn third satisfies positive . input a u8 . output u8 .
+do
+  return div a 3 .
+end

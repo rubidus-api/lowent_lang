@@ -1,0 +1,114 @@
+#import "../../typst-ko/lib.typ": *
+
+= `pool` --- generational-handle block pool <mod-pool>
+
+#modhead(file: "lib/pool.low", layer: [L1 --- the caller's storage], caps: [none])
+
+A pool lending and taking back fixed-size blocks. Handles carry a *generation number* so stale handles are recognised. Used when objects are created and deleted repeatedly
+and you want to stop the defect of reusing something already deleted (use-after-free). "Take 4 KiB at a time as needed, free a particular block when you choose" has a release
+time that is not lexical, so neither `region` nor a bump will do --- so instead of static checking, generational handles (#chref("regions"), #chref("lib-alloc")).
+
+```lowent
+def newtype pa u8 .
+let po be option (pool.block_pool pa) pool.init pa mem gens 4096 .
+guard is_some po . else return 1 .
+var p be (pool.block_pool pa) some_value po .
+let h be option (pool.handle pa) pool.take pa p .
+```
+
+#aside[What it prevents and what it does not][
+  *Prevents ①* --- *accessing a returned block through an old handle*. The generation differs, so it is rejected (as a runtime value). *Prevents ②* --- *mixing pools*. Handles
+  and pools carry a *brand* as a type, so putting `handle pa` into `block_pool pb` is the compile error `E-TYPE-INSTANCE`. And `init` seals `mem` and `gens`, so ops no longer
+  take them --- the path to passing the wrong array vanished from the surface. A brand is a type, not a value, so handles do not grow. *Does not prevent* --- one brand per
+  declaration. Calling an op that takes a brand as a comptime argument and runs `init` twice makes one brand cover two pools. Keeping one brand per pool is your job. These are
+  not generational handles built into the language --- this is an ordinary library, and the safety comes from its discipline.
+]
+
+*Principle.* Each block has a generation number, copied into the handle on take. Releasing bumps the block's generation, and from that moment old handles no longer match and
+become invalid automatically. *Fixed size* makes release just pushing onto a free list, with zero fragmentation. Generations live in a parallel array `gens` (SoA), and the
+check cost falls only on code passing through the gate `bytes`. *Free list links live inside the blocks' own bytes* --- a released block has a bumped generation and nobody can
+reach it, so using its first 8 bytes as the ledger is free. The pool is a struct, not an actor (actor state cannot hold slices).
+
+#dtable(
+  columns: 3,
+  id: "mod-pool-ops",
+  caption: [Ops of `pool` --- the first argument is the brand, all `effects none`],
+  [*op*], [*Shape*], [*Failure*],
+  [`handle b` · `block_pool b`], [structs --- a handle has `blk` · `len` · `gen`; a pool has sealed `mem` · `gens` and cursors], [---],
+  [`init`], [`comptime b, mem mut slice u8, g mut slice u64, bs u64 → option (block_pool b)`], [`none` if `bs < 8`],
+  [`blocks`], [`fn (comptime b, p) → u64` --- `min(len mem / bs, len g)`], [none],
+  [`take`], [`(comptime b, p mut block_pool b) → option (handle b)`], [`none` if no blocks remain],
+  [`release`], [`(comptime b, p mut, h handle b) → bool`], [`false` for stale or out-of-range handles (double release included)],
+  [`bytes`], [`(comptime b, p, h) → option mut slice u8` --- the only gate to the bytes], [`none` if stale or out of range],
+  [`alive`], [`(comptime b, p, h) → bool`], [none (false is the answer)],
+  [`used` · `outstanding`], [`→ u64` --- blocks ever handed out sequentially · blocks out right now], [none],
+)
+
+`take` *gives back released blocks first* (the free list is LIFO) --- repeated take and release never dries the pool. A reused block's handle is a new handle with a bumped
+generation. Why the brand is written every time --- this language has no inferred type parameters, and that one word is the contract "this handle belongs to that pool".
+
+*Take the view in the borrow head* --- the slice `bytes` returns is a plain slice and knows nothing about release. So take the
+view in the *head of a borrow* --- `borrow v be some_value (pool.bytes <brand> p h) do … end` --- touch bytes only inside it, and
+release *after* the block (#chref("references")). Taken that way, the processor rejects handing that pool to a writing position
+(`release`, `take`) or opening a second borrow from the same pool while the borrow lives: `E-BORROW-EXCL`.
+
+```lowent
+def newtype demo_brand u8 .
+
+proc demo input mem mut slice u8 . input gens mut slice u64 . output u64 . effects none .
+do
+  let po be option (pool.block_pool demo_brand) pool.init demo_brand mem gens 16 .
+  guard is_some po . else return 89 .
+  var p be (pool.block_pool demo_brand) some_value po .
+  let h be option (pool.handle demo_brand) pool.take demo_brand p .
+  guard is_some h . else return 91 .
+  let hh be (pool.handle demo_brand) some_value h .
+  guard pool.alive demo_brand p hh . else return 92 .
+  var total be u64 0 .
+  borrow v be some_value (pool.bytes demo_brand p hh) do
+    set (idx v 8) 3 .
+    set (idx v 9) 4 .
+    set total (add (narrow u64 (idx v 8)) (narrow u64 (idx v 9))) .
+  end
+  let rel be bool pool.release demo_brand p hh .
+  guard eq rel true . else return 94 .
+  let dead be option mut slice u8 pool.bytes demo_brand p hh .
+  guard eq (is_some dead) false . else return 95 .
+  return total .
+end
+```
+
+#antipattern[Reaching through a released handle · double release][
+  After release `bytes` is `none`, and an unchecked `some_value` stops with `E-VM-NONE` on that line. A second `release` just returns `false` silently, so without looking at
+  the return value a "believed released but not" defect hides. Receive it with `guard eq rel true .`.
+]
+
+#antipattern[Releasing with values that must survive in the first 8 bytes][
+  Release overwrites that place with a free list link. It is safe because the generation is bumped and nobody can reach it, but the expectation "it stays in memory after
+  release" is wrong for the first 8 bytes. Put data from byte 8 on.
+]
+
+#antipattern[Sending a borrowed name out of the block][
+  `borrow v be bv do set out v . end` is the compile error `E-BORROW-ESCAPE` --- a borrow ends at the end of its block.
+]
+
+#antipattern[Releasing inside the borrow][
+  `borrow v be some_value (pool.bytes b p h) do pool.release b p h . … end` is the compile error `E-BORROW-EXCL` --- a release changes
+  the pool, and the borrowed view cannot know. Release after closing the block.
+]
+
+#antipattern[Using an old view after the release][
+  `pool.release` declares `invalidates p .`, so a view bound with `let bv be … some_value (pool.bytes b p h) .` and used *after* the
+  release is the compile error `E-VIEW-INVALIDATED` --- the processor follows `bv` back to `p`. To reach the block again, ask `bytes`
+  anew (the generation answers `none`).
+]
+
+#antipattern[Holding two write views of one handle outside a borrow][
+  Calling `bytes` twice with the same arguments and binding two names gives one block two writers. Taken in borrow heads, the second
+  borrow is rejected with `E-BORROW-EXCL`; two bound outside a borrow and both used are rejected with `E-EXCL`. Take one view, in the borrow head.
+]
+
+*Cautions.* Handles are values and can be copied, but releasing through any copy stales them all. `outstanding` not growing no matter how often you take and release is proof
+the free list is alive (`used` grows only in the first few rounds). `outstanding` walks the free list, O(free blocks) --- do not call it on every hot-path pass. One handle =
+one block. Sequential delivery is assumed. Why `outstanding`, not `live` --- the processor could not tell common words used as local variables from op heads. Designing a
+handle's bit widths is helped by #modref("budget")[`budget`].

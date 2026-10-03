@@ -1,0 +1,12 @@
+module mistake_removeprefix .
+rem run: path_len [71,69,84,32,47,97]
+rem run: path_len [80,79,83,84,32,47,97]
+
+use strings .
+
+rem ko: ✘ 접두사가 있었는지 묻지 않고 뗀 결과를 믿는다 --- 없으면 원본 그대로 돌아온다 /// en: ✘ trusts the result of removing without asking whether the prefix was there --- if absent, the original comes back
+fn path_len input line slice u8 . output u64 .
+do
+  let rest be slice u8 strings.remove_prefix line "GET " .
+  return len rest .
+end

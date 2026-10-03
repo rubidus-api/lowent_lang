@@ -1,0 +1,6 @@
+module sig_kind .
+rem expect: E-TRAIT-SIG
+
+trait shape do
+  fn area input s self . output u64 .
+end

@@ -1,0 +1,25 @@
+module unsat .
+rem expect: E-BOUND-UNSAT
+
+trait ordered do
+  less input a self . input b self . output bool .
+end
+
+def struct plain do
+  v u64 .
+end
+
+fn max_of input comptime t type . input a t . input b t . output t .
+  requires ordered t .
+do
+  if method a less b . do
+    return b .
+  end
+  return a .
+end
+
+fn caller output u64 .
+do
+  let m be plain max_of plain (lit plain do v 1 . end) (lit plain do v 2 . end) .
+  return field m v .
+end

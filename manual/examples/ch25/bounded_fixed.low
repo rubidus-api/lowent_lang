@@ -1,0 +1,33 @@
+module bounded_fixed .
+rem run: burst
+
+actor counter do
+  state do
+    value u64 .
+  end
+  mailbox bounded 2 .
+  proc inc output u64 . effects state .
+  do
+    set value (add value 1) .
+    return value .
+  end
+  fn get output u64 .
+  do
+    return value .
+  end
+end
+
+proc burst output u64 . effects state .
+do
+  var c be counter spawn actor counter .
+  spawn send c inc .
+  spawn send c inc .
+  rem ko: 넣지 못하면 멈추지 않고 오류를 값으로 받는다 --- 비운 뒤 다시 넣는다 /// en: if it cannot be put in, receive the error as a value instead of stopping --- drain, then put it in again
+  let r be result u64 mailbox_full try spawn send c inc .
+  if is_error r . do
+    drain c .
+    spawn send c inc .
+  end
+  drain c .
+  return send c get .
+end

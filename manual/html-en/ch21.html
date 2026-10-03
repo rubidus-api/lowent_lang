@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>21 Modules — hidden by default — Lowent Manual</title><style>/* ── 웹 판의 조판 (RFC-0027, 저자 지시 2026-08-10) ────────────────
+ *
+ * 전에는 이 CSS 가 scripts/wrap-html.py 안의 문자열이었다. 디자인을 한 줄
+ * 고치려면 파이썬 파일을 열어야 했고, 무엇이 디자인이고 무엇이 생성 논리인지
+ * 섞여 있었다. 이제 갈라 둔다 --- 디자인은 여기, 생성은 거기.
+ *
+ * ★ 고치는 절차
+ *   1. 이 파일만 고친다.
+ *   2. scripts/style-preview.sh --- build/style-preview.html 을 본다(몇 초).
+ *   3. 괜찮으면 그때 scripts/build-html.sh 로 전체를 만든다.
+ *
+ * ★ 규율 하나: 장치는 *왼쪽 세로선*으로 영역을 말하고, 제목은 *가로 밑줄*로
+ *   경계를 말한다. 소스 코드와 실행 결과(.demo)만 네 변 상자를 쓴다.
+ */
+
+/* ── 글꼴을 직접 싣는다 (RFC-0026 D2, 저자 지시 2026-08-10) ────────
+   전에는 @font-face 가 하나도 없어, CSS 가 적어 둔 이름이 방문자 기계에 없으면
+   대체 글꼴로 떨어졌다 --- 세리프 본문이 고딕으로 보이는 일이 흔했다.
+   이 책이 쓰는 갈래는 셋뿐이다: serif(본문) · sans-serif(제목·UI) · monospace(코드).
+   파일은 scripts/make-webfonts.sh 가 *이 책에 쓰인 글자만* 남겨 만든다.
+   font-display:swap --- 글꼴을 기다리느라 글이 안 보이는 일이 없게 한다. */
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-italic.woff2") format("woff2");
+  font-weight:400; font-style:italic; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+/* ── 색은 세 가지 상태를 모두 적어야 한다 (저자 지적 2026-08-11) ───────
+ * ★ 예전에는 어두운 팔레트가 `@media (prefers-color-scheme: dark)` *안에만*
+ *   있었다. 그래서 「어둡게」 단추가 `data-theme` 를 붙여도 응답할 규칙이 없어
+ *   아무 일도 일어나지 않았고, 「밝게」도 시스템이 어두우면 소용없었다.
+ *   이제 세 자리에 적는다:
+ *     ① 바탕(:root)                          --- 밝은 팔레트
+ *     ② 시스템이 어두울 때, 단 밝게를 고르지 않았으면  --- 어두운 팔레트
+ *     ③ 어둡게를 골랐을 때                      --- 어두운 팔레트
+ *   ②③ 은 같은 값이라 되풀이되지만, CSS 에서 변수 묶음을 이름으로 나눠 쓸
+ *   방법이 없다. 고칠 때는 *둘 다* 고쳐야 한다.
+ */
+:root { color-scheme: light dark; --fg:#141414; --bg:#ffffff; --muted:#5c5c5c;
+  --rule:#c9c9c9; --box-bg:#f6f6f6; --box-rule:#c4c4c4; --code-bg:#f2f2f2; --link:#1a4f8a;
+  --tok-c:#3f5b4a; --tok-k:#123c87; --tok-t:#0f5b63; --tok-s:#7a3b0a;
+  --tok-n:#8a2222; --tok-p:#6b2d8a; --tok-x:#555555; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+    --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+    --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+    --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; } }
+:root[data-theme="dark"] { color-scheme: dark; --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+  --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+  --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+  --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; }
+:root[data-theme="light"] { color-scheme: light; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); line-height:1.75;
+       font-family:"PCB Serif","Noto Serif CJK KR","Noto Serif KR",Georgia,serif; }
+/* ── 상세 차례와 「이 장의 차례」 패널 (저자 지시 2026-08-10) ── */
+.here-btn { margin-left:.7rem; font:inherit; font-size:.92rem; cursor:pointer;
+  background:none; border:1px solid var(--rule,#bbb); border-radius:.25rem;
+  padding:.1rem .5rem; color:inherit; }
+.here-btn:hover { background:rgba(127,127,127,.14); }
+.here-at { margin-left:.7rem; font-size:.92rem; color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:70vh; overflow:auto;
+  border:1px solid var(--rule,#bbb); border-top:none; background:var(--bg,#fff);
+  padding:.6rem .9rem 1rem; box-shadow:0 6px 18px rgba(0,0,0,.12); }
+.here-head { display:flex; align-items:center; gap:.8rem; padding:.2rem 0 .5rem;
+  border-bottom:1px solid var(--rule,#ddd); margin-bottom:.5rem; }
+.here-head .sp { flex:1; }
+.here-all { margin-left:auto; font-size:.9rem; }
+.here-x { font:inherit; font-size:.9rem; cursor:pointer; background:none;
+  border:1px solid var(--rule,#bbb); border-radius:.25rem; padding:.05rem .45rem;
+  color:inherit; }
+.here-body a, .tf-secs a { display:block; text-decoration:none; padding:.12rem 0;
+  line-height:1.45; }
+.here-body a:hover, .tf-secs a:hover { text-decoration:underline; }
+.here-body a.lv4, .tf-secs a.lv4 { padding-left:1.6rem; font-size:.94rem;
+  color:var(--muted,#555); }
+.tf-no { display:inline-block; min-width:3.2rem; color:var(--muted,#666);
+  font-variant-numeric:tabular-nums; }
+.toc-full .tf-ch { margin:.9rem 0 .15rem; font-weight:700; }
+.toc-full .tf-secs { margin:0 0 .5rem .2rem; border-left:2px solid var(--rule,#e2e2e2);
+  padding-left:.7rem; }
+.toc-full h4.toc-part { margin-top:1.8rem; }
+.toc a.toc-detail { font-weight:700; }
+@media print { .here-btn, .here-panel { display:none; } }
+/* 왼쪽부터 죽 이어 쓰고, 좁으면 개행한다 (저자 지시 2026-08-10).
+   전에는 가운데 여백(.sp)이 뒤쪽 항목을 오른쪽 끝으로 밀어 두 덩이로
+   갈라져 있었다. 좁은 화면에서는 그 사이가 벌어져 읽기 나빴다. */
+.bar { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; gap:.35rem .8rem; align-items:center;
+       padding:.55rem clamp(.8rem,3vw,2.5rem); background:var(--bg);
+       border-bottom:1px solid var(--rule); font-size:.86rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.bar a { color:var(--link); text-decoration:none; } .bar a:hover { text-decoration:underline; }
+.bar .sp { display:none; }        /* 더 쓰지 않는다 --- 왼쪽 정렬로 이어 쓴다 */
+main { width:100%; padding:1.6rem clamp(.9rem,3vw,2.5rem) 5rem; }
+/* 폭을 가두지 않는다 — 보통의 웹 문서처럼 화면 가로를 그대로 쓴다.
+   (2026-08-10: 40rem 으로 가둬 봤으나 저자가 「모양이 깨졌다」며 되돌리라고
+   했다. 줄 길이 문제는 D4 의 *독자가 고르는 폭*으로 푼다.) */
+.wrap { width:100%; max-width:none; margin:0; }
+h1,h2,h3,h4 { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; line-height:1.35;
+  padding-bottom:.18rem; border-bottom:1px solid var(--rule); }
+h1 { font-size:clamp(1.5rem,3.4vw,2.1rem); margin:.2rem 0 .9rem; }
+h2 { font-size:clamp(1.35rem,3vw,1.8rem); margin:0 0 .7rem; padding-bottom:.35rem;
+     border-bottom:2px solid var(--fg); }
+h3 { font-size:clamp(1.05rem,2.2vw,1.25rem); margin:1.5rem 0 .5rem;
+     padding-bottom:.22rem; border-bottom:1.5px solid var(--fg); }
+p { margin:.9rem 0; } a { color:var(--link); }
+/* 본문 문단은 첫 줄을 한 글자만큼 들여쓴다 — PDF 와 같은 규칙
+   (저자 지시 2026-08-06). 구조적인 자리(표지·차례·표제·캡션·목록)는 뺀다. */
+main p { text-indent: 1em; }
+.cover p, .note p, .toc p, .float-caption, .metalist p, .memrow p,
+.colophon-meta p, li p, td p, th p, figure p, blockquote p,
+.demo-src p, .demo-out p, pre, pre p,
+.dev-label, p.dev-label { text-indent: 0; }
+/* 출처 주석 — PDF 의 각주에 해당한다(lib.typ 의 note). Typst 의 HTML 내보내기가
+   각주 본문을 버리므로 lib.typ 이 본문에 펴 두고, wrap-html.py 의 collect_notes 가
+   번호를 매겨 장 끝의 「주」로 옮긴다. 아래 .src-note 는 혹시 옮겨지지 않은 것이
+   있을 때의 대비책이다. */
+.src-note { font-size: .86em; color: var(--muted, #666); }
+.src-note code { font-size: .95em; }
+sup.fnref { font-size: .72em; line-height: 0; vertical-align: super; }
+sup.fnref a { text-decoration: none; padding: 0 .1em; }
+sup.fnref a::before { content: "["; }
+sup.fnref a::after  { content: "]"; }
+.chapter-notes { margin: 3rem 0 1rem; padding-top: .9rem;
+                 border-top: 2px solid var(--rule, #333); }
+.chapter-notes h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
+.chapter-notes ol { margin: 0; padding-left: 1.6em; }
+.chapter-notes li { font-size: .92em; margin: .35em 0; text-indent: 0; }
+.chapter-notes a.fnback { text-decoration: none; }
+/* 상자 안에서는 표제 줄에 붙는 첫 문단만 들여쓰지 않는다(PDF 의 all:false) */
+.dev p { text-indent: 0; }
+.dev p + p { text-indent: 1em; }
+/* 표지(문./답.)가 들어간 첫 문단은 절대 들여쓰지 않는다 */
+.dev p:has(> span.dev-label:first-child) { text-indent: 0; }
+.chapter-head p { text-indent: 0; }
+pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Menlo,monospace; }
+code { background:none; padding:0; font-size:.95em; }
+pre { background:none; border:1px solid var(--fg); border-radius:0;
+      padding:.95rem 1.05rem; overflow-x:auto; line-height:1.6; font-size:.95rem;
+      margin:1.2rem 0; }
+.tok-c { color:var(--tok-c); font-style:italic; }
+.tok-k { color:var(--tok-k); font-weight:700; }
+.tok-s { color:var(--tok-s); }
+.tok-n { color:var(--tok-n); }
+.tok-t { color:var(--tok-t); font-weight:700; }
+.tok-x { color:var(--tok-x); }
+.tok-p { color:var(--tok-p); }
+pre code { background:none; padding:0; }
+/* 표: 바깥은 굵게, 안은 가늘게, 머리행은 굵은 글씨에 옅은 음영
+   (저자 지시 2026-08-06). */
+/* 표는 내용에 필요한 만큼만 폭을 쓰고 가운데에 선다. 100% 폭으로 늘리면
+   셀 오른쪽에 빈 칸이 생겨 테두리와 내용이 어긋나 보인다
+   (저자 지적 2026-08-06). 넘칠 때는 감싼 .tblwrap 이 가로로 스크롤한다. */
+.tblwrap { overflow-x:auto; text-align:center; }
+/* inline-table 은 언제나 내용만큼만 넓어진다(shrink-to-fit). flex 로 가운데를
+   맞추면 브라우저에 따라 늘어나거나 왼쪽이 잘리는 일이 있어 이 방식을 쓴다. */
+.tblwrap > table { display:inline-table; width:auto; max-width:none; margin:1.1rem 0; }
+table { border-collapse:collapse; margin:1.1rem auto; font-size:.95rem;
+        width:auto; max-width:100%; border:2px solid var(--fg);
+        table-layout:auto; }
+th, td { white-space:normal; }
+th,td { border:1px solid var(--rule); padding:.42rem .6rem; text-align:left; vertical-align:top; }
+/* 머리행 — 옅은 음영으로 포인트를 준다(PDF 와 같은 처리). 색이 아니라
+   반투명 회색이라 밝은·어두운 테마 양쪽에서 자연스럽다. */
+th { background:rgba(128,128,128,.16); font-weight:700;
+     border-bottom:2px solid var(--fg);
+     font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+table tr:first-child th, table tr:first-child td { border-bottom:1px solid var(--fg); }
+ul,ol { padding-left:1.4rem; } li { margin:.3rem 0; }
+/* 표·그림 목록은 훑어보는 것이라 촘촘해야 한다 (저자 지시 2026-08-31) */
+.float-list { list-style:none; padding-left:0; }
+.float-list li { margin:.12rem 0; }
+/* 메모리 사물함 도해 — 칸과 그 아래 주소. 표 서식과 섞이지 않게 따로 둔다. */
+.memrow { overflow-x:auto; text-align:center; margin:1.1rem 0 .2rem; }
+.memrow table.mem { display:inline-table; border-collapse:collapse;
+  border:none; margin:0; width:auto; }
+.memrow td.cell { border:1px solid var(--fg); padding:.3rem .5rem;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.9rem;
+  text-align:center; background:none; }
+.memrow td.cell.hi { border-width:2px; }
+.memrow td.addr { border:none; padding:.15rem .5rem 0; text-align:center;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.82rem;
+  color:var(--muted); }
+/* 시연 — 소스와 실행 결과는 선명한 검은 테두리로 묶는다 */
+/* 시연 상자 — 문답과 같은 1×2 모양. 위 칸은 표제(파일 경로는 고정폭,
+   "실행 결과"는 산세리프 굵은 글씨), 가로선 아래 칸이 내용이다
+   (저자 지시 2026-08-06). */
+.demo { border:1px solid var(--fg); margin:1.15rem 0; }
+.demo > .demo-head { margin:0; padding:.5rem .9rem; text-indent:0;
+  border-bottom:1px solid var(--fg); font-weight:700; font-size:.92rem; }
+.demo-src > .demo-head { font-family:"PCB Mono","D2Coding",ui-monospace,monospace; }
+.demo-in > .demo-head, .demo-out > .demo-head {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.demo > .demo-body { padding:0; }
+.demo > .demo-body pre { border:none; border-radius:0; margin:0;
+  padding:.6rem .9rem; }
+
+/* ── 왼쪽 세로선 규율 (저자 지시 2026-08-10) ─────────────────
+   네 변 상자는 좌우 안쪽 여백이 양쪽에서 폭을 갉는다. 왼쪽 세로선 하나로
+   영역만 표시하고 오른쪽은 열어 둔다. 제목 쪽 선이 내용 쪽보다 굵고, 둘은
+   서로 붙지 않는다(사이에 여백). 제목(heading)은 반대로 *가로* 밑줄이다 ---
+   영역과 경계는 하는 일이 다르므로 표시도 갈라 둔다. */
+.dev { margin:1.15rem 0; padding:0; background:none; border:none; border-radius:0; }
+/* 표지 줄 --- 굵은 왼쪽 선 */
+.dev > .dev-label { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0 0 .34rem; }
+/* 본문 --- 가는 왼쪽 선 *하나*로 끝까지 이어진다.
+   ★ 자식마다 선을 그으면 문단 사이에서 끊기고, 한 문단짜리 본문(맨 글)은
+   선을 아예 받지 못한다. 그래서 본문을 한 겹으로 감싸고 그 칸에만 긋는다. */
+.dev > .dev-body { border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem .35rem .8rem; margin:0; }
+.dev > .dev-body > *:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child { margin-bottom:0; }
+/* 표·그림 캡션 — 대상 아래 가운데, 산세리프 */
+.float-caption { text-align:center; font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; color:var(--muted); margin:.35rem 0 1.2rem; }
+figure { margin:1.2rem 0; }
+figure.tbl table { margin-bottom:.2rem; }
+figure.tbl { text-align:center; }
+.dev > p:first-child { margin-top:0; } .dev > p:last-child { margin-bottom:0; }
+.dev-label { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+             font-size:.92rem; color:var(--muted); margin-bottom:.4rem; }
+/* 장 서두 — 넷을 각각 하나의 상자로 둔다. 표제 줄과 내용을 가로선으로
+   가르는 모양은 문답·복습 정리와 같다 (저자 지시 2026-08-06).
+   ★ 좌우 여백은 *상자*가 준다. 자식 요소에 주면, 본문이 요소로 감싸이지 않은
+     칸(「이 장이 끝나면」)은 여백이 0 이 되고 문단이 여럿인 칸(질문 목록)은
+     여백이 겹쳐 들쭉날쭉해진다. */
+.dev.open { border:none; border-radius:0; background:none;
+  padding:0; margin:.75rem 0; }
+.dev.open > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.98rem; color:var(--fg); text-transform:none; letter-spacing:0; }
+/* 서두 본문은 한 겹(.open-body) 안에 있다 — 위·아래 여백을 여기서 한 번만 준다 */
+.dev.open > .open-body { margin:0; padding:.35rem .8rem;
+  border-left:2px solid var(--box-rule); }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open > .open-body > * { margin:.4rem 0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+/* 질문 목록 — 번호를 보이게 하고 항목 간격은 촘촘히 */
+.dev.open .open-body > ol.qlist { margin:0; padding-left:1.35rem; }
+.dev.open ol.qlist li { margin:.18rem 0; padding-left:.15rem; }
+.dev.open ol.qlist li::marker { color:var(--muted); font-weight:700; }
+/* 돌아보기 안의 답 — 왼쪽 가는 선으로 구분 */
+.dev.open .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.06rem 0 .06rem .7rem; margin:.32rem 0 0; }
+/* 서두 표지: 굵고 선명한 검은 산세리프, 본문보다 약간 크게
+   (저자 지시 2026-08-06). 대문자 변형과 자간 늘리기는 쓰지 않는다. */
+.prereq .dev-label, .deepqa .dev-label, .why .dev-label,
+.organizer .dev-label, .questions .dev-label {
+  text-transform:none; letter-spacing:0; font-size:1.12rem; font-weight:700;
+  color:var(--fg); margin-bottom:.45rem; }
+/* 돌아보기 안의 답 — 왼쪽 세로선을 또렷하게 */
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+
+/* 문답 — 질문 쪽 선이 굵고, 답 쪽이 가늘고, 둘 사이가 떨어져 있다 */
+.qa-box { border:none; margin:1.15rem 0; }
+.qa-box .dev { margin:0; border:none; border-radius:0; padding:0; background:none; }
+.qa-box .qa-q { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0; }
+.qa-box .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem; margin:.34rem 0 0; }
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:0; }
+/* 복습 정리도 문답과 같은 상자 — 표제 줄과 본문을 가로선으로 가른다 */
+.dev.recap { border:none; background:none; padding:0; margin:1.15rem 0; }
+.dev.recap > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+.dev.recap > .dev-body > p, .dev.recap > .dev-body > div:not(.demo),
+.dev.recap > .dev-body > figure { margin:.3rem 0; padding:0; }
+
+/* ★ 장치 안에 든 시연 상자 --- 소스와 실행 결과는 중첩되어도 상자 그대로다
+   (저자 지시 2026-08-10). 바깥의 세로선 안쪽에서 조금 좁혀 놓는다. */
+.dev > .dev-body > .demo { margin:.7rem 0; }
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+/* 문./답. 은 줄을 바꾸지 않고 질문·답 첫 문단과 같은 줄에 이어 붙는다
+   (저자 지시 2026-08-06). 답의 둘째 문단부터는 그대로 문단으로 흐른다. */
+.qa-q .dev-label, .qa-a .dev-label, .deepqa .qa-a .dev-label {
+  display:inline; margin-bottom:0; }
+.qa-q .dev-label + p, .qa-a .dev-label + p { display:inline; }
+.qa-q .dev-label, .qa-q .dev-label + p {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  color:var(--fg); font-size:1rem; }
+.qa-a .dev-label { color:var(--muted); }
+.qa-a .dev-label + p { font-family:inherit; font-weight:400; }
+span.dev-label { display:inline; font-size:1rem; margin:0; }
+/* 상자형 장치 공통 — 문답 상자와 같은 모양: 표제 줄과 본문을 가로선으로
+   가르고, 좌우 여백은 상자가 준다 (저자 지시 2026-08-06).
+   ★ 예전의 2단 구조(.misconception + div) 규칙이 남아 뒤따르는 문답 상자를
+     오해 상자의 아랫칸처럼 그리던 문제를 여기서 없앤다. */
+/* 같은 꼴을 쓰는 상자들 --- 네 변을 걷고 왼쪽 세로선만 남긴다
+   (저자 지시 2026-08-10). 소스 코드와 실행 결과(.demo)는 그대로 상자다. */
+.dev.misconception, .dev.realcase, .dev.antipattern, .dev.mathbox,
+.dev.platform, .dev.recap {
+  border:none; border-radius:0; background:none; padding:0; margin:1.15rem 0; }
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem; text-indent:0;
+  border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+/* ★ 본문 칸(.dev-body)은 건드리지 않는다 --- 전에는 `> div` 가 그것까지 잡아
+   padding:0 으로 덮어, 실제 사례·반례·흔한 오해의 글이 왼쪽 선에 바짝 붙었다
+   (저자 지적 2026-08-10). 안쪽 문단의 간격만 손본다. */
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure, .dev > .open-body > p {
+  margin:.35rem 0; padding:0; }
+/* 상자 안의 문단 간격은 한 줄 사이 정도로 — 본문 문단 간격(.9rem)을 그대로
+   쓰면 상자 안이 헐렁해 보인다 (저자 지시 2026-08-06). */
+/* 고정 바: 제목은 왼쪽 끝, 장 이동 화살표·언어·GitHub 는 오른쪽 끝
+   (저자 지시 2026-08-06) */
+.bar > strong { flex:0 0 auto; }
+.bar .bar-nav { display:flex; gap:.55rem; align-items:center; margin-right:.35rem; }
+.bar .bar-nav a, .bar .bar-nav .off {
+  display:inline-block; min-width:1.35rem; text-align:center;
+  font-size:1.15rem; line-height:1.1; text-decoration:none; }
+.bar .bar-nav a:hover { text-decoration:none; color:var(--fg); }
+.bar .bar-nav .off { color:var(--muted); opacity:.35; }
+.dev p, .dev div, .dev ul, .dev ol, .qa-box p, .qa-box div {
+  margin-top:.4rem; margin-bottom:.4rem; }
+.dev > *:first-child, .qa-box .dev > *:first-child { margin-top:0; }
+.dev > *:last-child, .qa-box .dev > *:last-child { margin-bottom:0; }
+.dev ul, .dev ol { padding-left:1.3rem; }
+.dev li { margin:.15rem 0; }
+/* ★ 반례의 세로선도 실선이다(저자 지시 2026-08-10). 예전에는 점선으로 갈래를
+   구별했는데, 왼쪽 세로선 체계로 바꾼 뒤로는 그것만 따로 놀았다 --- 갈래는
+   선 모양이 아니라 표지 글(「반례.」)이 말한다. */
+.dev.antipattern > .dev-label { border-left-style:solid; }
+
+.dev.mathbox { font-size:.95rem; }
+.note { border:1px solid var(--rule); background:none; padding:.65rem .9rem;
+        margin:0 0 1.6rem; font-size:.9rem; }
+/* ★ 표지에는 가로줄을 두지 않는다(저자 지시 2026-08-10) --- 제목 밑의 옅은 줄은
+   *일반 제목의 밑줄 규칙*이 표지 제목까지 잡은 것이었고, 소개글 밑의 줄은 표지
+   블록 자신의 아래 테두리였다. 표지는 경계를 말할 자리가 아니다. */
+.cover { text-align:center; margin:1.4rem 0 2rem; padding-bottom:1.2rem; }
+.cover h1 { font-size:clamp(1.9rem,5vw,2.9rem); margin:0; letter-spacing:.01em;
+            padding-bottom:0; border-bottom:none; }
+.cover p { margin:.45rem 0; }
+.cover-sub { font-size:clamp(1rem,2.2vw,1.2rem); color:var(--fg); }
+.badge { display:inline-block; margin-top:.5rem; padding:.16rem .6rem;
+         border:1px solid var(--fg); font-size:.8rem; font-weight:700;
+         font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-meta { color:var(--muted); font-size:.9rem;
+              font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-author { margin-top:1.1rem; font-size:1.05rem; }
+.cover-links { font-size:.87rem; }
+.cover-links a { margin:0 .6rem; }
+.cover-blurb { max-width:44rem; margin:1.7rem auto 0; font-size:.95rem; color:var(--muted); }
+.cover-blurb p { margin:.5rem 0; }
+.metalist { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+  margin:.6rem 0 1rem; }
+.metalist dt { color:var(--muted); font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; }
+.metalist dd { margin:0; }
+.colophon-meta { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+                 margin:1.2rem 0 1.8rem; font-size:.93rem; }
+.colophon-meta dt { color:var(--muted);
+                    font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-size:.88rem; }
+.colophon-meta dd { margin:0; }
+.colophon { font-size:.93rem; }
+.colophon > div { margin:.9rem 0; padding-left:.9rem; border-left:1px solid var(--rule); }
+/* 개념도 — 흑백 선화라 다크 모드에서는 반전해 준다 */
+figure.fig { margin:1.6rem 0; text-align:center; }
+figure.fig img { max-width:100%; height:auto; }
+figure.fig figcaption { margin-top:.5rem; font-size:.92rem; color:var(--muted); }
+@media (prefers-color-scheme: dark) { figure.fig img { filter:invert(1) hue-rotate(180deg); } }
+:root[data-theme="dark"] figure.fig img { filter:invert(1) hue-rotate(180deg); }
+:root[data-theme="light"] figure.fig img { filter:none; }
+.toc { columns:24rem; column-gap:2.4rem; }
+.toc-part { break-inside:avoid; margin:1.1rem 0 .3rem; font-size:.95rem; letter-spacing:.02em;
+            font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.toc-part:first-child { margin-top:0; }
+.toc-front { margin-bottom:.4rem; }
+/* 차례도 선 없이 --- 왼쪽 세로줄과 장마다의 밑줄을 걷어 낸다(저자 지시 2026-08-10).
+   여기는 장치가 아니라 목록이라 선이 뜻하는 바가 없다. */
+.toc-group { break-inside:avoid; padding-left:.85rem; }
+.toc a { display:block; padding:.28rem 0; text-decoration:none; }
+.toc a:hover { text-decoration:underline; }
+.nav { display:flex; gap:1rem; align-items:center; margin-top:3rem; padding-top:1rem;
+       border-top:1px solid var(--rule); font-size:.9rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.nav .sp { flex:1 1 auto; }
+
+/* ── 서식 예시의 이름표 ─────────────────────────────────────────
+   조판 견본(style-specimen)에서만 나온다. 「이 모양을 뭐라고 부르는가」를
+   그 자리에 붙여 둔다 --- 본문에는 쓰지 않는다. */
+code.style-name { font-family:"PCB Mono","D2Coding",ui-monospace,monospace;
+  font-size:.72em; color:var(--muted); background:var(--rule);
+  padding:.05em .35em; border-radius:3px; white-space:nowrap;
+  font-weight:400; letter-spacing:0; }
+
+/* ── 조판 값 --- 견본에서 시험해 채택한 것들 (저자 지시 2026-08-10) ─────
+ *
+ * 아래는 견본(style-specimen)에서 눈으로 확인한 뒤 책에 들인 값이다.
+ * 여백은 일반적인 책의 숨에 맞추고, 선은 색 하나(#d5d5d5)로 모았다
+ * --- 표만 예외다(격자는 옅으면 칸이 안 읽힌다).
+ */
+
+/* 서두 다섯 칸 --- 표지 줄이 선에 눌려 있었다 */
+.dev.open > .dev-label { padding-top:.42rem; padding-bottom:.42rem; }
+.dev.open > .open-body { padding-top:.4rem; padding-bottom:.4rem; }
+.dev.open > .open-body > p { margin:.6rem 0; }
+
+/* 장치 안의 글도 조금 넉넉하게 */
+.dev > .dev-body { padding-top:.5rem; padding-bottom:.5rem; }
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure { margin:.55rem 0; }
+
+/* 본문 --- 줄 사이와 문단 사이 */
+main { line-height:1.85; }
+p { margin:1.15rem 0; }
+h2 { margin-top:2.4rem; }
+h3 { margin-top:2rem; }
+li { margin:.3rem 0; }
+
+/* 제목 밑줄 --- 시험 중: 검정 대신 흐린 회색(저자 지시 2026-08-10).
+   경계를 말하되 글자보다 앞서지 않게. */
+/* 제목 밑줄도 팔레트를 따른다 --- 고정색이면 어두운 테마에서 홀로 밝다 */
+h1, h2, h3, h4 { border-bottom-color:var(--box-rule) !important; }
+
+/* 차례 --- 본문의 넉넉한 행간을 그대로 받아 헐거웠다. 목록은 촘촘해야 훑힌다.
+   (저자 지시 2026-08-10, 웹판 견본) */
+.toc { line-height:1.45; }
+.toc a { padding:.16rem 0; }
+.toc-part { margin:.85rem 0 .2rem; }
+
+/* 저작권·연락처 --- 두 칸짜리 표는 줄 사이가 벌어질수록 짝이 흩어진다 */
+.metalist { line-height:1.45; gap:.2rem 1.2rem; }
+.metalist dt, .metalist dd { margin:0; }
+
+/* 시연 상자(소스 코드·실행 결과) --- 시험 중: 테두리를 연한 회색으로
+   (저자 지시 2026-08-10). 코드가 이미 검은 덩어리다. */
+.demo { border-color:var(--box-rule); }
+.demo > .demo-head { border-bottom-color:var(--box-rule); }
+
+/* ── 왼쪽 세로선 --- 시험 중: 검정에서 연한 회색으로 (저자 지시 2026-08-10)
+ * 색은 팔레트(--box-rule)를 따른다 --- 테마가 바뀌면 선도 함께 바뀐다.
+ * 굵기(4px 대 2px)가 층위를 말하므로 색까지 세게 말할 까닭이 없다. */
+.dev > .dev-label,
+.dev.open > .dev-label,
+.qa-box .qa-q,
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  border-left-color:var(--box-rule); }
+
+.dev > .dev-body,
+.dev > .open-body,
+.dev.open .qa-a,
+.qa-box .qa-a,
+.deepqa .qa-a { border-left-color:var(--box-rule); }
+
+/* ★ 선의 색은 하나다(저자 지시 2026-08-10) --- 표(.tbl)만 예외로 제 색을 쓴다.
+   여기 한 줄로 못 박아, 뒤에 무엇이 오든 같은 회색이 되게 한다. */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div {
+  border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* ★ 특이도(specificity) 함정 --- `.dev.open > .open-body` 는 클래스가 셋이라
+   위의 `.dev *`(하나) 나 `.dev > .open-body`(둘) 보다 세다. 그래서 서두 칸의
+   *내용* 세로선만 var(--box-rule)=#9a9a9a 로 남아 혼자 진했다(저자 지적).
+   같은 자리를 같은 힘으로 눌러 준다. */
+.dev.open > .open-body,
+.dev.open > .qa-a,
+.dev.open .qa-a,
+.dev.deepqa .qa-a,
+.qa-box > .qa-a,
+.qa-box > .qa-q { border-left-color:var(--box-rule); }
+
+/* 상단 바의 차례 그림글자 --- 글자 크기를 조금 키워 다른 이름들과 눈높이를 맞춘다 */
+.bar .bar-toc { font-size:1.15em; line-height:1; text-decoration:none; }
+
+/* ── 통일 (저자 지시 2026-08-11) ─────────────────────────────────────
+ * ★ 「글 전체의 통일성이 중요하다」 --- 장치 안의 글도, 장 안의 차례도, 본문과
+ *   같은 크기·행간·문단 간격을 쓴다. 예전에는 자리마다 값이 조금씩 달라
+ *   상자를 지날 때마다 리듬이 흔들렸다.
+ */
+.dev, .dev-body, .open-body, .qa-box, .qa-q, .qa-a, .dev-label,
+.toc-full, .toc-full .tf-secs { line-height:inherit; font-size:1rem; }
+.dev > .dev-body > p, .dev > .open-body > p,
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:1.15rem 0; }
+.dev > .dev-body > *:first-child, .dev > .open-body > *:first-child,
+.qa-box .qa-q > p:first-child, .qa-box .qa-a > p:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child, .dev > .open-body > *:last-child,
+.qa-box .qa-q > p:last-child, .qa-box .qa-a > p:last-child { margin-bottom:0; }
+/* 표지 줄만은 제 크기를 지킨다 --- 이름이지 본문이 아니다 */
+.dev > .dev-label, .dev.open > .dev-label { font-size:.98rem; line-height:1.4; }
+
+/* 제목: 글자와 밑줄 사이를 넉넉히, 그만큼 밑줄 아래도 넉넉히 */
+h1,h2,h3,h4 { padding-bottom:.34rem; }
+h1 { margin:.2rem 0 1.3rem; }
+h2 { padding-bottom:.42rem; margin-bottom:1.15rem; }
+h3 { padding-bottom:.36rem; margin-bottom:.95rem; }
+
+/* ── 장 서두 칸의 목록과 문단 (저자 지시 2026-08-11) ──────────────────
+ * ★ 항목 사이에 여백을 또 주면 *행간이 두 번 붙은 것처럼* 보인다. 서두 칸은
+ *   짧은 줄이 여럿 늘어서는 자리라 그 겹침이 특히 크게 보였다. 항목 사이
+ *   간격은 행간이 대신하게 두고, 여백은 문단 사이에만 최소로 준다.
+ *   행간 자체는 본문과 같다(main 에서 물려받는다) --- 값을 따로 두지 않는다.
+ */
+.dev.open > .open-body > * { margin:.3rem 0; }
+.dev.open > .open-body > p { margin:.5rem 0; }
+.dev.open > .open-body > div { margin:.15rem 0; }   /* 「먼저 알아야 할 것」의 한 줄들 */
+.dev.open ul, .dev.open ol { margin:.3rem 0; }
+.dev.open li, .dev.open ol.qlist li { margin:0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open .qa-a > p { margin:.35rem 0; }
+
+/* ── 웹판만의 조정 (저자 승인 2026-08-11) ─────────────────────────────
+ * ★ 선의 색을 종이와 화면이 나눠 쓴다. 종이는 잉크가 실제로 얹혀 #d5d5d5 도
+ *   보이지만, 화면에서는 흰 배경 대비 **1.47:1** 이라 밝기를 낮추거나 값싼
+ *   패널에서는 사실상 사라진다 --- 「영역을 한눈에」라는 목적이 화면에서만
+ *   무너진다. 그래서 웹만 한 단계 진하게 둔다(#c4c4c4, 대비 1.75:1).
+ */
+/* 선의 색은 팔레트의 --box-rule 을 따른다 --- 테마가 바뀌면 함께 바뀐다 */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div { border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* 키보드로 다닐 때 지금 어디인지 보여야 한다 --- 없으면 링크를 세며 다녀야 한다 */
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline:2px solid var(--link); outline-offset:2px; border-radius:2px; }
+
+/* 고정 바 아래로 제목이 숨지 않게 --- 차례에서 절을 누르면 바에 가렸다 */
+:target, h1, h2, h3, h4, [id] { scroll-margin-top:4.2rem; }
+
+/* 본문 건너뛰기 --- 상단 바의 링크를 매 쪽마다 지나지 않아도 되게 */
+.skip { position:absolute; left:-9999px; top:0; z-index:30;
+        background:var(--bg); color:var(--fg); border:1px solid var(--fg);
+        padding:.5rem .8rem; font-size:.9rem; text-decoration:none; }
+.skip:focus { left:.5rem; top:.5rem; }
+
+/* ── 상단 바의 펼침 패널과 읽기 설정 (저자 지시 2026-08-11) ────────────
+ * 바에는 넷만 둔다. 나머지는 여기로 접었다 --- 늘 보이던 것을 접어 두면
+ * 읽는 자리가 넓어지고, 필요할 때는 한 번의 누름으로 전부 나온다.
+ */
+.here-btn { font:inherit; color:inherit; background:none; border:1px solid transparent;
+  border-radius:4px; padding:.1rem .45rem; cursor:pointer; }
+.here-btn .caret { color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:78vh; overflow:auto;
+  background:var(--bg); border-bottom:1px solid var(--rule);
+  padding:.6rem clamp(.8rem,3vw,2.5rem) .9rem; }
+
+/* 도구 줄 --- 인라인으로 죽 늘어서다 좁으면 다음 줄로 넘어간다 */
+.here-panel .tools { display:flex; flex-wrap:wrap; gap:.3rem .5rem; align-items:center;
+  margin-bottom:.5rem; }
+.tool { font:inherit; font-size:.86rem; color:inherit; background:none;
+  border:1px solid var(--rule); border-radius:4px; padding:.2rem .55rem;
+  text-decoration:none; cursor:pointer; white-space:nowrap;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+
+/* ★ 누를 수 있다는 것을 바탕색으로 말한다(저자 지시) --- 글자만 바뀌면
+   손이 닿기 전에는 알 수 없다. */
+.tool:hover, .here-btn:hover, .bar a:hover, .nav a:hover,
+.here-panel .here-body a:hover { background:var(--box-bg); }
+.tool:hover { border-color:var(--box-rule); }
+.here-btn:hover { border-color:var(--rule); }
+.bar a, .nav a { border-radius:4px; padding:.1rem .35rem; }
+.tool:active, .here-btn:active, .bar a:active { transform:translateY(1px); }
+.segb[aria-pressed="true"] { background:var(--box-bg); border-color:var(--fg); font-weight:700; }
+
+/* 본문 링크 --- 밑줄로 있음을 말하고, 손이 닿으면 바탕으로 답한다 */
+main a { text-decoration:underline; text-decoration-color:var(--box-rule);
+  text-underline-offset:2px; border-radius:3px; }
+main a:hover { background:var(--box-bg); text-decoration-color:var(--link); }
+main .toc a, main .toc-full a, main .here-body a { text-decoration:none; }
+main .toc a:hover, main .toc-full a:hover { background:var(--box-bg); text-decoration:underline; }
+
+/* 읽기 설정 상자 */
+.setbox { border:1px solid var(--rule); border-radius:5px; padding:.6rem .7rem;
+  margin:0 0 .6rem; font-size:.88rem;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.setrow { display:flex; flex-wrap:wrap; gap:.4rem .7rem; align-items:center;
+  margin:.35rem 0; }
+.setlbl { color:var(--muted); min-width:3.2rem; }
+.seg { display:inline-flex; gap:.25rem; }
+.segb { font:inherit; color:inherit; background:none; border:1px solid var(--rule);
+  border-radius:4px; padding:.15rem .5rem; cursor:pointer; }
+.col { display:inline-flex; align-items:center; gap:.3rem; }
+.col input[type=color] { width:2rem; height:1.4rem; padding:0; border:1px solid var(--rule);
+  border-radius:3px; background:none; cursor:pointer; }
+.setnote { margin:.5rem 0 0; color:var(--muted); font-size:.82rem; }
+
+/* 가로폭 제한 --- 기본은 제한 없음(설계 의도). 독자가 켤 때만 걸린다. */
+:root[data-measure="on"] main .wrap { max-width:46rem; margin-inline:auto; }
+
+/* 펼침 패널 맨 왼쪽의 판 번호 --- 도구가 아니라 표시다(누를 것이 없다) */
+.here-panel .ver { font-size:.82rem; color:var(--muted); padding:.2rem .45rem .2rem 0;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; white-space:nowrap; }
+
+/* ── 코드와 실행 결과의 줄바꿈 (저자 지시 2026-08-11) ─────────────────
+ * ★ 가로로 흘러 넘치게 두면 긴 줄은 *가로 스크롤 안에 숨는다.* 종이에서는
+ *   글자 단위로 접어 넣고 있으니(lib.typ 의 _hardwrap), 화면에서도 같은
+ *   약속을 지킨다 --- 넘치는 대신 접는다. 들여쓰기는 그대로 살린다.
+ */
+.demo pre, .demo pre code {
+  white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
+.demo > .demo-body { overflow-x:visible; }
+
+/* ── 절의 주소(permalink) ─────────────────────────────────────────
+   종이 책에는 쪽수가 있지만 웹 판에는 없어서, 남에게 「거기」를 알려 줄
+   방법이 없었다. 절마다 닻을 두되 *읽기를 방해하지 않게* --- 평소에는
+   보이지 않다가 제목에 닿거나 키보드 초점이 오면 드러난다. */
+.plink {
+  margin-left: .4em; font-weight: 400; text-decoration: none;
+  color: var(--muted, #888); opacity: 0; transition: opacity .12s;
+}
+h3:hover > .plink, h4:hover > .plink,
+h3 > .plink:focus, h4 > .plink:focus { opacity: 1; }
+@media (hover: none) { .plink { opacity: .45; } }
+
+/* ── 검색 ─────────────────────────────────────────────────────────
+   *제목과 색인 표제어*만 찾는다. 본문 전체 색인은 판마다 수 MB 라
+   내려받게 하는 값이 얻는 것보다 크다. 무엇을 찾는지 화면에 적어 둔다. */
+.searchbox { margin:.6em 0 0; }
+.searchbox input[type=search] {
+  width: 100%; padding: .45em .6em; font: inherit;
+  border: 1px solid var(--rule, #ccc); border-radius: 4px;
+  background: var(--bg, #fff); color: var(--fg, #111);
+}
+.search-hint { color: var(--muted, #777); font-size: .85em; margin:.3em 0 0; }
+.search-results { list-style: none; padding: 0; margin: .5em 0 0; }
+.search-results li { margin: .15em 0; }
+.search-results .where { color: var(--muted, #777); font-size: .85em; margin-left: .4em; }
+
+body { font-family:"PCB Serif","Noto Serif",Georgia,"Noto Serif CJK KR",serif; }
+h1,h2,h3,h4,.bar,.dev-label,.toc-part,.cover-meta,.badge,
+.colophon-meta dt { font-family:"Noto Sans",system-ui,"Noto Sans CJK KR",sans-serif; }
+pre,code,kbd { font-family:"Noto Sans Mono",ui-monospace,SFMono-Regular,Menlo,monospace; }
+</style>
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('pcb-read')||'{}');var r=document.documentElement;if(s.theme&&s.theme!=='auto')r.setAttribute('data-theme',s.theme);if(s.fg)r.style.setProperty('--fg',s.fg);if(s.bg)r.style.setProperty('--bg',s.bg);if(s.link)r.style.setProperty('--link',s.link);if(s.width)r.setAttribute('data-measure','on');}catch(e){}})();</script></head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="bar"><strong><a href="index.html">Lowent Manual</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">ch. 21 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch20.html" title="Prev" aria-label="Prev">←</a><a href="index.html" title="Contents" aria-label="Contents">↑</a><a href="ch22.html" title="Next" aria-label="Next">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ Settings</button><a class="tool" href="toc.html">▤ Detailed contents</a><a class="tool" href="../html-ko/ch21.html">Ko</a><a class="tool" href="../pdf-en/lowent-manual-en.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="This book on GitHub">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- every published project">⌂ All projects</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- every repository">≡ All repos</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>Limit line width</span></label><div class="setrow"><span class="setlbl">Theme</span><span class="seg"><button type="button" class="segb" data-theme="auto">System</button><button type="button" class="segb" data-theme="light">Light</button><button type="button" class="segb" data-theme="dark">Dark</button></span></div><div class="setrow"><span class="setlbl">Colours</span><label class="col"><span>Text</span><input type="color" id="s-fg"></label><label class="col"><span>Background</span><input type="color" id="s-bg"></label><label class="col"><span>Link</span><input type="color" id="s-link"></label></div><p class="setnote">Settings are kept in this browser only.</p></div><div class="here-head"><strong>Contents of this chapter</strong></div><div class="here-body"><a class="lv3" href="#s21-1"><span class="tf-no">21.1</span>One file, one module</a><a class="lv3" href="#s21-2"><span class="tf-no">21.2</span>Importing</a><a class="lv3" href="#s21-3"><span class="tf-no">21.3</span>What can be exported, and how to shorten a name</a><a class="lv3" href="#s21-4"><span class="tf-no">21.4</span>There is no search path</a><a class="lv3" href="#s21-5"><span class="tf-no">21.5</span>When names collide</a><a class="lv3" href="#s21-6"><span class="tf-no">21.6</span>Top-level order does not matter</a><a class="lv3" href="#s21-7"><span class="tf-no">21.7</span>Common mistakes</a><a class="lv3" href="#s21-8"><span class="tf-no">21.8</span>This chapter’s syntax at a glance</a></div></div>
+<main id="content"><div class="wrap">
+<h2>21 Modules — hidden by default</h2><div></div><div class="dev open prereq"><p class="dev-label">What to know first</p><div class="open-body"><div>chapter 3, The surface · a dotted name is a path to a declared name</div><div>chapter 16, Capabilities · the heads of exported ops show what a library touches</div></div></div><div class="dev open deepqa"><p class="dev-label">Looking back</p><div class="open-body"><p>In chapter 16′s last case study, what did you need to look at to find out whether an imported library reaches the network?</p><div class="qa-a"><p><span class="dev-label">A.</span> You look through the heads of the ops the library <strong>exports</strong> for any that take <code>cap net</code> (and <code>cap c</code> or <code>cap machine</code>). This chapter covers what “export” means, and how to bring in names from other files.</p></div></div></div><div class="dev open why"><p class="dev-label">The need for this chapter, and its context</p><div class="open-body">Once a program is more than one file, two questions come up: <strong>what is visible from outside?</strong> and <strong>what does this file depend on?</strong> If the first answer is blurry, you cannot tell who breaks when internals change; if the second is blurry, the same source brings in different things on different machines. Lowent has both written in the source. As the first chapter of Part VI, “Abstraction”, it starts from the outermost unit of splitting code.</div></div><div class="dev open organizer"><p class="dev-label">By the end of this chapter</p><div class="open-body">You will learn that one file is one module and that only things marked <code>export</code> are visible outside. You will pick up how to import another file with <code>use … from "place"</code>, how to pass several files as one compilation unit, and how to import standard-library names. You will also see that qualifying with the module name does not reach hidden names, the design decision to have no search path, and that the order of top-level declarations does not matter.</div></div><div class="dev open questions"><p class="dev-label">The questions this chapter answers</p><div class="open-body"><ol class="qlist"><li>Where does <code>use geom .</code>, with no <code>from "…"</code>, look?</li></ol></div></div><div></div><h3 id="s21-1">21.1 One file, one module<a class="plink" href="#s21-1" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><span id="idx-entry-50"></span><p>One source file is one module. A module writes its name on the first line, and the module name need not match the file name.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/geom.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> geom .
+
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> point <strong><span class="tok-k">do</span></strong>
+  x <strong><span class="tok-t">i64</span></strong> .
+  y <strong><span class="tok-t">i64</span></strong> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> manhattan <strong><span class="tok-k">input</span></strong> a point . <strong><span class="tok-k">input</span></strong> b point . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> ge (field a x) -<span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> le (field a x) <span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> ge (field b x) -<span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> le (field b x) <span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> ge (field a y) -<span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> le (field a y) <span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> ge (field b y) -<span class="tok-n">1000000</span> .
+  <strong><span class="tok-k">requires</span></strong> le (field b y) <span class="tok-n">1000000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> add (abs (sub (field b x) (field a x))) (abs (sub (field b y) (field a y))) .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> helper <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> v .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check geom.low
+== check: ok ==
+</code></pre></div></div><p>The <code>geom</code> module exports the <code>point</code> struct and the <code>manhattan</code> op with <code>export</code>. <code>helper</code> has no <code>export</code>, so it can be used only inside this module.</p><pre><code data-lang="text">          module geom (geom.low)                            module app
+  ┌────────────────────────────────────┐
+  │ export struct point      ─────────┼──▶ door ──▶ geom.point       ✔ visible
+  │ export fn manhattan      ─────────┼──▶ door ──▶ geom.manhattan   ✔ visible
+  │ fn helper   (no export)            │            geom.helper      ✘ E-VISIBILITY
+  └────────────────────────────────────┘
+      what is inside the wall leaves only through a door made by export</code></pre><span id="idx-entry-51"></span><p><strong>Hidden is the default.</strong> What is visible from outside is a promise, and hiding something by mistake is easier to fix than promising something by mistake. When emitting native code, too, only <code>export</code>ed ops become symbols callable from C; everything else is <code>static</code>.</p><h3 id="s21-2">21.2 Importing<a class="plink" href="#s21-2" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p><code>use &lt;module> from "&lt;place>" .</code> imports a module from the file at that place. The place is a path <strong>relative to the file that declares it</strong>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/app.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> app .
+<em><span class="tok-c">rem run: distance 3 4</span></em>
+
+<strong><span class="tok-k">use</span></strong> geom from <span class="tok-s">"</span><span class="tok-s">geom.low</span><span class="tok-s">"</span> .
+
+<strong><span class="tok-k">fn</span></strong> distance <strong><span class="tok-k">input</span></strong> dx <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">input</span></strong> dy <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> ge dx -<span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> le dx <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> ge dy -<span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> le dy <span class="tok-n">1000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> geom.manhattan a b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run distance app.low 3 4
+distance(3, 4) = 7
+</code></pre></div></div><p>Imported names are called qualified by the module name — <code>geom.point</code>, <code>geom.manhattan</code>. The attached dot is not an operation on a value but a path to a declared name (chapter 3).</p><p>Qualification does not reach hidden names.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/hidden.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> hidden .
+<em><span class="tok-c">rem expect: E-VISIBILITY</span></em>
+
+<strong><span class="tok-k">use</span></strong> geom from <span class="tok-s">"</span><span class="tok-s">geom.low</span><span class="tok-s">"</span> .
+
+<strong><span class="tok-k">fn</span></strong> peek <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> geom.helper v .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check hidden.low
+hidden.low:8:0 E-VISIBILITY: this name belongs to ANOTHER module and is not `export`ed — qualifying it does not open the door. A module that cannot keep anything private is not a module, it is a prefix. Mark it `export`, or stop reaching in (RFC-0011 §6.2)
+</code></pre></div></div><p>In the words of the diagnostic, “a module that cannot keep anything private is not a module, it is a prefix”.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">Q.</span> Where does <code>use geom .</code>, with no <code>from "…"</code>, look?</p></div><div class="dev qa-a"><p><span class="dev-label">A.</span> Inside the same compilation unit. Passing several files, as in <code>lowentc --check app.low geom.low</code>, makes those files one unit. If the module is not in the unit, the compiler says with <code>W-USE-EXTERNAL</code> that it cannot confirm the module exists, and rejects actual uses of the name. Standard-library names (<code>use allocs .</code>) resolve from where the standard modules are installed.</p></div></div><h3 id="s21-3">21.3 What can be exported, and how to shorten a name<a class="plink" href="#s21-3" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p><code>export</code> goes on most named declarations. Some do not take it.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Declaration</strong></th><th><strong><code>export</code></strong></th><th><strong>Why</strong></th></tr><tr><td><code>fn</code> · <code>proc</code></td><td>yes</td><td>ops other modules call</td></tr><tr><td><code>struct</code> · <code>enum</code> · <code>type</code> · <code>newtype</code></td><td>yes</td><td>the input and output types of an exported op must be exported too, or it cannot be used</td></tr><tr><td><code>trait</code> · <code>actor</code></td><td>yes</td><td>a promise types in other modules satisfy · an actor other modules spawn</td></tr><tr><td>top-level <code>let</code> (constant)</td><td>no — <code>E-TOPLEVEL</code></td><td>constants stay inside the module; to share one, export a <code>fn</code> that returns the value</td></tr><tr><td><code>test</code></td><td>no — <code>E-TOPLEVEL</code></td><td>tests belong to whoever builds that module</td></tr></table></div><p class="float-caption">Table 21.1 — Declarations that take <code>export</code></p></figure><p>When a module name is long, or two modules share a name, shorten it with <code>as</code>.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/alias.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> alias .
+<em><span class="tok-c">rem run: distance 3 4</span></em>
+
+<em><span class="tok-c">rem call the imported module by the short name g</span></em>
+<strong><span class="tok-k">use</span></strong> geom from <span class="tok-s">"</span><span class="tok-s">geom.low</span><span class="tok-s">"</span> as g .
+
+<strong><span class="tok-k">fn</span></strong> distance <strong><span class="tok-k">input</span></strong> dx <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">input</span></strong> dy <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> ge dx -<span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> le dx <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> ge dy -<span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> le dy <span class="tok-n">1000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> g.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> g.point <strong><span class="tok-k">do</span></strong> x dx . y dy . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> g.manhattan a b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run distance alias.low 3 4
+distance(3, 4) = 7
+</code></pre></div></div><p>After <code>use geom from "geom.low" as g .</code> you call <code>g.point</code> and <code>g.manhattan</code>. The alias is a name used only inside this file; the module’s real name (<code>geom</code>) does not change. Inside this file, though, the original name no longer stands — writing <code>geom.point</code> is <code>E-USE-ALIASED</code>. An alias is a rename, not a second name: if a module could be called by two spellings, a reader would have to check that they mean the same thing. Importing the same name twice gives <code>E-NAME-COLLISION</code>, and the remedy that diagnostic suggests is this alias.</p><div class="dev antipattern"><p class="dev-label">Counter-example. Writing an alias and then using the original name</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_aliasold.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_aliasold .
+<em><span class="tok-c">rem expect: E-USE-ALIASED</span></em>
+
+<strong><span class="tok-k">use</span></strong> geom from <span class="tok-s">"</span><span class="tok-s">geom.low</span><span class="tok-s">"</span> as g .
+
+<strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ an alias was written, yet the original name is used --- the same module would be called by two spellings</span></em>
+  <strong><span class="tok-k">let</span></strong> p <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> geom.point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">7</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> field p x .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_aliasold.low
+mistake_aliasold.low:9:16 E-USE-ALIASED: this unit renamed that module with `as`, so its name here is `g` — the original name no longer stands. One thing, one spelling: if both names worked, a reader would have to check that they mean the same module. Write the member under `g.`
+</code></pre></div></div><p>The moment you write <code>as g</code>, the module’s name in this file is <code>g</code> and nothing else. <code>geom.point</code> is refused with <code>E-USE-ALIASED</code>. If both spellings stood, code would get changed on one side only, and a reader would have to keep checking that the two are the same module. The one place the original name belongs is the <code>use</code> line.</p></div></div><h3 id="s21-4">21.4 There is no search path<a class="plink" href="#s21-4" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Many languages fetch a module from somewhere on a search path when you write just its name. Then what the program depends on becomes knowledge outside the source, and the same source can bring in different files on different machines. Importing in Lowent is one of three things.</p><ul><li>Write the place: <code>use geom from "geom.low" .</code></li><li>Pass it in the same compilation unit: <code>lowentc --check app.low geom.low</code></li><li>Use a reserved standard-library name: <code>use allocs .</code></li></ul><p>The principle is the same when a package manifest (<code>pkg.low</code>) lists external dependencies. Dependencies are pinned <strong>with their content hash</strong>, and if the bytes change the build is refused (chapter 31).</p><div class="dev misconception"><p class="dev-label">A common misconception. <strong>A module’s name comes from its file name</strong></p><div class="dev-body">This trips people up in the standard library. What <code>use</code> looks for is the <code>module</code> declaration inside the file. The module name of <code>lib/alloc.low</code> is <code>allocs</code>, <code>lib/str.low</code> is <code>strings</code>, and <code>lib/vec.low</code> is <code>vecs</code>. The list of modules whose names differ is the first table of the standard-library part (chapter 32).</div></div><h3 id="s21-5">21.5 When names collide<a class="plink" href="#s21-5" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>A module cannot declare the same name twice.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/dup.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> dup .
+<em><span class="tok-c">rem expect: E-NAME-DUP</span></em>
+
+<strong><span class="tok-k">fn</span></strong> answer <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> answer <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> . <strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check dup.low
+dup.low:5:4 E-NAME-DUP: `answer` (op) is declared twice in module `dup` — a qualifier cannot tell the two apart (both are `&lt;module>.&lt;name>`), so the second does not hide the first: it silently makes one of them unreachable
+</code></pre></div></div><p>The second does not hide the first; rather, one of the two silently becomes unreachable, so it is rejected. When imported names collide, the call site names the module explicitly. Importing never overwrites a name that already exists (<code>E-NAME-COLLISION</code>).</p><h3 id="s21-6">21.6 Top-level order does not matter<a class="plink" href="#s21-6" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><p>Top-level declarations in a module are independent of order. An op declared later can be called earlier, and ops can call each other.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/order.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> order .
+<em><span class="tok-c">rem run: is_even 10</span></em>
+<em><span class="tok-c">rem run: is_even 7</span></em>
+
+<strong><span class="tok-k">fn</span></strong> is_even <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">true</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> is_odd (sub n <span class="tok-n">1</span>) .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> is_odd <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">false</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> is_even (sub n <span class="tok-n">1</span>) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run is_even order.low 10
+is_even(10) = 1
+$ lowentc --run is_even order.low 7
+is_even(7) = 0
+</code></pre></div></div><p><code>is_even</code> calls <code>is_odd</code>, declared after it, and <code>is_odd</code> calls <code>is_even</code> back. Local names <strong>inside an op body</strong>, on the other hand, must be declared before use. A file as a whole is skimmed, but a body is read top to bottom.</p><h3 id="s21-7">21.7 Common mistakes<a class="plink" href="#s21-7" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using an imported name without its module name</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_bare.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_bare .
+<em><span class="tok-c">rem expect: E-VISIBILITY</span></em>
+
+<strong><span class="tok-k">use</span></strong> geom from <span class="tok-s">"</span><span class="tok-s">geom.low</span><span class="tok-s">"</span> .
+
+<strong><span class="tok-k">fn</span></strong> origin_x <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ an imported name is used without its module name</span></em>
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">lit</span></strong> point <strong><span class="tok-k">do</span></strong> x <span class="tok-n">0</span> . y <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong> .
+  <strong><span class="tok-k">return</span></strong> field a x .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_bare.low
+mistake_bare.low:9:0 E-VISIBILITY: this name is another module's export, reached BARE — a cross-module name must be QUALIFIED: write `&lt;module>.&lt;name>` (RFC-0011 qualified-by-default; there is no glob import)
+mistake_bare.low:9:0 E-VISIBILITY: this name is another module's export, reached BARE — a cross-module name must be QUALIFIED: write `&lt;module>.&lt;name>` (RFC-0011 qualified-by-default; there is no glob import)
+</code></pre></div></div><p>Some languages let you use imported names bare, or spill them all with <code>import *</code>. Then you cannot tell by reading whether <code>point</code> belongs to this file or to some module, and names collide quietly as imports grow. Lowent has no spilling: a name from another module is always qualified, as in <code>geom.point</code>. The diagnostic appears twice on the same line because the type position of <code>let</code> and the <code>lit</code> position are counted separately.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Leaving the extension out of the <code>from</code> place</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_noext.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_noext .
+<em><span class="tok-c">rem expect: E-DEP-MISSING</span></em>
+
+<em><span class="tok-c">rem ✘ the place is the exact file name --- include `.low`</span></em>
+<strong><span class="tok-k">use</span></strong> geom from <span class="tok-s">"</span><span class="tok-s">geom</span><span class="tok-s">"</span> .
+
+<strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">i64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> v .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_noext.low
+E-DEP-MISSING: `use geom from "geom"` — cannot read that source. A dependency the tool cannot see is a dependency nobody checked
+</code></pre></div></div><p>The place is never guessed. Write <code>"geom"</code> and the tool looks for a file named exactly <code>geom</code>; if there is none, it is <code>E-DEP-MISSING</code>. The reason is the same as for having no search path: once the tool starts trying <code>.low</code> or searching other directories, what the program depends on moves outside the source again. Write the file name exactly, as in <code>use geom from "geom.low" .</code>.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Importing a standard module by its file name</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_filename.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_filename .
+<em><span class="tok-c">rem expect: E-IR-UNDEF</span></em>
+
+<em><span class="tok-c">rem ✘ the file is `lib/str.low`, but the module inside it is named `strings`</span></em>
+<strong><span class="tok-k">use</span></strong> str .
+
+<strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> str.eq_str a b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_filename.low
+mistake_filename.low:5:0 W-USE-EXTERNAL: this module is not in the compilation unit — there is no module search path, so nothing here can confirm it exists. Pass the file that declares it and it WILL be checked (several .low files link into one unit)
+mistake_filename.low:9:0 E-IR-UNDEF: undefined name `str.eq_str` — `str` is not a module used by this unit (`use str .`) nor an enum
+</code></pre></div></div><p>The module in the file <code>lib/str.low</code> is named <code>strings</code>. <code>use str .</code> finds no such module, so it warns with <code>W-USE-EXTERNAL</code> (“cannot confirm it exists”), and the place that actually uses the name is rejected with <code>E-IR-UNDEF</code>. Read the warning first and check the module name.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/filename_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> filename_fixed .
+<em><span class="tok-c">rem run: same [104,105] [104,105]</span></em>
+<em><span class="tok-c">rem run: same [104,105] [104,111]</span></em>
+
+<strong><span class="tok-k">use</span></strong> strings .
+
+<strong><span class="tok-k">fn</span></strong> same <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-k">slice</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> strings.eq_str a b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run same filename_fixed.low [104,105] [104,105]
+same([104,105], [104,105]) = 1
+  arg0 (written) = [104,105]
+  arg1 (written) = [104,105]
+$ lowentc --run same filename_fixed.low [104,105] [104,111]
+same([104,105], [104,111]) = 0
+  arg0 (written) = [104,105]
+  arg1 (written) = [104,111]
+</code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Using a hidden type in an exported op’s signature</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/secretbox.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> secretbox .
+<em><span class="tok-c">rem expect: W-EXPORT-HIDDEN</span></em>
+
+<em><span class="tok-c">rem a type without `export` --- its name cannot be written outside this module</span></em>
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">struct</span></strong> secret <strong><span class="tok-k">do</span></strong>
+  v <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">end</span></strong>
+
+<em><span class="tok-c">rem ✘ an exported op returns the hidden type --- the importing side cannot write that name</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> make_secret <strong><span class="tok-k">output</span></strong> secret .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <strong><span class="tok-k">lit</span></strong> secret <strong><span class="tok-k">do</span></strong> v <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check secretbox.low
+secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names a type this module keeps to itself. An importing module cannot write that type, so it has nowhere to put the value and the export cannot be used from outside (§6.10.1). Export the type too, or give the op a signature made of types the other side can name
+</code></pre></div></div><p><code>secretbox</code> itself translates, but the exporting side is warned with <code>W-EXPORT-HIDDEN</code>: this export cannot be used from outside. Without that warning the problem only shows up in the module that imports it.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_privtype.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_privtype .
+<em><span class="tok-c">rem expect: E-VISIBILITY</span></em>
+
+<strong><span class="tok-k">use</span></strong> secretbox from <span class="tok-s">"</span><span class="tok-s">secretbox.low</span><span class="tok-s">"</span> .
+
+<strong><span class="tok-k">fn</span></strong> peek <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ the type name needed to hold the result is hidden</span></em>
+  <strong><span class="tok-k">let</span></strong> s <strong><span class="tok-k">be</span></strong> secretbox.secret secretbox.make_secret .
+  <strong><span class="tok-k">return</span></strong> field s v .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_privtype.low
+mistake_privtype.low:9:0 E-VISIBILITY: this name belongs to ANOTHER module and is not `export`ed — qualifying it does not open the door. A module that cannot keep anything private is not a module, it is a prefix. Mark it `export`, or stop reaching in (RFC-0011 §6.2)
+secretbox.low:10:0 W-EXPORT-HIDDEN: this op is exported and its signature names a type this module keeps to itself. An importing module cannot write that type, so it has nowhere to put the value and the export cannot be used from outside (§6.10.1). Export the type too, or give the op a signature made of types the other side can name
+</code></pre></div></div><p><code>make_secret</code> is exported, but the type of its result, <code>secret</code>, is hidden. The importer cannot write a name to hold the result and is rejected with <code>E-VISIBILITY</code>. The export is unusable. Export the input and output types of an exported op as well.</p></div></div><div class="dev antipattern"><p class="dev-label">Counter-example. Writing another module’s enum variant with the module name in a <code>case</code></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/sizes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sizes .
+
+<em><span class="tok-c">rem an enum for other modules to use; its variants carry no value</span></em>
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> kind <strong><span class="tok-k">do</span></strong>
+  small .
+  big .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> classify <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> kind . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> lt n <span class="tok-n">100</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">return</span></strong> small .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> big .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check sizes.low
+== check: ok ==
+</code></pre></div></div><p>The <code>sizes</code> module exports the enum <code>kind</code> and <code>classify</code>, which returns one. If the importing side qualifies the variants with the module name, this happens.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/mistake_enumcase.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_enumcase .
+<em><span class="tok-c">rem run: describe 5</span></em>
+<em><span class="tok-c">rem run: describe 500</span></em>
+
+<strong><span class="tok-k">use</span></strong> sizes from <span class="tok-s">"</span><span class="tok-s">sizes.low</span><span class="tok-s">"</span> .
+
+<strong><span class="tok-k">fn</span></strong> describe <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> sizes.kind sizes.classify n .
+  <strong><span class="tok-k">match</span></strong> k . <strong><span class="tok-k">do</span></strong>
+    <em><span class="tok-c">rem ✘ a variant with the module name in front; in this edition it matches any value</span></em>
+    <strong><span class="tok-k">case</span></strong> sizes.small . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+    <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> sizes.big . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run describe mistake_enumcase.low 5
+describe(5) = 1
+$ lowentc --run describe mistake_enumcase.low 500
+describe(500) = 2
+</code></pre></div></div><p><code>describe 500</code> is <code>big</code> and answers 2, and <code>describe 5</code> answers 1: a qualified name is read as a variant. Until 2026-09-16 it was not — lowering read <code>case sizes.small</code> not as a variant but as <strong>a slot that matches any value</strong>, so the first arm took every value and 500 also answered 1. The checker narrowed qualified names to variants and lowering did not; the two layers now read the same tree. Writing only the variant name is still shorter, and the type of <code>k</code> decides which enum it belongs to.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/enumcase_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> enumcase_fixed .
+<em><span class="tok-c">rem run: describe 5</span></em>
+<em><span class="tok-c">rem run: describe 500</span></em>
+
+<strong><span class="tok-k">use</span></strong> sizes from <span class="tok-s">"</span><span class="tok-s">sizes.low</span><span class="tok-s">"</span> .
+
+<strong><span class="tok-k">fn</span></strong> describe <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> k <strong><span class="tok-k">be</span></strong> sizes.kind sizes.classify n .
+  <strong><span class="tok-k">match</span></strong> k . <strong><span class="tok-k">do</span></strong>
+    <em><span class="tok-c">rem write only the variant name; the type (sizes.kind) decides which variant it is</span></em>
+    <strong><span class="tok-k">case</span></strong> small . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+    <strong><span class="tok-k">end</span></strong>
+    <strong><span class="tok-k">case</span></strong> big . <strong><span class="tok-k">do</span></strong>
+      <strong><span class="tok-k">return</span></strong> <span class="tok-n">2</span> .
+    <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run describe enumcase_fixed.low 5
+describe(5) = 1
+$ lowentc --run describe enumcase_fixed.low 500
+describe(500) = 2
+</code></pre></div></div></div></div><div class="dev misconception"><p class="dev-label">A common misconception. <strong>Two modules must not import each other</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch21/cycle_a.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> cycle_a .
+<em><span class="tok-c">rem run: fa 3</span></em>
+<em><span class="tok-c">rem run: fa 4</span></em>
+
+<em><span class="tok-c">rem imports `cycle_b`, and `cycle_b` imports this module too</span></em>
+<strong><span class="tok-k">use</span></strong> cycle_b from <span class="tok-s">"</span><span class="tok-s">cycle_b.low</span><span class="tok-s">"</span> .
+
+<strong><span class="tok-k">export</span></strong> <strong><span class="tok-k">fn</span></strong> fa <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">10</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> eq n <span class="tok-n">0</span> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> cycle_b.fb (sub n <span class="tok-n">1</span>) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --run fa cycle_a.low 3
+fa(3) = 1
+$ lowentc --run fa cycle_a.low 4
+fa(4) = 0
+</code></pre></div></div><p><code>cycle_a</code> imports <code>cycle_b</code> and <code>cycle_b</code> imports <code>cycle_a</code>, yet it translates and runs. Unlike C headers, where only what was read first is known, names are resolved after the whole translation unit is gathered — the same principle that makes the order of top-level declarations irrelevant. Still, modules that import each other are easier to read merged into one, or with the shared part moved into a third module. The recursion depth is bounded by the contract (<code>requires le n 10 .</code>).</p></div></div><h3 id="s21-8">21.8 This chapter’s syntax at a glance<a class="plink" href="#s21-8" aria-label="Link to this section" title="Link to this section">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>Shape</strong></th><th><strong>Meaning</strong></th><th><strong>Why</strong></th></tr><tr><td><code>module geom .</code></td><td>this file is module <code>geom</code> (first line)</td><td>the module name is separate from the file name — <code>use</code> looks for it</td></tr><tr><td><code>export fn manhattan …</code> · <code>export def struct point …</code></td><td>make it visible outside</td><td>hidden by default — what is visible is a promise</td></tr><tr><td><code>use geom from "geom.low" .</code></td><td>import from a place relative to the declaring file</td><td>no search path — dependencies are in the source</td></tr><tr><td><code>use allocs .</code></td><td>import from the same unit or the standard library</td><td>otherwise <code>W-USE-EXTERNAL</code></td></tr><tr><td><code>geom.point</code> · <code>geom.manhattan a b</code></td><td>qualify imported names with the module name</td><td>no spilling</td></tr><tr><td><code>geom.helper</code> (a hidden name)</td><td>rejected (<code>E-VISIBILITY</code>)</td><td>qualifying does not open the door</td></tr><tr><td>one name declared twice · two imports with one name</td><td>rejected (<code>E-NAME-DUP</code> · <code>E-NAME-COLLISION</code>)</td><td>never decide quietly which one is reached</td></tr><tr><td>order of top-level declarations</td><td>irrelevant — they may call each other</td><td>a file is scanned; a body is read top to bottom</td></tr><tr><td><code>use geom from "geom.low" as g .</code></td><td>call the imported module <code>g</code> in this file</td><td>untangles long or clashing names — the module’s real name stays</td></tr><tr><td><code>export let …</code> · <code>export test …</code></td><td>refused (<code>E-TOPLEVEL</code>)</td><td>export a constant through a <code>fn</code> that returns it</td></tr><tr><td><code>case small</code> on another module’s enum</td><td>write only the variant name</td><td><code>case sizes.small</code> matches any value in this edition</td></tr></table></div><p class="float-caption">Table 21.2 — Module syntax — shape · meaning · why it looks this way</p></figure><div class="dev recap"><p class="dev-label">Recap</p><div class="dev-body">One file is one module, and only what is <code>export</code>ed is visible outside. <code>use &lt;module> from "&lt;place>" .</code> imports from a place relative to the declaring file; without a place it looks in the same compilation unit or the standard library. There is no search path. Qualification does not reach hidden names, and declaring the same name twice is rejected. Top-level order does not matter, but locals in a body are declared first.</div></div>
+<div class="nav"><a href="ch20.html">← Prev</a><span class="sp"></span><a href="index.html">Contents</a><span class="sp"></span><a href="ch22.html">Next →</a></div>
+</div></main>
+<script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>
+(function(){
+  var q=document.getElementById('q'), out=document.getElementById('qr');
+  if(!q||!out) return;
+  var data=null, NONE="Nothing found";
+  function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+  function run(){
+    var v=q.value.trim().toLowerCase();
+    out.innerHTML='';
+    if(!v||!data) return;
+    var hits=[];
+    for(var i=0;i<data.length && hits.length<40;i++){
+      if(data[i][0].toLowerCase().indexOf(v)>=0) hits.push(data[i]);
+    }
+    if(!hits.length){ out.innerHTML='<li>'+NONE+'</li>'; return; }
+    out.innerHTML=hits.map(function(h){
+      return '<li><a href="'+h[1]+'">'+esc(h[0])+'</a>'+
+             (h[2]?'<span class="where">'+esc(h[2])+'</span>':'')+'</li>';
+    }).join('');
+  }
+  q.addEventListener('input',function(){
+    if(data){ run(); return; }
+    fetch('search-index.json').then(function(r){return r.json();})
+      .then(function(j){ data=j; run(); })
+      .catch(function(){ out.innerHTML='<li>'+NONE+'</li>'; });
+  });
+})();
+</script></body></html>

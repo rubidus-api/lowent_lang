@@ -1,0 +1,11 @@
+module isr .
+rem flags: --target cortex_m
+
+proc on_exti
+  vector 6 .
+  priority 2 .
+  output void .
+  effects device .
+do
+  return .
+end

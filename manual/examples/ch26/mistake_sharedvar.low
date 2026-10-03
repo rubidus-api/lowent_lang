@@ -1,0 +1,17 @@
+module mistake_sharedvar .
+rem expect: E-EXCL
+
+proc bump input p mut_ref u64 . output void . effects state .
+do
+  set p (add (deref p) 1) .
+end
+proc race output u64 . effects state .
+do
+  var n be u64 0 .
+  task_group do
+    rem ko: ✘ 두 흐름에 같은 변수를 쓰기로 빌려준다 /// en: ✘ the same variable is lent for writing to two flows
+    spawn bump (mut_ref n) .
+    spawn bump (mut_ref n) .
+  end
+  return n .
+end

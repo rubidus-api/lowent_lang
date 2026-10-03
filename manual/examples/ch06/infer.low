@@ -1,0 +1,9 @@
+module infer .
+rem run: next_byte 41
+rem trap: next_byte 255
+
+fn next_byte input a u8 . output u8 .
+do
+  let b be u8 add a 1 .
+  return b .
+end

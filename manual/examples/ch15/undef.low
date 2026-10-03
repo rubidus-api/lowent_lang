@@ -1,0 +1,7 @@
+module undef .
+rem expect: E-EFFECT-UNDEF
+
+proc checked input x u64 . output u64 . effects crash .
+do
+  return x .
+end

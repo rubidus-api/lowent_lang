@@ -1,0 +1,12 @@
+module stats .
+rem run: mean [3,4,8]
+
+fn mean input xs slice u8 . output u64 .
+  requires gt (len xs) 0 .
+do
+  var total be u64 0 .
+  for x xs do
+    set total (add total (widen u64 x)) .
+  end
+  return div total (len xs) .
+end

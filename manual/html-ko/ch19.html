@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>19 소유 — 없앨 책임은 하나에게 — Lowent 매뉴얼</title><style>/* ── 웹 판의 조판 (RFC-0027, 저자 지시 2026-08-10) ────────────────
+ *
+ * 전에는 이 CSS 가 scripts/wrap-html.py 안의 문자열이었다. 디자인을 한 줄
+ * 고치려면 파이썬 파일을 열어야 했고, 무엇이 디자인이고 무엇이 생성 논리인지
+ * 섞여 있었다. 이제 갈라 둔다 --- 디자인은 여기, 생성은 거기.
+ *
+ * ★ 고치는 절차
+ *   1. 이 파일만 고친다.
+ *   2. scripts/style-preview.sh --- build/style-preview.html 을 본다(몇 초).
+ *   3. 괜찮으면 그때 scripts/build-html.sh 로 전체를 만든다.
+ *
+ * ★ 규율 하나: 장치는 *왼쪽 세로선*으로 영역을 말하고, 제목은 *가로 밑줄*로
+ *   경계를 말한다. 소스 코드와 실행 결과(.demo)만 네 변 상자를 쓴다.
+ */
+
+/* ── 글꼴을 직접 싣는다 (RFC-0026 D2, 저자 지시 2026-08-10) ────────
+   전에는 @font-face 가 하나도 없어, CSS 가 적어 둔 이름이 방문자 기계에 없으면
+   대체 글꼴로 떨어졌다 --- 세리프 본문이 고딕으로 보이는 일이 흔했다.
+   이 책이 쓰는 갈래는 셋뿐이다: serif(본문) · sans-serif(제목·UI) · monospace(코드).
+   파일은 scripts/make-webfonts.sh 가 *이 책에 쓰인 글자만* 남겨 만든다.
+   font-display:swap --- 글꼴을 기다리느라 글이 안 보이는 일이 없게 한다. */
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-italic.woff2") format("woff2");
+  font-weight:400; font-style:italic; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+/* ── 색은 세 가지 상태를 모두 적어야 한다 (저자 지적 2026-08-11) ───────
+ * ★ 예전에는 어두운 팔레트가 `@media (prefers-color-scheme: dark)` *안에만*
+ *   있었다. 그래서 「어둡게」 단추가 `data-theme` 를 붙여도 응답할 규칙이 없어
+ *   아무 일도 일어나지 않았고, 「밝게」도 시스템이 어두우면 소용없었다.
+ *   이제 세 자리에 적는다:
+ *     ① 바탕(:root)                          --- 밝은 팔레트
+ *     ② 시스템이 어두울 때, 단 밝게를 고르지 않았으면  --- 어두운 팔레트
+ *     ③ 어둡게를 골랐을 때                      --- 어두운 팔레트
+ *   ②③ 은 같은 값이라 되풀이되지만, CSS 에서 변수 묶음을 이름으로 나눠 쓸
+ *   방법이 없다. 고칠 때는 *둘 다* 고쳐야 한다.
+ */
+:root { color-scheme: light dark; --fg:#141414; --bg:#ffffff; --muted:#5c5c5c;
+  --rule:#c9c9c9; --box-bg:#f6f6f6; --box-rule:#c4c4c4; --code-bg:#f2f2f2; --link:#1a4f8a;
+  --tok-c:#3f5b4a; --tok-k:#123c87; --tok-t:#0f5b63; --tok-s:#7a3b0a;
+  --tok-n:#8a2222; --tok-p:#6b2d8a; --tok-x:#555555; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+    --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+    --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+    --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; } }
+:root[data-theme="dark"] { color-scheme: dark; --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+  --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+  --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+  --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; }
+:root[data-theme="light"] { color-scheme: light; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); line-height:1.75;
+       font-family:"PCB Serif","Noto Serif CJK KR","Noto Serif KR",Georgia,serif; }
+/* ── 상세 차례와 「이 장의 차례」 패널 (저자 지시 2026-08-10) ── */
+.here-btn { margin-left:.7rem; font:inherit; font-size:.92rem; cursor:pointer;
+  background:none; border:1px solid var(--rule,#bbb); border-radius:.25rem;
+  padding:.1rem .5rem; color:inherit; }
+.here-btn:hover { background:rgba(127,127,127,.14); }
+.here-at { margin-left:.7rem; font-size:.92rem; color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:70vh; overflow:auto;
+  border:1px solid var(--rule,#bbb); border-top:none; background:var(--bg,#fff);
+  padding:.6rem .9rem 1rem; box-shadow:0 6px 18px rgba(0,0,0,.12); }
+.here-head { display:flex; align-items:center; gap:.8rem; padding:.2rem 0 .5rem;
+  border-bottom:1px solid var(--rule,#ddd); margin-bottom:.5rem; }
+.here-head .sp { flex:1; }
+.here-all { margin-left:auto; font-size:.9rem; }
+.here-x { font:inherit; font-size:.9rem; cursor:pointer; background:none;
+  border:1px solid var(--rule,#bbb); border-radius:.25rem; padding:.05rem .45rem;
+  color:inherit; }
+.here-body a, .tf-secs a { display:block; text-decoration:none; padding:.12rem 0;
+  line-height:1.45; }
+.here-body a:hover, .tf-secs a:hover { text-decoration:underline; }
+.here-body a.lv4, .tf-secs a.lv4 { padding-left:1.6rem; font-size:.94rem;
+  color:var(--muted,#555); }
+.tf-no { display:inline-block; min-width:3.2rem; color:var(--muted,#666);
+  font-variant-numeric:tabular-nums; }
+.toc-full .tf-ch { margin:.9rem 0 .15rem; font-weight:700; }
+.toc-full .tf-secs { margin:0 0 .5rem .2rem; border-left:2px solid var(--rule,#e2e2e2);
+  padding-left:.7rem; }
+.toc-full h4.toc-part { margin-top:1.8rem; }
+.toc a.toc-detail { font-weight:700; }
+@media print { .here-btn, .here-panel { display:none; } }
+/* 왼쪽부터 죽 이어 쓰고, 좁으면 개행한다 (저자 지시 2026-08-10).
+   전에는 가운데 여백(.sp)이 뒤쪽 항목을 오른쪽 끝으로 밀어 두 덩이로
+   갈라져 있었다. 좁은 화면에서는 그 사이가 벌어져 읽기 나빴다. */
+.bar { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; gap:.35rem .8rem; align-items:center;
+       padding:.55rem clamp(.8rem,3vw,2.5rem); background:var(--bg);
+       border-bottom:1px solid var(--rule); font-size:.86rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.bar a { color:var(--link); text-decoration:none; } .bar a:hover { text-decoration:underline; }
+.bar .sp { display:none; }        /* 더 쓰지 않는다 --- 왼쪽 정렬로 이어 쓴다 */
+main { width:100%; padding:1.6rem clamp(.9rem,3vw,2.5rem) 5rem; }
+/* 폭을 가두지 않는다 — 보통의 웹 문서처럼 화면 가로를 그대로 쓴다.
+   (2026-08-10: 40rem 으로 가둬 봤으나 저자가 「모양이 깨졌다」며 되돌리라고
+   했다. 줄 길이 문제는 D4 의 *독자가 고르는 폭*으로 푼다.) */
+.wrap { width:100%; max-width:none; margin:0; }
+h1,h2,h3,h4 { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; line-height:1.35;
+  padding-bottom:.18rem; border-bottom:1px solid var(--rule); }
+h1 { font-size:clamp(1.5rem,3.4vw,2.1rem); margin:.2rem 0 .9rem; }
+h2 { font-size:clamp(1.35rem,3vw,1.8rem); margin:0 0 .7rem; padding-bottom:.35rem;
+     border-bottom:2px solid var(--fg); }
+h3 { font-size:clamp(1.05rem,2.2vw,1.25rem); margin:1.5rem 0 .5rem;
+     padding-bottom:.22rem; border-bottom:1.5px solid var(--fg); }
+p { margin:.9rem 0; } a { color:var(--link); }
+/* 본문 문단은 첫 줄을 한 글자만큼 들여쓴다 — PDF 와 같은 규칙
+   (저자 지시 2026-08-06). 구조적인 자리(표지·차례·표제·캡션·목록)는 뺀다. */
+main p { text-indent: 1em; }
+.cover p, .note p, .toc p, .float-caption, .metalist p, .memrow p,
+.colophon-meta p, li p, td p, th p, figure p, blockquote p,
+.demo-src p, .demo-out p, pre, pre p,
+.dev-label, p.dev-label { text-indent: 0; }
+/* 출처 주석 — PDF 의 각주에 해당한다(lib.typ 의 note). Typst 의 HTML 내보내기가
+   각주 본문을 버리므로 lib.typ 이 본문에 펴 두고, wrap-html.py 의 collect_notes 가
+   번호를 매겨 장 끝의 「주」로 옮긴다. 아래 .src-note 는 혹시 옮겨지지 않은 것이
+   있을 때의 대비책이다. */
+.src-note { font-size: .86em; color: var(--muted, #666); }
+.src-note code { font-size: .95em; }
+sup.fnref { font-size: .72em; line-height: 0; vertical-align: super; }
+sup.fnref a { text-decoration: none; padding: 0 .1em; }
+sup.fnref a::before { content: "["; }
+sup.fnref a::after  { content: "]"; }
+.chapter-notes { margin: 3rem 0 1rem; padding-top: .9rem;
+                 border-top: 2px solid var(--rule, #333); }
+.chapter-notes h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
+.chapter-notes ol { margin: 0; padding-left: 1.6em; }
+.chapter-notes li { font-size: .92em; margin: .35em 0; text-indent: 0; }
+.chapter-notes a.fnback { text-decoration: none; }
+/* 상자 안에서는 표제 줄에 붙는 첫 문단만 들여쓰지 않는다(PDF 의 all:false) */
+.dev p { text-indent: 0; }
+.dev p + p { text-indent: 1em; }
+/* 표지(문./답.)가 들어간 첫 문단은 절대 들여쓰지 않는다 */
+.dev p:has(> span.dev-label:first-child) { text-indent: 0; }
+.chapter-head p { text-indent: 0; }
+pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Menlo,monospace; }
+code { background:none; padding:0; font-size:.95em; }
+pre { background:none; border:1px solid var(--fg); border-radius:0;
+      padding:.95rem 1.05rem; overflow-x:auto; line-height:1.6; font-size:.95rem;
+      margin:1.2rem 0; }
+.tok-c { color:var(--tok-c); font-style:italic; }
+.tok-k { color:var(--tok-k); font-weight:700; }
+.tok-s { color:var(--tok-s); }
+.tok-n { color:var(--tok-n); }
+.tok-t { color:var(--tok-t); font-weight:700; }
+.tok-x { color:var(--tok-x); }
+.tok-p { color:var(--tok-p); }
+pre code { background:none; padding:0; }
+/* 표: 바깥은 굵게, 안은 가늘게, 머리행은 굵은 글씨에 옅은 음영
+   (저자 지시 2026-08-06). */
+/* 표는 내용에 필요한 만큼만 폭을 쓰고 가운데에 선다. 100% 폭으로 늘리면
+   셀 오른쪽에 빈 칸이 생겨 테두리와 내용이 어긋나 보인다
+   (저자 지적 2026-08-06). 넘칠 때는 감싼 .tblwrap 이 가로로 스크롤한다. */
+.tblwrap { overflow-x:auto; text-align:center; }
+/* inline-table 은 언제나 내용만큼만 넓어진다(shrink-to-fit). flex 로 가운데를
+   맞추면 브라우저에 따라 늘어나거나 왼쪽이 잘리는 일이 있어 이 방식을 쓴다. */
+.tblwrap > table { display:inline-table; width:auto; max-width:none; margin:1.1rem 0; }
+table { border-collapse:collapse; margin:1.1rem auto; font-size:.95rem;
+        width:auto; max-width:100%; border:2px solid var(--fg);
+        table-layout:auto; }
+th, td { white-space:normal; }
+th,td { border:1px solid var(--rule); padding:.42rem .6rem; text-align:left; vertical-align:top; }
+/* 머리행 — 옅은 음영으로 포인트를 준다(PDF 와 같은 처리). 색이 아니라
+   반투명 회색이라 밝은·어두운 테마 양쪽에서 자연스럽다. */
+th { background:rgba(128,128,128,.16); font-weight:700;
+     border-bottom:2px solid var(--fg);
+     font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+table tr:first-child th, table tr:first-child td { border-bottom:1px solid var(--fg); }
+ul,ol { padding-left:1.4rem; } li { margin:.3rem 0; }
+/* 표·그림 목록은 훑어보는 것이라 촘촘해야 한다 (저자 지시 2026-08-31) */
+.float-list { list-style:none; padding-left:0; }
+.float-list li { margin:.12rem 0; }
+/* 메모리 사물함 도해 — 칸과 그 아래 주소. 표 서식과 섞이지 않게 따로 둔다. */
+.memrow { overflow-x:auto; text-align:center; margin:1.1rem 0 .2rem; }
+.memrow table.mem { display:inline-table; border-collapse:collapse;
+  border:none; margin:0; width:auto; }
+.memrow td.cell { border:1px solid var(--fg); padding:.3rem .5rem;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.9rem;
+  text-align:center; background:none; }
+.memrow td.cell.hi { border-width:2px; }
+.memrow td.addr { border:none; padding:.15rem .5rem 0; text-align:center;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.82rem;
+  color:var(--muted); }
+/* 시연 — 소스와 실행 결과는 선명한 검은 테두리로 묶는다 */
+/* 시연 상자 — 문답과 같은 1×2 모양. 위 칸은 표제(파일 경로는 고정폭,
+   "실행 결과"는 산세리프 굵은 글씨), 가로선 아래 칸이 내용이다
+   (저자 지시 2026-08-06). */
+.demo { border:1px solid var(--fg); margin:1.15rem 0; }
+.demo > .demo-head { margin:0; padding:.5rem .9rem; text-indent:0;
+  border-bottom:1px solid var(--fg); font-weight:700; font-size:.92rem; }
+.demo-src > .demo-head { font-family:"PCB Mono","D2Coding",ui-monospace,monospace; }
+.demo-in > .demo-head, .demo-out > .demo-head {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.demo > .demo-body { padding:0; }
+.demo > .demo-body pre { border:none; border-radius:0; margin:0;
+  padding:.6rem .9rem; }
+
+/* ── 왼쪽 세로선 규율 (저자 지시 2026-08-10) ─────────────────
+   네 변 상자는 좌우 안쪽 여백이 양쪽에서 폭을 갉는다. 왼쪽 세로선 하나로
+   영역만 표시하고 오른쪽은 열어 둔다. 제목 쪽 선이 내용 쪽보다 굵고, 둘은
+   서로 붙지 않는다(사이에 여백). 제목(heading)은 반대로 *가로* 밑줄이다 ---
+   영역과 경계는 하는 일이 다르므로 표시도 갈라 둔다. */
+.dev { margin:1.15rem 0; padding:0; background:none; border:none; border-radius:0; }
+/* 표지 줄 --- 굵은 왼쪽 선 */
+.dev > .dev-label { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0 0 .34rem; }
+/* 본문 --- 가는 왼쪽 선 *하나*로 끝까지 이어진다.
+   ★ 자식마다 선을 그으면 문단 사이에서 끊기고, 한 문단짜리 본문(맨 글)은
+   선을 아예 받지 못한다. 그래서 본문을 한 겹으로 감싸고 그 칸에만 긋는다. */
+.dev > .dev-body { border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem .35rem .8rem; margin:0; }
+.dev > .dev-body > *:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child { margin-bottom:0; }
+/* 표·그림 캡션 — 대상 아래 가운데, 산세리프 */
+.float-caption { text-align:center; font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; color:var(--muted); margin:.35rem 0 1.2rem; }
+figure { margin:1.2rem 0; }
+figure.tbl table { margin-bottom:.2rem; }
+figure.tbl { text-align:center; }
+.dev > p:first-child { margin-top:0; } .dev > p:last-child { margin-bottom:0; }
+.dev-label { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+             font-size:.92rem; color:var(--muted); margin-bottom:.4rem; }
+/* 장 서두 — 넷을 각각 하나의 상자로 둔다. 표제 줄과 내용을 가로선으로
+   가르는 모양은 문답·복습 정리와 같다 (저자 지시 2026-08-06).
+   ★ 좌우 여백은 *상자*가 준다. 자식 요소에 주면, 본문이 요소로 감싸이지 않은
+     칸(「이 장이 끝나면」)은 여백이 0 이 되고 문단이 여럿인 칸(질문 목록)은
+     여백이 겹쳐 들쭉날쭉해진다. */
+.dev.open { border:none; border-radius:0; background:none;
+  padding:0; margin:.75rem 0; }
+.dev.open > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.98rem; color:var(--fg); text-transform:none; letter-spacing:0; }
+/* 서두 본문은 한 겹(.open-body) 안에 있다 — 위·아래 여백을 여기서 한 번만 준다 */
+.dev.open > .open-body { margin:0; padding:.35rem .8rem;
+  border-left:2px solid var(--box-rule); }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open > .open-body > * { margin:.4rem 0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+/* 질문 목록 — 번호를 보이게 하고 항목 간격은 촘촘히 */
+.dev.open .open-body > ol.qlist { margin:0; padding-left:1.35rem; }
+.dev.open ol.qlist li { margin:.18rem 0; padding-left:.15rem; }
+.dev.open ol.qlist li::marker { color:var(--muted); font-weight:700; }
+/* 돌아보기 안의 답 — 왼쪽 가는 선으로 구분 */
+.dev.open .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.06rem 0 .06rem .7rem; margin:.32rem 0 0; }
+/* 서두 표지: 굵고 선명한 검은 산세리프, 본문보다 약간 크게
+   (저자 지시 2026-08-06). 대문자 변형과 자간 늘리기는 쓰지 않는다. */
+.prereq .dev-label, .deepqa .dev-label, .why .dev-label,
+.organizer .dev-label, .questions .dev-label {
+  text-transform:none; letter-spacing:0; font-size:1.12rem; font-weight:700;
+  color:var(--fg); margin-bottom:.45rem; }
+/* 돌아보기 안의 답 — 왼쪽 세로선을 또렷하게 */
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+
+/* 문답 — 질문 쪽 선이 굵고, 답 쪽이 가늘고, 둘 사이가 떨어져 있다 */
+.qa-box { border:none; margin:1.15rem 0; }
+.qa-box .dev { margin:0; border:none; border-radius:0; padding:0; background:none; }
+.qa-box .qa-q { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0; }
+.qa-box .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem; margin:.34rem 0 0; }
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:0; }
+/* 복습 정리도 문답과 같은 상자 — 표제 줄과 본문을 가로선으로 가른다 */
+.dev.recap { border:none; background:none; padding:0; margin:1.15rem 0; }
+.dev.recap > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+.dev.recap > .dev-body > p, .dev.recap > .dev-body > div:not(.demo),
+.dev.recap > .dev-body > figure { margin:.3rem 0; padding:0; }
+
+/* ★ 장치 안에 든 시연 상자 --- 소스와 실행 결과는 중첩되어도 상자 그대로다
+   (저자 지시 2026-08-10). 바깥의 세로선 안쪽에서 조금 좁혀 놓는다. */
+.dev > .dev-body > .demo { margin:.7rem 0; }
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+/* 문./답. 은 줄을 바꾸지 않고 질문·답 첫 문단과 같은 줄에 이어 붙는다
+   (저자 지시 2026-08-06). 답의 둘째 문단부터는 그대로 문단으로 흐른다. */
+.qa-q .dev-label, .qa-a .dev-label, .deepqa .qa-a .dev-label {
+  display:inline; margin-bottom:0; }
+.qa-q .dev-label + p, .qa-a .dev-label + p { display:inline; }
+.qa-q .dev-label, .qa-q .dev-label + p {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  color:var(--fg); font-size:1rem; }
+.qa-a .dev-label { color:var(--muted); }
+.qa-a .dev-label + p { font-family:inherit; font-weight:400; }
+span.dev-label { display:inline; font-size:1rem; margin:0; }
+/* 상자형 장치 공통 — 문답 상자와 같은 모양: 표제 줄과 본문을 가로선으로
+   가르고, 좌우 여백은 상자가 준다 (저자 지시 2026-08-06).
+   ★ 예전의 2단 구조(.misconception + div) 규칙이 남아 뒤따르는 문답 상자를
+     오해 상자의 아랫칸처럼 그리던 문제를 여기서 없앤다. */
+/* 같은 꼴을 쓰는 상자들 --- 네 변을 걷고 왼쪽 세로선만 남긴다
+   (저자 지시 2026-08-10). 소스 코드와 실행 결과(.demo)는 그대로 상자다. */
+.dev.misconception, .dev.realcase, .dev.antipattern, .dev.mathbox,
+.dev.platform, .dev.recap {
+  border:none; border-radius:0; background:none; padding:0; margin:1.15rem 0; }
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem; text-indent:0;
+  border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+/* ★ 본문 칸(.dev-body)은 건드리지 않는다 --- 전에는 `> div` 가 그것까지 잡아
+   padding:0 으로 덮어, 실제 사례·반례·흔한 오해의 글이 왼쪽 선에 바짝 붙었다
+   (저자 지적 2026-08-10). 안쪽 문단의 간격만 손본다. */
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure, .dev > .open-body > p {
+  margin:.35rem 0; padding:0; }
+/* 상자 안의 문단 간격은 한 줄 사이 정도로 — 본문 문단 간격(.9rem)을 그대로
+   쓰면 상자 안이 헐렁해 보인다 (저자 지시 2026-08-06). */
+/* 고정 바: 제목은 왼쪽 끝, 장 이동 화살표·언어·GitHub 는 오른쪽 끝
+   (저자 지시 2026-08-06) */
+.bar > strong { flex:0 0 auto; }
+.bar .bar-nav { display:flex; gap:.55rem; align-items:center; margin-right:.35rem; }
+.bar .bar-nav a, .bar .bar-nav .off {
+  display:inline-block; min-width:1.35rem; text-align:center;
+  font-size:1.15rem; line-height:1.1; text-decoration:none; }
+.bar .bar-nav a:hover { text-decoration:none; color:var(--fg); }
+.bar .bar-nav .off { color:var(--muted); opacity:.35; }
+.dev p, .dev div, .dev ul, .dev ol, .qa-box p, .qa-box div {
+  margin-top:.4rem; margin-bottom:.4rem; }
+.dev > *:first-child, .qa-box .dev > *:first-child { margin-top:0; }
+.dev > *:last-child, .qa-box .dev > *:last-child { margin-bottom:0; }
+.dev ul, .dev ol { padding-left:1.3rem; }
+.dev li { margin:.15rem 0; }
+/* ★ 반례의 세로선도 실선이다(저자 지시 2026-08-10). 예전에는 점선으로 갈래를
+   구별했는데, 왼쪽 세로선 체계로 바꾼 뒤로는 그것만 따로 놀았다 --- 갈래는
+   선 모양이 아니라 표지 글(「반례.」)이 말한다. */
+.dev.antipattern > .dev-label { border-left-style:solid; }
+
+.dev.mathbox { font-size:.95rem; }
+.note { border:1px solid var(--rule); background:none; padding:.65rem .9rem;
+        margin:0 0 1.6rem; font-size:.9rem; }
+/* ★ 표지에는 가로줄을 두지 않는다(저자 지시 2026-08-10) --- 제목 밑의 옅은 줄은
+   *일반 제목의 밑줄 규칙*이 표지 제목까지 잡은 것이었고, 소개글 밑의 줄은 표지
+   블록 자신의 아래 테두리였다. 표지는 경계를 말할 자리가 아니다. */
+.cover { text-align:center; margin:1.4rem 0 2rem; padding-bottom:1.2rem; }
+.cover h1 { font-size:clamp(1.9rem,5vw,2.9rem); margin:0; letter-spacing:.01em;
+            padding-bottom:0; border-bottom:none; }
+.cover p { margin:.45rem 0; }
+.cover-sub { font-size:clamp(1rem,2.2vw,1.2rem); color:var(--fg); }
+.badge { display:inline-block; margin-top:.5rem; padding:.16rem .6rem;
+         border:1px solid var(--fg); font-size:.8rem; font-weight:700;
+         font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-meta { color:var(--muted); font-size:.9rem;
+              font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-author { margin-top:1.1rem; font-size:1.05rem; }
+.cover-links { font-size:.87rem; }
+.cover-links a { margin:0 .6rem; }
+.cover-blurb { max-width:44rem; margin:1.7rem auto 0; font-size:.95rem; color:var(--muted); }
+.cover-blurb p { margin:.5rem 0; }
+.metalist { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+  margin:.6rem 0 1rem; }
+.metalist dt { color:var(--muted); font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; }
+.metalist dd { margin:0; }
+.colophon-meta { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+                 margin:1.2rem 0 1.8rem; font-size:.93rem; }
+.colophon-meta dt { color:var(--muted);
+                    font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-size:.88rem; }
+.colophon-meta dd { margin:0; }
+.colophon { font-size:.93rem; }
+.colophon > div { margin:.9rem 0; padding-left:.9rem; border-left:1px solid var(--rule); }
+/* 개념도 — 흑백 선화라 다크 모드에서는 반전해 준다 */
+figure.fig { margin:1.6rem 0; text-align:center; }
+figure.fig img { max-width:100%; height:auto; }
+figure.fig figcaption { margin-top:.5rem; font-size:.92rem; color:var(--muted); }
+@media (prefers-color-scheme: dark) { figure.fig img { filter:invert(1) hue-rotate(180deg); } }
+:root[data-theme="dark"] figure.fig img { filter:invert(1) hue-rotate(180deg); }
+:root[data-theme="light"] figure.fig img { filter:none; }
+.toc { columns:24rem; column-gap:2.4rem; }
+.toc-part { break-inside:avoid; margin:1.1rem 0 .3rem; font-size:.95rem; letter-spacing:.02em;
+            font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.toc-part:first-child { margin-top:0; }
+.toc-front { margin-bottom:.4rem; }
+/* 차례도 선 없이 --- 왼쪽 세로줄과 장마다의 밑줄을 걷어 낸다(저자 지시 2026-08-10).
+   여기는 장치가 아니라 목록이라 선이 뜻하는 바가 없다. */
+.toc-group { break-inside:avoid; padding-left:.85rem; }
+.toc a { display:block; padding:.28rem 0; text-decoration:none; }
+.toc a:hover { text-decoration:underline; }
+.nav { display:flex; gap:1rem; align-items:center; margin-top:3rem; padding-top:1rem;
+       border-top:1px solid var(--rule); font-size:.9rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.nav .sp { flex:1 1 auto; }
+
+/* ── 서식 예시의 이름표 ─────────────────────────────────────────
+   조판 견본(style-specimen)에서만 나온다. 「이 모양을 뭐라고 부르는가」를
+   그 자리에 붙여 둔다 --- 본문에는 쓰지 않는다. */
+code.style-name { font-family:"PCB Mono","D2Coding",ui-monospace,monospace;
+  font-size:.72em; color:var(--muted); background:var(--rule);
+  padding:.05em .35em; border-radius:3px; white-space:nowrap;
+  font-weight:400; letter-spacing:0; }
+
+/* ── 조판 값 --- 견본에서 시험해 채택한 것들 (저자 지시 2026-08-10) ─────
+ *
+ * 아래는 견본(style-specimen)에서 눈으로 확인한 뒤 책에 들인 값이다.
+ * 여백은 일반적인 책의 숨에 맞추고, 선은 색 하나(#d5d5d5)로 모았다
+ * --- 표만 예외다(격자는 옅으면 칸이 안 읽힌다).
+ */
+
+/* 서두 다섯 칸 --- 표지 줄이 선에 눌려 있었다 */
+.dev.open > .dev-label { padding-top:.42rem; padding-bottom:.42rem; }
+.dev.open > .open-body { padding-top:.4rem; padding-bottom:.4rem; }
+.dev.open > .open-body > p { margin:.6rem 0; }
+
+/* 장치 안의 글도 조금 넉넉하게 */
+.dev > .dev-body { padding-top:.5rem; padding-bottom:.5rem; }
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure { margin:.55rem 0; }
+
+/* 본문 --- 줄 사이와 문단 사이 */
+main { line-height:1.85; }
+p { margin:1.15rem 0; }
+h2 { margin-top:2.4rem; }
+h3 { margin-top:2rem; }
+li { margin:.3rem 0; }
+
+/* 제목 밑줄 --- 시험 중: 검정 대신 흐린 회색(저자 지시 2026-08-10).
+   경계를 말하되 글자보다 앞서지 않게. */
+/* 제목 밑줄도 팔레트를 따른다 --- 고정색이면 어두운 테마에서 홀로 밝다 */
+h1, h2, h3, h4 { border-bottom-color:var(--box-rule) !important; }
+
+/* 차례 --- 본문의 넉넉한 행간을 그대로 받아 헐거웠다. 목록은 촘촘해야 훑힌다.
+   (저자 지시 2026-08-10, 웹판 견본) */
+.toc { line-height:1.45; }
+.toc a { padding:.16rem 0; }
+.toc-part { margin:.85rem 0 .2rem; }
+
+/* 저작권·연락처 --- 두 칸짜리 표는 줄 사이가 벌어질수록 짝이 흩어진다 */
+.metalist { line-height:1.45; gap:.2rem 1.2rem; }
+.metalist dt, .metalist dd { margin:0; }
+
+/* 시연 상자(소스 코드·실행 결과) --- 시험 중: 테두리를 연한 회색으로
+   (저자 지시 2026-08-10). 코드가 이미 검은 덩어리다. */
+.demo { border-color:var(--box-rule); }
+.demo > .demo-head { border-bottom-color:var(--box-rule); }
+
+/* ── 왼쪽 세로선 --- 시험 중: 검정에서 연한 회색으로 (저자 지시 2026-08-10)
+ * 색은 팔레트(--box-rule)를 따른다 --- 테마가 바뀌면 선도 함께 바뀐다.
+ * 굵기(4px 대 2px)가 층위를 말하므로 색까지 세게 말할 까닭이 없다. */
+.dev > .dev-label,
+.dev.open > .dev-label,
+.qa-box .qa-q,
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  border-left-color:var(--box-rule); }
+
+.dev > .dev-body,
+.dev > .open-body,
+.dev.open .qa-a,
+.qa-box .qa-a,
+.deepqa .qa-a { border-left-color:var(--box-rule); }
+
+/* ★ 선의 색은 하나다(저자 지시 2026-08-10) --- 표(.tbl)만 예외로 제 색을 쓴다.
+   여기 한 줄로 못 박아, 뒤에 무엇이 오든 같은 회색이 되게 한다. */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div {
+  border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* ★ 특이도(specificity) 함정 --- `.dev.open > .open-body` 는 클래스가 셋이라
+   위의 `.dev *`(하나) 나 `.dev > .open-body`(둘) 보다 세다. 그래서 서두 칸의
+   *내용* 세로선만 var(--box-rule)=#9a9a9a 로 남아 혼자 진했다(저자 지적).
+   같은 자리를 같은 힘으로 눌러 준다. */
+.dev.open > .open-body,
+.dev.open > .qa-a,
+.dev.open .qa-a,
+.dev.deepqa .qa-a,
+.qa-box > .qa-a,
+.qa-box > .qa-q { border-left-color:var(--box-rule); }
+
+/* 상단 바의 차례 그림글자 --- 글자 크기를 조금 키워 다른 이름들과 눈높이를 맞춘다 */
+.bar .bar-toc { font-size:1.15em; line-height:1; text-decoration:none; }
+
+/* ── 통일 (저자 지시 2026-08-11) ─────────────────────────────────────
+ * ★ 「글 전체의 통일성이 중요하다」 --- 장치 안의 글도, 장 안의 차례도, 본문과
+ *   같은 크기·행간·문단 간격을 쓴다. 예전에는 자리마다 값이 조금씩 달라
+ *   상자를 지날 때마다 리듬이 흔들렸다.
+ */
+.dev, .dev-body, .open-body, .qa-box, .qa-q, .qa-a, .dev-label,
+.toc-full, .toc-full .tf-secs { line-height:inherit; font-size:1rem; }
+.dev > .dev-body > p, .dev > .open-body > p,
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:1.15rem 0; }
+.dev > .dev-body > *:first-child, .dev > .open-body > *:first-child,
+.qa-box .qa-q > p:first-child, .qa-box .qa-a > p:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child, .dev > .open-body > *:last-child,
+.qa-box .qa-q > p:last-child, .qa-box .qa-a > p:last-child { margin-bottom:0; }
+/* 표지 줄만은 제 크기를 지킨다 --- 이름이지 본문이 아니다 */
+.dev > .dev-label, .dev.open > .dev-label { font-size:.98rem; line-height:1.4; }
+
+/* 제목: 글자와 밑줄 사이를 넉넉히, 그만큼 밑줄 아래도 넉넉히 */
+h1,h2,h3,h4 { padding-bottom:.34rem; }
+h1 { margin:.2rem 0 1.3rem; }
+h2 { padding-bottom:.42rem; margin-bottom:1.15rem; }
+h3 { padding-bottom:.36rem; margin-bottom:.95rem; }
+
+/* ── 장 서두 칸의 목록과 문단 (저자 지시 2026-08-11) ──────────────────
+ * ★ 항목 사이에 여백을 또 주면 *행간이 두 번 붙은 것처럼* 보인다. 서두 칸은
+ *   짧은 줄이 여럿 늘어서는 자리라 그 겹침이 특히 크게 보였다. 항목 사이
+ *   간격은 행간이 대신하게 두고, 여백은 문단 사이에만 최소로 준다.
+ *   행간 자체는 본문과 같다(main 에서 물려받는다) --- 값을 따로 두지 않는다.
+ */
+.dev.open > .open-body > * { margin:.3rem 0; }
+.dev.open > .open-body > p { margin:.5rem 0; }
+.dev.open > .open-body > div { margin:.15rem 0; }   /* 「먼저 알아야 할 것」의 한 줄들 */
+.dev.open ul, .dev.open ol { margin:.3rem 0; }
+.dev.open li, .dev.open ol.qlist li { margin:0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open .qa-a > p { margin:.35rem 0; }
+
+/* ── 웹판만의 조정 (저자 승인 2026-08-11) ─────────────────────────────
+ * ★ 선의 색을 종이와 화면이 나눠 쓴다. 종이는 잉크가 실제로 얹혀 #d5d5d5 도
+ *   보이지만, 화면에서는 흰 배경 대비 **1.47:1** 이라 밝기를 낮추거나 값싼
+ *   패널에서는 사실상 사라진다 --- 「영역을 한눈에」라는 목적이 화면에서만
+ *   무너진다. 그래서 웹만 한 단계 진하게 둔다(#c4c4c4, 대비 1.75:1).
+ */
+/* 선의 색은 팔레트의 --box-rule 을 따른다 --- 테마가 바뀌면 함께 바뀐다 */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div { border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* 키보드로 다닐 때 지금 어디인지 보여야 한다 --- 없으면 링크를 세며 다녀야 한다 */
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline:2px solid var(--link); outline-offset:2px; border-radius:2px; }
+
+/* 고정 바 아래로 제목이 숨지 않게 --- 차례에서 절을 누르면 바에 가렸다 */
+:target, h1, h2, h3, h4, [id] { scroll-margin-top:4.2rem; }
+
+/* 본문 건너뛰기 --- 상단 바의 링크를 매 쪽마다 지나지 않아도 되게 */
+.skip { position:absolute; left:-9999px; top:0; z-index:30;
+        background:var(--bg); color:var(--fg); border:1px solid var(--fg);
+        padding:.5rem .8rem; font-size:.9rem; text-decoration:none; }
+.skip:focus { left:.5rem; top:.5rem; }
+
+/* ── 상단 바의 펼침 패널과 읽기 설정 (저자 지시 2026-08-11) ────────────
+ * 바에는 넷만 둔다. 나머지는 여기로 접었다 --- 늘 보이던 것을 접어 두면
+ * 읽는 자리가 넓어지고, 필요할 때는 한 번의 누름으로 전부 나온다.
+ */
+.here-btn { font:inherit; color:inherit; background:none; border:1px solid transparent;
+  border-radius:4px; padding:.1rem .45rem; cursor:pointer; }
+.here-btn .caret { color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:78vh; overflow:auto;
+  background:var(--bg); border-bottom:1px solid var(--rule);
+  padding:.6rem clamp(.8rem,3vw,2.5rem) .9rem; }
+
+/* 도구 줄 --- 인라인으로 죽 늘어서다 좁으면 다음 줄로 넘어간다 */
+.here-panel .tools { display:flex; flex-wrap:wrap; gap:.3rem .5rem; align-items:center;
+  margin-bottom:.5rem; }
+.tool { font:inherit; font-size:.86rem; color:inherit; background:none;
+  border:1px solid var(--rule); border-radius:4px; padding:.2rem .55rem;
+  text-decoration:none; cursor:pointer; white-space:nowrap;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+
+/* ★ 누를 수 있다는 것을 바탕색으로 말한다(저자 지시) --- 글자만 바뀌면
+   손이 닿기 전에는 알 수 없다. */
+.tool:hover, .here-btn:hover, .bar a:hover, .nav a:hover,
+.here-panel .here-body a:hover { background:var(--box-bg); }
+.tool:hover { border-color:var(--box-rule); }
+.here-btn:hover { border-color:var(--rule); }
+.bar a, .nav a { border-radius:4px; padding:.1rem .35rem; }
+.tool:active, .here-btn:active, .bar a:active { transform:translateY(1px); }
+.segb[aria-pressed="true"] { background:var(--box-bg); border-color:var(--fg); font-weight:700; }
+
+/* 본문 링크 --- 밑줄로 있음을 말하고, 손이 닿으면 바탕으로 답한다 */
+main a { text-decoration:underline; text-decoration-color:var(--box-rule);
+  text-underline-offset:2px; border-radius:3px; }
+main a:hover { background:var(--box-bg); text-decoration-color:var(--link); }
+main .toc a, main .toc-full a, main .here-body a { text-decoration:none; }
+main .toc a:hover, main .toc-full a:hover { background:var(--box-bg); text-decoration:underline; }
+
+/* 읽기 설정 상자 */
+.setbox { border:1px solid var(--rule); border-radius:5px; padding:.6rem .7rem;
+  margin:0 0 .6rem; font-size:.88rem;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.setrow { display:flex; flex-wrap:wrap; gap:.4rem .7rem; align-items:center;
+  margin:.35rem 0; }
+.setlbl { color:var(--muted); min-width:3.2rem; }
+.seg { display:inline-flex; gap:.25rem; }
+.segb { font:inherit; color:inherit; background:none; border:1px solid var(--rule);
+  border-radius:4px; padding:.15rem .5rem; cursor:pointer; }
+.col { display:inline-flex; align-items:center; gap:.3rem; }
+.col input[type=color] { width:2rem; height:1.4rem; padding:0; border:1px solid var(--rule);
+  border-radius:3px; background:none; cursor:pointer; }
+.setnote { margin:.5rem 0 0; color:var(--muted); font-size:.82rem; }
+
+/* 가로폭 제한 --- 기본은 제한 없음(설계 의도). 독자가 켤 때만 걸린다. */
+:root[data-measure="on"] main .wrap { max-width:46rem; margin-inline:auto; }
+
+/* 펼침 패널 맨 왼쪽의 판 번호 --- 도구가 아니라 표시다(누를 것이 없다) */
+.here-panel .ver { font-size:.82rem; color:var(--muted); padding:.2rem .45rem .2rem 0;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; white-space:nowrap; }
+
+/* ── 코드와 실행 결과의 줄바꿈 (저자 지시 2026-08-11) ─────────────────
+ * ★ 가로로 흘러 넘치게 두면 긴 줄은 *가로 스크롤 안에 숨는다.* 종이에서는
+ *   글자 단위로 접어 넣고 있으니(lib.typ 의 _hardwrap), 화면에서도 같은
+ *   약속을 지킨다 --- 넘치는 대신 접는다. 들여쓰기는 그대로 살린다.
+ */
+.demo pre, .demo pre code {
+  white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
+.demo > .demo-body { overflow-x:visible; }
+
+/* ── 절의 주소(permalink) ─────────────────────────────────────────
+   종이 책에는 쪽수가 있지만 웹 판에는 없어서, 남에게 「거기」를 알려 줄
+   방법이 없었다. 절마다 닻을 두되 *읽기를 방해하지 않게* --- 평소에는
+   보이지 않다가 제목에 닿거나 키보드 초점이 오면 드러난다. */
+.plink {
+  margin-left: .4em; font-weight: 400; text-decoration: none;
+  color: var(--muted, #888); opacity: 0; transition: opacity .12s;
+}
+h3:hover > .plink, h4:hover > .plink,
+h3 > .plink:focus, h4 > .plink:focus { opacity: 1; }
+@media (hover: none) { .plink { opacity: .45; } }
+
+/* ── 검색 ─────────────────────────────────────────────────────────
+   *제목과 색인 표제어*만 찾는다. 본문 전체 색인은 판마다 수 MB 라
+   내려받게 하는 값이 얻는 것보다 크다. 무엇을 찾는지 화면에 적어 둔다. */
+.searchbox { margin:.6em 0 0; }
+.searchbox input[type=search] {
+  width: 100%; padding: .45em .6em; font: inherit;
+  border: 1px solid var(--rule, #ccc); border-radius: 4px;
+  background: var(--bg, #fff); color: var(--fg, #111);
+}
+.search-hint { color: var(--muted, #777); font-size: .85em; margin:.3em 0 0; }
+.search-results { list-style: none; padding: 0; margin: .5em 0 0; }
+.search-results li { margin: .15em 0; }
+.search-results .where { color: var(--muted, #777); font-size: .85em; margin-left: .4em; }
+
+body { font-family:"PCB Serif","Noto Serif CJK KR","Noto Serif KR",Georgia,serif; }
+h1,h2,h3,h4,.bar,.dev-label,.toc-part,.cover-meta,.badge,
+.colophon-meta dt { font-family:"PCB Sans","Noto Sans CJK KR","Noto Sans KR",system-ui,sans-serif; }
+pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Menlo,monospace; }
+</style>
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('pcb-read')||'{}');var r=document.documentElement;if(s.theme&&s.theme!=='auto')r.setAttribute('data-theme',s.theme);if(s.fg)r.style.setProperty('--fg',s.fg);if(s.bg)r.style.setProperty('--bg',s.bg);if(s.link)r.style.setProperty('--link',s.link);if(s.width)r.setAttribute('data-measure','on');}catch(e){}})();</script></head>
+<body>
+<a class="skip" href="#content">본문으로 건너뛰기</a>
+<div class="bar"><strong><a href="index.html">Lowent 매뉴얼</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">19장 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch18.html" title="이전" aria-label="이전">←</a><a href="index.html" title="목차로" aria-label="목차로">↑</a><a href="ch20.html" title="다음" aria-label="다음">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ 설정</button><a class="tool" href="toc.html">▤ 상세 차례</a><a class="tool" href="../html-en/ch19.html">En</a><a class="tool" href="../pdf-ko/lowent-manual-ko.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="이 책의 GitHub 저장소">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- 공개된 모든 프로젝트">⌂ 전체 사이트</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- 모든 저장소">≡ 저장소 목록</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>가로폭 제한</span></label><div class="setrow"><span class="setlbl">테마</span><span class="seg"><button type="button" class="segb" data-theme="auto">시스템</button><button type="button" class="segb" data-theme="light">밝게</button><button type="button" class="segb" data-theme="dark">어둡게</button></span></div><div class="setrow"><span class="setlbl">색</span><label class="col"><span>글자</span><input type="color" id="s-fg"></label><label class="col"><span>배경</span><input type="color" id="s-bg"></label><label class="col"><span>링크</span><input type="color" id="s-link"></label></div><p class="setnote">설정은 이 브라우저에만 저장된다.</p></div><div class="here-head"><strong>이 장의 차례</strong></div><div class="here-body"><a class="lv3" href="#s19-1"><span class="tf-no">19.1</span>owned 와 drop</a><a class="lv3" href="#s19-2"><span class="tf-no">19.2</span>갈래가 만나는 자리</a><a class="lv3" href="#s19-3"><span class="tf-no">19.3</span>해제와 완결</a><a class="lv3" href="#s19-4"><span class="tf-no">19.4</span>운영체제가 치워 주기를 기대하지 않는다</a><a class="lv3" href="#s19-5"><span class="tf-no">19.5</span>메모리 안전은 어느 강도로 보장되나</a><a class="lv3" href="#s19-6"><span class="tf-no">19.6</span>흔한 실수</a><a class="lv3" href="#s19-7"><span class="tf-no">19.7</span>이 장의 문법을 한눈에</a></div></div>
+<main id="content"><div class="wrap">
+<h2>19 소유 — 없앨 책임은 하나에게</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>12장 빌리기 · 읽기 여럿 또는 쓰기 하나</div><div>18장 영역 · 영역은 끝날 때 한꺼번에 걷힌다</div><div>17장 실패를 설계하기 · 실패는 누군가 받아야 한다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>18장의 영역은 값들을 한꺼번에 걷는다. 그런데 파일 핸들처럼 <strong>하나씩</strong>, 그리고 <strong>닫다가 실패할 수 있는</strong> 자원은 영역만으로 다룰 수 있는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> 영역은 바이트를 한꺼번에 되감을 뿐이라서, 파일을 닫거나 버퍼를 비우는 일은 하지 못한다. 그리고 닫기가 실패하면 그 실패를 받을 자리가 영역의 <code>end</code> 에는 없다. 그런 자원에는 값마다 없앨 책임을 지는 <strong>소유</strong>가 필요하다. 이 장이 그것을 다룬다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">메모리 결함의 오래된 두 이름은 <strong>두 번 해제</strong>와 <strong>해제 누락</strong>이고, 요즘 이름은 <strong>옮긴 뒤 사용</strong>이다. 셋은 모두 “이 값을 없앨 책임이 지금 누구에게 있는가” 에 답이 하나가 아닐 때 생긴다. Lowent 는 그 답이 언제나 하나이도록 번역에서 검사한다. 여기에 한 가지를 더한다 — 없애는 일이 <strong>실패할 수 있으면</strong> 조용히 없애지 않는다. 영역(18장)이 함께 죽는 값을 다뤘다면, 이 장은 따로 죽는 값을 다룬다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body"><code>owned t</code> 가 무엇이고 <code>drop</code> 이 무엇을 하는지 알게 된다. 옮긴 값을 다시 쓰거나 두 번 없애면 거절되고, 갈래마다 소유 상태가 다르면 거절되는 이유를 익힌다. 없애기가 <strong>해제</strong>(실패 없음)와 <strong>완결</strong>(실패할 수 있음) 두 갈래라는 것, 완결이 필요한 값을 자동으로 버리면 왜 거절되는지 보게 된다. 이 언어의 메모리 안전이 어느 강도로 보장되는지도 정리한다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li>소유가 없는 값은 넘길 때 어떻게 되는가?</li></ol></div></div><div></div><h3 id="s19-1">19.1 <code>owned</code> 와 <code>drop</code><a class="plink" href="#s19-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-44"></span><p><code>owned t</code> 는 소유를 가진 값이다. 소유를 가진 값은 <strong>정확히 한 번</strong> 없애져야 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/sink.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sink .
+<em><span class="tok-c">rem run: use_once 5</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> use_once <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">owned</span></strong> buffer v .
+  <strong><span class="tok-k">return</span></strong> consume h .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run use_once sink.low 5
+use_once(5) = 0
+</code></pre></div></div><p><code>consume</code> 은 <code>owned buffer</code> 를 받아 <code>drop h .</code> 로 없앤다. <code>use_once</code> 는 <code>var h be owned buffer v .</code> 로 소유 값을 만들어 <code>consume</code> 에 넘긴다. 넘기는 순간 소유가 <strong>옮겨진다</strong>. 이제 <code>h</code> 를 없앨 책임은 <code>consume</code> 에 있고, <code>use_once</code> 는 <code>h</code> 를 더 쓸 수 없다.</p><pre><code data-lang="text">  use_once                              consume
+  ┌──────────────────┐   넘긴다(옮김)   ┌──────────────────┐
+  │ h ──▶ [ 버퍼 ]   │ ───────────────▶ │ h ──▶ [ 버퍼 ]   │ ── drop h .  → 없어진다
+  └──────────────────┘                  └──────────────────┘
+  이제 h 는 빈 이름이다                  없앨 책임은 여기 하나뿐
+  (다시 쓰면 E-OWN-MOVED)</code></pre><p>열쇠 하나짜리 사물함에 빗대면 쉽다. 열쇠를 건네면 내 손에는 열쇠가 없다. 사물함을 비울(없앨) 사람은 언제나 열쇠를 쥔 한 사람뿐이다. 그래서 «두 사람이 비운다»(두 번 해제)도, «아무도 안 비운다»(해제 누락)도, «건넨 열쇠로 또 연다» (옮긴 뒤 사용)도 생길 수 없다.</p><p>옮긴 값을 다시 쓰면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/moved.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> moved .
+<em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> reuse <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> consume h .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> consume h .
+  <strong><span class="tok-k">return</span></strong> add a b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check moved.low
+moved.low:15:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
+</code></pre></div></div><p>두 번 없애도 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/twice.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> twice_drop .
+<em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> twice <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check twice.low
+twice.low:9:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
+</code></pre></div></div><p>진단은 이것이 명세가 늘 오류라고 불러 온 자리이고 한때는 아무것도 강제하지 않았다고 적는다. 지금은 번역이 막는다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 소유가 없는 값은 넘길 때 어떻게 되는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 베껴진다. <code>u64</code> 나 <code>point</code> 같은 값은 넘기면 복사되고 원래 이름도 계속 쓸 수 있다. 소유가 있는 값만 옮겨진다. 베끼기의 비용이 걱정되는 큰 값은 <code>ref</code> 로 빌려 넘긴다(12장). 그리고 값을 만드는 식이 놓일 자리가 비어 있고, 도중에 실패하지 않으며, 그 자리가 그 값만의 것이면 값은 목적지에 곧바로 만들어진다. 중간 임시값도, 옮기는 복사도 없다. 이 세 조건은 소스만 보고 셀 수 있다.</p></div></div><h3 id="s19-2">19.2 갈래가 만나는 자리<a class="plink" href="#s19-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>if</code> 로 갈라졌다가 다시 만나는 자리에서, 소유 상태는 모든 길에서 같아야 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/join.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> join .
+<em><span class="tok-c">rem expect: E-OWN-JOIN</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> maybe <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> c . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check join.low
+join.low:8:0 E-OWN-JOIN: this `owned` value is CONSUMED on one path of this branch but still LIVE on another where they merge — Lowent requires the ownership state to be STATICALLY consistent at a join (RFC-0044 §9.3): no hidden drop-flag decides it at runtime. Consume it on EVERY path, or make it conditionally owned (`?owned`)
+</code></pre></div></div><p><code>c</code> 가 참인 길에서는 <code>h</code> 가 없어졌고 거짓인 길에서는 살아 있다. 두 길이 만난 뒤 <code>h</code> 가 살아 있는지를 아무도 말할 수 없다.</p><pre><code data-lang="text">              if c
+          ┌─────┴─────┐
+       drop h       (그대로 둔다)
+       h: 없음        h: 있음
+          └─────┬─────┘
+         두 길이 만나는 자리 --- h 는 있나, 없나?  → 한 가지로 말할 수 없으니 거절</code></pre><p>어떤 언어는 이 자리에 숨은 “없앴는지 표시하는 깃발” 을 두지만, Lowent 는 소유 상태가 <strong>정적으로</strong> 한 가지이기를 요구한다. 두 길 모두에서 없애거나, 두 길 모두에서 넘기면 된다.</p><p>같은 원리로, 묶음의 <code>owned</code> 칸 하나를 옮긴 뒤 묶음 전체를 다시 옮기면 거절된다(<code>E-OWN-PARTIAL</code>). 받는 쪽은 온전한 묶음을 받았다고 여기는데 그 안의 한 칸은 이미 남의 것이다.</p><h3 id="s19-3">19.3 해제와 완결<a class="plink" href="#s19-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>없애는 일은 두 갈래다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>갈래</strong></th><th><strong>예</strong></th><th><strong>다루는 법</strong></th></tr><tr><td>해제</td><td>메모리를 돌려준다</td><td>실패가 없으므로 수명이 끝나는 자리에서 조용히 일어나도 된다</td></tr><tr><td>완결</td><td>파일을 닫는다, 버퍼를 비운다, 거래를 커밋한다</td><td>실패할 수 있으므로 저자가 적어서 불러야 한다</td></tr></table></div><p class="float-caption">표 19.1 — 없애는 일의 두 갈래</p></figure><p>해제는 삼킬 실패가 없다. 완결은 조용히 일어나면 그 실패를 건네줄 자리가 없다. 기준은 하나다 — <strong>끝내는 일이 실패할 수 있는가.</strong></p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>값의 종류</strong></th><th><strong>넘기면</strong></th><th><strong>끝나면</strong></th></tr><tr><td>소유가 없는 값(<code>u64</code> · <code>point</code> …)</td><td>베껴진다. 원래 이름도 계속 쓴다</td><td>할 일이 없다</td></tr><tr><td><code>owned</code>, 해제만 필요</td><td>옮겨진다. 원래 이름은 빈다</td><td>수명이 끝나는 자리에서 조용히 해제된다</td></tr><tr><td><code>owned</code>, 완결이 필요</td><td>옮겨진다. 원래 이름은 빈다</td><td>저자가 완결 op 을 적어서 불러야 한다(아니면 <code>E-OWN-INCOMPLETE</code>)</td></tr></table></div><p class="float-caption">표 19.2 — 값이 넘겨질 때와 끝날 때 — 한눈에</p></figure><span id="idx-entry-45"></span><p>어떤 타입이 완결을 요구하는지는 프로그램 자신이 선언한다. 그 타입을 <code>owned</code> 로 받아 <code>result</code> 를 돌려주는 op 이 있으면, 그것이 “이것을 끝내는 일은 실패할 수 있다” 는 선언이다. 새 낱말은 없다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/complete.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> complete .
+<em><span class="tok-c">rem run: session 3</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> journal <strong><span class="tok-t">u64</span></strong> .
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
+  disk_full .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> finish <strong><span class="tok-k">input</span></strong> j <strong><span class="tok-k">owned</span></strong> journal . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> flush_error .
+  <strong><span class="tok-k">errors</span></strong> disk_full eq j <span class="tok-n">0</span> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem 빈 일지는 쓸 자리가 없었다는 뜻이다 --- 그래서 이 갈래가 실제로 난다</span></em>
+  <strong><span class="tok-k">guard</span></strong> ne j <span class="tok-n">0</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">drop</span></strong> j .
+    <strong><span class="tok-k">return</span></strong> error disk_full .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">drop</span></strong> j .
+  <strong><span class="tok-k">return</span></strong> ok <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> session <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> flush_error .
+  <strong><span class="tok-k">errors</span></strong> disk_full .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> j <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">owned</span></strong> journal n .
+  <strong><span class="tok-k">return</span></strong> finish j .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run session complete.low 3
+session(3) = ok 0
+</code></pre></div></div><p><code>finish</code> 가 <code>owned journal</code> 을 받아 <code>result</code> 를 돌려주므로 <code>journal</code> 은 완결이 필요한 타입이 된다. <code>session</code> 은 <code>finish j</code> 를 불러 끝내고, 그 결과(실패할 수도 있는)를 자기 결과로 돌려준다. 완결을 부르지 않고 범위를 벗어나게 두면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/incomplete.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> incomplete .
+<em><span class="tok-c">rem expect: E-OWN-INCOMPLETE</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> journal <strong><span class="tok-t">u64</span></strong> .
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">enum</span></strong> flush_error <strong><span class="tok-k">do</span></strong>
+  disk_full .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> finish <strong><span class="tok-k">input</span></strong> j <strong><span class="tok-k">owned</span></strong> journal . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-k">result</span></strong> <strong><span class="tok-t">u8</span></strong> flush_error .
+  <strong><span class="tok-k">errors</span></strong> disk_full .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">drop</span></strong> j .
+  <strong><span class="tok-k">return</span></strong> ok <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> forget <strong><span class="tok-k">input</span></strong> j <strong><span class="tok-k">owned</span></strong> journal . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check incomplete.low
+incomplete.low:11:0 W-ERRORS-UNRAISED: this `errors` clause names a failure the body never returns. The clause is read as a promise about what this op can do, and the callers write their handling from it — a branch that can never be taken is dead code the reader cannot tell from live code. Return it (`return error &lt;variant>`), forward one (`try`), or remove the clause
+17:0 E-OWN-INCOMPLETE: this value is dropped automatically at the end of scope — but the program itself declares an op that takes this type `owned` BY VALUE and returns a `result`: finishing it CAN FAIL. An automatic drop is a RELEASE (total, non-suspending), and it has nowhere to hand you that failure — it would SWALLOW it. A fallible finish (flush/commit/close) is a COMPLETION and must be EXPLICIT: call it and handle the `result`. If you really mean to discard the value and its failure, say so with `drop`. RFC-0058
+</code></pre></div></div><p>진단의 말대로, 자동으로 없애는 것은 해제이고 해제에는 실패를 돌려줄 곳이 없으므로 그 실패를 <strong>삼키게</strong> 된다. 플러시·커밋·닫기 같은 실패할 수 있는 끝내기는 저자가 적어서 불러야 한다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>소멸자(destructor)가 알아서 파일을 닫아 주면 편하다</strong></p><div class="dev-body">C++ 의 소멸자나 Rust 의 <code>Drop</code> 은 범위를 벗어날 때 자원을 닫는다. 닫기가 실패하면? 소멸자는 값을 돌려줄 수 없으므로 실패를 무시하거나 프로그램을 멈춘다. 디스크가 가득 차서 마지막 버퍼를 쓰지 못한 사실이 조용히 사라지는 자리다. Lowent 는 이 편의를 해제에만 허락하고, 완결은 적게 한다. 정말로 값과 그 실패를 함께 버리려면 <code>drop</code> 으로 <strong>버린다고 말한다</strong> — 진단도 그렇게 안내한다. 조용히 사라지는 것과 저자가 버리기로 적은 것은 다른 일이다.</div></div><h3 id="s19-4">19.4 운영체제가 치워 주기를 기대하지 않는다<a class="plink" href="#s19-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>많은 프로그램이 “어차피 프로세스가 끝나면 운영체제가 치운다” 에 기댄다. Lowent 는 그 기대를 하지 않는다. 없애기를 잊은 것을 번역에서 잡으므로, 운영체제가 없는 환경 — 프로세스가 끝나지 않는 펌웨어 — 에서도 같은 코드가 성립한다.</p><h3 id="s19-5">19.5 메모리 안전은 어느 강도로 보장되나<a class="plink" href="#s19-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>“메모리 안전” 이라는 말은 무엇이 어떻게 안전한지 밝혀야 뜻이 있다. 이 언어는 강도를 갈라 적는다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>규칙</strong></th><th><strong>강도</strong></th><th><strong>뜻</strong></th></tr><tr><td>차용의 배타 · 참조 탈출 금지</td><td>정적 + 증명됨</td><td>번역이 막고, 규칙의 건전성은 Coq 로 증명되었다(순차 모델)</td></tr><tr><td>소유의 한 번 없애기 · 영역 탈출 금지</td><td>정적</td><td>번역이 막는다</td></tr><tr><td>슬라이스 경계 · 계약</td><td>동적</td><td>실행 중 검사하고, 증명되면 검사가 사라진다</td></tr><tr><td>세대 핸들의 늘어진 참조</td><td>동적</td><td>실행 중 세대를 비교한다(34장)</td></tr></table></div><p class="float-caption">표 19.3 — 메모리 규칙과 그 강도</p></figure><p>그러니 이 언어를 “전면 정적 안전” 이라고 부르면 틀린다. 정적으로 막는 것, 실행 중에 막는 것, 증명된 것을 섞은 설계다. 무엇이 증명되었고 증명과 컴파일러 사이에 어떤 틈이 있는지는 42·50장이 다룬다.</p><h3 id="s19-6">19.6 흔한 실수<a class="plink" href="#s19-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><div class="dev antipattern"><p class="dev-label">반례. 반복 안에서 소유 값을 넘긴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_loopmove.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_loopmove .
+<em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> three_times <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">owned</span></strong> buffer v .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">3</span> . <strong><span class="tok-k">do</span></strong>
+    <em><span class="tok-c">rem ✘ 첫 바퀴에서 옮겨 간 `h` 를 둘째 바퀴가 또 넘긴다</span></em>
+    <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> consume h .
+    <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_loopmove.low
+mistake_loopmove.low:16:0 E-OWN-MOVED: this `owned` value is CONSUMED inside a LOOP and never put back — the SECOND iteration would be a use-after-move. A loop body must end the way it began: consume it and REASSIGN the place (`set &lt;name> …`, which re-initialises it), or move the consumption out of the loop
+</code></pre></div></div><p>첫 바퀴에서 <code>consume h</code> 가 소유를 가져가면 둘째 바퀴의 <code>h</code> 는 이미 남의 것이다. 번역은 바퀴를 하나씩 따라가지 않고도 “바퀴 몸이 시작할 때와 다른 모양으로 끝난다” 를 보고 <code>E-OWN-MOVED</code> 로 거절한다. 고치는 길은 둘이다. 넘기기를 반복 밖으로 빼거나, 넘긴 자리를 <code>set</code> 으로 새 값으로 다시 채워 바퀴가 같은 모양으로 끝나게 한다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/loopmove_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> loopmove_fixed .
+<em><span class="tok-c">rem run: three_times 5</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> three_times <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">owned</span></strong> buffer v .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">3</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> n (add n (consume h)) .
+    <em><span class="tok-c">rem 넘긴 자리를 새 값으로 다시 채운다 --- 바퀴가 시작할 때와 같은 모양으로 끝난다</span></em>
+    <strong><span class="tok-k">set</span></strong> h v .
+    <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run three_times loopmove_fixed.low 5
+three_times(5) = 3
+</code></pre></div></div></div></div><div class="dev antipattern"><p class="dev-label">반례. 읽기만 했다고 생각하고 옮긴다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_readmove.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_readmove .
+<em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> peek <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ 값을 꺼내 담는 것도 옮기기다 --- 그 뒤의 `drop h` 는 옮긴 값을 없앤다</span></em>
+  <strong><span class="tok-k">let</span></strong> v <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> h .
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">return</span></strong> v .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_readmove.low
+mistake_readmove.low:10:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
+</code></pre></div></div><p><code>let v be u8 h .</code> 는 <code>h</code> 를 들여다보는 것이 아니라 <code>v</code> 로 <strong>옮기는</strong> 것이다. 소유가 있는 값은 이름에 담는 순간 옮겨 가므로 뒤의 <code>drop h</code> 는 옮긴 값을 없애려는 셈이다. 들여다보기만 하려면 같은 op 안에서 <code>ref h</code> 로 빌린다. 진단이 적은 대로 op 경계를 넘는 빌림은 이 판에서 아직 낮춰지지 않는다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 다른 이름에 담으면 사본이 생긴다고 믿는다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/mistake_twonames.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_twonames .
+<em><span class="tok-c">rem expect: E-OWN-MOVED</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+
+<strong><span class="tok-k">fn</span></strong> consume <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> both <strong><span class="tok-k">input</span></strong> h <strong><span class="tok-k">owned</span></strong> buffer . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ 다른 이름에 담으면 사본이 생긴다고 믿었다 --- 소유는 `h2` 로 옮겨 갔다</span></em>
+  <strong><span class="tok-k">var</span></strong> h2 <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">owned</span></strong> buffer h .
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> consume h2 .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> consume h .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_twonames.low
+mistake_twonames.low:17:0 E-OWN-MOVED: this `owned` value was already MOVED (consumed) — using it again is use-after-move, which SPEC-004 §4.8 has always called a compile error and which nothing enforced. To keep using it, either CONSUME AND PUT IT BACK (`set &lt;name> &lt;new value>` re-initialises the place — that is how a handle threads through a loop), or borrow it LOCALLY with `ref h`. ☞ borrowing across an OP BOUNDARY is not lowered yet (E-IR-UNSUP says so at the call site), so `f (ref h)` is not a way out today
+</code></pre></div></div><p><code>u64</code> 같은 값은 다른 이름에 담으면 베껴진다. 소유가 있는 값은 베껴지지 않고 옮겨 간다. 사본이 둘이면 누가 없앨지 정할 수 없고, 둘 다 없애면 두 번 없애기가 되기 때문이다. <code>var h2 be owned buffer h .</code> 뒤로 소유자는 <code>h2</code> 하나다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>drop</code> 을 적지 않으면 샌다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch19/implicit_release.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> implicit_release .
+<em><span class="tok-c">rem run: keep_or_drop 5 1</span></em>
+<em><span class="tok-c">rem run: keep_or_drop 5 0</span></em>
+
+<strong><span class="tok-k">def</span></strong> <strong><span class="tok-k">type</span></strong> buffer <strong><span class="tok-t">u8</span></strong> .
+
+<em><span class="tok-c">rem `c` 가 거짓인 길은 `drop` 없이 떠난다 --- 해제는 실패가 없으므로 수명이 끝나는 자리에서 조용히 일어난다</span></em>
+<strong><span class="tok-k">fn</span></strong> keep_or_drop <strong><span class="tok-k">input</span></strong> v <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> c <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">var</span></strong> h <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">owned</span></strong> buffer v .
+  <strong><span class="tok-k">guard</span></strong> eq c <span class="tok-n">1</span> . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">drop</span></strong> h .
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run keep_or_drop implicit_release.low 5 1
+keep_or_drop(5, 1) = 1
+$ lowentc --run keep_or_drop implicit_release.low 5 0
+keep_or_drop(5, 0) = 0
+</code></pre></div></div><p><code>c</code> 가 0 인 길은 <code>drop</code> 없이 떠나지만 거절되지 않고 새지도 않는다. 메모리를 돌려주는 <strong>해제</strong>는 실패할 수 없으므로 수명이 끝나는 자리에서 조용히 일어난다. 저자가 반드시 적어야 하는 것은 실패할 수 있는 <strong>완결</strong>뿐이다(<code>incomplete.low</code>). 다만 갈래가 <strong>다시 만나는</strong> 자리에서는 소유 상태가 같아야 한다(<code>join.low</code>). 떠나 버리는 길은 만나지 않으므로 해당하지 않는다.</p></div></div><h3 id="s19-7">19.7 이 장의 문법을 한눈에<a class="plink" href="#s19-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>input h owned buffer .</code> · <code>var h be owned buffer v .</code></td><td>소유를 가진 값</td><td>없앨 책임이 이름 하나에 있다</td></tr><tr><td><code>consume h</code></td><td>넘기면 소유가 옮겨 간다</td><td>옮긴 뒤에는 쓸 수 없다 — <code>E-OWN-MOVED</code></td></tr><tr><td><code>drop h .</code></td><td>지금 없앤다고 적는다</td><td>두 번 없애기는 거절된다</td></tr><tr><td><code>set h v .</code> (옮긴 뒤)</td><td>옮겨 간 자리를 다시 채운다</td><td>반복 몸이 같은 모양으로 끝난다</td></tr><tr><td><code>if</code> 뒤 갈래마다 다른 소유 상태</td><td>거절(<code>E-OWN-JOIN</code>)</td><td>숨은 “없앴나” 깃발을 두지 않는다</td></tr><tr><td><code>fn finish input j owned journal . output result …</code></td><td>이 타입의 끝내기는 실패할 수 있다는 선언</td><td>새 낱말 없이 완결을 선언한다</td></tr><tr><td>완결을 부르지 않고 범위를 떠남</td><td>거절(<code>E-OWN-INCOMPLETE</code>)</td><td>끝내기의 실패를 삼키지 않는다</td></tr><tr><td>완결이 필요 없는 값을 적지 않고 떠남</td><td>조용히 해제된다</td><td>해제는 실패가 없다</td></tr></table></div><p class="float-caption">표 19.4 — 소유의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body"><code>owned t</code> 는 정확히 한 번 없애져야 하고, 넘기면 옮겨진다. 옮긴 값을 다시 쓰거나 두 번 없애면, 그리고 갈래마다 소유 상태가 다르면 거절된다. 없애기는 실패 없는 해제와 실패할 수 있는 완결로 나뉘며, 완결이 필요한 타입은 그것을 <code>owned</code> 로 받아 <code>result</code> 를 돌려주는 op 이 선언한다. 완결이 필요한 값을 자동으로 버리면 거절된다. 메모리 규칙은 정적·동적· 증명됨으로 강도를 갈라 이해한다.</div></div>
+<div class="nav"><a href="ch18.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch20.html">다음 →</a></div>
+</div></main>
+<script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>
+(function(){
+  var q=document.getElementById('q'), out=document.getElementById('qr');
+  if(!q||!out) return;
+  var data=null, NONE="\ucc3e\uc740 \uac83\uc774 \uc5c6\ub2e4";
+  function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+  function run(){
+    var v=q.value.trim().toLowerCase();
+    out.innerHTML='';
+    if(!v||!data) return;
+    var hits=[];
+    for(var i=0;i<data.length && hits.length<40;i++){
+      if(data[i][0].toLowerCase().indexOf(v)>=0) hits.push(data[i]);
+    }
+    if(!hits.length){ out.innerHTML='<li>'+NONE+'</li>'; return; }
+    out.innerHTML=hits.map(function(h){
+      return '<li><a href="'+h[1]+'">'+esc(h[0])+'</a>'+
+             (h[2]?'<span class="where">'+esc(h[2])+'</span>':'')+'</li>';
+    }).join('');
+  }
+  q.addEventListener('input',function(){
+    if(data){ run(); return; }
+    fetch('search-index.json').then(function(r){return r.json();})
+      .then(function(j){ data=j; run(); })
+      .catch(function(){ out.innerHTML='<li>'+NONE+'</li>'; });
+  });
+})();
+</script></body></html>

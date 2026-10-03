@@ -1,0 +1,15 @@
+module floatmod .
+rem run: rest
+rem run: whole_rest 7 2
+
+rem ko: 부동소수의 나머지는 `fmod` --- 정수의 `mod` 와 이름을 가른다 /// en: the floating-point remainder is `fmod` --- a different name from the integer `mod`
+fn rest output f64 .
+do
+  return fmod 7.5 2.0 .
+end
+
+fn whole_rest input a u64 . input b u64 . output u64 .
+  requires gt b 0 .
+do
+  return mod a b .
+end

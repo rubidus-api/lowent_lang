@@ -1,0 +1,9 @@
+module mistake_comptimeorder .
+rem expect: E-CLAUSE-ORDER
+
+rem ko: ✘ `comptime` 입력이 자료 입력 뒤에 왔다 /// en: ✘ the `comptime` input comes after a data input
+fn add_const input a u8 . input comptime n u8 . output u8 .
+  requires le a 200 .
+do
+  return add a n .
+end

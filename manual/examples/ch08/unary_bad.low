@@ -1,0 +1,7 @@
+module unary_bad .
+rem expect: E-EXPR-UNARY
+
+fn flip input a i32 . output i32 .
+do
+  return expr - a .
+end

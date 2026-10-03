@@ -1,0 +1,10 @@
+module mistake_access .
+rem expect: E-ACCESS-MODE
+
+rem ko: ✘ write_only 라고 적고 읽는다 — 아직 채워지지 않은 자리일 수 있다 /// en: ✘ declared write_only yet it reads; the place may not be filled yet
+proc bad_fill input out mut slice u8 . output u64 . effects state .
+  access out write_only .
+do
+  let x be u8 idx out 0 .
+  return widen u64 x .
+end

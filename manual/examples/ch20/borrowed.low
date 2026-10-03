@@ -1,0 +1,17 @@
+module borrowed .
+rem run: carve [0,0,0,0,0,0,0,0]
+
+use allocs .
+
+proc carve input buf mut slice u8 . output u64 . effects state .
+do
+  var a be allocs.bump_bytes spawn actor allocs.bump_bytes .
+  let room be u64 send a init buf .
+  let p be option mut slice u8 send a reserve 3 .
+  guard is_some p . else return 91 .
+  let pv be mut slice u8 some_value p .
+  set (idx pv 0) 65 .
+  let q be option mut slice u8 send a reserve 99 .
+  guard is_none q . else return 92 .
+  return send a used .
+end

@@ -1,0 +1,10 @@
+module runcap .
+rem run: say 5
+rem run: say 0 5
+
+rem ko: `--run` 은 권한 자리를 **비워 두면 채워 준다**(2026-09-20). 자리표 `0` 을 넣던 옛 모양도 그대로 돈다 /// en: `--run` FILLS capability positions when you leave them out (2026-09-20). The old placeholder `0` still works too
+proc say input out cap io . input n u64 . output u64 . effects io .
+  requires le n 100 .
+do
+  return write_out out 1 "hi\n" .
+end

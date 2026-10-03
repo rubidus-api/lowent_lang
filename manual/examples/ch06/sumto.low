@@ -1,0 +1,14 @@
+module sumto .
+rem run: sum_to 10
+rem run: sum_to 100
+
+fn sum_to input n u64 . output u64 .
+do
+  var total be u64 0 .
+  var i be u64 1 .
+  while le i n . do
+    set total (add total i) .
+    set i (add i 1) .
+  end
+  return total .
+end

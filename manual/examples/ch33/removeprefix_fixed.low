@@ -1,0 +1,12 @@
+module removeprefix_fixed .
+rem run: path_len [71,69,84,32,47,97]
+rem run: path_len [80,79,83,84,32,47,97]
+
+use strings .
+
+rem ko: 먼저 묻고, 없으면 따로 답한다 /// en: ask first, and answer separately when it is absent
+fn path_len input line slice u8 . output u64 .
+do
+  guard strings.starts_with line "GET " . else return 0 .
+  return len (strings.remove_prefix line "GET ") .
+end

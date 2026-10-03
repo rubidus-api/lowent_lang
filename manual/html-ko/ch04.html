@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4 수 — 폭이 정해진 정수와 부동소수 — Lowent 매뉴얼</title><style>/* ── 웹 판의 조판 (RFC-0027, 저자 지시 2026-08-10) ────────────────
+ *
+ * 전에는 이 CSS 가 scripts/wrap-html.py 안의 문자열이었다. 디자인을 한 줄
+ * 고치려면 파이썬 파일을 열어야 했고, 무엇이 디자인이고 무엇이 생성 논리인지
+ * 섞여 있었다. 이제 갈라 둔다 --- 디자인은 여기, 생성은 거기.
+ *
+ * ★ 고치는 절차
+ *   1. 이 파일만 고친다.
+ *   2. scripts/style-preview.sh --- build/style-preview.html 을 본다(몇 초).
+ *   3. 괜찮으면 그때 scripts/build-html.sh 로 전체를 만든다.
+ *
+ * ★ 규율 하나: 장치는 *왼쪽 세로선*으로 영역을 말하고, 제목은 *가로 밑줄*로
+ *   경계를 말한다. 소스 코드와 실행 결과(.demo)만 네 변 상자를 쓴다.
+ */
+
+/* ── 글꼴을 직접 싣는다 (RFC-0026 D2, 저자 지시 2026-08-10) ────────
+   전에는 @font-face 가 하나도 없어, CSS 가 적어 둔 이름이 방문자 기계에 없으면
+   대체 글꼴로 떨어졌다 --- 세리프 본문이 고딕으로 보이는 일이 흔했다.
+   이 책이 쓰는 갈래는 셋뿐이다: serif(본문) · sans-serif(제목·UI) · monospace(코드).
+   파일은 scripts/make-webfonts.sh 가 *이 책에 쓰인 글자만* 남겨 만든다.
+   font-display:swap --- 글꼴을 기다리느라 글이 안 보이는 일이 없게 한다. */
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-italic.woff2") format("woff2");
+  font-weight:400; font-style:italic; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Serif"; src:url("fonts/serif-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap;
+  unicode-range:U+0000-024F,U+2000-206F,U+20A0-20BF,U+2100-21FF,U+2190-2BFF; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Sans"; src:url("fonts/sans-kr-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono.woff2") format("woff2");
+  font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"PCB Mono"; src:url("fonts/mono-bold.woff2") format("woff2");
+  font-weight:700; font-style:normal; font-display:swap; }
+/* ── 색은 세 가지 상태를 모두 적어야 한다 (저자 지적 2026-08-11) ───────
+ * ★ 예전에는 어두운 팔레트가 `@media (prefers-color-scheme: dark)` *안에만*
+ *   있었다. 그래서 「어둡게」 단추가 `data-theme` 를 붙여도 응답할 규칙이 없어
+ *   아무 일도 일어나지 않았고, 「밝게」도 시스템이 어두우면 소용없었다.
+ *   이제 세 자리에 적는다:
+ *     ① 바탕(:root)                          --- 밝은 팔레트
+ *     ② 시스템이 어두울 때, 단 밝게를 고르지 않았으면  --- 어두운 팔레트
+ *     ③ 어둡게를 골랐을 때                      --- 어두운 팔레트
+ *   ②③ 은 같은 값이라 되풀이되지만, CSS 에서 변수 묶음을 이름으로 나눠 쓸
+ *   방법이 없다. 고칠 때는 *둘 다* 고쳐야 한다.
+ */
+:root { color-scheme: light dark; --fg:#141414; --bg:#ffffff; --muted:#5c5c5c;
+  --rule:#c9c9c9; --box-bg:#f6f6f6; --box-rule:#c4c4c4; --code-bg:#f2f2f2; --link:#1a4f8a;
+  --tok-c:#3f5b4a; --tok-k:#123c87; --tok-t:#0f5b63; --tok-s:#7a3b0a;
+  --tok-n:#8a2222; --tok-p:#6b2d8a; --tok-x:#555555; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+    --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+    --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+    --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; } }
+:root[data-theme="dark"] { color-scheme: dark; --fg:#e8e8e8; --bg:#121314; --muted:#a6a6a6;
+  --rule:#3a3d40; --box-bg:#1c1e20; --box-rule:#4a4d50; --code-bg:#1b1d1f; --link:#8ab4e8;
+  --tok-c:#9fbfa8; --tok-k:#9fc0f0; --tok-t:#7fcbd4; --tok-s:#e0b080;
+  --tok-n:#e79a9a; --tok-p:#c79ae0; --tok-x:#a6a6a6; }
+:root[data-theme="light"] { color-scheme: light; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); line-height:1.75;
+       font-family:"PCB Serif","Noto Serif CJK KR","Noto Serif KR",Georgia,serif; }
+/* ── 상세 차례와 「이 장의 차례」 패널 (저자 지시 2026-08-10) ── */
+.here-btn { margin-left:.7rem; font:inherit; font-size:.92rem; cursor:pointer;
+  background:none; border:1px solid var(--rule,#bbb); border-radius:.25rem;
+  padding:.1rem .5rem; color:inherit; }
+.here-btn:hover { background:rgba(127,127,127,.14); }
+.here-at { margin-left:.7rem; font-size:.92rem; color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:70vh; overflow:auto;
+  border:1px solid var(--rule,#bbb); border-top:none; background:var(--bg,#fff);
+  padding:.6rem .9rem 1rem; box-shadow:0 6px 18px rgba(0,0,0,.12); }
+.here-head { display:flex; align-items:center; gap:.8rem; padding:.2rem 0 .5rem;
+  border-bottom:1px solid var(--rule,#ddd); margin-bottom:.5rem; }
+.here-head .sp { flex:1; }
+.here-all { margin-left:auto; font-size:.9rem; }
+.here-x { font:inherit; font-size:.9rem; cursor:pointer; background:none;
+  border:1px solid var(--rule,#bbb); border-radius:.25rem; padding:.05rem .45rem;
+  color:inherit; }
+.here-body a, .tf-secs a { display:block; text-decoration:none; padding:.12rem 0;
+  line-height:1.45; }
+.here-body a:hover, .tf-secs a:hover { text-decoration:underline; }
+.here-body a.lv4, .tf-secs a.lv4 { padding-left:1.6rem; font-size:.94rem;
+  color:var(--muted,#555); }
+.tf-no { display:inline-block; min-width:3.2rem; color:var(--muted,#666);
+  font-variant-numeric:tabular-nums; }
+.toc-full .tf-ch { margin:.9rem 0 .15rem; font-weight:700; }
+.toc-full .tf-secs { margin:0 0 .5rem .2rem; border-left:2px solid var(--rule,#e2e2e2);
+  padding-left:.7rem; }
+.toc-full h4.toc-part { margin-top:1.8rem; }
+.toc a.toc-detail { font-weight:700; }
+@media print { .here-btn, .here-panel { display:none; } }
+/* 왼쪽부터 죽 이어 쓰고, 좁으면 개행한다 (저자 지시 2026-08-10).
+   전에는 가운데 여백(.sp)이 뒤쪽 항목을 오른쪽 끝으로 밀어 두 덩이로
+   갈라져 있었다. 좁은 화면에서는 그 사이가 벌어져 읽기 나빴다. */
+.bar { position:sticky; top:0; z-index:20; display:flex; flex-wrap:wrap; gap:.35rem .8rem; align-items:center;
+       padding:.55rem clamp(.8rem,3vw,2.5rem); background:var(--bg);
+       border-bottom:1px solid var(--rule); font-size:.86rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.bar a { color:var(--link); text-decoration:none; } .bar a:hover { text-decoration:underline; }
+.bar .sp { display:none; }        /* 더 쓰지 않는다 --- 왼쪽 정렬로 이어 쓴다 */
+main { width:100%; padding:1.6rem clamp(.9rem,3vw,2.5rem) 5rem; }
+/* 폭을 가두지 않는다 — 보통의 웹 문서처럼 화면 가로를 그대로 쓴다.
+   (2026-08-10: 40rem 으로 가둬 봤으나 저자가 「모양이 깨졌다」며 되돌리라고
+   했다. 줄 길이 문제는 D4 의 *독자가 고르는 폭*으로 푼다.) */
+.wrap { width:100%; max-width:none; margin:0; }
+h1,h2,h3,h4 { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; line-height:1.35;
+  padding-bottom:.18rem; border-bottom:1px solid var(--rule); }
+h1 { font-size:clamp(1.5rem,3.4vw,2.1rem); margin:.2rem 0 .9rem; }
+h2 { font-size:clamp(1.35rem,3vw,1.8rem); margin:0 0 .7rem; padding-bottom:.35rem;
+     border-bottom:2px solid var(--fg); }
+h3 { font-size:clamp(1.05rem,2.2vw,1.25rem); margin:1.5rem 0 .5rem;
+     padding-bottom:.22rem; border-bottom:1.5px solid var(--fg); }
+p { margin:.9rem 0; } a { color:var(--link); }
+/* 본문 문단은 첫 줄을 한 글자만큼 들여쓴다 — PDF 와 같은 규칙
+   (저자 지시 2026-08-06). 구조적인 자리(표지·차례·표제·캡션·목록)는 뺀다. */
+main p { text-indent: 1em; }
+.cover p, .note p, .toc p, .float-caption, .metalist p, .memrow p,
+.colophon-meta p, li p, td p, th p, figure p, blockquote p,
+.demo-src p, .demo-out p, pre, pre p,
+.dev-label, p.dev-label { text-indent: 0; }
+/* 출처 주석 — PDF 의 각주에 해당한다(lib.typ 의 note). Typst 의 HTML 내보내기가
+   각주 본문을 버리므로 lib.typ 이 본문에 펴 두고, wrap-html.py 의 collect_notes 가
+   번호를 매겨 장 끝의 「주」로 옮긴다. 아래 .src-note 는 혹시 옮겨지지 않은 것이
+   있을 때의 대비책이다. */
+.src-note { font-size: .86em; color: var(--muted, #666); }
+.src-note code { font-size: .95em; }
+sup.fnref { font-size: .72em; line-height: 0; vertical-align: super; }
+sup.fnref a { text-decoration: none; padding: 0 .1em; }
+sup.fnref a::before { content: "["; }
+sup.fnref a::after  { content: "]"; }
+.chapter-notes { margin: 3rem 0 1rem; padding-top: .9rem;
+                 border-top: 2px solid var(--rule, #333); }
+.chapter-notes h2 { font-size: 1.05rem; margin: 0 0 .6rem; }
+.chapter-notes ol { margin: 0; padding-left: 1.6em; }
+.chapter-notes li { font-size: .92em; margin: .35em 0; text-indent: 0; }
+.chapter-notes a.fnback { text-decoration: none; }
+/* 상자 안에서는 표제 줄에 붙는 첫 문단만 들여쓰지 않는다(PDF 의 all:false) */
+.dev p { text-indent: 0; }
+.dev p + p { text-indent: 1em; }
+/* 표지(문./답.)가 들어간 첫 문단은 절대 들여쓰지 않는다 */
+.dev p:has(> span.dev-label:first-child) { text-indent: 0; }
+.chapter-head p { text-indent: 0; }
+pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Menlo,monospace; }
+code { background:none; padding:0; font-size:.95em; }
+pre { background:none; border:1px solid var(--fg); border-radius:0;
+      padding:.95rem 1.05rem; overflow-x:auto; line-height:1.6; font-size:.95rem;
+      margin:1.2rem 0; }
+.tok-c { color:var(--tok-c); font-style:italic; }
+.tok-k { color:var(--tok-k); font-weight:700; }
+.tok-s { color:var(--tok-s); }
+.tok-n { color:var(--tok-n); }
+.tok-t { color:var(--tok-t); font-weight:700; }
+.tok-x { color:var(--tok-x); }
+.tok-p { color:var(--tok-p); }
+pre code { background:none; padding:0; }
+/* 표: 바깥은 굵게, 안은 가늘게, 머리행은 굵은 글씨에 옅은 음영
+   (저자 지시 2026-08-06). */
+/* 표는 내용에 필요한 만큼만 폭을 쓰고 가운데에 선다. 100% 폭으로 늘리면
+   셀 오른쪽에 빈 칸이 생겨 테두리와 내용이 어긋나 보인다
+   (저자 지적 2026-08-06). 넘칠 때는 감싼 .tblwrap 이 가로로 스크롤한다. */
+.tblwrap { overflow-x:auto; text-align:center; }
+/* inline-table 은 언제나 내용만큼만 넓어진다(shrink-to-fit). flex 로 가운데를
+   맞추면 브라우저에 따라 늘어나거나 왼쪽이 잘리는 일이 있어 이 방식을 쓴다. */
+.tblwrap > table { display:inline-table; width:auto; max-width:none; margin:1.1rem 0; }
+table { border-collapse:collapse; margin:1.1rem auto; font-size:.95rem;
+        width:auto; max-width:100%; border:2px solid var(--fg);
+        table-layout:auto; }
+th, td { white-space:normal; }
+th,td { border:1px solid var(--rule); padding:.42rem .6rem; text-align:left; vertical-align:top; }
+/* 머리행 — 옅은 음영으로 포인트를 준다(PDF 와 같은 처리). 색이 아니라
+   반투명 회색이라 밝은·어두운 테마 양쪽에서 자연스럽다. */
+th { background:rgba(128,128,128,.16); font-weight:700;
+     border-bottom:2px solid var(--fg);
+     font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+table tr:first-child th, table tr:first-child td { border-bottom:1px solid var(--fg); }
+ul,ol { padding-left:1.4rem; } li { margin:.3rem 0; }
+/* 표·그림 목록은 훑어보는 것이라 촘촘해야 한다 (저자 지시 2026-08-31) */
+.float-list { list-style:none; padding-left:0; }
+.float-list li { margin:.12rem 0; }
+/* 메모리 사물함 도해 — 칸과 그 아래 주소. 표 서식과 섞이지 않게 따로 둔다. */
+.memrow { overflow-x:auto; text-align:center; margin:1.1rem 0 .2rem; }
+.memrow table.mem { display:inline-table; border-collapse:collapse;
+  border:none; margin:0; width:auto; }
+.memrow td.cell { border:1px solid var(--fg); padding:.3rem .5rem;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.9rem;
+  text-align:center; background:none; }
+.memrow td.cell.hi { border-width:2px; }
+.memrow td.addr { border:none; padding:.15rem .5rem 0; text-align:center;
+  font-family:"PCB Mono","D2Coding",ui-monospace,monospace; font-size:.82rem;
+  color:var(--muted); }
+/* 시연 — 소스와 실행 결과는 선명한 검은 테두리로 묶는다 */
+/* 시연 상자 — 문답과 같은 1×2 모양. 위 칸은 표제(파일 경로는 고정폭,
+   "실행 결과"는 산세리프 굵은 글씨), 가로선 아래 칸이 내용이다
+   (저자 지시 2026-08-06). */
+.demo { border:1px solid var(--fg); margin:1.15rem 0; }
+.demo > .demo-head { margin:0; padding:.5rem .9rem; text-indent:0;
+  border-bottom:1px solid var(--fg); font-weight:700; font-size:.92rem; }
+.demo-src > .demo-head { font-family:"PCB Mono","D2Coding",ui-monospace,monospace; }
+.demo-in > .demo-head, .demo-out > .demo-head {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.demo > .demo-body { padding:0; }
+.demo > .demo-body pre { border:none; border-radius:0; margin:0;
+  padding:.6rem .9rem; }
+
+/* ── 왼쪽 세로선 규율 (저자 지시 2026-08-10) ─────────────────
+   네 변 상자는 좌우 안쪽 여백이 양쪽에서 폭을 갉는다. 왼쪽 세로선 하나로
+   영역만 표시하고 오른쪽은 열어 둔다. 제목 쪽 선이 내용 쪽보다 굵고, 둘은
+   서로 붙지 않는다(사이에 여백). 제목(heading)은 반대로 *가로* 밑줄이다 ---
+   영역과 경계는 하는 일이 다르므로 표시도 갈라 둔다. */
+.dev { margin:1.15rem 0; padding:0; background:none; border:none; border-radius:0; }
+/* 표지 줄 --- 굵은 왼쪽 선 */
+.dev > .dev-label { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0 0 .34rem; }
+/* 본문 --- 가는 왼쪽 선 *하나*로 끝까지 이어진다.
+   ★ 자식마다 선을 그으면 문단 사이에서 끊기고, 한 문단짜리 본문(맨 글)은
+   선을 아예 받지 못한다. 그래서 본문을 한 겹으로 감싸고 그 칸에만 긋는다. */
+.dev > .dev-body { border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem .35rem .8rem; margin:0; }
+.dev > .dev-body > *:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child { margin-bottom:0; }
+/* 표·그림 캡션 — 대상 아래 가운데, 산세리프 */
+.float-caption { text-align:center; font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; color:var(--muted); margin:.35rem 0 1.2rem; }
+figure { margin:1.2rem 0; }
+figure.tbl table { margin-bottom:.2rem; }
+figure.tbl { text-align:center; }
+.dev > p:first-child { margin-top:0; } .dev > p:last-child { margin-bottom:0; }
+.dev-label { font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+             font-size:.92rem; color:var(--muted); margin-bottom:.4rem; }
+/* 장 서두 — 넷을 각각 하나의 상자로 둔다. 표제 줄과 내용을 가로선으로
+   가르는 모양은 문답·복습 정리와 같다 (저자 지시 2026-08-06).
+   ★ 좌우 여백은 *상자*가 준다. 자식 요소에 주면, 본문이 요소로 감싸이지 않은
+     칸(「이 장이 끝나면」)은 여백이 0 이 되고 문단이 여럿인 칸(질문 목록)은
+     여백이 겹쳐 들쭉날쭉해진다. */
+.dev.open { border:none; border-radius:0; background:none;
+  padding:0; margin:.75rem 0; }
+.dev.open > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.98rem; color:var(--fg); text-transform:none; letter-spacing:0; }
+/* 서두 본문은 한 겹(.open-body) 안에 있다 — 위·아래 여백을 여기서 한 번만 준다 */
+.dev.open > .open-body { margin:0; padding:.35rem .8rem;
+  border-left:2px solid var(--box-rule); }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open > .open-body > * { margin:.4rem 0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+/* 질문 목록 — 번호를 보이게 하고 항목 간격은 촘촘히 */
+.dev.open .open-body > ol.qlist { margin:0; padding-left:1.35rem; }
+.dev.open ol.qlist li { margin:.18rem 0; padding-left:.15rem; }
+.dev.open ol.qlist li::marker { color:var(--muted); font-weight:700; }
+/* 돌아보기 안의 답 — 왼쪽 가는 선으로 구분 */
+.dev.open .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.06rem 0 .06rem .7rem; margin:.32rem 0 0; }
+/* 서두 표지: 굵고 선명한 검은 산세리프, 본문보다 약간 크게
+   (저자 지시 2026-08-06). 대문자 변형과 자간 늘리기는 쓰지 않는다. */
+.prereq .dev-label, .deepqa .dev-label, .why .dev-label,
+.organizer .dev-label, .questions .dev-label {
+  text-transform:none; letter-spacing:0; font-size:1.12rem; font-weight:700;
+  color:var(--fg); margin-bottom:.45rem; }
+/* 돌아보기 안의 답 — 왼쪽 세로선을 또렷하게 */
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+
+/* 문답 — 질문 쪽 선이 굵고, 답 쪽이 가늘고, 둘 사이가 떨어져 있다 */
+.qa-box { border:none; margin:1.15rem 0; }
+.qa-box .dev { margin:0; border:none; border-radius:0; padding:0; background:none; }
+.qa-box .qa-q { border-left:4px solid var(--fg);
+  padding:.1rem .8rem .25rem .8rem; margin:0; }
+.qa-box .qa-a { border:none; border-left:2px solid var(--box-rule);
+  padding:.35rem .8rem; margin:.34rem 0 0; }
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:0; }
+/* 복습 정리도 문답과 같은 상자 — 표제 줄과 본문을 가로선으로 가른다 */
+.dev.recap { border:none; background:none; padding:0; margin:1.15rem 0; }
+.dev.recap > .dev-label { margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem;
+  text-indent:0; border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+.dev.recap > .dev-body > p, .dev.recap > .dev-body > div:not(.demo),
+.dev.recap > .dev-body > figure { margin:.3rem 0; padding:0; }
+
+/* ★ 장치 안에 든 시연 상자 --- 소스와 실행 결과는 중첩되어도 상자 그대로다
+   (저자 지시 2026-08-10). 바깥의 세로선 안쪽에서 조금 좁혀 놓는다. */
+.dev > .dev-body > .demo { margin:.7rem 0; }
+.deepqa .qa-a { border-left:2px solid var(--muted); padding-left:.75rem; }
+/* 문./답. 은 줄을 바꾸지 않고 질문·답 첫 문단과 같은 줄에 이어 붙는다
+   (저자 지시 2026-08-06). 답의 둘째 문단부터는 그대로 문단으로 흐른다. */
+.qa-q .dev-label, .qa-a .dev-label, .deepqa .qa-a .dev-label {
+  display:inline; margin-bottom:0; }
+.qa-q .dev-label + p, .qa-a .dev-label + p { display:inline; }
+.qa-q .dev-label, .qa-q .dev-label + p {
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  color:var(--fg); font-size:1rem; }
+.qa-a .dev-label { color:var(--muted); }
+.qa-a .dev-label + p { font-family:inherit; font-weight:400; }
+span.dev-label { display:inline; font-size:1rem; margin:0; }
+/* 상자형 장치 공통 — 문답 상자와 같은 모양: 표제 줄과 본문을 가로선으로
+   가르고, 좌우 여백은 상자가 준다 (저자 지시 2026-08-06).
+   ★ 예전의 2단 구조(.misconception + div) 규칙이 남아 뒤따르는 문답 상자를
+     오해 상자의 아랫칸처럼 그리던 문제를 여기서 없앤다. */
+/* 같은 꼴을 쓰는 상자들 --- 네 변을 걷고 왼쪽 세로선만 남긴다
+   (저자 지시 2026-08-10). 소스 코드와 실행 결과(.demo)는 그대로 상자다. */
+.dev.misconception, .dev.realcase, .dev.antipattern, .dev.mathbox,
+.dev.platform, .dev.recap {
+  border:none; border-radius:0; background:none; padding:0; margin:1.15rem 0; }
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  margin:0 0 .34rem; padding:.1rem .8rem .25rem .8rem; text-indent:0;
+  border-left:4px solid var(--fg);
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-weight:700;
+  font-size:.95rem; color:var(--fg); }
+/* ★ 본문 칸(.dev-body)은 건드리지 않는다 --- 전에는 `> div` 가 그것까지 잡아
+   padding:0 으로 덮어, 실제 사례·반례·흔한 오해의 글이 왼쪽 선에 바짝 붙었다
+   (저자 지적 2026-08-10). 안쪽 문단의 간격만 손본다. */
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure, .dev > .open-body > p {
+  margin:.35rem 0; padding:0; }
+/* 상자 안의 문단 간격은 한 줄 사이 정도로 — 본문 문단 간격(.9rem)을 그대로
+   쓰면 상자 안이 헐렁해 보인다 (저자 지시 2026-08-06). */
+/* 고정 바: 제목은 왼쪽 끝, 장 이동 화살표·언어·GitHub 는 오른쪽 끝
+   (저자 지시 2026-08-06) */
+.bar > strong { flex:0 0 auto; }
+.bar .bar-nav { display:flex; gap:.55rem; align-items:center; margin-right:.35rem; }
+.bar .bar-nav a, .bar .bar-nav .off {
+  display:inline-block; min-width:1.35rem; text-align:center;
+  font-size:1.15rem; line-height:1.1; text-decoration:none; }
+.bar .bar-nav a:hover { text-decoration:none; color:var(--fg); }
+.bar .bar-nav .off { color:var(--muted); opacity:.35; }
+.dev p, .dev div, .dev ul, .dev ol, .qa-box p, .qa-box div {
+  margin-top:.4rem; margin-bottom:.4rem; }
+.dev > *:first-child, .qa-box .dev > *:first-child { margin-top:0; }
+.dev > *:last-child, .qa-box .dev > *:last-child { margin-bottom:0; }
+.dev ul, .dev ol { padding-left:1.3rem; }
+.dev li { margin:.15rem 0; }
+/* ★ 반례의 세로선도 실선이다(저자 지시 2026-08-10). 예전에는 점선으로 갈래를
+   구별했는데, 왼쪽 세로선 체계로 바꾼 뒤로는 그것만 따로 놀았다 --- 갈래는
+   선 모양이 아니라 표지 글(「반례.」)이 말한다. */
+.dev.antipattern > .dev-label { border-left-style:solid; }
+
+.dev.mathbox { font-size:.95rem; }
+.note { border:1px solid var(--rule); background:none; padding:.65rem .9rem;
+        margin:0 0 1.6rem; font-size:.9rem; }
+/* ★ 표지에는 가로줄을 두지 않는다(저자 지시 2026-08-10) --- 제목 밑의 옅은 줄은
+   *일반 제목의 밑줄 규칙*이 표지 제목까지 잡은 것이었고, 소개글 밑의 줄은 표지
+   블록 자신의 아래 테두리였다. 표지는 경계를 말할 자리가 아니다. */
+.cover { text-align:center; margin:1.4rem 0 2rem; padding-bottom:1.2rem; }
+.cover h1 { font-size:clamp(1.9rem,5vw,2.9rem); margin:0; letter-spacing:.01em;
+            padding-bottom:0; border-bottom:none; }
+.cover p { margin:.45rem 0; }
+.cover-sub { font-size:clamp(1rem,2.2vw,1.2rem); color:var(--fg); }
+.badge { display:inline-block; margin-top:.5rem; padding:.16rem .6rem;
+         border:1px solid var(--fg); font-size:.8rem; font-weight:700;
+         font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-meta { color:var(--muted); font-size:.9rem;
+              font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.cover-author { margin-top:1.1rem; font-size:1.05rem; }
+.cover-links { font-size:.87rem; }
+.cover-links a { margin:0 .6rem; }
+.cover-blurb { max-width:44rem; margin:1.7rem auto 0; font-size:.95rem; color:var(--muted); }
+.cover-blurb p { margin:.5rem 0; }
+.metalist { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+  margin:.6rem 0 1rem; }
+.metalist dt { color:var(--muted); font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif;
+  font-size:.92rem; }
+.metalist dd { margin:0; }
+.colophon-meta { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1.2rem;
+                 margin:1.2rem 0 1.8rem; font-size:.93rem; }
+.colophon-meta dt { color:var(--muted);
+                    font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; font-size:.88rem; }
+.colophon-meta dd { margin:0; }
+.colophon { font-size:.93rem; }
+.colophon > div { margin:.9rem 0; padding-left:.9rem; border-left:1px solid var(--rule); }
+/* 개념도 — 흑백 선화라 다크 모드에서는 반전해 준다 */
+figure.fig { margin:1.6rem 0; text-align:center; }
+figure.fig img { max-width:100%; height:auto; }
+figure.fig figcaption { margin-top:.5rem; font-size:.92rem; color:var(--muted); }
+@media (prefers-color-scheme: dark) { figure.fig img { filter:invert(1) hue-rotate(180deg); } }
+:root[data-theme="dark"] figure.fig img { filter:invert(1) hue-rotate(180deg); }
+:root[data-theme="light"] figure.fig img { filter:none; }
+.toc { columns:24rem; column-gap:2.4rem; }
+.toc-part { break-inside:avoid; margin:1.1rem 0 .3rem; font-size:.95rem; letter-spacing:.02em;
+            font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.toc-part:first-child { margin-top:0; }
+.toc-front { margin-bottom:.4rem; }
+/* 차례도 선 없이 --- 왼쪽 세로줄과 장마다의 밑줄을 걷어 낸다(저자 지시 2026-08-10).
+   여기는 장치가 아니라 목록이라 선이 뜻하는 바가 없다. */
+.toc-group { break-inside:avoid; padding-left:.85rem; }
+.toc a { display:block; padding:.28rem 0; text-decoration:none; }
+.toc a:hover { text-decoration:underline; }
+.nav { display:flex; gap:1rem; align-items:center; margin-top:3rem; padding-top:1rem;
+       border-top:1px solid var(--rule); font-size:.9rem;
+       font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.nav .sp { flex:1 1 auto; }
+
+/* ── 서식 예시의 이름표 ─────────────────────────────────────────
+   조판 견본(style-specimen)에서만 나온다. 「이 모양을 뭐라고 부르는가」를
+   그 자리에 붙여 둔다 --- 본문에는 쓰지 않는다. */
+code.style-name { font-family:"PCB Mono","D2Coding",ui-monospace,monospace;
+  font-size:.72em; color:var(--muted); background:var(--rule);
+  padding:.05em .35em; border-radius:3px; white-space:nowrap;
+  font-weight:400; letter-spacing:0; }
+
+/* ── 조판 값 --- 견본에서 시험해 채택한 것들 (저자 지시 2026-08-10) ─────
+ *
+ * 아래는 견본(style-specimen)에서 눈으로 확인한 뒤 책에 들인 값이다.
+ * 여백은 일반적인 책의 숨에 맞추고, 선은 색 하나(#d5d5d5)로 모았다
+ * --- 표만 예외다(격자는 옅으면 칸이 안 읽힌다).
+ */
+
+/* 서두 다섯 칸 --- 표지 줄이 선에 눌려 있었다 */
+.dev.open > .dev-label { padding-top:.42rem; padding-bottom:.42rem; }
+.dev.open > .open-body { padding-top:.4rem; padding-bottom:.4rem; }
+.dev.open > .open-body > p { margin:.6rem 0; }
+
+/* 장치 안의 글도 조금 넉넉하게 */
+.dev > .dev-body { padding-top:.5rem; padding-bottom:.5rem; }
+.dev > .dev-body > p, .dev > .dev-body > div:not(.demo),
+.dev > .dev-body > figure { margin:.55rem 0; }
+
+/* 본문 --- 줄 사이와 문단 사이 */
+main { line-height:1.85; }
+p { margin:1.15rem 0; }
+h2 { margin-top:2.4rem; }
+h3 { margin-top:2rem; }
+li { margin:.3rem 0; }
+
+/* 제목 밑줄 --- 시험 중: 검정 대신 흐린 회색(저자 지시 2026-08-10).
+   경계를 말하되 글자보다 앞서지 않게. */
+/* 제목 밑줄도 팔레트를 따른다 --- 고정색이면 어두운 테마에서 홀로 밝다 */
+h1, h2, h3, h4 { border-bottom-color:var(--box-rule) !important; }
+
+/* 차례 --- 본문의 넉넉한 행간을 그대로 받아 헐거웠다. 목록은 촘촘해야 훑힌다.
+   (저자 지시 2026-08-10, 웹판 견본) */
+.toc { line-height:1.45; }
+.toc a { padding:.16rem 0; }
+.toc-part { margin:.85rem 0 .2rem; }
+
+/* 저작권·연락처 --- 두 칸짜리 표는 줄 사이가 벌어질수록 짝이 흩어진다 */
+.metalist { line-height:1.45; gap:.2rem 1.2rem; }
+.metalist dt, .metalist dd { margin:0; }
+
+/* 시연 상자(소스 코드·실행 결과) --- 시험 중: 테두리를 연한 회색으로
+   (저자 지시 2026-08-10). 코드가 이미 검은 덩어리다. */
+.demo { border-color:var(--box-rule); }
+.demo > .demo-head { border-bottom-color:var(--box-rule); }
+
+/* ── 왼쪽 세로선 --- 시험 중: 검정에서 연한 회색으로 (저자 지시 2026-08-10)
+ * 색은 팔레트(--box-rule)를 따른다 --- 테마가 바뀌면 선도 함께 바뀐다.
+ * 굵기(4px 대 2px)가 층위를 말하므로 색까지 세게 말할 까닭이 없다. */
+.dev > .dev-label,
+.dev.open > .dev-label,
+.qa-box .qa-q,
+.dev.misconception > .dev-label, .dev.realcase > .dev-label,
+.dev.antipattern > .dev-label, .dev.mathbox > .dev-label,
+.dev.platform > .dev-label, .dev.recap > .dev-label {
+  border-left-color:var(--box-rule); }
+
+.dev > .dev-body,
+.dev > .open-body,
+.dev.open .qa-a,
+.qa-box .qa-a,
+.deepqa .qa-a { border-left-color:var(--box-rule); }
+
+/* ★ 선의 색은 하나다(저자 지시 2026-08-10) --- 표(.tbl)만 예외로 제 색을 쓴다.
+   여기 한 줄로 못 박아, 뒤에 무엇이 오든 같은 회색이 되게 한다. */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div {
+  border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* ★ 특이도(specificity) 함정 --- `.dev.open > .open-body` 는 클래스가 셋이라
+   위의 `.dev *`(하나) 나 `.dev > .open-body`(둘) 보다 세다. 그래서 서두 칸의
+   *내용* 세로선만 var(--box-rule)=#9a9a9a 로 남아 혼자 진했다(저자 지적).
+   같은 자리를 같은 힘으로 눌러 준다. */
+.dev.open > .open-body,
+.dev.open > .qa-a,
+.dev.open .qa-a,
+.dev.deepqa .qa-a,
+.qa-box > .qa-a,
+.qa-box > .qa-q { border-left-color:var(--box-rule); }
+
+/* 상단 바의 차례 그림글자 --- 글자 크기를 조금 키워 다른 이름들과 눈높이를 맞춘다 */
+.bar .bar-toc { font-size:1.15em; line-height:1; text-decoration:none; }
+
+/* ── 통일 (저자 지시 2026-08-11) ─────────────────────────────────────
+ * ★ 「글 전체의 통일성이 중요하다」 --- 장치 안의 글도, 장 안의 차례도, 본문과
+ *   같은 크기·행간·문단 간격을 쓴다. 예전에는 자리마다 값이 조금씩 달라
+ *   상자를 지날 때마다 리듬이 흔들렸다.
+ */
+.dev, .dev-body, .open-body, .qa-box, .qa-q, .qa-a, .dev-label,
+.toc-full, .toc-full .tf-secs { line-height:inherit; font-size:1rem; }
+.dev > .dev-body > p, .dev > .open-body > p,
+.qa-box .qa-q > p, .qa-box .qa-a > p { margin:1.15rem 0; }
+.dev > .dev-body > *:first-child, .dev > .open-body > *:first-child,
+.qa-box .qa-q > p:first-child, .qa-box .qa-a > p:first-child { margin-top:0; }
+.dev > .dev-body > *:last-child, .dev > .open-body > *:last-child,
+.qa-box .qa-q > p:last-child, .qa-box .qa-a > p:last-child { margin-bottom:0; }
+/* 표지 줄만은 제 크기를 지킨다 --- 이름이지 본문이 아니다 */
+.dev > .dev-label, .dev.open > .dev-label { font-size:.98rem; line-height:1.4; }
+
+/* 제목: 글자와 밑줄 사이를 넉넉히, 그만큼 밑줄 아래도 넉넉히 */
+h1,h2,h3,h4 { padding-bottom:.34rem; }
+h1 { margin:.2rem 0 1.3rem; }
+h2 { padding-bottom:.42rem; margin-bottom:1.15rem; }
+h3 { padding-bottom:.36rem; margin-bottom:.95rem; }
+
+/* ── 장 서두 칸의 목록과 문단 (저자 지시 2026-08-11) ──────────────────
+ * ★ 항목 사이에 여백을 또 주면 *행간이 두 번 붙은 것처럼* 보인다. 서두 칸은
+ *   짧은 줄이 여럿 늘어서는 자리라 그 겹침이 특히 크게 보였다. 항목 사이
+ *   간격은 행간이 대신하게 두고, 여백은 문단 사이에만 최소로 준다.
+ *   행간 자체는 본문과 같다(main 에서 물려받는다) --- 값을 따로 두지 않는다.
+ */
+.dev.open > .open-body > * { margin:.3rem 0; }
+.dev.open > .open-body > p { margin:.5rem 0; }
+.dev.open > .open-body > div { margin:.15rem 0; }   /* 「먼저 알아야 할 것」의 한 줄들 */
+.dev.open ul, .dev.open ol { margin:.3rem 0; }
+.dev.open li, .dev.open ol.qlist li { margin:0; }
+.dev.open > .open-body > *:first-child { margin-top:0; }
+.dev.open > .open-body > *:last-child { margin-bottom:0; }
+.dev.open .qa-a > p { margin:.35rem 0; }
+
+/* ── 웹판만의 조정 (저자 승인 2026-08-11) ─────────────────────────────
+ * ★ 선의 색을 종이와 화면이 나눠 쓴다. 종이는 잉크가 실제로 얹혀 #d5d5d5 도
+ *   보이지만, 화면에서는 흰 배경 대비 **1.47:1** 이라 밝기를 낮추거나 값싼
+ *   패널에서는 사실상 사라진다 --- 「영역을 한눈에」라는 목적이 화면에서만
+ *   무너진다. 그래서 웹만 한 단계 진하게 둔다(#c4c4c4, 대비 1.75:1).
+ */
+/* 선의 색은 팔레트의 --box-rule 을 따른다 --- 테마가 바뀌면 함께 바뀐다 */
+.dev, .dev *, .qa-box, .qa-box *, .demo, .demo *,
+h1, h2, h3, h4, .colophon > div { border-color:var(--box-rule); }
+.tbl table, .tbl th, .tbl td { border-color:initial; }
+
+/* 키보드로 다닐 때 지금 어디인지 보여야 한다 --- 없으면 링크를 세며 다녀야 한다 */
+a:focus-visible, button:focus-visible, summary:focus-visible {
+  outline:2px solid var(--link); outline-offset:2px; border-radius:2px; }
+
+/* 고정 바 아래로 제목이 숨지 않게 --- 차례에서 절을 누르면 바에 가렸다 */
+:target, h1, h2, h3, h4, [id] { scroll-margin-top:4.2rem; }
+
+/* 본문 건너뛰기 --- 상단 바의 링크를 매 쪽마다 지나지 않아도 되게 */
+.skip { position:absolute; left:-9999px; top:0; z-index:30;
+        background:var(--bg); color:var(--fg); border:1px solid var(--fg);
+        padding:.5rem .8rem; font-size:.9rem; text-decoration:none; }
+.skip:focus { left:.5rem; top:.5rem; }
+
+/* ── 상단 바의 펼침 패널과 읽기 설정 (저자 지시 2026-08-11) ────────────
+ * 바에는 넷만 둔다. 나머지는 여기로 접었다 --- 늘 보이던 것을 접어 두면
+ * 읽는 자리가 넓어지고, 필요할 때는 한 번의 누름으로 전부 나온다.
+ */
+.here-btn { font:inherit; color:inherit; background:none; border:1px solid transparent;
+  border-radius:4px; padding:.1rem .45rem; cursor:pointer; }
+.here-btn .caret { color:var(--muted); }
+.here-panel { position:sticky; top:2.9rem; z-index:19; max-height:78vh; overflow:auto;
+  background:var(--bg); border-bottom:1px solid var(--rule);
+  padding:.6rem clamp(.8rem,3vw,2.5rem) .9rem; }
+
+/* 도구 줄 --- 인라인으로 죽 늘어서다 좁으면 다음 줄로 넘어간다 */
+.here-panel .tools { display:flex; flex-wrap:wrap; gap:.3rem .5rem; align-items:center;
+  margin-bottom:.5rem; }
+.tool { font:inherit; font-size:.86rem; color:inherit; background:none;
+  border:1px solid var(--rule); border-radius:4px; padding:.2rem .55rem;
+  text-decoration:none; cursor:pointer; white-space:nowrap;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+
+/* ★ 누를 수 있다는 것을 바탕색으로 말한다(저자 지시) --- 글자만 바뀌면
+   손이 닿기 전에는 알 수 없다. */
+.tool:hover, .here-btn:hover, .bar a:hover, .nav a:hover,
+.here-panel .here-body a:hover { background:var(--box-bg); }
+.tool:hover { border-color:var(--box-rule); }
+.here-btn:hover { border-color:var(--rule); }
+.bar a, .nav a { border-radius:4px; padding:.1rem .35rem; }
+.tool:active, .here-btn:active, .bar a:active { transform:translateY(1px); }
+.segb[aria-pressed="true"] { background:var(--box-bg); border-color:var(--fg); font-weight:700; }
+
+/* 본문 링크 --- 밑줄로 있음을 말하고, 손이 닿으면 바탕으로 답한다 */
+main a { text-decoration:underline; text-decoration-color:var(--box-rule);
+  text-underline-offset:2px; border-radius:3px; }
+main a:hover { background:var(--box-bg); text-decoration-color:var(--link); }
+main .toc a, main .toc-full a, main .here-body a { text-decoration:none; }
+main .toc a:hover, main .toc-full a:hover { background:var(--box-bg); text-decoration:underline; }
+
+/* 읽기 설정 상자 */
+.setbox { border:1px solid var(--rule); border-radius:5px; padding:.6rem .7rem;
+  margin:0 0 .6rem; font-size:.88rem;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; }
+.setrow { display:flex; flex-wrap:wrap; gap:.4rem .7rem; align-items:center;
+  margin:.35rem 0; }
+.setlbl { color:var(--muted); min-width:3.2rem; }
+.seg { display:inline-flex; gap:.25rem; }
+.segb { font:inherit; color:inherit; background:none; border:1px solid var(--rule);
+  border-radius:4px; padding:.15rem .5rem; cursor:pointer; }
+.col { display:inline-flex; align-items:center; gap:.3rem; }
+.col input[type=color] { width:2rem; height:1.4rem; padding:0; border:1px solid var(--rule);
+  border-radius:3px; background:none; cursor:pointer; }
+.setnote { margin:.5rem 0 0; color:var(--muted); font-size:.82rem; }
+
+/* 가로폭 제한 --- 기본은 제한 없음(설계 의도). 독자가 켤 때만 걸린다. */
+:root[data-measure="on"] main .wrap { max-width:46rem; margin-inline:auto; }
+
+/* 펼침 패널 맨 왼쪽의 판 번호 --- 도구가 아니라 표시다(누를 것이 없다) */
+.here-panel .ver { font-size:.82rem; color:var(--muted); padding:.2rem .45rem .2rem 0;
+  font-family:"PCB Sans","Noto Sans CJK KR",system-ui,sans-serif; white-space:nowrap; }
+
+/* ── 코드와 실행 결과의 줄바꿈 (저자 지시 2026-08-11) ─────────────────
+ * ★ 가로로 흘러 넘치게 두면 긴 줄은 *가로 스크롤 안에 숨는다.* 종이에서는
+ *   글자 단위로 접어 넣고 있으니(lib.typ 의 _hardwrap), 화면에서도 같은
+ *   약속을 지킨다 --- 넘치는 대신 접는다. 들여쓰기는 그대로 살린다.
+ */
+.demo pre, .demo pre code {
+  white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; }
+.demo > .demo-body { overflow-x:visible; }
+
+/* ── 절의 주소(permalink) ─────────────────────────────────────────
+   종이 책에는 쪽수가 있지만 웹 판에는 없어서, 남에게 「거기」를 알려 줄
+   방법이 없었다. 절마다 닻을 두되 *읽기를 방해하지 않게* --- 평소에는
+   보이지 않다가 제목에 닿거나 키보드 초점이 오면 드러난다. */
+.plink {
+  margin-left: .4em; font-weight: 400; text-decoration: none;
+  color: var(--muted, #888); opacity: 0; transition: opacity .12s;
+}
+h3:hover > .plink, h4:hover > .plink,
+h3 > .plink:focus, h4 > .plink:focus { opacity: 1; }
+@media (hover: none) { .plink { opacity: .45; } }
+
+/* ── 검색 ─────────────────────────────────────────────────────────
+   *제목과 색인 표제어*만 찾는다. 본문 전체 색인은 판마다 수 MB 라
+   내려받게 하는 값이 얻는 것보다 크다. 무엇을 찾는지 화면에 적어 둔다. */
+.searchbox { margin:.6em 0 0; }
+.searchbox input[type=search] {
+  width: 100%; padding: .45em .6em; font: inherit;
+  border: 1px solid var(--rule, #ccc); border-radius: 4px;
+  background: var(--bg, #fff); color: var(--fg, #111);
+}
+.search-hint { color: var(--muted, #777); font-size: .85em; margin:.3em 0 0; }
+.search-results { list-style: none; padding: 0; margin: .5em 0 0; }
+.search-results li { margin: .15em 0; }
+.search-results .where { color: var(--muted, #777); font-size: .85em; margin-left: .4em; }
+
+body { font-family:"PCB Serif","Noto Serif CJK KR","Noto Serif KR",Georgia,serif; }
+h1,h2,h3,h4,.bar,.dev-label,.toc-part,.cover-meta,.badge,
+.colophon-meta dt { font-family:"PCB Sans","Noto Sans CJK KR","Noto Sans KR",system-ui,sans-serif; }
+pre,code,kbd { font-family:"PCB Mono","D2Coding",ui-monospace,SFMono-Regular,Menlo,monospace; }
+</style>
+<script>(function(){try{var s=JSON.parse(localStorage.getItem('pcb-read')||'{}');var r=document.documentElement;if(s.theme&&s.theme!=='auto')r.setAttribute('data-theme',s.theme);if(s.fg)r.style.setProperty('--fg',s.fg);if(s.bg)r.style.setProperty('--bg',s.bg);if(s.link)r.style.setProperty('--link',s.link);if(s.width)r.setAttribute('data-measure','on');}catch(e){}})();</script></head>
+<body>
+<a class="skip" href="#content">본문으로 건너뛰기</a>
+<div class="bar"><strong><a href="index.html">Lowent 매뉴얼</a></strong><button class="here-btn" type="button" aria-expanded="false" aria-controls="here-panel">4장 <span class="caret">▾</span></button><span class="sp"></span><span class="bar-nav"><a href="ch03.html" title="이전" aria-label="이전">←</a><a href="index.html" title="목차로" aria-label="목차로">↑</a><a href="ch05.html" title="다음" aria-label="다음">→</a></span></div><div id="here-panel" class="here-panel" hidden><div class="tools"><span class="ver">v0.2.0</span><button class="tool" type="button" id="set-open">⚙ 설정</button><a class="tool" href="toc.html">▤ 상세 차례</a><a class="tool" href="../html-en/ch04.html">En</a><a class="tool" href="../pdf-ko/lowent-manual-ko.pdf">⤓ PDF</a><a class="tool" href="https://github.com/rubidus-api/lowent_lang" title="이 책의 GitHub 저장소">Git</a><a class="tool" href="https://rubidus-api.github.io/" title="rubidus-api.github.io --- 공개된 모든 프로젝트">⌂ 전체 사이트</a><a class="tool" href="https://github.com/rubidus-api" title="github.com/rubidus-api --- 모든 저장소">≡ 저장소 목록</a></div><div class="setbox" id="setbox" hidden><label class="setrow"><input type="checkbox" id="s-width"><span>가로폭 제한</span></label><div class="setrow"><span class="setlbl">테마</span><span class="seg"><button type="button" class="segb" data-theme="auto">시스템</button><button type="button" class="segb" data-theme="light">밝게</button><button type="button" class="segb" data-theme="dark">어둡게</button></span></div><div class="setrow"><span class="setlbl">색</span><label class="col"><span>글자</span><input type="color" id="s-fg"></label><label class="col"><span>배경</span><input type="color" id="s-bg"></label><label class="col"><span>링크</span><input type="color" id="s-link"></label></div><p class="setnote">설정은 이 브라우저에만 저장된다.</p></div><div class="here-head"><strong>이 장의 차례</strong></div><div class="here-body"><a class="lv3" href="#s4-1"><span class="tf-no">4.1</span>정수 타입은 이름에 폭을 적는다</a><a class="lv3" href="#s4-2"><span class="tf-no">4.2</span>넓히기는 자동, 좁히기는 적는다</a><a class="lv3" href="#s4-3"><span class="tf-no">4.3</span>넘치면 멈춘다</a><a class="lv3" href="#s4-4"><span class="tf-no">4.4</span>나눗셈과 나머지</a><a class="lv3" href="#s4-5"><span class="tf-no">4.5</span>참거짓은 수가 아니다</a><a class="lv3" href="#s4-6"><span class="tf-no">4.6</span>비트 연산</a><a class="lv3" href="#s4-7"><span class="tf-no">4.7</span>부동소수</a><a class="lv3" href="#s4-8"><span class="tf-no">4.8</span>흔한 실수</a><a class="lv3" href="#s4-9"><span class="tf-no">4.9</span>이 장의 문법을 한눈에</a></div></div>
+<main id="content"><div class="wrap">
+<h2>4 수 — 폭이 정해진 정수와 부동소수</h2><div></div><div class="dev open prereq"><p class="dev-label">먼저 알아야 할 것</p><div class="open-body"><div>2장 첫 프로그램 · VM 과 네이티브가 같은 답을 내야 한다</div><div>3장 겉모습 · 리터럴은 자리의 타입에 들어가지 않으면 거절된다</div></div></div><div class="dev open deepqa"><p class="dev-label">돌아보기</p><div class="open-body"><p>3장에서 <code>let x be u8 300 .</code> 은 어떻게 되었는가? C 는 같은 일을 어떻게 처리하는가?</p><div class="qa-a"><p><span class="dev-label">답.</span> <code>E-TYPE-WIDTH</code> 로 거절되었다. 300 은 <code>u8</code> 의 범위 0 … 255 밖이기 때문이다. C 는 조용히 잘라 44 로 만든다. 그러면 소스에 적힌 값과 실제 값이 달라진다. 이 장은 리터럴이 아니라 <strong>계산 결과</strong>가 폭을 넘을 때 같은 원칙이 어떻게 적용되는지를 본다.</p></div></div></div><div class="dev open why"><p class="dev-label">이 장의 필요성과 맥락</p><div class="open-body">시스템 프로그램의 결함 가운데 오래되고 흔한 것이 정수의 결함이다. 넘쳐서 작은 수가 되고, 음수가 큰 양수로 바뀌고, 0 으로 나누어 미정의 동작이 된다. 대부분은 <strong>조용히</strong> 일어나서 한참 뒤의 엉뚱한 자리에서 드러난다. 제2부의 첫 장이 수인 것은 모든 계산이 수 위에서 일어나고, Lowent 가 “조용히” 를 없애는 방식 — 처분을 이름으로 적게 하는 방식 — 을 가장 단순한 모양으로 보여 주는 곳이 여기이기 때문이다.</div></div><div class="dev open organizer"><p class="dev-label">이 장이 끝나면</p><div class="open-body">정수 타입이 부호와 폭으로 이름 지어지고 어디서나 같은 크기라는 것을 알게 된다. 넓히기는 자동이고 좁히기는 적어야 한다는 규칙, 넘침과 0 나누기가 멈춘다는 규칙, 그리고 멈추지 않고 감거나 끝값에 서거나 값으로 알려 달라고 <strong>이름으로</strong> 고르는 법을 익힌다. 참거짓이 수가 아니라는 것과 비트 연산· 부동소수의 성질도 보게 된다.</div></div><div class="dev open questions"><p class="dev-label">이 장에서 답할 질문</p><div class="open-body"><ol class="qlist"><li><code>narrow_wrap</code> 이 C 와 같은 일을 한다면, 기본을 그렇게 두지 않은 이유가 무엇인가?</li><li>비트 연산은 왜 <code>expr</code> 섬에서 중위로 쓸 수 없는가?</li></ol></div></div><div></div><h3 id="s4-1">4.1 정수 타입은 이름에 폭을 적는다<a class="plink" href="#s4-1" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>정수 타입의 이름은 부호와 비트 폭이다. <code>u</code> 는 부호 없음, <code>i</code> 는 부호 있음이다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>타입</strong></th><th><strong>폭</strong></th><th><strong>범위</strong></th></tr><tr><td><code>u8</code> · <code>u16</code> · <code>u32</code> · <code>u64</code></td><td>8 · 16 · 32 · 64</td><td>0 … 2<sup>N</sup>−1</td></tr><tr><td><code>i8</code> · <code>i16</code> · <code>i32</code> · <code>i64</code></td><td>8 · 16 · 32 · 64</td><td>−2<sup>N−1</sup> … 2<sup>N−1</sup>−1</td></tr><tr><td><code>usize</code> · <code>isize</code></td><td>주소 폭</td><td>실행 환경이 정한다</td></tr></table></div><p class="float-caption">표 4.1 — 정수 타입과 범위</p></figure><p>C 의 <code>int</code> 는 기계마다 크기가 다를 수 있지만, Lowent 의 <code>u32</code> 는 어디서나 32 비트다. 음수는 2 의 보수로 표현한다. <code>usize</code> 는 <code>u64</code> 와 폭이 같은 기계에서도 <strong>다른 타입</strong>이고 서로 자동으로 바뀌지 않는다 — 주소를 세는 수와 그냥 수를 섞는 자리를 소스에 드러내기 위해서다.</p><h3 id="s4-2">4.2 넓히기는 자동, 좁히기는 적는다<a class="plink" href="#s4-2" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-6"></span><p>값을 잃지 않는 변환을 <strong>넓히기</strong>라 한다. <code>u8</code> 을 <code>u32</code> 자리에 넘기는 일은 값이 그대로이므로 컴파일러가 알아서 한다. 부호가 섞여도 값을 지키는 넓히기가 있으면 계산할 수 있다 — <code>u8</code> 은 <code>i16</code> 안에 모두 들어간다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/widths.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> widths .
+<em><span class="tok-c">rem run: mix 200 -100</span></em>
+<em><span class="tok-c">rem run: shrink 200</span></em>
+<em><span class="tok-c">rem trap: shrink 300</span></em>
+<em><span class="tok-c">rem run: shrink_sat 300</span></em>
+<em><span class="tok-c">rem run: shrink_wrap 300</span></em>
+
+<strong><span class="tok-k">fn</span></strong> mix <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i16</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i16</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> add a b .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> shrink <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> x .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> shrink_sat <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> narrow_sat <strong><span class="tok-t">u8</span></strong> x .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> shrink_wrap <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> narrow_wrap <strong><span class="tok-t">u8</span></strong> x .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run mix widths.low 200 -100
+mix(200, -100) = 100
+$ lowentc --run shrink widths.low 200
+shrink(200) = 200
+$ lowentc --run shrink_sat widths.low 300
+shrink_sat(300) = 255
+$ lowentc --run shrink_wrap widths.low 300
+shrink_wrap(300) = 44
+$ lowentc --run shrink widths.low 300
+== ir diagnostics (1) ==
+0:0 E-VM-CAST: value does not fit the target width (use narrow_wrap / narrow_sat / narrow_try)
+</code></pre></div></div><p><code>mix</code> 는 <code>u8</code> 과 <code>i16</code> 을 더했고 결과는 넓은 쪽인 <code>i16</code> 이다. 넓히기를 눈에 보이게 적고 싶으면 <code>widen u64 x</code> 로 적는다. 같은 폭의 <code>i32</code> 와 <code>u32</code> 는 어느 쪽도 다른 쪽에 다 들어가지 않으므로 섞을 수 없다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/sign_bad.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sign_bad .
+<em><span class="tok-c">rem expect: E-TYPE-SIGN</span></em>
+
+<strong><span class="tok-k">fn</span></strong> total <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> add a b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check sign_bad.low
+sign_bad.low:6:0 E-TYPE-SIGN: sign mismatch: no value-preserving widening exists (widen both to a strictly wider signed type, or bitcast_sign)
+</code></pre></div></div><span id="idx-entry-7"></span><p>값을 잃을 수 있는 변환은 <strong>좁히기</strong>이고 반드시 적는다. 같은 파일의 <code>shrink</code> 는 <code>narrow u8 x</code> 로 <code>u64</code> 를 <code>u8</code> 로 줄인다. 200 은 들어가서 그대로 나오지만, 300 은 들어가지 않으므로 실행이 멈춘다 (<code>E-VM-CAST</code>). 멈추지 않기를 원하면 원하는 처분을 이름으로 고른다. <code>narrow_sat</code> 는 끝값 255 에 서고, <code>narrow_wrap</code> 은 C 처럼 감아서 44 를 준다. <code>narrow_try</code> 는 들어가지 않으면 <code>none</code> 을 준다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> <code>narrow_wrap</code> 이 C 와 같은 일을 한다면, 기본을 그렇게 두지 않은 이유가 무엇인가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> 감기가 <strong>의도였는지 실수였는지</strong>를 소스에 남기려는 것이다. 기본이 감기면 <code>narrow u8 x</code> 가 44 를 준 자리를 읽는 사람이 그것이 원하던 값인지 알 수 없다. 기본이 멈춤이면, 감기를 원한 저자는 <code>narrow_wrap</code> 이라고 <strong>적었을</strong> 것이다. 적힌 이름이 곧 저자의 의도에 대한 기록이다.</p></div></div><h3 id="s4-3">4.3 넘치면 멈춘다<a class="plink" href="#s4-3" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><span id="idx-entry-8"></span><p>산술은 <strong>선언된 폭에서</strong> 일어난다. 결과가 폭에 들어가지 않으면 멈춘다(트랩).</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/overflow.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> overflow .
+<em><span class="tok-c">rem run: bump 254</span></em>
+<em><span class="tok-c">rem trap: bump 255</span></em>
+<em><span class="tok-c">rem run: bump_wrap 255</span></em>
+<em><span class="tok-c">rem run: bump_sat 255</span></em>
+
+<strong><span class="tok-k">fn</span></strong> bump <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> add a <span class="tok-n">1</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> bump_wrap <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> wrap_add a <span class="tok-n">1</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> bump_sat <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> sat_add a <span class="tok-n">1</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run bump overflow.low 254
+bump(254) = 255
+$ lowentc --run bump_wrap overflow.low 255
+bump_wrap(255) = 0
+$ lowentc --run bump_sat overflow.low 255
+bump_sat(255) = 255
+$ lowentc --run bump overflow.low 255
+== ir diagnostics (1) ==
+0:0 E-VM-OVERFLOW: integer overflow at the declared width (use wrap_*/sat_*, or prove the range)
+</code></pre></div></div><p><code>bump 254</code> 는 255 로 들어가지만 <code>bump 255</code> 는 256 이 되어야 하므로 VM 이 <code>E-VM-OVERFLOW</code> 로 멈춘다. 네이티브도 같은 자리에서 멈추고 비영 종료 코드를 낸다(검증 스크립트는 둘 다 멈추는지를 확인한다). 처분을 바꾸려면 넓히기와 마찬가지로 이름을 고른다.</p><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>처분</strong></th><th><strong>op</strong></th><th><strong>넘치면</strong></th></tr><tr><td>멈춤(기본)</td><td><code>add</code> · <code>sub</code> · <code>mul</code></td><td>실행이 멈춘다</td></tr><tr><td>감김</td><td><code>wrap_add</code> · <code>wrap_sub</code> · <code>wrap_mul</code></td><td>폭 안에서 돌아 감는다</td></tr><tr><td>포화</td><td><code>sat_add</code> · <code>sat_sub</code> · <code>sat_mul</code></td><td>그 폭의 끝값에 선다</td></tr><tr><td>값으로</td><td><code>chk_add</code> · <code>chk_sub</code> · <code>chk_mul</code></td><td><code>option</code> 으로 알린다</td></tr></table></div><p class="float-caption">표 4.2 — 넘침의 처분을 이름으로 고른다</p></figure><p>“값으로” 알리는 쪽은 넘침을 프로그램이 다룰 수 있는 사건으로 만든다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/chk.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> chk .
+<em><span class="tok-c">rem run: safe_bump 255</span></em>
+<em><span class="tok-c">rem run: safe_bump 7</span></em>
+
+<strong><span class="tok-k">fn</span></strong> safe_bump <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> r <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> <strong><span class="tok-t">u8</span></strong> chk_add a <span class="tok-n">1</span> .
+  <strong><span class="tok-k">guard</span></strong> is_some r . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">999</span> .
+  <strong><span class="tok-k">return</span></strong> widen <strong><span class="tok-t">u64</span></strong> (some_value r) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run safe_bump chk.low 255
+safe_bump(255) = 999
+$ lowentc --run safe_bump chk.low 7
+safe_bump(7) = 8
+</code></pre></div></div><p><code>chk_add a 1</code> 은 <code>option u8</code> 을 준다. 넘치면 <code>none</code> 이고, <code>guard is_some r . else …</code> 가 그 경우를 먼저 처리한다. 이 모양은 11장에서 다시 만난다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>넘침을 검사하면 느려진다</strong></p><div class="dev-body">모든 덧셈에 검사가 남는다면 그렇다. 그러나 계약이나 범위 타입으로 값의 범위가 증명되는 자리에서는 검사가 번역할 때 지워진다(14장). 반복 변수처럼 범위가 뻔한 자리도 컴파일러의 구간 분석이 걷어낸다. 남는 검사는 <strong>정말로 넘칠 수 있는</strong> 자리의 검사이고, 그 자리의 검사는 비용이 아니라 결함을 막는 값이다.</div></div><h3 id="s4-4">4.4 나눗셈과 나머지<a class="plink" href="#s4-4" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>정수를 0 으로 나누면 멈춘다. 부호 있는 나눗셈은 0 쪽으로 버리고, 나머지 <code>mod</code> 의 부호는 <strong>나누는 수</strong>를 따른다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/divide.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> divide .
+<em><span class="tok-c">rem run: quot -7 2</span></em>
+<em><span class="tok-c">rem run: modulo -7 2</span></em>
+<em><span class="tok-c">rem trap: quot 1 0</span></em>
+<em><span class="tok-c">rem run: safe_div 7 0</span></em>
+<em><span class="tok-c">rem run: safe_div 7 2</span></em>
+
+<strong><span class="tok-k">fn</span></strong> quot <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> div a b .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> modulo <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> mod a b .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> safe_div <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> nz <strong><span class="tok-k">be</span></strong> <strong><span class="tok-k">option</span></strong> nonzero <strong><span class="tok-t">u32</span></strong> nonzero_of b .
+  <strong><span class="tok-k">guard</span></strong> is_some nz . <strong><span class="tok-k">else</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">return</span></strong> div_nz a (some_value nz) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run quot divide.low -7 2
+quot(-7, 2) = -3
+$ lowentc --run modulo divide.low -7 2
+modulo(-7, 2) = 1
+$ lowentc --run safe_div divide.low 7 0
+safe_div(7, 0) = 0
+$ lowentc --run safe_div divide.low 7 2
+safe_div(7, 2) = 3
+$ lowentc --run quot divide.low 1 0
+== ir diagnostics (1) ==
+0:0 E-VM-DIV0: divide by zero
+</code></pre></div></div><p><code>quot -7 2</code> 는 −3 이고 <code>modulo -7 2</code> 는 1 이다. 나머지가 나누는 수의 부호를 따르므로, 양수 <code>n</code> 으로 나눈 <code>mod h n</code> 은 언제나 0 이상 <code>n</code> 미만이다. 해시 테이블이 슬롯을 고를 때 <code>idx slots (mod h n)</code> 의 경계 검사가 지워지는 근거가 이 성질이고, 이 성질은 Coq 로 증명되어 있다(40장).</p><p>부호 있는 나눗셈이 넘치는 경우는 <code>MIN / −1</code> 하나뿐이고, 이것도 멈춘다. C 에서는 미정의 동작이다.</p><p>0 이 아님을 한 번 확인하고 그 사실을 들고 다니는 길도 있다. <code>nonzero_of b</code> 는 <code>option nonzero u32</code> 를 주고, 그 안의 값은 <code>div_nz</code> 에 넘길 수 있다. <code>div_nz</code> 자리에는 0 검사가 남지 않는다. 검사를 없앤 것이 아니라 <strong>한 자리로 옮기고 그 결과를 타입에 실은</strong> 것이다.</p><h3 id="s4-5">4.5 참거짓은 수가 아니다<a class="plink" href="#s4-5" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>bool</code> 은 <code>true</code> 와 <code>false</code> 두 값이다. 정수를 조건 자리에 쓰면 거절된다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/cond_bad.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> cond_bad .
+<em><span class="tok-c">rem expect: E-TYPE-COND</span></em>
+
+<strong><span class="tok-k">fn</span></strong> nonzero_flag <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">if</span></strong> n . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> <span class="tok-n">1</span> . <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> <span class="tok-n">0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check cond_bad.low
+cond_bad.low:6:0 E-TYPE-COND: a condition must be bool, not a number — this language has no truthiness (D12: no implicit int↔bool). Say what the test is: `ne x 0`
+</code></pre></div></div><p>C 의 <code>if (n)</code> 은 “n 이 0 이 아니다” 로 읽히지만, 읽는 사람은 그것이 “n 이 있다” 인지 “n 이 참이다” 인지 문맥으로 짐작해야 한다. Lowent 는 묻는 것을 적게 한다 — <code>if gt n 0 .</code> 이다. 반대로 <code>bool</code> 을 수처럼 더할 수도 없다. <code>and</code>·<code>or</code>·<code>not</code> 은 참거짓만 받고, <code>and</code> 와 <code>or</code> 는 앞쪽만으로 답이 정해지면 뒤쪽을 계산하지 않는다.</p><h3 id="s4-6">4.6 비트 연산<a class="plink" href="#s4-6" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>비트 연산은 값을 비트의 나열로 보고 다룬다. 기호 대신 낱말이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/bits.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> bits .
+<em><span class="tok-c">rem run: mask 12 10</span></em>
+<em><span class="tok-c">rem run: flip 12</span></em>
+<em><span class="tok-c">rem run: spin 129 1</span></em>
+<em><span class="tok-c">rem run: s_shr -8 1</span></em>
+<em><span class="tok-c">rem run: u_shr 4294967288 1</span></em>
+<em><span class="tok-c">rem run: ones 7</span></em>
+
+<em><span class="tok-c">rem 12 = 0000_1100 · 10 = 0000_1010</span></em>
+<strong><span class="tok-k">fn</span></strong> mask <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> bit_and a b . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> flip <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> bit_not a . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> spin <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> rotl a n . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> s_shr <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">i32</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> shr a n . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> u_shr <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u32</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> shr a n . <strong><span class="tok-k">end</span></strong>
+<strong><span class="tok-k">fn</span></strong> ones <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">do</span></strong> <strong><span class="tok-k">return</span></strong> count_ones a . <strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run mask bits.low 12 10
+mask(12, 10) = 8
+$ lowentc --run flip bits.low 12
+flip(12) = 243
+$ lowentc --run spin bits.low 129 1
+spin(129, 1) = 3
+$ lowentc --run s_shr bits.low -8 1
+s_shr(-8, 1) = -4
+$ lowentc --run u_shr bits.low 4294967288 1
+u_shr(4294967288, 1) = 2147483644
+$ lowentc --run ones bits.low 7
+ones(7) = 3
+</code></pre></div></div><ul><li><code>bit_and</code>·<code>bit_or</code>·<code>bit_xor</code>·<code>bit_not</code> — 비트별 논리. <code>flip 12</code> 가 243 인 것은 <code>u8</code> 이기 때문이다. 비트 연산의 답은 언제나 타입의 폭에 매여 있다.</li><li><code>shl</code>·<code>shr</code> 은 옮기기, <code>rotl</code>·<code>rotr</code> 은 돌리기다. <code>spin 129 1</code> 이 3 인 것은 맨 앞의 1 이 맨 뒤로 돌아 들어왔기 때문이고, <code>shl</code> 이었다면 그 1 은 버려진다.</li><li><code>shr</code> 은 부호에 따라 뜻이 다르다. <code>−8</code> 과 <code>4294967288</code> 은 32 비트에서 같은 비트열이지만, 부호 있는 쪽은 부호 비트가 들어와 −4 가 되고 부호 없는 쪽은 0 이 들어와 2147483644 가 된다.</li><li><code>count_ones</code>·<code>leading_zeros</code>·<code>trailing_zeros</code> 는 비트를 세고, <code>byte_swap</code> 은 바이트 차례를 뒤집는다.</li><li><code>clmul_lo</code>·<code>clmul_hi</code> 는 <strong>캐리 없는 곱셈</strong>이다 — 자리 올림 대신 배타합으로 더하는 곱셈이고, 암호와 검사합(GF(2^128)·CRC)이 이것 위에 선다. 답이 128 비트라 낱말 둘로 나온다. 기계에 그 명령이 있으면 처리기가 그것으로 내리고(<code>lowentc --hw pclmul</code> 또는 <code>auto</code>), 없으면 같은 답을 내는 셈으로 내린다 — <strong>뜻은 하나</strong>이고 빠르기만 다르다.</li></ul><p>옮기는 칸 수가 타입의 폭 이상이면 멈춘다. C 에서는 미정의 동작인 자리다. 칸 수를 폭 안으로 감싸기를 원하면 <code>wrap_shl</code>·<code>wrap_shr</code> 을 쓴다.</p><div class="qa-box"><div class="dev qa-q"><p><span class="dev-label">문.</span> 비트 연산은 왜 <code>expr</code> 섬에서 중위로 쓸 수 없는가?</p></div><div class="dev qa-a"><p><span class="dev-label">답.</span> C 에서 <code>a &amp; b == c</code> 는 <code>a &amp; (b == c)</code> 로 묶인다. 오래 쓴 사람도 걸리는 함정이고, 언어마다 비트 연산의 우선순위가 다르다. 섬에 넣으면 읽기 쉬워지는 대신 찾아볼 것이 는다. 전위로 적으면 괄호가 답을 말하므로 틀릴 수 없다.</p></div></div><h3 id="s4-7">4.7 부동소수<a class="plink" href="#s4-7" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p><code>f32</code> 와 <code>f64</code> 는 IEEE 754 의 이진 32·64 비트 형식이다. 연산은 피연산자의 폭에서 일어나고, 정수와 부동소수는 서로 자동으로 바뀌지 않는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/floats.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> floats .
+<em><span class="tok-c">rem run: third 1.0</span></em>
+<em><span class="tok-c">rem run: hyp 3.0 4.0</span></em>
+
+<strong><span class="tok-k">fn</span></strong> third <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> div x <span class="tok-n">3.0</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> hyp <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> sqrt (add (mul a a) (mul b b)) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run third floats.low 1.0
+third(1.0) = 0.333333
+$ lowentc --run hyp floats.low 3.0 4.0
+hyp(3.0, 4.0) = 5.0
+</code></pre></div></div><p>VM 은 부동소수 결과를 짧게 보여 준다(<code>0.333333</code>). 부동소수를 0 으로 나누면 멈추지 않고 IEEE 754 가 정한 대로 무한이 된다. <code>sqrt</code>·<code>sin</code>·<code>exp</code> 같은 초월 함수는 부동소수 전용이고 운영체제가 있는 기계에서만 쓸 수 있다. 이 함수들의 마지막 비트가 어떤 값인지는 기계와 셈 라이브러리가 정한다.</p><div class="dev misconception"><p class="dev-label">흔한 오해. <strong>부동소수도 <code>eq</code> 로 비교하면 된다</strong></p><div class="dev-body">0.1 과 0.2 를 더한 값은 0.3 과 비트가 다르다. 부동소수의 같음은 대개 “충분히 가깝다” 로 물어야 하고, 표준 라이브러리의 <code>math</code> 모듈이 그 물음(<code>close</code>)을 준다(32장). 부동소수의 반올림· NaN·−0 같은 성질은 이 언어의 증명이 다루지 않은 자리이기도 하다(50장).</div></div><p><code>f32</code> 와 크기 타입도 같은 규칙을 따른다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/sizes.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> sizes .
+<em><span class="tok-c">rem run: step 5 -8</span></em>
+<em><span class="tok-c">rem run: third32 1.0</span></em>
+<em><span class="tok-c">rem run: same_third 1.0 1.0</span></em>
+
+<em><span class="tok-c">rem usize · isize — 기계의 주소 폭(64 비트 기계에서 64 비트). 길이와 색인을 C 와 주고받을 때 쓴다</span></em>
+<strong><span class="tok-k">fn</span></strong> step <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">usize</span></strong> . <strong><span class="tok-k">input</span></strong> k <strong><span class="tok-t">isize</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">isize</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> le n <span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> ge k -<span class="tok-n">1000</span> .
+  <strong><span class="tok-k">requires</span></strong> le k <span class="tok-n">1000</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> add (cast <strong><span class="tok-t">isize</span></strong> n) k .
+<strong><span class="tok-k">end</span></strong>
+
+<em><span class="tok-c">rem f32 — 32 비트 부동소수. 메모리가 절반이고 정밀도는 약 일곱 자리</span></em>
+<strong><span class="tok-k">fn</span></strong> third32 <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f32</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f32</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> div x <span class="tok-n">3.0</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<em><span class="tok-c">rem 같은 1/3 도 f32 와 f64 는 다른 수다 — 넓혀서 비교하면 거짓</span></em>
+<strong><span class="tok-k">fn</span></strong> same_third <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f32</span></strong> . <strong><span class="tok-k">input</span></strong> y <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">f32</span></strong> div x <span class="tok-n">3.0</span> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">f64</span></strong> div y <span class="tok-n">3.0</span> .
+  <strong><span class="tok-k">return</span></strong> eq (widen <strong><span class="tok-t">f64</span></strong> a) b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run step sizes.low 5 -8
+step(5, -8) = -3
+$ lowentc --run third32 sizes.low 1.0
+third32(1.0) = 0.333333
+$ lowentc --run same_third sizes.low 1.0 1.0
+same_third(1.0, 1.0) = 0
+</code></pre></div></div><ul><li><code>usize</code>·<code>isize</code> 는 기계의 주소 폭을 가진 부호 없는·있는 정수다. C 의 <code>size_t</code>·<code>ptrdiff_t</code> 와 길이·색인을 주고받을 때 쓴다(29장). 폭이 기계마다 달라질 수 있으므로, 폭이 정해진 계산에는 <code>u64</code>·<code>i64</code> 를 쓴다. <code>cast isize n</code> 처럼 부호가 다른 타입으로는 이름 붙은 연산으로 옮긴다.</li><li><code>f32</code> 는 메모리가 절반이고 유효 숫자가 약 일곱 자리다. 큰 배열이나 그래픽처럼 정밀도보다 양이 중요한 곳에 쓴다.</li><li><code>same_third</code> 는 같은 1/3 을 <code>f32</code> 와 <code>f64</code> 로 셈해 넓힌 뒤 비교한다. 거짓(0)이다. VM 이 둘 다 <code>0.333333</code> 으로 짧게 보여 주어도 둘은 다른 수다.</li></ul><h3 id="s4-8">4.8 흔한 실수<a class="plink" href="#s4-8" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><p>수의 실수는 번역을 통과하고 <strong>실행 중에</strong> 드러나는 것이 많다. 다른 언어라면 조용히 틀린 값이 나올 자리에서 Lowent 는 멈춘다. 멈춘 자리가 곧 고칠 자리다.</p><div class="dev antipattern"><p class="dev-label">반례. 둘을 더한 뒤 반으로 나눠 가운데 값을 구한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_midpoint.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_midpoint .
+<em><span class="tok-c">rem trap: mid 200 100</span></em>
+
+<strong><span class="tok-k">fn</span></strong> mid <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ 둘을 먼저 더하면 300 이 되어 u8 에 들어가지 않는다</span></em>
+  <strong><span class="tok-k">return</span></strong> div (add a b) <span class="tok-n">2</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run mid mistake_midpoint.low 200 100
+== ir diagnostics (1) ==
+0:0 E-VM-OVERFLOW: integer overflow at the declared width (use wrap_*/sat_*, or prove the range)
+</code></pre></div></div><p><code>200 + 100</code> 은 300 이고 <code>u8</code> 은 255 까지다. 나누기 전에 이미 넘친다. 이진 탐색의 <code>(lo + hi) / 2</code> 가 수십 년 동안 여러 라이브러리에서 터진 바로 그 결함이다. C 라면 감긴 값 44 를 반으로 나눈 22 가 조용히 나왔을 것이다. 고치는 법은 계산을 <strong>넓은 폭에서</strong> 하는 것이다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/midpoint_fixed.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> midpoint_fixed .
+<em><span class="tok-c">rem run: mid 200 100</span></em>
+<em><span class="tok-c">rem run: mid 255 255</span></em>
+
+<strong><span class="tok-k">fn</span></strong> mid <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u8</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u8</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem 한 폭 넓혀서 더한다 --- u16 은 510 까지 담는다</span></em>
+  <strong><span class="tok-k">let</span></strong> both <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u16</span></strong> add (widen <strong><span class="tok-t">u16</span></strong> a) (widen <strong><span class="tok-t">u16</span></strong> b) .
+  <em><span class="tok-c">rem 둘로 나눈 값은 다시 u8 에 들어간다는 것을 우리는 알고, narrow 가 그것을 확인한다</span></em>
+  <strong><span class="tok-k">return</span></strong> narrow <strong><span class="tok-t">u8</span></strong> (div both <span class="tok-n">2</span>) .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run mid midpoint_fixed.low 200 100
+mid(200, 100) = 150
+$ lowentc --run mid midpoint_fixed.low 255 255
+mid(255, 255) = 255
+</code></pre></div></div><p><code>widen u16</code> 으로 올려서 더하고, 나눈 뒤 <code>narrow u8</code> 로 내린다. 가운데 값은 언제나 <code>u8</code> 에 들어가므로 좁히기가 멈출 일은 없고, 혹시 계산을 잘못 바꾸면 그 자리에서 멈춰 알려 준다. (<code>lo &lt;= hi</code> 가 보장되면 <code>add lo (div (sub hi lo) 2)</code> 도 넘치지 않는다.)</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 부호 없는 수에서 큰 수를 뺀다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_usub.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_usub .
+<em><span class="tok-c">rem trap: gap 3 5</span></em>
+
+<strong><span class="tok-k">fn</span></strong> gap <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ 부호 없는 수는 0 아래로 내려가지 않는다 --- 3 − 5 는 음수가 아니라 멈춤이다</span></em>
+  <strong><span class="tok-k">return</span></strong> sub a b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run gap mistake_usub.low 3 5
+== ir diagnostics (1) ==
+0:0 E-VM-OVERFLOW: integer overflow at the declared width (use wrap_*/sat_*, or prove the range)
+</code></pre></div></div><p><code>u64</code> 는 0 아래가 없다. <code>3 − 5</code> 는 −2 가 아니라 <strong>넘침</strong>이고, 그래서 멈춘다(C 라면 18446744073709551614 가 나온다). 차이의 크기가 알고 싶으면 큰 쪽에서 작은 쪽을 뺀다 — <code>if ge a b . do return sub a b . end return sub b a .</code> — 음수가 뜻이 있는 값이면 처음부터 <code>i64</code> 로 계산한다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 반복 변수를 너무 좁은 타입으로 둔다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_narrowloop.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_narrowloop .
+<em><span class="tok-c">rem expect: E-TYPE-WIDTH</span></em>
+
+<strong><span class="tok-k">fn</span></strong> tally <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ u8 반복 변수는 255 다음이 없다 --- 256 번째 `add i 1` 에서 멈춘다</span></em>
+  <strong><span class="tok-k">var</span></strong> i <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u8</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">var</span></strong> n <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">0</span> .
+  <strong><span class="tok-k">while</span></strong> lt i <span class="tok-n">256</span> . <strong><span class="tok-k">do</span></strong>
+    <strong><span class="tok-k">set</span></strong> n (add n <span class="tok-n">1</span>) .
+    <strong><span class="tok-k">set</span></strong> i (add i <span class="tok-n">1</span>) .
+  <strong><span class="tok-k">end</span></strong>
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_narrowloop.low
+mistake_narrowloop.low:9:0 E-TYPE-WIDTH: this comparison holds a value that the other side's type cannot hold, so the answer is the same for every input — the comparison decides nothing. A name declared `u8` is at most 255, `u16` at most 65535, `i8` at most 127; a literal beyond that is out of range exactly as it would be in an assignment, where the tool has always refused it. Widen the name's type, or compare against a value the type can reach. (This is how a loop written `while lt i 256 .` over a `u8` counter never ends)
+</code></pre></div></div><p><code>u8</code> 은 256 에 닿을 수 없으니 <code>lt i 256</code> 은 영원히 참이다. C 라면 <code>i</code> 가 255 에서 0 으로 감겨 <strong>끝나지 않는 반복</strong>이 되었을 것이다. Lowent 는 그 비교를 번역 때 <code>E-TYPE-WIDTH</code> 로 거절한다 — 자리에 안 들어가는 값과의 비교는 입력과 무관하게 답이 같으므로 아무것도 가르지 않는다. 반복 변수는 셀 수 있는 가장 큰 값보다 넓은 타입(<code>u64</code>)으로 둔다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. 부동소수를 정수 리터럴로 계산한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_floatint.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_floatint .
+<em><span class="tok-c">rem expect: E-TYPE-MIX</span></em>
+
+<strong><span class="tok-k">fn</span></strong> half <strong><span class="tok-k">input</span></strong> x <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem ✘ f64 를 정수 리터럴 2 로 나눴다 --- 부동소수 자리에는 2.0 을 쓴다</span></em>
+  <strong><span class="tok-k">return</span></strong> div x <span class="tok-n">2</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --check mistake_floatint.low
+mistake_floatint.low:7:0 E-TYPE-MIX: a floating-point value and an INTEGER literal are mixed in one operation. Floating point and integers do not convert implicitly (§6.2.5), so write the literal as a float (`2.0`) — or convert the other side. It used to pass `--check` and stop at run time (`E-VM-TYPE: arithmetic needs ints`)
+</code></pre></div></div><p>정수와 부동소수는 서로 자동으로 바뀌지 않는다. <code>f64</code> 를 나누려면 리터럴도 부동소수로 <code>2.0</code> 이라고 적는다. 섞어 적으면 <code>E-TYPE-MIX</code> 로 번역 때 거절한다 — 전에는 <strong>실행 중에</strong> <code>E-VM-TYPE</code> 으로 멈췄다.</p></div></div><div class="dev antipattern"><p class="dev-label">반례. <code>--run</code> 인자로 <code>u64</code> 의 가장 큰 값을 넘겨 시험한다</p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_runmax.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_runmax .
+<em><span class="tok-c">rem trap: echo 18446744073709551615</span></em>
+<em><span class="tok-c">rem test</span></em>
+
+<em><span class="tok-c">rem ✘ u64 의 위쪽 절반을 `--run` 인자로 주면 경계에서 거절된다 — 구간 분석이 u64 의 상한을 i64 최댓값으로 믿기 때문이다</span></em>
+<strong><span class="tok-k">fn</span></strong> echo <strong><span class="tok-k">input</span></strong> n <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> n .
+<strong><span class="tok-k">end</span></strong>
+
+<em><span class="tok-c">rem 경계값은 시험 안에서 리터럴로 적는다</span></em>
+<strong><span class="tok-k">test</span></strong> largest_u64
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> m <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">u64</span></strong> <span class="tok-n">18446744073709551615</span> .
+  <strong><span class="tok-k">expect</span></strong> gt m <span class="tok-n">9223372036854775807</span> .
+  <strong><span class="tok-k">expect</span></strong> eq (div m <span class="tok-n">2</span>) <span class="tok-n">9223372036854775807</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run echo mistake_runmax.low 18446744073709551615
+== ir diagnostics (1) ==
+0:0 E-VM-CONTRACT: a parameter's TYPE range was violated at the program boundary — the value does not fit the declared type (the interval analysis TRUSTS the type and deletes checks on that basis; the boundary is what makes that trust true)
+$ lowentc --test mistake_runmax.low
+  [PASS] largest_u64
+== tests: 1 run, 1 passed, 0 FAILED ==
+</code></pre></div></div><p><code>echo 18446744073709551615</code> 는 경계에서 거절된다(<code>E-VM-CONTRACT</code>). 2026-09-16 까지는 조용히 9223372036854775807 로 잘려 들어갔다 — 다른 수를 준 것이고, 두 뒤끝이 똑같이 그랬으므로 대조로도 드러나지 않았다. 지금은 자르지 않고 거절한다. 까닭은 구간 분석이 <code>u64</code> 의 상한을 <code>i64</code> 의 최댓값으로 적어 두기 때문이다 — 그 위의 값이 들어오면 분석이 스스로 무너진다. 프로그램 안의 리터럴은 온전하므로 경계값 시험은 <code>largest_u64</code> 처럼 거기서 적고, 결과 표시는 이제 부호 없이 찍힌다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>f32</code> 와 <code>f64</code> 는 같은 수를 담는다</strong></p><div class="dev-body"><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/mistake_f32literal.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> mistake_f32literal .
+<em><span class="tok-c">rem run: stored</span></em>
+<em><span class="tok-c">rem run: computed</span></em>
+
+<em><span class="tok-c">rem ✘ 리터럴을 그대로 담은 f32 — 이 판에서는 32 비트로 반올림되지 않아 f64 의 0.1 과 같다고 나온다</span></em>
+<strong><span class="tok-k">fn</span></strong> stored <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">f32</span></strong> <span class="tok-n">0.1</span> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">f64</span></strong> <span class="tok-n">0.1</span> .
+  <strong><span class="tok-k">return</span></strong> eq (widen <strong><span class="tok-t">f64</span></strong> a) b .
+<strong><span class="tok-k">end</span></strong>
+
+<em><span class="tok-c">rem 셈을 한 번 거친 f32(0.1 + 0)는 32 비트로 반올림되어 다르다고 나온다</span></em>
+<strong><span class="tok-k">fn</span></strong> computed <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">bool</span></strong> . <strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">let</span></strong> a <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">f32</span></strong> <span class="tok-n">0.1</span> .
+  <strong><span class="tok-k">let</span></strong> c <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">f32</span></strong> add a <span class="tok-n">0.0</span> .
+  <strong><span class="tok-k">let</span></strong> b <strong><span class="tok-k">be</span></strong> <strong><span class="tok-t">f64</span></strong> <span class="tok-n">0.1</span> .
+  <strong><span class="tok-k">return</span></strong> eq (widen <strong><span class="tok-t">f64</span></strong> c) b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run stored mistake_f32literal.low
+stored() = 0
+$ lowentc --run computed mistake_f32literal.low
+computed() = 0
+</code></pre></div></div><p><code>stored</code> 와 <code>computed</code> 가 둘 다 거짓이다. <code>f32</code> 자리에 담긴 0.1 은 32 비트로 반올림되므로, 넓혀도 <code>f64</code> 의 0.1 과 다른 수다. 2026-09-16 까지는 리터럴(과 <code>--run</code> 으로 건넨 인자)이 반올림되지 않아 <code>stored</code> 가 참이었다 — 같은 타입의 값이 어디서 왔느냐에 따라 다른 정밀도를 갖던 자리다. 정밀도가 중요한 코드는 폭을 적어서 고르고, 두 폭을 견줄 때는 어느 쪽으로 옮길지 <code>widen</code>·<code>narrow</code> 로 적는다.</p></div></div><div class="dev misconception"><p class="dev-label">흔한 오해. <strong><code>div 7 2</code> 는 3.5 다</strong></p><div class="dev-body"><p>정수 나눗셈은 몫만 남기고 소수점 아래를 버린다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/intdiv.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> intdiv .
+<em><span class="tok-c">rem run: avg2 3 4</span></em>
+<em><span class="tok-c">rem run: avg_f 3.0 4.0</span></em>
+
+<strong><span class="tok-k">fn</span></strong> avg2 <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem 정수 나눗셈은 소수점 아래를 버린다 --- 7 / 2 는 3</span></em>
+  <strong><span class="tok-k">return</span></strong> div (add a b) <span class="tok-n">2</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> avg_f <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">f64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <em><span class="tok-c">rem 소수점 아래가 필요하면 처음부터 부동소수로 계산한다</span></em>
+  <strong><span class="tok-k">return</span></strong> div (add a b) <span class="tok-n">2.0</span> .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run avg2 intdiv.low 3 4
+avg2(3, 4) = 3
+$ lowentc --run avg_f intdiv.low 3.0 4.0
+avg_f(3.0, 4.0) = 3.5
+</code></pre></div></div><p><code>avg2 3 4</code> 는 3 이다. 소수점 아래가 필요하면 입력부터 부동소수로 받아 <code>2.0</code> 으로 나눈다. 반올림이 필요하면 <code>add n (div d 2)</code> 를 더한 뒤 나누는 식으로 <strong>적어서</strong> 고른다 — 언어가 대신 반올림하지 않는다.</p></div></div><p>부동소수의 나머지는 정수의 <code>mod</code> 와 이름을 갈라 <code>fmod</code> 로 적는다.</p><div class="demo demo-src"><p class="demo-head"><code>examples/ch04/floatmod.low</code></p><div class="demo-body"><pre><code data-lang="lowent"><strong><span class="tok-k">module</span></strong> floatmod .
+<em><span class="tok-c">rem run: rest</span></em>
+<em><span class="tok-c">rem run: whole_rest 7 2</span></em>
+
+<em><span class="tok-c">rem 부동소수의 나머지는 `fmod` --- 정수의 `mod` 와 이름을 가른다</span></em>
+<strong><span class="tok-k">fn</span></strong> rest <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">f64</span></strong> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> fmod <span class="tok-n">7.5</span> <span class="tok-n">2.0</span> .
+<strong><span class="tok-k">end</span></strong>
+
+<strong><span class="tok-k">fn</span></strong> whole_rest <strong><span class="tok-k">input</span></strong> a <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">input</span></strong> b <strong><span class="tok-t">u64</span></strong> . <strong><span class="tok-k">output</span></strong> <strong><span class="tok-t">u64</span></strong> .
+  <strong><span class="tok-k">requires</span></strong> gt b <span class="tok-n">0</span> .
+<strong><span class="tok-k">do</span></strong>
+  <strong><span class="tok-k">return</span></strong> mod a b .
+<strong><span class="tok-k">end</span></strong>
+</code></pre></div></div><div class="demo demo-out"><p class="demo-head">실행 결과</p><div class="demo-body"><pre><code>$ lowentc --run rest floatmod.low
+rest() = 1.5
+$ lowentc --run whole_rest floatmod.low 7 2
+whole_rest(7, 2) = 1
+</code></pre></div></div><p><code>fmod 7.5 2.0</code> 은 1.5, <code>mod 7 2</code> 는 1 이다. 한 이름에 두 갈래를 싣지 않는 것은 <code>div</code> 와 같은 까닭이다 — 무엇을 셈하는지가 이름에서 보인다.</p><h3 id="s4-9">4.9 이 장의 문법을 한눈에<a class="plink" href="#s4-9" aria-label="이 절의 주소" title="이 절의 주소">#</a></h3><div></div><figure class="tbl"><div class="tblwrap"><table><tr><th><strong>모양</strong></th><th><strong>뜻</strong></th><th><strong>왜 이렇게</strong></th></tr><tr><td><code>u8</code> … <code>u64</code> · <code>i8</code> … <code>i64</code> · <code>usize</code> · <code>isize</code></td><td>폭이 이름에 적힌 정수</td><td>기계마다 크기가 달라지지 않게</td></tr><tr><td><code>f32</code> · <code>f64</code></td><td>IEEE 754 부동소수</td><td>정수와 섞이지 않는다 — 리터럴도 <code>2.0</code></td></tr><tr><td><code>widen u64 x</code></td><td>넓히기(값을 잃지 않음)</td><td>자동으로도 일어나지만 보이게 적을 수 있다</td></tr><tr><td><code>narrow u8 x</code></td><td>좁히기 — 안 들어가면 멈춘다</td><td>값이 조용히 바뀌지 않게</td></tr><tr><td><code>narrow_sat</code> · <code>narrow_wrap</code> · <code>narrow_try</code></td><td>끝값에 서기 · 감기 · <code>option</code> 으로</td><td>처분을 이름으로 고른다</td></tr><tr><td><code>add</code> · <code>sub</code> · <code>mul</code></td><td>넘치면 멈추는 산술</td><td>넘침은 기본이 결함</td></tr><tr><td><code>wrap_add</code> · <code>sat_add</code> · <code>chk_add</code></td><td>감김 · 포화 · <code>option</code></td><td>의도한 처분이 소스에 남는다</td></tr><tr><td><code>div</code> · <code>mod</code></td><td>몫(0 쪽으로 버림) · 나머지(나누는 수의 부호)</td><td>0 나누기와 <code>MIN / −1</code> 은 멈춘다</td></tr><tr><td><code>nonzero_of b</code> · <code>div_nz</code></td><td>0 이 아님을 한 번 확인해 타입에 싣기</td><td>검사를 한 자리로 옮긴다</td></tr><tr><td><code>bit_and</code> · <code>bit_or</code> · <code>bit_xor</code> · <code>bit_not</code></td><td>비트별 논리</td><td>기호 우선순위의 함정이 없다</td></tr><tr><td><code>shl</code> · <code>shr</code> · <code>rotl</code> · <code>rotr</code></td><td>옮기기 · 돌리기</td><td>폭 이상 옮기면 멈춘다</td></tr><tr><td><code>clmul_lo</code> · <code>clmul_hi</code></td><td>캐리 없는 곱셈 — 답은 낱말 둘</td><td>기계 명령이 있으면 그것으로, 없으면 셈으로</td></tr><tr><td><code>count_ones</code> · <code>leading_zeros</code> · <code>trailing_zeros</code> · <code>byte_swap</code></td><td>비트 세기 · 바이트 뒤집기</td><td>흔한 일은 이름 하나로</td></tr><tr><td><code>true</code> · <code>false</code> · <code>and</code> · <code>or</code> · <code>not</code></td><td>참거짓과 그 논리</td><td>수를 조건에 쓰지 않는다</td></tr><tr><td><code>usize</code> · <code>isize</code> · <code>f32</code></td><td>주소 폭 정수 · 32 비트 부동소수</td><td>C 와 길이를 주고받을 때 · 정밀도보다 양이 중요할 때</td></tr></table></div><p class="float-caption">표 4.3 — 수의 문법 — 모양 · 뜻 · 왜 이렇게 생겼나</p></figure><div class="dev recap"><p class="dev-label">복습 정리</p><div class="dev-body">정수 타입은 부호와 폭을 이름에 적고 어디서나 같은 크기다. 넓히기는 자동이고 좁히기는 <code>narrow</code> 로 적는다. 넘침·0 나누기·범위 밖 좁히기·폭 이상의 옮기기는 멈추며, 다른 처분(감김·포화·값으로)은 <code>wrap_</code>·<code>sat_</code>·<code>chk_</code>·<code>narrow_try</code> 같은 이름으로 고른다. <code>mod</code> 의 부호는 나누는 수를 따른다. 참거짓은 수가 아니고, 비트 연산은 낱말로 적으며 폭과 부호가 뜻을 정한다.</div></div>
+<div class="nav"><a href="ch03.html">← 이전</a><span class="sp"></span><a href="index.html">목차로</a><span class="sp"></span><a href="ch05.html">다음 →</a></div>
+</div></main>
+<script>(function(){var b=document.querySelector('.here-btn'),p=document.getElementById('here-panel');function open(o){if(!p)return;p.hidden=!o;if(b)b.setAttribute('aria-expanded',o);}if(b)b.addEventListener('click',function(){open(p.hidden);});if(p)p.addEventListener('click',function(e){if(e.target.tagName==='A'&&e.target.getAttribute('href').charAt(0)==='#')open(false);});document.addEventListener('keydown',function(e){if(e.key==='Escape')open(false);});var box=document.getElementById('setbox'),so=document.getElementById('set-open');if(!box||!so)return;var r=document.documentElement;function load(){try{return JSON.parse(localStorage.getItem('pcb-read')||'{}');}catch(e){return {};}}function save(s){try{localStorage.setItem('pcb-read',JSON.stringify(s));}catch(e){}}function css(n){return getComputedStyle(r).getPropertyValue(n).trim();}function paint(){var s=load();document.getElementById('s-width').checked=!!s.width;var t=s.theme||'auto';[].forEach.call(box.querySelectorAll('.segb'),function(x){x.setAttribute('aria-pressed',x.dataset.theme===t);});document.getElementById('s-fg').value=s.fg||hex(css('--fg'));document.getElementById('s-bg').value=s.bg||hex(css('--bg'));document.getElementById('s-link').value=s.link||hex(css('--link'));}function hex(v){var m=v.match(/^rgba?\((\d+)[ ,]+(\d+)[ ,]+(\d+)/);if(!m)return v.charAt(0)==='#'?v:'#000000';return '#'+[1,2,3].map(function(i){return ('0'+parseInt(m[i],10).toString(16)).slice(-2);}).join('');}so.addEventListener('click',function(){box.hidden=!box.hidden;so.setAttribute('aria-expanded',!box.hidden);if(!box.hidden)paint();});document.getElementById('s-width').addEventListener('change',function(){var s=load();s.width=this.checked;save(s);if(s.width)r.setAttribute('data-measure','on');else r.removeAttribute('data-measure');});[].forEach.call(box.querySelectorAll('.segb'),function(x){x.addEventListener('click',function(){var s=load();s.theme=x.dataset.theme;delete s.fg;delete s.bg;delete s.link;save(s);['--fg','--bg','--link'].forEach(function(n){r.style.removeProperty(n);});if(s.theme==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',s.theme);setTimeout(paint,0);});});[['s-fg','--fg','fg'],['s-bg','--bg','bg'],['s-link','--link','link']].forEach(function(a){document.getElementById(a[0]).addEventListener('input',function(){var s=load();s[a[2]]=this.value;save(s);r.style.setProperty(a[1],this.value);});});})();</script><script>
+(function(){
+  var q=document.getElementById('q'), out=document.getElementById('qr');
+  if(!q||!out) return;
+  var data=null, NONE="\ucc3e\uc740 \uac83\uc774 \uc5c6\ub2e4";
+  function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+  function run(){
+    var v=q.value.trim().toLowerCase();
+    out.innerHTML='';
+    if(!v||!data) return;
+    var hits=[];
+    for(var i=0;i<data.length && hits.length<40;i++){
+      if(data[i][0].toLowerCase().indexOf(v)>=0) hits.push(data[i]);
+    }
+    if(!hits.length){ out.innerHTML='<li>'+NONE+'</li>'; return; }
+    out.innerHTML=hits.map(function(h){
+      return '<li><a href="'+h[1]+'">'+esc(h[0])+'</a>'+
+             (h[2]?'<span class="where">'+esc(h[2])+'</span>':'')+'</li>';
+    }).join('');
+  }
+  q.addEventListener('input',function(){
+    if(data){ run(); return; }
+    fetch('search-index.json').then(function(r){return r.json();})
+      .then(function(j){ data=j; run(); })
+      .catch(function(){ out.innerHTML='<li>'+NONE+'</li>'; });
+  });
+})();
+</script></body></html>

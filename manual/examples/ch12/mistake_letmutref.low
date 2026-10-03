@@ -1,0 +1,17 @@
+module mistake_letmutref .
+rem expect: E-TYPE-ARGMUT
+
+proc bump input p mut_ref u64 . output void . effects none .
+do
+  set p (add (deref p) 1) .
+end
+
+proc use_bump input start u64 . output u64 .
+  effects none .
+  requires lt start 1000 .
+do
+  rem ko: ✘ `let` 으로 지은 이름인데 쓰기로 빌려준다 /// en: ✘ a name made with `let` is lent for writing
+  let n be u64 start .
+  bump (mut_ref n) .
+  return n .
+end

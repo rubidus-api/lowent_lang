@@ -1,0 +1,37 @@
+module island .
+rem run: score 3 4
+rem run: score_prefix 3 4
+rem run: grouped 3 4
+rem run: in_range 5 1 9
+rem run: spread 3 9
+
+fn score input a u32 . input b u32 . output u32 .
+  requires le a 1000 .
+  requires le b 1000 .
+do
+  return expr a + b * 2 .
+end
+
+fn score_prefix input a u32 . input b u32 . output u32 .
+  requires le a 1000 .
+  requires le b 1000 .
+do
+  return add a (mul b 2) .
+end
+
+fn grouped input a u32 . input b u32 . output u32 .
+  requires le a 1000 .
+  requires le b 1000 .
+do
+  return expr (a + b) * 2 .
+end
+
+fn in_range input x u32 . input lo u32 . input hi u32 . output bool .
+do
+  return expr (lo le x) and (x le hi) .
+end
+
+fn spread input a u32 . input b u32 . output u32 .
+do
+  return expr (max a b) - (min a b) .
+end

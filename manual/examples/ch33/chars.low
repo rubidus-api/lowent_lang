@@ -1,0 +1,21 @@
+module chars .
+rem run: characters [236,149,136,235,133,149]
+rem run: characters [97,98,99]
+rem run: characters [236,149]
+rem run: first_char [236,149,136,235,133,149]
+
+use utf8 .
+
+fn characters input s slice u8 . output u64 .
+do
+  let n be option u64 utf8.count_chars s .
+  guard is_some n . else return 999 .
+  return some_value n .
+end
+
+fn first_char input s slice u8 . output u64 .
+do
+  let c be option u64 utf8.decode s 0 .
+  guard is_some c . else return 0 .
+  return some_value c .
+end

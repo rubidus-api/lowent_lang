@@ -1,0 +1,15 @@
+module ids .
+rem expect: E-TYPE-NOMINAL
+
+def newtype user_id u64 .
+def newtype order_id u64 .
+
+fn load_order input id order_id . output u64 .
+do
+  return 0 .
+end
+
+fn mistake input u user_id . output u64 .
+do
+  return load_order u .
+end

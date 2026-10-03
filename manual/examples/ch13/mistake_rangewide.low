@@ -1,0 +1,13 @@
+module mistake_rangewide .
+rem expect: E-TYPE-WIDTH
+
+fn scale input a range 0 100 . output u8 .
+do
+  return narrow u8 (mul a 2) .
+end
+
+fn call_scale input x u64 . output u8 .
+do
+  rem ko: ✘ `u64` 는 0 … 100 보다 넓다 --- 범위 안이라는 것을 부르는 쪽이 보이지 않았다 /// en: ✘ `u64` is wider than 0 … 100 --- the caller has not shown the value is in range
+  return scale x .
+end

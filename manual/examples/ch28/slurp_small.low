@@ -1,0 +1,18 @@
+module slurp_small .
+rem run: main
+
+use files .
+
+proc main input out cap io . input fs cap file_system . input al cap allocator .
+  output u8 .
+  effects io alloc .
+do
+  rem ko: 34 바이트 파일에 8 바이트 버퍼 /// en: an 8-byte buffer for a 34-byte file
+  let g be option mut slice u8 alloc_bytes al capacity 8 .
+  guard is_some g . else return 1 .
+  let buf be mut slice u8 some_value g .
+  let r be result u64 files.file_error files.slurp fs "notes.txt" buf .
+  rem ko: 앞 8 바이트로 잘려 오지 않는다 --- 오류다 /// en: it does not come back cut to the first 8 bytes --- it is an error
+  guard not (is_error r) . else return 2 .
+  return narrow u8 (ok_value r) .
+end

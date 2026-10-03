@@ -1,0 +1,11 @@
+module mistake_bare .
+rem expect: E-VISIBILITY
+
+use geom from "geom.low" .
+
+fn origin_x output i64 .
+do
+  rem ko: ✘ 들여온 이름을 모듈 이름 없이 불렀다 /// en: ✘ an imported name is used without its module name
+  let a be lit point do x 0 . y 0 . end .
+  return field a x .
+end

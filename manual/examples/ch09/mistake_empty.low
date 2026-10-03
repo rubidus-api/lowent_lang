@@ -1,0 +1,8 @@
+module mistake_empty .
+rem trap: first []
+
+fn first input xs slice u8 . output u8 .
+do
+  rem ko: ✘ 빈 줄에는 0 번 원소가 없다 /// en: ✘ an empty slice has no element 0
+  return idx xs 0 .
+end

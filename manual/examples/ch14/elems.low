@@ -1,0 +1,13 @@
+module elems .
+rem run: digit_sum [1,2,3,9]
+rem trap: digit_sum [1,20]
+
+fn digit_sum input ds slice u8 . output u64 .
+  requires elem_le ds 9 .
+do
+  var s be u64 0 .
+  for d ds do
+    set s (add s (widen u64 d)) .
+  end
+  return s .
+end

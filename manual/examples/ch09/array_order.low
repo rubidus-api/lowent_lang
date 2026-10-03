@@ -1,0 +1,7 @@
+module array_order .
+rem expect: E-TYPE-ARRAY
+
+fn last input xs array 4 u8 . output u8 .
+do
+  return idx xs 3 .
+end

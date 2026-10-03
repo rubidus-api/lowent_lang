@@ -1,0 +1,63 @@
+#import "../lib.typ": *
+
+= `wire` --- 한 낱말을 칸으로 나눠 쓰기 <mod-wire>
+
+#modhead(file: "lib/wire.low", layer: [L1 --- 순수 계산], caps: [없음])
+
+한 정수 안에 여러 값을 나란히 넣어 쓸 때 그 칸을 *마스크 하나로* 다룬다. 마스크가 어디서 시작하는지(자리)와 몇 비트인지(폭)를 둘 다 말하므로, 손으로 적을 때 늘
+갈리던 그 두 수가 갈릴 수 없다. 날짜시각을 한 워드로 들고 다닐 때(`clock.local_packed`), 핸들에 샤드 · 칸 · 세대를 넣을 때(#modref("budget")[`budget`]), 장치
+레지스터의 필드를 읽고 쓸 때 --- 한 낱말을 여러 칸으로 쓰는 모든 자리다.
+
+```text
+mask = 0x0f00        →  자리 8 · 폭 4
+wire.pick  mask w    →  (w & mask) >> 8       그 칸의 값을 꺼낸다
+wire.put   mask v    →  (v << 8) & mask       값을 그 칸 자리로 옮긴다
+wire.merge mask w v  →  (w & ~mask) | put     낱말의 그 칸만 갈아 끼운다
+```
+
+```lowent
+fn m_month output u64 . do return 64424509440 . end
+let mo be u64 wire.pick (m_month) w .
+guard wire.fits (m_month) 9 . else return 1 .
+let w2 be u64 wire.merge (m_month) w 9 .
+```
+
+#aside[이 모듈이 지키는 것][
+  *자리와 폭이 한 수에서 나온다* --- "자리는 고쳤는데 폭은 안 고쳤다" 가 일어나지 않는다. 손으로 적은 보수 마스크가 2#super[32] 만큼 어긋났는데 인자가 0 인 시험이
+  그것을 통과시킨 기록이 이 모듈의 시험에 남아 있다. *마스크 0 은 거절한다* --- 모든 op 이 `requires ne mask 0` 을 든다. *비용은 0 이다* --- 상수 마스크의
+  `trailing_zeros` 는 컴파일 때 접히고, 같은 일을 손으로 쓴 코드와 기계 명령 수가 같다(x86-64 gcc -O2 에서 꺼내기 18 = 18, 갈아 끼우기 27 = 27, 시험이 매번 잰다).
+]
+
+#dtable(
+  columns: 2,
+  id: "mod-wire-ops",
+  caption: [`wire` 의 op],
+  [*op*], [*하는 일*],
+  [`shift_of` · `max_of` · `solid`], [마스크의 자리 · 칸에 들어가는 최댓값 · 비트가 이어진 마스크인가],
+  [`pick` · `put` · `merge`], [꺼내기 · 자리로 옮기기 · 그 칸만 갈아 끼우기],
+  [`fits`], [값이 그 칸에 들어가는가],
+  [`polarity v m`], [마스크 자리만 뒤집기(active-low)],
+  [`reverse_bits v w`], [폭 `w` 안에서 비트 차례 뒤집기],
+  [`onwire order inv v w`], [선 기술자 한 번에(컴파일 때 값)],
+  [`permute v tab` · `is_identity tab`], [자리 옮김(순열) · 항등인가],
+  [`to_set now want` · `to_clear now want`], [세울 마스크 · 지울 마스크],
+)
+
+바이트 차례는 빌트인 `byte_swap` 이다. 선으로 나갈 때의 축(극성 · 비트 차례 · 바이트 차례 · 순열)은 서로 독립이다.
+
+*왜 "값" 이 아니라 세울 · 지울 짝인가.* 포트에 값을 통째로 쓰려면 읽고 → 고치고 → 쓴다. 그 사이에 인터럽트가 다른 자리를 켜면 내 쓰기가 그것을 지워 버린다. 그래서
+하드웨어가 세울 마스크 · 지울 마스크 레지스터(STM32 의 `BSRR`)를 준다 --- 읽지 않으므로 잃을 것이 없다. 편의가 아니라 정확성이다(#chref("hardware")). *항등은
+공짜다* --- `onwire 0 0 v w` 는 값을 그냥 돌려주는 코드와 명령 수가 같다. 순열 표는 실행 때 값이라 접히지 않으므로 `is_identity` 로 부르기 전에 물을 수 있게 했다.
+
+#antipattern[마스크와 따로 자리를 또 적는다][
+  `bit_and (shr w 32) 15` 는 자리(32)와 폭(15)이 두 수라 한쪽만 고치면 조용히 틀린다. `wire.pick` 은 한 수만 받는다.
+]
+
+#antipattern[들어가는지 묻지 않고 넣는다][
+  달은 네 비트다. `wire.merge (m_month) w 20` 은 에러 없이 4(= 20 & 15)를 넣는다. `wire.fits` 가 그 물음에 답한다 --- 둘을 한 op 으로 묶지 않은 까닭은, 실패를 값으로
+  답하면 모든 자리에서 `option` 을 풀어야 하기 때문이다.
+]
+
+*주의.* 마스크는 한 곳에만 적는다(`fn m_month output u64 .` 처럼 이름 하나로). 구멍 난 마스크(비트가 이어지지 않은 것)는 다루지 않는다 --- `solid` 가 답한다. 폭 ·
+프레임 축(8 비트 값을 12 비트 프레임으로)은 없다. op 이름이 `get` · `read` 가 아닌 까닭 --- `get` 은 처리기가 이미 쓰는 낱말이라 영원히 호출되지 않았고, `read` 는 C 의
+`read` 와 충돌해 네이티브 빌드가 깨졌다. 라이브러리 op 이름은 처리기의 낱말 · 명세의 표 · libc 셋을 모두 피해야 한다.

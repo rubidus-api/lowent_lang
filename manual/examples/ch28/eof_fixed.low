@@ -1,0 +1,38 @@
+module eof_fixed .
+rem run: main
+
+use files .
+
+proc main input out cap io . input fs cap file_system . input al cap allocator .
+  output u8 .
+  effects io alloc .
+do
+  let g be option mut slice u8 alloc_bytes al capacity 16 .
+  guard is_some g . else return 1 .
+  let buf be mut slice u8 some_value g .
+  let o be result files.handle files.file_error files.open fs "notes.txt" 0 .
+  guard is_ok o . else return 2 .
+  var h be owned files.handle ok_value o .
+  var total be u64 0 .
+  var more be bool true .
+  var rounds be u64 0 .
+  while and more (lt rounds 100) . do
+    let r be result (option u64) files.file_error files.read fs h buf .
+    guard is_ok r . else do
+      let c1 be result void files.file_error files.close fs h .
+      drop c1 .
+      return 3 .
+    end
+    rem ko: 세 자리를 모두 가른다 --- 읽었다 · 끝이다 · 실패다 /// en: split all three places --- read · end · failure
+    let got be option u64 ok_value r .
+    if is_some got . do
+      set total (add total (some_value got)) .
+    end else do
+      set more false .
+    end
+    set rounds (add rounds 1) .
+  end
+  let c be result void files.file_error files.close fs h .
+  guard is_ok c . else return 4 .
+  return narrow u8 total .
+end

@@ -1,0 +1,29 @@
+module digits .
+rem run: digits_loop [97,49,50,98,51]
+rem run: digits_pipe [97,49,50,98,51]
+
+fn is_digit input c u8 . output bool .
+do
+  return and (ge c 48) (le c 57) .
+end
+
+fn digits_loop input s slice u8 . output u64 .
+do
+  var n be u64 0 .
+  var i be u64 0 .
+  while lt i (len s) . do
+    if is_digit (idx s i) . do
+      set n (add n 1) .
+    end
+    set i (add i 1) .
+  end
+  return n .
+end
+
+fn digits_pipe input s slice u8 . output u64 .
+do
+  return pipe s do
+    filter is_digit .
+    count .
+  end .
+end

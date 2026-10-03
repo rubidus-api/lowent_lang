@@ -1,0 +1,18 @@
+module mistake_pendingmoved .
+rem expect: E-OWN-MOVED
+
+use outbuf .
+
+proc main input out cap io . input al cap allocator . output u8 . effects io alloc .
+do
+  let g be option mut slice u8 alloc_bytes al capacity 64 .
+  guard is_some g . else return 1 .
+  let buf be mut slice u8 some_value g .
+  var p be owned outbuf.pending outbuf.buf_open 1 .
+  let r1 be result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out p buf "first\n" .
+  guard is_ok r1 . else return 2 .
+  rem ko: ✘ `write` 가 가져간 옛 대기 값 `p` 로 또 쓴다 --- 새 대기 값은 `r1` 안에 있다 /// en: ✘ writes again with the old pending value `p` that `write` took --- the new one is inside `r1`
+  let r2 be result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out p buf "second\n" .
+  drop r2 .
+  return 0 .
+end

@@ -1,0 +1,31 @@
+module bands .
+rem run: band 9
+rem run: band 10
+rem run: band 200
+rem run: half 128
+rem run: big 101
+
+fn band input x u8 . output u8 .
+do
+  match x . do
+    case 0 to 9 . do return 1 . end
+    case 10 to 19 . do return 2 . end
+    case _ . do return 0 . end
+  end
+end
+
+fn half input b u8 . output u8 .
+do
+  match b . do
+    case 0 to 127 . do return 0 . end
+    case 128 to 255 . do return 1 . end
+  end
+end
+
+fn big input x u8 . output u8 .
+do
+  match x . do
+    case y when gt y 100 . do return 1 . end
+    case _ . do return 0 . end
+  end
+end

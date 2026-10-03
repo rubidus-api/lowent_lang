@@ -1,0 +1,17 @@
+module scope .
+rem run: pick 5
+rem run: pick 0
+
+fn pick input a u64 . output u64 .
+do
+  var result be u64 0 .
+  if gt a 1 . do
+    let doubled be u64 mul a 2 .
+    set result doubled .
+  end
+  if le a 1 . do
+    let doubled be u64 1 .
+    set result doubled .
+  end
+  return result .
+end

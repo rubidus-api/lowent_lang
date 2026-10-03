@@ -1,0 +1,32 @@
+%YAML 1.2
+---
+# Lowent 구문 강조 — 책의 코드 상자용(조판·HTML 공용). 키워드·절 낱말·타입·빌트인·리터럴·주석만 가른다.
+name: Lowent
+file_extensions: [low]
+scope: source.lowent
+contexts:
+  main:
+    - match: '\brem\b.*$'
+      scope: comment.line.lowent
+    - match: '"'
+      scope: punctuation.definition.string.begin.lowent
+      push: string
+    - match: "'(\\\\.|[^'\\\\])'"
+      scope: constant.character.lowent
+    - match: '\b(0x[0-9a-fA-F_]+|0b[01_]+|[0-9][0-9_]*(\.[0-9]+)?([eE][-+]?[0-9]+)?)\b'
+      scope: constant.numeric.lowent
+    - match: '\b(use|let|set|do|end|if|else|for|guard|return|break|continue|try|expr|fn|proc|lit|def|struct|enum|match|case|while|module|var|type|newtype|export|unsafe|extern|trait|satisfies|contract|drop|test|expect|actor|state|spawn|send|be|region|using|pipe|task_group|await)\b'
+      scope: keyword.control.lowent
+    - match: '\b(input|output|effects|requires|ensures|errors|tests|access|parallel|reduce|lowdoc|vector|priority|asm|link|variadic|schedule|via|comptime|mut|owned|ref|mut_ref|cap|slice|array|option|result|range)\b'
+      scope: storage.modifier.lowent
+    - match: '\b(true|false|none|void|self)\b'
+      scope: constant.language.lowent
+    - match: '\b(u8|u16|u32|u64|i8|i16|i32|i64|usize|isize|f32|f64|bool|c8|type)\b'
+      scope: storage.type.lowent
+  string:
+    - meta_scope: string.quoted.double.lowent
+    - match: '\\.'
+      scope: constant.character.escape.lowent
+    - match: '"'
+      scope: punctuation.definition.string.end.lowent
+      pop: true

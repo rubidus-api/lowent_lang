@@ -1,0 +1,5 @@
+module dup .
+rem expect: E-NAME-DUP
+
+fn answer output u32 . do return 1 . end
+fn answer output u32 . do return 2 . end

@@ -1,0 +1,80 @@
+#import "../lib.typ": *
+
+= `mapgen` --- 제네릭 해시맵 `table k v` <mod-mapgen>
+
+#modhead(file: "lib/mapgen.low", layer: [L1 --- 저장(얼로케이터를 들고 다닌다)], caps: [없음 --- `open` 이 범프 얼로케이터를 건네받는다])
+
+키로 값을 찾는 표이고, 키 타입과 값 타입을 *내가 고른다*. op 을 부를 때마다 키 타입과 값 타입을 이 순서로 적는다(#modref("vecgen")[`vecgen`] 과 같은 이유다).
+#modref("hashmap")[`hashmap`] 은 `u64 → u64` 로 못 박혀 있고 저장소를 호출자가 들며 `rehash` 도 직접 부른다. `mapgen` 은 타입이 열려 있고, 저장소와 얼로케이터를
+한 값이 소유하며, 꽉 차면 스스로 다시 뿌린다.
+
+```lowent
+let mo using bump be option (mapgen.table u32 u64) mapgen.open u32 u64 4 .
+guard is_some mo . else return 1 .
+var m be (mapgen.table u32 u64) some_value mo .
+guard mapgen.insert u32 u64 m 7 900 . else return 2 .
+let x be option u64 mapgen.lookup u32 u64 m 7 .
+guard mapgen.erase u32 u64 m 7 . else return 3 .
+```
+
+*설계.* ⓪ 이름이 `map` 이 아니라 `table` 인 이유 --- `map` 은 빌트인 op 이다. 같은 낱말이 두 가지를 뜻하면 문장이 어떻게 묶이는지가 흔들린다. 제네릭이라는 이유로 그
+검사를 빠져나가던 구멍을 닫자 이 모듈이 첫 번째로 걸렸다. ① *빈칸을 키 값으로 예약하지 않는다* --- 상태 배열(`flags`: 0 빈칸 · 1 찬 자리 · 2 무덤)을 따로 둔다. "키
+0 = 빈칸" 이라는 흔한 지름길은 키 0 을 담긴 척하며 조용히 틀린 답을 준다. ② *무덤을 남긴다* --- 지운 자리를 빈칸으로 되돌리면 그 자리를 지나 놓인 키를 영영 못
+찾는다. ③ *부하율 ≤ 0.5* --- 절반을 넘기 전에 슬롯을 두 배로 늘리고 전부 다시 뿌린다. ④ 해시는 분포용이지 암호용이 아니다(곱셈-xorshift 한 판). ⑤ *순회는 반복자가
+아니라 자리다* --- 해시 표에는 "다음 원소" 라는 자연스러운 순서가 없으므로, 상태를 든 반복자 객체 대신 `next_used` 가 다음으로 찬 자리를 준다. 무효화될 객체가 없다.
+
+#dtable(
+  columns: 3,
+  id: "mod-mapgen-ops",
+  caption: [`mapgen` 의 op --- 첫 두 인자가 키 타입 · 값 타입],
+  [*op*], [*effects*], [*하는 일*],
+  [`table`], [---], [구조체 --- `al` · `keys` · `vals` · `flags`(바이트) · `n`(담긴 쌍 수)],
+  [`open k v want`(`using al`)], [state], [빈 맵을 연다(쌍 `want` 개 준비, 슬롯은 `(want+1)*2` 를 2 의 거듭제곱으로, 최소 8)],
+  [`insert k v m key val`], [state], [넣는다(있으면 덮어쓴다). 부하율을 넘게 되면 먼저 다시 뿌린다. `false` = 자리 부족],
+  [`lookup k v m key` · `has k v m key`], [none], [값 → `option v` · 있는가],
+  [`erase k v m key`], [none], [지운다(무덤을 남긴다). 있었으면 `true`],
+  [`count_of k v m` · `slots_of k v m`], [none], [담긴 쌍 수(무덤은 세지 않는다) · 슬롯 수],
+  [`next_used k v m from`], [none], [`from` 부터 처음 찬 자리 → `option u64`],
+  [`key_at k v m at` · `val_at k v m at`], [none], [그 자리의 키 · 값. 찬 자리가 아니면 `none`],
+)
+
+키 배열은 `슬롯 × size_of k` 바이트, 값 배열은 `슬롯 × size_of v` 바이트다 --- `table u8 u16` 을 3 쌍으로 열면 슬롯 8 에 32 바이트, 같은 개수를 `table u32 u64` 로
+열면 104 바이트다. 산술이 인스턴스마다 다르다.
+
+```lowent
+var at be u64 0 .
+var total be u64 0 .
+var going be bool true .
+while going . do
+  let nx be option u64 mapgen.next_used u32 u64 m at .
+  guard is_some nx . else do
+    set going false .
+    continue .
+  end
+  let s be u64 some_value nx .
+  let v be option u64 mapgen.val_at u32 u64 m s .
+  guard is_some v . else return none .
+  set total (add total (some_value v)) .
+  set at (add s 1) .
+end
+```
+
+빈도 세기의 관용구는 `lookup` → 없으면 1, 있으면 +1 → `insert` 다. 값 타입을 `u8` 로 두고 1 만 넣으면 집합이다.
+
+#antipattern[순회하면서 넣는다][
+  `insert` 가 다시 뿌리면 자리 번호의 뜻이 바뀌어 건너뛰거나 두 번 본다. 넣을 것을 모아 두었다가 순회가 끝난 뒤 넣는다. `erase` 는 순회 중에도 안전하다(무덤만
+  남는다).
+]
+
+#antipattern[`at` 을 1 씩 올리지 않는다][
+  `set at (some_value nx)` 로 두면 같은 자리를 영원히 다시 찾는다. 다음 시작은 *앞 자리 + 1* 이다.
+]
+
+#antipattern[정수 아닌 키 · 타입 순서 바꾸기][
+  `table f32 u64` 는 `widen u64` 가 뜻 없는 비트를 만들어 쓸 수 없다 --- 바이트열 키는 #modref("strmap")[`strmap`] 이다. `table u32 u64` 를 열고 `u64 u32` 로 부르면
+  다른 인스턴스를 부르는 것이다(타입 검사가 잡는다).
+]
+
+*주의.* 키 · 값은 정수 스칼라다. `lookup` 의 `none` 은 에러가 아니라 "그 키가 없다" 는 흔한 정상 경우다. `erase` 는 `count_of` 를 줄이지만 슬롯은 줄지 않는다. 순서는
+약속하지 않는다(해시 순서이고 다시 뿌리면 바뀐다). 성장은 통째로 다시 뿌리므로 그 순간 O(슬롯)이 들고, 범프 위에서는 옛 배열 셋이 남는다 --- `want` 를 제대로 주는
+것이 실질적인 이득이다. 맵의 수명은 얼로케이터의 수명 안이다.

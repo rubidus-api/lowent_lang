@@ -1,0 +1,20 @@
+module windows .
+rem run: middle_sum [1,2,3,4,5]
+rem run: prefix_char 4
+
+fn middle_sum input xs slice u8 . output u64 .
+  requires ge (len xs) 3 .
+do
+  let mid be slice u8 subslice xs 1 (sub (len xs) 1) .
+  var s be u64 0 .
+  for x mid do
+    set s (add s (widen u64 x)) .
+  end
+  return s .
+end
+
+fn prefix_char input k u64 . output u8 .
+  requires lt k 11 .
+do
+  return idx "/api/users/" k .
+end

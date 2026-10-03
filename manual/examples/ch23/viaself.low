@@ -1,0 +1,56 @@
+module viaself .
+rem run: main
+
+rem ko: 번호표를 내주는 약속. 구현이 할당 계열 효과를 더 적어도 된다 /// en: a promise to hand out tickets; an implementation may add allocation-family effects
+trait ticketer do
+  issue input s self . output u64 . effects state via self .
+end
+
+rem ko: 수를 세기만 한다 — 효과는 state 뿐 /// en: only counts, so its effect is just state
+actor counter do
+  satisfies ticketer .
+  state do
+    next u64 .
+  end
+  proc issue output u64 . effects state . do
+    set next (add next 1) .
+    return next .
+  end
+end
+
+rem ko: 번호표마다 고정 창에서 8 바이트를 깎는다 — alloc 을 더 적는다 /// en: carves 8 bytes from the fixed window per ticket, so it adds alloc
+actor carver do
+  satisfies ticketer .
+  state do
+    root cap allocator .
+    count u64 .
+  end
+  proc issue output u64 . effects alloc state . do
+    let g be option mut slice u8 alloc_bytes root capacity 8 .
+    guard is_some g . else return 0 .
+    set count (add count 1) .
+    return mul count 10 .
+  end
+end
+
+rem ko: 어느 구현이든 받는다 — via t 가 그 구현의 효과를 여기로 나른다 /// en: takes any implementation; via t carries that implementation's effects up to here
+proc issue_two
+  input comptime t type .
+  input who t .
+  output u64 .
+  effects state via t .
+  requires ticketer t .
+do
+  let a be u64 send who issue .
+  let b be u64 send who issue .
+  return add a b .
+end
+
+proc main input al cap allocator . output u8 . effects alloc state .
+do
+  var c be counter spawn actor counter .
+  var k be carver spawn actor carver .
+  let x be u64 issue_two counter c .
+  let y be u64 issue_two carver k .
+  return narrow u8 (add x y) .
+end

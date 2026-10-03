@@ -1,0 +1,14 @@
+module par_carry .
+rem expect: E-PAR-CARRY
+
+fn total input s slice u8 . output u64 .
+  parallel s split .
+do
+  var acc be u64 0 .
+  var i be u64 0 .
+  while lt i (len s) . do
+    set acc (add acc (widen u64 (idx s i))) .
+    set i (add i 1) .
+  end
+  return acc .
+end

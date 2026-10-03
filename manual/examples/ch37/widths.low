@@ -1,0 +1,26 @@
+module widths .
+rem run: columns [104,105]
+rem run: columns [236,149,136,235,133,149]
+rem run: emoji_width 128512
+rem run: clusters [101,204,129,120]
+
+use term .
+
+proc columns input row slice u8 . output u64 . effects none .
+do
+  let w be option u64 term.row_width row .
+  guard is_some w . else return 999 .
+  return some_value w .
+end
+
+proc emoji_width input cp u64 . output u64 . effects none .
+do
+  return term.cp_width cp .
+end
+
+proc clusters input row slice u8 . output u64 . effects none .
+do
+  let n be option u64 term.row_clusters row .
+  guard is_some n . else return 999 .
+  return some_value n .
+end

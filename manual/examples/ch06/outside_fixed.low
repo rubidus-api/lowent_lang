@@ -1,0 +1,13 @@
+module outside_fixed .
+rem run: big_or_zero 5
+rem run: big_or_zero 1
+
+fn big_or_zero input a u64 . output u64 .
+do
+  rem ko: 블록 밖에서도 쓸 값은 블록 앞에서 짓고, 블록 안에서는 set 만 한다 /// en: a value used after the block is declared before it; the block only sets it
+  var big be u64 0 .
+  if gt a 3 . do
+    set big (mul a 10) .
+  end
+  return big .
+end

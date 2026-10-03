@@ -1,0 +1,8 @@
+module escape .
+rem expect: E-ESCAPE
+
+fn leak output ref u32 .
+do
+  let here be u32 42 .
+  return ref here .
+end

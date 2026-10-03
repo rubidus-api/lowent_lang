@@ -1,0 +1,33 @@
+module sets .
+rem run: overlap 5
+rem run: overlap 3
+rem run: flipped
+
+rem ko: 0 … 63 가운데 들어 있는 수의 모음 --- 워드의 비트가 아니라 집합이다 /// en: a collection of which numbers in 0 … 63 are present --- a set, not the bits of a word
+fn overlap input n u64 . output u64 .
+  requires le n 60 .
+do
+  var a be bitset 64 bitset_new 64 .
+  var b be bitset 64 bitset_new 64 .
+  bitset_insert a 1 .
+  bitset_insert a 3 .
+  bitset_insert a 5 .
+  bitset_insert b 3 .
+  bitset_insert b n .
+  let both be bitset 64 bitset_intersect a b .
+  let only_a be bitset 64 bitset_difference a b .
+  rem ko: 집합에서 1 을 지운다 --- 제자리에서 바뀐다 /// en: remove 1 from the set --- it changes in place
+  bitset_remove a 1 .
+  var code be u64 add (mul (count both) 100) (mul (count only_a) 10) .
+  if bitset_is_subset both a . do set code (add code 1) . end
+  if bitset_is_empty only_a . do set code (add code 1000) . end
+  return code .
+end
+
+rem ko: 여집합은 폭 안에서만 뜻이 있다 --- 여덟 칸 가운데 하나를 넣었으면 나머지 일곱 /// en: a complement only means something within the width --- put one of eight in, and seven remain
+fn flipped output u64 .
+do
+  var a be bitset 8 bitset_new 8 .
+  bitset_insert a 0 .
+  return count (bitset_complement a) .
+end

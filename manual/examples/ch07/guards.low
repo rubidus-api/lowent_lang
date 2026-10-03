@@ -1,0 +1,24 @@
+module guards .
+rem run: head_or_zero [7,8]
+rem run: head_or_zero []
+rem run: grade 95
+rem run: grade 42
+
+fn head_or_zero input data slice u8 . output u8 .
+do
+  guard ge (len data) 1 . else return 0 .
+  return idx data 0 .
+end
+
+fn grade input score u8 . output u8 .
+do
+  guard le score 100 . else return 0 .
+  if ge score 90 . do
+    return 65 .
+  end else do
+    if ge score 60 . do
+      return 66 .
+    end
+  end
+  return 70 .
+end

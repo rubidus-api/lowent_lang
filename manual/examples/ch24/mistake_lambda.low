@@ -1,0 +1,11 @@
+module mistake_lambda .
+rem expect: E-FOLD-OP
+
+fn count_big input xs slice u8 . output u64 .
+do
+  return pipe xs do
+    rem ko: ✘ 이름 없는 함수를 흉내 냈다 --- 스테이지에는 이름 붙은 op 하나를 건넨다 /// en: ✘ imitates an anonymous function --- a stage takes one named op
+    filter gt 2 .
+    count .
+  end .
+end

@@ -1,0 +1,11 @@
+module midpoint_fixed .
+rem run: mid 200 100
+rem run: mid 255 255
+
+fn mid input a u8 . input b u8 . output u8 .
+do
+  rem ko: 한 폭 넓혀서 더한다 --- u16 은 510 까지 담는다 /// en: add one width up --- u16 holds up to 510
+  let both be u16 add (widen u16 a) (widen u16 b) .
+  rem ko: 둘로 나눈 값은 다시 u8 에 들어간다는 것을 우리는 알고, narrow 가 그것을 확인한다 /// en: half of it fits in u8 again; we know that, and narrow checks it
+  return narrow u8 (div both 2) .
+end

@@ -1,0 +1,73 @@
+#import "../lib.typ": *
+
+= `vecgen` --- 제네릭 자가성장 벡터 `vec t a` <mod-vecgen>
+
+#modhead(file: "lib/vecgen.low", layer: [L1 --- 저장(얼로케이터를 들고 다닌다)], caps: [없음 --- `open` 이 얼로케이터를 건네받는다])
+
+어떤 타입이든 담고, 자리가 모자라면 스스로 커지는 배열이다. 축이 둘이다 --- *원소 타입 `t`* × *얼로케이터 타입 `a`*. 같은 소스에서 `vec#u32#allocs.bump_bytes` 와
+`vec#u32#allocs.bump_aligned` 같은 인스턴스가 나오고(`--ir` 에 보인다), vtable 도 간접 호출도 없다 --- 정책이 컨테이너 밖에 있고 고르는 값이 0 이다
+(#chref("generics"), #chref("lib-containers")).
+
+```lowent
+let g using bump be option (vecgen.vec u32 allocs.bump_bytes) vecgen.open u32 2 .
+guard is_some g . else return 1 .
+var v be (vecgen.vec u32 allocs.bump_bytes) some_value g .
+guard vecgen.append u32 allocs.bump_bytes v 100 . else return 2 .
+guard vecgen.append u32 allocs.bump_bytes v 101 . else return 3 .
+guard vecgen.append u32 allocs.bump_bytes v 102 . else return 4 .
+let x be option u32 vecgen.at u32 allocs.bump_bytes v 0 .
+```
+
+*타입을 매번 적는다.* 추론이 없어서가 아니라 일부러 넣지 않았다 --- 어떤 인스턴스가 생겼는지(바이너리에 코드가 몇 벌 생기는지) 소스에 보이고, 읽는 사람이 `v` 의
+원소 타입을 선언까지 되짚어 가지 않아도 안다. 추론은 나중에 덧붙일 수 있지만 그 반대는 어렵다. 바이트만 쓴다면 타입 인자를 하나도 적지 않는
+#modref("growvec")[`growvec`] 이 짧다.
+
+*설계.* ① *단형화다* --- `vec u32` 는 컴파일 때 구체 구조체가 되고, 크기와 오프셋이 전부 상수로 나온다. 대가는 인스턴스마다 코드가 생기는 것이고, 그것은 감춘 비용이
+아니라 보이는 비용이다. ② *저장은 바이트다* --- 얼로케이터가 바이트를 주기 때문이다. 원소로 보는 것은 `view_array` 가 하고, 몇 바이트가 필요한지는 `size_of t` 가
+답한다. 이것이 없으면 제네릭 코드는 최대 폭(8 바이트)으로 잡아 `vec u8` 이 8 배를 쓴다. ③ *권한은 남이 준 것이다* --- 컨테이너가 권한을 만들지 않고 들고 다닐 뿐이다.
+
+#dtable(
+  columns: 3,
+  id: "mod-vecgen-ops",
+  caption: [`vecgen` 의 op --- 첫 두 인자가 원소 타입 · 얼로케이터 타입(`open` 은 원소 타입만)],
+  [*op*], [*effects*], [*하는 일*],
+  [`vec`], [---], [구조체 --- `al a` · `store mut slice u8` · `n u64`(담긴 *원소* 수)],
+  [`open t cap0`(`using al`)], [state via a], [빈 벡터를 연다(원소 `cap0` 개 자리). 첫 자리를 못 받으면 `none`],
+  [`count_of t a g` · `cap_of t a g`], [none], [담긴 원소 수 · 지금 용량(원소 수)],
+  [`append t a g x`], [state via a], [원소 하나 --- 모자라면 두 배 + 8 원소로 커진다. `false` = 새 자리를 못 받음],
+  [`at t a g i`], [none], [i 번째 원소 → `option t`],
+  [`set_at t a g i x`], [none], [i 번째를 고친다. 범위 밖이면 `false` --- 조용히 늘리지 않는다],
+  [`reserve_more t a g n`], [state via a], [앞으로 n 개 더 들어갈 자리를 미리],
+  [`view_of t a g`], [none], [담긴 만큼만 보는 `slice t`],
+)
+
+세는 단위를 섞지 않는다 --- `cap0` · `cap_of` · `count_of` · `at` · `set_at` 은 전부 *원소 개수*이고 바이트는 모듈 밖으로 나오지 않는다. 원소는 크기 있는 스칼라이거나
+*viewable 구조체*(모든 필드에 바이트 레이아웃이 있고 총 255 바이트 이하)다 --- `at` 이 그 구조체를 필드째 돌려준다. `view_of` 의 결과는 그대로
+#modref("sortgen")[`sortgen`] 이나 #modref("searchlib")[`searchlib`] 에 넘길 수 있다.
+
+*미리 자리를 잡으면 "전량 아니면 무" 가 된다.* `reserve_more` 가 성공한 뒤 이어지는 `append` 는 도중에 실패하지 않는다.
+
+```lowent
+guard vecgen.reserve_more u16 allocs.bump_bytes v (len src) . else return false .
+var i be u64 0 .
+while lt i (len src) . do
+  guard vecgen.append u16 allocs.bump_bytes v (idx src i) . else return false .
+  set i (add i 1) .
+end
+```
+
+#antipattern[커진 뒤에 옛 뷰를 쓴다][
+  `view_of` 로 꺼낸 `s` 를 들고 `append` 를 부르면 저장소가 바뀔 수 있고, `s` 는 옛 버퍼를 본다. 커지지 않았다면 우연히 맞아서 더 나쁘다. 뷰는 마지막에 꺼낸다.
+]
+
+#antipattern[`append` 의 `false` 를 보지 않는다 · `cap_of` 만큼 읽는다][
+  `false` 는 OOM 이고, 보지 않으면 조용히 짧아진 벡터가 된다. 용량 뒤는 쓰레기다 --- `count_of` 나 `view_of` 를 쓴다.
+]
+
+#antipattern[레이아웃 없는 구조체 · 중첩][
+  슬라이스 필드가 있는 구조체로 `open` 하면 바이트 레이아웃이 없어 배열도 없다(`E-IR-UNDEF`). `vec (vec u8 …)` 같은 중첩도 없다 --- 타입 인자는 낱말 하나다.
+]
+
+*주의.* 개별 반납과 축소는 없다 --- 범프 얼로케이터는 통째로만 되돌리므로 성장 횟수를 줄이려면 `cap0` 이나 `reserve_more` 를 쓴다. 벡터의 수명은 얼로케이터의
+수명 안이다. 소유 있는 원소(`vec files.handle`)는 지금 인스턴스 안에서 걸리고 진단이 호출 자리를 가리키지 않는다 --- 남은 결함이다. 버퍼를 호출자가 드는 컨테이너는
+#modref("vecs")[`vecs`] 로 따로 있다 --- 소유 모델이 달라서 접지 않았다.

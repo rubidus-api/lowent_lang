@@ -1,0 +1,61 @@
+#import "../../typst-ko/lib.typ": *
+
+= `shard` --- access units that split a store <mod-shard>
+
+#modhead(file: "lib/shard.low", layer: [L1 --- the caller's storage], caps: [none])
+
+Splits one block of storage into *non-overlapping pieces* so each can be changed separately. A piece is represented by a *token*, and a token is the right "this range is
+mine". Whether pieces then ride on several threads or run sequentially, the fact that they do not overlap is itself the value.
+
+```lowent
+def newtype grid u8 .
+var r be (owned shard.token grid) shard.open grid 8 .
+var h be (shard.halves grid) shard.split_at grid r 4 .
+var lo be (owned shard.token grid) (field h low) .
+var hi be (owned shard.token grid) (field h high) .
+rem r can no longer be used --- using it is E-OWN-MOVED
+```
+
+#aside[What it prevents --- and who prevents it][
+  ① Touching through the root after splitting is the compile error `E-OWN-MOVED`. The language prevents it, not this module --- the token is `owned`, so it leaves your hands
+  the moment it is passed to `split_at`. ② Touching another piece's positions makes `write` and `read` answer `false` and `none` (no stop --- failure is a value). ③ Tokens
+  of different stores have different brands as types and do not mix. *Not prevented* --- viewing the other piece read-only while split (frozen cross reads) and region-level
+  disjointness proofs. They were not built, and that is written down.
+]
+
+*Why it was built without a new statement.* The language design documents proposed a new statement, `split region R into R1 … Rn by P`, as the answer. But the language
+already had two things --- *brands* (types carry a store's identity) and *`owned`* (a value is unique and leaves your hands when passed). Multiply them and a token is an
+access unit (#chref("ownership")).
+
+#dtable(
+  columns: 3,
+  id: "mod-shard-ops",
+  caption: [Ops of `shard`],
+  [*op*], [*Shape*], [*On failure*],
+  [`token` · `halves`], [Piece token · result of splitting in two (`low` · `high`)], [---],
+  [`open`], [`comptime b, n u64 → owned token b`], [none (range `0..n`)],
+  [`split_at`], [`comptime b, t owned token b, at u64 → halves b`], [none (`at` is clamped to the range)],
+  [`rejoin`], [`comptime b, a owned token b, c owned token b → option (token b)`], [`none` if order or adjacency is wrong],
+  [`covers`], [`comptime b, t token b, i u64 → bool`], [---],
+  [`width`], [`comptime b, t token b → u64`], [contract violation stops on entry],
+  [`write`], [`comptime b, t, mem mut slice u64, i, v → bool`], [`false` out of range],
+  [`read`], [`comptime b, t, mem slice u64, i → option u64`], [`none` out of range],
+)
+
+*`rejoin`'s ordering convention --- and why it is not a contract.* When joining, pass the lower id first (deadlock convention: cross acquisition is always ascending).
+Breaking it gives `none`. It was first written as `requires lt (field a id) (field c id) .`, but the contract test generator cannot produce rejection cases for relations
+between two struct arguments. A contract nobody can verify is a sentence, not a check, so it was lowered to a value the caller must receive.
+
+#antipattern[Joining in reverse][
+  `shard.rejoin g hi lo` is `none`. It does not stop, so without looking at the return value you pass on unaware that nothing was joined. Receive it with
+  `guard is_some back .`.
+]
+
+#antipattern[Opening two stores with one brand][
+  Calling `shard.open` twice with the same brand `g` is the compile error `E-BRAND-REUSED`. A brand names one store. Two stores need two `newtype`s (brands carry no data, so
+  they cost nothing).
+]
+
+*Cautions.* Bind tokens to `var` (`owned` requires a mutable place). `split_at`'s `at` is clamped --- out of range yields an empty piece, and an empty piece touches nothing,
+so it is safe. There is no synchronisation on the hot path --- the token already stated the right, leaving only a range check, and tests confirm zero atomic operations or
+locks on that path in emitted C. This module knows nothing of threads --- putting tokens on execution units is the business of #chref("parallel-atomic").

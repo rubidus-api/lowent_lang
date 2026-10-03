@@ -1,0 +1,19 @@
+module litvec .
+rem run: weighted 1 2 3 4
+rem run: capped [1,0,0,0,9,0,0,0,3,0,0,0,7,0,0,0]
+
+rem ko: 레인마다 다른 값을 바로 적는다 --- `lit vec <원소 타입> <레인 수> 값… .` /// en: write a different value in each lane --- `lit vec <element type> <lanes> values… .`
+export fn weighted input a u32 . input b u32 . input c u32 . input d u32 . output u32 . do
+  let x be lit vec u32 4 a b c d . .
+  let w be lit vec u32 4 1 10 100 1000 . .
+  return reduce_add (mul x w) .
+end
+
+rem ko: 리터럴은 제 타입을 달고 오므로 식 한가운데에도 쓴다 --- `splat` 과 다른 점이다 /// en: a literal carries its own type, so it can sit in the middle of an expression --- unlike `splat`
+fn capped input b slice u8 . output u32 .
+do
+  let xs be slice u32 view_array u32 b .
+  let v be vec u32 4 load xs 0 .
+  let over be mask 4 gt v lit vec u32 4 5 5 5 5 . .
+  return reduce_add (lane_select over lit vec u32 4 5 5 5 5 . v) .
+end

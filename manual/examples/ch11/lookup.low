@@ -1,0 +1,38 @@
+module lookup .
+rem run: find 2
+rem run: find 7
+rem run: find_or 7
+rem run: find_asked 2
+rem run: find_match 7
+rem trap: find_raw 7
+
+fn find input k u8 . output option u8 .
+do
+  guard lt k 3 . else return none .
+  return some (mul k 10) .
+end
+
+fn find_or input k u8 . output u8 .
+do
+  return value_or (find k) 99 .
+end
+
+fn find_asked input k u8 . output u8 .
+do
+  let r be option u8 find k .
+  guard is_some r . else return 255 .
+  return some_value r .
+end
+
+fn find_match input k u8 . output u8 .
+do
+  match find k . do
+    case some v . do return v . end
+    case none . do return 0 . end
+  end
+end
+
+fn find_raw input k u8 . output u8 .
+do
+  return some_value (find k) .
+end

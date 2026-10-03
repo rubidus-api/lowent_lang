@@ -1,0 +1,27 @@
+module rows .
+rem run: main
+
+use sortgen .
+
+def struct score do
+  satisfies sortgen.ordered .
+  points u64 .
+  id u64 .
+end
+
+fn score.less input a score . input b score . output bool .
+do
+  return gt (field a points) (field b points) .
+end
+
+proc main input al cap allocator . output u8 . effects alloc .
+do
+  let g be option mut slice u8 alloc_bytes al capacity 48 .
+  guard is_some g . else return 255 .
+  var rs be mut slice score view_array score (some_value g) .
+  set (idx rs 0) (lit score do points 70 . id 1 . end) .
+  set (idx rs 1) (lit score do points 95 . id 2 . end) .
+  set (idx rs 2) (lit score do points 80 . id 3 . end) .
+  sortgen.sort_by score rs .
+  return narrow u8 (add (mul (field (idx rs 0) id) 100) (add (mul (field (idx rs 1) id) 10) (field (idx rs 2) id))) .
+end

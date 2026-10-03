@@ -1,0 +1,22 @@
+module mistake_loopmove .
+rem expect: E-OWN-MOVED
+
+def type buffer u8 .
+
+fn consume input h owned buffer . output u8 .
+do
+  drop h .
+  return 0 .
+end
+
+fn three_times input v u8 . output u8 .
+do
+  var h be owned buffer v .
+  var i be u64 0 .
+  while lt i 3 . do
+    rem ko: ✘ 첫 바퀴에서 옮겨 간 `h` 를 둘째 바퀴가 또 넘긴다 /// en: ✘ the second round passes `h` again after the first round moved it away
+    let a be u8 consume h .
+    set i (add i 1) .
+  end
+  return 0 .
+end

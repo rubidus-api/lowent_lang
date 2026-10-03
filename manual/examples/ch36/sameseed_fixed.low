@@ -1,0 +1,14 @@
+module sameseed_fixed .
+rem run: two_rolls 2
+
+use random .
+
+rem ko: 다음 굴림은 앞 굴림이 낸 상태에서 시작한다 /// en: the next roll starts from the state the previous roll produced
+fn two_rolls input seed u64 . output u64 .
+do
+  let s1 be u64 random.advance_seed seed .
+  let s2 be u64 random.advance_seed s1 .
+  let a be u64 add (random.below_biased s1 6) 1 .
+  let b be u64 add (random.below_biased s2 6) 1 .
+  return add (mul a 10) b .
+end

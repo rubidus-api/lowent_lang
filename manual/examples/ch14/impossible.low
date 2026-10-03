@@ -1,0 +1,13 @@
+module impossible .
+rem expect: E-CONTRACT-IMPOSSIBLE
+
+fn small input a u8 . output u8 .
+  requires lt a 10 .
+do
+  return a .
+end
+
+fn caller output u8 .
+do
+  return small 200 .
+end

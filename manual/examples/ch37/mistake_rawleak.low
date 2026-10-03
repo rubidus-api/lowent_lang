@@ -1,0 +1,14 @@
+module mistake_rawleak .
+
+use tty .
+
+proc main input t cap tty . input al cap allocator . output u8 . effects alloc .
+do
+  guard tty_raw t true . else return 1 .
+  rem ko: ✘ raw 모드에 들어간 *뒤에* 할당하고, 실패하면 되돌리지 않고 떠난다 /// en: ✘ allocates *after* entering raw mode, and leaves without restoring if that fails
+  let g be option mut slice u8 alloc_bytes al capacity 32 .
+  guard is_some g . else return 2 .
+  let n be option u64 tty_read t (some_value g) .
+  let restored be bool tty_raw t false .
+  return 0 .
+end

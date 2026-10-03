@@ -1,0 +1,13 @@
+module mistake_isrparams .
+rem flags: --target cortex_m
+rem expect: E-ISR-PARAMS
+
+rem ko: ✘ 몇 번 핀이 울렸는지 인자로 받으려 한다 --- 기계는 인자를 건네지 않는다 /// en: ✘ tries to receive which pin fired as an argument --- the hardware passes no arguments
+proc on_exti
+  vector 6 .
+  input pin u32 .
+  output void .
+  effects device .
+do
+  return .
+end

@@ -1,0 +1,17 @@
+module mistake_nolink .
+rem expect: E-FFI-LINK
+
+rem ko: ✘ `link` 절이 없다 --- 어느 C 심볼을 부르는지 아무 데도 안 적혀 있다 /// en: ✘ no `link` clause --- nothing says which C symbol is called
+unsafe extern proc c_area do
+  input k cap c .
+  input w i64 .
+  input h i64 .
+  output i64 .
+  effects unsafe .
+end
+
+unsafe proc area_twice input k cap c . input w i64 . input h i64 . output i64 .
+  effects unsafe .
+do
+  return add (c_area k w h) (c_area k w h) .
+end

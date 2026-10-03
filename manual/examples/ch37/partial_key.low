@@ -1,0 +1,17 @@
+module partial_key .
+rem run: first_key [27,91]
+rem run: first_key [27,91,65]
+
+use tty .
+
+rem ko: 한 번에 읽은 바이트가 키 하나를 다 담는다는 보장은 없다 /// en: there is no guarantee that one read holds a whole key
+proc first_key input buf slice u8 . output u64 . effects none .
+do
+  let k be option u64 tty.parse_key buf 0 .
+  guard is_some k . else return 0 .
+  let code be u64 tty.key_of (some_value k) .
+  if eq code (tty.key_up) . do
+    return 1 .
+  end
+  return 3 .
+end

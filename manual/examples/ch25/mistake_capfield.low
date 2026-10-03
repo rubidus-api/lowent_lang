@@ -1,0 +1,23 @@
+module mistake_capfield .
+rem expect: E-CAP-FORGE
+
+actor logbook do
+  state do
+    root cap allocator .
+    entries u64 .
+  end
+  proc write input code u8 . output bool . effects alloc state . do
+    let g be option mut slice u8 alloc_bytes root capacity 16 .
+    guard is_some g . else return false .
+    set entries (add entries 1) .
+    return true .
+  end
+end
+
+rem ko: ✘ cap allocator 를 받지 않은 op 이 권한 칸 액터를 띄운다 /// en: ✘ an op that was not handed cap allocator spawns an actor with a capability field
+proc sneaky output u64 . effects alloc state .
+do
+  var book be logbook spawn actor logbook .
+  let a be bool send book write 7 .
+  return 0 .
+end

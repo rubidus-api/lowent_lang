@@ -1,0 +1,22 @@
+module mistake_bytecut .
+rem run: cut_bytes [236,149,136,235,133,149]
+rem run: cut_columns [236,149,136,235,133,149]
+
+use term .
+
+rem ko: ✘ 앞 다섯 바이트로 자른다 --- 둘째 글자 한가운데서 잘려 올바른 글자열이 아니다 /// en: ✘ cuts at five bytes --- it splits the second character, leaving invalid text
+proc cut_bytes input row slice u8 . output u64 . effects none .
+  requires ge (len row) 5 .
+do
+  let w be option u64 term.row_width (subslice row 0 5) .
+  guard is_some w . else return 999 .
+  return some_value w .
+end
+
+rem ko: 칸 수로 자를 자리를 묻는다 --- 세 칸에 들어가는 가장 긴 앞부분은 "안" 의 3 바이트 /// en: ask where to cut by columns --- the longest prefix fitting three columns is the 3 bytes of "안"
+proc cut_columns input row slice u8 . output u64 . effects none .
+do
+  let n be option u64 term.fit_width row 3 .
+  guard is_some n . else return 999 .
+  return some_value n .
+end

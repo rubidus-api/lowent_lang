@@ -1,0 +1,16 @@
+module unflushed .
+rem expect: E-OWN-INCOMPLETE
+
+use outbuf .
+
+proc main input out cap io . input al cap allocator . output u8 . effects io alloc .
+do
+  let g be option mut slice u8 alloc_bytes al capacity 64 .
+  guard is_some g . else return 1 .
+  let buf be mut slice u8 some_value g .
+  var p be owned outbuf.pending outbuf.buf_open 1 .
+  let r1 be result (owned outbuf.pending) outbuf.io_error outbuf.buf_write out p buf "lost?\n" .
+  guard is_ok r1 . else return 2 .
+  var p2 be owned outbuf.pending ok_value r1 .
+  return 0 .
+end

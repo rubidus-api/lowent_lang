@@ -1130,10 +1130,17 @@ static void ck_scope_walk(low_check_result_t *out, const low_cst_t *nd,
                           const proven_u8str_view_t *params, proven_size_t nparams) {
     if (!nd) return;
     ck_glued_field(out, nd, b, *n, params, nparams);
+    // ★★ `for` 의 이름은 **그 루프 안에서만** 산다(정본 §6.5.4 (5)) — 루프를 다 훑으면 내려놓는다 (2026-10-03).
+    //   전에는 바깥 블록 깊이에 올려 두고 그 블록이 끝날 때까지 들고 있어서, 앞 루프가 끝난 뒤 같은 이름으로 새 루프를
+    //   여는 것(`for x mut a do … end` 다음 `for x mut b do … end`)을 «바깥 이름을 가렸다» 로 거절했다. 몸 안에서 같은
+    //   이름을 다시 묶는 것은 여전히 가림이다 — 이름은 몸을 훑는 동안 살아 있다.
+    proven_size_t before_for = *n;
+    bool is_for = false;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && nd->kids[0]->kind == LOW_CST_ATOM &&
         nd->kids[1]->kind == LOW_CST_ATOM) {
         proven_u8str_view_t h = nd->kids[0]->tok.lex;
-        if (veq(h, "var") || veq(h, "let") || veq(h, "for"))
+        is_for = veq(h, "for");
+        if (veq(h, "var") || veq(h, "let") || is_for)
             ck_name_decl(out, nd->kids[1], b, n, depth, params, nparams);
     }
     proven_size_t d = depth + (nd->kind == LOW_CST_BLOCK ? 1 : 0);
@@ -1141,6 +1148,7 @@ static void ck_scope_walk(low_check_result_t *out, const low_cst_t *nd,
     for (proven_size_t i = 0; i < nd->nkids; i++)
         ck_scope_walk(out, nd->kids[i], b, n, d, params, nparams);
     if (nd->kind == LOW_CST_BLOCK) *n = mark;   // 블록을 나가면 그 안의 이름은 사라진다
+    if (is_for) *n = before_for;                // 루프를 나가면 그 셈·원소 이름도 사라진다
 }
 
 
@@ -10099,8 +10107,10 @@ static void ck_block_names(const low_cst_t *blk, proven_u8str_view_t *names, pro
 // 이 나무 **어디에서든** 그 이름을 새로 짓는가(let/var) — 그러면 그것은 다른 이름이다.
 static bool ck_declares_name(const low_cst_t *nd, proven_u8str_view_t nm) {
     if (!nd) return false;
+    // ★ `for` 머리의 이름도 새로 짓는 것이다(2026-10-03) — 안 세면 `for k count …` 가 앞 블록의 `let k` 를 «읽는» 것으로 보였다.
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && ck_atom(nd->kids[0]) &&
-        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR) &&
+        (nd->kids[0]->tok.kw == LOW_KW_LET || nd->kids[0]->tok.kw == LOW_KW_VAR ||
+         nd->kids[0]->tok.kw == LOW_KW_FOR) &&
         ck_atom(nd->kids[1]) && proven_u8str_view_eq(nd->kids[1]->tok.lex, nm)) return true;
     for (proven_size_t i = 0; i < nd->nkids; i++)
         if (ck_declares_name(nd->kids[i], nm)) return true;

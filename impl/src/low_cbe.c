@@ -386,7 +386,10 @@ void low_cbe_set_no_fast(bool v) { g_no_fast = v; }
 //   `--no-elemsl` 은 대조 스위치다(`--no-fast` 와 같은 규율): 끄면 옛 규약 그대로 낸다.
 static bool g_no_elemsl;
 void low_cbe_set_no_elemsl(bool v) { g_no_elemsl = v; }
-static int cbe_ebits_w(proven_u8 eb) { return eb == 8 ? 1 : eb == 16 ? 2 : eb == 32 ? 4 : eb == 64 ? 8 : 0; }
+// ★★ `slice i64`(폭 표시 164 = 100 + 비트)도 8 바이트다 (2026-10-03). 8 바이트를 읽어 `long long` 으로 보면 값이 그대로이므로
+//   부호 확장이 필요 없다 — 그래서 i64 만 받는다. i8·i16·i32(108·116·132)는 읽을 때 부호를 늘려야 하므로 아직 느린 길이다.
+//   전에는 `slice i64` 를 받는 op 이 통째로 느린 길로 떨어졌다: lowstat 의 그룹 합(`slice i64`)이 그래서 파이썬보다 5배 느렸다.
+static int cbe_ebits_w(proven_u8 eb) { return eb == 8 ? 1 : eb == 16 ? 2 : eb == 32 ? 4 : (eb == 64 || eb == 164) ? 8 : 0; }
 // ★ `--no-main` — **라이브러리로 낸다**(RFC-0063 D3). C 프로그램이 `main` 을 갖는다.
 static bool g_no_main;
 void low_cbe_set_no_main(bool v) { g_no_main = v; }
@@ -1123,7 +1126,7 @@ static int cbe_def_esz(const low_ir_def_t *d) {
             case 8:  e = 1; break;
             case 16: e = 2; break;
             case 32: e = 4; break;
-            case 64: e = 8; break;
+            case 64: case 164: e = 8; break;   // ★ i64 도 8 바이트 그대로(위 cbe_ebits_w)
             default: return -1;   // i8/f32/구조체 원소… 모르면 **안 내린다**
         }
         if (esz && esz != e) return -1;
@@ -1138,8 +1141,8 @@ static bool cbe_slices_known(const low_ir_def_t *d) {
         if (!((d->param_slice >> q) & 1u)) continue;
         if (d->param_selem[q]) continue;   // 구조체 슬라이스는 바이트로 실린다
         switch (d->param_ebits[q]) {
-            case 8: case 16: case 32: case 64: break;
-            default: return false;   // f32/f64/모르는 원소만 거절
+            case 8: case 16: case 32: case 64: case 164: break;
+            default: return false;   // f32/f64/i8·i16·i32/모르는 원소는 거절
         }
     }
     return true;
@@ -1482,7 +1485,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ RFC-0109 단계 1 — **이미 그 모양이면 항등이다**(파라미터가 원소 단위로 들어온 자리).
                 if (!g_no_elemsl && (in->a & 0x40000) && st.k[st.n-1] == (unsigned char)(K_SVIEW + ((in->a >> 20) & 0xff))) break;
                 if (!g_no_elemsl && !(in->a & 0x40000) && st.k[st.n-1] == K_SL && st.ve[st.n-1] > 1 &&
-                    st.ve[st.n-1] == (unsigned char)(in->a & 0xff) && !(in->a & 0x20000)) {
+                    st.ve[st.n-1] == (unsigned char)(in->a & 0xff) && (!(in->a & 0x20000) || (in->a & 0xff) == 8)) {
                     if (in->a & 0x10000) st.fl[st.n-1] = 1;
                     break;
                 }
@@ -1500,7 +1503,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.ve[st.n-1] != 1) return false;   // 바이트 슬라이스 위에서만 (멱등성)
                 // ★ **부호형 원소**(IR_SGN_BIT)는 빠른 경로가 부호 확장을 안 한다 — 태그 경로로
                 //   내려보낸다(부호형 슬라이스 파라미터가 이미 그러듯). 안 그러면 index 가 무부호로 샌다.
-                if (in->a & 0x20000) return false;
+                // ★★ 단, **8 바이트**(i64)는 늘릴 비트가 없다 — 그대로 읽어 `long long` 으로 보면 값이다(2026-10-03, cbe_ebits_w 와 짝).
+                if ((in->a & 0x20000) && ez != 8) return false;
                 // ★ 부동 원소 슬라이스 — 폭은 그대로, **부동 표식**을 단다(f32=4·f64=8).
                 if (in->a & 0x10000) { if (ez != 4 && ez != 8) return false; st.fl[st.n-1] = 1; }
                 st.ve[st.n-1] = (unsigned char)ez;
@@ -2131,8 +2135,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                             continue;
                         }
                         proven_u8 eb2 = ce->param_ebits[q];
-                        unsigned char want_e = eb2 == 8 ? 1 : eb2 == 16 ? 2 : eb2 == 32 ? 4
-                                             : eb2 == 64 ? 8 : 0;
+                        unsigned char want_e = (unsigned char)cbe_ebits_w(eb2);   // ★ i64(164) 도 8 — 폭 규칙은 한 자리
                         if (!want_e || st.ve[st.n - ce->nparams + q] != want_e) {
                             snprintf(g_sub, sizeof g_sub, "slice element widths differ");
                             return false;
@@ -3206,13 +3209,19 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_SWAP: {
                 // ★ 맞바꾸기 — 원소 크기(ve)만큼 바이트를 바꾼다. 임시 복사 없이 제자리다.
                 unsigned char ez = (ks.n >= 3 && ks.ve[ks.n-3]) ? ks.ve[ks.n-3] : 1;
-                fprintf(out, "    { long long j_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n"
-                             "      if (LW_UNLIKELY(i_ < 0 || j_ < 0 || (size_t)i_ >= s_.n || (size_t)j_ >= s_.n))"
-                             " lw_panic(\"swap index out of bounds\");\n"
-                             "      unsigned char *a_ = (unsigned char *)s_.p + (size_t)i_ * %du;\n"
+                // ★ 구간 분석이 두 색인을 `i < len(s)` 로 증명했으면(IR_POL_PROVEN) 검사를 내지 않는다 — `index` 와 같다.
+                fputs("    { long long j_ = st[--sp], i_ = st[--sp]; lw_sl s_ = ss[--ssp];\n", out);
+                if (!(in->a & IR_POL_PROVEN))
+                    fputs("      if (LW_UNLIKELY(i_ < 0 || j_ < 0 || (size_t)i_ >= s_.n || (size_t)j_ >= s_.n))"
+                          " lw_panic(\"swap index out of bounds\");\n", out);
+                fprintf(out, "      unsigned char *a_ = (unsigned char *)s_.p + (size_t)i_ * %du;\n"
                              "      unsigned char *b_ = (unsigned char *)s_.p + (size_t)j_ * %du;\n"
-                             "      for (unsigned z_ = 0; z_ < %du; z_++) { unsigned char t_ = a_[z_]; a_[z_] = b_[z_]; b_[z_] = t_; } }\n",
-                        ez, ez, ez);
+                             "      unsigned char t_[%du]; memcpy(t_, a_, %du); memmove(a_, b_, %du); memcpy(b_, t_, %du); }\n",
+                        ez, ez, ez, ez, ez, ez);
+                // ★★ 바이트를 하나씩 바꾸던 고리를 크기 고정 복사로 바꿨다 (2026-10-03). a_ 와 b_ 는 같을 수
+                //   있어서(i = j) gcc 가 그 고리를 낱말 하나로 합치지 못했다 — 8바이트 원소 맞바꾸기가 바이트
+                //   읽기·쓰기 16번이었고, 퀵정렬이 손으로 쓴 맞바꾸기보다 ×2.6 느렸다(같은 세션 실측).
+                //   memmove 가 i = j 를 바르게 다루고, 상수 크기라 gcc 가 낱말 읽기·쓰기로 접는다.
                 fputs("    st[sp++] = 0;\n", out);   // ★ 뒤따르는 drop 과 짝을 맞춘다
                 ks.n -= 3; ks.k[ks.n] = K_INT; ks.o[ks.n] = -1; ks.n++; break;
             }
@@ -5768,7 +5777,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                       //   (안 그러면 view.array 가 또 나눠 길이가 반씩 준다 — 구조체 슬라이스에서
                       //   차등 스윕이 잡은 그 결함이다).
                       proven_u8 eb_ = d->param_ebits[q];
-                      int ez = eb_ == 8 ? 1 : eb_ == 16 ? 2 : eb_ == 32 ? 4 : eb_ == 64 ? 8 : 1;
+                      int ez = cbe_ebits_w(eb_); if (ez <= 0) ez = 1;   // ★ i64(164) 도 8 — 폭 규칙은 cbe_ebits_w 한 자리(2026-10-03)
                       if (!g_no_elemsl) {
                           // ★ RFC-0109 단계 1 — VARRAY(원소 수)는 그대로, 바이트 SLICE 는 **여기가 경계**: 검사하고 나눈다.
                           fprintf(out, "    if (a[%zu].tag == LWV_VARRAY) { as[%zu].p = a[%zu].p; as[%zu].n = a[%zu].n; }\n",

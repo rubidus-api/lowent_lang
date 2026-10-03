@@ -709,11 +709,16 @@ static void iv_narrow_len(ivstate_t *st, proven_u8 op, proven_i32 lslot, iv_t rh
         // ★★★ **`requires ge (len s) (mul p q) .` 를 읽는다** (2026-07-30 · 행우선 규칙의 전제).
         //   피연산자가 **원자가 아니라 형(form)** 이라 아래 지역-대-지역 경로가 통째로 놓쳤다:
         //   도구가 *"requires 를 붙여 보라"* 고 조언하면서 정작 이 모양을 **안 읽고 있었다**.
-        if (veq(op, "ge") && k + 2 < f->nkids) {
+        // ★★ `requires eq (len s) n .` 도 같은 사실을 준다 (2026-10-03). 같음은 «≥» 를 품는다 — 그런데 이 자리가
+        //   `ge` 만 읽어서, 더 강한 계약을 쓴 프로그램이 **덜** 받았다(새로 짠 sched 가 `eq` 로 적어 ×2.7, `ge` 로
+        //   고치면 ×1.13 — 같은 세션 실측). 거울 `eq n (len s)` 도 읽는다. «≤» 쪽 사실은 여기서 심지 않는다.
+        if ((veq(op, "ge") || veq(op, "eq")) && k + 2 < f->nkids) {
             // ★ 괄호는 GROUP 으로 감싸인다(장식) — 벗기고 본다. 안 벗겨서 처음엔 못 읽었다.
             const low_cst_t *L = f->kids[k + 1], *R = f->kids[k + 2];
             while (L && (L->kind == LOW_CST_GROUP) && L->nkids == 1) L = L->kids[0];
             while (R && (R->kind == LOW_CST_GROUP) && R->nkids == 1) R = R->kids[0];
+            if (veq(op, "eq") && R && R->kind == LOW_CST_FORM && R->nkids == 2 && is_atom(R->kids[0]) &&
+                veq(R->kids[0]->tok.lex, "len")) { const low_cst_t *T = L; L = R; R = T; }
             // ★ **용량 형태** `ge (len s) cap` — 곱의 특수 사례로 담는다(q = -1 = 곱 없음).
             if (L && R && L->kind == LOW_CST_FORM && L->nkids == 2 && is_atom(R) &&
                 is_atom(L->kids[0]) && veq(L->kids[0]->tok.lex, "len") && is_atom(L->kids[1])) {
@@ -1573,6 +1578,12 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                             //   (있는 사실을 덮으면 그것이 더 큰 손해다). 위 한 홉이 이것을 쓴다.
                             if (src < IR_MAXLOCALS && st->lerel[src] < 0)
                                 iv_put_lerel(st, src, (proven_i32)sl, false, 0);
+                            // ★★ **같음은 두 방향이다** (2026-10-03). 위는 `src ≤ sl` 만 심었다. 그런데 `for i count τ n .` 은 끝을
+                            //   숨은 지역에 얼려 두고(`endv ← n`) 그것과 견준다 — `i < endv` 에서 `i < n` 으로 가려면 `endv ≤ n` 이
+                            //   있어야 한다. 그것이 없어서 새 `for` 머리를 쓰면 행 우선 첨자 증명이 통째로 죽었다(matmul 15/18 → 3/15).
+                            //   ⇒ 대상에 아직 상계 관계가 없으면 `sl ≤ src` 도 심는다. 둘 중 하나가 바뀌면 kill 이 양쪽을 지운다.
+                            if (st->lerel[sl] < 0)
+                                iv_put_lerel(st, (proven_i32)sl, src, false, 0);
                         } else if (stk[sp - 1].aff_s >= 0 && stk[sp - 1].aff_c >= 0 &&
                                    (proven_size_t)stk[sp - 1].aff_s < IR_MAXLOCALS &&
                                    (proven_size_t)stk[sp - 1].aff_s != sl) {
@@ -1740,6 +1751,33 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                         cert_put(d, i, IRW_VSTORE, "R-VSTORE-MARGIN", 3,
                                  (proven_i64)ops[1].v.lo, (proven_i64)ops[1].v.hi,
                                  (proven_i64)vln_);
+                    }
+                }
+                break;
+            }
+            case IRW_SWAP: {
+                // ★★ `swap s i j` 의 경계 검사 — 두 색인을 **`index` 와 같은 규칙**으로 따로 증명한다
+                //   (2026-10-03). 전에는 이 op 에 증명 자리가 없어서, 분석이 `i < len(s)` 를 알아도
+                //   C 출력이 늘 두 색인을 다시 쟀다 — 새로 짠 퀵정렬이 옛 판(손으로 쓴 맞바꾸기)보다
+                //   ×1.9 느렸던 까닭의 하나다. 둘 다 서야 지운다. 증명서는 `R-IDX-LENLT` 하나에
+                //   두 색인 구간을 합쳐 싣는다(검증기가 보는 것은 하한 ≥ 0 이고, 합친 하한이 그것이다).
+                //   ops[0] = 슬라이스 · ops[1] = i · ops[2] = j. 원소는 자리만 바뀌므로 원소 구간은 그대로다.
+                if (ops[0].slot >= 0) {
+                    if (mark) (*total)++;
+                    bool ok_ = true;
+                    for (int q_ = 1; q_ <= 2; q_++) {
+                        const ivs_t *x_ = &ops[q_];
+                        bool lt_ = x_->lenlt == ops[0].slot && x_->lenoff + (x_->lenstr ? 1 : 0) >= 1 && x_->v.lo >= 0;
+                        bool lo_ = x_->v.lo == x_->v.hi && !x_->v.wide && x_->v.lo >= 0 &&
+                                   (proven_size_t)ops[0].slot < IR_MAXLOCALS &&
+                                   !st->lenv[ops[0].slot].wide && st->lenv[ops[0].slot].lo > x_->v.hi;
+                        if (!lt_ && !lo_) ok_ = false;
+                    }
+                    if (mark && ok_) {
+                        in->a |= IR_POL_PROVEN; (*proven)++;
+                        cert_put(d, i, IRW_SWAP, "R-IDX-LENLT", 2,
+                                 (proven_i64)(ops[1].v.lo < ops[2].v.lo ? ops[1].v.lo : ops[2].v.lo),
+                                 (proven_i64)(ops[1].v.hi > ops[2].v.hi ? ops[1].v.hi : ops[2].v.hi));
                     }
                 }
                 break;

@@ -88,6 +88,39 @@ static void ir_for_body(ir_ctx_t *c, const low_cst_t *f, proven_size_t b, proven
     }
     ir_block(c, f->kids[b]);
 }
+// ★★★ RFC-0132 P1 의 `for i count τ n .` 지름길 (2026-10-03, 벤치 새 판이 찾았다). 일반 길은 끝과 셈을 숨은 지역에 얼려
+//   두고 셈을 사용자 이름에 베낀다 — 뜻은 옳지만 구간 분석이 그 사슬을 못 좇아 첨자 증명이 죽었다(행렬곱 15/18 → 3/15).
+//   명세 §6.5 (8) 이 셈 이름과 머리가 읽은 이름을 몸 안에서 `set` 못 하게 하므로, 끝이 **이름 하나 · 수 · `len <이름>`** 이면
+//   바퀴마다 다시 읽어도 같은 값이다 ⇒ `while lt i n . do … set i (add i 1) . end` 와 같은 모양으로 내린다(분석이 아는 모양).
+//   ★ 몸이 그 이름들을 `mut_ref` 로 빌려주면(남이 바꿀 수 있다) 일반 길로 돌아간다.
+static bool ir_mutref_of(const low_cst_t *nd, proven_u8str_view_t a, proven_u8str_view_t b) {
+    if (!nd) return false;
+    for (proven_size_t i = 0; i + 1 < nd->nkids; i++)
+        if (is_atom(nd->kids[i]) && veq(nd->kids[i]->tok.lex, "mut_ref") && is_atom(nd->kids[i + 1]) &&
+            (proven_u8str_view_eq(nd->kids[i + 1]->tok.lex, a) || (b.size && proven_u8str_view_eq(nd->kids[i + 1]->tok.lex, b))))
+            return true;
+    for (proven_size_t i = 0; i < nd->nkids; i++) if (ir_mutref_of(nd->kids[i], a, b)) return true;
+    return false;
+}
+static bool ir_count_simple(ir_ctx_t *c, const low_cst_t *f, proven_size_t b, proven_size_t wi) {
+    if (wi != 5) return false;
+    const low_cst_t *e = f->kids[4];
+    while (e && e->kind == LOW_CST_GROUP && e->nkids == 1) e = e->kids[0];
+    proven_u8str_view_t nm = { 0 };
+    bool fnd = false;
+    if (is_atom(e)) {
+        proven_i64 v;
+        if (ir_int_lit(e->tok.lex, &v)) return !ir_mutref_of(f->kids[b], f->kids[1]->tok.lex, nm);
+        (void)ir_local_find(c, e->tok.lex, &fnd);
+        if (!fnd) return false;
+        nm = e->tok.lex;
+    } else if (e && e->kind == LOW_CST_FORM && e->nkids == 2 && is_atom(e->kids[0]) && veq(e->kids[0]->tok.lex, "len") && is_atom(e->kids[1])) {
+        (void)ir_local_find(c, e->kids[1]->tok.lex, &fnd);
+        if (!fnd) return false;
+        nm = e->kids[1]->tok.lex;
+    } else return false;
+    return !ir_mutref_of(f->kids[b], f->kids[1]->tok.lex, nm);
+}
 static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
     proven_u8str_view_t kind = f->kids[2]->tok.lex;
     proven_size_t wi = b;                                          // `where` 의 자리(없으면 b)
@@ -99,12 +132,25 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
     #define HID(v_) proven_size_t v_ = c->nlocals++; c->locals[v_].name = (proven_u8str_view_t){ 0 }
     const proven_i64 W64 = (proven_i64)(IR_TY_KNOWN | 64 | IR_POL_WRAP), S64 = (proven_i64)(IR_TY_KNOWN | IR_TY_SIGNED | 64), U64 = (proven_i64)(IR_TY_KNOWN | 64);
     if (!counted && !recur) {                                      // for x mut buf · for x xs (where 가 붙은 이름·식 원천)
-        HID(it); HID(idx);
         proven_size_t s0 = mutk ? 3 : 2;
+        // ★ 원천이 지역 이름 하나면 숨은 복사를 안 만든다(2026-10-03) — 머리가 읽은 이름은 몸 안에서 못 바꾸고(§6.5 (8)),
+        //   `for x mut buf` 는 몸 안에서 buf 를 아예 못 만진다(§6.5 (9)). 복사본에 대한 증명은 분석이 원본으로 못 이어서
+        //   `for x mut s do set x 1 . end` 의 칸 쓰기 검사가 남았다(체 벤치 14% 느림).
+        bool direct = false; proven_size_t it = 0;
+        if (wi == s0 + 1 && is_atom(f->kids[s0]) && f->kids[s0]->tok.kind == LOW_TOK_IDENT &&
+            !ir_mutref_of(f->kids[b], f->kids[s0]->tok.lex, f->kids[1]->tok.lex)) {
+            bool fnd = false; proven_size_t sl = ir_local_find(c, f->kids[s0]->tok.lex, &fnd);
+            if (fnd) { direct = true; it = sl; }
+        }
+        if (!direct) { it = c->nlocals++; c->locals[it].name = (proven_u8str_view_t){ 0 }; }
+        HID(idx);
+        c->locals[idx].ty = (ityp_t){ .known = true, .bits = 64, .sign = false };   // 숨은 첨자도 u64 다 — 타입이 없으면 분석이 하계를 모른다
         proven_size_t var0 = (proven_size_t)-1;
         if (!mutk) { var0 = ir_local_declare(c, f->kids[1]->tok.lex, f->line); }
-        ir_run(c, f->kids, s0, wi - s0);
-        ir_emit(c, IRW_STORE, (proven_i64)it);
+        if (!direct) {
+            ir_run(c, f->kids, s0, wi - s0);
+            ir_emit(c, IRW_STORE, (proven_i64)it);
+        }
         ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)idx);
         proven_size_t cond = c->code.len;
         ir_emit(c, IRW_LOAD, (proven_i64)idx); ir_emit(c, IRW_LOAD, (proven_i64)it); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, U64);
@@ -121,7 +167,7 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
         ir_for_body(c, f, b, wi, lp);
         if (mutk) c->nmel--;
         proven_size_t step = c->code.len;
-        ir_emit(c, IRW_LOAD, (proven_i64)idx); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, W64); ir_emit(c, IRW_STORE, (proven_i64)idx);
+        ir_emit(c, IRW_LOAD, (proven_i64)idx); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, U64); ir_emit(c, IRW_STORE, (proven_i64)idx);   // idx < len ⇒ 안 넘친다(검사된 덧셈이 분석에 범위를 준다)
         ir_emit(c, IRW_BR, (proven_i64)cond);
         proven_size_t end = c->code.len;
         ir_at(c, brz)->a = (proven_i64)end;
@@ -161,8 +207,27 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
         c->nloops--;
         return;
     }
+    if (veq(kind, "count") && ir_count_simple(c, f, b, wi)) {       // 지름길 — while 모양(위 ir_count_simple)
+        ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)var);
+        proven_size_t cond = c->code.len;
+        ir_emit(c, IRW_LOAD, (proven_i64)var); ir_run(c, f->kids, 4, 1); ir_emit(c, IRW_LT, TM);
+        proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
+        ir_loop_t *lp = &c->loops[c->nloops++];
+        lp->rgdepth = g_nrg; lp->reldepth = g_nrel; lp->nbrk = 0; lp->ncnt = 0;
+        ir_for_body(c, f, b, wi, lp);
+        proven_size_t step = c->code.len;
+        ir_emit(c, IRW_LOAD, (proven_i64)var); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, TM); ir_emit(c, IRW_STORE, (proven_i64)var);
+        ir_emit(c, IRW_BR, (proven_i64)cond);
+        proven_size_t end = c->code.len;
+        ir_at(c, brz)->a = (proven_i64)end;
+        for (proven_size_t i = 0; i < lp->nbrk; i++) ir_at(c, lp->brk[i])->a = (proven_i64)end;
+        for (proven_size_t i = 0; i < lp->ncnt; i++) ir_at(c, lp->cnt[i])->a = (proven_i64)step;
+        c->nloops--;
+        return;
+    }
     if (veq(kind, "count")) {                                      // for i count τ n .
         HID(endv); HID(iv);
+        c->locals[endv].ty = ty; c->locals[iv].ty = ty;   // 숨은 끝·셈도 τ 다
         ir_run(c, f->kids, 4, wi - 4);
         ir_emit(c, IRW_STORE, (proven_i64)endv);
         ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)iv);
@@ -174,7 +239,7 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
         lp->rgdepth = g_nrg; lp->reldepth = g_nrel; lp->nbrk = 0; lp->ncnt = 0;
         ir_for_body(c, f, b, wi, lp);
         proven_size_t step = c->code.len;
-        ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, W64); ir_emit(c, IRW_STORE, (proven_i64)iv);
+        ir_emit(c, IRW_LOAD, (proven_i64)iv); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, U64); ir_emit(c, IRW_STORE, (proven_i64)iv);
         ir_emit(c, IRW_BR, (proven_i64)cond);
         proven_size_t end = c->code.len;
         ir_at(c, brz)->a = (proven_i64)end;
@@ -188,6 +253,9 @@ static void ir_for_p1(ir_ctx_t *c, const low_cst_t *f, proven_size_t b) {
     for (proven_size_t q = 4; q < wi; q++) if (is_atom(f->kids[q]) && f->kids[q]->tok.kw == LOW_KW_NONE && veq(f->kids[q]->tok.lex, "step")) { sp_ = q; break; }
     if (sp_ - 4 != 2 || (sp_ < wi && sp_ + 2 != wi)) { ir_fail(c, "E-IR-UNSUP", "`range τ a b [step k]` — a, b and k are one term each (wrap an expression in parentheses)", f->line); return; }
     HID(av); HID(bv); HID(lo); HID(hi); HID(st); HID(iv); HID(dv); HID(ab);
+    c->locals[av].ty = ty; c->locals[bv].ty = ty; c->locals[lo].ty = ty; c->locals[hi].ty = ty; c->locals[iv].ty = ty;
+    c->locals[st].ty = (ityp_t){ .known = true, .bits = 64, .sign = true };
+    c->locals[dv].ty = (ityp_t){ .known = true, .bits = 64, .sign = false }; c->locals[ab].ty = c->locals[dv].ty;
     ir_node(c, f->kids[4]); ir_emit(c, IRW_STORE, (proven_i64)av);
     ir_node(c, f->kids[5]); ir_emit(c, IRW_STORE, (proven_i64)bv);
     // lo, hi

@@ -328,7 +328,7 @@ self
 ```문법틀: 이름만 받는 타입 낱말
 byte   char   str   string   bytes_view   dyn   atomic
 list   raw   addr
-rng   clock   device   file_system   net   tty
+rng   clock   device   file_system   net   tty   process
 ```
 
 (2a) 뒤의 넷(`list`·`raw`·`addr`·`rng`)은 이 판에서 이 갈래로 옮겼다. 위 (1) 의 목록에
@@ -342,9 +342,9 @@ rng   clock   device   file_system   net   tty
       아니한다 --- 홀로 타입으로 선 `rng` 만이 이름뿐이다. 그래서 위 (1) 의 권능 종류 줄에서
       `rng` 을 내렸다.
 
-(2c) `rng` · `clock` · `device` · `file_system` · `net` · `tty` 여섯은 **권능의 종류**이며,
+(2c) `rng` · `clock` · `device` · `file_system` · `net` · `tty` · `process` 일곱은 **권능의 종류**이며,
       `cap <종류>` 자리에서만 뜻이 있다(⟦§7.2⟧). 홀로 타입으로 적으면 이 갈래에 든다 ---
-      여섯이 같은 처지이므로 **같이 말한다.** 하나만 말하고 다섯이 조용하면, 읽는 사람은
+      일곱이 같은 처지이므로 **같이 말한다.** 하나만 말하고 여섯이 조용하면, 읽는 사람은
       그 차이에 뜻이 있다고 여기게 된다.
 
 (3) 다음 셋은 **공유 상태의 타입**이며 지금은 거절된다. 이름이 어휘에 있는 까닭은

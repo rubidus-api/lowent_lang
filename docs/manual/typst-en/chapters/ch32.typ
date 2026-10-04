@@ -176,6 +176,7 @@ what keeps you oriented when reading module documentation or building a new modu
   [`net_resolve`], [a name to an IPv4 address --- DNS. A *separate* leaf from connecting, so a program that already has an address never touches name resolution], [`net` · `cap net`],
   [`net_send` · `net_recv` · `net_close` · `net_pair`], [send · receive · close · a connected pair], [`net` · `cap net`],
   [`reactor_new` · `r_read` · `r_write`], [make a reactor · read through a reactor · write through a reactor], [no module --- `cap io`],
+  [`proc_spawn` · `proc_read` · `proc_poll` · `proc_wait` · `proc_kill`], [start a child process · read its output without blocking · ask without blocking whether it has ended · wait for it to end and close it · end it by force. The child is an owned value, so a program that starts one and never waits for it does not compile], [`process` · `cap process`],
   [`env_get`], [read an environment variable], [no module --- `cap env`],
   [`rng_next`], [next random number from a state (splitmix64)], [`random` --- no capability (pure)],
   [`hash_bytes` · `crc32`], [FNV-1a 64 hash · CRC-32 checksum], [`hash` --- no capability],

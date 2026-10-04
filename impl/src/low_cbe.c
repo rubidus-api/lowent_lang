@@ -4003,7 +4003,6 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 fprintf(out, "    ss[ssp].p = LW_MMIO_SPAN(%lluULL, %uu); ss[ssp].n = %uu; ssp++;\n",
                         (unsigned long long)ir->structs[in->a].mmio_base,
                         (unsigned)ir->structs[in->a].total,
-                        (unsigned long long)ir->structs[in->a].mmio_base,
                         (unsigned)ir->structs[in->a].total);
                 ks.o[ks.n] = -1; ks.ve[ks.n] = 1; ks.k[ks.n++] = K_SL; break;
             case IRW_DROP: {

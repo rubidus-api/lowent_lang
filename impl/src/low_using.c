@@ -1340,6 +1340,30 @@ static void dt_ar_check_returns(dt_ctx_t *c, const low_cst_t *n, const low_cst_t
     }
     for (proven_size_t i = 0; i < n->nkids; i++) dt_ar_check_returns(c, n->kids[i], place);
 }
+// ★ `return (g … ) .` 은 `return g … .` 와 같은 뜻이다 — 서식기(`--fmt`)가 돌려주는 값을 괄호로 싼다. 괄호를 벗겨
+//   «자리를 넘기는 return» 으로 알아보게 한다(벗기지 않으면 서식이 뜻을 바꿨다: E-RESULT-PLACE, 2026-10-05 check-fmt-roundtrip).
+static void dt_ar_unwrap_returns(dt_ctx_t *c, low_cst_t *n) {
+    if (!n || n->kind == LOW_CST_ATOM) return;
+    if (n->kind == LOW_CST_FORM && n->nkids >= 2) {
+        proven_size_t r = (proven_size_t)-1;
+        if (us_atom(n->kids[0]) && n->kids[0]->tok.kw == LOW_KW_RETURN) r = 0;
+        else if (n->nkids >= 3 && us_atom(n->kids[0]) && n->kids[0]->tok.kw == LOW_KW_ELSE && us_atom(n->kids[1]) && n->kids[1]->tok.kw == LOW_KW_RETURN) r = 1;
+        if (r != (proven_size_t)-1 && n->nkids == r + 2) {
+            const low_cst_t *g = n->kids[r + 1];
+            if (g->kind == LOW_CST_GROUP && g->nkids == 1 && g->kids[0]->kind == LOW_CST_FORM && g->kids[0]->nkids >= 1 &&
+                dt_ar_find(c, g->kids[0]->kids[0]) >= 0) {
+                const low_cst_t *fm = g->kids[0];
+                low_cst_t **rk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (r + 1 + fm->nkids), alignof(low_cst_t *)).value.ptr;
+                if (rk) {
+                    for (proven_size_t q = 0; q <= r; q++) rk[q] = n->kids[q];
+                    for (proven_size_t q = 0; q < fm->nkids; q++) rk[r + 1 + q] = fm->kids[q];
+                    (void)low_refit(&c->p, n, rk, r + 1 + fm->nkids);
+                }
+            }
+        }
+    }
+    for (proven_size_t i = 0; i < n->nkids; i++) dt_ar_unwrap_returns(c, n->kids[i]);
+}
 // 부름 받는 쪽 머리 · 몸을 펼친다. 배열 결과가 아니면 부르는 자리만 고친다.
 static void dt_array_result(dt_ctx_t *c, low_cst_t *f) {
     if (c->migrate) return;
@@ -1393,6 +1417,7 @@ static void dt_array_result(dt_ctx_t *c, low_cst_t *f) {
         for (proven_size_t q = 0; q < body->nkids; q++) bk[q + 1] = body->kids[q];
         (void)low_refit(&c->p, body, bk, body->nkids + 1);
     }
+    dt_ar_unwrap_returns(c, body);
     dt_ar_block(c, body, place, tl, nl, named);
     dt_ar_check_returns(c, body, place);
 }

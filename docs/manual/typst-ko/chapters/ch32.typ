@@ -173,6 +173,7 @@ end
   [`net_resolve`], [이름을 IPv4 주소로 --- DNS. 연결과 *가른 잎*이라, 주소를 이미 가진 프로그램은 이름 해석에 닿지 않는다], [`net` · `cap net`],
   [`net_send` · `net_recv` · `net_close` · `net_pair`], [보내기 · 받기 · 닫기 · 맞물린 한 쌍], [`net` · `cap net`],
   [`reactor_new` · `r_read` · `r_write`], [reactor 를 만든다 · reactor 로 읽는다 · reactor 로 쓴다], [모듈 없음 --- `cap io`],
+  [`proc_spawn` · `proc_read` · `proc_poll` · `proc_wait` · `proc_kill`], [자식 프로세스를 띄운다 · 그 출력을 막지 않고 읽는다 · 끝났는지 막지 않고 묻는다 · 끝날 때까지 기다리고 닫는다 · 강제로 끝낸다. 자식은 소유 값이라 띄우고 안 기다리면 컴파일이 안 된다], [`process` · `cap process`],
   [`env_get`], [환경 변수를 읽는다], [모듈 없음 --- `cap env`],
   [`rng_next`], [상태에서 다음 난수(splitmix64)], [`random` --- 권한 없음(순수)],
   [`hash_bytes` · `crc32`], [FNV-1a 64 해시 · CRC-32 검사값], [`hash` --- 권한 없음],

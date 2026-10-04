@@ -325,7 +325,7 @@ self")
     ]
     #shape("이름만 받는 타입 낱말", "byte   char   str   string   bytes_view   dyn   atomic
 list   raw   addr
-rng   clock   device   file_system   net   tty")
+rng   clock   device   file_system   net   tty   process")
     #para("2a")[
       뒤의 넷(`list`·`raw`·`addr`·`rng`)은 이 판에서 이 갈래로 옮겼다. 위 (1) 의 목록에
       실려 있었으나 **뜻을 정한 조항이 이 정본 어디에도 없었고**, 하강도 그 이름을 읽지
@@ -340,9 +340,9 @@ rng   clock   device   file_system   net   tty")
       `rng` 을 내렸다.
     ]
     #para("2c")[
-      `rng` · `clock` · `device` · `file_system` · `net` · `tty` 여섯은 **권능의 종류**이며,
+      `rng` · `clock` · `device` · `file_system` · `net` · `tty` · `process` 일곱은 **권능의 종류**이며,
       `cap <종류>` 자리에서만 뜻이 있다(#cref("7.2")). 홀로 타입으로 적으면 이 갈래에 든다 ---
-      여섯이 같은 처지이므로 **같이 말한다.** 하나만 말하고 다섯이 조용하면, 읽는 사람은
+      일곱이 같은 처지이므로 **같이 말한다.** 하나만 말하고 여섯이 조용하면, 읽는 사람은
       그 차이에 뜻이 있다고 여기게 된다.
     ]
     #para("3")[

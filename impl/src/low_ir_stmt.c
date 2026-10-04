@@ -3409,7 +3409,12 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                     if (d->nparams < LOW_MAX_PARAMS)                    // ★ cstr 파라미터 → C 로 `const char *` (RFC-0068 S4)
                         for (proven_size_t pa = 0; pa < mod.nptr_alias; pa++)
                             if (proven_u8str_view_eq(mod.ptr_alias[pa], t0)) {
-                                d->param_cstr |= 1u << d->nparams; break;
+                                // ★ RFC-0137 P3 — cstr 는 **포인터 칸**(바이트 슬라이스)에 산다. 전엔 정수 칸(`long long`)이라 능력 포인터
+                                //   기계에서 출처를 잃었다. C 로는 여전히 `const char *` 하나(param_cstr 가 그 갈림을 한다).
+                                d->param_cstr |= 1u << d->nparams;
+                                d->param_slice |= 1u << d->nparams;
+                                d->param_ebits[d->nparams] = 8;
+                                break;
                             }
                     if ((veq(t0, "option") || veq(t0, "result")) && d->nparams < LOW_MAX_PARAMS)
                         d->param_opt |= 1u << d->nparams;   // ★ option·result = (태그,값) 쌍

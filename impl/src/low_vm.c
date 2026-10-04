@@ -3570,8 +3570,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                         }
                         if (s2->is_shadow && s2->f[q].slmeta) {  // ★ RFC-0135 D13 — 슬라이스 칸: (주소, 길이) 두 낱말을 적는다
                             if (vv.tag != VMV_SLICE && vv.tag != VMV_VARRAY) { vm_diag(vm->diags, "E-VM-TYPE", "a slice field takes a slice"); return false; }
-                            proven_u64 pa = (proven_u64)(uintptr_t)(const void *)vv.p, pn = (proven_u64)vv.n;
-                            memcpy((void *)(rv.p + s2->f[q].off), &pa, 8); memcpy((void *)(rv.p + s2->f[q].off + 8), &pn, 8);
+                            // ★ RFC-0137 P3 — 포인터는 포인터로 베낀다(정수를 거치면 능력 기계에서 출처를 잃는다). 길이는 포인터 칸 뒤.
+                            const proven_u8 *pp = vv.p; proven_u64 pn = (proven_u64)vv.n;
+                            memcpy((void *)(rv.p + s2->f[q].off), &pp, sizeof pp); memcpy((void *)(rv.p + s2->f[q].off + low_ptr_slot()), &pn, 8);
                             f2 = true; break;
                         }
                         proven_u64 x = (proven_u64)vv.i;
@@ -3629,10 +3630,9 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                                 break;
                             }
                             if (s->is_shadow && s->f[i].slmeta) {   // ★ RFC-0135 D13 — 슬라이스 칸: (주소, 길이) 에서 슬라이스를 되살린다
-                                proven_u64 pa = 0, pn = 0;
-                                memcpy(&pa, v.p + s->f[i].off, 8); memcpy(&pn, v.p + s->f[i].off + 8, 8);
+                                const proven_u8 *pp = NULL; proven_u64 pn = 0;
+                                memcpy(&pp, v.p + s->f[i].off, sizeof pp); memcpy(&pn, v.p + s->f[i].off + low_ptr_slot(), 8);
                                 proven_u8 es = (proven_u8)(s->f[i].slmeta & 0xff); proven_i64 mt = s->f[i].slmeta & (IR_FLT_BIT | IR_SGN_BIT);
-                                const proven_u8 *pp = (const proven_u8 *)(uintptr_t)pa;
                                 stack[sp++] = (es <= 1 && !mt) ? (vmv_t){ .tag = VMV_SLICE, .p = pp, .n = (proven_size_t)pn }
                                                                : (vmv_t){ .tag = VMV_VARRAY, .i = mt, .p = pp, .n = (proven_size_t)pn, .box = (proven_i32)es };
                                 found = true;

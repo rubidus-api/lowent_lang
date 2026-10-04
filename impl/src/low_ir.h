@@ -950,6 +950,10 @@ void          low_ir_config_add(const char *name, const char *value);
 proven_size_t low_ir_config_count(void);
 proven_size_t low_ir_build_dropped(void);   // ★ 모드가 **지운 검사 수** — 조용히 지우지 않는다
 const low_target_t *low_ir_target(void);
+// ★ RFC-0137 P3 — 바이트 안에 포인터를 담는 칸(RFC-0135 D13 의 슬라이스 칸)의 크기와 정렬. 포인터 크기 · 정렬을 따르되 8 아래로 내리지 않는다
+//   (VM 은 호스트의 포인터를 그 칸에 적는다). 오늘의 대상은 8 · 8 — 칸은 (포인터 8, 길이 8) 16 바이트 그대로다.
+unsigned low_ptr_slot(void);
+unsigned low_ptr_slot_align(void);
 // ★ 타깃 이름은 **닫힌 집합**이다(표가 그 권위다). `asm <타깃>` 절이 이것으로 검사된다 —
 //   모르는 이름을 통과시키면 그 asm 은 **어느 빌드에서도 안 맞고**, 조용히 빠지거나
 //   엉뚱한 빌드에 실린다(둘 다 이 RFC 가 막으려던 것).

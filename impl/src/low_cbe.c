@@ -1784,17 +1784,18 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                         || (E->param_vec >> q) & 1u || (E->param_bset >> q) & 1u
                         || (E->param_ufn >> q) & 1u) return false;  // C 로 안 편다(태그 경로 — 콜백은 lowv .p)
                 }
-                // ★ f64 반환 → 부동 스택, 생 포인터(cstr)·정수 반환 → 정수 스택(포인터는 스칼라)
+                // ★ f64 반환 → 부동 스택, 정수 반환 → 정수 스택. 생 포인터(cstr)는 **슬라이스 칸**(RFC-0137 P3 — 포인터를 정수에 안 싣는다)
+                if (E->out_ptr) { st.o[st.n] = -1; st.ve[st.n] = 1; st.fl[st.n] = 0; st.k[st.n++] = K_SL; break; }
                 st.o[st.n] = -1; st.k[st.n++] = cbe_ret_flt(E) ? K_FLT : K_INT; break;
             }
             case IRW_CSTR2STR:
                 // ★★★ **cstr(포인터 스칼라) → str(바이트 슬라이스)** (RFC-0068 S4 · C2).
-                if (st.n < 1 || st.k[st.n-1] != K_INT) return false;   // 포인터는 정수 스칼라로 들어온다
+                if (st.n < 1 || st.k[st.n-1] != K_SL) return false;   // ★ RFC-0137 P3 — cstr 는 슬라이스 칸으로 들어온다
                 st.k[st.n-1] = K_SL; st.ve[st.n-1] = 1; st.o[st.n-1] = -1; break;
             case IRW_STR2CSTR:
                 // ★★★ **str_buf(바이트 슬라이스) → cstr(포인터 스칼라)** (RFC-0068 S4 · C4).
-                if (st.n < 1 || (st.k[st.n-1] != K_SL && st.k[st.n-1] < K_SVIEW)) return false;   // 슬라이스여야
-                st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
+                if (st.n < 1 || st.k[st.n-1] != K_SL) return false;   // 슬라이스여야(구조체 뷰는 태그 경로로)
+                st.k[st.n-1] = K_SL; st.ve[st.n-1] = 1; st.o[st.n-1] = -1; break;   // ★ RFC-0137 P3 — cstr 도 슬라이스 칸
             case IRW_FNREF: return false;   // ★ 콜백 참조는 lowv .p 에 심볼 주소를 담는다 — 태그 경로로
             // ★ asm 문장(RFC-0042 D11) — 값은 **없다**(정수 0 을 민다). 피연산자가 있으면 여기 못 온다.
             case IRW_ASM:
@@ -2964,14 +2965,15 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             case IRW_CSTR2STR:
                 // ★★★ **cstr → str** (RFC-0068 S4 · C2) — 포인터 스칼라(정수 스택)를 뷰 슬라이스로.
                 //   길이를 몰라 strlen 으로 스캔한다(O(n) — 이름이 비용을 말한다). **복사 0**(뷰다).
-                fputs("    { const char *p_ = (const char *)(intptr_t)st[--sp];\n"
-                      "      ss[ssp].p = (const unsigned char *)p_; ss[ssp].n = p_ ? strlen(p_) : 0; ssp++; }\n", out);
+                //   ★ RFC-0137 P3 — cstr 는 슬라이스 칸에 포인터로 실려 온다(정수를 거치지 않는다). 길이만 다시 센다.
+                fputs("    { const char *p_ = (const char *)ss[ssp-1].p;\n"
+                      "      ss[ssp-1].n = p_ ? strlen(p_) : 0; }\n", out);
                 ks.k[ks.n-1] = K_SL; ks.ve[ks.n-1] = 1; ks.o[ks.n-1] = -1; break;
             case IRW_STR2CSTR:
                 // ★★★ **str_buf → cstr** (RFC-0068 S4 · C4) — 바이트 버퍼의 base 포인터를 cstr 로.
                 //   **O(1)·복사 0**(널종단은 sb_as_cstr 가 봉인해 뒀다·D2). 정수 스칼라로 실린다.
-                fputs("    st[sp++] = (long long)(intptr_t)ss[--ssp].p;\n", out);
-                ks.k[ks.n-1] = K_INT; ks.o[ks.n-1] = -1; break;
+                //   ★ RFC-0137 P3 — 슬라이스 칸에 그대로 남는다(포인터를 정수에 싣지 않는다). 방출 0.
+                ks.k[ks.n-1] = K_SL; ks.ve[ks.n-1] = 1; ks.o[ks.n-1] = -1; break;
             case IRW_INDEX: {
                 if (ks.k[ks.n-2] >= K_SVIEW) {
                     // ★★★ 구조체 배열의 원소 = **구조체 뷰**(무복사). 오프셋 = i × stride.
@@ -3956,11 +3958,11 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                       if ((E->param_cap >> q) & 1u) continue;   // cap 은 C 로 안 간다
                       if ((E->param_uptr >> q) & 1u)            // ★ unsafe_ptr — 단일 생 포인터(길이 없음)
                           fprintf(out, "%s(void *)sloc[%zu].p", nn++ ? ", " : "", (size_t)q);
+                      else if ((E->param_cstr >> q) & 1u)       // ★ cstr — 널종단 char* (슬라이스 칸의 포인터, RFC-0137 P3)
+                          fprintf(out, "%s(const char *)sloc[%zu].p", nn++ ? ", " : "", (size_t)q);
                       else if ((E->param_slice >> q) & 1u)
                           fprintf(out, "%s(const %s *)sloc[%zu].p, sloc[%zu].n", nn++ ? ", " : "",
                                   cbe_slice_ctype(E->param_ebits[q], E->param_selem[q]), (size_t)q, (size_t)q);
-                      else if ((E->param_cstr >> q) & 1u)       // ★ cstr — 널종단 char* (스칼라 loc 의 포인터)
-                          fprintf(out, "%s(const char *)(intptr_t)loc[%zu]", nn++ ? ", " : "", (size_t)q);
                       else if ((E->param_flt >> q) & 1u)
                           fprintf(out, "%sfloc[%zu]", nn++ ? ", " : "", (size_t)q);
                       else
@@ -3969,7 +3971,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★ 부동 반환은 **부동 스택**(fs)으로, 생 포인터·정수 반환은 정수 스택(st)으로 —
                 //   포인터는 기계어 한 칸이라 정수 스칼라로 실린다(K_INT). str_from_cstr 가 그것을 읽는다.
                 if (eflt)      { fputs("); fs[fsp++] = cr_; }\n", out); ks.o[ks.n] = -1; ks.k[ks.n++] = K_FLT; }
-                else if (eptr) { fputs("); st[sp++] = (long long)(intptr_t)cr_; }\n", out); ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; }
+                else if (eptr) { fputs("); ss[ssp].p = (const unsigned char *)cr_; ss[ssp].n = 0; ssp++; }\n", out);   // ★ RFC-0137 P3 — 포인터 칸
+                                 ks.o[ks.n] = -1; ks.ve[ks.n] = 1; ks.fl[ks.n] = 0; ks.k[ks.n++] = K_SL; }
                 else           { fputs("); st[sp++] = cr_; }\n", out); ks.o[ks.n] = -1; ks.k[ks.n++] = K_INT; }
                 break;
             }
@@ -3996,7 +3999,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 // ★★★ RFC-0042 §8-2 — 블록은 **타입이 아는 주소**에서 선다. 호출자가 줄 것이 없다.
                 //   `volatile` 은 접근 지점(read_volatile/write_volatile)이 이미 붙인다 — 여기서는
                 //   포인터만 낸다. 주소는 컴파일 상수라 한 칸도 안 쓴다.
-                fprintf(out, "    ss[ssp].p = (unsigned char *)(uintptr_t)%lluULL; ss[ssp].n = %uu; ssp++;\n",
+                //   ★ RFC-0137 P4 — 능력 기계에서는 블록 크기로 경계까지 좁힌다(LW_MMIO_SPAN). 그 밖에서는 LW_MMIO_PTR 과 같다.
+                fprintf(out, "    ss[ssp].p = LW_MMIO_SPAN(%lluULL, %uu); ss[ssp].n = %uu; ssp++;\n",
+                        (unsigned long long)ir->structs[in->a].mmio_base,
+                        (unsigned)ir->structs[in->a].total,
                         (unsigned long long)ir->structs[in->a].mmio_base,
                         (unsigned)ir->structs[in->a].total);
                 ks.o[ks.n] = -1; ks.ve[ks.n] = 1; ks.k[ks.n++] = K_SL; break;
@@ -4584,13 +4590,13 @@ static void cbe_extern_proto(const low_ir_t *ir, const low_ir_def_t *d, FILE *ou
             fprintf(out, "%sstruct lw_sty_%u", n++ ? ", " : "", (unsigned)d->param_sidx[q]);
             continue;
         }
+        if ((d->param_cstr >> q) & 1u) {   // ★ cstr — 널종단 char* 단일 포인터(길이 없음), RFC-0068 S4 · 안에서는 슬라이스 칸(RFC-0137 P3)
+            fprintf(out, "%sconst char *", n++ ? ", " : "");
+            continue;
+        }
         if ((d->param_slice >> q) & 1u) {
             fprintf(out, "%sconst %s *, size_t", n++ ? ", " : "",
                     cbe_slice_ctype(d->param_ebits[q], d->param_selem[q]));   // ★ 폭으로 정직한 포인터 타입
-            continue;
-        }
-        if ((d->param_cstr >> q) & 1u) {   // ★ cstr — 널종단 char* 단일 포인터(길이 없음), RFC-0068 S4
-            fprintf(out, "%sconst char *", n++ ? ", " : "");
             continue;
         }
         fprintf(out, "%s%s", n++ ? ", " : "", cbe_ctype(d, q));
@@ -5048,6 +5054,18 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
         }
         if (recb > 64) recb = 64;
         fprintf(out, "#define LW_RECB %u\n", recb);
+        fprintf(out, "#define LW_PTRSLOT %u\n", low_ptr_slot());   // ★ RFC-0137 P3 — 슬라이스 칸의 포인터 자리 크기(길이는 그 뒤 8 바이트)
+        // ★ RFC-0137 P4 (D6 · 정본 §7.6.1 (3)) — 장치 주소에서 포인터를 만드는 **유일한 자리**. 능력 포인터 기계에서는 플랫폼이 준
+        //   «장치 메모리에 닿는 능력»(`lw_mmio_root`)의 주소만 바꿔 **파생**한다 — 정수만으로 포인터를 만들지 않는다. 그 밖의 기계에서는
+        //   지금과 같은 정수 → 포인터다(권한 `cap mmio` 는 표지일 뿐 뜻이 같다).
+        fputs("#if defined(__CHERI_PURE_CAPABILITY__)\n"
+              "extern void *lw_mmio_root;   /* the platform provides a capability covering device memory (RFC-0137 D6) */\n"
+              "#  define LW_MMIO_PTR(a) ((unsigned char *)__builtin_cheri_address_set(lw_mmio_root, (a)))\n"
+              "#  define LW_MMIO_SPAN(a, n) ((unsigned char *)__builtin_cheri_bounds_set(LW_MMIO_PTR(a), (n)))\n"
+              "#else\n"
+              "#  define LW_MMIO_PTR(a) ((unsigned char *)(uintptr_t)(a))\n"
+              "#  define LW_MMIO_SPAN(a, n) LW_MMIO_PTR(a)\n"
+              "#endif\n", out);
     }
     // ★★★ **파라미터 한도는 방출 C 에서도 수 하나다** (WO-0204). 전에는 인자를 나르는 배열마다
     //   `16` 이 글자로 박혀 있었다 — 컴파일러 쪽 한도를 올려도 방출 쪽은 안 따라오고, 그 어긋남은
@@ -5304,8 +5322,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    return v; }\n"
           "                /* RFC-0135 D13: a SLICE field of a struct built in allocator bytes — (address, length) */\n"
           "                if (lw_st_fslm[r.box][i]) { lowv v = {0}; int m_ = lw_st_fslm[r.box][i], e_ = m_ & 0xff;\n"
-          "                    unsigned long long pa_, pn_; memcpy(&pa_, r.p + lw_st_foff[r.box][i], 8); memcpy(&pn_, r.p + lw_st_foff[r.box][i] + 8, 8);\n"
-          "                    v.p = (const unsigned char *)(uintptr_t)pa_; v.n = (size_t)pn_;\n"
+          "                    const unsigned char *pp_; unsigned long long pn_; memcpy(&pp_, r.p + lw_st_foff[r.box][i], sizeof pp_); memcpy(&pn_, r.p + lw_st_foff[r.box][i] + LW_PTRSLOT, 8);\n"
+          "                    v.p = pp_; v.n = (size_t)pn_;   /* RFC-0137 P3: the pointer is copied as a pointer (aligned), never through an integer */\n"
           "                    if (e_ == 1 && !(m_ & 0x30000)) v.tag = LWV_SLICE; else { v.tag = LWV_VARRAY; v.i = m_ & 0x30000; v.box = e_; }\n"
           "                    return v; }\n"
           "                /* a NESTED struct field: hand back the inner VIEW (zero-copy) */\n"
@@ -5341,8 +5359,8 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "                    memmove((void *)p, v.p, need_); return; }\n"
           "                if (lw_st_fslm[r.box][i]) { /* RFC-0135 D13: a slice field holds (address, length) */\n"
           "                    if (v.tag != LWV_SLICE && v.tag != LWV_VARRAY) lw_panic(\"a slice field takes a slice\");\n"
-          "                    unsigned long long pa_ = (unsigned long long)(uintptr_t)(const void *)v.p, pn_ = (unsigned long long)v.n;\n"
-          "                    memcpy((void *)p, &pa_, 8); memcpy((void *)(p + 8), &pn_, 8); return; }\n"
+          "                    const unsigned char *pp_ = v.p; unsigned long long pn_ = (unsigned long long)v.n;\n"
+          "                    memcpy((void *)p, &pp_, sizeof pp_); memcpy((void *)(p + LW_PTRSLOT), &pn_, 8); return; }\n"
           "                unsigned long long x = (unsigned long long)v.i;\n"
           "                int sz = lw_st_fsize[r.box][i];\n"
           /* ★ 디바이스면 폭이 맞는 단일 volatile 저장 — 바이트 네 번은 한 번과 다른 일이다. */
@@ -5572,8 +5590,9 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
           "        lw_arr_copy(k, v, (unsigned char *)(void *)r->f[slot].p); return 1; }\n"
           "    return 0; }\n", out);
     // ★★★ RFC-0042 §8-2 — **레지스터 블록을 자기 기저 주소에서** (태그 경로). 주소는 컴파일 상수다.
-    fputs("static lowv lw_mmioblk(unsigned long long base, unsigned n) {\n"
-          "    lowv v = {0}; v.tag = LWV_SLICE; v.p = (unsigned char *)(uintptr_t)base; v.n = n; return v; }\n", out);
+    //   ★ RFC-0137 P4 — 기저는 **포인터**로 받는다(장치 주소는 LW_MMIO_PTR 이 만들고, 예약 블록은 배열 그대로). 정수를 거치지 않는다.
+    fputs("static lowv lw_mmioblk(void *base, unsigned n) {\n"
+          "    lowv v = {0}; v.tag = LWV_SLICE; v.p = (unsigned char *)base; v.n = n; return v; }\n", out);
 
     // forward declarations (recursion / any call order)
     // ★★★ **C 의 프로토타입** — `extern` op 마다(RFC-0063).
@@ -6145,7 +6164,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     bool eflt = cbe_ret_flt(E);   // ★ f64 반환은 double 로 받아 lw_flt 로 민다
                     bool eptr = E->out_ptr;       // ★ 생 포인터(cstr) 반환은 const char* → lw_int(포인터)
                     const char *crty = eptr ? "const char *" : eflt ? "double" : "long long";
-                    const char *push = eptr ? "lw_int((long long)(intptr_t)cr_)"
+                    const char *push = eptr ? "((lowv){ .tag = LWV_SLICE, .p = (const unsigned char *)cr_, .n = 0 })"   /* ★ RFC-0137 P3 — 포인터 칸 */
                                             : eflt ? "lw_flt(cr_)" : "lw_int(cr_)";
                     if (vargc) {
                         // ★★★ **가변인자 씨 호출** (RFC-0063 §5) — 인자가 **태그 스택**에 있다(호출 지점에서
@@ -6165,15 +6184,15 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                             else if (vi < E->nparams && ((E->param_struct >> vi) & 1u))
                                 fprintf(out, "%slw_sty_%u_of(st[sp-%zu])", sep,
                                         (unsigned)E->param_sidx[vi], off);   // 구조체 by-value(레코드·뷰 둘 다)
+                            else if (vi < E->nparams && ((E->param_cstr >> vi) & 1u))   // ★ cstr — 슬라이스 칸의 포인터(RFC-0137 P3)
+                                fprintf(out, "%s(const char *)st[sp-%zu].p", sep, off);
                             else if (vi < E->nparams && ((E->param_slice >> vi) & 1u))
                                 fprintf(out, "%s(const %s *)st[sp-%zu].p, st[sp-%zu].n", sep,
                                         cbe_slice_ctype(E->param_ebits[vi], E->param_selem[vi]), off, off);
-                            else if (vi < E->nparams && ((E->param_cstr >> vi) & 1u))   // ★ cstr — 널종단 char*
-                                fprintf(out, "%s(const char *)(intptr_t)lw_want_int(st[sp-%zu], \"cstr pointer\")", sep, off);
                             else if (vi < E->nparams && ((E->param_flt >> vi) & 1u))
                                 fprintf(out, "%slw_fval(st[sp-%zu])", sep, off);
                             else
-                                fprintf(out, "%slw_want_int(st[sp-%zu], \"variadic C argument (integers only in this build)\")", sep, off);
+                                fprintf(out, "%slw_varg(st[sp-%zu])", sep, off);   // ★ RFC-0137 P3 — 정수 또는 cstr(포인터 칸)
                         }
                         fprintf(out, "); sp -= %zu; st[sp++] = %s; }\n", vargc, push);
                         break;
@@ -6192,11 +6211,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         else if ((E->param_struct >> q) & 1u)     // ★ 구조체 by-value — 바이트를 struct 로 읽는다
                             fprintf(out, "%slw_sty_%u_of(a[%zu])", n++ ? ", " : "",
                                     (unsigned)E->param_sidx[q], (size_t)q);   // 레코드·뷰 둘 다 실체화
+                        else if ((E->param_cstr >> q) & 1u)       // ★ cstr — 슬라이스 칸의 포인터(RFC-0137 P3)
+                            fprintf(out, "%s(const char *)a[%zu].p", n++ ? ", " : "", (size_t)q);
                         else if ((E->param_slice >> q) & 1u)
                             fprintf(out, "%s(const %s *)a[%zu].p, a[%zu].n", n++ ? ", " : "",
                                     cbe_slice_ctype(E->param_ebits[q], E->param_selem[q]), (size_t)q, (size_t)q);
-                        else if ((E->param_cstr >> q) & 1u)       // ★ cstr — 널종단 char* (스칼라)
-                            fprintf(out, "%s(const char *)(intptr_t)lw_want_int(a[%zu], \"cstr pointer\")", n++ ? ", " : "", (size_t)q);
                         else if ((E->param_flt >> q) & 1u)
                             fprintf(out, "%slw_fval(a[%zu])", n++ ? ", " : "", (size_t)q);
                         else
@@ -6790,13 +6809,13 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                     // ★★★ **cstr → str** (RFC-0068 S4 · C2) — 널종단 C 문자열의 길이를 몰라 스캔한다
                     //   (strlen, O(n) — 이름이 비용을 말한다). 포인터는 정수 lowv 로 실려 있다(extern 반환).
                     //   ★ **뷰다** — 복사 0. 바이트는 C 쪽이 소유하고, str 은 그 위를 가리킨다(D4).
-                    fputs("    { lowv cv = st[--sp]; const char *p_ = (const char *)(intptr_t)cv.i;\n"
+                    fputs("    { lowv cv = st[--sp]; const char *p_ = (const char *)cv.p;   /* RFC-0137 P3 — 포인터 칸 */\n"
                           "      st[sp++] = (lowv){ .tag = LWV_SLICE, .p = (const unsigned char *)p_, .n = p_ ? strlen(p_) : 0 }; }\n", out);
                     break;
                 case IRW_STR2CSTR:
                     // ★★★ **str_buf → cstr** (RFC-0068 S4 · C4) — 바이트 버퍼의 base 포인터를 cstr 로
                     //   (O(1)·복사 0). 널종단은 봉인돼 있다(D2). 포인터는 정수 lowv 로 실린다.
-                    fputs("    { lowv sv = st[--sp]; st[sp++] = lw_int((long long)(intptr_t)sv.p); }\n", out);
+                    //   ★ RFC-0137 P3 — cstr 는 슬라이스 값 그대로다(포인터를 정수에 싣지 않는다). 방출 0.
                     break;
                 case IRW_WRAP_ERR: fprintf(out, "    st[sp++] = lw_err(%lld);\n", (long long)in->a); break;
                 case IRW_TRY:
@@ -6873,10 +6892,11 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                             off, si, (unsigned long long)ir->strs[si].size, off, (unsigned long long)ir->strs[si].size);
                     break;
                 }
-                case IRW_RESBLK:   fprintf(out, "    st[sp++] = lw_mmioblk((unsigned long long)(uintptr_t)lw_res_%zu, %uu);\n",
+                case IRW_RESBLK:   fprintf(out, "    st[sp++] = lw_mmioblk((void *)lw_res_%zu, %uu);\n",   // ★ RFC-0137 P4 — 배열 그대로
                                             (size_t)in->a, (unsigned)ir->structs[in->a].total); break;
-                case IRW_MMIOBLK:  fprintf(out, "    st[sp++] = lw_mmioblk(%lluULL, %uu);\n",
+                case IRW_MMIOBLK:  fprintf(out, "    st[sp++] = lw_mmioblk(LW_MMIO_SPAN(%lluULL, %uu), %uu);\n",   // ★ RFC-0137 P4 — 경계까지
                                             (unsigned long long)ir->structs[in->a].mmio_base,
+                                            (unsigned)ir->structs[in->a].total,
                                             (unsigned)ir->structs[in->a].total); break;
                 case IRW_REF:      fprintf(out, "    st[sp++] = lw_ref(&loc[%lld], 0);\n", (long long)(in->a & 0xffff)); break;
                 case IRW_MREF:     fprintf(out, "    st[sp++] = lw_ref(&loc[%lld], 1);\n", (long long)(in->a & 0xffff)); break;
@@ -7456,7 +7476,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                         }
                         if (!bits) continue;
                         any = true;
-                        fprintf(out, "    *(volatile uint32_t *)(uintptr_t)0x%08lXUL = 0x%08lXUL;"
+                        fprintf(out, "    *(volatile uint32_t *)LW_MMIO_PTR(0x%08lXUL) = 0x%08lXUL;"   /* RFC-0137 P4 */
                                      "  /* ISER%zu */\n",
                                 (unsigned long)(0xE000E100UL + 4UL * (unsigned long)w),
                                 (unsigned long)bits, (size_t)w);

@@ -257,6 +257,10 @@ static const low_target_t IR_TARGETS[] = {
     //     Windows 로 건너간다"* 를 뜻한다. POSIX 전용 잎은 **컴파일 시 거절**한다 —
     //     mingw 에서 헤더가 없다고 터지게 두는 것보다, 이유를 아는 자리에서 먼저 우는 편이 낫다.
     { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096 },
+    // ★★ RFC-0137 P5 — **첫 능력 포인터 대상: CHERIoT** (2026-10-04, 소유자 결정 Q6). 32 비트 RISC-V 마이크로컨트롤러 · 주소 32 비트 ·
+    //   포인터(능력) 8 바이트 · 정렬 8 · 정수에서 포인터를 만들 수 없다. 운영체제 · 힙 · 부동 장치가 없다(cortex_m 과 같은 프리스탠딩 칸).
+    //   지금은 **컴파일까지** 잰다(CHERIoT clang · `toolchains/cheriot-tools-*`) — 실행은 그 툴체인의 시뮬레이터로 뒤에.
+    { "cheriot",  false, 32, 8, 8, true,  false, true,  true,  0,  false, (proven_i64)1 << 24, 8, 0 },
 };
  const low_target_t *ir_tgt = &IR_TARGETS[0];
  bool g_smt_on = true;
@@ -300,6 +304,11 @@ proven_size_t low_ir_fixed_bytes(void) {
     if (g_fixed_bytes) return g_fixed_bytes;
     return ir_tgt->no_heap ? (proven_size_t)LOW_FIXED_BYTES_BOARD : (proven_size_t)LOW_FIXED_BYTES;
 }
+unsigned low_ptr_slot(void) {
+    unsigned b = ir_tgt->ptr_bytes < 8 ? 8u : (unsigned)ir_tgt->ptr_bytes;
+    return (b + 7u) & ~7u;
+}
+unsigned low_ptr_slot_align(void) { return ir_tgt->ptr_align < 8 ? 8u : (unsigned)ir_tgt->ptr_align; }
 bool low_ir_target_known(proven_u8str_view_t name) {
     for (proven_size_t i = 0; i < sizeof IR_TARGETS / sizeof IR_TARGETS[0]; i++)
         if (proven_u8str_view_eq(name, proven_u8str_view_from_cstr(IR_TARGETS[i].name))) return true;
@@ -1449,7 +1458,7 @@ proven_u64 ir_f_to_bits(double d, proven_u8 size) {
         // ★ 중첩 구조체 필드의 **정렬은 안쪽 구조체의 정렬**이다 — 그 **크기**가 아니다.
         //   (3바이트 구조체를 3으로 정렬하려 들면 아무것도 맞지 않는다.)
         proven_u16 al = sz;
-        if (s->is_shadow && s->f[i].slmeta) al = 8;   // ★ RFC-0135 D13 — (주소, 길이) 두 낱말: 8 바이트 정렬
+        if (s->is_shadow && s->f[i].slmeta) al = (proven_u16)low_ptr_slot_align();   // ★ RFC-0135 D13 — (포인터, 길이): 포인터 정렬(RFC-0137 P3)
         if (s->f[i].sidx >= 0 && ir && (proven_size_t)s->f[i].sidx < ir->nstructs)
             al = ir->structs[s->f[i].sidx].align ? ir->structs[s->f[i].sidx].align : 1;
         if (!s->packed) {
@@ -1941,7 +1950,7 @@ proven_i32 ir_alloc_shadow(low_ir_t *ir, proven_size_t si) {
     low_ir_struct_t *g = &ir->structs[ni];
     g->is_shadow = true; g->ashadow1 = 0; g->align = 0;
     for (proven_size_t q = 0; q < g->nf; q++)
-        if (g->f[q].slmeta) { g->f[q].boxed = false; g->f[q].size = 16; }
+        if (g->f[q].slmeta) { g->f[q].boxed = false; g->f[q].size = (proven_u8)(low_ptr_slot() + 8); }   // ★ (포인터 칸, 길이 8) — RFC-0137 P3
     ir_struct_layout(ir, g);
     if (!g->viewable) { ir->nstructs--; return -1; }
     ir->structs[si].ashadow1 = (proven_u16)(ni + 1);

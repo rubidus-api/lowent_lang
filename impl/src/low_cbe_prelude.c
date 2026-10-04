@@ -228,6 +228,15 @@ const char LW_PRELUDE[] =
 "#endif\n"
 "static void lw_fmt_f(char *out, size_t cap, double d) { LW_FMTF(out, cap, d); }\n"
 "static long long lw_want_int(lowv v, const char *m) { if (v.tag != LWV_INT) lw_panic(m); return v.i; }\n"
+/* ★ RFC-0137 P3 — 가변인자 C 인자 하나. 정수와 cstr(슬라이스 칸의 포인터)이 같은 자리에 온다. 64 비트 주소 기계와 능력 기계에서는
+   uintptr_t 하나로 둘 다 싣는다(능력 기계에서 포인터의 출처를 지킨다). 32 비트 주소의 보통 기계에서는 정수 폭을 지키려고 long long. */
+"#if defined(__CHERI_PURE_CAPABILITY__) || UINTPTR_MAX >= 0xFFFFFFFFFFFFFFFFu\n"
+"typedef uintptr_t lw_varg_t;\n"
+"#else\n"
+"typedef long long lw_varg_t;\n"
+"#endif\n"
+"static lw_varg_t lw_varg(lowv v) { if (v.tag == LWV_SLICE) return (lw_varg_t)(uintptr_t)v.p;\n"
+"    return (lw_varg_t)lw_want_int(v, \"variadic C argument (integers or cstr only in this build)\"); }\n"
 "static lowv lw_add(lowv a, lowv b);\n"
 "static lowv lw_vbin(int op, lowv a, lowv b);\n"
 "static lowv lw_cmp(int op, lowv a, lowv b);\n"

@@ -2002,14 +2002,19 @@ int main(int argc, char **argv) {
         // ★ 2026-09-27 (X-0071 실측 중) — **렉스·파스 오류가 있는 단위도 돌고 있었다.** 파일별 파스 진단은 찍고 버리며
         //   단위에는 `pr.ok = false` 만 남는데, 이 문은 `pr.diags.len` 만 보아 «오류 없음» 으로 읽고 검사째 건너뛰었다.
         //   `fn f output u8 do …`(E-DOT-MISSING)이 `--check` 는 거절, `--run` 은 `f() = 1` · 종료 0, `--test` 는 «1 passed».
-        if ((run_op || want_test) && !run_unchecked && !pr.ok) {
+        // ★★ 2026-10-03 — **`--emit-c` 도 같은 문을 쓴다.** `--check` 가 E-TYPE-WIDTH 로 거절한 단위(`return add c 256 .`,
+        //   c 는 u8)를 `--emit-c` 는 아무 말 없이 C 로 내고 종료 0 이었다 — 그 C 를 짓고 돌리면 «선언 폭 넘침» 으로 멈춘다(벤치를
+        //   새로 짜다 실측). C 를 내는 것은 돌리는 것의 앞 단계다: 거절당한 프로그램의 C 를 내 주면 #86 의 약속이 한 단계 뒤로 샌다.
+        const bool gate_unit = run_op || want_test || (want_emitc && !want_ir && !want_why);   // ★ --ir · --why-slow 는 진단이라 문 밖이다
+        const char *gate_flag = run_op ? "--run" : want_test ? "--test" : want_emitdb ? "--emit-db" : want_emith ? "--emit-h" : want_emitld ? "--emit-ld" : "--emit-c";
+        if (gate_unit && !run_unchecked && !pr.ok) {
             printf("   ^ `%s` REFUSED this unit: it has lex/parse errors (above), so `--check` rejects it too. "
                    "A program the language rejects must not run — that is the whole of the promise. "
                    "(To measure what a rejected program DOES at run time, ask for it: `--unchecked`.)\n",
-                   run_op ? "--run" : "--test");
+                   gate_flag);
             run_refused = true;
             rc = 2;
-        } else if ((run_op || want_test) && !run_unchecked && !lex.diags.len && !pr.diags.len) {
+        } else if (gate_unit && !run_unchecked && !lex.diags.len && !pr.diags.len) {
             feed_absorb_allow(path);
             low_check_result_t rcr = low_check(heap, &pr);
             low_typecheck_result_t rtr = low_typecheck(heap, &pr);
@@ -2023,7 +2028,7 @@ int main(int argc, char **argv) {
                 printf("   ^ `%s` REFUSED this unit: it does not pass the same checks as `--check`. "
                        "A program the language rejects must not run — that is the whole of the promise. "
                        "(To measure what a rejected program DOES at run time, ask for it: `--unchecked`.)\n",
-                       run_op ? "--run" : "--test");
+                       gate_flag);
                 run_refused = true;
                 rc = 2;
             }
@@ -2109,7 +2114,7 @@ int main(int argc, char **argv) {
                        "trees but never shows this; here the cost is visible. --\n",
                        ir.match_sites, ir.match_arms, ir.match_worst, ir.match_jt);
         }
-        if (want_emitc) {
+        if (want_emitc && !run_refused) {
             if (want_emitdb) {
                 int n = low_ir_emit_db(&ir, stdout);
                 rc = (n >= 0 && ir.ok) ? 0 : 1;

@@ -387,9 +387,24 @@ void low_cbe_set_no_fast(bool v) { g_no_fast = v; }
 static bool g_no_elemsl;
 void low_cbe_set_no_elemsl(bool v) { g_no_elemsl = v; }
 // ★★ `slice i64`(폭 표시 164 = 100 + 비트)도 8 바이트다 (2026-10-03). 8 바이트를 읽어 `long long` 으로 보면 값이 그대로이므로
-//   부호 확장이 필요 없다 — 그래서 i64 만 받는다. i8·i16·i32(108·116·132)는 읽을 때 부호를 늘려야 하므로 아직 느린 길이다.
-//   전에는 `slice i64` 를 받는 op 이 통째로 느린 길로 떨어졌다: lowstat 의 그룹 합(`slice i64`)이 그래서 파이썬보다 5배 느렸다.
-static int cbe_ebits_w(proven_u8 eb) { return eb == 8 ? 1 : eb == 16 ? 2 : eb == 32 ? 4 : (eb == 64 || eb == 164) ? 8 : 0; }
+//   부호 확장이 필요 없다. 전에는 `slice i64` 를 받는 op 이 통째로 느린 길로 떨어졌다: lowstat 의 그룹 합(`slice i64`)이 그래서
+//   파이썬보다 5배 느렸다.
+// ★★ i8·i16·i32(108·116·132)도 받는다 (2026-10-04). 읽을 때 부호를 늘려야 하므로 슬롯의 `fl` 이 **2**(부호 있는 정수 원소)를
+//   싣는다 — `view.array` 의 부호 비트(IR_SGN_BIT)나 슬라이스 칸의 `slmeta` 가 그것을 단다. `fl` 이 1 이면 부동 원소다.
+//   부동 표식이 다니는 길(지역 저장·부분 슬라이스·호출 인자)을 그대로 타므로 따로 나를 것이 없다.
+static int cbe_ebits_w(proven_u8 eb) {
+    return (eb == 8 || eb == 108) ? 1 : (eb == 16 || eb == 116) ? 2 : (eb == 32 || eb == 132) ? 4 : (eb == 64 || eb == 164) ? 8 : 0;
+}
+// ★ 슬롯의 `fl` 값 — 0 = 무부호 정수 원소 · 1 = 부동 원소 · 2 = 부호 있는 정수 원소(8 바이트 미만, 읽을 때 부호를 늘린다).
+#define CBE_FL_FLT 1
+#define CBE_FL_SGN 2
+// ★ 슬라이스 칸에서 읽은 슬라이스의 `fl` (2026-10-04). 전에는 늘 0 이었다 — 그래서 구조체 칸의 `slice i32` 를 빠른 길에서 읽으면
+//   -1 이 4294967295 로, `slice f64` 는 1.5 가 비트 그대로의 정수로 나왔다(VM 은 옳았다 — 오라클이 갈리는 자리였다).
+static unsigned char cbe_sf_fl(const low_ir_sfield_t *f) {
+    if (f->slmeta & IR_FLT_BIT) return CBE_FL_FLT;
+    if ((f->slmeta & IR_SGN_BIT) && f->elem < 8) return CBE_FL_SGN;
+    return 0;
+}
 // ★ `--no-main` — **라이브러리로 낸다**(RFC-0063 D3). C 프로그램이 `main` 을 갖는다.
 static bool g_no_main;
 void low_cbe_set_no_main(bool v) { g_no_main = v; }
@@ -1126,8 +1141,11 @@ static int cbe_def_esz(const low_ir_def_t *d) {
             case 8:  e = 1; break;
             case 16: e = 2; break;
             case 32: e = 4; break;
+            case 108: e = 1; break;            // ★ 부호 있는 원소도 폭은 같다(부호는 슬롯의 fl 이 싣는다)
+            case 116: e = 2; break;
+            case 132: e = 4; break;
             case 64: case 164: e = 8; break;   // ★ i64 도 8 바이트 그대로(위 cbe_ebits_w)
-            default: return -1;   // i8/f32/구조체 원소… 모르면 **안 내린다**
+            default: return -1;   // f32/구조체 원소… 모르면 **안 내린다**
         }
         if (esz && esz != e) return -1;
         esz = e;
@@ -1141,8 +1159,8 @@ static bool cbe_slices_known(const low_ir_def_t *d) {
         if (!((d->param_slice >> q) & 1u)) continue;
         if (d->param_selem[q]) continue;   // 구조체 슬라이스는 바이트로 실린다
         switch (d->param_ebits[q]) {
-            case 8: case 16: case 32: case 64: case 164: break;
-            default: return false;   // f32/f64/i8·i16·i32/모르는 원소는 거절
+            case 8: case 16: case 32: case 64: case 108: case 116: case 132: case 164: break;
+            default: return false;   // f32/f64/모르는 원소는 거절
         }
     }
     return true;
@@ -1485,8 +1503,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 // ★ RFC-0109 단계 1 — **이미 그 모양이면 항등이다**(파라미터가 원소 단위로 들어온 자리).
                 if (!g_no_elemsl && (in->a & 0x40000) && st.k[st.n-1] == (unsigned char)(K_SVIEW + ((in->a >> 20) & 0xff))) break;
                 if (!g_no_elemsl && !(in->a & 0x40000) && st.k[st.n-1] == K_SL && st.ve[st.n-1] > 1 &&
-                    st.ve[st.n-1] == (unsigned char)(in->a & 0xff) && (!(in->a & 0x20000) || (in->a & 0xff) == 8)) {
-                    if (in->a & 0x10000) st.fl[st.n-1] = 1;
+                    st.ve[st.n-1] == (unsigned char)(in->a & 0xff)) {
+                    if (in->a & 0x10000) st.fl[st.n-1] = CBE_FL_FLT;
+                    else if ((in->a & 0x20000) && (in->a & 0xff) < 8) st.fl[st.n-1] = CBE_FL_SGN;
                     break;
                 }
                 if (st.k[st.n-1] != K_SL) return false;
@@ -1501,12 +1520,11 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 unsigned ez = (unsigned)(in->a & 0xff);
                 if (!ez || ez > 8) return false;
                 if (st.ve[st.n-1] != 1) return false;   // 바이트 슬라이스 위에서만 (멱등성)
-                // ★ **부호형 원소**(IR_SGN_BIT)는 빠른 경로가 부호 확장을 안 한다 — 태그 경로로
-                //   내려보낸다(부호형 슬라이스 파라미터가 이미 그러듯). 안 그러면 index 가 무부호로 샌다.
-                // ★★ 단, **8 바이트**(i64)는 늘릴 비트가 없다 — 그대로 읽어 `long long` 으로 보면 값이다(2026-10-03, cbe_ebits_w 와 짝).
-                if ((in->a & 0x20000) && ez != 8) return false;
+                // ★ **부호형 원소**(IR_SGN_BIT)는 슬롯에 fl=2 를 단다 — `index` 가 읽을 때 부호를 늘린다(2026-10-04).
+                //   8 바이트(i64)는 늘릴 비트가 없으므로 표식 없이 그대로 읽는다(cbe_ebits_w 와 짝).
                 // ★ 부동 원소 슬라이스 — 폭은 그대로, **부동 표식**을 단다(f32=4·f64=8).
-                if (in->a & 0x10000) { if (ez != 4 && ez != 8) return false; st.fl[st.n-1] = 1; }
+                if (in->a & 0x10000) { if (ez != 4 && ez != 8) return false; st.fl[st.n-1] = CBE_FL_FLT; }
+                else if ((in->a & 0x20000) && ez < 8) st.fl[st.n-1] = CBE_FL_SGN;
                 st.ve[st.n-1] = (unsigned char)ez;
                 break;
             }
@@ -1608,7 +1626,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
             case IRW_RADD: case IRW_RMUL: case IRW_RMIN: case IRW_RMAX:
                 if (st.n < 1 || st.k[st.n-1] != K_VEC) return false;
                 // ★ 부동 벡터의 축약은 **f64** 를, 정수 벡터는 정수를 낸다.
-                st.k[st.n-1] = st.fl[st.n-1] ? K_FLT : K_INT; st.o[st.n-1] = -1; break;
+                st.k[st.n-1] = st.fl[st.n-1] == CBE_FL_FLT ? K_FLT : K_INT; st.o[st.n-1] = -1; break;
             case IRW_MANY: case IRW_MALL:
                 if (st.n < 1 || st.k[st.n-1] != K_MASK) return false;
                 st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
@@ -1619,7 +1637,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     st.k[st.n-1] = K_OPT; st.o[st.n-1] = -1; break;
                 }
                 if ((in->a & 0xf) == 5 || (in->a & 0xf) == 6) {   // sum/sum_fast — **부동 슬라이스 → f64**
-                    if (st.k[st.n-1] != K_SL || !st.fl[st.n-1]) return false;
+                    if (st.k[st.n-1] != K_SL || st.fl[st.n-1] != CBE_FL_FLT) return false;
                     st.k[st.n-1] = K_FLT; st.o[st.n-1] = -1; st.fl[st.n-1] = 0; break;
                 }
                 if ((in->a & 0xf) == 0) {   // sqrt — **f64 전용**
@@ -1644,15 +1662,18 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 st.o[st.n-1] = -1; break;
             case IRW_ALOAD:   // atomic: [slice, i] → int
                 if (st.n < 2 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_SL) return false;
+                if (st.fl[st.n-2]) return false;   // ★ 부호·부동 원소의 원자 읽기는 태그 경로(부호를 늘리지 않는다)
                 st.n--; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_ASTORE: case IRW_AADD: case IRW_ASUB: case IRW_AAND:
             case IRW_AOR: case IRW_AXOR: case IRW_ASWAP:   // [slice, i, v] → int
                 if (st.n < 3 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_INT || st.k[st.n-3] != K_SL)
                     return false;
+                if (st.fl[st.n-3]) return false;
                 st.n -= 2; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_ACAS:   // [slice, i, exp, des] → int(0/1)
                 if (st.n < 4 || st.k[st.n-1] != K_INT || st.k[st.n-2] != K_INT ||
                     st.k[st.n-3] != K_INT || st.k[st.n-4] != K_SL) return false;
+                if (st.fl[st.n-4]) return false;
                 st.n -= 3; st.k[st.n-1] = K_INT; st.o[st.n-1] = -1; break;
             case IRW_AFENCE:
                 // ★ 방출기와 **같은 규약**: fence 도 자리 하나를 민다. 시뮬레이터가 이걸
@@ -1902,7 +1923,7 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                     if (st.o[st.n-1] >= 32) return false;
                     st.k[st.n-1] = K_SL;
                     st.ve[st.n-1] = ir->structs[sx].f[rsl].elem;
-                    st.vn[st.n-1] = 0; st.fl[st.n-1] = 0; st.o[st.n-1] = -1;
+                    st.vn[st.n-1] = 0; st.fl[st.n-1] = cbe_sf_fl(&ir->structs[sx].f[rsl]); st.o[st.n-1] = -1;
                     break;
                 }
                 st.k[st.n-1] = ir->structs[sx].f[rsl].sidx >= 0
@@ -1989,8 +2010,8 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 if (st.k[st.n-2] != K_SL) return false;
                 // ★ float 원소 슬라이스(view_array f32/f64) → 결과는 **부동 스칼라**(K_FLT·fs 스택).
                 //   이미터가 fs 로 내니 시뮬레이터도 K_FLT 로 봐야 자격/kind 가 일치(안 그러면 VM≠native).
-                if (st.fl[st.n-2]) { st.n--; st.k[st.n-1] = K_FLT; st.fl[st.n-1] = 0; st.ve[st.n-1] = 0; break; }
-                st.n--; st.k[st.n-1] = K_INT; break;
+                if (st.fl[st.n-2] == CBE_FL_FLT) { st.n--; st.k[st.n-1] = K_FLT; st.fl[st.n-1] = 0; st.ve[st.n-1] = 0; break; }
+                st.n--; st.k[st.n-1] = K_INT; st.fl[st.n-1] = 0; st.ve[st.n-1] = 0; break;
             case IRW_ISTORE: if (st.n < 3 || st.k[st.n-3] != K_SL ||
                                  st.k[st.n-2] != K_INT || st.k[st.n-1] != K_INT) return false;
                              st.n -= 3; break;
@@ -2088,6 +2109,9 @@ static bool cbe_kind_run(const low_ir_t *ir, const low_ir_def_t *d, const bool *
                 //   그렇게 옳게 도는 것과 같은 자리). 바이트 슬라이스 반환(ve=1)은 그대로 빠른 경로.
                 if (rk == K_SL && st.n && st.ve[st.n-1] > 1) {
                     snprintf(g_sub, sizeof g_sub, "returns a slice whose element width is > 1"); return false; }
+                // ★ `slice i8` 을 돌려주면 받는 쪽 슬롯이 부호 표식(fl=2)을 모른다 — 태그 경로로(2026-10-04).
+                if (rk == K_SL && st.n && st.fl[st.n-1]) {
+                    snprintf(g_sub, sizeof g_sub, "returns a slice of signed or float elements"); return false; }
                 // ★★★ **구조체 뷰를 돌려줄 수 있다** — 뷰는 (포인터,길이)라 lw_r.s 에 담기고,
                 //   받는 쪽은 **오프셋으로 읽는다**(원소 수 vs 바이트 갈림이 없다). K_SVIEW(구조체
                 //   슬라이스)는 아직 — 그건 byte-carry 가 걸린다.
@@ -2288,6 +2312,7 @@ static bool cbe_kind_ok(const low_ir_t *ir, const low_ir_def_t *d, const bool *s
                 int w = cbe_ebits_w(eb);
                 if (!w) return false;
                 lez[q] = g_no_elemsl ? 1 : (unsigned char)w;   // ★ RFC-0109 단계 1: 원소 폭으로 시작한다
+                if (eb > 100 && eb < 164) lfl[q] = 2;   // ★ 부호 있는 원소(i8·i16·i32) — 본문의 view.array 도 같은 표식을 단다
             }
         } else if ((d->param_struct >> q) & 1u) {
             // ★★★ **구조체 파라미터도 정수 슬롯에 담을 수 있어야 한다** (2026-07-19, lib/alloc.low 이 찾았다).
@@ -2706,8 +2731,10 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
         //   한다. 원소 폭으로 두면 본문의 view_array 가 이 pre-pass 에서 **실패**하고(ve≠1),
         //   그러면 그 뒤 지역(벡터·타입 슬라이스)의 종류가 안 채워져 **정수로 로드**된다
         //   (pass_vec 이 벡터를 정수로 넘겨 쓰레기를 읽었다 — 차분 스윕이 놓친 자리).
-        if ((d->param_slice >> q) & 1u)
+        if ((d->param_slice >> q) & 1u) {
             lez[q] = g_no_elemsl ? 1 : d->param_selem[q] ? 0 : (unsigned char)cbe_ebits_w(d->param_ebits[q]);   // ★ 단계 1 — kind_ok 와 같은 규약
+            if (!d->param_selem[q] && d->param_ebits[q] > 100 && d->param_ebits[q] < 164) lfl[q] = 2;   // ★ kind_ok 와 같은 부호 표식
+        }
         else if ((d->param_vec >> q) & 1u) {   // ★ 벡터 파라미터 — 원소 폭·레인 수
             lez[q] = d->param_ebits[q]; lln[q] = d->param_vlanes[q];
         }
@@ -2960,7 +2987,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     break;
                 }
                 int esz = (int)ks.ve[ks.n-2]; if (esz <= 0) esz = 1;
-                bool eflt = ks.fl[ks.n-2] != 0;   // ★ float 원소(view_array f32/f64) — fs 스택으로 내야
+                bool eflt = ks.fl[ks.n-2] == CBE_FL_FLT;   // ★ float 원소(view_array f32/f64) — fs 스택으로 내야
+                bool esgn = ks.fl[ks.n-2] == CBE_FL_SGN;   // ★ 부호 있는 원소(i8·i16·i32) — 읽고 부호를 늘린다(태그 경로 lw_index 와 같은 뜻)
                 int cq = -1;   // ★ §8-22 ⓑ — 앞 바퀴가 이 값을 들고 왔으면 그것을 민다
                 for (int q = 0; q < ncy; q++)
                     if ((int)j == cy[q].L && cy[q].on && !eflt && ks.k[ks.n-2] == K_SL &&
@@ -2970,7 +2998,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 if (!(in->a & IR_POL_PROVEN))
                     fputs("      if (LW_UNLIKELY(i_ < 0 || (size_t)i_ >= s_.n))"
                           " lw_panic(\"slice index out of bounds\");\n", out);
-                if (esz == 1) fputs("      st[sp++] = (long long)s_.p[i_];\n", out);
+                if (esz == 1) fputs(esgn ? "      st[sp++] = (long long)(signed char)s_.p[i_];\n"
+                                         : "      st[sp++] = (long long)s_.p[i_];\n", out);
                 else {
                     // ★ 런타임(VARRAY)은 원소를 **리틀엔디언으로 조립**한다. 같은 뜻을 같은
                     //   방식으로 낸다 — 그러면 **어느 호스트에서도** 답이 같고, LE 기계에서는
@@ -2980,6 +3009,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                     // ★ float 원소는 **fs 스택**으로 — 태그 경로 lw_index 와 같은 lw_b2f. 안 그러면 raw
                     //   정수 비트를 정수 스택에 밀어 VM≠native(index(view_array f32)=1.5 대신 비트값).
                     if (eflt) fprintf(out, "      fs[fsp++] = lw_b2f(x_, %d);\n", esz);
+                    else if (esgn) fprintf(out, "      st[sp++] = (long long)(int%d_t)x_;\n", esz * 8);
                     else      fputs("      st[sp++] = (long long)x_;\n", out);
                 }
                 if (cq >= 0) fprintf(out, "      } else st[sp++] = lw_cc%d;\n", cq);
@@ -3184,7 +3214,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 if (!g_no_elemsl && (in->a & 0x40000) && ks.k[ks.n-1] == (unsigned char)(K_SVIEW + ((in->a >> 20) & 0xff))) break;
                 if (!g_no_elemsl && !(in->a & 0x40000) && ks.k[ks.n-1] == K_SL && ks.ve[ks.n-1] > 1 &&
                     ks.ve[ks.n-1] == (unsigned char)(in->a & 0xff)) {
-                    if (in->a & 0x10000) ks.fl[ks.n-1] = 1;
+                    if (in->a & 0x10000) ks.fl[ks.n-1] = CBE_FL_FLT;
+                    else if ((in->a & 0x20000) && (in->a & 0xff) < 8) ks.fl[ks.n-1] = CBE_FL_SGN;   // ★ 시뮬레이터와 같은 규칙
                     break;
                 }
                 if (in->a & 0x40000) {
@@ -3203,7 +3234,8 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                              " lw_panic(\"view_array: slice length is not a multiple of the element size\");\n"
                              "    ss[ssp-1].n /= %du;\n", ez, ez);
                 ks.ve[ks.n-1] = (unsigned char)ez;
-                if (in->a & 0x10000) ks.fl[ks.n-1] = 1;   // ★ 부동 원소 표식
+                if (in->a & 0x10000) ks.fl[ks.n-1] = CBE_FL_FLT;   // ★ 부동 원소 표식
+                else if ((in->a & 0x20000) && ez < 8) ks.fl[ks.n-1] = CBE_FL_SGN;   // ★ 부호 있는 원소 표식
                 break;
             }
             case IRW_SWAP: {
@@ -3475,7 +3507,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
             }
             case IRW_RADD: case IRW_RMUL: case IRW_RMIN: case IRW_RMAX: {
                 int ln = (int)ks.vn[ks.n-1];
-                if (ks.fl[ks.n-1]) {
+                if (ks.fl[ks.n-1] == CBE_FL_FLT) {
                     // ★★★ **부동 벡터 축약 → f64.** 레인 비트를 double 로 보고 접는다.
                     int ez = (int)ks.ve[ks.n-1]; if (ez != 4 && ez != 8) ez = 4;
                     const char *finit = in->w == IRW_RMUL ? "1.0" : "0.0";
@@ -3760,7 +3792,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                         else   // 방금 만든 레코드 — 슬라이스는 **스택 칸**에 있다
                             fprintf(out, "    rsp--; ss[ssp++] = rssl[rsp][%d];\n", sl0);
                         ks.n--; ks.o[ks.n] = -1; ks.k[ks.n] = K_SL;
-                        ks.ve[ks.n] = ir->structs[sx0].f[sl0].elem; ks.vn[ks.n] = 0; ks.fl[ks.n] = 0;
+                        ks.ve[ks.n] = ir->structs[sx0].f[sl0].elem; ks.vn[ks.n] = 0; ks.fl[ks.n] = cbe_sf_fl(&ir->structs[sx0].f[sl0]);
                         ks.n++;
                         break;
                     }

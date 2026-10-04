@@ -446,10 +446,16 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
     return false;
 }
  void ir_pipe(ir_ctx_t *c, const low_cst_t *f, proven_size_t first, bool as_value) {
+    const proven_i64 PU64 = (proven_i64)(IR_TY_KNOWN | 64);   // ★ 숨은 첨자의 비교·덧셈 표시(아래 i · j 주석)
         proven_size_t b = form_block_index(f);
         if (b == f->nkids || b <= first) { ir_fail(c, "E-IR-UNSUP", "`pipe` needs a source and a `do … end` block", f->line); return; }
         if (c->nlocals + 4 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "pipe: too many locals", f->line); return; }
         proven_size_t sv = c->nlocals++, i = c->nlocals++, j = c->nlocals++, acc = c->nlocals++;
+        // ★ 숨은 첨자(i · j)와 세는 수는 u64 다 — 비교·덧셈도 u64 로 낸다(2026-10-04). 타입 없이(0) 내면 분석이 부호를 몰라
+        //   `i < len src` · `j < len out` 을 사실로 못 세웠고, `collect into` 의 읽기·쓰기마다 경계 검사가 남았다.
+        c->locals[i].ty = (ityp_t){ .known = true, .bits = 64, .sign = false };
+        //   (j 에는 타입을 안 준다 — `count` 의 j 는 상계가 안 서서, 타입을 주면 그 덧셈이 원소마다 넘침 검사를 달았다(체 ×1.4).
+        //    collect 의 j 는 비교·덧셈에 u64 표시를 직접 달아 사실을 세운다.)
         c->locals[sv].name = (proven_u8str_view_t){ 0 };
         c->locals[i].name  = (proven_u8str_view_t){ 0 };
         c->locals[j].name  = (proven_u8str_view_t){ 0 };
@@ -708,7 +714,7 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
             proven_size_t tk_brz[9]; proven_size_t ntk = 0;
             for (proven_size_t z = 0; z < nst; z++)
                 if (st[z].kind == ST_TAKE) {
-                    ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, st[z].n); ir_emit(c, IRW_LT, 0);
+                    ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, st[z].n); ir_emit(c, IRW_LT, PU64);
                     tk_brz[ntk++] = ir_emit(c, IRW_BRZ, 0);   // 소진 → pull 건너뛰고 종료로
                 }
             // ★ **collect 의 sink-full 단락도 pull 전에** — out 이 꽉 차면(§6.5 유계 싱크) 더는 pull 안 한다.
@@ -725,7 +731,7 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
                 ir_at(c, past)->a = (proven_i64)c->code.len;
             }
         } else {
-            ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_LOAD, (proven_i64)sv); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
+            ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_LOAD, (proven_i64)sv); ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, PU64);
         }
         proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
 
@@ -744,9 +750,9 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
                 skips[nskip++] = ir_emit(c, IRW_BRZ, 0);          // 통과 못하면 이 원소는 버린다
             } else if (st[z].kind == ST_TAKE) {
                 // 이미 n 개를 통과시켰으면 **루프를 곧장 빠져나온다**(상류 중지).
-                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, st[z].n); ir_emit(c, IRW_LT, 0);
+                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, st[z].n); ir_emit(c, IRW_LT, PU64);
                 proven_size_t go = ir_emit(c, IRW_BRZ, 0);        // 남은 몫이 없으면 탈출
-                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0);
+                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, PU64);
                 ir_emit(c, IRW_STORE, (proven_i64)st[z].ctr);
                 proven_size_t pass = ir_emit(c, IRW_BR, 0);
                 ir_at(c, go)->a = (proven_i64)c->code.len;
@@ -768,13 +774,13 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
             } else if (st[z].kind == ST_ZIP) {
                 // 짧은 쪽이 끝나면 **전체 종료**(단락) — 그래야 두 흐름의 짝이 항상 맞는다
                 ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_LOAD, (proven_i64)st[z].oth);
-                ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
+                ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, PU64);
                 proven_size_t go2 = ir_emit(c, IRW_BRZ, 0);
                 ir_emit(c, IRW_LOAD, (proven_i64)xv);
                 ir_emit(c, IRW_LOAD, (proven_i64)st[z].oth); ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_INDEX, 0);
                 if (st[z].hasctx) ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctx);
                 ir_emit(c, IRW_CALL, (proven_i64)st[z].op); ir_emit(c, IRW_STORE, (proven_i64)xv);
-                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0);
+                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, PU64);
                 ir_emit(c, IRW_STORE, (proven_i64)st[z].ctr);
                 proven_size_t pass2 = ir_emit(c, IRW_BR, 0);
                 ir_at(c, go2)->a = (proven_i64)c->code.len;
@@ -782,9 +788,9 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
                 ir_at(c, pass2)->a = (proven_i64)c->code.len;
             } else if (st[z].kind == ST_SKIP) {
                 // 앞 n 개는 버린다(세면서). 단락이 아니다 — 뒤 원소는 계속 흐른다.
-                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, st[z].n); ir_emit(c, IRW_LT, 0);
+                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, st[z].n); ir_emit(c, IRW_LT, PU64);
                 proven_size_t keep = ir_emit(c, IRW_BRZ, 0);      // 이미 다 버렸으면 통과
-                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0);
+                ir_emit(c, IRW_LOAD, (proven_i64)st[z].ctr); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, PU64);
                 ir_emit(c, IRW_STORE, (proven_i64)st[z].ctr);
                 skips[nskip++] = ir_emit(c, IRW_BR, 0);           // 이 원소는 버린다 → i++ 로
                 ir_at(c, keep)->a = (proven_i64)c->code.len;
@@ -801,7 +807,7 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
             ir_emit_sinkfull_guard(c, ou, j);   // ★ X-0065 — 넘침은 «받는 자리가 찼다» 로 이름을 대고 멈춘다
             ir_emit(c, IRW_LOAD, (proven_i64)ou); ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_LOAD, (proven_i64)xv);
             ir_emit(c, IRW_ISTORE, 0);
-            ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0); ir_emit(c, IRW_STORE, (proven_i64)j);
+            ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, PU64); ir_emit(c, IRW_STORE, (proven_i64)j);
         } else if (term == 2) {
             ir_emit(c, IRW_LOAD, (proven_i64)j); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0); ir_emit(c, IRW_STORE, (proven_i64)j);
         } else if (term == 3 || term == 4) {
@@ -821,7 +827,7 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
             ir_emit(c, IRW_CALL, (proven_i64)term_op); ir_emit(c, IRW_STORE, (proven_i64)acc);
         }
         for (proven_size_t z = 0; z < nskip; z++) ir_at(c, skips[z])->a = (proven_i64)c->code.len;   // 버린 원소도 i++ 로
-        if (nexth == (proven_size_t)-1) { ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, 0); ir_emit(c, IRW_STORE, (proven_i64)i); }
+        if (nexth == (proven_size_t)-1) { ir_emit(c, IRW_LOAD, (proven_i64)i); ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_ADD, PU64); ir_emit(c, IRW_STORE, (proven_i64)i); }
         ir_emit(c, IRW_BR, (proven_i64)cond);
         ir_at(c, brz)->a = (proven_i64)c->code.len;
         for (proven_size_t z = 0; z < nsc; z++) ir_at(c, sc_break[z])->a = (proven_i64)c->code.len;
@@ -1447,6 +1453,11 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             proven_size_t it = c->nlocals++, idx = c->nlocals++;   // anonymous slots
             c->locals[it].name = (proven_u8str_view_t){ 0 };
             c->locals[idx].name = (proven_u8str_view_t){ 0 };
+            // ★★ 숨은 첨자는 u64 이고 비교·덧셈도 u64 로 낸다 (2026-10-04) — `ir_for_p1` 의 원천 루프와 같은 규칙.
+            //   전에는 타입 없이(0) 냈고, 분석이 부호를 몰라 `idx < len it` 를 사실로 세우지 못했다 ⇒ `for c hay do` 의
+            //   원소 읽기마다 경계 검사가 남았다(KMP 새 판이 옛 `while lt i n` 판보다 1.7 배 느렸던 까닭).
+            c->locals[idx].ty = (ityp_t){ .known = true, .bits = 64, .sign = false };
+            const proven_i64 U64f = (proven_i64)(IR_TY_KNOWN | 64);
             proven_size_t var = ir_local_declare(c, f->kids[1]->tok.lex, f->line);
             ir_run(c, f->kids, 2, b - 2);
             ir_emit(c, IRW_STORE, (proven_i64)it);
@@ -1456,7 +1467,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             ir_emit(c, IRW_LOAD, (proven_i64)idx);
             ir_emit(c, IRW_LOAD, (proven_i64)it);
             ir_emit(c, IRW_LEN, 0);
-            ir_emit(c, IRW_LT, 0);
+            ir_emit(c, IRW_LT, U64f);
             proven_size_t brz = ir_emit(c, IRW_BRZ, 0);
             ir_emit(c, IRW_LOAD, (proven_i64)it);
             ir_emit(c, IRW_LOAD, (proven_i64)idx);
@@ -1469,7 +1480,7 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             proven_size_t step = c->code.len;   // continue lands on the increment
             ir_emit(c, IRW_LOAD, (proven_i64)idx);
             ir_emit(c, IRW_CONST, 1);
-            ir_emit(c, IRW_ADD, 0);
+            ir_emit(c, IRW_ADD, U64f);   // idx < len ⇒ 안 넘친다(검사된 덧셈이 분석에 범위를 준다)
             ir_emit(c, IRW_STORE, (proven_i64)idx);
             ir_emit(c, IRW_BR, (proven_i64)cond);
             proven_size_t end = c->code.len;
@@ -2548,8 +2559,14 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
                     for (proven_size_t z = 1; z + 1 <= tw; z++) {
                         const low_cst_t *w = fld->kids[1 + z - 1];
                         if (!is_atom(w) || !veq(w->tok.lex, "slice")) continue;
-                        if (1 + z < fld->nkids && is_atom(fld->kids[1 + z]))
-                            s->f[s->nf].elem = ir_field_size(fld->kids[1 + z]->tok.lex);
+                        if (1 + z < fld->nkids && is_atom(fld->kids[1 + z])) {
+                            proven_u8str_view_t et_ = fld->kids[1 + z]->tok.lex;
+                            s->f[s->nf].elem = ir_field_size(et_);
+                            // ★ 원소의 부동·부호도 적는다(2026-10-04) — 빠른 길이 이 칸의 슬라이스를 읽을 때 부호를 늘리거나 부동으로 본다.
+                            if (s->f[s->nf].elem)
+                                s->f[s->nf].slmeta = (proven_i64)s->f[s->nf].elem | (ir_is_float_ty(et_) ? IR_FLT_BIT : 0) |
+                                                     (et_.size && et_.ptr[0] == (proven_u8)'i' ? IR_SGN_BIT : 0);
+                        }
                         break;
                     }
                 }

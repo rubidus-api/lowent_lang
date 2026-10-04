@@ -30,12 +30,13 @@ while IFS="$TAB" read -r file op args want; do
   # ★ 이 표는 **VM 과 네이티브가 같은 답을 내는가**를 잰다. 네이티브는 검사를 거치지 않으므로
   #   VM 쪽도 같은 조건에서 돌린다(`--unchecked`). 2026-09-16 부터 `--run` 은 기본으로
   #   `--check` 와 같은 검사를 돌려 거절하므로(결함 노트 #86), 일부러 거절당하는 픽스처가
-  #   이 표에 있으면 그 문을 열어야 한다.
+  #   이 표에 있으면 그 문을 열어야 한다. 2026-10-04 부터 `--emit-c` 도 같은 검사를 돌리므로
+  #   C 를 내는 쪽도 같은 문을 연다.
   got=$("$BIN" --run "$op" --unchecked "$file" $args </dev/null 2>&1 | tail -n 1 | sed -n 's/.*= \(-\{0,1\}[0-9][0-9]*\)$/\1/p')
   [ "$got" = "$want" ] || { bad "vm: $file $op $args → '$got' (기대 $want)"; continue; }
   exe="$W/$(echo "$file" | tr '/.' '__')"
   if [ ! -x "$exe" ]; then
-    "$BIN" --emit-c "$file" > "$exe.c" 2>/dev/null && "$CC" -O2 -w -o "$exe" "$exe.c" -lm -lpthread 2>/dev/null \
+    "$BIN" --emit-c --unchecked "$file" > "$exe.c" 2>/dev/null && "$CC" -O2 -w -o "$exe" "$exe.c" -lm -lpthread 2>/dev/null \
       || { bad "native: $file 을 C 로 내거나 컴파일하지 못했다"; continue; }
   fi
   # shellcheck disable=SC2086

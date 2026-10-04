@@ -558,7 +558,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
 //   전엔 일반 경계 검사(`slice index out of bounds on write`)가 멈춰, 무엇이 넘쳤는지 말하지 않았다.
 void ir_emit_sinkfull_guard(ir_ctx_t *c, proven_size_t out_local, proven_size_t idx_local) {
     ir_emit(c, IRW_LOAD, (proven_i64)idx_local); ir_emit(c, IRW_LOAD, (proven_i64)out_local);
-    ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, 0);
+    ir_emit(c, IRW_LEN, 0); ir_emit(c, IRW_LT, (proven_i64)(IR_TY_KNOWN | 64));   // ★ u64 첨자 — 분석이 `j < len out` 을 세운다
     proven_size_t full = ir_emit(c, IRW_BRZ, 0);
     proven_size_t ok = ir_emit(c, IRW_BR, 0);
     ir_at(c, full)->a = (proven_i64)c->code.len;

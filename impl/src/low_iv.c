@@ -551,6 +551,8 @@ static void iv_kill_local(ivstate_t *st, proven_size_t sl, bool keep_lenge) {
     st->lerel[sl]    = -1; st->lestr[sl]   = 0; st->leoff[sl] = 0;
     st->vlanesloc[sl] = 0;
     st->divofloc_s[sl] = -1;
+    st->prodloc_l[sl] = -1; st->prodloc_r[sl] = -1;
+    st->affloc_s[sl] = -1;
     iv_fact_kill(st, sl);           // 그 지역을 읽은 술어 기억도 죽는다
     // ★ **양방향**이다 — 이 지역을 *가리키는* 사실도 죽어야 한다. 한쪽만 죽이면
     //   "i < len a" 에서 a 가 바뀌었는데 i 가 여전히 작다고 믿는다.
@@ -576,6 +578,11 @@ static void iv_kill_local(ivstate_t *st, proven_size_t sl, bool keep_lenge) {
             st->slenle_t[k] = -1; st->slenle_str[k] = 0;
         }
         if (st->lerel[k]    == (proven_i32)sl) { st->lerel[k] = -1; st->lestr[k] = 0; st->leoff[k] = 0; }
+        // ★★ 출처도 **양방향**이다 (2026-10-04): `row = i·n` 은 i 나 n 이 바뀌는 순간 낡고, `q = s / c` 는 s 가 바뀌는 순간 낡는다.
+        //   나눗셈 출처는 이 줄이 없었다 — 원본이 바뀐 뒤에도 `q·c ≤ s` 를 믿을 수 있었다(이번에 곱 출처를 지역에 실으며 찾았다).
+        if (st->prodloc_l[k] == (proven_i32)sl || st->prodloc_r[k] == (proven_i32)sl) { st->prodloc_l[k] = -1; st->prodloc_r[k] = -1; }
+        if (st->divofloc_s[k] == (proven_i32)sl) st->divofloc_s[k] = -1;
+        if (st->affloc_s[k] == (proven_i32)sl) st->affloc_s[k] = -1;
     }
 }
 
@@ -701,6 +708,7 @@ static void iv_narrow_len(ivstate_t *st, proven_u8 op, proven_i32 lslot, iv_t rh
 //   써 놓아도 아무 일도 일어나지 않았다 — 도구는 "add a `requires`" 라고 조언하면서,
 //   정작 그 requires 를 **읽지 않고 있었다.**
  void iv_apply_rel_requires(ir_ctx_t *c, const low_cst_t *f, ivstate_t *e0) {
+    proven_i32 eqx[8], eqy[8]; int neq = 0;   // ★ `eq (len x) (len y)` 쌍 — 다 읽은 뒤 서로의 길이 사실을 나눈다(아래)
     for (proven_size_t i = 0; i + 3 < f->nkids; i++) {
         proven_size_t k; bool is_assume;
         if (!ir_requires_at(f, i, &k, &is_assume, NULL)) continue;
@@ -765,6 +773,15 @@ static void iv_narrow_len(ivstate_t *st, proven_u8 op, proven_i32 lslot, iv_t rh
                       veq(R2->kids[0]->tok.lex, "len") && is_atom(R2->kids[1]);
             if (lf && rf) {
                 const low_cst_t *sm = NULL, *bg = NULL; bool strict2 = false; bool got = false;
+                if (veq(op, "eq")) {
+                    bool f1, f2;
+                    proven_size_t s1 = ir_local_find(c, L2->kids[1]->tok.lex, &f1);
+                    proven_size_t s2 = ir_local_find(c, R2->kids[1]->tok.lex, &f2);
+                    if (f1 && f2 && s1 < IR_MAXLOCALS && s2 < IR_MAXLOCALS && s1 != s2 && neq < 8) {
+                        eqx[neq] = (proven_i32)s1; eqy[neq] = (proven_i32)s2; neq++;
+                        continue;
+                    }
+                }
                 if      (veq(op, "lt")) { sm = L2; bg = R2; strict2 = true;  got = true; }
                 else if (veq(op, "le")) { sm = L2; bg = R2; strict2 = false; got = true; }
                 else if (veq(op, "gt")) { sm = R2; bg = L2; strict2 = true;  got = true; }
@@ -837,6 +854,24 @@ static void iv_narrow_len(ivstate_t *st, proven_u8 op, proven_i32 lslot, iv_t rh
         else if (veq(op, "ge")) iv_put_lerel(e0, b, (proven_i32)a, false, 0);
         else if (veq(op, "eq")) { iv_put_lerel(e0, a, (proven_i32)b, false, 0);
                                   iv_put_lerel(e0, b, (proven_i32)a, false, 0); }
+    }
+    // ★★ **같은 길이는 같은 사실을 갖는다** (2026-10-04). `requires eq (len cur) (len prev)` 와 `requires lt (len b) (len prev)`
+    //   를 함께 적으면 `len b < len cur` 도 참이다 — 그런데 앞의 절은 아무 사실도 안 심었다(`eq` 는 수와 길이 사이만 읽었다).
+    //   편집 거리 새 판의 `cur` 색인 셋이 그래서 검사로 남았다. 두 번 돌면 사슬(셋 이상)도 닫힌다.
+    //   ☞ 건전성: 두 절 모두 진입에서 **강제된다**. 길이 칸은 하나라서 이미 사실이 있는 쪽은 덮지 않는다.
+    for (int pass = 0; pass < 2; pass++)
+        for (int q = 0; q < neq; q++)
+            for (int dir = 0; dir < 2; dir++) {
+                proven_i32 x = dir ? eqy[q] : eqx[q], y = dir ? eqx[q] : eqy[q];
+                if (e0->slenle_t[y] < 0 && e0->slenle_t[x] >= 0 && e0->slenle_t[x] != y) {
+                    e0->slenle_t[y] = e0->slenle_t[x]; e0->slenle_str[y] = e0->slenle_str[x];
+                }
+                if (e0->lenv[x].lo > e0->lenv[y].lo) { e0->lenv[y].lo = e0->lenv[x].lo; e0->lenv[y].wide = 0; }
+                if (!e0->lenv[x].wide && e0->lenv[x].hi < e0->lenv[y].hi) e0->lenv[y].hi = e0->lenv[x].hi;
+            }
+    for (int q = 0; q < neq; q++) {   // 남는 칸이면 서로를 «≤» 로 적는다(`v < len x` 인 값으로 y 를 색인할 때)
+        if (e0->slenle_t[eqx[q]] < 0) { e0->slenle_t[eqx[q]] = eqy[q]; e0->slenle_str[eqx[q]] = 0; }
+        if (e0->slenle_t[eqy[q]] < 0) { e0->slenle_t[eqy[q]] = eqx[q]; e0->slenle_str[eqy[q]] = 0; }
     }
 }
 // ★★★★★ **관계 사실은 수치 상계로 **닫혀야** 쓸모가 있다** (2026-08-19, http 에서 잡혔다).
@@ -1322,6 +1357,23 @@ static void iv_narrow(ivstate_t *st, proven_u8 op, proven_i32 slot, iv_t rhs, pr
         proven_i64 m = iv_margin(st, (proven_size_t)raff_s, st->lenlt[raff_s]);
         iv_put_lenlt(st, (proven_size_t)slot, st->lenlt[raff_s], false,
                      m - raff_c + ((e0_ == IRW_LT) ? 1 : 0));
+    } else if (op && slot >= 0 && (proven_size_t)slot < IR_MAXLOCALS &&
+               raff_s >= 0 && (proven_size_t)raff_s < IR_MAXLOCALS &&
+               (e0_ == IRW_LT || e0_ == IRW_LE) && st->lenofloc[raff_s] >= 0) {
+        // ★ 우변의 지역이 **길이 그 자체**일 때(`let m be len b` 뒤의 `for j count (add m 1)`) — 여백 0 인 «≤» 와 같다
+        //   (2026-10-04). 위 줄은 `lenlt` 만 보아 `j ≤ len b` 를 못 세웠고, 편집 거리 첫 줄 채우기의 검사가 남았다.
+        iv_put_lenlt(st, (proven_size_t)slot, st->lenofloc[raff_s], false,
+                     0 - raff_c + ((e0_ == IRW_LT) ? 1 : 0));
+    } else if (op && slot >= 0 && (proven_size_t)slot < IR_MAXLOCALS &&
+               rslot >= 0 && (proven_size_t)rslot < IR_MAXLOCALS && st->affloc_s[rslot] >= 0 &&
+               (proven_size_t)st->affloc_s[rslot] < IR_MAXLOCALS && (e0_ == IRW_LT || e0_ == IRW_LE)) {
+        // ★ 우변이 **덧셈 출처를 든 지역**일 때(`end = m + c` 를 담은 숨은 끝값) — 위 두 줄과 같은 셈을 그 출처로 한다(2026-10-04).
+        proven_i32 b_ = st->affloc_s[rslot]; proven_i64 c_ = st->affloc_c[rslot];
+        if (st->lenlt[b_] >= 0)
+            iv_put_lenlt(st, (proven_size_t)slot, st->lenlt[b_], false,
+                         iv_margin(st, (proven_size_t)b_, st->lenlt[b_]) - c_ + ((e0_ == IRW_LT) ? 1 : 0));
+        else if (st->lenofloc[b_] >= 0)
+            iv_put_lenlt(st, (proven_size_t)slot, st->lenofloc[b_], false, 0 - c_ + ((e0_ == IRW_LT) ? 1 : 0));
     }
     if (slot < 0 || (proven_size_t)slot >= IR_MAXLOCALS || !op) return;
     iv_t *v = &st->loc[slot];
@@ -1525,6 +1577,9 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                     //   ☞ *정규화는 뜻을 안 바꾸어야 한다. 사실을 지우는 정규화는 뜻을 바꾼다.*
                     bool pro_rebind = (i < ir_prologue_end(d)) && src_slot < 0;
                     iv_t keep_elem = st->elemv[sl];
+                    // ★ 길이 구간도 같다 (2026-10-04) — 계약 `lt (len b) (len prev)` 가 준 «len prev ≥ 1» 이 `slice u64` 의
+                    //   프롤로그에서 지워져, `set (idx prev 0) …` 의 검사가 u64 에서만 남았다(같은 병의 셋째 자리).
+                    iv_t keep_lenv = st->lenv[sl];
                     // ★★★★★ **증가는 하한 관계를 죽이지 않는다** (2026-08-22, RFC-0053 §8).
                     //   `x + m ≤ v` 가 참인데 `v = v + c`(c ≥ 0)를 하면 그 부등식은 **여전히
                     //   참이다** — v 는 커지기만 했다. 그런데 무효화가 그것을 통째로 지웠다.
@@ -1560,9 +1615,20 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                     st->vlanesloc[sl] = stk[sp - 1].vlanes;   // ★ 레인 수도 값을 따라간다
                     st->divofloc_s[sl] = stk[sp - 1].divof_s;  // ★ 나눗셈 출처도
                     st->divofloc_c[sl] = stk[sp - 1].divof_c;
+                    // ★ 자기 자신을 가리키는 출처는 싣지 않는다 — `set s (div s 6)` 뒤의 s 는 «s / 6» 이 아니다.
+                    if (st->divofloc_s[sl] == (proven_i32)sl) st->divofloc_s[sl] = -1;
+                    // ★★ 곱의 출처도 값을 따라간다 (2026-10-04) — `let row be mul i n` 뒤의 `add row k` 가 행우선 규칙에 닿는다.
+                    //   전에는 곱을 이름에 담는 순간 출처가 사라져 matmul 을 식을 펴서 적어야 했다.
+                    st->prodloc_l[sl] = stk[sp - 1].prod_l; st->prodloc_r[sl] = stk[sp - 1].prod_r;
+                    if (st->prodloc_l[sl] == (proven_i32)sl || st->prodloc_r[sl] == (proven_i32)sl ||
+                        st->prodloc_l[sl] < 0 || st->prodloc_r[sl] < 0) { st->prodloc_l[sl] = -1; st->prodloc_r[sl] = -1; }
+                    // ★ 덧셈 출처도 (2026-10-04) — `for j count (add m 1)` 의 숨은 끝값이 «m + 1» 임을 좁히기가 알아야 한다.
+                    st->affloc_s[sl] = stk[sp - 1].aff_s; st->affloc_c[sl] = stk[sp - 1].aff_c;
+                    if (st->affloc_s[sl] == (proven_i32)sl || st->affloc_c[sl] == 0) st->affloc_s[sl] = -1;
                     st->lenofloc[sl] = stk[sp - 1].lenof;   // ★ `let n be len s` — 그 사실도 값을 따라간다
                     // ★ 슬라이스를 재바인딩하면 원소 구간도 **출처를 따라간다**(`let t be s`).
                     st->elemv[sl] = pro_rebind ? keep_elem : src_elem;
+                    if (pro_rebind) st->lenv[sl] = keep_lenv;
                     // ★★★ **사실은 값을 따라간다** (2026-07-30) — `var lru_idx be j` 에서 `j < cap` 이면
                     //   `lru_idx < cap` 이다. 이 한 줄이 없어서 인덱스를 **다른 이름에 담는 순간**
                     //   경계 증명이 죽었다(lru 벤치의 남은 검사 다섯 중 넷이 그것이었다).
@@ -1673,6 +1739,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                 res.lenof = ((proven_size_t)in->a < IR_MAXLOCALS) ? st->lenofloc[in->a] : -1;
                 if ((proven_size_t)in->a < IR_MAXLOCALS) {
                     res.divof_s = st->divofloc_s[in->a]; res.divof_c = st->divofloc_c[in->a];
+                    res.prod_l = st->prodloc_l[in->a]; res.prod_r = st->prodloc_r[in->a];
                 }
                 break;
             // ★★★★★ **배타 수정 참조를 넘기는 순간 그 지역은 남의 것이 된다** (2026-08-13, D0a).
@@ -1957,7 +2024,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                 if (ops[0].pred &&
                     ((ops[0].slot >= 0 && (proven_size_t)ops[0].slot < IR_MAXLOCALS) ||
                      (ops[0].lenpred >= 0 && (proven_size_t)ops[0].lenpred < IR_MAXLOCALS))) {
-                    iv_t v = ops[0].lenpred >= 0 ? st->lenv[ops[0].lenpred] : st->loc[ops[0].slot];
+                    iv_t v = ops[0].slot >= 0 ? st->loc[ops[0].slot] : st->lenv[ops[0].lenpred];   // ★ 지역이 있으면 지역(옛 차례 그대로)
                     iv_t r = ops[0].rhs;
                     bool ok = false;
                     switch (ops[0].pred) {
@@ -2028,6 +2095,9 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
                 // 상수든 다른 지역이든 상관없다(`lt i n` 에서 n ≤ 100 이면 i ≤ 99).
                 if (ops[0].slot >= 0) {
                     res.pred = (proven_u8)in->w; res.slot = ops[0].slot; res.rhs = ops[1].v;
+                    // ★ 좌변 지역이 `len g` 를 담았으면(`let n be len s`) 술어는 **g 의 길이**에 관한 것이기도 하다 (2026-10-04).
+                    //   전에는 `guard ge n 2` 가 n 만 좁히고 «len s ≥ 2» 를 안 세워 `set (idx s 1) 0` 의 검사가 남았다(체 새 판).
+                    res.lenpred = ops[0].lenof;
                     res.lenlt = ops[1].lenof;   // ★ 우변이 `len g` 였으면 그 이름을 술어에 실어 보낸다
                     res.rslot = ops[1].slot;    // ★ R5: 우변이 **지역**이면 관계 사실이 된다
                     res.aff_s = ops[0].aff_s; res.aff_c = ops[0].aff_c;
@@ -2790,6 +2860,8 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
         e0.lenge_p[i] = -1; e0.lenge_q[i] = -1;
         e0.slenle_t[i] = -1; e0.slenle_str[i] = 0;
         e0.divofloc_s[i] = -1; e0.divofloc_c[i] = 0;
+        e0.prodloc_l[i] = -1; e0.prodloc_r[i] = -1;
+        e0.affloc_s[i] = -1; e0.affloc_c[i] = 0;
         // ★★★★★ **길이에는 상한이 있다** (2026-08-27, WO-0131 — 소유자 결정).
         //   `IV_LEN` 의 hi 는 INT64_MAX 였고 그것은 *"음수가 아니다"* 라는 **하한의
         //   자리 표시자**이지 상계가 아니었다(§7148 이 그렇게 경고한다).
@@ -2885,6 +2957,19 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
                             }                                                              \
                             if (ent[_t].lenofloc[_i] != (S).lenofloc[_i] && ent[_t].lenofloc[_i] != -1) { \
                                 ent[_t].lenofloc[_i] = -1; changed = true;                 \
+                            }                                                              \
+                            /* ★ 출처(곱 · 나눗셈)도 두 경로가 같을 때만 산다 (2026-10-04). */ \
+                            if (ent[_t].prodloc_l[_i] != -1 && (ent[_t].prodloc_l[_i] != (S).prodloc_l[_i] || \
+                                                                ent[_t].prodloc_r[_i] != (S).prodloc_r[_i])) { \
+                                ent[_t].prodloc_l[_i] = -1; ent[_t].prodloc_r[_i] = -1; changed = true; \
+                            }                                                              \
+                            if (ent[_t].affloc_s[_i] != -1 && (ent[_t].affloc_s[_i] != (S).affloc_s[_i] || \
+                                                               ent[_t].affloc_c[_i] != (S).affloc_c[_i])) { \
+                                ent[_t].affloc_s[_i] = -1; changed = true;                 \
+                            }                                                              \
+                            if (ent[_t].divofloc_s[_i] != -1 && (ent[_t].divofloc_s[_i] != (S).divofloc_s[_i] || \
+                                                                 ent[_t].divofloc_c[_i] != (S).divofloc_c[_i])) { \
+                                ent[_t].divofloc_s[_i] = -1; changed = true;               \
                             }                                                              \
                             /* ★ §8-23 — 슬라이스끼리의 길이 사실도 이제 본문에서 심는다(가드).  \
                                그러니 합류에서 **두 경로가 같을 때만** 산다. 엄격은 둘 다일 때만. */ \

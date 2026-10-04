@@ -284,6 +284,8 @@ typedef struct {
     //   놓고 나중에 쓴다(`bench_lru`). 값에만 실으면 store/load 한 번에 사라진다 —
     //   `lenlt`·`aff_s` 가 이미 같은 이유로 슬롯 배열을 갖는다.
     proven_i32 divofloc_s[IR_MAXLOCALS]; proven_i64 divofloc_c[IR_MAXLOCALS];
+    proven_i32 prodloc_l[IR_MAXLOCALS], prodloc_r[IR_MAXLOCALS];
+    proven_i32 affloc_s[IR_MAXLOCALS]; proven_i64 affloc_c[IR_MAXLOCALS];   // ★ 이 지역은 `지역 s + c` 다(트랩 덧셈, c ≠ 0) — 아니면 -1 (2026-10-04)   // ★ 이 지역은 `지역 l * 지역 r` 이다(트랩 곱) — 아니면 -1 (2026-10-04)
     iv_t lenv[IR_MAXLOCALS];
     // ★★★ **배열 내용 도메인** (R5 잔여): elemv[k] = 슬라이스 지역 k 의 **모든 원소**가 드는 구간.
     //   `requires elem_lt s N` 이 심고, `index s i` 가 ⊤ 대신 이 구간을 낸다. 슬라이스에 쓰면

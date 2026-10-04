@@ -61,6 +61,42 @@
       돌려 보고 결과가 차례마다 같은지 본다. `limit <수>` 를 붙이면 그 수까지만 돈다. 차례에 따라 결과가 갈리면
       그 시험은 실패한다(`E-SCHED-NONDET`). 뜻은 #cref("6.4.13") (4) 가 정한다.
     ]
+    #para("3e")[
+      **출력에 이름을 붙일 수 있다** — `output <이름> <타입> .`. 그 이름은 몸의 지역이고 **0 으로 시작한다**:
+      수는 `0` · `0.0`, `bool` 은 `false`, `option` 은 `none`, 구조체는 칸마다 그 칸의 0 이다. 몸은 그 이름에 쓰고
+      `return <이름> .` 으로 돌려준다(값을 돌려주는 다른 op 과 같이 모든 길이 `return` 으로 끝나야 한다 — #cref("6.5.5") (3)).
+      - 가름: 이름 공간이 하나이므로(#cref("6.10")) `output` 뒤의 첫 낱말이 **타입 이름이면** 출력 전체가 타입이고,
+      타입 이름이 아니고 그 뒤가 타입 하나이면 그 낱말이 결과의 이름이다.
+      - 0 이 정해지지 않은 타입(슬라이스 · `result` · `owned` · enum · newtype · 제네릭 매개변수, 그런 칸을 가진 구조체)에는
+      이름을 붙일 수 없다(`E-RESULT-NOZERO`). 그런 출력은 이름 없이 적고 값을 돌려준다.
+      - 몸이 없는 op(`extern` · trait 의 메서드 서명)은 결과에 이름을 붙일 수 없다(`E-RESULT-NAMED`).
+      - 배열을 돌려주는 출력(`output <이름> array <타입> <길이> .`)은 아직 없다(`E-TYPE-ARRAY`) — 부르는 쪽이 자리를 주는
+      규약과 함께 온다. 그때까지는 `mut slice` 입력을 받아 채운다.
+      - `ensures` 는 결과를 여전히 `ret` 으로 가리킨다(#cref("6.4.12")). 결과의 이름은 몸 안에서만 보인다.
+    ]
+    #ex("이름 붙은 결과는 0 에서 시작한다", "module ex_named_result .
+
+def struct span do
+  lo u64 .
+  hi u64 .
+  seen bool .
+end
+
+export fn bounds input xs slice u64 . output s span .
+do
+  for x xs do
+    if or (not (field s seen)) (lt x (field s lo)) . do set (field s lo) x . end
+    if gt x (field s hi) . do set (field s hi) x . end
+    set (field s seen) true .
+  end
+  return s .
+end")
+    #rejected("0 이 정해지지 않은 타입에 이름을 붙였다", "module ex_named_nozero .
+
+fn first input xs slice u8 . output r slice u8 .
+do
+  return xs .
+end", "E-RESULT-NOZERO")
     #ex("op 의 선언", "module ex_op .
 
 export fn twice input n u32 . output u32 .

@@ -146,10 +146,10 @@ pipe	한 줄기로 흘린다 — **한 번의 훑기**다
 pop	뒤에서 하나 뺀다
 pow	거듭제곱
 prefetch	곧 쓸 자리를 미리 끌어 온다
-proc_kill	띄운 프로그램을 강제로 끝낸다 — POSIX SIGKILL · Windows TerminateProcess. 손자는 끄지 않는다(RFC-0136)
+proc_kill	띄운 프로그램을 강제로 끝낸다 — POSIX SIGKILL · Windows TerminateProcess. 손자는 끄지 않는다
 proc_poll	안 막고 확인한다 — 끝났으면 종료 상태(낮은 32 비트 = 코드 · 비트 32 = 신호), 아직이면 UINT64_MAX
 proc_read	띄운 프로그램의 출력(표준 출력 + 오류)을 안 막고 읽는다 — n 바이트 · 0 = 지금은 없다 · none = 끝
-proc_spawn	NUL 로 이은 인자 목록으로 프로그램을 띄운다 — 표준 입력은 비고 출력은 파이프로 모인다(RFC-0136)
+proc_spawn	NUL 로 이은 인자 목록으로 프로그램을 띄운다 — 표준 입력은 비고 출력은 파이프로 모인다
 proc_wait	띄운 프로그램이 끝날 때까지 기다리고 핸들을 닫는다 — 종료 상태
 push	뒤에 붙인다
 r_read	reactor 로 읽는다

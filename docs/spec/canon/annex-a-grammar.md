@@ -210,7 +210,7 @@ test                test <이름> [schedule <절>] do <폼>* end           end
 expect              expect <조건> .           (시험 블록의 단언)         .
 input               input [comptime] <이름> <타입> .
 using               using <이름> <타입> .     (op 이 깎아 쓰는 얼로케이터) .
-output              output <타입> .
+output              output <타입> .   |   output <이름> <타입> .     (이름 붙은 결과 — 0 에서 시작하는 지역, §6.4.1 (3e))
 effects             effects <원자>* .
 access              access <이름> <모드> .
 parallel            parallel <이름> <모드> .

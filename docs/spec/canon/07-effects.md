@@ -559,7 +559,7 @@ end
 
 (2) 시작 자리가 건네받을 수 있는 권한은 **닫힌 열**이다 — `args` · `env` · `io` ·
       `allocator` · `heap` · `file_system` · `net` · `process` · `tty` · `clock` · `random` · `atomic`.
-      (`process` — 다른 프로그램을 띄우고 지켜보는 권리, RFC-0136.)
+      (`process` — 다른 프로그램을 띄우고 지켜보는 권리.)
       그 밖의 권한을 시작 자리가 요구하면 거부된다(`E-ENTRY-CAP`) — 아무도 줄 수
       없는 권리를 적는 것은 장식이고, **장식은 거짓말이다.**
 

@@ -1,0 +1,66 @@
+rem named results (RFC-0132 P4a) — `output <name> <type> .` is a local of the body that starts at ZERO: a number 0, a bool false,
+rem an option none, a struct all its fields' zeros (nested structs too). The body writes it and returns it. VM and native agree.
+module vm_named_result .
+
+def struct inner do
+  a i32 .
+  f f64 .
+end
+
+export def struct span do
+  lo u64 .
+  hi u64 .
+  seen bool .
+  o option u64 .
+  inn inner .
+end
+
+fn bounds input xs slice u64 . output s span .
+do
+  for x xs do
+    if or (not (field s seen)) (lt x (field s lo)) . do set (field s lo) x . end
+    if gt x (field s hi) . do set (field s hi) x . end
+    set (field s seen) true .
+  end
+  return s .
+end
+
+export fn lo_of input xs slice u64 . output u64 . do
+  let s be span bounds xs .
+  return field s lo .
+end
+
+export fn hi_plus_zero input xs slice u64 . output u64 . do
+  let s be span bounds xs .
+  return add (field s hi) (cast u64 (field (field s inn) a)) .
+end
+
+export fn seen_of input xs slice u64 . output u64 . do
+  let s be span bounds xs .
+  if field s seen . do return 1 . end
+  return 0 .
+end
+
+export fn total input xs slice u64 . output t u64 .
+do
+  for x xs do
+    set t (add t x) .
+  end
+  return t .
+end
+
+export fn untouched output b u64 . do
+  return b .
+end
+
+export fn maybe input n u64 . output r option u64 .
+do
+  if gt n 3 . do set r (some n) . end
+  return r .
+end
+
+export fn maybe_or input n u64 . output u64 . do
+  let o be option u64 maybe n .
+  if is_some o . do return some_value o . end
+  return 99 .
+end

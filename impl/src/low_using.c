@@ -730,7 +730,7 @@ void low_using(low_parse_result_t *pr, proven_allocator_t node_alloc, proven_all
 //   strict 이면 옛 모양은 `E-LET-OLDFORM`, 타입 없는 묶기는 `E-LET-NOTYPE`(X-0074 — `let x be 300 .` 이 폭 검사를
 //   빠져나갔다).
 // ═══════════════════════════════════════════════════════════════════════════════════════════
-typedef struct { proven_u8str_view_t name, mod; proven_size_t arity; } dt_tname_t;
+typedef struct { proven_u8str_view_t name, mod; proven_size_t arity; const low_cst_t *form; } dt_tname_t;
 typedef struct {
     low_parser_t p;
     dt_tname_t *tn; proven_size_t ntn, ctn;
@@ -756,7 +756,9 @@ static const char *const DT_PRE1[] = { "slice","mut","owned","ref","mut_ref","op
 //   남의 모듈 타입을 맨이름으로 쓰는 것은 어차피 오류(E-VISIBILITY — `m.t` 로 쓴다)라, 되짚기는 **어느 오류를
 //   내는가** 만 정한다. 그래서 그 이름을 선언한 모듈이 **하나뿐일 때만** 집는다(그러면 뒤에서 E-VISIBILITY 가
 //   제 원인을 말한다 — 매뉴얼 ch21 mistake_bare). 둘 이상이면 집지 않는다 — 링크 차례에 기대지 않는다.
+static const low_cst_t *g_dt_hit_form;   // ★ 마지막 dt_tname 이 집은 선언 폼(매개변수면 NULL) — P4a 의 0 값이 칸을 읽는다
 static bool dt_tname(dt_ctx_t *c, proven_u8str_view_t v, proven_size_t *arity) {
+    g_dt_hit_form = NULL;
     proven_u8str_view_t b = us_bare(v), q = us_qual(v);
     for (proven_size_t i = 0; !q.size && i < c->ntp; i++) if (proven_u8str_view_eq(c->tp[i], b)) { *arity = 0; return true; }
     if (q.size) {
@@ -764,11 +766,11 @@ static bool dt_tname(dt_ctx_t *c, proven_u8str_view_t v, proven_size_t *arity) {
         for (proven_size_t i = 0; i < c->nal; i++)                   // 가져오기 별칭(`use geom … as g`)을 푼다
             if (proven_u8str_view_eq(c->al[i].mod, c->curmod) && proven_u8str_view_eq(c->al[i].alias, qb)) { qb = c->al[i].target; break; }
         for (proven_size_t i = 0; i < c->ntn; i++)
-            if (proven_u8str_view_eq(c->tn[i].name, b) && proven_u8str_view_eq(c->tn[i].mod, qb)) { *arity = c->tn[i].arity; return true; }
+            if (proven_u8str_view_eq(c->tn[i].name, b) && proven_u8str_view_eq(c->tn[i].mod, qb)) { *arity = c->tn[i].arity; g_dt_hit_form = c->tn[i].form; return true; }
         return false;
     }
     for (proven_size_t i = 0; i < c->ntn; i++)
-        if (proven_u8str_view_eq(c->tn[i].name, b) && proven_u8str_view_eq(c->tn[i].mod, c->curmod)) { *arity = c->tn[i].arity; return true; }
+        if (proven_u8str_view_eq(c->tn[i].name, b) && proven_u8str_view_eq(c->tn[i].mod, c->curmod)) { *arity = c->tn[i].arity; g_dt_hit_form = c->tn[i].form; return true; }
     proven_size_t hit = (proven_size_t)-1, nhit = 0;
     for (proven_size_t i = 0; i < c->ntn; i++)
         if (proven_u8str_view_eq(c->tn[i].name, b)) {
@@ -776,7 +778,7 @@ static bool dt_tname(dt_ctx_t *c, proven_u8str_view_t v, proven_size_t *arity) {
             if (!same) nhit++;
             hit = i;
         }
-    if (nhit == 1) { *arity = c->tn[hit].arity; return true; }
+    if (nhit == 1) { *arity = c->tn[hit].arity; g_dt_hit_form = c->tn[hit].form; return true; }
     return false;
 }
 // kids[i..end) 에서 타입 하나가 끝나는 자리. 타입이 아니면 (proven_size_t)-1.
@@ -835,7 +837,8 @@ static void dt_collect(dt_ctx_t *c, const low_cst_t *f) {
         if (c->ntn) memcpy(nt, c->tn, sizeof(dt_tname_t) * c->ntn);
         c->tn = nt; c->ctn = nc;
     }
-    c->tn[c->ntn].name = us_bare(f->kids[1]->tok.lex); c->tn[c->ntn].mod = c->curmod; c->tn[c->ntn].arity = ar; c->ntn++;
+    c->tn[c->ntn].name = us_bare(f->kids[1]->tok.lex); c->tn[c->ntn].mod = c->curmod; c->tn[c->ntn].arity = ar;
+    c->tn[c->ntn].form = f; c->ntn++;
 }
 static void dt_diag(dt_ctx_t *c, const low_cst_t *at, const char *code, const char *msg) {
     low_diag_t d = { .sev = LOW_SEV_ERROR, .code = code, .msg = msg, .line = at->tok.line, .col = at->tok.col, .file = at->file };
@@ -1059,6 +1062,151 @@ static void dt_decl_core(dt_ctx_t *c, low_cst_t *f) {
     for (proven_size_t i = te; i < n; i++) nk[m++] = f->kids[i];
     (void)low_refit(&c->p, f, nk, m);
 }
+
+/* ══ RFC-0132 P4a — 이름 붙은 결과 `output r T .` (소유자 결정 P4-1 · 2026-10-01, 구현 2026-10-04) ══════════════════════════════
+ * 가름(C9): output 절이 통째로 타입이면 이름 없는 결과다. 첫 낱말이 **타입이 아니고** 나머지가 **타입 하나**면 그 낱말이 결과의
+ * 이름이다(이름 공간이 하나다 — 타입 이름이 아니면 이름). 이 패스는 링크 뒤라 모든 파일의 타입 선언이 보인다.
+ * 뜻(§7 리뷰 5): 이름 붙은 결과는 **0 으로 시작하는 지역**이고, 몸이 그것에 쓰고 `return r .` 로 돌려준다. 그래서 펼친다:
+ *     output r T .   →   output T .   +   몸 첫머리에   var r be T <T 의 0> .
+ * 뒤의 소비자(검사 · 타입 · 하강 · 두 뒤끝 · 계약)는 바뀌지 않는다 — 하강은 지금의 값 반환이다(P4b 가 결과 자리를 준다).
+ * 0: 정수 `0` · 부동 `0.0` · `bool` 은 `false` · `option` 은 `none` · 구조체는 칸마다 0(제네릭 · 배열 칸 · 0 없는 칸이면 거절).
+ * 0 이 없는 타입(슬라이스 · result · owned · enum · newtype …)은 `E-RESULT-NOZERO`. 배열 결과는 P4b 의 몫이라 `E-TYPE-ARRAY`.
+ * `ensures` 는 여전히 `ret` 으로 결과를 가리킨다 — `r` 은 몸의 지역이다. `--fmt` 는 이 패스를 지나지 않아 원래 표면을 찍는다. */
+static low_cst_t *dt_word(dt_ctx_t *c, const low_cst_t *model, const char *w) {
+    low_token_t t = model->tok;
+    t.lex = (proven_u8str_view_t){ .ptr = (const proven_u8 *)w, .size = strlen(w) };
+    t.kind = (w[0] >= '0' && w[0] <= '9') ? LOW_TOK_NUMBER : LOW_TOK_IDENT;
+    t.kw = t.kind == LOW_TOK_IDENT ? low_kw_lookup(t.lex) : LOW_KW_NONE;
+    t.aux = (proven_u8str_view_t){ 0 };
+    low_cst_t *a = low_node(&c->p, LOW_CST_ATOM, t);
+    if (a) a->synth = true;
+    return a;
+}
+static low_cst_t *dt_deep(dt_ctx_t *c, const low_cst_t *m, proven_u32 line) {
+    if (!m) return NULL;
+    low_token_t t = m->tok; t.line = line;
+    low_cst_t *n = low_node(&c->p, m->kind, t);
+    if (!n) return NULL;
+    n->closer = m->closer; n->synth = true; n->qual_mod = m->qual_mod;
+    if (m->nkids) {
+        low_cst_t **kk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * m->nkids, alignof(low_cst_t *)).value.ptr;
+        if (!kk) return NULL;
+        for (proven_size_t i = 0; i < m->nkids; i++) { kk[i] = dt_deep(c, m->kids[i], line); if (!kk[i]) return NULL; }
+        (void)low_refit(&c->p, n, kk, m->nkids);
+    }
+    return n;
+}
+static low_cst_t *dt_mk(dt_ctx_t *c, low_cst_kind_t kind, const low_cst_t *model, low_cst_t **k, proven_size_t n) {
+    low_cst_t *f = low_node(&c->p, kind, model->tok);
+    if (!f) return NULL;
+    low_cst_t **kk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (n ? n : 1), alignof(low_cst_t *)).value.ptr;
+    if (!kk) return NULL;
+    for (proven_size_t i = 0; i < n; i++) kk[i] = k[i];
+    (void)low_refit(&c->p, f, kk, n);
+    f->synth = true;
+    if (kind == LOW_CST_FORM) f->closer = LOW_TOK_DOT;
+    return f;
+}
+// k[ts..te) 타입의 0 을 out[*n..] 에 덧붙인다. 0 이 없으면 false.
+static bool dt_zero(dt_ctx_t *c, low_cst_t *const *k, proven_size_t ts, proven_size_t te, const low_cst_t *model,
+                    low_cst_t **out, proven_size_t cap, proven_size_t *n, int depth) {
+    static const char *const INTS[] = { "u8","i8","u16","i16","u32","i32","u64","i64","usize","isize","byte", NULL };
+    if (depth > 8 || ts >= te || *n + 2 > cap || !us_atom(k[ts]) || k[ts]->tok.kind != LOW_TOK_IDENT) return false;
+    proven_u8str_view_t w = k[ts]->tok.lex;
+    if (te == ts + 1 && dt_in(w, INTS)) { out[(*n)++] = dt_word(c, model, "0"); return true; }
+    if (te == ts + 1 && (us_eq(w, "f32") || us_eq(w, "f64"))) { out[(*n)++] = dt_word(c, model, "0.0"); return true; }
+    if (te == ts + 1 && us_eq(w, "bool")) { out[(*n)++] = dt_word(c, model, "false"); return true; }
+    if (us_eq(w, "option")) { out[(*n)++] = dt_word(c, model, "none"); return true; }
+    proven_size_t ar = 0;
+    if (te != ts + 1 || !dt_tname(c, w, &ar) || ar != 0 || !g_dt_hit_form) return false;
+    const low_cst_t *df = g_dt_hit_form;
+    low_kw_t dk = df->kids[0]->tok.kw;
+    if (dk == LOW_KW_TYPE) {                                          // `type a <타입>` — 별칭은 그 타입의 0
+        proven_size_t e = dt_type_end(c, df->kids, 2, df->nkids);
+        return e != (proven_size_t)-1 && dt_zero(c, df->kids, 2, e, model, out, cap, n, depth + 1);
+    }
+    if (dk != LOW_KW_STRUCT) return false;                            // enum · newtype · actor — 정해진 0 이 없다
+    const low_cst_t *blk = df->kids[df->nkids - 1];
+    if (blk->kind != LOW_CST_BLOCK || !blk->nkids) return false;
+    low_cst_t *fields[64]; proven_size_t nf = 0;
+    for (proven_size_t j = 0; j < blk->nkids; j++) {
+        const low_cst_t *m = blk->kids[j];
+        if (m->kind != LOW_CST_FORM || m->nkids < 2 || !us_atom(m->kids[0]) || nf >= 64) return false;
+        proven_size_t e = dt_type_end(c, m->kids, 1, m->nkids);
+        if (e == (proven_size_t)-1 || (us_atom(m->kids[1]) && us_eq(m->kids[1]->tok.lex, "array"))) return false;
+        low_cst_t *fk[64]; proven_size_t fn_ = 0;
+        fk[fn_++] = dt_deep(c, m->kids[0], model->tok.line);
+        if (!fk[0]) return false;
+        if (!dt_zero(c, m->kids, 1, e, model, fk, 64, &fn_, depth + 1)) return false;
+        fields[nf++] = dt_mk(c, LOW_CST_FORM, model, fk, fn_);
+    }
+    low_cst_t *bk = dt_mk(c, LOW_CST_BLOCK, model, fields, nf);
+    low_cst_t *sk[2] = { dt_deep(c, k[ts], model->tok.line), bk };
+    low_cst_t *lf = dt_mk(c, LOW_CST_FORM, model, sk, 2);
+    if (!bk || !lf || !sk[0]) return false;
+    lf->closer = LOW_TOK_EOF;                                         // `lit S do … end` — 블록이 제 `end` 를 가져온다
+    out[(*n)++] = dt_word(c, model, "lit");
+    out[(*n)++] = lf;
+    return true;
+}
+// 머리에서 결과의 이름을 뺀다 — 거절할 때도 뺀다(남겨 두면 검사기가 그 이름을 «모르는 타입» 으로 한 번 더 말한다).
+static void dt_drop_out_name(dt_ctx_t *c, low_cst_t *f, proven_size_t at) {
+    low_cst_t **hk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * f->nkids, alignof(low_cst_t *)).value.ptr;
+    if (!hk) return;
+    proven_size_t m = 0;
+    for (proven_size_t q = 0; q < f->nkids; q++) if (q != at) hk[m++] = f->kids[q];
+    (void)low_refit(&c->p, f, hk, m);
+}
+static void dt_named_result(dt_ctx_t *c, low_cst_t *f) {
+    if (c->migrate) return;
+    low_op_header_t h = low_op_header(f);
+    if (!h.form || h.out_e < h.out_s + 2) return;
+    const proven_size_t NO = (proven_size_t)-1;
+    low_cst_t *nm = f->kids[h.out_s];
+    if (!us_atom(nm) || nm->tok.kind != LOW_TOK_IDENT || nm->tok.kw != LOW_KW_NONE) return;
+    if (dt_type_end_h(c, f->kids, h.out_s, h.out_e, true) != NO) return;      // 첫 낱말이 타입이다 — 이름 없는 결과(또는 검사기의 몫)
+    if (dt_type_end_h(c, f->kids, h.out_s + 1, h.out_e, true) != h.out_e) return;  // 나머지가 타입 하나가 아니다 — 검사기가 말한다
+    if (!h.body) {
+        dt_diag(c, nm, "E-RESULT-NAMED", "a named result (`output <name> <type> .`) is a local of the op's body, starting at zero — an op "
+                "without a body (an `extern`, a trait method) has nowhere to keep it. Write the type alone: `output <type> .` (RFC-0132 P4a)");
+        dt_drop_out_name(c, f, h.out_s);
+        return;
+    }
+    if (us_atom(f->kids[h.out_s + 1]) && us_eq(f->kids[h.out_s + 1]->tok.lex, "array")) {
+        dt_diag(c, nm, "E-TYPE-ARRAY", "returning an array (`output <name> array <type> <length> .`) comes with RFC-0132 P4b, where the "
+                "caller gives the place to build it in. Today take a `mut slice` input and fill it (with a length contract)");
+        dt_drop_out_name(c, f, h.out_s);
+        return;
+    }
+    low_cst_t *z[256]; proven_size_t nz = 0;
+    if (!dt_zero(c, f->kids, h.out_s + 1, h.out_e, nm, z, 256, &nz, 0)) {
+        dt_diag(c, nm, "E-RESULT-NOZERO", "a named result starts at ZERO (RFC-0132 §7 review 5) and this type has no zero — a number is 0, "
+                "a `bool` false, an `option` none, a struct all its fields' zeros; a slice, `result`, `owned`, enum, newtype or generic "
+                "has none. Write the type alone (`output <type> .`) and return a value");
+        dt_drop_out_name(c, f, h.out_s);
+        return;
+    }
+    // var <name> be <타입> <0> .
+    low_cst_t *sk[300]; proven_size_t ns = 0;
+    sk[ns++] = dt_word(c, nm, "var");
+    sk[ns++] = dt_deep(c, nm, nm->tok.line);
+    sk[ns++] = dt_word(c, nm, "be");
+    for (proven_size_t q = h.out_s + 1; q < h.out_e && ns < 290; q++) sk[ns++] = dt_deep(c, f->kids[q], nm->tok.line);
+    for (proven_size_t q = 0; q < nz && ns < 299; q++) sk[ns++] = z[q];
+    for (proven_size_t q = 0; q < ns; q++) if (!sk[q]) return;
+    low_cst_t *st = dt_mk(c, LOW_CST_FORM, nm, sk, ns);
+    if (!st) return;
+    st->kids[0]->synth = true;
+    // 머리에서 이름을 빼고, 몸 첫머리에 끼운다
+    low_cst_t *body = h.body;
+    low_cst_t **bk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * (body->nkids + 1), alignof(low_cst_t *)).value.ptr;
+    if (!bk) return;
+    dt_drop_out_name(c, f, h.out_s);
+    bk[0] = st;
+    for (proven_size_t q = 0; q < body->nkids; q++) bk[q + 1] = body->kids[q];
+    (void)low_refit(&c->p, body, bk, body->nkids + 1);
+}
+
 static void dt_walk(dt_ctx_t *c, low_cst_t *nd) {
     if (!nd) return;
     if (nd->kind == LOW_CST_FORM && nd->nkids >= 3 && us_atom(nd->kids[0]) &&
@@ -1070,6 +1218,8 @@ static void dt_walk(dt_ctx_t *c, low_cst_t *nd) {
             if (us_atom(nd->kids[q]) && us_eq(nd->kids[q]->tok.lex, "comptime") && us_atom(nd->kids[q + 1]) &&
                 us_atom(nd->kids[q + 2]) && us_eq(nd->kids[q + 2]->tok.lex, "type"))
                 c->tp[c->ntp++] = nd->kids[q + 1]->tok.lex;
+    if (nd->kind == LOW_CST_FORM && nd->nkids >= 2 && us_atom(nd->kids[0]) &&
+        (nd->kids[0]->tok.kw == LOW_KW_FN || nd->kids[0]->tok.kw == LOW_KW_PROC)) dt_named_result(c, nd);
     for (proven_size_t i = 0; i < nd->nkids; i++) dt_walk(c, nd->kids[i]);
     c->ntp = save;
 }

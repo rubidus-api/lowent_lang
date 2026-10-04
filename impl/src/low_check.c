@@ -10926,7 +10926,8 @@ static void ck_narrower_decls(low_check_result_t *out, const low_parse_result_t 
                 // 선언 문장 안에서도(`var x using a be …` 는 다른 이름) — x 자신이 뒤에 쓰기 자리로 서면 바뀐다
                 if (o4_stmt_writes(d, x, tab, nt)) w = true;
             }
-            if (!w)
+            // ★ 이름 붙은 결과(RFC-0132 P4a)가 끼운 `var` 는 저자가 적은 문장이 아니다 — 한 번도 안 써도(0 을 돌려준다) 알리지 않는다.
+            if (!w && !d->kids[0]->synth)
                 warn(out, "W-VAR-NEVER-SET",
                      "this `var` is never changed — write `let` (a `let` cannot be reassigned, which is what this name already "
                      "does, and the interval analysis keeps its facts) — RFC-0113 O4", d->kids[0]->tok.line);

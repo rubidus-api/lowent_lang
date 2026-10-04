@@ -172,7 +172,22 @@ end
 
 `output` 뒤의 첫 낱말이 타입 이름이면 출력 전체가 타입이고(`output result u64 perr .`), 타입 이름이 아니면 결과의 이름이다.
 0 이 정해지지 않은 타입(슬라이스 · `result` · enum 같은 것)에는 이름을 붙일 수 없다(`E-RESULT-NOZERO`) --- 그런 출력은 이름
-없이 적고 값을 돌려준다. 배열을 돌려주는 출력은 아직 없다. `ensures` 는 여전히 `ret` 으로 결과를 가리킨다.
+없이 적고 값을 돌려준다. `ensures` 는 여전히 `ret` 으로 결과를 가리킨다.
+
+배열도 돌려줄 수 있다 --- `output r array u64 3 .`. 배열에는 값으로 돌려주는 길이 없어서 *부르는 쪽이 자리를 준다*. 부르는 쪽은
+결과를 이름에 묶고(`let s be array u64 3 squares n .`), 부름 받는 쪽은 그 이름의 바이트에 바로 짓는다. 그래서 식 한가운데서
+부를 수는 없다(`idx (squares n) 0` 은 `E-RESULT-PLACE`) --- 먼저 이름에 묶는다.
+
+```lowent
+fn squares input n u64 . output r array u64 3 .
+  requires le n 1000 .
+do
+  for i count u64 3 . do
+    set (idx r i) (mul (add n i) (add n i)) .
+  end
+  return r .
+end
+```
 
 == `neg` 만 단항이다
 

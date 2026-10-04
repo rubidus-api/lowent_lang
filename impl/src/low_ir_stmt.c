@@ -3673,10 +3673,14 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
             if (!ir_requires_at(f, j, &kk, &asum, &dbg) || asum) continue;
             if (kk + 2 >= f->nkids) continue;
             proven_u8str_view_t ow = f->kids[kk]->tok.lex;
-            bool ge = veq(ow, "ge"), gt = veq(ow, "gt");
-            if (!ge && !gt) continue;
+            bool ge = veq(ow, "ge"), gt = veq(ow, "gt"), eq = veq(ow, "eq");   // ★ `eq` 는 하한이자 상한이다(2026-10-04 — 배열 입력·결과 자리)
+            if (!ge && !gt && !eq) continue;
             const low_cst_t *L = f->kids[kk + 1], *R = f->kids[kk + 2];
             while (L && L->kind == LOW_CST_GROUP && L->nkids == 1) L = L->kids[0];
+            while (R && R->kind == LOW_CST_GROUP && R->nkids == 1) R = R->kids[0];
+            if (eq && R && R->kind == LOW_CST_FORM && R->nkids == 2 && is_atom(R->kids[0]) && veq(R->kids[0]->tok.lex, "len")) {
+                const low_cst_t *T = L; L = R; R = T;                     // 거울 `eq N (len s)`
+            }
             if (!(L && L->kind == LOW_CST_FORM && L->nkids == 2 && is_atom(L->kids[0]) &&
                   veq(L->kids[0]->tok.lex, "len"))) continue;
             proven_i64 nv;
@@ -3691,18 +3695,18 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
             if (!ir_requires_at(f, j, &kk, &asum, &dbg) || asum) continue;
             if (kk + 2 >= f->nkids) continue;
             proven_u8str_view_t ow = f->kids[kk]->tok.lex;
-            bool lt = veq(ow, "lt"), le = veq(ow, "le"), gt2 = veq(ow, "gt"), ge2 = veq(ow, "ge");
+            bool lt = veq(ow, "lt"), le = veq(ow, "le"), gt2 = veq(ow, "gt"), ge2 = veq(ow, "ge"), eq2 = veq(ow, "eq");
             const low_cst_t *L = f->kids[kk + 1], *R = f->kids[kk + 2];
             while (L && L->kind == LOW_CST_GROUP && L->nkids == 1) L = L->kids[0];
             while (R && R->kind == LOW_CST_GROUP && R->nkids == 1) R = R->kids[0];
             const low_cst_t *lenf = NULL, *num = NULL;
             bool strict = false;
-            if ((lt || le) && L && L->kind == LOW_CST_FORM && L->nkids == 2 && is_atom(L->kids[0]) &&
-                veq(L->kids[0]->tok.lex, "len") && is_atom(R)) {          // len s < N · len s ≤ N
+            if ((lt || le || eq2) && L && L->kind == LOW_CST_FORM && L->nkids == 2 && is_atom(L->kids[0]) &&
+                veq(L->kids[0]->tok.lex, "len") && is_atom(R)) {          // len s < N · len s ≤ N · len s = N
                 lenf = L; num = R; strict = lt;
-            } else if ((gt2 || ge2) && R && R->kind == LOW_CST_FORM && R->nkids == 2 &&
+            } else if ((gt2 || ge2 || eq2) && R && R->kind == LOW_CST_FORM && R->nkids == 2 &&
                        is_atom(R->kids[0]) && veq(R->kids[0]->tok.lex, "len") && is_atom(L)) {
-                lenf = R; num = L; strict = gt2;                           // N > len s · N ≥ len s
+                lenf = R; num = L; strict = gt2;                           // N > len s · N ≥ len s · N = len s
             }
             if (!lenf || !num) continue;
             proven_i64 nv;

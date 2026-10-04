@@ -158,6 +158,48 @@ let back be u8 narrow u8 wide .")
       op 의 입력 `input x array t n .` 은 길이가 정확히 `n` 인 `slice t` 를 받는다는 뜻이며, 그 길이는
       `requires eq (len x) n .` 과 같이 **진입에서 검사된다**.
     ]
+    #para("1c")[
+      op 은 배열을 **돌려줄 수 있다** — `output array t n .` 또는 이름을 붙여 `output r array t n .`(#cref("6.4.1") (3e)). 배열에는
+      값으로 돌려주는 길이 없으므로 **부르는 쪽이 자리를 준다**:
+      - 부르는 쪽은 결과를 이름에 묶는다 — `var x be array t n f a … .`(`let` 도 같다). 그 이름의 틀 안 바이트가 결과의 자리이고,
+      부름 받는 쪽은 거기에 바로 짓는다(베끼지 않는다).
+      - 같은 배열을 돌려주는 op 안에서 `return g … .` 은 자기 자리를 그대로 넘긴다.
+      - 그 밖의 자리(식의 한가운데 · 다른 부름의 인자 · `copy` 의 원천)에서 배열을 돌려주는 op 을 부르면 자리가 없으므로
+      번역이 거부된다(`E-RESULT-PLACE`). 먼저 이름에 묶는다.
+      - 이름 붙은 결과는 0 에서 시작한다(칸마다 0). 이름 없는 결과의 `return v .` 는 `v` 를 자리에 베껴 돌려준다. 이것은 블록 안의
+      `return` 이어야 한다 — `guard … else return v .` 처럼 블록 밖이면 거부된다(`E-RESULT-PLACE`). 그런 op 은 결과에 이름을 붙인다.
+      - 원소는 수 타입이고 길이는 정수 리터럴이다(그 밖은 `E-TYPE-ARRAY`).
+    ]
+    #ex("배열을 돌려주는 op — 부르는 쪽이 자리를 준다", "module ex_array_result .
+
+fn squares input n u64 . output r array u64 3 .
+  requires le n 1000 .
+do
+  for i count u64 3 . do
+    set (idx r i) (mul (add n i) (add n i)) .
+  end
+  return r .
+end
+
+export fn total input n u64 . output u64 .
+  requires le n 1000 .
+do
+  let s be array u64 3 squares n .
+  return add (add (idx s 0) (idx s 1)) (idx s 2) .
+end")
+    #rejected("배열을 돌려주는 op 을 식 한가운데서 부른다 — 결과의 자리가 없다", "module ex_array_result_expr .
+
+fn squares input n u64 . output r array u64 3 .
+  requires le n 1000 .
+do
+  return r .
+end
+
+export fn first input n u64 . output u64 .
+  requires le n 1000 .
+do
+  return idx (squares n) 0 .
+end", "E-RESULT-PLACE")
     #para("2")[
       `slice t` 는 타입 `t` 의 값이 연속으로 놓인 구간을 가리키는 것이며, **시작과 길이를
       함께 갖는다.**

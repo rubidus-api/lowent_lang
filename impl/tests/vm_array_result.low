@@ -1,0 +1,69 @@
+rem array results (RFC-0132 P4b) — an op returns `array T N` into a place the CALLER gives. `var x be array T N f … .` passes x's
+rem frame bytes; `return g … .` inside an op returning the same array passes its own place on; a named result starts at zero.
+module vm_array_result .
+
+fn ramp input a u8 . output r array u8 4 .
+  requires le a 200 .
+do
+  set (idx r 0) a .
+  set (idx r 3) (add a 3) .
+  return r .
+end
+
+fn twice input a u8 . output array u8 4 .
+  requires le a 199 .
+do
+  return ramp (add a 1) .
+end
+
+fn lit4 output array u8 4 .
+do
+  var b be lit array u8 4 1 2 3 4 . .
+  return b .
+end
+
+fn squares input n u64 . output r array u64 3 .
+do
+  for i count u64 3 . do
+    set (idx r i) (mul (add n i) (add n i)) .
+  end
+  return r .
+end
+
+fn halves input x f64 . output r array f64 2 .
+do
+  set (idx r 0) (div x 2.0) .
+  set (idx r 1) (div x 4.0) .
+  return r .
+end
+
+fn zeros output r array u64 2 .
+do
+  return r .
+end
+
+export fn sum4 input a u8 . output u64 .
+  requires le a 199 .
+do
+  var x be array u8 4 ramp a .
+  let y be array u8 4 twice a .
+  let z be array u8 4 lit4 .
+  return add (add (cast u64 (idx x 3)) (cast u64 (idx y 0))) (add (cast u64 (idx z 3)) (cast u64 (idx x 1))) .
+end
+
+export fn sq_sum input n u64 . output u64 .
+  requires le n 1000 .
+do
+  let s be array u64 3 squares n .
+  return add (add (idx s 0) (idx s 1)) (idx s 2) .
+end
+
+export fn half_sum input x f64 . output f64 . do
+  let h be array f64 2 halves x .
+  return add (idx h 0) (idx h 1) .
+end
+
+export fn zero_sum output u64 . do
+  let z be array u64 2 zeros .
+  return add (idx z 0) (idx z 1) .
+end

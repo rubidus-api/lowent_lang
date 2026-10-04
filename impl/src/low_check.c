@@ -12153,6 +12153,9 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
 
             // ② `mut` 파라미터를 통해 **호출자의** 저장소에 쓰는가
             for (proven_size_t q = 0; q < h.np; q++) {
+                // ★ RFC-0132 P4b — 배열 결과의 자리(선언 패스가 끼운 `mut`)는 부른 쪽이 결과로 받는 것이다. 돌아오기 전에는 아무도 못 보므로
+                //   fn 의 순수성을 깨지 않는다.
+                if (h.p[q].ts < f->nkids && f->kids[h.p[q].ts]->kind == LOW_CST_ATOM && f->kids[h.p[q].ts]->synth) continue;
                 if (!h.p[q].is_mut) {
                     bool mref = false;
                     for (proven_size_t k2 = h.p[q].ts; k2 < h.p[q].te; k2++)

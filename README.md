@@ -1,4 +1,4 @@
-[한국어](README.ko.md) | **English** — **Lowent v1.3.0** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.3.0) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+[한국어](README.ko.md) | **English** — **Lowent v1.4.0** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.4.0) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 # Lowent
 

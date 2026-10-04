@@ -672,6 +672,8 @@ static bool ir_pipe_has_with(const low_cst_t *ln) {
         }
 
         // ── preamble
+        // ★ `collect into` 의 j 는 u64 다 — 그 덧셈은 «받는 자리가 찼다» 가드 뒤라 상계가 선다(`count` 의 j 는 안 준다, 위 주석).
+        if (term == 0) c->locals[j].ty = (ityp_t){ .known = true, .bits = 64, .sign = false };
         if (term == 0 || term == 2) { ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)j); }
         else if (term == 3) { ir_emit(c, IRW_CONST, 0); ir_emit(c, IRW_STORE, (proven_i64)acc); }   // any: 기본 false
         else if (term == 4) { ir_emit(c, IRW_CONST, 1); ir_emit(c, IRW_STORE, (proven_i64)acc); }   // all: 기본 true
@@ -1450,8 +1452,16 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
                 return;
             }
             if (c->nloops >= IR_MAXLOOP || c->nlocals + 3 > IR_MAXLOCALS) { ir_fail(c, "E-IR-UNSUP", "loop nesting too deep", f->line); return; }
-            proven_size_t it = c->nlocals++, idx = c->nlocals++;   // anonymous slots
-            c->locals[it].name = (proven_u8str_view_t){ 0 };
+            // ★ 원천이 지역 이름 하나면 숨은 복사를 안 만든다(2026-10-04) — `ir_for_p1` 의 원천 루프와 같은 규칙: 머리가 읽은 이름은
+            //   몸 안에서 못 바꾼다(§6.5 (8)). 복사본에 대한 증명은 분석이 원본으로 못 잇고, gcc 16 은 복사본 고리를 다르게 굴렸다(kmp ×1.21 ↔ 옛 판 1.04).
+            bool direct = false; proven_size_t it = 0;
+            if (b == 3 && is_atom(f->kids[2]) && f->kids[2]->tok.kind == LOW_TOK_IDENT &&
+                !ir_mutref_of(f->kids[b], f->kids[2]->tok.lex, f->kids[1]->tok.lex)) {
+                bool fnd = false; proven_size_t sl = ir_local_find(c, f->kids[2]->tok.lex, &fnd);
+                if (fnd) { direct = true; it = sl; }
+            }
+            if (!direct) { it = c->nlocals++; c->locals[it].name = (proven_u8str_view_t){ 0 }; }
+            proven_size_t idx = c->nlocals++;   // anonymous slot
             c->locals[idx].name = (proven_u8str_view_t){ 0 };
             // ★★ 숨은 첨자는 u64 이고 비교·덧셈도 u64 로 낸다 (2026-10-04) — `ir_for_p1` 의 원천 루프와 같은 규칙.
             //   전에는 타입 없이(0) 냈고, 분석이 부호를 몰라 `idx < len it` 를 사실로 세우지 못했다 ⇒ `for c hay do` 의
@@ -1459,8 +1469,10 @@ static void ir_stmt_inner(ir_ctx_t *c, const low_cst_t *f) {
             c->locals[idx].ty = (ityp_t){ .known = true, .bits = 64, .sign = false };
             const proven_i64 U64f = (proven_i64)(IR_TY_KNOWN | 64);
             proven_size_t var = ir_local_declare(c, f->kids[1]->tok.lex, f->line);
-            ir_run(c, f->kids, 2, b - 2);
-            ir_emit(c, IRW_STORE, (proven_i64)it);
+            if (!direct) {
+                ir_run(c, f->kids, 2, b - 2);
+                ir_emit(c, IRW_STORE, (proven_i64)it);
+            }
             ir_emit(c, IRW_CONST, 0);
             ir_emit(c, IRW_STORE, (proven_i64)idx);
             proven_size_t cond = c->code.len;

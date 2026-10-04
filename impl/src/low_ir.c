@@ -4417,9 +4417,20 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 }
                 return;
             }
+            // ★ 문맥 머리 낱말은 **같은 이름의 사용자 op 이 있으면 그 부름이다** (2026-10-04, `copy` 와 같은 규칙 — RFC-0132 P3).
+            //   전에는 `proc drain` 을 선언하고 문장 머리에서 부르면 이 특수형이 가로채 엉뚱한 `E-IR-ARITY` 가 났다(apps 를 짜다 밟았다).
+            //   골든은 «op 이름이 drain 이어도 된다» 를 일부러 확인한다 — 그래서 예약하지 않고 사용자 op 을 고른다.
+            bool ctx_user_ = false;
+            if (veq(nd->tok.lex, "drain") || veq(nd->tok.lex, "schedule") || veq(nd->tok.lex, "yield") ||
+                veq(nd->tok.lex, "channel") || veq(nd->tok.lex, "chsend") || veq(nd->tok.lex, "chrecv") ||
+                veq(nd->tok.lex, "await") || veq(nd->tok.lex, "unsafe_fn")) {
+                bool uf_ = false; proven_size_t ui_ = ir_def_find_in(c, nd->tok.lex, &uf_);
+                // ★ 액터 처리기(`on drain`)는 고르지 않는다 — 처리기는 `send x drain` 으로만 닿고, 같은 파일의 `drain c .` 는 특수형이어야 한다.
+                ctx_user_ = uf_ && !c->out->defs[ui_].is_actor;
+            }
             // ★★★ **`drain <actor>`** (RFC-0009 — async 배달의 drain 지점, 사용자 결정 D1).
             //   그 인스턴스의 메일박스를 FIFO 로 비운다(문맥 문장 헤드 — 렉서 키워드가 아니다).
-            if (veq(nd->tok.lex, "drain")) {
+            if (!ctx_user_ && veq(nd->tok.lex, "drain")) {
                 if (*pos >= end) { ir_fail(c, "E-IR-UNSUP", "`drain` needs an actor instance — `drain <actor>`", nd->line); return; }
                 ir_node(c, k[(*pos)++]);            // 인스턴스를 민다
                 ir_emit(c, IRW_DRAIN, 0);
@@ -4428,20 +4439,20 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             // ★★★ **`schedule .`** (RFC-0009 D6 — 결정적 스케줄러). `drain <actor>` 이 인스턴스 하나를
             //   비운다면, `schedule` 은 **모든 actor 의 대기 메시지 전부**를 quiescence 까지 배달한다
             //   (문맥 문장 헤드 — 렉서 키워드가 아니다). 인자 없음. 기본 순서 FIFO(결정적).
-            if (veq(nd->tok.lex, "schedule")) {
+            if (!ctx_user_ && veq(nd->tok.lex, "schedule")) {
                 ir_emit(c, IRW_SCHED, 0);
                 return;
             }
             // ★★★ **`yield`** (green thread, RFC-0009 2/3) — 실행 중 태스크가 스케줄러에 양보한다.
             //   문맥 문장 헤드(렉서 키워드 아님). 태스크 안에서만 뜻이 있다(밖이면 no-op 스케줄러 진입).
-            if (veq(nd->tok.lex, "yield")) {
+            if (!ctx_user_ && veq(nd->tok.lex, "yield")) {
                 ir_emit(c, IRW_YIELD, 0);
                 return;
             }
             // ★★★ **channel** (RFC-0009 3/3) — bounded FIFO 통신 채널. 모두 문맥 낱말(새 키워드 0개).
             //   `channel [<elemtype>]` 만들기 · `chsend <ch> <v>` 넣기(full 이면 블록) · `chrecv <ch>`
             //   빼기(empty 면 블록). 블록은 green thread 의 yield 로 — sender/recver 가 오면 재개한다.
-            if (veq(nd->tok.lex, "channel")) {
+            if (!ctx_user_ && veq(nd->tok.lex, "channel")) {
                 // 선택적 원소 타입 토큰을 소비한다(런타임 값은 vmv_t 라 타입은 표식일 뿐 — 완전 타이핑은 후속).
                 if (*pos < end && is_atom(k[*pos]) && !veq(k[*pos]->tok.lex, "unbounded")) (*pos)++;
                 // ★★★ **`channel … unbounded` 는 거절한다** (RFC-0009 D5 · unbounded mailbox 와 같은 규율).
@@ -4463,14 +4474,14 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 ir_emit(c, IRW_CHNEW, 0);
                 return;
             }
-            if (veq(nd->tok.lex, "chsend")) {
+            if (!ctx_user_ && veq(nd->tok.lex, "chsend")) {
                 if (*pos + 1 >= end) { ir_fail(c, "E-IR-UNSUP", "`chsend` needs `<channel> <value>`", nd->line); return; }
                 ir_node(c, k[(*pos)++]);   // 채널 핸들
                 ir_node(c, k[(*pos)++]);   // 값
                 ir_emit(c, IRW_CHSEND, 0);
                 return;
             }
-            if (veq(nd->tok.lex, "chrecv")) {
+            if (!ctx_user_ && veq(nd->tok.lex, "chrecv")) {
                 if (*pos >= end) { ir_fail(c, "E-IR-UNSUP", "`chrecv` needs `<channel>`", nd->line); return; }
                 ir_node(c, k[(*pos)++]);   // 채널 핸들
                 ir_emit(c, IRW_CHRECV, 0);
@@ -4478,7 +4489,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             }
             // ★★★ **await** (RFC-0009 §8.3) — `spawn <op>` 이 준 job 핸들을 받아, 그 태스크가 끝날 때까지
             //   블록했다가 결과를 준다. 문맥 낱말(새 키워드 0개).
-            if (veq(nd->tok.lex, "await")) {
+            if (!ctx_user_ && veq(nd->tok.lex, "await")) {
                 if (*pos >= end) { ir_fail(c, "E-IR-UNSUP", "`await` needs a job handle — `await <h>`", nd->line); return; }
                 ir_node(c, k[(*pos)++]);   // job 핸들
                 ir_emit(c, IRW_AWAIT, 0);
@@ -4486,7 +4497,7 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             }
             // ★★★ **`unsafe_fn <op>`** (RFC-0066) — export extern op 의 **주소**를 값으로 낸다(콜백).
             //   다음 원자가 op 이름이다. 씨에 함수 포인터로 넘어간다 — 경계 밖은 씨의 규율(unsafe).
-            if (veq(nd->tok.lex, "unsafe_fn")) {
+            if (!ctx_user_ && veq(nd->tok.lex, "unsafe_fn")) {
                 if (*pos >= end || !is_atom(k[*pos])) {
                     ir_fail(c, "E-FN-VALUE", "`unsafe_fn` must be followed by an op name — `unsafe_fn <op>`", nd->line);
                     return;

@@ -1552,7 +1552,7 @@ static proven_size_t iv_block(ir_ctx_t *c, low_ir_def_t *d, proven_size_t b0, pr
     proven_size_t i = b0;
     for (; i < bend; i++) {
         low_ir_ins_t *in = &d->code[i];
-        if (in->w == IRW_BR || in->w == IRW_BRZ || in->w == IRW_RET) break;
+        if (in->w == IRW_BR || in->w == IRW_BRZ || in->w == IRW_RET || in->w == IRW_PANIC) break;   // ★ panic 도 끝이다(돌아오지 않는다)
         int ar = ir_word_arity(c->out, in->w, in->a);
         if (in->w == IRW_STORE) {
             if (sp) {
@@ -2846,7 +2846,7 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
             proven_size_t t = (proven_size_t)d->code[i].a;
             if (t < n) leader[t] = true;
             if (i + 1 < n) leader[i + 1] = true;
-        } else if (w == IRW_RET && i + 1 < n) leader[i + 1] = true;
+        } else if ((w == IRW_RET || w == IRW_PANIC) && i + 1 < n) leader[i + 1] = true;
     }
 
     // 2) 진입 상태 — 타입 range + requires (assume 제외; RFC-0053 §6.6)
@@ -3043,7 +3043,9 @@ static void iv_counter_bounds(const low_ir_def_t *d, iv_indvar_t *iv, const ivst
 
             if (term >= bend || term >= n) { IV_PUSH(bend, st); continue; }
             low_ir_ins_t *tm = &d->code[term];
-            if (tm->w == IRW_RET) continue;
+            // ★ panic 은 돌아오지 않는다(VM · 네이티브 모두 즉시 멈춤) — 뒤 블록으로 흐르지 않는다 (2026-10-04). 전에는 흘러서,
+            //   `collect into` 의 «받는 자리가 찼다» 가드 뒤 합류가 거짓 가지의 사실과 섞여 `j < len out` 을 잃었다(편집 거리의 마지막 검사).
+            if (tm->w == IRW_RET || tm->w == IRW_PANIC) continue;
             if (tm->w == IRW_BR) { IV_PUSH((proven_size_t)tm->a, st); continue; }
             if (tm->w == IRW_BRZ) {
                 ivstate_t tk = st, ft = st;                     // ★ 분기 조건 내로잉

@@ -244,11 +244,11 @@ static const low_target_t IR_TARGETS[] = {
     //    보수적으로 잡는다: 이 수를 넘는 슬라이스는 만들 수 없다는 **약속**이므로,
     //    크게 잡을수록 약속이 약해지고 작게 잡을수록 더 많이 지워진다.
     //    조절은 **이 줄 하나**다(소유자 요구: "차후 조절 가능").
-    { "x86_64",   false, 64, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096 },   // SSE2 baseline = 128-bit
-    { "arm64",    false, 64, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096 },   // NEON mandatory (ARMv8) = 128-bit
-    { "cortex_m", false, 32, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0 },   // freestanding: no_heap · no_float · SIMD 없음
-    { "riscv64",  false, 64, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096 },   // baseline: 벡터(RVV) 는 opt-in ext → 없음
-    { "mips_be",  true,  32, true,  false, false, 0,  true , (proven_i64)1 << 24, 32, 4096 },   // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
+    { "x86_64",   false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096 },   // SSE2 baseline = 128-bit
+    { "arm64",    false, 64, 8, 8, false, true,  false, false, 16, true, (proven_i64)1 << 48, 64, 4096 },   // NEON mandatory (ARMv8) = 128-bit
+    { "cortex_m", false, 32, 4, 4, false, false, true,  true,  0,  false, (proven_i64)1 << 24, 4, 0 },   // freestanding: no_heap · no_float · SIMD 없음
+    { "riscv64",  false, 64, 8, 8, false, true,  false, false, 0,  true, (proven_i64)1 << 48, 64, 4096 },   // baseline: 벡터(RVV) 는 opt-in ext → 없음
+    { "mips_be",  true,  32, 4, 4, false, true,  false, false, 0,  true , (proven_i64)1 << 24, 32, 4096 },   // 빅엔디안 대표. MSA opt-in → baseline SIMD 없음
     // ★★★★★ **Windows — 크로스 빌드까지만** (2026-08-19, 소유자 결정).
     //   RFC-0069 §6.7 의 승격 조건 넷 중 ①②만 연다: 타깃이 있고, `--emit-c` 가 그 타깃에서
     //   **빌드된다**. ③(왕복 성질을 골든이 잼)·④(host-fault 가 그쪽 잎에서 돎)는 **실행**이
@@ -256,7 +256,7 @@ static const low_target_t IR_TARGETS[] = {
     //   ☞ 그래서 이 타깃은 *"Windows 를 지원한다"* 가 아니라 *"POSIX 를 안 쓰는 프로그램이
     //     Windows 로 건너간다"* 를 뜻한다. POSIX 전용 잎은 **컴파일 시 거절**한다 —
     //     mingw 에서 헤더가 없다고 터지게 두는 것보다, 이유를 아는 자리에서 먼저 우는 편이 낫다.
-    { "win64",    false, 64, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096 },
+    { "win64",    false, 64, 8, 8, false, true,  false, false, 16, false, (proven_i64)1 << 48, 64, 4096 },
 };
  const low_target_t *ir_tgt = &IR_TARGETS[0];
  bool g_smt_on = true;
@@ -312,7 +312,11 @@ bool low_ir_target_known(proven_u8str_view_t name) {
     const low_target_t *t = ir_tgt;
     if (veq(v, "machine.big_endian"))    return t->big_endian;
     if (veq(v, "machine.little_endian")) return !t->big_endian;
-    if (veq(v, "machine.ptr_width"))     return t->ptr_width;
+    if (veq(v, "machine.ptr_width"))     return t->addr_bits;   // 옛 이름 — 주소 폭(RFC-0137: 포인터 크기와 다를 수 있다)
+    if (veq(v, "machine.addr_bits"))     return t->addr_bits;
+    if (veq(v, "machine.ptr_bytes"))     return t->ptr_bytes;
+    if (veq(v, "machine.ptr_align"))     return t->ptr_align;
+    if (veq(v, "machine.ptr_caps"))      return t->ptr_caps;
     if (veq(v, "machine.max_slice_len")) return t->max_slice_len;
     // ★ RFC-0104 §8-7 — 배치를 정하는 두 수. **질의이지 정책이 아니다**(자동 repack 없음).
     if (veq(v, "machine.cache_line"))    return t->cache_line;

@@ -39,6 +39,7 @@
       [낱말], [keyword], [#cref("3.7")],
       [내장 연산], [builtin op], [#cref("3.8")],
       [넓히기], [widening], [#cref("3.8")],
+      [능력], [capability], [#cref("5.3")],
       [단락 평가], [short-circuit], [#cref("3.8")],
       [단언], [assertion], [#cref("6.4.13")],
       [닫개], [closer], [#cref("3.7")],

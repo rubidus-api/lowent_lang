@@ -886,7 +886,13 @@ typedef struct {
 typedef struct {
     const char *name;      // x86_64 · arm64 · cortex_m · riscv64
     bool        big_endian;
-    proven_u8   ptr_width; // 16 | 32 | 64
+    // ★★ RFC-0137 D2 — **주소와 포인터를 가른다** (2026-10-04, 소유자 «추천대로»). 전엔 `ptr_width` 한 칸이 주소 폭이자 포인터 크기였다.
+    //   능력 포인터 기계(CHERI · CHERIoT)는 포인터가 주소의 두 배이고 정수에서 만들 수 없다 — 그날 이 표 한 줄로 들어오게 칸을 넷으로 둔다.
+    //   오늘의 대상은 `ptr_bytes = addr_bits / 8 = ptr_align`, `ptr_caps = false` 다(방출은 그대로).
+    proven_u8   addr_bits; // 주소 폭: 16 | 32 | 64 (`machine.addr_bits` · 옛 이름 `machine.ptr_width`)
+    proven_u8   ptr_bytes; // 포인터 값의 크기(바이트) — 능력이면 주소 폭의 두 배
+    proven_u8   ptr_align; // 포인터를 담는 자리의 정렬(바이트)
+    bool        ptr_caps;  // 포인터가 능력인가(태그 · 파생 규칙 — 정수에서 되살릴 수 없다)
     bool        has_fpu;
     bool        no_heap;
     bool        no_float;
@@ -902,7 +908,7 @@ typedef struct {
     //   전에는 구간 분석이 길이를 `[0, INT64_MAX]` 로 봤고, 그 hi 는 *"길이는 음수가
     //   아니다"* 라는 **하한의 자리 표시자**이지 상계가 아니었다. 그래서 `while lt i
     //   (len a)` 관용구의 누산기가 반복마다 넘침 검사를 달았다(코퍼스 100 곳).
-    //   ⇒ 상한은 **주소공간에서 나온다**. 그러므로 `ptr_width` 와 같은 표에 산다:
+    //   ⇒ 상한은 **주소공간에서 나온다**. 그러므로 `addr_bits` 와 같은 표에 산다:
     //     32 비트 기계의 슬라이스가 2^48 개일 수는 없다.
     //   ★ 사용자도 `machine.max_slice_len` 으로 **물어볼 수 있다**(comptime 상수, 비용 0).
     //     새 낱말을 만들지 않은 이유가 그것이다 — `machine.*` 가 이미 그 자리다.

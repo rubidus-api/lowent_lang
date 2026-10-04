@@ -4177,7 +4177,7 @@ void low_ir_dump(const low_ir_t *ir) {
     if (ir->folds) {   // RFC-0054 D6 — 어느 arm 이 선택됐는지 **보고된다**(비용 가시)
         printf("\n-- comptime target folding (RFC-0054) --\n");
         printf("   target = %s  (ptr %ub · %s-endian · fpu %s · no_heap %s)\n",
-               low_ir_target()->name, low_ir_target()->ptr_width,
+               low_ir_target()->name, low_ir_target()->addr_bits,
                low_ir_target()->big_endian ? "big" : "little",
                low_ir_target()->has_fpu ? "yes" : "no",
                low_ir_target()->no_heap ? "yes" : "no");

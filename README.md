@@ -158,7 +158,7 @@ This buys some unusual properties. The whole grammar can be highlighted with pla
 
 ## Where it stands today
 
-Lowent is not just a design document. It grows together with a working compiler (compiler 1.3.0, language revision 1.3).
+Lowent is not just a design document. It grows together with a working compiler (compiler 1.4.0, language revision 1.4).
 
 - **The compiler, `lowentc`,** is written in C23. Its only external dependency is one vendored library (`proven_c_lib`, MIT). Native code goes out as C and is built by your system's C compiler. Targets: `x86_64`, `arm64`, `riscv64`, `cortex_m` and `mips_be`.
 - **Caught at compile time:** effect and capability violations, borrow and lifetime errors, use-after-move, unfinished resources, integer conversions that could lose a value, and contradictory or dead contracts.

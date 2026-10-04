@@ -926,7 +926,9 @@ typedef struct {
     proven_u32  cache_line;
     proven_u32  page_size;
 } low_target_t;
-void low_ir_set_target(const char *name);      // 기본: x86_64 (호스트)
+bool low_ir_set_target(const char *name);      // 기본: x86_64 (호스트) · 표에 없는 이름이면 false(정본 §5.6 (3))
+proven_size_t low_ir_target_count(void);
+const char *low_ir_target_name(proven_size_t i);
 // ★★★ **SMT 백엔드를 끈다** (`--no-smt`) — 기능 스위치가 아니라 **측정 도구**다 (후속 M).
 //   같은 바이너리로 켠 판과 끈 판을 재야 *"SMT 가 몇 개를 더 지웠나"* 가 **실측**이 된다.
 //   ☞ 그리고 대조군은 게이트에도 쓰인다: 끈 판이 지운 것을 켠 판이 못 지우면 그것은 **회귀**다

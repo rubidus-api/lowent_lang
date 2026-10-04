@@ -292,10 +292,15 @@ void low_ir_set_smt_emit(bool on) { g_smt_emit = on; g_smt_out = stdout; }
     fputs("(check-sat)\n", g_smt_out);
 }
 
-void low_ir_set_target(const char *name) {
+// ★ 정본 §5.6 (3) — 표에 없는 이름은 **거부**한다(false). 전에는 조용히 무시해 기본 기계(x86_64)로 지었다 —
+//   `--target cheriot` 를 잘못 친 `--target cheriott` 가 호스트 빌드로 «통과» 했다.
+bool low_ir_set_target(const char *name) {
     for (proven_size_t i = 0; i < sizeof IR_TARGETS / sizeof IR_TARGETS[0]; i++)
-        if (strcmp(IR_TARGETS[i].name, name) == 0) { ir_tgt = &IR_TARGETS[i]; return; }
+        if (strcmp(IR_TARGETS[i].name, name) == 0) { ir_tgt = &IR_TARGETS[i]; return true; }
+    return false;
 }
+proven_size_t low_ir_target_count(void) { return sizeof IR_TARGETS / sizeof IR_TARGETS[0]; }
+const char *low_ir_target_name(proven_size_t i) { return i < low_ir_target_count() ? IR_TARGETS[i].name : NULL; }
 unsigned low_lbuf_max(void) { return low_ir_target()->no_heap ? LOW_LBUF_MAX_FREE : LOW_LBUF_MAX; }   // RFC-0135 S3
 const low_target_t *low_ir_target(void) { return ir_tgt; }
 static proven_size_t g_fixed_bytes;   // 0 = 타깃이 정한다

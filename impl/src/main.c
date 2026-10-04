@@ -1316,7 +1316,15 @@ int main(int argc, char **argv) {
         else if (strcmp(argv[i], "--emit-c") == 0) want_emitc = true;
         else if (strcmp(argv[i], "--run") == 0 && i + 1 < argc) run_op = argv[++i];
         else if (strcmp(argv[i], "--unchecked") == 0) run_unchecked = true;
-        else if (strcmp(argv[i], "--target") == 0 && i + 1 < argc) { low_ir_set_target(argv[++i]); }
+        else if (strcmp(argv[i], "--target") == 0 && i + 1 < argc) {
+            // ★ 정본 §5.6 (3) — 기계의 이름은 닫힌 집합이다. 모르는 이름을 받아 주면 조용히 호스트로 짓는다.
+            if (!low_ir_set_target(argv[++i])) {
+                fprintf(stderr, "E-CLI-TARGET: `%s` is not a build target — the names are a closed set:", argv[i]);
+                for (proven_size_t t = 0; t < low_ir_target_count(); t++) fprintf(stderr, " %s", low_ir_target_name(t));
+                fputc('\n', stderr);
+                return 2;
+            }
+        }
         // ★★★★ **고정 창의 크기** (RFC-0112 D3(5) · WO-0211) — VM 이 다른 보드를 흉내 낸다.
         //   안 주면 타깃이 정한다(호스티드 64 KiB · 프리스탠딩은 `--emit-ldscript` 가 적는 기본 크기).
         else if (strcmp(argv[i], "--fixed-bytes") == 0 && i + 1 < argc) {

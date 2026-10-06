@@ -701,6 +701,23 @@ int main(void) {
         l = LEX("let s text END\nhi\n  END\n.");
         check(!l.ok, "an indented tag does not close: unterminated");
         proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+        // 여는 줄: 처리기 자리는 태그 뒤다 (RFC-0138 §5.2). 그 밖의 것은 거절한다 — 전에는 조용히 버렸다.
+        l = LEX("let s text END u\nhi\nEND\n.");
+        check(l.ok && count_kind(&l, LOW_TOK_TEXTLIT) == 1, "the width word follows the tag");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+        l = LEX("let s text u END\nhi\nEND\n.");
+        check(!l.ok, "the old order (width word before the tag) is refused");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+        l = LEX("let s text END 12\nhi\nEND\n.");
+        check(!l.ok && l.diags.len == 1, "anything else after the tag is refused");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+        // note 도 같은 규칙으로 닫는다
+        l = LEX("note N\n  N\nNx\nN\na .");
+        check(l.ok && count_kind(&l, LOW_TOK_IDENT) == 1, "a note closes only at a first-column tag standing alone");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+        l = LEX("note N\nx\nN y\na .");
+        check(!l.ok && l.diags.len == 1, "anything after the closing tag of a note is refused");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }
 
     printf("parser:\n");

@@ -10,7 +10,7 @@
 #ifndef LOW_VERSION_H
 #define LOW_VERSION_H
 
-#define LOW_VERSION "1.4.2"
+#define LOW_VERSION "1.5.0"
 
 // ★★★ **"버전" 은 한 낱말이 아니라 네 축이다** (RFC-0089 R4 · 단계 E, 2026-08-03).
 //
@@ -55,7 +55,7 @@
 //   표면을 옮길 수 있지만(의도를 커밋에 적는 조건으로), frozen 에서는 그 문이 **닫힌다** —
 //   `check-abi.py` 가 그 규칙을 강제한다. 상태를 낱말 하나 고치는 것이 곧 규율을 바꾼다.
 #define LOW_RELEASE      LOW_VERSION          /* ① lowentc 릴리스 */
-#define LOW_LANG_REV     "1.4"                /* ② 언어 개정(표면·의미) — 1.4: RFC-0127 접두사·호스트 잎 · RFC-0113 표면 닫기 · RFC-0132 결과 자리(P4a·P4b) · RFC-0136 — v1.4.0 */
+#define LOW_LANG_REV     "1.5"                /* ② 언어 개정(표면·의미) — 1.5: RFC-0138 텍스트 리터럴과 note 의 닫는 줄(맨 첫 칸에 홀로) · 처리기 자리는 태그 뒤(`text TAG u`) — v1.5.0 */
 // ★ 1.3 → 1.4 (2026-10-03, 소유자 결정 RFC-0127 «ⓐⓑⓒ» · RFC-0113 §7b): 표면이 깨지는 방향의 변경이 여럿 들어왔다 —
 //   비트셋·레인 op 접두사(`bitset_*`·`lane_*`) · 파일·그물 잎은 `call_builtin` 뒤 · `<식> . do` 와 한 폼 몸 거절 · `.name` 폐기 ·
 //   `not is_some` → `is_none` · `proc` 의 `effects` 필수 · `bitset_insert` 와 값 버리는 문장 거절 · 아무것도 안 닫는 점 거절.

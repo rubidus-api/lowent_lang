@@ -164,7 +164,7 @@ end
 
 fn t_prefix_textlit output u64 . do
   rem ★ **두 표면이 같은 어휘를 쓴다** — 인라인 접두사와 텍스트 리터럴 태그가 같은 낱말이다.
-  let a be slice u16 text u END
+  let a be slice u16 text END u
 AB
 END
 .

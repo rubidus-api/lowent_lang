@@ -4954,7 +4954,7 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
             if (nd->tok.kind == LOW_TOK_STRING || nd->tok.kind == LOW_TOK_TEXTLIT) {
                 proven_u8str_view_t val = nd->tok.lex;
                 // ★★★ **접두사가 원소폭을 정한다** (RFC-0035 D5). 두 표면이 **같은 어휘**를
-                //   쓴다: 인라인 `u"AB"` 와 여러 줄 `text u TERM … TERM`.
+                //   쓴다: 인라인 `u"AB"` 와 여러 줄 `text TERM u … TERM`.
                 //   ☞ 전엔 텍스트 리터럴의 태그가 **무엇이든 받고 조용히 버려졌다** — `text
                 //     zzz_not_an_encoding END` 가 `check: ok` 였다. 태그 자리를 렉싱해 놓고
                 //     읽는 이가 없으면 그 자리는 **약속처럼 보이는 빈칸**이다.
@@ -4963,7 +4963,7 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
                     ir_fail(c, "E-STR-PREFIX",
                             "unknown literal prefix. The set is CLOSED: `u` (UTF-16 code units, "
                             "slice u16) · `U` (code points, slice u32). Both surfaces share it — "
-                            "`u\"AB\"` and `text u TERM`. There is no `u8` prefix: the default IS "
+                            "`u\"AB\"` and `text TERM u`. There is no `u8` prefix: the default IS "
                             "u8, so `u8\"…\"` said nothing that `\"…\"` did not (SPEC-002 2.5 forbids "
                             "synonyms). "
                             "A prefix outside the set names nothing, and accepting it would mean "

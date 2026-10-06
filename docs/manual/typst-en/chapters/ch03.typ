@@ -68,7 +68,7 @@ The `return` in `poly` spans two lines but is one form; it ends at the full stop
 no line-continuation marker (C's trailing backslash, a trailing comma, indentation rules). `poly_expr` in the same file writes the
 same computation as an `expr` island, and the two ops give the same answer.
 
-`note WHY … WHY` is a multi-line comment; it ends at a line where the word written after `note` stands alone. `rem` is a line comment.
+`note WHY … WHY` is a multi-line comment; it ends at a line where the word written after `note` stands alone, starting in the first column. `rem` is a line comment.
 The language has no symbolic comments like `//` or `/* */` --- comments too are opened with words.
 
 The number of full stops works as a kind of *checksum*. If opened forms and closers do not match, the compiler says so. Forgetting one
@@ -380,7 +380,7 @@ to remember the shapes too.
   [`expr a + b * c`], [an infix island --- arithmetic, comparisons, `and`/`or` only], [long arithmetic reads easily; same meaning as prefix],
   [Clause order in an op head], [#tblref("surface-clause-order")], [each clause comes before the ones that use it],
   [`0b1010` · `1_000_000` · `0x1.8p1` · `u'가'` · `U"…"`], [binary · digit separator · hex float · prefixed char and string], [no octal --- `0755` is 755],
-  [`text DOC … DOC` · `note END … END`], [multi-line string (escapes not unescaped) · multi-line comment], [long text goes in as written],
+  [`text DOC … DOC` · `note END … END`], [text literal (escapes are not processed) · multi-line comment], [long text goes in as written],
 )
 
 #recap[

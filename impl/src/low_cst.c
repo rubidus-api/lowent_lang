@@ -1316,9 +1316,11 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
                 //   (E-TEXTLIT-UNTERM). 서식기는 자기가 낸 것을 **자기가 읽을 수 있어야** 한다.
                 // ★★ 태그도 다시 찍는다 — 같은 이유다(전엔 태그가 아무 뜻이 없어 안 드러났다).
                 fputs("text ", stdout);
-                if (nd->tok.aux.size) { low_pv(nd->tok.aux); putchar(' '); }
+                // ★ 처리기(`u` · `U`)는 태그 **뒤**에 선다 (RFC-0138 §5.2).
                 // ★ 닫는 낱말은 맨 첫 칸에 **홀로** 선다(2026-10-07) — 뒤따르는 것(문장의 `.` 따위)은 다음 줄로 보낸다.
-                fputs("HEND\n", stdout); low_pv(nd->tok.lex); fputs("\nHEND\n", stdout);
+                fputs("HEND", stdout);
+                if (nd->tok.aux.size) { putchar(' '); low_pv(nd->tok.aux); }
+                putchar('\n'); low_pv(nd->tok.lex); fputs("\nHEND\n", stdout);
             }
             // ★ RFC-0132 §6 (옮김 창) — 옛 `index` 는 `idx` 로 옮겨 찍는다(이름으로 쓴 `index` 는 없다 — E-VOCAB-REMOVED).
             else if (nd->tok.kind == LOW_TOK_IDENT && low_view_eq_cstr(nd->tok.lex, "index")) fputs("idx", stdout);

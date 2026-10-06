@@ -18,7 +18,7 @@ typedef enum {
     //   `.aux` = 접두사(없음·`u8`·`u`·`U` — 문자열 접두사와 **같은 어휘**).
     //   값으로 접는 것은 low_ir 의 일이다: 렉서는 판정하지 않는다.
     LOW_TOK_CHAR,
-    LOW_TOK_TEXTLIT,  // text [proc] TERM ... TERM  (.lex = body, .aux = proc name)
+    LOW_TOK_TEXTLIT,  // text TERM [proc] ... TERM  (.lex = body, .aux = proc name)
     LOW_TOK_DOT,      // isolated '.'  = form/statement closer
     LOW_TOK_METHOD,   // ★ '..name' = **수신자 우선 머리**: `s..area x` ≡ `<s의 타입>.area(s, x)`
     LOW_TOK_HEAD,     // ★ '.name' (점이 이름에 **붙어** 있고 왼쪽은 공백) = **머리를 연다**

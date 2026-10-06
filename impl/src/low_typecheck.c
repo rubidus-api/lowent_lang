@@ -1105,7 +1105,7 @@ static ty_t tc_infer(tc_ctx_t *c, const low_cst_t *nd, const tc_var_t *env, prov
     if (nd->kind == LOW_CST_ATOM) {
         switch (nd->tok.kind) {
             case LOW_TOK_NUMBER: return ty_of_number(nd->tok.lex);
-            case LOW_TOK_STRING: case LOW_TOK_HEREDOC: return tk(TK_NAMED);
+            case LOW_TOK_STRING: case LOW_TOK_TEXTLIT: return tk(TK_NAMED);
             default: break;
         }
         if (nd->tok.kw == LOW_KW_TRUE || nd->tok.kw == LOW_KW_FALSE) return tk(TK_BOOL);

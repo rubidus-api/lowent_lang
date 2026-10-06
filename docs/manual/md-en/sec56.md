@@ -13,7 +13,7 @@ These are the places people often trip when writing Lowent with habits from othe
 | `for x in xs` | `E-VOCAB-REMOVED` | `for x xs do … end` |
 | `let x be f64 .5 .` | `E-LET-NOVALUE` | `0.5` |
 | Naming a local the same as a parameter | `E-NAME-SHADOW` | Pick a new name |
-| Using names like `count`, `text` or `len` | `E-NAME-BUILTIN` and others | Builtins and heredoc words cannot be names |
+| Using names like `count`, `text` or `len` | `E-NAME-BUILTIN` and others | Builtins and the word that opens a text literal cannot be names |
 | A module name equal to an op name | `E-NAME-DUP` | Rename the module |
 | `expr a lt b and b lt c` | `E-TYPE-LOGICAL` | `expr (a lt b) and (b lt c)` (chapter 8) |
 | `def type pct be u8 .` | `E-TYPE-DECL` | `def type pct u8 .` |

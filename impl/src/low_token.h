@@ -18,7 +18,7 @@ typedef enum {
     //   `.aux` = 접두사(없음·`u8`·`u`·`U` — 문자열 접두사와 **같은 어휘**).
     //   값으로 접는 것은 low_ir 의 일이다: 렉서는 판정하지 않는다.
     LOW_TOK_CHAR,
-    LOW_TOK_HEREDOC,  // text [proc] TERM ... TERM  (.lex = body, .aux = proc name)
+    LOW_TOK_TEXTLIT,  // text [proc] TERM ... TERM  (.lex = body, .aux = proc name)
     LOW_TOK_DOT,      // isolated '.'  = form/statement closer
     LOW_TOK_METHOD,   // ★ '..name' = **수신자 우선 머리**: `s..area x` ≡ `<s의 타입>.area(s, x)`
     LOW_TOK_HEAD,     // ★ '.name' (점이 이름에 **붙어** 있고 왼쪽은 공백) = **머리를 연다**
@@ -30,7 +30,7 @@ typedef enum {
 } low_tok_kind_t;
 
 // Reserved words. rem/note/text are handled structurally by the lexer (comments,
-// heredoc) and never surface as IDENT tokens; the rest are classified onto IDENT.
+// text literal) and never surface as IDENT tokens; the rest are classified onto IDENT.
 typedef enum {
     LOW_KW_NONE = 0,
     LOW_KW_USE, LOW_KW_AS, LOW_KW_LET, LOW_KW_SET,
@@ -68,7 +68,7 @@ typedef struct {
     low_tok_kind_t      kind;
     low_kw_t            kw;    // LOW_KW_NONE unless an IDENT that is a reserved word
     proven_u8str_view_t lex;   // slice into the source buffer (zero-copy)
-    proven_u8str_view_t aux;   // heredoc proc name; empty otherwise
+    proven_u8str_view_t aux;   // text literal proc name; empty otherwise
     proven_u32          line;  // 1-based
     proven_u32          col;   // 1-based (byte column)
 } low_token_t;

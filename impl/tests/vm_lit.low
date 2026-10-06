@@ -9,10 +9,10 @@ rem      조용히 백슬래시를 남기면 그것이 다시 '반만 있는' �
 rem    ★ `tok.lex` 는 **원문 그대로 둔다** — 서식기가 그것을 다시 찍어 왕복을 지키기 때문이다.
 rem      디코드 결과는 IR 이 소유하는 저장소에 산다.
 rem
-rem ② **heredoc 은 렉서가 이미 옳게 했는데 IR 이 몰랐다.** 한 줄이면 개행 없는 문자열, 개행을
+rem ② **텍스트 리터럴은 렉서가 이미 옳게 했는데 IR 이 몰랐다.** 한 줄이면 개행 없는 문자열, 개행을
 rem    남기려면 빈 줄 하나, CRLF 처리, 본문은 **원문 그대로**(이스케이프 불요) — 전부 있었다.
-rem    빠진 것은 값 하강 한 줄이었다. ⇒ heredoc 이 개행·제어 바이트의 **정공법**이다.
-rem    ★ heredoc 뒤에는 **명시적 `.`** 이 필요하다(개행이 안 닫는다 — 인자가 따라올 수 있으므로).
+rem    빠진 것은 값 하강 한 줄이었다. ⇒ 텍스트 리터럴이 개행·제어 바이트의 **정공법**이다.
+rem    ★ 텍스트 리터럴 뒤에는 **명시적 `.`** 이 필요하다(개행이 안 닫는다 — 인자가 따라올 수 있으므로).
 
 module vm_lit .
 
@@ -61,9 +61,9 @@ fn t_hex output u64 . do
   return 1 .
 end
 
-rem ── ② heredoc ─────────────────────────────────────────────────────────
+rem ── ② text literal ─────────────────────────────────────────────────────────
 
-fn t_heredoc_one output u64 . do
+fn t_textlit_one output u64 . do
   rem ★ 한 줄이면 **개행이 없다** — TERM 직전 개행 하나를 렉서가 떨어낸다.
   let s be slice u8 text END
 abc
@@ -71,7 +71,7 @@ END .
   return len s .
 end
 
-fn t_heredoc_multi output u64 . do
+fn t_textlit_multi output u64 . do
   rem "aa\nb" — 4 바이트, 인덱스 2 가 LF(10).
   let s be slice u8 text END
 aa
@@ -82,7 +82,7 @@ END .
   return 1 .
 end
 
-fn t_heredoc_trail output u64 . do
+fn t_textlit_trail output u64 . do
   rem ★ 개행을 **남기고 싶으면 빈 줄 하나** — "ab\n" 3 바이트.
   let s be slice u8 text END
 ab
@@ -146,8 +146,8 @@ fn t_prefix_u32 output u64 . do
   return 1 .
 end
 
-fn t_prefix_heredoc output u64 . do
-  rem ★ **두 표면이 같은 어휘를 쓴다** — 인라인 접두사와 heredoc 태그가 같은 낱말이다.
+fn t_prefix_textlit output u64 . do
+  rem ★ **두 표면이 같은 어휘를 쓴다** — 인라인 접두사와 텍스트 리터럴 태그가 같은 낱말이다.
   let a be slice u16 text u END
 AB
 END .

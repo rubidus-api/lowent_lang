@@ -64,7 +64,7 @@ proc main input a cap args . input e cap env . output u8 . effects state . do
   let sw be option slice u8 env_get e "FIELDS_TRIM" .
   let trim be bool is_some sw .
 
-  rem ── 입력을 줄 단위로 (heredoc — 원문 그대로, 이스케이프 불요)
+  rem ── 입력을 줄 단위로 (텍스트 리터럴 — 원문 그대로, 이스케이프 불요)
   var r be io.mem_reader spawn actor io.mem_reader .
   let src be slice u8 text DATA
 a, b,,c

@@ -3527,7 +3527,7 @@ static void ck_tier(low_check_result_t *out, const low_parse_result_t *pr) {
 //     합쳐도 된다." 그런데 같은 op 이 `effects io`/`state` 를 선언했다면 **두 말이 서로를
 //     부정한다.** 둘 중 하나는 거짓말이고, **검사되지 않는 중복은 거짓말로 썩는다**(§0).
 // ★★★ **asm 은 op 의 절로도, 몸의 문장으로도 온다** (RFC-0042 D11) — 격리는 **같아야 한다.**
-//   몸 안의 `asm <타깃> … .` 문장을 찾는다(그 다음 heredoc 이 템플릿이다 — low_ir 가 짝짓는다).
+//   몸 안의 `asm <타깃> … .` 문장을 찾는다(그 다음 텍스트 리터럴이 템플릿이다 — low_ir 가 짝짓는다).
 static const low_cst_t *ck_asm_stmt_find(const low_cst_t *nd) {
     if (!nd || nd->kind != LOW_CST_FORM) return NULL;
     if (nd->nkids > 0 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_NONE &&
@@ -8349,7 +8349,7 @@ static void ck_removed_walk(low_check_result_t *out, const low_cst_t *nd) {
         //   `rem[^\n]*` 가 낱말 경계를 안 봐서 `remove` 를 주석으로 삼킨 것과 **같은 부류**다:
         //   *무엇에 대한 텍스트인지 안 보고 텍스트만 보는 검사.*
         //   ★ 문자열을 실제로 쓰는 픽스처가 없어서 여태 **닿지 않았다** — 픽스처의 모양이
-        //     감사의 시야다(교훈 6). 이스케이프·heredoc 을 닫고 나서야 드러났다.
+        //     감사의 시야다(교훈 6). 이스케이프·텍스트 리터럴을 닫고 나서야 드러났다.
         if (nd->tok.kind != LOW_TOK_IDENT) return;
         for (proven_size_t i = 0; i < sizeof CK_REMOVED / sizeof CK_REMOVED[0]; i++)
             if (veq(nd->tok.lex, CK_REMOVED[i].word))
@@ -8829,7 +8829,7 @@ static bool ck_arg_is_ro(const low_cst_t *arg, const ck_bind_t *binds, proven_si
         // ★★★★ **리터럴은 고칠 수 있는 자리가 아니다** (정본 §6.1.4(12) · §8.8 · 결함 노트 #84, 2026-09-16).
         //   문자열 리터럴을 `mut slice u8` 자리에 넘기는 것이 통과했다 — VM 은 그 바이트를 고치고
         //   네이티브는 안 고쳐(두 뒤끝이 갈렸다) 표준 라이브러리가 거기 쓰면 네이티브가 죽었다.
-        if (arg->tok.kind == LOW_TOK_STRING || arg->tok.kind == LOW_TOK_HEREDOC) return true;
+        if (arg->tok.kind == LOW_TOK_STRING || arg->tok.kind == LOW_TOK_TEXTLIT) return true;
         return false;                                            // 그 밖의 리터럴 — 보수적으로 통과
     }
     // ★ RFC-0132 T2b-2 — 나열 리터럴을 `mut` 자리에 넘기면 **틀 안 임시(ⓒ)** 로 지어진다(§13.2) — 쓸 수 있는 자리다.
@@ -9895,7 +9895,7 @@ static void ck_capforge_walk(low_check_result_t *out, const low_cst_t *nd,
                 while (arg && arg->kind == LOW_CST_GROUP && arg->nkids == 1) arg = arg->kids[0];
                 if (!arg || arg->kind != LOW_CST_ATOM) continue;
                 bool literal = arg->tok.kind == LOW_TOK_NUMBER || arg->tok.kind == LOW_TOK_STRING ||
-                               arg->tok.kind == LOW_TOK_HEREDOC ||
+                               arg->tok.kind == LOW_TOK_TEXTLIT ||
                                arg->tok.kw == LOW_KW_TRUE || arg->tok.kw == LOW_KW_FALSE;
                 if (literal)
                     emit(out, "E-CAP-FORGE",
@@ -11147,7 +11147,7 @@ static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *n
                 for (proven_size_t q = 1; q < init->nkids; q++)
                     if (ck_atom(init->kids[q]) &&
                         (init->kids[q]->tok.kind == LOW_TOK_STRING ||
-                         init->kids[q]->tok.kind == LOW_TOK_HEREDOC)) { init = init->kids[q]; break; }
+                         init->kids[q]->tok.kind == LOW_TOK_TEXTLIT)) { init = init->kids[q]; break; }
             }
             // ★ RFC-0132 T2b-1 — 상수 원소 나열 리터럴도 박힌 바이트다(§13.2 ⓑ). 쓸 수 있는 자리는 T2b-2 의 `var` 배열이다.
             if (nd->kids[0]->tok.kw == LOW_KW_LET &&                         // ★ T2b-2: `var` 는 쓸 수 있는 틀 안 자리(ⓐ)다
@@ -11158,7 +11158,7 @@ static void ck_mut_literal_bind_walk(low_check_result_t *out, const low_cst_t *n
                      "a list LITERAL was bound with `let` to a type marked `mut`. A `let` list is a VIEW (read-only — "
                      "constant lists are bytes baked into the program, RFC-0132 §13.2 ⓑ). To write the cells, declare it "
                      "with `var`: `var buf be lit array u8 16 _ . .`", nd->kids[0]->tok.line);
-            if (ck_atom(init) && (init->tok.kind == LOW_TOK_STRING || init->tok.kind == LOW_TOK_HEREDOC))
+            if (ck_atom(init) && (init->tok.kind == LOW_TOK_STRING || init->tok.kind == LOW_TOK_TEXTLIT))
                 emit(out, "E-TYPE-ARGMUT",
                      "a string LITERAL was bound to a name declared `mut`. A literal is bytes baked "
                      "into the program, not a place that can be written: the VM used to change them "

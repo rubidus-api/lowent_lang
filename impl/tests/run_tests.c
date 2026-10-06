@@ -683,7 +683,7 @@ int main(void) {
     }
     {
         low_lex_result_t l = LEX("let s text END\nhi \"q\" {x}\nEND .");
-        check(l.ok && count_kind(&l, LOW_TOK_HEREDOC) == 1, "heredoc body captured");
+        check(l.ok && count_kind(&l, LOW_TOK_TEXTLIT) == 1, "text literal body captured");
         check(count_kind(&l, LOW_TOK_DOT) == 1, "trailing closer after END");
         proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }

@@ -1019,7 +1019,7 @@ static bool ir_unescape(ir_ctx_t *c, proven_u8str_view_t raw, proven_u32 line,
                         "(Octal escapes are NOT in it: this language has no octal at all, and "
                         "`0755` is 755.) (Refusing beats silently keeping the backslash: "
                         "that is how this literal came to hold a byte nobody wrote.) For arbitrary "
-                        "bytes and multiple lines, use a heredoc — its body is RAW", line);
+                        "bytes and multiple lines, use a text literal (`text TAG … TAG`) — its body is RAW", line);
                 return false;
         }
     }
@@ -4902,10 +4902,10 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
                 ir_emit(c, IRW_FCONST, bits);
                 return;
             }
-            // ★ **heredoc 도 값이다** — 여태 렉서만 알고 IR 은 몰라 값 자리에서 거절됐다
+            // ★ **텍스트 리터럴도 값이다** — 여태 렉서만 알고 IR 은 몰라 값 자리에서 거절됐다
             //   (E-IR-UNSUP). 렉서는 이미 옳게 한다: 한 줄이면 개행 없는 문자열, 개행을
             //   남기려면 빈 줄 하나, CRLF 처리, 본문은 **원문 그대로**. 남은 것은 이 한 줄이었다.
-            //   ⇒ heredoc 이 개행·따옴표·제어 바이트의 **정공법**이다(이스케이프 불요).
+            //   ⇒ 텍스트 리터럴이 개행·따옴표·제어 바이트의 **정공법**이다(이스케이프 불요).
             // ★★★★★ **문자 리터럴 → 수 상수** (2026-08-07 · 소유자 결정).
             //   접두사가 **폭**을, 내용이 **값**을 정한다 — 문자열 접두사 가족과 같은 어휘다:
             //     (없음)·u8  → u8  바이트        `u8'd'` = 100
@@ -4951,11 +4951,11 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
                 ir_emit(c, IRW_CONST, (proven_i64)val);
                 return;
             }
-            if (nd->tok.kind == LOW_TOK_STRING || nd->tok.kind == LOW_TOK_HEREDOC) {
+            if (nd->tok.kind == LOW_TOK_STRING || nd->tok.kind == LOW_TOK_TEXTLIT) {
                 proven_u8str_view_t val = nd->tok.lex;
                 // ★★★ **접두사가 원소폭을 정한다** (RFC-0035 D5). 두 표면이 **같은 어휘**를
                 //   쓴다: 인라인 `u"AB"` 와 여러 줄 `text u TERM … TERM`.
-                //   ☞ 전엔 heredoc 의 태그가 **무엇이든 받고 조용히 버려졌다** — `text
+                //   ☞ 전엔 텍스트 리터럴의 태그가 **무엇이든 받고 조용히 버려졌다** — `text
                 //     zzz_not_an_encoding END` 가 `check: ok` 였다. 태그 자리를 렉싱해 놓고
                 //     읽는 이가 없으면 그 자리는 **약속처럼 보이는 빈칸**이다.
                 proven_i32 ew = ir_str_prefix_width(nd->tok.aux);
@@ -4970,7 +4970,7 @@ static bool ir_island_bad_app(ir_ctx_t *c, const low_cst_t *nd) {
                             "the tool kept a promise it never made", nd->line);
                     return;
                 }
-                // heredoc 본문은 **원문 그대로**다 — 풀지 않는다. 따옴표 리터럴만 푼다.
+                // 텍스트 리터럴 본문은 **원문 그대로**다 — 풀지 않는다. 따옴표 리터럴만 푼다.
                 if (nd->tok.kind == LOW_TOK_STRING &&
                     !ir_unescape(c, nd->tok.lex, nd->line, &val)) return;
                 if (ew > 1 && !ir_widen_units(c, val, ew, nd->line, &val)) return;

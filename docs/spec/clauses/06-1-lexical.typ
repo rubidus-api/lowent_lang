@@ -21,7 +21,7 @@
     ]
     #para("2a")[
       여러 줄을 한꺼번에 주석으로 만들려면 `note` 다음에 태그를 적고, 같은 태그가 홀로 있는
-      줄에서 끝낸다. 그 사이는 처리기가 없는 것으로 다룬다 — heredoc(#cref("6.1.4"))과 같은
+      줄에서 끝낸다. 그 사이는 처리기가 없는 것으로 다룬다 — 텍스트 리터럴(#cref("6.1.4"))과 같은
       모양이되 **값이 아니라 주석**이다.
     ]
     #para("2b")[
@@ -224,11 +224,11 @@ end", "E-NAME-DOTTED")
       코드포인트 하나다.
     ]
     #para("20")[
-      #t("heredoc", "heredoc") 은 여러 줄을 그대로 담는 문자열이다. `text` 다음에 태그를
+      #t("텍스트 리터럴", "text literal") 은 여러 줄을 그대로 담는 문자열이다. `text` 다음에 태그를
       적고, 같은 태그가 홀로 있는 줄에서 끝난다.
     ]
     #para("21")[
-      heredoc 의 본문에서는 **이스케이프를 풀지 아니한다.** 적힌 바이트가 곧 값이다.
+      텍스트 리터럴의 본문에서는 **이스케이프를 풀지 아니한다.** 적힌 바이트가 곧 값이다.
       태그 앞에는 문자열과 같은 접두사를 붙일 수 있다.
     ]
     #ex("문자 리터럴", "module ex_char .
@@ -306,7 +306,7 @@ fn f output u64 .
 do
   return len u8\"ab\" .
 end", "E-STR-PREFIX")
-    #ex("heredoc — 여러 줄을 그대로", "module ex_heredoc .
+    #ex("텍스트 리터럴 — 여러 줄을 그대로", "module ex_textlit .
 
 fn doc output u64 .
 do
@@ -539,10 +539,10 @@ fn twice input a u64 . output u64 . do return mul a 2 ; end", "E-VOCAB-REMOVED")
       #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*진단*], [*무엇이 안 닫혔는가*],
       [`E-STR-UNTERM`], [글월이 파일 끝까지 닫히지 아니하였다],
-      [`E-STR-NEWLINE`], [글월 안에 **줄바꿈**이 들어왔다 — 글월은 한 줄이다(여러 줄은 이음글이다)],
+      [`E-STR-NEWLINE`], [글월 안에 **줄바꿈**이 들어왔다 — 글월은 한 줄이다(여러 줄은 텍스트 리터럴이다)],
       [`E-CHAR-UNTERM` · `E-CHAR-NEWLINE`], [낱글자가 닫히지 아니하였다],
       [`E-NOTE-UNTERM`], [적바림 뭉치가 닫히지 아니하였다],
-      [`E-HEREDOC-UNTERM` · `E-HEREDOC-TERM`], [이음글의 맺음말이 없거나 어긋났다],
+      [`E-TEXTLIT-UNTERM` · `E-TEXTLIT-TERM`], [텍스트 리터럴의 맺음말이 없거나 어긋났다],
       [`E-BLOCK-UNCLOSED`], [블록이 닫히지 아니하였다],
       [`E-GROUP-UNCLOSED`], [묶음이 닫히지 아니하였다],
       )

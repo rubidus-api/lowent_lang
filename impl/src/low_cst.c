@@ -79,7 +79,7 @@ static void low_node_oom(low_parser_t *p) {
 static bool low_is_atom_tok(low_tok_kind_t k) {
     return k == LOW_TOK_IDENT || k == LOW_TOK_NUMBER || k == LOW_TOK_STRING ||
            k == LOW_TOK_CHAR ||
-           k == LOW_TOK_HEREDOC || k == LOW_TOK_OP;
+           k == LOW_TOK_TEXTLIT || k == LOW_TOK_OP;
 }
 static bool low_is_form_boundary(low_parser_t *p) {
     low_tok_kind_t k = low_curk(p);
@@ -400,7 +400,7 @@ static low_cst_t *low_parse_generic(low_parser_t *p) {
         } else if (low_curk(p) != LOW_TOK_RPAREN && low_curk(p) != LOW_TOK_EOF &&
                    (block_tail || low_curkw(p) == LOW_KW_END) && ops.len &&
                    // ☞ 여러 줄 원문(`text TERM … TERM`)은 끝 표지가 스스로 닫는다 — asm 몸의 `text ASM … ASM`.
-                   !(p->pos && p->toks[p->pos - 1].kind == LOW_TOK_HEREDOC)) {
+                   !(p->pos && p->toks[p->pos - 1].kind == LOW_TOK_TEXTLIT)) {
             const low_token_t *last = &p->toks[p->pos ? p->pos - 1 : 0];
             low_pdiag(p, "E-DOT-MISSING",
                       "this statement is not closed — `end` closes only its own `do` (it is a brace, not a "
@@ -1310,10 +1310,10 @@ static void low_fmt_node(const low_cst_t *nd, bool arg) {
                 if (nd->tok.aux.size) low_pv(nd->tok.aux);
                 putchar('"'); low_pv(nd->tok.lex); putchar('"');
             }
-            else if (nd->tok.kind == LOW_TOK_HEREDOC) {
+            else if (nd->tok.kind == LOW_TOK_TEXTLIT) {
                 // ★ 종결자는 **자기 줄에** 있어야 한다. 렉서가 본문 끝의 개행 하나를 **떼므로**
                 //   그냥 이어 붙이면 `…header.HEND` 가 되고 — **다시 읽을 수 없다**
-                //   (E-HEREDOC-UNTERM). 서식기는 자기가 낸 것을 **자기가 읽을 수 있어야** 한다.
+                //   (E-TEXTLIT-UNTERM). 서식기는 자기가 낸 것을 **자기가 읽을 수 있어야** 한다.
                 // ★★ 태그도 다시 찍는다 — 같은 이유다(전엔 태그가 아무 뜻이 없어 안 드러났다).
                 fputs("text ", stdout);
                 if (nd->tok.aux.size) { low_pv(nd->tok.aux); putchar(' '); }
@@ -1869,7 +1869,7 @@ static low_cst_t *nest_value(nest_ctx_t *c, low_cst_t *const *k, proven_size_t *
     if (nd->kind != LOW_CST_ATOM) return nd;              // GROUP/BLOCK/FORM — 이미 닫힌 것
     if (nd->tok.kind == LOW_TOK_NUMBER || nd->tok.kind == LOW_TOK_STRING ||
         nd->tok.kind == LOW_TOK_CHAR ||
-        nd->tok.kind == LOW_TOK_HEREDOC) return nd;                    // 리터럴 = 잎
+        nd->tok.kind == LOW_TOK_TEXTLIT) return nd;                    // 리터럴 = 잎
     if (nd->tok.kind != LOW_TOK_IDENT) { *bad = true; nest_blame(c, nd->tok.lex); return NULL; }
     // ★ `true`/`false` 는 **값**이다 — 키워드라는 이유로 포기하고 있었다.
     //   ★★ `none` 도 같다(2026-08-19). `return none .` 한 줄이 있으면 그 구간을 평평하게

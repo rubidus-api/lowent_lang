@@ -7,7 +7,7 @@
 //     number scanners, so any '.' that reaches the top level is isolated.
 //   * ',' is the argument closer (§0 D8); '(' ')' are decoration groups (R5).
 //   * rem …EOL and note TERM … TERM are comments (consumed, not emitted).
-//   * text [proc] TERM \n … \n TERM is a raw heredoc.
+//   * text [proc] TERM \n … \n TERM is a raw text literal.
 //
 // Lexeme views borrow the source buffer (zero-copy); tokens live in an arena array.
 #include "proven/utf.h"
@@ -420,9 +420,9 @@ static void low_skip_note(low_lexer_t *l, proven_u32 line, proven_u32 col) {
     }
 }
 
-// text [proc] TERM \n … \n TERM  — raw heredoc. Body ends at the closing TERM line;
+// text [proc] TERM \n … \n TERM  — raw text literal. Body ends at the closing TERM line;
 // the cursor resumes right after TERM so a trailing closer (END .) is lexed normally.
-static void low_scan_heredoc(low_lexer_t *l, proven_u32 line, proven_u32 col) {
+static void low_scan_textlit(low_lexer_t *l, proven_u32 line, proven_u32 col) {
     while (low_is_space(low_peek(l))) low_adv(l);
     proven_u8str_view_t w1 = low_scan_word(l);
     proven_u8str_view_t proc = LOW_EMPTY_VIEW, term = w1;
@@ -431,14 +431,14 @@ static void low_scan_heredoc(low_lexer_t *l, proven_u32 line, proven_u32 col) {
         proc = w1;
         term = low_scan_word(l);
     }
-    if (term.size == 0) { low_diag(l, "E-HEREDOC-TERM", "heredoc missing terminator", line, col); return; }
+    if (term.size == 0) { low_diag(l, "E-TEXTLIT-TERM", "text literal missing terminator", line, col); return; }
     low_skip_line(l);
     if (!low_at_end(l)) low_adv(l);   // newline after opener
     proven_size_t body_start = l->pos;
     for (;;) {
         if (low_at_end(l)) {
-            low_diag(l, "E-HEREDOC-UNTERM", "unterminated heredoc", line, col);
-            low_emit(l, LOW_TOK_HEREDOC, LOW_KW_NONE, low_span(l, body_start), proc, line, col);
+            low_diag(l, "E-TEXTLIT-UNTERM", "unterminated text literal", line, col);
+            low_emit(l, LOW_TOK_TEXTLIT, LOW_KW_NONE, low_span(l, body_start), proc, line, col);
             return;
         }
         proven_size_t ls = l->pos;
@@ -446,7 +446,7 @@ static void low_scan_heredoc(low_lexer_t *l, proven_u32 line, proven_u32 col) {
         while (low_is_space(low_peek(l))) low_adv(l);
         proven_u8str_view_t word = low_scan_word(l);
         if (proven_u8str_view_eq(word, term)) {
-            // Drop the single newline immediately before TERM, so a one-line heredoc is a
+            // Drop the single newline immediately before TERM, so a one-line text literal is a
             // newline-free string; to keep a trailing newline, add one blank line before TERM.
             proven_size_t body_end = ls;
             if (body_end > body_start && l->src.ptr[body_end - 1] == '\n') {
@@ -454,7 +454,7 @@ static void low_scan_heredoc(low_lexer_t *l, proven_u32 line, proven_u32 col) {
                 if (body_end > body_start && l->src.ptr[body_end - 1] == '\r') body_end--;  // CRLF
             }
             proven_u8str_view_t body = { .ptr = l->src.ptr + body_start, .size = body_end - body_start };
-            low_emit(l, LOW_TOK_HEREDOC, LOW_KW_NONE, body, proc, line, col);
+            low_emit(l, LOW_TOK_TEXTLIT, LOW_KW_NONE, body, proc, line, col);
             return;  // cursor is right after TERM; trailing closer lexed next
         }
         l->pos = ls; l->col = save_col;
@@ -528,7 +528,7 @@ low_lex_result_t low_lex(proven_allocator_t alloc, proven_u8str_view_t src) {
             proven_u8str_view_t w = low_scan_word(&l);
             if (proven_u8str_view_eq(w, PROVEN_LIT("rem")))  { low_skip_line(&l); continue; }
             if (proven_u8str_view_eq(w, PROVEN_LIT("note"))) { low_skip_note(&l, line, col); continue; }
-            if (proven_u8str_view_eq(w, PROVEN_LIT("text"))) { low_scan_heredoc(&l, line, col); continue; }
+            if (proven_u8str_view_eq(w, PROVEN_LIT("text"))) { low_scan_textlit(&l, line, col); continue; }
             // ★★ 낱말이 여는 따옴표에 **붙어** 있으면 이름이 아니라 **접두 리터럴**이다
             //    (RFC-0035 D5 · `u"AB"`). 공백이 하나라도 있으면 여전히 이름 + 문자열 둘이다.
             if (low_peek(&l) == '"') { low_scan_string_pfx(&l, line, col, w); continue; }

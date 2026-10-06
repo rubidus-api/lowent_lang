@@ -2187,9 +2187,9 @@ static bool ir_asm_clause(ir_ctx_t *c, low_ir_asm_t *a, const low_cst_t *f,
     return true;
 }
 
-static const low_cst_t *ir_asm_heredoc(const low_cst_t *nd) {
+static const low_cst_t *ir_asm_textlit(const low_cst_t *nd) {
     while (nd && nd->kind == LOW_CST_FORM && nd->nkids == 1) nd = nd->kids[0];
-    if (nd && nd->kind == LOW_CST_ATOM && nd->tok.kind == LOW_TOK_HEREDOC) return nd;
+    if (nd && nd->kind == LOW_CST_ATOM && nd->tok.kind == LOW_TOK_TEXTLIT) return nd;
     return NULL;
 }
 
@@ -2218,8 +2218,8 @@ static void ir_asm_tmpl_check(ir_ctx_t *c, low_ir_asm_t *a, proven_u32 line) {
                     "unchecked redundancy rots into a lie (PRINCIPLES.md §0)", line);
 }
 
-// ★ heredoc 하나를 꺼낸다(한 겹 폼으로 감싸여 올 수 있다).
-/* ir_asm_heredoc — ir_asm_stmt 와 한 덩어리라 low_ir.c 로 함께 되돌렸다 */
+// ★ 텍스트 리터럴 하나를 꺼낸다(한 겹 폼으로 감싸여 올 수 있다).
+/* ir_asm_textlit — ir_asm_stmt 와 한 덩어리라 low_ir.c 로 함께 되돌렸다 */
 
 
 // ★★★ **op 의 몸이 통째로 asm 인 경우** (RFC-0041 D2) — `asm` 이 op 의 **절**로 왔다.
@@ -2243,12 +2243,12 @@ static bool ir_asm_lower(ir_ctx_t *c, const low_cst_t *f, const low_cst_t *body,
 
     if (!ir_asm_clause(c, a, f, s, e)) return true;
 
-    // 몸 = **heredoc 하나**. 그것이 템플릿이다(RFC-0041 D2).
+    // 몸 = **텍스트 리터럴 하나**. 그것이 템플릿이다(RFC-0041 D2).
     const low_cst_t *t = NULL;
     if (body) for (proven_size_t i = 0; i < body->nkids; i++)
-        if ((t = ir_asm_heredoc(body->kids[i])) != NULL) break;
+        if ((t = ir_asm_textlit(body->kids[i])) != NULL) break;
     if (!t) {
-        ir_fail(c, "E-ASM-BODY", "the body of an asm op IS the assembly: one heredoc "
+        ir_fail(c, "E-ASM-BODY", "the body of an asm op IS the assembly: one text literal "
                 "(`text ASM … ASM`). There is nothing else it could be — the compiler does not "
                 "mix machine instructions with lowered code", f->line);
         return true;
@@ -2359,7 +2359,7 @@ low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr) {
     if (ewm.err != PROVEN_OK) { ir.ok = false; return ir; }
     ir.strew = (proven_u8 *)(void *)ewm.value.ptr;
     for (proven_size_t i = 0; i < IR_MAXSTRS; i++) ir.strew[i] = 1;
-    // ★ 리터럴 **값** 저장소(이스케이프 디코드 · heredoc 본문). 한계는 이름이 있고,
+    // ★ 리터럴 **값** 저장소(이스케이프 디코드 · 텍스트 리터럴 본문). 한계는 이름이 있고,
     //   넘으면 **거절한다**(조용히 자르지 않는다 — 잘린 문자열은 조용히 틀린 값이다).
     proven_result_mem_mut_t sbm = work.alloc_fn(work.ctx, IR_STRBUF, 1);
     if (sbm.err != PROVEN_OK) { ir.ok = false; return ir; }
@@ -4323,14 +4323,14 @@ static proven_size_t ir_asm_stmt(ir_ctx_t *c, const low_cst_t *blk, proven_size_
 
     if (!ir_asm_clause(c, a, f, 1, f->nkids)) return i + 1;
 
-    // 템플릿 = **바로 다음 문장**의 heredoc. 없으면 그 asm 은 **아무 명령도 아니다**.
+    // 템플릿 = **바로 다음 문장**의 텍스트 리터럴. 없으면 그 asm 은 **아무 명령도 아니다**.
     const low_cst_t *nx = (i + 1 < blk->nkids) ? blk->kids[i + 1] : NULL;
-    const low_cst_t *t = ir_asm_heredoc(nx);
-    // ★★★ **heredoc 도 문장이므로 `.` 로 닫는다.** 안 닫으면 점-닫힘 파서가 **다음 문장들을
+    const low_cst_t *t = ir_asm_textlit(nx);
+    // ★★★ **텍스트 리터럴도 문장이므로 `.` 로 닫는다.** 안 닫으면 점-닫힘 파서가 **다음 문장들을
     //   그 폼 안으로 빨아들인다** — 그러면 템플릿은 못 찾고, 뒤 문장은 조용히 사라진다.
     //   ⇒ 그 모양을 알아보고 **이름을 불러 준다**(진단이 원인 자리를 가리켜야 한다).
     if (!t && nx && nx->kind == LOW_CST_FORM && nx->nkids > 1 &&
-        nx->kids[0]->kind == LOW_CST_ATOM && nx->kids[0]->tok.kind == LOW_TOK_HEREDOC) {
+        nx->kids[0]->kind == LOW_CST_ATOM && nx->kids[0]->tok.kind == LOW_TOK_TEXTLIT) {
         ir_fail(c, "E-ASM-BODY", "the assembly template of an `asm` statement is itself a statement, "
                 "so it ends with `.` — write `ASM .` on the closing line. Without it the "
                 "point-closure parser swallows the statements that follow INTO the template's form, "
@@ -4338,7 +4338,7 @@ static proven_size_t ir_asm_stmt(ir_ctx_t *c, const low_cst_t *blk, proven_size_
         return i + 2;
     }
     if (!t) {
-        ir_fail(c, "E-ASM-BODY", "an `asm` statement is followed by ITS assembly: one heredoc "
+        ir_fail(c, "E-ASM-BODY", "an `asm` statement is followed by ITS assembly: one text literal "
                 "(`text ASM … ASM`) as the very next statement. An `asm` with no template names "
                 "an instruction set and then says nothing — the tool will not guess which "
                 "instructions you meant", f->line);
@@ -4350,7 +4350,7 @@ static proven_size_t ir_asm_stmt(ir_ctx_t *c, const low_cst_t *blk, proven_size_
     ir_emit(c, IRW_ASM, (proven_i64)ir->nasms);
     ir_emit(c, IRW_DROP, 0);   // ★ 문장이다 — 값을 남기지 않는다(op 의 몸일 때만 그것이 반환값이다)
     ir->nasms++;
-    return i + 2;              // ★ heredoc 은 이 문장이 **먹었다**
+    return i + 2;              // ★ 텍스트 리터럴은 이 문장이 **먹었다**
 }
 
  void ir_block(ir_ctx_t *c, const low_cst_t *blk) {
@@ -4363,7 +4363,7 @@ static proven_size_t ir_asm_stmt(ir_ctx_t *c, const low_cst_t *blk, proven_size_
             low_kw_t kw = f->kids[0]->tok.kw;
             if (kw == LOW_KW_MATCH) { ir_match(c, f); i++; continue; }
             if (kw == LOW_KW_GUARD) { i = ir_guard(c, blk, i); continue; }
-            // ★★★ **asm 문장** (RFC-0042 D11) — 이 문장과 **바로 다음 heredoc** 이 한 쌍이다.
+            // ★★★ **asm 문장** (RFC-0042 D11) — 이 문장과 **바로 다음 텍스트 리터럴** 이 한 쌍이다.
             //   그래서 ir_stmt 가 아니라 여기서 먹는다(다음 형제를 봐야 하므로).
             if (kw == LOW_KW_NONE && veq(f->kids[0]->tok.lex, "asm")) { i = ir_asm_stmt(c, blk, i); continue; }
             // ★ `ir_binding_split` 이 여기 있었다 — 정규화 층이 `be` 를 form 안으로 넣었으므로

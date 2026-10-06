@@ -20,7 +20,7 @@
 // propagates into caller def-hashes (Merkle), while iface-hash stays the
 // relink-only boundary.
 //
-// Still outside the core (→ S5c): strings/heredocs, for/loop over containers,
+// Still outside the core (→ S5c): strings/text literals, for/loop over containers,
 // stack/bitset/pool ops (§8 example B), float, access sugar, C backend.
 #ifndef LOW_IR_H
 #define LOW_IR_H
@@ -456,7 +456,7 @@ typedef struct {
 
 typedef struct {
     proven_u8str_view_t target;   // 이 ISA 에서만 컴파일된다 — 아니면 **거절한다**(조용히 빼지 않는다)
-    proven_u8str_view_t tmpl;     // heredoc 원문 (RFC-0001 §4.8) — 컴파일러는 **안 읽는다**
+    proven_u8str_view_t tmpl;     // 텍스트 리터럴 원문 (RFC-0001 §4.8) — 컴파일러는 **안 읽는다**
     low_ir_asmop_t      ops[8];   proven_size_t nops;
     proven_u8str_view_t clob[8];  proven_size_t nclob;
     proven_u8str_view_t opt[8];   proven_size_t nopt;

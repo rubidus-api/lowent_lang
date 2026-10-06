@@ -70,7 +70,7 @@ const char *low_tok_kind_name(low_tok_kind_t k) {
         case LOW_TOK_NUMBER:  return "NUMBER";
         case LOW_TOK_STRING:  return "STRING";
         case LOW_TOK_CHAR:    return "CHAR";   // ★ 이름표는 **한 벌** — 열거만 늘리면 `?` 가 된다
-        case LOW_TOK_HEREDOC: return "HEREDOC";
+        case LOW_TOK_TEXTLIT: return "TEXTLIT";
         case LOW_TOK_DOT:     return "DOT";
         case LOW_TOK_HEAD:    return "HEAD";   // `.name` — 머리를 연다
         case LOW_TOK_METHOD:  return "METHOD"; // `..name` — 수신자 우선 머리

@@ -11,7 +11,7 @@
 //   primary = ATOM | "(" form ")" | headed-block | bare-block
 //   headed-block = ATOM "do" form* "end"      (ATOM heads a block form, end closes it)
 //   bare-block   = "do" form* "end"
-//   ATOM    = IDENT | NUMBER | STRING | HEREDOC | true|false|none|unit
+//   ATOM    = IDENT | NUMBER | STRING | TEXTLIT | true|false|none|unit
 //
 // Nesting is EXPLICIT — via parens or do…end (no bare-dot arity bracketing; that is
 // the middle-ground/full front-end, not the mini pure reader). A statement therefore

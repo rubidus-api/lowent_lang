@@ -149,7 +149,7 @@ Some things portable code cannot reach: privileged instructions, system calls, e
 - The `asm x86_64 .` clause fixes the machine. Assembly for a machine other than the one being built for is rejected. The processor does not pretend it is portable.
 - `reg a .` loads input `a` into a register and `out reg r .` receives the result. `clobber flags .` states what is clobbered, and `options …` states promises made to
   the processor.
-- The body is a single `text ASM … ASM` heredoc. Assembly and ordinary code cannot be mixed.
+- The body is a single `text ASM … ASM` text literal. Assembly and ordinary code cannot be mixed.
 - There are four confinements --- the `unsafe` mark, `cap machine`, `effects unsafe` and the machine name.
 
 The processor cannot read inside the template. But the operand list and the template's `{name}`s are two expressions of the same thing, so each is checked against

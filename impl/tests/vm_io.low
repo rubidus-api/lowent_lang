@@ -98,7 +98,7 @@ proc t_view output u64 . effects state . do
   return 1 .
 end
 
-rem ── ★ 같은 것을 **리터럴로** — 이스케이프·heredoc 이 닫힌 뒤에야 쓸 수 있게 된 시험 ────
+rem ── ★ 같은 것을 **리터럴로** — 이스케이프·텍스트 리터럴이 닫힌 뒤에야 쓸 수 있게 된 시험 ────
 
 proc t_lines_lit output u64 . effects state . do
   rem 이스케이프 판: "aa\nb\n\ncc" 를 한 줄로 쓴다.
@@ -115,8 +115,8 @@ proc t_lines_lit output u64 . effects state . do
   return add (add (mul lines 100) (mul bytes 10)) (len (send r take_rest)) .
 end
 
-proc t_lines_heredoc output u64 . effects state . do
-  rem heredoc 판: **원문 그대로** — 같은 데이터를 이스케이프 없이 쓴다.
+proc t_lines_textlit output u64 . effects state . do
+  rem 텍스트 리터럴 판: **원문 그대로** — 같은 데이터를 이스케이프 없이 쓴다.
   var r be io.mem_reader spawn actor io.mem_reader .
   let src be slice u8 text END
 aa

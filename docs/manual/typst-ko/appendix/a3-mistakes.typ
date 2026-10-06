@@ -18,7 +18,7 @@
   [`for x in xs`], [`E-VOCAB-REMOVED`], [`for x xs do … end`],
   [`let x be f64 .5 .`], [`E-LET-NOVALUE`], [`0.5`],
   [매개변수와 같은 이름의 지역을 짓는다], [`E-NAME-SHADOW`], [새 이름을 짓는다],
-  [`count`·`text`·`len` 같은 이름을 쓴다], [`E-NAME-BUILTIN` 따위], [내장 연산·이음글 낱말은 이름이 될 수 없다],
+  [`count`·`text`·`len` 같은 이름을 쓴다], [`E-NAME-BUILTIN` 따위], [내장 연산·텍스트 리터럴 낱말은 이름이 될 수 없다],
   [모듈 이름과 op 이름이 같다], [`E-NAME-DUP`], [모듈 이름을 바꾼다],
   [`expr a lt b and b lt c`], [`E-TYPE-LOGICAL`], [`expr (a lt b) and (b lt c)`(#chref("expr"))],
   [`def type pct be u8 .`], [`E-TYPE-DECL`], [`def type pct u8 .`],

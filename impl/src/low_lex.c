@@ -7,7 +7,7 @@
 //     number scanners, so any '.' that reaches the top level is isolated.
 //   * ',' is the argument closer (§0 D8); '(' ')' are decoration groups (R5).
 //   * rem …EOL and note TERM … TERM are comments (consumed, not emitted).
-//   * text [proc] TERM \n … \n TERM is a raw text literal.
+//   * text [proc] TERM \n … \n TERM is a raw text literal (TERM closes only in column 1, alone).
 //
 // Lexeme views borrow the source buffer (zero-copy); tokens live in an arena array.
 #include "proven/utf.h"
@@ -420,8 +420,14 @@ static void low_skip_note(low_lexer_t *l, proven_u32 line, proven_u32 col) {
     }
 }
 
-// text [proc] TERM \n … \n TERM  — raw text literal. Body ends at the closing TERM line;
-// the cursor resumes right after TERM so a trailing closer (END .) is lexed normally.
+// text [proc] TERM \n … \n TERM  — raw text literal.
+// ★★★ **닫는 줄의 규칙** (2026-10-07 · 소유자 결정).
+//   ① 닫는 낱말은 **맨 첫 칸**에서 시작한다. 들여 쓴 태그는 닫는 낱말이 아니라 **본문**이다.
+//   ② 그 뒤에는 줄바꿈이 바로 오거나, 빈칸들 뒤에 줄바꿈이 온다(파일 끝도 같다).
+//   ③ 그 밖의 글자가 오면 거절한다(E-TEXTLIT-TAIL) — 문장을 닫는 `.` 은 **다음 줄**에 적는다.
+//   ④ 닫는 줄 바로 앞의 줄바꿈 하나는 값에 들지 않는다(한 줄이면 줄바꿈 없는 문자열).
+//   ☞ 전에는 «줄의 첫 낱말이 태그» 면 닫았다. 그래서 본문의 한 줄이 우연히 태그 낱말로 시작하면
+//     거기서 조용히 끝났고, 들여 쓴 태그와 맨 첫 칸의 태그가 같은 뜻이었다.
 static void low_scan_textlit(low_lexer_t *l, proven_u32 line, proven_u32 col) {
     while (low_is_space(low_peek(l))) low_adv(l);
     proven_u8str_view_t w1 = low_scan_word(l);
@@ -437,15 +443,18 @@ static void low_scan_textlit(low_lexer_t *l, proven_u32 line, proven_u32 col) {
     proven_size_t body_start = l->pos;
     for (;;) {
         if (low_at_end(l)) {
-            low_diag(l, "E-TEXTLIT-UNTERM", "unterminated text literal", line, col);
+            low_diag(l, "E-TEXTLIT-UNTERM", "unterminated text literal: the closing tag must start "
+                     "in the FIRST column of its own line (an indented tag is part of the text)", line, col);
             low_emit(l, LOW_TOK_TEXTLIT, LOW_KW_NONE, low_span(l, body_start), proc, line, col);
             return;
         }
+        // 여기는 언제나 줄의 맨 첫 칸이다. 태그 바이트가 그대로 있고 그 뒤가 이름 글자가 아니어야 닫는 낱말이다.
         proven_size_t ls = l->pos;
-        proven_size_t save_col = l->col;
-        while (low_is_space(low_peek(l))) low_adv(l);
-        proven_u8str_view_t word = low_scan_word(l);
-        if (proven_u8str_view_eq(word, term)) {
+        bool closer = ls + term.size <= l->src.size;
+        for (proven_size_t i = 0; closer && i < term.size; i++)
+            if (l->src.ptr[ls + i] != term.ptr[i]) closer = false;
+        if (closer && ls + term.size < l->src.size && low_is_ident(l->src.ptr[ls + term.size])) closer = false;
+        if (closer) {
             // Drop the single newline immediately before TERM, so a one-line text literal is a
             // newline-free string; to keep a trailing newline, add one blank line before TERM.
             proven_size_t body_end = ls;
@@ -454,10 +463,14 @@ static void low_scan_textlit(low_lexer_t *l, proven_u32 line, proven_u32 col) {
                 if (body_end > body_start && l->src.ptr[body_end - 1] == '\r') body_end--;  // CRLF
             }
             proven_u8str_view_t body = { .ptr = l->src.ptr + body_start, .size = body_end - body_start };
+            for (proven_size_t i = 0; i < term.size; i++) low_adv(l);
+            while (low_is_space(low_peek(l))) low_adv(l);
+            if (!low_at_end(l) && !low_is_nl(low_peek(l)))
+                low_diag(l, "E-TEXTLIT-TAIL", "nothing may follow the closing tag of a text literal on its "
+                         "line. Put the `.` that closes the statement on the NEXT line", l->line, l->col);
             low_emit(l, LOW_TOK_TEXTLIT, LOW_KW_NONE, body, proc, line, col);
-            return;  // cursor is right after TERM; trailing closer lexed next
+            return;  // cursor is after TERM (and blanks); whatever follows is lexed normally
         }
-        l->pos = ls; l->col = save_col;
         low_skip_line(l);
         if (!low_at_end(l)) low_adv(l);
     }

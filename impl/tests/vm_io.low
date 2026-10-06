@@ -123,7 +123,8 @@ aa
 b
 
 cc
-END .
+END
+.
   let d be u64 send r attach src .
   var lines be u64 0 .
   var bytes be u64 0 .

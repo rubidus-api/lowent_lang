@@ -31,7 +31,7 @@ do
   text ASM
     mov {a}, {r}
     add {b}, {r}
-  ASM
+ASM
 end
 
 rem --- ★ 특정 레지스터도 묶인다 — syscall 은 레지스터를 **고른다**(rdi/rsi/rax).
@@ -50,5 +50,5 @@ do
   text ASM
     mov {a}, {r}
     shl %cl, {r}
-  ASM
+ASM
 end

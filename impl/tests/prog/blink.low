@@ -154,7 +154,7 @@ unsafe proc wait_irq
 do
   text ASM
     wfi
-  ASM
+ASM
 end
 
 rem ── 리셋 진입 — `vector 1 .` (RFC-0042 D5-c) ───────────────────────────
@@ -199,7 +199,8 @@ do
     asm cortex_m options nomem nostack .
     text ASM
       wfi
-    ASM .
+ASM
+    .
   end
   return .
 end

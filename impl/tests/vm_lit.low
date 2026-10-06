@@ -67,7 +67,8 @@ fn t_textlit_one output u64 . do
   rem ★ 한 줄이면 **개행이 없다** — TERM 직전 개행 하나를 렉서가 떨어낸다.
   let s be slice u8 text END
 abc
-END .
+END
+.
   return len s .
 end
 
@@ -76,10 +77,24 @@ fn t_textlit_multi output u64 . do
   let s be slice u8 text END
 aa
 b
-END .
+END
+.
   guard eq (len s) 4 . else return 90 .
   guard eq (idx s 2) 10 . else return 91 .
   return 1 .
+end
+
+rem ★ 닫는 낱말은 **맨 첫 칸에 홀로** 선다(2026-10-07). 들여 쓴 태그와 더 긴 낱말은 본문이다.
+rem   "a\n  END\nENDx\nEND_1" — 1+1+5+1+4+1+5 = 18 바이트.
+fn t_textlit_col1 output u64 . do
+  let s be slice u8 text END
+a
+  END
+ENDx
+END_1
+END
+  .
+  return len s .
 end
 
 fn t_textlit_trail output u64 . do
@@ -87,7 +102,8 @@ fn t_textlit_trail output u64 . do
   let s be slice u8 text END
 ab
 
-END .
+END
+.
   guard eq (len s) 3 . else return 90 .
   guard eq (idx s 2) 10 . else return 91 .
   return 1 .
@@ -150,7 +166,8 @@ fn t_prefix_textlit output u64 . do
   rem ★ **두 표면이 같은 어휘를 쓴다** — 인라인 접두사와 텍스트 리터럴 태그가 같은 낱말이다.
   let a be slice u16 text u END
 AB
-END .
+END
+.
   guard eq (len a) 2 . else return 90 .
   guard eq (idx a 1) 66 . else return 91 .
   return 1 .

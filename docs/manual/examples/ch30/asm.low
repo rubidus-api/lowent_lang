@@ -16,5 +16,5 @@ do
   text ASM
     mov {a}, {r}
     add {b}, {r}
-  ASM
+ASM
 end

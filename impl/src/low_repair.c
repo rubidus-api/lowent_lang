@@ -299,6 +299,7 @@ static const low_repair_row_t REPAIR[] = {
     { "E-STR-ESCAPE",          "R-FIX-ESCAPE" },
     { "E-TEXTLIT-TERM",        "R-CLOSE-TEXTLIT" },
     { "E-TEXTLIT-UNTERM",      "R-CLOSE-TEXTLIT" },
+    { "E-TEXTLIT-TAIL",        "R-CLOSE-TEXTLIT" },
     { "E-NOTE-UNTERM",         "R-CLOSE-NOTE" },
     { "E-DOT-DOUBLE",          "R-USE-METHOD-FORM" },
     { "E-FIELD-GLUED",         "R-USE-FIELD-FORM" },

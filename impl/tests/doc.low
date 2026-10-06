@@ -18,7 +18,8 @@ fn parse_header
   lowdoc text DOC
 Parse the 4-byte header, returning version and length.
 Fails if the input is shorter than the header.
-DOC .
+DOC
+.
   input data bytes .
   output result .
   requires static ge (len data) 4 .

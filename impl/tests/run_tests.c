@@ -682,9 +682,24 @@ int main(void) {
         proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }
     {
-        low_lex_result_t l = LEX("let s text END\nhi \"q\" {x}\nEND .");
+        low_lex_result_t l = LEX("let s text END\nhi \"q\" {x}\nEND\n.");
         check(l.ok && count_kind(&l, LOW_TOK_TEXTLIT) == 1, "text literal body captured");
-        check(count_kind(&l, LOW_TOK_DOT) == 1, "trailing closer after END");
+        check(count_kind(&l, LOW_TOK_DOT) == 1, "closer on the line after END");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+    }
+    {   // 닫는 낱말은 맨 첫 칸에 홀로 선다 (2026-10-07): 뒤에 무엇이 오면 거절, 들여 쓴 태그는 본문, 파일 끝도 닫는다
+        low_lex_result_t l = LEX("let s text END\nhi\nEND .");
+        check(!l.ok && l.diags.len == 1, "anything after the closing tag is refused");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+        l = LEX("let s text END\nhi\n  END\nENDx\nEND  \n.");
+        check(l.ok && count_kind(&l, LOW_TOK_TEXTLIT) == 1 && count_kind(&l, LOW_TOK_IDENT) == 2,
+              "an indented tag and a longer word are body text; trailing blanks are allowed");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+        l = LEX("let s text END\nhi\nEND");
+        check(l.ok && count_kind(&l, LOW_TOK_TEXTLIT) == 1, "the closing tag may end the file");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+        l = LEX("let s text END\nhi\n  END\n.");
+        check(!l.ok, "an indented tag does not close: unterminated");
         proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
     }
 

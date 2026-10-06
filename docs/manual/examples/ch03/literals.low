@@ -41,6 +41,7 @@ fn texts output u64 . do
   let h be u64 len text DOC
 line one
 a\nb
-DOC .
+DOC
+.
   return add (mul x 100) (add (mul w 10) h) .
 end

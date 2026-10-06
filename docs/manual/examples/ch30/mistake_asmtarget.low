@@ -15,5 +15,5 @@ unsafe proc add_native
 do
   text ASM
     add {r}, {a}, {b}
-  ASM
+ASM
 end

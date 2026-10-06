@@ -28,7 +28,7 @@ do
   text ASM
     mov {a}, {r}
     add {b}, {r}
-  ASM
+ASM
 end
 
 rem 같은 답을 내는 **참조 구현** — 흡수한 자리는 언제나 이것과 맞대어진다.

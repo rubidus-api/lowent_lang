@@ -191,7 +191,7 @@ Using every shape in the table in one file looks like this.
 - `chars` is 65 (`'A'`) + 44032 (`u'가'`) + 128512 (`U'😀'`). The prefix decides the width of the element. Writing a character that does not
   fit in one byte, such as `'가'`, without a prefix is refused with `E-CHAR-WIDTH`.
 - In `texts`, `"\x41e"` is 2 bytes, `u"가나"` is 2 code units and `text DOC … DOC` is 13 bytes. A text literal holds, *exactly as
-  written*, everything from the tag after `text` to the line where the same tag stands alone. The `\n` in the body is two characters, not a
+  written*, everything from the tag after `text` to the line where the same tag stands alone, starting in the first column. An indented tag is part of the text, and the dot that closes the statement goes on the next line. The `\n` in the body is two characters, not a
   newline, and no newline is added after the last line. It is there to paste long descriptions or test input without escapes.
 - The `note END … END` at the top is a multi-line comment. It turns a whole block into a comment without `rem` on every line.
 

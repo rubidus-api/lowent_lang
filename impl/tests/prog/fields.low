@@ -70,7 +70,8 @@ proc main input a cap args . input e cap env . output u8 . effects state . do
 a, b,,c
  x , ,y
 
-DATA .
+DATA
+.
   let d be u64 send r attach src .
 
   var total be u64 0 .

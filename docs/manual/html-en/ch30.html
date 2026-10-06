@@ -786,7 +786,7 @@ tier.low:6:0 E-TIER-EFFECT: this effect is not available at the declared concurr
   text ASM
     mov {a}, {r}
     add {b}, {r}
-  ASM
+ASM
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check asm.low
 == check: ok ==
@@ -808,7 +808,7 @@ tier.low:6:0 E-TIER-EFFECT: this effect is not available at the declared concurr
   text ASM
     mov {a}, {r}
     add {c}, {r}
-  ASM
+ASM
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check asm_unbound.low
 asm_unbound.low:4:0 E-ASM-UNBOUND: the template names an operand the `asm` clause never declared — the assembler would either reject it or, worse, read WHATEVER register happens to be there
@@ -889,7 +889,7 @@ mistake_isreffect.low:6:0 E-ISR-EFFECT: an interrupt handler must declare `effec
 <strong><span class="tok-k">do</span></strong>
   text ASM
     add {r}, {a}, {b}
-  ASM
+ASM
 <strong><span class="tok-k">end</span></strong>
 </code></pre></div></div><div class="demo demo-out"><p class="demo-head">Output</p><div class="demo-body"><pre><code>$ lowentc --check mistake_asmtarget.low
 mistake_asmtarget.low:4:0 E-ASM-TARGET-UNKNOWN: this `asm` clause names something that is not a build target. The names are a CLOSED set — the target table is the authority (x86_64 · arm64 · cortex_m · riscv64 · mips_be). A name outside it matches NO build, so the op would be silently dropped or silently mis-built; both are what this RFC exists to prevent

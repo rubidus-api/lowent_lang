@@ -100,36 +100,72 @@ do
 end", "E-LET-OLDFORM")
   ]
   #sub("6.5.2", "조건 — `if`")[
+    #part("구문")
+    #syntax("if-statement", "if-statement ::= \"if\" expression \".\" block [ \"else\" ( block | if-statement ) ]
+block        ::= \"do\" { statement } \"end\"")
+    #part("제약")
     #para("1")[
-      `if` 는 조건이 참일 때 블록을 실행한다. 조건은 `bool` 이어야 한다(#cref("6.2.3")).
+      `expression` 의 타입은 `bool` 이어야 한다(#cref("6.2.3")).
     ]
     #para("2")[
-      `else` 로 거짓일 때의 블록을 적을 수 있다.
+      `if-statement` 는 **문**이다. 값이 놓이는 자리에 올 수 없다.
     ]
+    #part("동적 의미")
     #para("3")[
-      블록은 `do` 로 열고 `end` 로 닫는다. 조건은 `do` 앞의 점으로 닫는다 — `if <조건> . do … end`. 점이 없으면
-      `E-CTRL-NODOT`, 몸을 블록 없이 폼 하나로 적으면 `E-CTRL-NODO` 이다. `else` 뒤도 `do … end` 이거나 `if` 다.
-      `while`(§6.5.3) · `for`(§6.5.3.1) · `match`(§6.6) 도 같다.
-    ]
-    #plain[
-      왜 점과 블록을 둘 다 요구하는가. 점이 없거나 몸이 폼 하나이면, 점 하나를 빠뜨린 조건이 다음 문장을 삼킨다
-      (`if gt a 3 return 1 .` 은 조건이 `return 1` 까지 먹는다). 그 실수를 문법이 받아 주지 않게 한다.
-    ]
-    #para("3a")[
-      `else` 는 앞 블록을 `end` 로 닫은 **뒤에** 온다: `if <조건> . do … end else do … end`.
-      `else` 를 블록 **안**에 두는 것은 적합하지 아니하다(`E-STMT-ELSE`).
+      `expression` 을 계산한다.
     ]
     #para("4")[
-      `if` 는 **문**이다. 값을 내는 식으로 쓸 수 없다(`E-IF-VALUE`) — 갈래마다 값을 정하려면 각 갈래에서 이름에
-      `set` 하거나 `return` 한다.
+      그 값이 참이면 첫 `block` 의 문장을 적힌 차례로 실행한다.
     ]
-    #rejected("`if` 는 값을 내지 아니한다", "module ex_if_value .
+    #para("5")[
+      그 값이 거짓이고 `else` 가 있으면 `else` 뒤의 `block` 또는 `if-statement` 를 실행한다.
+    ]
+    #para("6")[
+      그 값이 거짓이고 `else` 가 없으면 아무것도 실행하지 아니한다.
+    ]
+    #part("진단")
+    #tbl("if 문의 진단")[
+      #table(columns: (1fr, auto), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+      [*어긴 것*], [*진단*],
+      [(1) — 조건이 `bool` 이 아니다], [`E-TYPE-COND`],
+      [(2) — `if` 를 값 자리에 적었다], [`E-IF-VALUE`],
+      [구문 — `expression` 뒤의 `"."` 가 없다], [`E-CTRL-NODOT`],
+      [구문 — `block` 자리에 `do … end` 가 아닌 것을 적었다], [`E-CTRL-NODO`],
+      [구문 — `else` 를 `block` 안에 적었다], [`E-STMT-ELSE`],
+      )
+    ]
+    #part("예제")
+    #ex("갈래 셋 — (4)(5) 를 시험한다", "module ex_if .
+
+export fn sign input a i64 . output u64 .
+do
+  if gt a 0 . do
+    return 1 .
+  end else if eq a 0 . do
+    return 0 .
+  end else do
+    return 2 .
+  end
+end",
+      out: "sign(5) = 1 · sign(0) = 0 · sign(-3) = 2")
+    #rejected("`if` 는 값을 내지 아니한다 — (2) 를 시험한다", "module ex_if_value .
 
 fn pick input a u64 . output u64 .
 do
   let x be u64 if gt a 1 . 5 else 6 .   rem 갈래마다 set 하거나 return 한다
   return x .
 end", "E-IF-VALUE")
+    #part("참고")
+    #plain[
+      왜 점과 블록을 둘 다 요구하는가. 점이 없거나 몸이 폼 하나이면, 점 하나를 빠뜨린 조건이 다음 문장을 삼킨다
+      (`if gt a 3 return 1 .` 은 조건이 `return 1` 까지 먹는다). 그 실수를 문법이 받아 주지 않게 한다.
+    ]
+    #note[
+      조건을 점으로 닫고 몸을 블록으로 적는 것은 `while`(#cref("6.5.3")) · `for`(#cref("6.5.3.1")) · `match`(#cref("6.6")) 도 같다.
+    ]
+    #note[
+      갈래마다 다른 값을 얻으려면 각 갈래에서 이름에 `set` 하거나 `return` 한다.
+    ]
   ]
   #sub("6.5.3", "되풀이 — `while`")[
     #para("1")[
@@ -198,10 +234,9 @@ end")
       그 칸에 쓴다. `buf` 는 `mut` 이어야 한다(`E-TYPE-MUT`). 되풀이 동안 `buf` 전체를 빌리므로 블록 안에서
       `buf` 를 읽거나 쓰면 번역이 거부된다(`E-FOR-HEAD`) — 원소는 `x` 로만 만진다.
     ]
-    #ambig("M-0005 — mut 없는 원소에 set")[
-      `for x <슬라이스> do` 의 `x` 에 블록 안에서 `set` 할 수 있는지 이 문서에 정한 것이 없다((3) 은 `mut` 이 있을 때만 말한다).
-      풀이 ㄱ: 번역이 거부된다 — 원소를 바꾸려면 `mut` 을 적는다. 풀이 ㄴ: `x` 는 그 바퀴의 사본이고 `set` 은 사본만 바꾼다.
-      처리기는 지금 받아들이고 슬라이스는 바꾸지 아니한다(ㄴ).
+    #para("3a")[
+      `mut` 없이 적은 `for x <슬라이스> do` 의 `x` 는 그 바퀴의 원소 값을 담은 **사본**이다. 블록 안에서 `x` 에
+      `set` 할 수 없다(`E-FOR-HEAD`) — 칸을 바꾸려면 머리에 `mut` 을 적는다.
     ]
     #para("4")[
       **세기.** `for i count τ n .` 는 `i` 에 `0` 부터 `n−1` 까지를 차례로 담는다. `n` 이 0 이하이면 한 번도

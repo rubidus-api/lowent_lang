@@ -375,7 +375,7 @@ for		u64	var s be u64 0 . ␤ let i be u64 5 . ␤ for i count u64 3 . do set s 
 mod	a i8, b i8	i8	return mod a b .	-7 2	= 1
 mod	a i8, b i8	i8	return mod a b .	7 -2	= -1
 mod	a i8, b i8	i8	return mod a b .	-128 -1	= 0
-neg	a i8	i8	return neg a .	-128	= 128
-neg	a u8	u8	return neg a .	7	= 18446744073709551609
-for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x xs do set x 1 . end ␤ for y xs do set s (add s y) . end ␤ return s .		= 60
+neg	a i8	i8	return neg a .	-128	TRAP E-VM-OVERFLOW
+neg	a u8	u8	return neg a .	7	CHECK E-TYPE-SIGN
+for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x xs do set x 1 . end ␤ for y xs do set s (add s y) . end ␤ return s .		CHECK E-FOR-HEAD
 note	a u64	u64	note ␤ return add a 1 .	1	CHECK E-NOTE-TERM

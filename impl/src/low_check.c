@@ -8012,6 +8012,26 @@ static void fh_walk(low_check_result_t *out, const low_cst_t *nd) {
                      hit->kids[0]->tok.line);
         }
     }
+    // ★★★ **`mut` 없는 원소 이름에는 쓸 수 없다** (모호 M-0005 · 2026-10-08 소유자 «권고대로»).
+    //   `for x xs do set x 1 . end` 가 통과했고 **아무것도 바꾸지 않았다** — `x` 는 그 바퀴의 사본이라 `xs` 는 그대로다.
+    //   아무것도 못 바꾸는 `set` 은 읽는 사람을 속인다. 칸을 바꾸려면 `for x mut xs` 라고 적는다.
+    //   ☞ 원천 이름(`xs`)을 몸에서 `set` 하는 것은 그대로 둔다 — RFC-0132 §13.12 가 옛 코드를 안 바꾸기로 했다.
+    else if (nd->kind == LOW_CST_FORM && nd->nkids >= 4 && ck_atom(nd->kids[0]) && nd->kids[0]->tok.kw == LOW_KW_FOR &&
+             ck_atom(nd->kids[1]) && nd->kids[1]->tok.kind == LOW_TOK_IDENT) {
+        static fh_names_t e;
+        e.nn = 0; e.over = false;
+        e.nm[e.nn++] = nd->kids[1]->tok.lex;
+        proven_size_t which = 0;
+        for (proven_size_t q = 2; q < nd->nkids; q++)
+            if (nd->kids[q]->kind == LOW_CST_BLOCK) {
+                const low_cst_t *hit = fh_set_of(nd->kids[q], &e, &which);
+                if (hit)
+                    emit(out, "E-FOR-HEAD", "this loop name is a COPY of the element — `set` on it changes nothing in the slice. "
+                         "To write the cells, say so in the head: `for x mut <slice> do … end`. To keep a running value, use "
+                         "another name", hit->kids[0]->tok.line);
+                break;
+            }
+    }
     for (proven_size_t i = 0; i < nd->nkids; i++) fh_walk(out, nd->kids[i]);
 }
 // ★ RFC-0132 P3 — `copy` 의 두 길이가 번역 시점에 알려져 있으면(둘 다 이 op 의 `lit array T N` 이름) 같아야 한다(E-COPY-LEN).

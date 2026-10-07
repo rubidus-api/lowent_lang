@@ -4211,7 +4211,7 @@ static void cbe_scalar_body_raw(const low_ir_t *ir, const low_ir_def_t *d, FILE 
                 break;
             case IRW_NEG:
                 if (ks.k[ks.n-1] == K_FLT) fputs("    fs[fsp-1] = -fs[fsp-1];\n", out);
-                else fputs("    st[sp-1] = -st[sp-1];\n", out);
+                else fprintf(out, "    st[sp-1] = lw_negs_i(%lld, st[sp-1]);\n", (long long)in->a);   // 넘치면 멈춘다 (RFC-0052 D4)
                 break;
             case IRW_DIV:
                 if (ks.k[ks.n-1] == K_FLT)
@@ -6059,7 +6059,7 @@ int low_cbe_emit(const low_ir_t *ir, FILE *out) {
                 case IRW_LOAD:  fprintf(out, "    st[sp++] = loc[%lld];\n", (long long)in->a); break;
                 case IRW_STORE: fprintf(out, "    lw_store(&loc[%lld], st[--sp]);\n", (long long)in->a); break;
                 case IRW_DROP:  fputs("    sp--;\n", out); break;
-                case IRW_NEG:   fputs("    st[sp-1] = lw_neg(st[sp-1]);\n", out); break;
+                case IRW_NEG:   fprintf(out, "    st[sp-1] = lw_negs(%lld, st[sp-1]);\n", (long long)in->a); break;
                 case IRW_FCONST: fprintf(out, "    st[sp++] = lw_fltbits(%lldll);\n", (long long)in->a); break;
                 case IRW_CAST:  fprintf(out, "    st[sp-1] = lw_cast(%lld, st[sp-1]);\n", (long long)in->a); break;
                 case IRW_ASSERT:

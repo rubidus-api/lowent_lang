@@ -197,6 +197,27 @@
 // ★ `#ex` 와 **갈라 둔다**: 예제는 실제로 컴파일되는 프로그램이고, 틀은 `<…>` 자리를 가진
 //   **모양**이다. 갈라 놓지 않으면 검사기가 틀을 프로그램으로 알고 컴파일하려 든다
 //   (실제로 그렇게 걸렸다 — 검사기가 옳았고 내 장치 선택이 틀렸다).
+// ── 조항의 틀 (RFC-0139 §5.1 · §5.2, 정본 §1.5) ─────────────────────
+// 칸 제목 — 구문 · 제약 · 정적 의미 · 동적 의미 · 진단 · 예제 · 참고. 조항 번호가 없고 차례에 들어가지 않는다.
+#let part(name) = if _html {
+  html.elem("p", attrs: (class: "part"), name)
+} else {
+  block(above: 1.1em, below: 0.5em)[#text(size: 0.92em, weight: "bold", fill: rgb("#333"))[#name]]
+}
+// 구문 — EBNF 생성 규칙. 문법틀(#shape)은 한눈에 보는 모양이고, 이것이 문법의 정의다.
+#let syntax(caption, code) = {
+  if _html {
+    html.elem("div", attrs: (class: "syntax"), {
+      html.elem("pre", html.elem("code", code))
+    })
+  } else {
+    block(above: 0.7em, below: 0.9em, width: 100%, inset: (left: 0.9em, y: 0.5em), stroke: (left: 2pt + rgb("#111")))[
+      #set text(font: ("D2Coding", "Noto Sans Mono"), size: 0.9em)
+      #raw(code)
+    ]
+  }
+}
+
 #let shape(caption, code) = {
   if _html {
     html.elem("div", attrs: (class: "shape"), {

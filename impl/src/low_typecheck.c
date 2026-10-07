@@ -1049,6 +1049,17 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                     }
                 }
             }
+            // ★★★ **`neg` 는 부호 있는 타입과 부동소수의 것이다** (RFC-0052 D4 — «무부호 neg → 정적 E-TYPE-SIGN». 2026-10-08 에 지음).
+            //   결정은 2026-08 에 났는데 지어지지 않았고, 정본으로 옮겨지며 문장도 빠졌다. 그 사이 `neg` 를 `u8` 7 에 대면
+            //   18446744073709551609 — **그 타입에 없는 값** — 이 나왔다. 결과의 타입도 «모름» 이어서 아무 자리에나 들어갔다.
+            if (veq(h, "neg") && n == 2 && !sig_find(c, h)) {
+                ty_t o = tc_infer(c, k[start + 1], env, nenv);
+                if (o.k == TK_INT && !o.lit && !o.sign)
+                    tc_emit(c, "E-TYPE-SIGN", "`neg` needs a SIGNED integer or a float — an unsigned type has no negative "
+                            "values, so the result could not be a value of that type. Widen to a signed type first "
+                            "(`neg (widen i16 x)`), or write the subtraction you mean (`wrap_sub 0 x`)", k[start]->line);
+                return o;
+            }
             if ((arith || cmp) && n == 3 && !sig_find(c, h)) {   // 사용자 op 가 가리지 않을 때만
                 ty_t a = tc_infer(c, k[start + 1], env, nenv);
                 ty_t b = tc_infer(c, k[start + 2], env, nenv);

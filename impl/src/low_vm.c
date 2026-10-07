@@ -1215,8 +1215,19 @@ static bool vm_loop(vm_ctx_t *vm, vm_act *a, vmv_t *ret, int *outcome,
                 break;
             }
             case IRW_DROP:  if (sp) sp--; break;
-            case IRW_NEG:   if (sp && stack[sp - 1].tag == VMV_INT)
-                                stack[sp - 1].i = (proven_i64)(0 - (proven_u64)stack[sp - 1].i);
+            // ★★★ `neg` 도 산술이다 — 결과가 선언 폭에 안 들어가면 멈춘다 (RFC-0052 D4 · 2026-10-08).
+            //   전에는 감긴 값을 그대로 냈다: `i8` 의 -128 에 `neg` 가 128 — 그 타입에 없는 값. `abs` 는 같은 자리에서 멈췄다.
+            case IRW_NEG:   if (sp && stack[sp - 1].tag == VMV_INT) {
+                                proven_i64 nx = stack[sp - 1].i, nr;
+                                bool nknown = (in->a & IR_TY_KNOWN) != 0;
+                                bool nsign = !nknown || (in->a & IR_TY_SIGNED);
+                                proven_u8 nbits = nknown ? (proven_u8)(in->a & 0xff) : 0;
+                                bool novf = __builtin_sub_overflow((proven_i64)0, nx, &nr);
+                                if (!novf && !nsign && nx != 0) novf = true;
+                                if (!novf && nknown && nbits && nbits < 64 && !ity_fits(nr, nbits, nsign)) novf = true;
+                                if (novf) { vm_diag(vm->diags, "E-VM-OVERFLOW", "neg overflow: the negated value does not fit the declared width"); return false; }
+                                stack[sp - 1].i = nr;
+                            }
                             else if (sp && stack[sp - 1].tag == VMV_FLT)
                                 stack[sp - 1] = vmv_flt(-vmv_f(stack[sp - 1]));
                             break;

@@ -483,6 +483,7 @@ static bool ir_leaf_needs_posix(low_irw_t w) {
                 break;
             case IRW_NEG:
                 res = ops[0];
+                if (!c->tstk_bad) a = ity_meta(res);   // ★ 부호·폭 — 넘침을 선언 폭에서 본다 (RFC-0052 D4)
                 break;
             // ★★★ **비트 연산은 폭을 안다** (RFC-0064). 그 폭이 곧 계약이다:
             //   `bit_not` 은 그 폭에서 뒤집고, 시프트는 그 폭보다 작아야 한다.

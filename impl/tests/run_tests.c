@@ -1677,7 +1677,7 @@ int main(void) {
             "fn iclamp input x u64 . output u64 .  do return min (max x 3) 9 . end "
             "fn fwrap output f64 .  do return fmod 7.5 2.0 . end "
             "fn ffloor output f64 .  do return floor 2.7 . end "
-            "fn iabs input x u64 . output u64 .  do return abs neg x . end "
+            "fn iabs input x i64 . output i64 .  do return abs neg x . end "
             "fn mixed output f64 .  do return min 1 2.0 . end";
         low_lex_result_t l = LEX(src); proven_arena_reset(&arena);
         low_parse_result_t p = low_parse(nodes, heap, &l.tokens);

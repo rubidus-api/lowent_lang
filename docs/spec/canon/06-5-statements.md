@@ -99,25 +99,59 @@ end
 
 ## 6.5.2 조건 — `if`
 
-(1) `if` 는 조건이 참일 때 블록을 실행한다. 조건은 `bool` 이어야 한다(⟦§6.2.3⟧).
+### 구문
 
-(2) `else` 로 거짓일 때의 블록을 적을 수 있다.
+```구문: if-statement
+if-statement ::= "if" expression "." block [ "else" ( block | if-statement ) ]
+block        ::= "do" { statement } "end"
+```
 
-(3) 블록은 `do` 로 열고 `end` 로 닫는다. 조건은 `do` 앞의 점으로 닫는다 — `if <조건> . do … end`. 점이 없으면
-      `E-CTRL-NODOT`, 몸을 블록 없이 폼 하나로 적으면 `E-CTRL-NODO` 이다. `else` 뒤도 `do … end` 이거나 `if` 다.
-      `while`(§6.5.3) · `for`(§6.5.3.1) · `match`(§6.6) 도 같다.
+### 제약
 
-> [!산문]
-> 왜 점과 블록을 둘 다 요구하는가. 점이 없거나 몸이 폼 하나이면, 점 하나를 빠뜨린 조건이 다음 문장을 삼킨다
-> (`if gt a 3 return 1 .` 은 조건이 `return 1` 까지 먹는다). 그 실수를 문법이 받아 주지 않게 한다.
+(1) `expression` 의 타입은 `bool` 이어야 한다(⟦§6.2.3⟧).
 
-(3a) `else` 는 앞 블록을 `end` 로 닫은 **뒤에** 온다: `if <조건> . do … end else do … end`.
-      `else` 를 블록 **안**에 두는 것은 적합하지 아니하다(`E-STMT-ELSE`).
+(2) `if-statement` 는 **문**이다. 값이 놓이는 자리에 올 수 없다.
 
-(4) `if` 는 **문**이다. 값을 내는 식으로 쓸 수 없다(`E-IF-VALUE`) — 갈래마다 값을 정하려면 각 갈래에서 이름에
-      `set` 하거나 `return` 한다.
+### 동적 의미
 
-```lowent-거부: `if` 는 값을 내지 아니한다 · E-IF-VALUE
+(3) `expression` 을 계산한다.
+
+(4) 그 값이 참이면 첫 `block` 의 문장을 적힌 차례로 실행한다.
+
+(5) 그 값이 거짓이고 `else` 가 있으면 `else` 뒤의 `block` 또는 `if-statement` 를 실행한다.
+
+(6) 그 값이 거짓이고 `else` 가 없으면 아무것도 실행하지 아니한다.
+
+### 진단
+
+> [!표] if 문의 진단
+> #table(columns: (1fr, auto), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+> [*어긴 것*], [*진단*],
+> [(1) — 조건이 `bool` 이 아니다], [`E-TYPE-COND`],
+> [(2) — `if` 를 값 자리에 적었다], [`E-IF-VALUE`],
+> [구문 — `expression` 뒤의 `"."` 가 없다], [`E-CTRL-NODOT`],
+> [구문 — `block` 자리에 `do … end` 가 아닌 것을 적었다], [`E-CTRL-NODO`],
+> [구문 — `else` 를 `block` 안에 적었다], [`E-STMT-ELSE`],
+> )
+
+### 예제
+
+```lowent 예제: 갈래 셋 — (4)(5) 를 시험한다 · 결과: sign(5) = 1 · sign(0) = 0 · sign(-3) = 2
+module ex_if .
+
+export fn sign input a i64 . output u64 .
+do
+  if gt a 0 . do
+    return 1 .
+  end else if eq a 0 . do
+    return 0 .
+  end else do
+    return 2 .
+  end
+end
+```
+
+```lowent-거부: `if` 는 값을 내지 아니한다 — (2) 를 시험한다 · E-IF-VALUE
 module ex_if_value .
 
 fn pick input a u64 . output u64 .
@@ -126,6 +160,18 @@ do
   return x .
 end
 ```
+
+### 참고
+
+> [!산문]
+> 왜 점과 블록을 둘 다 요구하는가. 점이 없거나 몸이 폼 하나이면, 점 하나를 빠뜨린 조건이 다음 문장을 삼킨다
+> (`if gt a 3 return 1 .` 은 조건이 `return 1` 까지 먹는다). 그 실수를 문법이 받아 주지 않게 한다.
+
+> [!참고]
+> 조건을 점으로 닫고 몸을 블록으로 적는 것은 `while`(⟦§6.5.3⟧) · `for`(⟦§6.5.3.1⟧) · `match`(⟦§6.6⟧) 도 같다.
+
+> [!참고]
+> 갈래마다 다른 값을 얻으려면 각 갈래에서 이름에 `set` 하거나 `return` 한다.
 
 ## 6.5.3 되풀이 — `while`
 
@@ -188,10 +234,8 @@ end
       그 칸에 쓴다. `buf` 는 `mut` 이어야 한다(`E-TYPE-MUT`). 되풀이 동안 `buf` 전체를 빌리므로 블록 안에서
       `buf` 를 읽거나 쓰면 번역이 거부된다(`E-FOR-HEAD`) — 원소는 `x` 로만 만진다.
 
-> [!모호] M-0005 — mut 없는 원소에 set
-> `for x <슬라이스> do` 의 `x` 에 블록 안에서 `set` 할 수 있는지 이 문서에 정한 것이 없다((3) 은 `mut` 이 있을 때만 말한다).
-> 풀이 ㄱ: 번역이 거부된다 — 원소를 바꾸려면 `mut` 을 적는다. 풀이 ㄴ: `x` 는 그 바퀴의 사본이고 `set` 은 사본만 바꾼다.
-> 처리기는 지금 받아들이고 슬라이스는 바꾸지 아니한다(ㄴ).
+(3a) `mut` 없이 적은 `for x <슬라이스> do` 의 `x` 는 그 바퀴의 원소 값을 담은 **사본**이다. 블록 안에서 `x` 에
+      `set` 할 수 없다(`E-FOR-HEAD`) — 칸을 바꾸려면 머리에 `mut` 을 적는다.
 
 (4) **세기.** `for i count τ n .` 는 `i` 에 `0` 부터 `n−1` 까지를 차례로 담는다. `n` 이 0 이하이면 한 번도
       돌지 아니한다. `τ` 는 셈의 타입이며 **언제나 적는 정수 타입**이다 — 적지 않거나 정수 타입이 아니면

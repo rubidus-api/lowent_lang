@@ -67,6 +67,7 @@
       [사전 조건], [precondition], [#cref("3.3")],
       [사후 조건], [postcondition], [#cref("3.3")],
       [상표], [brand], [#cref("3.2")],
+      [생성 규칙], [production], [#cref("1.5")],
       [선언], [declaration], [#cref("3.1")],
       [섬], [island], [#cref("3.7")],
       [소유], [ownership], [#cref("3.5")],

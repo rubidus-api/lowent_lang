@@ -214,6 +214,7 @@ letter  = 'a'…'z' | 'A'…'Z' ;")
       닫는 줄에서 `tag` 와 `{ sp }` 뒤에 `nl` 도 `eof` 도 아닌 것이 오면 번역이 거부된다
       (`TEXTLIT` 은 `E-TEXTLIT-TAIL`, `NOTE` 는 `E-NOTE-TAIL`). 여는 줄에서 `tag` 뒤에 `proc` 도 `rem` 도 아닌 것이 오면
       거부된다(`E-TEXTLIT-OPENER`). `NOTE` 의 여는 줄은 `tag` 뒤를 줄 끝까지 읽지 아니한다.
+      `note` 뒤에 `tag` 가 없으면 거부된다(`E-NOTE-TERM`) — `TEXTLIT` 은 같은 자리에서 `E-TEXTLIT-TERM` 이다.
     ]
     #para("7")[
       접두사는 **닫힌 집합 둘**이다. 그 밖의 글자를 리터럴 앞에 붙이면 번역이 거부된다

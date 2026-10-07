@@ -372,17 +372,10 @@ for		u64	var s be u64 0 . ␤ for i be u64 1 . while lt i 9 . next add i 1 . whe
 for		u64	var s be u64 0 . ␤ for i count u64 10 . do ␤   if eq i 2 . do continue . end ␤   if eq i 5 . do break . end ␤   set s (add s i) . ␤ end ␤ return s .		= 8
 for		u64	var s be u64 0 . ␤ for i count u64 3 . do ␤   for j count u64 3 . do ␤     if eq j 1 . do break . end ␤     set s (add s 1) . ␤   end ␤ end ␤ return s .		= 3
 for		u64	var s be u64 0 . ␤ let i be u64 5 . ␤ for i count u64 3 . do set s (add s i) . end ␤ return s .		CHECK E-NAME-SHADOW
-add	a u64, b u64	u64	return add (div 1 a) (widen u64 (narrow u8 b)) .	0 999	TRAP E-VM-DIV0
-add	a u64, b u64	u64	return add (widen u64 (narrow u8 b)) (div 1 a) .	0 999	TRAP E-VM-CAST
-mul	a u64, b u64	u64	return mul (add 1 (div 1 a)) (widen u64 (narrow u8 b)) .	0 999	TRAP E-VM-DIV0
 mod	a i8, b i8	i8	return mod a b .	-7 2	= 1
 mod	a i8, b i8	i8	return mod a b .	7 -2	= -1
 mod	a i8, b i8	i8	return mod a b .	-128 -1	= 0
-min	a f64	f64	return min (div a a) 1.0 .	0.0	= 1.0
-min	a f64	f64	return min 1.0 (div a a) .	0.0	= -nan
-max	a f64	f64	return max (div a a) 1.0 .	0.0	= 1.0
-max	a f64	f64	return max 1.0 (div a a) .	0.0	= -nan
 neg	a i8	i8	return neg a .	-128	= 128
 neg	a u8	u8	return neg a .	7	= 18446744073709551609
 for		u64	var s be u64 0 . ␤ let xs be slice u64 lit slice u64 10 20 30 . . ␤ for x xs do set x 1 . end ␤ for y xs do set s (add s y) . end ␤ return s .		= 60
-note	a u64	u64	note ␤ return add a 1 .	1	= 2
+note	a u64	u64	note ␤ return add a 1 .	1	CHECK E-NOTE-TERM

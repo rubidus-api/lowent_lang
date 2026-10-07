@@ -715,6 +715,9 @@ int main(void) {
         l = LEX("note N\n  N\nNx\nN\na .");
         check(l.ok && count_kind(&l, LOW_TOK_IDENT) == 1, "a note closes only at a first-column tag standing alone");
         proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
+        l = LEX("note\na .");
+        check(!l.ok && l.diags.len == 1, "a note without a tag is refused (it used to skip the line silently)");
+        proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);
         l = LEX("note N\nx\nN y\na .");
         check(!l.ok && l.diags.len == 1, "anything after the closing tag of a note is refused");
         proven_array_destroy(&l.tokens); proven_array_destroy(&l.diags);

@@ -71,7 +71,11 @@
 }
 
 // 본문에서 용어를 처음 쓸 때: #t("계약", "contract")
-#let t(ko, en) = if _html {
+// ★ «자유 선택 (free choice)» 은 일반 낱말이 아니라 §4.3 이 정의한 용어다 — 본문에서 쓰일 때마다 눈에 띄게 낸다(2026-10-08 소유자).
+#let t(ko, en) = if en == "free choice" {
+  if _html { html.elem("span", attrs: (class: "t fc"), [#ko (#en)]) }
+  else { text(weight: "bold", fill: rgb("#17574a"))[#ko (#text(size: 0.92em)[#en])] }
+} else if _html {
   html.elem("span", attrs: (class: "t"), [#ko (#en)])
 } else { [#ko (#text(fill: rgb("#555"), size: 0.92em)[#en])] }
 
@@ -103,15 +107,29 @@
   ]
 }
 
+// 자유 선택 — 처리기가 범위 안에서 골라도 되고, 무엇을 골랐는지 적지 않아도 되는 자리 (정본 §4.3). 부록 F 가 모은다.
+#let freechoice(title, body) = if _html {
+  html.elem("div", attrs: (class: "freechoice"), {
+    html.elem("b", [자유 선택 (free choice) — #title])
+    body
+  })
+} else {
+  block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, stroke: (left: 3pt + rgb("#1f6f5c"), rest: 0.5pt + rgb("#1f6f5c")))[
+    #text(size: 0.88em, weight: "bold", fill: rgb("#17574a"))[자유 선택 (free choice) — #title]
+
+    #text(size: 0.95em)[#body]
+  ]
+}
+
 // 모호 — 이 문서만으로는 뜻이 둘 이상으로 읽히는 자리 (RFC-0139 §6). 고르지 않고 풀이를 나란히 적는다. 부록 E 가 모은다.
 #let ambig(title, body) = if _html {
   html.elem("div", attrs: (class: "ambig"), {
-    html.elem("b", [모호 — #title])
+    html.elem("b", [모호 (open issue) — #title])
     body
   })
 } else {
   block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, stroke: (left: 3pt + rgb("#a05a00"), rest: 0.5pt + rgb("#a05a00")))[
-    #text(size: 0.88em, weight: "bold", fill: rgb("#7a4300"))[모호 — #title]
+    #text(size: 0.88em, weight: "bold", fill: rgb("#7a4300"))[모호 (open issue) — #title]
 
     #text(size: 0.95em)[#body]
   ]

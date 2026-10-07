@@ -426,7 +426,12 @@ static bool low_take_closer(low_lexer_t *l, proven_u8str_view_t term, const char
 static void low_skip_note(low_lexer_t *l, proven_u32 line, proven_u32 col) {
     while (low_is_space(low_peek(l))) low_adv(l);
     proven_u8str_view_t term = low_scan_word(l);
-    if (term.size == 0) { low_skip_line(l); return; }
+    // ★ 태그 없는 `note` 는 거절한다 (2026-10-08 소유자 · 모호 M-0006). 전에는 그 줄만 조용히 건너뛰었다 — 줄 주석은 `rem` 이 한다.
+    //   `text` 가 같은 자리에서 이미 그렇게 한다(E-TEXTLIT-TERM).
+    if (term.size == 0) {
+        low_diag(l, "E-NOTE-TERM", "a note block needs a tag after `note` — `note TAG` … `TAG`. For a one-line comment write `rem`", line, col);
+        low_skip_line(l); return;
+    }
     low_skip_line(l);
     if (!low_at_end(l)) low_adv(l);  // consume newline
     for (;;) {

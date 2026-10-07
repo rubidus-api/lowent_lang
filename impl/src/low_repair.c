@@ -302,6 +302,7 @@ static const low_repair_row_t REPAIR[] = {
     { "E-TEXTLIT-TAIL",        "R-CLOSE-TEXTLIT" },
     { "E-TEXTLIT-OPENER",      "R-CLOSE-TEXTLIT" },
     { "E-NOTE-TAIL",           "R-CLOSE-NOTE" },
+    { "E-NOTE-TERM",           "R-CLOSE-NOTE" },
     { "E-NOTE-UNTERM",         "R-CLOSE-NOTE" },
     { "E-DOT-DOUBLE",          "R-USE-METHOD-FORM" },
     { "E-FIELD-GLUED",         "R-USE-FIELD-FORM" },

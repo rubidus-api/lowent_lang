@@ -71,3 +71,4 @@
 #include "annex/d-builtins.typ"
 #include "annex/e-ambiguity.typ"
 #include "annex/c-index.typ"
+#include "annex/f-freechoice.typ"

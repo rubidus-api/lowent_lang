@@ -72,11 +72,32 @@ set <이름> <식> .
 if <조건> . do <문장들> end
 if <조건> . do <문장들> else <문장들> end
 while <조건> . do <문장들> end
+for <이름> <머리> do <문장들> end
 guard <조건> . else <빠져나가는 문장> .
 
 return <식> .
 break .
 continue .")
+    #para("1")[
+      되풀이 둘은 다음과 같다. 표기는 A.6 (2) 를 따른다 — `{ }` 는 0 회 이상, `[ ]` 는 선택, `|` 는 택일이다.
+    ]
+    #shape("되풀이 — while 과 for", "WHILE  = 'while' , 식 , '.' , 'do' , { 문장 } , 'end' ;
+
+FOR    = 'for' , 이름 , 머리 , [ 'where' , 식 , '.' ] , 'do' , { 문장 } , 'end' ;
+머리   = 원천
+       | 'mut' , 원천
+       | 'count' , 정수타입 , 식 , '.'
+       | 'range' , 정수타입 , 식 , 식 , [ 'step' , 식 ] , '.'
+       | 'be' , 타입 , 식 , '.' , 'while' , 식 , '.' , 'next' , 식 , '.' ;
+원천   = 이름
+       | '(' , 식 , ')'
+       | 식 , '.' ;
+
+정수타입 = 'u8' | 'u16' | 'u32' | 'u64' | 'i8' | 'i16' | 'i32' | 'i64' ;")
+    #para("2")[
+      `WHILE` 의 `식` 과 `where` · 점화식 `while` 의 `식` 은 `bool` 이다. `원천` 은 슬라이스를 내는 식이다.
+      각 머리의 뜻은 #cref("6.5.3.1") 이 정한다.
+    ]
   ]
   #sub("A.4", "갈래·시험·액터")[
     #shape("갈래를 가르기 · 시험 · 액터", "match <값> . do
@@ -164,19 +185,35 @@ prefix  = 'u' | 'U' ;
 charchar= ? \"'\" 도 '\\' 도 아닌 글자 하나(UTF-8) ? ;
 strchar = ? '\"' 도 '\\' 도 아닌 바이트 하나 ? ;
 escape  = ? ⟦§6.1.4⟧ 의 «이스케이프 — 닫힌 집합 열넷» 표에 있는 것 ? ;")
-    #shape("텍스트 리터럴과 여러 줄 주석", "TEXTLIT = \"text\" , tag , [ processor ] , [ comment ] , 줄바꿈 ,
-          { 본문-줄 , 줄바꿈 } ,
-          tag , { 빈칸 } , ( 줄바꿈 | 파일-끝 ) ;
-NOTE    = \"note\" , tag , ? 줄 끝까지 ? , 줄바꿈 ,
-          { 본문-줄 , 줄바꿈 } ,
-          tag , { 빈칸 } , ( 줄바꿈 | 파일-끝 ) ;
+    #shape("텍스트 리터럴과 여러 줄 주석", "TEXTLIT = 'text' , sp , { sp } , tag , [ sp , { sp } , proc ] , { sp } , [ rem ] , nl ,
+          { line , nl } ,
+          tag , { sp } , ( nl | eof ) ;
+NOTE    = 'note' , sp , { sp } , tag , { linech } , nl ,
+          { line , nl } ,
+          tag , { sp } , ( nl | eof ) ;
 
-tag       = 이름 ;
-processor = 'u' | 'U' ;
-본문-줄   = ? 닫는 줄이 아닌 줄 — 적힌 바이트 그대로 ? ;")
+tag     = ( letter | '_' ) , { letter | digit | '_' } ;
+proc    = 'u' | 'U' ;
+rem     = 'rem' , { linech } ;
+line    = ? 닫는 줄이 아닌 줄 ? ;
+linech  = ? 줄바꿈이 아닌 바이트 ? ;
+sp      = ' ' | 탭 | CR ;
+nl      = LF ;
+eof     = ? 파일의 끝 ? ;
+letter  = 'a'…'z' | 'A'…'Z' ;")
     #para("6a")[
-      닫는 줄의 `tag` 는 **맨 첫 칸**에서 시작한다. 그 뒤가 이름 글자이면(`tag` 보다 긴 낱말) 닫는
-      줄이 아니다. 닫는 줄 바로 앞의 줄바꿈 하나는 `TEXTLIT` 의 값에 들지 아니한다(#cref("6.1.4") (20a)~(20c)).
+      닫는 줄은 **줄의 맨 첫 칸에서** 여는 줄과 같은 `tag` 로 시작하고, 그 바로 뒤가 `letter` · `digit` · `'_'` 가
+      아닌 줄이다. 그러므로 들여 쓴 `tag` 와 `tag` 보다 긴 낱말로 시작하는 줄은 `line` 이다. 위 규칙의 두 번째
+      `tag` 는 첫 번째와 **같은 글자열**이어야 한다 — 이 조건은 생성 규칙만으로는 적을 수 없어 여기 글로 적는다.
+    ]
+    #para("6b")[
+      `TEXTLIT` 의 값은 `line` 들을 그 사이의 `nl` 과 함께 이은 바이트열이다. **마지막 `line` 뒤의 `nl` 은 값에
+      들지 아니한다.** `line` 이 하나도 없으면 값은 빈 바이트열이다. 본문은 이스케이프를 풀지 아니한다(#cref("6.1.4") (21)).
+    ]
+    #para("6c")[
+      닫는 줄에서 `tag` 와 `{ sp }` 뒤에 `nl` 도 `eof` 도 아닌 것이 오면 번역이 거부된다
+      (`TEXTLIT` 은 `E-TEXTLIT-TAIL`, `NOTE` 는 `E-NOTE-TAIL`). 여는 줄에서 `tag` 뒤에 `proc` 도 `rem` 도 아닌 것이 오면
+      거부된다(`E-TEXTLIT-OPENER`). `NOTE` 의 여는 줄은 `tag` 뒤를 줄 끝까지 읽지 아니한다.
     ]
     #para("7")[
       접두사는 **닫힌 집합 둘**이다. 그 밖의 글자를 리터럴 앞에 붙이면 번역이 거부된다
@@ -230,7 +267,7 @@ into                pop <스택> into <이름> .   (프렐류드 문형)        
 if (문)             if <폼> . do <폼>* end [else (if문 | do <폼>* end)]   end
 guard               guard <폼> else <나가는-폼> .
 while               while <폼> . do <폼>* end                            end
-for                 for <이름> <슬라이스> do <폼>* end                  end
+for                 for <이름> <머리> do <폼>* end   (머리는 A.3)       end
 region              region <이름> <종류> do <폼>* end                   end
 borrow              borrow <이름> be <폼> do <폼>* end                  end
 return              return [<폼>] .           (값이 블록으로 끝나도 점)   .

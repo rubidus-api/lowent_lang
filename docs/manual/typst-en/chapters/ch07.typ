@@ -41,7 +41,9 @@
 
 - `count_big` counts from 0 up to `n` and counts only numbers greater than 5. Look at the shape `while lt i n . do … end` --- the
   condition is a form too, so it is closed with a full stop, and `do` opens the body after it.
-- `first_zero` leaves the loop with `break` when it meets a 0, and returns the length if there is none.
+- `first_zero` leaves the loop with `break` when it meets a 0, and returns the length if there is none. `break` and `continue` act on
+  the innermost loop; there are no labels for an outer loop.
+- The condition of a `while` is checked *before* each round. If it is false at the start, the body never runs.
 - `odd_sum` walks the elements with `for x xs do … end` and skips even ones with `continue`. The `for` name `x` has the slice's element
   type (`u8`) and lives only inside the block.
 
@@ -54,7 +56,8 @@ runs from `a` to `b`, both ends included. The counting type (`u64`) is always wr
 
 - `count u64 n` runs 0, 1, 2, 3 when `n = 4`. If `n` is 0 it does not run at all.
 - `range u64 10 1 step -3` is 10, 7, 4, 1. Without `step` the two ends decide the direction (`range u64 10 3` counts down from 10 to
-  3). Counting never overflows --- `range u8 0 255` ends at 255.
+  3). Counting never overflows --- `range u8 0 255` ends at 255. When the next value would pass the end, the loop stops there
+  (`range u8 250 255 step 3` is 250, 253).
 - What the head reads (the ends, `step`) is computed once on entry. Setting the counting name `i` or a name the head read (`n`) in
   the body is `E-FOR-HEAD`. `step 0` or a floating counting type is `E-FOR-STEP`.
 - `for x mut buf do set x 0 . end` walks the element places --- `set x` writes that cell of `buf`. Inside the body, touch the

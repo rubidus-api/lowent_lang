@@ -1,4 +1,4 @@
-**한국어** | [English](README.md) — **Lowent v1.5.0** — [릴리스 노트](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.5.0) · [PDF 매뉴얼(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF 매뉴얼(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF 명세(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+**한국어** | [English](README.md) — **Lowent v1.6.0** — [릴리스 노트](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.6.0) · [PDF 매뉴얼(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF 매뉴얼(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF 명세(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 # Lowent (로우엔트)
 
@@ -158,7 +158,7 @@ end
 
 ## 지금 어디까지 왔나
 
-Lowent 는 설계 문서에서 끝나지 않고, 실제로 도는 컴파일러와 함께 자라고 있습니다(컴파일러 1.5.0, 언어 개정 1.5).
+Lowent 는 설계 문서에서 끝나지 않고, 실제로 도는 컴파일러와 함께 자라고 있습니다(컴파일러 1.6.0, 언어 개정 1.6).
 
 - **컴파일러 `lowentc`** 는 C23 으로 쓰였고, 외부 의존은 들여온 라이브러리 하나(`proven_c_lib`, MIT)뿐입니다. 네이티브 코드는 C 로 내보내 시스템의 C 컴파일러로 짓습니다. 대상은 `x86_64`·`arm64`·`riscv64`·`cortex_m`·`mips_be` 입니다.
 - **컴파일할 때 막는 것**: 효과와 권한 위반, 차용·수명 위반, 옮긴 값 재사용, 완결되지 않은 자원, 값을 잃을 수 있는 정수 변환, 모순되거나 죽은 계약.

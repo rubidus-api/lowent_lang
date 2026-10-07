@@ -103,6 +103,20 @@
   ]
 }
 
+// 모호 — 이 문서만으로는 뜻이 둘 이상으로 읽히는 자리 (RFC-0139 §6). 고르지 않고 풀이를 나란히 적는다. 부록 E 가 모은다.
+#let ambig(title, body) = if _html {
+  html.elem("div", attrs: (class: "ambig"), {
+    html.elem("b", [모호 — #title])
+    body
+  })
+} else {
+  block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, stroke: (left: 3pt + rgb("#a05a00"), rest: 0.5pt + rgb("#a05a00")))[
+    #text(size: 0.88em, weight: "bold", fill: rgb("#7a4300"))[모호 — #title]
+
+    #text(size: 0.95em)[#body]
+  ]
+}
+
 #let caution(title, body) = if _html {
   html.elem("div", attrs: (class: "caution"), {
     html.elem("b", [주의 — #title])

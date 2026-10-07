@@ -69,4 +69,5 @@
 #include "annex/a-grammar.typ"
 #include "annex/b-diagnostics.typ"
 #include "annex/d-builtins.typ"
+#include "annex/e-ambiguity.typ"
 #include "annex/c-index.typ"

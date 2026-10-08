@@ -3,12 +3,12 @@
 (1) 이 부록은 ⟦§6⟧ 이 정한 문법 가운데 **자주 찾는 것을 모은 참고 자료**다.
     규범은 본문이며, 이 부록과 본문이 어긋나면 본문이 옳다.
 
-(1a) 다만 **낱말 목록(A.1)만은 망라한다** — 그 목록에 없는 것은 낱말이 아니다. 나머지 절은
+(1a) **낱말 목록(A.1)과 전체 문법(A.10)은 망라한다** — A.1 에 없는 것은 낱말이 아니고, A.10 의 생성 규칙이
+    읽지 못하는 낱말의 나열은 이 언어의 소스가 아니다. A.2 ~ A.5 와 A.7 은 자주 쓰는 모양을 보기 좋게 모은 것이며
     모양을 다 담지 아니한다.
 
-> [!참고]
-> ★ 완전한 형식 문법은 **아직 없다.** 여기 없는 모양이 있다고 해서 적합하지 않은 것이
-> 아니다 — 적합함을 정하는 것은 본문의 조항이다.
+(1b) A.10 이 정하는 것은 **모양**뿐이다(⟦§1.5⟧ (4)). 모양이 맞는 것 가운데 어떤 것이 적합한지는 본문의 조항이
+    정한다.
 
 ## A.1 낱말
 
@@ -86,30 +86,8 @@ break .
 continue .
 ```
 
-(1) 이름을 짓는 문장과 되풀이는 다음과 같다. 표기는 A.6 (2) 를 따른다 — `{ }` 는 0 회 이상, `[ ]` 는 선택, `|` 는 택일이다.
-      식은 **닫는 점이나 끝내는 낱말**(`do` · `else` · `if` · `while` · `next` · `step`)에서 끝난다. 점은 문장을 닫는 일만 한다.
-
-```문법틀: 바인딩 · 실패 절 · 되풀이
-BINDING = ( 'let' | 'var' ) , 이름 , [ ( 'use' | 'keep' ) , 이름 ] , 타입 , 식 , [ FAIL ] , '.' ;
-FAIL    = 'else' , 벗어남
-        | 'else' , 'do' , { 문장 } , 'end'
-        | 'else' , 'error' , 이름 , 'do' , { 문장 } , 'end' ;
-벗어남  = 'return' , [ 식 ] | 'break' | 'continue' | 'panic' , 식 ;
-GUARD   = 'guard' , 식 , FAIL , '.' ;
-
-WHILE   = 'while' , 식 , 'do' , { 문장 } , 'end' ;
-FOR     = 'for' , 이름 , [ 'mut' ] , 식 , [ 거르기 ] , 'do' , { 문장 } , 'end' ;
-REPEAT  = 'repeat' , 이름 , 정수타입 , 식 , [ 거르기 ] , 'do' , { 문장 } , 'end' ;
-RANGE   = 'range' , 이름 , 정수타입 , 식 , 식 , [ 'step' , 식 ] , [ 거르기 ] , 'do' , { 문장 } , 'end' ;
-CYCLE   = 'cycle' , 이름 , 타입 , 식 , 'while' , 식 , 'next' , 식 , [ 거르기 ] , 'do' , { 문장 } , 'end' ;
-거르기  = 'if' , 식 ;
-
-정수타입 = 'u8' | 'u16' | 'u32' | 'u64' | 'i8' | 'i16' | 'i32' | 'i64' ;
-```
-
-(2) `WHILE` 의 `식`, `거르기` 의 `식`, `CYCLE` 의 `while` 뒤 `식` 은 `bool` 이다. `FOR` 의 `식` 은 슬라이스를 낸다.
-      `FAIL` 이 블록(`end`)으로 끝나면 `BINDING` · `GUARD` 의 닫는 `'.'` 은 적지 아니한다. 각 문장의 뜻은 ⟦§6.5.1⟧ ·
-      ⟦§6.5.3.1⟧ · ⟦§6.5.4⟧ 가 정한다.
+(1) 식은 **닫는 점이나 끝내는 낱말**(`do` · `else` · `if` · `while` · `next` · `step`)에서 끝난다. 점은 문장을 닫는 일만
+      한다. 이 문장들의 생성 규칙은 A.10.3 에 있고, 뜻은 ⟦§6.5.1⟧ · ⟦§6.5.3.1⟧ · ⟦§6.5.4⟧ 가 정한다.
 
 ## A.4 갈래·시험·액터
 
@@ -432,4 +410,300 @@ shared_read   lock   rwlock
 > 이 세 갈래를 갈라 적는 까닭. *"쓸 수 있다"* 와 *"이름은 안다"* 와 *"없다"* 는 읽는
 > 사람에게 **서로 다른 일**을 시킨다 — 쓰거나, 기다리거나, 다른 길을 찾거나. 셋을
 > 한 목록에 뭉뚱그리면 그 판단을 사람이 매번 도구를 돌려 보고 해야 한다.
+
+## A.10 전체 문법
+
+(1) 이 절은 소스 파일 하나의 문법을 **처음부터 끝까지** 생성 규칙으로 적는다. 표기는 ⟦§1.5⟧ 의 것이다.
+      본문의 조항에 같은 이름의 규칙이 있으면 이 절의 것은 그것과 **글자까지 같다.**
+
+(2) 문법은 두 층이다(⟦§1.5⟧ (3a)). A.10.1 은 글자를 토큰으로 가르고, A.10.2 부터는 토큰의 나열을 읽는다.
+      공백과 주석은 A.10.1 에서 버려지고 그 뒤에는 나타나지 아니한다.
+
+(3) 소스의 모양은 다음 **다섯 규칙**으로 선다. 이 절의 생성 규칙은 그 다섯을 풀어 적은 것이다.
+
+> [!표] 모양을 세우는 다섯 규칙
+> #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+> [*규칙*], [*내용*],
+> [머리], [모든 문장과 선언은 머리 낱말 하나로 시작한다. 머리가 그 뒤의 모양을 정한다],
+> [블록], [`do` 는 `end` 와 짝이다. `end` 는 제 `do` 만 닫는다],
+> [점], [블록으로 끝나지 않는 문장 · 선언 · 절 · 칸은 점 하나로 닫는다],
+> [끝내는 낱말], [머리 안의 식은 다음 끝내는 낱말에서 끝난다 — `do` · `else` · `if` · `while` · `next` · `step`],
+> [인자 수], [식 안에서 어디까지가 한 호출인지는 머리의 인자 수가 정한다. 달리 묶으려면 괄호를 쓴다],
+> )
+
+(4) 위 표의 «점» 규칙에는 **예외가 셋** 있다. 생성 규칙이 그 셋을 그대로 적는다.
+
+> [!표] 점 규칙의 예외
+> #table(columns: (auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
+> [*자리*], [*내용*],
+> [값이 블록으로 끝나는 문장], [`let p pt lit pt do x 1 . end .` — 블록은 값의 것이므로 문장은 제 점으로 닫는다(A.10.3 (1))],
+> [원소를 나열한 리터럴], [`lit slice u8 1 2 3 .` — 원소의 수가 정해져 있지 않아 제 점으로 닫는다. 문장 끝에서는 점이 둘이 되고, 머리 안에도 선다(`list-literal`)],
+> [`case` 의 한 문장 몸], [`case 1 . return 2 .` — 점 뒤의 문장 하나가 몸이다(`case-arm`)],
+> )
+
+## A.10.1 어휘 문법
+
+```구문: 전체 문법 — 어휘
+source    ::= { separator | token }
+separator ::= whitespace | line-comment | block-comment
+token     ::= keyword | name | path | literal | punctuation
+
+punctuation ::= "." | "(" | ")" | "," | operator
+operator    ::= "+" | "-" | "*" | "/"
+
+whitespace      ::= " " | tab | carriage-return | newline
+blank           ::= " " | tab | carriage-return
+tab             ::= ? U+0009 ?
+carriage-return ::= ? U+000D ?
+newline         ::= ? U+000A ?
+line-comment    ::= "rem" { line-char }
+block-comment   ::= "note" blank { blank } tag { line-char } newline
+                    { comment-line newline }
+                    tag { blank } ( newline | end-of-source )
+tag             ::= name
+line-char       ::= ? newline 이 아닌 글자 ?
+comment-line    ::= ? 닫는 줄이 아닌 줄 ?
+end-of-source   ::= ? 소스의 끝 ?
+
+keyword ::= "actor" | "break" | "case" | "continue" | "contract" | "cycle" | "def"
+          | "do" | "drop" | "else" | "end" | "enum" | "expect" | "export"
+          | "expr" | "extern" | "false" | "fn" | "for" | "guard" | "if"
+          | "keep" | "let" | "lit" | "match" | "module" | "newtype" | "next"
+          | "none" | "proc" | "range" | "repeat" | "return" | "satisfies" | "send"
+          | "set" | "spawn" | "state" | "step" | "struct" | "test" | "trait"
+          | "true" | "try" | "type" | "unsafe" | "use" | "var" | "while"
+
+name       ::= name-start { name-char }
+name-start ::= "a" … "z" | "A" … "Z" | "_"
+name-char  ::= name-start | "0" … "9"
+path       ::= name "." path-part { "." path-part }
+path-part  ::= name-char { name-char }
+
+literal        ::= number | char-literal | string-literal | text-literal
+
+number         ::= [ sign ] ( float | hex | bin | dec )
+sign           ::= "+" | "-"
+digit          ::= "0" … "9"
+hex-digit      ::= digit | "a" … "f" | "A" … "F"
+bin-digit      ::= "0" | "1"
+dec            ::= digit { [ "_" ] digit }
+hex            ::= "0" ( "x" | "X" ) hex-digit { [ "_" ] hex-digit }
+bin            ::= "0" ( "b" | "B" ) bin-digit { [ "_" ] bin-digit }
+float          ::= dec "." dec [ dec-exponent ]
+                 | dec dec-exponent
+                 | hex [ "." hex-digit { [ "_" ] hex-digit } ] hex-exponent
+dec-exponent   ::= ( "e" | "E" ) [ sign ] dec
+hex-exponent   ::= ( "p" | "P" ) [ sign ] dec
+
+char-literal   ::= [ prefix ] single-quote ( char-char | escape ) single-quote
+string-literal ::= [ prefix ] double-quote { string-char | escape } double-quote
+prefix         ::= "u" | "U"
+escape         ::= backslash ( simple-escape
+                             | "x" hex-digit hex-digit
+                             | "u" hex-digit hex-digit hex-digit hex-digit
+                             | "U" hex-digit hex-digit hex-digit hex-digit hex-digit hex-digit hex-digit hex-digit )
+simple-escape  ::= backslash | double-quote | single-quote
+                 | "a" | "b" | "f" | "n" | "r" | "t" | "v" | "0"
+single-quote   ::= ? U+0027 ?
+double-quote   ::= ? U+0022 ?
+backslash      ::= ? U+005C ?
+char-char      ::= ? 작은따옴표도 역슬래시도 줄바꿈도 아닌 글자 하나 ?
+string-char    ::= ? 큰따옴표도 역슬래시도 줄바꿈도 아닌 바이트 하나 ?
+
+text-literal   ::= "text" blank { blank } tag [ blank { blank } processor ] { blank } [ line-comment ] newline
+                   { text-line newline }
+                   tag { blank } ( newline | end-of-source )
+processor      ::= "u" | "U"
+text-line      ::= ? 닫는 줄이 아닌 줄 ?
+```
+
+(1) `keyword` 가운데 `rem` · `note` · `text` 로 시작하는 토큰은 없다 — 그 셋은 낱말이 아니라 주석과 텍스트 리터럴을
+      여는 글자열이다(⟦§6.1.1⟧ · ⟦§6.1.4⟧).
+
+(2) 아래 구문 문법에 `"from"` · `"input"` · `"slice"` 처럼 `keyword` 에 없는 글자열이 끝 기호로 나오면, 그것은 **그
+      자리에서만** 뜻을 갖는 `name` 토큰이다(문맥 낱말). 그 자리 밖에서는 보통 이름이다.
+
+## A.10.2 번역 단위와 선언
+
+```구문: 전체 문법 — 선언
+unit           ::= { top-form }
+top-form       ::= module-decl | use-decl | declaration | binding
+
+module-decl    ::= "module" name "."
+use-decl       ::= "use" name [ "from" string-literal ] [ "as" name ] "."
+
+declaration    ::= { modifier } ( type-decl | op-decl | extern-decl | actor-decl | trait-decl )
+                 | contract-decl
+                 | test-decl
+modifier       ::= "export" | "extern" | "unsafe" [ "target" name ]
+
+type-decl      ::= "def" ( "type" | "newtype" ) name type "."
+                 | "def" "struct" name "do" { field | struct-attr } "end"
+                 | "def" "enum" name "do" { variant } "end"
+field          ::= name type "."
+struct-attr    ::= ( "layout" name | "align" term | "mmio" number ) "."
+variant        ::= name { name type } "."
+
+op-decl        ::= ( "fn" | "proc" ) op-name { clause } block
+extern-decl    ::= ( "fn" | "proc" ) op-name "do" { clause } "end"
+op-name        ::= name | path
+
+clause         ::= "input" [ "comptime" ] name type "."
+                 | "using" name type "."
+                 | "output" [ name ] type "."
+                 | "effects" { name } "."
+                 | ( "requires" | "ensures" ) expression "."
+                 | "errors" name [ expression ] "."
+                 | "tests" { name } "."
+                 | "satisfies" name "."
+                 | ( "access" | "parallel" ) name name "."
+                 | "asm" name "." { asm-item "." }
+                 | other-clause-word { term } "."
+other-clause-word ::= "reduce" | "lowdoc" | "vector" | "priority" | "inplace" | "invalidates"
+                 | "absorbs" | "reference" | "why" | "strlen" | "link" | "variadic" | "schedule"
+asm-item       ::= ? `asm` 절의 항목 하나 — 낱말과 리터럴의 나열(⟦§6.9⟧) ?
+
+actor-decl     ::= "actor" name "do" { state-decl | clause | op-decl } "end"
+state-decl     ::= "state" "do" { field } "end"
+trait-decl     ::= "trait" name "do" { signature } "end"
+signature      ::= op-name { clause }
+contract-decl  ::= "contract" name "do" { clause } "end"
+test-decl      ::= "test" name [ "schedule" name "." ] block
+```
+
+(1) `extern-decl` 은 `modifier` 에 `"extern"` 이 있고 `"export"` 가 없는 선언의 꼴이다 — 몸이 씨(C)에 있으므로 블록에는
+      절만 든다(⟦§6.9⟧). 그 밖의 `fn` · `proc` 은 `op-decl` 이다.
+
+(2) `clause` 의 차례는 생성 규칙이 정하지 아니한다. 차례는 ⟦§6.4.1⟧ (3a) 가 정한다(`E-CLAUSE-ORDER`).
+
+(3) `struct-attr` · `variant` · `signature` 의 낱낱의 제약은 ⟦§6.2.7⟧ · ⟦§6.2.15⟧ · ⟦§6.2.19⟧ · ⟦§6.11⟧ 이 정한다.
+
+## A.10.3 문장
+
+```구문: 전체 문법 — 문장
+block          ::= "do" { statement } "end"
+
+statement      ::= binding | guard-stmt | set-stmt | return-stmt | jump-stmt | expect-stmt
+                 | if-statement | while-stmt | for-stmt | repeat-stmt | range-stmt | cycle-stmt
+                 | match-stmt | region-stmt | borrow-stmt | task-group | pipe-stmt
+                 | drop-stmt | call-stmt
+
+binding      ::= ( "let" | "var" ) name [ alloc-clause ] type expression ( "." | fail-clause )
+alloc-clause ::= ( "use" | "keep" ) name
+fail-clause  ::= "else" leave "."
+               | "else" block
+               | "else" "error" name block
+leave        ::= "return" [ expression ] | "break" | "continue" | "panic" expression
+guard-stmt     ::= "guard" expression "else" ( leave "." | block )
+
+set-stmt       ::= "set" place expression "."
+place          ::= name | "(" expression ")"
+return-stmt    ::= "return" [ expression ] "."
+jump-stmt      ::= ( "break" | "continue" ) "."
+expect-stmt    ::= "expect" expression "."
+drop-stmt      ::= "drop" name "."
+call-stmt      ::= expression "."
+
+if-statement ::= "if" expression block [ "else" ( block | if-statement ) ]
+while-stmt     ::= "while" expression block
+for-stmt    ::= "for"    name [ "mut" ] expression [ filter ] block
+repeat-stmt ::= "repeat" name type expression [ filter ] block
+range-stmt  ::= "range"  name type expression expression [ "step" expression ] [ filter ] block
+cycle-stmt  ::= "cycle"  name type expression "while" expression "next" expression [ filter ] block
+filter      ::= "if" expression
+
+match-stmt     ::= "match" expression "do" { case-arm } [ "else" block ] "end"
+case-arm       ::= "case" pattern ( block | "." statement )
+pattern        ::= term { term } | term "to" term
+
+region-stmt    ::= "region" name name block
+borrow-stmt    ::= "borrow" name expression block
+task-group     ::= "task_group" block
+pipe-stmt      ::= pipe-form
+```
+
+(1) `binding` 의 `expression` 이 블록으로 끝나고 실패 절이 없으면 그 블록 뒤에 점이 온다
+      (`let p pt lit pt do x 1 . end .`). `set-stmt` · `return-stmt` · `call-stmt` 의 닫는 점도 같다 —
+      식이 블록으로 끝나도 점은 온다. 빠지면 번역이 거부된다(`E-DOT-MISSING`).
+
+(2) 반대로 **제 블록으로 끝나는 문장**(`if-statement` · `while-stmt` · 네 되풀이 · `match-stmt` · `region-stmt` ·
+      `borrow-stmt` · `task-group` · `pipe-stmt`, 그리고 `fail-clause` 가 블록인 `binding` · `guard-stmt`) 뒤에 점을 적으면
+      번역이 거부된다(`E-DOT-STRAY`).
+
+(3) `statement` 를 여는 낱말(`let` · `var` · `return` · `guard`)은 식 안에 올 수 없다. 식 한가운데서 만나면 앞
+      문장의 점이 빠진 것이다(`E-DOT-MISSING`).
+
+(4) 머리 없이 홀로 선 `block` 은 문장이 아니다(`E-BLOCK-NOHEAD`).
+
+## A.10.4 식
+
+```구문: 전체 문법 — 식
+expression     ::= term { term }
+term           ::= name | path | literal | word-term
+                 | "(" expression ")"
+                 | struct-literal | fill-literal | list-literal
+                 | island | pipe-form
+word-term      ::= "true" | "false" | "none" | "send" | "spawn" | "try" | "actor"
+
+struct-literal ::= "lit" type "do" { field-init } "end"
+field-init     ::= name expression "."
+fill-literal   ::= "lit" "array" type term "do" { fill-item } "end"
+fill-item      ::= ( term | "_" ) expression "."
+list-literal   ::= "lit" list-kind { term } [ "_" ] "."
+list-kind      ::= "array" type term | "slice" type | "vec" type term
+
+island         ::= "expr" island-item { island-item }
+island-item    ::= term | operator
+
+pipe-form      ::= "pipe" expression "do" { stage "." } "end"
+stage          ::= term { term }
+```
+
+(1) **`expression` 은 낱말의 평평한 나열이다.** 그 나열이 어떤 나무로 읽히는지는 생성 규칙이 정하지 아니하고,
+      **머리의 인자 수**가 정한다: 첫 `term` 이 op 의 이름이면 그 op 이 받는 수만큼의 인자를 뒤에서 차례로 가져가며,
+      인자 자리에 다시 op 의 이름이 오면 그것이 먼저 제 인자를 가져간다. `add a mul b 2` 는 `add a (mul b 2)` 다.
+      인자 수는 op 의 선언(⟦§6.4.1⟧)과 부록 D 의 표가 정한다. 그러므로 이 문법은 선언을 읽지 않고는 식의 나무를
+      세우지 못한다 — 토큰만으로 정해지는 것은 **식의 처음과 끝**이다.
+
+(2) `expression` 은 다음 가운데 먼저 오는 것에서 끝난다: 닫는 점, `)`, `end`, 그리고 머리 안에서는 끝내는 낱말
+      (`do` · `else` · `if` · `while` · `next` · `step`). 바인딩의 값은 `else` 에서도 끝난다.
+
+(3) 머리 안의 식에 블록으로 끝나는 값(`struct-literal` · `fill-literal` · `pipe-form`)을 적을 때는 그 값을 괄호로
+      싼다(`if eq 3 field (lit r do w 3 . end) w do … end`). 식의 **맨 끝**에 오는 블록 값만은 괄호 없이도 읽히며, 그때
+      머리의 몸은 마지막 블록이다(`borrow b lit r do w 3 . end do … end`).
+
+(4) `list-literal` 의 닫는 점은 그 리터럴의 것이다. 문장 끝에서는 문장의 점이 하나 더 온다
+      (`let a array u8 3 lit array u8 3 1 2 3 . .`). 괄호 안에서는 `)` 가 대신 닫는다. 끝내는 낱말은 대신 닫지
+      아니한다(`E-DOT-MISSING`).
+
+(5) `island` 는 닫는 점이나 `)` 까지이고, 그 안의 `operator` 는 중위 연산자다(⟦§6.3.2⟧).
+
+(6) `stage` 의 낱말은 ⟦§6.12⟧ 가 정한다.
+
+## A.10.5 타입
+
+```구문: 전체 문법 — 타입
+type           ::= { type-qualifier } type-core
+type-qualifier ::= "mut" | "owned" | "ref" | "mut_ref" | "unsafe_ptr"
+type-core      ::= name | path
+                 | "(" type ")"
+                 | "slice" type
+                 | "array" type term
+                 | "option" type
+                 | "result" type type
+                 | "vec" type term
+                 | "segments" type
+                 | "bitset" term
+                 | "bits" term
+                 | "cap" name
+                 | "region" name
+                 | "range" [ type ] term term
+                 | other-type
+other-type     ::= ? ⟦§6.2⟧ 가 정하는 그 밖의 타입 꼴(`mask` · `set` · `stack` · `fn` · `unsafe_fn` · `mmio`) ?
+```
+
+(1) `u8` · `bool` · `void` 같은 타입 낱말(A.9)과 저자가 지은 타입의 이름은 `name` 이다.
+
+(2) 타입은 **제 인자 수로 끝난다** — 닫는 표시가 없다. `slice u8` 은 낱말 둘, `result u64 perr` 는 셋이다. 인자 수가
+      정해지지 않은 꼴과 인자를 받는 사용자 타입은 괄호로 싼다(⟦§6.5.1⟧ (3b)).
 

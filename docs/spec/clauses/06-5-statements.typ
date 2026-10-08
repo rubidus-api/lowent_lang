@@ -34,9 +34,9 @@ end", "E-VALUE-DISCARDED")
       그러므로 `requires`·`ensures` 가 매개변수 이름으로 말하는 것은 #strong[들어올 때의 값];이다.
       몸통이 그 이름을 `set` 한 뒤에도 계약이 말하는 것은 들어올 때의 값 그대로다.
     ]
-    #syntax("binding", "binding      ::= ( \"let\" | \"var\" ) name [ alloc-clause ] type expression [ fail-clause ] \".\"
+    #syntax("binding", "binding      ::= ( \"let\" | \"var\" ) name [ alloc-clause ] type expression ( \".\" | fail-clause )
 alloc-clause ::= ( \"use\" | \"keep\" ) name
-fail-clause  ::= \"else\" leave
+fail-clause  ::= \"else\" leave \".\"
                | \"else\" block
                | \"else\" \"error\" name block
 leave        ::= \"return\" [ expression ] | \"break\" | \"continue\" | \"panic\" expression")

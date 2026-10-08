@@ -12,7 +12,7 @@ Capabilities
 
 none
 
-A hash map storing and finding `u64` values by `u64` keys. Used to look things up quickly by number (id → count, handle → state). String keys are [`strmap`](sec72.md#mod-strmap) the container that chooses element type and allocator is [`mapgen`](sec111.md#mod-mapgen) (chapter 34).
+A hash map storing and finding `u64` values by `u64` keys. Used to look things up quickly by number (id → count, handle → state). String keys are [`strmap`](sec72.md#mod-strmap) the container that chooses element type and allocator is [`mapgen`](sec112.md#mod-mapgen) (chapter 34).
 
 ```lowent
 let stored be bool hashmap.put b 7 42 .

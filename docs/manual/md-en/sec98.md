@@ -1,8 +1,8 @@
-# <a id="mod-tlscli"></a>`tlscli` — the TLS 1.3 client handshake
+# <a id="mod-tlssrv"></a>`tlssrv` — the TLS 1.3 server handshake
 
 Source
 
-`lib/tlscli.low`
+`lib/tlssrv.low`
 
 Layer
 
@@ -12,61 +12,43 @@ Capabilities
 
 none
 
-The **mirror image** of [`tlssrv`](sec97.md#mod-tlssrv). The server side reads a ClientHello and builds a ServerHello. This module does the opposite: it **builds** a ClientHello and **reads** the ServerHello and what follows. The protocol’s computation (key schedule, record sealing) is in [`tls13`](sec96.md#mod-tls13) this module is the layer that calls it in the client’s order.
+[`tls13`](sec97.md#mod-tls13) holds the **computations** of the standard. This module is the **layer that calls them in order** — reading ClientHello, building server messages, moving state, and sealing and opening application data records. Every failure is `0`, and ops yield **positions** — the caller cuts with `subslice`.
 
-> **This alone is not a TLS client**
+> **This alone is not a TLS server**
 >
-> > **No transport** — no sockets, no reassembly; the caller gathers the bytes. That is why this module is `effects none`. **It does not check certificates** — it only takes certificates out of the `Certificate` message; the chain, validity and names are checked by the caller with [`x509`](sec94.md#mod-x509) · [`verify`](sec95.md#mod-verify) · [`trust`](sec121.md#mod-trust). A tool that does not check must say so (`lowget`’s `--insecure`). Not built: HelloRetryRequest · PSK/0-RTT · session resumption · client certificates · key-exchange groups other than x25519 · suites other than `TLS_CHACHA20_POLY1305_SHA256` · `TLS_AES_128_GCM_SHA256`.
+> > **There is no transport** — no sockets, no reassembly; the caller gathers the bytes (and decides record boundaries). No KeyUpdate, record padding, HelloRetryRequest, PSK, 0-RTT, client certificate requests or session resumption. `build_cert` holds only one certificate of a chain. Extensions are only **found** (interpreting SNI and ALPN is the caller’s). It has not been audited.
 
-## <a id="sx1"></a>The order of the handshake
+**ClientHello is the most hostile input.** It is a byte string nothing has authenticated yet, and every length field was written by the other side. So — any position exceeding the buffer fails immediately. Extension walking does not recurse and bounds its steps by the buffer size (a run of zero-length extensions never ends an unbounded loop). Mismatched lengths are not read charitably — `ch_ok` requires the declared length to equal the buffer **exactly**, and `ch_ext_len` requires extensions to fit to the end.
 
-A client accepts messages in one order only. If that order is not kept, a man in the middle can drop or swap messages. `cnext_ok` lists **the one message that may arrive** in each state and refuses everything else.
-
-```text
- cst_start ──sends ClientHello──▶ cst_wait_sh
- cst_wait_sh ──ServerHello(2)──▶ cst_wait_ee        ── the handshake keys are made here (hs_secrets)
- cst_wait_ee ──EncryptedExtensions(8)──▶ cst_wait_cert
- cst_wait_cert ──Certificate(11)──▶ cst_wait_cv     ── taken out with cert_at; the caller checks them
- cst_wait_cv ──CertificateVerify(15)──▶ cst_wait_finished
- cst_wait_finished ──Finished(20)──▶ cst_connected  ── check_server_fin must be true
-```
-
-The number in parentheses is the handshake message type. `cstep` gives the next state.
-
-## <a id="sx2"></a>ops
-
-| **op** | **what it does** |
+| **op** | **What it does** |
 |---|---|
-| `cst_start` … `cst_connected` | state numbers (0 … 6) |
-| `cnext_ok` · `cstep` | may this message arrive in this state · the next state |
-| `build_ch` | builds a ClientHello — suites ChaCha20-Poly1305 first, then AES-128-GCM; key exchange x25519 |
-| `sh_ok` · `sh_usable` | is the ServerHello well formed · can we continue with it (decided in one call) |
-| `sh_is_hrr` | is it a HelloRetryRequest — recognised and **refused** |
-| `sh_suite` · `sh_is_tls13` · `sh_key_share_off` | the chosen suite · is it really 1.3 · where the server’s x25519 value is |
-| `sh_ext_off` · `sh_ext_len` · `sh_ext_find` · `sh_ext_find_len` | the extension block, and finding one extension |
-| `hs_secrets` | makes the handshake secrets (the key ladder) |
-| `finished_vd` | the Finished verify value from any traffic secret |
-| `check_server_fin` | checks the server’s Finished — “does the other side really hold the secret” |
-| `build_client_fin` | builds our Finished |
-| `seal_rec` | seals one record (the caller picks the inner type) |
-| `plain_hdr` · `rec_len` · `rec_type` | builds a plaintext record header · reads a received record header |
-| `cert_at` · `cert_len` | offset and length of the `n`-th certificate in a Certificate message (0 is the leaf) |
+| `st_start` · `st_recvd_ch` · `st_negotiated` · `st_wait_flight2` · `st_wait_finished` · `st_connected` | State numbers |
+| `hs_client_hello` · `hs_server_hello` · `hs_encrypted_extensions` · `hs_certificate` · `hs_certificate_verify` · `hs_finished` | Message type numbers |
+| `next_ok` · `transit` | May this message be received now · move state (yields the same state if it cannot) |
+| `ch_ok` | Do type and length match the buffer |
+| `ch_random_off` · `ch_sid_off` · `ch_sid_len` | Random · session_id |
+| `ch_suites_off` · `ch_suites_len` · `ch_has_suite` | Offered suites |
+| `ch_ext_off` · `ch_ext_len` · `ch_ext_find` · `ch_ext_find_len` | Extension block · find by type |
+| `ch_x25519_off` · `be16` | Position of the x25519 public key in key_share · big-endian 2 bytes |
+| `build_sh` · `build_ee` · `build_cert` | Build ServerHello · EncryptedExtensions · Certificate (one DER) |
+| `cv_content` · `build_cv` · `build_fin` | The 130 bytes CertificateVerify signs · build CertificateVerify · Finished |
+| `server_finished` | From ECDHE up the key schedule to the server Finished in one line |
+| `app_secrets` · `check_client_finished` | Application traffic secrets (c · s) · check the peer’s Finished (1 = match) |
+| `traffic_keys` · `seal_app` · `open_app` | Secret → key ‖ IV (one direction at a time) · seal · open application data records |
 
-*Table 50.1 — ops of `tlscli`*
+*Table 50.1 — Ops of `tlssrv`*
 
-## <a id="sx3"></a>Design
+Message building shares one frame (`<type 1> <length 3> <body>`) — so the frame is written once. Repeating the same arithmetic in four places brings the day only one is fixed.
 
-**Every length on the reading side was written by the other side.** Everything from the ServerHello on is bytes nothing has authenticated yet. Any offset past the buffer answers 0 at once, and a length that does not fit is not read “generously”.
+**`cv_content` — the 64 spaces are not decoration.** The signed content is `0x20 × 64 ‖ "TLS 1.3, server CertificateVerify" ‖ 0x00 ‖ transcript hash` (§4.4.3). Without that prefix, this signature could be reused as a signature in another context (a certificate signature, a client-side signature). Constants in a standard that make you ask “why is this here” are usually traces of attacks that already happened.
 
-**A HelloRetryRequest is not read as a ServerHello.** An HRR has the same message type as a ServerHello and differs only by a fixed 32-byte value in the random field. Without knowing that, the HRR’s random is taken as real and the key ladder is built on a **silently wrong** value. HRR is not built, so it is recognised and refused.
+**Order is half the standard.** `next_ok` enumerates what is accepted, and enumerating is rejecting everything else. Without it a man in the middle could send Finished early or ClientHello twice. **`session_id` is echoed back** — TLS 1.3 does not use that field, but not echoing it gets connections cut by middleboxes on real networks, because it is a compatibility device to look like 1.2 (§4.1.3).
 
-**The extension picks the version, not the header.** The `0303` in the message header is decoration to fool middleboxes. Whether it is really 1.3 is decided by the `supported_versions` extension being `0304` (`sh_is_tls13`).
+**The transcript is cut three times in this layer.** `s hs traffic` stands on `CH‖SH`, the server Finished on `CH‖…‖CertificateVerify`, and application traffic secrets and **the client Finished** on `CH‖…‖server Finished`. The client Finished does not include itself, and its verify_data comes from the **client** handshake secret — same transcript, different secret. Using the server’s always rejects, and the symptom looks like “the client is broken”.
 
-**Why ChaCha20 is offered first.** The two ciphers written in this language were measured and the faster one goes first. A server that honours the order picks the faster one.
+**Application data uses a different secret and a different sequence per direction.** Sharing one makes nonces overlap, and overlapping nonces in AEAD lose plaintext and authentication key together. So key bundles are made one direction at a time. Sequences increase **per record** and restart at 0 per key generation. The output buffer of `traffic_keys` must be 32 bytes even when the key is 16 — `expand_label` uses one HMAC block and always writes 32. Alerts are the same records too — the inner type is 21, and without looking at it an alert is read as data.
 
-**`check_server_fin` being true does not yet say who.** It confirms “the other side holds the handshake secret”; who that side is, is the certificate’s question (`verify`). Both must be checked before the connection can be trusted.
-
-**Why this module exists.** With a client, a real outside implementation (`openssl s_server`, a real web server) can stand on the other side. Testing only against our own server (`tlssrv`) lets both sides share the same misreading, and then “we read the spec the same way” is not confirmed. The real tool built on this module is `apps/lowget`.
+**What is checked** — the real handshake of RFC 8448 §3. The canonical ClientHello’s fields are read, and five messages are built and compared byte for byte with the canonical ones (ServerHello 90 · EncryptedExtensions 40 · Certificate 445 · CertificateVerify 136 · Finished 36). And it is woven end to end — we compute ECDHE from the canonical keys, climb the key schedule and match the server Finished with the canonical one. That one move measures the transcript cut points, the key schedule, finished_key and verify_data together. The canonical CertificateVerify is RSA-PSS and our signer is ECDSA, so the frame is what is measured here; the signature itself is measured separately by [`ecdsa`](sec91.md#mod-ecdsa).
 
 ---
 

@@ -14,15 +14,33 @@
 // ── 조항 번호 ────────────────────────────────────────────────────────────────
 // C 표준처럼 **번호가 주소**다. 한 번 발급한 번호의 뜻은 바꾸지 않는다(RFC-0097 D6).
 // 번호는 손으로 적는다 — 자동 번호는 조항이 끼어들 때 **주소를 바꿔 버리기** 때문이다.
+// ★ 제목과 캡션은 **문자열**로 들어온다. 그 안의 역따옴표(`` `if` ``)와 `**굵게**` 를 읽어 조판한다 —
+//   전에는 글자 그대로 찍혀서 제목에 역따옴표와 별표가 보였다(2026-10-09).
+#let _inl(s) = {
+  let parts = s.split("`")
+  for (i, p) in parts.enumerate() {
+    if calc.odd(i) { raw(p) } else {
+      let bs = p.split("**")
+      for (j, b) in bs.enumerate() { if calc.odd(j) { strong(b) } else { b } }
+    }
+  }
+}
+
+// ★★ PDF 에서 조항 제목은 **진짜 제목(heading)** 이다(2026-10-09). 전에는 굵은 글씨 문단이어서 차례(`#outline`)가
+//   비어 있었고 PDF 책갈피도 없었다. 번호는 여전히 손으로 적는다 — 제목의 수준만 번호의 마디 수에서 읽는다.
+//   이름표(`c6.5.2`)를 붙여 `cref` 가 그 자리로 건너가게 한다.
+#let _lvl(no) = calc.min(no.split(".").len(), 4)
+#let _head(no, title) = [#heading(level: _lvl(no), numbering: none, outlined: true)[#no #h(0.55em) #_inl(title)] #label("c" + no)]
+
 #let clause(no, title, body) = {
   if _html {
     html.elem("section", attrs: (class: "clause", id: "c" + no), {
-      html.elem("h2", [#no #h(0.6em) #title])
+      html.elem("h2", [#no #h(0.6em) #_inl(title)])
       body
     })
   } else {
     pagebreak(weak: true)
-    block(above: 0em, below: 1em)[#text(weight: "bold", size: 1.4em)[#no #h(0.6em) #title]]
+    _head(no, title)
     body
   }
 }
@@ -30,11 +48,11 @@
 #let sub(no, title, body) = {
   if _html {
     html.elem("section", attrs: (class: "subclause", id: "c" + no), {
-      html.elem("h3", [#no #h(0.5em) #title])
+      html.elem("h3", [#no #h(0.5em) #_inl(title)])
       body
     })
   } else {
-    block(above: 1.4em, below: 0.6em)[#text(weight: "bold", size: 1.1em)[#no #h(0.5em) #title]]
+    _head(no, title)
     body
   }
 }
@@ -52,7 +70,14 @@
 
 #let cref(no) = if _html {
   html.elem("a", attrs: (href: "#c" + no, class: "cref"), [§#no])
-} else { text(fill: rgb("#333"))[§#no] }
+} else {
+  // PDF 에서도 그 조항으로 건너간다. 이름표가 없는 번호(아직 없는 조항)는 글자로만 둔다.
+  context {
+    let hit = query(label("c" + no))
+    if hit.len() > 0 { link(hit.first().location(), text(fill: rgb("#1a4f8a"))[§#no]) }
+    else { text(fill: rgb("#333"))[§#no] }
+  }
+}
 
 // ── 용어 병기 (D5) ───────────────────────────────────────────────────────────
 // **모든 용어는 처음 나올 때 괄호로 영어를 병기하고 뜻을 적는다.**
@@ -110,12 +135,12 @@
 // 자유 선택 — 처리기가 범위 안에서 골라도 되고, 무엇을 골랐는지 적지 않아도 되는 자리 (정본 §4.3). 부록 F 가 모은다.
 #let freechoice(title, body) = if _html {
   html.elem("div", attrs: (class: "freechoice"), {
-    html.elem("b", [자유 선택 (free choice) — #title])
+    html.elem("b", [자유 선택 (free choice) — #_inl(title)])
     body
   })
 } else {
   block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, stroke: (left: 3pt + rgb("#1f6f5c"), rest: 0.5pt + rgb("#1f6f5c")))[
-    #text(size: 0.88em, weight: "bold", fill: rgb("#17574a"))[자유 선택 (free choice) — #title]
+    #text(size: 0.88em, weight: "bold", fill: rgb("#17574a"))[자유 선택 (free choice) — #_inl(title)]
 
     #text(size: 0.95em)[#body]
   ]
@@ -124,12 +149,12 @@
 // 모호 — 이 문서만으로는 뜻이 둘 이상으로 읽히는 자리 (RFC-0139 §6). 고르지 않고 풀이를 나란히 적는다. 부록 E 가 모은다.
 #let ambig(title, body) = if _html {
   html.elem("div", attrs: (class: "ambig"), {
-    html.elem("b", [모호 (open issue) — #title])
+    html.elem("b", [모호 (open issue) — #_inl(title)])
     body
   })
 } else {
   block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, stroke: (left: 3pt + rgb("#a05a00"), rest: 0.5pt + rgb("#a05a00")))[
-    #text(size: 0.88em, weight: "bold", fill: rgb("#7a4300"))[모호 (open issue) — #title]
+    #text(size: 0.88em, weight: "bold", fill: rgb("#7a4300"))[모호 (open issue) — #_inl(title)]
 
     #text(size: 0.95em)[#body]
   ]
@@ -137,12 +162,12 @@
 
 #let caution(title, body) = if _html {
   html.elem("div", attrs: (class: "caution"), {
-    html.elem("b", [주의 — #title])
+    html.elem("b", [주의 — #_inl(title)])
     body
   })
 } else {
   block(above: 0.9em, below: 0.9em, width: 100%, inset: 0.7em, stroke: 1pt + rgb("#111"))[
-    #text(size: 0.88em, weight: "bold")[주의 — #title]
+    #text(size: 0.88em, weight: "bold")[주의 — #_inl(title)]
 
     #text(size: 0.95em)[#body]
   ]
@@ -153,13 +178,13 @@
 #let ex(caption, code, out: none) = {
   if _html {
     html.elem("div", attrs: (class: "ex"), {
-      html.elem("b", [예제 (example) — #caption])
+      html.elem("b", [예제 (example) — #_inl(caption)])
       html.elem("pre", html.elem("code", code))
       if out != none { html.elem("pre", attrs: (class: "out"), out) }
     })
   } else {
     block(above: 1em, below: 1em, width: 100%)[
-      #text(size: 0.88em, weight: "bold")[예제 (example) — #caption]
+      #text(size: 0.88em, weight: "bold")[예제 (example) — #_inl(caption)]
 
       #block(width: 100%, inset: 0.6em, fill: rgb("#fafafa"), stroke: 0.5pt + rgb("#ccc"))[
         #raw(code)
@@ -181,12 +206,12 @@
   _tbl-no.step()
   if _html {
     html.elem("div", attrs: (class: "tbl"), {
-      html.elem("b", context [표 #_tbl-no.display() — #caption])
+      html.elem("b", context [표 #_tbl-no.display() — #_inl(caption)])
       body
     })
   } else {
     block(above: 1em, below: 1em, width: 100%)[
-      #context text(size: 0.88em, weight: "bold")[표 #_tbl-no.display() — #caption]
+      #context text(size: 0.88em, weight: "bold")[표 #_tbl-no.display() — #_inl(caption)]
 
       #body
     ]
@@ -221,12 +246,12 @@
 #let shape(caption, code) = {
   if _html {
     html.elem("div", attrs: (class: "shape"), {
-      html.elem("b", [문법 틀 (grammar shape) — #caption])
+      html.elem("b", [문법 틀 (grammar shape) — #_inl(caption)])
       html.elem("pre", html.elem("code", code))
     })
   } else {
     block(above: 1em, below: 1em, width: 100%)[
-      #text(size: 0.88em, weight: "bold")[문법 틀 (grammar shape) — #caption]
+      #text(size: 0.88em, weight: "bold")[문법 틀 (grammar shape) — #_inl(caption)]
 
       #block(width: 100%, inset: 0.6em, fill: rgb("#f7f7f7"), stroke: (dash: "dashed", paint: rgb("#bbb"), thickness: 0.5pt))[
         #raw(code)
@@ -241,12 +266,12 @@
 #let diagram(caption, code) = {
   if _html {
     html.elem("div", attrs: (class: "diagram"), {
-      html.elem("b", [도해 (diagram) — #caption])
+      html.elem("b", [도해 (diagram) — #_inl(caption)])
       html.elem("pre", html.elem("code", code))
     })
   } else {
     block(above: 1em, below: 1em, width: 100%, breakable: false)[
-      #text(size: 0.88em, weight: "bold")[도해 (diagram) — #caption]
+      #text(size: 0.88em, weight: "bold")[도해 (diagram) — #_inl(caption)]
 
       #block(width: 100%, inset: 0.6em, fill: rgb("#f5f8fb"), stroke: 0.5pt + rgb("#9ab"))[
         #raw(code)
@@ -262,13 +287,13 @@
 #let rejected(caption, code, diag) = {
   if _html {
     html.elem("div", attrs: (class: "rejected"), {
-      html.elem("b", [거부되는 예제 (rejected) — #caption])
+      html.elem("b", [거부되는 예제 (rejected) — #_inl(caption)])
       html.elem("pre", html.elem("code", code))
       html.elem("p", attrs: (class: "diag"), [진단: #raw(diag)])
     })
   } else {
     block(above: 1em, below: 1em, width: 100%)[
-      #text(size: 0.88em, weight: "bold")[거부되는 예제 (rejected) — #caption]
+      #text(size: 0.88em, weight: "bold")[거부되는 예제 (rejected) — #_inl(caption)]
 
       #block(width: 100%, inset: 0.6em, fill: rgb("#faf6f6"), stroke: 0.5pt + rgb("#c99"))[
         #raw(code)

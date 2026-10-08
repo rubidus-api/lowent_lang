@@ -1,8 +1,8 @@
-# <a id="mod-tlscli"></a>`tlscli` — TLS 1.3 클라이언트 핸드셰이크
+# <a id="mod-tlssrv"></a>`tlssrv` — TLS 1.3 서버 핸드셰이크
 
 소스
 
-`lib/tlscli.low`
+`lib/tlssrv.low`
 
 층
 
@@ -12,61 +12,43 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 없음
 
-[`tlssrv`](sec96.md#mod-tlssrv) 의 **거울상**이다. 서버 쪽은 ClientHello 를 읽고 ServerHello 를 짓는다. 이 모듈은 반대로 ClientHello 를 **짓고** ServerHello 이하를 **읽는다**. 규격의 계산(키 스케줄 · 레코드 봉인)은 [`tls13`](sec95.md#mod-tls13) 에 있고, 이 모듈은 그것을 클라이언트의 순서대로 부르는 층이다.
+[`tls13`](sec96.md#mod-tls13) 이 규격의 **계산**을 갖고 있다. 이 모듈은 그것을 **순서대로 부르는 층**이다 — ClientHello 를 읽고, 서버 메시지를 짓고, 상태를 옮기고, 응용 데이터 레코드를 봉하고 연다. 모든 실패는 `0` 이고, op 은 **자리**를 낸다 — 자르는 것은 부르는 쪽이 `subslice` 로 한다.
 
-> **이것만으로는 TLS 클라이언트가 아니다**
+> **이것만으로는 TLS 서버가 아니다**
 >
-> > **전송이 없다** — 소켓도 재조립도 없고, 바이트열은 부르는 쪽이 모아 온다. 그래서 이 모듈은 `effects none` 이다. **인증서를 확인하지 않는다** — `Certificate` 메시지에서 인증서를 꺼내 줄 뿐이고, 체인 · 유효기간 · 이름은 [`x509`](sec93.md#mod-x509) · [`verify`](sec94.md#mod-verify) · [`trust`](sec120.md#mod-trust) 로 부르는 쪽이 확인한다. 확인하지 않는 도구는 그렇다고 말해야 한다(`lowget` 의 `--insecure`). 짓지 않은 것: HelloRetryRequest · PSK/0-RTT · 세션 재개 · 클라이언트 인증서 · x25519 가 아닌 키 교환 그룹 · `TLS_CHACHA20_POLY1305_SHA256` · `TLS_AES_128_GCM_SHA256` 이 아닌 스위트.
+> > **전송이 없다** — 소켓도 재조립도 없고 바이트열은 부르는 쪽이 모아 온다(레코드 경계도 부르는 쪽이 정한다). 키 갱신(KeyUpdate) · 레코드 패딩 · HelloRetryRequest · PSK · 0-RTT · 클라이언트 인증서 요구 · 세션 재개가 없다. 인증서 체인은 `build_cert` 가 하나만 담는다. 확장은 **찾아만** 준다(SNI · ALPN 해석은 부르는 쪽). 감사받지 않았다.
 
-## <a id="sx1"></a>핸드셰이크의 차례
-
-클라이언트는 한 가지 차례로만 메시지를 받는다. 이 차례를 지키지 않으면 중간자가 메시지를 빼거나 바꿔치기할 수 있다. `cnext_ok` 가 상태마다 **받아도 되는 메시지 하나**를 열거하고, 그 밖은 모두 거절한다.
-
-```text
- cst_start ──ClientHello 보냄──▶ cst_wait_sh
- cst_wait_sh ──ServerHello(2)──▶ cst_wait_ee        ── 여기서 핸드셰이크 키를 만든다(hs_secrets)
- cst_wait_ee ──EncryptedExtensions(8)──▶ cst_wait_cert
- cst_wait_cert ──Certificate(11)──▶ cst_wait_cv     ── cert_at 으로 꺼내 부르는 쪽이 확인
- cst_wait_cv ──CertificateVerify(15)──▶ cst_wait_finished
- cst_wait_finished ──Finished(20)──▶ cst_connected  ── check_server_fin 이 참이어야 한다
-```
-
-괄호 안의 수는 핸드셰이크 메시지 종류 번호다. `cstep` 이 다음 상태를 낸다.
-
-## <a id="sx2"></a>op
+**ClientHello 는 가장 적대적인 입력이다.** 아직 아무것도 인증되지 않은 바이트열이고 길이 필드는 전부 상대가 썼다. 그래서 — 어떤 자리도 버퍼를 넘으면 즉시 실패한다. 확장 걷기는 재귀하지 않고 걸음 수를 버퍼 크기로 묶는다(길이 0 짜리 확장이 이어지면 묶지 않은 루프는 끝나지 않는다). 길이가 맞지 않으면 고쳐 읽지 않는다 — `ch_ok` 는 선언된 길이가 버퍼와 **정확히** 같기를, `ch_ext_len` 은 확장이 끝까지 맞기를 요구한다.
 
 | **op** | **하는 일** |
 |---|---|
-| `cst_start` … `cst_connected` | 상태 번호(0 … 6) |
-| `cnext_ok` · `cstep` | 지금 상태에서 이 메시지를 받아도 되는가 · 그다음 상태 |
-| `build_ch` | ClientHello 를 짓는다 — 스위트는 ChaCha20-Poly1305 를 먼저, AES-128-GCM 을 다음에, 키 교환은 x25519 |
-| `sh_ok` · `sh_usable` | ServerHello 가 성한가 · 우리가 이어 갈 수 있는 것인가(한 번에 판정) |
-| `sh_is_hrr` | HelloRetryRequest 인가 — 알아보고 **거절한다** |
-| `sh_suite` · `sh_is_tls13` · `sh_key_share_off` | 고른 스위트 · 정말 1.3 인가 · 서버의 x25519 공개값 자리 |
-| `sh_ext_off` · `sh_ext_len` · `sh_ext_find` · `sh_ext_find_len` | 확장 묶음과 확장 하나 찾기 |
-| `hs_secrets` | 핸드셰이크 비밀을 만든다(키 사다리) |
-| `finished_vd` | 어떤 트래픽 비밀로든 Finished 의 검증값을 낸다 |
-| `check_server_fin` | 서버의 Finished 를 검산한다 — «상대가 그 비밀을 정말 갖고 있는가» |
-| `build_client_fin` | 우리 Finished 를 짓는다 |
-| `seal_rec` | 레코드 하나를 봉한다(속 타입을 부르는 쪽이 정한다) |
-| `plain_hdr` · `rec_len` · `rec_type` | 평문 레코드 머리를 짓는다 · 받은 레코드 머리를 읽는다 |
-| `cert_at` · `cert_len` | Certificate 메시지에서 `n` 번째 인증서(0 이 잎)의 자리와 길이 |
+| `st_start` · `st_recvd_ch` · `st_negotiated` · `st_wait_flight2` · `st_wait_finished` · `st_connected` | 상태 번호 |
+| `hs_client_hello` · `hs_server_hello` · `hs_encrypted_extensions` · `hs_certificate` · `hs_certificate_verify` · `hs_finished` | 메시지 종류 번호 |
+| `next_ok` · `transit` | 지금 이 메시지를 받아도 되는가 · 상태를 옮긴다(못 옮기면 같은 상태를 낸다) |
+| `ch_ok` | 종류와 길이가 버퍼와 맞는가 |
+| `ch_random_off` · `ch_sid_off` · `ch_sid_len` | 랜덤 · session_id |
+| `ch_suites_off` · `ch_suites_len` · `ch_has_suite` | 제안된 스위트 |
+| `ch_ext_off` · `ch_ext_len` · `ch_ext_find` · `ch_ext_find_len` | 확장 블록 · 종류로 찾기 |
+| `ch_x25519_off` · `be16` | key_share 안의 x25519 공개키 자리 · 빅엔디언 2 바이트 |
+| `build_sh` · `build_ee` · `build_cert` | ServerHello · EncryptedExtensions · Certificate(DER 하나) 짓기 |
+| `cv_content` · `build_cv` · `build_fin` | CertificateVerify 가 서명하는 130 바이트 · CertificateVerify · Finished 짓기 |
+| `server_finished` | ECDHE 부터 키 스케줄을 올려 서버 Finished 까지 한 줄로 |
+| `app_secrets` · `check_client_finished` | 응용 트래픽 비밀(c · s) · 상대 Finished 확인(1 = 맞음) |
+| `traffic_keys` · `seal_app` · `open_app` | 비밀 → 키 ‖ IV(한 방향씩) · 응용 데이터 레코드 봉하기 · 열기 |
 
-*표 50.1 — `tlscli` 의 op*
+*표 50.1 — `tlssrv` 의 op*
 
-## <a id="sx3"></a>설계
+메시지 짓기는 틀이 같다(`<종류 1> <길이 3> <본문>`) — 그래서 틀을 한 번만 적었다. 네 곳에 같은 산술을 되풀이하면 한 곳만 고치는 날이 온다.
 
-**읽는 쪽 길이는 전부 상대가 쓴 것이다.** ServerHello 이하는 아직 아무것도 인증되지 않은 바이트열이다. 어떤 자리도 버퍼를 넘으면 곧바로 0 을 답하고, 길이가 안 맞으면 고쳐 읽지 않는다.
+**`cv_content` — 공백 64 개는 장식이 아니다.** 서명 대상은 `0x20 × 64 ‖ "TLS 1.3, server CertificateVerify" ‖ 0x00 ‖ 전사 해시` 다(§4.4.3). 그 앞머리가 없으면 이 서명이 다른 문맥(인증서 서명, 클라이언트 쪽 서명)의 서명으로 재활용될 수 있다. 규격에서 “왜 이런 게 있지” 싶은 상수는 대개 이미 일어난 공격의 흔적이다.
 
-**HelloRetryRequest 를 ServerHello 로 읽지 않는다.** HRR 은 ServerHello 와 같은 메시지 종류이고 랜덤 자리에 정해진 32 바이트가 들어가는 것으로만 구분된다. 그것을 모르면 HRR 의 랜덤을 진짜 랜덤으로 읽어 키 사다리를 **조용히 틀린 값**에서 쌓는다. HRR 을 짓지 않기로 했으므로 알아보고 거절한다.
+**순서는 규격의 절반이다.** `next_ok` 는 받아들이는 자리를 열거하고, 열거하는 것이 곧 나머지를 거절하는 것이다. 보지 않으면 중간자가 Finished 를 앞당기거나 ClientHello 를 두 번 보낼 수 있다. **`session_id` 는 그대로 되울린다** — TLS 1.3 은 그 필드를 쓰지 않지만, 되울리지 않으면 1.2 로 보이게 하려는 호환 장치 때문에 실제 망의 중간 상자에서 끊긴다(§4.1.3).
 
-**판을 고르는 것은 머리가 아니라 확장이다.** 메시지 머리의 `0303` 은 중간 상자를 속이려는 장식이다. 정말 1.3 인지는 `supported_versions` 확장이 `0304` 인지로 본다(`sh_is_tls13`).
+**전사는 이 층에서 세 번 잘린다.** `s hs traffic` 은 `CH‖SH`, 서버 Finished 는 `CH‖…‖CertificateVerify`, 응용 트래픽 비밀과 **클라이언트 Finished** 는 `CH‖…‖서버 Finished` 위에 선다. 클라이언트 Finished 는 자기 자신을 포함하지 않고, 그 verify_data 는 **클라이언트** 핸드셰이크 비밀에서 나온다 — 같은 전사, 다른 비밀. 서버 것을 쓰면 언제나 거절하게 되고 증상은 “클라이언트가 이상하다” 로 보인다.
 
-**왜 ChaCha20 을 먼저 제안하나.** 이 언어로 쓴 두 암호의 처리량을 재어 빠른 쪽을 앞에 둔다. 서버가 순서를 존중하면 빠른 쪽을 고른다.
+**응용 데이터는 방향마다 다른 비밀 · 다른 시퀀스다.** 하나를 공유하면 논스가 겹치고, AEAD 에서 논스가 겹치는 것은 평문과 인증키를 함께 잃는 일이다. 그래서 키뭉치를 한 방향씩 만든다. 시퀀스는 **레코드마다** 오르고 키 세대마다 0 부터다. `traffic_keys` 의 출력 버퍼는 키가 16 이어도 32 바이트여야 한다 — `expand_label` 은 HMAC 한 블록을 쓰므로 언제나 32 를 쓴다. 경보도 같은 레코드다 — 속 타입이 21 이고, 그것을 보지 않으면 경보를 데이터로 읽는다.
 
-**`check_server_fin` 이 참이어도 «누구인지» 는 아직 모른다.** 그것은 «상대가 핸드셰이크 비밀을 갖고 있는가» 를 확인할 뿐이고, 그 상대가 누구인지는 인증서 쪽(`verify`)의 물음이다. 둘을 모두 확인해야 연결을 믿을 수 있다.
-
-**왜 이 모듈이 있나.** 클라이언트가 있어야 바깥의 진짜 구현(`openssl s_server`, 실제 웹 서버)이 반대편에 설 수 있다. 우리 서버(`tlssrv`)와만 맞대면 양쪽이 같은 오해를 나눠 가질 수 있고, 그러면 «규격을 같게 읽었다» 는 확인이 되지 않는다. 이 모듈 위에 선 실물 도구가 `apps/lowget` 이다.
+**확인하는 것** — RFC 8448 §3 의 실제 핸드셰이크. 정본의 ClientHello 필드를 읽고, 메시지 다섯을 지어 정본과 바이트로 맞댄다(ServerHello 90 · EncryptedExtensions 40 · Certificate 445 · CertificateVerify 136 · Finished 36). 그리고 끝까지 엮는다 — 정본의 키로 ECDHE 를 우리가 내고 키 스케줄을 올려 서버 Finished 를 정본과 맞춘다. 이 한 수가 전사 자르는 자리 · 키 스케줄 · finished_key · verify_data 를 한꺼번에 잰다. 정본의 CertificateVerify 는 RSA-PSS 이고 우리 서명기는 ECDSA 라, 여기서 재는 것은 틀이고 서명 자체는 [`ecdsa`](sec90.md#mod-ecdsa) 가 따로 잰다.
 
 ---
 

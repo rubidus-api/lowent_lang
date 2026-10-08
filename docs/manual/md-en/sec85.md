@@ -1,43 +1,40 @@
-# `crypto_hw` — arithmetic the machine helps with
+# <a id="mod-gcm"></a>`gcm` — AES-128-GCM authenticated encryption
 
 Source
 
-`lib/crypto_hw.low`
+`lib/gcm.low`
 
 Layer
 
-L0 — pure computation (the caller’s scratch)
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-The parts of cryptographic arithmetic **the CPU has an instruction for**. Today that is one thing: multiplication in GF(2^128) — what GCM’s GHASH stands on, and what CRC is too.
+Gives “nobody can read it” and “nobody can alter it” **at once** (NIST SP 800-38D). [`aes`](sec84.md#mod-aes) gives only the first.
 
-> **There is no `unsafe` in this module**
+> **What it promises and what it does not**
 >
-> > The **processor** emits the instruction; this source uses ordinary words (`clmul_lo`, `clmul_hi`). So nothing travels: callers stay `effects none`. Writing assembly directly would carry `unsafe` all the way up to TLS (see «The absorbing boundary» in the chapter 30 chapter).
+> > It does not promise constant time and has not been audited. **Never repeat a nonce** — using the same nonce twice with the same key makes GCM **lose both the plaintext and the authentication key**. It is the most expensive mistake in this mode. **It is slow** — measured at 0.46 MB per second in the development repository, far slower than ChaCha20-Poly1305 on the same machine (41.8 MB). So the preferred suite is ChaCha20. This module exists **correctly** because the standard makes it a MUST, not to be fast. A tag check failure in `decrypt` is a value — always look at the return value.
 
-| **op** | **what it does** | **requires** |
+**What is AAD.** Bytes that are not hidden but **must not be altered**. In TLS 1.3 it is a record’s 5-byte header — an observer sees the length anyway, but if the peer changes it the tag must not match. Unlike `seal` and `unseal` of [`aead`](sec82.md#mod-aead), this module uses the names `encrypt` and `decrypt`. There is a defect where, if two modules share a name, the processor measures the argument count against the other module’s signature even when called qualified, so the names were separated to avoid it.
+
+| **op** | **What it does** | **Requires** |
 |---|---|---|
-| `clmul128` | one carry-less product — 128 bits as two words | `out ≥ 2` |
-| `gf128_mul` | GF(2^128) product — GCM’s reflected order, Karatsuba (three multiplies) | `out`, `x`, `h` each `≥ 2` |
+| `gmul128` | GF(2^128) multiplication of GHASH — `z ← z·h` | `z ≥ 16` · `h ≥ 16` · `v ≥ 16` |
+| `encrypt` | `msg` → ciphertext and a 16-byte tag | `nonce = 12` · `key = 16` |
+| `decrypt` | **Checks the tag first** and gives the plaintext | on failure answers 0 and gives no plaintext |
 
-*Table 50.1 — ops of `crypto_hw`*
+*Table 50.1 — Ops of `gcm`*
 
-**What carry-less multiplication is.** Multiplication with no carries — addition is xor. Every output bit is a combination of input bits, which is why cryptography and checksums are built on it. The answer is 128 bits and this language has no 128-bit type, so it comes back as **two words** (low, high).
+The caller holds the backing (`scratch`). If short it answers 0 and writes nothing — guards keep that.
 
-**The build decides the speed.** Compiled with `lowentc --hw auto`, it uses the instruction where the machine has one and the plain computation where it does not. With `--hw none` (the default) it is always the computation. **The answer is the same either way** — only speed and timing behaviour differ.
+**GHASH bit order — where people slip.** The reduction polynomial of GF(2^128) is `x^128 + x^7 + x^2 + x + 1`, but GCM uses **reversed bit order** — the top bit of a block’s first byte is x^0. So multiplication runs with right shifts, and overflowing bits come back into the first byte as `0xE1`. Read that convention backwards and the ciphertext is right but the whole tag differs, looking only like “decryption fails”.
 
-**Measured.** The leaf `ghash` went 82 → 6562 MB/s, the leaf `aes_ctr` 80 → 5475, and AES-128-GCM as a whole 41 → 2848 MB/s (4 MiB, gcc, best of each column across three alignment settings). Those numbers need the AES instructions turned on too (`--hw aes`): with only one of the two, the bottleneck just moves.
+**On nonces, again.** GCM is counter mode, so the same (key, nonce) yields the same keystream. The XOR of two plaintexts is revealed, and worse, an equation arises from which the GHASH authentication key can be solved, letting the peer forge any message. TLS 1.3 avoids this by **deriving the nonce from the sequence number** (`record_nonce` of [`tls13`](sec97.md#mod-tls13)). If you use it directly, follow that method — random 96-bit nonces collide sooner than you think.
 
-**Carrying the instruction was not the end of it.** With the same instruction, the first version drew only half of what the machine could give. The other half was in **how it was used** — eight blocks at a time, one reduction per eight rather than per block, counters built in a register instead of through memory, and the reduction itself cut down to two multiplies. The leaf `aes_ctr` now runs at **the same speed** as OpenSSL on this box.
-
-**What is checked** — the golden suite compares this module’s `gf128_mul` against the processor’s own leaf `ghash`: the same product computed in two different places, each the other’s witness. It also compares the instruction path, the computed path and the VM on the same inputs.
-
-> **Constant time is not promised**
->
-> > The instruction path reads no tables, so its timing behaviour is better. Even so, this repository’s cryptography promises no constant time and has not been audited — other places remain. Saying so is how that promise stays honest.
+**What is checked** — NIST GCM test vectors, the record ciphertext of RFC 8448 §3 (ciphertext and tag byte for byte), VM/native agreement.
 
 ---
 

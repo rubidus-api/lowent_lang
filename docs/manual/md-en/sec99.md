@@ -1,65 +1,72 @@
-# <a id="mod-http"></a>`http` — HTTP/1.1 request parser
+# <a id="mod-tlscli"></a>`tlscli` — the TLS 1.3 client handshake
 
 Source
 
-`lib/http.low`
+`lib/tlscli.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-Takes request bytes and answers **where each field starts and how many bytes it is** (RFC 9112). It does not cut — the caller cuts with `subslice`. **Every failure is `0`**. `0` can never be a legitimate position — the smallest request is `GET / HTTP/1.1␍␊␍␊`, so no field starts at 0.
+The **mirror image** of [`tlssrv`](sec98.md#mod-tlssrv). The server side reads a ClientHello and builds a ServerHello. This module does the opposite: it **builds** a ClientHello and **reads** the ServerHello and what follows. The protocol’s computation (key schedule, record sealing) is in [`tls13`](sec97.md#mod-tls13) this module is the layer that calls it in the client’s order.
 
-> **What it promises and what it does not**
+> **This alone is not a TLS client**
 >
-> > Server-side request parsing only (no response parsing). There is no transport — the caller gathers the bytes. **Chunked transfer (`Transfer-Encoding: chunked`) is not built** — it only finds that header, so the caller must reject. No trailers, multi-line headers (obs-fold), URL percent-decoding or HTTP/2. HTTP/1.0 is not accepted — its persistent connection rules differ and were not built.
+> > **No transport** — no sockets, no reassembly; the caller gathers the bytes. That is why this module is `effects none`. **It does not check certificates** — it only takes certificates out of the `Certificate` message; the chain, validity and names are checked by the caller with [`x509`](sec95.md#mod-x509) · [`verify`](sec96.md#mod-verify) · [`trust`](sec122.md#mod-trust). A tool that does not check must say so (`lowget`’s `--insecure`). Not built: HelloRetryRequest · PSK/0-RTT · session resumption · client certificates · key-exchange groups other than x25519 · suites other than `TLS_CHACHA20_POLY1305_SHA256` · `TLS_AES_128_GCM_SHA256`.
 
-```lowent
-let t be u64 http.target_off b .
-let n be u64 http.target_len b .
-guard gt n 0 . else return 0 .
-let target be slice u8 subslice b t (add t n) .
+## <a id="sx1"></a>The order of the handshake
+
+A client accepts messages in one order only. If that order is not kept, a man in the middle can drop or swap messages. `cnext_ok` lists **the one message that may arrive** in each state and refuses everything else.
+
+```text
+ cst_start ──sends ClientHello──▶ cst_wait_sh
+ cst_wait_sh ──ServerHello(2)──▶ cst_wait_ee        ── the handshake keys are made here (hs_secrets)
+ cst_wait_ee ──EncryptedExtensions(8)──▶ cst_wait_cert
+ cst_wait_cert ──Certificate(11)──▶ cst_wait_cv     ── taken out with cert_at; the caller checks them
+ cst_wait_cv ──CertificateVerify(15)──▶ cst_wait_finished
+ cst_wait_finished ──Finished(20)──▶ cst_connected  ── check_server_fin must be true
 ```
 
-| **op** | **What it does** |
+The number in parentheses is the handshake message type. `cstep` gives the next state.
+
+## <a id="sx2"></a>ops
+
+| **op** | **what it does** |
 |---|---|
-| `method_get` · `method_head` · `method_post` · `method_put` · `method_delete` | Method codes (1 … 5) |
-| `method_code` | Method in the request line → code. 0 = unknown |
-| `line_next` · `line_len` | Position of the next line · content length of this line (without CRLF) |
-| `target_off` · `target_len` | Position · length of the request target |
-| `version_ok` | Is it `HTTP/1.1` |
-| `headers_off` · `header_next` | First header · next header (0 at the blank line) |
-| `name_len` · `value_off` · `value_len` | Header name length · value position · value length |
-| `name_eq` | Is this header’s name that one (case-insensitive) |
-| `header_find` · `header_find_len` | Value position · length for that name. **0 if duplicated** |
-| `content_length` | `option u64` — `some 0` if absent, `none` if malformed |
-| `body_off` | Where the body starts |
+| `cst_start` … `cst_connected` | state numbers (0 … 6) |
+| `cnext_ok` · `cstep` | may this message arrive in this state · the next state |
+| `build_ch` | builds a ClientHello — suites ChaCha20-Poly1305 first, then AES-128-GCM; key exchange x25519 |
+| `sh_ok` · `sh_usable` | is the ServerHello well formed · can we continue with it (decided in one call) |
+| `sh_is_hrr` | is it a HelloRetryRequest — recognised and **refused** |
+| `sh_suite` · `sh_is_tls13` · `sh_key_share_off` | the chosen suite · is it really 1.3 · where the server’s x25519 value is |
+| `sh_ext_off` · `sh_ext_len` · `sh_ext_find` · `sh_ext_find_len` | the extension block, and finding one extension |
+| `hs_secrets` | makes the handshake secrets (the key ladder) |
+| `finished_vd` | the Finished verify value from any traffic secret |
+| `check_server_fin` | checks the server’s Finished — “does the other side really hold the secret” |
+| `build_client_fin` | builds our Finished |
+| `seal_rec` | seals one record (the caller picks the inner type) |
+| `plain_hdr` · `rec_len` · `rec_type` | builds a plaintext record header · reads a received record header |
+| `cert_at` · `cert_len` | offset and length of the `n`-th certificate in a Certificate message (0 is the leaf) |
 
-*Table 50.1 — Ops of `http`*
+*Table 50.1 — ops of `tlscli`*
 
-**The core of this module is rejection.** A parser is defined more by what it rejects than what it accepts. Wrong acceptance in HTTP has a name — **request smuggling**. If the front (proxy) and back (server) read the same bytes differently, a request one sees the other does not.
+## <a id="sx3"></a>Design
 
-| **Rejected** | **Why** |
-|---|---|
-| Bare `LF` as line end | If the front accepts only CRLF, boundaries diverge |
-| Space between name and colon (`Host : x`) | RFC 9112 §5.1 requires rejection |
-| Two `Content-Length` | Rejected even if the values agree |
-| `Content-Length: 5, 5` · `+5` · empty | Digits only — that leniency is smuggling |
-| `HTTP/1.0` | Different persistent connection rules, not built |
-| The same header twice (`header_find`) | Whether merging is allowed varies per header and that table was not built — unknown means reject |
-| Empty target (`GET  HTTP/1.1`) · unterminated headers (no blank line) | — |
+**Every length on the reading side was written by the other side.** Everything from the ServerHello on is bytes nothing has authenticated yet. Any offset past the buffer answers 0 at once, and a length that does not fit is not read “generously”.
 
-*Table 50.2 — What `http` rejects*
+**A HelloRetryRequest is not read as a ServerHello.** An HRR has the same message type as a ServerHello and differs only by a fixed 32-byte value in the random field. Without knowing that, the HRR’s random is taken as real and the key ladder is built on a **silently wrong** value. HRR is not built, so it is recognised and refused.
 
-**Why `content_length` is an `option`.** “Absent” and “wrong” are different answers. Absent gives `some 0` (a normal request without a body); malformed gives `none` (the connection must be dropped). With one value the two mix, and where they mix is where attacks live.
+**The extension picks the version, not the header.** The `0303` in the message header is decoration to fool middleboxes. Whether it is really 1.3 is decided by the `supported_versions` extension being `0304` (`sh_is_tls13`).
 
-**This module caught a processor defect.** It was first written with `input b str .`. `--check` passed, but 16 of 21 ops fell onto the slow interpreted path (about 80×). `str` was not a builtin but a local alias in [`strings`](sec59.md#mod-strings) the checker let the name through, but the typed lowering did not know its meaning. The answers were right, so tests could never see it — a silent 80×. Now using such a name in a signature gives a `W-NOT-YET` warning. Passing checks and being fast are different things, and without looking at `--why-slow` this file would have shipped as it was.
+**Why ChaCha20 is offered first.** The two ciphers written in this language were measured and the faster one goes first. A server that honours the order picks the faster one.
 
-**What is checked** — RFC 9112 examples (8 normal), 9 rejections, VM/native agreement, zero ops falling onto the slow path.
+**`check_server_fin` being true does not yet say who.** It confirms “the other side holds the handshake secret”; who that side is, is the certificate’s question (`verify`). Both must be checked before the connection can be trusted.
+
+**Why this module exists.** With a client, a real outside implementation (`openssl s_server`, a real web server) can stand on the other side. Testing only against our own server (`tlssrv`) lets both sides share the same misreading, and then “we read the spec the same way” is not confirmed. The real tool built on this module is `apps/lowget`.
 
 ---
 

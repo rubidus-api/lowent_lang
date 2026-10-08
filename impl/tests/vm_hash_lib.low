@@ -1,0 +1,38 @@
+rem ★ `lib/hash.low` 의 SHA-384 · SHA-512 문과 `digest_eq` (2026-10-09).
+rem   잎(`sha384` · `sha512`)은 `vm_sha512.low` 가 이미 잰다. 여기는 **라이브러리의 문**이 그 잎을 그대로 내놓는지,
+rem   그리고 길이에 상관없는 비교가 끝까지 보는지를 잰다. 오라클은 FIPS 180 의 "abc".
+
+module vm_hash_lib .
+
+use hash from "../../lib/hash.low" .
+
+fn be8 input d slice u8 . input at u64 . output u64 . do
+  var acc be u64 0 .
+  for i count u64 8 . do
+    set acc (bit_or (shl acc 8) (widen u64 (idx d (add at i)))) .
+  end
+  return acc .
+end
+
+proc h384 input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (hash.digest384 src dst) 48 . else return 0 .
+  return be8 dst 0 .
+end
+
+proc h512 input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (hash.digest512 src dst) 64 . else return 0 .
+  return be8 dst 0 .
+end
+
+rem 버퍼가 모자라면 0 — 아무것도 안 쓴다.
+proc h512_short input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (hash.digest512 src dst) 0 . else return 0 .
+  for i count u64 (len dst) . do
+    guard eq (idx dst i) 0 . else return 0 .
+  end
+  return 1 .
+end
+
+fn same input a slice u8 . input b slice u8 . output bool . do
+  return hash.digest_eq a b .
+end

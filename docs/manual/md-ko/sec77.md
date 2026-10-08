@@ -1,37 +1,52 @@
-# <a id="mod-hmac"></a>`hmac` — HMAC-SHA256 과 HKDF
+# <a id="mod-random"></a>`random` — 난수(재현되는 열 · OS 엔트로피)
 
 소스
 
-`lib/hmac.low`
+`lib/random.low`
 
 층
 
-L0 — 순수 계산(호출자의 뒷받침)
+L0 — 순수 계산 · OS 엔트로피는 권한으로
 
 권한
 
-없음
+`bytes` · `seed_from_os` 에 `cap random`
 
-두 가지를 한다. **HMAC** 은 키를 아는 사람만 만들 수 있는 증표(`mac`)로 “누가 보냈는가” 를 답한다(RFC 4231). **HKDF** 는 하나의 비밀에서 여러 키를 갈라내는 표준 방법(`extract` + `expand1`)이다(RFC 5869).
-
-> **무엇을 약속하고 무엇을 하지 않나**
+> **둘을 섞지 않는다 — 이 모듈의 전부가 이 경고다**
 >
-> > 상수 시간을 약속하지 않고 감사받지 않았다. **MAC 비교는 부르는 쪽의 몫이다** — 이른 반환 없이(바이트를 XOR 로 누적해) 비교한다. 먼저 다른 바이트에서 돌아오는 비교는 태그를 한 바이트씩 알아내게 해 준다. `expand1` 은 **한 블록(32 바이트 이하)만** 낸다.
+> > `advance_seed` · `below_biased` · `coin` 은 **splitmix64** 로 만든 재현 가능한 열이다. 권한이 없고 시험 · 시뮬레이션 · 셔플에 쓴다. `bytes` · `seed_from_os` 는 **OS 엔트로피**다. `cap random` 이 필요하고 열쇠 · 논스 · 토큰에 쓴다. 시험은 재현되어야 하고 열쇠는 예측되면 안 된다 — 한 낱말로는 둘 다 못 하므로 이름을 갈라 두었다. `advance_seed` 으로 만든 값을 열쇠로 쓰면 시드를 아는 사람이 그 열쇠를 알고, 시드는 보통 코드나 로그에 남는다.
 
-**왜 해시로는 안 되나.** [`hash`](sec74.md#mod-hash) 의 `digest`(SHA-256)는 “내용이 그대로인가” 만 답한다. 누구나 다시 계산할 수 있으므로 누가 보냈는지는 답하지 못한다. 키가 들어가야 그 물음이 열린다. 뒷받침(`scratch`)은 호출자가 든다. 크기 요구가 문서가 아니라 **가드**로 박혀 있어서, 모자라면 0 을 답하고 아무것도 쓰지 않는다.
+**재현되는 쪽.** 상태(= 시드)를 받아 다음 상태를 돌려준다. 호출자가 상태를 들고 다니므로 같은 시드는 언제나 같은 열을 낸다.
 
-| **op** | **하는 일** | **요구** |
+```lowent
+var s be u64 12345 .
+set s (random.advance_seed s) .
+let c be bool random.coin s .
+```
+
+**예측할 수 없는 쪽.** `cap random` 을 받아야 부를 수 있다. 채운 바이트 수를 답하고 **못 채우면 0** 이다 — 0 을 받고 그대로 쓰면 초기화되지 않은 버퍼를 열쇠로 쓰는 것이다.
+
+```lowent
+proc make_key input k cap random . input key mut slice u8 . output bool . effects none . do
+  return eq (random.bytes k key) (len key) .
+end
+```
+
+| **op** | **모양** | **비고** |
 |---|---|---|
-| `mac` | `HMAC-SHA256(key, msg)` → `out` 32 바이트 | `out ≥ 32` · `scratch ≥ 64 + len(msg)` |
-| `key_block` | K′(64 바이트로 맞춘 키)를 만든다 | `pad ≥ 64`. 64 보다 긴 키는 해시로 줄인다 |
-| `extract` | HKDF-Extract: `PRK = HMAC(salt, ikm)` | `mac` 과 같다 |
-| `expand1` | HKDF-Expand 의 첫 블록: `T(1) = HMAC(prk, info ‖ 0x01)` | `scratch ≥ 130 + len(info)` · `len(info) ≤ 60` |
+| `advance_seed` | `(seed u64) → u64` | splitmix64 — 알고리즘 고정(고정해야 검사값이 기준이 된다) |
+| `below_biased` | `(seed u64, bound u64) → u64` | 이름이 **편향을 자백한다** — 균등이 필요하면 이것이 아니다 |
+| `coin` | `(seed u64) → bool` | 앞 · 뒤 |
+| `bytes` | `(cap random, dst mut slice u8) → u64` | 채운 바이트 수. **0 = 실패** |
+| `seed_from_os` | `(cap random, scratch mut slice u8) → u64` | OS 에서 받은 시드 하나 — 재현되는 열의 출발점을 예측할 수 없게. `scratch ≥ 8` |
 
-*표 50.1 — `hmac` 의 op*
+*표 50.1 — `random` 의 op*
 
-**왜 `expand1` 은 한 블록뿐인가.** TLS 1.3 의 `HKDF-Expand-Label` 은 32 바이트 이하만 쓴다(키·IV·finished 모두). 그래서 T(2) 를 잇는 반복을 짓지 않았다. **왜 60 에서 자르나.** `msg` 가 `scratch` 안(128 부터)에 살고 `mac` 이 `scratch[0 .. 64+len(msg)]` 를 덮어쓰므로, `info` 가 길면 둘이 겹쳐 해시가 자기 입력을 밟는다. 겹치는 순간을 가드가 거절한다 — 조용히 틀리느니 거절한다.
+`below_biased` 의 이름에 `biased` 가 있는 이유 — 나머지 연산으로 범위를 줄이면 작은 값이 조금 더 자주 나온다. 그것을 감추지 않고 이름에 적었다.
 
-**확인하는 것** — RFC 4231 · RFC 5869 표준 벡터와 VM·네이티브 일치. **짓지 않은 것** — 상수 시간 보장, MAC 비교 op, 여러 블록 HKDF-Expand(L > 32), SHA-256 밖의 해시, 이어 먹이는 MAC. 함께 보기 — `hash`(SHA-256 자체) · [`aead`](sec80.md#mod-aead) (갈라낸 키를 쓰는 자리) · [`x25519`](sec81.md#mod-x25519) (그 비밀을 만드는 자리).
+**실패를 불러와 시험한다.** 환경 변수 `LOW_HOST_FAULT="random:err"` 는 엔트로피를 받지 못하게(→ 0), `LOW_HOST_FAULT="random:short=3"` 은 3 바이트만 채우게 한다. **부분 채움이 조용히 무서운 쪽이다** — 버퍼 절반이 예전 값인 채로 열쇠가 된다. 그래서 채운 수를 확인하는 것이 계약이다(28장).
+
+**짓지 않은 것** — 균등 범위 난수(거절 표본추출), 셔플, 분포(정규 등), 재현되는 열의 직렬화, 암호용 CSPRNG(`bytes` 는 OS 에 묻는 것이지 이 모듈이 만드는 것이 아니다).
 
 ---
 

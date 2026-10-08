@@ -1,0 +1,57 @@
+rem ★★★ **옛 해시 — MD5 · SHA-1** (`lib/hash_legacy.low`, 2026-10-09).
+rem
+rem ★ 오라클은 **규격이 정한 답**이다. MD5 는 RFC 1321 부록 A.5 의 시험 묶음, SHA-1 은 FIPS 180 의 예.
+rem   해시는 그럴듯한 수가 나오면 맞아 보이므로, 손으로 고른 값이 아니라 규격의 값에 댄다.
+rem   다이제스트 전체를 수 하나로 못 실으므로 **앞 8 바이트**와 **끝 8 바이트**를 큰 끝부터 읽어 따로 낸다.
+rem
+rem ★★ 덧붙임의 경계가 이 구현의 위험한 자리다(버퍼 없이 «그 자리의 바이트» 를 계산한다). 길이 55 · 56 · 63 · 64 가
+rem   블록을 하나 더 쓰는지를 가른다 — 골든이 그 넷을 따로 댄다.
+
+module vm_hash_legacy .
+
+use hash_legacy from "../../lib/hash_legacy.low" .
+
+fn be8 input d slice u8 . input at u64 . output u64 . do
+  var acc be u64 0 .
+  for i count u64 8 . do
+    set acc (bit_or (shl acc 8) (widen u64 (idx d (add at i)))) .
+  end
+  return acc .
+end
+
+proc md5_head input src slice u8 . input work mut slice u64 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (hash_legacy.md5 src work dst) 16 . else return 0 .
+  return be8 dst 0 .
+end
+
+proc md5_tail input src slice u8 . input work mut slice u64 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (hash_legacy.md5 src work dst) 16 . else return 0 .
+  return be8 dst 8 .
+end
+
+proc sha1_head input src slice u8 . input work mut slice u64 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (hash_legacy.sha1 src work dst) 20 . else return 0 .
+  return be8 dst 0 .
+end
+
+proc sha1_tail input src slice u8 . input work mut slice u64 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (hash_legacy.sha1 src work dst) 20 . else return 0 .
+  return be8 dst 12 .
+end
+
+rem ★ 버퍼가 모자라면 0 을 답하고 **아무것도 안 쓴다**. `dst` 는 0 으로 채워서 준다.
+proc md5_short input src slice u8 . input work mut slice u64 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (hash_legacy.md5 src work dst) 0 . else return 0 .
+  for i count u64 (len dst) . do
+    guard eq (idx dst i) 0 . else return 0 .
+  end
+  return 1 .
+end
+
+proc sha1_short input src slice u8 . input work mut slice u64 . input dst mut slice u8 . output u64 . effects none . do
+  guard eq (hash_legacy.sha1 src work dst) 0 . else return 0 .
+  for i count u64 (len dst) . do
+    guard eq (idx dst i) 0 . else return 0 .
+  end
+  return 1 .
+end

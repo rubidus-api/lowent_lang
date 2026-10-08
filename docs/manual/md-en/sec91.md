@@ -1,8 +1,8 @@
-# <a id="mod-ed25519"></a>`ed25519` — Ed25519 signature verification
+# <a id="mod-ecdsa"></a>`ecdsa` — ECDSA P-256 signing
 
 Source
 
-`lib/ed25519.low`
+`lib/ecdsa.low`
 
 Layer
 
@@ -12,32 +12,32 @@ Capabilities
 
 none
 
-Verifies signatures on the twisted Edwards curve over **the same prime** as Curve25519, `p = 2^255 − 19` (RFC 8032 §5.1.7). Because the prime is the same, the field arithmetic of [`x25519`](sec82.md#mod-x25519) is reused as is — same prime, same field. That one does key agreement; this one verifies signatures.
+Takes a private key and a message hash and produces a signature `(r, s)` (RFC 6979). Verification is `ecdsa_verify` of [`p256`](sec89.md#mod-p256). A TLS server uses it to sign `CertificateVerify` with its own private key — without signing there is no server.
 
 > **What it promises and what it does not**
 >
-> > It does not promise constant time and has not been audited. **There is no signing.** No `ed25519ph`, `ed25519ctx` or Ed448. **This algorithm cannot be used for public web HTTPS server certificates** — public CAs practically do not issue Ed25519 server certificates. That is [`p256`](sec88.md#mod-p256)′s place. This module verifies **a peer’s** signatures.
+> > **Constant time is promised here only, with its extent written down.** What is removed is branching and memory access that depend on secret scalars (private key d, nonce k). The final conditional subtraction of Montgomery multiplication, the cache hierarchy, power, electromagnetic leakage and whatever a compiler might introduce are not promised. It has not been audited. P-256 only, no key generation. If `r = 0` or `s = 0` it does not retry but answers failure (probability around 2^−128) — building that branch creates untestable code, and untested cryptographic code is worse than none.
 
-**Edwards addition is complete.** It uses extended coordinates `(X:Y:Z:T)`, `xy = T/Z`. The Edwards addition formula has no exceptions — unlike Jacobian there is no “different formula when the points are equal”. The branch inside `p256`′s `padd` does not exist here at all, and without a branch nothing can go wrong in it or leak through its timing.
+**Why the nonce is derived, not random.** In ECDSA, a nonce leaked once or repeated once reveals the whole private key.
 
-**Ambiguous input is rejected.** RFC 8032 lets implementations differ in handling non-canonical encodings and small-order points. Here they are rejected — `S < L` is enforced (otherwise one message has several valid signatures), and failed decompression is rejected. When a standard says “either is fine”, writing down the choice is the document’s job.
+```text
+s = k⁻¹ (h + r·d)   ⇒   d = (s·k − h) / r
+```
 
-| **op** | **What it does** |
-|---|---|
-| `verify` | Does signature `sig` match public key `pub` and message `msg` — usually the only one used |
-| `make_d` · `make_l` · `make_base` | Curve constant `d` · order `L` · base point `B` |
-| `eadd` · `esmul` | Point addition · scalar multiplication |
-| `compress` · `decompress` | Point ↔ 32-byte encoding |
-| `fpow` · `feq` · `fbit0` | Field exponentiation · equality · lowest bit |
-| `pow2_minus` · `reduce_l` | `2^n − k` · reduction `mod L` |
+Knowing `k` finishes it in that one line, and using the same `k` twice lets `k` be solved from two signatures. And the ways a random source fails are silent — empty entropy, identical state after a fork, a restored virtual machine snapshot. So **no random source is used at all.** `k = HMAC-DRBG(private key, message hash)`. The same (key, message) gives the same signature, and that is a property, not a defect.
 
-*Table 50.1 — Ops of `ed25519`*
+| **op** | **What it does** | **Requires** |
+|---|---|---|
+| `nonce6979` | RFC 6979 §3.2 — (d, h) → k | `w ≥ 480` bytes · `wu ≥ 16` limbs |
+| `sign` | (d, h) → `r ‖ s`, 64 bytes | `wb ≥ 512` bytes · `wu ≥ 908` limbs |
 
-The verification equation is `[S]B = R + [k]A` with `k = SHA-512(R ‖ A ‖ M) mod L`.
+*Table 50.1 — Ops of `ecdsa`*
 
-**Constants that must be transcribed are checked by a property.** `d`, `√−1` and `B` are computed — nothing to write down. The order `L` cannot be derived and had to be written. So a test checks that `[L]B` is the identity. Write it wrong and that check breaks — a way to measure a transcription instead of trusting it.
+Curve constants (p · n · Gx · Gy) are given by the caller — this module holds no tables. Signing uses only `smul_ct` of `p256`, and a test confirms it. `k⁻¹` is Fermat exponentiation whose exponent (n − 2) is public, so the order of operations is fixed.
 
-**What is checked** — RFC 8032 §7.1, 3 positive and **6 negative**, `[L]B = identity`, VM/native agreement.
+**Generosity is not free.** The workspace was first sized at 1052 limbs, which exceeded `--run`’s array argument limit (u64 1024) and could not be tested on the VM. Gaps were pulled in twice to reach 908 — a size that cannot be tested is not a size but a defect. **Performance** — `sign` has many parameters, locals and instructions and does not enter the typed fast path. One signature per connection makes that bearable for now.
+
+**What is checked** — the official RFC 6979 §A.2.5 vectors (nonce k and r · s for messages `"sample"` and `"test"`, byte for byte), whether our verifier accepts the signatures produced, and whether flipping one bit is rejected. Vector comparison asks “is it per the standard”; the round trip asks “do our two sides agree”.
 
 ---
 

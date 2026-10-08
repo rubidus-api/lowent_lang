@@ -1,37 +1,37 @@
-# <a id="mod-chacha"></a>`chacha` — ChaCha20 stream cipher
+# <a id="mod-hmac"></a>`hmac` — HMAC-SHA256 and HKDF
 
 Source
 
-`lib/chacha.low`
+`lib/hmac.low`
 
 Layer
 
-L0 — pure computation
+L0 — pure computation (the caller’s backing)
 
 Capabilities
 
 none
 
-Makes a **keystream** from key and nonce and XORs it with the input (RFC 8439 §2.4). It is symmetric, so the same call encrypts and decrypts.
+It does two things. **HMAC** is a token only someone knowing the key can make (`mac`), answering “who sent it” (RFC 4231). **HKDF** is the standard way to split several keys out of one secret (`extract` + `expand1`) (RFC 5869).
 
-> **This alone is not safe**
+> **What it promises and what it does not**
 >
-> > ChaCha20 **only hides** — it does not stop forgery. Flip a bit of ciphertext and the same bit of plaintext flips, unnoticed. It must be used together with authentication, and that place is [`aead`](sec81.md#mod-aead). Without a special reason, use `aead`. **Nonce reuse is fatal** — running the same (key, nonce) twice reveals the XOR of two plaintexts. It does not promise constant time and has not been audited.
+> > It does not promise constant time and has not been audited. **Comparing MACs is the caller’s job** — compare without early return (accumulating bytes with XOR). A comparison returning at the first differing byte lets the tag be learned one byte at a time. `expand1` produces **only one block (at most 32 bytes)**.
 
-It is pure computation using only 32-bit addition, XOR and rotation, so it is expressible in the language — VM/native cross-checks and contracts apply as they are. **It does 32-bit arithmetic on `u64`.** This language’s `add` stops on overflow, so places needing wraparound state the mask **explicitly** (`bit_and … 4294967295`). The discipline “if you want wrapping, say it by name” pays off directly in cryptography — silent wrapping is a silent defect.
+**Why a hash will not do.** `digest` (SHA-256) of [`hash`](sec75.md#mod-hash) answers only “is the content unchanged”. Anyone can recompute it, so it cannot answer who sent it. A key must be involved to open that question. The caller holds the backing (`scratch`). The size requirement is enforced by **guards**, not documentation, so if short it answers 0 and writes nothing.
 
 | **op** | **What it does** | **Requires** |
 |---|---|---|
-| `prep` | Sets up 16 words of state from key, nonce and counter | key ≥ 32 · nonce ≥ 12 |
-| `rounds` | Runs 20 rounds (10 double rounds) | work is 16 words |
-| `keystream` | Produces a 64-byte block from the state | ks ≥ 64 |
-| `stream` | Runs the whole input and writes to `out` | out ≥ len(inp) |
+| `mac` | `HMAC-SHA256(key, msg)` → 32 bytes into `out` | `out ≥ 32` · `scratch ≥ 64 + len(msg)` |
+| `key_block` | Makes K′ (the key fitted to 64 bytes) | `pad ≥ 64`. Keys longer than 64 are hashed down |
+| `extract` | HKDF-Extract: `PRK = HMAC(salt, ikm)` | same as `mac` |
+| `expand1` | First block of HKDF-Expand: `T(1) = HMAC(prk, info ‖ 0x01)` | `scratch ≥ 130 + len(info)` · `len(info) ≤ 60` |
 
-*Table 50.1 — Ops of `chacha`*
+*Table 50.1 — Ops of `hmac`*
 
-The face usually used is `stream`. It answers the number of bytes processed, and **0 means failure**.
+**Why `expand1` is one block only.** TLS 1.3′s `HKDF-Expand-Label` uses only 32 bytes or fewer (keys, IVs and finished values alike). So the loop chaining T(2) was not built. **Why cut at 60.** `msg` lives inside `scratch` (from 128) and `mac` overwrites `scratch[0 .. 64+len(msg)]`, so a long `info` makes the two overlap and the hash tramples its own input. The guard rejects the moment they would overlap — rejecting beats being silently wrong.
 
-**What is checked** — the RFC 8439 §2.3.2 block function vector and §2.4.2 encryption vector. The block function is measured separately because matching only the stream can coincide even with a wrong state layout, and then the next person to build on it goes wrong. **Not built** — authentication (`aead`), XChaCha20 (extended nonce), counter exhaustion detection, constant-time guarantees.
+**What is checked** — RFC 4231 and RFC 5869 standard vectors, VM/native agreement. **Not built** — constant-time guarantees, a MAC comparison op, multi-block HKDF-Expand (L > 32), hashes other than SHA-256, streaming MACs. See also — `hash` (SHA-256 itself) · [`aead`](sec82.md#mod-aead) (where the split keys are used) · [`x25519`](sec83.md#mod-x25519) (where the secret is made).
 
 ---
 

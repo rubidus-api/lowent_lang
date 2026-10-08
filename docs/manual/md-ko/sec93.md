@@ -1,8 +1,8 @@
-# <a id="mod-x509"></a>`x509` — X.509 인증서 읽기
+# <a id="mod-pem"></a>`pem` — PEM 봉투 벗기기
 
 소스
 
-`lib/x509.low`
+`lib/pem.low`
 
 층
 
@@ -12,49 +12,32 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 없음
 
-X.509 인증서(DER)의 **뼈대를 읽어 준다**. 서명이 덮는 부분은 어디서 어디까지인지, 발급자와 주체는 누구인지, 공개키 · 유효기간 · 확장은 어디 있는지를 **자리(오프셋)와 길이**로 낸다. [`der`](sec91.md#mod-der) 가 «공개키만 꺼낸다» 에서 멈춘 자리의 다음 칸이다.
+`-----BEGIN CERTIFICATE-----` 와 `-----END CERTIFICATE-----` 사이의 접힌 base64 에서 **가운데 바이트(DER)** 를 꺼낸다(RFC 7468). 키 파일도 같은 모양이고 라벨만 다르다. [`codec`](sec64.md#mod-codec) 은 base64 를 알지만 줄 접기는 모른다 — 이 모듈이 머리말을 벗기고 접힘을 펴서 넘긴다. 인증서는 밖에서 받는다(certbot 같은 도구가 파일로 놓아 준다). ACME 는 짓지 않는다.
 
-> **읽기만 한다**
+> **무엇을 약속하고 무엇을 하지 않나**
 >
-> > 이 모듈은 인증서를 **확인하지 않는다**. 서명이 맞는지, 체인이 이어지는지, 이름이 맞는지는 [`verify`](sec94.md#mod-verify) 가 이 모듈 위에서 답한다. 짓지 않은 것: 폐기 확인(CRL · OCSP) · 이름 제약 · 정책 · v1/v2 의 옛 모양 · UTF-8 이 아닌 이름 비교.
-
-인증서의 모양과 이 모듈의 op 이 가리키는 자리는 이렇다.
-
-```text
-Certificate
-├─ tbsCertificate ─────────────── tbs_off … tbs_end   ← 서명이 덮는 바이트
-│   ├─ [0] version (없을 수도 있다)
-│   ├─ serialNumber                tbs_field 0
-│   ├─ signature                   tbs_field 1
-│   ├─ issuer (발급자 이름)        issuer_off · elem_len
-│   ├─ validity                    not_before · not_after
-│   ├─ subject (주체 이름)         subject_off · elem_len
-│   ├─ subjectPublicKeyInfo        spki_off
-│   └─ [3] extensions              ext_value_off · is_ca · san_next
-├─ signatureAlgorithm ─────────── sigalg_oid_off · sigalg_oid_len
-└─ signatureValue ─────────────── sig_off · sig_len
-```
+> > **암호화된 PEM 을 열지 못한다**(`Proc-Type: 4,ENCRYPTED`). **첫 번째 것만** 낸다 — 한 파일에 여러 개(인증서 체인)가 있으면 뒤엣것은 부르는 쪽이 다시 부른다. URL-safe base64 는 없다. **파서이지 신뢰 판단이 아니다** — 검증은 하지 않는다.
 
 | **op** | **하는 일** |
 |---|---|
-| `tbs_off` · `tbs_end` | 서명이 덮는 바이트의 시작과 끝. 서명은 이 구간의 **원본 바이트** 위에서 확인한다 |
-| `sigalg_oid_off` · `sigalg_oid_len` | 바깥 서명 알고리즘 OID 의 자리와 길이 |
-| `sig_off` · `sig_len` | 서명 값(BIT STRING 의 «남은 비트 수» 바이트를 건너뛴 자리) |
-| `tbs_field` | tbsCertificate 안의 `n` 번째 필드 자리(0 serial · 1 signature · 2 issuer · 3 validity · 4 subject · 5 공개키) |
-| `issuer_off` · `subject_off` · `elem_len` | 발급자 · 주체 이름 요소 **전체**의 자리와 길이 — 이름은 바이트로 견준다 |
-| `spki_off` | 공개키(SubjectPublicKeyInfo)의 자리 |
-| `not_before` · `not_after` | 유효기간을 견줄 수 있는 한 수(`YYYYMMDDhhmmss`)로. 시간대는 `Z` 만 받는다 |
-| `ext_value_off` | OID 가 `2.5.29.<n>` 인 확장의 값 자리(17 = 주체 대체 이름 · 19 = basicConstraints) |
-| `is_ca` | 남을 발급할 수 있는 인증서인가. 확장이 **없으면 거짓**이다 |
-| `san_next` | 주체 대체 이름의 DNS 이름을 하나씩 준다(`cur` 가 0 이면 첫째, 0 을 돌려주면 끝) |
+| `find_from` | `hay` 안에서 `needle` 찾기(없으면 `len hay`) |
+| `body_off` | `-----BEGIN <라벨>-----` **다음 줄**의 자리. 0 = 없음 |
+| `end_off` | `-----END <라벨>-----` 의 자리. 0 = 없음 |
+| `unwrap` | PEM 한 덩이 → DER 바이트. `option u64`(쓴 바이트 수), 실패는 `none` |
 
-*표 50.1 — `x509` 의 op — 자리를 내는 op 은 0 이면 «성하지 않다»*
+*표 50.1 — `pem` 의 op*
 
-**값을 베끼지 않는다.** 모든 op 이 자리와 길이만 낸다. 64 KiB 아레나에 인증서 몇 장을 한꺼번에 들어야 하고, 서명은 원본 바이트 위에서 확인해야 하기 때문이다 — 베낀 자리에서 확인하면 베끼기가 틀려도 서명이 맞는 것처럼 보일 수 있다.
+`unwrap src label scratch out` 의 `scratch` 는 두 몫을 진다 — 머리말 조립(앞)과 펴 놓은 base64(뒤). `len scratch ≥ len src + 라벨 길이 + 16` 이면 넉넉하다.
 
-**길이는 전부 상대가 쓴 것이다.** 인증서는 아직 아무것도 믿을 수 없는 바이트열이다. 자리를 내는 길은 모두 `der.value_off` · `der.value_len` 을 지나고, 그 둘이 버퍼 밖을 막는다. 이 모듈은 그 위에 **차례**를 얹는다 — X.509 의 필드에는 이름표가 없어서 몇 번째인지가 곧 무엇인지이고, 차례를 안 보면 남이 끼워 넣은 필드를 제 자리 것으로 읽는다.
+**라벨을 요구하는 이유.** `unwrap` 은 무엇을 여는지 이름으로 받고, BEGIN 과 END 의 라벨이 다르면 거절한다. 한 파일에 여러 개가 들어 있는 것이 정상이다. 짝을 맞추지 않으면 `CERTIFICATE` 를 열려다 다음 것의 BEGIN 까지 삼켜 쓰레기를 디코드한다 — 그리고 base64 는 쓰레기도 조용히 받아들인다.
 
-**`is_ca` 의 기본값이 중요하다.** basicConstraints 확장이 없으면 CA 가 아니다(RFC 5280 §4.2.1.9). 이 기본값을 놓치면 잎 인증서가 중간 인증기관 노릇을 할 수 있다 — 체인 검증에서 가장 흔한 구멍이다.
+**줄 끝은 LF 도 CRLF 도 받는다 — [`http`](sec99.md#mod-http) 와 반대다.** 그쪽은 경계가 곧 보안이라 맨 LF 를 거절한다(요청 밀반입). 여기는 파일 형식이고 실제 파일이 둘 다 쓴다. 엄격함은 미덕이 아니라 도구다 — 무엇을 막는지에 따라 세기가 달라진다.
+
+**왜 `decode` 가 아니라 `unwrap` 인가.** `utf8.decode` 가 이미 있고, 이름이 겹치면 한정해 불러도 처리기가 다른 모듈의 시그니처로 타입을 재는 알려진 결함이 있다. 두 모듈을 함께 쓰는 시험이 그 조합이 깨지는 것을 잡았다. 라이브러리는 혼자 초록인 것으로 충분하지 않다 — 조합되어야 쓸 수 있다.
+
+PEM → DER → PKCS#8 → 32 바이트 스칼라로 가는 길은 [`der`](sec92.md#mod-der) 와 함께다 — `pem.unwrap src "PRIVATE KEY" sc buf` 로 DER 을 얻고, `der.p8_inner_off` 와 `der.ec_priv_off` 로 스칼라의 자리를 찾는다.
+
+**확인하는 것** — openssl 이 낸 산물과의 대조(인증서 DER 375 바이트가 같고, PKCS#8 안의 스칼라가 자리 36 · 길이 32), 라벨 불일치와 봉투 없음의 거절, VM·네이티브 일치. 시험 벡터의 스칼라는 합성값 `01 02 … 20` 이다 — 구조는 openssl 이 낸 그대로이므로 파서를 재는 힘은 같고, 명백히 비밀이 아니다.
 
 ---
 

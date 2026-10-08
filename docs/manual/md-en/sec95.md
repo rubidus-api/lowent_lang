@@ -1,8 +1,8 @@
-# <a id="mod-verify"></a>`verify` — certificate signatures and one link of a chain
+# <a id="mod-x509"></a>`x509` — reading X.509 certificates
 
 Source
 
-`lib/verify.low`
+`lib/x509.low`
 
 Layer
 
@@ -12,67 +12,49 @@ Capabilities
 
 none
 
-Once [`x509`](sec94.md#mod-x509) has **read** a certificate, this module answers on top of it: **was this certificate signed by that one**. Besides the signature, it gathers what one **link** of a chain needs — validity, names that connect, and host name matching.
+**Reads the skeleton** of an X.509 certificate (DER): where the signed part starts and ends, who the issuer and subject are, and where the public key, validity and extensions sit — all as **offsets and lengths**. It is the step after [`der`](sec93.md#mod-der), which stopped at “extract the public key”.
 
-> **What it promises and what it does not**
+> **It only reads**
 >
-> > It has not been audited. It accepts four signature algorithms only — RSA v1.5 + SHA-256 · RSA v1.5 + SHA-384 · ECDSA + SHA-256 · ECDSA + SHA-384. Anything else (the SHA-512 family · RSA-PSS certificates · Ed25519 certificates · P-521) is **refused**. There is no revocation check. Letting an unknown algorithm through would turn this module’s answer from “checked” into “could not tell”.
+> > This module **does not check** a certificate. Whether the signature holds, whether a chain links, whether a name matches — that is [`verify`](sec96.md#mod-verify), built on top of this one. Not built: revocation (CRL · OCSP) · name constraints · policies · the old v1/v2 shapes · comparing names that are not UTF-8.
 
-## <a id="sx1"></a>A chain is a line of links
-
-A web server usually sends three layers. Each is signed by the one above it, and the top (the root) must be one we **decided in advance to trust**.
+The shape of a certificate and where this module’s ops point:
 
 ```text
-  root (in the trust store)     ← found by trust.find_anchor
-     │  signs
-     ▼
-  intermediate CA               ← link_ok intermediate · root
-     │  signs
-     ▼
-  leaf (example.com)            ← link_ok leaf · intermediate  +  host_ok leaf · "example.com"
+Certificate
+├─ tbsCertificate ─────────────── tbs_off … tbs_end   ← the bytes the signature covers
+│   ├─ [0] version (may be absent)
+│   ├─ serialNumber                tbs_field 0
+│   ├─ signature                   tbs_field 1
+│   ├─ issuer (issuer name)        issuer_off · elem_len
+│   ├─ validity                    not_before · not_after
+│   ├─ subject (subject name)      subject_off · elem_len
+│   ├─ subjectPublicKeyInfo        spki_off
+│   └─ [3] extensions              ext_value_off · is_ca · san_next
+├─ signatureAlgorithm ─────────── sigalg_oid_off · sigalg_oid_len
+└─ signatureValue ─────────────── sig_off · sig_len
 ```
-
-Call `link_ok` for each link from the bottom up, and add `host_ok` for the leaf. If any answer is not 1, the chain is broken. **How** the chain is gathered (the order the server sent, how many links) is the caller’s choice — `apps/lowget` is a real example.
-
-| **value** | **meaning** |
-|---|---|
-| `1` | links — signature, CA, names and validity all hold |
-| `2` | the child’s issuer name differs from the parent’s subject name |
-| `3` | the parent is not allowed to issue certificates (not a CA) |
-| `4` | one of the two is outside its validity period |
-| `5` | the signature does not hold (or the algorithm is unknown) |
-| `6` | the workspace for checking the signature was too small — not a result, but **could not measure** |
-
-*Table 50.1 — what `link_ok` returns — anything but 1 says why it refused*
-
-## <a id="sx2"></a>ops
 
 | **op** | **what it does** |
 |---|---|
-| `link_ok` | links one step (table above). Byte workspace ≥ 1024 · limb workspace ≥ 2200 |
-| `signed_by` | was the child signed by the parent — `ok 1` / `ok 0`, `error short_workspace` if there is not enough room |
-| `sig_kind` | the algorithm the child names: 1 RSA+SHA-256 · 2 ECDSA+SHA-256 · 3 RSA+SHA-384 · 4 ECDSA+SHA-384 · 0 unknown |
-| `dn_eq` | are two names equal **as bytes** |
-| `dates_ok` | does the validity period contain now (one number `YYYYMMDDhhmmss`) |
-| `host_ok` · `san_matches` | does a host name match one of the subject alternative names |
-| `ecdsa_rs` | takes `r` · `s` out of a DER-wrapped ECDSA signature, right-aligned to the curve size (32 · 48 bytes) |
-| `curve` · `curve384` | fills the P-256 · P-384 constants (`p` · `n` · `Gx` · `Gy`) into a workspace |
+| `tbs_off` · `tbs_end` | start and end of the signed bytes. A signature is checked over **these original bytes** |
+| `sigalg_oid_off` · `sigalg_oid_len` | offset and length of the outer signature algorithm OID |
+| `sig_off` · `sig_len` | the signature value (past the BIT STRING’s “unused bits” byte) |
+| `tbs_field` | offset of the `n`-th field in tbsCertificate (0 serial · 1 signature · 2 issuer · 3 validity · 4 subject · 5 public key) |
+| `issuer_off` · `subject_off` · `elem_len` | offset and length of the **whole** issuer / subject name element — names are compared as bytes |
+| `spki_off` | offset of the public key (SubjectPublicKeyInfo) |
+| `not_before` · `not_after` | validity as one comparable number (`YYYYMMDDhhmmss`). Only the `Z` time zone is accepted |
+| `ext_value_off` | value offset of the extension whose OID is `2.5.29.<n>` (17 = subject alternative name · 19 = basicConstraints) |
+| `is_ca` | may this certificate issue others. **No extension means false** |
+| `san_next` | the DNS names of the subject alternative name, one at a time (`cur` 0 = the first, 0 back = no more) |
 
-*Table 50.2 — ops of `verify`*
+*Table 50.1 — ops of `x509` — an op that returns an offset returns 0 for “malformed”*
 
-## <a id="sx3"></a>Design
+**No copies.** Every op returns only an offset and a length. A few certificates must fit in a 64 KiB arena at once, and a signature must be checked over the original bytes — checking a copy could make a signature look right even when the copy is wrong.
 
-**Signatures are checked over the original bytes.** `x509.tbs_off … tbs_end` is hashed as is. Checking a copy could make a signature look right even when the copy is wrong.
+**Every length was written by the other side.** A certificate is bytes nothing has vouched for yet. Every offset passes through `der.value_off` · `der.value_len`, which keep it inside the buffer. This module adds **order** on top: X.509 fields have no labels, so a field’s position is what it is — ignore the order and you read a field someone slipped in as if it were in its own place.
 
-**The public key length picks the curve.** 65 bytes is P-256 ([`p256`](sec88.md#mod-p256)), 97 bytes is P-384 ([`p384`](sec89.md#mod-p384)). RSA goes to [`rsa`](sec87.md#mod-rsa).
-
-**Names are compared as bytes.** DER has one byte string per name, so that is right. Decoding and comparing as text lets case, encoding and whitespace rules in, and each rule shifts what “equal” means.
-
-**A wildcard covers the first label only.** `*.a.b` matches `x.a.b` but not `a.b` or `y.x.a.b` (RFC 6125 §6.4.3). Case folding is ASCII only.
-
-**`ecdsa_rs` right-aligns.** A DER integer may carry a leading 0 (when the top bit is 1) or be short. Copying it as is verifies a value shifted by one byte, and that mistake only ever shows up as “bad signature”.
-
-**A short workspace is a failure.** It is `error short_workspace` — once “not enough room” and “not signed” were both 0, and a program that passed the wrong workspace looked like it had a bad signature.
+**The default of `is_ca` matters.** Without a basicConstraints extension a certificate is not a CA (RFC 5280 §4.2.1.9). Miss that default and a leaf certificate can act as an intermediate — the most common hole in chain checking.
 
 ---
 

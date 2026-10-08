@@ -1,8 +1,8 @@
-# <a id="mod-gcm"></a>`gcm` — AES-128-GCM authenticated encryption
+# <a id="mod-aes"></a>`aes` — the AES-128 block cipher
 
 Source
 
-`lib/gcm.low`
+`lib/aes.low`
 
 Layer
 
@@ -12,29 +12,29 @@ Capabilities
 
 none
 
-Gives “nobody can read it” and “nobody can alter it” **at once** (NIST SP 800-38D). [`aes`](sec83.md#mod-aes) gives only the first.
+Scrambles 16 bytes with a key and yields 16 bytes (FIPS 197). That is all — the length does not change, there is no authentication, and the same input always gives the same output. It exists because TLS 1.3 makes `TLS_AES_128_GCM_SHA256` a MUST (RFC 8446 §9.1).
 
-> **What it promises and what it does not**
+> **Not a module to use alone**
 >
-> > It does not promise constant time and has not been audited. **Never repeat a nonce** — using the same nonce twice with the same key makes GCM **lose both the plaintext and the authentication key**. It is the most expensive mistake in this mode. **It is slow** — measured at 0.46 MB per second in the development repository, far slower than ChaCha20-Poly1305 on the same machine (41.8 MB). So the preferred suite is ChaCha20. This module exists **correctly** because the standard makes it a MUST, not to be fast. A tag check failure in `decrypt` is a value — always look at the return value.
-
-**What is AAD.** Bytes that are not hidden but **must not be altered**. In TLS 1.3 it is a record’s 5-byte header — an observer sees the length anyway, but if the peer changes it the tag must not match. Unlike `seal` and `unseal` of [`aead`](sec81.md#mod-aead), this module uses the names `encrypt` and `decrypt`. There is a defect where, if two modules share a name, the processor measures the argument count against the other module’s signature even when called qualified, so the names were separated to avoid it.
+> > The same plaintext block becomes the same ciphertext block, so patterns show through, and alterations to the ciphertext go unnoticed. What you actually need is `encrypt` and `decrypt` of [`gcm`](sec85.md#mod-gcm) this module is the part beneath it. It does not promise constant time and has not been audited. It is a pure Lowent implementation without AES-NI and is slow — if you need throughput, consider [`aead`](sec82.md#mod-aead) (ChaCha20-Poly1305) first. Keys are 128 bits only.
 
 | **op** | **What it does** | **Requires** |
 |---|---|---|
-| `gmul128` | GF(2^128) multiplication of GHASH — `z ← z·h` | `z ≥ 16` · `h ≥ 16` · `v ≥ 16` |
-| `encrypt` | `msg` → ciphertext and a 16-byte tag | `nonce = 12` · `key = 16` |
-| `decrypt` | **Checks the tag first** and gives the plaintext | on failure answers 0 and gives no plaintext |
+| `gmul` | GF(2^8) product (irreducible polynomial `0x11b`) | — |
+| `ginv` | GF(2^8) inverse — `x^254` (Fermat) | the inverse of `0` is `0` |
+| `sbox` · `inv_sbox` | One S-box byte — **computed from the definition**, not a table · inverse S-box | — |
+| `expand_key` | 16-byte key → 176 bytes of round keys | `rk ≥ 176` · `key ≥ 16` |
+| `encrypt_block` | Encrypts 16 bytes of `st` in place | `rk ≥ 176` · `st ≥ 16` · `tmp ≥ 16` |
 
-*Table 50.1 — Ops of `gcm`*
+*Table 50.1 — Ops of `aes`*
 
-The caller holds the backing (`scratch`). If short it answers 0 and writes nothing — guards keep that.
+**There is no block decryption.** GCM is counter mode and uses encryption only — decryption is done with encryption too. `inv_sbox` existing means a place was left for it someday, not that it was built.
 
-**GHASH bit order — where people slip.** The reduction polynomial of GF(2^128) is `x^128 + x^7 + x^2 + x + 1`, but GCM uses **reversed bit order** — the top bit of a block’s first byte is x^0. So multiplication runs with right shifts, and overflowing bits come back into the first byte as `0xE1`. Read that convention backwards and the ciphertext is right but the whole tag differs, looking only like “decryption fails”.
+**The S-box is not written as a table.** Instead of transcribing 256 constants by hand, the definition `S(x) = affine(x⁻¹ in GF(2^8))` is used directly. Without a table to transcribe there is nothing to transcribe wrongly. A test compares the 256 computed values with the canonical table.
 
-**On nonces, again.** GCM is counter mode, so the same (key, nonce) yields the same keystream. The XOR of two plaintexts is revealed, and worse, an equation arises from which the GHASH authentication key can be solved, letting the peer forge any message. TLS 1.3 avoids this by **deriving the nonce from the sequence number** (`record_nonce` of [`tls13`](sec96.md#mod-tls13)). If you use it directly, follow that method — random 96-bit nonces collide sooner than you think.
+**Performance — as measured.** In the development repository, one `sbox` took 180 ns (7.5 ns if read from a table), one `encrypt_block` about 31 µs, 93 % of it the 160 `sbox` calls. Whole AES-128-GCM ran at 0.46 MB/s; ChaCha20-Poly1305 at 41.8 MB/s. A factor of 15 has already been repaid — `ginv` was multiplying `x^254` 254 times; switching to square-and-multiply took it from 254 to 15 multiplications, and not one digit of the test vectors moved. A table would bring GCM to about 2.5 MB/s, still 17 times slower than ChaCha20, and a table brings in a **secret-indexed cache side channel** — AES’s classic attack surface. We do not buy a side channel for a slow fallback.
 
-**What is checked** — NIST GCM test vectors, the record ciphertext of RFC 8448 §3 (ciphertext and tag byte for byte), VM/native agreement.
+**What is checked** — FIPS 197 Appendix B and C vectors, the record ciphertext of RFC 8448 §3 (used end to end), VM/native agreement.
 
 ---
 

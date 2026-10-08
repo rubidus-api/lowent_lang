@@ -1,37 +1,52 @@
-# <a id="mod-hmac"></a>`hmac` — HMAC-SHA256 and HKDF
+# <a id="mod-random"></a>`random` — random numbers (reproducible sequences · OS entropy)
 
 Source
 
-`lib/hmac.low`
+`lib/random.low`
 
 Layer
 
-L0 — pure computation (the caller’s backing)
+L0 — pure computation · OS entropy via capability
 
 Capabilities
 
-none
+`cap random` for `bytes` · `seed_from_os`
 
-It does two things. **HMAC** is a token only someone knowing the key can make (`mac`), answering “who sent it” (RFC 4231). **HKDF** is the standard way to split several keys out of one secret (`extract` + `expand1`) (RFC 5869).
-
-> **What it promises and what it does not**
+> **Do not mix the two — this warning is the whole module**
 >
-> > It does not promise constant time and has not been audited. **Comparing MACs is the caller’s job** — compare without early return (accumulating bytes with XOR). A comparison returning at the first differing byte lets the tag be learned one byte at a time. `expand1` produces **only one block (at most 32 bytes)**.
+> > `advance_seed`, `below_biased` and `coin` are a reproducible sequence made with **splitmix64**. They need no capability and serve tests, simulations and shuffles. `bytes` and `seed_from_os` are **OS entropy**. They need `cap random` and serve keys, nonces and tokens. Tests must be reproducible and keys must not be predictable — one word cannot do both, so the names are split. Use a value made by `advance_seed` as a key and anyone who knows the seed knows that key, and seeds usually remain in code or logs.
 
-**Why a hash will not do.** `digest` (SHA-256) of [`hash`](sec75.md#mod-hash) answers only “is the content unchanged”. Anyone can recompute it, so it cannot answer who sent it. A key must be involved to open that question. The caller holds the backing (`scratch`). The size requirement is enforced by **guards**, not documentation, so if short it answers 0 and writes nothing.
+**The reproducible side.** Takes a state (= seed) and returns the next state. The caller carries the state, so the same seed always gives the same sequence.
 
-| **op** | **What it does** | **Requires** |
+```lowent
+var s be u64 12345 .
+set s (random.advance_seed s) .
+let c be bool random.coin s .
+```
+
+**The unpredictable side.** Callable only with `cap random`. It answers the number of bytes filled, and **0 if it could not fill** — taking 0 and using the buffer anyway means using an uninitialised buffer as a key.
+
+```lowent
+proc make_key input k cap random . input key mut slice u8 . output bool . effects none . do
+  return eq (random.bytes k key) (len key) .
+end
+```
+
+| **op** | **Shape** | **Notes** |
 |---|---|---|
-| `mac` | `HMAC-SHA256(key, msg)` → 32 bytes into `out` | `out ≥ 32` · `scratch ≥ 64 + len(msg)` |
-| `key_block` | Makes K′ (the key fitted to 64 bytes) | `pad ≥ 64`. Keys longer than 64 are hashed down |
-| `extract` | HKDF-Extract: `PRK = HMAC(salt, ikm)` | same as `mac` |
-| `expand1` | First block of HKDF-Expand: `T(1) = HMAC(prk, info ‖ 0x01)` | `scratch ≥ 130 + len(info)` · `len(info) ≤ 60` |
+| `advance_seed` | `(seed u64) → u64` | splitmix64 — algorithm fixed (so check values can be the reference) |
+| `below_biased` | `(seed u64, bound u64) → u64` | The name **confesses the bias** — not this if you need uniformity |
+| `coin` | `(seed u64) → bool` | Heads · tails |
+| `bytes` | `(cap random, dst mut slice u8) → u64` | Bytes filled. **0 = failure** |
+| `seed_from_os` | `(cap random, scratch mut slice u8) → u64` | One seed from the OS — makes the starting point of a reproducible sequence unpredictable. `scratch ≥ 8` |
 
-*Table 50.1 — Ops of `hmac`*
+*Table 50.1 — Ops of `random`*
 
-**Why `expand1` is one block only.** TLS 1.3′s `HKDF-Expand-Label` uses only 32 bytes or fewer (keys, IVs and finished values alike). So the loop chaining T(2) was not built. **Why cut at 60.** `msg` lives inside `scratch` (from 128) and `mac` overwrites `scratch[0 .. 64+len(msg)]`, so a long `info` makes the two overlap and the hash tramples its own input. The guard rejects the moment they would overlap — rejecting beats being silently wrong.
+Why `below_biased` says `biased` — narrowing a range with the remainder makes small values come up slightly more often. Rather than hide it, the name says it.
 
-**What is checked** — RFC 4231 and RFC 5869 standard vectors, VM/native agreement. **Not built** — constant-time guarantees, a MAC comparison op, multi-block HKDF-Expand (L > 32), hashes other than SHA-256, streaming MACs. See also — `hash` (SHA-256 itself) · [`aead`](sec81.md#mod-aead) (where the split keys are used) · [`x25519`](sec82.md#mod-x25519) (where the secret is made).
+**Tested by summoning failure.** The environment variable `LOW_HOST_FAULT="random:err"` makes entropy unavailable (→ 0), and `LOW_HOST_FAULT="random:short=3"` fills only 3 bytes. **Partial filling is the quietly frightening case** — a key made with half the buffer still holding old values. So checking the count filled is the contract (chapter 28).
+
+**Not built** — uniform range sampling (rejection sampling), shuffles, distributions (normal and so on), serialising reproducible sequences, a cryptographic CSPRNG (`bytes` asks the OS; this module does not make it).
 
 ---
 

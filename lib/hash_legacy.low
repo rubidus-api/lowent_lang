@@ -1,0 +1,188 @@
+rem ★★★ **옛 해시 — MD5 · SHA-1** (2026-10-09, 소유자 «레거시 해시는 hash_legacy 같은 … 사라질 느낌으로»).
+rem
+rem   ⚠ **새 설계에 쓰지 않는다.** 두 해시는 **깨졌다** — 같은 다이제스트를 내는 서로 다른 입력을 만들 수 있다
+rem     (MD5 는 2004 년, SHA-1 은 2017 년에 실제 충돌이 나왔다). 서명 · 인증서 · 비밀번호 · 변조 검출에 쓰면 안 된다.
+rem     그 자리는 `lib/hash.low` 의 `digest`(SHA-256) · `digest384` · `digest512` 다.
+rem
+rem   그런데도 이 모듈이 있는 까닭은 하나다: **옛 것과 말이 통해야 하는 자리**가 남아 있다. 이미 MD5 나 SHA-1 로
+rem   적힌 체크섬을 맞춰 보는 일, 그 해시를 이름으로 쓰는 저장소 형식, 옛 프로토콜의 한 걸음. 그런 자리에서는
+rem   «안전한가» 가 아니라 «저쪽과 같은 답을 내는가» 가 물음이다.
+rem
+rem ★★ **빌트인이 아니다.** 전부 이 언어로 썼다(리프 규칙 — RFC-0075: 이 언어로 쓸 수 있으면 라이브러리다).
+rem   느려도 된다 — 옛 것과 맞추는 자리는 뜨거운 길이 아니다. SHA-2 가 빌트인 잎인 것은 **비용** 때문이고,
+rem   그 비용을 사라질 해시에 쓰지 않는다. 이 모듈을 지우는 날 컴파일러는 한 줄도 바뀌지 않는다.
+rem
+rem ★ 규율은 `lib/hash.low` 와 같다: 다이제스트를 **호출자 버퍼**에 쓰고(몰래 할당하지 않는다), 버퍼가 모자라면
+rem   **0 을 답하고 아무것도 안 쓴다**. 작업 공간 `work` 도 호출자가 준다 — MD5 는 16 낱말, SHA-1 은 80 낱말.
+rem   알고리즘은 고정이고 오라클은 **규격이 정한 답**이다(RFC 1321 부록 A.5 · FIPS 180 의 예).
+
+module hash_legacy .
+
+rem ── 함께 쓰는 것 ────────────────────────────────────────────────────
+
+rem 32 비트 왼쪽 돌리기 — 값은 u64 칸에 담고 아래 32 비트만 쓴다. n 은 1 ~ 31.
+fn rotl32 input x u64 . input n u64 . output u64 . do
+  return bit_and (bit_or (shl x n) (shr x (sub 32 n))) 0xffffffff .
+end
+
+rem 덧붙임을 **버퍼 없이** 읽는다. 채운 뒤의 메시지에서 i 번째 바이트가 무엇인지 그 자리에서 답한다:
+rem   원문 → 0x80 하나 → 0 들 → 끝의 8 바이트는 원문의 **비트** 길이(big 이면 큰 끝부터, 아니면 작은 끝부터).
+fn pad_byte input data slice u8 . input i u64 . input total u64 . input big bool . output u64 . do
+  let n be u64 len data .
+  if lt i n . do return widen u64 (idx data i) . end
+  if eq i n . do return 128 . end
+  if lt i (sub total 8) . do return 0 . end
+  let bits be u64 mul n 8 .
+  let k be u64 sub i (sub total 8) .
+  if big . do return bit_and (shr bits (mul (sub 7 k) 8)) 255 . end
+  return bit_and (shr bits (mul k 8)) 255 .
+end
+
+rem 채운 뒤의 길이 — 원문 + 0x80 하나 + 길이 8 바이트가 들어가는 가장 작은 64 의 배수.
+fn padded_len input n u64 . output u64 . do
+  return mul (add (div (add n 8) 64) 1) 64 .
+end
+
+rem ── MD5 (RFC 1321) ──────────────────────────────────────────────────
+
+rem ★ 16 바이트 다이제스트를 `out` 에 쓴다. 낸 값은 16, 버퍼가 모자라면 0(`out` 16 바이트 · `work` 16 낱말).
+export proc md5 input data slice u8 . input work mut slice u64 . input out mut slice u8 . output u64 . effects none . do
+  guard ge (len out) 16 . else return 0 .
+  guard ge (len work) 16 . else return 0 .
+  let kt be slice u64 lit slice u64
+    0xd76aa478 0xe8c7b756 0x242070db 0xc1bdceee 0xf57c0faf 0x4787c62a 0xa8304613 0xfd469501
+    0x698098d8 0x8b44f7af 0xffff5bb1 0x895cd7be 0x6b901122 0xfd987193 0xa679438e 0x49b40821
+    0xf61e2562 0xc040b340 0x265e5a51 0xe9b6c7aa 0xd62f105d 0x02441453 0xd8a1e681 0xe7d3fbc8
+    0x21e1cde6 0xc33707d6 0xf4d50d87 0x455a14ed 0xa9e3e905 0xfcefa3f8 0x676f02d9 0x8d2a4c8a
+    0xfffa3942 0x8771f681 0x6d9d6122 0xfde5380c 0xa4beea44 0x4bdecfa9 0xf6bb4b60 0xbebfbc70
+    0x289b7ec6 0xeaa127fa 0xd4ef3085 0x04881d05 0xd9d4d039 0xe6db99e5 0x1fa27cf8 0xc4ac5665
+    0xf4292244 0x432aff97 0xab9423a7 0xfc93a039 0x655b59c3 0x8f0ccc92 0xffeff47d 0x85845dd1
+    0x6fa87e4f 0xfe2ce6e0 0xa3014314 0x4e0811a1 0xf7537e82 0xbd3af235 0x2ad7d2bb 0xeb86d391 . .
+  let st be slice u64 lit slice u64
+    7 12 17 22 7 12 17 22 7 12 17 22 7 12 17 22
+    5 9 14 20 5 9 14 20 5 9 14 20 5 9 14 20
+    4 11 16 23 4 11 16 23 4 11 16 23 4 11 16 23
+    6 10 15 21 6 10 15 21 6 10 15 21 6 10 15 21 . .
+  let total be u64 padded_len (len data) .
+  var a0 be u64 0x67452301 .
+  var b0 be u64 0xefcdab89 .
+  var c0 be u64 0x98badcfe .
+  var d0 be u64 0x10325476 .
+  var off be u64 0 .
+  while lt off total . do
+    for j count u64 16 . do
+      let p be u64 add off (mul j 4) .
+      set (idx work j) (bit_or (bit_or (pad_byte data p total false) (shl (pad_byte data (add p 1) total false) 8))
+                               (bit_or (shl (pad_byte data (add p 2) total false) 16) (shl (pad_byte data (add p 3) total false) 24))) .
+    end
+    var a be u64 a0 .
+    var b be u64 b0 .
+    var c be u64 c0 .
+    var d be u64 d0 .
+    for i count u64 64 . do
+      var f be u64 0 .
+      var g be u64 0 .
+      if lt i 16 . do
+        set f (bit_or (bit_and b c) (bit_and (bit_xor b 0xffffffff) d)) .
+        set g i .
+      end else if lt i 32 . do
+        set f (bit_or (bit_and d b) (bit_and (bit_xor d 0xffffffff) c)) .
+        set g (mod (add (mul 5 i) 1) 16) .
+      end else if lt i 48 . do
+        set f (bit_xor (bit_xor b c) d) .
+        set g (mod (add (mul 3 i) 5) 16) .
+      end else do
+        set f (bit_xor c (bit_or b (bit_xor d 0xffffffff))) .
+        set g (mod (mul 7 i) 16) .
+      end
+      let sum be u64 bit_and (add (add f a) (add (idx kt i) (idx work g))) 0xffffffff .
+      set a d .
+      set d c .
+      set c b .
+      set b (bit_and (add b (rotl32 sum (idx st i))) 0xffffffff) .
+    end
+    set a0 (bit_and (add a0 a) 0xffffffff) .
+    set b0 (bit_and (add b0 b) 0xffffffff) .
+    set c0 (bit_and (add c0 c) 0xffffffff) .
+    set d0 (bit_and (add d0 d) 0xffffffff) .
+    set off (add off 64) .
+  end
+  rem 낱말 넷을 작은 끝부터 적는다.
+  for q count u64 4 . do
+    set (idx out q)          (narrow_wrap u8 (shr a0 (mul q 8))) .
+    set (idx out (add 4 q))  (narrow_wrap u8 (shr b0 (mul q 8))) .
+    set (idx out (add 8 q))  (narrow_wrap u8 (shr c0 (mul q 8))) .
+    set (idx out (add 12 q)) (narrow_wrap u8 (shr d0 (mul q 8))) .
+  end
+  return 16 .
+end
+
+rem ── SHA-1 (FIPS 180) ────────────────────────────────────────────────
+
+rem ★ 20 바이트 다이제스트를 `out` 에 쓴다. 낸 값은 20, 버퍼가 모자라면 0(`out` 20 바이트 · `work` 80 낱말).
+export proc sha1 input data slice u8 . input work mut slice u64 . input out mut slice u8 . output u64 . effects none . do
+  guard ge (len out) 20 . else return 0 .
+  guard ge (len work) 80 . else return 0 .
+  let total be u64 padded_len (len data) .
+  var h0 be u64 0x67452301 .
+  var h1 be u64 0xefcdab89 .
+  var h2 be u64 0x98badcfe .
+  var h3 be u64 0x10325476 .
+  var h4 be u64 0xc3d2e1f0 .
+  var off be u64 0 .
+  while lt off total . do
+    for j count u64 16 . do
+      let p be u64 add off (mul j 4) .
+      set (idx work j) (bit_or (bit_or (shl (pad_byte data p total true) 24) (shl (pad_byte data (add p 1) total true) 16))
+                               (bit_or (shl (pad_byte data (add p 2) total true) 8) (pad_byte data (add p 3) total true))) .
+    end
+    for t range u64 16 79 . do
+      set (idx work t) (rotl32 (bit_xor (bit_xor (idx work (sub t 3)) (idx work (sub t 8)))
+                                        (bit_xor (idx work (sub t 14)) (idx work (sub t 16)))) 1) .
+    end
+    var a be u64 h0 .
+    var b be u64 h1 .
+    var c be u64 h2 .
+    var d be u64 h3 .
+    var e be u64 h4 .
+    for t count u64 80 . do
+      var f be u64 0 .
+      var k be u64 0 .
+      if lt t 20 . do
+        set f (bit_or (bit_and b c) (bit_and (bit_xor b 0xffffffff) d)) .
+        set k 0x5a827999 .
+      end else if lt t 40 . do
+        set f (bit_xor (bit_xor b c) d) .
+        set k 0x6ed9eba1 .
+      end else if lt t 60 . do
+        set f (bit_or (bit_or (bit_and b c) (bit_and b d)) (bit_and c d)) .
+        set k 0x8f1bbcdc .
+      end else do
+        set f (bit_xor (bit_xor b c) d) .
+        set k 0xca62c1d6 .
+      end
+      let tmp be u64 bit_and (add (add (rotl32 a 5) f) (add (add e k) (idx work t))) 0xffffffff .
+      set e d .
+      set d c .
+      set c (rotl32 b 30) .
+      set b a .
+      set a tmp .
+    end
+    set h0 (bit_and (add h0 a) 0xffffffff) .
+    set h1 (bit_and (add h1 b) 0xffffffff) .
+    set h2 (bit_and (add h2 c) 0xffffffff) .
+    set h3 (bit_and (add h3 d) 0xffffffff) .
+    set h4 (bit_and (add h4 e) 0xffffffff) .
+    set off (add off 64) .
+  end
+  rem 낱말 다섯을 큰 끝부터 적는다.
+  for q count u64 4 . do
+    let sh be u64 mul (sub 3 q) 8 .
+    set (idx out q)          (narrow_wrap u8 (shr h0 sh)) .
+    set (idx out (add 4 q))  (narrow_wrap u8 (shr h1 sh)) .
+    set (idx out (add 8 q))  (narrow_wrap u8 (shr h2 sh)) .
+    set (idx out (add 12 q)) (narrow_wrap u8 (shr h3 sh)) .
+    set (idx out (add 16 q)) (narrow_wrap u8 (shr h4 sh)) .
+  end
+  return 20 .
+end

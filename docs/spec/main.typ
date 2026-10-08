@@ -5,6 +5,14 @@
 
 #if not _html {
   set page(paper: "a4", margin: (x: 2.4cm, y: 2.6cm),
+           header: context {
+             // 표지에는 머리글을 두지 않는다
+             if counter(page).get().first() > 1 [
+               #set text(size: 0.8em, fill: rgb("#777"))
+               로우엔트 표준 명세 #h(1fr) 문서 판 #spec-version · 언어 판 #lang-version
+               #v(-0.6em) #line(length: 100%, stroke: 0.4pt + rgb("#bbb"))
+             ]
+           },
            footer: context [
              #set text(size: 0.85em, fill: rgb("#666"))
              #h(1fr) #counter(page).display("1") #h(1fr)
@@ -13,6 +21,13 @@
   set par(justify: true, leading: 0.72em)
   show raw: set text(font: ("D2Coding",), size: 9.2pt)
   show heading: set text(font: ("Noto Sans CJK KR", "Noto Sans"))
+  // 조항 제목의 크기 — 번호의 마디 수가 수준이다(lib.typ 의 `_head`).
+  show heading.where(level: 1): it => block(above: 0em, below: 1em)[#text(weight: "bold", size: 1.4em)[#it.body]]
+  show heading.where(level: 2): it => block(above: 1.6em, below: 0.7em)[#text(weight: "bold", size: 1.18em)[#it.body]]
+  show heading.where(level: 3): it => block(above: 1.4em, below: 0.6em)[#text(weight: "bold", size: 1.08em)[#it.body]]
+  show heading.where(level: 4): it => block(above: 1.3em, below: 0.55em)[#text(weight: "bold", size: 1.0em)[#it.body]]
+  show outline.entry.where(level: 1): set block(above: 0.9em)
+  show outline.entry.where(level: 1): set text(weight: "bold")
 }
 #show raw: set text(font: ("D2Coding",))
 
@@ -40,7 +55,8 @@
     ]
   ]
   #pagebreak()
-  #outline(title: [차례], depth: 2, indent: 1.2em)
+  #outline(title: [차례], depth: 3, indent: 1.2em)
+  #pagebreak()
 ] else [
   #html.elem("header", attrs: (class: "cover"), {
     html.elem("h1", [로우엔트 — Lowent 프로그래밍 언어 표준 명세])

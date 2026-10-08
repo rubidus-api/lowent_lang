@@ -1,8 +1,8 @@
-# <a id="mod-soa"></a>`soa` — SoA 배치 시범: 필드마다 배열 하나
+# <a id="mod-http"></a>`http` — HTTP/1.1 요청 파서
 
 소스
 
-`lib/soa.low`
+`lib/http.low`
 
 층
 
@@ -12,56 +12,54 @@ L0 — 순수 계산
 
 없음
 
-원소가 `{x, y, vx, vy}` 인 자료 n 개를 두는 방법은 둘이다. **AoS**(Array of Structs)는 한 배열에 원소를 통째로 늘어놓고, **SoA**(Struct of Arrays)는 **필드마다 배열 하나**를 나란히 둔다. x 만 훑는 계산이라면 SoA 쪽이 필요한 값만 연속으로 읽어 캐시를 알뜰하게 쓴다.
+요청 바이트열을 받아 각 필드가 **어디서 시작해 몇 바이트인지** 답한다(RFC 9112). 자르지 않는다 — 자르는 것은 부르는 쪽이 `subslice` 로 한다. **모든 실패는 `0`** 이다. `0` 은 정당한 자리가 될 수 없다 — 요청은 최소 `GET / HTTP/1.1␍␊␍␊` 라 어떤 필드도 0 에서 시작하지 않는다.
 
-> **답이 아니라 측정이다**
+> **무엇을 약속하고 무엇을 하지 않나**
 >
-> > SoA 를 언어 기능(`store[T, soa]` 같은 타입 생성자와 키워드 · op 수십 개)으로 넣자는 조사는 **보류**됐고, 재검토 조건은 “먼저 `lib/` 에 빌트인 증가 0 으로 써 본다. 거기서 막히는 곳이 언어 작업의 목록이 된다” 였다. 이 모듈이 그것이다. 발견 — **SoA 배치 자체는 라이브러리로 완전히 표현된다**. 필드별 배열, 보폭 없는 순차 접근, 한 필드만 훑는 커널이 전부 새 언어 기계 없이 써진다. 속도 주장은 측정 없이 하지 않는다 — 이 모듈이 보장하는 것은 두 배치가 같은 답을 낸다는 정확성뿐이고, 원소 전체를 만지는 코드는 AoS 가 낫다.
-
-| **op** | **모양** | **실패** |
-|---|---|---|
-| `step_x` | `proc (xs mut slice u64, vxs slice u64, n u64) → u64` — `xs[i] += vxs[i]` | 없음 — `min(n, len xs, len vxs)` 만 처리하고 그 수를 답한다 |
-| `sum_field` | `fn (f slice u64) → u64` | 없음 |
-| `get_x` | `fn (xs slice u64, i u64) → u64` | 범위 밖이면 `0` |
-| `step_all` | `proc (xs, ys mut slice u64, vxs, vys slice u64, n u64) → u64` | 없음 — 두 처리 수 중 작은 쪽 |
-| `step_x_aos` | `proc (rows mut slice u64, stride, xoff, voff, n u64) → u64` — AoS 판 | 속도 자리가 범위 밖인 원소에서 멈추고 그 `i` 를 답한다 |
-
-*표 50.1 — `soa` 의 op — 모두 `effects none`*
+> > 서버 쪽 요청 파싱만 한다(응답 파싱 없음). 전송이 없다 — 바이트열은 부르는 쪽이 모아 온다. **청크 전송(`Transfer-Encoding: chunked`)을 짓지 않았다** — 그 헤더를 찾아 주기만 하므로 부르는 쪽이 거절해야 한다. 트레일러 · 여러 줄 헤더(obs-fold) · URL 퍼센트 해체 · HTTP/2 가 없다. HTTP/1.0 을 받지 않는다 — 지속 연결 규칙이 다르고 그것을 짓지 않았다.
 
 ```lowent
-proc demo input xs mut slice u64 . input vxs mut slice u64 .
-  input rows mut slice u64 . output u64 . effects none .
-do
-  set (idx xs 0) 1 .
-  set (idx xs 1) 2 .
-  set (idx vxs 0) 10 .
-  set (idx vxs 1) 20 .
-  let n1 be u64 soa.step_x xs vxs 2 .
-  guard eq n1 2 . else return 90 .
-  let s1 be u64 soa.sum_field (subslice xs 0 2) .
-  set (idx rows 0) 1 .
-  set (idx rows 1) 10 .
-  set (idx rows 2) 2 .
-  set (idx rows 3) 20 .
-  let n2 be u64 soa.step_x_aos rows 2 0 1 2 .
-  guard eq n2 2 . else return 91 .
-  var s2 be u64 add (idx rows 0) (idx rows 2) .
-  guard eq s1 s2 . else return 92 .
-  return s1 .
-end
+let t be u64 http.target_off b .
+let n be u64 http.target_len b .
+guard gt n 0 . else return 0 .
+let target be slice u8 subslice b t (add t n) .
 ```
 
-**막히는 자리 — 언어 작업의 목록.** ① 원소 하나를 “한 덩어리” 로 다루는 문법이 없다 — 호출자가 필드를 손으로 모은다(`get_x`). 불편할 뿐 불가능하지 않다. ② 필드 개수만큼 인자가 늘어난다(`step_all`) — 이것은 구조체 필드에 슬라이스를 허용하면서 풀렸지만, 이 모듈은 측정 기록이라 네 인자 모양을 그대로 둔다. ③ **타입이 배치를 모른다** — AoS 판과 SoA 판이 서로 다른 op 이름이 되고(`step_x` 대 `step_x_aos`), AoS 의 오프셋 인자는 전부 `u64` 라 컴파일러가 지켜 주지 못한다.
+| **op** | **하는 일** |
+|---|---|
+| `method_get` · `method_head` · `method_post` · `method_put` · `method_delete` | 메서드 코드(1 … 5) |
+| `method_code` | 요청 줄의 메서드 → 코드. 0 = 모름 |
+| `line_next` · `line_len` | 다음 줄의 자리 · 이 줄의 내용 길이(CRLF 제외) |
+| `target_off` · `target_len` | 요청 대상의 자리 · 길이 |
+| `version_ok` | `HTTP/1.1` 인가 |
+| `headers_off` · `header_next` | 첫 헤더 · 다음 헤더(빈 줄이면 0) |
+| `name_len` · `value_off` · `value_len` | 헤더 이름 길이 · 값 자리 · 값 길이 |
+| `name_eq` | 이 헤더의 이름이 그것인가(대소문자 안 가림) |
+| `header_find` · `header_find_len` | 그 이름의 값 자리 · 길이. **중복이면 0** |
+| `content_length` | `option u64` — 없으면 `some 0`, 성하지 않으면 `none` |
+| `body_off` | 몸통이 시작하는 자리 |
 
-> **반례. 반환된 처리 수를 보지 않는다**
->
-> > `soa.step_x xs vxs 1000` 은 `xs` 가 3 칸이면 조용히 3 개만 처리한다. `n` 개가 전부 처리됐다고 가정하는 코드는 `guard eq m n .` 으로 확인한다.
+*표 50.1 — `http` 의 op*
 
-> **반례. AoS 판의 오프셋을 바꿔 낀다**
->
-> > `soa.step_x_aos rows 2 1 0 3` 은 xoff 와 voff 가 뒤집혀 에러 없이 속도에 위치가 더해진다. 배치가 타입에 실리지 않는다는 막힘의 실감이다.
+**이 모듈의 알맹이는 거절이다.** 파서는 받아들이는 것보다 거절하는 것으로 정의된다. HTTP 에서 잘못 받아들이는 자리에는 이름이 있다 — **요청 밀반입(request smuggling)**. 앞단(프록시)과 뒷단(서버)이 같은 바이트를 다르게 읽으면 하나가 본 요청을 다른 하나는 못 본다.
 
-**주의.** 나란한 배열들의 길이를 맞추는 것은 호출자 책임이다 — op 은 짧은 쪽에 맞춰 줄일 뿐 알려 주지 않는다. `get_x` 의 실패 값 0 은 정상 값과 구분되지 않는다. 맨 `idx` 는 범위를 줄여 주지 않고 `E-VM-BOUNDS` 로 멈춘다. 긴 `let` · `set` 을 줄바꿈으로 나누면 개행이 form 을 닫는다 — 이어 쓰려면 줄 끝에 `,` 를 둔다.
+| **거절하는 것** | **왜** |
+|---|---|
+| 맨 `LF` 를 줄 끝으로 | 앞단이 CRLF 만 인정하면 경계가 갈린다 |
+| 이름과 콜론 사이 공백(`Host : x`) | RFC 9112 §5.1 이 거절을 요구한다 |
+| `Content-Length` 가 둘 | 값이 같아도 거절한다 |
+| `Content-Length: 5, 5` · `+5` · 빈 값 | 숫자만 받는다 — 그 관용이 밀반입이다 |
+| `HTTP/1.0` | 지속 연결 규칙이 다른데 짓지 않았다 |
+| 같은 헤더가 둘(`header_find`) | 합쳐도 되는지는 헤더마다 다르고 그 표를 짓지 않았다 — 모르면 거절 |
+| 빈 대상(`GET  HTTP/1.1`) · 끝나지 않은 헤더(빈 줄 없음) | — |
+
+*표 50.2 — `http` 가 거절하는 것*
+
+**`content_length` 가 `option` 인 이유.** “없다” 와 “틀렸다” 는 다른 답이다. 없으면 `some 0`(몸통이 없는 정상 요청), 성하지 않으면 `none`(연결을 끊어야 할 일). 한 값으로 두면 둘이 섞이고, 섞이는 자리가 곧 공격 자리다.
+
+**이 모듈이 처리기 결함을 하나 잡았다.** 처음에 `input b str .` 로 썼다. `--check` 는 통과했는데 21 op 중 16 이 느린 해석 경로로 떨어졌다(약 80 배). `str` 은 빌트인이 아니라 [`strings`](sec58.md#mod-strings) 의 지역 별칭이었고, 검사기는 그 이름을 통과시켰지만 타입 붙은 하강은 뜻을 몰랐다. 답은 맞으므로 시험이 영원히 보지 못하는 조용한 80 배다. 이제 그런 이름을 시그니처에 쓰면 `W-NOT-YET` 경고가 나온다. 검사가 통과하는 것과 빠른 것은 다른 일이고, `--why-slow` 를 보지 않았으면 이 파일은 그대로 실렸을 것이다.
+
+**확인하는 것** — RFC 9112 예제(정상 8), 거절 9 건, VM·네이티브 일치, 느린 경로로 떨어지는 op 0 개.
 
 ---
 

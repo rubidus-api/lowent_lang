@@ -1,8 +1,8 @@
-# <a id="mod-x25519"></a>`x25519` — key agreement on a curve
+# <a id="mod-aead"></a>`aead` — ChaCha20-Poly1305 seal and open
 
 Source
 
-`lib/x25519.low`
+`lib/aead.low`
 
 Layer
 
@@ -12,35 +12,28 @@ Capabilities
 
 none
 
-From my secret scalar and the peer’s public point, makes **32 bytes only the two of us know** (RFC 7748). Standard practice is not to use those bytes as a key directly but to split keys out with HKDF from [`hmac`](sec78.md#mod-hmac).
+**Hides** a message ([`chacha`](sec80.md#mod-chacha)) and **testifies to** the message and associated data **together** ([`poly`](sec81.md#mod-poly)). It is exactly what TLS 1.3′s default suite (`TLS_CHACHA20_POLY1305_SHA256`) uses (RFC 8439 §2.8). **If you use cryptography, sealing starts here.**
 
 > **What this implementation cannot promise**
 >
-> > **It does not promise constant time.** The ladder is written with conditional swaps (`fsel`) so as not to branch on secret bits, but the language has bounds checks and stops, so timing cannot be promised. **It has not been audited.** **It does not filter small-order points** — the public key a peer sends may be a point that yields zero, so checking whether the agreed result is all zeros is the caller’s job. Making private keys (entropy) is not here — that belongs to [`random`](sec77.md#mod-random) and `cap random`.
+> > **It is not constant time.** This code does not branch on secrets, but the language has bounds checks and stops, so timing cannot be promised. Do not use it as is where a remote attacker can measure time. **It has not been audited** — it is checked against RFC 8439 §2.8.2 vectors, and the guarantee goes as far as “the value the standard specifies comes out”. **Reusing a nonce is the end** — two uses of the same nonce with the same key overlap the streams, reveal plaintext and allow tag forgery. This module does not prevent it — counting is the caller’s job.
 
-```lowent
-rem w has at least 175 u64 elements --- one workspace
-let n be u64 x25519.agree shared mysecret theirpub zbuf w .
-guard eq n 32 . else return 1 .
-```
+It receives no capabilities — it works on the key and nonce it **is given**. Sealing and opening allocate nothing themselves, hence many arguments: result places (`ct`, `msg`, `tag`) and workspaces (`otk`, `st`, `work`, `ks`, `pst`, `pad`) are all passed in.
 
-**Why one workspace.** `scalarmult` takes nine field elements and the multiplication area separately — easier to read inside. But laying out fourteen at the call site quickly eats the parameter limit of 16. The first program using this library was actually rejected with `E-IR-ARITY`. So `agree` slices one `w` (at least 175 elements), and the layout (nine field elements = `w[0..144]`, multiplication area = `w[144..175]`) lives in one place in the source.
-
-**How the representation was chosen.** The prime is `p = 2^255 − 19`. The common reference implementation (ref10) holds limbs of 26 and 25 bits, **lets limbs go negative** and carries with an arithmetic right shift. This language’s `shr` is a **logical shift**, so that layout cannot be used. So a **representation with no negatives at all** (16 limbs × 16 bits, the TweetNaCl layout) was chosen. Subtraction is `a + 4p − b` instead of `a − b` — since `4p ≡ 0 (mod p)` the value is the same and every intermediate is non-negative. The tool’s limit chose the representation, and the one chosen was easier to reason about.
-
-| **op** | **What it does** | **Requires · answers** |
+| **op** | **What it does** | **Answers** |
 |---|---|---|
-| `agree` | scalar × point → 32-byte shared secret (one workspace) | `w ≥ 175` · others 32 bytes each. Answers 32, **0 means failure** |
-| `scalarmult` | The same computation, workspaces separately | fourteen arguments |
-| `fzero` · `fone` · `fcopy` · `fcar` | Field element init · copy · carry | for code that knows the layout |
-| `fadd` · `fsub` · `fmul` · `fsq` · `fmul121665` | Field add · subtract · multiply · square · constant multiply | ditto |
-| `finv` · `fsel` · `funpack` · `fpack` | Inverse · conditional swap · bytes ↔ element | ditto |
+| `seal` | Seals `msg` into `ct` and produces a 16-byte `tag` | tag length 16. **0 means failure** |
+| `unseal` | Checks `tag` first and gives `msg` **only if it matches** | plaintext length. **0 means failure (or forgery)** |
+| `key_gen` | Makes a one-time Poly1305 key per nonce | 32 |
 
-*Table 50.1 — Ops of `x25519`*
+*Table 50.1 — Ops of `aead`*
 
-Field arithmetic is `export` **for testing** (identities are measured). Unless you are building a new protocol, `agree` is all you need. [`ed25519`](sec91.md#mod-ed25519) reuses the same field.
+- `seal` starts the stream at counter **1** — counter 0 was already used for the Poly1305 key. If that one slot overlapped, the tag key would equal the plaintext stream.
+- The array fed to the MAC is `AAD ‖ pad16(AAD) ‖ CT ‖ pad16(CT) ‖ le64(|AAD|) ‖ le64(|CT|)`. Thanks to `pad16` every block is a full 16 bytes, and internal calls all share one shape.
+- **Failure is 0, the same value as forgery.** `unseal`’s 0 means “the tag does not match” or “a buffer is too small”. They are not told apart because the caller must treat both alike — either way, the plaintext must not be used. Code that receives 0 and carries on is already wrong.
+- Tag comparison **accumulates XOR** — no early return. It is the best this language can do, and it is also the limit the warning above speaks of.
 
-**What is checked** — RFC 7748 §5.2 scalar multiplication vectors, the §6.1 DH round trip (do two parties reach the same secret), field identities (`a·a⁻¹ = 1` and so on), VM/native agreement. **Not built** — constant-time guarantees, small-order point filtering, key generation and clamping convenience ops, X448.
+**What is checked** — RFC 8439 §2.8.2 vectors and **tamper rejection** (flip one bit of ciphertext or AAD and `unseal` must answer 0), VM/native agreement. **Not built** — constant-time guarantees, streaming sealing, nonce management and counter exhaustion detection, XChaCha20, key derivation (HKDF of [`hmac`](sec79.md#mod-hmac)). See also — [`x25519`](sec83.md#mod-x25519) (key agreement).
 
 ---
 

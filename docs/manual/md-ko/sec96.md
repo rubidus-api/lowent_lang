@@ -1,8 +1,8 @@
-# <a id="mod-tlssrv"></a>`tlssrv` — TLS 1.3 서버 핸드셰이크
+# <a id="mod-tls13"></a>`tls13` — TLS 1.3 의 계산 부품
 
 소스
 
-`lib/tlssrv.low`
+`lib/tls13.low`
 
 층
 
@@ -12,43 +12,50 @@ L0 — 순수 계산(호출자의 뒷받침)
 
 없음
 
-[`tls13`](sec95.md#mod-tls13) 이 규격의 **계산**을 갖고 있다. 이 모듈은 그것을 **순서대로 부르는 층**이다 — ClientHello 를 읽고, 서버 메시지를 짓고, 상태를 옮기고, 응용 데이터 레코드를 봉하고 연다. 모든 실패는 `0` 이고, op 은 **자리**를 낸다 — 자르는 것은 부르는 쪽이 `subslice` 로 한다.
+TLS 1.3 이 요구하는 순수 계산 넷이다(RFC 8446) — **키 스케줄**(공유 비밀과 전사 해시에서 트래픽 키를 유도, §7.1), **레코드 계층**(레코드를 봉하고 연다, §5), **전사 해시**(지금까지 오간 메시지 전부의 해시, §4.4.1), **Finished**(핸드셰이크가 중간에 바뀌지 않았음을 증명, §4.4.4). 전부 순수해서 전송 없이 지을 수 있고 시험 벡터로 잴 수 있다 — 파서를 먼저, 전송을 나중에.
 
-> **이것만으로는 TLS 서버가 아니다**
+> **이것은 TLS 구현이 아니다**
 >
-> > **전송이 없다** — 소켓도 재조립도 없고 바이트열은 부르는 쪽이 모아 온다(레코드 경계도 부르는 쪽이 정한다). 키 갱신(KeyUpdate) · 레코드 패딩 · HelloRetryRequest · PSK · 0-RTT · 클라이언트 인증서 요구 · 세션 재개가 없다. 인증서 체인은 `build_cert` 가 하나만 담는다. 확장은 **찾아만** 준다(SNI · ALPN 해석은 부르는 쪽). 감사받지 않았다.
+> > 상태 기계가 없다 — 핸드셰이크를 구동하지 않는다(메시지 층과 순서는 [`tlssrv`](sec97.md#mod-tlssrv) 가 한다). 전송이 없다. PSK · 0-RTT · exporter · resumption 비밀이 없고 1-RTT 한 갈래만 지었다. PKI 가 없다([`der`](sec92.md#mod-der)). 상수 시간을 약속하지 않고 감사받지 않았다. 스위트는 둘뿐이고 모르는 스위트는 거절한다.
 
-**ClientHello 는 가장 적대적인 입력이다.** 아직 아무것도 인증되지 않은 바이트열이고 길이 필드는 전부 상대가 썼다. 그래서 — 어떤 자리도 버퍼를 넘으면 즉시 실패한다. 확장 걷기는 재귀하지 않고 걸음 수를 버퍼 크기로 묶는다(길이 0 짜리 확장이 이어지면 묶지 않은 루프는 끝나지 않는다). 길이가 맞지 않으면 고쳐 읽지 않는다 — `ch_ok` 는 선언된 길이가 버퍼와 **정확히** 같기를, `ch_ext_len` 은 확장이 끝까지 맞기를 요구한다.
+```text
+0 ─HKDF-Extract(PSK)→ Early Secret ─Derive-Secret("derived","")→ ┐
+ECDHE ─HKDF-Extract────────────────→ Handshake Secret ←──────────┘
+  ├─ Derive-Secret("c hs traffic", CH..SH)
+  └─ Derive-Secret("s hs traffic", CH..SH)
+─Derive-Secret("derived","")→ ┐
+0 ─HKDF-Extract──────────────→ Master Secret
+  ├─ Derive-Secret("c ap traffic", CH..server Finished)
+  └─ Derive-Secret("s ap traffic", CH..server Finished)
+```
+
+각 비밀에서 레코드 키가 나온다 — `key = Expand-Label(비밀, "key", "", 길이)`, `iv = Expand-Label(비밀, "iv", "", 12)`.
 
 | **op** | **하는 일** |
 |---|---|
-| `st_start` · `st_recvd_ch` · `st_negotiated` · `st_wait_flight2` · `st_wait_finished` · `st_connected` | 상태 번호 |
-| `hs_client_hello` · `hs_server_hello` · `hs_encrypted_extensions` · `hs_certificate` · `hs_certificate_verify` · `hs_finished` | 메시지 종류 번호 |
-| `next_ok` · `transit` | 지금 이 메시지를 받아도 되는가 · 상태를 옮긴다(못 옮기면 같은 상태를 낸다) |
-| `ch_ok` | 종류와 길이가 버퍼와 맞는가 |
-| `ch_random_off` · `ch_sid_off` · `ch_sid_len` | 랜덤 · session_id |
-| `ch_suites_off` · `ch_suites_len` · `ch_has_suite` | 제안된 스위트 |
-| `ch_ext_off` · `ch_ext_len` · `ch_ext_find` · `ch_ext_find_len` | 확장 블록 · 종류로 찾기 |
-| `ch_x25519_off` · `be16` | key_share 안의 x25519 공개키 자리 · 빅엔디언 2 바이트 |
-| `build_sh` · `build_ee` · `build_cert` | ServerHello · EncryptedExtensions · Certificate(DER 하나) 짓기 |
-| `cv_content` · `build_cv` · `build_fin` | CertificateVerify 가 서명하는 130 바이트 · CertificateVerify · Finished 짓기 |
-| `server_finished` | ECDHE 부터 키 스케줄을 올려 서버 Finished 까지 한 줄로 |
-| `app_secrets` · `check_client_finished` | 응용 트래픽 비밀(c · s) · 상대 Finished 확인(1 = 맞음) |
-| `traffic_keys` · `seal_app` · `open_app` | 비밀 → 키 ‖ IV(한 방향씩) · 응용 데이터 레코드 봉하기 · 열기 |
+| `build_label` · `expand_label` | HkdfLabel 구조체를 바이트로 · `HKDF-Expand-Label` |
+| `derive_secret` | `Derive-Secret(비밀, 라벨, 전사 해시)` |
+| `advance` | 사다리 한 칸 — 위 그림의 화살표 하나 |
+| `traffic_key` · `traffic_iv` | 비밀 → 레코드 키 · IV |
+| `finished_key` · `verify_data` | Finished 의 키와 값 |
+| `record_header` · `record_nonce` | 5 바이트 헤더 `23 ‖ 0x0303 ‖ 길이` · IV 와 시퀀스 번호 → 논스 |
+| `record_seal` · `record_open` | 레코드 봉하기 · 열기 |
+| `inner_type` | 속 평문의 **끝**에서 진짜 내용 타입을 읽는다 |
+| `transcript` | 이어 붙인 메시지 버퍼의 해시 |
+| `hs_type` · `hs_size` · `hs_count` | 핸드셰이크 메시지 걷기 |
+| `check_finished` | 상대의 Finished 를 다시 계산해 맞춰 본다 |
 
-*표 50.1 — `tlssrv` 의 op*
+*표 50.1 — `tls13` 의 op*
 
-메시지 짓기는 틀이 같다(`<종류 1> <길이 3> <본문>`) — 그래서 틀을 한 번만 적었다. 네 곳에 같은 산술을 되풀이하면 한 곳만 고치는 날이 온다.
+**레코드는 겉과 속이 다르다.** 겉은 언제나 `23 ‖ 0x0303 ‖ 길이` 다 — 내용이 핸드셰이크든 응용 데이터든 똑같이 보인다. 진짜 내용 타입은 속 평문의 끝에 있다. 관찰자에게 감추려고 그렇게 짰다. AAD 는 그 5 바이트 헤더 자체다.
 
-**`cv_content` — 공백 64 개는 장식이 아니다.** 서명 대상은 `0x20 × 64 ‖ "TLS 1.3, server CertificateVerify" ‖ 0x00 ‖ 전사 해시` 다(§4.4.3). 그 앞머리가 없으면 이 서명이 다른 문맥(인증서 서명, 클라이언트 쪽 서명)의 서명으로 재활용될 수 있다. 규격에서 “왜 이런 게 있지” 싶은 상수는 대개 이미 일어난 공격의 흔적이다.
+**스위트가 둘이라 협상이 뜻을 갖는다.** 스위트 1 = `TLS_AES_128_GCM_SHA256`(MUST, [`gcm`](sec84.md#mod-gcm)), 스위트 2 = `TLS_CHACHA20_POLY1305_SHA256`(SHOULD, [`aead`](sec81.md#mod-aead)). 하나만 지었을 때 이 자리는 죽은 분기였다. 모르는 스위트는 거절한다 — 조용히 하나를 고르지 않는다.
 
-**순서는 규격의 절반이다.** `next_ok` 는 받아들이는 자리를 열거하고, 열거하는 것이 곧 나머지를 거절하는 것이다. 보지 않으면 중간자가 Finished 를 앞당기거나 ClientHello 를 두 번 보낼 수 있다. **`session_id` 는 그대로 되울린다** — TLS 1.3 은 그 필드를 쓰지 않지만, 되울리지 않으면 1.2 로 보이게 하려는 호환 장치 때문에 실제 망의 중간 상자에서 끊긴다(§4.1.3).
+**전사 해시가 핸드셰이크의 뼈대다.** 키도 Finished 도 “지금까지 오간 메시지 전부” 의 해시 위에 서므로 중간자가 한 바이트라도 바꾸면 양쪽 키가 갈린다. **전사를 어디서 자르는지가 규격의 절반이다** — RFC 8448 이 각 Derive-Secret 의 해시로 그 자리를 적어 두었고, 시험이 세 자리(`CH…SH`, `CH…서버 Finished`, `CH…클라이언트 Finished`)를 전부 맞댄다. SHA-256 이 한 번에 하는 방식(스트리밍 없음)이라 전사는 **호출자가 이어 붙인 버퍼** 위에서 잰다. 메시지 걷기는 길이 필드를 믿지 않는다 — 버퍼를 넘는 길이가 적혀 있으면 거기서 멈춘다. `check_finished` 의 비교는 32 바이트를 XOR 로 누적해 마지막에 한 번 본다(조기 반환 없음).
 
-**전사는 이 층에서 세 번 잘린다.** `s hs traffic` 은 `CH‖SH`, 서버 Finished 는 `CH‖…‖CertificateVerify`, 응용 트래픽 비밀과 **클라이언트 Finished** 는 `CH‖…‖서버 Finished` 위에 선다. 클라이언트 Finished 는 자기 자신을 포함하지 않고, 그 verify_data 는 **클라이언트** 핸드셰이크 비밀에서 나온다 — 같은 전사, 다른 비밀. 서버 것을 쓰면 언제나 거절하게 되고 증상은 “클라이언트가 이상하다” 로 보인다.
+**작업 공간을 둘로 묶는 이유.** 파라미터 상한이 16 이라 스위트마다 버퍼를 늘어놓으면 금방 넘는다. 그래서 바이트 `w` 와 `u64` `u` 둘로 묶고 자리를 소스 주석에 적어 나눠 쓴다. 예쁘지 않다 — 언어의 상한이 만든 모양이고, 그 사실을 감추지 않는 편이 낫다.
 
-**응용 데이터는 방향마다 다른 비밀 · 다른 시퀀스다.** 하나를 공유하면 논스가 겹치고, AEAD 에서 논스가 겹치는 것은 평문과 인증키를 함께 잃는 일이다. 그래서 키뭉치를 한 방향씩 만든다. 시퀀스는 **레코드마다** 오르고 키 세대마다 0 부터다. `traffic_keys` 의 출력 버퍼는 키가 16 이어도 32 바이트여야 한다 — `expand_label` 은 HMAC 한 블록을 쓰므로 언제나 32 를 쓴다. 경보도 같은 레코드다 — 속 타입이 21 이고, 그것을 보지 않으면 경보를 데이터로 읽는다.
-
-**확인하는 것** — RFC 8448 §3 의 실제 핸드셰이크. 정본의 ClientHello 필드를 읽고, 메시지 다섯을 지어 정본과 바이트로 맞댄다(ServerHello 90 · EncryptedExtensions 40 · Certificate 445 · CertificateVerify 136 · Finished 36). 그리고 끝까지 엮는다 — 정본의 키로 ECDHE 를 우리가 내고 키 스케줄을 올려 서버 Finished 를 정본과 맞춘다. 이 한 수가 전사 자르는 자리 · 키 스케줄 · finished_key · verify_data 를 한꺼번에 잰다. 정본의 CertificateVerify 는 RSA-PSS 이고 우리 서명기는 ECDSA 라, 여기서 재는 것은 틀이고 서명 자체는 [`ecdsa`](sec89.md#mod-ecdsa) 가 따로 잰다.
+**확인하는 것 — 두 겹이다.** 파이썬 `hashlib` · `hmac` 로 §7.1 을 독립 구현해 바이트 대조하고, RFC 8448 §3 의 값들을 정본에서 기계로 뽑아 96 자리를 맞댄다. **그리고 정본이 결함을 하나 잡았다.** `traffic_key` 가 키 길이를 32 로 박아 두었는데, 그 길이는 HkdfLabel 안에 들어가므로 AES-128-GCM(16)을 쓰는 상대와는 키가 통째로 달라진다. 두 번째 구현으로는 잡히지 않았다 — 같은 사람이 같이 32 를 썼기 때문이다. 두 번째 구현은 정본이 아니다.
 
 ---
 

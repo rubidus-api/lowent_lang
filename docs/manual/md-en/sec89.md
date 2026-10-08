@@ -1,8 +1,8 @@
-# <a id="mod-p384"></a>`p384` — the NIST P-384 curve and ECDSA verification
+# <a id="mod-p256"></a>`p256` — the NIST P-256 curve and ECDSA verification
 
 Source
 
-`lib/p384.low`
+`lib/p256.low`
 
 Layer
 
@@ -12,43 +12,34 @@ Capabilities
 
 none
 
-**ECDSA signature verification** on the curve `y² = x³ − 3x + b` over the prime `p = 2^384 − 2^128 − 2^96 + 2^32 − 1`. TLS 1.3′s `ecdsa_secp384r1_sha384` uses this curve. Many intermediate certificate authorities on the public web, and their roots, sign with P-384, so checking a certificate chain to its end needs this curve.
+Point arithmetic on the elliptic curve `y² = x³ − 3x + b`, and **ECDSA signature verification** built on it. TLS 1.3′s `ecdsa_secp256r1_sha256` uses this curve.
 
 > **What it promises and what it does not**
 >
-> > It has not been audited. It exports **verification** only — no signing, no point decompression, no constant-time scalar multiplication. The scalars in verification are public, so branching on them is fine; handling secret scalars is not this module’s job.
+> > It has not been audited. The verification `smul` **branches** on scalar bits — in verification that scalar is public, so that is fine. For secret scalars (private key, nonce) use `smul_ct` — each step does both doubling and addition and chooses by mask, not by branch. That promise extends to **no secret-dependent branches or memory access**; cache hierarchy, power and electromagnetic leakage are not promised. There is no point decompression and no P-384 or P-521.
 
-**Why a new module instead of changing `p256`.** [`p256`](sec88.md#mod-p256) hard-codes its 16 limbs into loop bounds and workspace offsets, and several modules already use it, fully checked. Making it generic over the limb count would touch checked code. So each curve gets its own module — this file is `p256` carried from 16 limbs to 24, and **not one formula differs**. Only the sizes do.
+**Why this curve.** What public CAs actually issue and browsers actually accept is P-256 and RSA. [`ed25519`](sec92.md#mod-ed25519) is mathematically cleaner but does not work on the public web — the ecosystem decides, not the maths. Signature **generation** is done by [`ecdsa`](sec91.md#mod-ecdsa) on top of this module.
 
-| **place** | **`p256`** | **`p384`** |
-|---|---|---|
-| one number (16-bit limbs) | 16 | 24 |
-| one point (Jacobian X · Y · Z) | 48 | 72 |
-| Montgomery scratch | 18 | 26 |
-| exponent bits | 256 | 384 |
-
-*Table 50.1 — `p256` and `p384` differ only in sizes*
-
-| **op** | **what it does** |
+| **op** | **What it does** |
 |---|---|
-| `ecdsa_ok` | does the signature `(r, s)` match hash `e` and public key `pub` — `ok 1` yes · `ok 0` no · `error short_workspace` the workspace is too small |
+| `limbs` | Limb count (16 = 256 bits) |
+| `msub` · `madd` | Modular subtraction · addition |
+| `minv` | Modular inverse (Fermat exponentiation) |
+| `pmul` | Montgomery product (reusing [`bigint`](sec87.md#mod-bigint)’s) |
+| `make_r2` | `R² mod p` — the constant for entering the Montgomery domain |
+| `pdbl` · `padd` | Jacobian point doubling · point addition |
+| `is_zero` | Is it the point at infinity |
+| `smul` | Scalar multiplication `[k]P` — for public scalars |
+| `smul_ct` | Scalar multiplication — for secret scalars, choosing by mask without branches |
+| `ecdsa_verify` | Does signature `(r, s)` match hash `e` and the public key |
 
-*Table 50.2 — ops of `p384`*
+*Table 50.1 — Ops of `p256`*
 
-`ecdsa_ok` takes the curve constants (`p` · `n` · `Gx` · `Gy`) from the caller, the public key in affine form `x ‖ y` (48 limbs), and a workspace `w` of at least 1364 limbs (1.5 × `p256`′s 924). **A short workspace is a failure, not an answer** — once “not enough room” and “bad signature” were both 0, and a program that passed the wrong workspace looked like it had a bad signature.
+Curve constants (p · n · Gx · Gy) are passed in by the caller.
 
-The computation: first check that `r` and `s` lie in `1 … n−1`, then
+**Why Jacobian coordinates — to postpone the inverse.** Point addition in affine coordinates needs a modular inverse every time, and an inverse costs hundreds of times a product. Jacobian coordinates carry the denominator inside the coordinates and postpone the inverse to a single one at the end. For the same reason `ed25519` uses extended coordinates, but its addition formula is **complete** with no exceptional branch, and here there **is** one (a different formula when the points are equal). That branch lives inside `padd`.
 
-```text
-w  = s⁻¹ mod n
-u1 = e·w mod n ,  u2 = r·w mod n
-R  = u1·G + u2·Q         (Q = the public key point)
-true if R.x ≡ r (mod n)
-```
-
-Modular multiplication reuses [`bigint`](sec86.md#mod-bigint)’s Montgomery product — `p` and `n` are both odd, so the condition holds and no new arithmetic is built. Coordinates are Jacobian for the same reason as `p256` (the inverse is postponed to one at the very end).
-
-**What is checked** — two oracles we did not build. ① A signature made by `openssl` (secp384r1 · SHA-384) and accepted by `openssl dgst -verify` — one positive and **three negatives** (one bit of `s` · one bit of the hash · `s = 0`). ② Real certificate chains signed by real CAs (the intermediate of several public sites is P-384). The NIST CAVP vectors have **not been run yet** — the file is not in the repository. The consumer of this module is [`verify`](sec95.md#mod-verify).
+**What is checked** — NIST CAVP P-256/SHA-256 signature verification vectors, 2 positive and **8 negative**, field and scalar multiplication compared with a Python reference curve, VM/native agreement. A signature verification test without negatives cannot catch “always true” — a verification test with only positives verifies nothing.
 
 ---
 

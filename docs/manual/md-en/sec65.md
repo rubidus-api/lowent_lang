@@ -23,7 +23,7 @@ guard is_some n . else return 1 .
 
 `dst` is not made by this module but is **an output place the caller sets aside in advance** (at least 6 bytes here). `n` is **the number of bytes actually written**, and the result is `dst[0..n)`.
 
-A wrapping keeps no secrets — anyone can undo it. If secrecy is needed, use [`aead`](sec81.md#mod-aead), which seals (chapter 33). This module is pure computation from bytes to bytes, using only `idx`, `set`, `shl`, `shr`, `bit_and`, `bit_or`, `guard` and `while`, and no builtin was added.
+A wrapping keeps no secrets — anyone can undo it. If secrecy is needed, use [`aead`](sec82.md#mod-aead), which seals (chapter 33). This module is pure computation from bytes to bytes, using only `idx`, `set`, `shl`, `shr`, `bit_and`, `bit_or`, `guard` and `while`, and no builtin was added.
 
 ## <a id="sx1"></a>Design and boundaries
 

@@ -1,52 +1,43 @@
-# <a id="mod-random"></a>`random` — random numbers (reproducible sequences · OS entropy)
+# <a id="mod-math"></a>`math` — floating-point maths
 
 Source
 
-`lib/random.low`
+`lib/math.low`
 
 Layer
 
-L0 — pure computation · OS entropy via capability
+L0 — pure computation (host only)
 
 Capabilities
 
-`cap random` for `bytes` · `seed_from_os`
+none
 
-> **Do not mix the two — this warning is the whole module**
+Adds commonly used things on top of builtins like `sqrt`, `sin` and `exp` — comparison (`close`), constants (`pi`, `e`), angle conversion, hypotenuse, logarithms with a base, and linear interpolation. It has no capabilities but links to the C maths library, so it is **host only** — targets without an operating system may have no floating point at all (`cortex_m` is `no_float`).
+
+> **Do not compare with `==` — use `close`**
 >
-> > `advance_seed`, `below_biased` and `coin` are a reproducible sequence made with **splitmix64**. They need no capability and serve tests, simulations and shuffles. `bytes` and `seed_from_os` are **OS entropy**. They need `cap random` and serve keys, nonces and tokens. Tests must be reproducible and keys must not be predictable — one word cannot do both, so the names are split. Use a value made by `advance_seed` as a key and anyone who knows the seed knows that key, and seeds usually remain in code or logs.
+> > ```lowent
+> > guard math.close (math.hyp 3.0 4.0) 5.0 0.000001 . else return 1 .
+> > ```
+> >
+> > “Equal” is not well defined for floating point (chapter 4). So this module provides `close(a, b, tol)`, and the library’s own tests judge with it.
 
-**The reproducible side.** Takes a state (= seed) and returns the next state. The caller carries the state, so the same seed always gives the same sequence.
+**Why checking is not bit-exact.** C maths libraries **may differ in the last digits between implementations**. Claiming exact bits would cause false failures on other machines and libcs, with tests failing while the tool is fine. So this module is checked against **known answers** (`sin(0) = 0`) and **identities** (`sin²+cos² = 1`, `exp(log x) = x`), judged with `close`. How close counts as equal (`tol`) is the caller’s question, not something the library should decide.
 
-```lowent
-var s be u64 12345 .
-set s (random.advance_seed s) .
-let c be bool random.coin s .
-```
+| **op** | **What it does** |
+|---|---|
+| `close` | `\|a − b\| ≤ tol` — this module’s way of comparing |
+| `pi` · `e` | Constants |
+| `deg_to_rad` · `rad_to_deg` | Angle conversion |
+| `hyp` | `sqrt(x² + y²)` |
+| `log_base` | Logarithm with a base (`log x / log b`) |
+| `lerp` | Linear interpolation `a + (b − a)·t` |
 
-**The unpredictable side.** Callable only with `cap random`. It answers the number of bytes filled, and **0 if it could not fill** — taking 0 and using the buffer anyway means using an uninitialised buffer as a key.
+*Table 50.1 — Ops of `math`*
 
-```lowent
-proc make_key input k cap random . input key mut slice u8 . output bool . effects none . do
-  return eq (random.bytes k key) (len key) .
-end
-```
+Used directly as builtins — `sqrt`, `abs`, `floor`, `ceil`, `round`, `sin`, `cos`, `exp`, `log`, `pow`.
 
-| **op** | **Shape** | **Notes** |
-|---|---|---|
-| `advance_seed` | `(seed u64) → u64` | splitmix64 — algorithm fixed (so check values can be the reference) |
-| `below_biased` | `(seed u64, bound u64) → u64` | The name **confesses the bias** — not this if you need uniformity |
-| `coin` | `(seed u64) → bool` | Heads · tails |
-| `bytes` | `(cap random, dst mut slice u8) → u64` | Bytes filled. **0 = failure** |
-| `seed_from_os` | `(cap random, scratch mut slice u8) → u64` | One seed from the OS — makes the starting point of a reproducible sequence unpredictable. `scratch ≥ 8` |
-
-*Table 50.1 — Ops of `random`*
-
-Why `below_biased` says `biased` — narrowing a range with the remainder makes small values come up slightly more often. Rather than hide it, the name says it.
-
-**Tested by summoning failure.** The environment variable `LOW_HOST_FAULT="random:err"` makes entropy unavailable (→ 0), and `LOW_HOST_FAULT="random:short=3"` fills only 3 bytes. **Partial filling is the quietly frightening case** — a key made with half the buffer still holding old values. So checking the count filled is the contract (chapter 28).
-
-**Not built** — uniform range sampling (rejection sampling), shuffles, distributions (normal and so on), serialising reproducible sequences, a cryptographic CSPRNG (`bytes` asks the OS; this module does not make it).
+**Not built** — `atan2`, `asin`, `acos`, `tan`, `log2`, `log10`, `cbrt`, complex numbers, fixed point, an `f32`-only face. If needed they attach as one builtin plus one line here. `hyp` computes `sqrt(x²+y²)` as is — unlike libm’s `hypot` it does not rescale to avoid overflow, so it can answer differently for very large values.
 
 ---
 

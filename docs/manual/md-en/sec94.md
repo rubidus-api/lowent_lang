@@ -1,8 +1,8 @@
-# <a id="mod-x509"></a>`x509` — reading X.509 certificates
+# <a id="mod-pem"></a>`pem` — unwrapping PEM envelopes
 
 Source
 
-`lib/x509.low`
+`lib/pem.low`
 
 Layer
 
@@ -12,49 +12,32 @@ Capabilities
 
 none
 
-**Reads the skeleton** of an X.509 certificate (DER): where the signed part starts and ends, who the issuer and subject are, and where the public key, validity and extensions sit — all as **offsets and lengths**. It is the step after [`der`](sec92.md#mod-der), which stopped at “extract the public key”.
+Extracts **the bytes in the middle (DER)** from the folded base64 between `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` (RFC 7468). Key files have the same shape with a different label. [`codec`](sec65.md#mod-codec) knows base64 but not line folding — this module strips the header, unfolds and hands it on. Certificates come from outside (a tool like certbot leaves them as files). ACME is not built.
 
-> **It only reads**
+> **What it promises and what it does not**
 >
-> > This module **does not check** a certificate. Whether the signature holds, whether a chain links, whether a name matches — that is [`verify`](sec95.md#mod-verify), built on top of this one. Not built: revocation (CRL · OCSP) · name constraints · policies · the old v1/v2 shapes · comparing names that are not UTF-8.
+> > **It cannot open encrypted PEM** (`Proc-Type: 4,ENCRYPTED`). **It yields only the first one** — if a file holds several (a certificate chain), the caller calls again for the later ones. No URL-safe base64. **It is a parser, not a trust decision** — it verifies nothing.
 
-The shape of a certificate and where this module’s ops point:
-
-```text
-Certificate
-├─ tbsCertificate ─────────────── tbs_off … tbs_end   ← the bytes the signature covers
-│   ├─ [0] version (may be absent)
-│   ├─ serialNumber                tbs_field 0
-│   ├─ signature                   tbs_field 1
-│   ├─ issuer (issuer name)        issuer_off · elem_len
-│   ├─ validity                    not_before · not_after
-│   ├─ subject (subject name)      subject_off · elem_len
-│   ├─ subjectPublicKeyInfo        spki_off
-│   └─ [3] extensions              ext_value_off · is_ca · san_next
-├─ signatureAlgorithm ─────────── sigalg_oid_off · sigalg_oid_len
-└─ signatureValue ─────────────── sig_off · sig_len
-```
-
-| **op** | **what it does** |
+| **op** | **What it does** |
 |---|---|
-| `tbs_off` · `tbs_end` | start and end of the signed bytes. A signature is checked over **these original bytes** |
-| `sigalg_oid_off` · `sigalg_oid_len` | offset and length of the outer signature algorithm OID |
-| `sig_off` · `sig_len` | the signature value (past the BIT STRING’s “unused bits” byte) |
-| `tbs_field` | offset of the `n`-th field in tbsCertificate (0 serial · 1 signature · 2 issuer · 3 validity · 4 subject · 5 public key) |
-| `issuer_off` · `subject_off` · `elem_len` | offset and length of the **whole** issuer / subject name element — names are compared as bytes |
-| `spki_off` | offset of the public key (SubjectPublicKeyInfo) |
-| `not_before` · `not_after` | validity as one comparable number (`YYYYMMDDhhmmss`). Only the `Z` time zone is accepted |
-| `ext_value_off` | value offset of the extension whose OID is `2.5.29.<n>` (17 = subject alternative name · 19 = basicConstraints) |
-| `is_ca` | may this certificate issue others. **No extension means false** |
-| `san_next` | the DNS names of the subject alternative name, one at a time (`cur` 0 = the first, 0 back = no more) |
+| `find_from` | Finds `needle` in `hay` (`len hay` if absent) |
+| `body_off` | Position of **the line after** `-----BEGIN <label>-----`. 0 = absent |
+| `end_off` | Position of `-----END <label>-----`. 0 = absent |
+| `unwrap` | One PEM block → DER bytes. `option u64` (bytes written), `none` on failure |
 
-*Table 50.1 — ops of `x509` — an op that returns an offset returns 0 for “malformed”*
+*Table 50.1 — Ops of `pem`*
 
-**No copies.** Every op returns only an offset and a length. A few certificates must fit in a 64 KiB arena at once, and a signature must be checked over the original bytes — checking a copy could make a signature look right even when the copy is wrong.
+In `unwrap src label scratch out`, `scratch` carries two loads — assembling the header (front) and the unfolded base64 (back). `len scratch ≥ len src + label length + 16` is enough.
 
-**Every length was written by the other side.** A certificate is bytes nothing has vouched for yet. Every offset passes through `der.value_off` · `der.value_len`, which keep it inside the buffer. This module adds **order** on top: X.509 fields have no labels, so a field’s position is what it is — ignore the order and you read a field someone slipped in as if it were in its own place.
+**Why a label is required.** `unwrap` takes by name what it opens, and rejects when the BEGIN and END labels differ. A file holding several blocks is normal. Without matching pairs, opening `CERTIFICATE` would swallow up to the next BEGIN and decode garbage — and base64 silently accepts garbage too.
 
-**The default of `is_ca` matters.** Without a basicConstraints extension a certificate is not a CA (RFC 5280 §4.2.1.9). Miss that default and a leaf certificate can act as an intermediate — the most common hole in chain checking.
+**Line ends accept both LF and CRLF — the opposite of [`http`](sec100.md#mod-http).** There, the boundary is security, so a bare LF is rejected (request smuggling). Here it is a file format, and real files use both. Strictness is not a virtue but a tool — its strength depends on what it guards against.
+
+**Why `unwrap`, not `decode`.** `utf8.decode` already exists, and when names collide there is a known defect where the processor measures types with another module’s signature even when called qualified. A test using both modules together caught that combination breaking. A library green on its own is not enough — it must compose to be usable.
+
+The path PEM → DER → PKCS#8 → 32-byte scalar goes with [`der`](sec93.md#mod-der) — get DER with `pem.unwrap src "PRIVATE KEY" sc buf`, then find the scalar’s position with `der.p8_inner_off` and `der.ec_priv_off`.
+
+**What is checked** — comparison with openssl output (certificate DER of 375 bytes identical, the scalar inside PKCS#8 at position 36 with length 32), rejection of label mismatch and missing envelope, VM/native agreement. The test vector’s scalar is the synthetic value `01 02 … 20` — the structure is exactly what openssl produced, so it measures the parser just as well, and it is plainly not a secret.
 
 ---
 

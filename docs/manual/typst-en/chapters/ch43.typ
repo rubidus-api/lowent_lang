@@ -75,9 +75,9 @@ the theorem's premise, and the processor rejects it. When a borrow is born and d
 Something was learned while proving. There is *only one way* borrows break in loops.
 
 ```text
-A borrow τ created in pre is used in body, while body also contains owner access own(x).
-  → own(x) in round i kills τ.
-  → use(τ) in round i+1 is a violation.
+A borrow T created in pre is used in body, while body also contains owner access own(x).
+  → own(x) in round i kills T.
+  → use(T) in round i+1 is a violation.
 ```
 
 One static rule rejects exactly that pair --- a borrow living across the loop × owner access in the body --- and the proof of Theorem B shows "that one is

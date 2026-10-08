@@ -675,112 +675,114 @@
 
 [spsc — 락 없는 SPSC 링 버퍼](sec73.md)
 
-[hash — 해시(해시맵 자리 · 손상 검출 · SHA-256)](sec74.md)
+[hash — 해시(해시맵 자리 · 손상 검출 · SHA-2)](sec74.md)
 
-[math — 부동소수 수학](sec75.md)
+[hash_legacy — 옛 해시(MD5 · SHA-1)](sec75.md)
 
-[random — 난수(재현되는 열 · OS 엔트로피)](sec76.md)
+[math — 부동소수 수학](sec76.md)
 
-[hmac — HMAC-SHA256 과 HKDF](sec77.md)
+[random — 난수(재현되는 열 · OS 엔트로피)](sec77.md)
 
-[chacha — ChaCha20 스트림 암호](sec78.md)
+[hmac — HMAC-SHA256 과 HKDF](sec78.md)
 
-[poly — Poly1305 한 번 쓰는 인증자](sec79.md)
+[chacha — ChaCha20 스트림 암호](sec79.md)
 
-[aead — ChaCha20-Poly1305 봉인과 개봉](sec80.md)
+[poly — Poly1305 한 번 쓰는 인증자](sec80.md)
 
-[x25519 — 곡선 위의 키 합의](sec81.md)
+[aead — ChaCha20-Poly1305 봉인과 개봉](sec81.md)
 
-[aes — AES-128 블록 암호](sec82.md)
+[x25519 — 곡선 위의 키 합의](sec82.md)
 
-[gcm — AES-128-GCM 인증 암호](sec83.md)
+[aes — AES-128 블록 암호](sec83.md)
 
-[crypto_hw — 기계가 도와주는 암호 셈](sec84.md)
+[gcm — AES-128-GCM 인증 암호](sec84.md)
 
-[bigint — 큰수 모듈러 산술](sec85.md)
+[crypto_hw — 기계가 도와주는 암호 셈](sec85.md)
 
-[rsa — RSASSA-PSS 검증](sec86.md)
+[bigint — 큰수 모듈러 산술](sec86.md)
 
-[p256 — NIST P-256 곡선과 ECDSA 검증](sec87.md)
+[rsa — RSASSA-PSS 검증](sec87.md)
 
-[p384 — NIST P-384 곡선과 ECDSA 검증](sec88.md)
+[p256 — NIST P-256 곡선과 ECDSA 검증](sec88.md)
 
-[ecdsa — ECDSA P-256 서명 생성](sec89.md)
+[p384 — NIST P-384 곡선과 ECDSA 검증](sec89.md)
 
-[ed25519 — Ed25519 서명 검증](sec90.md)
+[ecdsa — ECDSA P-256 서명 생성](sec90.md)
 
-[der — DER 최소 파서](sec91.md)
+[ed25519 — Ed25519 서명 검증](sec91.md)
 
-[pem — PEM 봉투 벗기기](sec92.md)
+[der — DER 최소 파서](sec92.md)
 
-[x509 — X.509 인증서 읽기](sec93.md)
+[pem — PEM 봉투 벗기기](sec93.md)
 
-[verify — 인증서 서명과 체인의 한 마디 확인](sec94.md)
+[x509 — X.509 인증서 읽기](sec94.md)
 
-- [ 체인은 마디의 줄이다](sec94.md#sx1)
-- [ op](sec94.md#sx2)
-- [ 설계](sec94.md#sx3)
+[verify — 인증서 서명과 체인의 한 마디 확인](sec95.md)
 
-[tls13 — TLS 1.3 의 계산 부품](sec95.md)
+- [ 체인은 마디의 줄이다](sec95.md#sx1)
+- [ op](sec95.md#sx2)
+- [ 설계](sec95.md#sx3)
 
-[tlssrv — TLS 1.3 서버 핸드셰이크](sec96.md)
+[tls13 — TLS 1.3 의 계산 부품](sec96.md)
 
-[tlscli — TLS 1.3 클라이언트 핸드셰이크](sec97.md)
+[tlssrv — TLS 1.3 서버 핸드셰이크](sec97.md)
 
-- [ 핸드셰이크의 차례](sec97.md#sx1)
-- [ op](sec97.md#sx2)
-- [ 설계](sec97.md#sx3)
+[tlscli — TLS 1.3 클라이언트 핸드셰이크](sec98.md)
 
-[http — HTTP/1.1 요청 파서](sec98.md)
+- [ 핸드셰이크의 차례](sec98.md#sx1)
+- [ op](sec98.md#sx2)
+- [ 설계](sec98.md#sx3)
 
-[soa — SoA 배치 시범: 필드마다 배열 하나](sec99.md)
+[http — HTTP/1.1 요청 파서](sec99.md)
 
-[allocs — 얼로케이터 trait 과 범프 · 기본 얼로케이터](sec100.md)
+[soa — SoA 배치 시범: 필드마다 배열 하나](sec100.md)
 
-[pool — 세대 핸들 블록 풀](sec101.md)
+[allocs — 얼로케이터 trait 과 범프 · 기본 얼로케이터](sec101.md)
 
-[shard — 저장소를 쪼개는 접근 단위](sec102.md)
+[pool — 세대 핸들 블록 풀](sec102.md)
 
-[budget — 핸들 비트 예산과 세대 한 바퀴](sec103.md)
+[shard — 저장소를 쪼개는 접근 단위](sec103.md)
 
-[wire — 한 낱말을 칸으로 나눠 쓰기](sec104.md)
+[budget — 핸들 비트 예산과 세대 한 바퀴](sec104.md)
 
-[flags — 이름 붙은 켬 · 끔을 한 낱말에](sec105.md)
+[wire — 한 낱말을 칸으로 나눠 쓰기](sec105.md)
 
-[segarena — 고정 크기 세그먼트 아레나](sec106.md)
+[flags — 이름 붙은 켬 · 끔을 한 낱말에](sec106.md)
 
-[pagecache — 페이지 id 와 고정 커서](sec107.md)
+[segarena — 고정 크기 세그먼트 아레나](sec107.md)
 
-[growvec — 자가성장 바이트 벡터](sec108.md)
+[pagecache — 페이지 id 와 고정 커서](sec108.md)
 
-[vecgen — 제네릭 자가성장 벡터 vec t a](sec109.md)
+[growvec — 자가성장 바이트 벡터](sec109.md)
 
-[mapgen — 제네릭 해시맵 table k v](sec110.md)
+[vecgen — 제네릭 자가성장 벡터 vec t a](sec110.md)
 
-[nodelist — 고정 intrusive 목록](sec111.md)
+[mapgen — 제네릭 해시맵 table k v](sec111.md)
 
-[segview — 조각 뷰의 커서 · 총길이 · 펴기](sec112.md)
+[nodelist — 고정 intrusive 목록](sec112.md)
 
-[lifemode · lifeatom — 값이 언제 끝나는가](sec113.md)
+[segview — 조각 뷰의 커서 · 총길이 · 펴기](sec113.md)
 
-[io — 슬라이스 위의 스트림 읽기](sec114.md)
+[lifemode · lifeatom — 값이 언제 끝나는가](sec114.md)
 
-[outbuf — 버퍼링 출력, flush 망각은 컴파일 오류](sec115.md)
+[io — 슬라이스 위의 스트림 읽기](sec115.md)
 
-[files — 파일 · 디렉터리 스트림, close 망각은 컴파일 오류](sec116.md)
+[outbuf — 버퍼링 출력, flush 망각은 컴파일 오류](sec116.md)
 
-[tty — 터미널 입력](sec117.md)
+[files — 파일 · 디렉터리 스트림, close 망각은 컴파일 오류](sec117.md)
 
-[net — 소켓(TCP loopback · 프로세스 안 한 쌍)](sec118.md)
+[tty — 터미널 입력](sec118.md)
 
-[clock — 시각과 마감](sec119.md)
+[net — 소켓(TCP loopback · 프로세스 안 한 쌍)](sec119.md)
 
-[trust — 신뢰 저장소에서 믿는 뿌리 찾기](sec120.md)
+[clock — 시각과 마감](sec120.md)
 
-- [ 묶음을 통째로 들지 않는다](sec120.md#sx1)
-- [ op](sec120.md#sx2)
+[trust — 신뢰 저장소에서 믿는 뿌리 찾기](sec121.md)
 
-[찾아보기](sec121.md)
+- [ 묶음을 통째로 들지 않는다](sec121.md#sx1)
+- [ op](sec121.md#sx2)
+
+[찾아보기](sec122.md)
 
 ---
 

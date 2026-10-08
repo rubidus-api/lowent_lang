@@ -16,7 +16,7 @@ Produces numbers from byte strings. Three things of different character live in 
 
 > **`of` and `crc` are not cryptographic**
 >
-> > `of` (FNV-1a 64) is for **hash map slots** — fast and well spread, but not cryptographic. `crc` (reflected CRC-32) detects **accidental corruption** — matching a desired CRC is easy, so it does not stop forgery. `digest` and `digest_ok` (SHA-256), `sha2_384` and `sha2_512` are the cryptographic hashes; proof of integrity lives there. Keyed authentication is not `digest` either but [`hmac`](sec79.md#mod-hmac) — a hash alone cannot answer **who sent it**.
+> > `of` (FNV-1a 64) is for **hash map slots** — fast and well spread, but not cryptographic. `crc` (reflected CRC-32) detects **accidental corruption** — matching a desired CRC is easy, so it does not stop forgery. `sha2_256` and `sha2_256_ok` (SHA-256), `sha2_384` and `sha2_512` are the cryptographic hashes; proof of integrity lives there. Keyed authentication is not `sha2_256` either but [`hmac`](sec79.md#mod-hmac) — a hash alone cannot answer **who sent it**.
 
 ```lowent
 use hash .
@@ -36,15 +36,15 @@ end
 | `crc` | `(data slice u8) → u64` | Reflected CRC-32 — corruption detection |
 | `crc_ok` | `(data, want u64) → bool` | Compare with a check value |
 | `maybe_same` | `(a, b slice u8) → bool` | Are the hashes equal — not proof of equality |
-| `digest` | `(data, out mut slice u8) → u64` | SHA-256 — bytes written (32) |
-| `digest_ok` | `(data, out mut slice u8, want slice u8) → bool` | Compare with a received digest |
+| `sha2_256` | `(data, out mut slice u8) → u64` | SHA-256 — bytes written (32) |
+| `sha2_256_ok` | `(data, out mut slice u8, want slice u8) → bool` | Compare with a received digest |
 | `sha2_384` | `(data, out mut slice u8) → u64` | SHA-384 — bytes written (48) |
 | `sha2_512` | `(data, out mut slice u8) → u64` | SHA-512 — bytes written (64) |
 | `digest_eq` | `(a, b slice u8) → bool` | Are two digests equal — reads to the end whatever the length |
 
 *Table 50.1 — Ops of `hash`*
 
-Why `digest_ok` exists — the right use of a hash is not a round trip but **comparison**. Recomputing and matching against what was received is the only correct use, so that shape is an op (if `want` is not 32 bytes it is simply `false` — the contract starts with the length). Why `maybe_same` says `maybe` — equal hashes do not mean equal values. Calling it `same` would have made the name a lie.
+Why `sha2_256_ok` exists — the right use of a hash is not a round trip but **comparison**. Recomputing and matching against what was received is the only correct use, so that shape is an op (if `want` is not 32 bytes it is simply `false` — the contract starts with the length). Why `maybe_same` says `maybe` — equal hashes do not mean equal values. Calling it `same` would have made the name a lie.
 
 `sha2_384` and `sha2_512` follow the same rule — the digest goes into the caller’s buffer, and a buffer that is too short gets the answer 0 and nothing written. To compare with a received digest use `digest_eq`. It does not stop at the first differing byte, so the time it takes does not tell how far the two agreed.
 

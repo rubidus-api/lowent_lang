@@ -94,7 +94,7 @@ UTF-16 을 쓰는 세계(Windows API·Java·JavaScript)와 값을 주고받을 �
   [*물음*], [*op*], [*쓰는 해시*],
   [해시맵의 어느 칸에 넣나], [`of` · `bucket_of` · `bucket_mask`], [FNV-1a --- 빠르고 고르다],
   [저장·전송 중에 손상됐나], [`crc` · `crc_ok`], [CRC-32 --- 우연한 비트 오류를 잡는다],
-  [누가 일부러 바꾸지 않았나], [`digest` · `digest_ok`], [SHA-256 --- 충돌을 찾기 어렵다],
+  [누가 일부러 바꾸지 않았나], [`sha2_256` · `sha2_256_ok`], [SHA-256 --- 충돌을 찾기 어렵다],
 )
 
 `slot` 은 키 "hello" 를 16 칸 가운데 11 번에 넣는다. `bucket_of` 는 나머지 `mod` 로 칸을 고르므로 결과가 언제나 칸 수보다
@@ -148,7 +148,7 @@ UTF-16 을 쓰는 세계(Windows API·Java·JavaScript)와 값을 주고받을 �
   [`fmt.put_str buf pos s` · `fmt.put_u64 buf pos n`], [호출자의 버퍼에 조립 --- 다음 자리를 `option` 으로], [전량 아니면 무],
   [`utf8.count_chars s` · `utf8.decode s at`], [글자 수 · 그 자리의 코드포인트], [올바르지 않으면 치환 문자 대신 `none`],
   [`codec.hex_enc src dst` · `b64_enc`], [옮겨 적고 쓴 수를 준다], [결과는 `subslice dst 0 n` --- 암호화가 아니다],
-  [`hash.bucket_of key n` · `hash.crc data` · `hash.digest`], [칸 고르기 · 손상 검출 · 변조 검출], [물음마다 다른 해시],
+  [`hash.bucket_of key n` · `hash.crc data` · `hash.sha2_256`], [칸 고르기 · 손상 검출 · 변조 검출], [물음마다 다른 해시],
   [`regex`], [한 번 컴파일해 여러 입력에 맞춘다], [역추적하지 않는다 --- 시간이 입력 길이에 비례],
 )
 

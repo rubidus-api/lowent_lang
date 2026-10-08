@@ -18,7 +18,7 @@ It does two things. **HMAC** is a token only someone knowing the key can make (`
 >
 > > It does not promise constant time and has not been audited. **Comparing MACs is the caller’s job** — compare without early return (accumulating bytes with XOR). A comparison returning at the first differing byte lets the tag be learned one byte at a time. `expand1` produces **only one block (at most 32 bytes)**.
 
-**Why a hash will not do.** `digest` (SHA-256) of [`hash`](sec75.md#mod-hash) answers only “is the content unchanged”. Anyone can recompute it, so it cannot answer who sent it. A key must be involved to open that question. The caller holds the backing (`scratch`). The size requirement is enforced by **guards**, not documentation, so if short it answers 0 and writes nothing.
+**Why a hash will not do.** `sha2_256` (SHA-256) of [`hash`](sec75.md#mod-hash) answers only “is the content unchanged”. Anyone can recompute it, so it cannot answer who sent it. A key must be involved to open that question. The caller holds the backing (`scratch`). The size requirement is enforced by **guards**, not documentation, so if short it answers 0 and writes nothing.
 
 | **op** | **What it does** | **Requires** |
 |---|---|---|

@@ -12,7 +12,7 @@ rem
 rem ★ 두 해시의 쓸모가 다르다 — 골라 쓰라고 이름에 적어 둔다:
 rem     hash_bytes : 해시맵 자리. 빠르고 잘 흩어진다. **암호용이 아니다.**
 rem     crc32      : 저장·전송의 **우연한 손상** 검출. **위조를 막지 못한다**(선형이다).
-rem   둘 다 비밀이나 서명에 쓰면 안 된다. 그 자리는 **아래 `digest`(SHA-256) · `sha2_384` · `sha2_512`** 다.
+rem   둘 다 비밀이나 서명에 쓰면 안 된다. 그 자리는 **아래 `sha2_256`(SHA-256) · `sha2_384` · `sha2_512`** 다.
 rem   ★ MD5 와 SHA-1 은 여기 없다 — 보안에는 쓸 수 없는 해시여서 `lib/hash_legacy.low` 에 따로 둔다(체크섬 · 옛 파일 읽기).
 rem   ★ 이 줄은 2026-08-16 까지 *"SHA-256 은 아직 없다"* 라고 적혀 있었다 — RFC-0090 N3c 로
 rem     들어온 뒤에도 그대로였고, 매뉴얼을 쓰다 발견했다. **머리가 몸보다 낡으면 읽는 사람은
@@ -73,14 +73,15 @@ rem ── 암호 해시 (SHA-256) ───────────────
 rem ★★★ **32 바이트 다이제스트를 호출자 버퍼에 쓴다** — 라이브러리가 몰래 할당하지 않는다
 rem   (RFC-0043 D1). 버퍼가 32 보다 짧으면 **0 을 답하고 아무것도 안 쓴다**: 조용히 덜 쓰는
 rem   것이 이 축에서 가장 위험한 실패다(짧은 다이제스트는 맞아 보인다).
-export fn digest input data slice u8 . input out mut slice u8 . output u64 . do
+rem ★ 이름은 `sha2_384` · `sha2_512` 와 같은 줄에 선다(2026-10-09 소유자 결정 — 옛 이름 `digest` · `digest_ok` 는 없앴다).
+export fn sha2_256 input data slice u8 . input out mut slice u8 . output u64 . do
   return call_builtin sha256 data out .
 end
 
 rem ★★ **왕복이 아니라 대조가 오라클이다** — 받은 다이제스트와 다시 센 것이 같은가.
 rem   여기서 **이른 반환을 하지 않는다**(첫 다른 바이트에서 멈추지 않는다): 타이밍이 새면
 rem   비교 자체가 정보를 준다. 32 바이트를 늘 끝까지 본다.
-export fn digest_ok input data slice u8 . input out mut slice u8 . input want slice u8 . output bool . do
+export fn sha2_256_ok input data slice u8 . input out mut slice u8 . input want slice u8 . output bool . do
   guard eq (len want) 32 . else return false .
   let n be u64 call_builtin sha256 data out .
   guard eq n 32 . else return false .
@@ -99,7 +100,7 @@ rem ★ 이름에 **족보**를 적는다 — `sha2_384` · `sha2_512`. «384 �
 rem   `digest384` 같은 이름은 어느 알고리즘인지 말하지 않는다(2026-10-09 소유자 지적). 맨 이름 `sha384` 는 쓸 수 없다 —
 rem   내장 잎이 그 철자를 갖고 있고, 잎의 이름은 저자가 다시 지을 수 없다(`E-NAME-BUILTIN`).
 rem ★ SHA-2 의 큰 두 판. 잎(`sha384` · `sha512`)은 전부터 있었고 서명(ed25519)과 TLS 가 쓰고 있었다 —
-rem   라이브러리의 문으로 내놓지 않았을 뿐이다(2026-10-09). 규율은 `digest` 와 같다: 호출자 버퍼에 쓰고,
+rem   라이브러리의 문으로 내놓지 않았을 뿐이다(2026-10-09). 규율은 `sha2_256` 와 같다: 호출자 버퍼에 쓰고,
 rem   버퍼가 모자라면 **0 을 답하고 아무것도 안 쓴다**.
 rem   ★ 48 바이트 다이제스트. 낸 값은 48.
 export fn sha2_384 input data slice u8 . input out mut slice u8 . output u64 . do

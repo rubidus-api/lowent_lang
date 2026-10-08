@@ -12,8 +12,8 @@ rem
 rem ★ 두 해시의 쓸모가 다르다 — 골라 쓰라고 이름에 적어 둔다:
 rem     hash_bytes : 해시맵 자리. 빠르고 잘 흩어진다. **암호용이 아니다.**
 rem     crc32      : 저장·전송의 **우연한 손상** 검출. **위조를 막지 못한다**(선형이다).
-rem   둘 다 비밀이나 서명에 쓰면 안 된다. 그 자리는 **아래 `digest`(SHA-256) · `digest384` · `digest512`** 다.
-rem   ★ MD5 와 SHA-1 은 여기 없다 — 깨진 해시이고, 옛 것과 맞춰야 하는 자리를 위해 `lib/hash_legacy.low` 에 따로 둔다.
+rem   둘 다 비밀이나 서명에 쓰면 안 된다. 그 자리는 **아래 `digest`(SHA-256) · `sha2_384` · `sha2_512`** 다.
+rem   ★ MD5 와 SHA-1 은 여기 없다 — 보안에는 쓸 수 없는 해시여서 `lib/hash_legacy.low` 에 따로 둔다(체크섬 · 옛 파일 읽기).
 rem   ★ 이 줄은 2026-08-16 까지 *"SHA-256 은 아직 없다"* 라고 적혀 있었다 — RFC-0090 N3c 로
 rem     들어온 뒤에도 그대로였고, 매뉴얼을 쓰다 발견했다. **머리가 몸보다 낡으면 읽는 사람은
 rem     없는 기능을 찾아 나선다**; 없다고 적힌 것을 굳이 뒤져 보는 사람은 드물다.
@@ -95,16 +95,19 @@ end
 
 rem ── 암호 해시 (SHA-384 · SHA-512) ───────────────────────────────────
 
+rem ★ 이름에 **족보**를 적는다 — `sha2_384` · `sha2_512`. «384 비트 다이제스트» 는 SHA-2 에도 SHA-3 에도 있으므로
+rem   `digest384` 같은 이름은 어느 알고리즘인지 말하지 않는다(2026-10-09 소유자 지적). 맨 이름 `sha384` 는 쓸 수 없다 —
+rem   내장 잎이 그 철자를 갖고 있고, 잎의 이름은 저자가 다시 지을 수 없다(`E-NAME-BUILTIN`).
 rem ★ SHA-2 의 큰 두 판. 잎(`sha384` · `sha512`)은 전부터 있었고 서명(ed25519)과 TLS 가 쓰고 있었다 —
 rem   라이브러리의 문으로 내놓지 않았을 뿐이다(2026-10-09). 규율은 `digest` 와 같다: 호출자 버퍼에 쓰고,
 rem   버퍼가 모자라면 **0 을 답하고 아무것도 안 쓴다**.
 rem   ★ 48 바이트 다이제스트. 낸 값은 48.
-export fn digest384 input data slice u8 . input out mut slice u8 . output u64 . do
+export fn sha2_384 input data slice u8 . input out mut slice u8 . output u64 . do
   return call_builtin sha384 data out .
 end
 
 rem   ★ 64 바이트 다이제스트. 낸 값은 64.
-export fn digest512 input data slice u8 . input out mut slice u8 . output u64 . do
+export fn sha2_512 input data slice u8 . input out mut slice u8 . output u64 . do
   return call_builtin sha512 data out .
 end
 

@@ -35,7 +35,7 @@ Cross-module names are always called qualified (`strings.find`), and a frequentl
   [#modref("vecs")[`vecs`]], [Growing byte vector],
   [#modref("spsc")[`spsc`]], [Lock-free single-producer single-consumer ring buffer],
   [#modref("hash")[`hash`]], [Hash-map slots (FNV-1a) · damage detection (CRC-32) · SHA-256 · SHA-384 · SHA-512],
-  [#modref("hash_legacy")[`hash_legacy`]], [Old hashes MD5 · SHA-1 --- only to match something old],
+  [#modref("hash_legacy")[`hash_legacy`]], [MD5 · SHA-1 --- checksums and reading old files. Not for security],
   [#modref("math")[`math`]], [Floating-point maths --- `close` instead of `==`],
   [#modref("random")[`random`]], [Separates reproducible sequences from OS entropy by name],
   [#modref("hmac")[`hmac`]], [HMAC-SHA256 · HKDF --- who sent it],

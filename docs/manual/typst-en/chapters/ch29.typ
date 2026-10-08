@@ -74,7 +74,7 @@ Only what the C ABI can express crosses the boundary. `option`, `result`, vector
 
 #demo("examples/ch29/fftype.low")
 
-*Only slices* are mapped automatically. `slice T` becomes two arguments, "a pointer to `T`" and "a count". The width is known too --- `slice u32` is `uint32_t *`, not
+*Only slices* are mapped automatically. `slice <type>` becomes two arguments, "a pointer to `<type>`" and "a count". The width is known too --- `slice u32` is `uint32_t *`, not
 a byte pointer. Capabilities are not values, so they do not cross into C. There is one ABI name, `c`. "What C is on this machine" is already decided by the machine
 building it.
 
@@ -149,7 +149,7 @@ apply.
 - An op used as a callback cannot require capabilities (`E-FN-CAP`). It is C that enters the callback, and C has no capabilities to hand over. Work needing
   capabilities is done outside the callback; inside, it only computes.
 
-Passing `owned T` to an `extern` moves the responsibility to dispose of it to C. This side's obligation ends there, and whether it is later released is not verified.
+Passing `owned <type>` to an `extern` moves the responsibility to dispose of it to C. This side's obligation ends there, and whether it is later released is not verified.
 C functions taking an unfixed number of arguments after the fixed ones can be called with a `variadic .` clause, but contracts do not reach those arguments, and the
 opposite direction (C calling our variadics) does not exist.
 
@@ -227,7 +227,7 @@ opposite direction (C calling our variadics) does not exist.
   [`link "exported_clamp_add" .`], [name the export's C symbol yourself], [a name C cannot take is `E-LINK-NAME`],
   [`lowentc --emit-h` · `--no-main`], [emit a header · emit as a library without `main`], [the signature lives in one place],
   [`unsafe_fn cmp`], [address of an `export extern` op (callback)], [ordinary op: `E-FN-NOTEXPORT` · with a capability: `E-FN-CAP`],
-  [`input h owned T .` (to an extern)], [responsibility for destroying passes to C], [what C does with it afterwards is not verified],
+  [`input h owned <type> .` (to an extern)], [responsibility for destroying passes to C], [what C does with it afterwards is not verified],
   [`variadic .`], [call a C variadic function], [contracts do not reach variadic arguments],
   [`def newtype cstr unsafe_ptr u8 .` · `cstr_of "…\0"`], [C pointer qualifier · view as a zero-terminated C string], [pointers are handled only through named types],
 )

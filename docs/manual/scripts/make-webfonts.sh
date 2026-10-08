@@ -42,6 +42,12 @@ for lang in ("ko", "en"):
     for f in d.glob("*.html"):
         t = html.unescape(re.sub(r"<[^>]+>", " ", f.read_text(encoding="utf-8")))
         chars.update(t)
+# ★ 명세 웹 판도 **같은 글꼴 파일을 나눠 쓴다**(2026-10-09). 그 쪽의 글자가 서브셋에 없으면 그 글자만 대체 글꼴로 떨어진다.
+spec = docs.parent / "spec" / "html"
+if spec.exists():
+    for f in spec.glob("*.html"):
+        t = html.unescape(re.sub(r"<[^>]+>", " ", f.read_text(encoding="utf-8")))
+        chars.update(t)
 chars = {c for c in chars if ord(c) >= 0x20}
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text("".join(sorted(chars)), encoding="utf-8")

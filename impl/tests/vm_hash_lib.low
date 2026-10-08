@@ -15,18 +15,18 @@ fn be8 input d slice u8 . input at u64 . output u64 . do
 end
 
 proc h384 input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  guard eq (hash.digest384 src dst) 48 . else return 0 .
+  guard eq (hash.sha2_384 src dst) 48 . else return 0 .
   return be8 dst 0 .
 end
 
 proc h512 input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  guard eq (hash.digest512 src dst) 64 . else return 0 .
+  guard eq (hash.sha2_512 src dst) 64 . else return 0 .
   return be8 dst 0 .
 end
 
 rem 버퍼가 모자라면 0 — 아무것도 안 쓴다.
 proc h512_short input src slice u8 . input dst mut slice u8 . output u64 . effects none . do
-  guard eq (hash.digest512 src dst) 0 . else return 0 .
+  guard eq (hash.sha2_512 src dst) 0 . else return 0 .
   for i count u64 (len dst) . do
     guard eq (idx dst i) 0 . else return 0 .
   end

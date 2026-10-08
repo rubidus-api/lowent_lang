@@ -8,7 +8,7 @@
 
 #aside[`of` 와 `crc` 는 암호용이 아니다][
   `of`(FNV-1a 64)는 *해시맵 자리* --- 빠르고 잘 흩어지지만 암호용이 아니다. `crc`(반사 CRC-32)는 *우연한 손상* 검출 --- 원하는 CRC 를 맞추는 것은 쉬우므로 위조를
-  막지 못한다. `digest` · `digest_ok`(SHA-256)와 `digest384` · `digest512` 는 암호 해시로, 무결성 증명은 이쪽이다. 키가 있는 인증은 `digest` 도 아니고 #modref("hmac")[`hmac`] 이다 --- 해시
+  막지 못한다. `digest` · `digest_ok`(SHA-256)와 `sha2_384` · `sha2_512` 는 암호 해시로, 무결성 증명은 이쪽이다. 키가 있는 인증은 `digest` 도 아니고 #modref("hmac")[`hmac`] 이다 --- 해시
   하나로는 *누가 보냈는가* 에 답할 수 없다.
 ]
 
@@ -36,8 +36,8 @@ end
   [`maybe_same`], [`(a, b slice u8) → bool`], [해시가 같은가 --- 같다는 증명이 아니다],
   [`digest`], [`(data, out mut slice u8) → u64`], [SHA-256 --- 쓴 바이트 수(32)],
   [`digest_ok`], [`(data, out mut slice u8, want slice u8) → bool`], [받은 다이제스트와 대조],
-  [`digest384`], [`(data, out mut slice u8) → u64`], [SHA-384 --- 쓴 바이트 수(48)],
-  [`digest512`], [`(data, out mut slice u8) → u64`], [SHA-512 --- 쓴 바이트 수(64)],
+  [`sha2_384`], [`(data, out mut slice u8) → u64`], [SHA-384 --- 쓴 바이트 수(48)],
+  [`sha2_512`], [`(data, out mut slice u8) → u64`], [SHA-512 --- 쓴 바이트 수(64)],
   [`digest_eq`], [`(a, b slice u8) → bool`], [다이제스트 둘이 같은가 --- 길이에 상관없이 끝까지 본다],
 )
 
@@ -45,9 +45,9 @@ end
 가 32 바이트가 아니면 그대로 `false` --- 길이부터 계약(op 이 스스로 적는 약속)이다). `maybe_same` 에 `maybe` 가 붙은 이유 --- 해시가 같아도 값이 같다는 뜻은 아니다. `same` 이라 불렀으면
 이름이 거짓말이 됐을 것이다.
 
-`digest384` 와 `digest512` 도 규율이 같다 --- 다이제스트를 호출자 버퍼에 쓰고, 버퍼가 모자라면 0 을 답하고 아무것도 쓰지 않는다. 받은 다이제스트와 맞댈 때는 `digest_eq`
+`sha2_384` 와 `sha2_512` 도 규율이 같다 --- 다이제스트를 호출자 버퍼에 쓰고, 버퍼가 모자라면 0 을 답하고 아무것도 쓰지 않는다. 받은 다이제스트와 맞댈 때는 `digest_eq`
 를 쓴다. 첫 다른 바이트에서 멈추지 않으므로 걸린 시간이 «어디까지 맞았는지» 를 말해 주지 않는다.
 
-MD5 와 SHA-1 은 이 모듈에 없다. 깨진 해시이고, 옛 것과 맞춰야 하는 자리를 위해 #modref("hash_legacy")[`hash_legacy`] 에 따로 있다.
+MD5 와 SHA-1 은 이 모듈에 없다. 보안에는 쓸 수 없는 해시여서 #modref("hash_legacy")[`hash_legacy`] 에 따로 있다 --- 체크섬과 옛 파일 읽기에는 그쪽을 쓴다.
 
 *짓지 않은 것* --- 키드 해시(그 자리는 `hmac`), 시드 가능한 해시(HashDoS 방어), 스트리밍(조각으로 이어 먹이기), SHA-3.

@@ -25,7 +25,7 @@ Module names may differ from file names. What `use` looks for is the `module` de
 | [`vecs`](sec73.md#mod-vecs) | Growing byte vector |
 | [`spsc`](sec74.md#mod-spsc) | Lock-free single-producer single-consumer ring buffer |
 | [`hash`](sec75.md#mod-hash) | Hash-map slots (FNV-1a) · damage detection (CRC-32) · SHA-256 · SHA-384 · SHA-512 |
-| [`hash_legacy`](sec76.md#mod-hash_legacy) | Old hashes MD5 · SHA-1 — only to match something old |
+| [`hash_legacy`](sec76.md#mod-hash_legacy) | MD5 · SHA-1 — checksums and reading old files. Not for security |
 | [`math`](sec77.md#mod-math) | Floating-point maths — `close` instead of `==` |
 | [`random`](sec78.md#mod-random) | Separates reproducible sequences from OS entropy by name |
 | [`hmac`](sec79.md#mod-hmac) | HMAC-SHA256 · HKDF — who sent it |

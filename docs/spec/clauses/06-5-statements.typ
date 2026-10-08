@@ -215,9 +215,9 @@ end")
       [*머리*], [*꼴*], [*이름이 차례로 갖는 것*],
       [원소], [`for x <슬라이스> do`], [슬라이스의 원소 — 앞에서부터],
       [원소 자리], [`for x mut <슬라이스> do`], [슬라이스의 칸 그 자체 — 읽고 쓸 수 있다],
-      [세기], [`for i count T n . do`], [`0, 1, …, n−1`],
-      [구간], [`for i range T a b . do` · `for i range T a b step k . do`], [`a` 에서 `b` 까지, 두 끝을 넣어],
-      [점화식], [`for i be T v . while c . next e . do`], [`v` 에서 시작해 바퀴마다 `e`],
+      [세기], [`for i count <타입> n . do`], [`0, 1, …, n−1`],
+      [구간], [`for i range <타입> a b . do` · `for i range <타입> a b step k . do`], [`a` 에서 `b` 까지, 두 끝을 넣어],
+      [점화식], [`for i be <타입> v . while c . next e . do`], [`v` 에서 시작해 바퀴마다 `e`],
       )
     ]
     #para("2")[
@@ -239,14 +239,14 @@ end")
       `set` 할 수 없다(`E-FOR-HEAD`) — 칸을 바꾸려면 머리에 `mut` 을 적는다.
     ]
     #para("4")[
-      #strong[세기.]; `for i count T n .` 는 `i` 에 `0` 부터 `n−1` 까지를 차례로 담는다. `n` 이 0 이하이면 한 번도
-      돌지 아니한다. `T` 는 셈의 타입이며 #strong[언제나 적는 정수 타입];이다 — 적지 않거나 정수 타입이 아니면
-      번역이 거부된다(`E-FOR-STEP`). `n` 은 `T` 에 들어가야 한다(`E-TYPE-WIDTH`).
+      #strong[세기.]; `for i count <타입> n .` 는 `i` 에 `0` 부터 `n−1` 까지를 차례로 담는다. `n` 이 0 이하이면 한 번도
+      돌지 아니한다. `<타입>` 는 셈의 타입이며 #strong[언제나 적는 정수 타입];이다 — 적지 않거나 정수 타입이 아니면
+      번역이 거부된다(`E-FOR-STEP`). `n` 은 `<타입>` 에 들어가야 한다(`E-TYPE-WIDTH`).
     ]
     #para("5")[
-      #strong[구간.]; `for i range T a b .` 는 `a` 에서 `b` 까지 #strong[두 끝을 넣어]; 돈다. 방향은 두 끝이 정한다 —
+      #strong[구간.]; `for i range <타입> a b .` 는 `a` 에서 `b` 까지 #strong[두 끝을 넣어]; 돈다. 방향은 두 끝이 정한다 —
       `range u64 3 5` 는 `3, 4, 5`, `range u64 5 3` 은 `5, 4, 3` 이다. 두 끝이 같으면 한 번 돈다.
-      두 끝은 `T` 에 들어가야 한다(`E-TYPE-WIDTH`).
+      두 끝은 `<타입>` 에 들어가야 한다(`E-TYPE-WIDTH`).
     ]
     #para("5a")[
       `step k` 를 적으면 다음 값은 `지금 + k` 이고 #strong[방향은 `k` 의 부호가 정한다.]; 시작이 이미 그 방향으로
@@ -259,9 +259,9 @@ end")
       타입을 넘는 일이 없다.
     ]
     #para("6")[
-      #strong[점화식.]; `for i be T v . while c . next e . do … end` 는 `i` 를 `v` 로 시작한다. 바퀴에 들어가기 전에
+      #strong[점화식.]; `for i be <타입> v . while c . next e . do … end` 는 `i` 를 `v` 로 시작한다. 바퀴에 들어가기 전에
       `c` 를 보아 참이면 블록을 돌고, 블록이 끝나면 `i` 에 `e` 의 값을 담는다. `c` 가 처음부터 거짓이면 한 번도
-      돌지 아니한다. `c` 는 `bool` 이어야 하고(`E-TYPE-COND`), `v` 와 `e` 는 `T` 에 들어가야 한다(`E-TYPE-WIDTH`).
+      돌지 아니한다. `c` 는 `bool` 이어야 하고(`E-TYPE-COND`), `v` 와 `e` 는 `<타입>` 에 들어가야 한다(`E-TYPE-WIDTH`).
       `e` 의 계산은 보통의 산술이다 — 넘치면 멈춘다(#cref("6.3.4")). `be` · `while` · `next` 세 절이 모두 있어야 한다.
     ]
     #para("7")[

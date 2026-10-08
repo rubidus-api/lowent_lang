@@ -10,7 +10,7 @@
 #ifndef LOW_VERSION_H
 #define LOW_VERSION_H
 
-#define LOW_VERSION "1.6.0"
+#define LOW_VERSION "1.6.1"
 
 // ★★★ **"버전" 은 한 낱말이 아니라 네 축이다** (RFC-0089 R4 · 단계 E, 2026-08-03).
 //

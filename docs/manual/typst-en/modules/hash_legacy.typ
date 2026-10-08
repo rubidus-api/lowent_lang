@@ -4,13 +4,13 @@
 
 #modhead(file: "lib/hash_legacy.low", layer: [L0 --- pure computation], caps: [none])
 
-Produces MD5 and SHA-1. Both are *broken hashes*, and this module exists only for places that must speak with something old.
+Produces MD5 and SHA-1. Neither may be used for *security*. Where security is not the point --- checksums, naming things by their content, reading old files --- they are still widely used.
 
-#aside[Do not use them in a new design][
+#aside[Not for security][
   For both hashes, different inputs with the same digest can be built --- real collisions appeared in 2004 for MD5 and in 2017 for SHA-1. They must not be used for
-  signatures, certificates, passwords or tamper detection. That is the job of `digest` (SHA-256), `digest384` and `digest512` in #modref("hash")[`hash`]. There is one
-  reason to use this module: checking a checksum that was already written with MD5 or SHA-1, a storage format that names things by such a hash, one step of an old
-  protocol. In those places the question is not "is it safe" but "does it give the same answer as the other side".
+  signatures, certificates, passwords or tamper detection. That is the job of `digest` (SHA-256), `sha2_384` and `sha2_512` in #modref("hash")[`hash`]. This module
+  fits where nobody is trying to deceive: a checksum that tells whether a download arrived intact, a storage format that names things by their content, a cache key,
+  and reading old files that were already written with MD5 or SHA-1.
 ]
 
 ```lowent
@@ -22,10 +22,10 @@ end
 ```
 
 *Why a separate module.* The name is the warning. Written `hash.md5`, it would read with the same weight as `hash.digest`. `hash_legacy.md5` makes the reader stop once.
-And this module will go away some day --- on that day `hash` does not change by a line.
+It does not mean the module is going away --- it is kept apart so that it is not mixed with the hashes meant for security.
 
-*Why not a builtin.* It is written entirely in this language. SHA-2 is a leaf of the compiler because of cost, and matching something old is not a hot path. It is
-slower, but it leans on nothing in the compiler, so removing this module leaves the compiler unchanged.
+*Why not a builtin.* It is written entirely in this language. SHA-2 is a leaf of the compiler because of cost, and checksums and reading old files are not that hot
+a path. It is slower, but it leans on nothing in the compiler.
 
 #dtable(
   columns: 3,

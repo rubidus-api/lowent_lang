@@ -25,7 +25,7 @@
 | [`vecs`](sec72.md#mod-vecs) | 자라는 바이트 벡터 |
 | [`spsc`](sec73.md#mod-spsc) | 락 없는 단일 생산자·단일 소비자 링 버퍼 |
 | [`hash`](sec74.md#mod-hash) | 해시맵 자리(FNV-1a) · 손상 검출(CRC-32) · SHA-256 · SHA-384 · SHA-512 |
-| [`hash_legacy`](sec75.md#mod-hash_legacy) | 옛 해시 MD5 · SHA-1 — 옛 것과 맞출 때만 |
+| [`hash_legacy`](sec75.md#mod-hash_legacy) | MD5 · SHA-1 — 체크섬 · 옛 파일 읽기. 보안에는 쓰지 않는다 |
 | [`math`](sec76.md#mod-math) | 부동소수 수학 — `==` 대신 `close` |
 | [`random`](sec77.md#mod-random) | 재현되는 열과 운영체제 엔트로피를 이름으로 가른다 |
 | [`hmac`](sec78.md#mod-hmac) | HMAC-SHA256 · HKDF — 누가 보냈는가 |

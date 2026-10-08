@@ -10,7 +10,7 @@
 #ifndef LOW_VERSION_H
 #define LOW_VERSION_H
 
-#define LOW_VERSION "1.6.1"
+#define LOW_VERSION "1.7.0"
 
 // ★★★ **"버전" 은 한 낱말이 아니라 네 축이다** (RFC-0089 R4 · 단계 E, 2026-08-03).
 //
@@ -55,7 +55,7 @@
 //   표면을 옮길 수 있지만(의도를 커밋에 적는 조건으로), frozen 에서는 그 문이 **닫힌다** —
 //   `check-abi.py` 가 그 규칙을 강제한다. 상태를 낱말 하나 고치는 것이 곧 규율을 바꾼다.
 #define LOW_RELEASE      LOW_VERSION          /* ① lowentc 릴리스 */
-#define LOW_LANG_REV     "1.6"                /* ② 언어 개정(표면·의미) — 1.6: 태그 없는 `note` 거절 · `neg` 는 부호 있는 타입만이고 넘치면 멈춘다(RFC-0052 D4) · `mut` 없는 `for` 원소에 `set` 거절 — v1.6.0 */
+#define LOW_LANG_REV     "1.7"                /* ② 언어 개정(표면·의미) — 1.7: `be` 가 사라졌다(`let n u64 v .`) · 실패 절이 문장 안에(`else …` · `else error e do … end`) · 머리 안의 점이 사라졌다 · 되풀이 `for`/`repeat`/`range`/`cycle` · 할당기 절 `use`/`keep`(RFC-0141) · 빌트인 연산의 이름공간(RFC-0140) — v1.7.0 */
 // ★ 1.3 → 1.4 (2026-10-03, 소유자 결정 RFC-0127 «ⓐⓑⓒ» · RFC-0113 §7b): 표면이 깨지는 방향의 변경이 여럿 들어왔다 —
 //   비트셋·레인 op 접두사(`bitset_*`·`lane_*`) · 파일·그물 잎은 `call_builtin` 뒤 · `<식> . do` 와 한 폼 몸 거절 · `.name` 폐기 ·
 //   `not is_some` → `is_none` · `proc` 의 `effects` 필수 · `bitset_insert` 와 값 버리는 문장 거절 · 아무것도 안 닫는 점 거절.

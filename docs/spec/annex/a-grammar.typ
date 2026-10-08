@@ -318,7 +318,7 @@ match               match <폼> do <가지>* [else do <폼>* end] end         en
     #tbl("없앤 낱말 — 그리고 대신 쓰는 것")[
       #table(columns: (auto, auto, 1fr), stroke: 0.5pt + rgb("#bbb"), inset: 6pt,
       [*없앤 것*], [*대신*], [*왜*],
-      [`loop`], [`while true .`], [똑같은 뜻의 두 철자였다],
+      [`loop`], [`while true do`], [똑같은 뜻의 두 철자였다],
       [`give`], [`return`], [똑같은 뜻의 두 철자였다],
       [`unit`], [`void`], [한 뜻에 두 철자 — 명세와 도구가 다르게 불렀다],
       [`calcop`], [`fn`], [순수한 셈은 함수다. 그리고 «op» 은 이제 프렐류드 연산만 가리킨다],
@@ -334,6 +334,7 @@ match               match <폼> do <가지>* [else do <폼>* end] end         en
       [`;`], [`.`], [닫개의 #strong[세 번째 철자];였다(⟦§6.1.6⟧)],
       [`make`], [`lit`], [값 리터럴의 머리를 하나로 — 구조체·배열·벡터·슬라이스 값이 모두 `lit <타입> …` 로 시작한다],
       [`index`], [`idx`], [자주 쓰는 낱말을 짧게 — 읽기 `idx a 3` · 쓰기 `set (idx a 3) v .`],
+      [`be`], [(적지 않는다)], [타입의 끝은 타입 문법의 인자 수가 정한다 — 이름과 타입 사이에서 나르는 것이 없었다. 거부의 코드는 `E-LET-BE` 다(⟦§6.5.1⟧ (3a))],
       [`.이름` (머리 표시)], [맨 전위 · 괄호], [머리를 여는 셋째 철자였다 — 띄어쓰기 한 칸이 닫개를 머리로 바꿨다],
       [`not is_some x`], [`is_none x`], [같은 뜻의 두 철자였다(`E-NOT-IS-SOME`)],
       [`union` · `select` · `any` … (비트셋·레인)], [`bitset_union` · `lane_select` · `lane_any` …], [짧은 낱말을 저자에게 남긴다(⟦§6.3.3⟧ (1e))],

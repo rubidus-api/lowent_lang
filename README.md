@@ -1,4 +1,4 @@
-[한국어](README.ko.md) | **English** — **Lowent v1.6.1** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.6.1) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
+[한국어](README.ko.md) | **English** — **Lowent v1.7.0** — [Release notes](https://github.com/rubidus-api/lowent_lang/releases/tag/v1.7.0) · [PDF manual(en)](https://rubidus-api.github.io/lowent_lang/manual/pdf-en/lowent-manual-en.pdf) · [PDF manual(ko)](https://rubidus-api.github.io/lowent_lang/manual/pdf-ko/lowent-manual-ko.pdf) · [PDF spec(ko)](https://rubidus-api.github.io/lowent_lang/spec/pdf/lowent-spec.pdf)
 
 # Lowent
 
@@ -158,7 +158,7 @@ This buys some unusual properties. The whole grammar can be highlighted with pla
 
 ## Where it stands today
 
-Lowent is not just a design document. It grows together with a working compiler (compiler 1.6.1, language revision 1.6).
+Lowent is not just a design document. It grows together with a working compiler (compiler 1.7.0, language revision 1.7).
 
 - **The compiler, `lowentc`,** is written in C23. Its only external dependency is one vendored library (`proven_c_lib`, MIT). Native code goes out as C and is built by your system's C compiler. Targets: `x86_64`, `arm64`, `riscv64`, `cortex_m` and `mips_be`.
 - **Caught at compile time:** effect and capability violations, borrow and lifetime errors, use-after-move, unfinished resources, integer conversions that could lose a value, and contradictory or dead contracts.

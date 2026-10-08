@@ -1738,7 +1738,15 @@ static const nest_head_t NEST_KW_SHAPE[] = {
     { "spawn", "R" },      // spawn [actor] <이름> — `actor` 표식이 선택적이다
 };
 // `stack_new R capacity n` — `capacity` 표식이 선택적이라 모양이 하나가 아니다. 나머지를 그대로.
+// ★ `call_builtin <이름> …` — 이름 자리는 **빌트인 연산의 이름공간**이다(2026-10-09). 저자가 같은 철자의 op 을 지었더라도
+//   그 낱말을 머리로 묶으면 안 된다(`call_builtin (sha256 data) out` 이 된다). 나머지를 그대로 두고 하강이 읽는다.
 static const nest_head_t NEST_OPAQUE_R[] = { { "stack_new", "R" } };
+// ★ 빌트인 연산(계산)의 인자 수 — `call_builtin <이름> <피연산자>*` 를 **이름 낱말 + 값 n 개**로 묶는다.
+static const struct { const char *name; int ar; } NEST_CALL_BUILTIN[] = {
+#define X(n, w, a) { #n, a },
+    LOW_CALL_BUILTIN(X)
+#undef X
+};
 
 #define NEST_MAXOPS 256
 typedef struct {
@@ -1888,6 +1896,18 @@ static low_cst_t *nest_value(nest_ctx_t *c, low_cst_t *const *k, proven_size_t *
         for (proven_size_t i = 0; i < sizeof(NEST_KW_SHAPE)/sizeof(*NEST_KW_SHAPE); i++)
             if (nest_veq(nd->tok.lex, NEST_KW_SHAPE[i].name)) { sh = NEST_KW_SHAPE[i].shape; break; }
         if (!sh) { *bad = true; nest_blame(c, nd->tok.lex); return NULL; }   // 모양을 모르는 키워드 머리
+    } else if (nest_veq(nd->tok.lex, "call_builtin")) {
+        // ★ 이름 자리는 **낱말 슬롯**이다 — 저자가 같은 철자의 op 을 지었어도 머리로 묶지 않는다(`W`). 모르는 이름이면
+        //   나머지를 그대로 두고 하강이 `E-BUILTIN-NAME` 을 말한다.
+        static char cbsh[LOW_HDR_MAXP + 2];
+        sh = "R";
+        if (*pos < end && k[*pos]->kind == LOW_CST_ATOM)
+            for (proven_size_t i = 0; i < sizeof(NEST_CALL_BUILTIN)/sizeof(*NEST_CALL_BUILTIN); i++)
+                if (nest_veq(k[*pos]->tok.lex, NEST_CALL_BUILTIN[i].name) && NEST_CALL_BUILTIN[i].ar < LOW_HDR_MAXP) {
+                    int q = 0; cbsh[q++] = 'W';
+                    for (int a = 0; a < NEST_CALL_BUILTIN[i].ar; a++) cbsh[q++] = 'V';
+                    cbsh[q] = 0; sh = cbsh; break;
+                }
     } else {
         sh = nest_shape(c, nd->tok.lex);
         if (!sh) { *bad = true; nest_blame(c, nd->tok.lex); return NULL; }

@@ -2,7 +2,7 @@
 
 = `tty` --- 터미널 입력 <mod-tty>
 
-#modhead(file: "lib/tty.low", layer: [L2 --- 권한이 필요한 절반(내장) + 순수 파싱(이 모듈)], caps: [내장 `tty_raw` · `tty_read` · `tty_size` 에 `cap tty`])
+#modhead(file: "lib/tty.low", layer: [L2 --- 권한이 필요한 절반(기본 연산) + 순수 파싱(이 모듈)], caps: [기본 연산 `tty_raw` · `tty_read` · `tty_size` 에 `cap tty`])
 
 에디터나 메뉴처럼 *키를 하나씩 받아 반응하는* 프로그램을 만들 때 쓴다. 보통 터미널은 사용자가 Enter 를 눌러야 줄을 넘기고, 그 전까지 커널이 글자를 모으고 되비치고
 백스페이스도 처리한다(행 버퍼링과 에코). 방향키를 누르는 즉시 커서를 옮기려면 이 편의가 방해가 되므로 *raw 모드*로 바꿔 "누른 즉시, 되비침 없이" 받는다. 그리고
@@ -29,16 +29,16 @@ let used be u64 tty.len_of (some_value p) .
 #dtable(
   columns: 3,
   id: "mod-tty-ops",
-  caption: [`tty` 의 op 과 내장],
+  caption: [`tty` 의 op 과 기본 연산],
   [*op*], [*계층*], [*하는 일*],
   [`key_up` · `key_down` · `key_right` · `key_left`], [순수], [1001 · 1002 · 1003 · 1004],
   [`key_home` · `key_end` · `key_delete` · `key_pageup` · `key_pagedown` · `key_esc`], [순수], [1005 · 1006 · 1007 · 1008 · 1009 · 1010],
   [`key_unknown`], [순수], [1011 --- 알아보지 못한 특수키],
   [`parse_key buf at`], [순수(`effects none`)], [바이트열 → `some (키코드 × 16 + 길이)` 또는 `none`],
   [`key_of` · `len_of` · `is_char`], [순수], [포장 값에서 키코드 · 길이 꺼내기 · 평범한 글자인가(*키코드*를 넣는다)],
-  [`tty_raw t on`(내장)], [`cap tty`], [raw 모드 진입(`true`) · 복귀(`false`)],
-  [`tty_read t dst`(내장)], [`cap tty`], [지금 온 바이트를 버퍼로 → `option u64`(`some 0` = 지금은 없음, 에러가 아니다)],
-  [`tty_size t`(내장)], [`cap tty`], [화면 크기 → `option u64`(행 = `div v 4294967296`, 열 = `mod v 4294967296`)],
+  [`tty_raw t on`(기본 연산)], [`cap tty`], [raw 모드 진입(`true`) · 복귀(`false`)],
+  [`tty_read t dst`(기본 연산)], [`cap tty`], [지금 온 바이트를 버퍼로 → `option u64`(`some 0` = 지금은 없음, 에러가 아니다)],
+  [`tty_size t`(기본 연산)], [`cap tty`], [화면 크기 → `option u64`(행 = `div v 4294967296`, 열 = `mod v 4294967296`)],
 )
 
 *`parse_key` 가 알아보는 것* --- ESC 아닌 한 바이트(길이 1), 뒤가 없는 `ESC`(ESC 키, 길이 1), `ESC O A`–`D` · `H` · `F` 와 `ESC [ A`–`D` · `H` · `F`(방향키 · Home ·

@@ -1,0 +1,31 @@
+rem ★ 빌트인 연산의 이름은 `call_builtin` 뒤의 자리에만 산다 — 이름공간이 따로다 (2026-10-09 소유자 결정).
+rem   같은 철자를 저자가 제 op · 지역 · 파라미터 이름으로 지을 수 있고, 맨 이름은 언제나 저자의 것을 가리킨다.
+rem   증인: 저자의 `sha256` 은 인자 하나(잎은 둘)이고 답이 다르다 — 잎이 불리면 묶임부터 달라진다.
+
+module vm_builtin_ns .
+
+fn sha256 input x u64 . output u64 . do
+  return add x 1 .
+end
+
+rem 권한 빌트인과 같은 철자 — 효과가 없고 권한도 받지 않는다.
+fn net_send input a u64 . input b u64 . output u64 . do
+  return mul a b .
+end
+
+fn user_first input x u64 . output u64 . do
+  return sha256 x .
+end
+
+rem 한 op 안에서 둘 다: 빌트인 연산은 32(쓴 바이트 수)를, 저자의 op 은 그 다음 수를 낸다.
+proc both input data slice u8 . input out mut slice u8 . output u64 . effects none . do
+  let n be u64 call_builtin sha256 data out .
+  return add n (sha256 n) .
+end
+
+rem 지역과 파라미터도 같은 철자를 쓴다.
+fn locals input crc32 u64 . output u64 . do
+  let file_type be u64 crc32 .
+  let sha512 be u64 3 .
+  return add file_type (net_send sha512 crc32) .
+end

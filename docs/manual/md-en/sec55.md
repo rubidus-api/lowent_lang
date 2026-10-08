@@ -28,7 +28,7 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-CAP-FORGE` | spawns an actor holding a capability without holding that capability | chapter 16, chapter 20, chapter 25 |
 | `E-CAP-KIND` | a capability of the wrong kind was handed over | chapter 16 |
 | `E-CAP-LOCAL` | a received capability was copied into a local name | chapter 16 |
-| `E-CAP-MISSING` | a capability-requiring builtin was not given its capability as the first operand | chapter 16 |
+| `E-CAP-MISSING` | a capability-requiring core op was not given its capability as the first operand | chapter 16 |
 | `E-CHAR` | a character (symbol) this language does not have | chapter 6, chapter 7, chapter 8, chapter 9 |
 | `E-CHAR-WIDTH` | a character literal is not a single character | chapter 3 |
 | `E-CLAUSE-ORDER` | the clauses of an op header are out of the fixed order | chapter 2, chapter 3, chapter 22 |
@@ -90,7 +90,7 @@ The first two tables list the diagnostics this book’s examples actually trigge
 | `E-MMIO-PERM` | writes a read-only register | chapter 30 |
 | `E-MONO-NOTYPE` | a generic call gives no leading type argument | chapter 22 |
 | `E-MREF-SLICE` | `mut ref slice` used | chapter 12 |
-| `E-NAME-BUILTIN` | a builtin op’s name is used for a declaration or local | chapter 5, chapter 6 |
+| `E-NAME-BUILTIN` | a core op’s name is used for a declaration or local | chapter 5, chapter 6 |
 | `E-NAME-DUP` | the same name declared twice in one module | chapter 21 |
 | `E-NAME-SCOPE` | a name declared inside a block is read outside it | chapter 6 |
 | `E-NAME-SHADOW` | re-binds a live name (shadowing) | chapter 3, chapter 6 |

@@ -964,6 +964,7 @@ bool low_ir_target_known(proven_u8str_view_t name);
 [[nodiscard]] low_ir_t low_ir_build(proven_allocator_t work, const low_parse_result_t *pr);
 // ★ 이름이 빌트인과 겹치면 그 선언은 **영원히 호출되지 않는다**(해석기가 빌트인을 고른다).
 bool low_ir_is_builtin_name(proven_u8str_view_t name);
+bool low_ir_is_builtin_op(proven_u8str_view_t name);     /* `call_builtin` 뒤의 이름공간에 있는 철자인가 */
 proven_i32 ir_alloc_shadow(low_ir_t *ir, proven_size_t si);   /* RFC-0135 D13 — 슬라이스 칸 구조체의 할당기 배치 */
 void low_ir_dump(const low_ir_t *ir);
 // ★★★ **`.lowdb` 사이드파일** (RFC-0012) — 내용주소 해시를 **밖으로 낸다**.

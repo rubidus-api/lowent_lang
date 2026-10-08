@@ -4,7 +4,7 @@
 
 #modhead(file: "lib/math.low", layer: [L0 --- pure computation (host only)], caps: [none])
 
-Adds commonly used things on top of builtins like `sqrt`, `sin` and `exp` --- comparison (`close`), constants (`pi`, `e`), angle conversion, hypotenuse, logarithms with a
+Adds commonly used things on top of core ops like `sqrt`, `sin` and `exp` --- comparison (`close`), constants (`pi`, `e`), angle conversion, hypotenuse, logarithms with a
 base, and linear interpolation. It has no capabilities but links to the C maths library, so it is *host only* --- targets without an operating system may have no floating
 point at all (`cortex_m` is `no_float`).
 
@@ -32,7 +32,7 @@ machines and libcs, with tests failing while the tool is fine. So this module is
   [`lerp`], [Linear interpolation `a + (b − a)·t`],
 )
 
-Used directly as builtins --- `sqrt`, `abs`, `floor`, `ceil`, `round`, `sin`, `cos`, `exp`, `log`, `pow`.
+Used directly as core ops --- `sqrt`, `abs`, `floor`, `ceil`, `round`, `sin`, `cos`, `exp`, `log`, `pow`.
 
-*Not built* --- `atan2`, `asin`, `acos`, `tan`, `log2`, `log10`, `cbrt`, complex numbers, fixed point, an `f32`-only face. If needed they attach as one builtin plus one line
+*Not built* --- `atan2`, `asin`, `acos`, `tan`, `log2`, `log10`, `cbrt`, complex numbers, fixed point, an `f32`-only face. If needed they attach as one core op plus one line
 here. `hyp` computes `sqrt(x²+y²)` as is --- unlike libm's `hypot` it does not rescale to avoid overflow, so it can answer differently for very large values.

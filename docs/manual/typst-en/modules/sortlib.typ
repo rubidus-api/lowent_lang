@@ -19,8 +19,8 @@ sortlib.sort s .
   #modref("sortgen")[`sortgen`]'s job.
 ]
 
-Sorting is *pure computation* almost every tool needs, and it reaches nothing in the world. So it is a library, not a builtin --- if it can be written in Lowent, it is a
-library. It was built with zero new builtins.
+Sorting is *pure computation* almost every tool needs, and it reaches nothing in the world. So it is a library, not a core op --- if it can be written in Lowent, it is a
+library. It was built with zero new core ops.
 
 #dtable(
   columns: 3,

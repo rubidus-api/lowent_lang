@@ -17,7 +17,7 @@ guard is_ok r . else return 1 .
 
 In this module a "buffer" is two pieces --- the *state* `b` remembering how much was written, and the *place* `buf` where the bytes actually go. They are
 separate, so ops always receive both. Where the buffer comes from (`cap allocator`, a region, a static buffer) is the caller's business, and the library *never
-allocates behind your back*. The only builtin added is `cstr_of`, which gives the raw pointer of a slice.
+allocates behind your back*. The only core op added is `cstr_of`, which gives the raw pointer of a slice.
 
 == Design and boundaries
 

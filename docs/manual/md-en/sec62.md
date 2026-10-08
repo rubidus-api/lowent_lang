@@ -25,7 +25,7 @@ guard is_some c . else return 1 .
 
 **Why validation is needed.** UTF-8 is variable-length, so not every byte string is valid. A sequence may be cut short, a continuation byte may be wrong, or the same character may be written in more bytes than needed — an **overlong encoding**. Overlong encodings are especially dangerous: if the same code point can be written as two byte strings, a filter like “does this string contain `/`” lies. It is a classic path for bypassing security filters.
 
-**Why it is a library.** `str` is bytes (chapter 9), and UTF-8 was not enforced as a type invariant. Encoding is a choice of a higher layer, and this module is that layer. Rust enforces UTF-8 on `str` to get character iteration for free, at the cost of validation on every construction path. Here validation is paid **only when wanted**, and in exchange byte slicing (`subslice`) cannot fail. No builtin was added.
+**Why it is a library.** `str` is bytes (chapter 9), and UTF-8 was not enforced as a type invariant. Encoding is a choice of a higher layer, and this module is that layer. Rust enforces UTF-8 on `str` to get character iteration for free, at the cost of validation on every construction path. Here validation is paid **only when wanted**, and in exchange byte slicing (`subslice`) cannot fail. No core op was added.
 
 ## <a id="sx1"></a>Design and boundaries
 

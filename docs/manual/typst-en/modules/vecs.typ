@@ -5,7 +5,7 @@
 #modhead(file: "lib/vec.low", layer: [L1 --- allocator via `using`], caps: [none --- an allocator is handed in])
 
 A byte vector that, when short of room, *takes a larger place and moves*. Used to gather byte strings of unknown final size. What is missing is reallocation, not growth ---
-take a larger place and move the old contents, which can be written in Lowent. So it is a library, not a builtin, and the growth policy (doubling) belongs to the library too.
+take a larger place and move the old contents, which can be written in Lowent. So it is a library, not a core op, and the growth policy (doubling) belongs to the library too.
 
 #dtable(
   columns: 3,

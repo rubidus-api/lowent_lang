@@ -23,7 +23,7 @@ guard is_some p . else return 1 .
 
 `0` is `pos` (the next place to write), and the `option u64` returned is **the new `pos` on success, `none` if room ran out**.
 
-**Formatting is not output.** Every op only assembles bytes into the caller’s buffer and, without exception, is `effects none`. Actual output is done separately by a caller holding `cap io`, with `write_out` or [`outbuf`](sec117.md#mod-outbuf). So assembly code can be called from anywhere without capabilities, tests compare buffers rather than screens, and the caller decides what to emit and when. Turning numbers into bytes needs neither kernel nor allocation, so it is a library — no builtin was added, and the whole file is inside the VM/native cross-check.
+**Formatting is not output.** Every op only assembles bytes into the caller’s buffer and, without exception, is `effects none`. Actual output is done separately by a caller holding `cap io`, with `write_out` or [`outbuf`](sec117.md#mod-outbuf). So assembly code can be called from anywhere without capabilities, tests compare buffers rather than screens, and the caller decides what to emit and when. Turning numbers into bytes needs neither kernel nor allocation, so it is a library — no core op was added, and the whole file is inside the VM/native cross-check.
 
 ## <a id="sx1"></a>Design and boundaries
 

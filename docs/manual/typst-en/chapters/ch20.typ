@@ -172,7 +172,7 @@ A bump allocator only moves forward. Even so, *the piece it handed out last* is 
 #demo("examples/ch20/growrelease.low")
 
 #idx("same_slice")
-- `send b grow pv 6` grows `pv` from 4 bytes to 6. What it grows is *the piece itself*, not a size. The implementation checks with the builtin
+- `send b grow pv 6` grows `pv` from 4 bytes to 6. What it grows is *the piece itself*, not a size. The implementation checks with the core op
   `same_slice a b` (same start address and same length?) that `pv` is exactly the bytes it just handed out. Pass someone else's buffer of the same length
   and the answer is `none`. Recognising a piece by size alone would let two containers overlap without a sound.
 - After `qv` is handed out, `gv` is no longer the last piece. So `release gv` is `false` and changes nothing.

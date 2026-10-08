@@ -1,4 +1,4 @@
-# Appendix A — Words and builtins
+# Appendix A — Words, core ops and builtin ops
 
 The text is where words are **explained**. This appendix gathers only tables to skim when you get stuck reading code. The word list is the same as the specification’s Appendix A, and anything not in that list is not a word.
 
@@ -18,7 +18,7 @@ The text is where words are **explained**. This appendix gathers only tables to 
 
 *Table 50.1 — All the words*
 
-`rem` and `note` are markers opening comments, and clause heads such as `input`, `output`, `effects` and `requires` and builtins such as `add` and `len` are not words but cannot be used as names.
+`rem` and `note` are markers opening comments, and clause heads such as `input`, `output`, `effects` and `requires` and core ops such as `add` and `len` are not words but cannot be used as names.
 
 ## <a id="sx2"></a>Removed words
 
@@ -41,7 +41,7 @@ The text is where words are **explained**. This appendix gathers only tables to 
 
 `as` and `to` remain only as position markers in `use … as <alias>` and `case <low> to <high>`.
 
-## <a id="sx3"></a>Frequently used builtins
+## <a id="sx3"></a>Frequently used core ops
 
 | **Kind** | **Operations** |
 |---|---|
@@ -67,16 +67,16 @@ The text is where words are **explained**. This appendix gathers only tables to 
 | Layouts and views — chapter 13 | `encode` `try_view` `view_segments` `seg` `segs` `capacity` |
 | Borrows and regions — chapter 12 · chapter 18 | `ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap` |
 | Contracts and errors — chapter 14 | `range` `ret` `expect` `panic` |
-| Computation leaves — stand only after `call_builtin` | `clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
+| Builtin ops (computation) — stand only after `call_builtin` | `clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next` |
 | C strings — chapter 29 | `cstr_of` `str_from_cstr` |
-| File and network leaves — only after `call_builtin` | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` |
+| Builtin ops (files, network, processes) — only after `call_builtin` | `file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port` |
 | Host leaves — chapter 32 | `env_get` `reactor_new` `r_read` `r_write` |
 
-*Table 50.3 — Kinds of builtins*
+*Table 50.3 — Kinds of core ops and builtin ops*
 
-★ **The computation leaves and the file and network leaves are not global words.** They stand only in that position — `call_builtin sha256 msg out`. Calling one bare is `E-BUILTIN-BARE`; naming something else after `call_builtin` is `E-BUILTIN-NAME`. The reason is one: a word a program uses once should not cost every reader a name to remember. The same rule already governs the stage names inside `pipe` and the type slot of `cast u8 x`.
+★ **Builtin ops have a name space of their own.** They stand only in that position — `call_builtin sha256 msg out` — and you may use the same spelling for a name of yours. Calling one bare when no name of yours is spelt that way is `E-BUILTIN-BARE`; naming something else after `call_builtin` is `E-BUILTIN-NAME`. Builtin ops are the material the system library is built from; a program calls the module that wraps them (chapter 32).
 
-This table sorts every builtin of the canon into a group. The chapter next to each group name explains that group with examples. The one-line meanings are authoritative in the repository’s `docs/spec/BUILTIN-MEANINGS.tsv`.
+This table sorts every core op and builtin op of the canon into a group. The chapter next to each group name explains that group with examples. The one-line meanings are authoritative in the repository’s `docs/spec/BUILTIN-MEANINGS.tsv`.
 
 ## <a id="sx4"></a>Effects and capabilities
 

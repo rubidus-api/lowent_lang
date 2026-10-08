@@ -210,7 +210,7 @@ Second, *there is no shadowing.* An inner name that reuses the spelling of an ou
 #demo("examples/ch03/shadow.low")
 
 A shadowed name makes someone who read the head *think of a different value*. If you had to work out on every line whether `n` is the
-parameter or the new local, that is exactly semantic entropy. No parameter, module name, builtin op name or name still alive in an
+parameter or the new local, that is exactly semantic entropy. No parameter, module name, core op name or name still alive in an
 outer block can be shadowed. Choose a new name instead.
 
 #qa[
@@ -237,7 +237,7 @@ words can express gets a new one. Roughly, they fall into these groups.
   [Others], [`spawn` `send` `drop` `test` `expect` `satisfies` `do` `end`],
 )
 
-`add`, `len`, `neg` and the like are not words but *builtin ops*. They cannot be used as parameter names either, but they occupy the
+`add`, `len`, `neg` and the like are not words but *core ops*. They cannot be used as parameter names either, but they occupy the
 space of names rather than grammar. Removed words (`in`, `loop`, `as`, `to` and so on) are not quietly accepted; `E-VOCAB-REMOVED`
 tells you what to use instead.
 

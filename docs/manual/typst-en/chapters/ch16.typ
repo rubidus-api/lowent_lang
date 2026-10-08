@@ -126,7 +126,7 @@ Allocation is the same: it declares using memory but not where the memory comes 
 
 #demo("examples/ch16/alloc_nocap.low")
 
-Receiving a capability and never handing it to the place that uses it is rejected too. A builtin op that requires a capability takes it as its *first
+Receiving a capability and never handing it to the place that uses it is rejected too. An op of the language that requires a capability takes it as its *first
 operand*.
 
 #demo("examples/ch16/missing.low")
@@ -232,7 +232,7 @@ the number of bytes filled. When tests need repeatable random numbers, use `rng_
   [`input out cap io .`], [receive the standard I/O capability], [no ambient authority --- power is handed in as an argument],
   [`input fs cap file_system .` · `cap net` · `cap clock` …], [each kind opens different things], [least authority --- the head says what it can reach],
   [`say k msg`], [pass a received capability name as is], [the chain is visible up to the entry point],
-  [`write_out out 1 "…"`], [builtins that use a capability take it as the first operand], [no way to reach a capability without a name],
+  [`write_out out 1 "…"`], [core ops that use a capability take it as the first operand], [no way to reach a capability without a name],
   [`effects io` + `cap io`], [an effect and the capability that allows it], [missing: `E-EFFECT-NO-CAP`],
   [`effects alloc` + `cap allocator`], [the pair for fixed-window allocation], [missing: `E-ALLOC-NOCAP`],
   [`proc main input … cap … . output u8 .`], [the entry point receives only capabilities], [nobody can hand it data],
@@ -242,7 +242,7 @@ the number of bytes filled. When tests need repeatable random numbers, use `rng_
 
 #recap[
   Capabilities are handed over as `input <name> cap <kind> .`, and the received name is passed on as is. Looking at the entry point shows what outside a
-  program can reach. Effects and capabilities are a pair: declaring an effect requires receiving an authorising capability, and builtin ops that use a
+  program can reach. Effects and capabilities are a pair: declaring an effect requires receiving an authorising capability, and the ops of the language that use a
   capability take it as their first operand. Capabilities authorise by kind and cost nothing at run time. The entry point receives only capabilities from
   a closed list.
 ]

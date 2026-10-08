@@ -42,7 +42,7 @@ An *op* (operation) is a unit of execution with a name and a contract. On the su
 - `proc` --- an op that may perform effects. Which effects it performs is written in its `effects` clause.
 
 There is no default. Whether it is a `fn` or a `proc` is always written before the name. Builtin operations such as `add` and `len` are
-ops too --- ops the language made in advance, called *builtin ops*.
+ops too --- ops the language made in advance, called *core ops*.
 
 #demo("examples/ch05/kinds.low")
 
@@ -267,11 +267,11 @@ can come back to this section.
   remaining case after the `if` --- for example, put `return 0 .` before `end`.
 ]
 
-#antipattern[Naming an op after a builtin][
+#antipattern[Naming an op after a core op][
   #demo("examples/ch05/mistake_builtin.low")
 
-  Names live in one flat space, so the same name cannot mean two things. A declaration named after a builtin op (`add`, `min`, `len`,
-  `ok` …) could never be called, and `E-NAME-BUILTIN` says so. Local names follow the same rule. Appendix A lists the builtin names.
+  Names live in one flat space, so the same name cannot mean two things. A declaration named after a core op (`add`, `min`, `len`,
+  `ok` …) could never be called, and `E-NAME-BUILTIN` says so. Local names follow the same rule. Appendix A lists the core op names.
 ]
 
 #misconception[Calling a `fn` does something even if you ignore the result][

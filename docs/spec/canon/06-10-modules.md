@@ -159,7 +159,7 @@ fn limit output u64 . do return 1 . end
       가지며, 효과·계약·오류·소유의 규칙도 같다. 로컬 `proc` 의 효과는 그것을 부르는 자리의 효과다(⟦§7⟧).
 
 (4) 로컬 op 의 이름은 바깥 op 의 이름, 그 매개변수·지역, 모듈이 이미 가진 이름을 가리지 아니한다
-      (`E-NAME-SHADOW`). 한 op 의 로컬 op 끼리 이름이 같을 수 없고(`E-NAME-DUP`), 내장 연산의 이름을 쓸 수
+      (`E-NAME-SHADOW`). 한 op 의 로컬 op 끼리 이름이 같을 수 없고(`E-NAME-DUP`), 기본 연산의 이름을 쓸 수
       없다(`E-NAME-BUILTIN`).
 
 (5) 로컬 op 은 `export`·`extern`·`unsafe` 를 달 수 없다(`E-LOCAL-EXPORT`) — 밖에서 쓰려면 최상위에 선언한다.

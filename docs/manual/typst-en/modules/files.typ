@@ -5,7 +5,7 @@
 #modhead(file: "lib/file.low", layer: [L2 --- the outside world], caps: [`cap file_system`])
 
 Opens, closes, reads and writes files and directories. Every op takes `cap file_system` first --- the right to reach the file system is handed to `main` once, and only ops that
-receive it can touch files (#chref("capabilities"), #chref("io-files")). The builtin leaves (`file_open`, `file_read`, `dir_open`, `file_type` and so on) only reach the kernel
+receive it can touch files (#chref("capabilities"), #chref("io-files")). The builtin ops (`file_open`, `file_read`, `dir_open`, `file_type` and so on) only reach the kernel
 and know only integer handles. Holding a raw fd lets a forgotten close go unnoticed, so this module wraps it in *a value that cannot be forgotten* (`owned handle`).
 
 ```lowent

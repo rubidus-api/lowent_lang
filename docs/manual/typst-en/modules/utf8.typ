@@ -22,7 +22,7 @@ written as two byte strings, a filter like "does this string contain `/`" lies. 
 
 *Why it is a library.* `str` is bytes (#chref("slices")), and UTF-8 was not enforced as a type invariant. Encoding is a choice of a higher layer, and this module
 is that layer. Rust enforces UTF-8 on `str` to get character iteration for free, at the cost of validation on every construction path. Here validation is paid
-*only when wanted*, and in exchange byte slicing (`subslice`) cannot fail. No builtin was added.
+*only when wanted*, and in exchange byte slicing (`subslice`) cannot fail. No core op was added.
 
 == Design and boundaries
 

@@ -163,7 +163,7 @@ fn limit output u64 . do return 1 . end", "E-NAME-DUP")
     ]
     #para("4")[
       로컬 op 의 이름은 바깥 op 의 이름, 그 매개변수·지역, 모듈이 이미 가진 이름을 가리지 아니한다
-      (`E-NAME-SHADOW`). 한 op 의 로컬 op 끼리 이름이 같을 수 없고(`E-NAME-DUP`), 내장 연산의 이름을 쓸 수
+      (`E-NAME-SHADOW`). 한 op 의 로컬 op 끼리 이름이 같을 수 없고(`E-NAME-DUP`), 기본 연산의 이름을 쓸 수
       없다(`E-NAME-BUILTIN`).
     ]
     #para("5")[

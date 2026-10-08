@@ -24,7 +24,7 @@ sortlib.sort s .
 >
 > > The current surface (just `sort`) is **kept**. Changing names, arguments or meaning needs a separate compatibility decision. That does not mean it will not grow — a comparator and other element types do not exist yet, and would arrive **by addition**. And **performance is not promised** — today it is quicksort. Other element types are [`sortgen`](sec69.md#mod-sortgen)’s job.
 
-Sorting is **pure computation** almost every tool needs, and it reaches nothing in the world. So it is a library, not a builtin — if it can be written in Lowent, it is a library. It was built with zero new builtins.
+Sorting is **pure computation** almost every tool needs, and it reaches nothing in the world. So it is a library, not a core op — if it can be written in Lowent, it is a library. It was built with zero new core ops.
 
 | **op** | **Shape** | **Failure** |
 |---|---|---|

@@ -101,7 +101,7 @@ one word is the job of `flags`.
 
 #misconception[Modules like these must be written in unsafe code underneath][
   `pool`, `shard`, `budget` and `wire` are all written in the Lowent this book taught, without `unsafe`. Generation comparison is slice indexing and comparison, brands are
-  `newtype` and type parameters, tokens are `owned`, and budgets are contracts. No new word or builtin was added. Because the library was written without privileges, the
+  `newtype` and type parameters, tokens are `owned`, and budgets are contracts. No new word or core op was added. Because the library was written without privileges, the
   guarantees of programs using it are not broken.
 ]
 

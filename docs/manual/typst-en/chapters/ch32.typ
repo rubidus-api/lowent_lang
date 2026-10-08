@@ -65,7 +65,7 @@ through.
 #qa[
   Why leave as a library a feature that would be convenient in the language?
 ][
-  Adding a word or builtin to the language means every program must learn it and the processor must treat it specially. As a library it is checked by the same rules,
+  Adding a word or core op to the language means every program must learn it and the processor must treat it specially. As a library it is checked by the same rules,
   and programs that do not use it do not have it. So the language accepts only *what cannot be expressed*. The standard library's allocators, containers and file
   handles all passed this criterion and live in the library. Convenience is not a reason to enter the language.
 ]
@@ -160,14 +160,14 @@ somewhere (#chref("modules")). The moment the name is actually used, it is rejec
 
 == The list of leaf ops --- what lies beneath the modules
 
-Library modules ultimately call *leaf* builtin ops provided by the processor. Normally you use the module and do not call the leaves directly
+Library modules ultimately call *leaf* ops provided by the processor. A leaf is either a builtin op, which stands after `call_builtin`, or a core op that takes a capability. Normally you use the module and do not call the leaves directly
 --- the module dresses them in conventions such as ownership, three-place answers and all-or-nothing. Still, knowing which module stands on
 what keeps you oriented when reading module documentation or building a new module.
 
 #dtable(
   columns: 3,
   id: "libmap-leaves",
-  caption: [Leaf builtin ops and the modules that wrap them],
+  caption: [Leaf ops and the modules that wrap them],
   [*Leaf op*], [*What it does*], [*Wrapping module · capability*],
   [`file_open` · `file_read` · `file_write` · `file_seek` · `file_close`], [open, read, write, move the position of, and close a file], [`files` · `cap file_system`],
   [`dir_make` · `dir_read` · `dir_close`], [make a directory, read its entries, close it], [`files` · `cap file_system`],
@@ -189,7 +189,7 @@ what keeps you oriented when reading module documentation or building a new modu
   [`str_from_cstr`], [scan a NUL-terminated C string into a `str`], [C boundary --- the VM says it cannot, with `E-VM-CSTR`],
 )
 
-*Computation leaves stand only after `call_builtin`* --- `call_builtin sha256 msg out`. The name lives in that position and never becomes a global word: a word a program uses once should not cost every reader a name to remember. The stage names inside `pipe` and the type slot of `cast u8 x` already work this way. The leaves that touch files and the network (`file_open`, `net_send`, …) stand in the same position --- `call_builtin net_send k fd b`, with the capability as the first operand. They are called only inside the wrappers of the `files` and `net` modules, so there was no reason to keep them as global words (RFC-0127). The other host leaves, such as `env_get` and `reactor_new`, are called plainly.
+*Builtin ops stand only after `call_builtin`* --- `call_builtin sha256 msg out`. Unlike the *core ops* (`add`, `len`, …), which are called by their bare names everywhere, the *builtin ops* have *a name space of their own*: the word right after `call_builtin` is always the name of a builtin op, and the same spelling anywhere else is always a name of yours. So a library can export an op called `sha256`, and a local may be called `file_type`. Those that touch files, the network and processes (`file_open`, `net_send`, …) take the capability as their first operand --- `call_builtin net_send k fd b`. *Builtin ops are not meant for application programs.* They are the door through which the processor offers what a library cannot write, and the people who use it are those who write the system library and the processor. A program calls the standard library module that wraps them. The other host leaves, such as `env_get` and `reactor_new`, are core ops and are called plainly.
 
 The qualification for a leaf is one question: "can it be written in Lowent?" `rng_next` and the three hashes are pure computation yet leaves,
 because the processor fixes their algorithms so that the VM and the native build give bit-identical answers. Every leaf that needs a

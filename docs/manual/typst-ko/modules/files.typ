@@ -5,7 +5,7 @@
 #modhead(file: "lib/file.low", layer: [L2 --- 바깥 세계], caps: [`cap file_system`])
 
 파일과 디렉터리를 여닫고 읽고 쓴다. 모든 op 이 첫 인자로 `cap file_system` 을 받는다 --- 파일시스템에 닿을 권한은 `main` 의 입력으로 한 번 건네지고, 넘겨받은 op 만
-파일을 만질 수 있다(#chref("capabilities"), #chref("io-files")). 빌트인 잎(`file_open` · `file_read` · `dir_open` · `file_type` 등)은 커널에 닿을 뿐 정수 핸들만
+파일을 만질 수 있다(#chref("capabilities"), #chref("io-files")). 빌트인 연산(`file_open` · `file_read` · `dir_open` · `file_type` 등)은 커널에 닿을 뿐 정수 핸들만
 안다. 정수 fd 를 그대로 들면 닫기를 잊어도 아무도 모르므로, 이 모듈이 *잊을 수 없는 값*(`owned handle`)으로 감싼다.
 
 ```lowent

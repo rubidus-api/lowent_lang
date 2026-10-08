@@ -4,7 +4,7 @@
 
 #modhead(file: "lib/lifemode.low · lib/lifeatom.low", layer: [L1 --- the caller's storage], caps: [`cap atomic` for `lifeatom`])
 
-There are four ways to decide when a value ends, and each has a different cost. No new word or builtin was added --- this only bundles what the language already knew into
+There are four ways to decide when a value ends, and each has a different cost. No new word or core op was added --- this only bundles what the language already knew into
 something convenient.
 
 #dtable(

@@ -555,11 +555,11 @@ Searches headings and index terms --- not the full text
 
 ### Front and back matter
 
-[Appendix A — Words and builtins](sec54.md)
+[Appendix A — Words, core ops and builtin ops](sec54.md)
 
 - [ The forty-four words](sec54.md#sx1)
 - [ Removed words](sec54.md#sx2)
-- [ Frequently used builtins](sec54.md#sx3)
+- [ Frequently used core ops](sec54.md#sx3)
 - [ Effects and capabilities](sec54.md#sx4)
 
 [Appendix B — Diagnostics index](sec55.md)

@@ -2,7 +2,7 @@
 
 = `tty` --- terminal input <mod-tty>
 
-#modhead(file: "lib/tty.low", layer: [L2 --- the capability half (builtins) + pure parsing (this module)], caps: [`cap tty` for the builtins `tty_raw` · `tty_read` · `tty_size`])
+#modhead(file: "lib/tty.low", layer: [L2 --- the capability half (core ops) + pure parsing (this module)], caps: [`cap tty` for the core ops `tty_raw` · `tty_read` · `tty_size`])
 
 For programs that *react to one key at a time*, like editors and menus. Normally a terminal hands lines over only after Enter; until then the kernel collects characters, echoes
 them and handles backspace (line buffering and echo). To move the cursor the moment an arrow key is pressed, that convenience gets in the way, so the terminal is switched to
@@ -30,16 +30,16 @@ next key starts in the buffer. Extract with `key_of` and `len_of` so code surviv
 #dtable(
   columns: 3,
   id: "mod-tty-ops",
-  caption: [Ops of `tty` and the builtins],
+  caption: [Ops of `tty` and the core ops],
   [*op*], [*Layer*], [*What it does*],
   [`key_up` · `key_down` · `key_right` · `key_left`], [pure], [1001 · 1002 · 1003 · 1004],
   [`key_home` · `key_end` · `key_delete` · `key_pageup` · `key_pagedown` · `key_esc`], [pure], [1005 · 1006 · 1007 · 1008 · 1009 · 1010],
   [`key_unknown`], [pure], [1011 --- an unrecognised special key],
   [`parse_key buf at`], [pure (`effects none`)], [byte string → `some (keycode × 16 + length)` or `none`],
   [`key_of` · `len_of` · `is_char`], [pure], [keycode · length from a packed value · is it an ordinary character (pass a *keycode*)],
-  [`tty_raw t on` (builtin)], [`cap tty`], [enter (`true`) · leave (`false`) raw mode],
-  [`tty_read t dst` (builtin)], [`cap tty`], [bytes that have arrived into the buffer → `option u64` (`some 0` = nothing yet, not an error)],
-  [`tty_size t` (builtin)], [`cap tty`], [screen size → `option u64` (rows = `div v 4294967296`, columns = `mod v 4294967296`)],
+  [`tty_raw t on` (core op)], [`cap tty`], [enter (`true`) · leave (`false`) raw mode],
+  [`tty_read t dst` (core op)], [`cap tty`], [bytes that have arrived into the buffer → `option u64` (`some 0` = nothing yet, not an error)],
+  [`tty_size t` (core op)], [`cap tty`], [screen size → `option u64` (rows = `div v 4294967296`, columns = `mod v 4294967296`)],
 )
 
 *What `parse_key` recognises* --- one non-ESC byte (length 1), `ESC` with nothing after (the ESC key, length 1), `ESC O A`–`D` · `H` · `F` and `ESC [ A`–`D` · `H` · `F` (arrows,
@@ -83,7 +83,7 @@ proc main input t cap tty . input al cap allocator . output u8 . effects alloc .
 end
 ```
 
-Finish anything that can fail, like allocation, *before entering raw mode* --- failing and returning after entering leaves the terminal raw. Terminal builtins take `cap tty` *as
+Finish anything that can fail, like allocation, *before entering raw mode* --- failing and returning after entering leaves the terminal raw. Terminal core ops take `cap tty` *as
 an argument* --- the op holding the capability is not enough; it must be handed over where it is used. `parse_key` is `effects none`, so all key parsing is verified by VM/native
 comparison without a terminal --- the dividend of the split.
 

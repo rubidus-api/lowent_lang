@@ -167,12 +167,12 @@ static unsigned builtin_effect(proven_u8str_view_t v) {
     //     새 리프가 옛 구멍을 드러낸 자리다(RFC-0007: 선언과 행동이 어긋나면 둘 다 거짓).
     if (veq(v, "reactor_new") || veq(v, "r_read") || veq(v, "r_write"))
         return EFF_IO;
-    if (veq(v, "file_open") || veq(v, "file_read") ||                      // ★ §6 스트림 리프
-        veq(v, "file_write") || veq(v, "file_close") ||
-        veq(v, "file_seek") ||                                             // ★ §4 랜덤 접근
-        veq(v, "dir_open") || veq(v, "dir_read") || veq(v, "dir_close") || // ★ §6 디렉터리 순회
-        veq(v, "file_type") || veq(v, "link_type") ||                       // ★ §6 파일 타입 질의(뒤엣것은 lstat)
-        veq(v, "dir_make") || veq(v, "path_remove") || veq(v, "path_rename")) // ★ §6 파일시스템 변경
+    if (veq(v, "@file_open") || veq(v, "@file_read") ||                      // ★ §6 스트림 리프
+        veq(v, "@file_write") || veq(v, "@file_close") ||
+        veq(v, "@file_seek") ||                                             // ★ §4 랜덤 접근
+        veq(v, "@dir_open") || veq(v, "@dir_read") || veq(v, "@dir_close") || // ★ §6 디렉터리 순회
+        veq(v, "@file_type") || veq(v, "@link_type") ||                       // ★ §6 파일 타입 질의(뒤엣것은 lstat)
+        veq(v, "@dir_make") || veq(v, "@path_remove") || veq(v, "@path_rename")) // ★ §6 파일시스템 변경
         return EFF_IO;
     // ★★★★ **여기 일곱 이름이 있었고 그 일곱은 존재하지 않았다** (2026-08-31, 소유자 결정).
     //   `print` · `run` · `write_file` · `capture` · `read_line` · `env` · `exit` —
@@ -190,13 +190,13 @@ static unsigned builtin_effect(proven_u8str_view_t v) {
     //     쓸 수 있다.
     //   ☞ *죽은 표는 틀린 표보다 낫지 않다. 틀린 표는 언젠가 물리지만, 죽은 표는 조용히
     //     사람에게 없는 규칙을 지키게 한다.*
-    if (veq(v, "net_pair") || veq(v, "net_send") ||                        // ★ 소켓 리프 (cap net)
-        veq(v, "net_recv") || veq(v, "net_close") ||
-        veq(v, "net_listen") || veq(v, "net_port") ||                      // ★ 네트워크 면
-        veq(v, "net_connect") || veq(v, "net_accept") ||
-        veq(v, "net_resolve") ||  // ★ 이름 해석도 바깥에 닿는다 (X-0032)
-        veq(v, "proc_spawn") || veq(v, "proc_read") || veq(v, "proc_poll") ||   // ★ 프로세스 (RFC-0136)
-        veq(v, "proc_wait") || veq(v, "proc_kill"))
+    if (veq(v, "@net_pair") || veq(v, "@net_send") ||                        // ★ 소켓 리프 (cap net)
+        veq(v, "@net_recv") || veq(v, "@net_close") ||
+        veq(v, "@net_listen") || veq(v, "@net_port") ||                      // ★ 네트워크 면
+        veq(v, "@net_connect") || veq(v, "@net_accept") ||
+        veq(v, "@net_resolve") ||  // ★ 이름 해석도 바깥에 닿는다 (X-0032)
+        veq(v, "@proc_spawn") || veq(v, "@proc_read") || veq(v, "@proc_poll") ||   // ★ 프로세스 (RFC-0136)
+        veq(v, "@proc_wait") || veq(v, "@proc_kill"))
         return EFF_IO;
     // ★ RFC-0057 — 원시어가 있는 효과는 **전부** 추론한다. 안 하면 선언이 장식이다.
     if (veq(v, "stack_new") || veq(v, "alloc_bytes"))     return EFF_ALLOC;   // ★ A3 — 바이트를 얻는다
@@ -995,7 +995,7 @@ static void ck_no_shadow(low_check_result_t *out, const low_cst_t *nd,
             //     흔들리지 않는다 — 문법을 안 바꾸고 P1 의 마지막 조각을 닫는다.
             if (low_ir_is_builtin_name(nm) || ck_effect_word(nm))
                 emit(out, "E-NAME-BUILTIN",
-                     "a local takes the name of a BUILTIN op. The namespace is FLAT (no shadowing), "
+                     "a local takes the name of a CORE OP. The namespace is FLAT (no shadowing), "
                      "so this name now means two things — and which one it means decides how the "
                      "SENTENCE IS BRACKETED: `f len data` reads as `f(len(data), …)` if `len` is the "
                      "builtin (arity 1) and as `f(len, data)` if it is your local (arity 0). Same "
@@ -11561,7 +11561,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                 if (dn.ptr[q] == (proven_u8)'#') { dn.size = q; break; }
             if (low_ir_is_builtin_name(dn))
                 emit(&out, "E-NAME-BUILTIN",
-                     "this name is a BUILTIN — the resolver always picks the builtin, so your "
+                     "this name is a CORE OP — the resolver always picks the core op, so your "
                      "declaration can never be called: it exists and does not exist. The namespace "
                      "is FLAT (no shadowing). Rename it",
                      f->kids[1]->tok.line);
@@ -11815,7 +11815,7 @@ low_check_result_t low_check(proven_allocator_t work, const low_parse_result_t *
                 ck_plain_name(&out, h.p[q].name, "parameter", f->line);   // ★ 파라미터도 맨 이름
                 if (low_ir_is_builtin_name(h.p[q].name) || ck_effect_word(h.p[q].name))
                     emit(&out, "E-NAME-BUILTIN",
-                         "a PARAMETER takes the name of a builtin op — inside this op the name now "
+                         "a PARAMETER takes the name of a core op — inside this op the name now "
                          "means two things, and which one it means decides how the sentence is "
                          "bracketed (RFC-0046 P1). Rename the parameter", f->line);
                 for (proven_size_t t = 0; t < topa.len; t++)

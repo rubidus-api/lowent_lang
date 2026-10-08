@@ -109,7 +109,7 @@ If anything in the book leaves you wondering, please ask on the [**Q&A board**](
 
 ### Front and back matter
 
-- [Appendix A — Words and builtins](sec54.md)
+- [Appendix A — Words, core ops and builtin ops](sec54.md)
 - [Appendix B — Diagnostics index](sec55.md)
 - [Appendix C — Common mistakes and how to fix them](sec56.md)
 - [Appendix D — Grammar summary](sec57.md)

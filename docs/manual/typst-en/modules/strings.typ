@@ -16,7 +16,7 @@ end
 ```
 
 `rest` points directly at part of `line`. This module was built only from what the language already has (`len`, `idx`, `subslice`, `eq`, `option`,
-`guard`, `while`, `actor`) and adds no builtin. Most string operations need no ownership --- cutting, searching and comparing only produce views. Work that
+`guard`, `while`, `actor`) and adds no core op. Most string operations need no ownership --- cutting, searching and comparing only produce views. Work that
 needs a writable buffer, such as appending, belongs to #modref("strbuf")[`strbuf`].
 
 == Design and boundaries
@@ -24,7 +24,7 @@ needs a writable buffer, such as appending, belongs to #modref("strbuf")[`strbuf
 - *What it does* --- byte-level comparison, search, prefixes and suffixes, trimming and splitting. Every `fn` is `effects none` and allocates nothing.
 - *It does not interpret encodings.* `str` is bytes. UTF-8 validation and decoding belong to #modref("utf8")[`utf8`].
 - *It does not own or modify.* It never changes a byte of the original.
-- *There is no `str_len` or `str_sub`.* `str` is an alias of `slice u8`, so the builtins `len` and `subslice` work as they are. One meaning does not get two
+- *There is no `str_len` or `str_sub`.* `str` is an alias of `slice u8`, so the core ops `len` and `subslice` work as they are. One meaning does not get two
   names.
 - *No sentinel values.* Conventions like "−1 means not found" are not used. Not found is `none` of an `option`.
 
@@ -59,7 +59,7 @@ Every `fn` is `effects none`, and the actor's two `proc`s are `effects state`. C
 The `slice u8` passed in is a view, and what comes back is another view over the same bytes. That is why it is not `mut`, is `effects none`, and is valid only
 while the original lives. The two arguments of comparison and search are always (the thing searched, the thing sought) --- `has_byte s b` reads "is `b` in `s`".
 
-*`eq_str`* --- byte-wise equality. If lengths differ it is `false` before looking at bytes. The builtin `eq` is scalar-only, so slice comparison lives here. That
+*`eq_str`* --- byte-wise equality. If lengths differ it is `false` before looking at bytes. The core op `eq` is scalar-only, so slice comparison lives here. That
 is why the name could not be shortened to `eq`.
 
 *`has_byte`* --- is the single byte `b` in `s`. A byte, not a string. The cut-set test of `trim_start` and `trim_end` uses it.
@@ -143,7 +143,7 @@ loop just pulls to the end, the actor version is shorter.
 
 == Counter-examples
 
-#antipattern[Comparing slices with the builtin `eq`][
+#antipattern[Comparing slices with the core op `eq`][
   ```lowent
   guard eq "abc" "abc" . else return 0 .        rem ✗ eq is scalar-only
   ```
@@ -187,5 +187,5 @@ loop just pulls to the end, the actor version is shorter.
 - *Cursor version and actor version.* `split_next` shares no state, so several cursors may read at once. `str_splitter` holds state, so whoever spawned it is
   responsible until it is exhausted.
 - *There is no direct path to a null-terminated string.* A view cannot promise a trailing 0 byte. Go through `as_cstr` of #modref("strbuf")[`strbuf`].
-- *Names clashing with builtins.* `eq` is a builtin, so this module named its op `eq_str`. `has_byte` was named while the bitset `contains` was a builtin (it is `bitset_contains` now). Avoid builtin names for your own variables
+- *Names clashing with core ops.* `eq` is a core op, so this module named its op `eq_str`. `has_byte` was named while the bitset `contains` was a core op (it is `bitset_contains` now). Avoid core op names for your own variables
   too.

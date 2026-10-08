@@ -4,7 +4,7 @@
 
 #modhead(file: "lib/lifemode.low · lib/lifeatom.low", layer: [L1 --- 호출자의 저장], caps: [`lifeatom` 에 `cap atomic`])
 
-값의 끝을 정하는 방법은 넷이고, 넷 다 값이 다르다. 새 낱말도 새 내장 연산도 늘지 않았다 --- 언어가 이미 알던 것을 쓰기 좋게 묶을 뿐이다.
+값의 끝을 정하는 방법은 넷이고, 넷 다 값이 다르다. 새 낱말도 새 기본 연산도 늘지 않았다 --- 언어가 이미 알던 것을 쓰기 좋게 묶을 뿐이다.
 
 #dtable(
   columns: 3,

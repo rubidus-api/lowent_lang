@@ -6,6 +6,7 @@
 #include "low_diag.h"
 
 #include <math.h>
+bool low_ir_is_builtin_op(proven_u8str_view_t name);     /* low_ir.c — `call_builtin` 뒤의 이름공간에 있는 철자인가 */
 #include <stdlib.h>
 #include <string.h>
 
@@ -802,17 +803,17 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 static const struct { const char *w; unsigned char kind; } LEAF[] = {
                     // ── option 을 낸다 (실패할 수 있다는 사실을 타입이 든다)
                     { "alloc_bytes", 1 }, { "read_in", 1 }, { "env_get", 1 },
-                    { "file_open", 1 }, { "file_read", 1 }, { "file_write", 1 },
-                    { "file_seek", 1 }, { "file_type", 1 }, { "link_type", 1 },
-                    { "dir_open", 1 }, { "dir_read", 1 },
-                    { "net_pair", 1 }, { "net_send", 1 }, { "net_recv", 1 },
-                    { "net_listen", 1 }, { "net_port", 1 }, { "net_connect", 1 },
-                    { "net_accept", 1 },
-                    { "proc_spawn", 1 }, { "proc_read", 1 }, { "proc_poll", 1 }, { "proc_wait", 1 },   // ★ RFC-0136
+                    { "@file_open", 1 }, { "@file_read", 1 }, { "@file_write", 1 },
+                    { "@file_seek", 1 }, { "@file_type", 1 }, { "@link_type", 1 },
+                    { "@dir_open", 1 }, { "@dir_read", 1 },
+                    { "@net_pair", 1 }, { "@net_send", 1 }, { "@net_recv", 1 },
+                    { "@net_listen", 1 }, { "@net_port", 1 }, { "@net_connect", 1 },
+                    { "@net_accept", 1 },
+                    { "@proc_spawn", 1 }, { "@proc_read", 1 }, { "@proc_poll", 1 }, { "@proc_wait", 1 },   // ★ RFC-0136
                     // ── 참거짓을 낸다 (닫기·파일시스템 변경은 됐나 안 됐나뿐이다)
-                    { "file_close", 2 }, { "dir_close", 2 }, { "net_close", 2 }, { "same_slice", 2 },
-                    { "proc_kill", 2 },
-                    { "dir_make", 2 }, { "path_remove", 2 }, { "path_rename", 2 },
+                    { "@file_close", 2 }, { "@dir_close", 2 }, { "@net_close", 2 }, { "same_slice", 2 },
+                    { "@proc_kill", 2 },
+                    { "@dir_make", 2 }, { "@path_remove", 2 }, { "@path_rename", 2 },
                     // ── 정수를 낸다 (쓴 길이 · 해시 · 시계 · 난수 · 비트)
                     { "write_out", 3 }, { "crc32", 3 }, { "hash64", 3 },
                     { "sha256", 3 }, { "sha512", 3 }, { "blake3", 3 },
@@ -842,7 +843,9 @@ static ty_t tc_infer_run(tc_ctx_t *c, low_cst_t *const *k, proven_size_t start, 
                 if (veq(h2, "call_builtin") && n >= 2 && k[start + 1]->kind == LOW_CST_ATOM) {
                     hleaf = k[start + 1]->tok.lex; lskip = 2;
                 }
-                for (proven_size_t li = 0; li < sizeof LEAF / sizeof LEAF[0]; li++) {
+                // ★ 맨 머리가 빌트인 연산과 같은 철자이면 그것은 **저자의 op** 이다(이름공간이 따로다) — 이 표가 답하지 않는다.
+                bool own = lskip == 1 && low_ir_is_builtin_op(h2);
+                for (proven_size_t li = 0; li < sizeof LEAF / sizeof LEAF[0] && !own; li++) {
                     if (!veq(hleaf, LEAF[li].w)) continue;
                     for (proven_size_t q = lskip; q < n; q++) (void)tc_infer(c, k[start + q], env, nenv);
                     if (LEAF[li].kind == 1) { ty_t w = tk(TK_WRAPPED); w.wrap = 1; return w; }

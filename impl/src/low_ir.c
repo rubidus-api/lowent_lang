@@ -735,7 +735,12 @@ static const ir_builtin_t IR_BUILTINS[] = {
     LOW_BUILTINS(X)
 #undef X
 };
+static const ir_builtin_t *ir_call_builtin(proven_u8str_view_t name);
+// ★★★★★ **빌트인 연산의 이름은 `call_builtin` 뒤의 자리에만 산다** (2026-10-09 소유자 결정 — 이름공간을 가른다).
+//   맨 이름으로 찾는 이 조회는 **기본 연산(core op)** 만 답한다. `sha256` 이라는 맨 낱말은 저자의 이름이다.
+//   `call_builtin` 뒤의 이름은 `ir_call_builtin` 이 푼다.
 static const ir_builtin_t *ir_builtin(proven_u8str_view_t name) {
+    if (ir_call_builtin(name)) return NULL;
     for (proven_size_t i = 0; i < sizeof IR_BUILTINS / sizeof IR_BUILTINS[0]; i++)
         if (veq(name, IR_BUILTINS[i].name)) return &IR_BUILTINS[i];
     return NULL;
@@ -766,16 +771,16 @@ const char *low_ir_leaf_cap_kind(proven_u8str_view_t name) {
     static const struct { const char *w; const char *kind; } LEAF_CAP[] = {
         { "tty_raw", "tty" }, { "tty_read", "tty" }, { "tty_size", "tty" },
         { "time_now", "clock" }, { "time_sleep", "clock" }, { "time_local", "clock" },
-        { "file_open", "file_system" }, { "file_read", "file_system" },
-        { "file_write", "file_system" }, { "file_close", "file_system" },
-        { "file_seek", "file_system" }, { "file_type", "file_system" }, { "link_type", "file_system" },
-        { "dir_open", "file_system" }, { "dir_read", "file_system" }, { "dir_close", "file_system" },
-        { "dir_make", "file_system" }, { "path_remove", "file_system" }, { "path_rename", "file_system" },
-        { "net_pair", "net" }, { "net_send", "net" }, { "net_recv", "net" }, { "net_close", "net" },
-        { "net_listen", "net" }, { "net_port", "net" }, { "net_connect", "net" }, { "net_accept", "net" },
-        { "net_resolve", "net" },
-        { "proc_spawn", "process" }, { "proc_read", "process" }, { "proc_poll", "process" },
-        { "proc_wait", "process" }, { "proc_kill", "process" },
+        { "@file_open", "file_system" }, { "@file_read", "file_system" },
+        { "@file_write", "file_system" }, { "@file_close", "file_system" },
+        { "@file_seek", "file_system" }, { "@file_type", "file_system" }, { "@link_type", "file_system" },
+        { "@dir_open", "file_system" }, { "@dir_read", "file_system" }, { "@dir_close", "file_system" },
+        { "@dir_make", "file_system" }, { "@path_remove", "file_system" }, { "@path_rename", "file_system" },
+        { "@net_pair", "net" }, { "@net_send", "net" }, { "@net_recv", "net" }, { "@net_close", "net" },
+        { "@net_listen", "net" }, { "@net_port", "net" }, { "@net_connect", "net" }, { "@net_accept", "net" },
+        { "@net_resolve", "net" },
+        { "@proc_spawn", "process" }, { "@proc_read", "process" }, { "@proc_poll", "process" },
+        { "@proc_wait", "process" }, { "@proc_kill", "process" },
         { "random_bytes", "random" },
         { "env_get", "env" },
         { "alloc_bytes", "allocator" },
@@ -1116,7 +1121,18 @@ static bool ir_widen_units(ir_ctx_t *c, proven_u8str_view_t utf8, proven_i32 w,
 //   해석기가 언제나 빌트인을 고른다. `fn count …` 이 컴파일되고, `count a` 는
 //   **빌트인 count** 를 부른다. 사용자의 op 은 **존재하지만 존재하지 않는다.**
 //   이름공간이 평면이므로(E-NAME-DUP · E-NAME-SHADOW) 이것도 같은 죄다: **조용히 다른 것을 고른다.**
+bool low_ir_is_builtin_op(proven_u8str_view_t name) {      // `call_builtin` 뒤에 서는 이름인가 (저자가 적는 철자로)
+    if (ir_call_builtin(name)) return true;
+#define X(w) if (veq(name, #w)) return true;
+    LOW_CALL_HOST(X)
+#undef X
+    return false;
+}
 bool low_ir_is_builtin_name(proven_u8str_view_t name) {
+    // ★ 빌트인 연산은 제 이름공간을 갖는다 — 그 철자는 저자의 이름과 부딪치지 않는다(예약이 아니다).
+    //   `@` 로 시작하는 것은 `call_builtin` 을 벗긴 권한 빌트인의 **안쪽 철자**다(저자는 적을 수 없다).
+    if (name.size && name.ptr[0] == (proven_u8)'@') return true;
+    if (low_ir_is_builtin_op(name)) return false;
     if (ir_builtin(name)) return true;               // LOW_BUILTINS (add·gt·len·index …)
     // ★ 전엔 여기 **손으로 적은 목록(NB)** 이 있었고 **39 개 중 34 개가 arity 표와 중복**이었다.
     //   같은 어휘를 두 곳에 적으면 갈린다(교훈 7). 이제 표에서 읽는다 — arity 를 못 적는
@@ -1330,6 +1346,15 @@ static void ir_fail_undef(ir_ctx_t *c, const low_cst_t *nd) {
                  "lane ops carry a prefix, so these short words are free for your own ops)%s",
                  (int)lex.size, (const char *)lex.ptr, low_renamed_word(lex),
                  (veq(lex, "any") || veq(lex, "all")) ? ". Inside `pipe … do … end` the terminal stays `any`/`all`" : "");
+    else if (low_ir_is_builtin_op(lex)) {
+        // ★ 저자의 이름 가운데 이 철자가 없다 — 빌트인 연산을 맨 이름으로 부르려던 것이다.
+        snprintf(buf, sizeof buf, "no op, local or input named `%.*s` is in scope. A builtin op has this name, and a builtin op "
+                 "stands only after `call_builtin` — write `call_builtin %.*s ...`. Builtin ops live in their own "
+                 "namespace: they are for the system library, and a program normally calls the library wrapper",
+                 (int)lex.size, (const char *)lex.ptr, (int)lex.size, (const char *)lex.ptr);
+        ir_fail_buf(c, "E-BUILTIN-BARE", buf, nd->line);
+        return;
+    }
     else
         snprintf(buf, sizeof buf, "undefined name `%.*s` — not a local, an input, an op, a constant or an enum "
                  "variant in scope here", (int)lex.size, (const char *)lex.ptr);
@@ -4148,19 +4173,19 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                         return;
                     }
                     static const struct { const char *w; low_irw_t k; int n; } FOPS[] = {
-                        { "file_open",  IRW_FOPEN,  2 },   // (path, mode)
-                        { "file_read",  IRW_FREAD,  2 },   // (fd, dst)
-                        { "file_write", IRW_FWRITE, 2 },   // (fd, bytes)
-                        { "file_close", IRW_FCLOSE, 1 },   // (fd)
-                        { "file_seek",  IRW_FSEEK,  3 },   // (fd, off, whence)
-                        { "dir_open",   IRW_DOPEN,  1 },   // (path)
-                        { "dir_read",   IRW_DREAD,  2 },   // (dh, dst)
-                        { "dir_close",  IRW_DCLOSE, 1 },   // (dh)
-                        { "file_type",  IRW_FTYPE,  1 },   // (path)
-                        { "link_type",  IRW_LTYPE,  1 },   // (path) — 심링크를 따라가지 않는다(lstat)
-                        { "dir_make",   IRW_DMAKE,  1 },   // (path)
-                        { "path_remove",IRW_PREMOVE,1 },   // (path)
-                        { "path_rename",IRW_PRENAME,2 },   // (old, new)
+                        { "@file_open",  IRW_FOPEN,  2 },   // (path, mode)
+                        { "@file_read",  IRW_FREAD,  2 },   // (fd, dst)
+                        { "@file_write", IRW_FWRITE, 2 },   // (fd, bytes)
+                        { "@file_close", IRW_FCLOSE, 1 },   // (fd)
+                        { "@file_seek",  IRW_FSEEK,  3 },   // (fd, off, whence)
+                        { "@dir_open",   IRW_DOPEN,  1 },   // (path)
+                        { "@dir_read",   IRW_DREAD,  2 },   // (dh, dst)
+                        { "@dir_close",  IRW_DCLOSE, 1 },   // (dh)
+                        { "@file_type",  IRW_FTYPE,  1 },   // (path)
+                        { "@link_type",  IRW_LTYPE,  1 },   // (path) — 심링크를 따라가지 않는다(lstat)
+                        { "@dir_make",   IRW_DMAKE,  1 },   // (path)
+                        { "@path_remove",IRW_PREMOVE,1 },   // (path)
+                        { "@path_rename",IRW_PRENAME,2 },   // (old, new)
                     };
                     for (size_t fi = 0; fi < sizeof FOPS / sizeof FOPS[0]; fi++) {
                         if (!veq(nd->tok.lex, FOPS[fi].w)) continue;
@@ -4182,15 +4207,15 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 // ★★★ **소켓 리프** (2026-07-23) — 전부 `cap net` 을 **대야** 한다(스트림 리프와 같은 규율).
                 {
                     static const struct { const char *w; low_irw_t k; int n; } NOPS[] = {
-                        { "net_pair",  IRW_NPAIR,  0 },   // ()          → option u64 (두 핸들 팩)
-                        { "net_send",  IRW_NSEND,  2 },   // (fd, bytes) → option u64
-                        { "net_recv",  IRW_NRECV,  2 },   // (fd, dst)   → option u64
-                        { "net_close", IRW_NCLOSE, 1 },   // (fd)        → bool
-                        { "net_listen",  IRW_NLISTEN,  1 },   // (port)  → option u64 (0=임시)
-                        { "net_port",    IRW_NPORT,    1 },   // (fd)    → option u64 (묶인 포트)
-                        { "net_connect", IRW_NCONNECT, 2 },   // (addr u32, port) → option u64
-                        { "net_accept",  IRW_NACCEPT,  1 },   // (fd)    → option u64
-                        { "net_resolve", IRW_NRESOLVE, 1 },   // (이름)  → option u32 (IPv4)
+                        { "@net_pair",  IRW_NPAIR,  0 },   // ()          → option u64 (두 핸들 팩)
+                        { "@net_send",  IRW_NSEND,  2 },   // (fd, bytes) → option u64
+                        { "@net_recv",  IRW_NRECV,  2 },   // (fd, dst)   → option u64
+                        { "@net_close", IRW_NCLOSE, 1 },   // (fd)        → bool
+                        { "@net_listen",  IRW_NLISTEN,  1 },   // (port)  → option u64 (0=임시)
+                        { "@net_port",    IRW_NPORT,    1 },   // (fd)    → option u64 (묶인 포트)
+                        { "@net_connect", IRW_NCONNECT, 2 },   // (addr u32, port) → option u64
+                        { "@net_accept",  IRW_NACCEPT,  1 },   // (fd)    → option u64
+                        { "@net_resolve", IRW_NRESOLVE, 1 },   // (이름)  → option u32 (IPv4)
                     };
                     for (size_t ni = 0; ni < sizeof NOPS / sizeof NOPS[0]; ni++) {
                         if (!veq(nd->tok.lex, NOPS[ni].w)) continue;
@@ -4212,11 +4237,11 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
                 // ★★★ **프로세스 잎** (RFC-0136, 2026-10-03) — 소켓 잎과 같은 규율: 첫 피연산자는 `cap process` 다.
                 {
                     static const struct { const char *w; low_irw_t k; int n; } POPS[] = {
-                        { "proc_spawn", IRW_PSPAWN, 1 },   // (argv)   → option u64
-                        { "proc_read",  IRW_PREAD,  2 },   // (h, dst) → option u64
-                        { "proc_poll",  IRW_PPOLL,  1 },   // (h)      → option u64
-                        { "proc_wait",  IRW_PWAIT,  1 },   // (h)      → option u64
-                        { "proc_kill",  IRW_PKILL,  1 },   // (h)      → bool
+                        { "@proc_spawn", IRW_PSPAWN, 1 },   // (argv)   → option u64
+                        { "@proc_read",  IRW_PREAD,  2 },   // (h, dst) → option u64
+                        { "@proc_poll",  IRW_PPOLL,  1 },   // (h)      → option u64
+                        { "@proc_wait",  IRW_PWAIT,  1 },   // (h)      → option u64
+                        { "@proc_kill",  IRW_PKILL,  1 },   // (h)      → bool
                     };
                     for (size_t pi = 0; pi < sizeof POPS / sizeof POPS[0]; pi++) {
                         if (!veq(nd->tok.lex, POPS[pi].w)) continue;
@@ -4291,30 +4316,22 @@ static bool ir_take_order(ir_ctx_t *c, low_cst_t *const *k, proven_size_t *pos, 
             if (!b && veq(nd->tok.lex, "call_builtin")) {
                 if (*pos >= end || !is_atom(k[*pos]) || k[*pos]->tok.kind != LOW_TOK_IDENT) {
                     ir_fail(c, "E-BUILTIN-NAME",
-                            "`call_builtin` takes the NAME of a computation leaf as its first operand "
-                            "(`call_builtin sha256 msg out`). The name is scoped to this position on "
-                            "purpose: it is not a global word.", nd->line);
+                            "`call_builtin` takes the NAME of a builtin op as its first operand "
+                            "(`call_builtin sha256 msg out`). Builtin ops have a namespace of their own: "
+                            "the word after `call_builtin` is read there, never as a name of yours.", nd->line);
                     return;
                 }
                 b = ir_call_builtin(k[*pos]->tok.lex);
                 if (!b) {
                     ir_fail(c, "E-BUILTIN-NAME",
-                            "this is not a computation leaf. The names that stand after `call_builtin` "
+                            "this is not a builtin op. The names that stand after `call_builtin` "
                             "are a closed set (clmul_lo, clmul_hi, aes_round, aes_round_last, aes_ctr, "
                             "ghash, chacha20, poly1305, aes_gcm, sha256, sha384, sha512, crc32, "
-                            "hash_bytes, rng_next, chacha_poly — and the host leaves file_*, dir_*, path_remove, path_rename, link_type, net_*).", nd->line);
+                            "hash_bytes, rng_next, chacha_poly — and those that take a capability: file_*, dir_*, path_remove, path_rename, link_type, net_*, proc_*).", nd->line);
                     return;
                 }
                 (*pos)++;
                 nd = k[*pos - 1];   /* 진단의 자리를 이름 쪽으로 옮긴다 */
-            }
-            // ★ 가둔 이름을 **맨몸으로** 부르면 거절한다 — 그러지 않으면 가둔 것이 아니다.
-            else if (b && ir_call_builtin(nd->tok.lex)) {
-                ir_fail(c, "E-BUILTIN-BARE",
-                        "this computation leaf stands only after `call_builtin` — write "
-                        "`call_builtin <name> ...`. Its name is scoped to that position so that the "
-                        "global vocabulary does not grow with words a program needs once.", nd->line);
-                return;
             }
             if (b) {
                 // ★★★ **피연산자가 모자라면 거절한다.** 전엔 `end` 를 넘어가도 그냥 불렀고,

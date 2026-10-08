@@ -59,7 +59,7 @@ the front (proxy) and back (server) read the same bytes differently, a request o
 connection must be dropped). With one value the two mix, and where they mix is where attacks live.
 
 *This module caught a processor defect.* It was first written with `input b str .`. `--check` passed, but 16 of 21 ops fell onto the slow interpreted path (about 80×).
-`str` was not a builtin but a local alias in #modref("strings")[`strings`]; the checker let the name through, but the typed lowering did not know its meaning. The answers
+`str` was not a core op but a local alias in #modref("strings")[`strings`]; the checker let the name through, but the typed lowering did not know its meaning. The answers
 were right, so tests could never see it --- a silent 80×. Now using such a name in a signature gives a `W-NOT-YET` warning. Passing checks and being fast are different
 things, and without looking at `--why-slow` this file would have shipped as it was.
 

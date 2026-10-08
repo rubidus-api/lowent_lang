@@ -167,7 +167,7 @@ Writing the parentheses anyway spares the reader from recalling the table. Below
 
   Even without parentheses, the compiler groups a sentence by *the number of arguments each op takes*. `mul` takes two, so
   `add 1 mul a b` is the same as `add 1 (mul a b)`. This book still writes the parentheses. They show the grouping to readers who have not
-  memorised argument counts, and they prevent the accident where a local name spelt like a builtin op changes the grouping (`count` in
+  memorised argument counts, and they prevent the accident where a local name spelt like a core op changes the grouping (`count` in
   #chref("locals")).
 ]
 

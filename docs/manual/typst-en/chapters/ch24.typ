@@ -169,7 +169,7 @@ A terminal ends the flow. A stage after the terminal is rejected.
 
 == The built-in `map` · `filter` with the same names
 
-`map` and `filter` also exist outside `pipe`. These are not stages but *built-in operations that copy one slice into another in a
+`map` and `filter` also exist outside `pipe`. These are not stages but *core ops that copy one slice into another in a
 single statement*, and they take three arguments --- `map <sink> <op> <source> .` · `filter <sink> <op> <source> .`.
 
 ```lowent

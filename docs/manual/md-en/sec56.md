@@ -46,7 +46,7 @@ These are the places people often trip when writing Lowent with habits from othe
 | Writing `effects none` on a `fn` | `E-EFFECT-REDUNDANT` | Delete the clause |
 | A `fn` writing to the caller through a `mut` parameter | `E-EFFECT-PURITY` | Make it a `proc` |
 | `effects io` without receiving a capability | `E-EFFECT-NO-CAP` | `input out cap io .` |
-| Receiving a capability but not passing it to the builtin | `E-CAP-MISSING` | As the first operand, as in `write_out out 1 …` |
+| Receiving a capability but not passing it to the core op | `E-CAP-MISSING` | As the first operand, as in `write_out out 1 …` |
 | The entry point receiving data | `E-ENTRY-PARAMS` | The entry point receives only capabilities. Arguments via `cap args` |
 | Writing to a slice without `mut` | `E-TYPE-MUT` | `mut slice` |
 | Writing through `ref` | `E-TYPE-REF` | `mut_ref` |

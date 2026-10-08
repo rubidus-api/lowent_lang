@@ -20,7 +20,7 @@ guard is_some n . else return 1 .
 the result is `dst[0..n)`.
 
 A wrapping keeps no secrets --- anyone can undo it. If secrecy is needed, use #modref("aead")[`aead`], which seals (#chref("lib-text")). This module is pure computation
-from bytes to bytes, using only `idx`, `set`, `shl`, `shr`, `bit_and`, `bit_or`, `guard` and `while`, and no builtin was added.
+from bytes to bytes, using only `idx`, `set`, `shl`, `shr`, `bit_and`, `bit_or`, `guard` and `while`, and no core op was added.
 
 == Design and boundaries
 

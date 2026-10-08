@@ -17,7 +17,7 @@ let b be option mut slice u8 send bump reserve 64 .
 are two roots --- a *fixed window* (`cap allocator`, effect `alloc`; on bare metal the linker sets the window's bounds) and a *heap* (`cap heap`, effect `heap`; only on hosted
 systems with an operating system) (#chref("fixed-memory")). `allocs` handles what sits *on* the root. It does not ask whether the bytes came from a root or were lent by a
 caller. So code without `cap allocator` still allocates fully on bytes someone else gave --- capabilities divide abilities. It is written with actors, traits, options and
-subslices only, so it is a library, not a builtin.
+subslices only, so it is a library, not a core op.
 
 ```lowent
 export trait byte_allocator do

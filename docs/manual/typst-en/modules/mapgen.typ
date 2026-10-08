@@ -17,7 +17,7 @@ let x be option u64 mapgen.lookup u32 u64 m 7 .
 guard mapgen.erase u32 u64 m 7 . else return 3 .
 ```
 
-*Design.* ⓪ Why `table`, not `map` --- `map` is a builtin op. When one word means two things, how sentences group becomes unstable. Generics had been slipping past that check;
+*Design.* ⓪ Why `table`, not `map` --- `map` is a core op. When one word means two things, how sentences group becomes unstable. Generics had been slipping past that check;
 closing the hole caught this module first. ① *No key value is reserved for empty* --- a separate status array (`flags`: 0 empty · 1 occupied · 2 tombstone). The common
 shortcut "key 0 = empty" pretends key 0 is stored and silently gives wrong answers. ② *Tombstones remain* --- turning a deleted slot back to empty makes keys placed beyond it
 unfindable forever. ③ *Load factor ≤ 0.5* --- before passing half, slots double and everything is rehashed. ④ The hash is for distribution, not cryptography (one round of

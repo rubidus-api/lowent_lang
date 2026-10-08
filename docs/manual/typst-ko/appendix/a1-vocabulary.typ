@@ -1,6 +1,6 @@
 #import "../lib.typ": *
 
-= 부록 A --- 낱말과 내장 연산
+= 부록 A --- 낱말과 기본 연산
 
 낱말을 *설명*하는 곳은 본문이다. 이 부록은 코드를 읽다 막혔을 때 훑어볼 표만 모은다. 낱말 목록은 명세의 부록 A 와 같고, 그 목록에
 없는 것은 낱말이 아니다.
@@ -23,7 +23,7 @@
   [블록], [`do` `end`], [#chref("surface")],
 )
 
-`rem` 과 `note` 는 주석을 여는 표시이고, `input`·`output`·`effects`·`requires` 같은 절 머리와 `add`·`len` 같은 내장 연산은 낱말이
+`rem` 과 `note` 는 주석을 여는 표시이고, `input`·`output`·`effects`·`requires` 같은 절 머리와 `add`·`len` 같은 기본 연산은 낱말이
 아니지만 이름으로 쓸 수 없다.
 
 == 없앤 낱말
@@ -49,12 +49,12 @@
 
 `as` 와 `to` 는 `use … as <별칭>` 과 `case <아래> to <위>` 의 자리 표식으로만 남아 있다.
 
-== 자주 쓰는 내장 연산
+== 자주 쓰는 기본 연산
 
 #dtable(
   columns: 2,
   id: "a1-builtins",
-  caption: [내장 연산의 갈래],
+  caption: [기본 연산의 갈래],
   [*갈래*], [*연산*],
   [산술(멈춤)], [`add` `sub` `mul` `div` `mod` `neg` `abs` `min` `max`],
   [산술(처분을 고름)], [`wrap_*` `sat_*` `chk_*` `div_nz` `nonzero_of`],
@@ -78,15 +78,15 @@
   [배치와 뷰 --- #chref("named-types")], [`encode` `try_view` `view_segments` `seg` `segs` `capacity`],
   [빌림과 영역 --- #chref("references") · #chref("regions")], [`ref` `mut_ref` `deref` `borrow` `region` `stack_new` `push` `pop` `swap`],
   [계약과 오류 --- #chref("contracts")], [`range` `ret` `expect` `panic`],
-  [계산 잎 --- `call_builtin` 뒤에서만 선다], [`clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next`],
+  [빌트인 연산(계산) --- `call_builtin` 뒤에서만 선다], [`clmul_lo` `clmul_hi` `aes_round` `aes_round_last` `aes_ctr` `ghash` `chacha20` `poly1305` `aes_gcm` `chacha_poly` `sha256` `sha384` `sha512` `crc32` `hash_bytes` `rng_next`],
   [C 문자열 --- #chref("ffi")], [`cstr_of` `str_from_cstr`],
-  [파일·그물 잎 --- `call_builtin` 뒤에서만 선다], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port`],
+  [빌트인 연산(파일 · 그물 · 프로세스) --- `call_builtin` 뒤에서만 선다], [`file_open` `file_read` `file_write` `file_seek` `file_close` `file_type` `link_type` `dir_open` `dir_read` `dir_close` `dir_make` `path_remove` `path_rename` `net_listen` `net_accept` `net_connect` `net_resolve` `net_send` `net_recv` `net_close` `net_pair` `net_port`],
   [호스트 잎 --- #chref("lib-map")], [`env_get` `reactor_new` `r_read` `r_write`],
 )
 
-★ *계산 잎과 파일·그물 잎은 전역 어휘가 아니다.* `call_builtin sha256 msg out` 처럼 그 자리에서만 선다 --- 맨몸으로 부르면 `E-BUILTIN-BARE`, 모르는 이름을 대면 `E-BUILTIN-NAME` 이다. 까닭은 하나다: 프로그램이 한 번 쓰는 낱말로 전역 어휘가 늘면 읽는 사람이 외울 것이 는다. 같은 규율이 `pipe` 안의 단계 이름과 `cast u8 x` 의 타입 자리에도 이미 있다.
+★ *빌트인 연산은 제 이름공간을 갖는다.* `call_builtin sha256 msg out` 처럼 그 자리에서만 서고, 저자는 같은 철자를 제 이름으로 지을 수 있다. 저자의 이름 가운데 없는 것을 맨 이름으로 부르면 `E-BUILTIN-BARE`, `call_builtin` 뒤에 모르는 이름을 대면 `E-BUILTIN-NAME` 이다. 빌트인 연산은 시스템 라이브러리를 짓는 재료이고, 프로그램은 그것을 감싼 모듈을 부른다(#chref("lib-map")).
 
-이 표는 정본의 내장 연산을 빠짐없이 무리로 나눈 것이다. 무리 이름 옆의 장이 그 무리를 예제와 함께 설명한다. 한 줄씩의 뜻은 저장소의
+이 표는 정본의 기본 연산을 빠짐없이 무리로 나눈 것이다. 무리 이름 옆의 장이 그 무리를 예제와 함께 설명한다. 한 줄씩의 뜻은 저장소의
 `docs/spec/BUILTIN-MEANINGS.tsv` 가 정본이다.
 
 == 효과와 권한

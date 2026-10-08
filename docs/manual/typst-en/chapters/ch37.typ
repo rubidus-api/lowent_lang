@@ -19,14 +19,14 @@
 #why[
   Terminal programs do two things. They build control bytes to send to the screen, and they read the user's keys. For both, the part touching the operating system is very
   thin, and the rest is computation. How much of the screen to redraw, how many cells one Korean character takes, which key `ESC [ A` is --- these are computation. The
-  standard library split this computation into pure `term` and `tty` parsing, and the part touching the operating system into three builtin ops needing `cap tty`. As the
+  standard library split this computation into pure `term` and `tty` parsing, and the part touching the operating system into three core ops needing `cap tty`. As the
   last chapter of the library tour, it shows what this split actually buys.
 ]
 
 #organizer[
   You will learn that `term` writes nothing to the screen but assembles ANSI control bytes into the caller's buffer, and how screen diffs redraw only changed cells. You will
   confirm that display width and grapheme clusters differ from byte counts. You will also interpret keys purely with `tty.parse_key`, and see why raw mode must always be
-  restored when using the `cap tty` builtins that switch it on and off.
+  restored when using the `cap tty` core ops that switch it on and off.
 ]
 
 #chapter-questions()
@@ -91,7 +91,7 @@ too few bytes are `none`.
 
 == Raw mode is a capability
 
-The part touching the operating system is only three builtin ops: `tty_raw t on` (enter and leave raw mode), `tty_read t buf` (read key bytes) and `tty_size t` (screen size).
+The part touching the operating system is only three core ops: `tty_raw t on` (enter and leave raw mode), `tty_read t buf` (read key bytes) and `tty_size t` (screen size).
 All take `cap tty` as their first argument.
 
 #demo("examples/ch37/rawmode.low")
@@ -105,7 +105,7 @@ If such a capability floated around ambiently, any library could wreck someone's
 script only checks it.
 
 #misconception[Restoring raw mode could just be enforced with ownership too][
-  A good idea, but this edition does not do so. `tty_raw` is a builtin op returning a boolean, and there is no owned value representing "in raw mode". So forgetting to restore
+  A good idea, but this edition does not do so. `tty_raw` is a core op returning a boolean, and there is no owned value representing "in raw mode". So forgetting to restore
   is not stopped at translation. It contrasts with `outbuf` and `files` enforcing completion through ownership, and for now it is a discipline a person must remember. The
   module document warns about this in bold too.
 ]

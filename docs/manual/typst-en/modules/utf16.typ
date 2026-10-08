@@ -21,7 +21,7 @@ range U+D800 … U+DFFF was left unused as characters, and two units from that r
 1,048,576, covering exactly U+10000 … U+10FFFF. So in UTF-16 *reading one unit and reading one character differ*.
 
 *Why it is a library.* `slice u16` and `slice u32` already do reading, writing and indexing. No capability and no expression missing from the language is needed. So it
-became a library with no new type, word or builtin. The only real work left is *surrogate arithmetic* and how it fails. There is no UTF-32 library --- one unit of
+became a library with no new type, word or core op. The only real work left is *surrogate arithmetic* and how it fails. There is no UTF-32 library --- one unit of
 `slice u32` is a code point, so all that is needed is one line of validation (`cp_valid`).
 
 == Design and boundaries

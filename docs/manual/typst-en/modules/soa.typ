@@ -9,7 +9,7 @@ by side. For a computation scanning only x, SoA reads just the needed values con
 
 #aside[A measurement, not an answer][
   A study proposing SoA as a language feature (a type constructor like `store[T, soa]` with dozens of keywords and ops) was *deferred*, with the reconsideration condition
-  "first write it in `lib/` with zero new builtins; where it gets stuck becomes the list of language work". This module is that. Finding --- *the SoA layout itself is fully
+  "first write it in `lib/` with zero new core ops; where it gets stuck becomes the list of language work". This module is that. Finding --- *the SoA layout itself is fully
   expressible as a library*. Per-field arrays, stride-free sequential access and single-field kernels are all written without new language machinery. No speed claims without
   measurement --- this module guarantees only correctness, that both layouts give the same answer, and code touching whole elements is better off with AoS.
 ]

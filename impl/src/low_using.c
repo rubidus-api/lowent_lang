@@ -1751,20 +1751,21 @@ static void ch_walk(us_ctx_t *c, low_cst_t *nd) {
         const low_cst_t *k = nd->kids[i];
         if (!ch_host(k)) continue;
         const low_cst_t *pv = i ? nd->kids[i - 1] : NULL;
-        if (pv && us_atom(pv) && us_eq(pv->tok.lex, "call_builtin")) { drop++; continue; }
-        if (pv && us_atom(pv) && (pv->tok.kw == LOW_KW_FN || pv->tok.kw == LOW_KW_PROC)) continue;   // 선언 이름은 E-NAME-BUILTIN 몫
-        low_pdiag(&c->p, "E-BUILTIN-BARE",
-                  "this host leaf stands only after `call_builtin` — write `call_builtin <name> <cap> …` "
-                  "(RFC-0127). The file and network leaves are called from a few wrappers (`lib/file.low`, "
-                  "`lib/net.low`), so their names are scoped to that position instead of the global vocabulary",
-                  k->tok.line, k->tok.col);
+        if (pv && us_atom(pv) && us_eq(pv->tok.lex, "call_builtin")) {
+            // ★ 이름공간을 가른다(2026-10-09): 벗기면서 **안쪽 철자**(`@net_send`)로 바꾼다. 저자는 `@` 를 적을 수 없으므로
+            //   뒤의 단계가 머리 이름으로 알아보는 것은 `call_builtin` 을 거쳐 온 것뿐이다. 맨 `net_send` 는 저자의 이름이다.
+#define X(w) if (us_eq(k->tok.lex, #w)) nd->kids[i]->tok.lex = (proven_u8str_view_t){ .ptr = (const proven_byte_t *)"@" #w, .size = sizeof("@" #w) - 1 };
+            LOW_CALL_HOST(X)
+#undef X
+            drop++;
+        }
     }
     if (drop) {
         low_cst_t **nk = (low_cst_t **)c->p.work.alloc_fn(c->p.work.ctx, sizeof(low_cst_t *) * nd->nkids, alignof(low_cst_t *)).value.ptr;
         if (nk) {
             proven_size_t m = 0;
             for (proven_size_t i = 0; i < nd->nkids; i++) {
-                if (i + 1 < nd->nkids && ch_host(nd->kids[i + 1]) && us_atom(nd->kids[i]) && us_eq(nd->kids[i]->tok.lex, "call_builtin"))
+                if (i + 1 < nd->nkids && us_atom(nd->kids[i + 1]) && nd->kids[i + 1]->tok.lex.size && nd->kids[i + 1]->tok.lex.ptr[0] == (proven_u8)'@' && us_atom(nd->kids[i]) && us_eq(nd->kids[i]->tok.lex, "call_builtin"))
                     continue;
                 nk[m++] = nd->kids[i];
             }
@@ -2244,7 +2245,7 @@ static void ll_lift_op(us_ctx_t *c, low_cst_t *opf, proven_u8str_view_t owner, c
             low_pdiag(&c->p, "E-NAME-SHADOW", "a local op's name may not hide its owner, the owner's parameters or locals, or a "
                       "name the module already has (RFC-0121 §6.5 — the first edition refuses every shadowing)", ln, col);
         else if (low_ir_is_builtin_name(nm))
-            low_pdiag(&c->p, "E-NAME-BUILTIN", "a local op may not take the name of a builtin op — every use of that word in the "
+            low_pdiag(&c->p, "E-NAME-BUILTIN", "a local op may not take the name of a core op — every use of that word in the "
                       "owner would change meaning", ln, col);
         ll_add(&locs, nm);
         // 캡처: 로컬의 머리 절과 몸에서 바깥 이름을 보는가(자기 매개변수·지역은 제외)

@@ -197,7 +197,7 @@
 #dtable(
   columns: 3,
   id: "par-lane-ops",
-  caption: [레인과 배열을 다루는 내장 op],
+  caption: [레인과 배열을 다루는 기본 연산],
   [*op*], [*무엇을 하나*], [*적어 둘 것*],
   [`load` · `store` · `load_masked` · `store_masked`], [메모리와 레인 사이를 읽고 쓴다], [가림막 판은 켜진 레인만],
   [`splat` · `lane_select`], [한 값을 모든 레인에 · 가림막으로 레인마다 고르기], [`splat` 은 타입 문맥이 필요하다(아래)],

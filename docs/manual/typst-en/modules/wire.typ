@@ -44,7 +44,7 @@ let w2 be u64 wire.merge (m_month) w 9 .
   [`to_set now want` · `to_clear now want`], [Set mask · clear mask],
 )
 
-Byte order is the builtin `byte_swap`. The axes for going onto a wire (polarity, bit order, byte order, permutation) are independent of each other.
+Byte order is the core op `byte_swap`. The axes for going onto a wire (polarity, bit order, byte order, permutation) are independent of each other.
 
 *Why set/clear pairs, not "a value".* Writing a whole value to a port means read → modify → write. If an interrupt turns on another bit in between, my write erases it. So
 hardware provides set-mask and clear-mask registers (STM32's `BSRR`) --- nothing is read, so nothing is lost. This is correctness, not convenience (#chref("hardware")).

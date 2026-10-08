@@ -11,7 +11,7 @@ rem   pad16 이 있으므로 **모든 블록이 꽉 찬 16 바이트**다. 그�
 rem   `addhi = 1` 이다 — 짧은 마지막 블록이 없다. 이것을 여기 적어 두는 이유는,
 rem   패딩의 목적이 바로 *"경우를 하나로 줄이는 것"* 이기 때문이다.
 rem
-rem ☞ 안 지은 것: **상수시간 태그 비교**는 `hash.sha2_256_ok` 와 같은 자리에서 해야 한다.
+rem ☞ 안 지은 것: **상수시간 태그 비교**는 `hash.sha256_ok` 와 같은 자리에서 해야 한다.
 rem   `unseal` 은 XOR 누적으로 비교한다(조기 반환 없음). 그러나 경계 검사와 트랩이 있는
 rem   언어에서 타이밍을 *약속*할 수는 없다 — 약속하지 못하는 것을 약속하지 않는다.
 
@@ -36,7 +36,7 @@ rem ★★★ **`pad` 를 잘라서 넘긴다** (2026-09-21). `poly.block` 은 �
 rem   더 길면 **0 을 내고 아무것도 누적하지 않는다**. 위쪽 guard 는 `ge (len pad) 16` 이라
 rem   17 바이트짜리를 받아들였고, 그러면 꼬리 블록이 **말없이 사라져** 태그가 틀렸다 —
 rem   자리가 남아서 생긴 오답이라 «모자란다» 로도 안 보인다. 이 저장소가 두 번 밟은 모양이다
-rem   (`hash.sha2_256_ok` 의 정확 길이 규칙과 같은 자리). 잘라 넘기면 경우가 하나로 준다.
+rem   (`hash.sha256_ok` 의 정확 길이 규칙과 같은 자리). 잘라 넘기면 경우가 하나로 준다.
 proc feed input pst mut slice u64 . input data slice u8 . input pad mut slice u8 . output u64 . effects none . do
   rem ★★★★ **낱말 하나가 되풀이를 판다** (RFC-0122, 2026-09-24). 여기서 하던 일 — 열여섯씩
   rem   먹이고 꼬리를 0 으로 채워 한 번 더 먹이는 것 — 을 `poly1305` 가 **그대로** 한다.
@@ -121,7 +121,7 @@ end
 rem ★★ 개봉: 태그를 먼저 확인하고, 맞을 때만 평문을 낸다.
 rem   ☞ 비교는 XOR 누적이다 — 조기 반환이 없다는 뜻이고, 그것이 여기서 할 수 있는 최선이다.
 rem   ☞ `tag` 는 **정확히 16** 이어야 한다. 전엔 `ge 16` 이어서 17 바이트 태그의 앞 16 만 보고
-rem     나머지를 말없이 지나쳤다 — `hash.sha2_256_ok`(정확 길이)와 갈라져 있던 자리다
+rem     나머지를 말없이 지나쳤다 — `hash.sha256_ok`(정확 길이)와 갈라져 있던 자리다
 rem     (2026-09-04 검토 RU). `gcm.decrypt` 도 같은 규칙으로 맞췼다.
 export proc unseal input key slice u8 . input nonce slice u8 . input aad slice u8 . input ct slice u8 . input tag slice u8 . input msg mut slice u8 . input otk mut slice u8 . input pst mut slice u64 . input st mut slice u64 . input work mut slice u64 . input ks mut slice u8 . input pad mut slice u8 . input want mut slice u8 . output result u64 aead_error . effects none .
 errors short_workspace . do

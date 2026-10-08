@@ -12,7 +12,7 @@ rem
 rem ★ 두 해시의 쓸모가 다르다 — 골라 쓰라고 이름에 적어 둔다:
 rem     hash_bytes : 해시맵 자리. 빠르고 잘 흩어진다. **암호용이 아니다.**
 rem     crc32      : 저장·전송의 **우연한 손상** 검출. **위조를 막지 못한다**(선형이다).
-rem   둘 다 비밀이나 서명에 쓰면 안 된다. 그 자리는 **아래 `sha2_256`(SHA-256) · `sha2_384` · `sha2_512`** 다.
+rem   둘 다 비밀이나 서명에 쓰면 안 된다. 그 자리는 **아래 `sha256`(SHA-256) · `sha384` · `sha512`** 다.
 rem   ★ MD5 와 SHA-1 은 여기 없다 — 보안에는 쓸 수 없는 해시여서 `lib/hash_legacy.low` 에 따로 둔다(체크섬 · 옛 파일 읽기).
 rem   ★ 이 줄은 2026-08-16 까지 *"SHA-256 은 아직 없다"* 라고 적혀 있었다 — RFC-0090 N3c 로
 rem     들어온 뒤에도 그대로였고, 매뉴얼을 쓰다 발견했다. **머리가 몸보다 낡으면 읽는 사람은
@@ -73,15 +73,15 @@ rem ── 암호 해시 (SHA-256) ───────────────
 rem ★★★ **32 바이트 다이제스트를 호출자 버퍼에 쓴다** — 라이브러리가 몰래 할당하지 않는다
 rem   (RFC-0043 D1). 버퍼가 32 보다 짧으면 **0 을 답하고 아무것도 안 쓴다**: 조용히 덜 쓰는
 rem   것이 이 축에서 가장 위험한 실패다(짧은 다이제스트는 맞아 보인다).
-rem ★ 이름은 `sha2_384` · `sha2_512` 와 같은 줄에 선다(2026-10-09 소유자 결정 — 옛 이름 `digest` · `digest_ok` 는 없앴다).
-export fn sha2_256 input data slice u8 . input out mut slice u8 . output u64 . do
+rem ★ 옛 이름 `digest` · `digest_ok` 는 없앴다(2026-10-09 소유자 결정). 지금 이름은 `sha256` · `sha256_ok` 다.
+export fn sha256 input data slice u8 . input out mut slice u8 . output u64 . do
   return call_builtin sha256 data out .
 end
 
 rem ★★ **왕복이 아니라 대조가 오라클이다** — 받은 다이제스트와 다시 센 것이 같은가.
 rem   여기서 **이른 반환을 하지 않는다**(첫 다른 바이트에서 멈추지 않는다): 타이밍이 새면
 rem   비교 자체가 정보를 준다. 32 바이트를 늘 끝까지 본다.
-export fn sha2_256_ok input data slice u8 . input out mut slice u8 . input want slice u8 . output bool . do
+export fn sha256_ok input data slice u8 . input out mut slice u8 . input want slice u8 . output bool . do
   guard eq (len want) 32 . else return false .
   let n be u64 call_builtin sha256 data out .
   guard eq n 32 . else return false .
@@ -96,19 +96,19 @@ end
 
 rem ── 암호 해시 (SHA-384 · SHA-512) ───────────────────────────────────
 
-rem ★ 이름에 **족보**를 적는다 — `sha2_384` · `sha2_512`. «384 비트 다이제스트» 는 SHA-2 에도 SHA-3 에도 있으므로
-rem   `digest384` 같은 이름은 어느 알고리즘인지 말하지 않는다(2026-10-09 소유자 지적). 맨 이름 `sha384` 도 이제 지을 수는 있다
-rem   (빌트인 연산은 제 이름공간을 갖는다 — 같은 날의 결정). 그래도 `sha2_` 를 남긴다: SHA-3 과 갈리는 것은 족보다.
+rem ★ 이름은 **널리 쓰이는 그대로** — `sha256` · `sha384` · `sha512`(2026-10-09 소유자: «더 널리 쓰이므로»). 빌트인 연산과 철자가 같지만
+rem   부딪치지 않는다: `call_builtin` 뒤의 낱말은 빌트인 연산의 이름공간에 있고, 여기 지은 것은 이 모듈의 이름이다(RFC-0140).
+rem   거쳐 온 이름: `digest384` → `sha2_384` → `sha384`. 앞의 둘은 그 철자를 처리기가 쥐고 있어서 돌아간 길이었다.
 rem ★ SHA-2 의 큰 두 판. 잎(`sha384` · `sha512`)은 전부터 있었고 서명(ed25519)과 TLS 가 쓰고 있었다 —
-rem   라이브러리의 문으로 내놓지 않았을 뿐이다(2026-10-09). 규율은 `sha2_256` 와 같다: 호출자 버퍼에 쓰고,
+rem   라이브러리의 문으로 내놓지 않았을 뿐이다(2026-10-09). 규율은 `sha256` 와 같다: 호출자 버퍼에 쓰고,
 rem   버퍼가 모자라면 **0 을 답하고 아무것도 안 쓴다**.
 rem   ★ 48 바이트 다이제스트. 낸 값은 48.
-export fn sha2_384 input data slice u8 . input out mut slice u8 . output u64 . do
+export fn sha384 input data slice u8 . input out mut slice u8 . output u64 . do
   return call_builtin sha384 data out .
 end
 
 rem   ★ 64 바이트 다이제스트. 낸 값은 64.
-export fn sha2_512 input data slice u8 . input out mut slice u8 . output u64 . do
+export fn sha512 input data slice u8 . input out mut slice u8 . output u64 . do
   return call_builtin sha512 data out .
 end
 

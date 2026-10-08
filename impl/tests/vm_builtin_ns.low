@@ -26,6 +26,6 @@ end
 rem 지역과 파라미터도 같은 철자를 쓴다.
 fn locals input crc32 u64 . output u64 . do
   let file_type be u64 crc32 .
-  let sha512 be u64 3 .
-  return add file_type (net_send sha512 crc32) .
+  let ghash be u64 3 .
+  return add file_type (net_send ghash crc32) .
 end

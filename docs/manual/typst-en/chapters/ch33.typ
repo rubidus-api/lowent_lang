@@ -92,7 +92,7 @@ The `hash` module gives different hashes to different questions.
   [*Question*], [*op*], [*Hash used*],
   [Which slot of a hash map does it go in], [`of` · `bucket_of` · `bucket_mask`], [FNV-1a --- fast and even],
   [Was it damaged in storage or transit], [`crc` · `crc_ok`], [CRC-32 --- catches accidental bit errors],
-  [Did someone change it on purpose], [`sha2_256` · `sha2_256_ok`], [SHA-256 --- collisions are hard to find],
+  [Did someone change it on purpose], [`sha256` · `sha256_ok`], [SHA-256 --- collisions are hard to find],
 )
 
 `slot` puts the key "hello" into slot 11 of 16. `bucket_of` picks the slot with the remainder `mod`, so the result is always smaller than the slot count
@@ -148,7 +148,7 @@ features that require backtracking, such as backreferences, are absent. What it 
   [`fmt.put_str buf pos s` · `fmt.put_u64 buf pos n`], [assemble into the caller's buffer --- next position as `option`], [all or nothing],
   [`utf8.count_chars s` · `utf8.decode s at`], [character count · code point at that position], [invalid input gives `none`, not a replacement character],
   [`codec.hex_enc src dst` · `b64_enc`], [transcribe and return the count], [the result is `subslice dst 0 n` --- not encryption],
-  [`hash.bucket_of key n` · `hash.crc data` · `hash.sha2_256`], [choosing a slot · detecting damage · detecting tampering], [a different hash per question],
+  [`hash.bucket_of key n` · `hash.crc data` · `hash.sha256`], [choosing a slot · detecting damage · detecting tampering], [a different hash per question],
   [`regex`], [compile once, match many inputs], [no backtracking --- time proportional to input length],
 )
 

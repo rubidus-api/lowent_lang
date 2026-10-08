@@ -275,7 +275,7 @@ end
 rem ★★ 복호 — **받은 암호문**에 태그를 매겨 먼저 대조하고, 맞을 때만 평문을 낸다.
 rem   태그가 틀리면 `msg` 에는 **한 바이트도 쓰지 않는다**.
 rem   ☞ `tag` 는 **정확히 16** 이어야 한다 — 짧으면 비교가 경계를 넘고(트랩), 길면 앞 16 만
-rem     보고 나머지를 말없이 지나친다. 둘 다 *"조용히 다르게"* 다. `hash.sha2_256_ok` 와 같은
+rem     보고 나머지를 말없이 지나친다. 둘 다 *"조용히 다르게"* 다. `hash.sha256_ok` 와 같은
 rem     정확 길이 규칙이다(2026-09-04 검토 RU: 복사본들이 갈라져 있었다).
 rem   ☞ 비교는 XOR 누적이다 — 조기 반환이 없다.
 export proc decrypt input key slice u8 . input nonce slice u8 . input aad slice u8 . input ct slice u8 .

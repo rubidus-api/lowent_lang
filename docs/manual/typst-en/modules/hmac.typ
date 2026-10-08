@@ -12,7 +12,7 @@ of one secret (`extract` + `expand1`) (RFC 5869).
   comparison returning at the first differing byte lets the tag be learned one byte at a time. `expand1` produces *only one block (at most 32 bytes)*.
 ]
 
-*Why a hash will not do.* `sha2_256` (SHA-256) of #modref("hash")[`hash`] answers only "is the content unchanged". Anyone can recompute it, so it cannot answer who sent it. A key
+*Why a hash will not do.* `sha256` (SHA-256) of #modref("hash")[`hash`] answers only "is the content unchanged". Anyone can recompute it, so it cannot answer who sent it. A key
 must be involved to open that question. The caller holds the backing (`scratch`). The size requirement is enforced by *guards*, not documentation, so if short it answers 0
 and writes nothing.
 
